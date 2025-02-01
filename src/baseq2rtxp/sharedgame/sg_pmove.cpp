@@ -1379,7 +1379,7 @@ static void PM_CheckSpecialMovement() {
 	float time = 0.1f;
 	bool has_time = true;
 
-	for ( size_t i = 0; i < min( 50, (int32_t)( 10 * ( 800.f / ps->pmove.gravity ) ) ); i++ ) {
+	for ( size_t i = 0; i < std::min( 50, (int32_t)( 10 * ( 800.f / ps->pmove.gravity ) ) ); i++ ) {
 		waterjump_vel.z -= ps->pmove.gravity * time;
 
 		if ( waterjump_vel.z < 0 ) {

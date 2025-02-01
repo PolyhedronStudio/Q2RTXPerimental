@@ -1083,7 +1083,7 @@ static menuSound_t MenuList_Click(menuList_t *l)
     }
 
     // click on item
-    j = min(l->numItems, l->prestep + l->maxItems);
+    j = std::min(l->numItems, l->prestep + l->maxItems);
     for (i = l->prestep; i < j; i++) {
         if (UI_CursorInRect(&rect)) {
             if (l->curvalue == i && uis.realtime -
@@ -1434,7 +1434,7 @@ static void MenuList_Draw(menuList_t *l)
     }
 
     yy = y;
-    k = min(l->numItems, l->prestep + l->maxItems);
+    k = std::min(l->numItems, l->prestep + l->maxItems);
     for (i = l->prestep; i < k; i++) {
         // draw selection
         if (!(l->generic.flags & QMF_DISABLED) && i == l->curvalue) {
@@ -2058,10 +2058,10 @@ void Menu_Size(menuFrameWork_t *menu)
 		menu->footer_rc.y = y;
 
 		if (menu->plaque)
-			menu->footer_rc.y = max(menu->footer_rc.y, menu->plaque_rc.y + menu->plaque_rc.height);
+			menu->footer_rc.y = std::max(menu->footer_rc.y, menu->plaque_rc.y + menu->plaque_rc.height);
 
 		if (menu->logo)
-			menu->footer_rc.y = max(menu->footer_rc.y, menu->logo_rc.y + menu->logo_rc.height);
+			menu->footer_rc.y = std::max(menu->footer_rc.y, menu->logo_rc.y + menu->logo_rc.height);
 
 		menu->footer_rc.y += menu->footer_rc.height;
 	}

@@ -173,7 +173,7 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
         // create a temp object to fire at a later time
         edict_t *delayEntity = SVG_AllocateEdict();
         delayEntity->classname = "DelayedUseTargets";
-        delayEntity->nextthink = level.time + sg_time_t::from_sec( ent->delay );
+        delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
         delayEntity->think = Think_UseTargetsDelay;
         if ( !activator ) {
             gi.dprintf( "Think_UseTargetsDelay with no activator\n" );

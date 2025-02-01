@@ -541,11 +541,11 @@ static int64_t get_seek_offset(file_t *file, int64_t offset, int whence)
     case SEEK_SET:
         if (offset < 0)
             return Q_ERR(EINVAL);
-        return min(offset, file->length);
+        return std::min(offset, file->length);
     case SEEK_CUR:
         if (offset < -file->position)
             return Q_ERR(EINVAL);
-        return file->position + min(offset, file->length - file->position);
+        return file->position + std::min(offset, file->length - file->position);
     case SEEK_END:
         return file->length;
     }
@@ -1062,7 +1062,7 @@ static int read_zip_file(file_t *file, void *buf, size_t len)
     size_t block, result;
     int ret;
 
-    len = min(len, file->length - file->position);
+    len = std::min( (uint64_t)len, (uint64_t)file->length - file->position);
     if (!len) {
         return 0;
     }
@@ -1077,7 +1077,7 @@ static int read_zip_file(file_t *file, void *buf, size_t len)
             }
 
             // fill in the temp buffer
-            block = min(s->rest_in, ZIP_BUFSIZE);
+            block = std::min(s->rest_in, (int64_t)ZIP_BUFSIZE);
             result = fread(s->buffer, 1, block, file->fp);
             if (result != block) {
                 file->error = FS_ERR_READ(file->fp);
@@ -1140,7 +1140,7 @@ static int seek_zip_file(file_t *file, int64_t offset, int whence)
     while (file->position < offset) {
         byte buf[ZIP_BUFSIZE];
 
-        int len = min(offset - file->position, sizeof(buf));
+        int len = std::min( (uint64_t)offset - file->position, (uint64_t)sizeof(buf));
         int ret = read_zip_file(file, buf, len);
         if (ret < 0)
             return ret;
@@ -1522,7 +1522,7 @@ static int read_pak_file(file_t *file, void *buf, size_t len)
 {
     size_t result;
 
-    len = min(len, file->length - file->position);
+    len = std::min( (uint64_t)len, (uint64_t)file->length - file->position);
     if (!len) {
         return 0;
     }
@@ -2259,7 +2259,7 @@ static int64_t search_central_header(FILE *fp)
         return ret;
 
     // slow generic case (global comment of unknown length)
-    read_size = min(ret, sizeof(buf));
+    read_size = std::min( (uint64_t)ret, (uint64_t)sizeof(buf));
     read_pos = ret - read_size;
 
     if (os_fseek(fp, read_pos, SEEK_SET))

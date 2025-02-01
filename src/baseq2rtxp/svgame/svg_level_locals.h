@@ -16,7 +16,7 @@
 **/
 typedef struct {
     uint64_t        frameNumber;
-    sg_time_t		time;
+    QMTime		time;
 
     char        level_name[ MAX_QPATH ];  // the descriptive name (Outer Base, etc)
     char        mapname[ MAX_QPATH ];     // the server name (base1, etc)

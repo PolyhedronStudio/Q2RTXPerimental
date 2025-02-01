@@ -465,7 +465,7 @@ void SVG_Player_Weapon_SetModeAnimationFromSKM( weapon_item_info_t *itemInfo, co
     modeAnimation->modelAnimationID = skmAnimationID;
     modeAnimation->startFrame = skmAnim->first_frame;
     modeAnimation->endFrame = skmAnim->first_frame + skmAnim->num_frames;
-    modeAnimation->duration = sg_time_t::from_ms( BASE_FRAMETIME ) * skmAnim->num_frames;
+    modeAnimation->duration = QMTime::FromMilliseconds( BASE_FRAMETIME ) * skmAnim->num_frames;
 }
 /**
 *   @brief  Will iterate the model animations, assigning animationIDs for the matching queried weapon mode its animation names.

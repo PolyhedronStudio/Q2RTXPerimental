@@ -227,7 +227,7 @@ void SVG_SetItemRespawn(edict_t *ent, float delay)
     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
     ent->svflags |= SVF_NOCLIENT;
     ent->solid = SOLID_NOT;
-    ent->nextthink = level.time + sg_time_t::from_sec( delay );
+    ent->nextthink = level.time + QMTime::FromSeconds( delay );
     ent->think = DoRespawn;
     gi.linkentity(ent);
 }

@@ -150,11 +150,11 @@ void V_AddSphereLight( const vec3_t org, float intensity, float r, float g, floa
 
         VectorCopy( dl->origin, part->origin );
         part->radius = radius;
-        part->brightness = max( r, max( g, b ) );
+        part->brightness = std::max( r, std::max( g, b ) );
         part->color = -1;
-        part->rgba.u8[ 0 ] = (uint8_t)max( 0.f, min( 255.f, r / part->brightness * 255.f ) );
-        part->rgba.u8[ 1 ] = (uint8_t)max( 0.f, min( 255.f, g / part->brightness * 255.f ) );
-        part->rgba.u8[ 2 ] = (uint8_t)max( 0.f, min( 255.f, b / part->brightness * 255.f ) );
+        part->rgba.u8[ 0 ] = (uint8_t)std::max( 0.f, std::min( 255.f, r / part->brightness * 255.f ) );
+        part->rgba.u8[ 1 ] = (uint8_t)std::max( 0.f, std::min( 255.f, g / part->brightness * 255.f ) );
+        part->rgba.u8[ 2 ] = (uint8_t)std::max( 0.f, std::min( 255.f, b / part->brightness * 255.f ) );
         part->rgba.u8[ 3 ] = 255;
         part->alpha = 1.f;
     }

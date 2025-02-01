@@ -206,6 +206,7 @@ typedef float mat3x4[ 12 ];
 
 //! Use static inlining for all its functions.
 #define RAYMATH_STATIC_INLINE
+#define RAYMATH_QM_INLINE
 //! Include our own custom version of raylib1.5 its raymath library.
 #include <shared/math/qm_math.h>
 
@@ -217,34 +218,20 @@ typedef float mat3x4[ 12 ];
 //! Color Index Table:
 #include "shared/color_index_table.h"
 
-#define CHAR_WIDTH  8
-#define CHAR_HEIGHT 8
-
-#define UI_LEFT             0x00000001
-#define UI_RIGHT            0x00000002
-#define UI_CENTER           (UI_LEFT | UI_RIGHT)
-#define UI_BOTTOM           0x00000004
-#define UI_TOP              0x00000008
-#define UI_MIDDLE           (UI_BOTTOM | UI_TOP)
-#define UI_DROPSHADOW       0x00000010
-#define UI_ALTCOLOR         0x00000020
-#define UI_IGNORECOLOR      0x00000040
-#define UI_XORCOLOR         0x00000080
-#define UI_AUTOWRAP         0x00000100
-#define UI_MULTILINE        0x00000200
-#define UI_DRAWCURSOR       0x00000400
+//! Shared UI:
+#include "shared/ui_shared.h"
 
 //! Bit Utilities:
 #include "shared/util_bits.h"
 //! Endian Utilities:
 #include "shared/util_endian.h"
+//! Encode/Decode utilities
+#include "shared/util_encode.h"
+#include "shared/util_decode.h"
 //! List Utility:
 #include "shared/util_list.h"
 //! String Utilities:
 #include "shared/util_strings.h"
-//! Encode/Decode utilities
-#include "shared/util_encode.h"
-#include "shared/util_decode.h"
 
 
 //! Key/Value Info Strings:

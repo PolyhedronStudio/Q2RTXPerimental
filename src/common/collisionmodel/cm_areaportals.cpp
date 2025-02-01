@@ -170,7 +170,7 @@ const int32_t CM_WritePortalBits( cm_t *cm, byte *buffer ) {
         return 0;
     }
 
-    numportals = min( cm->cache->numportals, MAX_MAP_PORTAL_BYTES << 3 );
+    numportals = std::min( cm->cache->numportals, MAX_MAP_PORTAL_BYTES << 3 );
 
     bytes = ( numportals + 7 ) >> 3;
     memset( buffer, 0, bytes );
@@ -192,7 +192,7 @@ void CM_SetPortalStates( cm_t *cm, byte *buffer, const int32_t bytes ) {
         return;
     }
 
-    numportals = min( cm->cache->numportals, bytes << 3 );
+    numportals = std::min( cm->cache->numportals, bytes << 3 );
     for ( i = 0; i < numportals; i++ ) {
         cm->portalopen[ i ] = Q_IsBitSet( buffer, i );
     }

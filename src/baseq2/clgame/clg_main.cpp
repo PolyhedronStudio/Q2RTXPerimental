@@ -35,9 +35,9 @@ clgame_export_t	globals;
 *	Times.
 **/
 //! Frame time in Seconds.
-sg_time_t FRAME_TIME_S;
+QMTime FRAME_TIME_S;
 //! Frame time in Miliseconds.
-sg_time_t FRAME_TIME_MS;
+QMTime FRAME_TIME_MS;
 
 
 /**
@@ -493,7 +493,7 @@ extern "C" { // WID: C++20: extern "C".
 		clgi = *import;
 
 		// From Q2RE:
-		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( clgi.frame_time_ms );
+		FRAME_TIME_S = FRAME_TIME_MS = QMTime::FromMilliseconds( clgi.frame_time_ms );
 
 		globals.apiversion = CLGAME_API_VERSION;
 

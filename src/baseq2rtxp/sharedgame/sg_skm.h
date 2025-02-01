@@ -48,11 +48,11 @@ typedef struct sg_skm_animation_state_s {
 	*	State Timers: Looping animations will always surpass timeDuration and timeEnd.
 	**/
 	//! Start time.
-	sg_time_t timeStart;
+	QMTime timeStart;
 	//! Duration of animation( ( srcEndFrame - srcStartFrame ) * frameTime ).
-	sg_time_t timeDuration;
+	QMTime timeDuration;
 	//! Expected time of ending the animation. ( timeStart + timeDuration ).
-	sg_time_t timeEnd;
+	QMTime timeEnd;
 	//! FrameTime for this animation.
 	double frameTime;
 
@@ -156,23 +156,23 @@ static inline void SG_DecodeAnimationState( const uint32_t animationState, uint8
 *           When the animation is finished it will return frame -1. Takes looping into account. Looping animations
 *           are never finished.
 **/
-const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentTime, const sg_time_t &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop );
+const double SG_AnimationFrameForTime( int32_t *frame, const QMTime &currentTime, const QMTime &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop );
 /**
 *	@brief	Processes the animation state by time. Lerping from the last animation's frame to a newly set animation if needed.
 *	@note	The resulting oldFrame, currentFrame, and lerpFraction are calculated for the moment in time by this function.
 * 
 *	@return	True if the animation has finished playing. Also returns true in case of an error, since no valid animation is instantly finished playing.
 **/
-const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_animation_state_t *animationState, const sg_time_t &time, int32_t *outOldFrame, int32_t *outCurrentFrame, double *outBackLerp );
+const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_animation_state_t *animationState, const QMTime &time, int32_t *outOldFrame, int32_t *outCurrentFrame, double *outBackLerp );
 /**
 *	@brief	Will set the animation matching 'name' for the animation state. Forced, if desired.
 **/
-const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet );
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const QMTime &startTime, const double frameTime, const bool forceLoop, const bool forceSet );
 /**
 *	@brief	Will set the animation matching 'animationID' of the animation state.
 *			Will force set the aniamtion, if desired.
 **/
-const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const qhandle_t animationID, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet );
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const qhandle_t animationID, const QMTime &startTime, const double frameTime, const bool forceLoop, const bool forceSet );
 
 
 
@@ -268,10 +268,10 @@ void SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameB
 /**
 *   @brief  Activates the bone controller and (re-)initializes its initial state as well as its imer.
 **/
-void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const sg_time_t &timeDuration, const sg_time_t &timeActivated );
+void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const QMTime &timeDuration, const QMTime &timeActivated );
 /**
 *   @brief  Processes and applies the bone controllers to the pose, for the current time.
 *   @note   The pose is expected to be untempered with in any way.
 *           This means that it should contain purely relative blended joints sourced by lerping and recursive blending.
 **/
-void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const sg_time_t &currentTime, skm_transform_t *inOutBonePoses );
+void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const QMTime &currentTime, skm_transform_t *inOutBonePoses );

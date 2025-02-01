@@ -56,7 +56,7 @@ typedef struct weapon_mode_animation_s {
     //! Objective end frame index.
     int32_t endFrame;
     //! Relative animation frame duration( endFrame - startFrame ).
-    sg_time_t duration;
+    QMTime duration;
 } weapon_mode_animation_t;
 
 /**

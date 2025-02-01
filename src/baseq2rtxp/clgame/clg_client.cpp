@@ -93,7 +93,7 @@ void PF_ClientLocalFrame( void ) {
 // Debug print: framenum, level time.
 #if 0
 	clgi.Print( PRINT_DEVELOPER, "%s: framenum(%ld), time(%ld)\n", 
-		__func__, level.frameNumber, level.time.milliseconds() );
+		__func__, level.frameNumber, level.time.Milliseconds() );
 #endif
 }
 /**

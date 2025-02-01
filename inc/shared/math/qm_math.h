@@ -55,9 +55,8 @@
 *     3. This notice may not be removed or altered from any source distribution.
 *
 **********************************************************************************************/
+#pragma once
 
-#ifndef QRAYMATH_H
-#define QRAYMATH_H
 
 #if defined(RAYMATH_IMPLEMENTATION) && defined(RAYMATH_STATIC_INLINE)
 #error "Specifying both RAYMATH_IMPLEMENTATION and RAYMATH_STATIC_INLINE is contradictory"
@@ -65,23 +64,31 @@
 
 // Function specifiers definition
 #if defined(RAYMATH_IMPLEMENTATION)
-#if defined(_WIN32) && defined(BUILD_LIBTYPE_SHARED)
-#define RMAPI __declspec(dllexport) extern inline // We are building raylib as a Win32 shared library (.dll)
-#elif defined(BUILD_LIBTYPE_SHARED)
-#define RMAPI __attribute__((visibility("default"))) // We are building raylib as a Unix shared library (.so/.dylib)
-#elif defined(_WIN32) && defined(USE_LIBTYPE_SHARED)
-#define RMAPI __declspec(dllimport)         // We are using raylib as a Win32 shared library (.dll)
-#else
-#define RMAPI extern inline // Provide external definition
-#endif
+    #if defined(_WIN32) && defined(BUILD_LIBTYPE_SHARED)
+        #define RMAPI __declspec(dllexport) extern inline // We are building raylib as a Win32 shared library (.dll)
+    #elif defined(BUILD_LIBTYPE_SHARED)
+        #define RMAPI __attribute__((visibility("default"))) // We are building raylib as a Unix shared library (.so/.dylib)
+    #elif defined(_WIN32) && defined(USE_LIBTYPE_SHARED)
+        #define RMAPI __declspec(dllimport)         // We are using raylib as a Win32 shared library (.dll)
+    #else
+        #define RMAPI extern inline // Provide external definition
+    #endif
 #elif defined(RAYMATH_STATIC_INLINE)
-#define RMAPI static inline // Functions may be inlined, no external out-of-line definition
+    #if defined(RAYMATH_QM_INLINE)
+        #ifdef __cplusplus
+            #define RMAPI [[nodiscard]] const inline // Functions may be inlined, no external out-of-line definition
+        #else
+            #define RMAPI inline 
+        #endif
+    #else
+        #define RMAPI static inline // Functions may be inlined, no external out-of-line definition
+    #endif
 #else
-#if defined(__TINYC__)
-#define RMAPI static inline // plain inline not supported by tinycc (See issue #435)
-#else
-#define RMAPI inline        // Functions may be inlined or external definition used
-#endif
+    #if defined(__TINYC__)
+        #define RMAPI static inline // plain inline not supported by tinycc (See issue #435)
+    #else
+        #define RMAPI inline        // Functions may be inlined or external definition used
+    #endif
 #endif
 
 //----------------------------------------------------------------------------------
@@ -145,6 +152,7 @@ static constexpr float QM_RAD2DEG = ( 180.0f / QM_PI );
     struct Vector3;
     struct Vector4;
     struct BBox3;
+    struct QMTime;
 #endif
 
 
@@ -284,6 +292,96 @@ typedef struct Vector3 {
         }
     }
 
+    #if 0
+    /**
+    *   @brief  Vector3 C++ 'Plus' operator:
+    **/
+    [[nodiscard]] constexpr inline Vector3 operator+( const Vector3 &right ) {
+        return QM_Vector3Add( *this, right );
+    }
+    [[nodiscard]] constexpr inline Vector3 operator+( const float &right ) {
+        return QM_Vector3AddValue( *this, right);
+    }
+
+    [[nodiscard]] constexpr inline const Vector3 operator+=( const Vector3 &right ) {
+        return *this = QM_Vector3Add( *this, right );
+    }
+    [[nodiscard]] constexpr inline const Vector3 operator+=( const float &right ) {
+        return *this = QM_Vector3AddValue( *this, right );
+    }
+
+    /**
+    *   @brief  Vector3 C++ 'Minus' operator:
+    **/
+    [[nodiscard]] constexpr inline const Vector3 operator-( const Vector3 &right ) {
+        return QM_Vector3Subtract( *this, right );
+    }
+    [[nodiscard]] constexpr inline const Vector3 operator-( const float &right ) {
+        return QM_Vector3SubtractValue( *this, right );
+    }
+    [[nodiscard]] constexpr inline const Vector3 operator-( const Vector3 &v ) {
+        return QM_Vector3Negate( v );
+    }
+
+    [[nodiscard]] constexpr inline const Vector3 &operator-=( const Vector3 &right ) {
+        return *this = QM_Vector3Subtract( *this, right );
+    }
+    [[nodiscard]] constexpr inline const Vector3 &operator-=( const float &right ) {
+        return *this = QM_Vector3SubtractValue( *this, right);
+    }
+
+    /**
+    *   @brief  Vector3 C++ 'Multiply' operator:
+    **/
+    RMAPI const Vector3 operator*( const Vector3 &right ) {
+        return QM_Vector3Multiply( *this, right );
+    }
+    RMAPI const Vector3 operator*( const float &right ) {
+        return QM_Vector3Scale( *this, right );
+    }
+    // for: ConstVector3Ref v1 = floatVal * v2;
+    RMAPI const Vector3 operator*( const float &right ) {
+        return QM_Vector3Scale( *this, right );
+    }
+
+    RMAPI const Vector3 &operator*=( const Vector3 &right ) {
+        return *this = QM_Vector3Multiply( *this, right );
+    }
+    RMAPI const Vector3 &operator*=( const float &right ) {
+        return *this = QM_Vector3Scale( *this, right );
+    }
+
+    /**
+    *   @brief  Vector3 C++ 'Divide' operator:
+    **/
+    RMAPI const Vector3 operator/( const Vector3 &right ) {
+        return QM_Vector3Divide( *this, right );
+    }
+    RMAPI const Vector3 operator/( const float &right ) {
+        return QM_Vector3DivideValue( *this, right );
+    }
+
+    RMAPI const Vector3 &operator/=( const Vector3 &right ) {
+        return *this = QM_Vector3Divide( *this, right );
+    }
+    RMAPI const Vector3 &operator/=( const float &right ) {
+        return *this = QM_Vector3DivideValue( *this, right );
+    }
+
+    /**
+    *   @brief  Vector3 C++ 'Equals' operator:
+    **/
+    RMAPI bool operator==( const Vector3 &right ) {
+        return QM_Vector3Equals( *this, right );
+    }
+
+    /**
+    *   @brief  Vector3 C++ 'Not Equals' operator:
+    **/
+    [[nodiscard]] inline constexpr const bool operator!=( const Vector3 &right ) {
+        return !QM_Vector3Equals( *this, right );
+    }
+    #endif // 0
     /**
     *  C++ Array like component accessors:
     **/
@@ -473,49 +571,55 @@ typedef struct BBox3 {
     *	@brief	Specific Intersection Test Types for use with bbox3_intersects_sphere.
     **/
     struct IntersectType {
-        // Box VS Sphere Types:
-        static constexpr int32_t HollowBox_HollowSphere = 0;
-        static constexpr int32_t HollowBox_SolidSphere = 1;
-        static constexpr int32_t SolidBox_HollowSphere = 2;
-        static constexpr int32_t SolidBox_SolidSphere = 3;
+        //#ifdef __cplusplus
+            // Box VS Sphere Types:
+            static constexpr int32_t HollowBox_HollowSphere = 0;
+            static constexpr int32_t HollowBox_SolidSphere = 1;
+            static constexpr int32_t SolidBox_HollowSphere = 2;
+            static constexpr int32_t SolidBox_SolidSphere = 3;
+        //#else
+        //    // Box VS Sphere Types:
+        //    static const int32_t HollowBox_HollowSphere = 0;
+        //    static const int32_t HollowBox_SolidSphere = 1;
+        //    static const int32_t SolidBox_HollowSphere = 2;
+        //    static const int32_t SolidBox_SolidSphere = 3;
+        //#endif
     };
-
     /**
     *	Constructors.
     **/
     // Default.
-    BBox3() { mins = { 0.f, 0.f, 0.f }; maxs = { 0.f, 0.f, 0.f }; }
+    constexpr explicit BBox3() { mins = { 0.f, 0.f, 0.f }; maxs = { 0.f, 0.f, 0.f }; }
 
-    BBox3( BBox3 &bbox ) { mins = bbox.mins; maxs = bbox.maxs; }
-    BBox3( const BBox3 &bbox ) { mins = bbox.mins; maxs = bbox.maxs; }
+    constexpr BBox3( BBox3 &bbox ) { mins = bbox.mins; maxs = bbox.maxs; }
+    constexpr BBox3( const BBox3 &bbox ) { mins = bbox.mins; maxs = bbox.maxs; }
 
     // Assign.
     BBox3( const Vector3 &boxMins, const Vector3 &boxMaxs ) { mins = boxMins; maxs = boxMaxs; }
 
     // Regular *vec_t support.
-    BBox3( Vector3 *vec ) { mins = vec[ 0 ]; maxs = vec[ 1 ]; }
-    BBox3( const Vector3 *vec ) { mins = vec[ 0 ]; maxs = vec[ 1 ]; }
-    BBox3( const float *vec ) { mins = { vec[ 0 ], vec[ 1 ], vec[ 2 ] }; maxs = { vec[ 3 ], vec[ 4 ], vec[ 5 ] }; }
+    constexpr explicit BBox3( Vector3 *vec ) { mins = vec[ 0 ]; maxs = vec[ 1 ]; }
+    constexpr explicit BBox3( const Vector3 *vec ) { mins = vec[ 0 ]; maxs = vec[ 1 ]; }
+    constexpr explicit BBox3( const float *vec ) { mins = { vec[ 0 ], vec[ 1 ], vec[ 2 ] }; maxs = { vec[ 3 ], vec[ 4 ], vec[ 5 ] }; }
 
     /**
     *	Operators
     **/
     // Pointer.
-    inline operator float *( ) {
-        return &mins[ 0 ];
+    inline explicit operator float *( ) {
+        return &mins.x;
     }
-    inline operator Vector3 *( ) {
+    inline explicit operator Vector3 *( ) {
         return &mins;
     }
 
     // Pointer cast to const float*
-    inline operator const float *( ) const {
-        return &mins[ 0 ];
+    inline explicit operator const float *( ) const {
+        return &mins.x;
     }
-    inline operator const Vector3 *( ) const {
+    inline explicit operator const Vector3 *( ) const {
         return &mins;
     }
-
     /**
     *  C++ Array like component accessors:
     **/
@@ -606,5 +710,17 @@ typedef struct qfloat3 {
 //----------------------------------------------------------------------------------
 #include "shared/math/qm_bbox3.h"
 
+//----------------------------------------------------------------------------------
+// Module Functions Definition - Time Wrapper Object, easy maths.
+//----------------------------------------------------------------------------------
+#include "shared/math/qm_time.h"
 
-#endif  // QRAYMATH_H
+//----------------------------------------------------------------------------------
+// Module Functions Definition - Easing
+//----------------------------------------------------------------------------------
+#include "shared/math/qm_easing.hpp"
+
+//----------------------------------------------------------------------------------
+// Module Functions Definition - Easing State
+//----------------------------------------------------------------------------------
+#include "shared/math/qm_easing_state.hpp"

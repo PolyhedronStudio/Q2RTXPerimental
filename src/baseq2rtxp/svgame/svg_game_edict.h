@@ -102,9 +102,9 @@ struct edict_s {
     //! Used for projectile skip checks and in general for checking if the entity has happened to been respawned.
     int32_t     spawn_count;
     //! sv.time when the object was freed
-    sg_time_t   freetime;
+    QMTime   freetime;
     //! Used for deferring client info so that disconnected, etc works
-    sg_time_t	timestamp;
+    QMTime	timestamp;
 
     //! [SpawnKey]: Entity classname key/value.
     svg_level_qstring_t classname;
@@ -147,7 +147,7 @@ struct edict_s {
         //! The use target state.
         entity_usetarget_state_t state;
         //! The time at which this entity was last (+usetarget) activated.
-        //sg_time_t timeChanged;
+        //QMTime timeChanged;
     } useTarget;
 
     /**
@@ -293,7 +293,7 @@ struct edict_s {
     *   NextThink AND Entity Callbacks:
     **/
     //! When to perform its next frame logic.
-    sg_time_t   nextthink;
+    QMTime   nextthink;
 
     //! Gives a chance to setup references to other entities etc.
     void        ( *postspawn )( edict_t *ent );
@@ -383,7 +383,7 @@ struct edict_s {
     float       volume;
     //! Attenuation.
     float       attenuation;
-    sg_time_t   last_sound_time;
+    QMTime   last_sound_time;
 
     /**
     *   Trigger(s) Data:
@@ -401,15 +401,15 @@ struct edict_s {
     /**
     *   Timers Data:
     **/
-    sg_time_t   air_finished_time;
-    sg_time_t   damage_debounce_time;
-    sg_time_t   fly_sound_debounce_time;    // move to clientinfo
-    sg_time_t   last_move_time;
-    sg_time_t   touch_debounce_time;        // are all these legit?  do we need more/less of them?
-    sg_time_t   pain_debounce_time;
-    sg_time_t   show_hostile_time;
+    QMTime   air_finished_time;
+    QMTime   damage_debounce_time;
+    QMTime   fly_sound_debounce_time;    // move to clientinfo
+    QMTime   last_move_time;
+    QMTime   touch_debounce_time;        // are all these legit?  do we need more/less of them?
+    QMTime   pain_debounce_time;
+    QMTime   show_hostile_time;
     //! Used for player trail.
-    sg_time_t   trail_time;
+    QMTime   trail_time;
 
 
     /**

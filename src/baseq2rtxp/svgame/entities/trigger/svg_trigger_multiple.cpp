@@ -43,7 +43,7 @@ void multi_trigger( edict_t *ent ) {
 
 	if ( ent->wait > 0 ) {
 		ent->think = multi_wait;
-		ent->nextthink = level.time + sg_time_t::from_sec( ent->wait );
+		ent->nextthink = level.time + QMTime::FromMilliseconds( ent->wait );
 	} else {
 		// we can't just remove (self) here, because this is a touch function
 		// called while looping through area links...

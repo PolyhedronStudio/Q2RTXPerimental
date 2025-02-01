@@ -583,7 +583,7 @@ static bool FloodProtect(edict_t *ent)
 
 		if ( level.time < cl->flood_locktill ) {
 			gi.cprintf( ent, PRINT_HIGH, "You can't talk for %d more seconds\n",
-					   (int)( cl->flood_locktill - level.time ).seconds<int32_t>( ) );
+					   (int)( cl->flood_locktill - level.time ).Seconds<int32_t>( ) );
 			return true;
 		}
 		i = cl->flood_whenhead - flood_msgs->value + 1;
@@ -594,8 +594,8 @@ static bool FloodProtect(edict_t *ent)
             i = 0;
         }
 		if ( cl->flood_when[ i ] &&
-			level.time - cl->flood_when[ i ] < sg_time_t::from_sec( flood_persecond->value ) ) {
-			cl->flood_locktill = level.time + sg_time_t::from_sec( flood_waitdelay->value );
+			level.time - cl->flood_when[ i ] < QMTime::FromSeconds( flood_persecond->value ) ) {
+			cl->flood_locktill = level.time + QMTime::FromSeconds( flood_waitdelay->value );
 			gi.cprintf(
 				ent, PRINT_CHAT, "Flood protection:  You can't talk for %d seconds.\n",
 					   (int)flood_waitdelay->value );

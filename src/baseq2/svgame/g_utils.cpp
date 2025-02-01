@@ -175,7 +175,7 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator)
         // create a temp object to fire at a later time
         t = SVG_AllocateEdict();
         t->classname = "DelayedUse";
-        t->nextthink = level.time + sg_time_t::from_sec(ent->delay);
+        t->nextthink = level.time + QMTime::FromMilliseconds(ent->delay);
         t->think = Think_Delay;
         t->activator = activator;
         if (!activator)

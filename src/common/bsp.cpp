@@ -915,7 +915,7 @@ static int BSP_ValidateAreaPortals( bsp_t *bsp ) {
             DEBUG( "bad otherarea" );
             return Q_ERR_INVALID_FORMAT;
         }
-        bsp->numportals = max( bsp->numportals, p->portalnum + 1 );
+        bsp->numportals = std::max( (uint32_t)bsp->numportals, (uint32_t)p->portalnum + 1 );
     }
 
     return Q_ERR_SUCCESS;
@@ -1545,7 +1545,7 @@ int BSP_Load( const char *name, bsp_t **bsp_p ) {
 
         // round to cacheline
         memsize += ALIGN( count * info->memsize, 64 );
-        maxpos = max( maxpos, end );
+        maxpos = std::max( maxpos, end );
     }
 
     // load into hunk

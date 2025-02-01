@@ -26,14 +26,14 @@ extern clgame_export_t globals;
 #include "../sharedgame/sg_shared.h"
 
 // extern times.
-extern sg_time_t FRAME_TIME_S;
-extern sg_time_t FRAME_TIME_MS;
+extern QMTime FRAME_TIME_S;
+extern QMTime FRAME_TIME_MS;
 
 // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
 #undef max
 
 // Just to, hold time, forever.
-constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max( ) );
+constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<int64_t>::max( ) );
 
 
 
@@ -152,7 +152,7 @@ static constexpr int32_t CLG_MOVEINFOFLAG_WALK = BIT( 5 );
 **/
 typedef struct clg_entity_moveinfo_s {
 	//! Servertime of the frame for which this move info was generated.
-	sg_time_t serverTime;
+	QMTime serverTime;
 
 	//! 2D Direction Offset and Unit Vectors derived from 'Previous' and 'Current' (player/entity-)state origin changes.
 	Vector2 xyDirection;
@@ -174,7 +174,7 @@ typedef struct clg_entity_moveinfo_s {
 		struct {
 			float desired; //! Desired final Yaw destination. (Degrees.)
 			float current; //! Actual Yaw. (Degrees.)
-			sg_time_t timeChanged;
+			QMTime timeChanged;
 		} yaw;
 	} transitions;
 } clg_entity_moveinfo_t;
@@ -429,9 +429,9 @@ typedef struct clg_local_entity_s {
 
 
 	//! Client game level time at which this entity was freed.
-	sg_time_t freetime;
+	QMTime freetime;
 	//! Client game level time at which this entity is allowed to 'think' again.
-	sg_time_t nextthink;
+	QMTime nextthink;
 
 	//! Name of the model(if any).
 	const char *model;
@@ -718,7 +718,7 @@ struct level_locals_t {
 	//! Frame number, starts incrementing when the level session has begun..
 	uint64_t	frameNumber;
 	//! Time passed, also starts incrementing when the level session has begun.
-	sg_time_t	time;
+	QMTime	time;
 
 	//! For storing parsed message data that is handled later on during 
 	//! the frame by corresponding said event/effect functions.

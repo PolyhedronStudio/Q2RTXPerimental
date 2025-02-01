@@ -349,7 +349,7 @@ void brain_dodge(edict_t *self, edict_t *attacker, float eta) {
     if (!self->enemy)
         self->enemy = attacker;
 
-    self->monsterinfo.pause_time = level.time + sg_time_t::from_sec(eta + 0.5f);
+    self->monsterinfo.pause_time = level.time + QMTime::FromMilliseconds(eta + 0.5f);
     M_SetAnimation( self, &brain_move_duck );
 }
 

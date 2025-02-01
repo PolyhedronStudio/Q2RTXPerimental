@@ -24,6 +24,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #else
 #ifdef _WIN32
  #define WIN32_LEAN_AND_MEAN 1
+ #define NOMINMAX
  #include <windows.h>
 #endif
  #include <GL/gl.h>

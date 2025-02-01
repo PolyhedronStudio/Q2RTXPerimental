@@ -31,7 +31,7 @@ These can used but not touched.
 */
 void func_timer_think( edict_t *self ) {
     SVG_UseTargets( self, self->activator );
-    self->nextthink = level.time + sg_time_t::from_sec( self->wait + crandom() * self->random );
+    self->nextthink = level.time + QMTime::FromSeconds( self->wait + crandom() * self->random );
 }
 
 void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
@@ -45,7 +45,7 @@ void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, const en
 
     // turn it on
     if ( self->delay )
-        self->nextthink = level.time + sg_time_t::from_sec( self->delay );
+        self->nextthink = level.time + QMTime::FromSeconds( self->delay );
     else
         func_timer_think( self );
 }
@@ -63,7 +63,7 @@ void SP_func_timer( edict_t *self ) {
     }
 
     if ( self->spawnflags & 1 ) {
-        self->nextthink = level.time + 1_sec + sg_time_t::from_sec( st.pausetime + self->delay + self->wait + crandom() * self->random );
+        self->nextthink = level.time + 1_sec + QMTime::FromMilliseconds( st.pausetime + self->delay + self->wait + crandom() * self->random );
         self->activator = self;
     }
 

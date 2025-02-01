@@ -292,7 +292,7 @@ static void BuildList(void)
                            FS_SEARCH_DIRSONLY, &numDirs);
     demolist = FS_ListFiles(m_demos.browse, DEMO_EXTENSIONS, flags |
                             FS_SEARCH_EXTRAINFO, &numDemos);
-    numDemos = min(numDemos, MAX_LISTED_FILES - numDirs);
+    numDemos = std::min(numDemos, MAX_LISTED_FILES - numDirs);
 
     // alloc entries
     m_demos.list.items = static_cast<void**>( UI_Malloc(sizeof(demoEntry_t *) * (numDirs + numDemos + 1)) ); // WID: C++20: Added cast.

@@ -71,9 +71,9 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         const std::string baseAnimStr = SG_Player_GetClientBaseAnimation( &clgi.client->predictedState.lastPs, &clgi.client->predictedState.currentPs, &frameTime );
 
         // Start timer is always just servertime that we had.
-        const sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
+        const QMTime startTimer = QMTime::FromMilliseconds( clgi.client->servertime );
 
-        //const sg_time_t startTimer = lastBodyState[ SKM_BODY_LOWER ].timeStart - sg_time_t::from_ms( clgi.client->extrapolatedTime );
+        //const QMTime startTimer = lastBodyState[ SKM_BODY_LOWER ].timeStart - QMTime::FromMilliseconds( clgi.client->extrapolatedTime );
         
         // Temporary for setting the animation.
         sg_skm_animation_state_t newAnimationBodyState;
@@ -100,7 +100,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
         //clgi.Print( PRINT_NOTICE, "%s: lowerAnimationID(%i), torsoAnimationID(%i), headAnimationID(%i), framerate(%i)\n", __func__, lowerAnimationID, torsoAnimationID, headAnimationID, animationFrameRate );
         
         // Start timer is always just servertime that we had.
-        const sg_time_t startTimer = sg_time_t::from_ms( clgi.client->servertime );
+        const QMTime startTimer = QMTime::FromMilliseconds( clgi.client->servertime );
         // Calculate frameTime based on frameRate.
         const double frameTime = 1000.0 / animationFrameRate;
         // Temporary for setting the animation.
@@ -139,9 +139,9 @@ void CLG_ETPlayer_DetermineEventAnimations( centity_t *packetEntity, entity_t *r
 /**
 *   @brief  Calculates the 'scaleFactor' of an animation switch, for use with the fraction and lerp values between two animation poses. 
 **/
-static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t &lastTimeStamp, const sg_time_t &nextTimeStamp, const sg_time_t &animationTime ) {
-    const double midWayLength = animationTime.milliseconds() - lastTimeStamp.milliseconds();
-    const double framesDiff = nextTimeStamp.milliseconds() - lastTimeStamp.milliseconds();
+static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const QMTime &lastTimeStamp, const QMTime &nextTimeStamp, const QMTime &animationTime ) {
+    const double midWayLength = animationTime.Milliseconds() - lastTimeStamp.Milliseconds();
+    const double framesDiff = nextTimeStamp.Milliseconds() - lastTimeStamp.Milliseconds();
     // WID: Prevent a possible division by zero?
     if ( framesDiff > 0 ) {
         return midWayLength / framesDiff;
@@ -157,7 +157,7 @@ static const double CLG_ETPlayer_GetSwitchAnimationScaleFactor( const sg_time_t 
 *   @note   poseBuffer is expected to be SKM_MAX_BONES in size.
 *   @note   The model and its skmData member are expected to be valid. Make sure to check these before calling this function.
 **/
-static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t *model, const sg_time_t &time, const int32_t rootMotionAxisFlags, const skm_bone_node_t *boneNode, sg_skm_animation_state_t *animationState, skm_transform_t *outPoseBuffer ) {
+static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t *model, const QMTime &time, const int32_t rootMotionAxisFlags, const skm_bone_node_t *boneNode, sg_skm_animation_state_t *animationState, skm_transform_t *outPoseBuffer ) {
     // Get current and old frame poses and determine backlerp.
     double animationStateBackLerp = 0.0;
     int32_t animationStateCurrentFrame = 0, animationStateOldFrame = 0;
@@ -203,7 +203,7 @@ static const bool CLG_ETPlayer_GetLerpedAnimationStatePoseForTime( const model_t
 /**
 *   @brief  Calculate desired yaw derived player state move direction, and recored time of change.
 **/
-const bool CLG_ETPlayer_CalculateDesiredYaw( centity_t *packetEntity, const player_state_t *playerState, const player_state_t *oldPlayerState, const sg_time_t &currentTime ) {
+const bool CLG_ETPlayer_CalculateDesiredYaw( centity_t *packetEntity, const player_state_t *playerState, const player_state_t *oldPlayerState, const QMTime &currentTime ) {
     if ( playerState->animation.moveDirection != oldPlayerState->animation.moveDirection ) {
         const int32_t moveDirection = playerState->animation.moveDirection;
         if ( ( moveDirection & PM_MOVEDIRECTION_FORWARD ) && ( moveDirection & PM_MOVEDIRECTION_LEFT ) ) {
@@ -234,7 +234,7 @@ const bool CLG_ETPlayer_CalculateDesiredYaw( centity_t *packetEntity, const play
 /**
 *   @brief  Calculate desired yaw derived from moveInfo, and recored time of change.
 **/
-const bool CLG_ETPlayer_CalculateDesiredYaw( centity_t *packetEntity, const sg_time_t &currentTime ) {
+const bool CLG_ETPlayer_CalculateDesiredYaw( centity_t *packetEntity, const QMTime &currentTime ) {
     if ( packetEntity->moveInfo.current.flags != packetEntity->moveInfo.previous.flags ) {
         const int32_t moveInfoFlags = packetEntity->moveInfo.current.flags;
         if ( ( moveInfoFlags & CLG_MOVEINFOFLAG_DIRECTION_FORWARD ) && ( moveInfoFlags & CLG_MOVEINFOFLAG_DIRECTION_LEFT ) ) {
@@ -266,7 +266,7 @@ const bool CLG_ETPlayer_CalculateDesiredYaw( centity_t *packetEntity, const sg_t
 /**
 *   @brief  Performs bone controller work.
 **/
-void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_state_t *newState, const model_t *model, const skm_transform_t *initialStatePose, skm_transform_t *lerpedBonePose, const sg_time_t &currentTime ) {
+void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_state_t *newState, const model_t *model, const skm_transform_t *initialStatePose, skm_transform_t *lerpedBonePose, const QMTime &currentTime ) {
     /**
     *   Determine which direction we're heading into. And use it to possibly adjust an
     *   animation with, as well as to 'Control' various bones after our "final" pose
@@ -295,11 +295,11 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
         *   Define time speeds for each individual bone (S)Lerp and acquire time of 'Yaw' change.
         **/
         // Speeds:
-        static constexpr sg_time_t hipsYawSlerpTime = 350_ms;
-        static constexpr sg_time_t spineYawSlerpTime = 250_ms;
-        static constexpr sg_time_t spine1YawSlerpTime = 150_ms;
+        static constexpr QMTime hipsYawSlerpTime = 350_ms;
+        static constexpr QMTime spineYawSlerpTime = 250_ms;
+        static constexpr QMTime spine1YawSlerpTime = 150_ms;
         // Time of Change:
-        const sg_time_t yawChangedTime = packetEntity->moveInfo.current.transitions.yaw.timeChanged;
+        const QMTime yawChangedTime = packetEntity->moveInfo.current.transitions.yaw.timeChanged;
 
         // The desired yaw for the hips to turn to.
         //const float fabsXDot = ( packetEntity->moveInfo.current.xDot );
@@ -415,9 +415,9 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     *   Time:
     **/
     // The frame's Server Time.
-    const sg_time_t serverTime = sg_time_t::from_ms( clgi.client->servertime );
+    const QMTime serverTime = QMTime::FromMilliseconds( clgi.client->servertime );
     // The Time we're at.
-    const sg_time_t extrapolatedTime = sg_time_t::from_ms( ( isLocalClientEntity ? clgi.client->extrapolatedTime : clgi.client->servertime ) );
+    const QMTime extrapolatedTime = QMTime::FromMilliseconds( ( isLocalClientEntity ? clgi.client->extrapolatedTime : clgi.client->servertime ) );
 
     // FrontLerp Fraction (extrapolated ahead of Server Time).
     const double frontLerp = ( isLocalClientEntity ? clgi.client->xerpFraction : clgi.client->lerpfrac );
@@ -672,7 +672,7 @@ void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntit
             }
 
             // Calculate step time.
-            int64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
+            int64_t stair_step_time = STEP_TIME - std::min<int64_t>( stair_step_delta, STEP_TIME );
 
             // Calculate lerped Z origin.
             //packetEntity->current.origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );

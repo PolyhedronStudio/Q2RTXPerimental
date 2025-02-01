@@ -211,7 +211,7 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 		}
 		delayEntity->classname = "DelayedLuaSignalOut";
 
-		delayEntity->nextthink = level.time + sg_time_t::from_sec( entity->delay );
+		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
 		delayEntity->think = LUA_Think_SignalOutDelay;
 		if ( !activator ) {
 			gi.dprintf( "LUA_Think_SignalOutDelay with no activator\n" );

@@ -257,7 +257,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		if ( ent->client->v_dmg_time > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			sg_time_t diff = ent->client->v_dmg_time - level.time;
+			QMTime diff = ent->client->v_dmg_time - level.time;
 
 			// slack time remaining
 			if ( DAMAGE_TIME_SLACK( ) ) {
@@ -276,7 +276,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 		if ( ent->client->fall_time > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			sg_time_t diff = ent->client->fall_time - level.time;
+			QMTime diff = ent->client->fall_time - level.time;
 
 			// slack time remaining
 			if ( DAMAGE_TIME_SLACK( ) ) {
@@ -339,7 +339,7 @@ void SV_CalcViewOffset( edict_t *ent ) {
 	if ( ent->client->fall_time > level.time ) {
 		// [Paril-KEX] 100ms of slack is added to account for
 		// visual difference in higher tickrates
-		sg_time_t diff = ent->client->fall_time - level.time;
+		QMTime diff = ent->client->fall_time - level.time;
 
 		// Slack time remaining
 		if ( DAMAGE_TIME_SLACK( ) ) {
@@ -449,16 +449,16 @@ SV_CalcBlend
 // [Paril-KEX] convenience functions that returns true
 // if the powerup should be 'active' (false to disable,
 // will flash at 500ms intervals after 3 sec)
-[[nodiscard]] constexpr bool G_PowerUpExpiringRelative( sg_time_t left ) {
-	return left.milliseconds( ) > 3000 || ( left.milliseconds( ) % 1000 ) < 500;
+[[nodiscard]] constexpr bool G_PowerUpExpiringRelative( QMTime left ) {
+	return left.Milliseconds( ) > 3000 || ( left.Milliseconds( ) % 1000 ) < 500;
 }
 
-[[nodiscard]] constexpr bool G_PowerUpExpiring( sg_time_t time ) {
+[[nodiscard]] constexpr bool G_PowerUpExpiring( QMTime time ) {
 	return G_PowerUpExpiringRelative( time - level.time );
 }
 
 void SV_CalcBlend( edict_t *ent ) {
-	sg_time_t remaining;
+	QMTime remaining;
 
 	Vector4Clear( ent->client->ps.screen_blend );
 
@@ -486,25 +486,25 @@ void SV_CalcBlend( edict_t *ent ) {
 	// add for powerups
 	if ( ent->client->quad_time > level.time ) {
 		remaining = ent->client->quad_time - level.time;
-		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
+		if ( remaining.Milliseconds( ) == 3000 )    // beginning to fade
 			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/damage2.wav" ), 1, ATTN_NORM, 0 );
 		if ( G_PowerUpExpiringRelative( remaining ) )
 			SG_AddBlend( 0, 0, 1, 0.08f, ent->client->ps.screen_blend );
 	} else if ( ent->client->invincible_time > level.time ) {
 		remaining = ent->client->invincible_time - level.time;
-		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
+		if ( remaining.Milliseconds( ) == 3000 )    // beginning to fade
 			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/protect2.wav" ), 1, ATTN_NORM, 0 );
 		if ( G_PowerUpExpiringRelative( remaining ) )
 			SG_AddBlend( 1, 1, 0, 0.08f, ent->client->ps.screen_blend );
 	} else if ( ent->client->enviro_time > level.time ) {
 		remaining = ent->client->enviro_time - level.time;
-		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
+		if ( remaining.Milliseconds( ) == 3000 )    // beginning to fade
 			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/airout.wav" ), 1, ATTN_NORM, 0 );
 		if ( G_PowerUpExpiringRelative( remaining ) )
 			SG_AddBlend( 0, 1, 0, 0.08f, ent->client->ps.screen_blend );
 	} else if ( ent->client->breather_time > level.time ) {
 		remaining = ent->client->breather_time - level.time;
-		if ( remaining.milliseconds( ) == 3000 )    // beginning to fade
+		if ( remaining.Milliseconds( ) == 3000 )    // beginning to fade
 			gi.sound( ent, CHAN_ITEM, gi.soundindex( "items/airout.wav" ), 1, ATTN_NORM, 0 );
 		if ( G_PowerUpExpiringRelative( remaining ) )
 			SG_AddBlend( 0.4f, 1, 0.4f, 0.04f, ent->client->ps.screen_blend );
@@ -619,7 +619,7 @@ void P_WorldEffects( void ) {
 		if ( breather || envirosuit ) {
 			current_player->air_finished_time = level.time + 10_sec;
 
-			if ( ( ( current_client->breather_time - level.time ).milliseconds( ) % 2500 ) == 0 ) {
+			if ( ( ( current_client->breather_time - level.time ).Milliseconds( ) % 2500 ) == 0 ) {
 				if ( !current_client->breather_sound )
 					gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/u_breath1.wav" ), 1, ATTN_NORM, 0 );
 				else

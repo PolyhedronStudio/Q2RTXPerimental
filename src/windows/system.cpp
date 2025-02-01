@@ -82,7 +82,7 @@ static void hide_console_input(void)
     if (!sys_hidden && GetConsoleScreenBufferInfo(houtput, &info)) {
         size_t len = strlen(sys_con.inputLine.text);
         COORD pos = { 0, info.dwCursorPosition.Y };
-        DWORD res = min(len + 1, info.dwSize.X);
+        DWORD res = std::min((DWORD)len + 1, (DWORD)info.dwSize.X);
         FillConsoleOutputCharacter(houtput, ' ', res, pos, &res);
         SetConsoleCursorPosition(houtput, pos);
     }
@@ -108,7 +108,7 @@ static void show_console_input(void)
         }
 
         size_t len = strlen(text);
-        DWORD res, nch = min(len, f->visibleChars);
+        DWORD res, nch = std::min(len, f->visibleChars);
         WriteConsoleOutputCharacterA(houtput,  "]",   1, { (SHORT)0, (SHORT)info.dwCursorPosition.Y }, &res);
         WriteConsoleOutputCharacterA(houtput, text, nch, { (SHORT)1, (SHORT)info.dwCursorPosition.Y }, &res);
         COORD dwCursorPosition = { (SHORT)pos + 1, (SHORT)info.dwCursorPosition.Y };
@@ -128,7 +128,7 @@ static void console_delete(inputField_t *f)
 static void console_move_cursor(inputField_t *f, size_t pos)
 {
     size_t oldpos = f->cursorPos;
-    f->cursorPos = pos = min(pos, f->maxChars - 1);
+    f->cursorPos = pos = std::min(pos, f->maxChars - 1);
 
     if (oldpos < f->visibleChars && pos < f->visibleChars) {
         CONSOLE_SCREEN_BUFFER_INFO info;
@@ -171,14 +171,14 @@ static void scroll_console_window(int key)
     CONSOLE_SCREEN_BUFFER_INFO info;
     if (GetConsoleScreenBufferInfo(houtput, &info)) {
         int lo = -info.srWindow.Top;
-        int hi = max(info.dwCursorPosition.Y - info.srWindow.Bottom, 0);
+        int hi = std::max(info.dwCursorPosition.Y - info.srWindow.Bottom, 0);
         int page = info.srWindow.Bottom - info.srWindow.Top + 1;
         int rows = 0;
         switch (key) {
             case VK_HOME: rows = lo; break;
             case VK_END:  rows = hi; break;
-            case VK_PRIOR: rows = max(-page, lo); break;
-            case VK_NEXT:  rows = min( page, hi); break;
+            case VK_PRIOR: rows = std::max(-page, lo); break;
+            case VK_NEXT:  rows = std::min( page, hi); break;
         }
         if (rows) {
 			// WID: C++20: Old.

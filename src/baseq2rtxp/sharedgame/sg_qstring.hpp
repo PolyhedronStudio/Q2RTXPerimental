@@ -13,6 +13,10 @@
 *
 *
 ********************************************************************/
+#pragma once
+
+
+
 template<typename T, int32_t tag>
 struct sg_qstring_t {
 	//! The actual pointer storing our string.

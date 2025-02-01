@@ -65,7 +65,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
             }
 
             // Calculate step time.
-            int64_t stair_step_time = STEP_TIME - min( stair_step_delta, STEP_TIME );
+            int64_t stair_step_time = STEP_TIME - std::min<int64_t>( stair_step_delta, STEP_TIME );
 
             // Calculate lerped Z origin.
             //packetEntity->current.origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );

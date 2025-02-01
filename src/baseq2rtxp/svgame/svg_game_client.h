@@ -76,7 +76,7 @@ typedef struct {
     client_persistant_t pers_respawn;	// what to set client->pers to on a respawn.
 
     int64_t enterframe;     // level.frameNumber the client entered the game
-    sg_time_t entertime;    // the moment in time the client entered the game.
+    QMTime entertime;    // the moment in time the client entered the game.
 
     int32_t score;      // Frags, etc
     vec3_t cmd_angles;  // Angles sent over in the last command.
@@ -143,8 +143,8 @@ struct gclient_s {
     //! SVG_Client_BeginServerFrame instead.
     bool weapon_thunk;
 
-    sg_time_t	grenade_time;
-    sg_time_t	grenade_finished_time;
+    QMTime	grenade_time;
+    QMTime	grenade_finished_time;
     bool        grenade_blew_up;
 
     /**
@@ -208,12 +208,12 @@ struct gclient_s {
             int32_t endFrame;
 
             //! Start time of animation.
-            sg_time_t startTime;
+            QMTime startTime;
             //! End time of animation.
-            sg_time_t endTime;
+            QMTime endTime;
 
             //! Current time of animation relative to startTime.
-            sg_time_t currentTime;
+            QMTime currentTime;
 
             //! Optional callback function pointer.
             //void ( *finished_animating )( edict_t *ent );
@@ -224,24 +224,24 @@ struct gclient_s {
             //! Amount
             float amount;
             //! Total accumulated 'ms' by rapidly firing.
-            sg_time_t accumulatedTime;
+            QMTime accumulatedTime;
         } recoil;
 
         //! Timers
         struct {
             //! Last time we played an 'empty weapon click' sound.
-            sg_time_t lastEmptyWeaponClick;
+            QMTime lastEmptyWeaponClick;
 
             //! Used to prevent firing too rapidly
-            sg_time_t lastPrimaryFire;
+            QMTime lastPrimaryFire;
             //! Used to prevent firing too rapidly
-            sg_time_t lastSecondaryFire;
+            QMTime lastSecondaryFire;
             //! Used to prevent firing too rapidly.
-            sg_time_t lastAimedFire;
+            QMTime lastAimedFire;
             //! Time the weapon was drawn. (Used for sound).
-            sg_time_t lastDrawn;
+            QMTime lastDrawn;
             //! Time the weapon was holstered. (Used for sound).
-            sg_time_t lastHolster;
+            QMTime lastHolster;
         } timers;
     } weaponState;
 
@@ -262,9 +262,9 @@ struct gclient_s {
         Vector3 viewAngles, viewForward, viewRight, viewUp;
 
         // View Movement Timers:
-        sg_time_t	damageTime; //! Time being damaged.
-        sg_time_t	fallTime;   //! Well, time we are in air falling down.
-        sg_time_t	quakeTime;  //! trigger_earthquake
+        QMTime	damageTime; //! Time being damaged.
+        QMTime	fallTime;   //! Well, time we are in air falling down.
+        QMTime	quakeTime;  //! trigger_earthquake
         //! View Damage Impact Kicks.
         float       damageRoll, damagePitch;
         //! For view drop impact during on fall scenarios.
@@ -288,19 +288,19 @@ struct gclient_s {
     uint64_t    last_stair_step_frame;
 
     vec3_t      last_ladder_pos; // For ladder step sounds.
-    sg_time_t   last_ladder_sound;
+    QMTime   last_ladder_sound;
 
     vec3_t          oldviewangles;
     vec3_t          oldvelocity;
     edict_t         *oldgroundentity; // [Paril-KEX]
     liquid_level_t	old_waterlevel;
-    sg_time_t       flash_time; // [Paril-KEX] for high tickrate
+    QMTime       flash_time; // [Paril-KEX] for high tickrate
 
     /**
     *   Misc:
     **/
     //! Time for another drown sound event.
-    sg_time_t		next_drown_time;
+    QMTime		next_drown_time;
 
     /**
     *   UseTarget:
@@ -326,14 +326,14 @@ struct gclient_s {
     /**
     *	Item/Use Event Timers:
     **/
-    sg_time_t	pickup_msg_time;
-    sg_time_t	respawn_time;		// Can respawn when time > this.
+    QMTime	pickup_msg_time;
+    QMTime	respawn_time;		// Can respawn when time > this.
 
     /**
     *	Chat Flood Related:
     **/
-    sg_time_t	flood_locktill;     // Locked from talking.
-    sg_time_t	flood_when[ 10 ];   // When messages were said.
+    QMTime	flood_locktill;     // Locked from talking.
+    QMTime	flood_when[ 10 ];   // When messages were said.
     int64_t		flood_whenhead;     // Head pointer for when said.
 
     /**

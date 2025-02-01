@@ -145,7 +145,7 @@ static void CLG_AddExplosionLight( clg_explosion_t *ex, float phase ) {
 
     float timeAlpha = ( (float)( curve_size - 1 ) ) * phase;
     int baseSample = (int)floorf( timeAlpha );
-    baseSample = std::max( 0, min( curve_size - 2, baseSample ) );
+    baseSample = std::max( 0, std::min( curve_size - 2, baseSample ) );
 
     float w1 = timeAlpha - (float)( baseSample );
     float w0 = 1.f - w1;
@@ -214,7 +214,7 @@ void CLG_AddExplosions( void ) {
             }
 
             ent->alpha = ( (float)ex->frames - (float)f ) / (float)ex->frames;
-            ent->alpha = std::max( 0.f, min( 1.f, ent->alpha ) );
+            ent->alpha = std::max( 0.f, std::min( 1.f, ent->alpha ) );
             ent->alpha = ent->alpha * ent->alpha * ( 3.f - 2.f * ent->alpha ); // smoothstep
 
             if ( f < 10 ) {

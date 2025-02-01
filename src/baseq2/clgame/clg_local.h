@@ -26,14 +26,14 @@ extern clgame_export_t globals;
 #include "../sharedgame/sg_shared.h"
 
 // extern times.
-extern sg_time_t FRAME_TIME_S;
-extern sg_time_t FRAME_TIME_MS;
+extern QMTime FRAME_TIME_S;
+extern QMTime FRAME_TIME_MS;
 
 // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
 #undef max
 
 // Just to, hold time, forever.
-constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max( ) );
+constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<int64_t>::max( ) );
 
 
 
@@ -131,13 +131,13 @@ extern std::mt19937 mt_rand;
 }
 
 // uniform time [min_inclusive, max_exclusive)
-[[nodiscard]] inline sg_time_t random_time( sg_time_t min_inclusive, sg_time_t max_exclusive ) {
-	return sg_time_t::from_ms( std::uniform_int_distribution<int64_t>( min_inclusive.milliseconds( ), max_exclusive.milliseconds( ) )( mt_rand ) );
+[[nodiscard]] inline QMTime random_time( QMTime min_inclusive, QMTime max_exclusive ) {
+	return QMTime::FromMilliseconds( std::uniform_int_distribution<int64_t>( min_inclusive.Milliseconds( ), max_exclusive.Milliseconds( ) )( mt_rand ) );
 }
 
 // uniform time [0, max_exclusive)
-[[nodiscard]] inline sg_time_t random_time( sg_time_t max_exclusive ) {
-	return sg_time_t::from_ms( std::uniform_int_distribution<int64_t>( 0, max_exclusive.milliseconds( ) )( mt_rand ) );
+[[nodiscard]] inline QMTime random_time( QMTime max_exclusive ) {
+	return QMTime::FromMilliseconds( std::uniform_int_distribution<int64_t>( 0, max_exclusive.Milliseconds( ) )( mt_rand ) );
 }
 
 // uniform float [-1, 1)
@@ -442,9 +442,9 @@ typedef struct clg_local_entity_s {
 
 
 	//! Client game level time at which this entity was freed.
-	sg_time_t freetime;
+	QMTime freetime;
 	//! Client game level time at which this entity is allowed to 'think' again.
-	sg_time_t nextthink;
+	QMTime nextthink;
 
 	//! Name of the model(if any).
 	const char *model;
@@ -697,7 +697,7 @@ struct level_locals_t {
 	//! Frame number, starts incrementing when the level session has begun..
 	int64_t		framenum;
 	//! Time passed, also starts incrementing when the level session has begun.
-	sg_time_t	time;
+	QMTime	time;
 
 	//! For storing parsed message data that is handled later on during 
 	//! the frame by corresponding said event/effect functions.

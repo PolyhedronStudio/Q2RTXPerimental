@@ -131,7 +131,7 @@ void M_WorldEffects( edict_t *ent ) {
             } else if (ent->air_finished_time < level.time) {
                 // drown!
                 if (ent->pain_debounce_time < level.time ) {
-					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).seconds( ) ) );
+					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).Seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
                     SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
@@ -144,7 +144,7 @@ void M_WorldEffects( edict_t *ent ) {
             } else if (ent->air_finished_time < level.time ) {
                 // suffocate!
                 if (ent->pain_debounce_time < level.time ) {
-					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).seconds( ) ) );
+					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).Seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
                     SVG_TriggerDamage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );

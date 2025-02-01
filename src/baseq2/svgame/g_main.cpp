@@ -32,9 +32,9 @@ spawn_temp_t    st;
 *	Times.
 **/
 //! Frame time in Seconds.
-sg_time_t FRAME_TIME_S;
+QMTime FRAME_TIME_S;
 //! Frame time in Miliseconds.
-sg_time_t FRAME_TIME_MS;
+QMTime FRAME_TIME_MS;
 
 
 /**
@@ -333,7 +333,7 @@ extern "C" { // WID: C++20: extern "C".
 		gi = *import;
 
 		// From Q2RE:
-		FRAME_TIME_S = FRAME_TIME_MS = sg_time_t::from_ms( gi.frame_time_ms );
+		FRAME_TIME_S = FRAME_TIME_MS = QMTime::FromMilliseconds( gi.frame_time_ms );
 
 		globals.apiversion = SVGAME_API_VERSION;
 		globals.PreInit = PreInitGame;
@@ -559,7 +559,7 @@ void CheckDMRules(void)
         return;
 
     if (timelimit->value) {
-        if (level.time >= sg_time_t::from_min( timelimit->value * 60 ) ) {
+        if (level.time >= QMTime::from_min( timelimit->value * 60 ) ) {
             gi.bprintf(PRINT_HIGH, "Timelimit hit.\n");
             EndDMLevel();
             return;

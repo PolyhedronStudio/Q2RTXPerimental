@@ -229,8 +229,8 @@ static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstF
     // Calculate the actual current frame for the moment in time of the active animation.
     int32_t frameForTime = -1;
     double lerpFraction = SG_AnimationFrameForTime( &frameForTime,
-        //sg_time_t::from_ms( clgi.GetRealTime() ), sg_time_t::from_ms( game.viewWeapon.real_time ),
-        sg_time_t::from_ms( clgi.client->extrapolatedTime ), sg_time_t::from_ms( game.viewWeapon.server_time ),
+        //QMTime::FromMilliseconds( clgi.GetRealTime() ), QMTime::FromMilliseconds( game.viewWeapon.real_time ),
+        QMTime::FromMilliseconds( clgi.client->extrapolatedTime ), QMTime::FromMilliseconds( game.viewWeapon.server_time ),
         BASE_FRAMETIME,
         firstFrame, lastFrame,
         1, false
@@ -633,7 +633,7 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
         // Crouching:
         pitchDelta *= 3;
     }
-    pitchDelta = min( pitchDelta, 1.2f );
+    pitchDelta = std::min( pitchDelta, 1.2f );
     viewAngles[ PITCH ] += pitchDelta;
     // Roll:
     float rollDelta = level.viewBob.fracSin * clg_bob_roll /*cg_bobroll.value */* speed;
@@ -641,7 +641,7 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
         // Crouching accentuates roll:
         rollDelta *= 3;
     }
-    rollDelta = min( rollDelta, 1.2f );
+    rollDelta = std::min( rollDelta, 1.2f );
     if ( level.viewBob.cycle & 1 ) {
         rollDelta = -rollDelta;
     }
@@ -836,7 +836,7 @@ const double CLG_SmoothViewHeight() {
     //! Base 1 Frametime.
     static constexpr double HEIGHT_CHANGE_BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE_TIME );
     //! Determine delta time.
-    uint64_t timeDelta = HEIGHT_CHANGE_TIME - min( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
+    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<uint64_t>( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
     //! Return the frame's adjustment for viewHeight which is added on top of the final vieworigin + viweoffset.
     return clgi.client->predictedState.transition.view.height[ 0 ] + (double)( clgi.client->predictedState.transition.view.height[ 1 ] - clgi.client->predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE_BASE_1_FRAMETIME;
 }
@@ -907,7 +907,7 @@ static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const 
 *   @return True if the server, or client, is non active(and/or thus paused).
 **/
 const bool CLG_IsGameplayPaused() {
-    if ( clgi.GetConnectionState() != ca_active || sv_paused->integer ) {
+    if ( clgi.GetConnectionState() != ca_active || cl_paused->integer || sv_paused->integer ) {
         return true;
     }
     return false;
@@ -918,70 +918,47 @@ const bool CLG_IsGameplayPaused() {
 **/
 static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
     // Amount of MS to lerp FOV over.
-    static constexpr int32_t FOV_LERP_TIME = 225;
-    static constexpr int32_t FOV_LERP_STATE_IN = 1;
-    static constexpr int32_t FOV_LERP_STATE_OUT = 0;
-    // Keeps track of the client side weapon aim/zooming state its POV transitions.
-    static struct {
-        //! Whether we're going in, or out.
-        int32_t state = FOV_LERP_STATE_OUT;
-        //! The time at when the FOV last changed/
-        uint64_t timeChanged = 0;
-        //! The old FOV to restore back to when we zoom out again.
-        float oldFOV = 0;
-        //! The actual lerp fraction we're at.
-        double lerpFraction = 0.;
-    } povLerp;
-    // Initialize it the first time around.
-    if ( !level.time ) {
-        povLerp = { .state = FOV_LERP_STATE_OUT };
-    }
+    static constexpr QMTime FOV_EASE_DURATION = 225_ms;
+    static QMTime realTime = QMTime::FromMilliseconds( clgi.GetRealTime() );
 
     /**
     *   Determine whether the FOV changed, whether it is zoomed(lower or higher than previous FOV), and
     *   store the old FOV as well as the realtime of change.
     **/
+    static QMEaseState fovEaseState;
+    //! Resort to cvar default value.
+    static double oldFOV = info_fov->value;
+    //! If fov changed, determine whether to start an ease in or out transition.
     if ( ops->fov != ps->fov ) {
         if ( ops->fov > ps->fov/* && povLerp.state = FOV_LERP_STATE_IN */) {
-            //if ( zoom_time < clgi.GetRealTime() - ZOOM_TIME ) {
-                povLerp.state = FOV_LERP_STATE_OUT;
-                povLerp.oldFOV = ops->fov;
-                povLerp.timeChanged = clgi.GetRealTime();
-            //}
+            oldFOV = ops->fov;
+            fovEaseState = QMEaseState::new_ease_state( realTime, FOV_EASE_DURATION );
         } else {
-            //if ( zoom_time < clgi.GetRealTime() - ZOOM_TIME ) {
-                povLerp.state = FOV_LERP_STATE_IN;
-                povLerp.oldFOV = ops->fov;
-                povLerp.timeChanged = clgi.GetRealTime();
-            //}
+            oldFOV = ops->fov;
+            fovEaseState = QMEaseState::new_ease_state( realTime, FOV_EASE_DURATION );
         }
     }
-
     /**
     *   Determine the lerp fraction and use cubic ease in/out for the FOV to lerp by.
     * 
     *   We clamp to avoid discrepancies.
     **/
     if ( !CLG_IsGameplayPaused() ) {
-        povLerp.lerpFraction = QM_Clampf( (float)( clgi.GetRealTime() - povLerp.timeChanged ) / (float)FOV_LERP_TIME, 0.f, 1.f );
+        realTime = QMTime::FromMilliseconds( clgi.GetRealTime() );
     }
-
     // Ease In:
-    float easeLerpFactor = 0.f;
-    if ( povLerp.state == FOV_LERP_STATE_IN ) {
-        //beavFrac = QM_ExponentialEaseI( lerpfrac );
-        easeLerpFactor = QM_CubicEaseIn( povLerp.lerpFraction );
+    static double easeLerpFactor = 0.;
+    if ( fovEaseState.mode == fovEaseState.QM_EASE_STATE_TYPE_IN ) {
+        easeLerpFactor = fovEaseState.EaseIn( realTime, QM_CubicEaseIn );
     // Ease Out:
     } else {
-        easeLerpFactor = QM_CubicEaseOut( povLerp.lerpFraction );
+        easeLerpFactor = fovEaseState.EaseOut( realTime, QM_CubicEaseOut );
     }
-    // Clamp the ease result just to be sure:
-    easeLerpFactor = QM_Clampf( easeLerpFactor, 0.f, 1.f );
 
     /**
     *   Calculate appropriate fov for use.
     **/
-    clgi.client->fov_x = lerp_client_fov( povLerp.oldFOV, ps->fov, easeLerpFactor );
+    clgi.client->fov_x = lerp_client_fov( oldFOV, ps->fov, easeLerpFactor );
     clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
 }
 /**

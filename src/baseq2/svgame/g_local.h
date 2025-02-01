@@ -38,8 +38,8 @@ extern svgame_export_t globals;
 #include "../sharedgame/sg_shared.h"
 
 // extern times.
-extern sg_time_t FRAME_TIME_S;
-extern sg_time_t FRAME_TIME_MS;
+extern QMTime FRAME_TIME_S;
+extern QMTime FRAME_TIME_MS;
 
 // For backwards compatibilities.
 #define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
@@ -48,7 +48,7 @@ extern sg_time_t FRAME_TIME_MS;
 #undef max
 
 // Just to, hold time, forever.
-constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max( ) );
+constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<int64_t>::max( ) );
 
 //==================================================================
 // 
@@ -81,13 +81,13 @@ extern std::mt19937 mt_rand;
 }
 
 // uniform time [min_inclusive, max_exclusive)
-[[nodiscard]] inline sg_time_t random_time( sg_time_t min_inclusive, sg_time_t max_exclusive ) {
-	return sg_time_t::from_ms( std::uniform_int_distribution<int64_t>( min_inclusive.milliseconds( ), max_exclusive.milliseconds( ) )( mt_rand ) );
+[[nodiscard]] inline QMTime random_time( QMTime min_inclusive, QMTime max_exclusive ) {
+	return QMTime::FromMilliseconds( std::uniform_int_distribution<int64_t>( min_inclusive.Milliseconds( ), max_exclusive.Milliseconds( ) )( mt_rand ) );
 }
 
 // uniform time [0, max_exclusive)
-[[nodiscard]] inline sg_time_t random_time( sg_time_t max_exclusive ) {
-	return sg_time_t::from_ms( std::uniform_int_distribution<int64_t>( 0, max_exclusive.milliseconds( ) )( mt_rand ) );
+[[nodiscard]] inline QMTime random_time( QMTime max_exclusive ) {
+	return QMTime::FromMilliseconds( std::uniform_int_distribution<int64_t>( 0, max_exclusive.Milliseconds( ) )( mt_rand ) );
 }
 
 // uniform float [-1, 1)
@@ -152,20 +152,20 @@ template<typename T>
 //#define DAMAGE_TIME     0.5f
 //#define FALL_TIME       0.3f
 // view pitching times
-static inline constexpr sg_time_t DAMAGE_TIME_SLACK( ) {
+static inline constexpr QMTime DAMAGE_TIME_SLACK( ) {
 	return ( 100_ms - FRAME_TIME_MS );
 }
 
-static inline constexpr sg_time_t DAMAGE_TIME( ) {
+static inline constexpr QMTime DAMAGE_TIME( ) {
 	return 500_ms + DAMAGE_TIME_SLACK( );
 }
 
-static inline constexpr sg_time_t FALL_TIME( ) {
+static inline constexpr QMTime FALL_TIME( ) {
 	return 300_ms + DAMAGE_TIME_SLACK( );
 }
 
 //! Time between ladder sounds.
-static constexpr sg_time_t LADDER_SOUND_TIME = 375_ms;
+static constexpr QMTime LADDER_SOUND_TIME = 375_ms;
 
 //==================================================================
 // 
@@ -424,7 +424,7 @@ typedef struct {
 //
 typedef struct {
     int64_t         framenum;
-    sg_time_t		time;
+    QMTime		time;
 
     char        level_name[MAX_QPATH];  // the descriptive name (Outer Base, etc)
     char        mapname[MAX_QPATH];     // the server name (base1, etc)
@@ -556,19 +556,19 @@ typedef struct {
     void        (*sight)(edict_t *self, edict_t *other);
     bool        (*checkattack)(edict_t *self);
 
-	sg_time_t	next_move_time; // high tick rate
+	QMTime	next_move_time; // high tick rate
 
-    sg_time_t	pause_time;
-    sg_time_t	attack_finished;
-	sg_time_t	fire_wait;
+    QMTime	pause_time;
+    QMTime	attack_finished;
+	QMTime	fire_wait;
 
     vec3_t      saved_goal;
-	sg_time_t	search_time;
-	sg_time_t	trail_time;
+	QMTime	search_time;
+	QMTime	trail_time;
     vec3_t      last_sighting;
     int         attack_state;
     int         lefty;
-    sg_time_t	idle_time;
+    QMTime	idle_time;
     int         linkcount;
 
     int         power_armor_type;
@@ -871,8 +871,8 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick);
 void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int mod);
 void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int mod);
 void fire_blaster(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, int effect, bool hyper);
-void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, sg_time_t timer, float damage_radius);
-void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, sg_time_t timer, float damage_radius, bool held);
+void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, QMTime timer, float damage_radius);
+void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, QMTime timer, float damage_radius, bool held);
 void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius, int radius_damage);
 void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick);
 void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, float damage_radius);
@@ -1013,7 +1013,7 @@ typedef struct {
     client_persistant_t coop_respawn;	// what to set client->pers to on a SVG_Client_RespawnPlayer
 
     int64_t enterframe;     // level.frameNumber the client entered the game
-    sg_time_t entertime;    // the moment in time the client entered the game.
+    QMTime entertime;    // the moment in time the client entered the game.
 
     int32_t score;      // Frags, etc
     vec3_t cmd_angles;  // Angles sent over in the last command.
@@ -1063,9 +1063,9 @@ struct gclient_s {
 	gitem_t *newweapon;
 
 	// weapon cannot fire until this time is up
-	sg_time_t weapon_fire_finished;
+	QMTime weapon_fire_finished;
 	// time between processing individual animation frames
-	sg_time_t weapon_think_time;
+	QMTime weapon_think_time;
 	// if we latched fire between server frames but before
 	// the weapon fire finish has elapsed, we'll "press" it
 	// automatically when we have a chance
@@ -1073,10 +1073,10 @@ struct gclient_s {
 	bool weapon_thunk;
 
 	// Last time we played an 'empty weapon click' sound.
-	sg_time_t	empty_weapon_click_sound;
+	QMTime	empty_weapon_click_sound;
 
-	sg_time_t	grenade_time;
-	sg_time_t	grenade_finished_time;
+	QMTime	grenade_time;
+	QMTime	grenade_finished_time;
 	bool        grenade_blew_up;
 
 	int         silencer_shots;
@@ -1111,9 +1111,9 @@ struct gclient_s {
     } weaponKicks;
 
     // view movement:
-    sg_time_t	v_dmg_time;
-    sg_time_t	fall_time;
-    sg_time_t	quake_time;
+    QMTime	v_dmg_time;
+    QMTime	fall_time;
+    QMTime	quake_time;
     float       v_dmg_roll, v_dmg_pitch;    // damage kicks
     float		fall_value;      // for view drop on fall
 
@@ -1133,7 +1133,7 @@ struct gclient_s {
     uint64_t    last_stair_step_frame;
 
     vec3_t last_ladder_pos; // For ladder step sounds.
-    sg_time_t last_ladder_sound;
+    QMTime last_ladder_sound;
 
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
@@ -1143,7 +1143,7 @@ struct gclient_s {
 	/**
 	*   Misc:
 	**/
-	sg_time_t		next_drown_time;
+	QMTime		next_drown_time;
     int32_t         breather_sound;
     int32_t         machinegun_shots;   // for weapon raising
 
@@ -1154,26 +1154,26 @@ struct gclient_s {
     int			anim_priority;
     bool		anim_duck;
     bool		anim_run;
-	sg_time_t	anim_time;
+	QMTime	anim_time;
 
 	/**
 	*	Powerup Timers:
 	**/
-	sg_time_t	quad_time;
-	sg_time_t	invincible_time;
-	sg_time_t	breather_time;
-	sg_time_t	enviro_time;
+	QMTime	quad_time;
+	QMTime	invincible_time;
+	QMTime	breather_time;
+	QMTime	enviro_time;
 
-    sg_time_t	pickup_msg_time;
+    QMTime	pickup_msg_time;
 
     /**
     *	Chat Flood Related:
     **/
-    sg_time_t	flood_locktill;     // locked from talking
-    sg_time_t	flood_when[10];     // when messages were said
+    QMTime	flood_locktill;     // locked from talking
+    QMTime	flood_when[10];     // when messages were said
     int64_t		flood_whenhead;     // head pointer for when said
 
-    sg_time_t	respawn_time;		// can SVG_Client_RespawnPlayer when time > this
+    QMTime	respawn_time;		// can SVG_Client_RespawnPlayer when time > this
 
     edict_t     *chase_target;      // player we are chasing
     bool        update_chase;       // need to update chase info?
@@ -1218,7 +1218,7 @@ struct edict_s {
 
 	// WID: C++20: added const.
     const char  *model;
-	sg_time_t   freetime;           // sv.time when the object was freed
+	QMTime   freetime;           // sv.time when the object was freed
 
     //
     // only used locally in game, not by server
@@ -1228,7 +1228,7 @@ struct edict_s {
     const char	*classname;
     int32_t     spawnflags;
 
-	sg_time_t	timestamp;
+	QMTime	timestamp;
 
     float       angle;          // set in qe3, -1 = up, -2 = down
     char        *target;
@@ -1248,7 +1248,7 @@ struct edict_s {
     vec3_t      velocity;
     vec3_t      avelocity;
     int32_t     mass;
-	sg_time_t   air_finished_time;
+	QMTime   air_finished_time;
     float       gravity;        // per entity gravity multiplier (1.0 is normal)
                                 // use for lowgrav artifact, flares
 
@@ -1257,7 +1257,7 @@ struct edict_s {
     float       yaw_speed;
     float       ideal_yaw;
 
-    sg_time_t         nextthink;
+    QMTime         nextthink;
     void        ( *postspawn )( edict_t *ent );
     void        ( *prethink )( edict_t *ent );
     void        ( *think )( edict_t *self );
@@ -1268,19 +1268,19 @@ struct edict_s {
     void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
     void        ( *die )( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
-	sg_time_t		touch_debounce_time;        // are all these legit?  do we need more/less of them?
-	sg_time_t		pain_debounce_time;
-	sg_time_t		damage_debounce_time;
-    sg_time_t		fly_sound_debounce_time;    // move to clientinfo
-	sg_time_t		last_move_time;
+	QMTime		touch_debounce_time;        // are all these legit?  do we need more/less of them?
+	QMTime		pain_debounce_time;
+	QMTime		damage_debounce_time;
+    QMTime		fly_sound_debounce_time;    // move to clientinfo
+	QMTime		last_move_time;
 
     int32_t     health;
     int32_t     max_health;
     int32_t     gib_health;
     int32_t     lifeStatus;
-    sg_time_t   show_hostile_time;
+    QMTime   show_hostile_time;
 
-	sg_time_t   powerarmor_time;
+	QMTime   powerarmor_time;
 
 	// WID: C++20: Added const.
     const char  *map;           // target_changelevel
@@ -1316,7 +1316,7 @@ struct edict_s {
     float       delay;          // before firing targets
     float       random;
 
-    sg_time_t		last_sound_time;
+    QMTime		last_sound_time;
 
     //! The possible liquid 'solid' brush we're intersecting with, or inside of.
     contents_t      liquidtype;

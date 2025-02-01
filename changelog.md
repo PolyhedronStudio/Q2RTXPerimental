@@ -75,7 +75,7 @@ These changes spawn from v0.0.0 up to 0.0.2
 
 ## Q2RTXPerimental Game Changes:
 ### Server Game:
-* Replaced (most)_framenum based functionality with time again, borrowing ``sg_time_t`` type from **Q2RE**.
+* Replaced (most)_framenum based functionality with time again, borrowing ``g_time_t`` type from **Q2RE**.
 * AI now has the option to run at ``tick rate``(defaults to ``40hz``), when the ``AI_HIGH_TICK_RATE`` flag is set.
 * Guns can operate at a varying tick rate, default is ``10hz``
 * Brush Triggers can now be set a spawnflag to trigger only when actually clipping with the trigger brush.
@@ -91,7 +91,7 @@ These changes spawn from v0.0.0 up to 0.0.2
 * A ``local entity`` system that has a class struct like implementation. Its main intended use is for client only specific entities, think of decorating or certain particle emitters that you do not want to clutter the network with.
 * View/Scene handling, this includes: ``Packet Entities``, ``Local Entities``, ``Temp Entity Events``, ``Particles``, ``Explosions``, ``Beams/Lasers/Trails``, ``Sustains``.
 ### Shared Game:
-* Contains the shared used ``sg_time_t`` which replaces all the vanilla frametime/framenum work.
+* Contains the shared used ``QMTime`` which replaces all the vanilla frametime/framenum work.
 * Customizable PlayerMove code.
 
 ## 1.7.0

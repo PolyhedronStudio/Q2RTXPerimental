@@ -74,7 +74,7 @@ void train_wait( edict_t *self ) {
 
     if ( self->pushMoveInfo.wait ) {
         if ( self->pushMoveInfo.wait > 0 ) {
-            self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
+            self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
             self->think = train_next;
         } else if ( self->spawnflags & TRAIN_TOGGLE ) { // && wait < 0
             train_next( self );

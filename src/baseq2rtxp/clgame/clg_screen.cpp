@@ -259,7 +259,7 @@ static void draw_progress_bar( float progress, bool paused, int64_t framenum ) {
     char buffer[ 16 ];
     int x, w, h;
     size_t len;
-    static const int64_t frameMs = FRAME_TIME_MS.milliseconds(); // Used to be 10 ofc.
+    static const int64_t frameMs = FRAME_TIME_MS.Milliseconds(); // Used to be 10 ofc.
 
     w = Q_rint( scr.hud_width * progress );
     h = Q_rint( CHAR_HEIGHT / scr.hud_scale );
@@ -1314,7 +1314,7 @@ static void SCR_DrawSelectedItemName( int x, int y, int item ) {
 
     float alpha;
     if ( scr_showitemname->integer < 2 )
-        alpha = std::max( (double)0., min( 1., 5. - 4. * duration ) ); // show and hide
+        alpha = std::max( (double)0., std::min( 1., 5. - 4. * duration ) ); // show and hide
     else
         alpha = 1; // always show
 
@@ -1755,8 +1755,8 @@ static void SCR_DrawDamageDisplays( void ) {
             (int)( entry->color[ 2 ] * 255.f ),
             (int)( lerpFraction * 255.f ) ) );
 
-        const int32_t size_x = min( scr.damage_display_width, ( 32/*DAMAGE_ENTRY_BASE_SIZE */* entry->damage ) );
-        const int32_t size_y = min( scr.damage_display_height, ( 32/*DAMAGE_ENTRY_BASE_SIZE*/ * entry->damage ) );
+        const int32_t size_x = std::min( scr.damage_display_width, ( 32/*DAMAGE_ENTRY_BASE_SIZE */* entry->damage ) );
+        const int32_t size_y = std::min( scr.damage_display_height, ( 32/*DAMAGE_ENTRY_BASE_SIZE*/ * entry->damage ) );
 
         const int32_t x = ( scr.hud_width - scr.damage_display_width ) / 2;
         const int32_t y = ( scr.hud_height - scr.damage_display_height ) / 2;

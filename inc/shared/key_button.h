@@ -33,6 +33,7 @@ typedef enum keydest_e {
     KEY_MESSAGE = ( 1 << 1 ),
     KEY_MENU = ( 1 << 2 )
 } keydest_t;
+QENUM_BIT_FLAGS( keydest_t );
 
 /**
 *   @brief  A button's state is either up(not pressed at all), down(pressed for a frame), or held(multiple frames).
@@ -45,6 +46,7 @@ typedef enum keybutton_state_s {
     //! Edge triggered on the down to up transition
     BUTTON_STATE_UP = BIT( 2 )
 } keybutton_state_t;
+QENUM_BIT_FLAGS( keybutton_state_t );
 
 /**
 *

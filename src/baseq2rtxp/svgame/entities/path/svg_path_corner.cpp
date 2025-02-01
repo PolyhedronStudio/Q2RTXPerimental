@@ -54,7 +54,7 @@ void path_corner_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface
 
     if ( self->wait ) {
         // WID: TODO: Monster Reimplement.
-        //other->monsterinfo.pause_time = level.time + sg_time_t::from_sec( self->wait );
+        //other->monsterinfo.pause_time = level.time + QMTime::FromMilliseconds( self->wait );
         //other->monsterinfo.stand(other);
         return;
     }

@@ -174,9 +174,9 @@ void SG_Z_TagFree( const uint32_t tag ) {
 *
 **/
 /**
-*	@brief	Server side sharedgame implementation of sg_time_t::frames.
+*	@brief	Server side sharedgame implementation of QMTime::frames.
 **/
-int64_t sg_time_t::frames() const {
+int64_t QMTime::Frames() const {
 	return _ms / gi.frame_time_ms;
 }
 

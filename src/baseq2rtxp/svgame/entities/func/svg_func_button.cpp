@@ -241,7 +241,7 @@ void button_press_move_done( edict_t *self ) {
         // Is press button?
         if ( self->nextthink < level.time ) {
             if ( self->pushMoveInfo.wait >= 0 ) {
-                self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
+                self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
                 self->think = button_think_return;
             }
         }
@@ -590,7 +590,7 @@ void button_usetarget_press( edict_t *self, edict_t *other, edict_t *activator, 
         // Unpress if demanded, make sure next think is lower than level.time so we can't press spam the button.
         if ( !stayPressed && self->nextthink < level.time ) {
             // Reinitiate this function.
-            self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
+            self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
             self->think = button_think_return;
         }
     } else {

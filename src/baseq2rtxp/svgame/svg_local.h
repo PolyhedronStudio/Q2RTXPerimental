@@ -46,13 +46,13 @@ extern svgame_export_t globals;
 *   Extern here right after including sharedgame/sg_shared.h
 **/
 //! Frame time in seconds.
-extern sg_time_t FRAME_TIME_S;
+extern QMTime FRAME_TIME_S;
 //! Frame time in miliseconds.
-extern sg_time_t FRAME_TIME_MS;
+extern QMTime FRAME_TIME_MS;
 // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
-#undef max
+//#undef max
 //! Just to, 'hold time', 'forever and ever'.
-constexpr sg_time_t HOLD_FOREVER = sg_time_t::from_ms( std::numeric_limits<int64_t>::max() );
+constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<int64_t>::max() );
 //! For backwards compatibilities.
 #define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
 
@@ -525,16 +525,16 @@ extern edict_t *g_edicts;
 *
 ***/
 //! Time between ladder sounds.
-static constexpr sg_time_t LADDER_SOUND_TIME = 375_ms;
+static constexpr QMTime LADDER_SOUND_TIME = 375_ms;
 //! View pitching times
-static inline constexpr sg_time_t DAMAGE_TIME_SLACK() {
+static inline constexpr QMTime DAMAGE_TIME_SLACK() {
     return ( 100_ms - FRAME_TIME_MS );
 }
 //! Time for damage effect.
-static inline constexpr sg_time_t DAMAGE_TIME() {
+static inline constexpr QMTime DAMAGE_TIME() {
     return 500_ms + DAMAGE_TIME_SLACK();
 }
 //! Time for falling.
-static inline constexpr sg_time_t FALL_TIME() {
+static inline constexpr QMTime FALL_TIME() {
     return 300_ms + DAMAGE_TIME_SLACK();
 }

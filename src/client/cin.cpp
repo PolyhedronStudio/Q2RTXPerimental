@@ -368,7 +368,7 @@ void SCR_DrawCinematic(void)
     if (cin.width > 0 && cin.height > cin.crop) {
         float scale_w = (float)r_config.width / cin.width;
         float scale_h = (float)r_config.height / (cin.height - cin.crop);
-        float scale = min(scale_w, scale_h);
+        float scale = std::min(scale_w, scale_h);
 
         int w = Q_rint(cin.width * scale);
         int h = Q_rint(cin.height * scale);

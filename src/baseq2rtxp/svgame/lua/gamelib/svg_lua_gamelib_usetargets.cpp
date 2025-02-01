@@ -130,7 +130,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 		}
 		delayEntity->classname = "DelayedLuaUseTarget";
 
-		delayEntity->nextthink = level.time + sg_time_t::from_sec( entity->delay );
+		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
 		delayEntity->think = LUA_Think_UseTargetDelay;
 
 		if ( !activator ) {
@@ -274,7 +274,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 		}
 		delayEntity->classname = "DelayedLuaUseTargets";
 
-		delayEntity->nextthink = level.time + sg_time_t::from_sec( entity->delay );
+		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
 		delayEntity->think = LUA_Think_UseTargetsDelay;
 
 		if ( !activator ) {

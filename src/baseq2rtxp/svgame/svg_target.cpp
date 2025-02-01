@@ -215,7 +215,7 @@ void use_target_explosion( edict_t *self, edict_t *other, edict_t *activator, co
     }
 
     self->think = target_explosion_explode;
-    self->nextthink = level.time + sg_time_t::from_sec( self->delay );
+    self->nextthink = level.time + QMTime::FromSeconds( self->delay );
 }
 
 void SP_target_explosion(edict_t *ent)
@@ -436,7 +436,7 @@ void SP_target_crosslevel_target(edict_t *self)
     self->svflags = SVF_NOCLIENT;
 
     self->think = target_crosslevel_target_think;
-    self->nextthink = level.time + sg_time_t::from_sec( self->delay );
+    self->nextthink = level.time + QMTime::FromSeconds( self->delay );
 }
 
 //==========================================================
@@ -603,11 +603,11 @@ void target_lightramp_think(edict_t *self)
 {
     char    style[2];
 
-	style[ 0 ] = (char)( 'a' + self->movedir[ 0 ] + ( ( level.time - self->timestamp ) / gi.frame_time_s ).seconds( ) * self->movedir[ 2 ] );
+	style[ 0 ] = (char)( 'a' + self->movedir[ 0 ] + ( ( level.time - self->timestamp ) / gi.frame_time_s ).Seconds( ) * self->movedir[ 2 ] );
     style[1] = 0;
     gi.configstring(CS_LIGHTS + self->enemy->style, style);
 
-	if ( ( level.time - self->timestamp ).seconds( ) < self->speed ) {
+	if ( ( level.time - self->timestamp ).Seconds( ) < self->speed ) {
 		self->nextthink = level.time + FRAME_TIME_S;
 	} else if (self->spawnflags & 1) {
         char    temp;
@@ -709,7 +709,7 @@ void target_earthquake_think(edict_t *self)
 }
 
 void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	//self->timestamp = level.time + sg_time_t::from_sec( self->count );
+	//self->timestamp = level.time + QMTime::FromMilliseconds( self->count );
 	//self->nextthink = level.time + FRAME_TIME_S;
 	//self->last_move_time = 0_ms;
  //   self->activator = activator;
@@ -730,7 +730,7 @@ void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, c
 		return;
 	}
 
-	self->timestamp = level.time + sg_time_t::from_sec( self->count );
+	self->timestamp = level.time + QMTime::FromSeconds( self->count );
 
 	if ( self->spawnflags & 2 /*SPAWNFLAGS_EARTHQUAKE_TOGGLE*/ ) {
 		if ( self->style )

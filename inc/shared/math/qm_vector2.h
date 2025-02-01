@@ -22,7 +22,7 @@ RMAPI Vector2 QM_Vector2One( void ) {
 }
 
 // Vector2 with x and y component of Vector3.
-RMAPI const Vector3 QM_Vector3FromVector2( ConstVector2Ref v1 ) {
+RMAPI Vector3 QM_Vector3FromVector2( ConstVector2Ref v1 ) {
     const Vector3 result = { v1.x, v1.y, 0.f };
 
     return result;

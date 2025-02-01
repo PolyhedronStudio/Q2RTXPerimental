@@ -43,7 +43,7 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
     tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
     if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
         VectorSubtract(tr.endpos, start, v);
-        sg_time_t eta = sg_time_t::from_sec(VectorLength(v) - tr.ent->maxs[0]) / speed;
+        QMTime eta = QMTime::FromMilliseconds(VectorLength(v) - tr.ent->maxs[0]) / speed;
         tr.ent->monsterinfo.dodge(tr.ent, self, eta.seconds() );
     }
 }
@@ -462,7 +462,7 @@ void Grenade_Touch(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *su
     Grenade_Explode(ent);
 }
 
-void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, sg_time_t timer, float damage_radius)
+void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, QMTime timer, float damage_radius)
 {
     edict_t *grenade;
     vec3_t  dir;
@@ -503,7 +503,7 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     gi.linkentity(grenade);
 }
 
-void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, sg_time_t timer, float damage_radius, bool held)
+void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int speed, QMTime timer, float damage_radius, bool held)
 {
     edict_t *grenade;
     vec3_t  dir;
@@ -628,7 +628,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     rocket->s.modelindex = gi.modelindex("models/objects/rocket/tris.md2");
     rocket->owner = self;
     rocket->touch = rocket_touch;
-	rocket->nextthink = level.time + sg_time_t::from_sec( 8000.f / speed );
+	rocket->nextthink = level.time + QMTime::FromMilliseconds( 8000.f / speed );
     rocket->think = SVG_FreeEdict;
     rocket->dmg = damage;
     rocket->radius_dmg = radius_damage;
@@ -889,7 +889,7 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
     bfg->s.modelindex = gi.modelindex("sprites/s_bfg1.sp2");
     bfg->owner = self;
     bfg->touch = bfg_touch;
-	bfg->nextthink = level.time + sg_time_t::from_sec( 8000.f / speed );
+	bfg->nextthink = level.time + QMTime::FromMilliseconds( 8000.f / speed );
     bfg->think = SVG_FreeEdict;
     bfg->radius_dmg = damage;
     bfg->dmg_radius = damage_radius;
@@ -923,7 +923,7 @@ void flare_sparks(edict_t *self)
 
     gi.WriteInt16((int)(self - g_edicts));
     // if this is the first tick of flare, set count to 1 to start the sound
-	// WID: sg_time_t: WARNING: Did we do this properly?
+	// WID: QMTime: WARNING: Did we do this properly?
     gi.WriteUint8( (self->timestamp - level.time) < 14.75_sec ? 0 : 1 );
 
     gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
@@ -986,7 +986,7 @@ void flare_think(edict_t *self)
 	
 	// We'll think again in .2 seconds 
 	// 
-	self->nextthink = level.time + sg_time_t::from_sec(.2f);
+	self->nextthink = level.time + QMTime::FromMilliseconds(.2f);
 }
 
 void flare_touch(edict_t *ent, edict_t *other,

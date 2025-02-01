@@ -282,8 +282,8 @@ void AddPointToBounds( const vec3_t v, vec3_t mins, vec3_t maxs ) {
 
 	for ( i = 0; i < 3; i++ ) {
 		val = v[ i ];
-		mins[ i ] = min( mins[ i ], val );
-		maxs[ i ] = max( maxs[ i ], val );
+		mins[ i ] = std::min( mins[ i ], val );
+		maxs[ i ] = std::max( maxs[ i ], val );
 	}
 }
 
@@ -291,8 +291,8 @@ void UnionBounds( const vec3_t a[ 2 ], const vec3_t b[ 2 ], vec3_t c[ 2 ] ) {
 	int        i;
 
 	for ( i = 0; i < 3; i++ ) {
-		c[ 0 ][ i ] = min( a[ 0 ][ i ], b[ 0 ][ i ] );
-		c[ 1 ][ i ] = max( a[ 1 ][ i ], b[ 1 ][ i ] );
+		c[ 0 ][ i ] = std::min( a[ 0 ][ i ], b[ 0 ][ i ] );
+		c[ 1 ][ i ] = std::max( a[ 1 ][ i ], b[ 1 ][ i ] );
 	}
 }
 
@@ -309,7 +309,7 @@ vec_t RadiusFromBounds( const vec3_t mins, const vec3_t maxs ) {
 	for ( i = 0; i < 3; i++ ) {
 		a = fabsf( mins[ i ] );
 		b = fabsf( maxs[ i ] );
-		corner[ i ] = max( a, b );
+		corner[ i ] = std::max( a, b );
 	}
 
 	return VectorLength( corner );

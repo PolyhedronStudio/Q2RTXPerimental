@@ -917,7 +917,7 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
         break;
 
     case F_FRAMETIME:
-		// WID: We got sg_time_t, so we need int64 saving for frametime.
+		// WID: We got QMTime, so we need int64 saving for frametime.
         for (i = 0; i < field->size; i++) {
             write_int64(f, ((int64_t *)p)[i]);
         }
@@ -1281,7 +1281,7 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
 
     case F_FRAMETIME:
-		// WID: We got sg_time_t, so we need int64 saving for frametime.
+		// WID: We got QMTime, so we need int64 saving for frametime.
 		for (i = 0; i < field->size; i++) {
 	        ((int64_t *)p)[i] = read_int64(ctx->f);
         }
@@ -1593,7 +1593,7 @@ void SVG_ReadLevel(const char *filename)
         // fire any cross-level triggers
         if (ent->classname)
             if (strcmp( (const char *)ent->classname, "target_crosslevel_target") == 0)
-                ent->nextthink = level.time + sg_time_t::from_sec( ent->delay );
+                ent->nextthink = level.time + QMTime::FromSeconds( ent->delay );
         #if 0
         if (ent->think == func_clock_think || ent->use == func_clock_use) {
             char *msg = ent->message;

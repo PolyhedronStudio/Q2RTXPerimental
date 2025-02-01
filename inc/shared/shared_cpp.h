@@ -78,7 +78,7 @@ static inline size_t Q_concat_stdarray(char* dest, size_t size, std::vector<cons
         e = e | e2;                                                                                 \
         return e;                                                                                   \
     }                                                                                               \
-    template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >      \
+    template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
     inline constexpr E& operator&=( E &e, const E &e2 )                                             \
     {                                                                                               \
         e = e & e2;                                                                                 \
@@ -88,6 +88,12 @@ static inline size_t Q_concat_stdarray(char* dest, size_t size, std::vector<cons
     inline constexpr E& operator^=( E &e, const E &e2 )                                             \
     {                                                                                               \
         e = e ^ e2;                                                                                 \
+        return e;                                                                                   \
+    }                                                                                               \
+    template< typename E2 = E, typename = std::enable_if_t< std::is_same_v< E2, E > > >             \
+    inline constexpr E& operator|=( E &e, E &e2 )                                             \
+    {                                                                                               \
+        e = e | e2;                                                                                 \
         return e;                                                                                   \
     }
 

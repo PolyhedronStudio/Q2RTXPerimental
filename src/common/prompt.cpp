@@ -53,10 +53,10 @@ static void Prompt_ShowMatches(commandPrompt_t *prompt, char **matches,
             maxlen = 0;
             for (j = k; j < k + numLines && j < end; j++) {
                 len = strlen(matches[j]);
-                maxlen = max(maxlen, len);
+                maxlen = std::max(maxlen, len);
             }
             maxlen += 2; // account for intercolumn spaces
-            maxlen = min(maxlen, prompt->widthInChars);
+            maxlen = std::min((int64_t)maxlen, (int64_t)prompt->widthInChars);
             colwidths[i] = maxlen;
             total += maxlen;
         }
@@ -359,7 +359,7 @@ finish:
     Z_Free(ctx.matches);
 
     // move cursor
-    inputLine->cursorPos = min(pos, inputLine->maxChars - 1);
+    inputLine->cursorPos = std::min((int64_t)pos, (int64_t)inputLine->maxChars - 1);
 }
 
 void Prompt_CompleteHistory(commandPrompt_t *prompt, bool forward)

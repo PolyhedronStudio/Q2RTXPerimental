@@ -44,7 +44,7 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
     //tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
     //if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
     //    VectorSubtract(tr.endpos, start, v);
-    //    sg_time_t eta = sg_time_t::from_sec(VectorLength(v) - tr.ent->maxs[0]) / speed;
+    //    QMTime eta = QMTime::FromMilliseconds(VectorLength(v) - tr.ent->maxs[0]) / speed;
     //    tr.ent->monsterinfo.dodge(tr.ent, self, eta.seconds() );
     //}
 }

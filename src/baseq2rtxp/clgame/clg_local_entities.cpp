@@ -169,7 +169,7 @@ bool CLG_LocalEntity_RunThink( clg_local_entity_t *lent ) {
 		return true;
 	}
 
-	sg_time_t thinktime = lent->nextthink;
+	QMTime thinktime = lent->nextthink;
 	if ( thinktime <= 0_ms ) {
 		return true;
 	}

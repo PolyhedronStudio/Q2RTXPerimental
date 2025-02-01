@@ -273,7 +273,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
         }
 
         int64_t score = game.clients[ i ].resp.score;
-        sg_time_t time = level.time - game.clients[ i ].resp.entertime;
+        QMTime time = level.time - game.clients[ i ].resp.entertime;
         int16_t ping = game.clients[ i ].ping;
 
         // Client name is already known by client infos, so just send the index instead.

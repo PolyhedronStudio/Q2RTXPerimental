@@ -52,8 +52,8 @@ configstring_t *SG_GetConfigString( const int32_t configStringIndex ) {
 }
 
 /**
-*	@brief	Server side sharedgame implementation of sg_time_t::frames.
+*	@brief	Server side sharedgame implementation of QMTime::frames.
 **/
-int64_t sg_time_t::frames( ) const {
+int64_t QMTime::frames( ) const {
 	return _ms / gi.frame_time_ms;
 }

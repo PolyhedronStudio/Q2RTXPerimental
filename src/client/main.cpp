@@ -3130,7 +3130,7 @@ uint64_t CL_Frame( uint64_t msec ) {
 
         // Return immediately if neither clientgame, physics or refresh are scheduled:
         if ( !phys_frame && !ref_frame /*&& !clientgame_frame*/ ) {
-            return min( phys_msec - phys_extra, ref_msec - ref_extra );
+            return std::min( phys_msec - phys_extra, ref_msec - ref_extra );
         }
         break;
     // Everything ticks in sync with refresh:

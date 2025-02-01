@@ -4513,6 +4513,7 @@ void vkpt_submit_command_buffer_simple(
 }
 
 #if _WIN32
+	#define NOMINMAX
 	#include <windows.h>
 #else
 	#include <stdio.h>

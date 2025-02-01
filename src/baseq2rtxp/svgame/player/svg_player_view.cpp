@@ -311,16 +311,16 @@ static void P_CalculateViewOffset( edict_t *ent ) {
 		if ( ent->client->viewMove.damageTime > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			sg_time_t diff = ent->client->viewMove.damageTime - level.time;
+			QMTime diff = ent->client->viewMove.damageTime - level.time;
 
 			// slack time remaining
 			if ( DAMAGE_TIME_SLACK( ) ) {
 				if ( diff > DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) )
-					ratio = ( DAMAGE_TIME( ) - diff ).seconds( ) / DAMAGE_TIME_SLACK( ).seconds( );
+					ratio = ( DAMAGE_TIME( ) - diff ).Seconds( ) / DAMAGE_TIME_SLACK( ).Seconds( );
 				else
-					ratio = diff.seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+					ratio = diff.Seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).Seconds( );
 			} else
-				ratio = diff.seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+				ratio = diff.Seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).Seconds( );
 
 			viewAnglesOffset[ PITCH ] += ratio * ent->client->viewMove.damagePitch;
 			viewAnglesOffset[ ROLL ] += ratio * ent->client->viewMove.damageRoll;
@@ -330,16 +330,16 @@ static void P_CalculateViewOffset( edict_t *ent ) {
 		if ( ent->client->viewMove.fallTime > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			sg_time_t diff = ent->client->viewMove.fallTime - level.time;
+			QMTime diff = ent->client->viewMove.fallTime - level.time;
 
 			// slack time remaining
 			if ( DAMAGE_TIME_SLACK( ) ) {
 				if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) )
-					ratio = ( FALL_TIME( ) - diff ).seconds( ) / DAMAGE_TIME_SLACK( ).seconds( );
+					ratio = ( FALL_TIME( ) - diff ).Seconds( ) / DAMAGE_TIME_SLACK( ).Seconds( );
 				else
-					ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+					ratio = diff.Seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).Seconds( );
 			} else
-				ratio = diff.seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).seconds( );
+				ratio = diff.Seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).Seconds( );
 			viewAnglesOffset[ PITCH ] += ratio * ent->client->viewMove.fallValue;
 		}
 
@@ -371,7 +371,7 @@ static void P_CalculateViewOffset( edict_t *ent ) {
 
 		// Add earthquake view offset angles
 		if ( ent->client->viewMove.quakeTime > level.time ) {
-			float factor = min( 1.0f, ( ent->client->viewMove.quakeTime.seconds( ) / level.time.seconds( ) ) * 0.25f );
+			float factor = std::min( 1.0f, (float)( ent->client->viewMove.quakeTime.Seconds( ) / level.time.Seconds( ) ) * 0.25f );
 
 			viewAnglesOffset.x += crandom_open( ) * factor;
 			viewAnglesOffset.y += crandom_open( ) * factor;
@@ -393,17 +393,17 @@ static void P_CalculateViewOffset( edict_t *ent ) {
 	if ( ent->client->viewMove.fallTime > level.time ) {
 		// [Paril-KEX] 100ms of slack is added to account for
 		// visual difference in higher tickrates
-		sg_time_t diff = ent->client->viewMove.fallTime - level.time;
+		QMTime diff = ent->client->viewMove.fallTime - level.time;
 
 		// Slack time remaining
 		if ( DAMAGE_TIME_SLACK( ) ) {
 			if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ) {
-				ratio = ( FALL_TIME( ) - diff ).seconds( ) / DAMAGE_TIME_SLACK( ).seconds( );
+				ratio = ( FALL_TIME( ) - diff ).Seconds( ) / DAMAGE_TIME_SLACK( ).Seconds( );
 			} else {
-				ratio = diff.seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).seconds();
+				ratio = diff.Seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).Seconds();
 			}
 		} else {
-			ratio = diff.seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).seconds();
+			ratio = diff.Seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).Seconds();
 		}
 		viewOriginOffset.z -= ratio * ent->client->viewMove.fallValue * 0.4f;
 	}
@@ -501,7 +501,7 @@ P_CalculateBlend
 =============
 */
 static void P_CalculateBlend( edict_t *ent ) {
-	sg_time_t remaining;
+	QMTime remaining;
 
 	// Clear player state screen blend.
 	Vector4Clear( ent->client->ps.screen_blend );
@@ -539,9 +539,9 @@ static void P_CalculateBlend( edict_t *ent ) {
 	if ( ent->air_finished_time < level.time + 9_sec ) {
 		constexpr vec3_t drown_color = { 0.1f, 0.1f, 0.2f };
 		constexpr float max_drown_alpha = 0.75f;
-		float alpha = ( ent->air_finished_time < level.time ) ? 1 : ( 1.f - ( ( ent->air_finished_time - level.time ).seconds() / 9.0f ) );
+		float alpha = ( ent->air_finished_time < level.time ) ? 1 : ( 1.f - ( ( ent->air_finished_time - level.time ).Seconds() / 9.0f ) );
 		//SV_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], min( alpha, max_drown_alpha ), ent->client->ps.damage_blend );
-		SG_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], min( alpha, max_drown_alpha ), ent->client->damage_blend );
+		SG_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], std::min( alpha, max_drown_alpha ), ent->client->damage_blend );
 	}
 
 #if 0
@@ -824,15 +824,15 @@ void SVG_SetClientFrame( edict_t *ent ) {
 	// Only override the actual animationIDs if the event is still actively playing.
 	if ( lowerEventState->timeEnd >= level.time ) {
 		lowerEventAnimationID = lowerEventState->animationID;
-		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(%i), lowerEventState->time(%" PRIu64 "), lowerEventState->timEnd(%" PRIu64 ")\n", __func__, lowerEventAnimationID, ( level.time - lowerEventState->timeStart ).milliseconds(), lowerEventState->timeEnd.milliseconds() );
+		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(%i), lowerEventState->time(%" PRIu64 "), lowerEventState->timEnd(%" PRIu64 ")\n", __func__, lowerEventAnimationID, ( level.time - lowerEventState->timeStart ).Milliseconds(), lowerEventState->timeEnd.Milliseconds() );
 	} else {
-		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(0) lowerEventState->timeStart(%" PRIu64 "), level.time(%" PRIu64 ")\n", __func__, lowerEventState->timeStart.milliseconds(), level.time.milliseconds() );
+		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(0) lowerEventState->timeStart(%" PRIu64 "), level.time(%" PRIu64 ")\n", __func__, lowerEventState->timeStart.Milliseconds(), level.time.Milliseconds() );
 	}
 	if ( upperEventState->timeEnd >= level.time ) {
 		upperEventAnimationID = upperEventState->animationID;
-		//gi.bprintf( PRINT_DEVELOPER, "%s: upperEventState->animationID(%i), upperEventState->time(%" PRIu64 "), upperEventState->timEnd(%" PRIu64 ")\n", __func__, upperEventAnimationID, ( level.time - upperEventState->timeStart ).milliseconds(), upperEventState->timeEnd.milliseconds() );
+		//gi.bprintf( PRINT_DEVELOPER, "%s: upperEventState->animationID(%i), upperEventState->time(%" PRIu64 "), upperEventState->timEnd(%" PRIu64 ")\n", __func__, upperEventAnimationID, ( level.time - upperEventState->timeStart ).Milliseconds(), upperEventState->timeEnd.Milliseconds() );
 	} else {
-		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(0) upperEventState->timeStart(%" PRIu64 "), level.time(%" PRIu64 ")\n", __func__, upperEventState->timeStart.milliseconds(), level.time.milliseconds() );
+		//gi.bprintf( PRINT_DEVELOPER, "%s: lowerEventState->animationID(0) upperEventState->timeStart(%" PRIu64 "), level.time(%" PRIu64 ")\n", __func__, upperEventState->timeStart.Milliseconds(), level.time.Milliseconds() );
 	}
 
 	// Encode the body specifics into the frame value.

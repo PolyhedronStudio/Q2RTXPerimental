@@ -694,7 +694,7 @@ void button_wait(edict_t *self)
     SVG_UseTargets(self, self->activator);
     self->s.frame = 1;
     if (self->moveinfo.wait >= 0) {
-		self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
+		self->nextthink = level.time + QMTime::FromMilliseconds( self->moveinfo.wait );
         self->think = button_return;
     }
 }
@@ -862,7 +862,7 @@ void door_hit_top(edict_t *self)
         return;
     if (self->moveinfo.wait >= 0) {
         self->think = door_go_down;
-		self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
+		self->nextthink = level.time + QMTime::FromMilliseconds( self->moveinfo.wait );
     }
 }
 
@@ -904,7 +904,7 @@ void door_go_up(edict_t *self, edict_t *activator)
     if (self->moveinfo.state == PUSHMOVE_STATE_TOP) {
         // reset top wait time
         if (self->moveinfo.wait >= 0)
-			self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
+			self->nextthink = level.time + QMTime::FromMilliseconds( self->moveinfo.wait );
         return;
     }
 
@@ -1459,7 +1459,7 @@ void train_wait(edict_t *self)
 
     if (self->moveinfo.wait) {
         if (self->moveinfo.wait > 0) {
-            self->nextthink = level.time + sg_time_t::from_sec( self->moveinfo.wait );
+            self->nextthink = level.time + QMTime::FromMilliseconds( self->moveinfo.wait );
             self->think = train_next;
         } else if (self->spawnflags & TRAIN_TOGGLE) { // && wait < 0
             train_next(self);
@@ -1703,7 +1703,7 @@ These can used but not touched.
 void func_timer_think(edict_t *self)
 {
     SVG_UseTargets(self, self->activator);
-	self->nextthink = level.time + sg_time_t::from_sec( self->wait + crandom( ) * self->random );
+	self->nextthink = level.time + QMTime::FromMilliseconds( self->wait + crandom( ) * self->random );
 }
 
 void func_timer_use(edict_t *self, edict_t *other, edict_t *activator)
@@ -1718,7 +1718,7 @@ void func_timer_use(edict_t *self, edict_t *other, edict_t *activator)
 
     // turn it on
     if (self->delay)
-		self->nextthink = level.time + sg_time_t::from_sec( self->delay );
+		self->nextthink = level.time + QMTime::FromMilliseconds( self->delay );
     else
         func_timer_think(self);
 }
@@ -1737,7 +1737,7 @@ void SP_func_timer(edict_t *self)
     }
 
     if (self->spawnflags & 1) {
-		self->nextthink = level.time + 1_sec + sg_time_t::from_sec( st.pausetime + self->delay + self->wait + crandom( ) * self->random );
+		self->nextthink = level.time + 1_sec + QMTime::FromMilliseconds( st.pausetime + self->delay + self->wait + crandom( ) * self->random );
         self->activator = self;
     }
 
@@ -1833,7 +1833,7 @@ void door_secret_move3(edict_t *self)
 {
     if (self->wait == -1)
         return;
-	self->nextthink = level.time + sg_time_t::from_sec( self->wait );
+	self->nextthink = level.time + QMTime::FromMilliseconds( self->wait );
     self->think = door_secret_move4;
 }
 

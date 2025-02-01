@@ -52,7 +52,7 @@ void SVG_P_ProcessAnimations( const edict_t *ent ) {
             animationMixer->currentBodyStates[ SKM_BODY_LOWER ] = newAnimationBodyState;
         }
     }
-    //sg_time_t startTimer = level.time;
+    //QMTime startTimer = level.time;
     //// However, if the last body state was of a different animation type, we want to continue using its
     //// start time so we can ensure that switching directions keeps the feet neatly lerping.
     //if ( animationMixer->lastBodyStates[ SKM_BODY_LOWER ].animationID != animationMixer->currentBodyStates[ SKM_BODY_LOWER ].animationID ) {

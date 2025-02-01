@@ -403,7 +403,7 @@ void door_open_move_done( edict_t *self ) {
         // Assign close move think.
         self->think = door_close_move;
         // Tell it when to start closing.
-        self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
+        self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
     }
 
 }
@@ -511,7 +511,7 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
     if ( self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
         // Reset 'top pusher state'/'door opened state' wait time
         if ( self->pushMoveInfo.wait > 0 ) {
-            self->nextthink = level.time + sg_time_t::from_sec( self->pushMoveInfo.wait );
+            self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
         }
         // And exit. This results in having to wait longer if trigger/button spamming.
         return;

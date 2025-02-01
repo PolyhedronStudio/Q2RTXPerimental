@@ -324,7 +324,7 @@ void turret_driver_think(edict_t *self)
     QM_Vector3ToAngles(dir, self->targetEntities.target->move_angles);
 
     // decide if we should shoot
-	sg_time_t reaction_time = sg_time_t::from_sec( 3 - skill->integer );
+	QMTime reaction_time = QMTime::FromMilliseconds( 3 - skill->integer );
 	if ( ( level.time - self->monsterinfo.trail_time ) < reaction_time )
 		return;
 

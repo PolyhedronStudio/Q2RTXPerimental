@@ -34,7 +34,7 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
 
     // If we're not the local client entity, we don't want to update these values unless we're in a new serverframe.
     if ( !isLocalClientEntity ) {
-        if ( packetEntity->moveInfo.current.serverTime >= sg_time_t::from_ms( clgi.client->servertime ) ) {
+        if ( packetEntity->moveInfo.current.serverTime >= QMTime::FromMilliseconds( clgi.client->servertime ) ) {
             return;
         }
     }
@@ -45,7 +45,7 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
     packetEntity->moveInfo.previous = packetEntity->moveInfo.current;
 
     // Update otherwise.
-    packetEntity->moveInfo.current.serverTime = sg_time_t::from_ms( clgi.client->servertime );
+    packetEntity->moveInfo.current.serverTime = QMTime::FromMilliseconds( clgi.client->servertime );
 
     /**
     *   First determine if we need to recalculate the forward/right/up vectors.

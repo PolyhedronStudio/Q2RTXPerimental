@@ -316,7 +316,7 @@ const skm_anim_t *SG_SKM_GetAnimationForHandle( const model_t *model, const qhan
 *           When the animation is finished it will return frame -1. Takes looping into account. Looping animations
 *           are never finished.
 **/
-const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentTime, const sg_time_t &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop ) {
+const double SG_AnimationFrameForTime( int32_t *frame, const QMTime &currentTime, const QMTime &startTimeStamp, const double frameTime, const int32_t firstFrame, const int32_t lastFrame, const int32_t loopingFrames, const bool forceLoop ) {
 	// Working loopinframes variable.
 	int32_t _loopingFrames = loopingFrames;
 
@@ -333,10 +333,10 @@ const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentT
 	}
 
 	// Calculate how long the animation is currently running for.
-	sg_time_t runningtime = currentTime - startTimeStamp;
+	QMTime runningtime = currentTime - startTimeStamp;
 
 	// Calculate the frame's fraction.
-	double frameFraction = ( (double)runningtime.milliseconds() / (double)frameTime );
+	double frameFraction = ( (double)runningtime.Milliseconds() / (double)frameTime );
 	const int64_t frameCount = std::floor(frameFraction);
 	frameFraction -= frameCount;
 
@@ -385,7 +385,7 @@ const double SG_AnimationFrameForTime( int32_t *frame, const sg_time_t &currentT
 *
 *	@return	True if the animation has finished playing. Also returns true in case of an error, since no valid animation is instantly finished playing.
 **/
-const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_animation_state_t *animationState, const sg_time_t &time, int32_t *outOldFrame, int32_t *outCurrentFrame, double *outBackLerp ) {
+const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_animation_state_t *animationState, const QMTime &time, int32_t *outOldFrame, int32_t *outCurrentFrame, double *outBackLerp ) {
 	// Sanity checks.
 	if ( !animationState ) {
 		SG_DPrintf( "%s: animationState == (nullptr)!\n", __func__ );
@@ -419,7 +419,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 
 	// Calculate the actual current frame for the moment in time of the active animation.
 	const double lerpFraction = SG_AnimationFrameForTime( &animationState->currentFrame,
-		time, animationState->timeStart /*- sg_time_t::from_ms( BASE_FRAMETIME )*/,
+		time, animationState->timeStart /*- QMTime::FromMilliseconds( BASE_FRAMETIME )*/,
 		// Use the one provided by the animation state instead of the skmData, since we may want to play at a different speed.
 		animationState->frameTime,
 		// Process animation from first to last frame.
@@ -462,7 +462,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 /**
 *	@brief	Internal support routine: Sets the necessary data needed from skmAnimation for the animationState.
 **/
-static void SG_SKM_AnimationStateFromAnimation( const skm_anim_t *skmAnimation, sg_skm_animation_state_t *animationState, const int32_t animationID, const sg_time_t &startTime, const double frameTime, const bool forceLoop ) {
+static void SG_SKM_AnimationStateFromAnimation( const skm_anim_t *skmAnimation, sg_skm_animation_state_t *animationState, const int32_t animationID, const QMTime &startTime, const double frameTime, const bool forceLoop ) {
 	// Store source frame data for easy access later on.
 	animationState->srcStartFrame = skmAnimation->first_frame;
 	animationState->srcEndFrame = skmAnimation->first_frame + skmAnimation->num_frames;
@@ -472,11 +472,11 @@ static void SG_SKM_AnimationStateFromAnimation( const skm_anim_t *skmAnimation, 
 	animationState->frameTime = frameTime;
 	#if 1
 	animationState->timeStart = startTime;
-	animationState->timeDuration = sg_time_t::from_ms( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime );
+	animationState->timeDuration = QMTime::FromMilliseconds( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime );
 	animationState->timeEnd = ( startTime + animationState->timeDuration );
 	#else
-	animationState->animationStartTime = sg_time_t::from_ms( clgi.client->servertime );
-	animationState->animationEndTime = sg_time_t::from_ms( clgi.client->servertime + ( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
+	animationState->animationStartTime = QMTime::FromMilliseconds( clgi.client->servertime );
+	animationState->animationEndTime = QMTime::FromMilliseconds( clgi.client->servertime + ( ( animationState->srcEndFrame - animationState->srcStartFrame ) * animationState->frameTime ) );
 	#endif
 	animationState->isLooping = ( skmAnimation->flags & IQM_LOOP ? true : ( forceLoop == true ? true : false ) );
 }
@@ -485,7 +485,7 @@ static void SG_SKM_AnimationStateFromAnimation( const skm_anim_t *skmAnimation, 
 *	@brief	Will set the animation matching 'name' for the animation state.
 *			Will force set the aniamtion, if desired.
 **/
-const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet ) {
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const char *animationName, const QMTime &startTime, const double frameTime, const bool forceLoop, const bool forceSet ) {
 	// Sanity checks.
 	if ( !animationState ) {
 		SG_DPrintf( "%s: animationState == (nullptr)!\n", __func__ );
@@ -531,7 +531,7 @@ const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_stat
 *	@brief	Will set the animation matching 'animationID' of the animation state.
 *			Will force set the aniamtion, if desired.
 **/
-const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const qhandle_t animationID, const sg_time_t &startTime, const double frameTime, const bool forceLoop, const bool forceSet ) {
+const bool SG_SKM_SetStateAnimation( const model_t *model, sg_skm_animation_state_t *animationState, const qhandle_t animationID, const QMTime &startTime, const double frameTime, const bool forceLoop, const bool forceSet ) {
 	// Sanity checks.
 	if ( !animationState ) {
 		SG_DPrintf( "%s: animationState == (nullptr)!\n", __func__ );
@@ -973,7 +973,7 @@ void SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameB
 /**
 *   @brief  Activates the bone controller and (re-)initializes its initial state as well as its imer.
 **/
-void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const sg_time_t &timeDuration, const sg_time_t &timeActivated ) {
+void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const skm_bone_node_t *boneNode, const skm_bone_controller_target_t &target, const skm_transform_t *initialTransform, const skm_transform_t *currentTransform, const int32_t transformMask, const QMTime &timeDuration, const QMTime &timeActivated ) {
     // Sanity check.
     if ( !boneController || !boneNode ) {
         // TODO: WARN
@@ -990,8 +990,8 @@ void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const s
     boneController->state = SKM_BONE_CONTROLLER_STATE_ACTIVE;
     boneController->transformMask = transformMask;
 
-    boneController->timeActivated = timeActivated.milliseconds();
-    boneController->slerpDuration = timeDuration.milliseconds();
+    boneController->timeActivated = timeActivated.Milliseconds();
+    boneController->slerpDuration = timeDuration.Milliseconds();
     boneController->timeEnd = boneController->timeActivated + boneController->slerpDuration;
 
     // Apply 'initial' base transform.
@@ -1009,7 +1009,7 @@ void SKM_BoneController_Activate( skm_bone_controller_t *boneController, const s
 *   @note   The pose is expected to be untempered with in any way. 
 *           This means that it should contain purely relative blended joints sourced by lerping and recursive blending.
 **/
-void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const sg_time_t &currentTime, skm_transform_t *inOutBonePoses ) {
+void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControllers, const int32_t numBoneControllers, const QMTime &currentTime, skm_transform_t *inOutBonePoses ) {
     // Sanity check.
     if ( !boneControllers || !numBoneControllers || !inOutBonePoses ) {
         // TODO: WARN
@@ -1030,7 +1030,7 @@ void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControlle
         const int32_t boneNumber = boneController->boneNumber;
 
         // Determine bone control (S)Lerp controlFactor based on the time changed.
-        const sg_time_t timeEnd = sg_time_t::from_ms( boneController->timeEnd );
+        const QMTime timeEnd = QMTime::FromMilliseconds( boneController->timeEnd );
 
         // However if the current time is lesser than the time it is meant to end.. Process it.
         double boneControlFactor = 1.0;
@@ -1038,7 +1038,7 @@ void SKM_BoneController_ApplyToPoseForTime( skm_bone_controller_t *boneControlle
             // Get the scale fraction derived from duration.
             const double scaleFraction = 1.0 / boneController->slerpDuration;
             // Calculate the (S)Lerp controlFactor.
-            boneControlFactor = 1.0 - ( ( timeEnd - currentTime ).milliseconds() * scaleFraction );
+            boneControlFactor = 1.0 - ( ( timeEnd - currentTime ).Milliseconds() * scaleFraction );
         }
 
         /**

@@ -28,7 +28,7 @@ size_t COM_StripExtension( char *out, const char *in, size_t size ) {
 	size_t ret = COM_FileExtension( in ) - in;
 
 	if ( size ) {
-		size_t len = min( ret, size - 1 );
+		size_t len = std::min( ret, size - 1 );
 		memcpy( out, in, len );
 		out[ len ] = 0;
 	}
@@ -727,7 +727,7 @@ size_t Q_strlcpy( char *dst, const char *src, size_t size ) {
 	size_t ret = strlen( src );
 
 	if ( size ) {
-		size_t len = min( ret, size - 1 );
+		size_t len = std::min( ret, size - 1 );
 		memcpy( dst, src, len );
 		dst[ len ] = 0;
 	}
@@ -766,7 +766,7 @@ size_t Q_concat_array( char *dest, size_t size, const char **arr ) {
 		const char *s = *arr++;
 		size_t len = strlen( s );
 		if ( total < size ) {
-			size_t l = min( size - total - 1, len );
+			size_t l = std::min( size - total - 1, len );
 			memcpy( dest, s, l );
 			dest += l;
 		}
@@ -811,7 +811,7 @@ and returns 0.
 size_t Q_vscnprintf( char *dest, size_t size, const char *fmt, va_list argptr ) {
 	if ( size ) {
 		size_t ret = Q_vsnprintf( dest, size, fmt, argptr );
-		return min( ret, size - 1 );
+		return std::min( ret, size - 1 );
 	}
 
 	return 0;

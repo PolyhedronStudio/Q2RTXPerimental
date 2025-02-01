@@ -104,7 +104,7 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
         if ( d1 > d2 ) {
             // enter
             // Paril: from Q3A
-            f = max( 0.0f, ( d1 - DIST_EPSILON ) / ( d1 - d2 ) );
+            f = std::max( 0.0f, ( d1 - DIST_EPSILON ) / ( d1 - d2 ) );
             // Paril
             // KEX
             if ( f > enterfrac[ 0 ] ) {
@@ -126,7 +126,7 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
     } else {
             // leave
             // Paril: from Q3A
-            f = min( 1.0f, ( d1 + DIST_EPSILON ) / ( d1 - d2 ) );
+            f = std::min( 1.0f, ( d1 + DIST_EPSILON ) / ( d1 - d2 ) );
             // Paril
             if ( f < leavefrac )
                 leavefrac = f;
@@ -414,9 +414,9 @@ void CM_BoxTrace( cm_t *cm, trace_t *trace,
         VectorClear( trace_extents );
     } else {
         trace_ispoint = false;
-        trace_extents[ 0 ] = max( -mins[ 0 ], maxs[ 0 ] );
-        trace_extents[ 1 ] = max( -mins[ 1 ], maxs[ 1 ] );
-        trace_extents[ 2 ] = max( -mins[ 2 ], maxs[ 2 ] );
+        trace_extents[ 0 ] = std::max( -mins[ 0 ], maxs[ 0 ] );
+        trace_extents[ 1 ] = std::max( -mins[ 1 ], maxs[ 1 ] );
+        trace_extents[ 2 ] = std::max( -mins[ 2 ], maxs[ 2 ] );
     }
 
     //
