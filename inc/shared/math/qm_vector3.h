@@ -934,11 +934,11 @@ RMAPI Vector3 operator+( const Vector3 &left, const float &right ) {
     return QM_Vector3AddValue( left, right );
 }
 
-RMAPI Vector3 &operator+=( Vector3 &left, const Vector3 &right ) {
-    return QM_Vector3Add( left, right );
+RMAPI_DISCARD Vector3 &operator+=( Vector3 &left, const Vector3 &right ) {
+    return left = QM_Vector3Add( left, right );
 }
-RMAPI Vector3 &operator+=( Vector3 &left, const float &right ) {
-    return QM_Vector3AddValue( left, right );
+RMAPI_DISCARD Vector3 &operator+=( Vector3 &left, const float &right ) {
+    return left = QM_Vector3AddValue( left, right );
 }
 
 /**
@@ -954,10 +954,10 @@ RMAPI Vector3 operator-( const Vector3 &v ) {
     return QM_Vector3Negate( v );
 }
 
-RMAPI Vector3 &operator-=( Vector3 &left, const Vector3 &right ) {
+RMAPI_DISCARD Vector3 &operator-=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Subtract( left, right );
 }
-RMAPI Vector3 &operator-=( Vector3 &left, const float &right ) {
+RMAPI_DISCARD Vector3 &operator-=( Vector3 &left, const float &right ) {
     return left = QM_Vector3SubtractValue( left, right );
 }
 
@@ -975,10 +975,10 @@ RMAPI Vector3 operator*( const float &left, const Vector3 &right ) {
     return QM_Vector3Scale( right, left );
 }
 
-RMAPI Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
+RMAPI_DISCARD Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Multiply( left, right );
 }
-RMAPI Vector3 &operator*=( Vector3 &left, const float &right ) {
+RMAPI_DISCARD Vector3 &operator*=( Vector3 &left, const float &right ) {
     return left = QM_Vector3Scale( left, right );
 }
 
@@ -992,10 +992,10 @@ RMAPI Vector3 operator/( const Vector3 &left, const float &right ) {
     return QM_Vector3DivideValue( left, right );
 }
 
-RMAPI Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
+RMAPI_DISCARD Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Divide( left, right );
 }
-RMAPI Vector3 &operator/=( Vector3 &left, const float &right ) {
+RMAPI_DISCARD Vector3 &operator/=( Vector3 &left, const float &right ) {
     return left = QM_Vector3DivideValue( left, right );
 }
 

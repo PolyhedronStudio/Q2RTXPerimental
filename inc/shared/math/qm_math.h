@@ -77,6 +77,7 @@
     #if defined(RAYMATH_QM_INLINE)
         #ifdef __cplusplus
             #define RMAPI [[nodiscard]] const inline // Functions may be inlined, no external out-of-line definition
+            #define RMAPI_DISCARD const inline // Functions may be inlined, no external out-of-line definition
         #else
             #define RMAPI inline 
         #endif

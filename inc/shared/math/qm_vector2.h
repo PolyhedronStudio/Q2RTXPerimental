@@ -327,10 +327,10 @@ RMAPI Vector2 operator+( const Vector2 &left, const float &right ) {
     return QM_Vector2AddValue( left, right );
 }
 
-RMAPI Vector2 &operator+=( Vector2 &left, const Vector2 &right ) {
+RMAPI_DISCARD Vector2 &operator+=( Vector2 &left, const Vector2 &right ) {
     return left = QM_Vector2Add( left, right );
 }
-RMAPI Vector2 &operator+=( Vector2 &left, const float &right ) {
+RMAPI_DISCARD Vector2 &operator+=( Vector2 &left, const float &right ) {
     return left = QM_Vector2AddValue( left, right );
 }
 
@@ -347,10 +347,10 @@ RMAPI Vector2 operator-( const Vector2 &v ) {
     return QM_Vector2Negate( v );
 }
 
-RMAPI Vector2 &operator-=( Vector2 &left, const Vector2 &right ) {
+RMAPI_DISCARD Vector2 &operator-=( Vector2 &left, const Vector2 &right ) {
     return left = QM_Vector2Subtract( left, right );
 }
-RMAPI Vector2 &operator-=( Vector2 &left, const float &right ) {
+RMAPI_DISCARD Vector2 &operator-=( Vector2 &left, const float &right ) {
     return left = QM_Vector2SubtractValue( left, right );
 }
 
@@ -368,10 +368,10 @@ RMAPI Vector2 operator*( const float &left, const Vector2 &right ) {
     return QM_Vector2Scale( right, left );
 }
 
-RMAPI Vector2 &operator*=( Vector2 &left, const Vector2 &right ) {
+RMAPI_DISCARD Vector2 &operator*=( Vector2 &left, const Vector2 &right ) {
     return left = QM_Vector2Multiply( left, right );
 }
-RMAPI Vector2 &operator*=( Vector2 &left, const float &right ) {
+RMAPI_DISCARD Vector2 &operator*=( Vector2 &left, const float &right ) {
     return left = QM_Vector2Scale( left, right );
 }
 
@@ -385,10 +385,10 @@ RMAPI Vector2 operator/( const Vector2 &left, const float &right ) {
     return QM_Vector2DivideValue( left, right );
 }
 
-RMAPI Vector2 &operator/=( Vector2 &left, const Vector2 &right ) {
+RMAPI_DISCARD Vector2 &operator/=( Vector2 &left, const Vector2 &right ) {
     return left = QM_Vector2Divide( left, right );
 }
-RMAPI Vector2 &operator/=( Vector2 &left, const float &right ) {
+RMAPI_DISCARD Vector2 &operator/=( Vector2 &left, const float &right ) {
     return left = QM_Vector2DivideValue( left, right );
 }
 

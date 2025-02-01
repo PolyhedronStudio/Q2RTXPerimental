@@ -53,27 +53,34 @@ private:
 
 public:
     /**
+    *   @return Number of the 'easing type mode' we're actively operating on.
+    **/
+    inline const QMEaseStateMode &GetEaseType() {
+        return mode;
+    }
+    /**
     *   @return Absolute Time that this ease is meant to start off at.
     **/
-    const QMTime &GetStartTime() const { return timeStart; }
+    inline const QMTime &GetStartTime() const { return timeStart; }
     /**
     *   @return Absolute Time that this ease is meant to finish at.
     **/
-    const QMTime &GetEndTime() const { return timeEnd; }
+    inline const QMTime &GetEndTime() const { return timeEnd; }
     /**
     *   @return Relative time of duration.
     **/
-    const QMTime &GetDurationTime() const { return timeDuration; }
+    inline const QMTime &GetDurationTime() const { return timeDuration; }
+
     /**
     *   @return Normalized easing factor. (Determined by easing methods, 0 by default.
     **/
-    const double &GetEasingFactort() const { return easeFactor; }
+    inline const double &GetEasingFactort() const { return easeFactor; }
 
 private:
     /**
     *   @brief  Easing time range.
     **/
-    enum QM_TimeRange {
+    enum QMEaseTimeRange {
         QM_EASE_STATE_TIME_RANGE_POST,
         QM_EASE_STATE_TIME_RANGE_WITHIN,
         QM_EASE_STATE_TIME_RANGE_PAST,
@@ -84,7 +91,7 @@ private:
     *           QM_EASE_STATE_TIME_RANGE_WITHIN if we're time >= startTime and time < endTime,
     *           and QM_EASE_STATE_TIME_RANGE_POST if we're > endTime
     **/
-    static const QM_TimeRange DetermineTimeRange( const QMTime &time, const QMEaseState &easeState ) {
+    static const QMEaseTimeRange DetermineTimeRange( const QMTime &time, const QMEaseState &easeState ) {
         // If eased in, we're done, return 1.0
         if ( time > easeState.timeEnd ) {
             return QM_EASE_STATE_TIME_RANGE_PAST;

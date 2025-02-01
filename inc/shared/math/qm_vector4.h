@@ -17,6 +17,7 @@
 *
 **/
 #ifdef __cplusplus
+
 /**
 *   @brief  Access Vector4 members by their index instead.
 *   @return Value of the indexed Vector4 component.
