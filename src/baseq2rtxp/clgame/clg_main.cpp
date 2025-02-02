@@ -364,6 +364,23 @@ void PF_InitGame( void ) {
 *
 **/
 /**
+*   @return True if the server, or client, is non active(and/or thus paused).
+*	@note	clientOnly, false by default, is optional to check if just the client is paused.
+**/
+const bool CLG_IsGameplayPaused( const bool clientOnly ) {
+	// Determine whether paused or not.
+	if ( clgi.GetConnectionState() != ca_active 
+		// Client is paused.
+		|| cl_paused->integer 
+		// Optional to check if just the client is paused.
+		|| ( clientOnly ? 1 == 1 : sv_paused->integer ) ) {
+		// Paused.
+		return true;
+	}
+	return false;
+}
+
+/**
 *	@brief
 **/
 void PF_ClearState( void ) {

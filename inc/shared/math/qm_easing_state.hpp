@@ -111,12 +111,12 @@ private:
         // Still awaiting.
         if ( DetermineTimeRange( time, *this ) < QM_EASE_STATE_TIME_RANGE_WITHIN ) {
             mode = QM_EASE_STATE_MODE_WAITING;
-            return 0.f;
+            return easeFactor = 0.f;
         }
         // Past ease end time.
         if ( DetermineTimeRange( time, *this ) > QM_EASE_STATE_TIME_RANGE_WITHIN ) {
             mode = QM_EASE_STATE_MODE_DONE;
-            return 1.f;
+            return easeFactor = 1.f;
         }
         // We're easing in.
         switch ( easeType ) {

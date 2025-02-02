@@ -265,13 +265,14 @@ static void CL_SetActiveState(void)
     } else {
         // Set the initial client predicted state values.
         cl.predictedState.currentPs = cl.frame.ps;
-        cl.predictedState.lastPs = cl.frame.ps;
+        cl.predictedState.lastPs = cl.predictedState.currentPs;
         //VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.view.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
         //VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.view.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
-        if (cl.frame.ps.pmove.pm_type < PM_DEAD &&
-            cls.serverProtocol >= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-            // enhanced servers don't send viewangles
+        // 
+        // Use predicted view angles if we're alive:
+        if (cl.frame.ps.pmove.pm_type < PM_DEAD ) { // OLD Q2PRO: enhanced servers don't send viewangles
             CL_PredictAngles();
+        // Otherwise, use whatever server provided.
         } else {
             // just use what server provided
             VectorCopy( cl.frame.ps.viewangles, cl.predictedState.currentPs.viewangles );
@@ -439,9 +440,8 @@ void CL_DeltaFrame(void)
         CL_EmitDemoFrame();
     }
 
+    // This delta has nothing to do with local viewangles, CLEAR it to avoid interfering with demo freelook hack.
     if ( cls.demo.playback ) {
-        // this delta has nothing to do with local viewangles,
-        // clear it to avoid interfering with demo freelook hack
         VectorClear( cl.frame.ps.pmove.delta_angles );
     }
 
