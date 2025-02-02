@@ -73,28 +73,23 @@ begin developer_menu
     title "Developer (Test-)Maps"
     action --align "CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"
     blank
-    action --align "Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
-    action --align "Entities - func_doors & areaportals" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"
-    action --align "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_doors force"
-    action --align "Entities - func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_plat_rot force"
-    action --align "Entities - more func_ entities" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_more force"
+    action --align --status "func_button testbed, several func_buttons to engage triggering lights with in various way." "Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
+    action --align --status "func_doors & areaportals testbed, tests doors with areaportals." "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"
+    action --align --status "func_doors testbed, teamed doors, lockables, reversable, both directions, usetargets, and rotating!" "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_doors force"
+    action --align --status "func_plat tests, implements a simple elevator." "Entities - func_plat & func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_plat force"
+    action --align --status "func_rotating tests, various types of func_rotating doing their thing." "Entities - func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_rotating force"
 
     blank
-    action --align "Graphical - Makkon Textures PBR (pt_nearest 1)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_makkon force"
-    action --align "Graphical - SpotLights" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_spotlights force"
+    action --align --status "A map that utilizes various PBR Makkon Textures in pt_nearest mode, very modern retro :-)" "Graphical - Makkon Textures PBR (pt_nearest 1)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_makkon force"
+    action --align --status "Is what it says really." "Graphical - SpotLights" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_spotlights force"
     blank
-    action --align "Local Entities - General" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_general force"
-    action --align "Local Entities - env_sound(EAX Reverb Areas)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_env_sound force"
-    action --align "Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"
-    blank
-    action --align "LUA - Errors" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_lua_errors force"
-    blank
-    action --align "Other - Lulz" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_other_lulz force"
-    action --align "Other - OctagonHull" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_other_octagahull force"
+    action --align --status "Showcases several local entities." "Local Entities - General" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_general force"
+    action --align --status "A map that consists of several sound environments that apply EAX reverb etc effects." "Local Entities - env_sound(EAX Reverb Areas)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_env_sound force"
+    action --align --status "Testbed for svc_set_portalbit to notify local func_areaportals to open/close."Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"
     blank
     action --align --status "A simple moving target range level, utilizing Lua and Signal I/O" "Signal I/O - TargetRange" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_sigio_targetrange force"
     blank
-    action --align "Triggers - Trigger Brush Clip" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_trigs_brushclip force"
+    action --align --status "Tests clipping to a (trigger-)brush, which if it clips, has it fire its targets." "Triggers - Trigger Brush Clip" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_trigs_brushclip force"
 end
 
 begin environment

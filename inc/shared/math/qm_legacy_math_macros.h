@@ -11,6 +11,10 @@ typedef vec_t vec5_t[ 5 ];
 
 typedef vec_t quat_t[ 4 ];
 
+
+//! Currently used for Skeletal Model Stuff:
+typedef float mat3x4[ 12 ];
+//! Used by vkpt code:
 typedef float mat4_t[ 16 ];
 
 typedef union {

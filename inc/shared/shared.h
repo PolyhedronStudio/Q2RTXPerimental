@@ -199,10 +199,7 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 // Includes the 'old' math library support. Which is pretty much still in use all over the place.
 // Strictly speaking, for consistency sake, we should update all code however it is prone to creating
 // possible new bugs and takes a lot of time to invest.
-#include "shared/math/q2rtx_legacy.h"
-
-//! Currently used for Skeletal Model Stuff:
-typedef float mat3x4[ 12 ];
+#include "shared/math/qm_legacy_math_macros.h"
 
 //! Use static inlining for all its functions.
 #define RAYMATH_STATIC_INLINE

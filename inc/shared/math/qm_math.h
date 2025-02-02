@@ -643,7 +643,9 @@ typedef struct BBox3 {
 typedef struct float3 {
     float v[ 3 ];
 } float3;
-
+typedef struct float12 {
+    float v[ 16 ];
+} float12;
 typedef struct float16 {
     float v[ 16 ];
 } float16;
@@ -717,9 +719,9 @@ typedef struct qfloat3 {
 #include "shared/math/qm_time.h"
 
 //----------------------------------------------------------------------------------
-// Module Functions Definition - Easing
+// Module Functions Definition - Easing Methods
 //----------------------------------------------------------------------------------
-#include "shared/math/qm_easing.hpp"
+#include "shared/math/qm_easing_methods.hpp"
 
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Easing State

@@ -107,7 +107,7 @@ private:
     /**
     *   @brief  Performs the easing.
     **/
-    const double EaseForTime( const QMTime &time, const QMEaseStateType &easeType, QMEaseStateMethod easingCallback ) {
+    const double &EaseForTime( const QMTime &time, const QMEaseStateType &easeType, QMEaseStateMethod easingCallback ) {
         // Still awaiting.
         if ( DetermineTimeRange( time, *this ) < QM_EASE_STATE_TIME_RANGE_WITHIN ) {
             mode = QM_EASE_STATE_MODE_WAITING;
