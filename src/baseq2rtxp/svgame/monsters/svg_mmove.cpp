@@ -202,7 +202,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 **/
 void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed ) {
 	// Get angle modded angles.
-	const float current = AngleMod( ent->s.angles[ YAW ] );
+	const float current = QM_AngleMod( ent->s.angles[ YAW ] );
 
 	// If we're already facing ideal yaw, escape.
 	if ( current == idealYaw ) {
@@ -223,5 +223,5 @@ void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yaw
 	if (move > 0) { if ( move > yawSpeed ) { move = yawSpeed; } } else { if ( move < -yawSpeed ) { move = -yawSpeed; }
 	#endif
 	// AngleMod the final resulting angles.
-	ent->s.angles[ YAW ] = AngleMod( current + move );
+	ent->s.angles[ YAW ] = QM_AngleMod( current + move );
 }

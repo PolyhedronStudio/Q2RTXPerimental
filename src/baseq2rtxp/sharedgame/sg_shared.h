@@ -58,15 +58,8 @@ typedef struct edict_s sgentity_s;
 *	@brief	Wrapper for using the appropriate developer print for the specific game module we're building.
 **/
 void SG_DPrintf( const char *fmt, ... );
+/**/
 
-/**
-*	@return	The linear interpolated frame fraction value.
-**/
-const double SG_GetFrameLerpFraction();
-/**
-*	@return	The linear extrapolated frame fraction value.
-**/
-const double SG_GetFrameXerpFraction();
 
 
 
@@ -166,6 +159,29 @@ void SG_Z_TagFree( const uint32_t tag );
 // We need these for this.
 #include "sharedgame/sg_qstring.hpp"
 #include "sharedgame/sg_qtag_memory.hpp"
+
+
+/**
+*
+*	Other:
+*
+**/
+/**
+*   @return The realtime of the server since boot time.
+**/
+const QMTime &SG_GetLevelTime();
+/**
+*   @return The realtime of the server since boot time.
+**/
+const uint64_t SG_GetRealTime();
+/**
+*	@return	The linear interpolated frame fraction value.
+**/
+const double SG_GetFrameLerpFraction();
+/**
+*	@return	The linear extrapolated frame fraction value.
+**/
+const double SG_GetFrameXerpFraction();
 
 
 

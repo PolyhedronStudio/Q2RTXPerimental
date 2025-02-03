@@ -67,13 +67,13 @@ const int64_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t 
 
 	// Write current angles.
 	if ( bits & CM_ANGLE1 ) {
-		MSG_WriteFloat( AngleMod( cmd->angles[ 0 ] ) );
+		MSG_WriteFloat( QM_AngleMod( cmd->angles[ 0 ] ) );
 	}
 	if ( bits & CM_ANGLE2 ) {
-		MSG_WriteFloat( AngleMod( cmd->angles[ 1 ] ) );
+		MSG_WriteFloat( QM_AngleMod( cmd->angles[ 1 ] ) );
 	}
 	if ( bits & CM_ANGLE3 ) {
-		MSG_WriteFloat( AngleMod( cmd->angles[ 2 ] ) );
+		MSG_WriteFloat( QM_AngleMod( cmd->angles[ 2 ] ) );
 	}
 
 	// Write movement.

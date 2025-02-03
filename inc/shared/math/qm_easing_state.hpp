@@ -167,7 +167,7 @@ public:
     /**
     *   @return The resulting factor for this moment in time using the specified easing callback method.
     **/
-    const double &EaseInout( const QMTime &time, QMEaseStateMethod easingCallback ) {
+    const double &EaseInOut( const QMTime &time, QMEaseStateMethod easingCallback ) {
         return EaseForTime( time, QM_EASE_STATE_TYPE_IN_OUT, easingCallback );
     }
 };

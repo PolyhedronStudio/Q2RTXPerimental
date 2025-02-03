@@ -456,6 +456,10 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
     pushed_t    *p;
     vec3_t      org, org2, move2, forward, right, up;
 
+    if ( !pusher ) {
+        return false;
+    }
+
     // clamp the move to 1/8 units, so the position will
     // be accurate for client side prediction
     for (i = 0; i < 3; i++)
@@ -534,7 +538,7 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
                 // FIXME: doesn't rotate monsters?
                 // FIXME: skuller: needs client side interpolation
                 //check->client->ps.pmove.delta_angles[YAW] += /*ANGLE2SHORT*/(amove[YAW]);
-                check->client->ps.pmove.delta_angles[ YAW ] = AngleMod( check->client->ps.pmove.delta_angles[ YAW ] + amove[ YAW ] );
+                check->client->ps.pmove.delta_angles[ YAW ] = QM_AngleMod( check->client->ps.pmove.delta_angles[ YAW ] + amove[ YAW ] );
             }
             //#endif
 

@@ -135,6 +135,10 @@ typedef struct {
     //! The time for each frame in 'miliseconds'.
 	uint32_t    frame_time_ms;
     /**
+    *   @return The realtime of the server since boot time.
+    **/
+    const uint64_t( *GetRealTime )( void );
+    /**
     *   @brief  The actual server frame number we are processing.
     **/
     const int64_t ( *GetServerFrameNumber )( void );
@@ -405,9 +409,9 @@ typedef struct {
 	*
 	**/
     //! Perform a frame's worth of player movement using specified pmoveParams configuration.
-	void ( *PlayerMove )( pmove_t *pmove, pmoveParams_t *params );
+	void ( *PlayerMove )( struct pmove_s *pmove, struct pmoveParams_s *params );
     //! Setup the basic player move configuration parameters. (Used by server for new clients.)
-	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
+	//void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 
 
     /**

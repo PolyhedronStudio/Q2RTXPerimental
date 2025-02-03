@@ -12,6 +12,8 @@
 *
 *
 *
+*   Neatly wraps up the enclosing and/or opening and closing of a block of
+*   code that demands us to require linking as extern "C".
 *
 *
 *
@@ -29,6 +31,7 @@ extern "C" {                    \
 #define QEXTERN_C_CLOSE         \
 };                              \
                                 \
+
 
 /****
 *

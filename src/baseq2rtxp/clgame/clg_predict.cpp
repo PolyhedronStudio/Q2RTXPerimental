@@ -141,7 +141,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
 
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
-        const uint64_t delta = clgi.GetRealTime() - predictedState->transition.step.timeChanged;
+        const uint64_t delta = ( clgi.GetRealTime() - predictedState->transition.step.timeChanged );
 
         // Default old step to 0.
         double old_step = 0.f;
@@ -285,7 +285,10 @@ void PF_PredictAngles( void ) {
     }
 
     // This is done even with cl_predict == 0.
-	VectorAdd( clgi.client->viewangles, clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.currentPs.viewangles );
+    clgi.client->predictedState.currentPs.viewangles = QM_Vector3AngleMod( clgi.client->viewangles + clgi.client->frame.ps.pmove.delta_angles );
+    //clgi.client->predictedState.currentPs.viewangles = clgi.client->viewangles + QM_Vector3AngleMod( clgi.client->frame.ps.pmove.delta_angles );
+
+	//VectorAdd( , clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.currentPs.viewangles );
 }
 
 /**
@@ -340,7 +343,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
-            SG_PlayerMove( &pm, &pmp );
+            SG_PlayerMove( (pmove_s*)&pm, (pmoveParams_s*) & pmp);
         }
 
         // Save for prediction checking.
@@ -361,7 +364,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         pm.cmd.upmove = clgi.client->localmove[ 2 ];
 
         // Perform movement.
-        SG_PlayerMove( &pm, &pmp );
+        SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
         pendingMoveCommand->prediction.origin = pm.playerState->pmove.origin;

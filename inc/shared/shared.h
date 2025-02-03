@@ -117,6 +117,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 	// Include our 'shared_cpp.h' header.
 	#include "shared_cpp.h"
+
 #else // __cplusplus
 	typedef uint8_t byte;
 	typedef enum { qfalse, qtrue } qboolean;    // ABI compat only, don't use: will be int32_t on x86-64 systems.
@@ -129,6 +130,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #define QEXTERN_C_ENCLOSE(ENCLOSED_CODE) ENCLOSED_CODE
     #define QEXTERN_C_OPEN
     #define QEXTERN_C_CLOSE
+
 #endif //__cplusplus
 
 
@@ -205,7 +207,7 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #define RAYMATH_STATIC_INLINE
 #define RAYMATH_QM_INLINE
 //! Include our own custom version of raylib1.5 its raymath library.
-#include <shared/math/qm_math.h>
+#include "shared/math/qm_math.h"
 
 //#ifdef __cplusplus
 //// We extern back to "C"

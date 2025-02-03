@@ -811,6 +811,12 @@ static void PF_DebugGraph(float value, int color)
 }
 
 /**
+*   @return The realtime of the server since boot time.
+**/
+const uint64_t PF_GetRealTime( void ) {
+    return svs.realtime;
+}
+/**
 *   @return Server Frame Number..
 **/
 static const int64_t PF_GetServerFrameNumber() {
@@ -1003,6 +1009,7 @@ void SV_InitGameProgs(void) {
 	imports.frame_time_s = BASE_FRAMETIME_1000;
 	imports.frame_time_ms = BASE_FRAMETIME;
 
+    imports.GetRealTime = PF_GetRealTime;
     imports.GetServerFrameNumber = PF_GetServerFrameNumber;
 
     // load a new game dll

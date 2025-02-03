@@ -44,9 +44,9 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	out->eventParms[ 0 ] = in->eventParms[ 0 ];
 	out->eventParms[ 1 ] = in->eventParms[ 1 ];
 
-	out->viewangles[ 0 ] = AngleMod( in->viewangles[ 0 ] );
-	out->viewangles[ 1 ] = AngleMod( in->viewangles[ 1 ] );
-	out->viewangles[ 2 ] = AngleMod( in->viewangles[ 2 ] );
+	out->viewangles[ 0 ] = QM_AngleMod( in->viewangles[ 0 ] );
+	out->viewangles[ 1 ] = QM_AngleMod( in->viewangles[ 1 ] );
+	out->viewangles[ 2 ] = QM_AngleMod( in->viewangles[ 2 ] );
 	out->viewoffset[ 0 ] = scaled_short( in->viewoffset[ 0 ], 16 ); // WID: new-pmove OFFSET2CHAR( in->viewoffset[ 0 ] );
 	out->viewoffset[ 1 ] = scaled_short( in->viewoffset[ 1 ], 16 ); // WID: new-pmove OFFSET2CHAR( in->viewoffset[ 1 ] );
 	out->viewoffset[ 2 ] = scaled_short( in->viewoffset[ 2 ], 16 ); // WID: new-pmove OFFSET2CHAR( in->viewoffset[ 2 ] );

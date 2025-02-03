@@ -213,6 +213,19 @@ int64_t QMTime::Frames() const {
 }
 
 /**
+*   @return The realtime of the server since boot time.
+**/
+const QMTime &SG_GetLevelTime() {
+	return level.time;
+}
+/**
+*   @return The realtime of the server since boot time.
+**/
+const uint64_t SG_GetRealTime( ) {
+	return clgi.GetRealTime();
+}
+
+/**
 *	@return	The linear interpolated frame fraction value.
 **/
 const double SG_GetFrameLerpFraction() {

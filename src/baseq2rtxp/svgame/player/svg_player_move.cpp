@@ -486,9 +486,9 @@ static void ClientRunPlayerMove( edict_t *ent, gclient_t *client, usercmd_t *use
     pm->pointcontents = SV_PM_PointContents;
     pm->clip = SV_PM_Clip;
     //pm.viewoffset = ent->client->ps.viewoffset;
-
+    //pm->simulationTime = level.time;
     // Perform a PMove.
-    SG_PlayerMove( pm, pmp );
+    SG_PlayerMove( (pmove_s*)pm, (pmoveParams_s*)pmp );
 
     // Save into the client pointer, the resulting move states pmove
     client->ps = *pm->playerState;

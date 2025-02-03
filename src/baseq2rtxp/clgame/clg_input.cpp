@@ -120,7 +120,7 @@ static void IN_Impulse( void ) {
     in_impulse = atoi( clgi.Cmd_Argv( 1 ) );
 }
 static void IN_CenterView( void ) {
-    clgi.client->viewangles[ PITCH ] = -/*SHORT2ANGLE*/( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
+    clgi.client->viewangles[ PITCH ] = -/*SHORT2ANGLE*/QM_AngleMod( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
 }
 static void IN_MLookDown( void ) {
     in_mlooking = true;
@@ -324,7 +324,8 @@ static void CLG_ClampSpeed( Vector3 &move ) {
 *   @brief  Adds the delta angles and clamps the viewangle's pitch appropriately. 
 */
 static void CLG_ClampPitch( void ) {
-    const float pitch = /*SHORT2ANGLE*/( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
+    //const float pitch = /*SHORT2ANGLE*/( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
+    const float pitch = /*SHORT2ANGLE*/QM_AngleMod( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
     float angle = clgi.client->viewangles[ PITCH ] + pitch;
     // Wrap around.
     if ( angle < -180 ) {

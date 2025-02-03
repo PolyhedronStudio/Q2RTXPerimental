@@ -692,7 +692,6 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     int     index;
     Vector3  spawn_origin, spawn_angles;
     gclient_t *client;
-    int     i;
     client_respawn_t    savedRespawnData = {};
     Vector3 temp, temp2;
     trace_t tr;
@@ -845,9 +844,7 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     spawn_angles[ ROLL ] = 0;
 
     // set the delta angle
-    for ( i = 0; i < 3; i++ ) {
-        client->ps.pmove.delta_angles[ i ] = /*ANGLE2SHORT*/AngleMod( ( spawn_angles[ i ] - client->resp.cmd_angles[ i ] ) );
-    }
+    client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( spawn_angles - client->resp.cmd_angles );
 
     VectorCopy( spawn_angles, ent->s.angles );
     client->ps.viewangles = spawn_angles;
@@ -931,9 +928,7 @@ void SVG_Client_BeginLoadGame( edict_t *ent ) {
     // connecting to the server, which is different than the
     // state when the game is saved, so we need to compensate
     // with deltaangles
-    for ( int32_t i = 0; i < 3; i++ ) {
-        ent->client->ps.pmove.delta_angles[ i ] = /*ANGLE2SHORT*/AngleMod( ent->client->ps.viewangles[ i ] );
-    }
+    ent->client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( ent->client->ps.viewangles );
     // Make sure classname is player.
     ent->classname = "player";
     // Make sure entity type is player.

@@ -320,7 +320,7 @@ CENTER PRINTING
 */
 
 static char     scr_centerstring[ MAX_STRING_CHARS ];
-static unsigned scr_centertime_start;   // for slow victory printing
+static uint64_t scr_centertime_start;   // for slow victory printing
 static int      scr_center_lines;
 
 /**
@@ -1733,7 +1733,7 @@ static void SCR_DrawDamageDisplays( void ) {
             continue;
         }
 
-        const float lerpFraction = ( entry->time - clgi.GetRealTime() ) / scr_damage_indicator_time->value;
+        const double lerpFraction = ( entry->time - clgi.GetRealTime() ) / scr_damage_indicator_time->value;
 
         float clientYawAngle = clgi.client->predictedState.currentPs.viewangles[ YAW ];
         //vec3_t angles;

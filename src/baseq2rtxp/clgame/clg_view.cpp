@@ -523,7 +523,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
     #if 1
     // Gun angles from delta movement
     for ( i = 0; i < 3; i++ ) {
-        delta = AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
+        delta = QM_AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
         if ( delta > 180 ) {
             delta -= 360;
         }
@@ -542,7 +542,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
     Vector3 viewAnglesDelta = {};
     // Gun angles from delta movement
     for ( i = 0; i < 3; i++ ) {
-        viewAnglesDelta[ i ] = AngleMod(ops->viewangles[i] - ps->viewangles[i]);
+        viewAnglesDelta[ i ] = QM_AngleMod(ops->viewangles[i] - ps->viewangles[i]);
     }
     slowAngles += viewAnglesDelta;
 
@@ -846,21 +846,22 @@ const double CLG_SmoothViewHeight() {
 *   @brief  Smoothly transit the 'step' offset.
 **/
 static void CLG_SmoothStepOffset() {
-    // TODO: In the future, when we got this moved into ClientGame, use PM_STEP_CHANGE_.. values from SharedGame.
-    // TODO: Is this accurate?
-    // PM_MAX_STEP_CHANGE_HEIGHT = 18
-    // PM_MIN_STEP_CHANGE_HEIGHT = 4
-    //
-    // However, the original code was 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_CHANGE_HEIGHT
-    //static constexpr float STEP_CHANGE_HEIGHT = PM_MAX_STEP_CHANGE_HEIGHT - PM_MIN_STEP_CHANGE_HEIGHT // This seems like what would be more accurate?
-    static constexpr double STEP_SMALL_HEIGHT = 15.f;//15.875;
+    // The original code was short integer coordinate based and had the following 'formula':
+    // 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_CHANGE_HEIGHT(18) resulting in 15.875 as STEP_SMALL_HEIGHT
+    // Minimal step height difference for the Z axis before marking our move as a 'stair step'.
+    static constexpr float PM_MIN_STEP_SIZE = 4.f;
+    // Maximal step height difference for the Z axis before marking our move as a 'stair step'.
+    static constexpr float PM_MAX_STEP_SIZE = 18.f;
+    // What is considered to be a 'small' step.
+    static constexpr double STEP_SMALL_HEIGHT = PM_MAX_STEP_SIZE - PM_MIN_STEP_SIZE;
+    //static constexpr double STEP_SMALL_HEIGHT = 15.f; //15.875;
     // Time in miliseconds to smooth the view for the step offset with.
     static constexpr int32_t STEP_CHANGE_TIME = 100;
     // Base 1 FrameTime.
     static constexpr double STEP_CHANGE_BASE_1_FRAMETIME = ( 1. / STEP_CHANGE_TIME );
 
     // Time delta.
-    uint64_t delta = clgi.GetRealTime() - clgi.client->predictedState.transition.step.timeChanged;
+    uint64_t delta = ( clgi.GetRealTime() - clgi.client->predictedState.transition.step.timeChanged );
     // Smooth out stair climbing.
     if ( fabsf( clgi.client->predictedState.transition.step.height ) < STEP_SMALL_HEIGHT ) {
         delta <<= 1; // Small steps.
@@ -906,9 +907,7 @@ static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_
 **/
 static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
     // Calculate delta angles between old and current player state.
-    clgi.client->delta_angles[ 0 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 0 ], ps->pmove.delta_angles[ 0 ], lerpFrac ) );
-    clgi.client->delta_angles[ 1 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 1 ], ps->pmove.delta_angles[ 1 ], lerpFrac ) );
-    clgi.client->delta_angles[ 2 ] = AngleMod( LerpAngle( ops->pmove.delta_angles[ 2 ], ps->pmove.delta_angles[ 2 ], lerpFrac ) );
+    clgi.client->delta_angles = QM_Vector3AngleMod( QM_Vector3LerpAngles( ops->pmove.delta_angles, ps->pmove.delta_angles, lerpFrac ) );
 }
 
 
@@ -964,7 +963,6 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
 *   @brief  Lerp the client's viewOffset.
 **/
 static void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const float lerpFrac, Vector3 &finalViewOffset ) {
-    LerpVector( ops->viewoffset, ps->viewoffset, lerpFrac, finalViewOffset );
     if ( clgi.client->frame.valid ) {
         finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
     } else {
@@ -1033,7 +1031,8 @@ void PF_CalculateViewValues( void ) {
         
         // WID: NOTE: If things break, look for this here.
         // WID: This should fix demos or cl_nopredict
-        VectorCopy( clgi.client->refdef.vieworg, clgi.client->predictedState.currentPs.pmove.origin );
+        //VectorCopy( clgi.client->refdef.vieworg, clgi.client->predictedState.currentPs.pmove.origin );
+        clgi.client->predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
         #if 0
         clgi.client->refdef.vieworg[2] -= ops->pmove.origin.z;
         #endif

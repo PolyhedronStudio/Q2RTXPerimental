@@ -149,7 +149,7 @@ void CLG_AddPacketEntities( void ) {
     int32_t base_entity_flags = 0;
 
     // Bonus items rotate at a fixed rate.
-    const float autorotate = AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
+    const float autorotate = QM_AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
 
         // Iterate over this frame's entity states.
     for ( int32_t frameEntityNumber = 0; frameEntityNumber < clgi.client->frame.numEntities; frameEntityNumber++ ) {

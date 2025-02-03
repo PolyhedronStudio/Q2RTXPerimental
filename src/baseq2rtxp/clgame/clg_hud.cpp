@@ -54,7 +54,7 @@ static struct {
             //! Decoded floating point values, scaled to between (0.0, 1.0).
             float   currentScaledValue = 0, lastScaledValue = 0;
             //! Realtime at which recoil value change took place.
-            int64_t changeTime = 0;
+            uint64_t changeTime = 0;
         } recoil = {};
     } crosshair = {};
 
@@ -323,7 +323,7 @@ const float CLG_HUD_UpdateRecoilScale() {
     static constexpr int32_t SCALE_TIME = 25;
 
     // Calculate the crosshair scale based on the recoil's value, lerp it over 25ms.
-    const float lerpFrac = QM_Clampf( (float)( clgi.GetRealTime() - hud.crosshair.recoil.changeTime ) / ( 1.0f / (float)SCALE_TIME ), 0.f, 1.f );
+    const double lerpFrac = QM_Clampd( (double)( ( clgi.GetRealTime() - hud.crosshair.recoil.changeTime ) ) / ( 1.0 / (double)SCALE_TIME ), 0., 1. );
 
     // Refresh the current frame and old frame recoil values.
     hud.crosshair.recoil.lastStatsValue = clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ];

@@ -44,9 +44,6 @@ extern QMTime FRAME_TIME_MS;
 // For backwards compatibilities.
 #define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
 
-// TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
-#undef max
-
 // Just to, hold time, forever.
 constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<int64_t>::max( ) );
 

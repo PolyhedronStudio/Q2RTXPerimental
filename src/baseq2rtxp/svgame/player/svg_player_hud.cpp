@@ -36,9 +36,7 @@ void SVG_HUD_MoveClientToIntermission(edict_t *ent)
     VectorCopy( level.intermission_origin, ent->s.origin );
     VectorCopy( level.intermission_origin, ent->client->ps.pmove.origin );
     VectorCopy( level.intermission_angle, ent->client->ps.viewangles );
-    ent->client->ps.viewangles[ 0 ] = AngleMod( level.intermission_angle[ 0 ] );
-    ent->client->ps.viewangles[ 1 ] = AngleMod( level.intermission_angle[ 1 ] );
-    ent->client->ps.viewangles[ 2 ] = AngleMod( level.intermission_angle[ 2 ] );
+    ent->client->ps.viewangles = QM_Vector3AngleMod( level.intermission_angle );
     if ( !SG_IsMultiplayerGameMode( game.gamemode ) ) {
         ent->client->ps.pmove.pm_type = PM_SPINTERMISSION;
     } else {

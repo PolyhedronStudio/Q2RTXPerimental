@@ -50,7 +50,7 @@ struct pml_t {
 	Vector3	forward = {}, right = {}, up = {};
 
 	//! Move frameTime.
-	float	frameTime = 0.f;
+	double	frameTime = 0.;
 
 	struct pml_ground_info_s {
 		//! Pointer to the actual ground entity we are on. (nullptr if none).
@@ -127,10 +127,12 @@ static void PM_SetDimensions() {
 		return;
 	}
 
-	// Dead, and Ducked bbox:
+	// Dead BBox:
 	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) || ps->pmove.pm_type == PM_DEAD ) {
+		//! Set bounds to ducked.
 		pm->mins = PM_BBOX_DUCKED_MINS;
 		pm->maxs = PM_BBOX_DUCKED_MAXS;
+		// Viewheight to ducked.
 		ps->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
 	}
 }
@@ -1661,7 +1663,7 @@ static void PM_UpdateViewAngles( player_state_t *playerState, const usercmd_t *u
 	//}
 
 	if ( playerState->pmove.pm_flags & PMF_TIME_TELEPORT ) {
-		playerState->viewangles[ YAW ] = AngleMod( userCommand->angles[ YAW ] + playerState->pmove.delta_angles[ YAW ] );
+		playerState->viewangles[ YAW ] = QM_AngleMod( userCommand->angles[ YAW ] + playerState->pmove.delta_angles[ YAW ] );
 		playerState->viewangles[ PITCH ] = 0;
 		playerState->viewangles[ ROLL ] = 0;
 	} else {
@@ -1718,11 +1720,11 @@ static void PM_DropTimers() {
 /**
 *	@brief	Can be called by either the server or the client game codes.
 **/
-void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
+void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	// Store pointers to the pmove object and the parameters supplied for this move.
 	pm = pmove;
 	ps = pm->playerState;
-	pmp = params;
+	pmp = reinterpret_cast<pmoveParams_t *>( params );
 
 	// Clear out several member variables which require a fresh state before performing the move.
 	pm->touchTraces = {};

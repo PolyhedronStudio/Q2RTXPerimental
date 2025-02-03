@@ -9,6 +9,7 @@
 
 
 
+#if 0
 /**
 *	@brief	Used to configure player movement with, it is set by SG_ConfigurePlayerMoveParameters.
 *
@@ -57,7 +58,7 @@ typedef struct pm_touch_trace_list_s {
     uint32_t numberOfTraces;
     trace_t traces[ MAX_TOUCH_TRACES ];
 } pm_touch_trace_list_t;
-
+#endif
 /**
 *   @brief  Stores the final ground information results.
 **/
@@ -84,7 +85,8 @@ typedef struct pm_liquid_info_s {
     //! The depth of the player in the actual liquid.
     liquid_level_t	level;
 } pm_liquid_info_t;
-
+#if 0
+#if defined(__cplusplus)
 /**
 *   @brief  Object storing data such as the player's move state, in order to perform another
 *           frame of movement on its data.
@@ -98,6 +100,9 @@ typedef struct {
     /**
     *   (In):
     **/
+    //! Time we're at in the simulation.
+    QMTime      simulationTime;
+    //! The real time of this move command.
     //! The player's move command.
     usercmd_t	cmd;
     //! Set to 'true' if player state 's' has been changed outside of pmove.
@@ -138,6 +143,7 @@ typedef struct {
     /**
     *   (In):
     **/
+    QMEaseState easeDuckHeight;
     // [KEX] variables (in)
     //Vector3 viewoffset; // Predicted last viewoffset (for accurate calculation of blending)
 
@@ -162,3 +168,5 @@ typedef struct {
     //! Step taken, used for smooth lerping stair transitions.
     float step_height;
 } pmove_t;
+#endif // #ifdef __cplusplus
+#endif

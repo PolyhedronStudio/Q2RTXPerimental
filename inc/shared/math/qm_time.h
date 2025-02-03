@@ -13,8 +13,14 @@
 #pragma once
 
 
-#ifdef __cplusplus
-
+#ifndef __cplusplus
+/**
+*	So we can use it in C if needed.
+**/
+typedef struct QMTime_s {
+	int64_t _ms;
+} QMTime;
+#else
 /**
 *	@brief	Stores a level time; most newer engines use int64_t for time storage,
 *			but seconds are handy for compatibility with Quake and older mods.

@@ -51,7 +51,7 @@ static const double PF_GetFrameTime() {
 /**
 *	@return	Client's actual current 'connection' state.
 **/
-static const int32_t PF_GetConnectionState() {
+static const connstate_t PF_GetConnectionState() {
 	return cls.state;
 }
 /**

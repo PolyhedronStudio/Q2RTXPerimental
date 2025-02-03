@@ -23,26 +23,30 @@ static void         *key_wait_arg;
 
 static char     *keybindings[256];
 
-// bitmap of keys not passed to interpreter while in console
+//! Bitmap of keys not passed to interpreter while in console.
 static byte     consolekeys[256 / 8];
+//! Bitmap for generating button up commands.
+static byte     buttondown[ 256 / 8 ];
 
-// key to map to if shift held down in console
-static byte     keyshift[256];
-
-// key down status: if > 1, it is auto-repeating
+//! Key down status: if > 1, it is auto-repeating.
 static byte     keydown[256];
-
-// number of keys down for BUTTON_ANY
+//! Number of keys down for BUTTON_ANY.
 static int      anykeydown;
 
-// bitmap for generating button up commands
-static byte     buttondown[256 / 8];
+//! Key to map to if shift held down in console.
+static byte     keyshift[ 256 ];
 
+//! Whether we're in overstrike mode or not.
 static bool     key_overstrike;
 
+/**
+*   @brief  Holds a keyname, referring to a key index number.
+**/
 typedef struct keyname_s {
-    const char    *name; // WID: C++20: Was non const
-    int     keynum;
+    //! Key display name.
+    const char  *name; // WID: C++20: Was non const
+    //! Key input index.
+    int32_t     keynum;
 } keyname_t;
 
 #define K(x) { #x, K_##x }

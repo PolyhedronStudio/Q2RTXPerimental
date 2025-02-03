@@ -36,7 +36,7 @@ void CLG_PacketEntity_AddGib( centity_t *packetEntity, entity_t *refreshEntity, 
     // For General Rotate: (Some bonus items auto-rotate.)
     if ( newState->effects & EF_ROTATE ) {
         // Bonus items rotate at a fixed rate.
-        const float autorotate = AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
+        const float autorotate = QM_AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
 
         refreshEntity->angles[ 0 ] = 0;
         refreshEntity->angles[ 1 ] = autorotate;

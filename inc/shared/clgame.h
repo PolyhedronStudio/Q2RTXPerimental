@@ -47,6 +47,8 @@ typedef struct centity_s centity_t;
 typedef struct cclient_s cclient_t;
 //! Client Info Type(name, model, skin, etc):
 typedef struct clientinfo_s clientinfo_t;
+//! Defines the actual client's current 'operating state'.
+typedef enum connstate_s connstate_t;
 
 // Include needed shared refresh types.
 #include "refresh/shared_types.h"
@@ -155,7 +157,7 @@ typedef struct {
 	// Time/State:
 	const uint64_t ( *GetRealTime )( );
 	const double ( *GetFrameTime )( );
-	const int32_t ( *GetConnectionState )( );
+	const connstate_t ( *GetConnectionState )( );
 	const ref_type_t( *GetRefreshType )( );
 	// Actually from Sys_... :
 	const uint64_t( *Sys_Milliseconds )( void );
@@ -926,7 +928,7 @@ typedef struct {
 	**/
 	void ( *PredictMovement )( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );
 	//! Setup the basic player move configuration parameters. (Used by server for new clients.)
-	void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
+	//void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 
 
 

@@ -44,9 +44,9 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 		//out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
 		//out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
 		//out->angles[ 2 ] = ANGLE2SHORT( in->angles[ 2 ] );
-		out->angles[ 0 ] = AngleMod( in->angles[ 0 ] );
-		out->angles[ 1 ] = AngleMod( in->angles[ 1 ] );
-		out->angles[ 2 ] = AngleMod( in->angles[ 2 ] );
+		out->angles[ 0 ] = QM_AngleMod( in->angles[ 0 ] );
+		out->angles[ 1 ] = QM_AngleMod( in->angles[ 1 ] );
+		out->angles[ 2 ] = QM_AngleMod( in->angles[ 2 ] );
 	//} else {
 	//	// pack angles8 akin to angles16 to make delta compression happy when
 	//	// precision suddenly changes between entity updates

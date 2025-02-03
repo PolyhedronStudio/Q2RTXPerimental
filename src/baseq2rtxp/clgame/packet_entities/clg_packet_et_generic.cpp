@@ -340,7 +340,7 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     int32_t base_entity_flags = 0;
 
     // Bonus items rotate at a fixed rate.
-    const float autorotate = AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
+    const float autorotate = QM_AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
 
     // Acquire the state's effects, and render effects.
     uint32_t effects = newState->effects;

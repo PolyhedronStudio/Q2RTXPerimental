@@ -19,7 +19,6 @@ void SVG_ChaseCam_Update(edict_t *ent)
     edict_t *targ;
     vec3_t forward, right;
     trace_t trace;
-    int i;
     vec3_t angles;
 
     // is our chase target gone?
@@ -84,8 +83,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
         ent->client->ps.pmove.pm_type = PM_FREEZE;
 
     VectorCopy(goal, ent->s.origin);
-    for (i = 0 ; i < 3 ; i++)
-        ent->client->ps.pmove.delta_angles[i] = /*ANGLE2SHORT*/(targ->client->viewMove.viewAngles[i] - ent->client->resp.cmd_angles[i]);
+    ent->client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( targ->client->viewMove.viewAngles - ent->client->resp.cmd_angles );
 
     if (targ->lifeStatus) {
         ent->client->ps.viewangles[ROLL] = 40;

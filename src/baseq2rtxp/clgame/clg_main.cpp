@@ -436,9 +436,9 @@ const char *PF_GetGamemodeName( int32_t gameModeID ) {
 /**
 *	@brief	
 **/
-void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
-	SG_ConfigurePlayerMoveParameters( pmp );
-}
+//void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
+//	SG_ConfigurePlayerMoveParameters( pmp );
+//}
 
 
 
@@ -514,7 +514,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.CheckPredictionError = PF_CheckPredictionError;
 		globals.PredictAngles = PF_PredictAngles;
 		globals.PredictMovement = PF_PredictMovement;
-		globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
+		//globals.ConfigurePlayerMoveParameters = PF_ConfigurePlayerMoveParameters;
 
 		globals.PrecacheClientModels = PF_PrecacheClientModels;
 		globals.PrecacheClientSounds = PF_PrecacheClientSounds;

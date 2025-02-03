@@ -418,7 +418,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientCommand = SVG_Client_Command;
 
 		globals.PlayerMove = SG_PlayerMove;
-		globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
+		//globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
 
 		globals.RunFrame = SVG_RunFrame;
 
