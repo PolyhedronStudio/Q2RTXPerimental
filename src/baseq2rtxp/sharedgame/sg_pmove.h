@@ -73,11 +73,14 @@ typedef struct default_pmoveParams_s {
 	//! Ladder modulation scalar for when being in-water and climbing a ladder.
 	static constexpr float pm_ladder_mod			= 0.5f;
 
-	//! Speed for when ducked and crawling on-ground.
-	static constexpr float pm_duck_speed	= 100.f;
-	//! Speed for when moving in water(swimming).
+    //! Speed for the viewheight and bounding box to ease in/out at when
+    //! switching from crouch to stand-up and visa versa. ( 100ms )
+    //static constexpr QMTime pm_duck_viewheight_speed = QMTime::FromMilliseconds( 100 );
+	//! Movement speed for when ducked and crawling on-ground.
+	static constexpr float pm_crouch_move_speed	= 100.f;
+	//! Movement speed for when moving in water(swimming).
 	static constexpr float pm_water_speed	= 400.f;
-	//! Speed for when flying.
+	//! Movement speed for when flying.
 	static constexpr float pm_fly_speed		= 400.f;
 
 	//! General acceleration.
@@ -90,6 +93,7 @@ typedef struct default_pmoveParams_s {
 	//! General water friction.
 	static constexpr float pm_water_friction = 1.f;
 } default_pmoveParams_t;
+
 
 /**
 *	Default BoundingBoxes:
@@ -158,8 +162,11 @@ typedef struct pmoveParams_s {
     //! Ladder modulation scalar for when being in-water and climbing a ladder.
     float pm_ladder_mod;
 
+    //! Speed for the viewheight and bounding box to ease in/out at when
+    //! switching from crouch to stand-up and visa versa. ( 100ms )
+    //QMTime pm_duck_viewheight_speed;
     //! Speed for when ducked and crawling on-ground.
-    float pm_duck_speed;
+    float pm_crouch_move_speed;
     //! Speed for when moving in water(swimming).
     float pm_water_speed;
     //! Speed for when flying.
@@ -186,33 +193,6 @@ typedef struct pm_touch_trace_list_s {
     uint32_t numberOfTraces;
     trace_t traces[ MAX_TOUCH_TRACES ];
 } pm_touch_trace_list_t;
-
-///**
-//*   @brief  Stores the final ground information results.
-//**/
-//typedef struct pm_ground_info_s {
-//    //! Pointer to the actual ground entity we are on.(nullptr if none).
-//    struct edict_s *entity;
-//
-//    //! A copy of the plane data from the ground entity.
-//    cplane_t        plane;
-//    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
-//    csurface_t      surface;
-//    //! A copy of the contents data from the ground entity's brush.
-//    contents_t      contents;
-//    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-//    cm_material_t *material;
-//} pm_ground_info_t;
-//
-///**
-//*   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
-//**/
-//typedef struct pm_liquid_info_s {
-//    //! The actual BSP liquid 'contents' type we're residing in.
-//    contents_t      type;
-//    //! The depth of the player in the actual liquid.
-//    liquid_level_t	level;
-//} pm_liquid_info_t;
 
 
 /**
@@ -253,9 +233,9 @@ typedef struct pmove_s {
     Vector3 mins, maxs;
 
     //! Stores the ground information. If there is no actual ground, ground.entity will be nullptr.
-    pm_ground_info_t ground;
+    cm_ground_info_t ground;
     //! Stores the possible solid liquid type brush we're in(-touch with/inside of)
-    pm_liquid_info_t liquid;
+    cm_contents_info_t liquid;
 
     /**
     *   (Out):

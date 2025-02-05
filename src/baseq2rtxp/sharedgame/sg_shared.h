@@ -15,9 +15,15 @@
 
 //! Define the entity type based on from which game module we're compiling.
 #ifdef CLGAME_INCLUDE
+//! Game Module Name STR.
+#define SG_GAME_MODULE_STR "CLGame"
+//! Entity type.
 typedef struct centity_s sgentity_s;
 #endif
 #ifdef SVGAME_INCLUDE
+//! Game Module Name STR.
+#define SG_GAME_MODULE_STR "SVGame"
+//! Entity type.
 typedef struct edict_s sgentity_s;
 #endif
 

@@ -22,6 +22,9 @@
 //! Defining this will enable 'material physics' such as per example: Taking the friction value from the ground material.
 #define PMOVE_USE_MATERIAL_FRICTION
 
+//! Defining this will enable easing of bbox maxs z and viewheight.
+//#define PMOVE_EASE_BBOX_AND_VIEWHEIGHT
+
 //! Allow for 'Wall Jumping'. ( Disabled by default. )
 //#define PMOVE_ENABLE_WALLJUMPING
 
@@ -127,6 +130,7 @@ static void PM_SetDimensions() {
 		return;
 	}
 
+	#ifndef PMOVE_EASE_BBOX_AND_VIEWHEIGHT
 	// Dead BBox:
 	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) || ps->pmove.pm_type == PM_DEAD ) {
 		//! Set bounds to ducked.
@@ -135,6 +139,41 @@ static void PM_SetDimensions() {
 		// Viewheight to ducked.
 		ps->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
 	}
+	#else
+	// Eased Lerp Factor.
+	double easeLerpFactor = 0.f;
+
+	// Ducking Down:
+	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) || ps->pmove.pm_type == PM_DEAD ) {
+		// Duck BBox:
+		pm->mins = PM_BBOX_DUCKED_MINS;
+		pm->maxs = PM_BBOX_DUCKED_MAXS;
+		pm->playerState->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
+		// Ease in.
+		if ( pm->easeDuckHeight.GetEaseMode() <= QMEaseState::QM_EASE_STATE_MODE_DONE ) {
+			easeLerpFactor = pm->easeDuckHeight.EaseIn( pm->simulationTime, QM_CubicEaseIn );
+		}
+	// Standing Up:
+	} else {
+		// Standing BBox:
+		pm->mins = PM_BBOX_STANDUP_MINS;
+		pm->maxs = PM_BBOX_STANDUP_MAXS;
+		pm->playerState->pmove.viewheight = PM_VIEWHEIGHT_STANDUP;
+		// Ease out.
+		if ( pm->easeDuckHeight.GetEaseMode() <= QMEaseState::QM_EASE_STATE_MODE_DONE ) {
+			easeLerpFactor = pm->easeDuckHeight.EaseOut( pm->simulationTime, QM_CubicEaseOut );
+		}
+	}
+
+	//! Set bounds to stamdup.
+	//pm->mins.z = pm->mins.z * easeLerpFactor;
+	pm->maxs.z = pm->maxs.z * easeLerpFactor;
+	//pm->maxs.z = pm->maxs.z * easeLerpFactor;
+	// Viewheight to ducked.
+	// Lerp it.
+	ps->pmove.viewheight = ps->pmove.viewheight * easeLerpFactor;// PM_VIEWHEIGHT_DUCKED + ( easeLerpFactor * ( PM_VIEWHEIGHT_STANDUP - PM_VIEWHEIGHT_DUCKED ) );
+	SG_DPrintf( "%s: easeLerpFactor(%f)\n", __func__,  easeLerpFactor );
+	#endif
 }
 #if 1
 /**
@@ -840,7 +879,7 @@ static void PM_GenericMove() {
 	float wishSpeed = QM_Vector3NormalizeLength( wishDirection ); // wishspeed = wishdir.normalize();
 	
 	// Clamp speeds to to server defined max speed.
-	const float maxSpeed = ( ps->pmove.pm_flags & PMF_DUCKED ) ? pmp->pm_duck_speed : pmp->pm_max_speed;
+	const float maxSpeed = ( ps->pmove.pm_flags & PMF_DUCKED ) ? pmp->pm_crouch_move_speed : pmp->pm_max_speed;
 
 	if ( wishSpeed > maxSpeed ) {
 		wishVelocity *= maxSpeed / wishSpeed;
@@ -937,9 +976,9 @@ static void PM_WaterMove() {
 	wishspeed *= 0.5f;
 
 	// Adjust speed to if/being ducked.
-	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) && wishspeed > pmp->pm_duck_speed ) {
-		wishVelocity *= pmp->pm_duck_speed / wishspeed;
-		wishspeed = pmp->pm_duck_speed;
+	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) && wishspeed > pmp->pm_crouch_move_speed ) {
+		wishVelocity *= pmp->pm_crouch_move_speed / wishspeed;
+		wishspeed = pmp->pm_crouch_move_speed;
 	}
 
 	// Accelerate through water.
@@ -1464,15 +1503,18 @@ static void PM_CheckJump() {
 				constexpr float jump_height = 370;
 				
 				// For use with the excluding Z component, and/or prevent walljumps if exceeding certain Z velocities.
-				//pml.velocity[ 2 ] += jump_height;
-				//if ( pml.velocity[ 2 ] < jump_height ) {
-				//	pml.velocity[ 2 ] = jump_height;
-				//}
+				pml.velocity[ 2 ] += jump_height;
+				if ( pml.velocity[ 2 ] > jump_height ) {
+					pml.velocity[ 2 ] = jump_height;
+				}
 				// Exclude the Z component since we already applied the jump height up above.
-				//pml.velocity += Vector2( trace.plane.normal ) * 240.f;
+				Vector3 jumpNormal = QM_Vector3Zero();
+				jumpNormal[ 0 ] = trace.plane.normal[ 0 ];
+				jumpNormal[ 1 ] = trace.plane.normal[ 1 ];
+				pml.velocity = pml.velocity + ( jumpNormal * 240. );
 				
 				// One can choose to exclude the jump_height addition up above and use this below instead.
-				pml.velocity += Vector3( trace.plane.normal ) * 240.0f;
+				//pml.velocity += Vector3( trace.plane.normal ) * 240.0f;
 		}
 		return;
 	}
@@ -1551,7 +1593,7 @@ static inline const bool PM_CheckDuck() {
 		!( ps->pmove.pm_flags & PMF_ON_LADDER ) ) { 
 		if ( !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
 			// check that duck won't be blocked
-			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, 4 };
+			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, PM_BBOX_DUCKED_MAXS.z };
 			trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
 			if ( !trace.allsolid ) {
 				ps->pmove.pm_flags |= PMF_DUCKED;
@@ -1562,7 +1604,7 @@ static inline const bool PM_CheckDuck() {
 	} else {
 		if ( ps->pmove.pm_flags & PMF_DUCKED ) {
 			// try to stand up
-			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, 32 };
+			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, PM_BBOX_STANDUP_MAXS.z };
 			trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
 			if ( !trace.allsolid ) {
 				ps->pmove.pm_flags &= ~PMF_DUCKED;
@@ -1574,6 +1616,11 @@ static inline const bool PM_CheckDuck() {
 	// Escape if nothing has changed.
 	if ( !flags_changed ) {
 		return false;
+	} else {
+		// (Re-)Initialize the duck ease.
+		#ifdef PMOVE_EASE_BBOX_AND_VIEWHEIGHT
+		pm->easeDuckHeight = QMEaseState::new_ease_state( pm->simulationTime, pmp->pm_duck_viewheight_speed );
+		#endif
 	}
 
 	// Determine the possible new dimensions since our flags have changed.
@@ -1800,7 +1847,7 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	/**
 	*	PM_DEAD:
 	**/
-	// Erase all input command state when dead, we don't want to allow moving our dead body.
+	// Erase all input command state when dead, we don't want to allow user input to be moving our dead body.
 	if ( ps->pmove.pm_type >= PM_DEAD ) {
 		PM_EraseInputCommandState();
 	}
@@ -1908,7 +1955,8 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_ladder_sidemove_speed = default_pmoveParams_t::pm_ladder_sidemove_speed;
 	pmp->pm_ladder_mod = default_pmoveParams_t::pm_ladder_mod;
 
-	pmp->pm_duck_speed = default_pmoveParams_t::pm_duck_speed;
+	//pmp->pm_duck_viewheight_speed = default_pmoveParams_t::pm_duck_viewheight_speed;
+	pmp->pm_crouch_move_speed = default_pmoveParams_t::pm_crouch_move_speed;
 	pmp->pm_water_speed = default_pmoveParams_t::pm_water_speed;
 	pmp->pm_fly_speed = default_pmoveParams_t::pm_fly_speed;
 

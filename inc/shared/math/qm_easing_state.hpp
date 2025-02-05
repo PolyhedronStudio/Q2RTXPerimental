@@ -55,7 +55,7 @@ public:
     /**
     *   @return Number of the 'easing type mode' we're actively operating on.
     **/
-    inline const QMEaseStateMode &GetEaseType() {
+    inline const QMEaseStateMode &GetEaseMode() {
         return mode;
     }
     /**
@@ -131,8 +131,10 @@ private:
             mode = QM_EASE_STATE_MODE_EASING_IN_OUT;
             break;
         }
+
         // Lerp fraction, clamp for discrepancies.
-        const double lerpFraction = QM_Clampd( (double)( time.Milliseconds() - timeStart.Milliseconds() ) / (double)timeDuration.Milliseconds(), 0., 1. );
+        const double lerpFraction = QM_Clampd(
+            (double)( time.Milliseconds() - timeStart.Milliseconds() ) / (double)timeDuration.Milliseconds(), 0., 1. );
         // Call upon the callback.
         easeFactor = QM_Clampd( easingCallback( lerpFraction ), 0., 1. );
         // Return result.
@@ -143,7 +145,7 @@ public:
     /**
     *   @brief  Initializes a new easing state.
     **/
-    static const QMEaseState new_ease_state( const QMTime &timeStart, const QMTime &duration ) {
+    static QMEaseState new_ease_state( const QMTime &timeStart, const QMTime &duration ) {
         QMEaseState qmState;
         qmState.mode = QM_EASE_STATE_MODE_WAITING;
         qmState.timeStart = timeStart;

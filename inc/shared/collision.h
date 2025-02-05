@@ -185,3 +185,30 @@ typedef struct trace_s {
     csurface_t *surface2;	// second surface hit
     struct cm_material_s *material2; // second surface collision model material pointer.
 } trace_t;
+
+/**
+*   @brief  Stores the final ground information results.
+**/
+typedef struct cm_ground_info_s {
+    //! Pointer to the actual ground entity we are on.(nullptr if none).
+    struct edict_s *entity;
+
+    //! A copy of the plane data from the ground entity.
+    cplane_t        plane;
+    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
+    csurface_t      surface;
+    //! A copy of the contents data from the ground entity's brush.
+    contents_t      contents;
+    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
+    struct cm_material_s *material;
+} cm_ground_info_t;
+
+/**
+*   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
+**/
+typedef struct cm_contents_info_s {
+    //! The actual BSP liquid 'contents' type we're residing in.
+    contents_t      type;
+    //! The depth of the player in the actual liquid.
+    liquid_level_t	level;
+} cm_contents_info_t;

@@ -180,9 +180,9 @@ typedef struct client_predicted_state_s {
     Vector3 mins, maxs;
 
     //! Stores the ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
-    pm_ground_info_t ground;
+    cm_ground_info_t ground;
     //! Stores the 'liquid' information. This can be lava, slime, or water.
-    pm_liquid_info_t liquid;
+    cm_contents_info_t liquid;
 
     //! Stores data for player origin/view transitions.
     struct {

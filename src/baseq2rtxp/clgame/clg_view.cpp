@@ -848,10 +848,6 @@ const double CLG_SmoothViewHeight() {
 static void CLG_SmoothStepOffset() {
     // The original code was short integer coordinate based and had the following 'formula':
     // 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_CHANGE_HEIGHT(18) resulting in 15.875 as STEP_SMALL_HEIGHT
-    // Minimal step height difference for the Z axis before marking our move as a 'stair step'.
-    static constexpr float PM_MIN_STEP_SIZE = 4.f;
-    // Maximal step height difference for the Z axis before marking our move as a 'stair step'.
-    static constexpr float PM_MAX_STEP_SIZE = 18.f;
     // What is considered to be a 'small' step.
     static constexpr double STEP_SMALL_HEIGHT = PM_MAX_STEP_SIZE - PM_MIN_STEP_SIZE;
     //static constexpr double STEP_SMALL_HEIGHT = 15.f; //15.875;

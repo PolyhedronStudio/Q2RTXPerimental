@@ -90,7 +90,7 @@ typedef struct default_pmoveParams_s {
 	static constexpr float pm_ladder_mod = 0.5f;
 
 	//! Speed for when ducked and crawling on-ground.
-	static constexpr float pm_duck_speed = 100.f;
+	static constexpr float pm_crouch_move_speed = 100.f;
 	//! Speed for when moving in water(swimming).
 	static constexpr float pm_water_speed = 400.f;
 	//! Speed for when flying.
@@ -699,7 +699,7 @@ static void PM_GenericMove() {
 	float wishSpeed = QM_Vector3NormalizeLength( wishDirection ); // wishspeed = wishdir.normalize();
 	
 	// Clamp speeds to to server defined max speed.
-	const float maxSpeed = ( ps->pmove.pm_flags & PMF_DUCKED ) ? pmp->pm_duck_speed : pmp->pm_max_speed;
+	const float maxSpeed = ( ps->pmove.pm_flags & PMF_DUCKED ) ? pmp->pm_crouch_move_speed : pmp->pm_max_speed;
 
 	if ( wishSpeed > maxSpeed ) {
 		wishVelocity *= maxSpeed / wishSpeed;
@@ -796,9 +796,9 @@ static void PM_WaterMove() {
 	wishspeed *= 0.5f;
 
 	// Adjust speed to if/being ducked.
-	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) && wishspeed > pmp->pm_duck_speed ) {
-		wishVelocity *= pmp->pm_duck_speed / wishspeed;
-		wishspeed = pmp->pm_duck_speed;
+	if ( ( ps->pmove.pm_flags & PMF_DUCKED ) && wishspeed > pmp->pm_crouch_move_speed ) {
+		wishVelocity *= pmp->pm_crouch_move_speed / wishspeed;
+		wishspeed = pmp->pm_crouch_move_speed;
 	}
 
 	// Accelerate through water.
@@ -1679,7 +1679,7 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_ladder_sidemove_speed = default_pmoveParams_t::pm_ladder_sidemove_speed;
 	pmp->pm_ladder_mod = default_pmoveParams_t::pm_ladder_mod;
 
-	pmp->pm_duck_speed = default_pmoveParams_t::pm_duck_speed;
+	pmp->pm_crouch_move_speed = default_pmoveParams_t::pm_crouch_move_speed;
 	pmp->pm_water_speed = default_pmoveParams_t::pm_water_speed;
 	pmp->pm_fly_speed = default_pmoveParams_t::pm_fly_speed;
 

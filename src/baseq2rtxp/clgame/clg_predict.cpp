@@ -308,12 +308,16 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     predictedState->lastPs = predictedState->currentPs;
 
     // Start off with the latest valid frame player state.
-    player_state_t pmPlayerState = predictedState->currentPs = clgi.client->frame.ps;
+    //player_state_t pmPlayerState = predictedState->currentPs = clgi.client->frame.ps;
+    // Copy in player state.
+    predictedState->currentPs = clgi.client->frame.ps;
+    // Get pointer to it for player move.
+    player_state_t *pmPlayerState = &predictedState->currentPs;
 
     // Prepare our player move, pointer to the player state, and setup the 
     // client side trace function pointers.
     pmove_t pm = {
-        .playerState = &pmPlayerState,
+        .playerState = pmPlayerState,
 
         .trace = CLG_PM_Trace,
         .clip = CLG_PM_Clip,
@@ -343,6 +347,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
+            pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.time );
             SG_PlayerMove( (pmove_s*)&pm, (pmoveParams_s*) & pmp);
         }
 
@@ -364,6 +369,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         pm.cmd.upmove = clgi.client->localmove[ 2 ];
 
         // Perform movement.
+        pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.time );
         SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
@@ -394,7 +400,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     PF_AdjustViewHeight( pm.playerState->pmove.viewheight );
 
     // Swap in the resulting new pmove player state.
-    predictedState->currentPs = pmPlayerState;
+    predictedState->currentPs = *pmPlayerState;
 
     // Check and execute any player state related events.
     CLG_CheckPlayerstateEvents( &predictedState->lastPs, &predictedState->currentPs );

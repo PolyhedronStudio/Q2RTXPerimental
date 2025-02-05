@@ -60,17 +60,9 @@ void SG_PlayerState_AddPredictableEvent( const uint8_t newEvent, const uint8_t e
 	{
         // Ensure string is within bounds.
         if ( newEvent < q_countof( sg_player_state_event_strings ) ) {
-            #ifdef CLGAME_INCLUDE
-            SG_DPrintf( "CLGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
-            #else
-            SG_DPrintf( "SVGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
-            #endif
+            SG_DPrintf( SG_GAME_MODULE_STR PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
         } else {
-            #ifdef CLGAME_INCLUDE
-            SG_DPrintf( "CLGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_player_state_event_strings", eventParm);
-            #else
-            SG_DPrintf( "SVGame PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_player_state_event_strings", eventParm);
-            #endif
+            SG_DPrintf( SG_GAME_MODULE_STR PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_player_state_event_strings", eventParm);
         }
 	}
 	#endif
