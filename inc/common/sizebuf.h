@@ -36,16 +36,16 @@ QEXTERN_C_OPEN
 		//uint32_t    bits_buf;
 		//uint32_t    bits_left;
 		//const char  *tag;			// for debugging
-		qboolean	allowoverflow;	// if false, do a Com_Error
-		qboolean	allowunderflow;	// This seems silly but still.
+		qboolean	allowoverflow;			// If false, do a Com_Error.
+		qboolean	allowunderflow;			// This seems silly but still.
 		byte		*data;
-		qboolean	overflowed;		// set to true if the buffer size failed (with allowoverflow set)
-		qboolean	oob;			// set to true if the buffer size failed (with allowoverflow set)
-		int32_t		maxsize;
-		int32_t		cursize;
-		int32_t		readcount;
-		int32_t		bit;				// for bitwise reads and writes
-		const char *tag;				// for debugging
+		qboolean	overflowed;				// Set to true if the buffer size failed (with allowoverflow set).
+		qboolean	oob;					// Set to true if the buffer size failed (with allowoverflow set).
+		int32_t		maxsize;				// Maximum size in bytes.
+		int32_t		cursize;				// Current size in Bytes.
+		int32_t		readcount;				// Bytes read.
+		int32_t		bitposition;				// For bitwise reads and writes.
+		const char *tagstr;					// Only used for debug output in case of discrepancies..
 	} sizebuf_t;
 
 
@@ -54,6 +54,18 @@ QEXTERN_C_OPEN
 	void *SZ_GetSpace( sizebuf_t *buf, size_t len );
 	void SZ_Clear( sizebuf_t *buf );
 
+	/**
+	*   @brief	Reinitializes values concerning writing to the size buffer.
+	**/
+	void SZ_BeginWriting( sizebuf_t *buf );
+	/**
+	*   @brief	Reinitializes values concerning writing tom the OOB size buffer.
+	**/
+	void SZ_BeginWritingOOB( sizebuf_t *buf );
+	static inline void *SZ_WriteData( sizebuf_t *buf, const void *data, const size_t len ) {
+		return memcpy( SZ_GetSpace( buf, len ), data, len );
+	}
+	void SZ_WriteBits( sizebuf_t *sb, int64_t value, int32_t bits );
 	void SZ_WriteInt8( sizebuf_t *sb, const int32_t c );
 	void SZ_WriteUint8( sizebuf_t *sb, const uint32_t c );
 	void SZ_WriteInt16( sizebuf_t *sb, const int32_t c );
@@ -69,14 +81,18 @@ QEXTERN_C_OPEN
 	void SZ_WriteTruncatedFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteString( sizebuf_t *sb, const char *s );
 
-	static inline void *SZ_WriteData( sizebuf_t *buf, const void *data, const size_t len ) {
-		return memcpy( SZ_GetSpace( buf, len ), data, len );
-	}
+
+	/**
+	*   @brief	Reinitializes values concerning reading from the size buffer.
+	**/
+	void SZ_BeginReading( sizebuf_t *buf );
+	/**
+	*   @brief	Reinitializes values concerning reading from the OOB size buffer.
+	**/
+	void SZ_BeginReadingOOB( sizebuf_t *buf );
+
 	void *SZ_ReadData( sizebuf_t *buf, size_t len );
-
-	void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits );
-	const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits );
-
+	const int64_t SZ_ReadBits( sizebuf_t *sb, int32_t bits );
 	const int32_t SZ_ReadInt8( sizebuf_t *sb );
 	const int32_t SZ_ReadUint8( sizebuf_t *sb );
 	const int32_t SZ_ReadInt16( sizebuf_t *sb );

@@ -261,11 +261,11 @@ byte *MSG_ReadData( const size_t len );
 /**
 *	@brief
 **/
-void MSG_WriteBits( int32_t value, int32_t bits );
+void MSG_WriteBits( const int64_t value, const int64_t bits );
 /**
 *	@brief
 **/
-const int32_t MSG_ReadBits( int32_t bits );
+const int64_t MSG_ReadBits( const int64_t bits );
 /**
 *	@brief
 **/

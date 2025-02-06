@@ -443,9 +443,11 @@ static void CL_ParseBaseline(int index, uint64_t bits)
 
 // instead of wasting space for svc_configstring and svc_spawnbaseline
 // bytes, entire game state is compressed into a single stream.
-static void CL_ParseGamestate( int32_t cmd )
-{
-	if ( cmd == svc_gamestate || cmd == svc_configstringstream ) {
+static void CL_ParseGamestate( const int32_t cmd ) {
+    /**
+    *   ConfigStrings:
+    **/
+    if ( cmd == svc_gamestate || cmd == svc_configstringstream ) {
 		while ( msg_read.readcount < msg_read.cursize ) {
 			const int32_t index = MSG_ReadInt16( );
 			if ( index == MAX_CONFIGSTRINGS ) {
@@ -455,6 +457,9 @@ static void CL_ParseGamestate( int32_t cmd )
 		}
 	}
 
+    /**
+    *   Entity States:
+    **/
 	if ( cmd == svc_gamestate || cmd == svc_baselinestream ) {
 		while ( msg_read.readcount < msg_read.cursize ) {
 			bool remove = false; // Unused here.
@@ -797,7 +802,7 @@ static void CL_ParseZPacket(void)
     temp = msg_read;
     SZ_Init(&msg_read, buffer, outlen);
     msg_read.cursize = outlen;
-    msg_read.bit = outlen * 8;
+    msg_read.bitposition = msg_read.cursize << 3;
 
     CL_ParseServerMessage();
 

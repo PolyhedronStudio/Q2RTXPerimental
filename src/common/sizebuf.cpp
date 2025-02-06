@@ -27,8 +27,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /////////////////////////////////////////////////////////////////////////
 // TODO: Clean this? GetHuffMessageTree func?
-extern huffman_t		msgHuff;
-extern int32_t oldsize;
+extern huffman_t	msgHuff;
+extern int32_t		oldsize;
 /////////////////////////////////////////////////////////////////////////
 
 static constexpr int32_t FLOAT_INT_BITS = 13;
@@ -45,22 +45,22 @@ static constexpr int32_t FLOAT_INT_BIAS = ( 1 << ( FLOAT_INT_BITS - 1 ) );
 /**
 *	@brief
 **/
-void SZ_TagInit( sizebuf_t *buf, void *data, const size_t size, const char *tag ) {
+void SZ_TagInit( sizebuf_t *buf, void *data, const size_t size, const char *tagstr ) {
 	memset( buf, 0, sizeof( *buf ) );
 	buf->data = static_cast<byte *>( data ); // WID: C++20: Added cast.
 	buf->maxsize = size;
 	buf->oob = false;
-	buf->tag = tag;
+	buf->tagstr = tagstr;
 }
 /**
 *	@brief
 **/
-void SZ_TagInitOOB( sizebuf_t *buf, void *data, const size_t size, const char *tag ) {
+void SZ_TagInitOOB( sizebuf_t *buf, void *data, const size_t size, const char *tagstr ) {
 	memset( buf, 0, sizeof( *buf ) );
 	buf->data = static_cast<byte *>( data ); // WID: C++20: Added cast.
 	buf->maxsize = size;
 	buf->oob = true;
-	buf->tag = tag;
+	buf->tagstr = tagstr;
 }
 /**
 *	@brief
@@ -72,7 +72,7 @@ void SZ_Init( sizebuf_t *buf, void *data, const size_t size ) {
 	buf->allowoverflow = true;
 	buf->allowunderflow = true;
 	buf->oob = false;
-	buf->tag = "none";
+	buf->tagstr = "notag";
 }
 /**
 *	@brief
@@ -84,7 +84,7 @@ void SZ_InitOOB( sizebuf_t *buf, void *data, const size_t size ) {
 	buf->allowoverflow = true;
 	buf->allowunderflow = true;
 	buf->oob = true;
-	buf->tag = "none";
+	buf->tagstr = "notag";
 }
 /**
 *	@brief	Gets a pointer to the buffer's data for writing, increases its curernt size by len.
@@ -95,31 +95,30 @@ void *SZ_GetSpace( sizebuf_t *buf, const size_t len ) {
 	if ( buf->cursize > buf->maxsize ) {
 		Com_Error( ERR_FATAL,
 			"%s: %s: already overflowed",
-			__func__, buf->tag );
+			__func__, buf->tagstr );
 	}
 
 	if ( len > buf->maxsize - buf->cursize ) {
 		if ( len > buf->maxsize ) {
 			Com_Error( ERR_FATAL,
 				"%s: %s: %zu is > full buffer size %zu",
-				__func__, buf->tag, len, buf->maxsize );
+				__func__, buf->tagstr, len, buf->maxsize );
 		}
 
 		if ( !buf->allowoverflow ) {
 			Com_Error( ERR_FATAL,
 				"%s: %s: overflow without allowoverflow set",
-				__func__, buf->tag );
+				__func__, buf->tagstr );
 		}
 
-		//Com_DPrintf("%s: %s: overflow\n", __func__, buf->tag);
+		//Com_DPrintf("%s: %s: overflow\n", __func__, buf->tagstr);
 		SZ_Clear( buf );
 		buf->overflowed = true;
 	}
 
 	data = buf->data + buf->cursize;
 	buf->cursize += len;
-	buf->bit = buf->cursize * 8;
-	//buf->bit += len * 8;
+	buf->bitposition = buf->cursize << 3;
 
 	return data;
 }
@@ -130,8 +129,45 @@ void SZ_Clear( sizebuf_t *buf ) {
 	buf->cursize = 0;
 	buf->readcount = 0;
 	buf->overflowed = false;
+	buf->bitposition = 0;					//<- in bits
+}
 
-	buf->bit = 0;					//<- in bits
+
+/**
+*   @brief	Reinitializes values concerning reading from the size buffer.
+**/
+void SZ_BeginReading( sizebuf_t *buf ) {
+	buf->readcount = 0;
+	buf->bitposition = 0;
+	buf->oob = false;
+}
+/**
+*   @brief	Reinitializes values concerning reading from the OOB size buffer.
+**/
+void SZ_BeginReadingOOB( sizebuf_t *buf ) {
+	buf->readcount = 0;
+	buf->bitposition = 0;
+	buf->oob = true;
+}
+
+
+/**
+*   @brief	Reinitializes values concerning writing to the size buffer.
+**/
+void SZ_BeginWriting( sizebuf_t *buf ) {
+	buf->cursize = 0;
+	buf->bitposition = 0;
+	buf->oob = false;
+	buf->overflowed = false;
+}
+/**
+*   @brief	Reinitializes values concerning writing tom the OOB size buffer.
+**/
+void SZ_BeginWritingOOB( sizebuf_t *buf ) {
+	buf->cursize = 0;
+	buf->bitposition = 0;
+	buf->oob = true;
+	buf->overflowed = false;
 }
 
 
@@ -443,7 +479,7 @@ const float SZ_ReadTruncatedFloat( sizebuf_t *sb ) {
 *
 **/
 void *SZ_ReadData( sizebuf_t *buf, const size_t len ) {
-	void *data = nullptr;
+	void *data = buf->data + buf->readcount;
 
 	if ( buf->readcount > buf->cursize || len > buf->cursize - buf->readcount ) {
 		if ( !buf->allowunderflow ) {
@@ -453,18 +489,139 @@ void *SZ_ReadData( sizebuf_t *buf, const size_t len ) {
 		return nullptr;
 	}
 
-	data = buf->data + buf->readcount;
 	buf->readcount += len;
-	buf->bit = buf->readcount * 8;
-	//buf->bit += len * 8;
+	buf->bitposition = buf->readcount << 3;
+
 	return data;
 }
 
 
+#ifndef SIZEBUF_USE_Q3_HUFFMAN
 /**
 *
 *
-*	BitStream Read/Write:
+*	Regular BitStream Read/Write:
+*
+*
+**/
+/**
+*	@brief	Will write the value bits into the size buffer's data pointer + current offset.
+**/
+void SZ_WriteBits( sizebuf_t *sb, int64_t value, int32_t bits ) {
+	if ( bits == 0 || bits < -63 || bits > 64 ) {
+		Com_Error( ERR_FATAL, "MSG_WriteBits: bad bits: %" PRIx64 "", bits );
+	}
+
+	if ( sb->maxsize - sb->cursize < 4 ) {
+		Com_Error( ERR_FATAL, "MSG_WriteBits: overflow" );
+	}
+
+	if ( bits < 0 ) {
+		bits = -bits;
+	}
+
+	size_t bitpos = sb->bitposition;
+	if ( ( bitpos & 7 ) == 0 ) {
+		// optimized case
+		switch ( bits ) {
+		case -8:
+			SZ_WriteInt8( sb, value );
+			return;
+		case 8:
+			SZ_WriteUint8( sb, value );
+			return;
+		case -16:
+			SZ_WriteInt16( sb, value );
+			return;
+		case 16:
+			SZ_WriteUint16( sb, value );
+			return;
+		case -32:
+			SZ_WriteInt32( sb, value );
+			return;
+		case 32:
+			SZ_WriteUint32( sb, value );
+			return;
+		case -64:
+			SZ_WriteInt64( sb, value );
+			return;
+		case 64:
+			SZ_WriteUint64( sb, value );
+			return;
+		default:
+			break;
+		}
+	}
+	for ( int32_t i = 0; i < bits; i++, bitpos++ ) {
+		if ( ( bitpos & 7LLU ) == 0 ) {
+			sb->data[ bitpos >> 3 ] = 0;
+		}
+		sb->data[ bitpos >> 3 ] |= ( value & 1LLU ) << ( bitpos & 7 );
+		value >>= 1LLU;
+	}
+	sb->bitposition = bitpos;
+	sb->cursize = ( bitpos + 7 ) >> 3;
+}
+/**
+*	@brief	Will read the requested amount of bits from the sizebuffer's data pointer + offset.
+**/
+const int64_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
+	if ( bits == 0 || bits < -63 || bits > 64 ) {
+		Com_Error( ERR_FATAL, "MSG_ReadBits: bad bits: %" PRIx64 "", bits);
+	}
+
+	size_t bitpos = sb->bitposition;
+	if ( ( bitpos & 7 ) == 0 ) {
+		// optimized case
+		switch ( bits ) {
+		case -8:
+			return SZ_ReadInt8( sb );
+		case 8:
+			return SZ_ReadUint8( sb );
+		case -16:
+			return SZ_ReadInt16( sb );
+		case 16:
+			return SZ_ReadUint16( sb );
+		case -32:
+			return SZ_ReadInt32( sb );
+		case 32:
+			return SZ_ReadUint32( sb );
+		case -63:
+			return SZ_ReadInt64( sb );
+		case 64:
+			return SZ_ReadUint64( sb );
+		default:
+			break;
+		}
+	}
+
+	bool isSigned= false;
+	if ( bits < 0 ) {
+		bits = -bits;
+		isSigned = true;
+	}
+
+	int64_t value = 0;
+	for ( int32_t i = 0; i < bits; i++, bitpos++ ) {
+		uint64_t get = ( sb->data[ bitpos >> 3 ] >> ( bitpos & 7 ) ) & 1LLU;
+		value |= get << i;
+	}
+	sb->bitposition = bitpos;
+	sb->readcount = ( bitpos + 7 ) >> 3;
+
+	if ( isSigned ) {
+		if ( value & ( 1LLU << ( bits - 1LLU ) ) ) {
+			value |= -1LLU ^ ( ( 1LLU << bits ) - 1LLU );
+		}
+	}
+
+	return value;
+}
+#else
+/**
+*
+*
+*	Huffman Q3 like BitStream Read/Write:
 *
 *
 **/
@@ -500,20 +657,20 @@ void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits ) {
 		if ( bits == 8 ) {
 			msg->data[ msg->cursize ] = value;
 			msg->cursize += 1;
-			msg->bit += 8;
+			msg->bitposition += 8;
 		} else if ( bits == 16 ) {
 			short temp = value;
 
 			//CopyLittleShort( &msg->data[ msg->cursize ], &temp );
 			LittleBlock( &msg->data[ msg->cursize ], &temp, 2 );
 			msg->cursize += 2;
-			msg->bit += 16;
+			msg->bitposition += 16;
 		} else if ( bits == 32 ) {
 			//CopyLittleLong( &msg->data[ msg->cursize ], &value );
 			LittleBlock( &msg->data[ msg->cursize ], &value, 4 );
 
 			msg->cursize += 4;
-			msg->bit += 32;
+			msg->bitposition += 32;
 		} else {
 			Com_Error( ERR_DROP, "%s: can't write %d bits", __func__, bits );
 		}
@@ -522,28 +679,28 @@ void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits ) {
 		if ( bits & 7 ) {
 			int nbits;
 			nbits = bits & 7;
-			if ( msg->bit + nbits > msg->maxsize << 3 ) {
+			if ( msg->bitposition + nbits > msg->maxsize << 3 ) {
 				msg->overflowed = qtrue;
 				return;
 			}
 			for ( i = 0; i < nbits; i++ ) {
-				Huff_putBit( ( value & 1 ), msg->data, &msg->bit );
+				Huff_putBit( ( value & 1 ), msg->data, &msg->bitposition );
 				value = ( value >> 1 );
 			}
 			bits = bits - nbits;
 		}
 		if ( bits ) {
 			for ( i = 0; i < bits; i += 8 ) {
-				Huff_offsetTransmit( &msgHuff.compressor, ( value & 0xff ), msg->data, &msg->bit, msg->maxsize << 3 );
+				Huff_offsetTransmit( &msgHuff.compressor, ( value & 0xff ), msg->data, &msg->bitposition, msg->maxsize << 3 );
 				value = ( value >> 8 );
 
-				if ( msg->bit > msg->maxsize << 3 ) {
+				if ( msg->bitposition > msg->maxsize << 3 ) {
 					msg->overflowed = qtrue;
 					return;
 				}
 			}
 		}
-		msg->cursize = ( msg->bit >> 3 ) + 1;
+		msg->cursize = ( msg->bitposition >> 3 ) + 1;
 	}
 }
 /**
@@ -581,7 +738,7 @@ const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 		if ( bits == 8 ) {
 			value = msg->data[ msg->readcount ];
 			msg->readcount += 1;
-			msg->bit += 8;
+			msg->bitposition += 8;
 		} else if ( bits == 16 ) {
 			short temp;
 
@@ -589,42 +746,42 @@ const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 			LittleBlock( &temp, &msg->data[ msg->readcount ], 2 );
 			value = temp;
 			msg->readcount += 2;
-			msg->bit += 16;
+			msg->bitposition += 16;
 		} else if ( bits == 32 ) {
 			//CopyLittleLong( &value, &msg->data[ msg->readcount ] );
 			LittleBlock( &value, &msg->data[ msg->readcount ], 4 );
 			msg->readcount += 4;
-			msg->bit += 32;
+			msg->bitposition += 32;
 		} else
 			Com_Error( ERR_DROP, "can't read %d bits", bits );
 	} else {
 		nbits = 0;
 		if ( bits & 7 ) {
 			nbits = bits & 7;
-			if ( msg->bit + nbits > msg->cursize << 3 ) {
+			if ( msg->bitposition + nbits > msg->cursize << 3 ) {
 				msg->readcount = msg->cursize + 1;
 				return 0;
 			}
 			for ( i = 0; i < nbits; i++ ) {
-				value |= ( Huff_getBit( msg->data, &msg->bit ) << i );
+				value |= ( Huff_getBit( msg->data, &msg->bitposition ) << i );
 			}
 			bits = bits - nbits;
 		}
 		if ( bits ) {
 			//			fp = fopen("c:\\netchan.bin", "a");
 			for ( i = 0; i < bits; i += 8 ) {
-				Huff_offsetReceive( msgHuff.decompressor.tree, &get, msg->data, &msg->bit, msg->cursize << 3 );
+				Huff_offsetReceive( msgHuff.decompressor.tree, &get, msg->data, &msg->bitposition, msg->cursize << 3 );
 				//				fwrite(&get, 1, 1, fp);
 				value = (unsigned int)value | ( (unsigned int)get << ( i + nbits ) );
 
-				if ( msg->bit > msg->cursize << 3 ) {
+				if ( msg->bitposition > msg->cursize << 3 ) {
 					msg->readcount = msg->cursize + 1;
 					return 0;
 				}
 			}
 			//			fclose(fp);
 		}
-		msg->readcount = ( msg->bit >> 3 ) + 1;
+		msg->readcount = ( msg->bitposition >> 3 ) + 1;
 	}
 	if ( sgn && bits > 0 && bits < 32 ) {
 		if ( value & ( 1 << ( bits - 1 ) ) ) {
@@ -634,3 +791,4 @@ const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 
 	return value;
 }
+#endif

@@ -86,10 +86,7 @@ void MSG_BeginWriting( void ) {
 		MSG_initHuffman();
 	}
 
-	msg_write.cursize = 0;
-	msg_write.bit = 0;
-	msg_write.oob = false;
-	msg_write.overflowed = false;
+	SZ_BeginWriting( &msg_write );
 }
 /**
 *   @brief	Resets the "Write" message buffer for a new write session.
@@ -100,10 +97,7 @@ void MSG_BeginWritingOOB( void ) {
 		MSG_initHuffman();
 	}
 
-	msg_write.cursize = 0;
-	msg_write.bit = 0;
-	msg_write.oob = true;
-	msg_write.overflowed = false;
+	SZ_BeginWritingOOB( &msg_write );
 }
 
 /**
@@ -155,9 +149,7 @@ void MSG_BeginReading( void ) {
 		MSG_initHuffman();
 	}
 
-	msg_read.readcount = 0;
-	msg_read.bit = 0;
-	msg_read.oob = false;
+	SZ_BeginReading( &msg_read );
 }
 /**
 *   @brief
@@ -168,9 +160,7 @@ void MSG_BeginReadingOOB( void ) {
 		MSG_initHuffman();
 	}
 
-	msg_read.readcount = 0;
-	msg_read.bit = 0;
-	msg_read.oob = true;
+	SZ_BeginReadingOOB( &msg_read );
 }
 
 /**
@@ -191,14 +181,14 @@ byte* MSG_ReadData( const size_t len ) {
 /**
 *	@brief
 **/
-void MSG_WriteBits( int32_t value, int32_t bits ) {
+void MSG_WriteBits( const int64_t value, const int64_t bits ) {
 	SZ_WriteBits( &msg_write, value, bits );
 }
 
 /**
 *	@brief
 **/
-const int32_t MSG_ReadBits( int32_t bits ) {
+const int64_t MSG_ReadBits( int64_t bits ) {
 	return SZ_ReadBits( &msg_read, bits );
 }
 
@@ -394,13 +384,13 @@ const int32_t MSG_ReadUint8( void ) {
 *	@brief	... TODO ...
 **/
 int MSG_LookaheadByte( ) {
-	const int bloc = Huff_getBloc();
-	const int readcount = msg_read.readcount;
-	const int bit = msg_read.bit;
-	int c = MSG_ReadUint8( );
+	const int32_t bloc = Huff_getBloc();
+	const int32_t readcount = msg_read.readcount;
+	const int32_t bit = msg_read.bitposition;
+	int32_t c = MSG_ReadUint8( );
 	Huff_setBloc( bloc );
 	msg_read.readcount = readcount;
-	msg_read.bit = bit;
+	msg_read.bitposition = bit;
 	return c;
 }
 /**

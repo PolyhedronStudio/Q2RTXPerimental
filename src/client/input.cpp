@@ -738,8 +738,8 @@ static void CL_SendBatchedCmd( void ) {
             break;
         }
         totalCmds += numCmds;
-        //MSG_WriteBits( numCmds, 5 );
-        MSG_WriteUint8( numCmds );
+        MSG_WriteBits( numCmds, 5 );
+        //MSG_WriteUint8( numCmds );
         for ( j = oldest->commandNumber + 1; j <= history->commandNumber; j++ ) {
             cmd = &cl.moveCommands[ j & CMD_MASK ].cmd;
             totalMsec += cmd->msec;
