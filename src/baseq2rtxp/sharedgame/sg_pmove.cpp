@@ -1461,6 +1461,66 @@ static void PM_CheckSpecialMovement() {
 	ps->pmove.pm_flags |= PMF_TIME_WATERJUMP;
 	ps->pmove.pm_time = 2048;
 }
+#ifdef PMOVE_ENABLE_WALLJUMPING
+/**
+*	@brief	Performs the engagement of Wall Jumping.
+**/
+static const bool PM_WallJump() {
+	// Calculate the 'wishvel' which is our desired direction vector.
+	float jump_trace_distance = 2.0f;
+	Vector3 wishvel = QM_Vector3Normalize( pml.forward * pm->cmd.forwardmove + pml.right * pm->cmd.sidemove ) * jump_trace_distance;
+	Vector3 spot = pml.origin + wishvel;
+	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, MASK_SOLID );
+	// Trace must've hit something, and NOT BE STUCK inside of a brush either.
+	if ( trace.fraction < 1.0f && !trace.allsolid && !trace.startsolid
+		// Ensure that the plane's normal is an actual wall.
+		// Negative slopes, would have a normal as < 0.
+		// Walls have a normal of 0.
+		// Slopes that are too steep to stand on PM_MIN_STEP_NORMAL(0.7).
+		&& ( trace.plane.normal[ 2 ] >= 0 && trace.plane.normal[ 2 ] <= PM_MIN_STEP_NORMAL )
+		// Prevent us from wall jumping in skies.
+		&& ( trace.surface && !( trace.surface->flags & SURF_SKY ) )
+		// Prevent us from doing this when on-ground so that trick jumping keeps working AND
+		// we don't false positively remove PMF_JUMP_HELD or mess with velocities.
+		&& ( !( ps->pmove.pm_flags & PMF_ON_GROUND ) && !(ps->pmove.pm_flags & PMF_JUMP_HELD ) ) ) {
+		
+		// Adjust our pmove state to engage in the act of jumping.
+		ps->pmove.pm_flags |= PMF_JUMP_HELD;
+		// Play jump sound ofc.
+		pm->jump_sound = true;
+		// Unset ground.
+		pm->ground.entity = nullptr; //PM_UpdateGroundFromTrace( nullptr );
+		ps->pmove.pm_flags &= ~PMF_ON_GROUND;
+
+		// Jump height velocity for the wall jump..
+		constexpr float jump_height = 370;
+
+		// For use with the excluding Z component, and/or prevent walljumps if exceeding certain Z velocities.
+		pml.velocity[ 2 ] += jump_height * QM_Minf( 0.23, trace.plane.normal[ 2 ] );
+		// No cap? :-)
+		//if ( pml.velocity[ 2 ] > jump_height ) {
+		//	pml.velocity[ 2 ] = jump_height;
+		//}
+		
+		// Default Z component to straight up.
+		Vector3 jumpNormal = QM_Vector3Zero();
+		jumpNormal[ 0 ] = trace.plane.normal[ 0 ];
+		jumpNormal[ 1 ] = trace.plane.normal[ 1 ];
+		//jumpNormal[ 2 ] = 1;
+		//const float xy_speed = 240. * QM_Minf( 0.23, trace.plane.normal[ 2 ] );
+		pml.velocity = pml.velocity + ( jumpNormal * 240. );
+
+		// One can choose to exclude the jump_height addition up above and use this below instead.
+		//pml.velocity += Vector2( trace.plane.normal ) * 240.0f;
+
+		// Success to jump.
+		return true;
+	}
+
+	// Failure to jump.
+	return false;
+}
+#endif
 /**
 *	@brief
 **/
@@ -1480,43 +1540,10 @@ static void PM_CheckJump() {
 	if ( pm->ground.entity == nullptr && 
 		// We want the jump button to be pressed but not the PMF_JUMP_HELD flag to be set yet.
 		( pm->cmd.buttons & BUTTON_JUMP ) && !( ps->pmove.pm_flags & PMF_JUMP_HELD ) ) {
-		// Calculate the 'wishvel' which is our desired direction vector.
-		float jump_trace_distance = 2.0f;
-		Vector3 wishvel = QM_Vector3Normalize( pml.forward * pm->cmd.forwardmove + pml.right * pm->cmd.sidemove ) * jump_trace_distance;
-		Vector3 spot = pml.origin + wishvel;
-		trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, MASK_SOLID );
-		// Trace must've hit something, and NOT BE STUCK inside of a brush either.
-		if ( trace.fraction < 1.0f && !trace.allsolid && !trace.startsolid
-			// Ensure that the plane's normal is an actual wall.
-			// Negative slopes, would have a normal as < 0.
-			// Walls have a normal of 0.
-			// Slopes that are too steep to stand on PM_MIN_STEP_NORMAL(0.7).
-			&& ( trace.plane.normal[ 2 ] >= 0 && trace.plane.normal[ 2 ] <= PM_MIN_STEP_NORMAL )
-			// Prevent us from wall jumping in skies.
-			&& ( trace.surface && !( trace.surface->flags & SURF_SKY ) )
-			// Prevent us from doing this when on-ground so that trick jumping keeps working AND
-			// we don't false positively remove PMF_JUMP_HELD or mess with velocities.
-			&& !( ps->pmove.pm_flags & PMF_ON_GROUND ) ) {
-				ps->pmove.pm_flags &= ~PMF_JUMP_HELD;
-				pm->jump_sound = true;
-
-				constexpr float jump_height = 370;
-				
-				// For use with the excluding Z component, and/or prevent walljumps if exceeding certain Z velocities.
-				pml.velocity[ 2 ] += jump_height;
-				if ( pml.velocity[ 2 ] > jump_height ) {
-					pml.velocity[ 2 ] = jump_height;
-				}
-				// Exclude the Z component since we already applied the jump height up above.
-				Vector3 jumpNormal = QM_Vector3Zero();
-				jumpNormal[ 0 ] = trace.plane.normal[ 0 ];
-				jumpNormal[ 1 ] = trace.plane.normal[ 1 ];
-				pml.velocity = pml.velocity + ( jumpNormal * 240. );
-				
-				// One can choose to exclude the jump_height addition up above and use this below instead.
-				//pml.velocity += Vector3( trace.plane.normal ) * 240.0f;
-		}
-		return;
+			// Return if we managed to initiate a wall jump.
+			if ( PM_WallJump() ) {
+				return;
+			}
 	}
 	#endif
 
