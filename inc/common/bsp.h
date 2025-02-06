@@ -66,9 +66,6 @@ bool BSP_SavePatchedPVS(bsp_t *bsp);
 
 void BSP_Init(void);
 
-// WID: materials
-void BSP_LoadMaterials( void );
-
 // Extern C
 QEXTERN_C_CLOSE
 
