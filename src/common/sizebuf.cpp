@@ -603,15 +603,15 @@ const int64_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 
 	int64_t value = 0;
 	for ( int32_t i = 0; i < bits; i++, bitpos++ ) {
-		uint64_t get = ( sb->data[ bitpos >> 3 ] >> ( bitpos & 7 ) ) & 1LLU;
+		uint64_t get = ( sb->data[ bitpos >> 3 ] >> ( bitpos & 7 ) ) & 1;
 		value |= get << i;
 	}
 	sb->bitposition = bitpos;
 	sb->readcount = ( bitpos + 7 ) >> 3;
 
 	if ( isSigned ) {
-		if ( value & ( 1LLU << ( bits - 1LLU ) ) ) {
-			value |= -1LLU ^ ( ( 1LLU << bits ) - 1LLU );
+		if ( value & ( 1LLU << ( bits - 1 ) ) ) {
+			value |= -1 ^ ( ( 1LLU << bits ) - 1 );
 		}
 	}
 
