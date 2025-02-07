@@ -68,17 +68,13 @@ end
 -----------------------------------------------------------------------------
 -- L Target:
 function Target_ProcessSignals( self, signaller, activator, signalName, signalArguments, displayName, targetName, trainTargetName, lightTargetName, lightBrushTargetName )
-    --
     -- Play special pain audio:
-    --
     if ( signalName == "OnPain" ) then
         -- Play speciual 'pain' sound effect.
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_pain, 1.0, SoundAttenuation.NORMAL, 0.0 )
         -- Done handling signal.
         return true
-    --
     -- It just got killed, stop the train track, 'open' the door, notify players, and update score.
-    --
     elseif ( signalName == "OnKilled" ) then
         -- Decrement number of targets alive count, only if we're the team master that is being signalled.
         if ( self.teamMaster == self.targetName ) then
@@ -136,7 +132,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             -- Enable the button for reuse.
             targetRangeButtonEntity.useTargetFlags = targetRangeButtonEntity.useTargetFlags - EntityUseTargetFlags.DISABLED
             -- Signal it to be unpressed again.
-            Game.SignalOut( targetRangeButtonEntity, signaller, activator, "UnPress", {}, 0.1 )
+            entities:SignalOutDelay( targetRangeButtonEntity, signaller, activator, "UnPress", {}, 0.1 )
             -- Adjust frame to match it being pressable again, signalling red animation style that target range is inactive.
             --targetRangeButtonEntity.state.frame = 0
 
@@ -145,9 +141,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         end
         -- Done handling signal.
         return true
-    --
     -- If the target is engaging in "Closing", it means a new range round has begun:
-    --
     elseif ( signalName == "OnClose" ) then
         -- Get LightBrush Entity.
         local lightBrushEntity = Game.GetEntityForTargetName( lightBrushTargetName )
@@ -163,9 +157,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         Media.Sound( self, SoundChannel.VOICE, mapMedia.sound.rangetarget_close, 1.0, SoundAttenuation.IDLE, 0.0 )
         -- Done handling signal.
         return true
-    --
     -- A new round has begun, so the target got told to "close", turn on the train.
-    --
     elseif ( signalName == "OnClosed") then
         -- Turn on the light.
         entities:UseTargetDelay( Game.GetEntityForTargetName( lightTargetName ), signaller, activator, EntityUseTargetType.ON, 1, 0.1 )
@@ -177,9 +169,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         entities:UseTargetDelay( Game.GetEntityForTargetName( trainTargetName ), signaller, activator, EntityUseTargetType.ON, 1, 0.1 )
         -- Done handling signal.
         return true
-    --
     -- It started opening.
-    --
     elseif ( signalName == "OnOpen" ) then
         -- Get target entity
         local lightBrushEntity = Game.GetEntityForTargetName( lightBrushTargetName )
@@ -187,9 +177,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         lightBrushEntity.state.effects = EntityEffects.GIB
         -- Done handling signal.
         return true
-    --
     -- It finished the 'open movement' and arrived at destination:
-    --
     elseif ( signalName == "OnOpened" ) then
         -- Get target entity
         local lightBrushEntity = Game.GetEntityForTargetName( lightBrushTargetName )

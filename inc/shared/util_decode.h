@@ -41,6 +41,7 @@ static inline const float CHAR2OFFSET( const int8_t b ) {
 *	@brief	Decodes the byte back into a "blend" float, range(0 = 0, 255 = 1)
 **/
 static inline const float BYTE2BLEND( const uint8_t b ) {
+	return ( 1.0 / 255 ) * b;
 	//return (float)( b ) * 0.25f;
-	return (float)( b ) / 255.f;
+	//return (float)( b ) / 255.f;
 }

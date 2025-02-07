@@ -285,8 +285,22 @@ static constexpr int32_t STAT_WEAPON_CLIP_AMMO_ICON = ( STATS_GAME_OFFSET + 20 )
 static constexpr int32_t STAT_WEAPON_RECOIL = ( STATS_GAME_OFFSET + 21 );
 
 /**
-*	@brief	Flags of the client's active weapon's st ate.
+*	@brief	Flags of the client's active weapon's state.
 **/
 static constexpr int32_t STAT_WEAPON_FLAGS = ( STATS_GAME_OFFSET + 22 );
 //! Indicates that the client has engaged, and is engaging into 'precision aim' mode.
 static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING = BIT( 0 );
+
+/**
+*	@brief	Flags of the client's active UseTarget it is aiming at.
+**/
+//! The index into the sharedgame start usetarget hint array.
+//! When zero, means no hint is active.
+//! When positive, it is an index into the sharedgame usetarget hint array.
+//! When negative, it is expected to display the latest information that came
+//! from the svg_usetargethint_str command.
+static constexpr int32_t STAT_USETARGET_HINT_INDEX = ( STATS_GAME_OFFSET + 23 );
+//! Flags for determining how to act for the hovering usetarget.
+static constexpr int32_t STAT_USETARGET_HINT_FLAGS = ( STATS_GAME_OFFSET + 24 );
+//! Displays the usetarget hint instead of the crosshair.
+static constexpr int32_t STAT_USETARGET_HINT_FLAGS_DISPLAY = BIT( 0 );

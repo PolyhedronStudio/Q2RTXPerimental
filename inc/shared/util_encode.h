@@ -37,9 +37,11 @@ static inline const int8_t OFFSET2CHAR( float f ) {
 	return (int8_t)( f * 4.f );
 }
 /**
-*   @brief	Encodes the "blend" float to an uint8_t, range(0 = 0, 1 = 255).
+*   @brief	Encodes the "blend" float(normalized range, 0 to 1) to an uint8_t with range(0 = 0, 1 = 255).
 **/
 static inline const uint8_t BLEND2BYTE( float f ) {
+	// Clamp the float to be sure.
 	clamp( f, 0.f, 1.f );
+	// Encode.
 	return (uint8_t)( f * 255.f );
 }

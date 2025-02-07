@@ -55,6 +55,10 @@ void CLG_HUD_SetCrosshairColor();
 *	@brief  Renders the crosshair to screen.
 **/
 void CLG_HUD_DrawCrosshair( void );
+/**
+*	@brief  Renders the 'UseTarget' display info to the screen.
+**/
+void CLG_HUD_DrawUseTargetInfo( const int32_t useTargetHintIndex, const int32_t useTargetHintFlags );
 
 
 

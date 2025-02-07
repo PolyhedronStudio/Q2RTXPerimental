@@ -61,6 +61,22 @@ RMAPI float QM_Wrapf( const float value, const float min, const float max ) {
 	const float result = value - ( max - min ) * floorf( ( value - min ) / ( max - min ) );
 	return result;
 }
+/**
+*   @brief  Returns 'min' if 'value' < min, otherwise returns 'value'.
+**/
+RMAPI float QM_Minf( const float min, const float value ) {
+    return value < min ? min : value;
+    //return std::min( value, min );
+}
+/**
+*   @brief  Returns 'max' if 'value' > max, otherwise returns 'value'.
+**/
+RMAPI float QM_Maxf( const float max, const float value ) {
+    return value > max ? max : value;
+    //return std::max( value, max );
+}
+
+
 
 /**
 *
@@ -118,6 +134,21 @@ RMAPI double QM_Remapd( const double value, const double inputStart, const doubl
 RMAPI double QM_Wrapd( const double value, const double min, const double max ) {
     const double result = value - ( max - min ) * floor( ( value - min ) / ( max - min ) );
     return result;
+}
+
+/**
+*   @brief  Returns 'min' if 'value' < min, otherwise returns 'value'.
+**/
+RMAPI double QM_Mind( const double min, const double value ) {
+    return value < min ? min : value;
+    //return std::min( value, min );
+}
+/**
+*   @brief  Returns 'max' if 'value' > max, otherwise returns 'value'.
+**/
+RMAPI double QM_Maxd( const double max, const double value ) {
+    return value > max ? max : value;
+    //return std::max( value, max );
 }
 
 

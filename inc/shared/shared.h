@@ -58,6 +58,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
     // C++ STL Headers:
     #include <version>
+    //#include <algorithm> // std::min, std::max etc, buuut still got vkpt code in C so.
     //#include <array>
     //#include <bit>
     #include <chrono>

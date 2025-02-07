@@ -1874,8 +1874,22 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
     // Scale HUD.
     CLG_HUD_ScaleFrame( refcfg );
 
-    // Crosshair has its own color and alpha.
-    CLG_HUD_DrawCrosshair();
+    // UseTarget Hint Index.
+    const int32_t useTargetHintIndex = clgi.client->predictedState.currentPs.stats[ STAT_USETARGET_HINT_INDEX ];
+    // UseTarget Hint flags..
+    const int32_t useTargetHintFlags = clgi.client->predictedState.currentPs.stats[ STAT_USETARGET_HINT_FLAGS ];
+    
+    // Got an index of hint display, but its flagged as invisible.
+    if ( ( useTargetHintIndex  && !(useTargetHintFlags & STAT_USETARGET_HINT_FLAGS_DISPLAY ) ) 
+        // No index, so display crosshair.
+        || !useTargetHintIndex ) 
+    {
+        // Crosshair has its own color and alpha.
+        CLG_HUD_DrawCrosshair();
+    } else {
+        // Display the use target hint information.
+        CLG_HUD_DrawUseTargetInfo( useTargetHintIndex, useTargetHintFlags );
+    }
 
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();
