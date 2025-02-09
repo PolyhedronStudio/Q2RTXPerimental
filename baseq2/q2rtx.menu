@@ -273,9 +273,8 @@ begin crosshair
     style --compact
     title "Crosshair Setup"
     blank
-    values "crosshair type" crosshair none cross dot angle
-    pairs "crosshair scale" ch_scale 0.5x 0.5 1x 1 2x 2
-    toggle "color by health" ch_health
+    values "crosshair type" crosshair None "Cross (Default)"
+    pairs "crosshair scale" ch_scale 0.5x 0.5 1.0x 1 2.0x 2
     range -p -f "%.0f%%" "red channel" ch_red 0 1
     range -p -f "%.0f%%" "green channel" ch_green 0 1
     range -p -f "%.0f%%" "blue channel" ch_blue 0 1

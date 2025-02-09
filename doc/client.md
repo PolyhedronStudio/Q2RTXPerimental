@@ -504,24 +504,15 @@ Absolute value of this cvar specifies vertical placement of the chat HUD,
 counted in pixels from the screen edge. Negative values align graph to the bottom
 edge of the screen intead of the top edge. Default value is -64.
 
-#### `ch_health`
-Enables dynamic crosshair coloring based on the health statistic seen in
-the player's HUD.  Default value is 0 (use static color).
-
-#### `ch_red`, `ch_green`, `ch_blue`
+#### `hud_crosshair_red`, `hud_crosshair_green`, `hud_crosshair_blue`
 These variables specify the color of crosshair image. Default values are 1
-(draw in white color). Ignored if `ch_health` is enabled.
+(draw in white color).
 
-#### `ch_alpha`
-Opacity level of crosshair image. Default value is 1 (fully opaque).
+#### `hud_crosshair_alpha`
+Opacity level of crosshair lines. Default value is 1 (fully opaque, though inside fill is always partially transparent.).
 
-#### `ch_scale`
-Scaling factor of the crosshair image. Default value is 1 (original size).
-
-#### `ch_x`, `ch_y`
-These variables specify the crosshair image offset, counted in pixels from
-the default position in center of the game screen. Default values are 0
-(draw in center).
+#### `hud_crosshair_scale`
+Scaling factor of the crosshair lines. Default value is 1 (original size).
 
 ### Video Modes
 

@@ -174,21 +174,21 @@ void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags,
 *   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
 **/
-const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime ) {
-    int64_t delta = clgi.GetRealTime() - startTime;
+const double SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime ) {
+    uint64_t delta = clgi.GetRealTime() - startTime;
     if ( delta >= visTime ) {
         return 0;
     }
 
-    float definiteFadeTime = fadeTime;
+    uint64_t definiteFadeTime = fadeTime;
     if ( definiteFadeTime > visTime ) {
         definiteFadeTime = visTime;
     }
 
-    float alpha = 1;
-    int64_t timeLeft = visTime - delta;
+    double alpha = 1;
+    uint64_t timeLeft = visTime - delta;
     if ( timeLeft < definiteFadeTime ) {
-        alpha = (float)timeLeft / definiteFadeTime;
+        alpha = (double)timeLeft / definiteFadeTime;
     }
 
     return alpha;
@@ -1880,12 +1880,13 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
     const int32_t useTargetHintFlags = clgi.client->predictedState.currentPs.stats[ STAT_USETARGET_HINT_FLAGS ];
     
     // Got an index of hint display, but its flagged as invisible.
+    CLG_HUD_DrawCrosshair();
     if ( ( useTargetHintIndex  && !(useTargetHintFlags & STAT_USETARGET_HINT_FLAGS_DISPLAY ) ) 
         // No index, so display crosshair.
         || !useTargetHintIndex ) 
     {
         // Crosshair has its own color and alpha.
-        CLG_HUD_DrawCrosshair();
+        //CLG_HUD_DrawCrosshair();
     } else {
         // Display the use target hint information.
         CLG_HUD_DrawUseTargetInfo( useTargetHintIndex, useTargetHintFlags );

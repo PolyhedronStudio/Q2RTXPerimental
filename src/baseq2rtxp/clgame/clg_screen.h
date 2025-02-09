@@ -85,4 +85,4 @@ void SCR_DrawStringMulti( const int32_t x, const int32_t y, const int32_t flags,
 *   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
 **/
-const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime );
+const double SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime );

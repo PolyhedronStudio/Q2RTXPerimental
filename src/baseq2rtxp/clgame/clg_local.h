@@ -652,7 +652,7 @@ typedef struct precached_media_s {
 	**/
 	struct {
 		//! Crosshair
-		qhandle_t crosshair_pic;
+		//qhandle_t crosshair_pic;
 	} hud;
 
 	//

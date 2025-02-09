@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clg_local.h"
 #include "clg_hud.h"
+#include "clg_main.h"
 #include "clg_screen.h"
 
 //
@@ -16,15 +17,13 @@
 static cvar_t *scr_alpha;
 
 //! The crosshair.
-static cvar_t *hud_crosshair;
-static cvar_t *ch_health;
-static cvar_t *ch_red;
-static cvar_t *ch_green;
-static cvar_t *ch_blue;
-static cvar_t *ch_alpha;
-static cvar_t *ch_scale;
-static cvar_t *ch_x;
-static cvar_t *ch_y;
+static cvar_t *hud_crosshair_type;
+static cvar_t *hud_crosshair_red;
+static cvar_t *hud_crosshair_green;
+static cvar_t *hud_crosshair_blue;
+static cvar_t *hud_crosshair_alpha;
+static cvar_t *hud_crosshair_scale;
+
 
 /**
 *   HUD Specifics:
@@ -46,15 +45,19 @@ static struct {
     struct {
         int32_t     pic_width = 0, pic_height = 0;
         color_t     color = (color_t)U32_WHITE;
+        float       alpha = 1.f;
 
         //! For recoil display scaling.
         struct {
             ////! Stats values of the current and last frame.
             //int32_t currentStatsValue = 0, lastStatsValue = 0;
             //! Decoded floating point values, scaled to between (0.0, 1.0).
-            double  currentValue = 0, lastValue = 0;
+            double  currentRecoil = 0, lastRecoil = 0;
             //! Realtime at which recoil value change took place.
             uint64_t changeTime = 0;
+            //! Duration of current ease.
+            uint64_t easeDuration = 0;
+            //! 
         } recoil = {};
     } crosshair = {};
 
@@ -81,90 +84,30 @@ extern const bool SCR_ShouldDrawPause();
 *
 **/
 /**
-*   @brief  Will use the amount of health to indicate the crosshair's color.
-**/
-void CLG_HUD_SetCrosshairColorByHealth() {
-    if ( !ch_health->integer ) {
-        return;
-    }
-
-    const int32_t health = clgi.client->frame.ps.stats[ STAT_HEALTH ];
-    if ( health <= 0 ) {
-        VectorSet( hud.crosshair.color.u8, 0, 0, 0 );
-        return;
-    }
-
-    // red
-    hud.crosshair.color.u8[ 0 ] = 255;
-
-    // green
-    if ( health >= 66 ) {
-        hud.crosshair.color.u8[ 1 ] = 255;
-    } else if ( health < 33 ) {
-        hud.crosshair.color.u8[ 1 ] = 0;
-    } else {
-        hud.crosshair.color.u8[ 1 ] = ( 255 * ( health - 33 ) ) / 33;
-    }
-
-    // blue
-    if ( health >= 99 ) {
-        hud.crosshair.color.u8[ 2 ] = 255;
-    } else if ( health < 66 ) {
-        hud.crosshair.color.u8[ 2 ] = 0;
-    } else {
-        hud.crosshair.color.u8[ 2 ] = ( 255 * ( health - 66 ) ) / 33;
-    }
-}
-/**
 *   @brief  Will set the crosshair color to a custom color which is defined by cvars.
 **/
 static void CLG_HUD_SetCrosshairColorByCVars() {
-    hud.crosshair.color.u8[ 0 ] = clgi.CVar_ClampValue( ch_red, 0, 1 ) * 255;
-    hud.crosshair.color.u8[ 1 ] = clgi.CVar_ClampValue( ch_green, 0, 1 ) * 255;
-    hud.crosshair.color.u8[ 2 ] = clgi.CVar_ClampValue( ch_blue, 0, 1 ) * 255;
+    hud.crosshair.color.u8[ 0 ] = clgi.CVar_ClampValue( hud_crosshair_red, 0.f, 1.f ) * 255;
+    hud.crosshair.color.u8[ 1 ] = clgi.CVar_ClampValue( hud_crosshair_green, 0.f, 1.f ) * 255;
+    hud.crosshair.color.u8[ 2 ] = clgi.CVar_ClampValue( hud_crosshair_blue, 0.f, 1.f ) * 255;
+    // We use a separate alpha value.
+    hud.crosshair.color.u8[ 3 ] = 255;
 }
 /**
 *   @brief  Used to update crosshair color with.
 **/
 void CLG_HUD_SetCrosshairColor() {
-    //! Use health as color instead.
-    if ( ch_health->integer ) {
-        CLG_HUD_SetCrosshairColorByHealth();
-    } else {
-        CLG_HUD_SetCrosshairColorByCVars();
-    }
-    hud.crosshair.color.u8[ 3 ] = clgi.CVar_ClampValue( ch_alpha, 0, 1 ) * 255;
+    // Set it based on cvars.
+    CLG_HUD_SetCrosshairColorByCVars();
+    // Apply alpha value.
+    hud.crosshair.alpha = clgi.CVar_ClampValue( hud_crosshair_alpha, 0.0f, 1.0f );
+    //hud.crosshair.color.u8[ 3 ] = clgi.CVar_ClampValue( ch_alpha, 0, 1 ) * 255;
 }
 /**
 *	@brief
 **/
-static void scr_crosshair_changed( cvar_t *self ) {
-    int32_t crosshairWidth = 0;
-    int32_t crosshairHeight = 0;
-
-    if ( hud_crosshair->integer > 0 ) {
-        //Q_snprintf( buffer, sizeof( buffer ), "ch%i", hud_crosshair->integer );
-        //precache.hud.crosshair_pic = clgi.R_RegisterPic( buffer );
-        precache.hud.crosshair_pic = clgi.R_RegisterPic( "crosshair01.png" );
-        clgi.R_GetPicSize( &crosshairWidth, &crosshairHeight, precache.hud.crosshair_pic );
-
-        // prescale
-        const float crosshairScale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
-        hud.crosshair.pic_width = crosshairWidth;// *crosshairScale;
-        hud.crosshair.pic_height = crosshairHeight;// *crosshairScale;
-        // Force it to have a width in case GetPicSize fails somehow.
-        if ( hud.crosshair.pic_width < 1 ) {
-            hud.crosshair.pic_width = 1;
-        }
-        if ( hud.crosshair.pic_height < 1 ) {
-            hud.crosshair.pic_height = 1;
-        }
-
-        // Update crosshair colors.
-        CLG_HUD_SetCrosshairColor();
-    } else {
-        precache.hud.crosshair_pic = 0;
-    }
+static void scr_hud_crosshair_changed( cvar_t *self ) {
+    CLG_HUD_SetCrosshairColor();
 }
 
 
@@ -187,23 +130,19 @@ void CLG_HUD_Initialize( void ) {
     scr_alpha = clgi.CVar_Get( "scr_alpha", nullptr, 0 );
 
     // Crosshair cvars.
-    ch_health = clgi.CVar_Get( "ch_health", "0", 0 );
-    ch_health->changed = scr_crosshair_changed;
-    ch_red = clgi.CVar_Get( "ch_red", "1", 0 );
-    ch_red->changed = scr_crosshair_changed;
-    ch_green = clgi.CVar_Get( "ch_green", "1", 0 );
-    ch_green->changed = scr_crosshair_changed;
-    ch_blue = clgi.CVar_Get( "ch_blue", "1", 0 );
-    ch_blue->changed = scr_crosshair_changed;
-    ch_alpha = clgi.CVar_Get( "ch_alpha", "1", 0 );
-    ch_alpha->changed = scr_crosshair_changed;
-    ch_scale = clgi.CVar_Get( "ch_scale", "1", 0 );
-    ch_scale->changed = scr_crosshair_changed;
-    ch_x = clgi.CVar_Get( "ch_x", "0", 0 );
-    ch_y = clgi.CVar_Get( "ch_y", "0", 0 );
+    hud_crosshair_red = clgi.CVar_Get( "hud_crosshair_red", "1", 0 );
+    hud_crosshair_red->changed = scr_hud_crosshair_changed;
+    hud_crosshair_green = clgi.CVar_Get( "hud_crosshair_green", "1", 0 );
+    hud_crosshair_green->changed = scr_hud_crosshair_changed;
+    hud_crosshair_blue = clgi.CVar_Get( "hud_crosshair_blue", "1", 0 );
+    hud_crosshair_blue->changed = scr_hud_crosshair_changed;
+    hud_crosshair_alpha = clgi.CVar_Get( "hud_crosshair_alpha", "1", 0 );
+    hud_crosshair_alpha->changed = scr_hud_crosshair_changed;
+    hud_crosshair_scale = clgi.CVar_Get( "hud_crosshair_scale", "1", 0 );
+    hud_crosshair_scale->changed = scr_hud_crosshair_changed;
 
-    hud_crosshair = clgi.CVar_Get( "crosshair", "0", CVAR_ARCHIVE );
-    hud_crosshair->changed = scr_crosshair_changed;
+    hud_crosshair_type = clgi.CVar_Get( "hud_crosshair_type", "1", CVAR_ARCHIVE );
+    hud_crosshair_type->changed = scr_hud_crosshair_changed;
 }
 /**
 *   @brief  Called by PF_SCR_ModeChanged(video mode changed), or scr_scale_changed, in order to
@@ -223,7 +162,7 @@ void CLG_HUD_AlphaChanged( const float newHudAlpha ) {
 **/
 void CLG_HUD_RegisterScreenMedia( void ) {
     // Precache crosshair.
-    scr_crosshair_changed( hud_crosshair );
+    scr_hud_crosshair_changed( hud_crosshair_type );
 }
 /**
 *   @brief  Called when screne module shutsdown.
@@ -294,7 +233,28 @@ static void CLG_HUD_DrawOutlinedRectangle( const uint32_t backGroundX, const uin
 **/
 static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_t backGroundY, const uint32_t backGroundWidth, const uint32_t backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor ) {
     // Set global color to white
-    clgi.R_SetColor( MakeColor( 255, 255, 255, 255 ) );
+    //clgi.R_SetColor( MakeColor( 255, 255, 255, 255 ) );
+    #if 1
+    // Draw bg color.
+    clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
+    if ( outlineColor ) {
+        // Left line. (Also covers first pixel of top line and bottom line.)
+        clgi.R_DrawFill32( backGroundX - 1, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+        // Right line. (Also covers last pixel of top line and bottom line.)
+        clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+        // Top line. (Skips first and last pixel, already covered by both the left and right lines.)
+        clgi.R_DrawFill32( backGroundX, backGroundY - 1, backGroundWidth, 1, outlineColor );
+        // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
+        clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
+    }
+    // 
+    //clgi.R_DrawFill32( backGroundX + 1, backGroundY + 1, backGroundWidth - 1, backGroundHeight - 1, fillColor );
+    // Draw outlines:
+    //clgi.R_DrawFill32( backGroundX, backGroundY, 1, backGroundHeight, outlineColor ); // Left Line.
+    //clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, 1, outlineColor );  // Top Line.
+    //clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY, 1, backGroundHeight + 1, outlineColor ); // Right Line.
+    //clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor ); // Bottom Line.
+    #else
     // Draw bg color.
     clgi.R_DrawFill32( backGroundX + 1, backGroundY + 1, backGroundWidth - 1, backGroundHeight - 1, fillColor );
     // Draw outlines:
@@ -302,6 +262,7 @@ static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_
     clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, 1, outlineColor );  // Top Line.
     clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY, 1, backGroundHeight + 1, outlineColor ); // Right Line.
     clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor ); // Bottom Line.
+    #endif
 }
 
 
@@ -318,38 +279,27 @@ static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_
 *           the lerpFracion to use for scaling the recoil display.
 *   @return Lerpfrac between last and current weapon recoil.
 **/
-const double CLG_HUD_UpdateRecoilScale() {
-    // Miliseconds for easing:
-    static constexpr int32_t SCALE_TIME_OUT = 25;
-    static constexpr int32_t SCALE_TIME_IN = 100;
+const double CLG_HUD_UpdateRecoilScale( const uint64_t realTime, const uint64_t easeDuration ) {
+    // Update realtime only if we're not paused.
+    static uint64_t _realTime = realTime;
+    if ( !CLG_IsGameplayPaused() ) {
+        _realTime = realTime;
+    }
     
-    // Get realtime.
-    uint64_t realTime = clgi.GetRealTime();
-    // Calculate the crosshair scale based on the recoil's value, lerp it over 25ms.
-    double lerpFrac = QM_Clampd( (double)( realTime - hud.crosshair.recoil.changeTime ) / ( 1.0 / (double)SCALE_TIME_OUT ), 0., 1. );
-
-    // If lower value than current frame, lerp over 25ms for easing out.
-    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] < clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-        // Calculate the crosshair scale based on the recoil's value, lerp it over 25ms.
-        lerpFrac = QM_Clampd( (double)( realTime - hud.crosshair.recoil.changeTime ) / ( 1.0 / (double)SCALE_TIME_OUT ), 0., 1. );
-    }
-    // If higher value than current frame, lerp over 100ms for easing in.
-    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] > clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-        // Calculate the crosshair scale based on the recoil's value, lerp it over 100ms.
-        lerpFrac = QM_Clampd( (double)( realTime - hud.crosshair.recoil.changeTime ) / ( 1.0 / (double)SCALE_TIME_IN ), 0., 1. );
-    }
+    // Lerp fraction, clamp for discrepancies.
+    const double lerpFraction = (double)( realTime - hud.crosshair.recoil.changeTime ) / easeDuration;
 
     // Update the exact time for lerping crosshair display, which is when the current recoil change took place.
     if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
+        // Decoded floating point recoil scale of current and last frame.
+        hud.crosshair.recoil.currentRecoil = BYTE2BLEND( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] );
+        hud.crosshair.recoil.lastRecoil = BYTE2BLEND( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] );
+
         hud.crosshair.recoil.changeTime = realTime;
     }
 
-    // Decoded floating point recoil scale of current and last frame.
-    hud.crosshair.recoil.currentValue = BYTE2BLEND( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] );
-    hud.crosshair.recoil.lastValue = BYTE2BLEND( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] );
-
     // Return lerpfracion.
-    return lerpFrac;
+    return lerpFraction;
 }
 /**
 *   @brief  Renders a pic based crosshair.
@@ -357,11 +307,14 @@ const double CLG_HUD_UpdateRecoilScale() {
 void CLG_HUD_DrawLineCrosshair( ) {
     // This is the 'BASE' scale of the crosshair, which is when it is at rest meaning
     // it has zero influence of recoil.
-    //const float crosshairUserScale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
+    const double crosshairUserScale = clgi.CVar_ClampValue( hud_crosshair_scale, 0.1f, 4.0f );
 
     // The base scale size of this crosshair.
-    static constexpr double crosshairBaseScale = 1.;
+    const double crosshairBaseScale = crosshairUserScale;
 
+    /**
+    *   (Default/Only, lol :-) -) Crosshair Configuration:
+    **/
     // Pixel 'radius', the offset from the center of the screen, for lines start origins to begin at.
     static constexpr double CROSSHAIR_ABSOLUTE_CENTER_ORIGIN_OFFSET= 4.;
     // Default Pixel Height/Width of the Horizontal Lines.
@@ -371,52 +324,76 @@ void CLG_HUD_DrawLineCrosshair( ) {
     static constexpr double CROSSHAIR_VERTICAL_WIDTH = 2.;
     static constexpr double CROSSHAIR_VERTICAL_HEIGHT= 8.;
 
+    /**
+    *   Get Ease Fraction.
+    **/
     // Calculate the crosshair scale based on the recoil's value, lerp it over 25ms.
-    double easeFraction = CLG_HUD_UpdateRecoilScale();
-    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-        if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] > clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-            easeFraction = QM_QuarticEaseIn( easeFraction );
-        }
-        if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] < clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-            easeFraction = QM_QuarticEaseOut( easeFraction );
-        }
+    static double recoilScale = 0.f;
+    static uint64_t easeDuration = 25;
+    static int32_t easeInOrOut = 1; // 0 == ease out, 1 == ease in.
+    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] > clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
+        easeDuration = 100;
+        easeInOrOut = 1;
+    } else if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] < clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
+        easeDuration = 25;
+        easeInOrOut = 0;
     }
-    // Additional up/down scaling for recoil effect display.
-    const double additionalScale = QM_Clampd( ( hud.crosshair.recoil.currentValue + ( easeFraction * ( hud.crosshair.recoil.currentValue - hud.crosshair.recoil.lastValue ) ) ), 0.f, 1.f );
-    const double additionalScaleW = additionalScale;
-    const double additionalScaleH = additionalScale;
 
-    // Calculate eased crosshair display radius (rect, width and height).
-    double chCenterOffsetRadius = CROSSHAIR_ABSOLUTE_CENTER_ORIGIN_OFFSET; // +( easeFraction * CROSSHAIR_ABSOLUTE_CENTER_ORIGIN_OFFSET );
+    // Default to 0.
+    recoilScale = CLG_HUD_UpdateRecoilScale( clgi.GetRealTime(), easeDuration );
+    double easeFraction = 0.;
+    if ( easeInOrOut == 0 ) {
+        easeFraction = QM_Clampd( 1.0 - QM_QuarticEaseOut( recoilScale ), 0., 1. );
+    } else {
+        easeFraction = QM_Clampd( 1.0 - QM_QuarticEaseIn( recoilScale ), 0., 1. );
+    }
 
-    // The resulting eased Horizontal line widths and vertical line heights.
-    double chHorizontalWidth = CROSSHAIR_HORIZONTAL_WIDTH;// +( CROSSHAIR_HORIZONTAL_WIDTH * easeFraction );
-    double chVerticalHeight = CROSSHAIR_VERTICAL_HEIGHT;// +( CROSSHAIR_VERTICAL_HEIGHT * easeFraction );
+    /**
+    *   Calculate the recoil derived offsets, as well as widths and heights.
+    **/
+    // Default idle crosshair values.
+    double chCenterOffsetRadius = CROSSHAIR_ABSOLUTE_CENTER_ORIGIN_OFFSET;// *( crosshairBaseScale + easeFraction );
+    double chHorizontalWidth = CROSSHAIR_HORIZONTAL_WIDTH; //+CROSSHAIR_HORIZONTAL_WIDTH * ( crosshairBaseScale + easeFraction );
+    double chVerticalHeight = CROSSHAIR_VERTICAL_HEIGHT; //+CROSSHAIR_VERTICAL_HEIGHT * ( crosshairBaseScale + easeFraction );
+    // Now to be adjusted by possible recoil.
+    chCenterOffsetRadius = chCenterOffsetRadius + ( chCenterOffsetRadius * easeFraction );
+    chHorizontalWidth = chHorizontalWidth + ( chHorizontalWidth * easeFraction );
+    chVerticalHeight = chVerticalHeight + ( chVerticalHeight * easeFraction );
+    // Now adjust by base scale to get the final result.
+    chCenterOffsetRadius *= crosshairBaseScale;
+    chHorizontalWidth *= crosshairBaseScale;
+    chVerticalHeight *= crosshairBaseScale;
 
-    chCenterOffsetRadius *= crosshairBaseScale + additionalScale;
-    chHorizontalWidth *= crosshairBaseScale + additionalScale;
-    chVerticalHeight *= crosshairBaseScale + additionalScale;
-
-    //double additionalScaleW = CROSSHAIR_HORIZONTAL_WIDTH * easeFraction;//( ( 1.0 / crosshairHorizontalWidth ) * ( crosshairHorizontalWidth * easeFraction ) );
-    //double additionalScaleH = CROSSHAIR_VERTICAL_HEIGHT * easeFraction;// ( ( 1.0 / crosshairVerticalHeight ) * ( crosshairVerticalHeight * easeFraction ) );
-
-    ////// Developer Debug:
-    static uint64_t debugprintframe = 0;
-    if ( debugprintframe != level.frameNumber ) {
-        debugprintframe = level.frameNumber;
-        clgi.Print( PRINT_DEVELOPER, "%s: debugframe(%" PRIu64 "), lastRecoil(%f), currentRecoil(%f), additionalScaleW(%f), additionalScaleH(%f), easeFraction(%f)\n"
-            , __func__, debugprintframe,
-            hud.crosshair.recoil.lastValue, hud.crosshair.recoil.currentValue,
-            additionalScaleW, additionalScaleH,
-            easeFraction );
+    // Developer Debug:
+    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
+        static uint64_t debugprintframe = 0;
+        if ( debugprintframe != level.frameNumber ) {
+            debugprintframe = level.frameNumber;
+            clgi.Print( PRINT_DEVELOPER, "---------------------------------------------------\n" );
+            clgi.Print( PRINT_DEVELOPER, "realTime=#%ull, level.time=#%ull, frameNumber=#%ull\n",
+                clgi.GetRealTime(),
+                level.time,
+                level.frameNumber
+            );
+            clgi.Print( PRINT_DEVELOPER, "easeFraction(%f), lastRecoil(%f), currentRecoil(%f)\n",
+                easeFraction, 
+                hud.crosshair.recoil.lastRecoil, hud.crosshair.recoil.currentRecoil  
+            );
+            clgi.Print( PRINT_DEVELOPER, "chCenterOffsetRadius(%f), chHorizontalWidth(%f), chVerticalHeight(%f)\n",
+                chCenterOffsetRadius,
+                chHorizontalWidth, chVerticalHeight
+            );
+        }
     }
 
     // Determine center x/y for crosshair display.
     const int32_t center_x = ( hud.hud_scaled_width ) / 2;
     const int32_t center_y = ( hud.hud_scaled_height ) / 2;
 
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( hud.crosshair.alpha * scr_alpha->value );
     // Apply overlay base color.
-    clgi.R_SetColor( U32_WHITE );
+    clgi.R_SetColor( hud.crosshair.color.u32 );
 
     // Draw the UP line.
     const int32_t up_x = center_x - ( CROSSHAIR_VERTICAL_WIDTH / 2 );
@@ -437,7 +414,12 @@ void CLG_HUD_DrawLineCrosshair( ) {
     const int32_t left_x = center_x - ( chCenterOffsetRadius + chHorizontalWidth );//center_x - ( crosshairHorizontalWidth / 2 );
     const int32_t left_y = center_y - ( CROSSHAIR_HORIZONTAL_HEIGHT / 2 ); //center_y - CROSSHAIR_ABS_CENTER_OFFSET + crosshairHorizontalHeight;
     CLG_HUD_DrawCrosshairLine( left_x, left_y, chHorizontalWidth, CROSSHAIR_HORIZONTAL_HEIGHT, hud.colors.LESS_WHITE, hud.colors.WHITE );
+
+    // Reset color and alpha.
+    clgi.R_SetColor( U32_WHITE );
+    clgi.R_SetAlpha( scr_alpha->value );
 }
+#if 0
 /**
 *   @brief  Renders a pic based crosshair.
 **/
@@ -478,20 +460,21 @@ void CLG_HUD_DrawPicCrosshair() {
     clgi.R_SetColor( hud.crosshair.color.u32 );
 
     // Draw the crosshair pic.
-    clgi.R_DrawStretchPic( x + ch_x->integer,
-        y + ch_y->integer,
-        crosshairWidth,
-        crosshairHeight,
-        precache.hud.crosshair_pic );
+    clgi.R_DrawStretchPic( 
+        x, y,
+        crosshairWidth, crosshairHeight,
+        precache.hud.crosshair_pic 
+    );
 }
+#endif
 /**
 *	@brief  Renders the crosshair to screen.
 **/
 void CLG_HUD_DrawCrosshair( void ) {
     // Only display if enabled.
-    //if ( !hud_crosshair->integer || !precache.hud.crosshair_pic ) {
-    //    return;
-    //}
+    if ( !hud_crosshair_type->integer ) {
+        return;
+    }
     if ( SCR_ShouldDrawPause() ) {
         return;
     }
@@ -501,11 +484,9 @@ void CLG_HUD_DrawCrosshair( void ) {
         return;
     }
 
-    // Determine the type of crosshair(pic based, or line based.)
-    if ( hud_crosshair->integer <= 0 || !precache.hud.crosshair_pic ) {
+    // > 0 Will draw specified crosshair type.
+    if ( hud_crosshair_type->integer >= 1 ) {
         CLG_HUD_DrawLineCrosshair();
-    } else {
-        CLG_HUD_DrawPicCrosshair();
     }
 
     //! WID: Seemed a cool idea, but, I really do not like it lol.
@@ -564,7 +545,8 @@ void CLG_HUD_DrawUseTargetInfo( const int32_t useTargetHintIndex, const int32_t 
     clgi.R_SetColor( MakeColor( 255, 150, 100, 255 ) );
     
     // Draw hint text info string.
-    HUD_DrawCenterString( x, y + ( CHAR_HEIGHT * 1.5 ), useTargetHints[useTargetHintIndex]);
+    int _y = ( CHAR_HEIGHT * 4.5 );
+    HUD_DrawCenterString( x, _y, useTargetHints[useTargetHintIndex]);
     // Reset R color.
     clgi.R_ClearColor();
 }

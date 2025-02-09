@@ -1082,7 +1082,7 @@ SCR_TimeRefresh_f
 /**
 *	@brief
 **/
-//static void scr_crosshair_changed( cvar_t *self ) {
+//static void scr_hud_crosshair_changed( cvar_t *self ) {
 //    char buffer[ 16 ];
 //    int w, h;
 //    float scale;
@@ -1188,7 +1188,7 @@ void PF_SCR_RegisterMedia( void ) {
     scr.net_pic = clgi.R_RegisterPic( "net" );
     scr.font_pic = clgi.R_RegisterFont( scr_font->string );
 
-    //scr_crosshair_changed( scr_crosshair );
+    //scr_hud_crosshair_changed( scr_crosshair );
 }
 /**
 *	@brief
@@ -1236,7 +1236,7 @@ void PF_SCR_Init( void ) {
     scr_scale = clgi.CVar_Get( "scr_scale", "0", 0 );
     scr_scale->changed = scr_scale_changed;
     //scr_crosshair = clgi.CVar_Get( "crosshair", "0", CVAR_ARCHIVE );
-    //scr_crosshair->changed = scr_crosshair_changed;
+    //scr_crosshair->changed = scr_hud_crosshair_changed;
 
     scr_chathud = clgi.CVar_Get( "scr_chathud", "0", 0 );
     scr_chathud_lines = clgi.CVar_Get( "scr_chathud_lines", "4", 0 );
@@ -1247,18 +1247,18 @@ void PF_SCR_Init( void ) {
     scr_chathud_y = clgi.CVar_Get( "scr_chathud_y", "-64", 0 );
 
     //ch_health = clgi.CVar_Get( "ch_health", "0", 0 );
-    //ch_health->changed = scr_crosshair_changed;
+    //ch_health->changed = scr_hud_crosshair_changed;
     //ch_red = clgi.CVar_Get( "ch_red", "1", 0 );
-    //ch_red->changed = scr_crosshair_changed;
+    //ch_red->changed = scr_hud_crosshair_changed;
     //ch_green = clgi.CVar_Get( "ch_green", "1", 0 );
-    //ch_green->changed = scr_crosshair_changed;
+    //ch_green->changed = scr_hud_crosshair_changed;
     //ch_blue = clgi.CVar_Get( "ch_blue", "1", 0 );
-    //ch_blue->changed = scr_crosshair_changed;
+    //ch_blue->changed = scr_hud_crosshair_changed;
     //ch_alpha = clgi.CVar_Get( "ch_alpha", "1", 0 );
-    //ch_alpha->changed = scr_crosshair_changed;
+    //ch_alpha->changed = scr_hud_crosshair_changed;
 
     ch_scale = clgi.CVar_Get( "ch_scale", "1", 0 );
-    ch_scale->changed = scr_crosshair_changed;
+    ch_scale->changed = scr_hud_crosshair_changed;
     ch_x = clgi.CVar_Get( "ch_x", "0", 0 );
     ch_y = clgi.CVar_Get( "ch_y", "0", 0 );
 
