@@ -6,6 +6,10 @@
 *
 ********************************************************************/
 #include "clg_local.h"
+
+#include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_usetarget_hints.h"
+
 #include "clg_hud.h"
 #include "clg_main.h"
 #include "clg_screen.h"
@@ -26,6 +30,73 @@ static cvar_t *hud_crosshair_scale;
 
 
 /**
+*   @brief  Will test index and flags for validity and displayabilty. If passing the validation test,
+*           parses the hint string and displays it appropriately.
+**/
+static constexpr int32_t MAX_TARGET_HINTS = 2;
+static constexpr int32_t TOP_TARGET_HINT = MAX_TARGET_HINTS - 1;
+static constexpr int32_t BOTTOM_TARGET_HINT = 0;
+static constexpr QMTime TARGET_INFO_EASE_DURATION = 100_ms;
+
+/**
+*   @brief  Type of HUD Hint Token.
+**/
+enum hud_usetarget_hint_token_type_t {
+    //! Regular text.
+    HUD_TOKEN_TYPE_NORMAL = 0,
+    //! [+keyname] will be replaced by [KEYNAME] and colored in orange.
+    HUD_TOKEN_TYPE_TOKEN_KEYNAME,
+    //! Activate, Open, (+Activate)/(-Activate) etc will be replaced by Activate, Open, and colored in green/red.
+    HUD_TOKEN_TYPE_ACTION_ACTIVATE,
+    HUD_TOKEN_TYPE_ACTION_DEACTIVATE,
+    //! (Note) will be replaced by Note, in a distinct color.
+    HUD_TOKEN_TYPE_NOTE,
+};
+/**
+*   @brief  A token, has a string value and a type used for colorization and/or 'quotation' of a char.
+**/
+typedef struct hud_usetarget_hint_token_s {
+    //! The string data.
+    std::string value;
+    //! The color to use.
+    hud_usetarget_hint_token_type_t type;
+} hud_usetarget_hint_token_t;
+/**
+*   @brief  Stores state of a usetarget hint that is for display.
+*           There is a TOP and BOTTOM instance, who get shuffled around when the hint changes.
+*           This causes it to to mimick a fade-in to idle to fade-out effect.
+**/
+typedef struct hud_usetarget_hint_s {
+    //! UseTargetHintID
+    int32_t hintID;
+    //! Actual unformatted hint string.
+    std::string hintString;
+    // Formatted string tokens.
+    std::vector<hud_usetarget_hint_token_t> hintStringTokens;
+    //! Ease States.
+    QMEaseState easeState;
+    //! Alpha value calculated by easing.
+    float alpha;
+} hud_usetarget_hint_t;
+
+/**
+*   @brief  State of the hud target hints we got.
+**/
+static struct {
+    //! Current ID.
+    int32_t currentID = 0;
+    //! Last ID.
+    int32_t lastID = 0;
+
+    //! Current 'head' index.
+    int32_t headIndex = 0;
+    //! Hint States.
+    hud_usetarget_hint_t hints[ MAX_TARGET_HINTS ] = {};
+} hud_targetHints;
+
+
+
+/**
 *   HUD Specifics:
 **/
 static struct {
@@ -43,7 +114,6 @@ static struct {
 
     //! Crosshair information.
     struct {
-        int32_t     pic_width = 0, pic_height = 0;
         color_t     color = (color_t)U32_WHITE;
         float       alpha = 1.f;
 
@@ -181,16 +251,48 @@ void CLG_HUD_Shutdown( void ) {
 * 
 **/
 /**
+*   @brief  A very cheap way of.. getting the total pixel length of display string tokens, yes.
+**/
+const int32_t HUD_GetTokenVectorDrawWidth( const std::vector<hud_usetarget_hint_token_t> &tokens ) {
+    int32_t totalWidth = 0;
+    int32_t addition = 1;
+    for ( int32_t i = 0; i < tokens.size(); i++ ) {
+        if ( i >= tokens.size() - 1 ) {
+            addition = 0;
+        }
+        totalWidth += (tokens[ i ].value.size() + addition ) * CHAR_WIDTH;
+    }
+    return totalWidth;
+}
+/**
+*   @brief  Get width in pixels of string.
+**/
+const int32_t HUD_GetStringDrawWidth( const char *str ) {
+    return strlen( str ) * CHAR_WIDTH;
+}
+/**
 *   @brief  
 **/
-void HUD_DrawString( const int32_t x, const int32_t y, const char *str ) {
-    clgi.R_DrawString( x, y, 0, MAX_STRING_CHARS, str, precache.screen.font_pic );
+const int32_t HUD_DrawString( const int32_t x, const int32_t y, const char *str ) {
+    return clgi.R_DrawString( x, y, 0, MAX_STRING_CHARS, str, precache.screen.font_pic );
 }
 /**
 *   @brief
 **/
-void HUD_DrawAltString( const int32_t x, const int32_t y, const char *str ) {
-    clgi.R_DrawString( x, y, UI_XORCOLOR, MAX_STRING_CHARS, str, precache.screen.font_pic );
+const int32_t HUD_DrawString( const int32_t x, const int32_t y, const int32_t flags, const char *str ) {
+    return clgi.R_DrawString( x, y, flags, MAX_STRING_CHARS, str, precache.screen.font_pic );
+}
+/**
+*   @brief
+**/
+const int32_t HUD_DrawAltString( const int32_t x, const int32_t y, const char *str ) {
+    return clgi.R_DrawString( x, y, UI_XORCOLOR, MAX_STRING_CHARS, str, precache.screen.font_pic );
+}
+/**
+*   @brief
+**/
+const int32_t HUD_DrawAltString( const int32_t x, const int32_t y, const int32_t flags, const char *str ) {
+    return clgi.R_DrawString( x, y, UI_XORCOLOR | flags, MAX_STRING_CHARS, str, precache.screen.font_pic );
 }
 /**
 *   @brief
@@ -223,18 +325,26 @@ static void CLG_HUD_DrawOutlinedRectangle( const uint32_t backGroundX, const uin
     // Draw bg color.
     clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
     // Draw outlines:
+    #if 0
     clgi.R_DrawFill32( backGroundX, backGroundY, 1, backGroundHeight, outlineColor ); // Left Line.
     clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, 1, outlineColor );  // Top Line.
     clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY, 1, backGroundHeight + 1, outlineColor ); // Right Line.
     clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor ); // Bottom Line.
+    #else
+    // Left line. (Also covers first pixel of top line and bottom line.)
+    clgi.R_DrawFill32( backGroundX - 1, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+    // Right line. (Also covers last pixel of top line and bottom line.)
+    clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+    // Top line. (Skips first and last pixel, already covered by both the left and right lines.)
+    clgi.R_DrawFill32( backGroundX, backGroundY - 1, backGroundWidth, 1, outlineColor );
+    // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
+    clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
+    #endif
 }
 /**
 *   @brief  Does as it says it does.
 **/
 static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_t backGroundY, const uint32_t backGroundWidth, const uint32_t backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor ) {
-    // Set global color to white
-    //clgi.R_SetColor( MakeColor( 255, 255, 255, 255 ) );
-    #if 1
     // Draw bg color.
     clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
     if ( outlineColor ) {
@@ -247,22 +357,6 @@ static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_
         // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
         clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
     }
-    // 
-    //clgi.R_DrawFill32( backGroundX + 1, backGroundY + 1, backGroundWidth - 1, backGroundHeight - 1, fillColor );
-    // Draw outlines:
-    //clgi.R_DrawFill32( backGroundX, backGroundY, 1, backGroundHeight, outlineColor ); // Left Line.
-    //clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, 1, outlineColor );  // Top Line.
-    //clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY, 1, backGroundHeight + 1, outlineColor ); // Right Line.
-    //clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor ); // Bottom Line.
-    #else
-    // Draw bg color.
-    clgi.R_DrawFill32( backGroundX + 1, backGroundY + 1, backGroundWidth - 1, backGroundHeight - 1, fillColor );
-    // Draw outlines:
-    clgi.R_DrawFill32( backGroundX, backGroundY, 1, backGroundHeight, outlineColor ); // Left Line.
-    clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, 1, outlineColor );  // Top Line.
-    clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY, 1, backGroundHeight + 1, outlineColor ); // Right Line.
-    clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor ); // Bottom Line.
-    #endif
 }
 
 
@@ -365,6 +459,7 @@ void CLG_HUD_DrawLineCrosshair( ) {
     chVerticalHeight *= crosshairBaseScale;
 
     // Developer Debug:
+    #if 0
     if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
         static uint64_t debugprintframe = 0;
         if ( debugprintframe != level.frameNumber ) {
@@ -385,13 +480,14 @@ void CLG_HUD_DrawLineCrosshair( ) {
             );
         }
     }
+    #endif
 
     // Determine center x/y for crosshair display.
     const int32_t center_x = ( hud.hud_scaled_width ) / 2;
     const int32_t center_y = ( hud.hud_scaled_height ) / 2;
 
     // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( hud.crosshair.alpha * scr_alpha->value );
+    clgi.R_SetAlpha( hud.crosshair.alpha );
     // Apply overlay base color.
     clgi.R_SetColor( hud.crosshair.color.u32 );
 
@@ -419,54 +515,6 @@ void CLG_HUD_DrawLineCrosshair( ) {
     clgi.R_SetColor( U32_WHITE );
     clgi.R_SetAlpha( scr_alpha->value );
 }
-#if 0
-/**
-*   @brief  Renders a pic based crosshair.
-**/
-void CLG_HUD_DrawPicCrosshair() {
-    // This is the 'BASE' scale of the crosshair, which is when it is at rest meaning
-    // it has zero influence of recoil.
-    //const float crosshairUserScale = clgi.CVar_ClampValue( ch_scale, 0.1f, 9.0f );
-
-    // Calculate actual base size of crosshair.
-    constexpr double crosshairBaseScale = 0.5f;
-    float crosshairWidth = hud.crosshair.pic_width * ( crosshairBaseScale );
-    float crosshairHeight = hud.crosshair.pic_height * ( crosshairBaseScale );
-
-    // Lerp fraction of recoil scale.
-    const double lerpFrac = CLG_HUD_UpdateRecoilScale();
-
-    // Additional up/down scaling for recoil effect display.
-    const double additionalScaleW = QM_Clampd( ( hud.crosshair.recoil.currentValue + ( lerpFrac * ( hud.crosshair.recoil.currentValue - hud.crosshair.recoil.lastValue ) ) ), 0.f, 1.f );
-    const double additionalScaleH = QM_Clampd( ( hud.crosshair.recoil.currentValue + ( lerpFrac * ( hud.crosshair.recoil.currentValue - hud.crosshair.recoil.lastValue ) ) ), 0.f, 1.f );
-
-    // Developer Debug:
-    //if ( hud.crosshair.recoil.currentStatsValue != hud.crosshair.recoil.lastStatsValue ) {
-    //    clgi.Print( PRINT_DEVELOPER, "%s: additionalScaleW(%f), additionalScaleH(%f), lastRecoil(%i), currentRecoil(%i), lerpfrac(%f)\n"
-    //        , __func__, additionalScaleW, additionalScaleH, hud.crosshair.recoil.lastStatsValue, hud.crosshair.recoil.currentStatsValue, lerpFrac );
-    //}
-
-    // Calculate final crosshair display width and height.
-    //if ( additionalScaleW || additionalScaleH ) {
-    crosshairWidth = crosshairWidth * ( ( 1.0 / crosshairWidth ) * additionalScaleW );//( ( ( 1.0f / 255 ) * additionalScale ) );
-    crosshairHeight = crosshairHeight + ( ( 1.0 / crosshairHeight ) * additionalScaleH );//( ( ( 1.0f / 255 ) * additionalScale ) );
-    //}
-
-    // Determine x/y for crosshair display.
-    const int32_t x = ( hud.hud_scaled_width - crosshairWidth ) / 2;
-    const int32_t y = ( hud.hud_scaled_height - crosshairHeight ) / 2;
-
-    // Apply the crosshair color.
-    clgi.R_SetColor( hud.crosshair.color.u32 );
-
-    // Draw the crosshair pic.
-    clgi.R_DrawStretchPic( 
-        x, y,
-        crosshairWidth, crosshairHeight,
-        precache.hud.crosshair_pic 
-    );
-}
-#endif
 /**
 *	@brief  Renders the crosshair to screen.
 **/
@@ -501,57 +549,13 @@ void CLG_HUD_DrawCrosshair( void ) {
 /**
 *
 *
-*   HUD UseTarget Hint Display:
 *
 *
+*   Health and Ammo Indicators:
+*
+*
+*
 **/
-/**
-*	@brief  Renders the 'UseTarget' display info to the screen.
-**/
-static const char *useTargetHints[] = {
-    "",
-    "Press [+usetarget] to open the door.",
-    "Press [+usetarget] to close the door.",
-    "Press [+usetarget] to activate the button.",
-    "Press [+usetarget] to deactivate the button.",
-    "",
-    nullptr
-};
-// Total useTargetHints.
-static constexpr int32_t useTargetHintsCount = q_countof( useTargetHints );
-/**
-*   @brief  Will test index and flags for validity and displayabilty. If passing the validation test,
-*           parses the hint string and displays it appropriately.
-**/
-void CLG_HUD_DrawUseTargetInfo( const int32_t useTargetHintIndex, const int32_t useTargetHintFlags ) {
-    if ( SCR_ShouldDrawPause() ) {
-        return;
-    }
-
-    // Ensure we got data for, and meant, to display.
-    if ( ( useTargetHintFlags & STAT_USETARGET_HINT_FLAGS_DISPLAY ) == 0 ) {
-        return;
-    }
-    // Ensure the index is a valid string.
-    if ( useTargetHintIndex <= 0 || useTargetHintIndex > useTargetHintsCount ) {
-        return;
-    }
-
-    // Determine center of screen.
-    const int32_t x = ( hud.hud_scaled_width/*- scr.pause_width */ ) / 2;
-    const int32_t y = ( hud.hud_scaled_height /*- scr.pause_height */ ) / 2;
-
-    // Use our 'Orange' color.
-    clgi.R_SetColor( MakeColor( 255, 150, 100, 255 ) );
-    
-    // Draw hint text info string.
-    int _y = ( CHAR_HEIGHT * 4.5 );
-    HUD_DrawCenterString( x, _y, useTargetHints[useTargetHintIndex]);
-    // Reset R color.
-    clgi.R_ClearColor();
-}
-
-
 /**
 *	@brief  Renders the player's health and armor status to screen.
 **/
@@ -746,4 +750,325 @@ void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
     CLG_HUD_DrawAmmoIndicators( );
     // Health AND Armor Indicators.
     CLG_HUD_DrawHealthIndicators( );
+}
+
+
+
+/**
+*
+*
+* 
+* 
+*   HUD UseTarget Hint Display:
+*
+* 
+* 
+*
+**/
+/**
+*   @brief  Cheesy, cheap, utility. I hate strings, don't you? :-)
+**/
+static void Q_std_string_replace_all( std::string &str, const std::string &from, const std::string &to ) {
+    if ( from.empty() )
+        return;
+    size_t start_pos = 0;
+    while ( ( start_pos = str.find( from, start_pos ) ) != std::string::npos ) {
+        str.replace( start_pos, from.length(), to );
+        start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+    }
+}
+/**
+*   @brief  Cheesy, cheap, utility. I hate strings, don't you? :-)
+**/
+std::vector<std::string_view> Q_std_string_split( std::string_view buffer, const std::string_view delimiter = " " ) {
+    std::vector<std::string_view> result;
+    std::string_view::size_type pos;
+
+    while ( ( pos = buffer.find( delimiter ) ) != std::string_view::npos ) {
+        auto match = buffer.substr( 0, pos );
+        if ( !match.empty() ) {
+            result.push_back( match );
+        }
+        buffer.remove_prefix( pos + delimiter.size() );
+    }
+
+    if ( !buffer.empty() ) {
+        result.push_back( buffer );
+    }
+
+    return result;
+}
+
+/**
+*   @brief  Will look for [command] in the string, and replace it by the matching [KEY] value.
+*   @note   Operates on the data contained in the reference of hudToken.
+**/
+static const bool HUD_FormatToken_KeyForCommand( std::string_view &stringToken, hud_usetarget_hint_token_t &hudToken ) {
+    // Does it begin with a '[' ?
+    const bool startWithAngleBracket = stringToken.starts_with( "[" );
+    // Does it end with a '[' ?
+    const bool endWithAngleBracket = stringToken.ends_with( "]" );
+
+    // If both are valid, acquire us the keyname for the action.
+    if ( startWithAngleBracket && endWithAngleBracket ) {
+        // Get action name.
+        size_t firstAngleBracketPos = hudToken.value.find_first_of( '[' ) + 1;
+        size_t nextAngleBracketPos = hudToken.value.find_first_of( ']' ) -1 ;
+        hudToken.value = hudToken.value.substr( firstAngleBracketPos, nextAngleBracketPos );
+        
+        const std::string_view actionName = hudToken.value;
+
+        // Invalid/empty action name.
+        if ( hudToken.value.empty() ) {
+            return false;
+        }
+
+        // Find the keyname for the given action.
+        std::string keyName = clgi.Key_GetBinding( hudToken.value.c_str() );
+        // Failure if keyname == ""
+        if ( keyName == "" ) {
+            return false;
+        }
+        
+        // Transform keyname to uppercase.
+        std::transform( keyName.begin(), keyName.end(), keyName.begin(), ::toupper );
+
+        // Replace our stringToken by [keyName]
+        hudToken.value = std::string("[" + keyName + "]");
+        hudToken.type = HUD_TOKEN_TYPE_TOKEN_KEYNAME;
+
+        // True.
+        return true;
+    }
+
+    return false;
+}
+/**
+*   @brief  Will look for (+Action) or (-Action) in the string, in which case it is token tagged as ACTIVE/DEACTIVATE
+*   @note   Operates on the data contained in the reference of hudToken.
+**/
+static const bool HUD_FormatToken_ForAction( std::string_view &stringToken, hud_usetarget_hint_token_t &hudToken ) {
+    // Does it begin with a '(' ?
+    const bool startWithCurlyBrace = hudToken.value.starts_with( "(" );
+    // Does it end with a ')' ?
+    const bool endWithCurlyBrace = hudToken.value.ends_with( ")" );
+
+    // If both are valid, acquire us the keyname for the action.
+    if ( startWithCurlyBrace && endWithCurlyBrace ) {
+        // Get action name.
+        size_t firstCurlyBracePos = hudToken.value.find_first_of( '(' ) + 1;
+        size_t nextCurlyBracePos = hudToken.value.find_first_of( ')' ) - 1;
+        // Determine whether it is a + or -, thus Activate or Deactivate.
+        size_t firstOfPlus = hudToken.value.find_first_of( '+' );
+        size_t firstOfMinus = hudToken.value.find_first_of( '-' );
+        hudToken.value = hudToken.value.substr( firstCurlyBracePos, nextCurlyBracePos );
+
+        // Invalid/empty action name.
+        if ( hudToken.value.empty() ) {
+            return false;
+
+        }
+        clgi.Print( PRINT_DEVELOPER, "%s\n", hudToken.value.c_str() );
+
+        if ( firstOfMinus == std::string::npos && firstOfPlus == std::string::npos ) {
+            hudToken.value = hudToken.value.substr( 0, hudToken.value.size() ); // hudToken.value.substr( 1, hudToken.value.size() - 2 );
+            // TODO: WID: Yeah??
+            hudToken.type = HUD_TOKEN_TYPE_NOTE; // Or _REGULAR??
+        // If we found a plus, redo the string value.
+        } else if ( firstOfPlus != std::string::npos ) {
+            hudToken.value = hudToken.value.substr( firstOfPlus, hudToken.value.size() ),
+            hudToken.type = HUD_TOKEN_TYPE_ACTION_ACTIVATE;
+        // If we found a minus, redo the string value.
+        } else if ( firstOfMinus != std::string::npos ) {
+            hudToken.value = hudToken.value.substr( firstOfMinus, hudToken.value.size() ),
+            hudToken.type = HUD_TOKEN_TYPE_ACTION_DEACTIVATE;
+        // Otherwise it is of type 'NOTE', use for referring to 'things'.
+        } else {
+
+        }
+
+        // True.
+        return true;
+    }
+
+    return false;
+}
+
+/**
+*   @brief  Parse the usetarget info string properly, replace [+usetarget] etc.
+**/
+static const std::vector<hud_usetarget_hint_token_t> HUD_FormatUseTargetHintString( const std::string &useTargetHintString ) {
+    // Actual final resulting tokens.
+    std::vector<hud_usetarget_hint_token_t> hintTokens;
+
+    // First split up the string by spaces right into a vector of strings. I know, inefficient.
+    std::vector<std::string_view> stringTokens = Q_std_string_split( useTargetHintString, " " );
+    // Iterate all tokens and determine their type, then push them back into the hintTokens vector.
+    for ( std::string_view &stringToken : stringTokens ) {
+        // The type of token, default to normal.
+        hud_usetarget_hint_token_t hudToken = {
+            .value = std::string( stringToken ),
+            .type = HUD_TOKEN_TYPE_NORMAL,
+        };
+        // Format for a keys action. [+usetarget] etc.
+        if ( HUD_FormatToken_KeyForCommand( stringToken, hudToken ) ) {
+
+        // Format for an Action('Activate/Deactivate') defined by (+ActionName)/(-ActionName).
+        } else if ( HUD_FormatToken_ForAction( stringToken, hudToken ) ) {
+
+        }
+        // Push back the token into the vector.
+        hintTokens.push_back( hudToken );
+    }
+
+    // Return tokens.
+    return hintTokens;
+}
+
+/**
+*   @brief  Takes care of the actual drawing of specified targetHintInfo.
+**/
+void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
+    // Clear the original color.
+    clgi.R_ClearColor();
+    clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+
+    // Determine center of screen.
+    const int32_t x = ( hud.hud_scaled_width/*- scr.pause_width */ ) / 2;
+    const int32_t y = ( hud.hud_scaled_height /*- scr.pause_height */ ) / 2;
+
+    // Current draw offset X axis.
+    int32_t xOffset = 0;
+    const int32_t yOffset = CHAR_HEIGHT * 4.5;
+    // Iterate to acquire total width.. sight lol.
+    const int32_t xWidth = HUD_GetTokenVectorDrawWidth( targetHintInfo->hintStringTokens );
+    // X Start location.
+    int32_t xDrawLocation = x - ( xWidth / 2 );
+    // Iterate.
+    for ( auto &hintStringToken : targetHintInfo->hintStringTokens ) {
+
+
+        // Draw piece, special color if it is the keyname.
+        if ( hintStringToken.type == HUD_TOKEN_TYPE_TOKEN_KEYNAME ) {
+            // Clear the original color.
+            clgi.R_ClearColor();
+            // Set Alpha.
+            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            // Draw it.
+            HUD_DrawAltString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
+        } else if ( hintStringToken.type == HUD_TOKEN_TYPE_ACTION_ACTIVATE ) {
+            // Set color.
+            clgi.R_SetColor( U32_GREEN );
+            // Set Alpha.
+            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            // Draw it.
+            HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
+        } else if ( hintStringToken.type == HUD_TOKEN_TYPE_ACTION_DEACTIVATE ) {
+            // Set color.
+            clgi.R_SetColor( U32_RED );
+            // Set Alpha.
+            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            // Draw it.
+            HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
+        } else if ( hintStringToken.type == HUD_TOKEN_TYPE_NOTE ) {
+            // Set color.
+            //clgi.R_SetColor( hud.colors.ORANGE2 );
+            clgi.R_SetColor( U32_YELLOW );
+            // Set Alpha.
+            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            // Draw it.
+            HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
+        } else {
+            // Clear the original color.
+            clgi.R_ClearColor();
+            // Set Alpha.
+            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            // Draw it.
+            HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
+        }
+        // Increment the piece its width to the offset, including a space.(one more character)
+        xOffset += ( HUD_GetStringDrawWidth( hintStringToken.value.c_str() ) + 1 ) + CHAR_WIDTH;
+    }
+}
+
+/**
+*   @brief  Handles detecting changes in the most recent UseTargetHint entity we're targeting,
+*           as well as shuffling the hints whilst easing them in/out.
+**/
+void CLG_HUD_DrawUseTargetHintInfos( ) {
+    //! Don't display if paused.
+    if ( SCR_ShouldDrawPause() ) {
+        return;
+    }
+
+    // Get QMTime for realtime.
+    const QMTime realTime = QMTime::FromMilliseconds( clgi.GetRealTime() );
+
+    // Get the useTargetHintIDs from the stats.
+    const int32_t currentID = clgi.client->frame.ps.stats[ STAT_USETARGET_HINT_ID ];
+    const int32_t lastID = clgi.client->oldframe.ps.stats[ STAT_USETARGET_HINT_ID ];
+
+    //
+    // New ID, shuffle current to last, reassign current to fresh new current value.
+    //
+    if ( currentID != lastID ) {
+        // Is it the same currentID as the one we got set?
+        if ( currentID == hud_targetHints.currentID ) {
+            // Do nothing here.
+        // It is a new currentID which we are not displaying.
+        } else {
+            // Get the useTargetHint information that matches the ID.
+            const sg_usetarget_hint_t *currentUseTargetHint = SG_UseTargetHint_GetByID( currentID );
+
+            // Move the current 'top' slot its hud target hint data into the 'bottom' slot.
+            hud_targetHints.hints[ BOTTOM_TARGET_HINT ] = hud_targetHints.hints[ TOP_TARGET_HINT ];
+            // Initiate a new ease.
+            hud_targetHints.hints[ BOTTOM_TARGET_HINT ].easeState = QMEaseState::new_ease_state( realTime, TARGET_INFO_EASE_DURATION );
+            // Store it as our new lastID.
+            hud_targetHints.lastID = hud_targetHints.hints[ BOTTOM_TARGET_HINT ].hintID;
+
+            // It is a valid usetarget.
+            if ( currentUseTargetHint && currentUseTargetHint->hintString && ( currentUseTargetHint->index != hud_targetHints.currentID ) ) {
+                // Apply new top ID.
+                hud_targetHints.hints[ TOP_TARGET_HINT ] = {
+                    .hintID = hud_targetHints.currentID = currentID,
+                    .hintString = currentUseTargetHint->hintString,
+                    .hintStringTokens = HUD_FormatUseTargetHintString( currentUseTargetHint->hintString ),
+                    .easeState = QMEaseState::new_ease_state( realTime + TARGET_INFO_EASE_DURATION, TARGET_INFO_EASE_DURATION ),
+                    .alpha = 0
+                };
+            } else {
+                // Store lastID.
+                hud_targetHints.lastID = hud_targetHints.currentID;
+                // Apply new top ID.
+                hud_targetHints.hints[ TOP_TARGET_HINT ] = {
+                    .hintID = hud_targetHints.currentID = currentID,
+                    .hintString = "",
+                    .hintStringTokens = {},
+                    .easeState = QMEaseState::new_ease_state( realTime, 0_ms ),
+                    .alpha = 0
+                };
+            }
+        }
+    }
+
+    // Iterate the use target hints, ease them if necessary, and render them in order.
+    for ( int32_t i = 0; i < MAX_TARGET_HINTS; i++ ) {
+        // Get pointer to info data.
+        hud_usetarget_hint_t *targetHintInfo = &hud_targetHints.hints[ i ];
+
+        // The head info always is new, thus eases in. (It looks better if we apply EaseOut so.)
+        if ( i == TOP_TARGET_HINT ) {
+            targetHintInfo->alpha = targetHintInfo->easeState.EaseInOut( realTime, QM_ExponentialEaseInOut );
+        // The others however, ease out. (It looks better if we apply EaseIn so.)
+        } else {
+            targetHintInfo->alpha = 1.0 - targetHintInfo->easeState.EaseInOut( realTime, QM_ExponentialEaseInOut );
+        }
+
+        // Draw the info.
+        HUD_DrawTargetHintInfo( targetHintInfo );
+
+        // Reset R color.
+        clgi.R_ClearColor();
+    }
 }

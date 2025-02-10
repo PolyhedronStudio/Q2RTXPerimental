@@ -104,11 +104,11 @@ edict_t *PlayerTrail_PickFirst(edict_t *self)
             break;
     }
 
-    if ( SVG_IsEntityVisible(self, trail[marker])) {
+    if ( SVG_Entity_IsVisible(self, trail[marker])) {
         return trail[marker];
     }
 
-    if ( SVG_IsEntityVisible(self, trail[PREV(marker)])) {
+    if ( SVG_Entity_IsVisible(self, trail[PREV(marker)])) {
         return trail[PREV(marker)];
     }
 

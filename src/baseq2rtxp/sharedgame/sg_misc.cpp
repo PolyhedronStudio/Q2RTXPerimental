@@ -7,7 +7,7 @@
 ********************************************************************/
 #include "shared/shared.h"
 
-#include "sg_shared.h"
+#include "sharedgame/sg_shared.h"
 #include "sg_misc.h"
 
 //! Uncomment to enable debug print output of predictable events.

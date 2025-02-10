@@ -56,9 +56,9 @@ end
 --  SignalIn: func_rotating_00
 -----------------------------------------------------------------------------
 function func_rotating_00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    self.target = "hello"
+    --self.target = "hello"
     -- Notify players.
-    Game.Print( PrintLevel.NOTICE, self.targetName .. " " .. self.target .. " received Signal(\""..signalName.."\")...\n" )
+    --Game.Print( PrintLevel.NOTICE, self.targetName .. " " .. self.target .. " received Signal(\""..signalName.."\")...\n" )
 
     -- Done handling signal.
     return true
@@ -77,7 +77,7 @@ function button_func_rotating00_lock_OnSignalIn( self, signaller, activator, sig
     -- Lock the rotator from accelerating/decelearting, and lock its toggle button.
     if ( signalName == "OnPressed" ) then
         -- Notify players.
-        Game.Print( PrintLevel.NOTICE, "Locking Rotator(\""..rotatorEntity.targetName.."\")...\n" )
+        --Game.Print( PrintLevel.NOTICE, "Locking Rotator(\""..rotatorEntity.targetName.."\")...\n" )
         -- Lock Signal.
         Game.SignalOut( rotatorEntity, signaller, activator, "Lock", {} )
 
@@ -91,7 +91,7 @@ function button_func_rotating00_lock_OnSignalIn( self, signaller, activator, sig
     -- UnLock the rotator from accelerating/decelearting, and unlock its toggle button.
     if ( signalName == "OnUnPressed" ) then 
         -- Notify players.
-        Game.Print( PrintLevel.NOTICE, "Unlocking Rotator (\""..rotatorEntity.targetName.."\")...\n" )
+        --Game.Print( PrintLevel.NOTICE, "Unlocking Rotator (\""..rotatorEntity.targetName.."\")...\n" )
         -- Unlock Signal.
         Game.SignalOut( rotatorEntity, signaller, activator, "Unlock", {} )
 
@@ -123,14 +123,14 @@ function button_func_rotating00_toggle_OnSignalIn( self, signaller, activator, s
     -- Toggle into accelerating.
     if ( signalName == "OnPressed" ) then
         -- Notify players.
-        Game.Print( PrintLevel.NOTICE, "Toggled into Accelerating...\n" )
+        -- Game.Print( PrintLevel.NOTICE, "Toggled into Accelerating...\n" )
         -- Signal.
         Game.SignalOut( rotatorEntity, signaller, activator, "Accelerate", {} )
     end
     -- Toggle into decelerating.
     if ( signalName == "OnUnPressed" ) then 
         -- Notify players.
-        Game.Print( PrintLevel.NOTICE, "Toggled into Decelerating...\n" )
+        -- Game.Print( PrintLevel.NOTICE, "Toggled into Decelerating...\n" )
         -- Signal.
         Game.SignalOut( rotatorEntity, signaller, activator, "Decelerate", {} )
     end

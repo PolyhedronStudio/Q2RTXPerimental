@@ -33,7 +33,7 @@ typedef struct {
     //! Maximum allowed health.
     int32_t         max_health;
     //! Saved entity flags.
-    entity_flags_t     savedFlags;
+    entity_flags_t  savedFlags;
 
     //! The currently selected item.
     int32_t         selected_item;
@@ -73,15 +73,21 @@ typedef struct {
 *   @brief  Client respawn data that stays across multiplayer mode respawns.
 **/
 typedef struct {
-    client_persistant_t pers_respawn;	// what to set client->pers to on a respawn.
+    //! Data which is to be set pn client->pers on a respawn.
+    client_persistant_t pers_respawn;
 
-    int64_t enterframe;     // level.frameNumber the client entered the game
-    QMTime entertime;    // the moment in time the client entered the game.
+    //! level.frameNumber the client entered the game.
+    int64_t enterframe;
+    //! The moment in time the client entered the game.
+    QMTime entertime;
 
-    int32_t score;      // Frags, etc
-    vec3_t cmd_angles;  // Angles sent over in the last command.
+    //! Frags, etc
+    int32_t score;
 
-    bool spectator;     // Client is a spectator
+    //! Angles sent over in the last command.
+    vec3_t cmd_angles;  
+    //! Client is a spectator.
+    bool spectator;
 } client_respawn_t;
 
 // this structure is cleared on each SVG_Player_PutInServer(),

@@ -6,7 +6,7 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "sg_shared.h"
+#include "sharedgame/sg_shared.h"
 
 /**
 *	@return	True if the game mode is a legitimate existing one.

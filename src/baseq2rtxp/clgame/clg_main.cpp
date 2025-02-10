@@ -387,6 +387,9 @@ void PF_ClearState( void ) {
 	// Clear out the player's viewWeapon state.
 	game.viewWeapon = {};
 
+	// 
+	
+
 	// Hard reset the sound EAX environment.
 	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 
@@ -397,15 +400,18 @@ void PF_ClearState( void ) {
 	CLG_LocalEntity_ClearState();
 
 	// Clear out Client Entities array.
-	memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
-
+	//memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
+	for ( int32_t i = 0; i < sizeof( clg_entities ); i++ ) {
+		clg_entities[ i ] = {};
+	}
 	// Clear Temporary Entities.
 	CLG_TemporaryEntities_Clear();
 	// Clear out remaining effect types.
 	CLG_ClearEffects();
 
 	// Clear out level locals.
-	memset( &level, 0, sizeof( level ) );
+	//memset( &level, 0, sizeof( level ) );
+	level = {};
 }
 
 

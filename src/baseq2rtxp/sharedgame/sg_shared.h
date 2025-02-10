@@ -27,6 +27,7 @@ typedef struct centity_s sgentity_s;
 typedef struct edict_s sgentity_s;
 #endif
 
+// Game Times.
 #include "sharedgame/sg_time.h"
 
 // Include other shared game headers.
@@ -299,8 +300,6 @@ static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING = BIT( 0 );
 //! When positive, it is an index into the sharedgame usetarget hint array.
 //! When negative, it is expected to display the latest information that came
 //! from the svg_usetargethint_str command.
-static constexpr int32_t STAT_USETARGET_HINT_INDEX = ( STATS_GAME_OFFSET + 23 );
-//! Flags for determining how to act for the hovering usetarget.
+static constexpr int32_t STAT_USETARGET_HINT_ID = ( STATS_GAME_OFFSET + 23 );
+//! Optional server applied flags for determining how to act for the hovering usetarget.
 static constexpr int32_t STAT_USETARGET_HINT_FLAGS = ( STATS_GAME_OFFSET + 24 );
-//! Displays the usetarget hint instead of the crosshair.
-static constexpr int32_t STAT_USETARGET_HINT_FLAGS_DISPLAY = BIT( 0 );

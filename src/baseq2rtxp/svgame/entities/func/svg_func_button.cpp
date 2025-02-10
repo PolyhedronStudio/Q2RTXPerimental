@@ -6,6 +6,9 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+
+#include "sharedgame/sg_usetarget_hints.h"
+
 #include "svgame/svg_utils.h"
 #include "svgame/svg_lua.h"
 
@@ -68,6 +71,99 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 *
 *
 *
+*   UseTargetHint ID-ing:
+*
+*
+*
+**/
+/**
+*   @brief  Called by spawn, move begin, and move end functions in order to determine 
+*           the appropriate UseTargetHint ID to use.
+**/
+void button_determine_usetarget_hint_id( edict_t *self ) {
+    // Continous button?
+    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    // Continous active?
+    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+
+    // Pressable button?
+    const bool isPressUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_PRESS );
+
+    // Toggleable button?
+    const bool isToggleUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+    // Damage button?
+    const bool isDamageButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES );
+    // Touch button?
+    const bool isTouchButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES );
+    // Toggle button?
+    const bool isToggleButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_TOGGLEABLE );
+    // Start pressed button?
+    const bool isStartPressed = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_START_PRESSED );
+    // Is it a wait button? Or meant to remain pressed?
+    const bool stayPressed = ( self->wait == -1 ? true : false );
+
+    // Press Buttons:
+    if ( isPressUseTarget ) {
+        // None if meant to remain pressed.
+        if ( stayPressed ) {
+            SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NONE );
+        // Otherwise:
+        } else {
+            // Are we Pressed?
+            if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_BUTTON_UNPRESS );
+            // We are UnPressed:
+            } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_BUTTON_PRESS );
+            // We are transitioning:
+            } else {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NONE );
+            }
+        }
+    }
+    // Toggle Buttons:
+    else if ( isToggleUseTarget ) {
+        // None if meant to remain pressed.
+        if ( stayPressed ) {
+            SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NONE );
+        // Otherwise:
+        } else {
+            // Are we Pressed?
+            if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_BUTTON_UNTOGGLE );
+            // We are UnPressed:
+            } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_BUTTON_TOGGLE );
+            // We are transitioning:
+            } else {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NONE );
+            }
+        }
+    }
+    // Continuous Buttons:
+    else if ( isContinuousUseTarget ) {
+        //// None if meant to remain pressed.
+        //if ( stayPressed ) {
+        //    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NONE );
+        //    // Otherwise:
+        //} else {
+            // Are we Pressed?
+            if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED ) {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_BUTTON_UNHOLD );
+                // We are UnPressed:
+            } else if ( self->pushMoveInfo.state == BUTTON_STATE_UNPRESSED ) {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_BUTTON_HOLD );
+                // We are transitioning:
+            } else {
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NONE );
+            }
+        //}
+    }
+}
+/**
+*
+*
+*
 *   PushMove - EndMove CallBacks:
 *
 *
@@ -103,6 +199,9 @@ void button_unpress_move_done( edict_t *self ) {
 
     // Engage 'Unpressed' state.
     self->pushMoveInfo.state = BUTTON_STATE_UNPRESSED;
+
+    // Determine the UseTargetHint ID.
+    button_determine_usetarget_hint_id( self );
 
     /**
     *   Adjust animation and/or frame.
@@ -247,6 +346,9 @@ void button_press_move_done( edict_t *self ) {
         }
     }
 
+    // Determine the initial UseTargetHint ID.
+    button_determine_usetarget_hint_id( self );
+
     // Trigger UseTargets
     if ( !isContinuousUseTarget ) {
         SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
@@ -272,6 +374,9 @@ void button_press_move_done( edict_t *self ) {
 void button_press_move( edict_t *self ) {
     // Adjust movement state info.
     self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_PRESSED_STATE;
+
+    // Determine the UseTargetHint ID.
+    button_determine_usetarget_hint_id( self );
 
     // Play sound.
     if ( self->pushMoveInfo.sounds.start && !( self->flags & FL_TEAMSLAVE ) ) {
@@ -315,6 +420,10 @@ void button_press_move( edict_t *self ) {
 void button_unpress_move( edict_t *self ) {
     // Adjust movement state info.
     self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_UNPRESSED_STATE;
+
+    // Determine the UseTargetHint ID.
+    button_determine_usetarget_hint_id( self );
+
     // Adjust entity animation effects for the client to display, 
     // 
     // by determining the new material texture animation.
@@ -389,6 +498,9 @@ void button_think_return( edict_t *self ) {
 
         // Dispatch a signal.
         SVG_SignalOut( self, self->other, self->activator, "OnContinuousPressed" );
+
+        // Determine the UseTargetHint ID.
+        button_determine_usetarget_hint_id( self );
 
         // Get out.
         return;
@@ -541,6 +653,9 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
             SVG_UseTargets( self, self->activator, useType, useValue );
             // Dispatch a signal.
             SVG_SignalOut( self, self->other, self->activator, "OnContinuousPressed" );
+
+            // Determine the UseTargetHint ID.
+            button_determine_usetarget_hint_id( self );
             return;
         }
 
@@ -910,7 +1025,8 @@ void SP_func_button( edict_t *ent ) {
     ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
 
     // if it starts open, switch the positions
-    if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_START_PRESSED ) ) {
+    const bool startPressed = SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_START_PRESSED );
+    if ( startPressed ) {
         VectorCopy( ent->pos2, ent->s.origin );
         ent->pos2 = ent->pos1;
         ent->pos1 = ent->s.origin;
@@ -997,6 +1113,9 @@ void SP_func_button( edict_t *ent ) {
         if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_DISABLED ) ) {
             ent->useTarget.flags |= ENTITY_USETARGET_FLAG_DISABLED;
         }
+
+        // Determine the initial UseTargetHint ID.
+        button_determine_usetarget_hint_id( ent );
     }
 
     // Copy the calculated info into the pushMoveInfo state struct.

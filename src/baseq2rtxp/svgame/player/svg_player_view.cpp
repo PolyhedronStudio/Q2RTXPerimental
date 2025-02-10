@@ -927,7 +927,7 @@ void SVG_Client_BeginServerFrame( edict_t *ent ) {
 	**/
 	if ( !deathmatch->value ) {
 		// WID: TODO: Monster Reimplement.
-		if ( !SVG_IsEntityVisible( ent, PlayerTrail_LastSpot() ) ) {
+		if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
 			PlayerTrail_Add( ent->s.old_origin );
 		}
 	}

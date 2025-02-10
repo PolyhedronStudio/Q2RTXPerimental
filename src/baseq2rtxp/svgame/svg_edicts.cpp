@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "sharedgame/sg_usetarget_hints.h"
 #include "svgame/svg_misc.h"
 
 
@@ -264,9 +265,12 @@ void SVG_CopyToBodyQue( edict_t *ent ) {
 *
 **/
 /**
-*   @return True if the entity is visible to self, even if not infront ()
+*   @brief  Tests for visibility even if the entity is visible to self, and also if not 'infront'.
+*           The testing is done by a trace line (self->origin + self->viewheight) to (other->origin + other->viewheight),
+*           which if hits nothing, means the entity is visible.
+*   @return True if the entity 'other' is visible to 'self'.
 **/
-const bool SVG_IsEntityVisible( edict_t *self, edict_t *other ) {
+const bool SVG_Entity_IsVisible( edict_t *self, edict_t *other ) {
     vec3_t  spot1;
     vec3_t  spot2;
     trace_t trace;
@@ -285,7 +289,7 @@ const bool SVG_IsEntityVisible( edict_t *self, edict_t *other ) {
 /**
 *   @return True if the entity is in front (in sight) of self
 **/
-const bool SVG_IsEntityInFrontOf( edict_t *self, edict_t *other ) {
+const bool SVG_Entity_IsInFrontOf( edict_t *self, edict_t *other, const float dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_IsClientEntity( self ) ) {
@@ -301,7 +305,7 @@ const bool SVG_IsEntityInFrontOf( edict_t *self, edict_t *other ) {
     // Get dot product from normalized direction / forward.
     const float dot = QM_Vector3DotProduct( normalizedDirection, forward );
     // In 'front' of.
-    if ( dot > 0.3f ) {
+    if ( dot > dotRangeArea ) {
         return true;
     }
     // Not in 'front' of.
@@ -310,7 +314,7 @@ const bool SVG_IsEntityInFrontOf( edict_t *self, edict_t *other ) {
 /**
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
-const bool SVG_IsEntityInFrontOf( edict_t *self, const Vector3 &testOrigin ) {
+const bool SVG_Entity_IsInFrontOf( edict_t *self, const Vector3 &testOrigin, const float dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_IsClientEntity( self ) ) {
@@ -326,9 +330,47 @@ const bool SVG_IsEntityInFrontOf( edict_t *self, const Vector3 &testOrigin ) {
     // Get dot product from normalized direction / forward.
     const float dot = QM_Vector3DotProduct( normalizedDirection, forward );
     // In 'front' of.
-    if ( dot > 0.3f ) {
+    if ( dot > dotRangeArea ) {
         return true;
     }
     // Not in 'front' of.
     return false;
+}
+
+
+
+/**
+*
+*
+*
+*   Entity UseTargetHint Functionality:
+*
+*
+*
+**/
+/**
+*   @brief  Find the matching information for the ID and assign it to the entity's useTarget.hintInfo.
+**/
+void SVG_Entity_SetUseTargetHintByID( edict_t *ent, const int32_t id ) {
+    // Get the useTargetHintID from the stats.
+    const int32_t useTargetHintID = id;
+    // Exit, since there is no useTargetHintID to display. (It is 0.)
+    if ( !ent ) {
+        return;
+    }
+
+    // If the ID > 0, then we'll fetch it from the UseTargetHint Data Array.
+    const sg_usetarget_hint_t *useTargetHint = nullptr;
+    if ( useTargetHintID > USETARGET_HINT_ID_NONE ) {
+        useTargetHint = SG_UseTargetHint_GetByID( useTargetHintID );
+    }
+
+    // Ensure we got data for, and meant, to display.
+    if ( !useTargetHint || useTargetHint->hintString == nullptr ) {
+        ent->useTarget.hintInfo = nullptr;
+        return;
+    }
+
+    // Apply to entity.
+    ent->useTarget.hintInfo = useTargetHint;
 }

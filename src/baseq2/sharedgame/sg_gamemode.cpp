@@ -6,7 +6,7 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "sg_shared.h"
+#include "sharedgame/sg_shared.h"
 
 /**
 *	@return	A string representative of the passed in gameModeID.

@@ -41,7 +41,10 @@ extern svgame_export_t globals;
 
 
 // SharedGame includes:
-#include "../sharedgame/sg_shared.h"
+#include "sharedgame/sg_shared.h"
+// Typedef for edict_t
+typedef struct sg_usetarget_hint_s sg_usetarget_hint_t;
+
 /**
 *   Extern here right after including sharedgame/sg_shared.h
 **/

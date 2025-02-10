@@ -100,11 +100,11 @@ struct edict_s {
     *
     **/
     //! Used for projectile skip checks and in general for checking if the entity has happened to been respawned.
-    int32_t     spawn_count;
+    int32_t spawn_count;
     //! sv.time when the object was freed
-    QMTime   freetime;
+    QMTime  freetime;
     //! Used for deferring client info so that disconnected, etc works
-    QMTime	timestamp;
+    QMTime  timestamp;
 
     //! [SpawnKey]: Entity classname key/value.
     svg_level_qstring_t classname;
@@ -148,6 +148,15 @@ struct edict_s {
         entity_usetarget_state_t state;
         //! The time at which this entity was last (+usetarget) activated.
         //QMTime timeChanged;
+
+        //! Hint state information.
+        //struct {
+        //    //! Index, 0 = none, > 0 = in data array, < 0 is passed by hint command.
+        //    int32_t index;
+        //    //! Display flags for this entity's hint info.
+        //    int32_t flags;
+        //} hint;
+        const sg_usetarget_hint_s *hintInfo;
     } useTarget;
 
     /**
@@ -642,14 +651,21 @@ static inline const bool SVG_UseTarget_HasUseTargetState( const edict_t *ent, co
 *
 **/
 /**
-*   @return True if the entity is visible to self, even if not infront ()
+*   @brief  Tests for visibility even if the entity is visible to self, and also if not 'infront'.
+*           The testing is done by a trace line (self->origin + self->viewheight) to (other->origin + other->viewheight),
+*           which if hits nothing, means the entity is visible.
+*   @return True if the entity 'other' is visible to 'self'.
 **/
-const bool SVG_IsEntityVisible( edict_t *self, edict_t *other );
+const bool SVG_Entity_IsVisible( edict_t *self, edict_t *other );
 /**
 *   @return True if the entity is in front (in sight) of self
 **/
-const bool SVG_IsEntityInFrontOf( edict_t *self, edict_t *other );
+const bool SVG_Entity_IsInFrontOf( edict_t *self, edict_t *other, const float dotRangeArea = 3.0f );
 /**
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
-const bool SVG_IsEntityInFrontOf( edict_t *self, const Vector3 &testOrigin );
+const bool SVG_Entity_IsInFrontOf( edict_t *self, const Vector3 &testOrigin, const float dotRangeArea = 3.0f );
+/**
+*   @brief  Find the matching information for the ID and assign it to the entity's useTarget.hintInfo.
+**/
+void SVG_Entity_SetUseTargetHintByID( edict_t *ent, const int32_t id );

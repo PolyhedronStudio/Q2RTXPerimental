@@ -19,10 +19,12 @@ static constexpr int32_t BUTTON_SPAWNFLAG_NO_MONSTERS = BIT( 1 );
 static constexpr int32_t BUTTON_SPAWNFLAG_TOUCH_ACTIVATES = BIT( 2 );
 //! Button fires targets when damaged.
 static constexpr int32_t BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES = BIT( 3 );
-//! Button is locked from spawn, so it can't be used.
+//! Button is Toggleable (Fires targets when toggled 'On').
 static constexpr int32_t BUTTON_SPAWNFLAG_TOGGLEABLE = BIT( 4 );
 //! Button is locked from spawn, so it can't be used.
 static constexpr int32_t BUTTON_SPAWNFLAG_LOCKED = BIT( 5 );
+//! Does not determine UseTarget Hints for display.
+static constexpr int32_t BUTTON_SPAWNFLAG_DISABLE_USETARGET_HINTING = BIT( 6 );
 
 
 /**

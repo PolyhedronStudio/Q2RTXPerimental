@@ -6,6 +6,12 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+
+#include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_usetarget_hints.h"
+
+#include "svgame/player/svg_player_client.h"
+
 #include "svgame/svg_chase.h"
 #include "svgame/svg_utils.h"
 
@@ -42,33 +48,6 @@ static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
 }
 
 
-/**
-*   @brief  Determines the necessary UseTarget Hint information for the hovered entity(if any).
-*   @return True if the entity has legitimate UseTarget Hint information. False if unset, or not found at all.
-**/
-const bool SVG_Client_UpdateUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity ) {
-
-    if ( useTargetEntity ) {
-        if ( strcmp( "func_button", useTargetEntity->classname.ptr ) == 0 ) {
-            if ( useTargetEntity->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
-                client->ps.stats[ STAT_USETARGET_HINT_INDEX ] = 4;
-                client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] |= STAT_USETARGET_HINT_FLAGS_DISPLAY;
-            } else {
-                client->ps.stats[ STAT_USETARGET_HINT_INDEX ] = 3;
-                client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] |= STAT_USETARGET_HINT_FLAGS_DISPLAY;
-            }
-        } else {
-            // Nothing for display.
-            client->ps.stats[ STAT_USETARGET_HINT_INDEX ] = 0;
-        }
-    } else {
-        // Nothing for display.
-        client->ps.stats[ STAT_USETARGET_HINT_INDEX ] = 0;
-    }
-
-    // Succeeded at updating the UseTarget Hint if it is NOT zero.
-    return ( client->ps.stats[ STAT_USETARGET_HINT_INDEX ] == 0 ? false : true );
-}
 
 /**
 *

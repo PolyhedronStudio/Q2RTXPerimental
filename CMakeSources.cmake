@@ -182,6 +182,7 @@ SET(SRC_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.cpp
 	baseq2rtxp/sharedgame/sg_skm.cpp
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.cpp
+	baseq2rtxp/sharedgame/sg_usetarget_hints.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_cmd_messages.h
@@ -198,6 +199,7 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.h
 	baseq2rtxp/sharedgame/sg_tempentity_events.h
 	baseq2rtxp/sharedgame/sg_time.h
+	baseq2rtxp/sharedgame/sg_usetarget_hints.h
 )
 #	BaseQ2RTXP ClientGame
 SET(SRC_BASEQ2RTXP_CLGAME

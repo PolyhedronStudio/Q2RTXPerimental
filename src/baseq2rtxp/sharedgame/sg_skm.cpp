@@ -8,7 +8,7 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "sg_shared.h"
+#include "sharedgame/sg_shared.h"
 #include "sg_skm.h"
 
 

@@ -77,3 +77,20 @@ void SVG_Client_RespawnSpectator( edict_t *ent );
 *           (forcing skins or names, etc) before copying it off.
 **/
 void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
+
+
+
+/**
+*
+*
+*
+*   Client UseTargetHint Functionality.:
+*
+*
+*
+**/
+/**
+*   @brief  Determines the necessary UseTarget Hint information for the hovered entity(if any).
+*   @return True if the entity has legitimate UseTarget Hint information. False if unset, or not found at all.
+**/
+const bool SVG_Client_UpdateUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity );

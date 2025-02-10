@@ -251,7 +251,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
 
             // Set follow trail time.
-            if ( SVG_IsEntityVisible( self->activator, self ) ) {
+            if ( SVG_Entity_IsVisible( self->activator, self ) ) {
                 self->trail_time = level.time;
             }
 

@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "sharedgame/sg_usetarget_hints.h"
+
 #include "svgame/svg_commands_server.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_utils.h"
@@ -675,7 +677,7 @@ void SVG_Client_RespawnSpectator( edict_t *ent ) {
 *
 * 
 *
-*   Client:
+*   Client Generic Functions:
 * 
 *
 *
@@ -1010,4 +1012,72 @@ void SVG_Client_Begin( edict_t *ent ) {
 
     // WID: LUA:
     SVG_Lua_CallBack_ClientEnterLevel( ent );
+}
+
+
+
+/**
+*
+*
+*
+*   Client UseTargetHint Functionality.:
+*
+*
+*
+**/
+/**
+*   @brief  Unsets the current client stats usetarget info.
+**/
+static inline void Client_ClearUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity ) {
+    // Nothing for display.
+    client->ps.stats[ STAT_USETARGET_HINT_ID ] = 0;
+    client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] = 0;
+}
+/**
+*   @brief  Determines the necessary UseTarget Hint information for the hovered entity(if any).
+*   @return True if the entity has legitimate UseTarget Hint information. False if unset, or not found at all.
+**/
+const bool SVG_Client_UpdateUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity ) {
+    // We got an entity.
+    if ( useTargetEntity && useTargetEntity->useTarget.hintInfo ) {
+        // Determine UseTarget Hint Info:
+        const sg_usetarget_hint_t *useTargetHint = SG_UseTargetHint_GetByID( useTargetEntity->useTarget.hintInfo->index );
+        // > 0 means it is a const char in our data array.
+        if ( useTargetEntity->useTarget.hintInfo->index > USETARGET_HINT_ID_NONE ) {
+            // Apply stats if valid data.
+            if ( useTargetHint &&
+                ( useTargetHint->index > USETARGET_HINT_ID_NONE && useTargetHint->index < USETARGET_HINT_ID_MAX ) ) {
+                client->ps.stats[ STAT_USETARGET_HINT_ID ] = useTargetHint->index;
+                client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] |= ( SG_USETARGET_HINT_FLAGS_DISPLAY | useTargetHint->flags );
+            // Clear out otherwise.
+            } else {
+                Client_ClearUseTargetHint( ent, client, useTargetEntity );
+            }
+        // < 0 means that it is passed to us by a usetarget hint info command.
+        } else if ( useTargetEntity->useTarget.hintInfo->index < 0 ) {
+            // TODO:
+            Client_ClearUseTargetHint( ent, client, useTargetEntity );
+        // Clear whichever it previously contained. we got nothing to display.
+        } else {
+            // Clear whichever it previously contained. we got nothing to display.
+            Client_ClearUseTargetHint( ent, client, useTargetEntity );
+        }
+        //if ( strcmp( "func_button", useTargetEntity->classname.ptr ) == 0 ) {
+        //    if ( useTargetEntity->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
+        //        client->ps.stats[ STAT_USETARGET_HINT_ID ] = 4;
+        //        client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] |= STAT_USETARGET_HINT_FLAGS_DISPLAY;
+        //    } else {
+        //        client->ps.stats[ STAT_USETARGET_HINT_ID ] = 3;
+        //        client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] |= STAT_USETARGET_HINT_FLAGS_DISPLAY;
+        //    }
+        //} else {
+
+        //}
+    } else {
+        // Clear whichever it previously contained. we got nothing to display.
+        Client_ClearUseTargetHint( ent, client, useTargetEntity );
+    }
+
+    // Succeeded at updating the UseTarget Hint if it is NOT zero.
+    return ( client->ps.stats[ STAT_USETARGET_HINT_ID ] == 0 ? false : true );
 }

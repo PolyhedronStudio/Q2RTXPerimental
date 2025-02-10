@@ -58,7 +58,7 @@ void CLG_HUD_DrawCrosshair( void );
 /**
 *	@brief  Renders the 'UseTarget' display info to the screen.
 **/
-void CLG_HUD_DrawUseTargetInfo( const int32_t useTargetHintIndex, const int32_t useTargetHintFlags );
+void CLG_HUD_DrawUseTargetHintInfos( );
 
 
 
@@ -72,11 +72,19 @@ void CLG_HUD_DrawUseTargetInfo( const int32_t useTargetHintIndex, const int32_t 
 /**
 *   @brief
 **/
-void HUD_DrawString( const int32_t x, const int32_t y, const char *str );
+const int32_t HUD_DrawString( const int32_t x, const int32_t y, const char *str );
 /**
 *   @brief
 **/
-void HUD_DrawAltString( const int32_t x, const int32_t y, const char *str );
+const int32_t HUD_DrawString( const int32_t x, const int32_t y, const int32_t flags, const char *str );
+/**
+*   @brief
+**/
+const int32_t HUD_DrawAltString( const int32_t x, const int32_t y, const char *str );
+/**
+*   @brief
+**/
+const int32_t HUD_DrawAltString( const int32_t x, const int32_t y, const int32_t flags, const char *str );
 /**
 *   @brief
 **/

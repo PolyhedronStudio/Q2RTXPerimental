@@ -7,7 +7,7 @@
 ********************************************************************/
 #include "shared/shared.h"
 
-#include "sg_shared.h"
+#include "sharedgame/sg_shared.h"
 #include "sg_misc.h"
 #include "sg_pmove.h"
 #include "sg_pmove_slidemove.h"
