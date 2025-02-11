@@ -17,11 +17,11 @@ void SCR_CenterPrint( const char *str );
 /**
 *   @brief  Clear the chat HUD.
 **/
-void SCR_ClearChatHUD_f( void );
+void CLG_HUD_ClearChat_f( void );
 /**
 *   @brief  Append text to chat HUD.
 **/
-void SCR_AddToChatHUD( const char *text );
+void CLG_HUD_AddChatLine( const char *text );
 /**
 *	@brief
 **/

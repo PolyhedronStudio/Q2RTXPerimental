@@ -32,8 +32,8 @@ enum fieldtype_t : int32_t {
 	F_GSTRING,          // string on disk, pointer in memory, TAG_SVGAME
 	F_ZSTRING,          // string on disk, string in memory
 
-	F_LEVEL_QSTRING,	// string on disk, sg_qstring_t in memory, TAG_SVGAME_LEVEL
-	F_GAME_QSTRING,		// string on disk, sg_qstring_t in memory, TAG_SVGAME,
+	F_LEVEL_QSTRING,	// string on disk, sg_qtag_string_t in memory, TAG_SVGAME_LEVEL
+	F_GAME_QSTRING,		// string on disk, sg_qtag_string_t in memory, TAG_SVGAME,
 
 	F_LEVEL_QTAG_MEMORY,	// variable sized memory blob on disk, sg_qtag-memory_t in memory, TAG_SVGAME_LEVEL
 	F_GAME_QTAG_MEMORY,		// variable sized memory blob on disk, sg_qtag-memory_t in memory, TAG_SVGAME,

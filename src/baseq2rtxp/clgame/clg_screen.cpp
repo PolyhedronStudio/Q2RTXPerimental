@@ -81,12 +81,6 @@ static cvar_t *scr_demobar;
 static cvar_t *scr_font;
 static cvar_t *scr_scale;
 
-static cvar_t *scr_chathud;
-static cvar_t *scr_chathud_lines;
-static cvar_t *scr_chathud_time;
-static cvar_t *scr_chathud_x;
-static cvar_t *scr_chathud_y;
-
 static cvar_t *scr_damage_indicators;
 static cvar_t *scr_damage_indicator_time;
 
@@ -751,102 +745,6 @@ static void SCR_DrawFPS( void ) {
     SCR_DrawString( x, y, UI_RIGHT, buffer );
 }
 
-/*
-===============================================================================
-
-CHAT HUD
-
-===============================================================================
-*/
-
-#define MAX_CHAT_TEXT       150
-#define MAX_CHAT_LINES      32
-#define CHAT_LINE_MASK      (MAX_CHAT_LINES - 1)
-
-typedef struct {
-    char        text[ MAX_CHAT_TEXT ];
-    unsigned    time;
-} chatline_t;
-
-static chatline_t   scr_chatlines[ MAX_CHAT_LINES ];
-static unsigned     scr_chathead;
-
-/**
-*   @brief  Clear the chat HUD.
-**/
-void SCR_ClearChatHUD_f( void ) {
-    memset( scr_chatlines, 0, sizeof( scr_chatlines ) );
-    scr_chathead = 0;
-}
-
-/**
-*   @brief  Append text to chat HUD.
-**/
-void SCR_AddToChatHUD( const char *text ) {
-    chatline_t *line;
-    char *p;
-
-    line = &scr_chatlines[ scr_chathead++ & CHAT_LINE_MASK ];
-    Q_strlcpy( line->text, text, sizeof( line->text ) );
-    line->time = clgi.GetRealTime();
-
-    p = strrchr( line->text, '\n' );
-    if ( p )
-        *p = 0;
-}
-
-static void SCR_DrawChatHUD( void ) {
-    int x, y, i, lines, flags, step;
-    float alpha;
-    chatline_t *line;
-
-    if ( scr_chathud->integer == 0 )
-        return;
-
-    x = scr_chathud_x->integer;
-    y = scr_chathud_y->integer;
-
-    if ( scr_chathud->integer == 2 )
-        flags = UI_ALTCOLOR;
-    else
-        flags = 0;
-
-    if ( x < 0 ) {
-        x += scr.hud_width + 1;
-        flags |= UI_RIGHT;
-    } else {
-        flags |= UI_LEFT;
-    }
-
-    if ( y < 0 ) {
-        y += scr.hud_height - CHAR_HEIGHT + 1;
-        step = -CHAR_HEIGHT;
-    } else {
-        step = CHAR_HEIGHT;
-    }
-
-    lines = scr_chathud_lines->integer;
-    if ( lines > scr_chathead )
-        lines = scr_chathead;
-
-    for ( i = 0; i < lines; i++ ) {
-        line = &scr_chatlines[ ( scr_chathead - i - 1 ) & CHAT_LINE_MASK ];
-
-        if ( scr_chathud_time->integer ) {
-            alpha = SCR_FadeAlpha( line->time, scr_chathud_time->integer, 1000 );
-            if ( !alpha )
-                break;
-
-            clgi.R_SetAlpha( alpha * scr_alpha->value );
-            SCR_DrawString( x, y, flags, line->text );
-            clgi.R_SetAlpha( scr_alpha->value );
-        } else {
-            SCR_DrawString( x, y, flags, line->text );
-        }
-
-        y += step;
-    }
-}
 
 /*
 ===============================================================================
@@ -1151,12 +1049,6 @@ static void scr_scale_changed( cvar_t *self ) {
     // Notify HUD about the scale change.
     CLG_HUD_ModeChanged( scr.hud_scale );
 }
-/**
-*	@brief
-**/
-void cl_timeout_changed( cvar_t *self ) {
-    self->integer = 1000 * clgi.CVar_ClampValue( self, 0, 24 * 24 * 60 * 60 );
-}
 
 static const cmdreg_t scr_cmds[] = {
     //{ "timerefresh", SCR_TimeRefresh_f },
@@ -1165,7 +1057,7 @@ static const cmdreg_t scr_cmds[] = {
     //{ "sky", SCR_Sky_f },
     { "draw", SCR_Draw_f, SCR_Draw_c },
     { "undraw", SCR_UnDraw_f, SCR_UnDraw_c },
-    { "clearchathud", SCR_ClearChatHUD_f },
+    { "clearchathud", CLG_HUD_ClearChat_f },
     { NULL }
 };
 
@@ -1184,14 +1076,6 @@ void PF_SCR_Init( void ) {
     scr_font->changed = scr_font_changed;
     scr_scale = clgi.CVar_Get( "scr_scale", "0", 0 );
     scr_scale->changed = scr_scale_changed;
-    
-    scr_chathud = clgi.CVar_Get( "scr_chathud", "0", 0 );
-    scr_chathud_lines = clgi.CVar_Get( "scr_chathud_lines", "4", 0 );
-    scr_chathud_time = clgi.CVar_Get( "scr_chathud_time", "0", 0 );
-    scr_chathud_time->changed = cl_timeout_changed;
-    scr_chathud_time->changed( scr_chathud_time );
-    scr_chathud_x = clgi.CVar_Get( "scr_chathud_x", "8", 0 );
-    scr_chathud_y = clgi.CVar_Get( "scr_chathud_y", "-64", 0 );
     
     scr_damage_indicators = clgi.CVar_Get( "scr_damage_indicators", "1", 0 );
     scr_damage_indicator_time = clgi.CVar_Get( "scr_damage_indicator_time", "3000", 0 );
@@ -1876,15 +1760,6 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
     // Scale HUD.
     CLG_HUD_ScaleFrame( refcfg );
 
-    // Got an index of hint display, but its flagged as invisible.
-    CLG_HUD_DrawCrosshair();
-    // Display the use target hint information.
-    CLG_HUD_DrawUseTargetHintInfos( );
-
-    // The rest of 2D elements share common alpha.
-    clgi.R_ClearColor();
-    clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
-
     // Draw the rest of the HUD overlay.
     CLG_HUD_DrawFrame( refcfg );
 
@@ -1902,7 +1777,7 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
 
     SCR_DrawFPS();
 
-    SCR_DrawChatHUD();
+    CLG_HUD_DrawChat();
 
     SCR_DrawTurtle();
 

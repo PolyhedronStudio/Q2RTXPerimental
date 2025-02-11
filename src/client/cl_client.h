@@ -721,11 +721,11 @@ void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *
 /**
 *   @brief  Clear the chat HUD.
 **/
-void SCR_ClearChatHUD_f( void );
+void CLG_HUD_ClearChat_f( void );
 /**
 *   @brief  Append text to chat HUD.
 **/
-void SCR_AddToChatHUD( const char *text );
+void CLG_HUD_AddChatLine( const char *text );
 
 /**
 *   @return A lowercase string matching the textual name of the color for colorIndex.

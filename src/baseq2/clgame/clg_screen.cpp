@@ -82,11 +82,11 @@ static cvar_t *scr_scale;
 
 //static cvar_t *scr_crosshair;
 
-static cvar_t *scr_chathud;
-static cvar_t *scr_chathud_lines;
-static cvar_t *scr_chathud_time;
-static cvar_t *scr_chathud_x;
-static cvar_t *scr_chathud_y;
+static cvar_t *hud_chat;
+static cvar_t *hud_chat_lines;
+static cvar_t *hud_chat_time;
+static cvar_t *hud_chat_x;
+static cvar_t *hud_chat_y;
 
 static cvar_t *ch_health;
 static cvar_t *ch_red;
@@ -772,7 +772,7 @@ static unsigned     scr_chathead;
 /**
 *   @brief  Clear the chat HUD.
 **/
-void SCR_ClearChatHUD_f( void ) {
+void CLG_HUD_ClearChat_f( void ) {
     memset( scr_chatlines, 0, sizeof( scr_chatlines ) );
     scr_chathead = 0;
 }
@@ -780,7 +780,7 @@ void SCR_ClearChatHUD_f( void ) {
 /**
 *   @brief  Append text to chat HUD.
 **/
-void SCR_AddToChatHUD( const char *text ) {
+void CLG_HUD_AddChatLine( const char *text ) {
     chatline_t *line;
     char *p;
 
@@ -798,13 +798,13 @@ static void SCR_DrawChatHUD( void ) {
     float alpha;
     chatline_t *line;
 
-    if ( scr_chathud->integer == 0 )
+    if ( hud_chat->integer == 0 )
         return;
 
-    x = scr_chathud_x->integer;
-    y = scr_chathud_y->integer;
+    x = hud_chat_x->integer;
+    y = hud_chat_y->integer;
 
-    if ( scr_chathud->integer == 2 )
+    if ( hud_chat->integer == 2 )
         flags = UI_ALTCOLOR;
     else
         flags = 0;
@@ -823,15 +823,15 @@ static void SCR_DrawChatHUD( void ) {
         step = CHAR_HEIGHT;
     }
 
-    lines = scr_chathud_lines->integer;
+    lines = hud_chat_lines->integer;
     if ( lines > scr_chathead )
         lines = scr_chathead;
 
     for ( i = 0; i < lines; i++ ) {
         line = &scr_chatlines[ ( scr_chathead - i - 1 ) & CHAT_LINE_MASK ];
 
-        if ( scr_chathud_time->integer ) {
-            alpha = SCR_FadeAlpha( line->time, scr_chathud_time->integer, 1000 );
+        if ( hud_chat_time->integer ) {
+            alpha = SCR_FadeAlpha( line->time, hud_chat_time->integer, 1000 );
             if ( !alpha )
                 break;
 
@@ -1216,7 +1216,7 @@ static const cmdreg_t scr_cmds[] = {
     //{ "sky", SCR_Sky_f },
     { "draw", SCR_Draw_f, SCR_Draw_c },
     { "undraw", SCR_UnDraw_f, SCR_UnDraw_c },
-    { "clearchathud", SCR_ClearChatHUD_f },
+    { "clearchathud", CLG_HUD_ClearChat_f },
     { NULL }
 };
 
@@ -1238,13 +1238,13 @@ void PF_SCR_Init( void ) {
     //scr_crosshair = clgi.CVar_Get( "crosshair", "0", CVAR_ARCHIVE );
     //scr_crosshair->changed = scr_hud_crosshair_changed;
 
-    scr_chathud = clgi.CVar_Get( "scr_chathud", "0", 0 );
-    scr_chathud_lines = clgi.CVar_Get( "scr_chathud_lines", "4", 0 );
-    scr_chathud_time = clgi.CVar_Get( "scr_chathud_time", "0", 0 );
-    scr_chathud_time->changed = cl_timeout_changed;
-    scr_chathud_time->changed( scr_chathud_time );
-    scr_chathud_x = clgi.CVar_Get( "scr_chathud_x", "8", 0 );
-    scr_chathud_y = clgi.CVar_Get( "scr_chathud_y", "-64", 0 );
+    hud_chat = clgi.CVar_Get( "hud_chat", "0", 0 );
+    hud_chat_lines = clgi.CVar_Get( "hud_chat_lines", "4", 0 );
+    hud_chat_time = clgi.CVar_Get( "hud_chat_time", "0", 0 );
+    hud_chat_time->changed = cl_timeout_changed;
+    hud_chat_time->changed( hud_chat_time );
+    hud_chat_x = clgi.CVar_Get( "hud_chat_x", "8", 0 );
+    hud_chat_y = clgi.CVar_Get( "hud_chat_y", "-64", 0 );
 
     //ch_health = clgi.CVar_Get( "ch_health", "0", 0 );
     //ch_health->changed = scr_hud_crosshair_changed;

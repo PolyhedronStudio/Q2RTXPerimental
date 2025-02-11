@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clg_local.h"
 #include "clg_effects.h"
+#include "clg_hud.h"
 #include "clg_parse.h"
 #include "clg_screen.h"
 #include "clg_temp_entities.h"
@@ -287,7 +288,7 @@ static void CLG_ParsePrint( void ) {
 
     clgi.Con_SkipNotify( false );
 
-    SCR_AddToChatHUD( s );
+    CLG_HUD_AddChatLine( s );
 
     // play sound
     clgi.S_StartLocalSoundOnce( "hud/chat01.wav" );

@@ -193,7 +193,7 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_pmove.h
 	baseq2rtxp/sharedgame/sg_pmove_slidemove.h
 	baseq2rtxp/sharedgame/sg_qtag_memory.hpp
-	baseq2rtxp/sharedgame/sg_qstring.hpp
+	baseq2rtxp/sharedgame/sg_qtag_string.hpp
 	baseq2rtxp/sharedgame/sg_shared.h
 	baseq2rtxp/sharedgame/sg_skm.h
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.h

@@ -627,7 +627,7 @@ void CL_Disconnect(error_type_t type)
     // Let the client game know we're disconnecting.
     clge->ClientDisconnected();
     // Moved the following into clge->ClientDisconnected();
-    //SCR_ClearChatHUD_f();   // clear chat HUD on server change
+    //CLG_HUD_ClearChat_f();   // clear chat HUD on server change
 
     if (cls.state > ca_disconnected && !cls.demo.playback) {
         EXEC_TRIGGER(cl_disconnectcmd);

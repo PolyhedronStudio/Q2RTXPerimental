@@ -95,7 +95,7 @@ inline constexpr const sg_usetarget_hint_t useTargetHints[] = {
     { USETARGET_HINT_ID_MAX, SG_USETARGET_HINT_FLAGS_NONE, nullptr }
 };
 // Total useTargetHints.
-static const int32_t useTargetHintsCount = sizeof( useTargetHints );
+static constexpr int32_t useTargetHintsCount = sizeof( useTargetHints );
 
 
 

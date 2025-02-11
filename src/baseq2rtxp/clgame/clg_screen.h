@@ -14,14 +14,7 @@
 *           for a few moments
 **/
 void SCR_CenterPrint( const char *str );
-/**
-*   @brief  Clear the chat HUD.
-**/
-void SCR_ClearChatHUD_f( void );
-/**
-*   @brief  Append text to chat HUD.
-**/
-void SCR_AddToChatHUD( const char *text );
+
 /**
 *   @brief  Adds a damage indicator for the given damage using the given color pointing at given direction.
 **/

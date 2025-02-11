@@ -96,9 +96,9 @@ using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
 *   String Utility Objects:
 **/
 // Simple wrapper around char, dynamic string block allocated in TAG_SVGAME_LEVEL.
-using svg_level_qstring_t = sg_qstring_t<char, TAG_SVGAME_LEVEL>;
+using svg_level_qstring_t = sg_qtag_string_t<char, TAG_SVGAME_LEVEL>;
 // Simple wrapper around char, dynamic string block allocated in TAG_SVGAME space.
-using svg_game_qstring_t = sg_qstring_t<char, TAG_SVGAME>;
+using svg_game_qstring_t = sg_qtag_string_t<char, TAG_SVGAME>;
 
 
 

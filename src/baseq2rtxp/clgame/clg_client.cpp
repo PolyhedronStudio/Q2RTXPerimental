@@ -9,6 +9,7 @@
 #include "clg_local.h"
 #include "clg_client.h"
 #include "clg_eax.h"
+#include "clg_hud.h"
 #include "clg_local_entities.h"
 #include "clg_screen.h"
 
@@ -39,7 +40,7 @@ void PF_ClientConnected( void ) {
 **/
 void PF_ClientDisconnected( void ) {
 	// Clear chat HUD when disconnected.
-	SCR_ClearChatHUD_f();
+	CLG_HUD_ClearChat_f();
 
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientDisconnected\n" );

@@ -18,7 +18,7 @@
 
 
 template<typename T, int32_t tag>
-struct sg_qstring_t {
+struct sg_qtag_string_t {
 	//! The actual pointer storing our string.
 	T *ptr;
 	//! The size in characters.
@@ -27,14 +27,14 @@ struct sg_qstring_t {
 	/**
 	*	Default constructor.
 	**/
-	constexpr sg_qstring_t() noexcept {
+	constexpr sg_qtag_string_t() noexcept {
 		ptr = nullptr;
 		count = 0;
 	}
 	/**
 	*	Default constructor, expecting a const T*.
 	**/
-	constexpr sg_qstring_t( const T *charStr ) noexcept {
+	constexpr sg_qtag_string_t( const T *charStr ) noexcept {
 		if ( !charStr ) {
 			ptr = nullptr;
 			count = 0;
@@ -68,7 +68,7 @@ private:
 	/**
 	*	Used for copy assignment.
 	**/
-	constexpr sg_qstring_t( T *ptr, size_t count ) noexcept :
+	constexpr sg_qtag_string_t( T *ptr, size_t count ) noexcept :
 		ptr( ptr ),
 		count( count ) {
 	}
@@ -77,33 +77,33 @@ public:
 	/**
 	*	Destructor, releases by gi.FreeTag
 	**/
-	inline ~sg_qstring_t() noexcept {
+	inline ~sg_qtag_string_t() noexcept {
 		release();
 	}
 
 	// Disable copying.
 #if 0	
-	constexpr sg_qstring_t( const sg_qstring_t & ) = delete;
-	constexpr sg_qstring_t &operator=( const sg_qstring_t & ) = delete;
+	constexpr sg_qtag_string_t( const sg_qtag_string_t & ) = delete;
+	constexpr sg_qtag_string_t &operator=( const sg_qtag_string_t & ) = delete;
 #else
 	/**
 	*	@brief	Will allocate enough space, and copy in the contents of charstr.
 	**/
-	constexpr sg_qstring_t( const sg_qstring_t &charstr ) noexcept {
-		*this = sg_qstring_t<T, tag>::from_char_str( (const T *)charstr.ptr );
+	constexpr sg_qtag_string_t( const sg_qtag_string_t &charstr ) noexcept {
+		*this = sg_qtag_string_t<T, tag>::from_char_str( (const T *)charstr.ptr );
 	}
 	/**
 	*	@brief	Will allocate enough space, and copy in the contents of charstr.
 	**/
-	constexpr sg_qstring_t &operator=( const sg_qstring_t &charstr ) noexcept {
-		return *this = sg_qstring_t<T, tag>::from_char_str( (const T *)charstr.ptr );
+	constexpr sg_qtag_string_t &operator=( const sg_qtag_string_t &charstr ) noexcept {
+		return *this = sg_qtag_string_t<T, tag>::from_char_str( (const T *)charstr.ptr );
 	}
 #endif
 
 	/**
 	*	@brief	Free move memory operation.
 	**/
-	constexpr explicit sg_qstring_t( sg_qstring_t &&move ) noexcept {
+	constexpr explicit sg_qtag_string_t( sg_qtag_string_t &&move ) noexcept {
 		ptr = move.ptr;
 		count = move.count;
 
@@ -113,7 +113,7 @@ public:
 	/**
 	*	@brief	Free move assignment operation.
 	**/
-	constexpr sg_qstring_t &operator=( sg_qstring_t &&move ) noexcept {
+	constexpr sg_qtag_string_t &operator=( sg_qtag_string_t &&move ) noexcept {
 		ptr = move.ptr;
 		count = move.count;
 
@@ -126,7 +126,7 @@ public:
 	/**
 	*	@brief	Copy from const char* assignment operator.
 	**/
-	constexpr sg_qstring_t &operator=( const T *charStr ) noexcept {
+	constexpr sg_qtag_string_t &operator=( const T *charStr ) noexcept {
 		// Return this.
 		if ( !charStr ) {
 			// Release.
@@ -136,7 +136,7 @@ public:
 		}
 
 		#if 0	// Dun work.
-		*this = sg_qstring_t<T, tag>( charStr );
+		*this = sg_qtag_string_t<T, tag>( charStr );
 		#else
 		// Acquire the count, add + 1 for end of string.
 		count = strlen( charStr ) + 1;
@@ -199,24 +199,24 @@ public:
 	constexpr size_t size() const noexcept { return count * sizeof( T ); }
 
 	/**
-	*	@brief	Allocates a block of sg_qstring_t for the specified count of characters.
+	*	@brief	Allocates a block of sg_qtag_string_t for the specified count of characters.
 	**/
-	//inline sg_qstring_t<T, tag> from_char_str( const char *charStr ) {
-	static inline sg_qstring_t<T, tag> new_for_size( size_t _count ) noexcept {
+	//inline sg_qtag_string_t<T, tag> from_char_str( const char *charStr ) {
+	static inline sg_qtag_string_t<T, tag> new_for_size( size_t _count ) noexcept {
 		// Empty null string.
 		if ( _count <= 0 ) {
 			return { nullptr, 0 };
 		}
-		// Allocate the space for the specified amount of characters and pass it into the sg_qstring_t.
+		// Allocate the space for the specified amount of characters and pass it into the sg_qtag_string_t.
 		return { reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * _count + 1, tag ) ), _count };
 	}
 	/**
-	*	@brief	Allocates a block of sg_qstring_t with a copy of the string argument.
+	*	@brief	Allocates a block of sg_qtag_string_t with a copy of the string argument.
 	*	@note	For const char*
 	**/
 	//template<typename T = char, int32_t tag>
-	//inline sg_qstring_t<T, tag> from_char_str( const char *charStr ) {
-	static inline sg_qstring_t<T, tag> from_char_str( const char *charStr ) noexcept {
+	//inline sg_qtag_string_t<T, tag> from_char_str( const char *charStr ) {
+	static inline sg_qtag_string_t<T, tag> from_char_str( const char *charStr ) noexcept {
 		// Empty null string.
 		if ( !charStr ) {
 			return { nullptr, 0 };
@@ -238,11 +238,11 @@ public:
 		return { _ptr, _count + 1 };
 	}
 	/**
-	*	@brief	Allocates a block of sg_qstring_t with a copy of the string argument.
+	*	@brief	Allocates a block of sg_qtag_string_t with a copy of the string argument.
 	*	@brief	For std::string.
 	**/
-	//inline sg_qstring_t<T, tag> from_char_str( const char *charStr ) {
-	static inline sg_qstring_t<T, tag> from_std_string( const std::string &charStr ) noexcept {
-		return sg_qstring_t<T, tag>::from_char_str( charStr.c_str() );
+	//inline sg_qtag_string_t<T, tag> from_char_str( const char *charStr ) {
+	static inline sg_qtag_string_t<T, tag> from_std_string( const std::string &charStr ) noexcept {
+		return sg_qtag_string_t<T, tag>::from_char_str( charStr.c_str() );
 	}
 };

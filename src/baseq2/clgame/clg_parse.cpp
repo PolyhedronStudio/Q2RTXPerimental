@@ -230,7 +230,7 @@ static void CLG_ParsePrint( void ) {
 
     clgi.Con_SkipNotify( false );
 
-    SCR_AddToChatHUD( s );
+    CLG_HUD_AddChatLine( s );
 
     // play sound
     if ( cl_chat_sound->integer > 1 ) {

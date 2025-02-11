@@ -78,11 +78,11 @@ static cvar_t   *scr_scale;
 
 static cvar_t   *scr_crosshair;
 
-static cvar_t   *scr_chathud;
-static cvar_t   *scr_chathud_lines;
-static cvar_t   *scr_chathud_time;
-static cvar_t   *scr_chathud_x;
-static cvar_t   *scr_chathud_y;
+static cvar_t   *hud_chat;
+static cvar_t   *hud_chat_lines;
+static cvar_t   *hud_chat_time;
+static cvar_t   *hud_chat_x;
+static cvar_t   *hud_chat_y;
 
 static cvar_t   *ch_health;
 static cvar_t   *ch_red;
@@ -631,7 +631,7 @@ static const cmdreg_t scr_cmds[] = {
     { "sky", SCR_Sky_f },
     //{ "draw", SCR_Draw_f, SCR_Draw_c },
     //{ "undraw", SCR_UnDraw_f, SCR_UnDraw_c },
-    //{ "clearchathud", SCR_ClearChatHUD_f },
+    //{ "clearchathud", CLG_HUD_ClearChat_f },
     { NULL }
 };
 
@@ -653,13 +653,13 @@ void SCR_Init(void)
 //    scr_crosshair = Cvar_Get("crosshair", "0", CVAR_ARCHIVE);
 //    scr_crosshair->changed = scr_hud_crosshair_changed;
 //
-//    scr_chathud = Cvar_Get("scr_chathud", "0", 0);
-//    scr_chathud_lines = Cvar_Get("scr_chathud_lines", "4", 0);
-//    scr_chathud_time = Cvar_Get("scr_chathud_time", "0", 0);
-//    scr_chathud_time->changed = cl_timeout_changed;
-//    scr_chathud_time->changed(scr_chathud_time);
-//    scr_chathud_x = Cvar_Get("scr_chathud_x", "8", 0);
-//    scr_chathud_y = Cvar_Get("scr_chathud_y", "-64", 0);
+//    hud_chat = Cvar_Get("hud_chat", "0", 0);
+//    hud_chat_lines = Cvar_Get("hud_chat_lines", "4", 0);
+//    hud_chat_time = Cvar_Get("hud_chat_time", "0", 0);
+//    hud_chat_time->changed = cl_timeout_changed;
+//    hud_chat_time->changed(hud_chat_time);
+//    hud_chat_x = Cvar_Get("hud_chat_x", "8", 0);
+//    hud_chat_y = Cvar_Get("hud_chat_y", "-64", 0);
 //
 //    ch_health = Cvar_Get("ch_health", "0", 0);
 //    ch_health->changed = scr_hud_crosshair_changed;

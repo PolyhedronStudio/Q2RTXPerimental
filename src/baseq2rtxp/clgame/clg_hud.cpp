@@ -20,6 +20,13 @@
 //! We need this one.
 static cvar_t *scr_alpha;
 
+//! The chat hud.
+static cvar_t *hud_chat;
+static cvar_t *hud_chat_lines;
+static cvar_t *hud_chat_time;
+static cvar_t *hud_chat_x;
+static cvar_t *hud_chat_y;
+
 //! The crosshair.
 static cvar_t *hud_crosshair_type;
 static cvar_t *hud_crosshair_red;
@@ -27,6 +34,20 @@ static cvar_t *hud_crosshair_green;
 static cvar_t *hud_crosshair_blue;
 static cvar_t *hud_crosshair_alpha;
 static cvar_t *hud_crosshair_scale;
+
+//
+// Chat Configuration.
+//
+static constexpr int32_t MAX_CHAT_TEXT = 150;
+static constexpr int32_t MAX_CHAT_LINES = 32;
+static constexpr int32_t CHAT_LINE_MASK = MAX_CHAT_LINES - 1;
+
+//! Chatline type.
+typedef struct {
+    char    text[ MAX_CHAT_TEXT ];
+    QMTime  time;
+} chatline_t;
+
 
 
 /**
@@ -79,27 +100,12 @@ typedef struct hud_usetarget_hint_s {
     float alpha;
 } hud_usetarget_hint_t;
 
-/**
-*   @brief  State of the hud target hints we got.
-**/
-static struct {
-    //! Current ID.
-    int32_t currentID = 0;
-    //! Last ID.
-    int32_t lastID = 0;
-
-    //! Current 'head' index.
-    int32_t headIndex = 0;
-    //! Hint States.
-    hud_usetarget_hint_t hints[ MAX_TARGET_HINTS ] = {};
-} hud_targetHints;
-
 
 
 /**
 *   HUD Specifics:
 **/
-static struct {
+static struct hud_state_t {
     //! Generic display color values.
     struct {
         // Colors.
@@ -131,6 +137,31 @@ static struct {
         } recoil = {};
     } crosshair = {};
 
+    /**
+    *   @brief  UseTargetHint state:
+    **/
+    struct {
+        //! Current ID.
+        int32_t currentID = 0;
+        //! Last ID.
+        int32_t lastID = 0;
+
+        //! Current 'head' index.
+        int32_t headIndex = 0;
+        //! Hint States.
+        hud_usetarget_hint_t hints[ MAX_TARGET_HINTS ] = {};
+    } targetHints = {};
+
+    /**
+    *   @brief  Chat State:
+    **/
+    struct {
+        //! Chat lines.
+        chatline_t      chatlines[ MAX_CHAT_LINES ];
+        //! Head index of chat lines.
+        uint32_t        chathead;
+    } chatState = {};
+
     //! Real hud screen size.
     int32_t     hud_real_width = 0, hud_real_height = 0;
     //! Scaled hud screen size.
@@ -145,14 +176,26 @@ static struct {
 //! Used in various places.
 extern const bool SCR_ShouldDrawPause();
 
+static void CLG_HUD_DrawAmmoIndicators();
+static void CLG_HUD_DrawHealthIndicators();
+
 
 /**
 *
 *
-*   Crosshair(-color) CVar change and updating:
+* 
+*   CVar change and updating:
 *
+* 
 *
 **/
+/**
+*	@brief
+**/
+static void cl_timeout_changed( cvar_t *self ) {
+    self->integer = 1000 * clgi.CVar_ClampValue( self, 0, 24 * 24 * 60 * 60 );
+}
+
 /**
 *   @brief  Will set the crosshair color to a custom color which is defined by cvars.
 **/
@@ -185,7 +228,9 @@ static void scr_hud_crosshair_changed( cvar_t *self ) {
 /**
 *
 *
+*
 *   HUD Core:
+*
 *
 *
 **/
@@ -198,6 +243,15 @@ void CLG_HUD_Initialize( void ) {
 
     // Get already initialized screen cvars we need often.
     scr_alpha = clgi.CVar_Get( "scr_alpha", nullptr, 0 );
+
+    // Chat cvars.
+    hud_chat = clgi.CVar_Get( "hud_chat", "0", 0 );
+    hud_chat_lines = clgi.CVar_Get( "hud_chat_lines", "4", 0 );
+    hud_chat_time = clgi.CVar_Get( "hud_chat_time", "0", 0 );
+    hud_chat_time->changed = cl_timeout_changed;
+    hud_chat_time->changed( hud_chat_time );
+    hud_chat_x = clgi.CVar_Get( "hud_chat_x", "8", 0 );
+    hud_chat_y = clgi.CVar_Get( "hud_chat_y", "-64", 0 );
 
     // Crosshair cvars.
     hud_crosshair_red = clgi.CVar_Get( "hud_crosshair_red", "1", 0 );
@@ -228,6 +282,50 @@ void CLG_HUD_AlphaChanged( const float newHudAlpha ) {
     hud.hud_alpha = newHudAlpha;
 }
 /**
+*   @brief  Called upon when clearing client state.
+**/
+void CLG_HUD_ClearTargetHints() {
+    hud.targetHints = {};
+}
+/**
+*	@brief	Called when screen module is drawing its 2D overlay(s).
+**/
+void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
+    // Recalculate hud height/width.
+    hud.hud_real_height = refcfg->height;
+    hud.hud_real_width = refcfg->width;
+
+    // Set general alpha scale.
+    clgi.R_SetAlphaScale( hud.hud_alpha );
+
+    // Set HUD scale.
+    clgi.R_SetScale( hud.hud_scale );
+
+    // Determine screen width and height based on hud_scale.
+    hud.hud_scaled_height = Q_rint( hud.hud_real_height * hud.hud_scale );
+    hud.hud_scaled_width = Q_rint( hud.hud_real_width * hud.hud_scale );
+}
+
+/**
+*	@brief	Called when screen module is drawing its 2D overlay(s).
+**/
+void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
+    // Got an index of hint display, but its flagged as invisible.
+    CLG_HUD_DrawCrosshair();
+    // Display the use target hint information.
+    CLG_HUD_DrawUseTargetHintInfos();
+
+    // The rest of 2D elements share common alpha.
+    clgi.R_ClearColor();
+    clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+
+    // Weapon Name AND (Clip-)Ammo Indicators.
+    CLG_HUD_DrawAmmoIndicators();
+    // Health AND Armor Indicators.
+    CLG_HUD_DrawHealthIndicators();
+}
+
+/**
 *	@brief	Called when the screen module registers media.
 **/
 void CLG_HUD_RegisterScreenMedia( void ) {
@@ -246,7 +344,9 @@ void CLG_HUD_Shutdown( void ) {
 /**
 *
 * 
+* 
 *   HUD String Drawing: 
+* 
 * 
 * 
 **/
@@ -311,9 +411,11 @@ void HUD_DrawAltCenterString( const int32_t x, const int32_t y, const char *str 
 
 /**
 *
+* 
 *
-*   HUD Draw Utilities:
+*   HUD 'Regions' Draw Utilities:
 *
+* 
 *
 **/
 /**
@@ -364,8 +466,104 @@ static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_
 /**
 *
 *
-*   HUD Crosshair Display:
 *
+*   HUD Chat:
+*
+*
+*
+**/
+/**
+*   @brief  Clear the chat HUD.
+**/
+void CLG_HUD_ClearChat_f( void ) {
+    hud.chatState = {};
+    //memset( hud_chatlines, 0, sizeof( hud_chatlines ) );
+    //hud_chathead = 0;
+}
+
+/**
+*   @brief  Append text to chat HUD.
+**/
+void CLG_HUD_AddChatLine( const char *text ) {
+    chatline_t *line;
+    char *p;
+
+    line = &hud.chatState.chatlines[ hud.chatState.chathead++ & CHAT_LINE_MASK ];
+    Q_strlcpy( line->text, text, sizeof( line->text ) );
+    line->time = QMTime::FromMilliseconds( clgi.GetRealTime() );
+
+    p = strrchr( line->text, '\n' );
+    if ( p )
+        *p = 0;
+}
+
+/**
+*   @brief  Draws chat hud to screen.
+**/
+void CLG_HUD_DrawChat( void ) {
+    float alpha = 0;
+    
+    if ( hud_chat->integer == 0 ) {
+        return;
+    }
+
+    int32_t x = hud_chat_x->integer;
+    int32_t y = hud_chat_y->integer;
+
+    int32_t flags = 0;
+    if ( hud_chat->integer == 2 ) {
+        flags = UI_ALTCOLOR;
+    }
+    // hud_x.
+    if ( x < 0 ) {
+        x += hud.hud_real_width + 1;
+        flags |= UI_RIGHT;
+    } else {
+        flags |= UI_LEFT;
+    }
+    // step.
+    int32_t step = CHAR_HEIGHT;
+    if ( y < 0 ) {
+        y += hud.hud_real_height - CHAR_HEIGHT + 1;
+        step = -CHAR_HEIGHT;
+    }
+
+    int32_t lines = hud_chat_lines->integer;
+    if ( lines > hud.chatState.chathead ) {
+        lines = hud.chatState.chathead;
+    }
+
+    for ( int32_t i = 0; i < lines; i++ ) {
+        chatline_t *line = &hud.chatState.chatlines[ ( hud.chatState.chathead - i - 1 ) & CHAT_LINE_MASK ];
+
+        if ( hud_chat_time->integer ) {
+            const float alpha = SCR_FadeAlpha( line->time.Milliseconds(), hud_chat_time->integer, 1000);
+            if ( !alpha ) {
+                break;
+            }
+
+            clgi.R_SetAlpha( alpha * scr_alpha->value );
+            SCR_DrawString( x, y, flags, line->text );
+            clgi.R_SetAlpha( scr_alpha->value );
+        } else {
+            SCR_DrawString( x, y, flags, line->text );
+        }
+
+        y += step;
+    }
+}
+
+
+
+/**
+*
+*
+* 
+* 
+*   HUD Crosshair:
+*
+* 
+* 
 *
 **/
 /**
@@ -515,6 +713,7 @@ void CLG_HUD_DrawLineCrosshair( ) {
     clgi.R_SetColor( U32_WHITE );
     clgi.R_SetAlpha( scr_alpha->value );
 }
+
 /**
 *	@brief  Renders the crosshair to screen.
 **/
@@ -723,35 +922,6 @@ static void CLG_HUD_DrawAmmoIndicators() {
     HUD_DrawString( clipAmmoX, clipAmmoY, strClipAmmo.c_str() );
 }
 
-/**
-*	@brief	Called when screen module is drawing its 2D overlay(s).
-**/
-void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
-    // Recalculate hud height/width.
-    hud.hud_real_height = refcfg->height;
-    hud.hud_real_width = refcfg->width;
-
-    // Set general alpha scale.
-    clgi.R_SetAlphaScale( hud.hud_alpha );
-
-    // Set HUD scale.
-    clgi.R_SetScale( hud.hud_scale );
-
-    // Determine screen width and height based on hud_scale.
-    hud.hud_scaled_height = Q_rint( hud.hud_real_height * hud.hud_scale );
-    hud.hud_scaled_width = Q_rint( hud.hud_real_width * hud.hud_scale );
-}
-
-/**
-*	@brief	Called when screen module is drawing its 2D overlay(s).
-**/
-void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
-    // Weapon Name AND (Clip-)Ammo Indicators.
-    CLG_HUD_DrawAmmoIndicators( );
-    // Health AND Armor Indicators.
-    CLG_HUD_DrawHealthIndicators( );
-}
-
 
 
 /**
@@ -946,8 +1116,6 @@ void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
     int32_t xDrawLocation = x - ( xWidth / 2 );
     // Iterate.
     for ( auto &hintStringToken : targetHintInfo->hintStringTokens ) {
-
-
         // Draw piece, special color if it is the keyname.
         if ( hintStringToken.type == HUD_TOKEN_TYPE_TOKEN_KEYNAME ) {
             // Clear the original color.
@@ -1013,7 +1181,7 @@ void CLG_HUD_DrawUseTargetHintInfos( ) {
     //
     if ( currentID != lastID ) {
         // Is it the same currentID as the one we got set?
-        if ( currentID == hud_targetHints.currentID ) {
+        if ( currentID == hud.targetHints.currentID ) {
             // Do nothing here.
         // It is a new currentID which we are not displaying.
         } else {
@@ -1021,17 +1189,17 @@ void CLG_HUD_DrawUseTargetHintInfos( ) {
             const sg_usetarget_hint_t *currentUseTargetHint = SG_UseTargetHint_GetByID( currentID );
 
             // Move the current 'top' slot its hud target hint data into the 'bottom' slot.
-            hud_targetHints.hints[ BOTTOM_TARGET_HINT ] = hud_targetHints.hints[ TOP_TARGET_HINT ];
+            hud.targetHints.hints[ BOTTOM_TARGET_HINT ] = hud.targetHints.hints[ TOP_TARGET_HINT ];
             // Initiate a new ease.
-            hud_targetHints.hints[ BOTTOM_TARGET_HINT ].easeState = QMEaseState::new_ease_state( realTime, TARGET_INFO_EASE_DURATION );
+            hud.targetHints.hints[ BOTTOM_TARGET_HINT ].easeState = QMEaseState::new_ease_state( realTime, TARGET_INFO_EASE_DURATION );
             // Store it as our new lastID.
-            hud_targetHints.lastID = hud_targetHints.hints[ BOTTOM_TARGET_HINT ].hintID;
+            hud.targetHints.lastID = hud.targetHints.hints[ BOTTOM_TARGET_HINT ].hintID;
 
             // It is a valid usetarget.
-            if ( currentUseTargetHint && currentUseTargetHint->hintString && ( currentUseTargetHint->index != hud_targetHints.currentID ) ) {
+            if ( currentUseTargetHint && currentUseTargetHint->hintString && ( currentUseTargetHint->index != hud.targetHints.currentID ) ) {
                 // Apply new top ID.
-                hud_targetHints.hints[ TOP_TARGET_HINT ] = {
-                    .hintID = hud_targetHints.currentID = currentID,
+                hud.targetHints.hints[ TOP_TARGET_HINT ] = {
+                    .hintID = hud.targetHints.currentID = currentID,
                     .hintString = currentUseTargetHint->hintString,
                     .hintStringTokens = HUD_FormatUseTargetHintString( currentUseTargetHint->hintString ),
                     .easeState = QMEaseState::new_ease_state( realTime + TARGET_INFO_EASE_DURATION, TARGET_INFO_EASE_DURATION ),
@@ -1039,10 +1207,10 @@ void CLG_HUD_DrawUseTargetHintInfos( ) {
                 };
             } else {
                 // Store lastID.
-                hud_targetHints.lastID = hud_targetHints.currentID;
+                hud.targetHints.lastID = hud.targetHints.currentID;
                 // Apply new top ID.
-                hud_targetHints.hints[ TOP_TARGET_HINT ] = {
-                    .hintID = hud_targetHints.currentID = currentID,
+                hud.targetHints.hints[ TOP_TARGET_HINT ] = {
+                    .hintID = hud.targetHints.currentID = currentID,
                     .hintString = "",
                     .hintStringTokens = {},
                     .easeState = QMEaseState::new_ease_state( realTime, 0_ms ),
@@ -1055,7 +1223,7 @@ void CLG_HUD_DrawUseTargetHintInfos( ) {
     // Iterate the use target hints, ease them if necessary, and render them in order.
     for ( int32_t i = 0; i < MAX_TARGET_HINTS; i++ ) {
         // Get pointer to info data.
-        hud_usetarget_hint_t *targetHintInfo = &hud_targetHints.hints[ i ];
+        hud_usetarget_hint_t *targetHintInfo = &hud.targetHints.hints[ i ];
 
         // The head info always is new, thus eases in. (It looks better if we apply EaseOut so.)
         if ( i == TOP_TARGET_HINT ) {
