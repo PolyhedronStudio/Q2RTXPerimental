@@ -25,11 +25,6 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir );
 /**
 *   @brief
 **/
-char *SVG_Util_CopyString( const char *in );
-
-/**
-*   @brief
-**/
 void SVG_Util_TouchTriggers( edict_t *ent );
 /**
 *   @brief  Scan for projectiles between our movement positions

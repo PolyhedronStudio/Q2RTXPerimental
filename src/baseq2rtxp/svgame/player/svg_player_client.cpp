@@ -1062,17 +1062,6 @@ const bool SVG_Client_UpdateUseTargetHint( edict_t *ent, gclient_t *client, edic
             // Clear whichever it previously contained. we got nothing to display.
             Client_ClearUseTargetHint( ent, client, useTargetEntity );
         }
-        //if ( strcmp( "func_button", useTargetEntity->classname.ptr ) == 0 ) {
-        //    if ( useTargetEntity->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
-        //        client->ps.stats[ STAT_USETARGET_HINT_ID ] = 4;
-        //        client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] |= STAT_USETARGET_HINT_FLAGS_DISPLAY;
-        //    } else {
-        //        client->ps.stats[ STAT_USETARGET_HINT_ID ] = 3;
-        //        client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] |= STAT_USETARGET_HINT_FLAGS_DISPLAY;
-        //    }
-        //} else {
-
-        //}
     } else {
         // Clear whichever it previously contained. we got nothing to display.
         Client_ClearUseTargetHint( ent, client, useTargetEntity );

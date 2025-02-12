@@ -1562,10 +1562,12 @@ static void SCR_ExecuteLayoutString( const char *s ) {
 
 /**
 *
+* 
 *
 *   Damage Indicators:
 *
 *
+* 
 **/
 /**
 *   @brief

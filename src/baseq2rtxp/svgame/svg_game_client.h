@@ -294,13 +294,13 @@ struct gclient_s {
     uint64_t    last_stair_step_frame;
 
     vec3_t      last_ladder_pos; // For ladder step sounds.
-    QMTime   last_ladder_sound;
+    QMTime      last_ladder_sound;
 
-    vec3_t          oldviewangles;
-    vec3_t          oldvelocity;
-    edict_t         *oldgroundentity; // [Paril-KEX]
+    vec3_t      oldviewangles;
+    vec3_t      oldvelocity;
+    edict_t     *oldgroundentity; // [Paril-KEX]
     liquid_level_t	old_waterlevel;
-    QMTime       flash_time; // [Paril-KEX] for high tickrate
+    QMTime      flash_time; // [Paril-KEX] for high tickrate
 
     /**
     *   Misc:
@@ -338,9 +338,9 @@ struct gclient_s {
     /**
     *	Chat Flood Related:
     **/
-    QMTime	flood_locktill;     // Locked from talking.
-    QMTime	flood_when[ 10 ];   // When messages were said.
-    int64_t		flood_whenhead;     // Head pointer for when said.
+    QMTime      flood_locktill;     // Locked from talking.
+    QMTime      flood_when[ 10 ];   // When messages were said.
+    int64_t     flood_whenhead;     // Head pointer for when said.
 
     /**
     *   Spectator Chasing:

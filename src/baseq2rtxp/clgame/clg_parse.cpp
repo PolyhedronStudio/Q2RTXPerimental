@@ -43,7 +43,7 @@ static void CLG_ParseLayout( void ) {
 **/
 static void CLG_ParseInventory( void ) {
 	for ( int32_t i = 0; i < MAX_ITEMS; i++ ) {
-		clgi.client->inventory[ i ] = clgi.MSG_ReadIntBase128();
+		game.inventory[ i ] = clgi.MSG_ReadIntBase128();
 	}
 }
 

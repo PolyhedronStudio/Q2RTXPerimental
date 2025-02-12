@@ -42,21 +42,33 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 	- [ ] 3. A model viewer, allowing to speed up/down animations, as well as
 			 blend combining them, so it becomes easier to figure out the framerate
 			 you may want an animation to play at.
+	- [/] 4. A refresh material editor.
+		- [ ] Allow for saving materials properly, right now this is a mess.
 
 - [ ] **Entities**:
 	- [ ] Reimplement (client-)misc_model properly.
 	- [ ] Add proper spawn flag constants.
-	- [ ] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of				
-	the matching entity classname and its 'classdata' struct.
+	- [ ] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of the matching entity classname and its 'classdata' struct.
 	- [ ] .. Some more I bet ..
 
 - [ ] The **IQM Animation** Scenario:
 	- [ ] Allow attaching models configured by bone tags setup.
-
-- [ ] **Lua**:
-	- [ ] SVG_Util_CopyString is used for assigning targetname related strings. This needs to be tucked
-		  into a wrapper object so that we can just assign it a const char*, allocate, copy, and if it
-	- [ ] already had a value, destroy its previous value.
+	- [ ] Implement model events for animations:
+		- [ ] Footsteps implemented using this.
+	- [ ] Experiment with Head/Torso/Hips separated animation actions.
+		- [ ] Create torso anim actions for fists, pistol, and rifle.
+		- [ ] Create hips anims that dominate for crouch, walk, run, and jump.
+		- [ ] Event anims are derived for torso based on the active weapon.
+		- [ ] Have a good time with Blender :-)
+	- [X] For both, client and server, whenever an IQM file is loaded, so will be its matching
+			 .cfg file. This file will contain:
+	- [X] Name of Root Bone.
+	- [ ] Bone Names for the ``Joint Controllers``.
+	- [-] Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
+		- [ ] Technically, it's probably easier to just use code for this since it allwos for more control as well. 
+	- [ ] Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
+	- [X] Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
+	- [ ] Perhaps, an optional lua animation state machine script?
 
 ---
 ## For v0.0.5(Being idealistic here, not realistic, that is when it comes to time lol):
@@ -66,7 +78,7 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 		- [ ] Add in support for signal_argument_t array.
 		- [X] Fix pushMoveInfo.curve.positions array, it is dynamic, oof..
 			- [X] Fixed by implementing sg_qtag_memory_t however, 
-			- [ ] it needs support for multiple types?
+				- [ ] it needs support for multiple types?
 - [ ] The **VKPT** Scenario:
 	- [X] Target Range -> Animated Textures which lol, do not animate, we merely use them right now
 			for visual trickstery. Such as a light switching colors. However, this fails, it ends up
@@ -74,37 +86,19 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 	- [ ] fill_model_instance, use a proper bbox check for BSP_WORLD_MODEL isntead of pointleaf.
 			(See doors in target range map which bug out cluster testing, remaining unlit by interior lights.)
 
+- [ ] The **MethLib** Scenario: (Pun intended)
+	- [ ] Still got to redo the whole thing
+
 - [ ] The **Entities** Scenario:
 	- [X] 0. Fix func_button, KISS for now.
 		- [X] Test func_button map properly and add a few extra signal related features.
 	- [ ] 1. Calculate the proper entity matrixes/quaternions during Link time.
 		- [ ] Reimplement the 'movewith' system using matrixes/quaternions instead of those silly vector maths.
-	- [ ] Can we use some form of inheritance for entity type specific information?
-		- [ ] composition or something?
-		- [ ] we can't malloc classes can we?
 - [X] The **IQM Animation** Scenario:
-	- [X] 0. Add in proper usage of entity type and adjust the client code to handle adding packet entities based on its type.
-			 This will simplify life in the future.
-	- [X] 1. Weapon code should use ``PlayAnimation("anim_name")``, or precache animIDs ``GetAnimationHandle("anim_name")``.
-	- [X] 3. If ``entity type == MONSTER || PLAYER`` the net code needs to be adjusted so that 'frame' encodes/decodes animationIDs for each specific
-			 body part. 8 bits per part, means 24 bits and leaves 8 free bits for other uses.
-	- [X] 4. Client needs to detect animationID, time of change, and playback the animation from there
-			 using the animation info provided in the IQM data.
-	- [ ] 5. Redo the player animations properly once and for allOnce again.. sigh
-
-- [ ] The **EDITOR/VIEWER** Scenario:
-	- [X] 0. A refresh material editor.
+	- [ ] 0. Redo the player animations properly once and for allOnce again.. sigh
 
 - [ ] The **Skeletal Model Info** Scenario:
-	- [X] 0. For both, client and server, whenever an IQM file is loaded, so will be its matching
-			 .cfg file. This file will contain:
-		- [X] Name of Root Bone.
-		- [ ] Bone Names for the ``Joint Controllers``.
-		- [-] Tags assigned to a bone name, with a corresponding ``up/forward/right`` axis set.
-			- [ ] Technically, it's probably easier to just use code for this since it allwos for more control as well. 
-		- [ ] Animation Events, ``animevent "(animname)" (animframe) (client/server/both) "(animevent data, can be a string)"``
-		- [X] Animation Root Motion Translate axes, animrootbonetranslate "animname" ``TRANSLATE_X/TRANSLATE_Y/TRANSLATE_Z``
-		- [ ] Perhaps, an optional lua animation state machine script?
+
 	- [X] 1. The shared game code needs and is responsible for a ``Pose API`` which essentially is capable of:
 			- Taking an animation from Pose A, and blend it into Pose B starting from a specified bone.
 			- This'll use a simple memory cache that grows in POW2 size whenever there isn't enough space to be used.
@@ -174,27 +168,16 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 * [X] Implement Lua for game state logic and dynamics.
 	- [X] Fix the script file loaded up leaking memory. FS_LoadFileEx(other tag)_
 	- [X] Make buttons and doors lockable lol.
-* [ ] Implement model events for animations:
-	* [ ] Footsteps implemented using this.
-* [ ] Experiment with Head/Torso/Hips separated animation actions.
-	- [ ] Create torso anim actions for fists, pistol, and rifle.
-	- [ ] Create hips anims that dominate for crouch, walk, run, and jump.
-	- [ ] Event anims are derived for torso based on the active weapon.
-	- [ ] Have a good time with Blender :-)
-* [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
 
 ### Medium Priority:
-* [X] Remove all Q2 monsters, keep a few around to use for testing.
+* [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly, 
+	* [ ] same for usetargethint that was being displayed.
+* [ ] * [X] Remove all Q2 monsters, keep a few around to use for testing.
 * [-] Eliminate all other Q2-only specific game entities.
-* [X] Add an entity that uses the humanoid ``test dummy`` model from **Mixamo** and **fully** operates at ``40hz``.
-* [-] Add support for a proper "+/-use" command such as seen in **Half-Life**.
-	- [ ] Add client-side functionality?? so that when hovering an entity you can
-          ``useTarget`` it displays a thing such as: ``Press 'E' to interact/pull/push/open/close/press/unpress``?
-	- [ ] And an entity you can 'pick up and move around' for the lulz.
 
 ### Low Priority:
 * [ ] Use our own C version of glmatrix.net and adjust(C++ify also), and streamline it as the math lib for use.
-* [ ] Fix up proper C++ enums issue with the whole int32_t by implementing appropriate operators... sigh..._
+* [X] Fix up proper C++ enums issue with the whole int32_t by implementing appropriate operators... sigh..._
 * [X] Get our own button sound files, also, for press(start) and unpress(end) states.
 * [x] Add some way of having entity 'class' like type support. (At the least, eliminate a need for having such a large edict_t type that holds all sorts of object-type specific variables.)
 	* [x] So far this is only in existence for the client game's ``clg_local_entity_t`` type.
@@ -217,6 +200,7 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 	* [ ] SVG_CanDamage and functions alike need to be moved into gamemode.
 
 ### Lowest, nearly redundant Priority:
+- [ ] And an entity you can 'pick up and move around' for the lulz.
 * [ ] Move capability of determining new pvs packet entities to clgame.
 * [ ] Add an enter/exit frame/pvs so that we can allocate and deallocate skeletal bone
 	  pose caches. Otherwise in hour long games they'd possibly stack up the memory buffer.
@@ -259,6 +243,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [X] Replace water in/out/head-under sounds.
 * [X] Replace 'heat' in lava sounds.
 * [X] Replace UI(menu) sounds.
+
 ### Models:
 * [ ] Replace..??
 	* [ ] Health Pack.
@@ -267,11 +252,13 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 	* [ ] misc_explobox model_
 * [X] Get ourselves a basic version of the Mixamo testdummy that works in-game.
 * [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
+
 ### Textures:
 * [ ] Replace explosions, use and customize Kenney Smoke Particles or something.
 * [/] Find some consistent themed PBR texture set?
 	- [ ] Want more :-)
 	- [ ] 
+
 ## Wishlist:
 Content Related:
 - [ ] Figure out how to create textures like those in the makkon 'pbr' sample map(it lacked actual roughness maps though).

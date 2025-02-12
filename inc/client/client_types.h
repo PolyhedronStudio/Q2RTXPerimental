@@ -437,8 +437,6 @@ typedef struct client_state_s {
     **/
     //! Parsed layout event data, this is a general 2D overlay cmd script.
     char            layout[ MAX_NET_STRING ];
-    //! Parsed inventory event data.
-    int32_t         inventory[ MAX_ITEMS ];
     //! Parsed sound event parameters.
     snd_params_t    snd;
 

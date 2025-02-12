@@ -96,15 +96,7 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
 *
 *
 **/
-/**
-*   @brief  Keep in mind that actually doing this continuously will lead to substantial problems...
-**/
-char *SVG_Util_CopyString(const char *in) {
-    char    *out;
-    out = (char*)gi.TagMalloc(strlen(in) + 1, TAG_SVGAME_LEVEL);
-    strcpy(out, in);
-    return out;
-}
+
 
 
 

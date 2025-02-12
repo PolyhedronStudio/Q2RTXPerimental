@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // Game related types.
 #include "svgame/svg_local.h"
+#include "sharedgame/sg_usetarget_hints.h"
 // Save related types.
 #include "svg_save.h"
 
@@ -217,6 +218,8 @@ static const save_field_t clientfields[] = {
     ENTITY( oldgroundentity ),
     INT32( old_waterlevel ),
     INT64( next_drown_time ),
+
+    // WID: TODO: Animation Mixer States.
 
     INT64( pickup_msg_time ), // WID: 64-bit-frame
 
@@ -1261,7 +1264,6 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
     case F_ZSTRING:
         read_zstring(ctx->f, (char *)p, field->size);
         break;
-
     case F_EDICT:
 		// WID: C++20: Added cast.
 		*(edict_t **)p = (edict_t*)read_index(ctx->f, sizeof(edict_t), g_edicts, game.maxentities - 1);
