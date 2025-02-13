@@ -334,21 +334,21 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                 // Fire for stage B:
                 } else if ( recoilTime < timeRecoilStageB ) {
                     // Add recoil.
-                    Weapon_Pistol_AddRecoil( weaponState, 0.25f, level.time - timeRecoilStageA );
+                    Weapon_Pistol_AddRecoil( weaponState, 0.25f, level.time - timeRecoilStageB );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: B [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.Milliseconds(), level.time.Milliseconds(), weaponState->recoil.amount );                // Fire for stage C:
                 } else if ( recoilTime < timeRecoilStageC ) {
                     // Add recoil.
-                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
+                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageC );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.Milliseconds(), level.time.Milliseconds(), weaponState->recoil.amount );
                 } else if ( recoilTime < timeRecoilStageCap ) {
                     // Add recoil.
-                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageA );
+                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageCap );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total

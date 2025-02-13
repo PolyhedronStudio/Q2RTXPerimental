@@ -45,3 +45,10 @@ static inline const float BYTE2BLEND( const uint8_t b ) {
 	//return (float)( b ) * 0.25f;
 	//return (float)( b ) / 255.f;
 }
+/**
+*	@brief	Decodes the short back into a "blend" float, range(0 = 0, 255 = 1)
+**/
+static inline const float SHORT2BLEND( const uint16_t s ) {
+	// Dencode.
+	return ( 1.0 / 65536 ) * s;
+}
