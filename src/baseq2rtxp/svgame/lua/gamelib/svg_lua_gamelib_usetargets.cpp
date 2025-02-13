@@ -211,7 +211,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 			// Sol State.
 			solStateView,
 			// LuaName of entity/entities, appended with "_Use".
-			entity->luaProperties.luaName,
+			entity->luaProperties.luaName.ptr,
 			// Return value.
 			returnValue,
 			// Entities.
@@ -359,7 +359,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 						// Sol State.
 						solStateView,
 						// LuaName of entity/entities, appended with "_Use".
-						fireTargetEntity->luaProperties.luaName,
+						fireTargetEntity->luaProperties.luaName.ptr,
 						// Return value.
 						returnValue,
 						// Entities.

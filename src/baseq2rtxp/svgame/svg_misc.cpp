@@ -281,28 +281,31 @@ void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, const float spee
 *
 ***/
 /**
-*   @brief	Spawns a temp entity explosion effect at the entity's origin, and frees the entity.
+*   @brief	Spawns a temp entity explosion effect at the entity's origin, and optionally frees the entity.
 **/
-void SVG_Misc_BecomeExplosion1(edict_t *self)
-{
+void SVG_Misc_BecomeExplosion( edict_t *self, int type, const bool freeEntity ) {
     gi.WriteUint8(svc_temp_entity);
-    gi.WriteUint8(TE_EXPLOSION1);
+    if ( type == 1 ) {
+        gi.WriteUint8( TE_EXPLOSION1 );
+    } else if ( type == 2 ) {
+        gi.WriteUint8( TE_EXPLOSION2 );
+    } else if ( type == 3 ) {
+        gi.WriteUint8( TE_EXPLOSION1_BIG );
+    } else if ( type == 4 ) {
+        gi.WriteUint8( TE_EXPLOSION1_NP );
+    } else if ( type == 5 ) {
+        gi.WriteUint8( TE_ROCKET_EXPLOSION_WATER );
+    } else if ( type == 6 ) {
+        gi.WriteUint8( TE_GRENADE_EXPLOSION_WATER );
+    } else {
+        gi.WriteUint8( TE_PLAIN_EXPLOSION );
+    }
     gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
-    SVG_FreeEdict(self);
-}
-/**
-*   @brief	Spawns a temp entity explosion effect at the entity's origin, and frees the entity.
-**/
-void SVG_Misc_BecomeExplosion2(edict_t *self)
-{
-    gi.WriteUint8(svc_temp_entity);
-    gi.WriteUint8(TE_EXPLOSION2);
-    gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.multicast( self->s.origin, MULTICAST_PVS, false );
-
-    SVG_FreeEdict(self);
+	if ( freeEntity ) {
+		SVG_FreeEdict( self );
+	}
 }
 
 /**

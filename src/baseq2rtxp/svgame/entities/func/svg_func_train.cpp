@@ -42,16 +42,20 @@ void train_blocked( edict_t *self, edict_t *other ) {
         // give it a chance to go away on it's own terms (like gibs)
         SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
-        if ( other )
-            SVG_Misc_BecomeExplosion1( other );
+        if ( other ) {
+            SVG_Misc_BecomeExplosion( other, 1 );
+        }
         return;
     }
 
-    if ( level.time < self->touch_debounce_time )
+    if ( level.time < self->touch_debounce_time ) {
         return;
+    }
 
-    if ( !self->dmg )
+    if ( !self->dmg ) {
         return;
+    }
+
     self->touch_debounce_time = level.time + 0.5_sec;
     SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }

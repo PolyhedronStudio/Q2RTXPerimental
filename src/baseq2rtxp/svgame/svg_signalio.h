@@ -57,3 +57,38 @@ typedef std::vector<svg_signal_argument_t> svg_signal_argument_array_t;
 **/
 //void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments = nullptr, const int32_t numberOfSignalArguments = 0 );
 void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments = {} );
+
+/**
+*
+**/
+template<typename T> inline constexpr T SVG_SignalArguments_GetValue( const svg_signal_argument_array_t &signalArguments, const char *keyName, const T defaultValue ) {
+    // Iterate the arguments.
+    for ( int32_t argumentIndex = 0; argumentIndex < signalArguments.size(); argumentIndex++ ) {
+        // Get access to argument.
+        const svg_signal_argument_t &signalArgument = signalArguments[ argumentIndex ];
+
+        if constexpr ( std::is_floating_point_v<T> ) {
+            if ( Q_strcasecmp( signalArgument.key, keyName ) && signalArgument.type == SIGNAL_ARGUMENT_TYPE_NUMBER ) {
+                return signalArgument.value.number;
+            }
+        } else if constexpr ( std::is_integral_v<T> ) {
+            #if 0
+            if ( Q_strcasecmp( signalArgument.key, keyName ) && signalArgument.type == SIGNAL_ARGUMENT_TYPE_INTEGER ) {
+            #else
+            if ( Q_strcasecmp( signalArgument.key, keyName ) && signalArgument.type == SIGNAL_ARGUMENT_TYPE_NUMBER ) {
+            #endif
+                return signalArgument.value.integer;
+            }
+        } else if constexpr ( std::is_same_v<T, const char *> ) {
+            if ( Q_strcasecmp( signalArgument.key, keyName ) && signalArgument.type == SIGNAL_ARGUMENT_TYPE_STRING ) {
+                return signalArgument.value.str;
+            }
+        } else if constexpr ( std::is_same_v<T, bool> ) {
+            if ( Q_strcasecmp( signalArgument.key, keyName ) && signalArgument.type == SIGNAL_ARGUMENT_TYPE_BOOLEAN ) {
+                return signalArgument.value.boolean;
+            }
+        }
+    }
+
+    return defaultValue;
+}

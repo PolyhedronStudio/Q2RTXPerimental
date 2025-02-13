@@ -197,7 +197,7 @@ struct edict_s {
     **/
     struct {
         //! [SpawnKey]: The name which its script methods are prepended by.
-        const char *luaName;
+        svg_level_qstring_t luaName;
     } luaProperties;
 
     /**

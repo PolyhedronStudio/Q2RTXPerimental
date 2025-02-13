@@ -225,12 +225,12 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
 
                 if ( fireTargetEntity->luaProperties.luaName ) {
                     // Generate function 'callback' name.
-                    const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName ) + "_Use";
+                    const std::string luaFunctionName = std::string( fireTargetEntity->luaProperties.luaName.ptr ) + "_Use";
                     // Get reference to sol lua state view.
                     sol::state_view &solStateView = SVG_Lua_GetSolState();
 
                     bool returnValue = false;
-                    const bool functionCalled = SVG_Trigger_DispatchLuaUseCallback( solStateView, fireTargetEntity->luaProperties.luaName,
+                    const bool functionCalled = SVG_Trigger_DispatchLuaUseCallback( solStateView, fireTargetEntity->luaProperties.luaName.ptr,
                         returnValue,
                         fireTargetEntity, ent, activator, useType, useValue, true );
                     //// Get function object.

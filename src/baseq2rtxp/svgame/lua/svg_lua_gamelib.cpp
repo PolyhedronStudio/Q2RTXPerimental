@@ -80,6 +80,7 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 	sol::table solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
 	// Entities:
 	solNameSpace.set_function( "GetEntityForLuaName", GameLib_GetEntityForLuaName );
+	solNameSpace.set_function( "GetEntitiesForLuaName", GameLib_GetEntitiesForLuaName );
 	solNameSpace.set_function( "GetEntityForTargetName", GameLib_GetEntityForTargetName );
 	solNameSpace.set_function( "GetEntitiesForTargetName", GameLib_GetEntitiesForTargetName );
 	// PushMovers:

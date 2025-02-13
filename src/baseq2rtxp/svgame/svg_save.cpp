@@ -335,7 +335,7 @@ static const save_field_t entityfields[] = {
     /**
     *   Lua Properties:
     **/
-    CHARPTR( luaProperties.luaName ),
+    LQSTR( luaProperties.luaName ),
 
     /**
     *   "Delay" entities:

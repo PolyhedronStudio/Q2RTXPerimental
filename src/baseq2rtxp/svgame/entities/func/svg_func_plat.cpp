@@ -172,7 +172,7 @@ void plat_blocked( edict_t *self, edict_t *other ) {
         SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
         if ( other && other->inuse && other->solid ) { // PGM)
-            SVG_Misc_BecomeExplosion1( other );
+            SVG_Misc_BecomeExplosion( other, 1 );
         }
         return;
     }

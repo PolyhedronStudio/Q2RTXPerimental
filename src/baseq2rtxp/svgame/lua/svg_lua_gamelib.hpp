@@ -35,6 +35,11 @@
 **/
 sol::userdata GameLib_GetEntityForLuaName( sol::this_state s, const std::string &luaName );
 /**
+*	@return	The number of the targetname matching entities found in the entity array, -1 if none found.
+*	@note	In Lua, it returns a table containing the entity number(s) with a matching targetname.
+**/
+sol::table GameLib_GetEntitiesForLuaName( sol::this_state s, const std::string &luaName );
+/**
 *	@return	The number of the first matching targetname entity in the entities array, -1 if not found.
 **/
 sol::userdata GameLib_GetEntityForTargetName( sol::this_state s, const std::string &targetName );

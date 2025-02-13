@@ -48,7 +48,7 @@ static const bool SVG_Lua_SignalOut( sol::state_view &stateView, edict_t *ent, e
 	}
 
 	// Generate function name.
-	const std::string luaName = ent->luaProperties.luaName;
+	const std::string luaName = ent->luaProperties.luaName.ptr;
 	const std::string functionName = luaName + "_OnSignalIn";
 
 	//if ( !LUA_HasFunction( stateView, functionName ) ) {

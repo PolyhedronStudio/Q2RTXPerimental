@@ -673,7 +673,7 @@ void door_blocked( edict_t *self, edict_t *other ) {
         SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
         if ( other ) {
-            SVG_Misc_BecomeExplosion1( other );
+            SVG_Misc_BecomeExplosion( other, 1 );
         }
         return;
     }

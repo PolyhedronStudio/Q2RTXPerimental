@@ -62,6 +62,8 @@ void LUA_Think_SignalOutDelay( edict_t *entity );
 void button_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 void rotating_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+void func_wall_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+void func_explosive_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 
 extern void SP_monster_testdummy_puppet( edict_t *self );
 extern void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
@@ -69,6 +71,10 @@ extern void monster_testdummy_puppet_think( edict_t *self );
 extern void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void monster_testdummy_puppet_post_spawn( edict_t *self );
 // </Q2RTXP>
+
+
+
+
 extern void SVG_PushMove_Think_CalculateMoveSpeed( edict_t *self );
 
 extern void SVG_PushMove_AngleMoveBegin( edict_t *ent );
@@ -127,7 +133,8 @@ extern void droptofloor( edict_t *self );
 extern void func_conveyor_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
-extern void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+extern void func_explosive_pain( edict_t *self, edict_t *other, float kick, int damage );
+extern void func_explosive_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void func_explosive_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_object_release( edict_t *self );
@@ -276,7 +283,13 @@ const save_ptr_t save_ptrs[] = {
 { P_onsignalin, ( void * )button_onsignalin },
 { P_onsignalin, (void *)door_onsignalin },
 { P_onsignalin, (void *)rotating_onsignalin },
+{ P_onsignalin, (void *)func_wall_onsignalin },
+{ P_onsignalin, (void *)func_explosive_onsignalin },
 
+{ P_use, (void *)func_explosive_spawn_on_trigger },
+{ P_die, (void *)func_explosive_explode },
+{ P_pain, (void *)func_explosive_pain },
+{ P_use, (void *)func_explosive_use },
 
 { P_die, (void *)monster_testdummy_puppet_die },
 { P_think, (void *)monster_testdummy_puppet_think },
@@ -400,8 +413,8 @@ const save_ptr_t save_ptrs[] = {
 
 //{ P_use, (void*)func_clock_use },
 { P_use, (void*)func_conveyor_use },
-{ P_use, (void*)func_explosive_spawn },
-{ P_use, (void*)func_explosive_use },
+//{ P_use, (void*)func_explosive_spawn },
+//{ P_use, (void*)func_explosive_use },
 { P_use, (void*)func_object_use },
 { P_use, (void*)func_timer_use },
 { P_use, (void*)func_wall_use },
@@ -456,7 +469,7 @@ const save_ptr_t save_ptrs[] = {
 { P_die, (void *)button_killed },
 { P_die, (void*)debris_die },
 { P_die, (void*)door_killed },
-{ P_die, (void*)func_explosive_explode },
+//{ P_die, (void*)func_explosive_explode },
 { P_die, (void*)gib_die },
 { P_die, (void*)player_die },
 

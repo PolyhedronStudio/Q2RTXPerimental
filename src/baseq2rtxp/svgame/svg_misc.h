@@ -46,10 +46,6 @@ void SVG_Misc_ThrowDebris( edict_t *self, const char *modelname, const float spe
 *
 ***/
 /**
-*   @brief	Spawns a temp entity explosion effect at the entity's origin, and frees the entity.
+*   @brief	Spawns a temp entity explosion effect at the entity's origin, and optionally frees the entity.
 **/
-void SVG_Misc_BecomeExplosion1( edict_t *self );
-/**
-*   @brief	Spawns a temp entity explosion effect at the entity's origin, and frees the entity.
-**/
-void SVG_Misc_BecomeExplosion2( edict_t *self );
+void SVG_Misc_BecomeExplosion( edict_t *self, int type = 0, const bool freeEntity = true );

@@ -96,9 +96,9 @@ void barrel_explode( edict_t *self ) {
 
     VectorCopy( save, self->s.origin );
     if ( self->groundInfo.entity ) {
-        SVG_Misc_BecomeExplosion2( self );
+        SVG_Misc_BecomeExplosion( self, 2 );
     } else {
-        SVG_Misc_BecomeExplosion1( self );
+        SVG_Misc_BecomeExplosion( self, 1 );
     }
 }
 

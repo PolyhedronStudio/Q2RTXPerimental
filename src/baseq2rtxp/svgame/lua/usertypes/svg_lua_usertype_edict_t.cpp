@@ -243,6 +243,29 @@ void lua_edict_t::set_string_targetname( sol::this_state s, const char *luaStrTa
 	this->edict->targetname = luaStrTargetName;
 }
 
+/**
+*	@brief
+**/
+const std::string lua_edict_t::get_string_luaname( sol::this_state s ) const {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
+	// Return pointer to copy into std::string
+	return ( this->edict->luaProperties.luaName ? (const char *)this->edict->luaProperties.luaName : "\0" );
+}
+/**
+*	@brief
+**/
+void lua_edict_t::set_string_luaname( sol::this_state s, const char *luaStrLuaName ) {
+	// Returns if invalid.
+	LUA_VALIDATE_EDICT_POINTER();
+	// nullptr it if the string is empty.
+	if ( !luaStrLuaName || luaStrLuaName[ 0 ] == '\0' ) {
+		this->edict->luaProperties.luaName = nullptr;
+	}
+	// Assign new value.
+	this->edict->luaProperties.luaName = luaStrLuaName;
+}
+
 
 
 /***
@@ -290,4 +313,5 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	lua_edict_type[ "className" ] = sol::property( &lua_edict_t::get_string_classname /*, &lua_edict_t::set_string_classname */ );
 	lua_edict_type[ "target" ] = sol::property( &lua_edict_t::get_string_target, &lua_edict_t::set_string_target );
 	lua_edict_type[ "targetName" ] = sol::property( &lua_edict_t::get_string_targetname, &lua_edict_t::set_string_targetname );
+	lua_edict_type[ "luaName" ] = sol::property( &lua_edict_t::get_string_luaname, &lua_edict_t::set_string_luaname );
 }

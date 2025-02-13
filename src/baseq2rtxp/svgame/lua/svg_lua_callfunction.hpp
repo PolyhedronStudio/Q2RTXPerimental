@@ -227,7 +227,7 @@ static const bool LUA_CallLuaNameEntityFunction( edict_t *ent, const std::string
 	
 	// Generate function 'callback' name.
 	if ( ent->luaProperties.luaName ) {
-		const std::string luaFunctionName = std::string( ent->luaProperties.luaName ) + "_" + callBackName;
+		const std::string luaFunctionName = std::string( ent->luaProperties.luaName.ptr ) + "_" + callBackName;
 		calledFunction = LUA_CallFunction( 
 			stateView, luaFunctionName,
 			// WID: TODO: Do proper argument inspectations perhaps?

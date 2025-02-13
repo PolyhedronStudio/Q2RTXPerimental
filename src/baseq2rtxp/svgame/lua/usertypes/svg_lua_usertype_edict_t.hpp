@@ -132,6 +132,15 @@ public:
 	*	@brief
 	**/
 	void set_string_targetname( sol::this_state s, const char *luaStrTargetName );
+
+	/**
+	*	@brief
+	**/
+	const std::string get_string_luaname( sol::this_state s ) const;
+	/**
+	*	@brief
+	**/
+	void set_string_luaname( sol::this_state s, const char *luaStrLuaName );
 };
 
 /**
