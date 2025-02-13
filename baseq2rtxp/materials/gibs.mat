@@ -1,0 +1,10 @@
+# This is for gib materials.
+
+models/gibs/gib2/gib2:
+	texture_base models/gibs/gib2/gib2.png
+	texture_normals models/gibs/gib2/gib2_n.png
+	base_factor 2.5
+	bump_scale 0.75
+	specular_factor 0.125
+	metalness_factor 0
+	roughness_override 0.75

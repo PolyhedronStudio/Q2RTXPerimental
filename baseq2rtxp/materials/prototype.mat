@@ -1,0 +1,133 @@
+textures/prototype/+0button_0,
+textures/prototype/+0button_1,
+textures/prototype/+0button_2,
+textures/prototype/+0button_3,
+textures/prototype/+0shbtn_1,
+textures/prototype/+0shbtn_2,
+textures/prototype/+0shbtn_3,
+textures/prototype/+0shbtn_4,
+textures/prototype/+0shbtn_5,
+textures/prototype/+0shbtn_6,
+textures/prototype/+0shbtn_7,
+textures/prototype/+1button_0,
+textures/prototype/+1button_1,
+textures/prototype/+1button_2,
+textures/prototype/+1button_3,
+textures/prototype/+1shbtn_1,
+textures/prototype/+1shbtn_2,
+textures/prototype/+1shbtn_3,
+textures/prototype/+1shbtn_4,
+textures/prototype/+1shbtn_5,
+textures/prototype/+1shbtn_6,
+textures/prototype/+1shbtn_7,
+textures/prototype/+2button_0,
+textures/prototype/+3button_0,
+textures/prototype/+4button_0,
+textures/prototype/+5button_0,
+textures/prototype/+abutton_0,
+textures/prototype/+abutton_1,
+textures/prototype/+abutton_2,
+textures/prototype/+abutton_3,
+textures/prototype/+ashbtn_1,
+textures/prototype/+ashbtn_2,
+textures/prototype/+ashbtn_3,
+textures/prototype/+ashbtn_4,
+textures/prototype/+ashbtn_5,
+textures/prototype/+ashbtn_6,
+textures/prototype/+ashbtn_7:
+	texture_base textures/prototype/*.tga
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	is_light 0
+	default_radiance 1
+	synth_emissive 0
+	emissive_threshold 215
+
+textures/prototype/+0button_0,
+textures/prototype/+1button_0,
+textures/prototype/+2button_0,
+textures/prototype/+3button_0,
+textures/prototype/+4button_0,
+textures/prototype/+5button_0:
+	texture_base textures/prototype/*.tga
+	texture_emissive textures/prototype/*_light.tga
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	emissive_factor 0.3
+	is_light 0
+	default_radiance 1
+	synth_emissive 0
+	emissive_threshold 215
+
+textures/prototype/fullbright_*,
+textures/prototype/honey_1:
+	texture_base textures/prototype/*.tga
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	emissive_factor 0.3
+	is_light 0
+	default_radiance 1
+	synth_emissive 1
+	emissive_threshold 215
+
+textures/prototype/text_E,
+textures/prototype/text_N,
+textures/prototype/text_S,
+textures/prototype/text_W,
+textures/prototype/text_smiley:
+	texture_base textures/prototype/*.tga
+	texture_emissive textures/prototype/*_light.tga
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	emissive_factor 0.125
+	is_light 1
+	default_radiance 1
+	synth_emissive 0
+	emissive_threshold 215
+
+textures/prototype/#lava2_1,
+textures/prototype/#lava2_2,
+textures/prototype/#lava2_3:
+	texture_base textures/prototype/*.tga
+	base_factor 1.0
+	kind LAVA
+
+textures/prototype/#lava_64_1,
+textures/prototype/#lava_64_2,
+textures/prototype/#lava_64_3:
+	texture_base textures/prototype/*.tga
+	base_factor 1.0
+	kind LAVA
+
+textures/prototype/#slime2_1,
+textures/prototype/#slime2_2,
+textures/prototype/#slime2_3:
+	texture_base textures/prototype/*.tga
+	base_factor 1.0
+	kind SLIME
+
+textures/prototype/#64_water1_1,
+textures/prototype/#64_water1_2,
+textures/prototype/#64_water1_3:
+	texture_base textures/prototype/*.tga
+	base_factor 1.0
+	kind WATER
+
+textures/prototype/#64_water2_1,
+textures/prototype/#64_water2_2,
+textures/prototype/#64_water2_3:
+	texture_base textures/prototype/*.tga
+	base_factor 1.0
+	kind WATER
+	
+textures/prototype/#water3_1,
+textures/prototype/#water3_2,
+textures/prototype/#water3_3:
+	texture_base textures/prototype/*.tga
+	base_factor 1.0
+	kind WATER
+	

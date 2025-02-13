@@ -1,0 +1,19 @@
+textures/lights/pa16_6daa2c,
+textures/lights/pa16_6dc2ca,
+textures/lights/pa16_597dce,
+textures/lights/pa16_854c30,
+textures/lights/pa16_30346d,
+textures/lights/pa16_346524,
+textures/lights/pa16_442434,
+textures/lights/pa16_757161,
+textures/lights/pa16_d2aa99,
+textures/lights/pa16_d27d2c,
+textures/lights/pa16_d04648,
+textures/lights/pa16_dad45e,
+textures/lights/pa16_deeed6:
+	texture_base textures/lights/*.tga
+    texture_emissive textures/lights/*_light.tga
+	base_factor 1.0
+	emissive_factor 0.294117647058825
+	is_light 1
+

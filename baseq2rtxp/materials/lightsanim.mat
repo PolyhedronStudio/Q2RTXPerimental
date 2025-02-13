@@ -1,0 +1,23 @@
+textures/lightsanim/+0d2aa99_757161:
+	texture_base textures/lightsanim/+0d2aa99_757161.tga
+	texture_emissive textures/lightsanim/+0d2aa99_757161_light.tga
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	emissive_factor 0.625
+	is_light 1
+	light_styles 1
+	default_radiance 1.0
+	bsp_radiance 1.0
+
+textures/lightsanim/+1d2aa99_757161:
+	texture_base textures/lightsanim/+1d2aa99_757161.tga
+	texture_emissive textures/lightsanim/+1d2aa99_757161_light.tga
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.000000
+	emissive_factor 0.625
+	is_light 1
+	light_styles 1
+	default_radiance 1.0
+	bsp_radiance 1.0

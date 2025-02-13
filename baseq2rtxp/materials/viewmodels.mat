@@ -1,0 +1,43 @@
+models/v_wep/fists/fps_arms,
+models/v_wep/pistol/fps_arms:
+	texture_base models/v_wep/fps_arms/fps_arms.tga
+	texture_normals models/v_wep/fps_arms/fps_arms_n.tga
+	base_factor 2.5
+	bump_scale 0.75
+	specular_factor 0.125
+	metalness_factor 0
+	roughness_override 0.75
+
+models/v_wep/pistol/pistol_black,
+models/v_wep/pistol/pistol_black_lighter,
+models/v_wep/pistol/pistol_grey_darker,
+models/v_wep/pistol/pistol_grey_dark,
+models/v_wep/pistol/pistol_brown_chestnut,
+models/v_wep/pistol/pistol_yellow_brass:
+	texture_base models/v_wep/pistol/pistolcolors.png
+	texture_normals models/v_wep/pistol/pistolcolors_n.png
+	base_factor 1
+	kind CHROME
+	bump_scale 1.0
+	specular_factor 0.85
+	metalness_factor 1
+
+models/v_wep/pistol/muzzleflash:
+	texture_base models/v_wep/pistol/muzzleflash.png
+	texture_mask models/v_wep/pistol/muzzleflash_m.png
+	base_factor 1
+	kind UNLIT
+
+models/g_wep/pistol/pistol_black,
+models/g_wep/pistol/pistol_black_lighter,
+models/g_wep/pistol/pistol_grey_darker,
+models/g_wep/pistol/pistol_grey_dark,
+models/g_wep/pistol/pistol_brown_chestnut,
+models/g_wep/pistol/pistol_yellow_brass:
+	texture_base models/v_wep/pistol/pistolcolors.png
+	texture_normals models/v_wep/pistol/pistolcolors_n.png
+	base_factor 1
+	kind CHROME
+	bump_scale 1.0
+	specular_factor 0.85
+	metalness_factor 1

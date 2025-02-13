@@ -1,0 +1,9 @@
+models/items/ammo/bullets_pistol/ammo_palette,
+models/items/ammo/bullets_rifle/ammo_palette,
+models/items/ammo/bullets_smg/ammo_palette,
+models/items/ammo/bullets_sniper/ammo_palette,
+models/items/ammo/shells_shotgun/ammo_palette:
+	texture_base models/items/ammo/ammo_palette.png
+	base_factor 1
+	specular_factor 0.525
+	roughness_override 1

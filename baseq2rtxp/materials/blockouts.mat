@@ -1,0 +1,113 @@
+textures/dark/tex_01,
+textures/dark/tex_02,
+textures/dark/tex_03,
+textures/dark/tex_04,
+textures/dark/tex_05,
+textures/dark/tex_06,
+textures/dark/tex_07,
+textures/dark/tex_08,
+textures/dark/tex_09,
+textures/dark/tex_10,
+textures/dark/tex_11,
+textures/dark/tex_12,
+textures/dark/tex_13:
+	texture_base **.png
+	base_factor 2.5
+	metalness_factor 0.000000
+	specular_factor 0.125
+	default_radiance 1
+
+textures/green/tex_01,
+textures/green/tex_02,
+textures/green/tex_03,
+textures/green/tex_04,
+textures/green/tex_05,
+textures/green/tex_06,
+textures/green/tex_07,
+textures/green/tex_08,
+textures/green/tex_09,
+textures/green/tex_10,
+textures/green/tex_11,
+textures/green/tex_12,
+textures/green/tex_13:
+	texture_base **.png
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.125
+	default_radiance 1
+
+textures/light/tex_01,
+textures/light/tex_02,
+textures/light/tex_03,
+textures/light/tex_04,
+textures/light/tex_05,
+textures/light/tex_06,
+textures/light/tex_07,
+textures/light/tex_08,
+textures/light/tex_09,
+textures/light/tex_10,
+textures/light/tex_11,
+textures/light/tex_12,
+textures/light/tex_13:
+	texture_base **.png
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.125
+	default_radiance 1
+
+textures/orange/tex_01,
+textures/orange/tex_02,
+textures/orange/tex_03,
+textures/orange/tex_04,
+textures/orange/tex_05,
+textures/orange/tex_06,
+textures/orange/tex_07,
+textures/orange/tex_08,
+textures/orange/tex_09,
+textures/orange/tex_10,
+textures/orange/tex_11,
+textures/orange/tex_12,
+textures/orange/tex_13:
+	texture_base **.png
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.125
+	default_radiance 1
+
+textures/purple/tex_01,
+textures/purple/tex_02,
+textures/purple/tex_03,
+textures/purple/tex_04,
+textures/purple/tex_05,
+textures/purple/tex_06,
+textures/purple/tex_07,
+textures/purple/tex_08,
+textures/purple/tex_09,
+textures/purple/tex_10,
+textures/purple/tex_11,
+textures/purple/tex_12,
+textures/purple/tex_13:
+	texture_base **.png
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.125
+	default_radiance 1
+
+textures/red/tex_01,
+textures/red/tex_02,
+textures/red/tex_03,
+textures/red/tex_04,
+textures/red/tex_05,
+textures/red/tex_06,
+textures/red/tex_07,
+textures/red/tex_08,
+textures/red/tex_09,
+textures/red/tex_10,
+textures/red/tex_11,
+textures/red/tex_12,
+textures/red/tex_13:
+	texture_base **.png
+	base_factor 1.0
+	metalness_factor 0.000000
+	specular_factor 0.125
+	default_radiance 1

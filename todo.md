@@ -135,8 +135,8 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 			- [X] func_rotating
 			- [ ] func_train
 				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
-			- [ ] func_wall
-				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
+			- [X] func_wall
+				- [X] Just rework the whole thing since its 'vanilla' behavior is really limited.
 		- [ ] (Point-)Triggers Signal I/O Support:
 			- [ ] trigger_always
 			- [ ] trigger_counter

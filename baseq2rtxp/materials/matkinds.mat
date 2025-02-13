@@ -1,0 +1,13 @@
+textures/matkinds/carpet,
+textures/matkinds/dirt,
+textures/matkinds/floor,
+textures/matkinds/grass,
+textures/matkinds/gravel,
+textures/matkinds/metal,
+textures/matkinds/snow,
+textures/matkinds/tile,
+textures/matkinds/wood:
+	texture_base textures/matkinds/*.png
+	base_factor 1.0
+	specular_factor 0.125
+	default_radiance 1

@@ -36,6 +36,10 @@ music/
 *.png
 *.sp2
 *.tga
+*.tga~
+*.kra~
+*.png~
+*.map~
 *.tmp
 *.wal
 *.wav
@@ -71,6 +75,7 @@ baseq2rtxp/maps/*.bsp
 !/baseq2q2rtxp/maps/scripts/*.lua
 /baseq2rtxp/materials
 /baseq2rtxp/textures/
+
 /baseq2rtxp/.conhistory
 /baseq2rtxp/demos/.democache
 
@@ -80,10 +85,12 @@ baseq2rtxp/maps/*.bsp
 /src/unix/res/q2pro.xbm~
 /local_entities_test.bat
 
-/baseq2rtxp/maps/mapsrc/q2rtxp_dev_sigio_targetrange-compile.map
-/baseq2rtxp/maps/mapsrc/q2rtxp_dev_sigio_targetrange.prt
+/baseq2rtxp/maps/mapsrc/*-compile.map
+/baseq2rtxp/maps/mapsrc/*.prt
 
 
 !/baseq2rtxp/_tb_icons/*
 !/baseq2rtxp/_tb_icons/unused/*
 !/trenchbroom/games/Q2RTXP/*
+!/baseq2rtxp/materials/
+!/baseq2rtxp/textures/

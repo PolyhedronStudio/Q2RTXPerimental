@@ -1,0 +1,59 @@
+textures/texts/targetsleft:
+	texture_base textures/texts/targetsleft.tga
+    texture_emissive textures/texts/targetsleft_light.tga
+    texture_mask textures/texts/targetsleft_m.tga
+	base_factor 2.5
+	emissive_factor 0.35
+    is_light 1
+	light_styles 1
+
+textures/texts/targetsleft0:
+	texture_base textures/texts/targetsleft0.tga
+    texture_emissive textures/texts/targetsleft0_light.tga
+    texture_mask textures/texts/targetsleft0_m.tga
+	base_factor 2.5
+	emissive_factor 0.35
+    is_light 1
+	light_styles 1
+	default_radiance 1.0
+	bsp_radiance 1.0
+textures/texts/targetsleft1:
+	texture_base textures/texts/targetsleft1.tga
+    texture_emissive textures/texts/targetsleft1_light.tga
+    texture_mask textures/texts/targetsleft1_m.tga
+	base_factor 2.5
+	emissive_factor 0.35
+    is_light 1
+	light_styles 1
+	default_radiance 1.0
+	bsp_radiance 1.0
+textures/texts/targetsleft2:
+	texture_base textures/texts/targetsleft2.tga
+    texture_emissive textures/texts/targetsleft2_light.tga
+    texture_mask textures/texts/targetsleft2_m.tga
+	base_factor 2.5
+	emissive_factor 0.35
+    is_light 1
+	light_styles 1
+	default_radiance 1.0
+	bsp_radiance 1.0
+textures/texts/targetsleft3:
+	texture_base textures/texts/targetsleft3.tga
+    texture_emissive textures/texts/targetsleft3_light.tga
+    texture_mask textures/texts/targetsleft3_m.tga
+	base_factor 2.5
+	emissive_factor 0.35
+    is_light 1
+	light_styles 1
+	default_radiance 1.0
+	bsp_radiance 1.0
+textures/texts/targetsleft4:
+	texture_base textures/texts/targetsleft4.tga
+    texture_emissive textures/texts/targetsleft4_light.tga
+    texture_mask textures/texts/targetsleft4_m.tga
+	base_factor 2.5
+	emissive_factor 0.35
+    is_light 1
+	light_styles 1
+	default_radiance 1.0
+	bsp_radiance 1.0

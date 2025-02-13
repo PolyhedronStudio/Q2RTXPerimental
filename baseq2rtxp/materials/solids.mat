@@ -1,0 +1,23 @@
+textures/clip:
+	texture_base textures/clip.png
+	base_factor 2.5
+textures/hint:
+	texture_base textures/hint.png
+	base_factor 2.5
+textures/monsterclip:
+	texture_base textures/monsterclip.png
+	base_factor 2.5
+textures/origin:
+	texture_base textures/origin.png
+	base_factor 2.5
+textures/sky:
+	texture_base textures/sky.png
+    kind SKY
+	base_factor 2.5
+textures/skylight:
+	texture_base textures/skylight.png
+	kind SKY
+	base_factor 2.5
+textures/trigger:
+	texture_base textures/trigger.png
+	base_factor 2.5
