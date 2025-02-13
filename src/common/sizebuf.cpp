@@ -28,7 +28,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /////////////////////////////////////////////////////////////////////////
 // TODO: Clean this? GetHuffMessageTree func?
 extern huffman_t	msgHuff;
-extern int32_t		oldsize;
+extern int64_t		oldsize;
 /////////////////////////////////////////////////////////////////////////
 
 static constexpr int32_t FLOAT_INT_BITS = 13;
@@ -247,9 +247,9 @@ void SZ_WriteUintBase128( sizebuf_t *sb, uint64_t c ) {
 	size_t len = 0;
 
 	do {
-		buf[ len ] = c & 0x7fU;
+		buf[ len ] = c & 0x7fLLU;
 		if ( c >>= 7 ) {
-			buf[ len ] |= 0x80U;
+			buf[ len ] |= 0x80LLU;
 		}
 		len++;
 	} while ( c );
@@ -261,7 +261,7 @@ void SZ_WriteUintBase128( sizebuf_t *sb, uint64_t c ) {
 **/
 void SZ_WriteIntBase128( sizebuf_t *sb, const int64_t c ) {
 	// use Zig-zag encoding for signed integers for more efficient storage
-	const uint64_t cc = (uint64_t)( c << 1 ) ^ (uint64_t)( c >> 63 );
+	const uint64_t cc = (uint64_t)( c << 1LL ) ^ (uint64_t)( c >> 63LL );
 	SZ_WriteUintBase128( sb, cc );
 }
 
@@ -406,7 +406,7 @@ const uint64_t SZ_ReadUintBase128( sizebuf_t *sb ) {
 
 	while ( len < 10 ) {
 		const uint8_t c = SZ_ReadUint8( sb );
-		i |= ( c & 0x7fLL ) << ( 7 * len );
+		i |= ( c & 0x7fLLU ) << ( 7 * len );
 		len++;
 
 		if ( !( c & 0x80 ) ) {
@@ -422,7 +422,7 @@ const uint64_t SZ_ReadUintBase128( sizebuf_t *sb ) {
 const int64_t SZ_ReadIntBase128( sizebuf_t *sb ) {
 	// un-Zig-Zag our value back to a signed integer
 	const uint64_t c = SZ_ReadUintBase128( sb );
-	return (int64_t)( c >> 1 ) ^ ( -(int64_t)( c & 1 ) );
+	return (int64_t)( c >> 1LL ) ^ ( -(int64_t)( c & 1LL ) );
 }
 
 /**
@@ -495,7 +495,7 @@ void *SZ_ReadData( sizebuf_t *buf, const size_t len ) {
 	return data;
 }
 
-
+//#define SIZEBUF_USE_Q3_HUFFMAN
 #ifndef SIZEBUF_USE_Q3_HUFFMAN
 /**
 *
@@ -507,7 +507,7 @@ void *SZ_ReadData( sizebuf_t *buf, const size_t len ) {
 /**
 *	@brief	Will write the value bits into the size buffer's data pointer + current offset.
 **/
-void SZ_WriteBits( sizebuf_t *sb, int64_t value, int32_t bits ) {
+void SZ_WriteBits( sizebuf_t *sb, int64_t value, int64_t bits ) {
 	if ( bits == 0 || bits < -63 || bits > 64 ) {
 		Com_Error( ERR_FATAL, "MSG_WriteBits: bad bits: %" PRIx64 "", bits );
 	}
@@ -542,7 +542,7 @@ void SZ_WriteBits( sizebuf_t *sb, int64_t value, int32_t bits ) {
 		case 32:
 			SZ_WriteUint32( sb, value );
 			return;
-		case -64:
+		case -63:
 			SZ_WriteInt64( sb, value );
 			return;
 		case 64:
@@ -552,7 +552,7 @@ void SZ_WriteBits( sizebuf_t *sb, int64_t value, int32_t bits ) {
 			break;
 		}
 	}
-	for ( int32_t i = 0; i < bits; i++, bitpos++ ) {
+	for ( int64_t i = 0; i < bits; i++, bitpos++ ) {
 		if ( ( bitpos & 7LLU ) == 0 ) {
 			sb->data[ bitpos >> 3 ] = 0;
 		}
@@ -565,7 +565,7 @@ void SZ_WriteBits( sizebuf_t *sb, int64_t value, int32_t bits ) {
 /**
 *	@brief	Will read the requested amount of bits from the sizebuffer's data pointer + offset.
 **/
-const int64_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
+const int64_t SZ_ReadBits( sizebuf_t *sb, int64_t bits ) {
 	if ( bits == 0 || bits < -63 || bits > 64 ) {
 		Com_Error( ERR_FATAL, "MSG_ReadBits: bad bits: %" PRIx64 "", bits);
 	}
@@ -602,7 +602,7 @@ const int64_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 	}
 
 	int64_t value = 0;
-	for ( int32_t i = 0; i < bits; i++, bitpos++ ) {
+	for ( int64_t i = 0; i < bits; i++, bitpos++ ) {
 		uint64_t get = ( sb->data[ bitpos >> 3 ] >> ( bitpos & 7 ) ) & 1;
 		value |= get << i;
 	}
@@ -611,7 +611,7 @@ const int64_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 
 	if ( isSigned ) {
 		if ( value & ( 1LLU << ( bits - 1 ) ) ) {
-			value |= -1 ^ ( ( 1LLU << bits ) - 1 );
+			value |= -1LL ^ ( ( 1LLU << bits ) - 1 );
 		}
 	}
 
@@ -628,8 +628,8 @@ const int64_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 /**
 *	@brief	Will write the value bits into the size buffer's data pointer + current offset.
 **/
-void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits ) {
-	int	i;
+void SZ_WriteBits( sizebuf_t *sb, int64_t value, int64_t bits ) {
+	int64_t i;
 
 	// TODO: Just apply msg_write but testing this for now.
 	sizebuf_t *msg = sb;
@@ -640,7 +640,7 @@ void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits ) {
 		return;
 	}
 
-	if ( bits == 0 || bits < -31 || bits > 32 ) {
+	if ( bits == 0 || bits < -63 || bits > 64 ) {
 		Com_Error( ERR_DROP, "%s: bad bits %i", __func__, bits );
 	}
 
@@ -671,13 +671,19 @@ void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits ) {
 
 			msg->cursize += 4;
 			msg->bitposition += 32;
+		} else if ( bits == 64 ) {
+			//CopyLittleLongLong( &msg->data[ msg->cursize ], &value );
+			LittleBlock( &msg->data[ msg->cursize ], &value, 8 );
+
+			msg->cursize += 8;
+			msg->bitposition += 64;
 		} else {
 			Com_Error( ERR_DROP, "%s: can't write %d bits", __func__, bits );
 		}
 	} else {
-		value &= ( 0xffffffff >> ( 32 - bits ) );
+		value &= ( 0xffffffffffffffff >> ( 64 - bits ) );
 		if ( bits & 7 ) {
-			int nbits;
+			int64_t nbits;
 			nbits = bits & 7;
 			if ( msg->bitposition + nbits > msg->maxsize << 3 ) {
 				msg->overflowed = qtrue;
@@ -706,11 +712,11 @@ void SZ_WriteBits( sizebuf_t *sb, int32_t value, int32_t bits ) {
 /**
 *	@brief	Will read the requested amount of bits from the sizebuffer's data pointer + offset.
 **/
-const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
-	int			value;
-	int			get;
+const int64_t SZ_ReadBits( sizebuf_t *sb, int64_t bits ) {
+	int64_t			value;
+	int64_t			get;
 	qboolean	sgn;
-	int			i, nbits;
+	int64_t			i, nbits;
 	//	FILE*	fp;
 
 	// TODO: Just apply msg_write but testing this for now.
@@ -752,6 +758,11 @@ const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 			LittleBlock( &value, &msg->data[ msg->readcount ], 4 );
 			msg->readcount += 4;
 			msg->bitposition += 32;
+		} else if ( bits == 64 ) {
+			//CopyLittleLongLong( &value, &msg->data[ msg->readcount ] );
+			LittleBlock( &value, &msg->data[ msg->readcount ], 4 );
+			msg->readcount += 8;
+			msg->bitposition += 64;
 		} else
 			Com_Error( ERR_DROP, "can't read %d bits", bits );
 	} else {
@@ -772,7 +783,7 @@ const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 			for ( i = 0; i < bits; i += 8 ) {
 				Huff_offsetReceive( msgHuff.decompressor.tree, &get, msg->data, &msg->bitposition, msg->cursize << 3 );
 				//				fwrite(&get, 1, 1, fp);
-				value = (unsigned int)value | ( (unsigned int)get << ( i + nbits ) );
+				value = (int64_t)value | ( (int64_t)get << ( i + nbits ) );
 
 				if ( msg->bitposition > msg->cursize << 3 ) {
 					msg->readcount = msg->cursize + 1;
@@ -783,9 +794,9 @@ const int32_t SZ_ReadBits( sizebuf_t *sb, int32_t bits ) {
 		}
 		msg->readcount = ( msg->bitposition >> 3 ) + 1;
 	}
-	if ( sgn && bits > 0 && bits < 32 ) {
-		if ( value & ( 1 << ( bits - 1 ) ) ) {
-			value |= -1 ^ ( ( 1 << bits ) - 1 );
+	if ( sgn && bits > 0 && bits < 64 ) {
+		if ( value & ( 1LL << ( bits - 1 ) ) ) {
+			value |= -1 ^ ( ( 1LL << bits ) - 1 );
 		}
 	}
 

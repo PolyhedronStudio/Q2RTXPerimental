@@ -383,11 +383,11 @@ const int32_t MSG_ReadUint8( void ) {
 /**
 *	@brief	... TODO ...
 **/
-int MSG_LookaheadByte( ) {
-	const int32_t bloc = Huff_getBloc();
-	const int32_t readcount = msg_read.readcount;
-	const int32_t bit = msg_read.bitposition;
-	int32_t c = MSG_ReadUint8( );
+const int64_t MSG_LookaheadByte( ) {
+	const int64_t bloc = Huff_getBloc();
+	const int64_t readcount = msg_read.readcount;
+	const int64_t bit = msg_read.bitposition;
+	int64_t c = MSG_ReadUint8( );
 	Huff_setBloc( bloc );
 	msg_read.readcount = readcount;
 	msg_read.bitposition = bit;

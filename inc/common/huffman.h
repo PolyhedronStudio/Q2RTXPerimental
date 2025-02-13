@@ -31,15 +31,15 @@ typedef struct nodetype {
 	struct	nodetype *left, *right, *parent; /* tree structure */
 	struct	nodetype *next, *prev; /* doubly-linked list */
 	struct	nodetype **head; /* highest ranked node in block */
-	int		weight;
-	int		symbol;
+	int64_t		weight;
+	int64_t		symbol;
 } node_t;
 
 #define HMAX 256 /* Maximum symbol */
 
 typedef struct {
-	int			blocNode;
-	int			blocPtrs;
+	int64_t			blocNode;
+	int64_t			blocPtrs;
 
 	node_t *tree;
 	node_t *lhead;
@@ -47,7 +47,7 @@ typedef struct {
 	node_t *loc[ HMAX + 1 ];
 	node_t **freelist;
 
-	node_t		nodeList[ 768 ];
+	node_t	nodeList[ 768 ];
 	node_t *nodePtrs[ 768 ];
 } huff_t;
 
@@ -56,20 +56,20 @@ typedef struct {
 	huff_t		decompressor;
 } huffman_t;
 
-void	Huff_Compress( struct sizebuf_s *buf, int offset );
-void	Huff_Decompress( struct sizebuf_s *buf, int offset );
+void	Huff_Compress( struct sizebuf_s *buf, int64_t offset );
+void	Huff_Decompress( struct sizebuf_s *buf, int64_t offset );
 void	Huff_Init( huffman_t *huff );
 void	Huff_addRef( huff_t *huff, byte ch );
-int		Huff_Receive( node_t *node, int *ch, byte *fin );
-void	Huff_transmit( huff_t *huff, int ch, byte *fout, int maxoffset );
-void	Huff_offsetReceive( node_t *node, int *ch, byte *fin, int *offset, int maxoffset );
-void	Huff_offsetTransmit( huff_t *huff, int ch, byte *fout, int *offset, int maxoffset );
-void	Huff_putBit( int bit, byte *fout, int *offset );
-int		Huff_getBit( byte *fout, int *offset );
+int64_t		Huff_Receive( node_t *node, int64_t *ch, byte *fin );
+void	Huff_transmit( huff_t *huff, int64_t ch, byte *fout, int64_t maxoffset );
+void	Huff_offsetReceive( node_t *node, int64_t *ch, byte *fin, int64_t *offset, int64_t maxoffset );
+void	Huff_offsetTransmit( huff_t *huff, int64_t ch, byte *fout, int64_t *offset, int64_t maxoffset );
+void	Huff_putBit( int64_t bit, byte *fout, int64_t *offset );
+int64_t		Huff_getBit( byte *fout, int64_t *offset );
 
 // don't use if you don't know what you're doing.
-int		Huff_getBloc( void );
-void	Huff_setBloc( int _bloc );
+int64_t		Huff_getBloc( void );
+void	Huff_setBloc( int64_t _bloc );
 
 
 extern huffman_t clientHuffTables;

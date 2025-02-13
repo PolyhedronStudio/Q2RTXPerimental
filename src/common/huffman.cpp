@@ -28,9 +28,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "common/sizebuf.h"
 #include "common/huffman.h"
 
-static int			bloc = 0;
+static int64_t			bloc = 0;
 
-void	Huff_putBit( int bit, byte *fout, int *offset ) {
+void	Huff_putBit( int64_t bit, byte *fout, int64_t *offset ) {
 	bloc = *offset;
 	if ( ( bloc & 7 ) == 0 ) {
 		fout[ ( bloc >> 3 ) ] = 0;
@@ -40,16 +40,16 @@ void	Huff_putBit( int bit, byte *fout, int *offset ) {
 	*offset = bloc;
 }
 
-int		Huff_getBloc( void ) {
+int64_t Huff_getBloc( void ) {
 	return bloc;
 }
 
-void	Huff_setBloc( int _bloc ) {
+void	Huff_setBloc( int64_t _bloc ) {
 	bloc = _bloc;
 }
 
-int		Huff_getBit( byte *fin, int *offset ) {
-	int t;
+int64_t Huff_getBit( byte *fin, int64_t *offset ) {
+	int64_t t;
 	bloc = *offset;
 	t = ( fin[ ( bloc >> 3 ) ] >> ( bloc & 7 ) ) & 0x1;
 	bloc++;
@@ -67,8 +67,8 @@ static void add_bit( char bit, byte *fout ) {
 }
 
 /* Receive one bit from the input file (buffered) */
-static int get_bit( byte *fin ) {
-	int t;
+static int64_t get_bit( byte *fin ) {
+	int64_t t;
 	t = ( fin[ ( bloc >> 3 ) ] >> ( bloc & 7 ) ) & 0x1;
 	bloc++;
 	return t;
@@ -262,7 +262,7 @@ void Huff_addRef( huff_t *huff, byte ch ) {
 }
 
 /* Get a symbol */
-int Huff_Receive( node_t *node, int *ch, byte *fin ) {
+int64_t Huff_Receive( node_t *node, int64_t *ch, byte *fin ) {
 	while ( node && node->symbol == INTERNAL_NODE ) {
 		if ( get_bit( fin ) ) {
 			node = node->right;
@@ -278,7 +278,7 @@ int Huff_Receive( node_t *node, int *ch, byte *fin ) {
 }
 
 /* Get a symbol */
-void Huff_offsetReceive( node_t *node, int *ch, byte *fin, int *offset, int maxoffset ) {
+void Huff_offsetReceive( node_t *node, int64_t *ch, byte *fin, int64_t *offset, int64_t maxoffset ) {
 	bloc = *offset;
 	while ( node && node->symbol == INTERNAL_NODE ) {
 		if ( bloc >= maxoffset ) {
@@ -302,7 +302,7 @@ void Huff_offsetReceive( node_t *node, int *ch, byte *fin, int *offset, int maxo
 }
 
 /* Send the prefix code for this node */
-static void send( node_t *node, node_t *child, byte *fout, int maxoffset ) {
+static void send( node_t *node, node_t *child, byte *fout, int64_t maxoffset ) {
 	if ( node->parent ) {
 		send( node->parent, node, fout, maxoffset );
 	}
@@ -320,8 +320,8 @@ static void send( node_t *node, node_t *child, byte *fout, int maxoffset ) {
 }
 
 /* Send a symbol */
-void Huff_transmit( huff_t *huff, int ch, byte *fout, int maxoffset ) {
-	int i;
+void Huff_transmit( huff_t *huff, int64_t ch, byte *fout, int64_t maxoffset ) {
+	int64_t i;
 	if ( huff->loc[ ch ] == NULL ) {
 		/* node_t hasn't been transmitted, send a NYT, then the symbol */
 		Huff_transmit( huff, NYT, fout, maxoffset );
@@ -333,14 +333,14 @@ void Huff_transmit( huff_t *huff, int ch, byte *fout, int maxoffset ) {
 	}
 }
 
-void Huff_offsetTransmit( huff_t *huff, int ch, byte *fout, int *offset, int maxoffset ) {
+void Huff_offsetTransmit( huff_t *huff, int64_t ch, byte *fout, int64_t *offset, int64_t maxoffset ) {
 	bloc = *offset;
 	send( huff->loc[ ch ], NULL, fout, maxoffset );
 	*offset = bloc;
 }
 
-void Huff_Decompress( sizebuf_t *mbuf, int offset ) {
-	int			ch, cch, i, j, size;
+void Huff_Decompress( sizebuf_t *mbuf, int64_t offset ) {
+	int64_t			ch, cch, i, j, size;
 	byte		seq[ 65536 ];
 	byte *buffer;
 	huff_t		huff;
@@ -391,8 +391,8 @@ void Huff_Decompress( sizebuf_t *mbuf, int offset ) {
 	memcpy( mbuf->data + offset, seq, cch );
 }
 
-void Huff_Compress( sizebuf_t *mbuf, int offset ) {
-	int			i, ch, size;
+void Huff_Compress( sizebuf_t *mbuf, int64_t offset ) {
+	int64_t			i, ch, size;
 	byte		seq[ 65536 ];
 	byte *buffer;
 	huff_t		huff;

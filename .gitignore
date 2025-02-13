@@ -73,7 +73,6 @@ baseq2rtxp/maps/*.prt
 baseq2rtxp/maps/*.bsp
 !/baseq2q2rtxp/maps/sky/*.txt
 !/baseq2q2rtxp/maps/scripts/*.lua
-/baseq2rtxp/materials
 /baseq2rtxp/textures/
 
 /baseq2rtxp/.conhistory
@@ -88,9 +87,9 @@ baseq2rtxp/maps/*.bsp
 /baseq2rtxp/maps/mapsrc/*-compile.map
 /baseq2rtxp/maps/mapsrc/*.prt
 
-
-!/baseq2rtxp/_tb_icons/*
-!/baseq2rtxp/_tb_icons/unused/*
-!/trenchbroom/games/Q2RTXP/*
+!*.skc
+!/baseq2rtxp/_tb_icons/
+!/baseq2rtxp/_tb_icons/unused/
+!/trenchbroom/games/Q2RTXP/
 !/baseq2rtxp/materials/
 !/baseq2rtxp/textures/

@@ -41,10 +41,10 @@ QEXTERN_C_OPEN
 		byte		*data;
 		qboolean	overflowed;				// Set to true if the buffer size failed (with allowoverflow set).
 		qboolean	oob;					// Set to true if the buffer size failed (with allowoverflow set).
-		int32_t		maxsize;				// Maximum size in bytes.
-		int32_t		cursize;				// Current size in Bytes.
-		int32_t		readcount;				// Bytes read.
-		int32_t		bitposition;				// For bitwise reads and writes.
+		int64_t		maxsize;				// Maximum size in bytes.
+		int64_t		cursize;				// Current size in Bytes.
+		int64_t		readcount;				// Bytes read.
+		int64_t		bitposition;				// For bitwise reads and writes.
 		const char *tagstr;					// Only used for debug output in case of discrepancies..
 	} sizebuf_t;
 
@@ -65,7 +65,7 @@ QEXTERN_C_OPEN
 	static inline void *SZ_WriteData( sizebuf_t *buf, const void *data, const size_t len ) {
 		return memcpy( SZ_GetSpace( buf, len ), data, len );
 	}
-	void SZ_WriteBits( sizebuf_t *sb, int64_t value, int32_t bits );
+	void SZ_WriteBits( sizebuf_t *sb, int64_t value, int64_t bits );
 	void SZ_WriteInt8( sizebuf_t *sb, const int32_t c );
 	void SZ_WriteUint8( sizebuf_t *sb, const uint32_t c );
 	void SZ_WriteInt16( sizebuf_t *sb, const int32_t c );
@@ -92,7 +92,7 @@ QEXTERN_C_OPEN
 	void SZ_BeginReadingOOB( sizebuf_t *buf );
 
 	void *SZ_ReadData( sizebuf_t *buf, size_t len );
-	const int64_t SZ_ReadBits( sizebuf_t *sb, int32_t bits );
+	const int64_t SZ_ReadBits( sizebuf_t *sb, int64_t bits );
 	const int32_t SZ_ReadInt8( sizebuf_t *sb );
 	const int32_t SZ_ReadUint8( sizebuf_t *sb );
 	const int32_t SZ_ReadInt16( sizebuf_t *sb );
