@@ -636,28 +636,35 @@ void CLG_HUD_DrawLineCrosshair( ) {
     recoilScale = CLG_HUD_UpdateRecoilScale( clgi.GetRealTime(), easeDuration );
     double easeFraction = 0.;
     if ( easeInOrOut == 0 ) {
-        easeFraction = QM_Clampd( 1.0 - QM_QuarticEaseOut( recoilScale ), 0., 1. );
+        easeFraction = QM_Clampd( 1 - QM_Remapd( QM_QuarticEaseOut( 1.0 - recoilScale ),
+            hud.crosshair.recoil.lastRecoil, hud.crosshair.recoil.currentRecoil,
+            0., 1. ),
+            1, 2 );
     } else {
-        easeFraction = QM_Clampd( 1.0 - QM_QuarticEaseIn( recoilScale ), 0., 1. );
+        easeFraction = QM_Clampd( 1 - QM_Remapd(  QM_QuarticEaseIn( 1.0 - recoilScale ),
+            hud.crosshair.recoil.lastRecoil, hud.crosshair.recoil.currentRecoil,
+            0., 1. ),
+            1, 2 );
     }
+
     // WID: TODO: Lerp fix.
-    easeFraction = hud.crosshair.recoil.currentRecoil;
+    //easeFraction = ( hud.crosshair.recoil.currentRecoil - hud.crosshair.recoil.lastRecoil );
 
     /**
     *   Calculate the recoil derived offsets, as well as widths and heights.
     **/
     // Default idle crosshair values.
-    double chCenterOffsetRadius = CROSSHAIR_ABSOLUTE_CENTER_ORIGIN_OFFSET;// *( crosshairBaseScale + easeFraction );
-    double chHorizontalWidth = CROSSHAIR_HORIZONTAL_WIDTH; //+CROSSHAIR_HORIZONTAL_WIDTH * ( crosshairBaseScale + easeFraction );
-    double chVerticalHeight = CROSSHAIR_VERTICAL_HEIGHT; //+CROSSHAIR_VERTICAL_HEIGHT * ( crosshairBaseScale + easeFraction );
+    double chCenterOffsetRadius = CROSSHAIR_ABSOLUTE_CENTER_ORIGIN_OFFSET * crosshairBaseScale;// *( crosshairBaseScale + easeFraction );
+    double chHorizontalWidth = CROSSHAIR_HORIZONTAL_WIDTH * crosshairBaseScale; //+CROSSHAIR_HORIZONTAL_WIDTH * ( crosshairBaseScale + easeFraction );
+    double chVerticalHeight = CROSSHAIR_VERTICAL_HEIGHT * crosshairBaseScale; //+CROSSHAIR_VERTICAL_HEIGHT * ( crosshairBaseScale + easeFraction );
     // Now to be adjusted by possible recoil.
     chCenterOffsetRadius = chCenterOffsetRadius + ( chCenterOffsetRadius * easeFraction );
     chHorizontalWidth = chHorizontalWidth + ( chHorizontalWidth * easeFraction );
     chVerticalHeight = chVerticalHeight + ( chVerticalHeight * easeFraction );
-    // Now adjust by base scale to get the final result.
-    chCenterOffsetRadius *= crosshairBaseScale;
-    chHorizontalWidth *= crosshairBaseScale;
-    chVerticalHeight *= crosshairBaseScale;
+    //// Now adjust by base scale to get the final result.
+    //chCenterOffsetRadius *= crosshairBaseScale;
+    //chHorizontalWidth *= crosshairBaseScale;
+    //chVerticalHeight *= crosshairBaseScale;
 
     // Developer Debug:
     #if 0
