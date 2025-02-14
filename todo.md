@@ -122,10 +122,9 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 			- [ ] func_conveyor
 			- [x] func_door
 			- [x] func_door_rotating
-			- [X] func_explosive
+			- [/] func_explosive
 				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
-			- [ ] func_rotating
-				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
+			- [X] func_rotating
 			- [ ] func_killbox
 				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
 			- [ ] func_object

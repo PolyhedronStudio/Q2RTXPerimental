@@ -578,8 +578,9 @@ const double CLG_HUD_UpdateRecoilScale( const uint64_t realTime, const uint64_t 
         _realTime = realTime;
     }
     
+    int64_t recoilDeltaTime = _realTime - hud.crosshair.recoil.changeTime;
     // Lerp fraction, clamp for discrepancies.
-    const double lerpFraction = (double)( realTime - hud.crosshair.recoil.changeTime ) / easeDuration;
+    const double lerpFraction = (double)( recoilDeltaTime ) / easeDuration;
 
     // Update the exact time for lerping crosshair display, which is when the current recoil change took place.
     if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
@@ -587,7 +588,7 @@ const double CLG_HUD_UpdateRecoilScale( const uint64_t realTime, const uint64_t 
         hud.crosshair.recoil.currentRecoil = BYTE2BLEND( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] );
         hud.crosshair.recoil.lastRecoil = BYTE2BLEND( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] );
 
-        hud.crosshair.recoil.changeTime = realTime;
+        hud.crosshair.recoil.changeTime = _realTime;
     }
 
     // Return lerpfracion.
@@ -639,6 +640,8 @@ void CLG_HUD_DrawLineCrosshair( ) {
     } else {
         easeFraction = QM_Clampd( 1.0 - QM_QuarticEaseIn( recoilScale ), 0., 1. );
     }
+    // WID: TODO: Lerp fix.
+    easeFraction = hud.crosshair.recoil.currentRecoil;
 
     /**
     *   Calculate the recoil derived offsets, as well as widths and heights.
