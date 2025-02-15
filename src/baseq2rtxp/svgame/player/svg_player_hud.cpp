@@ -305,7 +305,6 @@ void SVG_HUD_DeathmatchScoreboard(edict_t *ent)
 
 
 //=======================================================================
-
 /**
 *   @brief  Specific 'Weaponry' substitute function for SVG_HUD_SetStats.
 **/
@@ -361,7 +360,7 @@ void SVG_SetWeaponStats( edict_t *ent ) {
     // Recoil.
     //
     if ( ent->client->weaponState.recoil.amount >= 0 ) {
-        ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = BLEND2BYTE( ent->client->weaponState.recoil.amount );
+        ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = float_to_half( ent->client->weaponState.recoil.amount );
         //gi.dprintf( "%s: recoil.amount(%llu)\n", __func__, ent->client->ps.stats[ STAT_WEAPON_RECOIL ] );
     } else {
         ent->client->weaponState.recoil.amount = 0;

@@ -226,8 +226,9 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 //! Endian Utilities:
 #include "shared/util_endian.h"
 //! Encode/Decode utilities
-#include "shared/util_encode.h"
 #include "shared/util_decode.h"
+#include "shared/util_encode.h"
+#include "shared/util_halffloat.h"
 //! List Utility:
 #include "shared/util_list.h"
 //! String Utilities:

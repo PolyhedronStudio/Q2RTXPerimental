@@ -1,5 +1,3 @@
-// Model of IEEE 754 half-precision floating-point format.
-#if 0
 // https://gist.github.com/rygorous/2156668
 
 // float->half variants.
@@ -74,7 +72,9 @@
 // exactly a fast operation. There's a reason this one prints regular progress
 // reports. You've been warned.
 
-#include <stdint.h>
+#pragma once
+
+#ifdef __cplusplus
 
 typedef union {
 	uint32_t u;
@@ -153,4 +153,5 @@ static inline float half_to_float( uint16_t h ) {
 	o.u |= ( h & 0x8000 ) << 16;    // sign bit
 	return o.f;
 }
+
 #endif
