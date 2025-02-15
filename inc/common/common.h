@@ -41,7 +41,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define COM_AUTOEXEC_CFG    "autoexec.cfg"
 #define COM_POSTEXEC_CFG    "postexec.cfg"
 #define COM_POSTINIT_CFG    "postinit.cfg"
-#define COM_CONFIG_CFG      "q2config.cfg"
+#define COM_CONFIG_CFG      "q2rtxpconfig.cfg"
 
 // FIXME: rename these
 #define COM_HISTORYFILE_NAME    ".conhistory"
