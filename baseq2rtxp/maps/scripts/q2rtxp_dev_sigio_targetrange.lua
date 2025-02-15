@@ -76,17 +76,18 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         return true
     -- It just got killed, stop the train track, 'open' the door, notify players, and update score.
     elseif ( signalName == "OnKilled" ) then
+        mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
+
         -- Decrement number of targets alive count, only if we're the team master that is being signalled.
-        if ( self.teamMaster == self.targetName ) then
-            mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
+        --if ( self.teamMaster == self.targetName ) then
+            
             -- Set score counter frame.
             local scoreCounterEntityA = Game.GetEntityForTargetName( "targetsleftcounter0" )
             local scoreCounterEntityB = Game.GetEntityForTargetName( "targetsleftcounter1" )
             -- Change texture of 'animslight' its frame to first, so it turns white-ish indicating this target is killable.
             scoreCounterEntityA.state.frame = mapStates.targetRange.targetsAlive
             scoreCounterEntityB.state.frame = mapStates.targetRange.targetsAlive
-        end
-
+        --end
         -- Notify of the kill.
         Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
         -- Turn off the train for this target.
@@ -134,7 +135,7 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             -- Signal it to be unpressed again.
             entities:SignalOutDelay( targetRangeButtonEntity, signaller, activator, "UnPress", {}, 0.1 )
             -- Adjust frame to match it being pressable again, signalling red animation style that target range is inactive.
-            --targetRangeButtonEntity.state.frame = 0
+            targetRangeButtonEntity.state.frame = 0
 
             -- Turn off the HoloGram text displays.
             TargetsLeftHoloGram_ToggleState( 0.1, false, signaller, activator )
@@ -267,7 +268,7 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             -- -- Iterate over the matching targetname light entities.
             for targetRangeLightKey,targetRangeLight in pairs(targetRangeLights) do
                 -- Turn off the light for this target.
-                Game.UseTarget( targetRangeLight, self, activator, EntityUseTargetType.OFF, 0 )
+                Game.UseTarget( targetRangeLight, self, activator, EntityUseTargetType.OFF, 0, 1.5 )
             end
 
             -- Set its frame to 'orange' state.
