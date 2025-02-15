@@ -932,7 +932,7 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
 		break;
 
     default:
-        #if USE_DEBUG
+        #if !defined(_USE_DEBUG)
         gi.error( "%s: unknown field type(%d)", __func__, field->type );
         #else
         gi.error( "%s: unknown field type(%d), name(%s)", __func__, field->type, field->name );
@@ -1295,7 +1295,7 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
 		break;
 
     default:
-        #if USE_DEBUG
+        #if !defined( _USE_DEBUG )
         gi.error("%s: unknown field type(%d)", __func__, field->type );
         #else
         gi.error( "%s: unknown field type(%d), name(%s)", __func__, field->type, field->name );

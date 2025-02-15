@@ -126,13 +126,13 @@ static struct hud_state_t {
         //! For recoil display scaling.
         struct {
             ////! Stats values of the current and last frame.
-            //int32_t currentStatsValue = 0, lastStatsValue = 0;
+            int32_t currentRecoilStats = 0, lastRecoilStats = 0;
             //! Decoded floating point values, scaled to between (0.0, 1.0).
             double  currentRecoil = 0, lastRecoil = 0;
             //! Realtime at which recoil value change took place.
-            uint64_t changeTime = 0;
+            QMTime changeTime = 0_ms;
             //! Duration of current ease.
-            uint64_t easeDuration = 0;
+            QMTime easeDuration = 0_ms;
             //! 
         } recoil = {};
     } crosshair = {};
@@ -566,33 +566,51 @@ void CLG_HUD_DrawChat( void ) {
 * 
 *
 **/
+
 /**
 *   @brief  Updates the hud's recoil status based on old/current frame difference and returns
 *           the lerpFracion to use for scaling the recoil display.
 *   @return Lerpfrac between last and current weapon recoil.
 **/
-const double CLG_HUD_UpdateRecoilScale( const uint64_t realTime, const uint64_t easeDuration ) {
-    // Update realtime only if we're not paused.
-    static uint64_t _realTime = realTime;
-    if ( !CLG_IsGameplayPaused() ) {
-        _realTime = realTime;
+const double CLG_HUD_UpdateRecoilLerp( const float start, const float end, const QMTime &realTime, const QMTime &duration ) {
+  //  // Update the exact time for lerping crosshair display, which is when the current recoil change took place.
+  //  if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
+		//// Update stats values we received from the server.
+  //      hud.crosshair.recoil.currentRecoilStats = clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ];
+  //      hud.crosshair.recoil.lastRecoilStats = clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ];
+
+  //      // Decoded floating point recoil scale of current and last frame.
+  //      hud.crosshair.recoil.currentRecoil = BYTE2BLEND( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] );
+  //      hud.crosshair.recoil.lastRecoil = BYTE2BLEND( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] );
+
+  //      // Record time changed.
+  //      hud.crosshair.recoil.changeTime = realTime;
+  //  }
+    // Delta Time.
+    const QMTime recoilDeltaTime = realTime - hud.crosshair.recoil.changeTime;
+
+    //if ( hud.crosshair.recoil.changeTime + duration < realTime ) {
+    //    return start;
+    //} else if ( hud.crosshair.recoil.changeTime > realTime + duration ) {
+    //    return end;
+    //}
+    if ( recoilDeltaTime < 0_ms ) {
+        return start;
+    } else if ( recoilDeltaTime >= duration ) {
+        return end;
     }
-    
-    int64_t recoilDeltaTime = _realTime - hud.crosshair.recoil.changeTime;
+
     // Lerp fraction, clamp for discrepancies.
-    const double lerpFraction = (double)( recoilDeltaTime ) / easeDuration;
+    const double easeFraction = (double)( recoilDeltaTime.Milliseconds() ) / duration.Milliseconds();
+    // Determine easefactor.
+    const double easeFactor = QM_QuarticEaseIn( easeFraction );
 
-    // Update the exact time for lerping crosshair display, which is when the current recoil change took place.
-    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-        // Decoded floating point recoil scale of current and last frame.
-        hud.crosshair.recoil.currentRecoil = BYTE2BLEND( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] );
-        hud.crosshair.recoil.lastRecoil = BYTE2BLEND( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] );
-
-        hud.crosshair.recoil.changeTime = _realTime;
-    }
-
+    // Lerp value.
+	const double lerpFraction = QM_Lerp( start, end, easeFactor );
+    // Clamped lerp value.
+	const double clampedLerpFraction = QM_Clampd( lerpFraction, 0, 1 );
     // Return lerpfracion.
-    return lerpFraction;
+    return clampedLerpFraction;
 }
 /**
 *   @brief  Renders a pic based crosshair.
@@ -620,36 +638,68 @@ void CLG_HUD_DrawLineCrosshair( ) {
     /**
     *   Get Ease Fraction.
     **/
-    // Calculate the crosshair scale based on the recoil's value, lerp it over 25ms.
-    static double recoilScale = 0.f;
-    static uint64_t easeDuration = 25;
+    //// Calculate the crosshair scale based on the recoil's value, lerp it over 25ms.
+    //#if 1
+    //static double recoilScale = 0.f;
+    //static uint64_t easeDuration = 25;
+    //static int32_t easeInOrOut = 1; // 0 == ease out, 1 == ease in.
+    //if ( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] <= 0 ) {
+    //    easeDuration = 100;
+    //    easeInOrOut = 1;
+    //} else {
+    //    easeDuration = 50;
+    //    easeInOrOut = 0;
+    //}
+    //#else
+    QMTime realTime = QMTime::FromMilliseconds( clgi.GetRealTime() );
+
+    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
+        // Update stats values we received from the server.
+        hud.crosshair.recoil.currentRecoilStats = clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ];
+        hud.crosshair.recoil.lastRecoilStats = clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ];
+
+        // Decoded floating point recoil scale of current and last frame.
+        hud.crosshair.recoil.currentRecoil = BYTE2BLEND( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] );
+        hud.crosshair.recoil.lastRecoil = BYTE2BLEND( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] );
+
+        // Record time changed.
+        if ( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] != 0 ) {
+            hud.crosshair.recoil.changeTime = realTime;
+        }
+    }
+
+
+    double recoilScale = 0.f;
+    static QMTime easeDuration = 25_ms;
     static int32_t easeInOrOut = 1; // 0 == ease out, 1 == ease in.
-    if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] > clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-        easeDuration = 100;
+    if ( clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] <= 0 ) {
+        easeDuration = 100_ms;
         easeInOrOut = 1;
-    } else if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] < clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
-        easeDuration = 25;
+    } else if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] > clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
+        easeDuration = 25_ms;
         easeInOrOut = 0;
     }
+    //#endif
 
-    // Default to 0.
-    recoilScale = CLG_HUD_UpdateRecoilScale( clgi.GetRealTime(), easeDuration );
-    double easeFraction = 0.;
-    if ( easeInOrOut == 0 ) {
-        easeFraction = QM_Clampd( 1 - QM_Remapd( QM_QuarticEaseOut( 1.0 - recoilScale ),
-            hud.crosshair.recoil.lastRecoil, hud.crosshair.recoil.currentRecoil,
-            0., 1. ),
-            1, 2 );
-    } else {
-        easeFraction = QM_Clampd( 1 - QM_Remapd(  QM_QuarticEaseIn( 1.0 - recoilScale ),
-            hud.crosshair.recoil.lastRecoil, hud.crosshair.recoil.currentRecoil,
-            0., 1. ),
-            1, 2 );
-    }
+    //// Default to 0.
+    recoilScale = CLG_HUD_UpdateRecoilLerp( 
+        hud.crosshair.recoil.currentRecoil, hud.crosshair.recoil.lastRecoil,
+        realTime, easeDuration );
+    //double easeFraction = 0.;
+    //if ( easeInOrOut == 0 ) {
+    //    easeFraction = QM_Clampd( QM_QuarticEaseOut( 1.0 - recoilScale ), 0, 1 );
+    //} else {
+    //    easeFraction = QM_Clampd( QM_QuarticEaseIn( recoilScale ), 0, 1 );
+    //}
 
-    // WID: TODO: Lerp fix.
-    //easeFraction = ( hud.crosshair.recoil.currentRecoil - hud.crosshair.recoil.lastRecoil );
+    //if ( hud.crosshair.recoil.currentRecoil != hud.crosshair.recoil.lastRecoil ) {
+    //    // WID: TODO: Lerp fix.
+    //    easeFraction = hud.crosshair.recoil.currentRecoil - hud.crosshair.recoil.lastRecoil ) * 1.0 - clgi.client->lerpfrac );
+    //}
 
+    double lastRecoil = BYTE2BLEND( hud.crosshair.recoil.currentRecoil );
+    double currentRecoil = BYTE2BLEND( hud.crosshair.recoil.currentRecoil );
+    //recoilScale = currentRecoil;
     /**
     *   Calculate the recoil derived offsets, as well as widths and heights.
     **/
@@ -658,34 +708,34 @@ void CLG_HUD_DrawLineCrosshair( ) {
     double chHorizontalWidth = CROSSHAIR_HORIZONTAL_WIDTH * crosshairBaseScale; //+CROSSHAIR_HORIZONTAL_WIDTH * ( crosshairBaseScale + easeFraction );
     double chVerticalHeight = CROSSHAIR_VERTICAL_HEIGHT * crosshairBaseScale; //+CROSSHAIR_VERTICAL_HEIGHT * ( crosshairBaseScale + easeFraction );
     // Now to be adjusted by possible recoil.
-    chCenterOffsetRadius = chCenterOffsetRadius + ( chCenterOffsetRadius * easeFraction );
-    chHorizontalWidth = chHorizontalWidth + ( chHorizontalWidth * easeFraction );
-    chVerticalHeight = chVerticalHeight + ( chVerticalHeight * easeFraction );
+    chCenterOffsetRadius = chCenterOffsetRadius + ( chCenterOffsetRadius * recoilScale );
+    chHorizontalWidth = chHorizontalWidth + ( chHorizontalWidth * recoilScale );
+    chVerticalHeight = chVerticalHeight + ( chVerticalHeight * recoilScale );
     //// Now adjust by base scale to get the final result.
     //chCenterOffsetRadius *= crosshairBaseScale;
     //chHorizontalWidth *= crosshairBaseScale;
     //chVerticalHeight *= crosshairBaseScale;
 
     // Developer Debug:
-    #if 0
+    #if 1
     if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] != clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
         static uint64_t debugprintframe = 0;
         if ( debugprintframe != level.frameNumber ) {
             debugprintframe = level.frameNumber;
             clgi.Print( PRINT_DEVELOPER, "---------------------------------------------------\n" );
-            clgi.Print( PRINT_DEVELOPER, "realTime=#%ull, level.time=#%ull, frameNumber=#%ull\n",
-                clgi.GetRealTime(),
-                level.time,
-                level.frameNumber
-            );
-            clgi.Print( PRINT_DEVELOPER, "easeFraction(%f), lastRecoil(%f), currentRecoil(%f)\n",
-                easeFraction, 
+            //clgi.Print( PRINT_DEVELOPER, "realTime=#%ull, level.time=#%ull, frameNumber=#%ull\n",
+            //    realTime.Milliseconds(),
+            //    level.time.Milliseconds(),
+            //    level.frameNumber
+            //);
+            clgi.Print( PRINT_DEVELOPER, "recoilScale(%f), lastRecoil(%f), currentRecoil(%f)\n",
+                recoilScale,
                 hud.crosshair.recoil.lastRecoil, hud.crosshair.recoil.currentRecoil  
             );
-            clgi.Print( PRINT_DEVELOPER, "chCenterOffsetRadius(%f), chHorizontalWidth(%f), chVerticalHeight(%f)\n",
-                chCenterOffsetRadius,
-                chHorizontalWidth, chVerticalHeight
-            );
+            //clgi.Print( PRINT_DEVELOPER, "chCenterOffsetRadius(%f), chHorizontalWidth(%f), chVerticalHeight(%f)\n",
+            //    chCenterOffsetRadius,
+            //    chHorizontalWidth, chVerticalHeight
+            //);
         }
     }
     #endif
@@ -1048,7 +1098,7 @@ static const bool HUD_FormatToken_ForAction( std::string_view &stringToken, hud_
             return false;
 
         }
-        clgi.Print( PRINT_DEVELOPER, "%s\n", hudToken.value.c_str() );
+        //clgi.Print( PRINT_DEVELOPER, "%s\n", hudToken.value.c_str() );
 
         if ( firstOfMinus == std::string::npos && firstOfPlus == std::string::npos ) {
             hudToken.value = hudToken.value.substr( 0, hudToken.value.size() ); // hudToken.value.substr( 1, hudToken.value.size() - 2 );

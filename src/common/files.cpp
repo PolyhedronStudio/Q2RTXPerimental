@@ -3740,11 +3740,12 @@ static void fs_game_changed(cvar_t *self)
 
         FS_Path_f();
 
-        bool have_conchars = FS_FileExists("pics/conchars.pcx") || FS_FileExists("pics/conchars.png"); // PCX: original release, PNG: rerelease
-        if (!FS_FileExists("pics/colormap.pcx") || !have_conchars || !FS_FileExists("default.cfg"))
-		{
-			Com_Error(ERR_FATAL, "No game data files detected. Please make sure that there are .pak files"
-				" in the game directory: %s.\nReinstalling the game can fix the issue.", fs_gamedir);
+        bool have_conchars = /*FS_FileExists("pics/conchars.pcx") || */FS_FileExists("pics/conchars.png");
+        // We still need the colormap since technically we still support .wal files.
+        if ( !FS_FileExists("pics/colormap.pcx") 
+            || !FS_FileExists( "pics/conchars.png" ) 
+            || !FS_FileExists("default.cfg")) {
+			Com_Error(ERR_FATAL, "Unable to detect various necessary game files. Please make sure that you have the following files:\npics/colormap.pcx\npics/conchars.png\ndefault.cfg", fs_gamedir);
 		}
 
         return;

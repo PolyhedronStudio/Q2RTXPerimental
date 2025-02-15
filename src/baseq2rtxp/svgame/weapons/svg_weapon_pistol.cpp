@@ -298,8 +298,8 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
         /**
         *   Secondary Fire Button Implementation: "Aim In" to engage for 'isAiming' Mode:
         **/
-        if ( ( ( ent->client->userInput.pressedButtons & BUTTON_SECONDARY_FIRE )
-            || ( ent->client->userInput.heldButtons & BUTTON_SECONDARY_FIRE ) ) //( ent->client->buttons & BUTTON_SECONDARY_FIRE ) 
+        if ( ( ( ent->client->userInput.pressedButtons & BUTTON_SECONDARY_FIRE ) ||
+            ( ent->client->userInput.heldButtons & BUTTON_SECONDARY_FIRE ) ) //( ent->client->buttons & BUTTON_SECONDARY_FIRE ) 
             && ent->client->weaponState.mode < WEAPON_MODE_RELOADING ) {
                 //gi.dprintf( "%s: NOT isAiming -> SwitchMode( WEAPON_MODE_AIM_IN )\n", __func__ );
                 SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IN, pistolItemInfo.modeAnimations, false );
@@ -312,21 +312,21 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                 // Allow for rapidly firing, causing an increase in recoil.
                 const QMTime &timeLastPrimaryFire = weaponState->timers.lastPrimaryFire;
                 // Actual recoil time so far.
-                QMTime recoilTime = level.time - timeLastPrimaryFire;
+                QMTime recoilTime = timeLastPrimaryFire - level.time;
 
                 // When a shot is fired right after 75_ms(first 3 frames of the weapon.)
                 constexpr QMTime timeRecoilStageA = 75_ms;
                 // When a shot is fired right after 150_ms.(after first 3 frames, up to the 6th frame.)
                 constexpr QMTime timeRecoilStageB = 150_ms;
                 // When a shot is fired right after 300_ms.(after first 6 frames, up to the 9th frame.)
-                constexpr QMTime timeRecoilStageC = 225_ms;
+                constexpr QMTime timeRecoilStageC = 250_ms;
                 // When a shot is fired right after 350_ms.(350_ms is the last frame of firing.)
-                constexpr QMTime timeRecoilStageCap = 350_ms;
+                constexpr QMTime timeRecoilStageCap = 300_ms;
 
                 // Fire for stage A:
                 if ( recoilTime < timeRecoilStageA ) {
                     // Add recoil.
-                    Weapon_Pistol_AddRecoil( weaponState, 0.35f, level.time - timeRecoilStageA );
+                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, timeRecoilStageA );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
@@ -334,21 +334,21 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                 // Fire for stage B:
                 } else if ( recoilTime < timeRecoilStageB ) {
                     // Add recoil.
-                    Weapon_Pistol_AddRecoil( weaponState, 0.25f, level.time - timeRecoilStageB );
+                    Weapon_Pistol_AddRecoil( weaponState, 0.25f, timeRecoilStageB );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: B [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.Milliseconds(), level.time.Milliseconds(), weaponState->recoil.amount );                // Fire for stage C:
                 } else if ( recoilTime < timeRecoilStageC ) {
                     // Add recoil.
-                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageC );
+                    Weapon_Pistol_AddRecoil( weaponState, 0.30f, level.time - timeRecoilStageC );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total
                     //gi.dprintf( "%s: Pistol is rapidly firing(Recoil Stage: C [lastPrimaryFire(%llu), level.time(%llu), recoil(%f)]\n", __func__, timeLastPrimaryFire.Milliseconds(), level.time.Milliseconds(), weaponState->recoil.amount );
                 } else if ( recoilTime < timeRecoilStageCap ) {
                     // Add recoil.
-                    Weapon_Pistol_AddRecoil( weaponState, 0.15f, level.time - timeRecoilStageCap );
+                    Weapon_Pistol_AddRecoil( weaponState, 0.45f, level.time - timeRecoilStageCap );
                     // Engage FORCEFULLY in another Primary Firing mode.
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, pistolItemInfo.modeAnimations, true );
                     // Output total

@@ -45,7 +45,7 @@
 /**
 *	@brief	Modeled after the line y = x
 **/
-EASING_OUT_TYPE inline QM_LinearInterpolation( EASING_IN_TYPE p ) {
+EASING_OUT_TYPE inline QM_LinearInterpolationEase( EASING_IN_TYPE p ) {
 	return p;
 }
 /**
