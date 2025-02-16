@@ -4567,6 +4567,8 @@ void R_RegisterFunctionsRTX()
 	R_TileClear = R_TileClear_RTX;
 	R_DrawFill8 = R_DrawFill8_RTX;
 	R_DrawFill32 = R_DrawFill32_RTX;
+	R_DrawFill8f = R_DrawFill8f_RTX;
+	R_DrawFill32f = R_DrawFill32f_RTX;
 	R_BeginFrame = R_BeginFrame_RTX;
 	R_EndFrame = R_EndFrame_RTX;
 	R_ModeChanged = R_ModeChanged_RTX;

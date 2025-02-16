@@ -428,7 +428,7 @@ static void CLG_HUD_DrawOutlinedRectangle( const uint32_t backGroundX, const uin
     // Set global color to white
     clgi.R_SetColor( MakeColor( 255, 255, 255, 255 ) );
     // Draw bg color.
-    clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
+    clgi.R_DrawFill32f( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
     // Draw outlines:
     #if 0
     clgi.R_DrawFill32( backGroundX, backGroundY, 1, backGroundHeight, outlineColor ); // Left Line.
@@ -437,13 +437,13 @@ static void CLG_HUD_DrawOutlinedRectangle( const uint32_t backGroundX, const uin
     clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor ); // Bottom Line.
     #else
     // Left line. (Also covers first pixel of top line and bottom line.)
-    clgi.R_DrawFill32( backGroundX - 1, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+    clgi.R_DrawFill32f( backGroundX - 1, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
     // Right line. (Also covers last pixel of top line and bottom line.)
-    clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+    clgi.R_DrawFill32f( backGroundX + backGroundWidth, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
     // Top line. (Skips first and last pixel, already covered by both the left and right lines.)
-    clgi.R_DrawFill32( backGroundX, backGroundY - 1, backGroundWidth, 1, outlineColor );
+    clgi.R_DrawFill32f( backGroundX, backGroundY - 1, backGroundWidth, 1, outlineColor );
     // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
-    clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
+    clgi.R_DrawFill32f( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
     #endif
 }
 /**
@@ -451,16 +451,16 @@ static void CLG_HUD_DrawOutlinedRectangle( const uint32_t backGroundX, const uin
 **/
 static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_t backGroundY, const uint32_t backGroundWidth, const uint32_t backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor ) {
     // Draw bg color.
-    clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
+    clgi.R_DrawFill32f( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
     if ( outlineColor ) {
         // Left line. (Also covers first pixel of top line and bottom line.)
-        clgi.R_DrawFill32( backGroundX - 1, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+        clgi.R_DrawFill32f( backGroundX - 1, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
         // Right line. (Also covers last pixel of top line and bottom line.)
-        clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+        clgi.R_DrawFill32f( backGroundX + backGroundWidth, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
         // Top line. (Skips first and last pixel, already covered by both the left and right lines.)
-        clgi.R_DrawFill32( backGroundX, backGroundY - 1, backGroundWidth, 1, outlineColor );
+        clgi.R_DrawFill32f( backGroundX, backGroundY - 1, backGroundWidth, 1, outlineColor );
         // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
-        clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
+        clgi.R_DrawFill32f( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
     }
 }
 
@@ -642,7 +642,7 @@ void CLG_HUD_DrawLineCrosshair( ) {
     // If we're firing(ammo changed) do an ease out to the new recoil values.
     } else if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] > clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
         // Ease outwards into the new crosshair values.
-        hud.crosshair.recoil.easeDuration = 25_ms;
+        hud.crosshair.recoil.easeDuration = 50_ms;
         // Easing outwards.
         hud.crosshair.recoil.isEasingOut = true;
         hud.crosshair.recoil.easeMethod = QM_QuarticEaseOut<double>;

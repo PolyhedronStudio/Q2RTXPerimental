@@ -56,7 +56,7 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
 const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right ) {
     // Project from source to muzzleflash destination.
     Vector3 muzzleFlashOrigin = {};
-    muzzleFlashOrigin = SVG_Player_ProjectDistance( ent, ent->s.origin, muzzleFlashOffset, forward, right );
+    muzzleFlashOrigin = SVG_Player_ProjectDistance( ent, ent->s.origin, QM_Vector3Zero(), forward, right);
 
     // To stop it accidentally spawning the MZ_PISTOL muzzleflash inside of entities and/or (wall-)brushes,
     // peform a trace from our origin on to the projected start.
@@ -240,7 +240,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
 /**
 *   @brief  This is an internal support routine used for bullet/pellet based weapons.
 **/
-static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int te_impact, int hspread, int vspread, const sg_means_of_death_t meansOfDeath ) {
+static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
     trace_t     tr = {};
     vec3_t      dir = {};
     vec3_t      forward = {}, right = {}, up = {};
@@ -256,8 +256,13 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
         QM_Vector3ToAngles(aimdir, dir);
         AngleVectors(dir, forward, right, up);
 
-        r = crandom() * hspread;
-        u = crandom() * vspread;
+        r = frandom( -hspread, hspread );
+        u = frandom( -vspread, vspread );
+        //r = -( hspread * 0.5f );
+        //r += crandom() * hspread;
+        //u = -( vspread * 0.5f );
+        //u += crandom() * vspread;
+        
         VectorMA(start, CM_MAX_WORLD_SIZE, forward, end);
         VectorMA(end, r, right, end);
         VectorMA(end, u, up, end);
@@ -363,14 +368,14 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, int damage, in
 *   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
 *           pistols, rifles, etc....
 **/
-void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, const sg_means_of_death_t meansOfDeath ) {
+void fire_bullet(edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
     fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
 /**
 *   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
 **/
-void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath ) {
+void fire_shotgun(edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath ) {
     int     i;
 
     for (i = 0; i < count; i++)

@@ -24,8 +24,8 @@
 static constexpr float PRIMARY_FIRE_BULLET_MIN_HSPREAD = 225.f;
 static constexpr float PRIMARY_FIRE_BULLET_MIN_VSPREAD = 225.f;
 //! Maximum Recoil Spread for default firing.
-static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD = 950.f;
-static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD = 950.f;
+static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD = 950.f * 4;
+static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD = 950.f * 4;
 //! Recoil Spread for aimed targetting secondary fire.
 static constexpr float SECONDARY_FIRE_BULLET_HSPREAD = 50.f;
 static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
@@ -91,7 +91,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
     ent->client->weaponKicks.offsetOrigin = QM_Vector3Scale( forward, -2 );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
     // Project from source to shot destination.
-    Vector3 shotOffset = { 0.f, 10.f, (float)ent->viewheight - 5.5f };
+    Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
     Vector3 shotStart = {};
     shotStart = SVG_Player_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right );
 

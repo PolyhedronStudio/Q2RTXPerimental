@@ -851,6 +851,8 @@ void R_DiscardRawPic_RTX(void);
 void R_TileClear_RTX(int x, int y, int w, int h, qhandle_t pic);
 void R_DrawFill8_RTX(int x, int y, int w, int h, int c);
 void R_DrawFill32_RTX(int x, int y, int w, int h, uint32_t color);
+void R_DrawFill8f_RTX( float x, float y, float w, float h, int32_t c );
+void R_DrawFill32f_RTX( float x, float y, float w, float h, uint32_t color );
 void R_DrawChar_RTX(int x, int y, int flags, int c, qhandle_t font);
 int R_DrawString_RTX(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 bool R_InterceptKey_RTX(unsigned key, bool down);

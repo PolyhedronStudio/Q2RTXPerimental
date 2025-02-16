@@ -1049,6 +1049,8 @@ void R_RegisterFunctionsGL()
 	R_TileClear = R_TileClear_GL;
 	R_DrawFill8 = R_DrawFill8_GL;
 	R_DrawFill32 = R_DrawFill32_GL;
+    R_DrawFill8f = R_DrawFill8f_GL;
+    R_DrawFill32f = R_DrawFill32f_GL;
 	R_BeginFrame = R_BeginFrame_GL;
 	R_EndFrame = R_EndFrame_GL;
 	R_ModeChanged = R_ModeChanged_GL;

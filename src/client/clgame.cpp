@@ -399,6 +399,15 @@ void PF_R_DrawFill32( const int32_t x, const int32_t y, const int32_t w, const i
 void PF_R_UpdateRawPic( const int32_t pic_w, const int32_t pic_h, uint32_t *pic ) {
 	R_UpdateRawPic( pic_w, pic_h, pic );
 }
+//!
+void PF_R_DrawFill8f( float x, float y, float w, float h, int32_t c ) {
+	R_DrawFill8f( x, y, w, h, c );
+}
+//!
+void PF_R_DrawFill32f( float x, float y, float w, float h, uint32_t color ) {
+	R_DrawFill32f( x, y, w, h, color );
+}
+//!
 void PF_R_DiscardRawPic( void ) {
 	R_DiscardRawPic();
 }
@@ -892,6 +901,8 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_TileClear = PF_R_TileClear;
 	imports.R_DrawFill8 = PF_R_DrawFill8;
 	imports.R_DrawFill32 = PF_R_DrawFill32;
+	imports.R_DrawFill8f = PF_R_DrawFill8f;
+	imports.R_DrawFill32f = PF_R_DrawFill32f;
 	imports.R_UpdateRawPic = PF_R_UpdateRawPic;
 	imports.R_DiscardRawPic = PF_R_DiscardRawPic;
 	imports.R_AddDecal = PF_R_AddDecal;

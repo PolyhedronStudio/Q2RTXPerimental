@@ -244,6 +244,18 @@ void R_DrawFill32_GL(int x, int y, int w, int h, uint32_t color)
     _GL_StretchPic(x, y, w, h, 0, 0, 1, 1, color, TEXNUM_WHITE, 0);
 }
 
+void R_DrawFill8f_GL( float x, float y, float w, float h, int c ) {
+    if ( !w || !h )
+        return;
+    _GL_StretchPic( x, y, w, h, 0, 0, 1, 1, d_8to24table[ c & 0xff ], TEXNUM_WHITE, 0 );
+}
+
+void R_DrawFill32f_GL( float x, float y, float w, float h, uint32_t color ) {
+    if ( !w || !h )
+        return;
+    _GL_StretchPic( x, y, w, h, 0, 0, 1, 1, color, TEXNUM_WHITE, 0 );
+}
+
 static inline void draw_char(int x, int y, int flags, int c, image_t *image)
 {
     float s, t;

@@ -489,6 +489,8 @@ void R_DiscardRawPic_GL(void);
 void R_TileClear_GL(int x, int y, int w, int h, qhandle_t pic);
 void R_DrawFill8_GL(int x, int y, int w, int h, int c);
 void R_DrawFill32_GL(int x, int y, int w, int h, uint32_t color);
+void R_DrawFill8f_GL( float x, float y, float w, float h, int c );
+void R_DrawFill32f_GL( float x, float y, float w, float h, uint32_t color );
 void R_DrawChar_GL(int x, int y, int flags, int c, qhandle_t font);
 int R_DrawString_GL(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
 

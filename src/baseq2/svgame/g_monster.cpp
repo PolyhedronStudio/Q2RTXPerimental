@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // and we can mess it up based on skill.  Spread should be for normal
 // and we can tighten or loosen based on skill.  We could muck with
 // the damages too, but I'm not sure that's such a good idea.
-void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, int damage, int kick, int hspread, int vspread, int flashtype ) {
+void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype ) {
 	fire_bullet( self, start, dir, damage, kick, hspread, vspread, MOD_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
@@ -35,7 +35,7 @@ void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, int damage, i
 	gi.multicast( start, MULTICAST_PHS, false );
 }
 
-void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int flashtype ) {
+void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype ) {
 	fire_shotgun( self, start, aimdir, damage, kick, hspread, vspread, count, MOD_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );

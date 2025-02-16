@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	@brief	
 **/
-void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, int damage, int kick, int hspread, int vspread, int flashtype ) {
+void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype ) {
 	fire_bullet( self, start, dir, damage, kick, hspread, vspread, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
@@ -33,7 +33,7 @@ void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, int damage, i
 /**
 *	@brief
 **/
-void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int flashtype ) {
+void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype ) {
 	fire_shotgun( self, start, aimdir, damage, kick, hspread, vspread, count, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );

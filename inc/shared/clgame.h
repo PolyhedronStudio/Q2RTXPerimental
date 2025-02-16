@@ -548,6 +548,11 @@ typedef struct {
 	//!
 	void ( *R_DrawFill32 )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const uint32_t color );
 	//!
+	void ( *R_DrawFill8f )( float x, float y, float w, float h, int32_t c );
+	//!
+	void ( *R_DrawFill32f )( float x, float y, float w, float h, uint32_t color );
+
+	//!
 	void ( *R_UpdateRawPic )( const int32_t pic_w, const int32_t pic_h, uint32_t *pic );
 	//!
 	void ( *R_DiscardRawPic )( void );

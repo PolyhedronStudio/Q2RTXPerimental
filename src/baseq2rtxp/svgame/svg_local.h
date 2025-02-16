@@ -378,11 +378,11 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 /**
 *   @brief
 **/
-void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, int damage, int kick, int hspread, int vspread, int flashtype );
+void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype );
 /**
 *   @brief
 **/
-void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, int flashtype );
+void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype );
 /**
 *   @brief
 **/
@@ -417,11 +417,11 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
 *   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
 *           pistols, rifles, etc....
 **/
-void fire_bullet( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, const sg_means_of_death_t meansOfDeath );
+void fire_bullet( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath );
 /**
 *   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
 **/
-void fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, int count, const sg_means_of_death_t meansOfDeath );
+void fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath );
 
 
 /**

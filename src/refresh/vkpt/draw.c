@@ -1171,6 +1171,22 @@ R_DrawFill32_RTX(int x, int y, int w, int h, uint32_t color)
 		color, TEXNUM_WHITE);
 }
 
+void
+R_DrawFill8f_RTX( float x, float y, float w, float h, int32_t c ) {
+	if ( !w || !h )
+		return;
+	enqueue_stretch_pic( x, y, w, h, 0.0f, 0.0f, 1.0f, 1.0f,
+		d_8to24table[ c & 0xff ], TEXNUM_WHITE );
+}
+
+void
+R_DrawFill32f_RTX( float x, float y, float w, float h, uint32_t color ) {
+	if ( !w || !h )
+		return;
+	enqueue_stretch_pic( x, y, w, h, 0.0f, 0.0f, 1.0f, 1.0f,
+		color, TEXNUM_WHITE );
+}
+
 static inline void
 draw_char(int x, int y, int flags, int c, qhandle_t font)
 {
