@@ -241,124 +241,134 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
 *   @brief  This is an internal support routine used for bullet/pellet based weapons.
 **/
 static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
-    trace_t     tr = {};
-    vec3_t      dir = {};
-    vec3_t      forward = {}, right = {}, up = {};
-    vec3_t      end = {};
-    float       r = 0;
-    float       u = 0;
-    vec3_t      water_start = {};
-    bool        water = false;
+    Vector3 dir = { };
+    Vector3 forward = {}, right = {}, up = {};
+    Vector3 end = {};
+    Vector3 water_start = {};
+    bool    water = false;
     contents_t  content_mask = ( MASK_SHOT | MASK_WATER );
-
-    tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
-    if (!(tr.fraction < 1.0f)) {
-        QM_Vector3ToAngles(aimdir, dir);
-        AngleVectors(dir, forward, right, up);
-
-        r = frandom( -hspread, hspread );
-        u = frandom( -vspread, vspread );
-        //r = -( hspread * 0.5f );
-        //r += crandom() * hspread;
-        //u = -( vspread * 0.5f );
-        //u += crandom() * vspread;
+    
+	// Trace a line from the origin the supposed bullet shot start point.
+    trace_t tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
+	// If we hit something, and it is not sky, then we can continue.
+    if ( !( tr.fraction < 1.0f ) ) {
+        // Calculate the direction of the bullet.
         
+        QM_Vector3ToAngles( aimdir, &dir.x );
+		// Get the forward, right, and up vectors.
+        QM_AngleVectors(dir, &forward, &right, &up);
+
+		// Calculate the spread of the bullet.
+        const float r = frandom( -hspread, hspread );
+        const float u = frandom( -vspread, vspread );
+
+		// Calculate the end point of the bullet.
         VectorMA(start, CM_MAX_WORLD_SIZE, forward, end);
         VectorMA(end, r, right, end);
         VectorMA(end, u, up, end);
 
-        if (gi.pointcontents(start) & MASK_WATER) {
+        // Determine if we started from within a water brush.
+        if ( gi.pointcontents(start) & MASK_WATER ) {
+			// We are in water.
             water = true;
+			// Copy the start point into the water start point.
             VectorCopy(start, water_start);
+			// Remove the water mask from the content mask.
             content_mask = static_cast<contents_t>( content_mask & ~MASK_WATER ); // content_mask &= ~MASK_WATER
         }
 
-        tr = gi.trace(start, NULL, NULL, end, self, content_mask);
+		// Trace the bullet.
+        tr = gi.trace(start, NULL, NULL, &end.x, self, content_mask);
 
-        // see if we hit water
-        if (tr.contents & MASK_WATER) {
-            int     color;
+        // See if we hit water.
+        if ( tr.contents & MASK_WATER ) {
+            int32_t color = SPLASH_UNKNOWN;
 
+            // We are in water.
             water = true;
-            VectorCopy(tr.endpos, water_start);
+            // Copy the start point into the water start point.
+            VectorCopy( tr.endpos, water_start );
 
-            if (!VectorCompare(start, tr.endpos)) {
-                if (tr.contents & CONTENTS_WATER) {
-                    if (strcmp(tr.surface->name, "*brwater") == 0)
+            // If trace start != trace end pos.
+            if ( !VectorCompare( start, tr.endpos ) ) {
+                // Determine the color of the splash.
+                if ( tr.contents & CONTENTS_WATER ) {
+                    if ( strcmp( tr.surface->name, "*brwater" ) == 0 ) {
                         color = SPLASH_BROWN_WATER;
-                    else
+                    } else {
                         color = SPLASH_BLUE_WATER;
-                } else if (tr.contents & CONTENTS_SLIME)
+                    }
+                } else if ( tr.contents & CONTENTS_SLIME ) {
                     color = SPLASH_SLIME;
-                else if (tr.contents & CONTENTS_LAVA)
+                } else if ( tr.contents & CONTENTS_LAVA ) {
                     color = SPLASH_LAVA;
-                else
-                    color = SPLASH_UNKNOWN;
+                }
 
-                if (color != SPLASH_UNKNOWN) {
-                    gi.WriteUint8(svc_temp_entity);
-                    gi.WriteUint8(TE_SPLASH);
-                    gi.WriteUint8(8);
+                if ( color != SPLASH_UNKNOWN ) {
+                    gi.WriteUint8( svc_temp_entity );
+                    gi.WriteUint8( TE_SPLASH );
+                    gi.WriteUint8( 8 );
                     gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    gi.WriteDir8(tr.plane.normal);
-                    gi.WriteUint8(color);
+                    gi.WriteDir8( tr.plane.normal );
+                    gi.WriteUint8( color );
                     gi.multicast( tr.endpos, MULTICAST_PVS, false );
                 }
 
-                // change bullet's course when it enters water
-                VectorSubtract(end, start, dir);
-                QM_Vector3ToAngles(dir, dir);
-                AngleVectors(dir, forward, right, up);
-                r = crandom() * hspread * 2;
-                u = crandom() * vspread * 2;
-                VectorMA(water_start, CM_MAX_WORLD_SIZE, forward, end);
-                VectorMA(end, r, right, end);
-                VectorMA(end, u, up, end);
+                // Change bullet's course when it has entered enters water
+                VectorSubtract( end, start, dir );
+                QM_Vector3ToAngles( dir, &dir.x );
+                QM_AngleVectors( dir, &forward, &right, &up );
+                // Calculate the spread of the bullet.
+                const float r = frandom( -hspread * 2, hspread * 2 );
+                const float u = frandom( -vspread * 2, vspread * 2 );
+                VectorMA( water_start, CM_MAX_WORLD_SIZE, forward, end );
+                VectorMA( end, r, right, end );
+                VectorMA( end, u, up, end );
             }
 
             // re-trace ignoring water this time
-            tr = gi.trace(water_start, NULL, NULL, end, self, MASK_SHOT);
+            tr = gi.trace( &water_start.x, NULL, NULL, &end.x, self, MASK_SHOT );
         }
     }
 
     // send gun puff / flash
-    if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
-        if (tr.fraction < 1.0f) {
-            if (tr.ent->takedamage) {
-                SVG_TriggerDamage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
+    if ( !( ( tr.surface ) && ( tr.surface->flags & SURF_SKY ) ) ) {
+        if ( tr.fraction < 1.0f ) {
+            if ( tr.ent->takedamage ) {
+                SVG_TriggerDamage( tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
             } else {
-                if (strncmp(tr.surface->name, "sky", 3) != 0) {
-                    gi.WriteUint8(svc_temp_entity);
-                    gi.WriteUint8(te_impact);
+                if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
+                    gi.WriteUint8( svc_temp_entity );
+                    gi.WriteUint8( te_impact );
                     gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    gi.WriteDir8(tr.plane.normal);
+                    gi.WriteDir8( tr.plane.normal );
                     gi.multicast( tr.endpos, MULTICAST_PVS, false );
 
-                    if (self->client)
-                        SVG_Player_PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
+                    if ( self->client )
+                        SVG_Player_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
                 }
             }
         }
     }
 
     // if went through water, determine where the end and make a bubble trail
-    if (water) {
+    if ( water ) {
         vec3_t  pos;
 
-        VectorSubtract(tr.endpos, water_start, dir);
-        VectorNormalize(dir);
-        VectorMA(tr.endpos, -2, dir, pos);
-        if (gi.pointcontents(pos) & MASK_WATER)
-            VectorCopy(pos, tr.endpos);
+        VectorSubtract( tr.endpos, water_start, dir );
+        VectorNormalize( &dir.x );
+        VectorMA( tr.endpos, -2, dir, pos );
+        if ( gi.pointcontents( pos ) & MASK_WATER )
+            VectorCopy( pos, tr.endpos );
         else
-            tr = gi.trace(pos, NULL, NULL, water_start, tr.ent, MASK_WATER);
+            tr = gi.trace( pos, NULL, NULL, &water_start.x, tr.ent, MASK_WATER );
 
-        VectorAdd(water_start, tr.endpos, pos);
-        VectorScale(pos, 0.5f, pos);
+        VectorAdd( water_start, tr.endpos, pos );
+        VectorScale( pos, 0.5f, pos );
 
-        gi.WriteUint8(svc_temp_entity);
-        gi.WriteUint8(TE_BUBBLETRAIL);
-        gi.WritePosition( water_start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        gi.WriteUint8( svc_temp_entity );
+        gi.WriteUint8( TE_BUBBLETRAIL );
+        gi.WritePosition( &water_start.x, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         gi.multicast( pos, MULTICAST_PVS, false );
     }

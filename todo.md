@@ -45,6 +45,9 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 	- [/] 4. A refresh material editor.
 		- [ ] Allow for saving materials properly, right now this is a mess.
 
+- [ ] **HUD**:
+	- [ ] Certain people get iffy and uppety about crosshair as it is. So, let's make it configurable.
+
 - [ ] **Entities**:
 	- [ ] Reimplement (client-)misc_model properly.
 	- [ ] Add proper spawn flag constants.

@@ -39,9 +39,6 @@ mapMedia = {
 --
 --
 -----------------------------------------------------------------------------
---
---
---
 function TargetsLeftHoloGram_ToggleState( delaySeconds, lightsOn, other, activator ) 
     -- Use them.
     local useTargetType = EntityUseTargetType.ON
@@ -80,7 +77,6 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 
         -- Decrement number of targets alive count, only if we're the team master that is being signalled.
         --if ( self.teamMaster == self.targetName ) then
-            
             -- Set score counter frame.
             local scoreCounterEntityA = Game.GetEntityForTargetName( "targetsleftcounter0" )
             local scoreCounterEntityB = Game.GetEntityForTargetName( "targetsleftcounter1" )

@@ -638,12 +638,6 @@ value is 0.037.
 #### `bloom_sigma_water`
 Controls the width of the bloom effect when the player is underwater. Default value is 0.037.
 
-#### `cl_shaderballs`
-Enables loading and displaying the "shader balls" model. The model is loaded from the
-`develop/objects/ShaderBallArray/ShaderBallArray16.MD3` file in the game filesystem.
-Once loaded, the model is placed in the world origin (0) location and can be moved with
-the [`drop_balls`](#drop_balls) command.
-
 #### `drs_enable`
 Enables the Dynamic Resolution Scaling (DRS) system. When enabled, the renderer
 will try to keep the target frame rate specified as `drs_target` FPS by adjusting the 

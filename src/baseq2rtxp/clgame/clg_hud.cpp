@@ -116,6 +116,8 @@ static struct hud_state_t {
         static constexpr uint32_t RED = MakeColor( 208, 70, 72, 255 );
         static constexpr uint32_t LESS_WHITE = MakeColor( 220, 220, 220, 75 );
         static constexpr uint32_t WHITE = MakeColor( 255, 255, 255, 255 );
+
+        static constexpr uint32_t BLACK = MakeColor( 51, 51, 51, 255 );
     } colors;
 
     //! Crosshair information.
@@ -206,8 +208,9 @@ static void CLG_HUD_SetCrosshairColorByCVars() {
     hud.crosshair.color.u8[ 0 ] = clgi.CVar_ClampValue( hud_crosshair_red, 0.f, 1.f ) * 255;
     hud.crosshair.color.u8[ 1 ] = clgi.CVar_ClampValue( hud_crosshair_green, 0.f, 1.f ) * 255;
     hud.crosshair.color.u8[ 2 ] = clgi.CVar_ClampValue( hud_crosshair_blue, 0.f, 1.f ) * 255;
+
     // We use a separate alpha value.
-    hud.crosshair.color.u8[ 3 ] = 255;
+    hud.crosshair.color.u8[ 3 ] = clgi.CVar_ClampValue( hud_crosshair_alpha, 0.f, 1.f ) * 255;
 }
 /**
 *   @brief  Used to update crosshair color with.
@@ -216,7 +219,7 @@ void CLG_HUD_SetCrosshairColor() {
     // Set it based on cvars.
     CLG_HUD_SetCrosshairColorByCVars();
     // Apply alpha value.
-    hud.crosshair.alpha = clgi.CVar_ClampValue( hud_crosshair_alpha, 0.0f, 1.0f );
+    //hud.crosshair.alpha = clgi.CVar_ClampValue( hud_crosshair_alpha, 0.0f, 1.0f );
     //hud.crosshair.color.u8[ 3 ] = clgi.CVar_ClampValue( ch_alpha, 0, 1 ) * 255;
 }
 /**
@@ -257,15 +260,15 @@ void CLG_HUD_Initialize( void ) {
     hud_chat_y = clgi.CVar_Get( "hud_chat_y", "-64", 0 );
 
     // Crosshair cvars.
-    hud_crosshair_red = clgi.CVar_Get( "hud_crosshair_red", "1", 0 );
+    hud_crosshair_red = clgi.CVar_Get( "hud_crosshair_red", "1", CVAR_ARCHIVE );
     hud_crosshair_red->changed = scr_hud_crosshair_changed;
-    hud_crosshair_green = clgi.CVar_Get( "hud_crosshair_green", "1", 0 );
+    hud_crosshair_green = clgi.CVar_Get( "hud_crosshair_green", "1", CVAR_ARCHIVE );
     hud_crosshair_green->changed = scr_hud_crosshair_changed;
-    hud_crosshair_blue = clgi.CVar_Get( "hud_crosshair_blue", "1", 0 );
+    hud_crosshair_blue = clgi.CVar_Get( "hud_crosshair_blue", "1", CVAR_ARCHIVE );
     hud_crosshair_blue->changed = scr_hud_crosshair_changed;
-    hud_crosshair_alpha = clgi.CVar_Get( "hud_crosshair_alpha", "1", 0 );
+    hud_crosshair_alpha = clgi.CVar_Get( "hud_crosshair_alpha", "1", CVAR_ARCHIVE );
     hud_crosshair_alpha->changed = scr_hud_crosshair_changed;
-    hud_crosshair_scale = clgi.CVar_Get( "hud_crosshair_scale", "1", 0 );
+    hud_crosshair_scale = clgi.CVar_Get( "hud_crosshair_scale", "1", CVAR_ARCHIVE );
     hud_crosshair_scale->changed = scr_hud_crosshair_changed;
 
     hud_crosshair_type = clgi.CVar_Get( "hud_crosshair_type", "1", CVAR_ARCHIVE );
@@ -424,43 +427,54 @@ void HUD_DrawAltCenterString( const int32_t x, const int32_t y, const char *str 
 /**
 *   @brief  Does as it says it does.
 **/
-static void CLG_HUD_DrawOutlinedRectangle( const uint32_t backGroundX, const uint32_t backGroundY, const uint32_t backGroundWidth, const uint32_t backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor ) {
+static void CLG_HUD_DrawOutlinedRectangle( const double &backGroundX, const double &backGroundY, const double &backGroundWidth, const double &backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor ) {
     // Set global color to white
     clgi.R_SetColor( MakeColor( 255, 255, 255, 255 ) );
     // Draw bg color.
     clgi.R_DrawFill32f( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
     // Draw outlines:
     #if 0
-    clgi.R_DrawFill32( backGroundX, backGroundY, 1, backGroundHeight, outlineColor ); // Left Line.
-    clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, 1, outlineColor );  // Top Line.
-    clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY, 1, backGroundHeight + 1, outlineColor ); // Right Line.
-    clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor ); // Bottom Line.
+    clgi.R_DrawFill32( backGroundX, backGroundY, 1., backGroundHeight, outlineColor ); // Left Line.
+    clgi.R_DrawFill32( backGroundX, backGroundY, backGroundWidth, 1., outlineColor );  // Top Line.
+    clgi.R_DrawFill32( backGroundX + backGroundWidth, backGroundY, 1., backGroundHeight + 1, outlineColor ); // Right Line.
+    clgi.R_DrawFill32( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1., outlineColor ); // Bottom Line.
     #else
     // Left line. (Also covers first pixel of top line and bottom line.)
-    clgi.R_DrawFill32f( backGroundX - 1, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+    clgi.R_DrawFill32f( backGroundX - 1., backGroundY - 1., 1., backGroundHeight + 2., outlineColor );
     // Right line. (Also covers last pixel of top line and bottom line.)
-    clgi.R_DrawFill32f( backGroundX + backGroundWidth, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
+    clgi.R_DrawFill32f( backGroundX + backGroundWidth, backGroundY - 1., 1., backGroundHeight + 2., outlineColor );
     // Top line. (Skips first and last pixel, already covered by both the left and right lines.)
-    clgi.R_DrawFill32f( backGroundX, backGroundY - 1, backGroundWidth, 1, outlineColor );
+    clgi.R_DrawFill32f( backGroundX, backGroundY - 1., backGroundWidth, 1., outlineColor );
     // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
-    clgi.R_DrawFill32f( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
+    clgi.R_DrawFill32f( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1., outlineColor );
     #endif
 }
 /**
 *   @brief  Does as it says it does.
 **/
-static void CLG_HUD_DrawCrosshairLine( const uint32_t backGroundX, const uint32_t backGroundY, const uint32_t backGroundWidth, const uint32_t backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor ) {
+static void CLG_HUD_DrawCrosshairLine( const double &backGroundX, const double &backGroundY, const double &backGroundWidth, const double &backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor, const bool thickCrossHair = false ) {
     // Draw bg color.
     clgi.R_DrawFill32f( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
     if ( outlineColor ) {
-        // Left line. (Also covers first pixel of top line and bottom line.)
-        clgi.R_DrawFill32f( backGroundX - 1, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
-        // Right line. (Also covers last pixel of top line and bottom line.)
-        clgi.R_DrawFill32f( backGroundX + backGroundWidth, backGroundY - 1, 1, backGroundHeight + 2, outlineColor );
-        // Top line. (Skips first and last pixel, already covered by both the left and right lines.)
-        clgi.R_DrawFill32f( backGroundX, backGroundY - 1, backGroundWidth, 1, outlineColor );
-        // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
-        clgi.R_DrawFill32f( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1, outlineColor );
+        if ( thickCrossHair ) {
+            // Left line. (Also covers first pixel of top line and bottom line.)
+            clgi.R_DrawFill32f( backGroundX - 1., backGroundY - 1., 1., backGroundHeight + 2., outlineColor );
+            // Right line. (Also covers last pixel of top line and bottom line.)
+            clgi.R_DrawFill32f( backGroundX + backGroundWidth, backGroundY - 1., 1., backGroundHeight + 2., outlineColor );
+            // Top line. (Skips first and last pixel, already covered by both the left and right lines.)
+            clgi.R_DrawFill32f( backGroundX, backGroundY - 1., backGroundWidth, 1., outlineColor );
+            // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
+            clgi.R_DrawFill32f( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1., outlineColor );
+        } else {
+            // Left line. (Also covers first pixel of top line and bottom line.)
+            clgi.R_DrawFill32f( backGroundX, backGroundY, 1., backGroundHeight + 1., outlineColor );
+            // Right line. (Also covers last pixel of top line and bottom line.)
+            clgi.R_DrawFill32f( backGroundX + backGroundWidth, backGroundY, 1., backGroundHeight + 1., outlineColor );
+            // Top line. (Skips first and last pixel, already covered by both the left and right lines.)
+            clgi.R_DrawFill32f( backGroundX, backGroundY, backGroundWidth, 1., outlineColor );
+            // Bottom line. (Skips first and last pixel, already covered by both the left and right lines.)
+            clgi.R_DrawFill32f( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1., outlineColor );
+        }
     }
 }
 
@@ -580,6 +594,8 @@ static const double CLG_HUD_UpdateRecoilLerpScale( const double start, const dou
     // Delta Time.
     const QMTime recoilDeltaTime = realTime - hud.crosshair.recoil.changeTime;
 
+    // Method 01:
+    #if 1
 	// If we are at the start or end, return the respective value.
     if ( recoilDeltaTime < 0_ms ) {
         return start;
@@ -598,6 +614,29 @@ static const double CLG_HUD_UpdateRecoilLerpScale( const double start, const dou
 	const double clampedLerpFraction = QM_Clampd( lerpFraction, 0, 1 );
     // Return lerpfracion.
     return clampedLerpFraction;
+
+    // Method 02:
+    #else
+    // If we are at the start or end, return the respective value.
+    //if ( recoilDeltaTime + duration < 0_ms ) {
+    if ( recoilDeltaTime < 0_ms ) {
+        return start;
+    } else if ( recoilDeltaTime >= duration ) {
+        return end;
+    }
+
+    // Get the ease fraction.
+    const double easeFraction = (double)( recoilDeltaTime.Milliseconds() ) / duration.Milliseconds();
+    // Ease to determine the ease factor for use with the lerp.
+    const double easeFactor = easeMethod( easeFraction );
+
+    // Lerp value.
+    const double lerpFraction = QM_Lerp( 0, 1, easeFactor );
+    // Clamped lerp value.
+    const double clampedLerpFraction = QM_Clampd( lerpFraction, 0, end );
+    // Return lerpfracion.
+    return clampedLerpFraction;
+    #endif
 }
 /**
 *   @brief  Renders a pic based crosshair.
@@ -610,7 +649,7 @@ void CLG_HUD_DrawLineCrosshair( ) {
     const double crosshairBaseScale = clgi.CVar_ClampValue( hud_crosshair_scale, 0.1f, 4.0f );;
 
     // Pixel 'radius', the offset from the center of the screen, for lines start origins to begin at.
-    static constexpr double CROSSHAIR_ABSOLUTE_CENTER_ORIGIN_OFFSET= 4.;
+    static constexpr double CROSSHAIR_ABSOLUTE_CENTER_ORIGIN_OFFSET= 3.;
     // Default Pixel Height/Width of the Horizontal Lines.
     static constexpr double CROSSHAIR_HORIZONTAL_HEIGHT = 2.;
     static constexpr double CROSSHAIR_HORIZONTAL_WIDTH = 8.;
@@ -684,33 +723,36 @@ void CLG_HUD_DrawLineCrosshair( ) {
     #endif
 
     // Determine center x/y for crosshair display.
-    const int32_t center_x = ( hud.hud_scaled_width ) / 2;
-    const int32_t center_y = ( hud.hud_scaled_height ) / 2;
+    const double center_x = ( hud.hud_scaled_width ) / 2.;
+    const double center_y = ( hud.hud_scaled_height ) / 2.;
 
-    // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( hud.crosshair.alpha );
     // Apply overlay base color.
-    clgi.R_SetColor( hud.crosshair.color.u32 );
+    clgi.R_SetColor( hud.colors.WHITE );
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( scr_alpha->value * hud.crosshair.alpha );
+    clgi.Print( PRINT_DEVELOPER, "%f\n", hud.crosshair.alpha);
+    // Thicker crosshair? Type 2:
+    const bool thickCrossHair = ( hud_crosshair_type->integer > 1 );
 
     // Draw the UP line.
-    const int32_t up_x = center_x - ( CROSSHAIR_VERTICAL_WIDTH / 2 );
-    const int32_t up_y = center_y - ( chCenterOffsetRadius + chVerticalHeight );
-    CLG_HUD_DrawCrosshairLine( up_x, up_y, CROSSHAIR_VERTICAL_WIDTH, chVerticalHeight, hud.colors.LESS_WHITE, hud.colors.WHITE );
+    const double up_x = center_x - ( CROSSHAIR_VERTICAL_WIDTH / 2. );
+    const double up_y = center_y - ( chCenterOffsetRadius + chVerticalHeight );
+    CLG_HUD_DrawCrosshairLine( up_x, up_y, CROSSHAIR_VERTICAL_WIDTH, chVerticalHeight, hud.crosshair.color.u32, hud.colors.BLACK, thickCrossHair );
 
     // Draw the RIGHT line.
-    const int32_t right_x = center_x + ( chCenterOffsetRadius );//center_x - ( crosshairHorizontalWidth / 2 );
-    const int32_t right_y = center_y - ( CROSSHAIR_HORIZONTAL_HEIGHT / 2 ); //center_y - CROSSHAIR_ABS_CENTER_OFFSET + crosshairHorizontalHeight;
-    CLG_HUD_DrawCrosshairLine( right_x, right_y, chHorizontalWidth, CROSSHAIR_HORIZONTAL_HEIGHT, hud.colors.LESS_WHITE, hud.colors.WHITE );
+    const double right_x = center_x + ( chCenterOffsetRadius );//center_x - ( crosshairHorizontalWidth / 2. );
+    const double right_y = center_y - ( CROSSHAIR_HORIZONTAL_HEIGHT / 2. ); //center_y - CROSSHAIR_ABS_CENTER_OFFSET + crosshairHorizontalHeight;
+    CLG_HUD_DrawCrosshairLine( right_x, right_y, chHorizontalWidth, CROSSHAIR_HORIZONTAL_HEIGHT, hud.crosshair.color.u32, hud.colors.BLACK, thickCrossHair );
 
     // Draw the DOWN line.
-    const int32_t down_x = center_x - ( CROSSHAIR_VERTICAL_WIDTH / 2 );
-    const int32_t down_y = center_y + ( chCenterOffsetRadius );
-    CLG_HUD_DrawCrosshairLine( down_x, down_y, CROSSHAIR_VERTICAL_WIDTH, chVerticalHeight, hud.colors.LESS_WHITE, hud.colors.WHITE );
+    const double down_x = center_x - ( CROSSHAIR_VERTICAL_WIDTH / 2. );
+    const double down_y = center_y + ( chCenterOffsetRadius );
+    CLG_HUD_DrawCrosshairLine( down_x, down_y, CROSSHAIR_VERTICAL_WIDTH, chVerticalHeight, hud.crosshair.color.u32, hud.colors.BLACK, thickCrossHair );
 
     // Draw the LEFT line.
-    const int32_t left_x = center_x - ( chCenterOffsetRadius + chHorizontalWidth );//center_x - ( crosshairHorizontalWidth / 2 );
-    const int32_t left_y = center_y - ( CROSSHAIR_HORIZONTAL_HEIGHT / 2 ); //center_y - CROSSHAIR_ABS_CENTER_OFFSET + crosshairHorizontalHeight;
-    CLG_HUD_DrawCrosshairLine( left_x, left_y, chHorizontalWidth, CROSSHAIR_HORIZONTAL_HEIGHT, hud.colors.LESS_WHITE, hud.colors.WHITE );
+    const double left_x = center_x - ( chCenterOffsetRadius + chHorizontalWidth );//center_x - ( crosshairHorizontalWidth / 2. );
+    const double left_y = center_y - ( CROSSHAIR_HORIZONTAL_HEIGHT / 2. ); //center_y - CROSSHAIR_ABS_CENTER_OFFSET + crosshairHorizontalHeight;
+    CLG_HUD_DrawCrosshairLine( left_x, left_y, chHorizontalWidth, CROSSHAIR_HORIZONTAL_HEIGHT, hud.crosshair.color.u32, hud.colors.BLACK, thickCrossHair );
 
     // Reset color and alpha.
     clgi.R_SetColor( U32_WHITE );

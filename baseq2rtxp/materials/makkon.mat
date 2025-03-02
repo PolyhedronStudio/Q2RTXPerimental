@@ -108,10 +108,12 @@ textures/makkon/metal_01_rust:
 	texture_base textures/makkon/*.png
 	base_factor 1.0
 	texture_normals textures/makkon/metal_01_N.png
-	bump_scale 1.5
-	specular_factor 0.125
-	metalness_factor 1.0
-
+	bump_scale 1.0
+	emissive_factor 0.0
+	specular_factor 0.0125
+	metalness_factor 0.15
+	roughness_override 0.8
+	
 textures/makkon/metal_02_brass2,
 textures/makkon/metal_02_iron1,
 textures/makkon/metal_02_iron3,
