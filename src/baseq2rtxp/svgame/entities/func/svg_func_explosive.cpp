@@ -38,7 +38,7 @@ one small chunk per 25 of mass (up to 16).  So 800 gives the most.
 //! Spawn on trigger. (Initially invisible.)
 static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_SPAWN_ON_TRIGGER	= BIT( 0 );
 //! Free entity on break/explode.
-static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE = BIT( 0 );
+static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE = BIT( 1 );
 //! Brush has animations.
 static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_ANIMATE_ALL		= BIT( 2 );
 //! Brush has animations.
@@ -79,8 +79,12 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
     if ( self->dmg ) {
         SVG_RadiusDamage( self, attacker, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLOSIVE );
     }
+
+    // Do we want this?
+    #if 0
     self->velocity = QM_Vector3Normalize( Vector3( self->s.origin ) - Vector3( inflictor->s.origin ) ); //VectorSubtract( self->s.origin, inflictor->s.origin, self->velocity ); //self->velocity = QM_Vector3Normalize( self->velocity );
     self->velocity *= 150;
+    #endif
 
     // start chunks towards the center
     Vector3 center = size * 0.5f;
@@ -111,6 +115,9 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
         const Vector3 chunkOrigin = QM_Vector3MultiplyAdd( origin, crandom(), center );
         SVG_Misc_ThrowDebris( self, "models/objects/debris2/tris.md2", 2, (vec_t*)&chunkOrigin.x );
     }
+
+    self->other = inflictor;
+    self->activator = attacker;
 
     // Fire target triggers.
     SVG_UseTargets( self, attacker );
@@ -148,7 +155,8 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
 
     // Do NOT Free it, we wanna be able to respawn it.
 	if ( SVG_HasSpawnFlags( self, FUNC_EXPLOSIVE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE ) ) {
-		SVG_FreeEdict( self );
+        self->nextthink = level.time + FRAME_TIME_MS;
+        self->think = SVG_FreeEdict;
 	}
 }
 
@@ -156,7 +164,7 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
 *   @brief  Triggers the breaking/exploding of the target when triggered by other entities.
 **/
 void func_explosive_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    func_explosive_explode( self, self, activator, self->health, self->s.origin );
+    func_explosive_explode( self, other, activator, self->health, self->s.origin );
 }
 /**
 *   @brief  Pain handling.
@@ -200,6 +208,10 @@ void func_explosive_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *ac
     self->pain = func_explosive_pain;
     self->takedamage = DAMAGE_YES;
 
+
+    gi.unlinkentity( self );
+    // Apply brush model to self. (Will be of the *number type.)
+    gi.setmodel( self, self->model );
     // KillBox any obstructing entities.
     SVG_Util_KillBox( self, true );
     // Link the entity.
@@ -220,6 +232,8 @@ void func_explosive_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *ac
 *
 *
 **/
+void SP_func_explosive( edict_t *self );
+
 /**
 *   @brief  Signal Receiving:
 **/
@@ -232,11 +246,38 @@ void func_explosive_onsignalin( edict_t *self, edict_t *other, edict_t *activato
         self->other = other;
 
         // Get health.
-		self->health = SVG_SignalArguments_GetValue( signalArguments, "health", self->max_health );
+		self->health = self->max_health = SVG_SignalArguments_GetValue( signalArguments, "health", self->max_health );
 
+        // Remove it, since we're respawning.
+        self->spawnflags &= FUNC_EXPLOSIVE_SPAWNFLAG_SPAWN_ON_TRIGGER;
+  //      self->spawnflags &= ~FUNC_EXPLOSIVE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE;
+
+  //      // Unset use.
+        self->use = nullptr;
+		//self->pain = nullptr;
+		//self->takedamage = DAMAGE_NO;
+        self->svflags &= ~SVF_NOCLIENT;
+
+        // Spawn as usual.
+        // Set pain.
+        //self->pain = func_explosive_pain;
+
+        //// Default to 100 health.
+        //if ( !self->health ) {
+        //    // Set health.
+        //    self->health = 100;
+        //}
+        //// Set max health to health, use for revival.
+        //self->max_health = self->health;
+
+        //// Die callback for destructing.
+        //self->die = func_explosive_explode;
+        //// Allow it to take damage.
+        //self->takedamage = DAMAGE_YES;
+        func_explosive_spawn_on_trigger( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
         // Turn it on, showing itself.
         //func_explosive_spawn_on_trigger( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
-		func_explosive_use( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
+		//func_explosive_use( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
     }
     /**
     *   Break/Explode:
@@ -299,6 +340,9 @@ void SP_func_explosive( edict_t *self ) {
     // Signal Receiving:
     self->onsignalin = func_explosive_onsignalin;
 
+    // Always clip to hull.
+    self->svflags |= SVF_HULL;
+
     // Spawn after being triggered instead of immediately at level start:
     if ( SVG_HasSpawnFlags( self, FUNC_EXPLOSIVE_SPAWNFLAG_SPAWN_ON_TRIGGER ) ) {
         self->svflags |= SVF_NOCLIENT;
@@ -332,8 +376,6 @@ void SP_func_explosive( edict_t *self ) {
         if ( !self->health ) {
             // Set health.
             self->health = 100;
-            // Used to store health set for revival.
-            self->max_health = 100;
         }
         // Set max health to health, use for revival.
         self->max_health = self->health;

@@ -111,7 +111,7 @@ void *SZ_GetSpace( sizebuf_t *buf, const size_t len ) {
 				__func__, buf->tagstr );
 		}
 
-		//Com_DPrintf("%s: %s: overflow\n", __func__, buf->tagstr);
+		//Com_LPrintf( PRINT_DEVELOPER, "%s: %s: overflow\n", __func__, buf->tagstr );
 		SZ_Clear( buf );
 		buf->overflowed = true;
 	}

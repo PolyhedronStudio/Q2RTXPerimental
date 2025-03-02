@@ -196,17 +196,17 @@ static void PF_bprintf(int level, const char *fmt, ...)
     // WID: For Lua and other error type or warning printing...
     #if USE_CLIENT
     if ( !COM_DEDICATED && level >= print_type_t::PRINT_WARNING ) {
-        Com_LPrintf( (print_type_t)level, "%s", string );
-        return;
-    }
-    #endif
-
+        Com_LPrintf( (print_type_t)level, "[SERVER]: %s", string );
+        //return;
+    } else 
+    #endif // } else // if ( COM_DEDICATED ) {
     // echo to console
     if (COM_DEDICATED) {
         // mask off high bits
         for (i = 0; i < len; i++)
             string[i] &= 127;
         Com_Printf("%s", string);
+        //Com_LPrintf( (print_type_t)level, "%s", string );
     }
 
     FOR_EACH_CLIENT(client) {

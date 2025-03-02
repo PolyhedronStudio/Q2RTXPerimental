@@ -72,6 +72,7 @@ begin developer_menu
     
     title "Developer (Test-)Maps"
     action --align "CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"
+    action --align "CollisionModel - Audio Footstep Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_mat_footsteps force"
     blank
     action --align --status "func_button testbed, several func_buttons to engage triggering lights with in various way." "Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
     action --align --status "func_doors & areaportals testbed, tests doors with areaportals." "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"

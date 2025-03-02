@@ -95,8 +95,12 @@ function func_explosives_00_OnSignalIn( self, signaller, activator, signalName, 
     if ( signalName == "OnPain" ) then
         Game.Print( PrintLevel.NOTICE, "OnPain(#"..self.number..", \""..signalName.."\"), kick(" ..signalArguments.kick.. "), damage(" ..signalArguments.damage.. ")\n" )
     end
+    -- Pain.
+    if ( signalName == "OnRevive" ) then
+        Game.Print( PrintLevel.NOTICE, "func_explosives_00_OnSignalIn(#"..self.number..", \""..signalName.."\"), health(" ..signalArguments.health.. ")\n" )
+    end
     
-    Game.Print( PrintLevel.NOTICE, "Hello is it me ur looking for? \""..signalName.."\" ".. #signalArguments .. "\n" )
+    --Game.Print( PrintLevel.NOTICE, "Hello is it me ur looking for? \""..signalName.."\" ".. #signalArguments .. "\n" )
 
     -- Done handling signal.
     return true
@@ -105,17 +109,20 @@ end
 --  SignalIn: button_func_wall_03
 -----------------------------------------------------------------------------
 function button_func_explosives_00_OnSignalIn( self, signaller, activator, signalName, signalArguments )
-    -- Get explosives target entity.
-    local explosiveEntities = Game.GetEntitiesForLuaName( "func_explosives_00" )
+    -- Pressed it.
+    if ( signalName == "OnPressed" ) then
+        -- Get explosives target entity.
+        local explosiveEntities = Game.GetEntitiesForLuaName( "func_explosives_00" )
 
-    Game.Print( PrintLevel.NOTICE, "Hello is it me ur looking for? " .. #explosiveEntities .. "\n" )
+        Game.Print( PrintLevel.NOTICE, "Hello is it me ur looking for? " .. #explosiveEntities .. "\n" )
 
-    -- -- Iterate over the matching luaName entities.
-    for explosiveEntityKey,explosiveEntity in pairs(explosiveEntities) do
-        -- Signal a revive.
-        Game.SignalOut( explosiveEntity, signaller, activator, "Revive", { health = 100 } )
+        -- -- Iterate over the matching luaName entities.
+        for explosiveEntityKey,explosiveEntity in pairs(explosiveEntities) do
+            -- Signal a revive.
+            Game.SignalOut( explosiveEntity, signaller, activator, "Revive", { health = 100 } )
+        end
     end
-
+    
     -- Done handling signal.
     return true
 end

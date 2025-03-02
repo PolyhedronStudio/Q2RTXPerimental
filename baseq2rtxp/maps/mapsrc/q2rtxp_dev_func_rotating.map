@@ -332,6 +332,7 @@
 {
 "classname" "func_explosive"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {
@@ -347,6 +348,7 @@
 {
 "classname" "func_explosive"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {
@@ -362,6 +364,7 @@
 {
 "classname" "func_explosive"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {
@@ -377,6 +380,7 @@
 {
 "classname" "func_explosive"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {
@@ -392,6 +396,7 @@
 {
 "classname" "func_explosive"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {
@@ -409,6 +414,7 @@
 "dmg" "25"
 "mass" "50"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {
@@ -425,6 +431,7 @@
 "classname" "func_explosive"
 "mass" "50"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {
@@ -441,6 +448,7 @@
 "classname" "func_explosive"
 "mass" "50"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {
@@ -458,6 +466,7 @@
 "mass" "75"
 "dmg" "10"
 "luaName" "FuncExplosives00"
+"spawnflags" "2"
 "_tb_group" "1"
 // brush 0
 {

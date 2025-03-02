@@ -122,11 +122,13 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 		- [-] Patch all entities that might have a use for signalling. Such might be: A target_temp_entity etc. And of course, all PushMovers, killbox, etc. In hindsight, I will actually do these gradually over releases to prevent it from stalling the project overall.
 		- [ ] PushMovers Signal I/O Support:
 			- [X] func_button
+			- [ ] func_breakable
+				- [ ] Implement, similar to func_explosive somewhat._
 			- [ ] func_conveyor
 			- [x] func_door
 			- [x] func_door_rotating
 			- [/] func_explosive
-				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.
+				- [ ] Just rewrite it, it is bugged anyhow.
 			- [X] func_rotating
 			- [ ] func_killbox
 				- [ ] Just rework the whole thing since its 'vanilla' behavior is really limited.

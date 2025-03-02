@@ -730,7 +730,7 @@ void CLG_HUD_DrawLineCrosshair( ) {
     clgi.R_SetColor( hud.colors.WHITE );
     // Apply generic crosshair alpha.
     clgi.R_SetAlpha( scr_alpha->value * hud.crosshair.alpha );
-    clgi.Print( PRINT_DEVELOPER, "%f\n", hud.crosshair.alpha);
+
     // Thicker crosshair? Type 2:
     const bool thickCrossHair = ( hud_crosshair_type->integer > 1 );
 
