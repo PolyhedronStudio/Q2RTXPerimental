@@ -21,14 +21,14 @@
 *
 **/
 //! Bullet Spread for default firing.
-static constexpr float PRIMARY_FIRE_BULLET_MIN_HSPREAD = 225.f;
-static constexpr float PRIMARY_FIRE_BULLET_MIN_VSPREAD = 225.f;
+static constexpr double PRIMARY_FIRE_BULLET_MIN_HSPREAD = 225.;
+static constexpr double PRIMARY_FIRE_BULLET_MIN_VSPREAD = 225.;
 //! Maximum Recoil Spread for default firing.
-static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD = 950.f * 4;
-static constexpr float PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD = 950.f * 4;
+static constexpr double PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD = 950. * 4;
+static constexpr double PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD = 950. * 4;
 //! Recoil Spread for aimed targetting secondary fire.
-static constexpr float SECONDARY_FIRE_BULLET_HSPREAD = 50.f;
-static constexpr float SECONDARY_FIRE_BULLET_VSPREAD = 50.f;
+static constexpr double SECONDARY_FIRE_BULLET_HSPREAD = 50.;
+static constexpr double SECONDARY_FIRE_BULLET_VSPREAD = 50.;
 
 /**
 *   Pistol 'Weapon' Item Info.
@@ -74,33 +74,32 @@ void Weapon_Pistol_Precached( const gitem_t *item ) {
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
 void weapon_pistol_primary_fire( edict_t *ent ) {
-    // Get weapon state.
-    gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Default damage value.
     static constexpr int32_t shotDamage = 10;
     // Additional recoil kick force strength.
-    static constexpr float additionalKick = 2;
+    static constexpr double additionalKick = 2.;
+
+    // Get weapon state.
+    gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Get recoil amount.
-    const float recoilAmount = weaponState->recoil.amount;
+    const double recoilAmount = weaponState->recoil.amount;
     // Default kickback force.
-    const float shotKick = 8 + ( additionalKick * recoilAmount );
+    const double shotKick = 2 + ( additionalKick * recoilAmount );
 
     // Acquire these for usage.
-    Vector3 forward = ent->client->viewMove.viewForward, right = ent->client->viewMove.viewRight;
+    const Vector3 forward = ent->client->viewMove.viewForward;
+    const Vector3 right = ent->client->viewMove.viewRight;
     // Determine shot kick offset.
-    ent->client->weaponKicks.offsetOrigin = QM_Vector3Scale( forward, -2 );
-    ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
-    // Project from source to shot destination.
-    Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
-    Vector3 shotStart = {};
-    shotStart = SVG_Player_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right );
+    ent->client->weaponKicks.offsetOrigin = QM_Vector3Scale( forward, -shotKick );
+    ent->client->weaponKicks.offsetAngles[ 0 ] = -shotKick;
+	
+    // Project from shotOffset(source origin) to shot destination to determine the actual shot start.
+    const Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
+    const Vector3 shotStart = SVG_Player_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right );
 
-    // Determine spread value determined by weaponState.
-    // Make sure we're not in aiming mode.
-    //if ( weaponState->aimState.isAiming == false ) {
-    const float bulletHSpread = PRIMARY_FIRE_BULLET_MIN_HSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD * recoilAmount );
-    const float bulletVSpread = PRIMARY_FIRE_BULLET_MIN_VSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD * recoilAmount );
-    //}
+    // Determine spread value based on the recoil amount.
+    const double bulletHSpread = PRIMARY_FIRE_BULLET_MIN_HSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD * recoilAmount );
+    const double bulletVSpread = PRIMARY_FIRE_BULLET_MIN_VSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD * recoilAmount );
 
     // Fire the actual bullet itself.
     fire_bullet( ent, 
@@ -318,10 +317,10 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
                 constexpr QMTime timeRecoilStageA = 75_ms;
                 // When a shot is fired right after 150_ms.(after first 3 frames, up to the 6th frame.)
                 constexpr QMTime timeRecoilStageB = 150_ms;
-                // When a shot is fired right after 300_ms.(after first 6 frames, up to the 9th frame.)
-                constexpr QMTime timeRecoilStageC = 250_ms;
-                // When a shot is fired right after 350_ms.(350_ms is the last frame of firing.)
-                constexpr QMTime timeRecoilStageCap = 300_ms;
+                // When a shot is fired right after 225_ms.(after first 6 frames, up to the 9th frame.)
+                constexpr QMTime timeRecoilStageC = 225_ms;
+                // When a shot is fired right after 300_ms.(350_ms is the last frame of firing.)
+                constexpr QMTime timeRecoilStageCap = 275_ms;
 
                 // Fire for stage A:
                 if ( recoilTime < timeRecoilStageA ) {
@@ -423,6 +422,8 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
     /**
     *   AIMING Path: We're AIMING, if the current MODE(and animation) >= WEAPON_MODE_AIM_IN
     **/
+    QMTime weaponStateDuration = ( ent->client->weaponState.animation.endTime - ent->client->weaponState.animation.startTime );
+
     if ( ent->client->weaponState.mode >= WEAPON_MODE_AIM_IN ) {
         if ( ent->client->weaponState.mode == WEAPON_MODE_AIM_IN ) {
             // Adjust the POV.
@@ -447,13 +448,13 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
             // any earlier/double firing.
             if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame /*+ 3 This is realistic, visually, but, plays very annoying and unnaturally.. */ ) {
                 // Wait out until enough time has passed.
-                if ( ent->client->weaponState.timers.lastAimedFire <= ( level.time - 325_ms ) ) {
+                if ( ent->client->weaponState.timers.lastAimedFire <= ( level.time - weaponStateDuration ) ) {
                     // Fire the pistol bullet.
                     weapon_pistol_aim_fire( ent );
                     // Store the time we last 'aim fired'.
                     ent->client->weaponState.timers.lastAimedFire = level.time;
                 }
-            } else if ( ent->client->weaponState.animation.endTime == level.time ) {
+            } else if ( level.time >= ent->client->weaponState.animation.endTime ) {
                 // Back to idle.
                 SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_AIM_IDLE, pistolItemInfo.modeAnimations, false );
             }
@@ -464,7 +465,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
 
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
-            if ( level.time == ent->client->weaponState.animation.endTime ) {
+            if ( level.time >= ent->client->weaponState.animation.endTime ) {
                 // Disengage aiming state.
                 ent->client->weaponState.aimState = {};
                 // Back to idle.
@@ -477,12 +478,30 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
     } else {
         // Primary Fire:
         if ( ent->client->weaponState.mode == WEAPON_MODE_PRIMARY_FIRING ) {
+            #if 1
             // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
             // any earlier/double firing.
-            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 3 ) {
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1 /*+ 3 This is realistic, visually, but, plays very annoying and unnaturally.. */ ) {
+                // Wait out until enough time has passed, a 75ms will do.
+                if ( ent->client->weaponState.timers.lastPrimaryFire < ( level.time - 75_ms ) ) {
+                    // Fire the pistol bullet.
+                    weapon_pistol_primary_fire( ent );
+                    // Store the time we last 'aim fired'.
+                    ent->client->weaponState.timers.lastPrimaryFire = level.time;
+                }
+            } else if ( level.time >= ent->client->weaponState.animation.endTime ) {
+                ent->client->weaponState.recoil.accumulatedTime = QMTime::FromMilliseconds( 0 );
+                ent->client->weaponState.recoil.amount = 0.f;
+                // Switch to AIM Idle.
+                SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolItemInfo.modeAnimations, false );
+            }
+            #else
+            // Due to this being possibly called multiple times in the same frame, we depend on a timer for this to prevent
+            // any earlier/double firing.
+            if ( ent->client->weaponState.animation.currentFrame == ent->client->weaponState.animation.startFrame + 1 ) {
                 // Wait out until enough time has passed.
                 //if ( ent->client->weaponState.timers.lastPrimaryFire <= ( level.time + 325_ms ) ) {
-                if ( ent->client->weaponState.timers.lastPrimaryFire < level.time ) {
+                if ( ent->client->weaponState.timers.lastPrimaryFire <= ( level.time + weaponStateDuration ) ) {
                     // Fire the pistol bullet.
                     weapon_pistol_primary_fire( ent );
                     // Store the time we last 'primary fired'.
@@ -499,6 +518,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                     SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolItemInfo.modeAnimations, false );
                 }
             }
+            #endif
         // Reload Weapon:
         } else if ( ent->client->weaponState.mode == WEAPON_MODE_RELOADING ) {
             // Start playing clip reload sound. (Takes about the same duration as a pistol reload, 1 second.)

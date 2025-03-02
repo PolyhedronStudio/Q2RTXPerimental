@@ -18,14 +18,15 @@ models/v_wep/pistol/pistol_yellow_brass:
 	texture_normals models/v_wep/pistol/pistolcolors_n.png
 	base_factor 1
 	kind CHROME
-	bump_scale 1.0
-	specular_factor 0.85
-	metalness_factor 1
+	bump_scale 0.65
+	specular_factor 0.0125
+	metalness_factor 0.25
+	roughness_override -1.0
 
 models/v_wep/pistol/muzzleflash:
 	texture_base models/v_wep/pistol/muzzleflash.png
 	texture_mask models/v_wep/pistol/muzzleflash_m.png
-	base_factor 1
+	base_factor 2.5
 	kind UNLIT
 
 models/g_wep/pistol/pistol_black,

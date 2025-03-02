@@ -51,11 +51,11 @@ typedef struct weapon_mode_animation_s {
     const char *skmAnimationName;
     //! IQM Model Animation Index.
     int32_t modelAnimationID;
-    //! Objective start frame index.
+    //! (0 to start) Absolute frame index.
     int32_t startFrame;
-    //! Objective end frame index.
+    //! (start to end) Absolute frame index.
     int32_t endFrame;
-    //! Relative animation frame duration( endFrame - startFrame ).
+    //! Relative animation frame duration ( endFrame - startFrame ) * frame_msec.
     QMTime duration;
 } weapon_mode_animation_t;
 
