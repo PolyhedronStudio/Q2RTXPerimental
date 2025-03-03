@@ -6,15 +6,15 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_client.h"
-#include "clg_eax.h"
-#include "clg_hud.h"
-#include "clg_local_entities.h"
-#include "clg_screen.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_client.h"
+#include "clgame/clg_eax.h"
+#include "clgame/clg_hud.h"
+#include "clgame/clg_local_entities.h"
+#include "clgame/clg_screen.h"
 
-#include "local_entities/clg_local_entity_classes.h"
-#include "local_entities/clg_local_env_sound.h"
+#include "clgame/local_entities/clg_local_entity_classes.h"
+#include "clgame/local_entities/clg_local_env_sound.h"
 
 /**
 *	@brief	Called when the client state has moved into being active and the game begins.

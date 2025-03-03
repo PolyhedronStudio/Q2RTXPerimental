@@ -5,20 +5,20 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_client.h"
-#include "clg_eax.h"
-#include "clg_effects.h"
-#include "clg_entities.h"
-#include "clg_input.h"
-#include "clg_local_entities.h"
-#include "clg_packet_entities.h"
-#include "clg_parse.h"
-#include "clg_precache.h"
-#include "clg_predict.h"
-#include "clg_temp_entities.h"
-#include "clg_screen.h"
-#include "clg_view.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_client.h"
+#include "clgame/clg_eax.h"
+#include "clgame/clg_effects.h"
+#include "clgame/clg_entities.h"
+#include "clgame/clg_input.h"
+#include "clgame/clg_local_entities.h"
+#include "clgame/clg_packet_entities.h"
+#include "clgame/clg_parse.h"
+#include "clgame/clg_precache.h"
+#include "clgame/clg_predict.h"
+#include "clgame/clg_temp_entities.h"
+#include "clgame/clg_screen.h"
+#include "clgame/clg_view.h"
 
 
 //! Stores data that remains accross level switches.

@@ -5,15 +5,15 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_main.h"
-#include "clg_effects.h"
-#include "clg_entities.h"
-#include "clg_local_entities.h"
-#include "clg_packet_entities.h"
-#include "clg_predict.h"
-#include "clg_temp_entities.h"
-#include "clg_view.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_main.h"
+#include "clgame/clg_effects.h"
+#include "clgame/clg_entities.h"
+#include "clgame/clg_local_entities.h"
+#include "clgame/clg_packet_entities.h"
+#include "clgame/clg_predict.h"
+#include "clgame/clg_temp_entities.h"
+#include "clgame/clg_view.h"
 
 
 

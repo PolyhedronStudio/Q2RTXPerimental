@@ -22,8 +22,8 @@
 *	+mlook src time
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_input.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_input.h"
 
 /**
 *

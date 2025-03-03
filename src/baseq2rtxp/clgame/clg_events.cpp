@@ -5,8 +5,8 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_events.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_events.h"
 
 
 

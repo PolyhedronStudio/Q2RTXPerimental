@@ -5,12 +5,12 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_eax.h"
-#include "clg_eax_effects.h"
-#include "clg_effects.h"
-#include "clg_parse.h"
-#include "clg_precache.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_eax.h"
+#include "clgame/clg_eax_effects.h"
+#include "clgame/clg_effects.h"
+#include "clgame/clg_parse.h"
+#include "clgame/clg_precache.h"
 
 
 

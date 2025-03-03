@@ -5,7 +5,7 @@
 *
 *
 ********************************************************************/
-#include "../clg_local.h"
+#include "clgame/clg_local.h"
 
 #define MAX_LASERS  32
 

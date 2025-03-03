@@ -5,13 +5,13 @@
 *
 *
 ********************************************************************/
-#include "../clg_local.h"
-#include "../clg_entities.h"
-#include "../clg_local_entities.h"
-#include "../clg_precache.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_entities.h"
+#include "clgame/clg_local_entities.h"
+#include "clgame/clg_precache.h"
 
 // Include actual entity class types.
-#include "clg_local_entity_classes.h"
+#include "clgame/local_entities/clg_local_env_sound.h"
 
 
 

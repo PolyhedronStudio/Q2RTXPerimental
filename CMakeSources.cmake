@@ -234,6 +234,8 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/effects/clg_fx_particles.cpp
 	baseq2rtxp/clgame/effects/clg_fx_new.cpp
 	
+	baseq2rtxp/clgame/hud/clg_hud_usetargethint.cpp
+
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.cpp	
 	baseq2rtxp/clgame/local_entities/clg_local_misc_entities.cpp
 
@@ -272,6 +274,8 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.h
 	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h
+
+		baseq2rtxp/clgame/hud/clg_hud_usetargethint.h
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2RTXP_SVGAME

@@ -5,12 +5,12 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_effects.h"
-#include "clg_hud.h"
-#include "clg_parse.h"
-#include "clg_screen.h"
-#include "clg_temp_entities.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_effects.h"
+#include "clgame/clg_hud.h"
+#include "clgame/clg_parse.h"
+#include "clgame/clg_screen.h"
+#include "clgame/clg_temp_entities.h"
 
 
 

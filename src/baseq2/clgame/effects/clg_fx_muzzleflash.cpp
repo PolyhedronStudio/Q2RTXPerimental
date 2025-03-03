@@ -5,9 +5,9 @@
 *
 *
 ********************************************************************/
-#include "../clg_local.h"
-#include "../clg_effects.h"
-#include "../clg_entities.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_effects.h"
+#include "clgame/clg_entities.h"
 
 // Need it here.
 extern cvar_t *cl_dlight_hacks;

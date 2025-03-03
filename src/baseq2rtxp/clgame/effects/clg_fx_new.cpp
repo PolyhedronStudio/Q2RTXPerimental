@@ -5,8 +5,8 @@
 *
 *
 ********************************************************************/
-#include "../clg_local.h"
-#include "../clg_effects.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_effects.h"
 
 
 void CLG_Flashlight( int ent, const vec3_t pos ) {

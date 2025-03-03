@@ -5,6 +5,6 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
+#include "clgame/clg_local.h"
 
 extern cvar_t *gamemode;

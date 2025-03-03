@@ -5,9 +5,9 @@
 *
 *
 ********************************************************************/
-#include "../clg_local.h"
-#include "../clg_effects.h"
-#include "../clg_temp_entities.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_effects.h"
+#include "clgame/clg_temp_entities.h"
 
 /**
 *   @brief  Handles the parsed entities/monster muzzleflash effects.

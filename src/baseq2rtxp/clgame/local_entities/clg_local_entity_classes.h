@@ -19,7 +19,7 @@ extern const clg_local_entity_class_t *local_entity_classes[];
 *	client_env_sound:
 *
 **/
-#include "clg_local_env_sound.h"
+#include "clgame/local_entities/clg_local_env_sound.h"
 
 
 

@@ -5,8 +5,8 @@
 *
 *
 ********************************************************************/
-#include "../clg_local.h"
-#include "../clg_temp_entities.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_temp_entities.h"
 
 clg_explosion_t  clg_explosions[ MAX_EXPLOSIONS ];
 

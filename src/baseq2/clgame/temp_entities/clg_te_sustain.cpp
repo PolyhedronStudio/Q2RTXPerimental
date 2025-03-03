@@ -5,8 +5,8 @@
 *
 *
 ********************************************************************/
-#include "../clg_local.h"
-#include "../clg_effects.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_effects.h"
 
 #define MAX_SUSTAINS    32
 

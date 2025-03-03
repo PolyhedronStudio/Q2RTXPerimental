@@ -11,11 +11,11 @@
 *	CLG_AddPacketEntities :-)
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_effects.h"
-#include "clg_entities.h"
-#include "clg_packet_entities.h"
-#include "clg_temp_entities.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_effects.h"
+#include "clgame/clg_entities.h"
+#include "clgame/clg_packet_entities.h"
+#include "clgame/clg_temp_entities.h"
 
 // WID: TODO: Move to client where it determines old/new states?
 #if 1 

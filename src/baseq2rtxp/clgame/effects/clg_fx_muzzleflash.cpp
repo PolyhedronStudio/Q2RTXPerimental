@@ -5,9 +5,9 @@
 *
 *
 ********************************************************************/
-#include "../clg_local.h"
-#include "../clg_effects.h"
-#include "../clg_entities.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_effects.h"
+#include "clgame/clg_entities.h"
 
 
 static clg_dlight_t *CLG_AddMuzzleflashDLight( centity_t *pl, vec3_t fv, vec3_t rv ) {

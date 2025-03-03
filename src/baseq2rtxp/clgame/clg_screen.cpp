@@ -4,11 +4,11 @@
 *	ClientGame: Screen (2D Elements).
 *
 ********************************************************************/
-#include "clg_local.h"
+#include "clgame/clg_local.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
-#include "clg_hud.h"
-#include "clg_screen.h"
+#include "clgame/clg_hud.h"
+#include "clgame/clg_screen.h"
 
 
 

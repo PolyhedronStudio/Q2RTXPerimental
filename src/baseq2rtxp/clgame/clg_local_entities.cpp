@@ -5,10 +5,10 @@
 *
 *
 ********************************************************************/
-#include "clg_local.h"
-#include "clg_local_entities.h"
-#include "local_entities/clg_local_entity_classes.h"
-#include "local_entities/clg_local_env_sound.h"
+#include "clgame/clg_local.h"
+#include "clgame/clg_local_entities.h"
+#include "clgame/local_entities/clg_local_entity_classes.h"
+#include "clgame/local_entities/clg_local_env_sound.h"
 
 
 /**
