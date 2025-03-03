@@ -4293,7 +4293,7 @@ R_BeginRegistration_RTX(const char *name)
 	if (!bsp->vis) {
 		Hunk_Free(&bsp->hunk);
 		Z_Free(bsp);
-		Com_Error(ERR_DROP, "BSP not vis'd; this is required for Q2RTX.");
+		Com_Error(ERR_DROP, "BSP not vis'd; this is required for Q2RTXP.");
 	}
 	bsp_world_model = bsp;
 	bsp_mesh_register_textures(bsp);

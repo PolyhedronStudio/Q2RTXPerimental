@@ -725,7 +725,7 @@ void func_breakable_explode(edict_t *self, edict_t *inflictor, edict_t *attacker
             count = 8;
         while (count--) {
             VectorMA(origin, crandom(), size, chunkorigin);
-            SVG_Misc_ThrowDebris(self, "models/objects/debris1/tris.md2", 1, chunkorigin);
+            SVG_Misc_ThrowDebris(self, "models/debris/debris1/tris.md2", 1, chunkorigin);
         }
     }
 
@@ -735,7 +735,7 @@ void func_breakable_explode(edict_t *self, edict_t *inflictor, edict_t *attacker
         count = 16;
     while (count--) {
         VectorMA(origin, crandom(), size, chunkorigin);
-        SVG_Misc_ThrowDebris(self, "models/objects/debris2/tris.md2", 2, chunkorigin);
+        SVG_Misc_ThrowDebris(self, "models/debris/debris2/tris.md2", 2, chunkorigin);
     }
 
     SVG_UseTargets(self, attacker);
@@ -770,8 +770,8 @@ void SP_func_breakable(edict_t *self)
 
     self->movetype = MOVETYPE_PUSH;
 
-    gi.modelindex("models/objects/debris1/tris.md2");
-    gi.modelindex("models/objects/debris2/tris.md2");
+    gi.modelindex("models/debris/debris1/tris.md2");
+    gi.modelindex("models/debris/debris2/tris.md2");
 
     gi.setmodel(self, self->model);
 
@@ -853,30 +853,30 @@ void barrel_explode(edict_t *self)
     // a few big chunks
     spd = 1.5f * (float)self->dmg / 200.0f;
     VectorMA(self->s.origin, crandom(), self->size, org);
-    SVG_Misc_ThrowDebris(self, "models/objects/debris1/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/debris/debris1/tris.md2", spd, org);
     VectorMA(self->s.origin, crandom(), self->size, org);
-    SVG_Misc_ThrowDebris(self, "models/objects/debris1/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/debris/debris1/tris.md2", spd, org);
 
     // bottom corners
     spd = 1.75f * (float)self->dmg / 200.0f;
     VectorCopy(self->absmin, org);
-    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/debris/debris3/tris.md2", spd, org);
     VectorCopy(self->absmin, org);
     org[0] += self->size[0];
-    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/debris/debris3/tris.md2", spd, org);
     VectorCopy(self->absmin, org);
     org[1] += self->size[1];
-    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/debris/debris3/tris.md2", spd, org);
     VectorCopy(self->absmin, org);
     org[0] += self->size[0];
     org[1] += self->size[1];
-    SVG_Misc_ThrowDebris(self, "models/objects/debris3/tris.md2", spd, org);
+    SVG_Misc_ThrowDebris(self, "models/debris/debris3/tris.md2", spd, org);
 
     // a bunch of little chunks
     spd = 2 * self->dmg / 200;
     for (i = 0; i < 8; i++) {
         VectorMA(self->s.origin, crandom(), self->size, org);
-        SVG_Misc_ThrowDebris(self, "models/objects/debris2/tris.md2", spd, org);
+        SVG_Misc_ThrowDebris(self, "models/debris/debris2/tris.md2", spd, org);
     }
 
     VectorCopy(save, self->s.origin);
@@ -902,9 +902,9 @@ void SP_misc_explobox(edict_t *self)
         return;
     }
 
-    gi.modelindex("models/objects/debris1/tris.md2");
-    gi.modelindex("models/objects/debris2/tris.md2");
-    gi.modelindex("models/objects/debris3/tris.md2");
+    gi.modelindex("models/debris/debris1/tris.md2");
+    gi.modelindex("models/debris/debris2/tris.md2");
+    gi.modelindex("models/debris/debris3/tris.md2");
 
     self->solid = SOLID_BOUNDS_OCTAGON;
     self->movetype = MOVETYPE_STEP;

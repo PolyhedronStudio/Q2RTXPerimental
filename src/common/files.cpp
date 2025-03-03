@@ -3698,7 +3698,7 @@ void FS_AddConfigFiles(bool init)
     // default.cfg and q2rtx.cfg may come from packfile, but config.cfg and autoexec.cfg
     // must be real files within the game directory.
     Com_AddConfigFile( COM_DEFAULT_CFG, flag );
-    Com_AddConfigFile( COM_Q2RTX_CFG, FS_PATH_ANY );
+    //Com_AddConfigFile( COM_Q2RTX_CFG, FS_PATH_ANY );
     Com_AddConfigFile( COM_Q2RTXP_CFG, FS_PATH_ANY );
     Com_AddConfigFile( COM_CONFIG_CFG, FS_TYPE_REAL | flag );
 

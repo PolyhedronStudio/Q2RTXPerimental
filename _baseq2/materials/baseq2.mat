@@ -847,21 +847,21 @@ models/objects/bomb/skin:
 	emissive_factor 0.1
 	base_factor 2.5
 
-models/objects/debris1/skin:
-	texture_base models/objects/debris1/skin.tga
-	texture_normals models/objects/debris1/skin_n.tga
+models/debris/debris1/skin:
+	texture_base models/debris/debris1/skin.tga
+	texture_normals models/debris/debris1/skin_n.tga
 	emissive_factor 0.1
 	base_factor 2.5
 	specular_factor 0
 
-models/objects/debris2/skin:
-	texture_base models/objects/debris2/skin.pcx
+models/debris/debris2/skin:
+	texture_base models/debris/debris2/skin.pcx
 	emissive_factor 0.1
 	base_factor 2.5
 	specular_factor 0
 
-models/objects/debris3/skin:
-	texture_base models/objects/debris3/skin.pcx
+models/debris/debris3/skin:
+	texture_base models/debris/debris3/skin.pcx
 	emissive_factor 0.1
 	base_factor 2.5
 	specular_factor 0

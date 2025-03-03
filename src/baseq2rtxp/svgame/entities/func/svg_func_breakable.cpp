@@ -88,7 +88,7 @@ void func_breakable_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
             count = 8;
         while ( count-- ) {
             const Vector3 chunkOrigin = QM_Vector3MultiplyAdd( origin, crandom(), center );
-            SVG_Misc_ThrowDebris( self, "models/objects/debris1/tris.md2", 1, (vec_t*)&chunkOrigin.x);
+            SVG_Misc_ThrowDebris( self, "models/debris/debris1/tris.md2", 1, (vec_t*)&chunkOrigin.x);
         }
     }
 
@@ -99,7 +99,7 @@ void func_breakable_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
     }
     while ( count-- ) {
         const Vector3 chunkOrigin = QM_Vector3MultiplyAdd( origin, crandom(), center );
-        SVG_Misc_ThrowDebris( self, "models/objects/debris2/tris.md2", 2, (vec_t*)&chunkOrigin.x );
+        SVG_Misc_ThrowDebris( self, "models/debris/debris2/tris.md2", 2, (vec_t*)&chunkOrigin.x );
     }
 
     self->other = inflictor;
@@ -317,8 +317,8 @@ void SP_func_breakable( edict_t *self ) {
     self->s.entityType = ET_PUSHER;
 
     // Load debris models for spawned debris entities.
-    gi.modelindex( "models/objects/debris1/tris.md2" );
-    gi.modelindex( "models/objects/debris2/tris.md2" );
+    gi.modelindex( "models/debris/debris1/tris.md2" );
+    gi.modelindex( "models/debris/debris2/tris.md2" );
 
     // Apply brush model to self. (Will be of the *number type.)
     gi.setmodel( self, self->model );
