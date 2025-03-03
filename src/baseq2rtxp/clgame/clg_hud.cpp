@@ -1252,7 +1252,7 @@ void CLG_HUD_DrawUseTargetHintInfos( ) {
                 };
             } else {
                 // Store lastID.
-                hud.targetHints.lastID = hud.targetHints.currentID;
+                hud.targetHints.lastID = ( hud.targetHints.currentID & HUD_TARGETHINT_TOGGLE_BIT ) ^ HUD_TARGETHINT_TOGGLE_BIT;
                 // Apply new top ID.
                 hud.targetHints.hints[ TOP_TARGET_HINT ] = {
                     .hintID = hud.targetHints.currentID = currentID,

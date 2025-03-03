@@ -113,7 +113,8 @@ typedef struct pmove_state_s {
 
 
 //! Used to detect animation changes.
-#define GUN_ANIMATION_TOGGLE_BIT 128
+#define GUN_ANIMATION_TOGGLE_BIT    BIT(7)
+#define HUD_TARGETHINT_TOGGLE_BIT   BIT(15)
 
 //! Used to determine what player base channel animation to set.
 //! "(crouch/walk/run)_forward/backward_left/right_(weapon)"
