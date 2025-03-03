@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 //void V_AddSphereLight( const vec3_t org, float intensity, float r, float g, float b, float radius ) {
 //	dlight_t *dl;
@@ -159,15 +160,15 @@ void spotlight_think( edict_t *self ) {
 
 		// Set the current intensity to that of ( ( ASCII - 97 ) * 100 ).
 		if ( Q_isalpha( lightStyle[ currentFrame ] ) ) {
-			self->s.spotlight.intensity = ( lightStyle[ currentFrame ] - 'a' ) * 100;
+			self->s.spotlight.intensity = (float)( lightStyle[ currentFrame ] - 'a' ) * 25.f;
 		}
 	} else {
-		self->s.spotlight.intensity = 'a' * 100.f;
+		self->s.spotlight.intensity = (float)('a') * 25.f;
 	}
 
 	// Setup for next frame's 'think'.
-	self->think = spotlight_think;
-	self->nextthink = level.time + 10_hz;
+	self->think = spotlight_think;	
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 /**
@@ -194,6 +195,7 @@ void spotlight_use( edict_t *self, edict_t *other, edict_t *activator, const ent
 *	@brief
 **/
 void SP_spotlight( edict_t *self ) {
+
 	SVG_InitEdict( self );
 	
 	// Spotlight Type

@@ -378,9 +378,9 @@
 // entity 3
 {
 "classname" "spotlight"
-"origin" "0 -128 168"
-"angles" "90 0 0"
-"angle_width" "60"
+"origin" "0 -184 100"
+"angles" "15 90 90"
+"angle_width" "30"
 "angle_falloff" "25"
 "intensity" "100"
 "rgb" "0 255 0"
@@ -390,7 +390,7 @@
 {
 "classname" "spotlight"
 "origin" "192 -128 168"
-"angles" "90 0 0"
+"angles" "90 0 90"
 "angle_width" "60"
 "angle_falloff" "25"
 "intensity" "100"

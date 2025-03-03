@@ -73,45 +73,61 @@ void Weapon_Pistol_Precached( const gitem_t *item ) {
 /**
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
-void weapon_pistol_primary_fire( edict_t *ent ) {
-    // Default damage value.
-    static constexpr int32_t shotDamage = 10;
-    // Additional recoil kick force strength.
-    static constexpr double additionalKick = 2.;
-
+void weapon_pistol_fire_bullet( edict_t *ent, const Vector3 &shotOffset, const int32_t shotDamage = 10, const double &additionalKick = 2. ) {
     // Get weapon state.
     gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
-    // Get recoil amount.
+    // Get the current recoil amount.
     const double recoilAmount = weaponState->recoil.amount;
-    // Default kickback force.
+
+
+    // Calculate the kick force based on the amount of recoil we got.
     const double shotKick = 2 + ( additionalKick * recoilAmount );
 
-    // Acquire these for usage.
-    const Vector3 forward = ent->client->viewMove.viewForward;
-    const Vector3 right = ent->client->viewMove.viewRight;
+    // Get references to client forward/right vectors.
+    const Vector3 &viewForward = ent->client->viewMove.viewForward;
+    const Vector3 &viewRight = ent->client->viewMove.viewRight;
     // Determine shot kick offset.
-    ent->client->weaponKicks.offsetOrigin = QM_Vector3Scale( forward, -shotKick );
+    ent->client->weaponKicks.offsetOrigin = QM_Vector3Scale( viewForward, -shotKick );
     ent->client->weaponKicks.offsetAngles[ 0 ] = -shotKick;
-	
+
     // Project from shotOffset(source origin) to shot destination to determine the actual shot start.
-    const Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
-    const Vector3 shotStart = SVG_Player_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right );
+    //const Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
+    const Vector3 shotStart = SVG_Player_ProjectDistance( ent, ent->s.origin, shotOffset, viewForward, viewRight );
 
     // Determine spread value based on the recoil amount.
     const double bulletHSpread = PRIMARY_FIRE_BULLET_MIN_HSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_HSPREAD * recoilAmount );
     const double bulletVSpread = PRIMARY_FIRE_BULLET_MIN_VSPREAD + ( PRIMARY_FIRE_BULLET_RECOIL_MAX_VSPREAD * recoilAmount );
 
     // Fire the actual bullet itself.
-    fire_bullet( ent, 
-        &shotStart.x, &forward.x, shotDamage, shotKick,
-        bulletHSpread, bulletVSpread, 
+    fire_bullet( ent,
+        &shotStart.x, &viewForward.x, shotDamage, shotKick,
+        bulletHSpread, bulletVSpread,
         MEANS_OF_DEATH_HIT_PISTOL
     );
+}
+
+/**
+*   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
+**/
+void weapon_pistol_primary_fire( edict_t *ent ) {
+    // Default damage value.
+    static constexpr int32_t shotDamage = 10;
+    // Additional recoil kick force strength.
+    static constexpr double additionalKick = 2.;
+    // Project from shotOffset(source origin) to shot destination to determine the actual shot start.
+    const Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
+
+    // Fire shot.
+    weapon_pistol_fire_bullet( ent, shotOffset, shotDamage, additionalKick );
+
+    // Get references to client forward/right vectors.
+    const Vector3 &viewForward = ent->client->viewMove.viewForward;
+    const Vector3 &viewRight = ent->client->viewMove.viewRight;
 
     // Project muzzleflash destination from source to source+offset, and clip it to any obstacles.
     Vector3 muzzleFlashOffset = { 16.f, 10.f, (float)ent->viewheight };
     //SVG_Player_ProjectDistance( ent, ent->s.origin, &muzzleFlashOffset.x, &forward.x, &right.x, &start.x );
-    Vector3 muzzleFlashOrigin = SVG_MuzzleFlash_ProjectAndTraceToPoint( ent, muzzleFlashOffset, forward, right );
+    Vector3 muzzleFlashOrigin = SVG_MuzzleFlash_ProjectAndTraceToPoint( ent, muzzleFlashOffset, viewForward, viewRight );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
@@ -133,39 +149,20 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 void weapon_pistol_aim_fire( edict_t *ent ) {
     constexpr int32_t shotDamage = 14;
     constexpr int32_t recoilKick = 10;
+    // Project from shotOffset(source origin) to shot destination to determine the actual shot start.
+    const Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
 
-    // Acquire these for usage.
-    Vector3 forward = ent->client->viewMove.viewForward, right = ent->client->viewMove.viewRight;
-    // Determine shot kick offset.
-    ent->client->weaponKicks.offsetOrigin = QM_Vector3Scale( forward, -2 );
-    ent->client->weaponKicks.offsetAngles[ 0 ] = -2;
-    // Project from source to shot destination.
-    Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
-    Vector3 shotStart = {};
-    shotStart = SVG_Player_ProjectDistance( ent, ent->s.origin, shotOffset, forward, right );
+    // Fire shot.
+    weapon_pistol_fire_bullet( ent, shotOffset, shotDamage, recoilKick );
 
-    // Determine the amount to multiply bullet spread with based on the player's velocity.
-    // TODO: Use stats array or so for storing the actual move speed limit, since this
-    // may vary.
-    constexpr float moveThreshold = 300.0f;
-    // Don't spread multiply if we're pretty much standing still. This allows for a precise shot.
-    const float hSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
-    const float vSpreadMultiplier = ( ent->client->ps.xyzSpeed > 5 ? moveThreshold * ent->client->ps.bobMove : 0 );
-    //gi.dprintf( " ----- ----- ----- \n" );
-    //gi.dprintf( "%s: hSpreadMultiplier(%f) vSpreadMultiplier(%f)\n", __func__, hSpreadMultiplier, vSpreadMultiplier );
-
-    // Fire the actual bullet itself.
-    fire_bullet( ent, 
-        &shotStart.x, &forward.x, shotDamage, recoilKick, 
-        SECONDARY_FIRE_BULLET_HSPREAD + hSpreadMultiplier, 
-        SECONDARY_FIRE_BULLET_VSPREAD + vSpreadMultiplier, 
-        MEANS_OF_DEATH_HIT_PISTOL 
-    );
+    // Get references to client forward/right vectors.
+    const Vector3 &viewForward = ent->client->viewMove.viewForward;
+    const Vector3 &viewRight = ent->client->viewMove.viewRight;
 
     // Project muzzleflash destination from source to source+offset, and clip it to any obstacles.
     vec3_t muzzleFlashOffset = { 16, 0, (float)ent->viewheight };
     //SVG_Player_ProjectDistance( ent, ent->s.origin, &muzzleFlashOffset.x, &forward.x, &right.x, &start.x );
-    Vector3 muzzleFlashOrigin = SVG_MuzzleFlash_ProjectAndTraceToPoint( ent, muzzleFlashOffset, forward, right );
+    Vector3 muzzleFlashOrigin = SVG_MuzzleFlash_ProjectAndTraceToPoint( ent, muzzleFlashOffset, viewForward, viewRight );
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );

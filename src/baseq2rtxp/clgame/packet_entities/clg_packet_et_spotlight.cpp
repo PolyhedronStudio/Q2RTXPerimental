@@ -19,6 +19,9 @@ void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEn
     VectorCopy( lerpedOrigin, refreshEntity->origin );
     VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
 
+    // Lerp the angles.
+    LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
+
     // Just in case?
     refreshEntity->flags = newState->renderfx;
 
@@ -32,8 +35,9 @@ void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEn
     float lightIntensity = newState->spotlight.intensity;
 
     // Calculate the spotlight's view direction based on set euler angles.
-    vec3_t view_dir = {};
-    AngleVectors( refreshEntity->angles, view_dir, nullptr, nullptr );
+    Vector3 viewForwardDir = {};
+    QM_AngleVectors( refreshEntity->angles, &viewForwardDir, nullptr, nullptr );
+    VectorCopy( viewForwardDir, refreshEntity->angles );
 
     // Add the spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
     // Use the image based texture profile in case one is set.
@@ -47,7 +51,7 @@ void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEn
     } else
 #endif
     {
-        clgi.V_AddSpotLight( refreshEntity->origin, view_dir, lightIntensity,
+        clgi.V_AddSpotLight( refreshEntity->origin, &viewForwardDir.x, lightIntensity,
             // TODO: Multiply the RGB?
             rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
             newState->spotlight.angle_width, newState->spotlight.angle_falloff );

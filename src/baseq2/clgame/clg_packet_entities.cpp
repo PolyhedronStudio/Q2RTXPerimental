@@ -32,9 +32,13 @@ void CLG_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state
     float lightIntensity = s1->intensity;
 
     // Calculate the spotlight's view direction based on set euler angles.
-    vec3_t view_dir, right_dir, up_dir;
-    AngleVectors( ent->angles, view_dir, right_dir, up_dir );
-
+    Vector3 view_dir, right_dir, up_dir;
+    QM_AngleVectors( ent->angles, view_dir, right_dir, up_dir );
+    
+    clgi.Print( PRINT_DEVELOPER, "ent->angles(%f, %f, %f), view_dir(%f, %f, %f)\n",
+        ent->angles.x, ent->angles.y, ent->angles.z, 
+        view_dir.x, view_dir.y, view_dir.z 
+    );
     // Add the spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
     // Use the image based texture profile in case one is set.
     #if 0
@@ -49,7 +53,7 @@ void CLG_PacketEntity_AddSpotlight( centity_t *cent, entity_t *ent, entity_state
     {
         clgi.V_AddSpotLight( ent->origin, view_dir, lightIntensity,
             // TODO: Multiply the RGB?
-            rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
+            rgb[ 0 ], rgb[ 1 ], rgb[ 2 ],
             s1->angle_width, s1->angle_falloff );
     }
 
@@ -482,10 +486,10 @@ void CLG_AddPacketEntities( void ) {
         }
 
         // Spotlight:
-        if ( s1->effects & EF_SPOTLIGHT ) { //if ( s1->entityType == ET_SPOTLIGHT ) {
-            CLG_PacketEntity_AddSpotlight( cent, &ent, s1 );
-            //return;
-        }
+        //if ( s1->effects & EF_SPOTLIGHT ) { //if ( s1->entityType == ET_SPOTLIGHT ) {
+        //    CLG_PacketEntity_AddSpotlight( cent, &ent, s1 );
+        //    //return;
+        //}
 
         // If set to invisible, skip:
         if ( !s1->modelindex ) {
