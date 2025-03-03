@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ServerGame: Brush Entity 'func_explosive'.
+*	ServerGame: Pusher Entity 'func_breakable'.
 *
 *
 ********************************************************************/
@@ -14,35 +14,21 @@
 
 #include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_entities.h"
-#include "svgame/entities/func/svg_func_explosive.h"
+#include "svgame/entities/func/svg_func_breakable.h"
 
 
 
-/*
-QUAKED func_explosive (0 .5 .8) ? SpawnOnTrigger ANIMATED ANIMATED_FAST
-Any brush that you want to explode or break apart.  If you want an
-ex0plosion, set dmg and it will do a radius explosion of that amount
-at the center of the bursh.
-
-If targeted it will not be shootable.
-
-health defaults to 100.
-
-mass defaults to 75.  This determines how much debris is emitted when
-it explodes.  You get one large chunk per 100 of mass (up to 8) and
-one small chunk per 25 of mass (up to 16).  So 800 gives the most.
-*/
 /**
 *   Spawnflags:
 **/
 //! Spawn on trigger. (Initially invisible.)
-static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_SPAWN_ON_TRIGGER	= BIT( 0 );
+static constexpr int32_t FUNC_BREAKABLE_SPAWNFLAG_SPAWN_ON_TRIGGER	= BIT( 0 );
 //! Free entity on break/explode.
-static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE = BIT( 1 );
+static constexpr int32_t FUNC_BREAKABLE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE = BIT( 1 );
 //! Brush has animations.
-static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_ANIMATE_ALL		= BIT( 2 );
+static constexpr int32_t FUNC_BREAKABLE_SPAWNFLAG_ANIMATE_ALL		= BIT( 2 );
 //! Brush has animations.
-static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_ANIMATE_ALL_FAST	= BIT( 3 );
+static constexpr int32_t FUNC_BREAKABLE_SPAWNFLAG_ANIMATE_ALL_FAST	= BIT( 3 );
 
 
 
@@ -58,7 +44,7 @@ static constexpr int32_t FUNC_EXPLOSIVE_SPAWNFLAG_ANIMATE_ALL_FAST	= BIT( 3 );
 /**
 *   @brief  
 **/
-void explosive_become_explosive( edict_t *self ) {
+void _become_( edict_t *self ) {
     // Do not free this entity, we might wanna be respawned.
     SVG_Misc_BecomeExplosion( self, 1, false );
 }
@@ -66,7 +52,7 @@ void explosive_become_explosive( edict_t *self ) {
 /**
 *   @brief
 **/
-void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
+void func_breakable_explode( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
     // bmodel origins are (0 0 0), we need to adjust that here
     const Vector3 size = Vector3( self->size ) * 0.5f; // VectorScale( self->size, 0.5f, size );
     const Vector3 origin = Vector3( self->absmin ) + size; // VectorAdd( self->absmin, size, origin );
@@ -75,7 +61,7 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
     // Take damage no more.
     self->takedamage = DAMAGE_NO;
 
-    // Perform explosive radius damage if set.
+    // Perform  radius damage if set.
     if ( self->dmg ) {
         SVG_RadiusDamage( self, attacker, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLOSIVE );
     }
@@ -125,7 +111,7 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
     // Free, or become an explosion if we had radius damage set.
     if ( self->dmg ) {
         // Turn into explosion.
-        explosive_become_explosive( self );
+        _become_( self );
         // Pass along some arguments.
         svg_signal_argument_array_t signalArguments;
         svg_signal_argument_t signalArgument = {
@@ -154,7 +140,7 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
     }
 
     // Do NOT Free it, we wanna be able to respawn it.
-	if ( SVG_HasSpawnFlags( self, FUNC_EXPLOSIVE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE ) ) {
+	if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE ) ) {
         self->nextthink = level.time + FRAME_TIME_MS;
         self->think = SVG_FreeEdict;
 	}
@@ -163,13 +149,13 @@ void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
 /**
 *   @brief  Triggers the breaking/exploding of the target when triggered by other entities.
 **/
-void func_explosive_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    func_explosive_explode( self, other, activator, self->health, self->s.origin );
+void func_breakable_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    func_breakable_explode( self, other, activator, self->health, self->s.origin );
 }
 /**
 *   @brief  Pain handling.
 **/
-void func_explosive_pain( edict_t *self, edict_t *other, float kick, int damage ) {
+void func_breakable_pain( edict_t *self, edict_t *other, float kick, int damage ) {
 	// Construct signal arguments for the 'OnPain' signal.
     const svg_signal_argument_array_t signalArguments = {
             {
@@ -197,7 +183,7 @@ void func_explosive_pain( edict_t *self, edict_t *other, float kick, int damage 
 /**
 *   @brief
 **/
-void func_explosive_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void func_breakable_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	// Solid now that it's destroyable.
     self->solid = SOLID_BSP;
 	// Enable entity to be send to clients.
@@ -205,7 +191,7 @@ void func_explosive_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *ac
     // Unset the use callback.
     self->use = NULL;
     // Set pain.
-    self->pain = func_explosive_pain;
+    self->pain = func_breakable_pain;
     self->takedamage = DAMAGE_YES;
 
 
@@ -232,12 +218,12 @@ void func_explosive_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *ac
 *
 *
 **/
-void SP_func_explosive( edict_t *self );
+void SP_func_( edict_t *self );
 
 /**
 *   @brief  Signal Receiving:
 **/
-void func_explosive_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+void func_breakable_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     /**
     *   Revive:
     **/
@@ -249,8 +235,8 @@ void func_explosive_onsignalin( edict_t *self, edict_t *other, edict_t *activato
 		self->health = self->max_health = SVG_SignalArguments_GetValue( signalArguments, "health", self->max_health );
 
         // Remove it, since we're respawning.
-        self->spawnflags &= FUNC_EXPLOSIVE_SPAWNFLAG_SPAWN_ON_TRIGGER;
-  //      self->spawnflags &= ~FUNC_EXPLOSIVE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE;
+        self->spawnflags &= FUNC_BREAKABLE_SPAWNFLAG_SPAWN_ON_TRIGGER;
+  //      self->spawnflags &= ~FUNC_BREAKABLE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE;
 
   //      // Unset use.
         self->use = nullptr;
@@ -260,7 +246,7 @@ void func_explosive_onsignalin( edict_t *self, edict_t *other, edict_t *activato
 
         // Spawn as usual.
         // Set pain.
-        //self->pain = func_explosive_pain;
+        //self->pain = func_breakable_pain;
 
         //// Default to 100 health.
         //if ( !self->health ) {
@@ -271,27 +257,27 @@ void func_explosive_onsignalin( edict_t *self, edict_t *other, edict_t *activato
         //self->max_health = self->health;
 
         //// Die callback for destructing.
-        //self->die = func_explosive_explode;
+        //self->die = func_breakable_explode;
         //// Allow it to take damage.
         //self->takedamage = DAMAGE_YES;
-        func_explosive_spawn_on_trigger( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
+        func_breakable_spawn_on_trigger( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
         // Turn it on, showing itself.
-        //func_explosive_spawn_on_trigger( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
-		//func_explosive_use( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
+        //func_breakable_spawn_on_trigger( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
+		//func_breakable_use( self, other, activator, ENTITY_USETARGET_TYPE_ON, 1 );
     }
     /**
     *   Break/Explode:
     **/
     // Break:
     if ( Q_strcasecmp( signalName, "Break" ) == 0 ) {
-        func_explosive_explode( self, self, activator, self->health, self->s.origin );
+        func_breakable_explode( self, self, activator, self->health, self->s.origin );
     }
     // Explode:
     if ( Q_strcasecmp( signalName, "Explode" ) == 0 ) {
 		// Get damage argument if any.
         const int64_t dmg = SVG_SignalArguments_GetValue( signalArguments, "damage", 100 );
         self->dmg = dmg;
-        func_explosive_explode( self, self, activator, self->health, self->s.origin );
+        func_breakable_explode( self, self, activator, self->health, self->s.origin );
     }
 
     // WID: Useful for debugging.
@@ -308,7 +294,7 @@ void func_explosive_onsignalin( edict_t *self, edict_t *other, edict_t *activato
 *
 *
 *
-*   func_explosive Spawn:
+*   func_ Spawn:
 *
 *
 *
@@ -316,7 +302,7 @@ void func_explosive_onsignalin( edict_t *self, edict_t *other, edict_t *activato
 /**
 *   @brief
 **/
-void SP_func_explosive( edict_t *self ) {
+void SP_func_breakable( edict_t *self ) {
     // WID: Nah.
     #if 0
     if ( deathmatch->value ) {
@@ -338,39 +324,39 @@ void SP_func_explosive( edict_t *self ) {
     gi.setmodel( self, self->model );
     
     // Signal Receiving:
-    self->onsignalin = func_explosive_onsignalin;
+    self->onsignalin = func_breakable_onsignalin;
 
     // Always clip to hull.
     self->svflags |= SVF_HULL;
 
     // Spawn after being triggered instead of immediately at level start:
-    if ( SVG_HasSpawnFlags( self, FUNC_EXPLOSIVE_SPAWNFLAG_SPAWN_ON_TRIGGER ) ) {
+    if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_SPAWN_ON_TRIGGER ) ) {
         self->svflags |= SVF_NOCLIENT;
         self->solid = SOLID_NOT;
-        self->use = func_explosive_spawn_on_trigger;
+        self->use = func_breakable_spawn_on_trigger;
     // Spawned immediately:
     } else {
         // Solid now that it's destroyable.
         self->solid = SOLID_BSP;
         // If a targetname is set, setup its use callback instead of explosion death callback.
         if ( self->targetname ) {
-            self->use = func_explosive_use;
+            self->use = func_breakable_use;
         }
     }
 
     // Animation Effects SpawnFlags:
-    if ( SVG_HasSpawnFlags( self, FUNC_EXPLOSIVE_SPAWNFLAG_ANIMATE_ALL ) ) {
+    if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_ANIMATE_ALL ) ) {
         self->s.effects |= EF_ANIM_ALL;
     }
-    if ( SVG_HasSpawnFlags( self, FUNC_EXPLOSIVE_SPAWNFLAG_ANIMATE_ALL_FAST ) ) {
+    if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_ANIMATE_ALL_FAST ) ) {
         self->s.effects |= EF_ANIM_ALLFAST;
     }
 
     // No default use callback was set, so resort to actual default behavior of the object:
     // Explode after running out of health.
-    if ( self->use != func_explosive_use ) {
+    if ( self->use != func_breakable_use ) {
         // Set pain.
-        self->pain = func_explosive_pain;
+        self->pain = func_breakable_pain;
 
         // Default to 100 health.
         if ( !self->health ) {
@@ -381,7 +367,7 @@ void SP_func_explosive( edict_t *self ) {
         self->max_health = self->health;
 
         // Die callback for destructing.
-        self->die = func_explosive_explode;
+        self->die = func_breakable_explode;
         // Allow it to take damage.
         self->takedamage = DAMAGE_YES;
     }

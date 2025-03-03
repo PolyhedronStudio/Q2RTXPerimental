@@ -323,14 +323,14 @@
 {
 "classname" "func_group"
 "_tb_type" "_tb_group"
-"_tb_name" "func_explosive wall"
+"_tb_name" "func_breakable wall"
 "_tb_id" "1"
 "_tb_linked_group_id" "{8581203b-60c3-40ae-b522-36d8cc59a85c}"
 "_tb_transformation" "6.123233995736766e-17 -1 0 -584 1 6.123233995736766e-17 0 -416 0 0 1 16 0 0 0 1"
 }
 // entity 4
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "luaName" "FuncExplosives00"
 "spawnflags" "2"
 "_tb_group" "1"
@@ -346,7 +346,7 @@
 }
 // entity 5
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "luaName" "FuncExplosives00"
 "spawnflags" "2"
 "_tb_group" "1"
@@ -362,7 +362,7 @@
 }
 // entity 6
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "luaName" "FuncExplosives00"
 "spawnflags" "2"
 "_tb_group" "1"
@@ -378,7 +378,7 @@
 }
 // entity 7
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "luaName" "FuncExplosives00"
 "spawnflags" "2"
 "_tb_group" "1"
@@ -394,7 +394,7 @@
 }
 // entity 8
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "luaName" "FuncExplosives00"
 "spawnflags" "2"
 "_tb_group" "1"
@@ -410,7 +410,7 @@
 }
 // entity 9
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "dmg" "25"
 "mass" "50"
 "luaName" "FuncExplosives00"
@@ -428,7 +428,7 @@
 }
 // entity 10
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "mass" "50"
 "luaName" "FuncExplosives00"
 "spawnflags" "2"
@@ -445,7 +445,7 @@
 }
 // entity 11
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "mass" "50"
 "luaName" "FuncExplosives00"
 "spawnflags" "2"
@@ -462,7 +462,7 @@
 }
 // entity 12
 {
-"classname" "func_explosive"
+"classname" "func_breakable"
 "mass" "75"
 "dmg" "10"
 "luaName" "FuncExplosives00"

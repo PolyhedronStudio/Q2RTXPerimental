@@ -170,7 +170,8 @@ struct hud_state_t {
         int32_t lastID = 0;
 
         //! Current 'head' index.
-        int32_t headIndex = 0;
+        uint32_t headIndex = 0;
+
         //! Hint States.
         hud_usetarget_hint_t hints[ HUD_MAX_TARGET_HINTS ] = {};
     } targetHints = {};

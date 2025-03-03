@@ -123,11 +123,11 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 		- [ ] PushMovers Signal I/O Support:
 			- [X] func_button
 			- [ ] func_breakable
-				- [ ] Implement, similar to func_explosive somewhat._
+				- [ ] Implement properly.
 			- [ ] func_conveyor
 			- [x] func_door
 			- [x] func_door_rotating
-			- [/] func_explosive
+			- [/] func_breakable
 				- [ ] Just rewrite it, it is bugged anyhow.
 			- [X] func_rotating
 			- [ ] func_killbox

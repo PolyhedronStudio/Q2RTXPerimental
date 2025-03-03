@@ -403,7 +403,7 @@
 // not visible in DM mode
 //
 // 0221 - added "_minlight" key (even tho you dont want it to stand out)
-@SolidClass base(Appearflags, UseTargetFlags, Targetname, Target) color(0 128 204) = func_explosive : "Exploding/Breakable brush"
+@SolidClass base(Appearflags, UseTargetFlags, Targetname, Target) color(0 128 204) = func_breakable : "Exploding/Breakable brush"
 [
 	spawnflags(Flags) =
 	[

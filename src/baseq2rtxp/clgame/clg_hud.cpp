@@ -419,7 +419,17 @@ void CLG_HUD_DrawChat( void ) {
             if ( !alpha ) {
                 break;
             }
-
+            //
+            // When I wake up, and got time tomorrow somewhere during the day:
+            // Use this method of chatlines, for displaying a fading in UseTargetHint,
+            // while rapidly easing the previously active UseTargetHint down to the next
+            // line, as it fades out!
+            //
+            //
+            //
+            //
+            //
+            //
             clgi.R_SetAlpha( alpha * scr_alpha->value );
             SCR_DrawString( x, y, flags, line->text );
             clgi.R_SetAlpha( scr_alpha->value );

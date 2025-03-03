@@ -275,7 +275,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.h
 	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h
 
-		baseq2rtxp/clgame/hud/clg_hud_usetargethint.h
+	baseq2rtxp/clgame/hud/clg_hud_usetargethint.h
 )
 # BaseQ2RTXP ServerGame
 SET(SRC_BASEQ2RTXP_SVGAME
@@ -307,10 +307,10 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/entities/func/svg_func_areaportal.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_button.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_breakable.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_conveyor.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door_rotating.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_explosive.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_door_secret.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_killbox.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_object.cpp
@@ -414,11 +414,11 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/entities/func/svg_func_areaportal.h
 	baseq2rtxp/svgame/entities/func/svg_func_button.h
+	baseq2rtxp/svgame/entities/func/svg_func_breakable.h
 	baseq2rtxp/svgame/entities/func/svg_func_conveyor.h
 	baseq2rtxp/svgame/entities/func/svg_func_door.h
 	baseq2rtxp/svgame/entities/func/svg_func_door_rotating.h
 	#baseq2rtxp/svgame/entities/func/svg_func_door_secret.h
-	baseq2rtxp/svgame/entities/func/svg_func_explosive.h
 	baseq2rtxp/svgame/entities/func/svg_func_killbox.h
 	baseq2rtxp/svgame/entities/func/svg_func_object.h
 	baseq2rtxp/svgame/entities/func/svg_func_plat.h

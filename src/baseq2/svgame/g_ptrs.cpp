@@ -375,9 +375,9 @@ extern void flymonster_start_go( edict_t *self );
 extern void func_clock_think( edict_t *self );
 extern void func_clock_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void func_conveyor_use( edict_t *self, edict_t *other, edict_t *activator );
-extern void func_explosive_explode( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
-extern void func_explosive_spawn( edict_t *self, edict_t *other, edict_t *activator );
-extern void func_explosive_use( edict_t *self, edict_t *other, edict_t *activator );
+extern void func_breakable_explode( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
+extern void func_breakable_spawn( edict_t *self, edict_t *other, edict_t *activator );
+extern void func_breakable_use( edict_t *self, edict_t *other, edict_t *activator );
 extern void func_object_release( edict_t *self );
 extern void func_object_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
 extern void func_object_use( edict_t *self, edict_t *other, edict_t *activator );
@@ -722,8 +722,8 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void*)door_use },
 { P_use, (void*)func_clock_use },
 { P_use, (void*)func_conveyor_use },
-{ P_use, (void*)func_explosive_spawn },
-{ P_use, (void*)func_explosive_use },
+{ P_use, (void*)func_breakable_spawn },
+{ P_use, (void*)func_breakable_use },
 { P_use, (void*)func_object_use },
 { P_use, (void*)func_timer_use },
 { P_use, (void*)func_wall_use },
@@ -801,7 +801,7 @@ const save_ptr_t save_ptrs[] = {
 { P_die, (void*)flipper_die },
 { P_die, (void*)floater_die },
 { P_die, (void*)flyer_die },
-{ P_die, (void*)func_explosive_explode },
+{ P_die, (void*)func_breakable_explode },
 { P_die, (void*)gib_die },
 { P_die, (void*)gladiator_die },
 { P_die, (void*)gunner_die },

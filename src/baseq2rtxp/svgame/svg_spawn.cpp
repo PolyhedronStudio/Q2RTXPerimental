@@ -98,7 +98,7 @@ void SP_func_train(edict_t *ent);
 void SP_func_conveyor(edict_t *self);
 void SP_func_wall(edict_t *self);
 void SP_func_object(edict_t *self);
-void SP_func_explosive(edict_t *self);
+void SP_func_breakable(edict_t *self);
 void SP_func_timer(edict_t *self);
 void SP_func_areaportal(edict_t *ent);
 //void SP_func_clock(edict_t *ent);
@@ -177,7 +177,7 @@ static const spawn_func_t spawn_funcs[] = {
     {"func_wall", SP_func_wall},
     {"func_object", SP_func_object},
     {"func_timer", SP_func_timer},
-    {"func_explosive", SP_func_explosive},
+    {"func_breakable", SP_func_breakable},
     {"func_killbox", SP_func_killbox},
 
     {"trigger_always", SP_trigger_always},

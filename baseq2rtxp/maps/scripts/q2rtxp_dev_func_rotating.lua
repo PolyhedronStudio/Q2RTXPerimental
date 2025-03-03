@@ -29,7 +29,7 @@ mapMedia = {
 --
 --
 --
---    func_explosive map stuff:
+--    func_breakable map stuff:
 --
 --
 --
