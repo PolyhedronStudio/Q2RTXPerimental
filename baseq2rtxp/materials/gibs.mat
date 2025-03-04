@@ -1,5 +1,3 @@
-# This is for gib materials.
-
 models/gibs/gib2/gib2:
 	texture_base models/gibs/gib2/gib2.png
 	texture_normals models/gibs/gib2/gib2_n.png

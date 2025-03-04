@@ -820,8 +820,8 @@ static bool Parse_File(const char *path, int depth)
                     R_GetPicSize(&uis.cursorWidth,
                                  &uis.cursorHeight, uis.cursorHandle);
                 #endif // USE_UI_ENABLE_CUSTOM_CURSOR
-                } else if (!strcmp(cmd, "weapon")) {
-                    Cmd_ArgvBuffer(1, uis.weaponModel, sizeof(uis.weaponModel));
+                //} else if (!strcmp(cmd, "weapon")) {
+                //    Cmd_ArgvBuffer(1, uis.weaponModel, sizeof(uis.weaponModel));
                 } else {
                     Com_WPrintf("Unknown keyword '%s'\n", cmd);
                     break;

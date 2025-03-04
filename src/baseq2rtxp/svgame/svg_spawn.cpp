@@ -1039,13 +1039,13 @@ void SP_worldspawn(edict_t *ent)
     gi.modelindex( "players/playerdummy/tris.iqm" );
 
     // help icon for statusbar
-    gi.imageindex("i_help");
-    level.pic_health = gi.imageindex("i_health");
-    gi.imageindex("help");
-    gi.imageindex("field_3");
+    //gi.imageindex("i_help");
+    //level.pic_health = gi.imageindex("i_health");
+    //gi.imageindex("help");
+    //gi.imageindex("field_3");
 
-    SVG_PrecacheItem(SVG_FindItem( "Fists" ));
-    SVG_PrecacheItem(SVG_FindItem("Pistol"));
+    SVG_PrecacheItem( SVG_FindItem( "Fists" ) );
+    SVG_PrecacheItem( SVG_FindItem( "Pistol" ) );
 
     // HUD Chat.
     gi.soundindex("hud/chat01.wav");
@@ -1131,8 +1131,8 @@ void SP_worldspawn(edict_t *ent)
     // sexed models
     // THIS ORDER MUST MATCH THE DEFINES IN g_local.h
     // you can add more, max 15
-    gi.modelindex( "#w_fists.iqm" ); // #w_fists.iqm
-    gi.modelindex( "#w_pistol.iqm" );
+    //gi.modelindex( "#w_fists.iqm" ); // #w_fists.iqm
+    //gi.modelindex( "#w_pistol.iqm" );
     //gi.modelindex( "#w_shotgun.md2" );
     //gi.modelindex( "#w_sshotgun.md2" );
     //gi.modelindex( "#w_machinegun.md2" );

@@ -35,8 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 
 #define COM_DEFAULT_CFG     "default.cfg"
-#define COM_Q2RTX_CFG       "q2rtx.cfg"
-#define COM_Q2RTXP_CFG       "q2rtxp.cfg"
+#define COM_Q2RTXP_CFG      "q2rtxp.cfg"
 
 #define COM_AUTOEXEC_CFG    "autoexec.cfg"
 #define COM_POSTEXEC_CFG    "postexec.cfg"

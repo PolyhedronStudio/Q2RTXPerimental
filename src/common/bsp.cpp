@@ -1378,7 +1378,7 @@ static void BSPX_ParseDecoupledLM( bsp_t *bsp, const byte *in, size_t filelen ) 
 
 static const xlump_info_t bspx_lumps[] = {
     { "FACENORMALS", BSPX_LoadBspxNormals, BSPX_ParseNormalsHeader },
-    { "BRUSHLIST", BSPX_LoadBrushList, BSPX_ParseBrushListHeader },
+    //{ "BRUSHLIST", BSPX_LoadBrushList, BSPX_ParseBrushListHeader },
     { "LMSTYLE", BSPX_LoadLightMapStyles, BSPX_ParseLightMapStylesHeader },
     { "DECOUPLED_LM", BSPX_ParseDecoupledLM },
 };

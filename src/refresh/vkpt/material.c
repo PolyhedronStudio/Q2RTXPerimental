@@ -867,9 +867,11 @@ void MAT_FindBaseTexture( pbr_material_t *mat, const char *name, imagetype_t typ
 		//
 		// This scenario leaves us with no '.wal' to derive any 'original' width and height from. 
 		// Meaning that instead we'll just use the '.tga/.png/.jpg' image its own original width and height.
-		if ( type == IT_WALL && foundDimension != Q_ERR_SUCCESS ) {
-			mat->original_width = mat->image_base->width;
-			mat->original_height = mat->image_base->height;
+		if ( /*type == IT_WALL &&*/ foundDimension != Q_ERR_SUCCESS ) {
+			if ( mat->image_base ) {
+				mat->original_width = mat->image_base->width;
+				mat->original_height = mat->image_base->height;
+			}
 			//mat->original_width = mat->image_base->upload_width;
 			//mat->original_height = mat->image_base->upload_height;
 			//mat->original_width = mat->image_base->upload_width = mat->image_base->width;

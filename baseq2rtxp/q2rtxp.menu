@@ -57,7 +57,7 @@ end
 background "conback.png"
 font conchars
 /* cursor crosshair01 Uncomment when enabling USE_UI_ENABLE_CUSTOM_CURSOR */
-weapon w_railgun.md2
+/*weapon w_railgun.md2*/
 
 color background #4e4a4edc
 color normal #ff966464
@@ -87,7 +87,7 @@ begin developer_menu
     blank
     action --align --status "Showcases several local entities." "Local Entities - General" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_general force"
     action --align --status "A map that consists of several sound environments that apply EAX reverb etc effects." "Local Entities - env_sound(EAX Reverb Areas)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_env_sound force"
-    action --align --status "Testbed for svc_set_portalbit to notify local func_areaportals to open/close."Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"
+    action --align --status "Testbed for svc_set_portalbit to notify local func_areaportals to open/close." "Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"
     blank
     action --align --status "A simple moving target range level, utilizing Lua and Signal I/O" "Signal I/O - TargetRange" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_sigio_targetrange force"
     blank
