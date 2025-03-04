@@ -153,7 +153,8 @@ BITMAP CONTROL
 
 ===================================================================
 */
-
+// <Q2RTXP>: WID: We don't use these.
+#ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
 static void Bitmap_Free(menuBitmap_t *b)
 {
     Z_Free(b->generic.status);
@@ -172,13 +173,14 @@ static void Bitmap_Init(menuBitmap_t *b)
 static void Bitmap_Draw(menuBitmap_t *b)
 {
     if (b->generic.flags & QMF_HASFOCUS) {
-        unsigned frame = (uis.realtime / 100) % NUM_CURSOR_FRAMES;
+        unsigned frame = (uis.realtime / BASE_FRAMETIME) % NUM_CURSOR_FRAMES;
         R_DrawPic(b->generic.x - CURSOR_OFFSET, b->generic.y, uis.bitmapCursors[frame]);
         R_DrawPic(b->generic.x, b->generic.y, b->pics[1]);
     } else {
         R_DrawPic(b->generic.x, b->generic.y, b->pics[0]);
     }
 }
+#endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
 
 /*
 ===================================================================
@@ -1898,9 +1900,12 @@ void Menu_Init(menuFrameWork_t *menu)
         case MTYPE_KEYBIND:
             Keybind_Init( static_cast<menuKeybind_t*>( item ) ); // WID: C++20: Added cast.
             break;
+// <Q2RTXP>: WID: We don't use these.
+#ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
         case MTYPE_BITMAP:
             Bitmap_Init( static_cast<menuBitmap_t*>( item ) ); // WID: C++20: Added cast.
             break;
+#endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
         default:
             Q_assert(!"unknown item type");
         }
@@ -1955,6 +1960,8 @@ void Menu_Size(menuFrameWork_t *menu)
         if (item->flags & QMF_HIDDEN) {
             continue;
         }
+        // <Q2RTXP>: WID: We don't use these.
+        #ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
         if (item->type == MTYPE_BITMAP) {
             h += GENERIC_SPACING(item->height);
             if (widest < item->width) {
@@ -1963,6 +1970,9 @@ void Menu_Size(menuFrameWork_t *menu)
         } else {
             h += MENU_SPACING;
         }
+        #else
+        h += MENU_SPACING;
+        #endif
     }
 
     // account for banner
@@ -2043,11 +2053,18 @@ void Menu_Size(menuFrameWork_t *menu)
         }
         item->x = x;
         item->y = y;
+
+        // <Q2RTXP>: WID: We don't use these.
+        #ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
         if (item->type == MTYPE_BITMAP) {
             y += GENERIC_SPACING(item->height);
         } else {
             y += MENU_SPACING;
         }
+        #else
+        y += MENU_SPACING;
+        #endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
+
     }
 
 	// footer is horizontally centered and
@@ -2377,9 +2394,12 @@ void Menu_Draw(menuFrameWork_t *menu)
         case MTYPE_KEYBIND:
             Keybind_Draw( static_cast<menuKeybind_t*>( item ) ); // WID: C++20: Was without a cast.
             break;
+// <Q2RTXP>: WID: We don't use these.
+#ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
         case MTYPE_BITMAP:
             Bitmap_Draw( static_cast<menuBitmap_t*>( item ) ); // WID: C++20: Was without a cast.
             break;
+#endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
         default:
             Q_assert(!"unknown item type");
         }
@@ -2420,7 +2440,9 @@ menuSound_t Menu_SelectItem(menuFrameWork_t *s)
     case MTYPE_FIELD:
     case MTYPE_ACTION:
     case MTYPE_LIST:
+#ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
     case MTYPE_BITMAP:
+#endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
     case MTYPE_SAVEGAME:
     case MTYPE_LOADGAME:
         return static_cast<menuSound_t>( Common_DoEnter( item ) ); // WID: C++20: Was without a cast.
@@ -2724,9 +2746,12 @@ void Menu_Free(menuFrameWork_t *menu)
         case MTYPE_SEPARATOR:
             Z_Free(item); 
             break;
+// <Q2RTXP>: WID: We don't use these.
+#ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
         case MTYPE_BITMAP:
             Bitmap_Free( static_cast<menuBitmap_t*>( item ) ); // WID: C++20: Added cast.
             break;
+#endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
         default:
             break;
         }

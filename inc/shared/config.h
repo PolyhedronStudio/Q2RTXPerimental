@@ -62,9 +62,9 @@
 //#define BASE_FRAMETIME          25		// OLD: 100		NEW: 1000 / BASE_FRAMERATE = 25
 //#define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   NEW: 1 / BASE_FRAMETIME
 //#define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f	NEW: BASE_FRAMETIME / 1000
-#define BASE_FRAMERATE          (60.)						// OLD: 40 fps	NEW: 40fps
+#define BASE_FRAMERATE          (40.)						// OLD: 40 fps	NEW: 40fps
 #define BASE_FRAMETIME          (1000./BASE_FRAMERATE)		// OLD: 25		NEW: 1000 / BASE_FRAMERATE = 25
-#define BASE_1_FRAMETIME        (1./BASE_FRAMETIME)		// OLD: 0.04f   NEW: 1 / BASE_FRAMETIME
+#define BASE_1_FRAMETIME        (1./BASE_FRAMETIME)			// OLD: 0.04f   NEW: 1 / BASE_FRAMETIME
 #define BASE_FRAMETIME_1000     (BASE_FRAMETIME/1000.)		// OLD: 0.0.025 NEW: BASE_FRAMETIME / 1000
 
 
@@ -99,6 +99,8 @@
 #define USE_UI 1
 //! Whether to render a custom UI cursor or not.
 //#define USE_UI_ENABLE_CUSTOM_CURSOR 1
+//! Enable Bitmap UI menu item controls.
+//#define USE_UI_ENABLE_BITMAP_ITEM_CONTROL 1
 //! Enable PNG, JPG and TGA image loading support.
 #define USE_PNG 1
 #define USE_JPG 1

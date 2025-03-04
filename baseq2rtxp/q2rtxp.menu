@@ -56,7 +56,7 @@ end
 
 background "conback.png"
 font conchars
-// cursor crosshair01 Uncomment when enabling USE_UI_ENABLE_CUSTOM_CURSOR
+/* cursor crosshair01 Uncomment when enabling USE_UI_ENABLE_CUSTOM_CURSOR */
 weapon w_railgun.md2
 
 color background #4e4a4edc
@@ -75,7 +75,7 @@ begin developer_menu
     action --align "CollisionModel - Audio Footstep Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_mat_footsteps force"
     blank
     action --align --status "func_button testbed, several func_buttons to engage triggering lights with in various way." "Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
-    action --align --status "func_doors & areaportals testbed, tests doors with areaportals." "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"
+    action --align --status "func_doors & areaportals testbed, tests doors with areaportals." "Entities - func_door & func_areaportal" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"
     action --align --status "func_doors testbed, teamed doors, lockables, reversable, both directions, usetargets, and rotating!" "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_doors force"
     action --align --status "func_plat tests, implements a simple elevator." "Entities - func_plat" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_plat force"
     action --align --status "func_rotating tests, various types of func_rotating doing their thing." "Entities - func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_rotating force"

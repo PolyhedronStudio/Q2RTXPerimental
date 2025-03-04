@@ -53,7 +53,10 @@ typedef enum {
     MTYPE_TOGGLE,
     MTYPE_STATIC,
     MTYPE_KEYBIND,
+    // <Q2RTXP>: WID: We don't use these.
+    #ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
     MTYPE_BITMAP,
+    #endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
     MTYPE_SAVEGAME,
     MTYPE_LOADGAME
 } menuType_t;
@@ -321,8 +324,10 @@ typedef struct uiStatic_s {
     qhandle_t cursorHandle;
     int32_t cursorWidth, cursorHeight;
     #endif // USE_UI_ENABLE_CUSTOM_CURSOR
-
+    // <Q2RTXP>: WID: We don't use these.
+    #ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
     qhandle_t bitmapCursors[NUM_CURSOR_FRAMES];
+    #endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
 
     struct {
         color_t background;

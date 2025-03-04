@@ -96,17 +96,6 @@ static cvar_t   *ch_y;
 
 vrect_t     scr_vrect;      // position of render window on screen
 
-static const char *const sb_nums[2][STAT_PICS] = {
-    {
-        "num_0", "num_1", "num_2", "num_3", "num_4", "num_5",
-        "num_6", "num_7", "num_8", "num_9", "num_minus"
-    },
-    {
-        "anum_0", "anum_1", "anum_2", "anum_3", "anum_4", "anum_5",
-        "anum_6", "anum_7", "anum_8", "anum_9", "anum_minus"
-    }
-};
-
 const uint32_t colorTable[8] = {
     U32_BLACK, U32_RED, U32_GREEN, U32_YELLOW,
     U32_BLUE, U32_CYAN, U32_MAGENTA, U32_WHITE

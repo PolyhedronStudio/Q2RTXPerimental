@@ -29,10 +29,13 @@ static menuSound_t Activate(menuCommon_t *self)
             Cbuf_AddText(&cmd_buffer, "\n");
 		}
         break;
+// <Q2RTXP>: WID: We don't use these.
+#ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
     case MTYPE_BITMAP:
         Cbuf_AddText(&cmd_buffer, ((menuBitmap_t *)self)->cmd);
         Cbuf_AddText(&cmd_buffer, "\n");
         break;
+#endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
     case MTYPE_SAVEGAME:
         Cbuf_AddText(&cmd_buffer, va("save \"%s\"; forcemenuoff\n", ((menuAction_t *)self)->cmd));
         break;
@@ -262,13 +265,13 @@ static void Parse_Action(menuFrameWork_t *menu)
     char *status = NULL;
     int c;
 
-    while ((c = Cmd_ParseOptions(o_action)) != -1) {
-        switch (c) {
-        case 'a':
-            uiFlags = UI_LEFT | UI_ALTCOLOR;
-            break;
+    while ( ( c = Cmd_ParseOptions( o_action ) ) != -1 ) {
+        switch ( c ) {
         case 's':
             status = cmd_optarg;
+            break;
+        case 'a':
+            uiFlags = UI_LEFT | UI_ALTCOLOR;
             break;
         default:
             return;
@@ -291,6 +294,8 @@ static void Parse_Action(menuFrameWork_t *menu)
     Menu_AddItem(menu, a);
 }
 
+// <Q2RTXP>: WID: We don't use these.
+#ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
 static void Parse_Bitmap(menuFrameWork_t *menu)
 {
     static const cmd_option_t o_bitmap[] = {
@@ -333,6 +338,7 @@ static void Parse_Bitmap(menuFrameWork_t *menu)
 
     Menu_AddItem(menu, b);
 }
+#endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
 
 static void Parse_Bind(menuFrameWork_t *menu)
 {
@@ -579,7 +585,9 @@ static void Parse_Color(void)
     s = Cmd_Argv(1);
     c = Cmd_Argv(2);
 
-    if (!strcmp(s, "normal")) {
+    if ( !strcmp( s, "background" ) ) {
+        SCR_ParseColor( c, &uis.color.background );
+    } else if ( !strcmp( s, "normal" ) ) {
         SCR_ParseColor(c, &uis.color.normal);
     } else if (!strcmp(s, "active")) {
         SCR_ParseColor(c, &uis.color.active);
@@ -732,8 +740,11 @@ static bool Parse_File(const char *path, int depth)
                     Parse_Range(menu);
                 } else if (!strcmp(cmd, "action")) {
                     Parse_Action(menu);
+// <Q2RTXP>: WID: We don't use these.
+#ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
                 } else if (!strcmp(cmd, "bitmap")) {
                     Parse_Bitmap(menu);
+#endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
                 } else if (!strcmp(cmd, "bind")) {
                     Parse_Bind(menu);
                 } else if (!strcmp(cmd, "savegame")) {

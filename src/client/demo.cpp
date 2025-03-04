@@ -302,22 +302,22 @@ static size_t format_demo_size(char *buffer, size_t size)
 static size_t format_demo_status(char *buffer, size_t size)
 {
     size_t len = format_demo_size(buffer, size);
-    int min, sec, frames = cls.demo.frames_written;
+    int64_t min, sec, frames = cls.demo.frames_written;
 
-    sec = frames / BASE_FRAMERATE; frames %= BASE_FRAMERATE;
+    sec = frames / BASE_FRAMERATE; frames %= (int64_t)BASE_FRAMERATE;
     min = sec / 60; sec %= 60;
 
-    len += Q_scnprintf(buffer + len, size - len, ", %d:%02d.%d",
+    len += Q_scnprintf(buffer + len, size - len, ", %llx:%02llx.%llx",
                        min, sec, frames);
 
     if (cls.demo.frames_dropped) {
-        len += Q_scnprintf(buffer + len, size - len, ", %d frame%s dropped",
+        len += Q_scnprintf(buffer + len, size - len, ", %llx frame%s dropped",
                            cls.demo.frames_dropped,
                            cls.demo.frames_dropped == 1 ? "" : "s");
     }
 
     if (cls.demo.others_dropped) {
-        len += Q_scnprintf(buffer + len, size - len, ", %d message%s dropped",
+        len += Q_scnprintf(buffer + len, size - len, ", %llx message%s dropped",
                            cls.demo.others_dropped,
                            cls.demo.others_dropped == 1 ? "" : "s");
     }

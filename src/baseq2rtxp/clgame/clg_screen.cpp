@@ -35,7 +35,6 @@ typedef struct {
 static constexpr int32_t MAX_DAMAGE_ENTRIES = 32;
 static constexpr int32_t DAMAGE_ENTRY_BASE_SIZE = 32;
 
-static constexpr int32_t STAT_MINUS = ( precache.screen.STAT_PICS - 1 );  // num frame for '-' stats digit
 
 static struct {
     bool        initialized;        // ready to draw
@@ -86,16 +85,6 @@ static cvar_t *scr_damage_indicator_time;
 
 vrect_t     scr_vrect;      // position of render window on screen
 
-static const char *const sb_nums[ 2 ][ precache.screen.STAT_PICS ] = {
-    {
-        "num_0", "num_1", "num_2", "num_3", "num_4", "num_5",
-        "num_6", "num_7", "num_8", "num_9", "num_minus"
-    },
-    {
-        "anum_0", "anum_1", "anum_2", "anum_3", "anum_4", "anum_5",
-        "anum_6", "anum_7", "anum_8", "anum_9", "anum_minus"
-    }
-};
 
 const uint32_t colorTable[ 8 ] = {
     U32_BLACK, U32_RED, U32_GREEN, U32_YELLOW,
@@ -1013,17 +1002,17 @@ void PF_SCR_ModeChanged( void ) {
 *	@brief
 **/
 void PF_SCR_RegisterMedia( void ) {
-    int     i, j;
+    //int     i, j;
 
-    for ( i = 0; i < 2; i++ )
-        for ( j = 0; j < precache.screen.STAT_PICS; j++ )
-            precache.screen.sb_pics[ i ][ j ] = clgi.R_RegisterPic( sb_nums[ i ][ j ] );
+    //for ( i = 0; i < 2; i++ )
+    //    for ( j = 0; j < precache.screen.STAT_PICS; j++ )
+    //        precache.screen.sb_pics[ i ][ j ] = clgi.R_RegisterPic( sb_nums[ i ][ j ] );
 
-    precache.screen.inven_pic = clgi.R_RegisterPic( "inventory" );
-    precache.screen.field_pic = clgi.R_RegisterPic( "field_3" );
+    //precache.screen.inven_pic = clgi.R_RegisterPic( "inventory" );
+    //precache.screen.field_pic = clgi.R_RegisterPic( "field_3" );
 
-    precache.screen.loading_pic = clgi.R_RegisterPic( "loading" );
-    clgi.R_GetPicSize( &scr.loading_width, &scr.loading_height, precache.screen.loading_pic );
+    //precache.screen.loading_pic = clgi.R_RegisterPic( "loading" );
+    //clgi.R_GetPicSize( &scr.loading_width, &scr.loading_height, precache.screen.loading_pic );
 
     precache.screen.damage_display_pic = clgi.R_RegisterPic( "damage_indicator" );
     clgi.R_GetPicSize( &scr.damage_display_width, &scr.damage_display_height, precache.screen.damage_display_pic );
@@ -1133,6 +1122,7 @@ vrect_t *PF_GetScreenVideoRect( void ) {
 static void SCR_TileClear( void ) {
 }
 
+#if 0
 /*
 ===============================================================================
 
@@ -1557,7 +1547,7 @@ static void SCR_ExecuteLayoutString( const char *s ) {
     clgi.R_ClearColor();
     clgi.R_SetAlpha( scr_alpha->value );
 }
-
+#endif
 
 
 /**
@@ -1706,6 +1696,7 @@ static void SCR_DrawPause( void ) {
     // Reset R color.
     clgi.R_ClearColor();
 }
+#if 0
 /**
 *	@brief
 **/
@@ -1717,6 +1708,7 @@ static void SCR_DrawStats( void ) {
 
     SCR_ExecuteLayoutString( clgi.client->configstrings[ CS_STATUSBAR ] );
 }
+#endif
 /**
 *	@brief
 **/
@@ -1725,15 +1717,17 @@ static void SCR_DrawLayout( void ) {
         return;     // turn off for GTV
     }
 
+#if 0
     if ( clgi.IsDemoPlayback() && clgi.Key_IsDown( K_F1 ) ) {
         goto draw;
     }
-
+#endif
     if ( !( clgi.client->frame.ps.stats[ STAT_LAYOUTS ] & 1 ) )
         return;
-
+#if 0
 draw:
     SCR_ExecuteLayoutString( clgi.client->layout );
+#endif
 }
 /**
 *	@brief
@@ -1846,8 +1840,9 @@ void PF_DrawLoadState( refcfg_t *refcfg ) {
     x = ( refcfg->width * scr.hud_scale - scr.loading_width ) / 2;
     y = ( refcfg->height * scr.hud_scale - scr.loading_height ) / 2;
 
+    #if 0
     clgi.R_DrawPic( x, y, precache.screen.loading_pic );
-
+    #endif
     clgi.R_SetScale( 1.0f );
 }
 

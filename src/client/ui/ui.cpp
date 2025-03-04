@@ -669,10 +669,13 @@ void UI_Init(void)
     R_GetPicSize(&uis.cursorWidth, &uis.cursorHeight, uis.cursorHandle);
     #endif // USE_UI_ENABLE_CUSTOM_CURSOR
 
+    // <Q2RTXP>: WID: We don't use these.
+    #ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
     for (i = 0; i < NUM_CURSOR_FRAMES; i++) {
         Q_snprintf(buffer, sizeof(buffer), "m_cursor%d", i);
         uis.bitmapCursors[i] = R_RegisterPic(buffer);
     }
+    #endif // USE_UI_ENABLE_BITMAP_ITEM_CONTROL
 
     uis.color.background.u32    = MakeColor(  78,  74,  78, 220 );
     uis.color.normal.u32        = MakeColor( 255, 150, 100, 100 );

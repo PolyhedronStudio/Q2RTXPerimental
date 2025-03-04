@@ -1244,15 +1244,15 @@ int SV_CountClients(void)
     return count;
 }
 
-static int ping_nop(client_t *cl)
+static int64_t ping_nop(client_t *cl)
 {
     return 0;
 }
 
-static int ping_min(client_t *cl)
+static int64_t ping_min(client_t *cl)
 {
     client_frame_t *frame;
-    int i, j, count = INT_MAX;
+    int64_t i, j, count = INT64_MAX;
 
     for (i = 0; i < UPDATE_BACKUP; i++) {
         j = cl->framenum - i - 1;
@@ -1265,13 +1265,13 @@ static int ping_min(client_t *cl)
             count = frame->latency;
     }
 
-    return count == INT_MAX ? 0 : count;
+    return count == INT64_MAX ? 0 : count;
 }
 
-static int ping_avg(client_t *cl)
+static int64_t ping_avg(client_t *cl)
 {
     client_frame_t *frame;
-    int i, j, total = 0, count = 0;
+    int64_t i, j, total = 0, count = 0;
 
     for (i = 0; i < UPDATE_BACKUP; i++) {
         j = cl->framenum - i - 1;
@@ -1297,8 +1297,8 @@ Updates the cl->ping and cl->fps variables
 static void SV_CalcPings(void)
 {
     client_t    *cl;
-    int         (*calc)(client_t *);
-    int         res;
+    int64_t         (*calc)(client_t *);
+    int64_t         res;
 
     switch (sv_calcpings_method->integer) {
         case 0:  calc = ping_nop; break;
@@ -1307,7 +1307,7 @@ static void SV_CalcPings(void)
     }
 
     // update avg ping and fps every 10 seconds
-    res = sv.framenum % (10 * SV_FRAMERATE);
+    res = sv.framenum % (10ULL * (int64_t)SV_FRAMERATE);
 
     FOR_EACH_CLIENT(cl) {
         if (cl->state == cs_spawned) {
@@ -1324,7 +1324,7 @@ static void SV_CalcPings(void)
                 }
             }
             if (!res) {
-                cl->moves_per_sec = cl->num_moves / 10;
+                cl->moves_per_sec = cl->num_moves / 10ULL;
                 cl->num_moves = 0;
             }
         } else {
@@ -1351,7 +1351,7 @@ static void SV_GiveMsec(void)
 {
     client_t    *cl;
 
-    if (!(sv.framenum % (16))) {
+    if (!(sv.framenum % ((int64_t)BASE_FRAMETIME))) {
         FOR_EACH_CLIENT(cl) {
             cl->command_msec = 1800; // 1600 + some slop
         }
