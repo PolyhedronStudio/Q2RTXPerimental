@@ -802,10 +802,13 @@ static bool Parse_File(const char *path, int depth)
                     }
                 } else if (!strcmp(cmd, "font")) {
                     uis.fontHandle = R_RegisterFont(Cmd_Argv(1));
+                // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
+                #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
                 } else if (!strcmp(cmd, "cursor")) {
                     uis.cursorHandle = R_RegisterPic(Cmd_Argv(1));
                     R_GetPicSize(&uis.cursorWidth,
                                  &uis.cursorHeight, uis.cursorHandle);
+                #endif // USE_UI_ENABLE_CUSTOM_CURSOR
                 } else if (!strcmp(cmd, "weapon")) {
                     Cmd_ArgvBuffer(1, uis.weaponModel, sizeof(uis.weaponModel));
                 } else {

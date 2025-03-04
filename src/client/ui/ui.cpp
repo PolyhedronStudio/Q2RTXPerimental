@@ -466,10 +466,15 @@ void UI_Draw(unsigned realtime)
     }
 
     // draw custom cursor in fullscreen mode
-    if (r_config.flags & QVF_FULLSCREEN) {
-        R_DrawPic(uis.mouseCoords[0] - uis.cursorWidth / 2,
-                  uis.mouseCoords[1] - uis.cursorHeight / 2, uis.cursorHandle);
+    //if (r_config.flags & QVF_FULLSCREEN) {
+    // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
+    #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
+    if ( uis.cursorHandle ) {
+        R_DrawPic( uis.mouseCoords[ 0 ] - uis.cursorWidth / 2,
+            uis.mouseCoords[ 1 ] - uis.cursorHeight / 2, uis.cursorHandle );
     }
+    #endif // USE_UI_ENABLE_CUSTOM_CURSOR
+    //}
 
     if (ui_debug->integer) {
         UI_DrawString(uis.width - 4, 4, UI_RIGHT,
@@ -658,8 +663,11 @@ void UI_Init(void)
     UI_ModeChanged();
 
     uis.fontHandle = R_RegisterFont("conchars");
-    uis.cursorHandle = R_RegisterPic("ch1");
+    // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
+    #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
+    uis.cursorHandle = R_RegisterPic("crosshair01.png");
     R_GetPicSize(&uis.cursorWidth, &uis.cursorHeight, uis.cursorHandle);
+    #endif // USE_UI_ENABLE_CUSTOM_CURSOR
 
     for (i = 0; i < NUM_CURSOR_FRAMES; i++) {
         Q_snprintf(buffer, sizeof(buffer), "m_cursor%d", i);

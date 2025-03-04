@@ -56,7 +56,7 @@ end
 
 background "conback.png"
 font conchars
-cursor ch1
+// cursor crosshair01 Uncomment when enabling USE_UI_ENABLE_CUSTOM_CURSOR
 weapon w_railgun.md2
 
 color background #4e4a4edc

@@ -58,19 +58,23 @@
 //#define BASE_FRAMETIME_1000     0.1f    // BASE_FRAMETIME/1000
 
 // Default Server FPS: 40hz
-#define BASE_FRAMERATE          40		// OLD: 10 fps	NEW: 40fps
-#define BASE_FRAMETIME          25		// OLD: 100		NEW: 1000 / BASE_FRAMERATE = 25
-#define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   NEW: 1 / BASE_FRAMETIME
-#define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f	NEW: BASE_FRAMETIME / 1000
+//#define BASE_FRAMERATE          40		// OLD: 10 fps	NEW: 40fps
+//#define BASE_FRAMETIME          25		// OLD: 100		NEW: 1000 / BASE_FRAMERATE = 25
+//#define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   NEW: 1 / BASE_FRAMETIME
+//#define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f	NEW: BASE_FRAMETIME / 1000
+#define BASE_FRAMERATE          (60.)						// OLD: 40 fps	NEW: 40fps
+#define BASE_FRAMETIME          (1000./BASE_FRAMERATE)		// OLD: 25		NEW: 1000 / BASE_FRAMERATE = 25
+#define BASE_1_FRAMETIME        (1./BASE_FRAMETIME)		// OLD: 0.04f   NEW: 1 / BASE_FRAMETIME
+#define BASE_FRAMETIME_1000     (BASE_FRAMETIME/1000.)		// OLD: 0.0.025 NEW: BASE_FRAMETIME / 1000
 
 
 /**
 *	Game Path Configuration:
 **/
 //! The 'base' game directory is where the data and shared libraries of the 'main' game actually resides.
-#define BASEGAME "baseq2"
+#define BASEGAME "baseq2rtxp"
 //! The default mod game directory to launch. When left empty, the default game data and shared libraries to load will be BASEGAME itself.
-#define DEFAULT_GAME "baseq2rtxp"
+#define DEFAULT_GAME ""
 
 //! Compile with Windows NT ICMP:
 #define USE_ICMP 1
@@ -88,11 +92,13 @@
 //! TODO: These still neccessary?
 //#define VID_REF "gl"
 //! Used as a list to select from in case SDL fails to deliver a list of its own.
-#define VID_MODELIST "640x480 800x600 1024x768 1280x720"
+#define VID_MODELIST "640x480 800x600 1024x768 1280x720 1920x1080"
 //! Size and optional position of the main window on virtual desktop.
 #define VID_GEOMETRY "1280x720"
 //! Compile with the UI code enabled.
 #define USE_UI 1
+//! Whether to render a custom UI cursor or not.
+//#define USE_UI_ENABLE_CUSTOM_CURSOR 1
 //! Enable PNG, JPG and TGA image loading support.
 #define USE_PNG 1
 #define USE_JPG 1

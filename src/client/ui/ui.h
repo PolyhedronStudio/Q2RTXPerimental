@@ -316,8 +316,11 @@ typedef struct uiStatic_s {
 
     qhandle_t backgroundHandle;
     qhandle_t fontHandle;
+    // <Q2RTXP>: WID: We don't wanna bother with a fullscreen custom cursor?
+    #ifdef USE_UI_ENABLE_CUSTOM_CURSOR
     qhandle_t cursorHandle;
     int32_t cursorWidth, cursorHeight;
+    #endif // USE_UI_ENABLE_CUSTOM_CURSOR
 
     qhandle_t bitmapCursors[NUM_CURSOR_FRAMES];
 
