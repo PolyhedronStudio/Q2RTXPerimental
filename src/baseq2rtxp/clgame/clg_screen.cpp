@@ -1017,7 +1017,7 @@ void PF_SCR_RegisterMedia( void ) {
     precache.screen.damage_display_pic = clgi.R_RegisterPic( "damage_indicator" );
     clgi.R_GetPicSize( &scr.damage_display_width, &scr.damage_display_height, precache.screen.damage_display_pic );
 
-    precache.screen.net_pic = clgi.R_RegisterPic( "net" );
+    //precache.screen.net_pic = clgi.R_RegisterPic( "net" );
     precache.screen.font_pic = clgi.R_RegisterFont( scr_font->string );
 
     // Register the 2D display HUD media.

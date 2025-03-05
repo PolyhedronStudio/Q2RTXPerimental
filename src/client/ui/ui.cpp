@@ -686,7 +686,7 @@ void UI_Init(void)
     // WID: Enable bloom by default.
     uis.bloomEnabled = true;
 
-    //strcpy(uis.weaponModel, "#w_blaster.md2");
+    //strcpy(uis.weaponModel, "#w_pistol.iqm");
 
     // load custom menus
     UI_LoadScript();

@@ -119,6 +119,9 @@ void IMG_FreeUnused(void);
 void IMG_FreeAll(void);
 void IMG_Init(void);
 void IMG_Shutdown(void);
+/**
+*   @brief  Initializes the palette with the colors from the colormap.pcx file
+**/
 void IMG_GetPalette(void);
 
 image_t *IMG_ForHandle(qhandle_t h);

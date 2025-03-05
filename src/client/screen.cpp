@@ -598,7 +598,7 @@ void SCR_RegisterMedia(void) {
     //R_GetPicSize(&scr.loading_width, &scr.loading_height, scr.loading_pic);
 
     //scr.net_pic = R_RegisterPic("net");
-    //scr.font_pic = R_RegisterFont(scr_font->string);
+    scr.font_pic = R_RegisterFont(scr_font->string);
 
     //scr_hud_crosshair_changed(scr_crosshair);
 }
@@ -635,10 +635,10 @@ void SCR_Init(void)
 //    scr_showpause = Cvar_Get("scr_showpause", "1", 0);
 //    scr_centertime = Cvar_Get("scr_centertime", "2.5", 0);
 //    scr_demobar = Cvar_Get("scr_demobar", "1", 0);
-//    scr_font = Cvar_Get("scr_font", "conchars", 0);
-//    scr_font->changed = scr_font_changed;
-//    scr_scale = Cvar_Get("scr_scale", "0", 0);
-//    scr_scale->changed = scr_scale_changed;
+    scr_font = Cvar_Get("scr_font", "conchars", 0);
+    scr_font->changed = scr_font_changed;
+    scr_scale = Cvar_Get("scr_scale", "0", 0);
+    scr_scale->changed = scr_scale_changed;
 //    scr_crosshair = Cvar_Get("crosshair", "0", CVAR_ARCHIVE);
 //    scr_crosshair->changed = scr_hud_crosshair_changed;
 //
