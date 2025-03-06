@@ -122,18 +122,25 @@ static constexpr float PM_MAX_STEP_SIZE = 18.f;
 /**
 *	Slide Move Results:
 **/
-//! Succesfully performed the move.
-static constexpr int32_t PM_SLIDEMOVEFLAG_MOVED = BIT( 0 );
-//! It was blocked at some point, doesn't mean it didn't slide along the blocking object.
-static constexpr int32_t PM_SLIDEMOVEFLAG_BLOCKED = BIT( 1 );
-//! It is trapped.
-static constexpr int32_t PM_SLIDEMOVEFLAG_TRAPPED = BIT( 2 );
-//! Blocked by a literal wall.
-static constexpr int32_t PM_SLIDEMOVEFLAG_WALL_BLOCKED = BIT( 3 );
-//! Touched at least a single plane along the way.
-static constexpr int32_t PM_SLIDEMOVEFLAG_PLANE_TOUCHED = BIT( 4 );
-
-
+constexpr enum pm_slideMoveFlags_t {
+    //! None.
+	PM_SLIDEMOVEFLAG_NONE = 0,
+    //! Successfully performed the move.
+	PM_SLIDEMOVEFLAG_MOVED = BIT( 0 ),
+    //! Touched at least a single plane along the way.
+    PM_SLIDEMOVEFLAG_PLANE_TOUCHED = BIT( 1 ),
+    //! It was blocked at some point, doesn't mean it didn't slide along the blocking object.
+    PM_SLIDEMOVEFLAG_BLOCKED = BIT( 2 ),
+    //! It is trapped.
+	PM_SLIDEMOVEFLAG_TRAPPED = BIT( 3 ),
+    //! Blocked by a literal wall(Normal UP == 1).
+	PM_SLIDEMOVEFLAG_WALL_BLOCKED = BIT( 4 ),
+    //! Standing on a sloped surface.
+    //PM_SLIDEMOVEFLAG_SLOPE_BLOCKED = BIT( 5 ),
+    //! Standing on a sloped surface.
+    //PM_SLIDEMOVEFLAG_SLOPE_STEPPED = BIT( 6 ),
+};
+QENUM_BIT_FLAGS( pm_slideMoveFlags_t );
 
 /**
 *
@@ -188,7 +195,7 @@ typedef struct pmoveParams_s {
 /**
 *   @brief  Used for registering entity touching resulting traces.
 **/
-#define MAX_TOUCH_TRACES    32
+static constexpr int32_t MAX_TOUCH_TRACES = 32;
 typedef struct pm_touch_trace_list_s {
     uint32_t numberOfTraces;
     trace_t traces[ MAX_TOUCH_TRACES ];

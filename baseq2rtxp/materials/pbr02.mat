@@ -26,6 +26,17 @@ textures/pbr02/concrete01:
 	specular_factor 0.125
 	roughness_override 1
 
+textures/pbr02/crate00:
+    kind CHROME
+	texture_base textures/pbr02/crate00.tga
+	texture_normals textures/pbr02/crate00_n.tga
+	base_factor 2.5
+	bump_scale 0.25
+    metalness_factor 0.8
+    emissive_factor 0.0
+	specular_factor 0.1375
+    roughness_override 0.3
+
 textures/pbr02/ground00:
 	texture_base textures/pbr02/ground00.tga
 	texture_normals textures/pbr02/ground00_n.tga

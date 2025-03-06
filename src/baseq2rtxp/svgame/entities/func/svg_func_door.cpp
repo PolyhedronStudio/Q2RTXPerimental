@@ -16,6 +16,7 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_door.h"
 
+#include "sharedgame/sg_usetarget_hints.h"
 
 
 /*
@@ -489,6 +490,9 @@ void door_close_move( edict_t *self ) {
         SVG_PushMove_AngleMoveCalculate( self, door_close_move_done );
     }
 
+    // Since we're closing or closed, set usetarget hint ID to 'open door'.
+    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_OPEN );
+
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnClose" );
 
@@ -540,6 +544,9 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
         // Engage door opening movement.
         SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
     }
+
+    // Since we're closing or closed, set usetarget hint ID to 'close door'.
+    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_CLOSE );
 
     // Fire use targets.
     SVG_UseTargets( self, self->activator );
@@ -949,12 +956,16 @@ void SP_func_door( edict_t *ent ) {
         ent->pushMoveInfo.startAngles = ent->s.angles;
         ent->pushMoveInfo.endOrigin = ent->pos1;
         ent->pushMoveInfo.endAngles = ent->s.angles;
+
+        SVG_Entity_SetUseTargetHintByID( ent, USETARGET_HINT_ID_DOOR_CLOSE );
     // For UNPRESSED: pos1 = start, pos2 = end.
     } else {
         ent->pushMoveInfo.startOrigin = ent->pos1;
         ent->pushMoveInfo.startAngles = ent->s.angles;
         ent->pushMoveInfo.endOrigin = ent->pos2;
         ent->pushMoveInfo.endAngles = ent->s.angles;
+
+        SVG_Entity_SetUseTargetHintByID( ent, USETARGET_HINT_ID_DOOR_OPEN );
     }
 
     // Animated doors:

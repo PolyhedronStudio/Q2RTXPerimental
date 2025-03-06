@@ -15,13 +15,21 @@ static constexpr float PM_MIN_STEP_NORMAL = 0.7f;
 //! Minimal Z Normal for testing whether something is legitimately a "WALL".
 static constexpr float PM_MIN_WALL_NORMAL_Z = 0.03125;
 
+/**
+*	Slide Move Results:
+**/
+constexpr enum pm_velocityClipFlags_t {
+    //! None.
+    PM_VELOCITY_NOCLIP = 0,
+    //! Velocity has not been clipped by a Floor, nor any Wall/Step.
+    PM_VELOCITY_CLIPPED_NONE = BIT( 0 ),
+    //! Velocity has been clipped by a Floor.
+    PM_VELOCITY_CLIPPED_FLOOR = BIT( 1 ),
+    //! Velocity has been clipped by a Wall/Step.
+    PM_VELOCITY_CLIPPED_WALL_OR_STEP = BIT( 2 ),
+};
+QENUM_BIT_FLAGS( pm_velocityClipFlags_t );
 
-//! Velocity has not been clipped by a Floor, nor any Wall/Step.
-static constexpr int32_t PM_VELOCITY_CLIPPED_NONE = BIT( 0 );
-//! Velocity has been clipped by a Floor.
-static constexpr int32_t PM_VELOCITY_CLIPPED_FLOOR = BIT( 1 );
-//! Velocity has been clipped by a Wall/Step.
-static constexpr int32_t PM_VELOCITY_CLIPPED_WALL_OR_STEP = BIT( 2 );
 
 /**
 *	@brief	Clips trace against world only.
@@ -36,7 +44,7 @@ const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-const int32_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
+const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
@@ -47,4 +55,4 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trac
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time );
+const pm_slideMoveFlags_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time );

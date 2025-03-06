@@ -8,7 +8,7 @@
 #pragma once
 
 
-enum {
+typedef enum sg_muzzleflash_e {
     MZ_FIST_LEFT,
     MZ_FIST_RIGHT,
 
@@ -21,4 +21,5 @@ enum {
     MZ_ITEMRESPAWN,
 
     //MZ_SILENCED = 128,  // bit flag ORed with one of the above numbers
-};
+} sg_muzzleflash_t;
+QENUM_BIT_FLAGS( sg_muzzleflash_t );

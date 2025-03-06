@@ -776,6 +776,7 @@ typedef enum {
     QVF_GAMMARAMP = ( 1 << 1 ),
     QVF_FULLSCREEN = ( 1 << 2 )
 } vidFlags_t;
+QENUM_BIT_FLAGS( vidFlags_t );
 
 /**
 *   @brief
@@ -829,6 +830,7 @@ typedef enum {
 
     IT_MAX
 } imagetype_t;
+QENUM_BIT_FLAGS( imagetype_t );
 
 /**
 *   @brief

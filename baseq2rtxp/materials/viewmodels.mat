@@ -27,6 +27,7 @@ models/v_wep/pistol/muzzleflash:
 	texture_base models/v_wep/pistol/muzzleflash.png
 	texture_mask models/v_wep/pistol/muzzleflash_m.png
 	base_factor 2.5
+	specular_factor 1
 	kind UNLIT
 
 models/g_wep/pistol/pistol_black,

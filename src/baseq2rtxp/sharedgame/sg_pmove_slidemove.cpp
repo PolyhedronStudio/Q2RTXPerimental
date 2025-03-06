@@ -64,9 +64,9 @@ static constexpr float PM_STOP_EPSILON = 0.1f;
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-const int32_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
+const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
 	// Whether we're actually blocked or not.
-	int32_t blocked = PM_VELOCITY_CLIPPED_NONE;
+	pm_velocityClipFlags_t blocked = PM_VELOCITY_CLIPPED_NONE;
 	// If the plane that is blocking us has a positive z component, then assume it's a floor.
 	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
 		blocked |= PM_VELOCITY_CLIPPED_FLOOR;
@@ -107,7 +107,7 @@ const int32_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
+const pm_slideMoveFlags_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
 	Vector3 dir = {};
 
 	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
@@ -126,7 +126,7 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 	Vector3 last_valid_origin = origin;
 	int32_t numplanes = 0;
 
-	int32_t blockedMask = 0;
+	pm_slideMoveFlags_t blockedMask = PM_SLIDEMOVEFLAG_NONE;
 
 	time_left = frametime;
 
