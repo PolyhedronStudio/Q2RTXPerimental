@@ -125,7 +125,7 @@ typedef struct hud_usetarget_hint_s {
 **/
 struct hud_state_t {
     //! Generic display color values.
-    struct {
+    struct hud_state_colors_s {
         // Colors.
         static constexpr uint32_t ORANGE2 = MakeColor( 255, 150, 100, 75 );
         //static constexpr uint32_t RED = MakeColor( 255, 50, 30, 255 );
@@ -139,12 +139,12 @@ struct hud_state_t {
     } colors;
 
     //! Crosshair information.
-    struct {
-        color_t     color = (color_t)U32_WHITE;
+    struct hud_state_crosshair_s {
+        color_t     color = (static_cast<color_t>(U32_WHITE));
         float       alpha = 1.f;
 
         //! For recoil display scaling.
-        struct {
+        struct hud_state_crosshair_recoil_s {
             ////! Stats values of the current and last frame.
             int32_t currentRecoilStats = 0, lastRecoilStats = 0;
             //! Decoded floating point values, scaled to between (0.0, 1.0).
@@ -163,7 +163,7 @@ struct hud_state_t {
     /**
     *   @brief  UseTargetHint state:
     **/
-    struct {
+    struct hud_state_targethints_s {
         //! Current ID.
         int32_t currentID = 0;
         //! Last ID.
@@ -179,7 +179,7 @@ struct hud_state_t {
     /**
     *   @brief  Chat State:
     **/
-    struct {
+    struct hud_state_chatlines_s {
         //! Chat lines.
         chatline_t      chatlines[ HUD_MAX_CHAT_LINES ];
         //! Head index of chat lines.

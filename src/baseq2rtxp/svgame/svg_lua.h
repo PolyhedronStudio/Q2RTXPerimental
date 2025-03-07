@@ -47,6 +47,7 @@
 //// Custom in-engine-asserts:
 //#define SOL_ASSERT 
 //#define SOL_ASSERT_MSG  
+#undef clamp
 #include <sol/sol.hpp>
 
 

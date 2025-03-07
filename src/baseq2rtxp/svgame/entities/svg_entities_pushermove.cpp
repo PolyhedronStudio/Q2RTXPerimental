@@ -348,7 +348,7 @@ static constexpr float AccelerationDistance( float target, float rate ) {
 /**
 *   @brief
 **/
-static void PushMove_CalculateAcceleratedMove( svg_pushmove_info_t *moveinfo ) {
+void PushMove_CalculateAcceleratedMove( svg_pushmove_info_t *moveinfo ) {
     float   accel_dist;
     float   decel_dist;
 

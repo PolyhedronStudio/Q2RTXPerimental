@@ -45,12 +45,17 @@ typedef struct commandPrompt_s {
 
 void Prompt_Init(void);
 QEXTERN_C_ENCLOSE( void Prompt_AddMatch(genctx_t *ctx, const char *s); )
-void Prompt_CompleteCommand(commandPrompt_t *prompt, bool backslash);
-void Prompt_CompleteHistory(commandPrompt_t *prompt, bool forward);
+// <Q2RTXP>: WID: extern C for unix tty.c
+QEXTERN_C_ENCLOSE( void Prompt_CompleteCommand(commandPrompt_t *prompt, bool backslash); );
+// <Q2RTXP>: WID: extern C for unix tty.c
+QEXTERN_C_ENCLOSE( void Prompt_CompleteHistory(commandPrompt_t *prompt, bool forward); );
 void Prompt_ClearState(commandPrompt_t *prompt);
-char *Prompt_Action(commandPrompt_t *prompt);
-void Prompt_HistoryUp(commandPrompt_t *prompt);
-void Prompt_HistoryDown(commandPrompt_t *prompt);
+// <Q2RTXP>: WID: extern C for unix tty.c
+QEXTERN_C_ENCLOSE( char *Prompt_Action(commandPrompt_t *prompt); );
+// <Q2RTXP>: WID: extern C for unix tty.c
+QEXTERN_C_ENCLOSE( void Prompt_HistoryUp(commandPrompt_t *prompt); );
+// <Q2RTXP>: WID: extern C for unix tty.c
+QEXTERN_C_ENCLOSE( void Prompt_HistoryDown(commandPrompt_t *prompt); );
 void Prompt_Clear(commandPrompt_t *prompt);
 void Prompt_SaveHistory(commandPrompt_t *prompt, const char *filename, int lines);
 void Prompt_LoadHistory(commandPrompt_t *prompt, const char *filename);

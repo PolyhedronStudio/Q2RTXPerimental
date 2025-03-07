@@ -18,7 +18,7 @@ static constexpr float PM_MIN_WALL_NORMAL_Z = 0.03125;
 /**
 *	Slide Move Results:
 **/
-constexpr enum pm_velocityClipFlags_t {
+enum pm_velocityClipFlags_t {
     //! None.
     PM_VELOCITY_NOCLIP = 0,
     //! Velocity has not been clipped by a Floor, nor any Wall/Step.

@@ -25,19 +25,20 @@
 #ifdef USE_DOUBLE_PRECISION_EASING
 	#ifdef __cplusplus
 		#define EASING_TYPE const T
-		#define EASING_IN_TYPE EASING_TYPE&
-		#define EASING_OUT_TYPE template<typename T> ##EASING_TYPE
+		#define EASING_IN_TYPE EASING_TYPE &
+		#define EASING_OUT_TYPE template<typename T> EASING_TYPE
 	#else
+		#define EASING_TYPE double
 		#define EASING_IN_TYPE double
 		#define EASING_OUT_TYPE double
-		#define EASING_TYPE double
 	#endif
 #else
 	#ifdef __cplusplus
 		#define EASING_TYPE const T
-		#define EASING_IN_TYPE EASING_TYPE&
-		#define EASING_OUT_TYPE template<typename T> ##EASING_TYPE
+		#define EASING_IN_TYPE EASING_TYPE &
+		#define EASING_OUT_TYPE template<typename T> EASING_TYPE
 	#else
+		#define EASING_TYPE float
 		#define EASING_IN_TYPE float
 		#define EASING_OUT_TYPE float
 	#endif

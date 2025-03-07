@@ -521,7 +521,7 @@ extern uint32_t clg_num_local_entities;
 *
 *
 **/
-typedef struct precached_media_s {
+struct precached_media_t {
 	//
 	//	Local Entities:
 	//
@@ -642,7 +642,7 @@ typedef struct precached_media_s {
 	// Other:
 	//
 	// ...
-} precached_media_t;
+};
 //! Stores qhandles to all precached client game media.
 extern precached_media_t precache;
 

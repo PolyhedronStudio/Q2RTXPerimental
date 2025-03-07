@@ -88,7 +88,8 @@ void        Com_AbortFrame(void);
 QEXTERN_C_ENCLOSE( char *Com_GetLastError( void ); );
 QEXTERN_C_ENCLOSE( void        Com_SetLastError( const char *msg ); );
 
-void        Com_Quit(const char *reason, error_type_t type) q_noreturn;
+// <Q2RTXP>: WID: extern C for unix system.c
+QEXTERN_C_ENCLOSE( void        Com_Quit(const char *reason, error_type_t type) q_noreturn; );
 
 void        Com_SetColor(color_index_t color);
 
@@ -103,7 +104,8 @@ size_t      Com_Uptime_m(char *buffer, size_t size);
 size_t      Com_UptimeLong_m(char *buffer, size_t size);
 
 #ifndef _WIN32
-void        Com_FlushLogs(void);
+// <Q2RTXP>: WID: extern C for unix system.c
+QEXTERN_C_ENCLOSE( void        Com_FlushLogs( void ); );
 #endif
 
 QEXTERN_C_ENCLOSE( void        Com_AddConfigFile( const char *name, unsigned flags ); );
@@ -185,7 +187,9 @@ extern uint64_t		com_localTime; // milliseconds since Q2 startup
 extern bool         com_initialized;
 extern time_t       com_startTime;
 
-void Qcommon_Init(int argc, char **argv);
-void Qcommon_Frame(void);
+// <Q2RTXP>: WID: extern C for unix system.c
+QEXTERN_C_ENCLOSE( void Qcommon_Init(int argc, char **argv); );
+// <Q2RTXP>: WID: extern C for unix system.c
+QEXTERN_C_ENCLOSE( void Qcommon_Frame( void ); );
 
 #endif // COMMON_H

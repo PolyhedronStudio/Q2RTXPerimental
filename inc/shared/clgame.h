@@ -45,10 +45,10 @@
 typedef struct centity_s centity_t;
 //! Client Clients Struct:
 typedef struct cclient_s cclient_t;
-//! Client Info Type(name, model, skin, etc):
-typedef struct clientinfo_s clientinfo_t;
-//! Defines the actual client's current 'operating state'.
-typedef enum connstate_s connstate_t;
+// //! Client Info Type(name, model, skin, etc):
+// typedef struct clientinfo_s clientinfo_t;
+// //! Defines the actual client's current 'operating state'.
+// typedef enum connstate_s connstate_t;
 
 // Include needed shared refresh types.
 #include "refresh/shared_types.h"
@@ -116,6 +116,8 @@ typedef struct centity_s {
 	*	The game dll can add anything it wants after this point in the structure.
 	**/
 } centity_t;
+
+#include "client/client_types.h"
 #else
 #include "client/client_types.h"
 #endif      // CLGAME_INCLUDE
@@ -150,15 +152,15 @@ typedef struct {
 	* 
 	**/
 	// Demo:
-	const qboolean ( *IsDemoPlayback )( );
-	const uint64_t( *GetDemoFramesRead )( );
-	const float( *GetDemoFileProgress )( );
-	const int64_t( *GetDemoFileSize )( );
+	const qboolean ( *IsDemoPlayback )( void );
+	const uint64_t( *GetDemoFramesRead )( void );
+	const float( *GetDemoFileProgress )( void );
+	const int64_t( *GetDemoFileSize )( void );
 	// Time/State:
-	const uint64_t ( *GetRealTime )( );
-	const double ( *GetFrameTime )( );
-	const connstate_t ( *GetConnectionState )( );
-	const ref_type_t( *GetRefreshType )( );
+	const uint64_t ( *GetRealTime )( void );
+	const double ( *GetFrameTime )( void );
+	const connstate_t ( *GetConnectionState )( void );
+	const ref_type_t( *GetRefreshType )( void );
 	// Actually from Sys_... :
 	const uint64_t( *Sys_Milliseconds )( void );
 	// FPS and Scale:
@@ -438,19 +440,19 @@ typedef struct {
 	/**
 	*   @return Base 128 decoded unsigned integer.
 	**/
-	const uint64_t( *MSG_ReadUintBase128 )();
+	const uint64_t( *MSG_ReadUintBase128 )( void );
 	/**
 	*   @return Zig-Zac decoded signed integer.
 	**/
-	const int64_t( *MSG_ReadIntBase128 )();
+	const int64_t( *MSG_ReadIntBase128 )( void );
 	/**
 	*   @return The full precision float.
 	**/
-	const float ( *MSG_ReadFloat )();
+	const float ( *MSG_ReadFloat )( void );
 	/**
 	*   @return A half float, converted to float, keep in mind that half floats have less precision.
 	**/
-	const float ( *MSG_ReadHalfFloat )();
+	const float ( *MSG_ReadHalfFloat )( void );
 
 	/**
 	*   @return The full string until its end.
@@ -700,7 +702,7 @@ typedef struct {
 	// Frees the memory block pointed at by (*ptr), if that's nonzero, and sets (*ptr) to zero.
 	void ( *Z_Freep )( void **ptr );
 	void *( *Z_Realloc )( void *ptr, size_t size );
-	void *( *Z_Malloc )( size_t size ) q_malloc;
+	void *( *Z_Malloc )( size_t size );
 
 
 	/**
@@ -882,7 +884,7 @@ typedef struct {
 	/**
 	*   @brief  Called from CL_Begin only, after precache and spawning. Used for example to access precached data with.
 	**/
-	void ( *PostSpawnEntities )( );
+	void ( *PostSpawnEntities )( void );
 	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.

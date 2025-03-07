@@ -41,7 +41,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if USE_CLIENT
 // Defined to prevent a warning C4005: 'M_PI': macro redefinition
+#ifdef WIN32
+#ifndef HAVE_M_PI
 #define HAVE_M_PI
+#endif
+#endif
 #include <SDL_video.h>
 #include <SDL_messagebox.h>
 #include <SDL.h>
@@ -81,8 +85,8 @@ const uint64_t Sys_Milliseconds( void )
     //struct timespec ts;
     //(void)clock_gettime(CLOCK_MONOTONIC, &ts);
     //return ts.tv_sec * 1000UL + ts.tv_nsec / 1000000UL;
-    struct timespec64_t ts;
-    (void)clock_gettime64( CLOCK_MONOTONIC, &ts );
+    struct timespec ts;
+    (void)clock_gettime( CLOCK_MONOTONIC, &ts );
     return ts.tv_sec * 1000ULL + ts.tv_nsec / 1000000ULL;
 }
 
@@ -288,7 +292,7 @@ void Sys_Init(void)
     }
     sys_homedir = Cvar_Get("homedir", homegamedir, CVAR_NOSET);
     sys_libdir = Cvar_Get("libdir", baseDirectory, CVAR_NOSET);
-    sys_forcegamelib = Cvar_Get("sys_forcegamelib", "", CVAR_NOSET);
+    sys_forcesvgamelib = Cvar_Get("sys_forcesvgamelib", "", CVAR_NOSET);
 
     //if (tty_init_input()) {
     //    signal(SIGHUP, term_handler);

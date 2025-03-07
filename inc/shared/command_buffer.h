@@ -18,15 +18,17 @@ typedef enum {
     FROM_CODE
 } from_t;
 
-typedef struct cmdbuf_s {
-    from_t      from;
-    char *text; // may not be NULL terminated
-    size_t      cursize;
-    size_t      maxsize;
-    int64_t     waitCount;
-    int64_t		aliasCount; // for detecting runaway loops
-    void        ( *exec )( struct cmdbuf_s *, const char * );
-} cmdbuf_t;
+QEXTERN_C_ENCLOSE( 
+    typedef struct cmdbuf_s {
+        from_t      from;
+        char *text; // may not be NULL terminated
+        size_t      cursize;
+        size_t      maxsize;
+        int64_t     waitCount;
+        int64_t		aliasCount; // for detecting runaway loops
+        void        ( *exec )( struct cmdbuf_s *, const char * );
+    } cmdbuf_t;
+);
 
 typedef struct genctx_s {
     const char *partial;

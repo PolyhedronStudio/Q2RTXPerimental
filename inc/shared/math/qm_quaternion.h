@@ -362,7 +362,7 @@ RMAPI Quaternion QM_QuaternionFromAxisAngle( Vector3 axis, float angle ) {
 }
 
 // Get the rotation angle and axis for a given quaternion
-RMAPI void QM_QuaternionToAxisAngle( Quaternion q, Vector3 *outAxis, float *outAngle ) {
+RMAPI_DISCARD void QM_QuaternionToAxisAngle( Quaternion q, Vector3 *outAxis, float *outAngle ) {
     if ( fabsf( q.w ) > 1.0f ) {
         // QuaternionNormalize(q);
         float length = sqrtf( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );

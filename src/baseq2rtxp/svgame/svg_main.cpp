@@ -322,8 +322,7 @@ void SVG_InitGame( void )
     SVG_InitItems();
 
     // initialize all entities for this game
-    game.maxentities = maxentities->value;
-    clamp(game.maxentities, (int)maxclients->value + 1, MAX_EDICTS);
+    game.maxentities = std::clamp(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
 	// WID: C++20: Addec cast.
     g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
     globals.edicts = g_edicts;

@@ -73,7 +73,7 @@ void Cbuf_InsertText(cmdbuf_t *buf, const char *text);
 // inserted at the beginning of the buffer, before any remaining unexecuted
 // commands.
 
-void Cbuf_Execute(cmdbuf_t *buf);
+QEXTERN_C_ENCLOSE( void Cbuf_Execute(cmdbuf_t *buf); );
 // Pulls off \n terminated lines of text from the command buffer and sends
 // them through Cmd_ExecuteString.  Stops when the buffer is empty.
 // Normally called once per frame, but may be explicitly invoked.

@@ -234,7 +234,7 @@ typedef struct menuList_s {
 } menuList_t;
 
 // Callback, called when menu performs key event, if returning QMS_SILENT it means it was left unhandled.
-typedef int32_t( *menuAction_callback_t )( menuFrameWork_t *menu, struct menuAction_s *a, int32_t key );
+//typedef int32_t( *menuAction_callback_t )( menuFrameWork_t *menu, struct menuAction_s *a, int32_t key );
 typedef struct menuSpinControl_s {
     menuCommon_t generic;
     cvar_t *cvar;
@@ -249,6 +249,7 @@ typedef struct menuSpinControl_s {
 } menuSpinControl_t;
 
 // Callback, called when menu performs key event, if returning QMS_SILENT it means it was left unhandled.
+struct menuAction_s;
 typedef int32_t( *menuAction_callback_t )( menuFrameWork_t *menu, struct menuAction_s *a, int32_t key );
 typedef struct menuAction_s {
     menuCommon_t generic;

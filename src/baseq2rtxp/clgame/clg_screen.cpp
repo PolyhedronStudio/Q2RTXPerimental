@@ -73,7 +73,7 @@ static cvar_t *scr_lag_y;
 static cvar_t *scr_lag_draw;
 static cvar_t *scr_lag_min;
 static cvar_t *scr_lag_max;
-static cvar_t *scr_alpha;
+cvar_t *scr_alpha;
 static cvar_t *scr_fps;
 
 static cvar_t *scr_demobar;
