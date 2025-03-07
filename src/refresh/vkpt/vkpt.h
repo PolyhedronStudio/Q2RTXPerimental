@@ -551,7 +551,10 @@ void vkpt_textures_destroy_unused(void);
 void vkpt_textures_update_descriptor_set(void);
 image_t *vkpt_fake_emissive_texture(image_t *image, int bright_threshold_int);
 void vkpt_extract_emissive_texture_info(image_t *image);
+// <Q2RTXP>: WID: Removed since we're not going to use a prefetch.txt for preloading menu neccesity textures. (Player setup screen, vwep skins.)
+#if 0
 void vkpt_textures_prefetch(void);
+#endif
 void vkpt_invalidate_texture_descriptors(void);
 void vkpt_init_light_textures(void);
 

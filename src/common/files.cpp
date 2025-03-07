@@ -1337,8 +1337,8 @@ static int64_t open_from_disk(file_t *file, const char *fullpath)
 
 fail:
     if (ret != Q_ERR(ENOENT))
-        FS_DPrintf("%s: %s: %s\n", __func__, fullpath, Q_ErrorString(ret));
-    return ret;
+        FS_DPrintf("%s: %s: %s\n", __func__, fullpath, Q_ErrorString(ret))
+    ;return ret;
 }
 
 int FS_LastModified(char const * file, uint64_t * last_modified)

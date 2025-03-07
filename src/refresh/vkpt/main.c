@@ -320,7 +320,10 @@ vkpt_initialize_all(VkptInitFlags_t init_flags)
 			return VK_RESULT_MAX_ENUM;
 	}
 
+	// <Q2RTXP>: WID: Removed since we're not going to use a prefetch.txt for preloading menu neccesity textures. (Player setup screen, vwep skins.)
+	#if 0
 	vkpt_textures_prefetch();
+	#endif
 
 	water_normal_texture = IMG_Find("textures/water_n.tga", IT_SKIN, IF_PERMANENT);
 

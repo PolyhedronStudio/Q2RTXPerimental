@@ -95,6 +95,8 @@ extern cvar_t* cvar_pt_nearest;
 extern cvar_t* cvar_pt_bilerp_chars;
 extern cvar_t* cvar_pt_bilerp_pics;
 
+// <Q2RTXP>: WID: Removed since we're not going to use a prefetch.txt for preloading menu neccesity textures. (Player setup screen, vwep skins.)
+#if 0
 void vkpt_textures_prefetch()
 {
     char * buffer = NULL;
@@ -119,6 +121,7 @@ void vkpt_textures_prefetch()
     // Com_Printf("Loaded '%s'\n", filename);
     FS_FreeFile(buffer);
 }
+#endif
 
 void vkpt_invalidate_texture_descriptors()
 {

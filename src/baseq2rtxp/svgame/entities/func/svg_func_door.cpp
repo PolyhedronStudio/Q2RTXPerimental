@@ -61,6 +61,20 @@ NOMONSTER   Monsters will not trigger this door.
 *
 *
 **/
+void door_usetarget_update_hint( edict_t *self ) {
+    // Are we an actual use target at all?
+    if ( !SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
+        return;
+    }
+
+    // Otherwise, set the hint ID based on the movement state.
+    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE ) {
+        SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_CLOSE );
+    } else if ( self->pushMoveInfo.state == DOOR_STATE_CLOSED || self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_CLOSED_STATE ) {
+        SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_OPEN );
+    }
+}
+
 /**
 *	@brief  Open/Close the door's area portals.
 **/
@@ -491,7 +505,7 @@ void door_close_move( edict_t *self ) {
     }
 
     // Since we're closing or closed, set usetarget hint ID to 'open door'.
-    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_OPEN );
+    door_usetarget_update_hint( self );
 
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnClose" );
@@ -545,8 +559,8 @@ void door_open_move( edict_t *self/*, edict_t *activator */) {
         SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
     }
 
-    // Since we're closing or closed, set usetarget hint ID to 'close door'.
-    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_CLOSE );
+    // Since we're closing or closed, set usetarget hint ID to 'open door'.
+    door_usetarget_update_hint( self );
 
     // Fire use targets.
     SVG_UseTargets( self, self->activator );
@@ -956,17 +970,16 @@ void SP_func_door( edict_t *ent ) {
         ent->pushMoveInfo.startAngles = ent->s.angles;
         ent->pushMoveInfo.endOrigin = ent->pos1;
         ent->pushMoveInfo.endAngles = ent->s.angles;
-
-        SVG_Entity_SetUseTargetHintByID( ent, USETARGET_HINT_ID_DOOR_CLOSE );
     // For UNPRESSED: pos1 = start, pos2 = end.
     } else {
         ent->pushMoveInfo.startOrigin = ent->pos1;
         ent->pushMoveInfo.startAngles = ent->s.angles;
         ent->pushMoveInfo.endOrigin = ent->pos2;
         ent->pushMoveInfo.endAngles = ent->s.angles;
-
-        SVG_Entity_SetUseTargetHintByID( ent, USETARGET_HINT_ID_DOOR_OPEN );
     }
+
+    // Since we're closing or closed, set usetarget hint ID to 'open door'.
+    door_usetarget_update_hint( ent );
 
     // Animated doors:
     if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_ANIMATED ) ) {
