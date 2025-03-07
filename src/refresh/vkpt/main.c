@@ -43,7 +43,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <vulkan/vulkan.h>
 // Defined to prevent a warning C4005: 'M_PI': macro redefinition
+#ifdef WIN32
+#ifndef HAVE_M_PI
 #define HAVE_M_PI
+#endif
+#endif
 #include <SDL.h>
 #include <SDL_vulkan.h>
 

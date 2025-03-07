@@ -26,7 +26,12 @@ typedef volatile int atomic_int;
 #define atomic_load(p)      (*(p))
 #define atomic_store(p, v)  (*(p) = (v))
 #else
+#ifdef __cplusplus
+#include <atomic>
 #include <stdatomic.h>
+#else
+#include <stdatomic.h>
+#endif
 #endif
 
 #include "system/pthread.h"
@@ -63,7 +68,7 @@ typedef struct {
     size_t      position;
     char        *buffer;
     CURLcode    result;
-    atomic_int  state;
+    std::atomic_int  state;
 } dlhandle_t;
 
 static dlhandle_t   download_handles[MAX_DLHANDLES];    //actual download handles
@@ -79,8 +84,8 @@ static int              download_percent;
 static bool         curl_initialized;
 static CURLM        *curl_multi;
 
-static atomic_int   worker_terminate;
-static atomic_int   worker_status;
+static std::atomic_int   worker_terminate;
+static std::atomic_int   worker_status;
 static pthread_t    worker_thread;
 
 static void *worker_func(void *arg);
@@ -1013,7 +1018,7 @@ static void *worker_func(void *arg)
             break;
     }
 
-    atomic_store(&worker_status, ret);
+    std::atomic_store(&worker_status, ret);
     return NULL;
 }
 

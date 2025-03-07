@@ -31,6 +31,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     // C STD Headers:
     #include <ctype.h>
     #include <errno.h>
+    #include <float.h>
     #include <math.h>
     #include <stdio.h>
     #include <stdarg.h>
@@ -45,6 +46,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     // C STD Headers:
     #include <cctype>
     #include <cerrno>
+    #include <cfloat>
     #include <cinttypes>
     #include <climits>
     #include <cmath>
@@ -58,7 +60,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
     // C++ STL Headers:
     #include <version>
-    //#include <algorithm> // std::min, std::max etc, buuut still got vkpt code in C so.
+    #include <algorithm> // std::min, std::max etc, buuut still got vkpt code in C so.
     //#include <array>
     //#include <bit>
     #include <chrono>

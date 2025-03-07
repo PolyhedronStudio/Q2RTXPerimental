@@ -122,7 +122,7 @@ static constexpr float PM_MAX_STEP_SIZE = 18.f;
 /**
 *	Slide Move Results:
 **/
-constexpr enum pm_slideMoveFlags_t {
+enum pm_slideMoveFlags_t {
     //! None.
 	PM_SLIDEMOVEFLAG_NONE = 0,
     //! Successfully performed the move.

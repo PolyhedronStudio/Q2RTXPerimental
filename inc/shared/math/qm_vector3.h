@@ -128,9 +128,9 @@ RMAPI Vector3 QM_Vector3Perpendicular( ConstVector3Ref v ) {
 RMAPI Vector3 QM_Vector3Fabs( ConstVector3Ref v1 ) {
     #ifdef __cplusplus
     Vector3 result = { 
-        std::fabsf( v1.x ),
-        std::fabsf( v1.y ),
-        std::fabsf( v1.z )
+        std::fabs( v1.x ),
+        std::fabs( v1.y ),
+        std::fabs( v1.z )
     };
     #else
     Vector3 result = {
@@ -145,8 +145,11 @@ RMAPI Vector3 QM_Vector3Fabs( ConstVector3Ref v1 ) {
 
 // Calculate vector length
 RMAPI float QM_Vector3Length( ConstVector3Ref v ) {
+    #ifdef __cplusplus
+    const float result = std::sqrt( v.x * v.x + v.y * v.y + v.z * v.z );
+    #else
     const float result = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
-
+    #endif
     return result;
 }
 
@@ -266,7 +269,7 @@ RMAPI Vector3 QM_Vector3Reject( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 // Orthonormalize provided vectors
 // Makes vectors normalized and orthogonal to each other
 // Gram-Schmidt function implementation
-RMAPI void QM_Vector3OrthoNormalize( Vector3 *v1, Vector3 *v2 ) {
+RMAPI_DISCARD void QM_Vector3OrthoNormalize( Vector3 *v1, Vector3 *v2 ) {
     float length = 0.0f;
     float ilength = 0.0f;
 
@@ -770,7 +773,7 @@ void QM_Vector3ToAngles( vec3_t value1, vec3_t angles ) {
 *   @param forward  Forward normalized direction vector.
 *   @param angles   The output vector3 euler angles.
 **/
-RMAPI void QM_Vector3ToAngles( const Vector3 forward, vec3_t angles ) {
+RMAPI_DISCARD void QM_Vector3ToAngles( const Vector3 forward, vec3_t angles ) {
     //float forwardsqrt = 0;
     //float yaw = 0;
     //float pitch = 0;
@@ -1016,7 +1019,7 @@ RMAPI bool operator!=( const Vector3 &left, const Vector3 &right ) {
 /**
 *   @brief  Vector3 C++ 'AngleVectors' method for QMRayLib.
 **/
-RMAPI void QM_AngleVectors( const Vector3 &angles, Vector3 *forward, Vector3 *right, Vector3 *up ) {
+RMAPI_DISCARD void QM_AngleVectors( const Vector3 &angles, Vector3 *forward, Vector3 *right, Vector3 *up ) {
     float        angle;
     float        sr, sp, sy, cr, cp, cy;
 

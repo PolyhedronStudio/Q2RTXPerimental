@@ -417,11 +417,11 @@ QEXTERN_C_ENCLOSE( extern vec3_t     cl_testmodel_position; )
 //
 // clgame.cpp
 // 
-void CL_GM_LoadProgs( );
-void CL_GM_Init();
-void CL_GM_PreInit();
-void CL_GM_Shutdown( );
-void CL_GM_PreShutdown();
+void CL_GM_LoadProgs(void);
+void CL_GM_Init(void);
+void CL_GM_PreInit(void);
+void CL_GM_Shutdown(void);
+void CL_GM_PreShutdown(void);
 
 
 

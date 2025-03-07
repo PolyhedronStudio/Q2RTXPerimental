@@ -121,7 +121,14 @@
 
 /* ISO C definitions */
 #define LUA_TMPNAMBUFSIZE	L_tmpnam
+
+// WID: For Unix
+#ifndef WIN32
+// <Q2RTXP>: WID: To fix a linker error warning on Unix GCC, "warning: the use of `tmpnam' is dangerous, better use `mkstemp'"
+#define lua_tmpnam(b,e)		{ e = (mkstemp(b) == -1); }
+#else
 #define lua_tmpnam(b,e)		{ e = (tmpnam(b) == NULL); }
+#endif
 
 #endif				/* } */
 

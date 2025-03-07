@@ -106,7 +106,7 @@ RMAPI BBox3 QM_BBox3FromPoints( const Vector3 *points, const uint32_t numberOfPo
 *			axis order - assuming bitflags of 1 2 4 = X Y Z - where a bit unset is
 *			mins and a bit set is maxs.
 **/
-RMAPI void QM_BBox3ToPoints( ConstBBox3Ref box, Vector3 *points ) {
+RMAPI_DISCARD void QM_BBox3ToPoints( ConstBBox3Ref box, Vector3 *points ) {
     for ( int32_t i = 0; i < 8; i++ ) {
         points[ i ] = {
             ( ( i & 1 ) ? box.maxs : box.mins ).x,

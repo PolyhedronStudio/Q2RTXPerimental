@@ -22,7 +22,7 @@
 *
 **/
 //! Stores qhandles to all precached client game media.
-precached_media_t precache;
+precached_media_s precache;
 
 /**
 *   @brief  Precaches('to load') all local 'sound path' registered files.

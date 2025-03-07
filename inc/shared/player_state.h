@@ -229,7 +229,7 @@ typedef struct {
         //! True if we're 'in-air'.
         bool inAir;
 
-        //! Movement Direction, used to determine what crouch/walk/run animation to play\
+        //! Movement Direction, used to determine what crouch/walk/run animation to play
         //! for the main animation channel..
         int32_t moveDirection;
     } animation;
