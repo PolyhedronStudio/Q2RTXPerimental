@@ -250,7 +250,7 @@ static void VID_GetDisplayList(void)
     for (int display = 0; display < num_displays; display++)
     {
         int len = strlen(SDL_GetDisplayName(display));
-        max_display_name_length = std::max(max_display_name_length, len);
+        max_display_name_length = (std::max)(max_display_name_length, len);
         string_size += 12 + len;
     }
     

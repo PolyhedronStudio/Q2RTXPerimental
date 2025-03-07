@@ -49,7 +49,7 @@ typedef int qsocket_t;
 #endif
 
 // <Q2RTXP>: WID: extern C for unix tty.c
-QEXTERN_C_ENCLOSE( 
+QEXTERN_C_OPEN
     typedef struct {
     #ifdef _WIN32
         qsocket_t fd;
@@ -62,7 +62,7 @@ QEXTERN_C_ENCLOSE(
         bool wantwrite: 1;
         bool wantexcept: 1;
     } ioentry_t; 
-);
+QEXTERN_C_CLOSE
 
 typedef enum {
     NA_UNSPECIFIED,

@@ -25,6 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 typedef volatile int atomic_int;
 #define atomic_load(p)      (*(p))
 #define atomic_store(p, v)  (*(p) = (v))
+#define _atomic_int atomic_int
 #else
 #ifdef __cplusplus
 #include <atomic>
@@ -32,6 +33,7 @@ typedef volatile int atomic_int;
 #else
 #include <stdatomic.h>
 #endif
+#define _atomic_int std::atomic_int
 #endif
 
 #include "system/pthread.h"
@@ -68,7 +70,7 @@ typedef struct {
     size_t      position;
     char        *buffer;
     CURLcode    result;
-    std::atomic_int  state;
+    _atomic_int state;
 } dlhandle_t;
 
 static dlhandle_t   download_handles[MAX_DLHANDLES];    //actual download handles
@@ -84,8 +86,8 @@ static int              download_percent;
 static bool         curl_initialized;
 static CURLM        *curl_multi;
 
-static std::atomic_int   worker_terminate;
-static std::atomic_int   worker_status;
+static _atomic_int  worker_terminate;
+static _atomic_int  worker_status;
 static pthread_t    worker_thread;
 
 static void *worker_func(void *arg);
@@ -778,7 +780,12 @@ static void process_downloads(void)
 
     for (i = 0; i < MAX_DLHANDLES; i++) {
         dl = &download_handles[i];
+        #ifdef _MSC_VER
         state = static_cast<dlstate_t>( atomic_load( &dl->state ) );
+        #else
+        state = static_cast<dlstate_t>( atomic_load( &dl->state ) );
+        #endif
+        
 
         if (state == DL_RUNNING) {
             running = true;
@@ -1018,7 +1025,7 @@ static void *worker_func(void *arg)
             break;
     }
 
-    std::atomic_store(&worker_status, ret);
+    atomic_store(&worker_status, ret);
     return NULL;
 }
 
