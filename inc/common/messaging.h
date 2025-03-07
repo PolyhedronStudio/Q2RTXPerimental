@@ -419,23 +419,23 @@ const uint64_t MSG_ReadUint64( void );
 /**
 *   @return Base 128 decoded unsigned integer.
 **/
-const uint64_t MSG_ReadUintBase128( );
+const uint64_t MSG_ReadUintBase128( void );
 /**
 *   @return Zig-Zac decoded signed integer.
 **/
-const int64_t MSG_ReadIntBase128( );
+const int64_t MSG_ReadIntBase128( void );
 /**
 *   @return The full precision float.
 **/
-const float MSG_ReadFloat( );
+const float MSG_ReadFloat( void );
 /**
 *   @return The first 13 bits of what was a full precision float. Hence, 'truncated' float.
 **/
-const float MSG_ReadTruncatedFloat( );
+const float MSG_ReadTruncatedFloat( void );
 /**
 *   @return A half float, converted to float, keep in mind that half floats have less precision.
 **/
-const float MSG_ReadHalfFloat( );
+const float MSG_ReadHalfFloat( void );
 
 /**
 *   @return The full string until its end.

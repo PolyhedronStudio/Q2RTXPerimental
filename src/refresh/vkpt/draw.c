@@ -133,7 +133,7 @@ VkExtent2D vkpt_draw_get_extent(void) {
 /**
 *	@brief	
 **/
-static VkResult vkpt_draw_clear_scissor_groups() {
+static VkResult vkpt_draw_clear_scissor_groups( void ) {
 	// We always resort to the default scissor group.
 	num_stretch_pic_scissor_groups = 1;
 	// Clear the first default scissor group back to defaults.

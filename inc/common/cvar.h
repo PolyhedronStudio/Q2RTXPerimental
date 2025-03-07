@@ -102,7 +102,7 @@ QEXTERN_C_ENCLOSE( cvar_t *Cvar_UserSet( const char *var_name, const char *value
 QEXTERN_C_ENCLOSE( cvar_t *Cvar_FullSet(const char *var_name, const char *value,
                      int flags, from_t from); );
 
-//#define Cvar_Reset(x) \
+//#define Cvar_Reset(x) 
 //    Cvar_SetByVar(x, (x)->default_string, FROM_CODE)
 QEXTERN_C_OPEN
 static inline void Cvar_Reset( cvar_t *x ) {

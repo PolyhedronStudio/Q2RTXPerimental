@@ -414,7 +414,7 @@ void Com_LPrintf(print_type_t type, const char *fmt, ...)
     va_end(argptr);
 
     if (type == PRINT_ERROR && !com_errorEntered && len) {
-        size_t errlen = min(len, sizeof(com_errorMsg) - 1);
+        size_t errlen = std::min<size_t>(len, sizeof(com_errorMsg) - 1);
 
         // save error msg
         memcpy(com_errorMsg, msg, errlen);
@@ -677,7 +677,7 @@ static size_t Com_MapList_m(char *buffer, size_t size)
         len = strlen( static_cast<const char*>( list[i] ) ); // WID: C++20: Added cast.
         if (i)
             total++;
-        total += len = min(len, SIZE_MAX - total);
+        total += len = std::min<size_t>(len, SIZE_MAX - total);
         if (total < size) {
             if (i)
                 *buffer++ = ' ';

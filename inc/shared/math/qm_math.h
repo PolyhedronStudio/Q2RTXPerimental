@@ -80,6 +80,7 @@
             #define RMAPI_DISCARD const inline // Functions may be inlined, no external out-of-line definition
         #else
             #define RMAPI inline 
+            #define RMAPI_DISCARD inline
         #endif
     #else
         #define RMAPI static inline // Functions may be inlined, no external out-of-line definition
@@ -186,7 +187,7 @@ typedef struct Vector2 {
         this->y = 0;
     }
 
-    constexpr [[nodiscard]] inline Vector2( const float x, const float y ) {
+    [[nodiscard]] constexpr inline Vector2( const float x, const float y ) {
         this->x = x;
         this->y = y;
     }

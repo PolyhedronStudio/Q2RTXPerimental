@@ -994,7 +994,12 @@ static bool BSP_GetPatchedPVSFileName( const char *map_path, char pvs_path[ MAX_
     memset( pvs_path, 0, MAX_QPATH );
     strncpy( pvs_path, map_path, map_file - map_path );
     strcat( pvs_path, "pvs/" );
-    strncat( pvs_path, map_file, strlen( map_file ) - 4 );
+    size_t map_file_len = strlen( map_file ) - 4;
+    if ( map_file_len > 4 ) {
+        strncat( pvs_path, map_file, map_file_len );
+    } else {
+        //strcat( pvs_path, map_file );
+    }
     strcat( pvs_path, ".bin" );
 
     return true;

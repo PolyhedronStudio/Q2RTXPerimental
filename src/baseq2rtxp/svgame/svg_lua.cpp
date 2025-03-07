@@ -765,7 +765,7 @@ void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 	// If valid, convert result to boolean.
 	if ( callResult.valid() ) {
 		// Convert.
-		retval = callResult;
+		retval = ( callResult.status() > sol::call_status::ok ? false : true );
 		// TODO: Deal with true/false?
 	// We got an error:
 	} else {

@@ -510,7 +510,7 @@ extern uint32_t clg_num_local_entities;
 *
 *
 **/
-typedef struct precached_media_s {
+struct precached_media_s {
 	//
 	//	Local Entities:
 	//
@@ -536,7 +536,7 @@ typedef struct precached_media_s {
 	//
 	// Models:
 	//
-	struct {
+	struct models_s {
 		qhandle_t explode;
 		qhandle_t smoke;
 		qhandle_t flash;
@@ -557,7 +557,7 @@ typedef struct precached_media_s {
 	// 
 	// Sound Effects:
 	//
-	struct {
+	struct precached_sfx_s {
 		// Ricochet effects:
 		qhandle_t ric1;
 		qhandle_t ric2;
@@ -570,7 +570,7 @@ typedef struct precached_media_s {
 		qhandle_t explosion_grenade02;
 		qhandle_t explosion_water;
 
-		struct {
+		struct footstep_sfx_s {
 			// Kind - "default"/"floor" (Used as a default, and for "floor" specific materials):
 			static constexpr int32_t NUM_FLOOR_STEPS = 9;
 			qhandle_t floor[ NUM_FLOOR_STEPS ];
@@ -608,7 +608,7 @@ typedef struct precached_media_s {
 	//
 	// Sound EAX:
 	// 
-	struct {
+	struct eax_s {
 		//! Stores all the loaded up EAX Effects:
 		sfx_eax_properties_t properties[ SOUND_EAX_EFFECT_MAX ];
 		//! Number of totally loaded eax effects.
@@ -627,7 +627,7 @@ typedef struct precached_media_s {
 	/**
 	*	@brief	Stores all resource ID's for the screen related media.
 	**/
-	struct {
+	struct screen_media_s {
 		//! Reference to the 'Loading' center-screen display picture.
 		//qhandle_t   loading_pic;
 		//! Reference to the damage display indicatore picture.
@@ -650,7 +650,7 @@ typedef struct precached_media_s {
 	/**
 	*	@brief Stores all resource ID's for the HUD related media.
 	**/
-	struct {
+	struct hud_s {
 		//! Crosshair
 		//qhandle_t crosshair_pic;
 	} hud;
@@ -659,9 +659,9 @@ typedef struct precached_media_s {
 	// Other:
 	//
 	// ...
-} precached_media_t;
+};
 //! Stores qhandles to all precached client game media.
-extern precached_media_t precache;
+extern precached_media_s precache;
 
 
 

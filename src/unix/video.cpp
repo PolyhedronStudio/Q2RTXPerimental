@@ -35,7 +35,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "system/system.h"
 #include "res/q2pro.xbm"
 // Defined to prevent a warning C4005: 'M_PI': macro redefinition
+#ifdef WIN32
+#ifndef HAVE_M_PI
 #define HAVE_M_PI
+#endif
+#endif
 #include <SDL.h>
 
 #ifdef _WINDOWS
@@ -246,7 +250,7 @@ static void VID_GetDisplayList(void)
     for (int display = 0; display < num_displays; display++)
     {
         int len = strlen(SDL_GetDisplayName(display));
-        max_display_name_length = max(max_display_name_length, len);
+        max_display_name_length = std::max(max_display_name_length, len);
         string_size += 12 + len;
     }
     

@@ -438,7 +438,7 @@ void UI_Draw(unsigned realtime)
         return;
     }
 
-    if ( cls.active == ca_active ) {
+    if ( cls.active == active_t::ACT_ACTIVATED ) {
         uis.transparent = true;
     } else {
         uis.transparent = false;

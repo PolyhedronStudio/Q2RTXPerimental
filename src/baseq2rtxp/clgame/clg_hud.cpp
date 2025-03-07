@@ -18,7 +18,7 @@
 // CVars
 //
 //! We need this one.
-cvar_t *scr_alpha = nullptr;
+extern cvar_t *scr_alpha;
 
 //! The chat clg_hud.
 cvar_t *hud_chat = nullptr;
@@ -109,7 +109,7 @@ void CLG_HUD_Initialize( void ) {
     clg_hud = {};
 
     // Get already initialized screen cvars we need often.
-    scr_alpha = clgi.CVar_Get( "scr_alpha", nullptr, 0 );
+    //scr_alpha = clgi.CVar_Get( "scr_alpha", nullptr, 0 );
 
     // Chat cvars.
     hud_chat = clgi.CVar_Get( "hud_chat", "0", 0 );
@@ -152,7 +152,7 @@ void CLG_HUD_AlphaChanged( const float newHudAlpha ) {
 *   @brief  Called upon when clearing client state.
 **/
 void CLG_HUD_ClearTargetHints() {
-    clg_hud.targetHints = {};
+    clg_hud.targetHints = hud_state_t::hud_state_targethints_s{};
 }
 /**
 *	@brief	Called when screen module is drawing its 2D overlay(s).

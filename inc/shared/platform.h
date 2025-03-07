@@ -105,7 +105,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 #define q_noreturn          __attribute__((noreturn))
 #define q_noinline          __attribute__((noinline))
+// <Q2RTXP> WID: This is not neccesary anymore in 2025.
+#ifdef __cplusplus
+#define q_malloc            
+#else
+// <Q2RTXP> "the attribute tells GCC it needn't worry that the object your function returns might include pointers to something else it's tracking.""
+// <Q2RTXP> https://stackoverflow.com/questions/18485447/gcc-attribute-malloc
 #define q_malloc            __attribute__((malloc))
+#endif
 #if __GNUC__ >= 4
 #define q_sentinel          __attribute__((sentinel))
 #else
