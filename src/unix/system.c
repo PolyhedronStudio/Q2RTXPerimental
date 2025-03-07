@@ -242,7 +242,7 @@ void Sys_Init(void)
     signal(SIGUSR1, usr1_handler);
 
     // Check for a full-install before searching local dirs
-    sprintf(baseDirectory, "%s", "/usr/share/quake2rtx");
+    sprintf(baseDirectory, "%s", "/usr/share/q2rtxperimental");
     dir_hnd = opendir(baseDirectory);
     if (dir_hnd) {
         closedir(dir_hnd);
@@ -282,7 +282,7 @@ void Sys_Init(void)
         }
     }
     check_snprintf = snprintf(homegamedir, sizeof(homegamedir),
-            "%s/%s", xdg_data_home_dir, "quake2rtx");
+            "%s/%s", xdg_data_home_dir, "q2rtxperimental");
 
     free(xdg_data_home_dir);
 

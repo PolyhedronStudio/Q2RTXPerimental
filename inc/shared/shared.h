@@ -212,11 +212,6 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 //! Include our own custom version of raylib1.5 its raymath library.
 #include "shared/math/qm_math.h"
 
-//#ifdef __cplusplus
-//// We extern back to "C"
-//extern "C" {
-//#endif
-
 //! Color Index Table:
 #include "shared/color_index_table.h"
 
@@ -360,10 +355,3 @@ typedef enum {
 *	Player Movement:
 **/
 #include "shared/player_move.h"
-
-
-//// WID: C++20: In case of C++ including this..
-//#ifdef __cplusplus
-//// We extern "C"
-//};
-//#endif
