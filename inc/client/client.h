@@ -16,8 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef CLIENT_H
-#define CLIENT_H
+#pragma once
 
 #include "common/cmd.h"
 #include "common/net/net.h"
@@ -28,30 +27,66 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if USE_CLIENT
 
+/**
+*
+*   For when building with Client.
+*
+*   The client has various functions which are being called by the server as well,
+*   in case of a Client + Server build. These functions are empty stubs in the scenario
+*   where the Client is not being built along (Thus, a Dedicated Server)
+*
+*   Other than functions, here reside also the minimal client info that the client
+*   receives of other players..
+*
+**/
+
 #define MAX_LOCAL_SERVERS   16
 #define MAX_STATUS_PLAYERS  64
 
+/**
+*   @brief  Stores the last received status of a player on a server.
+**/
 typedef struct {
-    char name[MAX_CLIENT_NAME];
-    int ping;
-    int score;
+    //! Client name.
+    char name[ MAX_CLIENT_NAME ];
+    //! Ping.
+    int32_t ping;
+    //! Score.
+    int32_t score;
 } playerStatus_t;
 
+/**
+*   @brief Stores minimal but required and received server state(Status).
+**/
 typedef struct {
-    char infostring[MAX_INFO_STRING];
-    playerStatus_t players[MAX_STATUS_PLAYERS];
-    int numPlayers;
+    //! Server InfoString.
+    char infostring[ MAX_INFO_STRING ];
+	//! Status of all players in the server.
+    playerStatus_t players[ MAX_STATUS_PLAYERS ];
+	//! Number of players active in the server.
+    int32_t numPlayers;
 } serverStatus_t;
 
+/**
+*   @@brief Demo specific client sided information.
+**/
 typedef struct {
-    char map[MAX_QPATH];
-    char pov[MAX_CLIENT_NAME];
+    //! Mapname.
+    char map[ MAX_QPATH ];
+    //! Client name that was recorded in the demo.
+    char pov[ MAX_CLIENT_NAME ];
     //qboolean mvd;
 } demoInfo_t;
 
+/**
+*   @brief  State of the client's Window.
+**/
 typedef enum {
+    //!
     ACT_MINIMIZED,
+    //! 
     ACT_RESTORED,
+    //!
     ACT_ACTIVATED
 } active_t;
 QENUM_BIT_FLAGS( active_t );
@@ -126,6 +161,13 @@ const qboolean SCR_ParseColor(const char *s, color_t *color);
 
 QEXTERN_C_ENCLOSE( const float V_CalcFov( const float fov_x, const float width, const float height ); );
 
+/**
+*
+*   For when building without the Client. (Dedicated Server.)
+* 
+*   These are the empty stubs referred to in the above section.
+*
+**/
 #else // USE_CLIENT
 
 #define CL_Init()                       (void)0
@@ -144,6 +186,4 @@ QEXTERN_C_ENCLOSE( const float V_CalcFov( const float fov_x, const float width, 
 #define SCR_BeginLoadingPlaque()        (void)0
 #define SCR_EndLoadingPlaque()          (void)0
 
-#endif // !USE_CLIENT
-
-#endif // CLIENT_H
+#endif // !USE_CLIENT 

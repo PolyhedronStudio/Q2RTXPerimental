@@ -26,11 +26,6 @@
 **/
 void SVG_HUD_MoveClientToIntermission(edict_t *ent)
 {
-    if ( deathmatch->value || coop->value ) {
-        ent->client->showscores = true;
-    } else {
-        ent->client->showscores = false;
-    }
     ent->client->showhelp = false;
 
     VectorCopy( level.intermission_origin, ent->s.origin );
@@ -68,12 +63,14 @@ void SVG_HUD_MoveClientToIntermission(edict_t *ent)
     ent->svflags = SVF_NOCLIENT;
     gi.unlinkentity(ent);
 
-    // add the layout
-    if (deathmatch->value || coop->value) {
+    // Scoreboard:
+    if (deathmatch->value || coop->value ) {
+
+        // Write out svc_scoreboard command.
         SVG_HUD_DeathmatchScoreboardMessage(ent, NULL);
+        // Reliably unicast it.
         gi.unicast(ent, true);
     }
-
 }
 
 /**
@@ -186,6 +183,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 	// WID: C++20: Added const.
     const char    *tag;
 
+    #if 0
     // sort the clients by score
     total = 0;
     for (i = 0 ; i < game.maxclients ; i++) {
@@ -252,7 +250,12 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 
     gi.WriteUint8(svc_layout);
     gi.WriteString(string);
-#if 0
+    #else
+    if ( ent->client->showscores ) {
+        gi.dprintf( "scores\n" );
+	} else {
+		gi.dprintf( "no scores\n" );
+	}
     gi.WriteUint8( svc_scoreboard );
 
     // First count the total of clients we got in-game.
@@ -282,11 +285,11 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 
         // Client name is already known by client infos, so just send the index instead.
         gi.WriteUint8( i );
-        gi.WriteIntBase128( time.seconds() );
+        gi.WriteIntBase128( time.Seconds() );
         gi.WriteIntBase128( score );
         gi.WriteUint16( ping );
     }
-#endif
+    #endif
 }
 
 /**
@@ -360,7 +363,7 @@ void SVG_SetWeaponStats( edict_t *ent ) {
     // Recoil.
     //
     if ( ent->client->weaponState.recoil.amount >= 0 ) {
-        ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = float_to_half( ent->client->weaponState.recoil.amount );
+        ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = ent->client->weaponState.recoil.baseAmount + float_to_half( ent->client->weaponState.recoil.amount );
         //gi.dprintf( "%s: recoil.amount(%llu)\n", __func__, ent->client->ps.stats[ STAT_WEAPON_RECOIL ] );
     } else {
         ent->client->weaponState.recoil.amount = 0;

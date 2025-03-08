@@ -114,12 +114,19 @@ typedef struct client_mouse_motion_s {
 *   @brief  Stores a received, minimally needed data of a client residing in the server.
 **/
 typedef struct clientinfo_s {
+    //! Actual client display name.
     char name[ MAX_QPATH ];
+	//! Handle to the client's skin.
     qhandle_t skin;
+	//! Handle to the client's icon.
     qhandle_t icon;
+    //! Player model filename.
     char model_name[ MAX_QPATH ];
+	//! Model skin filename.
     char skin_name[ MAX_QPATH ];
+    //! Model index.
     qhandle_t model;
+    //! Weapon Model index for each distinct weapon viewmodewl.
     qhandle_t weaponmodel[ MAX_CLIENTVIEWMODELS ];
 } clientinfo_t;
 

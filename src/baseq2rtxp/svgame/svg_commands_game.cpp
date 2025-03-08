@@ -676,9 +676,11 @@ void SVG_Command_Score_f( edict_t *ent ) {
 
     if ( ent->client->showscores ) {
         ent->client->showscores = false;
+        //gi.dprintf( "hidescores\n" );
         return;
     }
 
+    //gi.dprintf( "showscores\n" );
     ent->client->showscores = true;
     SVG_HUD_DeathmatchScoreboard( ent );
 }

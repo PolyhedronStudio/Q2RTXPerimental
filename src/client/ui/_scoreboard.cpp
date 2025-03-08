@@ -495,7 +495,8 @@ void M_Menu_Scoreboard( void ) {
     m_scoreboard.menu.keydown = Keydown;
     m_scoreboard.menu.free = Free;
     m_scoreboard.menu.image = 0;// uis.backgroundHandle;
-    m_scoreboard.menu.color.u32 = MakeColor( 77, 191, 191, 0 ); //uis.color.background.u32;
+    //m_scoreboard.menu.color.u32 = MakeColor( 77, 191, 191, 0 ); //uis.color.background.u32;
+    m_scoreboard.menu.color.u32 = uis.color.background.u32;
     m_scoreboard.menu.transparent = true; // uis.transparent;
 
     m_scoreboard.list.generic.type = MTYPE_LIST;
