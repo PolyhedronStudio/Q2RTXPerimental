@@ -90,6 +90,10 @@ void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
 *
 **/
 /**
+*   @brief  Unsets the current client stats usetarget info.
+**/
+void Client_ClearUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity );
+/**
 *   @brief  Determines the necessary UseTarget Hint information for the hovered entity(if any).
 *   @return True if the entity has legitimate UseTarget Hint information. False if unset, or not found at all.
 **/

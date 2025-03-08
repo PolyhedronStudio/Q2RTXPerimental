@@ -970,6 +970,9 @@ void SVG_Client_Begin( edict_t *ent ) {
     // [Paril-KEX] we're always connected by this point...
     ent->client->pers.connected = true;
 
+    // Always clear out any previous left over useTargetHint stuff.
+    Client_ClearUseTargetHint( ent, ent->client, nullptr );
+
     // <Q2RTXP>: WID: TODO:
     // Determine the game mode, and handle specifically based on that.
     if ( deathmatch->value ) {
@@ -1028,7 +1031,7 @@ void SVG_Client_Begin( edict_t *ent ) {
 /**
 *   @brief  Unsets the current client stats usetarget info.
 **/
-static inline void Client_ClearUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity ) {
+void Client_ClearUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity ) {
     // Nothing for display.
     client->ps.stats[ STAT_USETARGET_HINT_ID ] = 0;
     client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] = 0;
