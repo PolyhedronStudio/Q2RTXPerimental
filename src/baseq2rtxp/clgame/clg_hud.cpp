@@ -468,7 +468,7 @@ static const double CLG_HUD_UpdateRecoilLerpScale( const double start, const dou
     // Method 01:
     #if 1
 	// If we are at the start or end, return the respective value.
-    if ( recoilDeltaTime < 0_ms ) {
+    if ( recoilDeltaTime <= 0_ms ) {
         return start;
     } else if ( recoilDeltaTime >= duration ) {
         return end;
@@ -482,7 +482,7 @@ static const double CLG_HUD_UpdateRecoilLerpScale( const double start, const dou
     // Lerp value.
 	const double lerpFraction = QM_Lerp( start, end, easeFactor );
     // Clamped lerp value.
-	const double clampedLerpFraction = QM_Clampd( lerpFraction, 0, 1 );
+	const double clampedLerpFraction = QM_Clampd( lerpFraction, -1., 2. );
     // Return lerpfracion.
     return clampedLerpFraction;
 
@@ -552,7 +552,7 @@ void CLG_HUD_DrawLineCrosshair( ) {
     // If we're firing(ammo changed) do an ease out to the new recoil values.
     } else if ( clgi.client->oldframe.ps.stats[ STAT_WEAPON_RECOIL ] > clgi.client->frame.ps.stats[ STAT_WEAPON_RECOIL ] ) {
         // Ease outwards into the new crosshair values.
-        clg_hud.crosshair.recoil.easeDuration = 50_ms;
+        clg_hud.crosshair.recoil.easeDuration = 25_ms;
         // Easing outwards.
         clg_hud.crosshair.recoil.isEasingOut = true;
         clg_hud.crosshair.recoil.easeMethod = QM_QuarticEaseOut<double>;

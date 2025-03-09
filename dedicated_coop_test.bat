@@ -1,1 +1,1 @@
-Q2RTXPerimental_d.exe +set developer 1 +set cl_testmodel models/characters/mixadummy/tris.iqm
+Q2RTXPerimental_ded_d.exe +set developer 1 +set cheats 1 +set maxclients 4 map q2rtxp_dev_sigio_targetrange

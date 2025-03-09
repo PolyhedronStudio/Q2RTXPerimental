@@ -113,7 +113,7 @@ extern centity_t *clg_entities;
 *	Q2RE: Random Number Utilities
 * 
 *******************************************************************/
-extern std::mt19937 mt_rand;
+//extern std::mt19937_64 mt_rand;
 
 // uniform float [0, 1)
 [[nodiscard]] inline float frandom( ) {

@@ -201,40 +201,58 @@ template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
 
 
 /**
-*   Q2RE: Random Number Utilities - For C++ translation units we want to use
-*   these instead. Thus, residing in shared/shared_cpp.
+*   Based on Q2RE.
 **/
-extern std::mt19937 mt_rand;
+extern std::mt19937_64 mt_rand;
 
-// uniform float [0, 1)
-[[nodiscard]] inline float frandom() {
+// uniform float/double [0, 1)
+[[nodiscard]] inline const float frandom() {
     return std::uniform_real_distribution<float>()( mt_rand );
 }
+[[nodiscard]] inline const float drandom() {
+    return std::uniform_real_distribution<double>()( mt_rand );
+}
 
-// uniform float [min_inclusive, max_exclusive)
-[[nodiscard]] inline float frandom( float min_inclusive, float max_exclusive ) {
+// uniform float/double [min_inclusive, max_exclusive)
+[[nodiscard]] inline const float frandom( const float min_inclusive, const float max_exclusive ) {
     return std::uniform_real_distribution<float>( min_inclusive, max_exclusive )( mt_rand );
 }
+[[nodiscard]] inline const float drandom( const double min_inclusive, const double max_exclusive ) {
+    return std::uniform_real_distribution<double>( min_inclusive, max_exclusive )( mt_rand );
+}
 
-// uniform float [0, max_exclusive)
-[[nodiscard]] inline float frandom( float max_exclusive ) {
+// uniform float/double [0, max_exclusive)
+[[nodiscard]] inline const float frandom( const float max_exclusive ) {
     return std::uniform_real_distribution<float>( 0, max_exclusive )( mt_rand );
 }
+[[nodiscard]] inline const double drandom( const double max_exclusive ) {
+    return std::uniform_real_distribution<double>( 0, max_exclusive )( mt_rand );
+}
 
-// uniform float [-1, 1)
+// uniform float/double [-1, 1)
 // note: closed on min but not max
 // to match vanilla behavior
-[[nodiscard]] inline float crandom() {
+[[nodiscard]] inline const float crandomf() {
     return std::uniform_real_distribution<float>( -1.f, 1.f )( mt_rand );
 }
-
-// uniform float (-1, 1)
-[[nodiscard]] inline float crandom_open() {
+[[nodiscard]] inline const double crandomd() {
+    return std::uniform_real_distribution<double>( -1., 1. )( mt_rand );
+}
+// uniform float/double (-1, 1)
+[[nodiscard]] inline const float crandom_openf() {
     return std::uniform_real_distribution<float>( std::nextafterf( -1.f, 0.f ), 1.f )( mt_rand );
 }
+[[nodiscard]] inline const double crandom_opend() {
+    return std::uniform_real_distribution<double>( std::nextafterf( -1., 0. ), 1. )( mt_rand );
+}
+
 
 // raw unsigned int32 value from random
-[[nodiscard]] inline uint32_t irandom() {
+[[nodiscard]] inline uint32_t i32random() {
+    return mt_rand();
+}
+// raw unsigned int32 value from random
+[[nodiscard]] inline uint64_t i64random() {
     return mt_rand();
 }
 

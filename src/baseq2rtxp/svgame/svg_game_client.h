@@ -227,8 +227,10 @@ struct gclient_s {
 
         //! Recoil.
         struct {
-            //! Amount
-            float amount;
+            //! Movement derived factor.
+            double moveFactor;
+            //! Weapon firing derived factor.
+            double weaponFactor;
             //! Total accumulated 'ms' by rapidly firing.
             QMTime accumulatedTime;
         } recoil;

@@ -674,6 +674,9 @@ void SVG_Client_Think( edict_t *ent, usercmd_t *ucmd ) {
         // Updates the entity origin, angles, bbox, groundinfo, etc.
         const Vector3 oldOrigin = ClientPostPlayerMove( ent, client, pm );
 
+        // Calculate recoil based on movement factors.
+        SVG_Client_CalculateMovementRecoil( ent );
+
         // Finally link the entity back in.
         gi.linkentity( ent );
 

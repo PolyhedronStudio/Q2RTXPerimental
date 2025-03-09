@@ -24,7 +24,7 @@ const vec3_t vec3_origin = { 0, 0, 0 };
 *	Random Number Generator.
 **/
 //! Mersenne Twister random number generator.
-std::mt19937 mt_rand;
+std::mt19937_64 mt_rand;
 
 
 

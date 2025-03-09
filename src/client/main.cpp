@@ -2977,7 +2977,7 @@ void CL_UpdateFrameTimes(void)
     // Run at 60 fps if not active:
     } else if ( cls.active == ACT_RESTORED || cls.state != ca_active ) {
         clientgame_msec = fps_to_msec( BASE_FRAMERATE );
-        main_msec = fps_to_msec( 60 );
+        main_msec = fps_to_msec( 62.5 );
         sync_mode = SYNC_SLEEP_60;
     // Run client game, physics and refresh separately:
     } else if ( cl_async->integer > 0 ) {
@@ -3046,11 +3046,11 @@ int64_t CL_ClientGameFrame( uint64_t msec ) {
     #endif
 
     // Decide how long to sleep next frame.
-    //cl_frame_residual -= CL_FRAMETIME;
-    //if ( cl_frame_residual < CL_FRAMETIME ) {
-    //    return CL_FRAMETIME - cl_frame_residual;
-    //}
     cl_frame_residual -= CL_FRAMETIME;
+    if ( cl_frame_residual < CL_FRAMETIME ) {
+        return CL_FRAMETIME - cl_frame_residual;
+    }
+    //cl_frame_residual -= CL_FRAMETIME;
 
     // Don't accumulate bogus residual.
     if ( cl_frame_residual > 75 ) { // WID: 40hz: Was > 250

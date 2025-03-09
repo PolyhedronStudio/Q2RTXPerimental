@@ -226,7 +226,7 @@ constexpr inline QMTime operator"" _hz( unsigned long long int s ) {
 /**
 *
 *
-*	Time Extensions for C++ random mt19937.
+*	Time Extensions for C++ random mt19937_64.
 *
 *
 **/

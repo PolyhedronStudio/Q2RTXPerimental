@@ -98,3 +98,23 @@ void Client_ClearUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTar
 *   @return True if the entity has legitimate UseTarget Hint information. False if unset, or not found at all.
 **/
 const bool SVG_Client_UpdateUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity );
+
+
+
+/**
+*
+*
+*
+*   Client Recoil Utilities:
+*
+*
+*
+**/
+/**
+*	@brief	Calculates the to be determined movement induced recoil factor.
+**/
+void SVG_Client_CalculateMovementRecoil( edict_t *ent );
+/**
+*   @brief  Calculates the final resulting recoil value, being clamped between -1, to +1.
+**/
+const double SVG_Client_GetFinalRecoilFactor( edict_t *ent );
