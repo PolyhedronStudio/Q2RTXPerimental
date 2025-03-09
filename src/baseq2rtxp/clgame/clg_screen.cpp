@@ -471,6 +471,7 @@ static void SCR_DrawNet( void ) {
         SCR_LagDraw( x, y );
     }
 
+    #if 0
     // draw phone jack
     const int64_t outgoing_sequence = clgi.Netchan_GetOutgoingSequence();
     const int64_t incoming_acknowledged = clgi.Netchan_GetIncomingAcknowledged();
@@ -479,6 +480,7 @@ static void SCR_DrawNet( void ) {
             clgi.R_DrawStretchPic( x, y, LAG_WIDTH, LAG_HEIGHT, precache.screen.net_pic );
         }
     }
+    #endif
 }
 
 

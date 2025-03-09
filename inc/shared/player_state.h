@@ -179,7 +179,7 @@ typedef struct {
     //! The bob cycle, which is wrapped around to uint8_t limit.
     int32_t bobCycle;
     //! Numerical player stats storage. ( fast status bar updates etc. )
-    int32_t stats[ MAX_STATS ];
+    int64_t stats[ MAX_STATS ];
 
     /**
     *   (Predicted-)Events:

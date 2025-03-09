@@ -110,7 +110,7 @@ typedef struct {
 	uint8_t         screen_blend[4];
 	uint8_t         fov;
 	int32_t			rdflags;
-	int32_t         stats[MAX_STATS];
+	int64_t         stats[MAX_STATS];
 
 	uint8_t			eventSequence;
 	uint8_t			events[ MAX_PS_EVENTS ];

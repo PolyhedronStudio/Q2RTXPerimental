@@ -71,6 +71,11 @@ void PF_ClientLocalFrame( void ) {
 	// Increase the amount of time that has passed for this level.
 	level.time += FRAME_TIME_MS;
 
+	// Reseed the mersennery twister.
+	mt_rand.seed( clgi.client->frame.number );
+
+	clgi.Print( PRINT_NOTICE, "%ull\n", clgi.client->frame.number );
+
 	// Call upon ClientBeginFrame.
 	CLG_ClientBeginLocalFrame();
 

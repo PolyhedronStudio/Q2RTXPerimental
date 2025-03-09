@@ -259,8 +259,8 @@ static void fire_lead(edict_t *self, const vec3_t start, const vec3_t aimdir, co
         QM_AngleVectors(dir, &forward, &right, &up);
 
 		// Calculate the spread of the bullet.
-        const float r = frandom( -hspread, hspread );
-        const float u = frandom( -vspread, vspread );
+        const float r = crandom_opend() * hspread; //frandom( -hspread, hspread );
+        const float u = crandom_opend() * vspread; //frandom( -vspread, vspread );
 
 		// Calculate the end point of the bullet.
         VectorMA(start, CM_MAX_WORLD_SIZE, forward, end);

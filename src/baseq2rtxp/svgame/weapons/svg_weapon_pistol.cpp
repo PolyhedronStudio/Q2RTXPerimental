@@ -77,7 +77,7 @@ void weapon_pistol_fire_bullet( edict_t *ent, const Vector3 &shotOffset, const i
     // Get weapon state.
     gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Get the current recoil amount.
-    const double recoilAmount = weaponState->recoil.amount;
+    const double recoilAmount = SVG_Client_GetFinalRecoilFactor( ent );
 
 
     // Calculate the kick force based on the amount of recoil we got.
@@ -224,10 +224,10 @@ static void Weapon_Pistol_AddRecoil( gclient_t::weapon_state_s *weaponState, con
     // Add accumulated time.
     weaponState->recoil.accumulatedTime += accumulatedTime;
     // Increment recoil heavily.
-    weaponState->recoil.amount += amount;
+    weaponState->recoil.weaponFactor += amount;
     // Make sure we can't exceed 1.0 limit.
-    if ( weaponState->recoil.amount >= 1.0f ) {
-        weaponState->recoil.amount = 1.0f;
+    if ( weaponState->recoil.weaponFactor >= 1.0f ) {
+        weaponState->recoil.weaponFactor = 1.0f;
     }
 }
 
@@ -428,7 +428,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                 // Zoomed POV.
                 ent->client->ps.fov = 45;
                 // Disable any possible active sounds.
-                //ent->client->weaponState.activeSound = 0;
+                ent->client->weaponState.activeSound = 0;
             }
 
             // Set the isAiming state value for aiming specific behavior to true right at the end of its animation.
@@ -488,7 +488,7 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
                 }
             } else if ( level.time >= ent->client->weaponState.animation.endTime ) {
                 ent->client->weaponState.recoil.accumulatedTime = QMTime::FromMilliseconds( 0 );
-                ent->client->weaponState.recoil.amount = 0.f;
+                ent->client->weaponState.recoil.weaponFactor = 0.f;
                 // Switch to AIM Idle.
                 SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_IDLE, pistolItemInfo.modeAnimations, false );
             }

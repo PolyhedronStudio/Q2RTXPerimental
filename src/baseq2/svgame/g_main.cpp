@@ -41,7 +41,7 @@ QMTime FRAME_TIME_MS;
 *	Random Number Generator.
 **/
 //! Mersenne Twister random number generator.
-std::mt19937 mt_rand;
+//std::mt19937 mt_rand;
 
 
 /**

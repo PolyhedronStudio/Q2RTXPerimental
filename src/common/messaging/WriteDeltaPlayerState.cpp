@@ -274,13 +274,13 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	int64_t statbits = 0;
 	for ( int32_t i = 0; i < MAX_STATS; i++ ) {
 		if ( to->stats[ i ] != from->stats[ i ] ) {
-			statbits |= 1ULL << i;
+			statbits |= 1LL << i;
 		}
 	}
 
 	MSG_WriteIntBase128( statbits );
 	for ( int32_t i = 0; i < MAX_STATS; i++ ) {
-		if ( statbits & ( 1ULL << i ) ) {
+		if ( statbits & ( 1LL << i ) ) {
 			MSG_WriteIntBase128( to->stats[ i ] );
 		}
 	}

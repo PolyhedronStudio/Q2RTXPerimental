@@ -698,6 +698,9 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     Vector3 temp, temp2;
     trace_t tr;
 
+    // Always clear out any possibly previous left over of the useTargetHint.
+    Client_ClearUseTargetHint( ent, ent->client, nullptr );
+
     // find a spawn point
     // do it before setting health back up, so farthest
     // ranging doesn't count this client
@@ -1072,4 +1075,89 @@ const bool SVG_Client_UpdateUseTargetHint( edict_t *ent, gclient_t *client, edic
 
     // Succeeded at updating the UseTarget Hint if it is NOT zero.
     return ( client->ps.stats[ STAT_USETARGET_HINT_ID ] == 0 ? false : true );
+}
+
+
+
+/**
+*
+*
+*
+*   Client Recoil Utilities:
+*
+*
+*
+**/
+/**
+*	@brief	Calculates the to be determined movement induced recoil factor.
+**/
+void SVG_Client_CalculateMovementRecoil( edict_t *ent ) {
+    // Get playerstate.
+    player_state_t *playerState = &ent->client->ps;
+    
+    // Base movement recoil factor.
+    double baseMovementRecoil = 0.;
+
+    // Is on a ladder?
+	bool isOnLadder = ( ( playerState->pmove.pm_flags & PMF_ON_LADDER ) ? true : false );
+    // Determine if crouched(ducked).
+    bool isDucked = ( ( playerState->pmove.pm_flags & PMF_DUCKED) ? true : false );
+    // Determine if off-ground.
+    bool isOnGround = ( ( playerState->pmove.pm_flags & PMF_ON_GROUND ) ? true : false );
+    // Determine if in water.
+    bool isInWater = ( ent->liquidInfo.level > liquid_level_t::LIQUID_NONE ? true : false );
+    // Get liquid level.
+	liquid_level_t liquidLevel = ent->liquidInfo.level;
+    
+    // Resulting move factor.
+    double recoilMoveFactor = 0.;
+
+    // First check if in water, so we can skip the other tests.
+    if ( isInWater && ent->liquidInfo.level > liquid_level_t::LIQUID_FEET) {
+        // Waist in water.
+        recoilMoveFactor = 0.55;
+        // Head under water.
+        if ( ent->liquidInfo.level > liquid_level_t::LIQUID_WAIST ) {
+            recoilMoveFactor = 0.75;
+        }
+    } else {
+        // If ducked, -0.3.
+        if ( isDucked && isOnGround && !isOnLadder ) {
+            recoilMoveFactor -= 0.3;
+        } else if ( isOnLadder ) {
+            recoilMoveFactor = 0.5;
+        }
+    }
+
+    // Divide 1 by max speed, multiply by velocity length, ONLY if, speed > pm_stop_speed
+    if ( playerState->xyzSpeed >= default_pmoveParams_t::pm_stop_speed / 2. ) {
+        // Get multiply factor.
+        const double multiplyFactor = ( 1.0 / default_pmoveParams_t::pm_max_speed );
+        // Calculate actual scale factor.
+        const double scaleFactor = multiplyFactor * playerState->xyzSpeed;
+
+        // Assign.
+        recoilMoveFactor += 0.5 * scaleFactor;
+
+        //gi.dprintf( "playerState->xyzSpeed(%f), scaleFactor(%f)\n", playerState->xyzSpeed, multiplyFactor, scaleFactor );
+    } else {
+        //gi.dprintf( "playerState->xyzSpeed\n", playerState->xyzSpeed );
+    }
+
+    // ( We default to idle. ) Default to 0.
+    ent->client->weaponState.recoil.moveFactor = recoilMoveFactor;
+}
+/**
+*   @brief  Calculates the final resulting recoil value, being clamped between -1, to +1.
+**/
+const double SVG_Client_GetFinalRecoilFactor( edict_t *ent ) {
+    // Get the movement induced recoil factor.
+    const double movementRecoil = QM_Clampd( ent->client->weaponState.recoil.moveFactor, -1., 1. );
+	// Get the fire induced recoil factor.
+    const double fireRecoil = ent->client->weaponState.recoil.weaponFactor;
+	// Determine the final recoil factor and clamp it between -1, to +1.
+	const double recoilFactor = QM_Clampd( movementRecoil + fireRecoil, -1., 2. );
+	// Clamp the recoil factor between -1, to +1.
+	// Return the final recoil factor.
+	return recoilFactor;
 }

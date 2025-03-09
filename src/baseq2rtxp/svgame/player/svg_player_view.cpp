@@ -373,9 +373,9 @@ static void P_CalculateViewOffset( edict_t *ent ) {
 		if ( ent->client->viewMove.quakeTime > level.time ) {
 			float factor = std::min( 1.0f, (float)( ent->client->viewMove.quakeTime.Seconds( ) / level.time.Seconds( ) ) * 0.25f );
 
-			viewAnglesOffset.x += crandom_open( ) * factor;
-			viewAnglesOffset.y += crandom_open( ) * factor;
-			viewAnglesOffset.z += crandom_open( ) * factor;
+			viewAnglesOffset.x += crandom_openf( ) * factor;
+			viewAnglesOffset.y += crandom_openf( ) * factor;
+			viewAnglesOffset.z += crandom_openf( ) * factor;
 		}
 	}
 	// [Paril-KEX] Clamp view offset angles within a pleasant realistic range.

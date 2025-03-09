@@ -667,6 +667,9 @@ void SVG_RunFrame(void) {
     // Increase the amount of time that has passed for this level.
     level.time += FRAME_TIME_MS;
 
+    // Reseed the mersennery twister.
+    mt_rand.seed( level.frameNumber );
+
     // Choose a client for monsters to target this frame.
     // WID: TODO: Monster Reimplement.
     //AI_SetSightClient();

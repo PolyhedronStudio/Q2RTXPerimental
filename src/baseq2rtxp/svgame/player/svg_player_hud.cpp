@@ -362,12 +362,19 @@ void SVG_SetWeaponStats( edict_t *ent ) {
     //
     // Recoil.
     //
-    if ( ent->client->weaponState.recoil.amount >= 0 ) {
-        ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = ent->client->weaponState.recoil.baseAmount + float_to_half( ent->client->weaponState.recoil.amount );
-        //gi.dprintf( "%s: recoil.amount(%llu)\n", __func__, ent->client->ps.stats[ STAT_WEAPON_RECOIL ] );
-    } else {
-        ent->client->weaponState.recoil.amount = 0;
-    }
+    float totalRecoil = SVG_Client_GetFinalRecoilFactor( ent );
+    //if ( totalRecoil > 0 ) {
+		ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = float_to_half( (float)totalRecoil );
+        gi.dprintf( "%s: STAT_WEAPON_RECOIL(%llu), moveRecoil(%f), firedRecoil(%f)\n", 
+            __func__, 
+            ent->client->ps.stats[ STAT_WEAPON_RECOIL ],
+            ent->client->weaponState.recoil.moveFactor,
+            ent->client->weaponState.recoil.weaponFactor
+        );
+    //} else {
+    //    ent->client->weaponState.recoil.weaponFactor = 0;
+    //    ent->client->weaponState.recoil.moveFactor = 0;
+    //}
 }
 
 /**
