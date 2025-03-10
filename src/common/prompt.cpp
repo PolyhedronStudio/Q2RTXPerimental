@@ -563,7 +563,7 @@ void Prompt_LoadHistory(commandPrompt_t *prompt, const char *filename)
     qhandle_t f;
     int i;
 
-    FS_OpenFile( filename, &f, FS_MODE_WRITE | FS_PATH_GAME | FS_TYPE_ANY );
+    FS_OpenFile( filename, &f, FS_MODE_READ | FS_PATH_GAME | FS_TYPE_ANY );
     if (!f) {
         return;
     }
