@@ -54,89 +54,89 @@
 ///**
 //*   @brief  Vector3 C++ 'Plus' operator:
 //**/
-//RMAPI const Vector3 operator+( const Vector3 &left, const Vector3 &right ) {
+//QM_API const Vector3 operator+( const Vector3 &left, const Vector3 &right ) {
 //    return QM_Vector3Add( left, right );
 //}
-//RMAPI const Vector3 operator+( const Vector3 &left, const float &right ) {
+//QM_API const Vector3 operator+( const Vector3 &left, const float &right ) {
 //    return QM_Vector3AddValue( left, right );
 //}
 //
-//RMAPI const Vector3 operator+=( Vector3 &left, const Vector3 &right ) {
+//QM_API const Vector3 operator+=( Vector3 &left, const Vector3 &right ) {
 //    return left = QM_Vector3Add( left, right );
 //}
-//RMAPI const Vector3 operator+=( Vector3 &left, const float &right ) {
+//QM_API const Vector3 operator+=( Vector3 &left, const float &right ) {
 //    return left = QM_Vector3AddValue( left, right );
 //}
 //
 ///**
 //*   @brief  Vector3 C++ 'Minus' operator:
 //**/
-//RMAPI const Vector3 operator-( const Vector3 &left, const Vector3 &right ) {
+//QM_API const Vector3 operator-( const Vector3 &left, const Vector3 &right ) {
 //    return QM_Vector3Subtract( left, right );
 //}
-//RMAPI const Vector3 operator-( const Vector3 &left, const float &right ) {
+//QM_API const Vector3 operator-( const Vector3 &left, const float &right ) {
 //    return QM_Vector3SubtractValue( left, right );
 //}
-//RMAPI const Vector3 operator-( const Vector3 &v ) {
+//QM_API const Vector3 operator-( const Vector3 &v ) {
 //    return QM_Vector3Negate( v );
 //}
 //
-//RMAPI const Vector3 &operator-=( Vector3 &left, const Vector3 &right ) {
+//QM_API const Vector3 &operator-=( Vector3 &left, const Vector3 &right ) {
 //    return left = QM_Vector3Subtract( left, right );
 //}
-//RMAPI const Vector3 &operator-=( Vector3 &left, const float &right ) {
+//QM_API const Vector3 &operator-=( Vector3 &left, const float &right ) {
 //    return left = QM_Vector3SubtractValue( left, right );
 //}
 //
 ///**
 //*   @brief  Vector3 C++ 'Multiply' operator:
 //**/
-//RMAPI const Vector3 operator*( const Vector3 &left, const Vector3 &right ) {
+//QM_API const Vector3 operator*( const Vector3 &left, const Vector3 &right ) {
 //    return QM_Vector3Multiply( left, right );
 //}
-//RMAPI const Vector3 operator*( const Vector3 &left, const float &right ) {
+//QM_API const Vector3 operator*( const Vector3 &left, const float &right ) {
 //    return QM_Vector3Scale( left, right );
 //}
 //// for: ConstVector3Ref v1 = floatVal * v2;
-//RMAPI const Vector3 operator*( const float &left, const Vector3 &right ) {
+//QM_API const Vector3 operator*( const float &left, const Vector3 &right ) {
 //    return QM_Vector3Scale( right, left );
 //}
 //
-//RMAPI const Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
+//QM_API const Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
 //    return left = QM_Vector3Multiply( left, right );
 //}
-//RMAPI const Vector3 &operator*=( Vector3 &left, const float &right ) {
+//QM_API const Vector3 &operator*=( Vector3 &left, const float &right ) {
 //    return left = QM_Vector3Scale( left, right );
 //}
 //
 ///**
 //*   @brief  Vector3 C++ 'Divide' operator:
 //**/
-//RMAPI const Vector3 operator/( const Vector3 &left, const Vector3 &right ) {
+//QM_API const Vector3 operator/( const Vector3 &left, const Vector3 &right ) {
 //    return QM_Vector3Divide( left, right );
 //}
-//RMAPI const Vector3 operator/( const Vector3 &left, const float &right ) {
+//QM_API const Vector3 operator/( const Vector3 &left, const float &right ) {
 //    return QM_Vector3DivideValue( left, right );
 //}
 //
-//RMAPI const Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
+//QM_API const Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
 //    return left = QM_Vector3Divide( left, right );
 //}
-//RMAPI const Vector3 &operator/=( Vector3 &left, const float &right ) {
+//QM_API const Vector3 &operator/=( Vector3 &left, const float &right ) {
 //    return left = QM_Vector3DivideValue( left, right );
 //}
 //
 ///**
 //*   @brief  Vector3 C++ 'Equals' operator:
 //**/
-//RMAPI bool operator==( const Vector3 &left, const Vector3 &right ) {
+//QM_API bool operator==( const Vector3 &left, const Vector3 &right ) {
 //    return QM_Vector3Equals( left, right );
 //}
 //
 ///**
 //*   @brief  Vector3 C++ 'Not Equals' operator:
 //**/
-//RMAPI bool operator!=( const Vector3 &left, const Vector3 &right ) {
+//QM_API bool operator!=( const Vector3 &left, const Vector3 &right ) {
 //    return !QM_Vector3Equals( left, right );
 //}
 

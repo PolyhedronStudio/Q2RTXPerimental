@@ -13,7 +13,7 @@
 /**
 *   @return The bounding box of 'mins' and 'maxs'
 **/
-RMAPI BBox3 QM_BBox3FromMinsMaxs( ConstVector3Ref mins, ConstVector3Ref maxs ) {
+QM_API BBox3 QM_BBox3FromMinsMaxs( ConstVector3Ref mins, ConstVector3Ref maxs ) {
     return {
         mins,
         maxs
@@ -23,7 +23,7 @@ RMAPI BBox3 QM_BBox3FromMinsMaxs( ConstVector3Ref mins, ConstVector3Ref maxs ) {
 /**
 *	@return	The center point of the bounding box.
 **/
-RMAPI Vector3 QM_BBox3Center( ConstBBox3Ref bbox ) {
+QM_API Vector3 QM_BBox3Center( ConstBBox3Ref bbox ) {
     return QM_Vector3Lerp( bbox.mins, bbox.maxs, .5f );
 }
 
@@ -31,7 +31,7 @@ RMAPI Vector3 QM_BBox3Center( ConstBBox3Ref bbox ) {
 *	@brief	Constructs a vec3_zero centered matching bounding box from the size vector.
 *	@return A bbox3 containing the correct mins and maxs matching a zero center origin.
 **/
-RMAPI BBox3 QM_BBox3FromSize( ConstVector3Ref size ) {
+QM_API BBox3 QM_BBox3FromSize( ConstVector3Ref size ) {
     return BBox3{
         QM_Vector3Scale( size, -0.5f ),
         QM_Vector3Scale( size, 0.5f )
@@ -41,14 +41,14 @@ RMAPI BBox3 QM_BBox3FromSize( ConstVector3Ref size ) {
 *	@brief	Constructs a vec3_zero centered matching bounding box from the x,y,z values.
 *	@return A bbox3 containing the correct mins and maxs matching a zero center origin.
 **/
-RMAPI BBox3 QM_BBox3FromSize( const float x, const float y, const float z ) {
+QM_API BBox3 QM_BBox3FromSize( const float x, const float y, const float z ) {
     return QM_BBox3FromSize( { x, y, z } );
 }
 
 /**
 *	@return A zero sized box.
 **/
-RMAPI BBox3 QM_BBox3Zero() {
+QM_API BBox3 QM_BBox3Zero() {
     return BBox3{
         QM_Vector3Zero(),
         QM_Vector3Zero()
@@ -59,7 +59,7 @@ RMAPI BBox3 QM_BBox3Zero() {
 *			ensuring that it remains centered around its zero point.
 *	@return A box sized to INFINITY.
 **/
-RMAPI BBox3 QM_BBox3Infinity() {
+QM_API BBox3 QM_BBox3Infinity() {
     return BBox3{
         { INFINITY, INFINITY, INFINITY },
         { -INFINITY, -INFINITY, -INFINITY }
@@ -69,7 +69,7 @@ RMAPI BBox3 QM_BBox3Infinity() {
 /**
 *	@return	A box with extended bounds if, point < mins, or point > maxs.
 **/
-RMAPI BBox3 QM_BBox3Append( ConstBBox3Ref bbox, ConstVector3Ref point ) {
+QM_API BBox3 QM_BBox3Append( ConstBBox3Ref bbox, ConstVector3Ref point ) {
     return BBox3 {
         QM_Vector3Minf( bbox.mins, point ),
         QM_Vector3Maxf( bbox.maxs, point )
@@ -78,7 +78,7 @@ RMAPI BBox3 QM_BBox3Append( ConstBBox3Ref bbox, ConstVector3Ref point ) {
 /**
 *	@return	A box that 'unites' both into one.
 **/
-RMAPI BBox3 QM_BBox3Union( ConstBBox3Ref bboxA, ConstBBox3Ref bboxB ) {
+QM_API BBox3 QM_BBox3Union( ConstBBox3Ref bboxA, ConstBBox3Ref bboxB ) {
     return BBox3 {
         QM_Vector3Minf( bboxA.mins, bboxB.mins ),
         QM_Vector3Maxf( bboxA.maxs, bboxB.maxs ),
@@ -88,7 +88,7 @@ RMAPI BBox3 QM_BBox3Union( ConstBBox3Ref bboxA, ConstBBox3Ref bboxB ) {
 /**
 *	@return	A bbox constructed out of the list of points.
 **/
-RMAPI BBox3 QM_BBox3FromPoints( const Vector3 *points, const uint32_t numberOfPoints ) {
+QM_API BBox3 QM_BBox3FromPoints( const Vector3 *points, const uint32_t numberOfPoints ) {
     // Construct an infinite sized box to work from.
     BBox3 bbox = QM_BBox3Infinity();
 
@@ -106,7 +106,7 @@ RMAPI BBox3 QM_BBox3FromPoints( const Vector3 *points, const uint32_t numberOfPo
 *			axis order - assuming bitflags of 1 2 4 = X Y Z - where a bit unset is
 *			mins and a bit set is maxs.
 **/
-RMAPI_DISCARD void QM_BBox3ToPoints( ConstBBox3Ref box, Vector3 *points ) {
+QM_API_DISCARD void QM_BBox3ToPoints( ConstBBox3Ref box, Vector3 *points ) {
     for ( int32_t i = 0; i < 8; i++ ) {
         points[ i ] = {
             ( ( i & 1 ) ? box.maxs : box.mins ).x,
@@ -119,7 +119,7 @@ RMAPI_DISCARD void QM_BBox3ToPoints( ConstBBox3Ref box, Vector3 *points ) {
 /**
 *	@brief	Returns true if boxA its bounds intersect the bounds of box B, false otherwise.
 **/
-RMAPI bool QM_BBox3Intersects( ConstBBox3Ref boxA, ConstBBox3Ref boxB ) {
+QM_API bool QM_BBox3Intersects( ConstBBox3Ref boxA, ConstBBox3Ref boxB ) {
     if ( boxA.mins.x >= boxB.maxs.x || boxA.mins.y >= boxB.maxs.y || boxA.mins.z >= boxB.maxs.z ) {
         return false;
     }
@@ -134,7 +134,7 @@ RMAPI bool QM_BBox3Intersects( ConstBBox3Ref boxA, ConstBBox3Ref boxB ) {
 /**
 *	@brief	Returns true if 'box' contains point 'point'
 **/
-RMAPI bool QM_BBox3ContainsPoint( ConstBBox3Ref box, ConstVector3Ref point ) {
+QM_API bool QM_BBox3ContainsPoint( ConstBBox3Ref box, ConstVector3Ref point ) {
     if ( point.x >= box.maxs.x || point.y >= box.maxs.y || point.z >= box.maxs.z ) {
         return false;
     }
@@ -151,28 +151,28 @@ RMAPI bool QM_BBox3ContainsPoint( ConstBBox3Ref box, ConstVector3Ref point ) {
 *	@return	The relative size of the box' bounds. Also works as a vector
 *	between the two points of a box.
 **/
-RMAPI Vector3 QM_BBox3Size( ConstBBox3Ref box ) {
+QM_API Vector3 QM_BBox3Size( ConstBBox3Ref box ) {
     return box.maxs - box.mins;
 }
 
 /**
 *	@return	The distance between the two corners of the box's bounds.
 **/
-RMAPI float QM_BBox3Distance( ConstBBox3Ref box ) {
+QM_API float QM_BBox3Distance( ConstBBox3Ref box ) {
     return QM_Vector3Distance( box.maxs, box.mins );
 }
 
 /**
 *	@return	The radius of the bounds. A sphere that contains the entire box.
 **/
-RMAPI float QM_BBox3Radius( ConstBBox3Ref box ) {
+QM_API float QM_BBox3Radius( ConstBBox3Ref box ) {
     return QM_BBox3Distance( box ) / 2.f;
 }
 
 /**
 *	@return	A bounding box based on the 'size' vec3, centered along 'center'.
 **/
-RMAPI BBox3 QM_BBox3FromCenterSize( ConstVector3Ref size, ConstVector3Ref center = QM_Vector3Zero() ) {
+QM_API BBox3 QM_BBox3FromCenterSize( ConstVector3Ref size, ConstVector3Ref center = QM_Vector3Zero() ) {
     const Vector3 halfSize = QM_Vector3Scale( size, .5f );
     return BBox3{
         center - halfSize,
@@ -183,7 +183,7 @@ RMAPI BBox3 QM_BBox3FromCenterSize( ConstVector3Ref size, ConstVector3Ref center
 /**
 *	@return	A bounding box based on the 'radius', centered along 'center'.
 **/
-RMAPI BBox3 QM_BBox3FromCenterRadius( const float radius, ConstVector3Ref center = QM_Vector3Zero() ) {
+QM_API BBox3 QM_BBox3FromCenterRadius( const float radius, ConstVector3Ref center = QM_Vector3Zero() ) {
     const Vector3 radiusVec = { radius, radius, radius };
     return BBox3{
         center - radiusVec,
@@ -194,7 +194,7 @@ RMAPI BBox3 QM_BBox3FromCenterRadius( const float radius, ConstVector3Ref center
 /**
 *	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
 **/
-RMAPI BBox3 QM_BBox3ExpandVector3( ConstBBox3Ref bounds, ConstVector3Ref expansion ) {
+QM_API BBox3 QM_BBox3ExpandVector3( ConstBBox3Ref bounds, ConstVector3Ref expansion ) {
     return BBox3{
         bounds.mins - expansion,
         bounds.maxs + expansion
@@ -203,13 +203,13 @@ RMAPI BBox3 QM_BBox3ExpandVector3( ConstBBox3Ref bounds, ConstVector3Ref expansi
 /**
 *	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
 **/
-RMAPI BBox3 QM_BBox3ExpandValue( ConstBBox3Ref bounds, const float expansion ) {
+QM_API BBox3 QM_BBox3ExpandValue( ConstBBox3Ref bounds, const float expansion ) {
     return QM_BBox3ExpandVector3( bounds, Vector3{ expansion, expansion, expansion } );
 }
 /**
 *	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
 **/
-RMAPI BBox3 QM_BBox3ExpandBBox3( ConstBBox3Ref boundsA, ConstBBox3Ref boundsB ) {
+QM_API BBox3 QM_BBox3ExpandBBox3( ConstBBox3Ref boundsA, ConstBBox3Ref boundsB ) {
     return BBox3{
         boundsA.mins + boundsB.mins,
         boundsA.maxs + boundsB.maxs
@@ -219,14 +219,14 @@ RMAPI BBox3 QM_BBox3ExpandBBox3( ConstBBox3Ref boundsA, ConstBBox3Ref boundsB ) 
 /**
 *	@return	The 'point' clamped within the bounds of 'bounds'.
 **/
-RMAPI Vector3 QM_BBox3ClampPoint( ConstBBox3Ref bounds, ConstVector3Ref point ) {
+QM_API Vector3 QM_BBox3ClampPoint( ConstBBox3Ref bounds, ConstVector3Ref point ) {
     return QM_Vector3Clamp( point, bounds.mins, bounds.maxs );
 }
 
 /**
 *	@return	The bounds of 'boundsB' clamped within and to the bounds of 'boundsA'.
 **/
-RMAPI BBox3 QM_BBox3ClampBounds( ConstBBox3Ref boundsA, ConstBBox3Ref boundsB ) {
+QM_API BBox3 QM_BBox3ClampBounds( ConstBBox3Ref boundsA, ConstBBox3Ref boundsB ) {
     return BBox3{
         QM_Vector3Clamp( boundsB.mins, boundsA.mins, boundsA.maxs ),
         QM_Vector3Clamp( boundsB.maxs, boundsA.mins, boundsA.maxs ),
@@ -236,31 +236,31 @@ RMAPI BBox3 QM_BBox3ClampBounds( ConstBBox3Ref boundsA, ConstBBox3Ref boundsB ) 
 /**
 *	@return	A random point within the bounds of 'bounds'.
 **/
-RMAPI Vector3 QM_BBox3RandomPoint( ConstBBox3Ref bounds ) {
+QM_API Vector3 QM_BBox3RandomPoint( ConstBBox3Ref bounds ) {
     return QM_Vector3LerpVector3( bounds.mins, bounds.maxs, QM_Vector3Random() );
 }
 
 /**
 *	@return	True if box 'a' and box 'b' are equal. False otherwise.
 **/
-RMAPI bool QM_BBox3EqualsFast( ConstBBox3Ref boxA, ConstBBox3Ref boxB ) {
+QM_API bool QM_BBox3EqualsFast( ConstBBox3Ref boxA, ConstBBox3Ref boxB ) {
     return QM_Vector3EqualsFast( boxA.mins, boxB.mins ) && QM_Vector3EqualsFast( boxA.maxs, boxB.maxs );
 }
-RMAPI bool QM_BBox3EqualsEpsilon( ConstBBox3Ref boxA, ConstBBox3Ref boxB ) {
+QM_API bool QM_BBox3EqualsEpsilon( ConstBBox3Ref boxA, ConstBBox3Ref boxB ) {
     return QM_Vector3EqualsFast( boxA.mins, boxB.mins ) && QM_Vector3EqualsFast( boxA.maxs, boxB.maxs );
 }
 
 /**
 *	@return The symmetrical extents of the bbox 'bounds'.
 **/
-RMAPI Vector3 QM_BBox3Symmetrical( ConstBBox3Ref bounds ) {
+QM_API Vector3 QM_BBox3Symmetrical( ConstBBox3Ref bounds ) {
     return QM_Vector3Maxf( QM_Vector3Absf( bounds.mins ), QM_Vector3Absf( bounds.maxs ) );
 }
 
 /**
 *	@return	A scaled version of 'bounds'.
 **/
-RMAPI BBox3 QM_BBox3Scale( ConstBBox3Ref bounds, const float scale ) {
+QM_API BBox3 QM_BBox3Scale( ConstBBox3Ref bounds, const float scale ) {
     return BBox3{
         QM_Vector3Scale( bounds.mins, scale ),
         QM_Vector3Scale( bounds.maxs, scale ),

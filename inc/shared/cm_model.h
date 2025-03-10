@@ -36,7 +36,7 @@ typedef struct hull_octagonbox_s {
     mleaf_t  emptyleaf;
 
     //! Used for transformed trace.
-    Vector3 cylinder_offset;
+    vec3_t cylinder_offset;
 } hull_octagonbox_t;
 
 //#define MAX_MATERIAL_NAME MAX_TEXNAME

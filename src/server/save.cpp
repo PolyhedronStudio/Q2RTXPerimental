@@ -18,6 +18,43 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "server.h"
 
+#ifdef WIN32
+// Only include what we 'need'.
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+    // Make sure to undef.
+    #ifdef NEAR
+    #undef NEAR
+    #endif
+    #ifdef FAR
+    #undef FAR
+    #endif
+    #ifdef near
+    #undef near
+    #endif
+    #ifdef far
+    #undef far
+    #endif
+    #ifdef MAX
+    #undef MAX
+    #endif
+    #ifdef MIN
+    #undef MIN
+    #endif
+    #ifdef max
+    #undef max
+    #endif
+    #ifdef min
+    #undef min
+    #endif
+    #ifdef CLAMP
+    #undef CLAMP
+    #endif
+    #ifdef clamp
+    #undef clamp
+    #endif
+#endif
+
 #define SAVE_MAGIC1     MakeLittleLong('S','S','V','2')
 #define SAVE_MAGIC2     MakeLittleLong('S','A','V','2')
 #define SAVE_VERSION    1
@@ -393,7 +430,7 @@ static int read_level_file(void)
     size_t  len, maxlen;
     int     index;
 
-    if (Q_snprintf(name, MAX_QPATH, "%s/%s/%s.sv2", sv_savedir->string, SAVE_CURRENT, sv.name) >= MAX_QPATH)
+    if (Q_snprintf(name, MAX_OSPATH, "%s/%s/%s.sv2", sv_savedir->string, SAVE_CURRENT, sv.name) >= MAX_OSPATH)
         return -1;
 
     if (read_binary_file(name))

@@ -7,6 +7,9 @@
 ********************************************************************/
 #pragma once
 
+
+#ifdef __cplusplus
+
 /**
 *	Byte to Angles/Angles to Bytes.
 **/
@@ -49,3 +52,5 @@ static inline const uint16_t BLEND2SHORT( const float f ) {
 	// Encode.
 	return (uint16_t)( QM_Clampf( f, 0.f, 1.f ) * 65536.f );
 }
+
+#endif // #ifdef __cplusplus

@@ -19240,7 +19240,7 @@
 {
 "classname" "client_env_sound"
 "origin" "256 233 168"
-"radius" "1548"
+"radius" "896"
 "reverb_effect_id" "18"
 }
 // entity 181

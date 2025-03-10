@@ -92,7 +92,7 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, gclient_t *client, const bool p
     // Determine the point that is the center of the crosshair, to use as the
     // start of the trace for finding the entity that is in-focus.
     Vector3 traceStart;
-    Vector3 viewHeightOffset = { 0, 0, (float)ent->viewheight };
+    Vector3 viewHeightOffset = { 0., 0., (double)ent->viewheight };
     SVG_Player_ProjectSource( ent, ent->s.origin, &viewHeightOffset.x, &vForward.x, &vRight.x, &traceStart.x );
 
     // Translate 48 units into the forward direction from the starting trace, to get our trace end position.

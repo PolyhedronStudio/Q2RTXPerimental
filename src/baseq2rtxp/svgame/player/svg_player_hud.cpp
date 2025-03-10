@@ -167,20 +167,19 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
 *   @brief
 **/
 void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer = nullptr, const bool sendAsReliable ) {
-    char    entry[1024];
-    char    string[1400];
+    #if 0
+    char    entry[ 1024 ];
+    char    string[ 1400 ];
     int     stringlength;
     int     i, j, k;
-    int     sorted[MAX_CLIENTS];
-    int     sortedscores[MAX_CLIENTS];
+    int     sorted[ MAX_CLIENTS ];
+    int     sortedscores[ MAX_CLIENTS ];
     int     score, total;
     int     x, y;
-    gclient_t   *cl;
-    edict_t     *cl_ent;
-	// WID: C++20: Added const.
-    const char    *tag;
-
-    #if 0
+    gclient_t *cl;
+    edict_t *cl_ent;
+    // WID: C++20: Added const.
+    const char *tag;
     // sort the clients by score
     total = 0;
     for (i = 0 ; i < game.maxclients ; i++) {

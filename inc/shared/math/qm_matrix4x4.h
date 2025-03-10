@@ -8,7 +8,7 @@
 #pragma once
 
 // Compute matrix determinant
-RMAPI float QM_MatrixDeterminant( Matrix mat ) {
+QM_API float QM_MatrixDeterminant( Matrix mat ) {
     float result = 0.0f;
 
     // Cache the matrix values (speed optimization)
@@ -28,14 +28,14 @@ RMAPI float QM_MatrixDeterminant( Matrix mat ) {
 }
 
 // Get the trace of the matrix (sum of the values along the diagonal)
-RMAPI float QM_MatrixTrace( Matrix mat ) {
+QM_API float QM_MatrixTrace( Matrix mat ) {
     float result = ( mat.m0 + mat.m5 + mat.m10 + mat.m15 );
 
     return result;
 }
 
 // Transposes provided matrix
-RMAPI Matrix QM_MatrixTranspose( Matrix mat ) {
+QM_API Matrix QM_MatrixTranspose( Matrix mat ) {
     Matrix result = { 0 };
 
     result.m0 = mat.m0;
@@ -59,7 +59,7 @@ RMAPI Matrix QM_MatrixTranspose( Matrix mat ) {
 }
 
 // Invert provided matrix
-RMAPI Matrix QM_MatrixInvert( Matrix mat ) {
+QM_API Matrix QM_MatrixInvert( Matrix mat ) {
     Matrix result = { 0 };
 
     // Cache the matrix values (speed optimization)
@@ -105,7 +105,7 @@ RMAPI Matrix QM_MatrixInvert( Matrix mat ) {
 }
 
 // Get identity matrix
-RMAPI Matrix QM_MatrixIdentity( void ) {
+QM_API Matrix QM_MatrixIdentity( void ) {
     Matrix result = { 1.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 1.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 1.0f, 0.0f,
@@ -115,7 +115,7 @@ RMAPI Matrix QM_MatrixIdentity( void ) {
 }
 
 // Add two matrices
-RMAPI Matrix QM_MatrixAdd( Matrix left, Matrix right ) {
+QM_API Matrix QM_MatrixAdd( Matrix left, Matrix right ) {
     Matrix result = { 0 };
 
     result.m0 = left.m0 + right.m0;
@@ -139,7 +139,7 @@ RMAPI Matrix QM_MatrixAdd( Matrix left, Matrix right ) {
 }
 
 // Subtract two matrices (left - right)
-RMAPI Matrix QM_MatrixSubtract( Matrix left, Matrix right ) {
+QM_API Matrix QM_MatrixSubtract( Matrix left, Matrix right ) {
     Matrix result = { 0 };
 
     result.m0 = left.m0 - right.m0;
@@ -164,7 +164,7 @@ RMAPI Matrix QM_MatrixSubtract( Matrix left, Matrix right ) {
 
 // Get two matrix multiplication
 // NOTE: When multiplying matrices... the order matters!
-RMAPI Matrix QM_MatrixMultiply( Matrix left, Matrix right ) {
+QM_API Matrix QM_MatrixMultiply( Matrix left, Matrix right ) {
     Matrix result = { 0 };
 
     result.m0 = left.m0 * right.m0 + left.m1 * right.m4 + left.m2 * right.m8 + left.m3 * right.m12;
@@ -188,7 +188,7 @@ RMAPI Matrix QM_MatrixMultiply( Matrix left, Matrix right ) {
 }
 
 // Get translation matrix
-RMAPI Matrix QM_MatrixTranslate( float x, float y, float z ) {
+QM_API Matrix QM_MatrixTranslate( float x, float y, float z ) {
     Matrix result = { 1.0f, 0.0f, 0.0f, x,
                       0.0f, 1.0f, 0.0f, y,
                       0.0f, 0.0f, 1.0f, z,
@@ -199,7 +199,7 @@ RMAPI Matrix QM_MatrixTranslate( float x, float y, float z ) {
 
 // Create rotation matrix from axis and angle
 // NOTE: Angle should be provided in radians
-RMAPI Matrix QM_MatrixRotate( Vector3 axis, float angle ) {
+QM_API Matrix QM_MatrixRotate( Vector3 axis, float angle ) {
     Matrix result = { 0 };
 
     float x = axis.x, y = axis.y, z = axis.z;
@@ -242,7 +242,7 @@ RMAPI Matrix QM_MatrixRotate( Vector3 axis, float angle ) {
 
 // Get x-rotation matrix
 // NOTE: Angle must be provided in radians
-RMAPI Matrix QM_MatrixRotateX( float angle ) {
+QM_API Matrix QM_MatrixRotateX( float angle ) {
     Matrix result = { 1.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 1.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 1.0f, 0.0f,
@@ -261,7 +261,7 @@ RMAPI Matrix QM_MatrixRotateX( float angle ) {
 
 // Get y-rotation matrix
 // NOTE: Angle must be provided in radians
-RMAPI Matrix QM_MatrixRotateY( float angle ) {
+QM_API Matrix QM_MatrixRotateY( float angle ) {
     Matrix result = { 1.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 1.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 1.0f, 0.0f,
@@ -280,7 +280,7 @@ RMAPI Matrix QM_MatrixRotateY( float angle ) {
 
 // Get z-rotation matrix
 // NOTE: Angle must be provided in radians
-RMAPI Matrix QM_MatrixRotateZ( float angle ) {
+QM_API Matrix QM_MatrixRotateZ( float angle ) {
     Matrix result = { 1.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 1.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 1.0f, 0.0f,
@@ -300,7 +300,7 @@ RMAPI Matrix QM_MatrixRotateZ( float angle ) {
 
 // Get xyz-rotation matrix
 // NOTE: Angle must be provided in radians
-RMAPI Matrix QM_MatrixRotateXYZ( Vector3 angle ) {
+QM_API Matrix QM_MatrixRotateXYZ( Vector3 angle ) {
     Matrix result = { 1.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 1.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 1.0f, 0.0f,
@@ -330,7 +330,7 @@ RMAPI Matrix QM_MatrixRotateXYZ( Vector3 angle ) {
 
 // Get zyx-rotation matrix
 // NOTE: Angle must be provided in radians
-RMAPI Matrix QM_MatrixRotateZYX( Vector3 angle ) {
+QM_API Matrix QM_MatrixRotateZYX( Vector3 angle ) {
     Matrix result = { 0 };
 
     float cz = cosf( angle.z );
@@ -364,7 +364,7 @@ RMAPI Matrix QM_MatrixRotateZYX( Vector3 angle ) {
 }
 
 // Get scaling matrix
-RMAPI Matrix QM_MatrixScale( float x, float y, float z ) {
+QM_API Matrix QM_MatrixScale( float x, float y, float z ) {
     Matrix result = { x, 0.0f, 0.0f, 0.0f,
                       0.0f, y, 0.0f, 0.0f,
                       0.0f, 0.0f, z, 0.0f,
@@ -374,7 +374,7 @@ RMAPI Matrix QM_MatrixScale( float x, float y, float z ) {
 }
 
 // Get perspective projection matrix
-RMAPI Matrix QM_MatrixFrustum( double left, double right, double bottom, double top, double near, double far ) {
+QM_API Matrix QM_MatrixFrustum( double left, double right, double bottom, double top, double near, double far ) {
     Matrix result = { 0 };
 
     float rl = (float)( right - left );
@@ -406,7 +406,7 @@ RMAPI Matrix QM_MatrixFrustum( double left, double right, double bottom, double 
 
 // Get perspective projection matrix
 // NOTE: Fovy angle must be provided in radians
-RMAPI Matrix QM_MatrixPerspective( double fovY, double aspect, double nearPlane, double farPlane ) {
+QM_API Matrix QM_MatrixPerspective( double fovY, double aspect, double nearPlane, double farPlane ) {
     Matrix result = { 0 };
 
     double top = nearPlane * tan( fovY * 0.5 );
@@ -431,7 +431,7 @@ RMAPI Matrix QM_MatrixPerspective( double fovY, double aspect, double nearPlane,
 }
 
 // Get orthographic projection matrix
-RMAPI Matrix QM_MatrixOrtho( double left, double right, double bottom, double top, double nearPlane, double farPlane ) {
+QM_API Matrix QM_MatrixOrtho( double left, double right, double bottom, double top, double nearPlane, double farPlane ) {
     Matrix result = { 0 };
 
     float rl = (float)( right - left );
@@ -459,7 +459,7 @@ RMAPI Matrix QM_MatrixOrtho( double left, double right, double bottom, double to
 }
 
 // Get camera look-at matrix (view matrix)
-RMAPI Matrix QM_MatrixLookAt( Vector3 eye, Vector3 target, Vector3 up ) {
+QM_API Matrix QM_MatrixLookAt( Vector3 eye, Vector3 target, Vector3 up ) {
     Matrix result = { 0 };
 
     float length = 0.0f;
@@ -513,7 +513,7 @@ RMAPI Matrix QM_MatrixLookAt( Vector3 eye, Vector3 target, Vector3 up ) {
 }
 
 // Get float array of matrix data
-RMAPI float16 QM_MatrixToFloatV( Matrix mat ) {
+QM_API float16 QM_MatrixToFloatV( Matrix mat ) {
     float16 result = { 0 };
 
     result.v[ 0 ] = mat.m0;

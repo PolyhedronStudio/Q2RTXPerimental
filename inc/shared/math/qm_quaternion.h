@@ -8,55 +8,55 @@
 #pragma once
 
 // Add two quaternions
-RMAPI Quaternion QM_QuaternionAdd( Quaternion q1, Quaternion q2 ) {
+QM_API Quaternion QM_QuaternionAdd( Quaternion q1, Quaternion q2 ) {
     Quaternion result = { q1.x + q2.x, q1.y + q2.y, q1.z + q2.z, q1.w + q2.w };
 
     return result;
 }
 
 // Add quaternion and float value
-RMAPI Quaternion QM_QuaternionAddValue( Quaternion q, float add ) {
+QM_API Quaternion QM_QuaternionAddValue( Quaternion q, float add ) {
     Quaternion result = { q.x + add, q.y + add, q.z + add, q.w + add };
 
     return result;
 }
 
 // Subtract two quaternions
-RMAPI Quaternion QM_QuaternionSubtract( Quaternion q1, Quaternion q2 ) {
+QM_API Quaternion QM_QuaternionSubtract( Quaternion q1, Quaternion q2 ) {
     Quaternion result = { q1.x - q2.x, q1.y - q2.y, q1.z - q2.z, q1.w - q2.w };
 
     return result;
 }
 
 // Subtract quaternion and float value
-RMAPI Quaternion QM_QuaternionSubtractValue( Quaternion q, float sub ) {
+QM_API Quaternion QM_QuaternionSubtractValue( Quaternion q, float sub ) {
     Quaternion result = { q.x - sub, q.y - sub, q.z - sub, q.w - sub };
 
     return result;
 }
 
 // Get identity quaternion
-RMAPI Quaternion QM_QuaternionIdentity( void ) {
+QM_API Quaternion QM_QuaternionIdentity( void ) {
     Quaternion result = { 0.0f, 0.0f, 0.0f, 1.0f };
 
     return result;
 }
 // Get "Z==UP" orientation quaternion
-RMAPI Quaternion QM_QuaternionZUpOrientation( void ) {
+QM_API Quaternion QM_QuaternionZUpOrientation( void ) {
     Quaternion result = { 0.5f, 0.5f, 0.5f, 0.5f };
 
     return result;
 }
 
 // Computes the length of a quaternion
-RMAPI float QM_QuaternionLength( Quaternion q ) {
+QM_API float QM_QuaternionLength( Quaternion q ) {
     float result = sqrtf( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
 
     return result;
 }
 
 // Normalize provided quaternion
-RMAPI Quaternion QM_QuaternionNormalize( Quaternion q ) {
+QM_API Quaternion QM_QuaternionNormalize( Quaternion q ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     float length = sqrtf( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
@@ -72,7 +72,7 @@ RMAPI Quaternion QM_QuaternionNormalize( Quaternion q ) {
 }
 
 // Invert provided quaternion
-RMAPI Quaternion QM_QuaternionInvert( Quaternion q ) {
+QM_API Quaternion QM_QuaternionInvert( Quaternion q ) {
     Quaternion result = q;
 
     float lengthSq = q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w;
@@ -90,7 +90,7 @@ RMAPI Quaternion QM_QuaternionInvert( Quaternion q ) {
 }
 
 // Calculate two quaternion multiplication
-RMAPI Quaternion QM_QuaternionMultiply( Quaternion q1, Quaternion q2 ) {
+QM_API Quaternion QM_QuaternionMultiply( Quaternion q1, Quaternion q2 ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     float qax = q1.x, qay = q1.y, qaz = q1.z, qaw = q1.w;
@@ -105,7 +105,7 @@ RMAPI Quaternion QM_QuaternionMultiply( Quaternion q1, Quaternion q2 ) {
 }
 
 // Scale quaternion by float value
-RMAPI Quaternion QM_QuaternionScale( Quaternion q, float mul ) {
+QM_API Quaternion QM_QuaternionScale( Quaternion q, float mul ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     result.x = q.x * mul;
@@ -117,14 +117,14 @@ RMAPI Quaternion QM_QuaternionScale( Quaternion q, float mul ) {
 }
 
 // Divide two quaternions
-RMAPI Quaternion QM_QuaternionDivide( Quaternion q1, Quaternion q2 ) {
+QM_API Quaternion QM_QuaternionDivide( Quaternion q1, Quaternion q2 ) {
     Quaternion result = { q1.x / q2.x, q1.y / q2.y, q1.z / q2.z, q1.w / q2.w };
 
     return result;
 }
 
 // Calculate linear interpolation between two quaternions
-RMAPI Quaternion QM_QuaternionLerp( Quaternion q1, Quaternion q2, float amount ) {
+QM_API Quaternion QM_QuaternionLerp( Quaternion q1, Quaternion q2, float amount ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     result.x = q1.x + amount * ( q2.x - q1.x );
@@ -136,7 +136,7 @@ RMAPI Quaternion QM_QuaternionLerp( Quaternion q1, Quaternion q2, float amount )
 }
 
 // Calculate slerp-optimized interpolation between two quaternions
-RMAPI Quaternion QM_QuaternionNlerp( Quaternion q1, Quaternion q2, float amount ) {
+QM_API Quaternion QM_QuaternionNlerp( Quaternion q1, Quaternion q2, float amount ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     // QuaternionLerp(q1, q2, amount)
@@ -160,7 +160,7 @@ RMAPI Quaternion QM_QuaternionNlerp( Quaternion q1, Quaternion q2, float amount 
 }
 
 // Calculates spherical linear interpolation between two quaternions
-RMAPI Quaternion QM_QuaternionSlerp( Quaternion q1, Quaternion q2, float amount ) {
+QM_API Quaternion QM_QuaternionSlerp( Quaternion q1, Quaternion q2, float amount ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     #if !defined(QM_EPSILON)
@@ -200,7 +200,7 @@ RMAPI Quaternion QM_QuaternionSlerp( Quaternion q1, Quaternion q2, float amount 
 }
 
 // Calculate quaternion based on the rotation from one vector to another
-RMAPI Quaternion QM_QuaternionFromVector3ToVector3( Vector3 from, Vector3 to ) {
+QM_API Quaternion QM_QuaternionFromVector3ToVector3( Vector3 from, Vector3 to ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     float cos2Theta = ( from.x * to.x + from.y * to.y + from.z * to.z );    // Vector3DotProduct(from, to)
@@ -227,7 +227,7 @@ RMAPI Quaternion QM_QuaternionFromVector3ToVector3( Vector3 from, Vector3 to ) {
 }
 
 // Get a quaternion for a given rotation matrix
-RMAPI Quaternion QM_QuaternionFromMatrix( Matrix mat ) {
+QM_API Quaternion QM_QuaternionFromMatrix( Matrix mat ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     float fourWSquaredMinus1 = mat.m0 + mat.m5 + mat.m10;
@@ -286,7 +286,7 @@ RMAPI Quaternion QM_QuaternionFromMatrix( Matrix mat ) {
 }
 
 // Get a matrix for a given quaternion
-RMAPI Matrix QM_QuaternionToMatrix( Quaternion q ) {
+QM_API Matrix QM_QuaternionToMatrix( Quaternion q ) {
     Matrix result = { 1.0f, 0.0f, 0.0f, 0.0f,
                       0.0f, 1.0f, 0.0f, 0.0f,
                       0.0f, 0.0f, 1.0f, 0.0f,
@@ -319,7 +319,7 @@ RMAPI Matrix QM_QuaternionToMatrix( Quaternion q ) {
 
 // Get rotation quaternion for an angle and axis
 // NOTE: Angle must be provided in radians
-RMAPI Quaternion QM_QuaternionFromAxisAngle( Vector3 axis, float angle ) {
+QM_API Quaternion QM_QuaternionFromAxisAngle( Vector3 axis, float angle ) {
     Quaternion result = { 0.0f, 0.0f, 0.0f, 1.0f };
 
     float axisLength = sqrtf( axis.x * axis.x + axis.y * axis.y + axis.z * axis.z );
@@ -362,7 +362,7 @@ RMAPI Quaternion QM_QuaternionFromAxisAngle( Vector3 axis, float angle ) {
 }
 
 // Get the rotation angle and axis for a given quaternion
-RMAPI_DISCARD void QM_QuaternionToAxisAngle( Quaternion q, Vector3 *outAxis, float *outAngle ) {
+QM_API_DISCARD void QM_QuaternionToAxisAngle( Quaternion q, Vector3 *outAxis, float *outAngle ) {
     if ( fabsf( q.w ) > 1.0f ) {
         // QuaternionNormalize(q);
         float length = sqrtf( q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w );
@@ -395,7 +395,7 @@ RMAPI_DISCARD void QM_QuaternionToAxisAngle( Quaternion q, Vector3 *outAxis, flo
 
 // Get the quaternion equivalent to Euler angles
 // NOTE: Rotation order is XYZ(Pitch, Yaw, Roll), angles should be supplied in radians.
-RMAPI Quaternion QM_QuaternionFromEuler( float pitch, float yaw, float roll ) {
+QM_API Quaternion QM_QuaternionFromEuler( float pitch, float yaw, float roll ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     float x0 = cosf( pitch * 0.5f );
@@ -415,7 +415,7 @@ RMAPI Quaternion QM_QuaternionFromEuler( float pitch, float yaw, float roll ) {
 
 // Get the Euler angles equivalent to quaternion (roll, pitch, yaw)
 // NOTE: Angles are returned in a Vector3 struct in radians
-RMAPI Vector3 QM_QuaternionToEuler( Quaternion q ) {
+QM_API Vector3 QM_QuaternionToEuler( Quaternion q ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     // WID: We really want PYR(Pitch Yaw Roll), similar to QuaternionFromEuler, so life is less confusing.
@@ -454,7 +454,7 @@ RMAPI Vector3 QM_QuaternionToEuler( Quaternion q ) {
 }
 
 // Transform a quaternion given a transformation matrix
-RMAPI Quaternion QM_QuaternionTransform( Quaternion q, Matrix mat ) {
+QM_API Quaternion QM_QuaternionTransform( Quaternion q, Matrix mat ) {
     Quaternion result = { 0.f, 0.f, 0.f, 0.f };
 
     result.x = mat.m0 * q.x + mat.m4 * q.y + mat.m8 * q.z + mat.m12 * q.w;
@@ -466,7 +466,7 @@ RMAPI Quaternion QM_QuaternionTransform( Quaternion q, Matrix mat ) {
 }
 
 // Check whether two given quaternions are almost equal
-RMAPI int QM_QuaternionEquals( Quaternion p, Quaternion q ) {
+QM_API int QM_QuaternionEquals( Quaternion p, Quaternion q ) {
     #if !defined(QM_EPSILON)
     #define QM_EPSILON 0.000001f
     #endif

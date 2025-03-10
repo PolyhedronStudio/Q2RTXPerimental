@@ -258,9 +258,9 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             // Generate frame velocity vector.
             Vector3 entityVelocity = self->velocity;
             Vector3 frameVelocity = {
-                cos( self->s.angles[ YAW ] * QM_DEG2RAD ) * distance,
-                sin( self->s.angles[ YAW ] * QM_DEG2RAD ) * distance,
-                entityVelocity.z
+                cos( self->s.angles[ YAW ] * QM_DEG2RAD ) * (double)distance,
+                sin( self->s.angles[ YAW ] * QM_DEG2RAD ) * (double)distance,
+                (double)entityVelocity.z
             };
             // If not onground, zero out the frameVelocity.
             if ( self->groundInfo.entity == nullptr ) {

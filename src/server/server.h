@@ -61,7 +61,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define SV_DPrintf(...)
 #endif
 
-#define SV_BASELINES_SHIFT      6
+#define SV_BASELINES_SHIFT      (6)
 #define SV_BASELINES_PER_CHUNK  (1 << SV_BASELINES_SHIFT) // 64
 #define SV_BASELINES_MASK       (SV_BASELINES_PER_CHUNK - 1) // 63
 #define SV_BASELINES_CHUNKS     (MAX_EDICTS >> SV_BASELINES_SHIFT) // 16

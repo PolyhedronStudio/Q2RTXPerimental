@@ -28,7 +28,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/utils.h"
 #include "client/client.h"
 
-#ifdef _WINDOWS
+#ifdef WIN32
+#undef WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #endif
 

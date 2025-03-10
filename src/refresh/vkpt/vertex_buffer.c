@@ -717,7 +717,7 @@ vkpt_light_buffer_upload_to_staging(bool render_world, bsp_mesh_t *bsp_mesh, bsp
 
 	// WID: BSPX: LMSTYLE:
 	//assert(MAX_LIGHT_STYLES == MAX_QPATH);
-	assert(MAX_LIGHT_STYLES == MAX_OSPATH);
+	assert(MAX_LIGHT_STYLES == 256); // used to be, MAX_OSPATH but it is now: MAX_OSPATH = 260(Windows) or 4096(Unix)
 	for (int nstyle = 0; nstyle < MAX_LIGHT_STYLES; nstyle++)
 	{
 		float style_scale = 1.f;

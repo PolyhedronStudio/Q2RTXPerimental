@@ -1,40 +1,5 @@
 /**********************************************************************************************
 *
-*   A customized version, "Quake RayMath" based on:
-*   raymath v1.5 - Math functions to work with Vector2, Vector3, Matrix and Quaternions
-*
-*
-*   Q2RTXPerimental Additions:
-*     - Added in operator(s) support for when compiling with C++.
-*
-*
-*   RayMath CONVENTIONS:
-*     - Matrix structure is defined as row-major (memory layout) but parameters naming AND all
-*       math operations performed by the library consider the structure as it was column-major
-*       It is like transposed versions of the matrices are used for all the maths
-*       It benefits some functions making them cache-friendly and also avoids matrix
-*       transpositions sometimes required by OpenGL
-*       Example: In memory order, row0 is [m0 m4 m8 m12] but in semantic math row0 is [m0 m1 m2 m3]
-*     - Functions are always self-contained, no function use another raymath function inside,
-*       required code is directly re-implemented inside
-*     - Functions input parameters are always received by value (2 unavoidable exceptions)
-*     - Functions use always a "result" variable for return
-*     - Functions are always defined inline
-*     - Angles are always in radians (QM_DEG2RAD/QM_RAD2DEG macros provided for convenience)
-*     - No compound literals used to make sure libray is compatible with C++
-*
-*
-*   RayMath CONFIGURATION:
-*       #define RAYMATH_IMPLEMENTATION
-*           Generates the implementation of the library into the included file.
-*           If not defined, the library is in header only mode and can be included in other headers
-*           or source files without problems. But only ONE file should hold the implementation.
-*
-*       #define RAYMATH_STATIC_INLINE
-*           Define static inline functions code, so #include header suffices for use.
-*           This may use up lots of memory.
-*
-*
 *   RayMath LICENSE: zlib/libpng
 *
 *   Copyright (c) 2015-2024 Ramon Santamaria (@raysan5)
@@ -53,97 +18,85 @@
 *     as being the original software.
 *
 *     3. This notice may not be removed or altered from any source distribution.
+* 
+* **********************************************************************************************
+* 
+*   A customized version of RayMath v1.5:
+*
+*
+*   RayMath CONVENTIONS:
+*     - Matrix structure is defined as row-major (memory layout) but parameters naming AND all
+*       math operations performed by the library consider the structure as it was column-major
+*       It is like transposed versions of the matrices are used for all the maths
+*       It benefits some functions making them cache-friendly and also avoids matrix
+*       transpositions sometimes required by OpenGL
+*       Example: In memory order, row0 is [m0 m4 m8 m12] but in semantic math row0 is [m0 m1 m2 m3]
+*     - Functions are always defined inline
+*     - Angles are always in radians (QM_DEG2RAD/QM_RAD2DEG macros provided for convenience)
 *
 **********************************************************************************************/
 #pragma once
 
-
-#if defined(RAYMATH_IMPLEMENTATION) && defined(RAYMATH_STATIC_INLINE)
-#error "Specifying both RAYMATH_IMPLEMENTATION and RAYMATH_STATIC_INLINE is contradictory"
-#endif
-
-// Function specifiers definition
-#if defined(RAYMATH_IMPLEMENTATION)
-    #if defined(_WIN32) && defined(BUILD_LIBTYPE_SHARED)
-        #define RMAPI __declspec(dllexport) extern inline // We are building raylib as a Win32 shared library (.dll)
-    #elif defined(BUILD_LIBTYPE_SHARED)
-        #define RMAPI __attribute__((visibility("default"))) // We are building raylib as a Unix shared library (.so/.dylib)
-    #elif defined(_WIN32) && defined(USE_LIBTYPE_SHARED)
-        #define RMAPI __declspec(dllimport)         // We are using raylib as a Win32 shared library (.dll)
-    #else
-        #define RMAPI extern inline // Provide external definition
-    #endif
-#elif defined(RAYMATH_STATIC_INLINE)
-    #if defined(RAYMATH_QM_INLINE)
-        #ifdef __cplusplus
-            #define RMAPI [[nodiscard]] const inline // Functions may be inlined, no external out-of-line definition
-            #define RMAPI_DISCARD const inline // Functions may be inlined, no external out-of-line definition
-        #else
-            #define RMAPI inline 
-            #define RMAPI_DISCARD inline
-        #endif
-    #else
-        #define RMAPI static inline // Functions may be inlined, no external out-of-line definition
-    #endif
+#ifdef __cplusplus
+    #define QM_API [[nodiscard]] const inline // Functions may be inlined, no external out-of-line definition
+    #define QM_API_DISCARD const inline // Functions may be inlined, no external out-of-line definition
 #else
-    #if defined(__TINYC__)
-        #define RMAPI static inline // plain inline not supported by tinycc (See issue #435)
-    #else
-        #define RMAPI inline        // Functions may be inlined or external definition used
-    #endif
+    #define QM_API const inline // Functions may be inlined, no external out-of-line definition
+    #define QM_API_DISCARD const inline // Functions may be inlined, no external out-of-line definition
 #endif
 
-//----------------------------------------------------------------------------------
-// Defines and Macros
-//----------------------------------------------------------------------------------
 
 // Don't reinclude if done so already.
 #ifndef _INC_MATH
-#include <math.h>       // Required for: sinf(), cosf(), tan(), atan2f(), sqrtf(), floor(), fminf(), fmaxf(), fabs()
+    #ifdef __cplusplus
+        #include <cmath>
+    #else
+        #include <math.h>       // Required for: sinf(), cosf(), tan(), atan2f(), sqrtf(), floor(), fminf(), fmaxf(), fabs()
+    #endif
 #endif
 
 /**
 *   QM PI:
 **/
 #ifndef QM_PI
-#ifdef __cplusplus
-static constexpr float QM_PI = 3.14159265358979323846f;
-#else
-#define QM_PI 3.14159265358979323846f
-#endif
+    #ifdef __cplusplus
+        static constexpr double QM_PI = std::numbers::pi;
+    #else
+        #define QM_PI 3.14159265358979323846
+    #endif
 #endif
 
 /**
 *   QM Epsilon:
 **/
 #ifndef QM_EPSILON
-#ifdef __cplusplus
-static constexpr float QM_EPSILON = 0.000001f;
-#else
-#define QM_EPSILON 0.000001f
-#endif
+    #ifdef __cplusplus
+        static constexpr double QM_EPSILON = 0.000001;
+    #else
+        #define QM_EPSILON 0.000001
+    #endif
 #endif
 
 /**
 *   QM Degrees 2 Radians:
 **/
 #ifndef QM_DEG2RAD
-#ifdef __cplusplus
-static constexpr float QM_DEG2RAD = ( QM_PI / 180.0f );
-#else
-#define QM_DEG2RAD (QM_PI/180.0f)
-#endif
+    #ifdef __cplusplus
+        static constexpr double QM_DEG2RAD = ( QM_PI / 180.0 );
+    #else
+        #define QM_DEG2RAD ( ( double )( QM_PI / 180.0 ) )
+    #endif
 #endif
 
 /**
 *   QM Radians 2 Degrees:
 **/
 #ifndef QM_RAD2DEG
-#ifdef __cplusplus
-static constexpr float QM_RAD2DEG = ( 180.0f / QM_PI );
-#else
-#define QM_RAD2DEG (180.0f/QM_PI)
-#endif
+    #ifdef __cplusplus
+        static constexpr double QM_RAD2DEG = ( 180.0 / QM_PI );
+    #else
+        #define QM_RAD2DEG ( (double)( 180.0 / QM_PI ) )
+    #endif
 #endif
 
 /**
@@ -187,7 +140,8 @@ typedef struct Vector2 {
         this->y = 0;
     }
 
-    [[nodiscard]] constexpr inline Vector2( const float x, const float y ) {
+    template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
+    [[nodiscard]] constexpr inline Vector2( const T x, const T y ) {
         this->x = x;
         this->y = y;
     }
@@ -250,7 +204,8 @@ typedef struct Vector3 {
         this->y = 0;
         this->z = 0;
     }
-    [[nodiscard]] constexpr inline Vector3( const float x, const float y, const float z ) {
+    template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
+    [[nodiscard]] constexpr inline Vector3( const T x, const T y, const T z ) {
         this->x = x;
         this->y = y;
         this->z = z;
@@ -335,45 +290,45 @@ typedef struct Vector3 {
     /**
     *   @brief  Vector3 C++ 'Multiply' operator:
     **/
-    RMAPI const Vector3 operator*( const Vector3 &right ) {
+    QM_API const Vector3 operator*( const Vector3 &right ) {
         return QM_Vector3Multiply( *this, right );
     }
-    RMAPI const Vector3 operator*( const float &right ) {
+    QM_API const Vector3 operator*( const float &right ) {
         return QM_Vector3Scale( *this, right );
     }
     // for: ConstVector3Ref v1 = floatVal * v2;
-    RMAPI const Vector3 operator*( const float &right ) {
+    QM_API const Vector3 operator*( const float &right ) {
         return QM_Vector3Scale( *this, right );
     }
 
-    RMAPI const Vector3 &operator*=( const Vector3 &right ) {
+    QM_API const Vector3 &operator*=( const Vector3 &right ) {
         return *this = QM_Vector3Multiply( *this, right );
     }
-    RMAPI const Vector3 &operator*=( const float &right ) {
+    QM_API const Vector3 &operator*=( const float &right ) {
         return *this = QM_Vector3Scale( *this, right );
     }
 
     /**
     *   @brief  Vector3 C++ 'Divide' operator:
     **/
-    RMAPI const Vector3 operator/( const Vector3 &right ) {
+    QM_API const Vector3 operator/( const Vector3 &right ) {
         return QM_Vector3Divide( *this, right );
     }
-    RMAPI const Vector3 operator/( const float &right ) {
+    QM_API const Vector3 operator/( const float &right ) {
         return QM_Vector3DivideValue( *this, right );
     }
 
-    RMAPI const Vector3 &operator/=( const Vector3 &right ) {
+    QM_API const Vector3 &operator/=( const Vector3 &right ) {
         return *this = QM_Vector3Divide( *this, right );
     }
-    RMAPI const Vector3 &operator/=( const float &right ) {
+    QM_API const Vector3 &operator/=( const float &right ) {
         return *this = QM_Vector3DivideValue( *this, right );
     }
 
     /**
     *   @brief  Vector3 C++ 'Equals' operator:
     **/
-    RMAPI bool operator==( const Vector3 &right ) {
+    QM_API bool operator==( const Vector3 &right ) {
         return QM_Vector3Equals( *this, right );
     }
 
@@ -424,12 +379,14 @@ typedef struct Vector4 {
         this->z = 0;
         this->w = 0;
     }
-    [[nodiscard]] inline constexpr Vector4( const float x, const float y, const float z, const float w ) {
+    template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
+    [[nodiscard]] constexpr inline Vector4( const T x, const T y, const T z, const T w ) {
         this->x = x;
         this->y = y;
         this->z = z;
         this->w = w;
     }
+
     [[nodiscard]] inline Vector4( Vector3 &v ) {
         this->x = v.x;
         this->y = v.y;

@@ -19,7 +19,7 @@
 /**
 *   @brief  Check whether two given floats are almost equal
 **/
-RMAPI int QM_FloatEquals( const float x, const float y ) {
+QM_API int QM_FloatEquals( const float x, const float y ) {
 	#if !defined(QM_EPSILON)
 	#define QM_EPSILON 0.000001f
 	#endif
@@ -32,7 +32,7 @@ RMAPI int QM_FloatEquals( const float x, const float y ) {
 /**
 *   @brief  Clamps float value within -min/+max range.
 **/
-RMAPI float QM_Clampf( const float value, const float min, const float max ) {
+QM_API float QM_Clampf( const float value, const float min, const float max ) {
 	const float result = ( value < min ) ? min : value;
 	//if ( result > max ) result = max;
 	//result;
@@ -41,7 +41,7 @@ RMAPI float QM_Clampf( const float value, const float min, const float max ) {
 /**
 *   @brief  Normalize input value within input range
 **/
-RMAPI float QM_Normalizef( const float value, const float start, const float end ) {
+QM_API float QM_Normalizef( const float value, const float start, const float end ) {
 	const float result = ( value - start ) / ( end - start );
 
 	return result;
@@ -49,7 +49,7 @@ RMAPI float QM_Normalizef( const float value, const float start, const float end
 /**
 *   @brief  Remap input value within input range to output range
 **/
-RMAPI float QM_Remapf( const float value, const float inputStart, const float inputEnd, const float outputStart, const float outputEnd ) {
+QM_API float QM_Remapf( const float value, const float inputStart, const float inputEnd, const float outputStart, const float outputEnd ) {
 	const float result = ( value - inputStart ) / ( inputEnd - inputStart ) * ( outputEnd - outputStart ) + outputStart;
 
 	return result;
@@ -57,21 +57,21 @@ RMAPI float QM_Remapf( const float value, const float inputStart, const float in
 /**
 *   @brief  Wrap float input value from min to max
 **/
-RMAPI float QM_Wrapf( const float value, const float min, const float max ) {
+QM_API float QM_Wrapf( const float value, const float min, const float max ) {
 	const float result = value - ( max - min ) * floorf( ( value - min ) / ( max - min ) );
 	return result;
 }
 /**
 *   @brief  Returns 'min' if 'value' < min, otherwise returns 'value'.
 **/
-RMAPI float QM_Minf( const float min, const float value ) {
+QM_API float QM_Minf( const float min, const float value ) {
     return value < min ? min : value;
     //return std::min( value, min );
 }
 /**
 *   @brief  Returns 'max' if 'value' > max, otherwise returns 'value'.
 **/
-RMAPI float QM_Maxf( const float max, const float value ) {
+QM_API float QM_Maxf( const float max, const float value ) {
     return value > max ? max : value;
     //return std::max( value, max );
 }
@@ -89,7 +89,7 @@ RMAPI float QM_Maxf( const float max, const float value ) {
 *   @brief  Check whether two given floats are almost equal
 **/
 // WID: TODO: Oh boy..
-RMAPI int QM_DoubleEquals( const double x, const double y ) {
+QM_API int QM_DoubleEquals( const double x, const double y ) {
     #if !defined(QM_DOUBLE_EPSILON)
     #define QM_DOUBLE_EPSILON QM_EPSILON
     #endif
@@ -106,7 +106,7 @@ RMAPI int QM_DoubleEquals( const double x, const double y ) {
 /**
 *   @brief  Clamps double value within -min/+max range. 
 **/
-RMAPI double QM_Clampd( const double value, const double min, const double max ) {
+QM_API double QM_Clampd( const double value, const double min, const double max ) {
     const double result = ( value < min ) ? min : value;
     //if ( result > max ) result = max;
     //result;
@@ -115,7 +115,7 @@ RMAPI double QM_Clampd( const double value, const double min, const double max )
 /**
 *   @brief  Normalize input value within input range
 **/
-RMAPI double QM_Normalized( const double value, const double start, const double end ) {
+QM_API double QM_Normalized( const double value, const double start, const double end ) {
     const double result = ( value - start ) / ( end - start );
 
     return result;
@@ -123,7 +123,7 @@ RMAPI double QM_Normalized( const double value, const double start, const double
 /**
 *   @brief  Remap input value within input range to output range
 **/
-RMAPI double QM_Remapd( const double value, const double inputStart, const double inputEnd, const double outputStart, const double outputEnd ) {
+QM_API double QM_Remapd( const double value, const double inputStart, const double inputEnd, const double outputStart, const double outputEnd ) {
     const double result = ( value - inputStart ) / ( inputEnd - inputStart ) * ( outputEnd - outputStart ) + outputStart;
 
     return result;
@@ -131,7 +131,7 @@ RMAPI double QM_Remapd( const double value, const double inputStart, const doubl
 /**
 *   @brief  Wrap double input value from min to max
 **/
-RMAPI double QM_Wrapd( const double value, const double min, const double max ) {
+QM_API double QM_Wrapd( const double value, const double min, const double max ) {
     const double result = value - ( max - min ) * floor( ( value - min ) / ( max - min ) );
     return result;
 }
@@ -139,14 +139,14 @@ RMAPI double QM_Wrapd( const double value, const double min, const double max ) 
 /**
 *   @brief  Returns 'min' if 'value' < min, otherwise returns 'value'.
 **/
-RMAPI double QM_Mind( const double min, const double value ) {
+QM_API double QM_Mind( const double min, const double value ) {
     return value < min ? min : value;
     //return std::min( value, min );
 }
 /**
 *   @brief  Returns 'max' if 'value' > max, otherwise returns 'value'.
 **/
-RMAPI double QM_Maxd( const double max, const double value ) {
+QM_API double QM_Maxd( const double max, const double value ) {
     return value > max ? max : value;
     //return std::max( value, max );
 }
@@ -174,14 +174,14 @@ RMAPI double QM_Maxd( const double max, const double value ) {
 /**
 *   @brief  Clamps Int32 value within -min/+max range.
 **/
-RMAPI int32_t QM_ClampInt32( const int32_t value, const int32_t min, const int32_t max ) {
+QM_API int32_t QM_ClampInt32( const int32_t value, const int32_t min, const int32_t max ) {
     const int32_t result = ( value < min || value < 0 ) ? min : value;
     return ( result > max ) ? max : result;
 }
 /**
 *   @brief  Clamps Int32 value within -min/+max range.
 **/
-RMAPI uint32_t QM_ClampUint32( const uint32_t value, const uint32_t min, const uint32_t max ) {
+QM_API uint32_t QM_ClampUint32( const uint32_t value, const uint32_t min, const uint32_t max ) {
     const uint32_t result = ( value < min /*|| value < 0*/ ) ? min : value;
     return ( result > max ) ? max : result;
 }
@@ -189,7 +189,7 @@ RMAPI uint32_t QM_ClampUint32( const uint32_t value, const uint32_t min, const u
 /**
 *   @brief  Wrap int input value from min to max
 **/
-RMAPI int32_t QM_WrapInt32( const int32_t value, const int32_t min, const int32_t max ) {
+QM_API int32_t QM_WrapInt32( const int32_t value, const int32_t min, const int32_t max ) {
     const int32_t result = value - ( max - min ) * floor( ( value - min ) / ( max - min ) );
     return result;
 }
@@ -217,7 +217,7 @@ RMAPI int32_t QM_WrapInt32( const int32_t value, const int32_t min, const int32_
 /**
 *   @brief  Slightly faster Lerp, might not be as precise.
 **/
-RMAPI float QM_FastLerp( const float start, const float end, const float amount ) {
+QM_API float QM_FastLerp( const float start, const float end, const float amount ) {
     const float result = start + amount * ( end - start );
 
     return result;
@@ -225,7 +225,7 @@ RMAPI float QM_FastLerp( const float start, const float end, const float amount 
 /**
 *   @brief  Slower lerp, but you specify back & front lerp separately.
 **/
-RMAPI float QM_LerpBackFront( const float start, const float end, const float backLerp, const float frontLerp ) {
+QM_API float QM_LerpBackFront( const float start, const float end, const float backLerp, const float frontLerp ) {
     const float result = ( (start) * (backLerp) + (end) * (frontLerp) );
 
     return result;
@@ -233,7 +233,7 @@ RMAPI float QM_LerpBackFront( const float start, const float end, const float ba
 /**
 *   @brief  Slower lerp but is more mathematically precise.
 **/
-RMAPI float QM_Lerp( const float start, const float end, const float amount ) {
+QM_API float QM_Lerp( const float start, const float end, const float amount ) {
     const float result = ( ( start ) * (1.0f - amount)+( end ) * ( amount ) );
 
     return result;
@@ -252,7 +252,7 @@ RMAPI float QM_Lerp( const float start, const float end, const float amount ) {
 *   @brief  Returns the angle by clamping it within 0 to 359 degrees using modulation.
 *           Useful to maintain the floating point angles precision.
 **/
-RMAPI float QM_AngleMod( const float a ) {
+QM_API float QM_AngleMod( const float a ) {
     // Float based method:
     const float v = fmod( a, 360.0f );
 
@@ -266,7 +266,7 @@ RMAPI float QM_AngleMod( const float a ) {
 /**
 *   @brief  Will lerp between the euler angle, a2 and a1.
 **/
-RMAPI float QM_LerpAngle( float angle2, float angle1, const float fraction ) {
+QM_API float QM_LerpAngle( float angle2, float angle1, const float fraction ) {
     if ( angle1 - angle2 > 180 ) {
         angle1 -= 360;
     }
@@ -279,7 +279,7 @@ RMAPI float QM_LerpAngle( float angle2, float angle1, const float fraction ) {
 /**
 *   @brief  returns angle normalized to the range [-180 < angle <= 180]
 **/
-RMAPI float QM_Angle_Normalize180( const float angle ) {
+QM_API float QM_Angle_Normalize180( const float angle ) {
     float _angle = fmod( ( angle ), 360.0f );
     if ( _angle > 180.0 ) {
         _angle -= 360.0;
@@ -289,6 +289,6 @@ RMAPI float QM_Angle_Normalize180( const float angle ) {
 /**
 *   @brief  returns the normalized to range [-180 < angle <= 180] delta from angle1 to angle2
 **/
-RMAPI float QM_AngleDelta( const float angle1, const float angle2 ) {
+QM_API float QM_AngleDelta( const float angle1, const float angle2 ) {
     return QM_Angle_Normalize180( angle1 - angle2 );
 }

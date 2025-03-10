@@ -1211,7 +1211,7 @@ static void PM_CategorizePosition() {
 
 		// If the player hull point is 0.25 units down is solid, the player is on ground.
 		// See if standing on something solid
-		Vector3 landEndPoint = pml.origin + Vector3{ 0.f, 0.f, -30 };
+		Vector3 landEndPoint = pml.origin + Vector3{ 0., 0., -30. };
 		trace_t jumpLandTrace = PM_Trace( pml.origin, pm->mins, pm->maxs, landEndPoint );
 
 		if ( trace.fraction == 1.0f || ( slanted_ground && !trace.startsolid ) ) {

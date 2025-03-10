@@ -70,6 +70,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
     #include <list>
     //#include <functional>
     #include <map>
+    #include <numbers>
     #include <numeric>
     //#include <unordered_map>
     //#include <set>
@@ -153,8 +154,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define MAX_TOKEN_CHARS     1024    // max length of an individual token
 #define MAX_NET_STRING      2048    // max length of a string used in network protocol
 
-#define MAX_QPATH				64      // max length of a quake game pathname
-#define MAX_OSPATH				256     // max length of a filesystem pathname
+#define MAX_QPATH			64      // max length of a quake game pathname
+#ifdef WIN32
+    // We know for a fact in Win32 this is 260. Including windows.h is messy. So..
+    #define MAX_OSPATH      256 // Just default to 256, as the max length of a filesystem pathname.
+#else
+    #define MAX_OSPATH      PATH_MAX // Unix (one I got, has 4096) max length of a filesystem pathname.
+#endif
 
 
 /**
@@ -206,9 +212,6 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 // possible new bugs and takes a lot of time to invest.
 #include "shared/math/qm_legacy_math_macros.h"
 
-//! Use static inlining for all its functions.
-#define RAYMATH_STATIC_INLINE
-#define RAYMATH_QM_INLINE
 //! Include our own custom version of raylib1.5 its raymath library.
 #include "shared/math/qm_math.h"
 

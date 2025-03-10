@@ -68,7 +68,7 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
         if ( currentPs->pmove.pm_flags & PMF_TIME_TRICK_JUMP || currentPs->pmove.velocity.z > 100 ) {
             centity_t *traceSkipEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
             Vector3 traceStart = currentPs->pmove.origin;
-            Vector3 traceEnd = traceStart + Vector3{ 0, 0, -( PM_MAX_STEP_SIZE + 0.25 ) };
+            Vector3 traceEnd = traceStart + Vector3{ 0., 0., -( PM_MAX_STEP_SIZE + 0.25 ) };
             Vector3 traceMins = predictedState->mins;
             Vector3 traceMaxs = predictedState->maxs;
             trace_t groundTrace = clgi.Trace( &traceStart.x, &traceMins.x, &traceMaxs.x, &traceEnd.x, traceSkipEntity, MASK_SOLID );
