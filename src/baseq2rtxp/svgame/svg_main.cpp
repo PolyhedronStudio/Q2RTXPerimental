@@ -140,7 +140,7 @@ static void cvar_sv_airaccelerate_changed( cvar_t *self ) {
         gi.configstring( CS_AIRACCEL, self->string );
     }
 }
-
+#if 0
 static void cvar_sv_gamemode_changed( cvar_t *self ) {
     // Is it valid?
     const bool isValidGamemode = SG_IsValidGameModeType( static_cast<sg_gamemode_type_t>( self->integer ) );
@@ -154,7 +154,7 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
             __func__, gamemode->integer, gamemode->integer, SG_GetGameModeName( static_cast<sg_gamemode_type_t>( gamemode->integer ) ) );
     }
 }
-
+#endif
 /**
 *	@brief	This will be called when the dll is first loaded, which
 *			only happens when a new game is started or a save game
@@ -189,8 +189,8 @@ void SVG_PreInitGame( void ) {
 	maxspectators = gi.cvar( "maxspectators", "4", CVAR_SERVERINFO );
 
 	// 0 = SinglePlayer, 1 = Deathmatch, 2 = Coop.
-	gamemode = gi.cvar( "gamemode", 0, CVAR_SERVERINFO | CVAR_LATCH );
-    gamemode->changed = cvar_sv_gamemode_changed;
+	gamemode = gi.cvar( "gamemode", nullptr, 0 );
+    //gamemode->changed = cvar_sv_gamemode_changed;
 
 	// The following is to for now keep code compatability.
 	deathmatch = gi.cvar( "deathmatch", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );

@@ -13,7 +13,7 @@
 #define CVAR_USERINFO   2   // added to userinfo  when changed
 #define CVAR_SERVERINFO 4   // added to serverinfo when changed
 #define CVAR_NOSET      8   // don't allow change from console at all,
-// but can be set from the command line
+                            // but can be set from the command line
 #define CVAR_LATCH      16  // save changes until server restart
 #ifndef CVAR_CHEAT
 #define CVAR_CHEAT      (1 << 5)  // can't be changed when connected

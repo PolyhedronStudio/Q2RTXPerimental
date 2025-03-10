@@ -355,6 +355,29 @@ static void SV_InitGame_Init( ) {
 	//ge->ConfigurePlayerMoveParameters( &sv_pmp );
 }
 
+/**
+*   @brief  cvar change callback for "gamemode".
+**/
+void cvar_gamemode_changed( cvar_t *self ) {
+    // Ensure GE is valid!
+    if ( !ge ) {
+        self->string = self->default_string;
+        return;
+    }
+    // Is it valid?
+    const bool isValidGamemode = ge->IsValidGameModeType( self->integer );
+
+    if ( !isValidGamemode ) {
+        // In an invalid situation, resort to default, 0.
+        cvar_t *gamemode = Cvar_Get( "gamemode", nullptr, 0 );
+        // Hard set it.
+        Cvar_SetByVar( gamemode, std::to_string( 0 ).c_str(), FROM_CODE );
+
+        // Invalid somehow.
+        Com_WPrintf( "%s: tried to assign a non valid gamemode type ID(#%i), resorting to default(#%i, %s)\n",
+            __func__, gamemode->integer, gamemode->integer, ge->GetGamemodeName( gamemode->integer) );
+    }
+}
 /*
 ==============
 SV_InitGame
@@ -386,8 +409,8 @@ void SV_InitGame()
     SV_Models_Init();
 
 	// Ensure gamemode is properly prepared to be set.
-	Cvar_Get( "gamemode", "0", CVAR_SERVERINFO | CVAR_LATCH );
-
+	cvar_t *gamemode = Cvar_Get( "gamemode", "0", CVAR_SERVERINFO | CVAR_GAME );
+    gamemode->changed = cvar_gamemode_changed;
     // get any latched variable changes (maxclients, etc)
     Cvar_GetLatchedVars();
 

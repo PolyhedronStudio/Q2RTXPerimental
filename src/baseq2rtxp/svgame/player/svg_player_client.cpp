@@ -803,7 +803,6 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     // Reset the Field of View for the player state.
     SVG_Player_ResetPlayerStateFOV( ent->client );
 
-
     // Set viewheight for player state pmove.
     ent->client->ps.pmove.viewheight = ent->viewheight;
 

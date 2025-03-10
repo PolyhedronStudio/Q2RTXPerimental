@@ -67,9 +67,7 @@ void SVG_HUD_MoveClientToIntermission(edict_t *ent)
     if (deathmatch->value || coop->value ) {
 
         // Write out svc_scoreboard command.
-        SVG_HUD_DeathmatchScoreboardMessage(ent, NULL);
-        // Reliably unicast it.
-        gi.unicast(ent, true);
+        SVG_HUD_DeathmatchScoreboardMessage( ent, nullptr, true );
     }
 }
 
@@ -168,8 +166,7 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
 /**
 *   @brief
 **/
-void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
-{
+void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer = nullptr, const bool sendAsReliable ) {
     char    entry[1024];
     char    string[1400];
     int     stringlength;
@@ -290,6 +287,9 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
         gi.WriteUint16( ping );
     }
     #endif
+
+    // Send it over the wire, using supplied reliable false/true.
+    gi.unicast( ent, sendAsReliable );
 }
 
 /**
@@ -298,8 +298,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 **/
 void SVG_HUD_DeathmatchScoreboard(edict_t *ent)
 {
-    SVG_HUD_DeathmatchScoreboardMessage(ent, ent->enemy);
-    gi.unicast(ent, true);
+    SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, true );
 }
 
 
@@ -365,12 +364,12 @@ void SVG_SetWeaponStats( edict_t *ent ) {
     float totalRecoil = SVG_Client_GetFinalRecoilFactor( ent );
     //if ( totalRecoil > 0 ) {
 		ent->client->ps.stats[ STAT_WEAPON_RECOIL ] = float_to_half( (float)totalRecoil );
-        gi.dprintf( "%s: STAT_WEAPON_RECOIL(%llu), moveRecoil(%f), firedRecoil(%f)\n", 
-            __func__, 
-            ent->client->ps.stats[ STAT_WEAPON_RECOIL ],
-            ent->client->weaponState.recoil.moveFactor,
-            ent->client->weaponState.recoil.weaponFactor
-        );
+        //gi.dprintf( "%s: STAT_WEAPON_RECOIL(%llu), moveRecoil(%f), firedRecoil(%f)\n", 
+        //    __func__, 
+        //    ent->client->ps.stats[ STAT_WEAPON_RECOIL ],
+        //    ent->client->weaponState.recoil.moveFactor,
+        //    ent->client->weaponState.recoil.weaponFactor
+        //);
     //} else {
     //    ent->client->weaponState.recoil.weaponFactor = 0;
     //    ent->client->weaponState.recoil.moveFactor = 0;

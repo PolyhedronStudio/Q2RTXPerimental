@@ -1049,8 +1049,7 @@ void SVG_Client_EndServerFrame( edict_t *ent ) {
 	
 	// If the scoreboard is up, update it.
 	if ( ent->client->showscores && !( level.frameNumber & 63 ) ) {
-		SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy );
-		gi.unicast( ent, false );
+		SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, false );
 	}
 }
 

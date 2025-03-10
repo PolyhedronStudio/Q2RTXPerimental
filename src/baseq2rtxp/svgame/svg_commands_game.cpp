@@ -671,18 +671,22 @@ void SVG_Command_Score_f( edict_t *ent ) {
     ent->client->showinventory = false;
     ent->client->showhelp = false;
 
-    if ( !deathmatch->value && !coop->value )
+    if ( !deathmatch->value && !coop->value ) {
         return;
+    }
 
     if ( ent->client->showscores ) {
         ent->client->showscores = false;
         //gi.dprintf( "hidescores\n" );
+    
         return;
     }
 
-    //gi.dprintf( "showscores\n" );
     ent->client->showscores = true;
-    SVG_HUD_DeathmatchScoreboard( ent );
+    //gi.dprintf( "showscores\n" );
+    
+    // Engage in sending svc_scoreboard messages, send this one as part of a Reliable packet.
+    SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, true );
 }
 
 void SVG_Command_PlayerList_f(edict_t *ent)

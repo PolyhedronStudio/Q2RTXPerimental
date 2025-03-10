@@ -314,8 +314,7 @@ static void CLG_HUD_DrawOutlinedRectangle( const double &backGroundX, const doub
 *   @brief  Does as it says it does.
 **/
 static void CLG_HUD_DrawCrosshairLine( const double &backGroundX, const double &backGroundY, const double &backGroundWidth, const double &backGroundHeight, const uint32_t fillColor, const uint32_t outlineColor, const bool thickCrossHair = false ) {
-    // Draw bg color.
-    clgi.R_DrawFill32f( backGroundX, backGroundY, backGroundWidth, backGroundHeight, fillColor );
+
     if ( outlineColor ) {
         if ( thickCrossHair ) {
             // Left line. (Also covers first pixel of top line and bottom line.)
@@ -337,6 +336,9 @@ static void CLG_HUD_DrawCrosshairLine( const double &backGroundX, const double &
             clgi.R_DrawFill32f( backGroundX, backGroundY + backGroundHeight, backGroundWidth, 1., outlineColor );
         }
     }
+
+    // Draw bg color.
+    clgi.R_DrawFill32f( backGroundX + 1, backGroundY + 1, backGroundWidth - 1, backGroundHeight - 1, fillColor );
 }
 
 

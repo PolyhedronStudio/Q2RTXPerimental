@@ -471,15 +471,16 @@ static void SCR_DrawNet( void ) {
         SCR_LagDraw( x, y );
     }
 
-    #if 0
+    #if 1
     // draw phone jack
     const int64_t outgoing_sequence = clgi.Netchan_GetOutgoingSequence();
     const int64_t incoming_acknowledged = clgi.Netchan_GetIncomingAcknowledged();
     if ( outgoing_sequence - incoming_acknowledged >= CMD_BACKUP ) {
         if ( ( clgi.GetRealTime() >> 8 ) & 3 ) {
-            clgi.R_DrawStretchPic( x, y, LAG_WIDTH, LAG_HEIGHT, precache.screen.net_pic );
+            clgi.R_DrawStretchPic( x - ( LAG_WIDTH + 128 ), y - 16, 128, 64, precache.screen.net_error_pic );
         }
     }
+    //clgi.R_DrawStretchPic( x - 192, y - 16, 128, 64, precache.screen.net_error_pic );
     #endif
 }
 
@@ -1019,7 +1020,7 @@ void PF_SCR_RegisterMedia( void ) {
     precache.screen.damage_display_pic = clgi.R_RegisterPic( "damage_indicator" );
     clgi.R_GetPicSize( &scr.damage_display_width, &scr.damage_display_height, precache.screen.damage_display_pic );
 
-    //precache.screen.net_pic = clgi.R_RegisterPic( "net" );
+    precache.screen.net_error_pic = clgi.R_RegisterPic( "icons/neterror.png" );
     precache.screen.font_pic = clgi.R_RegisterFont( scr_font->string );
 
     // Register the 2D display HUD media.

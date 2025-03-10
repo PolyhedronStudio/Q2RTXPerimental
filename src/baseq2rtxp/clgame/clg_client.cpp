@@ -74,7 +74,7 @@ void PF_ClientLocalFrame( void ) {
 	// Reseed the mersennery twister.
 	mt_rand.seed( clgi.client->frame.number );
 
-	clgi.Print( PRINT_NOTICE, "%ull\n", clgi.client->frame.number );
+	//clgi.Print( PRINT_NOTICE, "%ull\n", clgi.client->frame.number );
 
 	// Call upon ClientBeginFrame.
 	CLG_ClientBeginLocalFrame();

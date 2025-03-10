@@ -522,10 +522,12 @@ void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
             if ( ent->client->weaponState.animation.startTime == level.time ) {//ent->client->weaponState.animation.startFrame ) {
                 ent->client->weaponState.activeSound = gi.soundindex( "weapons/pistol/reload.wav" );
             }
-            // Stop audio and actually reload the clip stats at the end of the animation sequence.
-            else if ( level.time == ent->client->weaponState.animation.endTime ) {
-                // Stop sound.
+            // Stop sound.
+            else if ( level.time >= ent->client->weaponState.animation.startTime + 1400_ms ) {
                 ent->client->weaponState.activeSound = 0;
+            }
+            // Stop audio and actually reload the clip stats at the end of the animation sequence.
+            if ( level.time >= ent->client->weaponState.animation.endTime ) {
                 // Switch to idle.
                 weapon_pistol_reload_clip( ent );
                 // Switch to idle.

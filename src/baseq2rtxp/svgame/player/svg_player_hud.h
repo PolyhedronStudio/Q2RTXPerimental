@@ -31,11 +31,6 @@ void SVG_HUD_SetSpectatorStats( edict_t *ent );
 **/
 void SVG_HUD_CheckChaseStats( edict_t *ent );
 /**
-*   @brief  Draw instead of help message.
-*   @note that it isn't that hard to overflow the 1400 byte message limit!
+*   @brief	Will engage in send generating and sending the svc_scoreboard message, optionally as part of a Reliable packet.
 **/
-void SVG_HUD_DeathmatchScoreboard( edict_t *ent );
-/**
-*   @brief
-**/
-void SVG_HUD_DeathmatchScoreboardMessage( edict_t *ent, edict_t *killer );
+void SVG_HUD_DeathmatchScoreboardMessage( edict_t *ent, edict_t *killer, const bool sendAsReliable = false );

@@ -642,7 +642,7 @@ struct precached_media_s {
 		//qhandle_t   field_pic;
 		
 		//! Net pic.
-		qhandle_t   net_pic;
+		qhandle_t   net_error_pic;
 
 		//! All-round screen font pic.
 		qhandle_t   font_pic;
