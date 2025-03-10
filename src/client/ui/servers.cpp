@@ -677,7 +677,7 @@ static void CalcPingRate(void)
         rate = info_rate->integer / 450;
 
     // don't allow more than 100 packets/sec
-    clamp(rate, 1, 100);
+    rate = std::clamp(rate, 1, 100);
 
     // drop rate by stage
     m_servers.pingtime = (1000 * PING_STAGES) / (rate * m_servers.pingstage);
@@ -689,8 +689,7 @@ UI_Frame
 
 =================
 */
-void UI_Frame(int msec)
-{
+void UI_Frame( const int64_t msec ) {
     serverslot_t *slot;
 
     if (!m_servers.pingstage)

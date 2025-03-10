@@ -24,56 +24,56 @@ QM_API Vector3 QM_Vector3One( void ) {
 }
 
 // Vector3 with x and y component of Vector2.
-QM_API Vector2 QM_Vector2FromVector3( ConstVector3Ref v1 ) {
+QM_API Vector2 QM_Vector2FromVector3( const Vector3 &v1 ) {
     const Vector2 result = { v1.x, v1.y };
 
     return result;
 }
 
 // Add two vectors
-QM_API Vector3 QM_Vector3Add( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3Add( const Vector3 &v1, const Vector3 &v2 ) {
     const Vector3 result = { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
 
     return result;
 }
 
 // Add vector and float value
-QM_API Vector3 QM_Vector3AddValue( ConstVector3Ref v, const float add ) {
+QM_API Vector3 QM_Vector3AddValue( const Vector3 &v, const float add ) {
     const Vector3 result = { v.x + add, v.y + add, v.z + add };
 
     return result;
 }
 
 // Subtract two vectors
-QM_API Vector3 QM_Vector3Subtract( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3Subtract( const Vector3 &v1, const Vector3 &v2 ) {
     const Vector3 result = { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
 
     return result;
 }
 
 // Subtract vector by float value
-QM_API Vector3 QM_Vector3SubtractValue( ConstVector3Ref v, const float sub ) {
+QM_API Vector3 QM_Vector3SubtractValue( const Vector3 &v, const float sub ) {
     Vector3 result = { v.x - sub, v.y - sub, v.z - sub };
 
     return result;
 }
 
 // Multiply vector by scalar
-QM_API Vector3 QM_Vector3Scale( ConstVector3Ref v, const float scalar ) {
+QM_API Vector3 QM_Vector3Scale( const Vector3 &v, const float scalar ) {
     Vector3 result = { v.x * scalar, v.y * scalar, v.z * scalar };
 
     return result;
 }
 
 // Multiply vector by vector
-QM_API Vector3 QM_Vector3Multiply( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3Multiply( const Vector3 &v1, const Vector3 &v2 ) {
     Vector3 result = { v1.x * v2.x, v1.y * v2.y, v1.z * v2.z };
 
     return result;
 }
 
 // Returns The vector 'v' + ('add' * 'multiply').
-QM_API Vector3 QM_Vector3MultiplyAdd( ConstVector3Ref v, const float multiply, ConstVector3Ref add ) {
+QM_API Vector3 QM_Vector3MultiplyAdd( const Vector3 &v, const float multiply, const Vector3 &add ) {
     #ifdef __cplusplus
     Vector3 result = { 
         std::fmaf( add.x, multiply, v.x ), 
@@ -92,14 +92,14 @@ QM_API Vector3 QM_Vector3MultiplyAdd( ConstVector3Ref v, const float multiply, C
 }
 
 // Calculate two vectors cross product
-QM_API Vector3 QM_Vector3CrossProduct( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3CrossProduct( const Vector3 &v1, const Vector3 &v2 ) {
     Vector3 result = { v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x };
 
     return result;
 }
 
 // Calculate one vector perpendicular vector
-QM_API Vector3 QM_Vector3Perpendicular( ConstVector3Ref v ) {
+QM_API Vector3 QM_Vector3Perpendicular( const Vector3 &v ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     float min = (float)fabs( v.x );
@@ -125,7 +125,7 @@ QM_API Vector3 QM_Vector3Perpendicular( ConstVector3Ref v ) {
 }
 
 // Calculate the fabs() of the vector.
-QM_API Vector3 QM_Vector3Fabs( ConstVector3Ref v1 ) {
+QM_API Vector3 QM_Vector3Fabs( const Vector3 &v1 ) {
     #ifdef __cplusplus
     Vector3 result = { 
         std::fabs( v1.x ),
@@ -144,7 +144,7 @@ QM_API Vector3 QM_Vector3Fabs( ConstVector3Ref v1 ) {
 }
 
 // Calculate vector length
-QM_API float QM_Vector3Length( ConstVector3Ref v ) {
+QM_API float QM_Vector3Length( const Vector3 &v ) {
     #ifdef __cplusplus
     const float result = std::sqrt( v.x * v.x + v.y * v.y + v.z * v.z );
     #else
@@ -154,21 +154,21 @@ QM_API float QM_Vector3Length( ConstVector3Ref v ) {
 }
 
 // Calculate vector square length
-QM_API float QM_Vector3LengthSqr( ConstVector3Ref v ) {
+QM_API float QM_Vector3LengthSqr( const Vector3 &v ) {
     const float result = v.x * v.x + v.y * v.y + v.z * v.z;
 
     return result;
 }
 
 // Calculate two vectors dot product
-QM_API float QM_Vector3DotProduct( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API float QM_Vector3DotProduct( const Vector3 &v1, const Vector3 &v2 ) {
     const float result = ( v1.x * v2.x + v1.y * v2.y + v1.z * v2.z );
 
     return result;
 }
 
 // Calculate distance between two vectors
-QM_API float QM_Vector3Distance( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API float QM_Vector3Distance( const Vector3 &v1, const Vector3 &v2 ) {
     const float dx = v2.x - v1.x;
     const float dy = v2.y - v1.y;
     const float dz = v2.z - v1.z;
@@ -178,7 +178,7 @@ QM_API float QM_Vector3Distance( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 }
 
 // Calculate square distance between two vectors
-QM_API float QM_Vector3DistanceSqr( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API float QM_Vector3DistanceSqr( const Vector3 &v1, const Vector3 &v2 ) {
     const float dx = v2.x - v1.x;
     const float dy = v2.y - v1.y;
     const float dz = v2.z - v1.z;
@@ -188,7 +188,7 @@ QM_API float QM_Vector3DistanceSqr( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 }
 
 // Calculate angle between two vectors
-QM_API float QM_Vector3Angle( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API float QM_Vector3Angle( const Vector3 &v1, const Vector3 &v2 ) {
     const Vector3 cross = { v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x };
     const float len = sqrtf( cross.x * cross.x + cross.y * cross.y + cross.z * cross.z );
     const float dot = ( v1.x * v2.x + v1.y * v2.y + v1.z * v2.z );
@@ -198,28 +198,28 @@ QM_API float QM_Vector3Angle( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 }
 
 // Negate provided vector (invert direction)
-QM_API Vector3 QM_Vector3Negate( ConstVector3Ref v ) {
+QM_API Vector3 QM_Vector3Negate( const Vector3 &v ) {
     const Vector3 result = { -v.x, -v.y, -v.z };
 
     return result;
 }
 
 // Divide vector by vector
-QM_API Vector3 QM_Vector3Divide( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3Divide( const Vector3 &v1, const Vector3 &v2 ) {
     const Vector3 result = { v1.x / v2.x, v1.y / v2.y, v1.z / v2.z };
 
     return result;
 }
 
 // Q2RTXPerimental: Divide vector by vector
-QM_API Vector3 QM_Vector3DivideValue( ConstVector3Ref v1, const float scalar ) {
+QM_API Vector3 QM_Vector3DivideValue( const Vector3 &v1, const float scalar ) {
     const Vector3 result = { v1.x / scalar, v1.y / scalar, v1.z / scalar };
 
     return result;
 }
 
 // Normalize provided vector
-QM_API Vector3 QM_Vector3Normalize( ConstVector3Ref v ) {
+QM_API Vector3 QM_Vector3Normalize( const Vector3 &v ) {
     Vector3 result = v;
 
     float length = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
@@ -235,7 +235,7 @@ QM_API Vector3 QM_Vector3Normalize( ConstVector3Ref v ) {
 }
 
 //Calculate the projection of the vector v1 on to v2
-QM_API Vector3 QM_Vector3Project( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3Project( const Vector3 &v1, const Vector3 &v2 ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     const float v1dv2 = ( v1.x * v2.x + v1.y * v2.y + v1.z * v2.z );
@@ -251,7 +251,7 @@ QM_API Vector3 QM_Vector3Project( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 }
 
 //Calculate the rejection of the vector v1 on to v2
-QM_API Vector3 QM_Vector3Reject( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3Reject( const Vector3 &v1, const Vector3 &v2 ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     const float v1dv2 = ( v1.x * v2.x + v1.y * v2.y + v1.z * v2.z );
@@ -301,7 +301,7 @@ QM_API_DISCARD void QM_Vector3OrthoNormalize( Vector3 *v1, Vector3 *v2 ) {
 }
 
 // Transforms a Vector3 by a given Matrix
-QM_API Vector3 QM_Vector3Transform( ConstVector3Ref v, Matrix mat ) {
+QM_API Vector3 QM_Vector3Transform( const Vector3 &v, Matrix mat ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     float x = v.x;
@@ -316,7 +316,7 @@ QM_API Vector3 QM_Vector3Transform( ConstVector3Ref v, Matrix mat ) {
 }
 
 // Transform a vector by quaternion rotation
-QM_API Vector3 QM_Vector3RotateByQuaternion( ConstVector3Ref v, Quaternion q ) {
+QM_API Vector3 QM_Vector3RotateByQuaternion( const Vector3 &v, Quaternion q ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = v.x * ( q.x * q.x + q.w * q.w - q.y * q.y - q.z * q.z ) + v.y * ( 2 * q.x * q.y - 2 * q.w * q.z ) + v.z * ( 2 * q.x * q.z + 2 * q.w * q.y );
@@ -327,7 +327,7 @@ QM_API Vector3 QM_Vector3RotateByQuaternion( ConstVector3Ref v, Quaternion q ) {
 }
 
 // Rotates a vector around an axis
-QM_API Vector3 QM_Vector3RotateByAxisAngle( ConstVector3Ref v, Vector3 axis, float angle ) {
+QM_API Vector3 QM_Vector3RotateByAxisAngle( const Vector3 &v, Vector3 axis, float angle ) {
     // Using Euler-Rodrigues Formula
     // Ref.: https://en.wikipedia.org/w/index.php?title=Euler%E2%80%93Rodrigues_formula
 
@@ -378,7 +378,7 @@ QM_API Vector3 QM_Vector3RotateByAxisAngle( ConstVector3Ref v, Vector3 axis, flo
 }
 
 // Calculate linear interpolation between two vectors, the slightly less precise version.
-QM_API Vector3 QM_Vector3LerpFast( ConstVector3Ref v1, ConstVector3Ref v2, const float amount ) {
+QM_API Vector3 QM_Vector3LerpFast( const Vector3 &v1, const Vector3 &v2, const float amount ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = v1.x + amount * ( v2.x - v1.x );
@@ -389,7 +389,7 @@ QM_API Vector3 QM_Vector3LerpFast( ConstVector3Ref v1, ConstVector3Ref v2, const
 }
 
 // Calculate linear interpolation between two vectors, slower lerp, but you specify back & front lerp separately.
-QM_API Vector3 QM_Vector3LerpBackFront( ConstVector3Ref v1, ConstVector3Ref v2, const float backLerp, const float frontLerp ) {
+QM_API Vector3 QM_Vector3LerpBackFront( const Vector3 &v1, const Vector3 &v2, const float backLerp, const float frontLerp ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = ( v1.x ) * (backLerp) + ( v2.x ) * ( frontLerp );
@@ -400,7 +400,7 @@ QM_API Vector3 QM_Vector3LerpBackFront( ConstVector3Ref v1, ConstVector3Ref v2, 
 }
 
 // Calculate linear interpolation between two vectors, slower lerp, but is more mathematically precise.
-QM_API Vector3 QM_Vector3Lerp( ConstVector3Ref v1, ConstVector3Ref v2, const float amount ) {
+QM_API Vector3 QM_Vector3Lerp( const Vector3 &v1, const Vector3 &v2, const float amount ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = ( v1.x ) * ( 1.0f - amount ) + ( v2.x ) * ( amount );
@@ -411,7 +411,7 @@ QM_API Vector3 QM_Vector3Lerp( ConstVector3Ref v1, ConstVector3Ref v2, const flo
 }
 
 // Calculate reflected vector to normal
-QM_API Vector3 QM_Vector3Reflect( ConstVector3Ref v, ConstVector3Ref normal ) {
+QM_API Vector3 QM_Vector3Reflect( const Vector3 &v, const Vector3 &normal ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     // I is the original vector
@@ -428,7 +428,7 @@ QM_API Vector3 QM_Vector3Reflect( ConstVector3Ref v, ConstVector3Ref normal ) {
 }
 
 // Get min value for each pair of components
-QM_API Vector3 QM_Vector3Minf( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3Minf( const Vector3 &v1, const Vector3 &v2 ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = fminf( v1.x, v2.x );
@@ -439,7 +439,7 @@ QM_API Vector3 QM_Vector3Minf( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 }
 
 // Get max value for each pair of components
-QM_API Vector3 QM_Vector3Maxf( ConstVector3Ref v1, ConstVector3Ref v2 ) {
+QM_API Vector3 QM_Vector3Maxf( const Vector3 &v1, const Vector3 &v2 ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = fmaxf( v1.x, v2.x );
@@ -450,7 +450,7 @@ QM_API Vector3 QM_Vector3Maxf( ConstVector3Ref v1, ConstVector3Ref v2 ) {
 }
 
 // Get absolute value for each pair of components
-QM_API Vector3 QM_Vector3Absf( ConstVector3Ref v ) {
+QM_API Vector3 QM_Vector3Absf( const Vector3 &v ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = fabsf( v.x );
@@ -463,7 +463,7 @@ QM_API Vector3 QM_Vector3Absf( ConstVector3Ref v ) {
 
 // Compute barycenter coordinates (u, v, w) for point p with respect to triangle (a, b, c)
 // NOTE: Assumes P is on the plane of the triangle
-QM_API Vector3 QM_Vector3Barycenter( ConstVector3Ref p, ConstVector3Ref a, ConstVector3Ref b, ConstVector3Ref c ) {
+QM_API Vector3 QM_Vector3Barycenter( const Vector3 &p, const Vector3 &a, const Vector3 &b, const Vector3 &c ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     const Vector3 v0 = { b.x - a.x, b.y - a.y, b.z - a.z };   // Vector3Subtract(b, a)
@@ -486,7 +486,7 @@ QM_API Vector3 QM_Vector3Barycenter( ConstVector3Ref p, ConstVector3Ref a, Const
 
 // Projects a Vector3 from screen space into object space
 // NOTE: We are avoiding calling other raymath functions despite available
-QM_API Vector3 QM_Vector3Unproject( ConstVector3Ref source, Matrix projection, Matrix view ) {
+QM_API Vector3 QM_Vector3Unproject( const Vector3 &source, Matrix projection, Matrix view ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     // Calculate unprojected matrix (multiply view matrix by projection matrix) and invert it
@@ -568,7 +568,7 @@ QM_API Vector3 QM_Vector3Unproject( ConstVector3Ref source, Matrix projection, M
 }
 
 // Get Vector3 as float array
-QM_API float3 QM_Vector3ToFloatV( ConstVector3Ref v ) {
+QM_API float3 QM_Vector3ToFloatV( const Vector3 &v ) {
     float3 buffer = { 0 };
 
     buffer.v[ 0 ] = v.x;
@@ -579,7 +579,7 @@ QM_API float3 QM_Vector3ToFloatV( ConstVector3Ref v ) {
 }
 
 // Q2RTXPerimental: Get Vector3 as vec3_t array.
-QM_API qfloat3 QM_Vector3ToQFloatV( ConstVector3Ref v ) {
+QM_API qfloat3 QM_Vector3ToQFloatV( const Vector3 &v ) {
     qfloat3 buffer = { 0 };
 
     buffer.v[ 0 ] = v.x;
@@ -590,7 +590,7 @@ QM_API qfloat3 QM_Vector3ToQFloatV( ConstVector3Ref v ) {
 }
 
 // Invert the given vector
-QM_API Vector3 QM_Vector3Invert( ConstVector3Ref v ) {
+QM_API Vector3 QM_Vector3Invert( const Vector3 &v ) {
     const Vector3 result = { 1.0f / v.x, 1.0f / v.y, 1.0f / v.z };
 
     return result;
@@ -598,7 +598,7 @@ QM_API Vector3 QM_Vector3Invert( ConstVector3Ref v ) {
 
 // Clamp the components of the vector between
 // min and max values specified by the given vectors
-QM_API Vector3 QM_Vector3Clamp( ConstVector3Ref v, ConstVector3Ref min, ConstVector3Ref max ) {
+QM_API Vector3 QM_Vector3Clamp( const Vector3 &v, const Vector3 &min, const Vector3 &max ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     result.x = fminf( max.x, fmaxf( min.x, v.x ) );
@@ -609,7 +609,7 @@ QM_API Vector3 QM_Vector3Clamp( ConstVector3Ref v, ConstVector3Ref min, ConstVec
 }
 
 // Clamp the magnitude of the vector between two values
-QM_API Vector3 QM_Vector3ClampValue( ConstVector3Ref v, const float min, const float max ) {
+QM_API Vector3 QM_Vector3ClampValue( const Vector3 &v, const float min, const float max ) {
     Vector3 result = v;
 
     float length = ( v.x * v.x ) + ( v.y * v.y ) + ( v.z * v.z );
@@ -661,7 +661,7 @@ QM_API int QM_Vector3EqualsFast( Vector3 p, Vector3 q ) {
 // n: normalized normal vector of the interface of two optical media
 // r: ratio of the refractive index of the medium from where the ray comes
 //    to the refractive index of the medium on the other side of the surface
-QM_API Vector3 QM_Vector3Refract( Vector3 v, ConstVector3Ref n, const float r ) {
+QM_API Vector3 QM_Vector3Refract( Vector3 v, const Vector3 &n, const float r ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     float dot = v.x * n.x + v.y * n.y + v.z * n.z;
@@ -876,7 +876,7 @@ QM_API Vector3 QM_Vector3Maxs( void ) {
 /**
 *   @brief  Returns the linear interpolation of `a` and `b` using the specified 'lerp' fractions.
 **/
-QM_API Vector3 QM_Vector3LerpVector3( ConstVector3Ref a, ConstVector3Ref b, ConstVector3Ref lerp ) {
+QM_API Vector3 QM_Vector3LerpVector3( const Vector3 &a, const Vector3 &b, const Vector3 &lerp ) {
     return QM_Vector3Add( a, QM_Vector3Multiply( QM_Vector3Subtract( b, a ), lerp ) );
 }
 
@@ -973,7 +973,7 @@ QM_API Vector3 operator*( const Vector3 &left, const Vector3 &right ) {
 QM_API Vector3 operator*( const Vector3 &left, const float &right ) {
     return QM_Vector3Scale( left, right );
 }
-// for: ConstVector3Ref v1 = floatVal * v2;
+// for: const Vector3 &v1 = floatVal * v2;
 QM_API Vector3 operator*( const float &left, const Vector3 &right ) {
     return QM_Vector3Scale( right, left );
 }
@@ -1069,7 +1069,7 @@ QM_API float QM_Vector3NormalizeLength( Vector3 &v ) {
 /**
 *   @brief  AngleMod the entire Vector3.
 **/
-QM_API Vector3 QM_Vector3AngleMod( ConstVector3Ref v ) {
+QM_API Vector3 QM_Vector3AngleMod( const Vector3 &v ) {
     return Vector3{
         QM_AngleMod( v.x ),
         QM_AngleMod( v.y ),
@@ -1080,7 +1080,7 @@ QM_API Vector3 QM_Vector3AngleMod( ConstVector3Ref v ) {
 /**
 *   @brief  Will lerp between the euler angle, a2 and a1.
 **/
-QM_API Vector3 QM_Vector3LerpAngles( ConstVector3Ref angleVec2, ConstVector3Ref angleVec1, const float fraction ) {
+QM_API Vector3 QM_Vector3LerpAngles( const Vector3 &angleVec2, const Vector3 &angleVec1, const float fraction ) {
     return {
         LerpAngle( angleVec2.x, angleVec1.x, fraction ),
         LerpAngle( angleVec2.y, angleVec1.y, fraction ),
@@ -1091,7 +1091,7 @@ QM_API Vector3 QM_Vector3LerpAngles( ConstVector3Ref angleVec2, ConstVector3Ref 
 /**
 *   @return The closest point of the box that is near vector 'in'.
 **/
-QM_API Vector3 QM_Vector3ClosestPointToBox( ConstVector3Ref in, ConstVector3Ref absmin, ConstVector3Ref absmax ) {
+QM_API Vector3 QM_Vector3ClosestPointToBox( const Vector3 &in, const Vector3 &absmin, const Vector3 &absmax ) {
     Vector3 out = {};
 
     for ( int i = 0; i < 3; i++ ) {

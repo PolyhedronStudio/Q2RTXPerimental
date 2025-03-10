@@ -216,25 +216,17 @@ void Q_srand( uint32_t seed );
 uint32_t Q_rand( void );
 uint32_t Q_rand_uniform( uint32_t n );
 
-#define constclamp(a,b,c)   ((a)<(b)?(b):(a)>(c)?(c):(a))
-#define clamp(a,b,c)    ((a)<(b)?(a)=(b):(a)>(c)?(a)=(c):(a))
-#define cclamp(a,b,c)   ((b)>(c)?clamp(a,c,b):clamp(a,b,c))
-
 /**
 *   This needs to be done separately because otherwise preprocessor macros will
 *   trip over parsing C++ code that attemps to use std::max.
 **/
 #ifdef __cplusplus
-    //#define max std::max
-    //#define min std::min
-    //#ifdef max
-    //    #undef max
-    //#endif
-
-    //#ifdef min
-    //    #undef min
-    //#endif
+    // We use std::min by (std::min)(args) which is a method to avoid preprocessor min/max to getting in the way.
 #else 
+    #define constclamp(a,b,c)   ((a)<(b)?(b):(a)>(c)?(c):(a))
+    #define clamp(a,b,c)    ((a)<(b)?(a)=(b):(a)>(c)?(a)=(c):(a))
+    #define cclamp(a,b,c)   ((b)>(c)?clamp(a,c,b):clamp(a,b,c))
+
     #ifndef max
         #define max(a,b) ((a)>(b)?(a):(b))
     #endif

@@ -364,8 +364,8 @@ LAGOMETER
 
 ===============================================================================
 */
-#define LAG_WIDTH   48
-#define LAG_HEIGHT  48
+#define LAG_WIDTH   48LL
+#define LAG_HEIGHT  48LL
 
 #define LAG_CRIT_BIT    (1U << 31) // BIT_ULL(63)//
 #define LAG_WARN_BIT    (1U << 30) // BIT_ULL(62)//
@@ -443,7 +443,7 @@ static void SCR_LagDraw( int x, int y ) {
 
         v &= ~( LAG_WARN_BIT | LAG_CRIT_BIT );
         v = ( v - v_min ) * LAG_HEIGHT / v_range;
-        clamp( v, 0, LAG_HEIGHT );
+        v = std::clamp( v, 0LL, LAG_HEIGHT );
 
         clgi.R_DrawFill8( x + LAG_WIDTH - i - 1, y + LAG_HEIGHT - v, 1, v, c );
     }

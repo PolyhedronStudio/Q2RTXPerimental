@@ -157,9 +157,9 @@ static void parse_string_value(cvar_t *var)
     char *s = var->string;
 
     if (s[0] == '0' && s[1] == 'x') {
-        long v = strtol(s, NULL, 16);
+        int32_t v = strtol(s, NULL, 16);
 
-        var->integer = clamp(v, INT_MIN, INT_MAX);
+        var->integer = std::clamp(v, INT_MIN, INT_MAX);
         var->value = (float)var->integer;
     } else {
         var->integer = atoi(s);

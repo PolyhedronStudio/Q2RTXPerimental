@@ -43,6 +43,7 @@
 		#define EASING_OUT_TYPE float
 	#endif
 #endif
+
 /**
 *	@brief	Modeled after the line y = x
 **/

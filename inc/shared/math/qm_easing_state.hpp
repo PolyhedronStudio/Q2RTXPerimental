@@ -43,13 +43,13 @@ public:
 
 private:
     //! The absolute time this ease started.
-    QMTime timeStart;
+    QMTime timeStart = 0_ms;
     //! The absolute time this ease should be done by.
-    QMTime timeEnd;
+    QMTime timeEnd = 0_ms;
     //! The duration.
-    QMTime timeDuration;
+    QMTime timeDuration = 0_ms;
     //! Determined by the easing methods, actual normalized factor value of the ease.
-    double easeFactor;
+    double easeFactor = 0.;
 
 public:
     /**

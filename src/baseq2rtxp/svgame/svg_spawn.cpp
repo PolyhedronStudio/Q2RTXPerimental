@@ -602,7 +602,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Acquire the 'skill' level cvar value in order to exlude various entities for various
     // skill levels.
     float skill_level = floor( skill->value );
-    skill_level = constclamp( skill_level, 0, 3 );
+    skill_level = std::clamp( skill_level, 0.f, 3.f );
     
     // If it is an out of bounds cvar, force set skill level within the clamped bounds.
     if ( skill->value != skill_level ) {

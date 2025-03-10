@@ -317,7 +317,18 @@ static void CLG_ClampSpeed( Vector3 &move ) {
         speed = default_pmoveParams_t::pm_water_speed;
     }
 
-    move = QM_Vector3ClampValue( move, -speed, speed );
+    move = QM_Vector3Clamp( move,
+        {
+            -speed,
+            -speed,
+            -speed,
+        },
+        {
+            speed,
+            speed,
+            speed,
+        }
+    );
 }
 
 /**
@@ -325,17 +336,17 @@ static void CLG_ClampSpeed( Vector3 &move ) {
 */
 static void CLG_ClampPitch( void ) {
     //const float pitch = /*SHORT2ANGLE*/( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
-    const float pitch = /*SHORT2ANGLE*/QM_AngleMod( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
-    float angle = clgi.client->viewangles[ PITCH ] + pitch;
+    const double pitch = /*SHORT2ANGLE*/QM_AngleMod( clgi.client->frame.ps.pmove.delta_angles[ PITCH ] );
+    double angle = clgi.client->viewangles[ PITCH ] + pitch;
     // Wrap around.
-    if ( angle < -180 ) {
-        angle += 360; // wrapped
+    if ( angle < -180. ) {
+        angle += 360.; // wrapped
     }
-    if ( angle > 180 ) {
-        angle -= 360; // wrapped
+    if ( angle > 180. ) {
+        angle -= 360.; // wrapped
     }
     // Clamp pitch angle.
-    clamp( angle, -89, 89 );
+    angle = std::clamp( angle, -89., 89. );
     clgi.client->viewangles[ PITCH ] = angle - pitch;
 }
 

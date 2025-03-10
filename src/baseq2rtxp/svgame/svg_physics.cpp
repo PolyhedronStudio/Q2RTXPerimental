@@ -100,13 +100,25 @@ SV_CheckVelocity
 */
 void SV_CheckVelocity(edict_t *ent)
 {
-    int     i;
+//    int     i;
 
 //
 // bound velocity
 //
-    for (i = 0; i < 3; i++)
-        clamp(ent->velocity[i], -sv_maxvelocity->value, sv_maxvelocity->value);
+    ent->velocity = QM_Vector3Clamp( ent->velocity,
+        {
+            -sv_maxvelocity->value,
+            -sv_maxvelocity->value,
+            -sv_maxvelocity->value,
+        },
+        {
+            sv_maxvelocity->value,
+            sv_maxvelocity->value,
+            sv_maxvelocity->value,
+        }
+    );
+    //for (i = 0; i < 3; i++)
+    //    std::clamp(ent->velocity[i], -sv_maxvelocity->value, sv_maxvelocity->value);
 }
 
 /*

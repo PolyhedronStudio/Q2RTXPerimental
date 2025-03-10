@@ -337,7 +337,7 @@ const double CL_KeyState( keybutton_t *key ) {
 
     val = (double)msec / cl.moveCommand.cmd.msec;
 
-    return clamp( val, 0, 1 );
+    return std::clamp( val, 0., 1. );
 }
 
 //==========================================================================

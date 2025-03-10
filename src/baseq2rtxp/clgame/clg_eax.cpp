@@ -218,7 +218,7 @@ const float json_token_to_float( const char *jsonBuffer, jsmntok_t *tokens, cons
 	// Value
 	char fieldValue[ MAX_QPATH ] = { };
 	// Fetch field value string size.
-	const int32_t size = constclamp( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
+	const int32_t size = std::clamp( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
 	// Parse field value into buffer.
 	Q_snprintf( fieldValue, size, jsonBuffer + tokens[ tokenID + 1 ].start );
 
@@ -232,7 +232,7 @@ const int32_t json_token_to_int32( const char *jsonBuffer, jsmntok_t *tokens, co
 	// Value
 	char fieldValue[ MAX_QPATH ] = { };
 	// Fetch field value string size.
-	const int32_t size = constclamp( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
+	const int32_t size = std::clamp( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
 	// Parse field value into buffer.
 	Q_snprintf( fieldValue, size, jsonBuffer + tokens[ tokenID + 1 ].start );
 

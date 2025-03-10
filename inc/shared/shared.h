@@ -213,7 +213,11 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #include "shared/math/qm_legacy_math_macros.h"
 
 //! Include our own custom version of raylib1.5 its raymath library.
-#include "shared/math/qm_math.h"
+#ifdef __cplusplus
+    #include "shared/math/qm_math_cpp.h"
+#else
+    #include "shared/math/qm_math_c.h"
+#endif // #ifdef __cplusplus
 
 //! Color Index Table:
 #include "shared/color_index_table.h"

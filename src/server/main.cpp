@@ -1908,7 +1908,7 @@ void SV_UserinfoChanged(client_t *cl)
     val = Info_ValueForKey( cl->userinfo, "rate" );
     if ( *val ) {
         cl->rate = atoi( val );
-        clamp( cl->rate, sv_min_rate->integer, sv_max_rate->integer );
+        cl->rate = std::clamp( cl->rate, (uint64_t)sv_min_rate->integer, (uint64_t)sv_max_rate->integer );
     } else {
         cl->rate = CLIENT_RATE_MIN;
     }
@@ -1928,7 +1928,7 @@ void SV_UserinfoChanged(client_t *cl)
     val = Info_ValueForKey( cl->userinfo, "msg" );
     if ( *val ) {
         cl->messagelevel = atoi( val );
-        clamp( cl->messagelevel, PRINT_LOW, PRINT_CHAT + 1 );
+        cl->messagelevel = std::clamp( cl->messagelevel, PRINT_LOW, PRINT_CHAT + 1 );
     }
 }
 

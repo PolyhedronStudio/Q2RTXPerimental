@@ -257,7 +257,7 @@ static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstF
             //clgi.Print( PRINT_NOTICE, "%s: refreshEntity->backlerp = 1.0 - lerpFraction; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame );
         }
         // Clamp just to be sure.
-        clamp( refreshEntity->backlerp, 0.0, 1.0 );
+        refreshEntity->backlerp = std::clamp( refreshEntity->backlerp, 0.f, 1.f );
         // Reached the end of the animation:
     } else {
         //clgi.Print( PRINT_NOTICE, "%s: frameForTime != -1; [refreshEntity->frame(%i), refreshEntity->oldframe(%i), firstFrame(%i), lastFrame(%i) ]\n", __func__, refreshEntity->frame, refreshEntity->oldframe, firstFrame, lastFrame  );
@@ -509,33 +509,33 @@ static void CLG_CycleViewBob( player_state_t *ps ) {
 **/
 void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
     int     i;
-    float   delta;
+    double   delta;
 
     // Gun angles from bobbing
-    ps->gunangles[ ROLL ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005f;
-    ps->gunangles[ YAW ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.01f;
+    ps->gunangles[ ROLL ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
+    ps->gunangles[ YAW ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.01;
     if ( level.viewBob.cycle & 1 ) {
         ps->gunangles[ ROLL ] = -ps->gunangles[ ROLL ];
         ps->gunangles[ YAW ] = -ps->gunangles[ YAW ];
     }
 
-    ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005f;
+    ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
     #if 1
     // Gun angles from delta movement
     for ( i = 0; i < 3; i++ ) {
         delta = QM_AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
-        if ( delta > 180 ) {
-            delta -= 360;
+        if ( delta > 180. ) {
+            delta -= 360.;
         }
-        if ( delta < -180 ) {
-            delta += 360;
+        if ( delta < -180. ) {
+            delta += 360.;
         }
-        clamp( delta, -45, 45 );
+        delta = std::clamp( delta, -45., 45. );
 
         if ( i == YAW ) {
-            ps->gunangles[ ROLL ] += 0.1f * delta;
+            ps->gunangles[ ROLL ] += 0.1 * delta;
         }
-        ps->gunangles[ i ] += 0.2f * delta;
+        ps->gunangles[ i ] += 0.2 * delta;
     }
     #else
     static Vector3 slowAngles = {};
@@ -656,10 +656,18 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
     clgi.client->refdef.vieworg[ 2 ] += bobHeight;
 
     // Clamp angles.
-    for ( int32_t i = 0; i < 3; i++ ) {
-        viewAngles[ i ] = clamp( viewAngles[ i ], -31.f, 31.f );
-    }
-
+    viewAngles = QM_Vector3Clamp( viewAngles,
+        {
+            -31.f,
+            -31.f,
+            -31.f,
+        },
+        {
+            31.f,
+            31.f,
+            31.f,
+        }
+    );
     VectorAdd( clgi.client->refdef.viewangles, viewAngles, clgi.client->refdef.viewangles );
 }
 

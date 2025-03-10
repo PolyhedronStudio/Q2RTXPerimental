@@ -252,12 +252,12 @@ QM_API float QM_Lerp( const float start, const float end, const float amount ) {
 *   @brief  Returns the angle by clamping it within 0 to 359 degrees using modulation.
 *           Useful to maintain the floating point angles precision.
 **/
-QM_API float QM_AngleMod( const float a ) {
+QM_API double QM_AngleMod( const double  a ) {
     // Float based method:
-    const float v = fmod( a, 360.0f );
+    const double v = std::fmod( a, 360.0 );
 
     if ( v < 0 ) {
-        return 360.f + v;
+        return 360. + v;
     }
 
     return v;
@@ -266,21 +266,22 @@ QM_API float QM_AngleMod( const float a ) {
 /**
 *   @brief  Will lerp between the euler angle, a2 and a1.
 **/
-QM_API float QM_LerpAngle( float angle2, float angle1, const float fraction ) {
-    if ( angle1 - angle2 > 180 ) {
-        angle1 -= 360;
+QM_API double QM_LerpAngle( const double angle2, const double angle1, const double fraction ) {
+    double _angle1 = angle1;
+    if ( angle1 - angle2 > 180. ) {
+        _angle1 -= 360.;
     }
     if ( angle1 - angle2 < -180 ) {
-        angle1 += 360;
+        _angle1 += 360;
     }
-    return angle2 + fraction * ( angle1 - angle2 );
+    return angle2 + fraction * ( _angle1 - angle2 );
 }
 
 /**
 *   @brief  returns angle normalized to the range [-180 < angle <= 180]
 **/
 QM_API float QM_Angle_Normalize180( const float angle ) {
-    float _angle = fmod( ( angle ), 360.0f );
+    double _angle = std::fmod( ( angle ), 360.0 );
     if ( _angle > 180.0 ) {
         _angle -= 360.0;
     }
@@ -289,6 +290,6 @@ QM_API float QM_Angle_Normalize180( const float angle ) {
 /**
 *   @brief  returns the normalized to range [-180 < angle <= 180] delta from angle1 to angle2
 **/
-QM_API float QM_AngleDelta( const float angle1, const float angle2 ) {
+QM_API double QM_AngleDelta( const double angle1, const double angle2 ) {
     return QM_Angle_Normalize180( angle1 - angle2 );
 }

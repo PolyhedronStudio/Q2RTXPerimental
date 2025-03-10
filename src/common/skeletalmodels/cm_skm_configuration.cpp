@@ -157,7 +157,7 @@ static const int32_t json_token_value_strcmp( const char *jsonBuffer, jsmntok_t 
 **/
 static const int32_t json_token_value_to_buffer( const char *jsonBuffer, jsmntok_t *token, char *outputBuffer, const uint32_t outputBufferLength ) {
     // Token string/value size.
-    const int32_t tokenValueSize = constclamp( token->end - token->start, 0, outputBufferLength );
+    const int32_t tokenValueSize = QM_ClampInt32( token->end - token->start, 0, outputBufferLength );
 
     // Parse field value into buffer.
     return Q_scnprintf( outputBuffer, tokenValueSize + 1, "%s\0", jsonBuffer + token->start );

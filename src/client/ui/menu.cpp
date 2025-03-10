@@ -1524,13 +1524,13 @@ static void Slider_Push(menuSlider_t *s)
 {
     s->modified = false;
     s->curvalue = s->cvar->value;
-    cclamp(s->curvalue, s->minvalue, s->maxvalue);
+    s->curvalue = std::clamp(s->curvalue, s->minvalue, s->maxvalue);
 }
 
 static void Slider_Pop(menuSlider_t *s)
 {
     if (s->modified) {
-        cclamp(s->curvalue, s->minvalue, s->maxvalue);
+        s->curvalue = std::clamp(s->curvalue, s->minvalue, s->maxvalue);
         Cvar_SetValue(s->cvar, s->curvalue, FROM_MENU);
     }
 }
@@ -1563,7 +1563,7 @@ static menuSound_t Slider_Click(menuSlider_t *s)
     int     x;
 
     pos = (s->curvalue - s->minvalue) / (s->maxvalue - s->minvalue);
-    clamp(pos, 0, 1);
+    pos = std::clamp(pos, 0.f, 1.f);
 
     x = CHAR_WIDTH + (SLIDER_RANGE - 1) * CHAR_WIDTH * pos;
 
@@ -1605,7 +1605,7 @@ static menuSound_t Slider_MouseMove(menuSlider_t *s)
         return QMS_NOTHANDLED;
 
     pos = (uis.mouseCoords[0] - (s->generic.x + RCOLUMN_OFFSET + CHAR_WIDTH)) * (1.0f / (SLIDER_RANGE * CHAR_WIDTH));
-    clamp(pos, 0, 1);
+    pos = std::clamp(pos, 0.f, 1.f);
 
     value = pos * (s->maxvalue - s->minvalue);
     steps = Q_rint(value / s->step);
@@ -1644,7 +1644,7 @@ static menuSound_t Slider_DoSlide(menuSlider_t *s, int dir)
     s->modified = true;
     s->curvalue += dir * s->step;
 
-    cclamp(s->curvalue, s->minvalue, s->maxvalue);
+    s->curvalue = std::clamp(s->curvalue, s->minvalue, s->maxvalue);
 
     if (s->generic.change) {
         menuSound_t sound = s->generic.change(&s->generic);
@@ -1685,7 +1685,7 @@ static void Slider_Draw(menuSlider_t *s)
     UI_DrawChar(RCOLUMN_OFFSET + s->generic.x + i * CHAR_WIDTH + CHAR_WIDTH, s->generic.y, flags | UI_LEFT, 130);
 
     pos = (s->curvalue - s->minvalue) / (s->maxvalue - s->minvalue);
-    clamp(pos, 0, 1);
+    pos = std::clamp(pos, 0.f, 1.f);
 
     UI_DrawChar(CHAR_WIDTH + RCOLUMN_OFFSET + s->generic.x + (SLIDER_RANGE - 1) * CHAR_WIDTH * pos, s->generic.y, flags | UI_LEFT, 131);
 

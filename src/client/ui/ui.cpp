@@ -408,13 +408,13 @@ bool UI_DoHitTest(void)
 UI_MouseEvent
 =================
 */
-void UI_MouseEvent(int x, int y)
+void UI_MouseEvent( const int32_t x, const int32_t y)
 {
-    clamp(x, 0, r_config.width - 1);
-    clamp(y, 0, r_config.height - 1);
+    const int32_t _x = std::clamp(x, 0, r_config.width - 1);
+    const int32_t _y = std::clamp(y, 0, r_config.height - 1);
 
-    uis.mouseCoords[0] = Q_rint(x * uis.scale);
-    uis.mouseCoords[1] = Q_rint(y * uis.scale);
+    uis.mouseCoords[0] = Q_rint(_x * uis.scale);
+    uis.mouseCoords[1] = Q_rint(_y * uis.scale);
 
     UI_DoHitTest();
 }
@@ -424,8 +424,7 @@ void UI_MouseEvent(int x, int y)
 UI_Draw
 =================
 */
-void UI_Draw(unsigned realtime)
-{
+void UI_Draw( const uint64_t realtime ){
     int i;
 
     uis.realtime = realtime;
@@ -528,8 +527,7 @@ void UI_StartSound(menuSound_t sound)
 UI_KeyEvent
 =================
 */
-void UI_KeyEvent(int key, bool down)
-{
+void UI_KeyEvent( const int32_t key, const bool down ) {
     menuSound_t sound;
 
     if (!uis.activeMenu) {
@@ -553,8 +551,7 @@ void UI_KeyEvent(int key, bool down)
 UI_CharEvent
 =================
 */
-void UI_CharEvent(int key)
-{
+void UI_CharEvent( const int32_t key ) {
     menuCommon_t *item;
     menuSound_t sound;
 
@@ -651,8 +648,7 @@ UI_Init
 */
 void UI_Init(void)
 {
-    char buffer[MAX_QPATH];
-    int i;
+
 
     Cmd_Register(c_ui);
 
@@ -671,6 +667,8 @@ void UI_Init(void)
 
     // <Q2RTXP>: WID: We don't use these.
     #ifdef USE_UI_ENABLE_BITMAP_ITEM_CONTROL
+    char buffer[ MAX_QPATH ];
+    int i;
     for (i = 0; i < NUM_CURSOR_FRAMES; i++) {
         Q_snprintf(buffer, sizeof(buffer), "m_cursor%d", i);
         uis.bitmapCursors[i] = R_RegisterPic(buffer);

@@ -125,12 +125,12 @@ void CLG_PredictNextBobCycle( pmove_t *pm ) {
 **/
 void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedState, const float stepHeight ) {
     // Time in miliseconds to lerp the step with.
-    static constexpr int32_t PM_STEP_TIME = 100;
+    static constexpr double PM_STEP_TIME = 100.;
     // Maximum -/+ change we allow in step lerps.
-    static constexpr int32_t PM_MAX_STEP_CHANGE = 32;
+    static constexpr double PM_MAX_STEP_CHANGE = 32.;
 
     // Get the absolute step's height value for testing against.
-    const float fabsStep = fabsf( stepHeight );
+    const double fabsStep = std::fabs( stepHeight );
 
     // Consider a Z change being "stepping" if...
     const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
@@ -144,7 +144,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
         const uint64_t delta = ( clgi.GetRealTime() - predictedState->transition.step.timeChanged );
 
         // Default old step to 0.
-        double old_step = 0.f;
+        double old_step = 0.;
         // If the delta timefor the previous step, up till the current step frame is smaller than PM_STEP_TIME.
         if ( delta < PM_STEP_TIME ) {
             // Calculate how far we've come.
@@ -153,7 +153,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
         }
 
         // Add the stepHeight amount.
-        predictedState->transition.step.height = constclamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+        predictedState->transition.step.height = std::clamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
 
         // Set the new step_time.
         predictedState->transition.step.timeChanged = clgi.GetRealTime();

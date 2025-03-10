@@ -266,12 +266,12 @@ static void CM_TestInLeaf( cm_t *cm, mleaf_t *leaf ) {
 **/
 static void CM_RecursiveHullCheck( cm_t *cm, mnode_t *node, float p1f, float p2f, const vec3_t p1, const vec3_t p2 ) {
     cplane_t *plane;
-    float       t1, t2, offset;
-    float       frac, frac2;
-    float       idist;
-    vec3_t      mid;
-    int         side;
-    float       midf;
+    float   t1, t2, offset;
+    float   frac, frac2;
+    float   idist;
+    vec3_t  mid;
+    int     side;
+    float   midf;
 
     if ( trace_trace->fraction <= p1f )
         return;     // already hit something nearer
@@ -331,13 +331,13 @@ recheck:
     }
 
     // move up to the node
-    midf = p1f + ( p2f - p1f ) * clamp( frac, 0, 1 );
+    midf = p1f + ( p2f - p1f ) * std::clamp( frac, 0.f, 1.f );
     LerpVector( p1, p2, frac, mid );
 
     CM_RecursiveHullCheck( cm, node->children[ side ], p1f, midf, p1, mid );
 
     // go past the node
-    midf = p1f + ( p2f - p1f ) * clamp( frac2, 0, 1 );
+    midf = p1f + ( p2f - p1f ) * std::clamp( frac2, 0.f, 1.f );
     LerpVector( p1, p2, frac2, mid );
 
     CM_RecursiveHullCheck( cm, node->children[ side ^ 1 ], midf, p2f, mid, p2 );

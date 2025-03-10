@@ -195,13 +195,13 @@ typedef struct client_predicted_state_s {
     struct {
         struct {
             //! Stores the stepheight.
-            float height;
+            double height;
             //! Stores cl.realtime of when the step was last changed.
             uint64_t timeChanged;
         } step;
         struct {
             //! Stores the previous view height[#1] and the current[#0] height.
-            float height[ 2 ];
+            double height[ 2 ];
             //! Stores cl.time of when the height was last changed.
             uint64_t timeHeightChanged;
         } view;

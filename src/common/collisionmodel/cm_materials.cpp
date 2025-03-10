@@ -158,7 +158,7 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
             // Value
             char fieldValue[ MAX_QPATH ] = { };
             // Fetch field value string size.
-            const int32_t size = constclamp( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
+            const int32_t size = QM_ClampInt32( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
             // Parse field value into buffer.
             Q_snprintf( fieldValue, size, jsonBuffer + tokens[ tokenID + 1 ].start );
 

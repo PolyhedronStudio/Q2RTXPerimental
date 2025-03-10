@@ -390,7 +390,7 @@ void Con_CheckResize(void)
 
     width = con.vidWidth / CHAR_WIDTH - 2;
 
-    con.linewidth = clamp(width, 0, CON_LINEWIDTH);
+    con.linewidth = std::clamp(width, 0, CON_LINEWIDTH);
     con.prompt.inputLine.visibleChars = con.linewidth;
     con.prompt.widthInChars = con.linewidth;
     con.chatPrompt.inputLine.visibleChars = con.linewidth;

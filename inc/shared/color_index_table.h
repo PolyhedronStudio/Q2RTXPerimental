@@ -22,6 +22,8 @@ typedef enum {
 
     COLOR_COUNT
 } color_index_t;
+
+// <Q2RTXP>: WID: Lame but required though to keep things working as they were. :-)
 #ifdef __cplusplus
 static inline color_index_t &operator++( color_index_t &color ) {
     switch ( color ) {
@@ -41,7 +43,7 @@ static inline color_index_t &operator++( color_index_t &color ) {
 
     return color;
 }
-#endif
+#endif // #ifdef __cplusplus
 
 #define U32_BLACK   MakeColor(  0,   0,   0, 255)
 #define U32_RED     MakeColor(208,  70,  72, 255)

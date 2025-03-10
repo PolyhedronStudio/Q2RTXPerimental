@@ -337,7 +337,7 @@ void CLG_misc_playerholo_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( self );
 
 	// Clamp client number value to prevent invalid index accessing.
-	const int32_t clientInfoNumber = constclamp( selfClass->clientNumber, 0, MAX_CLIENTS );
+	const int32_t clientInfoNumber = std::clamp( selfClass->clientNumber, 0, MAX_CLIENTS );
 	// Get the client info for the client that this client_misc_playerholo entity is a hologram of.
 	clientinfo_t *clientInfo = &clgi.client->clientinfo[ selfClass->clientNumber ];
 	
@@ -382,7 +382,7 @@ void CLG_misc_playerholo_PrepareRefreshEntity( clg_local_entity_t *self ) {
 
 	// Calculate back lerpfraction at 10hz.
 	rent.backlerp = 1.0f - ( ( clgi.client->time - ( (float)selfClass->frame_servertime - BASE_FRAMETIME ) ) / 100.f );
-	clamp( rent.backlerp, 0.0f, 1.0f );
+	rent.backlerp = std::clamp( rent.backlerp, 0.0f, 1.0f );
 
 	rent.frame = self->locals.frame;
 	rent.oldframe = self->locals.oldframe;

@@ -101,66 +101,66 @@ static const qboolean AL_SetEAXEffectProperties( /*const qhandle_t effect, */ co
         **/
         qalEffecti( effect, AL_EFFECT_TYPE, AL_EFFECT_EAXREVERB );
 
-        qalEffectf( effect, AL_EAXREVERB_DENSITY, QM_Clampf( reverb->flDensity, AL_EAXREVERB_MIN_DENSITY, AL_EAXREVERB_MAX_DENSITY ) );
+        qalEffectf( effect, AL_EAXREVERB_DENSITY, constclamp( reverb->flDensity, AL_EAXREVERB_MIN_DENSITY, AL_EAXREVERB_MAX_DENSITY ) );
         
-        qalEffectf( effect, AL_EAXREVERB_DIFFUSION, QM_Clampf( reverb->flDiffusion, AL_EAXREVERB_MIN_DIFFUSION, AL_EAXREVERB_MAX_DIFFUSION ) );
+        qalEffectf( effect, AL_EAXREVERB_DIFFUSION, constclamp( reverb->flDiffusion, AL_EAXREVERB_MIN_DIFFUSION, AL_EAXREVERB_MAX_DIFFUSION ) );
         
-        qalEffectf( effect, AL_EAXREVERB_GAIN, QM_Clampf( reverb->flGain, AL_EAXREVERB_MIN_GAIN, AL_EAXREVERB_MAX_GAIN ) );
-        qalEffectf( effect, AL_EAXREVERB_GAINHF, QM_Clampf( reverb->flGainHF, AL_EAXREVERB_MIN_GAINHF, AL_EAXREVERB_MAX_GAINHF ) );
-        qalEffectf( effect, AL_EAXREVERB_GAINLF, QM_Clampf( reverb->flGainLF, AL_EAXREVERB_MIN_GAINLF, AL_EAXREVERB_MAX_GAINLF ) );
+        qalEffectf( effect, AL_EAXREVERB_GAIN, constclamp( reverb->flGain, AL_EAXREVERB_MIN_GAIN, AL_EAXREVERB_MAX_GAIN ) );
+        qalEffectf( effect, AL_EAXREVERB_GAINHF, constclamp( reverb->flGainHF, AL_EAXREVERB_MIN_GAINHF, AL_EAXREVERB_MAX_GAINHF ) );
+        qalEffectf( effect, AL_EAXREVERB_GAINLF, constclamp( reverb->flGainLF, AL_EAXREVERB_MIN_GAINLF, AL_EAXREVERB_MAX_GAINLF ) );
 
-        qalEffectf( effect, AL_EAXREVERB_DECAY_TIME, QM_Clampf( reverb->flDecayTime, AL_EAXREVERB_MIN_DECAY_TIME, AL_EAXREVERB_MAX_DECAY_TIME ) );
-        qalEffectf( effect, AL_EAXREVERB_DECAY_HFRATIO, QM_Clampf( reverb->flDecayHFRatio, AL_EAXREVERB_MIN_DECAY_HFRATIO, AL_EAXREVERB_MAX_DECAY_HFRATIO ) );
-        qalEffectf( effect, AL_EAXREVERB_DECAY_LFRATIO, QM_Clampf( reverb->flDecayLFRatio, AL_EAXREVERB_MIN_DECAY_LFRATIO, AL_EAXREVERB_MAX_DECAY_LFRATIO ) );
+        qalEffectf( effect, AL_EAXREVERB_DECAY_TIME, constclamp( reverb->flDecayTime, AL_EAXREVERB_MIN_DECAY_TIME, AL_EAXREVERB_MAX_DECAY_TIME ) );
+        qalEffectf( effect, AL_EAXREVERB_DECAY_HFRATIO, constclamp( reverb->flDecayHFRatio, AL_EAXREVERB_MIN_DECAY_HFRATIO, AL_EAXREVERB_MAX_DECAY_HFRATIO ) );
+        qalEffectf( effect, AL_EAXREVERB_DECAY_LFRATIO, constclamp( reverb->flDecayLFRatio, AL_EAXREVERB_MIN_DECAY_LFRATIO, AL_EAXREVERB_MAX_DECAY_LFRATIO ) );
         
-        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_GAIN, QM_Clampf( reverb->flReflectionsGain, AL_EAXREVERB_MIN_REFLECTIONS_GAIN, AL_EAXREVERB_MAX_REFLECTIONS_GAIN ) );
-        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_DELAY, QM_Clampf( reverb->flReflectionsDelay, AL_EAXREVERB_MIN_REFLECTIONS_DELAY, AL_EAXREVERB_MAX_REFLECTIONS_DELAY ) );
+        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_GAIN, constclamp( reverb->flReflectionsGain, AL_EAXREVERB_MIN_REFLECTIONS_GAIN, AL_EAXREVERB_MAX_REFLECTIONS_GAIN ) );
+        qalEffectf( effect, AL_EAXREVERB_REFLECTIONS_DELAY, constclamp( reverb->flReflectionsDelay, AL_EAXREVERB_MIN_REFLECTIONS_DELAY, AL_EAXREVERB_MAX_REFLECTIONS_DELAY ) );
         qalEffectfv( effect, AL_EAXREVERB_REFLECTIONS_PAN, reverb->flReflectionsPan );
         
-        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_GAIN, QM_Clampf( reverb->flLateReverbGain, AL_EAXREVERB_MIN_LATE_REVERB_GAIN, AL_EAXREVERB_MAX_LATE_REVERB_GAIN ) );
-        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_DELAY, QM_Clampf( reverb->flLateReverbDelay, AL_EAXREVERB_MIN_LATE_REVERB_DELAY, AL_EAXREVERB_MAX_LATE_REVERB_DELAY ) );
+        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_GAIN, constclamp( reverb->flLateReverbGain, AL_EAXREVERB_MIN_LATE_REVERB_GAIN, AL_EAXREVERB_MAX_LATE_REVERB_GAIN ) );
+        qalEffectf( effect, AL_EAXREVERB_LATE_REVERB_DELAY, constclamp( reverb->flLateReverbDelay, AL_EAXREVERB_MIN_LATE_REVERB_DELAY, AL_EAXREVERB_MAX_LATE_REVERB_DELAY ) );
         qalEffectfv( effect, AL_EAXREVERB_LATE_REVERB_PAN, reverb->flLateReverbPan );
         
-        qalEffectf( effect, AL_EAXREVERB_ECHO_TIME, QM_Clampf( reverb->flEchoTime, AL_EAXREVERB_MIN_ECHO_TIME, AL_EAXREVERB_MAX_ECHO_TIME ) );
-        qalEffectf( effect, AL_EAXREVERB_ECHO_DEPTH, QM_Clampf( reverb->flEchoDepth, AL_EAXREVERB_MIN_ECHO_DEPTH, AL_EAXREVERB_MAX_ECHO_DEPTH ) );
+        qalEffectf( effect, AL_EAXREVERB_ECHO_TIME, constclamp( reverb->flEchoTime, AL_EAXREVERB_MIN_ECHO_TIME, AL_EAXREVERB_MAX_ECHO_TIME ) );
+        qalEffectf( effect, AL_EAXREVERB_ECHO_DEPTH, constclamp( reverb->flEchoDepth, AL_EAXREVERB_MIN_ECHO_DEPTH, AL_EAXREVERB_MAX_ECHO_DEPTH ) );
         
-        qalEffectf( effect, AL_EAXREVERB_MODULATION_TIME, QM_Clampf( reverb->flModulationTime, AL_EAXREVERB_MIN_MODULATION_TIME, AL_EAXREVERB_MAX_MODULATION_TIME ) );
-        qalEffectf( effect, AL_EAXREVERB_MODULATION_DEPTH, QM_Clampf( reverb->flModulationDepth, AL_EAXREVERB_MIN_MODULATION_DEPTH, AL_EAXREVERB_MAX_MODULATION_DEPTH ) );
+        qalEffectf( effect, AL_EAXREVERB_MODULATION_TIME, constclamp( reverb->flModulationTime, AL_EAXREVERB_MIN_MODULATION_TIME, AL_EAXREVERB_MAX_MODULATION_TIME ) );
+        qalEffectf( effect, AL_EAXREVERB_MODULATION_DEPTH, constclamp( reverb->flModulationDepth, AL_EAXREVERB_MIN_MODULATION_DEPTH, AL_EAXREVERB_MAX_MODULATION_DEPTH ) );
         
-        qalEffectf( effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF, QM_Clampf( reverb->flAirAbsorptionGainHF, AL_EAXREVERB_MIN_AIR_ABSORPTION_GAINHF, AL_EAXREVERB_MAX_AIR_ABSORPTION_GAINHF ) );
+        qalEffectf( effect, AL_EAXREVERB_AIR_ABSORPTION_GAINHF, constclamp( reverb->flAirAbsorptionGainHF, AL_EAXREVERB_MIN_AIR_ABSORPTION_GAINHF, AL_EAXREVERB_MAX_AIR_ABSORPTION_GAINHF ) );
         
-        qalEffectf( effect, AL_EAXREVERB_HFREFERENCE, QM_Clampf( reverb->flHFReference, AL_EAXREVERB_MIN_HFREFERENCE, AL_EAXREVERB_MAX_HFREFERENCE ) );
-        qalEffectf( effect, AL_EAXREVERB_LFREFERENCE, QM_Clampf( reverb->flLFReference, AL_EAXREVERB_MIN_LFREFERENCE, AL_EAXREVERB_MAX_LFREFERENCE ) );
+        qalEffectf( effect, AL_EAXREVERB_HFREFERENCE, constclamp( reverb->flHFReference, AL_EAXREVERB_MIN_HFREFERENCE, AL_EAXREVERB_MAX_HFREFERENCE ) );
+        qalEffectf( effect, AL_EAXREVERB_LFREFERENCE, constclamp( reverb->flLFReference, AL_EAXREVERB_MIN_LFREFERENCE, AL_EAXREVERB_MAX_LFREFERENCE ) );
         
-        qalEffectf( effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, QM_Clampf( reverb->flRoomRolloffFactor, AL_EAXREVERB_MIN_ROOM_ROLLOFF_FACTOR, AL_EAXREVERB_MAX_ROOM_ROLLOFF_FACTOR ) );
+        qalEffectf( effect, AL_EAXREVERB_ROOM_ROLLOFF_FACTOR, constclamp( reverb->flRoomRolloffFactor, AL_EAXREVERB_MIN_ROOM_ROLLOFF_FACTOR, AL_EAXREVERB_MAX_ROOM_ROLLOFF_FACTOR ) );
         
-        qalEffecti( effect, AL_EAXREVERB_DECAY_HFLIMIT, QM_ClampInt32( reverb->iDecayHFLimit, AL_EAXREVERB_MIN_DECAY_HFLIMIT, AL_EAXREVERB_MAX_DECAY_HFLIMIT ) );
+        qalEffecti( effect, AL_EAXREVERB_DECAY_HFLIMIT, constclamp( reverb->iDecayHFLimit, AL_EAXREVERB_MIN_DECAY_HFLIMIT, AL_EAXREVERB_MAX_DECAY_HFLIMIT ) );
     } else {
         /* No EAX Reverb. Set the standard reverb effect type then load the
          * available reverb properties. */
         qalEffecti( effect, AL_EFFECT_TYPE, AL_EFFECT_REVERB );
 
-        qalEffectf( effect, AL_REVERB_DENSITY, QM_Clampf( reverb->flDensity, AL_REVERB_MIN_DENSITY, AL_REVERB_MAX_DENSITY ) );
+        qalEffectf( effect, AL_REVERB_DENSITY, constclamp( reverb->flDensity, AL_REVERB_MIN_DENSITY, AL_REVERB_MAX_DENSITY ) );
 
-        qalEffectf( effect, AL_REVERB_DIFFUSION, QM_Clampf( reverb->flDiffusion, AL_REVERB_MIN_DIFFUSION, AL_REVERB_MAX_DIFFUSION ) );
+        qalEffectf( effect, AL_REVERB_DIFFUSION, constclamp( reverb->flDiffusion, AL_REVERB_MIN_DIFFUSION, AL_REVERB_MAX_DIFFUSION ) );
 
-        qalEffectf( effect, AL_REVERB_GAIN, QM_Clampf( reverb->flGain, AL_REVERB_MIN_GAIN, AL_REVERB_MAX_GAIN ) );
-        qalEffectf( effect, AL_REVERB_GAINHF, QM_Clampf( reverb->flGainHF, AL_REVERB_MIN_GAINHF, AL_REVERB_MAX_GAINHF ) );
+        qalEffectf( effect, AL_REVERB_GAIN, constclamp( reverb->flGain, AL_REVERB_MIN_GAIN, AL_REVERB_MAX_GAIN ) );
+        qalEffectf( effect, AL_REVERB_GAINHF, constclamp( reverb->flGainHF, AL_REVERB_MIN_GAINHF, AL_REVERB_MAX_GAINHF ) );
 
-        qalEffectf( effect, AL_REVERB_DECAY_TIME, QM_Clampf( reverb->flDecayTime, AL_REVERB_MIN_DECAY_TIME, AL_REVERB_MAX_DECAY_TIME ) );
-        qalEffectf( effect, AL_REVERB_DECAY_HFRATIO, QM_Clampf( reverb->flDecayHFRatio, AL_REVERB_MIN_DECAY_HFRATIO, AL_REVERB_MAX_DECAY_HFRATIO ) );
+        qalEffectf( effect, AL_REVERB_DECAY_TIME, constclamp( reverb->flDecayTime, AL_REVERB_MIN_DECAY_TIME, AL_REVERB_MAX_DECAY_TIME ) );
+        qalEffectf( effect, AL_REVERB_DECAY_HFRATIO, constclamp( reverb->flDecayHFRatio, AL_REVERB_MIN_DECAY_HFRATIO, AL_REVERB_MAX_DECAY_HFRATIO ) );
 
-        qalEffectf( effect, AL_REVERB_REFLECTIONS_GAIN, QM_Clampf( reverb->flReflectionsGain, AL_REVERB_MIN_REFLECTIONS_GAIN, AL_REVERB_MAX_REFLECTIONS_GAIN ) );
-        qalEffectf( effect, AL_REVERB_REFLECTIONS_DELAY, QM_Clampf( reverb->flReflectionsDelay, AL_REVERB_MIN_REFLECTIONS_DELAY, AL_REVERB_MAX_REFLECTIONS_DELAY ) );
+        qalEffectf( effect, AL_REVERB_REFLECTIONS_GAIN, constclamp( reverb->flReflectionsGain, AL_REVERB_MIN_REFLECTIONS_GAIN, AL_REVERB_MAX_REFLECTIONS_GAIN ) );
+        qalEffectf( effect, AL_REVERB_REFLECTIONS_DELAY, constclamp( reverb->flReflectionsDelay, AL_REVERB_MIN_REFLECTIONS_DELAY, AL_REVERB_MAX_REFLECTIONS_DELAY ) );
 
-        qalEffectf( effect, AL_REVERB_LATE_REVERB_GAIN, QM_Clampf( reverb->flLateReverbGain, AL_REVERB_MIN_LATE_REVERB_GAIN, AL_REVERB_MAX_LATE_REVERB_GAIN ) );
-        qalEffectf( effect, AL_REVERB_LATE_REVERB_DELAY, QM_Clampf( reverb->flLateReverbDelay, AL_REVERB_MIN_LATE_REVERB_DELAY, AL_REVERB_MAX_LATE_REVERB_DELAY ) );
+        qalEffectf( effect, AL_REVERB_LATE_REVERB_GAIN, constclamp( reverb->flLateReverbGain, AL_REVERB_MIN_LATE_REVERB_GAIN, AL_REVERB_MAX_LATE_REVERB_GAIN ) );
+        qalEffectf( effect, AL_REVERB_LATE_REVERB_DELAY, constclamp( reverb->flLateReverbDelay, AL_REVERB_MIN_LATE_REVERB_DELAY, AL_REVERB_MAX_LATE_REVERB_DELAY ) );
 
-        qalEffectf( effect, AL_REVERB_AIR_ABSORPTION_GAINHF, QM_Clampf( reverb->flAirAbsorptionGainHF, AL_REVERB_MIN_AIR_ABSORPTION_GAINHF, AL_REVERB_MAX_AIR_ABSORPTION_GAINHF ) );
+        qalEffectf( effect, AL_REVERB_AIR_ABSORPTION_GAINHF, constclamp( reverb->flAirAbsorptionGainHF, AL_REVERB_MIN_AIR_ABSORPTION_GAINHF, AL_REVERB_MAX_AIR_ABSORPTION_GAINHF ) );
 
-        qalEffectf( effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, QM_Clampf( reverb->flRoomRolloffFactor, AL_REVERB_MIN_ROOM_ROLLOFF_FACTOR, AL_REVERB_MAX_ROOM_ROLLOFF_FACTOR ) );
+        qalEffectf( effect, AL_REVERB_ROOM_ROLLOFF_FACTOR, constclamp( reverb->flRoomRolloffFactor, AL_REVERB_MIN_ROOM_ROLLOFF_FACTOR, AL_REVERB_MAX_ROOM_ROLLOFF_FACTOR ) );
 
-        qalEffecti( effect, AL_REVERB_DECAY_HFLIMIT, QM_ClampInt32( reverb->iDecayHFLimit, AL_REVERB_MIN_DECAY_HFLIMIT, AL_REVERB_MAX_DECAY_HFLIMIT ) );
+        qalEffecti( effect, AL_REVERB_DECAY_HFLIMIT, constclamp( reverb->iDecayHFLimit, AL_REVERB_MIN_DECAY_HFLIMIT, AL_REVERB_MAX_DECAY_HFLIMIT ) );
     }
 
     return true;

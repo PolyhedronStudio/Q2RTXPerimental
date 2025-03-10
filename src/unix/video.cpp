@@ -324,7 +324,7 @@ static int get_dpi_scale(void)
         int scale_x = (sdl.width + sdl.win_width / 2) / sdl.win_width;
         int scale_y = (sdl.height + sdl.win_height / 2) / sdl.win_height;
         if (scale_x == scale_y)
-            return clamp(scale_x, 1, 10);
+            return std::clamp(scale_x, 1, 10);
     }
 
     return 1;

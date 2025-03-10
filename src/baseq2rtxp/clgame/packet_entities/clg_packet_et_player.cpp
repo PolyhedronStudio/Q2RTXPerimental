@@ -422,7 +422,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     // FrontLerp Fraction (extrapolated ahead of Server Time).
     const double frontLerp = ( isLocalClientEntity ? clgi.client->xerpFraction : clgi.client->lerpfrac );
     // BackLerp Fraction.
-    double backLerp = constclamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
+    double backLerp = std::clamp( ( 1.0 - frontLerp ), 0.0, 1.0 );// clgi.client->xerpFraction;
 
 
     /**

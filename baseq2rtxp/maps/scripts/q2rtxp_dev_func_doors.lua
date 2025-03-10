@@ -159,7 +159,7 @@ end
 ----------------------------------------------------------------------
 --[[ TODO: --]]
 function OnClientEnterLevel( clientEntity )
-    Core.DPrint( "OnClientEnterLevel: A client connected with entityID(#" .. clientEntity.number .. ")\n")
+    Core.DPrint( "OnClientExitLevel: A client connected with entityID(#" .. clientEntity.number .. ")\n")
 
     return true
 end

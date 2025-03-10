@@ -40,18 +40,14 @@ typedef enum {
     PRINT_NOTICE
 } print_type_t;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+QEXTERN_C_OPEN
     //! Prints to console the specific message in its 'type'.
     void    Com_LPrintf( print_type_t type, const char *fmt, ... )
         q_printf( 2, 3 );
     //! For erroring out and returning(in most cases) back to a disconnect console.
     void    Com_Error( error_type_t code, const char *fmt, ... )
         q_noreturn q_printf( 2, 3 );
-#ifdef __cplusplus
-};
-#endif
+QEXTERN_C_CLOSE
 
 #define Com_Printf(...) Com_LPrintf(PRINT_ALL, __VA_ARGS__)
 #define Com_WPrintf(...) Com_LPrintf(PRINT_WARNING, __VA_ARGS__)

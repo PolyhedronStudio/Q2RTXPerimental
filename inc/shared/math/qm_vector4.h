@@ -97,7 +97,7 @@
 //QM_API const Vector3 operator*( const Vector3 &left, const float &right ) {
 //    return QM_Vector3Scale( left, right );
 //}
-//// for: ConstVector3Ref v1 = floatVal * v2;
+//// for: const Vector3 &v1 = floatVal * v2;
 //QM_API const Vector3 operator*( const float &left, const Vector3 &right ) {
 //    return QM_Vector3Scale( right, left );
 //}

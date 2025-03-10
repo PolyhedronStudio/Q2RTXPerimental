@@ -224,7 +224,18 @@ static void CLG_BaseMove( Vector3 &move ) {
 static void CLG_ClampSpeed( Vector3 &move ) {
     constexpr float speed = 400.f;  // default (maximum) running speed
 
-    move = QM_Vector3ClampValue( move, -speed, speed );
+    move = QM_Vector3Clamp( move,
+        {
+            -speed,
+            -speed,
+            -speed,
+        },
+        {
+            speed,
+            speed,
+            speed,
+        }
+    );
 }
 
 /**

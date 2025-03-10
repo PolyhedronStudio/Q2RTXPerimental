@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //! Used for 'wiring' various view offsets.
 static inline int16_t scaled_short( float x, int scale ) {
-	return constclamp( x * scale, -32768, 32767 );
+	return std::clamp<float>( x * scale, -32768, 32767 );
 }
 
 /**
