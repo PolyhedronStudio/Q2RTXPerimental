@@ -11,6 +11,8 @@
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
 
+#include "sharedgame/sg_usetarget_hints.h"
+
 // Monster Move
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
@@ -114,6 +116,56 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
     gi.linkentity( self );
 }
 
+///**
+//*   @brief  Touched.
+//**/
+//void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+//    #if 0
+//    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
+//        return;
+//    }
+//
+//    // Calculate direction.
+//    vec3_t v = { };
+//    VectorSubtract( self->s.origin, other->s.origin, v );
+//
+//    // Move ratio(based on their masses).
+//    const float ratio = (float)other->mass / (float)self->mass;
+//
+//    // Yaw direction angle.
+//    const float yawAngle = QM_Vector3ToYaw( v );
+//    const float direction = yawAngle;
+//    // Distance to travel.
+//    float distance = 20 * ratio * FRAMETIME;
+//
+//    // Debug output:
+//    if ( plane ) {
+//        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+//        gi.dprintf( "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
+//    } else {
+//        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+//        gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
+//    }
+//
+//    // Perform move.
+//    M_walkmove( self, direction, distance );
+//    #endif
+//    //---------------------------
+//    // <TEMPORARY FOR TESTING>
+//    //---------------------------
+//    if ( other && other->client ) {
+//        // Assign enemy.
+//        self->activator = other;
+//        self->goalentity = other;
+//        // Get the root motion.
+//        skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
+//        // Transition to its animation.
+//        self->s.frame = rootMotion->firstFrameIndex;
+//    }
+//    //---------------------------
+//    // </TEMPORARY FOR TESTING>
+//    //---------------------------
+//}
 /**
 *   @brief  Touched.
 **/
@@ -151,20 +203,48 @@ void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, cplane_t *pl
     //---------------------------
     // <TEMPORARY FOR TESTING>
     //---------------------------
-    if ( other && other->client ) {
-        // Assign enemy.
-        self->activator = other;
-        self->goalentity = other;
-        // Get the root motion.
-        skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
-        // Transition to its animation.
-        self->s.frame = rootMotion->firstFrameIndex;
-    }
+
     //---------------------------
     // </TEMPORARY FOR TESTING>
     //---------------------------
 }
+/**
+*   @brief
+**/
+void monster_testdummy_puppet_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    // Apply activator.
+    self->activator = activator;
+    self->other = other;
 
+    // "Toggle" between follow/unfollow.
+    // Cheap hack.
+    if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE ) {
+        if ( useValue == 1 ) {
+            if ( activator && activator->client ) {
+                self->goalentity = activator;
+
+                // Get the root motion.
+                skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
+                // Transition to its animation.
+                self->s.frame = rootMotion->firstFrameIndex;
+
+				// Set to disengagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_DISENGAGE );
+                return;
+            }
+        }
+    }
+
+    // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
+
+    self->goalentity = nullptr;
+    self->activator = nullptr;
+	self->other = nullptr;
+
+    // Fire set target.
+    SVG_UseTargets( self, activator );
+}
 
 /**
 *   @brief  Thinking routine.
@@ -251,7 +331,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
             SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
 
             // Set follow trail time.
-            if ( SVG_Entity_IsVisible( self->activator, self ) ) {
+            if ( SVG_Entity_IsVisible( self->goalentity, self ) ) {
                 self->trail_time = level.time;
             }
 
@@ -426,14 +506,14 @@ void SP_monster_testdummy_puppet( edict_t *self ) {
     self->s.skinnum = 0;
     self->takedamage = DAMAGE_AIM;
     self->air_finished_time = level.time + 12_sec;
-    //self->use = monster_use;
     self->max_health = self->health;
     self->clipmask = MASK_MONSTERSOLID;
     self->lifeStatus = LIFESTATUS_ALIVE;
     self->svflags &= ~SVF_DEADMONSTER;
+    self->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
 
     // Touch:
-    self->touch = monster_testdummy_puppet_touch;
+    //self->touch = monster_testdummy_puppet_touch;
     // Die:
     self->die = monster_testdummy_puppet_die;
     self->takedamage = DAMAGE_YES;
@@ -442,6 +522,11 @@ void SP_monster_testdummy_puppet( edict_t *self ) {
     self->nextthink = level.time + 20_hz;
     // PostSpawn.
     self->postspawn = monster_testdummy_puppet_post_spawn;
+    // Use:
+    self->use = monster_testdummy_puppet_use;
+
+    // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
 
     gi.linkentity( self );
 }

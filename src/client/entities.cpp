@@ -72,7 +72,9 @@ static inline void entity_update_new( centity_t *ent, const entity_state_t *stat
     // duplicate the current state so lerping doesn't hurt anything
     ent->prev = *state;
 
-    #if 0
+    // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
+    // Handle proper lerping for animated entities by Hz.    
+    #if 1
     // WID: 40hz
     // Update the animation frames and time.
     ent->current_frame = ent->last_frame = state->frame;
@@ -102,8 +104,9 @@ static inline void entity_update_new( centity_t *ent, const entity_state_t *stat
 static inline void entity_update_old( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
     const int32_t event = state->event;
 
-    // Handle proper lerping for animated entities by Hz.
-    #if 0
+    // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
+    // Handle proper lerping for animated entities by Hz.    
+    #if 1
     if ( ent->current_frame != state->frame ) {
         if ( state->renderfx & RF_OLD_FRAME_LERP ) {
             ent->last_frame = ent->current.old_frame;
@@ -140,7 +143,9 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
         // duplicate the current state so lerping doesn't hurt anything
         ent->prev = *state;
 
-        #if 0
+        // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
+        // Handle proper lerping for animated entities by Hz.    
+        #if 1
         // WID: 40hz
         ent->last_frame = state->frame;
         // WID: 40hz

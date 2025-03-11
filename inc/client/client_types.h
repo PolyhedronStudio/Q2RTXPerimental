@@ -102,12 +102,12 @@ typedef struct client_mouse_motion_s {
     int32_t deltaY;
 
     //! Floating point X-axis move distance.
-    float moveX;
+    double moveX;
     //! Floating point Y-axis move distance.
-    float moveY;
+    double moveY;
 
     //! Mouse speed.
-    float speed;
+    double speed;
 } client_mouse_motion_t;
 
 /**

@@ -366,8 +366,8 @@ static const client_mouse_motion_t CL_MouseMove( void ) {
     }
 
     if ( m_filter->integer ) {
-        motion.moveX = ( motion.deltaX + input.old_dx ) * 0.5f;
-        motion.moveY = ( motion.deltaY + input.old_dy ) * 0.5f;
+        motion.moveX = ( motion.deltaX + input.old_dx ) * 0.5;
+        motion.moveY = ( motion.deltaY + input.old_dy ) * 0.5;
     } else {
         motion.moveX = motion.deltaX;
         motion.moveY = motion.deltaY;

@@ -71,8 +71,10 @@ begin developer_menu
     background #4e4a4edc
     
     title "Developer (Test-)Maps"
-    action --align "CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"
-    action --align "CollisionModel - Audio Footstep Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_mat_footsteps force"
+    action --align --status "A map with surfaces that have a different material friction applied to them." "CollisionModel - Friction Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_materials force"
+    action --align --status "A map with surfaces that have a distinct set of footstep audio effects assigned to them." "CollisionModel - Audio Footstep Materials" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_cm_mat_footsteps force"
+    blank
+    action --align --status "A map with a basic few NPC's that can follow you around :-)" "NPC - monster_testdummy_puppet" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_npc_puppet force"
     blank
     action --align --status "func_button testbed, several func_buttons to engage triggering lights with in various way." "Entities - func_button" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_buttons force"
     action --align --status "func_doors & areaportals testbed, tests doors with areaportals." "Entities - func_door & func_areaportal" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_doors_areaportal force"

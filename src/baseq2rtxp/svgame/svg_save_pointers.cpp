@@ -64,6 +64,7 @@ void door_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const c
 void rotating_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 void func_wall_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 void func_breakable_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+void monster_testdummy_puppet_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void SP_monster_testdummy_puppet( edict_t *self );
 extern void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
@@ -289,6 +290,7 @@ const save_ptr_t save_ptrs[] = {
 { P_use, (void *)func_breakable_spawn_on_trigger },
 { P_die, (void *)func_breakable_explode },
 { P_pain, (void *)func_breakable_pain },
+{P_use, (void *)monster_testdummy_puppet_use },
 { P_use, (void *)func_breakable_use },
 
 { P_die, (void *)monster_testdummy_puppet_die },

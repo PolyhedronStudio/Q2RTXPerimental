@@ -197,6 +197,24 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	return blockedMask;
 }
 
+[[nodiscard]] inline Vector3 QM_Vector3Slerp( const Vector3 &from, const Vector3 &to, float t ) {
+	float dot = QM_Vector3DotProduct( from, to );
+	float aFactor;
+	float bFactor;
+	if ( fabsf( dot ) > 0.9995f ) {
+		aFactor = 1.0f - t;
+		bFactor = t;
+	} else {
+		float ang = acos( dot );
+		float sinOmega = sin( ang );
+		float sinAOmega = sin( ( 1.0f - t ) * ang );
+		float sinBOmega = sin( t * ang );
+		aFactor = sinAOmega / sinOmega;
+		bFactor = sinBOmega / sinOmega;
+	}
+	return from * aFactor + to * bFactor;
+}
+
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
 **/

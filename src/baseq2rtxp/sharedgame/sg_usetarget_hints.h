@@ -36,6 +36,9 @@ typedef enum sg_usetarget_hint_id_e {
     USETARGET_HINT_ID_BUTTON_HOLD,
     USETARGET_HINT_ID_BUTTON_UNHOLD,
 
+	USETARGET_HINT_ID_NPC_ENGAGE,
+	USETARGET_HINT_ID_NPC_DISENGAGE,
+
     // Max.
     USETARGET_HINT_ID_MAX
 } sg_usetarget_hint_id_t;
@@ -90,6 +93,10 @@ inline constexpr const sg_usetarget_hint_t useTargetHints[] = {
     // For Hold UseTargets, default hint information.
     { USETARGET_HINT_ID_BUTTON_HOLD,    SG_USETARGET_HINT_FLAGS_NONE,  "Hold the [+usetarget] key to (+Use) this (Button)" },
     { USETARGET_HINT_ID_BUTTON_UNHOLD,  SG_USETARGET_HINT_FLAGS_NONE,  "Release the [+usetarget] key to (-Stop) using this (Button)" },
+
+	// For NPC UseTargets, default hint information.
+	{ USETARGET_HINT_ID_NPC_ENGAGE,       SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Engage) with this (NPC)" },
+	{ USETARGET_HINT_ID_NPC_DISENGAGE,     SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-Disengage) with this (NPC)" },
 
     // End.
     { USETARGET_HINT_ID_MAX, SG_USETARGET_HINT_FLAGS_NONE, nullptr }
