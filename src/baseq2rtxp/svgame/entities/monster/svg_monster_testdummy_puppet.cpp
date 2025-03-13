@@ -291,14 +291,19 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 // WID: This is quite 'average':
                 //float distance = ( rootMotion->totalDistance ) * ( 1.0f / rootMotion->frameCount );
                 // WID: Try and accustom to Velocity 'METHOD':
-
                 //*pflGroundSpeed = sqrt( pseqdesc->linearmovement[ 0 ] * pseqdesc->linearmovement[ 0 ] + pseqdesc->linearmovement[ 1 ] * pseqdesc->linearmovement[ 1 ] + pseqdesc->linearmovement[ 2 ] * pseqdesc->linearmovement[ 2 ] );
                 //*pflGroundSpeed = *pflGroundSpeed * pseqdesc->fps / ( pseqdesc->numframes - 1 );
 
+			    // WID: This one is solid from what I can tell right now.
                 Vector3 translation = *rootMotion->translations[ rootMotionFrame ];
                 double distance = std::sqrt( translation.x * translation.x +
                                         translation.y * translation.y /*+ translation.z * translation.z*/ );
-                distance = distance * ( 40. / ( rootMotion->frameCount - 1 ) );
+                // Unit distance per 'frame'.
+                double unitDistance = 8.;
+                // Scale distance to frame count
+				distance = distance * ( 40. / rootMotion->frameCount - 1 );
+                // Scale distance to 'unit distance'.
+				distance = unitDistance * ( unitDistance / distance );
             #else
                 // WID: Works also, somewhat.
                 #if 0

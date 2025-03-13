@@ -106,7 +106,6 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	trace_t trace = {};
 	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
-	startVelocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
 
 	// Perform an actual 'Step Slide'.
 	int32_t blockedMask = SVG_MMove_SlideMove( monsterMove->state.origin, monsterMove->state.velocity, monsterMove->frameTime, monsterMove->mins, monsterMove->maxs, monsterMove->monster, monsterMove->touchTraces, false /* monsterMove->hasTime */ );
@@ -194,6 +193,9 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 			monsterMove->state.origin = trace.endpos;
 		}
 	}
+
+	// Apply gravity after having stored original startVelocity.
+	monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
 
 	return blockedMask;
 }
