@@ -162,7 +162,7 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 These are things to fix, or randomly implement(features, ideas), but definitely need to be dealt with before we can call it a day.
 
 ### God Priority Bug Fixing:
-* [ ] prefetch.txt requirements, if it is empty, the floor tile texture alignment is borked for each BSP map we load first. However, if prefetch.txt tries to 'prefetch some textures before hand, none of this is a problem.
+* [X] prefetch.txt requirements, if it is empty, the floor tile texture alignment is borked for each BSP map we load first. However, if prefetch.txt tries to 'prefetch some textures before hand, none of this is a problem.
 
 ### Highest Priority:
 * [X] Get a test dummy model that we can use to replace the current player with.

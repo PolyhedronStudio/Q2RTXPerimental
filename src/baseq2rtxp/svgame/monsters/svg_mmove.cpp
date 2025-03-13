@@ -223,26 +223,26 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 **/
 void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed ) {
 	// Get angle modded angles.
-	const float current = QM_AngleMod( ent->s.angles[ YAW ] );
+	const float currentYawAngle = QM_AngleMod( ent->s.angles[ YAW ] );
 
 	// If we're already facing ideal yaw, escape.
-	if ( current == idealYaw ) {
+	if ( currentYawAngle == idealYaw ) {
 		return;
 	}
 
-	float move = idealYaw - current;
+	float yawAngleMove = idealYaw - currentYawAngle;
 
 	// Prevent the monster from rotating a full circle around the yaw.
 	// Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
-	move = QM_Wrapf( move, -180.f, 180.f );
+	yawAngleMove = QM_Wrapf( yawAngleMove, -180.f, 180.f );
 	#if 0
-	if (ideal > current) { if ( move >= 180 ) { move = move - 360; } } else { if ( move <= -180 ) { move = move + 360; } }
+	if (ideal > current) { if ( yawAngleMove >= 180 ) { yawAngleMove = yawAngleMove - 360; } } else { if ( yawAngleMove <= -180 ) { yawAngleMove = yawAngleMove + 360; } }
 	#endif
 	// Clamp the yaw move speed.
-	move = QM_Clampf( move, -yawSpeed, yawSpeed );
+	yawAngleMove = QM_Clampf( yawAngleMove, -yawSpeed, yawSpeed );
 	#if 0
-	if (move > 0) { if ( move > yawSpeed ) { move = yawSpeed; } } else { if ( move < -yawSpeed ) { move = -yawSpeed; }
+	if (move > 0) { if ( yawAngleMove > yawSpeed ) { yawAngleMove = yawSpeed; } } else { if ( yawAngleMove < -yawSpeed ) { yawAngleMove = -yawSpeed; }
 	#endif
 	// AngleMod the final resulting angles.
-	ent->s.angles[ YAW ] = QM_AngleMod( current + move );
+	ent->s.angles[ YAW ] = QM_AngleMod( currentYawAngle + yawAngleMove );
 }
