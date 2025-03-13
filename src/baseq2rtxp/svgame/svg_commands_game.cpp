@@ -363,8 +363,15 @@ void SVG_Command_WeapPrev_f(edict_t *ent)
 
     cl = ent->client;
 
-    if (!cl->pers.weapon)
+    // No weapon active.
+    if ( !cl->pers.weapon ) {
         return;
+    }
+
+    const bool canChangeMode = ( ent->client->weaponState.canChangeMode || ent->client->weaponState.mode == WEAPON_MODE_IDLE );
+    if ( !canChangeMode ) {
+        return;
+    }
 
     selected_weapon = ITEM_INDEX(cl->pers.weapon);
 
@@ -398,8 +405,15 @@ void SVG_Command_WeapNext_f(edict_t *ent)
 
     cl = ent->client;
 
-    if (!cl->pers.weapon)
+    // No weapon active.
+    if ( !cl->pers.weapon ) {
         return;
+    }
+
+    const bool canChangeMode = ( ent->client->weaponState.canChangeMode || ent->client->weaponState.mode == WEAPON_MODE_IDLE );
+    if ( !canChangeMode ) {
+		return;
+	}
 
     selected_weapon = ITEM_INDEX(cl->pers.weapon);
 

@@ -605,6 +605,8 @@ static int MOD_LoadMD3Mesh(model_t *model, maliasmesh_t *mesh,
 		pbr_material_t * mat = MAT_Find(skinname, IT_SKIN, IF_NONE);
 		
 		mesh->materials[i] = mat;
+
+		src_skin++; // <Q2RTXP>: https://github.com/NVIDIA/Q2RTX/pull/424/commits/36a81fe2fc059881cdcd6c47b42dad8cbdeaef80
     }
 
 	// load all vertices

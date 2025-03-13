@@ -292,6 +292,13 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
     **/
     } else {
         /**
+        *   Prevent further input if we're holstering or drawing the weapon.
+        **/
+        if ( ent->client->weaponState.mode == WEAPON_MODE_DRAWING || ent->client->weaponState.mode == WEAPON_MODE_HOLSTERING ) {
+            return;
+        }
+
+        /**
         *   Secondary Fire Button Implementation: "Aim In" to engage for 'isAiming' Mode:
         **/
         if ( ( ( ent->client->userInput.pressedButtons & BUTTON_SECONDARY_FIRE ) ||
