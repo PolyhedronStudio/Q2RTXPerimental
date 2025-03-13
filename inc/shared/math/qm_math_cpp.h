@@ -499,7 +499,8 @@ struct Matrix {
     **/
     [[nodiscard]] inline constexpr const float &operator[]( const size_t i ) const;
     [[nodiscard]] inline constexpr float &operator[]( const size_t i );
-
+    //[[nodiscard]] inline constexpr const float *operator[]( const size_t i ) const;
+    //[[nodiscard]] inline constexpr float *operator[]( const size_t i );
 };
 // Defined Type.
 #define RL_MATRIX_TYPE

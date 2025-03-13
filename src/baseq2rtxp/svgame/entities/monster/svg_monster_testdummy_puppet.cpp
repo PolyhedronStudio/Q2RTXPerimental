@@ -246,6 +246,7 @@ void monster_testdummy_puppet_use( edict_t *self, edict_t *other, edict_t *activ
     SVG_UseTargets( self, activator );
 }
 
+void SV_AddGravity( edict_t *ent );
 /**
 *   @brief  Thinking routine.
 **/
@@ -295,9 +296,9 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 //*pflGroundSpeed = *pflGroundSpeed * pseqdesc->fps / ( pseqdesc->numframes - 1 );
 
                 Vector3 translation = *rootMotion->translations[ rootMotionFrame ];
-                float distance = sqrt( translation.x * translation.x +
+                double distance = std::sqrt( translation.x * translation.x +
                                         translation.y * translation.y /*+ translation.z * translation.z*/ );
-                distance = distance * ( 40 / ( rootMotion->frameCount - 1 ) );
+                distance = distance * ( 40. / ( rootMotion->frameCount - 1 ) );
             #else
                 // WID: Works also, somewhat.
                 #if 0
@@ -325,7 +326,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 QM_Vector3Normalize( goalOrigin - Vector3(self->s.origin) )
             );
             // Setup decent yaw turning speed.
-            self->yaw_speed = 10;
+            self->yaw_speed = 10.f;
 
             // Move yaw a frame into ideal yaw position.
             SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
@@ -335,6 +336,9 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 self->trail_time = level.time;
             }
 
+			// Is done in MMove_StepSlideMove.
+            //SV_AddGravity( self );
+
             // Generate frame velocity vector.
             Vector3 entityVelocity = self->velocity;
             Vector3 frameVelocity = {
@@ -342,17 +346,17 @@ void monster_testdummy_puppet_think( edict_t *self ) {
                 sin( self->s.angles[ YAW ] * QM_DEG2RAD ) * (double)distance,
                 (double)entityVelocity.z
             };
-            // If not onground, zero out the frameVelocity.
-            if ( self->groundInfo.entity == nullptr ) {
-                frameVelocity = self->velocity;
-            }
+            //// If not onground, zero out the frameVelocity.
+            //if ( self->groundInfo.entity == nullptr ) {
+            //    frameVelocity = self->velocity;
+            //}
 
             // Setup the monster move structure.
             mm_move_t monsterMove = {
                 // Pass/Skip-Entity pointer.
                 .monster = self,
                 // Frametime.
-                .frameTime = 1.f,
+                .frameTime = gi.frame_time_s,
                 // Bounds
                 .mins = self->mins,
                 .maxs = self->maxs,

@@ -7,6 +7,101 @@
 **/
 #pragma once
 
+/**
+*   @brief  Access Vector3 members by their index instead.
+*   @return The value of the indexed Vector3 component.
+**/
+[[nodiscard]] inline constexpr const float &Matrix::operator[]( const size_t i ) const {
+    if ( i == 0 )
+        return m0;
+    else if ( i == 1 )
+        return m1;
+    else if ( i == 2 )
+        return m2;
+    if ( i == 3 )
+        return m3;
+    else if ( i == 4 )
+        return m4;
+    else if ( i == 5 )
+        return m5;
+    else if ( i == 6 )
+        return m6;
+    else if ( i == 7 )
+        return m7;
+    else if ( i == 8 )
+        return m8;
+    else if ( i == 9 )
+        return m9;
+    else if ( i == 10 )
+        return m10;
+    else if ( i == 11 )
+        return m11;
+    else if ( i == 12 )
+        return m12;
+    else if ( i == 13 )
+        return m13;
+    else if ( i == 14 )
+        return m14;
+    else if ( i == 15 )
+        return m15;
+    else
+        throw std::out_of_range( "i" );
+}
+/**
+*   @brief  Access Vector3 members by their index instead.
+*   @return Reference to the value of the indexed Vector3 component.
+**/
+[[nodiscard]] inline constexpr float &Matrix::operator[]( const size_t i ) {
+    if ( i == 0 )
+        return m0;
+    else if ( i == 1 )
+        return m1;
+    else if ( i == 2 )
+        return m2;
+    if ( i == 3 )
+        return m3;
+    else if ( i == 4 )
+        return m4;
+	else if ( i == 5 )
+		return m5;
+	else if ( i == 6 )
+		return m6;
+	else if ( i == 7 )
+		return m7;
+	else if ( i == 8 )
+		return m8;
+	else if ( i == 9 )
+		return m9;
+	else if ( i == 10 )
+		return m10;
+	else if ( i == 11 )
+		return m11;
+	else if ( i == 12 )
+		return m12;
+	else if ( i == 13 )
+		return m13;
+	else if ( i == 14 )
+		return m14;
+	else if ( i == 15 )
+		return m15;
+    else
+        throw std::out_of_range( "i" );
+}
+///**
+//*   @brief  Access Vector3 members by their index instead.
+//*   @return Const Pointer to the indexed Vector3 component.
+//**/
+//[[nodiscard]] inline constexpr const float *Matrix::operator[]( const size_t i ) const {
+//    return &[ i ];
+//}
+///**
+//*   @brief  Access Vector3 members by their index instead.
+//*   @return Pointer to the value of the indexed Vector3 component.
+//**/
+//[[nodiscard]] inline constexpr float *Matrix::operator[]( const size_t i ) {
+//    return &[ i ];
+//}
+
 // Compute matrix determinant
 QM_API float QM_MatrixDeterminant( Matrix mat ) {
     float result = 0.0f;
@@ -187,8 +282,8 @@ QM_API Matrix QM_MatrixMultiply( Matrix left, Matrix right ) {
     return result;
 }
 
-// Get translation matrix
-QM_API Matrix QM_MatrixTranslate( float x, float y, float z ) {
+// Get the identity + translation matrix.
+QM_API Matrix QM_MatrixIdentityTranslate( float x, float y, float z ) {
     Matrix result = { 1.0f, 0.0f, 0.0f, x,
                       0.0f, 1.0f, 0.0f, y,
                       0.0f, 0.0f, 1.0f, z,
@@ -196,6 +291,25 @@ QM_API Matrix QM_MatrixTranslate( float x, float y, float z ) {
 
     return result;
 }
+
+// Translate the already existing matrix.
+QM_API Matrix QM_MatrixTranslate( Matrix &mat2, float x, float y, float z ) {
+    Matrix translationMatrix    = { 1.0f, 0.0f, 0.0f, x,
+                                    0.0f, 1.0f, 0.0f, y,
+                                    0.0f, 0.0f, 1.0f, z,
+                                    0.0f, 0.0f, 0.0f, 1.0f };
+    // Multiply with the translation matrix.
+	Matrix result = QM_MatrixMultiply( mat2, translationMatrix );
+    // Return result.
+    return result;
+}
+QM_API Matrix QM_MatrixTranslate( Matrix &mat2, const Vector3 &v ) {
+    return QM_MatrixTranslate( mat2, v.x, v.y, v.z );
+}
+QM_API Matrix QM_MatrixTranslate( Matrix &mat2, const Matrix &matTranslate ) {
+    return QM_MatrixTranslate( mat2, matTranslate.m12, matTranslate.m13, matTranslate.m14 );
+}
+
 
 // Create rotation matrix from axis and angle
 // NOTE: Angle should be provided in radians
@@ -546,5 +660,6 @@ QM_API float16 QM_MatrixToFloatV( Matrix mat ) {
 #ifdef __cplusplus
 
 // TODO: Implement operators for matrices.
+
 
 #endif  // __cplusplus
