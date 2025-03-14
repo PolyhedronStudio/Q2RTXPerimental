@@ -32,6 +32,7 @@
 
 //! Entity State messaging flags:
 typedef enum {
+    MSG_ES_NONE = 0,
     MSG_ES_FORCE = ( 1 << 0 ),
     MSG_ES_NEWENTITY = ( 1 << 1 ),
     MSG_ES_FIRSTPERSON = ( 1 << 2 ),

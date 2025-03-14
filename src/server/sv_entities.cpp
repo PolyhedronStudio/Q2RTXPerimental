@@ -56,29 +56,38 @@ static void SV_EmitPacketEntities(client_t         *client,
     const entity_packed_t *oldent = nullptr;
     
     // Flags.
-    msgEsFlags_t flags = static_cast<msgEsFlags_t>( 0 );
+    msgEsFlags_t flags = MSG_ES_NONE;
     // Iterator.
     int32_t i = 0;
     // Fetch where in the circular buffer we start from.
     const int32_t from_num_entities = ( !from ? 0 : from->num_entities );
 
+	// Write the 'svc_packetentities' command.
     while (newindex < to->num_entities || oldindex < from_num_entities) {
+		// Fetch the new entity number.
         if (newindex >= to->num_entities) {
             newnum = 9999;
         } else {
+			// Fetch the new entity number.
             i = (to->first_entity + newindex) % svs.num_entities;
+			// Fetch the new entity.
             newent = &svs.entities[i];
+			// Fetch the new entity its number as the 'new entity' number.
             newnum = newent->number;
         }
-
+		// Fetch the old entity number.
         if (oldindex >= from_num_entities) {
             oldnum = 9999;
         } else {
+			// Fetch the old entity number.
             i = (from->first_entity + oldindex) % svs.num_entities;
+			// Fetch the old entity.
             oldent = &svs.entities[i];
+			// Fetch the old entity its number as the 'old entity' number.
             oldnum = oldent->number;
         }
 
+		// Compare the new and old entity numbers.
         if (newnum == oldnum) {
             // Delta update from old position. Because the force parm is false,
             // this will not result in any bytes being emitted if the entity has
@@ -113,41 +122,43 @@ static void SV_EmitPacketEntities(client_t         *client,
             continue;
         }
 
-        if (newnum < oldnum) {
+        // The old entity is present in the current frame.
+        if ( newnum < oldnum ) {
             // this is a new entity, send it from the baseline
-			//flags = client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY;
-			// WID: C++20:
-			//flags |= MSG_ES_NEWENTITY;
-			flags = static_cast<msgEsFlags_t>( client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY );
-            oldent = client->baselines[newnum >> SV_BASELINES_SHIFT];
-            if (oldent) {
-                oldent += (newnum & SV_BASELINES_MASK);
+            //flags = client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY;
+            // WID: C++20:
+            //flags |= MSG_ES_NEWENTITY;
+            flags = (msgEsFlags_t)( client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY );
+            oldent = client->baselines[ newnum >> SV_BASELINES_SHIFT ];
+            if ( oldent ) {
+                oldent += ( newnum & SV_BASELINES_MASK );
             } else {
                 oldent = &nullEntityState;
             }
             // In case this is our own client entity, update the new ent's origin and angles.
-            if (newnum == clientEntityNumber) {
+            if ( newnum == clientEntityNumber ) {
                 //flags |= MSG_ES_FIRSTPERSON;
-				// WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_FIRSTPERSON );
-                VectorCopy(oldent->origin, newent->origin);
-                VectorCopy(oldent->angles, newent->angles);
+                // WID: C++20:
+                //flags |= MSG_ES_NEWENTITY;
+                flags = (msgEsFlags_t)( flags | MSG_ES_FIRSTPERSON );
+                VectorCopy( oldent->origin, newent->origin );
+                VectorCopy( oldent->angles, newent->angles );
             }
             //if (Q2PRO_SHORTANGLES(client, newnum)) {
             //  //flags |= MSG_ES_SHORTANGLES;
-	        //  // WID: C++20:
-	        //  //flags |= MSG_ES_NEWENTITY;
-	        //  //flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
+            //  // WID: C++20:
+            //  //flags |= MSG_ES_NEWENTITY;
+            //  //flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
             //}
-            MSG_WriteDeltaEntity(oldent, newent, flags);
+            MSG_WriteDeltaEntity( oldent, newent, flags );
             newindex++;
             continue;
         }
 
+        // The old entity isn't present in the new frame.
         if (newnum > oldnum) {
-            // The old entity isn't present in the new message
-            MSG_WriteDeltaEntity(oldent, NULL, MSG_ES_FORCE);
+            // The old entity isn't present in the new message.
+            MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE );
             oldindex++;
             continue;
         }
@@ -454,11 +465,11 @@ void SV_BuildClientFrame(client_t *client)
 
 		// don't mark players missiles as solid
         if (ent->owner == clent) {
-            state->solid = static_cast<solid_t>( 0 );
+            state->solid = SOLID_NOT;
         // WID: netstuff: longsolid
 		// else if (client->esFlags & MSG_ES_LONGSOLID) {
         } else {
-            state->solid = static_cast<solid_t>( sv.entities[ e ].solid32 );
+            state->solid = sv.entities[ e ].solid32;
         }
 
         svs.next_entity++;

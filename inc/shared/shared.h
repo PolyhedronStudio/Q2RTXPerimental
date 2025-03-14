@@ -333,7 +333,7 @@ typedef enum {
 
 // Used for identifying brush model solids with so that it uses the internal BSP bounding box.
 // An otherwise SOLID_BOUNDS_BOX etc, will never create this value(Used to be 255):
-#define BOUNDS_BRUSHMODEL      0xffffffff
+#define BOUNDS_BRUSHMODEL      ( ( solid_t )( 0xffffffff ) )
 
 /***
 * 	Config Strings: A general means of communication from the server to all connected clients.
