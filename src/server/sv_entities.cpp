@@ -17,7 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "server.h"
+#include "server/sv_server.h"
+#include "server/sv_entities.h"
 
 /*
 =============================================================================
@@ -39,8 +40,8 @@ Writes a delta update of an entity_packed_t list to the message.
 =============
 */
 static void SV_EmitPacketEntities(client_t         *client,
-                                  client_frame_t   *from,
-                                  client_frame_t   *to,
+                                  sv_client_frame_t   *from,
+                                  sv_client_frame_t   *to,
                                   const int32_t     clientEntityNumber) {
     // Defines the new state indices.
     int32_t newindex = 0;
@@ -155,9 +156,9 @@ static void SV_EmitPacketEntities(client_t         *client,
     MSG_WriteInt16(0);      // End Of 'svc_packetentities'.
 }
 
-static client_frame_t *get_last_frame(client_t *client)
+static sv_client_frame_t *get_last_frame(client_t *client)
 {
-    client_frame_t *frame;
+    sv_client_frame_t *frame;
 
     if (client->lastframe <= 0) {
         // client is asking for a retransmit
@@ -202,10 +203,10 @@ void SV_WriteFrameToClient( client_t *client ) {
 	int64_t          lastFrameNumber = -1;
 
 	// this is the frame we are creating
-	client_frame_t *newFrame = &client->frames[ client->framenum & UPDATE_MASK ];
+	sv_client_frame_t *newFrame = &client->frames[ client->framenum & UPDATE_MASK ];
 
 	// this is the frame we are delta'ing from
-	client_frame_t *oldFrame = get_last_frame( client );
+	sv_client_frame_t *oldFrame = get_last_frame( client );
 	if ( oldFrame ) {
 		oldPlayerState = &oldFrame->ps;
 		lastFrameNumber = client->lastframe;
@@ -272,7 +273,7 @@ void SV_BuildClientFrame(client_t *client)
     vec3_t      org;
     edict_t     *ent;
     edict_t     *clent;
-    client_frame_t  *frame;
+    sv_client_frame_t  *frame;
     entity_packed_t *state;
     player_state_t  *ps;
 	entity_state_t  es;

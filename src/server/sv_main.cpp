@@ -16,7 +16,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "server.h"
+#include "server/sv_server.h"
+#include "server/sv_commands.h"
+#include "server/sv_game.h"
+#include "server/sv_models.h"
+#include "server/sv_send.h"
+#include "server/sv_save.h"
+#include "server/sv_user.h"
+
+
 #include "client/input.h"
 #include "common/sizebuf.h"
 #include "common/huffman.h"
@@ -1251,7 +1259,7 @@ static int64_t ping_nop(client_t *cl)
 
 static int64_t ping_min(client_t *cl)
 {
-    client_frame_t *frame;
+    sv_client_frame_t *frame;
     int64_t i, j, count = INT64_MAX;
 
     for (i = 0; i < UPDATE_BACKUP; i++) {
@@ -1270,7 +1278,7 @@ static int64_t ping_min(client_t *cl)
 
 static int64_t ping_avg(client_t *cl)
 {
-    client_frame_t *frame;
+    sv_client_frame_t *frame;
     int64_t i, j, total = 0, count = 0;
 
     for (i = 0; i < UPDATE_BACKUP; i++) {

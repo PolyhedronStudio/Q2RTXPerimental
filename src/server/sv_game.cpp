@@ -17,7 +17,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // sv_game.c -- interface to the game dll
 
-#include "server.h"
+#include "server/sv_server.h"
+#include "server/sv_game.h"
+#include "server/sv_models.h"
+#include "server/sv_send.h"
+#include "server/sv_world.h"
 
 svgame_export_t    *ge;
 

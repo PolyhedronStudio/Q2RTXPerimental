@@ -16,7 +16,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "server.h"
+#include "server/sv_server.h"
+#include "server/sv_commands.h"
+#include "server/sv_init.h"
+#include "server/sv_models.h"
+#include "server/sv_save.h"
+#include "server/sv_send.h"
+#include "server/sv_user.h"
 
 /*
 ===============================================================================
@@ -114,7 +120,7 @@ static void SV_ListMasters_f(void)
     }
 }
 
-client_t *SV_GetPlayer(const char *s, bool partial)
+client_t *SV_GetPlayer(const char *s, const bool partial)
 {
     client_t    *other, *match;
     int         i, count;

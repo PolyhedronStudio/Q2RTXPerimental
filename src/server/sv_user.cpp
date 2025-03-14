@@ -17,7 +17,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // sv_user.c -- server code for moving users
 
-#include "server.h"
+#include "server/sv_server.h"
+#include "server/sv_commands.h"
+#include "server/sv_entities.h"
+#include "server/sv_game.h"
+#include "server/sv_send.h"
+#include "server/sv_save.h"
+#include "server/sv_user.h"
+
 
 #define MSG_GAMESTATE   (MSG_RELIABLE | MSG_CLEAR | MSG_COMPRESS)
 
@@ -982,7 +989,7 @@ static inline void SV_ClientThink(usercmd_t *cmd)
 
 static void SV_SetLastFrame(int64_t lastframe)
 {
-    client_frame_t *frame;
+    sv_client_frame_t *frame;
 
     if (lastframe > 0) {
         if (lastframe >= sv_client->framenum)

@@ -17,7 +17,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // sv_send.c
 
-#include "server.h"
+#include "server/sv_server.h"
+#include "server/sv_commands.h"
+#include "server/sv_entities.h"
+#include "server/sv_send.h"
+#include "server/sv_user.h"
+
 
 static void add_message( client_t *client, byte *data,
 							size_t len, int32_t flags );
@@ -516,7 +521,7 @@ static void add_message( client_t *client, byte *data,
 
 // check if this entity is present in current client frame
 static bool check_entity( client_t *client, int entnum ) {
-	client_frame_t *frame;
+	sv_client_frame_t *frame;
 	int i, j;
 
 	frame = &client->frames[ client->framenum & UPDATE_MASK ];

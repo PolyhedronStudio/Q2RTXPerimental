@@ -16,7 +16,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "server.h"
+#include "server/sv_server.h"
+#include "server/sv_commands.h"
+#include "server/sv_game.h"
+#include "server/sv_init.h"
+#include "server/sv_models.h"
+#include "server/sv_save.h"
+#include "server/sv_send.h"
+#include "server/sv_world.h"
 
 server_static_t svs;                // persistant server info
 server_t        sv;                 // local server
@@ -274,7 +281,7 @@ Parses mapcmd into more C friendly form.
 Loads and fully validates the map to make sure server doesn't get killed.
 ==============
 */
-bool SV_ParseMapCmd(mapcmd_t *cmd)
+const bool SV_ParseMapCmd(mapcmd_t *cmd)
 {
     char *s, *ch;
     char copy[MAX_QPATH];

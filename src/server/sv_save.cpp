@@ -16,7 +16,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#include "server.h"
+#include "server/sv_server.h"
+#include "server/sv_commands.h"
+#include "server/sv_init.h"
+#include "server/sv_world.h"
+
+
 
 #ifdef WIN32
 // Only include what we 'need'.
@@ -478,7 +483,10 @@ static int read_level_file(void)
     return 0;
 }
 
-int SV_NoSaveGames(void)
+/**
+*	@brief
+**/
+const int32_t SV_NoSaveGames(void)
 {
 	//if (dedicated->integer && !Cvar_VariableInteger("coop"))
  //       return 1;
@@ -492,8 +500,10 @@ int SV_NoSaveGames(void)
     return ge->GamemodeNoSaveGames( dedicated->integer );
 }
 
-void SV_AutoSaveBegin(mapcmd_t *cmd)
-{
+/**
+*	@brief
+**/
+void SV_AutoSaveBegin(mapcmd_t *cmd) {
     byte        bitmap[MAX_CLIENTS / CHAR_BIT];
     edict_t     *ent;
     int         i;
@@ -534,6 +544,9 @@ void SV_AutoSaveBegin(mapcmd_t *cmd)
     }
 }
 
+/**
+*	@brief
+**/
 void SV_AutoSaveEnd(void)
 {
 	if (sv.state != ss_game)

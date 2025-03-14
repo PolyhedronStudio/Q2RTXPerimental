@@ -16,6 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 // server.h
+#pragma once
+
 
 #include "shared/shared.h"
 #include "shared/util_list.h"
@@ -37,6 +39,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/protocol.h"
 #include "common/zone.h"
 
+// "Common".
 #include "client/client.h"
 #include "server/server.h"
 #include "system/system.h"
@@ -45,131 +48,248 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <zlib.h>
 #endif
 
-//=============================================================================
 
-#define SV_Malloc(size)         Z_TagMalloc(size, TAG_SERVER)
-#define SV_Mallocz(size)        Z_TagMallocz(size, TAG_SERVER)
-#define SV_CopyString(s)        Z_TagCopyString(s, TAG_SERVER)
-#define SV_LoadFile(path, buf)  FS_LoadFileEx(path, buf, 0, TAG_SERVER)
-#define SV_FreeFile(buf)        Z_Free(buf)
-
-#if USE_DEBUG
-#define SV_DPrintf(level,...) \
-    if (sv_debug && sv_debug->integer > level) \
-        Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__)
-#else
-#define SV_DPrintf(...)
-#endif
-
-#define SV_BASELINES_SHIFT      (6)
-#define SV_BASELINES_PER_CHUNK  (1 << SV_BASELINES_SHIFT) // 64
-#define SV_BASELINES_MASK       (SV_BASELINES_PER_CHUNK - 1) // 63
-#define SV_BASELINES_CHUNKS     (MAX_EDICTS >> SV_BASELINES_SHIFT) // 16
-
-#define SV_InfoSet(var, val) \
-    Cvar_FullSet(var, val, CVAR_SERVERINFO|CVAR_ROM, FROM_CODE)
-
-#if USE_CLIENT
-#define SV_PAUSED (sv_paused->integer != 0)
-#else
-#define SV_PAUSED 0
-#endif
-
-// game features this server supports
-#define SV_FEATURES (GMF_CLIENTNUM | GMF_PROPERINUSE | \
-                     GMF_WANT_ALL_DISCONNECTS | \
-                     GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE )
-
-typedef struct {
-    int64_t		number;
-	int32_t		num_entities;
-    uint32_t	first_entity;
-    player_packed_t ps;
-    int32_t		clientNum;
-	int32_t		areabytes;
-    byte        areabits[MAX_MAP_AREA_BYTES];	// portalarea visibility bits
-    uint64_t	sentTime;						// for ping calculations
-    int64_t		latency;
-} client_frame_t;
-
-typedef struct {
-	// WID: upgr-solid: Q2RE Approach.
-	uint32_t	solid32;
-	//int         solid32;
-} server_entity_t;
-
-// Server FPS
-#define SV_FRAMERATE	BASE_FRAMERATE
-#define SV_FRAMETIME	BASE_FRAMETIME
-
-typedef struct {
-    server_state_t  state;      // precache commands are only valid during load
-    int64_t			spawncount; // random number generated each server spawn
-
-    int64_t     framenum;
-    uint64_t    frameresidual;
-
-    char        mapcmd[MAX_QPATH];          // ie: *intro.cin+base
-
-    char        name[MAX_QPATH];            // map name, or cinematic name
-    cm_t        cm;
-
-	configstring_t  configstrings[ MAX_CONFIGSTRINGS ];
-
-    server_entity_t entities[MAX_EDICTS];
-} server_t;
-
-//! Access all over.
+//! Allow all over access to the servergame exported API.
 extern svgame_export_t *ge;
 
-//! Returns a pointer to the edict matching the number.
+
+/**
+*   
+*   Wrapper functions for TAG_SERVER memory allocation.
+* 
+**/
+//#define SV_Malloc(size)         Z_TagMalloc(size, TAG_SERVER)
+//#define SV_Mallocz(size)        Z_TagMallocz(size, TAG_SERVER)
+//#define SV_CopyString(s)        Z_TagCopyString(s, TAG_SERVER)
+//#define SV_LoadFile(path, buf)  FS_LoadFileEx(path, buf, 0, TAG_SERVER)
+//#define SV_FreeFile(buf)        Z_Free(buf)
+/**
+*   @brief  Wrapper functions for TAG_SERVER memory allocation.
+*   @note   Does not initialize memory to 0 after allocating.
+**/
+static inline void *SV_Malloc( const size_t size ) {
+    return Z_TagMalloc( size, TAG_SERVER );
+}
+/**
+*   @brief  Wrapper functions for TAG_SERVER memory allocation.
+*   @note   Initializes memory to 0 after allocating.
+**/
+static inline void *SV_Mallocz( const size_t size ) {
+    return Z_TagMallocz( size, TAG_SERVER );
+}
+/**
+*   @brief  Wrapper functions for TAG_SERVER allocated string buffer copying.
+**/
+static inline char *SV_CopyString( const char *str ) {
+    return Z_TagCopyString( str, TAG_SERVER );
+}
+/**
+*   @brief  Wrapper functions for TAG_SERVER allocated file into buffer loading.
+**/
+static const int32_t SV_LoadFile( const char *path, void **buffer ) {
+    return FS_LoadFileEx( path, buffer, 0, TAG_SERVER );
+}
+/**
+*   @brief  Wrapper functions for TAG_SERVER file buffer memory freeing(Though it'll free any tag memory.)
+**/
+static inline void SV_FreeFile( void *ptr ) {
+    Z_Free( ptr );
+}
+
+
+
+/**
+*   For developers, to print debug messages. Debug level is set by the cvar sv_debug.
+*   In Release builds this will do nothing.
+**/
+#if USE_DEBUG
+#define SV_DPrintf(level,...) \
+    if (sv_debug && sv_debug->integer > level) { \
+        Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__); \
+    }
+#else
+    #define SV_DPrintf(...)
+#endif
+
+
+
+/**
+*
+*
+*   Various Server Constants.
+*
+*
+**/
+// Server FPS constant.
+static constexpr double SV_FRAMERATE = BASE_FRAMERATE;
+// Server Frame Time constant in seconds.
+static constexpr double SV_FRAMETIME = BASE_FRAMETIME;
+
+//! Maximum number of entities.
+static constexpr int32_t SV_BASELINES_SHIFT     = ( 6 );
+//! Number of baselines per chunk.
+static constexpr int32_t SV_BASELINES_PER_CHUNK = ( 1 << SV_BASELINES_SHIFT ); // 64
+//! Mask for baselines.
+static constexpr int32_t SV_BASELINES_MASK      = ( SV_BASELINES_PER_CHUNK - 1 ); // 63
+//! Number of chunks.
+static constexpr int32_t SV_BASELINES_CHUNKS    = ( MAX_EDICTS >> SV_BASELINES_SHIFT ); // 128
+
+/**
+*   Game features this server supports.
+**/
+static constexpr int32_t SV_FEATURES = (GMF_CLIENTNUM | GMF_PROPERINUSE |
+                                        GMF_WANT_ALL_DISCONNECTS |
+                                        GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE );
+
+
+/**
+*   Test for whether server is paued or not, this is only used for client/server combined builds.
+**/
+#if USE_CLIENT
+    #define SV_PAUSED (sv_paused->integer != 0)
+#else
+    #define SV_PAUSED 0
+#endif
+
+
+
+/**
+*   @brief  Server Info CVar Set:
+**/
+static inline cvar_t *SV_InfoSet( const char *var, const char *value ) {
+    return Cvar_FullSet( var, value, CVAR_SERVERINFO | CVAR_ROM, FROM_CODE );
+}
+
+/**
+*   @return Returns a pointer to the edict matching the number.
+**/
 static inline edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
     //#define EDICT_FOR_NUMBER(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
     return ( (edict_t *)( (byte *)ge->edicts + ge->edict_size * ( number ) ) );
 }
-//! Returns the number of the pointer entity.
+/**
+*   @return Returns the number of the pointer entity.
+**/
 static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
     //#define EDICT_NUM(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
     return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edicts ) / ge->edict_size ) );
 }
 
-//! Maximum total entity leafs.
-//#define MAX_TOTAL_ENT_LEAFS        128
 
-// hack for smooth BSP model rotation
-//#define Q2PRO_SHORTANGLES(c, e) \
-//    ((c)->protocol == PROTOCOL_VERSION_Q2PRO && \
-//     (c)->version >= PROTOCOL_VERSION_Q2PRO_SHORT_ANGLES && \
-//     sv.state == ss_game && \
-//     EDICT_POOL(c, e)->solid == SOLID_BSP)
-// WID: Just use proper angles everywhere instead:
-//#define Q2PRO_SHORTANGLES(c, e) true
 
+/**
+*
+*
+*
+*   Server Internal Structures.
+*
+*
+*
+**/
+/**
+*   @brief  Stores a client's frame state for the server. 
+*           Including, areabits, sentTime, clientNumber, numEntities, playerState.
+**/
+typedef struct {
+    //!
+    int64_t		number;
+    //! Number of total entities in this frame.
+	int32_t		num_entities;
+    //! Entry index into the first entity_state_t for this client frame.
+    uint32_t	first_entity;
+    //! Packed player_state_t.
+    player_packed_t ps;
+    //! Client Number.
+    int32_t		clientNum;
+
+    //
+    //! Portalarea Visibility Bits. 
+    //! Area bytes.
+	int32_t		areabytes;
+    //! Area bytes &bits.
+    byte        areabits[ MAX_MAP_AREA_BYTES ];
+
+    //
+    //! For ping calculations:
+	//! Time the frame was sent.
+    uint64_t	sentTime;						
+    //! Latency of this frame.
+    int64_t		latency;
+} sv_client_frame_t;
+
+/**
+*   @brief  Server internal entity data.
+**/
+typedef struct {
+	// WID: upgr-solid: Q2RE Approach.
+	uint32_t	solid32;
+} server_entity_t;
+
+/**
+*   @brief  Server internal state data.
+**/
+typedef struct {
+    server_state_t  state;      // Precache commands are only valid during load.
+    int64_t			spawncount; // Random number generated each server spawn.
+
+    //! Frame number.
+    int64_t     framenum;
+    //! Residual in miliseconds.
+    uint64_t    frameresidual;
+
+    //! Map filename command.
+    char        mapcmd[ MAX_QPATH ];          // ie: *intro.cin+base
+    //! BSP Map name.
+    char        name[ MAX_QPATH ];            // map name, or cinematic name
+    //! BSP Collision Model of the world.
+    cm_t        cm;
+
+    //! GameState Config Strings.
+	configstring_t  configstrings[ MAX_CONFIGSTRINGS ];
+    //! GameState server entities.
+    server_entity_t entities[ MAX_EDICTS ];
+} server_t;
+
+/**
+*   @brief  A client's state in regards to the server.
+**/
 typedef enum {
-    cs_free,        // can be reused for a new connection
-    cs_zombie,      // client has been disconnected, but don't reuse
-                    // connection for a couple seconds
-    cs_assigned,    // client_t assigned, but no data received from client yet
-    cs_connected,   // netchan fully established, but not in game yet
-    cs_primed,      // sent serverdata, client is precaching
-    cs_spawned      // client is fully in game
+    cs_free,        //! Can be reused for a new connection.
+    cs_zombie,      //! Client has been disconnected, but don't reuse.
+                    //! Connection for a couple seconds.
+    cs_assigned,    //! Client_t assigned, but no data received from client yet.
+    cs_connected,   //! Netchan fully established, but not in game yet.
+    cs_primed,      //! Sent serverdata, client is precaching.
+    cs_spawned      //! Client is fully in game.
 } clstate_t;
 
-#define MSG_POOLSIZE        1024
-#define MSG_TRESHOLD        (62 - sizeof(list_t))   // keep message_packet_t 64 bytes aligned
 
-#define MSG_RELIABLE        1
-#define MSG_CLEAR           2
-#define MSG_COMPRESS        4
-#define MSG_COMPRESS_AUTO   8
 
-#define ZPACKET_HEADER      5
+//! Maximum message pool size.
+static constexpr int32_t MSG_POOLSIZE        = 1024;
+//! Ensure message_packet_t is 64 bytes aligned.
+static constexpr int32_t MSG_TRESHOLD        = ( 62 - sizeof( list_t ) );   // keep message_packet_t 64 bytes aligned
 
-#define MAX_SOUND_PACKET   14
+//! Reliable message.
+static constexpr int32_t MSG_RELIABLE        = BIT( 0 );
+//! Clear message buffer.
+static constexpr int32_t MSG_CLEAR           = BIT( 1 );
+//! Enforce compression.
+static constexpr int32_t MSG_COMPRESS        = BIT( 2 );
+//! Let it automatically determine if it needs compression.
+static constexpr int32_t MSG_COMPRESS_AUTO   = BIT( 4 );
 
+//! ZPacket Header.
+static constexpr int32_t ZPACKET_HEADER     = 5;
+//! Maximum sound packets.
+static constexpr int32_t MAX_SOUND_PACKET   = 14;
+
+/**
+*   @brief  Server message packet.
+**/
 typedef struct {
     list_t              entry;
-    uint16_t            cursize;    // zero means sound packet
+    uint16_t            cursize;    // Zero means sound packet
     union {
         uint8_t         data[MSG_TRESHOLD];
         struct {
@@ -185,15 +305,24 @@ typedef struct {
 } message_packet_t;
 
 // WID: 40hz:
-#define RATE_MESSAGES   10
+static constexpr int32_t  RATE_MESSAGES = 10;
 //#define RATE_MESSAGES   SV_FRAMERATE
 
+/**
+*   @brief
+**/
 #define FOR_EACH_CLIENT(client) \
     LIST_FOR_EACH(client_t, client, &sv_clientlist, entry)
 
+/**
+*   @brief
+**/
 #define CLIENT_ACTIVE(cl) \
     ((cl)->state == cs_spawned && !(cl)->download && !(cl)->nodata)
 
+/**
+*   @brief Ping Calculation utilities.
+**/
 #define PL_S2C(cl) (cl->frames_sent ? \
     (1.0f - (float)cl->frames_acked / cl->frames_sent) * (float)SV_FRAMETIME : 0.0f)
 #define PL_C2S(cl) (cl->netchan.total_received ? \
@@ -201,6 +330,9 @@ typedef struct {
 #define AVG_PING(cl) (cl->avg_ping_count ? \
     cl->avg_ping_time / cl->avg_ping_count : cl->ping)
 
+/**
+*   @brief  Used for rate, as in determining ping.
+**/
 typedef struct {
     uint64_t    time;
 	uint64_t	credit;
@@ -208,13 +340,20 @@ typedef struct {
 	uint64_t	cost;
 } ratelimit_t;
 
+/**
+*   @brief  Memory Pool for game allocated EDICTS.
+**/
 typedef struct {
     struct edict_s  *edicts;
-    int         edict_size;
-    int         num_edicts;     // current number, <= max_edicts
-    int         max_edicts;
+    int32_t         edict_size;
+    int32_t         num_edicts;     // current number, <= max_edicts
+    int32_t         max_edicts;
 } edict_pool_t;
 
+/**
+*   @brief  Stores all the data about connected clients, including their number,
+*           state, userinfo, etc.
+**/
 typedef struct client_s {
     list_t          entry;
 
@@ -262,7 +401,7 @@ typedef struct client_s {
     int64_t			avg_ping_time, avg_ping_count;
 
     // frame encoding
-    client_frame_t  frames[UPDATE_BACKUP];    // updates can be delta'd from here
+    sv_client_frame_t  frames[UPDATE_BACKUP];    // updates can be delta'd from here
     uint64_t		frames_sent; //! Number of frames sent. 
     uint64_t		frames_acked; //! Number of frames acknowledged.
     uint64_t        frames_nodelta; //! Number of frames that did not have delta compression.
@@ -318,7 +457,9 @@ typedef struct client_s {
 	int             last_valid_cluster;
 } client_t;
 
-//! Returns the edict for the client entity pool matching the number.
+/**
+*   @return Returns the edict for the client entity pool matching the number.
+**/
 static inline edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
     //#define EDICT_POOL(c, n) ((edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
     return ( (edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
@@ -335,14 +476,20 @@ static inline edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
 // MAX_CHALLENGES is made large to prevent a denial
 // of service attack that could cycle all of them
 // out before legitimate users connected
-#define    MAX_CHALLENGES    1024
+static constexpr int32_t    MAX_CHALLENGES = 1024;
 
+/**
+*   @brief
+**/
 typedef struct {
     netadr_t    adr;
     unsigned    challenge;
     uint64_t    time;
 } challenge_t;
 
+/**
+*   @brief
+**/
 typedef struct {
     list_t      entry;
     netadr_t    addr;
@@ -352,11 +499,17 @@ typedef struct {
     char        comment[1];
 } addrmatch_t;
 
+/**
+*   @brief
+**/
 typedef struct {
     list_t  entry;
     char    string[1];
 } stuffcmd_t;
 
+/**
+*   @brief
+**/
 typedef enum {
     FA_IGNORE,
     FA_LOG,
@@ -367,6 +520,9 @@ typedef enum {
     FA_MAX
 } filteraction_t;
 
+/**
+*   @brief
+**/
 typedef struct {
     list_t          entry;
     filteraction_t  action;
@@ -374,6 +530,9 @@ typedef struct {
     char            string[1];
 } filtercmd_t;
 
+/**
+*   @brief
+**/
 typedef struct {
     list_t          entry;
     filteraction_t  action;
@@ -385,6 +544,9 @@ typedef struct {
 #define MAX_MASTERS         8       // max recipients for heartbeat packets
 #define HEARTBEAT_SECONDS   300
 
+/**
+*   @brief
+**/
 typedef struct {
     netadr_t        adr;
     uint64_t        last_ack;
@@ -392,16 +554,32 @@ typedef struct {
     char            *name;
 } master_t;
 
+/**
+*   @brief  Stores the collision model and other actual data map data that
+*           is matching the latest valid map command.
+**/
 typedef struct {
+    //! Original map command.
     char            buffer[MAX_QPATH];  // original mapcmd
+    //! Parsed map name.
     char            server[MAX_QPATH];  // parsed map name
+	//! Parsed spawnpoint for next map continuation(If any).
     char            *spawnpoint;
+
+	//! Server state.
     server_state_t  state;
-    int             loadgame;
+	//! Whether it is a loadgame command.
+    int32_t         loadgame;
+	//! Whether we are at the end of a 'unit'.
     bool            endofunit;
+
+    //! Actual collision model data.
     cm_t            cm;
 } mapcmd_t;
 
+/**
+*   @brief  "Static" server state data that persists between map changes.
+**/
 typedef struct server_static_s {
     bool        initialized;        // sv_init has completed
     uint64_t    realtime;           // always increasing, no clamping, etc
@@ -502,233 +680,16 @@ extern bool     sv_pending_autosave;
 
 //===========================================================
 
-//
-// sv_main.c
-//
-void SV_DropClient(client_t *drop, const char *reason);
-void SV_RemoveClient(client_t *client);
-void SV_CleanClient(client_t *client);
-
-void SV_InitOperatorCommands(void);
-
-void SV_UserinfoChanged(client_t *cl);
-
-bool SV_RateLimited(ratelimit_t *r);
-void SV_RateRecharge(ratelimit_t *r);
-void SV_RateInit(ratelimit_t *r, const char *s);
-
-addrmatch_t *SV_MatchAddress(list_t *list, netadr_t *address);
-
-int SV_CountClients(void);
-
-#if USE_ZLIB
-voidpf SV_zalloc(voidpf opaque, uInt items, uInt size);
-void SV_zfree(voidpf opaque, voidpf address);
-#endif
-
-void sv_sec_timeout_changed(cvar_t *self);
-void sv_min_timeout_changed(cvar_t *self);
-
-//
-// sv_init.c
-//
-void SV_ClientReset(client_t *client);
-void SV_SpawnServer(mapcmd_t *cmd);
-bool SV_ParseMapCmd(mapcmd_t *cmd);
-//void SV_PreInitGame( void );
-void SV_InitGame( void );
-
-//
-// sv_models.cpp
-//
-/**
-*   @brief  Increments registration sequence for loading.
-**/
-void SV_Models_IncrementRegistrationSequence();
-/**
-*   @brief  
-**/
-void SV_Models_Reference( struct model_s *model );
-/**
-*   @brief   
-**/
-qhandle_t SV_RegisterModel( const char *name );
-/**
-*   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
-**/
-struct model_s *SV_Models_Find( const char *name );
-/**
-*   @return Pointer to model data matching the resource handle, otherwise a (nullptr) on failure.
-**/
-struct model_s *SV_Models_ForHandle( qhandle_t h );
-/**
-*   @brief  Initialize server models memory cache.
-**/
-void SV_Models_Init( void );
-/**
-*   @brief  Shutdown and free server models memory cache.
-**/
-void SV_Models_Shutdown( void );
-/**
-*   @brief
-**/
-void SV_Models_FreeUnused( void );
-/**
-*   @brief
-**/
-void SV_Models_FreeAll( void );
-//typedef struct maliasmesh_s {
-//    int             numverts;
-//    int             numtris;
-//    int             numindices;
-//    int             numskins;
-//    int             tri_offset; /* offset in vertex buffer on device */
-//    int *indices;
-//    vec3_t *positions;
-//    vec3_t *normals;
-//    vec2_t *tex_coords;
-//    vec3_t *tangents;
-//    uint32_t *blend_indices; // iqm only
-//    uint32_t *blend_weights; // iqm only
-//    struct pbr_material_s **materials;
-//    bool            handedness;
-//} maliasmesh_t;
-
-//
-// sv_send.c
-//
 typedef enum {RD_NONE, RD_CLIENT, RD_PACKET} redirect_t;
-#define SV_OUTPUTBUF_LENGTH     (MAX_PACKETLEN_DEFAULT - 16)
 
-#define SV_ClientRedirect() \
-    Com_BeginRedirect(RD_CLIENT, sv_outputbuf, MAX_STRING_CHARS - 1, SV_FlushRedirect)
 
-#define SV_PacketRedirect() \
-    Com_BeginRedirect(RD_PACKET, sv_outputbuf, SV_OUTPUTBUF_LENGTH, SV_FlushRedirect)
-
-extern char sv_outputbuf[SV_OUTPUTBUF_LENGTH];
-
-void SV_FlushRedirect(int redirected, char *outputbuf, size_t len);
-
-void SV_SendClientMessages(void);
-void SV_SendAsyncPackets(void);
-
-void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable );
-void SV_ClientPrintf(client_t *cl, int level, const char *fmt, ...) q_printf(3, 4);
-void SV_BroadcastPrintf(int level, const char *fmt, ...) q_printf(2, 3);
-void SV_ClientCommand(client_t *cl, const char *fmt, ...) q_printf(2, 3);
-void SV_BroadcastCommand(const char *fmt, ...) q_printf(1, 2);
-void SV_ClientAddMessage(client_t *client, int flags);
-void SV_ShutdownClientSend(client_t *client);
-void SV_InitClientSend(client_t *newcl);
-
-//
-// sv_user.c
-//
-void SV_New_f(void);
-void SV_Begin_f(void);
-void SV_ExecuteClientMessage(client_t *cl);
-void SV_CloseDownload(client_t *client);
-cvarban_t *SV_CheckInfoBans(const char *info, bool match_only);
-
-//
-// sv_ccmds.c
-//
-
-void SV_AddMatch_f(list_t *list);
-void SV_DelMatch_f(list_t *list);
-void SV_ListMatches_f(list_t *list);
-client_t *SV_GetPlayer(const char *s, bool partial);
-void SV_PrintMiscInfo(void);
-
-//
-// sv_ents.c
-//
-
-#define ES_INUSE(s) \
-    ((s)->modelindex || (s)->effects || (s)->sound || (s)->event)
-
-void SV_BuildClientFrame(client_t *client);
-void SV_WriteFrameToClient( client_t *client );
-
-//
-// sv_game.c
-//
 extern    svgame_export_t    *ge;
 
-void SV_InitGameProgs(void);
-void SV_ShutdownGameProgs(void);
-//void SV_InitEdict(edict_t *e);
 
 //
 // sv_save.c
 //
-void SV_AutoSaveBegin(mapcmd_t *cmd);
-void SV_AutoSaveEnd(void);
-void SV_CheckForSavegame(mapcmd_t *cmd);
-void SV_CheckForEnhancedSavegames(void);
-void SV_RegisterSavegames(void);
-int SV_NoSaveGames(void);
+
 
 //============================================================
 
-//
-// high level object sorting to reduce interaction tests
-//
-
-void SV_ClearWorld(void);
-// called after the world model has been loaded, before linking any entities
-
-void PF_UnlinkEdict(edict_t *ent);
-// call before removing an entity, and before trying to move one,
-// so it doesn't clip against itself
-
-void SV_LinkEdict(cm_t *cm, edict_t *ent);
-void PF_LinkEdict(edict_t *ent);
-// Needs to be called any time an entity changes origin, mins, maxs,
-// or solid.  Automatically unlinks if needed.
-// sets ent->v.absmin and ent->v.absmax
-// sets ent->leafnums[] for pvs determination even if the entity
-// is not solid
-
-const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
-// fills in a table of edict pointers with edicts that have bounding boxes
-// that intersect the given area.  It is possible for a non-axial bmodel
-// to be returned that doesn't actually intersect the area on an exact
-// test.
-// returns the number of pointers filled in
-// ??? does this always return the world?
-
-//===================================================================
-
-//
-// functions that interact with everything apropriate
-//
-/**
-*	@return	The CONTENTS_* value from the world at the given point.
-*			Quake 2 extends this to also check entities, to allow moving liquids
-**/
-const contents_t SV_PointContents( const vec3_t p );
-
-
-/**
-*	@description	mins and maxs are relative
-*					
-*					if the entire move stays in a solid volume, trace.allsolid will be set,
-*					trace.startsolid will be set, and trace.fraction will be 0
-*
-*					if the starting point is in a solid, it will be allowed to move out
-*					to an open area
-*
-*					passedict is explicitly excluded from clipping checks (normally NULL)
-**/
-const trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
-                           const vec3_t maxs, const vec3_t end,
-                           edict_t *passedict, const contents_t contentmask );
-
-/**
-*	@brief	Like SV_Trace(), but clip to specified entity only.
-*			Can be used to clip to SOLID_TRIGGER by its BSP tree.
-**/
-const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
-						  const vec3_t maxs, const vec3_t end, const contents_t contentmask );

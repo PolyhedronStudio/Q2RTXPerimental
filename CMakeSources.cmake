@@ -531,20 +531,32 @@ SET(HEADERS_CLIENT
 SET(SRC_SERVER
 	refresh/model_iqm.c
 
-	server/commands.cpp
-	server/entities.cpp
-	server/init.cpp
-	server/main.cpp
-	server/models.cpp
-	server/send.cpp
-	server/svgame.cpp
-	server/user.cpp
-	server/world.cpp
-	server/save.cpp
-)
+	server/sv_commands.cpp
+	server/sv_entities.cpp
+	server/sv_init.cpp
+	server/sv_main.cpp
+	server/sv_models.cpp
+	server/sv_send.cpp
+	server/sv_game.cpp
+	server/sv_user.cpp
+	server/sv_world.cpp
+	server/sv_save.cpp
+) 
 
 SET(HEADERS_SERVER
-	server/server.h
+	#server/server.h
+
+	server/sv_server.h
+	server/sv_commands.h
+	server/sv_entities.h
+	server/sv_init.h
+	server/sv_main.h
+	server/sv_models.h
+	server/sv_send.h
+	server/sv_game.h
+	server/sv_user.h
+	server/sv_world.h
+	server/sv_save.h
 )
 
 
