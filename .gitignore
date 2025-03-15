@@ -48,6 +48,9 @@ music/
 *-compile.map
 *.prt
 
+Q2RTXPerimental
+Q2RTXPerimental_ded
+
 q2config.cfg
 save
 */docs
