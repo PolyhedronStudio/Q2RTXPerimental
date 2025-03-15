@@ -76,7 +76,7 @@ typedef struct gclient_s gclient_t;
 typedef struct gclient_s {
     player_state_t  ps;     // communicated by server to clients
     player_state_t  ops;    // old player state from the previous frame.
-    int             ping;
+    int64_t             ping;
 
     // the game dll can add anything it wants after
     // this point in the structure

@@ -828,10 +828,10 @@ void SCR_UpdateScreen(void)
     if (cls.disable_screen) {
         uint64_t delta = Sys_Milliseconds() - cls.disable_screen;
 
+        // Check for a possible time-out.
         if (delta < 120 * 1000) {
             return;
         }
-
         cls.disable_screen = 0;
         Com_Printf("Loading plaque timed out.\n");
     }

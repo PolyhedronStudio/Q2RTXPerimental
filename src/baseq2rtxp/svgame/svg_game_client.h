@@ -100,6 +100,10 @@ struct gclient_s {
     player_state_t  ops;            // old player state from the previous frame.
     int64_t         ping;			// WID: 64-bit-frame
 
+    // the game dll can add anything it wants after
+    // this point in the structure
+    int             clientNum;
+
     /**
     *	Private to game:
     **/
