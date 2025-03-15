@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
-    <assemblyIdentity type="win32" name="q2proded" version="1.0.0.0"/>
-    <description>Q2RTX dedicated server</description>
+    <assemblyIdentity type="win32" name="q2rtxpded" version="1.0.0.0"/>
+    <description>Q2RTXPerimental Dedicated Server</description>
     <trustInfo xmlns="urn:schemas-microsoft-com:asm.v2">
         <security>
             <requestedPrivileges>

@@ -14,7 +14,7 @@
 #endif
 
 #define VER_FILEDESCRIPTION_STR     "Q2RTXPerimental BaseQ2RTXP ServerGame Module " LONG_VERSION_STRING
-#define VER_ORIGINALFILENAME_STR    "clgamex86_64.dll"
+#define VER_ORIGINALFILENAME_STR    "svgamex86_64.dll"
 
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 
@@ -31,12 +31,12 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName", "NVIDIA Corporation"
+            VALUE "CompanyName", "Polyhedron Studio"
             VALUE "FileDescription", VER_FILEDESCRIPTION_STR
             VALUE "OriginalFilename", VER_ORIGINALFILENAME_STR
             VALUE "FileVersion", VERSION_STRING
             VALUE "InternalName", "baseq2rtxp_svgame"
-            VALUE "LegalCopyright", "Copyright (C) 2019-2020, NVIDIA CORPORATION. All rights reserved."
+            VALUE "LegalCopyright", "Copyright (C) 2024-2025, Polyhedron Studio. Copyright (C) 2019-2020, NVIDIA CORPORATION. All rights reserved."
             VALUE "ProductName", "Quake II RTXPerimental"
             VALUE "ProductVersion", VERSION_STRING
         END

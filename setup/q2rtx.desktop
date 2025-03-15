@@ -2,6 +2,6 @@
 Type=Application
 Encoding=UTF-8
 Name=Quake II RTXPerimental
-Exec=q2rtx
-Icon=q2rtx
+Exec=q2rtxp
+Icon=q2rtxp
 Categories=Game;Shooter

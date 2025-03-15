@@ -31,13 +31,13 @@ BEGIN
     BEGIN
         BLOCK "040904B0"
         BEGIN
-            VALUE "CompanyName", "NVIDIA Corporation"
+            VALUE "CompanyName", "Polyhedron Studio"
             VALUE "FileDescription", VER_FILEDESCRIPTION_STR
             VALUE "OriginalFilename", VER_ORIGINALFILENAME_STR
             VALUE "FileVersion", VERSION_STRING
             VALUE "InternalName", "q2rtxpded"
             VALUE "LegalCopyright", "Copyright (C) 2019-2023, NVIDIA CORPORATION. All rights reserved."
-            VALUE "ProductName", "Quake II RTXPerimental"
+            VALUE "ProductName", "Quake II RTXPerimental Dedicated Server"
             VALUE "ProductVersion", VERSION_STRING
         END
     END

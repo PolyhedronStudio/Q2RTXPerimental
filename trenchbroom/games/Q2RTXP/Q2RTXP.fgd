@@ -229,6 +229,7 @@
 		8 : "Damage Activates (Fires targets when 'killed')" : 0
 		16 : "Toggleable(Fires targets when toggled 'On')" : 0
 		32 : "Start Locked(Can't be used until unlocked.)" : 0
+		//64 : "Disable UseTarget Hinting" : 0
 	]
 
 	pathtarget(string) : "Elevator level target"
@@ -348,11 +349,12 @@
 		16 : "No Monsters" : 0
 		32 : "Area Trigger Touch Activates" : 0
 		64 : "Damage Activates" : 0
-		128 : "Toggle" : 0
+		128 : "Toggle" : 1	// Default a toggleable door(like real life)
 		256 : "Animated" : 0
 		512 : "Animated Fast" : 0
 		1024 : "X Axis" : 0
 		2048 : "Y Axis" : 0
+		4096 : "Both Directions" : 1 // Default to both directions(unlike real life but games are games.)
 	]
 	killtarget(string) : "Kill Target"
 	team(string) : "Team"
@@ -403,13 +405,14 @@
 // not visible in DM mode
 //
 // 0221 - added "_minlight" key (even tho you dont want it to stand out)
-@SolidClass base(Appearflags, UseTargetFlags, Targetname, Target) color(0 128 204) = func_breakable : "Exploding/Breakable brush"
+@SolidClass base(Appearflags, UseTargetFlags, Targetname, Target) color(0 128 204) = func_explosive : "Exploding/Breakable brush"
 [
 	spawnflags(Flags) =
 	[
 		1 : "Spawn On Trigger" : 0
-		2 : "Animated" : 0
-		4 : "Animated Fast" : 0
+		2 : "Free On Break/Explode" : 0
+		4 : "Animated" : 0
+		8 : "Animated Fast" : 0
 	]
 	health(integer) : "Health" : 100
 	mass(integer) : "Mass (debris)" : 75
@@ -453,17 +456,21 @@
 [
 	spawnflags(Flags) =
 	[
-		1 : "Start On" : 0
+		1 : "Start On" : 1
 		2 : "Reverse" : 0
-		4 : "X Axis" : 0
-		8 : "Y Axis" : 0
-		16 : "Pain on Touch" : 0
-		32 : "Block Stops" : 0
-		64 : "Animated" : 0
-		128 : "Animated Fast" : 0
+		4 : "Accelerated" : 1
+		8 : "X Axis" : 0
+		16 : "Y Axis" : 0
+		32 : "Pain on Touch" : 0
+		64 : "Block Stops" : 0
+		128 : "Animated" : 0
+		256 : "Animated Fast" : 0
 	]
 	team(string) : "Team"
 	speed(integer) : "Speed" : 100
+	accel(integer) : "Acceleration(requires Accelerated spawnflag)"
+	decel(integer) : "Deceleration(requires Accelerated spawnflag)"
+
 	dmg(integer) : "Damage when blocked" : 2
 	_minlight(integer) : "Minimum light (optional)"
 ]

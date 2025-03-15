@@ -354,7 +354,7 @@ static bool init(graphics_api_t api)
 
     if (SDL_InitSubSystem(SDL_INIT_VIDEO) == -1) {
         Com_EPrintf("Couldn't initialize SDL video: %s\n", SDL_GetError());
-        return false;
+        return false; 
     }
 
 #if REF_GL
@@ -394,9 +394,9 @@ static bool init(graphics_api_t api)
             if ( ( b >> ( x & 7 ) ) & 1 )
                 //icon_rgb[ y ][ x ] = 0xff3ec4c6; // Q2RTXP Blue
 				//icon_rgb[y][x] = 0xFF7AB632; // NVIDIA green color
-                icon_rgb[ y ][ x ] = 0x00000000;
+                icon_rgb[ y ][ x ] = 0xFF000000;
 			else
-                icon_rgb[ y ][ x ] = 0xff3ec4c6;
+                icon_rgb[ y ][ x ] = 0xffd27d2c; // Q2RTXP Orange
 				
 		}
 	}
