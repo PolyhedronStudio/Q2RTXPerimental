@@ -472,7 +472,7 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 static void CLG_CycleViewBob( player_state_t *ps ) {
     // Calculate base bob data.
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
-    level.viewBob.fracSin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
+    level.viewBob.fracSin = fabs( sin( (double)( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
     level.viewBob.xySpeed = ps->xySpeed;
         
 #if 0
@@ -536,6 +536,15 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
             ps->gunangles[ ROLL ] += 0.1 * delta;
         }
         ps->gunangles[ i ] += 0.2 * delta;
+
+        #if 0
+        float reduction_factor = delta ? 0.05f : 0.15f;
+
+        if ( delta > 0 )
+            delta = std::max( 0., delta - clgi.frame_time_ms * reduction_factor );
+        else if ( delta < 0 )
+            delta = std::min( 0., delta + clgi.frame_time_ms * reduction_factor );
+        #endif
     }
     #else
     static Vector3 slowAngles = {};
@@ -575,7 +584,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
         if ( delta > 0 )
             delta = std::max( 0.f, delta - clgi.frame_time_ms * reduction_factor );
         else if ( delta < 0 )
-            delta = min( 0.f, delta + clgi.frame_time_ms * reduction_factor );
+            delta = std::min( 0.f, delta + clgi.frame_time_ms * reduction_factor );
     }
     #endif
     // gun height
@@ -845,7 +854,7 @@ const double CLG_SmoothViewHeight() {
     //! Base 1 Frametime.
     static constexpr double HEIGHT_CHANGE_BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE_TIME );
     //! Determine delta time.
-    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<uint64_t>( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
+    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<int64_t>( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
     //! Return the frame's adjustment for viewHeight which is added on top of the final vieworigin + viweoffset.
     return clgi.client->predictedState.transition.view.height[ 0 ] + (double)( clgi.client->predictedState.transition.view.height[ 1 ] - clgi.client->predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE_BASE_1_FRAMETIME;
 }
@@ -1117,7 +1126,7 @@ void PF_ClearViewScene( void ) {
 *           emitting all frame data(entities, particles, dynamic lights, lightstyles,
 *           and temp entities) to the refresh definition.
 **/
-void PF_PrepareViewEntites( void ) {
+void PF_PrepareViewEntities( void ) {
     // Calculate view and spatial audio listener origins.
     PF_CalculateViewValues();
     // Finish it off by determing third or first -person view, and the required thirdperson/firstperson view model.

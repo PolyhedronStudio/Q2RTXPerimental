@@ -913,7 +913,7 @@ void PF_ClearViewScene( void ) {
 *           emitting all frame data(entities, particles, dynamic lights, lightstyles,
 *           and temp entities) to the refresh definition.
 **/
-void PF_PrepareViewEntites( void ) {
+void PF_PrepareViewEntities( void ) {
     // Calculate view and spatial audio listener origins.
     PF_CalculateViewValues();
     // Finish it off by determing third or first -person view, and the required thirdperson/firstperson view model.

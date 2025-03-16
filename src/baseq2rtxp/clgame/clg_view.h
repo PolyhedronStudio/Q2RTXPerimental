@@ -25,5 +25,5 @@ void PF_ClearViewScene( void );
 /**
 *   @brief
 **/
-void PF_PrepareViewEntites( void );
+void PF_PrepareViewEntities( void );
 

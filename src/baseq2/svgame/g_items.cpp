@@ -958,28 +958,36 @@ void SVG_PrecacheItem(gitem_t *it)
     if (!s || !s[0])
         return;
 
-    while (*s) {
+    while ( *s ) {
         start = s;
-        while (*s && *s != ' ')
+        while ( *s && *s != ' ' )
             s++;
 
         len = s - start;
-        if (len >= MAX_QPATH || len < 5)
-            gi.error("SVG_PrecacheItem: %s has bad precache string", it->classname);
-        memcpy(data, start, len);
-        data[len] = 0;
-        if (*s)
+        if ( len >= MAX_QPATH || len < 5 )
+            gi.error( "SVG_PrecacheItem: item(\"%s\") has bad precache string", it->classname );
+        gi.error( "SVG_PrecacheItem: item(\"%s\") has unknown extension in precache string: \"%s\"\n", it->classname, data );
+        memcpy( data, start, len );
+        data[ len ] = 0;
+        if ( *s )
             s++;
 
         // determine type based on extension
-        if (!strcmp(data + len - 3, "md2"))
-            gi.modelindex(data);
-        else if (!strcmp(data + len - 3, "sp2"))
-            gi.modelindex(data);
-        else if (!strcmp(data + len - 3, "wav"))
-            gi.soundindex(data);
-        else if (!strcmp(data + len - 3, "pcx"))
-            gi.imageindex(data);
+        if ( !strcmp( data + len - 4, ".iqm" ) ) {
+            gi.modelindex( data );
+        } else if ( !strcmp( data + len - 4, ".md2" ) ) {
+            gi.modelindex( data );
+        } else if ( !strcmp( data + len - 4, ".md3" ) ) {
+            gi.modelindex( data );
+        } else if ( !strcmp( data + len - 4, ".sp2" ) ) {
+            gi.modelindex( data );
+        } else if ( !strcmp( data + len - 4, ".wav" ) ) {
+            gi.soundindex( data );
+        } else if ( !strcmp( data + len - 4, ".pcx" ) ) {
+            gi.imageindex( data );
+        } else {
+			gi.error( "SVG_PrecacheItem: item(\"%s\") has unknown extension in precache string: \"%s\"\n", it->classname, data );
+        }
     }
 }
 

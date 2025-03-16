@@ -555,7 +555,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.CalculateFieldOfView = PF_CalculateFieldOfView;
 		globals.CalculateViewValues = PF_CalculateViewValues;
 		globals.ClearViewScene = PF_ClearViewScene;
-		globals.PrepareViewEntities = PF_PrepareViewEntites;
+		globals.PrepareViewEntities = PF_PrepareViewEntities;
 
 		globals.entity_size = sizeof( centity_t );
 
