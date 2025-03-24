@@ -164,6 +164,9 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
     target_link_libraries(client tinyobjloader)
 	target_link_libraries(client OpenAL)
 	target_link_libraries(client SDL2main SDL2-static zlibstatic)
+	
+	target_link_libraries(client nlohmann-json)
+	target_include_directories(client PRIVATE nlohmann-json)
 
 	# Other WIN32 related options:
 	IF( WIN32 ) 
@@ -236,6 +239,8 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 
 	# General include directory.
 	target_include_directories(server PRIVATE ../inc)
+	target_link_libraries(server nlohmann-json)
+	target_include_directories(server PRIVATE nlohmann-json)
 
 	# ZLib:
 	target_include_directories(server PRIVATE "${ZLIB_INCLUDE_DIRS}")
@@ -437,6 +442,11 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 
 	target_include_directories(baseq2rtxp_svgame PRIVATE ${CMAKE_SOURCE_DIR}/extern/lua-5.4.7/src )
     target_link_libraries(baseq2rtxp_svgame zlibstatic liblua-5.4.7 sol2::sol2)
+
+	target_link_libraries(baseq2rtxp_clgame nlohmann-json)
+	target_link_libraries(baseq2rtxp_svgame nlohmann-json)
+	target_include_directories(baseq2rtxp_clgame PRIVATE nlohmann-json)
+	target_include_directories(baseq2rtxp_svgame PRIVATE nlohmann-json)
 
 	# Specify both LIBRARY and RUNTIME because one works only on Windows,
 	# and another works only on Linux.
