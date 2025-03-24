@@ -46,8 +46,10 @@ int MOD_LoadSP2Json( model_t *model, const void *rawdata, size_t length, const c
     std::vector<dsp2frame_t> src_frames;
     int32_t src_frame_id = 0;
     mspriteframe_t *dst_frame = nullptr;
+    dsp2frame_t *src_frame = nullptr;
+
     char buffer[ SPJ_MAX_FRAMENAME ] = {};
-    int32_t i, ret;
+    int32_t i, ret = Q_ERR_SUCCESS;
 
     const char *jsonBuffer = (const char *)rawdata;
 
@@ -57,7 +59,6 @@ int MOD_LoadSP2Json( model_t *model, const void *rawdata, size_t length, const c
 		return Q_ERR_FILE_TOO_SMALL;
     }
 
-    #if 1
     // Parse JSON using nlohmann::json.
     nlohmann::json json;
     try {
@@ -73,43 +74,58 @@ int MOD_LoadSP2Json( model_t *model, const void *rawdata, size_t length, const c
         return Q_ERR_FAILURE;
     }
 
-    // Try and read the eax effect properties.
+    // Try and read the sprite its properties.
     try {
-        //eax_reverb_properties.flDensity = json.at( "density" ).get< float >();
-        //eax_reverb_properties.flDiffusion = json.at( "diffusion" ).get< float >();
-        //eax_reverb_properties.flGain = json.at( "gain" ).get< float >();
-        //eax_reverb_properties.flGainHF = json.at( "gain_hf" ).get< float >();
-        //eax_reverb_properties.flGainLF = json.at( "gain_lf" ).get< float >();
-        //eax_reverb_properties.flDecayTime = json.at( "decay_time" ).get< float >();
-        //eax_reverb_properties.flDecayHFRatio = json.at( "decay_hf_ratio" ).get< float >();
-        //eax_reverb_properties.flDecayLFRatio = json.at( "decay_lf_ratio" ).get< float >();
-        //eax_reverb_properties.flReflectionsGain = json.at( "reflections_gain" ).get< float >();
-        //eax_reverb_properties.flReflectionsDelay = json.at( "reflections_delay" ).get< float >();
-        //if ( json.at( "reflections_pan" ).size() >= 3 ) {
-        //    eax_reverb_properties.flReflectionsPan[ 0 ] = json.at( "reflections_pan" )[ 0 ].get< float >();
-        //    eax_reverb_properties.flReflectionsPan[ 1 ] = json.at( "reflections_pan" )[ 1 ].get< float >();
-        //    eax_reverb_properties.flReflectionsPan[ 2 ] = json.at( "reflections_pan" )[ 2 ].get< float >();
-        //}
-        //eax_reverb_properties.flLateReverbGain = json.at( "late_reverb_gain" ).get< float >();
-        //eax_reverb_properties.flLateReverbDelay = json.at( "late_reverb_delay" ).get< float >();
-        //if ( json.at( "late_reverb_pan" ).size() >= 3 ) {
-        //    eax_reverb_properties.flLateReverbPan[ 0 ] = json.at( "late_reverb_pan" )[ 0 ].get< float >();
-        //    eax_reverb_properties.flLateReverbPan[ 1 ] = json.at( "late_reverb_pan" )[ 1 ].get< float >();
-        //    eax_reverb_properties.flLateReverbPan[ 2 ] = json.at( "late_reverb_pan" )[ 2 ].get< float >();
-        //}
-        //eax_reverb_properties.flEchoTime = json.at( "echo_time" ).get< float >();
-        //eax_reverb_properties.flEchoDepth = json.at( "echo_depth" ).get< float >();
-        //eax_reverb_properties.flModulationTime = json.at( "modulation_time" ).get< float >();
-        //eax_reverb_properties.flModulationDepth = json.at( "modulation_depth" ).get< float >();
-        //eax_reverb_properties.flAirAbsorptionGainHF = json.at( "air_absorption_gain_hf" ).get< float >();
-        //eax_reverb_properties.flHFReference = json.at( "hf_reference" ).get< float >();
-        //eax_reverb_properties.flLFReference = json.at( "lf_reference" ).get< float >();
-        //eax_reverb_properties.flRoomRolloffFactor = json.at( "room_rolloff_factor" ).get< float >();
-        //eax_reverb_properties.iDecayHFLimit = json.at( "decay_hf_limit" ).get< int32_t >();
+        // Get the version number.
+        if ( json.contains( "version" ) ) {
+			header.version = json[ "version" ].get< int32_t >();
+            if ( header.version != SPJ_VERSION ) {
+                ret = Q_ERR_INVALID_FORMAT;
+            }
+        }
+		// Get the frame count.
+        if ( json.contains( "frameCount" ) ) {
+            header.numframes = json[ "frameCount" ].get< int32_t >();
+        } else {
+            // Notify about the situation.
+            ret = Q_ERR_TOO_FEW;
+        }
+        
+        // Get the frames array.
+        if ( json.contains( "frames" ) && json.at( "frames" ).is_array() ) {
+            // Get frames array.
+			auto framesArray = json.at( "frames" );
+            // Iterate over array of frame objects.
+			for ( const auto &frame : framesArray ) {
+				// Get the frame its name.
+				if ( frame.contains( "name" ) ) {
+                    // The frame to push back to src frames.
+					dsp2frame_t pendingFrame = {};
+
+                    // Get the frame its name.
+					const std::string frameName = frame[ "name" ].get< const std::string >();
+					// Get the frame its width.
+                    pendingFrame.width = frame[ "width" ].get< int32_t >();
+					// Get the frame its height.
+                    pendingFrame.height = frame[ "height" ].get< int32_t >();
+					// Get the frame its origin x.
+                    pendingFrame.origin_x = frame[ "origin_x" ].get< int32_t >();
+					// Get the frame its origin y.
+					pendingFrame.origin_y = frame[ "origin_y" ].get< int32_t >();
+					
+
+                    // Copy the frame name into the buffer.
+					Q_strlcpy( pendingFrame.name, frameName.c_str(), sizeof( pendingFrame.name ) );
+
+					// Add the frame to the list.
+                    src_frames.push_back( pendingFrame );
+				}
+			}
+        }
     }
     // Catch any json parsing errors.
     catch ( const nlohmann::json::exception &e ) {
-        #ifdef _DEBUG_EAX_PRINT_JSON_FAILURES
+        #ifdef _DEBUG_SPJ_PRINT_FAILURES
         // Output parsing error.
         Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(%s)\n", __func__, mod_name, e.what() );
         #endif
@@ -123,151 +139,15 @@ int MOD_LoadSP2Json( model_t *model, const void *rawdata, size_t length, const c
         return Q_ERR_FAILURE;
     }
 
-    // Clear the jsonbuffer buffer.
-    //Z_Free( jsonBuffer );
-
-    #else
-    // Initialize JSON parser.
-    jsmn_parser parser;
-    jsmn_init( &parser );
-
-    // Parse JSON into tokens. ( We aren't expecting more than 128 tokens, can be increased if needed though. )
-    jsmntok_t tokens[ 4096 ];
-    const int32_t numTokensParsed = jsmn_parse( &parser, jsonBuffer, strlen( jsonBuffer ), tokens,
-        sizeof( tokens ) / sizeof( tokens[ 0 ] ) );
-
-    // If lesser than 0 we failed to parse the json properly.
-    if ( numTokensParsed < 0 ) {
-        if ( numTokensParsed == JSMN_ERROR_INVAL ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_INVAL), bad token, JSON string is corrupted\n", __func__, mod_name );
-        } else if ( numTokensParsed == JSMN_ERROR_NOMEM ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_INVAL), not enough tokens, JSON string is too large\n", __func__, mod_name );
-        } else if ( numTokensParsed == JSMN_ERROR_PART ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_PART),  JSON string is too short, expecting more JSON data\n", __func__, mod_name );
-        } else {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(unknown)\n", __func__, mod_name );
-        }
-        return Q_ERR_INVALID_FORMAT;
-    }
-
-    // Assume the top-level element is an object.
-    if ( numTokensParsed < 1 || tokens[ 0 ].type != JSMN_OBJECT ) {
-        Com_LPrintf( PRINT_DEVELOPER, "%s: Expected a json Object at the root of file '%s'!\n", __func__, mod_name );
-        return Q_ERR_INVALID_FORMAT;
-    }
-
-    // Iterate over json tokens.
-    for ( int32_t tokenID = 1; tokenID < numTokensParsed; tokenID++ ) {
-        if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "version" ) == 0 ) {
-			// Aquire token value of version.
-            header.version = json_token_to_int32( jsonBuffer, tokens, tokens[ tokenID + 1 ] );
-        } else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "frameCount" ) == 0 ) {
-            // Aquire token value of numframes.
-            header.numframes = json_token_to_int32( jsonBuffer, tokens, tokens[ tokenID + 1 ] );
-			
-            // Resize the source frame vector to accommodate enough space.
-            src_frames.resize( header.numframes );
-        } else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "frames" ) == 0 ) {
-            // Skip if not an array.
-            if ( tokens[ tokenID + 1 ].type != JSMN_ARRAY ) {
-                // TODO: Debug print.
-                continue;
-            }
-
-            // Its size must've already been set.
-			if ( header.numframes == 0 ) {
-				Com_LPrintf( PRINT_DEVELOPER, "%s: Expected a frameCount value before 'frames' in file '%s'!\n", __func__, mod_name );
-				return Q_ERR_TOO_FEW;
-			}
-
-            for ( int32_t j = 1; j < tokens[ tokenID + 1 ].size; j++ ) {
-                // Skip if not an array.
-                if ( tokens[ tokenID +  j ].type != JSMN_OBJECT ) {
-                    // TODO: Debug print.
-                    continue;
-                }
-
-				// Get the array object token.
-                jsmntok_t arrayObjectToken = tokens[ tokenID + 2 + j ];
-				// Iterate over the object.
-                for ( int32_t objectTokenID = 0; objectTokenID < arrayObjectToken.size; objectTokenID++ ) {
-                    // Get the object key token.
-                    jsmntok_t objectKeyToken = tokens[ tokenID + 2 + j + objectTokenID + 1 ];
-                    // Get the object key string.
-                    std::string objectKeyStr = json_token_to_str( jsonBuffer, tokens, objectKeyToken );
-                    // Get the object value token.
-                    jsmntok_t objectValueToken = tokens[ tokenID + 2 + j + objectTokenID + 2 ];
-                    // Ensure it is a primitive.
-                    if ( !( objectValueToken.type & JSMN_PRIMITIVE ) && !( objectValueToken.type & JSMN_STRING ) ) {
-                        // Token string.
-                        std::string tokenStr = json_token_to_str( jsonBuffer, tokens, objectValueToken );
-                        // Error print.
-                        Com_EPrintf( "%s: Expected a primitive value for key '%s' in file '%s'!\n", __func__, tokenStr.c_str(), mod_name );
-                        // Move on.
-                        continue;
-                    }
-                    // Get the object value.
-                    std::string objectValueStr = json_token_to_str( jsonBuffer, tokens, objectValueToken );
-
-                    // Detect which key property we are dealing with:
-                    if ( objectKeyStr == "name" ) {
-                        // Token string.
-                        std::string tokenStr = json_token_to_str( jsonBuffer, tokens, objectValueToken );
-                        // Error print.
-                        Com_DPrintf( "%s: Parsed the primitive value for key '%s' in file '%s'!\n", __func__, tokenStr.c_str(), mod_name );
-                    }
-                    if ( objectKeyStr == "width" ) {
-                        // Token string.
-                        std::string tokenStr = json_token_to_str( jsonBuffer, tokens, objectValueToken );
-                        // Error print.
-                        Com_DPrintf( "%s: Parsed the primitive value for key '%s' in file '%s'!\n", __func__, tokenStr.c_str(), mod_name );
-                    }
-                    if ( objectKeyStr == "height" ) {
-                        // Token string.
-                        std::string tokenStr = json_token_to_str( jsonBuffer, tokens, objectValueToken );
-                        // Error print.
-                        Com_DPrintf( "%s: Parsed the primitive value for key '%s' in file '%s'!\n", __func__, tokenStr.c_str(), mod_name );
-                    }
-                    if ( objectKeyStr == "origin_x" ) {
-                        // Token string.
-                        std::string tokenStr = json_token_to_str( jsonBuffer, tokens, objectValueToken );
-                        // Error print.
-                        Com_DPrintf( "%s: Parsed the primitive value for key '%s' in file '%s'!\n", __func__, tokenStr.c_str(), mod_name );
-                    }
-                    if ( objectKeyStr == "origin_y" ) {
-                        // Token string.
-                        std::string tokenStr = json_token_to_str( jsonBuffer, tokens, objectValueToken );
-                        // Error print.
-                        Com_DPrintf( "%s: Parsed the primitive value for key '%s' in file '%s'!\n", __func__, tokenStr.c_str(), mod_name );
-                    }
-                        //"name": "sprites/expl0/00.tga",
-                        //"width" : 1024,
-                        //"height" : 1024,
-                        //"origin_x" : 0,
-                        //"origin_y" : 0
-                }
-
-                // Increase token count.
-                tokenID += tokens[ tokenID + 1 ].size + 1;
-
-                // Increment the src_frame_id for use with the next frame.
-                src_frame_id++;
-            }
-
-            // Increase token count.
-            tokenID += tokens[ tokenID + 1 ].size + 1;
-        }
-    }
-    #endif
-
     //if ( header.ident != SP2_IDENT )
     //    return Q_ERR_UNKNOWN_FORMAT;
     //if ( header.version != SP2_VERSION )
     //    return Q_ERR_UNKNOWN_FORMAT;
+    header.ident = SP2_IDENT;
     if ( header.numframes < 1 ) {
         // empty models draw nothing
         model->type = model_s::MOD_EMPTY;
-        return Q_ERR_SUCCESS;
+        return Q_ERR_TOO_FEW;
     }
     if ( header.numframes > SP2_MAX_FRAMES ) {
         model->type = model_s::MOD_EMPTY;
@@ -285,8 +165,9 @@ int MOD_LoadSP2Json( model_t *model, const void *rawdata, size_t length, const c
 	// Allocate space for the sprite frames.
     //src_frame = (dsp2frame_t *)( (byte *)rawdata + sizeof( dsp2header_t ) );
     dst_frame = model->spriteframes;
+
     for ( i = 0; i < header.numframes; i++ ) {
-        dsp2frame_t *src_frame = &src_frames[ i ];
+        src_frame = &src_frames[ i ];
 		// Get frame texture rectangle dimensions.
         dst_frame->width = (int32_t)LittleLong( src_frame->width );
         dst_frame->height = (int32_t)LittleLong( src_frame->height );

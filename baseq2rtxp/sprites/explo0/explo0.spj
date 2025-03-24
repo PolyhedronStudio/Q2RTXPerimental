@@ -1,69 +1,69 @@
 {
-	"version":1,
-	"frameCount":8,
+	"version":2,
+	"frameCount":9,
 	"frames": [
 		{
-			"name": "sprites/expl0/00.tga",
+			"name": "sprites/explo0/00.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		},
 		{
-			"name": "sprites/expl0/01.tga",
+			"name": "sprites/explo0/01.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		},
 		{
-			"name": "sprites/expl0/02.tga",
+			"name": "sprites/explo0/02.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		},
 		{
-			"name": "sprites/expl0/03.tga",
+			"name": "sprites/explo0/03.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		},
 		{
-			"name": "sprites/expl0/04.tga",
+			"name": "sprites/explo0/04.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		},
 		{
-			"name": "sprites/expl0/05.tga",
+			"name": "sprites/explo0/05.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		},
 		{
-			"name": "sprites/expl0/06.tga",
+			"name": "sprites/explo0/06.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		},
 		{
-			"name": "sprites/expl0/07.tga",
+			"name": "sprites/explo0/07.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		},
 		{
-			"name": "sprites/expl0/08.tga",
+			"name": "sprites/explo0/08.tga",
 			"width": 1024,
 			"height": 1024,
-			"origin_x": 0,
-			"origin_y": 0
+			"origin_x": 512,
+			"origin_y": 512
 		}
 	]
 }
