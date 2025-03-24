@@ -9,6 +9,7 @@
 
 //! Maximum material name will always equal maximum texture name, otherwise it'd be a mismatch.
 #define MAX_MATERIAL_NAME MAX_TEXNAME
+#define MAX_MATERIAL_KIND_STR_LENGTH MAX_QPATH
 
 //! The physical property type, such as BRICK, CONCRETE, GLASS, GRASS, SNOW, PLYWOOD etc.
 typedef uint32_t cm_material_physical_type;
@@ -50,7 +51,7 @@ typedef struct cm_material_s {
     struct cm_material_physical_properties_s {
         //! Material.
         //cm_material_physical_type type;
-        char kind[ MAX_QPATH ];
+        char kind[ MAX_MATERIAL_KIND_STR_LENGTH ];
 
         //! Friction.
         float friction;

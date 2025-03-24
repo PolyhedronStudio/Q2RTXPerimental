@@ -25,8 +25,9 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 ---
 * [ ] Unify signal names, i.e DoorLock RotatingLock just use Lock, etc etc.
 * [ ] 
+* [ ] nlohmann json instead of jsmn?
 
-## For v0.0.6 or so:
+## Things to do, perhaps for v0.0.6:
 - [ ] The **Monster** Scenario:
 	- [ ] 0. We need nav nodes of sorts, probably lets do this KISS first, just use some entities.
 	- [ ] 1. There's more I can think of such as detecting whether to strafe and all that...
@@ -95,8 +96,9 @@ animations for open/closed/transit-in/transit-out states throughout TB editor. (
 - [ ] The **Entities** Scenario:
 	- [X] 0. Fix func_button, KISS for now.
 		- [X] Test func_button map properly and add a few extra signal related features.
-	- [ ] 1. Calculate the proper entity matrixes/quaternions during Link time.
-		- [ ] Reimplement the 'movewith' system using matrixes/quaternions instead of those silly vector maths.
+	- [ ] 1. Reimplement the 'movewith' system using matrixes/quaternions instead of those silly vector maths.
+		- [ ] Calculate the proper entity matrixes/quaternions during Link time.
+
 - [X] The **IQM Animation** Scenario:
 	- [ ] 0. Redo the player animations properly once and for allOnce again.. sigh
 

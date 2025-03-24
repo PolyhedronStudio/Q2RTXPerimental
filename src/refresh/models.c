@@ -327,6 +327,9 @@ fail:
 #define TRY_MODEL_SRC_GAME      1
 #define TRY_MODEL_SRC_BASE      0
 
+// Publicly exposed to refresh modules so, extern "C".
+int MOD_LoadSP2Json( model_t *model, const void *rawdata, size_t length, const char *mod_name );
+
 qhandle_t R_RegisterModel(const char *name)
 {
     char normalized[MAX_QPATH];
@@ -335,7 +338,7 @@ qhandle_t R_RegisterModel(const char *name)
     int filelen = 0;
     model_t *model;
     byte *rawdata = NULL;
-    uint32_t ident;
+    uint32_t ident = 0;
     mod_load_t load;
     int ret;
 
@@ -388,6 +391,14 @@ qhandle_t R_RegisterModel(const char *name)
 
             memcpy(extension, ".md2", 4);
         }
+        if ( namelen > 4 && ( strcmp( extension, ".spj" ) == 0 ) ) {
+			//memcpy( extension, ".sp2", 4 );
+			filelen = FS_LoadFileFlags( normalized, (void **)&rawdata, fs_flags );
+            if ( filelen > 0 ) {
+                ident = SPJ_IDENT;
+            }
+			//memcpy( extension, ".spj", 4 );
+        }
         if (!rawdata)
         {
             filelen = FS_LoadFileFlags(normalized, (void **)&rawdata, fs_flags);
@@ -415,8 +426,10 @@ qhandle_t R_RegisterModel(const char *name)
         goto fail2;
     }
 
-    // check ident
-    ident = LittleLong(*(uint32_t *)rawdata);
+    // check ident from binary file rawdata if it was not set before(which it would if text format encountered)
+    if ( !ident ) {
+        ident = LittleLong( *(uint32_t *)rawdata );
+    }
     switch (ident) {
     case MD2_IDENT:
         load = MOD_LoadMD2;
@@ -429,6 +442,9 @@ qhandle_t R_RegisterModel(const char *name)
     case SP2_IDENT:
         load = MOD_LoadSP2;
         break;
+    case SPJ_IDENT:
+		load = MOD_LoadSP2Json;
+		break;
     case IQM_IDENT:
         load = MOD_LoadIQM;
         break;

@@ -19,14 +19,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef FORMAT_SP2_H
 #define FORMAT_SP2_H
 
-/*
-========================================================================
-
-.SP2 sprite file format
-
-========================================================================
-*/
-
+/**
+* 
+* 
+* 
+*   .sp2 - Sprite Model Format.
+* 
+* 
+* 
+**/
 #define SP2_IDENT       MakeLittleLong('I','D','S','2')
 #define SP2_VERSION     2
 
@@ -45,5 +46,20 @@ typedef struct {
     uint32_t    numframes;
     // dsp2frame_t frames[1];              // variable sized
 } dsp2header_t;
+
+/**
+*
+*
+*
+*   .spj - Sprite Model JSON Format.
+*
+*
+*
+**/
+#define SPJ_IDENT       MakeLittleLong('I','D','S','J')
+#define SPJ_VERSION     1
+
+#define SPJ_MAX_FRAMES      256
+#define SPJ_MAX_FRAMENAME   64
 
 #endif // FORMAT_SP2_H

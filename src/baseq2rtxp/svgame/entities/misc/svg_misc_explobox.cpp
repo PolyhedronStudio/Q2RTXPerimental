@@ -65,6 +65,7 @@ void barrel_explode( edict_t *self ) {
     VectorCopy( self->s.origin, save );
     VectorMA( self->absmin, 0.5f, self->size, self->s.origin );
 
+    #if 0
     // a few big chunks
     spd = 1.5f * (float)self->dmg / 200.0f;
     VectorMA( self->s.origin, crandom(), self->size, org );
@@ -100,7 +101,10 @@ void barrel_explode( edict_t *self ) {
     } else {
         SVG_Misc_BecomeExplosion( self, 1 );
     }
+    #endif // #if 0
+    SVG_Misc_BecomeExplosion( self, 0 );
 }
+
 
 /**
 *   @brief

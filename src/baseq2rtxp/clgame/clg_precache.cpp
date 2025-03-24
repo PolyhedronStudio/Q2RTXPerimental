@@ -133,6 +133,10 @@ void PF_PrecacheClientModels( void ) {
         //}
     }
 
+	// <Q2RTXP>: Our own sprite/model precache entries.
+	precache.models.sprite_explo0 = clgi.R_RegisterModel( "sprites/explo0/explo0.spj" );
+    clgi.SetSpriteModelVerticality( precache.models.sprite_explo0 );
+
     // Precaches all local 'model path' registered files.
     CLG_PrecacheLocalModels();
 }

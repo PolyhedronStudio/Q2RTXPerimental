@@ -979,6 +979,8 @@ void SVG_PrecacheItem(gitem_t *it)
             gi.modelindex( data );
         } else if ( !strcmp( data + len - 4, ".md3" ) ) {
             gi.modelindex( data );
+        } else if ( !strcmp( data + len - 4, ".spj" ) ) {
+            gi.modelindex( data );
         } else if ( !strcmp( data + len - 4, ".sp2" ) ) {
             gi.modelindex( data );
         } else if ( !strcmp( data + len - 4, ".wav" ) ) {

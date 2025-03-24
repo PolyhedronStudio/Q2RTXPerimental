@@ -1,9 +1,7 @@
 {
-    // Root Motion Bone:
-    "rootmotionbone" : "mixamorig8:Hips",
-    // Hips and spine bones.
-    "hipsbone" : "mixamorig8:Hips",
-    "spine1bone" : "mixamorig8:Spine",
-    "spine2bone" : "mixamorig8:Spine1",
-    "spine3bone" : "mixamorig8:Spine3",
+    "rootmotionbone": "mixamorig8:Hips",
+    "hipbone": "mixamorig8:Hips",
+    "spine1bone": "mixamorig8:Spine",
+    "spine2bone": "mixamorig8:Spine1",
+    "spine3bone": "mixamorig8:Spine3"
 }

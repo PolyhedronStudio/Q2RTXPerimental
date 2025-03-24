@@ -34,8 +34,15 @@ typedef enum {
 } precache_t;
 
 static precache_t precache_check;
-static int precache_sexed_sounds[MAX_SOUNDS];
-static int precache_sexed_total;
+
+//! Enables support for sexed stuff. Dun need that tbh.
+//#define ENABLE_OTHER_PLAYER_AND_SEXED_SOUNDS
+
+// <Q2RTXP>: WID: Disabled for now.
+#ifdef ENABLE_OTHER_PLAYER_AND_SEXED_SOUNDS
+    static int precache_sexed_sounds[MAX_SOUNDS];
+    static int precache_sexed_total;
+#endif
 
 /*
 ===============
@@ -492,13 +499,13 @@ to prevent the server from uploading arbitrary files.
 */
 bool CL_CheckDownloadExtension(const char *ext)
 {
-    static const char allowed[][4] = {
-        "bsp", "dm2", "ent", "jpg", "loc", "md2", "md3", "ogg", "pcx", "png",
-        "sp2", "tga", "txt", "wal", "wav",
+    static const char allowed[][9] = {
+        "bsp", "dm2", "ent", "jpg", "loc", "md2", "md3", "iqm", "skc", "ogg", "pcx", "png",
+        "sp2", "spj", "tga", "txt", "wal", "wal_json", "wav",
     };
 
     for (int i = 0; i < q_countof(allowed); i++)
-        if (!Q_stricmp(ext, allowed[i]))
+        if (!Q_strncasecmp(ext, allowed[i], strlen(allowed[i])))
             return true;
 
     return false;
@@ -663,14 +670,14 @@ done:
 
 static void check_player(const char *name)
 {
-    char fn[MAX_QPATH], model[MAX_QPATH], skin[MAX_QPATH], *p;
+    char fn[ MAX_QPATH ], model[ MAX_QPATH ], skin[ MAX_QPATH ];// , *p;
     size_t len;
-    int i, j;
+    int i;// , j;
 
     CL_ParsePlayerSkin(NULL, model, skin, name);
 
     // model
-    len = Q_concat(fn, sizeof(fn), "players/", model, "/tris.md2");
+    len = Q_concat(fn, sizeof(fn), "players/", model, "/tris.iqm");
     check_file_len(fn, len, DL_OTHER);
 
     // view(-weapon) models
@@ -679,6 +686,8 @@ static void check_player(const char *name)
         check_file_len(fn, len, DL_OTHER);
     }
 
+	// <Q2RTXP>: WID: Disabled for now.
+    #ifdef ENABLE_OTHER_PLAYER_AND_SEXED_SOUNDS
     // default weapon skin
     len = Q_concat(fn, sizeof(fn), "players/", model, "/weapon.pcx");
     check_file_len(fn, len, DL_OTHER);
@@ -701,6 +710,7 @@ static void check_player(const char *name)
             check_file_len(fn, len, DL_OTHER);
         }
     }
+    #endif
 }
 
 // for precaching dependencies
@@ -844,6 +854,8 @@ void CL_RequestNextDownload(void)
         }
 
         if (allow_download_players->integer) {
+            // <Q2RTXP>: WID: Disabled for now.
+            #ifdef ENABLE_OTHER_PLAYER_AND_SEXED_SOUNDS
             // find sexed sounds
             precache_sexed_total = 0;
             for (i = 1; i < MAX_SOUNDS; i++) {
@@ -851,6 +863,7 @@ void CL_RequestNextDownload(void)
                     precache_sexed_sounds[precache_sexed_total++] = i;
                 }
             }
+            #endif
 
             for (i = 0; i < MAX_CLIENTS; i++) {
                 name = cl.configstrings[CS_PLAYERSKINS + i];

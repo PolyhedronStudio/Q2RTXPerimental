@@ -12,9 +12,8 @@
 #include "local_entities/clg_local_entity_classes.h"
 #include "local_entities/clg_local_env_sound.h"
 
-// Jasmine json parser.
-#define JSMN_STATIC
-#include "shared/jsmn.h"
+// Include nlohman::json library for easy parsing.
+#include <nlohmann/json.hpp>
 
 //! Enables material debug output.
 #define _DEBUG_EAX_PRINT_JSON_FAILURES 1
@@ -197,50 +196,6 @@ void CLG_EAX_Interpolate( /*const qhandle_t fromID, */ const qhandle_t toID, con
 }
 
 /**
-*	@brief	JSON Support Function:
-**/
-static const int32_t jsoneq( const char *json, jsmntok_t *tok, const char *s ) {
-	// Need a valid token ptr.
-	if ( tok == nullptr ) {
-		return -1;
-	}
-
-	if ( tok->type == JSMN_STRING && (int)strlen( s ) == tok->end - tok->start &&
-		strncmp( json + tok->start, s, tok->end - tok->start ) == 0 ) {
-		return 0;
-	}
-	return -1;
-}
-/**
-*	@brief	JSON Support Function:
-**/
-const float json_token_to_float( const char *jsonBuffer, jsmntok_t *tokens, const uint32_t tokenID ) {
-	// Value
-	char fieldValue[ MAX_QPATH ] = { };
-	// Fetch field value string size.
-	const int32_t size = std::clamp( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
-	// Parse field value into buffer.
-	Q_snprintf( fieldValue, size, jsonBuffer + tokens[ tokenID + 1 ].start );
-
-	// Try and convert it to a float for our material.
-	return atof( fieldValue );
-}
-/**
-*	@brief	JSON Support Function:
-**/
-const int32_t json_token_to_int32( const char *jsonBuffer, jsmntok_t *tokens, const uint32_t tokenID ) {
-	// Value
-	char fieldValue[ MAX_QPATH ] = { };
-	// Fetch field value string size.
-	const int32_t size = std::clamp( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
-	// Parse field value into buffer.
-	Q_snprintf( fieldValue, size, jsonBuffer + tokens[ tokenID + 1 ].start );
-
-	// Try and convert it to a float for our material.
-	return atoi( fieldValue );
-}
-
-/**
 *	@brief	Will load the reverb effect properties from a json file.
 **/
 sfx_eax_properties_t CLG_EAX_LoadReverbPropertiesFromJSON( const char *filename ) {
@@ -274,182 +229,66 @@ sfx_eax_properties_t CLG_EAX_LoadReverbPropertiesFromJSON( const char *filename 
 		return eax_reverb_properties;
 	}
 
-	// Initialize JSON parser.
-	jsmn_parser parser;
-	jsmn_init( &parser );
-
-	// Parse JSON into tokens. ( We aren't expecting more than 128 tokens, can be increased if needed though. )
-	jsmntok_t tokens[ 512 ];
-	const int32_t numTokensParsed = jsmn_parse( &parser, jsonBuffer, strlen( jsonBuffer ), tokens,
-		sizeof( tokens ) / sizeof( tokens[ 0 ] ) );
-
-	// If lesser than 0 we failed to parse the json properly.
-	if ( numTokensParsed < 0 ) {
-		clgi.Print( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(#%d)\n", __func__, jsonPath, numTokensParsed );
+	// Parse JSON using nlohmann::json.
+	nlohmann::json json;
+	try {
+		json = nlohmann::json::parse( jsonBuffer );
+	}
+	// Catch parsing errors if any.
+	catch ( const nlohmann::json::parse_error &e ) {
+		// Output parsing error.
+		clgi.Print( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(%s)\n", __func__, jsonPath, e.what() );
 		// Clear the jsonbuffer buffer.
 		clgi.Z_Free( jsonBuffer );
+		// Return as we failed to parse the json.
 		return eax_reverb_properties;
 	}
 
-	// Assume the top-level element is an object.
-	if ( numTokensParsed < 1 || tokens[ 0 ].type != JSMN_OBJECT ) {
-		clgi.Print( PRINT_DEVELOPER, "%s: Expected a json Object at the root of file '%s'!\n", __func__, jsonPath );
-		// Clear the jsonbuffer buffer.
-		clgi.Z_Free( jsonBuffer );
-		return eax_reverb_properties;
-	}
-
-	// Iterate over json tokens.
-	for ( int32_t tokenID = 1; tokenID < numTokensParsed; tokenID++ ) {
-		// density:
-		if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "density" ) == 0 ) {
-			eax_reverb_properties.flDensity = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// diffusion:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "diffusion" ) == 0 ) {
-			eax_reverb_properties.flDiffusion = json_token_to_float( jsonBuffer, tokens, tokenID );
-
-		// gain:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "gain" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flGain = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// gain_hf:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "gain_hf" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flGainHF = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// gain_lf:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "gain_lf" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flGainLF = json_token_to_float( jsonBuffer, tokens, tokenID );
-
-		// decay_time:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "decay_time" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flDecayTime= json_token_to_float( jsonBuffer, tokens, tokenID );
-		// decay_hf_ratio:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "decay_hf_ratio" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flDecayHFRatio = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// decay_lf_ratio:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "decay_lf_ratio" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flDecayLFRatio = json_token_to_float( jsonBuffer, tokens, tokenID );
-
-		// reflections_gain:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "reflections_gain" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flReflectionsGain = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// reflections_delay:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "reflections_delay" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flReflectionsDelay = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// reflections_pan:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "reflections_pan" ) == 0 ) {
-			// Skip if not an array.
-			if ( tokens[ tokenID + 1 ].type != JSMN_ARRAY ) {
-				// TODO: Debug print.
-				continue;
-			}
-			for ( int32_t j = 0; j < tokens[ tokenID + 1 ].size; j++ ) {
-				// Prevent OOB.
-				if ( j < 3 ) {
-					jsmntok_t *g = &tokens[ tokenID + j + 2 ];
-					char tokenStr[ MAX_TOKEN_CHARS ] = {};
-					Q_strlcpy( tokenStr, jsonBuffer + g->start, g->end - g->start + 1 );
-
-					eax_reverb_properties.flReflectionsPan[ j ] = atof( tokenStr );
-				}
-			}
-
-			// Increase token count.
-			tokenID += tokens[ tokenID + 1 ].size + 1;
-
-		// late_reverb_gain:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "late_reverb_gain" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flLateReverbGain = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// late_reverb_delay:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "late_reverb_delay" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flLateReverbDelay = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// reflections_pan:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "late_reverb_pan" ) == 0 ) {
-			// Skip if not an array.
-			if ( tokens[ tokenID + 1 ].type != JSMN_ARRAY ) {
-				// TODO: Debug print.
-				continue;
-			}
-			for ( int32_t j = 0; j < tokens[ tokenID + 1 ].size; j++ ) {
-				// Prevent OOB.
-				if ( j < 3 ) {
-					jsmntok_t *g = &tokens[ tokenID + j + 2 ];
-					char tokenStr[ MAX_TOKEN_CHARS ] = {};
-					Q_strlcpy( tokenStr, jsonBuffer + g->start, g->end - g->start + 1 );
-
-					eax_reverb_properties.flLateReverbPan[ j ] = atof( tokenStr );
-				}
-			}
-
-			// Increase token count.
-			tokenID += tokens[ tokenID + 1 ].size + 1;
-
-		// echo_time:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "echo_time" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flEchoTime = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// echo_depth:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "echo_depth" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flEchoDepth = json_token_to_float( jsonBuffer, tokens, tokenID );
-
-		// modulation_time:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "modulation_time" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flModulationTime = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// modulation_depth:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "modulation_depth" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flModulationDepth = json_token_to_float( jsonBuffer, tokens, tokenID );
-
-		// air_absorbtion_hf:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "air_absorbtion_hf" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flAirAbsorptionGainHF = json_token_to_float( jsonBuffer, tokens, tokenID );
-
-		// hf_reference:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "hf_reference" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flModulationDepth = json_token_to_float( jsonBuffer, tokens, tokenID );
-		// lf_reference:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "lf_reference" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flModulationDepth = json_token_to_float( jsonBuffer, tokens, tokenID );
-
-		// room_rolloff_factor:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "room_rolloff_factor" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.flRoomRolloffFactor = json_token_to_float( jsonBuffer, tokens, tokenID );
-
-		// decay_limit:
-		} else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "decay_limit" ) == 0 ) {
-			// Try and convert it to a float for our eax effect.
-			eax_reverb_properties.iDecayHFLimit = json_token_to_int32( jsonBuffer, tokens, tokenID );
-		} else {
-		//#ifdef _DEBUG_EAX_PRINT_JSON_FAILURES
-		//	// Field Key
-		//	char keyValue[ MAX_QPATH ] = { };
-		//	// Fetch field key string size.
-		//	const int32_t size = constclamp( tokens[ tokenID ].end - tokens[ tokenID ].start, 0, MAX_QPATH );
-		//	// Parse field key into buffer.
-		//	Q_snprintf( keyValue, size, jsonBuffer + tokens[ tokenID ].start );
-		//	// TODO DEBUG ERROR.
-		//	clgi.Print( PRINT_DEVELOPER, "%s: found unknown key: '%s' in file: 'eax/%s.json'\n", __func__, keyValue, filename );
-		//#endif
+	// Try and read the eax effect properties.
+	try {
+		eax_reverb_properties.flDensity = json.at( "density" ).get< float >();
+		eax_reverb_properties.flDiffusion = json.at( "diffusion" ).get< float >();
+		eax_reverb_properties.flGain = json.at( "gain" ).get< float >();
+		eax_reverb_properties.flGainHF = json.at( "gain_hf" ).get< float >();
+		eax_reverb_properties.flGainLF = json.at( "gain_lf" ).get< float >();
+		eax_reverb_properties.flDecayTime = json.at( "decay_time" ).get< float >();
+		eax_reverb_properties.flDecayHFRatio = json.at( "decay_hf_ratio" ).get< float >();
+		eax_reverb_properties.flDecayLFRatio = json.at( "decay_lf_ratio" ).get< float >();
+		eax_reverb_properties.flReflectionsGain = json.at( "reflections_gain" ).get< float >();
+		eax_reverb_properties.flReflectionsDelay = json.at( "reflections_delay" ).get< float >();
+		if ( json.at( "reflections_pan" ).size() >= 3 ) {
+			eax_reverb_properties.flReflectionsPan[ 0 ] = json.at( "reflections_pan" )[ 0 ].get< float >();
+			eax_reverb_properties.flReflectionsPan[ 1 ] = json.at( "reflections_pan" )[ 1 ].get< float >();
+			eax_reverb_properties.flReflectionsPan[ 2 ] = json.at( "reflections_pan" )[ 2 ].get< float >();
 		}
+		eax_reverb_properties.flLateReverbGain = json.at( "late_reverb_gain" ).get< float >();
+		eax_reverb_properties.flLateReverbDelay = json.at( "late_reverb_delay" ).get< float >();
+		if ( json.at( "late_reverb_pan" ).size() >= 3 ) {
+			eax_reverb_properties.flLateReverbPan[ 0 ] = json.at( "late_reverb_pan" )[ 0 ].get< float >();
+			eax_reverb_properties.flLateReverbPan[ 1 ] = json.at( "late_reverb_pan" )[ 1 ].get< float >();
+			eax_reverb_properties.flLateReverbPan[ 2 ] = json.at( "late_reverb_pan" )[ 2 ].get< float >();
+		}
+		eax_reverb_properties.flEchoTime = json.at( "echo_time" ).get< float >();
+		eax_reverb_properties.flEchoDepth = json.at( "echo_depth" ).get< float >();
+		eax_reverb_properties.flModulationTime = json.at( "modulation_time" ).get< float >();
+		eax_reverb_properties.flModulationDepth = json.at( "modulation_depth" ).get< float >();
+		eax_reverb_properties.flAirAbsorptionGainHF = json.at( "air_absorbtion_gain_hf" ).get< float >();
+		eax_reverb_properties.flHFReference = json.at( "hf_reference" ).get< float >();
+		eax_reverb_properties.flLFReference = json.at( "lf_reference" ).get< float >();
+		eax_reverb_properties.flRoomRolloffFactor = json.at( "room_rolloff_factor" ).get< float >();
+		eax_reverb_properties.iDecayHFLimit = json.at( "decay_hf_limit" ).get< int32_t >();
 	}
-
-	// Debug print:
-	//Com_LPrintf( PRINT_DEVELOPER, "%s: Inserted new material[materialID(#%d), name(\"%s\"), kind(%s), friction(%f)]\n",
-	//	__func__, material->materialID, material->name, material->physical.kind, material->physical.friction );
+	// Catch any json parsing errors.
+	catch ( const nlohmann::json::exception &e ) {
+		#ifdef _DEBUG_EAX_PRINT_JSON_FAILURES
+		// Output parsing error.
+		clgi.Print( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(%s)\n", __func__, jsonPath, e.what() );
+		#endif
+		// Clear the jsonbuffer buffer.
+		clgi.Z_Free( jsonBuffer );
+		// Return 0 as we failed to parse the json.
+		return eax_reverb_properties;
+	}
 
 	// Clear the jsonbuffer buffer.
 	clgi.Z_Free( jsonBuffer );

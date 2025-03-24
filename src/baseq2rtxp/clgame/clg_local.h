@@ -552,6 +552,9 @@ struct precached_media_s {
 		qhandle_t lightning;
 		qhandle_t heatbeam;
 		qhandle_t explo4_big;
+
+		// <Q2RTXP>: Our own sprite/model precache entries.
+		qhandle_t sprite_explo0;
 	} models;
 
 	// 
