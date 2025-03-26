@@ -39,6 +39,7 @@ typedef enum {
     MSG_ES_BEAMORIGIN = ( 1 << 3 ),
     MSG_ES_REMOVE = ( 1 << 4 )
 } msgEsFlags_t;
+QENUM_BIT_FLAGS( msgEsFlags_t );
 
 //! Optional (Read/Write-)Position Encoding Types:
 typedef enum {

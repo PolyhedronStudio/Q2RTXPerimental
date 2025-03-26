@@ -1498,8 +1498,8 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 	// Clear out several member variables which require a fresh state before performing the move.
 	pm->touchTraces = {};
-	//pm->playerState.viewangles = {};
-	//ps->pmove.viewheight = 0;
+	pm->playerState.viewangles = {};
+	ps->pmove.viewheight = 0;
 	pm->ground = {};
 	pm->liquid = {
 		.type = CONTENTS_NONE,

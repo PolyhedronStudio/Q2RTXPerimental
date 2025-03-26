@@ -1801,21 +1801,33 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	pmp = reinterpret_cast<pmoveParams_t *>( params );
 
 	// Clear out several member variables which require a fresh state before performing the move.
+	#if 1
 	pm->touchTraces = {};
-	//pm->playerState.viewangles = {};
-	//ps->pmove.viewheight = 0;
+	ps->viewangles = {};
+	ps->pmove.viewheight = 0;
 	pm->ground = {};
 	pm->liquid = {
 		.type = CONTENTS_NONE,
 		.level = liquid_level_t::LIQUID_NONE
 	},
-	//pm->screen_blend = {};
-	//pm->rdflags = 0;
+	ps->screen_blend[ 0 ] = ps->screen_blend[ 1 ] = ps->screen_blend[ 2 ] = ps->screen_blend[ 3 ] = 0;
+	ps->rdflags = 0;
 	pm->jump_sound = false;
 	pm->step_clip = false;
 	pm->step_height = 0;
 	pm->impact_delta = 0;
-
+	#else
+	pm->touchTraces = {};
+	pm->ground = {};
+	pm->liquid = {
+		.type = CONTENTS_NONE,
+		.level = liquid_level_t::LIQUID_NONE
+	},
+	pm->jump_sound = false;
+	pm->step_clip = false;
+	pm->step_height = 0;
+	pm->impact_delta = 0;
+	#endif
 	// Clear all pmove local vars
 	pml = {};
 

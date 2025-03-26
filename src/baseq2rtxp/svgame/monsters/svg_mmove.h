@@ -171,7 +171,7 @@ typedef struct mm_move_s {
     //! [In]: Used as trace skip/pass-entity, usually points to the monster itself.
     edict_t *monster;
     //! [In]: Frametime.
-    float frameTime;
+    double frameTime;
     //! [In]: Bounds.
     Vector3 mins, maxs;
 

@@ -98,24 +98,14 @@ static void SV_EmitPacketEntities(client_t         *client,
             // In case of a Player Entity:
             if (newnum <= client->maxclients) {
                 // WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_NEWENTITY );
+				flags |= MSG_ES_NEWENTITY;
             }
             // In case this is our own client entity, update the new ent's origin and angles.
             if (newnum == clientEntityNumber) {
-                //flags |= MSG_ES_FIRSTPERSON;
-				// WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_FIRSTPERSON );
-                VectorCopy(oldent->origin, newent->origin);
+                flags |= MSG_ES_FIRSTPERSON;
+				VectorCopy(oldent->origin, newent->origin);
                 VectorCopy(oldent->angles, newent->angles);
             }
-            //if (Q2PRO_SHORTANGLES(client, newnum)) {
-            //  //flags |= MSG_ES_SHORTANGLES;
-			//	// WID: C++20:
-			//	//flags |= MSG_ES_NEWENTITY;
-			//	flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-			//}
             MSG_WriteDeltaEntity(oldent, newent, flags);
             oldindex++;
             newindex++;
@@ -124,11 +114,7 @@ static void SV_EmitPacketEntities(client_t         *client,
 
         // The old entity is present in the current frame.
         if ( newnum < oldnum ) {
-            // this is a new entity, send it from the baseline
-            //flags = client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY;
-            // WID: C++20:
-            //flags |= MSG_ES_NEWENTITY;
-            flags = (msgEsFlags_t)( client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY );
+            flags |= MSG_ES_FORCE | MSG_ES_NEWENTITY;
             oldent = client->baselines[ newnum >> SV_BASELINES_SHIFT ];
             if ( oldent ) {
                 oldent += ( newnum & SV_BASELINES_MASK );
@@ -137,19 +123,10 @@ static void SV_EmitPacketEntities(client_t         *client,
             }
             // In case this is our own client entity, update the new ent's origin and angles.
             if ( newnum == clientEntityNumber ) {
-                //flags |= MSG_ES_FIRSTPERSON;
-                // WID: C++20:
-                //flags |= MSG_ES_NEWENTITY;
-                flags = (msgEsFlags_t)( flags | MSG_ES_FIRSTPERSON );
+                flags |= MSG_ES_FIRSTPERSON;
                 VectorCopy( oldent->origin, newent->origin );
                 VectorCopy( oldent->angles, newent->angles );
             }
-            //if (Q2PRO_SHORTANGLES(client, newnum)) {
-            //  //flags |= MSG_ES_SHORTANGLES;
-            //  // WID: C++20:
-            //  //flags |= MSG_ES_NEWENTITY;
-            //  //flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-            //}
             MSG_WriteDeltaEntity( oldent, newent, flags );
             newindex++;
             continue;
