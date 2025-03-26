@@ -194,7 +194,7 @@ void target_explosion_explode(edict_t *self)
     float       save;
 
     gi.WriteUint8(svc_temp_entity);
-    gi.WriteUint8(TE_EXPLOSION1);
+    gi.WriteUint8(TE_PLAIN_EXPLOSION);
     gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( self->s.origin, MULTICAST_PHS, false );
 

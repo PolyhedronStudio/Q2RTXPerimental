@@ -537,22 +537,6 @@ struct precached_media_s {
 	// Models:
 	//
 	struct models_s {
-		qhandle_t explode;
-		qhandle_t smoke;
-		qhandle_t flash;
-		qhandle_t parasite_segment;
-		qhandle_t grapple_cable;
-		qhandle_t explo4;
-		qhandle_t explosions[ 4 ];
-		qhandle_t bfg_explo;
-		qhandle_t powerscreen;
-		qhandle_t laser;
-		qhandle_t dmspot;
-
-		qhandle_t lightning;
-		qhandle_t heatbeam;
-		qhandle_t explo4_big;
-
 		// <Q2RTXP>: Our own sprite/model precache entries.
 		qhandle_t sprite_explo0;
 	} models;
@@ -819,15 +803,25 @@ typedef struct clg_dlight_s {
 typedef struct clg_explosion_s {
 	//! Explosion Type.
 	enum {
+		//! Dictates whether the explosion slot is free for a (re-)use.
 		ex_free,
+		//! Grenade explosion.
 		//ex_explosion, Somehow unused. lol. TODO: Probably implement some day? xD
+		//! Plain explosion.
 		ex_misc,
+		//! Flash explosion.
 		ex_flash,
+		//! Smoke and Flash.
 		ex_mflash,
+		//! 
 		ex_poly,
+		//! 
 		ex_poly2,
+		//! 
 		ex_light,
+		//! 
 		ex_blaster,
+		//! 
 		ex_flare
 	} explosion_type;
 	int32_t     type;

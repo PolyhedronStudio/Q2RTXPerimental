@@ -575,17 +575,18 @@ static int check_file_len(const char *path, size_t len, dltype_t type)
 #define check_file(path, type) \
     check_file_len(path, strlen(path), type)
 
-static void check_skins(const char *name)
-{
-    size_t          i, num_skins, ofs_skins, end_skins;
-    byte            *model;
-    size_t          len;
-    dmd2header_t    *md2header;
-    dsp2header_t    *sp2header;
-    char            *md2skin;
-    dsp2frame_t     *sp2frame;
-    uint32_t        ident;
-    char            fn[MAX_QPATH];
+static void check_skins(const char *name) {
+    size_t          i = 0, num_skins = 0, ofs_skins = 0, end_skins = 0;
+    byte            *model = nullptr;
+    size_t          len = 0;
+    dmd2header_t    *md2header  = nullptr;
+    dsp2header_t    *sp2header  = nullptr;
+	dspjheader_t    *spjheader  = nullptr;
+    char            *md2skin    = nullptr;
+    dsp2frame_t     *sp2frame   = nullptr;
+    dspjframe_t     *spjframe   = nullptr;
+    uint32_t        ident = 0;
+    char            fn[ MAX_QPATH ] = {};
 
     len = FS_LoadFile(name, (void **)&model);
     if (!model) {
@@ -630,6 +631,36 @@ static void check_skins(const char *name)
         }
         break;
 
+#if 0
+    case SPJ_IDENT:
+        // sprite model
+        spjheader = (dspjheader_t *)model;
+        if ( len < sizeof( *spjheader ) ||
+            LittleLong( spjheader->ident ) != SPJ_IDENT ||
+            LittleLong( spjheader->version ) != SPJ_VERSION ) {
+            // not a sprite model
+            goto done;
+        }
+
+        num_skins = LittleLong( spjheader->numframes );
+        ofs_skins = sizeof( *spjheader );
+        end_skins = ofs_skins + num_skins * sizeof( dspjframe_t );
+        if ( num_skins > SPJ_MAX_FRAMES || end_skins < ofs_skins || end_skins > len ) {
+            // bad sprite model
+            goto done;
+        }
+
+        spjframe = (dspjframe_t *)( model + ofs_skins );
+        for ( i = 0; i < num_skins; i++ ) {
+            if ( !Q_memccpy( fn, spjframe->name, 0, sizeof( fn ) ) ) {
+                // bad sprite model
+                goto done;
+            }
+            check_file( fn, DL_OTHER );
+            spjframe++;
+        }
+        break;
+#endif
     case SP2_IDENT:
         // sprite model
         sp2header = (dsp2header_t *)model;

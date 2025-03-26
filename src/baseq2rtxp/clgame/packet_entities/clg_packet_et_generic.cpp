@@ -226,14 +226,14 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *packetEntity, entity_t 
                 Q_concat( buffer, sizeof( buffer ), "players/", ci->model_name, "/disguise.pcx" );
                 refreshEntity->skin = clgi.R_RegisterSkin( buffer );
             }
-            // A regular alias entity model instead:
+        // A regular alias entity model instead:
         } else {
             refreshEntity->skinnum = newState->skinnum;
             refreshEntity->skin = 0;
             refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
-            if ( refreshEntity->model == precache.models.laser || refreshEntity->model == precache.models.dmspot ) {
-                renderfx |= RF_NOSHADOW;
-            }
+            //if ( refreshEntity->model == precache.models.laser || refreshEntity->model == precache.models.dmspot ) {
+            //    renderfx |= RF_NOSHADOW;
+            //}
         }
 
         // Allow skin override for remaster.

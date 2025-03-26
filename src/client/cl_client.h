@@ -366,7 +366,7 @@ extern cvar_t    *cl_showclamp;
 
 //extern cvar_t    *cl_vwep;
 
-extern cvar_t    *cl_disable_explosions;
+//extern cvar_t    *cl_disable_explosions;
 extern cvar_t    *cl_explosion_sprites;
 extern cvar_t    *cl_explosion_frametime;
 extern cvar_t    *cl_dlight_hacks;

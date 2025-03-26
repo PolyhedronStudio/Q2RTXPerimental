@@ -491,7 +491,7 @@ void TE_Color_g( genctx_t *ctx ) {
     }
 }
 
-void CLG_InitTEnts( void ) {
+void CLG_TemporaryEntities_Init( void ) {
     cl_railtrail_type = clgi.CVar_Get( "cl_railtrail_type", "0", 0 );
     cl_railtrail_time = clgi.CVar_Get( "cl_railtrail_time", "1.0", 0 );
     cl_railtrail_time->changed = cl_timeout_changed;

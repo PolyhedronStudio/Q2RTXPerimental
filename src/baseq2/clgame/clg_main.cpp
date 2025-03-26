@@ -352,7 +352,7 @@ void PF_InitGame( void ) {
 	*	Initialize effects and temp entities.
 	**/
 	CLG_InitEffects();
-	CLG_InitTEnts();
+	CLG_TemporaryEntities_Init();
 
 	/**
 	*	Default EAX Environment:

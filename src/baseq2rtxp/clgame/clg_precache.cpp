@@ -104,34 +104,15 @@ void CLG_PrecacheLocalModels() {
 *	@brief	Called right before loading all received configstring (server-) models.
 **/
 void PF_PrecacheClientModels( void ) {
-    precache.models.explode = clgi.R_RegisterModel( "models/objects/explode/tris.md2" );
-    precache.models.smoke = clgi.R_RegisterModel( "models/objects/smoke/tris.md2" );
-    precache.models.flash = clgi.R_RegisterModel( "models/objects/flash/tris.md2" );
-    precache.models.parasite_segment = clgi.R_RegisterModel( "models/monsters/parasite/segment/tris.md2" );
-    precache.models.grapple_cable = clgi.R_RegisterModel( "models/ctf/segment/tris.md2" );
-    precache.models.explo4 = clgi.R_RegisterModel( "models/objects/r_explode/tris.md2" );
-    precache.models.explosions[ 0 ] = clgi.R_RegisterModel( "sprites/rocket_0.sp2" );
-    precache.models.explosions[ 1 ] = clgi.R_RegisterModel( "sprites/rocket_1.sp2" );
-    precache.models.explosions[ 2 ] = clgi.R_RegisterModel( "sprites/rocket_5.sp2" );
-    precache.models.explosions[ 3 ] = clgi.R_RegisterModel( "sprites/rocket_6.sp2" );
-    precache.models.bfg_explo = clgi.R_RegisterModel( "sprites/s_bfg2.sp2" );
-    precache.models.powerscreen = clgi.R_RegisterModel( "models/items/armor/effect/tris.md2" );
-    precache.models.laser = clgi.R_RegisterModel( "models/objects/laser/tris.md2" );
-    precache.models.dmspot = clgi.R_RegisterModel( "models/objects/dmspot/tris.md2" );
+    //// Enable 'vertical' display for explosion models.
+    //for ( int32_t i = 0; i < sizeof( precache.models.explosions ) / sizeof( *precache.models.explosions ); i++ ) {
+    //    clgi.SetSpriteModelVerticality( precache.models.explosions[ i ] );
+    //    //model_t *model = MOD_ForHandle( cl_mod_explosions[ i ] );
 
-    precache.models.lightning = clgi.R_RegisterModel( "models/proj/lightning/tris.md2" );
-    precache.models.heatbeam = clgi.R_RegisterModel( "models/proj/beam/tris.md2" );
-    precache.models.explo4_big = clgi.R_RegisterModel( "models/objects/r_explode2/tris.md2" );
-
-    // Enable 'vertical' display for explosion models.
-    for ( int32_t i = 0; i < sizeof( precache.models.explosions ) / sizeof( *precache.models.explosions ); i++ ) {
-        clgi.SetSpriteModelVerticality( precache.models.explosions[ i ] );
-        //model_t *model = MOD_ForHandle( cl_mod_explosions[ i ] );
-
-        //if ( model ) {
-        //    model->sprite_vertical = true;
-        //}
-    }
+    //    //if ( model ) {
+    //    //    model->sprite_vertical = true;
+    //    //}
+    //}
 
 	// <Q2RTXP>: Our own sprite/model precache entries.
 	precache.models.sprite_explo0 = clgi.R_RegisterModel( "sprites/explo0/explo0.spj" );

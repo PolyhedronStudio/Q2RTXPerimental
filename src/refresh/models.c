@@ -247,6 +247,8 @@ get_model_class(const char *name)
 {
 	if (!strcmp(name, "models/objects/explode/tris.md2"))
 		return MCLASS_EXPLOSION;
+    //if ( !strcmp( name, "sprites/explo0/explo0.spj" ) )
+    //    return MCLASS_EXPLOSION;
 	else if (!strcmp(name, "models/objects/r_explode/tris.md2"))
 		return MCLASS_EXPLOSION;
 	else if (!strcmp(name, "models/objects/flash/tris.md2"))
@@ -255,6 +257,8 @@ get_model_class(const char *name)
 		return MCLASS_SMOKE;
 	else if (!strcmp(name, "models/objects/minelite/light2/tris.md2"))
         return MCLASS_STATIC_LIGHT;
+    //else if ( !strcmp( name, "models/objects/barrels/tris.md2" ) )
+    //    return MCLASS_STATIC_LIGHT;
     else if (!strcmp(name, "models/objects/flare/tris.md2"))
         return MCLASS_FLARE;
 	else

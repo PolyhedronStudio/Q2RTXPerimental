@@ -57,9 +57,22 @@ typedef struct {
 *
 **/
 #define SPJ_IDENT       MakeLittleLong('I','D','S','J')
-#define SPJ_VERSION     1
+#define SPJ_VERSION     2
 
 #define SPJ_MAX_FRAMES      256
 #define SPJ_MAX_FRAMENAME   64
+
+typedef struct {
+    uint32_t    width, height;
+    uint32_t    origin_x, origin_y;         // raster coordinates inside pic
+    char        name[ SP2_MAX_FRAMENAME ];    // name of pcx file
+} dspjframe_t;
+
+typedef struct {
+    uint32_t    ident;
+    uint32_t    version;
+    uint32_t    numframes;
+    // dsp2frame_t frames[1];              // variable sized
+} dspjheader_t;
 
 #endif // FORMAT_SP2_H

@@ -105,13 +105,13 @@ int MOD_LoadSP2Json( model_t *model, const void *rawdata, size_t length, const c
                     // Get the frame its name.
 					const std::string frameName = frame[ "name" ].get< const std::string >();
 					// Get the frame its width.
-                    pendingFrame.width = frame[ "width" ].get< int32_t >();
+                    pendingFrame.width = frame[ "width" ].get< uint32_t >();
 					// Get the frame its height.
-                    pendingFrame.height = frame[ "height" ].get< int32_t >();
+                    pendingFrame.height = frame[ "height" ].get< uint32_t >();
 					// Get the frame its origin x.
-                    pendingFrame.origin_x = frame[ "origin_x" ].get< int32_t >();
+                    pendingFrame.origin_x = frame[ "origin_x" ].get< uint32_t >();
 					// Get the frame its origin y.
-					pendingFrame.origin_y = frame[ "origin_y" ].get< int32_t >();
+					pendingFrame.origin_y = frame[ "origin_y" ].get< uint32_t >();
 					
 
                     // Copy the frame name into the buffer.

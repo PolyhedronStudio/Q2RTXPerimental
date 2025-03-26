@@ -55,10 +55,7 @@ void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *s
 *   @brief
 **/
 void barrel_explode( edict_t *self ) {
-    vec3_t  org;
-    float   spd;
-    vec3_t  save;
-    int     i;
+    vec3_t  save = {};
 
     SVG_RadiusDamage( self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLODED_BARREL );
 
