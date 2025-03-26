@@ -131,7 +131,7 @@ typedef struct {
     //! The hz we are ticking at. (10hz, 40hz.. etc.)
 	uint32_t    tick_rate;
     //! The time for each frame in 'seconds', 0.1 for 100ms(10hz), 0.025 for 25ms(40hz)
-	float       frame_time_s;
+	double      frame_time_s;
     //! The time for each frame in 'miliseconds'.
 	uint32_t    frame_time_ms;
     /**
@@ -191,20 +191,37 @@ typedef struct {
 	*	Collision Detection:
 	*
 	**/
+    //! Perform a trace through the world and its entities with a bbox from start to end point.
     const trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const contents_t contentmask );
+    //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
 	const trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask );
+    //! Returns a contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
     const contents_t (*pointcontents)(const vec3_t point);
+    /**
+    *   @return True if the points p1 to p2 are within two visible areas.
+    *   @note   Also checks portalareas so that doors block sight.
+    **/
     const qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
+    /**
+    *   @return True if the points p1 to p2 are within two hearable areas.
+    *   @note   Also checks portalareas so that doors block hearing.
+    **/
     const qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
+    //! Set the state of the matching area portal number.
     void (*SetAreaPortalState)( const int32_t portalnum, const bool open);
+    //! Get state of the matching area portal number.
     const int32_t ( *GetAreaPortalState )( const int32_t portalnum );
+    //! Returns true if the areas are connected.
     const qboolean (*AreasConnected)(const int32_t area1, const int32_t area2);
     /**
     *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.  
     *   If the size, position, solidity, clipmask, hullContents, or owner changes, it must be relinked.
 	**/
-    void (*linkentity)(edict_t *ent);
-    void (*unlinkentity)(edict_t *ent);     
+    //! Link the entity into the world area grid for collision detection.
+    void ( *linkentity )( edict_t *ent );
+    //! UnLink the entity from the world area grid for collision detection.
+    void ( *unlinkentity )( edict_t *ent );
+    //! Return all entities that are inside or touching the bounding box area into the list array.
     const int32_t(*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
     
 
@@ -252,7 +269,9 @@ typedef struct {
 	*	Network Messaging:
 	*
 	**/
+    //! Will broadcast the current written message write buffer to all(multiple) clients (optional: that are in the same PVS/PHS as origin.)
     void ( *multicast )( const vec3_t origin, multicast_t to, bool reliable );
+    //! Will broadcast the current written message write buffer to the client that is attached to ent.
     void ( *unicast )( edict_t *ent, bool reliable );
     void ( *WriteInt8 )( const int32_t c );
     void ( *WriteUint8 )( const int32_t c );
@@ -275,9 +294,13 @@ typedef struct {
 	*	'Tag' Managed Memory Allocation:
 	*
 	**/
+    //! Resize an already TagMalloced block of memory.
     void *(*TagReMalloc)( void *ptr, unsigned newsize );
+    //! Allocate a tagged memory block.
     void *(*TagMalloc)(unsigned size, unsigned tag);
+    //! Free a tag allocated memory block.
     void (*TagFree)(void *block);
+    //! Free all SVGAME_ related tag memory blocks. (Essentially resetting memory.)
     void (*FreeTags)(unsigned tag);
 
 
@@ -286,8 +309,11 @@ typedef struct {
 	*	Console Variable Interaction:
 	*
 	**/
+    //! Will create the cvar if it is non-existing, use with nullptr value and 0 flags to acquire an already created cvar instead.
     cvar_t *(*cvar)(const char *var_name, const char *value, int flags);
+    //! Will set a cvar its value.
     cvar_t *(*cvar_set)(const char *var_name, const char *value);
+    //! Will forcefully set a cvar its value.
     cvar_t *(*cvar_forceset)(const char *var_name, const char *value);
 
 
@@ -296,8 +322,11 @@ typedef struct {
 	*	ClientCommand and ServerCommand parameter access:
 	*
 	**/
+    //! Get argument count of server game command that was received.
     const int32_t (*argc)(void);
+    //! Get argument value of server game command by its index.
     char *(*argv)(int n);
+    //! Get the full raw command string as it was received.
     char *(*args)(void);     // concatenation of all argv >= 1
     //! Add commands to the server console as if they were typed in, useful for for map changing, etc
     void (*AddCommandString)(const char *text);

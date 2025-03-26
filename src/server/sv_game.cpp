@@ -463,7 +463,8 @@ static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
 }
 
 /**
-*   @return True if the points p1 to p2 are within the specified vis type.
+*   @return True if the points p1 to p2 are within two visible areas of the specified vis type.
+*   @note   Also checks portalareas so that doors block sight
 **/
 static const qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t vis)
 {
