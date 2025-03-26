@@ -60,12 +60,19 @@ static const byte splash_color[] = { 0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8 };
 /**
 *   @brief  Will select and play a random grenade explosion.
 **/
-static void CLG_StartRandomExplosionSfx( ) {
-    const int32_t index = irandom( 2 + 1 );
-    if ( index == 0 ) {
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_grenade01, 1, ATTN_NORM, 0 );
+static void CLG_StartRandomExplosionSfx( const bool isInWater, const Vector3 &point ) {
+    if ( isInWater ) {
+        clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_water, 1, ATTN_NORM, 0 );
+        clgi.Print( PRINT_WARNING, "%f %f %f contents_water\n", point.x, point.y, point.z );
     } else {
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_grenade02, 1, ATTN_NORM, 0 );
+        clgi.Print( PRINT_WARNING, "%f %f %f contents_none\n", point.x, point.y, point.z );
+        // In case we are in SOLID_NONE spaces:
+        const int32_t index = irandom( 2 + 1 );
+        if ( index == 0 ) {
+            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_grenade01, 1, ATTN_NORM, 0 );
+        } else {
+            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_grenade02, 1, ATTN_NORM, 0 );
+        }
     }
 }
 
@@ -162,9 +169,17 @@ void CLG_TemporaryEntities_Parse( void ) {
         break;
 
     case TE_PLAIN_EXPLOSION:
-        CLG_PlainExplosion( false );
-        CLG_StartRandomExplosionSfx();
+    {
+        // Test for what solid type we're in.
+        const contents_t pointContents = clgi.PointContents( level.parsedMessage.events.tempEntity.pos1 );
+        // First determine whether we're actually under water.
+        const bool isUnderWater = ( pointContents & MASK_WATER ) != 0;
+        //! Do an explosion, if underwater, without smoke.
+        CLG_PlainExplosion( !isUnderWater /* withSmoke == false if under water*/);
+        // Handles playing the appropriate sound for the solid type found at the origin of pos1 vector.
+        CLG_StartRandomExplosionSfx( isUnderWater, level.parsedMessage.events.tempEntity.pos1 );
         break;
+    }
 
     case TE_FLASHLIGHT:
         CLG_Flashlight( level.parsedMessage.events.tempEntity.entity1, level.parsedMessage.events.tempEntity.pos1 );
@@ -494,5 +509,5 @@ void CLG_TemporaryEntities_Init( void ) {
     //cl_disable_particles = clgi.CVar_Get( "cl_disable_particles", "0", 0 );
     //cl_disable_explosions = clgi.CVar_Get( "cl_disable_explosions", "0", 0 );
     cl_explosion_sprites = clgi.CVar_Get( "cl_explosion_sprites", "1", 0 );
-    cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", std::to_string(clgi.frame_time_ms).c_str(), 0);
+    cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", std::to_string(50).c_str(), 0);
 }

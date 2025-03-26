@@ -538,7 +538,8 @@ struct precached_media_s {
 	//
 	struct models_s {
 		// <Q2RTXP>: Our own sprite/model precache entries.
-		qhandle_t sprite_explo0;
+		qhandle_t sprite_explo00; //! Comes without smoke.
+		qhandle_t sprite_explo01; //! This explosion is always high, it comes with smoke, lol joke.
 	} models;
 
 	// 

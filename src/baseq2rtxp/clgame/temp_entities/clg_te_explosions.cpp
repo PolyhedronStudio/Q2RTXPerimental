@@ -63,7 +63,9 @@ clg_explosion_t *CLG_AllocExplosion( void ) {
 /**
 *   @brief  Creates a plain explosion effect.
 **/
-clg_explosion_t *CLG_PlainExplosion( bool big ) {
+clg_explosion_t *CLG_PlainExplosion( const bool withSmoke ) {
+
+    qhandle_t spriteHandle = ( withSmoke ? precache.models.sprite_explo01 : precache.models.sprite_explo00 );
     clg_explosion_t *ex = CLG_AllocExplosion();
     VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
     ex->type = clg_explosion_t::ex_poly; // WID: C++20: Was without clg_explosion_t::
@@ -73,13 +75,15 @@ clg_explosion_t *CLG_PlainExplosion( bool big ) {
     VectorSet( ex->lightcolor, 1.0f, 0.5f, 0.5f );
     ex->ent.angles[ 1 ] = irandom( 360 );
 
-    const qboolean isValidSpriteModel = clgi.IsValidSpriteModelHandle( precache.models.sprite_explo0 );
+    const qboolean isValidSpriteModel = clgi.IsValidSpriteModelHandle( spriteHandle );
     //model_t *sprite_model = MOD_ForHandle( cl_mod_explosions[ model_idx ] );
 
     //if ( cl_explosion_sprites->integer && !big && isValidSpriteModel ) {
-        ex->ent.model = precache.models.sprite_explo0;//precache.models.explosions[ model_idx ];
+        ex->ent.model = spriteHandle;//precache.models.explosions[ model_idx ];
         //ex->frames = sprite_model->numframes;
+        
         ex->frames = clgi.GetSpriteModelFrameCount( ex->ent.model );
+        ex->baseframe = ex->frames * ( Q_rand() & 1 );
         ex->frametime = cl_explosion_frametime->integer;
     //} else {
     //    ex->ent.model = big ? precache.models.explo4_big : precache.models.explo4;

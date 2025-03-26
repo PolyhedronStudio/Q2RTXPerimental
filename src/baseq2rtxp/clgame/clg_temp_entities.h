@@ -82,7 +82,7 @@ clg_explosion_t *CLG_AllocExplosion( void );
 /**
 *   @brief
 **/
-clg_explosion_t *CLG_PlainExplosion( bool big );
+clg_explosion_t *CLG_PlainExplosion( const bool withSmoke );
 /**
 *   @brief
 **/

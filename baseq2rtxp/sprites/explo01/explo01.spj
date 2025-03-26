@@ -1,191 +1,142 @@
 {
 	"version":2,
-	"frameCount":27,
+	"frameCount":20,
 	"frames": [
 		{
-			"name": "sprites/explo0/00.tga",
+			"name": "sprites/explo01/00.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/01.tga",
+			"name": "sprites/explo01/01.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/02.tga",
+			"name": "sprites/explo01/02.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/03.tga",
+			"name": "sprites/explo01/03.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/04.tga",
+			"name": "sprites/explo01/04.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/05.tga",
+			"name": "sprites/explo01/05.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/06.tga",
+			"name": "sprites/explo01/06.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/07.tga",
+			"name": "sprites/explo01/07.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/08.tga",
+			"name": "sprites/explo01/08.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/05.tga",
+			"name": "sprites/explo01/05.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/06.tga",
+			"name": "sprites/explo01/06.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/07.tga",
+			"name": "sprites/explo01/07.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/08.tga",
+			"name": "sprites/explo01/08.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/00.tga",
+			"name": "sprites/explo01/07.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/01.tga",
+			"name": "sprites/explo01/06.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/02.tga",
+			"name": "sprites/explo01/05.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/03.tga",
+			"name": "sprites/explo01/00.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/04.tga",
+			"name": "sprites/explo01/01.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/00.tga",
+			"name": "sprites/explo01/02.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,
 			"origin_y": 64
 		},
 		{
-			"name": "sprites/explo0/01.tga",
-			"width": 128,
-			"height": 128,
-			"origin_x": 64,
-			"origin_y": 64
-		},
-		{
-			"name": "sprites/explo0/02.tga",
-			"width": 128,
-			"height": 128,
-			"origin_x": 64,
-			"origin_y": 64
-		},
-		{
-			"name": "sprites/explo0/03.tga",
-			"width": 128,
-			"height": 128,
-			"origin_x": 64,
-			"origin_y": 64
-		},
-		{
-			"name": "sprites/explo0/04.tga",
-			"width": 128,
-			"height": 128,
-			"origin_x": 64,
-			"origin_y": 64
-		},
-		{
-			"name": "sprites/explo0/05.tga",
-			"width": 128,
-			"height": 128,
-			"origin_x": 64,
-			"origin_y": 64
-		},
-		{
-			"name": "sprites/explo0/06.tga",
-			"width": 128,
-			"height": 128,
-			"origin_x": 64,
-			"origin_y": 64
-		},
-		{
-			"name": "sprites/explo0/07.tga",
-			"width": 128,
-			"height": 128,
-			"origin_x": 64,
-			"origin_y": 64
-		},
-		{
-			"name": "sprites/explo0/08.tga",
+			"name": "sprites/explo01/03.tga",
 			"width": 128,
 			"height": 128,
 			"origin_x": 64,

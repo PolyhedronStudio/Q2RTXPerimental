@@ -37,6 +37,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 ### High Priority:
 * [x] None
 ### Medium Priority:
+* [ ] EAX sometimes remains as if we're underwater after exiting water. Re-entering and exiting usually helps though.
 * [ ] Getting stuck by a pusher brush entity has us 'wrap/teleport' far off.
 * [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
 * [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
@@ -248,7 +249,6 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 * [ ] Get ourselves some environment props to use for ``client_misc_model`` decorating purposes.
 
 ### Textures:
-* [ ] Replace explosions, use and customize Kenney Smoke Particles or something.
 * [/] Find some consistent themed PBR texture set?
 	- [ ] Want more :-)
 	- [ ] 

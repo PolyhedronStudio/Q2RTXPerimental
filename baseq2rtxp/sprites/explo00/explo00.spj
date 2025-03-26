@@ -1,0 +1,146 @@
+{
+	"version":2,
+	"frameCount":20,
+	"frames": [
+		{
+			"name": "sprites/explo00/00.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/01.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/02.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/03.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/04.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/05.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/06.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/07.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/08.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/05.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/06.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/07.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/08.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/07.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/06.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/05.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/00.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/01.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/02.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		},
+		{
+			"name": "sprites/explo00/03.tga",
+			"width": 128,
+			"height": 128,
+			"origin_x": 64,
+			"origin_y": 64
+		}
+	]
+}
