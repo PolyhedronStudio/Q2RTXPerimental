@@ -20,7 +20,7 @@
 /*QUAKED func_object (0 .5 .8) ? TRIGGER_SPAWN ANIMATED ANIMATED_FAST
 This is solid bmodel that will fall if it's support it removed.
 */
-void func_object_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void func_object_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf ) {
     // only squash thing we fall on top of
     if ( !plane ) {
         return;
@@ -34,12 +34,12 @@ void func_object_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface
     SVG_TriggerDamage( other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
-void func_object_release( edict_t *self ) {
+void func_object_release( svg_edict_t *self ) {
     self->movetype = MOVETYPE_TOSS;
     self->touch = func_object_touch;
 }
 
-void func_object_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void func_object_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
     self->use = NULL;
@@ -47,7 +47,7 @@ void func_object_use( edict_t *self, edict_t *other, edict_t *activator, const e
     func_object_release( self );
 }
 
-void SP_func_object( edict_t *self ) {
+void SP_func_object( svg_edict_t *self ) {
     gi.setmodel( self, self->model );
 
     self->mins[ 0 ] += 1;

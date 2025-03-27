@@ -50,7 +50,7 @@ STOP mean it will stop moving instead of pushing entities
 /**
 *   @brief
 **/
-void rotating_sound_play_start( edict_t *self ) {
+void rotating_sound_play_start( svg_edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.start ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
@@ -60,7 +60,7 @@ void rotating_sound_play_start( edict_t *self ) {
 /**
 *   @brief  
 **/
-void rotating_sound_play_end( edict_t *self ) {
+void rotating_sound_play_end( svg_edict_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
@@ -82,7 +82,7 @@ void rotating_sound_play_end( edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_lock( edict_t *self ) {
+void rotating_lock( svg_edict_t *self ) {
     // Of course it has to be locked if we want to play a sound.
     if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
         gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
@@ -93,7 +93,7 @@ void rotating_lock( edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_unlock( edict_t *self ) {
+void rotating_unlock( svg_edict_t *self ) {
     // Of course it has to be locked if we want to play a sound.
     if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
         gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
@@ -116,20 +116,20 @@ void rotating_unlock( edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_halt( edict_t *self ) {
+void rotating_halt( svg_edict_t *self ) {
 
 }
 /**
 *   @brief
 **/
-void rotating_full_speeded( edict_t *self ) {
+void rotating_full_speeded( svg_edict_t *self ) {
 
 }
 /**
 *   @brief
 **/
-void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
-void rotating_accelerate( edict_t *self ) {
+void rotating_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf );
+void rotating_accelerate( svg_edict_t *self ) {
     // Get angular velocity speed.
     const float current_speed = QM_Vector3Length( self->avelocity );
 
@@ -174,7 +174,7 @@ void rotating_accelerate( edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_accelerate_start( edict_t *self ) {
+void rotating_accelerate_start( svg_edict_t *self ) {
     // Already Accelerating:
     if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {// || self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {
         return;
@@ -197,7 +197,7 @@ void rotating_accelerate_start( edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_decelerate( edict_t *self ) {
+void rotating_decelerate( svg_edict_t *self ) {
     // Get angular velocity speed.
     const float current_speed = QM_Vector3Length( self->avelocity );
 
@@ -241,7 +241,7 @@ void rotating_decelerate( edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_decelerate_start( edict_t *self ) {
+void rotating_decelerate_start( svg_edict_t *self ) {
     // Already decelerating.
     if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) { // } || self->pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) {
         return;
@@ -262,7 +262,7 @@ void rotating_decelerate_start( edict_t *self ) {
 /**
 *   @brief  
 **/
-void rotating_toggle( edict_t *self, const int32_t useValue ) {
+void rotating_toggle( svg_edict_t *self, const int32_t useValue ) {
     if ( useValue != 0 ) {
         // Accelerate.
         rotating_accelerate_start( self );
@@ -286,7 +286,7 @@ void rotating_toggle( edict_t *self, const int32_t useValue ) {
 /**
 *   @brief
 **/
-void rotating_blocked( edict_t *self, edict_t *other ) {
+void rotating_blocked( svg_edict_t *self, svg_edict_t *other ) {
     // Only do damage if we had any set.
     if ( !self->dmg ) {
         return;
@@ -304,7 +304,7 @@ void rotating_blocked( edict_t *self, edict_t *other ) {
 /**
 *   @brief
 **/
-void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void rotating_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf ) {
     // Exit if touching isn't hurting.
     if ( !( self->spawnflags & FUNC_ROTATING_SPAWNFLAG_PAIN_ON_TOUCH ) ) {
         return;
@@ -330,7 +330,7 @@ void rotating_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t 
 /**
 *   @brief
 **/
-void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void rotating_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Default to 'self' being its activator if this was called with none.
     self->activator = ( activator != nullptr ? activator : self );
     // Store other.
@@ -380,7 +380,7 @@ void rotating_use( edict_t *self, edict_t *other, edict_t *activator, const enti
 * 
 * 
 **/
-void rotating_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+void rotating_onsignalin( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     /**
     *   Accelerate/Decelerate:
     **/
@@ -469,7 +469,7 @@ void rotating_onsignalin( edict_t *self, edict_t *other, edict_t *activator, con
 /**
 *   @brief
 **/
-void SP_func_rotating( edict_t *ent ) {
+void SP_func_rotating( svg_edict_t *ent ) {
     // Solid.
     ent->solid = SOLID_BSP;
 

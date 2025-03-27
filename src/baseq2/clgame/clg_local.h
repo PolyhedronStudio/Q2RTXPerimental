@@ -11,7 +11,7 @@
 // Should already have been defined by CMake for this ClientGame target.
 // 
 // Define CLGAME_INCLUDE so that clgame.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
 #ifndef CLGAME_INCLUDE
 #define CLGAME_INCLUDE
@@ -791,8 +791,8 @@ typedef struct clg_explosion_s {
 		ex_misc,
 		ex_flash,
 		ex_mflash,
-		ex_poly,
-		ex_poly2,
+		ex_polygon_curvature,
+		ex_polygon_curvature2,
 		ex_light,
 		ex_blaster,
 		ex_flare

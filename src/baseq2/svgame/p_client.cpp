@@ -588,7 +588,7 @@ This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
-void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client)
+void SVG_Player_InitPersistantData(edict_t *ent, svg_client_t *client)
 {
 	gitem_t     *item;
 
@@ -634,7 +634,7 @@ void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client)
 }
 
 
-void SVG_Player_InitRespawnData(gclient_t *client)
+void SVG_Player_InitRespawnData(svg_client_t *client)
 {
     // Clear out SVG_Client_RespawnPlayer data.
     client->resp = {};
@@ -1109,7 +1109,7 @@ void SVG_Player_PutInServer(edict_t *ent)
     vec3_t  maxs = {16, 16, 32};
     int     index;
     vec3_t  spawn_origin, spawn_angles;
-    gclient_t   *client;
+    svg_client_t   *client;
     int     i;
     client_persistant_t saved;
     client_respawn_t    resp;
@@ -1716,7 +1716,7 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t *ent, usercmd_t *ucmd)
 {
-    gclient_t   *client = nullptr;
+    svg_client_t   *client = nullptr;
     edict_t     *other = nullptr;
     
 	// Configure pmove.
@@ -1974,7 +1974,7 @@ any other entities in the world.
 */
 void SVG_Client_BeginServerFrame(edict_t *ent)
 {
-    gclient_t   *client;
+    svg_client_t   *client;
     int         buttonMask;
 
     // Remove RF_STAIR_STEP if we're in a new frame, not stepping.

@@ -13,10 +13,10 @@
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Update(edict_t *ent)
+void SVG_ChaseCam_Update(svg_edict_t *ent)
 {
     vec3_t o, ownerv, goal;
-    edict_t *targ;
+    svg_edict_t *targ;
     vec3_t forward, right;
     trace_t trace;
     vec3_t angles;
@@ -24,7 +24,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
     // is our chase target gone?
     if (!ent->client->chase_target->inuse
         || ent->client->chase_target->client->resp.spectator) {
-        edict_t *old = ent->client->chase_target;
+        svg_edict_t *old = ent->client->chase_target;
         SVG_ChaseCam_Next(ent);
         if (ent->client->chase_target == old) {
             ent->client->chase_target = NULL;
@@ -105,10 +105,10 @@ void SVG_ChaseCam_Update(edict_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Next(edict_t *ent)
+void SVG_ChaseCam_Next(svg_edict_t *ent)
 {
     int i;
-    edict_t *e;
+    svg_edict_t *e;
 
     if (!ent->client->chase_target)
         return;
@@ -134,10 +134,10 @@ void SVG_ChaseCam_Next(edict_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Previous(edict_t *ent)
+void SVG_ChaseCam_Previous(svg_edict_t *ent)
 {
     int i;
-    edict_t *e;
+    svg_edict_t *e;
 
     if (!ent->client->chase_target)
         return;
@@ -163,10 +163,10 @@ void SVG_ChaseCam_Previous(edict_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_GetTarget(edict_t *ent)
+void SVG_ChaseCam_GetTarget(svg_edict_t *ent)
 {
     int i;
-    edict_t *other;
+    svg_edict_t *other;
 
     for (i = 1; i <= maxclients->value; i++) {
         other = g_edicts + i;

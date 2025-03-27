@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // Should already have been defined by CMake for this ClientGame target.
 //
 // Define SVGAME_INCLUDE so that game.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
 #ifndef SVGAME_INCLUDE
 #define SVGAME_INCLUDE
@@ -395,7 +395,7 @@ typedef struct {
     int         helpchanged;    // flash F1 icon if non 0, play sound
                                 // and increment only if 1, 2, or 3
 
-    gclient_t   *clients;       // [maxclients]
+    svg_client_t   *clients;       // [maxclients]
 
     // can't store spawnpoint in level, because
     // it would get overwritten by the savegame restore
@@ -632,7 +632,7 @@ extern  edict_t         *g_edicts;
 #define FOFS_SPAWN_TEMP(x) q_offsetof(spawn_temp_t, x)
 #define FOFS_LEVEL_LOCALS(x) q_offsetof(level_locals_t, x)
 #define FOFS_GAME_LOCALS(x) q_offsetof(game_locals_t, x)
-#define FOFS_GCLIENT(x) q_offsetof(gclient_t, x)
+#define FOFS_GCLIENT(x) q_offsetof(svg_client_t, x)
 
 #define random()    frand()
 #define crandom()   crand()
@@ -889,8 +889,8 @@ edict_t *PlayerTrail_LastSpot(void);
 //
 void SVG_Client_RespawnPlayer(edict_t *ent);
 void SVG_Player_PutInServer(edict_t *ent);
-void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client);
-void SVG_Player_InitRespawnData(gclient_t *client);
+void SVG_Player_InitPersistantData(edict_t *ent, svg_client_t *client);
+void SVG_Player_InitRespawnData(svg_client_t *client);
 void SVG_Client_BeginServerFrame(edict_t *ent);
 
 void SVG_InitBodyQue( void );

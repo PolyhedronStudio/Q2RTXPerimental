@@ -62,7 +62,7 @@ bool SVG_OnSameTeam(edict_t *ent1, edict_t *ent2)
 
 void SVG_Inventory_SelectNextItem(edict_t *ent, int itflags)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         i, index;
     gitem_t     *it;
 
@@ -93,7 +93,7 @@ void SVG_Inventory_SelectNextItem(edict_t *ent, int itflags)
 
 void SVG_Inventory_SelectPrevItem(edict_t *ent, int itflags)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         i, index;
     gitem_t     *it;
 
@@ -124,7 +124,7 @@ void SVG_Inventory_SelectPrevItem(edict_t *ent, int itflags)
 
 void SVG_Inventory_ValidateSelectedItem(edict_t *ent)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
 
     cl = ent->client;
 
@@ -421,7 +421,7 @@ Cmd_Inven_f
 void Cmd_Inven_f(edict_t *ent)
 {
     int         i;
-    gclient_t   *cl;
+    svg_client_t   *cl;
 
     cl = ent->client;
 
@@ -473,7 +473,7 @@ Cmd_WeapPrev_f
 */
 void Cmd_WeapPrev_f(edict_t *ent)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         i, index;
     gitem_t     *it;
     int         selected_weapon;
@@ -508,7 +508,7 @@ Cmd_WeapNext_f
 */
 void Cmd_WeapNext_f(edict_t *ent)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         i, index;
     gitem_t     *it;
     int         selected_weapon;
@@ -543,7 +543,7 @@ Cmd_WeapLast_f
 */
 void Cmd_WeapLast_f(edict_t *ent)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         index;
     gitem_t     *it;
 
@@ -570,7 +570,7 @@ Cmd_WeapFlare_f
 */
 void Cmd_WeapFlare_f(edict_t* ent)
 {
-    gclient_t* cl;
+    svg_client_t* cl;
     gitem_t* it;
 
     cl = ent->client;
@@ -749,7 +749,7 @@ static bool FloodProtect(edict_t *ent)
 	int     i;
 	//edict_t *other;
 	//char    text[ 2048 ];
-	gclient_t *cl;
+	svg_client_t *cl;
 
 	if ( flood_msgs->value ) {
 		cl = ent->client;

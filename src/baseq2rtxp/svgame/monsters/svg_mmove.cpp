@@ -29,7 +29,7 @@ const trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const V
 /**
 *	@brief	Determines the mask to use and returns a trace doing so.
 **/
-const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, contents_t contentMask ) {
+const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_edict_t *passEntity, contents_t contentMask ) {
 	//// Spectators only clip against world, so use clip instead.
 	//if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
 	//	return PM_Clip( start, mins, maxs, end, MASK_SOLID );
@@ -221,7 +221,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
 **/
-void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed ) {
+void SVG_MMove_FaceIdealYaw( svg_edict_t *ent, const float idealYaw, const float yawSpeed ) {
 	// Get angle modded angles.
 	const float currentYawAngle = QM_AngleMod( ent->s.angles[ YAW ] );
 

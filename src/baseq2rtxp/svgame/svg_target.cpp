@@ -24,14 +24,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 Fire an origin based temp entity event to the clients.
 "style"     type byte
 */
-void Use_Target_Tent( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void Use_Target_Tent( svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(ent->style);
     gi.WritePosition( ent->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( ent->s.origin, MULTICAST_PVS, false );
 }
 
-void SP_target_temp_entity(edict_t *ent)
+void SP_target_temp_entity(svg_edict_t *ent)
 {
     ent->use = Use_Target_Tent;
 }
@@ -55,7 +55,7 @@ Normal sounds play each time the target is used.  The reliable flag can be set f
 Looped sounds are always atten 3 / vol 1, and the use function toggles it on/off.
 Multiple identical looping sounds will just increase volume without any speed cost.
 */
-void Use_Target_Speaker( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void Use_Target_Speaker( svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     int     chan;
 
     if (ent->spawnflags & 3) {
@@ -76,7 +76,7 @@ void Use_Target_Speaker( edict_t *ent, edict_t *other, edict_t *activator, const
     }
 }
 
-void SP_target_speaker(edict_t *ent)
+void SP_target_speaker(svg_edict_t *ent)
 {
     char    buffer[MAX_QPATH];
 
@@ -118,7 +118,7 @@ void SP_target_speaker(edict_t *ent)
 Counts a secret found.
 These are single use targets.
 */
-void use_target_secret( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void use_target_secret( svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     gi.sound(ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NORM, 0);
 
     level.found_secrets++;
@@ -127,7 +127,7 @@ void use_target_secret( edict_t *ent, edict_t *other, edict_t *activator, const 
     SVG_FreeEdict(ent);
 }
 
-void SP_target_secret(edict_t *ent)
+void SP_target_secret(svg_edict_t *ent)
 {
     if (deathmatch->value) {
         // auto-remove for deathmatch
@@ -152,7 +152,7 @@ void SP_target_secret(edict_t *ent)
 Counts a goal completed.
 These are single use targets.
 */
-void use_target_goal( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void use_target_goal( svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     gi.sound(ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NORM, 0);
 
     level.found_goals++;
@@ -164,7 +164,7 @@ void use_target_goal( edict_t *ent, edict_t *other, edict_t *activator, const en
     SVG_FreeEdict(ent);
 }
 
-void SP_target_goal(edict_t *ent)
+void SP_target_goal(svg_edict_t *ent)
 {
     if (deathmatch->value) {
         // auto-remove for deathmatch
@@ -189,7 +189,7 @@ Spawns an explosion temporary entity when used.
 "delay"     wait this long before going off
 "dmg"       how much radius damage should be done, defaults to 0
 */
-void target_explosion_explode(edict_t *self)
+void target_explosion_explode(svg_edict_t *self)
 {
     float       save;
 
@@ -206,7 +206,7 @@ void target_explosion_explode(edict_t *self)
     self->delay = save;
 }
 
-void use_target_explosion( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void use_target_explosion( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->activator = activator;
 
     if (!self->delay) {
@@ -218,7 +218,7 @@ void use_target_explosion( edict_t *self, edict_t *other, edict_t *activator, co
     self->nextthink = level.time + QMTime::FromSeconds( self->delay );
 }
 
-void SP_target_explosion(edict_t *ent)
+void SP_target_explosion(svg_edict_t *ent)
 {
     ent->use = use_target_explosion;
     ent->svflags = SVF_NOCLIENT;
@@ -230,7 +230,7 @@ void SP_target_explosion(edict_t *ent)
 /*QUAKED target_changelevel (1 0 0) (-8 -8 -8) (8 8 8)
 Changes level to "map" when fired
 */
-void use_target_changelevel( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void use_target_changelevel( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     if (level.intermissionFrameNumber)
         return;     // already activated
 
@@ -258,7 +258,7 @@ void use_target_changelevel( edict_t *self, edict_t *other, edict_t *activator, 
     SVG_HUD_BeginIntermission(self);
 }
 
-void SP_target_changelevel(edict_t *ent)
+void SP_target_changelevel(svg_edict_t *ent)
 {
     if (!ent->map) {
         gi.dprintf("target_changelevel with no map at %s\n", vtos(ent->s.origin));
@@ -293,7 +293,7 @@ Set "sounds" to one of the following:
         useful for lava/sparks
 */
 
-void use_target_splash( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void use_target_splash( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     gi.WriteUint8(svc_temp_entity);
     gi.WriteUint8(TE_SPLASH);
     gi.WriteUint8(self->count);
@@ -306,7 +306,7 @@ void use_target_splash( edict_t *self, edict_t *other, edict_t *activator, const
         SVG_RadiusDamage(self, activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_SPLASH );
 }
 
-void SP_target_splash(edict_t *self)
+void SP_target_splash(svg_edict_t *self)
 {
     self->use = use_target_splash;
     SVG_Util_SetMoveDir(self->s.angles, self->movedir);
@@ -332,10 +332,10 @@ For gibs:
     speed how fast it should be moving otherwise it
     will just be dropped
 */
-void ED_CallSpawn(edict_t *ent);
+void ED_CallSpawn(svg_edict_t *ent);
 
-void use_target_spawner( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    edict_t *ent;
+void use_target_spawner( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    svg_edict_t *ent;
 
     ent = SVG_AllocateEdict();
     ent->classname = self->targetNames.target;
@@ -349,7 +349,7 @@ void use_target_spawner( edict_t *self, edict_t *other, edict_t *activator, cons
         VectorCopy(self->movedir, ent->velocity);
 }
 
-void SP_target_spawner(edict_t *self)
+void SP_target_spawner(svg_edict_t *self)
 {
     self->use = use_target_spawner;
     self->svflags = SVF_NOCLIENT;
@@ -368,7 +368,7 @@ dmg     default is 15
 speed   default is 1000
 */
 
-void use_target_blaster( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void use_target_blaster( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 #if 0
     int effect;
 
@@ -384,7 +384,7 @@ void use_target_blaster( edict_t *self, edict_t *other, edict_t *activator, cons
     gi.sound(self, CHAN_VOICE, self->noise_index, 1, ATTN_NORM, 0);
 }
 
-void SP_target_blaster(edict_t *self)
+void SP_target_blaster(svg_edict_t *self)
 {
     self->use = use_target_blaster;
     SVG_Util_SetMoveDir(self->s.angles, self->movedir );
@@ -404,12 +404,12 @@ void SP_target_blaster(edict_t *self)
 /*QUAKED target_crosslevel_trigger (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
 Once this trigger is touched/used, any trigger_crosslevel_target with the same trigger number is automatically used when a level is started within the same unit.  It is OK to check multiple triggers.  Message, delay, target, and targetNames.kill also work.
 */
-void trigger_crosslevel_trigger_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void trigger_crosslevel_trigger_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     game.serverflags |= static_cast<crosslevel_target_flags_t>( self->spawnflags );
     SVG_FreeEdict(self);
 }
 
-void SP_target_crosslevel_trigger(edict_t *self)
+void SP_target_crosslevel_trigger(svg_edict_t *self)
 {
     self->svflags = SVF_NOCLIENT;
     self->use = trigger_crosslevel_trigger_use;
@@ -421,7 +421,7 @@ targetNames.kill also work.
 
 "delay"     delay before using targets if the trigger has been activated (default 1)
 */
-void target_crosslevel_target_think(edict_t *self)
+void target_crosslevel_target_think(svg_edict_t *self)
 {
     if (self->spawnflags == (game.serverflags & SFL_CROSS_TRIGGER_MASK & self->spawnflags)) {
         SVG_UseTargets(self, self);
@@ -429,7 +429,7 @@ void target_crosslevel_target_think(edict_t *self)
     }
 }
 
-void SP_target_crosslevel_target(edict_t *self)
+void SP_target_crosslevel_target(svg_edict_t *self)
 {
     if (! self->delay)
         self->delay = 1;
@@ -446,9 +446,9 @@ When triggered, fires a laser.  You can either set a target
 or a direction.
 */
 
-void target_laser_think(edict_t *self)
+void target_laser_think(svg_edict_t *self)
 {
-    edict_t *ignore;
+    svg_edict_t *ignore;
     vec3_t  start;
     vec3_t  end;
     trace_t tr;
@@ -507,7 +507,7 @@ void target_laser_think(edict_t *self)
     self->nextthink = level.time + FRAME_TIME_S;
 }
 
-void target_laser_on(edict_t *self)
+void target_laser_on(svg_edict_t *self)
 {
     if (!self->activator)
         self->activator = self;
@@ -516,14 +516,14 @@ void target_laser_on(edict_t *self)
     target_laser_think(self);
 }
 
-void target_laser_off(edict_t *self)
+void target_laser_off(svg_edict_t *self)
 {
     self->spawnflags &= ~1;
     self->svflags |= SVF_NOCLIENT;
     self->nextthink = 0_ms;
 }
 
-void target_laser_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void target_laser_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->activator = activator;
     if (self->spawnflags & 1)
         target_laser_off(self);
@@ -531,9 +531,9 @@ void target_laser_use( edict_t *self, edict_t *other, edict_t *activator, const 
         target_laser_on(self);
 }
 
-void target_laser_start(edict_t *self)
+void target_laser_start(svg_edict_t *self)
 {
-    edict_t *ent;
+    svg_edict_t *ent;
 
     self->movetype = MOVETYPE_NONE;
     self->solid = SOLID_NOT;
@@ -585,7 +585,7 @@ void target_laser_start(edict_t *self)
         target_laser_off(self);
 }
 
-void SP_target_laser(edict_t *self)
+void SP_target_laser(svg_edict_t *self)
 {
     // let everything else get spawned before we start firing
     self->think = target_laser_start;
@@ -599,7 +599,7 @@ speed       How many seconds the ramping will take
 message     two letters; starting lightlevel and ending lightlevel
 */
 
-void target_lightramp_think(edict_t *self)
+void target_lightramp_think(svg_edict_t *self)
 {
     char    style[2];
 
@@ -619,9 +619,9 @@ void target_lightramp_think(edict_t *self)
     }
 }
 
-void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void target_lightramp_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     if (!self->enemy) {
-        edict_t     *e;
+        svg_edict_t     *e;
 
         // check all the targets
         e = NULL;
@@ -648,7 +648,7 @@ void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, co
     target_lightramp_think(self);
 }
 
-void SP_target_lightramp(edict_t *self)
+void SP_target_lightramp(svg_edict_t *self)
 {
     if (!self->message || strlen(self->message) != 2 || self->message[0] < 'a' || self->message[0] > 'z' || self->message[1] < 'a' || self->message[1] > 'z' || self->message[0] == self->message[1]) {
         gi.dprintf("target_lightramp has bad ramp (%s) at %s\n", self->message, vtos(self->s.origin));
@@ -685,10 +685,10 @@ All players and monsters are affected.
 "count"     duration of the quake (default:5)
 */
 
-void target_earthquake_think(edict_t *self)
+void target_earthquake_think(svg_edict_t *self)
 {
     int     i;
-    edict_t *e;
+    svg_edict_t *e;
 
     if (self->last_move_time < level.time) {
         gi.positioned_sound(self->s.origin, self, CHAN_AUTO, self->noise_index, 1.0f, ATTN_NONE, 0);
@@ -708,14 +708,14 @@ void target_earthquake_think(edict_t *self)
         self->nextthink = level.time + 10_hz;
 }
 
-void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void target_earthquake_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	//self->timestamp = level.time + QMTime::FromMilliseconds( self->count );
 	//self->nextthink = level.time + FRAME_TIME_S;
 	//self->last_move_time = 0_ms;
  //   self->activator = activator;
 	if ( self->spawnflags & 8 /*.has( SPAWNFLAGS_EARTHQUAKE_ONE_SHOT )*/ ) {
 		uint32_t i;
-		edict_t *e;
+		svg_edict_t *e;
 
         for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
 			if ( !e->inuse )
@@ -747,7 +747,7 @@ void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, c
 	self->activator = activator;
 }
 
-void SP_target_earthquake(edict_t *self)
+void SP_target_earthquake(svg_edict_t *self)
 {
     if (!self->targetname)
         gi.dprintf("untargeted %s at %s\n", (const char *)self->classname, vtos(self->s.origin));

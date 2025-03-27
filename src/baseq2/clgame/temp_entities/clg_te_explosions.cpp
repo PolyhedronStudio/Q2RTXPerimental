@@ -44,7 +44,7 @@ clg_explosion_t *CLG_PlainExplosion( bool big ) {
 
     ex = CLG_AllocExplosion();
     VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-    ex->type = clg_explosion_t::ex_poly; // WID: C++20: Was without clg_explosion_t::
+    ex->type = clg_explosion_t::ex_polygon_curvature; // WID: C++20: Was without clg_explosion_t::
     ex->ent.flags = RF_FULLBRIGHT;
     ex->start = clgi.client->servertime - CL_FRAMETIME;
     ex->light = 350;
@@ -131,7 +131,7 @@ static void CLG_AddExplosionLight( clg_explosion_t *ex, float phase ) {
     light_curve_t *curve;
 
     switch ( ex->type ) {
-    case clg_explosion_t::ex_poly: // WID: C++20: Used to be without clg_explosion_t::
+    case clg_explosion_t::ex_polygon_curvature: // WID: C++20: Used to be without clg_explosion_t::
         curve = ex_poly_light;
         curve_size = LENGTH( ex_poly_light );
         break;
@@ -207,7 +207,7 @@ void CLG_AddExplosions( void ) {
             }
             ent->alpha = 1.0f;
             break;
-        case clg_explosion_t::ex_poly:
+        case clg_explosion_t::ex_polygon_curvature:
             if ( f >= ex->frames - 1 ) {
                 ex->type = clg_explosion_t::ex_free;
                 break;
@@ -229,7 +229,7 @@ void CLG_AddExplosions( void ) {
                     ent->skinnum = 6;
             }
             break;
-        case clg_explosion_t::ex_poly2:
+        case clg_explosion_t::ex_polygon_curvature2:
             if ( f >= ex->frames - 1 ) {
                 ex->type = clg_explosion_t::ex_free;
                 break;

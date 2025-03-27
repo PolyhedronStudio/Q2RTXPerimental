@@ -9,7 +9,7 @@
 #include "shared/util_list.h"
 
 // define CLGAME_INCLUDE so that game.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
 #include "shared/clgame.h"
 #include "../../clgame/clg_local.h"

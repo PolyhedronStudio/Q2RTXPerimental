@@ -11,7 +11,7 @@
 // Should already have been defined by CMake for this ClientGame target.
 // 
 // Define CLGAME_INCLUDE so that clgame.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
 #ifndef CLGAME_INCLUDE
 #define CLGAME_INCLUDE
@@ -769,9 +769,11 @@ extern level_locals_t level;
 /**
 *
 *
-*   Special Effects Data Structures:
+* 
+*   Dynamic Lights:
 *
 *
+* 
 **/
 /**
 *	Dynamic Lights:
@@ -786,75 +788,110 @@ typedef struct clg_dlight_s {
 	vec3_t  velosity;     // move this far each second
 } clg_dlight_t;
 
-#define DLHACK_ROCKET_COLOR         1
-#define DLHACK_SMALLER_EXPLOSION    2
-#define DLHACK_NO_MUZZLEFLASH       4
+/**
+* 
+* 
+* 
+*	Explosions:
+* 
+* 
+* 
+**/
+/**
+*   @brief  Describes each "poly" properties of the light curvature.
+**/
+struct clg_light_curve_polygon_t {
+	//! Color.
+	Vector3 color;
+	//! Radius.
+	double radius;
+	//! Offset.
+	double offset;
+	//! Used for scaling the explosion sprite with.
+	double scale;
+};
 
 /**
-*	Explosions:
+*   @brief  Describes the type of light curvature and stores a pointer to its array of curvature polies.
 **/
-#define MAX_EXPLOSIONS  32
+struct clg_light_curve_t {
+	//! The easing method to use for the lerp value that iterates through the array polygons.
+	QMEaseState::QMEaseStateMethod easeMethod = QM_LinearInterpolationEase; //! Default to Linear.
+	//! Pointer to the curvature array.
+	const clg_light_curve_polygon_t *polygons = nullptr;
+	//! Length of the polygon list.
+	const int64_t length = 0;
+};
 
-#define NOEXP_GRENADE   1
-#define NOEXP_ROCKET    2
+//! Maximum actively processed and displayed amount of explosions allowed per frame.
+static constexpr int32_t MAX_EXPLOSIONS = 32;
 
 /**
 *   @brief  Explosion struct for varying explosion type effects.
 */
 typedef struct clg_explosion_s {
 	//! Explosion Type.
-	enum {
+	enum clg_explosion_type_t {
 		//! Dictates whether the explosion slot is free for a (re-)use.
 		ex_free,
 		//! Grenade explosion.
 		//ex_explosion, Somehow unused. lol. TODO: Probably implement some day? xD
 		//! Plain explosion.
 		ex_misc,
-		//! Flash explosion.
+		//! Flash explosion. // <Q2RTXP>: WID: TODO: Sprite model?
 		ex_flash,
-		//! Smoke and Flash.
-		ex_mflash,
-		//! 
-		ex_poly,
-		//! 
-		ex_poly2,
-		//! 
+		//! Smoke and Flash. // <Q2RTXP>: WID: TODO: Sprite model?
+		ex_muzzle_flash,
+		
+		//! A light that follows a "polygonal" curve(an array of `light_curve_t`, consisting of color, radius and an offset)
+		ex_polygon_curvature,
+		//! A light that follows a "polygonal" curve(an array of `light_curve_t`, consisting of color, radius and an offset)
+		ex_polygon_curvature2,
+
+		//! A light only explosion, does not render the sprite/model.
 		ex_light,
-		//! 
-		ex_blaster,
-		//! 
-		ex_flare
-	} explosion_type;
-	int32_t     type;
+	};
+	//! Type of explosion.
+	clg_explosion_type_t type;
 
 	//! Render Entity.
 	entity_t    ent;
+
 	//! Amount of sprite frames.
 	int32_t     frames;
+
 	//! Light intensity.
 	float       light;
 	//! Light RGB color.
 	vec3_t      lightcolor;
+
 	//! 
-	float       start;
+	QMTime      start;
 	//! Frame offset into the sprite.
 	int64_t     baseframe;
 	//! Frametime in miliseconds.
-	int64_t     frametime;
+	QMTime		frametime;
+	//! Scale for the model/sprite.
+	double		scale;
+	
+	//! Light curve polygon array, for use with ex_polygon lights.
+	const clg_light_curve_t *lightCurvature;
 } clg_explosion_t;
 
-//#define NOPART_GRENADE_EXPLOSION    1
-//#define NOPART_GRENADE_TRAIL        2
-//#define NOPART_ROCKET_EXPLOSION     4
-//#define NOPART_ROCKET_TRAIL         8
-//#define NOPART_BLOOD                16
+
 
 /**
+* 
+* 
+* 
 *	Particles:
+* 
+* 
+* 
 **/
-#define PARTICLE_GRAVITY        120
-#define BLASTER_PARTICLE_COLOR  0xe0
-#define INSTANT_PARTICLE    -10000.0f
+static inline constexpr double PARTICLE_GRAVITY = 120.;
+static inline constexpr int32_t BLASTER_PARTICLE_COLOR = 0xe0;
+static inline constexpr double INSTANT_PARTICLE = -10000.0;
 
 typedef struct clg_particle_s {
 	struct clg_particle_s *next;
@@ -871,8 +908,16 @@ typedef struct clg_particle_s {
 	float   brightness;
 } clg_particle_t;
 
+
+
 /**
+* 
+* 
+* 
 *	Lasers:
+* 
+* 
+* 
 **/
 typedef struct laser_s {
 	vec3_t      start;
@@ -885,8 +930,16 @@ typedef struct laser_s {
 	int64_t     lifetime, starttime;
 } laser_t;
 
+
+
 /**
-*	Sustains:
+* 
+* 
+* 
+*	Sustains:	<Q2RTXP>: WID: TODO: Add 'decals' support, also seem to be known as 'sustain'.
+* 
+* 
+* 
 **/
 typedef struct clg_sustain_s {
 	int     id;

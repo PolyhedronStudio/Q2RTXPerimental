@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 static  edict_t *current_player;
-static  gclient_t *current_client;
+static  svg_client_t *current_client;
 
 static  vec3_t  forward, right, up;
 float   xyspeed;
@@ -83,7 +83,7 @@ Handles color blends and view kicks
 ===============
 */
 void P_DamageFeedback( edict_t *player ) {
-	gclient_t *client;
+	svg_client_t *client;
 	float   side;
 	float   realcount, count, kick;
 	vec3_t  v;
@@ -814,7 +814,7 @@ G_SetClientFrame
 ===============
 */
 void G_SetClientFrame( edict_t *ent ) {
-	gclient_t *client;
+	svg_client_t *client;
 	bool        duck, run;
 
 	if ( ent->s.modelindex != 255 )

@@ -628,7 +628,7 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
         write_index(f, *(void **)p, sizeof(edict_t), g_edicts, MAX_EDICTS - 1);
         break;
     case F_CLIENT:
-        write_index(f, *(void **)p, sizeof(gclient_t), game.clients, game.maxclients - 1);
+        write_index(f, *(void **)p, sizeof(svg_client_t), game.clients, game.maxclients - 1);
         break;
     case F_ITEM:
         write_index(f, *(void **)p, sizeof(gitem_t), itemlist, game.num_items - 1);
@@ -851,7 +851,7 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
     case F_CLIENT:
 		// WID: C++20: Added cast.
-		*(gclient_t **)p = (gclient_t*)read_index(ctx->f, sizeof(gclient_t), game.clients, game.maxclients - 1);
+		*(svg_client_t **)p = (svg_client_t*)read_index(ctx->f, sizeof(svg_client_t), game.clients, game.maxclients - 1);
         break;
     case F_ITEM:
 		// WID: C++20: Added cast.
@@ -1002,7 +1002,7 @@ void ReadGame(const char *filename)
     globals.max_edicts = game.maxentities;
 	
 	// WID: C++20: Added cast.
-    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
+    game.clients = (svg_client_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
     for (i = 0; i < game.maxclients; i++) {
         read_fields(&ctx, clientfields, &game.clients[i]);
     }

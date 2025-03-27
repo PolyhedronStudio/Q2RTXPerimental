@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	@brief	
 **/
-void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype ) {
+void monster_fire_bullet( svg_edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype ) {
 	fire_bullet( self, start, dir, damage, kick, hspread, vspread, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
@@ -33,7 +33,7 @@ void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float d
 /**
 *	@brief
 **/
-void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype ) {
+void monster_fire_shotgun( svg_edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype ) {
 	fire_shotgun( self, start, aimdir, damage, kick, hspread, vspread, count, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
@@ -46,7 +46,7 @@ void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const flo
 /**
 *	@brief
 **/
-void M_CheckGround( edict_t *ent, const contents_t mask ) {
+void M_CheckGround( svg_edict_t *ent, const contents_t mask ) {
 	vec3_t      point;
 	trace_t     trace;
 
@@ -89,7 +89,7 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 /**
 *	@brief
 **/
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype ) {
+void M_CatagorizePosition( svg_edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype ) {
 	//
 	// get liquidlevel
 	//
@@ -121,7 +121,7 @@ void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t
 /**
 *	@brief	Apply world effects to monster entity.
 **/
-void M_WorldEffects( edict_t *ent ) {
+void M_WorldEffects( svg_edict_t *ent ) {
 	int     dmg;
 
     if (ent->health > 0) {
@@ -197,7 +197,7 @@ void M_WorldEffects( edict_t *ent ) {
     }
 }
 
-void M_droptofloor( edict_t *ent ) {
+void M_droptofloor( svg_edict_t *ent ) {
 	vec3_t      end;
 	trace_t     trace;
 
@@ -220,7 +220,7 @@ void M_droptofloor( edict_t *ent ) {
 	M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
 }
 
-void M_SetEffects( edict_t *ent ) {
+void M_SetEffects( svg_edict_t *ent ) {
 	ent->s.effects &= ~( EF_COLOR_SHELL );
 	ent->s.renderfx &= ~( RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE );
 

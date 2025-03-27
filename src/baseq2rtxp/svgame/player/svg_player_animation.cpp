@@ -12,14 +12,14 @@
 /**
 *   @brief  Will process(progress) the entity's active animations for each body state and event states.
 **/
-void SVG_P_ProcessAnimations( const edict_t *ent ) {
+void SVG_P_ProcessAnimations( const svg_edict_t *ent ) {
     // Return if not viewing a player model entity.
     if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
         return;     // not in the player model
     }
 
     // Acquire its client info.
-    gclient_t *client = ent->client;
+    svg_client_t *client = ent->client;
     if ( !client ) {
         return; // Need a client entity.
     }

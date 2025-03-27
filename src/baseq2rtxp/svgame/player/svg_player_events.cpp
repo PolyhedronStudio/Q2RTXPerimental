@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	@brief	Inspects the player state events for any events which may fire animation playbacks.
 **/
-static void SVG_FireClientPlayerStateEvent( const edict_t *ent, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent ) {
+static void SVG_FireClientPlayerStateEvent( const svg_edict_t *ent, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent ) {
     // Sanity check.
     if ( !ent ) {
         return;
@@ -33,7 +33,7 @@ static void SVG_FireClientPlayerStateEvent( const edict_t *ent, const player_sta
     }
 
     // Acquire its client info.
-    gclient_t *client = ent->client;
+    svg_client_t *client = ent->client;
     if ( !client ) {
         return; // Need a client entity.
     }
@@ -77,14 +77,14 @@ static void SVG_FireClientPlayerStateEvent( const edict_t *ent, const player_sta
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-void SVG_CheckClientPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps ) {
+void SVG_CheckClientPlayerstateEvents( const svg_edict_t *ent, player_state_t *ops, player_state_t *ps ) {
     // Sanity check.
     if ( !ent ) {
         return;
     }
 
     // Acquire its client info.
-    gclient_t *client = ent->client;
+    svg_client_t *client = ent->client;
     if ( !client ) {
         return; // Need a client entity.
     }

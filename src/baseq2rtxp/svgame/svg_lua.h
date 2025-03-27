@@ -195,11 +195,11 @@ void SVG_Lua_CallBack_ExitMap();
 /**
 *	@brief
 **/
-void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity );
+void SVG_Lua_CallBack_ClientEnterLevel( svg_edict_t *clientEntity );
 /**
 *	@brief
 **/
-void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity );
+void SVG_Lua_CallBack_ClientExitLevel( svg_edict_t *clientEntity );
 
 
 //

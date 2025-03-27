@@ -69,7 +69,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //===============================================================
 
 typedef struct edict_s edict_t;
-typedef struct gclient_s gclient_t;
+typedef struct gclient_s svg_client_t;
 
 #ifndef SVGAME_INCLUDE
 
@@ -81,7 +81,7 @@ typedef struct gclient_s {
     // the game dll can add anything it wants after
     // this point in the structure
     int             clientNum;
-} gclient_t;
+} svg_client_t;
 
 
 typedef struct edict_s {
@@ -116,7 +116,8 @@ typedef struct edict_s {
     // this point in the structure
 } edict_t;
 #else
-
+typedef struct edict_s svg_edict_t;
+//typedef struct gclient_s svg_gclient_t;
 #endif      // SVGAME_INCLUDE
 
 //===============================================================

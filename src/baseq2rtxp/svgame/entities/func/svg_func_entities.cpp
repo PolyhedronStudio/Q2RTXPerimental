@@ -16,7 +16,7 @@
 /**
 *	@brief
 **/
-void Touch_DoorTrigger( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void Touch_DoorTrigger( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf ) {
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
     if ( other->health <= 0 )
@@ -38,8 +38,8 @@ void Touch_DoorTrigger( edict_t *self, edict_t *other, cplane_t *plane, csurface
 /**
 *	@brief
 **/
-void Think_SpawnDoorTrigger( edict_t *ent ) {
-    edict_t *other;
+void Think_SpawnDoorTrigger( svg_edict_t *ent ) {
+    svg_edict_t *other;
     vec3_t      mins, maxs;
 
     if ( ent->flags & FL_TEAMSLAVE )

@@ -27,7 +27,7 @@ a non-instant attack weapon.  It checks to see if a
 monster's dodge function should be called.
 =================
 */
-static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
+static void check_dodge(svg_edict_t *self, vec3_t start, vec3_t dir, int speed)
 {
     // WID: TODO: Monster Reimplement.
     //vec3_t  end;
@@ -53,7 +53,7 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
 *   @brief  Projects the muzzleflash destination origin, then performs a trace clipping it to any entity/brushes that are in its way.
 *   @return Clipped muzzleflash destination origin.
 **/
-const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right ) {
+const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( svg_edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right ) {
     // Project from source to muzzleflash destination.
     Vector3 muzzleFlashOrigin = {};
     muzzleFlashOrigin = SVG_Player_ProjectDistance( ent, ent->s.origin, QM_Vector3Zero(), forward, right);
@@ -77,7 +77,7 @@ Used for all impact (hit/punch/slash) attacks
 =================
 */
 #if 0
-bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
+bool fire_hit(svg_edict_t *self, vec3_t aim, int damage, int kick)
 {
     trace_t     tr;
     vec3_t      forward, right, up;
@@ -140,7 +140,7 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 /**
 *   @brief  Used for all impact (fighting kick/punch) attacks
 **/
-const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick ) {
+const bool fire_hit_punch_impact( svg_edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick ) {
     static constexpr float HIT_RANGE = 32;
     trace_t     tr = {};
     vec3_t      dir = {};
@@ -240,7 +240,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
 /**
 *   @brief  This is an internal support routine used for bullet/pellet based weapons.
 **/
-static void fire_lead(edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
+static void fire_lead(svg_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
     Vector3 dir = { };
     Vector3 forward = {}, right = {}, up = {};
     Vector3 end = {};
@@ -378,21 +378,21 @@ static void fire_lead(edict_t *self, const vec3_t start, const vec3_t aimdir, co
 *   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
 *           pistols, rifles, etc....
 **/
-void fire_bullet(edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
+void fire_bullet(svg_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
     fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
 /**
 *   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
 **/
-void fire_shotgun(edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath ) {
+void fire_shotgun(svg_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath ) {
     int     i;
 
     for (i = 0; i < count; i++)
         fire_lead( self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
-//static const bool SVG_ShouldPlayersCollideProjectile( edict_t *self ) {
+//static const bool SVG_ShouldPlayersCollideProjectile( svg_edict_t *self ) {
 //    // In Coop they don't.
 //    if ( SG_GetActiveGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
 //        return false;

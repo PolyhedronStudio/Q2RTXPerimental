@@ -319,7 +319,7 @@ void InitGame( void )
     // initialize all clients for this game
     game.maxclients = maxclients->value;
 	// WID: C++20: Addec cast.
-    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
+    game.clients = (svg_client_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
     globals.num_edicts = game.maxclients + 1;
 }
 
@@ -550,7 +550,7 @@ CheckDMRules
 void CheckDMRules(void)
 {
     int         i;
-    gclient_t   *cl;
+    svg_client_t   *cl;
 
     if (level.intermissionFrameNumber)
         return;

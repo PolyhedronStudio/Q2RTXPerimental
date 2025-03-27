@@ -26,7 +26,7 @@ static int windsound = 0;
 /**
 *	@brief
 **/
-void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void trigger_push_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf ) {
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP ) {
 		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
@@ -62,7 +62,7 @@ void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurfac
 Pushes the player
 "speed"     defaults to 1000
 */
-void SP_trigger_push( edict_t *self ) {
+void SP_trigger_push( svg_edict_t *self ) {
 	// WID: Initialize triggers properly.
 	SVG_Util_InitTrigger( self );
 

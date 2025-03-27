@@ -177,7 +177,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
     int     sortedscores[MAX_CLIENTS];
     int     score, total;
     int     x, y;
-    gclient_t   *cl;
+    svg_client_t   *cl;
     edict_t     *cl_ent;
 	// WID: C++20: Added const.
     const char    *tag;
@@ -579,7 +579,7 @@ SVG_HUD_CheckChaseStats
 void SVG_HUD_CheckChaseStats(edict_t *ent)
 {
     int i;
-    gclient_t *cl;
+    svg_client_t *cl;
 
     for (i = 1; i <= maxclients->value; i++) {
         cl = g_edicts[i].client;
@@ -597,7 +597,7 @@ SVG_HUD_SetSpectatorStats
 */
 void SVG_HUD_SetSpectatorStats(edict_t *ent)
 {
-    gclient_t *cl = ent->client;
+    svg_client_t *cl = ent->client;
 
     if (!cl->chase_target)
         SVG_HUD_SetStats(ent);

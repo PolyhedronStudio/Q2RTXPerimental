@@ -150,7 +150,7 @@ void CLG_TemporaryEntities_Parse( void ) {
         // note to self
         // we need a better no draw flag
         ex->ent.flags = RF_BEAM;
-        ex->start = clgi.client->servertime - CL_FRAMETIME;
+        ex->start = QMTime::FromMilliseconds( clgi.client->servertime - CL_FRAMETIME );
         ex->light = 100 + ( irandom( 75 ) );
         ex->lightcolor[ 0 ] = 1.0f;
         ex->lightcolor[ 1 ] = 1.0f;
@@ -384,7 +384,7 @@ void CLG_TemporaryEntities_Parse( void ) {
         //case TE_BFG_EXPLOSION:
         //    ex = CLG_AllocExplosion();
         //    VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-        //    ex->type = clg_explosion_t::ex_poly;
+        //    ex->type = clg_explosion_t::ex_polygon_curvature;
         //    ex->ent.flags = RF_FULLBRIGHT;
         //    ex->start = clgi.client->servertime - clgi.frame_time_ms;
         //    ex->light = 350;

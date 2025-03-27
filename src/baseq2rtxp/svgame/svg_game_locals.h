@@ -34,7 +34,7 @@ QENUM_BIT_FLAGS( crosslevel_target_flags_t );
 **/
 typedef struct {
     //! [maxclients] of client pointers.
-    gclient_t *clients;
+    svg_client_t *clients;
 
     //! Can't store spawnpoint in level, because
     //! it would get overwritten by the savegame restore.

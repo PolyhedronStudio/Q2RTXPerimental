@@ -164,7 +164,7 @@ dflags      these flags are used to control how SVG_TriggerDamage works
 */
 static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int damage, int dflags)
 {
-    gclient_t   *client;
+    svg_client_t   *client;
     int         save;
     int         power_armor_type;
     int         index;
@@ -242,7 +242,7 @@ static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal
 
 static int CheckArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int damage, int te_sparks, int dflags)
 {
-    gclient_t   *client;
+    svg_client_t   *client;
     int         save;
     int         index;
     gitem_t     *armor;
@@ -362,7 +362,7 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
 
 void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod)
 {
-    gclient_t   *client;
+    svg_client_t   *client;
     int         take;
     int         save;
     int         asave;
