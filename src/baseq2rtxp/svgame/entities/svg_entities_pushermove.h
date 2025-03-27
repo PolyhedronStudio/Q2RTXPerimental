@@ -31,19 +31,19 @@
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveDone( svg_edict_t *ent );
+void SVG_PushMove_MoveDone( svg_entity_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveFinal( svg_edict_t *ent );
+void SVG_PushMove_MoveFinal( svg_entity_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveBegin( svg_edict_t *ent );
+void SVG_PushMove_MoveBegin( svg_entity_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveCalculate( svg_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
+void SVG_PushMove_MoveCalculate( svg_entity_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
 
 
 
@@ -59,23 +59,23 @@ void SVG_PushMove_MoveCalculate( svg_edict_t *ent, const Vector3 &destination, s
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveDone( svg_edict_t *ent );
+void SVG_PushMove_AngleMoveDone( svg_entity_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveFinal( svg_edict_t *ent );
+void SVG_PushMove_AngleMoveFinal( svg_entity_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveBegin( svg_edict_t *ent );
+void SVG_PushMove_AngleMoveBegin( svg_entity_t *ent );
 /**
 *   @brief	
 **/
-void SVG_PushMove_AngleMoveCalculate( svg_edict_t *ent, svg_pushmove_endcallback endMoveCallback );
+void SVG_PushMove_AngleMoveCalculate( svg_entity_t *ent, svg_pushmove_endcallback endMoveCallback );
 /**
 *   @brief  Begins an angular move with its default direction multiplied by the sign(+/- 1).
 **/
-void SVG_PushMove_AngleMoveCalculateSign( svg_edict_t *ent, const float sign, svg_pushmove_endcallback endMoveCallback );
+void SVG_PushMove_AngleMoveCalculateSign( svg_entity_t *ent, const float sign, svg_pushmove_endcallback endMoveCallback );
 
 
 
@@ -92,12 +92,12 @@ void SVG_PushMove_AngleMoveCalculateSign( svg_edict_t *ent, const float sign, sv
 *   @brief  The team has completed a frame of movement, so calculate
 *			the speed required for a move during the next game frame.
 **/
-void SVG_PushMove_Think_AccelerateMove( svg_edict_t *ent );
-void SVG_PushMove_Think_AccelerateMoveNew( svg_edict_t *ent );
+void SVG_PushMove_Think_AccelerateMove( svg_entity_t *ent );
+void SVG_PushMove_Think_AccelerateMoveNew( svg_entity_t *ent );
 /**
 *	@brief	Readjust speeds so that teamed movers start/end synchronized.
 **/
-void SVG_PushMove_Think_CalculateMoveSpeed( svg_edict_t *self );
+void SVG_PushMove_Think_CalculateMoveSpeed( svg_entity_t *self );
 
 
 

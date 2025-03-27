@@ -24,15 +24,15 @@
 /**
 *   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
 **/
-const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, svg_edict_t *entity, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0, const bool verboseIfMissing = true );
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, svg_entity_t *entity, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType = entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, const int32_t useValue = 0, const bool verboseIfMissing = true );
 /**
 *   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
 **/
-void SVG_Trigger_PrintMessage( svg_edict_t *self, svg_edict_t *activator );
+void SVG_Trigger_PrintMessage( svg_entity_t *self, svg_entity_t *activator );
 /**
 *   @brief  Kills all entities matching the killtarget name.
 **/
-const int32_t SVG_Trigger_KillTargets( svg_edict_t *self );
+const int32_t SVG_Trigger_KillTargets( svg_entity_t *self );
 
 
 
@@ -48,15 +48,15 @@ const int32_t SVG_Trigger_KillTargets( svg_edict_t *self );
 /**
 *	@brief	Utility/Support routine for delaying UseTarget when the 'delay' key/value is set on an entity.
 **/
-void LUA_Think_UseTargetDelay( svg_edict_t *entity ) {
+void LUA_Think_UseTargetDelay( svg_entity_t *entity ) {
 	// Ensure it is still active.
 	if ( !SVG_IsActiveEntity( entity ) ) {
 		return;
 	}
 
 	// Acquire activator and other.
-	svg_edict_t *activator = entity->activator;
-	svg_edict_t *other = entity->other;
+	svg_entity_t *activator = entity->activator;
+	svg_entity_t *other = entity->other;
 
 	// Acquire the delayed UseTarget data.
 	const entity_usetarget_type_t useType = entity->delayed.useTarget.useType;
@@ -116,14 +116,14 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 	}
 
 	// Acquire pointers from lua_edict_t handles.
-	svg_edict_t *entity = leEnt.edict;
-	svg_edict_t *other = leOther.edict;
-	svg_edict_t *activator = leActivator.edict;
+	svg_entity_t *entity = leEnt.edict;
+	svg_entity_t *other = leOther.edict;
+	svg_entity_t *activator = leActivator.edict;
 
 	// Spawn a delayed useTargets entity if a delay was requested.
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
-		svg_edict_t *delayEntity = SVG_AllocateEdict();
+		svg_entity_t *delayEntity = SVG_AllocateEdict();
 		// In case it failed to allocate of course.
 		if ( !SVG_IsActiveEntity( delayEntity ) ) {
 			return -1; // USETARGET_INVALID
@@ -231,14 +231,14 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 /**
 *	@brief	Utility/Support routine for delaying UseTarget when the 'delay' key/value is set on an entity.
 **/
-void LUA_Think_UseTargetsDelay( svg_edict_t *entity ) {
+void LUA_Think_UseTargetsDelay( svg_entity_t *entity ) {
 	// Ensure it is still active.
 	if ( !SVG_IsActiveEntity( entity ) ) {
 		return;
 	}
 
-	svg_edict_t *activator = entity->activator;
-	svg_edict_t *other = entity->other;
+	svg_entity_t *activator = entity->activator;
+	svg_entity_t *other = entity->other;
 
 	// Acquire the delayed UseTarget data.
 	const entity_usetarget_type_t useType = entity->delayed.useTarget.useType;
@@ -260,14 +260,14 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 	}
 
 	// Acquire pointers from lua_edict_t handles.
-	svg_edict_t *entity = leEnt.edict;
-	svg_edict_t *other = leOther.edict;
-	svg_edict_t *activator = leActivator.edict;
+	svg_entity_t *entity = leEnt.edict;
+	svg_entity_t *other = leOther.edict;
+	svg_entity_t *activator = leActivator.edict;
 
 	// Spawn a delayed useTargets entity if a delay was requested.
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
-		svg_edict_t *delayEntity = SVG_AllocateEdict();
+		svg_entity_t *delayEntity = SVG_AllocateEdict();
 		// In case it failed to allocate of course.
 		if ( !SVG_IsActiveEntity( delayEntity ) ) {
 			return -1; // USETARGET_INVALID
@@ -331,7 +331,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 	int32_t useResult = -1; // USETARGET_INVALID
 
 	if ( entity->targetNames.target ) {
-		svg_edict_t *fireTargetEntity = nullptr;
+		svg_entity_t *fireTargetEntity = nullptr;
 		while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)entity->targetNames.target ) ) ) {
 			// Doors fire area portals in a specific way
 			if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )

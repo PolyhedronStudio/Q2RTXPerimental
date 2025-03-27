@@ -15,8 +15,8 @@
 /**
 *   @brief
 **/
-void teleporter_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf ) {
-    svg_edict_t *dest;
+void teleporter_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+    svg_entity_t *dest;
     int         i;
 
     if ( !other->client )
@@ -65,8 +65,8 @@ Stepping onto this disc will teleport players to the targeted misc_teleporter_de
 /**
 *   @brief
 **/
-void SP_misc_teleporter( svg_edict_t *ent ) {
-    svg_edict_t *trig;
+void SP_misc_teleporter( svg_entity_t *ent ) {
+    svg_entity_t *trig;
 
     if ( !ent->targetNames.target ) {
         gi.dprintf( "teleporter without a target.\n" );

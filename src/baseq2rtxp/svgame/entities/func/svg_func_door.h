@@ -52,32 +52,32 @@ static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMO
 /**
 *	@brief
 **/
-void door_use_areaportals( svg_edict_t *self, const bool open );
+void door_use_areaportals( svg_entity_t *self, const bool open );
 /**
 *	@brief
 **/
-void door_blocked( svg_edict_t *self, svg_edict_t *other );
+void door_blocked( svg_entity_t *self, svg_entity_t *other );
 /**
 *	@brief
 **/
-void door_killed( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point );
+void door_killed( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 /**
 *   @brief  Pain for door.
 **/
-void door_pain( svg_edict_t *self, svg_edict_t *other, float kick, int damage );
+void door_pain( svg_entity_t *self, svg_entity_t *other, float kick, int damage );
 /**
 *	@brief
 **/
-void door_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf );
+void door_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf );
 /**
 *	@brief
 **/
-void door_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+void door_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 /**
 *   @brief  Pain for door.
 **/
-void door_pain( svg_edict_t *self, svg_edict_t *other, float kick, int damage );
+void door_pain( svg_entity_t *self, svg_entity_t *other, float kick, int damage );
 /**
 *   @brief  Signal Receiving:
 **/
-void door_onsignalin( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+void door_onsignalin( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );

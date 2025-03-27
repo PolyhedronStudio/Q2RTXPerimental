@@ -229,7 +229,7 @@ static const save_field_t clientfields[] = {
 };
 
 /**
-*   svg_edict_t:
+*   svg_entity_t:
 **/
 static const save_field_t entityfields[] = {
 #define _OFS FOFS_GENTITY
@@ -905,7 +905,7 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
         write_game_qtag_memory<float>( f, ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
         break;
     case F_EDICT:
-        write_index(f, *(void **)p, sizeof(svg_edict_t), g_edicts, MAX_EDICTS - 1);
+        write_index(f, *(void **)p, sizeof(svg_entity_t), g_edicts, MAX_EDICTS - 1);
         break;
     case F_CLIENT:
         write_index(f, *(void **)p, sizeof(svg_client_t), game.clients, game.maxclients - 1);
@@ -1266,7 +1266,7 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
     case F_EDICT:
 		// WID: C++20: Added cast.
-		*(svg_edict_t **)p = (svg_edict_t*)read_index(ctx->f, sizeof(svg_edict_t), g_edicts, game.maxentities - 1);
+		*(svg_entity_t **)p = (svg_entity_t*)read_index(ctx->f, sizeof(svg_entity_t), g_edicts, game.maxentities - 1);
         break;
     case F_CLIENT:
 		// WID: C++20: Added cast.
@@ -1431,7 +1431,7 @@ void SVG_ReadGame(const char *filename)
     }
 
 	// WID: C++20: Added cast.
-    g_edicts = (svg_edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
+    g_edicts = (svg_entity_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
     globals.edicts = g_edicts;
     globals.max_edicts = game.maxentities;
 	
@@ -1466,7 +1466,7 @@ WriteLevel
 void SVG_WriteLevel(const char *filename)
 {
     int     i;
-    svg_edict_t *ent;
+    svg_entity_t *ent;
     gzFile  f;
 
     f = gzopen(filename, "wb");
@@ -1515,7 +1515,7 @@ void SVG_ReadLevel(const char *filename)
     int     entnum;
     gzFile  f;
     int     i;
-    svg_edict_t *ent;
+    svg_entity_t *ent;
 
     // free any dynamic memory allocated by loading the level
     // base state

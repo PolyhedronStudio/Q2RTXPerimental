@@ -61,7 +61,7 @@ NOMONSTER   Monsters will not trigger this door.
 *
 *
 **/
-void door_usetarget_update_hint( svg_edict_t *self ) {
+void door_usetarget_update_hint( svg_entity_t *self ) {
     // Are we an actual use target at all?
     if ( !SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
         return;
@@ -78,8 +78,8 @@ void door_usetarget_update_hint( svg_edict_t *self ) {
 /**
 *	@brief  Open/Close the door's area portals.
 **/
-void door_use_areaportals( svg_edict_t *self, const bool open ) {
-    svg_edict_t *t = NULL;
+void door_use_areaportals( svg_entity_t *self, const bool open ) {
+    svg_entity_t *t = NULL;
 
     if ( !self->targetNames.target )
         return;
@@ -99,13 +99,13 @@ void door_use_areaportals( svg_edict_t *self, const bool open ) {
 /**
 *   @brief  Fire use target lua function implementation if existant.
 **/
-void door_lua_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t &useType, const int32_t useValue ) {
+void door_lua_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t &useType, const int32_t useValue ) {
     #if 1
     //SVG_UseTargets( self, self->activator, useType, useValue );
     // Get reference to sol lua state view.
     sol::state_view &solStateView = SVG_Lua_GetSolStateView();
     // We create these ourselves to make sure they are the appropriate type. 
-    // (Other types got a constructor(svg_edict_t*) as well. So we won't rely on it automatically resolving it, although it does at this moment VS2022)
+    // (Other types got a constructor(svg_entity_t*) as well. So we won't rely on it automatically resolving it, although it does at this moment VS2022)
     auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( self ) );
     auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( other ) );
     auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( activator ) );
@@ -174,9 +174,9 @@ void door_lua_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator
 /**
 *   @brief  Toggles the entire door team.
 **/
-void door_close_move( svg_edict_t *self );
-void door_open_move( svg_edict_t *self/*, svg_edict_t *activator */ );
-void door_team_toggle( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const bool stateIsOpen, const bool forceState = false ) {
+void door_close_move( svg_entity_t *self );
+void door_open_move( svg_entity_t *self/*, svg_entity_t *activator */ );
+void door_team_toggle( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const bool stateIsOpen, const bool forceState = false ) {
     // Actually determine properly whether the door(its master) is locked or not.
     #if 0
     // Slave to team.
@@ -238,7 +238,7 @@ void door_team_toggle( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activ
     if ( ( forceState == true && stateIsOpen == false ) || ( forceState == false && SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) ) {
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
-            for ( svg_edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
+            for ( svg_entity_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->message = NULL;
                 ent->touch = NULL;
                 ent->activator = activator; // WID: We need to assign it right?
@@ -252,7 +252,7 @@ void door_team_toggle( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activ
     //if ( open == true || SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) {
     if ( ( forceState == true && stateIsOpen == true ) || ( forceState == false && SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) ) {
         // trigger all paired doors
-        for ( svg_edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
+        for ( svg_entity_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
             ent->message = NULL;
             ent->touch = NULL;
             ent->activator = activator; // WID: We need to assign it right?
@@ -265,7 +265,7 @@ void door_team_toggle( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activ
 /**
 *   @brief
 **/
-void door_lock( svg_edict_t *self ) {
+void door_lock( svg_entity_t *self ) {
     // Door has to be either open, or closed, in order to allow for 'locking'.
     if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
         // Of course it has to be locked if we want to play a sound.
@@ -279,7 +279,7 @@ void door_lock( svg_edict_t *self ) {
 /**
 *   @brief
 **/
-void door_unlock( svg_edict_t *self ) {
+void door_unlock( svg_entity_t *self ) {
     // Door has to be either open, or closed, in order to allow for 'unlocking'.
     if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
         // Of course it has to be locked if we want to play a sound.
@@ -305,7 +305,7 @@ void door_unlock( svg_edict_t *self ) {
 /**
 *   @brief  Signal Receiving:
 **/
-void door_onsignalin( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+void door_onsignalin( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     /**
     *   Open/Close:
     **/
@@ -384,12 +384,12 @@ void door_onsignalin( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activa
 /**
 *	@brief
 **/
-void door_close_move( svg_edict_t *self );
+void door_close_move( svg_entity_t *self );
 
 /**
 *	@brief
 **/
-void door_open_move_done( svg_edict_t *self ) {
+void door_open_move_done( svg_entity_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
@@ -426,7 +426,7 @@ void door_open_move_done( svg_edict_t *self ) {
 /**
 *	@brief
 **/
-void door_close_move_done( svg_edict_t *self ) {
+void door_close_move_done( svg_entity_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
@@ -472,7 +472,7 @@ void door_close_move_done( svg_edict_t *self ) {
 /**
 *	@brief
 **/
-void door_close_move( svg_edict_t *self ) {
+void door_close_move( svg_entity_t *self ) {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.start ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
@@ -520,7 +520,7 @@ void door_close_move( svg_edict_t *self ) {
 /**
 *	@brief
 **/
-void door_open_move( svg_edict_t *self/*, svg_edict_t *activator */) {
+void door_open_move( svg_entity_t *self/*, svg_entity_t *activator */) {
     if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE ) {
         return;     // already going up
     }
@@ -576,8 +576,8 @@ void door_open_move( svg_edict_t *self/*, svg_edict_t *activator */) {
 /**
 *	@brief
 **/
-void door_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    svg_edict_t *ent;
+void door_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    svg_entity_t *ent;
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
     // Determine whether the entity is capable of opening doors.
@@ -686,8 +686,8 @@ void door_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, co
 /**
 *	@brief
 **/
-void door_blocked( svg_edict_t *self, svg_edict_t *other ) {
-    svg_edict_t *ent;
+void door_blocked( svg_entity_t *self, svg_entity_t *other ) {
+    svg_entity_t *ent;
 
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
@@ -727,8 +727,8 @@ void door_blocked( svg_edict_t *self, svg_edict_t *other ) {
 /**
 *	@brief
 **/
-void door_killed( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point ) {
-    svg_edict_t *ent;
+void door_killed( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point ) {
+    svg_entity_t *ent;
 
     // By default it is a 'Team Slave', and thus should exit. However, in the scenario of a client
     // performing a (+usetarget) key action, we want to try and activate the team master. This allows
@@ -773,7 +773,7 @@ void door_killed( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attack
 /**
 *   @brief  Pain for door.
 **/
-void door_pain( svg_edict_t *self, svg_edict_t *other, float kick, int damage ) {
+void door_pain( svg_entity_t *self, svg_entity_t *other, float kick, int damage ) {
     const svg_signal_argument_array_t signalArguments = {
             {
                 .type = SIGNAL_ARGUMENT_TYPE_NUMBER,
@@ -791,7 +791,7 @@ void door_pain( svg_edict_t *self, svg_edict_t *other, float kick, int damage ) 
             }
     };
 
-    for ( svg_edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
+    for ( svg_entity_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
         // Dispatch a signal to each door team member.
         ent->other = other;
         ent->activator = other;
@@ -802,7 +802,7 @@ void door_pain( svg_edict_t *self, svg_edict_t *other, float kick, int damage ) 
 /**
 *	@brief
 **/
-void door_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void door_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
     if ( !other->client ) {
         return;
     }
@@ -824,7 +824,7 @@ void door_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurfac
 /**
 *	@brief
 **/
-void door_postspawn( svg_edict_t *self ) {
+void door_postspawn( svg_entity_t *self ) {
     //if ( self->spawnflags & DOOR_START_OPEN ) {
     //    //SVG_UseTargets( self, self );
     //    door_use_areaportals( self, true );
@@ -835,7 +835,7 @@ void door_postspawn( svg_edict_t *self ) {
 /**
 *	@brief
 **/
-void SP_func_door( svg_edict_t *ent ) {
+void SP_func_door( svg_entity_t *ent ) {
 
     SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;

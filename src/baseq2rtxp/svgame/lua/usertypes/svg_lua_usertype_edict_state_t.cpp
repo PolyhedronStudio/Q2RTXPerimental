@@ -42,7 +42,7 @@ lua_edict_state_t::lua_edict_state_t() : edict( nullptr ) {
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_POINTER();
 }
-lua_edict_state_t::lua_edict_state_t( svg_edict_t *_edict ) : edict( _edict ) {
+lua_edict_state_t::lua_edict_state_t( svg_entity_t *_edict ) : edict( _edict ) {
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_POINTER();
 }
@@ -238,7 +238,7 @@ void lua_edict_state_t::set_event( sol::this_state s, const int32_t event ) {
 
 
 /**
-*	@brief	Register a usertype for passing along svg_edict_t into lua.
+*	@brief	Register a usertype for passing along svg_entity_t into lua.
 **/
 void UserType_Register_EdictState_t( sol::state &solState ) {
 	/**
@@ -247,7 +247,7 @@ void UserType_Register_EdictState_t( sol::state &solState ) {
 	// We simply point to the entity that owns the state, the addresses won't change during the lifetime of the LUA VM.
 	sol::usertype<lua_edict_state_t> lua_edict_state_type = solState.new_usertype<lua_edict_state_t>( "lua_edict_state_t",
 		//sol::no_constructor,
-		sol::constructors< lua_edict_state_t(), lua_edict_state_t( svg_edict_t * ) >()
+		sol::constructors< lua_edict_state_t(), lua_edict_state_t( svg_entity_t * ) >()
 	);
 
 	// Register Lua 'Properties', so we got get and setters for each accessible entity_state_t member.

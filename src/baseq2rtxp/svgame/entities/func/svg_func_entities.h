@@ -11,8 +11,8 @@
 /**
 *	@brief
 **/
-void Think_SpawnDoorTrigger( svg_edict_t *ent );
+void Think_SpawnDoorTrigger( svg_entity_t *ent );
 /**
 *	@brief
 **/
-void Touch_DoorTrigger( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf );
+void Touch_DoorTrigger( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf );

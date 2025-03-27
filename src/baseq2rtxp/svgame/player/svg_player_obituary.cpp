@@ -12,7 +12,7 @@
 /**
 *   @brief  
 **/
-void SVG_Player_Obituary( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker ) {
+void SVG_Player_Obituary( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker ) {
     sg_means_of_death_t meansOfDeath = MEANS_OF_DEATH_UNKNOWN;
 
     // WID: TODO: In the future, use a gamemode callback for testing if it was friendly fire.

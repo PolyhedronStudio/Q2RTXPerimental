@@ -169,7 +169,7 @@ typedef struct mm_touch_trace_list_s {
 **/
 typedef struct mm_move_s {
     //! [In]: Used as trace skip/pass-entity, usually points to the monster itself.
-    svg_edict_t *monster;
+    svg_entity_t *monster;
     //! [In]: Frametime.
     double frameTime;
     //! [In]: Bounds.
@@ -211,7 +211,7 @@ const trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const V
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_edict_t *passEntity, contents_t contentMask = CONTENTS_NONE );
+const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_entity_t *passEntity, contents_t contentMask = CONTENTS_NONE );
 
 
 
@@ -234,4 +234,4 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove );
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
 **/
-void SVG_MMove_FaceIdealYaw( svg_edict_t *ent, const float idealYaw, const float yawSpeed );
+void SVG_MMove_FaceIdealYaw( svg_entity_t *ent, const float idealYaw, const float yawSpeed );

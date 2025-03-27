@@ -25,7 +25,7 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP = 32;
 /**
 *	@brief	The wait time has passed, so set back up for another activation
 **/
-void multi_wait( svg_edict_t *ent ) {
+void multi_wait( svg_entity_t *ent ) {
 	ent->nextthink = 0_ms;
 }
 
@@ -35,7 +35,7 @@ void multi_wait( svg_edict_t *ent ) {
 *			ent->activator should be set to the activator so it can be held through a delay
 *			so wait for the delay time before firing
 **/
-void multi_trigger( svg_edict_t *ent ) {
+void multi_trigger( svg_entity_t *ent ) {
 	if ( ent->nextthink )
 		return;     // already been triggered
 
@@ -56,7 +56,7 @@ void multi_trigger( svg_edict_t *ent ) {
 /**
 *	@brief
 **/
-void Use_Multi( svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void Use_Multi( svg_entity_t *ent, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	ent->activator = activator;
 	multi_trigger( ent );
 }
@@ -64,7 +64,7 @@ void Use_Multi( svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, co
 /**
 *	@brief
 **/
-void Touch_Multi( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void Touch_Multi( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
 	if ( other->client ) {
 		if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_NOT_PLAYER ) {
 			return;
@@ -101,7 +101,7 @@ void Touch_Multi( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurfa
 /**
 *	@brief
 **/
-void trigger_enable( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void trigger_enable( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	self->solid = SOLID_TRIGGER;
 	self->use = Use_Multi;
 	gi.linkentity( self );
@@ -118,7 +118,7 @@ sounds
 4)
 set "message" to text string
 */
-void SP_trigger_multiple( svg_edict_t *ent ) {
+void SP_trigger_multiple( svg_entity_t *ent ) {
 	if ( ent->sounds )
 		ent->noise_index = gi.soundindex( "hud/chat01.wav" );
 	//if ( ent->sounds == 1 )

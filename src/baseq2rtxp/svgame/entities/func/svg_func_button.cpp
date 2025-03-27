@@ -59,11 +59,11 @@ There it will wait till the wait time is over, or if toggleable, until it is tog
 4) metallic click
 5) in-out
 */
-void button_press_move_done( svg_edict_t *self );
-void button_unpress_move_done( svg_edict_t *self );
-void button_think_return( svg_edict_t *self );
-void button_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf );
-void button_killed( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point );
+void button_press_move_done( svg_entity_t *self );
+void button_unpress_move_done( svg_entity_t *self );
+void button_think_return( svg_entity_t *self );
+void button_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf );
+void button_killed( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 
 
 
@@ -80,7 +80,7 @@ void button_killed( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *atta
 *   @brief  Called by spawn, move begin, and move end functions in order to determine 
 *           the appropriate UseTargetHint ID to use.
 **/
-void button_determine_usetarget_hint_id( svg_edict_t *self ) {
+void button_determine_usetarget_hint_id( svg_entity_t *self ) {
     // Continous button?
     const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continous active?
@@ -172,7 +172,7 @@ void button_determine_usetarget_hint_id( svg_edict_t *self ) {
 /**
 *   @brief  PushMoveInfo callback for when the button returned to its initial 'Unpressed' state.
 **/
-void button_unpress_move_done( svg_edict_t *self ) {
+void button_unpress_move_done( svg_entity_t *self ) {
     // Assert.
     Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE );
 
@@ -268,7 +268,7 @@ void button_unpress_move_done( svg_edict_t *self ) {
 /**
 *   @brief  PushMoveInfo callback for when the button reaches its 'Pressed' state.
 **/
-void button_press_move_done( svg_edict_t *self ) {
+void button_press_move_done( svg_entity_t *self ) {
     // Assert.
     Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE );
 
@@ -371,7 +371,7 @@ void button_press_move_done( svg_edict_t *self ) {
 /**
 *   @brief  Engages moving into the pressed state, after which at arrival, it calls upon 'button_wait'.
 **/
-void button_press_move( svg_edict_t *self ) {
+void button_press_move( svg_entity_t *self ) {
     // Adjust movement state info.
     self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_PRESSED_STATE;
 
@@ -417,7 +417,7 @@ void button_press_move( svg_edict_t *self ) {
 /**
 *   @brief  Engages moving into the 'Unpressed' state, after which at arrival, it calls upon 'button_unpress_move_done'.
 **/
-void button_unpress_move( svg_edict_t *self ) {
+void button_unpress_move( svg_entity_t *self ) {
     // Adjust movement state info.
     self->pushMoveInfo.state = BUTTON_STATE_MOVING_TO_UNPRESSED_STATE;
 
@@ -458,7 +458,7 @@ void button_unpress_move( svg_edict_t *self ) {
 /**
 *   @brief  Used for "Toggle" Signalling.
 **/
-void button_toggle_move( svg_edict_t *self ) {
+void button_toggle_move( svg_entity_t *self ) {
     if ( self->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM || self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
         button_unpress_move( self );
     } else {
@@ -479,7 +479,7 @@ void button_toggle_move( svg_edict_t *self ) {
 /**
 *   @brief  Think method called to determine when/whether to move back to its unpressed state.
 **/
-void button_think_return( svg_edict_t *self ) {
+void button_think_return( svg_entity_t *self ) {
     // Assert.
     Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_PRESSED );
 
@@ -536,7 +536,7 @@ void button_think_return( svg_edict_t *self ) {
 /**
 *   @brief  For when 'Use' triggered.
 **/
-void button_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void button_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // button_use is never called by usage from monsters or clients, enabling this would get in the way of the remaining entities.
     #if 0
     if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
@@ -604,7 +604,7 @@ void button_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, 
 /**
 *   @brief  For when '+usetarget' press triggered.
 **/
-void button_usetarget_continuous_press( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void button_usetarget_continuous_press( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Only react if it is a client entity which is touch triggering this button.
     // If it is a dead client, ignore triggering it.
     if ( !SVG_IsClientEntity( activator, /* healthCheck=*/true ) ) {
@@ -674,7 +674,7 @@ void button_usetarget_continuous_press( svg_edict_t *self, svg_edict_t *other, s
 /**
 *   @brief  For when '+usetarget' press triggered.
 **/
-void button_usetarget_press( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void button_usetarget_press( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Don't act if still moving.
     if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
         || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
@@ -716,7 +716,7 @@ void button_usetarget_press( svg_edict_t *self, svg_edict_t *other, svg_edict_t 
 /**
 *   @brief  For when '+usetarget' press triggered.
 **/
-void button_usetarget_toggle( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void button_usetarget_toggle( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Only react if it is a client entity which is touch triggering this button.
     // If it is a dead client, ignore triggering it.
     if ( !SVG_IsClientEntity( activator, /* healthCheck=*/true ) ) {
@@ -751,7 +751,7 @@ void button_usetarget_toggle( svg_edict_t *self, svg_edict_t *other, svg_edict_t
 /**
 *   @brief  For when 'Touch' triggered.
 **/
-void button_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void button_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
     // Do nothing if the button is still moving.
     if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
         || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
@@ -797,7 +797,7 @@ void button_touch( svg_edict_t *self, svg_edict_t *other, cplane_t *plane, csurf
 /**
 *   @brief  For when 'Death' triggered.
 **/
-void button_killed( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point ) {
+void button_killed( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point ) {
     // Do nothing if the button is still moving.
     if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
         || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {
@@ -863,7 +863,7 @@ void button_killed( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *atta
 /**
 *   @brief
 **/
-void button_lock( svg_edict_t *self ) {
+void button_lock( svg_entity_t *self ) {
     // Of course it has to be locked if we want to play a sound.
     if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
         gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
@@ -874,7 +874,7 @@ void button_lock( svg_edict_t *self ) {
 /**
 *   @brief
 **/
-void button_unlock( svg_edict_t *self ) {
+void button_unlock( svg_entity_t *self ) {
     // Of course it has to be locked if we want to play a sound.
     if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
         gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
@@ -897,7 +897,7 @@ void button_unlock( svg_edict_t *self ) {
 /**
 *   @brief  Signal Receiving:
 **/
-void button_onsignalin( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+void button_onsignalin( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     /**
     *   Press/UnPress/Toggle:
     **/
@@ -975,7 +975,7 @@ void button_onsignalin( svg_edict_t *self, svg_edict_t *other, svg_edict_t *acti
 /**
 *   @brief  Spawn function.
 **/
-void SP_func_button( svg_edict_t *ent ) {
+void SP_func_button( svg_entity_t *ent ) {
     // PushMove Entity Basics:
     SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
     #if 0

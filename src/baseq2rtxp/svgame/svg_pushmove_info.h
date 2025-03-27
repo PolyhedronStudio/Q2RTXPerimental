@@ -21,7 +21,7 @@ typedef enum svg_pushmove_state_e {
 } svg_pushmove_state_t;
 
 //! Typedef for pushmove end move callback.
-typedef void( *svg_pushmove_endcallback )( svg_edict_t * );
+typedef void( *svg_pushmove_endcallback )( svg_entity_t * );
 
 /**
 *   @brief  Stores movement info for 'Pushers(also known as Movers)'.

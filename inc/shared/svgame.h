@@ -116,7 +116,7 @@ typedef struct edict_s {
     // this point in the structure
 } edict_t;
 #else
-typedef struct edict_s svg_edict_t;
+typedef struct edict_s svg_entity_t;
 //typedef struct gclient_s svg_gclient_t;
 #endif      // SVGAME_INCLUDE
 

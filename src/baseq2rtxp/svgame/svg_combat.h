@@ -141,16 +141,16 @@ static constexpr int32_t PNOISE_IMPACT = 2;
 /**
 *   @brief
 **/
-const bool SVG_OnSameTeam( svg_edict_t *ent1, svg_edict_t *ent2 );
+const bool SVG_OnSameTeam( svg_entity_t *ent1, svg_entity_t *ent2 );
 /**
 *   @brief
 **/
-const bool SVG_CanDamage( svg_edict_t *targ, svg_edict_t *inflictor );
+const bool SVG_CanDamage( svg_entity_t *targ, svg_entity_t *inflictor );
 /**
 *   @brief
 **/
-void SVG_TriggerDamage( svg_edict_t *targ, svg_edict_t *inflictor, svg_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath );
+void SVG_TriggerDamage( svg_entity_t *targ, svg_entity_t *inflictor, svg_entity_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath );
 /**
 *   @brief
 **/
-void SVG_RadiusDamage( svg_edict_t *inflictor, svg_edict_t *attacker, float damage, svg_edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
+void SVG_RadiusDamage( svg_entity_t *inflictor, svg_entity_t *attacker, float damage, svg_entity_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );

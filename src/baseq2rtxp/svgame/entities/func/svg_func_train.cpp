@@ -35,9 +35,9 @@ dmg     default 2
 noise   looping sound to play when the train is in motion
 
 */
-void train_next( svg_edict_t *self );
+void train_next( svg_entity_t *self );
 
-void train_blocked( svg_edict_t *self, svg_edict_t *other ) {
+void train_blocked( svg_entity_t *self, svg_entity_t *other ) {
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
         SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
@@ -60,10 +60,10 @@ void train_blocked( svg_edict_t *self, svg_edict_t *other ) {
     SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
-void train_wait( svg_edict_t *self ) {
+void train_wait( svg_entity_t *self ) {
     if ( self->targetEntities.target->targetNames.path ) {
         char *savetarget;
-        svg_edict_t *ent;
+        svg_entity_t *ent;
 
         ent = self->targetEntities.target;
         savetarget = (char *)ent->targetNames.target;
@@ -98,8 +98,8 @@ void train_wait( svg_edict_t *self ) {
 
 }
 
-void train_next( svg_edict_t *self ) {
-    svg_edict_t *ent;
+void train_next( svg_entity_t *self ) {
+    svg_entity_t *ent;
     vec3_t      dest;
     bool        first;
 
@@ -149,8 +149,8 @@ again:
     self->spawnflags |= TRAIN_START_ON;
 }
 
-void train_resume( svg_edict_t *self ) {
-    svg_edict_t *ent;
+void train_resume( svg_entity_t *self ) {
+    svg_entity_t *ent;
     vec3_t  dest;
 
     ent = self->targetEntities.target;
@@ -163,8 +163,8 @@ void train_resume( svg_edict_t *self ) {
     self->spawnflags |= TRAIN_START_ON;
 }
 
-void func_train_find( svg_edict_t *self ) {
-    svg_edict_t *ent;
+void func_train_find( svg_entity_t *self ) {
+    svg_entity_t *ent;
 
     if ( !self->targetNames.target ) {
         gi.dprintf( "train_find: no target\n" );
@@ -191,7 +191,7 @@ void func_train_find( svg_edict_t *self ) {
     }
 }
 
-void train_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void train_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->activator = activator;
     self->other = other;
 
@@ -253,7 +253,7 @@ void train_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, c
     #endif
 }
 
-void SP_func_train( svg_edict_t *self ) {
+void SP_func_train( svg_entity_t *self ) {
     self->movetype = MOVETYPE_PUSH;
     self->s.entityType = ET_PUSHER;
 

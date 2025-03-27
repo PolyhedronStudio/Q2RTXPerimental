@@ -26,10 +26,10 @@
 **/
 class lua_edict_state_t {
 //private:
-	//svg_edict_t *edict;
+	//svg_entity_t *edict;
 
 public:
-	svg_edict_t *edict;
+	svg_entity_t *edict;
 
 	/**
 	*
@@ -37,7 +37,7 @@ public:
 	*
 	**/
 	lua_edict_state_t();
-	lua_edict_state_t( svg_edict_t *_edict );
+	lua_edict_state_t( svg_entity_t *_edict );
 
 	/**
 	*

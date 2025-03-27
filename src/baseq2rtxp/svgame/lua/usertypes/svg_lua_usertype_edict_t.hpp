@@ -26,10 +26,10 @@
 **/
 class lua_edict_t {
 //private:
-	//svg_edict_t *edict;
+	//svg_entity_t *edict;
 
 public:
-	svg_edict_t *edict;
+	svg_entity_t *edict;
 
 	/**
 	* 
@@ -37,7 +37,7 @@ public:
 	* 
 	**/
 	lua_edict_t();
-	lua_edict_t( svg_edict_t *_edict );
+	lua_edict_t( svg_entity_t *_edict );
 
 
 	/**
@@ -144,6 +144,6 @@ public:
 };
 
 /**
-*	@brief	Register a usertype for passing along svg_edict_t into lua.
+*	@brief	Register a usertype for passing along svg_entity_t into lua.
 **/
 void UserType_Register_Edict_t( sol::state &solState );

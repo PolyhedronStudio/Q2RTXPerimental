@@ -54,7 +54,7 @@ QMTime FRAME_TIME_MS;
 int sm_meat_index;
 int snd_fry;
 
-svg_edict_t	*g_edicts;
+svg_entity_t	*g_edicts;
 
 // WID: gamemode support:
 cvar_t *dedicated;
@@ -110,15 +110,15 @@ cvar_t *g_select_empty;
 //
 // Func Declarations:
 //
-void SVG_Client_Begin( svg_edict_t *ent );
-void SVG_Client_Command( svg_edict_t *ent );
-qboolean SVG_Client_Connect( svg_edict_t *ent, char *userinfo );
-void SVG_Client_Disconnect( svg_edict_t *ent );
-void SVG_Client_Think( svg_edict_t *ent, usercmd_t *cmd );
-void SVG_Client_UserinfoChanged( svg_edict_t *ent, char *userinfo );
+void SVG_Client_Begin( svg_entity_t *ent );
+void SVG_Client_Command( svg_entity_t *ent );
+qboolean SVG_Client_Connect( svg_entity_t *ent, char *userinfo );
+void SVG_Client_Disconnect( svg_entity_t *ent );
+void SVG_Client_Think( svg_entity_t *ent, usercmd_t *cmd );
+void SVG_Client_UserinfoChanged( svg_entity_t *ent, char *userinfo );
 
 void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
-void SVG_RunEntity(svg_edict_t *ent);
+void SVG_RunEntity(svg_entity_t *ent);
 void SVG_WriteGame(const char *filename, qboolean autosave);
 void SVG_ReadGame(const char *filename);
 void SVG_WriteLevel(const char *filename);
@@ -324,7 +324,7 @@ void SVG_InitGame( void )
     // initialize all entities for this game
     game.maxentities = std::clamp(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
 	// WID: C++20: Addec cast.
-    g_edicts = (svg_edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
+    g_edicts = (svg_entity_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
     globals.edicts = g_edicts;
     globals.max_edicts = game.maxentities;
 
@@ -423,7 +423,7 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.ServerCommand = SVG_ServerCommand;
 
-		globals.edict_size = sizeof( svg_edict_t );
+		globals.edict_size = sizeof( svg_entity_t );
 
 		return &globals;
 	}
@@ -480,7 +480,7 @@ void ClientEndServerFrames(void) {
     // calc the player views now that all pushing
     // and damage has been added
     for ( int32_t i = 0 ; i < maxclients->value ; i++) {
-        svg_edict_t *ent = g_edicts + 1 + i;
+        svg_entity_t *ent = g_edicts + 1 + i;
         if ( !ent->inuse || !ent->client ) {
             continue;
         }
@@ -492,8 +492,8 @@ void ClientEndServerFrames(void) {
 /**
 *   @brief  Returns the created target changelevel
 **/
-svg_edict_t *CreateTargetChangeLevel( char *map ) {
-    svg_edict_t *ent;
+svg_entity_t *CreateTargetChangeLevel( char *map ) {
+    svg_entity_t *ent;
 
     ent = SVG_AllocateEdict();
     ent->classname = "target_changelevel";
@@ -508,7 +508,7 @@ svg_edict_t *CreateTargetChangeLevel( char *map ) {
 *   @brief  The timelimit or fraglimit has been exceeded
 **/
 void EndDMLevel(void) {
-    svg_edict_t     *ent;
+    svg_entity_t     *ent;
     char *s, *t, *f;
     static const char *seps = " ,\n\r";
 
@@ -629,7 +629,7 @@ void CheckDMRules(void) {
 **/
 void ExitLevel(void) {
     int     i;
-    svg_edict_t *ent;
+    svg_entity_t *ent;
     char    command [256];
 
     // WID: LUA: CallBack.
@@ -687,7 +687,7 @@ void SVG_RunFrame(void) {
     // Treat each object in turn
     // even the world gets a chance to think
     //
-    svg_edict_t *ent = &g_edicts[ 0 ];
+    svg_entity_t *ent = &g_edicts[ 0 ];
     for ( int32_t i = 0; i < globals.num_edicts; i++, ent++ ) {
         if ( !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."

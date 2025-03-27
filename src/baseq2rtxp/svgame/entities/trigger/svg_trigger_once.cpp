@@ -9,7 +9,7 @@
 #include "svgame/entities/trigger/svg_trigger_once.h"
 
 
-void SP_trigger_multiple( svg_edict_t *ent );
+void SP_trigger_multiple( svg_entity_t *ent );
 
 /***
 *
@@ -34,7 +34,7 @@ sounds
 
 "message"   string to be displayed when triggered
 */
-void SP_trigger_once( svg_edict_t *ent ) {
+void SP_trigger_once( svg_entity_t *ent ) {
 	// make old maps work because I messed up on flag assignments here
 	// triggered was on bit 1 when it should have been on bit 4
 	if ( ent->spawnflags & 1 ) {

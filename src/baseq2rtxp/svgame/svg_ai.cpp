@@ -20,10 +20,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_local.h"
 
 //// WID: C++20: Aggressive "extern "C"" for the save system.
-//bool FindTarget(svg_edict_t *self);
+//bool FindTarget(svg_entity_t *self);
 //extern cvar_t   *maxclients;
 //
-//bool ai_checkattack(svg_edict_t *self, float dist);
+//bool ai_checkattack(svg_entity_t *self, float dist);
 //
 //bool        enemy_vis;
 //int         enemy_range;
@@ -47,7 +47,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //*/
 //void AI_SetSightClient(void)
 //{
-//    svg_edict_t *ent;
+//    svg_entity_t *ent;
 //    int     start, check;
 //
 //    if (level.sight_client == NULL)
@@ -84,7 +84,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //This replaces the QC functions: ai_forward, ai_back, ai_pain, and ai_painforward
 //==============
 //*/
-//void ai_move(svg_edict_t *self, float dist)
+//void ai_move(svg_entity_t *self, float dist)
 //{
 //    M_walkmove(self, self->s.angles[YAW], dist);
 //}
@@ -98,7 +98,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //Distance is for slight position adjustments needed by the animations
 //==============
 //*/
-//void ai_stand(svg_edict_t *self, float dist)
+//void ai_stand(svg_entity_t *self, float dist)
 //{
 //    vec3_t  v;
 //
@@ -147,7 +147,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //The monster is walking it's beat
 //=============
 //*/
-//void ai_walk(svg_edict_t *self, float dist)
+//void ai_walk(svg_entity_t *self, float dist)
 //{
 //    M_MoveToGoal(self, dist);
 //
@@ -174,7 +174,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //Use this call with a distnace of 0 to replace ai_face
 //==============
 //*/
-//void ai_charge(svg_edict_t *self, float dist)
+//void ai_charge(svg_entity_t *self, float dist)
 //{
 //    vec3_t  v;
 //
@@ -195,7 +195,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //Distance is for slight position adjustments needed by the animations
 //=============
 //*/
-//void ai_turn(svg_edict_t *self, float dist)
+//void ai_turn(svg_entity_t *self, float dist)
 //{
 //    if (dist)
 //        M_walkmove(self, self->s.angles[YAW], dist);
@@ -244,7 +244,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //3   only triggered by damage
 //=============
 //*/
-//int range(svg_edict_t *self, svg_edict_t *other)
+//int range(svg_entity_t *self, svg_entity_t *other)
 //{
 //    vec3_t  v;
 //    float   len;
@@ -267,7 +267,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //returns 1 if the entity is visible to self, even if not infront ()
 //=============
 //*/
-//bool visible(svg_edict_t *self, svg_edict_t *other)
+//bool visible(svg_entity_t *self, svg_entity_t *other)
 //{
 //    vec3_t  spot1;
 //    vec3_t  spot2;
@@ -292,7 +292,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //returns 1 if the entity is in front (in sight) of self
 //=============
 //*/
-//bool infront(svg_edict_t *self, svg_edict_t *other)
+//bool infront(svg_entity_t *self, svg_entity_t *other)
 //{
 //    vec3_t  vec;
 //    float   dot;
@@ -311,7 +311,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 ////============================================================================
 //
-//void HuntTarget(svg_edict_t *self, bool animate_state = true )
+//void HuntTarget(svg_entity_t *self, bool animate_state = true )
 //{
 //	vec3_t vec;
 //
@@ -335,7 +335,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //	self->ideal_yaw = QM_Vector3ToYaw( vec );
 //}
 //
-//void FoundTarget(svg_edict_t *self)
+//void FoundTarget(svg_entity_t *self)
 //{
 //    // let other monsters see this monster for a while
 //    if (self->enemy->client) {
@@ -391,9 +391,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //slower noticing monsters.
 //============
 //*/
-//bool FindTarget(svg_edict_t *self)
+//bool FindTarget(svg_entity_t *self)
 //{
-//    svg_edict_t     *client;
+//    svg_entity_t     *client;
 //    bool        heardit;
 //    int         r;
 //
@@ -543,7 +543,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 //============
 //*/
-//bool FacingIdeal(svg_edict_t *self)
+//bool FacingIdeal(svg_entity_t *self)
 //{
 //    float   delta;
 //
@@ -556,7 +556,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 ////=============================================================================
 //
-//bool M_CheckAttack(svg_edict_t *self)
+//bool M_CheckAttack(svg_entity_t *self)
 //{
 //    Vector3  spot1, spot2;
 //    float   chance;
@@ -644,7 +644,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //Turn and close until within an angle to launch a melee attack
 //=============
 //*/
-//void ai_run_melee(svg_edict_t *self)
+//void ai_run_melee(svg_entity_t *self)
 //{
 //    self->ideal_yaw = enemy_yaw;
 //    M_ChangeYaw(self);
@@ -663,7 +663,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //Turn in place until within an angle to launch a missile attack
 //=============
 //*/
-//void ai_run_missile(svg_edict_t *self)
+//void ai_run_missile(svg_entity_t *self)
 //{
 //    self->ideal_yaw = enemy_yaw;
 //    M_ChangeYaw(self);
@@ -682,7 +682,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //Strafe sideways, but stay at aproximately the same range
 //=============
 //*/
-//void ai_run_slide(svg_edict_t *self, float distance)
+//void ai_run_slide(svg_entity_t *self, float distance)
 //{
 //    float   ofs;
 //
@@ -710,7 +710,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //used by ai_run and ai_stand
 //=============
 //*/
-//bool ai_checkattack(svg_edict_t *self, float dist)
+//bool ai_checkattack(svg_entity_t *self, float dist)
 //{
 //    vec3_t      temp;
 //    bool        hesDeadJim;
@@ -829,13 +829,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //The monster has an enemy it is trying to kill
 //=============
 //*/
-//void ai_run(svg_edict_t *self, float dist)
+//void ai_run(svg_entity_t *self, float dist)
 //{
 //    vec3_t      v;
-//    svg_edict_t     *tempgoal;
-//    svg_edict_t     *save;
+//    svg_entity_t     *tempgoal;
+//    svg_entity_t     *save;
 //    bool        _new;
-//    svg_edict_t     *marker;
+//    svg_entity_t     *marker;
 //    float       d1, d2;
 //    trace_t     tr;
 //    vec3_t      v_forward, v_right;

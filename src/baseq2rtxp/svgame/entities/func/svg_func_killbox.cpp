@@ -22,7 +22,7 @@
 Kills everything inside when fired, irrespective of protection.
 */
 static constexpr int32_t SPAWNFLAG_KILLBOX_TRIGGER_BRUSH_CLIP = 32;
-void use_killbox( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void use_killbox( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->solid = SOLID_TRIGGER;
     gi.linkentity( self );
 
@@ -32,7 +32,7 @@ void use_killbox( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator,
     gi.linkentity( self );
 }
 
-void SP_func_killbox( svg_edict_t *ent ) {
+void SP_func_killbox( svg_entity_t *ent ) {
     gi.setmodel( ent, ent->model );
     ent->use = use_killbox;
     ent->svflags = SVF_NOCLIENT;

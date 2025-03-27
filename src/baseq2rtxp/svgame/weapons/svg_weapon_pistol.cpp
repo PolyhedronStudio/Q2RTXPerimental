@@ -73,7 +73,7 @@ void Weapon_Pistol_Precached( const gitem_t *item ) {
 /**
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
-void weapon_pistol_fire_bullet( svg_edict_t *ent, const Vector3 &shotOffset, const int32_t shotDamage = 10, const double &additionalKick = 2. ) {
+void weapon_pistol_fire_bullet( svg_entity_t *ent, const Vector3 &shotOffset, const int32_t shotDamage = 10, const double &additionalKick = 2. ) {
     // Get weapon state.
     svg_client_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Get the current recoil amount.
@@ -109,7 +109,7 @@ void weapon_pistol_fire_bullet( svg_edict_t *ent, const Vector3 &shotOffset, con
 /**
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
-void weapon_pistol_primary_fire( svg_edict_t *ent ) {
+void weapon_pistol_primary_fire( svg_entity_t *ent ) {
     // Default damage value.
     static constexpr int32_t shotDamage = 10;
     // Additional recoil kick force strength.
@@ -146,7 +146,7 @@ void weapon_pistol_primary_fire( svg_edict_t *ent ) {
 /**
 *   @brief  Supplements the Secondary Firing routine by actually performing a more precise 'single bullet' shot.
 **/
-void weapon_pistol_aim_fire( svg_edict_t *ent ) {
+void weapon_pistol_aim_fire( svg_entity_t *ent ) {
     constexpr int32_t shotDamage = 14;
     constexpr int32_t recoilKick = 10;
     // Project from shotOffset(source origin) to shot destination to determine the actual shot start.
@@ -181,7 +181,7 @@ void weapon_pistol_aim_fire( svg_edict_t *ent ) {
 /**
 *   @brief  Will do the maths to reload the weapon clip.
 **/
-static const bool weapon_pistol_reload_clip( svg_edict_t *ent ) {
+static const bool weapon_pistol_reload_clip( svg_entity_t *ent ) {
     // Clip capacity.
     const int32_t clipCapacity = ent->client->pers.weapon->clip_capacity;
     // Ammo to stuff into the clip.
@@ -207,7 +207,7 @@ static const bool weapon_pistol_reload_clip( svg_edict_t *ent ) {
 /**
 *   @brief  Will play out of ammo sound.
 **/
-static void weapon_pistol_no_ammo( svg_edict_t *ent ) {
+static void weapon_pistol_no_ammo( svg_entity_t *ent ) {
     // Reset recoil.
     ent->client->weaponState.recoil = {};
 
@@ -234,7 +234,7 @@ static void Weapon_Pistol_AddRecoil( svg_client_t::weapon_state_s *weaponState, 
 /**
 *   @brief  Processes responses to the user input.
 **/
-static void Weapon_Pistol_ProcessUserInput( svg_edict_t *ent ) {
+static void Weapon_Pistol_ProcessUserInput( svg_entity_t *ent ) {
     // Acquire weapon state.
     svg_client_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Acquire user button input states.
@@ -404,7 +404,7 @@ static void Weapon_Pistol_ProcessUserInput( svg_edict_t *ent ) {
 * 
 *           The mode acting itself is dealt with by this function.
 **/
-void Weapon_Pistol( svg_edict_t *ent, const bool processUserInputOnly ) {
+void Weapon_Pistol( svg_entity_t *ent, const bool processUserInputOnly ) {
     // Process the animation frames of the mode we're in.
     const bool isDoneAnimating = SVG_Player_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 

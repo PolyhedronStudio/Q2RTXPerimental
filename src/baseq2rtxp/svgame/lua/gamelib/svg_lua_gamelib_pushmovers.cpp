@@ -39,7 +39,7 @@ int GameLib_GetPushMoverState( lua_State *L ) {
 	// Find entity and acquire its number.
 	int32_t pusherMoveState = -1; // None by default.
 
-	svg_edict_t *pushMoverEntity = &g_edicts[ entityNumber ];
+	svg_entity_t *pushMoverEntity = &g_edicts[ entityNumber ];
 	if ( SVG_IsActiveEntity( pushMoverEntity ) ) {
 		pusherMoveState = pushMoverEntity->pushMoveInfo.state;
 	}
@@ -63,7 +63,7 @@ const int32_t GameLib_GetPushMoverState( sol::this_state s, lua_edict_t pushMove
 	const int32_t pushMoverState = ( pushMoverEntity.edict ? pushMoverEntity.edict->pushMoveInfo.state : -1 );
 	return pushMoverState;
 	//// Get the first matching entity for the targetname.
-	//svg_edict_t *targetNameEntity = SVG_Find( NULL, FOFS_GENTITY( targetname ), targetName.c_str() );
+	//svg_entity_t *targetNameEntity = SVG_Find( NULL, FOFS_GENTITY( targetname ), targetName.c_str() );
 	//// Return it.
 	//return targetNameEntity;
 }

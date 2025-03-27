@@ -26,7 +26,7 @@
 /**
 *   @brief  'Think' support routine for delayed SignalOut signalling.
 **/
-void Think_SignalOutDelay( svg_edict_t *ent ) {
+void Think_SignalOutDelay( svg_entity_t *ent ) {
     // SignalOut again, keep in mind that ent now has no delay set, so it will actually
     // proceed to calling the OnSignalIn functions.
     SVG_SignalOut( ent, ent->other, ent->activator, ent->delayed.signalOut.name );
@@ -82,14 +82,14 @@ static void SVG_SignalOut_DebugPrintArguments( const svg_signal_argument_array_t
 *   @param  other   (optional) The entity which Send Out the Signal.
 *   @param  activator   The entity which initiated the process that resulted in sending out a signal.
 **/
-//void SVG_SignalOut( svg_edict_t *ent, svg_edict_t *sender, svg_edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments, const int32_t numberOfSignalArguments ) {
-void SVG_SignalOut( svg_edict_t *ent, svg_edict_t *signaller, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+//void SVG_SignalOut( svg_entity_t *ent, svg_entity_t *sender, svg_entity_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments, const int32_t numberOfSignalArguments ) {
+void SVG_SignalOut( svg_entity_t *ent, svg_entity_t *signaller, svg_entity_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     //
     // check for a delay
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        svg_edict_t *delayEntity = SVG_AllocateEdict();
+        svg_entity_t *delayEntity = SVG_AllocateEdict();
         delayEntity->classname = "DelayedSignalOut";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
         delayEntity->think = Think_SignalOutDelay;
