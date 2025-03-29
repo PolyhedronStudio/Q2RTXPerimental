@@ -15,7 +15,7 @@
 *           it is read/written to the level.sav file for savegames
 **/
 typedef struct {
-    uint64_t        frameNumber;
+    uint64_t    frameNumber;
     QMTime		time;
 
     char        level_name[ MAX_QPATH ];  // the descriptive name (Outer Base, etc)

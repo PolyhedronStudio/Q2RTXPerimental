@@ -10,6 +10,7 @@ local entities = require( "utilities/entities" )
 mapStates = {
     -- there are none yet.
     targetRange = {
+        highScore = 0,      -- Score of last winner in seconds.
         targetsAlive = 0,   -- How many targets are still alive and kicking?
         roundActive = false    -- True when the targetrange has been (re-)started and actively moving the targets.
     }
@@ -73,9 +74,10 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
         return true
     -- It just got killed, stop the train track, 'open' the door, notify players, and update score.
     elseif ( signalName == "OnKilled" ) then
+        -- Decrement the number of living targets.
         mapStates.targetRange.targetsAlive = mapStates.targetRange.targetsAlive - 1
 
-        -- Decrement number of targets alive count, only if we're the team master that is being signalled.
+        -- Decrement number of targets alive score board, only if we're the team master that is being signalled.
         --if ( self.teamMaster == self.targetName ) then
             -- Set score counter frame.
             local scoreCounterEntityA = Game.GetEntityForTargetName( "targetsleftcounter0" )
@@ -84,8 +86,12 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
             scoreCounterEntityA.state.frame = mapStates.targetRange.targetsAlive
             scoreCounterEntityB.state.frame = mapStates.targetRange.targetsAlive
         --end
-        -- Notify of the kill.
-        Game.Print( PrintLevel.NOTICE, "Shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
+
+        -- Calculate the time taken.
+        local timeTakenSeconds = Core.GetWorldTime( TimeType.SECONDS ) - mapStates.targetRange.timeStarted
+        -- Get name of the killer.
+        local killerNetName = Game.GetClientNameForEntity( activator )
+
         -- Turn off the train for this target.
         local trainTargetEntity = Game.GetEntityForTargetName( trainTargetName )
         Game.UseTarget( trainTargetEntity, signaller, activator, EntityUseTargetType.OFF, 0 )
@@ -105,6 +111,21 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 
         -- Turn on all lights for the target range if we killed all 4 targets.
         if ( mapStates.targetRange.targetsAlive <= 0 ) then
+            -- Deal with messaging who won.
+            if ( mapStates.targetRange.highScore == 0 or timeTakenSeconds <= mapStates.targetRange.highScore ) then
+                -- Print who won.
+                Game.Print( PrintLevel.NOTICE, "New highscore by \"" .. killerNetName.. "\", " .. timeTakenSeconds .. " seconds!\nPrevious highscore, ".. mapStates.targetRange.highScore .. " seconds.\n" )
+                -- Assign new highscore.
+                mapStates.targetRange.highScore = timeTakenSeconds
+                -- Center print the new highscore winner.
+                Game.CenterPrint( activator, "Congratulations, you set the new highscore!\nTotal time: " .. timeTakenSeconds .. " seconds!" )
+            else 
+                -- Print who won.
+                Game.Print( PrintLevel.NOTICE, "Round won by \"" .. killerNetName.. "\", " .. timeTakenSeconds .. " seconds!\n" )
+                -- Center print the new highscore winner.
+                Game.CenterPrint( activator, "Congratulations, you've won the round!\nTotal time: " .. timeTakenSeconds .. " seconds." )
+            end
+
             -- Turn on all lights for the target range.
             local targetRangeLights = Game.GetEntitiesForTargetName( "light_ceil_range" )
             -- Iterate over the matching targetname light entities.
@@ -135,6 +156,9 @@ function Target_ProcessSignals( self, signaller, activator, signalName, signalAr
 
             -- Turn off the HoloGram text displays.
             TargetsLeftHoloGram_ToggleState( 0.1, false, signaller, activator )
+        else
+            -- Notify of the kill.
+            Game.Print( PrintLevel.NOTICE, "\"" .. killerNetName.. "\" shot down the \"" .. displayName .. "\" target! Only #".. mapStates.targetRange.targetsAlive .. " targets remaining!\n" )
         end
         -- Done handling signal.
         return true
@@ -234,6 +258,8 @@ function button_toggle_targetrange_OnSignalIn( self, signaller, activator, signa
             Game.Print( PrintLevel.NOTICE, "Round Active, last target remaining!\n" )
         -- All targets dead, (re-)activate range course.
         else
+            -- Initiate time of new round.
+            mapStates.targetRange.timeStarted = Core.GetWorldTime( TimeType.SECONDS )
             -- Notify players.
             Game.Print( PrintLevel.NOTICE, "New Round Started! Kill all 4 targets as quickly as you can!\n" )
             -- Play speciual 'restart' sound effect.

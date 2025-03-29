@@ -64,6 +64,28 @@ static const int32_t GameLib_CenterPrint( lua_edict_t leClientEntity, std::strin
 *
 *
 *
+*	Clients API:
+*
+*
+*
+**/
+/**
+*	@return	The entity its' client 'netname'. If no client is attached, it returns an empty string.
+**/
+const std::string GameLib_GetClientNameForEntity( lua_edict_t leClientEntity ) {
+	// Make sure the client is active.
+	if ( !SVG_IsClientEntity( leClientEntity.edict ) ) {
+		return "";
+	}
+	// Get the client name.
+	return leClientEntity.edict->client->pers.netname;
+}
+
+
+/**
+*
+*
+*
 *	[Lua GameLib] -> Init/Shutdown:
 *
 *
@@ -78,6 +100,8 @@ void GameLib_Initialize( sol::state_view &solStateView ) {
 
 	// Create namespace.
 	sol::table solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
+	// Clients:
+	solNameSpace.set_function( "GetClientNameForEntity", GameLib_GetClientNameForEntity );
 	// Entities:
 	solNameSpace.set_function( "GetEntityForLuaName", GameLib_GetEntityForLuaName );
 	solNameSpace.set_function( "GetEntitiesForLuaName", GameLib_GetEntitiesForLuaName );
