@@ -11,8 +11,8 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
-    trace_t t;
+static const cm_trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+    cm_trace_t t;
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
     //else
@@ -23,8 +23,8 @@ static const trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mi
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
-    const trace_t trace = clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
+static const cm_trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+    const cm_trace_t trace = clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
     return trace;
 }
 /**
@@ -79,7 +79,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
     const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
         && ( ( pm->playerState->pmove.pm_flags & PMF_ON_GROUND ) && pm->playerState->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
-        && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, OR..
+        && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 // Plane memory isn't identical, OR..
             || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
 
     if ( step_detected ) {

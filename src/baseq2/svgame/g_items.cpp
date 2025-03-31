@@ -714,7 +714,7 @@ void Drop_PowerArmor(edict_t *ent, gitem_t *item)
 Touch_Item
 ===============
 */
-void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+void Touch_Item(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     bool    taken;
 
@@ -772,7 +772,7 @@ void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
 
 //======================================================================
 
-void drop_temp_touch(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+void drop_temp_touch(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     if (other == ent->owner)
         return;
@@ -811,7 +811,7 @@ edict_t *Drop_Item(edict_t *ent, gitem_t *item)
     dropped->owner = ent;
 
     if (ent->client) {
-        trace_t trace;
+        cm_trace_t trace;
 
         AngleVectors(ent->client->v_angle, forward, right, NULL);
         VectorSet(offset, 24, 0, -16);
@@ -860,7 +860,7 @@ droptofloor
 */
 void droptofloor(edict_t *ent)
 {
-    trace_t     tr;
+    cm_trace_t     tr;
     vec3_t      dest;
 
     VectorSet(ent->mins, -15, -15, -15);

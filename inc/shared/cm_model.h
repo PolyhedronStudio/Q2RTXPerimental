@@ -12,7 +12,7 @@
 *   @brief  Contains the 'Box' hull BSP structure.
 **/
 typedef struct hull_boundingbox_s {
-    cplane_t planes[ 12 ];
+    cm_plane_t planes[ 12 ];
     mnode_t  nodes[ 6 ];
     mnode_t *headnode;
     mbrush_t brush;
@@ -26,7 +26,7 @@ typedef struct hull_boundingbox_s {
 *   @brief  Contains the 'Octagon' hull BSP structure.
 **/
 typedef struct hull_octagonbox_s {
-    cplane_t planes[ 20 ];
+    cm_plane_t planes[ 20 ];
     mnode_t  nodes[ 10 ];
     mnode_t *headnode;
     mbrush_t brush;
@@ -51,8 +51,8 @@ typedef struct hull_octagonbox_s {
 //    char name[ MAX_MATERIAL_NAME ];
 //    //! A pointer to the matching texinfo_t.
 //    mtexinfo_t *mtexinfo;
-//    //! A pointer to the matching textures csurface_t
-//    csurface_t *csurface;
+//    //! A pointer to the matching textures cm_surface_t
+//    cm_surface_t *csurface;
 //
 //    /**
 //    *   Physical Properties:

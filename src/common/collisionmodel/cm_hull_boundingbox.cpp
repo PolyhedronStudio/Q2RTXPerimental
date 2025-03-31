@@ -63,7 +63,7 @@ void CM_InitBoxHull( cm_t *cm ) {
         }
 
         // Planes:
-        cplane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
+        cm_plane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
         plane->type = i >> 1;
         plane->normal[ i >> 1 ] = 1;
 

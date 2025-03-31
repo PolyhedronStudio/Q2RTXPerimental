@@ -198,7 +198,7 @@ typedef struct pmoveParams_s {
 static constexpr int32_t MAX_TOUCH_TRACES = 32;
 typedef struct pm_touch_trace_list_s {
     uint32_t numberOfTraces;
-    trace_t traces[ MAX_TOUCH_TRACES ];
+    cm_trace_t traces[ MAX_TOUCH_TRACES ];
 } pm_touch_trace_list_t;
 
 
@@ -249,9 +249,9 @@ typedef struct pmove_s {
     **/
     //! Callbacks to test the world with.
     //! Trace against all entities.
-    const trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask );
+    const cm_trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask );
     //! Clips to world only.
-    const trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const contents_t contentMask );
+    const cm_trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const contents_t contentMask );
     //! PointContents.
     const contents_t( *q_gameabi pointcontents )( const vec3_t point );
 

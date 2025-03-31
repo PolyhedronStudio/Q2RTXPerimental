@@ -514,12 +514,12 @@ const contents_t SV_PointContents( const vec3_t p ) {
 **/
 static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
                                   const vec3_t maxs, const vec3_t end,
-                                  edict_t *passedict, const contents_t contentmask, trace_t *tr)
+                                  edict_t *passedict, const contents_t contentmask, cm_trace_t *tr)
 {
     vec3_t      boxmins, boxmaxs;
     int         i, num;
     edict_t     *touchlist[MAX_EDICTS], *touch;
-    trace_t     trace = {};
+    cm_trace_t     trace = {};
     // create the bounding box of the entire move
     for (i = 0; i < 3; i++) {
         if (end[i] > start[i]) {
@@ -587,11 +587,11 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
 *
 *					passedict is explicitly excluded from clipping checks (normally NULL)
 **/
-const trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
+const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
                            edict_t *passedict, const contents_t contentmask)
 {
-    trace_t     trace;
+    cm_trace_t     trace;
 
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
@@ -619,10 +619,10 @@ const trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
                             const vec3_t maxs, const vec3_t end,
                             const contents_t contentmask ) {
-	trace_t     trace;
+	cm_trace_t     trace;
 
     if ( !sv.cm.cache ) {
         Com_Error( ERR_DROP, "%s: no map loaded", __func__ );

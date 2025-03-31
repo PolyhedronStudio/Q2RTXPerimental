@@ -18,7 +18,7 @@ void SVG_ChaseCam_Update(svg_entity_t *ent)
     vec3_t o, ownerv, goal;
     svg_entity_t *targ;
     vec3_t forward, right;
-    trace_t trace;
+    cm_trace_t trace;
     vec3_t angles;
 
     // is our chase target gone?

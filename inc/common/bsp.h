@@ -45,7 +45,7 @@ const char *BSP_ErrorString(int err);
 // Also moved to shared/format_bsp.h
 //typedef struct {
 //    mface_t     *surf;
-//    cplane_t    plane;
+//    cm_plane_t    plane;
 //    float       s, t;
 //    float       fraction;
 //} lightpoint_t;

@@ -193,9 +193,9 @@ typedef struct {
 	*
 	**/
     //! Perform a trace through the world and its entities with a bbox from start to end point.
-    const trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const contents_t contentmask );
+    const cm_trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const contents_t contentmask );
     //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
-	const trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask );
+	const cm_trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask );
     //! Returns a contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
     const contents_t (*pointcontents)(const vec3_t point);
     /**

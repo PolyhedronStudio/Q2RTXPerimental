@@ -64,7 +64,7 @@ void CM_InitOctagonHull( cm_t *cm ) {
         //}
 
         // planes
-        cplane_t *plane = &cm->hull_octagonbox->planes[ i * 2 ];
+        cm_plane_t *plane = &cm->hull_octagonbox->planes[ i * 2 ];
         plane->type = i >> 1;
         plane->normal[ i >> 1 ] = 1;
         //SetPlaneType( plane );
@@ -101,7 +101,7 @@ void CM_InitOctagonHull( cm_t *cm ) {
         }
 
         // Planes
-        cplane_t *plane = &cm->hull_octagonbox->planes[ i * 2 ];
+        cm_plane_t *plane = &cm->hull_octagonbox->planes[ i * 2 ];
         plane->type = 3;
         VectorCopy( oct_dirs[ i - 6 ], plane->normal );
         //SetPlaneType( plane );
@@ -119,7 +119,7 @@ void CM_InitOctagonHull( cm_t *cm ) {
 /**
 *   @brief  Utility function to complement CM_HeadnodeForOctagon with.
 **/
-static inline const float CalculateOctagonPlaneDist( cplane_t &plane, const Vector3 &mins, const Vector3 &maxs, const bool negate = false ) {
+static inline const float CalculateOctagonPlaneDist( cm_plane_t &plane, const Vector3 &mins, const Vector3 &maxs, const bool negate = false ) {
     if ( negate == true ) {
         return QM_Vector3DotProduct( plane.normal, { ( plane.signbits & 1 ) ? -mins[ 0 ] : -maxs[ 0 ], ( plane.signbits & 2 ) ? -mins[ 1 ] : -maxs[ 1 ], ( plane.signbits & 4 ) ? -mins[ 2 ] : -maxs[ 2 ] } );//-d;//d;
     } else {

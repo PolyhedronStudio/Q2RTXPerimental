@@ -802,7 +802,7 @@ void door_pain( svg_entity_t *self, svg_entity_t *other, float kick, int damage 
 /**
 *	@brief
 **/
-void door_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+void door_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
     if ( !other->client ) {
         return;
     }

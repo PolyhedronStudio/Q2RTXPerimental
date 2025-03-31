@@ -271,7 +271,7 @@ bool visible(edict_t *self, edict_t *other)
 {
     vec3_t  spot1;
     vec3_t  spot2;
-    trace_t trace;
+    cm_trace_t trace;
 
     VectorCopy(self->s.origin, spot1);
     spot1[2] += self->viewheight;
@@ -555,7 +555,7 @@ bool M_CheckAttack(edict_t *self)
 {
     Vector3  spot1, spot2;
     float   chance;
-    trace_t tr;
+    cm_trace_t tr;
 
     //if ( self->enemy->flags & FL_NOVISIBLE )
     //    return false;
@@ -832,7 +832,7 @@ void ai_run(edict_t *self, float dist)
     bool        _new;
     edict_t     *marker;
     float       d1, d2;
-    trace_t     tr;
+    cm_trace_t     tr;
     vec3_t      v_forward, v_right;
     float       left, center, right;
     vec3_t      left_target, right_target;

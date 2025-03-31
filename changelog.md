@@ -21,7 +21,7 @@ Changes will from now on be listed as additions per version.
 
 ## (v0.0.4):
 * The ``collision model`` code now has ``material awareness``, for now still separated from the refresh material system and operates by loading properties out the ``*.wal_json`` texture name files. These are also supported by recent ericw-tools branches to substitute non ``.wal`` textures with. Currently two extra fields can be added, this allows you to set a material its ``kind``(string) as well as its ``friction``(float).
-* In accordance to the above, each ``mtexinfo_t`` now has its own unique ID, as well as its ``csurface_t`` member pointing to the corresponding material pointer as well as having the proper ``materialID`` set for it.
+* In accordance to the above, each ``mtexinfo_t`` now has its own unique ID, as well as its ``cm_surface_t`` member pointing to the corresponding material pointer as well as having the proper ``materialID`` set for it.
 * Player Move code now has an optional ``PMOVE_USE_MATERIAL_FRICTION`` define which when defined has the Player Move code respond to the ground material's ``physical_material_friction``.
 * Restructured and cleaned up the Player Move prediction code as well as corresponding view calculation code.
 * Added ``EAX`` support for OpenAL and a ``client_env_sound`` entity to accomodate with it. This allows for reverb effect zones, where the ``client_env_sound`` entity performs a clipping trace to the (predicted-)player origin, where if successful and within radius the specific reverb environment is set. 

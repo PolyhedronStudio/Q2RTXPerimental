@@ -60,9 +60,9 @@ struct pml_t {
 		//struct edict_s *entity;
 
 		//! A copy of the plane data from the ground entity.
-		//cplane_t	plane;
+		//cm_plane_t	plane;
 		//! A pointer to the ground plane's surface data. (nullptr if none).
-		csurface_t	*surface;
+		cm_surface_t	*surface;
 		//! A copy of the contents data from the ground entity's brush.
 		contents_t	contents;
 		////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
@@ -98,7 +98,7 @@ static pml_t pml;
 /**
 *	@brief	Updates the player move ground info based on the trace results.
 **/
-static void PM_UpdateGroundFromTrace( const trace_t *trace ) {
+static void PM_UpdateGroundFromTrace( const cm_trace_t *trace ) {
 	if ( trace == nullptr || trace->ent == nullptr ) {
 		pm->ground.entity = nullptr;
 		pm->ground.plane = {};
@@ -417,14 +417,14 @@ static void PM_Animation_SetMovementDirection( void ) {
 /**
 *	@brief	Clips trace against world only.
 **/
-const trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
+const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
 	return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
 }
 
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, contents_t contentMask ) {
+const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, contents_t contentMask ) {
 	// Spectators only clip against world, so use clip instead.
 	if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
 		return PM_Clip( start, mins, maxs, end, MASK_SOLID );
@@ -458,7 +458,7 @@ const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3
 /**
 *	@return True if the trace yielded a step, false otherwise.
 **/
-static bool PM_CheckStep( const trace_t *trace ) {
+static bool PM_CheckStep( const cm_trace_t *trace ) {
 	// If not solid:
 	if ( !trace->allsolid ) {
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
@@ -475,7 +475,7 @@ static bool PM_CheckStep( const trace_t *trace ) {
 *	@brief	Will step to the trace its end position, calculating the height difference and
 *			setting it as our step_height if it is equal or above the minimal step size.
 **/
-static void PM_StepDown( const trace_t *trace ) {
+static void PM_StepDown( const cm_trace_t *trace ) {
 	// Apply the trace endpos as the new origin.
 	pml.origin = trace->endpos;
 
@@ -499,7 +499,7 @@ static void PM_StepDown( const trace_t *trace ) {
 *			Does not modify any world state?
 **/
 static void PM_StepSlideMove() {
-	trace_t trace;
+	cm_trace_t trace;
 	Vector3 startOrigin = pml.origin;
 	Vector3 startVelocity = pml.velocity;
 
@@ -541,7 +541,7 @@ static void PM_StepSlideMove() {
 	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
 	if ( !trace.allsolid ) {
 		// [Paril-KEX] from above, do the proper trace now
-		trace_t real_trace = PM_Trace( pml.origin, pm->mins, pm->maxs, original_down );
+		cm_trace_t real_trace = PM_Trace( pml.origin, pm->mins, pm->maxs, original_down );
 		//pml.origin = real_trace.endpos;
 
 		// WID: Use proper stair step checking.
@@ -769,7 +769,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 					0.f 
 				} );
 				Vector3 spot = pml.origin + ( flatforward * 1 );
-				trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
+				cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
 
 				if ( trace.fraction != 1.f && ( trace.contents & CONTENTS_LADDER ) ) {
 					Vector3 right = QM_Vector3CrossProduct( trace.plane.normal, { 0.f, 0.f, 1.f } );
@@ -1164,7 +1164,7 @@ static inline void PM_GetWaterLevel( const Vector3 &position, liquid_level_t &le
 *	@brief
 **/
 static void PM_CategorizePosition() {
-	trace_t	   trace;
+	cm_trace_t	   trace;
 
 	// If the player hull point is 0.25 units down is solid, the player is on ground.
 	// See if standing on something solid
@@ -1201,7 +1201,7 @@ static void PM_CategorizePosition() {
 
 		if ( slanted_ground ) {
 			Vector3 slantTraceEnd = pml.origin + trace.plane.normal;
-			trace_t slant = PM_Trace( pml.origin, pm->mins, pm->maxs, slantTraceEnd );
+			cm_trace_t slant = PM_Trace( pml.origin, pm->mins, pm->maxs, slantTraceEnd );
 
 			if ( slant.fraction < 1.0f && !slant.startsolid ) {
 				slanted_ground = false;
@@ -1212,7 +1212,7 @@ static void PM_CategorizePosition() {
 		// If the player hull point is 0.25 units down is solid, the player is on ground.
 		// See if standing on something solid
 		Vector3 landEndPoint = pml.origin + Vector3{ 0., 0., -30. };
-		trace_t jumpLandTrace = PM_Trace( pml.origin, pm->mins, pm->maxs, landEndPoint );
+		cm_trace_t jumpLandTrace = PM_Trace( pml.origin, pm->mins, pm->maxs, landEndPoint );
 
 		if ( trace.fraction == 1.0f || ( slanted_ground && !trace.startsolid ) ) {
 			pm->ground.entity = nullptr;
@@ -1373,7 +1373,7 @@ static void PM_CheckSpecialMovement() {
 		0.f
 		} );
 	const Vector3 spot = pml.origin + ( flatforward * 1 );
-	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (contents_t)( CONTENTS_LADDER ) );
+	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (contents_t)( CONTENTS_LADDER ) );
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < liquid_level_t::LIQUID_WAIST ) {
 		ps->pmove.pm_flags |= PMF_ON_LADDER;
 	}
@@ -1470,7 +1470,7 @@ static const bool PM_WallJump() {
 	float jump_trace_distance = 2.0f;
 	Vector3 wishvel = QM_Vector3Normalize( pml.forward * pm->cmd.forwardmove + pml.right * pm->cmd.sidemove ) * jump_trace_distance;
 	Vector3 spot = pml.origin + wishvel;
-	trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, MASK_SOLID );
+	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, MASK_SOLID );
 	// Trace must've hit something, and NOT BE STUCK inside of a brush either.
 	if ( trace.fraction < 1.0f && !trace.allsolid && !trace.startsolid
 		// Ensure that the plane's normal is an actual wall.
@@ -1602,7 +1602,7 @@ static inline const bool PM_CheckDuck() {
 		return false;
 	}
 
-	trace_t trace;
+	cm_trace_t trace;
 	bool flags_changed = false;
 
 	// Dead:
@@ -1675,7 +1675,7 @@ static inline const bool PM_GoodPosition() {
 		return true;
 	}
 	// Perform the solid trace.
-	const trace_t trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, ps->pmove.origin );
+	const cm_trace_t trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, ps->pmove.origin );
 	return !trace.allsolid;
 }
 /**

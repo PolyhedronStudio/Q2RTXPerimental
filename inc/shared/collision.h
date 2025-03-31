@@ -127,7 +127,7 @@ typedef struct cplane_s {
     byte    type;           // for fast side tests
     byte    signbits;       // signx + (signy<<1) + (signz<<1)
     byte    pad[ 2 ];
-} cplane_t;
+} cm_plane_t;
 
 // 0-2 are axial planes
 #define PLANE_X         0
@@ -161,7 +161,7 @@ typedef struct csurface_s {
     int32_t materialID;
     // WID: materials: Pointer into the cm_materials_t array.
     struct cm_material_s *material;
-} csurface_t;
+} cm_surface_t;
 
 /**
 *   @brief  A trace is basically 'sweeping' the collision shape(bounding box) through the world
@@ -174,17 +174,17 @@ typedef struct trace_s {
     qboolean    startsolid; // if true, the initial point was in a solid area
     float       fraction;   // time completed, 1.0 = didn't hit anything
     vec3_t      endpos;     // final position
-    cplane_t    plane;      // surface normal at impact
-    csurface_t *surface;   // surface hit
+    cm_plane_t    plane;      // surface normal at impact
+    cm_surface_t *surface;   // surface hit
     struct cm_material_s *material; // collision model material pointer.
     contents_t  contents;   // contents on other side of surface hit
     struct edict_s *ent;       // not set by CM_*() functions
 
     // [Paril-KEX] the second-best surface hit from a trace
-    cplane_t	plane2;		// second surface normal at impact
-    csurface_t *surface2;	// second surface hit
+    cm_plane_t	plane2;		// second surface normal at impact
+    cm_surface_t *surface2;	// second surface hit
     struct cm_material_s *material2; // second surface collision model material pointer.
-} trace_t;
+} cm_trace_t;
 
 /**
 *   @brief  Stores the final ground information results.
@@ -194,9 +194,9 @@ typedef struct cm_ground_info_s {
     struct edict_s *entity;
 
     //! A copy of the plane data from the ground entity.
-    cplane_t        plane;
+    cm_plane_t        plane;
     //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
-    csurface_t      surface;
+    cm_surface_t      surface;
     //! A copy of the contents data from the ground entity's brush.
     contents_t      contents;
     //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).

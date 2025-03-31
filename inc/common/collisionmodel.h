@@ -239,7 +239,7 @@ const contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t 
 /**
 *   @brief
 **/
-void        CM_BoxTrace( cm_t *cm, trace_t *trace,
+void        CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
                         const vec3_t start, const vec3_t end,
                         const vec3_t mins, const vec3_t maxs,
                         mnode_t *headnode, const contents_t brushmask );
@@ -247,7 +247,7 @@ void        CM_BoxTrace( cm_t *cm, trace_t *trace,
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities.
 **/
-void        CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
+void        CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
                                     const vec3_t start, const vec3_t end,
                                     const vec3_t mins, const vec3_t maxs,
                                     mnode_t *headnode, const contents_t brushmask,
@@ -255,7 +255,7 @@ void        CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
 /**
 *   @brief
 **/
-void        CM_ClipEntity( cm_t *cm, trace_t *dst, const trace_t *src, struct edict_s *ent );
+void        CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, struct edict_s *ent );
 
 
 #endif // CMODEL_H

@@ -134,7 +134,7 @@ void AttackFinished(edict_t *self, QMTime time)
 
 void M_CheckGround( edict_t *ent, const contents_t mask ) {
 	vec3_t      point;
-	trace_t     trace;
+	cm_trace_t     trace;
 
 	// Swimming and flying monsters don't check for ground.
 	if ( ent->flags & ( FL_SWIM | FL_FLY ) ) {
@@ -279,7 +279,7 @@ void M_WorldEffects( edict_t *ent ) {
 
 void M_droptofloor( edict_t *ent ) {
 	vec3_t      end;
-	trace_t     trace;
+	cm_trace_t     trace;
 
 	contents_t mask = SVG_GetClipMask( ent );
 

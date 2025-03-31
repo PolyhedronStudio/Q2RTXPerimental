@@ -317,7 +317,7 @@ struct edict_s {
     //! Called when movement has been blocked.
     void        ( *blocked )( svg_entity_t *self, svg_entity_t *other );         // move to moveinfo?
     //! Called when the entity touches another entity.
-    void        ( *touch )( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf );
+    void        ( *touch )( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
 
     //! Called to 'trigger' the entity.
     void        ( *use )( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );

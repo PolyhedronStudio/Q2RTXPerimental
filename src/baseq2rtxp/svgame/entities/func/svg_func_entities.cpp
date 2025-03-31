@@ -16,7 +16,7 @@
 /**
 *	@brief
 **/
-void Touch_DoorTrigger( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+void Touch_DoorTrigger( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
     if ( other->health <= 0 )

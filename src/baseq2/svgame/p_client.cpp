@@ -388,7 +388,7 @@ void SVG_Player_Obituary(edict_t *self, edict_t *inflictor, edict_t *attacker)
 }
 
 
-void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
+void Touch_Item(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf);
 
 void TossClientWeapon(edict_t *self)
 {
@@ -1114,7 +1114,7 @@ void SVG_Player_PutInServer(edict_t *ent)
     client_persistant_t saved;
     client_respawn_t    resp;
     vec3_t temp, temp2;
-    trace_t tr;
+    cm_trace_t tr;
 
     // find a spawn point
     // do it before setting health back up, so farthest
@@ -1585,7 +1585,7 @@ void SVG_Client_Disconnect(edict_t *ent)
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
     //else
@@ -1595,7 +1595,7 @@ static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 /**
@@ -1891,11 +1891,11 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
         // Touch other objects
         for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
-            trace_t &tr = pm.touchTraces.traces[ i ];
+            cm_trace_t &tr = pm.touchTraces.traces[ i ];
             edict_t *other = tr.ent;
 
             if ( other->touch ) {
-                // TODO: Q2RE has these for last 2 args: const trace_t &tr, bool other_touching_self
+                // TODO: Q2RE has these for last 2 args: const cm_trace_t &tr, bool other_touching_self
                 // What the??
                 other->touch( other, ent, &tr.plane, tr.surface );
             }

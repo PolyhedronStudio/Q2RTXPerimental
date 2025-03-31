@@ -142,7 +142,7 @@ static location_t *LOC_FindClosest(const vec3_t pos)
 {
     location_t *loc, *nearest;
     float dist, minDist;
-    trace_t trace;
+    cm_trace_t trace;
 
     minDist = 99999;
     nearest = NULL;
@@ -242,7 +242,7 @@ static size_t LOC_There_m(char *buffer, size_t size)
 {
     location_t *loc;
     vec3_t pos;
-    trace_t trace;
+    cm_trace_t trace;
     int ret;
 
     ret = Q_strlcpy(buffer, "unknown", size);

@@ -553,7 +553,7 @@ static vec3_t   medic_cable_offsets[] = {
 void medic_cable_attack(edict_t *self)
 {
     vec3_t  offset, start, end, f, r;
-    trace_t tr;
+    cm_trace_t tr;
     vec3_t  dir, angles;
     float   distance;
 

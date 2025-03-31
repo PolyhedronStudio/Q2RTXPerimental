@@ -114,7 +114,7 @@ typedef struct {
     (((bsp)->visrowsize + sizeof(size_t) - 1) / sizeof(size_t))
 
 typedef struct mtexinfo_s {  // used internally due to name len probs //ZOID
-    csurface_t          c;
+    cm_surface_t          c;
     char                name[ MAX_TEXNAME ];
 
     #if USE_REF
@@ -168,7 +168,7 @@ typedef struct mface_s {
     msurfedge_t *firstsurfedge;
     int             numsurfedges;
 
-    cplane_t *plane;
+    cm_plane_t *plane;
     int             drawflags; // DSURF_PLANEBACK, etc
 
     byte            *lightmap;
@@ -214,7 +214,7 @@ typedef struct mface_s {
 
 typedef struct mnode_s {
     /* ======> */
-    cplane_t *plane;     // never NULL to differentiate from leafs
+    cm_plane_t *plane;     // never NULL to differentiate from leafs
     #if USE_REF
     vec3_t          mins;
     vec3_t          maxs;
@@ -233,7 +233,7 @@ typedef struct mnode_s {
 } mnode_t;
 
 typedef struct {
-    cplane_t    *plane;
+    cm_plane_t    *plane;
     mtexinfo_t  *texinfo;
 } mbrushside_t;
 
@@ -251,7 +251,7 @@ typedef struct {
 
 typedef struct {
     /* ======> */
-    cplane_t *plane;     // always NULL to differentiate from nodes
+    cm_plane_t *plane;     // always NULL to differentiate from nodes
     #if USE_REF
     vec3_t          mins;
     vec3_t          maxs;
@@ -320,7 +320,7 @@ typedef struct bsp_s {
     mtexinfo_t      *texinfo;
 
     int             numplanes;
-    cplane_t        *planes;
+    cm_plane_t        *planes;
 
     int             numnodes;
     mnode_t         *nodes;
@@ -392,7 +392,7 @@ typedef struct bsp_s {
 #if USE_REF
 typedef struct {
     mface_t *surf;
-    cplane_t    plane;
+    cm_plane_t    plane;
     float       s, t;
     float       fraction;
 } lightpoint_t;

@@ -423,7 +423,7 @@ void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     static std::vector<skipped_projectile> skipped;
 
     while ( true ) {
-        trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
+        cm_trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
 
         if ( tr.fraction == 1.0f ) {
             break;
@@ -498,7 +498,7 @@ const bool SVG_Util_KillBox(edict_t *ent, const bool bspClipping ) {
         }
 
         if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
-            trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
+            cm_trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f ) {
                 continue;

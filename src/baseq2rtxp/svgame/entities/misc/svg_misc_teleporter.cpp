@@ -15,7 +15,7 @@
 /**
 *   @brief
 **/
-void teleporter_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+void teleporter_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
     svg_entity_t *dest;
     int         i;
 

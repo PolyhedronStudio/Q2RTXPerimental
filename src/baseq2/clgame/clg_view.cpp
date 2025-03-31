@@ -591,7 +591,7 @@ static void CLG_SetupThirdPersionView( void ) {
     vec3_t focus;
     float fscale, rscale;
     float dist, angle, range;
-    trace_t trace;
+    cm_trace_t trace;
     static const vec3_t mins = { -4, -4, -4 }, maxs = { 4, 4, 4 };
 
     // if dead, set a nice view angle

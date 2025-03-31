@@ -27,7 +27,7 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
     //else
@@ -37,7 +37,7 @@ static const trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t min
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 /**
@@ -99,7 +99,7 @@ void SVG_Client_TraceForUseTarget( svg_entity_t *ent, svg_client_t *client, cons
     constexpr float USE_TARGET_TRACE_DISTANCE = 48.f;
     Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, USE_TARGET_TRACE_DISTANCE, vForward );
     // Now perform the trace.
-    trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
+    cm_trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
 
     // Get the current activate(in last frame) entity we were (+usetarget) using.
     svg_entity_t *currentTargetEntity = ent->client->useTarget.currentEntity;
@@ -592,11 +592,11 @@ static void ClientProcessTouches( svg_entity_t *ent, svg_client_t *client, pmove
 
     // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
     for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
-        trace_t &tr = pm.touchTraces.traces[ i ];
+        cm_trace_t &tr = pm.touchTraces.traces[ i ];
         svg_entity_t *other = tr.ent;
 
         if ( other != nullptr && other->touch ) {
-            // TODO: Q2RE has these for last 2 args: const trace_t &tr, bool other_touching_self
+            // TODO: Q2RE has these for last 2 args: const cm_trace_t &tr, bool other_touching_self
             // What the??
             other->touch( other, ent, &tr.plane, tr.surface );
         }

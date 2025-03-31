@@ -440,7 +440,7 @@ const bool Pickup_Health(svg_entity_t *ent, svg_entity_t *other)
 /**
 *   @brief  
 **/
-void Touch_Item(svg_entity_t *ent, svg_entity_t *other, cplane_t *plane, csurface_t *surf)
+void Touch_Item(svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     bool    taken;
 
@@ -499,7 +499,7 @@ void Touch_Item(svg_entity_t *ent, svg_entity_t *other, cplane_t *plane, csurfac
 /**
 *   @brief
 **/
-void drop_temp_touch(svg_entity_t *ent, svg_entity_t *other, cplane_t *plane, csurface_t *surf)
+void drop_temp_touch(svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     if (other == ent->owner)
         return;
@@ -543,7 +543,7 @@ svg_entity_t *Drop_Item(svg_entity_t *ent, const gitem_t *item)
     dropped->owner = ent;
 
     if (ent->client) {
-        trace_t trace;
+        cm_trace_t trace;
 
         AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, NULL );
         VectorSet(offset, 24, 0, -16);
@@ -592,7 +592,7 @@ void Use_Item(svg_entity_t *ent, svg_entity_t *other, svg_entity_t *activator, c
 **/
 void droptofloor(svg_entity_t *ent)
 {
-    trace_t     tr;
+    cm_trace_t     tr;
     vec3_t      dest;
 
     // First set model.

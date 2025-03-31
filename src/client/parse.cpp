@@ -1053,7 +1053,7 @@ used for seeking in demos.
 */
 //// WID: So stair smoothing and crouching works.
 //static void read_predicted_state() {
-//    static cplane_t last_predicted_plane = cl.predictedState.groundPlane;
+//    static cm_plane_t last_predicted_plane = cl.predictedState.groundPlane;
 //
 //    // Emit the 'predicted state'.
 //    MSG_ReadUint8(); //MSG_ReadUint8( svc_demo_predicted_state );
@@ -1074,7 +1074,7 @@ used for seeking in demos.
 //        cl.predictedState.step = MSG_ReadFloat();
 //        cl.predictedState.step_time = MSG_ReadUintBase128();
 //    } else if ( groundPlaneMessage == 1 ) {
-//        cplane_t *p = &cl.predictedState.groundPlane;
+//        cm_plane_t *p = &cl.predictedState.groundPlane;
 //        p->dist = MSG_ReadFloat( );
 //        p->normal[ 0 ] = MSG_ReadFloat();
 //        p->normal[ 1 ] = MSG_ReadFloat();

@@ -76,7 +76,7 @@ SV_TestEntityPosition
 */
 edict_t *SV_TestEntityPosition(edict_t *ent)
 {
-    trace_t trace;
+    cm_trace_t trace;
     //contents_t mask;
 
     //if (ent->clipmask)
@@ -140,10 +140,10 @@ SVG_Impact
 Two entities have touched, so run their touch functions
 ==================
 */
-void SVG_Impact(edict_t *e1, trace_t *trace)
+void SVG_Impact(edict_t *e1, cm_trace_t *trace)
 {
     edict_t     *e2;
-//  cplane_t    backplane;
+//  cm_plane_t    backplane;
 
     e2 = trace->ent;
 
@@ -212,7 +212,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
     vec3_t      planes[MAX_CLIP_PLANES];
     vec3_t      primal_velocity, original_velocity, new_velocity;
     int         i, j;
-    trace_t     trace;
+    cm_trace_t     trace;
     vec3_t      end;
     float       time_left;
     int         blocked;
@@ -350,9 +350,9 @@ SV_PushEntity
 Does not change the entities velocity at all
 ============
 */
-trace_t SV_PushEntity(edict_t *ent, vec3_t push)
+cm_trace_t SV_PushEntity(edict_t *ent, vec3_t push)
 {
-    trace_t trace;
+    cm_trace_t trace;
     vec3_t  start;
     vec3_t  end;
 
@@ -671,7 +671,7 @@ Toss, bounce, and fly movement.  When onground, do nothing.
 */
 void SV_Physics_Toss(edict_t *ent)
 {
-    trace_t     trace;
+    cm_trace_t     trace;
     vec3_t      move;
     float       backoff;
     edict_t     *slave;
@@ -1105,7 +1105,7 @@ void SVG_RunEntity(edict_t *ent)
     if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {
         // if we moved, check and fix origin if needed
         if ( !VectorCompare( ent->s.origin, previousOrigin ) ) {
-            trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
+            cm_trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
             if ( trace.allsolid || trace.startsolid )
                 VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;
         }

@@ -30,7 +30,7 @@ explosions and melee attacks.
 bool SVG_CanDamage(edict_t *targ, edict_t *inflictor)
 {
     vec3_t  dest;
-    trace_t trace;
+    cm_trace_t trace;
 
 // bmodels need special checking because their origin is 0,0,0
     if (targ->movetype == MOVETYPE_PUSH) {

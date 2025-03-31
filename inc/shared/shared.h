@@ -362,3 +362,13 @@ typedef enum {
 *	Player Movement:
 **/
 #include "shared/player_move.h"
+
+/**
+*   Tag Memory Allocation Zones:
+**/
+#include "shared/zone_tags.h"
+
+//! Import cpplib shared code.
+#ifdef __cplusplus
+
+#endif

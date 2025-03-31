@@ -754,7 +754,7 @@ int ArmorIndex(edict_t *ent);
 int PowerArmorType(edict_t *ent);
 gitem_t *SVG_GetItemByIndex(int index);
 bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
-void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
+void Touch_Item(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf);
 
 //
 // g_utils.c
@@ -938,7 +938,7 @@ void M_ChangeYaw(edict_t *ent);
 //
 // g_phys.c
 //
-void SVG_Impact( edict_t *e1, trace_t *trace );
+void SVG_Impact( edict_t *e1, cm_trace_t *trace );
 const contents_t SVG_GetClipMask( edict_t *ent );
 void SVG_RunEntity(edict_t *ent);
 
@@ -1260,7 +1260,7 @@ struct edict_s {
     void        ( *think )( edict_t *self );
     void        ( *postthink )( edict_t *ent );
     void        ( *blocked )( edict_t *self, edict_t *other );         // move to moveinfo?
-    void        ( *touch )( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+    void        ( *touch )( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf );
     void        ( *use )( edict_t *self, edict_t *other, edict_t *activator );
     void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
     void        ( *die )( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );

@@ -47,10 +47,10 @@ static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSoli
 /**
 *   @brief  Clips the trace to all entities currently in-frame.
 **/
-static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
+static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
-        trace_t     trace = {};
+        cm_trace_t     trace = {};
 
         // Acquire the entity state.
         centity_t *ent = cl.solidEntities[ i ];
@@ -140,9 +140,9 @@ static void CL_ClipMoveToEntities( trace_t *tr, const vec3_t start, const vec3_t
 /**
 *   @brief  Substituting the below 'CL_PM_Trace' implementation:
 **/
-const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
+const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
     // Trace results.
-    trace_t trace = {};
+    cm_trace_t trace = {};
 
     // Clip against world.
     if ( cl.collisionModel.cache ) {
@@ -165,9 +165,9 @@ const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const v
 *   @brief  Will perform a clipping trace to the specified entity.
 *           If clipEntity == nullptr, it'll perform a clipping trace against the World.
 **/
-const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask ) {
+const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask ) {
     // Trace results.
-    trace_t trace = {};
+    cm_trace_t trace = {};
 
     // Allow for point tracing in case mins or maxs is null.
     if ( !mins ) {
@@ -208,7 +208,7 @@ const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const ve
             //}
 
             // Perform clip.
-            trace_t tr;
+            cm_trace_t tr;
             CM_TransformedBoxTrace( &cl.collisionModel, &tr, start, end, mins, maxs, headNode, contentmask,
                 clipEntity->current.origin, clipEntity->current.angles );
 

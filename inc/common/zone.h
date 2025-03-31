@@ -27,30 +27,6 @@ QEXTERN_C_OPEN
 //! Copy Struct Utility.
 #define Z_CopyStruct(ptr)       memcpy(Z_Malloc(sizeof(*ptr)), ptr, sizeof(*ptr))
 
-
-/**
-*   @brief  Memory tags to allow dynamic memory to be cleaned up.
-*   @note   Game DLL has separate tag namespace starting at TAG_MAX.
-**/
-typedef enum {
-    TAG_FREE,       // should have never been set
-    TAG_STATIC,
-
-    TAG_GENERAL,
-    TAG_CMD,
-    TAG_CVAR,
-    TAG_FILESYSTEM,
-    TAG_RENDERER,
-    TAG_UI,
-    TAG_SERVER,
-    TAG_CLIENT_GAME,
-    TAG_SOUND,
-    TAG_CMODEL,
-
-    TAG_MAX
-} memtag_t;
-
-
 void    Z_Init(void);
 void    Z_Free(void *ptr);
 /**

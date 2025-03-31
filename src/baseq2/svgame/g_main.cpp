@@ -678,7 +678,7 @@ void G_RunFrame(void)
             //} else {
             //    // If the ground entity is still 1 unit below us, we're good.
             //    Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-            //    trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+            //    cm_trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
 
             //    if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
             //        ent->groundentity = nullptr;

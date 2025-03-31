@@ -23,9 +23,9 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP = 32;
 /**
 *	@brief	Touch callback in order to change the gravity of 'other', the touching entity.
 **/
-void trigger_gravity_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+void trigger_gravity_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;

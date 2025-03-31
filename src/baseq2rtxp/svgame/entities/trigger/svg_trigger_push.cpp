@@ -26,10 +26,10 @@ static int windsound = 0;
 /**
 *	@brief
 **/
-void trigger_push_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+void trigger_push_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;

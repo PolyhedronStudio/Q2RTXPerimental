@@ -487,7 +487,7 @@ void target_laser_think(edict_t *self)
     edict_t *ignore;
     vec3_t  start;
     vec3_t  end;
-    trace_t tr;
+    cm_trace_t tr;
     vec3_t  point;
     vec3_t  last_movedir;
     int     count;

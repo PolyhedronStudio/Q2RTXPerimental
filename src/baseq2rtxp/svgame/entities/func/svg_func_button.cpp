@@ -62,7 +62,7 @@ There it will wait till the wait time is over, or if toggleable, until it is tog
 void button_press_move_done( svg_entity_t *self );
 void button_unpress_move_done( svg_entity_t *self );
 void button_think_return( svg_entity_t *self );
-void button_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf );
+void button_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
 void button_killed( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 
 
@@ -751,7 +751,7 @@ void button_usetarget_toggle( svg_entity_t *self, svg_entity_t *other, svg_entit
 /**
 *   @brief  For when 'Touch' triggered.
 **/
-void button_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+void button_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
     // Do nothing if the button is still moving.
     if ( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE
         || self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE ) {

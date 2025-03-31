@@ -18,7 +18,7 @@ health (80), and dmg (150).
 /**
 *   @brief
 **/
-void barrel_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+void barrel_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 
     if ( ( !other->groundInfo.entity ) || ( other->groundInfo.entity == self ) ) {
         return;

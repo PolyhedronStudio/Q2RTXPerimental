@@ -37,18 +37,18 @@ static vec3_t   trace_start, trace_end;
 static vec3_t   trace_offsets[ 8 ];
 static vec3_t   trace_extents;
 
-static trace_t *trace_trace;
+static cm_trace_t *trace_trace;
 static uint32_t trace_contents;
 static cm_material_t *trace_material;
-static csurface_t trace_surface;
+static cm_surface_t trace_surface;
 static bool     trace_ispoint;      // optimized case
 
 /**
 *   @brief
 **/
-static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace, mbrush_t *brush ) {
+static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *trace, mbrush_t *brush ) {
     int         i;
-    cplane_t *plane, *clipplane[ 2 ];
+    cm_plane_t *plane, *clipplane[ 2 ];
     float       dist;
     float       enterfrac[ 2 ], leavefrac;
     float       d1, d2;
@@ -175,9 +175,9 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, trace_t *trace,
 /**
 *   @brief
 **/
-static void CM_TestBoxInBrush( const vec3_t p1, trace_t *trace, mbrush_t *brush ) {
+static void CM_TestBoxInBrush( const vec3_t p1, cm_trace_t *trace, mbrush_t *brush ) {
     int         i;
-    cplane_t *plane;
+    cm_plane_t *plane;
     float       dist;
     float       d1;
     mbrushside_t *side;
@@ -265,7 +265,7 @@ static void CM_TestInLeaf( cm_t *cm, mleaf_t *leaf ) {
 *   @brief
 **/
 static void CM_RecursiveHullCheck( cm_t *cm, mnode_t *node, float p1f, float p2f, const vec3_t p1, const vec3_t p2 ) {
-    cplane_t *plane;
+    cm_plane_t *plane;
     float   t1, t2, offset;
     float   frac, frac2;
     float   idist;
@@ -355,7 +355,7 @@ recheck:
 /**
 *   @brief
 **/
-void CM_BoxTrace( cm_t *cm, trace_t *trace,
+void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
     const vec3_t start, const vec3_t end,
     const vec3_t mins, const vec3_t maxs,
     mnode_t *headnode, const contents_t brushmask ) {
@@ -433,7 +433,7 @@ void CM_BoxTrace( cm_t *cm, trace_t *trace,
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities.
 **/
-void CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
+void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
     const vec3_t start, const vec3_t end,
     const vec3_t mins, const vec3_t maxs,
     mnode_t *headnode, const contents_t brushmask,
@@ -485,7 +485,7 @@ void CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
 /**
 *   @brief
 **/
-void CM_ClipEntity( cm_t *cm, trace_t *dst, const trace_t *src, struct edict_s *ent ) {
+void CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, struct edict_s *ent ) {
     dst->allsolid |= src->allsolid;
     dst->startsolid |= src->startsolid;
     if ( src->fraction < dst->fraction ) {

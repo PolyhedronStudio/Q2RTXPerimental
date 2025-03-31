@@ -43,7 +43,7 @@ void hurt_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator,
 /**
 *	@brief
 **/
-void hurt_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurface_t *surf ) {
+void hurt_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 	entity_damageflags_t dflags;
 
 	if ( !other->takedamage ) {
@@ -55,7 +55,7 @@ void hurt_touch( svg_entity_t *self, svg_entity_t *other, cplane_t *plane, csurf
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;

@@ -271,7 +271,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //{
 //    vec3_t  spot1;
 //    vec3_t  spot2;
-//    trace_t trace;
+//    cm_trace_t trace;
 //
 //    VectorCopy(self->s.origin, spot1);
 //    spot1[2] += self->viewheight;
@@ -560,7 +560,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //{
 //    Vector3  spot1, spot2;
 //    float   chance;
-//    trace_t tr;
+//    cm_trace_t tr;
 //
 //    //if ( self->enemy->flags & FL_NOVISIBLE )
 //    //    return false;
@@ -837,7 +837,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    bool        _new;
 //    svg_entity_t     *marker;
 //    float       d1, d2;
-//    trace_t     tr;
+//    cm_trace_t     tr;
 //    vec3_t      v_forward, v_right;
 //    float       left, center, right;
 //    vec3_t      left_target, right_target;

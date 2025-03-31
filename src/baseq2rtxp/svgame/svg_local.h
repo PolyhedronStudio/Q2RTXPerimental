@@ -76,6 +76,7 @@ static constexpr int32_t BODY_QUEUE_SIZE = 8;
 
 
 
+#if 0 // <Q2RTXP>: Server Patch
 /**
 *	Zone Tag Memory: tag IDs for specified group memory types, allowing for efficient cleanup of said group's memory.
 **/
@@ -85,6 +86,7 @@ static constexpr int32_t TAG_SVGAME = 765;
 static constexpr int32_t TAG_SVGAME_LEVEL = 766;
 //! Clear when loading a new level.
 static constexpr int32_t TAG_SVGAME_LUA = 767;
+#endif
 #if 0
 // Simple wrapper for variable sized tag memory blocks (re-)allocated in TAG_SVGAME_LEVEL.
 using svg_level_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME_LEVEL>;
@@ -359,7 +361,7 @@ const bool Add_Ammo(svg_entity_t *ent, const gitem_t *item, const int32_t count)
 /**
 *   @brief
 **/
-void Touch_Item(svg_entity_t *ent, svg_entity_t *other, cplane_t *plane, csurface_t *surf);
+void Touch_Item(svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf);
 
 
 
@@ -446,7 +448,7 @@ void fire_shotgun( svg_entity_t *self, const vec3_t start, const vec3_t aimdir, 
 * 
 * 
 **/
-void SVG_Impact( svg_entity_t *e1, trace_t *trace );
+void SVG_Impact( svg_entity_t *e1, cm_trace_t *trace );
 const contents_t SVG_GetClipMask( svg_entity_t *ent );
 void SVG_RunEntity( svg_entity_t *ent );
 
@@ -462,9 +464,9 @@ typedef struct mm_ground_info_s {
     int32_t         entityLinkCount;
 
     //! A copy of the plane data from the ground entity.
-    cplane_t        plane;
+    cm_plane_t        plane;
     //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
-    csurface_t      surface;
+    cm_surface_t      surface;
     //! A copy of the contents data from the ground entity's brush.
     contents_t      contents;
     //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).

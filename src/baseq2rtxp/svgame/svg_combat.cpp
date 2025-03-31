@@ -80,7 +80,7 @@ explosions and melee attacks.
 const bool SVG_CanDamage(svg_entity_t *targ, svg_entity_t *inflictor)
 {
     vec3_t  dest;
-    trace_t trace;
+    cm_trace_t trace;
 
 // bmodels need special checking because their origin is 0,0,0
     if (targ->movetype == MOVETYPE_PUSH) {

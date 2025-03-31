@@ -147,7 +147,7 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
 // TODO: Look into this, its additional, not a requirement. Nice to have, but sometimes it rains and sometimes it don't.
 // WID: So stair smoothing and crouching works.
 //static void emit_predicted_state() {
-//    static cplane_t last_predicted_plane = cl.predictedState.groundPlane;
+//    static cm_plane_t last_predicted_plane = cl.predictedState.groundPlane;
 //
 //    // Emit the 'predicted state'.
 //    MSG_WriteUint8( svc_demo_predicted_state );
@@ -164,7 +164,7 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
 //        MSG_WriteInt32( cl.predictedState.groundEntity->current.number );
 //    }
 //    // Ground Plane ( Needed for client side test with smooth stepping ):
-//    if ( memcmp( &last_predicted_plane, &cl.predictedState.groundPlane, sizeof( cplane_t ) ) == 0 ) {
+//    if ( memcmp( &last_predicted_plane, &cl.predictedState.groundPlane, sizeof( cm_plane_t ) ) == 0 ) {
 //        // Signifies no plane message written.
 //        MSG_WriteInt8( -1 );
 //        MSG_WriteFloat( cl.predictedState.step );
@@ -172,7 +172,7 @@ static void emit_packet_entities(server_frame_t *from, server_frame_t *to)
 //    } else {
 //        // Signifies a plane message has to be read.
 //        MSG_WriteInt8( 1 );
-//        cplane_t *p = &cl.predictedState.groundPlane;
+//        cm_plane_t *p = &cl.predictedState.groundPlane;
 //        MSG_WriteFloat( p->dist );
 //        MSG_WriteFloat( p->normal[ 0 ] );
 //        MSG_WriteFloat( p->normal[ 1 ] );

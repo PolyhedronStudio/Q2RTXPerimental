@@ -22,7 +22,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
     vec3_t o, ownerv, goal;
     edict_t *targ;
     vec3_t forward, right;
-    trace_t trace;
+    cm_trace_t trace;
     int i;
     vec3_t angles;
 

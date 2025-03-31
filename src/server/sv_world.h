@@ -77,7 +77,7 @@ const contents_t SV_PointContents( const vec3_t p );
 *
 *					passedict is explicitly excluded from clipping checks (normally NULL)
 **/
-const trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
+const cm_trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
     const vec3_t maxs, const vec3_t end,
     edict_t *passedict, const contents_t contentmask );
 
@@ -85,5 +85,5 @@ const trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-const trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
     const vec3_t maxs, const vec3_t end, const contents_t contentmask );

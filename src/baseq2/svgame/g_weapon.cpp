@@ -31,7 +31,7 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
 {
     vec3_t  end;
     vec3_t  v;
-    trace_t tr;
+    cm_trace_t tr;
 
     // easy mode only ducks one quarter the time
     if (skill->value == 0) {
@@ -58,7 +58,7 @@ Used for all impact (hit/punch/slash) attacks
 */
 bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 {
-    trace_t     tr;
+    cm_trace_t     tr;
     vec3_t      forward, right, up;
     vec3_t      v;
     vec3_t      point;
@@ -125,7 +125,7 @@ This is an internal support routine used for bullet/pellet based weapons.
 */
 static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, int mod)
 {
-    trace_t     tr;
+    cm_trace_t     tr;
     vec3_t      dir;
     vec3_t      forward, right, up;
     vec3_t      end;
@@ -281,7 +281,7 @@ fire_blaster
 Fires a single blaster bolt.  Used by the blaster and hyper blaster.
 =================
 */
-void blaster_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void blaster_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     int     mod;
 
@@ -328,7 +328,7 @@ static const bool G_ShouldPlayersCollideProjectile( edict_t *self ) {
 void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, int effect, bool hyper)
 {
     edict_t *bolt;
-    trace_t tr;
+    cm_trace_t tr;
 
     VectorNormalize(dir);
 
@@ -436,7 +436,7 @@ void Grenade_Explode(edict_t *ent)
     SVG_FreeEdict(ent);
 }
 
-void Grenade_Touch(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+void Grenade_Touch(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     if (other == ent->owner)
         return;
@@ -560,7 +560,7 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
 fire_rocket
 =================
 */
-void rocket_touch(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf)
+void rocket_touch(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     vec3_t      origin;
     int         n;
@@ -652,7 +652,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
 {
     vec3_t      from;
     vec3_t      end;
-    trace_t     tr;
+    cm_trace_t     tr;
     edict_t     *ignore;
     contents_t  mask;
     bool        water;
@@ -753,7 +753,7 @@ void bfg_explode(edict_t *self)
         self->think = SVG_FreeEdict;
 }
 
-void bfg_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void bfg_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     if (other == self->owner)
         return;
@@ -800,7 +800,7 @@ void bfg_think(edict_t *self)
     vec3_t  start;
     vec3_t  end;
     int     dmg;
-    trace_t tr;
+    cm_trace_t tr;
 
     if (deathmatch->value)
         dmg = 5;
@@ -990,7 +990,7 @@ void flare_think(edict_t *self)
 }
 
 void flare_touch(edict_t *ent, edict_t *other,
-	cplane_t *plane, csurface_t *surf)
+	cm_plane_t *plane, cm_surface_t *surf)
 {
 	// Flares don't weigh that much, so let's have them stop 
 	// the instant they whack into anything. 

@@ -216,7 +216,7 @@ const int32_t CM_LoadMaterials( cm_t *cm ) {
         }
 
         // Apply the final resulting materialID and pointer to the material into
-        // the texinfo's csurface_t.
+        // the texinfo's cm_surface_t.
         texinfo->c.materialID = materialID;
         texinfo->c.material = &cm->materials[ materialID ];
     }
