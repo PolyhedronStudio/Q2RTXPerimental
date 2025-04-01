@@ -361,7 +361,7 @@ const bool Add_Ammo(svg_entity_t *ent, const gitem_t *item, const int32_t count)
 /**
 *   @brief
 **/
-void Touch_Item(svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf);
+void Touch_Item(svg_entity_t *ent, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf);
 
 
 
@@ -438,6 +438,23 @@ void fire_shotgun( svg_entity_t *self, const vec3_t start, const vec3_t aimdir, 
 #include "svgame/player/svg_player_weapon.h"
 
 
+/**
+*   @brief  Server Game expansion implementation of svg_trace_t.
+**/
+// Server Game Trace Data.
+struct svg_trace_t : public cm_trace_t {
+    [[nodiscard]] svg_trace_t() = default;
+    [[nodiscard]] svg_trace_t( const cm_trace_t &move ) : cm_trace_t( move ) {
+        ent = static_cast<svg_entity_t *>( move.ent );
+    }
+    [[nodiscard]] svg_trace_t( const cm_trace_t &&move ) : cm_trace_t( move ) {
+        ent = static_cast<svg_entity_t *>( move.ent );
+    }
+
+    //! Override type.
+    svg_entity_t *ent;
+};
+
 
 /**
 * 
@@ -448,7 +465,7 @@ void fire_shotgun( svg_entity_t *self, const vec3_t start, const vec3_t aimdir, 
 * 
 * 
 **/
-void SVG_Impact( svg_entity_t *e1, cm_trace_t *trace );
+void SVG_Impact( svg_entity_t *e1, svg_trace_t *trace );
 const contents_t SVG_GetClipMask( svg_entity_t *ent );
 void SVG_RunEntity( svg_entity_t *ent );
 
@@ -507,17 +524,31 @@ typedef enum {
 // Enumerator Type Bit Flags Support:
 QENUM_BIT_FLAGS( entity_flags_t );
 
+
 /**
-*   Include Client Data Structures:
+* 
+* 
+* 
+*   Client Data Structures:
+* 
+* 
+* 
 **/
 #include "svgame/svg_game_client.h"
 /**
+* 
+* 
+* 
 *   ServerGame Side Entity:
+* 
+* 
+* 
 **/
 #include "svgame/svg_game_edict.h"
 // Extern access.
 extern svg_entity_t *g_edicts;
 #define world   (&g_edicts[0])
+
 
 
 /***
@@ -543,3 +574,6 @@ static inline constexpr QMTime DAMAGE_TIME() {
 static inline constexpr QMTime FALL_TIME() {
     return 300_ms + DAMAGE_TIME_SLACK();
 }
+
+
+

@@ -179,7 +179,7 @@ void SVG_Util_TouchProjectiles( svg_entity_t *ent, const Vector3 &previous_origi
     static std::vector<skipped_projectile> skipped;
 
     while ( true ) {
-        cm_trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
+        svg_trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
 
         if ( tr.fraction == 1.0f ) {
             break;
@@ -291,7 +291,7 @@ of ent.  Ent should be unlinked before calling this!
 //            continue;
 //        }
 //
-//        cm_trace_t clip = {};
+//        svg_trace_t clip = {};
 //        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
 //            clip = gi.clip(ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask(hit));
 //
@@ -367,7 +367,7 @@ const bool SVG_Util_KillBox( svg_entity_t *ent, const bool bspClipping ) {
             continue;
         }
 
-        cm_trace_t clip = {};
+        svg_trace_t clip = {};
         if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
             clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
 
@@ -493,7 +493,7 @@ void SVG_MoveWith_SetChildEntityMovement( svg_entity_t *self ) {
 *   @brief 
 **/
 bool SV_Push( svg_entity_t *pusher, vec3_t move, vec3_t amove );
-cm_trace_t SV_PushEntity( svg_entity_t *ent, vec3_t push );
+svg_trace_t SV_PushEntity( svg_entity_t *ent, vec3_t push );
 
 void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, svg_entity_t *parentMover, svg_entity_t *childMover ) {
     // Calculate origin to adjust by.
@@ -572,7 +572,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 
             // object is moving
             //SV_PushEntity( childMover, offset );
-            //cm_trace_t SV_PushEntity( svg_entity_t * ent, vec3_t push )
+            //svg_trace_t SV_PushEntity( svg_entity_t * ent, vec3_t push )
             //    if ( !VectorEmpty( part->velocity ) || !VectorEmpty( part->avelocity ) ) {
             //        // object is moving
             //        VectorScale( part->velocity, gi.frame_time_s, move );

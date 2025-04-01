@@ -64,7 +64,7 @@ void Use_Multi( svg_entity_t *ent, svg_entity_t *other, svg_entity_t *activator,
 /**
 *	@brief
 **/
-void Touch_Multi( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
+void Touch_Multi( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
 	if ( other->client ) {
 		if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_NOT_PLAYER ) {
 			return;
@@ -78,7 +78,7 @@ void Touch_Multi( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
-		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		svg_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;

@@ -43,7 +43,7 @@ void SVG_P_ProcessAnimations( svg_entity_t *ent );
 /**
 *   @brief
 **/
-void Touch_Item( svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+void Touch_Item( svg_entity_t *ent, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 /**
 *   @brief
 **/
@@ -696,7 +696,7 @@ void SVG_Player_PutInServer( svg_entity_t *ent ) {
     svg_client_t *client;
     client_respawn_t    savedRespawnData = {};
     Vector3 temp, temp2;
-    cm_trace_t tr;
+    svg_trace_t tr;
 
     // Always clear out any possibly previous left over of the useTargetHint.
     Client_ClearUseTargetHint( ent, ent->client, nullptr );
@@ -754,7 +754,10 @@ void SVG_Player_PutInServer( svg_entity_t *ent ) {
 
     // Backup persistent data and clean everything.
     client_persistant_t savedPersistantData = client->pers;
-    memset( client, 0, sizeof( *client ) );
+    //memset( client, 0, sizeof( *client ) );
+    // Reset client value.
+    *client = { };
+    // Reinitialize persistent data.
     client->pers = savedPersistantData;
     // If dead at the time of the previous map switching to the current, reinitialize persistent data.
     if ( client->pers.health <= 0 ) {

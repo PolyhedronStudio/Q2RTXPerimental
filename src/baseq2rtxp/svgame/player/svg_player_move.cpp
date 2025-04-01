@@ -99,7 +99,7 @@ void SVG_Client_TraceForUseTarget( svg_entity_t *ent, svg_client_t *client, cons
     constexpr float USE_TARGET_TRACE_DISTANCE = 48.f;
     Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, USE_TARGET_TRACE_DISTANCE, vForward );
     // Now perform the trace.
-    cm_trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
+    svg_trace_t traceUseTarget = gi.trace( &traceStart.x, NULL, NULL, &traceEnd.x, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ) );
 
     // Get the current activate(in last frame) entity we were (+usetarget) using.
     svg_entity_t *currentTargetEntity = ent->client->useTarget.currentEntity;
@@ -592,11 +592,11 @@ static void ClientProcessTouches( svg_entity_t *ent, svg_client_t *client, pmove
 
     // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
     for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
-        cm_trace_t &tr = pm.touchTraces.traces[ i ];
+        const svg_trace_t &tr = svg_trace_t( pm.touchTraces.traces[ i ] );
         svg_entity_t *other = tr.ent;
 
         if ( other != nullptr && other->touch ) {
-            // TODO: Q2RE has these for last 2 args: const cm_trace_t &tr, bool other_touching_self
+            // TODO: Q2RE has these for last 2 args: const svg_trace_t &tr, bool other_touching_self
             // What the??
             other->touch( other, ent, &tr.plane, tr.surface );
         }

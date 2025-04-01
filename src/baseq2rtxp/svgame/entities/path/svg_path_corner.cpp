@@ -17,7 +17,7 @@ Pathtarget: gets used when an entity that has
 /**
 *   @brief
 **/
-void path_corner_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
+void path_corner_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     vec3_t      v;
     svg_entity_t *next;
 

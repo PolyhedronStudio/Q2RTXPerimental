@@ -128,7 +128,7 @@ void rotating_full_speeded( svg_entity_t *self ) {
 /**
 *   @brief
 **/
-void rotating_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+void rotating_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 void rotating_accelerate( svg_entity_t *self ) {
     // Get angular velocity speed.
     const float current_speed = QM_Vector3Length( self->avelocity );
@@ -304,7 +304,7 @@ void rotating_blocked( svg_entity_t *self, svg_entity_t *other ) {
 /**
 *   @brief
 **/
-void rotating_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
+void rotating_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     // Exit if touching isn't hurting.
     if ( !( self->spawnflags & FUNC_ROTATING_SPAWNFLAG_PAIN_ON_TOUCH ) ) {
         return;

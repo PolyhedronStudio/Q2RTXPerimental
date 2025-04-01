@@ -77,7 +77,7 @@ SV_TestEntityPosition
 */
 svg_entity_t *SV_TestEntityPosition(svg_entity_t *ent)
 {
-    cm_trace_t trace;
+    svg_trace_t trace;
     //contents_t mask;
 
     //if (ent->clipmask)
@@ -162,7 +162,7 @@ SVG_Impact
 Two entities have touched, so run their touch functions
 ==================
 */
-void SVG_Impact(svg_entity_t *e1, cm_trace_t *trace)
+void SVG_Impact(svg_entity_t *e1, svg_trace_t *trace)
 {
     svg_entity_t     *e2;
 //  cm_plane_t    backplane;
@@ -253,7 +253,7 @@ int SV_FlyMove(svg_entity_t *ent, float time, const contents_t mask)
     Vector3     planes[MAX_CLIP_PLANES];
     Vector3      primal_velocity, original_velocity, new_velocity;
     int         i, j;
-    cm_trace_t     trace;
+    svg_trace_t     trace;
     vec3_t      end;
     float       time_left;
     int         blocked;
@@ -391,9 +391,9 @@ SV_PushEntity
 Does not change the entities velocity at all
 ============
 */
-cm_trace_t SV_PushEntity(svg_entity_t *ent, vec3_t push)
+svg_trace_t SV_PushEntity(svg_entity_t *ent, vec3_t push)
 {
-    cm_trace_t trace;
+    svg_trace_t trace;
     vec3_t  start;
     vec3_t  end;
 
@@ -727,7 +727,7 @@ Toss, bounce, and fly movement.  When onground, do nothing.
 */
 void SV_Physics_Toss(svg_entity_t *ent)
 {
-    cm_trace_t     trace;
+    svg_trace_t     trace;
     vec3_t      move;
     float       backoff;
     svg_entity_t     *slave;
@@ -1325,7 +1325,7 @@ void SVG_RunEntity(svg_entity_t *ent)
     if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {
         // if we moved, check and fix origin if needed
         if ( !VectorCompare( ent->s.origin, previousOrigin ) ) {
-            cm_trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
+            svg_trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
             if ( trace.allsolid || trace.startsolid )
                 VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;
         }

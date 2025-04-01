@@ -119,7 +119,7 @@ void monster_testdummy_puppet_die( svg_entity_t *self, svg_entity_t *inflictor, 
 ///**
 //*   @brief  Touched.
 //**/
-//void monster_testdummy_puppet_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
+//void monster_testdummy_puppet_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
 //    #if 0
 //    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
 //        return;
@@ -169,7 +169,7 @@ void monster_testdummy_puppet_die( svg_entity_t *self, svg_entity_t *inflictor, 
 /**
 *   @brief  Touched.
 **/
-void monster_testdummy_puppet_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
+void monster_testdummy_puppet_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     #if 0
     if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
         return;

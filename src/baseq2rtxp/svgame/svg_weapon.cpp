@@ -32,7 +32,7 @@ static void check_dodge(svg_entity_t *self, vec3_t start, vec3_t dir, int speed)
     // WID: TODO: Monster Reimplement.
     //vec3_t  end;
     //vec3_t  v;
-    //cm_trace_t tr;
+    //svg_trace_t tr;
 
     //// easy mode only ducks one quarter the time
     //if (skill->value == 0) {
@@ -60,7 +60,7 @@ const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( svg_entity_t *ent, const V
 
     // To stop it accidentally spawning the MZ_PISTOL muzzleflash inside of entities and/or (wall-)brushes,
     // peform a trace from our origin on to the projected start.
-    cm_trace_t tr = gi.trace( ent->s.origin, NULL, NULL, &muzzleFlashOrigin.x, ent, MASK_SHOT );
+    svg_trace_t tr = gi.trace( ent->s.origin, NULL, NULL, &muzzleFlashOrigin.x, ent, MASK_SHOT );
     // We hit something, clip to trace endpos so the muzzleflash will play in our non-solid area:
     if ( tr.fraction < 1.0 ) {
         muzzleFlashOrigin = tr.endpos;
@@ -79,7 +79,7 @@ Used for all impact (hit/punch/slash) attacks
 #if 0
 bool fire_hit(svg_entity_t *self, vec3_t aim, int damage, int kick)
 {
-    cm_trace_t     tr;
+    svg_trace_t     tr;
     vec3_t      forward, right, up;
     vec3_t      v;
     vec3_t      point;
@@ -142,7 +142,7 @@ bool fire_hit(svg_entity_t *self, vec3_t aim, int damage, int kick)
 **/
 const bool fire_hit_punch_impact( svg_entity_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick ) {
     static constexpr float HIT_RANGE = 32;
-    cm_trace_t     tr = {};
+    svg_trace_t     tr = {};
     vec3_t      dir = {};
     vec3_t      forward = {}, right = {}, up = {};
     vec3_t      end = {};
@@ -249,7 +249,7 @@ static void fire_lead(svg_entity_t *self, const vec3_t start, const vec3_t aimdi
     contents_t  content_mask = ( MASK_SHOT | MASK_WATER );
     
 	// Trace a line from the origin the supposed bullet shot start point.
-    cm_trace_t tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
+    svg_trace_t tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
 	// If we hit something, and it is not sky, then we can continue.
     if ( !( tr.fraction < 1.0f ) ) {
         // Calculate the direction of the bullet.

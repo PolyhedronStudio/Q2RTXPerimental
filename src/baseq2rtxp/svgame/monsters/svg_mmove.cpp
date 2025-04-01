@@ -20,7 +20,7 @@
 /**
 *	@brief	Clips trace against world only.
 **/
-const cm_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
+const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
 	//return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
 	// Clip against world.
 	return gi.clip( &g_edicts[ 0 ], &start.x, &mins.x, &maxs.x, &end.x, contentMask );
@@ -29,7 +29,7 @@ const cm_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, cons
 /**
 *	@brief	Determines the mask to use and returns a trace doing so.
 **/
-const cm_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_entity_t *passEntity, contents_t contentMask ) {
+const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_entity_t *passEntity, contents_t contentMask ) {
 	//// Spectators only clip against world, so use clip instead.
 	//if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
 	//	return PM_Clip( start, mins, maxs, end, MASK_SOLID );
@@ -64,7 +64,7 @@ const cm_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, con
 /**
 *	@return True if the trace yielded a step, false otherwise.
 **/
-static bool MMove_CheckStep( const cm_trace_t *trace ) {
+static bool MMove_CheckStep( const svg_trace_t *trace ) {
 	// If not solid:
 	if ( !trace->allsolid ) {
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
@@ -81,7 +81,7 @@ static bool MMove_CheckStep( const cm_trace_t *trace ) {
 *	@brief	Will step to the trace its end position, calculating the height difference and
 *			setting it as our step_height if it is equal or above the minimal step size.
 **/
-static void MMove_StepDown( mm_move_t *monsterMove, const cm_trace_t *trace ) {
+static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 	// Apply the trace endpos as the new origin.
 	monsterMove->state.origin = trace->endpos;
 
@@ -103,7 +103,7 @@ static void MMove_StepDown( mm_move_t *monsterMove, const cm_trace_t *trace ) {
 *			Does not modify any world state?
 **/
 const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
-	cm_trace_t trace = {};
+	svg_trace_t trace = {};
 	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
 
@@ -145,7 +145,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
 	if ( !trace.allsolid ) {
 		// [Paril-KEX] from above, do the proper trace now
-		cm_trace_t real_trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster );
+		svg_trace_t real_trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster );
 		//pml.origin = real_trace.endpos;
 
 		// WID: Use proper stair step checking.

@@ -134,7 +134,7 @@ typedef struct mmove_state_s {
 static constexpr int32_t MM_MAX_TOUCH_TRACES = 32;
 typedef struct mm_touch_trace_list_s {
     uint32_t numberOfTraces;
-    cm_trace_t traces[ MM_MAX_TOUCH_TRACES ];
+    svg_trace_t traces[ MM_MAX_TOUCH_TRACES ];
 } mm_touch_trace_list_t;
 
 ///**
@@ -207,11 +207,11 @@ typedef struct mm_move_s {
 /**
 *	@brief	Clips trace against world only.
 **/
-const cm_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask );
+const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask );
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-const cm_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_entity_t *passEntity, contents_t contentMask = CONTENTS_NONE );
+const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_entity_t *passEntity, contents_t contentMask = CONTENTS_NONE );
 
 
 

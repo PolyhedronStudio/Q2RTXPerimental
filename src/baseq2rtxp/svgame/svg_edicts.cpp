@@ -273,7 +273,7 @@ void SVG_CopyToBodyQue( svg_entity_t *ent ) {
 const bool SVG_Entity_IsVisible( svg_entity_t *self, svg_entity_t *other ) {
     vec3_t  spot1;
     vec3_t  spot2;
-    cm_trace_t trace;
+    svg_trace_t trace;
 
     VectorCopy( self->s.origin, spot1 );
     spot1[ 2 ] += self->viewheight;

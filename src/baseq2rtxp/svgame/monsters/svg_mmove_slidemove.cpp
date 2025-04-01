@@ -29,7 +29,7 @@
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
 *			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
 **/
-void SVG_MMove_RegisterTouchTrace( mm_touch_trace_list_t &touchTraceList, cm_trace_t &trace ) {
+void SVG_MMove_RegisterTouchTrace( mm_touch_trace_list_t &touchTraceList, svg_trace_t &trace ) {
 	// Escape function if we are exceeding maximum touch traces.
 	if ( touchTraceList.numberOfTraces >= MM_MAX_TOUCH_TRACES ) {
 		return;
@@ -100,7 +100,7 @@ const int32_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const flo
 
 	Vector3 planes[ MM_MAX_CLIP_PLANES ] = {};
 
-	cm_trace_t	trace = {};
+	svg_trace_t	trace = {};
 	Vector3	end = {};
 
 	float d = 0;

@@ -48,7 +48,7 @@ void monster_fire_shotgun( svg_entity_t *self, vec3_t start, vec3_t aimdir, cons
 **/
 void M_CheckGround( svg_entity_t *ent, const contents_t mask ) {
 	vec3_t      point;
-	cm_trace_t     trace;
+	svg_trace_t     trace;
 
 	// Swimming and flying monsters don't check for ground.
 	if ( ent->flags & ( FL_SWIM | FL_FLY ) ) {
@@ -199,7 +199,7 @@ void M_WorldEffects( svg_entity_t *ent ) {
 
 void M_droptofloor( svg_entity_t *ent ) {
 	vec3_t      end;
-	cm_trace_t     trace;
+	svg_trace_t     trace;
 
 	contents_t mask = SVG_GetClipMask( ent );
 

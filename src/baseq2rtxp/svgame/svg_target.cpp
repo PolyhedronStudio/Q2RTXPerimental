@@ -451,7 +451,7 @@ void target_laser_think(svg_entity_t *self)
     svg_entity_t *ignore;
     vec3_t  start;
     vec3_t  end;
-    cm_trace_t tr;
+    svg_trace_t tr;
     vec3_t  point;
     vec3_t  last_movedir;
     int     count;

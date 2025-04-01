@@ -35,7 +35,7 @@ int c_yes, c_no;
 bool M_CheckBottom(svg_entity_t *ent)
 {
     vec3_t  mins, maxs, start, stop;
-    cm_trace_t trace;
+    svg_trace_t trace;
     int     x, y;
     float   mid, bottom;
 
@@ -109,7 +109,7 @@ static const bool SV_movestep(svg_entity_t *ent, Vector3 move, bool relink)
 {
     float       dz;
     vec3_t      oldorg, neworg, end;
-    cm_trace_t     trace;
+    svg_trace_t     trace;
     int         i;
     float       stepsize;
     vec3_t      test;

@@ -224,7 +224,7 @@ void Use_Plat( svg_entity_t *ent, svg_entity_t *other, svg_entity_t *activator, 
 }
 
 
-void Touch_Plat_Center( svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
+void Touch_Plat_Center( svg_entity_t *ent, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     if ( !other->client )
         return;
 

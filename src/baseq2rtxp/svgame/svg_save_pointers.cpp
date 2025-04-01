@@ -69,7 +69,7 @@ void monster_testdummy_puppet_use( svg_entity_t *self, svg_entity_t *other, svg_
 extern void SP_monster_testdummy_puppet( svg_entity_t *self );
 extern void monster_testdummy_puppet_die( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 extern void monster_testdummy_puppet_think( svg_entity_t *self );
-extern void monster_testdummy_puppet_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void monster_testdummy_puppet_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void monster_testdummy_puppet_post_spawn( svg_entity_t *self );
 // </Q2RTXP>
 
@@ -84,14 +84,14 @@ extern void SVG_PushMove_AngleMoveFinal( svg_entity_t *ent );
 
 extern void barrel_delay( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 extern void barrel_explode( svg_entity_t *self );
-extern void barrel_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void barrel_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void body_die( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 
 extern void button_unpress_move_done( svg_entity_t *self );
 extern void button_think_return( svg_entity_t *self );
 extern void button_press_move_done( svg_entity_t *self );
 extern void button_killed( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
-extern void button_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void button_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void button_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void button_usetarget_press( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void button_usetarget_toggle( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
@@ -107,7 +107,7 @@ extern void door_open_move_done( svg_entity_t *self );
 extern void door_killed( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 extern void door_postspawn( svg_entity_t *self );
 extern void door_pain( svg_entity_t *self, svg_entity_t *other, float kick, int damage );
-extern void door_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void door_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void door_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 #if 0
 extern void door_secret_blocked( svg_entity_t *self, svg_entity_t *other );
@@ -125,7 +125,7 @@ extern void door_secret_use( svg_entity_t *self, svg_entity_t *other, svg_entity
 extern void DoRespawn( svg_entity_t *self );
 
 extern void drop_make_touchable( svg_entity_t *self );
-extern void drop_temp_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void drop_temp_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void droptofloor( svg_entity_t *self );
 
 //extern void func_clock_think( svg_entity_t *self );
@@ -139,7 +139,7 @@ extern void func_breakable_spawn_on_trigger( svg_entity_t *self, svg_entity_t *o
 extern void func_breakable_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_object_release( svg_entity_t *self );
-extern void func_object_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void func_object_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void func_object_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void func_timer_think( svg_entity_t *self );
@@ -153,9 +153,9 @@ extern void SVG_FreeEdict( svg_entity_t *self );
 
 extern void gib_die( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 extern void gib_think( svg_entity_t *self );
-extern void gib_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void gib_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
-extern void hurt_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void hurt_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void hurt_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void spotlight_think( svg_entity_t *self );
@@ -174,7 +174,7 @@ extern void SVG_PushMove_Think_AccelerateMoveNew( svg_entity_t *self );
 
 extern void multi_wait( svg_entity_t *ent );
 
-extern void path_corner_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void path_corner_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
 extern void plat_blocked( svg_entity_t *self, svg_entity_t *other );
 extern void plat_go_down( svg_entity_t *self );
@@ -184,14 +184,14 @@ extern void plat_hit_top( svg_entity_t *self );
 extern void player_die( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
 extern void player_pain( svg_entity_t *self, svg_entity_t *other, float kick, int damage );
 
-//extern void point_combat_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+//extern void point_combat_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
 //extern void rotating_start( svg_entity_t *self );
 //extern void rotating_end( svg_entity_t *self );
 extern void rotating_accelerate( svg_entity_t *self );
 extern void rotating_decelerate( svg_entity_t *self );
 extern void rotating_blocked( svg_entity_t *self, svg_entity_t *other );
-extern void rotating_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void rotating_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void rotating_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void target_crosslevel_target_think( svg_entity_t *self );
@@ -210,7 +210,7 @@ extern void target_lightramp_use( svg_entity_t *self, svg_entity_t *other, svg_e
 
 //extern void target_string_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void teleporter_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void teleporter_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
 //extern void TH_viewthing( svg_entity_t *ent );
 
@@ -220,10 +220,10 @@ extern void Think_UseTargetsDelay( svg_entity_t *self );
 extern void Think_SignalOutDelay( svg_entity_t *self );
 extern void Think_SpawnDoorTrigger( svg_entity_t *ent );
 
-extern void Touch_DoorTrigger( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
-extern void Touch_Item( svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
-extern void Touch_Multi( svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
-extern void Touch_Plat_Center( svg_entity_t *ent, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void Touch_DoorTrigger( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+extern void Touch_Item( svg_entity_t *ent, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+extern void Touch_Multi( svg_entity_t *ent, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+extern void Touch_Plat_Center( svg_entity_t *ent, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
 extern void train_blocked( svg_entity_t *self, svg_entity_t *other );
 extern void train_next( svg_entity_t *self );
@@ -239,9 +239,9 @@ extern void trigger_elevator_use( svg_entity_t *self, svg_entity_t *other, svg_e
 
 extern void trigger_enable( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void trigger_gravity_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void trigger_gravity_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
-extern void trigger_push_touch( svg_entity_t *self, svg_entity_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void trigger_push_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
 extern void trigger_relay_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
