@@ -120,6 +120,7 @@ QM_API_DISCARD void QM_BBox3ToPoints( const BBox3 &box, Vector3 *points ) {
 *	@brief	Returns true if boxA its bounds intersect the bounds of box B, false otherwise.
 **/
 QM_API bool QM_BBox3Intersects( const BBox3 &boxA, const BBox3 &boxB ) {
+    #if 0
     if ( boxA.mins.x >= boxB.maxs.x || boxA.mins.y >= boxB.maxs.y || boxA.mins.z >= boxB.maxs.z ) {
         return false;
     }
@@ -127,8 +128,31 @@ QM_API bool QM_BBox3Intersects( const BBox3 &boxA, const BBox3 &boxB ) {
     if ( boxA.maxs.x <= boxB.mins.x || boxA.maxs.y <= boxB.mins.y || boxA.maxs.z <= boxB.mins.z ) {
         return false;
     }
+    #else
+    if ( boxA.mins.x > boxB.maxs.x || boxA.mins.y > boxB.maxs.y || boxA.mins.z > boxB.maxs.z ) {
+        return false;
+    }
+
+    if ( boxA.maxs.x < boxB.mins.x || boxA.maxs.y < boxB.mins.y || boxA.maxs.z < boxB.mins.z ) {
+        return false;
+    }
+    #endif
 
     return true;
+}
+
+/**
+ * @return A `box_t` that is the intersection of the passed bounds.
+ */
+QM_API BBox3 QM_BBox3Intersection( const BBox3 &a, const BBox3 &b ) {
+    if ( !QM_BBox3Intersects( a, b ) ) {
+        return QM_BBox3Zero();
+    } else {
+        return BBox3(
+            QM_Vector3Maxf( a.mins, b.mins ),   // Mins.
+            QM_Vector3Minf( a.maxs, b.maxs )    // Maxs.
+        );
+    }
 }
 
 /**
