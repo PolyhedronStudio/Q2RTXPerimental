@@ -121,7 +121,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 	// Include our 'shared_cpp.h' header.
 	#include "shared_cpp.h"
-
 #else // __cplusplus
 	typedef uint8_t byte;
 	typedef enum { qfalse, qtrue } qboolean;    // ABI compat only, don't use: will be int32_t on x86-64 systems.

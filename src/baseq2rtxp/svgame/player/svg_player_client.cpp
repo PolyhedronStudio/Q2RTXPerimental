@@ -1154,11 +1154,11 @@ void SVG_Client_CalculateMovementRecoil( svg_entity_t *ent ) {
 **/
 const double SVG_Client_GetFinalRecoilFactor( svg_entity_t *ent ) {
     // Get the movement induced recoil factor.
-    const double movementRecoil = QM_Clampd( ent->client->weaponState.recoil.moveFactor, -1., 1. );
+    const double movementRecoil = QM_Clamp( ent->client->weaponState.recoil.moveFactor, -1., 1. );
 	// Get the fire induced recoil factor.
     const double fireRecoil = ent->client->weaponState.recoil.weaponFactor;
 	// Determine the final recoil factor and clamp it between -1, to +1.
-	const double recoilFactor = QM_Clampd( movementRecoil + fireRecoil, -1., 2. );
+	const double recoilFactor = QM_Clamp( movementRecoil + fireRecoil, -1., 2. );
 	// Clamp the recoil factor between -1, to +1.
 	// Return the final recoil factor.
 	return recoilFactor;

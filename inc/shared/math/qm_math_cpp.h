@@ -40,6 +40,8 @@
 #ifdef __cplusplus
     #define QM_API [[nodiscard]] const inline // Functions may be inlined, no external out-of-line definition
     #define QM_API_DISCARD const inline // Functions may be inlined, no external out-of-line definition
+
+    #define QM_API_CONSTEXPR [[nodiscard]] constexpr const inline // Functions may be inlined, no external out-of-line definition.
 #else
     #define QM_API const inline // Functions may be inlined, no external out-of-line definition
     #define QM_API_DISCARD const inline // Functions may be inlined, no external out-of-line definition
@@ -71,9 +73,11 @@
 **/
 #ifndef QM_EPSILON
     #ifdef __cplusplus
-        static constexpr double QM_EPSILON = 0.000001;
+        static constexpr float QM_FLOAT_EPSILON = FLT_EPSILON;
+        static constexpr double QM_DOUBLE_EPSILON = DBL_EPSILON;
     #else
-        #define QM_EPSILON 0.000001
+        #define QM_FLOAT_EPSILON FLOT_EPSILON
+        #define QM_DOUBLE_EPSILON DBL_EPSILON
     #endif
 #endif
 

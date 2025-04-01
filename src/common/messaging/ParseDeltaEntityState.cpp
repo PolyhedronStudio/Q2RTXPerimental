@@ -111,16 +111,16 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_MODEL ) {
-		to->modelindex = QM_ClampInt32( MSG_ReadUintBase128( ), 0, MAX_MODELS ); //to->modelindex = MSG_ReadUintBase128( );
+		to->modelindex = QM_Clamp<int32_t>( MSG_ReadUintBase128( ), 0, MAX_MODELS ); //to->modelindex = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL2 ) {
-		to->modelindex2 = QM_ClampInt32( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex2 = MSG_ReadUintBase128( );
+		to->modelindex2 = QM_Clamp<int32_t>( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex2 = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL3 ) {
-		to->modelindex3 = QM_ClampInt32( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex3 = MSG_ReadUintBase128( );
+		to->modelindex3 = QM_Clamp<int32_t>( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex3 = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL4 ) {
-		to->modelindex4 = QM_ClampInt32( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex4 = MSG_ReadUintBase128( );
+		to->modelindex4 = QM_Clamp<int32_t>( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex4 = MSG_ReadUintBase128( );
 	}
 
 	if ( bits & U_ENTITY_TYPE ) {

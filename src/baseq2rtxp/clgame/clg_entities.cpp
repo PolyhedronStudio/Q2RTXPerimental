@@ -62,7 +62,7 @@ void CLG_LerpBeamSoundOrigin( const centity_t *ent, vec3_t org ) {
     const Vector3 p = playerEntityOrigin - org;
 
     // Determine fraction of the closest point.
-    const float t = QM_Clampf( QM_Vector3DotProduct( p, vec ) / QM_Vector3DotProduct( vec, vec ), 0.f, 1.f );
+    const float t = QM_Clamp( QM_Vector3DotProduct( p, vec ) / QM_Vector3DotProduct( vec, vec ), 0.f, 1.f );
 
     // Calculate final the closest point.
     const Vector3 closestPoint = QM_Vector3MultiplyAdd( vec, t, org );

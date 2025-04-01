@@ -69,7 +69,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
 
             // Calculate lerped Z origin.
             //packetEntity->current.origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
-            refreshEntity->origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
+            refreshEntity->origin[ 2 ] = QM_Lerp<double>( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
             //VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );
             VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
         }
@@ -104,7 +104,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
             constexpr int32_t animationHz = BASE_FRAMERATE;
             constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
             refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-            refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+            refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
             refreshEntity->frame = packetEntity->current_frame;
             refreshEntity->oldframe = packetEntity->last_frame;
             refreshEntity->rootMotionBoneID = 0;

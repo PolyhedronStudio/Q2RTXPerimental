@@ -322,7 +322,7 @@ void SVG_InitGame( void )
     SVG_InitItems();
 
     // initialize all entities for this game
-    game.maxentities = std::clamp(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
+    game.maxentities = QM_ClampUnsigned<uint32_t>(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
 	// WID: C++20: Addec cast.
     g_edicts = (svg_entity_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
     globals.edicts = g_edicts;

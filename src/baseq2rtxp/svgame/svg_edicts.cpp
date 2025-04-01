@@ -89,7 +89,7 @@ void SVG_FreeEdict( svg_entity_t *ed ) {
     ed->delayed.signalOut.arguments.clear();
     // Ues C++ method of 'memset' I guess, since we got a C++ container up there.
     *ed = {};
-
+	
     // Recalculate its number.
     ed->s.number = ed - g_edicts;
     ed->classname = "freed";

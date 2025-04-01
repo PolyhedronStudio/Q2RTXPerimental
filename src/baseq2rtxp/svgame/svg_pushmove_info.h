@@ -80,17 +80,17 @@ typedef struct {
         //! Origin position we're currently at.
         Vector3 referenceOrigin;
         //! Number of curve positions.
-        uint64_t countPositions;
+        int64_t countPositions;
         //! Dynamically (re-)allocated in-game.
         //float *positions;
         sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> positions;
         //float positions[ 1024 ]; // WID:TODO: Make saveable dynamic alloc block.
         // Frame index.
-        uint64_t frame;
+        int64_t frame;
         //! Current curve.subFrame, total number of subframes.
         uint8_t subFrame, numberSubFrames;
         //! Number of subframes processed.
-        uint64_t numberFramesDone;
+        int64_t numberFramesDone;
     } curve;
 
     //

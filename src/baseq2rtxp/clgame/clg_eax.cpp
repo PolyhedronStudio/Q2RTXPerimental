@@ -156,43 +156,43 @@ void CLG_EAX_Interpolate( /*const qhandle_t fromID, */ const qhandle_t toID, con
 	//const sfx_eax_properties_t *fromProperties = precache.eax.properties[ fromID ];
 	const sfx_eax_properties_t *toProperites = &precache.eax.properties[ toID ];
 
-	mixedProperties->flDensity = QM_Lerp( mixedProperties->flDensity, toProperites->flDensity, lerpFraction );
-	mixedProperties->flDiffusion = QM_Lerp( mixedProperties->flDiffusion, toProperites->flDiffusion, lerpFraction);
+	mixedProperties->flDensity = QM_Lerp<float>( mixedProperties->flDensity, toProperites->flDensity, lerpFraction );
+	mixedProperties->flDiffusion = QM_Lerp<float>( mixedProperties->flDiffusion, toProperites->flDiffusion, lerpFraction);
 
-	mixedProperties->flGain = QM_Lerp( mixedProperties->flGain, toProperites->flGain, lerpFraction );
-	mixedProperties->flGainHF = QM_Lerp( mixedProperties->flGainHF, toProperites->flGainHF, lerpFraction );
-	mixedProperties->flGainLF = QM_Lerp( mixedProperties->flGainLF, toProperites->flGainLF, lerpFraction );
+	mixedProperties->flGain = QM_Lerp<float>( mixedProperties->flGain, toProperites->flGain, lerpFraction );
+	mixedProperties->flGainHF = QM_Lerp<float>( mixedProperties->flGainHF, toProperites->flGainHF, lerpFraction );
+	mixedProperties->flGainLF = QM_Lerp<float>( mixedProperties->flGainLF, toProperites->flGainLF, lerpFraction );
 	
-	mixedProperties->flDecayTime = QM_Lerp( mixedProperties->flDecayTime, toProperites->flDecayTime, lerpFraction );
-	mixedProperties->flDecayHFRatio = QM_Lerp( mixedProperties->flDecayHFRatio, toProperites->flDecayHFRatio, lerpFraction );
-	mixedProperties->flDecayLFRatio = QM_Lerp( mixedProperties->flDecayLFRatio, toProperites->flDecayLFRatio, lerpFraction );
+	mixedProperties->flDecayTime = QM_Lerp<float>( mixedProperties->flDecayTime, toProperites->flDecayTime, lerpFraction );
+	mixedProperties->flDecayHFRatio = QM_Lerp<float>( mixedProperties->flDecayHFRatio, toProperites->flDecayHFRatio, lerpFraction );
+	mixedProperties->flDecayLFRatio = QM_Lerp<float>( mixedProperties->flDecayLFRatio, toProperites->flDecayLFRatio, lerpFraction );
 
-	mixedProperties->flReflectionsGain = QM_Lerp( mixedProperties->flReflectionsGain, toProperites->flReflectionsGain, lerpFraction );
-	mixedProperties->flReflectionsDelay = QM_Lerp( mixedProperties->flReflectionsDelay, toProperites->flReflectionsDelay, lerpFraction );
-	mixedProperties->flReflectionsPan[ 0 ] = QM_Lerp( mixedProperties->flReflectionsPan[ 0 ], toProperites->flReflectionsPan[ 0 ], lerpFraction );
-	mixedProperties->flReflectionsPan[ 1 ] = QM_Lerp( mixedProperties->flReflectionsPan[ 1 ], toProperites->flReflectionsPan[ 1 ], lerpFraction );
-	mixedProperties->flReflectionsPan[ 2 ] = QM_Lerp( mixedProperties->flReflectionsPan[ 2 ], toProperites->flReflectionsPan[ 2 ], lerpFraction );
+	mixedProperties->flReflectionsGain = QM_Lerp<float>( mixedProperties->flReflectionsGain, toProperites->flReflectionsGain, lerpFraction );
+	mixedProperties->flReflectionsDelay = QM_Lerp<float>( mixedProperties->flReflectionsDelay, toProperites->flReflectionsDelay, lerpFraction );
+	mixedProperties->flReflectionsPan[ 0 ] = QM_Lerp<float>( mixedProperties->flReflectionsPan[ 0 ], toProperites->flReflectionsPan[ 0 ], lerpFraction );
+	mixedProperties->flReflectionsPan[ 1 ] = QM_Lerp<float>( mixedProperties->flReflectionsPan[ 1 ], toProperites->flReflectionsPan[ 1 ], lerpFraction );
+	mixedProperties->flReflectionsPan[ 2 ] = QM_Lerp<float>( mixedProperties->flReflectionsPan[ 2 ], toProperites->flReflectionsPan[ 2 ], lerpFraction );
 
-	mixedProperties->flLateReverbGain = QM_Lerp( mixedProperties->flLateReverbGain, toProperites->flLateReverbGain, lerpFraction );
-	mixedProperties->flLateReverbDelay = QM_Lerp( mixedProperties->flLateReverbDelay, toProperites->flLateReverbDelay, lerpFraction );
-	mixedProperties->flLateReverbPan[ 0 ] = QM_Lerp( mixedProperties->flLateReverbPan[ 0 ], toProperites->flLateReverbPan[ 0 ], lerpFraction );
-	mixedProperties->flLateReverbPan[ 1 ] = QM_Lerp( mixedProperties->flLateReverbPan[ 1 ], toProperites->flLateReverbPan[ 1 ], lerpFraction );
-	mixedProperties->flLateReverbPan[ 2 ] = QM_Lerp( mixedProperties->flLateReverbPan[ 2 ], toProperites->flLateReverbPan[ 2 ], lerpFraction );
+	mixedProperties->flLateReverbGain = QM_Lerp<float>( mixedProperties->flLateReverbGain, toProperites->flLateReverbGain, lerpFraction );
+	mixedProperties->flLateReverbDelay = QM_Lerp<float>( mixedProperties->flLateReverbDelay, toProperites->flLateReverbDelay, lerpFraction );
+	mixedProperties->flLateReverbPan[ 0 ] = QM_Lerp<float>( mixedProperties->flLateReverbPan[ 0 ], toProperites->flLateReverbPan[ 0 ], lerpFraction );
+	mixedProperties->flLateReverbPan[ 1 ] = QM_Lerp<float>( mixedProperties->flLateReverbPan[ 1 ], toProperites->flLateReverbPan[ 1 ], lerpFraction );
+	mixedProperties->flLateReverbPan[ 2 ] = QM_Lerp<float>( mixedProperties->flLateReverbPan[ 2 ], toProperites->flLateReverbPan[ 2 ], lerpFraction );
 
-	mixedProperties->flEchoTime = QM_Lerp( mixedProperties->flEchoTime, toProperites->flEchoTime, lerpFraction );
-	mixedProperties->flEchoDepth = QM_Lerp( mixedProperties->flEchoDepth, toProperites->flEchoDepth, lerpFraction );
+	mixedProperties->flEchoTime = QM_Lerp<float>( mixedProperties->flEchoTime, toProperites->flEchoTime, lerpFraction );
+	mixedProperties->flEchoDepth = QM_Lerp<float>( mixedProperties->flEchoDepth, toProperites->flEchoDepth, lerpFraction );
 	
-	mixedProperties->flModulationTime = QM_Lerp( mixedProperties->flModulationTime, toProperites->flModulationTime, lerpFraction );
-	mixedProperties->flModulationDepth = QM_Lerp( mixedProperties->flModulationDepth, toProperites->flModulationDepth, lerpFraction );
+	mixedProperties->flModulationTime = QM_Lerp<float>( mixedProperties->flModulationTime, toProperites->flModulationTime, lerpFraction );
+	mixedProperties->flModulationDepth = QM_Lerp<float>( mixedProperties->flModulationDepth, toProperites->flModulationDepth, lerpFraction );
 
-	mixedProperties->flAirAbsorptionGainHF = QM_Lerp( mixedProperties->flAirAbsorptionGainHF, toProperites->flAirAbsorptionGainHF, lerpFraction );
+	mixedProperties->flAirAbsorptionGainHF = QM_Lerp<float>( mixedProperties->flAirAbsorptionGainHF, toProperites->flAirAbsorptionGainHF, lerpFraction );
 
-	mixedProperties->flHFReference = QM_Lerp( mixedProperties->flHFReference, toProperites->flHFReference, lerpFraction );
-	mixedProperties->flLFReference = QM_Lerp( mixedProperties->flLFReference, toProperites->flLFReference, lerpFraction );
+	mixedProperties->flHFReference = QM_Lerp<float>( mixedProperties->flHFReference, toProperites->flHFReference, lerpFraction );
+	mixedProperties->flLFReference = QM_Lerp<float>( mixedProperties->flLFReference, toProperites->flLFReference, lerpFraction );
 
-	mixedProperties->flRoomRolloffFactor = QM_Lerp( mixedProperties->flRoomRolloffFactor, toProperites->flRoomRolloffFactor, lerpFraction );
+	mixedProperties->flRoomRolloffFactor = QM_Lerp<float>( mixedProperties->flRoomRolloffFactor, toProperites->flRoomRolloffFactor, lerpFraction );
 
-	mixedProperties->iDecayHFLimit = QM_Lerp( mixedProperties->iDecayHFLimit, toProperites->iDecayHFLimit, lerpFraction );
+	mixedProperties->iDecayHFLimit = QM_Lerp<float>( mixedProperties->iDecayHFLimit, toProperites->iDecayHFLimit, lerpFraction );
 }
 
 /**

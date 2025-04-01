@@ -36,21 +36,21 @@ static inline const float SHORT2COORD( const int s ) {
 *   @brief	Encodes the float to an int8_t, having a limit of: -32/+32
 **/
 static inline const int8_t OFFSET2CHAR( const float f ) {
-	return (int8_t)( QM_Clampf( f, -32, 127.0f / 4 ) * 4.f );
+	return (int8_t)( QM_Clamp( f, -32.f, 127.0f / 4.f ) * 4.f );
 }
 /**
 *   @brief	Encodes the "blend" float(normalized range, 0 to 1) to an uint8_t with range(0 = 0, 1 = 255).
 **/
 static inline const uint8_t BLEND2BYTE( const float f ) {
 	// Encode.
-	return (uint8_t)( QM_Clampf( f, 0.f, 1.f ) * 255.f );
+	return (uint8_t)( QM_Clamp( f, 0.f, 1.f ) * 255.f );
 }
 /**
 *   @brief	Encodes the "blend" float(normalized range, 0 to 1) to an uint16_t with range(0 = 0, 1 = 65536).
 **/
 static inline const uint16_t BLEND2SHORT( const float f ) {
 	// Encode.
-	return (uint16_t)( QM_Clampf( f, 0.f, 1.f ) * 65536.f );
+	return (uint16_t)( QM_Clamp( f, 0.f, 1.f ) * 65536.f );
 }
 
 #endif // #ifdef __cplusplus

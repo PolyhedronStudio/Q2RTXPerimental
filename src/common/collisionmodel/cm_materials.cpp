@@ -128,7 +128,7 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
             // Empty buffer.
             memset( material->physical.kind, 0, MAX_MATERIAL_KIND_STR_LENGTH );
             // Get and clamp length to copy.
-            const int32_t copyLength = QM_ClampInt32( physical_material_kind.length(), 0, MAX_MATERIAL_KIND_STR_LENGTH );
+            const int32_t copyLength = QM_Clamp<int32_t>( physical_material_kind.length(), 0, MAX_MATERIAL_KIND_STR_LENGTH );
             // Copy over the material kind into the char buffer.
             Q_strlcpy( material->physical.kind, physical_material_kind.c_str(), copyLength );
 		}

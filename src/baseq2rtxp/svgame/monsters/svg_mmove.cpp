@@ -230,16 +230,16 @@ void SVG_MMove_FaceIdealYaw( svg_entity_t *ent, const float idealYaw, const floa
 		return;
 	}
 
-	float yawAngleMove = idealYaw - currentYawAngle;
+	double yawAngleMove = idealYaw - currentYawAngle;
 
 	// Prevent the monster from rotating a full circle around the yaw.
 	// Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
-	yawAngleMove = QM_Wrapf( yawAngleMove, -180.f, 180.f );
+	yawAngleMove = QM_Wrap( yawAngleMove, -180., 180. );
 	#if 0
 	if (ideal > current) { if ( yawAngleMove >= 180 ) { yawAngleMove = yawAngleMove - 360; } } else { if ( yawAngleMove <= -180 ) { yawAngleMove = yawAngleMove + 360; } }
 	#endif
 	// Clamp the yaw move speed.
-	yawAngleMove = QM_Clampf( yawAngleMove, -yawSpeed, yawSpeed );
+	yawAngleMove = QM_Clamp( yawAngleMove, (double) - yawSpeed, (double)yawSpeed );
 	#if 0
 	if (move > 0) { if ( yawAngleMove > yawSpeed ) { yawAngleMove = yawSpeed; } } else { if ( yawAngleMove < -yawSpeed ) { yawAngleMove = -yawSpeed; }
 	#endif

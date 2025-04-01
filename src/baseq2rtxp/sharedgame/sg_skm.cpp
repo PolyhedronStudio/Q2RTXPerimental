@@ -412,7 +412,7 @@ const bool SG_SKM_ProcessAnimationStateForTime( const model_t *model, sg_skm_ani
 	const int32_t skmLastFrame = skmAnimation->first_frame + skmAnimation->num_frames; // use these instead?
 
     // The old frame of the animation state, possibly the one to lerp from into a new animation.
-    const int32_t oldFrame = QM_ClampInt32( animationState->currentFrame, skmFirstFrame, skmLastFrame );
+    const uint32_t oldFrame = QM_ClampUnsigned<uint32_t>( animationState->currentFrame, skmFirstFrame, skmLastFrame );
 
     // Backup the previously 'current' frame as its last frame.
     animationState->previousFrame = oldFrame;
@@ -875,8 +875,8 @@ void SKM_LerpRangeBonePoses( const model_t *model, const skm_transform_t *frameB
     skm_transform_t *relativeJoint = outBonePose;
 
     // Ensure the ranges are within bounds.
-    const int32_t _rangeStart = QM_ClampInt32( rangeStart, 0, skmData->num_poses );
-    const int32_t _rangeSize = QM_ClampInt32( rangeSize, 0, skmData->num_poses - _rangeStart );
+    const uint32_t _rangeStart = QM_ClampUnsigned<uint32_t>( rangeStart, 0, skmData->num_poses );
+    const uint32_t _rangeSize = QM_ClampUnsigned<uint32_t>( rangeSize, 0, skmData->num_poses - _rangeStart );
 
     // Copy the animation frame pos.
     if ( frameBonePoses == oldFrameBonePoses ) {

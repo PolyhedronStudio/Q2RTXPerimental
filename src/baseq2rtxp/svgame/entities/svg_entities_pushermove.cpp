@@ -532,7 +532,9 @@ void SVG_PushMove_Think_AccelerateMoveNew( svg_entity_t *ent ) {
 
         t = ( ent->pushMoveInfo.curve.subFrame + 1 ) / ( (float)ent->pushMoveInfo.curve.numberSubFrames + 1 );
 
-        target_dist = QM_Lerp( ent->pushMoveInfo.curve.positions[ ent->pushMoveInfo.curve.frame - 1 ], ent->pushMoveInfo.curve.positions[ ent->pushMoveInfo.curve.frame ], t );
+        // Prevent going < 0 for position index.
+        int32_t frame_index = ( ent->pushMoveInfo.curve.frame >= 1 ? ent->pushMoveInfo.curve.frame - 1 : 0 );
+        target_dist = QM_Lerp<float>( (float)ent->pushMoveInfo.curve.positions[ frame_index ], (float)ent->pushMoveInfo.curve.positions[ ent->pushMoveInfo.curve.frame ], (float)t );
         ent->pushMoveInfo.curve.subFrame++;
     } else {
         if ( ent->pushMoveInfo.curve.frame == ent->pushMoveInfo.curve.countPositions ) {

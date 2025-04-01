@@ -1531,7 +1531,9 @@ void SVG_ReadLevel(const char *filename)
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
         g_edicts[ i ] = {};
     }
-    //memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
+    //memset(g_edicts, 0, sizeof(g_edicts[0]));
+    //std::fill_n( &g_edicts[ i ], sizeof(svg_entity_t), 0 );
+
     globals.num_edicts = maxclients->value + 1;
 
     i = read_int(f);

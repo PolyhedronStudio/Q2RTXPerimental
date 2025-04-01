@@ -110,7 +110,7 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
         constexpr int32_t animationHz = BASE_FRAMERATE;
         constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
         refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-        refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+        refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
         refreshEntity->frame = packetEntity->current_frame;
         refreshEntity->oldframe = packetEntity->last_frame;
     }
