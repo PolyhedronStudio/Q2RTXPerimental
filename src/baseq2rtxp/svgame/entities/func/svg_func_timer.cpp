@@ -29,12 +29,12 @@ so, the basic time between firing is a random time between
 
 These can used but not touched.
 */
-void func_timer_think( svg_entity_t *self ) {
+void func_timer_think( edict_t *self ) {
     SVG_UseTargets( self, self->activator );
     self->nextthink = level.time + QMTime::FromSeconds( self->wait + crandom() * self->random );
 }
 
-void func_timer_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->activator = activator;
 
     // if on, turn it off
@@ -50,7 +50,7 @@ void func_timer_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *acti
         func_timer_think( self );
 }
 
-void SP_func_timer( svg_entity_t *self ) {
+void SP_func_timer( edict_t *self ) {
     if ( !self->wait )
         self->wait = 1.0f;
 

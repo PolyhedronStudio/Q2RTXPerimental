@@ -13,7 +13,7 @@
 *		float
 *		std::string
 *		char*(because of std::string)
-*		svg_entity_t*(if not a nullptr, and entity is inuse, it will push to stack the entity number, -1 otherwise.)
+*		edict_t*(if not a nullptr, and entity is inuse, it will push to stack the entity number, -1 otherwise.)
 * 
 *	Implementation for custom types can be added.
 *	
@@ -36,9 +36,9 @@ typedef enum {
 //	// Do absolutely nothing
 //	return;
 //}
-//// svg_entity_t*
+//// edict_t*
 //template <typename... Rest>
-//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const svg_entity_t *e, const Rest&... rest ) {
+//static inline void LUA_CallFunction_PushStackValue( lua_State *L, const edict_t *e, const Rest&... rest ) {
 //	if ( e != nullptr && e->inuse ) {
 //		lua_pushinteger( L, e->s.number );
 //	} else {
@@ -217,7 +217,7 @@ static const bool LUA_CallFunction( sol::state_view &stateView,
 *	@note	One has to deal and pop return values themselves.
 **/
 template <typename RetType, typename... Rest>
-static const bool LUA_CallLuaNameEntityFunction( svg_entity_t *ent, const std::string callBackName, sol::state_view &stateView,
+static const bool LUA_CallLuaNameEntityFunction( edict_t *ent, const std::string callBackName, sol::state_view &stateView,
 	RetType &returnValue,
 	// WID: TODO: Do proper argument inspectations perhaps?
 	//const int32_t numExpectedArgs = 0, const int32_t numReturnValues = 0,

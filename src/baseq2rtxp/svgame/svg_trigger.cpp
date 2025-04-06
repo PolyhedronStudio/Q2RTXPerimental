@@ -35,7 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
 **/
-const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, svg_entity_t *entity, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
     if ( luaName.empty() ) {
         return false;
     }
@@ -67,7 +67,7 @@ const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const
 /**
 *   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
 **/
-void SVG_Trigger_PrintMessage( svg_entity_t *self, svg_entity_t *activator ) {
+void SVG_Trigger_PrintMessage( edict_t *self, edict_t *activator ) {
     // If a message was set, the activator is not a monster, then center print it.
     if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
         // Print.
@@ -84,9 +84,9 @@ void SVG_Trigger_PrintMessage( svg_entity_t *self, svg_entity_t *activator ) {
 /**
 *   @brief  Kills all entities matching the killtarget name.
 **/
-const int32_t SVG_Trigger_KillTargets( svg_entity_t *self ) {
+const int32_t SVG_Trigger_KillTargets( edict_t *self ) {
     if ( self->targetNames.kill ) {
-        svg_entity_t *killTargetEntity = nullptr;
+        edict_t *killTargetEntity = nullptr;
         while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS_GENTITY( targetname ), (const char *)self->targetNames.kill ) ) ) {
             SVG_FreeEdict( killTargetEntity );
             if ( !self->inuse ) {
@@ -115,10 +115,10 @@ static constexpr int32_t PICKTARGET_MAX = 8;
 /**
 *   @brief  Pick a random target of entities with a matching targetname.
 **/
-svg_entity_t *SVG_PickTarget( const char *targetname ) {
-    svg_entity_t *ent = NULL;
+edict_t *SVG_PickTarget( const char *targetname ) {
+    edict_t *ent = NULL;
     int     num_choices = 0;
-    svg_entity_t *choice[ PICKTARGET_MAX ];
+    edict_t *choice[ PICKTARGET_MAX ];
 
     if ( !targetname ) {
         gi.dprintf( "SVG_PickTarget called with NULL targetname\n" );
@@ -144,7 +144,7 @@ svg_entity_t *SVG_PickTarget( const char *targetname ) {
 
 
 
-void Think_UseTargetsDelay( svg_entity_t *ent ) {
+void Think_UseTargetsDelay( edict_t *ent ) {
     SVG_UseTargets( ent, ent->activator );
     SVG_FreeEdict( ent );
 }
@@ -165,13 +165,13 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void SVG_UseTargets( svg_entity_t *ent, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     //
     // Check for a delay
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        svg_entity_t *delayEntity = SVG_AllocateEdict();
+        edict_t *delayEntity = SVG_AllocateEdict();
         delayEntity->classname = "DelayedUseTargets";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
         delayEntity->think = Think_UseTargetsDelay;
@@ -208,7 +208,7 @@ void SVG_UseTargets( svg_entity_t *ent, svg_entity_t *activator, const entity_us
     // fire targets
     //
     if ( ent->targetNames.target ) {
-        svg_entity_t *fireTargetEntity = nullptr;
+        edict_t *fireTargetEntity = nullptr;
         while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.target ) ) ) {
             // Doors fire area portals in a specific way
             if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )

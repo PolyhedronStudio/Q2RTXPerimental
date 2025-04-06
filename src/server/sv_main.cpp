@@ -1629,7 +1629,7 @@ static void SV_PrepWorldFrame(void)
     edict_t    *ent;
     int        i;
 
-    for (i = 1; i < ge->num_edicts; i++) {
+    for (i = 1; i < ge->edicts.num_edicts; i++) {
         ent = EDICT_FOR_NUMBER(i);
 
         // events only last for a single keyframe

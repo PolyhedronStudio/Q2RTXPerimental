@@ -54,7 +54,7 @@ QMTime FRAME_TIME_MS;
 int sm_meat_index;
 int snd_fry;
 
-svg_entity_t	*g_edicts;
+edict_t	*g_edicts;
 
 // WID: gamemode support:
 cvar_t *dedicated;
@@ -110,15 +110,15 @@ cvar_t *g_select_empty;
 //
 // Func Declarations:
 //
-void SVG_Client_Begin( svg_entity_t *ent );
-void SVG_Client_Command( svg_entity_t *ent );
-qboolean SVG_Client_Connect( svg_entity_t *ent, char *userinfo );
-void SVG_Client_Disconnect( svg_entity_t *ent );
-void SVG_Client_Think( svg_entity_t *ent, usercmd_t *cmd );
-void SVG_Client_UserinfoChanged( svg_entity_t *ent, char *userinfo );
+void SVG_Client_Begin( edict_t *ent );
+void SVG_Client_Command( edict_t *ent );
+qboolean SVG_Client_Connect( edict_t *ent, char *userinfo );
+void SVG_Client_Disconnect( edict_t *ent );
+void SVG_Client_Think( edict_t *ent, usercmd_t *cmd );
+void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
 
 void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
-void SVG_RunEntity(svg_entity_t *ent);
+void SVG_RunEntity(edict_t *ent);
 void SVG_WriteGame(const char *filename, qboolean autosave);
 void SVG_ReadGame(const char *filename);
 void SVG_WriteLevel(const char *filename);
@@ -324,15 +324,15 @@ void SVG_InitGame( void )
     // initialize all entities for this game
     game.maxentities = QM_ClampUnsigned<uint32_t>(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
 	// WID: C++20: Addec cast.
-    g_edicts = (svg_entity_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
-    globals.edicts = g_edicts;
-    globals.max_edicts = game.maxentities;
+    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
+    globals.edicts.edicts = g_edicts;
+    globals.edicts.max_edicts = game.maxentities;
 
     // initialize all clients for this game
     game.maxclients = maxclients->value;
 	// WID: C++20: Addec cast.
     game.clients = (svg_client_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
-    globals.num_edicts = game.maxclients + 1;
+    globals.edicts.num_edicts = game.maxclients + 1;
 
     // Initialize the Lua VM.
     //SVG_Lua_Initialize();
@@ -423,7 +423,9 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.ServerCommand = SVG_ServerCommand;
 
-		globals.edict_size = sizeof( svg_entity_t );
+        globals.edicts = { };
+        globals.edicts.edicts = g_edicts;
+		globals.edicts.edict_size = sizeof( edict_t );
 
 		return &globals;
 	}
@@ -480,7 +482,7 @@ void ClientEndServerFrames(void) {
     // calc the player views now that all pushing
     // and damage has been added
     for ( int32_t i = 0 ; i < maxclients->value ; i++) {
-        svg_entity_t *ent = g_edicts + 1 + i;
+        edict_t *ent = g_edicts + 1 + i;
         if ( !ent->inuse || !ent->client ) {
             continue;
         }
@@ -492,8 +494,8 @@ void ClientEndServerFrames(void) {
 /**
 *   @brief  Returns the created target changelevel
 **/
-svg_entity_t *CreateTargetChangeLevel( char *map ) {
-    svg_entity_t *ent;
+edict_t *CreateTargetChangeLevel( char *map ) {
+    edict_t *ent;
 
     ent = SVG_AllocateEdict();
     ent->classname = "target_changelevel";
@@ -508,7 +510,7 @@ svg_entity_t *CreateTargetChangeLevel( char *map ) {
 *   @brief  The timelimit or fraglimit has been exceeded
 **/
 void EndDMLevel(void) {
-    svg_entity_t     *ent;
+    edict_t     *ent;
     char *s, *t, *f;
     static const char *seps = " ,\n\r";
 
@@ -629,7 +631,7 @@ void CheckDMRules(void) {
 **/
 void ExitLevel(void) {
     int     i;
-    svg_entity_t *ent;
+    edict_t *ent;
     char    command [256];
 
     // WID: LUA: CallBack.
@@ -687,8 +689,8 @@ void SVG_RunFrame(void) {
     // Treat each object in turn
     // even the world gets a chance to think
     //
-    svg_entity_t *ent = &g_edicts[ 0 ];
-    for ( int32_t i = 0; i < globals.num_edicts; i++, ent++ ) {
+    edict_t *ent = &g_edicts[ 0 ];
+    for ( int32_t i = 0; i < globals.edicts.num_edicts; i++, ent++ ) {
         if ( !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."
             if ( i > 0 && i <= game.maxclients ) {
@@ -723,7 +725,7 @@ void SVG_RunFrame(void) {
             //} else {
             //    // If the ground entity is still 1 unit below us, we're good.
             //    Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-            //    svg_trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+            //    svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
 
             //    if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
             //        ent->groundentity = nullptr;

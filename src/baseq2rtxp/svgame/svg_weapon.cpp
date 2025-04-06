@@ -16,6 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 
 /*
@@ -27,7 +28,7 @@ a non-instant attack weapon.  It checks to see if a
 monster's dodge function should be called.
 =================
 */
-static void check_dodge(svg_entity_t *self, vec3_t start, vec3_t dir, int speed)
+static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
 {
     // WID: TODO: Monster Reimplement.
     //vec3_t  end;
@@ -41,7 +42,7 @@ static void check_dodge(svg_entity_t *self, vec3_t start, vec3_t dir, int speed)
     //}
 
     //VectorMA(start, CM_MAX_WORLD_SIZE, dir, end);
-    //tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
+    //tr = SVG_Trace(start, NULL, NULL, end, self, MASK_SHOT);
     //if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
     //    VectorSubtract(tr.endpos, start, v);
     //    QMTime eta = QMTime::FromMilliseconds(VectorLength(v) - tr.ent->maxs[0]) / speed;
@@ -53,14 +54,14 @@ static void check_dodge(svg_entity_t *self, vec3_t start, vec3_t dir, int speed)
 *   @brief  Projects the muzzleflash destination origin, then performs a trace clipping it to any entity/brushes that are in its way.
 *   @return Clipped muzzleflash destination origin.
 **/
-const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( svg_entity_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right ) {
+const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right ) {
     // Project from source to muzzleflash destination.
     Vector3 muzzleFlashOrigin = {};
     muzzleFlashOrigin = SVG_Player_ProjectDistance( ent, ent->s.origin, QM_Vector3Zero(), forward, right);
 
     // To stop it accidentally spawning the MZ_PISTOL muzzleflash inside of entities and/or (wall-)brushes,
     // peform a trace from our origin on to the projected start.
-    svg_trace_t tr = gi.trace( ent->s.origin, NULL, NULL, &muzzleFlashOrigin.x, ent, MASK_SHOT );
+    svg_trace_t tr = SVG_Trace( ent->s.origin, QM_Vector3Zero(), QM_Vector3Zero(), &muzzleFlashOrigin.x, ent, MASK_SHOT );
     // We hit something, clip to trace endpos so the muzzleflash will play in our non-solid area:
     if ( tr.fraction < 1.0 ) {
         muzzleFlashOrigin = tr.endpos;
@@ -77,7 +78,7 @@ Used for all impact (hit/punch/slash) attacks
 =================
 */
 #if 0
-bool fire_hit(svg_entity_t *self, vec3_t aim, int damage, int kick)
+bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 {
     svg_trace_t     tr;
     vec3_t      forward, right, up;
@@ -105,7 +106,7 @@ bool fire_hit(svg_entity_t *self, vec3_t aim, int damage, int kick)
 
     VectorMA(self->s.origin, range, dir, point);
 
-    tr = gi.trace(self->s.origin, NULL, NULL, point, self, MASK_SHOT);
+    tr = SVG_Trace(self->s.origin, NULL, NULL, point, self, MASK_SHOT);
     if (tr.fraction < 1) {
         if (!tr.ent->takedamage)
             return false;
@@ -140,7 +141,7 @@ bool fire_hit(svg_entity_t *self, vec3_t aim, int damage, int kick)
 /**
 *   @brief  Used for all impact (fighting kick/punch) attacks
 **/
-const bool fire_hit_punch_impact( svg_entity_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick ) {
+const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick ) {
     static constexpr float HIT_RANGE = 32;
     svg_trace_t     tr = {};
     vec3_t      dir = {};
@@ -170,7 +171,7 @@ const bool fire_hit_punch_impact( svg_entity_t *self, const Vector3 &start, cons
     //}
 
 
-    tr = gi.trace( self->s.origin, NULL, NULL, &start.x, self, MASK_SHOT );
+    tr = SVG_Trace( self->s.origin, QM_Vector3Zero(), QM_Vector3Zero(), &start.x, self, MASK_SHOT );
     if ( !( tr.fraction < 1.0f ) ) {
         QM_Vector3ToAngles( aimDir, dir );
         AngleVectors( dir, forward, right, up );
@@ -181,7 +182,7 @@ const bool fire_hit_punch_impact( svg_entity_t *self, const Vector3 &start, cons
         VectorMA( end, r, right, end );
         VectorMA( end, u, up, end );
 
-        tr = gi.trace( &start.x, NULL, NULL, end, self, content_mask );
+        tr = SVG_Trace( &start.x, QM_Vector3Zero(), QM_Vector3Zero(), end, self, content_mask);
     }
 
     bool isTDamaged = false;
@@ -240,7 +241,7 @@ const bool fire_hit_punch_impact( svg_entity_t *self, const Vector3 &start, cons
 /**
 *   @brief  This is an internal support routine used for bullet/pellet based weapons.
 **/
-static void fire_lead(svg_entity_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
+static void fire_lead(edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
     Vector3 dir = { };
     Vector3 forward = {}, right = {}, up = {};
     Vector3 end = {};
@@ -249,7 +250,7 @@ static void fire_lead(svg_entity_t *self, const vec3_t start, const vec3_t aimdi
     contents_t  content_mask = ( MASK_SHOT | MASK_WATER );
     
 	// Trace a line from the origin the supposed bullet shot start point.
-    svg_trace_t tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
+    svg_trace_t tr = SVG_Trace(self->s.origin, QM_Vector3Zero(), QM_Vector3Zero(), start, self, MASK_SHOT);
 	// If we hit something, and it is not sky, then we can continue.
     if ( !( tr.fraction < 1.0f ) ) {
         // Calculate the direction of the bullet.
@@ -278,7 +279,7 @@ static void fire_lead(svg_entity_t *self, const vec3_t start, const vec3_t aimdi
         }
 
 		// Trace the bullet.
-        tr = gi.trace(start, NULL, NULL, &end.x, self, content_mask);
+        tr = SVG_Trace(start, QM_Vector3Zero(), QM_Vector3Zero(), &end.x, self, content_mask);
 
         // See if we hit water.
         if ( tr.contents & MASK_WATER ) {
@@ -327,7 +328,7 @@ static void fire_lead(svg_entity_t *self, const vec3_t start, const vec3_t aimdi
             }
 
             // re-trace ignoring water this time
-            tr = gi.trace( &water_start.x, NULL, NULL, &end.x, self, MASK_SHOT );
+            tr = SVG_Trace( &water_start.x, QM_Vector3Zero(), QM_Vector3Zero(), &end.x, self, MASK_SHOT );
         }
     }
 
@@ -361,7 +362,7 @@ static void fire_lead(svg_entity_t *self, const vec3_t start, const vec3_t aimdi
         if ( gi.pointcontents( pos ) & MASK_WATER )
             VectorCopy( pos, tr.endpos );
         else
-            tr = gi.trace( pos, NULL, NULL, &water_start.x, tr.ent, MASK_WATER );
+            tr = SVG_Trace( pos, QM_Vector3Zero(), QM_Vector3Zero(), &water_start.x, tr.ent, MASK_WATER );
 
         VectorAdd( water_start, tr.endpos, pos );
         VectorScale( pos, 0.5f, pos );
@@ -378,21 +379,21 @@ static void fire_lead(svg_entity_t *self, const vec3_t start, const vec3_t aimdi
 *   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
 *           pistols, rifles, etc....
 **/
-void fire_bullet(svg_entity_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
+void fire_bullet(edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
     fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
 /**
 *   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
 **/
-void fire_shotgun(svg_entity_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath ) {
+void fire_shotgun(edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath ) {
     int     i;
 
     for (i = 0; i < count; i++)
         fire_lead( self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
-//static const bool SVG_ShouldPlayersCollideProjectile( svg_entity_t *self ) {
+//static const bool SVG_ShouldPlayersCollideProjectile( edict_t *self ) {
 //    // In Coop they don't.
 //    if ( SG_GetActiveGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
 //        return false;

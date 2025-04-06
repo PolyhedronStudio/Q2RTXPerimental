@@ -11,4 +11,4 @@
 /**
 *	@brief	For trigger_elevator.
 **/
-void train_resume( svg_entity_t *self );
+void train_resume( edict_t *self );

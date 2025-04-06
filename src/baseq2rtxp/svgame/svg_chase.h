@@ -21,16 +21,16 @@
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Update( svg_entity_t *ent );
+void SVG_ChaseCam_Update( edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Next( svg_entity_t *ent );
+void SVG_ChaseCam_Next( edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Previous( svg_entity_t *ent );
+void SVG_ChaseCam_Previous( edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_ChaseCam_GetTarget( svg_entity_t *ent );
+void SVG_ChaseCam_GetTarget( edict_t *ent );

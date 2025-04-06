@@ -147,7 +147,7 @@
 /**
 *	@brief
 **/
-void spotlight_think( svg_entity_t *self ) {
+void spotlight_think( edict_t *self ) {
 	// Server-side lightstyles for spotlights.
 	// (This makes them consistent across all clients, while also not having to mess with VKPT.)
 	const char *lightStyle = self->customLightStyle;
@@ -174,7 +174,7 @@ void spotlight_think( svg_entity_t *self ) {
 /**
 *	@brief	
 **/
-void spotlight_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void spotlight_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	if ( self->spawnflags & START_OFF ) {
 		// Remove the 'off' flag.
 		self->spawnflags &= ~START_OFF;
@@ -194,7 +194,7 @@ void spotlight_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activ
 /**
 *	@brief
 **/
-void SP_spotlight( svg_entity_t *self ) {
+void SP_spotlight( edict_t *self ) {
 
 	SVG_InitEdict( self );
 	

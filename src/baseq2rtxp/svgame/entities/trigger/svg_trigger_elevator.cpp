@@ -19,8 +19,8 @@
 
 /*QUAKED trigger_elevator (0.3 0.1 0.6) (-8 -8 -8) (8 8 8)
 */
-void trigger_elevator_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    svg_entity_t *target;
+void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    edict_t *target;
 
     if ( self->movetarget->nextthink ) {
         //      gi.dprintf("elevator busy\n");
@@ -42,7 +42,7 @@ void trigger_elevator_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t
     train_resume( self->movetarget );
 }
 
-void trigger_elevator_init( svg_entity_t *self ) {
+void trigger_elevator_init( edict_t *self ) {
     if ( !self->targetNames.target ) {
         gi.dprintf( "trigger_elevator has no target\n" );
         return;
@@ -61,7 +61,7 @@ void trigger_elevator_init( svg_entity_t *self ) {
     self->svflags = SVF_NOCLIENT;
 }
 
-void SP_trigger_elevator( svg_entity_t *self ) {
+void SP_trigger_elevator( edict_t *self ) {
     self->s.entityType = ET_PUSH_TRIGGER;
     self->think = trigger_elevator_init;
     self->nextthink = level.time + FRAME_TIME_S;

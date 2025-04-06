@@ -15,7 +15,7 @@
 /**
 *   @brief  Use Callback: Toggles the areaportal's state.
 **/
-void Use_Areaportal( svg_entity_t *ent, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void Use_Areaportal( edict_t *ent, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     
     // Get areaportal state.
     int32_t areaPortalState = gi.GetAreaPortalState( ent->style );
@@ -32,7 +32,7 @@ void Use_Areaportal( svg_entity_t *ent, svg_entity_t *other, svg_entity_t *activ
 This is a non-visible object that divides the world into seperated when this portal is not activated.
 Usually enclosed in the middle of a door.
 */
-void SP_func_areaportal( svg_entity_t *ent ) {
+void SP_func_areaportal( edict_t *ent ) {
     // Entity type.
     ent->s.entityType = ET_AREA_PORTAL;
     // Use Callback for triggering.

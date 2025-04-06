@@ -255,6 +255,15 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
 
 //! Collision: 
+/**
+*   @brief  Hunk allocation memory block, used for resource allocation.
+**/
+typedef struct {
+    void *base;
+    size_t  maxsize;
+    size_t  cursize;
+    size_t  mapped;
+} memhunk_t;
 //! Maximum World 'Half-Size'. Now 8 times larger(+/- 32768) than the old Q2 Vanilla 'Half-Size': (+/- 4096).
 #define CM_MAX_WORLD_HALF_SIZE 32768
 //! Maximum World Size, used for calculating various trace distance end point vectors. ( 32768 * 2 == 65536 )
@@ -265,15 +274,6 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #define MAX_TOTAL_ENT_LEAFS 128
 //! Collision(-Model) Shared Subsystem Stuff:
 #include "shared/collision.h"
-
-//! BSP Format Data Structure:
-typedef struct {
-    void *base;
-    size_t  maxsize;
-    size_t  cursize;
-    size_t  mapped;
-} memhunk_t;
-
 #include "shared/format_bsp.h"
 
 
@@ -320,7 +320,9 @@ typedef struct {
 #define UF_PLAYERFOV        64
 
 
-//! Destination determinant for gi.multicast()
+/**
+*   @brief  Destination determinant for gi.multicast()
+**/
 typedef enum {
     //! Multicast to all client.
     MULTICAST_ALL,

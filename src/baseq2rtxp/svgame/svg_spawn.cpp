@@ -49,7 +49,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 typedef struct {
 	// WID: C++20: added const.
 	const char    *name;
-    void (*spawn)(svg_entity_t *ent);
+    void (*spawn)(edict_t *ent);
 } spawn_func_t;
 
 /**
@@ -72,77 +72,77 @@ typedef struct {
 * 
 **/
 // <Q2RTXP>:
-void SP_monster_testdummy_puppet( svg_entity_t *self );
+void SP_monster_testdummy_puppet( edict_t *self );
 // </Q2RTXP>
 
-void SP_item_health(svg_entity_t *self);
-void SP_item_health_small(svg_entity_t *self);
-void SP_item_health_large(svg_entity_t *self);
-void SP_item_health_mega(svg_entity_t *self);
+void SP_item_health(edict_t *self);
+void SP_item_health_small(edict_t *self);
+void SP_item_health_large(edict_t *self);
+void SP_item_health_mega(edict_t *self);
 
-void SP_info_player_start(svg_entity_t *ent);
-void SP_info_player_deathmatch(svg_entity_t *ent);
-void SP_info_player_coop(svg_entity_t *ent);
-void SP_info_player_intermission(svg_entity_t *ent);
+void SP_info_player_start(edict_t *ent);
+void SP_info_player_deathmatch(edict_t *ent);
+void SP_info_player_coop(edict_t *ent);
+void SP_info_player_intermission(edict_t *ent);
 
-void SP_func_plat(svg_entity_t *ent);
-void SP_func_rotating(svg_entity_t *ent);
-void SP_func_button(svg_entity_t *ent);
-void SP_func_door(svg_entity_t *ent);
+void SP_func_plat(edict_t *ent);
+void SP_func_rotating(edict_t *ent);
+void SP_func_button(edict_t *ent);
+void SP_func_door(edict_t *ent);
 #if 0
-void SP_func_door_secret(svg_entity_t *ent);
+void SP_func_door_secret(edict_t *ent);
 #endif
-void SP_func_door_rotating(svg_entity_t *ent);
-void SP_func_water(svg_entity_t *ent);
-void SP_func_train(svg_entity_t *ent);
-void SP_func_conveyor(svg_entity_t *self);
-void SP_func_wall(svg_entity_t *self);
-void SP_func_object(svg_entity_t *self);
-void SP_func_breakable(svg_entity_t *self);
-void SP_func_timer(svg_entity_t *self);
-void SP_func_areaportal(svg_entity_t *ent);
-//void SP_func_clock(svg_entity_t *ent);
-void SP_func_killbox(svg_entity_t *ent);
+void SP_func_door_rotating(edict_t *ent);
+void SP_func_water(edict_t *ent);
+void SP_func_train(edict_t *ent);
+void SP_func_conveyor(edict_t *self);
+void SP_func_wall(edict_t *self);
+void SP_func_object(edict_t *self);
+void SP_func_breakable(edict_t *self);
+void SP_func_timer(edict_t *self);
+void SP_func_areaportal(edict_t *ent);
+//void SP_func_clock(edict_t *ent);
+void SP_func_killbox(edict_t *ent);
 
-void SP_trigger_always(svg_entity_t *ent);
-void SP_trigger_once(svg_entity_t *ent);
-void SP_trigger_multiple(svg_entity_t *ent);
-void SP_trigger_relay(svg_entity_t *ent);
-void SP_trigger_push(svg_entity_t *ent);
-void SP_trigger_hurt(svg_entity_t *ent);
-void SP_trigger_counter(svg_entity_t *ent);
-void SP_trigger_elevator(svg_entity_t *ent);
-void SP_trigger_gravity(svg_entity_t *ent);
+void SP_trigger_always(edict_t *ent);
+void SP_trigger_once(edict_t *ent);
+void SP_trigger_multiple(edict_t *ent);
+void SP_trigger_relay(edict_t *ent);
+void SP_trigger_push(edict_t *ent);
+void SP_trigger_hurt(edict_t *ent);
+void SP_trigger_counter(edict_t *ent);
+void SP_trigger_elevator(edict_t *ent);
+void SP_trigger_gravity(edict_t *ent);
 
-void SP_target_temp_entity(svg_entity_t *ent);
-void SP_target_speaker(svg_entity_t *ent);
-void SP_target_explosion(svg_entity_t *ent);
-void SP_target_changelevel(svg_entity_t *ent);
-void SP_target_secret(svg_entity_t *ent);
-void SP_target_goal(svg_entity_t *ent);
-void SP_target_splash(svg_entity_t *ent);
-void SP_target_spawner(svg_entity_t *ent);
-void SP_target_blaster(svg_entity_t *ent);
-void SP_target_crosslevel_trigger(svg_entity_t *ent);
-void SP_target_crosslevel_target(svg_entity_t *ent);
-void SP_target_laser(svg_entity_t *self);
-void SP_target_lightramp(svg_entity_t *self);
-void SP_target_earthquake(svg_entity_t *ent);
+void SP_target_temp_entity(edict_t *ent);
+void SP_target_speaker(edict_t *ent);
+void SP_target_explosion(edict_t *ent);
+void SP_target_changelevel(edict_t *ent);
+void SP_target_secret(edict_t *ent);
+void SP_target_goal(edict_t *ent);
+void SP_target_splash(edict_t *ent);
+void SP_target_spawner(edict_t *ent);
+void SP_target_blaster(edict_t *ent);
+void SP_target_crosslevel_trigger(edict_t *ent);
+void SP_target_crosslevel_target(edict_t *ent);
+void SP_target_laser(edict_t *self);
+void SP_target_lightramp(edict_t *self);
+void SP_target_earthquake(edict_t *ent);
 
-void SP_worldspawn(svg_entity_t *ent);
+void SP_worldspawn(edict_t *ent);
 
-void SP_spotlight(svg_entity_t *self);
-void SP_light(svg_entity_t *self);
-void SP_info_null(svg_entity_t *self);
-void SP_info_notnull(svg_entity_t *self);
-void SP_path_corner(svg_entity_t *self);
+void SP_spotlight(edict_t *self);
+void SP_light(edict_t *self);
+void SP_info_null(edict_t *self);
+void SP_info_notnull(edict_t *self);
+void SP_path_corner(edict_t *self);
 
-void SP_misc_explobox(svg_entity_t *self);
-void SP_misc_gib_arm(svg_entity_t *self);
-void SP_misc_gib_leg(svg_entity_t *self);
-void SP_misc_gib_head(svg_entity_t *self);
-void SP_misc_teleporter(svg_entity_t *self);
-void SP_misc_teleporter_dest(svg_entity_t *self);
+void SP_misc_explobox(edict_t *self);
+void SP_misc_gib_arm(edict_t *self);
+void SP_misc_gib_leg(edict_t *self);
+void SP_misc_gib_head(edict_t *self);
+void SP_misc_teleporter(edict_t *self);
+void SP_misc_teleporter_dest(edict_t *self);
 
 
 /**
@@ -315,7 +315,7 @@ static const spawn_field_t temp_fields[] = {
 /**
 *   @brief  Finds the spawn function for the entity and calls it
 **/
-void ED_CallSpawn(svg_entity_t *ent)
+void ED_CallSpawn(edict_t *ent)
 {
     const spawn_func_t *s;
     gitem_t *item;
@@ -377,13 +377,13 @@ void ED_CallSpawn(svg_entity_t *ent)
 *           All but the last will have the teamchain field set to the next one
 **/
 void SVG_FindTeams( void ) {
-    svg_entity_t *e, *e2, *chain;
+    edict_t *e, *e2, *chain;
     int     i, j;
     int     c, c2;
 
     c = 0;
     c2 = 0;
-    for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
+    for ( i = 1, e = g_edicts + i; i < globals.edicts.num_edicts; i++, e++ ) {
         if ( !e->inuse )
             continue;
         if ( !e->targetNames.team )
@@ -394,7 +394,7 @@ void SVG_FindTeams( void ) {
         e->teammaster = e;
         c++;
         c2++;
-        for ( j = i + 1, e2 = e + 1; j < globals.num_edicts; j++, e2++ ) {
+        for ( j = i + 1, e2 = e + 1; j < globals.edicts.num_edicts; j++, e2++ ) {
             if ( !e2->inuse )
                 continue;
             if ( !e2->targetNames.team )
@@ -418,10 +418,10 @@ void SVG_FindTeams( void ) {
 *   @brief  Find and set the 'movewith' parent entity for entities that have this key set.
 **/
 void SVG_MoveWith_FindParentTargetEntities( void ) {
-    svg_entity_t *ent = g_edicts;
+    edict_t *ent = g_edicts;
     int32_t moveParents  = 0;
     int32_t i = 1;
-    for ( i = 1, ent = g_edicts + i; i < globals.num_edicts; i++, ent++ ) {
+    for ( i = 1, ent = g_edicts + i; i < globals.edicts.num_edicts; i++, ent++ ) {
         // It has to be in-use.
         //if ( !ent->inuse ) {
         //    continue;
@@ -437,7 +437,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
         }
 
         // Fetch 'parent' target entity.
-        svg_entity_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith.ptr );
+        edict_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith.ptr );
         // Apply.
         if ( parentMover ) {
             // Set.
@@ -645,7 +645,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     const cm_entity_t *cm_entity = nullptr;
 
     // Pointer to the most recent allocated edict to spawn.
-    svg_entity_t *spawnEdict = nullptr;
+    edict_t *spawnEdict = nullptr;
 
     // Iterate over the number of collision model entity entries.
     for ( size_t i = 0; i < numEntities; i++ ) {
@@ -799,8 +799,8 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
     // Give entities a chance to 'post spawn'.
     int32_t numPostSpawnedEntities = 0;
-    for ( int32_t i = 0; i < globals.num_edicts; i++ ) {
-        svg_entity_t *ent = &g_edicts[ i ];
+    for ( int32_t i = 0; i < globals.edicts.num_edicts; i++ ) {
+        edict_t *ent = &g_edicts[ i ];
 
         if ( ent && ent->postspawn ) {
             ent->postspawn( ent );
@@ -816,7 +816,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 #ifdef DEBUG
     i = 1;
     ent = EDICT_FOR_NUMBER(i);
-    while (i < globals.num_edicts) {
+    while (i < globals.edicts.num_edicts) {
         if (ent->inuse != 0 || ent->inuse != 1)
             Com_DPrintf("Invalid entity %d\n", i);
         i++, ent++;
@@ -971,7 +971,7 @@ Only used for the world.
 "gravity"   800 is default gravity
 "message"   text to print at user logon
 */
-void SP_worldspawn(svg_entity_t *ent)
+void SP_worldspawn(edict_t *ent)
 {
     ent->movetype = MOVETYPE_PUSH;
     ent->solid = SOLID_BSP;

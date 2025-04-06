@@ -43,7 +43,7 @@ static constexpr int32_t FUNC_WALL_ANIMATE_FAST = BIT( 4 );
 /**
 *   @brief  'Turns on' the wall.
 **/
-static void func_wall_turn_on( svg_entity_t *self ) {
+static void func_wall_turn_on( edict_t *self ) {
 	// Set the wall to be solid.
 	self->solid = SOLID_BSP;
 	// Enable entity to be send to clients.
@@ -59,7 +59,7 @@ static void func_wall_turn_on( svg_entity_t *self ) {
 /**
 *   @brief  'Turns off' the wall.
 **/
-static void func_wall_turn_off( svg_entity_t *self ) {
+static void func_wall_turn_off( edict_t *self ) {
 	// Set the wall to be non-solid.
 	self->solid = SOLID_NOT;
 	// Disable entity from being send to clients.
@@ -70,7 +70,7 @@ static void func_wall_turn_off( svg_entity_t *self ) {
 /**
 *   @brief  Will toggle the wall's state between on and off.
 **/
-static void func_wall_toggle( svg_entity_t *self ) {
+static void func_wall_toggle( edict_t *self ) {
 	// If the wall is currently solid, turn it off.
 	if ( self->solid == SOLID_NOT ) {
 		// Turn on the wall.
@@ -85,7 +85,7 @@ static void func_wall_toggle( svg_entity_t *self ) {
 /**
 *   @brief
 **/
-void func_wall_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     //
     // usetype: TOGGLE
     //
@@ -118,7 +118,7 @@ void func_wall_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activ
 /**
 *   @brief  Signal Receiving:
 **/
-void func_wall_onsignalin( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+void func_wall_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     /**
     *   Hide/Show:
     **/
@@ -171,7 +171,7 @@ void func_wall_onsignalin( svg_entity_t *self, svg_entity_t *other, svg_entity_t
 /**
 *   @brief
 **/
-void SP_func_wall( svg_entity_t *self ) {
+void SP_func_wall( edict_t *self ) {
 	// Set the movetype.
     self->movetype = MOVETYPE_PUSH;
 	// Set the entity type.

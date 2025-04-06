@@ -27,7 +27,7 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP = 32;
 /**
 *	@brief
 **/
-void hurt_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void hurt_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	if ( self->solid == SOLID_NOT ) {
 		self->solid = SOLID_TRIGGER;
 	} else {
@@ -43,7 +43,7 @@ void hurt_use( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator,
 /**
 *	@brief
 **/
-void hurt_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void hurt_touch( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
 	entity_damageflags_t dflags;
 
 	if ( !other->takedamage ) {
@@ -55,7 +55,7 @@ void hurt_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plan
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP ) {
-		svg_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		svg_trace_t clip = SVG_Clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -94,7 +94,7 @@ NO_PROTECTION   *nothing* stops the damage
 "dmg"           default 5 (whole numbers only)
 
 */
-void SP_trigger_hurt( svg_entity_t *self ) {
+void SP_trigger_hurt( edict_t *self ) {
 	// WID: Initialize triggers properly.
 	SVG_Util_InitTrigger( self );
 

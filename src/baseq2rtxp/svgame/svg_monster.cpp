@@ -16,13 +16,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 
 #if 0
 /**
 *	@brief	
 **/
-void monster_fire_bullet( svg_entity_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype ) {
+void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype ) {
 	fire_bullet( self, start, dir, damage, kick, hspread, vspread, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
@@ -33,7 +34,7 @@ void monster_fire_bullet( svg_entity_t *self, vec3_t start, vec3_t dir, const fl
 /**
 *	@brief
 **/
-void monster_fire_shotgun( svg_entity_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype ) {
+void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype ) {
 	fire_shotgun( self, start, aimdir, damage, kick, hspread, vspread, count, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
@@ -46,7 +47,7 @@ void monster_fire_shotgun( svg_entity_t *self, vec3_t start, vec3_t aimdir, cons
 /**
 *	@brief
 **/
-void M_CheckGround( svg_entity_t *ent, const contents_t mask ) {
+void M_CheckGround( edict_t *ent, const contents_t mask ) {
 	vec3_t      point;
 	svg_trace_t     trace;
 
@@ -66,7 +67,7 @@ void M_CheckGround( svg_entity_t *ent, const contents_t mask ) {
 	point[ 1 ] = ent->s.origin[ 1 ];
 	point[ 2 ] = ent->s.origin[ 2 ] - 0.25f;
 
-	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, point, ent, mask );
+	trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, point, ent, mask );
 
 	// check steepness
 	if ( trace.plane.normal[ 2 ] < 0.7f && !trace.startsolid ) {
@@ -89,7 +90,7 @@ void M_CheckGround( svg_entity_t *ent, const contents_t mask ) {
 /**
 *	@brief
 **/
-void M_CatagorizePosition( svg_entity_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype ) {
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype ) {
 	//
 	// get liquidlevel
 	//
@@ -121,7 +122,7 @@ void M_CatagorizePosition( svg_entity_t *ent, const Vector3 &in_point, liquid_le
 /**
 *	@brief	Apply world effects to monster entity.
 **/
-void M_WorldEffects( svg_entity_t *ent ) {
+void M_WorldEffects( edict_t *ent ) {
 	int     dmg;
 
     if (ent->health > 0) {
@@ -197,7 +198,7 @@ void M_WorldEffects( svg_entity_t *ent ) {
     }
 }
 
-void M_droptofloor( svg_entity_t *ent ) {
+void M_droptofloor( edict_t *ent ) {
 	vec3_t      end;
 	svg_trace_t     trace;
 
@@ -207,7 +208,7 @@ void M_droptofloor( svg_entity_t *ent ) {
 	VectorCopy( ent->s.origin, end );
 	end[ 2 ] -= 256;
 
-	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, end, ent, mask );
+	trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, end, ent, mask );
 
 	if ( trace.fraction == 1 || trace.allsolid ) {
 		return;
@@ -220,7 +221,7 @@ void M_droptofloor( svg_entity_t *ent ) {
 	M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
 }
 
-void M_SetEffects( svg_entity_t *ent ) {
+void M_SetEffects( edict_t *ent ) {
 	ent->s.effects &= ~( EF_COLOR_SHELL );
 	ent->s.renderfx &= ~( RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE );
 

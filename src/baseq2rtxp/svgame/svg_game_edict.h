@@ -60,7 +60,7 @@ typedef enum {
 * 
 *   ...
 **/
-struct edict_s {
+typedef struct edict_s {
     entity_state_t  s;
     struct gclient_s *client;   //! NULL if not a player the server expects the first part
     //! of gclient_s to be a player_state_t but the rest of it is opaque
@@ -84,7 +84,7 @@ struct edict_s {
     solid_t     solid;
     contents_t  clipmask;
     contents_t  hullContents;
-    svg_entity_t     *owner;
+    edict_t     *owner;
 
     const cm_entity_t *entityDictionary;
 
@@ -184,11 +184,11 @@ struct edict_s {
     **/
     struct {
         //! The active 'target' entity.
-        svg_entity_t *target;
+        edict_t *target;
         //! The parent entity to move along with.
-        svg_entity_t *movewith;
+        edict_t *movewith;
         //! Next child in the list of this 'movewith group' chain.
-        //svg_entity_t *movewith_next;
+        //edict_t *movewith_next;
     } targetEntities;
 
 
@@ -208,7 +208,7 @@ struct edict_s {
         //! For the SVG_UseTargets and its Lua companion.
         struct {
             //! The source entity that when UseTarget, created the DelayedUse entity.
-            svg_entity_t *creatorEntity;
+            edict_t *creatorEntity;
             //! The useType for delayed UseTarget.
             entity_usetarget_type_t useType;
             //! The useValue for delayed UseTarget.
@@ -217,7 +217,7 @@ struct edict_s {
 
         struct {
             //! The source entity that when SignalOut, created the DelayedSignalOut entity.
-            svg_entity_t *creatorEntity;
+            edict_t *creatorEntity;
             //! A copy of the actual signal name.
             char name[ 256 ];
             //! For delayed signaling.
@@ -246,11 +246,11 @@ struct edict_s {
         Vector3 totalVelocity;
 
         //! POinter to the parent we're moving with.
-        svg_entity_t *parentMoveEntity;
+        edict_t *parentMoveEntity;
 
         //! A pointer to the first 'moveWith child' entity.
         //! The child entity will be pointing to the next in line, and so on.
-        svg_entity_t *moveNextEntity;
+        edict_t *moveNextEntity;
     } moveWith;
     //! Specified physics movetype.
     int32_t     movetype;
@@ -295,7 +295,7 @@ struct edict_s {
     //! Mover last angles.
     Vector3 lastAngles;
     //! For func_train, next path to move to.
-    svg_entity_t *movetarget;
+    edict_t *movetarget;
 
 
     /**
@@ -305,52 +305,52 @@ struct edict_s {
     QMTime   nextthink;
 
     //! Gives a chance to setup references to other entities etc.
-    void        ( *postspawn )( svg_entity_t *ent );
+    void        ( *postspawn )( edict_t *ent );
 
     //! Called before actually thinking.
-    void        ( *prethink )( svg_entity_t *ent );
+    void        ( *prethink )( edict_t *ent );
     //! Called for thinking.
-    void        ( *think )( svg_entity_t *self );
+    void        ( *think )( edict_t *self );
     //! Called after thinking.
-    void        ( *postthink )( svg_entity_t *ent );
+    void        ( *postthink )( edict_t *ent );
 
     //! Called when movement has been blocked.
-    void        ( *blocked )( svg_entity_t *self, svg_entity_t *other );         // move to moveinfo?
+    void        ( *blocked )( edict_t *self, edict_t *other );         // move to moveinfo?
     //! Called when the entity touches another entity.
-    void        ( *touch )( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+    void        ( *touch )( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
     //! Called to 'trigger' the entity.
-    void        ( *use )( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+    void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
     //! Called when the entity is being 'Signalled', happens when another entity emits an OutSignal to it.
-    void        ( *onsignalin )( svg_entity_t *self, svg_entity_t *other, svg_entity_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+    void        ( *onsignalin )( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 
     //! Called when it gets damaged.
-    void        ( *pain )( svg_entity_t *self, svg_entity_t *other, float kick, int damage );
+    void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
     //! Called to die.
-    void        ( *die )( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point );
+    void        ( *die )( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
 
 
     /**
     *   Entity Pointers:
     **/
     //! Will be nullptr or world if not currently angry at anyone.
-    svg_entity_t *enemy;
+    edict_t *enemy;
     //! Previous Enemy.
-    svg_entity_t *oldenemy;
+    edict_t *oldenemy;
     //! The next path spot to walk toward.If.enemy, ignore.movetarget. When an enemy is killed, the monster will try to return to it's path.
-    svg_entity_t *goalentity;
+    edict_t *goalentity;
 
     //! Chain Entity.
-    svg_entity_t *chain;
+    edict_t *chain;
     //! Team Chain.
-    svg_entity_t *teamchain;
+    edict_t *teamchain;
     //! Team master.
-    svg_entity_t *teammaster;
+    edict_t *teammaster;
 
     //! Trigger Activator.
-    svg_entity_t *activator;
+    edict_t *activator;
     //! The entity that called upon the SignalOut/UseTarget
-    svg_entity_t *other;
+    edict_t *other;
 
 
     /**
@@ -379,8 +379,8 @@ struct edict_s {
     *   Player Noise/Trail:
     **/
     //! Pointer to noise entity.
-    svg_entity_t *mynoise;       // can go in client only
-    svg_entity_t *mynoise2;
+    edict_t *mynoise;       // can go in client only
+    edict_t *mynoise2;
     //! Noise indexes.
     int32_t noise_index;
     int32_t noise_index2;
@@ -446,7 +446,7 @@ struct edict_s {
     **/
     Vector3 move_origin;
     Vector3 move_angles;
-};
+} edict_t;
 
 
 
@@ -462,7 +462,7 @@ struct edict_s {
 /**
 *   @brief  (Re-)initialize an edict.
 **/
-void SVG_InitEdict( svg_entity_t *e );
+void SVG_InitEdict( edict_t *e );
 /**
 *   @brief  Either finds a free edict, or allocates a new one.
 *   @remark This function tries to avoid reusing an entity that was recently freed,
@@ -470,11 +470,11 @@ void SVG_InitEdict( svg_entity_t *e );
 *           else instead of being removed and recreated, which can cause interpolated
 *           angles and bad trails.
 **/
-svg_entity_t *SVG_AllocateEdict( void );
+edict_t *SVG_AllocateEdict( void );
 /**
 *   @brief  Marks the edict as free
 **/
-void SVG_FreeEdict( svg_entity_t *e );
+void SVG_FreeEdict( edict_t *e );
 
 
 
@@ -494,11 +494,11 @@ void SVG_FreeEdict( svg_entity_t *e );
 *   @remark Searches beginning at the edict after from, or the beginning if NULL
 *           NULL will be returned if the end of the list is reached.
 **/
-svg_entity_t *SVG_Find( svg_entity_t *from, const int32_t fieldofs, const char *match ); // WID: C++20: Added const.
+edict_t *SVG_Find( edict_t *from, const int32_t fieldofs, const char *match ); // WID: C++20: Added const.
 /**
 *   @brief  Similar to SVG_Find, but, returns entities that have origins within a spherical area.
 **/
-svg_entity_t *SVG_FindWithinRadius( svg_entity_t *from, const vec3_t org, const float rad );
+edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad );
 
 
 
@@ -514,7 +514,7 @@ svg_entity_t *SVG_FindWithinRadius( svg_entity_t *from, const vec3_t org, const 
 /**
 *   @brief  Returns true if, ent != nullptr, ent->inuse == true.
 **/
-static inline const bool SVG_IsActiveEntity( const svg_entity_t *ent ) {
+static inline const bool SVG_IsActiveEntity( const edict_t *ent ) {
     // nullptr:
     if ( !ent ) {
         return false;
@@ -529,7 +529,7 @@ static inline const bool SVG_IsActiveEntity( const svg_entity_t *ent ) {
 /**
 *   @brief  Returns true if the entity is active and has a client assigned to it.
 **/
-static inline const bool SVG_IsClientEntity( const svg_entity_t *ent, const bool healthCheck = false ) {
+static inline const bool SVG_IsClientEntity( const edict_t *ent, const bool healthCheck = false ) {
     // Inactive Entity:
     if ( !SVG_IsActiveEntity( ent ) ) {
         return false;
@@ -549,7 +549,7 @@ static inline const bool SVG_IsClientEntity( const svg_entity_t *ent, const bool
 /**
 *   @brief  Returns true if the entity is active and is an actual monster.
 **/
-static inline const bool SVG_IsMonsterEntity( const svg_entity_t *ent/*, const bool healthCheck = false */ ) {
+static inline const bool SVG_IsMonsterEntity( const edict_t *ent/*, const bool healthCheck = false */ ) {
     // Inactive Entity:
     if ( !SVG_IsActiveEntity( ent ) ) {
         return false;
@@ -565,7 +565,7 @@ static inline const bool SVG_IsMonsterEntity( const svg_entity_t *ent/*, const b
 *   @brief  Returns true if the entity is active(optional, true by default) and has a luaName set to it.
 *   @param  mustBeActive    If true, it will also check for whether the entity is an active entity.
 **/
-static inline const bool SVG_IsValidLuaEntity( const svg_entity_t *ent, const bool mustBeActive = true ) {
+static inline const bool SVG_IsValidLuaEntity( const edict_t *ent, const bool mustBeActive = true ) {
     // Inactive Entity:
     if ( mustBeActive && !SVG_IsActiveEntity( ent ) ) {
         return false;
@@ -596,7 +596,7 @@ void SVG_InitBodyQue( void );
 /**
 *   @brief
 **/
-void SVG_CopyToBodyQue( svg_entity_t *ent );
+void SVG_CopyToBodyQue( edict_t *ent );
 
 
 /**
@@ -611,7 +611,7 @@ void SVG_CopyToBodyQue( svg_entity_t *ent );
 /**
 *   @brief  Returns true if the entity has specified spawnFlags set.
 **/
-static inline const bool SVG_HasSpawnFlags( const svg_entity_t *ent, const int32_t spawnFlags ) {
+static inline const bool SVG_HasSpawnFlags( const edict_t *ent, const int32_t spawnFlags ) {
     return ( ent->spawnflags & spawnFlags ) != 0;
 }
 
@@ -629,13 +629,13 @@ static inline const bool SVG_HasSpawnFlags( const svg_entity_t *ent, const int32
 /**
 *   @brief  Returns true if the entity has the specified useTarget flags set.
 **/
-static inline const bool SVG_UseTarget_HasUseTargetFlags( const svg_entity_t *ent, const entity_usetarget_flags_t useTargetFlags ) {
+static inline const bool SVG_UseTarget_HasUseTargetFlags( const edict_t *ent, const entity_usetarget_flags_t useTargetFlags ) {
     return ( ( ent->useTarget.flags & useTargetFlags ) ) != 0 ? true : false;
 }
 /**
 *   @brief  Returns true if the entity has the specified useTarget flags set.
 **/
-static inline const bool SVG_UseTarget_HasUseTargetState( const svg_entity_t *ent, const entity_usetarget_state_t useTargetState ) {
+static inline const bool SVG_UseTarget_HasUseTargetState( const edict_t *ent, const entity_usetarget_state_t useTargetState ) {
     return ( ent->useTarget.state & useTargetState ) != 0 ? true : false;
 }
 
@@ -656,16 +656,16 @@ static inline const bool SVG_UseTarget_HasUseTargetState( const svg_entity_t *en
 *           which if hits nothing, means the entity is visible.
 *   @return True if the entity 'other' is visible to 'self'.
 **/
-const bool SVG_Entity_IsVisible( svg_entity_t *self, svg_entity_t *other );
+const bool SVG_Entity_IsVisible( edict_t *self, edict_t *other );
 /**
 *   @return True if the entity is in front (in sight) of self
 **/
-const bool SVG_Entity_IsInFrontOf( svg_entity_t *self, svg_entity_t *other, const float dotRangeArea = 3.0f );
+const bool SVG_Entity_IsInFrontOf( edict_t *self, edict_t *other, const float dotRangeArea = 3.0f );
 /**
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
-const bool SVG_Entity_IsInFrontOf( svg_entity_t *self, const Vector3 &testOrigin, const float dotRangeArea = 3.0f );
+const bool SVG_Entity_IsInFrontOf( edict_t *self, const Vector3 &testOrigin, const float dotRangeArea = 3.0f );
 /**
 *   @brief  Find the matching information for the ID and assign it to the entity's useTarget.hintInfo.
 **/
-void SVG_Entity_SetUseTargetHintByID( svg_entity_t *ent, const int32_t id );
+void SVG_Entity_SetUseTargetHintByID( edict_t *ent, const int32_t id );

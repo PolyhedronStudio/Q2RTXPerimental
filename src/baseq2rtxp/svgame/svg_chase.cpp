@@ -7,16 +7,16 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_chase.h"
-
+#include "svgame/svg_utils.h"
 
 
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Update(svg_entity_t *ent)
+void SVG_ChaseCam_Update(edict_t *ent)
 {
     vec3_t o, ownerv, goal;
-    svg_entity_t *targ;
+    edict_t *targ;
     vec3_t forward, right;
     svg_trace_t trace;
     vec3_t angles;
@@ -24,7 +24,7 @@ void SVG_ChaseCam_Update(svg_entity_t *ent)
     // is our chase target gone?
     if (!ent->client->chase_target->inuse
         || ent->client->chase_target->client->resp.spectator) {
-        svg_entity_t *old = ent->client->chase_target;
+        edict_t *old = ent->client->chase_target;
         SVG_ChaseCam_Next(ent);
         if (ent->client->chase_target == old) {
             ent->client->chase_target = NULL;
@@ -54,7 +54,7 @@ void SVG_ChaseCam_Update(svg_entity_t *ent)
         o[ 2 ] += 16;
     }
 
-    trace = gi.trace(ownerv, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(ownerv, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
 
     VectorCopy(trace.endpos, goal);
 
@@ -63,7 +63,7 @@ void SVG_ChaseCam_Update(svg_entity_t *ent)
     // pad for floors and ceilings
     VectorCopy(goal, o);
     o[2] += 6;
-    trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
     if (trace.fraction < 1) {
         VectorCopy(trace.endpos, goal);
         goal[2] -= 6;
@@ -71,7 +71,7 @@ void SVG_ChaseCam_Update(svg_entity_t *ent)
 
     VectorCopy(goal, o);
     o[2] -= 6;
-    trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
     if (trace.fraction < 1) {
         VectorCopy(trace.endpos, goal);
         goal[2] += 6;
@@ -105,10 +105,10 @@ void SVG_ChaseCam_Update(svg_entity_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Next(svg_entity_t *ent)
+void SVG_ChaseCam_Next(edict_t *ent)
 {
     int i;
-    svg_entity_t *e;
+    edict_t *e;
 
     if (!ent->client->chase_target)
         return;
@@ -134,10 +134,10 @@ void SVG_ChaseCam_Next(svg_entity_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Previous(svg_entity_t *ent)
+void SVG_ChaseCam_Previous(edict_t *ent)
 {
     int i;
-    svg_entity_t *e;
+    edict_t *e;
 
     if (!ent->client->chase_target)
         return;
@@ -163,10 +163,10 @@ void SVG_ChaseCam_Previous(svg_entity_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_GetTarget(svg_entity_t *ent)
+void SVG_ChaseCam_GetTarget(edict_t *ent)
 {
     int i;
-    svg_entity_t *other;
+    edict_t *other;
 
     for (i = 1; i <= maxclients->value; i++) {
         other = g_edicts + i;

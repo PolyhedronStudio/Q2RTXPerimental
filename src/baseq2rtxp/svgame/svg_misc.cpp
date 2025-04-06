@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 
-void ClipGibVelocity(svg_entity_t *ent)
+void ClipGibVelocity(edict_t *ent)
 {
     ent->velocity = QM_Vector3Clamp( 
         ent->velocity, 
@@ -45,7 +45,7 @@ void ClipGibVelocity(svg_entity_t *ent)
 /**
 *   @brief
 **/
-void gib_think(svg_entity_t *self) {
+void gib_think(edict_t *self) {
     self->s.frame++;
     //self->nextthink = level.frameNumber + 1;
 	self->nextthink = level.time + FRAME_TIME_S;
@@ -57,7 +57,7 @@ void gib_think(svg_entity_t *self) {
 /**
 *   @brief
 **/
-void gib_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void gib_touch( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     vec3_t  normal_angles, right;
 
     if ( !self->groundInfo.entity ) {
@@ -83,7 +83,7 @@ void gib_touch( svg_entity_t *self, svg_entity_t *other, const cm_plane_t *plane
 /**
 *   @brief
 **/
-void gib_die( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point ) {
+void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
     SVG_FreeEdict(self);
 }
 
@@ -101,12 +101,12 @@ void gib_die( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacke
 /**
 *   @brief
 **/
-void SVG_Misc_ThrowGib( svg_entity_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
+void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
     vec3_t  origin;
     vec3_t  size;
     float   vscale;
 
-    svg_entity_t *gib = SVG_AllocateEdict();
+    edict_t *gib = SVG_AllocateEdict();
 
     VectorScale(self->size, 0.5f, size);
     VectorAdd(self->absmin, size, origin);
@@ -144,7 +144,7 @@ void SVG_Misc_ThrowGib( svg_entity_t *self, const char *gibname, const int32_t d
 /**
 *   @brief
 **/
-void SVG_Misc_ThrowHead( svg_entity_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
+void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
     vec3_t  vd;
     float   vscale;
 
@@ -188,7 +188,7 @@ void SVG_Misc_ThrowHead( svg_entity_t *self, const char *gibname, const int32_t 
 /**
 *   @brief
 **/
-void SVG_Misc_ThrowClientHead( svg_entity_t *self, const int32_t damage ) {
+void SVG_Misc_ThrowClientHead( edict_t *self, const int32_t damage ) {
 	// WID: C++20: Added const.
     const char    *gibname;
 
@@ -239,7 +239,7 @@ void SVG_Misc_ThrowClientHead( svg_entity_t *self, const int32_t damage ) {
 * 
 * 
 ***/
-void debris_die(svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point)
+void debris_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
 {
     SVG_FreeEdict(self);
 }
@@ -247,10 +247,10 @@ void debris_die(svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attac
 /**
 *   @brief  
 **/
-void SVG_Misc_ThrowDebris(svg_entity_t *self, const char *modelname, const float speed, vec3_t origin)
+void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, const float speed, vec3_t origin)
 {
 
-    svg_entity_t *chunk = SVG_AllocateEdict();
+    edict_t *chunk = SVG_AllocateEdict();
     VectorCopy(origin, chunk->s.origin);
     gi.setmodel(chunk, modelname);
     Vector3 v = {
@@ -288,7 +288,7 @@ void SVG_Misc_ThrowDebris(svg_entity_t *self, const char *modelname, const float
 /**
 *   @brief	Spawns a temp entity explosion effect at the entity's origin, and optionally frees the entity.
 **/
-void SVG_Misc_BecomeExplosion( svg_entity_t *self, int type, const bool freeEntity ) {
+void SVG_Misc_BecomeExplosion( edict_t *self, int type, const bool freeEntity ) {
     gi.WriteUint8(svc_temp_entity);
     //if ( type == 1 ) {
     //    gi.WriteUint8( TE_EXPLOSION1 );
@@ -347,7 +347,7 @@ const Vector3 SVG_Misc_VelocityForDamage( const int32_t damage ) {
 /*QUAKED misc_gib_arm (1 0 0) (-8 -8 -8) (8 8 8)
 Intended for use with the target_spawner
 */
-void SP_misc_gib_arm(svg_entity_t *ent)
+void SP_misc_gib_arm(edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/arm/tris.md2");
     ent->solid = SOLID_NOT;
@@ -369,7 +369,7 @@ void SP_misc_gib_arm(svg_entity_t *ent)
 /*QUAKED misc_gib_leg (1 0 0) (-8 -8 -8) (8 8 8)
 Intended for use with the target_spawner
 */
-void SP_misc_gib_leg(svg_entity_t *ent)
+void SP_misc_gib_leg(edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/leg/tris.md2");
     ent->solid = SOLID_NOT;
@@ -391,7 +391,7 @@ void SP_misc_gib_leg(svg_entity_t *ent)
 /*QUAKED misc_gib_head (1 0 0) (-8 -8 -8) (8 8 8)
 Intended for use with the target_spawner
 */
-void SP_misc_gib_head(svg_entity_t *ent)
+void SP_misc_gib_head(edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/head/tris.md2");
     ent->solid = SOLID_NOT;

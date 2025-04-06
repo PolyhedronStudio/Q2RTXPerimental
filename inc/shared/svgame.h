@@ -108,7 +108,7 @@ typedef struct edict_s {
     solid_t     solid;
     contents_t  clipmask;
     contents_t  hullContents;
-    edict_t     *owner;
+    edict_t *owner;
 
     const cm_entity_t *entityDictionary;
 
@@ -116,9 +116,29 @@ typedef struct edict_s {
     // this point in the structure
 } edict_t;
 #else
-typedef struct edict_s svg_entity_t;
+typedef struct edict_s edict_t;
 //typedef struct gclient_s svg_gclient_t;
 #endif      // SVGAME_INCLUDE
+
+/**
+*   @brief  Memory Pool for game allocated EDICTS.
+**/
+struct edict_pool_t {
+	#ifndef SVGAME_INCLUDE
+    // For accessing as if it were a regular edicts array.
+    edict_t *operator[]( size_t index ) {
+        return ( index >= 0 && index < MAX_EDICTS ? &edicts[ index ] : nullptr );
+    }
+    #endif
+    //! Pointer to edicts data array.
+    edict_s         *edicts;
+    //! Size of edict type.
+    int32_t         edict_size;
+    //! Number of active edicts.
+    int32_t         num_edicts;     // current number, <= max_edicts
+    //! Maximum edicts.
+    int32_t         max_edicts;
+};
 
 //===============================================================
 
@@ -474,10 +494,7 @@ typedef struct {
     *
     *	The size will be fixed when ge->Init() is called
 	**/
-    struct edict_s  *edicts;
-    int32_t edict_size;
-    int32_t num_edicts;     // current number, <= max_edicts
-    int32_t max_edicts;
+	edict_pool_t edicts;
 } svgame_export_t;
 
 #endif // SVGAME_H

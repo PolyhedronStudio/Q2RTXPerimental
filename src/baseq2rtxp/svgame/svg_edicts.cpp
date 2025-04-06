@@ -8,12 +8,13 @@
 #include "svgame/svg_local.h"
 #include "sharedgame/sg_usetarget_hints.h"
 #include "svgame/svg_misc.h"
+#include "svgame/svg_utils.h"
 
 
 /**
 *   @brief  (Re-)initialize an edict.
 **/
-void SVG_InitEdict( svg_entity_t *e ) {
+void SVG_InitEdict( edict_t *e ) {
     e->inuse = true;
     e->classname = "noclass";
     e->gravity = 1.0f;
@@ -30,12 +31,12 @@ void SVG_InitEdict( svg_entity_t *e ) {
 *           else instead of being removed and recreated, which can cause interpolated
 *           angles and bad trails.
 **/
-svg_entity_t *SVG_AllocateEdict( void ) {
+edict_t *SVG_AllocateEdict( void ) {
     int32_t i = game.maxclients + 1;
-    svg_entity_t *entity = &g_edicts[ game.maxclients + 1 ];
-    svg_entity_t *freedEntity = nullptr;
+    edict_t *entity = &g_edicts[ game.maxclients + 1 ];
+    edict_t *freedEntity = nullptr;
 
-    for ( i; i < globals.num_edicts; i++, entity++ ) {
+    for ( i; i < globals.edicts.num_edicts; i++, entity++ ) {
         // the first couple seconds of server time can involve a lot of
         // freeing and allocating, so relax the replacement policy
         if ( !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
@@ -58,7 +59,7 @@ svg_entity_t *SVG_AllocateEdict( void ) {
         gi.error( "SVG_AllocateEdict: no free edicts" );
     }
 
-    globals.num_edicts++;
+    globals.edicts.num_edicts++;
     SVG_InitEdict( entity );
     return entity;
 }
@@ -66,7 +67,7 @@ svg_entity_t *SVG_AllocateEdict( void ) {
 /**
 *   @brief  Marks the edict as free
 **/
-void SVG_FreeEdict( svg_entity_t *ed ) {
+void SVG_FreeEdict( edict_t *ed ) {
     gi.unlinkentity( ed );        // unlink from world
 
     if ( ( ed - g_edicts ) <= ( maxclients->value + BODY_QUEUE_SIZE ) ) {
@@ -105,7 +106,7 @@ void SVG_FreeEdict( svg_entity_t *ed ) {
 *   @remark Searches beginning at the edict after from, or the beginning if NULL
 *           NULL will be returned if the end of the list is reached.
 **/
-svg_entity_t *SVG_Find( svg_entity_t *from, const int32_t fieldofs, const char *match ) {
+edict_t *SVG_Find( edict_t *from, const int32_t fieldofs, const char *match ) {
     char *s;
 
     // WID: Prevent nastyness when match is empty (Q_stricmp)
@@ -119,7 +120,7 @@ svg_entity_t *SVG_Find( svg_entity_t *from, const int32_t fieldofs, const char *
         from++;
     }
 
-    for ( ; from < &g_edicts[ globals.num_edicts ]; from++ ) {
+    for ( ; from < &g_edicts[ globals.edicts.num_edicts ]; from++ ) {
         if ( !from->inuse )
             continue;
         s = *(char **)( (byte *)from + fieldofs );
@@ -135,7 +136,7 @@ svg_entity_t *SVG_Find( svg_entity_t *from, const int32_t fieldofs, const char *
 /**
 *   @brief  Similar to SVG_Find, but, returns entities that have origins within a spherical area.
 **/
-svg_entity_t *SVG_FindWithinRadius( svg_entity_t *from, const vec3_t org, const float rad ) {
+edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad ) {
     vec3_t  eorg;
     int     j;
 
@@ -143,7 +144,7 @@ svg_entity_t *SVG_FindWithinRadius( svg_entity_t *from, const vec3_t org, const 
         from = g_edicts;
     else
         from++;
-    for ( ; from < &g_edicts[ globals.num_edicts ]; from++ ) {
+    for ( ; from < &g_edicts[ globals.edicts.num_edicts ]; from++ ) {
         if ( !from->inuse )
             continue;
         if ( from->solid == SOLID_NOT )
@@ -174,7 +175,7 @@ svg_entity_t *SVG_FindWithinRadius( svg_entity_t *from, const vec3_t org, const 
 **/
 void SVG_InitBodyQue( void ) {
     int     i;
-    svg_entity_t *ent;
+    edict_t *ent;
 
     level.body_que = 0;
     for ( i = 0; i < BODY_QUEUE_SIZE; i++ ) {
@@ -185,7 +186,7 @@ void SVG_InitBodyQue( void ) {
 /**
 *   @brief
 **/
-void body_die( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attacker, int damage, vec3_t point ) {
+void body_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
     int n;
 
     if ( self->health < -40 ) {
@@ -202,8 +203,8 @@ void body_die( svg_entity_t *self, svg_entity_t *inflictor, svg_entity_t *attack
 /**
 *   @brief  Get a que slot, leave an effect, and remove body into the queue.
 **/
-void SVG_CopyToBodyQue( svg_entity_t *ent ) {
-    svg_entity_t *body;
+void SVG_CopyToBodyQue( edict_t *ent ) {
+    edict_t *body;
 
     gi.unlinkentity( ent );
 
@@ -237,8 +238,8 @@ void SVG_CopyToBodyQue( svg_entity_t *ent ) {
     VectorCopy( ent->absmin, body->absmin );
     VectorCopy( ent->absmax, body->absmax );
     VectorCopy( ent->size, body->size );
-    VectorCopy( ent->velocity, body->velocity );
-    VectorCopy( ent->avelocity, body->avelocity );
+    body->velocity = ent->velocity;
+    body->avelocity = ent->avelocity;
     body->solid = ent->solid;
     body->clipmask = ent->clipmask;
     body->owner = ent->owner;
@@ -270,7 +271,7 @@ void SVG_CopyToBodyQue( svg_entity_t *ent ) {
 *           which if hits nothing, means the entity is visible.
 *   @return True if the entity 'other' is visible to 'self'.
 **/
-const bool SVG_Entity_IsVisible( svg_entity_t *self, svg_entity_t *other ) {
+const bool SVG_Entity_IsVisible( edict_t *self, edict_t *other ) {
     vec3_t  spot1;
     vec3_t  spot2;
     svg_trace_t trace;
@@ -279,7 +280,7 @@ const bool SVG_Entity_IsVisible( svg_entity_t *self, svg_entity_t *other ) {
     spot1[ 2 ] += self->viewheight;
     VectorCopy( other->s.origin, spot2 );
     spot2[ 2 ] += other->viewheight;
-    trace = gi.trace( spot1, vec3_origin, vec3_origin, spot2, self, MASK_OPAQUE );
+    trace = SVG_Trace( spot1, vec3_origin, vec3_origin, spot2, self, MASK_OPAQUE );
 
     if ( trace.fraction == 1.0f )
         return true;
@@ -289,7 +290,7 @@ const bool SVG_Entity_IsVisible( svg_entity_t *self, svg_entity_t *other ) {
 /**
 *   @return True if the entity is in front (in sight) of self
 **/
-const bool SVG_Entity_IsInFrontOf( svg_entity_t *self, svg_entity_t *other, const float dotRangeArea ) {
+const bool SVG_Entity_IsInFrontOf( edict_t *self, edict_t *other, const float dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_IsClientEntity( self ) ) {
@@ -314,7 +315,7 @@ const bool SVG_Entity_IsInFrontOf( svg_entity_t *self, svg_entity_t *other, cons
 /**
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
-const bool SVG_Entity_IsInFrontOf( svg_entity_t *self, const Vector3 &testOrigin, const float dotRangeArea ) {
+const bool SVG_Entity_IsInFrontOf( edict_t *self, const Vector3 &testOrigin, const float dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_IsClientEntity( self ) ) {
@@ -351,7 +352,7 @@ const bool SVG_Entity_IsInFrontOf( svg_entity_t *self, const Vector3 &testOrigin
 /**
 *   @brief  Find the matching information for the ID and assign it to the entity's useTarget.hintInfo.
 **/
-void SVG_Entity_SetUseTargetHintByID( svg_entity_t *ent, const int32_t id ) {
+void SVG_Entity_SetUseTargetHintByID( edict_t *ent, const int32_t id ) {
     // Get the useTargetHintID from the stats.
     const int32_t useTargetHintID = id;
     // Exit, since there is no useTargetHintID to display. (It is 0.)

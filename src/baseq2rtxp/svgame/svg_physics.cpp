@@ -39,7 +39,7 @@ solid_edge items only clip against bsp models.
 
 // [Paril-KEX] fetch the clipmask for this entity; certain modifiers
 // affect the clipping behavior of objects.
-const contents_t SVG_GetClipMask( svg_entity_t *ent ) {
+const contents_t SVG_GetClipMask( edict_t *ent ) {
     // Get current clip mask.
     contents_t mask = ent->clipmask;
 
@@ -75,7 +75,7 @@ SV_TestEntityPosition
 
 ============
 */
-svg_entity_t *SV_TestEntityPosition(svg_entity_t *ent)
+edict_t *SV_TestEntityPosition(edict_t *ent)
 {
     svg_trace_t trace;
     //contents_t mask;
@@ -84,7 +84,7 @@ svg_entity_t *SV_TestEntityPosition(svg_entity_t *ent)
     //    mask = ent->clipmask;
     //else
     //    mask = MASK_SOLID;
-    trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
+    trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
 
     if ( trace.startsolid ) {
         return g_edicts;
@@ -98,7 +98,7 @@ svg_entity_t *SV_TestEntityPosition(svg_entity_t *ent)
 SV_CheckVelocity
 ================
 */
-void SV_CheckVelocity(svg_entity_t *ent)
+void SV_CheckVelocity(edict_t *ent)
 {
 //    int     i;
 
@@ -128,7 +128,7 @@ SV_RunThink
 Runs thinking code for this frame if necessary
 =============
 */
-bool SV_RunThink(svg_entity_t *ent)
+bool SV_RunThink(edict_t *ent)
 {
     QMTime     thinktime;
 
@@ -162,9 +162,9 @@ SVG_Impact
 Two entities have touched, so run their touch functions
 ==================
 */
-void SVG_Impact(svg_entity_t *e1, svg_trace_t *trace)
+void SVG_Impact(edict_t *e1, svg_trace_t *trace)
 {
-    svg_entity_t     *e2;
+    edict_t     *e2;
 //  cm_plane_t    backplane;
 
     e2 = trace->ent;
@@ -243,9 +243,9 @@ Returns the clipflags if the velocity was modified (hit something solid)
 ============
 */
 #define MAX_CLIP_PLANES 5
-int SV_FlyMove(svg_entity_t *ent, float time, const contents_t mask)
+int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 {
-    svg_entity_t     *hit;
+    edict_t     *hit;
     int         bumpcount, numbumps;
     vec3_t      dir;
     float       d;
@@ -272,7 +272,7 @@ int SV_FlyMove(svg_entity_t *ent, float time, const contents_t mask)
         for (i = 0; i < 3; i++)
             end[i] = ent->s.origin[i] + time_left * ent->velocity[i];
 
-        trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, end, ent, mask);
+        trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, end, ent, mask);
 
         if (trace.allsolid) {
             // entity is trapped in another solid
@@ -371,7 +371,7 @@ SV_AddGravity
 
 ============
 */
-void SV_AddGravity(svg_entity_t *ent)
+void SV_AddGravity(edict_t *ent)
 {
     ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
 }
@@ -391,7 +391,7 @@ SV_PushEntity
 Does not change the entities velocity at all
 ============
 */
-svg_trace_t SV_PushEntity(svg_entity_t *ent, vec3_t push)
+svg_trace_t SV_PushEntity(edict_t *ent, vec3_t push)
 {
     svg_trace_t trace;
     vec3_t  start;
@@ -406,7 +406,7 @@ retry:
     //else
     //    mask = MASK_SOLID;
 
-    trace = gi.trace(start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
+    trace = SVG_Trace(start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
 
     VectorCopy(trace.endpos, ent->s.origin);
     gi.linkentity(ent);
@@ -430,7 +430,7 @@ retry:
 }
 
 typedef struct {
-    svg_entity_t *ent;
+    edict_t *ent;
     vec3_t  origin;
     vec3_t  angles;
     //#if USE_SMOOTH_DELTA_ANGLES
@@ -439,7 +439,7 @@ typedef struct {
 } pushed_t;
 pushed_t    pushed[MAX_EDICTS], *pushed_p;
 
-svg_entity_t *obstacle;
+edict_t *obstacle;
 
 const float SnapToEights( const float x ) {
     // WID: Float-movement.
@@ -460,10 +460,10 @@ Objects need to be moved back on a failed push,
 otherwise riders would continue to slide.
 ============
 */
-bool SV_Push(svg_entity_t *pusher, vec3_t move, vec3_t amove)
+bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
 {
     int         i, e;
-    svg_entity_t     *check, *block;
+    edict_t     *check, *block;
     vec3_t      mins, maxs;
     pushed_t    *p;
     vec3_t      org, org2, move2, forward, right, up;
@@ -504,7 +504,7 @@ bool SV_Push(svg_entity_t *pusher, vec3_t move, vec3_t amove)
 
 // see if any solid entities are inside the final position
     check = g_edicts + 1;
-    for (e = 1; e < globals.num_edicts; e++, check++) {
+    for (e = 1; e < globals.edicts.num_edicts; e++, check++) {
         if (!check->inuse)
             continue;
         if (check->movetype == MOVETYPE_PUSH
@@ -621,10 +621,10 @@ Bmodel objects don't interact with each other, but
 push all box objects
 ================
 */
-void SV_Physics_Pusher(svg_entity_t *ent)
+void SV_Physics_Pusher(edict_t *ent)
 {
     vec3_t      move, amove;
-    svg_entity_t     *part, *mv;
+    edict_t     *part, *mv;
 
     // if not a team captain, so movement will be handled elsewhere
     if (ent->flags & FL_TEAMSLAVE)
@@ -683,7 +683,7 @@ SV_Physics_None
 Non moving objects can only think
 =============
 */
-void SV_Physics_None(svg_entity_t *ent)
+void SV_Physics_None(edict_t *ent)
 {
 // regular thinking
     SV_RunThink(ent);
@@ -696,7 +696,7 @@ SV_Physics_Noclip
 A moving object that doesn't obey physics
 =============
 */
-void SV_Physics_Noclip(svg_entity_t *ent)
+void SV_Physics_Noclip(edict_t *ent)
 {
 // regular thinking
     if (!SV_RunThink(ent))
@@ -725,12 +725,12 @@ SV_Physics_Toss
 Toss, bounce, and fly movement.  When onground, do nothing.
 =============
 */
-void SV_Physics_Toss(svg_entity_t *ent)
+void SV_Physics_Toss(edict_t *ent)
 {
     svg_trace_t     trace;
     vec3_t      move;
     float       backoff;
-    svg_entity_t     *slave;
+    edict_t     *slave;
     int         wasinwater;
     int         isinwater;
     vec3_t      old_origin;
@@ -851,7 +851,7 @@ FIXME: is this true?
 #define sv_friction         6.f
 #define sv_waterfriction    1.f
 
-void SV_AddRotationalFriction(svg_entity_t *ent)
+void SV_AddRotationalFriction(edict_t *ent)
 {
     int     n;
     float   adjustment;
@@ -871,14 +871,14 @@ void SV_AddRotationalFriction(svg_entity_t *ent)
     }
 }
 
-void SV_Physics_Step(svg_entity_t *ent)
+void SV_Physics_Step(edict_t *ent)
 {
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
     float	   speed, newspeed, control;
     float	   friction;
-    svg_entity_t *groundentity;
+    edict_t *groundentity;
     contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
@@ -1026,7 +1026,7 @@ void SV_Physics_Step(svg_entity_t *ent)
 //    float       *vel = nullptr;
 //    float       speed = 0.f, newspeed = 0.f, control = 0.f;
 //    float       friction = 0.f;
-//    svg_entity_t     *groundentity = nullptr;
+//    edict_t     *groundentity = nullptr;
 //    contents_t  mask = SVG_GetClipMask( ent );
 //
 //    // airborn monsters should always check for ground
@@ -1130,13 +1130,13 @@ void SV_Physics_Step(svg_entity_t *ent)
 /**
 *   @brief  For RootMotion entities.
 **/
-void SV_Physics_RootMotion( svg_entity_t *ent ) {
+void SV_Physics_RootMotion( edict_t *ent ) {
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
     float	   speed, newspeed, control;
     float	   friction;
-    svg_entity_t *groundentity;
+    edict_t *groundentity;
     contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
@@ -1281,7 +1281,7 @@ SVG_RunEntity
 
 ================
 */
-void SVG_RunEntity(svg_entity_t *ent)
+void SVG_RunEntity(edict_t *ent)
 {
     Vector3	previousOrigin;
     bool	isMoveStepper = false;
@@ -1325,7 +1325,7 @@ void SVG_RunEntity(svg_entity_t *ent)
     if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {
         // if we moved, check and fix origin if needed
         if ( !VectorCompare( ent->s.origin, previousOrigin ) ) {
-            svg_trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
+            svg_trace_t trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
             if ( trace.allsolid || trace.startsolid )
                 VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;
         }

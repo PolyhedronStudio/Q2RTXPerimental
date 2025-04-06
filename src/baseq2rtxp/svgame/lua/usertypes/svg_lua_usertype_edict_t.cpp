@@ -49,7 +49,7 @@ lua_edict_t::lua_edict_t() : edict(nullptr) {
 	LUA_VALIDATE_EDICT_POINTER();
 	
 }
-lua_edict_t::lua_edict_t( svg_entity_t *_edict ) : edict(_edict) {
+lua_edict_t::lua_edict_t( edict_t *_edict ) : edict(_edict) {
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_POINTER();
 }
@@ -278,7 +278,7 @@ void lua_edict_t::set_string_luaname( sol::this_state s, const char *luaStrLuaNa
 *
 **/
 /**
-*	@brief	Register a usertype for passing along svg_entity_t into lua.
+*	@brief	Register a usertype for passing along edict_t into lua.
 **/
 void UserType_Register_Edict_t( sol::state &solState ) {
 	/**
@@ -286,7 +286,7 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	**/
 	sol::usertype<lua_edict_t> lua_edict_type = solState.new_usertype<lua_edict_t>( "lua_edict_t",
 		//sol::no_constructor,
-		sol::constructors< lua_edict_t(), lua_edict_t( svg_entity_t* ) >()
+		sol::constructors< lua_edict_t(), lua_edict_t( edict_t* ) >()
 	);
 
 	/**
@@ -298,7 +298,7 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	/**
 	*	Modifyable Variables:
 	**/
-	// Returns the member entity_state_t of svg_entity_t.
+	// Returns the member entity_state_t of edict_t.
 	lua_edict_type[ "state" ] = sol::property( &lua_edict_t::get_state );
 
 	// For useTargets:

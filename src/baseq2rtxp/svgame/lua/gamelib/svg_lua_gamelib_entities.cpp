@@ -26,7 +26,7 @@
 **/
 sol::userdata GameLib_GetEntityForLuaName( sol::this_state s, const std::string &luaName ) {
 	// Get the first matching entity for the luaName.
-	svg_entity_t *luaNameEntity = SVG_Find( NULL, FOFS_GENTITY( luaProperties.luaName ), luaName.c_str() );
+	edict_t *luaNameEntity = SVG_Find( NULL, FOFS_GENTITY( luaProperties.luaName ), luaName.c_str() );
 	// Return it.
 	return sol::make_object<lua_edict_t>( s, lua_edict_t( luaNameEntity ) );
 }
@@ -39,7 +39,7 @@ sol::table GameLib_GetEntitiesForLuaName( sol::this_state s, const std::string &
 	sol::table luaNameEntities = sol::state_view( s ).create_table();
 
 	// Find our first targetnamed entity, if any at all.
-	svg_entity_t *luaNameEntity = SVG_Find( NULL, FOFS_GENTITY( luaProperties.luaName ), luaName.c_str() );
+	edict_t *luaNameEntity = SVG_Find( NULL, FOFS_GENTITY( luaProperties.luaName ), luaName.c_str() );
 	if ( !luaNameEntity ) {
 		return luaNameEntities;
 	}
@@ -68,7 +68,7 @@ sol::table GameLib_GetEntitiesForLuaName( sol::this_state s, const std::string &
 **/
 sol::userdata GameLib_GetEntityForTargetName( sol::this_state s, const std::string &targetName ) {
 	// Get the first matching entity for the targetname.
-	svg_entity_t *targetNameEntity = SVG_Find( NULL, FOFS_GENTITY( targetname ), targetName.c_str() );
+	edict_t *targetNameEntity = SVG_Find( NULL, FOFS_GENTITY( targetname ), targetName.c_str() );
 	// Return it.
 	return sol::make_object<lua_edict_t>( s, lua_edict_t( targetNameEntity ) );
 }
@@ -81,7 +81,7 @@ sol::table GameLib_GetEntitiesForTargetName( sol::this_state s, const std::strin
 	sol::table targetEntities = sol::state_view(s).create_table();
 
 	// Find our first targetnamed entity, if any at all.
-	svg_entity_t *targetNameEntity = SVG_Find( NULL, FOFS_GENTITY( targetname ), targetName.c_str() );
+	edict_t *targetNameEntity = SVG_Find( NULL, FOFS_GENTITY( targetname ), targetName.c_str() );
 	if ( !targetNameEntity ) {
 		return targetEntities;
 	}

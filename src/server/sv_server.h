@@ -165,14 +165,14 @@ static inline cvar_t *SV_InfoSet( const char *var, const char *value ) {
 **/
 static inline edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
     //#define EDICT_FOR_NUMBER(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
-    return ( (edict_t *)( (byte *)ge->edicts + ge->edict_size * ( number ) ) );
+    return ( (edict_t *)( (byte *)ge->edicts.edicts + ge->edicts.edict_size * ( number ) ) );
 }
 /**
 *   @return Returns the number of the pointer entity.
 **/
 static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
     //#define EDICT_NUM(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
-    return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edicts ) / ge->edict_size ) );
+    return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edicts.edicts ) / ge->edicts.edict_size ) );
 }
 
 
@@ -339,16 +339,6 @@ typedef struct {
 	uint64_t	credit_cap;
 	uint64_t	cost;
 } ratelimit_t;
-
-/**
-*   @brief  Memory Pool for game allocated EDICTS.
-**/
-typedef struct {
-    struct edict_s  *edicts;
-    int32_t         edict_size;
-    int32_t         num_edicts;     // current number, <= max_edicts
-    int32_t         max_edicts;
-} edict_pool_t;
 
 /**
 *   @brief  Stores all the data about connected clients, including their number,

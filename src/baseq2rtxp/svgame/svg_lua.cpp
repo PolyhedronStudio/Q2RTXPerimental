@@ -479,7 +479,7 @@ void SVG_Lua_Initialize() {
 	/**
 	*	Initialize UserTypes:
 	**/
-	// First comes the member of svg_entity_t: entity_state_t
+	// First comes the member of edict_t: entity_state_t
 	UserType_Register_EdictState_t( luaMapInstance.solState );
 	UserType_Register_Edict_t( luaMapInstance.solState );
 
@@ -746,7 +746,7 @@ void SVG_Lua_CallBack_ExitMap() {
 /**
 *	@brief
 **/
-void SVG_Lua_CallBack_ClientEnterLevel( svg_entity_t *clientEntity ) {
+void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 	// Ensure map script was interpreted, and the callback was found to be in the script.
 	LUA_CanDispatchCallback( luaMapInstance.callBacks.OnClientEnterLevel );
 
@@ -780,7 +780,7 @@ void SVG_Lua_CallBack_ClientEnterLevel( svg_entity_t *clientEntity ) {
 /**
 *	@brief
 **/
-void SVG_Lua_CallBack_ClientExitLevel( svg_entity_t *clientEntity ) {
+void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 	// Ensure map script was interpreted, and the callback was found to be in the script.
 	LUA_CanDispatchCallback( luaMapInstance.callBacks.OnClientExitLevel );
 

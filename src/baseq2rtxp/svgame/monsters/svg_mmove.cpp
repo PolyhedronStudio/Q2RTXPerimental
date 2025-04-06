@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 #include "svg_mmove.h"
 #include "svg_mmove_slidemove.h"
@@ -23,13 +24,13 @@
 const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
 	//return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
 	// Clip against world.
-	return gi.clip( &g_edicts[ 0 ], &start.x, &mins.x, &maxs.x, &end.x, contentMask );
+	return SVG_Clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 
 /**
 *	@brief	Determines the mask to use and returns a trace doing so.
 **/
-const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_entity_t *passEntity, contents_t contentMask ) {
+const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, contents_t contentMask ) {
 	//// Spectators only clip against world, so use clip instead.
 	//if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
 	//	return PM_Clip( start, mins, maxs, end, MASK_SOLID );
@@ -49,7 +50,7 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 	}
 
 	//return pm->trace( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, pm->player, contentMask );
-	return gi.trace( &start.x, &mins.x, &maxs.x, &end.x, passEntity, contentMask );
+	return SVG_Trace( start, mins, maxs, end, passEntity, contentMask );
 }
 
 
@@ -221,7 +222,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
 **/
-void SVG_MMove_FaceIdealYaw( svg_entity_t *ent, const float idealYaw, const float yawSpeed ) {
+void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed ) {
 	// Get angle modded angles.
 	const float currentYawAngle = QM_AngleMod( ent->s.angles[ YAW ] );
 
