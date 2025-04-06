@@ -460,6 +460,11 @@ typedef struct edict_s {
 *
 **/
 /**
+*   @brief  (Re-)initializes the edict pool.
+**/
+void SVG_InitEdictPool( const int32_t numReservedEntities );
+
+/**
 *   @brief  (Re-)initialize an edict.
 **/
 void SVG_InitEdict( edict_t *e );

@@ -398,6 +398,19 @@ struct Vector3 {
     **/
     [[nodiscard]] inline constexpr const float &operator[]( const size_t i ) const;
     [[nodiscard]] inline constexpr float &operator[]( const size_t i );
+
+    /**
+    *   @brief  Vector3 C++ 'Equals' operator:
+    **/
+    QM_API_CONSTEXPR bool operator==( const Vector3 *right ) {
+        return this == right;
+    }
+    /**
+    *   @brief  Vector3 C++ 'Equals' operator:
+    **/
+    QM_API_CONSTEXPR bool operator!=( const Vector3 *right ) {
+        return this != right;
+    }
 };
 // Define Type.
 #define RL_VECTOR3_TYPE

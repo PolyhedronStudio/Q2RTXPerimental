@@ -474,7 +474,7 @@ void target_laser_think(edict_t *self)
     VectorCopy(self->s.origin, start);
     VectorMA(start, 2048, self->movedir, end);
     while (1) {
-        tr = SVG_Trace( start, QM_Vector3Zero(), QM_Vector3Zero(), end, ignore, ( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ));
+        tr = SVG_Trace( start, qm_vector3_null, qm_vector3_null, end, ignore, ( CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_DEADMONSTER ));
 
         if (!tr.ent)
             break;
@@ -695,7 +695,7 @@ void target_earthquake_think(edict_t *self)
 		self->last_move_time = level.time + 6.5_sec;
     }
 
-    for ( i = 1, e = g_edicts + i; i < globals.edicts.num_edicts; i++, e++ ) {
+    for ( i = 1, e = g_edicts + i; i < globals.edictPool.num_edicts; i++, e++ ) {
         if ( !e->inuse )
             continue;
         if ( !e->client )
@@ -717,7 +717,7 @@ void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, c
 		uint32_t i;
 		edict_t *e;
 
-        for ( i = 1, e = g_edicts + i; i < globals.edicts.num_edicts; i++, e++ ) {
+        for ( i = 1, e = g_edicts + i; i < globals.edictPool.num_edicts; i++, e++ ) {
 			if ( !e->inuse )
 				continue;
 			if ( !e->client )

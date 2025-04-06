@@ -1431,9 +1431,10 @@ void SVG_ReadGame(const char *filename)
     }
 
 	// WID: C++20: Added cast.
-    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
-    globals.edicts.edicts = g_edicts;
-    globals.edicts.max_edicts = game.maxentities;
+    // Clamp maxentities within valid range.
+    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
+    // Initialize the edict pool.
+    SVG_InitEdictPool( game.maxentities );
 	
 	// WID: C++20: Added cast.
     game.clients = (svg_client_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
@@ -1480,7 +1481,7 @@ void SVG_WriteLevel(const char *filename)
     write_fields(f, levelfields, &level);
 
     // write out all the entities
-    for (i = 0; i < globals.edicts.num_edicts; i++) {
+    for (i = 0; i < globals.edictPool.num_edicts; i++) {
         ent = &g_edicts[i];
         if (!ent->inuse)
             continue;
@@ -1534,7 +1535,7 @@ void SVG_ReadLevel(const char *filename)
     //memset(g_edicts, 0, sizeof(g_edicts[0]));
     //std::fill_n( &g_edicts[ i ], sizeof(edict_t), 0 );
 
-    globals.edicts.num_edicts = maxclients->value + 1;
+    globals.edictPool.num_edicts = maxclients->value + 1;
 
     i = read_int(f);
     if (i != SAVE_MAGIC2) {
@@ -1564,8 +1565,8 @@ void SVG_ReadLevel(const char *filename)
             gzclose(f);
             gi.error("%s: bad entity number", __func__);
         }
-        if (entnum >= globals.edicts.num_edicts)
-            globals.edicts.num_edicts = entnum + 1;
+        if (entnum >= globals.edictPool.num_edicts)
+            globals.edictPool.num_edicts = entnum + 1;
 
         ent = g_edicts + entnum;
         read_fields(&ctx, entityfields, ent);
@@ -1588,7 +1589,7 @@ void SVG_ReadLevel(const char *filename)
     }
 
     // do any load time things at this point
-    for (i = 0 ; i < globals.edicts.num_edicts ; i++) {
+    for (i = 0 ; i < globals.edictPool.num_edicts ; i++) {
         ent = &g_edicts[i];
 
         if (!ent->inuse)

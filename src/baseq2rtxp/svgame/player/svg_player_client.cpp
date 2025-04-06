@@ -825,7 +825,7 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     ent->s.modelindex2 = 255;       // Custom gun model.
     // sknum is player num and weapon number
     // weapon number will be added in changeweapon
-    ent->s.skinnum = ent - globals.edicts.edicts - 1;
+    ent->s.skinnum = ent - globals.edictPool.edicts - 1;
     ent->s.frame = 0;
     ent->s.old_frame = 0;
 

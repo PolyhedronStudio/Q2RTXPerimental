@@ -124,14 +124,16 @@ typedef struct edict_s edict_t;
 *   @brief  Memory Pool for game allocated EDICTS.
 **/
 struct edict_pool_t {
+    #if 0
 	#ifndef SVGAME_INCLUDE
     // For accessing as if it were a regular edicts array.
     edict_t *operator[]( size_t index ) {
         return ( index >= 0 && index < MAX_EDICTS ? &edicts[ index ] : nullptr );
     }
     #endif
+    #endif
     //! Pointer to edicts data array.
-    edict_s         *edicts;
+    edict_t         *edicts;
     //! Size of edict type.
     int32_t         edict_size;
     //! Number of active edicts.
@@ -494,7 +496,7 @@ typedef struct {
     *
     *	The size will be fixed when ge->Init() is called
 	**/
-	edict_pool_t edicts;
+	edict_pool_t edictPool;
 } svgame_export_t;
 
 #endif // SVGAME_H

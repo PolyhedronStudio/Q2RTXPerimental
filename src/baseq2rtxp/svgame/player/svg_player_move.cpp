@@ -99,7 +99,7 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
     constexpr float USE_TARGET_TRACE_DISTANCE = 48.f;
     Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, USE_TARGET_TRACE_DISTANCE, vForward );
     // Now perform the trace.
-    svg_trace_t traceUseTarget = SVG_Trace( traceStart, QM_Vector3Zero(), QM_Vector3Zero(), traceEnd, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ));
+    svg_trace_t traceUseTarget = SVG_Trace( traceStart, qm_vector3_null, qm_vector3_null, traceEnd, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ));
 
     // Get the current activate(in last frame) entity we were (+usetarget) using.
     edict_t *currentTargetEntity = ent->client->useTarget.currentEntity;

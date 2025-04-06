@@ -169,10 +169,12 @@ const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const
     // Trace results.
     cm_trace_t trace = {};
 
-    // Allow for point tracing in case mins or maxs is null.
+    // Allow for point tracing in case mins and maxs are null.
+    // Set for 'Special Point Case':
     if ( !mins ) {
         mins = vec3_origin;
     }
+    // Set for 'Special Point Case':
     if ( !maxs ) {
         maxs = vec3_origin;
     }

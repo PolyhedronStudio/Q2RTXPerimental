@@ -10,6 +10,9 @@
 // Forward declare.
 struct Vector3;
 
+// For checking for a 'null reference' of type Vector3.
+extern const Vector3 qm_vector3_null;
+
 // Vector with components value 0.0f
 QM_API_CONSTEXPR Vector3 QM_Vector3Zero( void ) {
 	Vector3 result = { 0.0f, 0.0f, 0.0f };
@@ -989,19 +992,20 @@ QM_API_CONSTEXPR_DISCARD Vector3 &operator/=( Vector3 &left, const float &right 
     return left = QM_Vector3DivideValue( left, right );
 }
 
-///**
-//*   @brief  Vector3 C++ 'Equals' operator:
-//**/
-//QM_API bool operator==( const Vector3 &left, const Vector3 &right ) {
-//    return QM_Vector3Equals( left, right );
-//}
-//
-///**
-//*   @brief  Vector3 C++ 'Not Equals' operator:
-//**/
-//QM_API bool operator!=( const Vector3 &left, const Vector3 &right ) {
-//    return !QM_Vector3Equals( left, right );
-//}
+/**
+*   @brief  Vector3 C++ 'Equals' operator:
+**/
+QM_API_DISCARD bool operator==( const Vector3 &left, const Vector3 &right ) {
+    return QM_Vector3EqualsFast( left, right );
+}
+
+/**
+*   @brief  Vector3 C++ 'Not Equals' operator:
+**/
+QM_API_DISCARD bool operator!=( const Vector3 &left, const Vector3 &right ) {
+    return !QM_Vector3EqualsFast( left, right );
+}
+
 #endif
 
 /**

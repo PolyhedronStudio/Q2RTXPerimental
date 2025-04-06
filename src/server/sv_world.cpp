@@ -111,7 +111,7 @@ void SV_ClearWorld(void)
     }
 
     // Make sure all entities are unlinked.
-    for (i = 0; i < ge->edicts.max_edicts; i++) {
+    for (i = 0; i < ge->edictPool.max_edicts; i++) {
         // Get edict pointer.s
         ent = EDICT_FOR_NUMBER(i);
         // Unlink.
@@ -254,7 +254,7 @@ void PF_LinkEdict(edict_t *ent)
     }
 
     // Do not try and add the world.
-    if ( ent == ge->edicts.edicts ) {
+    if ( ent == ge->edictPool.edicts ) {
         return;        // don't add the world
     }
 
@@ -597,14 +597,18 @@ const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
     }
 
-    if (!mins)
+    // Set for 'Special Point Case':
+    if ( !mins ) {
         mins = vec3_origin;
-    if (!maxs)
+    }
+    // Set for 'Special Point Case':
+    if ( !maxs ) {
         maxs = vec3_origin;
+    }
 
     // clip to world
     CM_BoxTrace( &sv.cm, &trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
-    trace.ent = ge->edicts.edicts;
+    trace.ent = ge->edictPool.edicts;
     if (trace.fraction == 0) {
         return trace;   // blocked by the world
     }
@@ -628,12 +632,16 @@ const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec
         Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
     }
 
-	if ( !mins )
-		mins = vec3_origin;
-	if ( !maxs )
-		maxs = vec3_origin;
+    // Set for 'Special Point Case':
+    if ( !mins ) {
+        mins = vec3_origin;
+    }
+    // Set for 'Special Point Case':
+    if ( !maxs ) {
+        maxs = vec3_origin;
+    }
 
-	if ( clip == ge->edicts.edicts )
+	if ( clip == ge->edictPool.edicts )
 		CM_BoxTrace( &sv.cm, &trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
 	else
 		CM_TransformedBoxTrace( &sv.cm, &trace, start, end, mins, maxs,

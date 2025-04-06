@@ -321,18 +321,16 @@ void SVG_InitGame( void )
     // items
     SVG_InitItems();
 
-    // initialize all entities for this game
+    // Clamp maxentities within valid range.
     game.maxentities = QM_ClampUnsigned<uint32_t>(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
-	// WID: C++20: Addec cast.
-    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
-    globals.edicts.edicts = g_edicts;
-    globals.edicts.max_edicts = game.maxentities;
+	// Initialize the edict pool.
+	SVG_InitEdictPool( game.maxentities );
 
     // initialize all clients for this game
     game.maxclients = maxclients->value;
 	// WID: C++20: Addec cast.
     game.clients = (svg_client_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
-    globals.edicts.num_edicts = game.maxclients + 1;
+    globals.edictPool.num_edicts = game.maxclients + 1;
 
     // Initialize the Lua VM.
     //SVG_Lua_Initialize();
@@ -423,9 +421,9 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.ServerCommand = SVG_ServerCommand;
 
-        globals.edicts = { };
-        globals.edicts.edicts = g_edicts;
-		globals.edicts.edict_size = sizeof( edict_t );
+        globals.edictPool = { };
+        globals.edictPool.edicts = g_edicts;
+		globals.edictPool.edict_size = sizeof( edict_t );
 
 		return &globals;
 	}
@@ -637,14 +635,14 @@ void ExitLevel(void) {
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_ExitMap();
 
-
+	// Generate the command string to change the map.
     Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
     gi.AddCommandString(command);
     level.changemap = NULL;
     level.exitintermission = 0;
     level.intermissionFrameNumber = 0;
 
-    // clear some things before going to next level
+    // Clear some things before going to next level.
     for (i = 0 ; i < maxclients->value ; i++) {
         ent = g_edicts + 1 + i;
         if ( !ent->inuse ) {
@@ -690,7 +688,7 @@ void SVG_RunFrame(void) {
     // even the world gets a chance to think
     //
     edict_t *ent = &g_edicts[ 0 ];
-    for ( int32_t i = 0; i < globals.edicts.num_edicts; i++, ent++ ) {
+    for ( int32_t i = 0; i < globals.edictPool.num_edicts; i++, ent++ ) {
         if ( !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."
             if ( i > 0 && i <= game.maxclients ) {
