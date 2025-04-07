@@ -208,7 +208,7 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 			${SRC_SHARED} ${HEADERS_SHARED}
 			${SRC_WINDOWS} ${HEADERS_WINDOWS}
 			${SRC_SERVER} ${HEADERS_SERVER}
-			client/null.cpp
+			client/cl_null.cpp
 			windows/res/q2rtxpded.rc
 			windows/threads/threads.c
 		)
@@ -218,7 +218,7 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 			${SRC_SHARED} ${HEADERS_SHARED}
 			${SRC_LINUX}
 			${SRC_SERVER} ${HEADERS_SERVER}
-			client/null.cpp
+			client/cl_null.cpp
 		)
 	ENDIF()#IF(WIN32)
 

@@ -469,29 +469,29 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 #
 #
 SET(SRC_CLIENT
-	client/ascii.cpp
-	client/console.cpp
-	client/cin.cpp
-	client/clgame.cpp
-	client/crc.cpp
-	client/demo.cpp
-	client/download.cpp
-	client/effects.cpp
-	client/entities.cpp
-	client/input.cpp
-	client/keys.cpp
-	client/locs.cpp
-	client/main.cpp
-	#client/newfx.cpp
-	#client/null.cpp
-	client/parse.cpp
-	client/precache.cpp
-	client/predict.cpp
-	client/refresh.cpp
-	client/screen.cpp
-	#client/tent.cpp
-	client/view.cpp
-	client/world.cpp
+	client/cl_ascii.cpp
+	client/cl_console.cpp
+	client/cl_cinematic.cpp
+	client/cl_clientgame.cpp
+	client/cl_crc.cpp
+	client/cl_demo.cpp
+	client/cl_download.cpp
+	client/cl_effects.cpp
+	client/cl_entities.cpp
+	client/cl_input.cpp
+	client/cl_keys.cpp
+	client/cl_locs.cpp
+	client/cl_main.cpp
+	#client/cl_newfx.cpp
+	#client/cl_null.cpp
+	client/cl_parse.cpp
+	client/cl_precache.cpp
+	client/cl_predict.cpp
+	client/cl_refresh.cpp
+	client/cl_screen.cpp
+	#client/cl_tent.cpp
+	client/cl_view.cpp
+	client/cl_world.cpp
 	client/ui/_scoreboard.cpp
 	client/ui/demos.cpp
 	client/ui/editor_rmaterial.cpp
@@ -511,7 +511,7 @@ SET(SRC_CLIENT
 )
 
 SET(SRC_CLIENT_HTTP
-	client/http.cpp
+	client/cl_http.cpp
 )
 
 SET(HEADERS_CLIENT

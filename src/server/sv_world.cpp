@@ -607,14 +607,25 @@ const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
     }
 
     // clip to world
-    CM_BoxTrace( &sv.cm, &trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
+    CM_BoxTrace( 
+        &sv.cm, &trace, 
+        start, end, mins, maxs, 
+        SV_WorldNodes( ), 
+        contentmask 
+    );
+
     trace.ent = ge->edictPool.edicts;
     if (trace.fraction == 0) {
         return trace;   // blocked by the world
     }
 
     // clip to other solid entities
-    SV_ClipMoveToEntities(start, mins, maxs, end, passedict, contentmask, &trace);
+    SV_ClipMoveToEntities(
+        start, mins, maxs, end, 
+        passedict, 
+        contentmask, 
+        &trace
+    );
 
     return trace;
 }
@@ -641,12 +652,23 @@ const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec
         maxs = vec3_origin;
     }
 
-	if ( clip == ge->edictPool.edicts )
-		CM_BoxTrace( &sv.cm, &trace, start, end, mins, maxs, SV_WorldNodes( ), contentmask );
-	else
-		CM_TransformedBoxTrace( &sv.cm, &trace, start, end, mins, maxs,
-							   SV_HullForEntity( clip, true ), contentmask,
-							   clip->s.origin, clip->s.angles );
+    if ( clip == ge->edictPool.edicts ) {
+        CM_BoxTrace( 
+            &sv.cm, &trace, 
+            start, end, mins, maxs, 
+            SV_WorldNodes(), 
+            contentmask 
+        );
+    } else {
+        CM_TransformedBoxTrace( 
+            &sv.cm, &trace, 
+            start, end, mins, maxs,
+            SV_HullForEntity( clip, true ), 
+            contentmask, 
+            clip->s.origin, clip->s.angles 
+        );
+    }
+
 	trace.ent = clip;
 	return trace;
 }
