@@ -17,6 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // Game related types.
 #include "svgame/svg_local.h"
+#include "svgame/svg_clients.h"
+#include "svgame/svg_edict_pool.h"
 #include "sharedgame/sg_usetarget_hints.h"
 // Save related types.
 #include "svg_save.h"
@@ -1430,15 +1432,16 @@ void SVG_ReadGame(const char *filename)
         gi.error("Savegame has bad maxentities");
     }
 
-	// WID: C++20: Added cast.
     // Clamp maxentities within valid range.
     game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
-    // Initialize the edict pool.
-    SVG_InitEdictPool( game.maxentities );
-	
-	// WID: C++20: Added cast.
-    game.clients = (svg_client_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
+    // Initialize the edicts array pointing to a the memory allocated within the pool.
+    g_edicts = SVG_EdictPool_Reallocate( &g_edict_pool, game.maxentities );
+
+	// Initialize a fresh clients array.
+    game.clients = SVG_Clients_Reallocate( game.maxclients );
+    // Now read in the fields for each client.
     for (i = 0; i < game.maxclients; i++) {
+        // Now read in the fields.
         read_fields(&ctx, clientfields, &game.clients[i]);
     }
 
@@ -1481,7 +1484,7 @@ void SVG_WriteLevel(const char *filename)
     write_fields(f, levelfields, &level);
 
     // write out all the entities
-    for (i = 0; i < globals.edictPool.num_edicts; i++) {
+    for (i = 0; i < globals.edictPool->num_edicts; i++) {
         ent = &g_edicts[i];
         if (!ent->inuse)
             continue;
@@ -1535,7 +1538,7 @@ void SVG_ReadLevel(const char *filename)
     //memset(g_edicts, 0, sizeof(g_edicts[0]));
     //std::fill_n( &g_edicts[ i ], sizeof(edict_t), 0 );
 
-    globals.edictPool.num_edicts = maxclients->value + 1;
+    globals.edictPool->num_edicts = maxclients->value + 1;
 
     i = read_int(f);
     if (i != SAVE_MAGIC2) {
@@ -1558,15 +1561,16 @@ void SVG_ReadLevel(const char *filename)
 
     // load all the entities
     while (1) {
-        entnum = read_int(f);
-        if (entnum == -1)
+        entnum = read_int( f );
+        if ( entnum == -1 )
             break;
-        if (entnum < 0 || entnum >= game.maxentities) {
-            gzclose(f);
-            gi.error("%s: bad entity number", __func__);
+        if ( entnum < 0 || entnum >= game.maxentities ) {
+            gzclose( f );
+            gi.error( "%s: bad entity number", __func__ );
         }
-        if (entnum >= globals.edictPool.num_edicts)
-            globals.edictPool.num_edicts = entnum + 1;
+        if ( entnum >= globals.edictPool->num_edicts ) {
+            globals.edictPool->num_edicts = entnum + 1;
+        }
 
         ent = g_edicts + entnum;
         read_fields(&ctx, entityfields, ent);
@@ -1589,7 +1593,7 @@ void SVG_ReadLevel(const char *filename)
     }
 
     // do any load time things at this point
-    for (i = 0 ; i < globals.edictPool.num_edicts ; i++) {
+    for (i = 0 ; i < globals.edictPool->num_edicts ; i++) {
         ent = &g_edicts[i];
 
         if (!ent->inuse)

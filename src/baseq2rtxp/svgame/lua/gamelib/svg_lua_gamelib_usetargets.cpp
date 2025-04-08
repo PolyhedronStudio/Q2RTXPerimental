@@ -50,7 +50,7 @@ const int32_t SVG_Trigger_KillTargets( edict_t *self );
 **/
 void LUA_Think_UseTargetDelay( edict_t *entity ) {
 	// Ensure it is still active.
-	if ( !SVG_IsActiveEntity( entity ) ) {
+	if ( !SVG_Entity_IsActive( entity ) ) {
 		return;
 	}
 
@@ -111,7 +111,7 @@ void LUA_Think_UseTargetDelay( edict_t *entity ) {
 **/
 const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	// Make sure that the entity is at least active and valid to be signalling.
-	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
+	if ( !SVG_Entity_IsActive( leEnt.edict ) ) {
 		return -1; // USETARGET_INVALID
 	}
 
@@ -125,7 +125,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 		// create a temp object to UseTarget at a later time.
 		edict_t *delayEntity = SVG_AllocateEdict();
 		// In case it failed to allocate of course.
-		if ( !SVG_IsActiveEntity( delayEntity ) ) {
+		if ( !SVG_Entity_IsActive( delayEntity ) ) {
 			return -1; // USETARGET_INVALID
 		}
 		delayEntity->classname = "DelayedLuaUseTarget";
@@ -163,7 +163,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 		// Set entity to creator entity.
 		entity = entity->delayed.useTarget.creatorEntity;
 		// Make sure that the entity is at least active.
-		if ( !SVG_IsActiveEntity( entity ) ) {
+		if ( !SVG_Entity_IsActive( entity ) ) {
 			return -1; // USETARGET_INVALID
 		}
 	}
@@ -233,7 +233,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 **/
 void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 	// Ensure it is still active.
-	if ( !SVG_IsActiveEntity( entity ) ) {
+	if ( !SVG_Entity_IsActive( entity ) ) {
 		return;
 	}
 
@@ -255,7 +255,7 @@ void LUA_Think_UseTargetsDelay( edict_t *entity ) {
 **/
 const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, const entity_usetarget_type_t useType, int32_t useValue ) {
 	// Make sure that the entity is at least active.
-	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
+	if ( !SVG_Entity_IsActive( leEnt.edict ) ) {
 		return -1; // USETARGET_INVALID
 	}
 
@@ -269,7 +269,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 		// create a temp object to UseTarget at a later time.
 		edict_t *delayEntity = SVG_AllocateEdict();
 		// In case it failed to allocate of course.
-		if ( !SVG_IsActiveEntity( delayEntity ) ) {
+		if ( !SVG_Entity_IsActive( delayEntity ) ) {
 			return -1; // USETARGET_INVALID
 		}
 		delayEntity->classname = "DelayedLuaUseTargets";
@@ -307,7 +307,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 		// Set entity to creator entity.
 		entity = entity->delayed.useTarget.creatorEntity;
 		// Make sure that the entity is at least active.
-		if ( !SVG_IsActiveEntity( entity ) ) {
+		if ( !SVG_Entity_IsActive( entity ) ) {
 			return -1; // USETARGET_INVALID
 		}
 	}
@@ -332,7 +332,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 
 	if ( entity->targetNames.target ) {
 		edict_t *fireTargetEntity = nullptr;
-		while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)entity->targetNames.target ) ) ) {
+		while ( ( fireTargetEntity = SVG_Entities_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)entity->targetNames.target ) ) ) {
 			// Doors fire area portals in a specific way
 			if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )
 				&& ( !Q_stricmp( (const char *)entity->classname, "func_door" ) || !Q_stricmp( (const char *)entity->classname, "func_door_rotating" ) ) ) {

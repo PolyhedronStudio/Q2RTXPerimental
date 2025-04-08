@@ -35,11 +35,11 @@ static const bool SVG_Lua_SignalOut( sol::state_view &stateView, edict_t *ent, e
 	bool executedSuccessfully = false;
 
 	// Entity has to be non (nullptr) and active(in use).
-	if ( !SVG_IsValidLuaEntity( ent, true )
+	if ( !SVG_Entity_IsValidLuaEntity( ent, true )
 		// has to be non (nullptr) and active(in use).
-		|| ( activator && !SVG_IsActiveEntity( activator ) )
+		|| ( activator && !SVG_Entity_IsActive( activator ) )
 		// Other is optional.
-		//|| ( other && !SVG_IsActiveEntity( other ) )
+		//|| ( other && !SVG_Entity_IsActive( other ) )
 		// And a valid Signal Name.
 		|| !signalName
 		// And the entity has a valid luaName

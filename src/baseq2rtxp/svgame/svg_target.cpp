@@ -561,7 +561,7 @@ void target_laser_start(edict_t *self)
 
     if (!self->enemy) {
         if (self->targetNames.target) {
-            ent = SVG_Find(NULL, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
+            ent = SVG_Entities_Find(NULL, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
             if (!ent)
                 gi.dprintf("%s at %s: %s is a bad target\n", (const char *)self->classname, vtos(self->s.origin), (const char *)self->targetNames.target);
             self->enemy = ent;
@@ -626,7 +626,7 @@ void target_lightramp_use( edict_t *self, edict_t *other, edict_t *activator, co
         // check all the targets
         e = NULL;
         while (1) {
-            e = SVG_Find(e, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
+            e = SVG_Entities_Find(e, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
             if (!e)
                 break;
             if (strcmp( (const char *)e->classname, "light") != 0) {
@@ -695,7 +695,7 @@ void target_earthquake_think(edict_t *self)
 		self->last_move_time = level.time + 6.5_sec;
     }
 
-    for ( i = 1, e = g_edicts + i; i < globals.edictPool.num_edicts; i++, e++ ) {
+    for ( i = 1, e = g_edicts + i; i < globals.edictPool->num_edicts; i++, e++ ) {
         if ( !e->inuse )
             continue;
         if ( !e->client )
@@ -717,7 +717,7 @@ void target_earthquake_use( edict_t *self, edict_t *other, edict_t *activator, c
 		uint32_t i;
 		edict_t *e;
 
-        for ( i = 1, e = g_edicts + i; i < globals.edictPool.num_edicts; i++, e++ ) {
+        for ( i = 1, e = g_edicts + i; i < globals.edictPool->num_edicts; i++, e++ ) {
 			if ( !e->inuse )
 				continue;
 			if ( !e->client )

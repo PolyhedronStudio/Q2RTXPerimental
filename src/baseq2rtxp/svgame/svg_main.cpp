@@ -19,6 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_local.h"
 #include "svgame/svg_gamemode.h"
 #include "svgame/svg_commands_server.h"
+#include "svgame/svg_edict_pool.h"
+#include "svgame/svg_clients.h"
 
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
@@ -54,7 +56,10 @@ QMTime FRAME_TIME_MS;
 int sm_meat_index;
 int snd_fry;
 
+//! Actual array storing the edicts. (entities).
 edict_t	*g_edicts;
+//! Memory Pool for entities.
+svg_edict_pool_t g_edict_pool;
 
 // WID: gamemode support:
 cvar_t *dedicated;
@@ -323,17 +328,16 @@ void SVG_InitGame( void )
 
     // Clamp maxentities within valid range.
     game.maxentities = QM_ClampUnsigned<uint32_t>(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
-	// Initialize the edict pool.
-	SVG_InitEdictPool( game.maxentities );
-
     // initialize all clients for this game
-    game.maxclients = maxclients->value;
-	// WID: C++20: Addec cast.
-    game.clients = (svg_client_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
-    globals.edictPool.num_edicts = game.maxclients + 1;
+    game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
+    
+    // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
+    g_edicts = SVG_EdictPool_Reallocate( &g_edict_pool, game.maxentities );
+    // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
+    g_edict_pool.num_edicts = game.maxclients + 1;
 
-    // Initialize the Lua VM.
-    //SVG_Lua_Initialize();
+    // Initialize a fresh clients array.
+    game.clients = SVG_Clients_Reallocate( game.maxclients );
 }
 
 
@@ -421,9 +425,8 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.ServerCommand = SVG_ServerCommand;
 
-        globals.edictPool = { };
-        globals.edictPool.edicts = g_edicts;
-		globals.edictPool.edict_size = sizeof( edict_t );
+		// Store a pointer to the edicts pool.
+        globals.edictPool = &g_edict_pool;
 
 		return &globals;
 	}
@@ -550,7 +553,7 @@ void EndDMLevel(void) {
     if ( level.nextmap[ 0 ] ) {// go to a specific map
         SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
     } else {  // search for a changelevel
-        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "target_changelevel");
+        ent = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "target_changelevel");
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level
@@ -688,7 +691,7 @@ void SVG_RunFrame(void) {
     // even the world gets a chance to think
     //
     edict_t *ent = &g_edicts[ 0 ];
-    for ( int32_t i = 0; i < globals.edictPool.num_edicts; i++, ent++ ) {
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent++ ) {
         if ( !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."
             if ( i > 0 && i <= game.maxclients ) {

@@ -989,7 +989,7 @@ void SP_worldspawn(edict_t *ent)
     //---------------
 
     // reserve some spots for dead player bodies for coop / deathmatch
-    SVG_InitBodyQue();
+    SVG_Entities_InitBodyQue();
 
     // set configstrings for items
     SVG_SetItemNames();

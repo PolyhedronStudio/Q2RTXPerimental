@@ -43,7 +43,7 @@ void SP_FixCoopSpots(edict_t *self)
     spot = NULL;
 
     while (1) {
-        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start");
+        spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_start");
         if (!spot)
             return;
         if (!spot->targetname)
@@ -751,7 +751,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint(void)
     range1 = range2 = 99999;
     spot1 = spot2 = NULL;
 
-    while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
+    while ((spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
         count++;
         range = PlayersRangeFromSpot(spot);
         if (range < range1) {
@@ -775,7 +775,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint(void)
 
     spot = NULL;
     do {
-        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch");
+        spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch");
         if (spot == spot1 || spot == spot2)
             selection++;
     } while (selection--);
@@ -799,7 +799,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint(void)
     spot = NULL;
     bestspot = NULL;
     bestdistance = 0;
-    while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
+    while ((spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
         bestplayerdistance = PlayersRangeFromSpot(spot);
 
         if (bestplayerdistance > bestdistance) {
@@ -814,7 +814,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint(void)
 
     // if there is a player just spawned on each and every start spot
     // we have no choice to turn one into a telefrag meltdown
-    spot = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
+    spot = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
 
     return spot;
 }
@@ -845,7 +845,7 @@ edict_t *SelectCoopSpawnPoint(edict_t *ent)
 
     // assume there are four coop spots at each spawnpoint
     while (1) {
-        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_coop");
+        spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_coop");
         if (!spot)
             return NULL;    // we didn't have enough...
 
@@ -883,7 +883,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
 
     // find a single player start spot
     if (!spot) {
-        while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start")) != NULL) {
+        while ((spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_start")) != NULL) {
             if (!game.spawnpoint[0] && !spot->targetname)
                 break;
 
@@ -897,7 +897,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
         if (!spot) {
             if (!game.spawnpoint[0]) {
                 // there wasn't a spawnpoint without a target, so use any
-                spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start");
+                spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_start");
             }
             if (!spot)
                 gi.error("Couldn't find spawn point %s", game.spawnpoint);
@@ -911,7 +911,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
 //======================================================================
 
 
-void SVG_InitBodyQue(void)
+void SVG_Entities_InitBodyQue(void)
 {
     int     i;
     edict_t *ent;

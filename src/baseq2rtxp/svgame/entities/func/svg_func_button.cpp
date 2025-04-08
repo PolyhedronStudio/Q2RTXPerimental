@@ -82,15 +82,15 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 **/
 void button_determine_usetarget_hint_id( edict_t *self ) {
     // Continous button?
-    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continous active?
-    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    const bool isContinuousState = SVG_Entity_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
 
     // Pressable button?
-    const bool isPressUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_PRESS );
+    const bool isPressUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_PRESS );
 
     // Toggleable button?
-    const bool isToggleUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+    const bool isToggleUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
     // Damage button?
     const bool isDamageButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES );
     // Touch button?
@@ -177,15 +177,15 @@ void button_unpress_move_done( edict_t *self ) {
     Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_UNPRESSED_STATE );
 
     // Continous button?
-    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continous active?
-    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    const bool isContinuousState = SVG_Entity_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
 
     // Pressable button?
-    const bool isPressUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_PRESS );
+    const bool isPressUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_PRESS );
 
     // Toggleable button?
-    const bool isToggleUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+    const bool isToggleUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
     // Damage button?
     const bool isDamageButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES );
     // Touch button?
@@ -273,15 +273,15 @@ void button_press_move_done( edict_t *self ) {
     Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_MOVING_TO_PRESSED_STATE );
 
     // Continous button?
-    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continous active?
-    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    const bool isContinuousState = SVG_Entity_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
 
     // Pressable button?
-    const bool isPressUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_PRESS );
+    const bool isPressUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_PRESS );
 
     // Toggleable button?
-    const bool isToggleUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+    const bool isToggleUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
     // Damage button?
     const bool isDamageButton = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES );
     // Touch button?
@@ -393,9 +393,9 @@ void button_press_move( edict_t *self ) {
         SVG_SignalOut( self, self->other, self->activator, "OnTouchPress" );
     }
     // Continous button?
-    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continous active?
-    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    const bool isContinuousState = SVG_Entity_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
     // Signal its unpress.
     if ( isContinuousUseTarget && !isContinuousState ) {
         // Dispatch a signal.
@@ -445,9 +445,9 @@ void button_unpress_move( edict_t *self ) {
     }
     
     // Continous button?
-    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continous active?
-    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    const bool isContinuousState = SVG_Entity_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
     // Signal its unpress.
     if ( isContinuousUseTarget && !isContinuousState ) {
         // Dispatch a signal.
@@ -484,9 +484,9 @@ void button_think_return( edict_t *self ) {
     Q_DevAssert( self->pushMoveInfo.state == BUTTON_STATE_PRESSED );
 
     // Continous button?
-    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continous active?
-    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    const bool isContinuousState = SVG_Entity_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
 
     // Try again next frame.
     if (/* self->pushMoveInfo.state == BUTTON_STATE_PRESSED &&*/ isContinuousUseTarget && isContinuousState ) {
@@ -552,12 +552,12 @@ void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity
     }
 
     // Continuous button?
-    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continuous active?
-    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    const bool isContinuousState = SVG_Entity_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
 
     // Toggleable button?
-    const bool isToggleUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
+    const bool isToggleUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE );
     // Touch button?
     const bool isStartPressed = SVG_HasSpawnFlags( self, BUTTON_SPAWNFLAG_START_PRESSED );
     // Is it a wait button? Or meant to remain pressed?
@@ -607,7 +607,7 @@ void button_use( edict_t *self, edict_t *other, edict_t *activator, const entity
 void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Only react if it is a client entity which is touch triggering this button.
     // If it is a dead client, ignore triggering it.
-    if ( !SVG_IsClientEntity( activator, /* healthCheck=*/true ) ) {
+    if ( !SVG_Entity_IsClient( activator, /* healthCheck=*/true ) ) {
         return;
     }
 
@@ -636,9 +636,9 @@ void button_usetarget_continuous_press( edict_t *self, edict_t *other, edict_t *
     }
     
     // Continuous button?
-    const bool isContinuousUseTarget = SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
+    const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continuous active?
-    const bool isContinuousState = SVG_UseTarget_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
+    const bool isContinuousState = SVG_Entity_HasUseTargetState( self, ENTITY_USETARGET_STATE_CONTINUOUS );
 
     // Is it a wait button? Or meant to remain pressed?
     const bool stayPressed = ( self->wait == -1 ? true : false );
@@ -683,7 +683,7 @@ void button_usetarget_press( edict_t *self, edict_t *other, edict_t *activator, 
 
     // Only react if it is a client entity which is touch triggering this button.
     // If it is a dead client, ignore triggering it.
-    if ( !SVG_IsClientEntity( activator, /* healthCheck=*/true ) ) {
+    if ( !SVG_Entity_IsClient( activator, /* healthCheck=*/true ) ) {
         return;
     }
 
@@ -719,7 +719,7 @@ void button_usetarget_press( edict_t *self, edict_t *other, edict_t *activator, 
 void button_usetarget_toggle( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Only react if it is a client entity which is touch triggering this button.
     // If it is a dead client, ignore triggering it.
-    if ( !SVG_IsClientEntity( activator, /* healthCheck=*/true ) ) {
+    if ( !SVG_Entity_IsClient( activator, /* healthCheck=*/true ) ) {
         return;
     }
 
@@ -761,8 +761,8 @@ void button_touch( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_su
 
     // Only react if it is a client entity, or a monster entity which is touch triggering this button.
     // If it is a dead client, ignore triggering it.
-    if ( !SVG_IsClientEntity( other, /* healthCheck=*/true ) 
-        && ( SVG_HasSpawnFlags( other, BUTTON_SPAWNFLAG_NO_MONSTERS ) && !SVG_IsMonsterEntity( other ) ) ) {
+    if ( !SVG_Entity_IsClient( other, /* healthCheck=*/true ) 
+        && ( SVG_HasSpawnFlags( other, BUTTON_SPAWNFLAG_NO_MONSTERS ) && !SVG_Entity_IsMonster( other ) ) ) {
         return;
     }
 
@@ -807,8 +807,8 @@ void button_killed( edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 
     // Only react if it is a client entity, or a monster entity which is touch triggering this button.
     // If it is a dead client, ignore triggering it.
-    if ( !SVG_IsClientEntity( attacker, /* healthCheck=*/true )
-        && ( SVG_HasSpawnFlags( attacker, BUTTON_SPAWNFLAG_NO_MONSTERS ) && !SVG_IsMonsterEntity( attacker ) ) ) {
+    if ( !SVG_Entity_IsClient( attacker, /* healthCheck=*/true )
+        && ( SVG_HasSpawnFlags( attacker, BUTTON_SPAWNFLAG_NO_MONSTERS ) && !SVG_Entity_IsMonster( attacker ) ) ) {
         return;
     }
 

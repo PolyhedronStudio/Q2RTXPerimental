@@ -1,1 +1,1 @@
-Q2RTXPerimental_ded_d.exe +set developer 1 +set cheats 1 +set maxclients 4 map q2rtxp_dev_sigio_targetrange
+Q2RTXPerimental_ded_d.exe +set sv_debug 1 +set developer 1 +set cheats 1 +set maxclients 4 map q2rtxp_dev_sigio_targetrange

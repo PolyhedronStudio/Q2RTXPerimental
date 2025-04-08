@@ -41,7 +41,7 @@ const float SVG_Client_DistanceToEntity( edict_t *ent ) {
         // Get client.
         edict_t *clientEntity = &g_edicts[ n ];
         // Ensure is active and alive player.
-        if ( !SVG_IsClientEntity( clientEntity, true ) ) {
+        if ( !SVG_Entity_IsClient( clientEntity, true ) ) {
             continue;
         }
 
@@ -72,7 +72,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint( void ) {
     range1 = range2 = 99999;
     spot1 = spot2 = NULL;
 
-    while ( ( spot = SVG_Find( spot, FOFS_GENTITY( classname ), "info_player_deathmatch" ) ) != NULL ) {
+    while ( ( spot = SVG_Entities_Find( spot, FOFS_GENTITY( classname ), "info_player_deathmatch" ) ) != NULL ) {
         count++;
         range = SVG_Client_DistanceToEntity( spot );
         if ( range < range1 ) {
@@ -96,7 +96,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint( void ) {
 
     spot = NULL;
     do {
-        spot = SVG_Find( spot, FOFS_GENTITY( classname ), "info_player_deathmatch" );
+        spot = SVG_Entities_Find( spot, FOFS_GENTITY( classname ), "info_player_deathmatch" );
         if ( spot == spot1 || spot == spot2 )
             selection++;
     } while ( selection-- );
@@ -116,7 +116,7 @@ static edict_t *SelectFarthestDeathmatchSpawnPoint( void ) {
     spot = NULL;
     bestspot = NULL;
     bestdistance = 0;
-    while ( ( spot = SVG_Find( spot, FOFS_GENTITY( classname ), "info_player_deathmatch" ) ) != NULL ) {
+    while ( ( spot = SVG_Entities_Find( spot, FOFS_GENTITY( classname ), "info_player_deathmatch" ) ) != NULL ) {
         bestplayerdistance = SVG_Client_DistanceToEntity( spot );
 
         if ( bestplayerdistance > bestdistance ) {
@@ -131,7 +131,7 @@ static edict_t *SelectFarthestDeathmatchSpawnPoint( void ) {
 
     // if there is a player just spawned on each and every start spot
     // we have no choice to turn one into a telefrag meltdown
-    spot = SVG_Find( NULL, FOFS_GENTITY( classname ), "info_player_deathmatch" );
+    spot = SVG_Entities_Find( NULL, FOFS_GENTITY( classname ), "info_player_deathmatch" );
 
     return spot;
 }
@@ -165,7 +165,7 @@ static edict_t *SelectCoopSpawnPoint( edict_t *ent ) {
 
     // assume there are four coop spots at each spawnpoint
     while ( 1 ) {
-        spot = SVG_Find( spot, FOFS_GENTITY( classname ), "info_player_coop" );
+        spot = SVG_Entities_Find( spot, FOFS_GENTITY( classname ), "info_player_coop" );
         if ( !spot )
             return NULL;    // we didn't have enough...
 
@@ -205,7 +205,7 @@ void SVG_Player_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles
     // Find a single player start spot since the game modes found none.
     if ( !spot ) {
         // Iterate for info_player_start that matches the game.spawnpoint targetname to spawn at..
-        while ( ( spot = SVG_Find( spot, FOFS_GENTITY( classname ), "info_player_start" ) ) != NULL ) {
+        while ( ( spot = SVG_Entities_Find( spot, FOFS_GENTITY( classname ), "info_player_start" ) ) != NULL ) {
             // Break out if the string data is invalid.
             if ( !game.spawnpoint[ 0 ] && !spot->targetname )
                 break;
@@ -221,7 +221,7 @@ void SVG_Player_SelectSpawnPoint( edict_t *ent, Vector3 &origin, Vector3 &angles
         if ( !spot ) {
             if ( !game.spawnpoint[ 0 ] ) {
                 // there wasn't a spawnpoint without a target, so use any
-                spot = SVG_Find( spot, FOFS_GENTITY( classname ), "info_player_start" );
+                spot = SVG_Entities_Find( spot, FOFS_GENTITY( classname ), "info_player_start" );
             }
             if ( !spot )
                 gi.error( "Couldn't find spawn point %s", game.spawnpoint );

@@ -426,7 +426,7 @@ const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
 *           (This so the actual offsets can be calculated easily.)
 **/
 void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover ) {
-    if ( !SVG_IsActiveEntity( parentMover ) || !SVG_IsActiveEntity( childMover ) ) {
+    if ( !SVG_Entity_IsActive( parentMover ) || !SVG_Entity_IsActive( childMover ) ) {
         return;
     }
     

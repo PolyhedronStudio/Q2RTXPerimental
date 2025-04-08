@@ -348,13 +348,16 @@ static void SV_InitGame_Init( ) {
 	// initialize
 	ge->Init( );
 
-	// Sanitize edict_size.
-	if ( ge->edictPool.edict_size < sizeof( edict_t ) || ge->edictPool.edict_size > ( uint64_t )UINT64_MAX / MAX_EDICTS ) {
-		Com_Error( ERR_DROP, "ServerGame library returned bad size of edict_t" );
-	}
+	//// Sanitize edict_size.
+	//if ( ge->edictPool.edict_size < sizeof( edict_t ) || ge->edictPool.edict_size > ( uint64_t )UINT64_MAX / MAX_EDICTS ) {
+	//	Com_Error( ERR_DROP, "ServerGame library returned bad size of edict_t" );
+	//}
+    if ( !ge->edictPool ) {
+        Com_Error( ERR_DROP, "ServerGame library returned (nullptr) ge->edictPool" );
+    }
 
 	// Sanitize max_edicts.
-	if ( ge->edictPool.max_edicts <= sv_maxclients->integer || ge->edictPool.max_edicts > MAX_EDICTS ) {
+	if ( ge->edictPool->max_edicts <= sv_maxclients->integer || ge->edictPool->max_edicts > MAX_EDICTS ) {
 		Com_Error( ERR_DROP, "ServerGame library returned bad number of max_edicts" );
 	}
 

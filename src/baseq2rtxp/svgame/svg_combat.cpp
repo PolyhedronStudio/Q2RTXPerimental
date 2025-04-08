@@ -539,7 +539,7 @@ void SVG_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict
     vec3_t  v;
     vec3_t  dir;
 
-    while ((ent = SVG_FindWithinRadius(ent, inflictor->s.origin, radius)) != NULL) {
+    while ((ent = SVG_Entities_FindWithinRadius(ent, inflictor->s.origin, radius)) != NULL) {
         if (ent == ignore)
             continue;
         if (!ent->takedamage)

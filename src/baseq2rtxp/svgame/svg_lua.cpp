@@ -751,7 +751,7 @@ void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 	LUA_CanDispatchCallback( luaMapInstance.callBacks.OnClientEnterLevel );
 
 	// Make sure it is a valid client entity.
-	if ( !SVG_IsClientEntity( clientEntity ) ) {
+	if ( !SVG_Entity_IsClient( clientEntity ) ) {
 		gi.dprintf( "%s: invalid clientEntity passed.\n", __func__ );
 		return;
 	}
@@ -785,7 +785,7 @@ void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
 	LUA_CanDispatchCallback( luaMapInstance.callBacks.OnClientExitLevel );
 
 	// Make sure it is a valid client entity.
-	if ( !SVG_IsClientEntity( clientEntity ) ) {
+	if ( !SVG_Entity_IsClient( clientEntity ) ) {
 		gi.dprintf( "%s: invalid clientEntity passed.\n", __func__ );
 		return;
 	}

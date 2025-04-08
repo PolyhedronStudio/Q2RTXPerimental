@@ -1294,7 +1294,7 @@ void misc_viper_bomb_use(edict_t *self, edict_t *other, edict_t *activator)
     self->activator = activator;
 	self->timestamp = level.time;
 
-    viper = SVG_Find(NULL, FOFS_GENTITY(classname), "misc_viper");
+    viper = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "misc_viper");
 	if ( viper ) {
 		VectorScale( viper->moveinfo.dir, viper->moveinfo.speed, self->velocity );
 		VectorCopy( viper->moveinfo.dir, self->moveinfo.dir );
@@ -1587,7 +1587,7 @@ static void func_clock_format_countdown(edict_t *self)
 void func_clock_think(edict_t *self)
 {
     if (!self->enemy) {
-        self->enemy = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
+        self->enemy = SVG_Entities_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
         if (!self->enemy)
             return;
     }
@@ -1693,7 +1693,7 @@ void teleporter_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surfa
 
     if (!other->client)
         return;
-    dest = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
+    dest = SVG_Entities_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
     if (!dest) {
         gi.dprintf("Couldn't find destination\n");
         return;

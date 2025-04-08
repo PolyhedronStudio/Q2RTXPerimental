@@ -130,19 +130,19 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
     level.exitintermission = 0;
 
     // find an intermission spot
-    ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_intermission");
+    ent = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "info_player_intermission");
     if (!ent) {
         // the map creator forgot to put in an intermission point...
-        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_start");
+        ent = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "info_player_start");
         if (!ent)
-            ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
+            ent = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
     } else {
         // chose one of four spots
         i = Q_rand() & 3;
         while (i--) {
-            ent = SVG_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
+            ent = SVG_Entities_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
             if (!ent)   // wrap around the list
-                ent = SVG_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
+                ent = SVG_Entities_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
         }
     }
 

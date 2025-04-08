@@ -165,14 +165,16 @@ static inline cvar_t *SV_InfoSet( const char *var, const char *value ) {
 **/
 static inline edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
     //#define EDICT_FOR_NUMBER(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
-    return ( (edict_t *)( (byte *)ge->edictPool.edicts + ge->edictPool.edict_size * ( number ) ) );
+    //return ( (edict_t *)( (byte *)ge->edictPool.edicts + ge->edictPool.edict_size * ( number ) ) );
+    return ge->edictPool->EdictForNumber( number );
 }
 /**
 *   @return Returns the number of the pointer entity.
 **/
 static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
     //#define EDICT_NUM(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
-    return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edictPool.edicts ) / ge->edictPool.edict_size ) );
+    //return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edictPool.edicts ) / ge->edictPool.edict_size ) );
+	return ge->edictPool->NumberForEdict( ent );
 }
 
 
@@ -433,7 +435,7 @@ typedef struct client_s {
     // server state pointers (hack for MVD channels implementation)
 	configstring_t	*configstrings;
     char            *gamedir, *mapname;
-    edict_pool_t    *pool;
+    sv_edict_pool_i *pool;
     cm_t            *cm;
     int             slot;
     int             spawncount;
@@ -452,7 +454,8 @@ typedef struct client_s {
 **/
 static inline edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
     //#define EDICT_POOL(c, n) ((edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
-    return ( (edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
+    //return ( (edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
+    return client->pool->EdictForNumber( number );
 }
 
 // a client can leave the server in one of four ways:

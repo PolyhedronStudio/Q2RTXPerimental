@@ -109,8 +109,8 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
         // And it differs from the one we found by tracing:
         if ( currentTargetEntity != traceUseTarget.ent ) {
             // AND it is a continuous usetarget supporting entity, with its state being continuously held:
-            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
-                && SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
+            if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
+                && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
                 // Stop useTargetting the entity:
                 if ( currentTargetEntity->use ) {
                     currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
@@ -149,8 +149,8 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
         // The (+usetarget) key is neither pressed, nor held continuously, thus it was released this frame.
         if ( isTargetUseKeyReleased ) {
             // Stop with the continous entity usage:
-            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
-                && SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
+            if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
+                && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
                 // Continous entity husage:
                 if ( currentTargetEntity->use ) {
                     currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
@@ -171,12 +171,12 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
         // Play audio sound for when pressing onto a valid entity.
         if ( isTargetUseKeyPressed ) {
             if ( currentTargetEntity->useTarget.flags != ENTITY_USETARGET_FLAG_NONE ) {
-                if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_DISABLED ) ) {
+                if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_DISABLED ) ) {
                     // Invalid, disabled, sound.
                     gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
 
                     // Stop with the continous entity usage:
-                    if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
+                    if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
                         // Continous entity husage:
                         if ( currentTargetEntity->use ) {
                             currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
@@ -192,14 +192,14 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
             }
         }
         
-        if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ( ENTITY_USETARGET_FLAG_PRESS | ENTITY_USETARGET_FLAG_TOGGLE | ENTITY_USETARGET_FLAG_CONTINUOUS ) )
+        if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ( ENTITY_USETARGET_FLAG_PRESS | ENTITY_USETARGET_FLAG_TOGGLE | ENTITY_USETARGET_FLAG_CONTINUOUS ) )
             && ( isTargetUseKeyPressed /*|| isTargetUseKeyHolding*/ ) ) 
         {
             // Single press entity usage:
-            if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_PRESS ) ) {
+            if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_PRESS ) ) {
                 if ( currentTargetEntity->use ) {
                     //// Trigger 'OFF' if it is toggled.
-                    if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_ON ) ) {
+                    if ( SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_ON ) ) {
                         currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_OFF, 0 );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_ON );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_OFF );
@@ -214,10 +214,10 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
                 }
             }
             // Toggle press entity usage:
-            else if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
+            else if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
                 if ( currentTargetEntity->use ) {
                     // Trigger 'TOGGLE OFF' if it is toggled.
-                    if ( SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_TOGGLED ) ) {
+                    if ( SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_TOGGLED ) ) {
                         currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ENTITY_USETARGET_STATE_TOGGLED );
                         currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
@@ -231,7 +231,7 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
             }
 
             // Toggle press entity usage:
-            else if ( SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
+            else if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
                 if ( currentTargetEntity->use ) {
                     currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
                 }
@@ -240,8 +240,8 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
         // Holding (+usetarget) key, if it is continuous and has its state set to it,
         // we CONTINUOUSLY USE the target.
         } else if ( isTargetUseKeyHolding
-            && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
-            && SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
+            && SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
+            && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
             // Continous entity husage:
             if ( currentTargetEntity->use ) {
                 currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
@@ -251,8 +251,8 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
             currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_CONTINUOUS;
         // Holding (+usetarget) key, thus we continously USE the target entity.
         } //else if ( !isTargetUseKeyPressed && isTargetUseKeyHolding  
-        //    && SVG_UseTarget_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
-        //    && SVG_UseTarget_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) 
+        //    && SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
+        //    && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) 
         //{
         //    // Continous entity husage:
         //    if ( currentTargetEntity->use ) {
@@ -268,7 +268,7 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
         }
     }
 
-    //if ( SVG_IsActiveEntity( currentTargetEntity ) ) {
+    //if ( SVG_Entity_IsActive( currentTargetEntity ) ) {
     //    gi.dprintf( "targetname(\"%s\", %d)target(\"%s\", %d), isLocked(%s)\n", 
     //        currentTargetEntity->targetname.ptr, 
     //        currentTargetEntity->targetname.count,

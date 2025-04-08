@@ -46,7 +46,7 @@ edict_t *medic_FindDeadMonster(edict_t *self)
     edict_t *ent = NULL;
     edict_t *best = NULL;
 
-    while ((ent = SVG_FindWithinRadius(ent, self->s.origin, 1024)) != NULL) {
+    while ((ent = SVG_Entities_FindWithinRadius(ent, self->s.origin, 1024)) != NULL) {
         if (ent == self)
             continue;
         if (!(ent->svflags & SVF_MONSTER))

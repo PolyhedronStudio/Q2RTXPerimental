@@ -761,8 +761,8 @@ void Touch_Item(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *s
 //
 const bool    SVG_Util_KillBox( edict_t *ent, const bool bspClipping );
 void    SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
-edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
-edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad );
+edict_t *SVG_Entities_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
+edict_t *SVG_Entities_FindWithinRadius( edict_t *from, vec3_t org, float rad );
 edict_t *SVG_PickTarget( char *targetname );
 void    SVG_UseTargets( edict_t *ent, edict_t *activator );
 void    SVG_SetMovedir( vec3_t angles, vec3_t movedir );
@@ -893,7 +893,7 @@ void SVG_Player_InitPersistantData(edict_t *ent, svg_client_t *client);
 void SVG_Player_InitRespawnData(svg_client_t *client);
 void SVG_Client_BeginServerFrame(edict_t *ent);
 
-void SVG_InitBodyQue( void );
+void SVG_Entities_InitBodyQue( void );
 
 //
 // g_player.c

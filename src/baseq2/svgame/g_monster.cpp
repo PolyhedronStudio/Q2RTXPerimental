@@ -637,7 +637,7 @@ void monster_start_go( edict_t *self ) {
 		target = NULL;
 		notcombat = false;
 		fixup = false;
-		while ( ( target = SVG_Find( target, FOFS_GENTITY( targetname ), self->targetNames.target ) ) != NULL ) {
+		while ( ( target = SVG_Entities_Find( target, FOFS_GENTITY( targetname ), self->targetNames.target ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) == 0 ) {
 				self->targetNames.combat = self->targetNames.target;
 				fixup = true;
@@ -656,7 +656,7 @@ void monster_start_go( edict_t *self ) {
 		edict_t *target;
 
 		target = NULL;
-		while ( ( target = SVG_Find( target, FOFS_GENTITY( targetname ), self->targetNames.combat ) ) != NULL ) {
+		while ( ( target = SVG_Entities_Find( target, FOFS_GENTITY( targetname ), self->targetNames.combat ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) != 0 ) {
 				gi.dprintf( "%s at %s has a bad targetNames.combat %s : %s at %s\n",
 						   self->classname, vtos( self->s.origin ),

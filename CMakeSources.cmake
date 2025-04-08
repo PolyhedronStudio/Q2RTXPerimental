@@ -285,10 +285,12 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	# ServerGame
 	baseq2rtxp/svgame/svg_ai.cpp
 	baseq2rtxp/svgame/svg_chase.cpp
+	baseq2rtxp/svgame/svg_clients.cpp
 	baseq2rtxp/svgame/svg_commands_game.cpp
 	baseq2rtxp/svgame/svg_commands_server.cpp
 	baseq2rtxp/svgame/svg_combat.cpp
 	baseq2rtxp/svgame/svg_edicts.cpp
+	baseq2rtxp/svgame/svg_edict_pool.cpp
 	baseq2rtxp/svgame/svg_gamemode.cpp
 	baseq2rtxp/svgame/svg_items.cpp
 	baseq2rtxp/svgame/svg_lua.cpp
@@ -389,7 +391,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
+	baseq2rtxp/svgame/svg_clients.h
 	baseq2rtxp/svgame/svg_combat.h
+	baseq2rtxp/svgame/svg_edict_pool.h
 	baseq2rtxp/svgame/svg_game_client.h
 	baseq2rtxp/svgame/svg_game_edict.h
 	baseq2rtxp/svgame/svg_game_items.h

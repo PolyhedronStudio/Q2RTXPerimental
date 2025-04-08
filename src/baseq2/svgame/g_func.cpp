@@ -837,7 +837,7 @@ void door_use_areaportals(edict_t *self, bool open)
     if (!self->targetNames.target)
         return;
 
-    while ((t = SVG_Find(t, FOFS_GENTITY(targetname), self->targetNames.target))) {
+    while ((t = SVG_Entities_Find(t, FOFS_GENTITY(targetname), self->targetNames.target))) {
         if (Q_stricmp(t->classname, "func_areaportal") == 0) {
             gi.SetAreaPortalState(t->style, open);
 

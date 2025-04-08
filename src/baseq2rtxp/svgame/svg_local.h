@@ -1,70 +1,85 @@
-/*
-Copyright (C) 1997-2001 Id Software, Inc.
+/*********************************************************************
+*
+*
+*	SVGame: Local Header Includes and Definitions.
+*
+*
+********************************************************************/
+#pragma once
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
-// g_local.h -- local definitions for ServerGame module
-
+//! Include all shared codebase func/type defs..
 #include "shared/shared.h"
+//! Include list data structure functionality.
 #include "shared/util_list.h"
 
 
-// Should already have been defined by CMake for this ServerGame target.
-//
-// Define SVGAME_INCLUDE so that game.h does not define the
-// short, server-visible svg_client_t and edict_t structures,
-// because we define the full size ones in this file
-#ifndef SVGAME_INCLUDE
-#define SVGAME_INCLUDE
-#endif
-// Include the servergame import/export structures.
-#include "shared/svgame.h"
 /**
-*   Extern here right after including shared/svgame.h
+*   Should already have been defined by CMake for this ServerGame target.
+*
+*   Define SVGAME_INCLUDE so that game.h does not define the
+*   short, server-visible svg_client_t and edict_t structures,
+*   because we define the full size ones in this file
+**/
+#ifndef SVGAME_INCLUDE
+    #define SVGAME_INCLUDE
+#endif
+
+//! Include the servergame import/export structures.
+#include "shared/svgame.h"
+
+/**
+*   Extern for 'global scope' access right here, after including shared/svgame.h
 **/
 // Imported engine API and vars.
 extern svgame_import_t gi;
 // Exported game API and vars.
 extern svgame_export_t globals;
 
-
+/**
+*   Include the shared game headers for functions and types.
+**/
 // SharedGame includes:
 #include "sharedgame/sg_shared.h"
-// Typedef for edict_t
+// Typedef for edict_t.
 typedef struct sg_usetarget_hint_s sg_usetarget_hint_t;
 
 /**
-*   Extern here right after including sharedgame/sg_shared.h
+*   Forward declared types:
+**/
+//struct edict_t;
+struct svg_edict_pool_t;
+
+
+
+/**
+* 
+* 
+* 
+*   Extern global constants.
+* 
+* 
+* 
 **/
 //! Frame time in seconds.
 extern QMTime FRAME_TIME_S;
 //! Frame time in miliseconds.
 extern QMTime FRAME_TIME_MS;
-// TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
-//#undef max
 //! Just to, 'hold time', 'forever and ever'.
 constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<int64_t>::max() );
+
 //! For backwards compatibilities.
 #define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
 
 
 
 /**
+* 
+* 
 *
 *   ServerGame Configuration:
 *
+* 
+* 
 **/
 //! Features this game supports.
 static constexpr int32_t SVG_FEATURES = ( GMF_PROPERINUSE | GMF_WANT_ALL_DISCONNECTS );
@@ -76,17 +91,15 @@ static constexpr int32_t BODY_QUEUE_SIZE = 8;
 
 
 
-#if 0 // <Q2RTXP>: Server Patch
 /**
-*	Zone Tag Memory: tag IDs for specified group memory types, allowing for efficient cleanup of said group's memory.
+* 
+* 
+* 
+*   Memory Utility Objects:
+* 
+* 
+* 
 **/
-//! Clear when unloading the dll.
-static constexpr int32_t TAG_SVGAME = 765;
-//! Clear when loading a new level.
-static constexpr int32_t TAG_SVGAME_LEVEL = 766;
-//! Clear when loading a new level.
-static constexpr int32_t TAG_SVGAME_LUA = 767;
-#endif
 #if 0
 // Simple wrapper for variable sized tag memory blocks (re-)allocated in TAG_SVGAME_LEVEL.
 using svg_level_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME_LEVEL>;
@@ -113,11 +126,8 @@ using svg_game_qstring_t = sg_qtag_string_t<char, TAG_SVGAME>;
 *
 * 
 ***/
-
 //! Spawnflag type.
 typedef int32_t spawnflag_t;
-
-
 
 /**
 *   Handedness values
@@ -125,15 +135,6 @@ typedef int32_t spawnflag_t;
 static constexpr int32_t RIGHT_HANDED = 0;
 static constexpr int32_t LEFT_HANDED = 1;
 static constexpr int32_t CENTER_HANDED = 2;
-
-/**
-*   Other:
-**/
-
-//! Actual Melee attack distance used for AI.
-static constexpr float AI_MELEE_DISTANCE = 80.f;
-
-
 
 
 
@@ -211,22 +212,27 @@ extern cvar_t *g_select_empty;
 *   Combat related enums etc.
 **/
 #include "svgame/svg_combat.h"
+
 /**
 *   Pusher/Mover- Move Info Data Structures:
 **/
 #include "svgame/svg_pushmove_info.h"
+
 /**
 *   Signal I/O:
 **/
 #include "svgame/svg_signalio.h"
+
 /**
 *   UseTargets related enums etc.
 **/
 #include "svgame/svg_usetargets.h"
+
 /**
 *   Signal I/O:
 **/
 #include "svgame/svg_trigger.h"
+
 /**
 *   (Player-)Weapon Related.
 **/
@@ -238,6 +244,7 @@ extern cvar_t *g_select_empty;
 #include "svgame/svg_game_items.h"
 //! For access all over.
 extern  gitem_t itemlist[];
+
 /**
 *   Include the GAME locals.
 **/
@@ -246,12 +253,14 @@ extern  gitem_t itemlist[];
 extern  game_locals_t   game;
 extern  int sm_meat_index;
 extern  int snd_fry;
+
 /**
 *   Include the LEVEL locals.
 **/
 #include "svgame/svg_level_locals.h"
 //! Extern, access all over game dll code.
 extern level_locals_t level;
+
 /**
 *   SpawnTemp:
 **/
@@ -469,7 +478,8 @@ void SVG_Impact( edict_t *e1, svg_trace_t *trace );
 const contents_t SVG_GetClipMask( edict_t *ent );
 void SVG_RunEntity( edict_t *ent );
 
-//============================================================================
+//===========================================================================================
+//===========================================================================================
 
 /**
 *   @brief  Stores the final ground information results.
@@ -500,6 +510,9 @@ typedef struct mm_liquid_info_s {
     liquid_level_t	level;
 } mm_liquid_info_t;
 
+//===========================================================================================
+//===========================================================================================
+
 /**
 *   @brief  edict->flags
 **/
@@ -525,6 +538,7 @@ typedef enum {
 QENUM_BIT_FLAGS( entity_flags_t );
 
 
+
 /**
 * 
 * 
@@ -535,6 +549,8 @@ QENUM_BIT_FLAGS( entity_flags_t );
 * 
 **/
 #include "svgame/svg_game_client.h"
+
+
 /**
 * 
 * 
@@ -547,8 +563,15 @@ QENUM_BIT_FLAGS( entity_flags_t );
 #include "svgame/svg_game_edict.h"
 // Extern access.
 extern edict_t *g_edicts;
+// World entity.
 #define world   (&g_edicts[0])
+// Base Entity Functions.
+#include "svgame/svg_edicts.h"
 
+// Edict Pool:
+#include "svgame/svg_edict_pool.h"
+// Extern access.
+extern svg_edict_pool_t g_edict_pool;
 
 
 /***

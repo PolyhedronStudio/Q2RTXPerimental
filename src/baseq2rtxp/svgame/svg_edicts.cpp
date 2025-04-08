@@ -12,23 +12,6 @@
 #include "svgame/svg_utils.h"
 
 
-/**
-*   @brief  (Re-)initializes the edict pool.
-**/
-void SVG_InitEdictPool( const int32_t numReservedEntities ) {
-	// Free the old edict pool if we had any.
-    if ( globals.edictPool.edicts ) {
-		gi.TagFree( globals.edictPool.edicts );
-		globals.edictPool.edicts = nullptr;
-    }
-
-    // Now (Re-)initialize the edict pool.
-    globals.edictPool.max_edicts = numReservedEntities;
-    // Reallocate.
-    g_edicts = (edict_t *)gi.TagMalloc( numReservedEntities * sizeof( g_edicts[ 0 ] ), TAG_SVGAME );
-    // Refresh pointer.
-	globals.edictPool.edicts = g_edicts;
-}
 
 /**
 *   @brief  (Re-)initialize an edict.
@@ -55,7 +38,7 @@ edict_t *SVG_AllocateEdict( void ) {
     edict_t *entity = &g_edicts[ game.maxclients + 1 ];
     edict_t *freedEntity = nullptr;
 
-    for ( i; i < globals.edictPool.num_edicts; i++, entity++ ) {
+    for ( i; i < globals.edictPool->num_edicts; i++, entity++ ) {
         // the first couple seconds of server time can involve a lot of
         // freeing and allocating, so relax the replacement policy
         if ( !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
@@ -78,7 +61,7 @@ edict_t *SVG_AllocateEdict( void ) {
         gi.error( "SVG_AllocateEdict: no free edicts" );
     }
 
-    globals.edictPool.num_edicts++;
+    globals.edictPool->num_edicts++;
     SVG_InitEdict( entity );
     return entity;
 }
@@ -125,7 +108,7 @@ void SVG_FreeEdict( edict_t *ed ) {
 *   @remark Searches beginning at the edict after from, or the beginning if NULL
 *           NULL will be returned if the end of the list is reached.
 **/
-edict_t *SVG_Find( edict_t *from, const int32_t fieldofs, const char *match ) {
+edict_t *SVG_Entities_Find( edict_t *from, const int32_t fieldofs, const char *match ) {
     char *s;
 
     // WID: Prevent nastyness when match is empty (Q_stricmp)
@@ -139,7 +122,7 @@ edict_t *SVG_Find( edict_t *from, const int32_t fieldofs, const char *match ) {
         from++;
     }
 
-    for ( ; from < &g_edicts[ globals.edictPool.num_edicts ]; from++ ) {
+    for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
         if ( !from->inuse )
             continue;
         s = *(char **)( (byte *)from + fieldofs );
@@ -153,9 +136,9 @@ edict_t *SVG_Find( edict_t *from, const int32_t fieldofs, const char *match ) {
 }
 
 /**
-*   @brief  Similar to SVG_Find, but, returns entities that have origins within a spherical area.
+*   @brief  Similar to SVG_Entities_Find, but, returns entities that have origins within a spherical area.
 **/
-edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad ) {
+edict_t *SVG_Entities_FindWithinRadius( edict_t *from, const vec3_t org, const float rad ) {
     vec3_t  eorg;
     int     j;
 
@@ -163,7 +146,7 @@ edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad 
         from = g_edicts;
     else
         from++;
-    for ( ; from < &g_edicts[ globals.edictPool.num_edicts ]; from++ ) {
+    for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
         if ( !from->inuse )
             continue;
         if ( from->solid == SOLID_NOT )
@@ -192,7 +175,7 @@ edict_t *SVG_FindWithinRadius( edict_t *from, const vec3_t org, const float rad 
 /**
 *   @brief
 **/
-void SVG_InitBodyQue( void ) {
+void SVG_Entities_InitBodyQue( void ) {
     int     i;
     edict_t *ent;
 
@@ -222,7 +205,7 @@ void body_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 /**
 *   @brief  Get a que slot, leave an effect, and remove body into the queue.
 **/
-void SVG_CopyToBodyQue( edict_t *ent ) {
+void SVG_Entities_AddForPlayer( edict_t *ent ) {
     edict_t *body;
 
     gi.unlinkentity( ent );
@@ -312,7 +295,7 @@ const bool SVG_Entity_IsVisible( edict_t *self, edict_t *other ) {
 const bool SVG_Entity_IsInFrontOf( edict_t *self, edict_t *other, const float dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
-    if ( SVG_IsClientEntity( self ) ) {
+    if ( SVG_Entity_IsClient( self ) ) {
         self->client->viewMove.viewForward;
     // Calculate forward vector:
     } else {
@@ -337,7 +320,7 @@ const bool SVG_Entity_IsInFrontOf( edict_t *self, edict_t *other, const float do
 const bool SVG_Entity_IsInFrontOf( edict_t *self, const Vector3 &testOrigin, const float dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
-    if ( SVG_IsClientEntity( self ) ) {
+    if ( SVG_Entity_IsClient( self ) ) {
         self->client->viewMove.viewForward;
         // Calculate forward vector:
     } else {

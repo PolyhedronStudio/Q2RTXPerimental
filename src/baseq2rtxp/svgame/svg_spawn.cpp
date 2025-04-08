@@ -383,7 +383,7 @@ void SVG_FindTeams( void ) {
 
     c = 0;
     c2 = 0;
-    for ( i = 1, e = g_edicts + i; i < globals.edictPool.num_edicts; i++, e++ ) {
+    for ( i = 1, e = g_edicts + i; i < globals.edictPool->num_edicts; i++, e++ ) {
         if ( !e->inuse )
             continue;
         if ( !e->targetNames.team )
@@ -394,7 +394,7 @@ void SVG_FindTeams( void ) {
         e->teammaster = e;
         c++;
         c2++;
-        for ( j = i + 1, e2 = e + 1; j < globals.edictPool.num_edicts; j++, e2++ ) {
+        for ( j = i + 1, e2 = e + 1; j < globals.edictPool->num_edicts; j++, e2++ ) {
             if ( !e2->inuse )
                 continue;
             if ( !e2->targetNames.team )
@@ -421,7 +421,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
     edict_t *ent = g_edicts;
     int32_t moveParents  = 0;
     int32_t i = 1;
-    for ( i = 1, ent = g_edicts + i; i < globals.edictPool.num_edicts; i++, ent++ ) {
+    for ( i = 1, ent = g_edicts + i; i < globals.edictPool->num_edicts; i++, ent++ ) {
         // It has to be in-use.
         //if ( !ent->inuse ) {
         //    continue;
@@ -437,7 +437,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
         }
 
         // Fetch 'parent' target entity.
-        edict_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith.ptr );
+        edict_t *parentMover = SVG_Entities_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith.ptr );
         // Apply.
         if ( parentMover ) {
             // Set.
@@ -799,7 +799,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
     // Give entities a chance to 'post spawn'.
     int32_t numPostSpawnedEntities = 0;
-    for ( int32_t i = 0; i < globals.edictPool.num_edicts; i++ ) {
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
         edict_t *ent = &g_edicts[ i ];
 
         if ( ent && ent->postspawn ) {
@@ -981,7 +981,7 @@ void SP_worldspawn(edict_t *ent)
     //---------------
 
     // reserve some spots for dead player bodies for coop / deathmatch
-    SVG_InitBodyQue();
+    SVG_Entities_InitBodyQue();
 
     // set configstrings for items
     SVG_SetItemNames();

@@ -63,7 +63,7 @@ typedef enum {
 *
 *
 *
-*   UseTarget Functionality:
+*   UseTargets:
 *
 *
 *

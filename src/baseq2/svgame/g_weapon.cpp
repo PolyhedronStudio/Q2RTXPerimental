@@ -721,7 +721,7 @@ void bfg_explode(edict_t *self)
     if (self->s.frame == 0) {
         // the BFG effect
         ent = NULL;
-        while ((ent = SVG_FindWithinRadius(ent, self->s.origin, self->dmg_radius)) != NULL) {
+        while ((ent = SVG_Entities_FindWithinRadius(ent, self->s.origin, self->dmg_radius)) != NULL) {
             if (!ent->takedamage)
                 continue;
             if (ent == self->owner)
@@ -808,7 +808,7 @@ void bfg_think(edict_t *self)
         dmg = 10;
 
     ent = NULL;
-    while ((ent = SVG_FindWithinRadius(ent, self->s.origin, 256)) != NULL) {
+    while ((ent = SVG_Entities_FindWithinRadius(ent, self->s.origin, 256)) != NULL) {
         if (ent == self)
             continue;
 

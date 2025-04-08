@@ -569,7 +569,7 @@ void SVG_Client_RespawnPlayer( edict_t *self ) {
     if ( deathmatch->value || coop->value ) {
         // spectator's don't leave bodies
         if ( self->movetype != MOVETYPE_NOCLIP ) {
-            SVG_CopyToBodyQue( self );
+            SVG_Entities_AddForPlayer( self );
         }
         self->svflags &= ~SVF_NOCLIENT;
         SVG_Player_PutInServer( self );
@@ -825,7 +825,7 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     ent->s.modelindex2 = 255;       // Custom gun model.
     // sknum is player num and weapon number
     // weapon number will be added in changeweapon
-    ent->s.skinnum = ent - globals.edictPool.edicts - 1;
+    ent->s.skinnum = ent - globals.edictPool->edicts - 1;
     ent->s.frame = 0;
     ent->s.old_frame = 0;
 

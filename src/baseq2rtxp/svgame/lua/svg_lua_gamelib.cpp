@@ -38,7 +38,7 @@ static const int32_t GameLib_Print( const int32_t gamePrintLevel, std::string st
 **/
 static const int32_t GameLib_ClientPrint( lua_edict_t leClientEntity, const int32_t clientPrintLevel, std::string string ) {
 	// Make sure the client is active.
-	if ( !SVG_IsClientEntity( leClientEntity.edict ) ) {
+	if ( !SVG_Entity_IsClient( leClientEntity.edict ) ) {
 		return 0;
 	}
 	// Print.
@@ -50,7 +50,7 @@ static const int32_t GameLib_ClientPrint( lua_edict_t leClientEntity, const int3
 **/
 static const int32_t GameLib_CenterPrint( lua_edict_t leClientEntity, std::string string ) {
 	// Make sure the client is active.
-	if ( !SVG_IsClientEntity( leClientEntity.edict ) ) {
+	if ( !SVG_Entity_IsClient( leClientEntity.edict ) ) {
 		return 0;
 	}
 	// Print.
@@ -74,7 +74,7 @@ static const int32_t GameLib_CenterPrint( lua_edict_t leClientEntity, std::strin
 **/
 const std::string GameLib_GetClientNameForEntity( lua_edict_t leClientEntity ) {
 	// Make sure the client is active.
-	if ( !SVG_IsClientEntity( leClientEntity.edict ) ) {
+	if ( !SVG_Entity_IsClient( leClientEntity.edict ) ) {
 		return "";
 	}
 	// Get the client name.

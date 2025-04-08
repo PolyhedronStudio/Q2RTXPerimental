@@ -63,7 +63,7 @@ NOMONSTER   Monsters will not trigger this door.
 **/
 void door_usetarget_update_hint( edict_t *self ) {
     // Are we an actual use target at all?
-    if ( !SVG_UseTarget_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
+    if ( !SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
         return;
     }
 
@@ -84,7 +84,7 @@ void door_use_areaportals( edict_t *self, const bool open ) {
     if ( !self->targetNames.target )
         return;
 
-    while ( ( t = SVG_Find( t, FOFS_GENTITY( targetname ), (const char *)self->targetNames.target ) ) ) {
+    while ( ( t = SVG_Entities_Find( t, FOFS_GENTITY( targetname ), (const char *)self->targetNames.target ) ) ) {
         //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
         if ( t->s.entityType == ET_AREA_PORTAL ) {
             gi.SetAreaPortalState( t->style, open );
@@ -197,7 +197,7 @@ void door_team_toggle( edict_t *self, edict_t *other, edict_t *activator, const 
     }
     #else
     // Determine whether the entity is capable of opening doors.
-    const bool entityIsCapable = ( SVG_IsClientEntity( activator ) || activator->svflags & SVF_MONSTER ? true : false );
+    const bool entityIsCapable = ( SVG_Entity_IsClient( activator ) || activator->svflags & SVF_MONSTER ? true : false );
 
     // If the activator is a client or a monster, determine whether to play a locked door sound.
     //if ( entityIsCapable ) {
@@ -581,7 +581,7 @@ void door_use( edict_t *self, edict_t *other, edict_t *activator, const entity_u
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
     // Determine whether the entity is capable of opening doors.
-    const bool entityIsCapable = ( SVG_IsClientEntity( activator ) || activator->svflags & SVF_MONSTER ? true : false );
+    const bool entityIsCapable = ( SVG_Entity_IsClient( activator ) || activator->svflags & SVF_MONSTER ? true : false );
 
     // If the activator is a client or a monster, determine whether to play a locked door sound.
     if ( entityIsCapable ) {

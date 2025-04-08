@@ -58,91 +58,107 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #define GMF_CLIENTNUM               0x00000001
 #define GMF_PROPERINUSE             0x00000002
-//#define GMF_MVDSPEC                 0x00000004
+//#define GMF_MVDSPEC               0x00000004
 #define GMF_WANT_ALL_DISCONNECTS    0x00000008
 
-//#define GMF_ENHANCED_SAVEGAMES      0x00000400
-//#define GMF_VARIABLE_FPS            0x00000800
+//#define GMF_ENHANCED_SAVEGAMES    0x00000400
+//#define GMF_VARIABLE_FPS          0x00000800
 #define GMF_EXTRA_USERINFO          0x00001000
 #define GMF_IPV6_ADDRESS_AWARE      0x00002000
 
-//===============================================================
+//=============================================================================================
+//=============================================================================================
 
 typedef struct edict_s edict_t;
 typedef struct gclient_s svg_client_t;
 
+//=============================================================================================
+//=============================================================================================
+
 #ifndef SVGAME_INCLUDE
+    typedef struct gclient_s {
+        player_state_t  ps;     // communicated by server to clients
+        player_state_t  ops;    // old player state from the previous frame.
+        int64_t             ping;
 
-typedef struct gclient_s {
-    player_state_t  ps;     // communicated by server to clients
-    player_state_t  ops;    // old player state from the previous frame.
-    int64_t             ping;
-
-    // the game dll can add anything it wants after
-    // this point in the structure
-    int             clientNum;
-} svg_client_t;
+        // the game dll can add anything it wants after
+        // this point in the structure
+        int             clientNum;
+    } svg_client_t;
 
 
-typedef struct edict_s {
-    entity_state_t  s;
-    struct gclient_s *client;   //! NULL if not a player the server expects the first part
-                                //! of gclient_s to be a player_state_t but the rest of it is opaque
-    qboolean inuse;
-    int32_t linkcount;
+    typedef struct edict_s {
+        entity_state_t  s;
+        struct gclient_s *client;   //! NULL if not a player the server expects the first part
+                                    //! of gclient_s to be a player_state_t but the rest of it is opaque
+        qboolean inuse;
+        int32_t linkcount;
 
-    // FIXME: move these fields to a server private sv_entity_t
-    list_t area;    //! Linked to a division node or leaf
+        // FIXME: move these fields to a server private sv_entity_t
+        list_t area;    //! Linked to a division node or leaf
 
-    int32_t num_clusters;       // If -1, use headnode instead.
-    int32_t clusternums[MAX_ENT_CLUSTERS];
-    int32_t headnode;           // Unused if num_clusters != -1
+        int32_t num_clusters;       // If -1, use headnode instead.
+        int32_t clusternums[MAX_ENT_CLUSTERS];
+        int32_t headnode;           // Unused if num_clusters != -1
     
-    int32_t areanum, areanum2;
+        int32_t areanum, areanum2;
 
-    //================================
+        //================================
 
-    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
-    vec3_t      mins, maxs;
-    vec3_t      absmin, absmax, size;
-    solid_t     solid;
-    contents_t  clipmask;
-    contents_t  hullContents;
-    edict_t *owner;
+        int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+        vec3_t      mins, maxs;
+        vec3_t      absmin, absmax, size;
+        solid_t     solid;
+        contents_t  clipmask;
+        contents_t  hullContents;
+        edict_t *owner;
 
-    const cm_entity_t *entityDictionary;
+        const cm_entity_t *entityDictionary;
 
-    // the game dll can add anything it wants after
-    // this point in the structure
-} edict_t;
+        // the game dll can add anything it wants after
+        // this point in the structure
+    } edict_t;
 #else
-typedef struct edict_s edict_t;
-//typedef struct gclient_s svg_gclient_t;
+    typedef struct edict_s edict_t;
+    //typedef struct gclient_s svg_gclient_t;
 #endif      // SVGAME_INCLUDE
 
+
+
+
+//=============================================================================================
+//=============================================================================================
 /**
-*   @brief  Memory Pool for game allocated EDICTS.
+*   @brief  Interface to be implemented by the ServerGame which is a
+*           Memory Pool for game allocated EDICTS.
 **/
-struct edict_pool_t {
-    #if 0
-	#ifndef SVGAME_INCLUDE
-    // For accessing as if it were a regular edicts array.
-    edict_t *operator[]( size_t index ) {
-        return ( index >= 0 && index < MAX_EDICTS ? &edicts[ index ] : nullptr );
-    }
-    #endif
-    #endif
+struct sv_edict_pool_i {
+    //! Don't allow instancing of this 'interface'.
+    sv_edict_pool_i() = default;
+    //! Virtual destructor.
+    virtual ~sv_edict_pool_i() = default;
+
+    //! For accessing as if it were a regular edicts array.
+    virtual edict_t *operator[]( const size_t index ) = 0;
+
+    //! Gets the edict ptr for the matching number's slot.
+    virtual edict_t *EdictForNumber( const int32_t number ) = 0;
+    //! Gets the number for the matching edict ptr.
+    virtual const int32_t NumberForEdict( const edict_t *edict ) = 0;
+
     //! Pointer to edicts data array.
-    edict_t         *edicts;
+    edict_t *edicts = nullptr;
     //! Size of edict type.
-    int32_t         edict_size;
+    //int32_t         edict_size;
+
     //! Number of active edicts.
-    int32_t         num_edicts;     // current number, <= max_edicts
+    int32_t num_edicts = 0;     // current number, <= max_edicts
     //! Maximum edicts.
-    int32_t         max_edicts;
+    int32_t max_edicts = 0;
 };
 
-//===============================================================
+//=============================================================================================
+//=============================================================================================
 
 /**
 *	@brief	Functions and variable data that is provided by the main engine.
@@ -373,7 +389,7 @@ typedef struct {
 *	Functions and Variables Exported by the ServerGame subsystem:
 **/
 typedef struct {
-    int         apiversion;
+    int32_t apiversion;
 	
 	/**
 	*	Init/Shutdown:
@@ -496,7 +512,7 @@ typedef struct {
     *
     *	The size will be fixed when ge->Init() is called
 	**/
-	edict_pool_t edictPool;
+    sv_edict_pool_i *edictPool;
 } svgame_export_t;
 
 #endif // SVGAME_H
