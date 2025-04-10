@@ -29,43 +29,43 @@ FIXME: this use of "area" is different from the bsp file use
 ===============================================================================
 */
 
-typedef struct areanode_s {
+typedef struct worldSector_s {
     int     axis;       // -1 = leaf node
     float   dist;
-    struct areanode_s   *children[2];
+    struct worldSector_s    *children[2];
     list_t  trigger_edicts;
     list_t  solid_edicts;
-} areanode_t;
+} worldSector_t;
 
-#define    AREA_DEPTH    4
-#define    AREA_NODES    32
+#define    SECTOR_DEPTH    4
+#define    SECTOR_NODES    32
 
-static areanode_t   sv_areanodes[AREA_NODES];
-static int          sv_numareanodes;
+static worldSector_t    sv_sectorNodes[SECTOR_NODES];
+static int              sv_numSectorNodes;
 
-static const vec_t  *area_mins, *area_maxs;
-static edict_t      **area_list;
-static int          area_count, area_maxcount;
-static int          area_type;
+static const vec_t  *sector_mins, *sector_maxs;
+static edict_t      **sector_list;
+static int          sector_count, sector_maxcount;
+static int          sector_type;
 
 
 
 /**
 *	@brief	Builds a uniformly subdivided tree for the given world size
 **/
-static areanode_t *SV_CreateAreaNode(int depth, const vec3_t mins, const vec3_t maxs)
+static worldSector_t *SV_CreateSectorNode(int depth, const vec3_t mins, const vec3_t maxs)
 {
-    areanode_t  *anode;
+    worldSector_t  *anode;
     vec3_t      size;
     vec3_t      mins1, maxs1, mins2, maxs2;
 
-    anode = &sv_areanodes[sv_numareanodes];
-    sv_numareanodes++;
+    anode = &sv_sectorNodes[sv_numSectorNodes];
+    sv_numSectorNodes++;
 
     List_Init(&anode->trigger_edicts);
     List_Init(&anode->solid_edicts);
 
-    if (depth == AREA_DEPTH) {
+    if (depth == SECTOR_DEPTH) {
         anode->axis = -1;
         anode->children[0] = anode->children[1] = NULL;
         return anode;
@@ -85,8 +85,8 @@ static areanode_t *SV_CreateAreaNode(int depth, const vec3_t mins, const vec3_t 
 
     maxs1[anode->axis] = mins2[anode->axis] = anode->dist;
 
-    anode->children[0] = SV_CreateAreaNode(depth + 1, mins2, maxs2);
-    anode->children[1] = SV_CreateAreaNode(depth + 1, mins1, maxs1);
+    anode->children[0] = SV_CreateSectorNode(depth + 1, mins2, maxs2);
+    anode->children[1] = SV_CreateSectorNode(depth + 1, mins1, maxs1);
 
     return anode;
 }
@@ -101,13 +101,13 @@ void SV_ClearWorld(void)
     int i;
 
     // Clear area node data.
-    memset(sv_areanodes, 0, sizeof(sv_areanodes));
-    sv_numareanodes = 0;
+    memset(sv_sectorNodes, 0, sizeof(sv_sectorNodes));
+    sv_numSectorNodes = 0;
 
     // Recreate a new area node list based on the current precached world model's mins/maxs.
     if (sv.cm.cache) {
         cm = &sv.cm.cache->models[0];
-        SV_CreateAreaNode(0, cm->mins, cm->maxs);
+        SV_CreateSectorNode(0, cm->mins, cm->maxs);
     }
 
     // Make sure all entities are unlinked.
@@ -244,7 +244,7 @@ void PF_UnlinkEdict(edict_t *ent)
 **/
 void PF_LinkEdict(edict_t *ent)
 {
-    areanode_t *node;
+    worldSector_t *node;
     server_entity_t *sent;
     int entnum;
 
@@ -341,7 +341,7 @@ void PF_LinkEdict(edict_t *ent)
     }
 
     // Find the first node that the ent's box crosses.
-    node = sv_areanodes;
+    node = sv_sectorNodes;
     while (1) {
         if (node->axis == -1)
             break;
@@ -364,13 +364,13 @@ void PF_LinkEdict(edict_t *ent)
 /**
 *	@brief	SV_AreaEdicts_r
 **/
-static void SV_AreaEdicts_r(areanode_t *node)
+static void SV_AreaEdicts_r(worldSector_t *node)
 {
     list_t      *start;
     edict_t     *check;
 
     // touch linked edicts
-    if (area_type == AREA_SOLID)
+    if (sector_type == AREA_SOLID)
         start = &node->solid_edicts;
     else
         start = &node->trigger_edicts;
@@ -378,30 +378,30 @@ static void SV_AreaEdicts_r(areanode_t *node)
     LIST_FOR_EACH(edict_t, check, start, area) {
         if (check->solid == SOLID_NOT)
             continue;        // deactivated
-        if (check->absmin[0] > area_maxs[0]
-            || check->absmin[1] > area_maxs[1]
-            || check->absmin[2] > area_maxs[2]
-            || check->absmax[0] < area_mins[0]
-            || check->absmax[1] < area_mins[1]
-            || check->absmax[2] < area_mins[2])
+        if (check->absmin[0] > sector_maxs[0]
+            || check->absmin[1] > sector_maxs[1]
+            || check->absmin[2] > sector_maxs[2]
+            || check->absmax[0] < sector_mins[0]
+            || check->absmax[1] < sector_mins[1]
+            || check->absmax[2] < sector_mins[2])
             continue;        // not touching
 
-        if (area_count == area_maxcount) {
+        if (sector_count == sector_maxcount) {
             Com_WPrintf("SV_AreaEdicts: MAXCOUNT\n");
             return;
         }
 
-        area_list[area_count] = check;
-        area_count++;
+        sector_list[sector_count] = check;
+        sector_count++;
     }
 
     if (node->axis == -1)
         return;        // terminal node
 
     // recurse down both sides
-    if (area_maxs[node->axis] > node->dist)
+    if (sector_maxs[node->axis] > node->dist)
         SV_AreaEdicts_r(node->children[0]);
-    if (area_mins[node->axis] < node->dist)
+    if (sector_mins[node->axis] < node->dist)
         SV_AreaEdicts_r(node->children[1]);
 }
 
@@ -416,16 +416,16 @@ static void SV_AreaEdicts_r(areanode_t *node)
 const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
                   edict_t **list, const int32_t maxcount, const int32_t areatype)
 {
-    area_mins = mins;
-    area_maxs = maxs;
-    area_list = list;
-    area_count = 0;
-    area_maxcount = maxcount;
-    area_type = areatype;
+    sector_mins = mins;
+    sector_maxs = maxs;
+    sector_list = list;
+    sector_count = 0;
+    sector_maxcount = maxcount;
+    sector_type = areatype;
 
-    SV_AreaEdicts_r(sv_areanodes);
+    SV_AreaEdicts_r(sv_sectorNodes);
 
-    return area_count;
+    return sector_count;
 }
 
 
