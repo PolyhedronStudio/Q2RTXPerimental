@@ -266,7 +266,7 @@ of ent.  Ent should be unlinked before calling this!
 //        return true;
 //    }
 //
-//    contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
+//    cm_contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
 //
 //    //// [Paril-KEX] don't gib other players in coop if we're not colliding
 //    //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
@@ -342,7 +342,7 @@ const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
         return true;
     }
 
-    contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
+    cm_contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
 
     //// [Paril-KEX] don't gib other players in coop if we're not colliding
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )

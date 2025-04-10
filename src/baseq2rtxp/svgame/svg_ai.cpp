@@ -277,7 +277,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    spot1[2] += self->viewheight;
 //    VectorCopy(other->s.origin, spot2);
 //    spot2[2] += other->viewheight;
-//    trace = SVG_Trace(spot1, vec3_origin, vec3_origin, spot2, self, MASK_OPAQUE);
+//    trace = SVG_Trace(spot1, vec3_origin, vec3_origin, spot2, self, CM_CONTENTMASK_OPAQUE);
 //
 //    if (trace.fraction == 1.0f)
 //        return true;
@@ -574,7 +574,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //            spot2[ 2 ] += self->enemy->viewheight;
 //
 //            tr = SVG_Trace( &spot1.x, nullptr, nullptr, &spot2.x, self,
-//                contents_t( MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA ) );
+//                cm_contents_t( CM_CONTENTMASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA ) );
 //        } else {
 //            tr.ent = world;
 //            tr.fraction = 0;
@@ -946,7 +946,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    if (_new) {
 ////      gi.dprintf("checking for course correction\n");
 //
-//        tr = SVG_Trace(self->s.origin, self->mins, self->maxs, self->monsterinfo.last_sighting, self, MASK_PLAYERSOLID);
+//        tr = SVG_Trace(self->s.origin, self->mins, self->maxs, self->monsterinfo.last_sighting, self, CM_CONTENTMASK_PLAYERSOLID);
 //        if (tr.fraction < 1) {
 //            VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
 //            d1 = VectorLength(v);
@@ -957,12 +957,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 //            VectorSet(v, d2, -16, 0);
 //            SVG_Util_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
-//            tr = SVG_Trace(self->s.origin, self->mins, self->maxs, left_target, self, MASK_PLAYERSOLID);
+//            tr = SVG_Trace(self->s.origin, self->mins, self->maxs, left_target, self, CM_CONTENTMASK_PLAYERSOLID);
 //            left = tr.fraction;
 //
 //            VectorSet(v, d2, 16, 0);
 //            SVG_Util_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
-//            tr = SVG_Trace(self->s.origin, self->mins, self->maxs, right_target, self, MASK_PLAYERSOLID);
+//            tr = SVG_Trace(self->s.origin, self->mins, self->maxs, right_target, self, CM_CONTENTMASK_PLAYERSOLID);
 //            right = tr.fraction;
 //
 //            center = (d1 * center) / d2;

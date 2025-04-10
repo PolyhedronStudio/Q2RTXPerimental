@@ -109,11 +109,11 @@ typedef struct {
     **/
     //! Callbacks to test the world with.
     //! Trace against all entities.
-    const cm_trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask );
+    const cm_trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask );
     //! Clips to world only.
-    const cm_trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const contents_t contentMask );
+    const cm_trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const cm_contents_t contentMask );
     //! PointContents.
-    const contents_t( *q_gameabi pointcontents )( const vec3_t point );
+    const cm_contents_t( *q_gameabi pointcontents )( const vec3_t point );
 
     /**
     *   (In):

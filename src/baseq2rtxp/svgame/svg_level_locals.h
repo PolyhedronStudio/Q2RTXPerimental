@@ -11,8 +11,8 @@
 
 
 /**
-*   @brief  This structure is cleared as each map is entered
-*           it is read/written to the level.sav file for savegames
+*   @brief  This structure is cleared as each map is entered.
+*           It is read/written to the level.sav file for savegames.
 **/
 typedef struct {
     uint64_t    frameNumber;

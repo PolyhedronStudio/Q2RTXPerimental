@@ -313,7 +313,7 @@ static void CLG_ClampSpeed( Vector3 &move ) {
         speed = default_pmoveParams_t::pm_fly_speed;
     }
     // For in case we're 'swimming'.
-    if ( clgi.client->predictedState.liquid.level >= liquid_level_t::LIQUID_WAIST ) {
+    if ( game.predictedState.liquid.level >= cm_liquid_level_t::LIQUID_WAIST ) {
         speed = default_pmoveParams_t::pm_water_speed;
     }
 

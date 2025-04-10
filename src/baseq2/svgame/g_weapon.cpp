@@ -40,7 +40,7 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
     }
 
     VectorMA(start, CM_MAX_WORLD_SIZE, dir, end);
-    tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
+    tr = gi.trace(start, NULL, NULL, end, self, CM_CONTENTMASK_SHOT);
     if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
         VectorSubtract(tr.endpos, start, v);
         QMTime eta = QMTime::FromMilliseconds(VectorLength(v) - tr.ent->maxs[0]) / speed;
@@ -84,7 +84,7 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 
     VectorMA(self->s.origin, range, dir, point);
 
-    tr = gi.trace(self->s.origin, NULL, NULL, point, self, MASK_SHOT);
+    tr = gi.trace(self->s.origin, NULL, NULL, point, self, CM_CONTENTMASK_SHOT);
     if (tr.fraction < 1) {
         if (!tr.ent->takedamage)
             return false;
@@ -133,9 +133,9 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float da
     float       u;
     vec3_t      water_start;
     bool        water = false;
-    contents_t  content_mask = ( MASK_SHOT | MASK_WATER );
+    cm_contents_t  content_mask = ( CM_CONTENTMASK_SHOT | CM_CONTENTMASK_WATER );
 
-    tr = gi.trace(self->s.origin, NULL, NULL, start, self, MASK_SHOT);
+    tr = gi.trace(self->s.origin, NULL, NULL, start, self, CM_CONTENTMASK_SHOT);
     if (!(tr.fraction < 1.0f)) {
         QM_Vector3ToAngles(aimdir, dir);
         AngleVectors(dir, forward, right, up);
@@ -146,16 +146,16 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float da
         VectorMA(end, r, right, end);
         VectorMA(end, u, up, end);
 
-        if (gi.pointcontents(start) & MASK_WATER) {
+        if (gi.pointcontents(start) & CM_CONTENTMASK_WATER) {
             water = true;
             VectorCopy(start, water_start);
-            content_mask = ( content_mask & ~MASK_WATER ); // content_mask &= ~MASK_WATER
+            content_mask = ( content_mask & ~CM_CONTENTMASK_WATER ); // content_mask &= ~CM_CONTENTMASK_WATER
         }
 
         tr = gi.trace(start, NULL, NULL, end, self, content_mask);
 
         // see if we hit water
-        if (tr.contents & MASK_WATER) {
+        if (tr.contents & CM_CONTENTMASK_WATER) {
             int     color;
 
             water = true;
@@ -196,12 +196,12 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float da
             }
 
             // re-trace ignoring water this time
-            tr = gi.trace(water_start, NULL, NULL, end, self, MASK_SHOT);
+            tr = gi.trace(water_start, NULL, NULL, end, self, CM_CONTENTMASK_SHOT);
         }
     }
 
     // send gun puff / flash
-    if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
+    if (!((tr.surface) && (tr.surface->flags & CM_SURFACE_FLAG_SKY))) {
         if (tr.fraction < 1.0f) {
             if (tr.ent->takedamage) {
                 SVG_TriggerDamage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, mod);
@@ -227,10 +227,10 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float da
         VectorSubtract(tr.endpos, water_start, dir);
         VectorNormalize(dir);
         VectorMA(tr.endpos, -2, dir, pos);
-        if (gi.pointcontents(pos) & MASK_WATER)
+        if (gi.pointcontents(pos) & CM_CONTENTMASK_WATER)
             VectorCopy(pos, tr.endpos);
         else
-            tr = gi.trace(pos, NULL, NULL, water_start, tr.ent, MASK_WATER);
+            tr = gi.trace(pos, NULL, NULL, water_start, tr.ent, CM_CONTENTMASK_WATER);
 
         VectorAdd(water_start, tr.endpos, pos);
         VectorScale(pos, 0.5f, pos);
@@ -288,7 +288,7 @@ void blaster_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_
     if (other == self->owner)
         return;
 
-    if (surf && (surf->flags & SURF_SKY)) {
+    if (surf && (surf->flags & CM_SURFACE_FLAG_SKY)) {
         SVG_FreeEdict(self);
         return;
     }
@@ -345,7 +345,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     QM_Vector3ToAngles(dir, bolt->s.angles);
     VectorScale(dir, speed, bolt->velocity);
     bolt->movetype = MOVETYPE_FLYMISSILE;
-    bolt->clipmask = MASK_PROJECTILE;
+    bolt->clipmask = CM_CONTENTMASK_PROJECTILE;
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
         bolt->clipmask = ( bolt->clipmask & ~CONTENTS_PLAYER );
     }
@@ -370,7 +370,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
     if (self->client)
         check_dodge(self, bolt->s.origin, dir, speed);
 
-    tr = gi.trace(self->s.origin, NULL, NULL, bolt->s.origin, bolt, MASK_SHOT);
+    tr = gi.trace(self->s.origin, NULL, NULL, bolt->s.origin, bolt, CM_CONTENTMASK_SHOT);
     if (tr.fraction < 1.0f) {
         VectorMA(bolt->s.origin, -10, dir, bolt->s.origin);
         bolt->touch(bolt, tr.ent, NULL, NULL);
@@ -441,7 +441,7 @@ void Grenade_Touch(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t
     if (other == ent->owner)
         return;
 
-    if (surf && (surf->flags & SURF_SKY)) {
+    if (surf && (surf->flags & CM_SURFACE_FLAG_SKY)) {
         SVG_FreeEdict(ent);
         return;
     }
@@ -481,7 +481,7 @@ void fire_grenade(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int sp
     VectorMA(grenade->velocity, scale, right, grenade->velocity);
     VectorSet(grenade->avelocity, 300, 300, 300);
     grenade->movetype = MOVETYPE_BOUNCE;
-    grenade->clipmask = MASK_PROJECTILE;
+    grenade->clipmask = CM_CONTENTMASK_PROJECTILE;
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
         grenade->clipmask = ( grenade->clipmask & ~CONTENTS_PLAYER );
     }
@@ -522,7 +522,7 @@ void fire_grenade2(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int s
     VectorMA(grenade->velocity, scale, right, grenade->velocity);
     VectorSet(grenade->avelocity, 300, 300, 300);
     grenade->movetype = MOVETYPE_BOUNCE;
-    grenade->clipmask = MASK_PROJECTILE;
+    grenade->clipmask = CM_CONTENTMASK_PROJECTILE;
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
         grenade->clipmask = ( grenade->clipmask & ~CONTENTS_PLAYER );
     }
@@ -568,7 +568,7 @@ void rocket_touch(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t 
     if (other == ent->owner)
         return;
 
-    if (surf && (surf->flags & SURF_SKY)) {
+    if (surf && (surf->flags & CM_SURFACE_FLAG_SKY)) {
         SVG_FreeEdict(ent);
         return;
     }
@@ -584,7 +584,7 @@ void rocket_touch(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t 
     } else {
         // don't throw any debris in net games
         if (!deathmatch->value && !coop->value) {
-            if ((surf) && !(surf->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING))) {
+            if ((surf) && !(surf->flags & (CM_SURFACE_FLAG_WARP | CM_SURF_TRANSLUCENT_33 | CM_SURF_TRANSLUCENT_66 | CM_SURFACE_FLOWING))) {
                 n = Q_rand() % 5;
                 while (n--)
                     SVG_Misc_ThrowDebris(ent, "models/debris/debris2/tris.md2", 2, ent->s.origin);
@@ -615,7 +615,7 @@ void fire_rocket(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed,
     QM_Vector3ToAngles(dir, rocket->s.angles);
     VectorScale(dir, speed, rocket->velocity);
     rocket->movetype = MOVETYPE_FLYMISSILE;
-    rocket->clipmask = MASK_PROJECTILE;
+    rocket->clipmask = CM_CONTENTMASK_PROJECTILE;
     if ( self->client && G_ShouldPlayersCollideProjectile( self ) ) {
         rocket->clipmask = ( rocket->clipmask & ~CONTENTS_PLAYER );
     }
@@ -654,7 +654,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     vec3_t      end;
     cm_trace_t     tr;
     edict_t     *ignore;
-    contents_t  mask;
+    cm_contents_t  mask;
     bool        water;
     float       lastfrac;
 
@@ -662,7 +662,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
     VectorCopy(start, from);
     ignore = self;
     water = false;
-    mask = ( MASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA );
+    mask = ( CM_CONTENTMASK_SHOT | CONTENTS_SLIME | CONTENTS_LAVA );
     lastfrac = 1;
     while (ignore) {
         tr = gi.trace(from, NULL, NULL, end, ignore, mask);
@@ -758,7 +758,7 @@ void bfg_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *s
     if (other == self->owner)
         return;
 
-    if (surf && (surf->flags & SURF_SKY)) {
+    if (surf && (surf->flags & CM_SURFACE_FLAG_SKY)) {
         SVG_FreeEdict(self);
         return;
     }
@@ -876,7 +876,7 @@ void fire_bfg(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed, fl
     QM_Vector3ToAngles(dir, bfg->s.angles);
     VectorScale(dir, speed, bfg->velocity);
     bfg->movetype = MOVETYPE_FLYMISSILE;
-    bfg->clipmask = MASK_PROJECTILE;
+    bfg->clipmask = CM_CONTENTMASK_PROJECTILE;
     bfg->svflags = SVF_PROJECTILE;
     // [Paril-KEX]
     if ( self->client && !G_ShouldPlayersCollideProjectile( self ) ) {
@@ -1014,7 +1014,7 @@ void fire_flaregun(edict_t *self, vec3_t start, vec3_t aimdir,
 	VectorScale(aimdir, speed, flare->velocity);
 	VectorSet(flare->avelocity, 300, 300, 300);
 	flare->movetype = MOVETYPE_BOUNCE;
-	flare->clipmask = MASK_SHOT;
+	flare->clipmask = CM_CONTENTMASK_SHOT;
 	flare->solid = SOLID_BOUNDS_BOX;
 
 	const float size = 4;

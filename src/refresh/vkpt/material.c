@@ -174,7 +174,7 @@ void MAT_Reset(pbr_material_t * mat)
 	mat->base_factor = 1.f;
 	mat->light_styles = true;
 	mat->bsp_radiance = true;
-	/* Treat absence of SURF_LIGHT flag as "fully emissive" by default.
+	/* Treat absence of CM_SURFACE_FLAG_LIGHT flag as "fully emissive" by default.
 	 * Typically works well with explicit emissive image. */
 	mat->default_radiance = 1.f;
 	mat->flags = MATERIAL_KIND_REGULAR;

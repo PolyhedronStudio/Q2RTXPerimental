@@ -149,7 +149,7 @@ typedef struct mm_touch_trace_list_s {
 //    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
 //    cm_surface_t      surface;
 //    //! A copy of the contents data from the ground entity's brush.
-//    contents_t      contents;
+//    cm_contents_t      contents;
 //    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
 //    cm_material_t *material;
 //} mm_ground_info_t;
@@ -159,9 +159,9 @@ typedef struct mm_touch_trace_list_s {
 //**/
 //typedef struct mm_liquid_info_s {
 //    //! The actual BSP liquid 'contents' type we're residing in.
-//    contents_t      type;
+//    cm_contents_t      type;
 //    //! The depth of the player in the actual liquid.
-//    liquid_level_t	level;
+//    cm_liquid_level_t	level;
 //} mm_liquid_info_t;
 
 /**
@@ -207,11 +207,11 @@ typedef struct mm_move_s {
 /**
 *	@brief	Clips trace against world only.
 **/
-const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask );
+const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask );
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, contents_t contentMask = CONTENTS_NONE );
+const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE );
 
 
 

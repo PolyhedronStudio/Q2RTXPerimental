@@ -264,6 +264,8 @@ static void CL_SetActiveState(void)
     cl.frameflags = 0;
     cl.initialSeq = cls.netchan.outgoing_sequence;
 
+	// <Q2RTXP>: WID: Moved to ClientGame module. (ClientBegin).
+    #if 0
     if (cls.demo.playback) {
         // init some demo things
         CL_FirstDemoFrame();
@@ -293,6 +295,7 @@ static void CL_SetActiveState(void)
     // Reset ground information.
     cl.predictedState.ground = {};
     cl.predictedState.liquid = {};
+    #endif
 
     // Fire the ClientBegin callback of the client game module.
     clge->ClientBegin();

@@ -48,7 +48,7 @@ struct pml_t {
 		//! A pointer to the ground plane's surface data. (nullptr if none).
 		cm_surface_t	*surface;
 		//! A copy of the contents data from the ground entity's brush.
-		contents_t	contents;
+		cm_contents_t	contents;
 		////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
 		//cm_material_t *material;
 	} ground;
@@ -412,7 +412,7 @@ static void PM_StepSlideMove() {
 
 	// Paril: step down stairs/slopes
 	if ( ( ps->pmove.pm_flags & PMF_ON_GROUND ) && !( ps->pmove.pm_flags & PMF_ON_LADDER ) &&
-		( pm->liquid.level < liquid_level_t::LIQUID_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
+		( pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
 		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
 
@@ -492,7 +492,7 @@ static void PM_Friction() {
 	// Apply ground friction if on-ground.
 #ifdef PMOVE_USE_MATERIAL_FRICTION
 	float drop = 0;
-	if ( ( pm->ground.entity != nullptr && pml.ground.surface != nullptr && !( pml.ground.surface->flags & SURF_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->ground.entity != nullptr && pml.ground.surface != nullptr && !( pml.ground.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		// Get the material to fetch friction from.
 		cm_material_t *ground_material = ( pml.ground.surface != nullptr ? pml.ground.surface->material : nullptr );
 		float friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
@@ -502,7 +502,7 @@ static void PM_Friction() {
 #else
 	// Apply ground friction if on-ground.
 	float drop = 0;
-	if ( ( pm->ground.entity && pml.ground.surface && !( pml.ground.surface->flags & SURF_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->ground.entity && pml.ground.surface && !( pml.ground.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		const float friction = pmp->pm_friction;
 		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 		drop += control * friction * pml.frameTime;
@@ -531,7 +531,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 	if ( ps->pmove.pm_flags & PMF_ON_LADDER ) {
 		if ( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) {
 			// [Paril-KEX]: if we're underwater, use full speed on ladders
-			const float ladder_speed = pm->liquid.level >= liquid_level_t::LIQUID_WAIST ? pmp->pm_max_speed : pmp->pm_ladder_speed;
+			const float ladder_speed = pm->liquid.level >= cm_liquid_level_t::LIQUID_WAIST ? pmp->pm_max_speed : pmp->pm_ladder_speed;
 			if ( pm->cmd.buttons & BUTTON_JUMP ) {
 				wishVelocity.z = ladder_speed;
 			} else if ( pm->cmd.buttons & BUTTON_CROUCH ) {
@@ -578,7 +578,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 				// clamp side speed so it's not jarring...
 				float ladder_speed = std::clamp( (float)pm->cmd.sidemove, -pmp->pm_ladder_sidemove_speed, pmp->pm_ladder_sidemove_speed );
 
-				if ( pm->liquid.level < liquid_level_t::LIQUID_WAIST ) {
+				if ( pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST ) {
 					ladder_speed *= pmp->pm_ladder_mod;
 				}
 
@@ -613,7 +613,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 	}
 
 	// Add water currents.
-	if ( pm->liquid.type & MASK_CURRENT ) {
+	if ( pm->liquid.type & CM_CONTENTMASK_CURRENT ) {
 		Vector3 velocity = QM_Vector3Zero();
 
 		if ( pm->liquid.type & CONTENTS_CURRENT_0 ) {
@@ -637,7 +637,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 
 		float speed = pmp->pm_water_speed;
 		// Walking in water, against a current, so slow down our 
-		if ( ( pm->liquid.level == liquid_level_t::LIQUID_FEET ) && ( pm->ground.entity ) ) {
+		if ( ( pm->liquid.level == cm_liquid_level_t::LIQUID_FEET ) && ( pm->ground.entity ) ) {
 			speed /= 2;
 		}
 
@@ -949,11 +949,11 @@ static void PM_DeadMove() {
 /**
 *	@brief
 **/
-static inline void PM_GetWaterLevel( const Vector3 &position, liquid_level_t &level, contents_t &type ) {
+static inline void PM_GetWaterLevel( const Vector3 &position, cm_liquid_level_t &level, cm_contents_t &type ) {
 	//
 	// get liquid.level, accounting for ducking
 	//
-	level = liquid_level_t::LIQUID_NONE;
+	level = cm_liquid_level_t::LIQUID_NONE;
 	type = CONTENTS_NONE;
 
 	int32_t sample2 = (int)( ps->pmove.viewheight - pm->mins.z );
@@ -963,19 +963,19 @@ static inline void PM_GetWaterLevel( const Vector3 &position, liquid_level_t &le
 
 	point.z += pm->mins.z + 1;
 
-	contents_t contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
+	cm_contents_t contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
 
-	if ( contentType & MASK_WATER ) {
+	if ( contentType & CM_CONTENTMASK_WATER ) {
 		type = contentType;
-		level = liquid_level_t::LIQUID_FEET;
+		level = cm_liquid_level_t::LIQUID_FEET;
 		point.z = pml.origin.z + pm->mins.z + sample1;
 		contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
-		if ( contentType & MASK_WATER ) {
-			level = liquid_level_t::LIQUID_WAIST;
+		if ( contentType & CM_CONTENTMASK_WATER ) {
+			level = cm_liquid_level_t::LIQUID_WAIST;
 			point.z = pml.origin.z + pm->mins.z + sample2;
 			contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
-			if ( contentType & MASK_WATER ) {
-				level = liquid_level_t::LIQUID_UNDER;
+			if ( contentType & CM_CONTENTMASK_WATER ) {
+				level = cm_liquid_level_t::LIQUID_UNDER;
 			}
 		}
 	}
@@ -1006,7 +1006,7 @@ static void PM_CategorizePosition() {
 		//pml.groundSurface = trace.surface;
 		pm->ground.surface = *( pml.ground.surface = trace.surface );
 		//pml.groundContents = trace.contents;
-		pm->ground.contents = (contents_t)( pml.ground.contents = trace.contents );
+		pm->ground.contents = (cm_contents_t)( pml.ground.contents = trace.contents );
 		//pml.groundMaterial = trace.material;
 		pm->ground.material = trace.material;
 
@@ -1074,13 +1074,13 @@ static inline const bool PM_AboveWater() {
 	// Testing point.
 	const Vector3 below = pml.origin + Vector3{ 0, 0, -8 };
 	// We got solid below, not water:
-	bool solid_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, MASK_SOLID ).fraction < 1.0f;
+	bool solid_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
 	if ( solid_below ) {
 		return false;
 	}
 
 	// We're above water:
-	bool water_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, MASK_WATER ).fraction < 1.0f;
+	bool water_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_WATER ).fraction < 1.0f;
 	if ( water_below ) {
 		return true;
 	}
@@ -1099,7 +1099,7 @@ static void PM_ScreenEffects() {
 		pml.origin.y + ps->viewoffset.y,
 		pml.origin.z + ps->viewoffset.z + (float)ps->pmove.viewheight
 	};
-	const int32_t contents = pm->pointcontents( QM_Vector3ToQFloatV( vieworg ).v );//contents_t contents = pm->pointcontents( vieworg );
+	const int32_t contents = pm->pointcontents( QM_Vector3ToQFloatV( vieworg ).v );//cm_contents_t contents = pm->pointcontents( vieworg );
 
 	// Under a 'water' like solid:
 	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) {
@@ -1149,8 +1149,8 @@ static void PM_CheckSpecialMovement() {
 		0.f
 		} );
 	const Vector3 spot = pml.origin + ( flatforward * 1 );
-	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (contents_t)( CONTENTS_LADDER ) );
-	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < liquid_level_t::LIQUID_WAIST ) {
+	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (cm_contents_t)( CONTENTS_LADDER ) );
+	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST ) {
 		ps->pmove.pm_flags |= PMF_ON_LADDER;
 	}
 
@@ -1165,7 +1165,7 @@ static void PM_CheckSpecialMovement() {
 		return;
 	}
 
-	if ( pm->liquid.level != liquid_level_t::LIQUID_WAIST ) {
+	if ( pm->liquid.level != cm_liquid_level_t::LIQUID_WAIST ) {
 		return;
 	}
 	// [Paril-KEX]
@@ -1175,7 +1175,7 @@ static void PM_CheckSpecialMovement() {
 
 	// Quick check that something is even blocking us forward
 	Vector3 blockTraceEnd = pml.origin + flatforward * 40.f;
-	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, blockTraceEnd, MASK_SOLID );
+	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, blockTraceEnd, CM_CONTENTMASK_SOLID );
 
 	// we aren't blocked, or what we're blocked by is something we can walk up
 	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= PM_MIN_STEP_NORMAL ) {
@@ -1208,7 +1208,7 @@ static void PM_CheckSpecialMovement() {
 
 	// snap down to ground
 	Vector3 snapTraceEnd = waterjump_origin + Vector3{ 0.f, 0.f, -2.f };
-	trace = PM_Trace( waterjump_origin, pm->mins, pm->maxs, snapTraceEnd, MASK_SOLID );
+	trace = PM_Trace( waterjump_origin, pm->mins, pm->maxs, snapTraceEnd, CM_CONTENTMASK_SOLID );
 
 	// Can't stand here.
 	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL || trace.endpos[ 2 ] < pml.origin.z ) {
@@ -1221,12 +1221,12 @@ static void PM_CheckSpecialMovement() {
 	}
 
 	// Get water level.
-	liquid_level_t level;
-	contents_t type;
+	cm_liquid_level_t level;
+	cm_contents_t type;
 	PM_GetWaterLevel( trace.endpos, level, type );
 
 	// The water jump spot will be under water, so we're probably hitting something weird that isn't important
-	if ( level >= liquid_level_t::LIQUID_WAIST ) {
+	if ( level >= cm_liquid_level_t::LIQUID_WAIST ) {
 		return;
 	}
 
@@ -1268,7 +1268,7 @@ static void PM_CheckJump() {
 	}
 
 	// We're swimming, not jumping, so unset ground entity.
-	if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) {
+	if ( pm->liquid.level >= cm_liquid_level_t::LIQUID_WAIST ) {
 		// Unset ground.
 		pm->ground.entity = nullptr;
 		return;
@@ -1317,7 +1317,7 @@ static inline const bool PM_CheckDuck() {
 	// Duck:
 	} else if (
 		( pm->cmd.buttons & BUTTON_CROUCH ) &&
-		( pm->ground.entity || ( pm->liquid.level <= liquid_level_t::LIQUID_FEET && !PM_AboveWater() ) ) &&
+		( pm->ground.entity || ( pm->liquid.level <= cm_liquid_level_t::LIQUID_FEET && !PM_AboveWater() ) ) &&
 		!( ps->pmove.pm_flags & PMF_ON_LADDER ) ) { 
 		if ( !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
 			// check that duck won't be blocked
@@ -1503,7 +1503,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	pm->ground = {};
 	pm->liquid = {
 		.type = CONTENTS_NONE,
-		.level = liquid_level_t::LIQUID_NONE
+		.level = cm_liquid_level_t::LIQUID_NONE
 	},
 	pm->screen_blend = {};
 	pm->rdflags = 0;
@@ -1613,7 +1613,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 		PM_Friction( );
 
 		// Determine water level and pursue to WaterMove if deep in above waist.
-		if ( pm->liquid.level >= liquid_level_t::LIQUID_WAIST ) {
+		if ( pm->liquid.level >= cm_liquid_level_t::LIQUID_WAIST ) {
 			PM_WaterMove( );
 		// Otherwise default to generic move code.
 		} else {

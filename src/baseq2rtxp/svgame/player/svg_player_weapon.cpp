@@ -394,7 +394,7 @@ const Vector3 SVG_Player_ProjectDistance( edict_t *ent, const Vector3 &point, co
     //    VectorSet( start, ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight );
     //    VectorMA( start, CM_MAX_WORLD_SIZE, forward, end );
 
-    //    svg_trace_t	tr = SVG_Trace( start, NULL, NULL, end, ent, MASK_SHOT );
+    //    svg_trace_t	tr = SVG_Trace( start, NULL, NULL, end, ent, CM_CONTENTMASK_SHOT );
     //    if ( tr.fraction < 1 ) {
     //        VectorSubtract( tr.endpos, result, forward );
     //        VectorNormalize( forward );
@@ -420,7 +420,7 @@ void SVG_Player_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3
     // Now the projectile hits exactly where the scope is pointing.
     const Vector3 start = { ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight };
     const Vector3 end = QM_Vector3MultiplyAdd( start, CM_MAX_WORLD_SIZE, forward );
-    svg_trace_t	tr = SVG_Trace( &start.x, qm_vector3_null, qm_vector3_null, &end.x, ent, MASK_SHOT );
+    svg_trace_t	tr = SVG_Trace( &start.x, qm_vector3_null, qm_vector3_null, &end.x, ent, CM_CONTENTMASK_SHOT );
     if ( tr.fraction < 1 ) {
         VectorSubtract( tr.endpos, result, forward );
         VectorNormalize( forward );

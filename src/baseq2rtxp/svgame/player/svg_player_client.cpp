@@ -783,11 +783,11 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     ent->solid = SOLID_BOUNDS_BOX;
     ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = ( MASK_PLAYERSOLID );
+    ent->clipmask = ( CM_CONTENTMASK_PLAYERSOLID );
     ent->model = "players/playerdummy/tris.iqm";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;
+    ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
     ent->liquidInfo.type = CONTENTS_NONE;
     ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
@@ -834,7 +834,7 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     VectorCopy( spawn_origin, temp2 );
     temp[ 2 ] -= 64;
     temp2[ 2 ] += 16;
-    tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( MASK_PLAYERSOLID ) );
+    tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
     if ( !tr.allsolid && !tr.startsolid && Q_stricmp( level.mapname, "tech5" ) ) {
         VectorCopy( tr.endpos, ent->s.origin );
         ent->groundInfo.entity = tr.ent;
@@ -1107,19 +1107,19 @@ void SVG_Client_CalculateMovementRecoil( edict_t *ent ) {
     // Determine if off-ground.
     bool isOnGround = ( ( playerState->pmove.pm_flags & PMF_ON_GROUND ) ? true : false );
     // Determine if in water.
-    bool isInWater = ( ent->liquidInfo.level > liquid_level_t::LIQUID_NONE ? true : false );
+    bool isInWater = ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_NONE ? true : false );
     // Get liquid level.
-	liquid_level_t liquidLevel = ent->liquidInfo.level;
+	cm_liquid_level_t liquidLevel = ent->liquidInfo.level;
     
     // Resulting move factor.
     double recoilMoveFactor = 0.;
 
     // First check if in water, so we can skip the other tests.
-    if ( isInWater && ent->liquidInfo.level > liquid_level_t::LIQUID_FEET) {
+    if ( isInWater && ent->liquidInfo.level > cm_liquid_level_t::LIQUID_FEET) {
         // Waist in water.
         recoilMoveFactor = 0.55;
         // Head under water.
-        if ( ent->liquidInfo.level > liquid_level_t::LIQUID_WAIST ) {
+        if ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_WAIST ) {
             recoilMoveFactor = 0.75;
         }
     } else {

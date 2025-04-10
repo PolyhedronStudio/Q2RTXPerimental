@@ -154,7 +154,7 @@ static location_t *LOC_FindClosest(const vec3_t pos)
 
         if (loc_trace->integer) {
             CM_BoxTrace( &cl.collisionModel, &trace, pos, loc->origin, vec3_origin, vec3_origin,
-                        cl.collisionModel.cache->nodes, MASK_SOLID);
+                        cl.collisionModel.cache->nodes, CM_CONTENTMASK_SOLID);
             if (trace.fraction != 1.0f) {
                 continue;
             }
@@ -252,7 +252,7 @@ static size_t LOC_There_m(char *buffer, size_t size)
 
     VectorMA(cl.playerEntityOrigin, CM_MAX_WORLD_SIZE, cl.v_forward, pos);
     CM_BoxTrace( &cl.collisionModel, &trace, cl.playerEntityOrigin, pos, vec3_origin, vec3_origin,
-                cl.collisionModel.cache->nodes, MASK_SOLID);
+                cl.collisionModel.cache->nodes, CM_CONTENTMASK_SOLID);
 
     loc = LOC_FindClosest(trace.endpos);
     if (loc) {

@@ -224,7 +224,7 @@ typedef struct {
 **/
 typedef struct {
 	// WID: upgr-solid: Q2RE Approach.
-    solid_t	solid32;
+    cm_solid_t	solid32;
 } server_entity_t;
 
 /**

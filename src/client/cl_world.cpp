@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *			object 'hull' of mins/maxs size for the entity's said 'solid'.
 **/
 static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSolidTriggers = false */) {
-    if ( ent->current.solid == (solid_t)BOUNDS_BRUSHMODEL /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
+    if ( ent->current.solid == (cm_solid_t)BOUNDS_BRUSHMODEL /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
         const int32_t i = ent->current.modelindex - 1;
 
         // explicit hulls in the BSP model
@@ -47,7 +47,7 @@ static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSoli
 /**
 *   @brief  Clips the trace to all entities currently in-frame.
 **/
-static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
+static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const cm_contents_t contentmask ) {
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
         cm_trace_t     trace = {};
@@ -120,7 +120,7 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec
         //    if ( ent->current.solid == SOLID_BOUNDS_OCTAGON ) {
         //        vec3_t _mins;
         //        vec3_t _maxs;
-        //        MSG_UnpackSolidUint32( static_cast<solid_t>(ent->current.bounds), _mins, _maxs );
+        //        MSG_UnpackSolidUint32( static_cast<cm_solid_t>(ent->current.bounds), _mins, _maxs );
         //        headnode = CM_HeadnodeForOctagon( &cl.collisionModel, _mins, _maxs, ent->current.hullContents );
         //    } else {
         //        headnode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
@@ -140,7 +140,7 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec
 /**
 *   @brief  Substituting the below 'CL_PM_Trace' implementation:
 **/
-const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask ) {
+const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const cm_contents_t contentmask ) {
     // Trace results.
     cm_trace_t trace = {};
 
@@ -181,7 +181,7 @@ const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, cons
 *   @brief  Will perform a clipping trace to the specified entity.
 *           If clipEntity == nullptr, it'll perform a clipping trace against the World.
 **/
-const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask ) {
+const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const cm_contents_t contentmask ) {
     // Trace results.
     cm_trace_t trace = {};
 
@@ -240,9 +240,9 @@ const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const
 /**
 *   @brief  Player Move specific 'PointContents' implementation:
 **/
-const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
+const cm_contents_t q_gameabi CL_PointContents( const vec3_t point ) {
     // Perform point contents against world.
-    contents_t contents = ( CM_PointContents( &cl.collisionModel, point, cl.collisionModel.cache->nodes ) );
+    cm_contents_t contents = ( CM_PointContents( &cl.collisionModel, point, cl.collisionModel.cache->nodes ) );
 	// We hit world, so return contents.
 	if ( contents != CONTENTS_NONE ) {
 		return contents;
@@ -277,7 +277,7 @@ const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
         //        //headNode = CM_HeadnodeForOctagon( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
         //        vec3_t _mins;
         //        vec3_t _maxs;
-        //        MSG_UnpackSolidUint32( static_cast<solid_t>( ent->current.bounds ), _mins, _maxs );
+        //        MSG_UnpackSolidUint32( static_cast<cm_solid_t>( ent->current.bounds ), _mins, _maxs );
         //        headNode = CM_HeadnodeForOctagon( &cl.collisionModel, _mins, _maxs, ent->current.hullContents );
         //    } else {
         //        headNode = CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );

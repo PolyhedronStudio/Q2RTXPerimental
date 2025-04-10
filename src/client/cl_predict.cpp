@@ -37,11 +37,6 @@ void CL_CheckPredictionError(void) {
         return;
     }
 
-    // Get a pointer to the received 'in' frame player move state.
-    const pmove_state_t *in = &cl.frame.ps.pmove;
-    // Get a pointer to the predicted state.
-    client_predicted_state_t *out = &cl.predictedState;
-
 	// Calculate the last usercmd_t we sent that the server has processed.
 	int64_t frameIndex = cls.netchan.incoming_acknowledged & CMD_MASK;
     // Get the move command index for this frame in history.
@@ -50,7 +45,7 @@ void CL_CheckPredictionError(void) {
     client_movecmd_t *moveCommand = &cl.moveCommands[ commandIndex & CMD_MASK ];
 
     // Pass control to client game to implement its own error corrections.
-    clge->CheckPredictionError( frameIndex, commandIndex, in, moveCommand, out );
+    clge->CheckPredictionError( frameIndex, commandIndex, moveCommand );
 }
 
 /**

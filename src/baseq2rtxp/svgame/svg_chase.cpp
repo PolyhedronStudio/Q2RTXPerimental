@@ -54,7 +54,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
         o[ 2 ] += 16;
     }
 
-    trace = SVG_Trace(ownerv, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(ownerv, vec3_origin, vec3_origin, o, targ, CM_CONTENTMASK_SOLID);
 
     VectorCopy(trace.endpos, goal);
 
@@ -63,7 +63,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
     // pad for floors and ceilings
     VectorCopy(goal, o);
     o[2] += 6;
-    trace = SVG_Trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(goal, vec3_origin, vec3_origin, o, targ, CM_CONTENTMASK_SOLID);
     if (trace.fraction < 1) {
         VectorCopy(trace.endpos, goal);
         goal[2] -= 6;
@@ -71,7 +71,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
 
     VectorCopy(goal, o);
     o[2] -= 6;
-    trace = SVG_Trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(goal, vec3_origin, vec3_origin, o, targ, CM_CONTENTMASK_SOLID);
     if (trace.fraction < 1) {
         VectorCopy(trace.endpos, goal);
         goal[2] += 6;

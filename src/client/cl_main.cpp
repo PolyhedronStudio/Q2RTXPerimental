@@ -2014,21 +2014,6 @@ static size_t CL_Server_m(char *buffer, size_t size)
     return Q_strlcpy(buffer, cls.servername, size);
 }
 
-static size_t CL_Ups_m(char *buffer, size_t size)
-{
-    vec3_t vel;
-
-    if ( !cls.demo.playback && cl_predict->integer &&
-        !( cl.frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
-        VectorCopy(cl.predictedState.currentPs.pmove.velocity, vel);
-    } else {
-        //VectorScale(cl.frame.ps.pmove.velocity, 0.125f, vel);
-		VectorCopy( cl.frame.ps.pmove.velocity, vel );
-    }
-
-    return Q_scnprintf(buffer, size, "%.f", VectorLength(vel));
-}
-
 static size_t CL_Timer_m(char *buffer, size_t size)
 {
     int hour, min, sec;
@@ -2667,7 +2652,7 @@ static void CL_InitLocal(void)
     Cmd_AddMacro("cl_server", CL_Server_m);
     Cmd_AddMacro("cl_timer", CL_Timer_m);
     Cmd_AddMacro("cl_demopos", CL_DemoPos_m);
-    Cmd_AddMacro("cl_ups", CL_Ups_m);
+    //Cmd_AddMacro("cl_ups", CL_Ups_m); // Moved to CLGame.
     Cmd_AddMacro("cl_fps", CL_Fps_m);
     Cmd_AddMacro("r_fps", R_Fps_m);
     Cmd_AddMacro("cl_mps", CL_Mps_m);   // moves per second

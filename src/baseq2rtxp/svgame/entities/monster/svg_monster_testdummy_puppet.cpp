@@ -516,7 +516,7 @@ void SP_monster_testdummy_puppet( edict_t *self ) {
     self->takedamage = DAMAGE_AIM;
     self->air_finished_time = level.time + 12_sec;
     self->max_health = self->health;
-    self->clipmask = MASK_MONSTERSOLID;
+    self->clipmask = CM_CONTENTMASK_MONSTERSOLID;
     self->lifeStatus = LIFESTATUS_ALIVE;
     self->svflags &= ~SVF_DEADMONSTER;
     self->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;

@@ -616,9 +616,9 @@ static void CLG_SetupThirdPersionView( void ) {
     VectorMA( clgi.client->refdef.vieworg, -range * rscale, clgi.client->v_right, clgi.client->refdef.vieworg );
 
     //CM_BoxTrace( &trace, clgi.client->playerEntityOrigin, clgi.client->refdef.vieworg,
-    //    mins, maxs, clgi.client->bsp->nodes, MASK_SOLID );
-    trace = clgi.Clip( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, nullptr, (contents_t)( MASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ) );
-    //trace = clgi.Trace( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, &clg_entities[ 1 ], (contents_t)( MASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ));
+    //    mins, maxs, clgi.client->bsp->nodes, CM_CONTENTMASK_SOLID );
+    trace = clgi.Clip( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, nullptr, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ) );
+    //trace = clgi.Trace( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, &clg_entities[ 1 ], (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ));
     if ( trace.fraction != 1.0f ) {
         VectorCopy( trace.endpos, clgi.client->refdef.vieworg );
     }

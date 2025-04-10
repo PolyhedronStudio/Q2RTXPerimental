@@ -47,7 +47,7 @@ static void SVG_Player_ProjectSource(edict_t* ent, vec3_t point, vec3_t distance
         VectorSet(start, ent->s.origin[0], ent->s.origin[1], ent->s.origin[2] + (float)ent->viewheight);
         VectorMA(start, CM_MAX_WORLD_SIZE, forward, end);
 
-        cm_trace_t	tr = gi.trace(start, NULL, NULL, end, ent, MASK_SHOT);
+        cm_trace_t	tr = gi.trace(start, NULL, NULL, end, ent, CM_CONTENTMASK_SHOT);
         if (tr.fraction < 1)
         {
             VectorSubtract(tr.endpos, result, forward);

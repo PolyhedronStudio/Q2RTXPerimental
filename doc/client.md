@@ -827,13 +827,13 @@ Controls if the Depth of Field effect should be used in various rendering modes:
 Enables the laser beam effects. Default value is 1.
 
 #### `pt_enable_nodraw`
-When this cvar is set to 1, BSP surfaces marked with the `SURF_NODRAW` flag
+When this cvar is set to 1, BSP surfaces marked with the `CM_SURFACE_NODRAW` flag
 will be removed from the world at map load time, with the exception of those
 with a "SKY" type material specified in the materials database.
 Should be enabled on some maps outside of the base Quake 2 game where such
 surfaces are used to provide fake indoor lighting, normally appearing as sky
 blocks in the middle of a room.
-If set to 2, removes all `SURF_NODRAW` surfaces, including those with a
+If set to 2, removes all `CM_SURFACE_NODRAW` surfaces, including those with a
 "proper" sky surface. Should be used if such fake lighting blocks keep
 showing up.
 Default value is 0.

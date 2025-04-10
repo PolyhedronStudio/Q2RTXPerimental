@@ -21,7 +21,7 @@
 /**
 *	@brief	Clips trace against world only.
 **/
-const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
+const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
 	//return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
 	// Clip against world.
 	return SVG_Clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
@@ -30,19 +30,19 @@ const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, con
 /**
 *	@brief	Determines the mask to use and returns a trace doing so.
 **/
-const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, contents_t contentMask ) {
+const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, cm_contents_t contentMask ) {
 	//// Spectators only clip against world, so use clip instead.
 	//if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
-	//	return PM_Clip( start, mins, maxs, end, MASK_SOLID );
+	//	return PM_Clip( start, mins, maxs, end, CM_CONTENTMASK_SOLID );
 	//}
 
 	if ( contentMask == CONTENTS_NONE ) {
 		//	if ( pm->playerState->pmove.pm_type == PM_DEAD || pm->playerState->pmove.pm_type == PM_GIB ) {
-		//		contentMask = MASK_DEADSOLID;
+		//		contentMask = CM_CONTENTMASK_DEADSOLID;
 		//	} else if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
-		//		contentMask = MASK_SOLID;
+		//		contentMask = CM_CONTENTMASK_SOLID;
 		//	} else {
-		contentMask = MASK_MONSTERSOLID;
+		contentMask = CM_CONTENTMASK_MONSTERSOLID;
 		//	}
 
 		//	//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
@@ -180,7 +180,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 
 	// Paril: step down stairs/slopes
 	if ( ( monsterMove->state.mm_flags & MMF_ON_GROUND ) && !( monsterMove->state.mm_flags & MMF_ON_LADDER ) &&
-		( monsterMove->liquid.level < liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
+		( monsterMove->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
 		Vector3 down = monsterMove->state.origin - Vector3{ 0.f, 0.f, MM_MAX_STEP_SIZE };
 		trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
 

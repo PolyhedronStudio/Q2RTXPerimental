@@ -11,26 +11,26 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const cm_trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask ) {
     cm_trace_t t;
     //if (pm_passent->health > 0)
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
     t = clgi.Trace( start, mins, maxs, end, (const centity_t *)passEntity, contentMask );
     return t;
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const cm_trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentMask ) {
     const cm_trace_t trace = clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
     return trace;
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
+static const cm_contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
     return clgi.PointContents( point );
 }
 

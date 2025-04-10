@@ -415,11 +415,11 @@ void M_droptofloor( edict_t *ent );
 /**
 *   @brief
 **/
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype );
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype );
 /**
 *   @brief
 **/
-void M_CheckGround( edict_t *ent, const contents_t mask );
+void M_CheckGround( edict_t *ent, const cm_contents_t mask );
 /**
 *   @brief
 **/
@@ -504,7 +504,7 @@ struct mm_ground_info_t {
     //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
     cm_surface_t    surface;
     //! A copy of the contents data from the ground entity's brush.
-    contents_t      contents;
+    cm_contents_t      contents;
     //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
     cm_material_t *material;
 };
@@ -514,9 +514,9 @@ struct mm_ground_info_t {
 **/
 struct mm_liquid_info_t {
     //! The actual BSP liquid 'contents' type we're intersecting with, or inside of.
-    contents_t      type;
+    cm_contents_t      type;
     //! The level of degree at which we're intersecting with, or inside of the liquid 'solid' brush.
-    liquid_level_t	level;
+    cm_liquid_level_t	level;
 };
 
 #include "svgame/svg_game_edict.h"
@@ -569,7 +569,7 @@ void SVG_Impact( edict_t *e1, svg_trace_t *trace );
 /**
 *   @brief  Get the clip mask for the entity.
 **/
-const contents_t SVG_GetClipMask( edict_t *ent );
+const cm_contents_t SVG_GetClipMask( edict_t *ent );
 /**
 *   @brief  Run the entity's think function.
 **/

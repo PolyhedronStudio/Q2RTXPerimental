@@ -32,13 +32,13 @@ typedef struct entity_state_s {
     *   these are set properly using LinkEntity.
     **/
     //! The actual 'solid' type of entity.
-    solid_t solid;
+    cm_solid_t solid;
     //! The actual 'bounding box' mins/maxs for the solid type in question.
     uint32_t bounds;
     //! Clipmask for collision.
-    contents_t clipmask;
+    cm_contents_t clipmask;
     //! The actual temporary hull's leaf and brush contents of this entity in case it is a SOLID_BOUNDS_BOX.
-    contents_t hullContents;
+    cm_contents_t hullContents;
     //! Entity who owns this entity.
     int32_t ownerNumber;
 

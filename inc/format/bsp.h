@@ -57,7 +57,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //#define     MAX_KEY         32
 //#define     MAX_VALUE       1024
 //
-//#define     MAX_TEXNAME     32
+//#define     CM_MAX_TEXNAME     32
 //
 ////=============================================================================
 //

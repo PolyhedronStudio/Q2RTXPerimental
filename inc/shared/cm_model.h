@@ -39,7 +39,7 @@ typedef struct hull_octagonbox_s {
     vec3_t cylinder_offset;
 } hull_octagonbox_t;
 
-//#define MAX_MATERIAL_NAME MAX_TEXNAME
+//#define MAX_MATERIAL_NAME CM_MAX_TEXNAME
 //typedef uint32_t cm_material_physical_type;
 //typedef struct cm_material_s {
 //    /**

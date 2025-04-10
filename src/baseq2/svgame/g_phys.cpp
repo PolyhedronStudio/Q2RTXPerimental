@@ -38,18 +38,18 @@ solid_edge items only clip against bsp models.
 
 // [Paril-KEX] fetch the clipmask for this entity; certain modifiers
 // affect the clipping behavior of objects.
-const contents_t SVG_GetClipMask( edict_t *ent ) {
+const cm_contents_t SVG_GetClipMask( edict_t *ent ) {
     // Get current clip mask.
-    contents_t mask = ent->clipmask;
+    cm_contents_t mask = ent->clipmask;
 
     // If none, setup a default mask based on the svflags.
     if ( !mask ) {
         if ( ent->svflags & SVF_MONSTER ) {
-            mask = ( MASK_MONSTERSOLID );
+            mask = ( CM_CONTENTMASK_MONSTERSOLID );
         } else if ( ent->svflags & SVF_PROJECTILE ) {
-            mask = ( MASK_PROJECTILE );
+            mask = ( CM_CONTENTMASK_PROJECTILE );
         } else {
-            mask = ( MASK_SHOT & ~CONTENTS_DEADMONSTER );
+            mask = ( CM_CONTENTMASK_SHOT & ~CONTENTS_DEADMONSTER );
         }
     }
 
@@ -77,12 +77,12 @@ SV_TestEntityPosition
 edict_t *SV_TestEntityPosition(edict_t *ent)
 {
     cm_trace_t trace;
-    //contents_t mask;
+    //cm_contents_t mask;
 
     //if (ent->clipmask)
     //    mask = ent->clipmask;
     //else
-    //    mask = MASK_SOLID;
+    //    mask = CM_CONTENTMASK_SOLID;
     trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
 
     if ( trace.startsolid ) {
@@ -202,7 +202,7 @@ Returns the clipflags if the velocity was modified (hit something solid)
 ============
 */
 #define MAX_CLIP_PLANES 5
-int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
+int SV_FlyMove(edict_t *ent, float time, const cm_contents_t mask)
 {
     edict_t     *hit;
     int         bumpcount, numbumps;
@@ -363,7 +363,7 @@ retry:
     //if (ent->clipmask)
     //    mask = ent->clipmask;
     //else
-    //    mask = MASK_SOLID;
+    //    mask = CM_CONTENTMASK_SOLID;
 
     trace = gi.trace(start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
 
@@ -740,14 +740,14 @@ void SV_Physics_Toss(edict_t *ent)
     }
 
 // check for water transition
-    wasinwater = (ent->liquidtype & MASK_WATER);
+    wasinwater = (ent->liquidtype & CM_CONTENTMASK_WATER);
     ent->liquidtype = gi.pointcontents(ent->s.origin);
-    isinwater = ent->liquidtype & MASK_WATER;
+    isinwater = ent->liquidtype & CM_CONTENTMASK_WATER;
 
     if (isinwater)
-        ent->liquidlevel = liquid_level_t::LIQUID_FEET;
+        ent->liquidlevel = cm_liquid_level_t::LIQUID_FEET;
     else
-        ent->liquidlevel = liquid_level_t::LIQUID_NONE;
+        ent->liquidlevel = cm_liquid_level_t::LIQUID_NONE;
 
     if (!wasinwater && isinwater)
         gi.positioned_sound(old_origin, g_edicts, CHAN_AUTO, gi.soundindex("misc/h2ohit1.wav"), 1, 1, 0);
@@ -815,7 +815,7 @@ void SV_Physics_Step(edict_t *ent)
     float	   speed, newspeed, control;
     float	   friction;
     edict_t *groundentity;
-    contents_t mask = SVG_GetClipMask( ent );
+    cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
     if ( !ent->groundentity ) {
@@ -957,7 +957,7 @@ void SV_Physics_Step(edict_t *ent)
 //    float       speed = 0.f, newspeed = 0.f, control = 0.f;
 //    float       friction = 0.f;
 //    edict_t     *groundentity = nullptr;
-//    contents_t  mask = SVG_GetClipMask( ent );
+//    cm_contents_t  mask = SVG_GetClipMask( ent );
 //
 //    // airborn monsters should always check for ground
 //    if ( !ent->groundentity ) {
@@ -1034,9 +1034,9 @@ void SV_Physics_Step(edict_t *ent)
 //            }
 //
 //        if (ent->svflags & SVF_MONSTER)
-//            mask = MASK_MONSTERSOLID;
+//            mask = CM_CONTENTMASK_MONSTERSOLID;
 //        else
-//            mask = MASK_SOLID;
+//            mask = CM_CONTENTMASK_SOLID;
 //
 //        const Vector3 oldOrigin = ent->s.origin;
 //        SV_FlyMove(ent, FRAMETIME, mask);

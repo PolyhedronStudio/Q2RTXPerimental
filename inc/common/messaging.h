@@ -61,10 +61,10 @@ typedef struct {
 	vec3_t		angles; // WID: float-movement
 	vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
 
-	solid_t solid;	//! Solid for collision prediction.
+	cm_solid_t solid;	//! Solid for collision prediction.
 	bounds_packed_t bounds;	//! The bounding box for the solid's hull type, also needed for collision prediction.
 	int32_t clipmask;		//! Clipmask for collision prediction.
-	contents_t hullContents;//! Hull Contents for collision prediction.
+	cm_contents_t hullContents;//! Hull Contents for collision prediction.
 	int32_t ownerNumber;	//! Entity which owns this entity, for collision prediction.
 
 	uint32_t	modelindex;

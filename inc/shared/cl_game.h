@@ -25,7 +25,7 @@
 //    SOLID_TRIGGER,      // only touch when inside, after moving
 //    SOLID_BOUNDS_BOX,         // touch on edge
 //    SOLID_BSP           // bsp clip, touch on edge
-//} solid_t;
+//} cm_solid_t;
 //
 //// extended features
 //
@@ -177,9 +177,9 @@ typedef struct {
 	*	Clip Tracing:
 	*
 	**/
-	const cm_trace_t( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask );
-	const cm_trace_t( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask );
-	const contents_t( *q_gameabi PointContents )( const vec3_t point );
+	const cm_trace_t( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const cm_contents_t contentmask );
+	const cm_trace_t( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const cm_contents_t contentmask );
+	const cm_contents_t( *q_gameabi PointContents )( const vec3_t point );
 
 
 
@@ -338,7 +338,7 @@ typedef struct {
 	/**
 	*   @return The contents mask of all leafs within the absolute bounds.
 	**/
-	const contents_t( *CM_BoxContents )( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
+	const cm_contents_t( *CM_BoxContents )( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
 
 
 	/**
@@ -925,7 +925,7 @@ typedef struct {
 	*           between our predicted state and the server returned state. In case
 	*           the margin is too high, snap back to server provided player state.
 	**/
-	void ( *CheckPredictionError )( const int64_t frameIndex, const uint64_t commandIndex, const pmove_state_t *in, struct client_movecmd_s *moveCommand, struct client_predicted_state_s *out );
+	void ( *CheckPredictionError )( const int64_t frameIndex, const uint64_t commandIndex, struct client_movecmd_s *moveCommand );
 	//! Sets the predicted view angles.
 	void ( *PredictAngles )( void );
 	/**
@@ -1087,8 +1087,10 @@ typedef struct {
 	*           and temp entities) to the refresh definition.
 	**/
 	void ( *PrepareViewEntities )( void );
-
-
+	/**
+	*	@brief	Returns the predictedState based player view render definition flags.
+	**/
+	const refdef_flags_t ( *GetViewRenderDefinitionFlags )( void );
 
 	/**
 	*	Global variables shared between game and client.

@@ -8,7 +8,7 @@
 #pragma once
 
 //! Maximum material name will always equal maximum texture name, otherwise it'd be a mismatch.
-#define MAX_MATERIAL_NAME MAX_TEXNAME
+#define MAX_MATERIAL_NAME CM_MAX_TEXNAME
 #define MAX_MATERIAL_KIND_STR_LENGTH MAX_QPATH
 
 //! The physical property type, such as BRICK, CONCRETE, GLASS, GRASS, SNOW, PLYWOOD etc.

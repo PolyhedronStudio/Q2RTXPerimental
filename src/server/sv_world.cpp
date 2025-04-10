@@ -281,7 +281,7 @@ void PF_LinkEdict(edict_t *ent)
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
-            ent->s.solid = static_cast<solid_t>( sent->solid32 = ent->solid );
+            ent->s.solid = static_cast<cm_solid_t>( sent->solid32 = ent->solid );
             ent->s.bounds = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
         }
         break;
@@ -290,12 +290,12 @@ void PF_LinkEdict(edict_t *ent)
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
-            ent->s.solid = static_cast<solid_t>( sent->solid32 = ent->solid );
+            ent->s.solid = static_cast<cm_solid_t>( sent->solid32 = ent->solid );
             ent->s.bounds = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
         }
         break;
     case SOLID_BSP:
-        ent->s.solid = static_cast<solid_t>(BOUNDS_BRUSHMODEL);      // a SOLID_BOUNDS_BOX will never create this value
+        ent->s.solid = static_cast<cm_solid_t>(BOUNDS_BRUSHMODEL);      // a SOLID_BOUNDS_BOX will never create this value
         sent->solid32 = BOUNDS_BRUSHMODEL;                           // FIXME: use 255? NOTICE: We do now :-)
         break;
     default:
@@ -473,10 +473,10 @@ static mnode_t *SV_WorldNodes( void ) {
 *	@return	The CONTENTS_* value from the world at the given point.
 *			Quake 2 extends this to also check entities, to allow moving liquids
 **/
-const contents_t SV_PointContents( const vec3_t p ) {
+const cm_contents_t SV_PointContents( const vec3_t p ) {
 	edict_t *touch[ MAX_EDICTS ], *hit;
 	int         i, num;
-    contents_t  contents;
+    cm_contents_t  contents;
 
 
 	if ( !sv.cm.cache ) {
@@ -514,7 +514,7 @@ const contents_t SV_PointContents( const vec3_t p ) {
 **/
 static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
                                   const vec3_t maxs, const vec3_t end,
-                                  edict_t *passedict, const contents_t contentmask, cm_trace_t *tr)
+                                  edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *tr)
 {
     vec3_t      boxmins, boxmaxs;
     int         i, num;
@@ -589,7 +589,7 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
 **/
 const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
-                           edict_t *passEdict, const contents_t contentmask)
+                           edict_t *passEdict, const cm_contents_t contentmask)
 {
     cm_trace_t     trace;
 
@@ -642,7 +642,7 @@ const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 **/
 const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
                             const vec3_t maxs, const vec3_t end,
-                            const contents_t contentmask ) {
+                            const cm_contents_t contentmask ) {
 	cm_trace_t     trace;
 
     if ( !sv.cm.cache ) {

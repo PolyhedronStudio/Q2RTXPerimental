@@ -171,47 +171,6 @@ typedef struct client_usercmd_history_s {
 } client_usercmd_history_t;
 
 /**
-*   @brief  Stores client-side predicted player_state_t information.
-**/
-typedef struct client_predicted_state_s {
-    //! Last processed client move command.
-    client_movecmd_t cmd;
-
-    //! Reset each time we receive a new server frame. Keeps track of the local client's player_state_t
-    //! until yet receiving another new server frame.
-    player_state_t currentPs;
-    //! This is always the previous client's frame player_state_t.
-    player_state_t lastPs;
-
-    //! Player(-Entity) Bounding Box.
-    Vector3 mins, maxs;
-
-    //! Stores the ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
-    cm_ground_info_t ground;
-    //! Stores the 'liquid' information. This can be lava, slime, or water.
-    cm_contents_info_t liquid;
-
-    //! Stores data for player origin/view transitions.
-    struct {
-        struct {
-            //! Stores the stepheight.
-            double height;
-            //! Stores cl.realtime of when the step was last changed.
-            uint64_t timeChanged;
-        } step;
-        struct {
-            //! Stores the previous view height[#1] and the current[#0] height.
-            double height[ 2 ];
-            //! Stores cl.time of when the height was last changed.
-            uint64_t timeHeightChanged;
-        } view;
-    } transition;
-
-    //! Margin of origin error to correct for this frame.
-    Vector3 error;
-} client_predicted_state_t;
-
-/**
 *   @brief  Used to store the client's audio 'spatial awareness'.
 *           It is always set by CL_CalculateViewValues, which can
 *           also be called directly from the main loop if rendering
@@ -309,13 +268,9 @@ typedef struct client_state_s {
 
     /**
     *
-    *   Local Predicted Frame State:
+    *   Local (Predicted-)Frame State:
     *
     **/
-    //! This always has its value reset to the latest received frame's data. For all the time in-between the
-    //! received frames, it maintains track of the predicted client states.
-    //! (Currently though, player_state_t only.)
-    client_predicted_state_t predictedState;
     //! Clien't s audio spatialized data.
     client_listener_spatialization_t listener_spatialize;
 

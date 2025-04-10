@@ -42,7 +42,7 @@ static void check_dodge(edict_t *self, vec3_t start, vec3_t dir, int speed)
     //}
 
     //VectorMA(start, CM_MAX_WORLD_SIZE, dir, end);
-    //tr = SVG_Trace(start, NULL, NULL, end, self, MASK_SHOT);
+    //tr = SVG_Trace(start, NULL, NULL, end, self, CM_CONTENTMASK_SHOT);
     //if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
     //    VectorSubtract(tr.endpos, start, v);
     //    QMTime eta = QMTime::FromMilliseconds(VectorLength(v) - tr.ent->maxs[0]) / speed;
@@ -61,7 +61,7 @@ const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( edict_t *ent, const Vector
 
     // To stop it accidentally spawning the MZ_PISTOL muzzleflash inside of entities and/or (wall-)brushes,
     // peform a trace from our origin on to the projected start.
-    svg_trace_t tr = SVG_Trace( ent->s.origin, qm_vector3_null, qm_vector3_null, &muzzleFlashOrigin.x, ent, MASK_SHOT );
+    svg_trace_t tr = SVG_Trace( ent->s.origin, qm_vector3_null, qm_vector3_null, &muzzleFlashOrigin.x, ent, CM_CONTENTMASK_SHOT );
     // We hit something, clip to trace endpos so the muzzleflash will play in our non-solid area:
     if ( tr.fraction < 1.0 ) {
         muzzleFlashOrigin = tr.endpos;
@@ -106,7 +106,7 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 
     VectorMA(self->s.origin, range, dir, point);
 
-    tr = SVG_Trace(self->s.origin, NULL, NULL, point, self, MASK_SHOT);
+    tr = SVG_Trace(self->s.origin, NULL, NULL, point, self, CM_CONTENTMASK_SHOT);
     if (tr.fraction < 1) {
         if (!tr.ent->takedamage)
             return false;
@@ -151,7 +151,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
     float       r = 0;
     float       u = 0;
     bool        water = false;
-    contents_t  content_mask = ( MASK_SHOT );
+    cm_contents_t  content_mask = ( CM_CONTENTMASK_SHOT );
 
     ////see if enemy is in range
     //VectorSubtract( self->enemy->s.origin, self->s.origin, dir );
@@ -171,7 +171,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
     //}
 
 
-    tr = SVG_Trace( self->s.origin, qm_vector3_null, qm_vector3_null, &start.x, self, MASK_SHOT );
+    tr = SVG_Trace( self->s.origin, qm_vector3_null, qm_vector3_null, &start.x, self, CM_CONTENTMASK_SHOT );
     if ( !( tr.fraction < 1.0f ) ) {
         QM_Vector3ToAngles( aimDir, dir );
         AngleVectors( dir, forward, right, up );
@@ -187,7 +187,7 @@ const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vec
 
     bool isTDamaged = false;
     // Make sure we aren't hitting a sky brush.
-    if ( !(tr.surface && tr.surface->flags & SURF_SKY) ) {
+    if ( !(tr.surface && tr.surface->flags & CM_SURFACE_FLAG_SKY) ) {
         // We hit something.
         if ( tr.fraction < 1.0f ) {
             // It was an entity, if it takes damage, hit it:
@@ -247,10 +247,10 @@ static void fire_lead(edict_t *self, const vec3_t start, const vec3_t aimdir, co
     Vector3 end = {};
     Vector3 water_start = {};
     bool    water = false;
-    contents_t  content_mask = ( MASK_SHOT | MASK_WATER );
+    cm_contents_t  content_mask = ( CM_CONTENTMASK_SHOT | CM_CONTENTMASK_WATER );
     
 	// Trace a line from the origin the supposed bullet shot start point.
-    svg_trace_t tr = SVG_Trace(self->s.origin, qm_vector3_null, qm_vector3_null, start, self, MASK_SHOT);
+    svg_trace_t tr = SVG_Trace(self->s.origin, qm_vector3_null, qm_vector3_null, start, self, CM_CONTENTMASK_SHOT);
 	// If we hit something, and it is not sky, then we can continue.
     if ( !( tr.fraction < 1.0f ) ) {
         // Calculate the direction of the bullet.
@@ -269,20 +269,20 @@ static void fire_lead(edict_t *self, const vec3_t start, const vec3_t aimdir, co
         VectorMA(end, u, up, end);
 
         // Determine if we started from within a water brush.
-        if ( gi.pointcontents(start) & MASK_WATER ) {
+        if ( gi.pointcontents(start) & CM_CONTENTMASK_WATER ) {
 			// We are in water.
             water = true;
 			// Copy the start point into the water start point.
             VectorCopy(start, water_start);
 			// Remove the water mask from the content mask.
-            content_mask = static_cast<contents_t>( content_mask & ~MASK_WATER ); // content_mask &= ~MASK_WATER
+            content_mask = static_cast<cm_contents_t>( content_mask & ~CM_CONTENTMASK_WATER ); // content_mask &= ~CM_CONTENTMASK_WATER
         }
 
 		// Trace the bullet.
         tr = SVG_Trace(start, qm_vector3_null, qm_vector3_null, &end.x, self, content_mask);
 
         // See if we hit water.
-        if ( tr.contents & MASK_WATER ) {
+        if ( tr.contents & CM_CONTENTMASK_WATER ) {
             int32_t color = SPLASH_UNKNOWN;
 
             // We are in water.
@@ -328,12 +328,12 @@ static void fire_lead(edict_t *self, const vec3_t start, const vec3_t aimdir, co
             }
 
             // re-trace ignoring water this time
-            tr = SVG_Trace( &water_start.x, qm_vector3_null, qm_vector3_null, &end.x, self, MASK_SHOT );
+            tr = SVG_Trace( &water_start.x, qm_vector3_null, qm_vector3_null, &end.x, self, CM_CONTENTMASK_SHOT );
         }
     }
 
     // send gun puff / flash
-    if ( !( ( tr.surface ) && ( tr.surface->flags & SURF_SKY ) ) ) {
+    if ( !( ( tr.surface ) && ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) ) ) {
         if ( tr.fraction < 1.0f ) {
             if ( tr.ent->takedamage ) {
                 SVG_TriggerDamage( tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
@@ -359,10 +359,10 @@ static void fire_lead(edict_t *self, const vec3_t start, const vec3_t aimdir, co
         VectorSubtract( tr.endpos, water_start, dir );
         VectorNormalize( &dir.x );
         VectorMA( tr.endpos, -2, dir, pos );
-        if ( gi.pointcontents( pos ) & MASK_WATER )
+        if ( gi.pointcontents( pos ) & CM_CONTENTMASK_WATER )
             VectorCopy( pos, tr.endpos );
         else
-            tr = SVG_Trace( pos, qm_vector3_null, qm_vector3_null, &water_start.x, tr.ent, MASK_WATER );
+            tr = SVG_Trace( pos, qm_vector3_null, qm_vector3_null, &water_start.x, tr.ent, CM_CONTENTMASK_WATER );
 
         VectorAdd( water_start, tr.endpos, pos );
         VectorScale( pos, 0.5f, pos );

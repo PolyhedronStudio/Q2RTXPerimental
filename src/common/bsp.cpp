@@ -152,7 +152,7 @@ LOAD( Texinfo ) {
 
         memcpy( out->c.name, in, sizeof( out->c.name ) - 1 );
         memcpy( out->name, in, sizeof( out->name ) - 1 );
-        in += MAX_TEXNAME;
+        in += CM_MAX_TEXNAME;
 
         #if USE_REF
         out->radiance = out->c.value;
@@ -1441,7 +1441,7 @@ static void FixLeafContents( bsp_t *bsp ) {
     for ( size_t i = 0; i < bsp->numleafs; i++ ) {
         mleaf_t *leaf = &bsp->leafs[ i ];
 
-        contents_t contents = CONTENTS_NONE;
+        cm_contents_t contents = CONTENTS_NONE;
 
         leafbrush = leaf->firstleafbrush;
         for ( k = 0; k < leaf->numleafbrushes; k++, leafbrush++ ) {

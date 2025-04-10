@@ -136,7 +136,7 @@ const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t ma
 /**
 *   @return The contents mask of all leafs within the absolute bounds.
 **/
-const contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
+const cm_contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
 
 
 //
@@ -176,7 +176,7 @@ void CM_InitBoxHull( cm_t *cm );
 *           The BSP trees' box will match with the bounds(mins, maxs) and have appointed
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
-mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents );
+mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents );
 
 
 
@@ -195,7 +195,7 @@ void CM_InitOctagonHull( cm_t *cm );
 *           The BSP trees' octagon box will match with the bounds(mins, maxs) and have appointed
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
-mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents );
+mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents );
 
 
 
@@ -223,12 +223,12 @@ mleaf_t *CM_PointLeaf( cm_t *cm, const vec3_t p );
 /**
 *   @return An ORed contents mask
 **/
-const contents_t CM_PointContents( cm_t *cm, const vec3_t p, mnode_t *headnode );
+const cm_contents_t CM_PointContents( cm_t *cm, const vec3_t p, mnode_t *headnode );
 /**
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities
 **/
-const contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t *headnode,
+const cm_contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t *headnode,
                                                 const vec3_t origin, const vec3_t angles );
 
 
@@ -242,7 +242,7 @@ const contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t 
 void        CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
                         const vec3_t start, const vec3_t end,
                         const vec3_t mins, const vec3_t maxs,
-                        mnode_t *headnode, const contents_t brushmask );
+                        mnode_t *headnode, const cm_contents_t brushmask );
 /**
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities.
@@ -250,7 +250,7 @@ void        CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
 void        CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
                                     const vec3_t start, const vec3_t end,
                                     const vec3_t mins, const vec3_t maxs,
-                                    mnode_t *headnode, const contents_t brushmask,
+                                    mnode_t *headnode, const cm_contents_t brushmask,
                                     const vec3_t origin, const vec3_t angles );
 /**
 *   @brief

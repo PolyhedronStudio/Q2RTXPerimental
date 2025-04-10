@@ -245,6 +245,17 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #include "shared/info_strings.h"
 
 
+/**
+*   @brief  Hunk allocation memory block, used for resource allocation.
+**/
+typedef struct {
+    void *base;
+    size_t  maxsize;
+    size_t  cursize;
+    size_t  mapped;
+} memhunk_t;
+
+
 //! KeyButton/KeyButton State:
 #include "shared/key_button.h"
 //! Key indices/numbers:
@@ -258,32 +269,34 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 
 
 //! Collision: 
-/**
-*   @brief  Hunk allocation memory block, used for resource allocation.
-**/
-typedef struct {
-    void *base;
-    size_t  maxsize;
-    size_t  cursize;
-    size_t  mapped;
-} memhunk_t;
 //! Maximum World 'Half-Size'. Now 8 times larger(+/- 32768) than the old Q2 Vanilla 'Half-Size': (+/- 4096).
 #define CM_MAX_WORLD_HALF_SIZE 32768
 //! Maximum World Size, used for calculating various trace distance end point vectors. ( 32768 * 2 == 65536 )
 #define CM_MAX_WORLD_SIZE ( CM_MAX_WORLD_HALF_SIZE * 2 )
+//! The maximum amount of characters in a texture name.
+#define CM_MAX_TEXNAME     32
+
 //! Maximum amount of entity clusters.
 #define MAX_ENT_CLUSTERS    16
 //! Maximum total entity leafs.
 #define MAX_TOTAL_ENT_LEAFS 128
+
 //! Collision(-Model) Shared Subsystem Stuff:
-#include "shared/collision.h"
-#include "shared/format_bsp.h"
-
-
-//! Collision Model:
+#include "shared/cm_types.h"
 #include "shared/cm_entity.h"
+#include "shared/cm_plane.h"
+#include "shared/cm_surface.h"
 #include "shared/cm_material.h"
+#include "shared/cm_trace.h"
+#include "shared/format_bsp.h"
 #include "shared/cm_model.h"
+
+// gi.BoxEdicts() can return a list of either solid or trigger entities
+// FIXME: eliminate AREA_ distinction?
+typedef enum sector_area_s {
+	AREA_SOLID = 1,
+	AREA_TRIGGERS = 2
+} sector_area_t;
 
 
 //!	Entity Muzzleflashes/Player Effects:
@@ -337,7 +350,7 @@ typedef enum {
 
 // Used for identifying brush model solids with so that it uses the internal BSP bounding box.
 // An otherwise SOLID_BOUNDS_BOX etc, will never create this value(Used to be 255):
-#define BOUNDS_BRUSHMODEL      ( ( solid_t )( 0xffffffff ) )
+#define BOUNDS_BRUSHMODEL      ( ( cm_solid_t )( 0xffffffff ) )
 
 /***
 * 	Config Strings: A general means of communication from the server to all connected clients.

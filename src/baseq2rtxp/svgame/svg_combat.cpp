@@ -87,7 +87,7 @@ const bool SVG_CanDamage(edict_t *targ, edict_t *inflictor)
     if (targ->movetype == MOVETYPE_PUSH) {
         VectorAdd(targ->absmin, targ->absmax, dest);
         VectorScale(dest, 0.5f, dest);
-        trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+        trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
         if (trace.fraction == 1.0f)
             return true;
         if (trace.ent == targ)
@@ -95,35 +95,35 @@ const bool SVG_CanDamage(edict_t *targ, edict_t *inflictor)
         return false;
     }
 
-    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, targ->s.origin, inflictor, MASK_SOLID);
+    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, targ->s.origin, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
     VectorCopy(targ->s.origin, dest);
     dest[0] += 15.0f;
     dest[1] += 15.0f;
-    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
     VectorCopy(targ->s.origin, dest);
     dest[0] += 15.0f;
     dest[1] -= 15.0f;
-    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
     VectorCopy(targ->s.origin, dest);
     dest[0] -= 15.0f;
     dest[1] += 15.0f;
-    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
     VectorCopy(targ->s.origin, dest);
     dest[0] -= 15.0f;
     dest[1] -= 15.0f;
-    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+    trace = SVG_Trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 

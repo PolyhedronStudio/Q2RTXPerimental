@@ -877,7 +877,7 @@ void droptofloor(edict_t *ent)
     VectorCopy(ent->s.origin, dest);
     dest[2] -= 128;
 
-    tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, dest, ent, MASK_SOLID);
+    tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, dest, ent, CM_CONTENTMASK_SOLID);
     if (tr.startsolid) {
         gi.dprintf("droptofloor: %s startsolid at %s\n", ent->classname, vtos(ent->s.origin));
         SVG_FreeEdict(ent);

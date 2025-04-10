@@ -715,7 +715,7 @@ void SVG_RunFrame(void) {
 
         // If the ground entity moved, make sure we are still on it.
         if ( ( ent->groundInfo.entity ) && ( ent->groundInfo.entity->linkcount != ent->groundInfo.entityLinkCount ) ) {
-            contents_t mask = SVG_GetClipMask( ent );
+            cm_contents_t mask = SVG_GetClipMask( ent );
 
             // Monsters that don't SWIM or FLY, got their own unique ground check.
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {

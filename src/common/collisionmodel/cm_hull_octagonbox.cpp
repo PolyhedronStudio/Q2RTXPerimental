@@ -134,7 +134,7 @@ static inline const float CalculateOctagonPlaneDist( cm_plane_t &plane, const Ve
 *           The BSP trees' octagon box will match with the bounds(mins, maxs) and have appointed
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
-mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents ) {
+mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents ) {
     // Setup to CONTENTS_MONSTER in case of no contents being passed in.
     if ( contents == CONTENTS_NONE ) {
         cm->hull_octagonbox->leaf.contents = cm->hull_octagonbox->brush.contents = CONTENTS_MONSTER;

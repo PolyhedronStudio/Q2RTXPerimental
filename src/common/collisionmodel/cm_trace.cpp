@@ -141,7 +141,7 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *tra
             if ( !map_allsolid_bug->integer ) {
                 // original Q2 didn't set these
                 trace->fraction = 0;
-                trace->contents = static_cast<contents_t>( brush->contents );
+                trace->contents = static_cast<cm_contents_t>( brush->contents );
                 trace->material = nullptr;
             }
         }
@@ -153,7 +153,7 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *tra
             trace->fraction = enterfrac[ 0 ];
             trace->plane = *clipplane[ 0 ];
             trace->surface = &( leadside[ 0 ]->texinfo->c );
-            trace->contents = static_cast<contents_t>( brush->contents );
+            trace->contents = static_cast<cm_contents_t>( brush->contents );
             trace->material = trace->surface->material;
             #ifdef SECOND_PLANE_TRACE
             if ( leadside[ 1 ] ) {
@@ -205,7 +205,7 @@ static void CM_TestBoxInBrush( const vec3_t p1, cm_trace_t *trace, mbrush_t *bru
     // inside this brush
     trace->startsolid = trace->allsolid = true;
     trace->fraction = 0;
-    trace->contents = static_cast<contents_t>( brush->contents );
+    trace->contents = static_cast<cm_contents_t>( brush->contents );
     //if ( trace->material ) {
     trace->material = nullptr;
     //}
@@ -358,7 +358,7 @@ recheck:
 void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
     const vec3_t start, const vec3_t end,
     const vec3_t mins, const vec3_t maxs,
-    mnode_t *headnode, const contents_t brushmask ) {
+    mnode_t *headnode, const cm_contents_t brushmask ) {
     const vec_t *bounds[ 2 ] = { mins, maxs };
     int i, j;
 
@@ -436,7 +436,7 @@ void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
 void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
     const vec3_t start, const vec3_t end,
     const vec3_t mins, const vec3_t maxs,
-    mnode_t *headnode, const contents_t brushmask,
+    mnode_t *headnode, const cm_contents_t brushmask,
     const vec3_t origin, const vec3_t angles ) {
     vec3_t      start_l, end_l;
     vec3_t      axis[ 3 ];

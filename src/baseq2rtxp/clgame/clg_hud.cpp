@@ -645,7 +645,7 @@ void CLG_HUD_DrawCrosshair( void ) {
     }
 
     // Don't show when 'is aiming' weapon mode is true.
-    if ( clgi.client->predictedState.currentPs.stats[ STAT_WEAPON_FLAGS ] & STAT_WEAPON_FLAGS_IS_AIMING ) {
+    if ( game.predictedState.currentPs.stats[ STAT_WEAPON_FLAGS ] & STAT_WEAPON_FLAGS_IS_AIMING ) {
         return;
     }
 

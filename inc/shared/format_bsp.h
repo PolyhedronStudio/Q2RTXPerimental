@@ -52,7 +52,7 @@ QEXTERN_C_OPEN
 //#define     MAX_KEY         32
 //#define     MAX_VALUE       1024
 
-#define     MAX_TEXNAME     32
+//#define     CM_MAX_TEXNAME     32
 
 //=============================================================================
 
@@ -114,8 +114,8 @@ typedef struct {
     (((bsp)->visrowsize + sizeof(size_t) - 1) / sizeof(size_t))
 
 typedef struct mtexinfo_s {  // used internally due to name len probs //ZOID
-    cm_surface_t          c;
-    char                name[ MAX_TEXNAME ];
+    cm_surface_t        c;
+    char                name[ CM_MAX_TEXNAME ];
 
     #if USE_REF
     int                 radiance;
@@ -158,9 +158,9 @@ typedef struct {
     int         vert;
 } msurfedge_t;
 
-#define SURF_TRANS_MASK (SURF_TRANS33 | SURF_TRANS66)
-#define SURF_COLOR_MASK (SURF_TRANS_MASK | SURF_WARP)
-#define SURF_NOLM_MASK  (SURF_COLOR_MASK | SURF_FLOWING | SURF_SKY | SURF_NODRAW)
+#define SURF_TRANS_MASK (CM_SURF_TRANSLUCENT_33 | CM_SURF_TRANSLUCENT_66)
+#define SURF_COLOR_MASK (SURF_TRANS_MASK | CM_SURFACE_FLAG_WARP)
+#define SURF_NOLM_MASK  (SURF_COLOR_MASK | CM_SURFACE_FLOWING | CM_SURFACE_FLAG_SKY | CM_SURFACE_NODRAW)
 
 #define DSURF_PLANEBACK     1
 

@@ -30,7 +30,7 @@ typedef int fixed16_t;
 #define M_PI        3.14159265358979323846  // matches value in gcc v2 math.h
 #endif
 
-struct cplane_s;
+struct cm_plane_s;
 
 extern const vec3_t vec3_origin;
 

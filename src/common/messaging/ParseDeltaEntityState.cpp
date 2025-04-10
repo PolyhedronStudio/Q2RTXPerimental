@@ -153,16 +153,16 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: ReadLong by default.
-		to->solid = static_cast<solid_t>( MSG_ReadUintBase128() );
+		to->solid = static_cast<cm_solid_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_BOUNDINGBOX ) {
 		to->bounds = static_cast<uint32_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_CLIPMASK ) {
-		to->clipmask = static_cast<contents_t>( MSG_ReadUintBase128( ) );
+		to->clipmask = static_cast<cm_contents_t>( MSG_ReadUintBase128( ) );
 	}
 	if ( bits & U_HULL_CONTENTS ) {
-		to->hullContents = static_cast<contents_t>( MSG_ReadUintBase128() );
+		to->hullContents = static_cast<cm_contents_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_OWNER ) {
 		to->ownerNumber = MSG_ReadUintBase128( );

@@ -60,7 +60,7 @@ void SVG_HUD_MoveClientToIntermission(edict_t *ent)
     ent->client->grenade_time = 0_ms;
 
     ent->liquidtype = CONTENTS_NONE;
-    ent->liquidlevel = liquid_level_t::LIQUID_NONE;;
+    ent->liquidlevel = cm_liquid_level_t::LIQUID_NONE;;
     ent->viewheight = 0;
     ent->s.modelindex = 0;
     ent->s.modelindex2 = 0;

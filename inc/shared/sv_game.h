@@ -108,9 +108,9 @@ struct svg_client_t;
         int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
         vec3_t      mins, maxs;
         vec3_t      absmin, absmax, size;
-        solid_t     solid;
-        contents_t  clipmask;
-        contents_t  hullContents;
+        cm_solid_t     solid;
+        cm_contents_t  clipmask;
+        cm_contents_t  hullContents;
         edict_t *owner;
 
         const cm_entity_t *entityDictionary;
@@ -232,11 +232,11 @@ typedef struct {
 	*
 	**/
     //! Perform a trace through the world and its entities with a bbox from start to end point.
-    const cm_trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const contents_t contentmask );
+    const cm_trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const cm_contents_t contentmask );
     //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
-	const cm_trace_t( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentmask );
-    //! Returns a contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
-    const contents_t (*pointcontents)(const vec3_t point);
+	const cm_trace_t ( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );
+    //! Returns a cm_contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
+    const cm_contents_t (*pointcontents)(const vec3_t point);
     /**
     *   @return True if the points p1 to p2 are within two visible areas.
     *   @note   Also checks portalareas so that doors block sight.

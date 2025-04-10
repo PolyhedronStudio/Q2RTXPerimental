@@ -27,23 +27,23 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const cm_trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask ) {
     //if (pm_passent->health > 0)
-    //    return SVG_Trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
-    //    return SVG_Trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
     return SVG_Trace( start, mins, maxs, end, (edict_t *)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentMask ) {
     return SVG_Clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+static const cm_contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
     return gi.pointcontents( point );
 }
 
@@ -99,7 +99,7 @@ void SVG_Client_TraceForUseTarget( edict_t *ent, svg_client_t *client, const boo
     constexpr float USE_TARGET_TRACE_DISTANCE = 48.f;
     Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, USE_TARGET_TRACE_DISTANCE, vForward );
     // Now perform the trace.
-    svg_trace_t traceUseTarget = SVG_Trace( traceStart, qm_vector3_null, qm_vector3_null, traceEnd, ent, (contents_t)( MASK_PLAYERSOLID | MASK_MONSTERSOLID ));
+    svg_trace_t traceUseTarget = SVG_Trace( traceStart, qm_vector3_null, qm_vector3_null, traceEnd, ent, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID | CM_CONTENTMASK_MONSTERSOLID ));
 
     // Get the current activate(in last frame) entity we were (+usetarget) using.
     edict_t *currentTargetEntity = ent->client->useTarget.currentEntity;

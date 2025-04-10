@@ -73,8 +73,8 @@ void monster_fire_rocket( edict_t *self, vec3_t start, vec3_t dir, int damage, i
 }
 
 void monster_fire_railgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int flashtype ) {
-	contents_t contents = gi.pointcontents( start );
-	if ( contents & (const contents_t)MASK_SOLID )
+	cm_contents_t contents = gi.pointcontents( start );
+	if ( contents & (const cm_contents_t)CM_CONTENTMASK_SOLID )
 		return;
 
 	fire_rail( self, start, aimdir, damage, kick );
@@ -132,7 +132,7 @@ void AttackFinished(edict_t *self, QMTime time)
 }
 
 
-void M_CheckGround( edict_t *ent, const contents_t mask ) {
+void M_CheckGround( edict_t *ent, const cm_contents_t mask ) {
 	vec3_t      point;
 	cm_trace_t     trace;
 
@@ -173,32 +173,32 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 }
 
 
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype ) {
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype ) {
 	//
 	// get liquidlevel
 	//
 	Vector3 point = in_point + Vector3{ 0.f, 0.f, ent->mins[ 2 ] + 1 };
-	contents_t cont = gi.pointcontents( &point.x );
+	cm_contents_t cont = gi.pointcontents( &point.x );
 
-	if ( !( cont & MASK_WATER ) ) {
-		liquidlevel = liquid_level_t::LIQUID_NONE;
+	if ( !( cont & CM_CONTENTMASK_WATER ) ) {
+		liquidlevel = cm_liquid_level_t::LIQUID_NONE;
 		liquidtype = CONTENTS_NONE;
 		return;
 	}
 
 	liquidtype = cont;
-	liquidlevel = liquid_level_t::LIQUID_FEET;
+	liquidlevel = cm_liquid_level_t::LIQUID_FEET;
 	point.z += 26;
 	cont = gi.pointcontents( &point.x );
-	if ( !( cont & MASK_WATER ) ) {
+	if ( !( cont & CM_CONTENTMASK_WATER ) ) {
 		return;
 	}
 
-	liquidlevel = liquid_level_t::LIQUID_WAIST;
+	liquidlevel = cm_liquid_level_t::LIQUID_WAIST;
 	point[ 2 ] += 22;
 	cont = gi.pointcontents( &point.x );
-	if ( cont & MASK_WATER ) {
-		liquidlevel = liquid_level_t::LIQUID_UNDER;
+	if ( cont & CM_CONTENTMASK_WATER ) {
+		liquidlevel = cm_liquid_level_t::LIQUID_UNDER;
 	}
 }
 
@@ -281,7 +281,7 @@ void M_droptofloor( edict_t *ent ) {
 	vec3_t      end;
 	cm_trace_t     trace;
 
-	contents_t mask = SVG_GetClipMask( ent );
+	cm_contents_t mask = SVG_GetClipMask( ent );
 
 	ent->s.origin[ 2 ] += 1;
 	VectorCopy( ent->s.origin, end );
@@ -599,7 +599,7 @@ bool monster_start( edict_t *self ) {
     self->air_finished_time = level.time + 12_sec;
     self->use = monster_use;
     self->max_health = self->health;
-    self->clipmask = MASK_MONSTERSOLID;
+    self->clipmask = CM_CONTENTMASK_MONSTERSOLID;
 
 	self->s.skinnum = 0;
 	self->lifeStatus = LIFESTATUS_ALIVE;

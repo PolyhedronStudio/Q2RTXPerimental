@@ -35,8 +35,8 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
     }
 
     // Get predicted state.
-    client_predicted_state_t *predictedState = &clgi.client->predictedState;
-    //player_state_t *predictedPlayerState = &clgi.client->predictedState;
+    client_predicted_state_t *predictedState = &game.predictedState;
+    //player_state_t *predictedPlayerState = &game.predictedState;
     // The default type is "floor".
     uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
     qhandle_t *material_footsteps = precache.sfx.footsteps.floor;
@@ -46,7 +46,7 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
 
     // Special water feet level footsteps:
     if ( predictedState->liquid.type & CONTENTS_WATER &&
-        predictedState->liquid.level == liquid_level_t::LIQUID_FEET ) {
+        predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
         material_kind = "water";
         material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
         material_footsteps = precache.sfx.footsteps.water;
@@ -71,7 +71,7 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
             Vector3 traceEnd = traceStart + Vector3{ 0., 0., -( PM_MAX_STEP_SIZE + 0.25 ) };
             Vector3 traceMins = predictedState->mins;
             Vector3 traceMaxs = predictedState->maxs;
-            cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &traceMins.x, &traceMaxs.x, &traceEnd.x, traceSkipEntity, MASK_SOLID );
+            cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &traceMins.x, &traceMaxs.x, &traceEnd.x, traceSkipEntity, CM_CONTENTMASK_SOLID );
 
             if ( groundTrace.material ) {
                 ground_material = groundTrace.material;

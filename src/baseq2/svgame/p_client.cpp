@@ -1177,11 +1177,11 @@ void SVG_Player_PutInServer(edict_t *ent)
     ent->solid = SOLID_BOUNDS_BOX;
     ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = ( MASK_PLAYERSOLID );
+    ent->clipmask = ( CM_CONTENTMASK_PLAYERSOLID );
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->liquidlevel = liquid_level_t::LIQUID_NONE;;
+    ent->liquidlevel = cm_liquid_level_t::LIQUID_NONE;;
     ent->liquidtype = CONTENTS_NONE;
     ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
@@ -1233,7 +1233,7 @@ void SVG_Player_PutInServer(edict_t *ent)
     VectorCopy(spawn_origin, temp2);
     temp[2] -= 64;
     temp2[2] += 16;
-    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, ( MASK_PLAYERSOLID ));
+    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, ( CM_CONTENTMASK_PLAYERSOLID ));
     if (!tr.allsolid && !tr.startsolid && Q_stricmp(level.mapname, "tech5")) {
         VectorCopy(tr.endpos, ent->s.origin);
         ent->groundentity = tr.ent;
@@ -1585,23 +1585,23 @@ void SVG_Client_Disconnect(edict_t *ent)
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const cm_trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask ) {
     //if (pm_passent->health > 0)
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
     return gi.trace( start, mins, maxs, end, (edict_t*)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+static const cm_contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
     return gi.pointcontents( point );
 }
 

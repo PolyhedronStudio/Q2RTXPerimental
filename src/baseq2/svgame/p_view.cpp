@@ -550,7 +550,7 @@ P_WorldEffects
 void P_WorldEffects( void ) {
 	bool        breather;
 	bool        envirosuit;
-	liquid_level_t liquidlevel, old_waterlevel;
+	cm_liquid_level_t liquidlevel, old_waterlevel;
 
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
 		current_player->air_finished_time = level.time + 12_sec; // don't need air

@@ -93,7 +93,7 @@ void CLG_EAX_DetermineEffect() {
 		// Perform a clipping trace on the world, from the env_sound its origin onto the player's (predicted-)origin.
 		const vec3_t traceStart = { env_sound->locals.origin.x, env_sound->locals.origin.y, env_sound->locals.origin.z };
 		const vec3_t traceEnd = { playerOrigin.x, playerOrigin.y, playerOrigin.z };
-		const cm_trace_t trace = clgi.Clip( traceStart, vec3_origin, vec3_origin, traceEnd, nullptr, MASK_SOLID );
+		const cm_trace_t trace = clgi.Clip( traceStart, vec3_origin, vec3_origin, traceEnd, nullptr, CM_CONTENTMASK_SOLID );
 
 		// If we hit something, skip this env_sound entity.
 		if ( trace.fraction < 1.0f ) {
@@ -120,7 +120,7 @@ void CLG_EAX_DetermineEffect() {
 	}
 
 	// If no env_sound scape was found nearby, and we're not underwater either, resort to the default.
-	if ( best_sound_scape == nullptr && !( clgi.client->predictedState.currentPs.rdflags & RDF_UNDERWATER ) ) {
+	if ( best_sound_scape == nullptr && !( game.predictedState.currentPs.rdflags & RDF_UNDERWATER ) ) {
 		CLG_EAX_SetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
 	}
 

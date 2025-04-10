@@ -321,7 +321,7 @@ void parasite_drain_attack(edict_t *self)
     }
     VectorCopy(self->enemy->s.origin, end);
 
-    tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
+    tr = gi.trace(start, NULL, NULL, end, self, CM_CONTENTMASK_SHOT);
     if (tr.ent != self->enemy)
         return;
 

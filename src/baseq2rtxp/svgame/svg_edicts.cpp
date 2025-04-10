@@ -282,7 +282,7 @@ const bool SVG_Entity_IsVisible( edict_t *self, edict_t *other ) {
     spot1[ 2 ] += self->viewheight;
     VectorCopy( other->s.origin, spot2 );
     spot2[ 2 ] += other->viewheight;
-    trace = SVG_Trace( spot1, vec3_origin, vec3_origin, spot2, self, MASK_OPAQUE );
+    trace = SVG_Trace( spot1, vec3_origin, vec3_origin, spot2, self, CM_CONTENTMASK_OPAQUE );
 
     if ( trace.fraction == 1.0f )
         return true;

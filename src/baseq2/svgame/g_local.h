@@ -819,10 +819,10 @@ void swimmonster_start(edict_t *self);
 void flymonster_start(edict_t *self);
 void AttackFinished(edict_t *self, float time);
 void monster_death_use(edict_t *self);
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype );
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype );
 bool M_CheckAttack(edict_t *self);
 void M_FlyCheck(edict_t *self);
-void M_CheckGround(edict_t *ent, const contents_t mask);
+void M_CheckGround(edict_t *ent, const cm_contents_t mask);
 void M_WorldEffects( edict_t *ent );
 void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
 
@@ -939,7 +939,7 @@ void M_ChangeYaw(edict_t *ent);
 // g_phys.c
 //
 void SVG_Impact( edict_t *e1, cm_trace_t *trace );
-const contents_t SVG_GetClipMask( edict_t *ent );
+const cm_contents_t SVG_GetClipMask( edict_t *ent );
 void SVG_RunEntity(edict_t *ent);
 
 //
@@ -1135,7 +1135,7 @@ struct gclient_s {
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
     edict_t     *oldgroundentity; // [Paril-KEX]
-    liquid_level_t	old_waterlevel;
+    cm_liquid_level_t	old_waterlevel;
 
 	/**
 	*   Misc:
@@ -1198,9 +1198,9 @@ struct edict_s {
     int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
-    solid_t     solid;
-    contents_t  clipmask;
-    contents_t  hullContents;
+    cm_solid_t     solid;
+    cm_contents_t  clipmask;
+    cm_contents_t  hullContents;
     edict_t     *owner;
 
     const cm_entity_t *entityDictionary;
@@ -1316,9 +1316,9 @@ struct edict_s {
     QMTime		last_sound_time;
 
     //! The possible liquid 'solid' brush we're intersecting with, or inside of.
-    contents_t      liquidtype;
+    cm_contents_t      liquidtype;
     //! The level of degree at which we're intersecting with, or inside of the liquid 'solid' brush.
-	liquid_level_t	liquidlevel;
+	cm_liquid_level_t	liquidlevel;
 
     vec3_t      move_origin;
     vec3_t      move_angles;

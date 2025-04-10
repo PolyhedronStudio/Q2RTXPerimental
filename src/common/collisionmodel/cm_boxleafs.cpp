@@ -38,7 +38,7 @@ typedef struct box_leaf_test_s {
     //! [Out]: Top node, if any.
     mnode_t *leaf_topnode;
     //! [Out]: BoxLeafContents only: Holds the specified contents flags that are set in all the various accumulated leafs.
-    contents_t leafs_contents;
+    cm_contents_t leafs_contents;
 } box_leaf_test_t;
 
 //static int32_t leaf_count, leaf_maxcount;
@@ -196,7 +196,7 @@ const int32_t CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf
 /**
 *   @return The contents mask of all leafs within the absolute bounds.
 **/
-const contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode ) {
+const cm_contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode ) {
     box_leaf_test_t boxLeafTest = {
         // [In]:
         .cm = cm,

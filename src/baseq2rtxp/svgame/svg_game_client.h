@@ -305,7 +305,7 @@ struct svg_client_t {
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
     edict_t     *oldgroundentity; // [Paril-KEX]
-    liquid_level_t	old_waterlevel;
+    cm_liquid_level_t	old_waterlevel;
     QMTime      flash_time; // [Paril-KEX] for high tickrate
 
     /**
