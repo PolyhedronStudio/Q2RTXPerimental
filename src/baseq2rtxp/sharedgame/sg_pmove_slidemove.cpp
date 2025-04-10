@@ -7,8 +7,9 @@
 ********************************************************************/
 #include "shared/shared.h"
 
-#include "sg_pmove.h"
-#include "sg_pmove_slidemove.h"
+#include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_pmove.h"
+#include "sharedgame/sg_pmove_slidemove.h"
 
 //! Uncomment for enabling second best hit plane tracing results.
 #define SECOND_PLANE_TRACE
@@ -36,7 +37,7 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 	// Iterate for possible duplicates.
 	for ( int32_t i = 0; i < touchTraceList.numberOfTraces; i++ ) {
 		// Escape function if duplicate.
-		if ( touchTraceList.traces[ i ].ent == trace.ent ) {
+		if ( touchTraceList.traces[ i ].entityNumber == trace.entityNumber ) {
 			return;
 		}
 	}

@@ -255,7 +255,7 @@ void        CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
 /**
 *   @brief
 **/
-void        CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, struct edict_s *ent );
+void        CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int32_t entityNumber );
 
 
 #endif // CMODEL_H

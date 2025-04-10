@@ -9,6 +9,30 @@
 #pragma once
 
 
+/**
+*   @brief  edict->flags
+**/
+enum entity_flags_t {
+    FL_NONE = 0,
+    FL_FLY = BIT( 1 ),
+    FL_SWIM = BIT( 2 ), //! Implied immunity to drowining.
+    FL_IMMUNE_LASER = BIT( 3 ),
+    FL_INWATER = BIT( 4 ),
+    FL_GODMODE = BIT( 5 ),
+    FL_NOTARGET = BIT( 6 ),
+    FL_DODGE = BIT( 7 ), //! Monster should try to dodge this.
+    FL_IMMUNE_SLIME = BIT( 8 ),
+    FL_IMMUNE_LAVA = BIT( 9 ),
+    FL_PARTIALGROUND = BIT( 10 ),//! Not all corners are valid.
+    FL_WATERJUMP = BIT( 11 ),//! Player jumping out of water.
+    FL_TEAMSLAVE = BIT( 12 ),//! Not the first on the team.
+    FL_NO_KNOCKBACK = BIT( 13 ),
+    FL_RESPAWN = BIT( 14 ) //! Used for item respawning.
+    //FL_POWER_ARMOR          = BIT( 15 ),//! Power armor (if any) is active
+};
+// Enumerator Type Bit Flags Support:
+QENUM_BIT_FLAGS( entity_flags_t );
+
 
 /**
 *   @brief  edict->spawnflags T
@@ -56,14 +80,26 @@ typedef enum {
 } movetype_t;
 
 /**
-*   Server Game Entity Structure:
 * 
-*   ...
+* 
+*   Server Game Entity Structure:
+*
+*
 **/
-typedef struct edict_s {
+struct edict_t {
+    /**
+    *   The following is shared memory with the Server.
+    *
+    *   Since we rely on memory overlap between the Server and the ServerGame.
+    *   Both their own edict_t types need to remain plain old POD types.
+    *
+    *   (In other words, we don't want a ~vtable() and/or alignment/sizeof differences.)
+    **/
+    //! Entity state.
     entity_state_t  s;
-    struct gclient_s *client;   //! NULL if not a player the server expects the first part
+    //! NULL if not a player the server expects the first part
     //! of gclient_s to be a player_state_t but the rest of it is opaque
+    svg_client_t *client;
     qboolean inuse;
     int32_t linkcount;
 
@@ -446,4 +482,4 @@ typedef struct edict_s {
     **/
     Vector3 move_origin;
     Vector3 move_angles;
-} edict_t;
+};

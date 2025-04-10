@@ -11,10 +11,10 @@
 // define CLGAME_INCLUDE so that game.h does not define the
 // short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
-#include "shared/clgame.h"
+#include "shared/cl_game.h"
 #include "../../clgame/clg_local.h"
 
-// Extern here right after including shared/clgame.h
+// Extern here right after including shared/cl_game.h
 extern clgame_import_t clgi;
 
 
@@ -66,7 +66,12 @@ const int32_t SG_GetEntityNumber( sgentity_s *sgent ) {
 		return -1;
 	}
 }
-
+/**
+*	@brief	Returns the matching entity pointer for the given entity number.
+**/
+sgentity_s *SG_GetEntityForNumber( const int32_t number ) {
+	return &clg_entities[ number ];
+}
 
 
 /**

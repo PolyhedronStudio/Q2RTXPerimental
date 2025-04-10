@@ -28,9 +28,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SVGAME_INCLUDE
 #define SVGAME_INCLUDE
 #endif
-#include "shared/svgame.h"
+#include "shared/sv_game.h"
 
-// Extern here right after including shared/svgame.h
+// Extern here right after including shared/sv_game.h
 extern svgame_import_t gi;
 extern svgame_export_t globals;
 

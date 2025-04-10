@@ -25,10 +25,10 @@
 #endif
 
 //! Include the servergame import/export structures.
-#include "shared/svgame.h"
+#include "shared/sv_game.h"
 
 /**
-*   Extern for 'global scope' access right here, after including shared/svgame.h
+*   Extern for 'global scope' access right here, after including shared/sv_game.h
 **/
 // Imported engine API and vars.
 extern svgame_import_t gi;
@@ -46,16 +46,28 @@ typedef struct sg_usetarget_hint_s sg_usetarget_hint_t;
 /**
 *   Forward declared types:
 **/
-//struct edict_t;
-struct svg_edict_pool_t;
+enum entity_flags_t;
 
+struct edict_t;
+struct svg_edict_pool_t;
+struct svg_client_t;
+
+struct svg_trace_t;
+
+struct mm_ground_info_t;
+struct mm_liquid_info_t;
+
+/**
+*   Typedefs for the Server Game module.
+**/
+typedef int32_t spawnflag_t;
 
 
 /**
 * 
 * 
 * 
-*   Extern global constants.
+*   ServerGame Global Constants:
 * 
 * 
 * 
@@ -69,6 +81,31 @@ constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<in
 
 //! For backwards compatibilities.
 #define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
+
+/***
+*   View Pitching Times: (Q2RE Style).
+***/
+//! Time between ladder sounds.
+static constexpr QMTime LADDER_SOUND_TIME = 375_ms;
+//! View pitching times
+static inline constexpr QMTime DAMAGE_TIME_SLACK() {
+    return ( 100_ms - FRAME_TIME_MS );
+}
+//! Time for damage effect.
+static inline constexpr QMTime DAMAGE_TIME() {
+    return 500_ms + DAMAGE_TIME_SLACK();
+}
+//! Time for falling.
+static inline constexpr QMTime FALL_TIME() {
+    return 300_ms + DAMAGE_TIME_SLACK();
+}
+
+/**
+*   Weapon Handedness values.
+**/
+static constexpr int32_t RIGHT_HANDED = 0;
+static constexpr int32_t LEFT_HANDED = 1;
+static constexpr int32_t CENTER_HANDED = 2;
 
 
 
@@ -88,53 +125,6 @@ static constexpr const char *GAMEVERSION = "BaseQ2RTXP";
 
 //! Number of entities reserved for display use of dead player bodies.
 static constexpr int32_t BODY_QUEUE_SIZE = 8;
-
-
-
-/**
-* 
-* 
-* 
-*   Memory Utility Objects:
-* 
-* 
-* 
-**/
-#if 0
-// Simple wrapper for variable sized tag memory blocks (re-)allocated in TAG_SVGAME_LEVEL.
-using svg_level_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME_LEVEL>;
-// Simple wrapper for variable sized tag memory blocks (re-)allocated in TAG_SVGAME.
-using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
-#endif
-
-/**
-*   String Utility Objects:
-**/
-// Simple wrapper around char, dynamic string block allocated in TAG_SVGAME_LEVEL.
-using svg_level_qstring_t = sg_qtag_string_t<char, TAG_SVGAME_LEVEL>;
-// Simple wrapper around char, dynamic string block allocated in TAG_SVGAME space.
-using svg_game_qstring_t = sg_qtag_string_t<char, TAG_SVGAME>;
-
-
-
-/***
-*
-* 
-*
-*   General:
-*
-*
-* 
-***/
-//! Spawnflag type.
-typedef int32_t spawnflag_t;
-
-/**
-*   Handedness values
-**/
-static constexpr int32_t RIGHT_HANDED = 0;
-static constexpr int32_t LEFT_HANDED = 1;
-static constexpr int32_t CENTER_HANDED = 2;
 
 
 
@@ -196,6 +186,34 @@ extern cvar_t *g_select_empty;
 //extern cvar_t *bob_up;
 //extern cvar_t *bob_pitch;
 //extern cvar_t *bob_roll;
+
+
+
+/**
+* 
+* 
+* 
+*   Memory Utility Objects:
+* 
+* 
+* 
+**/
+/**
+*   String Utility Objects:
+**/
+// Simple wrapper around char, dynamic string block allocated in TAG_SVGAME_LEVEL.
+using svg_level_qstring_t = sg_qtag_string_t<char, TAG_SVGAME_LEVEL>;
+// Simple wrapper around char, dynamic string block allocated in TAG_SVGAME space.
+using svg_game_qstring_t = sg_qtag_string_t<char, TAG_SVGAME>;
+#if 0
+/**
+*   Memory Buffer Objects:
+**/
+// Simple wrapper for variable sized tag memory blocks (re-)allocated in TAG_SVGAME_LEVEL.
+using svg_level_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME_LEVEL>;
+// Simple wrapper for variable sized tag memory blocks (re-)allocated in TAG_SVGAME.
+using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
+#endif
 
 
 
@@ -267,7 +285,6 @@ extern level_locals_t level;
 #include "svgame/svg_spawn_temp.h"
 //! Extern, access all over game dll code.
 extern spawn_temp_t st;
-
 
 
 
@@ -374,9 +391,6 @@ void Touch_Item(edict_t *ent, edict_t *other, const cm_plane_t *plane, cm_surfac
 
 
 
-
-
-
 /**
 *
 *
@@ -414,7 +428,13 @@ void M_WorldEffects( edict_t *ent );
 
 
 /**
-*   Weapon:
+* 
+* 
+* 
+*   Generic Weapon Functions:
+* 
+* 
+* 
 **/
 const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right );
 #if 0
@@ -447,119 +467,58 @@ void fire_shotgun( edict_t *self, const vec3_t start, const vec3_t aimdir, const
 #include "svgame/player/svg_player_weapon.h"
 
 
-/**
-*   @brief  Server Game expansion implementation of svg_trace_t.
-**/
-// Server Game Trace Data.
-struct svg_trace_t : public cm_trace_t {
-    [[nodiscard]] svg_trace_t() = default;
-    [[nodiscard]] svg_trace_t( const cm_trace_t &move ) : cm_trace_t( move ) {
-        ent = static_cast<edict_t *>( move.ent );
-    }
-    [[nodiscard]] svg_trace_t( const cm_trace_t &&move ) : cm_trace_t( move ) {
-        ent = static_cast<edict_t *>( move.ent );
-    }
-
-    //! Override type.
-    edict_t *ent;
-};
-
 
 /**
-* 
-* 
-* 
-*   Physics:
-* 
-* 
-* 
-**/
-void SVG_Impact( edict_t *e1, svg_trace_t *trace );
-const contents_t SVG_GetClipMask( edict_t *ent );
-void SVG_RunEntity( edict_t *ent );
-
-//===========================================================================================
-//===========================================================================================
-
-/**
-*   @brief  Stores the final ground information results.
-**/
-typedef struct mm_ground_info_s {
-    //! Pointer to the actual ground entity we are on.(nullptr if none).
-    struct edict_s *entity;
-    //! Ground entity link count.
-    int32_t         entityLinkCount;
-
-    //! A copy of the plane data from the ground entity.
-    cm_plane_t        plane;
-    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
-    cm_surface_t      surface;
-    //! A copy of the contents data from the ground entity's brush.
-    contents_t      contents;
-    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-    cm_material_t *material;
-} mm_ground_info_t;
-
-/**
-*   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
-**/
-typedef struct mm_liquid_info_s {
-    //! The actual BSP liquid 'contents' type we're intersecting with, or inside of.
-    contents_t      type;
-    //! The level of degree at which we're intersecting with, or inside of the liquid 'solid' brush.
-    liquid_level_t	level;
-} mm_liquid_info_t;
-
-//===========================================================================================
-//===========================================================================================
-
-/**
-*   @brief  edict->flags
-**/
-typedef enum {
-    FL_NONE = 0,
-    FL_FLY = BIT( 1 ),
-    FL_SWIM = BIT( 2 ), //! Implied immunity to drowining.
-    FL_IMMUNE_LASER = BIT( 3 ),
-    FL_INWATER = BIT( 4 ),
-    FL_GODMODE = BIT( 5 ),
-    FL_NOTARGET = BIT( 6 ),
-    FL_DODGE = BIT( 7 ), //! Monster should try to dodge this.
-    FL_IMMUNE_SLIME = BIT( 8 ),
-    FL_IMMUNE_LAVA = BIT( 9 ),
-    FL_PARTIALGROUND = BIT( 10 ),//! Not all corners are valid.
-    FL_WATERJUMP = BIT( 11 ),//! Player jumping out of water.
-    FL_TEAMSLAVE = BIT( 12 ),//! Not the first on the team.
-    FL_NO_KNOCKBACK = BIT( 13 ),
-    FL_RESPAWN = BIT( 14 ) //! Used for item respawning.
-    //FL_POWER_ARMOR          = BIT( 15 ),//! Power armor (if any) is active
-} entity_flags_t;
-// Enumerator Type Bit Flags Support:
-QENUM_BIT_FLAGS( entity_flags_t );
-
-
-
-/**
-* 
-* 
-* 
+*
+*
+*
 *   Client Data Structures:
-* 
-* 
-* 
+*
+*
+*
 **/
 #include "svgame/svg_game_client.h"
 
 
+
 /**
-* 
-* 
-* 
+*
+*
+*
 *   ServerGame Side Entity:
-* 
-* 
-* 
+*
+*
+*
 **/
+/**
+*   @brief  Stores the final ground information results.
+**/
+struct mm_ground_info_t {
+    //! Pointer to the actual ground entity we are on.(nullptr if none).
+    edict_t *entity;
+    //! Ground entity link count.
+    int32_t         entityLinkCount;
+
+    //! A copy of the plane data from the ground entity.
+    cm_plane_t      plane;
+    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
+    cm_surface_t    surface;
+    //! A copy of the contents data from the ground entity's brush.
+    contents_t      contents;
+    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
+    cm_material_t *material;
+};
+
+/**
+*   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
+**/
+struct mm_liquid_info_t {
+    //! The actual BSP liquid 'contents' type we're intersecting with, or inside of.
+    contents_t      type;
+    //! The level of degree at which we're intersecting with, or inside of the liquid 'solid' brush.
+    liquid_level_t	level;
+};
+
 #include "svgame/svg_game_edict.h"
 // Extern access.
 extern edict_t *g_edicts;
@@ -574,29 +533,48 @@ extern edict_t *g_edicts;
 extern svg_edict_pool_t g_edict_pool;
 
 
-/***
-*
-*
-*
-*   View Pitching Times: (Q2RE Style).
-*
-*
-*
-***/
-//! Time between ladder sounds.
-static constexpr QMTime LADDER_SOUND_TIME = 375_ms;
-//! View pitching times
-static inline constexpr QMTime DAMAGE_TIME_SLACK() {
-    return ( 100_ms - FRAME_TIME_MS );
-}
-//! Time for damage effect.
-static inline constexpr QMTime DAMAGE_TIME() {
-    return 500_ms + DAMAGE_TIME_SLACK();
-}
-//! Time for falling.
-static inline constexpr QMTime FALL_TIME() {
-    return 300_ms + DAMAGE_TIME_SLACK();
-}
+
+/**
+* 
+* 
+* 
+*   Physics:
+* 
+* 
+* 
+**/
+/**
+*   @brief  Server Game expansion implementation of svg_trace_t.
+*           handles fetching the edict_t from the trace_t entityNumber.
+**/
+struct svg_trace_t : public cm_trace_t {
+    [[nodiscard]] svg_trace_t() = default;
+    [[nodiscard]] svg_trace_t( const cm_trace_t &move ) : cm_trace_t( move ) {
+        ent = g_edict_pool.EdictForNumber( move.entityNumber );
+    }
+    [[nodiscard]] svg_trace_t( const cm_trace_t &&move ) : cm_trace_t( move ) {
+        ent = g_edict_pool.EdictForNumber( move.entityNumber );
+    }
+
+    //! Override type.
+    edict_t *ent = nullptr;
+};
+
+/**
+*   @brief Processes the impact of an SVG trace on an entity.
+*   @param e1       A pointer to the entity (edict_t) involved in the impact.
+*   @param trace    A pointer to the SVG trace (svg_trace_t) containing information about the impact.
+**/
+void SVG_Impact( edict_t *e1, svg_trace_t *trace );
+/**
+*   @brief  Get the clip mask for the entity.
+**/
+const contents_t SVG_GetClipMask( edict_t *ent );
+/**
+*   @brief  Run the entity's think function.
+**/
+void SVG_RunEntity( edict_t *ent );
+
 
 
 

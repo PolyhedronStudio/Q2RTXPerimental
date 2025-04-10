@@ -572,7 +572,7 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
                                SV_HullForEntity(touch), contentmask,
                                touch->s.origin, touch->s.angles);
 
-        CM_ClipEntity( &sv.cm, tr, &trace, touch);
+        CM_ClipEntity( &sv.cm, tr, &trace, touch->s.number );
     }
 }
 
@@ -589,7 +589,7 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
 **/
 const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
-                           edict_t *passedict, const contents_t contentmask)
+                           edict_t *passEdict, const contents_t contentmask)
 {
     cm_trace_t     trace;
 
@@ -606,7 +606,7 @@ const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
         maxs = vec3_origin;
     }
 
-    // clip to world
+    // First Clip to world.
     CM_BoxTrace( 
         &sv.cm, &trace, 
         start, end, mins, maxs, 
@@ -614,15 +614,21 @@ const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
         contentmask 
     );
 
-    trace.ent = ge->edictPool->edicts;
-    if (trace.fraction == 0) {
-        return trace;   // blocked by the world
+    // Did we hit world? Set entity number to match with 'worldspawn' entity,
+    // and return.
+    //
+	// Otherwise we set the entity to 'None'(-1), and continue to test and clip to 
+    // the remaining server entities.
+    trace.entityNumber = trace.fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
+    if ( trace.fraction == 0 || ( passEdict != nullptr && passEdict->s.number == ENTITYNUM_WORLD ) ) {
+        return trace; // Blocked immediately by the world.
     }
 
-    // clip to other solid entities
+	// If we are not clipping to the world, and the trace fraction is 1.0,
+    // test and clip to other solid entities.
     SV_ClipMoveToEntities(
         start, mins, maxs, end, 
-        passedict, 
+        passEdict,
         contentmask, 
         &trace
     );
@@ -652,6 +658,7 @@ const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec
         maxs = vec3_origin;
     }
 
+    // Clip to world.
     if ( clip == ge->edictPool->edicts ) {
         CM_BoxTrace( 
             &sv.cm, &trace, 
@@ -659,6 +666,7 @@ const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec
             SV_WorldNodes(), 
             contentmask 
         );
+    // If we are not clipping to the world, test and clip to the specified solid entity.
     } else {
         CM_TransformedBoxTrace( 
             &sv.cm, &trace, 
@@ -669,6 +677,9 @@ const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec
         );
     }
 
-	trace.ent = clip;
+    // Did we hit world or any other entity? Set the entity number of the trace,
+	// otherwise set it to 'None'(-1).
+    trace.entityNumber = trace.fraction != 1.0 ? clip->s.number : ENTITYNUM_NONE;
+
 	return trace;
 }

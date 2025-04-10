@@ -9,7 +9,7 @@
 
 
 //
-// clgame.h -- client game dll information visible to client
+// cl_game.h -- client game dll information visible to client
 //
 #define CLGAME_API_VERSION    4
 

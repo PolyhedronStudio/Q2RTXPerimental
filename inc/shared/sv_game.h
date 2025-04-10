@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "refresh/shared_types.h"
 
 //
-// svgame.h -- server game dll information visible to server
+// sv_game.h -- server game dll information visible to server
 //
 
 #define SVGAME_API_VERSION    1337
@@ -68,15 +68,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //=============================================================================================
 //=============================================================================================
-
-typedef struct edict_s edict_t;
-typedef struct gclient_s svg_client_t;
+// Forward declarations of types used in the Server Game dll.
+struct edict_t;
+struct svg_client_t;
 
 //=============================================================================================
 //=============================================================================================
 
 #ifndef SVGAME_INCLUDE
-    typedef struct gclient_s {
+    struct svg_client_t {
         player_state_t  ps;     // communicated by server to clients
         player_state_t  ops;    // old player state from the previous frame.
         int64_t             ping;
@@ -84,12 +84,12 @@ typedef struct gclient_s svg_client_t;
         // the game dll can add anything it wants after
         // this point in the structure
         int             clientNum;
-    } svg_client_t;
+    };
 
 
-    typedef struct edict_s {
+    struct edict_t {
         entity_state_t  s;
-        struct gclient_s *client;   //! NULL if not a player the server expects the first part
+        svg_client_t *client;   //! NULL if not a player the server expects the first part
                                     //! of gclient_s to be a player_state_t but the rest of it is opaque
         qboolean inuse;
         int32_t linkcount;
@@ -117,9 +117,10 @@ typedef struct gclient_s svg_client_t;
 
         // the game dll can add anything it wants after
         // this point in the structure
-    } edict_t;
+    };
 #else
-    typedef struct edict_s edict_t;
+    struct edict_t;
+    //typedef struct edict_s edict_t;
     //typedef struct gclient_s svg_gclient_t;
 #endif      // SVGAME_INCLUDE
 

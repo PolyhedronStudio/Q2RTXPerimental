@@ -693,7 +693,7 @@ SET(HEADERS_GL
 #
 #
 SET(HEADERS_SHARED
-	#shared/clgame.h
+	#shared/cl_game.h
 	#shared/config.h
 	#shared/config_cpp.h
 	#shared/endian.h
@@ -703,7 +703,7 @@ SET(HEADERS_SHARED
 	#shared/shared.h
 	#shared/shared_cpp.h
 	#shared/string_utilities.h
-	#inc/shared/svgame.h
+	#inc/shared/sv_game.h
 
 	#inc/shared/math/qray_math.h
 	#inc/shared/math/qray_matrix4x4.h

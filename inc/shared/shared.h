@@ -201,7 +201,10 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #define CLIENTNUM_NONE        (MAX_CLIENTS - 1)
 #define CLIENTNUM_RESERVED    (MAX_CLIENTS - 1)
 
-
+//! Entity number for 'none'.
+#define ENTITYNUM_NONE      ( -1 )
+//! Entity number for 'World'.
+#define ENTITYNUM_WORLD     ( 0 )
 
 /**
 *   Math Library:

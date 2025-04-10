@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "shared/shared.h"
 #include "shared/util_list.h"
-#include "shared/svgame.h"
+#include "shared/sv_game.h"
 
 #include "common/bsp.h"
 #include "common/cmd.h"

@@ -133,7 +133,7 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec
             ent->current.origin, ent->current.angles );
 
         // Determine clipped entity trace result.
-        CM_ClipEntity( &cl.collisionModel, tr, &trace, (struct edict_s *)ent );
+        CM_ClipEntity( &cl.collisionModel, tr, &trace, ent->current.number );
     }
 }
 
@@ -144,16 +144,32 @@ const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, cons
     // Trace results.
     cm_trace_t trace = {};
 
-    // Clip against world.
+    // Set for 'Special Point Case':
+    if ( !mins ) {
+        mins = vec3_origin;
+    }
+    // Set for 'Special Point Case':
+    if ( !maxs ) {
+        maxs = vec3_origin;
+    }
+
+    // Make sure we got world.
     if ( cl.collisionModel.cache ) {
+        // First Clip to world.
         CM_BoxTrace( &cl.collisionModel, &trace, start, end, mins, maxs, cl.collisionModel.cache->nodes, contentmask );
-        
-        if ( trace.fraction < 1.0 ) {
-            trace.ent = (struct edict_s *)cl_entities;
-            //return trace; // Blocked by world.
+ 
+        // Did we hit world? Set entity number to match with 'worldspawn' entity,
+        // and return.
+        //
+	    // Otherwise we set the entity to 'None'(-1), and continue to test and clip to 
+        // the remaining server entities.
+        trace.entityNumber = trace.fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
+        if ( trace.fraction == 0 || ( passEntity != nullptr && passEntity->current.number == ENTITYNUM_WORLD ) ) {
+            return trace;		// blocked immediately by the world
         }
 
-        // Clip to all other solid entities.
+	    // If we are not clipping to the world, and the trace fraction is 1.0,
+        // test and clip to other solid entities.
         CL_ClipMoveToEntities( &trace, start, mins, maxs, end, passEntity, contentmask );
     }
 
@@ -215,7 +231,7 @@ const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const
                 clipEntity->current.origin, clipEntity->current.angles );
 
             // Determine clipped entity trace result.
-            CM_ClipEntity( &cl.collisionModel, &trace, &tr, (struct edict_s *)clipEntity );
+            CM_ClipEntity( &cl.collisionModel, &trace, &tr, clipEntity->current.number );
         }
     }
     return trace;
@@ -227,7 +243,11 @@ const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const
 const contents_t q_gameabi CL_PointContents( const vec3_t point ) {
     // Perform point contents against world.
     contents_t contents = ( CM_PointContents( &cl.collisionModel, point, cl.collisionModel.cache->nodes ) );
-
+	// We hit world, so return contents.
+	if ( contents != CONTENTS_NONE ) {
+		return contents;
+	}
+	// If we hit CONTENTS_NONE then resume to test against frame's solid entities.
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
         // Clip against all brush entity models.
         centity_t *ent = cl.solidEntities[ i ];

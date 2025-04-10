@@ -92,7 +92,7 @@ typedef struct {
 
 // this structure is cleared on each SVG_Player_PutInServer(),
 // except for 'client->pers'
-struct gclient_s {
+struct svg_client_t {
     /**
     *	Known and Shared with the Server:
     /**/

@@ -223,7 +223,7 @@ typedef struct pmove_s {
     //! Set to 'true' if player state 's' has been changed outside of pmove.
     qboolean    snapinitial;
     //! Opaque pointer to the player entity.
-    struct edict_s *player;
+    sgentity_s *player;
 
     /**
     *   (Out):

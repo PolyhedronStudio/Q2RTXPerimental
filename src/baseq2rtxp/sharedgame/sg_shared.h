@@ -15,16 +15,16 @@
 
 //! Define the entity type based on from which game module we're compiling.
 #ifdef CLGAME_INCLUDE
-//! Game Module Name STR.
-#define SG_GAME_MODULE_STR "CLGame"
-//! Entity type.
-typedef struct centity_s sgentity_s;
+	//! Game Module Name STR.
+	#define SG_GAME_MODULE_STR "CLGame"
+	//! Entity type.
+	typedef struct centity_s sgentity_s;
 #endif
 #ifdef SVGAME_INCLUDE
-//! Game Module Name STR.
-#define SG_GAME_MODULE_STR "SVGame"
-//! Entity type.
-typedef struct edict_s sgentity_s;
+	//! Game Module Name STR.
+	#define SG_GAME_MODULE_STR "SVGame"
+	//! Entity type.
+	typedef struct edict_t sgentity_s;
 #endif
 
 // Game Times.
@@ -79,6 +79,10 @@ void SG_DPrintf( const char *fmt, ... );
 *	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
 **/
 const int32_t SG_GetEntityNumber( sgentity_s *sgent );
+/**
+*	@brief	Returns the matching entity pointer for the given entity number.
+**/
+sgentity_s *SG_GetEntityForNumber( const int32_t number );
 
 
 

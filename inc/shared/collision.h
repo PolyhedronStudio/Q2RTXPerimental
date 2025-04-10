@@ -168,22 +168,41 @@ typedef struct csurface_s {
 *           and returning the results of that 'sweep'.
 *           (ie, how far did it get, whether it is inside of a solid or not, etc)
 **/
-// a trace is returned when a box is swept through the world
 typedef struct trace_s {
-    qboolean    allsolid;   // if true, plane is not valid
-    qboolean    startsolid; // if true, the initial point was in a solid area
-    float       fraction;   // time completed, 1.0 = didn't hit anything
-    vec3_t      endpos;     // final position
-    cm_plane_t    plane;      // surface normal at impact
-    cm_surface_t *surface;   // surface hit
-    struct cm_material_s *material; // collision model material pointer.
-    contents_t  contents;   // contents on other side of surface hit
-    struct edict_s *ent;       // not set by CM_*() functions
+	//! If true, the entire trace took place within a solid(brush) area.
+    qboolean    allsolid;
+    //! If true, the initial point was in a solid area.
+    qboolean    startsolid;
+    //! Contents on other side of surface hit. (The inside of the brush.)
+    contents_t  contents;
 
-    // [Paril-KEX] the second-best surface hit from a trace
-    cm_plane_t	plane2;		// second surface normal at impact
-    cm_surface_t *surface2;	// second surface hit
-    struct cm_material_s *material2; // second surface collision model material pointer.
+	//! Not set by CM_*() functions. But respectively set by the game code.
+    int32_t entityNumber;
+
+	//! The fraction of the trace that was completed. ( 1.0 = didn't hit anything. )
+    float       fraction;
+    //! Final position.
+    vec3_t      endpos;
+
+    /**
+    *   The first (most close) surface hit by the trace.
+    **/
+    //! First Surface normal at impact.
+    cm_plane_t    plane;
+    //! First Surface hit.
+    cm_surface_t *surface;
+	//! First Surface collision model material pointer.
+    struct cm_material_s *material; 
+
+    /**
+    *   The 'second best' surface hit by the trace.
+    **/
+    //! second surface normal at impact
+    cm_plane_t      plane2;
+    //! Second surface hit.
+    cm_surface_t    *surface2;
+    //! Second surface collision model material pointer.
+    struct cm_material_s *material2;
 } cm_trace_t;
 
 /**

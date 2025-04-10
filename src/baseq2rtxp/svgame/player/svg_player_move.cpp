@@ -560,9 +560,9 @@ static const Vector3 ClientPostPlayerMove( edict_t *ent, svg_client_t *client, p
     ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
     ent->liquidInfo.level = pm.liquid.level;
     ent->liquidInfo.type = pm.liquid.type;
-    ent->groundInfo.entity = pm.ground.entity;
-    if ( pm.ground.entity ) {
-        ent->groundInfo.entityLinkCount = pm.ground.entity->linkcount;
+    ent->groundInfo.entity = (edict_t*)pm.ground.entity;
+    if ( ent->groundInfo.entity ) {
+        ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkcount;
     }
 
     // Apply a specific view angle if dead:

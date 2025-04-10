@@ -11,10 +11,10 @@
 // define SVGAME_INCLUDE so that game.h does not define the
 // short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
-#include "shared/svgame.h"
+#include "shared/sv_game.h"
 #include "svgame/svg_local.h"
 
-// Extern here right after including shared/clgame.h
+// Extern here right after including shared/cl_game.h
 extern svgame_import_t gi;
 
 
@@ -57,7 +57,12 @@ const int32_t SG_GetEntityNumber( sgentity_s *sgent ) {
 		return -1;
 	}
 }
-
+/**
+*	@brief	Returns the matching entity pointer for the given entity number.
+**/
+sgentity_s *SG_GetEntityForNumber( const int32_t number ) {
+	return g_edict_pool.EdictForNumber( number );
+}
 
 
 /**

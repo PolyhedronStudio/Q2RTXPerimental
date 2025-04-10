@@ -99,14 +99,14 @@ static pml_t pml;
 *	@brief	Updates the player move ground info based on the trace results.
 **/
 static void PM_UpdateGroundFromTrace( const cm_trace_t *trace ) {
-	if ( trace == nullptr || trace->ent == nullptr ) {
+	if ( trace == nullptr || trace->entityNumber == ENTITYNUM_NONE ) {
 		pm->ground.entity = nullptr;
 		pm->ground.plane = {};
 		pm->ground.surface = {};
 		pm->ground.contents = CONTENTS_NONE;
 		pm->ground.material = nullptr;
 	} else {
-		pm->ground.entity = trace->ent;
+		pm->ground.entity = (edict_s*)SG_GetEntityForNumber( trace->entityNumber );
 		pm->ground.plane = trace->plane;
 		pm->ground.surface = *trace->surface;
 		pm->ground.contents = trace->contents;
@@ -462,7 +462,7 @@ static bool PM_CheckStep( const cm_trace_t *trace ) {
 	// If not solid:
 	if ( !trace->allsolid ) {
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
-		if ( trace->ent && trace->plane.normal[2] >= PM_MIN_STEP_NORMAL) {
+		if ( trace->entityNumber != ENTITYNUM_NONE && trace->plane.normal[2] >= PM_MIN_STEP_NORMAL) {
 			// We just traversed a step of sorts.
 			return true;
 		}

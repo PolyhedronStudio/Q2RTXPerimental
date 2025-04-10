@@ -485,12 +485,12 @@ void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
 /**
 *   @brief
 **/
-void CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, struct edict_s *ent ) {
+void CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int32_t entityNumber ) {
     dst->allsolid |= src->allsolid;
     dst->startsolid |= src->startsolid;
     if ( src->fraction < dst->fraction ) {
         dst->fraction = src->fraction;
-        dst->ent = ent;
+        dst->entityNumber = entityNumber;
         VectorCopy( src->endpos, dst->endpos );
 
         dst->plane = src->plane;

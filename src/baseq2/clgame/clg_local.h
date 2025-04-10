@@ -10,15 +10,15 @@
 
 // Should already have been defined by CMake for this ClientGame target.
 // 
-// Define CLGAME_INCLUDE so that clgame.h does not define the
+// Define CLGAME_INCLUDE so that cl_game.h does not define the
 // short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
 #ifndef CLGAME_INCLUDE
 #define CLGAME_INCLUDE
 #endif
-#include "shared/clgame.h"
+#include "shared/cl_game.h"
 
-// Extern here right after including shared/clgame.h
+// Extern here right after including shared/cl_game.h
 extern clgame_import_t clgi;
 extern clgame_export_t globals;
 
