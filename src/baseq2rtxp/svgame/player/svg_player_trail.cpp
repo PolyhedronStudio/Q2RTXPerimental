@@ -33,7 +33,9 @@ the player has been recently.  It is used by monsters for pursuit.
 .aiment     backward link
 */
 
+//#define ENABLE_PLAYER_TRAIL_ENTITIES
 
+#ifdef ENABLE_PLAYER_TRAIL_ENTITIES
 #define TRAIL_LENGTH    128
 
 edict_t     *trail[TRAIL_LENGTH];
@@ -138,3 +140,27 @@ edict_t *PlayerTrail_LastSpot(void)
 {
     return trail[PREV(trail_head)];
 }
+#else // !ENABLE_PLAYER_TRAIL_ENTITIES
+#define TRAIL_LENGTH    128
+
+edict_t *trail[ TRAIL_LENGTH ];
+int         trail_head;
+bool        trail_active = false;
+
+#define NEXT(n)     (((n) + 1) & (TRAIL_LENGTH - 1))
+#define PREV(n)     (((n) - 1) & (TRAIL_LENGTH - 1))
+void PlayerTrail_Init( void ) {
+	// Nothing to do.
+}
+void PlayerTrail_Add( vec3_t spot ) {
+	// Nothing to do.
+}
+void PlayerTrail_New( vec3_t spot ) {
+	// Nothing to do.
+}
+edict_t *PlayerTrail_PickFirst( edict_t *self ) {
+	// Nothing to do.
+	return nullptr;
+}
+
+#endif // ENABLE_PLAYER_TRAIL_ENTITIES

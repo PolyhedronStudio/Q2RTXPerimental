@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define CMODEL_H
 
 
-#include "shared/format_bsp.h"
+#include "shared/formats/format_bsp.h"
 
 
 

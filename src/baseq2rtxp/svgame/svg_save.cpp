@@ -637,9 +637,6 @@ static const save_field_t levelfields[] = {
     INT32( total_goals ),
     INT32( found_goals ),
 
-    INT32( total_monsters ),
-    INT32( killed_monsters ),
-
     ENTITY( current_entity ),
 
     INT32( body_que ),

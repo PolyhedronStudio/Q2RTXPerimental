@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SVGAME_H
 #define SVGAME_H
 
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // Include needed shared refresh types.
 // ( We need some data so we can partially get and process animation data. )
@@ -56,15 +56,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // extended features
 
-#define GMF_CLIENTNUM               0x00000001
-#define GMF_PROPERINUSE             0x00000002
+//#define GMF_CLIENTNUM               0x00000001 //! Client number for the edict, used for client->clientNum.
+#define GMF_PROPERINUSE             0x00000002 //! Proper inuse check for edicts.
 //#define GMF_MVDSPEC               0x00000004
-#define GMF_WANT_ALL_DISCONNECTS    0x00000008
+#define GMF_WANT_ALL_DISCONNECTS    0x00000008 //!! Want all disconnects to be sent to the client.
 
 //#define GMF_ENHANCED_SAVEGAMES    0x00000400
 //#define GMF_VARIABLE_FPS          0x00000800
-#define GMF_EXTRA_USERINFO          0x00001000
-#define GMF_IPV6_ADDRESS_AWARE      0x00002000
+#define GMF_EXTRA_USERINFO          0x00001000 //! Extra userinfo for the client, like the 'cl_guid' and 'cl_steamid'.
+#define GMF_IPV6_ADDRESS_AWARE      0x00002000 //! Whether the server is aware of IPv6 addresses and can handle them properly.
 
 //=============================================================================================
 //=============================================================================================

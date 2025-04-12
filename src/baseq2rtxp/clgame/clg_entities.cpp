@@ -125,7 +125,7 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
 /**
 *	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to
 *               a specific client number the current received frame, this'll point to the entity that
-*               is of the local client player himself.
+*               is of the local client player himself(index of clientNumber was sent during connect.)
 **/
 centity_t *CLG_ViewBoundEntity( void ) {
     // Default to clgi.client->clientNumberl.

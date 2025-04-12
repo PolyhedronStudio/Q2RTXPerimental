@@ -148,7 +148,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
             //targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
             // WID: TODO: Monster Reimplement.        
             //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
-            level.killed_monsters++;
+            //level.killed_monsters++;
             if (coop->value && attacker->client)
                 attacker->client->resp.score++;
             // medics won't heal monsters that they kill themselves

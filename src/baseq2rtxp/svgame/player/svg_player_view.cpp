@@ -926,10 +926,10 @@ void SVG_Client_BeginServerFrame( edict_t *ent ) {
 	*   Add player trail so monsters can follow
 	**/
 	if ( !deathmatch->value ) {
-		// WID: TODO: Monster Reimplement.
-		if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
-			PlayerTrail_Add( ent->s.old_origin );
-		}
+		//// WID: TODO: Monster Reimplement.
+		//if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
+		//	PlayerTrail_Add( ent->s.old_origin );
+		//}
 	}
 
 	/**

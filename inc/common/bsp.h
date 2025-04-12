@@ -30,7 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef BSP_H
 #define BSP_H
 
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 #include "common/error.h"
 #include "system/hunk.h"
 

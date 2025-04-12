@@ -6,7 +6,7 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // Should already have been defined by CMake for this ClientGame target.
 // 
@@ -16,9 +16,9 @@
 #ifndef CLGAME_INCLUDE
 #define CLGAME_INCLUDE
 #endif
-#include "shared/cl_game.h"
+#include "shared/client/cl_game.h"
 
-// Extern here right after including shared/cl_game.h
+// Extern here right after including shared/client/cl_game.h
 extern clgame_import_t clgi;
 extern clgame_export_t globals;
 

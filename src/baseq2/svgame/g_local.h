@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_local.h -- local definitions for ServerGame module
 
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // Should already have been defined by CMake for this ClientGame target.
 //
@@ -28,9 +28,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SVGAME_INCLUDE
 #define SVGAME_INCLUDE
 #endif
-#include "shared/sv_game.h"
+#include "shared/server/sv_game.h"
 
-// Extern here right after including shared/sv_game.h
+// Extern here right after including shared/server/sv_game.h
 extern svgame_import_t gi;
 extern svgame_export_t globals;
 

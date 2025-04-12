@@ -228,17 +228,17 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #include "shared/ui_shared.h"
 
 //! Bit Utilities:
-#include "shared/util_bits.h"
+#include "shared/util/util_bits.h"
 //! Endian Utilities:
-#include "shared/util_endian.h"
+#include "shared/util/util_endian.h"
 //! Encode/Decode utilities
-#include "shared/util_decode.h"
-#include "shared/util_encode.h"
-#include "shared/util_halffloat.h"
+#include "shared/util/util_decode.h"
+#include "shared/util/util_encode.h"
+#include "shared/util/util_halffloat.h"
 //! List Utility:
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 //! String Utilities:
-#include "shared/util_strings.h"
+#include "shared/util/util_strings.h"
 
 
 //! Key/Value Info Strings:
@@ -257,15 +257,15 @@ typedef struct {
 
 
 //! KeyButton/KeyButton State:
-#include "shared/key_button.h"
+#include "shared/keys/key_button.h"
 //! Key indices/numbers:
-#include "shared/key_numbers.h"
+#include "shared/keys/key_numbers.h"
 
 
 //! CommandBuffers/Console/CVars:
-#include "shared/command_cvars.h"
-#include "shared/command_buffer.h"
-#include "shared/command_print.h"
+#include "shared/cmd/cmd_cvars.h"
+#include "shared/cmd/cmd_buffer.h"
+#include "shared/cmd/cmd_print.h"
 
 
 //! Collision: 
@@ -282,14 +282,14 @@ typedef struct {
 #define MAX_TOTAL_ENT_LEAFS 128
 
 //! Collision(-Model) Shared Subsystem Stuff:
-#include "shared/cm_types.h"
-#include "shared/cm_entity.h"
-#include "shared/cm_plane.h"
-#include "shared/cm_surface.h"
-#include "shared/cm_material.h"
-#include "shared/cm_trace.h"
-#include "shared/format_bsp.h"
-#include "shared/cm_model.h"
+#include "shared/cm/cm_types.h"
+#include "shared/cm/cm_entity.h"
+#include "shared/cm/cm_plane.h"
+#include "shared/cm/cm_surface.h"
+#include "shared/cm/cm_material.h"
+#include "shared/cm/cm_trace.h"
+#include "shared/formats/format_bsp.h"
+#include "shared/cm/cm_model.h"
 
 // gi.BoxEdicts() can return a list of either solid or trigger entities
 // FIXME: eliminate AREA_ distinction?
@@ -300,15 +300,15 @@ typedef enum sector_area_s {
 
 
 //!	Entity Muzzleflashes/Player Effects:
-#include "shared/entity_effects.h"
+#include "shared/entities/entity_effects.h"
 //!	Entity Render Flags:
-#include "shared/entity_renderflags.h"
+#include "shared/entities/entity_renderflags.h"
 //!	Entity Events:
-#include "shared/entity_events.h"
+#include "shared/entities/entity_events.h"
 //! Entity Types:
-#include "shared/entity_types.h"
+#include "shared/entities/entity_types.h"
 //! Entity State:
-#include "shared/entity_state.h"
+#include "shared/entities/entity_state.h"
 
 //! Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
 #include "shared/gamemode_flags.h"
@@ -356,13 +356,13 @@ typedef enum {
 * 	Config Strings: A general means of communication from the server to all connected clients.
 *                   Each config string can be at most MAX_QPATH characters.
 ***/
-#include "shared/net_configstrings.h"
+#include "shared/net/net_configstrings.h"
 //! Elements Communicated across the NET.
-#include "shared/net_elements.h"
+#include "shared/net/net_elements.h"
 //! Server to Client, and Client to Server CommandMessages.
-#include "shared/net_command_messages.h"
+#include "shared/net/net_command_messages.h"
 //! User Commands( User Input ):
-#include "shared/net_usercommand.h"
+#include "shared/net/net_usercommand.h"
 //! Network Frame Flags:
 #define FF_NONE			0
 #define FF_SUPPRESSED   (1<<0)

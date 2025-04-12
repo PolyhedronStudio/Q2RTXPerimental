@@ -25,7 +25,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // images.h -- common image manager
 //
 // WID: C++20: In case of C++ including this..
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 #include "common/files.h"
 #include "common/zone.h"
 #include "common/error.h"

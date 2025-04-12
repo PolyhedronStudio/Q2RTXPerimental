@@ -693,25 +693,18 @@ SET(HEADERS_GL
 #
 #
 SET(HEADERS_SHARED
-	#shared/cl_game.h
+	# <Q2RTXP>: WID: TODO: For some reason it won 't find them anyhow, also, list is outdated.'
+	#shared/client/cl_game.h
 	#shared/config.h
 	#shared/config_cpp.h
 	#shared/endian.h
 	#shared/info_strings.h
-	#shared/util_list.h
+	#shared/util/util_list.h
 	#shared/platform.h
 	#shared/shared.h
 	#shared/shared_cpp.h
 	#shared/string_utilities.h
-	#inc/shared/sv_game.h
-
-	#inc/shared/math/qray_math.h
-	#inc/shared/math/qray_matrix4x4.h
-	#inc/shared/math/qray_quaternion.h
-	#inc/shared/math/qray_utils.h
-	#inc/shared/math/qray_vector2.h
-	#inc/shared/math/qray_vector3.h
-	#inc/shared/math/qray_vector4.h
+	#inc/shared/server/sv_game.h
 )
 SET(SRC_SHARED
 	shared/info_strings.cpp

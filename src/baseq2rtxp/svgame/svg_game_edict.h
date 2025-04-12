@@ -114,13 +114,13 @@ struct edict_t {
 
     //================================
 
-    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
-    vec3_t      mins, maxs;
-    vec3_t      absmin, absmax, size;
-    cm_solid_t     solid;
-    cm_contents_t  clipmask;
-    cm_contents_t  hullContents;
-    edict_t     *owner;
+    int32_t         svflags;    // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+    vec3_t          mins, maxs;
+    vec3_t          absmin, absmax, size;
+    cm_solid_t      solid;
+    cm_contents_t   clipmask;
+    cm_contents_t   hullContents;
+    edict_t         *owner;
 
     const cm_entity_t *entityDictionary;
 

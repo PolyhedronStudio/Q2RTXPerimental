@@ -31,13 +31,13 @@ typedef struct {
     vec3_t      intermission_origin;
     vec3_t      intermission_angle;
 
-    edict_t *sight_client;  // changed once each frame for coop games
+    edict_t     *sight_client;  // changed once each frame for coop games
 
-    edict_t *sight_entity;
+    edict_t     *sight_entity;
     int64_t		sight_entity_framenum;
-    edict_t *sound_entity;
+    edict_t     *sound_entity;
     int64_t		sound_entity_framenum;
-    edict_t *sound2_entity;
+    edict_t     *sound2_entity;
     int64_t		sound2_entity_framenum;
 
     int         pic_health;
@@ -47,9 +47,6 @@ typedef struct {
 
     int         total_goals;
     int         found_goals;
-
-    int         total_monsters;
-    int         killed_monsters;
 
     edict_t *current_entity;    // entity running from SVG_RunFrame
     int         body_que;           // dead bodies

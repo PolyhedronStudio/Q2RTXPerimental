@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // sound.h -- private sound functions
 
 #include "../cl_client.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 #if USE_SNDDMA
 #include "client/sound/dma.h"

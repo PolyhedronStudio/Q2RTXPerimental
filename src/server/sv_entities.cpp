@@ -235,7 +235,7 @@ void SV_WriteFrameToClient( client_t *client ) {
 
 	// delta encode the entities
 	MSG_WriteUint8( svc_packetentities );
-	SV_EmitPacketEntities( client, oldFrame, newFrame, 0/*clientEntityNumber*/ );
+	SV_EmitPacketEntities( client, oldFrame, newFrame, /*0*/newFrame->clientNum);
 }
 
 
@@ -315,7 +315,10 @@ void SV_BuildClientFrame(client_t *client)
     //        frame->clientNum = client->number;
     //    }
     //} else {
-        frame->clientNum = client->number;
+
+    // <Q2RTXP>: WID: TODO: Do we need this? Probably best to test on dedicated server then.
+    //frame->clientNum = clent->client->clientNum;;
+    frame->clientNum = client->number;
     //}
 
     // fix clientNum if out of range for older version of Q2PRO protocol

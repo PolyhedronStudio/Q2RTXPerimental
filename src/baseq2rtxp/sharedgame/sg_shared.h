@@ -8,7 +8,7 @@
 #pragma once
 
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // Include needed shared refresh types.
 #include "refresh/shared_types.h"

@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_commands_server.h"
 #include "svgame/svg_edict_pool.h"
 #include "svgame/svg_clients.h"
+#include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
@@ -721,19 +722,18 @@ void SVG_RunFrame(void) {
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
                 ent->groundInfo.entity = nullptr;
                 M_CheckGround( ent, mask );
-            }
-            //// All other entities use this route instead:
-            //} else {
-            //    // If the ground entity is still 1 unit below us, we're good.
-            //    Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-            //    svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+            // All other entities use this route instead:
+            } else {
+                // If the ground entity is still 1 unit below us, we're good.
+                Vector3 endPoint = Vector3( ent->s.origin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+                svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
 
-            //    if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
-            //        ent->groundentity = nullptr;
-            //    } else {
-            //        ent->groundentity_linkcount = ent->groundentity->linkcount;
-            //    }
-            //}
+                if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundInfo.entity ) {
+                    ent->groundInfo.entity = nullptr;
+                } else {
+                    ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkcount;
+                }
+            }
         }
 
         if ( i > 0 && i <= maxclients->value ) {

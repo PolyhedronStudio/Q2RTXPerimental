@@ -10,7 +10,7 @@
 //! Include all shared codebase func/type defs..
 #include "shared/shared.h"
 //! Include list data structure functionality.
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 
 /**
@@ -25,10 +25,10 @@
 #endif
 
 //! Include the servergame import/export structures.
-#include "shared/sv_game.h"
+#include "shared/server/sv_game.h"
 
 /**
-*   Extern for 'global scope' access right here, after including shared/sv_game.h
+*   Extern for 'global scope' access right here, after including shared/server/sv_game.h
 **/
 // Imported engine API and vars.
 extern svgame_import_t gi;
@@ -119,7 +119,7 @@ static constexpr int32_t CENTER_HANDED = 2;
 * 
 **/
 //! Features this game supports.
-static constexpr int32_t SVG_FEATURES = ( GMF_PROPERINUSE | GMF_WANT_ALL_DISCONNECTS );
+static constexpr int32_t SVG_FEATURES = ( GMF_PROPERINUSE | GMF_WANT_ALL_DISCONNECTS | GMF_IPV6_ADDRESS_AWARE );
 // The "gameversion" client command will print this plus compile date.
 static constexpr const char *GAMEVERSION = "BaseQ2RTXP";
 

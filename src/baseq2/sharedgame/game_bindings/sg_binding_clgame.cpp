@@ -6,15 +6,15 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // define CLGAME_INCLUDE so that game.h does not define the
 // short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
-#include "shared/cl_game.h"
+#include "shared/client/cl_game.h"
 #include "../../clgame/clg_local.h"
 
-// Extern here right after including shared/cl_game.h
+// Extern here right after including shared/client/cl_game.h
 extern clgame_import_t clgi;
 
 /**

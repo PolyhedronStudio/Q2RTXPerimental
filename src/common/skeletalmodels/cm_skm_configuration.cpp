@@ -7,7 +7,7 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 #include "refresh/shared_types.h"
 

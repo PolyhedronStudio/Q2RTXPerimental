@@ -18,8 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // client.h -- primary header for client
 #include "shared/shared.h"
-#include "shared/util_list.h"
-#include "shared/cl_game.h"
+#include "shared/util/util_list.h"
+#include "shared/client/cl_game.h"
 
 #include "common/bsp.h"
 #include "common/cmd.h"
@@ -58,7 +58,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /**
 * 
-* The client defined centity_t moved to inc/shared/cl_game.h
+* The client defined centity_t moved to inc/shared/client/cl_game.h
 * If CLGAME_INCLUDE is defined it'll declare the entire whole
 * game side version.
 * 
