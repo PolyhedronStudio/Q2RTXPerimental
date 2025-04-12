@@ -112,7 +112,7 @@ Sends the contents of the mutlicast buffer to a single client.
 Archived in MVD stream.
 ===============
 */
-static void PF_Unicast(edict_t *ent, bool reliable)
+static void PF_Unicast(edict_ptr_t *ent, bool reliable)
 {
 	client_t *client;
 	int         cmd, flags, clientNum;
@@ -253,7 +253,7 @@ Print to a single client if the level passes.
 Archived in MVD stream.
 ===============
 */
-static void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
+static void PF_cprintf(edict_ptr_t *ent, int level, const char *fmt, ...)
 {
     char        msg[MAX_STRING_CHARS];
     va_list     argptr;
@@ -305,7 +305,7 @@ Centerprint to a single client.
 Archived in MVD stream.
 ===============
 */
-static void PF_centerprintf(edict_t *ent, const char *fmt, ...)
+static void PF_centerprintf(edict_ptr_t *ent, const char *fmt, ...)
 {
     char        msg[MAX_STRING_CHARS];
     va_list     argptr;
@@ -363,7 +363,7 @@ PF_setmodel
 Also sets mins and maxs for inline bmodels
 =================
 */
-static void PF_setmodel(edict_t *ent, const char *name)
+static void PF_setmodel(edict_ptr_t *ent, const char *name)
 {
     mmodel_t    *mod;
 
@@ -527,7 +527,7 @@ static const qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
 *                   If origin is NULL, the origin is determined from the entity origin
 *                   or the midpoint of the entity box for bmodels.
 **/
-static void SV_StartSound(const vec3_t origin, edict_t *edict,
+static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
                           int channel, int soundindex, float volume,
                           float attenuation, float timeofs)
 {
@@ -676,7 +676,7 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
 /**
 *   @brief
 **/
-static void PF_StartSound(edict_t *entity, int channel,
+static void PF_StartSound(edict_ptr_t *entity, int channel,
                           int soundindex, float volume,
                           float attenuation, float timeofs)
 {

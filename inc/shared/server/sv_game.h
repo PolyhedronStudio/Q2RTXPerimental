@@ -85,41 +85,43 @@ struct svg_client_t;
         // this point in the structure
         int             clientNum;
     };
+    //struct edict_t {
+    //    entity_state_t  s;
+    //    svg_client_t *client;   //! NULL if not a player the server expects the first part
+    //                                //! of gclient_s to be a player_state_t but the rest of it is opaque
+    //    qboolean inuse;
+    //    int32_t linkcount;
 
+    //    // FIXME: move these fields to a server private sv_entity_t
+    //    list_t area;    //! Linked to a division node or leaf
 
-    struct edict_t {
-        entity_state_t  s;
-        svg_client_t *client;   //! NULL if not a player the server expects the first part
-                                    //! of gclient_s to be a player_state_t but the rest of it is opaque
-        qboolean inuse;
-        int32_t linkcount;
+    //    int32_t num_clusters;       // If -1, use headnode instead.
+    //    int32_t clusternums[MAX_ENT_CLUSTERS];
+    //    int32_t headnode;           // Unused if num_clusters != -1
+    //
+    //    int32_t areanum, areanum2;
 
-        // FIXME: move these fields to a server private sv_entity_t
-        list_t area;    //! Linked to a division node or leaf
+    //    //================================
 
-        int32_t num_clusters;       // If -1, use headnode instead.
-        int32_t clusternums[MAX_ENT_CLUSTERS];
-        int32_t headnode;           // Unused if num_clusters != -1
-    
-        int32_t areanum, areanum2;
+    //    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+    //    vec3_t      mins, maxs;
+    //    vec3_t      absmin, absmax, size;
+    //    cm_solid_t     solid;
+    //    cm_contents_t  clipmask;
+    //    cm_contents_t  hullContents;
+    //    edict_t *owner;
 
-        //================================
+    //    const cm_entity_t *entityDictionary;
 
-        int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
-        vec3_t      mins, maxs;
-        vec3_t      absmin, absmax, size;
-        cm_solid_t     solid;
-        cm_contents_t  clipmask;
-        cm_contents_t  hullContents;
-        edict_t *owner;
+    //    // the game dll can add anything it wants after
+    //    // this point in the structure
+    //};
 
-        const cm_entity_t *entityDictionary;
-
-        // the game dll can add anything it wants after
-        // this point in the structure
-    };
+    struct sv_edict_t : public sv_shared_edict_t<sv_edict_t, svg_client_t> { };
+    typedef sv_edict_t edict_ptr_t;
 #else
-    struct edict_t;
+    struct svg_edict_t;
+    typedef struct svg_edict_t edict_ptr_t;
     //typedef struct edict_s edict_t;
     //typedef struct gclient_s svg_gclient_t;
 #endif      // SVGAME_INCLUDE
@@ -140,15 +142,15 @@ struct sv_edict_pool_i {
     virtual ~sv_edict_pool_i() = default;
 
     //! For accessing as if it were a regular edicts array.
-    virtual edict_t *operator[]( const size_t index ) = 0;
+    virtual edict_ptr_t *operator[]( const size_t index ) = 0;
 
     //! Gets the edict ptr for the matching number's slot.
-    virtual edict_t *EdictForNumber( const int32_t number ) = 0;
+    virtual edict_ptr_t *EdictForNumber( const int32_t number ) = 0;
     //! Gets the number for the matching edict ptr.
-    virtual const int32_t NumberForEdict( const edict_t *edict ) = 0;
+    virtual const int32_t NumberForEdict( const edict_ptr_t *edict ) = 0;
 
     //! Pointer to edicts data array.
-    edict_t *edicts = nullptr;
+    edict_ptr_t *edicts = nullptr;
     //! Size of edict type.
     //int32_t         edict_size;
 
@@ -191,10 +193,10 @@ typedef struct {
 	**/
     void (* q_printf(2, 3) bprintf)(int printlevel, const char *fmt, ...);
     void (* q_printf(1, 2) dprintf)(const char *fmt, ...);
-    void (* q_printf(3, 4) cprintf)(edict_t *ent, int printlevel, const char *fmt, ...);
-    void (* q_printf(2, 3) centerprintf)(edict_t *ent, const char *fmt, ...);
-    void (*sound)(edict_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs);
-    void (*positioned_sound)(const vec3_t origin, edict_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs);
+    void (* q_printf(3, 4) cprintf)(edict_ptr_t *ent, int printlevel, const char *fmt, ...);
+    void (* q_printf(2, 3) centerprintf)(edict_ptr_t *ent, const char *fmt, ...);
+    void (*sound)(edict_ptr_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs);
+    void (*positioned_sound)(const vec3_t origin, edict_ptr_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs);
 
 
 	/**
@@ -223,7 +225,7 @@ typedef struct {
     int (*soundindex)(const char *name);
     int (*imageindex)(const char *name);
 
-    void (*setmodel)(edict_t *ent, const char *name);
+    void (*setmodel)(edict_ptr_t *ent, const char *name);
 
 
 	/**
@@ -232,9 +234,9 @@ typedef struct {
 	*
 	**/
     //! Perform a trace through the world and its entities with a bbox from start to end point.
-    const cm_trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_t *passent, const cm_contents_t contentmask );
+    const cm_trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_ptr_t *passent, const cm_contents_t contentmask );
     //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
-	const cm_trace_t ( *q_gameabi clip )( edict_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );
+	const cm_trace_t ( *q_gameabi clip )( edict_ptr_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );
     //! Returns a cm_contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
     const cm_contents_t (*pointcontents)(const vec3_t point);
     /**
@@ -258,11 +260,11 @@ typedef struct {
     *   If the size, position, solidity, clipmask, hullContents, or owner changes, it must be relinked.
 	**/
     //! Link the entity into the world area grid for collision detection.
-    void ( *linkentity )( edict_t *ent );
+    void ( *linkentity )( edict_ptr_t *ent );
     //! UnLink the entity from the world area grid for collision detection.
-    void ( *unlinkentity )( edict_t *ent );
+    void ( *unlinkentity )( edict_ptr_t *ent );
     //! Return all entities that are inside or touching the bounding box area into the list array.
-    const int32_t(*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype);
+    const int32_t(*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_ptr_t **list, const int32_t maxcount, const int32_t areatype);
     
 
     /**
@@ -312,7 +314,7 @@ typedef struct {
     //! Will broadcast the current written message write buffer to all(multiple) clients (optional: that are in the same PVS/PHS as origin.)
     void ( *multicast )( const vec3_t origin, multicast_t to, bool reliable );
     //! Will broadcast the current written message write buffer to the client that is attached to ent.
-    void ( *unicast )( edict_t *ent, bool reliable );
+    void ( *unicast )( edict_ptr_t *ent, bool reliable );
     void ( *WriteInt8 )( const int32_t c );
     void ( *WriteUint8 )( const int32_t c );
     void ( *WriteInt16 )( const int32_t c );
@@ -464,12 +466,12 @@ typedef struct {
 	*	Client(s):
 	* 
     **/
-    qboolean (*ClientConnect)(edict_t *ent, char *userinfo);
-    void (*ClientBegin)(edict_t *ent);
-    void (*ClientUserinfoChanged)(edict_t *ent, char *userinfo);
-    void (*ClientDisconnect)(edict_t *ent);
-    void (*ClientCommand)(edict_t *ent);
-    void (*ClientThink)(edict_t *ent, usercmd_t *cmd);
+    qboolean (*ClientConnect)(edict_ptr_t *ent, char *userinfo);
+    void (*ClientBegin)(edict_ptr_t *ent);
+    void (*ClientUserinfoChanged)(edict_ptr_t *ent, char *userinfo);
+    void (*ClientDisconnect)(edict_ptr_t *ent);
+    void (*ClientCommand)(edict_ptr_t *ent);
+    void (*ClientThink)(edict_ptr_t *ent, usercmd_t *cmd);
 
 
 	/**

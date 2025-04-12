@@ -206,7 +206,7 @@ typedef struct pm_touch_trace_list_s {
 **/
 typedef struct pm_ground_info_s {
     //! Pointer to the actual ground entity we are on.(nullptr if none).
-    sgentity_s *entity;
+    struct edict_ptr_t *entity;
 
     //! A copy of the plane data from the ground entity.
     cm_plane_t        plane;
@@ -249,7 +249,7 @@ typedef struct pmove_s {
     //! Set to 'true' if player state 's' has been changed outside of pmove.
     qboolean    snapinitial;
     //! Opaque pointer to the player entity.
-    sgentity_s *player;
+    struct edict_ptr_t *player;
 
     /**
     *   (Out):

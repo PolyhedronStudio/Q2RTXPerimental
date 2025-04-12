@@ -39,7 +39,7 @@ solid_edge items only clip against bsp models.
 
 // [Paril-KEX] fetch the clipmask for this entity; certain modifiers
 // affect the clipping behavior of objects.
-const cm_contents_t SVG_GetClipMask( edict_t *ent ) {
+const cm_contents_t SVG_GetClipMask( svg_edict_t *ent ) {
     // Get current clip mask.
     cm_contents_t mask = ent->clipmask;
 
@@ -75,7 +75,7 @@ SV_TestEntityPosition
 
 ============
 */
-edict_t *SV_TestEntityPosition(edict_t *ent)
+svg_edict_t *SV_TestEntityPosition(svg_edict_t *ent)
 {
     svg_trace_t trace;
     //cm_contents_t mask;
@@ -98,7 +98,7 @@ edict_t *SV_TestEntityPosition(edict_t *ent)
 SV_CheckVelocity
 ================
 */
-void SV_CheckVelocity(edict_t *ent)
+void SV_CheckVelocity(svg_edict_t *ent)
 {
 //    int     i;
 
@@ -128,7 +128,7 @@ SV_RunThink
 Runs thinking code for this frame if necessary
 =============
 */
-bool SV_RunThink(edict_t *ent)
+bool SV_RunThink(svg_edict_t *ent)
 {
     QMTime     thinktime;
 
@@ -162,9 +162,9 @@ SVG_Impact
 Two entities have touched, so run their touch functions
 ==================
 */
-void SVG_Impact(edict_t *e1, svg_trace_t *trace)
+void SVG_Impact(svg_edict_t *e1, svg_trace_t *trace)
 {
-    edict_t     *e2;
+    svg_edict_t     *e2;
 //  cm_plane_t    backplane;
 
     e2 = trace->ent;
@@ -243,9 +243,9 @@ Returns the clipflags if the velocity was modified (hit something solid)
 ============
 */
 #define MAX_CLIP_PLANES 5
-int SV_FlyMove(edict_t *ent, float time, const cm_contents_t mask)
+int SV_FlyMove(svg_edict_t *ent, float time, const cm_contents_t mask)
 {
-    edict_t     *hit;
+    svg_edict_t     *hit;
     int         bumpcount, numbumps;
     vec3_t      dir;
     float       d;
@@ -371,7 +371,7 @@ SV_AddGravity
 
 ============
 */
-void SV_AddGravity(edict_t *ent)
+void SV_AddGravity(svg_edict_t *ent)
 {
     ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
 }
@@ -391,7 +391,7 @@ SV_PushEntity
 Does not change the entities velocity at all
 ============
 */
-svg_trace_t SV_PushEntity(edict_t *ent, vec3_t push)
+svg_trace_t SV_PushEntity(svg_edict_t *ent, vec3_t push)
 {
     svg_trace_t trace;
     vec3_t  start;
@@ -430,7 +430,7 @@ retry:
 }
 
 typedef struct {
-    edict_t *ent;
+    svg_edict_t *ent;
     vec3_t  origin;
     vec3_t  angles;
     //#if USE_SMOOTH_DELTA_ANGLES
@@ -439,7 +439,7 @@ typedef struct {
 } pushed_t;
 pushed_t    pushed[MAX_EDICTS], *pushed_p;
 
-edict_t *obstacle;
+svg_edict_t *obstacle;
 
 const float SnapToEights( const float x ) {
     // WID: Float-movement.
@@ -460,10 +460,10 @@ Objects need to be moved back on a failed push,
 otherwise riders would continue to slide.
 ============
 */
-bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
+bool SV_Push(svg_edict_t *pusher, vec3_t move, vec3_t amove)
 {
     int         i, e;
-    edict_t     *check, *block;
+    svg_edict_t     *check, *block;
     vec3_t      mins, maxs;
     pushed_t    *p;
     vec3_t      org, org2, move2, forward, right, up;
@@ -621,10 +621,10 @@ Bmodel objects don't interact with each other, but
 push all box objects
 ================
 */
-void SV_Physics_Pusher(edict_t *ent)
+void SV_Physics_Pusher(svg_edict_t *ent)
 {
     vec3_t      move, amove;
-    edict_t     *part, *mv;
+    svg_edict_t     *part, *mv;
 
     // if not a team captain, so movement will be handled elsewhere
     if (ent->flags & FL_TEAMSLAVE)
@@ -683,7 +683,7 @@ SV_Physics_None
 Non moving objects can only think
 =============
 */
-void SV_Physics_None(edict_t *ent)
+void SV_Physics_None(svg_edict_t *ent)
 {
 // regular thinking
     SV_RunThink(ent);
@@ -696,7 +696,7 @@ SV_Physics_Noclip
 A moving object that doesn't obey physics
 =============
 */
-void SV_Physics_Noclip(edict_t *ent)
+void SV_Physics_Noclip(svg_edict_t *ent)
 {
 // regular thinking
     if (!SV_RunThink(ent))
@@ -725,12 +725,12 @@ SV_Physics_Toss
 Toss, bounce, and fly movement.  When onground, do nothing.
 =============
 */
-void SV_Physics_Toss(edict_t *ent)
+void SV_Physics_Toss(svg_edict_t *ent)
 {
     svg_trace_t     trace;
     vec3_t      move;
     float       backoff;
-    edict_t     *slave;
+    svg_edict_t     *slave;
     int         wasinwater;
     int         isinwater;
     vec3_t      old_origin;
@@ -851,7 +851,7 @@ FIXME: is this true?
 #define sv_friction         6.f
 #define sv_waterfriction    1.f
 
-void SV_AddRotationalFriction(edict_t *ent)
+void SV_AddRotationalFriction(svg_edict_t *ent)
 {
     int     n;
     float   adjustment;
@@ -871,14 +871,14 @@ void SV_AddRotationalFriction(edict_t *ent)
     }
 }
 
-void SV_Physics_Step(edict_t *ent)
+void SV_Physics_Step(svg_edict_t *ent)
 {
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
     float	   speed, newspeed, control;
     float	   friction;
-    edict_t *groundentity;
+    svg_edict_t *groundentity;
     cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
@@ -1026,7 +1026,7 @@ void SV_Physics_Step(edict_t *ent)
 //    float       *vel = nullptr;
 //    float       speed = 0.f, newspeed = 0.f, control = 0.f;
 //    float       friction = 0.f;
-//    edict_t     *groundentity = nullptr;
+//    svg_edict_t     *groundentity = nullptr;
 //    cm_contents_t  mask = SVG_GetClipMask( ent );
 //
 //    // airborn monsters should always check for ground
@@ -1130,13 +1130,13 @@ void SV_Physics_Step(edict_t *ent)
 /**
 *   @brief  For RootMotion entities.
 **/
-void SV_Physics_RootMotion( edict_t *ent ) {
+void SV_Physics_RootMotion( svg_edict_t *ent ) {
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
     float	   speed, newspeed, control;
     float	   friction;
-    edict_t *groundentity;
+    svg_edict_t *groundentity;
     cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
@@ -1281,7 +1281,7 @@ SVG_RunEntity
 
 ================
 */
-void SVG_RunEntity(edict_t *ent)
+void SVG_RunEntity(svg_edict_t *ent)
 {
     Vector3	previousOrigin;
     bool	isMoveStepper = false;

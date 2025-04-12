@@ -231,7 +231,7 @@ static const save_field_t clientfields[] = {
 };
 
 /**
-*   edict_t:
+*   svg_edict_t:
 **/
 static const save_field_t entityfields[] = {
 #define _OFS FOFS_GENTITY
@@ -904,7 +904,7 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
         write_game_qtag_memory<float>( f, ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
         break;
     case F_EDICT:
-        write_index(f, *(void **)p, sizeof(edict_t), g_edicts, MAX_EDICTS - 1);
+        write_index(f, *(void **)p, sizeof(svg_edict_t), g_edicts, MAX_EDICTS - 1);
         break;
     case F_CLIENT:
         write_index(f, *(void **)p, sizeof(svg_client_t), game.clients, game.maxclients - 1);
@@ -1265,7 +1265,7 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
     case F_EDICT:
 		// WID: C++20: Added cast.
-		*(edict_t **)p = (edict_t*)read_index(ctx->f, sizeof(edict_t), g_edicts, game.maxentities - 1);
+		*(svg_edict_t **)p = (svg_edict_t*)read_index(ctx->f, sizeof(svg_edict_t), g_edicts, game.maxentities - 1);
         break;
     case F_CLIENT:
 		// WID: C++20: Added cast.
@@ -1467,7 +1467,7 @@ WriteLevel
 void SVG_WriteLevel(const char *filename)
 {
     int     i;
-    edict_t *ent;
+    svg_edict_t *ent;
     gzFile  f;
 
     f = gzopen(filename, "wb");
@@ -1516,7 +1516,7 @@ void SVG_ReadLevel(const char *filename)
     int     entnum;
     gzFile  f;
     int     i;
-    edict_t *ent;
+    svg_edict_t *ent;
 
     // free any dynamic memory allocated by loading the level
     // base state
@@ -1533,7 +1533,7 @@ void SVG_ReadLevel(const char *filename)
         g_edicts[ i ] = {};
     }
     //memset(g_edicts, 0, sizeof(g_edicts[0]));
-    //std::fill_n( &g_edicts[ i ], sizeof(edict_t), 0 );
+    //std::fill_n( &g_edicts[ i ], sizeof(svg_edict_t), 0 );
 
     globals.edictPool->num_edicts = maxclients->value + 1;
 

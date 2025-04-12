@@ -43,7 +43,7 @@ START_OPEN causes the water to move to its destination when spawned and operate 
 2)  lava
 */
 
-void SP_func_water( edict_t *self ) {
+void SP_func_water( svg_edict_t *self ) {
     vec3_t  abs_movedir;
 
     SVG_Util_SetMoveDir( self->s.angles, self->movedir );

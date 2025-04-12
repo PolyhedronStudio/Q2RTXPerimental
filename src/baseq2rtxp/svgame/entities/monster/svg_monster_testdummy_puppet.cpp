@@ -46,7 +46,7 @@ static int32_t animationID = 1; // IDLE(0), RUN_FORWARD_PISTOL(1)
 /**
 *   @brief  Death routine.
 **/
-void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
+void monster_testdummy_puppet_die( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point ) {
     //self->takedamage = DAMAGE_NO;
     //self->nextthink = level.time + 20_hz;
     //self->think = barrel_explode;
@@ -119,7 +119,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
 ///**
 //*   @brief  Touched.
 //**/
-//void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+//void monster_testdummy_puppet_touch( svg_edict_t *self, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
 //    #if 0
 //    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
 //        return;
@@ -169,7 +169,7 @@ void monster_testdummy_puppet_die( edict_t *self, edict_t *inflictor, edict_t *a
 /**
 *   @brief  Touched.
 **/
-void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void monster_testdummy_puppet_touch( svg_edict_t *self, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     #if 0
     if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
         return;
@@ -211,7 +211,7 @@ void monster_testdummy_puppet_touch( edict_t *self, edict_t *other, const cm_pla
 /**
 *   @brief
 **/
-void monster_testdummy_puppet_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void monster_testdummy_puppet_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Apply activator.
     self->activator = activator;
     self->other = other;
@@ -246,11 +246,11 @@ void monster_testdummy_puppet_use( edict_t *self, edict_t *other, edict_t *activ
     SVG_UseTargets( self, activator );
 }
 
-void SV_AddGravity( edict_t *ent );
+void SV_AddGravity( svg_edict_t *ent );
 /**
 *   @brief  Thinking routine.
 **/
-void monster_testdummy_puppet_think( edict_t *self ) {
+void monster_testdummy_puppet_think( svg_edict_t *self ) {
     // Make sure to fall to floor.
     if ( !self->activator ) {
         M_droptofloor( self );
@@ -446,7 +446,7 @@ void monster_testdummy_puppet_think( edict_t *self ) {
 /**
 *   @brief  Post-Spawn routine.
 **/
-void monster_testdummy_puppet_post_spawn( edict_t *self ) {
+void monster_testdummy_puppet_post_spawn( svg_edict_t *self ) {
     //
     // Test GetModelData functions:
     //
@@ -483,7 +483,7 @@ void monster_testdummy_puppet_post_spawn( edict_t *self ) {
 /**
 *   @brief  Spawn routine.
 **/
-void SP_monster_testdummy_puppet( edict_t *self ) {
+void SP_monster_testdummy_puppet( svg_edict_t *self ) {
     // Entity Type:
     self->s.entityType = ET_MONSTER;
     

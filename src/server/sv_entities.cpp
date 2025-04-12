@@ -259,8 +259,8 @@ void SV_BuildClientFrame(client_t *client)
 {
     int         e, i;
     vec3_t      org;
-    edict_t     *ent;
-    edict_t     *clent;
+    sv_edict_t     *ent;
+    sv_edict_t     *clent;
     sv_client_frame_t  *frame;
     entity_packed_t *state;
     player_state_t  *ps;

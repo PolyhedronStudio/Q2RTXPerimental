@@ -37,27 +37,27 @@ void SVG_Command_Lua_ReloadMapScript( ) {
 /**
 *   @brief
 **/
-void SVG_Inventory_SelectNextItem( edict_t *ent, int itflags );
+void SVG_Inventory_SelectNextItem( svg_edict_t *ent, int itflags );
 /**
 *   @brief
 **/
-void SVG_Inventory_SelectPrevItem( edict_t *ent, int itflags );
+void SVG_Inventory_SelectPrevItem( svg_edict_t *ent, int itflags );
 /**
 *   @brief  Validates current selected item, if invalid, moves to the next valid item.
 **/
-void SVG_Inventory_ValidateSelectedItem( edict_t *ent );
+void SVG_Inventory_ValidateSelectedItem( svg_edict_t *ent );
 //=================================================================================
 /**
 *   @brief  Give items to a client
 **/
-void SVG_Command_Give_f(edict_t *ent)
+void SVG_Command_Give_f(svg_edict_t *ent)
 {
     char        *name;
     const gitem_t     *it;
     int         index;
     int         i;
     bool        give_all;
-    edict_t     *it_ent;
+    svg_edict_t     *it_ent;
 
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
@@ -184,7 +184,7 @@ void SVG_Command_Give_f(edict_t *ent)
 *   @brief  Sets client to godmode
 *   @note   argv(0) god
 **/
-void SVG_Command_God_f(edict_t *ent)
+void SVG_Command_God_f(svg_edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
@@ -202,7 +202,7 @@ void SVG_Command_God_f(edict_t *ent)
 *   @brief  Sets client to notarget
 *   @note   argv(0) notarget
 **/
-void SVG_Command_Notarget_f(edict_t *ent)
+void SVG_Command_Notarget_f(svg_edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
@@ -220,7 +220,7 @@ void SVG_Command_Notarget_f(edict_t *ent)
 *   @brief  Toggles NoClipping
 *   @note   argv(0) noclip
 **/
-void SVG_Command_Noclip_f(edict_t *ent)
+void SVG_Command_Noclip_f(svg_edict_t *ent)
 {
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
@@ -244,7 +244,7 @@ SVG_Command_UseItem_f
 Use an inventory item
 ==================
 */
-void SVG_Command_UseItem_f(edict_t *ent) {
+void SVG_Command_UseItem_f(svg_edict_t *ent) {
     const char *s = gi.args();
     const gitem_t *it = SVG_FindItem(s);
     if (!it) {
@@ -274,7 +274,7 @@ SVG_Command_Drop_f
 Drop an inventory item
 ==================
 */
-void SVG_Command_Drop_f(edict_t *ent) {
+void SVG_Command_Drop_f(svg_edict_t *ent) {
     const char *s = gi.args();
     const gitem_t *it = SVG_FindItem(s);
     if (!it) {
@@ -300,7 +300,7 @@ void SVG_Command_Drop_f(edict_t *ent) {
 SVG_Command_Inven_f
 =================
 */
-void SVG_Command_Inven_f(edict_t *ent)
+void SVG_Command_Inven_f(svg_edict_t *ent)
 {
     int         i;
     svg_client_t   *cl;
@@ -330,7 +330,7 @@ void SVG_Command_Inven_f(edict_t *ent)
 SVG_Command_InvUseSelectedItem_f
 =================
 */
-void SVG_Command_InvUseSelectedItem_f(edict_t *ent)
+void SVG_Command_InvUseSelectedItem_f(svg_edict_t *ent)
 {
     gitem_t     *it;
 
@@ -354,7 +354,7 @@ void SVG_Command_InvUseSelectedItem_f(edict_t *ent)
 SVG_Command_WeapPrev_f
 =================
 */
-void SVG_Command_WeapPrev_f(edict_t *ent)
+void SVG_Command_WeapPrev_f(svg_edict_t *ent)
 {
     svg_client_t   *cl;
     int         i, index;
@@ -396,7 +396,7 @@ void SVG_Command_WeapPrev_f(edict_t *ent)
 SVG_Command_WeapNext_f
 =================
 */
-void SVG_Command_WeapNext_f(edict_t *ent)
+void SVG_Command_WeapNext_f(svg_edict_t *ent)
 {
     svg_client_t   *cl;
     int         i, index;
@@ -438,7 +438,7 @@ void SVG_Command_WeapNext_f(edict_t *ent)
 SVG_Command_WeapLast_f
 =================
 */
-void SVG_Command_WeapLast_f(edict_t *ent)
+void SVG_Command_WeapLast_f(svg_edict_t *ent)
 {
     svg_client_t   *cl;
     int         index;
@@ -465,7 +465,7 @@ void SVG_Command_WeapLast_f(edict_t *ent)
 SVG_Command_WeapFlare_f
 =================
 */
-void SVG_Command_WeapFlare_f(edict_t* ent) {
+void SVG_Command_WeapFlare_f(svg_edict_t* ent) {
     svg_client_t *cl = ent->client;
     if (cl->pers.weapon && strcmp(cl->pers.weapon->pickup_name, "Flare Gun") == 0) {
         SVG_Command_WeapLast_f(ent);
@@ -480,7 +480,7 @@ void SVG_Command_WeapFlare_f(edict_t* ent) {
 SVG_Command_InvDrop_f
 =================
 */
-void SVG_Command_InvDrop_f(edict_t *ent) {
+void SVG_Command_InvDrop_f(svg_edict_t *ent) {
     gitem_t     *it;
 
     SVG_Inventory_ValidateSelectedItem(ent);
@@ -503,7 +503,7 @@ void SVG_Command_InvDrop_f(edict_t *ent) {
 SVG_Command_Kill_f
 =================
 */
-void SVG_Command_Kill_f(edict_t *ent)
+void SVG_Command_Kill_f(svg_edict_t *ent)
 {
     if ((level.time - ent->client->respawn_time) < 5_sec)
         return;
@@ -518,7 +518,7 @@ void SVG_Command_Kill_f(edict_t *ent)
 SVG_Command_PutAway_f
 =================
 */
-void SVG_Command_PutAway_f(edict_t *ent)
+void SVG_Command_PutAway_f(svg_edict_t *ent)
 {
     ent->client->showscores = false;
     ent->client->showhelp = false;
@@ -548,7 +548,7 @@ int PlayerSort(void const *a, void const *b)
 SVG_Command_Players_f
 =================
 */
-void SVG_Command_Players_f(edict_t *ent)
+void SVG_Command_Players_f(svg_edict_t *ent)
 {
     int     i;
     int     count;
@@ -585,10 +585,10 @@ void SVG_Command_Players_f(edict_t *ent)
 }
 
 
-static bool FloodProtect(edict_t *ent)
+static bool FloodProtect(svg_edict_t *ent)
 {
 	int     i;
-	//edict_t *other;
+	//svg_edict_t *other;
 	//char    text[ 2048 ];
 	svg_client_t *cl;
 
@@ -627,10 +627,10 @@ static bool FloodProtect(edict_t *ent)
 SVG_Command_Say_f
 ==================
 */
-void SVG_Command_Say_f(edict_t *ent, bool team, bool arg0)
+void SVG_Command_Say_f(svg_edict_t *ent, bool team, bool arg0)
 {
     int     j;
-    edict_t *other;
+    svg_edict_t *other;
     char    text[2048];
 
     if (gi.argc() < 2 && !arg0)
@@ -681,7 +681,7 @@ void SVG_Command_Say_f(edict_t *ent, bool team, bool arg0)
 /**
 *   @brief  Display the scoreboard
 **/
-void SVG_Command_Score_f( edict_t *ent ) {
+void SVG_Command_Score_f( svg_edict_t *ent ) {
     ent->client->showinventory = false;
     ent->client->showhelp = false;
 
@@ -703,12 +703,12 @@ void SVG_Command_Score_f( edict_t *ent ) {
     SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, true );
 }
 
-void SVG_Command_PlayerList_f(edict_t *ent)
+void SVG_Command_PlayerList_f(svg_edict_t *ent)
 {
     int i;
     char st[80];
     char text[1400];
-    edict_t *e2;
+    svg_edict_t *e2;
 
     // connect time, ping, score, name
     *text = 0;
@@ -741,7 +741,7 @@ void SVG_Command_PlayerList_f(edict_t *ent)
 ClientCommand
 =================
 */
-void SVG_Client_Command( edict_t *ent ) {
+void SVG_Client_Command( svg_edict_t *ent ) {
     char *cmd;
 
     if ( !ent->client )

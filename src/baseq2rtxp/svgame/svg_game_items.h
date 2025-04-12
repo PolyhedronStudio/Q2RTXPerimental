@@ -102,14 +102,14 @@ typedef struct gitem_s {
     void        ( *precached )( const struct gitem_s *item );
 
     //! Pickup Callback.
-    const bool  ( *pickup )( edict_t *ent, edict_t *other );
+    const bool  ( *pickup )( svg_edict_t *ent, svg_edict_t *other );
     //! Use Callback.
-    void        ( *use )( edict_t *ent, const struct gitem_s *item );
+    void        ( *use )( svg_edict_t *ent, const struct gitem_s *item );
     //! Drop Callback.
-    void        ( *drop )( edict_t *ent, const struct gitem_s *item );
+    void        ( *drop )( svg_edict_t *ent, const struct gitem_s *item );
 
     //! WeaponThink Callback.
-    void        ( *weaponthink )( edict_t *ent, const bool processUserInputOnly );
+    void        ( *weaponthink )( svg_edict_t *ent, const bool processUserInputOnly );
 
     //! Path: Pickup Sound.
     const char *pickup_sound; // WID: C++20: Added const.

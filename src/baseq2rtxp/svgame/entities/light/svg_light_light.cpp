@@ -21,7 +21,7 @@ static constexpr int32_t START_OFF = 1;
 /**
 *   @brief
 **/
-static void light_off( edict_t *self ) {
+static void light_off( svg_edict_t *self ) {
     //if ( !SVG_HasSpawnFlags( self, START_OFF ) ) {
     gi.configstring( CS_LIGHTS + self->style, "a" );
     self->spawnflags |= START_OFF;
@@ -30,7 +30,7 @@ static void light_off( edict_t *self ) {
 /**
 *   @brief
 **/
-static void light_on( edict_t *self ) {
+static void light_on( svg_edict_t *self ) {
     //if ( SVG_HasSpawnFlags( self, START_OFF ) ) {
     if ( self->customLightStyle ) {
         gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
@@ -43,7 +43,7 @@ static void light_on( edict_t *self ) {
 /**
 *   @brief
 **/
-static void light_toggle( edict_t *self ) {
+static void light_toggle( svg_edict_t *self ) {
     if ( SVG_HasSpawnFlags( self, START_OFF ) ) {
         light_on( self );
     } else {
@@ -53,7 +53,7 @@ static void light_toggle( edict_t *self ) {
 /**
 *   @brief
 **/
-void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void light_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     //if ( self->spawnflags & START_OFF ) {
     //    if ( self->customLightStyle ) {
     //        gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
@@ -98,7 +98,7 @@ void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_
 /**
 *   @brief
 **/
-void SP_light( edict_t *self ) {
+void SP_light( svg_edict_t *self ) {
     #if 0
     // no targeted lights in deathmatch, because they cause global messages
     if ( !self->targetname || deathmatch->value ) {

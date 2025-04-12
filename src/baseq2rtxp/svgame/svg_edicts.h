@@ -22,7 +22,7 @@
 /**
 *   @brief  (Re-)initialize an edict.
 **/
-void SVG_InitEdict( edict_t *e );
+void SVG_InitEdict( svg_edict_t *e );
 /**
 *   @brief  Either finds a free edict, or allocates a new one.
 *   @remark This function tries to avoid reusing an entity that was recently freed,
@@ -30,11 +30,11 @@ void SVG_InitEdict( edict_t *e );
 *           else instead of being removed and recreated, which can cause interpolated
 *           angles and bad trails.
 **/
-edict_t *SVG_AllocateEdict( void );
+svg_edict_t *SVG_AllocateEdict( void );
 /**
 *   @brief  Marks the edict as free
 **/
-void SVG_FreeEdict( edict_t *e );
+void SVG_FreeEdict( svg_edict_t *e );
 
 
 
@@ -54,7 +54,7 @@ void SVG_Entities_InitBodyQue( void );
 /**
 *   @brief
 **/
-void SVG_Entities_AddForPlayer( edict_t *ent );
+void SVG_Entities_AddForPlayer( svg_edict_t *ent );
 
 
 
@@ -74,11 +74,11 @@ void SVG_Entities_AddForPlayer( edict_t *ent );
 *   @remark Searches beginning at the edict after from, or the beginning if NULL
 *           NULL will be returned if the end of the list is reached.
 **/
-edict_t *SVG_Entities_Find( edict_t *from, const int32_t fieldofs, const char *match ); // WID: C++20: Added const.
+svg_edict_t *SVG_Entities_Find( svg_edict_t *from, const int32_t fieldofs, const char *match ); // WID: C++20: Added const.
 /**
 *   @brief  Similar to SVG_Entities_Find, but, returns entities that have origins within a spherical area.
 **/
-edict_t *SVG_Entities_FindWithinRadius( edict_t *from, const vec3_t org, const float rad );
+svg_edict_t *SVG_Entities_FindWithinRadius( svg_edict_t *from, const vec3_t org, const float rad );
 
 
 
@@ -94,7 +94,7 @@ edict_t *SVG_Entities_FindWithinRadius( edict_t *from, const vec3_t org, const f
 /**
 *   @brief  Returns true if, ent != nullptr, ent->inuse == true.
 **/
-static inline const bool SVG_Entity_IsActive( const edict_t *ent ) {
+static inline const bool SVG_Entity_IsActive( const svg_edict_t *ent ) {
     // nullptr:
     if ( !ent ) {
         return false;
@@ -109,7 +109,7 @@ static inline const bool SVG_Entity_IsActive( const edict_t *ent ) {
 /**
 *   @brief  Returns true if the entity is active and has a client assigned to it.
 **/
-static inline const bool SVG_Entity_IsClient( const edict_t *ent, const bool healthCheck = false ) {
+static inline const bool SVG_Entity_IsClient( const svg_edict_t *ent, const bool healthCheck = false ) {
     // Inactive Entity:
     if ( !SVG_Entity_IsActive( ent ) ) {
         return false;
@@ -129,7 +129,7 @@ static inline const bool SVG_Entity_IsClient( const edict_t *ent, const bool hea
 /**
 *   @brief  Returns true if the entity is active and is an actual monster.
 **/
-static inline const bool SVG_Entity_IsMonster( const edict_t *ent/*, const bool healthCheck = false */ ) {
+static inline const bool SVG_Entity_IsMonster( const svg_edict_t *ent/*, const bool healthCheck = false */ ) {
     // Inactive Entity:
     if ( !SVG_Entity_IsActive( ent ) ) {
         return false;
@@ -145,7 +145,7 @@ static inline const bool SVG_Entity_IsMonster( const edict_t *ent/*, const bool 
 *   @brief  Returns true if the entity is active(optional, true by default) and has a luaName set to it.
 *   @param  mustBeActive    If true, it will also check for whether the entity is an active entity.
 **/
-static inline const bool SVG_Entity_IsValidLuaEntity( const edict_t *ent, const bool mustBeActive = true ) {
+static inline const bool SVG_Entity_IsValidLuaEntity( const svg_edict_t *ent, const bool mustBeActive = true ) {
     // Inactive Entity:
     if ( mustBeActive && !SVG_Entity_IsActive( ent ) ) {
         return false;
@@ -172,7 +172,7 @@ static inline const bool SVG_Entity_IsValidLuaEntity( const edict_t *ent, const 
 /**
 *   @brief  Returns true if the entity has specified spawnFlags set.
 **/
-static inline const bool SVG_HasSpawnFlags( const edict_t *ent, const int32_t spawnFlags ) {
+static inline const bool SVG_HasSpawnFlags( const svg_edict_t *ent, const int32_t spawnFlags ) {
     return ( ent->spawnflags & spawnFlags ) != 0;
 }
 
@@ -190,17 +190,17 @@ static inline const bool SVG_HasSpawnFlags( const edict_t *ent, const int32_t sp
 /**
 *   @brief  Find the matching information for the ID and assign it to the entity's useTarget.hintInfo.
 **/
-void SVG_Entity_SetUseTargetHintByID( edict_t *ent, const int32_t id );
+void SVG_Entity_SetUseTargetHintByID( svg_edict_t *ent, const int32_t id );
 /**
 *   @brief  Returns true if the entity has the specified useTarget flags set.
 **/
-static inline const bool SVG_Entity_HasUseTargetFlags( const edict_t *ent, const entity_usetarget_flags_t useTargetFlags ) {
+static inline const bool SVG_Entity_HasUseTargetFlags( const svg_edict_t *ent, const entity_usetarget_flags_t useTargetFlags ) {
     return ( ( ent->useTarget.flags & useTargetFlags ) ) != 0 ? true : false;
 }
 /**
 *   @brief  Returns true if the entity has the specified useTarget flags set.
 **/
-static inline const bool SVG_Entity_HasUseTargetState( const edict_t *ent, const entity_usetarget_state_t useTargetState ) {
+static inline const bool SVG_Entity_HasUseTargetState( const svg_edict_t *ent, const entity_usetarget_state_t useTargetState ) {
     return ( ent->useTarget.state & useTargetState ) != 0 ? true : false;
 }
 
@@ -221,12 +221,12 @@ static inline const bool SVG_Entity_HasUseTargetState( const edict_t *ent, const
 *           which if hits nothing, means the entity is visible.
 *   @return True if the entity 'other' is visible to 'self'.
 **/
-const bool SVG_Entity_IsVisible( edict_t *self, edict_t *other );
+const bool SVG_Entity_IsVisible( svg_edict_t *self, svg_edict_t *other );
 /**
 *   @return True if the entity is in front (in sight) of self
 **/
-const bool SVG_Entity_IsInFrontOf( edict_t *self, edict_t *other, const float dotRangeArea = 3.0f );
+const bool SVG_Entity_IsInFrontOf( svg_edict_t *self, svg_edict_t *other, const float dotRangeArea = 3.0f );
 /**
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
-const bool SVG_Entity_IsInFrontOf( edict_t *self, const Vector3 &testOrigin, const float dotRangeArea = 3.0f );
+const bool SVG_Entity_IsInFrontOf( svg_edict_t *self, const Vector3 &testOrigin, const float dotRangeArea = 3.0f );

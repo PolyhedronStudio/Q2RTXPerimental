@@ -58,7 +58,7 @@ int sm_meat_index;
 int snd_fry;
 
 //! Actual array storing the edicts. (entities).
-edict_t	*g_edicts;
+svg_edict_t	*g_edicts;
 //! Memory Pool for entities.
 svg_edict_pool_t g_edict_pool;
 
@@ -116,15 +116,15 @@ cvar_t *g_select_empty;
 //
 // Func Declarations:
 //
-void SVG_Client_Begin( edict_t *ent );
-void SVG_Client_Command( edict_t *ent );
-qboolean SVG_Client_Connect( edict_t *ent, char *userinfo );
-void SVG_Client_Disconnect( edict_t *ent );
-void SVG_Client_Think( edict_t *ent, usercmd_t *cmd );
-void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
+void SVG_Client_Begin( svg_edict_t *ent );
+void SVG_Client_Command( svg_edict_t *ent );
+qboolean SVG_Client_Connect( svg_edict_t *ent, char *userinfo );
+void SVG_Client_Disconnect( svg_edict_t *ent );
+void SVG_Client_Think( svg_edict_t *ent, usercmd_t *cmd );
+void SVG_Client_UserinfoChanged( svg_edict_t *ent, char *userinfo );
 
 void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
-void SVG_RunEntity(edict_t *ent);
+void SVG_RunEntity(svg_edict_t *ent);
 void SVG_WriteGame(const char *filename, qboolean autosave);
 void SVG_ReadGame(const char *filename);
 void SVG_WriteLevel(const char *filename);
@@ -484,7 +484,7 @@ void ClientEndServerFrames(void) {
     // calc the player views now that all pushing
     // and damage has been added
     for ( int32_t i = 0 ; i < maxclients->value ; i++) {
-        edict_t *ent = g_edicts + 1 + i;
+        svg_edict_t *ent = g_edicts + 1 + i;
         if ( !ent->inuse || !ent->client ) {
             continue;
         }
@@ -496,8 +496,8 @@ void ClientEndServerFrames(void) {
 /**
 *   @brief  Returns the created target changelevel
 **/
-edict_t *CreateTargetChangeLevel( char *map ) {
-    edict_t *ent;
+svg_edict_t *CreateTargetChangeLevel( char *map ) {
+    svg_edict_t *ent;
 
     ent = SVG_AllocateEdict();
     ent->classname = "target_changelevel";
@@ -512,7 +512,7 @@ edict_t *CreateTargetChangeLevel( char *map ) {
 *   @brief  The timelimit or fraglimit has been exceeded
 **/
 void EndDMLevel(void) {
-    edict_t     *ent;
+    svg_edict_t     *ent;
     char *s, *t, *f;
     static const char *seps = " ,\n\r";
 
@@ -633,7 +633,7 @@ void CheckDMRules(void) {
 **/
 void ExitLevel(void) {
     int     i;
-    edict_t *ent;
+    svg_edict_t *ent;
     char    command [256];
 
     // WID: LUA: CallBack.
@@ -691,7 +691,7 @@ void SVG_RunFrame(void) {
     // Treat each object in turn
     // even the world gets a chance to think
     //
-    edict_t *ent = &g_edicts[ 0 ];
+    svg_edict_t *ent = &g_edicts[ 0 ];
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent++ ) {
         if ( !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."

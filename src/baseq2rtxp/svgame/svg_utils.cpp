@@ -113,9 +113,9 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
 /**
 *   @brief  
 **/
-void SVG_Util_TouchTriggers(edict_t *ent) {
+void SVG_Util_TouchTriggers(svg_edict_t *ent) {
     int         i, num;
-    edict_t     *touch[MAX_EDICTS], *hit;
+    svg_edict_t     *touch[MAX_EDICTS], *hit;
 
     // dead things don't activate triggers!
     if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
@@ -143,9 +143,9 @@ void SVG_Util_TouchTriggers(edict_t *ent) {
 *   @brief  Call after linking a new trigger in during gameplay
 *           to force all entities it covers to immediately touch it
 **/
-void SVG_Util_TouchSolids(edict_t *ent) {
+void SVG_Util_TouchSolids(svg_edict_t *ent) {
     int         i, num;
-    edict_t     *touch[MAX_EDICTS], *hit;
+    svg_edict_t     *touch[MAX_EDICTS], *hit;
 
     num = gi.BoxEdicts(ent->absmin, ent->absmax, touch
                        , MAX_EDICTS, AREA_SOLID);
@@ -171,9 +171,9 @@ void SVG_Util_TouchSolids(edict_t *ent) {
 *   @brief  Scan for projectiles between our movement positions
 *           to see if we need to collide against them.
 **/
-void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
+void SVG_Util_TouchProjectiles( svg_edict_t *ent, const Vector3 &previous_origin ) {
     struct skipped_projectile {
-        edict_t *projectile;
+        svg_edict_t *projectile;
         int32_t spawn_count;
     };
     // a bit ugly, but we'll store projectiles we are ignoring here.
@@ -228,7 +228,7 @@ void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
 /**
 *	@brief	Basic Trigger initialization mechanism.
 **/
-void SVG_Util_InitTrigger( edict_t *self ) {
+void SVG_Util_InitTrigger( svg_edict_t *self ) {
     if ( !VectorEmpty( self->s.angles ) ) {
         SVG_Util_SetMoveDir( self->s.angles, self->movedir );
     }
@@ -260,7 +260,7 @@ Kills all entities that would touch the proposed new positioning
 of ent.  Ent should be unlinked before calling this!
 =================
 */
-//const bool SVG_Util_KillBox(edict_t *ent, const bool bspClipping ) {
+//const bool SVG_Util_KillBox(svg_edict_t *ent, const bool bspClipping ) {
 //    // don't telefrag as spectator... or in noclip
 //    if ( ent->movetype == MOVETYPE_NOCLIP ) {
 //        return true;
@@ -271,13 +271,13 @@ of ent.  Ent should be unlinked before calling this!
 //    //// [Paril-KEX] don't gib other players in coop if we're not colliding
 //    //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
 //    //    mask &= ~CONTENTS_PLAYER;
-//    static edict_t *touchedEdicts[ MAX_EDICTS ];
+//    static svg_edict_t *touchedEdicts[ MAX_EDICTS ];
 //    memset( touchedEdicts, 0, MAX_EDICTS );
 //
 //    int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 //    for ( int32_t i = 0; i < num; i++ ) {
 //        // Pointer to touched entity.
-//        edict_t *hit = touchedEdicts[ i ];
+//        svg_edict_t *hit = touchedEdicts[ i ];
 //        // Make sure its valid.
 //        if ( hit == nullptr ) {
 //            continue;
@@ -336,7 +336,7 @@ of ent.  Ent should be unlinked before calling this!
 *   @brief  Kills all entities that would touch the proposed new positioning
 *           of ent.  Ent should be unlinked before calling this!
 **/
-const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
+const bool SVG_Util_KillBox( svg_edict_t *ent, const bool bspClipping ) {
     // don't telefrag as spectator... or in noclip
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         return true;
@@ -347,13 +347,13 @@ const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
     //// [Paril-KEX] don't gib other players in coop if we're not colliding
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
     //    mask &= ~CONTENTS_PLAYER;
-    static edict_t *touchedEdicts[ MAX_EDICTS ];
+    static svg_edict_t *touchedEdicts[ MAX_EDICTS ];
     memset( touchedEdicts, 0, MAX_EDICTS );
 
     int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
     for ( int32_t i = 0; i < num; i++ ) {
         // Pointer to touched entity.
-        edict_t *hit = touchedEdicts[ i ];
+        svg_edict_t *hit = touchedEdicts[ i ];
         // Make sure its valid.
         if ( hit == nullptr ) {
             continue;
@@ -425,7 +425,7 @@ const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
 *   @note   At the time of calling, parent entity has to reside in its default state.
 *           (This so the actual offsets can be calculated easily.)
 **/
-void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover ) {
+void SVG_MoveWith_SetTargetParentEntity( const char *targetName, svg_edict_t *parentMover, svg_edict_t *childMover ) {
     if ( !SVG_Entity_IsActive( parentMover ) || !SVG_Entity_IsActive( childMover ) ) {
         return;
     }
@@ -442,7 +442,7 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parent
     );
 
     // Add it to the chain.
-    edict_t *nextInlineMover = parentMover;
+    svg_edict_t *nextInlineMover = parentMover;
     while ( nextInlineMover->moveWith.moveNextEntity ) {
         nextInlineMover = nextInlineMover->moveWith.moveNextEntity;
     }
@@ -472,14 +472,14 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parent
     gi.dprintf( "%s: found parent(%s) for child entity(%s).\n", __func__, (const char*)parentMover->targetNames.target, (const char *)childMover->targetNames.movewith );
 }
 
-void SVG_MoveWith_Init( edict_t *self, edict_t *parent ) {
+void SVG_MoveWith_Init( svg_edict_t *self, svg_edict_t *parent ) {
 
 }
 
 /**
 *   @brief
 **/
-void SVG_MoveWith_SetChildEntityMovement( edict_t *self ) {
+void SVG_MoveWith_SetChildEntityMovement( svg_edict_t *self ) {
     //// Parent origin.
     //Vector3 parentOrigin = moveWithEntity->s.origin;
     //// Difference atm between parent origin and child origin.
@@ -493,10 +493,10 @@ void SVG_MoveWith_SetChildEntityMovement( edict_t *self ) {
 /**
 *   @brief 
 **/
-bool SV_Push( edict_t *pusher, vec3_t move, vec3_t amove );
-svg_trace_t SV_PushEntity( edict_t *ent, vec3_t push );
+bool SV_Push( svg_edict_t *pusher, vec3_t move, vec3_t amove );
+svg_trace_t SV_PushEntity( svg_edict_t *ent, vec3_t push );
 
-void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, edict_t *parentMover, edict_t *childMover ) {
+void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, svg_edict_t *parentMover, svg_edict_t *childMover ) {
     // Calculate origin to adjust by.
     #if 0
 
@@ -573,7 +573,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 
             // object is moving
             //SV_PushEntity( childMover, offset );
-            //svg_trace_t SV_PushEntity( edict_t * ent, vec3_t push )
+            //svg_trace_t SV_PushEntity( svg_edict_t * ent, vec3_t push )
             //    if ( !VectorEmpty( part->velocity ) || !VectorEmpty( part->avelocity ) ) {
             //        // object is moving
             //        VectorScale( part->velocity, gi.frame_time_s, move );
@@ -610,7 +610,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 }
 
 //if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
-//    edict_t *moveWithEntity = ent->targetEntities.movewith;
+//    svg_edict_t *moveWithEntity = ent->targetEntities.movewith;
 //    if ( moveWithEntity->inuse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
 //        // Parent origin.
 //        Vector3 parentOrigin = moveWithEntity->s.origin;

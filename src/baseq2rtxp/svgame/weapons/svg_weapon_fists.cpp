@@ -59,8 +59,8 @@ void Weapon_Fists_Precached( const gitem_t *item ) {
 /**
 *   @brief
 **/
-const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
-void weapon_fists_primary_fire( edict_t *ent ) {
+const bool fire_hit_punch_impact( svg_edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
+void weapon_fists_primary_fire( svg_edict_t *ent ) {
     vec3_t      start;
     Vector3     forward, right;
     int         damage = 1;
@@ -94,7 +94,7 @@ void weapon_fists_primary_fire( edict_t *ent ) {
 /**
 *   @brief  
 **/
-void weapon_fists_secondary_fire( edict_t *ent ) {
+void weapon_fists_secondary_fire( svg_edict_t *ent ) {
     Vector3     start;
     Vector3     forward, right;
     int         damage = 1;
@@ -129,7 +129,7 @@ void weapon_fists_secondary_fire( edict_t *ent ) {
 /**
 *   @brief  Processes responses to the user input.
 **/
-static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
+static void Weapon_Fists_ProcessUserInput( svg_edict_t *ent ) {
     if ( ent->client->userInput.pressedButtons & BUTTON_PRIMARY_FIRE ) {
         SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_PRIMARY_FIRING, fistsItemInfo.modeAnimations, false );
         return;
@@ -142,7 +142,7 @@ static void Weapon_Fists_ProcessUserInput( edict_t *ent ) {
 /**
 *   @brief  Pistol Weapon 'State Machine'.
 **/
-void Weapon_Fists( edict_t *ent, const bool processUserInputOnly ) {
+void Weapon_Fists( svg_edict_t *ent, const bool processUserInputOnly ) {
     // Process the animation frames of the mode we're in.
     const bool isDoneAnimating = SVG_Player_Weapon_ProcessModeAnimation( ent, &fistsItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 

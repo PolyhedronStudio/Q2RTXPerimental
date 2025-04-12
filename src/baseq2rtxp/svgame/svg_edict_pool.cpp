@@ -22,7 +22,7 @@
 /**
 *	@brief	Easy access to an edict within the edict pool.
 **/
-edict_t *svg_edict_pool_t::operator[]( size_t index ) {
+svg_edict_t *svg_edict_pool_t::operator[]( size_t index ) {
 	return ( index >= 0 && index < MAX_EDICTS && edicts != nullptr ? &edicts[ index ] : nullptr );
 }
 
@@ -30,7 +30,7 @@ edict_t *svg_edict_pool_t::operator[]( size_t index ) {
 *	@brief	Returns a pointer to the edict matching the number.
 *	@return	The edict for the given number. (nullptr if out of range).
 **/
-edict_t *svg_edict_pool_t::EdictForNumber( const int32_t number ) {
+svg_edict_t *svg_edict_pool_t::EdictForNumber( const int32_t number ) {
 	// Ensure edicts is a valid ptr.
 	if ( !edicts ) {
 		return nullptr;
@@ -48,7 +48,7 @@ edict_t *svg_edict_pool_t::EdictForNumber( const int32_t number ) {
 *	@param		edict A pointer to the edict whose slot index number is to be determined.
 *	@return		The slot index number of the given edict, or -1 if the edict is out of range.
 **/
-const int32_t svg_edict_pool_t::NumberForEdict( const edict_t *edict ) {
+const int32_t svg_edict_pool_t::NumberForEdict( const svg_edict_t *edict ) {
 	// Ensure the pool is there.
 	//if ( globals.edictPool == nullptr ) {
 	//	return -1;
@@ -82,7 +82,7 @@ const int32_t svg_edict_pool_t::NumberForEdict( const edict_t *edict ) {
 *   @param  numReservedEntities The number of reserved MAXIMUM entities to be allocated.
 *	@return	A pointer to the pool's allocated edict array.
 **/
-edict_t *SVG_EdictPool_Reallocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities ) {
+svg_edict_t *SVG_EdictPool_Reallocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities ) {
 	//// If it had a previous edicts pointer, free the edicts array and nullify the ptr.
 	//if ( globals.edictPool->edicts != nullptr ) {
 	//	// Clear out the old edict pool.
@@ -99,11 +99,11 @@ edict_t *SVG_EdictPool_Reallocate( svg_edict_pool_t *edictPool, const int32_t nu
 	*edictPool = svg_edict_pool_t();
 	
 	// Perform allocation, and set the pointer to the new edict array.
-	edictPool->edicts = (edict_t *)gi.TagMalloc( numReservedEntities * sizeof( edictPool->edicts[ 0 ] ), TAG_SVGAME );
+	edictPool->edicts = (svg_edict_t *)gi.TagMalloc( numReservedEntities * sizeof( edictPool->edicts[ 0 ] ), TAG_SVGAME );
 	// Initialize objects.
 	for ( int32_t i = 0; i < numReservedEntities; i++ ) {
 		// Use in-place constructing.
-		new( &edictPool->edicts[ i ] ) edict_t();
+		new( &edictPool->edicts[ i ] ) svg_edict_t();
 		// Set the number to the current index.
 		edictPool->edicts[ i ].s.number = i;
 	}

@@ -44,7 +44,7 @@ static worldSector_t    sv_sectorNodes[SECTOR_NODES];
 static int              sv_numSectorNodes;
 
 static const vec_t  *sector_mins, *sector_maxs;
-static edict_t      **sector_list;
+static sv_edict_t      **sector_list;
 static int          sector_count, sector_maxcount;
 static int          sector_type;
 
@@ -97,7 +97,7 @@ static worldSector_t *SV_CreateSectorNode(int depth, const vec3_t mins, const ve
 void SV_ClearWorld(void)
 {
     mmodel_t *cm;
-    edict_t *ent;
+    sv_edict_t *ent;
     int i;
 
     // Clear area node data.
@@ -126,7 +126,7 @@ void SV_ClearWorld(void)
 *           sets ent->leafnums[] for pvs determination even if the entity.
 *           is not solid.
 **/
-void SV_LinkEdict(cm_t *cm, edict_t *ent)
+void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
 {
     mleaf_t *leafs[MAX_TOTAL_ENT_LEAFS];
     int32_t clusters[MAX_TOTAL_ENT_LEAFS];
@@ -227,7 +227,7 @@ void SV_LinkEdict(cm_t *cm, edict_t *ent)
 *   @brief  Call before removing an entity, and before trying to move one,
 *           so it doesn't clip against itself.
 **/
-void PF_UnlinkEdict(edict_t *ent)
+void PF_UnlinkEdict(edict_ptr_t *ent)
 {
     if (!ent->area.prev)
         return;        // not linked in anywhere
@@ -242,7 +242,7 @@ void PF_UnlinkEdict(edict_t *ent)
 *           sets ent->leafnums[] for pvs determination even if the entity.
 *           is not solid.
 **/
-void PF_LinkEdict(edict_t *ent)
+void PF_LinkEdict(edict_ptr_t *ent)
 {
     worldSector_t *node;
     server_entity_t *sent;
@@ -367,7 +367,7 @@ void PF_LinkEdict(edict_t *ent)
 static void SV_AreaEdicts_r(worldSector_t *node)
 {
     list_t      *start;
-    edict_t     *check;
+    sv_edict_t     *check;
 
     // touch linked edicts
     if (sector_type == AREA_SOLID)
@@ -375,7 +375,7 @@ static void SV_AreaEdicts_r(worldSector_t *node)
     else
         start = &node->trigger_edicts;
 
-    LIST_FOR_EACH(edict_t, check, start, area) {
+    LIST_FOR_EACH(sv_edict_t, check, start, area) {
         if (check->solid == SOLID_NOT)
             continue;        // deactivated
         if (check->absmin[0] > sector_maxs[0]
@@ -414,7 +414,7 @@ static void SV_AreaEdicts_r(worldSector_t *node)
 *   @return The number of pointers filled in.
 **/
 const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
-                  edict_t **list, const int32_t maxcount, const int32_t areatype)
+                  sv_edict_t **list, const int32_t maxcount, const int32_t areatype)
 {
     sector_mins = mins;
     sector_maxs = maxs;
@@ -435,7 +435,7 @@ const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
 *	@return	A headnode that can be used for testing and/or clipping an
 *			object 'hull' of mins/maxs size for the entity's said 'solid'.
 **/
-static mnode_t *SV_HullForEntity(edict_t *ent, const bool includeSolidTriggers = false ) {
+static mnode_t *SV_HullForEntity(sv_edict_t *ent, const bool includeSolidTriggers = false ) {
     if ( ent->solid == SOLID_BSP || ( includeSolidTriggers && ent->solid == SOLID_TRIGGER ) ){
         int32_t i = ent->s.modelindex - 1;
         
@@ -474,7 +474,7 @@ static mnode_t *SV_WorldNodes( void ) {
 *			Quake 2 extends this to also check entities, to allow moving liquids
 **/
 const cm_contents_t SV_PointContents( const vec3_t p ) {
-	edict_t *touch[ MAX_EDICTS ], *hit;
+	sv_edict_t *touch[ MAX_EDICTS ], *hit;
 	int         i, num;
     cm_contents_t  contents;
 
@@ -514,11 +514,11 @@ const cm_contents_t SV_PointContents( const vec3_t p ) {
 **/
 static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
                                   const vec3_t maxs, const vec3_t end,
-                                  edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *tr)
+                                  sv_edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *tr)
 {
     vec3_t      boxmins, boxmaxs;
     int         i, num;
-    edict_t     *touchlist[MAX_EDICTS], *touch;
+    sv_edict_t     *touchlist[MAX_EDICTS], *touch;
     cm_trace_t     trace = {};
     // create the bounding box of the entire move
     for (i = 0; i < 3; i++) {
@@ -589,7 +589,7 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
 **/
 const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
                            const vec3_t maxs, const vec3_t end,
-                           edict_t *passEdict, const cm_contents_t contentmask)
+                           edict_ptr_t *passEdict, const cm_contents_t contentmask)
 {
     cm_trace_t     trace;
 
@@ -640,7 +640,7 @@ const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clip, const vec3_t start, const vec3_t mins,
                             const vec3_t maxs, const vec3_t end,
                             const cm_contents_t contentmask ) {
 	cm_trace_t     trace;

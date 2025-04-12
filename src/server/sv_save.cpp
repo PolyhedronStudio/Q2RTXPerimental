@@ -505,7 +505,7 @@ const int32_t SV_NoSaveGames(void)
 **/
 void SV_AutoSaveBegin(mapcmd_t *cmd) {
     byte        bitmap[MAX_CLIENTS / CHAR_BIT];
-    edict_t     *ent;
+    sv_edict_t     *ent;
     int         i;
 
     // check for clearing the current savegame

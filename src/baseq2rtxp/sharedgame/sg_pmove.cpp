@@ -8,9 +8,9 @@
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
-#include "sg_misc.h"
-#include "sg_pmove.h"
-#include "sg_pmove_slidemove.h"
+#include "sharedgame/sg_misc.h"
+#include "sharedgame/sg_pmove.h"
+#include "sharedgame/sg_pmove_slidemove.h"
 
 // TODO: FIX CLAMP BEING NAMED CLAMP... preventing std::clamp
 #undef clamp
@@ -106,7 +106,7 @@ static void PM_UpdateGroundFromTrace( const cm_trace_t *trace ) {
 		pm->ground.contents = CONTENTS_NONE;
 		pm->ground.material = nullptr;
 	} else {
-		pm->ground.entity = (sgentity_s*)SG_GetEntityForNumber( trace->entityNumber );
+		pm->ground.entity = (struct edict_ptr_t*)SG_GetEntityForNumber( trace->entityNumber );
 		pm->ground.plane = trace->plane;
 		pm->ground.surface = *trace->surface;
 		pm->ground.contents = trace->contents;

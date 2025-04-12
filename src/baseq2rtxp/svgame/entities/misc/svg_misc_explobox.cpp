@@ -18,7 +18,7 @@ health (80), and dmg (150).
 /**
 *   @brief
 **/
-void barrel_touch( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void barrel_touch( svg_edict_t *self, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
 
     if ( ( !other->groundInfo.entity ) || ( other->groundInfo.entity == self ) ) {
         return;
@@ -54,7 +54,7 @@ void barrel_touch( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_su
 /**
 *   @brief
 **/
-void barrel_explode( edict_t *self ) {
+void barrel_explode( svg_edict_t *self ) {
     vec3_t  save = {};
 
     SVG_RadiusDamage( self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLODED_BARREL );
@@ -106,7 +106,7 @@ void barrel_explode( edict_t *self ) {
 /**
 *   @brief
 **/
-void barrel_delay( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
+void barrel_delay( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point ) {
     self->takedamage = DAMAGE_NO;
     self->nextthink = level.time + random_time( 150_ms );
     self->think = barrel_explode;
@@ -116,7 +116,7 @@ void barrel_delay( edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
 /**
 *   @brief  
 **/
-void SP_misc_explobox( edict_t *self ) {
+void SP_misc_explobox( svg_edict_t *self ) {
     if ( deathmatch->value ) {
         // auto-remove for deathmatch
         SVG_FreeEdict( self );

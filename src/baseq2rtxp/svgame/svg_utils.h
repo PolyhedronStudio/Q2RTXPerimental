@@ -10,7 +10,7 @@
 /**
 *	@brief	Wrapper for gi.trace that accepts Vector3 args.
 **/
-static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEdict, const cm_contents_t contentMask ) {
+static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_edict_t *passEdict, const cm_contents_t contentMask ) {
 	//if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
 	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
 	if ( &mins == &qm_vector3_null && &maxs == &qm_vector3_null ) {
@@ -21,7 +21,7 @@ static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &
 /**
 *	@brief	Wrapper for gi.clipthat accepts Vector3 args.
 **/
-static inline const svg_trace_t SVG_Clip( edict_t *clipEdict, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+static inline const svg_trace_t SVG_Clip( svg_edict_t *clipEdict, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
 	//if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
 	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
 	if ( &mins == &qm_vector3_null && &maxs == &qm_vector3_null ) {
@@ -52,24 +52,24 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir );
 /**
 *   @brief
 **/
-void SVG_Util_TouchTriggers( edict_t *ent );
+void SVG_Util_TouchTriggers( svg_edict_t *ent );
 /**
 *   @brief  Scan for projectiles between our movement positions
 *           to see if we need to collide against them.
 **/
-void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin );
+void SVG_Util_TouchProjectiles( svg_edict_t *ent, const Vector3 &previous_origin );
 /**
 *   @brief  Call after linking a new trigger in during gameplay
 *           to force all entities it covers to immediately touch it
 **/
-void SVG_Util_TouchSolids( edict_t *ent );
+void SVG_Util_TouchSolids( svg_edict_t *ent );
 
 
 
 /**
 *	@brief	Basic Trigger initialization mechanism.
 **/
-void SVG_Util_InitTrigger( edict_t *self );
+void SVG_Util_InitTrigger( svg_edict_t *self );
 
 
 
@@ -77,7 +77,7 @@ void SVG_Util_InitTrigger( edict_t *self );
 *   @brief  Kills all entities that would touch the proposed new positioning
 *           of ent.  Ent should be unlinked before calling this!
 **/
-const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping );
+const bool SVG_Util_KillBox( svg_edict_t *ent, const bool bspClipping );
 
 
 
@@ -93,17 +93,17 @@ const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping );
 /**
 *   @brief
 **/
-void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, edict_t *parentMover, edict_t *childMover );
+void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, svg_edict_t *parentMover, svg_edict_t *childMover );
 /**
 *   @brief
 **/
-//void SVG_MoveWith_Init( edict_t *self, edict_t *parent );
+//void SVG_MoveWith_Init( svg_edict_t *self, svg_edict_t *parent );
 /**
 *   @brief
 **/
-void SVG_MoveWith_SetChildEntityMovement( edict_t *self );
+void SVG_MoveWith_SetChildEntityMovement( svg_edict_t *self );
 /**
 *   @note   At the time of calling, parent entity has to reside in its default state.
 *           (This so the actual offsets can be calculated easily.)
 **/
-void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover );
+void SVG_MoveWith_SetTargetParentEntity( const char *targetName, svg_edict_t *parentMover, svg_edict_t *childMover );

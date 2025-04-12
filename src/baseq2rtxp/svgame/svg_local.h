@@ -17,7 +17,7 @@
 *   Should already have been defined by CMake for this ServerGame target.
 *
 *   Define SVGAME_INCLUDE so that game.h does not define the
-*   short, server-visible svg_client_t and edict_t structures,
+*   short, server-visible svg_client_t and svg_edict_t structures,
 *   because we define the full size ones in this file
 **/
 #ifndef SVGAME_INCLUDE
@@ -40,7 +40,7 @@ extern svgame_export_t globals;
 **/
 // SharedGame includes:
 #include "sharedgame/sg_shared.h"
-// Typedef for edict_t.
+// Typedef for svg_edict_t.
 typedef struct sg_usetarget_hint_s sg_usetarget_hint_t;
 
 /**
@@ -48,7 +48,7 @@ typedef struct sg_usetarget_hint_s sg_usetarget_hint_t;
 **/
 enum entity_flags_t;
 
-struct edict_t;
+struct svg_edict_t;
 struct svg_edict_pool_t;
 struct svg_client_t;
 
@@ -298,7 +298,7 @@ extern spawn_temp_t st;
 * 
 **/
 //! For game entity fields.
-#define FOFS_GENTITY( field )       q_offsetof( edict_t, field )
+#define FOFS_GENTITY( field )       q_offsetof( svg_edict_t, field )
 //! For game client fields.
 #define FOFS_GCLIENT( field )       q_offsetof( svg_client_t, field )
 //! For game locals fields.
@@ -363,19 +363,19 @@ const gitem_t *SVG_FindItemByClassname(const char *classname);
 /**
 *   @brief
 **/
-edict_t *Drop_Item(edict_t *ent, const gitem_t *item);
+svg_edict_t *Drop_Item(svg_edict_t *ent, const gitem_t *item);
 /**
 *   @brief
 **/
-void SVG_SetItemRespawn(edict_t *ent, float delay);
+void SVG_SetItemRespawn(svg_edict_t *ent, float delay);
 /**
 *   @brief
 **/
-void SVG_SpawnItem(edict_t *ent, const gitem_t *item);
+void SVG_SpawnItem(svg_edict_t *ent, const gitem_t *item);
 /**
 *   @brief
 **/
-int PowerArmorType(edict_t *ent);
+int PowerArmorType(svg_edict_t *ent);
 /**
 *   @brief
 **/
@@ -383,11 +383,11 @@ const gitem_t *SVG_GetItemByIndex(int index);
 /**
 *   @brief
 **/
-const bool Add_Ammo(edict_t *ent, const gitem_t *item, const int32_t count);
+const bool Add_Ammo(svg_edict_t *ent, const gitem_t *item, const int32_t count);
 /**
 *   @brief
 **/
-void Touch_Item(edict_t *ent, edict_t *other, const cm_plane_t *plane, cm_surface_t *surf);
+void Touch_Item(svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf);
 
 
 
@@ -403,27 +403,27 @@ void Touch_Item(edict_t *ent, edict_t *other, const cm_plane_t *plane, cm_surfac
 /**
 *   @brief
 **/
-void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype );
+void monster_fire_bullet( svg_edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype );
 /**
 *   @brief
 **/
-void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype );
+void monster_fire_shotgun( svg_edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype );
 /**
 *   @brief
 **/
-void M_droptofloor( edict_t *ent );
+void M_droptofloor( svg_edict_t *ent );
 /**
 *   @brief
 **/
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype );
+void M_CatagorizePosition( svg_edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype );
 /**
 *   @brief
 **/
-void M_CheckGround( edict_t *ent, const cm_contents_t mask );
+void M_CheckGround( svg_edict_t *ent, const cm_contents_t mask );
 /**
 *   @brief
 **/
-void M_WorldEffects( edict_t *ent );
+void M_WorldEffects( svg_edict_t *ent );
 
 
 
@@ -436,23 +436,23 @@ void M_WorldEffects( edict_t *ent );
 * 
 * 
 **/
-const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right );
+const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( svg_edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right );
 #if 0
-bool fire_hit( edict_t *self, vec3_t aim, int damage, int kick );
+bool fire_hit( svg_edict_t *self, vec3_t aim, int damage, int kick );
 #endif
 /**
 *   @brief  Used for all impact (fighting kick/punch) attacks
 **/
-const bool fire_hit_punch_impact( edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
+const bool fire_hit_punch_impact( svg_edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
 /**
 *   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
 *           pistols, rifles, etc....
 **/
-void fire_bullet( edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath );
+void fire_bullet( svg_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath );
 /**
 *   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
 **/
-void fire_shotgun( edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath );
+void fire_shotgun( svg_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath );
 
 
 /**
@@ -495,7 +495,7 @@ void fire_shotgun( edict_t *self, const vec3_t start, const vec3_t aimdir, const
 **/
 struct mm_ground_info_t {
     //! Pointer to the actual ground entity we are on.(nullptr if none).
-    edict_t *entity;
+    svg_edict_t *entity;
     //! Ground entity link count.
     int32_t         entityLinkCount;
 
@@ -521,7 +521,7 @@ struct mm_liquid_info_t {
 
 #include "svgame/svg_game_edict.h"
 // Extern access.
-extern edict_t *g_edicts;
+extern svg_edict_t *g_edicts;
 // World entity.
 #define world   (&g_edicts[0])
 // Base Entity Functions.
@@ -545,7 +545,7 @@ extern svg_edict_pool_t g_edict_pool;
 **/
 /**
 *   @brief  Server Game expansion implementation of svg_trace_t.
-*           handles fetching the edict_t from the trace_t entityNumber.
+*           handles fetching the svg_edict_t from the trace_t entityNumber.
 **/
 struct svg_trace_t : public cm_trace_t {
     [[nodiscard]] svg_trace_t() = default;
@@ -557,23 +557,23 @@ struct svg_trace_t : public cm_trace_t {
     }
 
     //! Override type.
-    edict_t *ent = nullptr;
+    svg_edict_t *ent = nullptr;
 };
 
 /**
 *   @brief Processes the impact of an SVG trace on an entity.
-*   @param e1       A pointer to the entity (edict_t) involved in the impact.
+*   @param e1       A pointer to the entity (svg_edict_t) involved in the impact.
 *   @param trace    A pointer to the SVG trace (svg_trace_t) containing information about the impact.
 **/
-void SVG_Impact( edict_t *e1, svg_trace_t *trace );
+void SVG_Impact( svg_edict_t *e1, svg_trace_t *trace );
 /**
 *   @brief  Get the clip mask for the entity.
 **/
-const cm_contents_t SVG_GetClipMask( edict_t *ent );
+const cm_contents_t SVG_GetClipMask( svg_edict_t *ent );
 /**
 *   @brief  Run the entity's think function.
 **/
-void SVG_RunEntity( edict_t *ent );
+void SVG_RunEntity( svg_edict_t *ent );
 
 
 

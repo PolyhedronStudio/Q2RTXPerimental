@@ -44,7 +44,7 @@ static constexpr int32_t FUNC_BREAKABLE_SPAWNFLAG_ANIMATE_ALL_FAST	= BIT( 3 );
 /**
 *   @brief  
 **/
-void _become_( edict_t *self ) {
+void _become_( svg_edict_t *self ) {
     // Do not free this entity, we might wanna be respawned.
     SVG_Misc_BecomeExplosion( self, 1, false );
 }
@@ -52,7 +52,7 @@ void _become_( edict_t *self ) {
 /**
 *   @brief
 **/
-void func_breakable_explode( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
+void func_breakable_explode( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point ) {
     // bmodel origins are (0 0 0), we need to adjust that here
     const Vector3 size = Vector3( self->size ) * 0.5f; // VectorScale( self->size, 0.5f, size );
     const Vector3 origin = Vector3( self->absmin ) + size; // VectorAdd( self->absmin, size, origin );
@@ -149,13 +149,13 @@ void func_breakable_explode( edict_t *self, edict_t *inflictor, edict_t *attacke
 /**
 *   @brief  Triggers the breaking/exploding of the target when triggered by other entities.
 **/
-void func_breakable_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void func_breakable_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     func_breakable_explode( self, other, activator, self->health, self->s.origin );
 }
 /**
 *   @brief  Pain handling.
 **/
-void func_breakable_pain( edict_t *self, edict_t *other, float kick, int damage ) {
+void func_breakable_pain( svg_edict_t *self, svg_edict_t *other, float kick, int damage ) {
 	// Construct signal arguments for the 'OnPain' signal.
     const svg_signal_argument_array_t signalArguments = {
             {
@@ -183,7 +183,7 @@ void func_breakable_pain( edict_t *self, edict_t *other, float kick, int damage 
 /**
 *   @brief
 **/
-void func_breakable_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void func_breakable_spawn_on_trigger( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	// Solid now that it's destroyable.
     self->solid = SOLID_BSP;
 	// Enable entity to be send to clients.
@@ -218,12 +218,12 @@ void func_breakable_spawn_on_trigger( edict_t *self, edict_t *other, edict_t *ac
 *
 *
 **/
-void SP_func_( edict_t *self );
+void SP_func_( svg_edict_t *self );
 
 /**
 *   @brief  Signal Receiving:
 **/
-void func_breakable_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+void func_breakable_onsignalin( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     /**
     *   Revive:
     **/
@@ -302,7 +302,7 @@ void func_breakable_onsignalin( edict_t *self, edict_t *other, edict_t *activato
 /**
 *   @brief
 **/
-void SP_func_breakable( edict_t *self ) {
+void SP_func_breakable( svg_edict_t *self ) {
     // WID: Nah.
     #if 0
     if ( deathmatch->value ) {

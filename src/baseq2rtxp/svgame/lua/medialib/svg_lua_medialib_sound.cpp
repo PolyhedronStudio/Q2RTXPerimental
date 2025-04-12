@@ -53,7 +53,7 @@ const qhandle_t MediaLib_PrecacheSound( const std::string &soundPath ) {
 *	@return	Binding to gi.sound
 **/
 const int32_t MediaLib_Sound( lua_edict_t leEnt, const int32_t soundChannel, const qhandle_t soundHandle, const float soundVolume, const int32_t soundAttenuation, const float soundTimeOffset ) {
-	edict_t *entity = leEnt.edict;
+	svg_edict_t *entity = leEnt.edict;
 	if ( !SVG_Entity_IsActive( entity ) ) {
 		return 0; // INVALID ENTITY
 	}

@@ -137,7 +137,7 @@ static constexpr int32_t SV_BASELINES_CHUNKS    = ( MAX_EDICTS >> SV_BASELINES_S
 /**
 *   Game features this server supports.
 **/
-static constexpr int32_t SV_FEATURES = (GMF_CLIENTNUM | GMF_PROPERINUSE |
+static constexpr int32_t SV_FEATURES = (/*GMF_CLIENTNUM |*/ GMF_PROPERINUSE |
                                         GMF_WANT_ALL_DISCONNECTS |
                                         GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE );
 
@@ -163,15 +163,15 @@ static inline cvar_t *SV_InfoSet( const char *var, const char *value ) {
 /**
 *   @return Returns a pointer to the edict matching the number.
 **/
-static inline edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
-    //#define EDICT_FOR_NUMBER(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
-    //return ( (edict_t *)( (byte *)ge->edictPool.edicts + ge->edictPool.edict_size * ( number ) ) );
-    return ge->edictPool->EdictForNumber( number );
+static inline sv_edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
+    //#define EDICT_FOR_NUMBER(n) ((sv_edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
+    //return ( (sv_edict_t *)( (byte *)ge->edictPool.edicts + ge->edictPool.edict_size * ( number ) ) );
+    return static_cast<sv_edict_t *>( ge->edictPool->EdictForNumber( number ) );
 }
 /**
 *   @return Returns the number of the pointer entity.
 **/
-static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
+static inline const int32_t NUMBER_OF_EDICT( const sv_edict_t *ent ) {
     //#define EDICT_NUM(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
     //return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edictPool.edicts ) / ge->edictPool.edict_size ) );
 	return ge->edictPool->NumberForEdict( ent );
@@ -351,7 +351,7 @@ typedef struct client_s {
 
     // core info
     clstate_t       state;
-    edict_t         *edict;     // EDICT_FOR_NUMBER(clientnum+1)
+    sv_edict_t         *edict;     // EDICT_FOR_NUMBER(clientnum+1)
     int             number;     // client slot number
 
     // client flags
@@ -452,9 +452,9 @@ typedef struct client_s {
 /**
 *   @return Returns the edict for the client entity pool matching the number.
 **/
-static inline edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
-    //#define EDICT_POOL(c, n) ((edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
-    //return ( (edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
+static inline sv_edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
+    //#define EDICT_POOL(c, n) ((sv_edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
+    //return ( (sv_edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
     return client->pool->EdictForNumber( number );
 }
 
@@ -666,7 +666,7 @@ extern cvar_t       *sv_zombietime;
 extern cvar_t       *sv_ghostime;
 
 extern client_t     *sv_client;
-extern edict_t      *sv_player;
+extern sv_edict_t      *sv_player;
 
 extern bool     sv_pending_autosave;
 

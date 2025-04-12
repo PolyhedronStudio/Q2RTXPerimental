@@ -32,7 +32,7 @@ is not a staircase.
 */
 int c_yes, c_no;
 
-bool M_CheckBottom(edict_t *ent)
+bool M_CheckBottom(svg_edict_t *ent)
 {
     vec3_t  mins, maxs, start, stop;
     svg_trace_t trace;
@@ -105,7 +105,7 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 //FIXME since we need to test end position contents here, can we avoid doing
 //it again later in catagorize position?
-static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
+static const bool SV_movestep(svg_edict_t *ent, Vector3 move, bool relink)
 {
     float       dz;
     vec3_t      oldorg, neworg, end;
@@ -285,7 +285,7 @@ M_ChangeYaw
 
 ===============
 */
-void M_ChangeYaw(edict_t *ent)
+void M_ChangeYaw(svg_edict_t *ent)
 {
     // Get angle modded angles.
     const float current = QM_AngleMod(ent->s.angles[YAW]);
@@ -338,7 +338,7 @@ facing it.
 
 ======================
 */
-bool SV_StepDirection( edict_t *ent, float yaw, float dist ) {
+bool SV_StepDirection( svg_edict_t *ent, float yaw, float dist ) {
     ent->ideal_yaw = yaw;
     M_ChangeYaw( ent );
 
@@ -372,7 +372,7 @@ SV_FixCheckBottom
 
 ======================
 */
-void SV_FixCheckBottom(edict_t *ent)
+void SV_FixCheckBottom(svg_edict_t *ent)
 {
     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_PARTIALGROUND );
 }
@@ -382,7 +382,7 @@ void SV_FixCheckBottom(edict_t *ent)
 M_walkmove
 ===============
 */
-bool M_walkmove(edict_t *ent, float yaw, float dist)
+bool M_walkmove(svg_edict_t *ent, float yaw, float dist)
 {
     vec3_t  move;
 

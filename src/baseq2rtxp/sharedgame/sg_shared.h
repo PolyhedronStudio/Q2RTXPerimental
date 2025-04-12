@@ -24,7 +24,7 @@
 	//! Game Module Name STR.
 	#define SG_GAME_MODULE_STR "SVGame"
 	//! Entity type.
-	typedef struct edict_t sgentity_s;
+	typedef struct svg_edict_t sgentity_s;
 #endif
 
 // Game Times.

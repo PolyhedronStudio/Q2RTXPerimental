@@ -13,7 +13,7 @@
 *		float
 *		std::string
 *		char*(because of std::string)
-*		edict_t*(if not a nullptr, and entity is inuse, it will push to stack the entity number, -1 otherwise.)
+*		svg_edict_t*(if not a nullptr, and entity is inuse, it will push to stack the entity number, -1 otherwise.)
 *
 *	Implementation for custom types can be added.
 *
@@ -30,7 +30,7 @@
 *	@note	<discard_this>One has to deal and pop return values themselves.</discard_this>
 **/
 template <typename... Rest>
-static const bool SVG_Lua_SignalOut( sol::state_view &stateView, edict_t *ent, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_MISSING, const Rest&&... rest ) {
+static const bool SVG_Lua_SignalOut( sol::state_view &stateView, svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments, const svg_lua_callfunction_verbosity_t verbosity = LUA_CALLFUNCTION_VERBOSE_MISSING, const Rest&&... rest ) {
 	// False by default:
 	bool executedSuccessfully = false;
 

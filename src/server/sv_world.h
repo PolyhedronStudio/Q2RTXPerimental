@@ -26,7 +26,7 @@ void SV_ClearWorld( void );
 *   @brief  Call before removing an entity, and before trying to move one,
 *           so it doesn't clip against itself.
 **/
-void PF_UnlinkEdict( edict_t *ent );
+void PF_UnlinkEdict( edict_ptr_t *ent );
 
 
 /**
@@ -36,8 +36,8 @@ void PF_UnlinkEdict( edict_t *ent );
 *           sets ent->leafnums[] for pvs determination even if the entity.
 *           is not solid.
 **/
-void SV_LinkEdict( cm_t *cm, edict_t *ent );
-void PF_LinkEdict( edict_t *ent );
+void SV_LinkEdict( cm_t *cm, sv_edict_t *ent );
+void PF_LinkEdict( edict_ptr_t *ent );
 
 
 
@@ -58,7 +58,7 @@ void PF_LinkEdict( edict_t *ent );
 *   @todo: Does this always return the world?
 *   @return The number of pointers filled in.
 **/
-const int32_t SV_AreaEdicts( const vec3_t mins, const vec3_t maxs, edict_t **list, const int32_t maxcount, const int32_t areatype );
+const int32_t SV_AreaEdicts( const vec3_t mins, const vec3_t maxs, sv_edict_t **list, const int32_t maxcount, const int32_t areatype );
 
 /**
 *	@return	The CONTENTS_* value from the world at the given point.
@@ -79,11 +79,11 @@ const cm_contents_t SV_PointContents( const vec3_t p );
 **/
 const cm_trace_t q_gameabi SV_Trace( const vec3_t start, const vec3_t mins,
     const vec3_t maxs, const vec3_t end,
-    edict_t *passedict, const cm_contents_t contentmask );
+    edict_ptr_t *passedict, const cm_contents_t contentmask );
 
 /**
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-const cm_trace_t q_gameabi SV_Clip( edict_t *clip, const vec3_t start, const vec3_t mins,
+const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clip, const vec3_t start, const vec3_t mins,
     const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );

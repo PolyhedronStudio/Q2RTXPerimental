@@ -86,43 +86,7 @@ typedef enum {
 *
 *
 **/
-struct edict_t {
-    /**
-    *   The following is shared memory with the Server.
-    *
-    *   Since we rely on memory overlap between the Server and the ServerGame.
-    *   Both their own edict_t types need to remain plain old POD types.
-    *
-    *   (In other words, we don't want a ~vtable() and/or alignment/sizeof differences.)
-    **/
-    //! Entity state.
-    entity_state_t  s;
-    //! NULL if not a player the server expects the first part
-    //! of gclient_s to be a player_state_t but the rest of it is opaque
-    svg_client_t *client;
-    qboolean inuse;
-    int32_t linkcount;
-
-    // FIXME: move these fields to a server private sv_entity_t
-    list_t area;    //! Linked to a division node or leaf
-
-    int32_t num_clusters;       // If -1, use headnode instead.
-    int32_t clusternums[ MAX_ENT_CLUSTERS ];
-    int32_t headnode;           // Unused if num_clusters != -1
-
-    int32_t areanum, areanum2;
-
-    //================================
-
-    int32_t         svflags;    // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
-    vec3_t          mins, maxs;
-    vec3_t          absmin, absmax, size;
-    cm_solid_t      solid;
-    cm_contents_t   clipmask;
-    cm_contents_t   hullContents;
-    edict_t         *owner;
-
-    const cm_entity_t *entityDictionary;
+struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
 
     /**
     *   DO NOT MODIFY ANYTHING ABOVE THIS, THE SERVER
@@ -220,11 +184,11 @@ struct edict_t {
     **/
     struct {
         //! The active 'target' entity.
-        edict_t *target;
+        svg_edict_t *target;
         //! The parent entity to move along with.
-        edict_t *movewith;
+        svg_edict_t *movewith;
         //! Next child in the list of this 'movewith group' chain.
-        //edict_t *movewith_next;
+        //svg_edict_t *movewith_next;
     } targetEntities;
 
 
@@ -244,7 +208,7 @@ struct edict_t {
         //! For the SVG_UseTargets and its Lua companion.
         struct {
             //! The source entity that when UseTarget, created the DelayedUse entity.
-            edict_t *creatorEntity;
+            svg_edict_t *creatorEntity;
             //! The useType for delayed UseTarget.
             entity_usetarget_type_t useType;
             //! The useValue for delayed UseTarget.
@@ -253,7 +217,7 @@ struct edict_t {
 
         struct {
             //! The source entity that when SignalOut, created the DelayedSignalOut entity.
-            edict_t *creatorEntity;
+            svg_edict_t *creatorEntity;
             //! A copy of the actual signal name.
             char name[ 256 ];
             //! For delayed signaling.
@@ -282,11 +246,11 @@ struct edict_t {
         Vector3 totalVelocity;
 
         //! POinter to the parent we're moving with.
-        edict_t *parentMoveEntity;
+        svg_edict_t *parentMoveEntity;
 
         //! A pointer to the first 'moveWith child' entity.
         //! The child entity will be pointing to the next in line, and so on.
-        edict_t *moveNextEntity;
+        svg_edict_t *moveNextEntity;
     } moveWith;
     //! Specified physics movetype.
     int32_t     movetype;
@@ -331,7 +295,7 @@ struct edict_t {
     //! Mover last angles.
     Vector3 lastAngles;
     //! For func_train, next path to move to.
-    edict_t *movetarget;
+    svg_edict_t *movetarget;
 
 
     /**
@@ -341,52 +305,52 @@ struct edict_t {
     QMTime   nextthink;
 
     //! Gives a chance to setup references to other entities etc.
-    void        ( *postspawn )( edict_t *ent );
+    void        ( *postspawn )( svg_edict_t *ent );
 
     //! Called before actually thinking.
-    void        ( *prethink )( edict_t *ent );
+    void        ( *prethink )( svg_edict_t *ent );
     //! Called for thinking.
-    void        ( *think )( edict_t *self );
+    void        ( *think )( svg_edict_t *self );
     //! Called after thinking.
-    void        ( *postthink )( edict_t *ent );
+    void        ( *postthink )( svg_edict_t *ent );
 
     //! Called when movement has been blocked.
-    void        ( *blocked )( edict_t *self, edict_t *other );         // move to moveinfo?
+    void        ( *blocked )( svg_edict_t *self, svg_edict_t *other );         // move to moveinfo?
     //! Called when the entity touches another entity.
-    void        ( *touch )( edict_t *self, edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+    void        ( *touch )( svg_edict_t *self, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
     //! Called to 'trigger' the entity.
-    void        ( *use )( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+    void        ( *use )( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
     //! Called when the entity is being 'Signalled', happens when another entity emits an OutSignal to it.
-    void        ( *onsignalin )( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+    void        ( *onsignalin )( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 
     //! Called when it gets damaged.
-    void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
+    void        ( *pain )( svg_edict_t *self, svg_edict_t *other, float kick, int damage );
     //! Called to die.
-    void        ( *die )( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
+    void        ( *die )( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point );
 
 
     /**
     *   Entity Pointers:
     **/
     //! Will be nullptr or world if not currently angry at anyone.
-    edict_t *enemy;
+    svg_edict_t *enemy;
     //! Previous Enemy.
-    edict_t *oldenemy;
+    svg_edict_t *oldenemy;
     //! The next path spot to walk toward.If.enemy, ignore.movetarget. When an enemy is killed, the monster will try to return to it's path.
-    edict_t *goalentity;
+    svg_edict_t *goalentity;
 
     //! Chain Entity.
-    edict_t *chain;
+    svg_edict_t *chain;
     //! Team Chain.
-    edict_t *teamchain;
+    svg_edict_t *teamchain;
     //! Team master.
-    edict_t *teammaster;
+    svg_edict_t *teammaster;
 
     //! Trigger Activator.
-    edict_t *activator;
+    svg_edict_t *activator;
     //! The entity that called upon the SignalOut/UseTarget
-    edict_t *other;
+    svg_edict_t *other;
 
 
     /**
@@ -415,8 +379,8 @@ struct edict_t {
     *   Player Noise/Trail:
     **/
     //! Pointer to noise entity.
-    edict_t *mynoise;       // can go in client only
-    edict_t *mynoise2;
+    svg_edict_t *mynoise;       // can go in client only
+    svg_edict_t *mynoise2;
     //! Noise indexes.
     int32_t noise_index;
     int32_t noise_index2;

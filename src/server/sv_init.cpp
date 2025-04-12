@@ -349,8 +349,8 @@ static void SV_InitGame_Init( ) {
 	ge->Init( );
 
 	//// Sanitize edict_size.
-	//if ( ge->edictPool.edict_size < sizeof( edict_t ) || ge->edictPool.edict_size > ( uint64_t )UINT64_MAX / MAX_EDICTS ) {
-	//	Com_Error( ERR_DROP, "ServerGame library returned bad size of edict_t" );
+	//if ( ge->edictPool.edict_size < sizeof( sv_edict_t ) || ge->edictPool.edict_size > ( uint64_t )UINT64_MAX / MAX_EDICTS ) {
+	//	Com_Error( ERR_DROP, "ServerGame library returned bad size of sv_edict_t" );
 	//}
     if ( !ge->edictPool ) {
         Com_Error( ERR_DROP, "ServerGame library returned (nullptr) ge->edictPool" );
@@ -399,7 +399,7 @@ If mvd_spawn is non-zero, load the built-in MVD game module.
 void SV_InitGame()
 {
     int     i, entnum;
-    edict_t *ent;
+    sv_edict_t *ent;
     client_t *client;
 
     if (svs.initialized) {

@@ -51,7 +51,7 @@ baseline will be transmitted
 static void SV_CreateBaselines(void)
 {
     int        i;
-    edict_t    *ent;
+    sv_edict_t    *ent;
     entity_packed_t *base, **chunk;
 
     // clear baselines from previous level

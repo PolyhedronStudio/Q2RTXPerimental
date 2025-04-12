@@ -46,7 +46,7 @@ LIST_DECL(sv_infobanlist);
 LIST_DECL(sv_clientlist);   // linked list of non-free clients
 
 client_t    *sv_client;         // current client
-edict_t     *sv_player;         // current client edict
+sv_edict_t     *sv_player;         // current client edict
 
 bool     sv_pending_autosave = 0;
 
@@ -1626,7 +1626,7 @@ player processing happens outside RunWorldFrame
 */
 static void SV_PrepWorldFrame(void)
 {
-    edict_t    *ent;
+    sv_edict_t    *ent;
     int        i;
 
     for (i = 1; i < ge->edictPool->num_edicts; i++) {
