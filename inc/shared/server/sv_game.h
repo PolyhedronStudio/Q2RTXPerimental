@@ -56,7 +56,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // extended features
 
-//#define GMF_CLIENTNUM               0x00000001 //! Client number for the edict, used for client->clientNum.
+#define GMF_CLIENTNUM               0x00000001 //! Client number for the edict, used for client->clientNum.
 #define GMF_PROPERINUSE             0x00000002 //! Proper inuse check for edicts.
 //#define GMF_MVDSPEC               0x00000004
 #define GMF_WANT_ALL_DISCONNECTS    0x00000008 //!! Want all disconnects to be sent to the client.
@@ -150,7 +150,7 @@ struct sv_edict_pool_i {
     virtual const int32_t NumberForEdict( const edict_ptr_t *edict ) = 0;
 
     //! Pointer to edicts data array.
-    edict_ptr_t *edicts = nullptr;
+    edict_ptr_t **edicts = nullptr;
     //! Size of edict type.
     //int32_t         edict_size;
 

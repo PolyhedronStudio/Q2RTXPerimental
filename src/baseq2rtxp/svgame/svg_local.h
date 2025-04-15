@@ -521,9 +521,9 @@ struct mm_liquid_info_t {
 
 #include "svgame/svg_game_edict.h"
 // Extern access.
-extern svg_edict_t *g_edicts;
+extern svg_edict_t **g_edicts;
 // World entity.
-#define world   (&g_edicts[0])
+#define world   (g_edicts[0])
 // Base Entity Functions.
 #include "svgame/svg_edicts.h"
 

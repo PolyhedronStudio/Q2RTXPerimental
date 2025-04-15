@@ -38,11 +38,11 @@ static const int32_t GameLib_Print( const int32_t gamePrintLevel, std::string st
 **/
 static const int32_t GameLib_ClientPrint( lua_edict_t leClientEntity, const int32_t clientPrintLevel, std::string string ) {
 	// Make sure the client is active.
-	if ( !SVG_Entity_IsClient( leClientEntity.edict ) ) {
+	if ( !SVG_Entity_IsClient( leClientEntity.handle.edictPtr ) ) {
 		return 0;
 	}
 	// Print.
-	gi.cprintf( leClientEntity.edict, clientPrintLevel, "%s", string.c_str() );
+	gi.cprintf( leClientEntity.handle.edictPtr, clientPrintLevel, "%s", string.c_str() );
 	return 1;
 }
 /**
@@ -50,11 +50,11 @@ static const int32_t GameLib_ClientPrint( lua_edict_t leClientEntity, const int3
 **/
 static const int32_t GameLib_CenterPrint( lua_edict_t leClientEntity, std::string string ) {
 	// Make sure the client is active.
-	if ( !SVG_Entity_IsClient( leClientEntity.edict ) ) {
+	if ( !SVG_Entity_IsClient( leClientEntity.handle.edictPtr ) ) {
 		return 0;
 	}
 	// Print.
-	gi.centerprintf( leClientEntity.edict, "%s", string.c_str() );
+	gi.centerprintf( leClientEntity.handle.edictPtr, "%s", string.c_str() );
 	return 1;
 }
 
@@ -74,11 +74,11 @@ static const int32_t GameLib_CenterPrint( lua_edict_t leClientEntity, std::strin
 **/
 const std::string GameLib_GetClientNameForEntity( lua_edict_t leClientEntity ) {
 	// Make sure the client is active.
-	if ( !SVG_Entity_IsClient( leClientEntity.edict ) ) {
+	if ( !SVG_Entity_IsClient( leClientEntity.handle.edictPtr ) ) {
 		return "";
 	}
 	// Get the client name.
-	return leClientEntity.edict->client->pers.netname;
+	return leClientEntity.handle.edictPtr->client->pers.netname;
 }
 
 

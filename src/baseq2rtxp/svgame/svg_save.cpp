@@ -129,6 +129,7 @@ static const save_field_t clientfields[] = {
     INT32( ps.bobCycle ),
     INT32_ARRAY( ps.stats, MAX_STATS ),
 
+    INT32( clientNum ),
     ZSTR( pers.userinfo, MAX_INFO_STRING ),
     ZSTR( pers.netname, 16 ),
     INT32( pers.hand ),
@@ -904,10 +905,12 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
         write_game_qtag_memory<float>( f, ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
         break;
     case F_EDICT:
-        write_index(f, *(void **)p, sizeof(svg_edict_t), g_edicts, MAX_EDICTS - 1);
+        write_int( f, g_edict_pool.NumberForEdict( ( *(svg_edict_t **)p ) ) );
+        //write_index(f, *(void **)p, sizeof(svg_edict_t), g_edicts, MAX_EDICTS - 1);
         break;
     case F_CLIENT:
-        write_index(f, *(void **)p, sizeof(svg_client_t), game.clients, game.maxclients - 1);
+        write_int( f, ( *(svg_client_t **)p )->clientNum );
+        //write_index(f, *(void **)p, sizeof(svg_client_t), game.clients, game.maxclients - 1);
         break;
     case F_ITEM:
         write_index(f, *(void **)p, sizeof(gitem_t), itemlist, game.num_items - 1);
@@ -1265,11 +1268,13 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
     case F_EDICT:
 		// WID: C++20: Added cast.
-		*(svg_edict_t **)p = (svg_edict_t*)read_index(ctx->f, sizeof(svg_edict_t), g_edicts, game.maxentities - 1);
+        ( *(svg_edict_t **)p ) = g_edict_pool.EdictForNumber( read_int( ctx->f ) );
+		//*(svg_edict_t **)p = (svg_edict_t*)read_index(ctx->f, sizeof(svg_edict_t), g_edicts, game.maxentities - 1);
         break;
     case F_CLIENT:
 		// WID: C++20: Added cast.
-		*(svg_client_t **)p = (svg_client_t*)read_index(ctx->f, sizeof(svg_client_t), game.clients, game.maxclients - 1);
+		//*(svg_client_t **)p = (svg_client_t*)read_index(ctx->f, sizeof(svg_client_t), game.clients, game.maxclients - 1);
+        ( *(svg_client_t **)p )->clientNum = read_int( ctx->f );
         break;
     case F_ITEM:
 		// WID: C++20: Added cast.
@@ -1393,6 +1398,7 @@ void SVG_ReadGame(const char *filename)
     gzFile	f;
     int     i;
 
+    gi.FreeTags( TAG_SVGAME_EDICTS );
     gi.FreeTags(TAG_SVGAME);
 
     f = gzopen(filename, "rb");
@@ -1433,9 +1439,11 @@ void SVG_ReadGame(const char *filename)
     game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
     // Initialize the edicts array pointing to a the memory allocated within the pool.
     g_edicts = SVG_EdictPool_Reallocate( &g_edict_pool, game.maxentities );
+	g_edict_pool.max_edicts = game.maxentities;
 
 	// Initialize a fresh clients array.
     game.clients = SVG_Clients_Reallocate( game.maxclients );
+
     // Now read in the fields for each client.
     for (i = 0; i < game.maxclients; i++) {
         // Now read in the fields.
@@ -1482,9 +1490,11 @@ void SVG_WriteLevel(const char *filename)
 
     // write out all the entities
     for (i = 0; i < globals.edictPool->num_edicts; i++) {
-        ent = &g_edicts[i];
-        if (!ent->inuse)
+        ent = g_edict_pool.EdictForNumber( i );
+        //ent = &g_edicts[i];
+        if ( !ent || !ent->inuse ) {
             continue;
+        }
         write_int(f, i);
         write_fields(f, entityfields, ent);
     }
@@ -1530,12 +1540,21 @@ void SVG_ReadLevel(const char *filename)
 
     // wipe all the entities
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
-        g_edicts[ i ] = {};
+        const int32_t entityNumber = g_edicts[ i ]->s.number;
+        //*g_edicts[ i ] = { };
+        if ( i >= 1 && i < game.maxclients + 1 ) {
+            g_edict_pool.edicts[ i ] = new svg_player_edict_t();
+            static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] )->testVar = 100 + i;
+        } else {
+            g_edict_pool.edicts[ i ] = new svg_edict_t();
+        }
+        // Set the number to the current index.
+        g_edict_pool.edicts[ i ]->s.number = entityNumber;
     }
     //memset(g_edicts, 0, sizeof(g_edicts[0]));
     //std::fill_n( &g_edicts[ i ], sizeof(svg_edict_t), 0 );
 
-    globals.edictPool->num_edicts = maxclients->value + 1;
+    g_edict_pool.num_edicts = maxclients->value + 1;
 
     i = read_int(f);
     if (i != SAVE_MAGIC2) {
@@ -1565,11 +1584,11 @@ void SVG_ReadLevel(const char *filename)
             gzclose( f );
             gi.error( "%s: bad entity number", __func__ );
         }
-        if ( entnum >= globals.edictPool->num_edicts ) {
-            globals.edictPool->num_edicts = entnum + 1;
+        if ( entnum >= g_edict_pool.num_edicts ) {
+            g_edict_pool.num_edicts = entnum + 1;
         }
 
-        ent = g_edicts + entnum;
+        ent = g_edict_pool.EdictForNumber( entnum );
         read_fields(&ctx, entityfields, ent);
         ent->inuse = true;
         ent->s.number = entnum;
@@ -1583,18 +1602,20 @@ void SVG_ReadLevel(const char *filename)
 
     // mark all clients as unconnected
     for ( i = 0; i < maxclients->value; i++ ) {
-        ent = &g_edicts[ i + 1 ];
-        ent->client = game.clients + i;
+        //ent = &g_edicts[ i + 1 ];
+        ent = g_edict_pool.EdictForNumber( i + 1 );
+        ent->client = &game.clients[ i ];
         ent->client->pers.connected = false;
         ent->client->pers.spawned = false;
     }
 
     // do any load time things at this point
-    for (i = 0 ; i < globals.edictPool->num_edicts ; i++) {
-        ent = &g_edicts[i];
+    for (i = 0 ; i < g_edict_pool.num_edicts ; i++) {
+        ent = g_edict_pool.EdictForNumber( i ); //&g_edicts[i];
 
-        if (!ent->inuse)
+        if ( !ent || !ent->inuse ) {
             continue;
+        }
 
         // fire any cross-level triggers
         if (ent->classname)

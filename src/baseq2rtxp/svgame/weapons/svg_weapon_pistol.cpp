@@ -131,7 +131,7 @@ void weapon_pistol_primary_fire( svg_edict_t *ent ) {
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
-    gi.WriteInt16( ent - g_edicts );
+    gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) ); //ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
     gi.multicast( &muzzleFlashOrigin.x/*ent->s.origin*/, MULTICAST_PVS, false );
 
@@ -166,7 +166,7 @@ void weapon_pistol_aim_fire( svg_edict_t *ent ) {
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
-    gi.WriteInt16( ent - g_edicts );
+    gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
     gi.multicast( &muzzleFlashOrigin.x, MULTICAST_PVS, false );
 

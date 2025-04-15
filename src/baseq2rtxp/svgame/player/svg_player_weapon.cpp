@@ -42,7 +42,7 @@ void SVG_Player_PlayerNoise( svg_edict_t *who, const vec3_t where, int type ) {
 
 
     if ( !who->mynoise ) {
-        noise = SVG_AllocateEdict();
+        noise = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
         noise->classname = "player_noise";
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
@@ -50,7 +50,7 @@ void SVG_Player_PlayerNoise( svg_edict_t *who, const vec3_t where, int type ) {
         noise->svflags = SVF_NOCLIENT;
         who->mynoise = noise;
 
-        noise = SVG_AllocateEdict();
+        noise = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
         noise->classname = "player_noise";
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
@@ -202,7 +202,7 @@ allowchange:
         } else {
             i = 0;
         }
-        ent->s.skinnum = (ent - g_edicts - 1) | i;
+        ent->s.skinnum = ( g_edict_pool.NumberForEdict( ent ) - 1) | i;//(ent - g_edicts - 1) | i;
     }
 
     // Find the appropriate matching ammo index.

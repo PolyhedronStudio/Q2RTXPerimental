@@ -85,7 +85,7 @@ void SP_misc_teleporter( svg_edict_t *ent ) {
     VectorSet( ent->maxs, 32, 32, -16 );
     gi.linkentity( ent );
 
-    trig = SVG_AllocateEdict();
+    trig = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
     trig->touch = teleporter_touch;
     trig->solid = SOLID_TRIGGER;
     trig->s.entityType = ET_TELEPORT_TRIGGER;

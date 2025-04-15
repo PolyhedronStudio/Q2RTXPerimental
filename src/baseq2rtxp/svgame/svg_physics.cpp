@@ -87,7 +87,7 @@ svg_edict_t *SV_TestEntityPosition(svg_edict_t *ent)
     trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
 
     if ( trace.startsolid ) {
-        return g_edicts;
+        return g_edict_pool.EdictForNumber( 0 );
     }
 
     return nullptr;
@@ -503,8 +503,8 @@ bool SV_Push(svg_edict_t *pusher, vec3_t move, vec3_t amove)
     gi.linkentity(pusher);
 
 // see if any solid entities are inside the final position
-    check = g_edicts + 1;
-    for (e = 1; e < globals.edictPool->num_edicts; e++, check++) {
+    check = g_edict_pool.EdictForNumber( 1 );
+    for (e = 1; e < globals.edictPool->num_edicts; e++, check = g_edict_pool.EdictForNumber( e ) ) {
         if (!check->inuse)
             continue;
         if (check->movetype == MOVETYPE_PUSH
@@ -813,9 +813,9 @@ void SV_Physics_Toss(svg_edict_t *ent)
 
     const qhandle_t water_sfx_index = gi.soundindex( SG_RandomResourcePath( "world/water_land_splash", ".wav", 0, 8 ).c_str() );
     if ( !wasinwater && isinwater ) {
-        gi.positioned_sound( old_origin, g_edicts, CHAN_AUTO, water_sfx_index, 1, 1, 0 );
+        gi.positioned_sound( old_origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
     } else if ( wasinwater && !isinwater ) {
-        gi.positioned_sound( ent->s.origin, g_edicts, CHAN_AUTO, water_sfx_index, 1, 1, 0 );
+        gi.positioned_sound( ent->s.origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
     }
 
 // move teamslaves

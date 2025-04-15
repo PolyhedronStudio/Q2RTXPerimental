@@ -171,7 +171,7 @@ void SVG_UseTargets( svg_edict_t *ent, svg_edict_t *activator, const entity_uset
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        svg_edict_t *delayEntity = SVG_AllocateEdict();
+        svg_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
         delayEntity->classname = "DelayedUseTargets";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
         delayEntity->think = Think_UseTargetsDelay;

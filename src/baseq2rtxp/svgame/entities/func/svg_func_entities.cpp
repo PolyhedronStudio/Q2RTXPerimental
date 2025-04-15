@@ -59,7 +59,7 @@ void Think_SpawnDoorTrigger( svg_edict_t *ent ) {
     maxs[ 0 ] += 60;
     maxs[ 1 ] += 60;
 
-    other = SVG_AllocateEdict();
+    other = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
     VectorCopy( mins, other->mins );
     VectorCopy( maxs, other->maxs );
     other->owner = ent;

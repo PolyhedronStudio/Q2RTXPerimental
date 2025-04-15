@@ -87,11 +87,14 @@ void SVG_HUD_BeginIntermission(svg_edict_t *targ)
 
     // Respawn any dead clients
     for (i = 0 ; i < maxclients->value ; i++) {
-        client = g_edicts + 1 + i;
-        if (!client->inuse)
+        client = g_edict_pool.EdictForNumber( i + 1 );
+        //client = g_edicts + 1 + i;
+        if ( !client || !client->inuse ) {
             continue;
-        if (client->health <= 0)
-            SVG_Client_RespawnPlayer(client);
+        }
+        if ( client->health <= 0 ) {
+            SVG_Client_RespawnPlayer( client );
+        }
     }
 
     level.intermissionFrameNumber = level.frameNumber;
@@ -99,10 +102,12 @@ void SVG_HUD_BeginIntermission(svg_edict_t *targ)
 
     if (strchr(level.changemap, '*')) {
         if (coop->value) {
-            for (i = 0 ; i < maxclients->value ; i++) {
-                client = g_edicts + 1 + i;
-                if (!client->inuse)
+            for ( i = 0; i < maxclients->value; i++ ) {
+                client = g_edict_pool.EdictForNumber( i + 1 );
+                //client = g_edicts + 1 + i;
+                if ( !client || !client->inuse ) {
                     continue;
+                }
                 //// strip players of all keys between units
                 //for (n = 0; n < game.num_items; n++) {
                 //    if (itemlist[n].flags & ITEM_FLAG_KEY)
@@ -143,10 +148,12 @@ void SVG_HUD_BeginIntermission(svg_edict_t *targ)
     }
 
     // move all clients to the intermission point
-    for (i = 0 ; i < maxclients->value ; i++) {
-        client = g_edicts + 1 + i;
-        if (!client->inuse)
+    for ( i = 0; i < maxclients->value; i++ ) {
+        client = g_edict_pool.EdictForNumber( i + 1 );
+        //client = g_edicts + 1 + i;
+        if ( !client || !client->inuse ) {
             continue;
+        }
         SVG_HUD_MoveClientToIntermission(client);
     }
 }
@@ -257,8 +264,8 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_edict_t *ent, svg_edict_t *killer =
     // First count the total of clients we got in-game.
     int32_t numberOfClients = 0;
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        svg_edict_t *cl_ent = g_edicts + 1 + i;
-        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+        svg_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
+        if ( !cl_ent || !cl_ent->inuse || game.clients[ i ].resp.spectator 
             /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
         }
@@ -269,8 +276,8 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_edict_t *ent, svg_edict_t *killer =
 
     // Now, for each client, send index, time, score, and ping.
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        svg_edict_t *cl_ent = g_edicts + 1 + i;
-        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+        svg_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
+        if ( !cl_ent || !cl_ent->inuse || game.clients[ i ].resp.spectator
             /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
         }
@@ -516,7 +523,7 @@ void SVG_HUD_SetSpectatorStats( svg_edict_t *ent ) {
 
     if ( cl->chase_target && cl->chase_target->inuse )
         cl->ps.stats[ STAT_CHASE ] = CS_PLAYERSKINS +
-        ( cl->chase_target - g_edicts ) - 1;
+        ( cl->chase_target->s.number - 1 );//( cl->chase_target - g_edicts ) - 1;
     else
         cl->ps.stats[ STAT_CHASE ] = 0;
 }
@@ -530,10 +537,14 @@ void SVG_HUD_CheckChaseStats(svg_edict_t *ent)
     svg_client_t *cl;
 
     for (i = 1; i <= maxclients->value; i++) {
-        cl = g_edicts[i].client;
-        if (!g_edicts[i].inuse || cl->chase_target != ent)
+        //cl = g_edicts[i].client;
+		svg_edict_t *cl_ent = g_edict_pool.EdictForNumber( i );
+        cl = (cl_ent ? cl_ent->client : nullptr );
+        if ( !cl || !cl_ent || !cl_ent->inuse || cl->chase_target != ent ) {
             continue;
+        }
+
         memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
-        SVG_HUD_SetSpectatorStats(g_edicts + i);
+        SVG_HUD_SetSpectatorStats( cl_ent );
     }
 }

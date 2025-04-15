@@ -38,7 +38,7 @@ static const cm_trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t 
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
 static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentMask ) {
-    return SVG_Clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
+    return SVG_Clip( g_edict_pool.EdictForNumber( 0 ) /* worldspawn */, start, mins, maxs, end, contentMask);
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
@@ -655,9 +655,18 @@ void SVG_Client_Think( svg_edict_t *ent, usercmd_t *ucmd ) {
         *   Player Move, and other 'Thinking' logic:
         **/
     } else {
-        // Perform player movement.
-        ClientRunPlayerMove( ent, client, ucmd, &pm, &pmp );
+        // In a function that is assigned to a function pointer, where we expect a 
+        // svg_player_edict_t it'll already be the argument so we won't need casting :-)
+        //
+        // Just make sure to never assign it to an incorrect entity type.
+		svg_player_edict_t *player_ent = static_cast<svg_player_edict_t *>(ent);
+        player_ent->testVar = 100 + ent->s.number;
 
+        //gi.dprintf( "%s: player_ent->testVar = %d\n", __func__, player_ent->testVar );
+		gi.cprintf( player_ent, PRINT_TALK, "player_ent->testVar = %d\n", player_ent->testVar );
+
+        // Perform player movement.
+        ClientRunPlayerMove( ent, client, ucmd, &pm, &pmp);
         // Check for client playerstate its pmove generated events.
         //ClientCheckPlayerstateEvents( ent, &client->ops, &client->ps );
 
@@ -748,8 +757,8 @@ void SVG_Client_Think( svg_edict_t *ent, usercmd_t *ucmd ) {
 
     // Update chase cam if being followed.
     for ( int32_t i = 1; i <= maxclients->value; i++ ) {
-        svg_edict_t *other = g_edicts + i;
-        if ( other->inuse && other->client->chase_target == ent ) {
+        svg_edict_t *other = g_edict_pool.EdictForNumber( i );//g_edicts + i;
+        if ( other && other->inuse && other->client->chase_target == ent ) {
             SVG_ChaseCam_Update( other );
         }
     }

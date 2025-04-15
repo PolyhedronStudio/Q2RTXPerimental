@@ -235,7 +235,7 @@ void use_target_changelevel( svg_edict_t *self, svg_edict_t *other, svg_edict_t 
         return;     // already activated
 
     if (!deathmatch->value && !coop->value) {
-        if (g_edicts[1].health <= 0)
+        if ( g_edict_pool.EdictForNumber( 1 )->health <= 0)
             return;
     }
 
@@ -337,7 +337,7 @@ void ED_CallSpawn(svg_edict_t *ent);
 void use_target_spawner( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     svg_edict_t *ent;
 
-    ent = SVG_AllocateEdict();
+    ent = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();;
     ent->classname = self->targetNames.target;
     VectorCopy(self->s.origin, ent->s.origin);
     VectorCopy(self->s.angles, ent->s.angles);
@@ -687,21 +687,20 @@ All players and monsters are affected.
 
 void target_earthquake_think(svg_edict_t *self)
 {
-    int     i;
-    svg_edict_t *e;
-
     if (self->last_move_time < level.time) {
         gi.positioned_sound(self->s.origin, self, CHAN_AUTO, self->noise_index, 1.0f, ATTN_NONE, 0);
 		self->last_move_time = level.time + 6.5_sec;
     }
 
-    for ( i = 1, e = g_edicts + i; i < globals.edictPool->num_edicts; i++, e++ ) {
-        if ( !e->inuse )
+    int32_t i = 0;
+    svg_edict_t *ed = g_edict_pool.EdictForNumber( i );
+    for ( i = 1, ed = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, ed = g_edict_pool.EdictForNumber( i ) ) {
+        if ( !ed || !ed->inuse )
             continue;
-        if ( !e->client )
+        if ( !ed->client )
             break;
 
-        e->client->viewMove.quakeTime = level.time + 1000_ms;
+        ed->client->viewMove.quakeTime = level.time + 1000_ms;
     }
 
     if ( level.time < self->timestamp )
@@ -714,17 +713,16 @@ void target_earthquake_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *
 	//self->last_move_time = 0_ms;
  //   self->activator = activator;
 	if ( self->spawnflags & 8 /*.has( SPAWNFLAGS_EARTHQUAKE_ONE_SHOT )*/ ) {
-		uint32_t i;
-		svg_edict_t *e;
-
-        for ( i = 1, e = g_edicts + i; i < globals.edictPool->num_edicts; i++, e++ ) {
-			if ( !e->inuse )
+		uint32_t i = 1;
+        svg_edict_t *ed = g_edict_pool.EdictForNumber( i );
+        for ( i = 1, ed = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, ed = g_edict_pool.EdictForNumber( i ) ) {
+            if ( !ed || !ed->inuse )
 				continue;
-			if ( !e->client )
+			if ( !ed->client )
 				break;
 
-			e->client->viewMove.damagePitch = -self->speed * 0.1f;
-			e->client->viewMove.damageTime = level.time + DAMAGE_TIME( );
+			ed->client->viewMove.damagePitch = -self->speed * 0.1f;
+			ed->client->viewMove.damageTime = level.time + DAMAGE_TIME( );
 		}
 
 		return;

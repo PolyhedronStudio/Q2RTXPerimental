@@ -121,7 +121,7 @@ static void PF_Unicast(edict_ptr_t *ent, bool reliable)
 		goto clear;
 	}
 
-	clientNum = NUMBER_OF_EDICT( ent ) - 1;
+    clientNum = ent->client->clientNum;//NUMBER_OF_EDICT( ent ) - 1;
 	if ( clientNum < 0 || clientNum >= sv_maxclients->integer ) {
 		Com_WPrintf( "%s to a non-client %d\n", __func__, clientNum );
 		goto clear;
@@ -275,7 +275,7 @@ static void PF_cprintf(edict_ptr_t *ent, int level, const char *fmt, ...)
         return;
     }
 
-    clientNum = NUMBER_OF_EDICT(ent) - 1;
+    clientNum = ent->client->clientNum;// NUMBER_OF_EDICT( ent ) - 1;
     if (clientNum < 0 || clientNum >= sv_maxclients->integer) {
         Com_Error(ERR_DROP, "%s to a non-client %d", __func__, clientNum);
     }

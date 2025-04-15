@@ -55,10 +55,9 @@ QMTime FRAME_TIME_MS;
 *	Cached indexes and global meansOfDeath var.
 **/
 int sm_meat_index;
-int snd_fry;
 
 //! Actual array storing the edicts. (entities).
-svg_edict_t	*g_edicts;
+svg_edict_t	**g_edicts;
 //! Memory Pool for entities.
 svg_edict_pool_t g_edict_pool;
 
@@ -170,15 +169,19 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
 void SVG_ShutdownGame(void)
 {
     // Notify of shutdown.
-    gi.dprintf("==== Shutdown ServerGame ====\n");
+    gi.dprintf("==== Initiating ServerGame Shutdown ====\n");
     
     // Shutdown the Lua VM.
     SVG_Lua_Shutdown();
 
     // Free level, lua AND the game module its allocated ram.
+    //gi.FreeTags( TAG_SVGAME_LUA ); // -- WID: Already happens in SVG_Lua_Shutdown
+    gi.FreeTags( TAG_SVGAME_EDICTS );
     gi.FreeTags( TAG_SVGAME_LEVEL );
     gi.FreeTags( TAG_SVGAME );
-    gi.FreeTags( TAG_SVGAME_LUA );
+
+	// Notify of successful shutdown.
+    gi.dprintf( "==== Shutdown ServerGame ====\n" );
 }
 
 /**
@@ -484,8 +487,8 @@ void ClientEndServerFrames(void) {
     // calc the player views now that all pushing
     // and damage has been added
     for ( int32_t i = 0 ; i < maxclients->value ; i++) {
-        svg_edict_t *ent = g_edicts + 1 + i;
-        if ( !ent->inuse || !ent->client ) {
+        svg_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
+        if ( !ent || !ent->inuse || !ent->client ) {
             continue;
         }
         SVG_Client_EndServerFrame(ent);
@@ -499,7 +502,7 @@ void ClientEndServerFrames(void) {
 svg_edict_t *CreateTargetChangeLevel( char *map ) {
     svg_edict_t *ent;
 
-    ent = SVG_AllocateEdict();
+    ent = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
     ent->classname = "target_changelevel";
     if ( map != level.nextmap ) {
         Q_strlcpy( level.nextmap, map, sizeof( level.nextmap ) );
@@ -614,8 +617,9 @@ void CheckDMRules(void) {
 
     if (fraglimit->value) {
         for (i = 0 ; i < maxclients->value ; i++) {
-            cl = game.clients + i;
-            if ( !g_edicts[ i + 1 ].inuse ) {
+            cl = &game.clients[ i ];
+			svg_edict_t *cledict = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
+            if ( !cledict || !cledict->inuse ) {
                 continue;
             }
 
@@ -647,9 +651,9 @@ void ExitLevel(void) {
     level.intermissionFrameNumber = 0;
 
     // Clear some things before going to next level.
-    for (i = 0 ; i < maxclients->value ; i++) {
-        ent = g_edicts + 1 + i;
-        if ( !ent->inuse ) {
+    for ( i = 0; i < maxclients->value; i++ ) {
+        ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
+        if ( !ent || !ent->inuse ) {
             continue;
         }
         if ( ent->health > ent->client->pers.max_health ) {
@@ -691,13 +695,13 @@ void SVG_RunFrame(void) {
     // Treat each object in turn
     // even the world gets a chance to think
     //
-    svg_edict_t *ent = &g_edicts[ 0 ];
-    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent++ ) {
-        if ( !ent->inuse ) {
+    svg_edict_t *ent = ent = g_edict_pool.EdictForNumber( 0 );
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
+        if ( ent && !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."
             if ( i > 0 && i <= game.maxclients ) {
                 if ( ent->timestamp && level.time < ent->timestamp ) {
-                    const int32_t playernum = ent - g_edicts - 1;
+                    const int32_t playernum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
                     gi.configstring( CS_PLAYERSKINS + playernum, "" );
                     ent->timestamp = 0_sec;
                 }

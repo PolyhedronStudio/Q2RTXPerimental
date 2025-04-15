@@ -526,7 +526,7 @@ svg_edict_t *Drop_Item(svg_edict_t *ent, const gitem_t *item)
     vec3_t  forward, right;
     vec3_t  offset;
 
-    dropped = SVG_AllocateEdict();
+    dropped = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
 
     dropped->classname = item->classname;
     dropped->item = item;

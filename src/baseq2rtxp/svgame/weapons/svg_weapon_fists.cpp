@@ -83,7 +83,7 @@ void weapon_fists_primary_fire( svg_edict_t *ent ) {
     if ( fire_hit_punch_impact( ent, start, &forward.x, 5, 55 ) ) {
         // Send a muzzle flash event.
         gi.WriteUint8( svc_muzzleflash );
-        gi.WriteInt16( ent - g_edicts );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
         gi.WriteUint8( MZ_FIST_LEFT /*| is_silenced*/ );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
     }
@@ -117,7 +117,7 @@ void weapon_fists_secondary_fire( svg_edict_t *ent ) {
     if ( fire_hit_punch_impact( ent, &start.x, &forward.x, 8, 85 ) ) {
         // Send a muzzle flash event.
         gi.WriteUint8( svc_muzzleflash );
-        gi.WriteInt16( ent - g_edicts );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );
         gi.WriteUint8( MZ_FIST_RIGHT /*| is_silenced*/ );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
     }

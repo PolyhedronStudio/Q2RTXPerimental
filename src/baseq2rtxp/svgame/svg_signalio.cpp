@@ -89,7 +89,7 @@ void SVG_SignalOut( svg_edict_t *ent, svg_edict_t *signaller, svg_edict_t *activ
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        svg_edict_t *delayEntity = SVG_AllocateEdict();
+        svg_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
         delayEntity->classname = "DelayedSignalOut";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
         delayEntity->think = Think_SignalOutDelay;

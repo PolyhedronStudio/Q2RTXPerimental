@@ -113,16 +113,19 @@ void SVG_ChaseCam_Next(svg_edict_t *ent)
     if (!ent->client->chase_target)
         return;
 
-    i = ent->client->chase_target - g_edicts;
+    i = g_edict_pool.NumberForEdict( ent->client->chase_target ); // ent->client->chase_target - g_edicts;
     do {
         i++;
-        if (i > maxclients->value)
+        if ( i > maxclients->value ) {
             i = 1;
-        e = g_edicts + i;
-        if (!e->inuse)
+        }
+        e = g_edict_pool.EdictForNumber( i );//g_edicts + i;
+        if ( !e || !e->inuse ) {
             continue;
-        if (!e->client->resp.spectator)
+        }
+        if ( !e->client->resp.spectator ) {
             break;
+        }
     } while (e != ent->client->chase_target);
 
     ent->client->chase_target = e;
@@ -142,16 +145,19 @@ void SVG_ChaseCam_Previous(svg_edict_t *ent)
     if (!ent->client->chase_target)
         return;
 
-    i = ent->client->chase_target - g_edicts;
+    i = g_edict_pool.NumberForEdict( ent->client->chase_target ); //i = ent->client->chase_target - g_edicts;
     do {
         i--;
-        if (i < 1)
+        if ( i < 1 ) {
             i = maxclients->value;
-        e = g_edicts + i;
-        if (!e->inuse)
+        }
+        e = g_edict_pool.EdictForNumber( i ); //g_edicts + i;
+        if ( !e->inuse ) {
             continue;
-        if (!e->client->resp.spectator)
+        }
+        if ( !e->client->resp.spectator ) {
             break;
+        }
     } while (e != ent->client->chase_target);
 
     ent->client->chase_target = e;
@@ -169,8 +175,8 @@ void SVG_ChaseCam_GetTarget(svg_edict_t *ent)
     svg_edict_t *other;
 
     for (i = 1; i <= maxclients->value; i++) {
-        other = g_edicts + i;
-        if (other->inuse && !other->client->resp.spectator) {
+        other = g_edict_pool.EdictForNumber( i ); //g_edicts + i;
+        if (other && other->inuse && !other->client->resp.spectator) {
             ent->client->chase_target = other;
             ent->client->update_chase = true;
             SVG_ChaseCam_Update(ent);

@@ -171,7 +171,7 @@ void SVG_Command_Give_f(svg_edict_t *ent)
         else
             ent->client->pers.inventory[index] += it->quantity;
     } else {
-        it_ent = SVG_AllocateEdict();
+        it_ent = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
         it_ent->classname = it->classname;
         SVG_SpawnItem(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
@@ -665,14 +665,17 @@ void SVG_Command_Say_f(svg_edict_t *ent, bool team, bool arg0)
         gi.cprintf(NULL, PRINT_CHAT, "%s", text);
 
     for (j = 1; j <= game.maxclients; j++) {
-        other = &g_edicts[j];
-        if (!other->inuse)
+        other = g_edict_pool.EdictForNumber( j );//&g_edicts[j];
+        if ( !other->inuse ) {
             continue;
-        if (!other->client)
+        }
+        if ( !other->client ) {
             continue;
-        if (team) {
-            if (!SVG_OnSameTeam(ent, other))
+        }
+        if ( team ) {
+            if ( !SVG_OnSameTeam( ent, other ) ) {
                 continue;
+            }
         }
         gi.cprintf(other, PRINT_CHAT, "%s", text);
     }
@@ -712,7 +715,7 @@ void SVG_Command_PlayerList_f(svg_edict_t *ent)
 
     // connect time, ping, score, name
     *text = 0;
-    for (i = 0, e2 = g_edicts + 1; i < maxclients->value; i++, e2++) {
+    for (i = 0, e2 = g_edict_pool.EdictForNumber( 1 ); i < maxclients->value; i++, e2 = g_edict_pool.EdictForNumber( i + 1 ) ) {
         if (!e2->inuse)
             continue;
 

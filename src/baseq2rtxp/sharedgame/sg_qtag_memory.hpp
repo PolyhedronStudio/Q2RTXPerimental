@@ -23,9 +23,9 @@
 template<typename T, const int32_t tag>
 struct sg_qtag_memory_t {
 	//! The actual pointer storing our block of memory..
-	T *ptr;
+	T *ptr = nullptr;
 	//! The size in bytes.
-	size_t	count;
+	size_t	count = 0;
 
 	/**
 	*	Default constructor.

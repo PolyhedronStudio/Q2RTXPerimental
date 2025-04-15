@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_clients.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -383,7 +384,10 @@ void SVG_FindTeams( void ) {
 
     c = 0;
     c2 = 0;
-    for ( i = 1, e = g_edicts + i; i < globals.edictPool->num_edicts; i++, e++ ) {
+    for ( i = 1, e = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, e = g_edict_pool.EdictForNumber( i ) ) {
+        if ( !e ) {
+            continue;
+        }
         if ( !e->inuse )
             continue;
         if ( !e->targetNames.team )
@@ -394,7 +398,10 @@ void SVG_FindTeams( void ) {
         e->teammaster = e;
         c++;
         c2++;
-        for ( j = i + 1, e2 = e + 1; j < globals.edictPool->num_edicts; j++, e2++ ) {
+        for ( j = i + 1, e2 = g_edict_pool.EdictForNumber( j ); j < globals.edictPool->num_edicts; j++, e2 = g_edict_pool.EdictForNumber( j ) ) {
+            if ( !e2 ) {
+                continue;
+            }
             if ( !e2->inuse )
                 continue;
             if ( !e2->targetNames.team )
@@ -418,10 +425,10 @@ void SVG_FindTeams( void ) {
 *   @brief  Find and set the 'movewith' parent entity for entities that have this key set.
 **/
 void SVG_MoveWith_FindParentTargetEntities( void ) {
-    svg_edict_t *ent = g_edicts;
+    svg_edict_t *ent = g_edict_pool.EdictForNumber( 0 );
     int32_t moveParents  = 0;
     int32_t i = 1;
-    for ( i = 1, ent = g_edicts + i; i < globals.edictPool->num_edicts; i++, ent++ ) {
+    for ( i = 1, ent = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
         // It has to be in-use.
         //if ( !ent->inuse ) {
         //    continue;
@@ -618,8 +625,21 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Zero out all level struct data as well as all the entities(edicts).
     level = {}; //memset( &level, 0, sizeof( level ) );
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
-        g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
+        // Acquire number.
+        const int32_t number = g_edicts[ i ]->s.number;
+        // Zero out.
+        *g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
+        // Retain previous number.
+        g_edicts[ i ]->s.number = number;
     }
+    
+    // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
+    //g_edicts = SVG_EdictPool_Reallocate( &g_edict_pool, game.maxentities );
+    // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
+    //g_edict_pool.num_edicts = game.maxclients + 1;
+
+    // Initialize a fresh clients array.
+    //game.clients = SVG_Clients_Reallocate( game.maxclients );
 
     // Copy over the mapname and the spawn point. (Optionally set by appending a map name with a $spawntarget)
     Q_strlcpy( level.mapname, mapname, sizeof( level.mapname ) );
@@ -628,7 +648,12 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Set client fields on player entities.
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
         // Assign this entity to the designated client.
-        g_edicts[ i + 1 ].client = game.clients + i;
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+		svg_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+		ent->client = &game.clients[ i ];
+        
+        // Assign client number.
+        ent->client->clientNum = i;
 
         // Set their states as disconnected, unspawned, since the level is switching.
         game.clients[ i ].pers.connected = false;
@@ -654,7 +679,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
         // Pointer to the worldspawn edict in first instance, after that the first free entity
         // we can acquire.
-        spawnEdict = ( !spawnEdict ? g_edicts : SVG_AllocateEdict() );
+        spawnEdict = ( !spawnEdict ? g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ : g_edict_pool.AllocateNextFreeEdict<svg_edict_t>() );
 
         // Get the incremental index entity.
         cm_entity = entities[ i ];
@@ -739,7 +764,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
         // TODO: Move to some game mode specific function: CanEntitySpawn or a name of such nature.
         // See if we need to remove things (except the world) from different skill levels or game mode.
-        if ( spawnEdict != g_edicts ) {
+        if ( spawnEdict != g_edict_pool.EdictForNumber( 0 )/* world */ ) {
             // When nomonsters is set, remove any entities that have the word monster in their classname.
             if ( nomonsters->value && ( strstr( (const char *)spawnEdict->classname, "monster" )
             /*  || strstr( spawnEdict->classname, "misc_deadsoldier" )
@@ -800,7 +825,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Give entities a chance to 'post spawn'.
     int32_t numPostSpawnedEntities = 0;
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
-        svg_edict_t *ent = &g_edicts[ i ];
+        svg_edict_t *ent = g_edict_pool.EdictForNumber( i );
 
         if ( ent && ent->postspawn ) {
             ent->postspawn( ent );
@@ -1088,7 +1113,8 @@ void SP_worldspawn(svg_edict_t *ent)
     gi.soundindex( "player/pain75_01.wav" );
     gi.soundindex( "player/pain100_01.wav" );
     // WID: All of these are now just burn01 and burn02 since the original sounds contained silly screams and all that.
-    snd_fry = gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
+    gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
+    gi.soundindex( "player/burn02.wav" );
     //gi.soundindex( "player/lava_in.wav" );
     //gi.soundindex( "player/burn1.wav" );
     //gi.soundindex( "player/burn2.wav" );

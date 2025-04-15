@@ -22,7 +22,8 @@
 /**
 *   @brief  (Re-)initialize an edict.
 **/
-void SVG_InitEdict( svg_edict_t *e );
+void SVG_InitEdict( svg_edict_t *e, const int32_t stateNumber );
+#if 0
 /**
 *   @brief  Either finds a free edict, or allocates a new one.
 *   @remark This function tries to avoid reusing an entity that was recently freed,
@@ -31,12 +32,12 @@ void SVG_InitEdict( svg_edict_t *e );
 *           angles and bad trails.
 **/
 svg_edict_t *SVG_AllocateEdict( void );
+#endif
+
 /**
 *   @brief  Marks the edict as free
 **/
-void SVG_FreeEdict( svg_edict_t *e );
-
-
+void SVG_FreeEdict( svg_edict_t *ed );
 
 /**
 *

@@ -137,7 +137,7 @@ static constexpr int32_t SV_BASELINES_CHUNKS    = ( MAX_EDICTS >> SV_BASELINES_S
 /**
 *   Game features this server supports.
 **/
-static constexpr int32_t SV_FEATURES = (/*GMF_CLIENTNUM |*/ GMF_PROPERINUSE |
+static constexpr int32_t SV_FEATURES = ( GMF_CLIENTNUM | GMF_PROPERINUSE |
                                         GMF_WANT_ALL_DISCONNECTS |
                                         GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE );
 

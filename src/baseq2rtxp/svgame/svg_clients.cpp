@@ -20,6 +20,8 @@ svg_client_t *SVG_Clients_Reallocate( const int32_t maxClients ) {
     for ( int32_t i = 0; i < maxClients; i++ ) {
         // Use placement new to construct the client.
         new( &clients[ i ] ) svg_client_t();
+        // Assign the client number.
+        clients[ i ].clientNum = i;
     }
     return clients;
 }

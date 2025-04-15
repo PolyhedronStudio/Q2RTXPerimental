@@ -250,7 +250,7 @@ void plat_spawn_inside_trigger( svg_edict_t *ent ) {
     //
     // middle trigger
     //
-    trigger = SVG_AllocateEdict();
+    trigger = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
     trigger->touch = Touch_Plat_Center;
     trigger->movetype = MOVETYPE_NONE;
     trigger->solid = SOLID_TRIGGER;

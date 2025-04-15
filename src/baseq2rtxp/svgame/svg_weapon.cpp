@@ -217,14 +217,16 @@ const bool fire_hit_punch_impact( svg_edict_t *self, const Vector3 &start, const
     //gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     //gi.multicast( start, MULTICAST_PVS, false );
 
-    if ( !( tr.ent ) || ( tr.ent != &g_edicts[ 0 ] ) || ( !( tr.ent->svflags & SVF_MONSTER ) && ( !tr.ent->client ) ) ) {
+    if ( !( tr.ent ) 
+        || ( tr.ent != g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ )
+        || ( !(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client) )) {
         //gi.dprintf( "%s: no monster flag set for '%s' ?!\n", __func__, tr.ent->classname );
         return false;
     }
 
     vec3_t      v, point;
 
-    if ( tr.ent != nullptr && ( tr.ent != &g_edicts[ 0 ] ) ) {
+    if ( tr.ent != nullptr && ( tr.ent != g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ ) ) {
         // Do our special form of knockback here
         VectorMA( tr.ent->absmin, 0.5f, tr.ent->size, v );
         VectorSubtract( v, point, v );

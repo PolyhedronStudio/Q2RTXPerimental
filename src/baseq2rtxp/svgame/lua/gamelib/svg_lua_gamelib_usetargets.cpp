@@ -111,19 +111,19 @@ void LUA_Think_UseTargetDelay( svg_edict_t *entity ) {
 **/
 const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	// Make sure that the entity is at least active and valid to be signalling.
-	if ( !SVG_Entity_IsActive( leEnt.edict ) ) {
+	if ( !SVG_Entity_IsActive( leEnt.handle.edictPtr ) ) {
 		return -1; // USETARGET_INVALID
 	}
 
 	// Acquire pointers from lua_edict_t handles.
-	svg_edict_t *entity = leEnt.edict;
-	svg_edict_t *other = leOther.edict;
-	svg_edict_t *activator = leActivator.edict;
+	svg_edict_t *entity = leEnt.handle.edictPtr;
+	svg_edict_t *other = leOther.handle.edictPtr;
+	svg_edict_t *activator = leActivator.handle.edictPtr;
 
 	// Spawn a delayed useTargets entity if a delay was requested.
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
-		svg_edict_t *delayEntity = SVG_AllocateEdict();
+		svg_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
 		// In case it failed to allocate of course.
 		if ( !SVG_Entity_IsActive( delayEntity ) ) {
 			return -1; // USETARGET_INVALID
@@ -255,19 +255,19 @@ void LUA_Think_UseTargetsDelay( svg_edict_t *entity ) {
 **/
 const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edict_t leOther, lua_edict_t leActivator, const entity_usetarget_type_t useType, int32_t useValue ) {
 	// Make sure that the entity is at least active.
-	if ( !SVG_Entity_IsActive( leEnt.edict ) ) {
+	if ( !SVG_Entity_IsActive( leEnt.handle.edictPtr ) ) {
 		return -1; // USETARGET_INVALID
 	}
 
 	// Acquire pointers from lua_edict_t handles.
-	svg_edict_t *entity = leEnt.edict;
-	svg_edict_t *other = leOther.edict;
-	svg_edict_t *activator = leActivator.edict;
+	svg_edict_t *entity = leEnt.handle.edictPtr;
+	svg_edict_t *other = leOther.handle.edictPtr;
+	svg_edict_t *activator = leActivator.handle.edictPtr;
 
 	// Spawn a delayed useTargets entity if a delay was requested.
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
-		svg_edict_t *delayEntity = SVG_AllocateEdict();
+		svg_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
 		// In case it failed to allocate of course.
 		if ( !SVG_Entity_IsActive( delayEntity ) ) {
 			return -1; // USETARGET_INVALID

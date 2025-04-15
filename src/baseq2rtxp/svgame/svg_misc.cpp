@@ -106,7 +106,7 @@ void SVG_Misc_ThrowGib( svg_edict_t *self, const char *gibname, const int32_t da
     vec3_t  size;
     float   vscale;
 
-    svg_edict_t *gib = SVG_AllocateEdict();
+    svg_edict_t *gib = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();//SVG_AllocateEdict();
 
     VectorScale(self->size, 0.5f, size);
     VectorAdd(self->absmin, size, origin);
@@ -250,7 +250,7 @@ void debris_die(svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker
 void SVG_Misc_ThrowDebris(svg_edict_t *self, const char *modelname, const float speed, vec3_t origin)
 {
 
-    svg_edict_t *chunk = SVG_AllocateEdict();
+    svg_edict_t *chunk = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
     VectorCopy(origin, chunk->s.origin);
     gi.setmodel(chunk, modelname);
     Vector3 v = {

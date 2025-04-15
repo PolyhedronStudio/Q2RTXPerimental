@@ -196,7 +196,7 @@ void spotlight_use( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activato
 **/
 void SP_spotlight( svg_edict_t *self ) {
 
-	SVG_InitEdict( self );
+	g_edict_pool._InitEdict( self, self->s.number );
 	
 	// Spotlight Type
 	self->s.entityType = ET_SPOTLIGHT;

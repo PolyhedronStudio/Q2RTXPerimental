@@ -573,7 +573,7 @@ void SVG_PushMove_UpdateMoveWithEntities() {
         // Parent mover.
         svg_edict_t *parentMover = nullptr;
         if ( game.moveWithEntities[ i ].parentNumber > 0 && game.moveWithEntities[ i ].parentNumber < MAX_EDICTS ) {
-            parentMover = &g_edicts[ game.moveWithEntities[ i ].parentNumber ];
+            parentMover = g_edict_pool.EdictForNumber( game.moveWithEntities[ i ].parentNumber );//&g_edicts[ game.moveWithEntities[ i ].parentNumber ];
         }
 
         if ( parentMover && parentMover->inuse && ( parentMover->movetype == MOVETYPE_PUSH || parentMover->movetype == MOVETYPE_STOP ) ) {
@@ -595,7 +595,8 @@ void SVG_PushMove_UpdateMoveWithEntities() {
                 svg_edict_t *childMover = nullptr;
                 if ( game.moveWithEntities[ j ].parentNumber == parentMover->s.number &&
                     game.moveWithEntities[ j ].childNumber > 0 && game.moveWithEntities[ j ].childNumber < MAX_EDICTS ) {
-                    childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
+                    //childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
+                    childMover = g_edict_pool.EdictForNumber( game.moveWithEntities[ j ].childNumber );
                 }
                 if ( childMover && childMover->inuse 
                     && ( 

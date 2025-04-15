@@ -31,16 +31,95 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     *	@return	The edict for the given number. (nullptr if out of range).
     **/
     virtual svg_edict_t *EdictForNumber( const int32_t number );
-    //! Gets the number for the matching edict ptr.
+    /**
+    *   @brief  Gets the number for the matching edict ptr. 
+	*   @return The slot index number of the given edict, or -1 if the edict is out of range or (nullptr).
+    **/
     virtual const int32_t NumberForEdict( const svg_edict_t *edict );
 
-    ////! Pointer to edicts data array.
+    /**
+    *   @brief  Either finds a free edict, or allocates a new one.
+    *   @remark This function tries to avoid reusing an entity that was recently freed, 
+    *           because it can cause the client to think the entity morphed into something 
+    *           else instead of being removed and recreated, which can cause interpolated
+    *           angles and bad trails.
+    **/
+    template<typename EdictType>
+    EdictType *AllocateNextFreeEdict( ) {
+        svg_edict_t *entity = nullptr;
+        svg_edict_t *freedEntity = nullptr;
+
+        // Start after the client slots.
+        int32_t i = game.maxclients + 1;
+
+        entity = edicts[ i ];
+
+        // Iterate and seek.
+        for ( i; i < num_edicts; i++, entity = edicts[ i ] ) {
+
+            // the first couple seconds of server time can involve a lot of
+            // freeing and allocating, so relax the replacement policy
+            if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
+                _InitEdict<EdictType*>( entity, i );
+                return static_cast<EdictType *>( entity );
+            }
+
+            // this is going to be our second chance to spawn an entity in case all free
+            // entities have been freed only recently
+            if ( !freedEntity ) {
+                freedEntity = entity;
+            }
+        }
+
+        // If we reached the maximum number of entities.
+        if ( i == game.maxentities ) {
+            // If we have a freed entity, use it.
+            if ( freedEntity ) {
+                // Initialize it.
+                _InitEdict<EdictType*>( freedEntity, i );
+                // Return it.
+                return static_cast<EdictType *>( freedEntity );
+            }
+            // If we don't have any free edicts, error out.
+            gi.error( "SVG_AllocateEdict: no free edicts" );
+        }
+
+        // Initialize it.
+        _InitEdict<EdictType*>( entity, num_edicts );
+        // If we have free edicts left to go, use those instead.
+        num_edicts++;
+
+        return static_cast<EdictType *>( entity );
+    }
+
+	/**
+	*   @brief  Marks the edict as free
+    **/
+    void FreeEdict( svg_edict_t *ed );
+
+    /**
+    *   @brief  Support routine for AllocateNextFreeEdict.
+    **/
+    //template<typename EdictType>
+    //void _InitEdict( EdictType *ed, const int32_t stateNumber );
+    template<typename EdictType>
+    inline void _InitEdict( EdictType ed, const int32_t stateNumber ) {
+        ed->inuse = true;
+        ed->classname = "noclass";
+        ed->gravity = 1.0f;
+        ed->s.number = stateNumber;// e - g_edicts;
+
+        // A generic entity type by default.
+        ed->s.entityType = ET_GENERIC;
+    }
+
+    //! Pointer to edicts data array.
     //svg_edict_t *edicts;
     //////! Size of edict type.
-    ////int32_t         edict_size;
-    ////! Number of active edicts.
+    //int32_t         edict_size;
+    //! Number of active edicts.
     //int32_t         num_edicts;     // current number, <= max_edicts
-    ////! Maximum edicts.
+    //! Maximum edicts.
     //int32_t         max_edicts;
 };
 
@@ -58,4 +137,4 @@ struct svg_edict_pool_t : sv_edict_pool_i {
 /**
 *   @brief  (Re-)initializes the edict pool.
 **/
-svg_edict_t *SVG_EdictPool_Reallocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities );
+svg_edict_t **SVG_EdictPool_Reallocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities );

@@ -39,7 +39,7 @@ const float SVG_Client_DistanceToEntity( svg_edict_t *ent ) {
 
     for ( int32_t n = 1; n <= maxclients->value; n++ ) {
         // Get client.
-        svg_edict_t *clientEntity = &g_edicts[ n ];
+        svg_edict_t *clientEntity = g_edict_pool.EdictForNumber( n );//&g_edicts[ n ];
         // Ensure is active and alive player.
         if ( !SVG_Entity_IsClient( clientEntity, true ) ) {
             continue;

@@ -12,15 +12,16 @@
 #include "svgame/svg_utils.h"
 
 
+#if 0
 
 /**
 *   @brief  (Re-)initialize an edict.
 **/
-void SVG_InitEdict( svg_edict_t *e ) {
+void SVG_InitEdict( svg_edict_t *e, const int32_t stateNumber ) {
     e->inuse = true;
     e->classname = "noclass";
     e->gravity = 1.0f;
-    e->s.number = e - g_edicts;
+    e->s.number = stateNumber// e - g_edicts;
 
     // A generic entity type by default.
     e->s.entityType = ET_GENERIC;
@@ -100,6 +101,13 @@ void SVG_FreeEdict( svg_edict_t *ed ) {
     ed->inuse = false;
     ed->spawn_count = id;
 }
+#endif 
+/**
+*   @brief  Marks the edict as free
+**/
+void SVG_FreeEdict( svg_edict_t *ed ) {
+    g_edict_pool.FreeEdict( ed );
+}
 
 /**
 *   @brief  Searches all active entities for the next one that holds
@@ -116,20 +124,28 @@ svg_edict_t *SVG_Entities_Find( svg_edict_t *from, const int32_t fieldofs, const
         return nullptr;
     }
 
-    if ( !from ) {
-        from = g_edicts;
-    } else {
-        from++;
-    }
+    //if ( !from ) {
+    //    from = g_edicts;
+    //} else {
+    //    from++;
+    //}
+    const int32_t startIndex = ( from ? from->s.number + 1 : 0 );
 
-    for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
-        if ( !from->inuse )
+    //for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
+    //    if ( !from || !from->inuse ) {
+	for ( int32_t i = startIndex; i < g_edict_pool.num_edicts; i++ ) {
+        from = g_edict_pool.EdictForNumber( i );
+
+        if ( !from || !from->inuse ) {
             continue;
+        }
         s = *(char **)( (byte *)from + fieldofs );
-        if ( !s )
+        if ( !s ) {
             continue;
-        if ( !Q_stricmp( s, match ) )
+        }
+        if ( !Q_stricmp( s, match ) ) {
             return from;
+        }
     }
 
     return NULL;
@@ -142,19 +158,29 @@ svg_edict_t *SVG_Entities_FindWithinRadius( svg_edict_t *from, const vec3_t org,
     vec3_t  eorg;
     int     j;
 
-    if ( !from )
-        from = g_edicts;
-    else
-        from++;
-    for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
-        if ( !from->inuse )
+    //if ( !from ) {
+    //    from = g_edicts;
+    //} else {
+    //    from++;
+    //}
+    const int32_t startIndex = ( from ? from->s.number + 1 : 0 );
+
+    //for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
+    //    if ( !from || !from->inuse ) {
+    for ( int32_t i = startIndex; i < g_edict_pool.num_edicts; i++ ) {
+        from = g_edict_pool.EdictForNumber( i );
+        if ( !from || !from->inuse ) {
             continue;
-        if ( from->solid == SOLID_NOT )
+        }
+        if ( from->solid == SOLID_NOT ) {
             continue;
-        for ( j = 0; j < 3; j++ )
+        }
+        for ( j = 0; j < 3; j++ ) {
             eorg[ j ] = org[ j ] - ( from->s.origin[ j ] + ( from->mins[ j ] + from->maxs[ j ] ) * 0.5f );
-        if ( VectorLength( eorg ) > rad )
+        }
+        if ( VectorLength( eorg ) > rad ) {
             continue;
+        }
         return from;
     }
 
@@ -181,7 +207,7 @@ void SVG_Entities_InitBodyQue( void ) {
 
     level.body_que = 0;
     for ( i = 0; i < BODY_QUEUE_SIZE; i++ ) {
-        ent = SVG_AllocateEdict();
+        ent = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
         ent->classname = "bodyque";
     }
 }
@@ -206,12 +232,11 @@ void body_die( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker,
 *   @brief  Get a que slot, leave an effect, and remove body into the queue.
 **/
 void SVG_Entities_AddForPlayer( svg_edict_t *ent ) {
-    svg_edict_t *body;
-
+    // Unlink entity.
     gi.unlinkentity( ent );
 
     // grab a body que and cycle to the next one
-    body = &g_edicts[ game.maxclients + level.body_que + 1 ];
+    svg_edict_t *body = g_edict_pool.EdictForNumber( game.maxclients + level.body_que + 1 );//&g_edicts[ game.maxclients + level.body_que + 1 ];
     level.body_que = ( level.body_que + 1 ) % BODY_QUEUE_SIZE;
 
     // send an effect on the removed body
@@ -225,7 +250,7 @@ void SVG_Entities_AddForPlayer( svg_edict_t *ent ) {
 
     gi.unlinkentity( body );
 
-    body->s.number = body - g_edicts;
+    body->s.number = g_edict_pool.NumberForEdict( body );//body - g_edicts;
     VectorCopy( ent->s.origin, body->s.origin );
     VectorCopy( ent->s.origin, body->s.old_origin );
     VectorCopy( ent->s.angles, body->s.angles );

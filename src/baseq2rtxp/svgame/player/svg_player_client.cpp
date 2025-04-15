@@ -261,9 +261,12 @@ qboolean SVG_Client_Connect( svg_edict_t *ent, char *userinfo ) {
         }
 
         // count spectators
-        for ( i = numspec = 0; i < maxclients->value; i++ )
-            if ( g_edicts[ i + 1 ].inuse && g_edicts[ i + 1 ].client->pers.spectator )
+        for ( i = numspec = 0; i < maxclients->value; i++ ) {
+            svg_edict_t *ed = g_edict_pool.EdictForNumber( i + 1);
+            if ( ed != nullptr && ed->inuse && ed->client->pers.spectator ) {
                 numspec++;
+            }
+        }
 
         if ( numspec >= maxspectators->value ) {
             Info_SetValueForKey( userinfo, "rejmsg", "Server spectator limit is full." );
@@ -280,7 +283,8 @@ qboolean SVG_Client_Connect( svg_edict_t *ent, char *userinfo ) {
     }
 
     // they can connect
-    ent->client = game.clients + ( ent - g_edicts - 1 );
+    //ent->client = game.clients + ( ent - g_edicts - 1 );
+    ent->client = &game.clients[ g_edict_pool.NumberForEdict( ent ) - 1 ];
 
     // if there is already a body waiting for us (a loadgame), just
     // take it, otherwise spawn one from scratch
@@ -330,7 +334,7 @@ void SVG_Client_Disconnect( svg_edict_t *ent ) {
     // send effect
     if ( ent->inuse ) {
         gi.WriteUint8( svc_muzzleflash );
-        gi.WriteInt16( ent - g_edicts );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//gi.WriteInt16( ent - g_edicts );
         gi.WriteUint8( MZ_LOGOUT );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
     }
@@ -435,8 +439,8 @@ void SVG_Player_InitRespawnData( svg_client_t *client ) {
 **/
 void SVG_Player_SaveClientData( void ) {
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        svg_edict_t *ent = &g_edicts[ 1 + i ];
-        if ( !ent->inuse ) {
+        svg_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts[ 1 + i ];
+        if ( !ent || !ent->inuse ) {
             continue;
         }
         game.clients[ i ].pers.health = ent->health;
@@ -520,7 +524,7 @@ void SVG_Client_UserinfoChanged( svg_edict_t *ent, char *userinfo ) {
     // set skin
     s = Info_ValueForKey( userinfo, "skin" );
 
-    playernum = ent - g_edicts - 1;
+    playernum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
 
     // combine name and skin into a configstring
     gi.configstring( CS_PLAYERSKINS + playernum, va( "%s\\%s", ent->client->pers.netname, s ) );
@@ -615,7 +619,8 @@ void SVG_Client_RespawnSpectator( svg_edict_t *ent ) {
 
         // count spectators
         for ( i = 1, numspec = 0; i <= maxclients->value; i++ ) {
-            if ( g_edicts[ i ].inuse && g_edicts[ i ].client->pers.spectator ) {
+            svg_edict_t *ed = g_edict_pool.EdictForNumber( i );
+            if ( ed != nullptr && ed->inuse && ed->client->pers.spectator ) {
                 numspec++;
             }
         }
@@ -654,7 +659,7 @@ void SVG_Client_RespawnSpectator( svg_edict_t *ent ) {
     if ( !ent->client->pers.spectator ) {
         // send effect
         gi.WriteUint8( svc_muzzleflash );
-        gi.WriteInt16( ent - g_edicts );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
         gi.WriteUint8( MZ_LOGIN );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
 
@@ -706,7 +711,7 @@ void SVG_Player_PutInServer( svg_edict_t *ent ) {
     // ranging doesn't count this client
     SVG_Player_SelectSpawnPoint( ent, spawn_origin, spawn_angles );
 
-    index = ent - g_edicts - 1;
+    index = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
     client = ent->client;
 
     if ( SG_IsMultiplayerGameMode( game.gamemode ) ) {
@@ -755,8 +760,10 @@ void SVG_Player_PutInServer( svg_edict_t *ent ) {
     // Backup persistent data and clean everything.
     client_persistant_t savedPersistantData = client->pers;
     //memset( client, 0, sizeof( *client ) );
+    int32_t clientNum = client->clientNum;
     // Reset client value.
     *client = { };
+    client->clientNum = clientNum;
     // Reinitialize persistent data.
     client->pers = savedPersistantData;
     // If dead at the time of the previous map switching to the current, reinitialize persistent data.
@@ -825,7 +832,7 @@ void SVG_Player_PutInServer( svg_edict_t *ent ) {
     ent->s.modelindex2 = 255;       // Custom gun model.
     // sknum is player num and weapon number
     // weapon number will be added in changeweapon
-    ent->s.skinnum = ent - globals.edictPool->edicts - 1;
+    ent->s.skinnum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - globals.edictPool->edicts - 1;
     ent->s.frame = 0;
     ent->s.old_frame = 0;
 
@@ -894,7 +901,7 @@ void SVG_Player_PutInServer( svg_edict_t *ent ) {
 **/
 void SVG_Client_BeginDeathmatch( svg_edict_t *ent ) {
     // Init Edict.
-    SVG_InitEdict( ent );
+    g_edict_pool._InitEdict( ent, ent->s.number );//SVG_InitEdict( ent );
 
     // Make sure classname is player.
     ent->classname = "player";
@@ -914,7 +921,7 @@ void SVG_Client_BeginDeathmatch( svg_edict_t *ent ) {
     } else {
         // send effect
         gi.WriteUint8( svc_muzzleflash );
-        gi.WriteInt16( ent - g_edicts );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
         gi.WriteUint8( MZ_LOGIN );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
     }
@@ -951,7 +958,7 @@ void SVG_Client_BeginNewBody( svg_edict_t *ent ) {
     // A spawn point will completely reinitialize the entity
     // except for the persistant data that was initialized at
     // connect time
-    SVG_InitEdict( ent );
+    g_edict_pool._InitEdict( ent, ent->s.number );
     // Make sure classname is player.
     ent->classname = "player";
     // Make sure entity type is player.
@@ -970,7 +977,7 @@ void SVG_Client_BeginNewBody( svg_edict_t *ent ) {
 **/
 void SVG_Client_Begin( svg_edict_t *ent ) {
     // Assign matching client for this entity.
-    ent->client = game.clients + ( ent - g_edicts - 1 );
+    ent->client = &game.clients[ g_edict_pool.NumberForEdict( ent ) - 1 ]; //game.clients + ( ent - g_edicts - 1 );
 
     // [Paril-KEX] we're always connected by this point...
     ent->client->pers.connected = true;
@@ -1004,7 +1011,7 @@ void SVG_Client_Begin( svg_edict_t *ent ) {
         // 
         if ( game.maxclients >= 1 ) {
             gi.WriteUint8( svc_muzzleflash );
-            gi.WriteInt16( ent - g_edicts );
+            gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
             gi.WriteUint8( MZ_LOGIN );
             gi.multicast( ent->s.origin, MULTICAST_PVS, false );
 

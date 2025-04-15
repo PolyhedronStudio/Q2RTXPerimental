@@ -21,37 +21,70 @@
 /**
 *	Utility for checking if 'edict' pointer is valid.
 **/
-#define LUA_VALIDATE_EDICT_POINTER() \
+#define LUA_VALIDATE_EDICT_HANDLE() \
 do { \
-	if ( edict == nullptr ) { \
-		Lua_DeveloperPrintf( "%s: lua_edict_t::edict == (nullptr) !\n", (__FUNCTION__) ); \
+	if ( handle.edictPtr == nullptr ) { \
+		Lua_DeveloperPrintf( "%s: lua_edict_state_t::handle.edictPtr == (nullptr) !\n", (__func__) ); \
+		handle = { .number = -1 }; \
 		return; \
+	} else { \
+		svg_edict_t *edictInSlot = g_edict_pool.EdictForNumber( handle.number ); \
+		if ( !edictInSlot || handle.edictPtr != edictInSlot ) { \
+			handle = { .number = -1 }; \
+			return; \
+		} \
+		if ( edictInSlot->s.number != handle.number ) { \
+			handle = { .number = -1 }; \
+			return; \
+		} \
+		if ( edictInSlot->spawn_count != handle.spawnCount ) { \
+			handle = { .number = -1 }; \
+			return; \
+		} \
 	} \
 } while (false)
 
-#define LUA_VALIDATE_EDICT_POINTER_RETVAL(returnValue) \
+#define LUA_VALIDATE_EDICT_HANDLE_RETVAL(returnValue) \
 do { \
-	if ( edict == nullptr ) { \
-		Lua_DeveloperPrintf( "%s: lua_edict_t::edict == (nullptr) !\n", (__FUNCTION__) ); \
+	if ( handle.edictPtr == nullptr ) { \
+		Lua_DeveloperPrintf( "%s: lua_edict_state_t::handle.edictPtr == (nullptr) !\n", (__func__) ); \
+		handle = { .number = -1 }; \
 		return returnValue; \
-	} \
+	} else { \
+		svg_edict_t *edictInSlot = g_edict_pool.EdictForNumber( handle.number ); \
+		if ( !edictInSlot || handle.edictPtr != edictInSlot ) { \
+			handle = { .number = -1 }; \
+			return returnValue; \
+		} \
+		if ( edictInSlot->s.number != handle.number ) { \
+			handle = { .number = -1 }; \
+			return returnValue; \
+		} \
+		if ( edictInSlot->spawn_count != handle.spawnCount ) { \
+			handle = { .number = -1 }; \
+			return returnValue; \
+		} \
+	}\
 } while (false)
-
-
 
 /**
 *
 *	Constructors:
 *
 **/
-lua_edict_t::lua_edict_t() : edict(nullptr) {
+lua_edict_t::lua_edict_t() : handle( {} ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 	
 }
-lua_edict_t::lua_edict_t( svg_edict_t *_edict ) : edict(_edict) {
+lua_edict_t::lua_edict_t( svg_edict_t *_edict ) /*: edict(_edict)*/ {
+	//! Setup pointer.
+	handle.edictPtr		= _edict;
+	handle.number		= _edict->s.number;
+	handle.spawnCount	= _edict->spawn_count;
+
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 }
 
 
@@ -68,11 +101,11 @@ lua_edict_t::lua_edict_t( svg_edict_t *_edict ) : edict(_edict) {
 /**
 *	@brief
 **/
-const int32_t lua_edict_t::get_number( sol::this_state s ) const {
+const int32_t lua_edict_t::get_number( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( -1 );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( -1 );
 	// Return number.
-	return this->edict->s.number;
+	return handle.edictPtr->s.number;
 }
 /**
 *	@brief
@@ -91,12 +124,12 @@ const int32_t lua_edict_t::get_number( sol::this_state s ) const {
 **/
 sol::object lua_edict_t::get_state( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( sol::nil );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( sol::nil );
 
 	// Get state.
 	sol::state_view solState( s );
 	// Create a reference object of entity state userdata.
-	return sol::make_object_userdata<lua_edict_state_t>(solState, this->edict);
+	return sol::make_object_userdata<lua_edict_state_t>(solState, this->handle.edictPtr );
 }
 
 
@@ -106,38 +139,41 @@ sol::object lua_edict_t::get_state( sol::this_state s ) {
 /**
 *	@brief
 **/
-const int32_t lua_edict_t::get_usetarget_flags( sol::this_state s ) const {
+const int32_t lua_edict_t::get_usetarget_flags( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( entity_usetarget_flags_t::ENTITY_USETARGET_FLAG_NONE );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( entity_usetarget_flags_t::ENTITY_USETARGET_FLAG_NONE );
 	// Return number.
-	return this->edict->useTarget.flags;
+	//return this->edict->useTarget.flags;
+	return handle.edictPtr->useTarget.flags;
 }
 /**
 *	@brief
 **/
 void lua_edict_t::set_usetarget_flags( sol::this_state s, const int32_t flags ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 	// Assign new flags.
-	this->edict->useTarget.flags = (entity_usetarget_flags_t)flags;
+	//this->edict->useTarget.flags = (entity_usetarget_flags_t)flags;
+	handle.edictPtr->useTarget.flags = (entity_usetarget_flags_t)flags;
 }
 /**
 *	@brief
 **/
-const int32_t lua_edict_t::get_usetarget_state( sol::this_state s ) const {
+const int32_t lua_edict_t::get_usetarget_state( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( entity_usetarget_state_t::ENTITY_USETARGET_STATE_DEFAULT );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( entity_usetarget_state_t::ENTITY_USETARGET_STATE_DEFAULT );
 	// Return number.
-	return this->edict->useTarget.state;
+	//return this->edict->useTarget.state;
+	return handle.edictPtr->useTarget.state;
 }
 /**
 *	@brief
 **/
 void lua_edict_t::set_usetarget_state( sol::this_state s, const int32_t state ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 	// Assign new flags.
-	this->edict->useTarget.state = (entity_usetarget_state_t)state;
+	handle.edictPtr->useTarget.state = (entity_usetarget_state_t)state;
 }
 
 
@@ -147,39 +183,39 @@ void lua_edict_t::set_usetarget_state( sol::this_state s, const int32_t state ) 
 /**
 *	@brief
 **/
-const double lua_edict_t::get_trigger_wait( sol::this_state s ) const {
+const double lua_edict_t::get_trigger_wait( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( 0 );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( 0 );
 	// Return value.
-	return this->edict->wait;
+	return handle.edictPtr->wait;
 }
 /**
 *	@return
 **/
 void lua_edict_t::set_trigger_wait( sol::this_state s, const double wait ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 	// Assign new value.
-	this->edict->wait = wait;
+	handle.edictPtr->wait = wait;
 }
 
 /**
 *	@brief
 **/
-const double lua_edict_t::get_trigger_delay( sol::this_state s ) const {
+const double lua_edict_t::get_trigger_delay( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL(0);
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL(0);
 	// Return value.
-	return this->edict->delay;
+	return handle.edictPtr->delay;
 }
 /**
 *	@return
 **/
 void lua_edict_t::set_trigger_delay( sol::this_state s, const double delay ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 	// Assign new value.
-	this->edict->delay = delay;
+	handle.edictPtr->delay = delay;
 }
 
 
@@ -190,80 +226,81 @@ void lua_edict_t::set_trigger_delay( sol::this_state s, const double delay ) {
 /**
 *	@brief
 **/
-const std::string lua_edict_t::get_string_classname( sol::this_state s ) const {
+const std::string lua_edict_t::get_string_classname( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( "\0" );
 	// Return pointer to copy into std::string
-	return ( this->edict->classname ? (const char *)this->edict->classname : "\0" );
+	return ( handle.edictPtr->classname ? (const char *)handle.edictPtr->classname : "\0" );
 }
 
 /**
 *	@brief
 **/
-const std::string lua_edict_t::get_string_target( sol::this_state s ) const {
+const std::string lua_edict_t::get_string_target( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( "\0" );
 	// Return pointer to copy into std::string
-	return ( this->edict->targetNames.target ? (const char *)this->edict->targetNames.target : "\0" );
+	return ( handle.edictPtr->targetNames.target ? (const char *)handle.edictPtr->targetNames.target : "\0" );
 }
 /**
 *	@brief
 **/
 void lua_edict_t::set_string_target( sol::this_state s, const char *luaStrTarget ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 	// nullptr it if the string is empty.
 	if ( !luaStrTarget || luaStrTarget[ 0 ] == '\0' ) {
-		this->edict->targetNames.target = nullptr;
+		handle.edictPtr->targetNames.target = nullptr;
 	}
 	// Assign new value.
-	this->edict->targetNames.target = luaStrTarget;
+	handle.edictPtr->targetNames.target = luaStrTarget;
 }
 
 /**
 *	@brief
 **/
-const std::string lua_edict_t::get_string_targetname( sol::this_state s ) const {
+const std::string lua_edict_t::get_string_targetname( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( "\0" );
 	// Return pointer to copy into std::string
-	return ( this->edict->targetname ? (const char *)this->edict->targetname : "\0" );
+	return ( handle.edictPtr->targetname ? (const char *)handle.edictPtr->targetname : "\0" );
 }
 /**
 *	@brief
 **/
 void lua_edict_t::set_string_targetname( sol::this_state s, const char *luaStrTargetName ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 	// nullptr it if the string is empty.
 	if ( !luaStrTargetName || luaStrTargetName[ 0 ] == '\0' ) {
-		this->edict->targetname = nullptr;
+		handle.edictPtr->targetname = nullptr;
 	}
 	// Assign new value.
-	this->edict->targetname = luaStrTargetName;
+	handle.edictPtr->targetname = luaStrTargetName;
 }
 
 /**
 *	@brief
 **/
-const std::string lua_edict_t::get_string_luaname( sol::this_state s ) const {
+const std::string lua_edict_t::get_string_luaname( sol::this_state s ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER_RETVAL( "\0" );
+	LUA_VALIDATE_EDICT_HANDLE_RETVAL( "\0" );
 	// Return pointer to copy into std::string
-	return ( this->edict->luaProperties.luaName ? (const char *)this->edict->luaProperties.luaName : "\0" );
+	return ( handle.edictPtr->luaProperties.luaName ? (const char *)handle.edictPtr->luaProperties.luaName : "\0" );
 }
+
 /**
 *	@brief
 **/
 void lua_edict_t::set_string_luaname( sol::this_state s, const char *luaStrLuaName ) {
 	// Returns if invalid.
-	LUA_VALIDATE_EDICT_POINTER();
+	LUA_VALIDATE_EDICT_HANDLE();
 	// nullptr it if the string is empty.
 	if ( !luaStrLuaName || luaStrLuaName[ 0 ] == '\0' ) {
-		this->edict->luaProperties.luaName = nullptr;
+		handle.edictPtr->luaProperties.luaName = nullptr;
 	}
 	// Assign new value.
-	this->edict->luaProperties.luaName = luaStrLuaName;
+	handle.edictPtr->luaProperties.luaName = luaStrLuaName;
 }
 
 

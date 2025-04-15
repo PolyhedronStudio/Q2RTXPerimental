@@ -235,7 +235,7 @@ void SV_WriteFrameToClient( client_t *client ) {
 
 	// delta encode the entities
 	MSG_WriteUint8( svc_packetentities );
-	SV_EmitPacketEntities( client, oldFrame, newFrame, /*0*/newFrame->clientNum);
+	SV_EmitPacketEntities( client, oldFrame, newFrame, 0/*newFrame->clientNum*/);
 }
 
 
@@ -307,25 +307,28 @@ void SV_BuildClientFrame(client_t *client)
     MSG_PackPlayer(&frame->ps, ps);
 
     // grab the current clientNum
-    //if (g_features->integer & GMF_CLIENTNUM) {
-    //    frame->clientNum = clent->client->clientNum;
-    //    if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
-    //        Com_WPrintf("%s: bad clientNum %d for client %d\n",
-    //                    __func__, frame->clientNum, client->number);
-    //        frame->clientNum = client->number;
-    //    }
-    //} else {
-
-    // <Q2RTXP>: WID: TODO: Do we need this? Probably best to test on dedicated server then.
-    //frame->clientNum = clent->client->clientNum;;
-    frame->clientNum = client->number;
-    //}
+    if (g_features->integer & GMF_CLIENTNUM) {
+        frame->clientNum = clent->client->clientNum;
+        if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
+            Com_WPrintf("%s: bad clientNum %d for client %d\n",
+                        __func__, frame->clientNum, client->number);
+            frame->clientNum = client->number;
+        }
+    } else {
+        // <Q2RTXP>: WID: TODO: Do we need this? Probably best to test on dedicated server then.
+        //frame->clientNum = clent->client->clientNum;;
+        frame->clientNum = client->number;
+    }
 
     // fix clientNum if out of range for older version of Q2PRO protocol
     //need_clientnum_fix = client->protocol == PROTOCOL_VERSION_Q2PRO
     //    && client->version < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT
     //    && frame->clientNum >= CLIENTNUM_NONE;
-	need_clientnum_fix = false;
+    if ( frame->clientNum >= CLIENTNUM_NONE ) {
+        need_clientnum_fix = true;
+    } else {
+        need_clientnum_fix = false;
+    }
 
 	if (clientcluster >= 0)
 	{

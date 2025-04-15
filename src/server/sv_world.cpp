@@ -248,13 +248,16 @@ void PF_LinkEdict(edict_ptr_t *ent)
     server_entity_t *sent;
     int entnum;
 
+    if ( !ent ) {
+        Com_Error( ERR_DROP, "%s: (nullptr) edict_t pointer\n", __func__ );
+    }
     // If it has been linked previously(possibly to an other position), unlink first.
     if ( ent->area.prev ) {
         PF_UnlinkEdict( ent );
     }
 
     // Do not try and add the world.
-    if ( ent == ge->edictPool->edicts ) {
+    if ( ent == ge->edictPool->edicts[ 0 ] /* worldspawn */ ) {
         return;        // don't add the world
     }
 
@@ -659,7 +662,7 @@ const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clip, const vec3_t start, const
     }
 
     // Clip to world.
-    if ( clip == ge->edictPool->edicts ) {
+    if ( clip == ge->edictPool->edicts[ 0 ] /* worldspawn */ ) {
         CM_BoxTrace( 
             &sv.cm, &trace, 
             start, end, mins, maxs, 
