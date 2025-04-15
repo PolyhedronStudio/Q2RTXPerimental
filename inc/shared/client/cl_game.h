@@ -667,10 +667,11 @@ typedef struct {
 	*	'Tag' Managed Memory Allocation:
 	*
 	**/
-	void *( *TagMalloc )( const uint32_t size, const uint32_t tag );
+	void *( *TagMalloc )( const uint32_t size, const memtag_t tag );
+	void *( *TagMallocz )( const uint32_t size, const memtag_t tag );
 	void *( *TagReMalloc )( void *ptr, const uint32_t size );
 	void ( *TagFree )( void *block );
-	void ( *FreeTags )( const uint32_t tag );
+	void ( *FreeTags )( const memtag_t tag );
 
 
 	/**

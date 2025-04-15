@@ -135,7 +135,7 @@ static inline sg_qtag_memory_t<_T, _tag> *allocate_qtag_memory( sg_qtag_memory_t
 		ptr->ptr = reinterpret_cast<_T *>( SG_Z_TagReMalloc( ptr->ptr, ptr->size() ) );
 		// Otherwise, allocate a new tag block.
 	} else {
-		ptr->ptr = reinterpret_cast<_T *>( SG_Z_TagMalloc( ptr->size(), _tag ) );
+		ptr->ptr = reinterpret_cast<_T *>( SG_Z_TagMallocz( ptr->size(), _tag ) );
 	}
 
 	// Return.

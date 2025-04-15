@@ -105,7 +105,6 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
             if ( size == 0 ) {
                 size = 1;
             }
-            //size += 1;
             // Allocate.
             if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
                 // Debug about the allocation.
@@ -123,7 +122,7 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
 	    void operator delete( void *ptr ) {
             if ( ptr != nullptr ) {//TagAllocator::Free( ptr );
                 // Debug about deallocation.
-                gi.dprintf( "%s: Freeing %p in\n", __func__, ptr );
+                gi.dprintf( "%s: Freeing %p\n", __func__, ptr );
                 // Deallocate.
                 gi.TagFree( ptr );
                 return;
@@ -137,7 +136,6 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
             if ( size == 0 ) {
                 size = 1;
             }
-            //size += 1;
             // Allocate.
             if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
                 // Debug about the allocation.

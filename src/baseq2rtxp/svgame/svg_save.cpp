@@ -1043,7 +1043,7 @@ static char *read_string(gzFile f)
     }
 
 	// WID: C++20: Added cast.
-    s = (char*)gi.TagMalloc(len + 1, TAG_SVGAME_LEVEL);
+    s = (char*)gi.TagMallocz(len + 1, TAG_SVGAME_LEVEL);
     read_data(s, len, f);
     s[len] = 0;
 
@@ -1398,8 +1398,11 @@ void SVG_ReadGame(const char *filename)
     gzFile	f;
     int     i;
 
-    gi.FreeTags( TAG_SVGAME_EDICTS );
+    //if ( g_edict_pool.edicts != nullptr || g_edict_pool.max_edicts != game.maxentities ) {
+    //    SVG_EdictPool_Release( &g_edict_pool );
+    //}
     gi.FreeTags(TAG_SVGAME);
+    game = {};
 
     f = gzopen(filename, "rb");
     if (!f)
@@ -1437,8 +1440,18 @@ void SVG_ReadGame(const char *filename)
 
     // Clamp maxentities within valid range.
     game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
-    // Initialize the edicts array pointing to a the memory allocated within the pool.
-    g_edicts = SVG_EdictPool_Reallocate( &g_edict_pool, game.maxentities );
+    // TODO:
+    // 
+	// Only allocate svg_player_edict_t for the first game.maxclients.
+	// Only allocate svg_edict_t for the rest of the game.maxentities.
+    // 
+	// When ReadLevel comes, we first wipe all edicts and if necessary allocate 
+    // the specified classname linked class object.
+    // 
+    // Release all edicts.
+    g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+    // Initialize the edicts array pointing to the memory allocated within the pool.
+    g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
 	g_edict_pool.max_edicts = game.maxentities;
 
 	// Initialize a fresh clients array.
@@ -1529,31 +1542,36 @@ void SVG_ReadLevel(const char *filename)
     svg_edict_t *ent;
 
     // free any dynamic memory allocated by loading the level
-    // base state
+    // base state.
+    //
+	// WID: Keep in mind that freeing entities after this, would invalidate their sg_qtag_memory_t blocks.
     gi.FreeTags(TAG_SVGAME_LEVEL);
-
+    
     f = gzopen(filename, "rb");
     if (!f)
         gi.error("Couldn't open %s", filename);
 
     gzbuffer(f, 65536);
 
-    // wipe all the entities
+    // Wipe all the entities back to 'baseline'.
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
-        const int32_t entityNumber = g_edicts[ i ]->s.number;
-        //*g_edicts[ i ] = { };
-        if ( i >= 1 && i < game.maxclients + 1 ) {
-            g_edict_pool.edicts[ i ] = new svg_player_edict_t();
-            static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] )->testVar = 100 + i;
-        } else {
-            g_edict_pool.edicts[ i ] = new svg_edict_t();
-        }
-        // Set the number to the current index.
-        g_edict_pool.edicts[ i ]->s.number = entityNumber;
+        // Store original number.
+        const int32_t number = g_edicts[ i ]->s.number;
+        // Zero out.
+        *g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
+        // Retain the entity's original number.
+        g_edicts[ i ]->s.number = number;
+        //const int32_t entityNumber = g_edicts[ i ]->s.number;
+        ////*g_edicts[ i ] = { };
+        //if ( i >= 1 && i < game.maxclients + 1 ) {
+        //    g_edict_pool.edicts[ i ] = new svg_player_edict_t();
+        //    static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] )->testVar = 100 + i;
+        //} else {
+        //    g_edict_pool.edicts[ i ] = new svg_edict_t();
+        //}
+        //// Set the number to the current index.
+        //g_edict_pool.edicts[ i ]->s.number = entityNumber;
     }
-    //memset(g_edicts, 0, sizeof(g_edicts[0]));
-    //std::fill_n( &g_edicts[ i ], sizeof(svg_edict_t), 0 );
-
     g_edict_pool.num_edicts = maxclients->value + 1;
 
     i = read_int(f);
@@ -1588,7 +1606,10 @@ void SVG_ReadLevel(const char *filename)
             g_edict_pool.num_edicts = entnum + 1;
         }
 
+        // WID: TODO: Early load the classname member value and check if
+		// it matches any of the classnames we have registered for allocation by using the pool.
         ent = g_edict_pool.EdictForNumber( entnum );
+		// WID: TODO: Use the entity's actual class type to retrieve the field offsets from.
         read_fields(&ctx, entityfields, ent);
         ent->inuse = true;
         ent->s.number = entnum;
@@ -1625,7 +1646,7 @@ void SVG_ReadLevel(const char *filename)
         if (ent->think == func_clock_think || ent->use == func_clock_use) {
             char *msg = ent->message;
 			// WID: C++20: Added cast.
-            ent->message = (char*)gi.TagMalloc(CLOCK_MESSAGE_SIZE, TAG_SVGAME_LEVEL);
+            ent->message = (char*)gi.TagMallocz(CLOCK_MESSAGE_SIZE, TAG_SVGAME_LEVEL);
             if (msg) {
                 Q_strlcpy(ent->message, msg, CLOCK_MESSAGE_SIZE);
                 gi.TagFree(msg);

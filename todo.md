@@ -6,6 +6,9 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ---
 * Is the actual bobCycle predicting working and necessary? We can do this in PMove right?
 ---
+* A load game will result in 8192*2 allocated blocks of tag zone memory. This needs to be researched
+and fixed, as it is not necessary to allocate this much memory for a load game. We should have 8192 instead.
+---
 
 ## Random Ideas for The Day:
 * If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
@@ -39,7 +42,8 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 ### Medium Priority:
 * [ ] EAX sometimes remains as if we're underwater after exiting water. Re-entering and exiting usually helps though.
 * [ ] Getting stuck by a pusher brush entity has us 'wrap/teleport' far off.
-* [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
+* [-] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
+	We'll just go for capsules instead. Perhaps look into even utilizing Jolt Physics at a bare minimum level for geometric clip testing.
 * [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
 	- [X] Filter so it doesn't clip to all entities.
 ### Low Priority:
@@ -58,7 +62,8 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 			- [X] Fixed by implementing sg_qtag_memory_t however, 
 				- [ ] it needs support for multiple types?
 				- [ ] 
-
+- [ ] **LUA**:
+	- [ ] Look into making it easy to hook up svg_edict_t derived classes to Lua.
 - [ ] **HUD**:
 	- [ ] Certain people get iffy and uppety about crosshair as it is. So, let's make it configurable.
 
@@ -67,7 +72,12 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 		- [ ] Calculate the proper entity matrixes/quaternions during Link time.
 	- [ ] Reimplement (client-)misc_model properly.
 	- [ ] Add proper spawn flag constants.
-	- [ ] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of the matching entity classname and its 'classdata' struct.
+	- [/] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of the matching entity classname and its 'classdata' struct.
+		- [ ] Add in a TypeInfo system allowing for:
+			- [ ] Registering an inhericted svg_edict_t to a classname type.
+			- [ ] Allocating the matching class type linked to an entity's classname key/value pair.
+			- [ ] Registering an inherited svg_edict_t class its extra save field offsets.
+			- [ ] Registering an inherited svg_edict_t class its extra messaging field offsets.
 	- [ ] .. Some more I bet ..
 
 - [ ] The **IQM Animation** Scenario:
@@ -183,9 +193,9 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 	- [X] Make buttons and doors lockable lol.
 
 ### Medium Priority:
-* [ ] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly, 
+* [X] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly, 
 	* [ ] same for usetargethint that was being displayed.
-* [ ] * [X] Remove all Q2 monsters, keep a few around to use for testing.
+* [X] Remove all Q2 monsters, keep a few around to use for testing.
 * [-] Eliminate all other Q2-only specific game entities.
 
 ### Low Priority:

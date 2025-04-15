@@ -135,6 +135,10 @@ struct svg_edict_pool_t : sv_edict_pool_i {
 *
 **/
 /**
+*   @brief	Frees any previously allocated edicts in the pool.
+**/
+svg_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool );
+/**
 *   @brief  (Re-)initializes the edict pool.
 **/
-svg_edict_t **SVG_EdictPool_Reallocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities );
+svg_edict_t **SVG_EdictPool_Allocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities );

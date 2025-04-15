@@ -114,8 +114,10 @@ void SV_ClearWorld(void)
     for (i = 0; i < ge->edictPool->max_edicts; i++) {
         // Get edict pointer.s
         ent = EDICT_FOR_NUMBER(i);
-        // Unlink.
-        ent->area.prev = ent->area.next = NULL;
+        if ( ent != nullptr ) {
+            // Unlink.
+            ent->area.prev = ent->area.next = NULL;
+        }
     }
 }
 

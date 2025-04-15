@@ -47,7 +47,7 @@ struct sg_qtag_string_t {
 			ptr = reinterpret_cast<T *>( SG_Z_TagReMalloc( ptr, size() ) );
 		// Otherwise, allocate a new tag block.
 		} else {
-			ptr = reinterpret_cast<T *>( SG_Z_TagMalloc( size(), tag ) );
+			ptr = reinterpret_cast<T *>( SG_Z_TagMallocz( size(), tag ) );
 		}
 
 		// Copy over string.
@@ -145,7 +145,7 @@ public:
 			ptr = reinterpret_cast<T *>( SG_Z_TagReMalloc( ptr, size() ) );
 		// Otherwise, allocate a new tag block.
 		} else {
-			ptr = reinterpret_cast<T *>( SG_Z_TagMalloc( size(), tag ) );
+			ptr = reinterpret_cast<T *>( SG_Z_TagMallocz( size(), tag ) );
 		}
 
 		// Copy over string.
@@ -208,7 +208,7 @@ public:
 			return { nullptr, 0 };
 		}
 		// Allocate the space for the specified amount of characters and pass it into the sg_qtag_string_t.
-		return { reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * _count + 1, tag ) ), _count };
+		return { reinterpret_cast<T *>( SG_Z_TagMallocz( sizeof( T ) * _count + 1, tag ) ), _count };
 	}
 	/**
 	*	@brief	Allocates a block of sg_qtag_string_t with a copy of the string argument.
@@ -231,7 +231,7 @@ public:
 		//count += 1;
 
 		// Allocate the space for the specified amount of characters.
-		T *_ptr = reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * _count + 1, tag ) );
+		T *_ptr = reinterpret_cast<T *>( SG_Z_TagMallocz( sizeof( T ) * _count + 1, tag ) );
 		// Copy over the string data.
 		memcpy( _ptr, charStr, sizeof( T ) * _count );
 		// Return a charstring_t with the designated pointer.

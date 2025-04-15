@@ -208,8 +208,8 @@ void PF_PreShutdownGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== PreShutdown ClientGame ====\n" );
 
 	// Uncomment after we actually allocate anything using this.
-	clgi.FreeTags( TAG_CLGAME_LEVEL );
-	clgi.FreeTags( TAG_CLGAME );
+	//clgi.FreeTags( TAG_CLGAME_LEVEL );
+	//clgi.FreeTags( TAG_CLGAME );
 }
 
 /**

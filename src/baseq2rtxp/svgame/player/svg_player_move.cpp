@@ -660,10 +660,10 @@ void SVG_Client_Think( svg_edict_t *ent, usercmd_t *ucmd ) {
         //
         // Just make sure to never assign it to an incorrect entity type.
 		svg_player_edict_t *player_ent = static_cast<svg_player_edict_t *>(ent);
-        player_ent->testVar = 100 + ent->s.number;
+        //player_ent->testVar = 100 + ent->s.number;
 
         //gi.dprintf( "%s: player_ent->testVar = %d\n", __func__, player_ent->testVar );
-		gi.cprintf( player_ent, PRINT_TALK, "player_ent->testVar = %d\n", player_ent->testVar );
+		//gi.cprintf(player_ent, PRINT_TALK, "player_ent->testVar = %d\n", player_ent->testVar);
 
         // Perform player movement.
         ClientRunPlayerMove( ent, client, ucmd, &pm, &pmp);

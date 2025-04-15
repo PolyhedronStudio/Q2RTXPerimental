@@ -470,7 +470,7 @@ static char *ED_NewString(const char *string)
     l = strlen(string) + 1;
 
 	// WID: C++20: Addec cast.
-    newb = (char*)gi.TagMalloc(l, TAG_SVGAME_LEVEL);
+    newb = (char*)gi.TagMallocz(l, TAG_SVGAME_LEVEL);
 
     new_p = newb;
 
@@ -622,19 +622,21 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Free up all SVGAME_LEVEL tag memory.
     gi.FreeTags(TAG_SVGAME_LEVEL);
 
-    // Zero out all level struct data as well as all the entities(edicts).
-    level = {}; //memset( &level, 0, sizeof( level ) );
+    // Zero out all level struct data.
+    level = {};
+
+    // Reset all entities to 'baseline'.
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
-        // Acquire number.
+        // Store original number.
         const int32_t number = g_edicts[ i ]->s.number;
         // Zero out.
         *g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
-        // Retain previous number.
+        // Retain the entity's original number.
         g_edicts[ i ]->s.number = number;
     }
     
     // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
-    //g_edicts = SVG_EdictPool_Reallocate( &g_edict_pool, game.maxentities );
+    //g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
     // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
     //g_edict_pool.num_edicts = game.maxclients + 1;
 
@@ -1113,8 +1115,7 @@ void SP_worldspawn(svg_edict_t *ent)
     gi.soundindex( "player/pain75_01.wav" );
     gi.soundindex( "player/pain100_01.wav" );
     // WID: All of these are now just burn01 and burn02 since the original sounds contained silly screams and all that.
-    gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
-    gi.soundindex( "player/burn02.wav" );
+    snd_fry = gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
     //gi.soundindex( "player/lava_in.wav" );
     //gi.soundindex( "player/burn1.wav" );
     //gi.soundindex( "player/burn2.wav" );

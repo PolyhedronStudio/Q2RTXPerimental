@@ -433,9 +433,16 @@ skm_transform_t *PF_SKM_PoseCache_AcquireCachedMemoryBlock( const uint32_t size 
 /**
 *	@brief	Malloc tag.
 **/
-static void *PF_TagMalloc( const uint32_t size, const uint32_t tag ) {
+static void *PF_TagMalloc( const uint32_t size, const memtag_t tag ) {
 	Q_assert( tag <= UINT16_MAX - TAG_MAX );
-	return Z_TagMallocz( size, static_cast<memtag_t>( tag + TAG_MAX ) );
+	return Z_TagMalloc( size, static_cast<memtag_t>( tag /*+ TAG_MAX*/ ) );
+}
+/**
+*	@brief	Malloc tag.
+**/
+static void *PF_TagMallocz( const uint32_t size, const memtag_t tag ) {
+	Q_assert( tag <= UINT16_MAX - TAG_MAX );
+	return Z_TagMallocz( size, static_cast<memtag_t>( tag /*+ TAG_MAX*/ ) );
 }
 /**
 *	@brief	Malloc tag.
@@ -446,9 +453,15 @@ static void *PF_TagReMalloc( void *ptr, const uint32_t size ) {
 /**
 *	@brief	Free tag memory.
 **/
-static void PF_FreeTags( const uint32_t tag ) {
+static void PF_FreeTags( const memtag_t tag ) {
 	Q_assert( tag <= UINT16_MAX - TAG_MAX );
-	Z_FreeTags( static_cast<memtag_t>( tag + TAG_MAX ) );
+	Z_FreeTags( static_cast<memtag_t>( tag /*+ TAG_MAX*/ ) );
+}
+/**
+*	@brief	Malloc tag.
+**/
+static void PF_TagFree( void *ptr ) {
+	Z_Free( ptr );
 }
 
 
@@ -939,8 +952,9 @@ void CL_GM_LoadProgs( void ) {
 	imports.S_SetupSpatialListener = S_SetupSpatialListener;
 
 	imports.TagMalloc = PF_TagMalloc;
+	imports.TagMallocz = PF_TagMallocz;
 	imports.TagReMalloc = PF_TagReMalloc;
-	imports.TagFree = Z_Free;
+	imports.TagFree = PF_TagFree;
 	imports.FreeTags = PF_FreeTags;
 
 	imports.V_RenderView = V_RenderView;

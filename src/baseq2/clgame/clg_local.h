@@ -276,8 +276,8 @@ typedef struct centity_s {
 /**
 *	Memory tag IDs to allow dynamic memory to be cleaned up.
 **/
-#define TAG_CLGAME			777 // Clear when unloading the dll.
-#define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
+//#define TAG_CLGAME			777 // Clear when unloading the dll.
+//#define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
 
 
 

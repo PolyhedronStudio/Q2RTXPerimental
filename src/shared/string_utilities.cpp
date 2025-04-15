@@ -864,14 +864,7 @@ char *Q_strchrnul( const char *s, int c ) {
 	return (char *)s;
 }
 
-/*
-===============
-Q_memccpy
-
-Copies no more than 'size' bytes stopping when 'c' character is found.
-Returns pointer to next byte after 'c' in 'dst', or NULL if 'c' was not found.
-===============
-*/
+//! Copies 'size' bytes from 'src' to 'dst', stopping when 'c' is found. Returns a pointer to the next byte after 'c' in 'dst', or NULL if 'c' was not found.
 void *Q_memccpy( void *dst, const void *src, int c, size_t size ) {
 	byte *d = static_cast<byte *>( dst ); // WID: C++20: Added cast.
 	const byte *s = static_cast<const byte *>( src ); // WID: C++20: Added cast.
@@ -888,4 +881,50 @@ void *Q_memccpy( void *dst, const void *src, int c, size_t size ) {
 size_t Q_strnlen( const char *s, size_t maxlen ) {
 	const char *p = static_cast<const char *>( memchr( s, 0, maxlen ) ); // WID: C++20: Added cast.
 	return p ? p - s : maxlen;
+}
+
+/**
+*	@brief	Formats a size in bytes into a human-readable string.
+*	@param	bytes The size in bytes to format.
+*
+*	@return	A string representing the formatted size, such as "1.5 GB", "200 MB", "500 kB", or "100 bytes".
+**/
+const std::string Q_Str_FormatSizeString( uint64_t bytes, std::string &appendScaleString ) {
+	// Default.
+	char dest[ 16 ] = {};
+	// Default.
+	size_t destsize = 16;
+	// Characters written to buffer.
+	size_t writeLength = 0;
+	if ( bytes >= 1000000000 ) {
+		//writeLength = Q_scnprintf( dest, destsize, "%.1f GB", bytes * 1e-9 );
+		writeLength = Q_scnprintf( dest, destsize, "%.1f", (float)bytes * 1e-9 );
+		appendScaleString = "GB";
+		return std::string( dest, 0, writeLength );
+	}
+	if ( bytes >= 10000000 ) {
+		//writeLength = Q_scnprintf( dest, destsize, "%" PRId64 " MB", bytes / 1000000 );
+		writeLength = Q_scnprintf( dest, destsize, "%" PRIu64 "", bytes / 1000000 );
+		appendScaleString = "MB";
+		return std::string( dest, 0, writeLength );
+	}
+	if ( bytes >= 1000000 ) {
+		//writeLength = Q_scnprintf( dest, destsize, "%.1f MB", bytes * 1e-6 );
+		writeLength = Q_scnprintf( dest, destsize, "%.1f", (float)bytes * 1e-6 );
+		appendScaleString = "MB";
+		return std::string( dest, 0, writeLength );
+	}
+	if ( bytes >= 1000 ) {
+		//writeLength = Q_scnprintf( dest, destsize, "%" PRId64 " kB", bytes / 1000 );
+		writeLength = Q_scnprintf( dest, destsize, "%" PRIu64 "", bytes / 1000 );
+		appendScaleString = "kB";
+		return std::string( dest, 0, writeLength );
+	}
+	if ( bytes >= 0 ) {
+		//writeLength = Q_scnprintf( dest, destsize, "%" PRId64 " byte%s", bytes, bytes == 1 ? "" : "s" );
+		writeLength = Q_scnprintf( dest, destsize, "%" PRIu64 "", bytes );
+		appendScaleString = bytes == 1 ? "byte" : "bytes";
+		return std::string( dest, 0, writeLength );
+	}
+	return "unknown size";//Q_scnprintf( dest, destsize, "unknown size" );
 }

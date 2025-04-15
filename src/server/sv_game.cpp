@@ -796,19 +796,37 @@ static void PF_FS_FreeFile( void *buffer ) {
 * 
 * 
 **/
-static void *PF_TagReMalloc( void *ptr, unsigned newsize ) {
+static void *PF_TagReMalloc( void *ptr, const uint32_t newsize ) {
     return Z_Realloc( ptr, newsize );
 }
-static void *PF_TagMalloc(unsigned size, unsigned tag)
+/**
+*   @brief Allocates memory with a specific tag for tracking purposes.
+*   @param size The size of the memory block to allocate, in bytes.
+*   @param tag The tag used to categorize the allocated memory. Must not exceed UINT16_MAX - TAG_MAX.
+*   @note  The memory is NOT initialized to zero state.
+*   @return A pointer to the allocated memory block, or NULL if the allocation fails.
+**/
+static void *PF_TagMalloc( const uint32_t size, const memtag_t tag)
 {
     Q_assert(tag <= UINT16_MAX - TAG_MAX);
-    return Z_TagMallocz(size, static_cast<memtag_t>( tag + TAG_MAX) );
+    return Z_TagMalloc(size, static_cast<memtag_t>( tag /*+ TAG_MAX*/) );
+}
+/**
+*   @brief Allocates memory with a specific tag for tracking purposes.
+*   @param size The size of the memory block to allocate, in bytes.
+*   @param tag The tag used to categorize the allocated memory. Must not exceed UINT16_MAX - TAG_MAX.
+*   @note  The memory is initialized to zero.
+*   @return A pointer to the allocated memory block, or NULL if the allocation fails.
+**/
+static void *PF_TagMallocz( const uint32_t size, const memtag_t tag ) {
+    Q_assert( tag <= UINT16_MAX - TAG_MAX );
+    return Z_TagMallocz( size, static_cast<memtag_t>( tag /*+ TAG_MAX */) );
 }
 
-static void PF_FreeTags( unsigned tag)
+static void PF_FreeTags( const memtag_t tag)
 {
     Q_assert(tag <= UINT16_MAX - TAG_MAX);
-    Z_FreeTags(static_cast<memtag_t>( tag + TAG_MAX ) );
+    Z_FreeTags(static_cast<memtag_t>( tag /*+ TAG_MAX */) );
 }
 
 static void PF_DebugGraph(float value, int color)
@@ -1080,8 +1098,10 @@ void SV_InitGameProgs(void) {
 	imports.WriteAngle16 = MSG_WriteAngle16;
 
     imports.TagReMalloc = PF_TagReMalloc;
+    imports.TagMallocz = PF_TagMallocz;
     imports.TagMalloc = PF_TagMalloc;
     imports.TagFree = Z_Free;
+    imports.TagFreeP = Z_Freep;
     imports.FreeTags = PF_FreeTags;
 
     imports.cvar = PF_cvar;

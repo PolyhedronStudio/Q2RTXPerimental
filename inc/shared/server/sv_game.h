@@ -338,12 +338,27 @@ typedef struct {
 	**/
     //! Resize an already TagMalloced block of memory.
     void *(*TagReMalloc)( void *ptr, unsigned newsize );
-    //! Allocate a tagged memory block.
-    void *(*TagMalloc)(unsigned size, unsigned tag);
+    /**
+    *   @brief Allocates memory with a specific tag for tracking purposes.
+    *   @param size The size of the memory block to allocate, in bytes.
+    *   @param tag The tag used to categorize the allocated memory. Must not exceed UINT16_MAX - TAG_MAX.
+    *   @note  The memory is NOT initialized to zero state.
+    *   @return A pointer to the allocated memory block, or NULL if the allocation fails.
+    **/
+    void *(*TagMalloc)( const uint32_t size, const memtag_t tag);
+    /**
+    *   @brief Allocates memory with a specific tag for tracking purposes.
+    *   @param size The size of the memory block to allocate, in bytes.
+    *   @param tag The tag used to categorize the allocated memory. Must not exceed UINT16_MAX - TAG_MAX.
+    *   @note  The memory is initialized to zero state.
+    *   @return A pointer to the allocated memory block, or NULL if the allocation fails.
+    **/
+    void *( *TagMallocz )( const uint32_t size, const memtag_t tag );
     //! Free a tag allocated memory block.
-    void (*TagFree)(void *block);
+    void ( *TagFree )( void *ptr );
+    void ( *TagFreeP )( void **ptr );
     //! Free all SVGAME_ related tag memory blocks. (Essentially resetting memory.)
-    void (*FreeTags)(unsigned tag);
+    void ( *FreeTags )( const memtag_t tag );
 
 
 	/**

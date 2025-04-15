@@ -15,7 +15,7 @@
 **/
 svg_client_t *SVG_Clients_Reallocate( const int32_t maxClients ) {
     // Allocate the clients.
-    svg_client_t *clients = (svg_client_t *)gi.TagMalloc( maxClients * sizeof( clients[ 0 ] ), TAG_SVGAME );
+    svg_client_t *clients = (svg_client_t *)gi.TagMallocz( maxClients * sizeof( clients[ 0 ] ), TAG_SVGAME );
     //new( clients ) svg_client_t[ maxClients ];
     for ( int32_t i = 0; i < maxClients; i++ ) {
         // Use placement new to construct the client.

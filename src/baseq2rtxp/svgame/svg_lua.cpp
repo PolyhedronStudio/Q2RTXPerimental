@@ -166,7 +166,7 @@ LUA_ZoneTagAllocator( void *ud, void *ptr, size_t osize, size_t nsize ) {
 		if ( osize != 0 ) {
 			pRet = gi.TagReMalloc( ptr, nsize );//pRet = realloc( ptr, nsize );
 		} else {
-			pRet = gi.TagMalloc( nsize, TAG_SVGAME_LUA /*TAG_SVGAME_LUA*/ );//pRet = malloc( nsize );
+			pRet = gi.TagMallocz( nsize, TAG_SVGAME_LUA /*TAG_SVGAME_LUA*/ );//pRet = malloc( nsize );
 		}
 	}
 

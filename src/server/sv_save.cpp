@@ -340,112 +340,141 @@ char *SV_GetSaveInfo(const char *dir)
 
     return Z_CopyString(va("%s %s", date, name));
 }
-
+/**
+*   @brief  Frees the pending Collision Model.
+**/
 static void abort_func(void *arg)
 {
     CM_FreeMap( static_cast<cm_t*>( arg ) ); // WID: C++20: Added cast.
 }
 
-static int read_server_file(void)
-{
-    char        name[MAX_OSPATH], string[MAX_STRING_CHARS];
-    mapcmd_t    cmd;
+/**
+*   @brief  Read in the 'server save' file.
+**/
+static int read_server_file(void) {
+    char        name[ MAX_OSPATH ] = {}, string[ MAX_STRING_CHARS ] = {};
+    mapcmd_t    cmd = {};
 
     // errors like missing file, bad version, etc are
     // non-fatal and just return to the command handler
 
-	Q_snprintf(name, MAX_OSPATH, "%s/%s/server.ssv", sv_savedir->string, SAVE_CURRENT);
-    if (read_binary_file(name))
+	Q_snprintf(name, MAX_OSPATH, "%s/%s/server.ssv", 
+        sv_savedir->string, SAVE_CURRENT );
+    if ( read_binary_file( name ) ) {
         return -1;
+    }
 
-    if (MSG_ReadInt32() != SAVE_MAGIC1)
+    if ( MSG_ReadInt32() != SAVE_MAGIC1 ) {
         return -1;
+    }
 
-    if (MSG_ReadInt32() != SAVE_VERSION)
+    if ( MSG_ReadInt32() != SAVE_VERSION ) {
         return -1;
+    }
 
-    memset(&cmd, 0, sizeof(cmd));
+    cmd = {};//memset( &cmd, 0, sizeof( cmd ) );
 
-    // read the comment field
+    // Read the comment field.
     //MSG_ReadInt32();
     //MSG_ReadInt32();
     MSG_ReadInt64();
-    if (MSG_ReadUint8())
+
+    // Check whether it was an autosave or regular savegame.
+    if ( MSG_ReadUint8() ) {
         cmd.loadgame = 2;   // autosave
-    else
+    } else {
         cmd.loadgame = 1;   // regular savegame
+    }
+    // Read in a null string.
     MSG_ReadString(NULL, 0);
 
-    // read the mapcmd
-    if (MSG_ReadString(cmd.buffer, sizeof(cmd.buffer)) >= sizeof(cmd.buffer))
+    // Read the map command string.
+    if ( MSG_ReadString( cmd.buffer, sizeof( cmd.buffer ) ) >= sizeof( cmd.buffer ) ) {
         return -1;
+    }
 
-    // now try to load the map
-    if (!SV_ParseMapCmd(&cmd))
+    // Try and load the map.
+    if ( !SV_ParseMapCmd( &cmd ) ) {
         return -1;
+    }
 
-    // save pending CM to be freed later if ERR_DROP is thrown
-    Com_AbortFunc(abort_func, &cmd.cm);
+    // Save pending CM to be freed later if ERR_DROP is thrown
+    Com_AbortFunc( abort_func, &cmd.cm );
 
     // any error will drop from this point
-    SV_Shutdown("Server restarted\n", ERR_RECONNECT);
+    SV_Shutdown( "Server restarted\n", ERR_RECONNECT );
 
     // the rest can't underflow
     msg_read.allowunderflow = false;
 
     // read all CVAR_LATCH cvars
     // these will be things like coop, skill, deathmatch, etc
-    while (1) {
-        if (MSG_ReadString(name, MAX_QPATH) >= MAX_QPATH)
-            Com_Error(ERR_DROP, "Savegame cvar name too long");
-        if (!name[0])
+    while ( 1 ) {
+        if ( MSG_ReadString( name, MAX_QPATH ) >= MAX_QPATH ) {
+            Com_Error( ERR_DROP, "Savegame cvar name too long" );
+            return 0;
+        }
+        if ( !name[ 0 ] ) {
             break;
+        }
 
-        if (MSG_ReadString(string, sizeof(string)) >= sizeof(string))
-            Com_Error(ERR_DROP, "Savegame cvar value too long");
+        if ( MSG_ReadString( string, sizeof( string ) ) >= sizeof( string ) ) {
+            Com_Error( ERR_DROP, "Savegame cvar value too long" );
+        }
 
-        Cvar_UserSet(name, string);
+        Cvar_UserSet( name, string );
     }
 
-    // start a new game fresh with new cvars
+    // Start a new game fresh with new cvars.
     SV_InitGame();
 
     //// error out immediately if game doesn't support safe savegames
     //if (sv_force_enhanced_savegames->integer && !(g_features->integer & GMF_ENHANCED_SAVEGAMES))
     //    Com_Error(ERR_DROP, "Game does not support enhanced savegames");
 
-    // read game state
-    if (Q_snprintf(name, MAX_OSPATH,
-                   "%s/%s/%s/game.ssv", fs_gamedir, sv_savedir->string, SAVE_CURRENT) >= MAX_OSPATH)
-        Com_Error(ERR_DROP, "Savegame path too long");
+    // Read the game state.
+    if ( Q_snprintf( name, MAX_OSPATH, "%s/%s/%s/game.ssv",
+        fs_gamedir, sv_savedir->string, SAVE_CURRENT ) >= MAX_OSPATH ) {
+        Com_Error( ERR_DROP, "Savegame path too long" );
+    }
+    ge->ReadGame( name );
 
-    ge->ReadGame(name);
+    // Clear pending CM.
+    Com_AbortFunc( NULL, NULL );
 
-    // clear pending CM
-    Com_AbortFunc(NULL, NULL);
+    // Go to the map by spawning the server.
+    SV_SpawnServer( &cmd );
 
-    // go to the map
-    SV_SpawnServer(&cmd);
+    // Return.
     return 0;
 }
 
+/**
+*   @brief  Reads in the 'level save' file.
+**/
 static int read_level_file(void)
 {
     char    name[MAX_OSPATH];
     size_t  len, maxlen;
     int     index;
 
-    if (Q_snprintf(name, MAX_OSPATH, "%s/%s/%s.sv2", sv_savedir->string, SAVE_CURRENT, sv.name) >= MAX_OSPATH)
+    // Generate path string.
+    if ( Q_snprintf( name, MAX_OSPATH, "%s/%s/%s.sv2",
+        sv_savedir->string, SAVE_CURRENT, sv.name ) >= MAX_OSPATH ) {
         return -1;
+    }
+    // Read the file.
+    if ( read_binary_file( name ) ) {
+        return -1;
+    }
 
-    if (read_binary_file(name))
+    if ( MSG_ReadInt32() != SAVE_MAGIC2 ) {
         return -1;
+    }
 
-    if (MSG_ReadInt32() != SAVE_MAGIC2)
+    if ( MSG_ReadInt32() != SAVE_VERSION ) {
         return -1;
-
-    if (MSG_ReadInt32() != SAVE_VERSION)
-        return -1;
+    }
 
     // any error will drop from this point
 
@@ -455,30 +484,38 @@ static int read_level_file(void)
     // read all configstrings
     while (1) {
         index = MSG_ReadInt16();
-        if (index == MAX_CONFIGSTRINGS)
+        if ( index == MAX_CONFIGSTRINGS ) {
             break;
+        }
 
-        if (index < 0 || index > MAX_CONFIGSTRINGS)
-            Com_Error(ERR_DROP, "Bad savegame configstring index");
+        if ( index < 0 || index > MAX_CONFIGSTRINGS ) {
+            Com_Error( ERR_DROP, "Bad savegame configstring index" );
+        }
 
         maxlen = CS_SIZE(index);
-        if (MSG_ReadString(sv.configstrings[index], maxlen) >= maxlen)
-            Com_Error(ERR_DROP, "Savegame configstring too long");
+        if ( MSG_ReadString( sv.configstrings[ index ], maxlen ) >= maxlen ) {
+            Com_Error( ERR_DROP, "Savegame configstring too long" );
+        }
     }
 
+    // Read in portalbits length.
     len = MSG_ReadUint8();
-    if (len > MAX_MAP_PORTAL_BYTES)
-        Com_Error(ERR_DROP, "Savegame portalbits too long");
+    if ( len > MAX_MAP_PORTAL_BYTES ) {
+        Com_Error( ERR_DROP, "Savegame portalbits too long" );
+    }
 
+    // Clear world links.
     SV_ClearWorld();
 
+    // Set portalstate data to that which we just loaded.
     CM_SetPortalStates(&sv.cm, MSG_ReadData(len), len);
 
-    // read game level
-    if (Q_snprintf(name, MAX_OSPATH, "%s/%s/%s/%s.sav",
-                   fs_gamedir, sv_savedir->string, SAVE_CURRENT, sv.name) >= MAX_OSPATH)
-        Com_Error(ERR_DROP, "Savegame path too long");
-
+    // Read game level.
+    if ( Q_snprintf( name, MAX_OSPATH, "%s/%s/%s/%s.sav",
+        fs_gamedir, sv_savedir->string, SAVE_CURRENT, sv.name ) >= MAX_OSPATH ) {
+        Com_Error( ERR_DROP, "Savegame path too long" );
+    }
+    // Read in the game level data.
     ge->ReadLevel(name);
     return 0;
 }
@@ -522,25 +559,29 @@ void SV_AutoSaveBegin(mapcmd_t *cmd) {
 
     memset(bitmap, 0, sizeof(bitmap));
 
-    // clear all the client inuse flags before saving so that
+    // Clear all the client inuse flags before saving so that
     // when the level is re-entered, the clients will spawn
     // at spawn points instead of occupying body shells
     for (i = 0; i < sv_maxclients->integer; i++) {
+        // Get client edict.
         ent = EDICT_FOR_NUMBER(i + 1);
+        // If in use.
         if (ent->inuse) {
+            // Store client ID in the bitmap.
             Q_SetBit(bitmap, i);
+            // 'Disable' temporarily the client entity by inuse = false.
             ent->inuse = false;
         }
     }
 
-    // save the map just exited
-    if (write_level_file())
-        Com_EPrintf("Couldn't write level file.\n");
-
-    // we must restore these for clients to transfer over correctly
-    for (i = 0; i < sv_maxclients->integer; i++) {
-        ent = EDICT_FOR_NUMBER(i + 1);
-        ent->inuse = Q_IsBitSet(bitmap, i);
+    // Save the map just exited.
+    if ( write_level_file() ) {
+        Com_EPrintf( "Couldn't write level file.\n" );
+    }
+    // We must restore these for clients to transfer over correctly.
+    for ( i = 0; i < sv_maxclients->integer; i++ ) {
+        ent = EDICT_FOR_NUMBER( i + 1 );
+        ent->inuse = Q_IsBitSet( bitmap, i );
     }
 }
 
@@ -549,34 +590,35 @@ void SV_AutoSaveBegin(mapcmd_t *cmd) {
 **/
 void SV_AutoSaveEnd(void)
 {
-	if (sv.state != ss_game)
-		return;
-
-	if (SV_NoSaveGames())
-		return;
-
-	// save the map just entered to include the player position (client edict shell)
-	if (write_level_file())
-	{
-		Com_EPrintf("Couldn't write level file.\n");
-		return;
-	}
-
-    // save server state
-    if (write_server_file(true)) {
-        Com_EPrintf("Couldn't write server file.\n");
+    if ( sv.state != ss_game ) {
         return;
     }
 
-    // clear whatever savegames are there
-    if (wipe_save_dir(SAVE_AUTO)) {
-        Com_EPrintf("Couldn't wipe '%s' directory.\n", SAVE_AUTO);
+    if ( SV_NoSaveGames() ) {
         return;
     }
 
-    // copy off the level to the autosave slot
-    if (copy_save_dir(SAVE_CURRENT, SAVE_AUTO)) {
-        Com_EPrintf("Couldn't write '%s' directory.\n", SAVE_AUTO);
+	// Save the map just entered to include the player position (client edict shell)
+    if ( write_level_file() ) {
+        Com_EPrintf( "Couldn't write level file.\n" );
+        return;
+    }
+
+    // Save server state.
+    if ( write_server_file( true /* autosave == true */) ) {
+        Com_EPrintf( "Couldn't write server file.\n" );
+        return;
+    }
+
+    // Clear whatever savegames are there.
+    if ( wipe_save_dir( SAVE_AUTO ) ) {
+        Com_EPrintf( "Couldn't wipe '%s' directory.\n", SAVE_AUTO );
+        return;
+    }
+
+    // Copy off the level to the autosave slot.
+    if ( copy_save_dir( SAVE_CURRENT, SAVE_AUTO ) ) {
+        Com_EPrintf( "Couldn't write '%s' directory.\n", SAVE_AUTO );
         return;
     }
 }
@@ -586,15 +628,15 @@ void SV_CheckForSavegame(mapcmd_t *cmd)
     if (SV_NoSaveGames())
         return;
 
-    if (read_level_file()) {
+    if ( read_level_file() ) {
         // only warn when loading a regular savegame. autosave without level
         // file is ok and simply starts the map from the beginning.
-        if (cmd->loadgame == 1)
-            Com_EPrintf("Couldn't read level file.\n");
+        if ( cmd->loadgame == 1 )
+            Com_EPrintf( "Couldn't read level file.\n" );
         return;
     }
 
-    if (cmd->loadgame) {
+    if ( cmd->loadgame ) {
         // called from SV_Loadgame_f
         ge->RunFrame();
         ge->RunFrame();
@@ -610,6 +652,9 @@ void SV_CheckForSavegame(mapcmd_t *cmd)
     }
 }
 
+/**
+*   @brief  Lists all possible save files for save cmd.
+**/
 static void SV_Savegame_c(genctx_t *ctx, int argnum)
 {
     if (argnum == 1) {
@@ -621,44 +666,44 @@ static void SV_Loadgame_f(void)
 {
     char *dir;
 
-    if (Cmd_Argc() != 2) {
-        Com_Printf("Usage: %s <directory>\n", Cmd_Argv(0));
+    if ( Cmd_Argc() != 2 ) {
+        Com_Printf( "Usage: %s <directory>\n", Cmd_Argv( 0 ) );
         return;
     }
 
-    if (dedicated->integer) {
-        Com_Printf("Savegames are for listen servers only.\n");
+    if ( dedicated->integer ) {
+        Com_Printf( "Savegames are for listen servers only.\n" );
         return;
     }
 
-    dir = Cmd_Argv(1);
-    if (!COM_IsPath(dir)) {
-        Com_Printf("Bad savedir.\n");
+    dir = Cmd_Argv( 1 );
+    if ( !COM_IsPath( dir ) ) {
+        Com_Printf( "Bad savedir.\n" );
         return;
     }
 
-    // make sure the server files exist
-    if (!FS_FileExistsEx(va("%s/%s/server.ssv", sv_savedir->string, dir), FS_TYPE_REAL | FS_PATH_GAME) ||
-        !FS_FileExistsEx(va("%s/%s/game.ssv", sv_savedir->string, dir), FS_TYPE_REAL | FS_PATH_GAME)) {
-        Com_Printf ("No such savegame: %s\n", dir);
+    // Make sure the server files exist.
+    if ( !FS_FileExistsEx( va( "%s/%s/server.ssv", sv_savedir->string, dir ), FS_TYPE_REAL | FS_PATH_GAME )
+        || !FS_FileExistsEx( va( "%s/%s/game.ssv", sv_savedir->string, dir ), FS_TYPE_REAL | FS_PATH_GAME ) ) {
+        Com_Printf( "No such savegame: %s\n", dir );
         return;
     }
 
-    // clear whatever savegames are there
+    // Clear whatever savegames are there.
     if (wipe_save_dir(SAVE_CURRENT)) {
         Com_Printf("Couldn't wipe '%s' directory.\n", SAVE_CURRENT);
         return;
     }
 
-    // copy it off
-    if (copy_save_dir(dir, SAVE_CURRENT)) {
-        Com_Printf("Couldn't read '%s' directory.\n", dir);
+    // Copy it off.
+    if ( copy_save_dir( dir, SAVE_CURRENT ) ) {
+        Com_Printf( "Couldn't read '%s' directory.\n", dir );
         return;
     }
 
-    // read server state
-    if (read_server_file()) {
-        Com_Printf("Couldn't read server file.\n");
+    // Read server state.
+    if ( read_server_file() ) {
+        Com_Printf( "Couldn't read server file.\n" );
         return;
     }
 }
@@ -667,13 +712,13 @@ static void SV_Savegame_f(void)
 {
     char *dir;
 
-    if (sv.state != ss_game) {
-        Com_Printf("You must be in a game to save.\n");
+    if ( sv.state != ss_game ) {
+        Com_Printf( "You must be in a game to save.\n" );
         return;
     }
 
-    if (dedicated->integer) {
-        Com_Printf("Savegames are for listen servers only.\n");
+    if ( dedicated->integer ) {
+        Com_Printf( "Savegames are for listen servers only.\n" );
         return;
     }
 
@@ -687,54 +732,54 @@ static void SV_Savegame_f(void)
     //    Com_Printf("Can't savegame in a deathmatch.\n");
     //    return;
     //}
-	if ( ge->GamemodeNoSaveGames( dedicated->integer ) == true ) {
-		Com_Printf("The gamemode \"%s\" doesn't support savegames!\n", ge->GetGamemodeName( ge->GetActiveGameModeType() ) );
-		return;
-	}
-
-    if (sv_maxclients->integer == 1 && svs.client_pool[0].edict->client->ps.stats[STAT_HEALTH] <= 0) {
-        Com_Printf("Can't savegame while dead!\n");
+    if ( ge->GamemodeNoSaveGames( dedicated->integer ) == true ) {
+        Com_Printf( "The gamemode \"%s\" doesn't support savegames!\n", ge->GetGamemodeName( ge->GetActiveGameModeType() ) );
         return;
     }
 
-    if (Cmd_Argc() != 2) {
-        Com_Printf("Usage: %s <directory>\n", Cmd_Argv(0));
+    if ( sv_maxclients->integer == 1 && svs.client_pool[ 0 ].edict->client->ps.stats[ STAT_HEALTH ] <= 0 ) {
+        Com_Printf( "Can't savegame while dead!\n" );
         return;
     }
 
-    dir = Cmd_Argv(1);
-    if (!COM_IsPath(dir)) {
-        Com_Printf("Bad savedir.\n");
+    if ( Cmd_Argc() != 2 ) {
+        Com_Printf( "Usage: %s <directory>\n", Cmd_Argv( 0 ) );
         return;
     }
 
-    // archive current level, including all client edicts.
+    dir = Cmd_Argv( 1 );
+    if ( !COM_IsPath( dir ) ) {
+        Com_Printf( "Bad savedir.\n" );
+        return;
+    }
+
+    // Archive current level, including all client edicts.
     // when the level is reloaded, they will be shells awaiting
-    // a connecting client
-    if (write_level_file()) {
-        Com_Printf("Couldn't write level file.\n");
+    // a connecting client.
+    if ( write_level_file() ) {
+        Com_Printf( "Couldn't write level file.\n" );
         return;
     }
 
-    // save server state
-    if (write_server_file(false)) {
-        Com_Printf("Couldn't write server file.\n");
+    // Save server state.
+    if ( write_server_file( false ) ) {
+        Com_Printf( "Couldn't write server file.\n" );
         return;
     }
 
-    // clear whatever savegames are there
-    if (wipe_save_dir(dir)) {
-        Com_Printf("Couldn't wipe '%s' directory.\n", dir);
+    // Clear whatever savegames are there.
+    if ( wipe_save_dir( dir ) ) {
+        Com_Printf( "Couldn't wipe '%s' directory.\n", dir );
         return;
     }
 
-    // copy it off
-    if (copy_save_dir(SAVE_CURRENT, dir)) {
-        Com_Printf("Couldn't write '%s' directory.\n", dir);
+    // Copy it off.
+    if ( copy_save_dir( SAVE_CURRENT, dir ) ) {
+        Com_Printf( "Couldn't write '%s' directory.\n", dir );
         return;
     }
 
-    Com_Printf("Game saved.\n");
+    Com_Printf( "Game saved.\n" );
 }
 
 static const cmdreg_t c_savegames[] = {

@@ -157,6 +157,10 @@ void *SG_Z_TagMalloc( const uint32_t size, const uint32_t tag );
 /**
 *	@brief
 **/
+void *SG_Z_TagMallocz( const uint32_t size, const uint32_t tag );
+/**
+*	@brief
+**/
 void *SG_Z_TagReMalloc( void *ptr, const uint32_t size );
 /**
 *	@brief

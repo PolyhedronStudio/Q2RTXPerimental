@@ -84,12 +84,9 @@ const int32_t svg_edict_pool_t::NumberForEdict( const svg_edict_t *edict ) {
 * 
 **/
 /**
-*   @brief  (Re-)initializes the edict pool.
-*   @param  edictPool The edict pool to be initialized.
-*   @param  numReservedEntities The number of reserved MAXIMUM entities to be allocated.
-*	@return	A pointer to the pool's allocated edict array.
+*   @brief	Frees any previously allocated edicts in the pool.
 **/
-svg_edict_t **SVG_EdictPool_Reallocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities ) {
+svg_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool ) {
 	// Need a valid pool to deal with.
 	if ( !edictPool ) {
 		gi.error( "%s: edictPool == (nullptr)\n", __func__ );
@@ -98,21 +95,48 @@ svg_edict_t **SVG_EdictPool_Reallocate( svg_edict_pool_t *edictPool, const int32
 
 	// Check if the edict pool is valid and is already populated by edicts.
 	if ( edictPool->edicts != nullptr ) {
+		int32_t i = 0;
 		// Free any previously allocated edicts.
 		for ( int32_t i = 0; i < edictPool->max_edicts; i++ ) {
 			if ( edictPool->edicts[ i ] != nullptr ) {
+				// Call upon destructor(if any).
 				delete edictPool->edicts[ i ];
+				// Set to null.
+				edictPool->edicts[ i ] = nullptr;
 			}
 		}
-		delete[] edictPool->edicts;
+		
+		edictPool->edicts = nullptr;
+		edictPool->num_edicts = 0;
+
+		// Free any remainings.
+		gi.FreeTags( TAG_SVGAME_EDICTS );
 	}
-	
+
+	return edictPool->edicts;
+}
+/**
+*   @brief  (Re-)initializes the edict pool.
+*   @param  edictPool The edict pool to be initialized.
+*   @param  numReservedEntities The number of reserved MAXIMUM entities to be allocated.
+*	@return	A pointer to the pool's allocated edict array.
+**/
+svg_edict_t **SVG_EdictPool_Allocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities ) {
+	// Need a valid pool to deal with.
+	if ( !edictPool ) {
+		gi.error( "%s: edictPool == (nullptr)\n", __func__ );
+		return nullptr;
+	}
+		
 	// Reset edict pool to default values.
-	*edictPool = svg_edict_pool_t();
+	//*edictPool = svg_edict_pool_t();
 	
 	// Perform allocation, and set the pointer to the new edict array.
-	edictPool->edicts = new svg_edict_t*[ numReservedEntities ];// 
-
+	if ( edictPool->edicts ) {
+		edictPool->edicts = (svg_edict_t **)gi.TagMallocz( numReservedEntities * sizeof( svg_edict_t * ), TAG_SVGAME_EDICTS );
+	} else {
+		edictPool->edicts = (svg_edict_t **)gi.TagReMalloc( edictPool->edicts, numReservedEntities * sizeof( svg_edict_t * ) );//new svg_edict_t*[ numReservedEntities ];// 
+	}
 	// Initialize objects.
 	for ( int32_t i = 0; i < numReservedEntities; i++ ) {
 		if ( i >= 1 && i < game.maxclients + 1 ) {

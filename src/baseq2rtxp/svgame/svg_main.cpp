@@ -55,6 +55,7 @@ QMTime FRAME_TIME_MS;
 *	Cached indexes and global meansOfDeath var.
 **/
 int sm_meat_index;
+int snd_fry;
 
 //! Actual array storing the edicts. (entities).
 svg_edict_t	**g_edicts;
@@ -175,13 +176,13 @@ void SVG_ShutdownGame(void)
     SVG_Lua_Shutdown();
 
     // Free level, lua AND the game module its allocated ram.
-    //gi.FreeTags( TAG_SVGAME_LUA ); // -- WID: Already happens in SVG_Lua_Shutdown
-    gi.FreeTags( TAG_SVGAME_EDICTS );
+    //gi.FreeTags( TAG_SVGAME_LUA );
+    gi.FreeTags( TAG_SVGAME_EDICTS );//SVG_EdictPool_Release( &g_edict_pool );
     gi.FreeTags( TAG_SVGAME_LEVEL );
     gi.FreeTags( TAG_SVGAME );
 
-	// Notify of successful shutdown.
-    gi.dprintf( "==== Shutdown ServerGame ====\n" );
+    // Notify of shutdown.
+    gi.dprintf( "==== ServerGame Shutdown ====\n" );
 }
 
 /**
@@ -335,8 +336,10 @@ void SVG_InitGame( void )
     // initialize all clients for this game
     game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
     
+    // Clear the edict pool in case any previous data was there.
+    g_edicts = SVG_EdictPool_Release( &g_edict_pool );
     // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
-    g_edicts = SVG_EdictPool_Reallocate( &g_edict_pool, game.maxentities );
+    g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
     // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
     g_edict_pool.num_edicts = game.maxclients + 1;
 
