@@ -27,7 +27,7 @@ struct sg_qtag_string_t {
 	/**
 	*	Default constructor.
 	**/
-	constexpr sg_qtag_string_t() noexcept {
+	sg_qtag_string_t() noexcept {
 		ptr = nullptr;
 		count = 0;
 	}

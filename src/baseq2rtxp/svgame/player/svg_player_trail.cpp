@@ -38,7 +38,7 @@ the player has been recently.  It is used by monsters for pursuit.
 #ifdef ENABLE_PLAYER_TRAIL_ENTITIES
 #define TRAIL_LENGTH    128
 
-svg_edict_t     *trail[TRAIL_LENGTH];
+svg_base_edict_t     *trail[TRAIL_LENGTH];
 int         trail_head;
 bool        trail_active = false;
 
@@ -90,7 +90,7 @@ void PlayerTrail_New(vec3_t spot)
 }
 
 
-svg_edict_t *PlayerTrail_PickFirst(svg_edict_t *self)
+svg_base_edict_t *PlayerTrail_PickFirst(svg_base_edict_t *self)
 {
     int32_t     marker = 0;
     int32_t     n = 0;
@@ -117,7 +117,7 @@ svg_edict_t *PlayerTrail_PickFirst(svg_edict_t *self)
     return trail[marker];
 }
 
-svg_edict_t *PlayerTrail_PickNext(svg_edict_t *self)
+svg_base_edict_t *PlayerTrail_PickNext(svg_base_edict_t *self)
 {
     int32_t     marker = 0;
     int32_t     n = 0;
@@ -136,14 +136,14 @@ svg_edict_t *PlayerTrail_PickNext(svg_edict_t *self)
     return trail[marker];
 }
 
-svg_edict_t *PlayerTrail_LastSpot(void)
+svg_base_edict_t *PlayerTrail_LastSpot(void)
 {
     return trail[PREV(trail_head)];
 }
 #else // !ENABLE_PLAYER_TRAIL_ENTITIES
 #define TRAIL_LENGTH    128
 
-svg_edict_t *trail[ TRAIL_LENGTH ];
+svg_base_edict_t *trail[ TRAIL_LENGTH ];
 int         trail_head;
 bool        trail_active = false;
 
@@ -158,7 +158,7 @@ void PlayerTrail_Add( vec3_t spot ) {
 void PlayerTrail_New( vec3_t spot ) {
 	// Nothing to do.
 }
-svg_edict_t *PlayerTrail_PickFirst( svg_edict_t *self ) {
+svg_base_edict_t *PlayerTrail_PickFirst( svg_base_edict_t *self ) {
 	// Nothing to do.
 	return nullptr;
 }

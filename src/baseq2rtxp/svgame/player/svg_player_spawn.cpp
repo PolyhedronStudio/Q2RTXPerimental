@@ -33,13 +33,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *   @brief  Determines the client that is most near to the entity, 
 *           and returns its length for ( ent->origin - client->origin ).
 **/
-const float SVG_Client_DistanceToEntity( svg_edict_t *ent ) {
+const float SVG_Client_DistanceToEntity( svg_base_edict_t *ent ) {
     // The best distance will always be flt_max.
     float bestDistance = CM_MAX_WORLD_SIZE + 1.f;
 
     for ( int32_t n = 1; n <= maxclients->value; n++ ) {
         // Get client.
-        svg_edict_t *clientEntity = g_edict_pool.EdictForNumber( n );//&g_edicts[ n ];
+        svg_base_edict_t *clientEntity = g_edict_pool.EdictForNumber( n );//&g_edicts[ n ];
         // Ensure is active and alive player.
         if ( !SVG_Entity_IsClient( clientEntity, true ) ) {
             continue;
@@ -62,8 +62,8 @@ const float SVG_Client_DistanceToEntity( svg_edict_t *ent ) {
 /**
 *   @brief  Go to a random point, but NOT the two points closest to other players.
 **/
-svg_edict_t *SelectRandomDeathmatchSpawnPoint( void ) {
-    svg_edict_t *spot, *spot1, *spot2;
+svg_base_edict_t *SelectRandomDeathmatchSpawnPoint( void ) {
+    svg_base_edict_t *spot, *spot1, *spot2;
     int     count = 0;
     int     selection;
     float   range, range1, range2;
@@ -107,10 +107,10 @@ svg_edict_t *SelectRandomDeathmatchSpawnPoint( void ) {
 /**
 *   @brief
 **/
-static svg_edict_t *SelectFarthestDeathmatchSpawnPoint( void ) {
-    svg_edict_t *bestspot;
+static svg_base_edict_t *SelectFarthestDeathmatchSpawnPoint( void ) {
+    svg_base_edict_t *bestspot;
     float   bestdistance, bestplayerdistance;
-    svg_edict_t *spot;
+    svg_base_edict_t *spot;
 
 
     spot = NULL;
@@ -139,7 +139,7 @@ static svg_edict_t *SelectFarthestDeathmatchSpawnPoint( void ) {
 /**
 *   @brief
 **/
-static svg_edict_t *SelectDeathmatchSpawnPoint( void ) {
+static svg_base_edict_t *SelectDeathmatchSpawnPoint( void ) {
     if ( (int)( dmflags->value ) & DF_SPAWN_FARTHEST )
         return SelectFarthestDeathmatchSpawnPoint();
     else
@@ -149,9 +149,9 @@ static svg_edict_t *SelectDeathmatchSpawnPoint( void ) {
 /**
 *   @brief  
 **/
-static svg_edict_t *SelectCoopSpawnPoint( svg_edict_t *ent ) {
+static svg_base_edict_t *SelectCoopSpawnPoint( svg_base_edict_t *ent ) {
     int     index;
-    svg_edict_t *spot = NULL;
+    svg_base_edict_t *spot = NULL;
     // WID: C++20: Added const.
     const char *target;
 
@@ -193,8 +193,8 @@ static svg_edict_t *SelectCoopSpawnPoint( svg_edict_t *ent ) {
 * 
 *           If that fails, errors out.
 **/
-void SVG_Player_SelectSpawnPoint( svg_edict_t *ent, Vector3 &origin, Vector3 &angles ) {
-    svg_edict_t *spot = NULL;
+void SVG_Player_SelectSpawnPoint( svg_base_edict_t *ent, Vector3 &origin, Vector3 &angles ) {
+    svg_base_edict_t *spot = NULL;
 
     if ( deathmatch->value ) {
         spot = SelectDeathmatchSpawnPoint();

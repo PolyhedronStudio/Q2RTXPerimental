@@ -6,106 +6,16 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
-#include "sharedgame/sg_usetarget_hints.h"
-
 #include "svgame/svg_misc.h"
+#include "svgame/svg_save.h"
 #include "svgame/svg_utils.h"
 
-
-#if 0
-
-/**
-*   @brief  (Re-)initialize an edict.
-**/
-void SVG_InitEdict( svg_edict_t *e, const int32_t stateNumber ) {
-    e->inuse = true;
-    e->classname = "noclass";
-    e->gravity = 1.0f;
-    e->s.number = stateNumber// e - g_edicts;
-
-    // A generic entity type by default.
-    e->s.entityType = ET_GENERIC;
-}
-
-/**
-*   @brief  Either finds a free edict, or allocates a new one.
-*   @remark This function tries to avoid reusing an entity that was recently freed, 
-*           because it can cause the client to think the entity morphed into something 
-*           else instead of being removed and recreated, which can cause interpolated
-*           angles and bad trails.
-**/
-svg_edict_t *SVG_AllocateEdict( void ) {
-    int32_t i = game.maxclients + 1;
-    svg_edict_t *entity = &g_edicts[ game.maxclients + 1 ];
-    svg_edict_t *freedEntity = nullptr;
-
-    for ( i; i < globals.edictPool->num_edicts; i++, entity++ ) {
-        // the first couple seconds of server time can involve a lot of
-        // freeing and allocating, so relax the replacement policy
-        if ( !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-            SVG_InitEdict( entity );
-            return entity;
-        }
-
-        // this is going to be our second chance to spawn an entity in case all free
-        // entities have been freed only recently
-        if ( !freedEntity ) {
-            freedEntity = entity;
-        }
-    }
-
-    if ( i == game.maxentities ) {
-        if ( freedEntity ) {
-            SVG_InitEdict( freedEntity );
-            return freedEntity;
-        }
-        gi.error( "SVG_AllocateEdict: no free edicts" );
-    }
-
-    globals.edictPool->num_edicts++;
-    SVG_InitEdict( entity );
-    return entity;
-}
+#include "sharedgame/sg_usetarget_hints.h"
 
 /**
 *   @brief  Marks the edict as free
 **/
-void SVG_FreeEdict( svg_edict_t *ed ) {
-    gi.unlinkentity( ed );        // unlink from world
-
-    if ( ( ed - g_edicts ) <= ( maxclients->value + BODY_QUEUE_SIZE ) ) {
-        #ifdef _DEBUG
-        gi.dprintf( "tried to free special edict(#%d) within special edict range(%d)\n", ed - g_edicts, maxclients->value + BODY_QUEUE_SIZE );
-        #endif
-        return;
-    }
-
-    int32_t id = ed->spawn_count + 1;
-    //memset( ed, 0, sizeof( *ed ) );
-    
-    // We actually got to make sure that we free the pushmover curve positions data block.
-    if ( ed->pushMoveInfo.curve.positions ) {
-        ed->pushMoveInfo.curve.positions.release();// = nullptr;
-        //gi.TagFree( ed->pushMoveInfo.curve.positions );
-    }
-
-    // Clear the arguments std::vector just to be sure.
-    ed->delayed.signalOut.arguments.clear();
-    // Ues C++ method of 'memset' I guess, since we got a C++ container up there.
-    *ed = {};
-	
-    // Recalculate its number.
-    ed->s.number = ed - g_edicts;
-    ed->classname = "freed";
-    ed->freetime = level.time;
-    ed->inuse = false;
-    ed->spawn_count = id;
-}
-#endif 
-/**
-*   @brief  Marks the edict as free
-**/
-void SVG_FreeEdict( svg_edict_t *ed ) {
+void SVG_FreeEdict( svg_base_edict_t *ed ) {
     g_edict_pool.FreeEdict( ed );
 }
 
@@ -116,7 +26,7 @@ void SVG_FreeEdict( svg_edict_t *ed ) {
 *   @remark Searches beginning at the edict after from, or the beginning if NULL
 *           NULL will be returned if the end of the list is reached.
 **/
-svg_edict_t *SVG_Entities_Find( svg_edict_t *from, const int32_t fieldofs, const char *match ) {
+svg_base_edict_t *SVG_Entities_Find( svg_base_edict_t *from, const int32_t fieldofs, const char *match ) {
     char *s;
 
     // WID: Prevent nastyness when match is empty (Q_stricmp)
@@ -154,7 +64,7 @@ svg_edict_t *SVG_Entities_Find( svg_edict_t *from, const int32_t fieldofs, const
 /**
 *   @brief  Similar to SVG_Entities_Find, but, returns entities that have origins within a spherical area.
 **/
-svg_edict_t *SVG_Entities_FindWithinRadius( svg_edict_t *from, const vec3_t org, const float rad ) {
+svg_base_edict_t *SVG_Entities_FindWithinRadius( svg_base_edict_t *from, const vec3_t org, const float rad ) {
     vec3_t  eorg;
     int     j;
 
@@ -203,18 +113,18 @@ svg_edict_t *SVG_Entities_FindWithinRadius( svg_edict_t *from, const vec3_t org,
 **/
 void SVG_Entities_InitBodyQue( void ) {
     int     i;
-    svg_edict_t *ent;
+    svg_base_edict_t *ent;
 
     level.body_que = 0;
     for ( i = 0; i < BODY_QUEUE_SIZE; i++ ) {
-        ent = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
+        ent = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
         ent->classname = "bodyque";
     }
 }
 /**
 *   @brief
 **/
-void body_die( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point ) {
+void body_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
     int n;
 
     if ( self->health < -40 ) {
@@ -231,12 +141,12 @@ void body_die( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker,
 /**
 *   @brief  Get a que slot, leave an effect, and remove body into the queue.
 **/
-void SVG_Entities_AddForPlayer( svg_edict_t *ent ) {
+void SVG_Entities_AddForPlayer( svg_base_edict_t *ent ) {
     // Unlink entity.
     gi.unlinkentity( ent );
 
     // grab a body que and cycle to the next one
-    svg_edict_t *body = g_edict_pool.EdictForNumber( game.maxclients + level.body_que + 1 );//&g_edicts[ game.maxclients + level.body_que + 1 ];
+    svg_base_edict_t *body = g_edict_pool.EdictForNumber( game.maxclients + level.body_que + 1 );//&g_edicts[ game.maxclients + level.body_que + 1 ];
     level.body_que = ( level.body_que + 1 ) % BODY_QUEUE_SIZE;
 
     // send an effect on the removed body
@@ -298,7 +208,7 @@ void SVG_Entities_AddForPlayer( svg_edict_t *ent ) {
 *           which if hits nothing, means the entity is visible.
 *   @return True if the entity 'other' is visible to 'self'.
 **/
-const bool SVG_Entity_IsVisible( svg_edict_t *self, svg_edict_t *other ) {
+const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other ) {
     vec3_t  spot1;
     vec3_t  spot2;
     svg_trace_t trace;
@@ -317,7 +227,7 @@ const bool SVG_Entity_IsVisible( svg_edict_t *self, svg_edict_t *other ) {
 /**
 *   @return True if the entity is in front (in sight) of self
 **/
-const bool SVG_Entity_IsInFrontOf( svg_edict_t *self, svg_edict_t *other, const float dotRangeArea ) {
+const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *other, const float dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_Entity_IsClient( self ) ) {
@@ -342,7 +252,7 @@ const bool SVG_Entity_IsInFrontOf( svg_edict_t *self, svg_edict_t *other, const 
 /**
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
-const bool SVG_Entity_IsInFrontOf( svg_edict_t *self, const Vector3 &testOrigin, const float dotRangeArea ) {
+const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOrigin, const float dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_Entity_IsClient( self ) ) {
@@ -379,7 +289,7 @@ const bool SVG_Entity_IsInFrontOf( svg_edict_t *self, const Vector3 &testOrigin,
 /**
 *   @brief  Find the matching information for the ID and assign it to the entity's useTarget.hintInfo.
 **/
-void SVG_Entity_SetUseTargetHintByID( svg_edict_t *ent, const int32_t id ) {
+void SVG_Entity_SetUseTargetHintByID( svg_base_edict_t *ent, const int32_t id ) {
     // Get the useTargetHintID from the stats.
     const int32_t useTargetHintID = id;
     // Exit, since there is no useTargetHintID to display. (It is 0.)

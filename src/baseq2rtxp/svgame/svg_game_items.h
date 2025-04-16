@@ -102,14 +102,14 @@ typedef struct gitem_s {
     void        ( *precached )( const struct gitem_s *item );
 
     //! Pickup Callback.
-    const bool  ( *pickup )( svg_edict_t *ent, svg_edict_t *other );
+    const bool  ( *pickup )( svg_base_edict_t *ent, svg_base_edict_t *other );
     //! Use Callback.
-    void        ( *use )( svg_edict_t *ent, const struct gitem_s *item );
+    void        ( *use )( svg_base_edict_t *ent, const struct gitem_s *item );
     //! Drop Callback.
-    void        ( *drop )( svg_edict_t *ent, const struct gitem_s *item );
+    void        ( *drop )( svg_base_edict_t *ent, const struct gitem_s *item );
 
     //! WeaponThink Callback.
-    void        ( *weaponthink )( svg_edict_t *ent, const bool processUserInputOnly );
+    void        ( *weaponthink )( svg_base_edict_t *ent, const bool processUserInputOnly );
 
     //! Path: Pickup Sound.
     const char *pickup_sound; // WID: C++20: Added const.
@@ -147,3 +147,52 @@ typedef struct gitem_s {
     //! String of all models, sounds, and images this item will use and needs to precache.
     const char *precaches;
 } gitem_t;
+
+/**
+*   @brief
+**/
+void SVG_PrecacheItem( const gitem_t *it );
+/**
+*   @brief
+**/
+void SVG_InitItems( void );
+/**
+*   @brief
+**/
+void SVG_SetItemNames( void );
+/**
+*   @brief
+**/
+const gitem_t *SVG_FindItem( const char *pickup_name );
+/**
+*   @brief
+**/
+const gitem_t *SVG_FindItemByClassname( const char *classname );
+/**
+*   @brief
+**/
+#define ITEM_INDEX(x) ((x)-itemlist)
+/**
+*   @brief
+**/
+svg_base_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item );
+/**
+*   @brief
+**/
+void SVG_SetItemRespawn( svg_base_edict_t *ent, float delay );
+/**
+*   @brief
+**/
+void SVG_SpawnItem( svg_base_edict_t *ent, const gitem_t *item );
+/**
+*   @brief
+**/
+const gitem_t *SVG_GetItemByIndex( int index );
+/**
+*   @brief
+**/
+const bool Add_Ammo( svg_base_edict_t *ent, const gitem_t *item, const int32_t count );
+/**
+*   @brief
+**/
+void Touch_Item( svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );

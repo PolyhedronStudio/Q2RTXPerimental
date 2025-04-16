@@ -226,7 +226,7 @@ struct svg_client_t {
             QMTime currentTime;
 
             //! Optional callback function pointer.
-            //void ( *finished_animating )( svg_edict_t *ent );
+            //void ( *finished_animating )( svg_base_edict_t *ent );
         } animation;
 
         //! Recoil.
@@ -304,7 +304,7 @@ struct svg_client_t {
 
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
-    svg_edict_t     *oldgroundentity; // [Paril-KEX]
+    svg_base_edict_t     *oldgroundentity; // [Paril-KEX]
     cm_liquid_level_t	old_waterlevel;
     QMTime      flash_time; // [Paril-KEX] for high tickrate
 
@@ -319,9 +319,9 @@ struct svg_client_t {
     **/
     struct {
         //! The entity we are currently pointing at.
-        svg_edict_t *currentEntity;
+        svg_base_edict_t *currentEntity;
         //! The previous frame entity which we were pointing at.
-        svg_edict_t *previousEntity;
+        svg_base_edict_t *previousEntity;
 
         //! To ensure we check for processing useTargets only once.
         uint64_t tracedFrameNumber;
@@ -351,6 +351,6 @@ struct svg_client_t {
     /**
     *   Spectator Chasing:
     **/
-    svg_edict_t     *chase_target;  // Player we are chasing.
+    svg_base_edict_t     *chase_target;  // Player we are chasing.
     bool        update_chase;   // Need to update chase info?
 };

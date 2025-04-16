@@ -6,14 +6,15 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_chase.h"
+#include "svgame/svg_utils.h"
 
 #include "sharedgame/sg_shared.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
+#include "svgame/entities/svg_player_edict.h"
 #include "svgame/player/svg_player_client.h"
 
-#include "svgame/svg_chase.h"
-#include "svgame/svg_utils.h"
 
 
 
@@ -32,7 +33,7 @@ static const cm_trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t 
     //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
     //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
-    return SVG_Trace( start, mins, maxs, end, (svg_edict_t *)passEntity, contentMask );
+    return SVG_Trace( start, mins, maxs, end, (svg_base_edict_t *)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
@@ -79,7 +80,7 @@ static const cm_contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
 /**
 *   @brief  
 **/
-void SVG_Client_TraceForUseTarget( svg_edict_t *ent, svg_client_t *client, const bool processUserInput = false ) {
+void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput = false ) {
     // Get the (+targetuse) key state.
     const bool isTargetUseKeyHolding = ( client->userInput.heldButtons & BUTTON_USE_TARGET );
     const bool isTargetUseKeyPressed = ( client->userInput.pressedButtons & BUTTON_USE_TARGET );
@@ -102,7 +103,7 @@ void SVG_Client_TraceForUseTarget( svg_edict_t *ent, svg_client_t *client, const
     svg_trace_t traceUseTarget = SVG_Trace( traceStart, qm_vector3_null, qm_vector3_null, traceEnd, ent, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID | CM_CONTENTMASK_MONSTERSOLID ));
 
     // Get the current activate(in last frame) entity we were (+usetarget) using.
-    svg_edict_t *currentTargetEntity = ent->client->useTarget.currentEntity;
+    svg_base_edict_t *currentTargetEntity = ent->client->useTarget.currentEntity;
 
     // If it is a valid pointer and in use entity.
     if ( currentTargetEntity && currentTargetEntity->inuse ) {
@@ -304,7 +305,7 @@ void SVG_Client_TraceForUseTarget( svg_edict_t *ent, svg_client_t *client, const
 /**
 *   @brief  Updates the client's userinput states based on the usercommand.
 **/
-static void ClientUpdateUserInput( svg_edict_t *ent, svg_client_t *client, usercmd_t *userCommand ) {
+static void ClientUpdateUserInput( svg_base_edict_t *ent, svg_client_t *client, usercmd_t *userCommand ) {
     // [Paril-KEX] pass the usercommand buttons through even if we are in intermission or chasing.
     client->oldbuttons = client->buttons;
     client->buttons = userCommand->buttons;
@@ -327,7 +328,7 @@ static void ClientUpdateUserInput( svg_edict_t *ent, svg_client_t *client, userc
 /**
 *   @return True if we're still in intermission mode.
 **/
-static const bool ClientCheckIntermission( svg_edict_t *ent, svg_client_t *client ) {
+static const bool ClientCheckIntermission( svg_base_edict_t *ent, svg_client_t *client ) {
     if ( level.intermissionFrameNumber ) {
         client->ps.pmove.pm_type = PM_FREEZE;
 
@@ -350,7 +351,7 @@ static const bool ClientCheckIntermission( svg_edict_t *ent, svg_client_t *clien
 /**
 *   @brief  Determine the impacting falling damage to take. Called directly by ClientThink after each PMove.
 **/
-void P_FallingDamage( svg_edict_t *ent, const pmove_t &pm ) {
+void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
     int	   damage;
     vec3_t dir;
 
@@ -457,7 +458,7 @@ void P_FallingDamage( svg_edict_t *ent, const pmove_t &pm ) {
 *   @brief  Copies in the necessary client data into the player move struct in order to perform a frame worth of
 *           movement, copying back the resulting player move data into the client and entity fields.
 **/
-static void ClientRunPlayerMove( svg_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
+static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
     // NoClip/Spectator:
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         if ( ent->client->resp.spectator ) {
@@ -518,7 +519,7 @@ static void ClientRunPlayerMove( svg_edict_t *ent, svg_client_t *client, usercmd
 /**
 *   @brief  Copy in the remaining player move data into the entity and client structs, responding to possible changes.
 **/
-static const Vector3 ClientPostPlayerMove( svg_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
+static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
     // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
     if ( ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
         VectorCopy( ent->s.origin, client->last_ladder_pos );
@@ -560,7 +561,7 @@ static const Vector3 ClientPostPlayerMove( svg_edict_t *ent, svg_client_t *clien
     ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
     ent->liquidInfo.level = pm.liquid.level;
     ent->liquidInfo.type = pm.liquid.type;
-    ent->groundInfo.entity = (svg_edict_t*)pm.ground.entity;
+    ent->groundInfo.entity = (svg_base_edict_t*)pm.ground.entity;
     if ( ent->groundInfo.entity ) {
         ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkcount;
     }
@@ -583,7 +584,7 @@ static const Vector3 ClientPostPlayerMove( svg_edict_t *ent, svg_client_t *clien
 /**
 *   @brief  Will search for touching trigger and projectiles, dispatching their touch callback when touching.
 **/
-static void ClientProcessTouches( svg_edict_t *ent, svg_client_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
+static void ClientProcessTouches( svg_base_edict_t *ent, svg_client_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
     // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
     if ( ent->movetype != MOVETYPE_NOCLIP ) {
         SVG_Util_TouchTriggers( ent );
@@ -593,7 +594,7 @@ static void ClientProcessTouches( svg_edict_t *ent, svg_client_t *client, pmove_
     // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
     for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
         const svg_trace_t &tr = svg_trace_t( pm.touchTraces.traces[ i ] );
-        svg_edict_t *other = tr.ent;
+        svg_base_edict_t *other = tr.ent;
 
         if ( other != nullptr && other->touch ) {
             // TODO: Q2RE has these for last 2 args: const svg_trace_t &tr, bool other_touching_self
@@ -607,7 +608,7 @@ static void ClientProcessTouches( svg_edict_t *ent, svg_client_t *client, pmove_
 *   @brief  This will be called once for each client frame, which will usually
 *           be a couple times for each server frame.
 **/
-void SVG_Client_Think( svg_edict_t *ent, usercmd_t *ucmd ) {
+void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
     // Set the entity that is being processed.
     level.current_entity = ent;
 
@@ -757,7 +758,7 @@ void SVG_Client_Think( svg_edict_t *ent, usercmd_t *ucmd ) {
 
     // Update chase cam if being followed.
     for ( int32_t i = 1; i <= maxclients->value; i++ ) {
-        svg_edict_t *other = g_edict_pool.EdictForNumber( i );//g_edicts + i;
+        svg_base_edict_t *other = g_edict_pool.EdictForNumber( i );//g_edicts + i;
         if ( other && other->inuse && other->client->chase_target == ent ) {
             SVG_ChaseCam_Update( other );
         }

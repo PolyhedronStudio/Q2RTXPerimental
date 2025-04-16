@@ -55,8 +55,8 @@ typedef std::vector<svg_signal_argument_t> svg_signal_argument_array_t;
 /**
 *   @brief
 **/
-//void SVG_SignalOut( svg_edict_t *ent, svg_edict_t *sender, svg_edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments = nullptr, const int32_t numberOfSignalArguments = 0 );
-void SVG_SignalOut( svg_edict_t *ent, svg_edict_t *signaller, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments = {} );
+//void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *sender, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments = nullptr, const int32_t numberOfSignalArguments = 0 );
+void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *signaller, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments = {} );
 
 /**
 *

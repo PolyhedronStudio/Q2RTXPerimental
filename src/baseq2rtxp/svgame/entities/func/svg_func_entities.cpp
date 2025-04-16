@@ -16,7 +16,7 @@
 /**
 *	@brief
 **/
-void Touch_DoorTrigger( svg_edict_t *self, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void Touch_DoorTrigger( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
     if ( other->health <= 0 )
@@ -38,8 +38,8 @@ void Touch_DoorTrigger( svg_edict_t *self, svg_edict_t *other, const cm_plane_t 
 /**
 *	@brief
 **/
-void Think_SpawnDoorTrigger( svg_edict_t *ent ) {
-    svg_edict_t *other;
+void Think_SpawnDoorTrigger( svg_base_edict_t *ent ) {
+    svg_base_edict_t *other;
     vec3_t      mins, maxs;
 
     if ( ent->flags & FL_TEAMSLAVE )
@@ -59,7 +59,7 @@ void Think_SpawnDoorTrigger( svg_edict_t *ent ) {
     maxs[ 0 ] += 60;
     maxs[ 1 ] += 60;
 
-    other = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
+    other = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
     VectorCopy( mins, other->mins );
     VectorCopy( maxs, other->maxs );
     other->owner = ent;

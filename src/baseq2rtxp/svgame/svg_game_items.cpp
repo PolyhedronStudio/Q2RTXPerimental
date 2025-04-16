@@ -24,22 +24,22 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 
-//void Weapon_Blaster(svg_edict_t *ent);
-//void Weapon_Shotgun(svg_edict_t *ent);
-void Weapon_Fists( svg_edict_t *ent, const bool processUserInputOnly );
+//void Weapon_Blaster(svg_base_edict_t *ent);
+//void Weapon_Shotgun(svg_base_edict_t *ent);
+void Weapon_Fists( svg_base_edict_t *ent, const bool processUserInputOnly );
 void Weapon_Fists_Precached( const gitem_t *item );
-void Weapon_Pistol( svg_edict_t *ent, const bool processUserInputOnly );
+void Weapon_Pistol( svg_base_edict_t *ent, const bool processUserInputOnly );
 void Weapon_Pistol_Precached( const gitem_t *item );
-//void Weapon_SuperShotgun(svg_edict_t *ent);
-//void Weapon_Machinegun(svg_edict_t *ent);
-//void Weapon_Chaingun(svg_edict_t *ent);
-//void Weapon_HyperBlaster(svg_edict_t *ent);
-//void Weapon_RocketLauncher(svg_edict_t *ent);
-//void Weapon_Grenade(svg_edict_t *ent);
-//void Weapon_GrenadeLauncher(svg_edict_t *ent);
-//void Weapon_Railgun(svg_edict_t *ent);
-//void Weapon_BFG(svg_edict_t *ent);
-//void Weapon_FlareGun(svg_edict_t *ent);
+//void Weapon_SuperShotgun(svg_base_edict_t *ent);
+//void Weapon_Machinegun(svg_base_edict_t *ent);
+//void Weapon_Chaingun(svg_base_edict_t *ent);
+//void Weapon_HyperBlaster(svg_base_edict_t *ent);
+//void Weapon_RocketLauncher(svg_base_edict_t *ent);
+//void Weapon_Grenade(svg_base_edict_t *ent);
+//void Weapon_GrenadeLauncher(svg_base_edict_t *ent);
+//void Weapon_Railgun(svg_base_edict_t *ent);
+//void Weapon_BFG(svg_base_edict_t *ent);
+//void Weapon_FlareGun(svg_base_edict_t *ent);
 
 // for passing into *info member of gitem_t.
 extern weapon_item_info_t fistsItemInfo;
@@ -62,7 +62,7 @@ static constexpr int32_t HEALTH_TIMED = 2;
 /**
 *   @brief
 **/
-void SVG_Inventory_SelectNextItem( svg_edict_t *ent, int itflags ) {
+void SVG_Inventory_SelectNextItem( svg_base_edict_t *ent, int itflags ) {
     svg_client_t *cl;
     int         i, index;
     gitem_t *it;
@@ -95,7 +95,7 @@ void SVG_Inventory_SelectNextItem( svg_edict_t *ent, int itflags ) {
 /**
 *   @brief
 **/
-void SVG_Inventory_SelectPrevItem( svg_edict_t *ent, int itflags ) {
+void SVG_Inventory_SelectPrevItem( svg_base_edict_t *ent, int itflags ) {
     svg_client_t *cl;
     int         i, index;
     gitem_t *it;
@@ -127,7 +127,7 @@ void SVG_Inventory_SelectPrevItem( svg_edict_t *ent, int itflags ) {
 /**
 *   @brief  Validates current selected item, if invalid, moves to the next valid item.
 **/
-void SVG_Inventory_ValidateSelectedItem( svg_edict_t *ent ) {
+void SVG_Inventory_ValidateSelectedItem( svg_base_edict_t *ent ) {
     svg_client_t *cl;
 
     cl = ent->client;
@@ -195,10 +195,10 @@ const gitem_t *SVG_FindItem(const char *pickup_name) {
 *
 *
 **/
-void DoRespawn(svg_edict_t *ent)
+void DoRespawn(svg_base_edict_t *ent)
 {
     if (ent->targetNames.team) {
-        svg_edict_t *master;
+        svg_base_edict_t *master;
         int count;
         int choice;
 
@@ -222,7 +222,7 @@ void DoRespawn(svg_edict_t *ent)
     ent->s.event = EV_ITEM_RESPAWN;
 }
 
-void SVG_SetItemRespawn(svg_edict_t *ent, float delay)
+void SVG_SetItemRespawn(svg_base_edict_t *ent, float delay)
 {
     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
     ent->svflags |= SVF_NOCLIENT;
@@ -235,7 +235,7 @@ void SVG_SetItemRespawn(svg_edict_t *ent, float delay)
 /**
 *   @brief
 **/
-void Drop_General(svg_edict_t *ent, gitem_t *item)
+void Drop_General(svg_base_edict_t *ent, gitem_t *item)
 {
     Drop_Item(ent, item);
     ent->client->pers.inventory[ITEM_INDEX(item)]--;
@@ -264,7 +264,7 @@ void Drop_General(svg_edict_t *ent, gitem_t *item)
 /**
 *   @brief  Will attempt to add 'count' of item ammo to the entity's client inventory.
 **/
-const bool Add_Ammo(svg_edict_t *ent, const gitem_t *item, const int32_t count)
+const bool Add_Ammo(svg_base_edict_t *ent, const gitem_t *item, const int32_t count)
 {
     if (!ent->client)
         return false;
@@ -307,7 +307,7 @@ const bool Add_Ammo(svg_edict_t *ent, const gitem_t *item, const int32_t count)
 /**
 *   @brief  Will (try to) 'pickup' the specified ammo item 'ent' and add it to the 'other' entity client's inventory.
 **/
-const bool Pickup_Ammo(svg_edict_t *itemEntity, svg_edict_t *other) {
+const bool Pickup_Ammo(svg_base_edict_t *itemEntity, svg_base_edict_t *other) {
     // Count that is picked up.
     int32_t count = 0;
     
@@ -350,9 +350,9 @@ const bool Pickup_Ammo(svg_edict_t *itemEntity, svg_edict_t *other) {
 /**
 *   @brief  Drops ammo.
 **/
-void Drop_Ammo(svg_edict_t *ent, const gitem_t *item) {
+void Drop_Ammo(svg_base_edict_t *ent, const gitem_t *item) {
     int32_t index = ITEM_INDEX(item);
-    svg_edict_t *dropped = Drop_Item(ent, item);
+    svg_base_edict_t *dropped = Drop_Item(ent, item);
     if (ent->client->pers.inventory[index] >= item->quantity)
         dropped->count = item->quantity;
     else
@@ -382,7 +382,7 @@ void Drop_Ammo(svg_edict_t *ent, const gitem_t *item) {
 /**
 *   @brief
 **/
-void MegaHealth_think(svg_edict_t *self)
+void MegaHealth_think(svg_base_edict_t *self)
 {
     if (self->owner->health > self->owner->max_health) {
         self->nextthink = level.time + 1_sec;
@@ -398,7 +398,7 @@ void MegaHealth_think(svg_edict_t *self)
 /**
 *   @brief
 **/
-const bool Pickup_Health(svg_edict_t *ent, svg_edict_t *other)
+const bool Pickup_Health(svg_base_edict_t *ent, svg_base_edict_t *other)
 {
     if (!(ent->style & HEALTH_IGNORE_MAX))
         if (other->health >= other->max_health)
@@ -440,7 +440,7 @@ const bool Pickup_Health(svg_edict_t *ent, svg_edict_t *other)
 /**
 *   @brief  
 **/
-void Touch_Item(svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf)
+void Touch_Item(svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf)
 {
     bool    taken;
 
@@ -499,7 +499,7 @@ void Touch_Item(svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *plane, c
 /**
 *   @brief
 **/
-void drop_temp_touch(svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf)
+void drop_temp_touch(svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf)
 {
     if (other == ent->owner)
         return;
@@ -509,7 +509,7 @@ void drop_temp_touch(svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *pla
 /**
 *   @brief
 **/
-void drop_make_touchable(svg_edict_t *ent)
+void drop_make_touchable(svg_base_edict_t *ent)
 {
     ent->touch = Touch_Item;
     if (deathmatch->value) {
@@ -520,13 +520,13 @@ void drop_make_touchable(svg_edict_t *ent)
 /**
 *   @brief
 **/
-svg_edict_t *Drop_Item(svg_edict_t *ent, const gitem_t *item)
+svg_base_edict_t *Drop_Item(svg_base_edict_t *ent, const gitem_t *item)
 {
-    svg_edict_t *dropped;
+    svg_base_edict_t *dropped;
     vec3_t  forward, right;
     vec3_t  offset;
 
-    dropped = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
+    dropped = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
 
     dropped->classname = item->classname;
     dropped->item = item;
@@ -569,7 +569,7 @@ svg_edict_t *Drop_Item(svg_edict_t *ent, const gitem_t *item)
 /**
 *   @brief
 **/
-void Use_Item(svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue )
+void Use_Item(svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue )
 {
     ent->svflags &= ~SVF_NOCLIENT;
     ent->use = NULL;
@@ -590,7 +590,7 @@ void Use_Item(svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, cons
 /**
 *   @brief
 **/
-void droptofloor(svg_edict_t *ent)
+void droptofloor(svg_base_edict_t *ent)
 {
     svg_trace_t     tr;
     vec3_t      dest;
@@ -746,7 +746,7 @@ void SVG_PrecacheItem( const gitem_t *it)
 *           Items can't be immediately dropped to floor, because they might
 *           be on an entity that hasn't spawned yet.
 **/
-void SVG_SpawnItem(svg_edict_t *ent, const gitem_t *item)
+void SVG_SpawnItem(svg_base_edict_t *ent, const gitem_t *item)
 {
     SVG_PrecacheItem(item);
 
@@ -1111,7 +1111,7 @@ gitem_t itemlist[] = {
 /**
 *   @brief  item_health (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
 **/
-void SP_item_health(svg_edict_t *self)
+void SP_item_health(svg_base_edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
         SVG_FreeEdict(self);
@@ -1127,7 +1127,7 @@ void SP_item_health(svg_edict_t *self)
 /**
 *   @brief  item_health_small (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
 **/
-void SP_item_health_small(svg_edict_t *self)
+void SP_item_health_small(svg_base_edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
         SVG_FreeEdict(self);
@@ -1144,7 +1144,7 @@ void SP_item_health_small(svg_edict_t *self)
 /**
 *   @brief  item_health_large (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
 **/
-void SP_item_health_large(svg_edict_t *self)
+void SP_item_health_large(svg_base_edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
         SVG_FreeEdict(self);
@@ -1160,7 +1160,7 @@ void SP_item_health_large(svg_edict_t *self)
 /**
 *   @brief  item_health_mega (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
 **/
-void SP_item_health_mega(svg_edict_t *self)
+void SP_item_health_mega(svg_base_edict_t *self)
 {
     if (deathmatch->value && ((int)dmflags->value & DF_NO_HEALTH)) {
         SVG_FreeEdict(self);

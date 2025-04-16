@@ -9,30 +9,6 @@
 #pragma once
 
 
-/**
-*   @brief  edict->flags
-**/
-enum entity_flags_t {
-    FL_NONE = 0,
-    FL_FLY = BIT( 1 ),
-    FL_SWIM = BIT( 2 ), //! Implied immunity to drowining.
-    FL_IMMUNE_LASER = BIT( 3 ),
-    FL_INWATER = BIT( 4 ),
-    FL_GODMODE = BIT( 5 ),
-    FL_NOTARGET = BIT( 6 ),
-    FL_DODGE = BIT( 7 ), //! Monster should try to dodge this.
-    FL_IMMUNE_SLIME = BIT( 8 ),
-    FL_IMMUNE_LAVA = BIT( 9 ),
-    FL_PARTIALGROUND = BIT( 10 ),//! Not all corners are valid.
-    FL_WATERJUMP = BIT( 11 ),//! Player jumping out of water.
-    FL_TEAMSLAVE = BIT( 12 ),//! Not the first on the team.
-    FL_NO_KNOCKBACK = BIT( 13 ),
-    FL_RESPAWN = BIT( 14 ) //! Used for item respawning.
-    //FL_POWER_ARMOR          = BIT( 15 ),//! Power armor (if any) is active
-};
-// Enumerator Type Bit Flags Support:
-QENUM_BIT_FLAGS( entity_flags_t );
-
 
 /**
 *   @brief  edict->spawnflags T
@@ -60,24 +36,71 @@ static constexpr spawnflag_t SPAWNFLAG_USETARGET_HOLDABLE = BIT( 18 );
 
 
 /**
+*   @brief  Entity specific bit flags.
+**/
+enum entity_flags_t {
+    FL_NONE = 0,
+    FL_FLY = BIT( 1 ),
+    //! Implied immunity to drowning.
+    FL_SWIM = BIT( 2 ),
+    FL_IMMUNE_LASER = BIT( 3 ),
+    FL_INWATER = BIT( 4 ),
+    FL_GODMODE = BIT( 5 ),
+    FL_NOTARGET = BIT( 6 ),
+    //! Monster should try to dodge this.
+    FL_DODGE = BIT( 7 ),
+    FL_IMMUNE_SLIME = BIT( 8 ),
+    FL_IMMUNE_LAVA = BIT( 9 ),
+    //! Not all corners are valid.
+    FL_PARTIALGROUND = BIT( 10 ),
+    //! Player jumping out of water.
+    FL_WATERJUMP = BIT( 11 ),
+    //! Not the first on the team.
+    FL_TEAMSLAVE = BIT( 12 ),
+    FL_NO_KNOCKBACK = BIT( 13 ),
+    //! Used for item respawning.
+    FL_RESPAWN = BIT( 14 )
+    //! Power armor (if any) is active.
+    //FL_POWER_ARMOR          = BIT( 15 ),
+};
+// Enumerator Type Bit Flags Support:
+QENUM_BIT_FLAGS( entity_flags_t );
+
+
+
+/**
 *   @brief  edict->movetype values
 **/
-typedef enum {
-    MOVETYPE_NONE,          // never moves
-    MOVETYPE_NOCLIP,        // origin and angles change with no interaction
-    MOVETYPE_PUSH,          // no clip to world, push on box contact
-    MOVETYPE_STOP,          // no clip to world, stops on box contact
+enum svg_movetype_t {
+    //! Never moves. (Ignores velocity etc.)
+    MOVETYPE_NONE = 0,
+    //! Origin and angles are updated, but there is no interaction to world and other entities
+    //! because we are "not clipping".
+    MOVETYPE_NOCLIP,
 
-    MOVETYPE_WALK,          // gravity
-    MOVETYPE_STEP,          // gravity, special edge handling
+	//! No clip to world, push on box contact.
+    MOVETYPE_PUSH,
+	//! No clip to world, stops on box contact.
+    MOVETYPE_STOP,
 
-    MOVETYPE_ROOTMOTION,    // gravity, animation root motion influences velocities.
+    //! For player(client) entities. Player movement.
+    MOVETYPE_WALK,
 
+    //! Gravity, special edge handling.
+    MOVETYPE_STEP,
+    //! Gravity, animation root motion influences velocities.
+    MOVETYPE_ROOTMOTION,
+	//! No gravity, but still applies velocity and acceleration.
     MOVETYPE_FLY,
-    MOVETYPE_TOSS,          // gravity
-    MOVETYPE_FLYMISSILE,    // extra size to monsters
+	//! For thrown entities. Influenced by gravity and velocity.
+    MOVETYPE_TOSS,
+	//! For projectiles. Influenced by gravity and velocity.
+    MOVETYPE_FLYMISSILE,
+	//! For bouncing entities. Influenced by gravity and velocity.
     MOVETYPE_BOUNCE
-} movetype_t;
+};
+
+
 
 /**
 * 
@@ -93,131 +116,134 @@ typedef enum {
 * 
 *           One could call this a different means of 'composition' here.
 **/
-struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
+struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_t> {
+    //! Constructor. 
+    svg_base_edict_t() = default;
+    //! Destructor.
+    virtual ~svg_base_edict_t() = default;
+
+    //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
+    svg_base_edict_t( const cm_entity_t *ed ) : sv_shared_edict_t< svg_base_edict_t, svg_client_t >( ed ) {};
+
+
     /**
+    * 
+    * 
 	*	Operator overloading so we can allocate the object using the Zone(Tag) memory.
+    * 
+    * 
 	**/
-    #if 1
-    #ifndef _SHOBJECT_DEBUG_ZONE_TAG_MEMORY
-	    //! New Operator Overload.
-	    void *operator new( size_t size ) {
-            // Prevent possible malloc from succeeding if size is 0.
-            if ( size == 0 ) {
-                size = 1;
-            }
-            // Allocate.
-            if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
-                // Debug about the allocation.
-                gi.dprintf( "%s: Allocating %d bytes.\n", __func__, size );
-                // Return the pointer.
-                return ptr;
-            }
-            // Debug about the failure to allocate
-            gi.dprintf( "%s: Failed allocationg %d bytes\n", __func__, size );
-			// Throw an exception.
-			//throw std::bad_alloc( "Failed to allocate memory" );
-			return nullptr;
+	//! New Operator Overload.
+	void *operator new( size_t size ) {
+        // Prevent possible malloc from succeeding if size is 0.
+        if ( size == 0 ) {
+            size = 1;
         }
-	    //! Delete Operator Overload.
-	    void operator delete( void *ptr ) {
-            if ( ptr != nullptr ) {//TagAllocator::Free( ptr );
-                // Debug about deallocation.
-                gi.dprintf( "%s: Freeing %p\n", __func__, ptr );
-                // Deallocate.
-                gi.TagFree( ptr );
-                return;
-            }
-            // Debug about the failure to allocate
-            gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
-	    }
-	    //! New Operator Overload.
-	    void *operator new[]( size_t size ) {
-            // Prevent possible malloc from succeeding if size is 0.
-            if ( size == 0 ) {
-                size = 1;
-            }
-            // Allocate.
-            if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
-                // Debug about the allocation.
-                gi.dprintf( "%s: Allocating %d bytes.\n", __func__, size );
-                // Return the pointer.
-                return ptr;
-            }
-            // Debug about the failure to allocate
-            gi.dprintf( "%s: Failed allocating %d bytes\n", __func__, size );
-            // Throw an exception.
-            //throw std::bad_alloc( "Failed to allocate memory" );
-            return nullptr;
-	    }
-	    //! Delete Operator Overload.
-	    void operator delete[]( void *ptr ) {
-            if ( ptr != nullptr ) {
-                // Debug about deallocation.
-                gi.dprintf( "%s: Freeing %p\n", __func__, ptr );
-                // Deallocate.
-                gi.TagFree( ptr ); // TagAllocator::Z_TagFree( ptr );
-                return;
-            }
-            // Debug about the failure to allocate
-            gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
-	    }
-    #else
-		//! New Operator Overload.
-		void *operator new( size_t size, const char *file, int line ) {
-            // Prevent possible malloc from succeeding if size is 0.
-            if ( size == 0 ) {
-                size = 1;
-            }
-            // Allocate.
-            if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
-                // Debug about the allocation.
-                gi.dprintf( "%s: Allocating %d bytes in %s:%d\n", __func__, size, file, line );
-                // Return the pointer.
-                return ptr;
-            }
-            // Debug about the failure to allocate
-            gi.dprintf( "%s: Failed allocationg %d bytes in %s:%d\n", __func__, size, file, line );
-            // Throw an exception.
-            //throw std::bad_alloc::bad_alloc( std::wstring( L"Failed to allocate memory" ) );
-            return nullptr;		
+        // Allocate.
+        if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
+            // Debug about the allocation.
+            gi.dprintf( "%s: Allocating %d bytes.\n", __func__, size );
+            // Return the pointer.
+            return ptr;
         }
-		//! Delete Operator Overload.
-		void operator delete( void *ptr, const char *file, int line ) {
-			// Deallocate.
-            if ( ptr != nullptr ) {//TagAllocator::Free( ptr );
-                gi.TagFree( ptr );
-                // Debug about the deallocation.
-                gi.dprintf( "%s: Freeing %p in %s:%d\n", __func__, ptr, file, line );
-            }
-		}
-		//! New Operator Overload.
-		void *operator new[]( size_t size, const char *file, int line ) {
-            // Prevent possible malloc from succeeding if size is 0.
-            if ( size == 0 ) {
-                size = 1;
-            }
-            // Allocate.
-            if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
-                // Debug about the allocation.
-                gi.dprintf( "%s: Allocating %d bytes in %s:%d\n", __func__, size, file, line );
-                // Return the pointer.
-                return ptr;
-            }
-            // Debug about the failure to allocate
-            gi.dprintf( "%s: Failed allocationg %d bytes in %s:%d\n", __func__, size, file, line );
-            return nullptr;
+        // Debug about the failure to allocate
+        gi.dprintf( "%s: Failed allocationg %d bytes\n", __func__, size );
+		// Throw an exception.
+		//throw std::bad_alloc( "Failed to allocate memory" );
+		return nullptr;
+    }
+	//! Delete Operator Overload.
+	void operator delete( void *ptr ) {
+        if ( ptr != nullptr ) {//TagAllocator::Free( ptr );
+            // Debug about deallocation.
+            gi.dprintf( "%s: Freeing %p\n", __func__, ptr );
+            // Deallocate.
+            gi.TagFree( ptr );
+            return;
         }
-		//! Delete Operator Overload.
-		void operator delete[]( void *ptr, const char *file, int line ) {
-			// Deallocate.
-            if ( ptr != nullptr ) {
-                gi.TagFree( ptr ); // TagAllocator::Z_TagFree( ptr );
-                // Debug about the deallocation.
-                gi.dprintf( "%s: Freeing %p in %s:%d\n", __func__, ptr, file, line );
-            }
-		}
-	#endif
+        // Debug about the failure to allocate
+        gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
+	}
+    // WID: Need these?
+    #if 0
+	//! New Operator Overload.
+	void *operator new[]( size_t size ) {
+        // Prevent possible malloc from succeeding if size is 0.
+        if ( size == 0 ) {
+            size = 1;
+        }
+        // Allocate.
+        if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
+            // Debug about the allocation.
+            gi.dprintf( "%s: Allocating %d bytes.\n", __func__, size );
+            // Return the pointer.
+            return ptr;
+        }
+        // Debug about the failure to allocate
+        gi.dprintf( "%s: Failed allocating %d bytes\n", __func__, size );
+        // Throw an exception.
+        //throw std::bad_alloc( "Failed to allocate memory" );
+        return nullptr;
+	}
+	//! Delete Operator Overload.
+	void operator delete[]( void *ptr ) {
+        if ( ptr != nullptr ) {
+            // Debug about deallocation.
+            gi.dprintf( "%s: Freeing %p\n", __func__, ptr );
+            // Deallocate.
+            gi.TagFree( ptr ); // TagAllocator::Z_TagFree( ptr );
+            return;
+        }
+        // Debug about the failure to allocate
+        gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
+	}
     #endif
+
+
+
+    /**
+    *
+    *
+    *   Core:
+    *
+    *
+    **/
+    /**
+	*   Reconstructs the object, optionally retaining the entityDictionary.
+    **/
+    virtual void Reset( bool retainDictionary = false ) override;
+
+
+
+    /**
+    *
+    * 
+    *   TypeInfo Related:
+    *
+    * 
+    **/
+    //! For each derived edict type, this field can be added to and
+    //! instanced in the edict type's own .cpp file.
+    //! 
+    //! The game will take care of recursively writing the neccessary
+    //! fields in order of the edict_t inheritance hierachy.
+    static svg_save_descriptor_field_t saveDescriptorFields[];
+    
+    /**
+	*   @brief Retrieves a pointer to the save descriptor fields.
+	*   @return A pointer to a structure of type `svg_save_descriptor_field_t` representing the save descriptor fields.
+	**/
+    virtual svg_save_descriptor_field_t *GetSaveDescriptorFields();
+    /**
+	*   @return The number of save descriptor fields.
+    **/
+    virtual int32_t GetSaveDescriptorFieldsCount();
+    /**
+	*   @return A pointer to the save descriptor field with the given name.
+    **/
+    virtual svg_save_descriptor_field_t *GetSaveDescriptorField( const char *name );
+
+
 
     /**
     *
@@ -259,6 +285,7 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
     //! To take damage or not.
     entity_takedamage_t     takedamage = entity_takedamage_t::DAMAGE_NO;
 
+
     /**
     *   UseTarget Properties and State:
     **/
@@ -286,6 +313,7 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
         const sg_usetarget_hint_s *hintInfo;
     } useTarget = {};
 
+
     /**
     *   Target Name Fields:
     **/
@@ -306,16 +334,17 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
         svg_level_qstring_t movewith;
     } targetNames;
 
+
     /**
     *   Target Entities:
     **/
     struct {
         //! The active 'target' entity.
-        svg_edict_t *target;
+        svg_base_edict_t *target;
         //! The parent entity to move along with.
-        svg_edict_t *movewith;
+        svg_base_edict_t *movewith;
         //! Next child in the list of this 'movewith group' chain.
-        //svg_edict_t *movewith_next;
+        //svg_base_edict_t *movewith_next;
     } targetEntities = {};
 
 
@@ -327,6 +356,7 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
         svg_level_qstring_t luaName;
     } luaProperties;
 
+
     /**
     *   "Delay" entities, these are created when (UseTargets/SignalOut) with a
     *   special "delay" worldspawn key/value set.
@@ -335,7 +365,7 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
         //! For the SVG_UseTargets and its Lua companion.
         struct {
             //! The source entity that when UseTarget, created the DelayedUse entity.
-            svg_edict_t *creatorEntity;
+            svg_base_edict_t *creatorEntity;
             //! The useType for delayed UseTarget.
             entity_usetarget_type_t useType;
             //! The useValue for delayed UseTarget.
@@ -344,13 +374,14 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
 
         struct {
             //! The source entity that when SignalOut, created the DelayedSignalOut entity.
-            svg_edict_t *creatorEntity;
+            svg_base_edict_t *creatorEntity;
             //! A copy of the actual signal name.
             char name[ 256 ];
             //! For delayed signaling.
             std::vector<svg_signal_argument_t> arguments;
         } signalOut;
     } delayed = {};
+
 
     /**
     *   Physics Related:
@@ -373,11 +404,11 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
         Vector3 totalVelocity;
 
         //! POinter to the parent we're moving with.
-        svg_edict_t *parentMoveEntity;
+        svg_base_edict_t *parentMoveEntity;
 
         //! A pointer to the first 'moveWith child' entity.
         //! The child entity will be pointing to the next in line, and so on.
-        svg_edict_t *moveNextEntity;
+        svg_base_edict_t *moveNextEntity;
     } moveWith = {};
 
     //! Specified physics movetype.
@@ -401,7 +432,7 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
     /**
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
     **/
-    svg_pushmove_info_t pushMoveInfo = {};
+    svg_pushmove_info_t pushMoveInfo;
     //! [SpawnKey]: Moving speed.
     float   speed = 0.f;
     //! [SpawnKey]: Acceleration speed.
@@ -423,7 +454,7 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
     //! Mover last angles.
     Vector3 lastAngles = QM_Vector3Zero();
     //! For func_train, next path to move to.
-    svg_edict_t *movetarget = nullptr;
+    svg_base_edict_t *movetarget = nullptr;
 
 
     /**
@@ -433,52 +464,52 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
     QMTime   nextthink;
 
     //! Gives a chance to setup references to other entities etc.
-    void        ( *postspawn )( svg_edict_t *ent ) = nullptr;
+    void ( *postspawn )( svg_base_edict_t *ent ) = nullptr;
 
     //! Called before actually thinking.
-    void        ( *prethink )( svg_edict_t *ent ) = nullptr;
+    void ( *prethink )( svg_base_edict_t *ent ) = nullptr;
     //! Called for thinking.
-    void        ( *think )( svg_edict_t *self ) = nullptr;
+    void ( *think )( svg_base_edict_t *self ) = nullptr;
     //! Called after thinking.
-    void        ( *postthink )( svg_edict_t *ent ) = nullptr;
+    void ( *postthink )( svg_base_edict_t *ent ) = nullptr;
 
     //! Called when movement has been blocked.
-    void        ( *blocked )( svg_edict_t *self, svg_edict_t *other ) = nullptr;         // move to moveinfo?
+    void ( *blocked )( svg_base_edict_t *self, svg_base_edict_t *other ) = nullptr;         // move to moveinfo?
     //! Called when the entity touches another entity.
-    void        ( *touch )( svg_edict_t *self, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) = nullptr;
+    void ( *touch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) = nullptr;
 
     //! Called to 'trigger' the entity.
-    void        ( *use )( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) = nullptr;
+    void ( *use )( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) = nullptr;
     //! Called when the entity is being 'Signalled', happens when another entity emits an OutSignal to it.
-    void        ( *onsignalin )( svg_edict_t *self, svg_edict_t *other, svg_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) = nullptr;
+    void ( *onsignalin )( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) = nullptr;
 
     //! Called when it gets damaged.
-    void        ( *pain )( svg_edict_t *self, svg_edict_t *other, float kick, int damage ) = nullptr;
+    void ( *pain )( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage ) = nullptr;
     //! Called to die.
-    void        ( *die )( svg_edict_t *self, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point ) = nullptr;
+    void ( *die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) = nullptr;
 
 
     /**
     *   Entity Pointers:
     **/
     //! Will be nullptr or world if not currently angry at anyone.
-    svg_edict_t *enemy = nullptr;
+    svg_base_edict_t *enemy = nullptr;
     //! Previous Enemy.
-    svg_edict_t *oldenemy = nullptr;
+    svg_base_edict_t *oldenemy = nullptr;
     //! The next path spot to walk toward.If.enemy, ignore.movetarget. When an enemy is killed, the monster will try to return to it's path.
-    svg_edict_t *goalentity = nullptr;
+    svg_base_edict_t *goalentity = nullptr;
 
     //! Chain Entity.
-    svg_edict_t *chain = nullptr;
+    svg_base_edict_t *chain = nullptr;
     //! Team Chain.
-    svg_edict_t *teamchain = nullptr;
+    svg_base_edict_t *teamchain = nullptr;
     //! Team master.
-    svg_edict_t *teammaster = nullptr;
+    svg_base_edict_t *teammaster = nullptr;
 
     //! Trigger Activator.
-    svg_edict_t *activator = nullptr;
+    svg_base_edict_t *activator = nullptr;
     //! The entity that called upon the SignalOut/UseTarget
-    svg_edict_t *other = nullptr;
+    svg_base_edict_t *other = nullptr;
 
 
     /**
@@ -507,8 +538,8 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
     *   Player Noise/Trail:
     **/
     //! Pointer to noise entity.
-    svg_edict_t *mynoise = nullptr;       // can go in client only
-    svg_edict_t *mynoise2 = nullptr;
+    svg_base_edict_t *mynoise = nullptr;       // can go in client only
+    svg_base_edict_t *mynoise2 = nullptr;
     //! Noise indexes.
     int32_t noise_index = 0;
     int32_t noise_index2 = 0;
@@ -575,19 +606,4 @@ struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t> {
     **/
     Vector3 move_origin = QM_Vector3Zero();
     Vector3 move_angles = QM_Vector3Zero();
-};
-
-// This inherits from:
-//
-/**
-*   @brief  The server game entity structure. Still is a POD type.
-*           Given template arguments are for the pointers that reside
-*           within the 'shared' memory block.
-*
-*           One could call this a different means of 'composition' here.
-**/
-//struct svg_edict_t : public sv_shared_edict_t<svg_edict_t, svg_client_t>
-struct svg_player_edict_t : public svg_edict_t {
-    int testVar = 100;
-    Vector3 testVar2 = {};
 };

@@ -10,7 +10,7 @@
 /*QUAKED info_player_start (1 0 0) (-16 -16 -24) (16 16 32)
 The normal starting point for a level (Singleplayer, and as last resort if missing gamemode specific spawn points.).
 */
-void SP_info_player_start( svg_edict_t *self ) {
+void SP_info_player_start( svg_base_edict_t *self ) {
     if ( !coop->value )
         return;
 }

@@ -17,9 +17,9 @@ Pathtarget: gets used when an entity that has
 /**
 *   @brief
 **/
-void path_corner_touch( svg_edict_t *self, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void path_corner_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     vec3_t      v;
-    svg_edict_t *next;
+    svg_base_edict_t *next;
 
     if ( other->movetarget != self )
         return;
@@ -72,7 +72,7 @@ void path_corner_touch( svg_edict_t *self, svg_edict_t *other, const cm_plane_t 
 /**
 *   @brief
 **/
-void SP_path_corner( svg_edict_t *self ) {
+void SP_path_corner( svg_base_edict_t *self ) {
     if ( !self->targetname ) {
         gi.dprintf( "path_corner with no targetname at %s\n", vtos( self->s.origin ) );
         SVG_FreeEdict( self );

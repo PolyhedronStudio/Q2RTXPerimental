@@ -17,7 +17,7 @@
 *   Should already have been defined by CMake for this ServerGame target.
 *
 *   Define SVGAME_INCLUDE so that game.h does not define the
-*   short, server-visible svg_client_t and svg_edict_t structures,
+*   short, server-visible svg_client_t and svg_base_edict_t structures,
 *   because we define the full size ones in this file
 **/
 #ifndef SVGAME_INCLUDE
@@ -40,27 +40,31 @@ extern svgame_export_t globals;
 **/
 // SharedGame includes:
 #include "sharedgame/sg_shared.h"
-// Typedef for svg_edict_t.
+// Typedefs for svg_base_edict_t.
 typedef struct sg_usetarget_hint_s sg_usetarget_hint_t;
+typedef int32_t spawnflag_t;
 
 /**
 *   Forward declared types:
 **/
-enum entity_flags_t;
-
-struct svg_edict_t;
-struct svg_edict_pool_t;
 struct svg_client_t;
-
+struct svg_edict_pool_t;
+struct svg_save_descriptor_field_t;
 struct svg_trace_t;
 
 struct mm_ground_info_t;
 struct mm_liquid_info_t;
 
+struct svg_base_edict_t;
+struct svg_player_edict_t;
+
+enum entity_flags_t;
+
+
 /**
 *   Typedefs for the Server Game module.
 **/
-typedef int32_t spawnflag_t;
+
 
 
 /**
@@ -221,67 +225,43 @@ using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
 *
 *
 *
-*   Common Includes:
+*   These genericly are used all over:
 *
 *
 *
 **/
-/**
-*   Combat related enums etc.
-**/
+//! Combat related:
 #include "svgame/svg_combat.h"
-
-/**
-*   Pusher/Mover- Move Info Data Structures:
-**/
+//! Pusher/Mover- Move Info Data Structures:
 #include "svgame/svg_pushmove_info.h"
-
-/**
-*   Signal I/O:
-**/
+//! Signal I/O:
 #include "svgame/svg_signalio.h"
-
-/**
-*   UseTargets related enums etc.
-**/
+//! UseTargets related enums etc.
 #include "svgame/svg_usetargets.h"
-
-/**
-*   Signal I/O:
-**/
+//! Signal I/O:
 #include "svgame/svg_trigger.h"
 
-/**
-*   (Player-)Weapon Related.
-**/
+//! (Player-)Weapon Related.
 #include "svgame/svg_weapons.h"
 
-/**
-*   Include items data structures.
-**/
+//! Include items data structures.
 #include "svgame/svg_game_items.h"
 //! For access all over.
 extern  gitem_t itemlist[];
 
-/**
-*   Include the GAME locals.
-**/
+//! Include the GAME locals.
 #include "svgame/svg_game_locals.h"
+//! Include the LEVEL locals.
+#include "svgame/svg_level_locals.h"
 //! Extern, access all over game dll code.
-extern  game_locals_t   game;
+extern game_locals_t    game;
+extern level_locals_t   level;
+
 extern  int sm_meat_index;
 extern  int snd_fry;
 
-/**
-*   Include the LEVEL locals.
-**/
-#include "svgame/svg_level_locals.h"
-//! Extern, access all over game dll code.
-extern level_locals_t level;
 
-/**
-*   SpawnTemp:
-**/
+//! SpawnTemp:
 #include "svgame/svg_spawn_temp.h"
 //! Extern, access all over game dll code.
 extern spawn_temp_t st;
@@ -298,7 +278,7 @@ extern spawn_temp_t st;
 * 
 **/
 //! For game entity fields.
-#define FOFS_GENTITY( field )       q_offsetof( svg_edict_t, field )
+#define FOFS_GENTITY( field )       q_offsetof( svg_base_edict_t, field )
 //! For game client fields.
 #define FOFS_GCLIENT( field )       q_offsetof( svg_client_t, field )
 //! For game locals fields.
@@ -336,58 +316,6 @@ extern spawn_temp_t st;
 *
 *
 **/
-/**
-*   @brief
-**/
-void SVG_PrecacheItem( const gitem_t *it);
-/**
-*   @brief
-**/
-void SVG_InitItems(void);
-/**
-*   @brief
-**/
-void SVG_SetItemNames(void);
-/**
-*   @brief
-**/
-const gitem_t *SVG_FindItem(const char *pickup_name);
-/**
-*   @brief
-**/
-const gitem_t *SVG_FindItemByClassname(const char *classname);
-/**
-*   @brief
-**/
-#define ITEM_INDEX(x) ((x)-itemlist)
-/**
-*   @brief
-**/
-svg_edict_t *Drop_Item(svg_edict_t *ent, const gitem_t *item);
-/**
-*   @brief
-**/
-void SVG_SetItemRespawn(svg_edict_t *ent, float delay);
-/**
-*   @brief
-**/
-void SVG_SpawnItem(svg_edict_t *ent, const gitem_t *item);
-/**
-*   @brief
-**/
-int PowerArmorType(svg_edict_t *ent);
-/**
-*   @brief
-**/
-const gitem_t *SVG_GetItemByIndex(int index);
-/**
-*   @brief
-**/
-const bool Add_Ammo(svg_edict_t *ent, const gitem_t *item, const int32_t count);
-/**
-*   @brief
-**/
-void Touch_Item(svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf);
 
 
 
@@ -403,27 +331,27 @@ void Touch_Item(svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *plane, c
 /**
 *   @brief
 **/
-void monster_fire_bullet( svg_edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype );
+void monster_fire_bullet( svg_base_edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype );
 /**
 *   @brief
 **/
-void monster_fire_shotgun( svg_edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype );
+void monster_fire_shotgun( svg_base_edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype );
 /**
 *   @brief
 **/
-void M_droptofloor( svg_edict_t *ent );
+void M_droptofloor( svg_base_edict_t *ent );
 /**
 *   @brief
 **/
-void M_CatagorizePosition( svg_edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype );
+void M_CatagorizePosition( svg_base_edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype );
 /**
 *   @brief
 **/
-void M_CheckGround( svg_edict_t *ent, const cm_contents_t mask );
+void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask );
 /**
 *   @brief
 **/
-void M_WorldEffects( svg_edict_t *ent );
+void M_WorldEffects( svg_base_edict_t *ent );
 
 
 
@@ -436,66 +364,32 @@ void M_WorldEffects( svg_edict_t *ent );
 * 
 * 
 **/
-const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( svg_edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right );
+const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( svg_base_edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right );
 #if 0
-bool fire_hit( svg_edict_t *self, vec3_t aim, int damage, int kick );
+bool fire_hit( svg_base_edict_t *self, vec3_t aim, int damage, int kick );
 #endif
 /**
 *   @brief  Used for all impact (fighting kick/punch) attacks
 **/
-const bool fire_hit_punch_impact( svg_edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
+const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
 /**
 *   @brief  Fires a single round. Used for machinegun and chaingun.  Would be fine for
 *           pistols, rifles, etc....
 **/
-void fire_bullet( svg_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath );
+void fire_bullet( svg_base_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath );
 /**
 *   @brief  Shoots shotgun pellets.  Used by shotgun and super shotgun.
 **/
-void fire_shotgun( svg_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath );
-
-
-/**
-* 
-* 
-* 
-*   Player Weapon:
-* 
-* 
-* 
-**/
+void fire_shotgun( svg_base_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, const sg_means_of_death_t meansOfDeath );
+//! Player Weapon:
 #include "svgame/player/svg_player_weapon.h"
 
-
-
-/**
-*
-*
-*
-*   Client Data Structures:
-*
-*
-*
-**/
-#include "svgame/svg_game_client.h"
-
-
-
-/**
-*
-*
-*
-*   ServerGame Side Entity:
-*
-*
-*
-**/
 /**
 *   @brief  Stores the final ground information results.
 **/
 struct mm_ground_info_t {
     //! Pointer to the actual ground entity we are on.(nullptr if none).
-    svg_edict_t *entity;
+    svg_base_edict_t *entity;
     //! Ground entity link count.
     int32_t         entityLinkCount;
 
@@ -519,17 +413,21 @@ struct mm_liquid_info_t {
     cm_liquid_level_t	level;
 };
 
-#include "svgame/svg_game_edict.h"
-// Extern access.
-extern svg_edict_t **g_edicts;
-// World entity.
-#define world   (g_edicts[0])
-// Base Entity Functions.
-#include "svgame/svg_edicts.h"
+//! Client Data Structures:
+#include "svgame/svg_game_client.h"
 
-// Edict Pool:
+//! Base svg_base_edict_t structure.
+#include "svgame/entities/svg_base_edict.h"
+//! Base Entity Functions.
+#include "svgame/svg_edicts.h"
+//! For readability sake.
+#define world   (g_edicts[0])
+
+//! Edict Pool:
 #include "svgame/svg_edict_pool.h"
-// Extern access.
+
+//! Extern access.
+extern svg_base_edict_t **g_edicts;
 extern svg_edict_pool_t g_edict_pool;
 
 
@@ -545,7 +443,7 @@ extern svg_edict_pool_t g_edict_pool;
 **/
 /**
 *   @brief  Server Game expansion implementation of svg_trace_t.
-*           handles fetching the svg_edict_t from the trace_t entityNumber.
+*           handles fetching the svg_base_edict_t from the trace_t entityNumber.
 **/
 struct svg_trace_t : public cm_trace_t {
     [[nodiscard]] svg_trace_t() = default;
@@ -557,23 +455,23 @@ struct svg_trace_t : public cm_trace_t {
     }
 
     //! Override type.
-    svg_edict_t *ent = nullptr;
+    svg_base_edict_t *ent = nullptr;
 };
 
 /**
 *   @brief Processes the impact of an SVG trace on an entity.
-*   @param e1       A pointer to the entity (svg_edict_t) involved in the impact.
+*   @param e1       A pointer to the entity (svg_base_edict_t) involved in the impact.
 *   @param trace    A pointer to the SVG trace (svg_trace_t) containing information about the impact.
 **/
-void SVG_Impact( svg_edict_t *e1, svg_trace_t *trace );
+void SVG_Impact( svg_base_edict_t *e1, svg_trace_t *trace );
 /**
 *   @brief  Get the clip mask for the entity.
 **/
-const cm_contents_t SVG_GetClipMask( svg_edict_t *ent );
+const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent );
 /**
 *   @brief  Run the entity's think function.
 **/
-void SVG_RunEntity( svg_edict_t *ent );
+void SVG_RunEntity( svg_base_edict_t *ent );
 
 
 

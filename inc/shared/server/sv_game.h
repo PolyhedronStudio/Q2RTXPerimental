@@ -120,10 +120,10 @@ struct svg_client_t;
     struct sv_edict_t : public sv_shared_edict_t<sv_edict_t, svg_client_t> { };
     typedef sv_edict_t edict_ptr_t;
 #else
-    struct svg_edict_t;
-    typedef struct svg_edict_t edict_ptr_t;
-    //typedef struct edict_s edict_t;
-    //typedef struct gclient_s svg_gclient_t;
+    struct svg_base_edict_t;
+    typedef struct svg_base_edict_t edict_ptr_t;
+    //struct svg_base_client_t;
+	//typedef struct svg_base_client_t client_ptr_t;
 #endif      // SVGAME_INCLUDE
 
 

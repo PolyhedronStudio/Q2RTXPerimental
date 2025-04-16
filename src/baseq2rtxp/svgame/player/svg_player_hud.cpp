@@ -24,7 +24,7 @@
 /**
 *   @brief
 **/
-void SVG_HUD_MoveClientToIntermission(svg_edict_t *ent)
+void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
 {
     ent->client->showhelp = false;
 
@@ -74,11 +74,11 @@ void SVG_HUD_MoveClientToIntermission(svg_edict_t *ent)
 /**
 *   @brief
 **/
-void SVG_HUD_BeginIntermission(svg_edict_t *targ)
+void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
 {
     int     i = 0;
-    svg_edict_t *ent = nullptr;
-    svg_edict_t *client = nullptr;
+    svg_base_edict_t *ent = nullptr;
+    svg_base_edict_t *client = nullptr;
 
     if (level.intermissionFrameNumber)
         return;     // already activated
@@ -173,7 +173,7 @@ void SVG_HUD_BeginIntermission(svg_edict_t *targ)
 /**
 *   @brief
 **/
-void SVG_HUD_DeathmatchScoreboardMessage(svg_edict_t *ent, svg_edict_t *killer = nullptr, const bool sendAsReliable ) {
+void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t *killer = nullptr, const bool sendAsReliable ) {
     #if 0
     char    entry[ 1024 ];
     char    string[ 1400 ];
@@ -184,7 +184,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_edict_t *ent, svg_edict_t *killer =
     int     score, total;
     int     x, y;
     svg_client_t *cl;
-    svg_edict_t *cl_ent;
+    svg_base_edict_t *cl_ent;
     // WID: C++20: Added const.
     const char *tag;
     // sort the clients by score
@@ -264,7 +264,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_edict_t *ent, svg_edict_t *killer =
     // First count the total of clients we got in-game.
     int32_t numberOfClients = 0;
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        svg_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
+        svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
         if ( !cl_ent || !cl_ent->inuse || game.clients[ i ].resp.spectator 
             /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
@@ -276,7 +276,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_edict_t *ent, svg_edict_t *killer =
 
     // Now, for each client, send index, time, score, and ping.
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        svg_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
+        svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
         if ( !cl_ent || !cl_ent->inuse || game.clients[ i ].resp.spectator
             /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
@@ -302,7 +302,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_edict_t *ent, svg_edict_t *killer =
 *   @brief  Draw instead of help message.
 *   @note that it isn't that hard to overflow the 1400 byte message limit!
 **/
-void SVG_HUD_DeathmatchScoreboard(svg_edict_t *ent)
+void SVG_HUD_DeathmatchScoreboard(svg_base_edict_t *ent)
 {
     SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, true );
 }
@@ -316,7 +316,7 @@ void SVG_HUD_DeathmatchScoreboard(svg_edict_t *ent)
 /**
 *   @brief  Specific 'Weaponry' substitute function for SVG_HUD_SetStats.
 **/
-void SVG_SetWeaponStats( svg_edict_t *ent ) {
+void SVG_SetWeaponStats( svg_base_edict_t *ent ) {
     //
     // Type of ammo to display the total carrying amount of.
     //
@@ -385,7 +385,7 @@ void SVG_SetWeaponStats( svg_edict_t *ent ) {
 /**
 *   @brief  Will update the client's player_state_t stats array with the current client entity's values.
 **/
-void SVG_HUD_SetStats(svg_edict_t *ent) {
+void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     // Health
     //
@@ -505,7 +505,7 @@ void SVG_HUD_SetStats(svg_edict_t *ent) {
 /**
 *   @brief
 **/
-void SVG_HUD_SetSpectatorStats( svg_edict_t *ent ) {
+void SVG_HUD_SetSpectatorStats( svg_base_edict_t *ent ) {
     svg_client_t *cl = ent->client;
 
     if ( !cl->chase_target )
@@ -531,14 +531,14 @@ void SVG_HUD_SetSpectatorStats( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_HUD_CheckChaseStats(svg_edict_t *ent)
+void SVG_HUD_CheckChaseStats(svg_base_edict_t *ent)
 {
     int i;
     svg_client_t *cl;
 
     for (i = 1; i <= maxclients->value; i++) {
         //cl = g_edicts[i].client;
-		svg_edict_t *cl_ent = g_edict_pool.EdictForNumber( i );
+		svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i );
         cl = (cl_ent ? cl_ent->client : nullptr );
         if ( !cl || !cl_ent || !cl_ent->inuse || cl->chase_target != ent ) {
             continue;

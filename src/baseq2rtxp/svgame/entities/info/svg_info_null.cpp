@@ -7,6 +7,6 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
-void SP_info_null( svg_edict_t *self ) {
+void SP_info_null( svg_base_edict_t *self ) {
     SVG_FreeEdict( self );
 }

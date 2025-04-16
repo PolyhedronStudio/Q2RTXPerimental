@@ -30,7 +30,7 @@
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveDone( svg_edict_t *ent ) {
+void SVG_PushMove_MoveDone( svg_base_edict_t *ent ) {
     // WID: MoveWith: Clear last velocity also.
     ent->velocity = {};
     // Fire the endMoveCallback.
@@ -45,7 +45,7 @@ void SVG_PushMove_MoveDone( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveFinal( svg_edict_t *ent ) {
+void SVG_PushMove_MoveFinal( svg_base_edict_t *ent ) {
     if ( ent->pushMoveInfo.remaining_distance == 0 ) {
         SVG_PushMove_MoveDone( ent );
         return;
@@ -66,7 +66,7 @@ void SVG_PushMove_MoveFinal( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveBegin( svg_edict_t *ent ) {
+void SVG_PushMove_MoveBegin( svg_base_edict_t *ent ) {
     if ( ( ent->pushMoveInfo.speed * gi.frame_time_s ) >= ent->pushMoveInfo.remaining_distance ) {
         SVG_PushMove_MoveFinal( ent );
         return;
@@ -94,7 +94,7 @@ void SVG_PushMove_MoveBegin( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveRegular( svg_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
+void SVG_PushMove_MoveRegular( svg_base_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
     // If the current level entity that is being processed, happens to be in front of the
     // entity array queue AND is a teamslave, begin moving its team master instead.
     if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
@@ -125,7 +125,7 @@ bool Think_AccelMove_MoveInfo( svg_pushmove_info_t *moveinfo ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveCalculate( svg_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
+void SVG_PushMove_MoveCalculate( svg_base_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
     // Reset velocity.
     VectorClear( ent->velocity );
     // Assign new destination.
@@ -208,7 +208,7 @@ void SVG_PushMove_MoveCalculate( svg_edict_t *ent, const Vector3 &destination, s
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveDone( svg_edict_t *ent ) {
+void SVG_PushMove_AngleMoveDone( svg_base_edict_t *ent ) {
     // Clear angular velocity.
     ent->avelocity = {};
     // Dispatch end move callback.
@@ -217,7 +217,7 @@ void SVG_PushMove_AngleMoveDone( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveFinal( svg_edict_t *ent ) {
+void SVG_PushMove_AngleMoveFinal( svg_base_edict_t *ent ) {
     Vector3  move = {};
 
     // set destdelta to the vector needed to move
@@ -243,7 +243,7 @@ void SVG_PushMove_AngleMoveFinal( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveBegin( svg_edict_t *ent ) {
+void SVG_PushMove_AngleMoveBegin( svg_base_edict_t *ent ) {
     Vector3 destinationDelta = {};
 
     // PGM
@@ -296,7 +296,7 @@ void SVG_PushMove_AngleMoveBegin( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveCalculate( svg_edict_t *ent, svg_pushmove_endcallback endMoveCallback ) {
+void SVG_PushMove_AngleMoveCalculate( svg_base_edict_t *ent, svg_pushmove_endcallback endMoveCallback ) {
     // Clear angular velocity.
     ent->avelocity = QM_Vector3Zero();
     // Set function pointer for end position callback.
@@ -445,8 +445,8 @@ void PushMove_Accelerate( svg_pushmove_info_t *moveinfo ) {
 /**
 *	@brief	Readjust speeds so that teamed movers start/end synchronized.
 **/
-void SVG_PushMove_Think_CalculateMoveSpeed( svg_edict_t *self ) {
-    svg_edict_t *ent;
+void SVG_PushMove_Think_CalculateMoveSpeed( svg_base_edict_t *self ) {
+    svg_base_edict_t *ent;
     float   minDist;
     float   time;
     float   newspeed;
@@ -489,7 +489,7 @@ void SVG_PushMove_Think_CalculateMoveSpeed( svg_edict_t *self ) {
 *   @brief  The team has completed a frame of movement, so calculate
 *			the speed required for a move during the next game frame.
 **/
-void SVG_PushMove_Think_AccelerateMove( svg_edict_t *ent ) {
+void SVG_PushMove_Think_AccelerateMove( svg_base_edict_t *ent ) {
     ent->pushMoveInfo.remaining_distance -= ent->pushMoveInfo.current_speed;
 
     if ( ent->pushMoveInfo.current_speed == 0 ) {      // starting or blocked
@@ -515,7 +515,7 @@ void SVG_PushMove_Think_AccelerateMove( svg_edict_t *ent ) {
     //}
 }
 
-void SVG_PushMove_Think_AccelerateMoveNew( svg_edict_t *ent ) {
+void SVG_PushMove_Think_AccelerateMoveNew( svg_base_edict_t *ent ) {
     float t = 0.f;
     float target_dist;
 
@@ -571,7 +571,7 @@ void SVG_PushMove_UpdateMoveWithEntities() {
     //
     for ( int32_t i = 0; i < game.num_movewithEntityStates; i++ ) {
         // Parent mover.
-        svg_edict_t *parentMover = nullptr;
+        svg_base_edict_t *parentMover = nullptr;
         if ( game.moveWithEntities[ i ].parentNumber > 0 && game.moveWithEntities[ i ].parentNumber < MAX_EDICTS ) {
             parentMover = g_edict_pool.EdictForNumber( game.moveWithEntities[ i ].parentNumber );//&g_edicts[ game.moveWithEntities[ i ].parentNumber ];
         }
@@ -592,7 +592,7 @@ void SVG_PushMove_UpdateMoveWithEntities() {
             // Iterate to find the child movers to adjust to parent.
             for ( int32_t j = 0; j < game.num_movewithEntityStates; j++ ) {
                 // Child mover.
-                svg_edict_t *childMover = nullptr;
+                svg_base_edict_t *childMover = nullptr;
                 if ( game.moveWithEntities[ j ].parentNumber == parentMover->s.number &&
                     game.moveWithEntities[ j ].childNumber > 0 && game.moveWithEntities[ j ].childNumber < MAX_EDICTS ) {
                     //childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];

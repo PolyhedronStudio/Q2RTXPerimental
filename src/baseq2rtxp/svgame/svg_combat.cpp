@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *   @brief
 **/
-static char *ClientTeam( svg_edict_t *ent ) {
+static char *ClientTeam( svg_base_edict_t *ent ) {
     char *p;
     static char value[ 512 ];
 
@@ -52,7 +52,7 @@ static char *ClientTeam( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-const bool SVG_OnSameTeam( svg_edict_t *ent1, svg_edict_t *ent2 ) {
+const bool SVG_OnSameTeam( svg_base_edict_t *ent1, svg_base_edict_t *ent2 ) {
     char    ent1Team[ 512 ];
     char    ent2Team[ 512 ];
 
@@ -78,7 +78,7 @@ Returns true if the inflictor can directly damage the target.  Used for
 explosions and melee attacks.
 ============
 */
-const bool SVG_CanDamage(svg_edict_t *targ, svg_edict_t *inflictor)
+const bool SVG_CanDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor)
 {
     vec3_t  dest;
     svg_trace_t trace;
@@ -137,7 +137,7 @@ const bool SVG_CanDamage(svg_edict_t *targ, svg_edict_t *inflictor)
 Killed
 ============
 */
-void Killed(svg_edict_t *targ, svg_edict_t *inflictor, svg_edict_t *attacker, int damage, vec3_t point)
+void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point)
 {
     if (targ->health < -999)
         targ->health = -999;
@@ -171,7 +171,7 @@ void Killed(svg_edict_t *targ, svg_edict_t *inflictor, svg_edict_t *attacker, in
         //monster_death_use(targ);
         //When a monster dies, it fires all of its targets with the current
         //enemy as activator.
-        //void monster_death_use( svg_edict_t * self ) {
+        //void monster_death_use( svg_base_edict_t * self ) {
         //    self->flags &= ~( FL_FLY | FL_SWIM );
         //    self->monsterinfo.aiflags &= ( AI_HIGH_TICK_RATE | AI_GOOD_GUY );
 
@@ -237,7 +237,7 @@ dflags      these flags are used to control how SVG_TriggerDamage works
     DAMAGE_NO_PROTECTION    kills godmode, armor, everything
 ============
 */
-void M_ReactToDamage(svg_edict_t *targ, svg_edict_t *attacker)
+void M_ReactToDamage(svg_base_edict_t *targ, svg_base_edict_t *attacker)
 {
     if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
         return;
@@ -316,14 +316,14 @@ void M_ReactToDamage(svg_edict_t *targ, svg_edict_t *attacker)
     }
 }
 
-bool CheckTeamDamage(svg_edict_t *targ, svg_edict_t *attacker)
+bool CheckTeamDamage(svg_base_edict_t *targ, svg_base_edict_t *attacker)
 {
     //FIXME make the next line real and uncomment this block
     // if ((ability to damage a teammate == OFF) && (targ's team == attacker's team))
     return false;
 }
 
-void SVG_TriggerDamage(svg_edict_t *targ, svg_edict_t *inflictor, svg_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
+void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
     // Final means of death.
     sg_means_of_death_t finalMeansOfDeath = meansOfDeath;
     
@@ -532,10 +532,10 @@ void SVG_TriggerDamage(svg_edict_t *targ, svg_edict_t *inflictor, svg_edict_t *a
 SVG_RadiusDamage
 ============
 */
-void SVG_RadiusDamage(svg_edict_t *inflictor, svg_edict_t *attacker, float damage, svg_edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath ) 
+void SVG_RadiusDamage(svg_base_edict_t *inflictor, svg_base_edict_t *attacker, float damage, svg_base_edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath ) 
 {
     float   points;
-    svg_edict_t *ent = NULL;
+    svg_base_edict_t *ent = NULL;
     vec3_t  v;
     vec3_t  dir;
 

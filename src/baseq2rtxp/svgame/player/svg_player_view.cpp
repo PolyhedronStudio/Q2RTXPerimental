@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 
-static  svg_edict_t *current_player;
+static  svg_base_edict_t *current_player;
 static  svg_client_t *current_client;
 
 static  vec3_t  forward, right, up;
@@ -36,7 +36,7 @@ static  vec3_t  forward, right, up;
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-void SVG_CheckClientPlayerstateEvents( const svg_edict_t *ent, player_state_t *ops, player_state_t *ps );
+void SVG_CheckClientPlayerstateEvents( const svg_base_edict_t *ent, player_state_t *ops, player_state_t *ps );
 
 inline bool SkipViewModifiers( ) {
 	//if ( g_skipViewModifiers->integer && sv_cheats->integer ) {
@@ -88,7 +88,7 @@ P_DamageFeedback
 Handles color blends and view kicks
 ===============
 */
-static void P_DamageFeedback( svg_edict_t *player ) {
+static void P_DamageFeedback( svg_base_edict_t *player ) {
 	float   side;
 	int32_t   r, l;
 	constexpr Vector3 armor_color = { 1.0, 1.0, 1.0 };
@@ -281,7 +281,7 @@ Auto pitching on slopes?
 
 ===============
 */
-static void P_CalculateViewOffset( svg_edict_t *ent ) {
+static void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 	//float *angles;
 	//float       bob;
 	float       ratio;
@@ -435,7 +435,7 @@ SV_CalculateGunOffset
 ==============
 */
 // WID: Moved to CLGame.
-//void SV_CalculateGunOffset( svg_edict_t *ent ) {
+//void SV_CalculateGunOffset( svg_base_edict_t *ent ) {
 //	int     i;
 //	float   delta;
 //
@@ -500,7 +500,7 @@ void SV_AddBlend( float r, float g, float b, float a, float *v_blend ) {
 P_CalculateBlend
 =============
 */
-static void P_CalculateBlend( svg_edict_t *ent ) {
+static void P_CalculateBlend( svg_base_edict_t *ent ) {
 	QMTime remaining;
 
 	// Clear player state screen blend.
@@ -710,7 +710,7 @@ static void P_CheckWorldEffects( void ) {
 SVG_SetClientEffects
 ===============
 */
-void SVG_SetClientEffects( svg_edict_t *ent ) {
+void SVG_SetClientEffects( svg_base_edict_t *ent ) {
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 
@@ -731,7 +731,7 @@ void SVG_SetClientEffects( svg_edict_t *ent ) {
 SVG_SetClientEvent
 ===============
 */
-void SVG_SetClientEvent( svg_edict_t *ent ) {
+void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	// We're already occupied by an event.
 	if ( ent->s.event ) {
 		return;
@@ -765,7 +765,7 @@ void SVG_SetClientEvent( svg_edict_t *ent ) {
 SVG_SetClientSound
 ===============
 */
-void SVG_SetClientSound( svg_edict_t *ent ) {
+void SVG_SetClientSound( svg_base_edict_t *ent ) {
 	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
 	if ( ent->liquidInfo.level && ( ent->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
 		ent->s.sound = snd_fry;
@@ -781,8 +781,8 @@ void SVG_SetClientSound( svg_edict_t *ent ) {
 /**
 *	@brief	Will set the client entity's animation for the current frame.
 **/
-void SVG_P_ProcessAnimations( const svg_edict_t *ent );
-void SVG_SetClientFrame( svg_edict_t *ent ) {
+void SVG_P_ProcessAnimations( const svg_base_edict_t *ent );
+void SVG_SetClientFrame( svg_base_edict_t *ent ) {
 	// Return if not viewing a player model entity.
 	if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
 		return;     // not in the player model
@@ -848,11 +848,11 @@ void SVG_SetClientFrame( svg_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_Client_TraceForUseTarget( svg_edict_t *ent, svg_client_t *client, const bool processUserInput = false );
+void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput = false );
 /**
 *   @brief  This will be called once for each server frame, before running any other entities in the world.
 **/
-void SVG_Client_BeginServerFrame( svg_edict_t *ent ) {
+void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
 	svg_client_t *client;
 	int32_t buttonMask;
 
@@ -941,7 +941,7 @@ void SVG_Client_BeginServerFrame( svg_edict_t *ent ) {
 /**
 *	@brief	Called for each player at the end of the server frame, and right after spawning.
 **/
-void SVG_Client_EndServerFrame( svg_edict_t *ent ) {
+void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
 	int     i;
 
 	// no player exists yet (load game)

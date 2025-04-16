@@ -17,11 +17,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // Game related types.
 #include "svgame/svg_local.h"
+// Save related types.
+#include "svgame/svg_save.h"
 #include "svgame/svg_clients.h"
 #include "svgame/svg_edict_pool.h"
-#include "sharedgame/sg_usetarget_hints.h"
-// Save related types.
-#include "svg_save.h"
+#include "svgame/entities/svg_player_edict.h"
+
 
 // Function Pointer Needs:
 #include "svgame/player/svg_player_client.h"
@@ -232,7 +233,7 @@ static const save_field_t clientfields[] = {
 };
 
 /**
-*   svg_edict_t:
+*   svg_base_edict_t:
 **/
 static const save_field_t entityfields[] = {
 #define _OFS FOFS_GENTITY
@@ -248,7 +249,6 @@ static const save_field_t entityfields[] = {
     VEC3( s.old_origin ),
 
     INT32( s.solid ),
-    INT32( s.clipmask ),
     INT32( s.clipmask ),
     INT32( s.hullContents ),
     INT32( s.ownerNumber ),
@@ -362,7 +362,7 @@ static const save_field_t entityfields[] = {
     VEC3( moveWith.spawnParentAttachAngles ),
     VEC3( moveWith.totalVelocity ),
     ENTITY( moveWith.parentMoveEntity ),
-    ENTITY( moveWith.moveNextEntity),
+    ENTITY( moveWith.moveNextEntity ),
 
     INT32( movetype ),
     VEC3( velocity ),
@@ -385,7 +385,7 @@ static const save_field_t entityfields[] = {
     VEC3( pushMoveInfo.endAngles ),
     INT32( pushMoveInfo.startFrame ),
     INT32( pushMoveInfo.endFrame ),
-    // Dynamic State Data
+    // Dynamic State Data:
     INT32( pushMoveInfo.state ),
     VEC3( pushMoveInfo.dir ),
     VEC3( pushMoveInfo.dest ),
@@ -395,13 +395,13 @@ static const save_field_t entityfields[] = {
     FLOAT( pushMoveInfo.next_speed ),
     FLOAT( pushMoveInfo.remaining_distance ),
     FLOAT( pushMoveInfo.decel_distance ),
-    //  Acceleration Data.
+    // Acceleration Data:
     FLOAT( pushMoveInfo.accel ),
     FLOAT( pushMoveInfo.speed ),
     FLOAT( pushMoveInfo.decel ),
     FLOAT( pushMoveInfo.distance ),
     FLOAT( pushMoveInfo.wait ),
-    // Curve.
+    // Curve:
     VEC3( pushMoveInfo.curve.referenceOrigin ),
     //INT64( pushMoveInfo.curve.countPositions ),
     // WID: TODO: This is problematic with this save system, size has to be dynamic in the future.
@@ -411,18 +411,18 @@ static const save_field_t entityfields[] = {
     INT64( pushMoveInfo.curve.subFrame ),
     INT64( pushMoveInfo.curve.numberSubFrames ),
     INT64( pushMoveInfo.curve.numberFramesDone ),
-    // LockState
+    // LockState:
     BOOL( pushMoveInfo.lockState.isLocked ),
     INT32( pushMoveInfo.lockState.lockedSound ),
     INT32( pushMoveInfo.lockState.lockingSound ),
     INT32( pushMoveInfo.lockState.unlockingSound ),
-    // Sounds
+    // Sounds:
     INT32( pushMoveInfo.sounds.start ),
     INT32( pushMoveInfo.sounds.middle ),
     INT32( pushMoveInfo.sounds.end ),
-    // Callback
+    // Callback:
     POINTER( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
-    // Movewith
+    // Movewith:
     VEC3( pushMoveInfo.lastVelocity ),
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
     // WID: TODO: PushmoveInfo
@@ -905,8 +905,8 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
         write_game_qtag_memory<float>( f, ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
         break;
     case F_EDICT:
-        write_int( f, g_edict_pool.NumberForEdict( ( *(svg_edict_t **)p ) ) );
-        //write_index(f, *(void **)p, sizeof(svg_edict_t), g_edicts, MAX_EDICTS - 1);
+        write_int( f, g_edict_pool.NumberForEdict( ( *(svg_base_edict_t **)p ) ) );
+        //write_index(f, *(void **)p, sizeof(svg_base_edict_t), g_edicts, MAX_EDICTS - 1);
         break;
     case F_CLIENT:
         write_int( f, ( *(svg_client_t **)p )->clientNum );
@@ -1268,8 +1268,8 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
         break;
     case F_EDICT:
 		// WID: C++20: Added cast.
-        ( *(svg_edict_t **)p ) = g_edict_pool.EdictForNumber( read_int( ctx->f ) );
-		//*(svg_edict_t **)p = (svg_edict_t*)read_index(ctx->f, sizeof(svg_edict_t), g_edicts, game.maxentities - 1);
+        ( *(svg_base_edict_t **)p ) = g_edict_pool.EdictForNumber( read_int( ctx->f ) );
+		//*(svg_base_edict_t **)p = (svg_base_edict_t*)read_index(ctx->f, sizeof(svg_base_edict_t), g_edicts, game.maxentities - 1);
         break;
     case F_CLIENT:
 		// WID: C++20: Added cast.
@@ -1443,7 +1443,7 @@ void SVG_ReadGame(const char *filename)
     // TODO:
     // 
 	// Only allocate svg_player_edict_t for the first game.maxclients.
-	// Only allocate svg_edict_t for the rest of the game.maxentities.
+	// Only allocate svg_base_edict_t for the rest of the game.maxentities.
     // 
 	// When ReadLevel comes, we first wipe all edicts and if necessary allocate 
     // the specified classname linked class object.
@@ -1488,7 +1488,7 @@ WriteLevel
 void SVG_WriteLevel(const char *filename)
 {
     int     i;
-    svg_edict_t *ent;
+    svg_base_edict_t *ent;
     gzFile  f;
 
     f = gzopen(filename, "wb");
@@ -1539,7 +1539,7 @@ void SVG_ReadLevel(const char *filename)
     int     entnum;
     gzFile  f;
     int     i;
-    svg_edict_t *ent;
+    svg_base_edict_t *ent;
 
     // free any dynamic memory allocated by loading the level
     // base state.
@@ -1555,22 +1555,31 @@ void SVG_ReadLevel(const char *filename)
 
     // Wipe all the entities back to 'baseline'.
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
-        // Store original number.
-        const int32_t number = g_edicts[ i ]->s.number;
-        // Zero out.
-        *g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
-        // Retain the entity's original number.
-        g_edicts[ i ]->s.number = number;
-        //const int32_t entityNumber = g_edicts[ i ]->s.number;
-        ////*g_edicts[ i ] = { };
-        //if ( i >= 1 && i < game.maxclients + 1 ) {
-        //    g_edict_pool.edicts[ i ] = new svg_player_edict_t();
-        //    static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] )->testVar = 100 + i;
-        //} else {
-        //    g_edict_pool.edicts[ i ] = new svg_edict_t();
-        //}
-        //// Set the number to the current index.
-        //g_edict_pool.edicts[ i ]->s.number = entityNumber;
+        #if 0
+            // Store original number.
+            const int32_t number = g_edicts[ i ]->s.number;
+            // Zero out.
+            *g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
+            // Retain the entity's original number.
+            g_edicts[ i ]->s.number = number;
+        #else
+            //// Reset the entity to base state.
+            //if ( g_edicts[ i ] ) {
+            //    // Reset entity.
+            //    g_edicts[ i ]->Reset( g_edicts[ i ]->entityDictionary );
+            //} else {
+                const int32_t entityNumber = g_edicts[ i ]->s.number;
+                ////*g_edicts[ i ] = { };
+                if ( i >= 1 && i < game.maxclients + 1 ) {
+                    g_edict_pool.edicts[ i ] = new svg_player_edict_t();
+                    static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] )->testVar = 100 + i;
+                } else {
+                    g_edict_pool.edicts[ i ] = new svg_base_edict_t();
+                }
+                //// Set the number to the current index.
+                g_edict_pool.edicts[ i ]->s.number = entityNumber;
+            //}
+        #endif
     }
     g_edict_pool.num_edicts = maxclients->value + 1;
 

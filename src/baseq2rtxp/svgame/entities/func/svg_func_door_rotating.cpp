@@ -48,13 +48,13 @@ REVERSE will cause the door to rotate in the opposite direction.
 /**
 *	@brief
 **/
-extern void door_postspawn( svg_edict_t *self );
+extern void door_postspawn( svg_base_edict_t *self );
 
 /**
 *	@brief
 **/
 void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir );
-void SP_func_door_rotating( svg_edict_t *ent ) {
+void SP_func_door_rotating( svg_base_edict_t *ent ) {
     //vec3_t  abs_movedir;
 
     if ( ent->sounds != 1 ) {

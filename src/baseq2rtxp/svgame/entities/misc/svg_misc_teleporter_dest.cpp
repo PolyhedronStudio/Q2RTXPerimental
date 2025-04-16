@@ -17,7 +17,7 @@ Point teleporters at these.
 /**
 *   @brief  
 **/
-void SP_misc_teleporter_dest( svg_edict_t *ent ) {
+void SP_misc_teleporter_dest( svg_base_edict_t *ent ) {
     gi.setmodel( ent, "models/objects/dmspot/tris.md2" );
     ent->s.skinnum = 0;
     ent->solid = SOLID_BOUNDS_BOX;

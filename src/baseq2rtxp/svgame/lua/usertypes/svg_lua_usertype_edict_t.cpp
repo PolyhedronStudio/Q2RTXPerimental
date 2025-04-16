@@ -28,7 +28,7 @@ do { \
 		handle = { .number = -1 }; \
 		return; \
 	} else { \
-		svg_edict_t *edictInSlot = g_edict_pool.EdictForNumber( handle.number ); \
+		svg_base_edict_t *edictInSlot = g_edict_pool.EdictForNumber( handle.number ); \
 		if ( !edictInSlot || handle.edictPtr != edictInSlot ) { \
 			handle = { .number = -1 }; \
 			return; \
@@ -51,7 +51,7 @@ do { \
 		handle = { .number = -1 }; \
 		return returnValue; \
 	} else { \
-		svg_edict_t *edictInSlot = g_edict_pool.EdictForNumber( handle.number ); \
+		svg_base_edict_t *edictInSlot = g_edict_pool.EdictForNumber( handle.number ); \
 		if ( !edictInSlot || handle.edictPtr != edictInSlot ) { \
 			handle = { .number = -1 }; \
 			return returnValue; \
@@ -77,7 +77,7 @@ lua_edict_t::lua_edict_t() : handle( {} ) {
 	LUA_VALIDATE_EDICT_HANDLE();
 	
 }
-lua_edict_t::lua_edict_t( svg_edict_t *_edict ) /*: edict(_edict)*/ {
+lua_edict_t::lua_edict_t( svg_base_edict_t *_edict ) /*: edict(_edict)*/ {
 	//! Setup pointer.
 	handle.edictPtr		= _edict;
 	handle.number		= _edict->s.number;
@@ -315,7 +315,7 @@ void lua_edict_t::set_string_luaname( sol::this_state s, const char *luaStrLuaNa
 *
 **/
 /**
-*	@brief	Register a usertype for passing along svg_edict_t into lua.
+*	@brief	Register a usertype for passing along svg_base_edict_t into lua.
 **/
 void UserType_Register_Edict_t( sol::state &solState ) {
 	/**
@@ -323,7 +323,7 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	**/
 	sol::usertype<lua_edict_t> lua_edict_type = solState.new_usertype<lua_edict_t>( "lua_edict_t",
 		//sol::no_constructor,
-		sol::constructors< lua_edict_t(), lua_edict_t( svg_edict_t* ) >()
+		sol::constructors< lua_edict_t(), lua_edict_t( svg_base_edict_t* ) >()
 	);
 
 	/**
@@ -335,7 +335,7 @@ void UserType_Register_Edict_t( sol::state &solState ) {
 	/**
 	*	Modifyable Variables:
 	**/
-	// Returns the member entity_state_t of svg_edict_t.
+	// Returns the member entity_state_t of svg_base_edict_t.
 	lua_edict_type[ "state" ] = sol::property( &lua_edict_t::get_state );
 
 	// For useTargets:

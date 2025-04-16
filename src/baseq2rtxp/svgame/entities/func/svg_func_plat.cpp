@@ -82,14 +82,14 @@ Set "sounds" to one of the following:
 
 
 
-void plat_go_down( svg_edict_t *ent );
+void plat_go_down( svg_base_edict_t *ent );
 
-void plat_think_idle( svg_edict_t *ent ) {
+void plat_think_idle( svg_base_edict_t *ent ) {
     ent->think = plat_think_idle;
     ent->nextthink = level.time + FRAME_TIME_MS;
 }
 
-void plat_hit_top( svg_edict_t *ent ) {
+void plat_hit_top( svg_base_edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
         if ( ent->pushMoveInfo.sounds.end )
             gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
@@ -106,7 +106,7 @@ void plat_hit_top( svg_edict_t *ent ) {
 
     // Get reference to sol lua state view.
     sol::state_view &solStateView = SVG_Lua_GetSolStateView();
-    // Create temporary objects encapsulating access to svg_edict_t's.
+    // Create temporary objects encapsulating access to svg_base_edict_t's.
     auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent ) );
     auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->other ) );
     auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->activator ) );
@@ -119,7 +119,7 @@ void plat_hit_top( svg_edict_t *ent ) {
     );
 }
 
-void plat_hit_bottom( svg_edict_t *ent ) {
+void plat_hit_bottom( svg_base_edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
         if ( ent->pushMoveInfo.sounds.end )
             gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
@@ -132,7 +132,7 @@ void plat_hit_bottom( svg_edict_t *ent ) {
 
     // Get reference to sol lua state view.
     sol::state_view &solStateView = SVG_Lua_GetSolStateView();
-    // Create temporary objects encapsulating access to svg_edict_t's.
+    // Create temporary objects encapsulating access to svg_base_edict_t's.
     auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent ) );
     auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->other ) );
     auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->activator ) );
@@ -145,7 +145,7 @@ void plat_hit_bottom( svg_edict_t *ent ) {
     );
 }
 
-void plat_go_down( svg_edict_t *ent ) {
+void plat_go_down( svg_base_edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
         if ( ent->pushMoveInfo.sounds.start )
             gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
@@ -155,7 +155,7 @@ void plat_go_down( svg_edict_t *ent ) {
     SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.endOrigin, plat_hit_bottom );
 }
 
-void plat_go_up( svg_edict_t *ent ) {
+void plat_go_up( svg_base_edict_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
         if ( ent->pushMoveInfo.sounds.start )
             gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
@@ -165,7 +165,7 @@ void plat_go_up( svg_edict_t *ent ) {
     SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.startOrigin, plat_hit_top );
 }
 
-void plat_blocked( svg_edict_t *self, svg_edict_t *other ) {
+void plat_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         const bool knockBack = true;
         // give it a chance to go away on it's own terms (like gibs)
@@ -203,7 +203,7 @@ void plat_blocked( svg_edict_t *self, svg_edict_t *other ) {
 }
 
 
-void Use_Plat( svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void Use_Plat( svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // WID: <Q2RTXP> For func_button support.
     //if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
     if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
@@ -224,7 +224,7 @@ void Use_Plat( svg_edict_t *ent, svg_edict_t *other, svg_edict_t *activator, con
 }
 
 
-void Touch_Plat_Center( svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void Touch_Plat_Center( svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     if ( !other->client )
         return;
 
@@ -243,14 +243,14 @@ void Touch_Plat_Center( svg_edict_t *ent, svg_edict_t *other, const cm_plane_t *
     }
 }
 
-void plat_spawn_inside_trigger( svg_edict_t *ent ) {
-    svg_edict_t *trigger;
+void plat_spawn_inside_trigger( svg_base_edict_t *ent ) {
+    svg_base_edict_t *trigger;
     vec3_t  tmin, tmax;
 
     //
     // middle trigger
     //
-    trigger = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
+    trigger = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
     trigger->touch = Touch_Plat_Center;
     trigger->movetype = MOVETYPE_NONE;
     trigger->solid = SOLID_TRIGGER;
@@ -286,7 +286,7 @@ void plat_spawn_inside_trigger( svg_edict_t *ent ) {
     gi.linkentity( trigger );
 }
 
-void SP_func_plat( svg_edict_t *ent ) {
+void SP_func_plat( svg_base_edict_t *ent ) {
     VectorClear( ent->s.angles );
     ent->solid = SOLID_BSP;
     ent->movetype = MOVETYPE_PUSH;

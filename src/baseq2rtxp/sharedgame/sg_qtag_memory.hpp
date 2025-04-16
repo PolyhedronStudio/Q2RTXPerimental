@@ -30,7 +30,7 @@ struct sg_qtag_memory_t {
 	/**
 	*	Default constructor.
 	**/
-	constexpr sg_qtag_memory_t() {
+	sg_qtag_memory_t() {
 		ptr = nullptr;
 		count = 0;
 	}
@@ -38,7 +38,7 @@ struct sg_qtag_memory_t {
 	/**
 	*	Used for copy assignment.
 	**/
-	constexpr sg_qtag_memory_t( T *ptr, size_t count ) :
+	constexpr sg_qtag_memory_t( T *ptr, size_t count ) noexcept :
 		ptr( ptr ),
 		count( count ) {
 	}
@@ -47,13 +47,30 @@ public:
 	/**
 	*	Destructor, releases by gi.FreeTag
 	**/
-	inline ~sg_qtag_memory_t() noexcept {
+	inline virtual ~sg_qtag_memory_t() noexcept {
 		release();
 	}
 
 	// Disable copying.
 	//constexpr sg_qtag_memory_t( const sg_qtag_memory_t & ) = delete;
 	//constexpr sg_qtag_memory_t &operator=( const sg_qtag_memory_t & ) = delete;
+	/**
+	*	@brief	
+	**/
+	constexpr sg_qtag_memory_t( sg_qtag_memory_t &newValue ) noexcept {
+		ptr = newValue.ptr;
+		count = newValue.count;
+	}
+	/**
+	*	@brief	Free move assignment operation.
+	**/
+	constexpr sg_qtag_memory_t &operator=( sg_qtag_memory_t &newValue ) noexcept {
+		ptr = newValue.ptr;
+		count = newValue.count;
+
+		return *this;
+	}
+
 
 	/**
 	*	@brief	Free move memory operation.

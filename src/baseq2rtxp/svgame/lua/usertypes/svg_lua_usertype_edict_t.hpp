@@ -21,7 +21,7 @@
 **/
 struct lua_edict_handle_t {
 	//! The pointer at the time of creating the handle.
-	svg_edict_t *edictPtr;
+	svg_base_edict_t *edictPtr;
 	//! The number of the edictPtr.
 	int32_t number;
 	//! The spawncount of the edictPtr.
@@ -35,10 +35,10 @@ struct lua_edict_handle_t {
 **/
 class lua_edict_t {
 //private:
-	//svg_edict_t *edict;
+	//svg_base_edict_t *edict;
 
 public:
-	//svg_edict_t *edict;
+	//svg_base_edict_t *edict;
 	lua_edict_handle_t handle;
 
 	/**
@@ -47,7 +47,7 @@ public:
 	* 
 	**/
 	lua_edict_t();
-	lua_edict_t( svg_edict_t *_edict );
+	lua_edict_t( svg_base_edict_t *_edict );
 
 
 	/**
@@ -154,6 +154,6 @@ public:
 };
 
 /**
-*	@brief	Register a usertype for passing along svg_edict_t into lua.
+*	@brief	Register a usertype for passing along svg_base_edict_t into lua.
 **/
 void UserType_Register_Edict_t( sol::state &solState );

@@ -15,8 +15,8 @@
 /**
 *   @brief
 **/
-void teleporter_touch( svg_edict_t *self, svg_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
-    svg_edict_t *dest;
+void teleporter_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+    svg_base_edict_t *dest;
     int         i;
 
     if ( !other->client )
@@ -65,8 +65,8 @@ Stepping onto this disc will teleport players to the targeted misc_teleporter_de
 /**
 *   @brief
 **/
-void SP_misc_teleporter( svg_edict_t *ent ) {
-    svg_edict_t *trig;
+void SP_misc_teleporter( svg_base_edict_t *ent ) {
+    svg_base_edict_t *trig;
 
     if ( !ent->targetNames.target ) {
         gi.dprintf( "teleporter without a target.\n" );
@@ -85,7 +85,7 @@ void SP_misc_teleporter( svg_edict_t *ent ) {
     VectorSet( ent->maxs, 32, 32, -16 );
     gi.linkentity( ent );
 
-    trig = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
+    trig = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
     trig->touch = teleporter_touch;
     trig->solid = SOLID_TRIGGER;
     trig->s.entityType = ET_TELEPORT_TRIGGER;

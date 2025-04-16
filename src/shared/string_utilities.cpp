@@ -896,27 +896,28 @@ const std::string Q_Str_FormatSizeString( uint64_t bytes, std::string &appendSca
 	size_t destsize = 16;
 	// Characters written to buffer.
 	size_t writeLength = 0;
-	if ( bytes >= 1000000000 ) {
+	if ( bytes >= 1073741824 ) {
 		//writeLength = Q_scnprintf( dest, destsize, "%.1f GB", bytes * 1e-9 );
 		writeLength = Q_scnprintf( dest, destsize, "%.1f", (float)bytes * 1e-9 );
 		appendScaleString = "GB";
 		return std::string( dest, 0, writeLength );
 	}
-	if ( bytes >= 10000000 ) {
+
+	if ( bytes >= 10485760 ) {
 		//writeLength = Q_scnprintf( dest, destsize, "%" PRId64 " MB", bytes / 1000000 );
-		writeLength = Q_scnprintf( dest, destsize, "%" PRIu64 "", bytes / 1000000 );
+		writeLength = Q_scnprintf( dest, destsize, "%" PRIu64 "", bytes / 10485760 );
 		appendScaleString = "MB";
 		return std::string( dest, 0, writeLength );
 	}
-	if ( bytes >= 1000000 ) {
+	if ( bytes >= 1048576 ) {
 		//writeLength = Q_scnprintf( dest, destsize, "%.1f MB", bytes * 1e-6 );
 		writeLength = Q_scnprintf( dest, destsize, "%.1f", (float)bytes * 1e-6 );
 		appendScaleString = "MB";
 		return std::string( dest, 0, writeLength );
 	}
-	if ( bytes >= 1000 ) {
+	if ( bytes >= 1024 ) {
 		//writeLength = Q_scnprintf( dest, destsize, "%" PRId64 " kB", bytes / 1000 );
-		writeLength = Q_scnprintf( dest, destsize, "%" PRIu64 "", bytes / 1000 );
+		writeLength = Q_scnprintf( dest, destsize, "%" PRIu64 "", bytes / 1024 );
 		appendScaleString = "kB";
 		return std::string( dest, 0, writeLength );
 	}
@@ -926,5 +927,5 @@ const std::string Q_Str_FormatSizeString( uint64_t bytes, std::string &appendSca
 		appendScaleString = bytes == 1 ? "byte" : "bytes";
 		return std::string( dest, 0, writeLength );
 	}
-	return "unknown size";//Q_scnprintf( dest, destsize, "unknown size" );
+	return "unknown size";
 }

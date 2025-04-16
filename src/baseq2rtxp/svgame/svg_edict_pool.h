@@ -24,18 +24,18 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     *   @brief  For accessing as if it were a regular edicts array.
 	*   @return The edict at the given index. (nullptr if out of range).
     **/
-    virtual svg_edict_t *operator[]( const size_t index );
+    virtual svg_base_edict_t *operator[]( const size_t index );
 
     /**
     *	@brief	Returns a pointer to the edict matching the number.
     *	@return	The edict for the given number. (nullptr if out of range).
     **/
-    virtual svg_edict_t *EdictForNumber( const int32_t number );
+    virtual svg_base_edict_t *EdictForNumber( const int32_t number );
     /**
     *   @brief  Gets the number for the matching edict ptr. 
 	*   @return The slot index number of the given edict, or -1 if the edict is out of range or (nullptr).
     **/
-    virtual const int32_t NumberForEdict( const svg_edict_t *edict );
+    virtual const int32_t NumberForEdict( const svg_base_edict_t *edict );
 
     /**
     *   @brief  Either finds a free edict, or allocates a new one.
@@ -46,8 +46,8 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     **/
     template<typename EdictType>
     EdictType *AllocateNextFreeEdict( ) {
-        svg_edict_t *entity = nullptr;
-        svg_edict_t *freedEntity = nullptr;
+        svg_base_edict_t *entity = nullptr;
+        svg_base_edict_t *freedEntity = nullptr;
 
         // Start after the client slots.
         int32_t i = game.maxclients + 1;
@@ -60,7 +60,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
             // the first couple seconds of server time can involve a lot of
             // freeing and allocating, so relax the replacement policy
             if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-                _InitEdict<EdictType*>( entity, i );
+                _InitEdict<EdictType *>( entity, i );
                 return static_cast<EdictType *>( entity );
             }
 
@@ -76,7 +76,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
             // If we have a freed entity, use it.
             if ( freedEntity ) {
                 // Initialize it.
-                _InitEdict<EdictType*>( freedEntity, i );
+                _InitEdict<EdictType *>( freedEntity, i );
                 // Return it.
                 return static_cast<EdictType *>( freedEntity );
             }
@@ -85,24 +85,21 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         }
 
         // Initialize it.
-        _InitEdict<EdictType*>( entity, num_edicts );
+        _InitEdict<EdictType *>( entity, num_edicts );
         // If we have free edicts left to go, use those instead.
         num_edicts++;
 
         return static_cast<EdictType *>( entity );
     }
-
 	/**
-	*   @brief  Marks the edict as free
+	*   @brief  Marks the edict as free.
     **/
-    void FreeEdict( svg_edict_t *ed );
+    void FreeEdict( svg_base_edict_t *ed );
 
     /**
     *   @brief  Support routine for AllocateNextFreeEdict.
     **/
-    //template<typename EdictType>
-    //void _InitEdict( EdictType *ed, const int32_t stateNumber );
-    template<typename EdictType>
+    template<class EdictType>
     inline void _InitEdict( EdictType ed, const int32_t stateNumber ) {
         ed->inuse = true;
         ed->classname = "noclass";
@@ -112,15 +109,6 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         // A generic entity type by default.
         ed->s.entityType = ET_GENERIC;
     }
-
-    //! Pointer to edicts data array.
-    //svg_edict_t *edicts;
-    //////! Size of edict type.
-    //int32_t         edict_size;
-    //! Number of active edicts.
-    //int32_t         num_edicts;     // current number, <= max_edicts
-    //! Maximum edicts.
-    //int32_t         max_edicts;
 };
 
 
@@ -137,8 +125,8 @@ struct svg_edict_pool_t : sv_edict_pool_i {
 /**
 *   @brief	Frees any previously allocated edicts in the pool.
 **/
-svg_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool );
+svg_base_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool );
 /**
 *   @brief  (Re-)initializes the edict pool.
 **/
-svg_edict_t **SVG_EdictPool_Allocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities );
+svg_base_edict_t **SVG_EdictPool_Allocate( svg_edict_pool_t *edictPool, const int32_t numReservedEntities );

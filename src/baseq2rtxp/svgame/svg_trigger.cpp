@@ -35,7 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
 **/
-const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, svg_edict_t *entity, svg_edict_t *other, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, svg_base_edict_t *entity, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
     if ( luaName.empty() ) {
         return false;
     }
@@ -67,7 +67,7 @@ const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const
 /**
 *   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
 **/
-void SVG_Trigger_PrintMessage( svg_edict_t *self, svg_edict_t *activator ) {
+void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activator ) {
     // If a message was set, the activator is not a monster, then center print it.
     if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
         // Print.
@@ -84,9 +84,9 @@ void SVG_Trigger_PrintMessage( svg_edict_t *self, svg_edict_t *activator ) {
 /**
 *   @brief  Kills all entities matching the killtarget name.
 **/
-const int32_t SVG_Trigger_KillTargets( svg_edict_t *self ) {
+const int32_t SVG_Trigger_KillTargets( svg_base_edict_t *self ) {
     if ( self->targetNames.kill ) {
-        svg_edict_t *killTargetEntity = nullptr;
+        svg_base_edict_t *killTargetEntity = nullptr;
         while ( ( killTargetEntity = SVG_Entities_Find( killTargetEntity, FOFS_GENTITY( targetname ), (const char *)self->targetNames.kill ) ) ) {
             SVG_FreeEdict( killTargetEntity );
             if ( !self->inuse ) {
@@ -115,10 +115,10 @@ static constexpr int32_t PICKTARGET_MAX = 8;
 /**
 *   @brief  Pick a random target of entities with a matching targetname.
 **/
-svg_edict_t *SVG_PickTarget( const char *targetname ) {
-    svg_edict_t *ent = NULL;
+svg_base_edict_t *SVG_PickTarget( const char *targetname ) {
+    svg_base_edict_t *ent = NULL;
     int     num_choices = 0;
-    svg_edict_t *choice[ PICKTARGET_MAX ];
+    svg_base_edict_t *choice[ PICKTARGET_MAX ];
 
     if ( !targetname ) {
         gi.dprintf( "SVG_PickTarget called with NULL targetname\n" );
@@ -144,7 +144,7 @@ svg_edict_t *SVG_PickTarget( const char *targetname ) {
 
 
 
-void Think_UseTargetsDelay( svg_edict_t *ent ) {
+void Think_UseTargetsDelay( svg_base_edict_t *ent ) {
     SVG_UseTargets( ent, ent->activator );
     SVG_FreeEdict( ent );
 }
@@ -165,13 +165,13 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void SVG_UseTargets( svg_edict_t *ent, svg_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     //
     // Check for a delay
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        svg_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
+        svg_base_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
         delayEntity->classname = "DelayedUseTargets";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
         delayEntity->think = Think_UseTargetsDelay;
@@ -208,7 +208,7 @@ void SVG_UseTargets( svg_edict_t *ent, svg_edict_t *activator, const entity_uset
     // fire targets
     //
     if ( ent->targetNames.target ) {
-        svg_edict_t *fireTargetEntity = nullptr;
+        svg_base_edict_t *fireTargetEntity = nullptr;
         while ( ( fireTargetEntity = SVG_Entities_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.target ) ) ) {
             // Doors fire area portals in a specific way
             if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )

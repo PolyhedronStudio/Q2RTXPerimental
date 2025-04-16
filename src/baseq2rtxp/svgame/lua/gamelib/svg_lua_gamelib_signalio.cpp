@@ -25,8 +25,8 @@
 /**
 *	@brief	Utility/Support routine for delaying SignalOut when a 'delay' is given to it.
 **/
-void LUA_Think_SignalOutDelay( svg_edict_t *entity ) {
-	svg_edict_t *creatorEntity = entity->delayed.signalOut.creatorEntity;
+void LUA_Think_SignalOutDelay( svg_base_edict_t *entity ) {
+	svg_base_edict_t *creatorEntity = entity->delayed.signalOut.creatorEntity;
 	if ( !SVG_Entity_IsActive( creatorEntity ) ) {
 		return;
 	}
@@ -197,14 +197,14 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 	svg_signal_argument_array_t signalArgumentsArray = {};// _GameLib_LuaTable_ToArgumentsArray( s, signalArguments );
 
 	// Acquire pointers from lua_edict_t handles.
-	svg_edict_t *entity = leEnt.handle.edictPtr;
-	svg_edict_t *signaller = leSignaller.handle.edictPtr;
-	svg_edict_t *activator = leActivator.handle.edictPtr;
+	svg_base_edict_t *entity = leEnt.handle.edictPtr;
+	svg_base_edict_t *signaller = leSignaller.handle.edictPtr;
+	svg_base_edict_t *activator = leActivator.handle.edictPtr;
 
 	// Spawn a delayed signal out entity if a delay was requested.
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
-		svg_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_edict_t>();
+		svg_base_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
 		// In case it failed to allocate of course.
 		if ( !SVG_Entity_IsActive( delayEntity ) ) {
 			return -1; // SIGNALOUT_FAILED

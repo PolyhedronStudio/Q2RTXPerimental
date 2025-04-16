@@ -292,7 +292,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_edicts.cpp
 	baseq2rtxp/svgame/svg_edict_pool.cpp
 	baseq2rtxp/svgame/svg_gamemode.cpp
-	baseq2rtxp/svgame/svg_items.cpp
+	baseq2rtxp/svgame/svg_game_items.cpp
 	baseq2rtxp/svgame/svg_lua.cpp
 	baseq2rtxp/svgame/svg_main.cpp
 	baseq2rtxp/svgame/svg_misc.cpp
@@ -354,6 +354,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_push.cpp
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.cpp
 
+	baseq2rtxp/svgame/entities/svg_base_edict.cpp
+	baseq2rtxp/svgame/entities/svg_player_edict.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
 	baseq2rtxp/svgame/lua/svg_lua_corelib.cpp
@@ -395,7 +397,6 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_combat.h
 	baseq2rtxp/svgame/svg_edict_pool.h
 	baseq2rtxp/svgame/svg_game_client.h
-	baseq2rtxp/svgame/svg_game_edict.h
 	baseq2rtxp/svgame/svg_game_items.h
 	baseq2rtxp/svgame/svg_game_locals.h
 	baseq2rtxp/svgame/svg_level_locals.h
@@ -453,6 +454,8 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_push.h
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.h
 
+	baseq2rtxp/svgame/entities/svg_base_edict.h
+	baseq2rtxp/svgame/entities/svg_player_edict.h
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h
 
 	baseq2rtxp/svgame/player/svg_player_client.h
