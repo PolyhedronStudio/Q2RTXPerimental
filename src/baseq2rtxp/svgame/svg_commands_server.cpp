@@ -233,14 +233,14 @@ void ServerCommand_WriteIP_f(void)
         unsigned u32;
     } b;
     int     i;
-    cvar_t  *game;
+    cvar_t  *cvar_game;
 
-    game = gi.cvar("game", "", 0);
+    cvar_game = gi.cvar("game", "", 0);
 
-    if (!*game->string)
+    if (!*cvar_game->string)
         len = Q_snprintf(name, sizeof(name), "%s/listip.cfg", GAMEVERSION);
     else
-        len = Q_snprintf(name, sizeof(name), "%s/listip.cfg", game->string);
+        len = Q_snprintf(name, sizeof(name), "%s/listip.cfg", cvar_game->string);
 
     if (len >= sizeof(name)) {
         gi.cprintf(NULL, PRINT_HIGH, "File name too long\n");

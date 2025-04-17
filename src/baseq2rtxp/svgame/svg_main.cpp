@@ -195,6 +195,10 @@ void SVG_PreInitGame( void ) {
 	// Notify 
 	gi.dprintf( "==== PreInit ServerGame ====\n" );
 
+	// Initialize the game local's movewith array.
+    game.moveWithEntities = static_cast<game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
+    memset( game.moveWithEntities, 0, sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
+
 	maxclients = gi.cvar( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH );
 	maxspectators = gi.cvar( "maxspectators", "4", CVAR_SERVERINFO );
 

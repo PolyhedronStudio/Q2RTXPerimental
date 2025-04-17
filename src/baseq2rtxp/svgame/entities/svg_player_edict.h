@@ -57,6 +57,16 @@ struct svg_player_edict_t : public svg_base_edict_t {
     *   Reconstructs the object, optionally retaining the entityDictionary.
     **/
     virtual void Reset( bool retainDictionary = false ) override;
+    /**
+    *   @brief  Save the entity into a file using game_write_context.
+    *   @note   Make sure to call the base parent class' Restore() function.
+    **/
+    virtual void Save( struct game_write_context_t *ctx ) override;
+    /**
+    *   @brief  Restore the entity from a loadgame read context.
+    *   @note   Make sure to call the base parent class' Restore() function.
+    **/
+    virtual void Restore( struct game_read_context_t *ctx ) override;
 
 
     /**

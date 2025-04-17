@@ -10,13 +10,22 @@
 
 #include "sharedgame/sg_usetarget_hints.h"
 
-
+#if USE_ZLIB
+#include <zlib.h>
+#else
+#define gzopen(name, mode)          fopen(name, mode)
+#define gzclose(file)               fclose(file)
+#define gzwrite(file, buf, len)     fwrite(buf, 1, len, file)
+#define gzread(file, buf, len)      fread(buf, 1, len, file)
+#define gzbuffer(file, size)        (void)0
+#define gzFile                      FILE *
+#endif
 
 
 /**
 *   @brief  Save descriptor array definition for all the members of svg_base_edict_t.
 **/
-svg_save_descriptor_field_t svg_base_edict_t::saveDescriptorFields[] = {
+SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Server Edict Entity State Data:
     **/
@@ -190,7 +199,7 @@ svg_save_descriptor_field_t svg_base_edict_t::saveDescriptorFields[] = {
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.sounds.middle, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.sounds.end, SD_FIELD_TYPE_INT32 ),
     // Callback:
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.endMoveCallback, SD_FIELD_TYPE_POINTER ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, pushMoveInfo.endMoveCallback, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK ),
     // Movewith:
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, pushMoveInfo.lastVelocity, SD_FIELD_TYPE_VECTOR3, 1 ),
 
@@ -213,7 +222,17 @@ svg_save_descriptor_field_t svg_base_edict_t::saveDescriptorFields[] = {
     *   NextThink AND Entity Callbacks:
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, nextthink, SD_FIELD_TYPE_INT64 ),
-
+	
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postspawn, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_POSTSPAWN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, prethink, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PRETHINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, think, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_THINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postthink, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_POSTTHINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, blocked, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_BLOCKED ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, touch, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_TOUCH ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, use, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_USE ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, pain, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PAIN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, onsignalin, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_ONSIGNALIN),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, die, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_DIE ),
     // TODO:
     // SAVE_DESCRIPTOR_DEFINE_CALLBACK_PTR( svg_base_edict_t, think, SD_FIELD_TYPE_POINTER, P_think ),
 
@@ -297,8 +316,7 @@ svg_save_descriptor_field_t svg_base_edict_t::saveDescriptorFields[] = {
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, move_origin, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, move_angles, SD_FIELD_TYPE_VECTOR3, 1 ),
-};
-
+SAVE_DESCRIPTOR_FIELDS_END();
 
 
 /**
@@ -483,4 +501,25 @@ void svg_base_edict_t::Reset( bool retainDictionary ) {
 
     move_origin = QM_Vector3Zero();
     move_angles = QM_Vector3Zero();
+}
+/**
+*   @brief  Used for savegaming the entity. Each derived entity type
+*           that needs to be saved should implement this function.
+*
+*   @note   Make sure to call the base parent class' Save() function.
+**/
+void svg_base_edict_t::Save( struct game_write_context_t *ctx ) {
+	// Call upon the base class.
+	//sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
+	// Save all the members of this entity type.
+	ctx->write_fields( svg_base_edict_t::saveDescriptorFields, this );
+}
+/**
+*   @brief  Used for loadgaming the entity. Each derived entity type
+*           that needs to be loaded should implement this function.
+*
+*   @note   Make sure to call the base parent class' Restore() function.
+**/
+void svg_base_edict_t::Restore( struct game_read_context_t *ctx ) {
+    ctx->read_fields( svg_base_edict_t::saveDescriptorFields, this );
 }

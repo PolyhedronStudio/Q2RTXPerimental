@@ -209,10 +209,27 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *
     **/
     /**
-	*   Reconstructs the object, optionally retaining the entityDictionary.
+	*   Reconstructs the object, zero-ing out its members, and optionally 
+	*   retaining the entityDictionary. 
+    * 
+	*   Sometimes we want to keep the entityDictionary intact so we can 
+    *   spawn from it. (This is used for saving/loading.)
     **/
     virtual void Reset( bool retainDictionary = false ) override;
-
+    /**
+	*   @brief  Used for savegaming the entity. Each derived entity type
+	*           that needs to be saved should implement this function.
+    * 
+    *   @note   Make sure to call the base parent class' Save() function.
+    **/
+	virtual void Save( struct game_write_context_t *ctx );
+    /**
+    *   @brief  Used for loadgaming the entity. Each derived entity type
+    *           that needs to be loaded should implement this function.
+    *
+    *   @note   Make sure to call the base parent class' Restore() function.
+    **/
+    virtual void Restore( struct game_read_context_t *ctx );
 
 
     /**

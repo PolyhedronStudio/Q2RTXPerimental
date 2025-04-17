@@ -191,7 +191,7 @@ svg_base_edict_t **SVG_EdictPool_Allocate( svg_edict_pool_t *edictPool, const in
 	for ( int32_t i = 0; i < numReservedEntities; i++ ) {
 		if ( i >= 1 && i < game.maxclients + 1 ) {
 			edictPool->edicts[ i ] = new svg_player_edict_t();
-			static_cast<svg_player_edict_t *>( edictPool->edicts[ i ] )->testVar = 100 + i;
+			static_cast<svg_player_edict_t *>( edictPool->edicts[ i ] )->testVar = 1337 + i;
 		} else {
 			edictPool->edicts[ i ] = new svg_base_edict_t();
 		}

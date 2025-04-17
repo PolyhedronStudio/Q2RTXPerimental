@@ -261,235 +261,235 @@ extern void use_target_spawner( svg_base_edict_t *self, svg_base_edict_t *other,
 extern void Use_Target_Speaker( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void use_target_splash( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-const save_ptr_t save_ptrs[] = {
+const svg_save_descriptor_funcptr_t save_ptrs[] = {
 
 //
 //	Disabled entity... Too Q2-ish specific.
 //
 #if 0
-{ P_pusher_moveinfo_endmovecallback, (void *)door_secret_done },
-{ P_pusher_moveinfo_endmovecallback, (void *)door_secret_move1 },
-{ P_pusher_moveinfo_endmovecallback, (void *)door_secret_move3 },
-{ P_pusher_moveinfo_endmovecallback, (void *)door_secret_move5 },
-{ P_die, (void *)door_secret_die },
-{ P_think,  (void *)door_secret_move2 },
-{ P_think,  (void *)door_secret_move4 },
-{ P_think,  (void *)door_secret_move6 },
-{ P_blocked, (void *)door_secret_blocked },
-{ P_use, (void *)door_secret_use },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)door_secret_done },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)door_secret_move1 },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)door_secret_move3 },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)door_secret_move5 },
+{ FPTR_CALLBACK_DIE, (void *)door_secret_die },
+{ FPTR_CALLBACK_THINK,  (void *)door_secret_move2 },
+{ FPTR_CALLBACK_THINK,  (void *)door_secret_move4 },
+{ FPTR_CALLBACK_THINK,  (void *)door_secret_move6 },
+{ FPTR_CALLBACK_BLOCKED, (void *)door_secret_blocked },
+{ FPTR_CALLBACK_USE, (void *)door_secret_use },
 #endif
 
 // <Q2RTXP>
 // OnSignalIn
-{ P_onsignalin, ( void * )button_onsignalin },
-{ P_onsignalin, (void *)door_onsignalin },
-{ P_onsignalin, (void *)rotating_onsignalin },
-{ P_onsignalin, (void *)func_wall_onsignalin },
-{ P_onsignalin, (void *)func_breakable_onsignalin },
+{ FPTR_CALLBACK_ONSIGNALIN, ( void * )button_onsignalin },
+{ FPTR_CALLBACK_ONSIGNALIN, (void *)door_onsignalin },
+{ FPTR_CALLBACK_ONSIGNALIN, (void *)rotating_onsignalin },
+{ FPTR_CALLBACK_ONSIGNALIN, (void *)func_wall_onsignalin },
+{ FPTR_CALLBACK_ONSIGNALIN, (void *)func_breakable_onsignalin },
 
-{ P_use, (void *)func_breakable_spawn_on_trigger },
-{ P_die, (void *)func_breakable_explode },
-{ P_pain, (void *)func_breakable_pain },
-{P_use, (void *)monster_testdummy_puppet_use },
-{ P_use, (void *)func_breakable_use },
+{ FPTR_CALLBACK_USE, (void *)func_breakable_spawn_on_trigger },
+{ FPTR_CALLBACK_DIE, (void *)func_breakable_explode },
+{ FPTR_CALLBACK_PAIN, (void *)func_breakable_pain },
+{FPTR_CALLBACK_USE, (void *)monster_testdummy_puppet_use },
+{ FPTR_CALLBACK_USE, (void *)func_breakable_use },
 
-{ P_die, (void *)monster_testdummy_puppet_die },
-{ P_think, (void *)monster_testdummy_puppet_think },
-{ P_touch, (void *)monster_testdummy_puppet_touch },
-{ P_postspawn, (void *)monster_testdummy_puppet_post_spawn },
+{ FPTR_CALLBACK_DIE, (void *)monster_testdummy_puppet_die },
+{ FPTR_CALLBACK_THINK, (void *)monster_testdummy_puppet_think },
+{ FPTR_CALLBACK_TOUCH, (void *)monster_testdummy_puppet_touch },
+{ FPTR_CALLBACK_POSTSPAWN, (void *)monster_testdummy_puppet_post_spawn },
 // </Q2RTXP>
 
 //
 //	Post Spawn Callback Pointers:
 //
-{ P_postspawn, (void *)door_postspawn },
+{ FPTR_CALLBACK_POSTSPAWN, (void *)door_postspawn },
 
 //
 //	Think Callback Pointers:
 //
-{ P_think,  (void *)drop_make_touchable },
-{ P_think,  (void *)droptofloor },
-{ P_think,  (void *)M_droptofloor },
+{ FPTR_CALLBACK_THINK,  (void *)drop_make_touchable },
+{ FPTR_CALLBACK_THINK,  (void *)droptofloor },
+{ FPTR_CALLBACK_THINK,  (void *)M_droptofloor },
 
-{ P_think,  (void *)DoRespawn },
-{ P_think,  (void *)gib_think },
-{ P_think,  (void *)MegaHealth_think },
+{ FPTR_CALLBACK_THINK,  (void *)DoRespawn },
+{ FPTR_CALLBACK_THINK,  (void *)gib_think },
+{ FPTR_CALLBACK_THINK,  (void *)MegaHealth_think },
 
-{ P_think,  (void *)SVG_FreeEdict },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_FreeEdict },
 
-{ P_think,  (void *)SVG_PushMove_MoveBegin },
-{ P_think,  (void *)SVG_PushMove_MoveDone },
-{ P_think,  (void *)SVG_PushMove_MoveFinal },
-{ P_think,  (void *)SVG_PushMove_AngleMoveBegin },
-{ P_think,  (void *)SVG_PushMove_AngleMoveDone },
-{ P_think,  (void *)SVG_PushMove_AngleMoveFinal },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_MoveBegin },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_MoveDone },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_MoveFinal },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_AngleMoveBegin },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_AngleMoveDone },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_AngleMoveFinal },
 
-{ P_think,  (void *)SVG_PushMove_Think_AccelerateMove },
-{ P_think,	(void *)SVG_PushMove_Think_AccelerateMoveNew },
-{ P_think,  (void *)SVG_PushMove_Think_CalculateMoveSpeed },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_Think_AccelerateMove },
+{ FPTR_CALLBACK_THINK,	(void *)SVG_PushMove_Think_AccelerateMoveNew },
+{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_Think_CalculateMoveSpeed },
 
-{ P_think,  (void *)barrel_explode },
+{ FPTR_CALLBACK_THINK,  (void *)barrel_explode },
 #if 0
-{ P_think,  (void *)button_return_to_unpressed_state },
+{ FPTR_CALLBACK_THINK,  (void *)button_return_to_unpressed_state },
 #else
-{ P_think,  (void *)button_think_return },
+{ FPTR_CALLBACK_THINK,  (void *)button_think_return },
 #endif
-{ P_think,  (void *)door_close_move },
-{ P_think,  (void *)door_open_move },
+{ FPTR_CALLBACK_THINK,  (void *)door_close_move },
+{ FPTR_CALLBACK_THINK,  (void *)door_open_move },
 
-//{ P_think,  (void *)func_clock_think },
-{ P_think,  (void *)func_object_release },
-{ P_think,  (void *)func_timer_think },
+//{ FPTR_CALLBACK_THINK,  (void *)func_clock_think },
+{ FPTR_CALLBACK_THINK,  (void *)func_object_release },
+{ FPTR_CALLBACK_THINK,  (void *)func_timer_think },
 
-//{ P_think,  (void *)rotating_start },
-//{ P_think,  (void *)rotating_end},
+//{ FPTR_CALLBACK_THINK,  (void *)rotating_start },
+//{ FPTR_CALLBACK_THINK,  (void *)rotating_end},
 
-{ P_think,  (void *)rotating_accelerate },
-{ P_think,  (void *)rotating_decelerate},
+{ FPTR_CALLBACK_THINK,  (void *)rotating_accelerate },
+{ FPTR_CALLBACK_THINK,  (void *)rotating_decelerate},
 
-{ P_think,  (void *)func_train_find },
+{ FPTR_CALLBACK_THINK,  (void *)func_train_find },
 
-{ P_think,  (void *)multi_wait },
+{ FPTR_CALLBACK_THINK,  (void *)multi_wait },
 
-{ P_think,  (void *)plat_go_down },
+{ FPTR_CALLBACK_THINK,  (void *)plat_go_down },
 
-{ P_think,  (void *)target_crosslevel_target_think },
-{ P_think,  (void *)target_earthquake_think },
-{ P_think,  (void *)target_explosion_explode },
-{ P_think,  (void *)target_laser_start },
-{ P_think,  (void *)target_laser_think },
-{ P_think,  (void *)target_lightramp_think },
+{ FPTR_CALLBACK_THINK,  (void *)target_crosslevel_target_think },
+{ FPTR_CALLBACK_THINK,  (void *)target_earthquake_think },
+{ FPTR_CALLBACK_THINK,  (void *)target_explosion_explode },
+{ FPTR_CALLBACK_THINK,  (void *)target_laser_start },
+{ FPTR_CALLBACK_THINK,  (void *)target_laser_think },
+{ FPTR_CALLBACK_THINK,  (void *)target_lightramp_think },
 
-//{ P_think,  (void *)TH_viewthing },
-{ P_think,  (void *)Think_UseTargetsDelay },
-{ P_think,  (void *)Think_SignalOutDelay },
-{ P_think,  (void *)Think_SpawnDoorTrigger },
+//{ FPTR_CALLBACK_THINK,  (void *)TH_viewthing },
+{ FPTR_CALLBACK_THINK,  (void *)Think_UseTargetsDelay },
+{ FPTR_CALLBACK_THINK,  (void *)Think_SignalOutDelay },
+{ FPTR_CALLBACK_THINK,  (void *)Think_SpawnDoorTrigger },
 
-{ P_think,  (void *)LUA_Think_UseTargetDelay },
-{ P_think,  (void *)LUA_Think_SignalOutDelay },
+{ FPTR_CALLBACK_THINK,  (void *)LUA_Think_UseTargetDelay },
+{ FPTR_CALLBACK_THINK,  (void *)LUA_Think_SignalOutDelay },
 
-{ P_think,  (void*)train_next },
+{ FPTR_CALLBACK_THINK,  (void*)train_next },
 
-{ P_think,  (void*)trigger_elevator_init },
+{ FPTR_CALLBACK_THINK,  (void*)trigger_elevator_init },
 
-{ P_think,	(void*)spotlight_think },
+{ FPTR_CALLBACK_THINK,	(void*)spotlight_think },
 
 //
 //	Blocked Callback Pointers.
 //
-{ P_blocked, (void*)door_blocked },
-{ P_blocked, (void*)plat_blocked },
-{ P_blocked, (void*)rotating_blocked },
-{ P_blocked, (void*)train_blocked },
+{ FPTR_CALLBACK_BLOCKED, (void*)door_blocked },
+{ FPTR_CALLBACK_BLOCKED, (void*)plat_blocked },
+{ FPTR_CALLBACK_BLOCKED, (void*)rotating_blocked },
+{ FPTR_CALLBACK_BLOCKED, (void*)train_blocked },
 
 //
 //	Touch Callback Pointers.
 // 	
-{ P_touch, (void*)barrel_touch },
-{ P_touch, (void *)button_touch },
-{ P_touch, (void*)door_touch },
-{ P_touch, (void*)drop_temp_touch },
-{ P_touch, (void*)func_object_touch },
-{ P_touch, (void*)gib_touch },
-{ P_touch, (void*)hurt_touch },
-{ P_touch, (void*)path_corner_touch },
-//{ P_touch, (void*)point_combat_touch },
-{ P_touch, (void*)rotating_touch },
-{ P_touch, (void*)teleporter_touch },
-{ P_touch, (void*)Touch_DoorTrigger },
-{ P_touch, (void*)Touch_Item },
-{ P_touch, (void*)Touch_Multi },
-{ P_touch, (void*)Touch_Plat_Center },
-{ P_touch, (void*)trigger_gravity_touch },
-{ P_touch, (void*)trigger_push_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)barrel_touch },
+{ FPTR_CALLBACK_TOUCH, (void *)button_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)door_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)drop_temp_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)func_object_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)gib_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)hurt_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)path_corner_touch },
+//{ FPTR_CALLBACK_TOUCH, (void*)point_combat_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)rotating_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)teleporter_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)Touch_DoorTrigger },
+{ FPTR_CALLBACK_TOUCH, (void*)Touch_Item },
+{ FPTR_CALLBACK_TOUCH, (void*)Touch_Multi },
+{ FPTR_CALLBACK_TOUCH, (void*)Touch_Plat_Center },
+{ FPTR_CALLBACK_TOUCH, (void*)trigger_gravity_touch },
+{ FPTR_CALLBACK_TOUCH, (void*)trigger_push_touch },
 
 //
 //	Use Callback Pointers:
 //
-{ P_use, (void*)button_use },
-{ P_use, (void *)button_usetarget_press },
-{ P_use, (void *)button_usetarget_toggle },
-{ P_use, (void *)button_usetarget_continuous_press },
+{ FPTR_CALLBACK_USE, (void*)button_use },
+{ FPTR_CALLBACK_USE, (void *)button_usetarget_press },
+{ FPTR_CALLBACK_USE, (void *)button_usetarget_toggle },
+{ FPTR_CALLBACK_USE, (void *)button_usetarget_continuous_press },
 
-{ P_use, (void*)door_use },
+{ FPTR_CALLBACK_USE, (void*)door_use },
 
-//{ P_use, (void*)func_clock_use },
-{ P_use, (void*)func_conveyor_use },
-//{ P_use, (void*)func_breakable_spawn },
-//{ P_use, (void*)func_breakable_use },
-{ P_use, (void*)func_object_use },
-{ P_use, (void*)func_timer_use },
-{ P_use, (void*)func_wall_use },
+//{ FPTR_CALLBACK_USE, (void*)func_clock_use },
+{ FPTR_CALLBACK_USE, (void*)func_conveyor_use },
+//{ FPTR_CALLBACK_USE, (void*)func_breakable_spawn },
+//{ FPTR_CALLBACK_USE, (void*)func_breakable_use },
+{ FPTR_CALLBACK_USE, (void*)func_object_use },
+{ FPTR_CALLBACK_USE, (void*)func_timer_use },
+{ FPTR_CALLBACK_USE, (void*)func_wall_use },
 
-{ P_use, (void*)hurt_use },
+{ FPTR_CALLBACK_USE, (void*)hurt_use },
 
-{ P_use, (void*)spotlight_use },
-{ P_use, (void*)light_use },
+{ FPTR_CALLBACK_USE, (void*)spotlight_use },
+{ FPTR_CALLBACK_USE, (void*)light_use },
 
-{ P_use, (void*)rotating_use },
+{ FPTR_CALLBACK_USE, (void*)rotating_use },
 
-{ P_use, (void*)target_earthquake_use },
-{ P_use, (void*)target_laser_use },
-{ P_use, (void*)target_lightramp_use },
-//{ P_use, (void*)target_string_use },
+{ FPTR_CALLBACK_USE, (void*)target_earthquake_use },
+{ FPTR_CALLBACK_USE, (void*)target_laser_use },
+{ FPTR_CALLBACK_USE, (void*)target_lightramp_use },
+//{ FPTR_CALLBACK_USE, (void*)target_string_use },
 
-{ P_use, (void*)train_use },
+{ FPTR_CALLBACK_USE, (void*)train_use },
 
-{ P_use, (void*)trigger_counter_use },
-{ P_use, (void*)trigger_crosslevel_trigger_use },
-{ P_use, (void*)trigger_elevator_use },
-{ P_use, (void*)trigger_enable },
-{ P_use, (void*)trigger_relay_use },
+{ FPTR_CALLBACK_USE, (void*)trigger_counter_use },
+{ FPTR_CALLBACK_USE, (void*)trigger_crosslevel_trigger_use },
+{ FPTR_CALLBACK_USE, (void*)trigger_elevator_use },
+{ FPTR_CALLBACK_USE, (void*)trigger_enable },
+{ FPTR_CALLBACK_USE, (void*)trigger_relay_use },
 
-{ P_use, (void*)Use_Areaportal },
-{ P_use, (void*)Use_Item },
-{ P_use, (void*)use_killbox },
-{ P_use, (void*)Use_Multi },
-{ P_use, (void*)Use_Plat },
-{ P_use, (void *)Use_Target_Tent },
+{ FPTR_CALLBACK_USE, (void*)Use_Areaportal },
+{ FPTR_CALLBACK_USE, (void*)Use_Item },
+{ FPTR_CALLBACK_USE, (void*)use_killbox },
+{ FPTR_CALLBACK_USE, (void*)Use_Multi },
+{ FPTR_CALLBACK_USE, (void*)Use_Plat },
+{ FPTR_CALLBACK_USE, (void *)Use_Target_Tent },
 
-{ P_use, (void*)use_target_blaster },
-{ P_use, (void*)use_target_changelevel },
-{ P_use, (void*)use_target_explosion },
-{ P_use, (void*)use_target_goal },
-{ P_use, (void*)use_target_secret },
-{ P_use, (void*)use_target_spawner },
-{ P_use, (void*)Use_Target_Speaker },
-{ P_use, (void*)use_target_splash },
+{ FPTR_CALLBACK_USE, (void*)use_target_blaster },
+{ FPTR_CALLBACK_USE, (void*)use_target_changelevel },
+{ FPTR_CALLBACK_USE, (void*)use_target_explosion },
+{ FPTR_CALLBACK_USE, (void*)use_target_goal },
+{ FPTR_CALLBACK_USE, (void*)use_target_secret },
+{ FPTR_CALLBACK_USE, (void*)use_target_spawner },
+{ FPTR_CALLBACK_USE, (void*)Use_Target_Speaker },
+{ FPTR_CALLBACK_USE, (void*)use_target_splash },
 
 //
 //	Pain Callback Pointers:
 //
-{ P_pain, (void *)door_pain },
-{ P_pain, (void*)player_pain },
+{ FPTR_CALLBACK_PAIN, (void *)door_pain },
+{ FPTR_CALLBACK_PAIN, (void*)player_pain },
 
 //
 //	Die Callback Pointers:
 //
-{ P_die, (void*)barrel_delay },
-{ P_die, (void*)body_die },
-{ P_die, (void *)button_killed },
-{ P_die, (void*)debris_die },
-{ P_die, (void*)door_killed },
-//{ P_die, (void*)func_breakable_explode },
-{ P_die, (void*)gib_die },
-{ P_die, (void*)player_die },
+{ FPTR_CALLBACK_DIE, (void*)barrel_delay },
+{ FPTR_CALLBACK_DIE, (void*)body_die },
+{ FPTR_CALLBACK_DIE, (void *)button_killed },
+{ FPTR_CALLBACK_DIE, (void*)debris_die },
+{ FPTR_CALLBACK_DIE, (void*)door_killed },
+//{ FPTR_CALLBACK_DIE, (void*)func_breakable_explode },
+{ FPTR_CALLBACK_DIE, (void*)gib_die },
+{ FPTR_CALLBACK_DIE, (void*)player_die },
 
 //
 // MoveInfo_EndFunc	Callback Pointers:
 //
 #if 0
-{ P_pusher_moveinfo_endmovecallback, (void*)button_reached_pressed_state },
-{ P_pusher_moveinfo_endmovecallback, (void*)button_trigger_and_wait },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)button_reached_pressed_state },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)button_trigger_and_wait },
 #else
-{ P_pusher_moveinfo_endmovecallback, (void *)button_unpress_move_done },
-{ P_pusher_moveinfo_endmovecallback, (void *)button_press_move_done },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)button_unpress_move_done },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)button_press_move_done },
 #endif
-{ P_pusher_moveinfo_endmovecallback, (void*)door_close_move_done },
-{ P_pusher_moveinfo_endmovecallback, (void*)door_open_move_done },
-{ P_pusher_moveinfo_endmovecallback, (void*)plat_hit_bottom },
-{ P_pusher_moveinfo_endmovecallback, (void*)plat_hit_top },
-{ P_pusher_moveinfo_endmovecallback, (void*)train_wait },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)door_close_move_done },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)door_open_move_done },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)plat_hit_bottom },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)plat_hit_top },
+{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)train_wait },
 
 //
 // MonsterInfo_CurrentMove.

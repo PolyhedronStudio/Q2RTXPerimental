@@ -421,7 +421,7 @@ static const save_field_t entityfields[] = {
     INT32( pushMoveInfo.sounds.middle ),
     INT32( pushMoveInfo.sounds.end ),
     // Callback:
-    POINTER( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
+    //POINTER( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
     // Movewith:
     VEC3( pushMoveInfo.lastVelocity ),
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
@@ -444,16 +444,16 @@ static const save_field_t entityfields[] = {
     **/
     INT64( nextthink ),
 
-    POINTER( postspawn, P_postspawn ),
-    POINTER( prethink, P_prethink ),
-    POINTER( think, P_think ),
-    POINTER( postthink, P_postthink ),
-    POINTER( blocked, P_blocked ),
-    POINTER( touch, P_touch ),
-    POINTER( use, P_use ),
-    POINTER( pain, P_pain ),
-    POINTER( onsignalin, P_onsignalin ),
-    POINTER( die, P_die ),
+    //POINTER( postspawn, P_postspawn ),
+    //POINTER( prethink, P_prethink ),
+    //POINTER( think, P_think ),
+    //POINTER( postthink, P_postthink ),
+    //POINTER( blocked, P_blocked ),
+    //POINTER( touch, P_touch ),
+    //POINTER( use, P_use ),
+    //POINTER( pain, P_pain ),
+    //POINTER( onsignalin, P_onsignalin ),
+    //POINTER( die, P_die ),
 
     /**
     *   Entity Pointers:
@@ -822,29 +822,29 @@ static void write_index(gzFile f, void *p, size_t size, void *start, int max_ind
     write_int(f, (int)(diff / size));
 }
 
-static void write_pointer(gzFile f, void *p, ptr_type_t type, const save_field_t *saveField ) {
-    const save_ptr_t *ptr;
-    int i;
-
-    if (!p) {
-        write_int(f, -1);
-        return;
-    }
-
-    for (i = 0, ptr = save_ptrs; i < num_save_ptrs; i++, ptr++) {
-        if (ptr->type == type && ptr->ptr == p) {
-            write_int(f, i);
-            return;
-        }
-    }
-
-    gzclose(f);
-    #if USE_DEBUG
-    gi.error( "%s: unknown pointer for '%s': %p", __func__, saveField->name, p );
-    #else
-    gi.error("%s: unknown pointer: %p", __func__, p);
-    #endif
-}
+//static void write_pointer(gzFile f, void *p, ptr_type_t type, const save_field_t *saveField ) {
+//    const save_ptr_t *ptr;
+//    int i;
+//
+//    if (!p) {
+//        write_int(f, -1);
+//        return;
+//    }
+//
+//    for (i = 0, ptr = save_ptrs; i < num_save_ptrs; i++, ptr++) {
+//        if (ptr->type == type && ptr->ptr == p) {
+//            write_int(f, i);
+//            return;
+//        }
+//    }
+//
+//    gzclose(f);
+//    #if USE_DEBUG
+//    gi.error( "%s: unknown pointer for '%s': %p", __func__, saveField->name, p );
+//    #else
+//    gi.error("%s: unknown pointer: %p", __func__, p);
+//    #endif
+//}
 
 static void write_field(gzFile f, const save_field_t *field, void *base)
 {
@@ -918,7 +918,7 @@ static void write_field(gzFile f, const save_field_t *field, void *base)
 
     case F_POINTER:
 		// WID: C++20: Added cast.
-        write_pointer(f, *(void **)p, (ptr_type_t)field->size, field );
+        //write_pointer(f, *(void **)p, (ptr_type_t)field->size, field );
         break;
 
     case F_FRAMETIME:
@@ -964,56 +964,45 @@ static void write_fields(gzFile f, const save_field_t *fields, void *base)
 * 
 * 
 ***/
-typedef struct game_read_context_s {
-	gzFile f;
-    //bool frametime_is_float;
-    const save_ptr_t* save_ptrs;
-    int num_save_ptrs;
-} game_read_context_t;
-
-static void read_data(void *buf, size_t len, gzFile f)
-{
-    if (gzread(f, buf, len) != len) {
-        gzclose(f);
-        gi.error("%s: couldn't read %zu bytes", __func__, len);
+static void read_data( void *buf, size_t len, gzFile f ) {
+    if ( gzread( f, buf, len ) != len ) {
+        gzclose( f );
+        gi.error( "%s: couldn't read %zu bytes", __func__, len );
     }
 }
 
-static int read_short(gzFile f)
-{
+static int read_short( gzFile f ) {
     int16_t v;
 
-    read_data(&v, sizeof(v), f);
-    v = LittleShort(v);
+    read_data( &v, sizeof( v ), f );
+    v = LittleShort( v );
 
     return v;
 }
 
-static int read_int(gzFile f)
-{
+static int read_int( gzFile f ) {
     int32_t v;
 
-    read_data(&v, sizeof(v), f);
-    v = LittleLong(v);
+    read_data( &v, sizeof( v ), f );
+    v = LittleLong( v );
 
     return v;
 }
 
-static float read_int64(gzFile f) {
-	int64_t v;
+static int64_t read_int64( gzFile f ) {
+    int64_t v;
 
-	read_data( &v, sizeof( v ), f );
-	v = LittleLongLong( v );
+    read_data( &v, sizeof( v ), f );
+    v = LittleLongLong( v );
 
-	return v;
+    return v;
 }
 
-static float read_float(gzFile f)
-{
+static float read_float( gzFile f ) {
     float v;
 
-    read_data(&v, sizeof(v), f);
-    v = LittleFloat(v);
+    read_data( &v, sizeof( v ), f );
+    v = LittleFloat( v );
 
     return v;
 }
@@ -1027,25 +1016,24 @@ static double read_double( gzFile f ) {
     return v;
 }
 
-static char *read_string(gzFile f)
-{
+static char *read_string( gzFile f ) {
     int len;
     char *s;
 
-    len = read_int(f);
-    if (len == -1) {
+    len = read_int( f );
+    if ( len == -1 ) {
         return NULL;
     }
 
-    if (len < 0 || len >= 65536) {
-        gzclose(f);
-        gi.error("%s: bad length", __func__);
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length", __func__ );
     }
 
-	// WID: C++20: Added cast.
-    s = (char*)gi.TagMallocz(len + 1, TAG_SVGAME_LEVEL);
-    read_data(s, len, f);
-    s[len] = 0;
+    // WID: C++20: Added cast.
+    s = (char *)gi.TagMallocz( len + 1, TAG_SVGAME_LEVEL );
+    read_data( s, len, f );
+    s[ len ] = 0;
 
     return s;
 }
@@ -1092,7 +1080,7 @@ static const svg_game_qstring_t read_game_qstring( gzFile f ) {
 }
 
 /**
-*   @brief 
+*   @brief
 **/
 template<typename T>
 static sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *read_level_qtag_memory( gzFile f, sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *p ) {
@@ -1134,29 +1122,27 @@ static sg_qtag_memory_t<T, TAG_SVGAME> *read_game_qtag_memory( gzFile f, sg_qtag
     // Allocate level tag string space.
     allocate_qtag_memory<T, TAG_SVGAME>( p, len );
     // Delete temporary buffer.
-    read_data( p->ptr, /*len*/p->size(), f);
+    read_data( p->ptr, /*len*/p->size(), f );
     return p;
 }
 
-static void read_zstring(gzFile f, char *s, size_t size)
-{
+static void read_zstring( gzFile f, char *s, size_t size ) {
     int len;
 
-    len = read_int(f);
-    if (len < 0 || len >= size) {
-        gzclose(f);
-        gi.error("%s: bad length", __func__);
+    len = read_int( f );
+    if ( len < 0 || len >= size ) {
+        gzclose( f );
+        gi.error( "%s: bad length", __func__ );
     }
 
-    read_data(s, len, f);
-    s[len] = 0;
+    read_data( s, len, f );
+    s[ len ] = 0;
 }
 
-static void read_vector3(gzFile f, vec_t *v)
-{
-    v[0] = static_cast<vec_t>( read_float(f) );
-    v[1] = static_cast<vec_t>( read_float( f ) );
-    v[2] = static_cast<vec_t>( read_float( f ) );
+static void read_vector3( gzFile f, vec_t *v ) {
+    v[ 0 ] = static_cast<vec_t>( read_float( f ) );
+    v[ 1 ] = static_cast<vec_t>( read_float( f ) );
+    v[ 2 ] = static_cast<vec_t>( read_float( f ) );
 }
 static void read_vector4( gzFile f, vec_t *v ) {
     v[ 0 ] = static_cast<vec_t>( read_float( f ) );
@@ -1165,49 +1151,51 @@ static void read_vector4( gzFile f, vec_t *v ) {
     v[ 3 ] = static_cast<vec_t>( read_float( f ) );
 }
 
-static void *read_index(gzFile f, size_t size, void *start, int max_index)
-{
+static void *read_index( gzFile f, size_t size, void *start, int max_index ) {
     int index;
     byte *p;
 
-    index = read_int(f);
-    if (index == -1) {
+    index = read_int( f );
+    if ( index == -1 ) {
         return NULL;
     }
 
-    if (index < 0 || index > max_index) {
-        gzclose(f);
-        gi.error("%s: bad index", __func__);
+    if ( index < 0 || index > max_index ) {
+        gzclose( f );
+        gi.error( "%s: bad index", __func__ );
     }
 
     p = (byte *)start + index * size;
     return p;
 }
 
-static void *read_pointer(game_read_context_t* ctx, ptr_type_t type)
-{
-    int index;
-    const save_ptr_t *ptr;
-
-    index = read_int(ctx->f);
-    if (index == -1) {
-        return NULL;
-    }
-
-    if (index < 0 || index >= ctx->num_save_ptrs) {
-        gzclose(ctx->f);
-        gi.error("%s: bad index", __func__);
-    }
-
-    ptr = &ctx->save_ptrs[index];
-    if (ptr->type != type) {
-        gzclose(ctx->f);
-        gi.error("%s: type mismatch", __func__);
-    }
-
-    return ptr->ptr;
-}
-
+//void *read_pointer( save_ptr_t type ) {
+//    int index;
+//    const save_ptr_t *ptr;
+//
+//    index = read_int();
+//    if ( index == -1 ) {
+//        return NULL;
+//    }
+//
+//    if ( index < 0 || index >= num_save_ptrs ) {
+//        gzclose( f );
+//        gi.error( "%s: bad index", __func__ );
+//    }
+//
+//    ptr = &save_ptrs[ index ];
+//    if ( ptr->type != type ) {
+//        gzclose( f );
+//        gi.error( "%s: type mismatch", __func__ );
+//    }
+//
+//    return ptr->ptr;
+//}
+/**
+*   @brief  Reads a field from the read game context.
+*   @param  field The field to read.
+*   @param  base The base address of the structure to read from.
+**/
 static void read_field(game_read_context_t* ctx, const save_field_t *field, void *base)
 {
     void *p = (byte *)base + field->ofs;
@@ -1283,7 +1271,7 @@ static void read_field(game_read_context_t* ctx, const save_field_t *field, void
 
     case F_POINTER:
 		// WID: C++20: Added cast.
-        *(void **)p = read_pointer(ctx, (ptr_type_t)field->size);
+        //*(void **)p = read_pointer(ctx, (svg_save_descriptor_funcptr_type_t)field->flags);
         break;
 
     case F_FRAMETIME:
@@ -1318,12 +1306,744 @@ static void read_fields(game_read_context_t* ctx, const save_field_t *fields, vo
 
 
 
+
+
+
+
+
+
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+*
+* 
+*
+*   Game Read Context
+* 
+* 
+* 
+**/
+/**
+*   @brief  Read data from the file.
+**/
+void game_read_context_t::read_data( void *buf, size_t len ) {
+    if ( gzread( f, buf, len ) != len ) {
+        gzclose( f );
+        gi.error( "%s: couldn't read %zu bytes", __func__, len );
+    }
+}
+
+/**
+*   @brief  Reads a 16-bit short integer from a gzFile, converts it to little-endian format, and returns it as an int.
+*   @param  f The gzFile from which the 16-bit short integer is read.
+*   @return  The 16-bit short integer, converted to little-endian format, as an int.
+**/
+const int game_read_context_t::read_short() {
+    int16_t v;
+
+    read_data( &v, sizeof( v ) );
+    v = LittleShort( v );
+
+    return v;
+}
+
+/**
+*   @brief Reads a 32-bit integer from a gzFile, converting it to little-endian format.
+*   @param f The gzFile from which the integer is read.
+*   @return The 32-bit integer read from the file, converted to little-endian format.
+**/
+const int game_read_context_t::read_int() {
+    int32_t v;
+
+    read_data( &v, sizeof( v ) );
+    v = LittleLong( v );
+
+    return v;
+}
+/**
+*   @brief  Reads a 64-bit integer from a gzFile, converting it to little-endian format.
+*   @return The 64-bit integer read from the file, converted to little-endian format.
+**/
+const int64_t game_read_context_t::read_int64() {
+    int64_t v;
+
+    read_data( &v, sizeof( v ) );
+    v = LittleLongLong( v );
+
+    return v;
+}
+/**
+*   @brief  Reads a floating-point value from the game context, converting it to little-endian format if necessary.
+*   @return The floating-point value read from the game context.
+**/
+const float game_read_context_t::read_float() {
+    float v;
+
+    read_data( &v, sizeof( v ) );
+    v = LittleFloat( v );
+
+    return v;
+}
+/**
+*   @brief  Reads a double-precision floating-point value from the game context, converting it from little-endian format if necessary.
+*   @return The double-precision floating-point value read from the context.
+**/
+const double game_read_context_t::read_double() {
+    double v;
+
+    read_data( &v, sizeof( v ) );
+    v = LittleDouble( v );
+
+    return v;
+}
+/**
+*   @brief  Reads a string from the game context, allocating memory for it and ensuring it is null-terminated.
+*   @return A pointer to the null-terminated string read from the context, or NULL if the length is -1. If an invalid length is encountered, the function terminates with an error.
+**/
+char *game_read_context_t::read_string() {
+    int len;
+    char *s;
+
+    len = read_int();
+    if ( len == -1 ) {
+        return NULL;
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length", __func__ );
+    }
+
+    // WID: C++20: Added cast.
+    s = (char *)gi.TagMallocz( len + 1, TAG_SVGAME_LEVEL );
+    read_data( s, len );
+    s[ len ] = 0;
+
+    return s;
+}
+
+/**
+*   @brief Reads a level tag string from the read game context.
+*   @return An instance of `svg_level_qstring_t` containing the level tag string, or `nullptr` if the length is -1.
+**/
+const svg_level_qstring_t game_read_context_t::read_level_qstring() {
+    int len;
+
+    len = read_int();
+    if ( len == -1 ) {
+        return nullptr;
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    // Allocate level tag string space.
+    svg_level_qstring_t lstring = svg_level_qstring_t::new_for_size( len );
+    // Delete temporary buffer.
+    read_data( lstring.ptr, len );
+
+    return lstring;
+}
+/**
+*   @brief Reads a game tag string from the read game context.
+*   @return An instance of `svg_game_qstring_t` containing the game tag string, or `nullptr` if the length is -1.
+**/
+const svg_game_qstring_t game_read_context_t::read_game_qstring() {
+    int len;
+
+    len = read_int();
+    if ( len == -1 ) {
+        return nullptr;
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    // Allocate level tag string space.
+    svg_game_qstring_t gstring = svg_game_qstring_t::new_for_size( len );
+    // Delete temporary buffer.
+    read_data( gstring.ptr, len );
+    return gstring;
+}
+
+/**
+*   @brief  Reads a level qtag memory block from the read game context.
+**/
+template<typename T>
+sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *game_read_context_t::read_level_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *p ) {
+    int len;
+
+    len = read_int();
+    if ( len == -1 ) {
+        return allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, 0 );
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    // Allocate level tag string space.
+    allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, len );
+    // Delete temporary buffer.
+    read_data( p->ptr, /*len*/p->size() );
+    return p;
+}
+/**
+*   @brief  Reads a game qtag memory block from the read game context.
+**/
+template<typename T>
+sg_qtag_memory_t<T, TAG_SVGAME> *game_read_context_t::read_game_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME> *p ) {
+    int len;
+
+    len = read_int();
+    if ( len == -1 ) {
+        return allocate_qtag_memory<T, TAG_SVGAME>( p, 0 );
+    }
+
+    if ( len < 0 || len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    // Allocate level tag string space.
+    allocate_qtag_memory<T, TAG_SVGAME>( p, len );
+    // Delete temporary buffer.
+    read_data( p->ptr, /*len*/p->size() );
+    return p;
+}
+
+/**
+*   @brief Reads a null-terminated string from the read game context.
+**/
+void game_read_context_t::read_zstring( char *s, size_t size ) {
+    int len;
+
+    len = read_int();
+    if ( len < 0 || len >= size ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d) >= size(%d)", __func__, len, size );
+    }
+
+    read_data( s, len );
+    s[ len ] = 0;
+}
+/**
+*   @brief  Reads a vector3 from the read game context.
+**/
+void game_read_context_t::read_vector3( vec_t *v ) {
+    v[ 0 ] = static_cast<vec_t>( read_float() );
+    v[ 1 ] = static_cast<vec_t>( read_float() );
+    v[ 2 ] = static_cast<vec_t>( read_float() );
+}
+/**
+*   @brief  Reads a vector4 from the read game context.
+**/
+void game_read_context_t::read_vector4( vec_t *v ) {
+    v[ 0 ] = static_cast<vec_t>( read_float() );
+    v[ 1 ] = static_cast<vec_t>( read_float() );
+    v[ 2 ] = static_cast<vec_t>( read_float() );
+    v[ 3 ] = static_cast<vec_t>( read_float() );
+}
+/**
+*   @brief  Reads a ranged index list from the read game context.
+**/
+void *game_read_context_t::read_index( size_t size, void *start, int max_index ) {
+    int index;
+    byte *p;
+
+    index = read_int();
+    if ( index == -1 ) {
+        return NULL;
+    }
+
+    if ( index < 0 || index > max_index ) {
+        gzclose( f );
+        gi.error( "%s: bad index", __func__ );
+    }
+
+    p = (byte *)start + index * size;
+    return p;
+}
+/**
+*   @brief  Reads a callback function pointer from the read game context.
+*   @param  type The type of the pointer to read.
+*   @return A pointer to the data of the specified type, or NULL if the index is -1.
+**/
+void *game_read_context_t::read_pointer( svg_save_descriptor_funcptr_type_t type ) {
+    int index;
+    const svg_save_descriptor_funcptr_t *ptr;
+
+    index = read_int();
+    if ( index == -1 ) {
+        return NULL;
+    }
+
+    if ( index < 0 || index >= num_save_ptrs ) {
+        gzclose( f );
+        gi.error( "%s: bad index", __func__ );
+    }
+
+    ptr = &save_ptrs[ index ];
+    if ( ptr->type != type ) {
+        gzclose( f );
+        gi.error( "%s: type mismatch", __func__ );
+    }
+
+    return ptr->ptr;
+}
+/**
+*   @brief  Reads a field from the read game context.
+*   @param  field The field to read.
+*   @param  base The base address of the structure to read from.
+**/
+void game_read_context_t::read_field( const svg_save_descriptor_field_t *field, void *base ) {
+    void *p = (byte *)base + field->offset;
+    int i;
+
+    switch ( field->type ) {
+    case SD_FIELD_TYPE_BYTE:
+        read_data( p, field->size );
+        break;
+    case SD_FIELD_TYPE_SHORT:
+        for ( i = 0; i < field->size; i++ ) {
+            ( (short *)p )[ i ] = read_short( );
+        }
+        break;
+    case SD_FIELD_TYPE_INT32:
+        for ( i = 0; i < field->size; i++ ) {
+            ( (int *)p )[ i ] = read_int( );
+        }
+        break;
+    case SD_FIELD_TYPE_BOOL:
+        for ( i = 0; i < field->size; i++ ) {
+            ( (bool *)p )[ i ] = read_int( );
+        }
+        break;
+    case SD_FIELD_TYPE_FLOAT:
+        for ( i = 0; i < field->size; i++ ) {
+            ( (float *)p )[ i ] = read_float( );
+        }
+        break;
+    case SD_FIELD_TYPE_DOUBLE:
+        for ( i = 0; i < field->size; i++ ) {
+            ( (double *)p )[ i ] = read_double( );
+        }
+        break;
+    case SD_FIELD_TYPE_VECTOR3:
+        read_vector3( (vec_t *)p );
+        break;
+    case SD_FIELD_TYPE_VECTOR4:
+        read_vector4( (vec_t *)p );
+        break;
+    case SD_FIELD_TYPE_LSTRING:
+        *(char **)p = read_string( );
+        break;
+    case SD_FIELD_TYPE_LEVEL_QSTRING:
+        ( *(svg_level_qstring_t *)p ) = read_level_qstring( );
+        break;
+    case SD_FIELD_TYPE_GAME_QSTRING:
+        ( *(svg_game_qstring_t *)p ) = read_game_qstring( );
+        break;
+    case SD_FIELD_TYPE_LEVEL_QTAG_MEMORY:
+        read_level_qtag_memory<float>( ( ( sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> * )p ) );
+        break;
+    case SD_FIELD_TYPE_GAME_QTAG_MEMORY:
+        read_game_qtag_memory<float>( ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
+        break;
+    case SD_FIELD_TYPE_ZSTRING:
+        read_zstring( (char *)p, field->size );
+        break;
+    case SD_FIELD_TYPE_EDICT:
+        // WID: C++20: Added cast.
+        ( *(svg_base_edict_t **)p ) = g_edict_pool.EdictForNumber( read_int( ) );
+        //*(svg_base_edict_t **)p = (svg_base_edict_t*)read_index(ctx->f, sizeof(svg_base_edict_t), g_edicts, game.maxentities - 1);
+        break;
+    case SD_FIELD_TYPE_CLIENT:
+        // WID: C++20: Added cast.
+        //*(svg_client_t **)p = (svg_client_t*)read_index(ctx->f, sizeof(svg_client_t), game.clients, game.maxclients - 1);
+        ( *(svg_client_t **)p )->clientNum = read_int( );
+        break;
+    case SD_FIELD_TYPE_ITEM:
+        // WID: C++20: Added cast.
+        *(gitem_t **)p = (gitem_t *)read_index( sizeof( gitem_t ), itemlist, game.num_items - 1 );
+        break;
+
+    case SD_FIELD_TYPE_FUNCTION:
+        // WID: C++20: Added cast.
+        *(void **)p = read_pointer( (svg_save_descriptor_funcptr_type_t)field->flags );
+        break;
+
+    case SD_FIELD_TYPE_FRAMETIME:
+        // WID: We got QMTime, so we need int64 saving for frametime.
+        for ( i = 0; i < field->size; i++ ) {
+            ( (int64_t *)p )[ i ] = read_int64( );
+        }
+        break;
+    case SD_FIELD_TYPE_INT64:
+        for ( i = 0; i < field->size; i++ ) {
+            ( (int64_t *)p )[ i ] = read_int64( );
+        }
+        break;
+
+    default:
+        #if !defined( _USE_DEBUG )
+        gi.error( "%s: unknown field type(%d)", __func__, field->type );
+        #else
+        gi.error( "%s: unknown field type(%d), name(%s)", __func__, field->type, field->name );
+        #endif
+    }
+}
+/**
+*   @brief Reads and processes a list of descriptor fields for a game context.
+*   @param descriptorFields A pointer to an array of svg_save_descriptor_field_t structures, each describing a field to be read. The array must be null-terminated (field->type must be 0 to indicate the end).
+*   @param base A pointer to the base address where the fields will be read and processed.
+**/
+void game_read_context_t::read_fields( const svg_save_descriptor_field_t *descriptorFields, void *base ) {
+    const svg_save_descriptor_field_t *field;
+
+    for ( field = descriptorFields; field->type; field++ ) {
+        read_field( field, base );
+    }
+}
+
+
+
+/**
+* 
+* 
+* 
+*   Game Write Context:
+* 
+* 
+* 
+**/
+void game_write_context_t::write_data( void *buf, size_t len ) {
+    if ( gzwrite( f, buf, len ) != len ) {
+        gzclose( f );
+        gi.error( "%s: couldn't write %zu bytes", __func__, len );
+    }
+}
+
+void game_write_context_t::write_int16( int16_t v ) {
+    v = LittleShort( v );
+    write_data( &v, sizeof( v ) );
+}
+
+void game_write_context_t::write_int32( int32_t v ) {
+    v = LittleLong( v );
+    write_data( &v, sizeof( v ) );
+}
+
+void game_write_context_t::write_int64( int64_t v ) {
+    v = LittleLongLong( v );
+    write_data( &v, sizeof( v ) );
+}
+
+void game_write_context_t::write_float( float v ) {
+    v = LittleFloat( v );
+    write_data( &v, sizeof( v ) );
+}
+
+void game_write_context_t::write_double( double v ) {
+    v = LittleDouble( v );
+    write_data( &v, sizeof( v ) );
+}
+
+void game_write_context_t::write_string( char *s ) {
+    size_t len;
+
+    if ( !s ) {
+        write_int32( -1 );
+        return;
+    }
+
+    len = strlen( s );
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length", __func__ );
+    }
+    write_int32( len );
+    write_data( s, len );
+}
+
+void game_write_context_t::write_level_qstring( svg_level_qstring_t *qstr ) {
+    if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
+        write_int32( -1 );
+        return;
+    }
+
+    const size_t len = qstr->count;
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    write_int32( len );
+    write_data( qstr->ptr, len * sizeof( char ) );
+    return;
+}
+
+void game_write_context_t::write_game_qstring( svg_game_qstring_t *qstr ) {
+    if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
+        write_int32( -1 );
+        return;
+    }
+
+    const size_t len = qstr->count;
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+
+    write_int32( len );
+    write_data( qstr->ptr, len * sizeof( char ) );
+    return;
+}
+
+/**
+*   @brief  Write level qtag memory block to disk.
+**/
+template<typename T, int32_t tag>
+void game_write_context_t::write_level_qtag_memory( sg_qtag_memory_t<T, tag> *qtagMemory ) {
+    if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->count <= 0 ) {
+        write_int32( -1 );
+        return;
+    }
+
+    const size_t len = qtagMemory->count;
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+    write_int32( len );
+    write_data( qtagMemory->ptr, len * sizeof( T ) );
+    return;
+}
+/**
+*   @brief  Write game qtag memory block to disk.
+**/
+template<typename T, int32_t tag>
+void game_write_context_t::write_game_qtag_memory( sg_qtag_memory_t<T, tag> *qtagMemory ) {
+    if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->count <= 0 ) {
+        write_int32( -1 );
+        return;
+    }
+
+    const size_t len = qtagMemory->count;
+    if ( len >= 65536 ) {
+        gzclose( f );
+        gi.error( "%s: bad length(%d)", __func__, len );
+    }
+    write_int32( len );
+    write_data( qtagMemory->ptr, len * sizeof( T ) );
+    return;
+}
+
+void game_write_context_t::write_vector3( const vec_t *v ) {
+    write_float( v[ 0 ] );
+    write_float( v[ 1 ] );
+    write_float( v[ 2 ] );
+}
+
+void game_write_context_t::write_vector4( const vec_t *v ) {
+    write_float( v[ 0 ] );
+    write_float( v[ 1 ] );
+    write_float( v[ 2 ] );
+    write_float( v[ 3 ] );
+}
+
+void game_write_context_t::write_index( const void *p, size_t size, const void *start, int max_index ) {
+    uintptr_t diff;
+
+    if ( !p ) {
+        write_int32( -1 );
+        return;
+    }
+
+    diff = (uintptr_t)p - (uintptr_t)start;
+    if ( diff > max_index * size ) {
+        gzclose( f );
+        gi.error( "%s: pointer out of range: %p", __func__, p );
+    }
+    if ( diff % size ) {
+        gzclose( f );
+        gi.error( "%s: misaligned pointer: %p", __func__, p );
+    }
+    write_int32( (int32_t)( diff / size ) );
+}
+
+void game_write_context_t::write_pointer( void *p, svg_save_descriptor_funcptr_type_t type, const svg_save_descriptor_field_t *saveField ) {
+    const svg_save_descriptor_funcptr_t *ptr;
+    int i;
+
+    if ( !p ) {
+        write_int32( -1 );
+        return;
+    }
+
+    for ( i = 0, ptr = save_ptrs; i < num_save_ptrs; i++, ptr++ ) {
+        if ( ptr->type == type && ptr->ptr == p ) {
+            write_int32( i );
+            return;
+        }
+    }
+
+    gzclose( f );
+    #if USE_DEBUG
+    gi.error( "%s: unknown pointer for '%s': %p", __func__, saveField->name, p );
+    #else
+    gi.error( "%s: unknown pointer: %p", __func__, p );
+    #endif
+}
+
+void game_write_context_t::write_field( const svg_save_descriptor_field_t *descriptorField, void *base ) {
+    void *p = (byte *)base + descriptorField->offset;
+    int i;
+
+    switch ( descriptorField->type ) {
+    case SD_FIELD_TYPE_BYTE:
+        write_data( p, descriptorField->size );
+        break;
+    case SD_FIELD_TYPE_SHORT:
+        for ( i = 0; i < descriptorField->size; i++ ) {
+            write_int16( ( (int16_t *)p )[ i ] );
+        }
+        break;
+    case SD_FIELD_TYPE_INT32:
+        for ( i = 0; i < descriptorField->size; i++ ) {
+            write_int32( ( (int32_t *)p )[ i ] );
+        }
+        break;
+    case SD_FIELD_TYPE_BOOL:
+        for ( i = 0; i < descriptorField->size; i++ ) {
+            write_int32( ( (bool *)p )[ i ] );
+        }
+        break;
+    case SD_FIELD_TYPE_FLOAT:
+        for ( i = 0; i < descriptorField->size; i++ ) {
+            write_float( ( (float *)p )[ i ] );
+        }
+        break;
+    case SD_FIELD_TYPE_DOUBLE:
+        for ( i = 0; i < descriptorField->size; i++ ) {
+            write_double( ( (double *)p )[ i ] );
+        }
+        break;
+    case SD_FIELD_TYPE_VECTOR3:
+        write_vector3( (vec_t *)p );
+        break;
+    case SD_FIELD_TYPE_VECTOR4:
+        write_vector4( (vec_t *)p );
+        break;
+    case SD_FIELD_TYPE_ZSTRING:
+        write_string( (char *)p );
+        break;
+    case SD_FIELD_TYPE_LSTRING:
+        write_string( *(char **)p );
+        break;
+    case SD_FIELD_TYPE_LEVEL_QSTRING:
+        write_level_qstring( (svg_level_qstring_t *)p );
+        break;
+    case SD_FIELD_TYPE_GAME_QSTRING:
+        write_game_qstring( (svg_game_qstring_t *)p );
+        break;
+    case SD_FIELD_TYPE_LEVEL_QTAG_MEMORY:
+        write_level_qtag_memory<float>( ( ( sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> * )p ) );
+        break;
+    case SD_FIELD_TYPE_GAME_QTAG_MEMORY:
+        write_game_qtag_memory<float>( ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
+        break;
+    case SD_FIELD_TYPE_EDICT:
+        write_int32( g_edict_pool.NumberForEdict( ( *(svg_base_edict_t **)p ) ) );
+        //write_index(f, *(void **)p, sizeof(svg_base_edict_t), g_edicts, MAX_EDICTS - 1);
+        break;
+    case SD_FIELD_TYPE_CLIENT:
+        write_int32( ( *(svg_client_t **)p )->clientNum );
+        //write_index(f, *(void **)p, sizeof(svg_client_t), game.clients, game.maxclients - 1);
+        break;
+    case SD_FIELD_TYPE_ITEM:
+        write_index( *(void **)p, sizeof( gitem_t ), itemlist, game.num_items - 1 );
+        break;
+
+    case SD_FIELD_TYPE_FUNCTION:
+        // WID: C++20: Added cast.
+        write_pointer( *(void **)p, (svg_save_descriptor_funcptr_type_t)descriptorField->flags, descriptorField );
+        break;
+
+    case SD_FIELD_TYPE_FRAMETIME:
+        // WID: We got QMTime, so we need int64 saving for frametime.
+        for ( i = 0; i < descriptorField->size; i++ ) {
+            write_int64( ( (int64_t *)p )[ i ] );
+        }
+        break;
+    case SD_FIELD_TYPE_INT64:
+        for ( i = 0; i < descriptorField->size; i++ ) {
+            write_int64( ( (int64_t *)p )[ i ] );
+        }
+        break;
+
+    default:
+        //#if !defined(_USE_DEBUG)
+        //gi.error( "%s: unknown descriptorField type(%d)", __func__, descriptorField->type );
+        //#else
+        gi.error( "%s: unknown descriptorField type(%d), name(%s)", __func__, descriptorField->type, descriptorField->name );
+        //#endif
+    }
+}
+
+void game_write_context_t::write_fields( const svg_save_descriptor_field_t *descriptorFields, void *base ) {
+    const svg_save_descriptor_field_t *field;
+
+    for ( field = descriptorFields; field->type; field++ ) {
+        write_field( field, base );
+    }
+}
+
+
+
+
+
+
+
 /***
 *
 *
 *
 *
-*   Game Read/Write:
+*   Game(-Locals) Read/Write:
 *
 *
 *
@@ -1343,22 +2063,45 @@ static void check_gzip(int magic)
 #endif
 }
 
-/*
-============
-WriteGame
+/**
+*   @brief Creates a game read context with the specified file and version.
+*   @param f The gzFile object representing the file to read from.
+*   @param version The version of the game data being read.
+*   @return A game_read_context_t object initialized with the provided file and version.
+**/
+static game_read_context_t make_read_context( gzFile f ) {
+    game_read_context_t ctx;
+    ctx.f = f;
+    ctx.save_ptrs = save_ptrs;
+    ctx.num_save_ptrs = num_save_ptrs;
+    return ctx;
+}
+/**
+*   @brief  Used for svg_base_edict_t and derived members.
+*   @param  f The gzFile object representing the file to write to.
+*   @return A game_write_context_t object initialized with the provided file.
+**/
+static game_write_context_t make_write_context( gzFile f ) {
+    game_write_context_t ctx;
+    ctx.f = f;
+    ctx.save_ptrs = save_ptrs;
+    ctx.num_save_ptrs = num_save_ptrs;
+    return ctx;
+}
 
-This will be called whenever the game goes to a new level,
-and when the user explicitly saves the game.
-
-Game information include cross level data, like multi level
-triggers, help computer info, and all client states.
-
-A single player death will automatically restore from the
-last save position.
-============
-*/
-void SVG_WriteGame(const char *filename, qboolean autosave)
-{
+/**
+*   @description    WriteGame
+*
+*   This will be called whenever the game goes to a new level,
+*   and when the user explicitly saves the game.
+*
+*   Game information include cross level data, like multi level
+*   triggers, help computer info, and all client states.
+*
+*   A single player death will automatically restore from the
+*   last save position.
+**/
+void SVG_WriteGame( const char *filename, qboolean autosave ) {
     gzFile  f;
     int     i;
 
@@ -1384,17 +2127,14 @@ void SVG_WriteGame(const char *filename, qboolean autosave)
         gi.error("Couldn't write %s", filename);
 }
 
-static game_read_context_t make_read_context(gzFile f, int version)
-{
-    game_read_context_t ctx;
-    ctx.f = f;
-	ctx.save_ptrs = save_ptrs;
-	ctx.num_save_ptrs = num_save_ptrs;
-    return ctx;
-}
-
-void SVG_ReadGame(const char *filename)
-{
+/**
+*   @brief  Reads a game save file and initializes the game state.
+*   @param  filename The name of the save file to read.
+*   @description    This function reads a save file and initializes the game state.
+*                   It allocates memory for the game state and clients, and reads the game data from the file.
+*                   It also checks the version of the save file and ensures that the game state is valid.
+**/
+void SVG_ReadGame( const char *filename ) {
     gzFile	f;
     int     i;
 
@@ -1404,19 +2144,25 @@ void SVG_ReadGame(const char *filename)
     gi.FreeTags(TAG_SVGAME);
     game = {};
 
+    // ReInitialize the game local's movewith array.
+    game.moveWithEntities = static_cast<game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
+    memset( game.moveWithEntities, 0, sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
+
+	// Open the file.
     f = gzopen(filename, "rb");
-    if (!f)
-        gi.error("Couldn't open %s", filename);
-
+    if ( !f ) {
+        gi.error( "Couldn't open %s", filename );
+    }
+	// Set the buffer size to 64k.
     gzbuffer(f, 65536);
-
+	// Read the magic number.
     i = read_int(f);
     if (i != SAVE_MAGIC1) {
         gzclose(f);
         check_gzip(i);
         gi.error("Not a Q2PRO save game");
     }
-
+	// Read the version number.
     i = read_int(f);
     if ((i != SAVE_VERSION)  && (i != 2)) {
         // Version 2 was written by Q2RTX 1.5.0, and the savegame code was crafted such to allow reading it
@@ -1424,8 +2170,9 @@ void SVG_ReadGame(const char *filename)
         gi.error("Savegame from different version (got %d, expected %d)", i, SAVE_VERSION);
     }
 
-    game_read_context_t ctx = make_read_context(f, i);
-
+	// Create a savegame read context.
+    game_read_context_t ctx = make_read_context(f );
+    // Read in svg_game_locals_t fields.
     read_fields(&ctx, gamefields, &game);
 
     // should agree with server's version
@@ -1479,6 +2226,7 @@ void SVG_ReadGame(const char *filename)
 *
 *
 ***/
+
 /*
 =================
 WriteLevel
@@ -1495,26 +2243,35 @@ void SVG_WriteLevel(const char *filename)
     if (!f)
         gi.error("Couldn't open %s", filename);
 
-    write_int(f, SAVE_MAGIC2);
-    write_int(f, SAVE_VERSION);
+    // Create a savegame write context.
+    game_write_context_t ctx = make_write_context( f );
 
-    // write out level_locals_t
+    ctx.write_int32( SAVE_MAGIC2 );
+    ctx.write_int32( SAVE_VERSION );
+
+    // Write out level_locals_t.
     write_fields(f, levelfields, &level);
 
-    // write out all the entities
+    // Write out all the entities.
     for (i = 0; i < globals.edictPool->num_edicts; i++) {
         ent = g_edict_pool.EdictForNumber( i );
         //ent = &g_edicts[i];
         if ( !ent || !ent->inuse ) {
             continue;
         }
-        write_int(f, i);
-        write_fields(f, entityfields, ent);
+        // Entity number.
+        ctx.write_int32( i );
+        // Rest of entity fields.
+        ent->Save( &ctx );
+        //write_fields(f, entityfields, ent);
     }
+    // End of level data.
     write_int(f, -1);
 
-    if (gzclose(f))
-        gi.error("Couldn't write %s", filename);
+	// Possibly throw an error if the file couldn't be written.
+    if ( gzclose( f ) ) {
+        gi.error( "Couldn't write %s", filename );
+    }
 }
 
 
@@ -1553,6 +2310,9 @@ void SVG_ReadLevel(const char *filename)
 
     gzbuffer(f, 65536);
 
+    // Create read context.
+    game_read_context_t ctx = make_read_context( f );
+
     // Wipe all the entities back to 'baseline'.
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
         #if 0
@@ -1581,6 +2341,7 @@ void SVG_ReadLevel(const char *filename)
             //}
         #endif
     }
+
     g_edict_pool.num_edicts = maxclients->value + 1;
 
     i = read_int(f);
@@ -1597,14 +2358,13 @@ void SVG_ReadLevel(const char *filename)
         gi.error("Savegame from different version (got %d, expected %d)", i, SAVE_VERSION);
     }
 
-    game_read_context_t ctx = make_read_context(f, i);
-
     // load the level locals
     read_fields(&ctx, levelfields, &level);
 
     // load all the entities
     while (1) {
-        entnum = read_int( f );
+        // Read in entity number.
+        entnum = ctx.read_int( );
         if ( entnum == -1 )
             break;
         if ( entnum < 0 || entnum >= game.maxentities ) {
@@ -1619,7 +2379,9 @@ void SVG_ReadLevel(const char *filename)
 		// it matches any of the classnames we have registered for allocation by using the pool.
         ent = g_edict_pool.EdictForNumber( entnum );
 		// WID: TODO: Use the entity's actual class type to retrieve the field offsets from.
-        read_fields(&ctx, entityfields, ent);
+        //read_fields(&ctx, entityfields, ent);
+        ent->Restore( &ctx );
+
         ent->inuse = true;
         ent->s.number = entnum;
 
