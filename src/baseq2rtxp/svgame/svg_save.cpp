@@ -2261,6 +2261,8 @@ void SVG_WriteLevel(const char *filename)
         }
         // Entity number.
         ctx.write_int32( i );
+        // Entity classname.
+        ctx.write_level_qstring( &ent->classname );
         // Rest of entity fields.
         ent->Save( &ctx );
         //write_fields(f, entityfields, ent);
@@ -2374,10 +2376,23 @@ void SVG_ReadLevel(const char *filename)
         if ( entnum >= g_edict_pool.num_edicts ) {
             g_edict_pool.num_edicts = entnum + 1;
         }
+        // Inquire for the classname.
+		svg_level_qstring_t classname;
+        classname = ctx.read_level_qstring();
+
+        // Acquire the typeinfo.
+        // TypeInfo for this entity.
+        EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
+        if ( !typeInfo ) {
+            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+        }
+        // Worldspawn:
+        g_edict_pool.edicts[ entnum ] = ent = typeInfo->allocateEdictInstanceCallback( nullptr );
+        ent->classname = classname;
 
         // WID: TODO: Early load the classname member value and check if
 		// it matches any of the classnames we have registered for allocation by using the pool.
-        ent = g_edict_pool.EdictForNumber( entnum );
+        //ent = g_edict_pool.EdictForNumber( entnum );
 		// WID: TODO: Use the entity's actual class type to retrieve the field offsets from.
         //read_fields(&ctx, entityfields, ent);
         ent->Restore( &ctx );

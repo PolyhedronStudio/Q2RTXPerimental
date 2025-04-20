@@ -705,6 +705,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
         // Get the incremental index entity.
         cm_entity = entities[ i ];
+
         // Call spawn on edicts that got a positive entityID. Worldspawn == entityID(#0).
         if ( entityID == 0 ) {
             // Get the type info for this entity.
@@ -713,6 +714,9 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
             g_edict_pool.edicts[ 0 ] = typeInfo->allocateEdictInstanceCallback( cm_entity );
             // Set the worldspawn entityID.
             g_edict_pool.edicts[ 0 ]->s.number = 0;
+            // Don't forget to increment num_edicts. Do so before spawning, since the worldspawn
+            // will actually pre-allocate entities for the dead client player's body queue.
+            g_edict_pool.num_edicts++;
             // Spawn the worldspawn entity.
             g_edict_pool.edicts[ 0 ]->Spawn();
             // Continue to next entity.
@@ -766,9 +770,9 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         const cm_entity_t *kv = cm_entity;
         while ( kv ) {
             // For possible Key/Value errors/warnings.
-            std::string errorStr;
+            std::string errorStr = "";
             // Give the edict a chance to process and assign spawn key/value.
-            spawnEdict->KeyValue( kv, errorStr );
+            const bool processedKv = spawnEdict->KeyValue( kv, errorStr );
             // Print errorStr.
 			if ( !errorStr.empty() ) {
                 // Print the error string.
