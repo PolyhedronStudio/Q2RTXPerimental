@@ -68,7 +68,7 @@ struct sv_shared_edict_t {
     /**
 	*   Reconstructs the object, optionally retaining the entityDictionary.
     **/
-	virtual void Reset( bool retainDictionary = false ) {
+	virtual void Reset( const bool retainDictionary = false ) {
         //! Entity state.
         entity_state_t  s = {};
         //! NULL if not a player the server expects the first part

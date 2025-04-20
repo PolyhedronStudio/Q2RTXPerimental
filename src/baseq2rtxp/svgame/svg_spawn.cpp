@@ -462,7 +462,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
 *   @brief  Allocates in Tag(TAG_SVGAME_LEVEL) a proper string for string entity fields.
 *           The string itself is freed at disconnecting/map changes causing TAG_SVGAME_LEVEL memory to be cleared.
 **/
-static char *ED_NewString(const char *string)
+char *ED_NewString(const char *string)
 {
     char    *newb, *new_p;
     int     i, l;
@@ -600,6 +600,235 @@ static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *k
     }
 }
 
+/*
+Goal:
+    - Implement an TypeInfo system for use with svg_base_edict_t and derived entities.
+    - When the game loads a new map and SVG_SpawnEntities is called, we want to be able
+	to allocate the appropriate type of entity based on the classname cm_entity_t key/value pair.
+    The appropriate entity type to allocate is determined by looking into the TypeInfo system
+	for a cm_entity_t's classname key matching the allocator function to use.
+    - After that we want to reiterate the cm_entity_t key/value pairs and pass them to the edict's
+	SpawnKey function. This allows us to set the edict's fields based on the cm_entity_t key/value pairs.
+*/
+
+#if 1
+/**
+*   @brief  Loads in the map name and iterates over the collision model's parsed key/value
+*           pairs in order to spawn entities appropriately matching the pair dictionary fields
+*           of each entity.
+**/
+void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities ) {
+    // Acquire the 'skill' level cvar value in order to exlude various entities for various
+    // skill levels.
+    float skill_level = floor( skill->value );
+    skill_level = std::clamp( skill_level, 0.f, 3.f );
+
+    // If it is an out of bounds cvar, force set skill level within the clamped bounds.
+    if ( skill->value != skill_level ) {
+        gi.cvar_forceset( "skill", va( "%f", skill_level ) );
+    }
+
+    // If we were running a previous session, make sure to save the session's client data before cleaning all level memory.
+    SVG_Player_SaveClientData();
+
+    // Free up all SVGAME_LEVEL tag memory.
+    gi.FreeTags( TAG_SVGAME_LEVEL );
+
+    // Zero out all level struct data.
+    level = {};
+
+    if ( g_edicts[ 0 ] ) {
+        // Reset all entities to 'baseline'.
+        for ( int32_t i = 0; i < game.maxentities; i++ ) {
+            if ( g_edicts[ i ] ) {
+                // Store original number.
+                const int32_t number = g_edicts[ i ]->s.number;
+                // Zero out.
+                //*g_edicts[ i ] = { }; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
+                // Reset the entity to base state.
+                g_edicts[ i ]->Reset( g_edicts[ i ]->entityDictionary );
+                // Retain the entity's original number.
+                g_edicts[ i ]->s.number = number;
+            }
+        }
+    }
+    // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
+    //g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
+    // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
+    //g_edict_pool.num_edicts = game.maxclients + 1;
+
+    // Initialize a fresh clients array.
+    //game.clients = SVG_Clients_Reallocate( game.maxclients );
+
+    // Copy over the mapname and the spawn point. (Optionally set by appending a map name with a $spawntarget)
+    Q_strlcpy( level.mapname, mapname, sizeof( level.mapname ) );
+    Q_strlcpy( game.spawnpoint, spawnpoint, sizeof( game.spawnpoint ) );
+
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+        ent->client = &game.clients[ i ];
+
+        // Assign client number.
+        ent->client->clientNum = i;
+
+        // Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
+    }
+
+    //! Keep score of the total 'inhibited' entities. (Those that got removed for distinct reasons.)
+    int32_t numInhibitedEntities = 0;
+
+    // Keep track of the internal entityID.
+    int32_t entityID = 0;
+
+    // Pointer to the first key/value pair entry of a collision model's entities.
+    const cm_entity_t *cm_entity = nullptr;
+
+    // Pointer to the most recent allocated edict to spawn.
+    svg_base_edict_t *spawnEdict = nullptr;
+
+    // Iterate over the number of collision model entity entries.
+    for ( size_t i = 0; i < numEntities; i++ ) {
+        // For each entity we clear the temporary spawn fields.
+        memset( &st, 0, sizeof( spawn_temp_t ) );
+
+        // Pointer to the worldspawn edict in first instance, after that the first free entity
+        // we can acquire.
+        //spawnEdict = ( !spawnEdict ? g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ : g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>() );
+
+        // TypeInfo for this entity.
+        EdictTypeInfo *typeInfo = nullptr;
+
+        // Get the incremental index entity.
+        cm_entity = entities[ i ];
+        // Call spawn on edicts that got a positive entityID. Worldspawn == entityID(#0).
+        if ( entityID == 0 ) {
+            // Get the type info for this entity.
+            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "worldspawn" );
+            // Worldspawn:
+            g_edict_pool.edicts[ 0 ] = typeInfo->allocateEdictInstanceCallback( cm_entity );
+            // Set the worldspawn entityID.
+            g_edict_pool.edicts[ 0 ]->s.number = 0;
+            // Spawn the worldspawn entity.
+            g_edict_pool.edicts[ 0 ]->Spawn();
+            // Continue to next entity.
+            entityID++;
+            continue;
+        }
+
+        // First seek out its classname so we can get the TypeInfo needed to allocate the proper svg_base_edict_t derivative.
+        const cm_entity_t *classnameKv = cm_entity;
+
+        while ( classnameKv ) {
+            // If we have a matching key, then we can spawn the entity.
+            if ( strcmp( classnameKv->key, "classname" ) == 0 ) {
+                // Get the type info for this entity.
+                typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classnameKv->string );
+				// If we can't find its classname linked in the TypeInfo list, we'll resort to the default
+				// svg_base_edict_t type instead.
+                // If we don't have a type info, then we can't spawn it.
+                if ( !typeInfo ) {
+                    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+                    gi.dprintf( "No type info for entity(%s)!\n", classnameKv->string );
+                }
+                // Allocate the edict instance.
+                if ( typeInfo ) {
+                    spawnEdict = typeInfo->allocateEdictInstanceCallback( cm_entity );
+                // This should never happen, but still.
+                } else {
+                    spawnEdict = nullptr;
+                    gi.dprintf( "No failed to find TypeInfo for \"svg_base_edict_t\", entity(% s)!\n", classnameKv->string );
+                }
+                break;
+            }
+            // If the key is not 'classname', then we need to keep looking for it.
+            // Seek out the next key/value pair for one that has the matching key 'classname'.
+            classnameKv = classnameKv->next;
+        };
+
+        // If classnameKv == nullptr we never found any. Error out.
+        if ( classnameKv == nullptr ) {
+			gi.error( "%s: %s: No classname key/value pair found for entity(%d)!\n", __func__, mapname, i );
+			return;
+        }
+		// If we don't have a spawn edict, then we can't spawn it.
+        if ( !spawnEdict ) {
+            numInhibitedEntities++;
+			gi.dprintf( "%s: %s: No spawn edict found for entity(%d)!\n", __func__, mapname, i );
+			continue;
+        }
+
+        // Iterate and process the remaining key/values now that we allocated the entity type class instance.
+        const cm_entity_t *kv = cm_entity;
+        while ( kv ) {
+            // For possible Key/Value errors/warnings.
+            std::string errorStr;
+            // Give the edict a chance to process and assign spawn key/value.
+            spawnEdict->KeyValue( kv, errorStr );
+            // Print errorStr.
+			if ( !errorStr.empty() ) {
+                // Print the error string.
+                gi.dprintf( "%s: KeyValue error. classname(%s) error: %s\n", __func__, spawnEdict->classname, errorStr.c_str() );
+			}
+            // Get the next key/value pair of this entity.
+            kv = kv->next;
+        }
+
+        // Emplace the spawned edict in the next avaible edict slot.
+        g_edict_pool.EmplaceNextFreeEdict( spawnEdict );
+		// Set the entityID.
+        spawnEdict->Spawn();
+
+        // Increment entityID.
+        entityID++;
+    }
+
+    // Give entities a chance to 'post spawn'.
+    int32_t numPostSpawnedEntities = 0;
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+
+        if ( ent && ent->postspawn ) {
+            ent->postspawn( ent );
+            numPostSpawnedEntities++;
+        }
+    }
+
+    // Developer print the inhibited entities.
+    gi.dprintf( "%i entities inhibited\n", numInhibitedEntities );
+    // Developer print the post spawned entities.
+    gi.dprintf( "%i entities post spawned\n", numPostSpawnedEntities );
+
+    #ifdef DEBUG
+    i = 1;
+    ent = EDICT_FOR_NUMBER( i );
+    while ( i < globals.edictPool.num_edicts ) {
+        if ( ent->inuse != 0 || ent->inuse != 1 )
+            Com_DPrintf( "Invalid entity %d\n", i );
+        i++, ent++;
+    }
+    #endif
+
+    // Find entity 'teams', NOTE: these are not actual player game teams.
+    SVG_FindTeams();
+
+    // Find all entities that are following a parent's movement.
+    SVG_MoveWith_FindParentTargetEntities();
+
+    // Initialize player trail.
+    PlayerTrail_Init();
+
+    // Load up and initialize the LUA map script. (If any.)
+    SVG_Lua_LoadMapScript( mapname );
+
+    // Give Lua a chance to precache media.
+    SVG_Lua_CallBack_OnPrecacheMedia();
+}
+#else
 /**
 *   @brief  Loads in the map name and iterates over the collision model's parsed key/value
 *           pairs in order to spawn entities appropriately matching the pair dictionary fields
@@ -694,6 +923,31 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         // DEBUG: Open brace for this entity we're parsing.
         #ifdef DEBUG_ENTITY_SPAWN_PROCESS
         gi.dprintf( "Entity(#%i) {\n", entityID );
+        #endif
+
+        #if 0
+		// First seek out its classname so we can get the TypeInfo needed to allocate the proper svg_base_edict_t derivative.
+        const cm_entity_t *classnameKv = cm_entity;
+        while ( classnameKv ) {
+            // If we have a matching key, then we can spawn the entity.
+            if ( strcmp( classnameKv->key, "classname" ) == 0 ) {
+                // Get the type info for this entity.
+                EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classnameKv->string );
+                // If we don't have a type info, then we can't spawn it.
+                if ( !typeInfo ) {
+                    //gi.dprintf( "No type info for entity(%s)!\n", classnameKv->string );
+                    //numInhibitedEntities++;
+                    //continue;
+                } else {
+                    // Allocate the edict instance.
+                    spawnEdict = typeInfo->allocateEdictInstanceCallback( cm_entity );
+                }
+                break;
+            }
+            // If the key is not 'classname', then we need to keep looking for it.
+            // Seek out the next key/value pair for one that has the matching key 'classname'.
+            classnameKv = classnameKv->next;
+        };
         #endif
 
         // Get the first key value.
@@ -870,7 +1124,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Give Lua a chance to precache media.
     SVG_Lua_CallBack_OnPrecacheMedia();
 }
-
+#endif // #if 0
 
 //===================================================================
 

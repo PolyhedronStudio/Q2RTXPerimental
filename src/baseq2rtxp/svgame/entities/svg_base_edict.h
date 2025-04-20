@@ -10,6 +10,9 @@
 
 
 
+//! Include the TypeInfo system for linking a classname onto a C++ class type derived svg_edict_base_t.
+#include "svgame/entities/typeinfo/svg_edict_typeinfo.h"
+
 /**
 *   @brief  edict->spawnflags T
 *           These are set with checkboxes on each entity in the map editor.
@@ -125,6 +128,9 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
     svg_base_edict_t( const cm_entity_t *ed ) : sv_shared_edict_t< svg_base_edict_t, svg_client_t >( ed ) {};
 
+    // The root class of inheritance based game entity typeinfo inheritance.
+    DefineTopRootClass( "svg_base_edict_t", svg_base_edict_t, sv_shared_edict_t, EdictTypeInfo::TypeInfoFlag_GameSpawn );
+
 
     /**
     * 
@@ -164,40 +170,6 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         // Debug about the failure to allocate
         gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
 	}
-    // WID: Need these?
-    #if 0
-	//! New Operator Overload.
-	void *operator new[]( size_t size ) {
-        // Prevent possible malloc from succeeding if size is 0.
-        if ( size == 0 ) {
-            size = 1;
-        }
-        // Allocate.
-        if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
-            // Debug about the allocation.
-            gi.dprintf( "%s: Allocating %d bytes.\n", __func__, size );
-            // Return the pointer.
-            return ptr;
-        }
-        // Debug about the failure to allocate
-        gi.dprintf( "%s: Failed allocating %d bytes\n", __func__, size );
-        // Throw an exception.
-        //throw std::bad_alloc( "Failed to allocate memory" );
-        return nullptr;
-	}
-	//! Delete Operator Overload.
-	void operator delete[]( void *ptr ) {
-        if ( ptr != nullptr ) {
-            // Debug about deallocation.
-            gi.dprintf( "%s: Freeing %p\n", __func__, ptr );
-            // Deallocate.
-            gi.TagFree( ptr ); // TagAllocator::Z_TagFree( ptr );
-            return;
-        }
-        // Debug about the failure to allocate
-        gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
-	}
-    #endif
 
 
 
@@ -209,13 +181,19 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *
     **/
     /**
+    *   @brief
+    **/
+    virtual void Spawn();
+
+    /**
 	*   Reconstructs the object, zero-ing out its members, and optionally 
 	*   retaining the entityDictionary. 
     * 
 	*   Sometimes we want to keep the entityDictionary intact so we can 
     *   spawn from it. (This is used for saving/loading.)
     **/
-    virtual void Reset( bool retainDictionary = false ) override;
+    virtual void Reset( const bool retainDictionary = false ) override;
+
     /**
 	*   @brief  Used for savegaming the entity. Each derived entity type
 	*           that needs to be saved should implement this function.
@@ -230,6 +208,14 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   @note   Make sure to call the base parent class' Restore() function.
     **/
     virtual void Restore( struct game_read_context_t *ctx );
+
+    /**
+    *   @brief  Called for each cm_entity_t key/value pair for this entity.
+    *           If not handled, or unable to be handled by the derived entity type, it will return
+    *           set errorStr and return false. True otherwise.
+    **/
+    virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr );
+
 
 
     /**

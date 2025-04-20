@@ -9,7 +9,14 @@
 #pragma once
 
 
+// Needed for save descriptor fields and functions.
 #include "svgame/svg_save.h"
+
+// Needed for inheritance.
+#include "svgame/entities/svg_base_edict.h"
+
+// Forward declare.
+typedef struct cm_entity_s cm_entity_t;
 
 /**
 *
@@ -21,15 +28,17 @@
 // This inherits from:
 //
 //struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_t>
-struct svg_player_edict_t : public svg_base_edict_t {
+struct svg_classtest_edict_t : public svg_base_edict_t {
     //! Constructor. 
-    svg_player_edict_t() = default;
+    svg_classtest_edict_t() = default;
     //! Destructor.
-    virtual ~svg_player_edict_t() = default;
+    virtual ~svg_classtest_edict_t() = default;
 
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_player_edict_t( const cm_entity_t *ed ) : svg_base_edict_t( ed ) { };
+    svg_classtest_edict_t( const cm_entity_t *ed ) : svg_base_edict_t( ed ) { };
 
+	// Define the class type info for this entity type.
+    DefineWorldSpawnClass( "classtest", svg_classtest_edict_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn );
 
 
     /**

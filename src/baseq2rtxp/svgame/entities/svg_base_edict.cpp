@@ -10,16 +10,6 @@
 
 #include "sharedgame/sg_usetarget_hints.h"
 
-#if USE_ZLIB
-#include <zlib.h>
-#else
-#define gzopen(name, mode)          fopen(name, mode)
-#define gzclose(file)               fclose(file)
-#define gzwrite(file, buf, len)     fwrite(buf, 1, len, file)
-#define gzread(file, buf, len)      fread(buf, 1, len, file)
-#define gzbuffer(file, size)        (void)0
-#define gzFile                      FILE *
-#endif
 
 
 /**
@@ -387,9 +377,15 @@ svg_save_descriptor_field_t *svg_base_edict_t::GetSaveDescriptorField( const cha
 *
 **/
 /**
+*   @brief
+**/
+void svg_base_edict_t::Spawn() {
+
+}
+/**
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
-void svg_base_edict_t::Reset( bool retainDictionary ) {
+void svg_base_edict_t::Reset( const bool retainDictionary ) {
     // Call upon the base class.
     sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Reset( retainDictionary );
 
@@ -521,5 +517,186 @@ void svg_base_edict_t::Save( struct game_write_context_t *ctx ) {
 *   @note   Make sure to call the base parent class' Restore() function.
 **/
 void svg_base_edict_t::Restore( struct game_read_context_t *ctx ) {
+    // Call upon the base class.
+	//sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
+    // Read all the members of this entity type.
     ctx->read_fields( svg_base_edict_t::saveDescriptorFields, this );
+}
+
+/**
+*   @brief  Called for each cm_entity_t key/value pair for this entity.
+*           If not handled, or unable to be handled by the derived entity type, it will return
+*           set errorStr and return false. True otherwise.
+**/
+const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
+    // Ease of use.
+    const std::string keyStr = keyValuePair->key;
+
+    // Match: classname
+    if ( keyStr == "classname" ) {
+        // It is already set before during construction of this entity.
+        // We return true however since we don't want it complaining.
+        //classname = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: model
+    else if ( keyStr == "model" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        model = ED_NewString( keyValuePair->string );
+        return true;
+    }
+    // Match: spawnflags
+    else if ( keyStr == "spawnflags" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        spawnflags = keyValuePair->integer;
+
+        return true;
+    }
+    // Match: speed
+    else if ( keyStr == "speed" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        speed = keyValuePair->value;
+        return true;
+    }
+    // Match: accel
+    else if ( keyStr == "accel" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        accel = keyValuePair->value;
+        return true;
+    }
+    // Match: speed
+    else if ( keyStr == "decel" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        decel = keyValuePair->value;
+        return true;
+    }
+    // Match: target
+    else if ( keyStr == "target" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        targetNames.target = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: targetname
+    else if ( keyStr == "targetname" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        targetname = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: path
+    else if ( keyStr == "path" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        targetNames.path = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: death
+    else if ( keyStr == "death" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        targetNames.target = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: kill
+    else if ( keyStr == "kill" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        targetNames.kill = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: message
+    else if ( keyStr == "message" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        message = ED_NewString( keyValuePair->string );
+        return true;
+    }
+    // Match: team
+    else if ( keyStr == "team" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        targetNames.team = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: wait
+    else if ( keyStr == "wait" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        wait = keyValuePair->value;
+        return true;
+    }
+    // Match: delay
+    else if ( keyStr == "delay" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        delay = keyValuePair->value;
+        return true;
+    }
+    // Match: random
+    else if ( keyStr == "random" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        random = keyValuePair->value;
+        return true;
+    }
+    // Match: move_origin
+    else if ( keyStr == "move_origin" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
+        move_origin = keyValuePair->vec3;
+        return true;
+    }
+    // Match: move_angles
+    else if ( keyStr == "move_angles" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
+        move_angles = keyValuePair->vec3;
+        return true;
+    }
+    // Match: style
+    else if ( keyStr == "style" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        style = keyValuePair->integer;
+        return true;
+    }
+    // Match: count
+    else if ( keyStr == "count" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        count = keyValuePair->integer;
+        return true;
+    }
+    // Match: maxhealth
+    else if ( keyStr == "maxhealth" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        max_health = keyValuePair->integer;
+        return true;
+    }
+    // Match: health
+    else if ( keyStr == "health" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        health = keyValuePair->integer;
+        return true;
+    }
+    // Match: sounds
+    else if ( keyStr == "sounds" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        sounds = keyValuePair->integer;
+        return true;
+    }
+    // Match: light
+    else if ( keyStr == "light" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        light = keyValuePair->value;
+        return true;
+    }
+    // Match: dmg
+    else if ( keyStr == "dmg" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        dmg = keyValuePair->integer;
+        return true;
+    }
+    // Match: mass
+    else if ( keyStr == "mass" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        mass = keyValuePair->integer;
+        return true;
+    }
+    // Match: volume
+    else if ( keyStr == "volume" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        volume = keyValuePair->value;
+        return true;
+    }
+    // Match: attenuation
+    else if ( keyStr == "attenuation" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        attenuation = keyValuePair->value;
+        return true;
+    }
+    // Match: map
+    else if ( keyStr == "map" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        map = ED_NewString( keyValuePair->string );
+        return true;
+    }
+    // Match: origin
+    else if ( keyStr == "origin" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
+        VectorCopy( keyValuePair->vec3, s.origin );
+        return true;
+    }
+    // Match: angles
+    else if ( keyStr == "angles" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
+        VectorCopy( keyValuePair->vec3, s.angles );
+        return true;
+    }
+    // Match: attenuation
+    else if ( keyStr == "angle" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        s.angles[ 0 ] = 0.f;
+        s.angles[ 1 ] = keyValuePair->value;
+        s.angles[ 2 ] = 0.f;
+        return true;
+    }
+
+    return false;
 }

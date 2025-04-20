@@ -207,9 +207,9 @@ void SVG_Player_SelectSpawnPoint( svg_base_edict_t *ent, Vector3 &origin, Vector
         // Iterate for info_player_start that matches the game.spawnpoint targetname to spawn at..
         while ( ( spot = SVG_Entities_Find( spot, FOFS_GENTITY( classname ), "info_player_start" ) ) != NULL ) {
             // Break out if the string data is invalid.
-            if ( !game.spawnpoint[ 0 ] && !spot->targetname )
+            if ( !game.spawnpoint[ 0 ] && !(const char *)spot->targetname )
                 break;
-            if ( !game.spawnpoint[ 0 ] || !spot->targetname )
+            if ( !game.spawnpoint[ 0 ] || !(const char *)spot->targetname )
                 continue;
 
             // Break out in case we found the game.spawnpoint matching info_player_start 'targetname'.

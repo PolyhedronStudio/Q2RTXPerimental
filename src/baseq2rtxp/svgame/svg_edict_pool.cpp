@@ -124,6 +124,87 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
 	ed->spawn_count = spawnCount;
 }
 
+/**
+*   @brief  Either finds a free edict, or allocates a new one.
+*   @remark This function tries to avoid reusing an entity that was recently freed,
+*           because it can cause the client to think the entity morphed into something
+*           else instead of being removed and recreated, which can cause interpolated
+*           angles and bad trails.
+**/
+svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent ) {
+	svg_base_edict_t *entity = nullptr;
+	svg_base_edict_t *freedEntity = nullptr;
+
+	// Start after the client slots.
+	int32_t i = game.maxclients + 1;
+
+	entity = EdictForNumber( i );
+
+	// Iterate and seek.
+	for ( i; i < num_edicts; i++ ) {
+		entity = EdictForNumber( i );
+
+		// the first couple seconds of server time can involve a lot of
+		// freeing and allocating, so relax the replacement policy
+		if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
+			//_InitEdict<EdictType>( entity, i );
+			// Restore the actual number.
+			ent->s.number = num_edicts;
+			// Make sure it is set to 'inuse'.
+			ent->inuse = true;
+			// Free the old entity.
+			SVG_FreeEdict( entity );
+			// Initialize the new one.
+			edicts[ i ] = ent;
+			// Return its ptr.
+			return /*static_cast<EdictType *>*/( edicts[ i ] );
+		}
+
+		// this is going to be our second chance to spawn an entity in case all free
+		// entities have been freed only recently
+		if ( !freedEntity ) {
+			freedEntity = entity;
+		}
+	}
+
+	// If we reached the maximum number of entities.
+	if ( i == game.maxentities ) {
+		// If we have a freed entity, use it.
+		if ( freedEntity ) {
+			//_InitEdict<EdictType>( entity, i );
+	// Restore the actual number.
+			ent->s.number = i;
+			// Make sure it is set to 'inuse'.
+			ent->inuse = true;
+			// Free the old entity.
+			SVG_FreeEdict( freedEntity );
+			// Initialize the new one.
+			edicts[ i ] = ent;
+			// Return its ptr.
+			return /*static_cast<EdictType *>*/( edicts[ i ] );
+		}
+		// If we don't have any free edicts, error out.
+		gi.error( "SVG_AllocateEdict: no free edicts" );
+	}
+
+	// Initialize it.
+	//InitEdict<EdictType>( entity, num_edicts );
+			// Free the old entity.
+	// 
+	//SVG_FreeEdict( entity );
+
+	// Initialize the new one.
+	edicts[ num_edicts ] = ent;
+	// Restore the actual number.
+	ent->s.number = num_edicts;
+	// Make sure it is set to 'inuse'.
+	ent->inuse = true;
+	// If we have free edicts left to go, use those instead.
+	num_edicts++;
+
+	return ent; //static_cast<EdictType *>( entity );
+}
+
 
 
 /**

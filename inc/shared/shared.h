@@ -197,14 +197,30 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 //! Maximum clients char array name size.
 #define MAX_CLIENT_NAME     16
 
+/**
+*   Reserved client numbers.
+**/
 //! Client number for 'none'.
 #define CLIENTNUM_NONE        (MAX_CLIENTS - 1)
 #define CLIENTNUM_RESERVED    (MAX_CLIENTS - 1)
 
+/**
+*   Reserved entity numbers.
+**/
 //! Entity number for 'none'.
 #define ENTITYNUM_NONE      ( -1 )
 //! Entity number for 'World'.
 #define ENTITYNUM_WORLD     ( 0 )
+
+/**
+*   Reserved model handle indices.
+**/
+//! None
+#define MODELINDEX_NONE			( 0 )
+//! Player model.
+#define MODELINDEX_PLAYER		( MAX_MODELS_OLD - 1 ) // 255
+//! Worldspawn world model.
+#define MODELINDEX_WORLDSPAWN	( 1 )
 
 /**
 *   Math Library:
@@ -382,6 +398,7 @@ typedef enum {
 *	Player Movement:
 **/
 #include "shared/player_move.h"
+
 
 /**
 *   Tag Memory Allocation Zones:

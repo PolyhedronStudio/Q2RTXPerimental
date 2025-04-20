@@ -29,9 +29,8 @@
 #define CS_ITEMS            (CS_LIGHTS+MAX_LIGHTSTYLES)
 #define CS_PLAYERSKINS      (CS_ITEMS+MAX_ITEMS)
 #define CS_GENERAL          (CS_PLAYERSKINS+MAX_CLIENTS)
-#define MAX_CONFIGSTRINGS   (CS_GENERAL+MAX_GENERAL)
 
-#define MODELINDEX_PLAYER	(MAX_MODELS_OLD - 1)
+#define MAX_CONFIGSTRINGS   (CS_GENERAL+MAX_GENERAL)
 
 // Some mods actually exploit CS_STATUSBAR to take space up to CS_AIRACCEL
 static inline int32_t CS_SIZE( int32_t cs ) {

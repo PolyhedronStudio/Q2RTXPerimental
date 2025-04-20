@@ -429,6 +429,12 @@ struct mm_liquid_info_t {
 //! Extern access.
 extern svg_base_edict_t **g_edicts;
 extern svg_edict_pool_t g_edict_pool;
+// TODO: Move elsewhere.
+/**
+*   @brief  Allocates in Tag(TAG_SVGAME_LEVEL) a proper string for string entity fields.
+*           The string itself is freed at disconnecting/map changes causing TAG_SVGAME_LEVEL memory to be cleared.
+**/
+char *ED_NewString( const char *string );
 
 
 

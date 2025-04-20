@@ -44,6 +44,14 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     *           else instead of being removed and recreated, which can cause interpolated
     *           angles and bad trails.
     **/
+    svg_base_edict_t *EmplaceNextFreeEdict( svg_base_edict_t *ent );
+    /**
+    *   @brief  Either finds a free edict, or allocates a new one.
+    *   @remark This function tries to avoid reusing an entity that was recently freed, 
+    *           because it can cause the client to think the entity morphed into something 
+    *           else instead of being removed and recreated, which can cause interpolated
+    *           angles and bad trails.
+    **/
     template<typename EdictType>
     EdictType *AllocateNextFreeEdict( ) {
         svg_base_edict_t *entity = nullptr;
@@ -60,7 +68,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
             // the first couple seconds of server time can involve a lot of
             // freeing and allocating, so relax the replacement policy
             if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-                _InitEdict<EdictType *>( entity, i );
+                _InitEdict<EdictType>( entity, i );
                 return static_cast<EdictType *>( entity );
             }
 
@@ -76,7 +84,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
             // If we have a freed entity, use it.
             if ( freedEntity ) {
                 // Initialize it.
-                _InitEdict<EdictType *>( freedEntity, i );
+                _InitEdict<EdictType>( freedEntity, i );
                 // Return it.
                 return static_cast<EdictType *>( freedEntity );
             }
@@ -85,7 +93,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         }
 
         // Initialize it.
-        _InitEdict<EdictType *>( entity, num_edicts );
+        _InitEdict<EdictType>( entity, num_edicts );
         // If we have free edicts left to go, use those instead.
         num_edicts++;
 
@@ -100,7 +108,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     *   @brief  Support routine for AllocateNextFreeEdict.
     **/
     template<class EdictType>
-    inline void _InitEdict( EdictType ed, const int32_t stateNumber ) {
+    inline void _InitEdict( EdictType *ed, const int32_t stateNumber ) {
         ed->inuse = true;
         ed->classname = "noclass";
         ed->gravity = 1.0f;

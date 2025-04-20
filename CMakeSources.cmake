@@ -355,7 +355,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.cpp
 
 	baseq2rtxp/svgame/entities/svg_base_edict.cpp
-	baseq2rtxp/svgame/entities/svg_player_edict.cpp
+	baseq2rtxp/svgame/entities/svg_ed_classtest.cpp
+	baseq2rtxp/svgame/entities/svg_ed_player.cpp
+	baseq2rtxp/svgame/entities/svg_ed_worldspawn.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
 	baseq2rtxp/svgame/lua/svg_lua_corelib.cpp
@@ -434,7 +436,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_water.h
 	baseq2rtxp/svgame/entities/func/svg_func_entities.h
 
-	#baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.h
+	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy.h
 	
 	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.h
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.h
@@ -454,8 +456,12 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_push.h
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.h
 
+	baseq2rtxp/svgame/entities/typeinfo/svg_edict_typeinfo.h
+
 	baseq2rtxp/svgame/entities/svg_base_edict.h
-	baseq2rtxp/svgame/entities/svg_player_edict.h
+	baseq2rtxp/svgame/entities/svg_ed_classtest.h
+	baseq2rtxp/svgame/entities/svg_ed_player.h
+	baseq2rtxp/svgame/entities/svg_ed_worldspawn.h
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h
 
 	baseq2rtxp/svgame/player/svg_player_client.h
