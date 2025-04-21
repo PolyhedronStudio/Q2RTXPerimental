@@ -39,9 +39,6 @@ struct svg_player_edict_t : public svg_base_edict_t {
     *
     *
     **/
-    //! Custom player edict save descriptor field set.
-    static svg_save_descriptor_field_t saveDescriptorFields[];
-
     //! Declare the save descriptor field handling function implementations.
     SVG_SAVE_DESCRIPTOR_FIELDS_DECLARE_IMPLEMENTATION();
 

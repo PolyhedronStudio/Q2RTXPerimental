@@ -637,18 +637,33 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Zero out all level struct data.
     level = {};
 
+    // Store cm_entity_t pointer.
+    level.cm_entities = entities;
+
     if ( g_edicts[ 0 ] ) {
         // Reset all entities to 'baseline'.
         for ( int32_t i = 0; i < game.maxentities; i++ ) {
             if ( g_edicts[ i ] ) {
                 // Store original number.
                 const int32_t number = g_edicts[ i ]->s.number;
+
+                // cm_entity_t
+                const cm_entity_t *cm_entity = g_edicts[ i ]->entityDictionary;
+				// Has a cm?
+                const bool has_cm_entity = ( cm_entity != nullptr && cm_entity != gi.CM_GetNullEntity() );
+				// Store original cm_entity_id.
+                const int32_t cm_entity_id = ( has_cm_entity ? gi.CM_EntityNumber( cm_entity ) : -1 );
                 // Zero out.
                 //*g_edicts[ i ] = { }; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
                 // Reset the entity to base state.
-                g_edicts[ i ]->Reset( g_edicts[ i ]->entityDictionary );
+                g_edicts[ i ]->Reset( ( has_cm_entity ? g_edicts[ i ]->entityDictionary : nullptr ) );
                 // Retain the entity's original number.
                 g_edicts[ i ]->s.number = number;
+
+				// Retain the entity's original cm_entity_t
+                if ( cm_entity_id >= 0 ) {
+                    g_edicts[ i ]->entityDictionary = level.cm_entities[ cm_entity_id ];
+                }
             }
         }
     }
@@ -725,40 +740,38 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         }
 
         // First seek out its classname so we can get the TypeInfo needed to allocate the proper svg_base_edict_t derivative.
-        const cm_entity_t *classnameKv = cm_entity;
+        const cm_entity_t *classnameKv = gi.CM_EntityKeyValue( cm_entity, "classname" );
+        if ( classnameKv != nullptr && classnameKv != gi.CM_GetNullEntity() ) {
+			// If we have a classname, then we can look up the type info for this entity.
+			if ( !classnameKv->string ) {
+				gi.dprintf( "%s: %s: No classname value for key/pair found in cm_entity_t(%d)!\n", __func__, mapname, i );
+				return;
+			}
 
-        while ( classnameKv ) {
-            // If we have a matching key, then we can spawn the entity.
-            if ( strcmp( classnameKv->key, "classname" ) == 0 ) {
-                // Get the type info for this entity.
-                typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classnameKv->string );
-				// If we can't find its classname linked in the TypeInfo list, we'll resort to the default
-				// svg_base_edict_t type instead.
-                // If we don't have a type info, then we can't spawn it.
-                if ( !typeInfo ) {
-                    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
-                    gi.dprintf( "No type info for entity(%s)!\n", classnameKv->string );
-                }
-                // Allocate the edict instance.
-                if ( typeInfo ) {
-                    spawnEdict = typeInfo->allocateEdictInstanceCallback( cm_entity );
-                // This should never happen, but still.
-                } else {
-                    spawnEdict = nullptr;
-                    gi.dprintf( "No failed to find TypeInfo for \"svg_base_edict_t\", entity(% s)!\n", classnameKv->string );
-                }
-                break;
+            // Get the type info for this entity.
+            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classnameKv->string );
+			// If we can't find its classname linked in the TypeInfo list, we'll resort to the default
+			// svg_base_edict_t type instead.
+            // If we don't have a type info, then we can't spawn it.
+            if ( !typeInfo ) {
+                typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+                gi.bprintf( PRINT_WARNING, "No type info for entity(%s), restorting to svg_base_edict_T!\n", classnameKv->string );
             }
-            // If the key is not 'classname', then we need to keep looking for it.
-            // Seek out the next key/value pair for one that has the matching key 'classname'.
-            classnameKv = classnameKv->next;
-        };
-
-        // If classnameKv == nullptr we never found any. Error out.
-        if ( classnameKv == nullptr ) {
-			gi.error( "%s: %s: No classname key/value pair found for entity(%d)!\n", __func__, mapname, i );
-			return;
+            // Allocate the edict instance.
+            if ( typeInfo ) {
+                spawnEdict = typeInfo->allocateEdictInstanceCallback( cm_entity );
+            // This should never happen, but still.
+            } else {
+                spawnEdict = nullptr;
+                gi.error( "No failed to find TypeInfo for \"svg_base_edict_t\", entity(%s)!\n", classnameKv->string );
+            }
+        // If classnameKv == nullptr || classnameKv == clgi.CM_GetNullEntity() we never found any. Error out.
+        } else {
+			// If we don't have a classname, then we can't spawn it.
+			spawnEdict = nullptr;
+			gi.error( "%s: %s: No classname key/value pair found for cm_entity_t(%d)!\n", __func__, mapname, i );
         }
+
 		// If we don't have a spawn edict, then we can't spawn it.
         if ( !spawnEdict ) {
             numInhibitedEntities++;
@@ -768,7 +781,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
         // Iterate and process the remaining key/values now that we allocated the entity type class instance.
         const cm_entity_t *kv = cm_entity;
-        while ( kv ) {
+        while ( kv != nullptr ) {
             // For possible Key/Value errors/warnings.
             std::string errorStr = "";
             // Give the edict a chance to process and assign spawn key/value.

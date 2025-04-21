@@ -233,354 +233,6 @@ static const save_field_t clientfields[] = {
 };
 
 /**
-*   svg_base_edict_t:
-**/
-static const save_field_t entityfields[] = {
-#define _OFS FOFS_GENTITY
-    /**
-    *   Server Edict Entity State Data:
-    **/
-    INT32( s.number ),
-    //SHORT( s.client ),
-    INT32( s.entityType ),
-
-    VEC3( s.origin ),
-    VEC3( s.angles ),
-    VEC3( s.old_origin ),
-
-    INT32( s.solid ),
-    INT32( s.clipmask ),
-    INT32( s.hullContents ),
-    INT32( s.ownerNumber ),
-
-    INT32( s.modelindex ),
-    INT32( s.modelindex2 ),
-    INT32( s.modelindex3 ),
-    INT32( s.modelindex4 ),
-
-    INT32( s.skinnum ),
-    INT32( s.effects ),
-    INT32( s.renderfx ),
-
-    INT32( s.frame ),
-    INT32( s.old_frame ),
-
-    INT32( s.sound ),
-    INT32( s.event ),
-
-    // TODO: Do we really need to save this? Perhaps.
-    // For spotlights.
-    VEC3( s.spotlight.rgb ),
-    FLOAT( s.spotlight.intensity ),
-    FLOAT( s.spotlight.angle_width ),
-    FLOAT( s.spotlight.angle_falloff ),
-
-    /**
-    *   Server Edict Data:
-    **/
-    INT32( svflags ),
-    VEC3( mins ),
-    VEC3( maxs ),
-    VEC3( absmin ),
-    VEC3( absmax ),
-    VEC3( size ),
-    INT32( solid ),
-    INT32( clipmask ),
-    INT32( hullContents ),
-    ENTITY( owner ),
-
-    /**
-    *   Start of Game Edict data:
-    **/
-    INT32( spawn_count ),
-    INT64( freetime ),
-    INT64( timestamp ),
-
-    LQSTR( classname ),
-    CHARPTR( model ),
-    FLOAT( angle ),
-
-    INT32( spawnflags ),
-    INT32( flags ),
-
-    /**
-    *   Health/Body Status Conditions:
-    **/
-    INT32( health ),
-    INT32( max_health ),
-    INT32( gib_health ),
-    INT32( lifeStatus ),
-    INT32( takedamage ),
-
-    /**
-    *   UseTarget Properties and State:
-    **/
-    INT32( useTarget.flags ),
-    INT32( useTarget.state ),
-
-    /**
-    *   Target Name Fields:
-    **/
-    LQSTR( targetname ),
-    LQSTR( targetNames.target ),
-    LQSTR( targetNames.kill ),
-    LQSTR( targetNames.team ),
-    LQSTR( targetNames.path ),
-    LQSTR( targetNames.death ),
-    LQSTR( targetNames.movewith ),
-
-    /**
-    *   Target Entities:
-    **/
-    ENTITY( targetEntities.target ),
-    ENTITY( targetEntities.movewith ),
-
-    /**
-    *   Lua Properties:
-    **/
-    LQSTR( luaProperties.luaName ),
-
-    /**
-    *   "Delay" entities:
-    **/
-    ENTITY( delayed.useTarget.creatorEntity ),
-    INT32( delayed.useTarget.useType ),
-    INT32( delayed.useTarget.useValue ),
-    ENTITY( delayed.signalOut.creatorEntity ),
-    ZSTR( delayed.signalOut.name, 256 ),
-    // WID: TODO: We can't save these with a system like these, can we?
-    // WID: We can I guess, but it requires a specified save type for signal argument array indices.
-    //SIGNALARGUMENTS( delayed.signalOut.arguments ),
-
-    /**
-    *   Physics Related:
-    **/
-    VEC3( moveWith.absoluteOrigin ),
-    VEC3( moveWith.originOffset ),
-    VEC3( moveWith.relativeDeltaOffset ),
-    VEC3( moveWith.spawnDeltaAngles ),
-    VEC3( moveWith.spawnParentAttachAngles ),
-    VEC3( moveWith.totalVelocity ),
-    ENTITY( moveWith.parentMoveEntity ),
-    ENTITY( moveWith.moveNextEntity ),
-
-    INT32( movetype ),
-    VEC3( velocity ),
-    VEC3( avelocity ),
-    INT32( viewheight ),
-
-    // WID: Are these actually needed? Would they not be recalculated the first frame around?
-    // WID: TODO: mm_ground_info_t
-    // WID: TODO: mm_liquid_info_t
-    INT32( mass ),
-    FLOAT( gravity ),
-
-    /**
-    *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
-    **/
-    // Start/End Data:
-    VEC3( pushMoveInfo.startOrigin ),
-    VEC3( pushMoveInfo.startAngles ),
-    VEC3( pushMoveInfo.endOrigin ),
-    VEC3( pushMoveInfo.endAngles ),
-    INT32( pushMoveInfo.startFrame ),
-    INT32( pushMoveInfo.endFrame ),
-    // Dynamic State Data:
-    INT32( pushMoveInfo.state ),
-    VEC3( pushMoveInfo.dir ),
-    VEC3( pushMoveInfo.dest ),
-    BOOL( pushMoveInfo.in_motion ),
-    FLOAT( pushMoveInfo.current_speed ),
-    FLOAT( pushMoveInfo.move_speed ),
-    FLOAT( pushMoveInfo.next_speed ),
-    FLOAT( pushMoveInfo.remaining_distance ),
-    FLOAT( pushMoveInfo.decel_distance ),
-    // Acceleration Data:
-    FLOAT( pushMoveInfo.accel ),
-    FLOAT( pushMoveInfo.speed ),
-    FLOAT( pushMoveInfo.decel ),
-    FLOAT( pushMoveInfo.distance ),
-    FLOAT( pushMoveInfo.wait ),
-    // Curve:
-    VEC3( pushMoveInfo.curve.referenceOrigin ),
-    //INT64( pushMoveInfo.curve.countPositions ),
-    // WID: TODO: This is problematic with this save system, size has to be dynamic in the future.
-    //FLOAT_ARRAY( pushMoveInfo.curve.positions, 1024 ),
-    LEVEL_QTAG_MEMORY( pushMoveInfo.curve.positions ),
-    INT64( pushMoveInfo.curve.frame ),
-    INT64( pushMoveInfo.curve.subFrame ),
-    INT64( pushMoveInfo.curve.numberSubFrames ),
-    INT64( pushMoveInfo.curve.numberFramesDone ),
-    // LockState:
-    BOOL( pushMoveInfo.lockState.isLocked ),
-    INT32( pushMoveInfo.lockState.lockedSound ),
-    INT32( pushMoveInfo.lockState.lockingSound ),
-    INT32( pushMoveInfo.lockState.unlockingSound ),
-    // Sounds:
-    INT32( pushMoveInfo.sounds.start ),
-    INT32( pushMoveInfo.sounds.middle ),
-    INT32( pushMoveInfo.sounds.end ),
-    // Callback:
-    //POINTER( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
-    // Movewith:
-    VEC3( pushMoveInfo.lastVelocity ),
-    // WID: Are these actually needed? Would they not be recalculated the first frame around?
-    // WID: TODO: PushmoveInfo
-    FLOAT( speed ),
-    FLOAT( accel ),
-    FLOAT( decel ),
-
-    VEC3( movedir ),
-    VEC3( pos1 ),
-    VEC3( angles1 ),
-    VEC3( pos2 ),
-    VEC3( angles2 ),
-    VEC3( lastOrigin ),
-    VEC3( lastAngles ),
-    ENTITY( movetarget ),
-
-    /**
-    *   NextThink AND Entity Callbacks:
-    **/
-    INT64( nextthink ),
-
-    //POINTER( postspawn, P_postspawn ),
-    //POINTER( prethink, P_prethink ),
-    //POINTER( think, P_think ),
-    //POINTER( postthink, P_postthink ),
-    //POINTER( blocked, P_blocked ),
-    //POINTER( touch, P_touch ),
-    //POINTER( use, P_use ),
-    //POINTER( pain, P_pain ),
-    //POINTER( onsignalin, P_onsignalin ),
-    //POINTER( die, P_die ),
-
-    /**
-    *   Entity Pointers:
-    **/
-    ENTITY( enemy ),
-    ENTITY( oldenemy ),
-    ENTITY( goalentity ),
-    ENTITY( chain ),
-    ENTITY( teamchain ),
-    ENTITY( teammaster ),
-    ENTITY( activator ),
-    ENTITY( other ),
-
-    /**
-    *   Light Data:
-    **/
-    INT32( style ),
-    CHARPTR( customLightStyle ),
-
-    /**
-    *   Item Data:
-    **/
-    ITEM( item ),
-
-    /**
-    *   Monster Data:
-    **/
-    FLOAT( yaw_speed ),
-    FLOAT( ideal_yaw ),
-
-    /**
-    *   Player Noise/Trail:
-    **/
-    ENTITY( mynoise ),
-    ENTITY( mynoise2 ),
-
-    INT32( noise_index ),
-    INT32( noise_index2 ),
-
-    /**
-    *   Sound Data:
-    **/
-    FLOAT( volume ),
-    FLOAT( attenuation ),
-    INT64( last_sound_time ),
-
-    /**
-    *   Trigger(s) Data:
-    **/
-    CHARPTR( message ),
-    FLOAT( wait ),
-    FLOAT( delay ),
-
-    // WID: TODO: Fix this, wtf at the name of plain 'random'.
-    #undef random
-    FLOAT( random ),
-
-    /**
-    *   Timers Data:
-    **/
-    INT64( air_finished_time ),
-    INT64( damage_debounce_time ),
-    INT64( fly_sound_debounce_time ),
-    INT64( last_move_time ),
-    INT64( touch_debounce_time ),
-    INT64( pain_debounce_time ),
-    INT64( show_hostile_time ),
-    INT64( trail_time ),
-
-    /**
-    *   Various Data:
-    **/
-    INT32( meansOfDeath ),
-    CHARPTR( map ),
-
-    INT32( dmg ),
-    INT32( radius_dmg ),
-    FLOAT( dmg_radius ),
-    FLOAT( light ),
-    INT32( sounds ),
-    INT32( count ),
-
-    /**
-    *   Only used for g_turret.cpp - WID: Remove?:
-    **/
-    VEC3( move_origin ),
-    VEC3( move_angles ),
-
-    // WID: TODO: Monster Reimplement.
-    //POINTER( monsterinfo.currentmove, P_monsterinfo_currentmove ),
-    //POINTER( monsterinfo.nextmove, P_monsterinfo_nextmove ),
-    //INT32( monsterinfo.aiflags ),
-    //INT64( monsterinfo.nextframe ), // WID: 64-bit-frame
-    //FLOAT( monsterinfo.scale ),
-
-    //POINTER( monsterinfo.stand, P_monsterinfo_stand ),
-    //POINTER( monsterinfo.idle, P_monsterinfo_idle ),
-    //POINTER( monsterinfo.search, P_monsterinfo_search ),
-    //POINTER( monsterinfo.walk, P_monsterinfo_walk ),
-    //POINTER( monsterinfo.run, P_monsterinfo_run ),
-    //POINTER( monsterinfo.dodge, P_monsterinfo_dodge ),
-    //POINTER( monsterinfo.attack, P_monsterinfo_attack ),
-    //POINTER( monsterinfo.melee, P_monsterinfo_melee ),
-    //POINTER( monsterinfo.sight, P_monsterinfo_sight ),
-    //POINTER( monsterinfo.checkattack, P_monsterinfo_checkattack ),
-
-    //INT64( monsterinfo.next_move_time ),
-
-    //INT64( monsterinfo.pause_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.pause_time),
-    //INT64( monsterinfo.attack_finished ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.attack_finished),
-    //INT64( monsterinfo.fire_wait ),
-
-    //VEC3( monsterinfo.saved_goal ),
-    //INT64( monsterinfo.search_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.search_time),
-    //INT64( monsterinfo.trail_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.trail_time),
-    //VEC3( monsterinfo.last_sighting ),
-    //INT32( monsterinfo.attack_state ),
-    //INT32( monsterinfo.lefty ),
-    //INT64( monsterinfo.idle_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.idle_time),
-    //INT32( monsterinfo.linkcount ),
-
-	// WID: C++20: Replaced {0}
-    {}
-#undef _OFS
-};
-
-/**
 *   game:
 **/
 static const save_field_t gamefields[] = {
@@ -2261,6 +1913,13 @@ void SVG_WriteLevel(const char *filename)
         }
         // Entity number.
         ctx.write_int32( i );
+        // cm_entity_t number(if it had any set.)
+        int32_t cm_entity_id = gi.CM_EntityNumber( ent->entityDictionary );
+		if ( cm_entity_id >= 0 ) {
+			ctx.write_int32( cm_entity_id );
+		} else {
+			ctx.write_int32( -1 );
+		}
         // Entity classname.
         ctx.write_level_qstring( &ent->classname );
         // Rest of entity fields.
@@ -2376,6 +2035,12 @@ void SVG_ReadLevel(const char *filename)
         if ( entnum >= g_edict_pool.num_edicts ) {
             g_edict_pool.num_edicts = entnum + 1;
         }
+        // Inquire for a possible cm_entity_t id.
+		int32_t cmEntityID = ctx.read_int();
+        const cm_entity_t *cmEntity = nullptr;
+        if ( cmEntityID >= 0 ) {
+            cmEntity = level.cm_entities[ cmEntityID ];
+        }
         // Inquire for the classname.
 		svg_level_qstring_t classname;
         classname = ctx.read_level_qstring();
@@ -2387,7 +2052,7 @@ void SVG_ReadLevel(const char *filename)
             typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
         }
         // Worldspawn:
-        g_edict_pool.edicts[ entnum ] = ent = typeInfo->allocateEdictInstanceCallback( nullptr );
+        g_edict_pool.edicts[ entnum ] = ent = typeInfo->allocateEdictInstanceCallback( cmEntity );
         ent->classname = classname;
 
         // WID: TODO: Early load the classname member value and check if

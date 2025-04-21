@@ -344,7 +344,8 @@ svg_save_descriptor_field_t *svg_base_edict_t::GetSaveDescriptorField( const cha
         return nullptr;
     }
 
-    #if 0 // We don't want to lock us in recursion!
+    // We don't want to lock us in recursion!
+    #if 0
     // Check if parent type has a save descriptor field.
     if ( svg_base_edict_t::GetSaveDescriptorField( name ) ) {
         return svg_base_edict_t::GetSaveDescriptorField( name );

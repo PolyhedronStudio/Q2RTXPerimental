@@ -340,6 +340,9 @@ struct game_write_context_t {
 *           it declare support routines using this macro.
 **/
 #define SVG_SAVE_DESCRIPTOR_FIELDS_DECLARE_IMPLEMENTATION() \
+	/* This is the save descriptor fields array. */ \
+	static svg_save_descriptor_field_t saveDescriptorFields[]; \
+	/* Save Descriptor Field Functions */ \
     virtual svg_save_descriptor_field_t *GetSaveDescriptorFields() override; \
     virtual int32_t GetSaveDescriptorFieldsCount() override; \
     virtual svg_save_descriptor_field_t *GetSaveDescriptorField( const char *name ) override;
@@ -369,8 +372,8 @@ struct game_write_context_t {
 		} \
 \
 		/* Check if parent type has a save descriptor field.*/ \
-		if ( parentClassType::GetSaveDescriptorField( name ) ) { \
-			return parentClassType::GetSaveDescriptorField( name ); \
+		if ( Base::GetSaveDescriptorField( name ) ) { \
+			return Base::GetSaveDescriptorField( name ); \
 		} \
 \
 		/* Get pointer to the type's save descriptor fields.*/ \

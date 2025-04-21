@@ -759,7 +759,13 @@ static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2
     return CM_AreasConnected(&sv.cm, area1, area2);
 }
 
-
+/**
+*   @brief  Returns the number of the cm_entity_t list root key/value pair within the cm->entities array.
+*   @note   This only works on the actual root key/value pair of the cm_entity_t list. Otherwise it returns -1.
+**/
+const int32_t PF_CM_EntityNumber( const cm_entity_t *entity ) {
+    return CM_EntityNumber( &sv.cm, entity );
+}
 
 /**
 *
@@ -1045,6 +1051,7 @@ void SV_InitGameProgs(void) {
     imports.centerprintf = PF_centerprintf;
     imports.error = PF_error;
 
+    imports.CM_EntityNumber = PF_CM_EntityNumber;
     imports.CM_EntityKeyValue = CM_EntityKeyValue;
     imports.CM_GetNullEntity = CM_GetNullEntity;
 

@@ -38,6 +38,9 @@ typedef enum cm_entity_parsed_type_s {
 *   @brief  Contains the data of each key/value pair entry for the parsed bsp entity string results.
 **/
 typedef struct cm_entity_s {
+	//! The internal ID of the entity, always set at the root key/value pair.
+    int32_t id;
+    
     //! A bitmask of the valid entity parsed value types for this key value pair.
     cm_entity_parsed_type_t parsed_type;
 
@@ -78,3 +81,11 @@ typedef struct cm_entity_s {
     //! The next entity pair in this entity, or `NULL`.
     struct cm_entity_s *next;
 } cm_entity_t;
+
+/**
+*   @brief  A list of ordered load-time cm_entity_t pointers,
+*           storing the key/value pairs of the entity as their own list.
+**/
+#ifdef __cplusplus
+typedef std::list<cm_entity_t *> cm_entity_list_t;
+#endif

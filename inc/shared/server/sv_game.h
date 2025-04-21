@@ -273,6 +273,11 @@ typedef struct {
     *
     **/
     /**
+    *   @brief  Returns the number of the cm_entity_t list root key/value pair within the cm->entities array.
+    *   @note   This only works on the actual root key/value pair of the cm_entity_t list. Otherwise it returns -1.
+    **/
+    const int32_t( *CM_EntityNumber )( const cm_entity_t *entity );
+    /**
     *   @brief  Looks up the key/value cm_entity_t pair in the list for the cm_entity_t entity.
     *   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
     **/

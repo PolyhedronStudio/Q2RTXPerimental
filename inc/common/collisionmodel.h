@@ -159,7 +159,11 @@ const cm_entity_t *CM_GetNullEntity( void );
 *   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
 **/
 const cm_entity_t *CM_EntityKeyValue( const cm_entity_t *entity, const char *key );
-
+/**
+*   @brief  Returns the number of the cm_entity_t list root key/value pair within the cm->entities array.
+*   @note   This only works on the actual root key/value pair of the cm_entity_t list. Otherwise it returns -1.
+**/
+const int32_t CM_EntityNumber( const cm_t *cm, const cm_entity_t *entity );
 
 //
 // collisionmodel/cm_hull_boundingbox.cpp

@@ -63,7 +63,8 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         entity = edicts[ i ];
 
         // Iterate and seek.
-        for ( i; i < num_edicts; i++, entity = edicts[ i ] ) {
+        for ( i; i < num_edicts; i++ ) {
+            entity = edicts[ i ];
 
             // the first couple seconds of server time can involve a lot of
             // freeing and allocating, so relax the replacement policy
