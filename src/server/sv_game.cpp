@@ -23,6 +23,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "server/sv_send.h"
 #include "server/sv_world.h"
 
+#include "shared/cm/cm_entity.h"
+
+
 svgame_export_t    *ge;
 
 static void PF_configstring(int index, const char *val);

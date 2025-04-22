@@ -4,6 +4,8 @@
 // Save related types.
 #include "svg_save.h"
 
+#include "svgame/entities/monster/svg_monster_testdummy.h"
+
 #if 0
 extern mmove_t actor_move_attack;
 extern mmove_t actor_move_death1;
@@ -64,13 +66,14 @@ void door_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_
 void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 void func_wall_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 void func_breakable_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
-void monster_testdummy_puppet_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+//void monster_testdummy_puppet_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void SP_monster_testdummy_puppet( svg_base_edict_t *self );
-extern void monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
-extern void monster_testdummy_puppet_think( svg_base_edict_t *self );
-extern void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
-extern void monster_testdummy_puppet_post_spawn( svg_base_edict_t *self );
+//extern void SP_monster_testdummy_puppet( svg_base_edict_t *self );
+//extern void monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+//void svg_monster_testdummy_t::monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+//extern void monster_testdummy_puppet_think( svg_base_edict_t *self );
+//extern void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+//extern void monster_testdummy_puppet_post_spawn( svg_base_edict_t *self );
 // </Q2RTXP>
 
 
@@ -290,13 +293,14 @@ const svg_save_descriptor_funcptr_t save_ptrs[] = {
 { FPTR_CALLBACK_USE, (void *)func_breakable_spawn_on_trigger },
 { FPTR_CALLBACK_DIE, (void *)func_breakable_explode },
 { FPTR_CALLBACK_PAIN, (void *)func_breakable_pain },
-{FPTR_CALLBACK_USE, (void *)monster_testdummy_puppet_use },
+//{FPTR_CALLBACK_USE, (void *)monster_testdummy_puppet_use },
 { FPTR_CALLBACK_USE, (void *)func_breakable_use },
 
-{ FPTR_CALLBACK_DIE, (void *)monster_testdummy_puppet_die },
-{ FPTR_CALLBACK_THINK, (void *)monster_testdummy_puppet_think },
-{ FPTR_CALLBACK_TOUCH, (void *)monster_testdummy_puppet_touch },
-{ FPTR_CALLBACK_POSTSPAWN, (void *)monster_testdummy_puppet_post_spawn },
+{ FPTR_CALLBACK_DIE, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_die },
+{ FPTR_CALLBACK_THINK, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_think },
+{ FPTR_CALLBACK_TOUCH, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_touch },
+{ FPTR_CALLBACK_USE, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_use },
+{ FPTR_CALLBACK_POSTSPAWN, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_postspawn },
 // </Q2RTXP>
 
 //

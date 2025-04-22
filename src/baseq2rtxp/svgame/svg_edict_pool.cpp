@@ -7,7 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_edict_pool.h"
-#include "svgame/entities/svg_player_edict.h"
+#include "svgame/entities/svg_ed_player.h"
 
 
 
@@ -83,6 +83,11 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
 		return;
 	}
 
+	// Already freed.
+	if ( !ed->inuse ) {
+		return;
+	}
+
 	// Unlink it from the world.
 	gi.unlinkentity( ed );
 
@@ -149,13 +154,13 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 		if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
 			//_InitEdict<EdictType>( entity, i );
 			// Restore the actual number.
-			ent->s.number = i;
+			ent->s.number = num_edicts;
 			// Make sure it is set to 'inuse'.
 			ent->inuse = true;
 			// Free the old entity.
 			SVG_FreeEdict( entity );
 			// Initialize the new one.
-			edicts[ i ] = ent;
+			edicts[ num_edicts ] = ent;
 			// Return its ptr.
 			return /*static_cast<EdictType *>*/( edicts[ i ] );
 		}

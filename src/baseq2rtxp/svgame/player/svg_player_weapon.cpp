@@ -61,10 +61,16 @@ void SVG_Player_PlayerNoise( svg_base_edict_t *who, const vec3_t where, int type
 
     if ( type == PNOISE_SELF || type == PNOISE_WEAPON ) {
         noise = who->mynoise;
+        if ( noise ) {
+            noise->inuse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+        }
         level.sound_entity = noise;
         level.sound_entity_framenum = level.frameNumber;
     } else { // type == PNOISE_IMPACT
         noise = who->mynoise2;
+        if ( noise ) {
+            noise->inuse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+        }
         level.sound2_entity = noise;
         level.sound2_entity_framenum = level.frameNumber;
     }

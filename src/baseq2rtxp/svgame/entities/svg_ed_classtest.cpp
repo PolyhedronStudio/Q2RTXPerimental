@@ -86,5 +86,5 @@ void svg_classtest_edict_t::Restore( struct game_read_context_t *ctx ) {
 **/
 const bool svg_classtest_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
     // Nothing.
-    return true;
+    return Base::KeyValue( keyValuePair, errorStr );
 }

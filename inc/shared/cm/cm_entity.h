@@ -82,10 +82,10 @@ typedef struct cm_entity_s {
     struct cm_entity_s *next;
 } cm_entity_t;
 
-/**
-*   @brief  A list of ordered load-time cm_entity_t pointers,
-*           storing the key/value pairs of the entity as their own list.
-**/
 #ifdef __cplusplus
-typedef std::list<cm_entity_t *> cm_entity_list_t;
+    /**
+    *   @brief  A list of ordered load-time cm_entity_t pointers,
+    *           storing the key/value pairs of the entity as their own list.
+    **/
+    typedef std::list<cm_entity_t *> cm_entity_list_t;
 #endif

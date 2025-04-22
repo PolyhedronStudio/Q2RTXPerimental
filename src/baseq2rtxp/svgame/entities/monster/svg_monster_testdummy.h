@@ -92,7 +92,37 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     *           If not handled, or unable to be handled by the derived entity type, it will return
     *           set errorStr and return false. True otherwise.
     **/
-    virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr );
+    virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
+
+
+
+    /**
+    *
+    *
+    *   TestDummy
+    *
+    *
+    **/
+    /**
+    *   @brief  Post-Spawn routine.
+    **/
+    static void monster_testdummy_puppet_postspawn( svg_monster_testdummy_t *self );
+    /**
+    *   @brief  Thinking routine.
+    **/
+    static void monster_testdummy_puppet_think( svg_monster_testdummy_t *self );
+    /**
+    *   @brief  Touched.
+    **/
+    static void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+    /**
+    *   @brief
+    **/
+    static void monster_testdummy_puppet_use( svg_monster_testdummy_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+    /**
+    *   @brief
+    **/
+    static void monster_testdummy_puppet_die( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
 
 
 
@@ -103,6 +133,19 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     *
     *
     **/
+    //! For when dummy is standing straight up.
+    static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };
+    static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 72.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 30.f;
+    //! For when dummy is crouching.
+    static constexpr Vector3 DUMMY_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
+    static constexpr Vector3 DUMMY_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_DUCKED = 4.f;
+    //! For when dummy is dead.
+    static constexpr Vector3 DUMMY_BBOX_DEAD_MINS = { -16.f, -16.f, -36.f };
+    static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
+
     // Monster variables.
     int testVar = 100;
     Vector3 testVar2 = {};

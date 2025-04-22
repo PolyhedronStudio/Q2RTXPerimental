@@ -18,12 +18,11 @@ typedef struct {
     uint64_t    frameNumber;
     QMTime		time;
 
+    const cm_entity_t **cm_entities;
+
     char        level_name[ MAX_QPATH ];  // the descriptive name (Outer Base, etc)
     char        mapname[ MAX_QPATH ];     // the server name (base1, etc)
     char        nextmap[ MAX_QPATH ];     // go here when fraglimit is hit
-
-    //! An array of pointers to in-load-order sorted, entity's worldspawn key/value pairs list.
-    const cm_entity_t **cm_entities;
 
     // intermission state
     int64_t         intermissionFrameNumber;  // time the intermission was started

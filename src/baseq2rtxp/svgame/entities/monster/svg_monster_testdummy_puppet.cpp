@@ -17,18 +17,141 @@
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
 
-//! For when dummy is standing straight up.
-static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };
-static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 72.f };
-static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 30.f;
-//! For when dummy is crouching.
-static constexpr Vector3 DUMMY_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
-static constexpr Vector3 DUMMY_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
-static constexpr float   DUMMY_VIEWHEIGHT_DUCKED = 4.f;
-//! For when dummy is dead.
-static constexpr Vector3 DUMMY_BBOX_DEAD_MINS = { -16.f, -16.f, -36.f };
-static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
-static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
+#include "svgame/entities/monster/svg_monster_testdummy.h"
+
+
+
+
+
+
+
+/**
+*
+*
+*
+*   Save Descriptor Field Setup: svg_monster_testdummy_t
+*
+*
+*
+**/
+/**
+*   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
+**/
+SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_monster_testdummy_t )
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_t, testVar, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_t, testVar2, SD_FIELD_TYPE_VECTOR3 ),
+SAVE_DESCRIPTOR_FIELDS_END();
+
+//! Implement the methods for saving this edict type's save descriptor fields.
+SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_monster_testdummy_t, svg_base_edict_t );
+
+
+
+/**
+*   @brief
+**/
+void svg_monster_testdummy_t::Spawn() {
+    Base::Spawn();
+
+    // Entity Type:
+    s.entityType = ET_MONSTER;
+
+    // Solid/MoveType:
+    solid = SOLID_BOUNDS_BOX;
+    movetype = MOVETYPE_ROOTMOTION;
+    //self->monsterinfo.aiflags = AI_NOSTEP;
+
+    // Model/BBox:
+    model = "models/characters/mixadummy/tris.iqm";
+    s.modelindex = gi.modelindex( model );
+    VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MINS, mins );
+    VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MAXS, maxs );
+
+    // Defaults:
+    if ( !mass ) {
+        mass = 200;
+    }
+    if ( !health ) {
+        health = 100;
+    }
+    if ( !dmg ) {
+        dmg = 150;
+    }
+
+    // Monster Entity Faking:
+    svflags |= SVF_MONSTER;
+    //s.renderfx |= RF_FRAMELERP;
+    s.skinnum = 0;
+    takedamage = DAMAGE_AIM;
+    air_finished_time = level.time + 12_sec;
+    max_health = health;
+    clipmask = CM_CONTENTMASK_MONSTERSOLID;
+    lifeStatus = LIFESTATUS_ALIVE;
+    svflags &= ~SVF_DEADMONSTER;
+    useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
+
+    // Touch:
+    //touch = monster_testdummy_puppet_touch;
+    // Die:
+    takedamage = DAMAGE_YES;
+    SetDieCallback( monster_testdummy_puppet_die );
+    nextthink = level.time + 20_hz;
+    SetThinkCallback( monster_testdummy_puppet_think );
+    SetPostSpawnCallback( monster_testdummy_puppet_postspawn );
+    SetUseCallback( monster_testdummy_puppet_use );
+
+    // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+    SVG_Entity_SetUseTargetHintByID( this, USETARGET_HINT_ID_NPC_ENGAGE );
+
+    // Link it in.
+    gi.linkentity( this );
+}
+
+
+//==========================================================================
+/**
+*   Reconstructs the object, optionally retaining the entityDictionary.
+**/
+void svg_monster_testdummy_t::Reset( const bool retainDictionary ) {
+    // Call upon the base class.
+    Base::Reset( retainDictionary );
+    // Reset the edict's save descriptor fields.
+    testVar = 1337;
+    //testVar2 = {};
+}
+
+
+/**
+*   @brief  Save the entity into a file using game_write_context.
+*   @note   Make sure to call the base parent class' Save() function.
+**/
+void svg_monster_testdummy_t::Save( struct game_write_context_t *ctx ) {
+    // Call upon the base class.
+    //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
+    Base::Save( ctx );
+    // Save all the members of this entity type.
+    ctx->write_fields( svg_monster_testdummy_t::saveDescriptorFields, this );
+}
+/**
+*   @brief  Restore the entity from a loadgame read context.
+*   @note   Make sure to call the base parent class' Restore() function.
+**/
+void svg_monster_testdummy_t::Restore( struct game_read_context_t *ctx ) {
+    // Restore parent class fields.
+    Base::Restore( ctx );
+    // Restore all the members of this entity type.
+    ctx->read_fields( svg_monster_testdummy_t::saveDescriptorFields, this );
+}
+
+
+/**
+*   @brief  Called for each cm_entity_t key/value pair for this entity.
+*           If not handled, or unable to be handled by the derived entity type, it will return
+*           set errorStr and return false. True otherwise.
+**/
+const bool svg_monster_testdummy_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
+    return Base::KeyValue( keyValuePair, errorStr );
+}
 
 
 //---------------------------
@@ -37,16 +160,14 @@ static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
 //static sg_skm_rootmotion_set_t rootMotionSet;
 skm_rootmotion_set_t *rootMotionSet;
 static int32_t animationID = 1; // IDLE(0), RUN_FORWARD_PISTOL(1)
-
 //---------------------------
 // </TEMPORARY FOR TESTING>
 //---------------------------
 
-
 /**
 *   @brief  Death routine.
 **/
-void monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+void svg_monster_testdummy_t::monster_testdummy_puppet_die( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
     //self->takedamage = DAMAGE_NO;
     //self->nextthink = level.time + 20_hz;
     //self->think = barrel_explode;
@@ -116,60 +237,62 @@ void monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inf
     gi.linkentity( self );
 }
 
-///**
-//*   @brief  Touched.
-//**/
-//void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
-//    #if 0
-//    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
-//        return;
-//    }
-//
-//    // Calculate direction.
-//    vec3_t v = { };
-//    VectorSubtract( self->s.origin, other->s.origin, v );
-//
-//    // Move ratio(based on their masses).
-//    const float ratio = (float)other->mass / (float)self->mass;
-//
-//    // Yaw direction angle.
-//    const float yawAngle = QM_Vector3ToYaw( v );
-//    const float direction = yawAngle;
-//    // Distance to travel.
-//    float distance = 20 * ratio * FRAMETIME;
-//
-//    // Debug output:
-//    if ( plane ) {
-//        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-//        gi.dprintf( "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
-//    } else {
-//        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-//        gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
-//    }
-//
-//    // Perform move.
-//    M_walkmove( self, direction, distance );
-//    #endif
-//    //---------------------------
-//    // <TEMPORARY FOR TESTING>
-//    //---------------------------
-//    if ( other && other->client ) {
-//        // Assign enemy.
-//        self->activator = other;
-//        self->goalentity = other;
-//        // Get the root motion.
-//        skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
-//        // Transition to its animation.
-//        self->s.frame = rootMotion->firstFrameIndex;
-//    }
-//    //---------------------------
-//    // </TEMPORARY FOR TESTING>
-//    //---------------------------
-//}
+#if 0
 /**
 *   @brief  Touched.
 **/
 void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+    #if 0
+    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
+        return;
+    }
+
+    // Calculate direction.
+    vec3_t v = { };
+    VectorSubtract( self->s.origin, other->s.origin, v );
+
+    // Move ratio(based on their masses).
+    const float ratio = (float)other->mass / (float)self->mass;
+
+    // Yaw direction angle.
+    const float yawAngle = QM_Vector3ToYaw( v );
+    const float direction = yawAngle;
+    // Distance to travel.
+    float distance = 20 * ratio * FRAMETIME;
+
+    // Debug output:
+    if ( plane ) {
+        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        gi.dprintf( "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
+    } else {
+        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
+        gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
+    }
+
+    // Perform move.
+    M_walkmove( self, direction, distance );
+    #endif
+    //---------------------------
+    // <TEMPORARY FOR TESTING>
+    //---------------------------
+    if ( other && other->client ) {
+        // Assign enemy.
+        self->activator = other;
+        self->goalentity = other;
+        // Get the root motion.
+        skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
+        // Transition to its animation.
+        self->s.frame = rootMotion->firstFrameIndex;
+    }
+    //---------------------------
+    // </TEMPORARY FOR TESTING>
+    //---------------------------
+}
+#endif
+/**
+*   @brief  Touched.
+**/
+void svg_monster_testdummy_t::monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
     #if 0
     if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
         return;
@@ -211,7 +334,7 @@ void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *o
 /**
 *   @brief
 **/
-void monster_testdummy_puppet_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void svg_monster_testdummy_t::monster_testdummy_puppet_use( svg_monster_testdummy_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     // Apply activator.
     self->activator = activator;
     self->other = other;
@@ -250,7 +373,7 @@ void SV_AddGravity( svg_base_edict_t *ent );
 /**
 *   @brief  Thinking routine.
 **/
-void monster_testdummy_puppet_think( svg_base_edict_t *self ) {
+void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdummy_t *self ) {
     // Make sure to fall to floor.
     if ( !self->activator ) {
         M_droptofloor( self );
@@ -259,6 +382,8 @@ void monster_testdummy_puppet_think( svg_base_edict_t *self ) {
     // Ensure to remove RF_STAIR_STEP and RF_OLD_FRAME_LERP.
     self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
 
+    self->testVar = level.frameNumber;
+	gi.dprintf( "%s: %d\n", __func__, self->testVar );
     // Animate.
     if ( self->health > 0 ) {
         #if 0
@@ -390,7 +515,7 @@ void monster_testdummy_puppet_think( svg_base_edict_t *self ) {
             const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove );
 
             // A step was taken, ensure to apply RF_STAIR_STEP renderflag.
-            if ( monsterMove.step.height != 0 ) {
+            if ( monsterMove.step.height > FLT_EPSILON || monsterMove.step.height < -FLT_EPSILON ) {
                 self->s.renderfx |= RF_STAIR_STEP;
             }
             // If the move was succesfull, copy over the state results into the entity's state.
@@ -446,7 +571,7 @@ void monster_testdummy_puppet_think( svg_base_edict_t *self ) {
 /**
 *   @brief  Post-Spawn routine.
 **/
-void monster_testdummy_puppet_post_spawn( svg_base_edict_t *self ) {
+void svg_monster_testdummy_t::monster_testdummy_puppet_postspawn( svg_monster_testdummy_t *self ) {
     //
     // Test GetModelData functions:
     //
@@ -480,155 +605,3 @@ void monster_testdummy_puppet_post_spawn( svg_base_edict_t *self ) {
     //---------------------------
 }
 
-/**
-*   @brief  Spawn routine.
-**/
-void SP_monster_testdummy_puppet( svg_base_edict_t *self ) {
-    // Entity Type:
-    self->s.entityType = ET_MONSTER;
-    
-    // Solid/MoveType:
-    self->solid = SOLID_BOUNDS_BOX;
-    self->movetype = MOVETYPE_ROOTMOTION;
-    //self->monsterinfo.aiflags = AI_NOSTEP;
-
-    // Model/BBox:
-    self->model = "models/characters/mixadummy/tris.iqm";
-    self->s.modelindex = gi.modelindex( self->model );
-    VectorCopy( DUMMY_BBOX_STANDUP_MINS, self->mins );
-    VectorCopy( DUMMY_BBOX_STANDUP_MAXS, self->maxs );
-
-    // Defaults:
-    if ( !self->mass ) {
-        self->mass = 200;
-    }
-    if ( !self->health ) {
-        self->health = 100;
-    }
-    if ( !self->dmg ) {
-        self->dmg = 150;
-    }
-
-    // Monster Entity Faking:
-    self->svflags |= SVF_MONSTER;
-    //self->s.renderfx |= RF_FRAMELERP;
-    self->s.skinnum = 0;
-    self->takedamage = DAMAGE_AIM;
-    self->air_finished_time = level.time + 12_sec;
-    self->max_health = self->health;
-    self->clipmask = CM_CONTENTMASK_MONSTERSOLID;
-    self->lifeStatus = LIFESTATUS_ALIVE;
-    self->svflags &= ~SVF_DEADMONSTER;
-    self->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
-
-    // Touch:
-    //self->touch = monster_testdummy_puppet_touch;
-    // Die:
-    self->die = monster_testdummy_puppet_die;
-    self->takedamage = DAMAGE_YES;
-    // Think:
-    self->think = monster_testdummy_puppet_think;
-    self->nextthink = level.time + 20_hz;
-    // PostSpawn.
-    self->postspawn = monster_testdummy_puppet_post_spawn;
-    // Use:
-    self->use = monster_testdummy_puppet_use;
-
-    // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
-    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
-
-    gi.linkentity( self );
-}
-
-
-
-//=====================================================================
-
-
-/********************************************************************
-*
-*
-*	SVGame: Edicts Functionalities:
-*
-*
-********************************************************************/
-#include "svgame/svg_local.h"
-#include "svgame/svg_save.h"
-#include "svgame/entities/monster/svg_monster_testdummy.h"
-
-
-
-/**
-*
-*
-*
-*   Save Descriptor Field Setup: svg_monster_testdummy_t
-*
-*
-*
-**/
-/**
-*   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
-**/
-SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_monster_testdummy_t )
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_t, testVar, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_t, testVar2, SD_FIELD_TYPE_VECTOR3 ),
-SAVE_DESCRIPTOR_FIELDS_END();
-
-//! Implement the methods for saving this edict type's save descriptor fields.
-SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_monster_testdummy_t, svg_base_edict_t );
-
-
-
-/**
-*   @brief
-**/
-void svg_monster_testdummy_t::Spawn() {
-    Base::Spawn();
-    SP_monster_testdummy_puppet( this );
-}
-
-/**
-*   Reconstructs the object, optionally retaining the entityDictionary.
-**/
-void svg_monster_testdummy_t::Reset( const bool retainDictionary ) {
-    // Call upon the base class.
-    Base::Reset( retainDictionary );
-    // Reset the edict's save descriptor fields.
-    testVar = 1337;
-    //testVar2 = {};
-}
-
-
-/**
-*   @brief  Save the entity into a file using game_write_context.
-*   @note   Make sure to call the base parent class' Save() function.
-**/
-void svg_monster_testdummy_t::Save( struct game_write_context_t *ctx ) {
-    // Call upon the base class.
-    //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
-    Base::Save( ctx );
-    // Save all the members of this entity type.
-    ctx->write_fields( svg_monster_testdummy_t::saveDescriptorFields, this );
-}
-/**
-*   @brief  Restore the entity from a loadgame read context.
-*   @note   Make sure to call the base parent class' Restore() function.
-**/
-void svg_monster_testdummy_t::Restore( struct game_read_context_t *ctx ) {
-    // Restore parent class fields.
-    Base::Restore( ctx );
-    // Restore all the members of this entity type.
-    ctx->read_fields( svg_monster_testdummy_t::saveDescriptorFields, this );
-}
-
-
-/**
-*   @brief  Called for each cm_entity_t key/value pair for this entity.
-*           If not handled, or unable to be handled by the derived entity type, it will return
-*           set errorStr and return false. True otherwise.
-**/
-const bool svg_monster_testdummy_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
-    return Base::KeyValue( keyValuePair, errorStr );
-}
-//==========================================================================

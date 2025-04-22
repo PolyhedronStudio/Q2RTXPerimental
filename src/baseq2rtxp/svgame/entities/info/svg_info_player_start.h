@@ -92,7 +92,7 @@ struct svg_info_player_start_t : public svg_base_edict_t {
     *           If not handled, or unable to be handled by the derived entity type, it will return
     *           set errorStr and return false. True otherwise.
     **/
-    virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr );
+    virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
 
 
 

@@ -828,8 +828,8 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     ent->s.sound = 0;
     ent->s.effects = 0;
     ent->s.renderfx = 0;
-    ent->s.modelindex = 255;        // Will use the skin specified model.
-    ent->s.modelindex2 = 255;       // Custom gun model.
+    ent->s.modelindex = MODELINDEX_PLAYER;        // Will use the skin specified model.
+    ent->s.modelindex2 = MODELINDEX_PLAYER;       // Custom gun model.
     // sknum is player num and weapon number
     // weapon number will be added in changeweapon
     ent->s.skinnum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - globals.edictPool->edicts - 1;
@@ -929,6 +929,10 @@ void SVG_Client_BeginDeathmatch( svg_base_edict_t *ent ) {
     // Notify player joined.
     gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
 
+    // We're spawned now of course.
+    ent->client->pers.connected = true;
+    ent->client->pers.spawned = true;
+
     // Call upon EndServerFrame to make sure all view stuff is valid.
     SVG_Client_EndServerFrame( ent );
 }
@@ -993,6 +997,7 @@ void SVG_Client_Begin( svg_base_edict_t *ent ) {
     }
 
     // We're spawned now of course.
+    ent->client->resp.entertime = level.time;
     ent->client->pers.spawned = true;
 
     // If there is already a body waiting for us (a loadgame), just take it:
