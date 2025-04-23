@@ -721,7 +721,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
             // will actually pre-allocate entities for the dead client player's body queue.
             g_edict_pool.num_edicts++;
             // Spawn the worldspawn entity.
-            g_edict_pool.edicts[ 0 ]->Spawn();
+            g_edict_pool.edicts[ 0 ]->DispatchSpawnCallback();
             // Continue to next entity.
             entityID++;
             continue;
@@ -795,7 +795,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         // Emplace the spawned edict in the next avaible edict slot.
         g_edict_pool.EmplaceNextFreeEdict( spawnEdict );
 		// Set the entityID.
-        spawnEdict->Spawn();
+        spawnEdict->DispatchSpawnCallback();
 
         // Increment entityID.
         entityID++;
@@ -806,8 +806,8 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
         svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
 
-        if ( ent && ent->postspawn ) {
-            ent->postspawn( ent );
+        if ( ent && ent->HasPostSpawnCallback() ) {
+            ent->DispatchPostSpawnCallback();
             numPostSpawnedEntities++;
         }
     }

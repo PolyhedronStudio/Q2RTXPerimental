@@ -36,7 +36,7 @@ void SP_func_areaportal( svg_base_edict_t *ent ) {
     // Entity type.
     ent->s.entityType = ET_AREA_PORTAL;
     // Use Callback for triggering.
-    ent->use = Use_Areaportal;
+    ent->SetUseCallback( Use_Areaportal );
     // Always start closed;
     gi.SetAreaPortalState( ent->style, 0 );
     //ent->count = 0; // gi.GetAreaPortalState( ent->style );     

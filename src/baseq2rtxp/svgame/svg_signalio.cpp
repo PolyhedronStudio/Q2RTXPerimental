@@ -92,7 +92,7 @@ void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *signaller, svg_base
         svg_base_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
         delayEntity->classname = "DelayedSignalOut";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
-        delayEntity->think = Think_SignalOutDelay;
+        delayEntity->SetThinkCallback( Think_SignalOutDelay );
         delayEntity->activator = activator;
         delayEntity->other = signaller;
         if ( !activator ) {
@@ -119,12 +119,12 @@ void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *signaller, svg_base
 
     // Whether to por
     bool propogateToLua = true;
-    if ( ent->onsignalin ) {
+    if ( ent->HasOnSignalInCallback() ) {
         ent->activator = activator;
         ent->other = signaller;
 
         // Notify of the signal coming in.
-        /*propogateToLua = */ent->onsignalin( ent, signaller, activator, signalName, signalArguments );
+        /*propogateToLua = */ent->DispatchOnSignalInCallback( signaller, activator, signalName, signalArguments );
     }
     // If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
     if ( propogateToLua ) {

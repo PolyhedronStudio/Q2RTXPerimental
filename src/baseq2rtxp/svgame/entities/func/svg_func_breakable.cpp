@@ -142,7 +142,7 @@ void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor
     // Do NOT Free it, we wanna be able to respawn it.
 	if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE ) ) {
         self->nextthink = level.time + FRAME_TIME_MS;
-        self->think = SVG_FreeEdict;
+        self->SetThinkCallback( SVG_FreeEdict );
 	}
 }
 
@@ -189,9 +189,9 @@ void func_breakable_spawn_on_trigger( svg_base_edict_t *self, svg_base_edict_t *
 	// Enable entity to be send to clients.
     self->svflags &= ~SVF_NOCLIENT;
     // Unset the use callback.
-    self->use = NULL;
+    self->SetUseCallback( nullptr );
     // Set pain.
-    self->pain = func_breakable_pain;
+    self->SetPainCallback( func_breakable_pain );
     self->takedamage = DAMAGE_YES;
 
 
@@ -239,7 +239,7 @@ void func_breakable_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other,
   //      self->spawnflags &= ~FUNC_BREAKABLE_SPAWNFLAG_FREE_ON_BREAK_EXPLODE;
 
   //      // Unset use.
-        self->use = nullptr;
+        self->SetUseCallback( nullptr );
 		//self->pain = nullptr;
 		//self->takedamage = DAMAGE_NO;
         self->svflags &= ~SVF_NOCLIENT;
@@ -324,7 +324,7 @@ void SP_func_breakable( svg_base_edict_t *self ) {
     gi.setmodel( self, self->model );
     
     // Signal Receiving:
-    self->onsignalin = func_breakable_onsignalin;
+    self->SetOnSignalInCallback( func_breakable_onsignalin );
 
     // Always clip to hull.
     self->svflags |= SVF_HULL;
@@ -333,14 +333,14 @@ void SP_func_breakable( svg_base_edict_t *self ) {
     if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_SPAWN_ON_TRIGGER ) ) {
         self->svflags |= SVF_NOCLIENT;
         self->solid = SOLID_NOT;
-        self->use = func_breakable_spawn_on_trigger;
+        self->SetUseCallback( func_breakable_spawn_on_trigger );
     // Spawned immediately:
     } else {
         // Solid now that it's destroyable.
         self->solid = SOLID_BSP;
         // If a targetname is set, setup its use callback instead of explosion death callback.
         if ( self->targetname ) {
-            self->use = func_breakable_use;
+            self->SetUseCallback( func_breakable_use );
         }
     }
 
@@ -354,9 +354,9 @@ void SP_func_breakable( svg_base_edict_t *self ) {
 
     // No default use callback was set, so resort to actual default behavior of the object:
     // Explode after running out of health.
-    if ( self->use != func_breakable_use ) {
+    if ( self->useCallbackFuncPtr != func_breakable_use ) {
         // Set pain.
-        self->pain = func_breakable_pain;
+        self->SetPainCallback( func_breakable_pain );
 
         // Default to 100 health.
         if ( !self->health ) {
@@ -367,7 +367,7 @@ void SP_func_breakable( svg_base_edict_t *self ) {
         self->max_health = self->health;
 
         // Die callback for destructing.
-        self->die = func_breakable_explode;
+        self->SetDieCallback( func_breakable_explode );
         // Allow it to take damage.
         self->takedamage = DAMAGE_YES;
     }

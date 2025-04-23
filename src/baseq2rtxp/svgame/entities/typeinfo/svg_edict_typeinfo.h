@@ -73,21 +73,25 @@ public:
 public:
 	/**
 	*	@brief	Constructs a EdictTypeInfo object, initializing its properties and linking it into a global list of EdictTypeInfo objects.
-	*	@param	mapClassName	The name of the map class associated with this EdictTypeInfo.
-	*	@param	entClassName	The name of the entity class associated with this EdictTypeInfo.
-	*	@param	superClassName	The name of the superclass associated with this EdictTypeInfo.
+	*	@param	mapClassName		The name of the map class associated with this EdictTypeInfo.
+	*	@param	entClassName		The name of the entity class associated with this EdictTypeInfo.
+	*	@param	superClassTypeName	The name of the superclass associated with this EdictTypeInfo.
 	*	@param	flags			A set of flags that define specific properties of the EdictTypeInfo.
 	*	@param	entityAllocator	A function pointer used to allocate instances of the entity.
 	**/
-	EdictTypeInfo( const char *worldSpawnClassName, const char *classTypeName, const char *superClassName, const uint8_t flags, EdictAllocatorFncPtr edictTypeAllocator )
+	EdictTypeInfo( const char *worldSpawnClassName, const char *classTypeName, const char *superClassTypeName, const uint8_t flags, EdictAllocatorFncPtr edictTypeAllocator )
 		: worldSpawnClassName( worldSpawnClassName ), classTypeName( classTypeName ), superClassTypeName( superClassTypeName ), typeFlags( flags ) {
+		// Setup the edict instance allocation callback function pointer.
 		allocateEdictInstanceCallback = edictTypeAllocator;
+		// Previous is always head.
 		prev = head;
+		// Head becomes the newly created 'this'.
 		head = this;
-		hashedWorldSpawnClass = HashClassnameString( worldSpawnClassName, strlen( worldSpawnClassName ), 64 );
+		// Generate a hash of the worldSpawn classname.
+		worldSpawnClassNameHash = HashWorldSpawnString( worldSpawnClassName );
 
-		// Doesn't actually quite work here, so I wrote SetupSuperClasses
-		super = GetByClassTypeName( superClassName );
+		// This also gets properly set by TypeInfo initialization.
+		super = GetByClassTypeName( superClassTypeName );
 	}
 
 	// This will be used to allocate instances of each entity class
@@ -109,7 +113,7 @@ public:
 	*	@return True if the current type is a subclass of the specified type, otherwise false.
 	**/
 	bool IsSubclassOf( const EdictTypeInfo &typeInfo ) const {
-		if ( nullptr == super ) {
+		if ( super == nullptr ) {
 			return false;
 		}
 
@@ -132,14 +136,14 @@ public:
 	*	@brief	Determines if an object can spawn based on its world spawn class name.
 	*	@return	A boolean value indicating whether the object can spawn. Returns true if the object is not abstract and has the 'WorldSpawn' type flag set; otherwise, false.
 	**/
-	bool CanSpawnByWorldSpawnClassName() const {
+	bool CanWorldSpawn() const {
 		return !IsAbstract() && ( typeFlags & TypeInfoFlag_WorldSpawn );
 	}
 
 	/**
 	*	@return A boolean that indicates whether the entity can be spawned in-game.
 	**/
-	bool CanSpawnInGame() const {
+	bool CanGameSpawn() const {
 		return !IsAbstract() && ( typeFlags & TypeInfoFlag_GameSpawn );
 	}
 
@@ -147,23 +151,16 @@ public:
 	*	@brief	A case-insensitive version of Com_HashString that hashes up to 'len'
 	*			characters.
 	**/
-	static uint32_t HashClassnameString( const char *s, size_t len, unsigned size ) {
+	static uint32_t HashWorldSpawnString( const char *s ) {
 		// Winning answer from: https://stackoverflow.com/a/7666577 DJB2 hashing.
-		unsigned long hash = 5381;
+		uint32_t hash = 5381UL;
 		int c;
-
-		while ( c = *s++ )
+		// Iterate over the string's characters generating the hash.
+		while ( c = *s++ ) {
 			hash = ( ( hash << 5 ) + hash ) + c; /* hash * 33 + c */
-
+		}
+		// Return the hash.
 		return hash;
-		//uint32_t hash = 0;
-		//while (*s && len--) {
-		//	uint32_t c = PH_ToLower(*s++);
-		//	hash = 127 * hash + c;
-		//}
-
-		//hash = (hash >> 20) ^(hash >> 10) ^ hash;
-		//return hash & (size - 1);
 
 	}
 
@@ -173,20 +170,22 @@ public:
 	*	@return	A pointer to the EdictTypeInfo object corresponding to the given class name, or nullptr if no match is found.
 	**/
 	static EdictTypeInfo *GetInfoByWorldSpawnClassName( const char *name ) {
+		// Check if the input name is nullptr.
 		if ( nullptr == name ) {
 			return nullptr;
 		}
-
-		EdictTypeInfo *current = nullptr;
-		current = head;
-
+		// Iterate over the linked list of EdictTypeInfo objects and set up their superclasses.
+		EdictTypeInfo *current = head;
+		// Keep on going until we run into nullptr.
 		while ( current ) {
+			// Return the current EdictTypeInfo object if the worldSpawnClassName type name matches.
 			if ( !strcmp( current->worldSpawnClassName, name ) ) {
 				return current;
 			}
+			// Move to the previous EdictTypeInfo object in the linked list.
 			current = current->prev;
 		}
-
+		// If no match is found, return nullptr.
 		return nullptr;
 	}
 
@@ -196,20 +195,22 @@ public:
 	*	@return A pointer to the EdictTypeInfo object corresponding to the hashed name, or nullptr if no match is found.
 	**/
 	static EdictTypeInfo *GetInfoByHashedWorldSpawnClassName( const uint32_t hashedName ) {
+		// Check if the hashed name is zero, which indicates an invalid input.
 		if ( hashedName == 0 ) {
 			return nullptr;
 		}
-
-		EdictTypeInfo *current = nullptr;
-		current = head;
-
+		// Iterate over the linked list of EdictTypeInfo objects and set up their superclasses.
+		EdictTypeInfo *current = head;
+		// Keep on going until we run into nullptr.
 		while ( current ) {
-			if ( current->hashedWorldSpawnClass == hashedName ) {
+			// Return the current EdictTypeInfo object if the hashed world spawn class name matches.
+			if ( current->worldSpawnClassNameHash == hashedName ) {
 				return current;
 			}
+			// Move to the previous EdictTypeInfo object in the linked list.
 			current = current->prev;
 		}
-
+		// If no match is found, return nullptr.
 		return nullptr;
 	}
 
@@ -219,20 +220,22 @@ public:
 	*	@return	A pointer to the EdictTypeInfo object corresponding to the given class type name, or nullptr if no match is found or if the input name is nullptr.
 	**/
 	static EdictTypeInfo *GetByClassTypeName( const char *name ) {
-		if ( nullptr == name ) {
+		// Check if the input name is nullptr.
+		if ( name == nullptr ) {
 			return nullptr;
 		}
-
-		EdictTypeInfo *current = nullptr;
-		current = head;
-
+		// Iterate over the linked list of EdictTypeInfo objects and set up their superclasses.
+		EdictTypeInfo *current = head;
+		// Keep on going until we run into nullptr.
 		while ( current ) {
+			// Return the current EdictTypeInfo object if the class type name matches.
 			if ( !strcmp( current->classTypeName, name ) ) {
 				return current;
 			}
+			// Move to the previous EdictTypeInfo object in the linked list.
 			current = current->prev;
 		}
-
+		// If no match is found, return nullptr.
 		return nullptr;
 	}
 
@@ -240,12 +243,14 @@ public:
 	*	@brief	This is called during game initialisation in order to setup 
 	*			the superclasses for all EdictTypeInfo objects in the linked list.
 	**/
-	static void SetupSuperClasses() {
-		EdictTypeInfo *current = nullptr;
-		current = head;
-
+	static void InitializeTypeInfoRegistry() {
+		// Iterate over the linked list of EdictTypeInfo objects and set up their superclasses.
+		EdictTypeInfo *current = head;
+		// Keep on going until we run into nullptr.
 		while ( current ) {
+			// Set the super pointer to the superclass type name.
 			current->super = GetByClassTypeName( current->superClassTypeName );
+			// If the superclass type name is not found, set the super pointer to nullptr.
 			current = current->prev;
 		}
 	}
@@ -254,26 +259,29 @@ public:
 	inline static EdictTypeInfo *head = nullptr;
 
 	// <Q2RTXP>: WID: TODO: maybe generate a CRC32 for each classname instead?
-	StaticEdictTypeInfoCounter classTypeInfoID;
+	StaticEdictTypeInfoCounter classTypeInfoID = {};
 	//! Specified certain rights for the EdictTypeInfo class.
-	uint8_t	typeFlags;
+	uint8_t	typeFlags = 0;
+
 	//! A pointer linking to the next EdictTypeInfo class in the list.
-	EdictTypeInfo *prev;
+	EdictTypeInfo *prev = nullptr;
 	//! A pointer to the super EdictTypeInfo class
-	EdictTypeInfo *super;
+	EdictTypeInfo *super = nullptr;
 
 	//! The classname as set by the map editor. (e.g. "info_player_start")
-	const char *worldSpawnClassName;
+	const char *worldSpawnClassName = nullptr;
 	//! A hashed version of the worldSpawnClassName.
-	uint32_t hashedWorldSpawnClass;
-	//! The actual string representation of the svg_base_edict_t derived class name within C++.
-	const char *classTypeName;
+	uint32_t worldSpawnClassNameHash = 0;
+	
+	//! The actual C++ type representation of the svg_base_edict_t derived class type.
+	const char *classTypeName = nullptr;
 	//! A hashed version of classTypeName
-	//uint32_t hashedClassTypeName;
-	//! The actual string representation of the svg_base_edict_t parent base class name within C++.
-	const char *superClassTypeName;
+	uint32_t hashedClassTypeName = 0;
+	
+	//! The actual C++ type representation of this class' parent class type.
+	const char *superClassTypeName = nullptr;
 	//! A hashed version of superClassTypeName
-	//uint32_t hashedSuperClassTypeName;
+	uint32_t hashedSuperClassTypeName = 0;
 };
 
 
@@ -338,12 +346,12 @@ public:
 // @param mapClassName (string) - the map classname of this entity, used during entity spawning
 // @param classname (symbol) - the internal C++ class name
 // @param superClass (symbol) - the class this entity class inherits from
-#define DefineWorldSpawnClass( worldSpawnClassName, className, superClass, typeInfoFlags )	\
+#define DefineWorldSpawnClass( worldSpawnClassName, className, superClass, typeInfoFlags, spawnFunc )	\
 	using Base = superClass;	\
 	static svg_base_edict_t* AllocateInstance( const cm_entity_t* cm_entity ) {	\
 		className *baseEdict = new className( cm_entity );	\
 		baseEdict->classname = svg_level_qstring_t::from_char_str( worldSpawnClassName );	\
-		/*baseEdict->hashedClassname = baseEdict->GetTypeInfo()->hashedMapClass;*/ \
+		baseEdict->SetSpawnCallback( reinterpret_cast<svg_edict_callback_spawn_fptr>( spawnFunc ) );	\
 		return baseEdict;	\
 	}	\
 	__DeclareTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, &className::AllocateInstance );

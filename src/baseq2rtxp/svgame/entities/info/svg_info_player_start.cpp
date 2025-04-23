@@ -42,11 +42,10 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_info_player_start_t, svg_b
 
 
 /**
-*   @brief
+*
+*   Core:
+*
 **/
-void svg_info_player_start_t::Spawn() {
-    Base::Spawn();
-}
 /**
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
@@ -93,4 +92,18 @@ const bool svg_info_player_start_t::KeyValue( const cm_entity_t *keyValuePair, s
 
     // Give Base class a shot.
     return Base::KeyValue( keyValuePair, errorStr );
+}
+
+
+
+/**
+*
+*   info_player_start:
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+void svg_info_player_start_t::info_player_start_spawn( svg_info_player_start_t *self ) {
+
 }

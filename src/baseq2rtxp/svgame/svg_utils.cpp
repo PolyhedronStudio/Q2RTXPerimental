@@ -131,11 +131,16 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
         if ( !hit->inuse ) {
             continue;
         }
-        if ( !hit->touch ) {
+        if ( !hit->HasTouchCallback() ) {
             continue;
         }
 
-        hit->touch(hit, ent, NULL, NULL);
+        hit->DispatchTouchCallback( ent, nullptr, nullptr );
+		// <Q2RTXP>: WID: Prevent the touch from being called again if the previous
+        // touch 'removed' the entity, it is not in use.
+        if ( !ent->inuse ) {
+            break;
+        }
     }
 }
 
@@ -157,9 +162,11 @@ void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
         if ( !hit->inuse ) {
             continue;
         }
-        if ( ent->touch ) {
-            ent->touch( hit, ent, NULL, NULL );
+        if ( !hit->HasTouchCallback() ) {
+            continue;
         }
+
+        hit->DispatchTouchCallback( ent, nullptr, nullptr );
         if ( !ent->inuse ) {
             break;
         }

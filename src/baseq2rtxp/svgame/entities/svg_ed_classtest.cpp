@@ -88,3 +88,14 @@ const bool svg_classtest_edict_t::KeyValue( const cm_entity_t *keyValuePair, std
     // Nothing.
     return Base::KeyValue( keyValuePair, errorStr );
 }
+
+
+
+/**
+*
+*   Classtest:
+*
+**/
+void svg_classtest_edict_t::classtest_edict_spawn( svg_classtest_edict_t *ent ) {
+    Base::base_edict_spawn( ent );
+}

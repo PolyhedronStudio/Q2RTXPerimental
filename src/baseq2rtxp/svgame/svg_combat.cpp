@@ -159,14 +159,14 @@ void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_
 
     if (targ->movetype == MOVETYPE_PUSH || targ->movetype == MOVETYPE_STOP || targ->movetype == MOVETYPE_NONE) {
         // doors, triggers, etc
-        if ( targ->die ) {
-            targ->die( targ, inflictor, attacker, damage, point );
+        if ( targ->HasDieCallback() ) {
+            targ->DispatchDieCallback( inflictor, attacker, damage, point );
         }
         return;
     }
 
     if ((targ->svflags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
-        targ->touch = NULL;
+        targ->SetTouchCallback( nullptr );//targ->touch = NULL;
         // WID: TODO: Actually trigger death.
         //monster_death_use(targ);
         //When a monster dies, it fires all of its targets with the current
@@ -189,8 +189,8 @@ void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_
         //    SVG_UseTargets( self, self->enemy );
         //}
     }
-    if ( targ->die ) {
-        targ->die( targ, inflictor, attacker, damage, point );
+    if ( targ->HasDieCallback() ) {
+        targ->DispatchDieCallback( inflictor, attacker, damage, point );
     }
 }
 
@@ -452,8 +452,8 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
         // WID: TODO: Monster Reimplement.
         //if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {
         if ( take ) {
-            if ( targ->pain ) {
-                targ->pain( targ, attacker, finalKnockBack, take );
+            if ( targ->HasPainCallback() ) {
+                targ->DispatchPainCallback( attacker, finalKnockBack, take );
                 // nightmare mode monsters don't go into pain frames often
                 if ( skill->value == 3 )
                     targ->pain_debounce_time = level.time + 5_sec;
@@ -466,8 +466,8 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
         //}
     } else if (client) {
         if ( !( targ->flags & FL_GODMODE ) && ( take ) ) {
-            if ( targ->pain ) {
-                targ->pain( targ, attacker, finalKnockBack, take );
+            if ( targ->HasPainCallback() ) {
+                targ->DispatchPainCallback( attacker, finalKnockBack, take );
             } else {
                 #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
                 gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
@@ -475,8 +475,8 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
             }
         }
     } else if (take) {
-        if ( targ->pain ) {
-            targ->pain( targ, attacker, finalKnockBack, take );
+        if ( targ->HasPainCallback() ) {
+            targ->DispatchPainCallback( attacker, finalKnockBack, take );
         } else {
             #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
             gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );

@@ -43,7 +43,7 @@ void SP_func_conveyor( svg_base_edict_t *self ) {
         self->speed = 0;
     }
 
-    self->use = func_conveyor_use;
+    self->SetUseCallback( func_conveyor_use );
 
     gi.setmodel( self, self->model );
     self->solid = SOLID_BSP;

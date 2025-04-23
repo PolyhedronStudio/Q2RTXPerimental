@@ -60,5 +60,5 @@ void SP_trigger_counter( svg_base_edict_t *self ) {
 		self->count = 2;
 	}
 
-	self->use = trigger_counter_use;
+	self->SetUseCallback( trigger_counter_use );
 }

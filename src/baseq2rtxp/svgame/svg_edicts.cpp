@@ -185,7 +185,7 @@ void SVG_Entities_AddForPlayer( svg_base_edict_t *ent ) {
 
     body->s.entityType = ET_PLAYER_CORPSE;
 
-    body->die = body_die;
+    body->SetDieCallback( body_die );
     body->takedamage = DAMAGE_YES;
 
     gi.linkentity( body );

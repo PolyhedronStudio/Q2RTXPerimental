@@ -109,7 +109,7 @@ void barrel_explode( svg_base_edict_t *self ) {
 void barrel_delay( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
     self->takedamage = DAMAGE_NO;
     self->nextthink = level.time + random_time( 150_ms );
-    self->think = barrel_explode;
+    self->SetThinkCallback( barrel_explode );
     self->activator = attacker;
 }
 
@@ -142,13 +142,13 @@ void SP_misc_explobox( svg_base_edict_t *self ) {
     if ( !self->dmg )
         self->dmg = 150;
 
-    self->die = barrel_delay;
+    self->SetDieCallback( barrel_delay );
     self->takedamage = DAMAGE_YES;
     //self->monsterinfo.aiflags = AI_NOSTEP;
 
-    self->touch = barrel_touch;
+    self->SetTouchCallback( barrel_touch );
 
-    self->think = M_droptofloor;
+    self->SetThinkCallback( M_droptofloor );
     self->nextthink = level.time + 20_hz;
 
     gi.linkentity( self );

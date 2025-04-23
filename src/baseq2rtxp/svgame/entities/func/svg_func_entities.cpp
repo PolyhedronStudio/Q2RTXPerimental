@@ -66,7 +66,7 @@ void Think_SpawnDoorTrigger( svg_base_edict_t *ent ) {
     other->solid = SOLID_TRIGGER;
     other->movetype = MOVETYPE_NONE;
     other->s.entityType = ET_PUSH_TRIGGER;
-    other->touch = Touch_DoorTrigger;
+    other->SetTouchCallback( Touch_DoorTrigger );
     gi.linkentity( other );
 
     if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN )

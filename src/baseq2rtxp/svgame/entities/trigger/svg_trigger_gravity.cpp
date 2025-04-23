@@ -50,7 +50,7 @@ void SP_trigger_gravity( svg_base_edict_t *self ) {
 	SVG_Util_InitTrigger( self );
 
 	self->gravity = atof( st.gravity );
-	self->touch = trigger_gravity_touch;
+	self->SetTouchCallback( trigger_gravity_touch );
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {
 		self->svflags |= SVF_HULL;

@@ -86,7 +86,7 @@ void SP_misc_teleporter( svg_base_edict_t *ent ) {
     gi.linkentity( ent );
 
     trig = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-    trig->touch = teleporter_touch;
+    trig->SetTouchCallback( teleporter_touch );
     trig->solid = SOLID_TRIGGER;
     trig->s.entityType = ET_TELEPORT_TRIGGER;
     trig->targetNames.target = ent->targetNames.target;

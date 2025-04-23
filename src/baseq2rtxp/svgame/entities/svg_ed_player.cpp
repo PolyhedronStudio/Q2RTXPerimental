@@ -36,13 +36,6 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_player_edict_t, svg_base_e
 
 
 /**
-*   @brief
-**/
-void svg_player_edict_t::Spawn() {
-    Base::Spawn();
-}
-
-/**
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
 void svg_player_edict_t::Reset( const bool retainDictionary ) {
@@ -84,4 +77,18 @@ void svg_player_edict_t::Restore( struct game_read_context_t *ctx ) {
 **/
 const bool svg_player_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
 	return Base::KeyValue( keyValuePair, errorStr );
+}
+
+
+
+/**
+*
+*   Player
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+void svg_player_edict_t::player_edict_spawn( svg_player_edict_t *self ) {
+
 }

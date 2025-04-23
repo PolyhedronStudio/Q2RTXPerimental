@@ -221,9 +221,9 @@ void door_team_toggle( svg_base_edict_t *self, svg_base_edict_t *other, svg_base
     // engage to toggle the door moving states.)
     if ( self->flags & FL_TEAMSLAVE ) {
         // Prevent ourselves from actually falling into recursion, make sure we got a client entity.
-        if ( self->teammaster != self && self->teammaster->use/*&& entityIsCapable*/ ) {
+        if ( self->teammaster != self && self->teammaster->HasUseCallback()/*&& entityIsCapable*/ ) {
             // Pass through to the team master to handle this.
-            if ( self->teammaster->use ) {
+            if ( self->teammaster->HasUseCallback() ) {
                 door_team_toggle( self->teammaster, other, activator, stateIsOpen, forceState );
             }
                 return;
@@ -239,8 +239,8 @@ void door_team_toggle( svg_base_edict_t *self, svg_base_edict_t *other, svg_base
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
             for ( svg_base_edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
-                ent->message = NULL;
-                ent->touch = NULL;
+                ent->message = nullptr;
+                ent->SetTouchCallback( nullptr );
                 ent->activator = activator; // WID: We need to assign it right?
                 ent->other = other;
                 door_close_move( ent );
@@ -253,8 +253,8 @@ void door_team_toggle( svg_base_edict_t *self, svg_base_edict_t *other, svg_base
     if ( ( forceState == true && stateIsOpen == true ) || ( forceState == false && SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) ) {
         // trigger all paired doors
         for ( svg_base_edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
-            ent->message = NULL;
-            ent->touch = NULL;
+            ent->message = nullptr;
+            ent->SetTouchCallback( nullptr );
             ent->activator = activator; // WID: We need to assign it right?
             ent->other = other;
             door_open_move( ent/*, activator */ );
@@ -416,7 +416,7 @@ void door_open_move_done( svg_base_edict_t *self ) {
     // If a wait time is set:
     if ( self->pushMoveInfo.wait >= 0 ) {
         // Assign close move think.
-        self->think = door_close_move;
+        self->SetThinkCallback( door_close_move );
         // Tell it when to start closing.
         self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
     }
@@ -442,7 +442,7 @@ void door_close_move_done( svg_base_edict_t *self ) {
             self->takedamage = DAMAGE_YES;
             self->lifeStatus = LIFESTATUS_DEAD;
             self->health = self->max_health;
-            self->pain = door_pain;
+            self->SetPainCallback( door_pain );
         }
     }
 
@@ -605,8 +605,8 @@ void door_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t
         // In case of single non teamed doors, self->teammaster can be self.
         if ( self->teammaster != self && entityIsCapable ) {
             // Pass through to the team master to handle this.
-            if ( self->teammaster->use ) {
-                self->teammaster->use( self->teammaster, other, activator, useType, useValue );
+            if ( self->teammaster->HasUseCallback() ) {
+                self->teammaster->DispatchUseCallback( other, activator, useType, useValue );
             }
             // Exit.
             return;
@@ -657,8 +657,8 @@ void door_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t
         if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
             // trigger all paired doors
             for ( ent = self; ent; ent = ent->teamchain ) {
-                ent->message = NULL;
-                ent->touch = NULL;
+                ent->message = nullptr;
+                ent->SetTouchCallback( nullptr );
                 ent->activator = activator; // WID: We need to assign it right?
                 ent->other = other;
                 door_close_move( ent );
@@ -671,8 +671,8 @@ void door_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t
 
     // trigger all paired doors
     for ( ent = self; ent; ent = ent->teamchain ) {
-        ent->message = NULL;
-        ent->touch = NULL;
+        ent->message = nullptr;
+        ent->SetTouchCallback( nullptr );
         ent->activator = activator; // WID: We need to assign it right?
         ent->other = other;
         door_open_move( ent/*, activator */);
@@ -738,8 +738,8 @@ void door_killed( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_
         // If we got a client/monster entity, prevent ourselves from actually falling into recursion.
         if ( self->teammaster != self ) {
             // Pass through to the team master to handle this.
-            if ( self->teammaster && self->teammaster->use ) {
-                door_killed( self->teammaster, inflictor, attacker, damage, point );
+            if ( self->teammaster && self->teammaster->HasUseCallback() ) {
+                self->teammaster->DispatchDieCallback( inflictor, attacker, damage, point );
             }
             // Exit.
             return;
@@ -757,7 +757,7 @@ void door_killed( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_
         if ( damageActivates ) {
             ent->health = ent->max_health;
             ent->takedamage = DAMAGE_NO;
-            ent->pain = nullptr;
+            ent->SetPainCallback( nullptr );
         }
 
         // Dispatch a signal to each door team member.
@@ -884,12 +884,12 @@ void SP_func_door( svg_base_edict_t *ent ) {
     }
 
     // Callbacks.
-    ent->postspawn = door_postspawn;
-    ent->blocked = door_blocked;
-    ent->touch = door_touch;
-    ent->use = door_use;
-    ent->pain = door_pain;
-    ent->onsignalin = door_onsignalin;
+    ent->SetPostSpawnCallback( door_postspawn );
+    ent->SetBlockedCallback( door_blocked );
+    ent->SetTouchCallback( door_touch );
+    ent->SetUseCallback( door_use );
+    ent->SetPainCallback( door_pain );
+    ent->SetOnSignalInCallback( door_onsignalin );
 
     // Calculate absolute move distance to get from pos1 to pos2.
     const Vector3 fabsMoveDirection = QM_Vector3Fabs( ent->movedir );
@@ -918,38 +918,38 @@ void SP_func_door( svg_base_edict_t *ent ) {
         // Let it take damage.
         ent->takedamage = DAMAGE_YES;
         // Die callback.
-        ent->die = door_killed;
-        ent->pain = door_pain;
+        ent->SetDieCallback( door_killed );
+        ent->SetPainCallback( door_pain );
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
+        ent->SetThinkCallback( SVG_PushMove_Think_CalculateMoveSpeed );
     // Touch based door:DOOR_SPAWNFLAG_DAMAGE_ACTIVATES
     } else if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = Think_SpawnDoorTrigger;
+        ent->SetThinkCallback( Think_SpawnDoorTrigger );
     } else {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
+        ent->SetThinkCallback( SVG_PushMove_Think_CalculateMoveSpeed );
 
         // This door is only toggled, never untoggled, by each (+usetarget) interaction.
         if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->touch = nullptr;
-            ent->use = door_use;
+            ent->SetTouchCallback( nullptr );
+            ent->SetUseCallback( door_use );
             // This door is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->touch = nullptr;
-            ent->use = door_use;
+            ent->SetTouchCallback( nullptr );
+            ent->SetUseCallback( door_use );
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->touch = nullptr;
-            ent->use = door_use;
+            ent->SetTouchCallback( nullptr );
+            ent->SetUseCallback( door_use );
         }
 
         // Is usetargetting disabled by default?

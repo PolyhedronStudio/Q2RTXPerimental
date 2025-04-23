@@ -108,7 +108,7 @@ void SP_light( svg_base_edict_t *self ) {
     #endif
 
     //if ( self->style >= 32 ) {
-        self->use = light_use;
+        self->SetUseCallback( light_use);
     // Set on or off depending on spawnflags.
     if ( SVG_HasSpawnFlags( self, START_OFF ) ) {
         light_off( self );

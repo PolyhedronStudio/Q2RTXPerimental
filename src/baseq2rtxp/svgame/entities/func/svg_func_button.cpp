@@ -238,9 +238,9 @@ void button_unpress_move_done( svg_base_edict_t *self ) {
     // If it is a touch button, reassign the touch callback.
     if ( isTouchButton ) {
         if ( !isToggleButton ) {
-            self->touch = nullptr;
+            self->SetTouchCallback( nullptr );
         } else {
-            self->touch = button_touch;
+            self->SetTouchCallback( button_touch );
         }
     }
 
@@ -249,7 +249,7 @@ void button_unpress_move_done( svg_base_edict_t *self ) {
         //if ( !isToggleButton ) {
         //    self->die = nullptr;
         //} else {
-            self->die = button_killed;
+        self->SetDieCallback( button_killed );
         //}
     }
 
@@ -320,7 +320,7 @@ void button_press_move_done( svg_base_edict_t *self ) {
     if ( isTouchButton ) {
         // If it is a touch button, reassign the touch callback.
         if ( !isToggleButton ) {
-            self->touch = nullptr;
+            self->SetTouchCallback( nullptr );
         }
     }
     
@@ -341,7 +341,7 @@ void button_press_move_done( svg_base_edict_t *self ) {
         if ( self->nextthink < level.time ) {
             if ( self->pushMoveInfo.wait >= 0 ) {
                 self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
-                self->think = button_think_return;
+                self->SetThinkCallback( button_think_return );
             }
         }
     }
@@ -491,7 +491,7 @@ void button_think_return( svg_base_edict_t *self ) {
     // Try again next frame.
     if (/* self->pushMoveInfo.state == BUTTON_STATE_PRESSED &&*/ isContinuousUseTarget && isContinuousState ) {
         self->nextthink = level.time + FRAME_TIME_MS;
-        self->think = button_think_return;
+        self->SetThinkCallback( button_think_return );
 
         // Trigger UseTargets
         SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_SET, 1 );
@@ -521,7 +521,7 @@ void button_think_return( svg_base_edict_t *self ) {
             // Allow it to take damage again.
             self->takedamage = DAMAGE_YES;
             self->health = self->max_health;
-            self->die = button_killed;
+            self->SetDieCallback( button_killed );
             // Dispatch a signal.
             SVG_SignalOut( self, self->other, self->activator, "OnRevive" );
         }
@@ -529,7 +529,7 @@ void button_think_return( svg_base_edict_t *self ) {
     // It is continuous and still held, so maintain this function as our 'think' callback.
     } else {
         self->nextthink = level.time + FRAME_TIME_MS;
-        self->think = button_think_return;
+        self->SetThinkCallback( button_think_return );
     }
 }
 
@@ -570,7 +570,7 @@ void button_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict
             if ( isContinuousUseTarget && isContinuousState ) {
                 // Reinitiate this function.
                 self->nextthink = level.time + FRAME_TIME_MS;
-                self->think = button_think_return;
+                self->SetThinkCallback( button_think_return );
                 // Trigger UseTargets
                 SVG_UseTargets( self, self->activator, useType, useValue );
                 // Dispatch a signal.
@@ -648,7 +648,7 @@ void button_usetarget_continuous_press( svg_base_edict_t *self, svg_base_edict_t
         if ( isContinuousState ) {
             // Reinitiate this function.
             self->nextthink = level.time + FRAME_TIME_MS;
-            self->think = button_think_return;
+            self->SetThinkCallback( button_think_return );
             // Trigger UseTargets
             SVG_UseTargets( self, self->activator, useType, useValue );
             // Dispatch a signal.
@@ -706,7 +706,7 @@ void button_usetarget_press( svg_base_edict_t *self, svg_base_edict_t *other, sv
         if ( !stayPressed && self->nextthink < level.time ) {
             // Reinitiate this function.
             self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
-            self->think = button_think_return;
+            self->SetThinkCallback( button_think_return );
         }
     } else {
         // Engage in press movement.
@@ -780,7 +780,7 @@ void button_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_pla
     const bool stayPressed = ( self->wait == -1 ? true : false );
 
     // If it is a toggleable..
-    self->touch = nullptr;
+    self->SetTouchCallback( nullptr );
 
     if ( self->pushMoveInfo.state == BUTTON_STATE_PRESSED && !stayPressed ) {
         // Unpress,
@@ -988,7 +988,7 @@ void SP_func_button( svg_base_edict_t *ent ) {
     ent->movetype = MOVETYPE_STOP;
     ent->solid = SOLID_BSP;
     ent->s.entityType = ET_PUSHER;
-    ent->onsignalin = button_onsignalin;
+    ent->SetOnSignalInCallback( button_onsignalin );
     // BSP Model, or otherwise, specified external model.
     gi.setmodel( ent, ent->model );
 
@@ -1065,7 +1065,7 @@ void SP_func_button( svg_base_edict_t *ent ) {
     ent->pushMoveInfo.endAngles = ent->s.angles;
 
     // Default trigger callback.
-    ent->use = button_use;
+    ent->SetUseCallback( button_use );
 
     // Used for condition checking, if we got a damage activating button we don't want to have it support pressing.
     const bool damageActivates = SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_DAMAGE_ACTIVATES );
@@ -1076,37 +1076,37 @@ void SP_func_button( svg_base_edict_t *ent ) {
         // Let it take damage.
         ent->takedamage = DAMAGE_YES;
         // Die callback.
-        ent->die = button_killed;
+        ent->SetDieCallback( button_killed );
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
+        ent->SetThinkCallback( SVG_PushMove_Think_CalculateMoveSpeed );
     // Touch based button:
     } else if ( SVG_HasSpawnFlags( ent, BUTTON_SPAWNFLAG_TOUCH_ACTIVATES ) ) {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
+        ent->SetThinkCallback( SVG_PushMove_Think_CalculateMoveSpeed );
         // Trigger use callback.
-        ent->touch = button_touch;
+        ent->SetTouchCallback( button_touch );
     // Otherwise check for +usetarget features of this button:
     } else {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
+        ent->SetThinkCallback( SVG_PushMove_Think_CalculateMoveSpeed );
 
         // This button acts on a single press and fires its targets when reaching its end destination.
         if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
             // Setup single press usage.
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
-            ent->use = button_usetarget_press;
+            ent->SetUseCallback( button_usetarget_press );
         // This button is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
             // Setup toggle press usage.
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
-            ent->use = button_usetarget_toggle;
+            ent->SetUseCallback( button_usetarget_toggle );
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
             // Setup continuous press usage.
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
-            ent->use = button_usetarget_continuous_press;
+            ent->SetUseCallback( button_usetarget_continuous_press );
         }
 
         // Is usetargetting disabled by default?

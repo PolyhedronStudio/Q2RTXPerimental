@@ -27,5 +27,5 @@ void trigger_relay_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_bas
 This fixed size trigger cannot be touched, it can only be fired by other events.
 */
 void SP_trigger_relay( svg_base_edict_t *self ) {
-	self->use = trigger_relay_use;
+	self->SetUseCallback( trigger_relay_use );
 }

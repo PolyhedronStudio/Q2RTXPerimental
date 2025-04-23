@@ -32,9 +32,9 @@ void LUA_Think_SignalOutDelay( svg_base_edict_t *entity ) {
 	}
 	const char *signalName = entity->delayed.signalOut.name;
 	bool propogateToLua = true;
-	if ( creatorEntity->onsignalin ) {
-		/*propogateToLua = */creatorEntity->onsignalin(
-			creatorEntity, entity->other, entity->activator,
+	if ( creatorEntity->HasOnSignalInCallback() ) {
+		/*propogateToLua = */creatorEntity->DispatchOnSignalInCallback(
+			entity->other, entity->activator,
 			signalName, entity->delayed.signalOut.arguments
 		);
 	}
@@ -212,7 +212,7 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 		delayEntity->classname = "DelayedLuaSignalOut";
 
 		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
-		delayEntity->think = LUA_Think_SignalOutDelay;
+		delayEntity->SetThinkCallback( LUA_Think_SignalOutDelay );
 		if ( !activator ) {
 			gi.dprintf( "LUA_Think_SignalOutDelay with no activator\n" );
 		}
@@ -240,12 +240,12 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 	// Fire the signal if it has a OnSignal method registered.
 	bool propogateToLua = true;
 	bool sentSignalOut = false;
-	if ( entity->onsignalin ) {
+	if ( entity->HasOnSignalInCallback() ) {
 		// Set activator/other.
 		entity->activator = activator;
 		entity->other = signaller;
 		// Fire away.
-		/*propogateToLua = */entity->onsignalin( entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
+		/*propogateToLua = */entity->DispatchOnSignalInCallback( signaller, activator, signalName.c_str(), signalArgumentsArray );
 		sentSignalOut = true;
 	}
 

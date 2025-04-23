@@ -131,7 +131,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 		delayEntity->classname = "DelayedLuaUseTarget";
 
 		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
-		delayEntity->think = LUA_Think_UseTargetDelay;
+		delayEntity->SetThinkCallback( LUA_Think_UseTargetDelay );
 
 		if ( !activator ) {
 			gi.dprintf( "%s: LUA_Think_UseTargetDelay with no activator\n", __func__ );
@@ -195,8 +195,8 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 	}
 
 	// Dispatch C use.
-	if ( entity->use ) {
-		entity->use( entity, other, activator, (entity_usetarget_type_t)useType, useValue );
+	if ( entity->HasUseCallback() ) {
+		entity->DispatchUseCallback( other, activator, (entity_usetarget_type_t)useType, useValue );
 		useResult = 1; // USETARGET_FIRED
 	}
 
@@ -275,7 +275,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 		delayEntity->classname = "DelayedLuaUseTargets";
 
 		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
-		delayEntity->think = LUA_Think_UseTargetsDelay;
+		delayEntity->SetThinkCallback( LUA_Think_UseTargetsDelay );
 
 		if ( !activator ) {
 			gi.dprintf( "%s: LUA_Think_UseTargetsDelay with no activator\n", __func__ );
@@ -343,8 +343,8 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 				gi.dprintf( "%s: entity(#%d, \"%s\") used itself!\n", __func__, entity->s.number, (const char *)entity->classname );
 			} else {
 				// Dispatch C use.
-				if ( fireTargetEntity->use ) {
-					fireTargetEntity->use( fireTargetEntity, entity, activator, useType, useValue );
+				if ( fireTargetEntity->HasUseCallback() ) {
+					fireTargetEntity->DispatchUseCallback( entity, activator, useType, useValue );
 					useResult = 1; // USETARGET_FIRED
 				}
 

@@ -142,7 +142,7 @@ bool SV_RunThink(svg_base_edict_t *ent)
 
     ent->nextthink = 0_ms;
 
-    if ( !ent->think ) {
+    if ( !ent->HasThinkCallback() ) {
         // WID: Useful to output exact information about what entity we are dealing with here, that'll help us fix the problem :-).
         gi.error( "[ entityNumber(%d), inUse(%s), classname(%s), targetname(%s), luaName(%s), (nullptr) ent->think ]\n",
             ent->s.number, ( ent->inuse != false ? "true" : "false" ), ent->classname, ent->targetname, ent->luaProperties.luaName);
@@ -150,7 +150,7 @@ bool SV_RunThink(svg_base_edict_t *ent)
         return false;
     }
 
-    ent->think(ent);
+    ent->DispatchThinkCallback();
 
     return true;
 }
@@ -169,12 +169,12 @@ void SVG_Impact(svg_base_edict_t *e1, svg_trace_t *trace)
 
     e2 = trace->ent;
 
-    if ( e1->touch && e1->solid != SOLID_NOT ) {
-        e1->touch( e1, e2, &trace->plane, trace->surface );
+    if ( e1->HasTouchCallback() && e1->solid != SOLID_NOT ) {
+        e1->DispatchTouchCallback( e2, &trace->plane, trace->surface );
     }
 
-    if ( e2->touch && e2->solid != SOLID_NOT ) {
-        e2->touch( e2, e1, NULL, NULL );
+    if ( e2->HasTouchCallback() && e2->solid != SOLID_NOT ) {
+        e2->DispatchTouchCallback( e1, NULL, NULL );
     }
 }
 
@@ -367,11 +367,11 @@ int SV_FlyMove(svg_base_edict_t *ent, float time, const cm_contents_t mask)
 
 /*
 ============
-SV_AddGravity
+SVG_AddGravity
 
 ============
 */
-void SV_AddGravity(svg_base_edict_t *ent)
+void SVG_AddGravity(svg_base_edict_t *ent)
 {
     ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
 }
@@ -659,8 +659,9 @@ retry:
 
         // if the pusher has a "blocked" function, call it
         // otherwise, just stay in place until the obstacle is gone
-        if (part->blocked)
-            part->blocked(part, obstacle);
+        if ( part->HasBlockedCallback() ) {
+            part->DispatchBlockedCallback( obstacle );
+        }
 #if 0
         // if the pushed entity went away and the pusher is still there
         if (!obstacle->inuse && part->inuse)
@@ -768,7 +769,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 
 // add gravity
     if (ent->movetype != MOVETYPE_FLY && ent->movetype != MOVETYPE_FLYMISSILE)
-        SV_AddGravity(ent);
+        SVG_AddGravity(ent);
 
 // move angles
     VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
@@ -915,7 +916,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
                 if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
                     hitsound = true;
                 if ( ent->liquidInfo.level != LIQUID_UNDER )
-                    SV_AddGravity( ent );
+                    SVG_AddGravity( ent );
             }
 
     // friction for flying monsters that have been given vertical velocity
@@ -1055,7 +1056,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 //                if (ent->velocity[2] < sv_gravity->value * -0.1f)
 //                    hitsound = true;
 //                if (ent->liquidInfo.level == 0)
-//                    SV_AddGravity(ent);
+//                    SVG_AddGravity(ent);
 //            }
 //
 //    // friction for flying monsters that have been given vertical velocity
@@ -1173,7 +1174,7 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
                 if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
                     hitsound = true;
                 if ( ent->liquidInfo.level != LIQUID_UNDER )
-                    SV_AddGravity( ent );
+                    SVG_AddGravity( ent );
             }
 
     // friction for flying monsters that have been given vertical velocity
@@ -1291,8 +1292,8 @@ void SVG_RunEntity(svg_base_edict_t *ent)
         isMoveStepper = true;
     }
 
-    if ( ent->prethink ) {
-        ent->prethink( ent );
+    if ( ent->HasPreThinkCallback() ) {
+        ent->DispatchPreThinkCallback( );
     }
 
     switch ( ent->movetype ) {
@@ -1331,7 +1332,7 @@ void SVG_RunEntity(svg_base_edict_t *ent)
         }
     }
 
-    if ( ent->postthink ) {
-        ent->postthink( ent );
+    if ( ent->HasPostThinkCallback() ) {
+        ent->DispatchPostThinkCallback();
     }
 }

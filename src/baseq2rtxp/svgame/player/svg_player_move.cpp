@@ -113,8 +113,8 @@ void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
             if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
                 && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
                 // Stop useTargetting the entity:
-                if ( currentTargetEntity->use ) {
-                    currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
+                if ( currentTargetEntity->HasUseCallback() ) {
+                    currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
                 }
                 // Remove continuous state flag.
                 currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_CONTINUOUS );
@@ -153,8 +153,8 @@ void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
             if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
                 && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
                 // Continous entity husage:
-                if ( currentTargetEntity->use ) {
-                    currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
+                if ( currentTargetEntity->HasUseCallback() ) {
+                    currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
                 }
                 // Remove continuous state flag.
                 currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
@@ -179,8 +179,8 @@ void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
                     // Stop with the continous entity usage:
                     if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
                         // Continous entity husage:
-                        if ( currentTargetEntity->use ) {
-                            currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
+                        if ( currentTargetEntity->HasUseCallback() ) {
+                            currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
                         }
                         // Remove continuous state flag.
                         currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
@@ -198,16 +198,16 @@ void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
         {
             // Single press entity usage:
             if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_PRESS ) ) {
-                if ( currentTargetEntity->use ) {
+                if ( currentTargetEntity->HasUseCallback() ) {
                     //// Trigger 'OFF' if it is toggled.
                     if ( SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_ON ) ) {
-                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_OFF, 0 );
+                        currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_OFF, 0 );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_ON );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_OFF );
                         currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
                         // Trigger 'ON' if it is untoggled.
                     } else {
-                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_ON, 1 );
+                        currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_ON, 1 );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_OFF );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_ON );
                         currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_ON;
@@ -216,15 +216,15 @@ void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
             }
             // Toggle press entity usage:
             else if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
-                if ( currentTargetEntity->use ) {
+                if ( currentTargetEntity->HasUseCallback() ) {
                     // Trigger 'TOGGLE OFF' if it is toggled.
                     if ( SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_TOGGLED ) ) {
-                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
+                        currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ENTITY_USETARGET_STATE_TOGGLED );
                         currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
                         // Trigger 'TOGGLE ON' if it is untoggled.
                     } else {
-                        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+                        currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
                         //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_TOGGLED );
                         currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_TOGGLED;
                     }
@@ -233,8 +233,8 @@ void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
 
             // Toggle press entity usage:
             else if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
-                if ( currentTargetEntity->use ) {
-                    currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
+                if ( currentTargetEntity->HasUseCallback() ) {
+                    currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
                 }
                 currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_CONTINUOUS;
             }
@@ -244,8 +244,8 @@ void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
             && SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
             && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
             // Continous entity husage:
-            if ( currentTargetEntity->use ) {
-                currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
+            if ( currentTargetEntity->HasUseCallback() ) {
+                currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
             }
             // Apply continuous hold state.
             //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_CONTINUOUS );
@@ -491,7 +491,7 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
     }
     // Setup 'User Command', 'Player Skip Entity' and Function Pointers.
     pm->cmd = *userCommand;
-    pm->player = (struct edict_ptr_t*)ent;
+    pm->player = (struct edict_ptr_t *)ent;
     pm->trace = SV_PM_Trace;
     pm->pointcontents = SV_PM_PointContents;
     pm->clip = SV_PM_Clip;
@@ -596,10 +596,10 @@ static void ClientProcessTouches( svg_base_edict_t *ent, svg_client_t *client, p
         const svg_trace_t &tr = svg_trace_t( pm.touchTraces.traces[ i ] );
         svg_base_edict_t *other = tr.ent;
 
-        if ( other != nullptr && other->touch ) {
+        if ( other != nullptr && other->HasTouchCallback() ) {
             // TODO: Q2RE has these for last 2 args: const svg_trace_t &tr, bool other_touching_self
             // What the??
-            other->touch( other, ent, &tr.plane, tr.surface );
+            other->DispatchTouchCallback( ent, &tr.plane, tr.surface );
         }
     }
 }

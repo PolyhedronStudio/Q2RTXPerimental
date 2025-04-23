@@ -33,7 +33,7 @@ void Use_Target_Tent( svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_e
 
 void SP_target_temp_entity(svg_base_edict_t *ent)
 {
-    ent->use = Use_Target_Tent;
+    ent->SetUseCallback( Use_Target_Tent );
 }
 
 
@@ -102,7 +102,7 @@ void SP_target_speaker(svg_base_edict_t *ent)
     if (ent->spawnflags & 1)
         ent->s.sound = ent->noise_index;
 
-    ent->use = Use_Target_Speaker;
+    ent->SetUseCallback( Use_Target_Speaker );
 
     // Set entity type to ET_TARGET_SPEAKER.
     ent->s.entityType = ET_TARGET_SPEAKER;
@@ -135,7 +135,7 @@ void SP_target_secret(svg_base_edict_t *ent)
         return;
     }
 
-    ent->use = use_target_secret;
+    ent->SetUseCallback( use_target_secret );
     if (!st.noise)
         st.noise = "misc/secret.wav";
     ent->noise_index = gi.soundindex(st.noise);
@@ -172,7 +172,7 @@ void SP_target_goal(svg_base_edict_t *ent)
         return;
     }
 
-    ent->use = use_target_goal;
+    ent->SetUseCallback( use_target_goal );
     if (!st.noise)
         st.noise = "misc/secret.wav";
     ent->noise_index = gi.soundindex(st.noise);
@@ -214,13 +214,13 @@ void use_target_explosion( svg_base_edict_t *self, svg_base_edict_t *other, svg_
         return;
     }
 
-    self->think = target_explosion_explode;
+    self->SetThinkCallback( target_explosion_explode );
     self->nextthink = level.time + QMTime::FromSeconds( self->delay );
 }
 
 void SP_target_explosion(svg_base_edict_t *ent)
 {
-    ent->use = use_target_explosion;
+    ent->SetUseCallback( use_target_explosion );
     ent->svflags = SVF_NOCLIENT;
 }
 
@@ -270,7 +270,7 @@ void SP_target_changelevel(svg_base_edict_t *ent)
     if ((Q_stricmp(level.mapname, "fact1") == 0) && (Q_stricmp(ent->map, "fact3") == 0))
         ent->map = "fact3$secret1";
 
-    ent->use = use_target_changelevel;
+    ent->SetUseCallback( use_target_changelevel );
     ent->svflags = SVF_NOCLIENT;
 }
 
@@ -308,7 +308,7 @@ void use_target_splash( svg_base_edict_t *self, svg_base_edict_t *other, svg_bas
 
 void SP_target_splash(svg_base_edict_t *self)
 {
-    self->use = use_target_splash;
+    self->SetUseCallback( use_target_splash );
     SVG_Util_SetMoveDir(self->s.angles, self->movedir);
 
     if (!self->count)
@@ -351,7 +351,7 @@ void use_target_spawner( svg_base_edict_t *self, svg_base_edict_t *other, svg_ba
 
 void SP_target_spawner(svg_base_edict_t *self)
 {
-    self->use = use_target_spawner;
+    self->SetUseCallback( use_target_spawner );
     self->svflags = SVF_NOCLIENT;
     if (self->speed) {
         SVG_Util_SetMoveDir(self->s.angles, self->movedir );
@@ -386,7 +386,7 @@ void use_target_blaster( svg_base_edict_t *self, svg_base_edict_t *other, svg_ba
 
 void SP_target_blaster(svg_base_edict_t *self)
 {
-    self->use = use_target_blaster;
+    self->SetUseCallback( use_target_blaster );
     SVG_Util_SetMoveDir(self->s.angles, self->movedir );
     self->noise_index = gi.soundindex("weapons/laser2.wav");
 
@@ -412,7 +412,7 @@ void trigger_crosslevel_trigger_use( svg_base_edict_t *self, svg_base_edict_t *o
 void SP_target_crosslevel_trigger(svg_base_edict_t *self)
 {
     self->svflags = SVF_NOCLIENT;
-    self->use = trigger_crosslevel_trigger_use;
+    self->SetUseCallback( trigger_crosslevel_trigger_use );
 }
 
 /*QUAKED target_crosslevel_target (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
@@ -435,7 +435,7 @@ void SP_target_crosslevel_target(svg_base_edict_t *self)
         self->delay = 1;
     self->svflags = SVF_NOCLIENT;
 
-    self->think = target_crosslevel_target_think;
+    self->SetThinkCallback( target_crosslevel_target_think );
     self->nextthink = level.time + QMTime::FromSeconds( self->delay );
 }
 
@@ -569,8 +569,8 @@ void target_laser_start(svg_base_edict_t *self)
             SVG_Util_SetMoveDir(self->s.angles, self->movedir );
         }
     }
-    self->use = target_laser_use;
-    self->think = target_laser_think;
+    self->SetUseCallback( target_laser_use );
+    self->SetThinkCallback( target_laser_think );
 
     if (!self->dmg)
         self->dmg = 1;
@@ -588,7 +588,7 @@ void target_laser_start(svg_base_edict_t *self)
 void SP_target_laser(svg_base_edict_t *self)
 {
     // let everything else get spawned before we start firing
-    self->think = target_laser_start;
+    self->SetThinkCallback( target_laser_start );
     self->nextthink = level.time + 1_sec;
 }
 
@@ -668,8 +668,8 @@ void SP_target_lightramp(svg_base_edict_t *self)
     }
 
     self->svflags |= SVF_NOCLIENT;
-    self->use = target_lightramp_use;
-    self->think = target_lightramp_think;
+    self->SetUseCallback( target_lightramp_use );
+    self->SetThinkCallback( target_lightramp_think );
 
     self->movedir[0] = self->message[0] - 'a';
     self->movedir[1] = self->message[1] - 'a';
@@ -757,8 +757,8 @@ void SP_target_earthquake(svg_base_edict_t *self)
         self->speed = 200;
 
     self->svflags |= SVF_NOCLIENT;
-    self->think = target_earthquake_think;
-    self->use = target_earthquake_use;
+    self->SetThinkCallback( target_earthquake_think );
+    self->SetUseCallback( target_earthquake_use );
 
     self->noise_index = gi.soundindex("world/quake.wav");
 }

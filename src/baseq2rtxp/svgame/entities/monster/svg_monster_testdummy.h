@@ -42,13 +42,34 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     virtual ~svg_monster_testdummy_t() = default;
 
 
+    /**
+    *
+    *
+    *   Const Expressions:
+    *
+    *
+    **/
+    //! For when dummy is standing straight up.
+    static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };
+    static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 72.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 30.f;
+    //! For when dummy is crouching.
+    static constexpr Vector3 DUMMY_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
+    static constexpr Vector3 DUMMY_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_DUCKED = 4.f;
+    //! For when dummy is dead.
+    static constexpr Vector3 DUMMY_BBOX_DEAD_MINS = { -16.f, -16.f, -36.f };
+    static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
+
+
 
     /**
     *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_ed_worldspawn_t
+    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
     *
     **/
-    DefineWorldSpawnClass( "monster_testdummy_puppet", svg_monster_testdummy_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn );
+    DefineWorldSpawnClass( "monster_testdummy_puppet", svg_monster_testdummy_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_monster_testdummy_t::monster_testdummy_puppet_spawn );
 
 
 
@@ -67,10 +88,6 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     *   Core:
     *
     **/
-    /**
-    *   @brief
-    **/
-    virtual void Spawn() override;
     /**
     *   Reconstructs the object, optionally retaining the entityDictionary.
     **/
@@ -98,11 +115,13 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
 
     /**
     *
-    *
     *   TestDummy
     *
-    *
     **/
+    /**
+    *   @brief  Post-Spawn routine.
+    **/
+    static void monster_testdummy_puppet_spawn( svg_monster_testdummy_t *self );
     /**
     *   @brief  Post-Spawn routine.
     **/
@@ -114,7 +133,7 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     /**
     *   @brief  Touched.
     **/
-    static void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+    static void monster_testdummy_puppet_touch( svg_monster_testdummy_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
     /**
     *   @brief
     **/
@@ -128,25 +147,17 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
 
     /**
     *
-    *
     *   Member Variables:
     *
-    *
     **/
-    //! For when dummy is standing straight up.
-    static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };
-    static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 72.f };
-    static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 30.f;
-    //! For when dummy is crouching.
-    static constexpr Vector3 DUMMY_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
-    static constexpr Vector3 DUMMY_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
-    static constexpr float   DUMMY_VIEWHEIGHT_DUCKED = 4.f;
-    //! For when dummy is dead.
-    static constexpr Vector3 DUMMY_BBOX_DEAD_MINS = { -16.f, -16.f, -36.f };
-    static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
-    static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
-
+    // For savegame/loadgame testing hehe :-)
+    double summedDistanceTraversed = 0.f;
     // Monster variables.
     int testVar = 100;
     Vector3 testVar2 = {};
+    //---------------------------
+    // <TEMPORARY FOR TESTING>
+    //---------------------------
+    //static sg_skm_rootmotion_set_t rootMotionSet;
+    skm_rootmotion_set_t *rootMotionSet;
 };

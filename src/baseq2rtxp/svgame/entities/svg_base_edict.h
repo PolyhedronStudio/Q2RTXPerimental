@@ -10,8 +10,25 @@
 
 
 
+// Enable to debug the entity SetCallback functions.
+// It'll trigger with specific information about what is wrong with it.
+#define DEBUG_CALLBACK_ASSIGNMENTS 1 // Uncomment to disable.
+
+#if ( defined( DEBUG_CALLBACK_ASSIGNMENTS ) && ( DEBUG_CALLBACK_ASSIGNMENTS == 1 ) )
+#define DebugValidateCallbackFuncPtr(edict, p, type, functionName) SVG_Save_DebugValidateCallbackFuncPtr(edict, reinterpret_cast<void*>( p ), type, functionName)
+#else
+#define DebugValidateCallbackFuncPtr(edict, p, type, functionName) (true);
+#endif
+
+// Forward declare.
+struct svg_base_edict_t;
+
 //! Include the TypeInfo system for linking a classname onto a C++ class type derived svg_edict_base_t.
 #include "svgame/entities/typeinfo/svg_edict_typeinfo.h"
+//! Required for save descriptors.
+#include "svgame/svg_save.h"
+
+
 
 /**
 *   @brief  edict->spawnflags T
@@ -141,6 +158,8 @@ using svg_edict_callback_pain_fptr = void ( * )( svg_base_edict_t *self, svg_bas
 //! Called to die.
 using svg_edict_callback_die_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point );
 
+
+
 /**
 * 
 * 
@@ -212,15 +231,64 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *
     *
-    *   Core:
+    *   Callback Dispatching:
     *
     *
     **/
     /**
-    *   @brief
+    *   @brief  Calls the 'spawn' callback that is configured for this entity.
     **/
-    virtual void Spawn();
+    virtual void DispatchSpawnCallback( );
+    /**
+    *   @brief  Calls the 'postspawn' callback that is configured for this entity.
+    **/
+    virtual void DispatchPostSpawnCallback( );
+    /**
+    *   @brief  Calls the 'prethink' callback that is configured for this entity.
+    **/
+    virtual void DispatchPreThinkCallback( );
+    /**
+    *   @brief  Calls the 'think' callback that is configured for this entity.
+    **/
+    virtual void DispatchThinkCallback( );
+    /**
+    *   @brief  Calls the 'postthink' callback that is configured for this entity.
+    **/
+    virtual void DispatchPostThinkCallback( );
+    /**
+    *   @brief  Calls the 'blocked' callback that is configured for this entity.
+    **/
+    virtual void DispatchBlockedCallback( svg_base_edict_t *other );
+    /**
+    *   @brief  Calls the 'touch' callback that is configured for this entity.
+    **/
+    virtual void DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+    /**
+    *   @brief  Calls the 'use' callback that is configured for this entity.
+    **/
+    virtual void DispatchUseCallback( svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+    /**
+    *   @brief  Calls the 'onsignalin' callback that is configured for this entity.
+    **/
+    virtual void DispatchOnSignalInCallback( svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
+    /**
+    *   @brief  Calls the 'pain' callback that is configured for this entity.
+    **/
+    virtual void DispatchPainCallback( svg_base_edict_t *other, const float kick, const int32_t damage );
+    /**
+    *   @brief  Calls the 'die' callback that is configured for this entity.
+    **/
+    virtual void DispatchDieCallback( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const int32_t damage, vec_t *point );
 
+
+
+    /**
+    *
+    *
+    *   Core:
+    *
+    *
+    **/
     /**
 	*   Reconstructs the object, zero-ing out its members, and optionally 
 	*   retaining the entityDictionary. 
@@ -270,16 +338,35 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetSpawnCallback( FuncPtrType funcPtr ) {
-        spawn = reinterpret_cast<svg_edict_callback_spawn_fptr>( funcPtr );
+		// Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_SPAWN, __func__ );
+		// Set and return the function pointer.
+        spawnCallbackFuncPtr = static_cast<svg_edict_callback_spawn_fptr>( funcPtr );
         return funcPtr;
     }
+	/**
+	*   @return Returns true if the spawn callback function pointer is set.
+	**/
+	inline const bool HasSpawnCallback() const {
+		return ( spawnCallbackFuncPtr != nullptr );
+	}
+    
     /**
     *   @brief  For properly setting the 'postspawn' callback method function pointer.
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetPostSpawnCallback( FuncPtrType funcPtr ) {
-        postspawn = reinterpret_cast<svg_edict_callback_postspawn_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_POSTSPAWN, __func__ );
+        // Set and return the function pointer.
+        postSpawnCallbackFuncPtr = reinterpret_cast<svg_edict_callback_postspawn_fptr>( funcPtr );
         return funcPtr;
+    }
+    /**
+    *   @return Returns true if the post spawn callback function pointer is set.
+    **/
+    inline const bool HasPostSpawnCallback() const {
+        return ( postSpawnCallbackFuncPtr != nullptr );
     }
     
     /**
@@ -287,24 +374,53 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetPreThinkCallback( FuncPtrType funcPtr ) {
-        prethink = reinterpret_cast<svg_edict_callback_prethink_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_PRETHINK, __func__ );
+        // Set and return the function pointer.
+        preThinkCallbackFuncPtr = reinterpret_cast<svg_edict_callback_prethink_fptr>( funcPtr );
         return funcPtr;
     }
+    /**
+    *   @return Returns true if the prethink callback function pointer is set.
+    **/
+    inline const bool HasPreThinkCallback() const {
+        return ( preThinkCallbackFuncPtr != nullptr );
+    }
+    
     /**
     *   @brief  For properly setting the 'think' callback method function pointer.
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetThinkCallback( FuncPtrType funcPtr ) {
-        think = reinterpret_cast<svg_edict_callback_think_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_THINK, __func__ );
+        // Set and return the function pointer.
+        thinkCallbackFuncPtr = reinterpret_cast<svg_edict_callback_think_fptr>( funcPtr );
         return funcPtr;
     }
+    /**
+    *   @return Returns true if the think callback function pointer is set.
+    **/
+    inline const bool HasThinkCallback() const {
+        return ( thinkCallbackFuncPtr != nullptr );
+    }
+    
     /**
     *   @brief  For properly setting the 'postthink' callback method function pointer.
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetPostThinkCallback( FuncPtrType funcPtr ) {
-        postthink = reinterpret_cast<svg_edict_callback_postthink_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_POSTTHINK, __func__ );
+        // Set and return the function pointer.
+        postThinkCallbackFuncPtr = reinterpret_cast<svg_edict_callback_postthink_fptr>( funcPtr );
         return funcPtr;
+    }
+    /**
+    *   @return Returns true if the post think callback function pointer is set.
+    **/
+    inline const bool HasPostThinkCallback() const {
+        return ( postThinkCallbackFuncPtr != nullptr );
     }
 
     /**
@@ -312,16 +428,35 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetBlockedCallback( FuncPtrType funcPtr ) {
-        blocked = reinterpret_cast<svg_edict_callback_blocked_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_BLOCKED, __func__ );
+        // Set and return the function pointer.
+        blockedCallbackFuncPtr = reinterpret_cast<svg_edict_callback_blocked_fptr>( funcPtr );
         return funcPtr;
     }
+    /**
+    *   @return Returns true if the blocked callback function pointer is set.
+    **/
+    inline const bool HasBlockedCallback() const {
+        return ( blockedCallbackFuncPtr != nullptr );
+    }
+
     /**
     *   @brief  For properly setting the 'touch' callback method function pointer.
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetTouchCallback( FuncPtrType funcPtr ) {
-        touch = reinterpret_cast<svg_edict_callback_touch_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_TOUCH, __func__ );
+        // Set and return the function pointer.
+        touchCallbackFuncPtr = reinterpret_cast<svg_edict_callback_touch_fptr>( funcPtr );
         return funcPtr;
+    }
+    /**
+    *   @return Returns true if the touch callback function pointer is set.
+    **/
+    inline const bool HasTouchCallback() const {
+        return ( touchCallbackFuncPtr != nullptr );
     }
 
     /**
@@ -329,16 +464,35 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetUseCallback( FuncPtrType funcPtr ) {
-        use = reinterpret_cast<svg_edict_callback_use_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_USE, __func__ );
+        // Set and return the function pointer.
+        useCallbackFuncPtr = reinterpret_cast<svg_edict_callback_use_fptr>( funcPtr );
         return funcPtr;
     }
+    /**
+    *   @return Returns true if the use callback function pointer is set.
+    **/
+    inline const bool HasUseCallback() const {
+        return ( useCallbackFuncPtr != nullptr );
+    }
+
     /**
     *   @brief  For properly setting the 'onsignalin' callback method function pointer.
     **/
     template<typename FuncPtrType>
-    inline FuncPtrType SetOnSignalinCallback( FuncPtrType funcPtr ) {
-        onsignalin = reinterpret_cast<svg_edict_callback_onsignalin_fptr>( funcPtr );
+    inline FuncPtrType SetOnSignalInCallback( FuncPtrType funcPtr ) {
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_ONSIGNALIN, __func__ );
+        // Set and return the function pointer.
+        onSignalInCallbackFuncPtr = reinterpret_cast<svg_edict_callback_onsignalin_fptr>( funcPtr );
         return funcPtr;
+    }
+    /**
+    *   @return Returns true if the on-signal-in callback function pointer is set.
+    **/
+    inline const bool HasOnSignalInCallback() const {
+        return ( onSignalInCallbackFuncPtr != nullptr );
     }
 
     /**
@@ -346,16 +500,35 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetPainCallback( FuncPtrType funcPtr ) {
-        pain = reinterpret_cast<svg_edict_callback_pain_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_PAIN, __func__ );
+        // Set and return the function pointer.
+        painCallbackFuncPtr = reinterpret_cast<svg_edict_callback_pain_fptr>( funcPtr );
         return funcPtr;
     }
+    /**
+    *   @return Returns true if the pain callback function pointer is set.
+    **/
+    inline const bool HasPainCallback() const {
+        return ( painCallbackFuncPtr != nullptr );
+    }
+
     /**
     *   @brief  For properly setting the 'die' callback method function pointer.
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetDieCallback( FuncPtrType funcPtr ) {
-        die = reinterpret_cast<svg_edict_callback_die_fptr>( funcPtr );
+        // Debug validate the function pointer.
+        DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_CALLBACK_DIE, __func__ );
+        // Set and return the function pointer.
+        dieCallbackFuncPtr = reinterpret_cast<svg_edict_callback_die_fptr>( funcPtr );
         return funcPtr;
+    }
+    /**
+    *   @return Returns true if the use callback function pointer is set.
+    **/
+    inline const bool HasDieCallback() const {
+        return ( dieCallbackFuncPtr != nullptr );
     }
 
 
@@ -389,6 +562,13 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     virtual svg_save_descriptor_field_t *GetSaveDescriptorField( const char *name );
 
 
+
+    /**
+    *
+    *   Callbacks(defaults):
+    *
+    **/
+    static void base_edict_spawn( svg_base_edict_t *self );
 
     /**
     *
@@ -608,30 +788,30 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! When to perform its next frame logic.
     QMTime   nextthink;
 
-    svg_edict_callback_spawn_fptr spawn = nullptr;
+    svg_edict_callback_spawn_fptr spawnCallbackFuncPtr = nullptr;
     //! Gives a chance to setup references to other entities etc.
-	svg_edict_callback_postspawn_fptr postspawn = nullptr;
+	svg_edict_callback_postspawn_fptr postSpawnCallbackFuncPtr = nullptr;
     //! Called before actually thinking.
-    svg_edict_callback_prethink_fptr prethink = nullptr;
+    svg_edict_callback_prethink_fptr preThinkCallbackFuncPtr = nullptr;
     //! Called for thinking.
-    svg_edict_callback_think_fptr think = nullptr;
+    svg_edict_callback_think_fptr thinkCallbackFuncPtr = nullptr;
     //! Called after thinking.
-    svg_edict_callback_postthink_fptr postthink = nullptr;
+    svg_edict_callback_postthink_fptr postThinkCallbackFuncPtr = nullptr;
 
     //! Called when movement has been blocked.
-    svg_edict_callback_blocked_fptr blocked = nullptr;         // move to moveinfo?
+    svg_edict_callback_blocked_fptr blockedCallbackFuncPtr = nullptr;         // move to moveinfo?
     //! Called when the entity touches another entity.
-    svg_edict_callback_touch_fptr touch = nullptr;
+    svg_edict_callback_touch_fptr touchCallbackFuncPtr = nullptr;
 
     //! Called to 'trigger' the entity.
-    svg_edict_callback_use_fptr use = nullptr;
+    svg_edict_callback_use_fptr useCallbackFuncPtr = nullptr;
     //! Called when the entity is being 'Signalled', happens when another entity emits an OutSignal to it.
-    svg_edict_callback_onsignalin_fptr onsignalin = nullptr;
+    svg_edict_callback_onsignalin_fptr onSignalInCallbackFuncPtr = nullptr;
 
     //! Called when it gets damaged.
-    svg_edict_callback_pain_fptr pain = nullptr;
+    svg_edict_callback_pain_fptr painCallbackFuncPtr = nullptr;
     //! Called to die.
-    svg_edict_callback_die_fptr die = nullptr;
+    svg_edict_callback_die_fptr dieCallbackFuncPtr = nullptr;
 
 
     /**

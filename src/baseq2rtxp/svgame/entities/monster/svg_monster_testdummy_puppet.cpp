@@ -1,7 +1,8 @@
 /********************************************************************
 *
 *
-*	ClientGame: A 'Test Dummy' monster entity, posing, hence, puppet.
+*	ServerGame: TestDummy Monster Edict
+*	NameSpace: "".
 *
 *
 ********************************************************************/
@@ -11,12 +12,14 @@
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
 
+// SharedGame UseTargetHints.
 #include "sharedgame/sg_usetarget_hints.h"
 
 // Monster Move
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
 
+// TestDummy Monster
 #include "svgame/entities/monster/svg_monster_testdummy.h"
 
 
@@ -38,6 +41,7 @@
 *   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
 **/
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_monster_testdummy_t )
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_t, summedDistanceTraversed, SD_FIELD_TYPE_DOUBLE ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_t, testVar, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_monster_testdummy_t, testVar2, SD_FIELD_TYPE_VECTOR3 ),
 SAVE_DESCRIPTOR_FIELDS_END();
@@ -48,67 +52,10 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_monster_testdummy_t, svg_b
 
 
 /**
-*   @brief
+*
+*   Core:
+*
 **/
-void svg_monster_testdummy_t::Spawn() {
-    Base::Spawn();
-
-    // Entity Type:
-    s.entityType = ET_MONSTER;
-
-    // Solid/MoveType:
-    solid = SOLID_BOUNDS_BOX;
-    movetype = MOVETYPE_ROOTMOTION;
-    //self->monsterinfo.aiflags = AI_NOSTEP;
-
-    // Model/BBox:
-    model = "models/characters/mixadummy/tris.iqm";
-    s.modelindex = gi.modelindex( model );
-    VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MINS, mins );
-    VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MAXS, maxs );
-
-    // Defaults:
-    if ( !mass ) {
-        mass = 200;
-    }
-    if ( !health ) {
-        health = 100;
-    }
-    if ( !dmg ) {
-        dmg = 150;
-    }
-
-    // Monster Entity Faking:
-    svflags |= SVF_MONSTER;
-    //s.renderfx |= RF_FRAMELERP;
-    s.skinnum = 0;
-    takedamage = DAMAGE_AIM;
-    air_finished_time = level.time + 12_sec;
-    max_health = health;
-    clipmask = CM_CONTENTMASK_MONSTERSOLID;
-    lifeStatus = LIFESTATUS_ALIVE;
-    svflags &= ~SVF_DEADMONSTER;
-    useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
-
-    // Touch:
-    //touch = monster_testdummy_puppet_touch;
-    // Die:
-    takedamage = DAMAGE_YES;
-    SetDieCallback( monster_testdummy_puppet_die );
-    nextthink = level.time + 20_hz;
-    SetThinkCallback( monster_testdummy_puppet_think );
-    SetPostSpawnCallback( monster_testdummy_puppet_postspawn );
-    SetUseCallback( monster_testdummy_puppet_use );
-
-    // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
-    SVG_Entity_SetUseTargetHintByID( this, USETARGET_HINT_ID_NPC_ENGAGE );
-
-    // Link it in.
-    gi.linkentity( this );
-}
-
-
-//==========================================================================
 /**
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
@@ -141,6 +88,11 @@ void svg_monster_testdummy_t::Restore( struct game_read_context_t *ctx ) {
     Base::Restore( ctx );
     // Restore all the members of this entity type.
     ctx->read_fields( svg_monster_testdummy_t::saveDescriptorFields, this );
+
+    // Make sure to restore the actual root motion set data.
+    const char *modelname = model;
+    const model_t *model_forname = gi.GetModelDataForName( modelname );
+    rootMotionSet = &model_forname->skmConfig->rootMotion;
 }
 
 
@@ -154,12 +106,118 @@ const bool svg_monster_testdummy_t::KeyValue( const cm_entity_t *keyValuePair, s
 }
 
 
-//---------------------------
-// <TEMPORARY FOR TESTING>
-//---------------------------
-//static sg_skm_rootmotion_set_t rootMotionSet;
-skm_rootmotion_set_t *rootMotionSet;
-static int32_t animationID = 1; // IDLE(0), RUN_FORWARD_PISTOL(1)
+
+/**
+*
+*   TestDummy
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+void svg_monster_testdummy_t::monster_testdummy_puppet_spawn( svg_monster_testdummy_t *self ) {
+    // Always call upon base methods.
+    Base::base_edict_spawn( self );
+
+    // Entity Type:
+    self->s.entityType = ET_MONSTER;
+
+    // Solid/MoveType:
+    self->solid = SOLID_BOUNDS_BOX;
+    self->movetype = MOVETYPE_ROOTMOTION;
+    //self->monsterinfo.aiflags = AI_NOSTEP;
+
+    // Model/BBox:
+    self->model = "models/characters/mixadummy/tris.iqm";
+    self->s.modelindex = gi.modelindex( self->model );
+    VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MINS, self->mins );
+    VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MAXS, self->maxs );
+
+    // Defaults:
+    if ( !self->mass ) {
+        self->mass = 200;
+    }
+    if ( !self->health ) {
+        self->health = 100;
+    }
+    if ( !self->dmg ) {
+        self->dmg = 150;
+    }
+
+    // Monster Entity Faking:
+    self->svflags &= ~SVF_DEADMONSTER;
+    self->svflags |= SVF_MONSTER;
+    //s.renderfx |= RF_FRAMELERP;
+    self->s.skinnum = 0;
+
+    self->takedamage = DAMAGE_AIM;
+
+    self->air_finished_time = level.time + 12_sec;
+
+    self->max_health = self->health;
+
+    self->clipmask = CM_CONTENTMASK_MONSTERSOLID;
+
+    self->takedamage = DAMAGE_YES;
+    self->lifeStatus = LIFESTATUS_ALIVE;
+
+    self->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
+
+    // Think:
+    self->nextthink = level.time + 20_hz;
+    self->SetThinkCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_think );
+    // Die:
+    self->SetDieCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_die );
+    // Post Spawn:
+    self->SetPostSpawnCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_postspawn );
+    // Touch:
+    self->SetTouchCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_touch );
+    // Use:
+    self->SetUseCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_use );
+
+    // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
+
+    // Link it in.
+    gi.linkentity( self );
+}
+
+/**
+*   @brief  Post-Spawn routine.
+**/
+void svg_monster_testdummy_t::monster_testdummy_puppet_postspawn( svg_monster_testdummy_t *self ) {
+    //
+    // Test GetModelData functions:
+    //
+    #if 0
+    const char *modelname = self->model;
+    const model_t *model_forname = gi.GetModelDataForName( modelname );
+    const model_t *model_forhandle = gi.GetModelDataForHandle( self->s.modelindex );
+    if ( model_forname ) {
+        gi.dprintf( "%s: testdummy(#%i), model_forname(%s)\n", __func__, self->s.number, model_forname->name );
+    }
+    if ( model_forhandle ) {
+        gi.dprintf( "%s: testdummy(#%i), model_forhandle(#%i, %s)\n", __func__, self->s.number, self->s.modelindex, model_forhandle->name );
+    }
+
+    //
+    // Iterate over all IQM animations and print out its information.
+    //
+    if ( model_forname ) {
+        SG_SKM_GenerateRootMotionSet( model_forname, 0, 0 );
+    }
+    #endif
+
+    //---------------------------
+    // <TEMPORARY FOR TESTING>
+    //---------------------------
+    const char *modelname = self->model;
+    const model_t *model_forname = gi.GetModelDataForName( modelname );
+    self->rootMotionSet = &model_forname->skmConfig->rootMotion;
+    //---------------------------
+    // </TEMPORARY FOR TESTING>
+    //---------------------------
+}
 //---------------------------
 // </TEMPORARY FOR TESTING>
 //---------------------------
@@ -237,99 +295,11 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_die( svg_monster_testdumm
     gi.linkentity( self );
 }
 
-#if 0
 /**
 *   @brief  Touched.
 **/
-void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
-    #if 0
-    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
-        return;
-    }
+void svg_monster_testdummy_t::monster_testdummy_puppet_touch( svg_monster_testdummy_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
 
-    // Calculate direction.
-    vec3_t v = { };
-    VectorSubtract( self->s.origin, other->s.origin, v );
-
-    // Move ratio(based on their masses).
-    const float ratio = (float)other->mass / (float)self->mass;
-
-    // Yaw direction angle.
-    const float yawAngle = QM_Vector3ToYaw( v );
-    const float direction = yawAngle;
-    // Distance to travel.
-    float distance = 20 * ratio * FRAMETIME;
-
-    // Debug output:
-    if ( plane ) {
-        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-        gi.dprintf( "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
-    } else {
-        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-        gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
-    }
-
-    // Perform move.
-    M_walkmove( self, direction, distance );
-    #endif
-    //---------------------------
-    // <TEMPORARY FOR TESTING>
-    //---------------------------
-    if ( other && other->client ) {
-        // Assign enemy.
-        self->activator = other;
-        self->goalentity = other;
-        // Get the root motion.
-        skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
-        // Transition to its animation.
-        self->s.frame = rootMotion->firstFrameIndex;
-    }
-    //---------------------------
-    // </TEMPORARY FOR TESTING>
-    //---------------------------
-}
-#endif
-/**
-*   @brief  Touched.
-**/
-void svg_monster_testdummy_t::monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
-    #if 0
-    if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
-        return;
-    }
-
-    // Calculate direction.
-    vec3_t v = { };
-    VectorSubtract( self->s.origin, other->s.origin, v );
-
-    // Move ratio(based on their masses).
-    const float ratio = (float)other->mass / (float)self->mass;
-
-    // Yaw direction angle.
-    const float yawAngle = QM_Vector3ToYaw( v );
-    const float direction = yawAngle;
-    // Distance to travel.
-    float distance = 20 * ratio * FRAMETIME;
-
-    // Debug output:
-    if ( plane ) {
-        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-        gi.dprintf( "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
-    } else {
-        gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
-        gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
-    }
-
-    // Perform move.
-    M_walkmove( self, direction, distance );
-    #endif
-    //---------------------------
-    // <TEMPORARY FOR TESTING>
-    //---------------------------
-
-    //---------------------------
-    // </TEMPORARY FOR TESTING>
-    //---------------------------
 }
 /**
 *   @brief
@@ -347,7 +317,7 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_use( svg_monster_testdumm
                 self->goalentity = activator;
 
                 // Get the root motion.
-                skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
+                skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
                 // Transition to its animation.
                 self->s.frame = rootMotion->firstFrameIndex;
 
@@ -369,7 +339,6 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_use( svg_monster_testdumm
     SVG_UseTargets( self, activator );
 }
 
-void SV_AddGravity( svg_base_edict_t *ent );
 /**
 *   @brief  Thinking routine.
 **/
@@ -383,7 +352,7 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdu
     self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
 
     self->testVar = level.frameNumber;
-	gi.dprintf( "%s: %d\n", __func__, self->testVar );
+	gi.dprintf( "%s: monster_testdummy(#%d), distanceTraversed(%f)\n", __func__, self->s.number, self->summedDistanceTraversed );
     // Animate.
     if ( self->health > 0 ) {
         #if 0
@@ -392,12 +361,16 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdu
             self->s.frame = 0;
         }
         #endif
+
+        // For summing up distance traversed.
+        Vector3 preSumOrigin = self->s.origin;
+
         //---------------------------
         // <TEMPORARY FOR TESTING>
         //---------------------------
         if ( self->activator && self->activator->client ) {
             // Get the root motion.
-            skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 3 ]; // [3] == RUN_FORWARD_PISTOL
+            skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 3 ]; // [3] == RUN_FORWARD_PISTOL
             // Calculate the last frame index.
             // 
             // Increment animation.
@@ -467,7 +440,7 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdu
             }
 
 			// Is done in MMove_StepSlideMove.
-            //SV_AddGravity( self );
+            //SVG_AddGravity( self );
 
             // Generate frame velocity vector.
             Vector3 entityVelocity = self->velocity;
@@ -480,6 +453,7 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdu
             //if ( self->groundInfo.entity == nullptr ) {
             //    frameVelocity = self->velocity;
             //}
+
 
             // Setup the monster move structure.
             mm_move_t monsterMove = {
@@ -537,6 +511,10 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdu
                 self->s.frame = 0;
             }
         }
+        Vector3 postSumOrigin = self->s.origin;
+		Vector3 diffOrigin = postSumOrigin - preSumOrigin;
+        const double diffLength = QM_Vector3LengthSqr( diffOrigin );
+        self->summedDistanceTraversed += diffLength;
         //---------------------------
         // </TEMPORARY FOR TESTING>
         //---------------------------
@@ -566,42 +544,5 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdu
 
     // Setup nextthink.
     self->nextthink = level.time + FRAME_TIME_MS;
-}
-
-/**
-*   @brief  Post-Spawn routine.
-**/
-void svg_monster_testdummy_t::monster_testdummy_puppet_postspawn( svg_monster_testdummy_t *self ) {
-    //
-    // Test GetModelData functions:
-    //
-    #if 0
-    const char *modelname = self->model;
-    const model_t *model_forname = gi.GetModelDataForName( modelname );
-    const model_t *model_forhandle = gi.GetModelDataForHandle( self->s.modelindex );
-    if ( model_forname ) {
-        gi.dprintf( "%s: testdummy(#%i), model_forname(%s)\n", __func__, self->s.number, model_forname->name );
-    }
-    if ( model_forhandle ) {
-        gi.dprintf( "%s: testdummy(#%i), model_forhandle(#%i, %s)\n", __func__, self->s.number, self->s.modelindex, model_forhandle->name );
-    }
-
-    //
-    // Iterate over all IQM animations and print out its information.
-    //
-    if ( model_forname ) {
-        SG_SKM_GenerateRootMotionSet( model_forname, 0, 0 );
-    }
-    #endif
-
-    //---------------------------
-    // <TEMPORARY FOR TESTING>
-    //---------------------------
-    const char *modelname = self->model;
-    const model_t *model_forname = gi.GetModelDataForName( modelname );
-    rootMotionSet = &model_forname->skmConfig->rootMotion;
-    //---------------------------
-    // </TEMPORARY FOR TESTING>
-    //---------------------------
 }
 

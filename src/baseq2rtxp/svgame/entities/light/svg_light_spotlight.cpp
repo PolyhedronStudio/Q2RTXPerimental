@@ -167,7 +167,7 @@ void spotlight_think( svg_base_edict_t *self ) {
 	}
 
 	// Setup for next frame's 'think'.
-	self->think = spotlight_think;	
+	self->SetThinkCallback( spotlight_think );
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
@@ -204,7 +204,7 @@ void SP_spotlight( svg_base_edict_t *self ) {
 	self->s.effects |= EF_SPOTLIGHT;
 
 	// Support for on/off triggering.
-	self->use = spotlight_use;
+	self->SetUseCallback( spotlight_use );
 
 	// Immediately set a SVF_NOCLIENT flag if light is meant to start 'off'.
 	if ( self->spawnflags & START_OFF ) {
@@ -212,7 +212,7 @@ void SP_spotlight( svg_base_edict_t *self ) {
 	}
 
 	// Required think method.
-	self->think = spotlight_think;
+	self->SetThinkCallback( spotlight_think );
 	self->nextthink = level.time + FRAME_TIME_MS;
 
 	// Link it in.

@@ -100,7 +100,7 @@ void func_wall_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_ed
 
 	// Unset the use function if the wall is not supposed to be toggled.
     if ( !( self->spawnflags & FUNC_WALL_TOGGLE ) ) {
-        self->use = NULL;
+        self->SetUseCallback( nullptr );
     }
 }
 
@@ -210,9 +210,9 @@ void SP_func_wall( svg_base_edict_t *self ) {
     }
 
 	// Set the use function.
-    self->use = func_wall_use;
+    self->SetUseCallback( func_wall_use );
     // Set signalin callback.
-    self->onsignalin = func_wall_onsignalin;
+    self->SetOnSignalInCallback( func_wall_onsignalin );
     // Start on, thus solid.
     if ( self->spawnflags & FUNC_WALL_START_ON ) {
         self->solid = SOLID_BSP;

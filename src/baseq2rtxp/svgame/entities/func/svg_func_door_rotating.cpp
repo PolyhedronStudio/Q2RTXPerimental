@@ -136,12 +136,12 @@ void SP_func_door_rotating( svg_base_edict_t *ent ) {
     }
 
     // Callbacks.
-    ent->postspawn = door_postspawn;
-    ent->blocked = door_blocked;
-    ent->touch = door_touch;
-    ent->use = door_use;
+    ent->SetPostSpawnCallback( door_postspawn );
+    ent->SetBlockedCallback( door_blocked );
+    ent->SetTouchCallback( door_touch );
+    ent->SetUseCallback( door_use );
     //ent->pain = door_pain;
-    ent->onsignalin = door_onsignalin;
+    ent->SetOnSignalInCallback( door_onsignalin );
 
     // Calculate absolute move distance to get from pos1 to pos2.
     ent->pos1 = ent->s.origin;
@@ -169,8 +169,8 @@ void SP_func_door_rotating( svg_base_edict_t *ent ) {
             ent->takedamage = DAMAGE_NO;
             ent->lifeStatus = LIFESTATUS_DEAD;
             // Die callback.
-            ent->die = door_killed;
-            ent->pain = door_pain;
+            ent->SetDieCallback( door_killed );
+            ent->SetPainCallback( door_pain );
         } else {
             // Set max health, in case it wasn't set.also used to reinitialize the door to revive.
             if ( !ent->health ) {
@@ -180,40 +180,40 @@ void SP_func_door_rotating( svg_base_edict_t *ent ) {
             ent->takedamage = DAMAGE_YES;
             ent->lifeStatus = LIFESTATUS_ALIVE;
             // Die callback.
-            ent->die = door_killed;
-            ent->pain = door_pain;
+            ent->SetDieCallback( door_killed );
+            ent->SetPainCallback( door_pain );
         }
 
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
+        ent->SetThinkCallback( SVG_PushMove_Think_CalculateMoveSpeed );
     // Touch based door:DOOR_SPAWNFLAG_DAMAGE_ACTIVATES
     } else if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = Think_SpawnDoorTrigger;
+        ent->SetThinkCallback( Think_SpawnDoorTrigger );
     } else {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_Think_CalculateMoveSpeed;
+        ent->SetThinkCallback( SVG_PushMove_Think_CalculateMoveSpeed );
 
         // This door is only toggled, never untoggled, by each (+usetarget) interaction.
         if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->touch = nullptr;
-            ent->use = door_use;
+            ent->SetTouchCallback( nullptr );
+            ent->SetUseCallback( door_use );
             // This door is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->touch = nullptr;
-            ent->use = door_use;
+            ent->SetTouchCallback( nullptr );
+            ent->SetUseCallback( door_use );
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->touch = nullptr;
-            ent->use = door_use;
+            ent->SetTouchCallback( nullptr );
+            ent->SetUseCallback( door_use );
         }
 
         // Is usetargetting disabled by default?

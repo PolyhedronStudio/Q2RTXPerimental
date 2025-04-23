@@ -213,18 +213,19 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, nextthink, SD_FIELD_TYPE_INT64 ),
 	
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postspawn, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_POSTSPAWN ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, prethink, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PRETHINK ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, think, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_THINK ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postthink, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_POSTTHINK ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, blocked, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_BLOCKED ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, touch, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_TOUCH ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, use, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_USE ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, pain, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PAIN ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, onsignalin, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_ONSIGNALIN),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, die, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_DIE ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, spawnCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_SPAWN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postSpawnCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_POSTSPAWN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, preThinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PRETHINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, thinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_THINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postThinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_POSTTHINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, blockedCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_BLOCKED ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, touchCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_TOUCH ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, useCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_USE ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, onSignalInCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_ONSIGNALIN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, painCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PAIN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, dieCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_DIE ),
     // TODO:
-    // SAVE_DESCRIPTOR_DEFINE_CALLBACK_PTR( svg_base_edict_t, think, SD_FIELD_TYPE_POINTER, P_think ),
+    //SAVE_DESCRIPTOR_DEFINE_CALLBACK_PTR( svg_base_edict_t, think, SD_FIELD_TYPE_FUNCPTR, P_think ),
 
     /**
     *   Entity Pointers:
@@ -370,18 +371,109 @@ svg_save_descriptor_field_t *svg_base_edict_t::GetSaveDescriptorField( const cha
 /**
 *
 *
-* 
-*   Core:
+*   Callback Dispatching:
 *
-* 
 *
 **/
 /**
-*   @brief
+*   @brief  Calls the 'spawn' callback that is configured for this entity.
 **/
-void svg_base_edict_t::Spawn() {
-
+void svg_base_edict_t::DispatchSpawnCallback() {
+    if ( spawnCallbackFuncPtr ) {
+        spawnCallbackFuncPtr( this );
+    }
 }
+/**
+*   @brief  Calls the 'postspawn' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchPostSpawnCallback() {
+    if ( postSpawnCallbackFuncPtr ) {
+        postSpawnCallbackFuncPtr( this );
+    }
+}
+
+/**
+*   @brief  Calls the 'prethink' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchPreThinkCallback() {
+    if ( preThinkCallbackFuncPtr ) {
+        preThinkCallbackFuncPtr( this );
+    }
+}
+/**
+*   @brief  Calls the 'think' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchThinkCallback() {
+    if ( thinkCallbackFuncPtr ) {
+        thinkCallbackFuncPtr( this );
+    }
+}
+/**
+*   @brief  Calls the 'postthink' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchPostThinkCallback() {
+    if ( postThinkCallbackFuncPtr ) {
+        postThinkCallbackFuncPtr( this );
+    }
+}
+/**
+*   @brief  Calls the 'blocked' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchBlockedCallback( svg_base_edict_t *other ) {
+    if ( blockedCallbackFuncPtr ) {
+        blockedCallbackFuncPtr( this, other );
+    }
+}
+/**
+*   @brief  Calls the 'touch' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+    if ( touchCallbackFuncPtr ) {
+        touchCallbackFuncPtr( this, other, plane, surf );
+    }
+}
+/**
+*   @brief  Calls the 'use' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchUseCallback( svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    if ( useCallbackFuncPtr ) {
+        useCallbackFuncPtr( this, other, activator, useType, useValue );
+    }
+}
+/**
+*   @brief  Calls the 'onsignalin' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchOnSignalInCallback( svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+    if ( onSignalInCallbackFuncPtr ) {
+        onSignalInCallbackFuncPtr( this, other, activator, signalName, signalArguments );
+    }
+}
+/**
+*   @brief  Calls the 'pain' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchPainCallback( svg_base_edict_t *other, const float kick, const int32_t damage ) {
+    if ( painCallbackFuncPtr != nullptr ) {
+        painCallbackFuncPtr( this, other, kick, damage );
+    }
+}
+/**
+*   @brief  Calls the 'die' callback that is configured for this entity.
+**/
+void svg_base_edict_t::DispatchDieCallback( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const int32_t damage, vec_t *point ) {
+    if ( dieCallbackFuncPtr != nullptr ) {
+        dieCallbackFuncPtr( this, inflictor, attacker, damage, point );
+    }
+}
+
+
+
+/**
+*
+*
+*   Core:
+*
+*
+**/
 /**
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
@@ -432,16 +524,16 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     movetarget = nullptr;
 
     nextthink = 0_ms;
-    postspawn = nullptr;
-    prethink = nullptr;
-    think = nullptr;
-    postthink = nullptr;
-    blocked = nullptr;
-    touch = nullptr;
-    use = nullptr;
-    onsignalin = nullptr;
-    pain = nullptr;
-    die = nullptr;
+    postSpawnCallbackFuncPtr = nullptr;
+    preThinkCallbackFuncPtr = nullptr;
+    thinkCallbackFuncPtr = nullptr;
+    postThinkCallbackFuncPtr = nullptr;
+    blockedCallbackFuncPtr = nullptr;
+    touchCallbackFuncPtr = nullptr;
+    useCallbackFuncPtr = nullptr;
+    onSignalInCallbackFuncPtr = nullptr;
+    painCallbackFuncPtr = nullptr;
+    dieCallbackFuncPtr = nullptr;
 
     enemy = nullptr;
     oldenemy = nullptr;
@@ -699,4 +791,15 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     }
 
     return false;
+}
+
+
+
+/**
+*
+*   Callbacks(defaults):
+*
+**/
+void svg_base_edict_t::base_edict_spawn( svg_base_edict_t *self ) {
+
 }

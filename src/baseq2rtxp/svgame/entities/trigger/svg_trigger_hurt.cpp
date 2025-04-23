@@ -36,7 +36,7 @@ void hurt_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t
 	gi.linkentity( self );
 
 	if ( !( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_TOGGLE ) ) {
-		self->use = NULL;
+		self->SetUseCallback( nullptr );
 	}
 }
 
@@ -99,7 +99,7 @@ void SP_trigger_hurt( svg_base_edict_t *self ) {
 	SVG_Util_InitTrigger( self );
 
 	self->noise_index = gi.soundindex( "world/lashit01.wav" );
-	self->touch = hurt_touch;
+	self->SetTouchCallback( hurt_touch );
 
 	if ( !self->dmg )
 		self->dmg = 5;
@@ -110,7 +110,7 @@ void SP_trigger_hurt( svg_base_edict_t *self ) {
 		self->solid = SOLID_TRIGGER;
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_TOGGLE )
-		self->use = hurt_use;
+		self->SetUseCallback( hurt_use );
 
 	gi.linkentity( self );
 

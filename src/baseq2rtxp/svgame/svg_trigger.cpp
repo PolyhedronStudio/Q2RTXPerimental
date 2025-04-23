@@ -174,7 +174,7 @@ void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const e
         svg_base_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
         delayEntity->classname = "DelayedUseTargets";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
-        delayEntity->think = Think_UseTargetsDelay;
+        delayEntity->SetThinkCallback( Think_UseTargetsDelay );
         if ( !activator ) {
             gi.dprintf( "Think_UseTargetsDelay with no activator\n" );
         }
@@ -219,8 +219,8 @@ void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const e
             if ( fireTargetEntity == ent ) {
                 gi.dprintf( "%s: entity(#%d, \"%s\") used itself!\n", __func__, ent->s.number, (const char *)ent->classname );
             } else {
-                if ( fireTargetEntity->use ) {
-                    fireTargetEntity->use( fireTargetEntity, ent, activator, useType, useValue );
+                if ( fireTargetEntity->HasUseCallback() ) {
+                    fireTargetEntity->DispatchUseCallback( ent, activator, useType, useValue );
                 }
 
                 if ( fireTargetEntity->luaProperties.luaName ) {

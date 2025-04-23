@@ -69,7 +69,7 @@ void SP_trigger_push( svg_base_edict_t *self ) {
 	if ( !windsound ) {
 		windsound = gi.soundindex( "misc/windfly.wav" );
 	}
-	self->touch = trigger_push_touch;
+	self->SetTouchCallback( trigger_push_touch );
 	if ( !self->speed ) {
 		self->speed = 1000;
 	}

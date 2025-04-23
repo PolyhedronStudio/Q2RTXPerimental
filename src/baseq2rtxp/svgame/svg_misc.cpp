@@ -50,7 +50,7 @@ void gib_think(svg_base_edict_t *self) {
     //self->nextthink = level.frameNumber + 1;
 	self->nextthink = level.time + FRAME_TIME_S;
     if (self->s.frame == 10) {
-        self->think = SVG_FreeEdict;
+        self->SetThinkCallback( SVG_FreeEdict );
         self->nextthink = level.time + random_time(8_sec, 10_sec);//= level.frameNumber + (8 + random() * 10) * BASE_FRAMERATE;
     }
 }
@@ -64,7 +64,7 @@ void gib_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_
         return;
     }
 
-    self->touch = NULL;
+    self->SetTouchCallback( nullptr );
 
     if (plane) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("world/gib_drop01.wav"), 1, ATTN_NORM, 0);
@@ -75,7 +75,7 @@ void gib_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_
 
         if (self->s.modelindex == sm_meat_index) {
             self->s.frame++;
-            self->think = gib_think;
+            self->SetThinkCallback( gib_think );
             self->nextthink = level.time + FRAME_TIME_S;//level.frameNumber + 1;
         }
     }
@@ -118,11 +118,11 @@ void SVG_Misc_ThrowGib( svg_base_edict_t *self, const char *gibname, const int32
     gib->s.effects |= EF_GIB;
     gib->flags = static_cast<entity_flags_t>( gib->flags | FL_NO_KNOCKBACK );
     gib->takedamage = DAMAGE_YES;
-    gib->die = gib_die;
+    gib->SetDieCallback( gib_die );
 
     if (type == GIB_TYPE_ORGANIC) {
         gib->movetype = MOVETYPE_TOSS;
-        gib->touch = gib_touch;
+        gib->SetTouchCallback( gib_touch );
         vscale = 0.5f;
     } else {
         gib->movetype = MOVETYPE_BOUNCE;
@@ -136,7 +136,7 @@ void SVG_Misc_ThrowGib( svg_base_edict_t *self, const char *gibname, const int32
     gib->avelocity[1] = random() * 600;
     gib->avelocity[2] = random() * 600;
 
-    gib->think = SVG_FreeEdict;
+    gib->SetThinkCallback( SVG_FreeEdict );
     gib->nextthink = level.time + random_time(10_sec, 20_sec);//= level.frameNumber + (10 + random() * 10) * BASE_FRAMERATE;
 
     gi.linkentity(gib);
@@ -163,11 +163,11 @@ void SVG_Misc_ThrowHead( svg_base_edict_t *self, const char *gibname, const int3
     self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
     self->svflags &= ~SVF_MONSTER;
     self->takedamage = DAMAGE_YES;
-    self->die = gib_die;
+    self->SetDieCallback( gib_die );
 
     if (type == GIB_TYPE_ORGANIC) {
         self->movetype = MOVETYPE_TOSS;
-        self->touch = gib_touch;
+        self->SetTouchCallback( gib_touch );
         vscale = 0.5f;
     } else {
         self->movetype = MOVETYPE_BOUNCE;
@@ -180,7 +180,7 @@ void SVG_Misc_ThrowHead( svg_base_edict_t *self, const char *gibname, const int3
 
     self->avelocity[YAW] = crandom() * 600;
 
-    self->think = SVG_FreeEdict;
+    self->SetThinkCallback( SVG_FreeEdict );
     self->nextthink = level.time + random_time( 10_sec, 20_sec ); //level.frameNumber + (10 + random() * 10) * BASE_FRAMERATE;
 
     gi.linkentity(self);
@@ -221,7 +221,7 @@ void SVG_Misc_ThrowClientHead( svg_base_edict_t *self, const int32_t damage ) {
         //self->client->anim_priority = ANIM_DEATH;
         //self->client->anim_end = self->s.frame;
     } else {
-        self->think = NULL;
+        self->SetThinkCallback( nullptr );
         self->nextthink = 0_ms;
     }
 
@@ -264,13 +264,13 @@ void SVG_Misc_ThrowDebris(svg_base_edict_t *self, const char *modelname, const f
     chunk->avelocity[0] = random() * 600;
     chunk->avelocity[1] = random() * 600;
     chunk->avelocity[2] = random() * 600;
-    chunk->think = SVG_FreeEdict;
+    chunk->SetThinkCallback( SVG_FreeEdict );
     chunk->nextthink = level.time + random_time( 5_sec, 10_sec );//= level.frameNumber + (5 + random() * 5) * BASE_FRAMERATE;
     chunk->s.frame = 0;
     chunk->flags = FL_NONE;
     chunk->classname = "debris";
     chunk->takedamage = DAMAGE_YES;
-    chunk->die = debris_die;
+    chunk->SetDieCallback( debris_die );
     gi.linkentity(chunk);
 }
 

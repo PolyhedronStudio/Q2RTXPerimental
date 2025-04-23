@@ -80,7 +80,7 @@ void SP_path_corner( svg_base_edict_t *self ) {
     }
 
     self->solid = SOLID_TRIGGER;
-    self->touch = path_corner_touch;
+    self->SetTouchCallback( path_corner_touch );
     VectorSet( self->mins, -8, -8, -8 );
     VectorSet( self->maxs, 8, 8, 8 );
     self->svflags |= SVF_NOCLIENT;

@@ -28,27 +28,27 @@ typedef struct cm_entity_s cm_entity_t;
 // This inherits from:
 //
 //struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_t>
-struct svg_ed_worldspawn_t : public svg_base_edict_t {
+struct svg_worldspawn_edict_t : public svg_base_edict_t {
     /**
     *
     *	Construct/Destruct.
     *
     **/
     //! Constructor. 
-    svg_ed_worldspawn_t() = default;
+    svg_worldspawn_edict_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_ed_worldspawn_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_worldspawn_edict_t( const cm_entity_t *ed ) : Base( ed ) { };
     //! Destructor.
-    virtual ~svg_ed_worldspawn_t() = default;
+    virtual ~svg_worldspawn_edict_t() = default;
 
 
 
     /**
     *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_ed_worldspawn_t
+    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
     *
     **/
-    DefineWorldSpawnClass( "worldspawn", svg_ed_worldspawn_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn );
+    DefineWorldSpawnClass( "worldspawn", svg_worldspawn_edict_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_worldspawn_edict_t::ed_worldspawn_spawn );
 
 
 
@@ -67,11 +67,6 @@ struct svg_ed_worldspawn_t : public svg_base_edict_t {
     *   Core:
     *
     **/
-    /**
-    *   @brief
-    **/
-    virtual void Spawn() override;
-
     /**
     *   Reconstructs the object, optionally retaining the entityDictionary.
     **/
@@ -94,6 +89,18 @@ struct svg_ed_worldspawn_t : public svg_base_edict_t {
     *           set errorStr and return false. True otherwise.
     **/
     virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
+
+
+
+    /**
+    *
+    *   Worldspawn
+    *
+    **/
+    /**
+    *   @brief  Spawn routine.
+    **/
+    static void ed_worldspawn_spawn( svg_worldspawn_edict_t *self );
 
 
 

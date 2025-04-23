@@ -228,7 +228,7 @@ void SVG_SetItemRespawn(svg_base_edict_t *ent, float delay)
     ent->svflags |= SVF_NOCLIENT;
     ent->solid = SOLID_NOT;
     ent->nextthink = level.time + QMTime::FromSeconds( delay );
-    ent->think = DoRespawn;
+    ent->SetThinkCallback( DoRespawn );
     gi.linkentity(ent);
 }
 
@@ -412,7 +412,7 @@ const bool Pickup_Health(svg_base_edict_t *ent, svg_base_edict_t *other)
     }
 
     if (ent->style & HEALTH_TIMED) {
-        ent->think = MegaHealth_think;
+        ent->SetThinkCallback( MegaHealth_think );
         ent->nextthink = level.time + 5_sec;
         ent->owner = other;
         ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
@@ -511,10 +511,10 @@ void drop_temp_touch(svg_base_edict_t *ent, svg_base_edict_t *other, const cm_pl
 **/
 void drop_make_touchable(svg_base_edict_t *ent)
 {
-    ent->touch = Touch_Item;
+    ent->SetTouchCallback( Touch_Item );
     if (deathmatch->value) {
         ent->nextthink = level.time + 29_sec;
-        ent->think = SVG_FreeEdict;
+        ent->SetThinkCallback( SVG_FreeEdict );
     }
 }
 /**
@@ -539,7 +539,7 @@ svg_base_edict_t *Drop_Item(svg_base_edict_t *ent, const gitem_t *item)
     gi.setmodel(dropped, dropped->item->world_model);
     dropped->solid = SOLID_TRIGGER;
     dropped->movetype = MOVETYPE_TOSS;
-    dropped->touch = drop_temp_touch;
+    dropped->SetTouchCallback( drop_temp_touch );
     dropped->owner = ent;
 
     if (ent->client) {
@@ -559,7 +559,7 @@ svg_base_edict_t *Drop_Item(svg_base_edict_t *ent, const gitem_t *item)
     VectorScale(forward, 100, dropped->velocity);
     dropped->velocity[2] = 300;
 
-    dropped->think = drop_make_touchable;
+    dropped->SetThinkCallback( drop_make_touchable );
     dropped->nextthink = level.time + 1_sec;
 
     gi.linkentity(dropped);
@@ -572,14 +572,14 @@ svg_base_edict_t *Drop_Item(svg_base_edict_t *ent, const gitem_t *item)
 void Use_Item(svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue )
 {
     ent->svflags &= ~SVF_NOCLIENT;
-    ent->use = NULL;
+    ent->SetUseCallback( nullptr );
 
     if (ent->spawnflags & ITEM_NO_TOUCH) {
         ent->solid = SOLID_BOUNDS_BOX;
-        ent->touch = NULL;
+        ent->SetTouchCallback( nullptr );
     } else {
         ent->solid = SOLID_TRIGGER;
-        ent->touch = Touch_Item;
+        ent->SetTouchCallback( Touch_Item );
     }
 
     gi.linkentity(ent);
@@ -613,7 +613,7 @@ void droptofloor(svg_base_edict_t *ent)
 
     ent->solid = SOLID_TRIGGER;
     ent->movetype = MOVETYPE_TOSS;
-    ent->touch = Touch_Item;
+    ent->SetTouchCallback( Touch_Item );
 
     VectorCopy(ent->s.origin, dest);
     dest[2] -= 128;
@@ -636,13 +636,13 @@ void droptofloor(svg_base_edict_t *ent)
         ent->solid = SOLID_NOT;
         if (ent == ent->teammaster) {
             ent->nextthink = level.time + 10_hz;
-            ent->think = DoRespawn;
+            ent->SetThinkCallback( DoRespawn );
         }
     }
 
     if (ent->spawnflags & ITEM_NO_TOUCH) {
         ent->solid = SOLID_BOUNDS_BOX;
-        ent->touch = NULL;
+        ent->SetTouchCallback( nullptr );
         ent->s.effects &= ~EF_ROTATE;
         ent->s.renderfx &= ~RF_GLOW;
     }
@@ -650,7 +650,7 @@ void droptofloor(svg_base_edict_t *ent)
     if (ent->spawnflags & ITEM_TRIGGER_SPAWN) {
         ent->svflags |= SVF_NOCLIENT;
         ent->solid = SOLID_NOT;
-        ent->use = Use_Item;
+        ent->SetUseCallback( Use_Item );
     }
 
     gi.linkentity(ent);
@@ -792,7 +792,7 @@ void SVG_SpawnItem(svg_base_edict_t *ent, const gitem_t *item)
 
     ent->item = item;
     ent->nextthink = level.time + 20_hz;    // items start after other solids
-    ent->think = droptofloor;
+    ent->SetThinkCallback( droptofloor );
     ent->s.effects = item->world_model_flags;
     ent->s.renderfx = RF_GLOW;
     ent->s.entityType = ET_ITEM;

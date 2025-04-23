@@ -57,12 +57,12 @@ void trigger_elevator_init( svg_base_edict_t *self ) {
         return;
     }
 
-    self->use = trigger_elevator_use;
+    self->SetUseCallback( trigger_elevator_use );
     self->svflags = SVF_NOCLIENT;
 }
 
 void SP_trigger_elevator( svg_base_edict_t *self ) {
     self->s.entityType = ET_PUSH_TRIGGER;
-    self->think = trigger_elevator_init;
+    self->SetThinkCallback( trigger_elevator_init );
     self->nextthink = level.time + FRAME_TIME_S;
 }

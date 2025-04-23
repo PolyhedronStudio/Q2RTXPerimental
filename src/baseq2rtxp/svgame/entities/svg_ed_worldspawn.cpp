@@ -17,41 +17,181 @@
 *
 *
 *
-*   Save Descriptor Field Setup: svg_ed_worldspawn_t
+*   Save Descriptor Field Setup: svg_worldspawn_edict_t
 *
 *
 *
 **/
 /**
-*   @brief  Save descriptor array definition for all the members of svg_ed_worldspawn_t.
+*   @brief  Save descriptor array definition for all the members of svg_worldspawn_edict_t.
 **/
-SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_ed_worldspawn_t )
-	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_ed_worldspawn_t, sky, SD_FIELD_TYPE_GAME_QSTRING ),
-	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_ed_worldspawn_t, skyrotate, SD_FIELD_TYPE_FLOAT ),
-	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_ed_worldspawn_t, skyautorotate, SD_FIELD_TYPE_INT32 ),
-	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_ed_worldspawn_t, skyaxis, SD_FIELD_TYPE_VECTOR3 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_ed_worldspawn_t, gravity, SD_FIELD_TYPE_GAME_QSTRING ),
-	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_ed_worldspawn_t, nextmap, SD_FIELD_TYPE_GAME_QSTRING ),
-	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_ed_worldspawn_t, musictrack, SD_FIELD_TYPE_GAME_QSTRING ),
+SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_worldspawn_edict_t )
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, sky, SD_FIELD_TYPE_GAME_QSTRING ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, skyrotate, SD_FIELD_TYPE_FLOAT ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, skyautorotate, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, skyaxis, SD_FIELD_TYPE_VECTOR3 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, gravity, SD_FIELD_TYPE_GAME_QSTRING ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, nextmap, SD_FIELD_TYPE_GAME_QSTRING ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, musictrack, SD_FIELD_TYPE_GAME_QSTRING ),
 SAVE_DESCRIPTOR_FIELDS_END();
 
 //! Implement the methods for saving this edict type's save descriptor fields.
-SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_ed_worldspawn_t, svg_base_edict_t );
+SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_worldspawn_edict_t, svg_base_edict_t );
+
 
 
 
 /**
-*   @brief
+*
+*   Core:
+*
 **/
-void svg_ed_worldspawn_t::Spawn() {
-	// Call upon the base class.
-    Base::Spawn();
+/**
+*   Reconstructs the object, optionally retaining the entityDictionary.
+**/
+void svg_worldspawn_edict_t::Reset( const bool retainDictionary ) {
+    // Call upon the base class.
+    Base::Reset( retainDictionary );
+    // Print
+    gi.dprintf( "%s: Resetting classname: %s\n", __func__, classname );
+}
 
-	// Setup the world spawn entity.
-    movetype = MOVETYPE_PUSH;
-    solid = SOLID_BSP;
-    inuse = true;                           // Just to make damn sure it is always properly set.
-    s.modelindex = MODELINDEX_WORLDSPAWN;   // World model is always index 1
+
+/**
+*   @brief  Save the entity into a file using game_write_context.
+*   @note   Make sure to call the base parent class' Save() function.
+**/
+void svg_worldspawn_edict_t::Save( struct game_write_context_t *ctx ) {
+    // Call upon the base class.
+    //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
+    Base::Save( ctx );
+    // Save all the members of this entity type.
+    ctx->write_fields( svg_worldspawn_edict_t::saveDescriptorFields, this );
+}
+/**
+*   @brief  Restore the entity from a loadgame read context.
+*   @note   Make sure to call the base parent class' Restore() function.
+**/
+void svg_worldspawn_edict_t::Restore( struct game_read_context_t *ctx ) {
+    // Restore parent class fields.
+    Base::Restore( ctx );
+    // Restore all the members of this entity type.
+    ctx->read_fields( svg_worldspawn_edict_t::saveDescriptorFields, this );
+}
+
+
+/**
+*   @brief  Called for each cm_entity_t key/value pair for this entity.
+*           If not handled, or unable to be handled by the derived entity type, it will return
+*           set errorStr and return false. True otherwise.
+**/
+const bool svg_worldspawn_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
+    // Ease of use.
+    const std::string keyStr = keyValuePair->key;
+
+    // Match: sky
+    if ( keyStr == "sky" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        sky = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: skyrotate
+    else if ( keyStr == "skyrotate" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        skyrotate = keyValuePair->value;
+        return true;
+    }
+    // Match: skyautorotate
+    else if ( keyStr == "skyautorotate" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        skyautorotate = keyValuePair->integer;
+        return true;
+    }
+    // Match: nextmap
+    else if ( keyStr == "nextmap" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        nextmap = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: musictrack
+    else if ( keyStr == "musictrack" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        musictrack = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    #if 0
+    // Match: lip
+    else if ( keyStr == "lip" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        lip = keyValuePair->integer;
+        return true;
+    }
+    // Match: distance
+    else if ( keyStr == "distance" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        distance = keyValuePair->integer;
+        return true;
+    }
+    // Match: height
+    else if ( keyStr == "height" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        height = keyValuePair->integer;
+        return true;
+    }
+    // Match: item
+    else if ( keyStr == "item" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        item = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    #endif
+    // Match: gravity
+    else if ( keyStr == "gravity" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        gravity = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    #if 0
+    // Match: pausetime
+    else if ( keyStr == "pausetime" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        pausetime = keyValuePair->value;
+        return true;
+    }
+    // Match: minyaw
+    else if ( keyStr == "minyaw" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        minyaw = keyValuePair->value;
+        return true;
+    }
+    // Match: maxyaw
+    else if ( keyStr == "maxyaw" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        maxyaw = keyValuePair->value;
+        return true;
+    }
+    // Match: minpitch
+    else if ( keyStr == "minpitch" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        minpitch = keyValuePair->value;
+        return true;
+    }
+    // Match: maxpitch
+    else if ( keyStr == "maxpitch" && keyValuePair->parsed_type &cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        maxpitch = keyValuePair->value;
+        return true;
+    }
+    #endif
+
+    // Give Base class a shot.
+	return Base::KeyValue( keyValuePair, errorStr );
+}
+
+
+
+/**
+*
+*   Worldspawn
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+void svg_worldspawn_edict_t::ed_worldspawn_spawn( svg_worldspawn_edict_t *self ) {
+    // Call upon the base class.
+    Base::base_edict_spawn( self );
+
+    // Setup the world spawn entity.
+    self->movetype = MOVETYPE_PUSH;
+    self->solid = SOLID_BSP;
+    self->inuse = true;                           // Just to make damn sure it is always properly set.
+    self->s.modelindex = MODELINDEX_WORLDSPAWN;   // World model is always index 1
 
     //---------------
 
@@ -61,32 +201,32 @@ void svg_ed_worldspawn_t::Spawn() {
     // set configstrings for items
     SVG_SetItemNames();
 
-    if ( nextmap ) {
-        Q_strlcpy( level.nextmap, (const char *)nextmap, sizeof( level.nextmap ) );
+    if ( self->nextmap ) {
+        Q_strlcpy( level.nextmap, (const char *)self->nextmap, sizeof( level.nextmap ) );
     }
 
     // make some data visible to the server
-    if ( message && message[ 0 ] ) {
-        gi.configstring( CS_NAME, message );
-        Q_strlcpy( level.level_name, message, sizeof( level.level_name ) );
+    if ( self->message && self->message[ 0 ] ) {
+        gi.configstring( CS_NAME, self->message );
+        Q_strlcpy( level.level_name, self->message, sizeof( level.level_name ) );
     } else {
         Q_strlcpy( level.level_name, level.mapname, sizeof( level.level_name ) );
     }
 
-    if ( sky && sky[ 0 ] ) {
-        gi.configstring( CS_SKY, (const char*)sky );
+    if ( self->sky && self->sky[ 0 ] ) {
+        gi.configstring( CS_SKY, (const char *)self->sky );
     } else {
         gi.configstring( CS_SKY, "unit1_" );
     }
-    gi.configstring( CS_SKYROTATE, va( "%f %d", skyrotate, skyautorotate ) );
+    gi.configstring( CS_SKYROTATE, va( "%f %d", self->skyrotate, self->skyautorotate ) );
 
     gi.configstring( CS_SKYAXIS, va( "%f %f %f",
-        skyaxis[ 0 ], skyaxis[ 1 ], skyaxis[ 2 ] ) );
+        self->skyaxis[ 0 ], self->skyaxis[ 1 ], self->skyaxis[ 2 ] ) );
 
     if ( st.musictrack && st.musictrack[ 0 ] ) {
-        gi.configstring( CS_CDTRACK, (const char *)musictrack );
+        gi.configstring( CS_CDTRACK, (const char *)self->musictrack );
     } else {
-        gi.configstring( CS_CDTRACK, va( "%i", sounds ) );
+        gi.configstring( CS_CDTRACK, va( "%i", self->sounds ) );
     }
 
     gi.configstring( CS_MAXCLIENTS, va( "%i", (int)( maxclients->value ) ) );
@@ -106,10 +246,10 @@ void svg_ed_worldspawn_t::Spawn() {
     }
 
     // Gravity.
-    if ( !gravity ) {
+    if ( !self->gravity ) {
         gi.cvar_set( "sv_gravity", "800" );
     } else {
-        gi.cvar_set( "sv_gravity", (const char *)gravity );
+        gi.cvar_set( "sv_gravity", (const char *)self->gravity );
     }
 
     // Certain precaches.
@@ -275,130 +415,4 @@ void svg_ed_worldspawn_t::Spawn() {
 
     // 63 testing
     gi.configstring( CS_LIGHTS + 63, "a" );
-}
-/**
-*   Reconstructs the object, optionally retaining the entityDictionary.
-**/
-void svg_ed_worldspawn_t::Reset( const bool retainDictionary ) {
-    // Call upon the base class.
-    Base::Reset( retainDictionary );
-    // Print
-    gi.dprintf( "%s: Resetting classname: %s\n", __func__, classname );
-}
-
-
-/**
-*   @brief  Save the entity into a file using game_write_context.
-*   @note   Make sure to call the base parent class' Save() function.
-**/
-void svg_ed_worldspawn_t::Save( struct game_write_context_t *ctx ) {
-    // Call upon the base class.
-    //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
-    Base::Save( ctx );
-    // Save all the members of this entity type.
-    ctx->write_fields( svg_ed_worldspawn_t::saveDescriptorFields, this );
-}
-/**
-*   @brief  Restore the entity from a loadgame read context.
-*   @note   Make sure to call the base parent class' Restore() function.
-**/
-void svg_ed_worldspawn_t::Restore( struct game_read_context_t *ctx ) {
-    // Restore parent class fields.
-    Base::Restore( ctx );
-    // Restore all the members of this entity type.
-    ctx->read_fields( svg_ed_worldspawn_t::saveDescriptorFields, this );
-}
-
-
-/**
-*   @brief  Called for each cm_entity_t key/value pair for this entity.
-*           If not handled, or unable to be handled by the derived entity type, it will return
-*           set errorStr and return false. True otherwise.
-**/
-const bool svg_ed_worldspawn_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
-    // Ease of use.
-    const std::string keyStr = keyValuePair->key;
-
-    // Match: sky
-    if ( keyStr == "sky" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        sky = svg_level_qstring_t::from_char_str( keyValuePair->string );
-        return true;
-    }
-    // Match: skyrotate
-    else if ( keyStr == "skyrotate" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        skyrotate = keyValuePair->value;
-        return true;
-    }
-    // Match: skyautorotate
-    else if ( keyStr == "skyautorotate" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-        skyautorotate = keyValuePair->integer;
-        return true;
-    }
-    // Match: nextmap
-    else if ( keyStr == "nextmap" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        nextmap = svg_level_qstring_t::from_char_str( keyValuePair->string );
-        return true;
-    }
-    // Match: musictrack
-    else if ( keyStr == "musictrack" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        musictrack = svg_level_qstring_t::from_char_str( keyValuePair->string );
-        return true;
-    }
-    #if 0
-    // Match: lip
-    else if ( keyStr == "lip" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-        lip = keyValuePair->integer;
-        return true;
-    }
-    // Match: distance
-    else if ( keyStr == "distance" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-        distance = keyValuePair->integer;
-        return true;
-    }
-    // Match: height
-    else if ( keyStr == "height" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-        height = keyValuePair->integer;
-        return true;
-    }
-    // Match: item
-    else if ( keyStr == "item" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        item = svg_level_qstring_t::from_char_str( keyValuePair->string );
-        return true;
-    }
-    #endif
-    // Match: gravity
-    else if ( keyStr == "gravity" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        gravity = svg_level_qstring_t::from_char_str( keyValuePair->string );
-        return true;
-    }
-    #if 0
-    // Match: pausetime
-    else if ( keyStr == "pausetime" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        pausetime = keyValuePair->value;
-        return true;
-    }
-    // Match: minyaw
-    else if ( keyStr == "minyaw" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        minyaw = keyValuePair->value;
-        return true;
-    }
-    // Match: maxyaw
-    else if ( keyStr == "maxyaw" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        maxyaw = keyValuePair->value;
-        return true;
-    }
-    // Match: minpitch
-    else if ( keyStr == "minpitch" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        minpitch = keyValuePair->value;
-        return true;
-    }
-    // Match: maxpitch
-    else if ( keyStr == "maxpitch" && keyValuePair->parsed_type &cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        maxpitch = keyValuePair->value;
-        return true;
-    }
-    #endif
-
-    // Give Base class a shot.
-	return Base::KeyValue( keyValuePair, errorStr );
 }

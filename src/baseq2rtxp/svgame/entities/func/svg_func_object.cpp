@@ -36,13 +36,13 @@ void func_object_touch( svg_base_edict_t *self, svg_base_edict_t *other, const c
 
 void func_object_release( svg_base_edict_t *self ) {
     self->movetype = MOVETYPE_TOSS;
-    self->touch = func_object_touch;
+    self->SetTouchCallback( func_object_touch );
 }
 
 void func_object_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->solid = SOLID_BSP;
     self->svflags &= ~SVF_NOCLIENT;
-    self->use = NULL;
+    self->SetUseCallback( nullptr );
     SVG_Util_KillBox( self, false );
     func_object_release( self );
 }
@@ -64,13 +64,13 @@ void SP_func_object( svg_base_edict_t *self ) {
         self->solid = SOLID_BSP;
         self->movetype = MOVETYPE_PUSH;
         self->s.entityType = ET_PUSHER;
-        self->think = func_object_release;
+        self->SetThinkCallback( func_object_release );
         self->nextthink = level.time + 20_hz;
     } else {
         self->solid = SOLID_NOT;
         self->movetype = MOVETYPE_PUSH;
         self->s.entityType = ET_PUSHER;
-        self->use = func_object_use;
+        self->SetUseCallback( func_object_use );
         self->svflags |= SVF_NOCLIENT;
     }
 

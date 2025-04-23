@@ -34,7 +34,7 @@ void use_killbox( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edic
 
 void SP_func_killbox( svg_base_edict_t *ent ) {
     gi.setmodel( ent, ent->model );
-    ent->use = use_killbox;
+    ent->SetUseCallback( use_killbox );
     ent->svflags = SVF_NOCLIENT;
 }
 

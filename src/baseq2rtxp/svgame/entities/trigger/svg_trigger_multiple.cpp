@@ -42,14 +42,14 @@ void multi_trigger( svg_base_edict_t *ent ) {
 	SVG_UseTargets( ent, ent->activator );
 
 	if ( ent->wait > 0 ) {
-		ent->think = multi_wait;
+		ent->SetThinkCallback( multi_wait );
 		ent->nextthink = level.time + QMTime::FromMilliseconds( ent->wait );
 	} else {
 		// we can't just remove (self) here, because this is a touch function
 		// called while looping through area links...
-		ent->touch = NULL;
+		ent->SetTouchCallback( nullptr );
 		ent->nextthink = level.time + 10_hz;
-		ent->think = SVG_FreeEdict;
+		ent->SetThinkCallback( SVG_FreeEdict );
 	}
 }
 
@@ -103,7 +103,7 @@ void Touch_Multi( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plan
 **/
 void trigger_enable( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
 	self->solid = SOLID_TRIGGER;
-	self->use = Use_Multi;
+	self->SetUseCallback( Use_Multi );
 	gi.linkentity( self );
 }
 
@@ -134,16 +134,16 @@ void SP_trigger_multiple( svg_base_edict_t *ent ) {
 	// WID: Initialize triggers properly.
 	SVG_Util_InitTrigger( ent );
 
-	ent->touch = Touch_Multi;
+	ent->SetTouchCallback( Touch_Multi );
 	ent->movetype = MOVETYPE_NONE;
 	ent->svflags |= SVF_NOCLIENT;
 
 	if ( ent->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_TRIGGERED ) {
 		ent->solid = SOLID_NOT;
-		ent->use = trigger_enable;
+		ent->SetUseCallback( trigger_enable );
 	} else {
 		ent->solid = SOLID_TRIGGER;
-		ent->use = Use_Multi;
+		ent->SetUseCallback( Use_Multi );
 	}
 
 	if ( !VectorEmpty( ent->s.angles ) )

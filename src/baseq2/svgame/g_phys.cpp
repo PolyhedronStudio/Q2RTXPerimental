@@ -326,11 +326,11 @@ int SV_FlyMove(edict_t *ent, float time, const cm_contents_t mask)
 
 /*
 ============
-SV_AddGravity
+SVG_AddGravity
 
 ============
 */
-void SV_AddGravity(edict_t *ent)
+void SVG_AddGravity(edict_t *ent)
 {
     ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
 }
@@ -706,7 +706,7 @@ void SV_Physics_Toss(edict_t *ent)
 
 // add gravity
     if (ent->movetype != MOVETYPE_FLY && ent->movetype != MOVETYPE_FLYMISSILE)
-        SV_AddGravity(ent);
+        SVG_AddGravity(ent);
 
 // move angles
     VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
@@ -851,7 +851,7 @@ void SV_Physics_Step(edict_t *ent)
                 if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
                     hitsound = true;
                 if ( ent->liquidlevel != LIQUID_UNDER )
-                    SV_AddGravity( ent );
+                    SVG_AddGravity( ent );
             }
 
     // friction for flying monsters that have been given vertical velocity
@@ -985,7 +985,7 @@ void SV_Physics_Step(edict_t *ent)
 //                if (ent->velocity[2] < sv_gravity->value * -0.1f)
 //                    hitsound = true;
 //                if (ent->liquidlevel == 0)
-//                    SV_AddGravity(ent);
+//                    SVG_AddGravity(ent);
 //            }
 //
 //    // friction for flying monsters that have been given vertical velocity

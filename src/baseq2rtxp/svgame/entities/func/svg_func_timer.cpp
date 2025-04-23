@@ -54,8 +54,8 @@ void SP_func_timer( svg_base_edict_t *self ) {
     if ( !self->wait )
         self->wait = 1.0f;
 
-    self->use = func_timer_use;
-    self->think = func_timer_think;
+    self->SetUseCallback( func_timer_use );
+    self->SetThinkCallback( func_timer_think );
 
     if ( self->random >= self->wait ) {
         self->random = self->wait - gi.frame_time_s;

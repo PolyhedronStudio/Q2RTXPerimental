@@ -4,7 +4,10 @@
 // Save related types.
 #include "svg_save.h"
 
+#include "svgame/entities/info/svg_info_player_start.h"
 #include "svgame/entities/monster/svg_monster_testdummy.h"
+#include "svgame/entities/svg_ed_player.h"
+#include "svgame/entities/svg_ed_worldspawn.h"
 
 #if 0
 extern mmove_t actor_move_attack;
@@ -283,24 +286,31 @@ const svg_save_descriptor_funcptr_t save_ptrs[] = {
 #endif
 
 // <Q2RTXP>
-// OnSignalIn
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_start_t::info_player_start_spawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_player_edict_t::player_edict_spawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_worldspawn_edict_t::ed_worldspawn_spawn },
+
 { FPTR_CALLBACK_ONSIGNALIN, ( void * )button_onsignalin },
+
 { FPTR_CALLBACK_ONSIGNALIN, (void *)door_onsignalin },
+
 { FPTR_CALLBACK_ONSIGNALIN, (void *)rotating_onsignalin },
+
 { FPTR_CALLBACK_ONSIGNALIN, (void *)func_wall_onsignalin },
-{ FPTR_CALLBACK_ONSIGNALIN, (void *)func_breakable_onsignalin },
 
 { FPTR_CALLBACK_USE, (void *)func_breakable_spawn_on_trigger },
 { FPTR_CALLBACK_DIE, (void *)func_breakable_explode },
 { FPTR_CALLBACK_PAIN, (void *)func_breakable_pain },
-//{FPTR_CALLBACK_USE, (void *)monster_testdummy_puppet_use },
+{ FPTR_CALLBACK_ONSIGNALIN, (void *)func_breakable_onsignalin },
 { FPTR_CALLBACK_USE, (void *)func_breakable_use },
 
-{ FPTR_CALLBACK_DIE, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_die },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_spawn },
+{ FPTR_CALLBACK_POSTSPAWN, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_postspawn },
 { FPTR_CALLBACK_THINK, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_think },
 { FPTR_CALLBACK_TOUCH, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_touch },
 { FPTR_CALLBACK_USE, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_use },
-{ FPTR_CALLBACK_POSTSPAWN, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_postspawn },
+{ FPTR_CALLBACK_DIE, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_die },
+
 // </Q2RTXP>
 
 //
@@ -506,4 +516,53 @@ const svg_save_descriptor_funcptr_t save_ptrs[] = {
 
 
 };
+//! Total number of save pointers.
 const int num_save_ptrs = sizeof( save_ptrs ) / sizeof( save_ptrs[ 0 ] );
+
+/**
+*	@brief	Checks whether the passed (save-) callback function pointer exists within
+* 			the registered save pointer table, and has a matching type set.
+**/
+const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_save_descriptor_funcptr_type_t type, const std::string &functionName ) {
+    // For registering matching type found or not.
+    bool matchingType = false;
+    // For registering matching ptr found or not.
+    bool matchingPtr = false;
+    // For registering the found type and ptr type.
+    
+    // Iterate the registered save ptr table.
+    for ( int32_t i = 0; i < num_save_ptrs; i++ ) {
+        // Get registered ptr data.
+        const svg_save_descriptor_funcptr_t *registeredPtr = &save_ptrs[ i ];
+
+		// We had a matching type.
+        if ( registeredPtr->type == type ) {
+            matchingType = true;
+        }
+        // We had a matching pointer.
+        if ( registeredPtr->ptr == p || p == nullptr ) {
+            matchingPtr = true;
+        }
+
+        // Break out by returning success if we found it.
+		if ( matchingType && matchingPtr ) {
+            return svg_save_descriptor_funcptr_error_t::FPTR_ERROR_SUCCESS;
+		}
+    }
+
+	// Failure to find, display appropriate error matching.
+    std::string errorStr = functionName + ": entity(#" + std::to_string(edict->s.number) + ", \"" + edict->classname.ptr + "\")";
+    svg_save_descriptor_funcptr_error_t errors;
+    if ( matchingType == false ) {
+        errorStr += " - No matching type found";
+        errors |= svg_save_descriptor_funcptr_error_t::FPTR_ERROR_TYPE_MISMATCH;
+    }
+    if ( matchingPtr == false ) {
+        errorStr += " - No matching Ptr found";
+        errors |= svg_save_descriptor_funcptr_error_t::FPTR_ERROR_ADDRESS_MISMATCH;
+    }
+
+    // Error out.
+	gi.error( "%s", errorStr.c_str() );
+    return errors;
+}

@@ -139,7 +139,7 @@ void rotating_accelerate( svg_base_edict_t *self ) {
         const float new_speed = current_speed;
         self->avelocity = self->movedir * new_speed;
         // Setup nextthink.
-        self->think = rotating_accelerate;
+        self->SetThinkCallback( rotating_accelerate );
         self->nextthink = level.time + FRAME_TIME_S;
         return;
     }
@@ -163,12 +163,12 @@ void rotating_accelerate( svg_base_edict_t *self ) {
         const float new_speed = current_speed + self->accel;
         self->avelocity = self->movedir * new_speed;
         // Apply nextthink.
-        self->think = rotating_accelerate;
+        self->SetThinkCallback( rotating_accelerate );
         self->nextthink = level.time + FRAME_TIME_S;
     }
     // Reapply touch for blocking.
     if ( self->spawnflags & FUNC_ROTATING_SPAWNFLAG_PAIN_ON_TOUCH ) {
-        self->touch = rotating_touch;
+        self->SetTouchCallback( rotating_touch );
     }
 }
 /**
@@ -207,7 +207,7 @@ void rotating_decelerate( svg_base_edict_t *self ) {
         const float new_speed = current_speed;
         self->avelocity = self->movedir * new_speed;
         // Setup nextthink.
-        self->think = rotating_decelerate;
+        self->SetThinkCallback( rotating_decelerate );
         self->nextthink = level.time + FRAME_TIME_S;
         return;
     }
@@ -225,7 +225,7 @@ void rotating_decelerate( svg_base_edict_t *self ) {
         // Off:
         //SVG_UseTargets( self, self, useType, useValue );
         SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_OFF, 0 );
-        self->touch = nullptr;
+        self->SetTouchCallback( nullptr );
         // 'Starts/Still is' Decelerating:
     } else {
         // Set sound.
@@ -234,7 +234,7 @@ void rotating_decelerate( svg_base_edict_t *self ) {
         const float new_speed = current_speed - self->decel;
         self->avelocity = self->movedir * new_speed;
         // Setup nextthink.
-        self->think = rotating_decelerate;
+        self->SetThinkCallback( rotating_decelerate );
         self->nextthink = level.time + FRAME_TIME_S;
     }
 }
@@ -515,18 +515,18 @@ void SP_func_rotating( svg_base_edict_t *ent ) {
     }
 
     //  ent->pushMoveInfo.sounds.middle = "doors/hydro1.wav";
-    ent->touch = rotating_touch;
-    ent->use = rotating_use;
-    ent->onsignalin = rotating_onsignalin;
+    ent->SetTouchCallback( rotating_touch );
+    ent->SetUseCallback( rotating_use );
+    ent->SetOnSignalInCallback( rotating_onsignalin );
 
     // Blockading entities get damaged if dmg is set.
     if ( ent->dmg ) {
-        ent->blocked = rotating_blocked;
+        ent->SetBlockedCallback( rotating_blocked );
     }
 
     // Start already rotating.
     if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_START_ON ) {
-        ent->use( ent, NULL, NULL, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_SET, 1 );
+        ent->DispatchUseCallback( nullptr, nullptr, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_SET, 1 );
     }
 
     // Animation.

@@ -12,6 +12,14 @@
 
 // Forward declarations.
 struct save_ptr_t;
+struct svg_save_descriptor_funcptr_t;
+
+
+/**
+*	For accessing them outside of g_ptrs.cpp
+**/
+extern const svg_save_descriptor_funcptr_t save_ptrs[];
+extern const int32_t num_save_ptrs;
 
 
 /**
@@ -25,11 +33,15 @@ struct save_ptr_t;
 *	@brief	Indexes what type of pointer is/was being read/written to.
 **/
 enum svg_save_descriptor_funcptr_type_t : int32_t {
+	//
+	// invalid type.
+	//
 	FPTR_CALLBACK_BAD,
 
 	//
 	// edict-><methodname> function pointer addresses.
 	//
+	FPTR_CALLBACK_SPAWN,
 	FPTR_CALLBACK_POSTSPAWN,
 	FPTR_CALLBACK_PRETHINK,
 	FPTR_CALLBACK_THINK,
@@ -65,10 +77,22 @@ enum svg_save_descriptor_funcptr_type_t : int32_t {
 *	@brief	Used for constructing our array(located in g_ptrs.cpp) containing all possible callback save methods and their type.
 **/
 struct svg_save_descriptor_funcptr_t {
+	//! The type of callback save pointer we are dealing with.
 	svg_save_descriptor_funcptr_type_t type;
+	//! Address to the actual function pointer, as registered in save_func_ptrs.
 	void *ptr;
 };
 
+/**
+*	@brief	Error Types for SVG_Save_ValidateFuncPtr
+**/
+enum svg_save_descriptor_funcptr_error_t : int32_t {
+	FPTR_ERROR_ADDRESS_MISMATCH,
+	FPTR_ERROR_TYPE_MISMATCH,
+	FPTR_ERROR_INVALID_DESCRIPTOR,
+	FPTR_ERROR_SUCCESS
+};
+QENUM_BIT_FLAGS( svg_save_descriptor_funcptr_error_t );
 
 
 /**
@@ -86,6 +110,7 @@ enum svg_save_descriptor_field_type_t : int32_t {
 	SD_FIELD_TYPE_BYTE,
 	SD_FIELD_TYPE_SHORT,
 	SD_FIELD_TYPE_INT32,
+	SD_FIELD_TYPE_INT64,
 
 	SD_FIELD_TYPE_BOOL,
 	SD_FIELD_TYPE_FLOAT,
@@ -99,6 +124,8 @@ enum svg_save_descriptor_field_type_t : int32_t {
 	SD_FIELD_TYPE_GSTRING,          // string on disk, pointer in memory, TAG_SVGAME
 	SD_FIELD_TYPE_ZSTRING,          // string on disk, string in memory
 
+	SD_FIELD_TYPE_FRAMETIME,		// Same as SD_FIELD_TYPE_INT64 but for QMTime.
+
 	SD_FIELD_TYPE_LEVEL_QSTRING,	// string on disk, sg_qtag_string_t in memory, TAG_SVGAME_LEVEL
 	SD_FIELD_TYPE_GAME_QSTRING,		// string on disk, sg_qtag_string_t in memory, TAG_SVGAME,
 
@@ -109,7 +136,6 @@ enum svg_save_descriptor_field_type_t : int32_t {
 	SD_FIELD_TYPE_ITEM,             // index on disk, pointer in memory
 	SD_FIELD_TYPE_CLIENT,           // index on disk, pointer in memory
 	SD_FIELD_TYPE_FUNCTION,
-	SD_FIELD_TYPE_POINTER,
 
 	// WID: TODO: Store signal args array.
 	//SD_FIELD_TYPE_SIGNAL_ARGUMENTS,
@@ -118,9 +144,6 @@ enum svg_save_descriptor_field_type_t : int32_t {
 
 	// WID: This was from Q2RTX 1.7.0
 	//SD_FIELD_TYPE_FRAMETIME,         // speciality for savegame compatibility: float on disk, converted to framenum
-	// WID: However, we now got QMTime running on int64_t power.
-	SD_FIELD_TYPE_FRAMETIME,	// Same as SD_FIELD_TYPE_INT64
-	SD_FIELD_TYPE_INT64
 };
 
 /**
@@ -140,6 +163,11 @@ struct svg_save_descriptor_field_t {
 	int32_t flags;
 };
 
+/**
+*	@brief	Checks whether the passed (save-) callback function pointer exists within
+* 			the registered save pointer table, and has a matching type set.
+**/
+const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_save_descriptor_funcptr_type_t type, const std::string &functionName );
 
 
 /**
@@ -406,11 +434,7 @@ struct game_write_context_t {
 
 
 
-/**
-*	For accessing them outside of g_ptrs.cpp
-**/
-extern const svg_save_descriptor_funcptr_t save_ptrs[];
-extern const int32_t num_save_ptrs;
+
 
 /******************************
 * 

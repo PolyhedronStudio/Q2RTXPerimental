@@ -79,7 +79,7 @@ void train_wait( svg_base_edict_t *self ) {
     if ( self->pushMoveInfo.wait ) {
         if ( self->pushMoveInfo.wait > 0 ) {
             self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
-            self->think = train_next;
+            self->SetThinkCallback( train_next );
         } else if ( self->spawnflags & TRAIN_TOGGLE ) { // && wait < 0
             train_next( self );
             self->spawnflags &= ~TRAIN_START_ON;
@@ -186,7 +186,7 @@ void func_train_find( svg_base_edict_t *self ) {
 
     if ( self->spawnflags & TRAIN_START_ON ) {
         self->nextthink = level.time + FRAME_TIME_S;
-        self->think = train_next;
+        self->SetThinkCallback( train_next );
         self->activator = self;
     }
 }
@@ -258,7 +258,7 @@ void SP_func_train( svg_base_edict_t *self ) {
     self->s.entityType = ET_PUSHER;
 
     VectorClear( self->s.angles );
-    self->blocked = train_blocked;
+    self->SetBlockedCallback( train_blocked );
     if ( self->spawnflags & TRAIN_BLOCK_STOPS )
         self->dmg = 0;
     else {
@@ -277,7 +277,7 @@ void SP_func_train( svg_base_edict_t *self ) {
     self->pushMoveInfo.speed = self->speed;
     self->pushMoveInfo.accel = self->pushMoveInfo.decel = self->pushMoveInfo.speed;
 
-    self->use = train_use;
+    self->SetUseCallback( train_use );
 
     gi.linkentity( self );
 
@@ -285,7 +285,7 @@ void SP_func_train( svg_base_edict_t *self ) {
         // start trains on the second frame, to make sure their targets have had
         // a chance to spawn
         self->nextthink = level.time + FRAME_TIME_S;
-        self->think = func_train_find;
+        self->SetThinkCallback( func_train_find );
     } else {
         gi.dprintf( "func_train without a target at %s\n", vtos( self->absmin ) );
     }

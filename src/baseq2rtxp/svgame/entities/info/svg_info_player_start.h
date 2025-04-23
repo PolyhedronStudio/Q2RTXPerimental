@@ -45,10 +45,10 @@ struct svg_info_player_start_t : public svg_base_edict_t {
 
     /**
     *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_ed_worldspawn_t
+    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
     *
     **/
-    DefineWorldSpawnClass( "info_player_start", svg_info_player_start_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn );
+    DefineWorldSpawnClass( "info_player_start", svg_info_player_start_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_info_player_start_t::info_player_start_spawn );
 
 
 
@@ -67,10 +67,6 @@ struct svg_info_player_start_t : public svg_base_edict_t {
     *   Core:
     *
     **/
-    /**
-    *   @brief
-    **/
-    virtual void Spawn() override;
     /**
     *   Reconstructs the object, optionally retaining the entityDictionary.
     **/
@@ -95,6 +91,16 @@ struct svg_info_player_start_t : public svg_base_edict_t {
     virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
 
 
+
+    /**
+    *
+    *   info_player_start:
+    *
+    **/
+    /**
+    *   @brief  Spawn routine.
+    **/
+    static void info_player_start_spawn( svg_info_player_start_t *self );
 
     /**
     *

@@ -57,7 +57,7 @@ void SVG_PushMove_MoveFinal( svg_base_edict_t *ent ) {
     //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
     //}
 
-    ent->think = SVG_PushMove_MoveDone;
+    ent->SetThinkCallback( SVG_PushMove_MoveDone );
     ent->nextthink = level.time + FRAME_TIME_S;
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
     //    SVG_MoveWith_SetChildEntityMovement( ent );
@@ -83,7 +83,7 @@ void SVG_PushMove_MoveBegin( svg_base_edict_t *ent ) {
     const float frames = floor( ( ent->pushMoveInfo.remaining_distance / ent->pushMoveInfo.speed ) / gi.frame_time_s );
     ent->pushMoveInfo.remaining_distance -= frames * ent->pushMoveInfo.speed * gi.frame_time_s;
     ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-    ent->think = SVG_PushMove_MoveFinal;
+    ent->SetThinkCallback( SVG_PushMove_MoveFinal );
     //}
 
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
@@ -105,7 +105,7 @@ void SVG_PushMove_MoveRegular( svg_base_edict_t *ent, const Vector3 &destination
     // Team Slaves start moving next frame:
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_MoveBegin;
+        ent->SetThinkCallback( SVG_PushMove_MoveBegin );
     }
 }
 /**
@@ -148,7 +148,7 @@ void SVG_PushMove_MoveCalculate( svg_base_edict_t *ent, const Vector3 &destinati
 
         // Regular accelerate_think for 10hz.
         if ( gi.tick_rate == 10 ) {
-            ent->think = SVG_PushMove_Think_AccelerateMove;
+            ent->SetThinkCallback( SVG_PushMove_Think_AccelerateMove );
         // Specialized accelerate > 10hz.
         } else {
             // [Paril-KEX] rewritten to work better at higher tickrates
@@ -189,7 +189,7 @@ void SVG_PushMove_MoveCalculate( svg_base_edict_t *ent, const Vector3 &destinati
             std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions.ptr );
 
             ent->pushMoveInfo.curve.numberFramesDone = 0;
-            ent->think = SVG_PushMove_Think_AccelerateMoveNew;
+            ent->SetThinkCallback( SVG_PushMove_Think_AccelerateMoveNew );
         }
     }
 }
@@ -237,7 +237,7 @@ void SVG_PushMove_AngleMoveFinal( svg_base_edict_t *ent ) {
     ent->avelocity = QM_Vector3Scale( move, ( 1.0f / FRAMETIME ) ); /** ent->pushMoveInfo.sign*/
 
     // Set next frame think callback to be that of the end of movement processing.
-    ent->think = SVG_PushMove_AngleMoveDone;
+    ent->SetThinkCallback( SVG_PushMove_AngleMoveDone );
     ent->nextthink = level.time + FRAME_TIME_S;
 }
 /**
@@ -285,11 +285,11 @@ void SVG_PushMove_AngleMoveBegin( svg_base_edict_t *ent ) {
     if ( ent->pushMoveInfo.speed >= ent->speed ) {
         // set nextthink to trigger a think when dest is reached
         ent->nextthink = level.time + ( FRAME_TIME_S * numFrames );
-        ent->think = SVG_PushMove_AngleMoveFinal;
+        ent->SetThinkCallback( SVG_PushMove_AngleMoveFinal );
     // Otherwise, keep on accelerating:
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_AngleMoveBegin;
+        ent->SetThinkCallback( SVG_PushMove_AngleMoveBegin );
     }
     // PGM
 }
@@ -316,7 +316,7 @@ void SVG_PushMove_AngleMoveCalculate( svg_base_edict_t *ent, svg_pushmove_endcal
     // Team Slaves start moving next frame:
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->think = SVG_PushMove_AngleMoveBegin;
+        ent->SetThinkCallback( SVG_PushMove_AngleMoveBegin );
     }
 }
 
@@ -507,7 +507,7 @@ void SVG_PushMove_Think_AccelerateMove( svg_base_edict_t *ent ) {
     VectorScale( ent->pushMoveInfo.dir, ent->pushMoveInfo.current_speed * 10, ent->velocity );
 
     ent->nextthink = level.time + 10_hz;
-    ent->think = SVG_PushMove_Think_AccelerateMove;
+    ent->SetThinkCallback( SVG_PushMove_Think_AccelerateMove );
 
     // Find entities that move along with this entity.
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {

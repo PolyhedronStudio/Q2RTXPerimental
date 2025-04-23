@@ -792,8 +792,8 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = ( CM_CONTENTMASK_PLAYERSOLID );
     ent->model = "players/playerdummy/tris.iqm";
-    ent->pain = player_pain;
-    ent->die = player_die;
+    ent->SetPainCallback( player_pain );
+    ent->SetDieCallback( player_die );
     ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
     ent->liquidInfo.type = CONTENTS_NONE;
     ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );

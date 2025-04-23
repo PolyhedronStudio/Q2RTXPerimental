@@ -48,7 +48,7 @@ struct svg_classtest_edict_t : public svg_base_edict_t {
 	*	Define this as: "classtest" = svg_base_edict -> svg_classtest_edict_t
     *
     **/
-    DefineWorldSpawnClass( "classtest", svg_classtest_edict_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn );
+    DefineWorldSpawnClass( "classtest", svg_classtest_edict_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_classtest_edict_t::classtest_edict_spawn  );
 
 
 
@@ -94,6 +94,14 @@ struct svg_classtest_edict_t : public svg_base_edict_t {
     **/
     virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
 
+
+
+    /**
+    *
+    *   Classtest:
+    *
+    **/
+    static void classtest_edict_spawn( svg_classtest_edict_t *ent );
 
 
     /**

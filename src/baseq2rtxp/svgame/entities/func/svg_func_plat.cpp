@@ -85,7 +85,7 @@ Set "sounds" to one of the following:
 void plat_go_down( svg_base_edict_t *ent );
 
 void plat_think_idle( svg_base_edict_t *ent ) {
-    ent->think = plat_think_idle;
+    ent->SetThinkCallback( plat_think_idle );
     ent->nextthink = level.time + FRAME_TIME_MS;
 }
 
@@ -251,7 +251,7 @@ void plat_spawn_inside_trigger( svg_base_edict_t *ent ) {
     // middle trigger
     //
     trigger = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-    trigger->touch = Touch_Plat_Center;
+    trigger->SetTouchCallback( Touch_Plat_Center );
     trigger->movetype = MOVETYPE_NONE;
     trigger->solid = SOLID_TRIGGER;
     trigger->s.entityType = ET_PUSH_TRIGGER;
@@ -293,7 +293,7 @@ void SP_func_plat( svg_base_edict_t *ent ) {
     ent->s.entityType = ET_PUSHER;
     gi.setmodel( ent, ent->model );
 
-    ent->blocked = plat_blocked;
+    ent->SetBlockedCallback( plat_blocked );
 
     if ( !ent->speed )
         ent->speed = 20;
@@ -324,7 +324,7 @@ void SP_func_plat( svg_base_edict_t *ent ) {
     else
         ent->pos2[ 2 ] -= ( ent->maxs[ 2 ] - ent->mins[ 2 ] ) - st.lip;
 
-    ent->use = Use_Plat;
+    ent->SetUseCallback( Use_Plat );
 
     plat_spawn_inside_trigger( ent );     // the "start moving" trigger
 
