@@ -66,7 +66,7 @@ void SP_item_health_small(edict_t *self);
 void SP_item_health_large(edict_t *self);
 void SP_item_health_mega(edict_t *self);
 
-void SP_info_player_start(edict_t *ent);
+//void SP_info_player_start(edict_t *ent);
 void SP_info_player_deathmatch(edict_t *ent);
 void SP_info_player_coop(edict_t *ent);
 void SP_info_player_intermission(edict_t *ent);

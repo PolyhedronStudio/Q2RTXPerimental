@@ -81,10 +81,10 @@ void SP_item_health_small(svg_base_edict_t *self);
 void SP_item_health_large(svg_base_edict_t *self);
 void SP_item_health_mega(svg_base_edict_t *self);
 
-void SP_info_player_start(svg_base_edict_t *ent);
-void SP_info_player_deathmatch(svg_base_edict_t *ent);
-void SP_info_player_coop(svg_base_edict_t *ent);
-void SP_info_player_intermission(svg_base_edict_t *ent);
+//void SP_info_player_start(svg_base_edict_t *ent);
+//void SP_info_player_deathmatch(svg_base_edict_t *ent);
+//void SP_info_player_coop(svg_base_edict_t *ent);
+//void SP_info_player_intermission(svg_base_edict_t *ent);
 
 void SP_func_plat(svg_base_edict_t *ent);
 void SP_func_rotating(svg_base_edict_t *ent);
@@ -158,10 +158,10 @@ static const spawn_func_t spawn_funcs[] = {
     {"item_health_large", SP_item_health_large},
     {"item_health_mega", SP_item_health_mega},
 
-    {"info_player_start", SP_info_player_start},
-    {"info_player_deathmatch", SP_info_player_deathmatch},
-    {"info_player_coop", SP_info_player_coop},
-    {"info_player_intermission", SP_info_player_intermission},
+    // [X] Converted: {"info_player_start", SP_info_player_start},
+    // [X] Converted: {"info_player_deathmatch", SP_info_player_deathmatch},
+    // [X] Converted: {"info_player_coop", SP_info_player_coop},
+    // [X] Converted: {"info_player_intermission", SP_info_player_intermission},
 
     {"func_plat", SP_func_plat},
     {"func_button", SP_func_button},
@@ -210,9 +210,9 @@ static const spawn_func_t spawn_funcs[] = {
 
 	{"spotlight", SP_spotlight},
     {"light", SP_light},
-    {"info_null", SP_info_null},
-    {"func_group", SP_info_null},
-    {"info_notnull", SP_info_notnull},
+    // [X] Converted: {"info_null", SP_info_null},
+    // [X] Converted: {"func_group", SP_info_null},
+    // [X] Converted: {"info_notnull", SP_info_notnull},
     {"path_corner", SP_path_corner},
 
     {"misc_explobox", SP_misc_explobox},

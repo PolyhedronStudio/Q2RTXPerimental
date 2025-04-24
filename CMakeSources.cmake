@@ -436,6 +436,10 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_water.h
 	baseq2rtxp/svgame/entities/func/svg_func_entities.h
 
+	baseq2rtxp/svgame/entities/info/svg_info_player_start.h
+	baseq2rtxp/svgame/entities/info/svg_info_notnull.h
+	baseq2rtxp/svgame/entities/info/svg_info_null.h
+
 	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy.h
 	
 	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.h

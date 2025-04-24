@@ -336,7 +336,7 @@ public:
 // NOTE: multiple inheritance not supported
 #define DefineAbstractClass( className, superClass )			\
 	using Base = superClass;	/* Allows us to refer to super class using Base */ \
-	__DeclareTypeInfo( #className, #className, #superClass, EdictTypeInfo::TypeFlag_Abstract, nullptr );
+	__DeclareTypeInfo( #className, #className, #superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
 
 
 
