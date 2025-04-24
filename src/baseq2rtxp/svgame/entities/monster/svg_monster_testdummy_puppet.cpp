@@ -429,10 +429,13 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdu
                 QM_Vector3Normalize( goalOrigin - Vector3(self->s.origin) )
             );
             // Setup decent yaw turning speed.
-            self->yaw_speed = 10.f;
+            self->yaw_speed = 7.5f; // Was 10.f
 
             // Move yaw a frame into ideal yaw position.
-            SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
+            if ( !SVG_Entity_IsInFrontOf( self, goalOrigin, 3.0f ) ) {
+                // Before adding IsInFrontOf it'd rotate too precisely. (This looks better).
+                SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
+            }
 
             // Set follow trail time.
             if ( SVG_Entity_IsVisible( self->goalentity, self ) ) {
@@ -489,7 +492,7 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdu
             const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove );
 
             // A step was taken, ensure to apply RF_STAIR_STEP renderflag.
-            if ( monsterMove.step.height > FLT_EPSILON || monsterMove.step.height < -FLT_EPSILON ) {
+            if ( std::fabs( monsterMove.step.height ) > 0.f + FLT_EPSILON ) {
                 self->s.renderfx |= RF_STAIR_STEP;
             }
             // If the move was succesfull, copy over the state results into the entity's state.

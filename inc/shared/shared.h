@@ -27,69 +27,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	Include based on whether the unit including is .c or .cpp
 **/
-#ifndef __cplusplus
-    // C STD Headers:
-    #include <ctype.h>
-    #include <errno.h>
-    #include <float.h>
-    #include <math.h>
-    #include <stdio.h>
-    #include <stdarg.h>
-    #include <string.h>
-    #include <stdlib.h>
-    #include <stdint.h>
-    #include <stdbool.h>
-    #include <inttypes.h>
-    #include <limits.h>
-    #include <time.h>
-#else//__cplusplus
-    // C STD Headers:
-    #include <cctype>
-    #include <cerrno>
-    #include <cfloat>
-    #include <cinttypes>
-    #include <climits>
-    #include <cmath>
-    #include <cstdarg>
-    #include <cstdbool>
-    #include <cstdint>
-    #include <cstdio>
-    #include <cstdlib>
-    #include <cstring>
-    #include <ctime>
-
-    // C++ STL Headers:
-    #include <version>
-    #include <algorithm> // std::min, std::max etc, buuut still got vkpt code in C so.
-    //#include <array>
-    //#include <bit>
-    #include <chrono>
-    #include <type_traits>
-    //#include <algorithm>
-    //#include <array>
-    #include <list>
-    //#include <functional>
-    #include <map>
-    #include <numbers>
-    #include <numeric>
-    //#include <unordered_map>
-    //#include <set>
-    //#include <unordered_set>
-    #include <random>
-    //#include <string_view>
-    #include <variant>
-    #include <vector>
-#endif//__cplusplus
-
+#include "shared/stdlibs.h"
 //! Include Endianness utilities if not already included by another system header.
 #if HAVE_ENDIAN_H
     #include <endian.h>
 #endif
-
 //! Include shared platform specifics.
 #include "shared/platform.h"
-
-
 //! Determine and define which endianness we're compiling for.
 #if __BYTE_ORDER == __LITTLE_ENDIAN
     #define USE_LITTLE_ENDIAN   1
@@ -99,7 +43,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //! Include (Quake-)Error Code Definitions:
 #include "shared/qerrors.h"
-
 //! Utility to get the count of arrays.
 #define q_countof(a) (sizeof(a) / sizeof(a[0]))
 

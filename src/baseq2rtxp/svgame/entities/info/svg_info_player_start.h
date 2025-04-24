@@ -102,6 +102,8 @@ struct svg_info_player_start_t : public svg_base_edict_t {
     **/
     static void info_player_start_spawn( svg_info_player_start_t *self );
 
+
+
     /**
     *
     *

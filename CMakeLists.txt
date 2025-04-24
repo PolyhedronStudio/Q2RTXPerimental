@@ -153,7 +153,6 @@ ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64" OR CMAKE_SYSTEM_PROCESSOR STREQUA
 ENDIF()
 
 
-
 #
 # --------- Add 'External' libraries subdirectory --------------
 #

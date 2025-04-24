@@ -7,6 +7,7 @@
 ********************************************************************/
 #pragma once
 
+
 // entity_state_t->effects
 // Effects are things handled on the client side (lights, particles, frame animations)
 // that happen constantly on the given entity.

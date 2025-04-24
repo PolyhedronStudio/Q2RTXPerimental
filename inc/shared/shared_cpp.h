@@ -8,6 +8,8 @@
 ********************************************************************/
 #pragma once
 
+
+
 /****
 *
 *
@@ -61,7 +63,6 @@ static inline size_t Q_concat_stdarray(char* dest, size_t size, std::vector<cons
 *	A special template method in order to apply a set of operators to actual C enum types.
 *   reducing the need to do specific and possibly wrong casts everywhere.
 ****/
-#if 1
 #define QENUM_BIT_FLAGS(E)                                                                                      \
     inline constexpr E operator~( const E &tFirst ) {                                                          \
         return static_cast<E>( ~static_cast<std::underlying_type<E>::type>( tFirst ) );                         \
@@ -100,104 +101,6 @@ static inline size_t Q_concat_stdarray(char* dest, size_t size, std::vector<cons
         return e;                                                                                   \
     }
 
-//#define QENUM_OPERATORS( T ) \
-//    constexpr T operator &( const T tFirst, const T tSecond ) {   \
-//        return T( std::underlying_type<T>::type( tFirst ) & std::underlying_type<T>::type( tSecond ) );   \
-//    }   \
-//    constexpr T operator |( const T tFirst, const T tSecond ) {   \
-//        return T( std::underlying_type<T>::type( tFirst ) | std::underlying_type<T>::type( tSecond ) );   \
-//    }   \
-//    constexpr T operator ^( const T tFirst, const T tSecond ) {   \
-//        return T( std::underlying_type<T>::type( tFirst ) ^ std::underlying_type<T>::type( tSecond ) );   \
-//    }   \
-//    T operator ~( const T tFirst ) {   \
-//        return T( ~std::underlying_type<T>::type( tFirst ) );   \
-//    }   \
-//    T &operator &=( T &tFirst, T &tSecond ) {   \
-//        return tFirst = T( std::underlying_type<T>::type( tFirst ) & std::underlying_type<T>::type( tSecond ) );   \
-//    }   \
-//    T &operator |=( T &tFirst, T &tSecond ) {   \
-//        return tFirst = T( std::underlying_type<T>::type( tFirst ) | std::underlying_type<T>::type( tSecond ) );   \
-//    }   \
-//    T &operator ^=( T &tFirst, T &tSecond ) {   \
-//        return tFirst = T( std::underlying_type<T>::type( tFirst ) ^ std::underlying_type<T>::type( tSecond ) );   \
-//    }
-
-//template<typename E, class = std::enable_if_t < std::is_enum< E >{} >> 
-//    inline constexpr E operator &( E tFirst, E tSecond ) {
-//    return E( std::underlying_type<const E>::type( tFirst ) & std::underlying_type<E>::type( tSecond ) );
-//}
-//template<typename E, class = std::enable_if_t < std::is_enum< E >{} >>
-//    inline constexpr E operator |( E tFirst, E tSecond ) {
-//    return E( std::underlying_type<const E>::type( tFirst ) | std::underlying_type<E>::type( tSecond ) );
-//}
-//template<typename E, class = std::enable_if_t < std::is_enum< E >{} >>
-//    inline constexpr E operator ^( E tFirst, E tSecond ) {
-//    return E( std::underlying_type<const E>::type( tFirst ) ^ std::underlying_type<E>::type( tSecond ) );
-//}
-//template<typename T, class = std::enable_if_t < std::is_enum< T >{} >>
-//    inline constexpr T operator ~( const T tFirst ) {
-//    return T( ~std::underlying_type<const T>::type( tFirst ) );
-//}
-//template<typename E, class = std::enable_if_t < std::is_enum< E >{} >>
-//    inline constexpr E & operator &=( E &tFirst, E &tSecond ) {
-//    return tFirst = E( std::underlying_type<E>::type( tFirst ) & std::underlying_type<E>::type( tSecond ) );
-//}
-//template<typename E, class = std::enable_if_t < std::is_enum< E >{} >>
-//    inline constexpr E &operator |=( E &tFirst, E &tSecond ) {
-//    return tFirst = E( std::underlying_type<E>::type( tFirst ) | std::underlying_type<E>::type( tSecond ) );
-//}
-//template<typename E, class = std::enable_if_t < std::is_enum< E >{}>> 
-//    inline constexpr E &operator ^=( E &tFirst, E &tSecond ) {
-//    return tFirst = E( std::underlying_type<E>::type( tFirst ) ^ std::underlying_type<E>::type( tSecond ) );
-//}
-#else
-// Operator: ==
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline const E operator == ( const E lha, const E rhb ) {
-    return E( std::underlying_type<const E>::type( lha ) == std::underlying_type<const E>::type( rhb ) );
-};
-// Operator: !=
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline const E operator != ( const E lha, const E rhb ) {
-    return E( std::underlying_type<const E>::type( lha ) != std::underlying_type<const E>::type( rhb ) );
-};
-// Operator: |
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline constexpr const E operator | ( const E lha, const E rhb ) {
-    return E( std::underlying_type<const E>::type( lha ) | std::underlying_type<const E>::type( rhb ) );
-};
-// Operator: &
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline constexpr const E operator & ( const E lha, const E rhb ) {
-    return E( std::underlying_type<const E>::type( lha ) & std::underlying_type<const E>::type( rhb ) );
-};
-// Operator: ~
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline constexpr E const &operator ~ ( E &lha ) {
-    return lha = ~std::underlying_type<E>::type( E( std::underlying_type<E>::type( lha ) ) );
-};
-// Operator: ^
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline constexpr const E &operator ^ ( E &lha, E &rhb ) {
-    return lha = E( std::underlying_type<const E>::type( lha ) ^ std::underlying_type<const E>::type( rhb ) );
-};
-// Operator: |=
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline E &operator |= ( E &lha, E &rhb ) {
-    return lha = E( std::underlying_type<const E>::type( lha ) | std::underlying_type<const E>::type( rhb ) );
-};
-// Operator: &=
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline E &operator &= ( E &lha, E &rhb ) {
-    return lha = E( std::underlying_type<const E>::type( lha ) & std::underlying_type<const E>::type( rhb ) );
-};
-// Operator: ^=
-template <class E, class = std::enable_if_t < std::is_enum< const E >{} >>
-    static inline E &operator ^= ( E &lha, E &rhb ) {
-    return lha = E( std::underlying_type<const E>::type( lha ) ^ std::underlying_type<const E>::type( rhb ) );
-};
-#endif
 
 
 /**
