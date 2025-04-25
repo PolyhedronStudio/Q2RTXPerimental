@@ -69,7 +69,14 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
     *
     **/
-    DefineWorldSpawnClass( "monster_testdummy_puppet", svg_monster_testdummy_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_monster_testdummy_t::monster_testdummy_puppet_spawn );
+    DefineWorldSpawnClass( 
+        // classname:               classType:               superClassType:
+        "monster_testdummy_puppet", svg_monster_testdummy_t, svg_base_edict_t, 
+        // typeInfoFlags:
+        EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
+        // spawnFunc:
+        svg_monster_testdummy_t::monster_testdummy_puppet_spawn 
+    );
 
 
 

@@ -48,7 +48,14 @@ struct svg_worldspawn_edict_t : public svg_base_edict_t {
     *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
     *
     **/
-    DefineWorldSpawnClass( "worldspawn", svg_worldspawn_edict_t, svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_worldspawn_edict_t::ed_worldspawn_spawn );
+    DefineWorldSpawnClass(
+        // classname:    classType:         superClassType:
+        "worldspawn", svg_worldspawn_edict_t,
+        // typeInfoFlags:
+        svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
+        // spawnFunc:
+        svg_worldspawn_edict_t::ed_worldspawn_spawn
+    );
 
 
 

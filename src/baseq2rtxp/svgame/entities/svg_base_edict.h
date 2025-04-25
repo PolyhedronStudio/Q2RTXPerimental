@@ -184,7 +184,12 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     svg_base_edict_t( const cm_entity_t *ed ) : sv_shared_edict_t< svg_base_edict_t, svg_client_t >( ed ) {};
 
     // The root class of inheritance based game entity typeinfo inheritance.
-    DefineTopRootClass( "svg_base_edict_t", svg_base_edict_t, sv_shared_edict_t, EdictTypeInfo::TypeInfoFlag_GameSpawn );
+    DefineTopRootClass( 
+        // classname:       classType:        superClassType:
+        "svg_base_edict_t", svg_base_edict_t, sv_shared_edict_t, 
+        // typeInfoFlags:
+        EdictTypeInfo::TypeInfoFlag_GameSpawn
+    );
 
 
     /**

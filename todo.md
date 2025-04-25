@@ -78,7 +78,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 			- [ ] Allocating the matching class type linked to an entity's classname key/value pair.
 			- [ ] Registering an inherited svg_edict_t class its extra save field offsets.
 			- [ ] Registering an inherited svg_edict_t class its extra messaging field offsets.
-	- [ ] .. Some more I bet ..
+	- [ ] Rewrite/Rework/Fix func_plat. It needs a different set of usage rules._
 
 - [ ] The **IQM Animation** Scenario:
 	- [ ] Allow attaching models configured by bone tags setup.

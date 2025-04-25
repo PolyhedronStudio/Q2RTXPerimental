@@ -139,7 +139,14 @@ struct svg_info_player_intermission_t : public svg_info_player_base_start_t {
     *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
     *
     **/
-    DefineWorldSpawnClass( "info_player_intermission", svg_info_player_intermission_t, svg_info_player_base_start_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_info_player_intermission_t::info_player_intermission_spawn );
+    DefineWorldSpawnClass( 
+        // classname:               classType:                      superClassType:
+        "info_player_intermission", svg_info_player_intermission_t, svg_info_player_base_start_t, 
+        // typeInfoFlags:
+        EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
+        // spawnFunc:
+        svg_info_player_intermission_t::info_player_intermission_spawn
+    );
 
     /**
     *
@@ -216,7 +223,13 @@ struct svg_info_player_coop_t : public svg_info_player_base_start_t {
     *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
     *
     **/
-    DefineWorldSpawnClass( "info_player_coop", svg_info_player_coop_t, svg_info_player_base_start_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_info_player_coop_t::info_player_coop_spawn );
+    DefineWorldSpawnClass( 
+        // classname:    classType:         superClassType:
+        "info_player_coop", svg_info_player_coop_t, svg_info_player_base_start_t, 
+        // typeInfoFlags:
+        EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
+        // spawnFunc:
+        svg_info_player_coop_t::info_player_coop_spawn );
 
     /**
     *
@@ -250,7 +263,14 @@ struct svg_info_player_deathmatch_t : public svg_info_player_base_start_t {
     *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
     *
     **/
-    DefineWorldSpawnClass( "info_player_deathmatch", svg_info_player_deathmatch_t, svg_info_player_base_start_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_info_player_deathmatch_t::info_player_deathmatch_spawn );
+    DefineWorldSpawnClass( 
+        // classname:             classType:                    superClassType:
+        "info_player_deathmatch", svg_info_player_deathmatch_t, svg_info_player_base_start_t,
+        // typeInfoFlags:
+        EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
+        // spawnFunc:
+        svg_info_player_deathmatch_t::info_player_deathmatch_spawn
+    );
 
     /**
     *
