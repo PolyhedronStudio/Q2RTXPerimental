@@ -7,8 +7,12 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_game_items.h"
+#include "svgame/svg_weapons.h"
+
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
+
+#include "sharedgame/sg_gamemode.h"
 
 
 

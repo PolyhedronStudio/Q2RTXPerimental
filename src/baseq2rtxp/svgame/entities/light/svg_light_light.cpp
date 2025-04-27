@@ -6,7 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
-
+#include "svgame/svg_trigger.h"
 
 /*QUAKED light (0 1 0) (-8 -8 -8) (8 8 8) START_OFF
 Non-displayed light.

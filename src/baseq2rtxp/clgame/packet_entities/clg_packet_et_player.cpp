@@ -11,6 +11,9 @@
 #include "clgame/clg_temp_entities.h"
 
 
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_misc.h"
+
 
 /**
 *

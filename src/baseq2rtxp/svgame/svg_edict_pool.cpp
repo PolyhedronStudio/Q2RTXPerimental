@@ -7,6 +7,12 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_edict_pool.h"
+#include "svgame/svg_trigger.h"
+#include "svgame/svg_signalio.h"
+#include "svgame/svg_usetargets.h"
+
+#include "sharedgame/sg_usetarget_hints.h"
+
 #include "svgame/entities/svg_ed_player.h"
 
 

@@ -54,6 +54,8 @@ typedef int32_t spawnflag_t;
 /**
 *   Include the shared game headers for functions and types.
 **/
+// For forward declarations:
+#include "sharedgame/sg_shared_fwd.h"
 // SharedGame includes:
 #include "sharedgame/sg_shared.h"
 
@@ -68,9 +70,7 @@ typedef int32_t spawnflag_t;
 /**
 * 
 * 
-* 
-*   ServerGame Global Constants:
-* 
+*   ServerGame Time Constants:
 * 
 * 
 **/
@@ -84,11 +84,12 @@ constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<in
 //! For backwards compatibilities.
 #define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
 
-/***
+/**
 *   View Pitching Times: (Q2RE Style).
-***/
+**/
 //! Time between ladder sounds.
 static constexpr QMTime LADDER_SOUND_TIME = 375_ms;
+
 //! View pitching times
 static inline constexpr QMTime DAMAGE_TIME_SLACK() {
     return ( 100_ms - FRAME_TIME_MS );
@@ -108,6 +109,17 @@ static inline constexpr QMTime FALL_TIME() {
 static constexpr int32_t RIGHT_HANDED = 0;
 static constexpr int32_t LEFT_HANDED = 1;
 static constexpr int32_t CENTER_HANDED = 2;
+
+/**
+*   Gib Types:
+**/
+static constexpr int32_t GIB_TYPE_ORGANIC = 0;
+static constexpr int32_t GIB_TYPE_METALLIC = 1;
+
+/**
+*   Max number of individual damage indicators we'll track:
+**/
+static constexpr size_t MAX_DAMAGE_INDICATORS = 4;
 
 
 
@@ -229,18 +241,18 @@ using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
 *
 **/
 //! Combat related:
-#include "svgame/svg_combat.h"
+//#include "svgame/svg_combat.h"
 //! Pusher/Mover- Move Info Data Structures:
-#include "svgame/svg_pushmove_info.h"
+//#include "svgame/svg_pushmove_info.h"
 //! Signal I/O:
-#include "svgame/svg_signalio.h"
+//#include "svgame/svg_signalio.h"
 //! UseTargets related enums etc.
-#include "svgame/svg_usetargets.h"
+//#include "svgame/svg_usetargets.h"
 //! Signal I/O:
-#include "svgame/svg_trigger.h"
+//#include "svgame/svg_trigger.h"
 
 //! (Player-)Weapon Related.
-#include "svgame/svg_weapons.h"
+//#include "svgame/svg_weapons.h"
 
 //! Include items data structures.
 #include "svgame/svg_game_items.h"

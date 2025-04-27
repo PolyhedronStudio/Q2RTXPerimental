@@ -18,6 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_ai.c
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_combat.h"
 
 //// WID: C++20: Aggressive "extern "C"" for the save system.
 //bool FindTarget(svg_base_edict_t *self);

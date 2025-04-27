@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
 
 #include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_entities.h"

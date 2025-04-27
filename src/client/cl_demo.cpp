@@ -212,7 +212,7 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
         // PortalBits frame message.
         MSG_WriteUint8( svc_portalbits );
         // Clean zeroed memory portal bits buffer for writing.
-        byte portalBits[ MAX_MAP_PORTAL_BYTES ];// = { 0 };
+        static byte portalBits[ MAX_MAP_PORTAL_BYTES ];// = { 0 };
         memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
         // Write the current portal bit states to the portalBits buffer.
         int32_t numPortalBits = CM_WritePortalBits( &cl.collisionModel, portalBits );

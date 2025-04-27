@@ -299,7 +299,7 @@ static void CL_ParseFrame()
             return;
         }
         // Clean zerod out portal bits buffer.
-        byte portalBits[ MAX_MAP_PORTAL_BYTES ];
+        static byte portalBits[ MAX_MAP_PORTAL_BYTES ];
         memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
         // Pointer to the read buffer's portal bit part.
         byte *receivedPortalBits = MSG_ReadData( lengthPortalBits );

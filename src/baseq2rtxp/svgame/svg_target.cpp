@@ -16,9 +16,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_hud.h"
+
+#include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_tempentity_events.h"
 
 /*QUAKED target_temp_entity (1 0 0) (-8 -8 -8) (8 8 8)
 Fire an origin based temp entity event to the clients.

@@ -7,9 +7,12 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_chase.h"
+#include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
 #include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_pmove.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/entities/svg_ed_player.h"
@@ -491,7 +494,7 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
     }
     // Setup 'User Command', 'Player Skip Entity' and Function Pointers.
     pm->cmd = *userCommand;
-    pm->player = (struct edict_ptr_t *)ent;
+    pm->player = reinterpret_cast<edict_ptr_t *>(ent);
     pm->trace = SV_PM_Trace;
     pm->pointcontents = SV_PM_PointContents;
     pm->clip = SV_PM_Clip;

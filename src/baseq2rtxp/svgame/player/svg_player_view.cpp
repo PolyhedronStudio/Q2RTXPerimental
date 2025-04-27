@@ -21,6 +21,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_trail.h"
 
+#include "sharedgame/sg_cmd_messages.h"
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_means_of_death.h"
 
 
 static  svg_base_edict_t *current_player;

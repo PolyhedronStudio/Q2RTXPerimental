@@ -7,6 +7,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
 

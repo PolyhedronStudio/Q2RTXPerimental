@@ -15,6 +15,8 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_object.h"
 
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_means_of_death.h"
 
 
 /*QUAKED func_object (0 .5 .8) ? TRIGGER_SPAWN ANIMATED ANIMATED_FAST

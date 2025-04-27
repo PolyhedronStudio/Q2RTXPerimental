@@ -51,21 +51,22 @@
 /**
 *	Engine Tick Rate:
 **/
-// Default server FPS: 10hz
+// 40hz Tick Rate.
+#define BASE_FRAMERATE          ( 40. )					// OLD: 40 fps	NEW: 40fps
+#define BASE_FRAMETIME          ( 1000./BASE_FRAMERATE )// OLD: 25		NEW: 1000 / BASE_FRAMERATE = 25
+#define BASE_1_FRAMETIME        ( 1./BASE_FRAMETIME )	// OLD: 0.04f   NEW: 1 / BASE_FRAMETIME
+#define BASE_FRAMETIME_1000     ( BASE_FRAMETIME/1000. )// OLD: 0.0.025 NEW: BASE_FRAMETIME / 1000
+// Server Tick Rate: 10hz
 //#define BASE_FRAMERATE          10
 //#define BASE_FRAMETIME          100
 //#define BASE_1_FRAMETIME        0.01f   // 1/BASE_FRAMETIME
 //#define BASE_FRAMETIME_1000     0.1f    // BASE_FRAMETIME/1000
 
-// Default Server FPS: 40hz
+// Server Tick Rate: 40hz
 //#define BASE_FRAMERATE          40		// OLD: 10 fps	NEW: 40fps
 //#define BASE_FRAMETIME          25		// OLD: 100		NEW: 1000 / BASE_FRAMERATE = 25
 //#define BASE_1_FRAMETIME        0.04f	// OLD: 0.01f   NEW: 1 / BASE_FRAMETIME
 //#define BASE_FRAMETIME_1000     0.025f	// OLD: 0.1f	NEW: BASE_FRAMETIME / 1000
-#define BASE_FRAMERATE          (40.)						// OLD: 40 fps	NEW: 40fps
-#define BASE_FRAMETIME          (1000./BASE_FRAMERATE)		// OLD: 25		NEW: 1000 / BASE_FRAMERATE = 25
-#define BASE_1_FRAMETIME        (1./BASE_FRAMETIME)			// OLD: 0.04f   NEW: 1 / BASE_FRAMETIME
-#define BASE_FRAMETIME_1000     (BASE_FRAMETIME/1000.)		// OLD: 0.0.025 NEW: BASE_FRAMETIME / 1000
 
 
 /**
@@ -125,14 +126,14 @@
 *	Server Specific Configuration:
 **/
 #if USE_SERVER
-#define USE_WINSVC !USE_CLIENT
+	#define USE_WINSVC !USE_CLIENT
 #endif
 //! Defined to prevent a compiler warning due to SDL redefining already defined math values.
 #define _USE_MATH_DEFINES
 
 //! Have C inline just like C++ inline.
 #ifndef __cplusplus
-#define inline __inline
+	#define inline __inline
 #endif // __cplusplus
 
 //! For debugging, macro to get the current function string name.
@@ -151,8 +152,8 @@ typedef __int32     ssize_t;
 *	Disable some visual studio specific warnings:
 **/
 #if defined(_MSC_VER)
-#pragma warning(disable:4018)
-#pragma warning(disable:4244)
-#pragma warning(disable:4267)
-#pragma warning(disable:4305)
+	#pragma warning(disable:4018)
+	#pragma warning(disable:4244)
+	#pragma warning(disable:4267)
+	#pragma warning(disable:4305)
 #endif

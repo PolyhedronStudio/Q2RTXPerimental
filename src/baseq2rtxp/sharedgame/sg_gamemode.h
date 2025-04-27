@@ -10,7 +10,7 @@
 //
 // g_gamemode.cpp
 //
-typedef enum {
+typedef enum sg_gamemode_type_e {
 	//! If you ever get this value, something is badly wrong.
 	GAMEMODE_TYPE_UNKNOWN = -1,
 

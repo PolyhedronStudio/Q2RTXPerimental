@@ -18,6 +18,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_tempentity_events.h"
 
 #if 0
 /**

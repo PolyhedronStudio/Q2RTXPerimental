@@ -6,10 +6,12 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_combat.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_save.h"
 #include "svgame/svg_utils.h"
 
+#include "sharedgame/sg_tempentity_events.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 /**

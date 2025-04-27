@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_combat.h"
 #include "svgame/svg_gamemode.h"
 #include "svgame/svg_commands_server.h"
 #include "svgame/svg_edict_pool.h"
@@ -29,6 +30,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_lua.h"
 
 #include "svgame/entities/svg_entities_pushermove.h"
+
+#include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_pmove.h"
+
+
 
 
 /**

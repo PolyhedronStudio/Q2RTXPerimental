@@ -8,6 +8,9 @@
 ********************************************************************/
 #pragma once
 
+#include "sharedgame/sg_skm.h"
+
+#include "svgame/svg_combat.h"
 
 /**
 *   @brief  Client data that persists to exist across multiple level loads.

@@ -7,7 +7,11 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_clients.h"
+#include "svgame/svg_trigger.h"
+#include "svgame/svg_signalio.h"
+#include "svgame/svg_usetargets.h"
 
+#include "sharedgame/sg_usetarget_hints.h"
 
 
 /**

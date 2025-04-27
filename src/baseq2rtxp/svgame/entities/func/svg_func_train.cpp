@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_misc.h"
+#include "svgame/svg_trigger.h"
 
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
@@ -15,6 +16,7 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_train.h"
 
+#include "sharedgame/sg_means_of_death.h"
 
 
 //! Has the train moving instantly after spawning.

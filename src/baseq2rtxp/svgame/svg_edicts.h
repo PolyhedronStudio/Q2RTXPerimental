@@ -9,6 +9,10 @@
 #pragma once
 
 
+#include "sharedgame/sg_entity_events.h"
+#include "sharedgame/sg_entity_types.h"
+
+
 
 /**
 *

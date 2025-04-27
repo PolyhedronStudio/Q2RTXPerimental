@@ -17,6 +17,9 @@
 #include "clgame/clg_packet_entities.h"
 #include "clgame/clg_temp_entities.h"
 
+#include "sharedgame/sg_entity_types.h"
+
+
 // WID: TODO: Move to client where it determines old/new states?
 #if 1 
 /**

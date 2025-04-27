@@ -8,6 +8,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_misc.h"
+#include "svgame/svg_trigger.h"
 
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"

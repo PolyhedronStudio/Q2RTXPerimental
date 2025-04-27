@@ -17,7 +17,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "svgame/svg_local.h"
 #include "svgame/svg_chase.h"
+#include "svgame/svg_trigger.h"
+#include "svgame/svg_signalio.h"
+#include "svgame/svg_usetargets.h"
 #include "svgame/svg_utils.h"
+
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_usetarget_hints.h"
+
 
 #include "svgame/player/svg_player_hud.h"
 

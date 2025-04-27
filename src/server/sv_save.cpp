@@ -130,7 +130,8 @@ static int write_level_file(void)
     int         i, ret;
     char        *s;
     size_t      len;
-    byte        portalbits[MAX_MAP_PORTAL_BYTES];
+    static byte portalbits[ MAX_MAP_PORTAL_BYTES ] = {};
+    memset( portalbits, 0, MAX_MAP_PORTAL_BYTES );
 
     // write magic
     MSG_WriteInt32(SAVE_MAGIC2);

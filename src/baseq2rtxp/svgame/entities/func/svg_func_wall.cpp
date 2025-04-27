@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/svg_lua.h"
@@ -15,6 +16,7 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_wall.h"
 
+#include "sharedgame/sg_entity_effects.h"
 
 
 

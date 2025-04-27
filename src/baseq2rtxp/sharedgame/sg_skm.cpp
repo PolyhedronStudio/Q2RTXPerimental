@@ -8,8 +8,9 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
+
 #include "sharedgame/sg_shared.h"
-#include "sg_skm.h"
+#include "sharedgame/sg_skm.h"
 
 
 

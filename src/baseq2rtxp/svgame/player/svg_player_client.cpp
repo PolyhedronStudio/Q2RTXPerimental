@@ -6,6 +6,10 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+
+#include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_muzzleflashes.h"
+#include "sharedgame/sg_pmove.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/svg_commands_server.h"

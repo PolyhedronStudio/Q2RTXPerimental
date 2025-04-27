@@ -7,9 +7,14 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
+
 #include "svgame/entities/svg_entities_pushermove.h"
+
+#include "sharedgame/sg_entity_effects.h"
 
 // UserTypes:
 #include "svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp"

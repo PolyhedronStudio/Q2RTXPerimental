@@ -19,7 +19,7 @@
 *	(Predictable-)Player State Events:
 **/
 //! Enumerator event numbers, also act as string indices.
-typedef enum {
+typedef enum sg_player_state_event_e {
 	PS_EV_NONE = 0,
 
 	//

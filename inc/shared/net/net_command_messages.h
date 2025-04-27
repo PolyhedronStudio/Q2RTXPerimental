@@ -46,7 +46,8 @@ typedef enum {
     svc_inventory,
     svc_scoreboard,
 
-    svc_svgame                 // The server game is allowed to add custom commands after this. Max limit is a byte, 255.
+    // The server game is allowed to add custom commands after this. Max limit is a byte, 255.
+    svc_svgame
 } server_command_t;
 
 // Client to Server
@@ -63,5 +64,6 @@ typedef enum {
 
     clc_stringcmd,          // [string] message
 
-    clc_clgame                 // The client game is allowed to add custom commands after this. Max limit is a byte, 255.
+    //! The client game is allowed to add custom commands after this. Max limit is a byte, 255.
+    clc_clgame
 } client_command_t;

@@ -7,6 +7,8 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
+#include "sharedgame/sg_means_of_death.h"
+
 // Needed.
 #include "svgame/entities/svg_base_edict.h"
 
@@ -577,7 +579,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     show_hostile_time = 0_ms;
     trail_time = 0_ms;
 
-    meansOfDeath = sg_means_of_death_t::MEANS_OF_DEATH_UNKNOWN;
+    meansOfDeath = sg_means_of_death_e::MEANS_OF_DEATH_UNKNOWN;
     map = nullptr;
 
     dmg = 0;

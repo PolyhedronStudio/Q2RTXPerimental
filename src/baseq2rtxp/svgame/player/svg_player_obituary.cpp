@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
+#include "sharedgame/sg_means_of_death.h"
 
 
 /**

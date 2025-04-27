@@ -26,6 +26,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/entities/svg_entities_pushermove.h"
 
+#include "sharedgame/sg_means_of_death.h"
+
+
 
 /**
 *

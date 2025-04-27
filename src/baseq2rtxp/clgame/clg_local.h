@@ -14,7 +14,7 @@
 // short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
 #ifndef CLGAME_INCLUDE
-#define CLGAME_INCLUDE
+	#define CLGAME_INCLUDE
 #endif
 #include "shared/client/cl_game.h"
 
@@ -22,11 +22,34 @@
 extern clgame_import_t clgi;
 extern clgame_export_t globals;
 
-// SharedGame includes:
-#include "../sharedgame/sg_shared.h"
+/**
+*   Forward declared types:
+**/
+//#include "clgame/svg_local_fwd.h"
 
-// extern times.
+
+/**
+*   Include the shared game headers for functions and types.
+**/
+// For forward declarations:
+#include "sharedgame/sg_shared_fwd.h"
+// Needed.
+#include "sharedgame/sg_pmove.h"
+// Needed.
+#include "sharedgame/sg_skm.h"
+// SharedGame includes:
+#include "sharedgame/sg_shared.h"
+
+
+
+/**
+*
+*   ServerGame Time Constants:
+*
+**/
+//! Frame time in seconds.
 extern QMTime FRAME_TIME_S;
+//! Frame time in miliseconds.
 extern QMTime FRAME_TIME_MS;
 
 // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...

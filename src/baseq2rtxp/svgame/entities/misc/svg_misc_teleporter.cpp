@@ -11,6 +11,7 @@
 
 #include "svgame/entities/misc/svg_misc_teleporter.h"
 
+#include "sharedgame/sg_entity_effects.h"
 
 /**
 *   @brief

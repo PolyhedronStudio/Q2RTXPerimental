@@ -15,6 +15,8 @@
 #include "clgame/clg_temp_entities.h"
 #include "clgame/clg_view.h"
 
+#include "sharedgame/sg_entity_effects.h"
+
 
 
 //=============

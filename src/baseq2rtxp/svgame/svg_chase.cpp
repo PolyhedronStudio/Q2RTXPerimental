@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_chase.h"
+#include "svgame/svg_combat.h"
 #include "svgame/svg_utils.h"
 
 

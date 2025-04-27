@@ -21,6 +21,9 @@
 #include "clgame/clg_view.h"
 
 
+#include "sharedgame/sg_gamemode.h"
+
+
 //! Stores data that remains accross level switches.
 game_locals_t   game;
 //! This structure is cleared as each map is entered, it stores data for the current level session.

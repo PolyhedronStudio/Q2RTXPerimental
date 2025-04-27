@@ -44,24 +44,8 @@ Q_DEFINE_ZONETAG( TAG_SVGAME_EDICTS,    ( 13 ) ) //! Cleared when erasing entity
 Q_DEFINE_ZONETAG( TAG_SVGAME_LUA,       ( 14 ) ) //! Used by Lua, and cleared when the game module is unloaded.
 
 //! Client Game DLL tags start here.
-Q_DEFINE_ZONETAG( TAG_CLGAME, 15 )	        //! Client Game DLL tags start here.
-Q_DEFINE_ZONETAG( TAG_CLGAME_LEVEL, 16 )    //! Client Game DLL tags start here.
+Q_DEFINE_ZONETAG( TAG_CLGAME, 15 )	        //! Remains allocated until the client game is shutdown.
+Q_DEFINE_ZONETAG( TAG_CLGAME_LEVEL, 16 )    //! Clear when loading a new level.
 
 //! The Game Modules can add custom Tag Zones after TAG_MAX.
 Q_DEFINE_ZONETAG( TAG_MAX, 17 ) //! (IDs must be Within the range of UINT16_MAX).
-
-
-/**
-*   Server Game DLL tags start here. These defined here are also used by the Server. 
-*
-*   However, optionally 
-**/
-// (TAG_MAX + 128 = 140) 
-
-
-/**
-*   Client Game DLL tags start here. These defined here are also used by the Client.
-*   
-*   However, the game optionally add custom Tag Zones to the remaining, non-used,
-*   reserved tag IDs.
-**/

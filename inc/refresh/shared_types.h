@@ -32,6 +32,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 // Needed for IQM_MAX_JOINTS
 #include "format/iqm.h"
+
 //! Maximum joints for SKM configuration info.
 #define SKM_MAX_BONES IQM_MAX_JOINTS
 #define SKM_MAX_BONE_CONTROLLERS 4

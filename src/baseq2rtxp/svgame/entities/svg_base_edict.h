@@ -25,6 +25,9 @@ struct svg_base_edict_t;
 
 //! Include the TypeInfo system for linking a classname onto a C++ class type derived svg_edict_base_t.
 #include "svgame/entities/typeinfo/svg_edict_typeinfo.h"
+#include "svgame/svg_pushmove_info.h"
+#include "svgame/svg_signalio.h"
+
 //! Required for save descriptors.
 #include "svgame/svg_save.h"
 
@@ -915,7 +918,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   Various Data:
     **/
     //! Set when the entity gets hurt(SVG_TriggerDamage) and might be its cause of death.
-    sg_means_of_death_t meansOfDeath = sg_means_of_death_t::MEANS_OF_DEATH_UNKNOWN;
+    sg_means_of_death_t meansOfDeath = static_cast<sg_means_of_death_t>(0);
     //! [SpawnKey]: Used for target_changelevel. Set as key/value.
     const char *map = nullptr;
 

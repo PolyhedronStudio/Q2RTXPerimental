@@ -19,8 +19,6 @@
 *
 *
 ***/
-// max number of individual damage indicators we'll track
-static constexpr size_t MAX_DAMAGE_INDICATORS = 4;
 /**
 *   @brief  Stores data indicating where damage came from, and how much it damage it did.
 **/
@@ -36,11 +34,7 @@ struct damage_indicator_t {
 
 
 
-/**
-*   Gib Types:
-**/
-static constexpr int32_t GIB_TYPE_ORGANIC   = 0;
-static constexpr int32_t GIB_TYPE_METALLIC  = 1;
+
 
 
 /**

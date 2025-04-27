@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
+
 #include "svgame/entities/path/svg_path_corner.h"
 
 

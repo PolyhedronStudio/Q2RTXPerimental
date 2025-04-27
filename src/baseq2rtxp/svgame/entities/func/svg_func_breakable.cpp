@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_misc.h"
+#include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/svg_lua.h"
@@ -15,6 +16,10 @@
 #include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_breakable.h"
+
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_tempentity_events.h"
 
 
 

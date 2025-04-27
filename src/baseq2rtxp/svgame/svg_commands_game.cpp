@@ -7,12 +7,18 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_chase.h"
+#include "svgame/svg_combat.h"
+#include "svgame/svg_trigger.h"
+#include "svgame/svg_signalio.h"
 #include "svgame/svg_utils.h"
+#include "svgame/svg_weapons.h"
 
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
 
 #include "svgame/svg_lua.h"
+
+#include "sharedgame/sg_means_of_death.h"
 
 
 /**

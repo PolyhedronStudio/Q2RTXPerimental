@@ -2,7 +2,9 @@
 #include "svgame/svg_local.h"
 
 // Save related types.
+
 #include "svg_save.h"
+#include "svgame/svg_signalio.h"
 
 #include "svgame/entities/info/svg_info_notnull.h"
 #include "svgame/entities/info/svg_info_null.h"
@@ -13,6 +15,7 @@
 
 #include "svgame/entities/svg_ed_player.h"
 #include "svgame/entities/svg_ed_worldspawn.h"
+
 
 #if 0
 extern mmove_t actor_move_attack;

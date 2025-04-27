@@ -28,18 +28,18 @@
 #include "sharedgame/sg_time.h"
 
 // Include other shared game headers.
-#include "sharedgame/sg_cmd_messages.h"
-#include "sharedgame/sg_entity_effects.h"
-#include "sharedgame/sg_entity_events.h"
-#include "sharedgame/sg_entity_types.h"
-#include "sharedgame/sg_gamemode.h"
-#include "sharedgame/sg_means_of_death.h"
-#include "sharedgame/sg_misc.h"
-#include "sharedgame/sg_muzzleflashes.h"
-#include "sharedgame/sg_pmove.h"
-#include "sharedgame/sg_pmove_slidemove.h"
-#include "sharedgame/sg_skm.h"
-#include "sharedgame/sg_tempentity_events.h"
+//#include "sharedgame/sg_cmd_messages.h"
+//#include "sharedgame/sg_entity_effects.h"
+//#include "sharedgame/sg_entity_events.h"
+//#include "sharedgame/sg_entity_types.h"
+//#include "sharedgame/sg_gamemode.h"
+//#include "sharedgame/sg_means_of_death.h"
+//#include "sharedgame/sg_misc.h"
+//#include "sharedgame/sg_muzzleflashes.h"
+//#include "sharedgame/sg_pmove.h"
+//#include "sharedgame/sg_pmove_slidemove.h"
+//#include "sharedgame/sg_skm.h"
+//#include "sharedgame/sg_tempentity_events.h"
 
 
 

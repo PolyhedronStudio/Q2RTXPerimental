@@ -1,4 +1,13 @@
+/********************************************************************
+*
+*
+*	SharedGame: GameMode Related Stuff.
+*
+*
+********************************************************************/
 #include "svgame/svg_local.h"
+
+#include "sharedgame/sg_gamemode.h"
 
 
 /**

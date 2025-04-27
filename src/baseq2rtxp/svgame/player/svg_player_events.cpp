@@ -17,6 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "sharedgame/sg_pmove.h"
+
 
 /**
 *	@brief	Inspects the player state events for any events which may fire animation playbacks.

@@ -9,6 +9,8 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_entities.h"
 
+#include "sharedgame/sg_muzzleflashes.h"
+
 
 static clg_dlight_t *CLG_AddMuzzleflashDLight( centity_t *pl, vec3_t fv, vec3_t rv ) {
     clg_dlight_t *dl = CLG_AllocDlight( level.parsedMessage.events.muzzleFlash.entity );

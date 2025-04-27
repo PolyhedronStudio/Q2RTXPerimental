@@ -14,6 +14,8 @@
 #include "shared/client/cl_game.h"
 #include "../../clgame/clg_local.h"
 
+#include "sharedgame/sg_pmove.h"
+
 // Extern here right after including shared/client/cl_game.h
 extern clgame_import_t clgi;
 

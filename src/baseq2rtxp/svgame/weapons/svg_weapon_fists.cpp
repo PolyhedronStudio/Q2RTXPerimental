@@ -6,7 +6,9 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_weapons.h"
 
+#include "sharedgame/sg_muzzleflashes.h"
 
 
 /**

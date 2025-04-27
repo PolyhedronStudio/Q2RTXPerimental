@@ -11,7 +11,7 @@
 /**
 *	@brief	Starts right off where ET_GAME_TYPES left off.
 **/
-enum {
+typedef enum sg_entity_type_e {
 	//
 	// Player Entity Types:
 	// 
@@ -77,4 +77,4 @@ enum {
 	//ET_EVENTS				// any of the EV_* events can be added freestanding
 							// by setting s.entityType to ET_EVENTS + eventNum
 							// this avoids having to set eFlags and eventNum
-};
+} sg_entity_type_t;

@@ -6,7 +6,9 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
 
+#include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/svg_utils.h"

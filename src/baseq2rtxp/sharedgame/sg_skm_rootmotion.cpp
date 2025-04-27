@@ -9,8 +9,8 @@
 ********************************************************************/
 #include "shared/shared.h"
 #include "sharedgame/sg_shared.h"
-#include "sg_skm.h"
-#include "sg_skm_rootmotion.h"
+#include "sharedgame/sg_skm.h"
+#include "sharedgame/sg_skm_rootmotion.h"
 
 #if 0
 /**

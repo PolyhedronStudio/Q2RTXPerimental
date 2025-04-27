@@ -17,7 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
-#include "svg_lua.h"
+#include "svgame/svg_signalio.h"
+#include "svgame/svg_lua.h"
 
 // UserTypes:
 #include "svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp"

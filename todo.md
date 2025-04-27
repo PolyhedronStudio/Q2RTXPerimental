@@ -68,17 +68,18 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 	- [ ] Certain people get iffy and uppety about crosshair as it is. So, let's make it configurable.
 
 - [ ] **Entities**:
+	- [ ] Rewrite/Rework/Fix func_plat. It needs a different set of usage rules._
 	- [ ] Reimplement the 'movewith' system using matrixes/quaternions instead of those silly vector maths.
 		- [ ] Calculate the proper entity matrixes/quaternions during Link time.
 	- [ ] Reimplement (client-)misc_model properly.
 	- [ ] Add proper spawn flag constants.
-	- [/] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of the matching entity classname and its 'classdata' struct.
-		- [ ] Add in a TypeInfo system allowing for:
-			- [ ] Registering an inhericted svg_edict_t to a classname type.
-			- [ ] Allocating the matching class type linked to an entity's classname key/value pair.
-			- [ ] Registering an inherited svg_edict_t class its extra save field offsets.
+	- [X] Can we do a, C++ struct inheritance and have edict_t* store a pointer to an instance of the matching entity classname and its 'classdata' struct.
+		- [X] Add in a TypeInfo system allowing for:
+			- [X] Registering an inhericted svg_edict_t to a classname type.
+			- [X] Allocating the matching class type linked to an entity's classname key/value pair.
+			- [/] Registering an inherited svg_edict_t class its extra save field offsets.
+				- [ ] We want to do this Q2RE style since it is more convenient, lesser error prone.
 			- [ ] Registering an inherited svg_edict_t class its extra messaging field offsets.
-	- [ ] Rewrite/Rework/Fix func_plat. It needs a different set of usage rules._
 
 - [ ] The **IQM Animation** Scenario:
 	- [ ] Allow attaching models configured by bone tags setup.

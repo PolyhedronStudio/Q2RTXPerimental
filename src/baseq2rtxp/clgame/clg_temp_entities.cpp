@@ -9,6 +9,8 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_temp_entities.h"
 
+#include "sharedgame/sg_tempentity_events.h"
+
 static color_t  railcore_color;
 static color_t  railspiral_color;
 

@@ -184,30 +184,30 @@ typedef struct {
     const int64_t ( *GetServerFrameNumber )( void );
 
 
-	/**
-	*
-	*	Special Messages:
-	*
-	**/
-    void (* q_printf(2, 3) bprintf)(int printlevel, const char *fmt, ...);
-    void (* q_printf(1, 2) dprintf)(const char *fmt, ...);
-    void (* q_printf(3, 4) cprintf)(edict_ptr_t *ent, int printlevel, const char *fmt, ...);
-    void (* q_printf(2, 3) centerprintf)(edict_ptr_t *ent, const char *fmt, ...);
-    void (*sound)(edict_ptr_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs);
-    void (*positioned_sound)(const vec3_t origin, edict_ptr_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs);
+    /**
+    *
+    *	Special Messages:
+    *
+    **/
+    void ( *q_printf( 2, 3 ) bprintf )( int printlevel, const char *fmt, ... );
+    void ( *q_printf( 1, 2 ) dprintf )( const char *fmt, ... );
+    void ( *q_printf( 3, 4 ) cprintf )( edict_ptr_t *ent, int printlevel, const char *fmt, ... );
+    void ( *q_printf( 2, 3 ) centerprintf )( edict_ptr_t *ent, const char *fmt, ... );
+    void ( *sound )( edict_ptr_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs );
+    void ( *positioned_sound )( const vec3_t origin, edict_ptr_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs );
 
 
-	/**
+    /**
     *	Config strings hold all the index strings, the lightstyles, the models that are in-use,
     *	and also misc data like the sky definition and cdtrack.
-	* 
-    *	All of the current configstrings are sent to clients when they connect, 
-	*	and in case of any changes, which too are sent to all connected clients.
-	**/
-	configstring_t *(*GetConfigString)( const int32_t index );
-    void (*configstring)(int num, const char *string);
+    *
+    *	All of the current configstrings are sent to clients when they connect,
+    *	and in case of any changes, which too are sent to all connected clients.
+    **/
+    configstring_t *( *GetConfigString )( const int32_t index );
+    void ( *configstring )( int num, const char *string );
 
-    void (* q_noreturn q_printf(1, 2) error)(const char *fmt, ...);
+    void ( *q_noreturn q_printf( 1, 2 ) error )( const char *fmt, ... );
 
     //! Get access to the actual pointer of a loaded configstring model.
     const model_t *( *GetModelDataForName )( const char *name );
@@ -218,52 +218,52 @@ typedef struct {
     const mmodel_t *( *GetInlineModelDataForHandle )( const qhandle_t handle );
 
     // the *index functions create configstrings(precache iqm models) and some internal server state.
-	// these are sent over to the client 
-    int (*modelindex)(const char *name);
-    int (*soundindex)(const char *name);
-    int (*imageindex)(const char *name);
+    // these are sent over to the client 
+    int ( *modelindex )( const char *name );
+    int ( *soundindex )( const char *name );
+    int ( *imageindex )( const char *name );
 
-    void (*setmodel)(edict_ptr_t *ent, const char *name);
+    void ( *setmodel )( edict_ptr_t *ent, const char *name );
 
 
-	/**
-	*
-	*	Collision Detection:
-	*
-	**/
+    /**
+    *
+    *	Collision Detection:
+    *
+    **/
     //! Perform a trace through the world and its entities with a bbox from start to end point.
-    const cm_trace_t (* q_gameabi trace)(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_ptr_t *passent, const cm_contents_t contentmask );
+    const cm_trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_ptr_t *passent, const cm_contents_t contentmask );
     //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
-	const cm_trace_t ( *q_gameabi clip )( edict_ptr_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );
+    const cm_trace_t( *q_gameabi clip )( edict_ptr_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );
     //! Returns a cm_contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
-    const cm_contents_t (*pointcontents)(const vec3_t point);
+    const cm_contents_t( *pointcontents )( const vec3_t point );
     /**
     *   @return True if the points p1 to p2 are within two visible areas.
     *   @note   Also checks portalareas so that doors block sight.
     **/
-    const qboolean (*inPVS)(const vec3_t p1, const vec3_t p2);
+    const qboolean( *inPVS )( const vec3_t p1, const vec3_t p2 );
     /**
     *   @return True if the points p1 to p2 are within two hearable areas.
     *   @note   Also checks portalareas so that doors block hearing.
     **/
-    const qboolean (*inPHS)(const vec3_t p1, const vec3_t p2);
+    const qboolean( *inPHS )( const vec3_t p1, const vec3_t p2 );
     //! Set the state of the matching area portal number.
-    void (*SetAreaPortalState)( const int32_t portalnum, const bool open);
+    void ( *SetAreaPortalState )( const int32_t portalnum, const bool open );
     //! Get state of the matching area portal number.
-    const int32_t ( *GetAreaPortalState )( const int32_t portalnum );
+    const int32_t( *GetAreaPortalState )( const int32_t portalnum );
     //! Returns true if the areas are connected.
-    const qboolean (*AreasConnected)(const int32_t area1, const int32_t area2);
+    const qboolean( *AreasConnected )( const int32_t area1, const int32_t area2 );
     /**
-    *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.  
+    *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.
     *   If the size, position, solidity, clipmask, hullContents, or owner changes, it must be relinked.
-	**/
+    **/
     //! Link the entity into the world area grid for collision detection.
     void ( *linkentity )( edict_ptr_t *ent );
     //! UnLink the entity from the world area grid for collision detection.
     void ( *unlinkentity )( edict_ptr_t *ent );
     //! Return all entities that are inside or touching the bounding box area into the list array.
-    const int32_t(*BoxEdicts)(const vec3_t mins, const vec3_t maxs, edict_ptr_t **list, const int32_t maxcount, const int32_t areatype);
-    
+    const int32_t( *BoxEdicts )( const vec3_t mins, const vec3_t maxs, edict_ptr_t **list, const int32_t maxcount, const int32_t areatype );
+
 
     /**
     *
@@ -289,7 +289,7 @@ typedef struct {
 
     /**
     *
-    * 
+    *
     *	FileSystem:
     *
     *
@@ -309,11 +309,11 @@ typedef struct {
     void ( *FS_FreeFile )( void *buffer );
 
 
-	/**
-	*
-	*	Network Messaging:
-	*
-	**/
+    /**
+    *
+    *	Network Messaging:
+    *
+    **/
     //! Will broadcast the current written message write buffer to all(multiple) clients (optional: that are in the same PVS/PHS as origin.)
     void ( *multicast )( const vec3_t origin, multicast_t to, bool reliable );
     //! Will broadcast the current written message write buffer to the client that is attached to ent.
@@ -334,13 +334,13 @@ typedef struct {
     void ( *WriteAngle16 )( const float f );
 
 
-	/**
-	*
-	*	'Tag' Managed Memory Allocation:
-	*
-	**/
+    /**
+    *
+    *	'Tag' Managed Memory Allocation:
+    *
+    **/
     //! Resize an already TagMalloced block of memory.
-    void *(*TagReMalloc)( void *ptr, unsigned newsize );
+    void *( *TagReMalloc )( void *ptr, unsigned newsize );
     /**
     *   @brief Allocates memory with a specific tag for tracking purposes.
     *   @param size The size of the memory block to allocate, in bytes.
@@ -348,7 +348,7 @@ typedef struct {
     *   @note  The memory is NOT initialized to zero state.
     *   @return A pointer to the allocated memory block, or NULL if the allocation fails.
     **/
-    void *(*TagMalloc)( const uint32_t size, const memtag_t tag);
+    void *( *TagMalloc )( const uint32_t size, const memtag_t tag );
     /**
     *   @brief Allocates memory with a specific tag for tracking purposes.
     *   @param size The size of the memory block to allocate, in bytes.
@@ -364,32 +364,32 @@ typedef struct {
     void ( *FreeTags )( const memtag_t tag );
 
 
-	/**
-	*
-	*	Console Variable Interaction:
-	*
-	**/
+    /**
+    *
+    *	Console Variable Interaction:
+    *
+    **/
     //! Will create the cvar if it is non-existing, use with nullptr value and 0 flags to acquire an already created cvar instead.
-    cvar_t *(*cvar)(const char *var_name, const char *value, int flags);
+    cvar_t *( *cvar )( const char *var_name, const char *value, int flags );
     //! Will set a cvar its value.
-    cvar_t *(*cvar_set)(const char *var_name, const char *value);
+    cvar_t *( *cvar_set )( const char *var_name, const char *value );
     //! Will forcefully set a cvar its value.
-    cvar_t *(*cvar_forceset)(const char *var_name, const char *value);
+    cvar_t *( *cvar_forceset )( const char *var_name, const char *value );
 
 
-	/**
-	*
-	*	ClientCommand and ServerCommand parameter access:
-	*
-	**/
+    /**
+    *
+    *	ClientCommand and ServerCommand parameter access:
+    *
+    **/
     //! Get argument count of server game command that was received.
-    const int32_t (*argc)(void);
+    const int32_t( *argc )( void );
     //! Get argument value of server game command by its index.
-    char *(*argv)(int n);
+    char *( *argv )( int n );
     //! Get the full raw command string as it was received.
-    char *(*args)(void);     // concatenation of all argv >= 1
+    char *( *args )( void );     // concatenation of all argv >= 1
     //! Add commands to the server console as if they were typed in, useful for for map changing, etc
-    void (*AddCommandString)(const char *text);
+    void ( *AddCommandString )( const char *text );
 
 
     /**
@@ -420,12 +420,12 @@ typedef struct {
     *
     *   All 'Persistant' data for clients AND the server, can be allocated in Init.
 	**/
-	void (*PreInit)( void );
-	void (*Init)(void);
-    void (*Shutdown)(void);
+    void ( *PreInit )( void );
+    void ( *Init )( void );
+    void ( *Shutdown )( void );
 
     //! Each new level entered will cause a call to SpawnEntities
-    void (*SpawnEntities)( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
+    void ( *SpawnEntities )( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 
 
 	/**
@@ -458,71 +458,71 @@ typedef struct {
     const bool ( *GamemodeNoSaveGames )( const bool isDedicated );
 
 
-	/**
-	*	Read/Write Game: 
-	*	Is for storing persistant cross level information about the world state and the clients.
-	* 
+    /**
+    *	Read/Write Game:
+    *	Is for storing persistant cross level information about the world state and the clients.
+    *
     *	WriteGame is called every time a level is exited.
     *	ReadGame is called on a loadgame.
-	**/
-    void (*WriteGame)(const char *filename, qboolean autosave);
-    void (*ReadGame)(const char *filename);
-
-
-	/**
-	*	Read/Write Level:
-	* 
-	*	ReadLevel is called after the default map information has been
-    *	loaded with SpawnEntities
-	**/
-    void (*WriteLevel)(const char *filename);
-    void (*ReadLevel)(const char *filename);
-
-
-    /**
-    *
-	*	Client(s):
-	* 
     **/
-    qboolean (*ClientConnect)(edict_ptr_t *ent, char *userinfo);
-    void (*ClientBegin)(edict_ptr_t *ent);
-    void (*ClientUserinfoChanged)(edict_ptr_t *ent, char *userinfo);
-    void (*ClientDisconnect)(edict_ptr_t *ent);
-    void (*ClientCommand)(edict_ptr_t *ent);
-    void (*ClientThink)(edict_ptr_t *ent, usercmd_t *cmd);
+    void ( *WriteGame )( const char *filename, qboolean autosave );
+    void ( *ReadGame )( const char *filename );
 
 
-	/**
-	*
-	*	Player Movement:
-	*
-	**/
-    //! Perform a frame's worth of player movement using specified pmoveParams configuration.
-	void ( *PlayerMove )( struct pmove_s *pmove, struct pmoveParams_s *params );
-    //! Setup the basic player move configuration parameters. (Used by server for new clients.)
-	//void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
+    /**
+    *	Read/Write Level:
+    *
+    *	ReadLevel is called after the default map information has been
+    *	loaded with SpawnEntities
+    **/
+    void ( *WriteLevel )( const char *filename );
+    void ( *ReadLevel )( const char *filename );
 
 
     /**
     *
-	*	Frames:
-	* 
-	* 
+    *	Client(s):
+    *
+    **/
+    qboolean( *ClientConnect )( edict_ptr_t *ent, char *userinfo );
+    void ( *ClientBegin )( edict_ptr_t *ent );
+    void ( *ClientUserinfoChanged )( edict_ptr_t *ent, char *userinfo );
+    void ( *ClientDisconnect )( edict_ptr_t *ent );
+    void ( *ClientCommand )( edict_ptr_t *ent );
+    void ( *ClientThink )( edict_ptr_t *ent, usercmd_t *cmd );
+
+
+    /**
+    *
+    *	Player Movement:
+    *
+    **/
+    //! Perform a frame's worth of player movement using specified pmoveParams configuration.
+    void ( *PlayerMove )( struct pmove_s *pmove, struct pmoveParams_s *params );
+    //! Setup the basic player move configuration parameters. (Used by server for new clients.)
+    //void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
+
+
+    /**
+    *
+    *	Frames:
+    *
+    *
     **/
     //! Runs a single frame of the server game.
-    void (*RunFrame)(void);
+    void ( *RunFrame )( void );
 
 
-	/**
-	*
-	*	ServerCommand:
-	*
-	**/
+    /**
+    *
+    *	ServerCommand:
+    *
+    **/
     //! ServerCommand will be called when an "sv <command>" command is issued on the
     //! server console.
     //! The game can issue gi.argc() / gi.argv() commands to get the rest
     //! of the parameters
-    void (*ServerCommand)(void);
+    void ( *ServerCommand )( void );
 
 
     /**
@@ -532,7 +532,7 @@ typedef struct {
     *	can vary in size from one game to another.
     *
     *	The size will be fixed when ge->Init() is called
-	**/
+    **/
     sv_edict_pool_i *edictPool;
 } svgame_export_t;
 

@@ -9,6 +9,7 @@
 #include "svgame/svg_misc.h"
 #include "svgame/entities/misc/svg_misc_explobox.h"
 
+#include "sharedgame/sg_means_of_death.h"
 
 
 /*QUAKED misc_explobox (0 .5 .8) (-16 -16 0) (16 16 40)

@@ -7,7 +7,7 @@
 ********************************************************************/
 #pragma once
 
-
+#include "svgame/svg_usetargets.h"
 
 /**
 *   @brief

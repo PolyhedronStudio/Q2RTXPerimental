@@ -7,17 +7,19 @@
 ********************************************************************/
 #pragma once
 
+
+
 // Include lua headers.
 #include <lua.hpp>
 #include <lualib.h>
 #include <lauxlib.h>
 
 #if _DEBUG
-//! Enable LUA debug output:
-#define LUA_DEBUG_OUTPUT 1
+	//! Enable LUA debug output:
+	#define LUA_DEBUG_OUTPUT 1
 #else
-//! Disable LUA debug output:
-#define LUA_DEBUG_OUTPUT 0
+	//! Disable LUA debug output:
+	#define LUA_DEBUG_OUTPUT 0
 #endif
 
 // (Templated-) Support Lua Utilities:

@@ -17,7 +17,7 @@
 *
 **/
 // temp entity events
-typedef enum {
+typedef enum temp_entity_event_e {
     TE_GUNSHOT,
     // TE_OTHER_TYPE_GUNSHOT
 

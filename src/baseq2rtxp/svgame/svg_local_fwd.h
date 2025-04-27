@@ -57,6 +57,8 @@ typedef void( *svg_pushmove_endcallback )( svg_base_edict_t * );
 struct svg_pushmove_info_t;
 
 typedef struct svg_signal_argument_s svg_signal_argument_t;
+//! Typedef an std::vector for varying argument counts.
+typedef std::vector<svg_signal_argument_t> svg_signal_argument_array_t;
 
 typedef struct weapon_item_info_s weapon_item_info_t;
 typedef struct weapon_mode_animation_s weapon_mode_animation_t;
@@ -66,23 +68,14 @@ typedef struct gitem_s gitem_t;
 
 
 /**
-*
-*	SG FWD Structs & Classes:
-*
-**/
-struct sg_usetarget_hint_t;
-typedef int32_t memtag_t;
-template<typename T, const memtag_t tag> struct sg_qtag_string_t;
-template<typename T, const memtag_t tag> struct sg_qtag_memory_t;
-
-
-
-/**
 * 
 *   FWD Enums:
 * 
 **/
 enum entity_flags_t;
+enum svg_movetype_t;
+
+typedef enum entity_type_e entity_type_t;
 
 typedef enum crosslevel_target_flags_e crosslevel_target_flags_t;
 
@@ -101,5 +94,4 @@ typedef enum gitem_tag_e gitem_tag_t;
 typedef enum svg_pushmove_state_e svg_pushmove_state_t;
 
 typedef enum svg_signal_argument_type_e svg_signal_argument_type_t;
-
 typedef enum weapon_mode_e weapon_mode_t;
