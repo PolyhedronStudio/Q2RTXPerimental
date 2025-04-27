@@ -14,7 +14,7 @@
 *   @brief  This structure is cleared as each map is entered.
 *           It is read/written to the level.sav file for savegames.
 **/
-typedef struct {
+struct level_locals_t {
     uint64_t    frameNumber;
     QMTime		time;
 
@@ -52,4 +52,7 @@ typedef struct {
 
     svg_base_edict_t *current_entity;    // entity running from SVG_RunFrame
     int         body_que;           // dead bodies
-} level_locals_t;
+};
+
+//! Extern it.
+extern level_locals_t   level;

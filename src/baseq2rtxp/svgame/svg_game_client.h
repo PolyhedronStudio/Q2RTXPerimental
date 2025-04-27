@@ -12,7 +12,7 @@
 /**
 *   @brief  Client data that persists to exist across multiple level loads.
 **/
-typedef struct {
+struct client_persistant_t {
     //! String buffer of the client's user info.
     char        userinfo[ MAX_INFO_STRING ];
     //! The 'nickname' this client has for display.
@@ -67,12 +67,12 @@ typedef struct {
 
     //! If true, this client is engaged in 'Spectator' mode.
     bool        spectator;
-} client_persistant_t;
+};
 
 /**
 *   @brief  Client respawn data that stays across multiplayer mode respawns.
 **/
-typedef struct {
+struct client_respawn_t {
     //! Data which is to be set pn client->pers on a respawn.
     client_persistant_t pers_respawn;
 
@@ -88,7 +88,7 @@ typedef struct {
     vec3_t cmd_angles;  
     //! Client is a spectator.
     bool spectator;
-} client_respawn_t;
+};
 
 // this structure is cleared on each SVG_Player_PutInServer(),
 // except for 'client->pers'

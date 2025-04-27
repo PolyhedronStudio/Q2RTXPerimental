@@ -8,15 +8,8 @@
 ********************************************************************/
 #pragma once
 
-
-// Needed for save descriptor fields and functions.
-#include "svgame/svg_save.h"
-
-// Needed for inheritance.
+// Needed.
 #include "svgame/entities/svg_base_edict.h"
-
-// Forward declare.
-typedef struct cm_entity_s cm_entity_t;
 
 
 /**

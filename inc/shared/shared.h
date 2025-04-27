@@ -336,12 +336,9 @@ typedef enum {
 /**
 *	Player State:
 **/
-#include "shared/player_state.h"
-/**
-*	Player Movement:
-**/
-#include "shared/player_move.h"
-
+//#ifdef __cplusplus
+    #include "shared/player_state.h"
+//#endif // #ifdef __cplusplus
 
 /**
 *   Tag Memory Allocation Zones:
@@ -351,4 +348,4 @@ typedef enum {
 //! Import cpplib shared code.
 #ifdef __cplusplus
 
-#endif
+#endif // #ifdef __cplusplus

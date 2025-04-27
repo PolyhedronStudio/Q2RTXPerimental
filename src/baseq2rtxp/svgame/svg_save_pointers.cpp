@@ -4,8 +4,13 @@
 // Save related types.
 #include "svg_save.h"
 
+#include "svgame/entities/info/svg_info_notnull.h"
+#include "svgame/entities/info/svg_info_null.h"
+
 #include "svgame/entities/info/svg_info_player_start.h"
+
 #include "svgame/entities/monster/svg_monster_testdummy.h"
+
 #include "svgame/entities/svg_ed_player.h"
 #include "svgame/entities/svg_ed_worldspawn.h"
 
@@ -286,7 +291,14 @@ const svg_save_descriptor_funcptr_t save_ptrs[] = {
 #endif
 
 // <Q2RTXP>
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_null_t::info_null_spawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_notnull_t::info_notnull_spawn },
+
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_coop_t::info_player_coop_spawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_deathmatch_t::info_player_deathmatch_spawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_intermission_t::info_player_intermission_spawn },
 { FPTR_CALLBACK_SPAWN, (void *)svg_info_player_start_t::info_player_start_spawn },
+
 { FPTR_CALLBACK_SPAWN, (void *)svg_player_edict_t::player_edict_spawn },
 { FPTR_CALLBACK_SPAWN, (void *)svg_worldspawn_edict_t::ed_worldspawn_spawn },
 

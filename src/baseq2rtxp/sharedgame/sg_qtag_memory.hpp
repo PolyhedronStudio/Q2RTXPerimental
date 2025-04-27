@@ -20,7 +20,7 @@
 
 
 
-template<typename T, const int32_t tag>
+template<typename T, const memtag_t tag>
 struct sg_qtag_memory_t {
 	//! The actual pointer storing our block of memory..
 	T *ptr = nullptr;

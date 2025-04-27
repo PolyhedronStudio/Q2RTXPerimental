@@ -19,8 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef SVGAME_H
 #define SVGAME_H
 
-#include "shared/util/util_list.h"
-
 // Include needed shared refresh types.
 // ( We need some data so we can partially get and process animation data. )
 #include "refresh/shared_types.h"

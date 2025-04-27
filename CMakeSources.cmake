@@ -402,6 +402,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_game_locals.h
 	baseq2rtxp/svgame/svg_level_locals.h
 	baseq2rtxp/svgame/svg_local.h
+	baseq2rtxp/svgame/svg_local_fwd.h
 	baseq2rtxp/svgame/svg_lua.h
 	baseq2rtxp/svgame/svg_misc.h
 	baseq2rtxp/svgame/svg_pushmove_info.h

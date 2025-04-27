@@ -61,14 +61,14 @@ typedef enum sg_usetarget_hint_flags_e {
 /**
 *   @brief  Stores the data of use target hint information.
 **/
-typedef struct sg_usetarget_hint_s {
+struct sg_usetarget_hint_t {
     //! The actual numeric index, meant to match with the enum ID.
     const sg_usetarget_hint_id_t index;
     //! Possible flags suggesting display settings.
     const sg_usetarget_hint_flags_t flags;
     //! The hint display string.
     const char *hintString;
-} sg_usetarget_hint_t;
+};
 /**
 *	@brief  Array storing common hint data information for when hovering/targeting entities
 *           that have UseTarget capabilities set. 

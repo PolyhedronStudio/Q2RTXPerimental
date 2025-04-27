@@ -67,3 +67,6 @@ typedef struct {
         int32_t parentNumber;
     } *moveWithEntities;
 } game_locals_t;
+
+//! Extern, access all over game dll code.
+extern game_locals_t    game;

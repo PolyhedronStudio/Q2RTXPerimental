@@ -12,7 +12,7 @@
 /**
 *   @brief  Describes the value type of a signal's argument.
 **/
-typedef enum {
+typedef enum svg_signal_argument_type_e {
     //! Argument type wasn't set!
     SIGNAL_ARGUMENT_TYPE_NONE = 0,
 

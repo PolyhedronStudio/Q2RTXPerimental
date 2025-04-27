@@ -27,6 +27,7 @@
 //! Include the servergame import/export structures.
 #include "shared/server/sv_game.h"
 
+
 /**
 *   Extern for 'global scope' access right here, after including shared/server/sv_game.h
 **/
@@ -35,30 +36,27 @@ extern svgame_import_t gi;
 // Exported game API and vars.
 extern svgame_export_t globals;
 
+
 /**
-*   Include the shared game headers for functions and types.
+*   Include the TypeInfo system for linking a classname onto a C++ class type derived svg_edict_base_t.
 **/
-// SharedGame includes:
-#include "sharedgame/sg_shared.h"
+#include "svgame/entities/typeinfo/svg_edict_typeinfo.h"
+
 // Typedefs for svg_base_edict_t.
-typedef struct sg_usetarget_hint_s sg_usetarget_hint_t;
 typedef int32_t spawnflag_t;
 
 /**
 *   Forward declared types:
 **/
-struct svg_client_t;
-struct svg_edict_pool_t;
-struct svg_save_descriptor_field_t;
-struct svg_trace_t;
+#include "svgame/svg_local_fwd.h"
 
-struct mm_ground_info_t;
-struct mm_liquid_info_t;
 
-struct svg_base_edict_t;
-struct svg_player_edict_t;
+/**
+*   Include the shared game headers for functions and types.
+**/
+// SharedGame includes:
+#include "sharedgame/sg_shared.h"
 
-enum entity_flags_t;
 
 
 /**
@@ -246,16 +244,12 @@ using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
 
 //! Include items data structures.
 #include "svgame/svg_game_items.h"
-//! For access all over.
-extern  gitem_t itemlist[];
 
 //! Include the GAME locals.
 #include "svgame/svg_game_locals.h"
 //! Include the LEVEL locals.
 #include "svgame/svg_level_locals.h"
-//! Extern, access all over game dll code.
-extern game_locals_t    game;
-extern level_locals_t   level;
+
 
 extern  int sm_meat_index;
 extern  int snd_fry;

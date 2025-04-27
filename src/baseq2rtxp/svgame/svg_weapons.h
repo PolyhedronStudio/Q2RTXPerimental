@@ -13,7 +13,7 @@
 /**
 *   @brief  Describes a weapon's current state.
 **/
-typedef enum {
+typedef enum weapon_mode_e {
     //! The weapon is not doing anything else but sitting there, waiting for use.
     WEAPON_MODE_IDLE,
 

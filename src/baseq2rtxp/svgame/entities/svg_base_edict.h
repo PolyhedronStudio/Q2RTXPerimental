@@ -640,7 +640,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         //    //! Display flags for this entity's hint info.
         //    int32_t flags;
         //} hint;
-        const sg_usetarget_hint_s *hintInfo;
+        const sg_usetarget_hint_t *hintInfo;
     } useTarget = {};
 
 

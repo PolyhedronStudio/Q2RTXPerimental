@@ -1,14 +1,14 @@
-
-
 /********************************************************************
 *
 *
-*	SVGame: Edicts Functionalities:
+*	SVGame: Default Player Client Entity. Treated specially by the
+*           game's core frame loop.
 *
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_save.h"
+
 #include "svgame/entities/svg_ed_player.h"
 
 
@@ -43,7 +43,7 @@ void svg_player_edict_t::Reset( const bool retainDictionary ) {
     Base::Reset( retainDictionary );
 	// Reset the edict's save descriptor fields.
     testVar = 1337;
-    //testVar2 = {};
+    testVar2 = {};
 }
 
 

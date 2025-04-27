@@ -25,7 +25,7 @@ static constexpr spawnflag_t ITEM_TARGETS_USED = 0x00040000;
 *   @brief  Specific 'Item Tags' so we can identify what item category/type
 *           we are dealing with.
 **/
-typedef enum {
+typedef enum gitem_tag_e {
     //! Default for non tagged items.
     ITEM_TAG_NONE = 0,
 
@@ -147,6 +147,9 @@ typedef struct gitem_s {
     //! String of all models, sounds, and images this item will use and needs to precache.
     const char *precaches;
 } gitem_t;
+
+//! For access all over.
+extern  gitem_t itemlist[];
 
 /**
 *   @brief

@@ -6,10 +6,9 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
-#include "svgame/svg_save.h"
 
-#include "sharedgame/sg_usetarget_hints.h"
-
+// Needed.
+#include "svgame/entities/svg_base_edict.h"
 
 
 /**
