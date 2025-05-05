@@ -427,8 +427,8 @@ void PF_ClearState( void ) {
 /**
 *	@brief
 **/
-const char *PF_GetGamemodeName( int32_t gameModeID ) {
-	return SG_GetGamemodeName( gameModeID );
+const char *PF_GetGameModeName( int32_t gameModeID ) {
+	return SG_GetGameModeName( gameModeID );
 }
 
 
@@ -513,7 +513,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
-		globals.GetGamemodeName = PF_GetGamemodeName;
+		globals.GetGameModeName = PF_GetGameModeName;
 
 		globals.UsePrediction = PF_UsePrediction;
 		globals.AdjustViewHeight = PF_AdjustViewHeight;

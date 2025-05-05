@@ -450,12 +450,12 @@ typedef struct {
     /**
     *	@return	The actual ID of the current gamemode.
     **/
-    const char *( *GetGamemodeName )( const int32_t gameModeID );
+    const char *( *GetGameModeName )( const int32_t gameModeID );
     /**
     *	@return	True in case the current gamemode allows for saving the game.
     *			(This should only be true for single and cooperative play modes.)
     **/
-    const bool ( *GamemodeNoSaveGames )( const bool isDedicated );
+    const bool ( *GameModeAllowSaveGames )( const bool isDedicated );
 
 
     /**

@@ -908,7 +908,7 @@ typedef struct {
 	* 
 	**/
 	//! Returns the string name of specified game mode ID.
-	const char *( *GetGamemodeName )( const int32_t gameModeID );
+	const char *( *GetGameModeName )( const int32_t gameModeID );
 
 
 

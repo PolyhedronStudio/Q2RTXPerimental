@@ -24,6 +24,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/entities/svg_ed_player.h"
 
 
+
 // Function Pointer Needs:
 #include "svgame/player/svg_player_client.h"
 

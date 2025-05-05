@@ -385,7 +385,7 @@ void cvar_gamemode_changed( cvar_t *self ) {
 
         // Invalid somehow.
         Com_WPrintf( "%s: tried to assign a non valid gamemode type ID(#%i), resorting to default(#%i, %s)\n",
-            __func__, gamemode->integer, gamemode->integer, ge->GetGamemodeName( gamemode->integer) );
+            __func__, gamemode->integer, gamemode->integer, ge->GetGameModeName( gamemode->integer) );
     }
 }
 /*
@@ -433,7 +433,7 @@ void SV_InitGame()
     // Ensure the gamemode is valid.
     if ( !ge->IsValidGameModeType( Cvar_VariableInteger( "gamemode" ) ) ) {
         // Warn.
-        Com_WPrintf( "Invalid gamemode detected, defaulting to %s\n", ge->GetGamemodeName( 0 ) );
+        Com_WPrintf( "Invalid gamemode detected, defaulting to %s\n", ge->GetGameModeName( 0 ) );
 
         // Set to singleplayer.
         Cvar_Set( "gamemode", "0" );
@@ -446,8 +446,8 @@ void SV_InitGame()
             const int32_t newGameModeID = ge->GetDefaultMultiplayerGamemodeType();
             // Warn.
             Com_WPrintf( "Can't do %s on a dedicated server. Defaulting to %s\n",
-                ge->GetGamemodeName( Cvar_VariableInteger( "gamemode" ) ),
-                ge->GetGamemodeName( newGameModeID ) );
+                ge->GetGameModeName( Cvar_VariableInteger( "gamemode" ) ),
+                ge->GetGameModeName( newGameModeID ) );
 
             std::string gameModeStr = std::to_string( newGameModeID );
             Cvar_Set( "gamemode", gameModeStr.c_str() );

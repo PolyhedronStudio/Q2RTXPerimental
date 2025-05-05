@@ -14,17 +14,23 @@
 *	@return	True in case the current gamemode allows for saving the game.
 *			(This should only be true for single and cooperative play modes.)
 **/
-const bool SVG_GetGamemodeNoSaveGames( const bool isDedicatedServer ) {
-	// A dedicated server only allows saving in coop mode.
-	if ( dedicated->integer && gamemode->integer != GAMEMODE_TYPE_COOPERATIVE ) {
-		return false;
-	}
-	
-	// Don't allow saving on deathmatch.
-	if ( gamemode->integer == GAMEMODE_TYPE_DEATHMATCH ) {
+const bool SVG_GameModeAllowSaveGames( const bool isDedicatedServer ) {
+	// Singleplayer mode always allows saving.
+	if ( gamemode->integer == GAMEMODE_TYPE_SINGLEPLAYER ) {
 		return true;
 	}
+	// A dedicated server only allows saving in coop mode.
+	if ( dedicated->integer && gamemode->integer == GAMEMODE_TYPE_COOPERATIVE ) {
+		return true;
+	}
+	// } else {
+	//		...
+	// }
+	// Don't allow saving on deathmatch and beyond.
+	if ( gamemode->integer >= GAMEMODE_TYPE_DEATHMATCH ) {
+		return false;
+	}
 
-	// Default is to allow savegames. (Singleplayer mode.)
+	// Don't allow.
 	return false;
 }

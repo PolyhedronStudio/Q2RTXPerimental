@@ -63,8 +63,8 @@ QMTime FRAME_TIME_MS;
 int sm_meat_index;
 int snd_fry;
 
-//! Actual array storing the edicts. (entities).
-svg_base_edict_t	**g_edicts;
+//! THIS!! is the ACTUAL ARRAY for STORING the EDICTS. (Also referred to by the term entities.)
+svg_base_edict_t **g_edicts;
 //! Memory Pool for entities.
 svg_edict_pool_t g_edict_pool;
 
@@ -138,6 +138,8 @@ void SVG_ReadLevel(const char *filename);
 void SVG_InitGame(void);
 void SVG_RunFrame(void);
 
+
+
 //===================================================================
 /**
 *
@@ -173,30 +175,6 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
 *			is loaded from the main menu without having a game running
 *			in the background.
 **/
-void SVG_ShutdownGame(void)
-{
-    // Notify of shutdown.
-    gi.dprintf("==== Initiating ServerGame Shutdown ====\n");
-    
-    // Shutdown the Lua VM.
-    SVG_Lua_Shutdown();
-
-    // Free level, lua AND the game module its allocated ram.
-    //gi.FreeTags( TAG_SVGAME_LUA );
-    gi.FreeTags( TAG_SVGAME_EDICTS );//SVG_EdictPool_Release( &g_edict_pool );
-    gi.FreeTags( TAG_SVGAME_LEVEL );
-    gi.FreeTags( TAG_SVGAME );
-
-    // Notify of shutdown.
-    gi.dprintf( "==== ServerGame Shutdown ====\n" );
-}
-
-/**
-*	@brief	This will be called when the dll is first loaded, which
-*			only happens when a new game is started or a save game
-*			is loaded from the main menu without having a game running
-*			in the background.
-**/
 void SVG_PreInitGame( void ) {
 	// Notify 
 	gi.dprintf( "==== PreInit ServerGame ====\n" );
@@ -211,7 +189,7 @@ void SVG_PreInitGame( void ) {
 	maxclients = gi.cvar( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH );
 	maxspectators = gi.cvar( "maxspectators", "4", CVAR_SERVERINFO );
 
-	// 0 = SinglePlayer, 1 = Deathmatch, 2 = Coop.
+	// 0 = SinglePlayer, 1 = Coop, 2 = DeathMatch.
 	gamemode = gi.cvar( "gamemode", nullptr, 0 );
     //gamemode->changed = cvar_sv_gamemode_changed;
 
@@ -360,6 +338,29 @@ void SVG_InitGame( void )
     game.clients = SVG_Clients_Reallocate( game.maxclients );
 }
 
+/**
+*	@brief	This will be called when the dll is first loaded, which
+*			only happens when a new game is started or a save game
+*			is loaded from the main menu without having a game running
+*			in the background.
+**/
+void SVG_ShutdownGame( void ) {
+    // Notify of shutdown.
+    gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
+
+    // Shutdown the Lua VM.
+    SVG_Lua_Shutdown();
+
+    // Free level, lua AND the game module its allocated ram.
+    //gi.FreeTags( TAG_SVGAME_LUA );
+    gi.FreeTags( TAG_SVGAME_EDICTS );//SVG_EdictPool_Release( &g_edict_pool );
+    gi.FreeTags( TAG_SVGAME_LEVEL );
+    gi.FreeTags( TAG_SVGAME );
+
+    // Notify of shutdown.
+    gi.dprintf( "==== ServerGame Shutdown ====\n" );
+}
+
 
 
 /**
@@ -423,8 +424,8 @@ extern "C" { // WID: C++20: extern "C".
         globals.IsValidGameModeType = _Exports_SG_IsValidGameModeType;
         globals.IsMultiplayerGameMode = _Exports_SG_IsMultiplayerGameMode;
         globals.GetDefaultMultiplayerGamemodeType = _Exports_SG_GetDefaultMultiplayerGameModeType;
-		globals.GetGamemodeName = _Exports_SG_GetGameModeName;
-		globals.GamemodeNoSaveGames = SVG_GetGamemodeNoSaveGames;
+		globals.GetGameModeName = _Exports_SG_GetGameModeName;
+		globals.GameModeAllowSaveGames = SVG_GameModeAllowSaveGames;
 
 		globals.WriteGame = SVG_WriteGame;
 		globals.ReadGame = SVG_ReadGame;

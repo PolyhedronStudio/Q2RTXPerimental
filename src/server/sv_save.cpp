@@ -535,7 +535,7 @@ const int32_t SV_NoSaveGames(void)
     //if (Cvar_VariableInteger("deathmatch"))
     //    return 1;
 
-    return ge->GamemodeNoSaveGames( dedicated->integer );
+    return !ge->GameModeAllowSaveGames( dedicated->integer );
 }
 
 /**
@@ -733,8 +733,8 @@ static void SV_Savegame_f(void)
     //    Com_Printf("Can't savegame in a deathmatch.\n");
     //    return;
     //}
-    if ( ge->GamemodeNoSaveGames( dedicated->integer ) == true ) {
-        Com_Printf( "The gamemode \"%s\" doesn't support savegames!\n", ge->GetGamemodeName( ge->GetActiveGameModeType() ) );
+    if ( ge->GameModeAllowSaveGames( dedicated->integer ) == false ) {
+        Com_Printf( "The gamemode \"%s\" doesn't support savegames!\n", ge->GetGameModeName( ge->GetActiveGameModeType() ) );
         return;
     }
 

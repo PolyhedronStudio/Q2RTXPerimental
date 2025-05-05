@@ -16,11 +16,12 @@ typedef enum sg_gamemode_type_e {
 
 	//! Start or load an adventure of your own against monsters.
 	GAMEMODE_TYPE_SINGLEPLAYER = 0,
-
-	//! Play versus other clients.
-	GAMEMODE_TYPE_DEATHMATCH = 1,
+	
 	//! Player with other clients against monsters.
-	GAMEMODE_TYPE_COOPERATIVE = 2,
+	GAMEMODE_TYPE_COOPERATIVE = 1,
+	
+	//! Play versus other clients.
+	GAMEMODE_TYPE_DEATHMATCH = 2,
 
 	//! Total limit of gamemodes. All gamemode IDs from 0 up to GAMEMODE_MAX are valid gamemodes for IsGameModeIDValid.
 	GAMEMODE_TYPE_MAX = 3,

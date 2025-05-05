@@ -491,7 +491,7 @@ static void CL_ParseServerData(void)
 	int32_t gamemode = MSG_ReadUint8();
 
 	// TEMP
-	std::string strGamemode = clge->GetGamemodeName( gamemode );
+	std::string strGamemode = clge->GetGameModeName( gamemode );
 	// EOF TEMP
 
     Com_DPrintf("Serverdata packet received "

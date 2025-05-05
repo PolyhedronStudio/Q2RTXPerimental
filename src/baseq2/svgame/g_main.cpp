@@ -146,7 +146,7 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
 
         // Invalid somehow.
         gi.bprintf( PRINT_WARNING, "%s: tried to assign a non valid gamemode ID(#%i), resorting to default(#%i, %s)\n",
-            __func__, gamemode->integer, GAMEMODE_SINGLEPLAYER, SG_GetGamemodeName( GAMEMODE_SINGLEPLAYER ) );
+            __func__, gamemode->integer, GAMEMODE_SINGLEPLAYER, SG_GetGameModeName( GAMEMODE_SINGLEPLAYER ) );
     }
 }
 
@@ -236,7 +236,7 @@ void InitGame( void )
 {
 	// Notify 
     gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
-				SG_GetGamemodeName( gamemode->integer ), maxclients->integer, maxspectators->integer, maxentities->integer );
+				SG_GetGameModeName( gamemode->integer ), maxclients->integer, maxspectators->integer, maxentities->integer );
 
     game.gamemode = gamemode->integer;
     game.maxclients = maxclients->integer;
@@ -345,8 +345,8 @@ extern "C" { // WID: C++20: extern "C".
         globals.IsValidGameModeType = G_IsValidGameModeType;
         globals.IsMultiplayerGameMode = G_IsMultiplayerGameMode;
         globals.GetDefaultMultiplayerGamemodeType = G_GetDefaultMultiplayerGamemodeType;
-		globals.GetGamemodeName = SG_GetGamemodeName;
-		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
+		globals.GetGameModeName = SG_GetGameModeName;
+		globals.GameModeAllowSaveGames = G_GameModeAllowSaveGames;
 
 		globals.WriteGame = WriteGame;
 		globals.ReadGame = ReadGame;
