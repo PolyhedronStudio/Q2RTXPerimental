@@ -141,10 +141,6 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     *   @brief
     **/
     DECLARE_MEMBER_CALLBACK_USE( svg_monster_testdummy_t, onUse );
-    ///**
-    //*   @brief
-    //**/
-    //static void monster_testdummy_puppet_die( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
     /**
     *   @brief
     **/
