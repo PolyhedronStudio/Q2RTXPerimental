@@ -88,7 +88,7 @@ public:
 		// Head becomes the newly created 'this'.
 		head = this;
 		// Generate a hash of the worldSpawn classname.
-		worldSpawnClassNameHash = HashWorldSpawnString( worldSpawnClassName );
+		worldSpawnClassNameHash = Q_HashCaseInsensitiveString( worldSpawnClassName );
 
 		// This also gets properly set by TypeInfo initialization.
 		super = GetByClassTypeName( superClassTypeName );
@@ -147,22 +147,6 @@ public:
 		return !IsAbstract() && ( typeFlags & TypeInfoFlag_GameSpawn );
 	}
 
-	/**
-	*	@brief	A case-insensitive version of Com_HashString that hashes up to 'len'
-	*			characters.
-	**/
-	static uint32_t HashWorldSpawnString( const char *s ) {
-		// Winning answer from: https://stackoverflow.com/a/7666577 DJB2 hashing.
-		uint32_t hash = 5381UL;
-		int c;
-		// Iterate over the string's characters generating the hash.
-		while ( c = *s++ ) {
-			hash = ( ( hash << 5 ) + hash ) + c; /* hash * 33 + c */
-		}
-		// Return the hash.
-		return hash;
-
-	}
 
 	/**
 	*	@brief	Retrieves type information based on a world spawn class name.
@@ -247,9 +231,11 @@ public:
 		// Iterate over the linked list of EdictTypeInfo objects and set up their superclasses.
 		EdictTypeInfo *current = head;
 		// Keep on going until we run into nullptr.
-		while ( current ) {
+		while ( current != nullptr ) {
 			// Set the super pointer to the superclass type name.
 			current->super = GetByClassTypeName( current->superClassTypeName );
+			// Debug output.
+			gi.dprintf( "ID: %d ClassName: %s, SuperClass: %s, TypeFlags: %i\n", current->classTypeInfoID.GetID(), current->classTypeName, current->superClassTypeName, current->typeFlags );
 			// If the superclass type name is not found, set the super pointer to nullptr.
 			current = current->prev;
 		}

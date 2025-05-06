@@ -1325,21 +1325,59 @@ static void read_fields(game_read_context_t* ctx, const save_field_t *fields, vo
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+*
+*
+*
+*   Saveable Function Pointer (Forward List) Implementation:
+*
+*
+*
+**/
+// lol this is line 1337
+//inline svg_funcptr_saveable_instance_t *svg_funcptr_saveable_instance_t::head;
 
+/**
+*	@brief	Constructor for the svg_funcptr_saveable_instance_t class.
+**/
+svg_funcptr_saveable_instance_t::svg_funcptr_saveable_instance_t( const char *name, svg_funcptr_saveable_type_t type, void *ptr ) :
+    name( name ),
+    saveAbleType( type ),
+    ptr( ptr ) {
+    // Generate the hashed version of the actual name string.
+    hashedName = Q_HashCaseInsensitiveString( name );
 
+    // Add this instance to the linked list.  
+    if ( !head ) {
+        head = this;
+    } else {
+        previous = head;
+        head = this;
+    }
 
+	//gi.dprintf( "Adding saveable function pointer ID(#%d), name(\"%s\")", saveAbleTypeID.GetID(), name);
+}
 
+/**
+*	@brief	Gets the ptr which matches the passed name as well as the actual type of function pointer
+**/
+inline svg_funcptr_saveable_instance_t *svg_funcptr_saveable_instance_t::GetForNameType( const char *name, svg_funcptr_saveable_type_t type ) {
+    // Start at the head.
+    svg_funcptr_saveable_instance_t *current = head;
+    // Iterate while we got an instance.
+    while ( current ) {
+        // Compare by hashed name
+        if ( current->hashedName == Q_HashCaseInsensitiveString( name ) ) {
+            // Compare the actual name and type.
+            if ( !strcmp( current->name, name ) && current->saveAbleType == type ) {
+                return current;
+            }
+        }
 
-
-
-
-
-
-
-
-
-
-
+        current = current->previous;
+    }
+    return nullptr;
+}
 
 
 
@@ -1539,7 +1577,7 @@ sg_qtag_memory_t<T, TAG_SVGAME> *game_read_context_t::read_game_qtag_memory( sg_
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
-    // Allocate level tag string space.
+    // Allocate game tag memory space.
     allocate_qtag_memory<T, TAG_SVGAME>( p, len );
     // Delete temporary buffer.
     read_data( p->ptr, /*len*/p->size() );
@@ -1873,19 +1911,26 @@ void game_write_context_t::write_game_qtag_memory( sg_qtag_memory_t<T, tag> *qta
     return;
 }
 
+/**
+*   @brief  Write a vector3 to the file.
+**/
 void game_write_context_t::write_vector3( const vec_t *v ) {
     write_float( v[ 0 ] );
     write_float( v[ 1 ] );
     write_float( v[ 2 ] );
 }
-
+/**
+*   @brief  Write a vector4 to the file.
+**/
 void game_write_context_t::write_vector4( const vec_t *v ) {
     write_float( v[ 0 ] );
     write_float( v[ 1 ] );
     write_float( v[ 2 ] );
     write_float( v[ 3 ] );
 }
-
+/**
+*   @brief  Write a ranged index to disk. (p must be within start and start + max_index * size).
+**/
 void game_write_context_t::write_index( const void *p, size_t size, const void *start, int max_index ) {
     uintptr_t diff;
 
@@ -1905,7 +1950,9 @@ void game_write_context_t::write_index( const void *p, size_t size, const void *
     }
     write_int32( (int32_t)( diff / size ) );
 }
-
+/**
+*   @brief  Write a pointer to the file.
+**/
 void game_write_context_t::write_pointer( void *p, svg_save_descriptor_funcptr_type_t type, const svg_save_descriptor_field_t *saveField ) {
     const svg_save_descriptor_funcptr_t *ptr;
     int i;
@@ -1929,7 +1976,11 @@ void game_write_context_t::write_pointer( void *p, svg_save_descriptor_funcptr_t
     gi.error( "%s: unknown pointer: %p", __func__, p );
     #endif
 }
-
+/**
+*   @brief  Write a field to the file.
+*   @param  descriptorField The field descriptor to write.
+*   @param  base The base address of the structure to write to.
+**/
 void game_write_context_t::write_field( const svg_save_descriptor_field_t *descriptorField, void *base ) {
     void *p = (byte *)base + descriptorField->offset;
     int i;
@@ -2024,7 +2075,11 @@ void game_write_context_t::write_field( const svg_save_descriptor_field_t *descr
         //#endif
     }
 }
-
+/**
+*   @brief  Write a list of descriptor fields to the file.
+*   @param  descriptorFields A pointer to an array of svg_save_descriptor_field_t structures, each describing a field to be written. The array must be null-terminated (field->type must be 0 to indicate the end).
+*   @param  base A pointer to the base address where the fields will be written.
+**/
 void game_write_context_t::write_fields( const svg_save_descriptor_field_t *descriptorFields, void *base ) {
     const svg_save_descriptor_field_t *field;
 

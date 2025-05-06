@@ -112,7 +112,7 @@ const bool svg_monster_testdummy_t::KeyValue( const cm_entity_t *keyValuePair, s
 /**
 *   @brief  Spawn routine.
 **/
-void svg_monster_testdummy_t::monster_testdummy_puppet_spawn( svg_monster_testdummy_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_testdummy_t *self ) -> void {
     // Always call upon base methods.
     Base::base_edict_spawn( self );
 
@@ -162,15 +162,15 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_spawn( svg_monster_testdu
 
     // Think:
     self->nextthink = level.time + 20_hz;
-    self->SetThinkCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_think );
+    self->SetThinkCallback( &svg_monster_testdummy_t::onThink );
     // Die:
-    self->SetDieCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_die );
+    self->SetDieCallback( &svg_monster_testdummy_t::onDie );
     // Post Spawn:
-    self->SetPostSpawnCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_postspawn );
+    self->SetPostSpawnCallback( &svg_monster_testdummy_t::onPostSpawn );
     // Touch:
-    self->SetTouchCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_touch );
+    self->SetTouchCallback( &svg_monster_testdummy_t::onTouch );
     // Use:
-    self->SetUseCallback( &svg_monster_testdummy_t::monster_testdummy_puppet_use );
+    self->SetUseCallback( &svg_monster_testdummy_t::onUse );
 
     // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
     SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
@@ -182,29 +182,7 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_spawn( svg_monster_testdu
 /**
 *   @brief  Post-Spawn routine.
 **/
-void svg_monster_testdummy_t::monster_testdummy_puppet_postspawn( svg_monster_testdummy_t *self ) {
-    //
-    // Test GetModelData functions:
-    //
-    #if 0
-    const char *modelname = self->model;
-    const model_t *model_forname = gi.GetModelDataForName( modelname );
-    const model_t *model_forhandle = gi.GetModelDataForHandle( self->s.modelindex );
-    if ( model_forname ) {
-        gi.dprintf( "%s: testdummy(#%i), model_forname(%s)\n", __func__, self->s.number, model_forname->name );
-    }
-    if ( model_forhandle ) {
-        gi.dprintf( "%s: testdummy(#%i), model_forhandle(#%i, %s)\n", __func__, self->s.number, self->s.modelindex, model_forhandle->name );
-    }
-
-    //
-    // Iterate over all IQM animations and print out its information.
-    //
-    if ( model_forname ) {
-        SG_SKM_GenerateRootMotionSet( model_forname, 0, 0 );
-    }
-    #endif
-
+DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_t, onPostSpawn )( svg_monster_testdummy_t *self ) -> void {
     //---------------------------
     // <TEMPORARY FOR TESTING>
     //---------------------------
@@ -222,7 +200,7 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_postspawn( svg_monster_te
 /**
 *   @brief  Death routine.
 **/
-void svg_monster_testdummy_t::monster_testdummy_puppet_die( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
     //self->takedamage = DAMAGE_NO;
     //self->nextthink = level.time + 20_hz;
     //self->think = barrel_explode;
@@ -295,13 +273,14 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_die( svg_monster_testdumm
 /**
 *   @brief  Touched.
 **/
-void svg_monster_testdummy_t::monster_testdummy_puppet_touch( svg_monster_testdummy_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_monster_testdummy_t, onTouch )( svg_monster_testdummy_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
 
 }
+
 /**
 *   @brief
 **/
-void svg_monster_testdummy_t::monster_testdummy_puppet_use( svg_monster_testdummy_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_t, onUse )( svg_monster_testdummy_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
     // Apply activator.
     self->activator = activator;
     self->other = other;
@@ -339,7 +318,7 @@ void svg_monster_testdummy_t::monster_testdummy_puppet_use( svg_monster_testdumm
 /**
 *   @brief  Thinking routine.
 **/
-void svg_monster_testdummy_t::monster_testdummy_puppet_think( svg_monster_testdummy_t *self ) {
+DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_testdummy_t *self ) -> void {
     // Make sure to fall to floor.
     if ( !self->activator ) {
         M_droptofloor( self );

@@ -179,8 +179,9 @@ void SVG_PreInitGame( void ) {
 	// Notify 
 	gi.dprintf( "==== PreInit ServerGame ====\n" );
 
-    // Setup the TypeInfo system.
+    // Setup the Edict Class TypeInfo system.
     EdictTypeInfo::InitializeTypeInfoRegistry();
+
 
 	// Initialize the game local's movewith array.
     game.moveWithEntities = static_cast<game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );

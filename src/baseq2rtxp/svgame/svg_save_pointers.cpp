@@ -3,7 +3,7 @@
 
 // Save related types.
 
-#include "svg_save.h"
+#include "svgame/svg_save.h"
 #include "svgame/svg_signalio.h"
 
 #include "svgame/entities/info/svg_info_notnull.h"
@@ -319,12 +319,12 @@ const svg_save_descriptor_funcptr_t save_ptrs[] = {
 { FPTR_CALLBACK_ONSIGNALIN, (void *)func_breakable_onsignalin },
 { FPTR_CALLBACK_USE, (void *)func_breakable_use },
 
-{ FPTR_CALLBACK_SPAWN, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_spawn },
-{ FPTR_CALLBACK_POSTSPAWN, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_postspawn },
-{ FPTR_CALLBACK_THINK, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_think },
-{ FPTR_CALLBACK_TOUCH, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_touch },
-{ FPTR_CALLBACK_USE, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_use },
-{ FPTR_CALLBACK_DIE, (void *)svg_monster_testdummy_t::monster_testdummy_puppet_die },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_monster_testdummy_t::onSpawn },
+{ FPTR_CALLBACK_POSTSPAWN, (void *)svg_monster_testdummy_t::onPostSpawn},
+{ FPTR_CALLBACK_THINK, (void *)( svg_monster_testdummy_t::onThink) },
+{ FPTR_CALLBACK_TOUCH, (void *)svg_monster_testdummy_t::onTouch },
+{ FPTR_CALLBACK_USE, (void *)svg_monster_testdummy_t::onUse },
+{ FPTR_CALLBACK_DIE, (void *)svg_monster_testdummy_t::onDie },
 
 // </Q2RTXP>
 

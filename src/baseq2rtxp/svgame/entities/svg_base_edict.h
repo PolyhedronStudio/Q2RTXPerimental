@@ -144,7 +144,7 @@ using svg_edict_callback_prethink_fptr = void ( * )( svg_base_edict_t *ent );
 //! Called for thinking.
 using svg_edict_callback_think_fptr = void ( * )( svg_base_edict_t *self );
 //! Called after thinking.
-using svg_edict_callback_postthink_fptr = void ( * )( svg_base_edict_t *ent );
+using svg_edict_callback_postthink_fptr = void ( * )( svg_base_edict_t *self );
 
 //! Called when movement has been blocked.
 using svg_edict_callback_blocked_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other );         // move to moveinfo?

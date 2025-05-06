@@ -70,7 +70,7 @@ struct sv_shared_edict_t {
     **/
 	virtual void Reset( const bool retainDictionary = false ) {
         //! Entity state.
-        entity_state_t  s = {};
+        s = {};
         //! NULL if not a player the server expects the first part
         //! of gclient_s to be a player_state_t but the rest of it is opaque
         client = nullptr;

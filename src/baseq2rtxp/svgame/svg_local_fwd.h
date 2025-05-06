@@ -16,9 +16,16 @@
 *	Various FWD:
 *
 **/
+//
+// Collision Model Structures.
+//
+typedef struct cm_entity_s cm_entity_t;
+
+//
+// Player Move/State Structures:
+//
 typedef struct pmove_state_s pmove_state_t;
 typedef struct player_state_s player_state_t;
-typedef struct cm_entity_s cm_entity_t;
 
 
 

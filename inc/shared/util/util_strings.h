@@ -257,4 +257,19 @@ QEXTERN_C_CLOSE
 *	@return	A string representing the formatted size, such as "1.5 GB", "200 MB", "500 kB", or "100 bytes".
 **/
 const std::string Q_Str_FormatSizeString( uint64_t bytes, std::string &appendScaleString );
+/**
+*	@brief	A case-insensitive string hashing function.
+**/
+static inline uint32_t Q_HashCaseInsensitiveString( const char *s ) {
+	// Winning answer from: https://stackoverflow.com/a/7666577 DJB2 hashing.
+	uint32_t hash = 5381UL;
+	int c;
+	// Iterate over the string's characters generating the hash.
+	while ( c = *s++ ) {
+		hash = ( ( hash << 5 ) + hash ) + c; /* hash * 33 + c */
+	}
+	// Return the hash.
+	return hash;
+}
+
 #endif

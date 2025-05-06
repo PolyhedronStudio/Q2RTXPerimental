@@ -929,3 +929,4 @@ const std::string Q_Str_FormatSizeString( uint64_t bytes, std::string &appendSca
 	}
 	return "unknown size";
 }
+

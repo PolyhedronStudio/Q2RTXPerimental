@@ -70,7 +70,7 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
         // spawnFunc:
-        svg_monster_testdummy_t::monster_testdummy_puppet_spawn 
+        svg_monster_testdummy_t::onSpawn 
     );
 
 
@@ -121,29 +121,34 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     *
     **/
     /**
-    *   @brief  Post-Spawn routine.
+    *   @brief  Spawn.
     **/
-    static void monster_testdummy_puppet_spawn( svg_monster_testdummy_t *self );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn );
     /**
-    *   @brief  Post-Spawn routine.
+    *   @brief  Post-Spawn.
     **/
-    static void monster_testdummy_puppet_postspawn( svg_monster_testdummy_t *self );
+    DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_t, onPostSpawn );
     /**
-    *   @brief  Thinking routine.
+    *   @brief  Thinking.
     **/
-    static void monster_testdummy_puppet_think( svg_monster_testdummy_t *self );
+	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink );
+
     /**
     *   @brief  Touched.
     **/
-    static void monster_testdummy_puppet_touch( svg_monster_testdummy_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+    DECLARE_MEMBER_CALLBACK_TOUCH( svg_monster_testdummy_t, onTouch );
     /**
     *   @brief
     **/
-    static void monster_testdummy_puppet_use( svg_monster_testdummy_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
+    DECLARE_MEMBER_CALLBACK_USE( svg_monster_testdummy_t, onUse );
+    ///**
+    //*   @brief
+    //**/
+    //static void monster_testdummy_puppet_die( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
     /**
     *   @brief
     **/
-    static void monster_testdummy_puppet_die( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+    DECLARE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie );
 
 
 
@@ -161,5 +166,5 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     // <TEMPORARY FOR TESTING>
     //---------------------------
     //static sg_skm_rootmotion_set_t rootMotionSet;
-    skm_rootmotion_set_t *rootMotionSet;
+    skm_rootmotion_set_t *rootMotionSet = nullptr;
 };
