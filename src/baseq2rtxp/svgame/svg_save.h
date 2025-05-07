@@ -115,6 +115,19 @@ struct svg_funcptr_saveable_instance_t {
 	*	@brief	Gets the ptr which matches the passed name as well as the actual type of function pointer
 	**/
 	inline static svg_funcptr_saveable_instance_t *GetForNameType( const char *name, svg_funcptr_saveable_type_t type );
+	/**
+	*	@brief	Gets a ptr to the saveable instance which matches the passed name as well as the actual address function pointer
+	**/
+	inline static svg_funcptr_saveable_instance_t *GetForPointerType( svg_funcptr_saveable_type_t type, void *ptr );
+	/**
+*	@brief	Gets a ptr to the saveable instance which matches the actual address function pointer.
+**/
+	inline static svg_funcptr_saveable_instance_t *GetForPointer( void *ptr );
+	/**
+	*	@brief	Gets a ptr to the saveable instance which matches the passed saveAbleTypeID
+	**/
+	inline static svg_funcptr_saveable_instance_t *GetForTypeID( svg_funcptr_saveable_type_t type, const size_t saveAbleTypeID );
+
 
 	//! The initial nullptr head svg_funcptr_saveable_instance_t list entry.
 	inline static svg_funcptr_saveable_instance_t *head = nullptr;
@@ -141,60 +154,94 @@ struct svg_funcptr_saveable_instance_t {
 //
 //	Think:
 //
-//! Declares the member function in the notation style compatible for our use with
-//! DEFINE_MEMBER_CALLBACK_THINK
-#define DECLARE_GLOBAL_CALLBACK_THINK(className, functionName) \
+//! Declares the global function in the notation style compatible for our use with
+//! DEFINE_GLOBAL_CALLBACK_THINK
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK(className, functionName) \
 	static auto functionName(className *self) -> void; \
+
+//!
+#define DECLARE_GLOBAL_CALLBACK_THINK(functionName) \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK(svg_base_edict_t, functionName) \
 //
 //	Spawn:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_SPAWN(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_SPAWN(functionName) \
-	static auto functionName(svg_base_edict_t *self) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_SPAWN(svg_base_edict_t, functionName) \
 //
 //	PostSpawn:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTSPAWN(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_POSTSPAWN(functionName) \
-	static auto functionName(svg_base_edict_t *self) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTSPAWN(svg_base_edict_t, functionName) \
 //
 //	PreThink:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_PRETHINK(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_PRETHINK(functionName) \
-	static auto functionName(svg_base_edict_t *self) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_PRETHINK(svg_base_edict_t, functionName) \
 //
 //	PostThink:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTTHINK(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_POSTTHINK(functionName) \
-	static auto functionName(svg_base_edict_t *self) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTTHINK(svg_base_edict_t, functionName) \
 //
 //	Blocked:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_BLOCKED(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other ) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_BLOCKED(functionName) \
-	static auto functionName(svg_base_edict_t *self, svg_base_edict_t *other ) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_BLOCKED(svg_base_edict_t, functionName) \
 //
 //	Touch:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_TOUCH(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf )-> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_TOUCH(functionName) \
-	static auto functionName(svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf )-> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_TOUCH(svg_base_edict_t, functionName) \
 //
 //	Use:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_USE(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_USE(functionName) \
-	static auto functionName(svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_USE(svg_base_edict_t, functionName) \
 //
 //	OnSignalIn:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_ON_SIGNALIN(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_ON_SIGNALIN(functionName) \
-	static auto functionName(svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_ON_SIGNALIN(svg_base_edict_t, functionName) \
 //
 //	Pain:
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_PAIN(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *other, float kick, int damage ) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_PAIN(functionName) \
-	static auto functionName(svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *other, float kick, int damage ) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_PAIN(svg_base_edict_t, functionName) \
 //
 //	Die.
 //
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_DIE(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void; \
+//!
 #define DECLARE_GLOBAL_CALLBACK_DIE(functionName) \
-	static auto functionName(svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void; \
+	DECLARE_GLOBAL_CLASSNAME_CALLBACK_DIE(svg_base_edict_t, functionName) \
 
 
 //! Defines the start of the function definition, awaiting to be prepended by its user
@@ -206,47 +253,47 @@ struct svg_funcptr_saveable_instance_t {
 //!		...
 //! }
 #define DEFINE_GLOBAL_CALLBACK_THINK(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global_##functionName(#functionName, FPTR_SAVEABLE_TYPE_THINK, reinterpret_cast<void *>(##functionName) ); \
+	static const svg_funcptr_saveable_instance_t save__global_ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_THINK, reinterpret_cast<void *>(##functionName) ); \
 	auto functionName \
 //! For Spawn.
 #define DEFINE_GLOBAL_CALLBACK_SPAWN(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_SPAWN, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_SPAWN, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For PostSpawn.
 #define DEFINE_GLOBAL_CALLBACK_POSTSPAWN(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For PreThink
 #define DEFINE_GLOBAL_CALLBACK_PRETHINK(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_PRETHINK, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_PRETHINK, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For PostThink.
 #define DEFINE_GLOBAL_CALLBACK_POSTTHINK(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For Blocked.
 #define DEFINE_GLOBAL_CALLBACK_BLOCKED(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_BLOCKED, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_BLOCKED, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For Touch.
 #define DEFINE_GLOBAL_CALLBACK_TOUCH(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_TOUCH, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_TOUCH, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For Use.
 #define DEFINE_GLOBAL_CALLBACK_USE(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_USE, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_USE, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For OnSignalIn.
 #define DEFINE_GLOBAL_CALLBACK_ONSIGNALIN(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_ONSIGNALIN, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_ONSIGNALIN, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For Pain.
 #define DEFINE_GLOBAL_CALLBACK_PAIN(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_PAIN, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_PAIN, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 //! For Die.
 #define DEFINE_GLOBAL_CALLBACK_DIE(functionName) \
-	static const svg_funcptr_saveable_instance_t save__global__##functionName(#functionName, FPTR_SAVEABLE_TYPE_DIE, reinterpret_cast<void *>(##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__global__ ##functionName(#functionName, FPTR_SAVEABLE_TYPE_DIE, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
 
 
@@ -325,47 +372,47 @@ struct svg_funcptr_saveable_instance_t {
 //!		...
 //! }
 #define DEFINE_MEMBER_CALLBACK_THINK(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_THINK, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_THINK, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For Spawn.
 #define DEFINE_MEMBER_CALLBACK_SPAWN(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_SPAWN, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_SPAWN, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For PostSpawn.
 #define DEFINE_MEMBER_CALLBACK_POSTSPAWN(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For PreThink
 #define DEFINE_MEMBER_CALLBACK_PRETHINK(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_PRETHINK, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_PRETHINK, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For PostThink.
 #define DEFINE_MEMBER_CALLBACK_POSTTHINK(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For Blocked.
 #define DEFINE_MEMBER_CALLBACK_BLOCKED(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_BLOCKED, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_BLOCKED, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For Touch.
 #define DEFINE_MEMBER_CALLBACK_TOUCH(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_TOUCH, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_TOUCH, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For Use.
 #define DEFINE_MEMBER_CALLBACK_USE(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_USE, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_USE, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For OnSignalIn.
 #define DEFINE_MEMBER_CALLBACK_ONSIGNALIN(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_ONSIGNALIN, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_ONSIGNALIN, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For Pain.
 #define DEFINE_MEMBER_CALLBACK_PAIN(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_PAIN, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_PAIN, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 //! For Die.
 #define DEFINE_MEMBER_CALLBACK_DIE(className, functionName) \
-	static const svg_funcptr_saveable_instance_t save__##className__##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_DIE, reinterpret_cast<void *>(##className::##functionName)); \
+	static const svg_funcptr_saveable_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVEABLE_TYPE_DIE, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
 
 

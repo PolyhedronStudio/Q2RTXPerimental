@@ -725,6 +725,13 @@ SET(SRC_SHARED
 	shared/shared.cpp
 	shared/string_utilities.cpp
 )
+if (MSVC)
+	# MSVC specific
+	SET(SRC_SHARED
+		${SRC_SHARED}
+		${CMAKE_CURRENT_SOURCE_DIR}/cpp.hint
+	)
+endif()
 
 
 #

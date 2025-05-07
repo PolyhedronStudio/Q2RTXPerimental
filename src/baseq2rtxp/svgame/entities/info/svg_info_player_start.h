@@ -45,15 +45,15 @@ struct svg_info_player_base_start_t : public svg_base_edict_t {
     **/
     DefineAbstractClass( svg_info_player_base_start_t, svg_base_edict_t );
 
-
-
+    // This entity has no special save descriptor fields to save, so we don't need this.
+    #if 0
     /**
     *
     *   Save Descriptor Fields:
     *
     **/
     //! Declare the save descriptor field handling function implementations.
-    //SVG_SAVE_DESCRIPTOR_FIELDS_DECLARE_IMPLEMENTATION();
+    SVG_SAVE_DESCRIPTOR_FIELDS_DECLARE_IMPLEMENTATION();
 
 
 
@@ -62,8 +62,6 @@ struct svg_info_player_base_start_t : public svg_base_edict_t {
     *   Core:
     *
     **/
-    // This entity has no special save descriptor fields to save, so we don't need this.
-    #if 0
     /**
     *   Reconstructs the object, optionally retaining the entityDictionary.
     **/
@@ -91,13 +89,13 @@ struct svg_info_player_base_start_t : public svg_base_edict_t {
 
     /**
     *
-    *   info_player_start:
+    *   Callback Member Functions:
     *
     **/
     /**
-    *   @brief  Spawn routine.
+    *   @brief  Spawn.
     **/
-    static void info_player_start_base_spawn( svg_info_player_base_start_t *self ) { };
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_info_player_base_start_t, onSpawn );
 
 
 
@@ -130,7 +128,7 @@ struct svg_info_player_intermission_t : public svg_info_player_base_start_t {
 
     /**
     *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
+    *	Define this as: "info_player_intermission".
     *
     **/
     DefineWorldSpawnClass( 
@@ -139,18 +137,18 @@ struct svg_info_player_intermission_t : public svg_info_player_base_start_t {
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
         // spawnFunc:
-        svg_info_player_intermission_t::info_player_intermission_spawn
+        svg_info_player_intermission_t::onSpawn
     );
 
     /**
     *
-    *   info_player_start:
+    *   Callback Member Functions:
     *
     **/
     /**
-    *   @brief  Spawn routine.
+    *   @brief  Spawn.
     **/
-    static void info_player_intermission_spawn( svg_info_player_intermission_t *self );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_info_player_intermission_t, onSpawn );
 };
 
 /**
@@ -173,7 +171,7 @@ struct svg_info_player_start_t : public svg_info_player_base_start_t {
 
     /**
     *
-    *	WorldSpawn Class Definition:
+    *	Define this as: "svg_info_player_start".
     *
     **/
     DefineWorldSpawnClass(
@@ -182,18 +180,18 @@ struct svg_info_player_start_t : public svg_info_player_base_start_t {
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
         // spawnFunc:
-        svg_info_player_start_t::info_player_start_spawn 
+        svg_info_player_start_t::onSpawn 
     );
 
     /**
     *
-    *   info_player_start:
+    *   Callback Member Functions:
     *
     **/
     /**
-    *   @brief  Spawn routine.
+    *   @brief  Spawn.
     **/
-    static void info_player_start_spawn( svg_info_player_start_t *self );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_info_player_start_t, onSpawn );
 };
 
 /**
@@ -214,7 +212,7 @@ struct svg_info_player_coop_t : public svg_info_player_base_start_t {
 
     /**
     *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
+    *	Define this as: "svg_info_player_coop".
     *
     **/
     DefineWorldSpawnClass( 
@@ -223,17 +221,17 @@ struct svg_info_player_coop_t : public svg_info_player_base_start_t {
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
         // spawnFunc:
-        svg_info_player_coop_t::info_player_coop_spawn );
+        svg_info_player_coop_t::onSpawn );
 
     /**
     *
-    *   info_player_start:
+    *   Callback Member Functions:
     *
     **/
     /**
-    *   @brief  Spawn routine.
+    *   @brief  Spawn.
     **/
-    static void info_player_coop_spawn( svg_info_player_coop_t *self );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_info_player_coop_t, onSpawn );
 };
 
 /**
@@ -254,7 +252,7 @@ struct svg_info_player_deathmatch_t : public svg_info_player_base_start_t {
 
     /**
     *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
+    *	Define this as: "svg_info_player_deathmatch".
     *
     **/
     DefineWorldSpawnClass( 
@@ -263,18 +261,18 @@ struct svg_info_player_deathmatch_t : public svg_info_player_base_start_t {
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
         // spawnFunc:
-        svg_info_player_deathmatch_t::info_player_deathmatch_spawn
+        svg_info_player_deathmatch_t::onSpawn
     );
 
     /**
     *
-    *   info_player_start:
+    *   Callback Member Functions:
     *
     **/
     /**
-    *   @brief  Spawn routine.
+    *   @brief  Spawn.
     **/
-    static void info_player_deathmatch_spawn( svg_info_player_deathmatch_t *self );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_info_player_deathmatch_t, onSpawn );
 };
 
 

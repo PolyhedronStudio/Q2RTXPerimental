@@ -117,7 +117,7 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
 
     /**
     *
-    *   TestDummy
+    *   TestDummy Callback Member Functions:
     *
     **/
     /**

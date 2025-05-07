@@ -106,7 +106,7 @@ const bool svg_monster_testdummy_t::KeyValue( const cm_entity_t *keyValuePair, s
 
 /**
 *
-*   TestDummy
+*   TestDummy Callback Member Functions:
 *
 **/
 /**
@@ -193,9 +193,6 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_t, onPostSpawn )( svg_mo
     // </TEMPORARY FOR TESTING>
     //---------------------------
 }
-//---------------------------
-// </TEMPORARY FOR TESTING>
-//---------------------------
 
 /**
 *   @brief  Death routine.

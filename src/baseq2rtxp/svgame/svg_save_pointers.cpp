@@ -297,10 +297,10 @@ const svg_save_descriptor_funcptr_t save_ptrs[] = {
 { FPTR_CALLBACK_SPAWN, (void *)svg_info_null_t::info_null_spawn },
 { FPTR_CALLBACK_SPAWN, (void *)svg_info_notnull_t::info_notnull_spawn },
 
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_coop_t::info_player_coop_spawn },
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_deathmatch_t::info_player_deathmatch_spawn },
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_intermission_t::info_player_intermission_spawn },
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_start_t::info_player_start_spawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_coop_t::onSpawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_deathmatch_t::onSpawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_intermission_t::onSpawn },
+{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_start_t::onSpawn },
 
 { FPTR_CALLBACK_SPAWN, (void *)svg_player_edict_t::player_edict_spawn },
 { FPTR_CALLBACK_SPAWN, (void *)svg_worldspawn_edict_t::ed_worldspawn_spawn },
