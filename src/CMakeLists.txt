@@ -182,6 +182,14 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
 	target_include_directories(client PRIVATE ../inc)
     target_include_directories(client PRIVATE "${ZLIB_INCLUDE_DIRS}")
 
+	# Precompiled Header.
+	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+	  # Create precompiled header
+	  target_precompile_headers(client PRIVATE
+		<shared/shared.h>
+	  )
+	endif()
+
 	# Set the actual final binary output properties of the client.
 	set_target_properties(client
         PROPERTIES
@@ -250,6 +258,14 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 	IF( UNIX )
 		target_link_libraries(server dl rt m pthread)
 	ENDIF() # IF( UNIX )
+
+	# Precompiled Header.
+	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+	  # Create precompiled header
+	  target_precompile_headers(server PRIVATE
+		<shared/shared.h>
+	  )
+	endif()
 
 	set_target_properties(server
 		PROPERTIES
@@ -447,6 +463,17 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	target_link_libraries(baseq2rtxp_svgame nlohmann-json)
 	target_include_directories(baseq2rtxp_clgame PRIVATE nlohmann-json)
 	target_include_directories(baseq2rtxp_svgame PRIVATE nlohmann-json)
+
+	# Precompiled Header.
+	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+	  # Create precompiled header
+	  target_precompile_headers(baseq2rtxp_clgame PRIVATE
+		<shared/shared.h>
+	  )
+	  target_precompile_headers(baseq2rtxp_svgame PRIVATE
+		<shared/shared.h>
+	  )
+	endif()
 
 	# Specify both LIBRARY and RUNTIME because one works only on Windows,
 	# and another works only on Linux.

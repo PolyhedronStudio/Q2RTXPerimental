@@ -14,14 +14,6 @@
 *   Player:
 **/
 /**
-*   @brief
-**/
-void player_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage );
-/**
-*   @brief
-**/
-void player_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
-/**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
 void SVG_Player_ResetPlayerStateFOV( svg_client_t *client );

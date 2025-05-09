@@ -49,7 +49,7 @@ void ClipGibVelocity(svg_base_edict_t *ent)
 /**
 *   @brief
 **/
-void gib_think(svg_base_edict_t *self) {
+DEFINE_GLOBAL_CALLBACK_THINK( gib_think )( svg_base_edict_t *self ) -> void {
     self->s.frame++;
     //self->nextthink = level.frameNumber + 1;
 	self->nextthink = level.time + FRAME_TIME_S;
@@ -61,7 +61,7 @@ void gib_think(svg_base_edict_t *self) {
 /**
 *   @brief
 **/
-void gib_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+DEFINE_GLOBAL_CALLBACK_TOUCH( gib_touch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     vec3_t  normal_angles, right;
 
     if ( !self->groundInfo.entity ) {
@@ -87,7 +87,7 @@ void gib_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_
 /**
 *   @brief
 **/
-void gib_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+DEFINE_GLOBAL_CALLBACK_DIE( gib_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
     SVG_FreeEdict(self);
 }
 

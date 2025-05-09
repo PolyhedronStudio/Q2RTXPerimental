@@ -114,7 +114,7 @@ const bool svg_monster_testdummy_t::KeyValue( const cm_entity_t *keyValuePair, s
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_testdummy_t *self ) -> void {
     // Always call upon base methods.
-    Base::base_edict_spawn( self );
+    Base::onSpawn( self );
 
     // Entity Type:
     self->s.entityType = ET_MONSTER;
@@ -194,123 +194,6 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_t, onPostSpawn )( svg_mo
     //---------------------------
 }
 
-/**
-*   @brief  Death routine.
-**/
-DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
-    //self->takedamage = DAMAGE_NO;
-    //self->nextthink = level.time + 20_hz;
-    //self->think = barrel_explode;
-
-    if ( self->lifeStatus == LIFESTATUS_DEAD ) {
-        return;
-    }
-
-    if ( self->lifeStatus == LIFESTATUS_DYING ) {
-        // Gib Death:
-        if ( self->health < -40 ) {
-            // Play gib sound.
-            gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
-            //! Throw 4 small meat gibs around.
-            for ( int32_t n = 0; n < 4; n++ ) {
-                SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
-            }
-            // Turn ourself into the thrown head entity.
-            SVG_Misc_ThrowHead( self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC );
-
-            // Gibs don't take damage, but fade away as time passes.
-            self->takedamage = DAMAGE_NO;
-
-            // Set lifeStatus.
-            self->lifeStatus = LIFESTATUS_DEAD;
-        }
-    }
-    // Set activator.
-    self->activator = attacker;
-
-    //---------------------------
-    // <TEMPORARY FOR TESTING>
-    //---------------------------
-    if ( self->lifeStatus == LIFESTATUS_ALIVE ) {
-        // Pick a random death animation.
-        int32_t deathanim = irandom( 3 );
-        if ( deathanim == 0 ) {
-            self->s.frame = 512;
-        } else if ( deathanim == 1 ) {
-            self->s.frame = 642;
-        } else {
-            self->s.frame = 801;
-        }
-         
-        self->lifeStatus = LIFESTATUS_DYING;
-        // Set this here so the entity does not block traces while playing death animation.
-        self->svflags |= SVF_DEADMONSTER;
-    } else if ( self->s.frame == 643 ) {
-        // Monster Corpse Entity Type:
-        self->s.entityType = ET_MONSTER_CORPSE;
-    } else if ( self->s.frame == 800 ) {
-        // Monster Corpse Entity Type:
-        self->s.entityType = ET_MONSTER_CORPSE;
-    } else if ( self->s.frame == 937 ) {
-        // Monster Corpse Entity Type:
-        self->s.entityType = ET_MONSTER_CORPSE;
-    }
-    //---------------------------
-    // </TEMPORARY FOR TESTING>
-    //---------------------------
-    // Stop playing any sounds.
-    self->s.sound = 0;
-    // Setup the death bounding box.
-    VectorCopy( DUMMY_BBOX_DEAD_MINS, self->mins );
-    VectorCopy( DUMMY_BBOX_DEAD_MAXS, self->maxs );
-    // Make sure to relink.
-    gi.linkentity( self );
-}
-
-/**
-*   @brief  Touched.
-**/
-DEFINE_MEMBER_CALLBACK_TOUCH( svg_monster_testdummy_t, onTouch )( svg_monster_testdummy_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
-
-}
-
-/**
-*   @brief
-**/
-DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_t, onUse )( svg_monster_testdummy_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
-    // Apply activator.
-    self->activator = activator;
-    self->other = other;
-
-    // "Toggle" between follow/unfollow.
-    // Cheap hack.
-    if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE ) {
-        if ( useValue == 1 ) {
-            if ( activator && activator->client ) {
-                self->goalentity = activator;
-
-                // Get the root motion.
-                skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
-                // Transition to its animation.
-                self->s.frame = rootMotion->firstFrameIndex;
-
-				// Set to disengagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
-                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_DISENGAGE );
-                return;
-            }
-        }
-    }
-
-    // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
-    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
-
-    self->goalentity = nullptr;
-    self->activator = nullptr;
-	self->other = nullptr;
-
-    // Fire set target.
-    SVG_UseTargets( self, activator );
-}
 
 /**
 *   @brief  Thinking routine.
@@ -325,7 +208,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
     self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
 
     self->testVar = level.frameNumber;
-	gi.dprintf( "%s: monster_testdummy(#%d), distanceTraversed(%f)\n", __func__, self->s.number, self->summedDistanceTraversed );
+    gi.dprintf( "%s: monster_testdummy(#%d), distanceTraversed(%f)\n", __func__, self->s.number, self->summedDistanceTraversed );
     // Animate.
     if ( self->health > 0 ) {
         #if 0
@@ -365,41 +248,41 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 //*pflGroundSpeed = sqrt( pseqdesc->linearmovement[ 0 ] * pseqdesc->linearmovement[ 0 ] + pseqdesc->linearmovement[ 1 ] * pseqdesc->linearmovement[ 1 ] + pseqdesc->linearmovement[ 2 ] * pseqdesc->linearmovement[ 2 ] );
                 //*pflGroundSpeed = *pflGroundSpeed * pseqdesc->fps / ( pseqdesc->numframes - 1 );
 
-			    // WID: This one is solid from what I can tell right now.
-                Vector3 translation = *rootMotion->translations[ rootMotionFrame ];
-                double distance = std::sqrt( translation.x * translation.x +
-                                        translation.y * translation.y /*+ translation.z * translation.z*/ );
-                // Unit distance per 'frame'.
-                double unitDistance = 8.;
-                // Scale distance to frame count
-				distance = distance * ( 40. / rootMotion->frameCount - 1 );
-                // Scale distance to 'unit distance'.
-				distance = unitDistance * ( unitDistance / distance );
+                // WID: This one is solid from what I can tell right now.
+            Vector3 translation = *rootMotion->translations[ rootMotionFrame ];
+            double distance = std::sqrt( translation.x * translation.x +
+                translation.y * translation.y /*+ translation.z * translation.z*/ );
+            // Unit distance per 'frame'.
+            double unitDistance = 8.;
+            // Scale distance to frame count
+            distance = distance * ( 40. / rootMotion->frameCount - 1 );
+            // Scale distance to 'unit distance'.
+            distance = unitDistance * ( unitDistance / distance );
             #else
                 // WID: Works also, somewhat.
-                #if 0
-                    // Base Velocity.
-                    constexpr float speed = 250.f;
-                    constexpr float maxSpeed = 325.f;
-                    float distance = QM_Normalizef( speed / rootMotion->frameCount, 0, maxSpeed );
-                    distance *= speed;
-                // WID: This one actually is the best attempt so far.
-                #else
-                    // Base Velocity.
-                    constexpr float speed = 250.f;
-                    // Determine distance to traverse based on Base Velocity.
-                    float distance = ( ( speed / rootMotion->frameCount ) * ( rootMotion->frameCount / rootMotion->totalDistance ) );
-                #endif
+            #if 0
+                // Base Velocity.
+            constexpr float speed = 250.f;
+            constexpr float maxSpeed = 325.f;
+            float distance = QM_Normalizef( speed / rootMotion->frameCount, 0, maxSpeed );
+            distance *= speed;
+            // WID: This one actually is the best attempt so far.
+            #else
+                // Base Velocity.
+            constexpr float speed = 250.f;
+            // Determine distance to traverse based on Base Velocity.
+            float distance = ( ( speed / rootMotion->frameCount ) * ( rootMotion->frameCount / rootMotion->totalDistance ) );
+            #endif
             #endif
 
             // Goal Origin:
             Vector3 goalOrigin = self->activator->s.origin;
-            if ( self->goalentity) {
+            if ( self->goalentity ) {
                 goalOrigin = self->goalentity->s.origin;
             }
             // Calculate ideal yaw to turn into.
             self->ideal_yaw = QM_Vector3ToYaw(
-                QM_Vector3Normalize( goalOrigin - Vector3(self->s.origin) )
+                QM_Vector3Normalize( goalOrigin - Vector3( self->s.origin ) )
             );
             // Setup decent yaw turning speed.
             self->yaw_speed = 7.5f; // Was 10.f
@@ -415,7 +298,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 self->trail_time = level.time;
             }
 
-			// Is done in MMove_StepSlideMove.
+            // Is done in MMove_StepSlideMove.
             //SVG_AddGravity( self );
 
             // Generate frame velocity vector.
@@ -488,7 +371,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             }
         }
         Vector3 postSumOrigin = self->s.origin;
-		Vector3 diffOrigin = postSumOrigin - preSumOrigin;
+        Vector3 diffOrigin = postSumOrigin - preSumOrigin;
         const double diffLength = QM_Vector3LengthSqr( diffOrigin );
         self->summedDistanceTraversed += diffLength;
         //---------------------------
@@ -522,3 +405,126 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
     self->nextthink = level.time + FRAME_TIME_MS;
 }
 
+/**
+*   @brief  Touched.
+**/
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_monster_testdummy_t, onTouch )( svg_monster_testdummy_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
+    gi.dprintf( "onTouch\n" );
+}
+
+/**
+*   @brief
+**/
+DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_t, onUse )( svg_monster_testdummy_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
+    // Apply activator.
+    self->activator = activator;
+    self->other = other;
+
+    // "Toggle" between follow/unfollow.
+    // Cheap hack.
+    if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE ) {
+        if ( useValue == 1 ) {
+            if ( activator && activator->client ) {
+                self->goalentity = activator;
+
+                // Get the root motion.
+                skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
+                // Transition to its animation.
+                self->s.frame = rootMotion->firstFrameIndex;
+
+				// Set to disengagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+                SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_DISENGAGE );
+                return;
+            }
+        }
+    }
+
+    // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+    SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
+
+    self->goalentity = nullptr;
+    self->activator = nullptr;
+	self->other = nullptr;
+
+    // Fire set target.
+    SVG_UseTargets( self, activator );
+}
+
+/**
+*   @brief  Death routine.
+**/
+DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdummy_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
+    //self->takedamage = DAMAGE_NO;
+    //self->nextthink = level.time + 20_hz;
+    //self->think = barrel_explode;
+
+    if ( self->lifeStatus == LIFESTATUS_DEAD ) {
+        return;
+    }
+
+    if ( self->lifeStatus == LIFESTATUS_DYING ) {
+        // Gib Death:
+        if ( self->health < -40 ) {
+            // Play gib sound.
+            gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
+            //! Throw 4 small meat gibs around.
+            for ( int32_t n = 0; n < 4; n++ ) {
+                SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
+            }
+            // Turn ourself into the thrown head entity.
+            SVG_Misc_ThrowHead( self, "models/objects/gibs/head2/tris.md2", damage, GIB_TYPE_ORGANIC );
+
+            // Gibs don't take damage, but fade away as time passes.
+            self->takedamage = DAMAGE_NO;
+
+            // Set lifeStatus.
+            self->lifeStatus = LIFESTATUS_DEAD;
+        }
+    }
+    // Set activator.
+    self->activator = attacker;
+
+    //---------------------------
+    // <TEMPORARY FOR TESTING>
+    //---------------------------
+    if ( self->lifeStatus == LIFESTATUS_ALIVE ) {
+        // Pick a random death animation.
+        int32_t deathanim = irandom( 3 );
+        if ( deathanim == 0 ) {
+            self->s.frame = 512;
+        } else if ( deathanim == 1 ) {
+            self->s.frame = 642;
+        } else {
+            self->s.frame = 801;
+        }
+
+        self->lifeStatus = LIFESTATUS_DYING;
+        // Set this here so the entity does not block traces while playing death animation.
+        self->svflags |= SVF_DEADMONSTER;
+    } else if ( self->s.frame == 643 ) {
+        // Monster Corpse Entity Type:
+        self->s.entityType = ET_MONSTER_CORPSE;
+    } else if ( self->s.frame == 800 ) {
+        // Monster Corpse Entity Type:
+        self->s.entityType = ET_MONSTER_CORPSE;
+    } else if ( self->s.frame == 937 ) {
+        // Monster Corpse Entity Type:
+        self->s.entityType = ET_MONSTER_CORPSE;
+    }
+    //---------------------------
+    // </TEMPORARY FOR TESTING>
+    //---------------------------
+    // Stop playing any sounds.
+    self->s.sound = 0;
+    // Setup the death bounding box.
+    VectorCopy( DUMMY_BBOX_DEAD_MINS, self->mins );
+    VectorCopy( DUMMY_BBOX_DEAD_MAXS, self->maxs );
+    // Make sure to relink.
+    gi.linkentity( self );
+}
+/**
+*   @brief  Death routine.
+**/
+DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_t, onPain )( svg_monster_testdummy_t *self, svg_base_edict_t *other, float kick, int damage ) -> void {
+
+}

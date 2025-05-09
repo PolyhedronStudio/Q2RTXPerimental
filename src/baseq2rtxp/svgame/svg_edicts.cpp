@@ -17,7 +17,7 @@
 /**
 *   @brief  Marks the edict as free
 **/
-void SVG_FreeEdict( svg_base_edict_t *ed ) {
+DEFINE_GLOBAL_CALLBACK_THINK( SVG_FreeEdict )( svg_base_edict_t *ed ) -> void {
     g_edict_pool.FreeEdict( ed );
 }
 

@@ -41,7 +41,8 @@ svg_base_edict_t *SVG_AllocateEdict( void );
 /**
 *   @brief  Marks the edict as free
 **/
-void SVG_FreeEdict( svg_base_edict_t *ed );
+DECLARE_GLOBAL_CALLBACK_THINK( SVG_FreeEdict );
+
 
 /**
 *

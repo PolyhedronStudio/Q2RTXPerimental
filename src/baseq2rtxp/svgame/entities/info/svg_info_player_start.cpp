@@ -20,7 +20,7 @@
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_base_start_t, onSpawn )( svg_info_player_base_start_t *self ) -> void {
     // Call upon base spawn.
-    Base::base_edict_spawn( self );
+    Base::onSpawn( self );
 }
 
 /**

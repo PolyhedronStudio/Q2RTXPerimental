@@ -6,7 +6,15 @@
 ********************************************************************/
 #pragma once
 
-
+//
+// Gib(s):
+// 
+//! For gib thinking.
+DECLARE_GLOBAL_CALLBACK_THINK( gib_think );
+//! For gib touching.
+DECLARE_GLOBAL_CALLBACK_TOUCH( gib_touch );
+//! for gib death.
+DECLARE_GLOBAL_CALLBACK_DIE( gib_die );
 
 /**
 *   @brief	Returns a random velocity matching the specified damage count.

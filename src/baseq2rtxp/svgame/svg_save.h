@@ -11,15 +11,9 @@
 
 
 // Forward declarations.
-struct save_ptr_t;
-struct svg_save_descriptor_funcptr_t;
+//struct save_ptr_t;
+//struct svg_save_descriptor_funcptr_t;
 
-
-/**
-*	For accessing them outside of g_ptrs.cpp
-**/
-extern const svg_save_descriptor_funcptr_t save_ptrs[];
-extern const int32_t num_save_ptrs;
 
 
 /**
@@ -114,19 +108,19 @@ struct svg_funcptr_saveable_instance_t {
 	/**
 	*	@brief	Gets the ptr which matches the passed name as well as the actual type of function pointer
 	**/
-	inline static svg_funcptr_saveable_instance_t *GetForNameType( const char *name, svg_funcptr_saveable_type_t type );
+	[[nodiscard]] inline static svg_funcptr_saveable_instance_t *GetForNameType( const char *name, svg_funcptr_saveable_type_t type );
 	/**
 	*	@brief	Gets a ptr to the saveable instance which matches the passed name as well as the actual address function pointer
 	**/
-	inline static svg_funcptr_saveable_instance_t *GetForPointerType( svg_funcptr_saveable_type_t type, void *ptr );
+	[[nodiscard]] inline static svg_funcptr_saveable_instance_t *GetForPointerType( svg_funcptr_saveable_type_t type, void *ptr );
 	/**
-*	@brief	Gets a ptr to the saveable instance which matches the actual address function pointer.
-**/
-	inline static svg_funcptr_saveable_instance_t *GetForPointer( void *ptr );
+	*	@brief	Gets a ptr to the saveable instance which matches the actual address function pointer.
+	**/
+	[[nodiscard]] static svg_funcptr_saveable_instance_t *GetForPointer( void *ptr );
 	/**
 	*	@brief	Gets a ptr to the saveable instance which matches the passed saveAbleTypeID
 	**/
-	inline static svg_funcptr_saveable_instance_t *GetForTypeID( svg_funcptr_saveable_type_t type, const size_t saveAbleTypeID );
+	[[nodiscard]] inline static svg_funcptr_saveable_instance_t *GetForTypeID( const size_t saveAbleTypeID );
 
 
 	//! The initial nullptr head svg_funcptr_saveable_instance_t list entry.
@@ -156,92 +150,125 @@ struct svg_funcptr_saveable_instance_t {
 //
 //! Declares the global function in the notation style compatible for our use with
 //! DEFINE_GLOBAL_CALLBACK_THINK
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK(className, functionName) \
-	static auto functionName(className *self) -> void; \
+	auto functionName( className *self ) -> void \
 
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_THINK(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
 //
 //	Spawn:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_SPAWN(className, functionName) \
-	static auto functionName(className *self) -> void; \
+	auto functionName( className *self ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_SPAWN(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_SPAWN(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
 //
 //	PostSpawn:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTSPAWN(className, functionName) \
-	static auto functionName(className *self) -> void; \
+	auto functionName( className *self ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_POSTSPAWN(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTSPAWN(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
 //
 //	PreThink:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_PRETHINK(className, functionName) \
-	static auto functionName(className *self) -> void; \
+	auto functionName( className *self ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_PRETHINK(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_PRETHINK(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
+
 //
 //	PostThink:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTTHINK(className, functionName) \
-	static auto functionName(className *self) -> void; \
+	auto functionName( className *self ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_POSTTHINK(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTTHINK(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
 //
 //	Blocked:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_BLOCKED(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *other ) -> void; \
+	auto functionName( className *self, svg_base_edict_t *other ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_BLOCKED(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_BLOCKED(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other ) -> void \
 //
 //	Touch:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_TOUCH(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf )-> void; \
+	auto functionName( className *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf )-> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_TOUCH(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_TOUCH(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf) -> void \
 //
 //	Use:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_USE(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void; \
+	auto functionName( className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_USE(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_USE(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void \
 //
 //	OnSignalIn:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_ON_SIGNALIN(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void; \
+	auto functionName( className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_ON_SIGNALIN(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_ON_SIGNALIN(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void \
 //
 //	Pain:
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_PAIN(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *other, float kick, int damage ) -> void; \
+	auto functionName( className *self, svg_base_edict_t *other, float kick, int damage ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_PAIN(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_PAIN(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage ) -> void \	
 //
 //	Die.
 //
+#if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_DIE(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void; \
+	auto functionName( className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void \
+
+#endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_DIE(functionName) \
-	DECLARE_GLOBAL_CLASSNAME_CALLBACK_DIE(svg_base_edict_t, functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void \
 
 
 //! Defines the start of the function definition, awaiting to be prepended by its user
@@ -355,7 +382,7 @@ struct svg_funcptr_saveable_instance_t {
 //	Pain:
 //
 #define DECLARE_MEMBER_CALLBACK_PAIN(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *other, float kick, int damage ) -> void; \
+	static auto functionName(className *self, svg_base_edict_t *other, float kick, int damage ) -> void; \
 //
 //	Die.
 //
@@ -426,6 +453,7 @@ struct svg_funcptr_saveable_instance_t {
 * 
 *
 **/
+#if 0
 /**
 *	@brief	Indexes what type of pointer is/was being read/written to.
 **/
@@ -469,16 +497,7 @@ enum svg_save_descriptor_funcptr_type_t : int32_t {
 	FPTR_CALLBACK_MONSTERINFO_SIGHT,
 	FPTR_CALLBACK_MONSTERINFO_CHECKATTACK
 };
-
-/**
-*	@brief	Used for constructing our array(located in g_ptrs.cpp) containing all possible callback save methods and their type.
-**/
-struct svg_save_descriptor_funcptr_t {
-	//! The type of callback save pointer we are dealing with.
-	svg_save_descriptor_funcptr_type_t type;
-	//! Address to the actual function pointer, as registered in save_func_ptrs.
-	void *ptr;
-};
+#endif
 
 /**
 *	@brief	Error Types for SVG_Save_ValidateFuncPtr
@@ -564,7 +583,7 @@ struct svg_save_descriptor_field_t {
 *	@brief	Checks whether the passed (save-) callback function pointer exists within
 * 			the registered save pointer table, and has a matching type set.
 **/
-const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_save_descriptor_funcptr_type_t type, const std::string &functionName );
+const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_funcptr_saveable_type_t type, const std::string &functionName );
 
 
 /**
@@ -579,11 +598,6 @@ struct game_read_context_t {
     //! File handle.
     struct gzFile_s *f;
 
-    //! A pointer to the list of saved callbacks.
-    const svg_save_descriptor_funcptr_t *save_ptrs;
-    //! The number of total enlisted callbacks.
-    int32_t num_save_ptrs;
-
 	//!
 	//! 
 	//! 
@@ -591,9 +605,9 @@ struct game_read_context_t {
 	//! 
 	void read_data( void *buf, size_t len );
 	//! 
-	const int read_short( );
+	const int16_t read_short( );
 	//!
-	const int read_int( );
+	const int32_t read_int32( );
 	//!
 	const int64_t read_int64( );
 	//! 
@@ -621,7 +635,7 @@ struct game_read_context_t {
 	//! Read an index range from the file.
 	void *read_index( size_t size, void *start, int max_index );
 	//! Read the function pointer index from file.
-	void *read_pointer( svg_save_descriptor_funcptr_type_t type );
+	void *read_pointer( svg_funcptr_saveable_type_t type );
 
 	//! Read a field from the file.
 	void read_field( const svg_save_descriptor_field_t *descriptorField, void *base );
@@ -643,13 +657,8 @@ struct game_write_context_t {
     //! File handle.
     struct gzFile_s *f;
 
-    //! A pointer to the list of saved callbacks.
-    const svg_save_descriptor_funcptr_t *save_ptrs;
-    //! The number of total enlisted callbacks.
-    int32_t num_save_ptrs;
-
 	//! Write a buffer of data to the file.
-	void write_data( void *buf, size_t len );
+	void write_data( const void *buf, size_t len );
 
 	//! Write a short to the file.
 	void write_int16( int16_t v );
@@ -664,7 +673,7 @@ struct game_write_context_t {
 	void write_double( double v );
 	
 	//! Write a string to the file.
-	void write_string( char *s );
+	void write_string( const char *s );
 	//! Write a game qstring to the file.
 	void write_game_qstring( svg_game_qstring_t *qstr );
 	//! Write a level qstring to the file.
@@ -691,7 +700,7 @@ struct game_write_context_t {
 	//! Write a pointer to the file.
 	void write_index( const void *p, size_t size, const void *start, int max_index );
 	//! Write a pointer to the file.
-	void write_pointer( void *p, svg_save_descriptor_funcptr_type_t type, const svg_save_descriptor_field_t *saveField );
+	void write_pointer( void *p, svg_funcptr_saveable_type_t type, const svg_save_descriptor_field_t *saveField );
 
 	//! Write a field to the file.
 	void write_field( const svg_save_descriptor_field_t *descriptorField, void *base );

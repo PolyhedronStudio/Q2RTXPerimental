@@ -195,8 +195,8 @@ extern void plat_go_down( svg_base_edict_t *self );
 extern void plat_hit_bottom( svg_base_edict_t *self );
 extern void plat_hit_top( svg_base_edict_t *self );
 
-extern void player_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
-extern void player_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage );
+//extern void player_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+//extern void player_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage );
 
 //extern void point_combat_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
@@ -275,296 +275,38 @@ extern void use_target_spawner( svg_base_edict_t *self, svg_base_edict_t *other,
 extern void Use_Target_Speaker( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void use_target_splash( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-const svg_save_descriptor_funcptr_t save_ptrs[] = {
-
-//
-//	Disabled entity... Too Q2-ish specific.
-//
-#if 0
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)door_secret_done },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)door_secret_move1 },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)door_secret_move3 },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)door_secret_move5 },
-{ FPTR_CALLBACK_DIE, (void *)door_secret_die },
-{ FPTR_CALLBACK_THINK,  (void *)door_secret_move2 },
-{ FPTR_CALLBACK_THINK,  (void *)door_secret_move4 },
-{ FPTR_CALLBACK_THINK,  (void *)door_secret_move6 },
-{ FPTR_CALLBACK_BLOCKED, (void *)door_secret_blocked },
-{ FPTR_CALLBACK_USE, (void *)door_secret_use },
-#endif
-
-// <Q2RTXP>
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_null_t::info_null_spawn },
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_notnull_t::info_notnull_spawn },
-
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_coop_t::onSpawn },
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_deathmatch_t::onSpawn },
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_intermission_t::onSpawn },
-{ FPTR_CALLBACK_SPAWN, (void *)svg_info_player_start_t::onSpawn },
-
-{ FPTR_CALLBACK_SPAWN, (void *)svg_player_edict_t::player_edict_spawn },
-{ FPTR_CALLBACK_SPAWN, (void *)svg_worldspawn_edict_t::ed_worldspawn_spawn },
-
-{ FPTR_CALLBACK_ONSIGNALIN, ( void * )button_onsignalin },
-
-{ FPTR_CALLBACK_ONSIGNALIN, (void *)door_onsignalin },
-
-{ FPTR_CALLBACK_ONSIGNALIN, (void *)rotating_onsignalin },
-
-{ FPTR_CALLBACK_ONSIGNALIN, (void *)func_wall_onsignalin },
-
-{ FPTR_CALLBACK_USE, (void *)func_breakable_spawn_on_trigger },
-{ FPTR_CALLBACK_DIE, (void *)func_breakable_explode },
-{ FPTR_CALLBACK_PAIN, (void *)func_breakable_pain },
-{ FPTR_CALLBACK_ONSIGNALIN, (void *)func_breakable_onsignalin },
-{ FPTR_CALLBACK_USE, (void *)func_breakable_use },
-
-{ FPTR_CALLBACK_SPAWN, (void *)svg_monster_testdummy_t::onSpawn },
-{ FPTR_CALLBACK_POSTSPAWN, (void *)svg_monster_testdummy_t::onPostSpawn},
-{ FPTR_CALLBACK_THINK, (void *)( svg_monster_testdummy_t::onThink) },
-{ FPTR_CALLBACK_TOUCH, (void *)svg_monster_testdummy_t::onTouch },
-{ FPTR_CALLBACK_USE, (void *)svg_monster_testdummy_t::onUse },
-{ FPTR_CALLBACK_DIE, (void *)svg_monster_testdummy_t::onDie },
-
-// </Q2RTXP>
-
-//
-//	Post Spawn Callback Pointers:
-//
-{ FPTR_CALLBACK_POSTSPAWN, (void *)door_postspawn },
-
-//
-//	Think Callback Pointers:
-//
-{ FPTR_CALLBACK_THINK,  (void *)drop_make_touchable },
-{ FPTR_CALLBACK_THINK,  (void *)droptofloor },
-{ FPTR_CALLBACK_THINK,  (void *)M_droptofloor },
-
-{ FPTR_CALLBACK_THINK,  (void *)DoRespawn },
-{ FPTR_CALLBACK_THINK,  (void *)gib_think },
-{ FPTR_CALLBACK_THINK,  (void *)MegaHealth_think },
-
-{ FPTR_CALLBACK_THINK,  (void *)SVG_FreeEdict },
-
-{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_MoveBegin },
-{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_MoveDone },
-{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_MoveFinal },
-{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_AngleMoveBegin },
-{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_AngleMoveDone },
-{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_AngleMoveFinal },
-
-{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_Think_AccelerateMove },
-{ FPTR_CALLBACK_THINK,	(void *)SVG_PushMove_Think_AccelerateMoveNew },
-{ FPTR_CALLBACK_THINK,  (void *)SVG_PushMove_Think_CalculateMoveSpeed },
-
-{ FPTR_CALLBACK_THINK,  (void *)barrel_explode },
-#if 0
-{ FPTR_CALLBACK_THINK,  (void *)button_return_to_unpressed_state },
-#else
-{ FPTR_CALLBACK_THINK,  (void *)button_think_return },
-#endif
-{ FPTR_CALLBACK_THINK,  (void *)door_close_move },
-{ FPTR_CALLBACK_THINK,  (void *)door_open_move },
-
-//{ FPTR_CALLBACK_THINK,  (void *)func_clock_think },
-{ FPTR_CALLBACK_THINK,  (void *)func_object_release },
-{ FPTR_CALLBACK_THINK,  (void *)func_timer_think },
-
-//{ FPTR_CALLBACK_THINK,  (void *)rotating_start },
-//{ FPTR_CALLBACK_THINK,  (void *)rotating_end},
-
-{ FPTR_CALLBACK_THINK,  (void *)rotating_accelerate },
-{ FPTR_CALLBACK_THINK,  (void *)rotating_decelerate},
-
-{ FPTR_CALLBACK_THINK,  (void *)func_train_find },
-
-{ FPTR_CALLBACK_THINK,  (void *)multi_wait },
-
-{ FPTR_CALLBACK_THINK,  (void *)plat_go_down },
-
-{ FPTR_CALLBACK_THINK,  (void *)target_crosslevel_target_think },
-{ FPTR_CALLBACK_THINK,  (void *)target_earthquake_think },
-{ FPTR_CALLBACK_THINK,  (void *)target_explosion_explode },
-{ FPTR_CALLBACK_THINK,  (void *)target_laser_start },
-{ FPTR_CALLBACK_THINK,  (void *)target_laser_think },
-{ FPTR_CALLBACK_THINK,  (void *)target_lightramp_think },
-
-//{ FPTR_CALLBACK_THINK,  (void *)TH_viewthing },
-{ FPTR_CALLBACK_THINK,  (void *)Think_UseTargetsDelay },
-{ FPTR_CALLBACK_THINK,  (void *)Think_SignalOutDelay },
-{ FPTR_CALLBACK_THINK,  (void *)Think_SpawnDoorTrigger },
-
-{ FPTR_CALLBACK_THINK,  (void *)LUA_Think_UseTargetDelay },
-{ FPTR_CALLBACK_THINK,  (void *)LUA_Think_SignalOutDelay },
-
-{ FPTR_CALLBACK_THINK,  (void*)train_next },
-
-{ FPTR_CALLBACK_THINK,  (void*)trigger_elevator_init },
-
-{ FPTR_CALLBACK_THINK,	(void*)spotlight_think },
-
-//
-//	Blocked Callback Pointers.
-//
-{ FPTR_CALLBACK_BLOCKED, (void*)door_blocked },
-{ FPTR_CALLBACK_BLOCKED, (void*)plat_blocked },
-{ FPTR_CALLBACK_BLOCKED, (void*)rotating_blocked },
-{ FPTR_CALLBACK_BLOCKED, (void*)train_blocked },
-
-//
-//	Touch Callback Pointers.
-// 	
-{ FPTR_CALLBACK_TOUCH, (void*)barrel_touch },
-{ FPTR_CALLBACK_TOUCH, (void *)button_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)door_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)drop_temp_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)func_object_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)gib_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)hurt_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)path_corner_touch },
-//{ FPTR_CALLBACK_TOUCH, (void*)point_combat_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)rotating_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)teleporter_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)Touch_DoorTrigger },
-{ FPTR_CALLBACK_TOUCH, (void*)Touch_Item },
-{ FPTR_CALLBACK_TOUCH, (void*)Touch_Multi },
-{ FPTR_CALLBACK_TOUCH, (void*)Touch_Plat_Center },
-{ FPTR_CALLBACK_TOUCH, (void*)trigger_gravity_touch },
-{ FPTR_CALLBACK_TOUCH, (void*)trigger_push_touch },
-
-//
-//	Use Callback Pointers:
-//
-{ FPTR_CALLBACK_USE, (void*)button_use },
-{ FPTR_CALLBACK_USE, (void *)button_usetarget_press },
-{ FPTR_CALLBACK_USE, (void *)button_usetarget_toggle },
-{ FPTR_CALLBACK_USE, (void *)button_usetarget_continuous_press },
-
-{ FPTR_CALLBACK_USE, (void*)door_use },
-
-//{ FPTR_CALLBACK_USE, (void*)func_clock_use },
-{ FPTR_CALLBACK_USE, (void*)func_conveyor_use },
-//{ FPTR_CALLBACK_USE, (void*)func_breakable_spawn },
-//{ FPTR_CALLBACK_USE, (void*)func_breakable_use },
-{ FPTR_CALLBACK_USE, (void*)func_object_use },
-{ FPTR_CALLBACK_USE, (void*)func_timer_use },
-{ FPTR_CALLBACK_USE, (void*)func_wall_use },
-
-{ FPTR_CALLBACK_USE, (void*)hurt_use },
-
-{ FPTR_CALLBACK_USE, (void*)spotlight_use },
-{ FPTR_CALLBACK_USE, (void*)light_use },
-
-{ FPTR_CALLBACK_USE, (void*)rotating_use },
-
-{ FPTR_CALLBACK_USE, (void*)target_earthquake_use },
-{ FPTR_CALLBACK_USE, (void*)target_laser_use },
-{ FPTR_CALLBACK_USE, (void*)target_lightramp_use },
-//{ FPTR_CALLBACK_USE, (void*)target_string_use },
-
-{ FPTR_CALLBACK_USE, (void*)train_use },
-
-{ FPTR_CALLBACK_USE, (void*)trigger_counter_use },
-{ FPTR_CALLBACK_USE, (void*)trigger_crosslevel_trigger_use },
-{ FPTR_CALLBACK_USE, (void*)trigger_elevator_use },
-{ FPTR_CALLBACK_USE, (void*)trigger_enable },
-{ FPTR_CALLBACK_USE, (void*)trigger_relay_use },
-
-{ FPTR_CALLBACK_USE, (void*)Use_Areaportal },
-{ FPTR_CALLBACK_USE, (void*)Use_Item },
-{ FPTR_CALLBACK_USE, (void*)use_killbox },
-{ FPTR_CALLBACK_USE, (void*)Use_Multi },
-{ FPTR_CALLBACK_USE, (void*)Use_Plat },
-{ FPTR_CALLBACK_USE, (void *)Use_Target_Tent },
-
-{ FPTR_CALLBACK_USE, (void*)use_target_blaster },
-{ FPTR_CALLBACK_USE, (void*)use_target_changelevel },
-{ FPTR_CALLBACK_USE, (void*)use_target_explosion },
-{ FPTR_CALLBACK_USE, (void*)use_target_goal },
-{ FPTR_CALLBACK_USE, (void*)use_target_secret },
-{ FPTR_CALLBACK_USE, (void*)use_target_spawner },
-{ FPTR_CALLBACK_USE, (void*)Use_Target_Speaker },
-{ FPTR_CALLBACK_USE, (void*)use_target_splash },
-
-//
-//	Pain Callback Pointers:
-//
-{ FPTR_CALLBACK_PAIN, (void *)door_pain },
-{ FPTR_CALLBACK_PAIN, (void*)player_pain },
-
-//
-//	Die Callback Pointers:
-//
-{ FPTR_CALLBACK_DIE, (void*)barrel_delay },
-{ FPTR_CALLBACK_DIE, (void*)body_die },
-{ FPTR_CALLBACK_DIE, (void *)button_killed },
-{ FPTR_CALLBACK_DIE, (void*)debris_die },
-{ FPTR_CALLBACK_DIE, (void*)door_killed },
-//{ FPTR_CALLBACK_DIE, (void*)func_breakable_explode },
-{ FPTR_CALLBACK_DIE, (void*)gib_die },
-{ FPTR_CALLBACK_DIE, (void*)player_die },
-
-//
-// MoveInfo_EndFunc	Callback Pointers:
-//
-#if 0
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)button_reached_pressed_state },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)button_trigger_and_wait },
-#else
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)button_unpress_move_done },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void *)button_press_move_done },
-#endif
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)door_close_move_done },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)door_open_move_done },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)plat_hit_bottom },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)plat_hit_top },
-{ FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK, (void*)train_wait },
-
-//
-// MonsterInfo_CurrentMove.
-//
-
-
-//
-// MonsterInfo_CurrentMove.
-//
-
-
-};
-//! Total number of save pointers.
-const int num_save_ptrs = sizeof( save_ptrs ) / sizeof( save_ptrs[ 0 ] );
-
 /**
 *	@brief	Checks whether the passed (save-) callback function pointer exists within
 * 			the registered save pointer table, and has a matching type set.
 **/
-const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_save_descriptor_funcptr_type_t type, const std::string &functionName ) {
+const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_funcptr_saveable_type_t type, const std::string &functionName ) {
     // For registering matching type found or not.
     bool matchingType = false;
     // For registering matching ptr found or not.
     bool matchingPtr = false;
     // For registering the found type and ptr type.
     
-    // Iterate the registered save ptr table.
-    for ( int32_t i = 0; i < num_save_ptrs; i++ ) {
-        // Get registered ptr data.
-        const svg_save_descriptor_funcptr_t *registeredPtr = &save_ptrs[ i ];
-
-		// We had a matching type.
-        if ( registeredPtr->type == type ) {
-            matchingType = true;
-        }
-        // We had a matching pointer.
-        if ( registeredPtr->ptr == p || p == nullptr ) {
-            matchingPtr = true;
-        }
-
-        // Break out by returning success if we found it.
-		if ( matchingType && matchingPtr ) {
-            return svg_save_descriptor_funcptr_error_t::FPTR_ERROR_SUCCESS;
-		}
+    // If the pointer is null, we can return success, since it means we 'unset' the callback.
+    if ( p == nullptr ) {
+		return svg_save_descriptor_funcptr_error_t::FPTR_ERROR_SUCCESS;
     }
 
+    // Iterate the registered save ptr table.
+    svg_funcptr_saveable_instance_t *saveAbleInstance = svg_funcptr_saveable_instance_t::GetForPointer( p );
+    if ( saveAbleInstance && saveAbleInstance->ptr == p ) {
+        matchingPtr = true;
+    }
+    if ( saveAbleInstance && saveAbleInstance->saveAbleType == type ) {
+		matchingType = true;
+    }
+    if ( matchingType && matchingPtr ) {
+        return svg_save_descriptor_funcptr_error_t::FPTR_ERROR_SUCCESS;
+    }
+
+    // <NOTE>:
+    // Breakpoint at errorStr to figure out which function pointer is not registered
+    // in the save list.
+    // </NOTE>:
 	// Failure to find, display appropriate error matching.
     std::string errorStr = functionName + ": entity(#" + std::to_string(edict->s.number) + ", \"" + edict->classname.ptr + "\")";
     svg_save_descriptor_funcptr_error_t errors;

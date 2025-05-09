@@ -16,13 +16,10 @@
 /**
 *
 *
-*   Player Start Game Entity Structures:
+*   TestDummy Entity Monster Structure:
 *
 *
 **/
-// This inherits from:
-//
-//struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_t>
 struct svg_monster_testdummy_t : public svg_base_edict_t {
     /**
     *
@@ -39,29 +36,7 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
 
     /**
     *
-    *
-    *   Const Expressions:
-    *
-    *
-    **/
-    //! For when dummy is standing straight up.
-    static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };
-    static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 72.f };
-    static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 30.f;
-    //! For when dummy is crouching.
-    static constexpr Vector3 DUMMY_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
-    static constexpr Vector3 DUMMY_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
-    static constexpr float   DUMMY_VIEWHEIGHT_DUCKED = 4.f;
-    //! For when dummy is dead.
-    static constexpr Vector3 DUMMY_BBOX_DEAD_MINS = { -16.f, -16.f, -36.f };
-    static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
-    static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
-
-
-
-    /**
-    *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
+    *	Define this as: "monster_testdummy_puppet" = svg_base_edict -> svg_monster_testdummy_t
     *
     **/
     DefineWorldSpawnClass( 
@@ -144,6 +119,10 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     /**
     *   @brief
     **/
+    DECLARE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_t, onPain );
+    /**
+    *   @brief
+    **/
     DECLARE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie );
 
 
@@ -163,4 +142,23 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     //---------------------------
     //static sg_skm_rootmotion_set_t rootMotionSet;
     skm_rootmotion_set_t *rootMotionSet = nullptr;
+
+    
+    /**
+    *
+    *   Const Expressions:
+    *
+    **/
+    //! For when dummy is standing straight up.
+    static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };
+    static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 72.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 30.f;
+    //! For when dummy is crouching.
+    static constexpr Vector3 DUMMY_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
+    static constexpr Vector3 DUMMY_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_DUCKED = 4.f;
+    //! For when dummy is dead.
+    static constexpr Vector3 DUMMY_BBOX_DEAD_MINS = { -16.f, -16.f, -36.f };
+    static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
 };

@@ -1052,7 +1052,7 @@ inline svg_funcptr_saveable_instance_t *svg_funcptr_saveable_instance_t::GetForP
 /**
 *	@brief	Gets a ptr to the saveable instance which matches the actual address function pointer.
 **/
-inline svg_funcptr_saveable_instance_t *svg_funcptr_saveable_instance_t::GetForPointer( void *ptr ) {
+svg_funcptr_saveable_instance_t *svg_funcptr_saveable_instance_t::GetForPointer( void *ptr ) {
     // Start at the head.
     svg_funcptr_saveable_instance_t *current = head;
     // Iterate while we got an instance.
@@ -1068,18 +1068,18 @@ inline svg_funcptr_saveable_instance_t *svg_funcptr_saveable_instance_t::GetForP
 /**
 *	@brief	Gets a ptr to the saveable instance which matches the passed saveAbleTypeID
 **/
-inline svg_funcptr_saveable_instance_t *svg_funcptr_saveable_instance_t::GetForTypeID( svg_funcptr_saveable_type_t type, const size_t saveAbleTypeID ) {
+inline svg_funcptr_saveable_instance_t *svg_funcptr_saveable_instance_t::GetForTypeID( const size_t funcPtrID ) {
 	// Start at the head.
 	svg_funcptr_saveable_instance_t *current = head;
 	// Iterate while we got an instance.
 	while ( current ) {
 		// Compare by hashed name
-		if ( current->saveAbleType == type ) {
+		//if ( current->saveAbleType == type ) {
 			// Compare the actual name and type.
-			if ( current->saveAbleTypeID.GetID() == saveAbleTypeID ) {
+			if ( current->saveAbleTypeID.GetID() == funcPtrID ) {
 				return current;
 			}
-		}
+		//}
 		current = current->previous;
 	}
 	return nullptr;
@@ -1111,7 +1111,7 @@ void game_read_context_t::read_data( void *buf, size_t len ) {
 *   @param  f The gzFile from which the 16-bit short integer is read.
 *   @return  The 16-bit short integer, converted to little-endian format, as an int.
 **/
-const int game_read_context_t::read_short() {
+const int16_t game_read_context_t::read_short() {
     int16_t v;
 
     read_data( &v, sizeof( v ) );
@@ -1125,7 +1125,7 @@ const int game_read_context_t::read_short() {
 *   @param f The gzFile from which the integer is read.
 *   @return The 32-bit integer read from the file, converted to little-endian format.
 **/
-const int game_read_context_t::read_int() {
+const int32_t game_read_context_t::read_int32() {
     int32_t v;
 
     read_data( &v, sizeof( v ) );
@@ -1174,10 +1174,10 @@ const double game_read_context_t::read_double() {
 *   @return A pointer to the null-terminated string read from the context, or NULL if the length is -1. If an invalid length is encountered, the function terminates with an error.
 **/
 char *game_read_context_t::read_string() {
-    int len;
+    int32_t len;
     char *s;
 
-    len = read_int();
+    len = read_int32();
     if ( len == -1 ) {
         return NULL;
     }
@@ -1200,9 +1200,9 @@ char *game_read_context_t::read_string() {
 *   @return An instance of `svg_level_qstring_t` containing the level tag string, or `nullptr` if the length is -1.
 **/
 const svg_level_qstring_t game_read_context_t::read_level_qstring() {
-    int len;
+    int32_t len;
 
-    len = read_int();
+    len = read_int32();
     if ( len == -1 ) {
         return nullptr;
     }
@@ -1224,9 +1224,9 @@ const svg_level_qstring_t game_read_context_t::read_level_qstring() {
 *   @return An instance of `svg_game_qstring_t` containing the game tag string, or `nullptr` if the length is -1.
 **/
 const svg_game_qstring_t game_read_context_t::read_game_qstring() {
-    int len;
+    int32_t len;
 
-    len = read_int();
+    len = read_int32();
     if ( len == -1 ) {
         return nullptr;
     }
@@ -1248,9 +1248,9 @@ const svg_game_qstring_t game_read_context_t::read_game_qstring() {
 **/
 template<typename T>
 sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *game_read_context_t::read_level_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *p ) {
-    int len;
+    int32_t len;
 
-    len = read_int();
+    len = read_int32();
     if ( len == -1 ) {
         return allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, 0 );
     }
@@ -1271,9 +1271,9 @@ sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *game_read_context_t::read_level_qtag_memo
 **/
 template<typename T>
 sg_qtag_memory_t<T, TAG_SVGAME> *game_read_context_t::read_game_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME> *p ) {
-    int len;
+    int32_t len;
 
-    len = read_int();
+    len = read_int32();
     if ( len == -1 ) {
         return allocate_qtag_memory<T, TAG_SVGAME>( p, 0 );
     }
@@ -1294,9 +1294,9 @@ sg_qtag_memory_t<T, TAG_SVGAME> *game_read_context_t::read_game_qtag_memory( sg_
 *   @brief Reads a null-terminated string from the read game context.
 **/
 void game_read_context_t::read_zstring( char *s, size_t size ) {
-    int len;
+    int32_t len;
 
-    len = read_int();
+    len = read_int32();
     if ( len < 0 || len >= size ) {
         gzclose( f );
         gi.error( "%s: bad length(%d) >= size(%d)", __func__, len, size );
@@ -1326,10 +1326,10 @@ void game_read_context_t::read_vector4( vec_t *v ) {
 *   @brief  Reads a ranged index list from the read game context.
 **/
 void *game_read_context_t::read_index( size_t size, void *start, int max_index ) {
-    int index;
+    int32_t index;
     byte *p;
 
-    index = read_int();
+    index = read_int32();
     if ( index == -1 ) {
         return NULL;
     }
@@ -1347,27 +1347,36 @@ void *game_read_context_t::read_index( size_t size, void *start, int max_index )
 *   @param  type The type of the pointer to read.
 *   @return A pointer to the data of the specified type, or NULL if the index is -1.
 **/
-void *game_read_context_t::read_pointer( svg_save_descriptor_funcptr_type_t type ) {
-    int index;
-    const svg_save_descriptor_funcptr_t *ptr;
-
-    index = read_int();
-    if ( index == -1 ) {
-        return NULL;
+void *game_read_context_t::read_pointer( svg_funcptr_saveable_type_t type ) {
+    // Verify whether it was a nullptr or not.
+    svg_funcptr_saveable_type_t saveAbleType = static_cast<svg_funcptr_saveable_type_t>( read_int32() );
+    if ( saveAbleType == -1 ) {
+        return nullptr;
     }
 
-    if ( index < 0 || index >= num_save_ptrs ) {
+ //   const char *name = read_string();
+	//if ( !name ) {
+	//	gzclose( f );
+	//	gi.error( "%s: bad name", __func__ );
+	//}
+    const char *name = "";
+
+    // Read the saveable typeID.
+    size_t saveAbleTypeID = read_int32();
+    if ( saveAbleType >= 0 && saveAbleTypeID >= 0 ) {
+        // Get the instance of the pointer for said 'type'.
+        const svg_funcptr_saveable_instance_t *saveAbleInstance = svg_funcptr_saveable_instance_t::GetForTypeID( saveAbleTypeID );
+        if ( saveAbleInstance ) {
+            return saveAbleInstance->ptr;
+        }
+        return nullptr;
+    } else {
         gzclose( f );
-        gi.error( "%s: bad index", __func__ );
+        gi.error( "%s: failed finding \"%s\" in the saveAble list.", __func__, name );
+        return nullptr;
     }
 
-    ptr = &save_ptrs[ index ];
-    if ( ptr->type != type ) {
-        gzclose( f );
-        gi.error( "%s: type mismatch", __func__ );
-    }
-
-    return ptr->ptr;
+    return nullptr;
 }
 /**
 *   @brief  Reads a field from the read game context.
@@ -1389,12 +1398,12 @@ void game_read_context_t::read_field( const svg_save_descriptor_field_t *field, 
         break;
     case SD_FIELD_TYPE_INT32:
         for ( i = 0; i < field->size; i++ ) {
-            ( (int *)p )[ i ] = read_int( );
+            ( (int *)p )[ i ] = read_int32( );
         }
         break;
     case SD_FIELD_TYPE_BOOL:
         for ( i = 0; i < field->size; i++ ) {
-            ( (bool *)p )[ i ] = read_int( );
+            ( (bool *)p )[ i ] = read_int32( );
         }
         break;
     case SD_FIELD_TYPE_FLOAT:
@@ -1433,13 +1442,13 @@ void game_read_context_t::read_field( const svg_save_descriptor_field_t *field, 
         break;
     case SD_FIELD_TYPE_EDICT:
         // WID: C++20: Added cast.
-        ( *(svg_base_edict_t **)p ) = g_edict_pool.EdictForNumber( read_int( ) );
+        ( *(svg_base_edict_t **)p ) = g_edict_pool.EdictForNumber( read_int32( ) );
         //*(svg_base_edict_t **)p = (svg_base_edict_t*)read_index(ctx->f, sizeof(svg_base_edict_t), g_edicts, game.maxentities - 1);
         break;
     case SD_FIELD_TYPE_CLIENT:
         // WID: C++20: Added cast.
         //*(svg_client_t **)p = (svg_client_t*)read_index(ctx->f, sizeof(svg_client_t), game.clients, game.maxclients - 1);
-        ( *(svg_client_t **)p )->clientNum = read_int( );
+        ( *(svg_client_t **)p )->clientNum = read_int32( );
         break;
     case SD_FIELD_TYPE_ITEM:
         // WID: C++20: Added cast.
@@ -1448,7 +1457,7 @@ void game_read_context_t::read_field( const svg_save_descriptor_field_t *field, 
 
     case SD_FIELD_TYPE_FUNCTION:
         // WID: C++20: Added cast.
-        *(void **)p = read_pointer( (svg_save_descriptor_funcptr_type_t)field->flags );
+        *(void **)p = read_pointer( (svg_funcptr_saveable_type_t)field->flags );
         break;
 
     case SD_FIELD_TYPE_FRAMETIME:
@@ -1495,7 +1504,7 @@ void game_read_context_t::read_fields( const svg_save_descriptor_field_t *descri
 * 
 * 
 **/
-void game_write_context_t::write_data( void *buf, size_t len ) {
+void game_write_context_t::write_data( const void *buf, size_t len ) {
     if ( gzwrite( f, buf, len ) != len ) {
         gzclose( f );
         gi.error( "%s: couldn't write %zu bytes", __func__, len );
@@ -1527,7 +1536,7 @@ void game_write_context_t::write_double( double v ) {
     write_data( &v, sizeof( v ) );
 }
 
-void game_write_context_t::write_string( char *s ) {
+void game_write_context_t::write_string( const char *s ) {
     size_t len;
 
     if ( !s ) {
@@ -1659,20 +1668,28 @@ void game_write_context_t::write_index( const void *p, size_t size, const void *
 /**
 *   @brief  Write a pointer to the file.
 **/
-void game_write_context_t::write_pointer( void *p, svg_save_descriptor_funcptr_type_t type, const svg_save_descriptor_field_t *saveField ) {
-    const svg_save_descriptor_funcptr_t *ptr;
-    int i;
+void game_write_context_t::write_pointer( void *p, svg_funcptr_saveable_type_t type, const svg_save_descriptor_field_t *saveField ) {
+    //// Validate the pointer.
+ //   if ( !p ) {
+ //       write_int32( -1 );
+ //       return;
+ //   }
 
-    if ( !p ) {
+    // Get the instance of the pointer for said 'type'.
+    const svg_funcptr_saveable_instance_t *saveAbleInstance = svg_funcptr_saveable_instance_t::GetForPointer( p );
+    if ( p && saveAbleInstance && saveAbleInstance->saveAbleType == type ) {
+        // Write name.
+        //if ( saveAbleInstance->name ) {
+        //write_string( saveAbleInstance->name );
+        // Write the Type.
+        write_int32( saveAbleInstance->saveAbleType );
+        // Write the TypeID.
+        write_int32( saveAbleInstance->saveAbleTypeID.GetID() );
+        return;
+    } else if ( p == nullptr && ( saveAbleInstance == nullptr || saveAbleInstance->saveAbleType != type ) ) {
+        // Nullptr.
         write_int32( -1 );
         return;
-    }
-
-    for ( i = 0, ptr = save_ptrs; i < num_save_ptrs; i++, ptr++ ) {
-        if ( ptr->type == type && ptr->ptr == p ) {
-            write_int32( i );
-            return;
-        }
     }
 
     gzclose( f );
@@ -1758,7 +1775,7 @@ void game_write_context_t::write_field( const svg_save_descriptor_field_t *descr
 
     case SD_FIELD_TYPE_FUNCTION:
         // WID: C++20: Added cast.
-        write_pointer( *(void **)p, (svg_save_descriptor_funcptr_type_t)descriptorField->flags, descriptorField );
+        write_pointer( *(void **)p, (svg_funcptr_saveable_type_t)descriptorField->flags, descriptorField );
         break;
 
     case SD_FIELD_TYPE_FRAMETIME:
@@ -1834,8 +1851,6 @@ static void check_gzip(int magic)
 static game_read_context_t make_read_context( gzFile f ) {
     game_read_context_t ctx;
     ctx.f = f;
-    ctx.save_ptrs = save_ptrs;
-    ctx.num_save_ptrs = num_save_ptrs;
     return ctx;
 }
 /**
@@ -1846,8 +1861,6 @@ static game_read_context_t make_read_context( gzFile f ) {
 static game_write_context_t make_write_context( gzFile f ) {
     game_write_context_t ctx;
     ctx.f = f;
-    ctx.save_ptrs = save_ptrs;
-    ctx.num_save_ptrs = num_save_ptrs;
     return ctx;
 }
 
@@ -2130,7 +2143,7 @@ void SVG_ReadLevel(const char *filename)
     // load all the entities
     while (1) {
         // Read in entity number.
-        entnum = ctx.read_int( );
+        entnum = ctx.read_int32( );
         if ( entnum == -1 )
             break;
         if ( entnum < 0 || entnum >= game.maxentities ) {
@@ -2148,7 +2161,8 @@ void SVG_ReadLevel(const char *filename)
         // TypeInfo for this entity.
         EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
         if ( !typeInfo ) {
-            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+            classname = "svg_base_edict_t";
+            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
         }
         // Worldspawn:
         g_edict_pool.edicts[ entnum ] = ent = typeInfo->allocateEdictInstanceCallback( nullptr );

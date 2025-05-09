@@ -181,11 +181,16 @@ const bool svg_worldspawn_edict_t::KeyValue( const cm_entity_t *keyValuePair, st
 *
 **/
 /**
+*
+*   TestDummy Callback Member Functions:
+*
+**/
+/**
 *   @brief  Spawn routine.
 **/
-void svg_worldspawn_edict_t::ed_worldspawn_spawn( svg_worldspawn_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_edict_t *self ) -> void {
     // Call upon the base class.
-    Base::base_edict_spawn( self );
+    Base::onSpawn( self );
 
     // Setup the world spawn entity.
     self->movetype = MOVETYPE_PUSH;

@@ -516,7 +516,8 @@ void SVG_Command_Kill_f(svg_base_edict_t *ent)
     ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_GODMODE );
     ent->health = 0;
     ent->meansOfDeath = MEANS_OF_DEATH_SUICIDE;
-    player_die(ent, ent, ent, 100000, ent->s.origin);
+    //player_die(ent, ent, ent, 100000, ent->s.origin);
+    ent->DispatchDieCallback( ent, ent, 100000, ent->s.origin );
 }
 
 /*

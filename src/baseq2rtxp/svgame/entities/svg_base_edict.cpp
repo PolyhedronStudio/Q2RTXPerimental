@@ -190,7 +190,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.sounds.middle, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.sounds.end, SD_FIELD_TYPE_INT32 ),
     // Callback:
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, pushMoveInfo.endMoveCallback, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PUSHER_MOVEINFO_ENDMOVECALLBACK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, pushMoveInfo.endMoveCallback, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_PUSHER_MOVEINFO_ENDMOVECALLBACK ),
     // Movewith:
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, pushMoveInfo.lastVelocity, SD_FIELD_TYPE_VECTOR3, 1 ),
 
@@ -214,17 +214,17 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, nextthink, SD_FIELD_TYPE_INT64 ),
 	
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, spawnCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_SPAWN ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postSpawnCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_POSTSPAWN ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, preThinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PRETHINK ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, thinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_THINK ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postThinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_POSTTHINK ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, blockedCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_BLOCKED ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, touchCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_TOUCH ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, useCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_USE ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, onSignalInCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_ONSIGNALIN ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, painCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_PAIN ),
-    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, dieCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_CALLBACK_DIE ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, spawnCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_SPAWN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postSpawnCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_POSTSPAWN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, preThinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_PRETHINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, thinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_THINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, postThinkCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_POSTTHINK ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, blockedCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_BLOCKED ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, touchCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_TOUCH ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, useCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_USE ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, onSignalInCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_ONSIGNALIN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, painCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_PAIN ),
+    SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, dieCallbackFuncPtr, SD_FIELD_TYPE_FUNCTION, FPTR_SAVEABLE_TYPE_DIE ),
     // TODO:
     //SAVE_DESCRIPTOR_DEFINE_CALLBACK_PTR( svg_base_edict_t, think, SD_FIELD_TYPE_FUNCPTR, P_think ),
 
@@ -801,6 +801,6 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
 *   Callbacks(defaults):
 *
 **/
-void svg_base_edict_t::base_edict_spawn( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn )( svg_base_edict_t *self ) -> void {
 
 }

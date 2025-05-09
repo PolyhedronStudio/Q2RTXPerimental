@@ -48,7 +48,7 @@ struct svg_player_edict_t : public svg_base_edict_t {
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_GameSpawn, 
         // spawnFunc:
-        svg_player_edict_t::player_edict_spawn 
+        svg_player_edict_t::onSpawn 
     );
 
 
@@ -101,7 +101,15 @@ struct svg_player_edict_t : public svg_base_edict_t {
     /**
     *   @brief  Spawn routine.
     **/
-    static void player_edict_spawn( svg_player_edict_t *self );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_player_edict_t, onSpawn );
+    /**
+    *   @brief  Player pain is handled at the end of the frame in P_DamageFeedback.
+    **/
+    DECLARE_MEMBER_CALLBACK_PAIN( svg_player_edict_t, onPain );
+    /**
+    *   @brief  Player death routine.
+    **/
+    DECLARE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie );
 
 
     /**
