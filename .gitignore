@@ -43,6 +43,9 @@ music/
 *.tmp
 *.wal
 *.wav
+*.ssv
+*.sav
+*.sv2
 
 *.texinfo.json
 *-compile.map
@@ -53,7 +56,7 @@ Q2RTXPerimental_ded
 
 /CMakeFiles
 q2config.cfg
-save
+/save
 */docs
 baseq2/**/*.txt
 !baseq2/*.txt

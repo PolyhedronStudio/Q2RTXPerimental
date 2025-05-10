@@ -312,19 +312,6 @@ extern spawn_temp_t st;
 #define crandom()   crand()
 
 
-
-/**
-*
-*
-*
-*   ItemList AND Entities:
-*
-*
-*
-**/
-
-
-
 /**
 *
 *

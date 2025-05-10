@@ -224,6 +224,7 @@ These are things to fix, or randomly implement(features, ideas), but definitely 
 	* [ ] SVG_CanDamage and functions alike need to be moved into gamemode.
 
 ### Lowest, nearly redundant Priority:
+- [ ] Use the actual FS system for read/write context in svgame.
 - [ ] And an entity you can 'pick up and move around' for the lulz.
 * [ ] Move capability of determining new pvs packet entities to clgame.
 * [ ] Add an enter/exit frame/pvs so that we can allocate and deallocate skeletal bone

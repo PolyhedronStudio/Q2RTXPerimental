@@ -18,6 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // m_move.c -- monster movement
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_misc.h"
+#include "svgame/svg_utils.h"
 
 #define STEPSIZE    18
 
@@ -188,10 +190,14 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
     }
 
 // push down from a step height above the wished position
+    #if 0
     if (!(ent->monsterinfo.aiflags & AI_NOSTEP))
         stepsize = STEPSIZE;
     else
         stepsize = 1;
+    #else
+    	stepsize = STEPSIZE;
+    #endif
 
     neworg[2] += stepsize;
     VectorCopy(neworg, end);
@@ -302,7 +308,7 @@ void M_ChangeYaw(svg_base_edict_t *ent)
 
     // Prevent the monster from rotating a full circle around the yaw.
     // Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
-    move = QM_Wrapf( move, -180.f, 180.f );
+    move = QM_Wrap( move, -180.f, 180.f );
     //if (ideal > current) {
     //    if ( move >= 180 ) {
     //        move = move - 360;
@@ -313,7 +319,7 @@ void M_ChangeYaw(svg_base_edict_t *ent)
     //    }
     //}
     // Clamp the yaw move speed.
-    move = QM_Clampf( move, -speed, speed );
+    move = QM_Clamp( move, -speed, speed );
     //if (move > 0) {
     //    if ( move > speed ) {
     //        move = speed;
@@ -346,7 +352,7 @@ bool SV_StepDirection( svg_base_edict_t *ent, float yaw, float dist ) {
     const Vector3 move = {
         cos( yaw ) * dist,
         sin( yaw ) * dist,
-        0
+        0.f
     };
 
     const Vector3 oldorigin = ent->s.origin;

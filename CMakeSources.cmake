@@ -303,6 +303,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_save.cpp
 	baseq2rtxp/svgame/svg_signalio.cpp
 	baseq2rtxp/svgame/svg_spawn.cpp
+	baseq2rtxp/svgame/svg_stepmove.cpp
 	baseq2rtxp/svgame/svg_target.cpp
 	baseq2rtxp/svgame/svg_trigger.cpp
 	baseq2rtxp/svgame/svg_utils.cpp
@@ -375,6 +376,11 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.cpp
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp
+
+	baseq2rtxp/svgame/save/svg_save_descriptor_field.cpp
+	baseq2rtxp/svgame/save/svg_save_funcptr_instance.cpp
+	baseq2rtxp/svgame/save/svg_save_read_context.cpp
+	baseq2rtxp/svgame/save/svg_save_write_context.cpp
 
 	baseq2rtxp/svgame/monsters/svg_mmove.cpp
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
@@ -473,6 +479,13 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/player/svg_player_trail.h
 	baseq2rtxp/svgame/player/svg_player_weapon.h
 	baseq2rtxp/svgame/player/svg_player_view.h
+
+	baseq2rtxp/svgame/save/svg_save_callback_global.h
+	baseq2rtxp/svgame/save/svg_save_callback_member.h
+	baseq2rtxp/svgame/save/svg_save_descriptor_field.h
+	baseq2rtxp/svgame/save/svg_save_funcptr_instance.h
+	baseq2rtxp/svgame/save/svg_save_read_context.h
+	baseq2rtxp/svgame/save/svg_save_write_context.h
 
 	baseq2rtxp/svgame/monsters/svg_mmove.h
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.h

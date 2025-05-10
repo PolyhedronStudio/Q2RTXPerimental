@@ -12,14 +12,83 @@
 #include "sharedgame/sg_means_of_death.h"
 
 
+#if 0
+/**
+*   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
+**/
+SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_misc_explobox_t )
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_misc_explobox_t, summedDistanceTraversed, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_misc_explobox_t, testVar, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_misc_explobox_t, testVar2, SD_FIELD_TYPE_VECTOR3 ),
+SAVE_DESCRIPTOR_FIELDS_END();
+
+//! Implement the methods for saving this edict type's save descriptor fields.
+SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_misc_explobox_t, svg_base_edict_t );
+
+
+
+/**
+*
+*   Core:
+*
+**/
+/**
+*   Reconstructs the object, optionally retaining the entityDictionary.
+**/
+void svg_misc_explobox_t::Reset( const bool retainDictionary ) {
+    // Call upon the base class.
+    Base::Reset( retainDictionary );
+    // Reset the edict's save descriptor fields.
+    //testVar = 1337;
+    //testVar2 = {};
+}
+
+
+/**
+*   @brief  Save the entity into a file using game_write_context.
+*   @note   Make sure to call the base parent class' Save() function.
+**/
+void svg_misc_explobox_t::Save( struct game_write_context_t *ctx ) {
+    // Call upon the base class.
+    //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
+    Base::Save( ctx );
+    // Save all the members of this entity type.
+    ctx->write_fields( svg_misc_explobox_t::saveDescriptorFields, this );
+}
+/**
+*   @brief  Restore the entity from a loadgame read context.
+*   @note   Make sure to call the base parent class' Restore() function.
+**/
+void svg_misc_explobox_t::Restore( struct game_read_context_t *ctx ) {
+    // Restore parent class fields.
+    Base::Restore( ctx );
+    // Restore all the members of this entity type.
+    ctx->read_fields( svg_misc_explobox_t::saveDescriptorFields, this );
+}
+
+
+/**
+*   @brief  Called for each cm_entity_t key/value pair for this entity.
+*           If not handled, or unable to be handled by the derived entity type, it will return
+*           set errorStr and return false. True otherwise.
+**/
+const bool svg_misc_explobox_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
+    return Base::KeyValue( keyValuePair, errorStr );
+}
+#endif // #if 0
+
+
+
 /*QUAKED misc_explobox (0 .5 .8) (-16 -16 0) (16 16 40)
 Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
 */
+bool M_walkmove( svg_base_edict_t *ent, float yaw, float dist );
+
 /**
 *   @brief
 **/
-void barrel_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_misc_explobox_t, onTouch )( svg_misc_explobox_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
 
     if ( ( !other->groundInfo.entity ) || ( other->groundInfo.entity == self ) ) {
         return;
@@ -49,13 +118,13 @@ void barrel_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_pla
 
     // WID: TODO: Use new monster walkmove/slidebox implementation.
     // Perform move.
-    //M_walkmove( self, direction, distance );
+    M_walkmove( self, direction, distance );
 }
 
 /**
 *   @brief
 **/
-void barrel_explode( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_THINK( svg_misc_explobox_t, thinkExplode )( svg_misc_explobox_t *self ) -> void {
     vec3_t  save = {};
 
     SVG_RadiusDamage( self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLODED_BARREL );
@@ -107,17 +176,17 @@ void barrel_explode( svg_base_edict_t *self ) {
 /**
 *   @brief
 **/
-void barrel_delay( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+DEFINE_MEMBER_CALLBACK_DIE( svg_misc_explobox_t, onDie )( svg_misc_explobox_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
     self->takedamage = DAMAGE_NO;
     self->nextthink = level.time + random_time( 150_ms );
-    self->SetThinkCallback( barrel_explode );
+    self->SetThinkCallback( &svg_misc_explobox_t::thinkExplode );
     self->activator = attacker;
 }
 
 /**
 *   @brief  
 **/
-void SP_misc_explobox( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_explobox_t, onSpawn) ( svg_misc_explobox_t *self ) -> void {
     if ( deathmatch->value ) {
         // auto-remove for deathmatch
         SVG_FreeEdict( self );
@@ -143,11 +212,11 @@ void SP_misc_explobox( svg_base_edict_t *self ) {
     if ( !self->dmg )
         self->dmg = 150;
 
-    self->SetDieCallback( barrel_delay );
+    self->SetDieCallback( &svg_misc_explobox_t::onDie );
     self->takedamage = DAMAGE_YES;
     //self->monsterinfo.aiflags = AI_NOSTEP;
 
-    self->SetTouchCallback( barrel_touch );
+    self->SetTouchCallback( &svg_misc_explobox_t::onTouch );
 
     self->SetThinkCallback( M_droptofloor );
     self->nextthink = level.time + 20_hz;

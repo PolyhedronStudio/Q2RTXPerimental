@@ -138,7 +138,7 @@ void SP_info_null(svg_base_edict_t *self);
 void SP_info_notnull(svg_base_edict_t *self);
 void SP_path_corner(svg_base_edict_t *self);
 
-void SP_misc_explobox(svg_base_edict_t *self);
+//void SP_misc_explobox(svg_base_edict_t *self);
 void SP_misc_gib_arm(svg_base_edict_t *self);
 void SP_misc_gib_leg(svg_base_edict_t *self);
 void SP_misc_gib_head(svg_base_edict_t *self);
@@ -215,7 +215,7 @@ static const spawn_func_t spawn_funcs[] = {
     // [X] Converted: {"info_notnull", SP_info_notnull},
     {"path_corner", SP_path_corner},
 
-    {"misc_explobox", SP_misc_explobox},
+    //{"misc_explobox", SP_misc_explobox},
     #if 0
     {"misc_gib_arm", SP_misc_gib_arm},
     {"misc_gib_leg", SP_misc_gib_leg},

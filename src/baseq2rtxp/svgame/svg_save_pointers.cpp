@@ -279,7 +279,7 @@ extern void use_target_splash( svg_base_edict_t *self, svg_base_edict_t *other, 
 *	@brief	Checks whether the passed (save-) callback function pointer exists within
 * 			the registered save pointer table, and has a matching type set.
 **/
-const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_funcptr_saveable_type_t type, const std::string &functionName ) {
+const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_save_funcptr_type_t type, const std::string &functionName ) {
     // For registering matching type found or not.
     bool matchingType = false;
     // For registering matching ptr found or not.
@@ -292,7 +292,7 @@ const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr(
     }
 
     // Iterate the registered save ptr table.
-    svg_funcptr_saveable_instance_t *saveAbleInstance = svg_funcptr_saveable_instance_t::GetForPointer( p );
+    svg_save_funcptr_instance_t *saveAbleInstance = svg_save_funcptr_instance_t::GetForPointer( p );
     if ( saveAbleInstance && saveAbleInstance->ptr == p ) {
         matchingPtr = true;
     }

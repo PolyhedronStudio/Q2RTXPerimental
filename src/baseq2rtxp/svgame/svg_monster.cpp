@@ -22,6 +22,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
 
+/**
+*   @brief  Marks the edict as free
+**/
+DECLARE_GLOBAL_CALLBACK_THINK( M_droptofloor );
+
 #if 0
 /**
 *	@brief	
@@ -201,7 +206,10 @@ void M_WorldEffects( svg_base_edict_t *ent ) {
     }
 }
 
-void M_droptofloor( svg_base_edict_t *ent ) {
+/**
+*	@brief	
+**/
+DEFINE_GLOBAL_CALLBACK_THINK( M_droptofloor )( svg_base_edict_t *ent ) -> void {
 	vec3_t      end;
 	svg_trace_t     trace;
 
