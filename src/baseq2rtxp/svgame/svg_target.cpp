@@ -125,7 +125,7 @@ These are single use targets.
 void use_target_secret( svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     gi.sound(ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NORM, 0);
 
-    level.found_secrets++;
+    //level.found_secrets++;
 
     SVG_UseTargets(ent, activator);
     SVG_FreeEdict(ent);
@@ -144,7 +144,7 @@ void SP_target_secret(svg_base_edict_t *ent)
         st.noise = "misc/secret.wav";
     ent->noise_index = gi.soundindex(st.noise);
     ent->svflags = SVF_NOCLIENT;
-    level.total_secrets++;
+    //level.total_secrets++;
     // map bug hack
     if (!Q_stricmp(level.mapname, "mine3") && ent->s.origin[0] == 280 && ent->s.origin[1] == -2048 && ent->s.origin[2] == -624)
         ent->message = const_cast<char*>("You have found a secret area."); // WID: C++20: Added cast.
@@ -159,10 +159,10 @@ These are single use targets.
 void use_target_goal( svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     gi.sound(ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NORM, 0);
 
-    level.found_goals++;
+    //level.found_goals++;
 
-    if (level.found_goals == level.total_goals)
-        gi.configstring(CS_CDTRACK, "0");
+    //if (level.found_goals == level.total_goals)
+    //    gi.configstring(CS_CDTRACK, "0");
 
     SVG_UseTargets(ent, activator);
     SVG_FreeEdict(ent);
@@ -181,7 +181,7 @@ void SP_target_goal(svg_base_edict_t *ent)
         st.noise = "misc/secret.wav";
     ent->noise_index = gi.soundindex(st.noise);
     ent->svflags = SVF_NOCLIENT;
-    level.total_goals++;
+    //level.total_goals++;
 }
 
 //==========================================================

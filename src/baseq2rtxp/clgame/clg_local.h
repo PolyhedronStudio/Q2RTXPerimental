@@ -776,7 +776,7 @@ extern game_locals_t game;
 *
 *	@todo	In the future, look into saving its state in: level.clsv
 **/
-struct level_locals_t {
+struct svg_level_locals_t {
 	//! Frame number, starts incrementing when the level session has begun..
 	uint64_t	frameNumber;
 	//! Time passed, also starts incrementing when the level session has begun.
@@ -833,7 +833,7 @@ struct level_locals_t {
 		float lerpFraction;
 	} eaxEffect;
 };
-extern level_locals_t level;
+extern svg_level_locals_t level;
 
 
 

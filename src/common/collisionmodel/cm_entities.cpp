@@ -16,7 +16,7 @@
 
 
 //! Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
-static cm_entity_t cm_null_entity = { /*.nullable_string = nullptr*/ };
+static cm_entity_t cm_null_entity = { .id = -1/*.nullable_string = nullptr*/ };
 
 /**
 *   @brief  Parse and set the appropriate pair value flags, as well as the value itself for the types

@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *	General used Game Objects.
 **/
 game_locals_t   game;
-level_locals_t  level;
+svg_level_locals_t  level;
 svgame_import_t	gi;
 svgame_export_t	globals;
 spawn_temp_t    st;

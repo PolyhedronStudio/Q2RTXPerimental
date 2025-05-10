@@ -1032,7 +1032,7 @@ void SVG_WriteLevel(const char *filename)
     write_int(f, SAVE_MAGIC2);
     write_int(f, SAVE_VERSION);
 
-    // write out level_locals_t
+    // write out svg_level_locals_t
     write_fields(f, levelfields, &level);
 
     // write out all the entities

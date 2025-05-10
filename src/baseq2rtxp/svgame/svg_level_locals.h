@@ -14,7 +14,9 @@
 *   @brief  This structure is cleared as each map is entered.
 *           It is read/written to the level.sav file for savegames.
 **/
-struct level_locals_t {
+struct svg_level_locals_t {
+    static svg_save_descriptor_field_t saveDescriptorFields[];
+
     uint64_t    frameNumber;
     QMTime		time;
 
@@ -42,17 +44,9 @@ struct level_locals_t {
     svg_base_edict_t     *sound2_entity;
     int64_t		sound2_entity_framenum;
 
-    int         pic_health;
-
-    int         total_secrets;
-    int         found_secrets;
-
-    int         total_goals;
-    int         found_goals;
-
     svg_base_edict_t *current_entity;    // entity running from SVG_RunFrame
     int         body_que;           // dead bodies
 };
 
 //! Extern it.
-extern level_locals_t   level;
+extern svg_level_locals_t   level;

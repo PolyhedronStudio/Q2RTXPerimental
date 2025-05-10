@@ -259,47 +259,27 @@ static const save_field_t gamefields[] = {
 /**
 *   level:
 **/
-static const save_field_t levelfields[] = {
-#define _OFS FOFS_LEVEL_LOCALS
-    INT64( frameNumber ),
-    INT64( time ), // WID: 64-bit-frame
-
-    ZSTR( level_name, MAX_QPATH ),
-    ZSTR( mapname, MAX_QPATH ),
-    ZSTR( nextmap, MAX_QPATH ),
-
-    INT64( intermissionFrameNumber ),
-
-    CHARPTR( changemap ),
-    INT64( exitintermission ),
-    VEC3( intermission_origin ),
-    VEC3( intermission_angle ),
-
-    ENTITY( sight_client ),
-
-    ENTITY( sight_entity ),
-    INT64( sight_entity_framenum ), // WID: 64-bit-frame
-    ENTITY( sound_entity ),
-    INT64( sound_entity_framenum ), // WID: 64-bit-frame
-    ENTITY( sound2_entity ),
-    INT64( sound2_entity_framenum ),// WID: 64-bit-frame
-
-    INT32( pic_health ),
-
-    INT32( total_secrets ),
-    INT32( found_secrets ),
-
-    INT32( total_goals ),
-    INT32( found_goals ),
-
-    ENTITY( current_entity ),
-
-    INT32( body_que ),
-
-    // WID: C++20: Replaced {0}
-    {}
-#undef _OFS
-};
+SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_level_locals_t )
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, frameNumber, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, time, SD_FIELD_TYPE_FRAMETIME ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, level_name, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, mapname, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, nextmap, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, intermissionFrameNumber, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, changemap, SD_FIELD_TYPE_LSTRING ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, exitintermission, SD_FIELD_TYPE_FRAMETIME ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, intermission_origin, SD_FIELD_TYPE_VECTOR3 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, intermission_angle, SD_FIELD_TYPE_VECTOR3 ),
+    // Set in-game during the frame, invalid at load/save time.
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_client, SD_FIELD_TYPE_EDICT /*SD_FIELD_TYPE_CLIENT*/ ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_entity, SD_FIELD_TYPE_EDICT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_entity_framenum, SD_FIELD_TYPE_FRAMETIME ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound_entity, SD_FIELD_TYPE_EDICT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound_entity_framenum, SD_FIELD_TYPE_FRAMETIME ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound2_entity, SD_FIELD_TYPE_EDICT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound2_entity_framenum, SD_FIELD_TYPE_FRAMETIME ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, body_que, SD_FIELD_TYPE_INT32 ),
+SAVE_DESCRIPTOR_FIELDS_END();
 
 
 
@@ -923,10 +903,10 @@ void SVG_WriteLevel(const char *filename)
     // End of level data.
     write_int(f, -1);
 
-    // Write out level_locals_t. We do this after writing out the entities.
+    // Write out svg_level_locals_t. We do this after writing out the entities.
 	// This is so that while loading the level, we initialize entities first
     // which in turn, the levelfields can optionally be pointing at.
-    write_fields( f, levelfields, &level );
+	ctx.write_fields( svg_level_locals_t::saveDescriptorFields, &level );
 
 	// Possibly throw an error if the file couldn't be written.
     if ( gzclose( f ) ) {
@@ -1062,8 +1042,9 @@ void SVG_ReadLevel(const char *filename)
     }
 
 	// We load these right after the entities, so that we can
-	// optionally point to them from the level_locals_t fields.
-    read_fields( &ctx, levelfields, &level );
+	// optionally point to them from the svg_level_locals_t fields.
+    //read_fields( &ctx, levelfields, &level );
+	ctx.read_fields( svg_level_locals_t::saveDescriptorFields, &level );
 
     gzclose(f);
 

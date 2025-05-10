@@ -143,67 +143,6 @@ static constexpr int32_t BODY_QUEUE_SIZE = 8;
 
 
 /**
-*
-*
-*
-*   Extern CVars:
-*
-*
-*
-**/
-extern cvar_t *dedicated;
-extern cvar_t *password;
-extern cvar_t *spectator_password;
-extern cvar_t *needpass;
-extern cvar_t *filterban;
-
-extern cvar_t *maxclients;
-extern cvar_t *maxspectators;
-extern cvar_t *maxentities;
-extern cvar_t *nomonsters;
-extern cvar_t *aimfix;
-
-extern cvar_t *gamemode;
-extern cvar_t *deathmatch;
-extern cvar_t *coop;
-extern cvar_t *dmflags;
-extern cvar_t *skill;
-extern cvar_t *fraglimit;
-extern cvar_t *timelimit;
-
-extern cvar_t *sv_cheats;
-extern cvar_t *sv_flaregun;
-extern cvar_t *sv_maplist;
-extern cvar_t *sv_features;
-
-extern cvar_t *sv_airaccelerate;
-extern cvar_t *sv_maxvelocity;
-extern cvar_t *sv_gravity;
-
-extern cvar_t *sv_rollspeed;
-extern cvar_t *sv_rollangle;
-
-extern cvar_t *flood_msgs;
-extern cvar_t *flood_persecond;
-extern cvar_t *flood_waitdelay;
-
-extern cvar_t *g_select_empty;
-
-// Moved to CLGame.
-//extern cvar_t *gun_x;
-//extern cvar_t *gun_y;
-//extern cvar_t *gun_z;
-
-// Moved to CLGame.
-//extern cvar_t *run_pitch;
-//extern cvar_t *run_roll;
-//extern cvar_t *bob_up;
-//extern cvar_t *bob_pitch;
-//extern cvar_t *bob_roll;
-
-
-
-/**
 * 
 * 
 * 
@@ -289,8 +228,6 @@ extern spawn_temp_t st;
 #define FOFS_GCLIENT( field )       q_offsetof( svg_client_t, field )
 //! For game locals fields.
 #define FOFS_GAME_LOCALS( field )   q_offsetof( game_locals_t, field )
-//! For level locals fields.
-#define FOFS_LEVEL_LOCALS( field )  q_offsetof( level_locals_t, field )
 //! For spawn temp fields.
 #define FOFS_SPAWN_TEMP( field )    q_offsetof( spawn_temp_t, field )
 
@@ -479,3 +416,61 @@ void SVG_RunEntity( svg_base_edict_t *ent );
 
 
 
+/**
+*
+*
+*
+*   Extern CVars:
+*
+*
+*
+**/
+extern cvar_t *dedicated;
+extern cvar_t *password;
+extern cvar_t *spectator_password;
+extern cvar_t *needpass;
+extern cvar_t *filterban;
+
+extern cvar_t *maxclients;
+extern cvar_t *maxspectators;
+extern cvar_t *maxentities;
+extern cvar_t *nomonsters;
+extern cvar_t *aimfix;
+
+extern cvar_t *gamemode;
+extern cvar_t *deathmatch;
+extern cvar_t *coop;
+extern cvar_t *dmflags;
+extern cvar_t *skill;
+extern cvar_t *fraglimit;
+extern cvar_t *timelimit;
+
+extern cvar_t *sv_cheats;
+extern cvar_t *sv_flaregun;
+extern cvar_t *sv_maplist;
+extern cvar_t *sv_features;
+
+extern cvar_t *sv_airaccelerate;
+extern cvar_t *sv_maxvelocity;
+extern cvar_t *sv_gravity;
+
+extern cvar_t *sv_rollspeed;
+extern cvar_t *sv_rollangle;
+
+extern cvar_t *flood_msgs;
+extern cvar_t *flood_persecond;
+extern cvar_t *flood_waitdelay;
+
+extern cvar_t *g_select_empty;
+
+// Moved to CLGame.
+//extern cvar_t *gun_x;
+//extern cvar_t *gun_y;
+//extern cvar_t *gun_z;
+
+// Moved to CLGame.
+//extern cvar_t *run_pitch;
+//extern cvar_t *run_roll;
+//extern cvar_t *bob_up;
+//extern cvar_t *bob_pitch;
+//extern cvar_t *bob_roll;

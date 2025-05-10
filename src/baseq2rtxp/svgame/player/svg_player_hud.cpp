@@ -393,7 +393,7 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     // Health
     //
-    ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
+    ent->client->ps.stats[ STAT_HEALTH_ICON ] = 0;// level.pic_health;
     ent->client->ps.stats[STAT_HEALTH] = ent->health;
     
     //

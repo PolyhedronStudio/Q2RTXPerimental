@@ -472,6 +472,7 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	  )
 	  target_precompile_headers(baseq2rtxp_svgame PRIVATE
 		<shared/shared.h>
+		<svgame/svg_local.h>
 	  )
 	endif()
 

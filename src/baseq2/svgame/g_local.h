@@ -460,7 +460,7 @@ typedef struct {
     int         body_que;           // dead bodies
 
     int         power_cubes;        // ugly necessity for coop
-} level_locals_t;
+} svg_level_locals_t;
 
 
 // spawn_temp_t is only used to hold entity field values that
@@ -575,7 +575,7 @@ typedef struct {
 
 
 extern  game_locals_t   game;
-extern  level_locals_t  level;
+extern  svg_level_locals_t  level;
 extern  spawn_temp_t    st;
 
 extern  int sm_meat_index;
@@ -630,7 +630,7 @@ extern  edict_t         *g_edicts;
 
 #define FOFS_GENTITY(x) q_offsetof(edict_t, x)
 #define FOFS_SPAWN_TEMP(x) q_offsetof(spawn_temp_t, x)
-#define FOFS_LEVEL_LOCALS(x) q_offsetof(level_locals_t, x)
+#define FOFS_LEVEL_LOCALS(x) q_offsetof(svg_level_locals_t, x)
 #define FOFS_GAME_LOCALS(x) q_offsetof(game_locals_t, x)
 #define FOFS_GCLIENT(x) q_offsetof(svg_client_t, x)
 

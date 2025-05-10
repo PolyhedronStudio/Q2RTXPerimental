@@ -100,7 +100,7 @@ struct svg_misc_explobox_t : public svg_base_edict_t {
     /**
     *   @brief  Post-Spawn.
     **/
-    DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_misc_explobox_t, onPostSpawn );
+    //DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_misc_explobox_t, onPostSpawn );
     /**
     *   @brief  Thinking.
     **/
@@ -114,11 +114,11 @@ struct svg_misc_explobox_t : public svg_base_edict_t {
     /**
     *   @brief
     **/
-    DECLARE_MEMBER_CALLBACK_USE( svg_misc_explobox_t, onUse );
+    //DECLARE_MEMBER_CALLBACK_USE( svg_misc_explobox_t, onUse );
     /**
     *   @brief
     **/
-    DECLARE_MEMBER_CALLBACK_PAIN( svg_misc_explobox_t, onPain );
+    //DECLARE_MEMBER_CALLBACK_PAIN( svg_misc_explobox_t, onPain );
     /**
     *   @brief
     **/
