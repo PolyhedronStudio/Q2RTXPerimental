@@ -12,7 +12,7 @@
 #include "svgame/svg_save.h"
 
 #include "sharedgame/sg_pmove.h"
-#include "svgame/entities/svg_ed_player.h"
+#include "svgame/entities/svg_player_edict.h"
 
 
 /**

@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_clients.h"
 #include "svgame/svg_edict_pool.h"
 
-#include "svgame/entities/svg_ed_player.h"
+#include "svgame/entities/svg_player_edict.h"
 
 
 // Function Pointer Needs:
@@ -796,7 +796,7 @@ void SVG_ReadGame( const char *filename ) {
     i = ctx.read_int32();
     if (i != SAVE_MAGIC1) {
         gzclose(f);
-        gi.error("Not a Q2PRO save game");
+        gi.error("Not a Q2RTXPerimental save game");
     }
 	// Read the version number.
     i = ctx.read_int32();
@@ -821,14 +821,6 @@ void SVG_ReadGame( const char *filename ) {
 
     // Clamp maxentities within valid range.
     game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
-    // TODO:
-    // 
-	// Only allocate svg_player_edict_t for the first game.maxclients.
-	// Only allocate svg_base_edict_t for the rest of the game.maxentities.
-    // 
-	// When ReadLevel comes, we first wipe all edicts and if necessary allocate 
-    // the specified classname linked class object.
-    // 
     // Release all edicts.
     g_edicts = SVG_EdictPool_Release( &g_edict_pool );
     // Initialize the edicts array pointing to the memory allocated within the pool.
@@ -869,13 +861,10 @@ WriteLevel
 */
 void SVG_WriteLevel(const char *filename)
 {
-    int     i;
-    svg_base_edict_t *ent;
-    gzFile  f;
-
-    f = gzopen(filename, "wb");
-    if (!f)
-        gi.error("Couldn't open %s", filename);
+    gzFile f = gzopen(filename, "wb");
+    if ( !f ) {
+        gi.error( "Couldn't open %s", filename );
+    }
 
     // Create a savegame write context.
     game_write_context_t ctx = game_write_context_t::make_write_context( f );
@@ -883,10 +872,9 @@ void SVG_WriteLevel(const char *filename)
     ctx.write_int32( SAVE_MAGIC2 );
     ctx.write_int32( SAVE_VERSION );
 
-
     // Write out all the entities.
-    for (i = 0; i < globals.edictPool->num_edicts; i++) {
-        ent = g_edict_pool.EdictForNumber( i );
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
         //ent = &g_edicts[i];
         if ( !ent || !ent->inuse ) {
             continue;
@@ -901,7 +889,7 @@ void SVG_WriteLevel(const char *filename)
     }
 
     // End of level data.
-    write_int(f, -1);
+    ctx.write_int32( -1 );
 
     // Write out svg_level_locals_t. We do this after writing out the entities.
 	// This is so that while loading the level, we initialize entities first
@@ -934,9 +922,13 @@ void SVG_MoveWith_FindParentTargetEntities( void );
 void SVG_ReadLevel(const char *filename)
 {
     int     entnum;
-    gzFile  f;
-    int     i;
     svg_base_edict_t *ent;
+
+	// For recovering the level cm_entity_t's.
+    static const cm_entity_t *cm_entities[ MAX_EDICTS ] = {};
+	for ( int32_t i = 0; i < game.maxentities; i++ ) {
+		cm_entities[ i ] = g_edict_pool.edicts[ i ]->entityDictionary;
+	}
 
     // free any dynamic memory allocated by loading the level
     // base state.
@@ -944,10 +936,10 @@ void SVG_ReadLevel(const char *filename)
 	// WID: Keep in mind that freeing entities after this, would invalidate their sg_qtag_memory_t blocks.
     gi.FreeTags(TAG_SVGAME_LEVEL);
     
-    f = gzopen(filename, "rb");
-    if (!f)
-        gi.error("Couldn't open %s", filename);
-
+    gzFile f = gzopen(filename, "rb");
+    if ( !f ) {
+        gi.error( "Couldn't open %s", filename );
+    }
     gzbuffer(f, 65536);
 
     // Create read context.
@@ -972,9 +964,8 @@ void SVG_ReadLevel(const char *filename)
                 ////*g_edicts[ i ] = { };
                 if ( i >= 1 && i < game.maxclients + 1 ) {
                     g_edict_pool.edicts[ i ] = new svg_player_edict_t();
-                    static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] )->testVar = 100 + i;
                 } else {
-                    g_edict_pool.edicts[ i ] = new svg_base_edict_t();
+                    g_edict_pool.edicts[ i ] = new svg_base_edict_t( cm_entities[ i ] );
                 }
                 //// Set the number to the current index.
                 g_edict_pool.edicts[ i ]->s.number = entityNumber;
@@ -985,10 +976,10 @@ void SVG_ReadLevel(const char *filename)
     // Default num_edicts.
     g_edict_pool.num_edicts = maxclients->value + 1;
 
-    i = ctx.read_int32();
+    int32_t i = ctx.read_int32();
     if (i != SAVE_MAGIC2) {
         gzclose(f);
-        gi.error("Not a Q2PRO save game");
+        gi.error("Not a Q2RTXPerimental save game");
     }
 
     i = ctx.read_int32();
@@ -1022,15 +1013,19 @@ void SVG_ReadLevel(const char *filename)
             classname = "svg_base_edict_t";
             typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
         }
-        // Worldspawn:
-        g_edict_pool.edicts[ entnum ] = ent = typeInfo->allocateEdictInstanceCallback( nullptr );
-        ent->classname = classname;
 
-        // WID: TODO: Early load the classname member value and check if
-		// it matches any of the classnames we have registered for allocation by using the pool.
-        //ent = g_edict_pool.EdictForNumber( entnum );
-		// WID: TODO: Use the entity's actual class type to retrieve the field offsets from.
-        //read_fields(&ctx, entityfields, ent);
+        // For restoring the cm_entity_t.
+        const cm_entity_t *cm_entity = cm_entities[ entnum ];//g_edict_pool.edicts[ entnum ]->entityDictionary;
+        // Worldspawn:
+        svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+        ent->classname = classname;
+        // It was the original entity instanced at the map load time.
+		// Restore the cm_entity_t.
+        if ( ent->spawn_count == 0 ) {
+            ent->entityDictionary = cm_entity;
+        }
+        // Restore the entity.
+
         ent->Restore( &ctx );
 
         ent->inuse = true;

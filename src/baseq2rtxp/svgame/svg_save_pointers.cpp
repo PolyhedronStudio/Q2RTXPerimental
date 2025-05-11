@@ -13,8 +13,8 @@
 
 #include "svgame/entities/monster/svg_monster_testdummy.h"
 
-#include "svgame/entities/svg_ed_player.h"
-#include "svgame/entities/svg_ed_worldspawn.h"
+#include "svgame/entities/svg_player_edict.h"
+#include "svgame/entities/svg_worldspawn_edict.h"
 
 
 #if 0

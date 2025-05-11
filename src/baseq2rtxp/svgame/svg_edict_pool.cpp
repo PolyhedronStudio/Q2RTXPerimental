@@ -13,7 +13,7 @@
 
 #include "sharedgame/sg_usetarget_hints.h"
 
-#include "svgame/entities/svg_ed_player.h"
+#include "svgame/entities/svg_player_edict.h"
 
 
 
@@ -110,7 +110,7 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
 	}
 
 	// Get its spawn_count id and increment it. (Used for differentiation checks.)
-	int32_t spawnCount = ed->spawn_count + 1;
+	int32_t nextSpawnCount = ed->spawn_count + 1;
 
 	// We actually got to make sure that we free the pushmover curve positions data block.
 	if ( ed->pushMoveInfo.curve.positions ) {
@@ -125,14 +125,14 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
 	ed = g_edict_pool.edicts[ edictNumber ] = new svg_base_edict_t(); //*ed = {};
 	#endif
 	// Reset the entity to baseline values.
-	ed->Reset();
+	ed->Reset( ed->entityDictionary /* true = (ed->entityDictionary != nullptr)*/ );
 
 	// Setup the edict as a freed entity.
 	ed->s.number = edictNumber;
 	ed->classname = "freed";
 	ed->freetime = level.time;
 	ed->inuse = false;
-	ed->spawn_count = spawnCount;
+	ed->spawn_count = nextSpawnCount;
 }
 
 /**

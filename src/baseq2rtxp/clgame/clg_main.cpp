@@ -27,7 +27,7 @@
 //! Stores data that remains accross level switches.
 game_locals_t   game;
 //! This structure is cleared as each map is entered, it stores data for the current level session.
-svg_level_locals_t  level;
+clg_level_locals_t  level;
 //! Function pointers and variables imported from the Client.
 clgame_import_t clgi;
 //! Function pointers and variables meant to export to the Client.

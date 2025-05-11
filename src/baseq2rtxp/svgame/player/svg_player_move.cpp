@@ -15,7 +15,7 @@
 #include "sharedgame/sg_pmove.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
-#include "svgame/entities/svg_ed_player.h"
+#include "svgame/entities/svg_player_edict.h"
 #include "svgame/player/svg_player_client.h"
 
 

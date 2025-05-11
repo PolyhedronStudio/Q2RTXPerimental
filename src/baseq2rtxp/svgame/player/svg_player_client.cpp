@@ -20,7 +20,7 @@
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
 
-#include "svgame/entities/svg_ed_player.h"
+#include "svgame/entities/svg_player_edict.h"
 
 #include "svgame/svg_lua.h"
 

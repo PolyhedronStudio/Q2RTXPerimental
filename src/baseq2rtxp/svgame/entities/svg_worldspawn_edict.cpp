@@ -9,7 +9,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_save.h"
-#include "svgame/entities/svg_ed_worldspawn.h"
+#include "svgame/entities/svg_worldspawn_edict.h"
 
 
 
