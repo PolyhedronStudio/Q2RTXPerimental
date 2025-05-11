@@ -177,9 +177,10 @@ void SP_target_goal(svg_base_edict_t *ent)
     }
 
     ent->SetUseCallback( use_target_goal );
-    if (!st.noise)
-        st.noise = "misc/secret.wav";
-    ent->noise_index = gi.soundindex(st.noise);
+    //if ( !st.noise ) {
+    //    st.noise = "misc/secret.wav";
+    //}
+    //ent->noise_index = gi.soundindex(st.noise);
     ent->svflags = SVF_NOCLIENT;
     //level.total_goals++;
 }
@@ -565,7 +566,7 @@ void target_laser_start(svg_base_edict_t *self)
 
     if (!self->enemy) {
         if (self->targetNames.target) {
-            ent = SVG_Entities_Find(NULL, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
+            ent = SVG_Entities_Find(NULL, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.target );
             if (!ent)
                 gi.dprintf("%s at %s: %s is a bad target\n", (const char *)self->classname, vtos(self->s.origin), (const char *)self->targetNames.target);
             self->enemy = ent;
@@ -630,7 +631,7 @@ void target_lightramp_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_
         // check all the targets
         e = NULL;
         while (1) {
-            e = SVG_Entities_Find(e, FOFS_GENTITY(targetname), (const char *)self->targetNames.target);
+            e = SVG_Entities_Find(e, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.target);
             if (!e)
                 break;
             if (strcmp( (const char *)e->classname, "light") != 0) {

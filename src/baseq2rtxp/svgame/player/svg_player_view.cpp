@@ -771,7 +771,7 @@ SVG_SetClientSound
 void SVG_SetClientSound( svg_base_edict_t *ent ) {
 	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
 	if ( ent->liquidInfo.level && ( ent->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
-		ent->s.sound = snd_fry;
+		ent->s.sound = gi.soundindex( "player/burn01.wav" );;
 	// Override entity sound with that of the weapon's activeSound.
 	} else if ( ent->client->weaponState.activeSound ) {
 		ent->s.sound = ent->client->weaponState.activeSound;

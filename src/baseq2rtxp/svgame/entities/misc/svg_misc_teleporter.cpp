@@ -22,7 +22,7 @@ void teleporter_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm
 
     if ( !other->client )
         return;
-    dest = SVG_Entities_Find( NULL, FOFS_GENTITY( targetname ), (const char *)self->targetNames.target );
+    dest = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.target );
     if ( !dest ) {
         gi.dprintf( "Couldn't find destination\n" );
         return;

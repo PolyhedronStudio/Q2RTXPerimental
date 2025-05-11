@@ -15,6 +15,8 @@
 *           It is read/written to the level.sav file for savegames.
 **/
 struct svg_level_locals_t {
+    //! Used for registering the fields which need save and restoring 
+    //! of the session's level locals.
     static svg_save_descriptor_field_t saveDescriptorFields[];
 
     uint64_t    frameNumber;

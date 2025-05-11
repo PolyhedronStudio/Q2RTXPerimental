@@ -90,199 +90,6 @@ typedef struct {
 #define INT64(name) I64_ARRAY(name, 1)
 
 
-
-/***
-*
-*
-*
-*
-*   Save Field Arrays:
-*
-*
-*
-*
-***/
-/**
-*   svg_client_t:
-**/
-static const save_field_t clientfields[] = {
-#define _OFS FOFS_GCLIENT
-    INT32( ps.pmove.pm_type ),
-    SHORT( ps.pmove.pm_flags ),
-    SHORT( ps.pmove.pm_time ),
-    SHORT( ps.pmove.gravity ),
-    VEC3( ps.pmove.origin ),
-    VEC3( ps.pmove.delta_angles ),
-    VEC3( ps.pmove.velocity ),
-    BYTE( ps.pmove.viewheight ),
-
-    VEC3( ps.viewangles ),
-    VEC3( ps.viewoffset ),
-    VEC3( ps.kick_angles ),
-
-    //VEC3( ps.gunangles ),
-    //VEC3( ps.gunoffset ),
-    INT32( ps.gun.modelIndex ),
-    INT32( ps.gun.animationID ),
-
-    //FLOAT_ARRAY( ps.damage_blend, 4 ),
-    FLOAT_ARRAY( ps.screen_blend, 4 ),
-    FLOAT( ps.fov ),
-    INT32( ps.rdflags ),
-    INT32( ps.bobCycle ),
-    INT32_ARRAY( ps.stats, MAX_STATS ),
-
-    INT32( clientNum ),
-    ZSTR( pers.userinfo, MAX_INFO_STRING ),
-    ZSTR( pers.netname, 16 ),
-    INT32( pers.hand ),
-
-    BOOL( pers.connected ),
-    BOOL( pers.spawned ),
-
-    INT32( pers.health ),
-    INT32( pers.max_health ),
-    INT32( pers.savedFlags ),
-
-    INT32( pers.selected_item ),
-    INT32_ARRAY( pers.inventory, MAX_ITEMS ),
-
-    ITEM( pers.weapon ),
-    ITEM( pers.lastweapon ),
-    INT32_ARRAY( pers.weapon_clip_ammo, MAX_ITEMS ),
-
-    INT32( pers.ammoCapacities.pistol ),
-    INT32( pers.ammoCapacities.rifle ),
-    INT32( pers.ammoCapacities.smg ),
-    INT32( pers.ammoCapacities.sniper ),
-    INT32( pers.ammoCapacities.shotgun ),
-
-    INT32( pers.score ),
-
-    BOOL( pers.spectator ),
-
-    BOOL( showscores ),
-    BOOL( showinventory ),
-    BOOL( showhelp ),
-    BOOL( showhelpicon ),
-
-    //INT32( buttons ),
-    //INT32( oldbuttons ),
-    //INT32( latched_buttons ),
-
-    INT32( ammo_index ),
-
-    ITEM( newweapon ),
-
-    BOOL( weapon_thunk ),
-
-    BOOL( grenade_blew_up ),
-    INT64( grenade_time ),
-    INT64( grenade_finished_time ),
-
-    INT32( frameDamage.armor ),
-    INT32( frameDamage.blood ),
-    INT32( frameDamage.knockBack ),
-    VEC3( frameDamage.from ),
-
-    FLOAT( killer_yaw ),
-
-    INT32( weaponState.mode ),
-    INT32( weaponState.canChangeMode ),
-    INT32( weaponState.aimState.isAiming ),
-    INT32( weaponState.animation.currentFrame ),
-    INT32( weaponState.animation.startFrame ),
-    INT32( weaponState.animation.endFrame ),
-    INT64( weaponState.timers.lastEmptyWeaponClick ),
-    INT64( weaponState.timers.lastPrimaryFire ),
-    INT64( weaponState.timers.lastAimedFire ),
-    INT64( weaponState.timers.lastDrawn ),
-    INT64( weaponState.timers.lastHolster ),
-
-    VEC3( weaponKicks.offsetAngles ),
-    VEC3( weaponKicks.offsetOrigin ),
-
-    VEC3( viewMove.viewAngles ), VEC3( viewMove.viewForward ),
-    INT64( viewMove.damageTime ),
-    INT64( viewMove.fallTime ),
-    INT64( viewMove.quakeTime ),
-    FLOAT( viewMove.damageRoll ), FLOAT( viewMove.damagePitch ),
-    FLOAT( viewMove.fallValue ),
-
-    FLOAT( damage_alpha ),
-    FLOAT( bonus_alpha ),
-    VEC3( damage_blend ),
-    INT64( bobCycle ),
-    INT64( oldBobCycle ),
-    DOUBLE( bobFracSin ),
-    INT64( last_stair_step_frame ),
-    VEC3( last_ladder_pos ),
-    INT64( last_ladder_sound ),
-
-    VEC3( oldviewangles ),
-    VEC3( oldvelocity ),
-    ENTITY( oldgroundentity ),
-    INT32( old_waterlevel ),
-    INT64( next_drown_time ),
-
-    // WID: TODO: Animation Mixer States.
-
-    INT64( pickup_msg_time ), // WID: 64-bit-frame
-
-    // WID: C++20: Replaced {0}
-    {}
-#undef _OFS
-};
-
-/**
-*   game:
-**/
-static const save_field_t gamefields[] = {
-#define _OFS FOFS_GAME_LOCALS
-    INT32(maxclients),
-    INT32(maxentities),
-    INT32(gamemode),
-
-    INT32(serverflags),
-
-    INT32(num_items),
-
-    BOOL(autosaved),
-
-    INT32( num_movewithEntityStates ),
-
-	// WID: C++20: Replaced {0}
-    {}
-#undef _OFS
-};
-
-/**
-*   level:
-**/
-SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_level_locals_t )
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, frameNumber, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, time, SD_FIELD_TYPE_FRAMETIME ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, level_name, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, mapname, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, nextmap, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, intermissionFrameNumber, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, changemap, SD_FIELD_TYPE_LSTRING ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, exitintermission, SD_FIELD_TYPE_FRAMETIME ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, intermission_origin, SD_FIELD_TYPE_VECTOR3 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, intermission_angle, SD_FIELD_TYPE_VECTOR3 ),
-    // Set in-game during the frame, invalid at load/save time.
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_client, SD_FIELD_TYPE_EDICT /*SD_FIELD_TYPE_CLIENT*/ ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_entity, SD_FIELD_TYPE_EDICT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sight_entity_framenum, SD_FIELD_TYPE_FRAMETIME ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound_entity, SD_FIELD_TYPE_EDICT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound_entity_framenum, SD_FIELD_TYPE_FRAMETIME ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound2_entity, SD_FIELD_TYPE_EDICT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, sound2_entity_framenum, SD_FIELD_TYPE_FRAMETIME ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, body_que, SD_FIELD_TYPE_INT32 ),
-SAVE_DESCRIPTOR_FIELDS_END();
-
-
-
 /***
 *
 *
@@ -736,29 +543,39 @@ static void read_fields(game_read_context_t* ctx, const save_field_t *fields, vo
 *   last save position.
 **/
 void SVG_WriteGame( const char *filename, qboolean autosave ) {
-    gzFile  f;
-    int     i;
-
-    if (!autosave)
+    // If not an autosave, make sure to save client data properly.
+    if ( !autosave ) {
         SVG_Player_SaveClientData();
-
-    f = gzopen(filename, "wb");
-    if (!f)
-        gi.error("Couldn't open %s", filename);
-
-    write_int(f, SAVE_MAGIC1);
-    write_int(f, SAVE_VERSION);
-
-    game.autosaved = autosave;
-    write_fields(f, gamefields, &game);
-    game.autosaved = false;
-
-    for (i = 0; i < game.maxclients; i++) {
-        write_fields(f, clientfields, &game.clients[i]);
     }
 
-    if (gzclose(f))
-        gi.error("Couldn't write %s", filename);
+    gzFile f = gzopen( filename, "wb" );
+    if ( !f ) {
+        gi.error( "Couldn't open %s", filename );
+    }
+
+    // Create a savegame write context.
+    game_write_context_t ctx = game_write_context_t::make_write_context( f );
+
+    //f = gzopen(filename, "wb");
+    //if (!f)
+    //    gi.error("Couldn't open %s", filename);
+
+    ctx.write_int32( SAVE_MAGIC1 );
+    ctx.write_int32( SAVE_VERSION );
+
+    game.autosaved = autosave;
+    ctx.write_fields( svg_game_locals_t::saveDescriptorFields, &game );//write_fields(f, gamefields, &game);
+    game.autosaved = false;
+
+    for ( int32_t i = 0; i < game.maxclients; i++) {
+        //write_fields(f, clientfields, &game.clients[i] );
+		ctx.write_fields( svg_client_t::saveDescriptorFields, &game.clients[ i ] );
+    }
+
+    // Possibly throw an error if the file couldn't be written.
+    if ( gzclose( f ) ) {
+        gi.error( "Couldn't write %s", filename );
+    }
 }
 
 /**
@@ -779,8 +596,8 @@ void SVG_ReadGame( const char *filename ) {
     game = {};
 
     // ReInitialize the game local's movewith array.
-    game.moveWithEntities = static_cast<game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
-    memset( game.moveWithEntities, 0, sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
+    game.moveWithEntities = static_cast<svg_game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
+    memset( game.moveWithEntities, 0, sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
 
 	// Open the file.
     f = gzopen(filename, "rb");
@@ -807,7 +624,7 @@ void SVG_ReadGame( const char *filename ) {
     }
 
     // Read in svg_game_locals_t fields.
-    read_fields(&ctx, gamefields, &game);
+    ctx.read_fields( svg_game_locals_t::saveDescriptorFields, &game ); //read_fields(&ctx, gamefields, &game);
 
     // should agree with server's version
     if (game.maxclients != (int)maxclients->value) {
@@ -833,7 +650,8 @@ void SVG_ReadGame( const char *filename ) {
     // Now read in the fields for each client.
     for (i = 0; i < game.maxclients; i++) {
         // Now read in the fields.
-        read_fields(&ctx, clientfields, &game.clients[i]);
+        //read_fields(&ctx, clientfields, &game.clients[i]);
+        ctx.read_fields( svg_client_t::saveDescriptorFields, &game.clients[ i ] );
     }
 
     gzclose(f);
@@ -1031,7 +849,7 @@ void SVG_ReadLevel(const char *filename)
         ent->inuse = true;
         ent->s.number = entnum;
 
-        // let the server rebuild world links for this ent
+        // Let the server relink the entity in.
         memset(&ent->area, 0, sizeof(ent->area));
         gi.linkentity(ent);
     }

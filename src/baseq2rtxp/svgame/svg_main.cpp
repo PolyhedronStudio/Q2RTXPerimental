@@ -40,12 +40,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	General used Game Objects.
 **/
-game_locals_t   game;
+svg_game_locals_t game;
 svg_level_locals_t  level;
 svgame_import_t	gi;
 svgame_export_t	globals;
-spawn_temp_t    st;
-
+spawn_temp_t st;
 
 /**
 *	Times.
@@ -61,7 +60,6 @@ QMTime FRAME_TIME_MS;
 *	Cached indexes and global meansOfDeath var.
 **/
 int sm_meat_index;
-int snd_fry;
 
 //! THIS!! is the ACTUAL ARRAY for STORING the EDICTS. (Also referred to by the term entities.)
 svg_base_edict_t **g_edicts;
@@ -184,8 +182,8 @@ void SVG_PreInitGame( void ) {
 
 
 	// Initialize the game local's movewith array.
-    game.moveWithEntities = static_cast<game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
-    memset( game.moveWithEntities, 0, sizeof( game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
+    game.moveWithEntities = static_cast<svg_game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
+    memset( game.moveWithEntities, 0, sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
 
 	maxclients = gi.cvar( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH );
 	maxspectators = gi.cvar( "maxspectators", "4", CVAR_SERVERINFO );
@@ -575,14 +573,14 @@ void EndDMLevel(void) {
     if ( level.nextmap[ 0 ] ) {// go to a specific map
         SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
     } else {  // search for a changelevel
-        ent = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "target_changelevel");
+        ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "target_changelevel" );
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level
-            SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
+            SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.mapname ) );
             return;
         }
-        SVG_HUD_BeginIntermission(ent);
+        SVG_HUD_BeginIntermission( ent );
     }
 }
 

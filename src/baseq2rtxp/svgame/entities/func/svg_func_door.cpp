@@ -87,7 +87,7 @@ void door_use_areaportals( svg_base_edict_t *self, const bool open ) {
     if ( !self->targetNames.target )
         return;
 
-    while ( ( t = SVG_Entities_Find( t, FOFS_GENTITY( targetname ), (const char *)self->targetNames.target ) ) ) {
+    while ( ( t = SVG_Entities_Find( t, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.target ) ) ) {
         //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
         if ( t->s.entityType == ET_AREA_PORTAL ) {
             gi.SetAreaPortalState( t->style, open );
@@ -875,7 +875,7 @@ void SP_func_door( svg_base_edict_t *ent ) {
     if ( !ent->decel ) {
         ent->decel = ent->speed;
     }
-    if ( !st.lip ) {
+    if ( !ent->lip ) {
         st.lip = 8;
     }
     // Trigger defaults:

@@ -1,11 +1,11 @@
 /************************************************************
 *
 *
-*Save Game Mechanism :
+*   Save Game Mechanism :
 *
-*A write context wrapper for conveniently passing around as to
-*that we can write the game data to / from disk anywhere from
-* anywhere within the code.
+*   A write context wrapper for conveniently passing around as to
+*   that we can write the game data to / from disk anywhere from
+*   anywhere within the code.
 *
 *
 ********************************************************************/
@@ -13,6 +13,7 @@
 #include "svgame/svg_local.h"
 // Save related types.
 #include "svgame/svg_save.h"
+#include "svgame/svg_game_items.h"
 
 
 
@@ -236,10 +237,10 @@ void game_write_context_t::write_field( const svg_save_descriptor_field_t *descr
     int i;
 
     switch ( descriptorField->type ) {
-    case SD_FIELD_TYPE_BYTE:
+    case SD_FIELD_TYPE_INT8:
         write_data( p, descriptorField->size );
         break;
-    case SD_FIELD_TYPE_SHORT:
+    case SD_FIELD_TYPE_INT16:
         for ( i = 0; i < descriptorField->size; i++ ) {
             write_int16( ( (int16_t *)p )[ i ] );
         }
@@ -297,7 +298,7 @@ void game_write_context_t::write_field( const svg_save_descriptor_field_t *descr
         //write_index(f, *(void **)p, sizeof(svg_client_t), game.clients, game.maxclients - 1);
         break;
     case SD_FIELD_TYPE_ITEM:
-        write_index( *(void **)p, sizeof( gitem_t ), itemlist, game.num_items - 1 );
+        write_index( *(void **)p, sizeof( gitem_t ), itemlist, ( game.num_items - 1 ) );
         break;
 
     case SD_FIELD_TYPE_FUNCTION:

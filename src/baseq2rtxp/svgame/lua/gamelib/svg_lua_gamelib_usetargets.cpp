@@ -334,7 +334,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 
 	if ( entity->targetNames.target ) {
 		svg_base_edict_t *fireTargetEntity = nullptr;
-		while ( ( fireTargetEntity = SVG_Entities_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)entity->targetNames.target ) ) ) {
+		while ( ( fireTargetEntity = SVG_Entities_Find( fireTargetEntity, q_offsetof( svg_base_edict_t, targetname ), (const char *)entity->targetNames.target ) ) ) {
 			// Doors fire area portals in a specific way
 			if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )
 				&& ( !Q_stricmp( (const char *)entity->classname, "func_door" ) || !Q_stricmp( (const char *)entity->classname, "func_door_rotating" ) ) ) {

@@ -43,7 +43,7 @@ struct svg_base_edict_t;
 #include "svgame/save/svg_save_callback_global.h"
 #include "svgame/save/svg_save_callback_member.h"
 // For describing how to treat a field in the save/load process.
-#include "svgame/save/svg_save_descriptor_field.h"
+#include "svgame/save/svg_save_field_descriptor.h"
 // For instancing the registered function callbacks as and in the linked list
 #include "svgame/save/svg_save_funcptr_instance.h"
 // For reading/writing the save game data.

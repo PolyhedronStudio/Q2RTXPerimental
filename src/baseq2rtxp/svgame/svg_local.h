@@ -179,6 +179,33 @@ using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
 *
 *
 **/
+// spawn_temp_t is only used to hold entity field values that
+// can be set from the editor, but aren't actualy present
+// in edict_t during gameplay
+typedef struct {
+    // world vars
+    char *sky;
+    float       skyrotate;
+    int         skyautorotate;
+    vec3_t      skyaxis;
+    char *nextmap;
+    char *musictrack;
+
+    int         lip;
+    int         distance;
+    int         height;
+    // WID: C++20: Added const.
+    const char *noise;
+    float       pausetime;
+    char *item;
+    char *gravity;
+
+    float       minyaw;
+    float       maxyaw;
+    float       minpitch;
+    float       maxpitch;
+} spawn_temp_t;
+extern spawn_temp_t st;
 //! Combat related:
 //#include "svgame/svg_combat.h"
 //! Pusher/Mover- Move Info Data Structures:
@@ -196,40 +223,11 @@ using svg_game_qtag_memory_t = sg_qtag_memory_t<char, TAG_SVGAME>;
 //! Include items data structures.
 #include "svgame/svg_game_items.h"
 
-//! Include the GAME locals.
+//! Include the GAME locals. (Extern varname: game)
 #include "svgame/svg_game_locals.h"
-//! Include the LEVEL locals.
+//! Include the LEVEL locals. (Extern varname: level)
 #include "svgame/svg_level_locals.h"
 
-
-extern  int sm_meat_index;
-extern  int snd_fry;
-
-
-//! SpawnTemp:
-#include "svgame/svg_spawn_temp.h"
-//! Extern, access all over game dll code.
-extern spawn_temp_t st;
-
-
-
-/**
-* 
-* 
-* 
-*   Field Offset Macros:
-* 
-* 
-* 
-**/
-//! For game entity fields.
-#define FOFS_GENTITY( field )       q_offsetof( svg_base_edict_t, field )
-//! For game client fields.
-#define FOFS_GCLIENT( field )       q_offsetof( svg_client_t, field )
-//! For game locals fields.
-#define FOFS_GAME_LOCALS( field )   q_offsetof( game_locals_t, field )
-//! For spawn temp fields.
-#define FOFS_SPAWN_TEMP( field )    q_offsetof( spawn_temp_t, field )
 
 ///**
 //*   @return

@@ -130,12 +130,12 @@ void SP_target_laser(svg_base_edict_t *self);
 void SP_target_lightramp(svg_base_edict_t *self);
 void SP_target_earthquake(svg_base_edict_t *ent);
 
-void SP_worldspawn(svg_base_edict_t *ent);
+//void SP_worldspawn(svg_base_edict_t *ent);
 
 void SP_spotlight(svg_base_edict_t *self);
 void SP_light(svg_base_edict_t *self);
-void SP_info_null(svg_base_edict_t *self);
-void SP_info_notnull(svg_base_edict_t *self);
+//void SP_info_null(svg_base_edict_t *self);
+//void SP_info_notnull(svg_base_edict_t *self);
 void SP_path_corner(svg_base_edict_t *self);
 
 //void SP_misc_explobox(svg_base_edict_t *self);
@@ -206,7 +206,7 @@ static const spawn_func_t spawn_funcs[] = {
     {"target_lightramp", SP_target_lightramp},
     {"target_earthquake", SP_target_earthquake},
 
-    {"worldspawn", SP_worldspawn},
+    //{"worldspawn", SP_worldspawn},
 
 	{"spotlight", SP_spotlight},
     {"light", SP_light},
@@ -226,92 +226,6 @@ static const spawn_func_t spawn_funcs[] = {
 
     {NULL, NULL}
 };
-
-/**
-*   @brief  Hooks up the offset of an entity's struct member to a string, and stores
-*           what type of value it holds and what to parse the key/value pairs with.
-**/
-static const spawn_field_t spawn_fields[] = {
-	// ET_GENERIC:
-	{"classname", FOFS_GENTITY( classname ), F_LEVEL_QSTRING},
-	{"model", FOFS_GENTITY( model ), F_LSTRING},
-	{"spawnflags", FOFS_GENTITY( spawnflags ), F_INT},
-	{"speed", FOFS_GENTITY( speed ), F_FLOAT},
-	{"accel", FOFS_GENTITY( accel ), F_FLOAT},
-	{"decel", FOFS_GENTITY( decel ), F_FLOAT},
-	{"target", FOFS_GENTITY( targetNames.target ), F_LEVEL_QSTRING},
-	{"targetname", FOFS_GENTITY( targetname ), F_LEVEL_QSTRING},
-	{"path", FOFS_GENTITY( targetNames.path ), F_LEVEL_QSTRING},
-	{"death", FOFS_GENTITY( targetNames.death ), F_LEVEL_QSTRING},
-	{"kill", FOFS_GENTITY( targetNames.kill ), F_LEVEL_QSTRING},
-    {"message", FOFS_GENTITY( message ), F_LSTRING},
-	{"team", FOFS_GENTITY( targetNames.team ), F_LEVEL_QSTRING},
-	{"wait", FOFS_GENTITY( wait ), F_FLOAT},
-	{"delay", FOFS_GENTITY( delay ), F_FLOAT},
-	{"random", FOFS_GENTITY( random ), F_FLOAT},
-	{"move_origin", FOFS_GENTITY( move_origin ), F_VECTOR3},
-	{"move_angles", FOFS_GENTITY( move_angles ), F_VECTOR3},
-	{"style", FOFS_GENTITY( style ), F_INT},
-	{"count", FOFS_GENTITY( count ), F_INT},
-    {"maxhealth", FOFS_GENTITY( max_health ), F_INT},
-    {"health", FOFS_GENTITY( health ), F_INT},
-	{"sounds", FOFS_GENTITY( sounds ), F_INT},
-	{"light", FOFS_GENTITY( light ), F_FLOAT},
-	{"dmg", FOFS_GENTITY( dmg ), F_INT},
-	{"mass", FOFS_GENTITY( mass ), F_INT},
-	{"volume", FOFS_GENTITY( volume ), F_FLOAT},
-	{"attenuation", FOFS_GENTITY( attenuation ), F_FLOAT},
-	{"map", FOFS_GENTITY( map ), F_LSTRING},
-	{"origin", FOFS_GENTITY( s.origin ), F_VECTOR3},
-	{"angles", FOFS_GENTITY( s.angles ), F_VECTOR3},
-	{"angle", FOFS_GENTITY( s.angles ), F_ANGLEHACK},
-
-    // <Q2RTXP>:
-    // MoveWith:
-    { "movewith", FOFS_GENTITY( targetNames.movewith ), F_LEVEL_QSTRING },
-    // Lua:
-    { "luaName", FOFS_GENTITY( luaProperties.luaName ), F_LSTRING },
-    // (Spot-)light:
-    {"customLightStyle", FOFS_GENTITY( customLightStyle ), F_LSTRING},
-    {"rgb", FOFS_GENTITY( s.spotlight.rgb ), F_VECTOR3},
-	{"intensity", FOFS_GENTITY( s.spotlight.intensity ), F_FLOAT},
-	{"angle_width", FOFS_GENTITY( s.spotlight.angle_width ), F_FLOAT},
-	{"angle_falloff", FOFS_GENTITY( s.spotlight.angle_falloff ), F_FLOAT},
-    // </Q2RTXP>
-
-    {NULL}
-};
-
-/**
-*   @brief  Stores the spawn_field_t types for temporary spawn fields. Cleared at the start of 
-*           each iteration over the collision model entity key/value pairs.
-*           
-*           These are only valid at the time when ED_CallSpawn calls the entity's spawn function.
-**/
-// temp spawn vars -- only valid when the spawn function is called
-static const spawn_field_t temp_fields[] = {
-    {"lip", FOFS_SPAWN_TEMP(lip), F_INT},
-    {"distance", FOFS_SPAWN_TEMP(distance), F_INT},
-    {"height", FOFS_SPAWN_TEMP(height), F_INT},
-    {"noise", FOFS_SPAWN_TEMP(noise), F_LSTRING},
-    {"pausetime", FOFS_SPAWN_TEMP(pausetime), F_FLOAT},
-    {"item", FOFS_SPAWN_TEMP(item), F_LSTRING},
-
-    {"gravity", FOFS_SPAWN_TEMP(gravity), F_LSTRING},
-    {"sky", FOFS_SPAWN_TEMP(sky), F_LSTRING},
-    {"skyrotate", FOFS_SPAWN_TEMP(skyrotate), F_FLOAT},
-    {"skyautorotate", FOFS_SPAWN_TEMP(skyautorotate), F_INT},
-    {"skyaxis", FOFS_SPAWN_TEMP(skyaxis), F_VECTOR3},
-    {"minyaw", FOFS_SPAWN_TEMP(minyaw), F_FLOAT},
-    {"maxyaw", FOFS_SPAWN_TEMP(maxyaw), F_FLOAT},
-    {"minpitch", FOFS_SPAWN_TEMP(minpitch), F_FLOAT},
-    {"maxpitch", FOFS_SPAWN_TEMP(maxpitch), F_FLOAT},
-    {"nextmap", FOFS_SPAWN_TEMP(nextmap), F_LSTRING},
-    {"musictrack", FOFS_SPAWN_TEMP(musictrack), F_LSTRING},
-
-    {NULL}
-};
-
 
 /**
 *   @brief  Finds the spawn function for the entity and calls it
@@ -444,7 +358,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
         }
 
         // Fetch 'parent' target entity.
-        svg_base_edict_t *parentMover = SVG_Entities_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith.ptr );
+        svg_base_edict_t *parentMover = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname ), (const char *)ent->targetNames.movewith.ptr );
         // Apply.
         if ( parentMover ) {
             // Set.
@@ -486,36 +400,6 @@ char *ED_NewString(const char *string)
     }
 
     return newb;
-}
-
-/**
-*   @return A pointer to the spawn field 'spawn_field_t' that has a matching key. (nullptr) otherwise.
-**/
-static const spawn_field_t *GetSpawnFieldByKey( const char *key ) {
-    const spawn_field_t *f = nullptr;
-
-    for ( f = spawn_fields; f->name; f++ ) {
-        if ( !Q_stricmp( f->name, key ) ) {
-            return f;
-        }
-    }
-
-    return nullptr;
-}
-
-/**
-*   @return A pointer to the temporary spawn field 'spawn_field_t' that has a matching key. (nullptr) otherwise.
-**/
-static const spawn_field_t *GetTempFieldByKey( const char *key ) {
-    const spawn_field_t *f = nullptr;
-
-    for ( f = temp_fields; f->name; f++ ) {
-        if ( !Q_stricmp( f->name, key ) ) {
-            return f;
-        }
-    }
-
-    return nullptr;
 }
 
 /**
@@ -696,9 +580,6 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
     // Iterate over the number of collision model entity entries.
     for ( size_t i = 0; i < numEntities; i++ ) {
-        // For each entity we clear the temporary spawn fields.
-        memset( &st, 0, sizeof( spawn_temp_t ) );
-
         // Pointer to the worldspawn edict in first instance, after that the first free entity
         // we can acquire.
         //spawnEdict = ( !spawnEdict ? g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ : g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>() );
@@ -1271,6 +1152,7 @@ Only used for the world.
 "gravity"   800 is default gravity
 "message"   text to print at user logon
 */
+#if 0
 void SP_worldspawn(svg_base_edict_t *ent)
 {
     ent->movetype = MOVETYPE_PUSH;
@@ -1388,7 +1270,7 @@ void SP_worldspawn(svg_base_edict_t *ent)
     gi.soundindex( "player/pain75_01.wav" );
     gi.soundindex( "player/pain100_01.wav" );
     // WID: All of these are now just burn01 and burn02 since the original sounds contained silly screams and all that.
-    snd_fry = gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
+    gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
     //gi.soundindex( "player/lava_in.wav" );
     //gi.soundindex( "player/burn1.wav" );
     //gi.soundindex( "player/burn2.wav" );
@@ -1499,4 +1381,4 @@ void SP_worldspawn(svg_base_edict_t *ent)
     // 63 testing
     gi.configstring(CS_LIGHTS + 63, "a");
 }
-
+#endif // #if 0

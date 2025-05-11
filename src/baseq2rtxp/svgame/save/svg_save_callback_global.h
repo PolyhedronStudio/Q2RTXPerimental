@@ -185,14 +185,17 @@
 #define DEFINE_GLOBAL_CALLBACK_USE(functionName) \
 	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_USE, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
+
 //! For OnSignalIn.
 #define DEFINE_GLOBAL_CALLBACK_ONSIGNALIN(functionName) \
 	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_ONSIGNALIN, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
+
 //! For Pain.
 #define DEFINE_GLOBAL_CALLBACK_PAIN(functionName) \
 	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_PAIN, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
+
 //! For Die.
 #define DEFINE_GLOBAL_CALLBACK_DIE(functionName) \
 	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_DIE, reinterpret_cast<void *>(##functionName)); \

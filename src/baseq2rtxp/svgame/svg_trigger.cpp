@@ -88,7 +88,7 @@ void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activat
 const int32_t SVG_Trigger_KillTargets( svg_base_edict_t *self ) {
     if ( self->targetNames.kill ) {
         svg_base_edict_t *killTargetEntity = nullptr;
-        while ( ( killTargetEntity = SVG_Entities_Find( killTargetEntity, FOFS_GENTITY( targetname ), (const char *)self->targetNames.kill ) ) ) {
+        while ( ( killTargetEntity = SVG_Entities_Find( killTargetEntity, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.kill ) ) ) {
             SVG_FreeEdict( killTargetEntity );
             if ( !self->inuse ) {
                 gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, self->s.number, (const char *)self->classname );
@@ -127,7 +127,7 @@ svg_base_edict_t *SVG_PickTarget( const char *targetname ) {
     }
 
     while ( 1 ) {
-        ent = SVG_Entities_Find( ent, FOFS_GENTITY( targetname ), targetname );
+        ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, targetname ), targetname );
         if ( !ent )
             break;
         choice[ num_choices++ ] = ent;
@@ -210,7 +210,7 @@ void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const e
     //
     if ( ent->targetNames.target ) {
         svg_base_edict_t *fireTargetEntity = nullptr;
-        while ( ( fireTargetEntity = SVG_Entities_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.target ) ) ) {
+        while ( ( fireTargetEntity = SVG_Entities_Find( fireTargetEntity, q_offsetof( svg_base_edict_t, targetname ), (const char *)ent->targetNames.target ) ) ) {
             // Doors fire area portals in a specific way
             if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )
                 && ( !Q_stricmp( (const char *)ent->classname, "func_door" ) || !Q_stricmp( (const char *)ent->classname, "func_door_rotating" ) ) ) {

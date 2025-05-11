@@ -356,4 +356,8 @@ struct svg_client_t {
     **/
     svg_base_edict_t     *chase_target;  // Player we are chasing.
     bool        update_chase;   // Need to update chase info?
+
+    //! Used for registering the fields which need save and restoring 
+    //! of the session's level locals.
+    static svg_save_descriptor_field_t saveDescriptorFields[];
 };

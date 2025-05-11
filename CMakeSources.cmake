@@ -293,7 +293,10 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_edicts.cpp
 	baseq2rtxp/svgame/svg_edict_pool.cpp
 	baseq2rtxp/svgame/svg_gamemode.cpp
+	baseq2rtxp/svgame/svg_game_client.cpp
 	baseq2rtxp/svgame/svg_game_items.cpp
+	baseq2rtxp/svgame/svg_game_locals.cpp
+	baseq2rtxp/svgame/svg_level_locals.cpp
 	baseq2rtxp/svgame/svg_lua.cpp
 	baseq2rtxp/svgame/svg_main.cpp
 	baseq2rtxp/svgame/svg_misc.cpp
@@ -377,7 +380,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.cpp
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp
 
-	baseq2rtxp/svgame/save/svg_save_descriptor_field.cpp
+	baseq2rtxp/svgame/save/svg_save_field_descriptor.cpp
 	baseq2rtxp/svgame/save/svg_save_funcptr_instance.cpp
 	baseq2rtxp/svgame/save/svg_save_read_context.cpp
 	baseq2rtxp/svgame/save/svg_save_write_context.cpp
@@ -482,7 +485,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/save/svg_save_callback_global.h
 	baseq2rtxp/svgame/save/svg_save_callback_member.h
-	baseq2rtxp/svgame/save/svg_save_descriptor_field.h
+	baseq2rtxp/svgame/save/svg_save_field_descriptor.h
 	baseq2rtxp/svgame/save/svg_save_funcptr_instance.h
 	baseq2rtxp/svgame/save/svg_save_read_context.h
 	baseq2rtxp/svgame/save/svg_save_write_context.h

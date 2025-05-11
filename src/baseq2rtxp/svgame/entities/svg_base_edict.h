@@ -779,12 +779,14 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
     **/
     svg_pushmove_info_t pushMoveInfo;
+    //! [SpawnKey]: PushMover Lip Distance.
+    float   lip     = 0.f;
     //! [SpawnKey]: Moving speed.
-    float   speed = 0.f;
+    float   speed   = 0.f;
     //! [SpawnKey]: Acceleration speed.
-    float   accel = 0.f;
+    float   accel   = 0.f;
     //! [SpawnKey]: Deceleration speed.
-    float   decel = 0.f;
+    float   decel   = 0.f;
     //! [SpawnKey]: Move axis orientation, defaults to Z axis.
     Vector3 movedir = QM_Vector3Zero();
     //! Mover Default Start Position.
@@ -881,7 +883,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     float   ideal_yaw = 0.f;
 
     /**
-    *   Player Noise/Trail:
+    *   (Player-)Noise/Trail:
     **/
     //! Pointer to noise entity.
     svg_base_edict_t *mynoise = nullptr;       // can go in client only

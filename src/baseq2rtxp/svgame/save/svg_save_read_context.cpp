@@ -13,7 +13,7 @@
 #include "svgame/svg_local.h"
 // Save related types.
 #include "svgame/svg_save.h"
-
+#include "svgame/svg_game_items.h"
 
 /**
 *   @brief Creates a game read context with the specified file and version.
@@ -319,10 +319,10 @@ void game_read_context_t::read_field( const svg_save_descriptor_field_t *field, 
     int i;
 
     switch ( field->type ) {
-    case SD_FIELD_TYPE_BYTE:
+    case SD_FIELD_TYPE_INT8:
         read_data( p, field->size );
         break;
-    case SD_FIELD_TYPE_SHORT:
+    case SD_FIELD_TYPE_INT16:
         for ( i = 0; i < field->size; i++ ) {
             ( (short *)p )[ i ] = read_short();
         }
@@ -383,7 +383,7 @@ void game_read_context_t::read_field( const svg_save_descriptor_field_t *field, 
         break;
     case SD_FIELD_TYPE_ITEM:
         // WID: C++20: Added cast.
-        *(gitem_t **)p = (gitem_t *)read_index( sizeof( gitem_t ), itemlist, game.num_items - 1 );
+        *(gitem_t **)p = (gitem_t *)read_index( sizeof( gitem_t ), itemlist, ( game.num_items - 1 ) );
         break;
 
     case SD_FIELD_TYPE_FUNCTION:

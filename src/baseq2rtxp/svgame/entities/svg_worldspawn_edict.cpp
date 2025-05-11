@@ -310,7 +310,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     gi.soundindex( "player/pain75_01.wav" );
     gi.soundindex( "player/pain100_01.wav" );
     // WID: All of these are now just burn01 and burn02 since the original sounds contained silly screams and all that.
-    snd_fry = gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
+    gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
     //gi.soundindex( "player/lava_in.wav" );
     //gi.soundindex( "player/burn1.wav" );
     //gi.soundindex( "player/burn2.wav" );
@@ -368,7 +368,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
 
     //-------------------
 
-    sm_meat_index = gi.modelindex( "models/objects/gibs/sm_meat/tris.md2" );
+    gi.modelindex( "models/objects/gibs/sm_meat/tris.md2" );
     gi.modelindex( "models/objects/gibs/arm/tris.md2" );
     gi.modelindex( "models/objects/gibs/bone/tris.md2" );
     gi.modelindex( "models/objects/gibs/bone2/tris.md2" );

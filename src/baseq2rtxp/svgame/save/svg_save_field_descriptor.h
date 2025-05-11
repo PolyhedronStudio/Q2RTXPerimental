@@ -26,10 +26,10 @@ struct svg_base_edict_t;
 /**
 *   @brief  Field Descriptor Types:
 **/
-enum svg_save_descriptor_field_type_t : int32_t {
+enum svg_save_field_descriptor_type_t : int32_t {
 	SD_FIELD_TYPE_BAD,
-	SD_FIELD_TYPE_BYTE,
-	SD_FIELD_TYPE_SHORT,
+	SD_FIELD_TYPE_INT8,
+	SD_FIELD_TYPE_INT16,
 	SD_FIELD_TYPE_INT32,
 	SD_FIELD_TYPE_INT64,
 
@@ -73,7 +73,7 @@ enum svg_save_descriptor_field_type_t : int32_t {
 **/
 struct svg_save_descriptor_field_t {
 	// Type of the save descriptor field.
-	svg_save_descriptor_field_type_t type;
+	svg_save_field_descriptor_type_t type;
 	//! String name descriptor.
 	const char *name;
 	//! Memory offset of the field.

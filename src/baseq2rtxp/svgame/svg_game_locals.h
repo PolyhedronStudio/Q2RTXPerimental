@@ -32,7 +32,11 @@ QENUM_BIT_FLAGS( crosslevel_target_flags_t );
 *           it should be initialized at dll load time, and read/written to
 *           the server.ssv file for savegames
 **/
-typedef struct {
+struct svg_game_locals_t {
+    //! Used for registering the fields which need save and restoring 
+    //! of the session's level locals.
+    static svg_save_descriptor_field_t saveDescriptorFields[];
+
     //! [maxclients] of client pointers.
     svg_client_t *clients;
 
@@ -66,7 +70,7 @@ typedef struct {
         //! The parent entity that has to move its child entity.
         int32_t parentNumber;
     } *moveWithEntities;
-} game_locals_t;
+};
 
 //! Extern, access all over game dll code.
-extern game_locals_t    game;
+extern svg_game_locals_t    game;

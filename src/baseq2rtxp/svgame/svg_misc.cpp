@@ -77,7 +77,8 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( gib_touch )( svg_base_edict_t *self, svg_base_edic
         AngleVectors(normal_angles, NULL, right, NULL);
         QM_Vector3ToAngles(right, self->s.angles);
 
-        if (self->s.modelindex == sm_meat_index) {
+        if (self->s.modelindex == gi.modelindex( "models/objects/gibs/sm_meat/tris.md2" ) ) {
+            
             self->s.frame++;
             self->SetThinkCallback( gib_think );
             self->nextthink = level.time + FRAME_TIME_S;//level.frameNumber + 1;
@@ -88,7 +89,7 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( gib_touch )( svg_base_edict_t *self, svg_base_edic
 *   @brief
 **/
 DEFINE_GLOBAL_CALLBACK_DIE( gib_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
-    SVG_FreeEdict(self);
+    g_edict_pool.FreeEdict( self );
 }
 
 
