@@ -333,9 +333,11 @@ void game_read_context_t::read_field( const svg_save_descriptor_field_t *field, 
         }
         break;
     case SD_FIELD_TYPE_BOOL:
-        for ( i = 0; i < field->size; i++ ) {
-            ( (bool *)p )[ i ] = read_int32();
-        }
+        //for ( i = 0; i < field->size; i++ ) {
+        //    ( (bool *)p )[ i ] = read_int32();
+        //}
+        // <Q2RTXP>: WID: We now store it as a byte, disregarding the old qboolean
+        read_data( p, field->size );
         break;
     case SD_FIELD_TYPE_FLOAT:
         for ( i = 0; i < field->size; i++ ) {

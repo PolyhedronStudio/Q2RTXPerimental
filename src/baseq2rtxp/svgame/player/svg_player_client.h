@@ -69,6 +69,33 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent );
 *           (forcing skins or names, etc) before copying it off.
 **/
 void SVG_Client_UserinfoChanged( svg_base_edict_t *ent, char *userinfo );
+/**
+*   @brief  Called when a client has finished connecting, and is ready
+*           to be placed into the game. This will happen every level load.
+**/
+void SVG_Client_Begin( svg_base_edict_t *ent );
+/**
+*   @details    Called when a player begins connecting to the server.
+*
+*               The game can refuse entrance to a client by returning false.
+*
+*               If the client is allowed, the connection process will continue
+*               and eventually get to ClientBegin()
+*
+*               Changing levels will NOT cause this to be called again, but
+*               loadgames WILL.
+**/
+const bool SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo );
+/**
+*   @brief  Called when a player drops from the server.
+*           Will NOT be called between levels.
+**/
+void SVG_Client_Disconnect( svg_base_edict_t *ent );
+/**
+*	@brief  This will be called once for each client frame, which will usually
+*			be a couple times for each server frame.
+**/
+void SVG_Client_Think( svg_base_edict_t * ent, usercmd_t * ucmd );
 
 
 

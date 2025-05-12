@@ -17,7 +17,7 @@
 
 #include "svgame/entities/svg_player_edict.h"
 #include "svgame/player/svg_player_client.h"
-
+#include "svgame/player/svg_player_move.h"
 
 
 

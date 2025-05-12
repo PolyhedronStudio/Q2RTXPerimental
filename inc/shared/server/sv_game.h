@@ -77,11 +77,11 @@ struct svg_client_t;
     struct svg_client_t {
         player_state_t  ps;     // communicated by server to clients
         player_state_t  ops;    // old player state from the previous frame.
-        int64_t             ping;
+        int64_t         ping;
 
         // the game dll can add anything it wants after
         // this point in the structure
-        int             clientNum;
+        int32_t         clientNum;
     };
     //struct edict_t {
     //    entity_state_t  s;
@@ -232,27 +232,27 @@ typedef struct {
     *
     **/
     //! Perform a trace through the world and its entities with a bbox from start to end point.
-    const cm_trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_ptr_t *passent, const cm_contents_t contentmask );
+    const cm_trace_t( *trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_ptr_t *passent, const cm_contents_t contentmask );
     //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
-    const cm_trace_t( *q_gameabi clip )( edict_ptr_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );
+    const cm_trace_t( *clip )( edict_ptr_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );
     //! Returns a cm_contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
     const cm_contents_t( *pointcontents )( const vec3_t point );
     /**
     *   @return True if the points p1 to p2 are within two visible areas.
     *   @note   Also checks portalareas so that doors block sight.
     **/
-    const qboolean( *inPVS )( const vec3_t p1, const vec3_t p2 );
+    const bool( *inPVS )( const vec3_t p1, const vec3_t p2 );
     /**
     *   @return True if the points p1 to p2 are within two hearable areas.
     *   @note   Also checks portalareas so that doors block hearing.
     **/
-    const qboolean( *inPHS )( const vec3_t p1, const vec3_t p2 );
+    const bool( *inPHS )( const vec3_t p1, const vec3_t p2 );
     //! Set the state of the matching area portal number.
     void ( *SetAreaPortalState )( const int32_t portalnum, const bool open );
     //! Get state of the matching area portal number.
     const int32_t( *GetAreaPortalState )( const int32_t portalnum );
     //! Returns true if the areas are connected.
-    const qboolean( *AreasConnected )( const int32_t area1, const int32_t area2 );
+    const bool( *AreasConnected )( const int32_t area1, const int32_t area2 );
     /**
     *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.
     *   If the size, position, solidity, clipmask, hullContents, or owner changes, it must be relinked.
@@ -465,7 +465,7 @@ typedef struct {
     *	WriteGame is called every time a level is exited.
     *	ReadGame is called on a loadgame.
     **/
-    void ( *WriteGame )( const char *filename, qboolean autosave );
+    void ( *WriteGame )( const char *filename, const bool isAutoSave );
     void ( *ReadGame )( const char *filename );
 
 
@@ -484,7 +484,7 @@ typedef struct {
     *	Client(s):
     *
     **/
-    qboolean( *ClientConnect )( edict_ptr_t *ent, char *userinfo );
+    const bool ( *ClientConnect )( edict_ptr_t *ent, char *userinfo );
     void ( *ClientBegin )( edict_ptr_t *ent );
     void ( *ClientUserinfoChanged )( edict_ptr_t *ent, char *userinfo );
     void ( *ClientDisconnect )( edict_ptr_t *ent );

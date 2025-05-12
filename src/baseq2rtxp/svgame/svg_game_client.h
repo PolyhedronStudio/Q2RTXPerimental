@@ -105,7 +105,7 @@ struct svg_client_t {
 
     // the game dll can add anything it wants after
     // this point in the structure
-    int             clientNum;
+    int32_t         clientNum;
 
     /**
     *	Private to game:
@@ -193,17 +193,17 @@ struct svg_client_t {
         //! in case of it finding itself in repetitive mode changes.
         //!
         //! In other words, this allows the client to be made aware of when an animation changed OR restarted.
-        qboolean updatePlayerStateAnimationID;
+        bool updatePlayerStateAnimationID;
 
         //! Determines if the weapon can change 'mode'.
-        qboolean canChangeMode;
+        bool canChangeMode;
         //! If set, will be applied to the client entity's state sound member.
         int32_t activeSound;
 
         //! State for 'Aiming' weapon modes.
         struct {
             //! If true, the weapon is using secondary fire to engage in 'aim' mode.
-            qboolean isAiming;
+            bool isAiming;
         } aimState;
 
         //! Stores the 'Weapon Animation' data, which if still actively being processed

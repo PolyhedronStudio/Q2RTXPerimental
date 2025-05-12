@@ -251,9 +251,11 @@ void game_write_context_t::write_field( const svg_save_descriptor_field_t *descr
         }
         break;
     case SD_FIELD_TYPE_BOOL:
-        for ( i = 0; i < descriptorField->size; i++ ) {
-            write_int32( ( (bool *)p )[ i ] );
-        }
+        //for ( i = 0; i < descriptorField->size; i++ ) {
+        //    write_int32( ( (bool *)p )[ i ] );
+        //}
+        // <Q2RTXP>: WID: We now store it as a byte, disregarding the old qboolean
+        write_data( p, descriptorField->size );
         break;
     case SD_FIELD_TYPE_FLOAT:
         for ( i = 0; i < descriptorField->size; i++ ) {

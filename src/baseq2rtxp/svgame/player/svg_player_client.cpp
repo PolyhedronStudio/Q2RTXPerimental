@@ -91,7 +91,7 @@ player_die
 *               Changing levels will NOT cause this to be called again, but
 *               loadgames WILL.
 **/
-qboolean SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo ) {
+const bool SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo ) {
     // check to see if they are on the banned IP list
     char *value = Info_ValueForKey( userinfo, "ip" );
     if ( SVG_FilterPacket( value ) ) {
@@ -852,7 +852,7 @@ void SVG_Client_Begin( svg_base_edict_t *ent ) {
     ent->client->pers.spawned = true;
 
     // If there is already a body waiting for us (a loadgame), just take it:
-    if ( ent->inuse == (qboolean)true ) {
+    if ( ent->inuse == true ) {
         SVG_Client_BeginLoadGame( ent );
     // Otherwise spawn one from scratch:
     } else {

@@ -346,7 +346,7 @@ void use_target_spawner( svg_base_edict_t *self, svg_base_edict_t *other, svg_ba
     ent->classname = self->targetNames.target;
     VectorCopy(self->s.origin, ent->s.origin);
     VectorCopy(self->s.angles, ent->s.angles);
-    ED_CallSpawn(ent);
+    ent->DispatchSpawnCallback();//ED_CallSpawn(ent);
     gi.unlinkentity(ent);
     SVG_Util_KillBox(ent, false);
     gi.linkentity(ent);

@@ -24,6 +24,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_clients.h"
 #include "svgame/svg_utils.h"
 
+#include "svgame/player/svg_player_client.h"
+#include "svgame/player/svg_player_move.h"
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
 
@@ -45,6 +47,7 @@ svg_level_locals_t  level;
 svgame_import_t	gi;
 svgame_export_t	globals;
 spawn_temp_t st;
+
 
 /**
 *	Times.
@@ -120,19 +123,11 @@ cvar_t *g_select_empty;
 //
 // Func Declarations:
 //
-void SVG_Client_Begin( svg_base_edict_t *ent );
+
 void SVG_Client_Command( svg_base_edict_t *ent );
-qboolean SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo );
-void SVG_Client_Disconnect( svg_base_edict_t *ent );
-void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *cmd );
-void SVG_Client_UserinfoChanged( svg_base_edict_t *ent, char *userinfo );
 
 void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
 void SVG_RunEntity(svg_base_edict_t *ent);
-void SVG_WriteGame(const char *filename, qboolean autosave);
-void SVG_ReadGame(const char *filename);
-void SVG_WriteLevel(const char *filename);
-void SVG_ReadLevel(const char *filename);
 void SVG_InitGame(void);
 void SVG_RunFrame(void);
 

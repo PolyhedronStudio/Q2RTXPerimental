@@ -185,11 +185,11 @@ typedef struct mm_move_s {
     //! [Out]: Touch Traces.
     mm_touch_trace_list_t touchTraces;
     //! [Out]:
-    qboolean jump_sound;
+    bool jump_sound;
     //! [Out]:
     struct {
         //! If clipped to stair.
-        qboolean clipped;
+        bool clipped;
         //! Height of step.
         float height;
     } step;

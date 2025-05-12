@@ -39,7 +39,7 @@ struct sv_shared_edict_t {
     //! NULL if not a player the server expects the first part
     //! of gclient_s to be a player_state_t but the rest of it is opaque
     BaseClientType *client = nullptr;
-    qboolean inuse = false;
+    bool inuse = false;
     int32_t linkcount = 0;
 
     // FIXME: move these fields to a server private sv_entity_t

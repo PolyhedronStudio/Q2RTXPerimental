@@ -479,6 +479,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/player/svg_player_client.h
 	baseq2rtxp/svgame/player/svg_player_hud.h
+	baseq2rtxp/svgame/player/svg_player_move.h
 	baseq2rtxp/svgame/player/svg_player_trail.h
 	baseq2rtxp/svgame/player/svg_player_weapon.h
 	baseq2rtxp/svgame/player/svg_player_view.h

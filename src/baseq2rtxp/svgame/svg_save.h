@@ -51,55 +51,41 @@ struct svg_base_edict_t;
 #include "svgame/save/svg_save_write_context.h"
 
 
-/******************************
-* 
-*	
-*	LEGACY
-* 
-* 
-*******************************/
 /**
-*	@brief	Fields are needed for spawning from the entity string
-*			and saving / loading games
+*   @description    WriteGame
+*
+*   This will be called whenever the game goes to a new level,
+*   and when the user explicitly saves the game.
+*
+*   Game information include cross level data, like multi level
+*   triggers, help computer info, and all client states.
+*
+*   A single player death will automatically restore from the
+*   last save position.
 **/
-enum fieldtype_t : int32_t {
-	F_BAD,
-	F_BYTE,
-	F_SHORT,
-	F_INT,
+void SVG_WriteGame( const char *filename, const bool isAutoSave );
+/**
+*   @brief  Reads a game save file and initializes the game state.
+*   @param  filename The name of the save file to read.
+*   @description    This function reads a save file and initializes the game state.
+*                   It allocates memory for the game state and clients, and reads the game data from the file.
+*                   It also checks the version of the save file and ensures that the game state is valid.
+**/
+void SVG_ReadGame( const char *filename );
 
-	F_BOOL,
-	F_FLOAT,
-	F_DOUBLE,
-
-	F_VECTOR3,
-	F_VECTOR4,
-	F_ANGLEHACK,
-
-	F_LSTRING,          // string on disk, pointer in memory, TAG_SVGAME_LEVEL
-	F_GSTRING,          // string on disk, pointer in memory, TAG_SVGAME
-	F_ZSTRING,          // string on disk, string in memory
-
-	F_LEVEL_QSTRING,	// string on disk, sg_qtag_string_t in memory, TAG_SVGAME_LEVEL
-	F_GAME_QSTRING,		// string on disk, sg_qtag_string_t in memory, TAG_SVGAME,
-
-	F_LEVEL_QTAG_MEMORY,	// variable sized memory blob on disk, sg_qtag-memory_t in memory, TAG_SVGAME_LEVEL
-	F_GAME_QTAG_MEMORY,		// variable sized memory blob on disk, sg_qtag-memory_t in memory, TAG_SVGAME,
-
-	F_EDICT,            // index on disk, pointer in memory
-	F_ITEM,             // index on disk, pointer in memory
-	F_CLIENT,           // index on disk, pointer in memory
-	F_FUNCTION,
-	F_POINTER,
-
-	// WID: TODO: Store signal args array.
-	//F_SIGNAL_ARGUMENTS,
-
-	F_IGNORE,
-
-	// WID: This was from Q2RTX 1.7.0
-	//F_FRAMETIME,         // speciality for savegame compatibility: float on disk, converted to framenum
-	// WID: However, we now got QMTime running on int64_t power.
-	F_FRAMETIME,	// Same as F_INT64
-	F_INT64
-};
+/**
+*   @brief  Writes the state of the current level to a file.
+**/
+void SVG_WriteLevel( const char *filename );
+/**
+*   @brief  SpawnEntities will allready have been called on the
+*	level the same way it was when the level was saved.
+*
+*   That is necessary to get the baselines set up identically.
+*
+*   The server will have cleared all of the world links before
+*   calling ReadLevel.
+*
+*   No clients are connected yet.
+**/
+void SVG_ReadLevel( const char *filename );
