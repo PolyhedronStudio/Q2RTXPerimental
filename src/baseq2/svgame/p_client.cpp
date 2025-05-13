@@ -425,7 +425,7 @@ void TossClientWeapon(edict_t *self)
 
     if (quad) {
         self->client->v_angle[YAW] += spread;
-        drop = Drop_Item(self, SVG_FindItemByClassname("item_quad"));
+        drop = Drop_Item(self, SVG_Item_FindByClassName("item_quad"));
         self->client->v_angle[YAW] -= spread;
         drop->spawnflags |= DROPPED_PLAYER_ITEM;
 
@@ -596,7 +596,7 @@ void SVG_Player_InitPersistantData(edict_t *ent, svg_client_t *client)
     client->pers = {};
 
     // Find the blaster item, add it to our inventory and appoint it as the selected weapon.
-	item = SVG_FindItem("Blaster");
+	item = SVG_Item_FindByPickupName("Blaster");
 	client->pers.selected_item = ITEM_INDEX(item);
 	client->pers.inventory[client->pers.selected_item] = 1;
 
@@ -606,14 +606,14 @@ void SVG_Player_InitPersistantData(edict_t *ent, svg_client_t *client)
 	{
 		// Q2RTX: Spawn with a flare gun and some grenades to use with it.
 		// Flare gun is new and not found anywhere in the game as a pickup item.
-		gitem_t* item_flareg = SVG_FindItem("Flare Gun");
+		gitem_t* item_flareg = SVG_Item_FindByPickupName("Flare Gun");
 		if (item_flareg)
 		{
 			client->pers.inventory[ITEM_INDEX(item_flareg)] = 1;
 
 			if (sv_flaregun->value == 2)
 			{
-				gitem_t* item_grenades = SVG_FindItem("Grenades");
+				gitem_t* item_grenades = SVG_Item_FindByPickupName("Grenades");
 				client->pers.inventory[ITEM_INDEX(item_grenades)] = 5;
 			}
 		}

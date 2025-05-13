@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/svg_local.h"
 #include "svgame/svg_clients.h"
+#include "svgame/svg_game_items.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -355,6 +356,29 @@ Goal:
 	SpawnKey function. This allows us to set the edict's fields based on the cm_entity_t key/value pairs.
 */
 /**
+*   @brief  A pointer to the gitem_t structure if it matched by classname.
+**/
+static const gitem_t *_GetItemByClassname( const char *classname ) {
+    // Obviously.
+    if ( !classname ) {
+        return nullptr;
+    }
+
+	// Iterate over the number of items.
+	for ( int32_t i = 0; i < game.num_items; i++ ) {
+		if ( !itemlist[ i ].classname ) {
+			continue;
+		}
+		// If we found a match, return the item.
+		if ( !strcmp( classname, itemlist[ i ].classname ) ) {
+			return &itemlist[ i ];
+		}
+	}
+
+	// No match found.
+	return nullptr;
+}
+/**
 *   @brief  Loads in the map name and iterates over the collision model's parsed key/value
 *           pairs in order to spawn entities appropriately matching the pair dictionary fields
 *           of each entity.
@@ -424,6 +448,9 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         game.clients[ i ].pers.spawned = false;
     }
 
+    // Ensure we got the number of items to check classnames against with.
+    SVG_InitItems();
+
     //! Keep score of the total 'inhibited' entities. (Those that got removed for distinct reasons.)
     int32_t numInhibitedEntities = 0;
 
@@ -441,6 +468,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         // Pointer to the worldspawn edict in first instance, after that the first free entity
         // we can acquire.
         //spawnEdict = ( !spawnEdict ? g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ : g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>() );
+        svg_base_edict_t *spawnEdict = nullptr;
 
         // TypeInfo for this entity.
         EdictTypeInfo *typeInfo = nullptr;
@@ -467,30 +495,64 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         }
 
         // First seek out its classname so we can get the TypeInfo needed to allocate the proper svg_base_edict_t derivative.
+        const cm_entity_t *topCmEntity = cm_entity;
         const cm_entity_t *classnameKv = cm_entity;
 
         while ( classnameKv ) {
             // If we have a matching key, then we can spawn the entity.
             if ( strcmp( classnameKv->key, "classname" ) == 0 ) {
-                // Get the type info for this entity.
-                typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classnameKv->string );
-				// If we can't find its classname linked in the TypeInfo list, we'll resort to the default
-				// svg_base_edict_t type instead.
-                // If we don't have a type info, then we can't spawn it.
-                if ( !typeInfo ) {
-                    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
-                    gi.dprintf( "No type info for entity(%s)!\n", classnameKv->string );
+                /**
+				*   First determine whether we are dealing with an entity in order to spawn a specific type.
+                **/
+                //const gitem_t *item = nullptr;// _GetItemByClassname( classnameKv->nullable_string );
+                const gitem_t *item = nullptr;
+
+                if ( item = _GetItemByClassname( classnameKv->nullable_string ) ) {
+                    // Get the default 'item edict' typeInfo.
+                    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_item_edict_t" );
+                    // If we can't find its classname linked in the TypeInfo list, we'll resort to the default
+                    // svg_base_edict_t type instead.
+                    // If we don't have a type info, then we can't spawn it.
+                    if ( !typeInfo ) {
+                        typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+                        gi.dprintf( "No type info for entity(%s)!\n", classnameKv->string );
+
+                        // Nullify the item pointer again.
+                        item = nullptr;
+                    }
+                /**
+				*   Otherwise proceed as normal and first try to look up the typeInfo by its classname.
+                *   If that fails, resort to default svg_base_edict_t classname type instead.
+                **/
+                } else {
+                    // Get the type info for this entity.
+                    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classnameKv->string );
+                    // If we can't find its classname linked in the TypeInfo list, we'll resort to the default
+                    // svg_base_edict_t type instead.
+                    // If we don't have a type info, then we can't spawn it.
+                    if ( !typeInfo ) {
+                        typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+                        gi.dprintf( "No type info for entity(%s)!\n", classnameKv->string );
+                    }
                 }
-                // Allocate the edict instance.
+
+                /**
+                *   Allocate the entity for spawning.
+                **/
                 if ( typeInfo ) {
-                    spawnEdict = typeInfo->allocateEdictInstanceCallback( cm_entity );
-                // This should never happen, but still.
+                    // Allocate.
+                    spawnEdict = typeInfo->allocateEdictInstanceCallback( topCmEntity );
+                    // Assign its item info pointer in case we spawned an item entity.
+                    spawnEdict->item = item;
+                    // This should never happen, but still.
+                // Or, error out.
                 } else {
                     spawnEdict = nullptr;
-                    gi.dprintf( "No failed to find TypeInfo for \"svg_base_edict_t\", entity(% s)!\n", classnameKv->string );
+                    gi.dprintf( "Failed to find TypeInfo for \"svg_base_edict_t\", entity(% s)!\n", classnameKv->string );
                 }
                 break;
             }
+
             // If the key is not 'classname', then we need to keep looking for it.
             // Seek out the next key/value pair for one that has the matching key 'classname'.
             classnameKv = classnameKv->next;

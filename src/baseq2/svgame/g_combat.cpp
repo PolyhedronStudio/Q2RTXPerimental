@@ -186,7 +186,7 @@ static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal
     if (client) {
         power_armor_type = PowerArmorType(ent);
         if (power_armor_type != POWER_ARMOR_NONE) {
-            index = ITEM_INDEX(SVG_FindItem("Cells"));
+            index = ITEM_INDEX(SVG_Item_FindByPickupName("Cells"));
             power = client->pers.inventory[index];
         }
     } else if (ent->svflags & SVF_MONSTER) {
@@ -262,7 +262,7 @@ static int CheckArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int
     if (!index)
         return 0;
 
-    armor = SVG_GetItemByIndex(index);
+    armor = SVG_Item_GetByIndex(index);
 
     if (dflags & DAMAGE_ENERGY)
         save = ceil(((gitem_armor_t *)armor->info)->energy_protection * damage);

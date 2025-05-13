@@ -352,7 +352,7 @@ void SVG_SetWeaponStats( svg_base_edict_t *ent ) {
         ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO ] = 0;
     } else {
         // Find the item matching the 
-        //int32_t clip_ammo_item_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->pickup_name ) );
+        //int32_t clip_ammo_item_index = ITEM_INDEX( SVG_Item_FindByPickupName( ent->client->pers.weapon->pickup_name ) );
         const int32_t clip_ammo_item_index = ent->client->pers.weapon->weapon_index;
         //item = &itemlist[ ent->client->ammo_index ];
         //ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO_ICON ] = gi.imageindex( item->icon );
@@ -411,7 +411,7 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     //index = ArmorIndex(ent);
     //if (index) {
-    //    item = SVG_GetItemByIndex(index);
+    //    item = SVG_Item_GetByIndex(index);
     //    if ( item && item->flags == ITEM_FLAG_ARMOR ) {
     //        ent->client->ps.stats[ STAT_ARMOR_ICON ] = gi.imageindex( item->icon );
     //        ent->client->ps.stats[ STAT_ARMOR ] = ent->client->pers.inventory[ index ];

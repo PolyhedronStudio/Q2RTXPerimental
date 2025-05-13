@@ -742,18 +742,18 @@ void SVG_Cmd_Score_f(edict_t *ent);
 void SVG_PrecacheItem(gitem_t *it);
 void SVG_InitItems(void);
 void SVG_SetItemNames(void);
-gitem_t *SVG_FindItem(const char *pickup_name);
-gitem_t *SVG_FindItemByClassname(const char *classname);
+gitem_t *SVG_Item_FindByPickupName(const char *pickup_name);
+gitem_t *SVG_Item_FindByClassName(const char *classname);
 #define ITEM_INDEX(x) ((x)-itemlist)
 edict_t *Drop_Item(edict_t *ent, gitem_t *item);
-void SVG_SetItemRespawn(edict_t *ent, float delay);
+void SVG_Item_SetRespawn(edict_t *ent, float delay);
 void ChangeWeapon(edict_t *ent);
-void SVG_SpawnItem(edict_t *ent, gitem_t *item);
+void SVG_Item_Spawn(edict_t *ent, gitem_t *item);
 void Think_Weapon(edict_t *ent);
 int ArmorIndex(edict_t *ent);
 int PowerArmorType(edict_t *ent);
-gitem_t *SVG_GetItemByIndex(int index);
-bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
+gitem_t *SVG_Item_GetByIndex(int index);
+bool SVG_ItemAmmo_Add(edict_t *ent, gitem_t *item, int count);
 void Touch_Item(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf);
 
 //

@@ -114,60 +114,12 @@ const bool svg_worldspawn_edict_t::KeyValue( const cm_entity_t *keyValuePair, st
         musictrack = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
-    #if 0
-    // Match: lip
-    else if ( keyStr == "lip" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-        lip = keyValuePair->integer;
-        return true;
-    }
-    // Match: distance
-    else if ( keyStr == "distance" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-        distance = keyValuePair->integer;
-        return true;
-    }
-    // Match: height
-    else if ( keyStr == "height" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-        height = keyValuePair->integer;
-        return true;
-    }
-    // Match: item
-    else if ( keyStr == "item" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        item = svg_level_qstring_t::from_char_str( keyValuePair->string );
-        return true;
-    }
-    #endif
     // Match: gravity
     else if ( keyStr == "gravity" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        gravity = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        gravity_str = svg_level_qstring_t::from_char_str( keyValuePair->string );
+		gravity = std::strtof( gravity_str.ptr, nullptr );
         return true;
     }
-    #if 0
-    // Match: pausetime
-    else if ( keyStr == "pausetime" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        pausetime = keyValuePair->value;
-        return true;
-    }
-    // Match: minyaw
-    else if ( keyStr == "minyaw" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        minyaw = keyValuePair->value;
-        return true;
-    }
-    // Match: maxyaw
-    else if ( keyStr == "maxyaw" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        maxyaw = keyValuePair->value;
-        return true;
-    }
-    // Match: minpitch
-    else if ( keyStr == "minpitch" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        minpitch = keyValuePair->value;
-        return true;
-    }
-    // Match: maxpitch
-    else if ( keyStr == "maxpitch" && keyValuePair->parsed_type &cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        maxpitch = keyValuePair->value;
-        return true;
-    }
-    #endif
 
     // Give Base class a shot.
 	return Base::KeyValue( keyValuePair, errorStr );
@@ -228,12 +180,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     gi.configstring( CS_SKYAXIS, va( "%f %f %f",
         self->skyaxis[ 0 ], self->skyaxis[ 1 ], self->skyaxis[ 2 ] ) );
 
-    if ( st.musictrack && st.musictrack[ 0 ] ) {
-        gi.configstring( CS_CDTRACK, (const char *)self->musictrack );
-    } else {
-        gi.configstring( CS_CDTRACK, va( "%i", self->sounds ) );
-    }
-
     gi.configstring( CS_MAXCLIENTS, va( "%i", (int)( maxclients->value ) ) );
 
     // Set air acceleration properly.
@@ -251,10 +197,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     }
 
     // Gravity.
-    if ( !self->gravity ) {
+    if ( !self->gravity_str.count || !self->gravity ) {
         gi.cvar_set( "sv_gravity", "800" );
     } else {
-        gi.cvar_set( "sv_gravity", (const char *)self->gravity );
+        gi.cvar_set( "sv_gravity", (const char *)self->gravity_str );
     }
 
     // Certain precaches.
@@ -266,8 +212,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     //gi.imageindex("help");
     //gi.imageindex("field_3");
 
-    SVG_PrecacheItem( SVG_FindItem( "Fists" ) );
-    SVG_PrecacheItem( SVG_FindItem( "Pistol" ) );
+    SVG_PrecacheItem( SVG_Item_FindByPickupName( "Fists" ) );
+    SVG_PrecacheItem( SVG_Item_FindByPickupName( "Pistol" ) );
 
     // HUD Chat.
     gi.soundindex( "hud/chat01.wav" );

@@ -46,7 +46,6 @@ svg_game_locals_t game;
 svg_level_locals_t  level;
 svgame_import_t	gi;
 svgame_export_t	globals;
-spawn_temp_t st;
 
 
 /**
@@ -174,7 +173,6 @@ void SVG_PreInitGame( void ) {
 
     // Setup the Edict Class TypeInfo system.
     EdictTypeInfo::InitializeTypeInfoRegistry();
-
 
 	// Initialize the game local's movewith array.
     game.moveWithEntities = static_cast<svg_game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
@@ -313,8 +311,6 @@ void SVG_InitGame( void )
     //    gi.configstring( CS_AIRACCEL, "0" );
     //}
 
-    // items
-    SVG_InitItems();
 
     // Clamp maxentities within valid range.
     game.maxentities = QM_ClampUnsigned<uint32_t>(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);

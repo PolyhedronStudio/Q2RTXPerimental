@@ -1011,8 +1011,8 @@ void SP_func_button( svg_base_edict_t *ent ) {
     if ( !ent->decel ) {
         ent->decel = ent->speed;
     }
-    if ( !st.lip ) {
-        st.lip = 4;
+    if ( !ent->lip ) {
+        ent->lip = 4;
     }
     // Trigger defaults:
     if ( !ent->wait ) {
@@ -1021,7 +1021,7 @@ void SP_func_button( svg_base_edict_t *ent ) {
 
     // Calculate absolute move distance to get from pos1 to pos2.
     const Vector3 fabsMoveDirection = QM_Vector3Fabs( ent->movedir );
-    ent->pushMoveInfo.distance = QM_Vector3DotProduct( fabsMoveDirection, ent->size ) - st.lip;
+    ent->pushMoveInfo.distance = QM_Vector3DotProduct( fabsMoveDirection, ent->size ) - ent->lip;
     // Translate the determined move distance into the move direction to get pos2, our move end origin.
     ent->pos1 = ent->s.origin;
     ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );

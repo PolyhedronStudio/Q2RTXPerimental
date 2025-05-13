@@ -441,7 +441,7 @@ void SVG_HUD_SetStats(edict_t *ent)
     //
     power_armor_type = PowerArmorType(ent);
     if (power_armor_type) {
-        cells = ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("cells"))];
+        cells = ent->client->pers.inventory[ITEM_INDEX(SVG_Item_FindByPickupName("cells"))];
         if (cells == 0) {
             // ran out of cells for power armor
             ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_POWER_ARMOR );
@@ -459,7 +459,7 @@ void SVG_HUD_SetStats(edict_t *ent)
             ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex("i_powerscreen");
         ent->client->ps.stats[STAT_ARMOR] = cells;
     } else if (index) {
-        item = SVG_GetItemByIndex(index);
+        item = SVG_Item_GetByIndex(index);
         ent->client->ps.stats[STAT_ARMOR_ICON] = gi.imageindex(item->icon);
         ent->client->ps.stats[STAT_ARMOR] = ent->client->pers.inventory[index];
     } else {

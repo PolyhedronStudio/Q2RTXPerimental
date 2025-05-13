@@ -55,7 +55,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     template<typename EdictType>
     EdictType *AllocateNextFreeEdict( ) {
         svg_base_edict_t *entity = nullptr;
-        svg_base_edict_t *freedEntity = nullptr;
+        EdictType *freedEntity = nullptr;
 
         // Start after the client slots.
         int32_t i = game.maxclients + 1;
@@ -68,14 +68,14 @@ struct svg_edict_pool_t : sv_edict_pool_i {
             // the first couple seconds of server time can involve a lot of
             // freeing and allocating, so relax the replacement policy
             if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-                _InitEdict<EdictType>( entity, i );
+                _InitEdict<EdictType>( static_cast<EdictType *>( entity ), i );
                 return static_cast<EdictType *>( entity );
             }
 
             // this is going to be our second chance to spawn an entity in case all free
             // entities have been freed only recently
             if ( !freedEntity ) {
-                freedEntity = entity;
+                freedEntity = static_cast<EdictType *>( entity );
             }
         }
 
@@ -93,7 +93,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         }
 
         // Initialize it.
-        _InitEdict<EdictType>( entity, num_edicts );
+        _InitEdict<EdictType>( static_cast<EdictType *>( entity ), num_edicts );
         // If we have free edicts left to go, use those instead.
         num_edicts++;
 

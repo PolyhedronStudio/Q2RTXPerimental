@@ -421,10 +421,10 @@ void ED_CallSpawn(edict_t *ent)
         // Skip if the item's classname is empty.
         if (!item->classname)
             continue;
-        // If the classnames are an equal match, defer to SVG_SpawnItem and exit.
+        // If the classnames are an equal match, defer to SVG_Item_Spawn and exit.
         if (!strcmp(item->classname, ent->classname)) {
             // found it
-            SVG_SpawnItem(ent, item);
+            SVG_Item_Spawn(ent, item);
             return;
         }
     }
@@ -1063,7 +1063,7 @@ void SP_worldspawn(edict_t *ent)
     gi.soundindex( "player/burn2.wav" );
     gi.soundindex( "player/drown1.wav" );
 
-    SVG_PrecacheItem( SVG_FindItem( "Blaster" ) );
+    SVG_PrecacheItem( SVG_Item_FindByPickupName( "Blaster" ) );
 
     gi.soundindex( "player/lava1.wav" );
     gi.soundindex( "player/lava2.wav" );

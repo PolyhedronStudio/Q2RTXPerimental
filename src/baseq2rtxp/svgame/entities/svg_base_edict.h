@@ -773,20 +773,33 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     int32_t     mass = 0;
     //! [SpawnKey]: Per entity gravity multiplier (1.0 is normal) use for lowgrav artifact, flares.
     float       gravity = 0.f;
+    //! [SpawnKey]: For movers.
+    //const char *noise;
+    //! [SpawnKey]: For triggers.
+    double      pausetime = 0.;
+    //! [SpawnKey]: For items.
+    svg_level_qstring_t itemName = nullptr;
 
 
     /**
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
     **/
     svg_pushmove_info_t pushMoveInfo;
+
     //! [SpawnKey]: PushMover Lip Distance.
     float   lip     = 0.f;
+    //! [SpawnKey]: PushMover Lip Distance.
+    float   distance    = 0.f;
+    //! [SpawnKey]: PushMover Lip Distance.
+    float   height  = 0.f;
+
     //! [SpawnKey]: Moving speed.
     float   speed   = 0.f;
     //! [SpawnKey]: Acceleration speed.
     float   accel   = 0.f;
     //! [SpawnKey]: Deceleration speed.
     float   decel   = 0.f;
+
     //! [SpawnKey]: Move axis orientation, defaults to Z axis.
     Vector3 movedir = QM_Vector3Zero();
     //! Mover Default Start Position.
@@ -885,6 +898,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   (Player-)Noise/Trail:
     **/
+	//! [SpawnKey]: The path to the noise audio to use.
+    svg_level_qstring_t noisePath = nullptr;
     //! Pointer to noise entity.
     svg_base_edict_t *mynoise = nullptr;       // can go in client only
     svg_base_edict_t *mynoise2 = nullptr;
@@ -936,7 +951,6 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     sg_means_of_death_t meansOfDeath = static_cast<sg_means_of_death_t>(0);
     //! [SpawnKey]: Used for target_changelevel. Set as key/value.
     const char *map = nullptr;
-
     //! [SpawnKey]: Damage entity will do.
     int32_t     dmg = 0;
     //! Size of the radius where entities within will be damaged.

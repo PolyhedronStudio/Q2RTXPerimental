@@ -9,6 +9,8 @@
 #pragma once
 
 
+// Forward declaration
+struct svg_item_edict_t;
 
 /**
 *   Item SpawnFlags:
@@ -102,7 +104,7 @@ typedef struct gitem_s {
     void        ( *precached )( const struct gitem_s *item );
 
     //! Pickup Callback.
-    const bool  ( *pickup )( svg_base_edict_t *ent, svg_base_edict_t *other );
+    const bool  ( *pickup )( svg_item_edict_t *ent, svg_base_edict_t *other );
     //! Use Callback.
     void        ( *use )( svg_base_edict_t *ent, const struct gitem_s *item );
     //! Drop Callback.
@@ -166,11 +168,11 @@ void SVG_SetItemNames( void );
 /**
 *   @brief
 **/
-const gitem_t *SVG_FindItem( const char *pickup_name );
+const gitem_t *SVG_Item_FindByPickupName( const char *pickup_name );
 /**
 *   @brief
 **/
-const gitem_t *SVG_FindItemByClassname( const char *classname );
+const gitem_t *SVG_Item_FindByClassName( const char *classname );
 /**
 *   @brief
 **/
@@ -178,23 +180,23 @@ const gitem_t *SVG_FindItemByClassname( const char *classname );
 /**
 *   @brief
 **/
-svg_base_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item );
+svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item );
 /**
 *   @brief
 **/
-void SVG_SetItemRespawn( svg_base_edict_t *ent, float delay );
+void SVG_Item_SetRespawn( svg_item_edict_t *ent, float delay );
 /**
 *   @brief
 **/
-void SVG_SpawnItem( svg_base_edict_t *ent, const gitem_t *item );
+void SVG_Item_Spawn( svg_item_edict_t *ent, const gitem_t *item );
 /**
 *   @brief
 **/
-const gitem_t *SVG_GetItemByIndex( int index );
+const gitem_t *SVG_Item_GetByIndex( int index );
 /**
 *   @brief
 **/
-const bool Add_Ammo( svg_base_edict_t *ent, const gitem_t *item, const int32_t count );
+const bool SVG_ItemAmmo_Add( svg_base_edict_t *ent, const gitem_t *item, const int32_t count );
 /**
 *   @brief
 **/

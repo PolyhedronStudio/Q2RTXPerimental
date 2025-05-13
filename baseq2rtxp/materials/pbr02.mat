@@ -7,14 +7,23 @@ textures/pbr02/bricks00:
 	metalness_factor 0
     specular_factor 0.125
     
-textures/pbr02/concrete00:
-	texture_base textures/pbr02/concrete00.tga
-	texture_normals textures/pbr02/concrete00_n.tga
+textures/pbr02/chkr_tiles00:
+	texture_base textures/pbr02/chkr_tiles00.tga
+	texture_normals textures/pbr02/chkr_tiles00_n.tga
 	base_factor 2.5
 	bump_scale 0.175
 	emissive_factor 0
 	metalness_factor 0
 	specular_factor 0.0125
+
+textures/pbr02/chkr_tiles00:
+	texture_base textures/pbr02/chkr_tiles00.tga
+	texture_normals textures/pbr02/chkr_tiles00_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	emissive_factor 0
+	metalness_factor 0.75
+	specular_factor 0.125
 
 textures/pbr02/concrete01:
 	texture_base textures/pbr02/concrete01.tga

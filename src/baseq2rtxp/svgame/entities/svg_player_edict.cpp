@@ -12,6 +12,7 @@
 #include "svgame/svg_save.h"
 
 #include "sharedgame/sg_pmove.h"
+#include "svgame/entities/svg_item_edict.h"
 #include "svgame/entities/svg_player_edict.h"
 
 
@@ -130,11 +131,15 @@ static void TossClientWeapon( svg_base_edict_t *self ) {
 
     // Need to have actual ammo to toss.
     const gitem_t *item = self->client->pers.weapon;
-    if ( !self->client->pers.inventory[ self->client->ammo_index ] )
+	// Need to have actual ammo to toss.
+    if ( !self->client->pers.inventory[ self->client->ammo_index ] ) {
         item = NULL;
+    }
+
     // Can't toss away your fists.
-    if ( item && ( strcmp( item->pickup_name, "Fists" ) == 0 ) )
+    if ( item && ( strcmp( item->pickup_name, "Fists" ) == 0 ) ) {
         item = NULL;
+    }
 
     //if (item && quad)
     //    spread = 22.5f;
@@ -143,7 +148,7 @@ static void TossClientWeapon( svg_base_edict_t *self ) {
 
     if ( item ) {
         self->client->viewMove.viewAngles[ YAW ] -= spread;
-        svg_base_edict_t *drop = Drop_Item( self, item );
+        svg_item_edict_t *drop = Drop_Item( self, item );
         self->client->viewMove.viewAngles[ YAW ] += spread;
         drop->spawnflags = DROPPED_PLAYER_ITEM;
     }

@@ -55,10 +55,10 @@ static QMTime  quad_drop_timeout_hack;
 
 /*
 ===============
-SVG_GetItemByIndex
+SVG_Item_GetByIndex
 ===============
 */
-gitem_t *SVG_GetItemByIndex(int index)
+gitem_t *SVG_Item_GetByIndex(int index)
 {
     if (index == 0 || index >= game.num_items)
         return NULL;
@@ -69,12 +69,12 @@ gitem_t *SVG_GetItemByIndex(int index)
 
 /*
 ===============
-SVG_FindItemByClassname
+SVG_Item_FindByClassName
 
 ===============
 */
 // WID: C++20: added const.
-gitem_t *SVG_FindItemByClassname(const char *classname)
+gitem_t *SVG_Item_FindByClassName(const char *classname)
 {
     int     i;
     gitem_t *it;
@@ -92,12 +92,12 @@ gitem_t *SVG_FindItemByClassname(const char *classname)
 
 /*
 ===============
-SVG_FindItem
+SVG_Item_FindByPickupName
 
 ===============
 */
 // WID: C++20: added const.
-gitem_t *SVG_FindItem(const char *pickup_name)
+gitem_t *SVG_Item_FindByPickupName(const char *pickup_name)
 {
     int     i;
     gitem_t *it;
@@ -141,7 +141,7 @@ void DoRespawn(edict_t *ent)
     ent->s.event = EV_ITEM_RESPAWN;
 }
 
-void SVG_SetItemRespawn(edict_t *ent, float delay)
+void SVG_Item_SetRespawn(edict_t *ent, float delay)
 {
     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
     ent->svflags |= SVF_NOCLIENT;
@@ -169,7 +169,7 @@ bool Pickup_Powerup(edict_t *ent, edict_t *other)
 
     if (deathmatch->value) {
         if (!(ent->spawnflags & DROPPED_ITEM))
-            SVG_SetItemRespawn(ent, ent->item->quantity);
+            SVG_Item_SetRespawn(ent, ent->item->quantity);
         if (((int)dmflags->value & DF_INSTANT_ITEMS) || ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM))) {
             if ((ent->item->use == Use_Quad) && (ent->spawnflags & DROPPED_PLAYER_ITEM))
                 quad_drop_timeout_hack = ent->nextthink - level.time;
@@ -199,7 +199,7 @@ bool Pickup_Adrenaline(edict_t *ent, edict_t *other)
         other->health = other->max_health;
 
     if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SVG_SetItemRespawn(ent, ent->item->quantity);
+        SVG_Item_SetRespawn(ent, ent->item->quantity);
 
     return true;
 }
@@ -209,7 +209,7 @@ bool Pickup_AncientHead(edict_t *ent, edict_t *other)
     other->max_health += 2;
 
     if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SVG_SetItemRespawn(ent, ent->item->quantity);
+        SVG_Item_SetRespawn(ent, ent->item->quantity);
 
     return true;
 }
@@ -228,7 +228,7 @@ bool Pickup_Bandolier(edict_t *ent, edict_t *other)
     if (other->client->pers.max_slugs < 75)
         other->client->pers.max_slugs = 75;
 
-    item = SVG_FindItem("Bullets");
+    item = SVG_Item_FindByPickupName("Bullets");
     if (item) {
         index = ITEM_INDEX(item);
         other->client->pers.inventory[index] += item->quantity;
@@ -236,7 +236,7 @@ bool Pickup_Bandolier(edict_t *ent, edict_t *other)
             other->client->pers.inventory[index] = other->client->pers.max_bullets;
     }
 
-    item = SVG_FindItem("Shells");
+    item = SVG_Item_FindByPickupName("Shells");
     if (item) {
         index = ITEM_INDEX(item);
         other->client->pers.inventory[index] += item->quantity;
@@ -245,7 +245,7 @@ bool Pickup_Bandolier(edict_t *ent, edict_t *other)
     }
 
     if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SVG_SetItemRespawn(ent, ent->item->quantity);
+        SVG_Item_SetRespawn(ent, ent->item->quantity);
 
     return true;
 }
@@ -268,7 +268,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
     if (other->client->pers.max_slugs < 100)
         other->client->pers.max_slugs = 100;
 
-    item = SVG_FindItem("Bullets");
+    item = SVG_Item_FindByPickupName("Bullets");
     if (item) {
         index = ITEM_INDEX(item);
         other->client->pers.inventory[index] += item->quantity;
@@ -276,7 +276,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
             other->client->pers.inventory[index] = other->client->pers.max_bullets;
     }
 
-    item = SVG_FindItem("Shells");
+    item = SVG_Item_FindByPickupName("Shells");
     if (item) {
         index = ITEM_INDEX(item);
         other->client->pers.inventory[index] += item->quantity;
@@ -284,7 +284,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
             other->client->pers.inventory[index] = other->client->pers.max_shells;
     }
 
-    item = SVG_FindItem("Cells");
+    item = SVG_Item_FindByPickupName("Cells");
     if (item) {
         index = ITEM_INDEX(item);
         other->client->pers.inventory[index] += item->quantity;
@@ -292,7 +292,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
             other->client->pers.inventory[index] = other->client->pers.max_cells;
     }
 
-    item = SVG_FindItem("Grenades");
+    item = SVG_Item_FindByPickupName("Grenades");
     if (item) {
         index = ITEM_INDEX(item);
         other->client->pers.inventory[index] += item->quantity;
@@ -300,7 +300,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
             other->client->pers.inventory[index] = other->client->pers.max_grenades;
     }
 
-    item = SVG_FindItem("Rockets");
+    item = SVG_Item_FindByPickupName("Rockets");
     if (item) {
         index = ITEM_INDEX(item);
         other->client->pers.inventory[index] += item->quantity;
@@ -308,7 +308,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
             other->client->pers.inventory[index] = other->client->pers.max_rockets;
     }
 
-    item = SVG_FindItem("Slugs");
+    item = SVG_Item_FindByPickupName("Slugs");
     if (item) {
         index = ITEM_INDEX(item);
         other->client->pers.inventory[index] += item->quantity;
@@ -317,7 +317,7 @@ bool Pickup_Pack(edict_t *ent, edict_t *other)
     }
 
     if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SVG_SetItemRespawn(ent, ent->item->quantity);
+        SVG_Item_SetRespawn(ent, ent->item->quantity);
 
     return true;
 }
@@ -416,7 +416,7 @@ bool Pickup_Key(edict_t *ent, edict_t *other)
 
 //======================================================================
 
-bool Add_Ammo(edict_t *ent, gitem_t *item, int count)
+bool SVG_ItemAmmo_Add(edict_t *ent, gitem_t *item, int count)
 {
     int         index;
     int         max;
@@ -468,16 +468,16 @@ bool Pickup_Ammo(edict_t *ent, edict_t *other)
 
     oldcount = other->client->pers.inventory[ITEM_INDEX(ent->item)];
 
-    if (!Add_Ammo(other, ent->item, count))
+    if (!SVG_ItemAmmo_Add(other, ent->item, count))
         return false;
 
     if (weapon && !oldcount) {
-        if (other->client->pers.weapon != ent->item && (!deathmatch->value || other->client->pers.weapon == SVG_FindItem("blaster")))
+        if (other->client->pers.weapon != ent->item && (!deathmatch->value || other->client->pers.weapon == SVG_Item_FindByPickupName("blaster")))
             other->client->newweapon = ent->item;
     }
 
     if (!(ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM)) && (deathmatch->value))
-        SVG_SetItemRespawn(ent, 30);
+        SVG_Item_SetRespawn(ent, 30);
     return true;
 }
 
@@ -518,7 +518,7 @@ void MegaHealth_think(edict_t *self)
     }
 
     if (!(self->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SVG_SetItemRespawn(self, 20);
+        SVG_Item_SetRespawn(self, 20);
     else
         SVG_FreeEdict(self);
 }
@@ -545,7 +545,7 @@ bool Pickup_Health(edict_t *ent, edict_t *other)
         ent->solid = SOLID_NOT;
     } else {
         if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-            SVG_SetItemRespawn(ent, 30);
+            SVG_Item_SetRespawn(ent, 30);
     }
 
     return true;
@@ -638,7 +638,7 @@ bool Pickup_Armor(edict_t *ent, edict_t *other)
     }
 
     if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SVG_SetItemRespawn(ent, 20);
+        SVG_Item_SetRespawn(ent, 20);
 
     return true;
 }
@@ -670,7 +670,7 @@ void Use_PowerArmor(edict_t *ent, gitem_t *item)
         ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_POWER_ARMOR );
         gi.sound(ent, CHAN_AUTO, gi.soundindex("misc/power2.wav"), 1, ATTN_NORM, 0);
     } else {
-        index = ITEM_INDEX(SVG_FindItem("cells"));
+        index = ITEM_INDEX(SVG_Item_FindByPickupName("cells"));
         if (!ent->client->pers.inventory[index]) {
             gi.cprintf(ent, PRINT_HIGH, "No cells for power armor.\n");
             return;
@@ -691,7 +691,7 @@ bool Pickup_PowerArmor(edict_t *ent, edict_t *other)
 
     if (deathmatch->value) {
         if (!(ent->spawnflags & DROPPED_ITEM))
-            SVG_SetItemRespawn(ent, ent->item->quantity);
+            SVG_Item_SetRespawn(ent, ent->item->quantity);
         // auto-use for DM only if we didn't already have one
         if (!quantity)
             ent->item->use(other, ent->item);
@@ -948,7 +948,7 @@ void SVG_PrecacheItem(gitem_t *it)
 
     // parse everything for its ammo
     if (it->ammo && it->ammo[0]) {
-        ammo = SVG_FindItem(it->ammo);
+        ammo = SVG_Item_FindByPickupName(it->ammo);
         if (ammo != it)
             SVG_PrecacheItem(ammo);
     }
@@ -995,7 +995,7 @@ void SVG_PrecacheItem(gitem_t *it)
 
 /*
 ============
-SVG_SpawnItem
+SVG_Item_Spawn
 
 Sets the clipping size and plants the object on the floor.
 
@@ -1003,7 +1003,7 @@ Items can't be immediately dropped to floor, because they might
 be on an entity that hasn't spawned yet.
 ============
 */
-void SVG_SpawnItem(edict_t *ent, gitem_t *item)
+void SVG_Item_Spawn(edict_t *ent, gitem_t *item)
 {
     SVG_PrecacheItem(item);
 
@@ -2080,7 +2080,7 @@ void SP_item_health(edict_t *self)
 
     self->model = "models/items/healing/medium/tris.md2";
     self->count = 10;
-    SVG_SpawnItem(self, SVG_FindItem("Health"));
+    SVG_Item_Spawn(self, SVG_Item_FindByPickupName("Health"));
     gi.soundindex("items/n_health.wav");
 }
 
@@ -2095,7 +2095,7 @@ void SP_item_health_small(edict_t *self)
 
     self->model = "models/items/healing/stimpack/tris.md2";
     self->count = 2;
-    SVG_SpawnItem(self, SVG_FindItem("Health"));
+    SVG_Item_Spawn(self, SVG_Item_FindByPickupName("Health"));
     self->style = HEALTH_IGNORE_MAX;
     gi.soundindex("items/s_health.wav");
 }
@@ -2111,7 +2111,7 @@ void SP_item_health_large(edict_t *self)
 
     self->model = "models/items/healing/large/tris.md2";
     self->count = 25;
-    SVG_SpawnItem(self, SVG_FindItem("Health"));
+    SVG_Item_Spawn(self, SVG_Item_FindByPickupName("Health"));
     gi.soundindex("items/l_health.wav");
 }
 
@@ -2126,7 +2126,7 @@ void SP_item_health_mega(edict_t *self)
 
     self->model = "models/items/mega_h/tris.md2";
     self->count = 100;
-    SVG_SpawnItem(self, SVG_FindItem("Health"));
+    SVG_Item_Spawn(self, SVG_Item_FindByPickupName("Health"));
     gi.soundindex("items/m_health.wav");
     self->style = HEALTH_IGNORE_MAX | HEALTH_TIMED;
 }
@@ -2156,9 +2156,9 @@ void SVG_SetItemNames(void)
         gi.configstring(CS_ITEMS + i, it->pickup_name);
     }
 
-    jacket_armor_index = ITEM_INDEX(SVG_FindItem("Jacket Armor"));
-    combat_armor_index = ITEM_INDEX(SVG_FindItem("Combat Armor"));
-    body_armor_index   = ITEM_INDEX(SVG_FindItem("Body Armor"));
-    power_screen_index = ITEM_INDEX(SVG_FindItem("Power Screen"));
-    power_shield_index = ITEM_INDEX(SVG_FindItem("Power Shield"));
+    jacket_armor_index = ITEM_INDEX(SVG_Item_FindByPickupName("Jacket Armor"));
+    combat_armor_index = ITEM_INDEX(SVG_Item_FindByPickupName("Combat Armor"));
+    body_armor_index   = ITEM_INDEX(SVG_Item_FindByPickupName("Body Armor"));
+    power_screen_index = ITEM_INDEX(SVG_Item_FindByPickupName("Power Screen"));
+    power_shield_index = ITEM_INDEX(SVG_Item_FindByPickupName("Power Shield"));
 }

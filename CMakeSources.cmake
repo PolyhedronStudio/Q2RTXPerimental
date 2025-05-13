@@ -360,6 +360,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.cpp
 
 	baseq2rtxp/svgame/entities/svg_base_edict.cpp
+	baseq2rtxp/svgame/entities/svg_item_edict.cpp
 	baseq2rtxp/svgame/entities/svg_player_edict.cpp
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
@@ -473,6 +474,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/typeinfo/svg_edict_typeinfo.h
 
 	baseq2rtxp/svgame/entities/svg_base_edict.h
+	baseq2rtxp/svgame/entities/svg_item_edict.h
 	baseq2rtxp/svgame/entities/svg_player_edict.h
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.h
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h

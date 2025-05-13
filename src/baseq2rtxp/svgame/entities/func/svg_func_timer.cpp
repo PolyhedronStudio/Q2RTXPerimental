@@ -64,7 +64,7 @@ void SP_func_timer( svg_base_edict_t *self ) {
     }
 
     if ( self->spawnflags & 1 ) {
-        self->nextthink = level.time + 1_sec + QMTime::FromMilliseconds( st.pausetime + self->delay + self->wait + crandom() * self->random );
+        self->nextthink = level.time + 1_sec + QMTime::FromMilliseconds( self->pausetime + self->delay + self->wait + crandom() * self->random );
         self->activator = self;
     }
 

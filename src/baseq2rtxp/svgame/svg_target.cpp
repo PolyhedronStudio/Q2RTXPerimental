@@ -80,19 +80,16 @@ void Use_Target_Speaker( svg_base_edict_t *ent, svg_base_edict_t *other, svg_bas
     }
 }
 
-void SP_target_speaker(svg_base_edict_t *ent)
-{
-    char    buffer[MAX_QPATH];
-
-    if (!st.noise) {
-        gi.dprintf("target_speaker with no noise set at %s\n", vtos(ent->s.origin));
+void SP_target_speaker( svg_base_edict_t *ent ) {
+    if ( !ent->noisePath.ptr || !ent->noisePath.count ) {
+        gi.dprintf( "target_speaker with no noise set at %s\n", vtos( ent->s.origin ) );
         return;
     }
-    if (!strstr(st.noise, ".wav"))
-        Q_snprintf(buffer, sizeof(buffer), "%s.wav", st.noise);
-    else
-        Q_strlcpy(buffer, st.noise, sizeof(buffer));
-    ent->noise_index = gi.soundindex(buffer);
+    std::string filePath = (const char *)ent->noisePath;
+    if ( !strstr( (const char *)ent->noisePath, ".wav" ) ) {
+        filePath += ".wav";
+    }
+    ent->noise_index = gi.soundindex(filePath.c_str());
 
     if (!ent->volume)
         ent->volume = 1.0f;
@@ -140,9 +137,8 @@ void SP_target_secret(svg_base_edict_t *ent)
     }
 
     ent->SetUseCallback( use_target_secret );
-    if (!st.noise)
-        st.noise = "misc/secret.wav";
-    ent->noise_index = gi.soundindex(st.noise);
+    const char *filePath = ( !ent->noisePath.ptr || !ent->noisePath.count ? "misc/secret.wav" : ent->noisePath.ptr );
+    ent->noise_index = gi.soundindex(filePath);
     ent->svflags = SVF_NOCLIENT;
     //level.total_secrets++;
     // map bug hack

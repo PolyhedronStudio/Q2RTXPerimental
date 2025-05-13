@@ -291,9 +291,10 @@ void CL_UpdateConfigstring( const int32_t index ) {
         return;
     }
 
-    // Reload the soundtrack. TODO: We still need this?
+    #if 0 // <Q2RTXP>: WID: We dun support this, so disable it.
     if (index == CS_CDTRACK) {
         OGG_Play();
         return;
     }
+    #endif
 }

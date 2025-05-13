@@ -12,7 +12,7 @@
 *	Each config string can be at most MAX_CS_STRING_LENGTH characters.
 ***/
 #define CS_NAME             0
-#define CS_CDTRACK          1
+#define CS_UNUSED01			1
 #define CS_SKY              2
 #define CS_SKYAXIS          3       // %f %f %f format
 #define CS_SKYROTATE        4

@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "svgame/svg_local.h"
 #include "svgame/svg_chase.h"
+
 #include "svgame/svg_game_items.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_signalio.h"
@@ -26,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
-
+#include "svgame/entities/svg_item_edict.h"
 #include "svgame/player/svg_player_hud.h"
 
 
@@ -158,7 +159,7 @@ void SVG_Inventory_ValidateSelectedItem( svg_base_edict_t *ent ) {
 /**
 *   @brief  Will return a pointer to the matching index item, nullptr on failure.
 **/
-const gitem_t *SVG_GetItemByIndex(int index) {
+const gitem_t *SVG_Item_GetByIndex(int index) {
     if ( index == 0 || index >= game.num_items ) {
         return nullptr;
     }
@@ -168,7 +169,7 @@ const gitem_t *SVG_GetItemByIndex(int index) {
 /**
 *   @brief  Will return a pointer to the matching classname item, nullptr on failure.
 **/
-const gitem_t *SVG_FindItemByClassname(const char *classname) {
+const gitem_t *SVG_Item_FindByClassName(const char *classname) {
     const gitem_t *it = itemlist;
     for ( int32_t i = 0 ; i < game.num_items ; i++, it++) {
         if (!it->classname)
@@ -182,7 +183,7 @@ const gitem_t *SVG_FindItemByClassname(const char *classname) {
 /**
 *   @brief  Will return a pointer to the matching pickup_name item, nullptr on failure.
 **/
-const gitem_t *SVG_FindItem(const char *pickup_name) {
+const gitem_t *SVG_Item_FindByPickupName(const char *pickup_name) {
     gitem_t *it = itemlist;
     for ( int32_t i = 0 ; i < game.num_items ; i++, it++ ) {
         if (!it->pickup_name)
@@ -203,41 +204,63 @@ const gitem_t *SVG_FindItem(const char *pickup_name) {
 *
 *
 **/
-void DoRespawn(svg_base_edict_t *ent)
-{
-    if (ent->targetNames.team) {
-        svg_base_edict_t *master;
-        int count;
-        int choice;
-
-        master = ent->teammaster;
-
-        for (count = 0, ent = master; ent; ent = ent->chain, count++)
-            ;
-
-        choice = Q_rand_uniform(count);
-
-        for (count = 0, ent = master; count < choice; ent = ent->chain, count++)
-            ;
-    }
-
-    ent->svflags &= ~SVF_NOCLIENT;
-    ent->solid = SOLID_TRIGGER;
-    ent->s.entityType = ET_ITEM;
-    gi.linkentity(ent);
-
-    // send an effect
-    ent->s.event = EV_ITEM_RESPAWN;
-}
-
-void SVG_SetItemRespawn(svg_base_edict_t *ent, float delay)
+void SVG_Item_SetRespawn(svg_item_edict_t *ent, float delay)
 {
     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
     ent->svflags |= SVF_NOCLIENT;
     ent->solid = SOLID_NOT;
     ent->nextthink = level.time + QMTime::FromSeconds( delay );
-    ent->SetThinkCallback( DoRespawn );
+    ent->SetThinkCallback( &svg_item_edict_t::onThink_Respawn );
     gi.linkentity(ent);
+}
+
+/**
+*   @brief
+**/
+svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item ) {
+    svg_item_edict_t *dropped;
+    vec3_t  forward, right;
+    vec3_t  offset;
+
+    dropped = g_edict_pool.AllocateNextFreeEdict<svg_item_edict_t>();
+
+    dropped->classname = item->classname;
+    dropped->item = item;
+    dropped->spawnflags = DROPPED_ITEM;
+    dropped->s.entityType = ET_ITEM;
+    dropped->s.effects = item->world_model_flags;
+    dropped->s.renderfx = RF_GLOW;
+    VectorSet( dropped->mins, -15, -15, -15 );
+    VectorSet( dropped->maxs, 15, 15, 15 );
+    gi.setmodel( dropped, dropped->item->world_model );
+    dropped->solid = SOLID_TRIGGER;
+    dropped->movetype = MOVETYPE_TOSS;
+    dropped->SetTouchCallback( &svg_item_edict_t::onTouch_DropTempTouch );
+    dropped->owner = ent;
+
+    if ( ent->client ) {
+        svg_trace_t trace;
+
+        AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, NULL );
+        VectorSet( offset, 24, 0, -16 );
+        SVG_Util_ProjectSource( ent->s.origin, offset, forward, right, dropped->s.origin );
+        trace = SVG_Trace( ent->s.origin, dropped->mins, dropped->maxs,
+            dropped->s.origin, ent, CONTENTS_SOLID );
+        VectorCopy( trace.endpos, dropped->s.origin );
+    } else {
+        AngleVectors( ent->s.angles, forward, right, NULL );
+        VectorCopy( ent->s.origin, dropped->s.origin );
+    }
+
+    VectorScale( forward, 100, dropped->velocity );
+    dropped->velocity[ 2 ] = 300;
+
+    dropped->SetThinkCallback( &svg_item_edict_t::onTouch_DropMakeTouchable );
+    dropped->nextthink = level.time + 1_sec;
+
+    gi.linkentity( dropped );
+
+    return static_cast<svg_item_edict_t *>( dropped );
 }
 
 /**
@@ -272,7 +295,7 @@ void Drop_General(svg_base_edict_t *ent, gitem_t *item)
 /**
 *   @brief  Will attempt to add 'count' of item ammo to the entity's client inventory.
 **/
-const bool Add_Ammo(svg_base_edict_t *ent, const gitem_t *item, const int32_t count)
+const bool SVG_ItemAmmo_Add(svg_base_edict_t *ent, const gitem_t *item, const int32_t count)
 {
     if (!ent->client)
         return false;
@@ -315,7 +338,7 @@ const bool Add_Ammo(svg_base_edict_t *ent, const gitem_t *item, const int32_t co
 /**
 *   @brief  Will (try to) 'pickup' the specified ammo item 'ent' and add it to the 'other' entity client's inventory.
 **/
-const bool Pickup_Ammo(svg_base_edict_t *itemEntity, svg_base_edict_t *other) {
+const bool Pickup_Ammo( svg_item_edict_t *itemEntity, svg_base_edict_t *other ) {
     // Count that is picked up.
     int32_t count = 0;
     
@@ -335,13 +358,13 @@ const bool Pickup_Ammo(svg_base_edict_t *itemEntity, svg_base_edict_t *other) {
     int32_t oldCount = other->client->pers.inventory[ ITEM_INDEX( itemEntity->item ) ];
 
     // Couldn't add ammo.
-    if ( !Add_Ammo( other, itemEntity->item, count ) ) {
+    if ( !SVG_ItemAmmo_Add( other, itemEntity->item, count ) ) {
         return false;
     }
 
     // If it is a weapon and we did NOT have it in our inventory yet:
     if (isWeapon && !oldCount) {
-        //if (other->client->pers.weapon != itemEntity->item && (!deathmatch->value || other->client->pers.weapon == SVG_FindItem("blaster")))
+        //if (other->client->pers.weapon != itemEntity->item && (!deathmatch->value || other->client->pers.weapon == SVG_Item_FindByPickupName("blaster")))
         //    other->client->newweapon = itemEntity->item;
         if ( other->client->pers.weapon != itemEntity->item ) {
             other->client->newweapon = itemEntity->item;
@@ -350,7 +373,7 @@ const bool Pickup_Ammo(svg_base_edict_t *itemEntity, svg_base_edict_t *other) {
 
     // Set an item respawn for DM mode.
     if ( !( itemEntity->spawnflags & ( DROPPED_ITEM | DROPPED_PLAYER_ITEM ) ) && ( deathmatch->value ) ) {
-        SVG_SetItemRespawn( itemEntity, 30 );
+        SVG_Item_SetRespawn( itemEntity, 30 );
     }
     return true;
 }
@@ -360,7 +383,7 @@ const bool Pickup_Ammo(svg_base_edict_t *itemEntity, svg_base_edict_t *other) {
 **/
 void Drop_Ammo(svg_base_edict_t *ent, const gitem_t *item) {
     int32_t index = ITEM_INDEX(item);
-    svg_base_edict_t *dropped = Drop_Item(ent, item);
+    svg_item_edict_t *dropped = Drop_Item(ent, item);
     if (ent->client->pers.inventory[index] >= item->quantity)
         dropped->count = item->quantity;
     else
@@ -390,33 +413,35 @@ void Drop_Ammo(svg_base_edict_t *ent, const gitem_t *item) {
 /**
 *   @brief
 **/
-void MegaHealth_think(svg_base_edict_t *self)
-{
+void MegaHealth_think( svg_item_edict_t *self) {
     if (self->owner->health > self->owner->max_health) {
         self->nextthink = level.time + 1_sec;
         self->owner->health -= 1;
         return;
     }
 
-    if (!(self->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-        SVG_SetItemRespawn(self, 20);
-    else
-        SVG_FreeEdict(self);
+    if ( !( self->spawnflags & DROPPED_ITEM ) && ( deathmatch->value ) ) {
+        SVG_Item_SetRespawn( self, 20 );
+    } else {
+        SVG_FreeEdict( self );
+    }
 }
 /**
 *   @brief
 **/
-const bool Pickup_Health(svg_base_edict_t *ent, svg_base_edict_t *other)
-{
-    if (!(ent->style & HEALTH_IGNORE_MAX))
-        if (other->health >= other->max_health)
+const bool Pickup_Health( svg_item_edict_t *ent, svg_base_edict_t *other ) {
+    if ( !( ent->style & HEALTH_IGNORE_MAX ) ) {
+        if ( other->health >= other->max_health ) {
             return false;
+        }
+    }
 
     other->health += ent->count;
 
     if (!(ent->style & HEALTH_IGNORE_MAX)) {
-        if (other->health > other->max_health)
+        if ( other->health > other->max_health ) {
             other->health = other->max_health;
+        }
     }
 
     if (ent->style & HEALTH_TIMED) {
@@ -427,242 +452,15 @@ const bool Pickup_Health(svg_base_edict_t *ent, svg_base_edict_t *other)
         ent->svflags |= SVF_NOCLIENT;
         ent->solid = SOLID_NOT;
     } else {
-        if (!(ent->spawnflags & DROPPED_ITEM) && (deathmatch->value))
-            SVG_SetItemRespawn(ent, 30);
+        if ( !( ent->spawnflags & DROPPED_ITEM ) && ( deathmatch->value ) ) {
+            SVG_Item_SetRespawn( ent, 30 );
+        }
     }
 
     return true;
 }
 
-
-
-/**
-*
-* 
-*
-*   Item Entity:
-*
-* 
-*
-**/
-/**
-*   @brief  
-**/
-void Touch_Item(svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf)
-{
-    bool    taken;
-
-    if (!other->client)
-        return;
-    if (other->health < 1)
-        return;     // dead people can't pickup
-    if (!ent->item->pickup)
-        return;     // not a grabbable item?
-
-    taken = ent->item->pickup(ent, other);
-
-    if (taken) {
-        // flash the screen
-        other->client->bonus_alpha = 0.25f;
-
-        // show icon and name on status bar
-        other->client->ps.stats[STAT_PICKUP_ICON] = gi.imageindex(ent->item->icon);
-        other->client->ps.stats[STAT_PICKUP_STRING] = CS_ITEMS + ITEM_INDEX(ent->item);
-        other->client->pickup_msg_time = level.time + 3_sec;
-
-        // change selected item
-        if (ent->item->use)
-            other->client->pers.selected_item = other->client->ps.stats[STAT_SELECTED_ITEM] = ITEM_INDEX(ent->item);
-
-        if (ent->item->pickup == Pickup_Health) {
-            if (ent->count == 2)
-                gi.sound(other, CHAN_ITEM, gi.soundindex("items/s_health.wav"), 1, ATTN_NORM, 0);
-            else if (ent->count == 10)
-                gi.sound(other, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
-            else if (ent->count == 25)
-                gi.sound(other, CHAN_ITEM, gi.soundindex("items/l_health.wav"), 1, ATTN_NORM, 0);
-            else // (ent->count == 100)
-                gi.sound(other, CHAN_ITEM, gi.soundindex("items/m_health.wav"), 1, ATTN_NORM, 0);
-        } else if (ent->item->pickup_sound) {
-            gi.sound(other, CHAN_ITEM, gi.soundindex(ent->item->pickup_sound), 1, ATTN_NORM, 0);
-        }
-    }
-
-    if (!(ent->spawnflags & ITEM_TARGETS_USED)) {
-        SVG_UseTargets(ent, other);
-        ent->spawnflags |= ITEM_TARGETS_USED;
-    }
-
-    if (!taken)
-        return;
-
-    if (!((coop->value) && (ent->item->flags & ITEM_FLAG_STAY_COOP)) || (ent->spawnflags & (DROPPED_ITEM | DROPPED_PLAYER_ITEM))) {
-        if (ent->flags & FL_RESPAWN)
-            ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_RESPAWN );
-        else
-            SVG_FreeEdict(ent);
-    }
-}
-
-/**
-*   @brief
-**/
-void drop_temp_touch(svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf)
-{
-    if (other == ent->owner)
-        return;
-
-    Touch_Item(ent, other, plane, surf);
-}
-/**
-*   @brief
-**/
-void drop_make_touchable(svg_base_edict_t *ent)
-{
-    ent->SetTouchCallback( Touch_Item );
-    if (deathmatch->value) {
-        ent->nextthink = level.time + 29_sec;
-        ent->SetThinkCallback( SVG_FreeEdict );
-    }
-}
-/**
-*   @brief
-**/
-svg_base_edict_t *Drop_Item(svg_base_edict_t *ent, const gitem_t *item)
-{
-    svg_base_edict_t *dropped;
-    vec3_t  forward, right;
-    vec3_t  offset;
-
-    dropped = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-
-    dropped->classname = item->classname;
-    dropped->item = item;
-    dropped->spawnflags = DROPPED_ITEM;
-    dropped->s.entityType = ET_ITEM;
-    dropped->s.effects = item->world_model_flags;
-    dropped->s.renderfx = RF_GLOW;
-    VectorSet(dropped->mins, -15, -15, -15);
-    VectorSet(dropped->maxs, 15, 15, 15);
-    gi.setmodel(dropped, dropped->item->world_model);
-    dropped->solid = SOLID_TRIGGER;
-    dropped->movetype = MOVETYPE_TOSS;
-    dropped->SetTouchCallback( drop_temp_touch );
-    dropped->owner = ent;
-
-    if (ent->client) {
-        svg_trace_t trace;
-
-        AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, NULL );
-        VectorSet(offset, 24, 0, -16);
-        SVG_Util_ProjectSource(ent->s.origin, offset, forward, right, dropped->s.origin);
-        trace = SVG_Trace(ent->s.origin, dropped->mins, dropped->maxs,
-                         dropped->s.origin, ent, CONTENTS_SOLID);
-        VectorCopy(trace.endpos, dropped->s.origin);
-    } else {
-        AngleVectors(ent->s.angles, forward, right, NULL);
-        VectorCopy(ent->s.origin, dropped->s.origin);
-    }
-
-    VectorScale(forward, 100, dropped->velocity);
-    dropped->velocity[2] = 300;
-
-    dropped->SetThinkCallback( drop_make_touchable );
-    dropped->nextthink = level.time + 1_sec;
-
-    gi.linkentity(dropped);
-
-    return dropped;
-}
-/**
-*   @brief
-**/
-void Use_Item(svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue )
-{
-    ent->svflags &= ~SVF_NOCLIENT;
-    ent->SetUseCallback( nullptr );
-
-    if (ent->spawnflags & ITEM_NO_TOUCH) {
-        ent->solid = SOLID_BOUNDS_BOX;
-        ent->SetTouchCallback( nullptr );
-    } else {
-        ent->solid = SOLID_TRIGGER;
-        ent->SetTouchCallback( Touch_Item );
-    }
-
-    gi.linkentity(ent);
-}
-
 //======================================================================
-
-/**
-*   @brief
-**/
-void droptofloor(svg_base_edict_t *ent)
-{
-    svg_trace_t     tr;
-    vec3_t      dest;
-
-    // First set model.
-    if ( ent->model ) {
-        gi.setmodel( ent, ent->model );
-    } else if ( ent->item && ent->item->world_model ) {
-        gi.setmodel( ent, ent->item->world_model );
-    }
-    
-    // Then the bbox.
-    if ( ent->item && ent->item->tag >= ITEM_TAG_AMMO_BULLETS_PISTOL && ent->item->tag <= ITEM_TAG_AMMO_SHELLS_SHOTGUN ) {
-        VectorSet( ent->mins, -8, -8, -8 );
-        VectorSet( ent->maxs, 8, 8, 8 );
-    } else if ( ent->item ) {
-        VectorSet( ent->mins, -16, -16, -16 );
-        VectorSet( ent->maxs, 16, 16, 16 );
-    }
-
-    ent->solid = SOLID_TRIGGER;
-    ent->movetype = MOVETYPE_TOSS;
-    ent->SetTouchCallback( Touch_Item );
-
-    VectorCopy(ent->s.origin, dest);
-    dest[2] -= 128;
-
-    tr = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, dest, ent, CM_CONTENTMASK_SOLID);
-    if (tr.startsolid) {
-        gi.dprintf("droptofloor: %s startsolid at %s\n", (const char *)ent->classname, vtos(ent->s.origin));
-        SVG_FreeEdict(ent);
-        return;
-    }
-
-    VectorCopy(tr.endpos, ent->s.origin);
-
-    if (ent->targetNames.team) {
-        ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_TEAMSLAVE );
-        ent->chain = ent->teamchain;
-        ent->teamchain = NULL;
-
-        ent->svflags |= SVF_NOCLIENT;
-        ent->solid = SOLID_NOT;
-        if (ent == ent->teammaster) {
-            ent->nextthink = level.time + 10_hz;
-            ent->SetThinkCallback( DoRespawn );
-        }
-    }
-
-    if (ent->spawnflags & ITEM_NO_TOUCH) {
-        ent->solid = SOLID_BOUNDS_BOX;
-        ent->SetTouchCallback( nullptr );
-        ent->s.effects &= ~EF_ROTATE;
-        ent->s.renderfx &= ~RF_GLOW;
-    }
-
-    if (ent->spawnflags & ITEM_TRIGGER_SPAWN) {
-        ent->svflags |= SVF_NOCLIENT;
-        ent->solid = SOLID_NOT;
-        ent->SetUseCallback( Use_Item );
-    }
-
-    gi.linkentity(ent);
-}
 
 
 /**
@@ -697,7 +495,7 @@ void SVG_PrecacheItem( const gitem_t *it)
 
     // parse everything for its ammo
     if ( it->ammo && it->ammo[ 0 ] ) {
-        const gitem_t *ammo = SVG_FindItem( it->ammo );
+        const gitem_t *ammo = SVG_Item_FindByPickupName( it->ammo );
         if ( ammo != it ) {
             SVG_PrecacheItem( ammo );
         }
@@ -754,17 +552,10 @@ void SVG_PrecacheItem( const gitem_t *it)
 *           Items can't be immediately dropped to floor, because they might
 *           be on an entity that hasn't spawned yet.
 **/
-void SVG_SpawnItem(svg_base_edict_t *ent, const gitem_t *item)
-{
+void SVG_Item_Spawn( svg_item_edict_t *ent, const gitem_t *item ) {
     SVG_PrecacheItem(item);
 
-    if (ent->spawnflags) {
-        if (strcmp((const char *)ent->classname, "key_power_cube") != 0) {
-            ent->spawnflags = 0;
-            gi.dprintf("%s at %s has invalid spawnflags set\n", (const char *)ent->classname, vtos(ent->s.origin));
-        }
-    }
-
+    #if 0
     // some items will be prevented in deathmatch
     if (deathmatch->value) {
         //if ((int)dmflags->value & DF_NO_ARMOR) {
@@ -792,6 +583,7 @@ void SVG_SpawnItem(svg_base_edict_t *ent, const gitem_t *item)
             }
         }
     }
+    #endif // #if 0
 
     // Don't let them drop items that stay in a coop game.
     //if ((coop->value) && (item->flags & ITEM_FLAG_STAY_COOP)) {
@@ -800,7 +592,7 @@ void SVG_SpawnItem(svg_base_edict_t *ent, const gitem_t *item)
 
     ent->item = item;
     ent->nextthink = level.time + 20_hz;    // items start after other solids
-    ent->SetThinkCallback( droptofloor );
+    ent->SetThinkCallback( &svg_item_edict_t::onThink_DropToFloor );
     ent->s.effects = item->world_model_flags;
     ent->s.renderfx = RF_GLOW;
     ent->s.entityType = ET_ITEM;
@@ -856,7 +648,7 @@ gitem_t itemlist[] = {
     //********************************************************
     
     //
-    //   classname(weapon_blaster) bbox(-16 -16 -16) (16 16 16)
+    //   classname(weapon_fists) bbox(-16 -16 -16) (16 16 16)
     //   NOTE: It is always 'owned' and never dropped/placed in the world.
     //
     {
@@ -1116,6 +908,8 @@ gitem_t itemlist[] = {
 };
 
 
+// <Q2RTXP>: WID: TODO: Implement as separate entties.
+#if 0
 /**
 *   @brief  item_health (.3 .3 1) ( -16 - 16 - 16 ) ( 16 16 16 )
 **/
@@ -1128,7 +922,7 @@ void SP_item_health(svg_base_edict_t *self)
 
     self->model = "models/items/healing/medium/tris.md2";
     self->count = 10;
-    SVG_SpawnItem(self, SVG_FindItem("Health"));
+    SVG_Item_Spawn(self, SVG_Item_FindByPickupName("Health"));
     gi.soundindex("items/n_health.wav");
 }
 
@@ -1144,7 +938,7 @@ void SP_item_health_small(svg_base_edict_t *self)
 
     self->model = "models/items/healing/stimpack/tris.md2";
     self->count = 2;
-    SVG_SpawnItem(self, SVG_FindItem("Health"));
+    SVG_Item_Spawn(self, SVG_Item_FindByPickupName("Health"));
     self->style = HEALTH_IGNORE_MAX;
     gi.soundindex("items/s_health.wav");
 }
@@ -1161,7 +955,7 @@ void SP_item_health_large(svg_base_edict_t *self)
 
     self->model = "models/items/healing/large/tris.md2";
     self->count = 25;
-    SVG_SpawnItem(self, SVG_FindItem("Health"));
+    SVG_Item_Spawn(self, SVG_Item_FindByPickupName("Health"));
     gi.soundindex("items/l_health.wav");
 }
 
@@ -1177,16 +971,16 @@ void SP_item_health_mega(svg_base_edict_t *self)
 
     self->model = "models/items/mega_h/tris.md2";
     self->count = 100;
-    SVG_SpawnItem(self, SVG_FindItem("Health"));
+    SVG_Item_Spawn(self, SVG_Item_FindByPickupName("Health"));
     gi.soundindex("items/m_health.wav");
     self->style = HEALTH_IGNORE_MAX | HEALTH_TIMED;
 }
+#endif // #if 0
 
 /**
 *   @brief  Calculate the number of items value.
 **/
-void SVG_InitItems(void)
-{
+void SVG_InitItems(void) {
     game.num_items = sizeof(itemlist) / sizeof(itemlist[0]) - 1;
 }
 
@@ -1199,19 +993,15 @@ SVG_SetItemNames
 Called by worldspawn
 ===============
 */
-void SVG_SetItemNames(void)
-{
-    int     i;
-    gitem_t *it;
-
-    for (i = 0 ; i < game.num_items ; i++) {
-        it = &itemlist[i];
+void SVG_SetItemNames(void) {
+    for ( int32_t i = 0 ; i < game.num_items; i++ ) {
+        gitem_t *it = &itemlist[i];
         gi.configstring(CS_ITEMS + i, it->pickup_name);
     }
 
-    //jacket_armor_index = ITEM_INDEX(SVG_FindItem("Jacket Armor"));
-    //combat_armor_index = ITEM_INDEX(SVG_FindItem("Combat Armor"));
-    //body_armor_index   = ITEM_INDEX(SVG_FindItem("Body Armor"));
-    //power_screen_index = ITEM_INDEX(SVG_FindItem("Power Screen"));
-    //power_shield_index = ITEM_INDEX(SVG_FindItem("Power Shield"));
+    //jacket_armor_index = ITEM_INDEX(SVG_Item_FindByPickupName("Jacket Armor"));
+    //combat_armor_index = ITEM_INDEX(SVG_Item_FindByPickupName("Combat Armor"));
+    //body_armor_index   = ITEM_INDEX(SVG_Item_FindByPickupName("Body Armor"));
+    //power_screen_index = ITEM_INDEX(SVG_Item_FindByPickupName("Power Screen"));
+    //power_shield_index = ITEM_INDEX(SVG_Item_FindByPickupName("Power Shield"));
 }

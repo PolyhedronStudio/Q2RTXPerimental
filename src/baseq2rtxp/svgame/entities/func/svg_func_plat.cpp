@@ -268,7 +268,7 @@ void plat_spawn_inside_trigger( svg_base_edict_t *ent ) {
     tmax[ 1 ] = ent->maxs[ 1 ] - 25;
     tmax[ 2 ] = ent->maxs[ 2 ] + 8;
 
-    tmin[ 2 ] = tmax[ 2 ] - ( ent->pos1[ 2 ] - ent->pos2[ 2 ] + st.lip );
+    tmin[ 2 ] = tmax[ 2 ] - ( ent->pos1[ 2 ] - ent->pos2[ 2 ] + ent->lip );
 
     if ( ent->spawnflags & PLAT_LOW_TRIGGER )
         tmax[ 2 ] = tmin[ 2 ] + 8;
@@ -315,16 +315,16 @@ void SP_func_plat( svg_base_edict_t *ent ) {
     if ( !ent->dmg )
         ent->dmg = 2;
 
-    if ( !st.lip )
-        st.lip = 8;
+    if ( !ent->lip )
+        ent->lip = 8;
 
     // pos1 is the top position, pos2 is the bottom
     VectorCopy( ent->s.origin, ent->pos1 );
     VectorCopy( ent->s.origin, ent->pos2 );
-    if ( st.height )
-        ent->pos2[ 2 ] -= st.height;
+    if ( ent->height )
+        ent->pos2[ 2 ] -= ent->height;
     else
-        ent->pos2[ 2 ] -= ( ent->maxs[ 2 ] - ent->mins[ 2 ] ) - st.lip;
+        ent->pos2[ 2 ] -= ( ent->maxs[ 2 ] - ent->mins[ 2 ] ) - ent->lip;
 
     ent->SetUseCallback( Use_Plat );
 

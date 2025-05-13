@@ -97,13 +97,13 @@ void SP_func_door_rotating( svg_base_edict_t *ent ) {
     }
 
     // Default distance to 90 degrees if not set.
-    if ( !st.distance ) {
+    if ( !ent->distance ) {
         gi.dprintf( "%s at %s with no distance set\n", (const char *)ent->classname, vtos( ent->s.origin ) );
-        st.distance = 90;
+        ent->distance = 90;
     }
 
     // Determine move angles.
-    const float distance = st.distance; // ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_REVERSE ) ? -st.distance : st.distance );
+    const float distance = ent->distance; // ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_REVERSE ) ? -st.distance : st.distance );
     ent->angles1 = ent->s.angles;
     VectorMA( ent->s.angles, distance, ent->movedir, ent->angles2 );
     ent->pushMoveInfo.distance = distance;
@@ -127,8 +127,8 @@ void SP_func_door_rotating( svg_base_edict_t *ent ) {
     if ( !ent->decel ) {
         ent->decel = ent->speed;
     }
-    if ( !st.lip ) {
-        st.lip = 8;
+    if ( !ent->lip ) {
+        ent->lip = 8;
     }
     // Trigger defaults:
     if ( !ent->wait ) {

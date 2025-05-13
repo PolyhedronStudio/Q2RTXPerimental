@@ -232,12 +232,12 @@ void SVG_Player_InitPersistantData( svg_base_edict_t *ent, svg_client_t *client 
     client->pers = {};
 
     // Find the fists item, add it to our inventory.
-    const gitem_t *item_fists = SVG_FindItem( "Fists" );
+    const gitem_t *item_fists = SVG_Item_FindByPickupName( "Fists" );
     client->pers.selected_item = ITEM_INDEX( item_fists );
     client->pers.inventory[ client->pers.selected_item ] = 1;
 
     // Find the Pistol item, add it to our inventory and appoint it as the selected weapon.
-    const gitem_t *item_pistol = SVG_FindItem( "Pistol" );
+    const gitem_t *item_pistol = SVG_Item_FindByPickupName( "Pistol" );
     client->pers.selected_item = ITEM_INDEX( item_pistol );
     client->pers.inventory[ client->pers.selected_item ] = 1;
     // Assign it as our selected weapon.
@@ -245,7 +245,7 @@ void SVG_Player_InitPersistantData( svg_base_edict_t *ent, svg_client_t *client 
     // Give it a single full clip of ammo.
     client->pers.weapon_clip_ammo[ client->pers.weapon->weapon_index ] = item_pistol->clip_capacity;
     // And some extra bullets to reload with.
-    ent->client->ammo_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->ammo ) );
+    ent->client->ammo_index = ITEM_INDEX( SVG_Item_FindByPickupName( ent->client->pers.weapon->ammo ) );
     client->pers.inventory[ ent->client->ammo_index ] = 78;
 
     // Obviously we need to allow this.

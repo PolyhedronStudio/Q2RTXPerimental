@@ -41,7 +41,7 @@ the value of "gravity".  1.0 is standard
 gravity for the level.
 */
 void SP_trigger_gravity( svg_base_edict_t *self ) {
-	if ( st.gravity == NULL ) {
+	if ( !self->gravity ) {
 		gi.dprintf( "trigger_gravity without gravity set at %s\n", vtos( self->s.origin ) );
 		SVG_FreeEdict( self );
 		return;
@@ -49,7 +49,6 @@ void SP_trigger_gravity( svg_base_edict_t *self ) {
 
 	SVG_Util_InitTrigger( self );
 
-	self->gravity = atof( st.gravity );
 	self->SetTouchCallback( trigger_gravity_touch );
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {

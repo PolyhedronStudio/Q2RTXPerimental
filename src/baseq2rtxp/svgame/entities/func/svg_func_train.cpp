@@ -270,8 +270,9 @@ void SP_func_train( svg_base_edict_t *self ) {
     self->solid = SOLID_BSP;
     gi.setmodel( self, self->model );
 
-    if ( st.noise )
-        self->pushMoveInfo.sounds.middle = gi.soundindex( st.noise );
+    if ( self->noisePath.ptr && self->noisePath.count ) {
+        self->pushMoveInfo.sounds.middle = gi.soundindex( (const char*)self->noisePath );
+    }
 
     if ( !self->speed )
         self->speed = 100;

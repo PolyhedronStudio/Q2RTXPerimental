@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_game_items.h"
 
 #include "sharedgame/sg_means_of_death.h"
 
@@ -193,7 +194,11 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FUNCPTR( svg_base_edict_t, pushMoveInfo.endMoveCallback, SD_FIELD_TYPE_FUNCTION, FPTR_SAVE_TYPE_PUSHER_MOVEINFO_ENDMOVECALLBACK ),
     // Movewith:
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, pushMoveInfo.lastVelocity, SD_FIELD_TYPE_VECTOR3, 1 ),
-
+    
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, lip, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, distance, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, height, SD_FIELD_TYPE_FLOAT ),
+    
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, speed, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, accel, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, decel, SD_FIELD_TYPE_FLOAT ),
@@ -250,6 +255,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     *   Item Data:
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, item, SD_FIELD_TYPE_ITEM ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, itemName, SD_FIELD_TYPE_LEVEL_QSTRING ),
 
     /**
     *   Monster Data:
@@ -273,6 +279,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Trigger(s) Data:
     **/
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noisePath, SD_FIELD_TYPE_LEVEL_QSTRING ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, message, SD_FIELD_TYPE_LSTRING ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, wait, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, delay, SD_FIELD_TYPE_FLOAT ),
@@ -515,6 +522,9 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     speed = 0.f;
     accel = 0.f;
     decel = 0.f;
+    distance = 0.f;
+    lip = 0.f;
+    height = 0.f;
     movedir = QM_Vector3Zero();
     pos1 = QM_Vector3Zero();
     angles1 = QM_Vector3Zero();
@@ -552,10 +562,11 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     customLightStyle = nullptr;
 
     item = nullptr;
+    itemName = nullptr;
 
     yaw_speed = 0.f;
     ideal_yaw = 0.f;
-
+    noisePath = nullptr;
     mynoise = nullptr;
     mynoise2 = nullptr;
     noise_index = 0;
@@ -790,9 +801,56 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
         s.angles[ 2 ] = 0.f;
         return true;
     }
+    // Match: lip
+    else if ( keyStr == "lip" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        lip = keyValuePair->integer;
+        return true;
+    }
+    // Match: distance
+    else if ( keyStr == "distance" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        distance = keyValuePair->integer;
+        return true;
+    }
+    // Match: height
+    else if ( keyStr == "height" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        height = keyValuePair->integer;
+        return true;
+    }
+    // Match: item
+    else if ( keyStr == "item" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        itemName = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: item
+    else if ( keyStr == "noise" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        noisePath = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    #if 0
+    // Match: pausetime
+    else if ( keyStr == "pausetime" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        pausetime = keyValuePair->value;
+        return true;
+    }
+    #endif
 
     return false;
 }
+
+
+/**
+*
+*
+*   Core:
+*
+*
+**/
+/**
+*   @brief  This will check and set the itemptr according to one found in itemstr.
+**/
+//DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn ) ( svg_base_edict_t *self ) -> void {
+//
+//}
 
 
 
@@ -801,6 +859,12 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
 *   Callbacks(defaults):
 *
 **/
+/**
+*   @brief  This will check and set the itemptr according to one found in itemstr.
+**/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn )( svg_base_edict_t *self ) -> void {
-
+    // Required for entities which might not directly link to world.
+    // This'll position their bbox accordingly.
+    VectorCopy( self->s.origin, self->absmin );
+    VectorCopy( self->s.origin, self->absmax );
 }

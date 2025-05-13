@@ -258,7 +258,8 @@ static void SV_Map(bool restart)
 {
     mapcmd_t    cmd;
 
-    memset(&cmd, 0, sizeof(cmd));
+    //memset(&cmd, 0, sizeof(cmd));
+    cmd = {};
 
     // save the mapcmd
     if (Cmd_ArgvBuffer(1, cmd.buffer, sizeof(cmd.buffer)) >= sizeof(cmd.buffer)) {

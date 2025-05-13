@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ServerGame: WorldSpawn Edict
+*	ServerGame: Base Item Edict
 *	NameSpace: "".
 *
 *
@@ -9,52 +9,43 @@
 #pragma once
 
 
-// Needed for save descriptor fields and functions.
-#include "svgame/svg_save.h"
-
-// Needed for inheritance.
+// Needed.
 #include "svgame/entities/svg_base_edict.h"
-
-// Forward declare.
-typedef struct cm_entity_s cm_entity_t;
 
 /**
 *
 *
-*   WorldSpawn Game Entity Structure:
+*   Game Pickup Item Entity Structure:
 *
 *
 **/
-// This inherits from:
-//
-//struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_t>
-struct svg_worldspawn_edict_t : public svg_base_edict_t {
+struct svg_item_edict_t : public svg_base_edict_t {
     /**
     *
     *	Construct/Destruct.
     *
     **/
     //! Constructor. 
-    svg_worldspawn_edict_t() = default;
+    svg_item_edict_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_worldspawn_edict_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_item_edict_t( const cm_entity_t *ed ) : Base( ed ) { };
     //! Destructor.
-    virtual ~svg_worldspawn_edict_t() = default;
+    virtual ~svg_item_edict_t() = default;
 
 
 
     /**
     *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
+    *	Define this as: "player" = svg_base_edict -> svg_item_edict_t
     *
     **/
     DefineWorldSpawnClass(
         // classname:    classType:         superClassType:
-        "worldspawn", svg_worldspawn_edict_t,
+        "svg_item_edict_t", svg_item_edict_t, svg_base_edict_t,
         // typeInfoFlags:
-        svg_base_edict_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
+        EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
         // spawnFunc:
-        svg_worldspawn_edict_t::onSpawn
+        svg_item_edict_t::onSpawn
     );
 
 
@@ -65,7 +56,7 @@ struct svg_worldspawn_edict_t : public svg_base_edict_t {
     *
     **/
     //! Declare the save descriptor field handling function implementations.
-    SVG_SAVE_DESCRIPTOR_FIELDS_DECLARE_IMPLEMENTATION();
+    //SVG_SAVE_DESCRIPTOR_FIELDS_DECLARE_IMPLEMENTATION();
 
 
 
@@ -101,30 +92,47 @@ struct svg_worldspawn_edict_t : public svg_base_edict_t {
 
     /**
     *
-    *   Worldspawn
+    * 
+    *   Item
     *
+    * 
     **/
     /**
-    *   @brief  Spawn.
+    *   @brief  Spawn routine.
     **/
-    DECLARE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn );
-
-
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_item_edict_t, onSpawn );
 
     /**
-    *
+    *   @brief  Drop the entity to floor properly and setup its
+    *           needed properties.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_item_edict_t, onThink_DropToFloor );
+    /**
+    *   @brief  Drop the entity to floor properly and setup its
+    *           needed properties.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_item_edict_t, onThink_Respawn );
+    /**
+    *   @brief  Will make the entity touchable again.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_item_edict_t, onTouch_DropMakeTouchable );
+
+    /**
+    *   @brief  Callback for when touched, will pickup(remove item from world) the
+	*           item and give it to the player if all conditions are met.
+    **/
+    DECLARE_MEMBER_CALLBACK_TOUCH( svg_item_edict_t, onTouch );
+    DECLARE_MEMBER_CALLBACK_TOUCH( svg_item_edict_t, onTouch_DropTempTouch );
+
+    /**
+    *   @brief  Will use the actual item itself.
+    **/
+	DECLARE_MEMBER_CALLBACK_USE( svg_item_edict_t, onUse_UseItem );
+
+    /**
     *
     *   Member Variables:
     *
-    *
     **/
-    // World vars
-    svg_level_qstring_t sky = {};
-    float   skyrotate = 0.f;
-    int     skyautorotate = 0;
-    Vector3 skyaxis = QM_Vector3Zero();
-    svg_level_qstring_t gravity_str = {};
-    svg_level_qstring_t nextmap = {};
-    svg_level_qstring_t musictrack = {};
-};
 
+};

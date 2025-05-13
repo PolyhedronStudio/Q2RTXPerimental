@@ -72,7 +72,7 @@ void SP_func_water( svg_base_edict_t *self ) {
     abs_movedir[ 0 ] = fabsf( self->movedir[ 0 ] );
     abs_movedir[ 1 ] = fabsf( self->movedir[ 1 ] );
     abs_movedir[ 2 ] = fabsf( self->movedir[ 2 ] );
-    self->pushMoveInfo.distance = abs_movedir[ 0 ] * self->size[ 0 ] + abs_movedir[ 1 ] * self->size[ 1 ] + abs_movedir[ 2 ] * self->size[ 2 ] - st.lip;
+    self->pushMoveInfo.distance = abs_movedir[ 0 ] * self->size[ 0 ] + abs_movedir[ 1 ] * self->size[ 1 ] + abs_movedir[ 2 ] * self->size[ 2 ] - self->lip;
     VectorMA( self->pos1, self->pushMoveInfo.distance, self->movedir, self->pos2 );
 
     // if it starts open, switch the positions

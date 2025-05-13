@@ -49,7 +49,7 @@ const bool SVG_Player_Weapon_PrecacheItemInfo( weapon_item_info_t *weaponItemInf
 /**
 *   @brief  Called when a weapon item has been touched.
 **/
-const bool SVG_Player_Weapon_Pickup( svg_base_edict_t *ent, svg_base_edict_t *other );
+const bool SVG_Player_Weapon_Pickup( svg_item_edict_t *ent, svg_base_edict_t *other );
 /**
 *   @brief  Called if the weapon item is wanted to be dropped by the player.
 **/

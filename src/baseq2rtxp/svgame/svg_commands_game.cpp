@@ -13,6 +13,8 @@
 #include "svgame/svg_utils.h"
 #include "svgame/svg_weapons.h"
 
+#include "svgame/entities/svg_item_edict.h"
+
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
 
@@ -63,7 +65,7 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
     int         index;
     int         i;
     bool        give_all;
-    svg_base_edict_t     *it_ent;
+    svg_item_edict_t     *it_ent;
 
     if ((deathmatch->value || coop->value) && !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
@@ -106,7 +108,7 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
                 continue;
             if (!(it->flags & ITEM_FLAG_AMMO))
                 continue;
-            Add_Ammo(ent, it, 1000);
+            SVG_ItemAmmo_Add(ent, it, 1000);
         }
         if (!give_all)
             return;
@@ -115,13 +117,13 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
     //if (give_all || Q_stricmp(name, "armor") == 0) {
     //    gitem_armor_t   *info;
 
-    //    it = SVG_FindItem("Jacket Armor");
+    //    it = SVG_Item_FindByPickupName("Jacket Armor");
     //    ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-    //    it = SVG_FindItem("Combat Armor");
+    //    it = SVG_Item_FindByPickupName("Combat Armor");
     //    ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-    //    it = SVG_FindItem("Body Armor");
+    //    it = SVG_Item_FindByPickupName("Body Armor");
     //    info = (gitem_armor_t *)it->info;
     //    ent->client->pers.inventory[ITEM_INDEX(it)] = info->max_count;
 
@@ -130,10 +132,10 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
     //}
 
     //if (give_all || Q_stricmp(name, "Power Shield") == 0) {
-    //    it = SVG_FindItem("Power Shield");
+    //    it = SVG_Item_FindByPickupName("Power Shield");
     //    it_ent = SVG_AllocateEdict();
     //    it_ent->classname = it->classname;
-    //    SVG_SpawnItem(it_ent, it);
+    //    SVG_Item_Spawn(it_ent, it);
     //    Touch_Item(it_ent, ent, NULL, NULL);
     //    if (it_ent->inuse)
     //        SVG_FreeEdict(it_ent);
@@ -154,10 +156,10 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
         return;
     }
 
-    it = SVG_FindItem(name);
+    it = SVG_Item_FindByPickupName(name);
     if (!it) {
         name = gi.argv(1);
-        it = SVG_FindItem(name);
+        it = SVG_Item_FindByPickupName(name);
         if (!it) {
             gi.cprintf(ent, PRINT_HIGH, "unknown item\n");
             return;
@@ -177,12 +179,14 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
         else
             ent->client->pers.inventory[index] += it->quantity;
     } else {
-        it_ent = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
+        it_ent = g_edict_pool.AllocateNextFreeEdict<svg_item_edict_t>();
         it_ent->classname = it->classname;
-        SVG_SpawnItem(it_ent, it);
-        Touch_Item(it_ent, ent, NULL, NULL);
-        if (it_ent->inuse)
-            SVG_FreeEdict(it_ent);
+        //SVG_Item_Spawn(it_ent, it);
+        it_ent->DispatchSpawnCallback(); //Touch_Item(it_ent, ent, NULL, NULL);
+		it_ent->DispatchTouchCallback( ent, NULL, NULL );
+        if ( it_ent->inuse ) {
+            SVG_FreeEdict( it_ent );
+        }
     }
 }
 
@@ -252,7 +256,7 @@ Use an inventory item
 */
 void SVG_Command_UseItem_f(svg_base_edict_t *ent) {
     const char *s = gi.args();
-    const gitem_t *it = SVG_FindItem(s);
+    const gitem_t *it = SVG_Item_FindByPickupName(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -282,7 +286,7 @@ Drop an inventory item
 */
 void SVG_Command_Drop_f(svg_base_edict_t *ent) {
     const char *s = gi.args();
-    const gitem_t *it = SVG_FindItem(s);
+    const gitem_t *it = SVG_Item_FindByPickupName(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -476,7 +480,7 @@ void SVG_Command_WeapFlare_f(svg_base_edict_t* ent) {
     if (cl->pers.weapon && strcmp(cl->pers.weapon->pickup_name, "Flare Gun") == 0) {
         SVG_Command_WeapLast_f(ent);
     } else {
-        const gitem_t *it = SVG_FindItem("Flare Gun");
+        const gitem_t *it = SVG_Item_FindByPickupName("Flare Gun");
         it->use(ent, it);
     }
 }
