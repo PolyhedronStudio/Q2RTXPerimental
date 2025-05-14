@@ -15,9 +15,9 @@
 **/
 typedef struct trace_s {
     //! If true, the entire trace took place within a solid(brush) area.
-    qboolean    allsolid;
+    bool    allsolid;
     //! If true, the initial point was in a solid area.
-    qboolean    startsolid;
+    bool    startsolid;
     //! Contents on other side of surface hit. (The inside of the brush.)
     cm_contents_t  contents;
 

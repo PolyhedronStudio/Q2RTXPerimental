@@ -58,7 +58,7 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_monster_testdummy_t, svg_b
 **/
 void svg_monster_testdummy_t::Reset( const bool retainDictionary ) {
     // Call upon the base class.
-    Base::Reset( retainDictionary );
+    Super::Reset( retainDictionary );
     // Reset the edict's save descriptor fields.
     testVar = 1337;
     //testVar2 = {};
@@ -72,7 +72,7 @@ void svg_monster_testdummy_t::Reset( const bool retainDictionary ) {
 void svg_monster_testdummy_t::Save( struct game_write_context_t *ctx ) {
     // Call upon the base class.
     //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
-    Base::Save( ctx );
+    Super::Save( ctx );
     // Save all the members of this entity type.
     ctx->write_fields( svg_monster_testdummy_t::saveDescriptorFields, this );
 }
@@ -82,7 +82,7 @@ void svg_monster_testdummy_t::Save( struct game_write_context_t *ctx ) {
 **/
 void svg_monster_testdummy_t::Restore( struct game_read_context_t *ctx ) {
     // Restore parent class fields.
-    Base::Restore( ctx );
+    Super::Restore( ctx );
     // Restore all the members of this entity type.
     ctx->read_fields( svg_monster_testdummy_t::saveDescriptorFields, this );
 
@@ -99,7 +99,7 @@ void svg_monster_testdummy_t::Restore( struct game_read_context_t *ctx ) {
 *           set errorStr and return false. True otherwise.
 **/
 const bool svg_monster_testdummy_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
-    return Base::KeyValue( keyValuePair, errorStr );
+    return Super::KeyValue( keyValuePair, errorStr );
 }
 
 
@@ -114,7 +114,7 @@ const bool svg_monster_testdummy_t::KeyValue( const cm_entity_t *keyValuePair, s
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_testdummy_t *self ) -> void {
     // Always call upon base methods.
-    Base::onSpawn( self );
+    Super::onSpawn( self );
 
     // Entity Type:
     self->s.entityType = ET_MONSTER;

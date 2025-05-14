@@ -34,5 +34,5 @@ void svg_info_null_t::info_null_spawn( svg_info_null_t *self ) {
 *   @brief  Spawn routine.
 **/
 void svg_func_group_t::func_group_spawn( svg_func_group_t *self ) {
-	Base::info_null_spawn( self );
+	Super::info_null_spawn( self );
 }

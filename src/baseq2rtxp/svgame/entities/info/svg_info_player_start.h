@@ -32,7 +32,7 @@ struct svg_info_player_base_start_t : public svg_base_edict_t {
     //! Constructor. 
     svg_info_player_base_start_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_info_player_base_start_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_info_player_base_start_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_info_player_base_start_t() = default;
 
@@ -122,7 +122,7 @@ struct svg_info_player_intermission_t : public svg_info_player_base_start_t {
     //! Constructor. 
     svg_info_player_intermission_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_info_player_intermission_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_info_player_intermission_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_info_player_intermission_t() = default;
 
@@ -163,7 +163,7 @@ struct svg_info_player_start_t : public svg_info_player_base_start_t {
     //! Constructor. 
     svg_info_player_start_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_info_player_start_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_info_player_start_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_info_player_start_t() = default;
 
@@ -206,7 +206,7 @@ struct svg_info_player_coop_t : public svg_info_player_base_start_t {
     //! Constructor. 
     svg_info_player_coop_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_info_player_coop_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_info_player_coop_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_info_player_coop_t() = default;
 
@@ -246,7 +246,7 @@ struct svg_info_player_deathmatch_t : public svg_info_player_base_start_t {
     //! Constructor. 
     svg_info_player_deathmatch_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_info_player_deathmatch_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_info_player_deathmatch_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_info_player_deathmatch_t() = default;
 

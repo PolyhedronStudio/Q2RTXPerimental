@@ -143,11 +143,13 @@ svg_base_edict_t *SVG_PickTarget( const char *targetname ) {
     return choice[ Q_rand_uniform( num_choices ) ];
 }
 
-
-
-void Think_UseTargetsDelay( svg_base_edict_t *ent ) {
-    SVG_UseTargets( ent, ent->activator );
-    SVG_FreeEdict( ent );
+/**
+*   @brief  Support routine for delayed trigger Use Targets.
+**/
+DECLARE_GLOBAL_CALLBACK_THINK( Think_UseTargetsDelay );
+DEFINE_GLOBAL_CALLBACK_THINK( Think_UseTargetsDelay )( svg_base_edict_t *self ) -> void {
+    SVG_UseTargets( self, self->activator );
+    SVG_FreeEdict( self );
 }
 
 /*

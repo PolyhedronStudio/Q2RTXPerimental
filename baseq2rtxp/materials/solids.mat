@@ -21,3 +21,4 @@ textures/skylight:
 textures/trigger:
 	texture_base textures/trigger.png
 	base_factor 2.5
+	kind GLASS

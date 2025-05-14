@@ -37,7 +37,7 @@ struct svg_worldspawn_edict_t : public svg_base_edict_t {
     //! Constructor. 
     svg_worldspawn_edict_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_worldspawn_edict_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_worldspawn_edict_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_worldspawn_edict_t() = default;
 

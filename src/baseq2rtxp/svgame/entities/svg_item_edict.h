@@ -28,7 +28,7 @@ struct svg_item_edict_t : public svg_base_edict_t {
     //! Constructor. 
     svg_item_edict_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_item_edict_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_item_edict_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_item_edict_t() = default;
 

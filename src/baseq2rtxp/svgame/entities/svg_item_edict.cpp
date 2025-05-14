@@ -44,7 +44,7 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_item_edict_t, svg_base_edi
 **/
 void svg_item_edict_t::Reset( const bool retainDictionary ) {
     // Call upon the base class.
-    Base::Reset( retainDictionary );
+    Super::Reset( retainDictionary );
     // Reset the edict's save descriptor fields.
     //testVar = 1337;
     //testVar2 = {};
@@ -58,7 +58,7 @@ void svg_item_edict_t::Reset( const bool retainDictionary ) {
 void svg_item_edict_t::Save( struct game_write_context_t *ctx ) {
     // Call upon the base class.
     //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
-    Base::Save( ctx );
+    Super::Save( ctx );
     // Save all the members of this entity type.
     ctx->write_fields( svg_item_edict_t::saveDescriptorFields, this );
 }
@@ -68,7 +68,7 @@ void svg_item_edict_t::Save( struct game_write_context_t *ctx ) {
 **/
 void svg_item_edict_t::Restore( struct game_read_context_t *ctx ) {
     // Restore parent class fields.
-    Base::Restore( ctx );
+    Super::Restore( ctx );
     // Restore all the members of this entity type.
     ctx->read_fields( svg_item_edict_t::saveDescriptorFields, this );
 }
@@ -80,7 +80,7 @@ void svg_item_edict_t::Restore( struct game_read_context_t *ctx ) {
 *           set errorStr and return false. True otherwise.
 **/
 const bool svg_item_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
-    return Base::KeyValue( keyValuePair, errorStr );
+    return Super::KeyValue( keyValuePair, errorStr );
 }
 
 

@@ -31,7 +31,7 @@ struct svg_info_notnull_t : public svg_base_edict_t {
     //! Constructor. 
     svg_info_notnull_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_info_notnull_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_info_notnull_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_info_notnull_t() = default;
 

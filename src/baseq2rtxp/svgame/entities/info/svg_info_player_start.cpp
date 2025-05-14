@@ -20,7 +20,7 @@
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_base_start_t, onSpawn )( svg_info_player_base_start_t *self ) -> void {
     // Call upon base spawn.
-    Base::onSpawn( self );
+    Super::onSpawn( self );
 }
 
 /**
@@ -33,7 +33,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_base_start_t, onSpawn )( svg_info_
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_start_t, onSpawn )( svg_info_player_start_t *self ) -> void {
     // Call upon base spawn.
-    Base::onSpawn( self );
+    Super::onSpawn( self );
 
     // If we are not in coop mode, then we don't want this entity to spawn.
     //if ( !coop->value ) {

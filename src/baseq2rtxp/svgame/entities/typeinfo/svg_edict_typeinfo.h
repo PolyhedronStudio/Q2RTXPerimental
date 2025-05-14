@@ -103,7 +103,7 @@ public:
 	*	@param	typeInfo The type information to compare against.
 	*	@return	True if the type information matches a class type, otherwise false.
 	**/
-	bool IsClass( const EdictTypeInfo &typeInfo ) const {
+	const bool IsClass( const EdictTypeInfo &typeInfo ) const {
 		return classTypeInfoID.GetID() == typeInfo.classTypeInfoID.GetID();
 	}
 
@@ -112,7 +112,7 @@ public:
 	*	@param typeInfo The type information of the class to check against.
 	*	@return True if the current type is a subclass of the specified type, otherwise false.
 	**/
-	bool IsSubclassOf( const EdictTypeInfo &typeInfo ) const {
+	const bool IsSubclassOf( const EdictTypeInfo &typeInfo ) const {
 		if ( super == nullptr ) {
 			return false;
 		}
@@ -128,7 +128,7 @@ public:
 	*	@brief	Checks if the type is abstract.
 	*	@return	A boolean value indicating whether the type is abstract (true) or not (false).
 	**/
-	bool IsAbstract() const {
+	const bool IsAbstract() const {
 		return typeFlags & TypeInfoFlag_Abstract;
 	}
 
@@ -136,14 +136,14 @@ public:
 	*	@brief	Determines if an object can spawn based on its world spawn class name.
 	*	@return	A boolean value indicating whether the object can spawn. Returns true if the object is not abstract and has the 'WorldSpawn' type flag set; otherwise, false.
 	**/
-	bool CanWorldSpawn() const {
+	const bool CanWorldSpawn() const {
 		return !IsAbstract() && ( typeFlags & TypeInfoFlag_WorldSpawn );
 	}
 
 	/**
 	*	@return A boolean that indicates whether the entity can be spawned in-game.
 	**/
-	bool CanGameSpawn() const {
+	const bool CanGameSpawn() const {
 		return !IsAbstract() && ( typeFlags & TypeInfoFlag_GameSpawn );
 	}
 
@@ -291,7 +291,7 @@ public:
 
 // Top abstract class, the start of the class tree
 #define DefineTopRootClass( worldSpawnClassName, className, superClass, typeInfoFlags )	\
-	using Base = superClass;	\
+	using Super = superClass;	\
 	static className* AllocateInstance( const cm_entity_t* cm_entity ) {	\
 		className *baseEdict = new className( cm_entity );	\
 		baseEdict->classname = svg_level_qstring_t::from_char_str( worldSpawnClassName );	\
@@ -321,7 +321,7 @@ public:
 // Instances of this cannot be allocated 
 // NOTE: multiple inheritance not supported
 #define DefineAbstractClass( className, superClass )			\
-	using Base = superClass;	/* Allows us to refer to super class using Base */ \
+	using Super = superClass;	/* Allows us to refer to super class using Base */ \
 	__DeclareTypeInfo( #className, #className, #superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
 
 
@@ -333,7 +333,7 @@ public:
 // @param classname (symbol) - the internal C++ class name
 // @param superClass (symbol) - the class this entity class inherits from
 #define DefineWorldSpawnClass( worldSpawnClassName, className, superClass, typeInfoFlags, spawnFunc )	\
-	using Base = superClass;	\
+	using Super = superClass;	\
 	static svg_base_edict_t* AllocateInstance( const cm_entity_t* cm_entity ) {	\
 		className *baseEdict = new className( cm_entity );	\
 		baseEdict->classname = svg_level_qstring_t::from_char_str( worldSpawnClassName );	\
@@ -350,7 +350,7 @@ public:
 // @param classname (symbol) - the internal C++ class name
 // @param superClass (symbol) - the class this entity class inherits from
 #define DefineGameClass( classname, superClass )	\
-using Base = superClass;										\
+using Super = superClass;										\
 static GameEntity* AllocateInstance( PODEntity* entity ) {		\
 	classname *baseEntity = new classname( entity );			\
 	baseEntity->SetClassname(#classname);						\

@@ -51,7 +51,7 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_worldspawn_edict_t, svg_ba
 **/
 void svg_worldspawn_edict_t::Reset( const bool retainDictionary ) {
     // Call upon the base class.
-    Base::Reset( retainDictionary );
+    Super::Reset( retainDictionary );
     // Print
     gi.dprintf( "%s: Resetting classname: %s\n", __func__, classname );
 }
@@ -64,7 +64,7 @@ void svg_worldspawn_edict_t::Reset( const bool retainDictionary ) {
 void svg_worldspawn_edict_t::Save( struct game_write_context_t *ctx ) {
     // Call upon the base class.
     //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
-    Base::Save( ctx );
+    Super::Save( ctx );
     // Save all the members of this entity type.
     ctx->write_fields( svg_worldspawn_edict_t::saveDescriptorFields, this );
 }
@@ -74,7 +74,7 @@ void svg_worldspawn_edict_t::Save( struct game_write_context_t *ctx ) {
 **/
 void svg_worldspawn_edict_t::Restore( struct game_read_context_t *ctx ) {
     // Restore parent class fields.
-    Base::Restore( ctx );
+    Super::Restore( ctx );
     // Restore all the members of this entity type.
     ctx->read_fields( svg_worldspawn_edict_t::saveDescriptorFields, this );
 }
@@ -122,7 +122,7 @@ const bool svg_worldspawn_edict_t::KeyValue( const cm_entity_t *keyValuePair, st
     }
 
     // Give Base class a shot.
-	return Base::KeyValue( keyValuePair, errorStr );
+	return Super::KeyValue( keyValuePair, errorStr );
 }
 
 
@@ -142,7 +142,7 @@ const bool svg_worldspawn_edict_t::KeyValue( const cm_entity_t *keyValuePair, st
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_edict_t *self ) -> void {
     // Call upon the base class.
-    Base::onSpawn( self );
+    Super::onSpawn( self );
 
     // Setup the world spawn entity.
     self->movetype = MOVETYPE_PUSH;

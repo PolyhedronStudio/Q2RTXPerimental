@@ -26,7 +26,7 @@ struct svg_info_null_t : public svg_base_edict_t {
     //! Constructor. 
     svg_info_null_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_info_null_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_info_null_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_info_null_t() = default;
 
@@ -68,7 +68,7 @@ struct svg_func_group_t : public svg_info_null_t {
     //! Constructor. 
     svg_func_group_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_func_group_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_func_group_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_func_group_t() = default;
 

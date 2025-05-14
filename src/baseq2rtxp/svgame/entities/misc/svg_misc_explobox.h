@@ -27,7 +27,7 @@ struct svg_misc_explobox_t : public svg_base_edict_t {
     //! Constructor. 
     svg_misc_explobox_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_misc_explobox_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_misc_explobox_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_misc_explobox_t() = default;
 

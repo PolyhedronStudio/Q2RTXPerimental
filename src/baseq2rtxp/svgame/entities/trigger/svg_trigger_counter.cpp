@@ -24,7 +24,7 @@ static constexpr int32_t SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE = 1;
 /**
 *	@brief
 **/
-void trigger_counter_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+DEFINE_MEMBER_CALLBACK_USE( svg_trigger_counter_t, onUse )( svg_trigger_counter_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
 	if ( self->count == 0 ) {
 		return;
 	}
@@ -32,19 +32,19 @@ void trigger_counter_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_b
 	self->count--;
 
 	if ( self->count ) {
-		if ( !( self->spawnflags & SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE ) ) {
+		if ( !( self->spawnflags & svg_trigger_counter_t::SPAWNFLAG_NO_MESSAGE ) ) {
 			gi.centerprintf( activator, "%i more to go...", self->count );
 			gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
 		}
 		return;
 	}
 
-	if ( !( self->spawnflags & SPAWNPFLAG_TRIGGER_COUNTER_NO_MESSAGE ) ) {
+	if ( !( self->spawnflags & svg_trigger_counter_t::SPAWNFLAG_NO_MESSAGE ) ) {
 		gi.centerprintf( activator, "Sequence completed!" );
 		gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
 	}
 	self->activator = activator;
-	multi_trigger( self );
+	self->ProcessTriggerLogic();
 }
 
 /*QUAKED trigger_counter (.5 .5 .5) ? nomessage
@@ -54,11 +54,13 @@ If nomessage is not set, t will print "1 more.. " etc when triggered and "sequen
 
 After the counter has been triggered "count" times (default 2), it will fire all of it's targets and remove itself.
 */
-void SP_trigger_counter( svg_base_edict_t *self ) {
-	self->wait = -1;
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_counter_t, onSpawn )( svg_trigger_counter_t *self ) -> void {
+	// Base spawn.
+	Super::onSpawn( self );
+
 	if ( !self->count ) {
 		self->count = 2;
 	}
 
-	self->SetUseCallback( trigger_counter_use );
+	self->SetUseCallback( &svg_trigger_counter_t::onUse );
 }

@@ -19,66 +19,72 @@
 *
 *
 ***/
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_MONSTER = 1;
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_NOT_PLAYER = 2;
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_TRIGGERED = 4;
-static constexpr int32_t SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP = 32;
 /**
 *	@brief	The wait time has passed, so set back up for another activation
 **/
-void multi_wait( svg_base_edict_t *ent ) {
-	ent->nextthink = 0_ms;
+DEFINE_MEMBER_CALLBACK_THINK( svg_trigger_multiple_t, onThink_Wait )( svg_trigger_multiple_t *self ) -> void {
+	self->nextthink = 0_ms;
 }
 
 
 /**
 *	@brief	The trigger was just activated
-*			ent->activator should be set to the activator so it can be held through a delay
+*			self->activator should be set to the activator so it can be held through a delay
 *			so wait for the delay time before firing
 **/
-void multi_trigger( svg_base_edict_t *ent ) {
-	if ( ent->nextthink )
-		return;     // already been triggered
+void svg_trigger_multiple_t::ProcessTriggerLogic( /*svg_trigger_multiple_t *self*/ ) {
+	// Already been triggered.
+	if ( nextthink ) {
+		return;
+	}
 
-	SVG_UseTargets( ent, ent->activator );
+	SVG_UseTargets( this, activator );
 
-	if ( ent->wait > 0 ) {
-		ent->SetThinkCallback( multi_wait );
-		ent->nextthink = level.time + QMTime::FromMilliseconds( ent->wait );
+	if ( wait > 0 ) {
+		SetThinkCallback( &svg_trigger_multiple_t::onThink_Wait );
+		nextthink = level.time + QMTime::FromSeconds( wait );
 	} else {
 		// we can't just remove (self) here, because this is a touch function
 		// called while looping through area links...
-		ent->SetTouchCallback( nullptr );
-		ent->nextthink = level.time + 10_hz;
-		ent->SetThinkCallback( SVG_FreeEdict );
+		SetTouchCallback( nullptr );
+		nextthink = level.time + 10_hz;
+		SetThinkCallback( SVG_FreeEdict );
 	}
 }
 
 /**
 *	@brief
 **/
-void Use_Multi( svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	ent->activator = activator;
-	multi_trigger( ent );
+DEFINE_MEMBER_CALLBACK_USE( svg_trigger_multiple_t, onUse )( svg_trigger_multiple_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
+	self->activator = activator;
+	self->ProcessTriggerLogic( /*self*/ );
+}
+/**
+*   @brief  For enabling it when used.
+**/
+DEFINE_MEMBER_CALLBACK_USE( svg_trigger_multiple_t, onUse_Enable )( svg_trigger_multiple_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
+	self->solid = SOLID_TRIGGER;
+	self->SetUseCallback( &svg_trigger_multiple_t::onUse );
+	gi.linkentity( self );
 }
 
 /**
 *	@brief
 **/
-void Touch_Multi( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_multiple_t, onTouch )( svg_trigger_multiple_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
 	if ( other->client ) {
-		if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_NOT_PLAYER ) {
+		if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_NOT_PLAYER ) {
 			return;
 		}
 	} else if ( other->svflags & SVF_MONSTER ) {
-		if ( !( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_MONSTER ) ) {
+		if ( !( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_MONSTER ) ) {
 			return;
 		}
 	} else {
 		return;
 	}
 
-	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
+	if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_BRUSH_CLIP ) {
 		svg_trace_t clip = SVG_Clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
@@ -96,16 +102,7 @@ void Touch_Multi( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plan
 	}
 
 	self->activator = other;
-	multi_trigger( self );
-}
-
-/**
-*	@brief
-**/
-void trigger_enable( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	self->solid = SOLID_TRIGGER;
-	self->SetUseCallback( Use_Multi );
-	gi.linkentity( self );
+	self->ProcessTriggerLogic( );
 }
 
 /*QUAKED trigger_multiple (.5 .5 .5) ? MONSTER NOT_PLAYER TRIGGERED
@@ -119,9 +116,13 @@ sounds
 4)
 set "message" to text string
 */
-void SP_trigger_multiple( svg_base_edict_t *ent ) {
-	if ( ent->sounds )
-		ent->noise_index = gi.soundindex( "hud/chat01.wav" );
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_multiple_t, onSpawn ) ( svg_trigger_multiple_t *self ) -> void {
+	// Base spawn.
+	Super::onSpawn( self );
+
+	if ( self->sounds ) {
+		self->noise_index = gi.soundindex( "hud/chat01.wav" );
+	}
 	//if ( ent->sounds == 1 )
 	//	ent->noise_index = gi.soundindex( "misc/secret.wav" );
 	//else if ( ent->sounds == 2 )
@@ -129,30 +130,30 @@ void SP_trigger_multiple( svg_base_edict_t *ent ) {
 	//else if ( ent->sounds == 3 )
 	//	ent->noise_index = gi.soundindex( "misc/trigger1.wav" );
 
-	if ( !ent->wait )
-		ent->wait = 0.2f;
-
+	if ( !self->wait ) {
+		self->wait = 0.2f;
+	}
 	// WID: Initialize triggers properly.
-	SVG_Util_InitTrigger( ent );
+	SVG_Util_InitTrigger( self );
 
-	ent->SetTouchCallback( Touch_Multi );
-	ent->movetype = MOVETYPE_NONE;
-	ent->svflags |= SVF_NOCLIENT;
+	self->SetTouchCallback( &svg_trigger_multiple_t::onTouch );
+	self->movetype = MOVETYPE_NONE;
+	self->svflags |= SVF_NOCLIENT;
 
-	if ( ent->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_TRIGGERED ) {
-		ent->solid = SOLID_NOT;
-		ent->SetUseCallback( trigger_enable );
+	if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_TRIGGERED ) {
+		self->solid = SOLID_NOT;
+		self->SetUseCallback( &svg_trigger_multiple_t::onUse_Enable );
 	} else {
-		ent->solid = SOLID_TRIGGER;
-		ent->SetUseCallback( Use_Multi );
+		self->solid = SOLID_TRIGGER;
+		self->SetUseCallback( &svg_trigger_multiple_t::onUse );
 	}
 
-	if ( !VectorEmpty( ent->s.angles ) )
-		SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
+	if ( !VectorEmpty( self->s.angles ) )
+		SVG_Util_SetMoveDir( self->s.angles, self->movedir );
 
-	gi.linkentity( ent );
+	gi.linkentity( self );
 
-	if ( ent->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
-		ent->svflags |= SVF_HULL;
+	if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_BRUSH_CLIP ) {
+		self->svflags |= SVF_HULL;
 	}
 }

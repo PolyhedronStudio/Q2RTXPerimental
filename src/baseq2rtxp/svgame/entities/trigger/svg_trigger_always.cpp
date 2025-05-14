@@ -8,7 +8,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_trigger.h"
 
-#include "svgame/entities/trigger/svg_trigger_counter.h"
+#include "svgame/entities/trigger/svg_trigger_always.h"
 
 
 /***

@@ -29,7 +29,7 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     //! Constructor. 
     svg_monster_testdummy_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_monster_testdummy_t( const cm_entity_t *ed ) : Base( ed ) { };
+    svg_monster_testdummy_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
     virtual ~svg_monster_testdummy_t() = default;
 
