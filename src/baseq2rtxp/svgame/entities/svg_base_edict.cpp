@@ -690,7 +690,7 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
         return true;
     }
     // Match: kill
-    else if ( keyStr == "kill" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+    else if ( keyStr == "killtarget" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
         targetNames.kill = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
