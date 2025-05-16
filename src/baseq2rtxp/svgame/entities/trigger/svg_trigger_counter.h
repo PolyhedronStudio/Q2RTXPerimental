@@ -102,7 +102,10 @@ struct svg_trigger_counter_t : public svg_trigger_multiple_t {
     *   @brief
     **/
     DECLARE_MEMBER_CALLBACK_USE( svg_trigger_counter_t, onUse );
-
+    /**
+    *   @brief
+    **/
+    DECLARE_MEMBER_CALLBACK_TOUCH( svg_trigger_counter_t, onTouch );
 
 
     /**
@@ -119,6 +122,8 @@ struct svg_trigger_counter_t : public svg_trigger_multiple_t {
     *
     **/
 public:
-    //! 
-    static constexpr spawnflag_t SPAWNFLAG_NO_MESSAGE = 1;
+    //! Don't print sequence logic message
+    static constexpr spawnflag_t SPAWNFLAG_NO_MESSAGE = BIT( 0 );
+    //! Don't print sequence logic message
+    static constexpr spawnflag_t SPAWNFLAG_TOUCHABLE = 64;
 };

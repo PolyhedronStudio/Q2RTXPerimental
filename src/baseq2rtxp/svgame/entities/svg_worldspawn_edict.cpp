@@ -30,7 +30,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_worldspawn_edict_t )
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, skyrotate, SD_FIELD_TYPE_FLOAT ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, skyautorotate, SD_FIELD_TYPE_INT32 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, skyaxis, SD_FIELD_TYPE_VECTOR3 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, gravity, SD_FIELD_TYPE_GAME_QSTRING ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, gravity, SD_FIELD_TYPE_FLOAT ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, nextmap, SD_FIELD_TYPE_GAME_QSTRING ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_worldspawn_edict_t, musictrack, SD_FIELD_TYPE_GAME_QSTRING ),
 SAVE_DESCRIPTOR_FIELDS_END();
@@ -52,6 +52,7 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_worldspawn_edict_t, svg_ba
 void svg_worldspawn_edict_t::Reset( const bool retainDictionary ) {
     // Call upon the base class.
     Super::Reset( retainDictionary );
+
     // Print
     gi.dprintf( "%s: Resetting classname: %s\n", __func__, classname );
 }
@@ -115,9 +116,13 @@ const bool svg_worldspawn_edict_t::KeyValue( const cm_entity_t *keyValuePair, st
         return true;
     }
     // Match: gravity
-    else if ( keyStr == "gravity" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        gravity_str = svg_level_qstring_t::from_char_str( keyValuePair->string );
-		gravity = std::strtof( gravity_str.ptr, nullptr );
+    else if ( keyStr == "gravity" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+		// Setup the gravity.
+        gravity = 1.0f;
+        // This'll be 800 if 0.
+        level.gravity = ( keyValuePair->value != 0 ? keyValuePair->value : 800 );
+        gi.cvar_set( "sv_gravity", std::to_string( level.gravity ).c_str() );
+
         return true;
     }
 
@@ -149,7 +154,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     self->solid = SOLID_BSP;
     self->inuse = true;                           // Just to make damn sure it is always properly set.
     self->s.modelindex = MODELINDEX_WORLDSPAWN;   // World model is always index 1
-
+    self->gravity = 1.0f;
     //---------------
 
     // Reserve some spots for dead player bodies for coop / deathmatch
@@ -197,10 +202,12 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     }
 
     // Gravity.
-    if ( !self->gravity_str.count || !self->gravity ) {
+    if ( !self->gravity_str.count || !self->gravity || !level.gravity ) {
         gi.cvar_set( "sv_gravity", "800" );
+        level.gravity = 800;
     } else {
-        gi.cvar_set( "sv_gravity", (const char *)self->gravity_str );
+        gi.cvar_set( "sv_gravity", std::to_string(level.gravity).c_str() );
+		level.gravity = self->gravity;
     }
 
     // Certain precaches.

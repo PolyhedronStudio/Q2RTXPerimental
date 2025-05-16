@@ -1840,7 +1840,7 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	pml.previousOrigin = ps->pmove.origin;
 
 	// Calculate frameTime.
-	pml.frameTime = pm->cmd.msec * 0.001f;
+	pml.frameTime = (double)pm->cmd.msec * 0.001;
 
 	// Clamp view angles.
 	PM_UpdateViewAngles( ps, &pm->cmd );
@@ -1855,12 +1855,8 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 
 		// Give the spectator a small 8x8x8 bounding box.
 		if ( ps->pmove.pm_type == PM_SPECTATOR ) {
-			pm->mins.x = -8;
-			pm->mins.y = -8;
-			pm->mins.z = -8;
-			pm->maxs.x = 8;
-			pm->maxs.y = 8;
-			pm->maxs.z = 8;
+			pm->mins = { -8.f, -8.f, -8.f };
+			pm->maxs = { -8.f, -8.f,-8.f };
 		}
 
 		// Get moving.

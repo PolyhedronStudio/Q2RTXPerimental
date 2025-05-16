@@ -482,9 +482,9 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
 
     // PGM	trigger_gravity support
     client->ps.pmove.gravity = (short)( sv_gravity->value * ent->gravity );
-
     //pm.playerState = client->ps;
     pm->playerState = &client->ps;
+
     // Copy the current entity origin and velocity into our 'pmove movestate'.
     pm->playerState->pmove.origin = ent->s.origin;
     pm->playerState->pmove.velocity = ent->velocity;

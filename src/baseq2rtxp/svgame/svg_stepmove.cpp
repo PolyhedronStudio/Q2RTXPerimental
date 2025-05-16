@@ -48,6 +48,12 @@ bool M_CheckBottom(svg_base_edict_t *ent)
 // with the tougher checks
 // the corners must be within 16 of the midpoint
     start[2] = mins[2] - 1;
+    if ( ent->gravityVector[ 2 ] > 0 ) {
+        // PGM
+        //  FIXME - this will only handle 0,0,1 and 0,0,-1 gravity vectors
+            start[ 2 ] = maxs[ 2 ] + 1;
+        // PGM
+    }
     for (x = 0 ; x <= 1 ; x++)
         for (y = 0 ; y <= 1 ; y++) {
             start[0] = x ? maxs[0] : mins[0];
@@ -69,7 +75,16 @@ realcheck:
 // the midpoint must be within 16 of the bottom
     start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5f;
     start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5f;
-    stop[2] = start[2] - 2 * STEPSIZE;
+    //stop[2] = start[2] - 2 * STEPSIZE;
+        // PGM
+    if ( ent->gravityVector[ 2 ] > 0 ) {
+        start[ 2 ] = ent->s.origin[2] + mins[ 2 ];
+        stop[ 2 ] = start[ 2 ] - STEPSIZE * 2;
+    } else {
+        start[ 2 ] = ent->s.origin[2] + maxs[ 2 ];
+        stop[ 2 ] = start[ 2 ] + STEPSIZE * 2;
+    }
+    // PGM
     trace = SVG_Trace(start, vec3_origin, vec3_origin, stop, ent, CM_CONTENTMASK_MONSTERSOLID);
 
     if (trace.fraction == 1.0f)

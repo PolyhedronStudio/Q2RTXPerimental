@@ -769,6 +769,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     mm_liquid_info_t liquidInfo = {};
     //! Categorized ground information.
     mm_ground_info_t groundInfo = {};
+    //! The directional gravity vector.
+	Vector3     gravityVector = QM_Vector3Zero();
     //! [SpawnKey]: Weight(mass) of entity.
     int32_t     mass = 0;
     //! [SpawnKey]: Per entity gravity multiplier (1.0 is normal) use for lowgrav artifact, flares.
@@ -940,6 +942,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     QMTime   touch_debounce_time;        // are all these legit?  do we need more/less of them?
     QMTime   pain_debounce_time;
     QMTime   show_hostile_time;
+    //! Registers the time of the frame we died in.
+	QMTime   death_time;
     //! Used for player trail.
     QMTime   trail_time;
 

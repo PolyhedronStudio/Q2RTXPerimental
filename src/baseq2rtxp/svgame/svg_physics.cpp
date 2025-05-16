@@ -423,6 +423,11 @@ retry:
         }
     }
 
+    // PGM
+    // FIXME - is this needed?
+    ent->gravity = 1.0;
+    // PGM
+
     if (ent->inuse)
         SVG_Util_TouchTriggers(ent);
 
@@ -759,7 +764,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
     }
 
 // if onground, return without moving
-    if ( ent->groundInfo.entity ) {
+    if ( ent->groundInfo.entity && ent->gravity > 0.0f ) {  // PGM - gravity hack
         return;
     }
 

@@ -374,7 +374,12 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
     }
 
     // Determine knockback value.
-    const int32_t finalKnockBack = ( targ->flags & FL_NO_KNOCKBACK ? 0 : knockBack );
+    int32_t finalKnockBack = ( /*targ->flags & FL_NO_KNOCKBACK ? 0 : */ knockBack );
+    if ( ( targ->flags & FL_NO_KNOCKBACK ) ||
+        ( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
+            ( !targ->lifeStatus || targ->death_time != level.time ) ) ) {
+        finalKnockBack = 0;
+    }
 
     // Figure momentum add.
     if ( !( damageFlags & DAMAGE_NO_KNOCKBACK ) ) {
@@ -443,8 +448,18 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
 
         if (targ->health <= 0) {
             if ( ( targ->svflags & SVF_MONSTER ) || ( client ) ) {
-                targ->flags = static_cast<entity_flags_t>( targ->flags | FL_NO_KNOCKBACK );
+                targ->flags |= FL_NO_KNOCKBACK;
+                //targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
+                targ->death_time = level.time;
             }
+            #if 0
+            targ->monsterinfo.damage_blood += take;
+            targ->monsterinfo.damage_attacker = attacker;
+            targ->monsterinfo.damage_inflictor = inflictor;
+            targ->monsterinfo.damage_from = point;
+            targ->monsterinfo.damage_mod = meansOfDeath;
+            targ->monsterinfo.damage_knockback += knockBack;
+            #endif
             Killed(targ, inflictor, attacker, take, point);
             return;
         }

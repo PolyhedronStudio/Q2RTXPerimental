@@ -72,7 +72,13 @@ void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activat
     // If a message was set, the activator is not a monster, then center print it.
     if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
         // Print.
-        gi.centerprintf( activator, "%s", self->message );
+        if ( activator->client ) {
+            gi.centerprintf( activator, "%s", self->message );
+        // <Q2RTXP>: WID: Do we want this else statement and condition?
+        } else {
+			//gi.cprintf(nullptr, PRINT_ALL, "%s: %s\n", (const char*)self->classname, self->message );
+            gi.cprintf( nullptr, PRINT_ALL, "%s\n", self->message );
+        }
         // Play custom set audio.
         if ( self->noise_index ) {
             gi.sound( activator, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );

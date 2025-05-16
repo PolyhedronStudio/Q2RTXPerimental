@@ -13,7 +13,8 @@
 static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
 	//if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
 	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
-	if ( &mins == &qm_vector3_null && &maxs == &qm_vector3_null ) {
+	if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
+		&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
 		return gi.trace( &start.x, nullptr, nullptr, &end.x, passEdict, contentMask );
 	}
 	return gi.trace( &start.x, &mins.x, &maxs.x, &end.x, passEdict, contentMask );
@@ -22,9 +23,9 @@ static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &
 *	@brief	Wrapper for gi.clipthat accepts Vector3 args.
 **/
 static inline const svg_trace_t SVG_Clip( svg_base_edict_t *clipEdict, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
-	//if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
-	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
-	if ( &mins == &qm_vector3_null && &maxs == &qm_vector3_null ) {
+	if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
+		&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
+	//if ( mins == qm_vector3_null && maxs == qm_vector3_null ) {
 		return gi.clip( clipEdict, &start.x, nullptr, nullptr, &end.x, contentMask );
 	}
 	return gi.clip( clipEdict, &start.x, &mins.x, &maxs.x, &end.x, contentMask );

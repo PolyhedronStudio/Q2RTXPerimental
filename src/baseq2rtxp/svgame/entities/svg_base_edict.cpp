@@ -202,6 +202,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, speed, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, accel, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, decel, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, gravityVector, SD_FIELD_TYPE_VECTOR3, 1 ),
 
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
     // WID: TODO: PushmoveInfo
@@ -295,6 +296,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, touch_debounce_time, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pain_debounce_time, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, show_hostile_time, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, death_time, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, trail_time, SD_FIELD_TYPE_INT64 ),
 
     /**
@@ -516,6 +518,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     viewheight = 0;
     liquidInfo = {};
     groundInfo = {};
+    gravityVector = { 0.f, 0.f, -1.f };
     mass = 0;
     gravity = 0.f;
     pushMoveInfo = {};
@@ -767,6 +770,11 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     // Match: mass
     else if ( keyStr == "mass" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
         mass = keyValuePair->integer;
+        return true;
+    }
+    // Match: gravity
+    else if ( keyStr == "gravity" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+        gravity = keyValuePair->value;
         return true;
     }
     // Match: volume

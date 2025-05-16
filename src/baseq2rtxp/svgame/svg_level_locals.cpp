@@ -16,6 +16,7 @@
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_level_locals_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, frameNumber, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, time, SD_FIELD_TYPE_FRAMETIME ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_level_locals_t, gravity, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, level_name, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, mapname, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_level_locals_t, nextmap, SD_FIELD_TYPE_ZSTRING, MAX_QPATH ),

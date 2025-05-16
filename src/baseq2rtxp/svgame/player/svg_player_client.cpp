@@ -638,6 +638,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     ent->inuse = true;
     ent->classname = "player";
     ent->mass = 200;
+    ent->gravity = 1.0f;
     ent->solid = SOLID_BOUNDS_BOX;
     ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
@@ -650,7 +651,6 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
     ent->svflags &= ~SVF_DEADMONSTER;
-    ent->svflags &= ~FL_NO_KNOCKBACK;
     ent->svflags |= SVF_PLAYER;
     // Player Entity Type:
     ent->s.entityType = ET_PLAYER;

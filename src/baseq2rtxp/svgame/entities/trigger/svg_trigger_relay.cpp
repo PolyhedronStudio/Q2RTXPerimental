@@ -107,9 +107,15 @@ DEFINE_MEMBER_CALLBACK_USE( svg_trigger_relay_t, onUse )( svg_trigger_relay_t *s
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_relay_t, onSpawn)( svg_trigger_relay_t *self ) -> void {
-	// Does not free itself. Instead construct a 'point bbox'.
-	VectorCopy( self->s.origin, self->absmin );
-	VectorCopy( self->s.origin, self->absmax );
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
+    // Does not free itself. Instead construct a 'point bbox'.
+    VectorCopy( self->s.origin, self->absmin );
+    VectorCopy( self->s.origin, self->absmax );
+    self->movetype = MOVETYPE_NONE;
+    self->svflags = SVF_NOCLIENT;
+
 	// Assign a relayed use callback.
 	self->SetUseCallback( &svg_trigger_relay_t::onUse );
 }

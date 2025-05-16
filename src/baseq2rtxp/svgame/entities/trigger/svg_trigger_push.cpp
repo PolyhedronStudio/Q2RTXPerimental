@@ -72,6 +72,9 @@ Pushes the player
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_push_t, onSpawn ) ( svg_trigger_push_t *self ) -> void {
+	// Always spawn Super class.
+	Super::onSpawn( self );
+
 	// WID: Initialize triggers properly.
 	SVG_Util_InitTrigger( self );
 
