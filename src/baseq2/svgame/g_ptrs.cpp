@@ -569,8 +569,8 @@ extern void SVG_PushMove_Think_AccelerateMove( edict_t *self );
 extern void Think_Boss3Stand( edict_t *self );
 extern void Think_CalcMoveSpeed( edict_t *self );
 extern void Think_Delay( edict_t *self );
-extern void Think_SpawnDoorTrigger( edict_t *ent );
-extern void Touch_DoorTrigger( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf );
+extern void DoorTrigger_SpawnThink( edict_t *ent );
+extern void DoorTrigger_Touch( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf );
 extern void Touch_Item( edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf );
 extern void Touch_Multi( edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf );
 extern void Touch_Plat_Center( edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf );
@@ -674,7 +674,7 @@ const save_ptr_t save_ptrs[] = {
 { P_think,  (void*)Think_Boss3Stand },
 { P_think,  (void*)Think_CalcMoveSpeed },
 { P_think,  (void*)Think_Delay },
-{ P_think,  (void*)Think_SpawnDoorTrigger },
+{ P_think,  (void*)DoorTrigger_SpawnThink },
 { P_think,  (void*)train_next },
 { P_think,  (void*)trigger_elevator_init },
 { P_think,  (void*)turret_breach_finish_init },
@@ -708,7 +708,7 @@ const save_ptr_t save_ptrs[] = {
 { P_touch, (void*)rotating_touch },
 { P_touch, (void*)target_actor_touch },
 { P_touch, (void*)teleporter_touch },
-{ P_touch, (void*)Touch_DoorTrigger },
+{ P_touch, (void*)DoorTrigger_Touch },
 { P_touch, (void*)Touch_Item },
 { P_touch, (void*)Touch_Multi },
 { P_touch, (void*)Touch_Plat_Center },

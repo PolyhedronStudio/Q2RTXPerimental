@@ -1,23 +1,22 @@
 /********************************************************************
 *
 *
-*	ServerGame: Pusher Entity 'func_door_rotating_rotating'.
+*	ServerGame: Base Pusher Entity.
 *
 *
 ********************************************************************/
 #pragma once
+
 
 
 /********************************************************************
 *
 *
-*	ServerGame: Pusher Entity 'func_door_rotating'.
+*	ServerGame: Door Entity 'func_door'.
 *
 *
 ********************************************************************/
 #pragma once
-
-
 
 // Needed.
 #include "svgame/entities/svg_base_edict.h"
@@ -30,18 +29,18 @@
 *
 *
 **/
-struct svg_func_door_rotating_t : public svg_pushmove_edict_t {
+struct svg_pushmove_edict_t : public svg_base_edict_t {
     /**
     *
     *	Construct/Destruct.
     *
     **/
     //! Constructor. 
-    svg_func_door_rotating_t() = default;
+    svg_pushmove_edict_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_func_door_rotating_t( const cm_entity_t *ed ) : Super( ed ) { };
+    svg_pushmove_edict_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
-    virtual ~svg_func_door_rotating_t() = default;
+    virtual ~svg_pushmove_edict_t() = default;
 
 
     /**
@@ -49,13 +48,9 @@ struct svg_func_door_rotating_t : public svg_pushmove_edict_t {
     *	Define this as: "light" = svg_base_edict -> light
     *
     **/
-    DefineWorldSpawnClass(
+    DefineAbstractClass(
         // classname:               classType:               superClassType:
-        "func_door_rotating", svg_func_door_rotating_t, svg_pushmove_edict_t,
-        // typeInfoFlags:
-        EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
-        // spawnFunc:
-        svg_func_door_rotating_t::onSpawn
+        svg_pushmove_edict_t, svg_base_edict_t
     );
 
 
@@ -99,70 +94,74 @@ struct svg_func_door_rotating_t : public svg_pushmove_edict_t {
     virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
     #endif // #if 0
 
-
     /**
     *
-    *   TestDummy Callback Member Functions:
+    *   Callback Member Functions:
     *
     **/
-    /**
-    *   @brief  Spawn.
-    **/
-    DECLARE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn );
-    #if 0
-    /**
-    *   @brief  Post-Spawn.
-    **/
-    DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_func_door_rotating_t, onPostSpawn );
     /**
     *   @brief  Thinking.
     **/
-    DECLARE_MEMBER_CALLBACK_THINK( svg_func_door_rotating_t, onThink );
-    DECLARE_MEMBER_CALLBACK_THINK( svg_func_door_rotating_t, onThink_OpenMove );
-    DECLARE_MEMBER_CALLBACK_THINK( svg_func_door_rotating_t, onThink_CloseMove );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveBegin );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveDone );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveFinal );
+
+    #if 0
+    /**
+    *   @brief  Spawn.
+    **/
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_pushmove_edict_t, onSpawn );
+    /**
+    *   @brief  Post-Spawn.
+    **/
+    DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_pushmove_edict_t, onPostSpawn );
+
 
     /**
     *   @brief  Blocked.
     **/
-    DECLARE_MEMBER_CALLBACK_BLOCKED( svg_func_door_rotating_t, onBlocked );
+    DECLARE_MEMBER_CALLBACK_BLOCKED( svg_pushmove_edict_t, onBlocked );
 
     /**
     *   @brief  Touched.
     **/
-    DECLARE_MEMBER_CALLBACK_TOUCH( svg_func_door_rotating_t, onTouch );
+    DECLARE_MEMBER_CALLBACK_TOUCH( svg_pushmove_edict_t, onTouch );
     /**
     *   @brief
     **/
-    DECLARE_MEMBER_CALLBACK_USE( svg_func_door_rotating_t, onUse );
+    DECLARE_MEMBER_CALLBACK_USE( svg_pushmove_edict_t, onUse );
     /**
     *   @brief
     **/
-    //DECLARE_MEMBER_CALLBACK_USE( svg_func_door_rotating_t, onUse_AreaPortal );
+    //DECLARE_MEMBER_CALLBACK_USE( svg_pushmove_edict_t, onUse_AreaPortal );
     /**
     *   @brief
     **/
-    DECLARE_MEMBER_CALLBACK_PAIN( svg_func_door_rotating_t, onPain );
+    DECLARE_MEMBER_CALLBACK_PAIN( svg_pushmove_edict_t, onPain );
     /**
     *   @brief
     **/
-    DECLARE_MEMBER_CALLBACK_DIE( svg_func_door_rotating_t, onDie );
+    DECLARE_MEMBER_CALLBACK_DIE( svg_pushmove_edict_t, onDie );
     /**
     *   @brief  Signal Receiving:
     **/
-    DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_door_rotating_t, onSignalIn );
+    DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_pushmove_edict_t, onSignalIn );
+    #endif
+
 
     /**
-    *   PushMoveInfo EndMoves:
+    *   PushMoveInfo EndMove:
     **/
-    DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_base_edict_t, onCloseEndMove );
-    DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_base_edict_t, onOpenEndMove );
-    #endif
+    DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_pushmove_edict_t, onCloseEndMove );
+    DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_pushmove_edict_t, onOpenEndMove );
+
 
     /**
     *
     *   Member Functions:
     *
     **/
+
 
     /**
     *

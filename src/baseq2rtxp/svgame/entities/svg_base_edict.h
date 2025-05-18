@@ -588,7 +588,40 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 	*   @brief  A default spawn implementation function.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn );
-
+    /**
+    *   @brief  PostSpawn Stub.
+    **/
+    DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_base_edict_t, onPostSpawn );
+    /**
+    *   @brief  Thinking Stubs.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_base_edict_t, onPreThink );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_base_edict_t, onThink );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_base_edict_t, onPostThink );
+    /**
+    *   @brief  Blocked Stub.
+    **/
+    DECLARE_MEMBER_CALLBACK_BLOCKED( svg_base_edict_t, onBlocked );
+    /**
+    *   @brief  Touched Stub.
+    **/
+    DECLARE_MEMBER_CALLBACK_TOUCH( svg_base_edict_t, onTouch );
+    /**
+    *   @brief  Use Stub.
+    **/
+    DECLARE_MEMBER_CALLBACK_USE( svg_base_edict_t, onUse );
+    /**
+    *   @brief  Pain Stub.
+    **/
+    DECLARE_MEMBER_CALLBACK_PAIN( svg_base_edict_t, onPain );
+    /**
+    *   @brief  Die Stub.
+    **/
+    DECLARE_MEMBER_CALLBACK_DIE( svg_base_edict_t, onDie );
+    /**
+    *   @brief  Signal Receiving Stub.
+    **/
+    DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_base_edict_t, onSignalIn );
 
 
     /**

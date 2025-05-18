@@ -17,7 +17,7 @@
 /**
 *	@brief
 **/
-void Touch_DoorTrigger( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
     if ( other->health <= 0 )
@@ -26,20 +26,20 @@ void Touch_DoorTrigger( svg_base_edict_t *self, svg_base_edict_t *other, const c
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) )
         return;
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    if ( ( self->owner->spawnflags & DOOR_SPAWNFLAG_NOMONSTER ) && ( other->svflags & SVF_MONSTER ) )
+    if ( ( self->owner->spawnflags & svg_func_door_t::SPAWNFLAG_NOMONSTER ) && ( other->svflags & SVF_MONSTER ) )
         return;
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
     if ( level.time < self->touch_debounce_time )
         return;
     self->touch_debounce_time = level.time + 1_sec;
 
-    door_use( self->owner, other, other, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+    self->owner->DispatchUseCallback( /*self->owner, */other, other, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
 }
 
 /**
 *	@brief
 **/
-void Think_SpawnDoorTrigger( svg_base_edict_t *ent ) {
+void DoorTrigger_SpawnThink( svg_base_edict_t *ent ) {
     svg_base_edict_t *other;
     vec3_t      mins, maxs;
 
@@ -67,11 +67,14 @@ void Think_SpawnDoorTrigger( svg_base_edict_t *ent ) {
     other->solid = SOLID_TRIGGER;
     other->movetype = MOVETYPE_NONE;
     other->s.entityType = ET_PUSH_TRIGGER;
-    other->SetTouchCallback( Touch_DoorTrigger );
+    other->SetTouchCallback( DoorTrigger_Touch );
     gi.linkentity( other );
 
-    if ( ent->spawnflags & DOOR_SPAWNFLAG_START_OPEN )
-        door_use_areaportals( ent, true );
+    if ( ent->spawnflags & svg_func_door_t::SPAWNFLAG_START_OPEN ) {
+		if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+			static_cast<svg_func_door_t *>( ent )->SetAreaPortal( true );
+		}
+    }
 
     SVG_PushMove_Think_CalculateMoveSpeed( ent );
 }

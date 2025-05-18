@@ -881,3 +881,37 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn )( svg_base_edict_t *sel
     VectorCopy( self->s.origin, self->absmin );
     VectorCopy( self->s.origin, self->absmax );
 }
+/**
+*   @brief  PostSpawn Stub.
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onPostSpawn )( svg_base_edict_t *self ) -> void { }
+/**
+*   @brief  Thinking Stubs.
+**/
+DEFINE_MEMBER_CALLBACK_THINK( svg_base_edict_t, onThink )( svg_base_edict_t *self ) -> void { }
+DEFINE_MEMBER_CALLBACK_PRETHINK( svg_base_edict_t, onPreThink )( svg_base_edict_t *self ) -> void { }
+DEFINE_MEMBER_CALLBACK_POSTTHINK( svg_base_edict_t, onPostThink )( svg_base_edict_t *self ) -> void { }
+/**
+*   @brief  Blocked Stub.
+**/
+DEFINE_MEMBER_CALLBACK_BLOCKED( svg_base_edict_t, onBlocked )( svg_base_edict_t *self, svg_base_edict_t *other ) -> void { }
+/**
+*   @brief  Touched Stub.
+**/
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_base_edict_t, onTouch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void { }
+/**
+*   @brief  Use Stub.
+**/
+DEFINE_MEMBER_CALLBACK_USE( svg_base_edict_t, onUse )( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void { }
+/**
+*   @brief  Pain Stub.
+**/
+DEFINE_MEMBER_CALLBACK_PAIN( svg_base_edict_t, onPain )( svg_base_edict_t *self, svg_base_edict_t *other, const float kick, const int32_t damage ) -> void { }
+/**
+*   @brief  Die Stub.
+**/
+DEFINE_MEMBER_CALLBACK_DIE( svg_base_edict_t, onDie )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void { }
+/**
+*   @brief  Signal Receiving Stub.
+**/
+DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_base_edict_t, onSignalIn )( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void { }

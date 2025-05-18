@@ -97,7 +97,7 @@ void SP_func_water( svg_base_edict_t *self ) {
         self->wait = -1;
     self->pushMoveInfo.wait = self->wait;
 
-    self->SetUseCallback( door_use );
+    self->SetUseCallback( &svg_func_door_t::onUse );
 
     if ( self->wait == -1 )
         self->spawnflags |= DOOR_SPAWNFLAG_TOGGLE;

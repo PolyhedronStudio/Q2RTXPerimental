@@ -57,6 +57,24 @@ using EdictAllocatorFncPtr = svg_base_edict_t* ( const cm_entity_t *entityDictio
 *	including their hierachy order, spawnability, and allocation.
 * 
 **/
+typedef char( &yes )[ 1 ];
+typedef char( &no )[ 2 ];
+
+template <typename B, typename D>
+struct Host {
+	operator B *( ) const;
+	operator D *( );
+};
+
+template <typename B, typename D>
+struct is_base_of {
+	template <typename T>
+	static yes check( D *, T );
+	static no check( B *, int );
+
+	static const bool value = sizeof( check( Host<B, D>(), int() ) ) == sizeof( yes );
+};
+
 class EdictTypeInfo {
 public:
 	//! Types of EdictTypeInfo. Can be combined aka TypeInfoFlag_WorldSpawn | TypeInfoFlag_GameSpawn.
@@ -103,25 +121,48 @@ public:
 	*	@param	typeInfo The type information to compare against.
 	*	@return	True if the type information matches a class type, otherwise false.
 	**/
-	const bool IsClass( const EdictTypeInfo &typeInfo ) const {
+	const bool IsClassTypeInfo( const EdictTypeInfo &typeInfo ) const {
 		return classTypeInfoID.GetID() == typeInfo.classTypeInfoID.GetID();
 	}
 
 	/**
 	*	@brief Determines if the current type is a subclass of the specified type.
 	*	@param typeInfo The type information of the class to check against.
+	*	@param derivedCheckOnly If true, skips checking if the current TypeInfo is a match.
 	*	@return True if the current type is a subclass of the specified type, otherwise false.
 	**/
-	const bool IsSubclassOf( const EdictTypeInfo &typeInfo ) const {
+	const bool IsSubClassOfTypeInfo( const EdictTypeInfo &typeInfo, const bool derivedCheckOnly = false ) const {
+		// We got a match, return true.
+		if ( IsClassTypeInfo( typeInfo ) && !derivedCheckOnly ) {
+			return true;
+		}
+		// No parent, we never had a match.
 		if ( super == nullptr ) {
 			return false;
 		}
+		// Iterate onto parent type.
+		return super->IsSubClassOfTypeInfo( typeInfo );
+	}
 
-		if ( classTypeInfoID.GetID() == typeInfo.classTypeInfoID.GetID() ) {
+	/**
+	*	@brief Determines if the current type is a subclass of the specified type.
+	*	@param typeInfo The type information of the class to check against.
+	*	@param derivedCheckOnly If true, skips checking if the current TypeInfo is a match.
+	*	@return True if the current type is a subclass of the specified type, otherwise false.
+	**/
+	template<class TSubClass>
+	const bool IsSubClassType( const bool derivedCheckOnly = false ) const {
+		// Make sure their IDs match.
+		// Return true if the current type is the same as TSubClass.
+		if ( IsClassTypeInfo( TSubClass::ClassInfo ) && !derivedCheckOnly ) {
 			return true;
 		}
-
-		return super->IsSubclassOf( typeInfo );
+		// Iterate onto the parent if we got one, or false if we got none.
+		if ( super == nullptr ) {
+			return false;
+		}
+		// Check parent.
+		return super->IsSubClassType<TSubClass>( false );
 	}
 
 	/**

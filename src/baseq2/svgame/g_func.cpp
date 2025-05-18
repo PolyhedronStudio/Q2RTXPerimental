@@ -950,7 +950,7 @@ void door_use(edict_t *self, edict_t *other, edict_t *activator)
     }
 }
 
-void Touch_DoorTrigger(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
+void DoorTrigger_Touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     if (other->health <= 0)
         return;
@@ -1006,7 +1006,7 @@ void Think_CalcMoveSpeed(edict_t *self)
     }
 }
 
-void Think_SpawnDoorTrigger(edict_t *ent)
+void DoorTrigger_SpawnThink(edict_t *ent)
 {
     edict_t     *other;
     vec3_t      mins, maxs;
@@ -1034,7 +1034,7 @@ void Think_SpawnDoorTrigger(edict_t *ent)
     other->owner = ent;
     other->solid = SOLID_TRIGGER;
     other->movetype = MOVETYPE_NONE;
-    other->touch = Touch_DoorTrigger;
+    other->touch = DoorTrigger_Touch;
     gi.linkentity(other);
 
     if (ent->spawnflags & DOOR_START_OPEN)
@@ -1194,7 +1194,7 @@ void SP_func_door(edict_t *ent)
     if (ent->health || ent->targetname)
         ent->think = Think_CalcMoveSpeed;
     else
-        ent->think = Think_SpawnDoorTrigger;
+        ent->think = DoorTrigger_SpawnThink;
 }
 
 
@@ -1320,7 +1320,7 @@ void SP_func_door_rotating(edict_t *ent)
     if (ent->health || ent->targetname)
         ent->think = Think_CalcMoveSpeed;
     else
-        ent->think = Think_SpawnDoorTrigger;
+        ent->think = DoorTrigger_SpawnThink;
 }
 
 

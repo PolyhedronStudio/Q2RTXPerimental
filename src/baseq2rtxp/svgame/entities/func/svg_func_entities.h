@@ -8,11 +8,14 @@
 #pragma once
 
 
+struct svg_func_door_t;
+
 /**
 *	@brief
 **/
-void Think_SpawnDoorTrigger( svg_base_edict_t *ent );
+DECLARE_GLOBAL_CALLBACK_SPAWN( DoorTrigger_SpawnThink );
 /**
 *	@brief
 **/
-void Touch_DoorTrigger( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+//void DoorTrigger_Touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+DECLARE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch );

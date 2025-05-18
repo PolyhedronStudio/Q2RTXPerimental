@@ -53,6 +53,7 @@ struct svg_info_player_coop_t;
 struct svg_info_player_deathmatch_t;
 struct svg_info_player_intermission_t;
 struct svg_player_edict_t;
+struct svg_pushmove_edict_t;
 
 //
 // Save Descriptor Field Structure(s):
@@ -79,7 +80,7 @@ struct svg_level_locals_t;
 //
 //	PushMove:
 //
-typedef void( *svg_pushmove_endcallback )( svg_base_edict_t * );
+typedef void( *svg_pushmove_endcallback )( svg_pushmove_edict_t * );
 struct svg_pushmove_info_t;
 
 //

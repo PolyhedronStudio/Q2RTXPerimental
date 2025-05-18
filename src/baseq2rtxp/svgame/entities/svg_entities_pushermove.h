@@ -11,6 +11,7 @@
 #pragma once
 
 
+struct svg_pushmove_edict_t;
 /**
 *	@brief	State Constants, top and down are synonymous to open and close, up to opening, down to closing.
 **/
@@ -31,19 +32,19 @@
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveDone( svg_base_edict_t *ent );
+DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_MoveDone );
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveFinal( svg_base_edict_t *ent );
+DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_MoveFinal );
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveBegin( svg_base_edict_t *ent );
+DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_MoveBegin );
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveCalculate( svg_base_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
+void SVG_PushMove_MoveCalculate( svg_pushmove_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
 
 
 
@@ -59,23 +60,23 @@ void SVG_PushMove_MoveCalculate( svg_base_edict_t *ent, const Vector3 &destinati
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveDone( svg_base_edict_t *ent );
+void SVG_PushMove_AngleMoveDone( svg_pushmove_edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveFinal( svg_base_edict_t *ent );
+void SVG_PushMove_AngleMoveFinal( svg_pushmove_edict_t *ent );
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveBegin( svg_base_edict_t *ent );
+void SVG_PushMove_AngleMoveBegin( svg_pushmove_edict_t *ent );
 /**
 *   @brief	
 **/
-void SVG_PushMove_AngleMoveCalculate( svg_base_edict_t *ent, svg_pushmove_endcallback endMoveCallback );
+void SVG_PushMove_AngleMoveCalculate( svg_pushmove_edict_t *ent, svg_pushmove_endcallback endMoveCallback );
 /**
 *   @brief  Begins an angular move with its default direction multiplied by the sign(+/- 1).
 **/
-void SVG_PushMove_AngleMoveCalculateSign( svg_base_edict_t *ent, const float sign, svg_pushmove_endcallback endMoveCallback );
+void SVG_PushMove_AngleMoveCalculateSign( svg_pushmove_edict_t *ent, const float sign, svg_pushmove_endcallback endMoveCallback );
 
 
 
@@ -92,12 +93,12 @@ void SVG_PushMove_AngleMoveCalculateSign( svg_base_edict_t *ent, const float sig
 *   @brief  The team has completed a frame of movement, so calculate
 *			the speed required for a move during the next game frame.
 **/
-void SVG_PushMove_Think_AccelerateMove( svg_base_edict_t *ent );
-void SVG_PushMove_Think_AccelerateMoveNew( svg_base_edict_t *ent );
+DECLARE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMove );
+DECLARE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMoveNew );
 /**
 *	@brief	Readjust speeds so that teamed movers start/end synchronized.
 **/
-void SVG_PushMove_Think_CalculateMoveSpeed( svg_base_edict_t *self );
+DECLARE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_CalculateMoveSpeed );
 
 
 

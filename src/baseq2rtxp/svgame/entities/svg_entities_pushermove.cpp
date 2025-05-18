@@ -12,6 +12,8 @@
 #include "svgame/svg_utils.h"
 
 #include "svgame/entities/svg_entities_pushermove.h"
+#include "svgame/entities/svg_base_edict.h"
+#include "svgame/entities/svg_pushmove_edict.h"
 
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
@@ -27,85 +29,22 @@
 *
 *
 **/
-/**
-*   @brief
-**/
-void SVG_PushMove_MoveDone( svg_base_edict_t *ent ) {
-    // WID: MoveWith: Clear last velocity also.
-    ent->velocity = {};
-    // Fire the endMoveCallback.
-    if ( ent->pushMoveInfo.endMoveCallback ) {
-        ent->pushMoveInfo.endMoveCallback( ent );
-    }
-
-    //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
-    //    SVG_MoveWith_SetChildEntityMovement( ent );
-    //}
-}
-/**
-*   @brief
-**/
-void SVG_PushMove_MoveFinal( svg_base_edict_t *ent ) {
-    if ( ent->pushMoveInfo.remaining_distance == 0 ) {
-        SVG_PushMove_MoveDone( ent );
-        return;
-    }
-
-    // [Paril-KEX] use exact remaining distance
-    ent->velocity = ( ent->pushMoveInfo.dest - ent->s.origin ) * ( 1.f / gi.frame_time_s );
-    //if ( ent->targetEntities.movewith ) {
-    //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
-    //}
-
-    ent->SetThinkCallback( SVG_PushMove_MoveDone );
-    ent->nextthink = level.time + FRAME_TIME_S;
-    //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
-    //    SVG_MoveWith_SetChildEntityMovement( ent );
-    //}
-}
-/**
-*   @brief
-**/
-void SVG_PushMove_MoveBegin( svg_base_edict_t *ent ) {
-    if ( ( ent->pushMoveInfo.speed * gi.frame_time_s ) >= ent->pushMoveInfo.remaining_distance ) {
-        SVG_PushMove_MoveFinal( ent );
-        return;
-    }
-    // Recalculate velocity into current direction.
-    ent->velocity = ent->pushMoveInfo.dir * ent->pushMoveInfo.speed;
-
-    //if ( ent->targetEntities.movewith ) {
-    //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
-    //    ent->pushMoveInfo.remaining_distance -= ent->pushMoveInfo.speed * gi.frame_time_s;
-    //    ent->nextthink = level.time + FRAME_TIME_S;
-    //    ent->think = SVG_PushMove_MoveBegin;
-    //} else {
-    const float frames = floor( ( ent->pushMoveInfo.remaining_distance / ent->pushMoveInfo.speed ) / gi.frame_time_s );
-    ent->pushMoveInfo.remaining_distance -= frames * ent->pushMoveInfo.speed * gi.frame_time_s;
-    ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-    ent->SetThinkCallback( SVG_PushMove_MoveFinal );
-    //}
-
-    //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
-    //    SVG_MoveWith_SetChildEntityMovement( ent );
-    //}
-}
 
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveRegular( svg_base_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
+void SVG_PushMove_MoveRegular( svg_pushmove_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
     // If the current level entity that is being processed, happens to be in front of the
     // entity array queue AND is a teamslave, begin moving its team master instead.
     if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
-        SVG_PushMove_MoveBegin( ent );
+        svg_pushmove_edict_t::onThink_MoveBegin( ent );
         //} else if ( ent->targetEntities.movewith ) {
         //    SVG_PushMove_MoveBegin( ent );
         //} else {
     // Team Slaves start moving next frame:
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( SVG_PushMove_MoveBegin );
+        ent->SetThinkCallback( &svg_pushmove_edict_t::onThink_MoveBegin );
     }
 }
 /**
@@ -125,7 +64,7 @@ bool Think_AccelMove_MoveInfo( svg_pushmove_info_t *moveinfo ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveCalculate( svg_base_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
+void SVG_PushMove_MoveCalculate( svg_pushmove_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
     // Reset velocity.
     VectorClear( ent->velocity );
     // Assign new destination.
@@ -208,7 +147,7 @@ void SVG_PushMove_MoveCalculate( svg_base_edict_t *ent, const Vector3 &destinati
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveDone( svg_base_edict_t *ent ) {
+void SVG_PushMove_AngleMoveDone( svg_pushmove_edict_t *ent ) {
     // Clear angular velocity.
     ent->avelocity = {};
     // Dispatch end move callback.
@@ -217,7 +156,7 @@ void SVG_PushMove_AngleMoveDone( svg_base_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveFinal( svg_base_edict_t *ent ) {
+void SVG_PushMove_AngleMoveFinal( svg_pushmove_edict_t *ent ) {
     Vector3  move = {};
 
     // set destdelta to the vector needed to move
@@ -243,7 +182,7 @@ void SVG_PushMove_AngleMoveFinal( svg_base_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveBegin( svg_base_edict_t *ent ) {
+void SVG_PushMove_AngleMoveBegin( svg_pushmove_edict_t *ent ) {
     Vector3 destinationDelta = {};
 
     // PGM
@@ -296,7 +235,7 @@ void SVG_PushMove_AngleMoveBegin( svg_base_edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_PushMove_AngleMoveCalculate( svg_base_edict_t *ent, svg_pushmove_endcallback endMoveCallback ) {
+void SVG_PushMove_AngleMoveCalculate( svg_pushmove_edict_t *ent, svg_pushmove_endcallback endMoveCallback ) {
     // Clear angular velocity.
     ent->avelocity = QM_Vector3Zero();
     // Set function pointer for end position callback.
@@ -445,7 +384,7 @@ void PushMove_Accelerate( svg_pushmove_info_t *moveinfo ) {
 /**
 *	@brief	Readjust speeds so that teamed movers start/end synchronized.
 **/
-void SVG_PushMove_Think_CalculateMoveSpeed( svg_base_edict_t *self ) {
+DEFINE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_CalculateMoveSpeed )( svg_base_edict_t *self ) -> void {
     svg_base_edict_t *ent;
     float   minDist;
     float   time;
@@ -489,7 +428,7 @@ void SVG_PushMove_Think_CalculateMoveSpeed( svg_base_edict_t *self ) {
 *   @brief  The team has completed a frame of movement, so calculate
 *			the speed required for a move during the next game frame.
 **/
-void SVG_PushMove_Think_AccelerateMove( svg_base_edict_t *ent ) {
+DEFINE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMove )( svg_base_edict_t *ent ) -> void {
     ent->pushMoveInfo.remaining_distance -= ent->pushMoveInfo.current_speed;
 
     if ( ent->pushMoveInfo.current_speed == 0 ) {      // starting or blocked
@@ -515,7 +454,7 @@ void SVG_PushMove_Think_AccelerateMove( svg_base_edict_t *ent ) {
     //}
 }
 
-void SVG_PushMove_Think_AccelerateMoveNew( svg_base_edict_t *ent ) {
+DEFINE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMoveNew )( svg_base_edict_t *ent ) -> void {
     float t = 0.f;
     float target_dist;
 

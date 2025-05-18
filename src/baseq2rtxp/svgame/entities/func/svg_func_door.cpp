@@ -16,6 +16,7 @@
 #include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_door.h"
+#include "svgame/entities/func/svg_func_door_rotating.h"
 
 #include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_means_of_death.h"
@@ -71,27 +72,27 @@ void door_usetarget_update_hint( svg_base_edict_t *self ) {
     }
 
     // Otherwise, set the hint ID based on the movement state.
-    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE ) {
+    if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_OPENED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_MOVING_TO_OPENED_STATE ) {
         SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_CLOSE );
-    } else if ( self->pushMoveInfo.state == DOOR_STATE_CLOSED || self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_CLOSED_STATE ) {
+    } else if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_MOVING_TO_CLOSED_STATE ) {
         SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_OPEN );
     }
 }
 
 /**
-*	@brief  Open/Close the door's area portals.
+*	@brief  Open or Close the door's area portal.
 **/
-void door_use_areaportals( svg_base_edict_t *self, const bool open ) {
+void svg_func_door_t::SetAreaPortal( const bool isOpen ) {
     svg_base_edict_t *t = NULL;
 
-    if ( !self->targetNames.target )
+    if ( !targetNames.target ) {
         return;
+    }
 
-    while ( ( t = SVG_Entities_Find( t, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.target ) ) ) {
+    while ( ( t = SVG_Entities_Find( t, q_offsetof( svg_base_edict_t, targetname ), (const char *)targetNames.target ) ) ) {
         //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
         if ( t->s.entityType == ET_AREA_PORTAL ) {
             gi.SetAreaPortalState( t->style, open );
-
             //self->s.event = ( open ? EV_AREAPORTAL_OPEN : EV_AREAPORTAL_CLOSE );
             //self->s.event[ 1 ] = t->style;
             //self->s.event[ 2 ] = open;
@@ -177,8 +178,6 @@ void door_lua_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edi
 /**
 *   @brief  Toggles the entire door team.
 **/
-void door_close_move( svg_base_edict_t *self );
-void door_open_move( svg_base_edict_t *self/*, svg_base_edict_t *activator */ );
 void door_team_toggle( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const bool stateIsOpen, const bool forceState = false ) {
     // Actually determine properly whether the door(its master) is locked or not.
     #if 0
@@ -205,7 +204,7 @@ void door_team_toggle( svg_base_edict_t *self, svg_base_edict_t *other, svg_base
     // If the activator is a client or a monster, determine whether to play a locked door sound.
     //if ( entityIsCapable ) {
         // If we're locked while in either opened, or closed state, refuse to use target ourselves and play a locked sound.
-        if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+        if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_OPENED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED ) {
             if ( self->pushMoveInfo.lockState.isLocked ) {
                 if ( self->pushMoveInfo.lockState.lockedSound ) {
                     gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
@@ -237,30 +236,34 @@ void door_team_toggle( svg_base_edict_t *self, svg_base_edict_t *other, svg_base
     }
     #endif
 
-    //if ( open == false || SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) {
-    if ( ( forceState == true && stateIsOpen == false ) || ( forceState == false && SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) ) {
-        if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
+    //if ( open == false || SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_TOGGLE ) ) {
+    if ( ( forceState == true && stateIsOpen == false ) || ( forceState == false && SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_TOGGLE ) ) ) {
+        if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_MOVING_TO_OPENED_STATE || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_OPENED ) {
             // trigger all paired doors
             for ( svg_base_edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->message = nullptr;
                 ent->SetTouchCallback( nullptr );
                 ent->activator = activator; // WID: We need to assign it right?
                 ent->other = other;
-                door_close_move( ent );
+                if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+                    svg_func_door_t::onThink_CloseMove( static_cast<svg_func_door_t*>( ent ) );
+                }
             }
             return;
         }
     }
 
-    //if ( open == true || SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) {
-    if ( ( forceState == true && stateIsOpen == true ) || ( forceState == false && SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE ) ) ) {
+    //if ( open == true || SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_TOGGLE ) ) {
+    if ( ( forceState == true && stateIsOpen == true ) || ( forceState == false && SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_TOGGLE ) ) ) {
         // trigger all paired doors
         for ( svg_base_edict_t *ent = self->teammaster; ent; ent = ent->teamchain ) {
             ent->message = nullptr;
             ent->SetTouchCallback( nullptr );
             ent->activator = activator; // WID: We need to assign it right?
             ent->other = other;
-            door_open_move( ent/*, activator */ );
+            if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+                svg_func_door_t::onThink_OpenMove( static_cast<svg_func_door_t*>( ent )/*, activator */ );
+            }
         }
     }
 }
@@ -270,7 +273,7 @@ void door_team_toggle( svg_base_edict_t *self, svg_base_edict_t *other, svg_base
 **/
 void door_lock( svg_base_edict_t *self ) {
     // Door has to be either open, or closed, in order to allow for 'locking'.
-    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+    if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_OPENED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED ) {
         // Of course it has to be locked if we want to play a sound.
         if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
@@ -284,7 +287,7 @@ void door_lock( svg_base_edict_t *self ) {
 **/
 void door_unlock( svg_base_edict_t *self ) {
     // Door has to be either open, or closed, in order to allow for 'unlocking'.
-    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
+    if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_OPENED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED ) {
         // Of course it has to be locked if we want to play a sound.
         if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
@@ -308,7 +311,7 @@ void door_unlock( svg_base_edict_t *self ) {
 /**
 *   @brief  Signal Receiving:
 **/
-void door_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_door_t, onSignalIn )( svg_func_door_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void {
     /**
     *   Open/Close:
     **/
@@ -318,7 +321,7 @@ void door_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_
         self->other = other;
 
         // Signal all paired doors to open. (Presuming they are the same state, closed)
-        //if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
+        //if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
         //    door_team_toggle( self, self->other, self->activator, false, true );
         //} else {
             door_team_toggle( self, self->other, self->activator, true, true );
@@ -329,7 +332,7 @@ void door_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_
         self->activator = activator;
         self->other = other;
         // Signal all paired doors to open. (Presuming they are the same state, closed)
-        //if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
+        //if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
             door_team_toggle( self, self->other, self->activator, false, true );
         //} else {
         //    door_team_toggle( self, self->other, self->activator, true, true );
@@ -387,12 +390,7 @@ void door_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_
 /**
 *	@brief
 **/
-void door_close_move( svg_base_edict_t *self );
-
-/**
-*	@brief
-**/
-void door_open_move_done( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove )( svg_func_door_t *self ) -> void {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
@@ -405,13 +403,15 @@ void door_open_move_done( svg_base_edict_t *self ) {
     SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
 
     // Adjust areaportal.
-    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
-        // Update areaportals for PVS awareness.
-        door_use_areaportals( self, false );
+    if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+        if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+			// Update areaportals for PVS awareness.
+			static_cast<svg_func_door_t *>( self )->SetAreaPortal( false );
+		}
     }
 
     // If it is a toggle door, don't set any next think to 'go down' again.
-    if ( self->spawnflags & DOOR_SPAWNFLAG_TOGGLE ) {
+    if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_TOGGLE ) {
         // Thus we exit.
         return;
     }
@@ -419,7 +419,7 @@ void door_open_move_done( svg_base_edict_t *self ) {
     // If a wait time is set:
     if ( self->pushMoveInfo.wait >= 0 ) {
         // Assign close move think.
-        self->SetThinkCallback( door_close_move );
+        self->SetThinkCallback( &svg_func_door_t::onThink_CloseMove );
         // Tell it when to start closing.
         self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
     }
@@ -429,7 +429,7 @@ void door_open_move_done( svg_base_edict_t *self ) {
 /**
 *	@brief
 **/
-void door_close_move_done( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onCloseEndMove )( svg_func_door_t *self ) -> void {
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
@@ -438,14 +438,14 @@ void door_close_move_done( svg_base_edict_t *self ) {
     }
     
     // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
-    const bool damageActivates = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+    const bool damageActivates = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_DAMAGE_ACTIVATES );
     // Health trigger based door:
     if ( damageActivates ) {
         if ( self->max_health ) {
             self->takedamage = DAMAGE_YES;
             self->lifeStatus = LIFESTATUS_DEAD;
             self->health = self->max_health;
-            self->SetPainCallback( door_pain );
+            self->SetPainCallback( &svg_func_door_t::onPain );
         }
     }
 
@@ -455,9 +455,11 @@ void door_close_move_done( svg_base_edict_t *self ) {
     SVG_SignalOut( self, self->other, self->activator, "OnClosed" );
 
     // Adjust areaportal.
-    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
-        // Update areaportals for PVS awareness.
-        door_use_areaportals( self, false );
+    if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+        if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+            // Update areaportals for PVS awareness.
+            static_cast<svg_func_door_t*>( self )->SetAreaPortal( false );
+        }
     }
 }
 
@@ -475,7 +477,8 @@ void door_close_move_done( svg_base_edict_t *self ) {
 /**
 *	@brief
 **/
-void door_close_move( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_CloseMove )( svg_func_door_t *self/*, svg_base_edict_t *activator */ ) -> void {
+
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.start ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
@@ -484,7 +487,7 @@ void door_close_move( svg_base_edict_t *self ) {
     }
 
     //// Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
-    //const bool damageActivates = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+    //const bool damageActivates = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_DAMAGE_ACTIVATES );
     //// Health trigger based door:
     //if ( damageActivates ) {
     //    if ( self->max_health ) {
@@ -495,16 +498,16 @@ void door_close_move( svg_base_edict_t *self ) {
 
 
     // Engage moving to closed state.
-    if ( strcmp( (const char *)self->classname, "func_door" ) == 0 ) {
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
         // Set state to closing.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         // Engage moving to closed state.
-        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.startOrigin, door_close_move_done );
-    } else if ( strcmp( (const char *)self->classname, "func_door_rotating" ) == 0 ) {
+        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onCloseEndMove ) );
+    } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
         // Set state to closing.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         // Engage moving to closed state.
-        SVG_PushMove_AngleMoveCalculate( self, door_close_move_done );
+        SVG_PushMove_AngleMoveCalculate( self, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onCloseEndMove ) );
     }
 
     // Since we're closing or closed, set usetarget hint ID to 'open door'.
@@ -514,16 +517,18 @@ void door_close_move( svg_base_edict_t *self ) {
     SVG_SignalOut( self, self->other, self->activator, "OnClose" );
 
     // Adjust areaportal.
-    if ( SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
-        // Update areaportals for PVS awareness.
-        door_use_areaportals( self, true );
+    if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+        if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+            // Update areaportals for PVS awareness.
+            static_cast<svg_func_door_t*>( self )->SetAreaPortal( true );
+        }
     }
 }
 
 /**
 *	@brief
 **/
-void door_open_move( svg_base_edict_t *self/*, svg_base_edict_t *activator */) {
+DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door_t *self/*, svg_base_edict_t *activator */ ) -> void {
     if ( self->pushMoveInfo.state == DOOR_STATE_MOVING_TO_OPENED_STATE ) {
         return;     // already going up
     }
@@ -549,37 +554,41 @@ void door_open_move( svg_base_edict_t *self/*, svg_base_edict_t *activator */) {
     }
 
     // Path for: func_door
-    if ( strcmp( (const char *)self->classname, "func_door" ) == 0 ) {
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
         // Set state to opening.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
         // Engage door opening movement.
-        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.endOrigin, door_open_move_done );
-    // Path for: func_door_rotating:
-    } else if ( strcmp( (const char *)self->classname, "func_door_rotating" ) == 0 ) {
-        // Set state to opening.
-        self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
-        // Engage door opening movement.
-        SVG_PushMove_AngleMoveCalculate( self, door_open_move_done );
-    }
+        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onOpenEndMove ) );
+        // Path for: func_door_rotating:
+    } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+        {
+            // Set state to opening.
+            self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
+            // Engage door opening movement.
+            SVG_PushMove_AngleMoveCalculate( self, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onOpenEndMove ) );
+        }
 
-    // Since we're closing or closed, set usetarget hint ID to 'open door'.
-    door_usetarget_update_hint( self );
+        // Since we're closing or closed, set usetarget hint ID to 'open door'.
+        door_usetarget_update_hint( self );
 
-    // Fire use targets.
-    SVG_UseTargets( self, self->activator );
-    // Dispatch a lua signal.
-    SVG_SignalOut( self, self->other, self->activator, "OnOpen" );
+        // Fire use targets.
+        SVG_UseTargets( self, self->activator );
+        // Dispatch a lua signal.
+        SVG_SignalOut( self, self->other, self->activator, "OnOpen" );
 
-    if ( !SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_START_OPEN ) ) {
-        // Update areaportals for PVS awareness.
-        door_use_areaportals( self, true );
+        if ( !SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+            // Update areaportals for PVS awareness.
+            if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+                static_cast<svg_func_door_t *>( self )->SetAreaPortal( false );
+            }
+        }
     }
 }
 
 /**
 *	@brief
 **/
-void door_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+DEFINE_MEMBER_CALLBACK_USE( svg_func_door_t, onUse )( svg_func_door_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
     svg_base_edict_t *ent;
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
@@ -621,10 +630,10 @@ void door_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t
     }
 
     // Get some info.
-    const bool isToggle = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_TOGGLE );
-    const bool isBothDirections = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_BOTH_DIRECTIONS );
+    const bool isToggle = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_TOGGLE );
+    const bool isBothDirections = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_BOTH_DIRECTIONS );
     const bool isRotating = strcmp( (const char *)self->classname, "func_door_rotating" ) == 0;
-    const bool isReversed = SVG_HasSpawnFlags( self, DOOR_SPAWNFLAG_REVERSE );
+    const bool isReversed = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_REVERSE );
 
     // Default sign, multiplied by -1 later on in case we're on the other side.
     float directionSign = ( isBothDirections ? ( isReversed ? -1.0f : 1.0f ) : 1.0f );
@@ -664,7 +673,9 @@ void door_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t
                 ent->SetTouchCallback( nullptr );
                 ent->activator = activator; // WID: We need to assign it right?
                 ent->other = other;
-                door_close_move( ent );
+                if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+                    svg_func_door_t::onThink_CloseMove( static_cast<svg_func_door_t *>( ent ) );
+                }
                 // gi.dprintf( "(%s:%i) door_close_move(..) with SIGN=%f\n", __func__, __LINE__, directionSign );
             }
             // Exit.
@@ -678,8 +689,10 @@ void door_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t
         ent->SetTouchCallback( nullptr );
         ent->activator = activator; // WID: We need to assign it right?
         ent->other = other;
-        door_open_move( ent/*, activator */);
-        //gi.dprintf( "(%s:%i) door_open_move(..) with SIGN=%f\n", __func__, __LINE__, directionSign );
+        if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+            svg_func_door_t::onThink_OpenMove( static_cast<svg_func_door_t*>( ent )/*, activator */ );
+        }
+        //gi.dprintf( "(%s:%i) svg_func_door_t::onThink_OpenMove(..) with SIGN=%f\n", __func__, __LINE__, directionSign );
     }
 
     // Call upon Lua OnUse.
@@ -687,9 +700,9 @@ void door_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t
 }
 
 /**
-*	@brief
+*	@brief  Blocked Callback
 **/
-void door_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
+DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_door_t, onBlocked )( svg_func_door_t *self, svg_base_edict_t *other ) -> void {
     svg_base_edict_t *ent;
 
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
@@ -704,7 +717,7 @@ void door_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
 
     SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 
-    if ( self->spawnflags & DOOR_SPAWNFLAG_CRUSHER ) {
+    if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_CRUSHER ) {
         return;
     }
 
@@ -715,13 +728,17 @@ void door_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
             for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->other = other;
                 ent->activator = other;
-                door_open_move( ent/*, ent->activator */ );
+                if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+                    svg_func_door_t::onThink_OpenMove( static_cast<svg_func_door_t *>( ent )/*, ent->activator */ );
+                }
             }
         } else {
             for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
                 ent->other = other;
                 ent->activator = other;
-                door_close_move( ent );
+                if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+                    svg_func_door_t::onThink_CloseMove( static_cast<svg_func_door_t*>( ent ) );
+                }
             }
         }
     }
@@ -730,7 +747,7 @@ void door_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
 /**
 *	@brief
 **/
-void door_killed( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+DEFINE_MEMBER_CALLBACK_DIE( svg_func_door_t, onDie )( svg_func_door_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
     svg_base_edict_t *ent;
 
     // By default it is a 'Team Slave', and thus should exit. However, in the scenario of a client
@@ -755,7 +772,7 @@ void door_killed( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_
 
     for ( ent = self->teammaster; ent; ent = ent->teamchain ) {
         // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
-        const bool damageActivates = SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+        const bool damageActivates = SVG_HasSpawnFlags( ent, svg_func_door_t::SPAWNFLAG_DAMAGE_ACTIVATES );
         // Health trigger based door:
         if ( damageActivates ) {
             ent->health = ent->max_health;
@@ -770,13 +787,13 @@ void door_killed( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_
     }
 
     // Fire its use targets.
-    door_use( self, attacker, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+    self->DispatchUseCallback( attacker, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
     //SVG_UseTargets( self, attacker, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
 }
 /**
 *   @brief  Pain for door.
 **/
-void door_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage ) {
+DEFINE_MEMBER_CALLBACK_PAIN( svg_func_door_t, onPain )( svg_func_door_t *self, svg_base_edict_t *other, float kick, int damage ) -> void {
     const svg_signal_argument_array_t signalArguments = {
             {
                 .type = SIGNAL_ARGUMENT_TYPE_NUMBER,
@@ -803,9 +820,9 @@ void door_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int
 }
 
 /**
-*	@brief
+*	@brief  Touch Callback.
 **/
-void door_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_door_t, onTouch )( svg_func_door_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     if ( !other->client ) {
         return;
     }
@@ -827,7 +844,7 @@ void door_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane
 /**
 *	@brief
 **/
-void door_postspawn( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_door_t, onPostSpawn )( svg_func_door_t *self ) -> void {
     //if ( self->spawnflags & DOOR_START_OPEN ) {
     //    //SVG_UseTargets( self, self );
     //    door_use_areaportals( self, true );
@@ -838,7 +855,7 @@ void door_postspawn( svg_base_edict_t *self ) {
 /**
 *	@brief
 **/
-void SP_func_door( svg_base_edict_t *ent ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *ent ) -> void {
 
     SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
     ent->movetype = MOVETYPE_PUSH;
@@ -887,12 +904,12 @@ void SP_func_door( svg_base_edict_t *ent ) {
     }
 
     // Callbacks.
-    ent->SetPostSpawnCallback( door_postspawn );
-    ent->SetBlockedCallback( door_blocked );
-    ent->SetTouchCallback( door_touch );
-    ent->SetUseCallback( door_use );
-    ent->SetPainCallback( door_pain );
-    ent->SetOnSignalInCallback( door_onsignalin );
+    ent->SetPostSpawnCallback( &svg_func_door_t::onPostSpawn );
+    ent->SetBlockedCallback( &svg_func_door_t::onBlocked );
+    ent->SetTouchCallback( &svg_func_door_t::onTouch );
+    ent->SetUseCallback( &svg_func_door_t::onUse );
+    ent->SetPainCallback( &svg_func_door_t::onPain );
+    ent->SetOnSignalInCallback( &svg_func_door_t::onSignalIn );
 
     // Calculate absolute move distance to get from pos1 to pos2.
     const Vector3 fabsMoveDirection = QM_Vector3Fabs( ent->movedir );
@@ -902,7 +919,7 @@ void SP_func_door( svg_base_edict_t *ent ) {
     ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
 
     // if it starts open, switch the positions
-    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_OPEN ) ) {
+    if ( SVG_HasSpawnFlags( ent, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
         VectorCopy( ent->pos2, ent->s.origin );
         ent->pos2 = ent->pos1;
         ent->pos1 = ent->s.origin;
@@ -913,7 +930,7 @@ void SP_func_door( svg_base_edict_t *ent ) {
     }
 
     // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
-    const bool damageActivates = SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_DAMAGE_ACTIVATES );
+    const bool damageActivates = SVG_HasSpawnFlags( ent, svg_func_door_t::SPAWNFLAG_DAMAGE_ACTIVATES );
     // Health trigger based door:
     if ( damageActivates ) {
         // Set max health, also used to reinitialize the door to revive.
@@ -921,16 +938,16 @@ void SP_func_door( svg_base_edict_t *ent ) {
         // Let it take damage.
         ent->takedamage = DAMAGE_YES;
         // Die callback.
-        ent->SetDieCallback( door_killed );
-        ent->SetPainCallback( door_pain );
+        ent->SetDieCallback( &svg_func_door_t::onDie );
+        ent->SetPainCallback( &svg_func_door_t::onPain );
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
         ent->SetThinkCallback( SVG_PushMove_Think_CalculateMoveSpeed );
-    // Touch based door:DOOR_SPAWNFLAG_DAMAGE_ACTIVATES
-    } else if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
+    // Touch based door:svg_func_door_t::SPAWNFLAG_DAMAGE_ACTIVATES
+    } else if ( SVG_HasSpawnFlags( ent, svg_func_door_t::SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( Think_SpawnDoorTrigger );
+        ent->SetThinkCallback( DoorTrigger_SpawnThink );
     } else {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;
@@ -941,18 +958,18 @@ void SP_func_door( svg_base_edict_t *ent ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( door_use );
+            ent->SetUseCallback( &svg_func_door_t::onUse );
             // This door is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( door_use );
+            ent->SetUseCallback( &svg_func_door_t::onUse );
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( door_use );
+            ent->SetUseCallback( &svg_func_door_t::onUse );
         }
 
         // Is usetargetting disabled by default?
@@ -967,7 +984,7 @@ void SP_func_door( svg_base_edict_t *ent ) {
     ent->pushMoveInfo.decel = ent->decel;
     ent->pushMoveInfo.wait = ent->wait;
     // For PRESSED: pos1 = start, pos2 = end.
-    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_OPEN ) ) {
+    if ( SVG_HasSpawnFlags( ent, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
         ent->pushMoveInfo.state = DOOR_STATE_OPENED;
         ent->pushMoveInfo.startOrigin = ent->pos2;
         ent->pushMoveInfo.startAngles = ent->s.angles;
@@ -985,15 +1002,15 @@ void SP_func_door( svg_base_edict_t *ent ) {
     door_usetarget_update_hint( ent );
 
     // Animated doors:
-    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_ANIMATED ) ) {
+    if ( SVG_HasSpawnFlags( ent, svg_func_door_t::SPAWNFLAG_ANIMATED ) ) {
         ent->s.effects |= EF_ANIM_ALL;
     }
-    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_ANIMATED_FAST ) ) {
+    if ( SVG_HasSpawnFlags( ent, svg_func_door_t::SPAWNFLAG_ANIMATED_FAST ) ) {
         ent->s.effects |= EF_ANIM_ALLFAST;
     }
 
     // Locked or not locked?
-    if ( SVG_HasSpawnFlags( ent, DOOR_SPAWNFLAG_START_LOCKED ) ) {
+    if ( SVG_HasSpawnFlags( ent, svg_func_door_t::SPAWNFLAG_START_LOCKED ) ) {
         ent->pushMoveInfo.lockState.isLocked = true;
     }
 
@@ -1005,3 +1022,5 @@ void SP_func_door( svg_base_edict_t *ent ) {
     // Link it in.
     gi.linkentity( ent );
 }
+
+

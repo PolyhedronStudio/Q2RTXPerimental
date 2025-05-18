@@ -144,6 +144,19 @@
 //!
 #define DECLARE_GLOBAL_CALLBACK_DIE(functionName) \
 	auto functionName( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void \
+//
+//	PushMoveInfo EndMove.
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_PUSHMOVE_ENDMOVE(className, functionName) \
+	auto functionName( className *self ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_PUSHMOVE_ENDMOVE(functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
+
+
 
 
 //! Defines the start of the function definition, awaiting to be prepended by its user
@@ -200,3 +213,17 @@
 #define DEFINE_GLOBAL_CALLBACK_DIE(functionName) \
 	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_DIE, reinterpret_cast<void *>(##functionName)); \
 	auto functionName \
+
+//
+//	PushMoveInfo EndMove.
+//
+//#define DEFINE_GLOBAL_CALLBACK_PUSHMOVE_ENDMOVE(functionName) \
+//	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_PUSHER_MOVEINFO_ENDMOVECALLBACK, reinterpret_cast<void *>(##functionName))); \	
+//	auto functionName \
+
+//
+//	PushMoveInfo EndMove.
+//
+#define DEFINE_GLOBAL_CLASSNAME_CALLBACK_PUSHMOVE_ENDMOVE(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_PUSHER_MOVEINFO_ENDMOVECALLBACK, reinterpret_cast<void *>(##className::##functionName)); \
+	[[nodiscard]] auto className::##functionName \
