@@ -792,6 +792,11 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
         map = ED_NewString( keyValuePair->string );
         return true;
     }
+    // Match: customLightStyle
+    else if ( keyStr == "customLightStyle" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        customLightStyle = ED_NewString( keyValuePair->string );
+        return true;
+    }
     // Match: origin
     else if ( keyStr == "origin" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
         VectorCopy( keyValuePair->vec3, s.origin );

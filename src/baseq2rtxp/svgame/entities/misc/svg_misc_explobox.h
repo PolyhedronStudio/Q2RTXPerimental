@@ -34,7 +34,7 @@ struct svg_misc_explobox_t : public svg_base_edict_t {
 
     /**
     *
-    *	Define this as: "monster_testdummy_puppet" = svg_base_edict -> svg_monster_testdummy_t
+    *	Define this as: "misc_explobox" = svg_base_edict -> svg_misc_explobox_t
     *
     **/
     DefineWorldSpawnClass(
