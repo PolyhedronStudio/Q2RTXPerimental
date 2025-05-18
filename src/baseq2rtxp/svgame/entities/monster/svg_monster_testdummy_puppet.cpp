@@ -165,6 +165,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
     self->SetThinkCallback( &svg_monster_testdummy_t::onThink );
     // Die:
     self->SetDieCallback( &svg_monster_testdummy_t::onDie );
+    // Pain:
+    self->SetPainCallback( &svg_monster_testdummy_t::onPain );
     // Post Spawn:
     self->SetPostSpawnCallback( &svg_monster_testdummy_t::onPostSpawn );
     // Touch:
@@ -208,7 +210,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
     self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
 
     self->testVar = level.frameNumber;
-    gi.dprintf( "%s: monster_testdummy(#%d), distanceTraversed(%f)\n", __func__, self->s.number, self->summedDistanceTraversed );
+    //gi.dprintf( "%s: monster_testdummy(#%d), distanceTraversed(%f)\n", __func__, self->s.number, self->summedDistanceTraversed );
     // Animate.
     if ( self->health > 0 ) {
         #if 0
@@ -330,7 +332,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                     .mm_flags = ( self->groundInfo.entity != nullptr ? MMF_ON_GROUND : 0 ),
                     .mm_time = 8,
 
-                    .gravity = (int16_t)sv_gravity->integer,
+                    .gravity = (int16_t)( sv_gravity->value * self->gravity ),
 
                     .origin = self->s.origin,
                     .velocity = frameVelocity,
@@ -374,6 +376,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
         Vector3 diffOrigin = postSumOrigin - preSumOrigin;
         const double diffLength = QM_Vector3LengthSqr( diffOrigin );
         self->summedDistanceTraversed += diffLength;
+
+        // Reset gravity to 1.0
+        self->gravity = 1.0f;
         //---------------------------
         // </TEMPORARY FOR TESTING>
         //---------------------------

@@ -8,6 +8,7 @@
 **/
 #pragma once
 
+
 /**
 *   @brief  Com_Error specific types:
 **/

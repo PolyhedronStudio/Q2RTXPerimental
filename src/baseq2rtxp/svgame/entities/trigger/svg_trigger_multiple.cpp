@@ -57,6 +57,7 @@ void svg_trigger_multiple_t::ProcessTriggerLogic( /*svg_trigger_multiple_t *self
 **/
 DEFINE_MEMBER_CALLBACK_USE( svg_trigger_multiple_t, onUse )( svg_trigger_multiple_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
 	self->activator = activator;
+	self->other = other;
 	self->ProcessTriggerLogic( /*self*/ );
 }
 /**
@@ -133,12 +134,11 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_multiple_t, onSpawn ) ( svg_trigger_mu
 	if ( !self->wait ) {
 		self->wait = 0.2f;
 	}
+
 	// WID: Initialize triggers properly.
 	SVG_Util_InitTrigger( self );
 
 	self->SetTouchCallback( &svg_trigger_multiple_t::onTouch );
-	self->movetype = MOVETYPE_NONE;
-	self->svflags |= SVF_NOCLIENT;
 
 	if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_TRIGGERED ) {
 		self->solid = SOLID_NOT;
@@ -147,11 +147,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_multiple_t, onSpawn ) ( svg_trigger_mu
 		self->solid = SOLID_TRIGGER;
 		self->SetUseCallback( &svg_trigger_multiple_t::onUse );
 	}
-
-	if ( !VectorEmpty( self->s.angles ) )
-		SVG_Util_SetMoveDir( self->s.angles, self->movedir );
-
-	gi.linkentity( self );
 
 	if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_BRUSH_CLIP ) {
 		self->svflags |= SVF_HULL;

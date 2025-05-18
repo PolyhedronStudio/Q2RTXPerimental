@@ -5,6 +5,7 @@
 *
 *
 **/
+#pragma once
 
 /**
 *	By CMake set defines concattenated into an engine name/branch/commit version string.

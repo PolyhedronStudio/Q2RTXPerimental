@@ -753,7 +753,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
                     SVG_ChaseCam_GetTarget( ent );
                 }
             }
-            // Untoggle playerstate jump_held.
+        // Untoggle playerstate jump_held.
         } else {
             client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
         }

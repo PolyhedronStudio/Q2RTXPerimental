@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef PROTOCOL_H
-#define PROTOCOL_H
 
 //
 // protocol.h -- communications protocols
@@ -204,4 +203,4 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 //#define FF_CLIENTPRED   (1<<2)	// Set but unused?
 //#define FF_RESERVED     (1<<3)	// Literally reserved.
 
-#endif // PROTOCOL_H
+

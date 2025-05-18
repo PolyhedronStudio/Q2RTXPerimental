@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef MATH_H
-#define MATH_H
+
 
 // Extern C
 QEXTERN_C_OPEN
@@ -72,4 +72,3 @@ void SetupRotationMatrix(vec3_t matrix[3], const vec3_t dir, float degrees);
 // Extern C
 QEXTERN_C_CLOSE
 
-#endif // MATH_H

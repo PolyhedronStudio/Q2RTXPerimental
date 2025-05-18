@@ -22,7 +22,7 @@ struct svg_level_locals_t {
     uint64_t    frameNumber = 0;
     QMTime		time = 0_ms;
 
-    float       gravity = 0.f;
+    double      gravity = 0.;
 
     const cm_entity_t **cm_entities = nullptr;
 

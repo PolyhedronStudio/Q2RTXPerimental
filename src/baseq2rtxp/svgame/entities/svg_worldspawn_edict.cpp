@@ -154,7 +154,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     self->solid = SOLID_BSP;
     self->inuse = true;                           // Just to make damn sure it is always properly set.
     self->s.modelindex = MODELINDEX_WORLDSPAWN;   // World model is always index 1
-    self->gravity = 1.0f;
+    //self->gravity = 1.0f;
     //---------------
 
     // Reserve some spots for dead player bodies for coop / deathmatch
@@ -203,8 +203,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
 
     // Gravity.
     if ( !self->gravity_str.count || !self->gravity || !level.gravity ) {
-        gi.cvar_set( "sv_gravity", "800" );
-        level.gravity = 800;
+        gi.cvar_set( "sv_gravity", std::to_string( (int16_t)svg_worldspawn_edict_t::DEFAULT_GRAVITY ).c_str() );
+        level.gravity = (int16_t)svg_worldspawn_edict_t::DEFAULT_GRAVITY;
     } else {
         gi.cvar_set( "sv_gravity", std::to_string(level.gravity).c_str() );
 		level.gravity = self->gravity;

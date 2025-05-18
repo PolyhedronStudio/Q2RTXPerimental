@@ -23,8 +23,8 @@
 *   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
 **/
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_trigger_always_t )
-SAVE_DESCRIPTOR_DEFINE_FIELD( svg_trigger_always_t, useType, SD_FIELD_TYPE_INT32 ),
-SAVE_DESCRIPTOR_DEFINE_FIELD( svg_trigger_always_t, useValue, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_trigger_always_t, useType, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_trigger_always_t, useValue, SD_FIELD_TYPE_INT32 ),
 SAVE_DESCRIPTOR_FIELDS_END();
 
 //! Implement the methods for saving this edict type's save descriptor fields.

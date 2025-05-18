@@ -15,9 +15,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-
-#ifndef MSG_H
-#define MSG_H
+#pragma once
 
 
 // Protocol necessities.
@@ -515,5 +513,3 @@ void MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int n
 				MSG_ServerCommandString(cmd))
 	#endif // USE_CLIENT
 #endif // USE_DEBUG
-
-#endif // MSG_H

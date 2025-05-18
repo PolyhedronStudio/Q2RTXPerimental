@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef SVGAME_H
-#define SVGAME_H
 
 // Include needed shared refresh types.
 // ( We need some data so we can partially get and process animation data. )
@@ -535,5 +534,3 @@ typedef struct {
     **/
     sv_edict_pool_i *edictPool;
 } svgame_export_t;
-
-#endif // SVGAME_H

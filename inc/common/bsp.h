@@ -26,9 +26,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *	See: /shared/format_bsp.h
 *
 **/
+#pragma once
 
-#ifndef BSP_H
-#define BSP_H
+
 
 #include "shared/util/util_list.h"
 #include "common/error.h"
@@ -68,5 +68,3 @@ void BSP_Init(void);
 
 // Extern C
 QEXTERN_C_CLOSE
-
-#endif // BSP_H

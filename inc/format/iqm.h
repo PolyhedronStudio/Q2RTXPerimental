@@ -17,9 +17,8 @@ along with Quake III Arena source code; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 ===========================================================================
 */
+#pragma once
 
-#ifndef __IQM_H__
-#define __IQM_H__
 
 #define IQM_MAGIC "INTERQUAKEMODEL"
 #define IQM_VERSION 2
@@ -126,6 +125,4 @@ typedef struct iqmbounds
     float bbmin[3], bbmax[3];
     float xyradius, radius;
 } iqmBounds_t;
-
-#endif
 

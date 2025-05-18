@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef SYSTEM_H
-#define SYSTEM_H
+
 
 #include "common/utils.h"
 
@@ -83,5 +83,3 @@ extern cvar_t   *sys_forcesvgamelib;
 
 // Extern C
 QEXTERN_C_CLOSE
-
-#endif // SYSTEM_H

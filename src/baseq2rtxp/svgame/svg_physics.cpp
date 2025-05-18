@@ -373,7 +373,7 @@ SVG_AddGravity
 */
 void SVG_AddGravity(svg_base_edict_t *ent)
 {
-    ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
+    ent->velocity += ent->gravityVector * ( ent->gravity * level.gravity * gi.frame_time_s );
 }
 
 /*
@@ -765,6 +765,11 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 
 // if onground, return without moving
     if ( ent->groundInfo.entity && ent->gravity > 0.0f ) {  // PGM - gravity hack
+        if ( ent->svflags & SVF_MONSTER ) {
+            M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
+            M_WorldEffects( ent );
+        }
+
         return;
     }
 
@@ -918,10 +923,12 @@ void SV_Physics_Step(svg_base_edict_t *ent)
         if ( !( ent->flags & FL_FLY ) )
             if ( !( ( ent->flags & FL_SWIM ) && ( ent->liquidInfo.level > LIQUID_WAIST ) ) ) {
                 //if ( ent->velocity[ 2 ] < level.gravity * -0.1f )
-                if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
+                if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f ) {
                     hitsound = true;
-                if ( ent->liquidInfo.level != LIQUID_UNDER )
+                }
+                if ( ent->liquidInfo.level != LIQUID_UNDER ) {
                     SVG_AddGravity( ent );
+                }
             }
 
     // friction for flying monsters that have been given vertical velocity
@@ -931,8 +938,9 @@ void SV_Physics_Step(svg_base_edict_t *ent)
         control = speed < sv_stopspeed ? sv_stopspeed : speed;
         friction = sv_friction / 3;
         newspeed = speed - ( gi.frame_time_s * control * friction );
-        if ( newspeed < 0 )
+        if ( newspeed < 0 ) {
             newspeed = 0;
+        }
         newspeed /= speed;
         ent->velocity[ 2 ] *= newspeed;
     }

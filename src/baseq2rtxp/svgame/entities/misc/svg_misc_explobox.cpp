@@ -214,6 +214,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_explobox_t, onSpawn) ( svg_misc_explobox_
 
     self->SetDieCallback( &svg_misc_explobox_t::onDie );
     self->takedamage = DAMAGE_YES;
+    // Pain:
+    self->SetPainCallback( &svg_misc_explobox_t::onPain );
     //self->monsterinfo.aiflags = AI_NOSTEP;
 
     self->SetTouchCallback( &svg_misc_explobox_t::onTouch );
@@ -222,4 +224,11 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_explobox_t, onSpawn) ( svg_misc_explobox_
     self->nextthink = level.time + 20_hz;
 
     gi.linkentity( self );
+}
+
+/**
+*   @brief  Death routine.
+**/
+DEFINE_MEMBER_CALLBACK_PAIN( svg_misc_explobox_t, onPain )( svg_misc_explobox_t *self, svg_base_edict_t *other, float kick, int damage ) -> void {
+
 }

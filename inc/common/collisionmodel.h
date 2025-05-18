@@ -16,8 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef CMODEL_H
-#define CMODEL_H
+#pragma once
+
 
 
 #include "shared/formats/format_bsp.h"
@@ -260,6 +260,4 @@ void        CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
 *   @brief
 **/
 void        CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int32_t entityNumber );
-
-
-#endif // CMODEL_H
+ 

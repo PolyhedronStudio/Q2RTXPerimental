@@ -6,8 +6,8 @@
 *   API for the game codes to make use of.
 *
 **/
-#ifndef CVAR
-#define CVAR
+#pragma once
+
 
 #define CVAR_ARCHIVE    1   // set to cause it to be saved to vars.rc
 #define CVAR_USERINFO   2   // added to userinfo  when changed
@@ -55,5 +55,3 @@ typedef struct cvar_s {
     struct cvar_s *hashNext;
     #endif
 } cvar_t;
-
-#endif      // CVAR

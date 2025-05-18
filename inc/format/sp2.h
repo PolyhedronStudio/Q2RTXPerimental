@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef FORMAT_SP2_H
-#define FORMAT_SP2_H
+
 
 /**
 * 
@@ -75,4 +75,3 @@ typedef struct {
     // dsp2frame_t frames[1];              // variable sized
 } dspjheader_t;
 
-#endif // FORMAT_SP2_H

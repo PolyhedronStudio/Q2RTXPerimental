@@ -25,6 +25,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *	See: /shared/format_bsp.h
 *
 **/
+#pragma once
+
 //#ifndef FORMAT_BSP_H
 //#define FORMAT_BSP_H
 //

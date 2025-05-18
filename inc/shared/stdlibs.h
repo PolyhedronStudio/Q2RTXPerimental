@@ -1,3 +1,6 @@
+#pragma once
+
+
 /**
 *	Include based on whether the unit including is .c or .cpp
 **/

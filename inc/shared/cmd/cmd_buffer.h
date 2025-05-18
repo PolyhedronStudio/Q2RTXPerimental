@@ -5,8 +5,8 @@
 *
 *
 ********************************************************************/
-#ifndef CMDDEF
-#define CMDDEF
+#pragma once
+
 
 // where did current command come from?
 typedef enum {
@@ -61,5 +61,3 @@ typedef struct cmdreg_s {
     xcommand_t      function;
     xcompleter_t    completer;
 } cmdreg_t;
-
-#endif // CMDDEF

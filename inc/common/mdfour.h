@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef MDFOUR_H
-#define MDFOUR_H
 
 typedef struct mdfour {
     uint32_t A, B, C, D;
@@ -31,4 +30,4 @@ void mdfour_result(struct mdfour *md, uint8_t *out);
 
 uint32_t Com_BlockChecksum(const void *buffer, size_t len);
 
-#endif // MDFOUR_H
+

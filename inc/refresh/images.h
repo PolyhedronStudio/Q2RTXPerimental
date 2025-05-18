@@ -17,9 +17,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef IMAGES_H
-#define IMAGES_H
 
 //
 // images.h -- common image manager
@@ -155,6 +154,5 @@ extern void (*IMG_ReadPixelsHDR)(screenshot_t *s);
 // Extern C
 QEXTERN_C_CLOSE
 
-#endif // IMAGES_H
 
 /* vim: set ts=8 sw=4 tw=0 et : */
