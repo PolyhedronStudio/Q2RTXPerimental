@@ -52,11 +52,11 @@ struct svg_pushmove_info_t {
     //! Direction vector(not normalized.)
     Vector3     dir = QM_Vector3Zero();
     bool        in_motion = false;  //! Hard set by begin and final functions.
-    float       current_speed = 0.f;
-    float       move_speed = 0.f;
-    float       next_speed = 0.f;
-    float       remaining_distance = 0.f;
-    float       decel_distance = 0.f;
+    double      current_speed = 0.;
+    double      move_speed = 0.;
+    double      next_speed = 0.;
+    double      remaining_distance = 0.;
+    double      decel_distance = 0.;
 
     //
     //  Acceleration Data.

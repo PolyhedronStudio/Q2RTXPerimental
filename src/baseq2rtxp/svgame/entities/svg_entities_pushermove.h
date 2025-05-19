@@ -29,6 +29,8 @@ struct svg_pushmove_edict_t;
 *
 *
 **/
+//! <Q2RTXP>: WID: Moved into svg_pushmove_edict_T as member functions. 
+#if 0
 /**
 *   @brief
 **/
@@ -45,8 +47,7 @@ DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Move
 *   @brief
 **/
 void SVG_PushMove_MoveCalculate( svg_pushmove_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
-
-
+#endif // #if 0
 
 /**
 *
@@ -89,17 +90,19 @@ void SVG_PushMove_AngleMoveCalculateSign( svg_pushmove_edict_t *ent, const float
 *
 *
 **/
+//! <Q2RTXP>: WID: Moved into svg_pushmove_edict_T as member functions. 
+#if 0
 /**
 *   @brief  The team has completed a frame of movement, so calculate
 *			the speed required for a move during the next game frame.
 **/
-DECLARE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMove );
-DECLARE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMoveNew );
+DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_AccelerateMove );
+DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_AccelerateMoveNew );
 /**
 *	@brief	Readjust speeds so that teamed movers start/end synchronized.
 **/
-DECLARE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_CalculateMoveSpeed );
-
+DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_CalculateMoveSpeed );
+#endif // #if 0
 
 
 /**

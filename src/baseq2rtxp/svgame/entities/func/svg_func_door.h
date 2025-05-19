@@ -9,15 +9,6 @@
 
 
 
-/********************************************************************
-*
-*
-*	ServerGame: Door Entity 'func_door'.
-*
-*
-********************************************************************/
-#pragma once
-
 // Needed.
 #include "svgame/entities/svg_base_edict.h"
 #include "svgame/entities/svg_pushmove_edict.h"
@@ -46,7 +37,7 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
 
     /**
     *
-    *	Define this as: "light" = svg_base_edict -> light
+    *	Define this as: "func_door" = svg_base_edict_t -> svg_pushmove_edict_t -> svg_func_door_t
     *
     **/
     DefineWorldSpawnClass(

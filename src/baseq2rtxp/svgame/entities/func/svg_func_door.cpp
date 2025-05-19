@@ -502,12 +502,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_CloseMove )( svg_func_doo
         // Set state to closing.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         // Engage moving to closed state.
-        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onCloseEndMove ) );
+        self->SVG_PushMove_MoveCalculate( self->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onCloseEndMove ) );
     } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
         // Set state to closing.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         // Engage moving to closed state.
-        SVG_PushMove_AngleMoveCalculate( self, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onCloseEndMove ) );
+        SVG_PushMove_AngleMoveCalculate( self, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onCloseEndMove ) );
     }
 
     // Since we're closing or closed, set usetarget hint ID to 'open door'.
@@ -558,14 +558,14 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door
         // Set state to opening.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
         // Engage door opening movement.
-        SVG_PushMove_MoveCalculate( self, self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onOpenEndMove ) );
+        self->SVG_PushMove_MoveCalculate( self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onOpenEndMove ) );
         // Path for: func_door_rotating:
     } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
         {
             // Set state to opening.
             self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
             // Engage door opening movement.
-            SVG_PushMove_AngleMoveCalculate( self, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onOpenEndMove ) );
+            SVG_PushMove_AngleMoveCalculate( self, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onOpenEndMove ) );
         }
 
         // Since we're closing or closed, set usetarget hint ID to 'open door'.

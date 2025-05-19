@@ -224,6 +224,10 @@
 //
 //	PushMoveInfo EndMove.
 //
+#define DEFINE_GLOBAL_CLASSNAME_CALLBACK_THINK(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_THINK, reinterpret_cast<void *>(functionName)); \
+	[[nodiscard]] auto functionName \
+
 #define DEFINE_GLOBAL_CLASSNAME_CALLBACK_PUSHMOVE_ENDMOVE(className, functionName) \
 	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_PUSHER_MOVEINFO_ENDMOVECALLBACK, reinterpret_cast<void *>(##className::##functionName)); \
 	[[nodiscard]] auto className::##functionName \

@@ -21,16 +21,18 @@
 
 // Needed.
 #include "svgame/entities/svg_base_edict.h"
+#include "svgame/entities/svg_pushmove_edict.h"
+#include "svgame/entities/func/svg_func_door.h"
 
 
 /**
 *
 *
-*   Door Entity Structure:
+*   Rotating Door Entity Structure:
 *
 *
 **/
-struct svg_func_door_rotating_t : public svg_pushmove_edict_t {
+struct svg_func_door_rotating_t : public svg_func_door_t {
     /**
     *
     *	Construct/Destruct.
@@ -46,12 +48,12 @@ struct svg_func_door_rotating_t : public svg_pushmove_edict_t {
 
     /**
     *
-    *	Define this as: "light" = svg_base_edict -> light
+    *	Define this as: "func_door_rotating" = svg_base_edict_t -> svg_pushmove_edict_t -> svg_func_door_t -> svg_func_dor_rotating_t
     *
     **/
     DefineWorldSpawnClass(
         // classname:               classType:               superClassType:
-        "func_door_rotating", svg_func_door_rotating_t, svg_pushmove_edict_t,
+        "func_door_rotating", svg_func_door_rotating_t, svg_func_door_t,
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
         // spawnFunc:

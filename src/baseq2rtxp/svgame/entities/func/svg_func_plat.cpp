@@ -288,76 +288,84 @@ void plat_spawn_inside_trigger( svg_base_edict_t *ent ) {
     gi.linkentity( trigger );
 }
 
-void SP_func_plat( svg_base_edict_t *ent ) {
-    VectorClear( ent->s.angles );
-    ent->solid = SOLID_BSP;
-    ent->movetype = MOVETYPE_PUSH;
-    ent->s.entityType = ET_PUSHER;
-    gi.setmodel( ent, ent->model );
+/**
+*   @brief  
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self ) -> void {
+    VectorClear( self->s.angles );
+    self->solid = SOLID_BSP;
+    self->movetype = MOVETYPE_PUSH;
+    self->s.entityType = ET_PUSHER;
+    gi.setmodel( self, self->model );
 
-    ent->SetBlockedCallback( plat_blocked );
+    self->SetBlockedCallback( plat_blocked );
 
-    if ( !ent->speed )
-        ent->speed = 20;
-    else
-        ent->speed *= 0.1f;
+    if ( !self->speed ) {
+        self->speed = 20.f;
+    } else {
+        self->speed *= 0.1f;
+    }
 
-    if ( !ent->accel )
-        ent->accel = 5;
-    else
-        ent->accel *= 0.1f;
+    if ( !self->accel ) {
+        self->accel = 5.f;
+    } else {
+        self->accel *= 0.1f;
+    }
+    if ( !self->decel ) {
+        self->decel = 5.f;
+    } else {
+        self->decel *= 0.1f;
+    }
 
-    if ( !ent->decel )
-        ent->decel = 5;
-    else
-        ent->decel *= 0.1f;
+    if ( !self->dmg ) {
+        self->dmg = 2;
+    }
 
-    if ( !ent->dmg )
-        ent->dmg = 2;
-
-    if ( !ent->lip )
-        ent->lip = 8;
+    if ( !self->lip ) {
+        self->lip = 8;
+    }
 
     // pos1 is the top position, pos2 is the bottom
-    VectorCopy( ent->s.origin, ent->pos1 );
-    VectorCopy( ent->s.origin, ent->pos2 );
-    if ( ent->height )
-        ent->pos2[ 2 ] -= ent->height;
-    else
-        ent->pos2[ 2 ] -= ( ent->maxs[ 2 ] - ent->mins[ 2 ] ) - ent->lip;
+    VectorCopy( self->s.origin, self->pos1 );
+    VectorCopy( self->s.origin, self->pos2 );
+    if ( self->height ) {
+        self->pos2[ 2 ] -= self->height;
+    } else {
+        self->pos2[ 2 ] -= ( self->maxs[ 2 ] - self->mins[ 2 ] ) - self->lip;
+    }
 
-    ent->SetUseCallback( Use_Plat );
+    self->SetUseCallback( Use_Plat );
 
-    plat_spawn_inside_trigger( ent );     // the "start moving" trigger
+    plat_spawn_inside_trigger( self );     // the "start moving" trigger
 
     // WID: TODO: For Lua stuff we dun need this.
-    //ent->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
+    //self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
     // WID: TODO: Add spawnflags for this stuff.
     {
-        VectorCopy( ent->pos2, ent->s.origin );
-        gi.linkentity( ent );
-        ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+        VectorCopy( self->pos2, self->s.origin );
+        gi.linkentity( self );
+        self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
     }
     #if 0 
-    if ( ent->targetname ) {
-        ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
+    if ( self->targetname ) {
+        self->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
     } else {
-        VectorCopy( ent->pos2, ent->s.origin );
+        VectorCopy( self->pos2, self->s.origin );
         gi.linkentity( ent );
-        ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+        self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
     }
     #endif
 
-    ent->pushMoveInfo.speed = ent->speed;
-    ent->pushMoveInfo.accel = ent->accel;
-    ent->pushMoveInfo.decel = ent->decel;
-    ent->pushMoveInfo.wait = ent->wait;
-    VectorCopy( ent->pos1, ent->pushMoveInfo.startOrigin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.startAngles );
-    VectorCopy( ent->pos2, ent->pushMoveInfo.endOrigin );
-    VectorCopy( ent->s.angles, ent->pushMoveInfo.endAngles );
+    self->pushMoveInfo.speed = self->speed;
+    self->pushMoveInfo.accel = self->accel;
+    self->pushMoveInfo.decel = self->decel;
+    self->pushMoveInfo.wait = self->wait;
+    VectorCopy( self->pos1, self->pushMoveInfo.startOrigin );
+    VectorCopy( self->s.angles, self->pushMoveInfo.startAngles );
+    VectorCopy( self->pos2, self->pushMoveInfo.endOrigin );
+    VectorCopy( self->s.angles, self->pushMoveInfo.endAngles );
 
-    ent->pushMoveInfo.sounds.start = gi.soundindex( "pushers/plat_start_01.wav" );
-    ent->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/plat_mid_01.wav" );
-    ent->pushMoveInfo.sounds.end = gi.soundindex( "pushers/plat_end_01.wav" );
+    self->pushMoveInfo.sounds.start = gi.soundindex( "pushers/plat_start_01.wav" );
+    self->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/plat_mid_01.wav" );
+    self->pushMoveInfo.sounds.end = gi.soundindex( "pushers/plat_end_01.wav" );
 }

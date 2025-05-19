@@ -314,18 +314,18 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/entities/func/svg_func_areaportal.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_button.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_breakable.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_conveyor.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_breakable.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_conveyor.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door_rotating.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_door_secret.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_killbox.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_object.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_plat.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_rotating.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_timer.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_train.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_wall.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_killbox.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_object.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_plat.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_rotating.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_timer.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_train.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_wall.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_water.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_entities.cpp
 
@@ -362,6 +362,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/svg_base_edict.cpp
 	baseq2rtxp/svgame/entities/svg_item_edict.cpp
 	baseq2rtxp/svgame/entities/svg_player_edict.cpp
+	baseq2rtxp/svgame/entities/svg_pushmove_edict.cpp
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 

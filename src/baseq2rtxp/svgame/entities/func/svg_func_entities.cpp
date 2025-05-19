@@ -39,17 +39,23 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_b
 /**
 *	@brief
 **/
-void DoorTrigger_SpawnThink( svg_base_edict_t *ent ) {
+DEFINE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_func_door_t, DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -> void {
+    if ( !ent || !ent->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>() ) {
+		gi.dprintf( "(%s:%i) Invalid entity type!\n", __func__, __LINE__ );
+		return;
+    }
+
     svg_base_edict_t *other;
     vec3_t      mins, maxs;
-
-    if ( ent->flags & FL_TEAMSLAVE )
+    
+	svg_pushmove_edict_t *pushMoveEnt = static_cast<svg_pushmove_edict_t *>( ent );
+    if ( pushMoveEnt->flags & FL_TEAMSLAVE )
         return;     // only the team leader spawns a trigger
 
-    VectorCopy( ent->absmin, mins );
-    VectorCopy( ent->absmax, maxs );
+    VectorCopy( pushMoveEnt->absmin, mins );
+    VectorCopy( pushMoveEnt->absmax, maxs );
 
-    for ( other = ent->teamchain; other; other = other->teamchain ) {
+    for ( other = pushMoveEnt->teamchain; other; other = other->teamchain ) {
         AddPointToBounds( other->absmin, mins, maxs );
         AddPointToBounds( other->absmax, mins, maxs );
     }
@@ -63,20 +69,20 @@ void DoorTrigger_SpawnThink( svg_base_edict_t *ent ) {
     other = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
     VectorCopy( mins, other->mins );
     VectorCopy( maxs, other->maxs );
-    other->owner = ent;
+    other->owner = pushMoveEnt;
     other->solid = SOLID_TRIGGER;
     other->movetype = MOVETYPE_NONE;
     other->s.entityType = ET_PUSH_TRIGGER;
     other->SetTouchCallback( DoorTrigger_Touch );
     gi.linkentity( other );
 
-    if ( ent->spawnflags & svg_func_door_t::SPAWNFLAG_START_OPEN ) {
-		if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-			static_cast<svg_func_door_t *>( ent )->SetAreaPortal( true );
+    if ( pushMoveEnt->spawnflags & svg_func_door_t::SPAWNFLAG_START_OPEN ) {
+		if ( pushMoveEnt->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+			static_cast<svg_func_door_t *>( pushMoveEnt )->SetAreaPortal( true );
 		}
     }
 
-    SVG_PushMove_Think_CalculateMoveSpeed( ent );
+    pushMoveEnt->SVG_PushMove_Think_CalculateMoveSpeed( pushMoveEnt );
 }
 
 

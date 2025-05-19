@@ -163,11 +163,11 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, pushMoveInfo.dir, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, pushMoveInfo.dest, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.in_motion, SD_FIELD_TYPE_BOOL ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.current_speed, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.move_speed, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.next_speed, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.remaining_distance, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.decel_distance, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.current_speed, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.move_speed, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.next_speed, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.remaining_distance, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.decel_distance, SD_FIELD_TYPE_DOUBLE ),
     // Acceleration Data:
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.accel, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.speed, SD_FIELD_TYPE_FLOAT ),
@@ -495,7 +495,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     spawn_count = 0;
     freetime = 0_ms;
     timestamp = 0_ms;
-    classname = nullptr;
+    classname = svg_level_qstring_t::from_char_str( "svg_base_edict_t" );
     model = nullptr;
     angle = 0.0f;
     spawnflags = 0;
@@ -640,7 +640,7 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     const std::string keyStr = keyValuePair->key;
 
     // Match: classname
-    if ( keyStr == "classname" ) {
+    if ( keyStr == "classname" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
         // It is already set before during construction of this entity.
         // We return true however since we don't want it complaining.
         //classname = svg_level_qstring_t::from_char_str( keyValuePair->string );

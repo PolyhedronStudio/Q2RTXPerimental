@@ -634,12 +634,12 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! Used for projectile skip checks and in general for checking if the entity has happened to been respawned.
     int32_t spawn_count = 0;
     //! sv.time when the object was freed
-    QMTime  freetime;
+    QMTime  freetime = 0_ms;
     //! Used for deferring client info so that disconnected, etc works
-    QMTime  timestamp;
+    QMTime  timestamp = 0_ms;
 
     //! [SpawnKey]: Entity classname key/value.
-    svg_level_qstring_t classname;
+    svg_level_qstring_t classname = nullptr;
     //! [SpawnKey]: Path to model.
     const char *model = nullptr;
     //! [SpawnKey]: Key Spawn Angle.

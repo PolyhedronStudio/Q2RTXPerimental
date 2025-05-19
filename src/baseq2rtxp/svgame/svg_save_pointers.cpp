@@ -269,7 +269,7 @@ const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr(
     // in the save list.
     // </NOTE>:
 	// Failure to find, display appropriate error matching.
-    std::string errorStr = functionName + ": entity(#" + std::to_string(edict->s.number) + ", \"" + edict->classname.ptr + "\")";
+    std::string errorStr = functionName + ": entity(#" + std::to_string(edict->s.number) + ", \"" + (const char*)edict->classname + "\")";
     svg_save_descriptor_funcptr_error_t errors;
     if ( matchingType == false ) {
         errorStr += " - No matching type found";

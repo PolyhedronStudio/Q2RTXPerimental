@@ -41,7 +41,8 @@ void trigger_elevator_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_
     }
 
     self->movetarget->targetEntities.target = target;
-    train_resume( self->movetarget );
+    // temp commented out for linker error, uncomment later lol.
+    //train_resume( self->movetarget );
 }
 
 void trigger_elevator_init( svg_base_edict_t *self ) {

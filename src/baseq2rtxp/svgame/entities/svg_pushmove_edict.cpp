@@ -13,10 +13,9 @@
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
 
+#include "svgame/entities/svg_pushmove_edict.h"
 #include "svgame/entities/svg_entities_pushermove.h"
-#include "svgame/entities/func/svg_func_entities.h"
-#include "svgame/entities/func/svg_func_door.h"
-#include "svgame/entities/func/svg_func_door_rotating.h"
+
 
 
 
@@ -44,7 +43,7 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_pushmove_edict_t, onOpenEndMove )( 
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveBegin )( svg_pushmove_edict_t *ent ) -> void {
     if ( ( ent->pushMoveInfo.speed * gi.frame_time_s ) >= ent->pushMoveInfo.remaining_distance ) {
-        SVG_PushMove_MoveFinal( ent );
+        SelfType::onThink_MoveFinal( ent );
         return;
     }
     // Recalculate velocity into current direction.
@@ -59,7 +58,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveBegin )( svg_pus
     const float frames = floor( ( ent->pushMoveInfo.remaining_distance / ent->pushMoveInfo.speed ) / gi.frame_time_s );
     ent->pushMoveInfo.remaining_distance -= frames * ent->pushMoveInfo.speed * gi.frame_time_s;
     ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-    ent->SetThinkCallback( SVG_PushMove_MoveFinal );
+    ent->SetThinkCallback( &SelfType::onThink_MoveFinal );
     //}
 
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
@@ -87,7 +86,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveDone )( svg_push
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveFinal )( svg_pushmove_edict_t *ent ) -> void {
     if ( ent->pushMoveInfo.remaining_distance == 0 ) {
-        SVG_PushMove_MoveDone( ent );
+        ent->onThink_MoveDone( ent );
         return;
     }
 
@@ -103,3 +102,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveFinal )( svg_pus
     //    SVG_MoveWith_SetChildEntityMovement( ent );
     //}
 }
+
+//! Stub.
+DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink )( svg_pushmove_edict_t *ent ) -> void { }
+//! Stub.
+DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_OpenMove )( svg_pushmove_edict_t *ent ) -> void { }
+//! Stub.
+DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_CloseMove )( svg_pushmove_edict_t *ent ) -> void { }

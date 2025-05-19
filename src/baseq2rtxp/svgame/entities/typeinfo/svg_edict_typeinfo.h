@@ -332,6 +332,7 @@ public:
 
 // Top abstract class, the start of the class tree
 #define DefineTopRootClass( worldSpawnClassName, className, superClass, typeInfoFlags )	\
+	using SelfType = className;		\
 	using Super = superClass;	\
 	static className* AllocateInstance( const cm_entity_t* cm_entity ) {	\
 		className *baseEdict = new className( cm_entity );	\
@@ -362,6 +363,7 @@ public:
 // Instances of this cannot be allocated 
 // NOTE: multiple inheritance not supported
 #define DefineAbstractClass( className, superClass )			\
+	using SelfType = className;		\
 	using Super = superClass;	/* Allows us to refer to super class using Base */ \
 	__DeclareTypeInfo( #className, #className, #superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
 
@@ -374,6 +376,7 @@ public:
 // @param classname (symbol) - the internal C++ class name
 // @param superClass (symbol) - the class this entity class inherits from
 #define DefineWorldSpawnClass( worldSpawnClassName, className, superClass, typeInfoFlags, spawnFunc )	\
+	using SelfType = className;		\
 	using Super = superClass;	\
 	static svg_base_edict_t* AllocateInstance( const cm_entity_t* cm_entity ) {	\
 		className *baseEdict = new className( cm_entity );	\

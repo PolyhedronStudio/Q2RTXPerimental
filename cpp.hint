@@ -239,7 +239,11 @@
 //!
 #define DECLARE_GLOBAL_CALLBACK_DIE(functionName) \
 	auto functionName( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void \
-
+//
+//	PushMoveInfo EndMove.
+//
+#define DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE(className, functionName) \
+	static auto functionName(className *self) -> void; \
 
 //! Defines the start of the function definition, awaiting to be prepended by its user
 //! with the actual arguments and -> returnType;
@@ -422,3 +426,96 @@
 #define DEFINE_MEMBER_CALLBACK_DIE(className, functionName) \
 	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_DIE, reinterpret_cast<void *>(##className::##functionName)); \
 	auto className::##functionName \
+//
+//	PushMoveInfo EndMove.
+//
+#define DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_PUSHER_MOVEINFO_ENDMOVECALLBACK, reinterpret_cast<void *>(##className::##functionName)); \
+	[[nodiscard]] auto className::##functionName \
+
+
+
+
+
+// Top abstract class, the start of the class tree 
+// Instances of this cannot be allocated, as it is abstract.
+#define __DeclareTopRootTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, allocatorFunction )	\
+	virtual inline EdictTypeInfo* GetTypeInfo() const {	\
+		return &ClassInfo;	\
+	}	\
+	inline static EdictTypeInfo ClassInfo = EdictTypeInfo( (worldSpawnClassName), (#className), (#superClass), (typeInfoFlags), (allocatorFunction) );
+
+// Top abstract class, the start of the class tree
+#define DefineTopRootClass( worldSpawnClassName, className, superClass, typeInfoFlags )	\
+	using SelfType = className;		\
+	using Super = superClass;	\
+	static className* AllocateInstance( const cm_entity_t* cm_entity ) {	\
+		className *baseEdict = new className( cm_entity );	\
+		baseEdict->classname = svg_level_qstring_t::from_char_str( worldSpawnClassName );	\
+		/*baseEdict->hashedClassname = baseEdict->GetTypeInfo()->hashedMapClass;*/ \
+		return baseEdict;	\
+	}	\
+	__DeclareTopRootTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, &className::AllocateInstance );
+
+//__DeclareTopRootTypeInfo( worldSpawnClassName, className, nullptr, EdictTypeInfo::TypeInfoFlag_WorldSpawn | typeInfoFlags, allocatorFunction );
+
+/**
+*	@brief	Declares the type information for a class, including its name, superclass, flags, and allocator function.
+*	@param	worldSpawnClassName The name of the world spawn class associated with this type.
+*	@param	classname The name of the class.
+*	@param	superClass The name of the superclass for this type.
+*	@param	typeFlags The flags associated with this type.
+*	@param	allocatorFunction The function used to allocate instances of this type.
+*	@note	This macro should be used in the class definition to declare the type information.
+**/
+#define __DeclareTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, allocatorFunction )	\
+	virtual inline EdictTypeInfo* GetTypeInfo() const override {	\
+		return &ClassInfo;											\
+	}																\
+	inline static EdictTypeInfo ClassInfo = EdictTypeInfo( (worldSpawnClassName), (#className), (#superClass), (typeInfoFlags), (allocatorFunction) );
+
+// Abstract class that inherits from another 
+// Instances of this cannot be allocated 
+// NOTE: multiple inheritance not supported
+#define DefineAbstractClass( className, superClass )			\
+	using SelfType = className;		\
+	using Super = superClass;	/* Allows us to refer to super class using Base */ \
+	__DeclareTypeInfo( #className, #className, #superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
+
+
+
+
+// Declares and initialises the type information for this class, so it can be spawned in a map. 
+// NOTE: multiple inheritance not supported
+// @param mapClassName (string) - the map classname of this entity, used during entity spawning
+// @param classname (symbol) - the internal C++ class name
+// @param superClass (symbol) - the class this entity class inherits from
+#define DefineWorldSpawnClass( worldSpawnClassName, className, superClass, typeInfoFlags, spawnFunc )	\
+	using SelfType = className;		\
+	using Super = superClass;	\
+	static svg_base_edict_t* AllocateInstance( const cm_entity_t* cm_entity ) {	\
+		className *baseEdict = new className( cm_entity );	\
+		baseEdict->classname = svg_level_qstring_t::from_char_str( worldSpawnClassName );	\
+		baseEdict->SetSpawnCallback( reinterpret_cast<svg_edict_callback_spawn_fptr>( spawnFunc ) );	\
+		return baseEdict;	\
+	}	\
+	__DeclareTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, &className::AllocateInstance );
+
+
+#if 0
+// Declares and initialises the type information for this class, so it can be spawned during gameplay. 
+// NOTE: multiple inheritance not supported
+// @param mapClassName (string) - the map classname of this entity, used during entity spawning
+// @param classname (symbol) - the internal C++ class name
+// @param superClass (symbol) - the class this entity class inherits from
+#define DefineGameClass( classname, superClass )	\
+using Super = superClass;										\
+static GameEntity* AllocateInstance( PODEntity* entity ) {		\
+	classname *baseEntity = new classname( entity );			\
+	baseEntity->SetClassname(#classname);						\
+	entity->hashedClassname = baseEntity->GetTypeInfo()->hashedMapClass;	\
+	entity->isLocal = true;										\
+	return baseEntity;											\
+}																\
+__DeclareTypeInfo( #classname, #classname, #superClass, TypeInfo::TypeFlag_GameSpawn, &classname::AllocateInstance );
+#endif

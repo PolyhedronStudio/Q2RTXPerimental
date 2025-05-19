@@ -31,107 +31,112 @@
 **/
 
 /**
-*   @brief
+*   @brief  Processes movement when at top speed, so there is no acceleration present anymore.
 **/
-void SVG_PushMove_MoveRegular( svg_pushmove_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
+void svg_pushmove_edict_t::SVG_PushMove_MoveRegular( const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
     // If the current level entity that is being processed, happens to be in front of the
     // entity array queue AND is a teamslave, begin moving its team master instead.
-    if ( level.current_entity == ( ( ent->flags & FL_TEAMSLAVE ) ? ent->teammaster : ent ) ) {
-        svg_pushmove_edict_t::onThink_MoveBegin( ent );
+    if ( level.current_entity == ( ( flags & FL_TEAMSLAVE ) ? teammaster : this ) ) {
+        SelfType::onThink_MoveBegin( this );
         //} else if ( ent->targetEntities.movewith ) {
         //    SVG_PushMove_MoveBegin( ent );
         //} else {
     // Team Slaves start moving next frame:
     } else {
-        ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( &svg_pushmove_edict_t::onThink_MoveBegin );
+        nextthink = level.time + FRAME_TIME_S;
+        SetThinkCallback( &SelfType::onThink_MoveBegin );
     }
 }
 /**
 *   @brief
 **/
-void PushMove_CalculateAcceleratedMove( svg_pushmove_info_t *moveinfo );
-void PushMove_Accelerate( svg_pushmove_info_t *moveinfo );
-bool Think_AccelMove_MoveInfo( svg_pushmove_info_t *moveinfo ) {
-    if ( moveinfo->current_speed == 0 )		// starting or blocked
-        PushMove_CalculateAcceleratedMove( moveinfo );
-
-    PushMove_Accelerate( moveinfo );
-
-    // will the entire move complete on next frame?
-    return moveinfo->remaining_distance > moveinfo->current_speed;
-}
-/**
-*   @brief
-**/
-void SVG_PushMove_MoveCalculate( svg_pushmove_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
+void svg_pushmove_edict_t::SVG_PushMove_MoveCalculate( const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
     // Reset velocity.
-    VectorClear( ent->velocity );
+    VectorClear( velocity );
     // Assign new destination.
-    ent->pushMoveInfo.dest = destination;
+    pushMoveInfo.dest = destination;
     // Subtract destination and origin to acquire move direction.
-    VectorSubtract( destination, ent->s.origin, ent->pushMoveInfo.dir );
+    VectorSubtract( destination, s.origin, pushMoveInfo.dir );
     // Use the normalized direction vector's length to determine the remaining move idstance.
-    ent->pushMoveInfo.remaining_distance = VectorNormalize( &ent->pushMoveInfo.dir.x );
+    pushMoveInfo.remaining_distance = VectorNormalize( &pushMoveInfo.dir.x );
     // Setup end move callback function.
-    ent->pushMoveInfo.endMoveCallback = endMoveCallback;
+    pushMoveInfo.endMoveCallback = endMoveCallback;
 
     // Non Accelerating Movement:
-    if ( ent->pushMoveInfo.speed == ent->pushMoveInfo.accel && ent->pushMoveInfo.speed == ent->pushMoveInfo.decel ) {
-        SVG_PushMove_MoveRegular( ent, destination, endMoveCallback );
+    if ( pushMoveInfo.speed == pushMoveInfo.accel && pushMoveInfo.speed == pushMoveInfo.decel ) {
+        SVG_PushMove_MoveRegular( destination, endMoveCallback );
     // Accelerative Movement: We're still accelerating up/down:
     } else {
-        ent->pushMoveInfo.current_speed = 0;
+        pushMoveInfo.current_speed = 0;
         // Set think time.
-        ent->nextthink = level.time + FRAME_TIME_S;
+        nextthink = level.time + FRAME_TIME_S;
 
         // Regular accelerate_think for 10hz.
         if ( gi.tick_rate == 10 ) {
-            ent->SetThinkCallback( SVG_PushMove_Think_AccelerateMove );
-        // Specialized accelerate > 10hz.
+            SetThinkCallback( &SelfType::SVG_PushMove_Think_AccelerateMove );
+            // Specialized accelerate > 10hz.
         } else {
             // [Paril-KEX] rewritten to work better at higher tickrates
-            ent->pushMoveInfo.curve.frame = 0;
-            ent->pushMoveInfo.curve.numberSubFrames = ( 0.1f / gi.frame_time_s ) - 1;
+            pushMoveInfo.curve.frame = 0;
+            pushMoveInfo.curve.numberSubFrames = ( 0.1 / gi.frame_time_s ) - 1;
 
-            float total_dist = ent->pushMoveInfo.remaining_distance;
+            float total_dist = pushMoveInfo.remaining_distance;
 
             std::vector<float> distances;
 
-            if ( ent->pushMoveInfo.curve.numberSubFrames ) {
+            if ( pushMoveInfo.curve.numberSubFrames ) {
                 distances.push_back( 0 );
-                ent->pushMoveInfo.curve.frame = 1;
-            } else
-                ent->pushMoveInfo.curve.frame = 0;
-
-            // simulate 10hz movement
-            while ( ent->pushMoveInfo.remaining_distance ) {
-                if ( !Think_AccelMove_MoveInfo( &ent->pushMoveInfo ) )
-                    break;
-
-                ent->pushMoveInfo.remaining_distance -= ent->pushMoveInfo.current_speed;
-                distances.push_back( total_dist - ent->pushMoveInfo.remaining_distance );
+                pushMoveInfo.curve.frame = 1;
+            } else {
+                pushMoveInfo.curve.frame = 0;
             }
 
-            if ( ent->pushMoveInfo.curve.numberSubFrames )
-                distances.push_back( total_dist );
+            // simulate 10hz movement
+            while ( pushMoveInfo.remaining_distance ) {
+                if ( !Think_AccelMove_MoveInfo() ) {
+                    break;
+                }
 
-            ent->pushMoveInfo.curve.subFrame = 0;
-            ent->pushMoveInfo.curve.referenceOrigin = ent->s.origin;
-            ent->pushMoveInfo.curve.countPositions = distances.size();
+                pushMoveInfo.remaining_distance -= pushMoveInfo.current_speed;
+                distances.push_back( total_dist - pushMoveInfo.remaining_distance );
+            }
+
+            if ( pushMoveInfo.curve.numberSubFrames ) {
+                distances.push_back( total_dist );
+            }
+
+            pushMoveInfo.curve.subFrame = 0;
+            pushMoveInfo.curve.referenceOrigin = s.origin;
+            pushMoveInfo.curve.countPositions = distances.size();
 
             // Q2RE: We dun have this kinda stuff 'yet'.
             // Second time around, we'll be reallocating it instead.
-            ent->pushMoveInfo.curve.positions.release();
-            allocate_qtag_memory<float, TAG_SVGAME_LEVEL>( &ent->pushMoveInfo.curve.positions, ent->pushMoveInfo.curve.countPositions );
+            pushMoveInfo.curve.positions.release();
+            allocate_qtag_memory<float, TAG_SVGAME_LEVEL>( &pushMoveInfo.curve.positions, pushMoveInfo.curve.countPositions );
             // Copy in the actual distances.
-            std::copy( distances.begin(), distances.end(), ent->pushMoveInfo.curve.positions.ptr );
+            std::copy( distances.begin(), distances.end(), pushMoveInfo.curve.positions.ptr );
 
-            ent->pushMoveInfo.curve.numberFramesDone = 0;
-            ent->SetThinkCallback( SVG_PushMove_Think_AccelerateMoveNew );
+            pushMoveInfo.curve.numberFramesDone = 0;
+            SetThinkCallback( &SelfType::SVG_PushMove_Think_AccelerateMoveNew );
         }
     }
 }
+
+/**
+*   @brief
+**/
+//void PushMove_CalculateAcceleratedMove( svg_pushmove_info_t *moveinfo );
+//void PushMove_Accelerate( svg_pushmove_info_t *moveinfo );
+const bool svg_pushmove_edict_t::Think_AccelMove_MoveInfo( ) {
+    if ( pushMoveInfo.current_speed == 0 )		// starting or blocked
+        PushMove_CalculateAcceleratedMove( );
+
+    PushMove_Accelerate( );
+
+    // will the entire move complete on next frame?
+    return pushMoveInfo.remaining_distance > pushMoveInfo.current_speed;
+}
+
 
 
 
@@ -173,7 +178,7 @@ void SVG_PushMove_AngleMoveFinal( svg_pushmove_edict_t *ent ) {
     }
 
     // Set angular velocity to the final move vector, for its last move.
-    ent->avelocity = QM_Vector3Scale( move, ( 1.0f / FRAMETIME ) ); /** ent->pushMoveInfo.sign*/
+    ent->avelocity = QM_Vector3Scale( move, ( 1.0 / FRAMETIME ) ); /** ent->pushMoveInfo.sign*/
 
     // Set next frame think callback to be that of the end of movement processing.
     ent->SetThinkCallback( SVG_PushMove_AngleMoveDone );
@@ -204,9 +209,9 @@ void SVG_PushMove_AngleMoveBegin( svg_pushmove_edict_t *ent ) {
 
 
     // Calculate length of vector
-    const float len = QM_Vector3Length( destinationDelta );
+    const double len = QM_Vector3Length( destinationDelta );
     // Calculate its travel time.
-    const float travelTime = len / ent->pushMoveInfo.speed;
+    const double travelTime = len / ent->pushMoveInfo.speed;
 
     // Finish if we're already at the end.
     if ( travelTime < gi.frame_time_s ) {
@@ -215,9 +220,9 @@ void SVG_PushMove_AngleMoveBegin( svg_pushmove_edict_t *ent ) {
     }
 
     // Calculate number of remaining frames.
-    const float numFrames = floor( travelTime / gi.frame_time_s );
+    const double numFrames = floor( travelTime / gi.frame_time_s );
     // Scale the destdelta vector by the time spent traveling to get velocity
-    ent->avelocity = QM_Vector3Scale( destinationDelta, ( 1.0f / travelTime ) );
+    ent->avelocity = QM_Vector3Scale( destinationDelta, ( 1.0 / travelTime ) );
      
     // PGM
     // If we're done accelerating, act as a normal rotation.
@@ -281,100 +286,100 @@ change the speed for the next frame
 /**
 *   @brief
 **/
-static constexpr float AccelerationDistance( float target, float rate ) {
+constexpr double svg_pushmove_edict_t::AccelerationDistance( const double target, const double rate ) {
     return ( target * ( ( target / rate ) + 1 ) / 2 );
 }
 /**
 *   @brief
 **/
-void PushMove_CalculateAcceleratedMove( svg_pushmove_info_t *moveinfo ) {
-    float   accel_dist;
-    float   decel_dist;
+void svg_pushmove_edict_t::PushMove_CalculateAcceleratedMove( ) {
+    double accel_dist;
+    double decel_dist;
 
-    moveinfo->move_speed = moveinfo->speed;
+    pushMoveInfo.move_speed = pushMoveInfo.speed;
 
-    if ( moveinfo->remaining_distance < moveinfo->accel ) {
-        moveinfo->current_speed = moveinfo->remaining_distance;
+    if ( pushMoveInfo.remaining_distance < pushMoveInfo.accel ) {
+        pushMoveInfo.current_speed = pushMoveInfo.remaining_distance;
         return;
     }
 
-    accel_dist = AccelerationDistance( moveinfo->speed, moveinfo->accel );
-    decel_dist = AccelerationDistance( moveinfo->speed, moveinfo->decel );
+    accel_dist = AccelerationDistance( pushMoveInfo.speed, pushMoveInfo.accel );
+    decel_dist = AccelerationDistance( pushMoveInfo.speed, pushMoveInfo.decel );
 
-    if ( ( moveinfo->remaining_distance - accel_dist - decel_dist ) < 0 ) {
-        float   f;
+    if ( ( pushMoveInfo.remaining_distance - accel_dist - decel_dist ) < 0 ) {
+        double f;
 
-        f = ( moveinfo->accel + moveinfo->decel ) / ( moveinfo->accel * moveinfo->decel );
-        moveinfo->move_speed = ( -2 + sqrtf( 4 - 4 * f * ( -2 * moveinfo->remaining_distance ) ) ) / ( 2 * f );
-        decel_dist = AccelerationDistance( moveinfo->move_speed, moveinfo->decel );
+        f = ( pushMoveInfo.accel + pushMoveInfo.decel ) / ( pushMoveInfo.accel * pushMoveInfo.decel );
+        pushMoveInfo.move_speed = ( -2 + sqrt( 4 - 4 * f * ( -2 * pushMoveInfo.remaining_distance ) ) ) / ( 2 * f );
+        decel_dist = AccelerationDistance( pushMoveInfo.move_speed, pushMoveInfo.decel );
     }
 
-    moveinfo->decel_distance = decel_dist;
+    pushMoveInfo.decel_distance = decel_dist;
 }
 /**
 *   @brief
 **/
-void PushMove_Accelerate( svg_pushmove_info_t *moveinfo ) {
+void svg_pushmove_edict_t::PushMove_Accelerate( ) {
     // are we decelerating?
-    if ( moveinfo->remaining_distance <= moveinfo->decel_distance ) {
-        if ( moveinfo->remaining_distance < moveinfo->decel_distance ) {
-            if ( moveinfo->next_speed ) {
-                moveinfo->current_speed = moveinfo->next_speed;
-                moveinfo->next_speed = 0;
+    if ( pushMoveInfo.remaining_distance <= pushMoveInfo.decel_distance ) {
+        if ( pushMoveInfo.remaining_distance < pushMoveInfo.decel_distance ) {
+            if ( pushMoveInfo.next_speed ) {
+                pushMoveInfo.current_speed = pushMoveInfo.next_speed;
+                pushMoveInfo.next_speed = 0;
                 return;
             }
-            if ( moveinfo->current_speed > moveinfo->decel ) {
-                moveinfo->current_speed -= moveinfo->decel;
+            if ( pushMoveInfo.current_speed > pushMoveInfo.decel ) {
+                pushMoveInfo.current_speed -= pushMoveInfo.decel;
             }
         }
         return;
     }
 
     // are we at full speed and need to start decelerating during this move?
-    if ( moveinfo->current_speed == moveinfo->move_speed )
-        if ( ( moveinfo->remaining_distance - moveinfo->current_speed ) < moveinfo->decel_distance ) {
+    if ( pushMoveInfo.current_speed == pushMoveInfo.move_speed )
+        if ( ( pushMoveInfo.remaining_distance - pushMoveInfo.current_speed ) < pushMoveInfo.decel_distance ) {
             float   p1_distance;
             float   p2_distance;
             float   distance;
 
-            p1_distance = moveinfo->remaining_distance - moveinfo->decel_distance;
-            p2_distance = moveinfo->move_speed * ( 1.0f - ( p1_distance / moveinfo->move_speed ) );
+            p1_distance = pushMoveInfo.remaining_distance - pushMoveInfo.decel_distance;
+            p2_distance = pushMoveInfo.move_speed * ( 1.0 - ( p1_distance / pushMoveInfo.move_speed ) );
             distance = p1_distance + p2_distance;
-            moveinfo->current_speed = moveinfo->move_speed;
-            moveinfo->next_speed = moveinfo->move_speed - moveinfo->decel * ( p2_distance / distance );
+            pushMoveInfo.current_speed = pushMoveInfo.move_speed;
+            pushMoveInfo.next_speed = pushMoveInfo.move_speed - pushMoveInfo.decel * ( p2_distance / distance );
             return;
         }
 
     // are we accelerating?
-    if ( moveinfo->current_speed < moveinfo->speed ) {
+    if ( pushMoveInfo.current_speed < pushMoveInfo.speed ) {
         float   old_speed;
         float   p1_distance;
         float   p1_speed;
         float   p2_distance;
         float   distance;
 
-        old_speed = moveinfo->current_speed;
+        old_speed = pushMoveInfo.current_speed;
 
         // figure simple acceleration up to move_speed
-        moveinfo->current_speed += moveinfo->accel;
-        if ( moveinfo->current_speed > moveinfo->speed ) {
-            moveinfo->current_speed = moveinfo->speed;
+        pushMoveInfo.current_speed += pushMoveInfo.accel;
+        if ( pushMoveInfo.current_speed > pushMoveInfo.speed ) {
+            pushMoveInfo.current_speed = pushMoveInfo.speed;
         }
 
         // are we accelerating throughout this entire move?
-        if ( ( moveinfo->remaining_distance - moveinfo->current_speed ) >= moveinfo->decel_distance ) {
+        if ( ( pushMoveInfo.remaining_distance - pushMoveInfo.current_speed ) >= pushMoveInfo.decel_distance ) {
             return;
         }
 
         // during this move we will accelrate from current_speed to move_speed
         // and cross over the decel_distance; figure the average speed for the
         // entire move
-        p1_distance = moveinfo->remaining_distance - moveinfo->decel_distance;
-        p1_speed = ( old_speed + moveinfo->move_speed ) / 2.0f;
-        p2_distance = moveinfo->move_speed * ( 1.0f - ( p1_distance / p1_speed ) );
+        p1_distance = pushMoveInfo.remaining_distance - pushMoveInfo.decel_distance;
+        p1_speed = ( old_speed + pushMoveInfo.move_speed ) / 2.0;
+        p2_distance = pushMoveInfo.move_speed * ( 1.0 - ( p1_distance / p1_speed ) );
         distance = p1_distance + p2_distance;
-        moveinfo->current_speed = ( p1_speed * ( p1_distance / distance ) ) + ( moveinfo->move_speed * ( p2_distance / distance ) );
-        moveinfo->next_speed = moveinfo->move_speed - moveinfo->decel * ( p2_distance / distance );
+        pushMoveInfo.current_speed = ( p1_speed * ( p1_distance / distance ) ) + ( pushMoveInfo.move_speed * ( p2_distance / distance ) );
+        pushMoveInfo.next_speed = pushMoveInfo.move_speed - pushMoveInfo.decel * ( p2_distance / distance );
         return;
     }
 
@@ -384,33 +389,27 @@ void PushMove_Accelerate( svg_pushmove_info_t *moveinfo ) {
 /**
 *	@brief	Readjust speeds so that teamed movers start/end synchronized.
 **/
-DEFINE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_CalculateMoveSpeed )( svg_base_edict_t *self ) -> void {
-    svg_base_edict_t *ent;
-    float   minDist;
-    float   time;
-    float   newspeed;
-    float   ratio;
-    float   dist;
-
+DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_CalculateMoveSpeed )( svg_pushmove_edict_t *self ) -> void {
     if ( self->flags & FL_TEAMSLAVE ) {
         return;     // only the team master does this
     }
 
     // find the smallest distance any member of the team will be moving
-    minDist = fabsf( self->pushMoveInfo.distance );
-    for ( ent = self->teamchain; ent; ent = ent->teamchain ) {
-        dist = fabsf( ent->pushMoveInfo.distance );
+    double dist = 0.;
+    double minDist = fabs( self->pushMoveInfo.distance );
+    for ( svg_base_edict_t *ent = self->teamchain; ent; ent = ent->teamchain ) {
+        dist = fabs( ent->pushMoveInfo.distance );
         if ( dist < minDist ) {
             minDist = dist;
         }
     }
 
-    time = minDist / self->pushMoveInfo.speed;
+    double time = minDist / self->pushMoveInfo.speed;
 
     // adjust speeds so they will all complete at the same time
-    for ( ent = self; ent; ent = ent->teamchain ) {
-        newspeed = fabsf( ent->pushMoveInfo.distance ) / time;
-        ratio = newspeed / ent->pushMoveInfo.speed;
+    for ( svg_base_edict_t *ent = self; ent; ent = ent->teamchain ) {
+        const double newspeed = fabs( ent->pushMoveInfo.distance ) / time;
+        const double ratio = newspeed / ent->pushMoveInfo.speed;
         if ( ent->pushMoveInfo.accel == ent->pushMoveInfo.speed ) {
             ent->pushMoveInfo.accel = newspeed;
         } else {
@@ -427,26 +426,27 @@ DEFINE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_CalculateMoveSpeed )( svg_base_
 /**
 *   @brief  The team has completed a frame of movement, so calculate
 *			the speed required for a move during the next game frame.
+*   @note   This is the VANILLA for 10hz movement acceleration procedure.
 **/
-DEFINE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMove )( svg_base_edict_t *ent ) -> void {
-    ent->pushMoveInfo.remaining_distance -= ent->pushMoveInfo.current_speed;
+DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_AccelerateMove )( svg_pushmove_edict_t *self ) -> void {
+    self->pushMoveInfo.remaining_distance -= self->pushMoveInfo.current_speed;
 
-    if ( ent->pushMoveInfo.current_speed == 0 ) {      // starting or blocked
-        PushMove_CalculateAcceleratedMove( &ent->pushMoveInfo );
+    if ( self->pushMoveInfo.current_speed == 0 ) {      // starting or blocked
+        self->PushMove_CalculateAcceleratedMove( );
     }
 
-    PushMove_Accelerate( &ent->pushMoveInfo );
+    self->PushMove_Accelerate( );
 
     // will the entire move complete on next frame?
-    if ( ent->pushMoveInfo.remaining_distance <= ent->pushMoveInfo.current_speed ) {
-        SVG_PushMove_MoveFinal( ent );
+    if ( self->pushMoveInfo.remaining_distance <= self->pushMoveInfo.current_speed ) {
+        SelfType::onThink_MoveFinal( self );
         return;
     }
 
-    VectorScale( ent->pushMoveInfo.dir, ent->pushMoveInfo.current_speed * 10, ent->velocity );
+    VectorScale( self->pushMoveInfo.dir, self->pushMoveInfo.current_speed * 10., self->velocity );
 
-    ent->nextthink = level.time + 10_hz;
-    ent->SetThinkCallback( SVG_PushMove_Think_AccelerateMove );
+    self->nextthink = level.time + 10_hz;
+    self->SetThinkCallback( &SelfType::SVG_PushMove_Think_AccelerateMove );
 
     // Find entities that move along with this entity.
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
@@ -454,41 +454,46 @@ DEFINE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMove )( svg_base_edic
     //}
 }
 
-DEFINE_GLOBAL_CALLBACK_THINK( SVG_PushMove_Think_AccelerateMoveNew )( svg_base_edict_t *ent ) -> void {
-    float t = 0.f;
-    float target_dist;
+/**
+*   @brief  The team has completed a frame of movement, so calculate
+*			the speed required for a move during the next game frame.
+*   @note   This is the RERELEASE for 40hz and higher movement acceleration procedure.
+**/
+DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_AccelerateMoveNew )( svg_pushmove_edict_t *self ) -> void {
+    double t = 0.;
+    double target_dist;
 
-    if ( ent->pushMoveInfo.curve.numberSubFrames ) {
-        if ( ent->pushMoveInfo.curve.subFrame == ent->pushMoveInfo.curve.numberSubFrames + 1 ) {
-            ent->pushMoveInfo.curve.subFrame = 0;
-            ent->pushMoveInfo.curve.frame++;
+    if ( self->pushMoveInfo.curve.numberSubFrames ) {
+        if ( self->pushMoveInfo.curve.subFrame == self->pushMoveInfo.curve.numberSubFrames + 1 ) {
+            self->pushMoveInfo.curve.subFrame = 0;
+            self->pushMoveInfo.curve.frame++;
 
-            if ( ent->pushMoveInfo.curve.frame == ent->pushMoveInfo.curve.countPositions ) {
-                SVG_PushMove_MoveFinal( ent );
+            if ( self->pushMoveInfo.curve.frame == self->pushMoveInfo.curve.countPositions ) {
+                SelfType::onThink_MoveFinal( self );
                 return;
             }
         }
 
-        t = ( ent->pushMoveInfo.curve.subFrame + 1 ) / ( (float)ent->pushMoveInfo.curve.numberSubFrames + 1 );
+        t = ( self->pushMoveInfo.curve.subFrame + 1 ) / ( (float)self->pushMoveInfo.curve.numberSubFrames + 1 );
 
         // Prevent going < 0 for position index.
-        int32_t frame_index = ( ent->pushMoveInfo.curve.frame >= 1 ? ent->pushMoveInfo.curve.frame - 1 : 0 );
-        target_dist = QM_Lerp<float>( (float)ent->pushMoveInfo.curve.positions[ frame_index ], (float)ent->pushMoveInfo.curve.positions[ ent->pushMoveInfo.curve.frame ], (float)t );
-        ent->pushMoveInfo.curve.subFrame++;
+        int32_t frame_index = ( self->pushMoveInfo.curve.frame >= 1 ? self->pushMoveInfo.curve.frame - 1 : 0 );
+        target_dist = QM_Lerp<double>( (double)self->pushMoveInfo.curve.positions[ frame_index ], (double)self->pushMoveInfo.curve.positions[ self->pushMoveInfo.curve.frame ], (double)t );
+        self->pushMoveInfo.curve.subFrame++;
     } else {
-        if ( ent->pushMoveInfo.curve.frame == ent->pushMoveInfo.curve.countPositions ) {
+        if ( self->pushMoveInfo.curve.frame == self->pushMoveInfo.curve.countPositions ) {
             //Move_Final( ent );
-            SVG_PushMove_MoveFinal( ent );
+            SelfType::onThink_MoveFinal( self );
             return;
         }
 
-        target_dist = ent->pushMoveInfo.curve.positions[ ent->pushMoveInfo.curve.frame++ ];
+        target_dist = self->pushMoveInfo.curve.positions[ self->pushMoveInfo.curve.frame++ ];
     }
 
-    ent->pushMoveInfo.curve.numberFramesDone++;
-    Vector3 target_pos = ent->pushMoveInfo.curve.referenceOrigin + ( ent->pushMoveInfo.dir * target_dist );
-    ent->velocity = ( target_pos - ent->s.origin ) * ( 1.f / gi.frame_time_s );
-    ent->nextthink = level.time + FRAME_TIME_S;
+    self->pushMoveInfo.curve.numberFramesDone++;
+    Vector3 target_pos = self->pushMoveInfo.curve.referenceOrigin + ( self->pushMoveInfo.dir * target_dist );
+    self->velocity = ( target_pos - self->s.origin ) * ( 1. / gi.frame_time_s );
+    self->nextthink = level.time + FRAME_TIME_S;
 }
 
 

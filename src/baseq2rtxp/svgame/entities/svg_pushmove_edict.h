@@ -45,7 +45,7 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
 
     /**
     *
-    *	Define this as: "light" = svg_base_edict -> light
+    *	Define this as: Abstract PushMove Edict = svg_base_edict -> svg_pushmove_edict_t
     *
     **/
     DefineAbstractClass(
@@ -94,6 +94,7 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
     #endif // #if 0
 
+
     /**
     *
     *   Callback Member Functions:
@@ -105,6 +106,13 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveBegin );
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveDone );
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveFinal );
+
+    /**
+    *   @brief  Thinking.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_OpenMove );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_CloseMove );
 
     #if 0
     /**
@@ -147,12 +155,29 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     **/
     DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_pushmove_edict_t, onSignalIn );
     #endif
-
+    /**
+    *	@brief	Readjust speeds so that teamed movers start/end synchronized.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_CalculateMoveSpeed );
+    /**
+    *   @brief  The team has completed a frame of movement, so calculate
+    *			the speed required for a move during the next game frame.
+	*   @note   This is the VANILLA for 10hz movement acceleration procedure.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_AccelerateMove );
+    /**
+    *   @brief  The team has completed a frame of movement, so calculate
+    *			the speed required for a move during the next game frame.
+    *   @note   This is the RERELEASE for 40hz and higher movement acceleration procedure.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_AccelerateMoveNew );
 
     /**
-    *   PushMoveInfo EndMove:
+    *   PushMoveInfo EndMove Stubs:
     **/
+    //! Serves as Stub.
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_pushmove_edict_t, onCloseEndMove );
+    //! Serves as Stub.
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_pushmove_edict_t, onOpenEndMove );
 
 
@@ -161,6 +186,32 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     *   Member Functions:
     *
     **/
+    /**
+    *   @brief  Processes movement when at top speed, so there is no acceleration present anymore.
+    **/
+    void SVG_PushMove_MoveRegular( const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
+    /**
+    *   @brief  Processes movement accelerating to top speed, or to idle speed.
+    **/
+    void SVG_PushMove_MoveCalculate( const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
+
+    /**
+	*   @brief  Calculates the move speed for the next frame.
+    **/
+    void PushMove_CalculateAcceleratedMove( );
+    /**
+	*   @brief  Accelerates the move.
+    **/
+    void PushMove_Accelerate( );
+
+    /**
+    * @brief 
+    **/
+    const bool Think_AccelMove_MoveInfo( );
+    /**
+    *   @brief
+    **/
+    constexpr double AccelerationDistance( const double target, const double rate );
 
 
     /**
