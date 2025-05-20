@@ -52,7 +52,7 @@ REVERSE will cause the door to rotate in the opposite direction.
 *	@brief
 **/
 void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir );
-DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn)( svg_func_door_rotating_t *ent ) -> void {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door_rotating_t *ent ) -> void {
     //vec3_t  abs_movedir;
 
     if ( ent->sounds != 1 ) {
@@ -134,12 +134,12 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn)( svg_func_door_
     }
 
     // Callbacks.
-    ent->SetPostSpawnCallback( &svg_func_door_t::onPostSpawn );
-    ent->SetBlockedCallback( &svg_func_door_t::onBlocked );
-    ent->SetTouchCallback( &svg_func_door_t::onTouch );
-    ent->SetUseCallback( &svg_func_door_t::onUse );
+    ent->SetPostSpawnCallback( &svg_func_door_rotating_t::onPostSpawn );
+    ent->SetBlockedCallback( &svg_func_door_rotating_t::onBlocked );
+    ent->SetTouchCallback( &svg_func_door_rotating_t::onTouch );
+    ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
     //ent->pain = door_pain;
-    ent->SetOnSignalInCallback( &svg_func_door_t::onSignalIn );
+    ent->SetOnSignalInCallback( &svg_func_door_rotating_t::onSignalIn );
 
     // Calculate absolute move distance to get from pos1 to pos2.
     ent->pos1 = ent->s.origin;
@@ -151,10 +151,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn)( svg_func_door_
         //ent->angles2 = ent->angles1;
         //ent->angles1 = -Vector3(ent->s.angles);
         //ent->movedir = QM_Vector3Negate( ent->movedir );
-        ent->pushMoveInfo.state = svg_func_door_t::DOOR_STATE_OPENED;
+        ent->pushMoveInfo.state = svg_func_door_rotating_t::DOOR_STATE_OPENED;
     } else {
         // Initial closed state.
-        ent->pushMoveInfo.state = svg_func_door_t::DOOR_STATE_CLOSED;
+        ent->pushMoveInfo.state = svg_func_door_rotating_t::DOOR_STATE_CLOSED;
     }
 
     // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
@@ -167,8 +167,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn)( svg_func_door_
             ent->takedamage = DAMAGE_NO;
             ent->lifeStatus = LIFESTATUS_DEAD;
             // Die callback.
-            ent->SetDieCallback( &svg_func_door_t::onDie );
-            ent->SetPainCallback( &svg_func_door_t::onPain );
+            ent->SetDieCallback( &svg_func_door_rotating_t::onDie );
+            ent->SetPainCallback( &svg_func_door_rotating_t::onPain );
         } else {
             // Set max health, in case it wasn't set.also used to reinitialize the door to revive.
             if ( !ent->health ) {
@@ -178,8 +178,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn)( svg_func_door_
             ent->takedamage = DAMAGE_YES;
             ent->lifeStatus = LIFESTATUS_ALIVE;
             // Die callback.
-            ent->SetDieCallback( &svg_func_door_t::onDie );
-            ent->SetPainCallback( &svg_func_door_t::onPain );
+            ent->SetDieCallback( &svg_func_door_rotating_t::onDie );
+            ent->SetPainCallback( &svg_func_door_rotating_t::onPain );
         }
 
         // Apply next think time and method.
@@ -200,18 +200,18 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn)( svg_func_door_
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( &svg_func_door_t::onUse );
+            ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
             // This door is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( &svg_func_door_t::onUse );
+            ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
         } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
             ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( &svg_func_door_t::onUse );
+            ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
         }
 
         // Is usetargetting disabled by default?

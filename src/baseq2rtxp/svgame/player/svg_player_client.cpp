@@ -636,7 +636,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     ent->movetype = MOVETYPE_WALK;
     ent->viewheight = PM_VIEWHEIGHT_STANDUP;
     ent->inuse = true;
-    ent->classname = "player";
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );
     ent->mass = 200;
     ent->gravity = 1.0f;
     ent->solid = SOLID_BOUNDS_BOX;
@@ -755,7 +755,7 @@ void SVG_Client_BeginDeathmatch( svg_base_edict_t *ent ) {
     g_edict_pool._InitEdict( ent, ent->s.number );//SVG_InitEdict( ent );
 
     // Make sure classname is player.
-    ent->classname = "player";
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.
@@ -799,7 +799,7 @@ void SVG_Client_BeginLoadGame( svg_base_edict_t *ent ) {
     // with deltaangles
     ent->client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( ent->client->ps.viewangles );
     // Make sure classname is player.
-    ent->classname = "player";
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );;
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.
@@ -815,7 +815,7 @@ void SVG_Client_BeginNewBody( svg_base_edict_t *ent ) {
     // connect time
     g_edict_pool._InitEdict( ent, ent->s.number );
     // Make sure classname is player.
-    ent->classname = "player";
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );;
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.

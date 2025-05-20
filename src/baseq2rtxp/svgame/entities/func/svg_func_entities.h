@@ -13,7 +13,7 @@ struct svg_func_door_t;
 /**
 *	@brief
 **/
-DECLARE_GLOBAL_CLASSNAME_CALLBACK_SPAWN( svg_func_door_t, DoorTrigger_SpawnThink );
+DECLARE_GLOBAL_CALLBACK_SPAWN( DoorTrigger_SpawnThink );
 /**
 *	@brief
 **/

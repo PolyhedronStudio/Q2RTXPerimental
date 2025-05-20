@@ -131,7 +131,7 @@ public:
 	*	@param derivedCheckOnly If true, skips checking if the current TypeInfo is a match.
 	*	@return True if the current type is a subclass of the specified type, otherwise false.
 	**/
-	const bool IsSubClassOfTypeInfo( const EdictTypeInfo &typeInfo, const bool derivedCheckOnly = false ) const {
+	const bool IsSubClassOfTypeInfo( EdictTypeInfo &typeInfo, const bool derivedCheckOnly = false ) const {
 		// We got a match, return true.
 		if ( IsClassTypeInfo( typeInfo ) && !derivedCheckOnly ) {
 			return true;
@@ -141,7 +141,7 @@ public:
 			return false;
 		}
 		// Iterate onto parent type.
-		return super->IsSubClassOfTypeInfo( typeInfo );
+		return super->IsSubClassOfTypeInfo( typeInfo, derivedCheckOnly );
 	}
 
 	/**
@@ -152,17 +152,18 @@ public:
 	**/
 	template<class TSubClass>
 	const bool IsSubClassType( const bool derivedCheckOnly = false ) const {
-		// Make sure their IDs match.
-		// Return true if the current type is the same as TSubClass.
-		if ( IsClassTypeInfo( TSubClass::ClassInfo ) && !derivedCheckOnly ) {
-			return true;
-		}
-		// Iterate onto the parent if we got one, or false if we got none.
-		if ( super == nullptr ) {
-			return false;
-		}
-		// Check parent.
-		return super->IsSubClassType<TSubClass>( false );
+		//// Make sure their IDs match.
+		//// Return true if the current type is the same as TSubClass.
+		//if ( IsClassTypeInfo( TSubClass::ClassInfo ) && !derivedCheckOnly ) {
+		//	return true;
+		//}
+		//// Iterate onto the parent if we got one, or false if we got none.
+		//if ( super == nullptr ) {
+		//	return false;
+		//}
+		//// Check parent.
+		//return super->IsSubClassType<TSubClass>( false );
+		return IsSubClassOfTypeInfo( TSubClass::ClassInfo, derivedCheckOnly );
 	}
 
 	/**

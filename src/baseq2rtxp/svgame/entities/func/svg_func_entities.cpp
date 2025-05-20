@@ -39,7 +39,7 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_b
 /**
 *	@brief
 **/
-DEFINE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_func_door_t, DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -> void {
+DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_base_edict_t *ent ) -> void {
     if ( !ent || !ent->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>() ) {
 		gi.dprintf( "(%s:%i) Invalid entity type!\n", __func__, __LINE__ );
 		return;

@@ -117,7 +117,6 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     *   Lua Properties:
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, luaProperties.luaName, SD_FIELD_TYPE_LEVEL_QSTRING ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, targetEntities.movewith, SD_FIELD_TYPE_EDICT ),
 
     /**
     *   "Delay" entities:
@@ -643,7 +642,7 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     if ( keyStr == "classname" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
         // It is already set before during construction of this entity.
         // We return true however since we don't want it complaining.
-        //classname = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        classname = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
     // Match: model
@@ -705,6 +704,13 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     // Match: team
     else if ( keyStr == "team" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
         targetNames.team = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
+    }
+    // Match: luaName
+    else if ( keyStr == "luaName" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        // It is already set before during construction of this entity.
+        // We return true however since we don't want it complaining.
+        luaProperties.luaName = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
     // Match: wait

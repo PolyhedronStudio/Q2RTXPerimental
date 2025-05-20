@@ -36,7 +36,7 @@ struct svg_item_edict_t : public svg_base_edict_t {
 
     /**
     *
-    *	Define this as: "player" = svg_base_edict -> svg_item_edict_t
+    *	Define this as: "item" = svg_base_edict -> svg_item_edict_t
     *
     **/
     DefineWorldSpawnClass(

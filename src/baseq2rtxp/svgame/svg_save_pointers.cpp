@@ -207,8 +207,6 @@ extern void teleporter_touch( svg_base_edict_t *self, svg_base_edict_t *other, c
 
 extern void Think_UseTargetsDelay( svg_base_edict_t *self );
 extern void Think_SignalOutDelay( svg_base_edict_t *self );
-extern void DoorTrigger_SpawnThink( svg_base_edict_t *ent );
-
 extern void DoorTrigger_Touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void Touch_Plat_Center( svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
