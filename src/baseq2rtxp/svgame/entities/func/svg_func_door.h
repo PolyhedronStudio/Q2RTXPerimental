@@ -156,7 +156,10 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     *	@brief  Open or Close the door's area portal.
     **/
     void SetAreaPortal( const bool isOpen );
-
+    /**
+    *   @brief  Setup default PushMoveInfo sounds.
+    **/
+    void SetupDefaultSounds();
 
     /**
     *

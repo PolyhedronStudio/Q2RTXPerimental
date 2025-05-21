@@ -24,12 +24,38 @@
 *
 *
 *
+*   Lock/UnLock:
+*
+*
+*
+**/
+/**
+*   @brief  Set button lock state.
+*   @param  isLocked
+*           If true: Locks the button, thereby disabling it from being able to change state.
+*           If false: UnLocks the button, thereby enabling it from being able to change state.
+**/
+void svg_pushmove_edict_t::SetLockState( const bool lockButton ) {
+    if ( lockButton ) {
+        // Last but not least, lock its state.
+        pushMoveInfo.lockState.isLocked = true;
+    } else {
+        // Last but not least, unlock its state.
+        pushMoveInfo.lockState.isLocked = false;
+    }
+}
+
+
+
+/**
+*
+*
+*
 *   Support routines for movement (changes in origin using velocity)
 *
 *
 *
 **/
-
 /**
 *   @brief  Processes movement when at top speed, so there is no acceleration present anymore.
 **/
@@ -37,14 +63,14 @@ void svg_pushmove_edict_t::SVG_PushMove_MoveRegular( const Vector3 &destination,
     // If the current level entity that is being processed, happens to be in front of the
     // entity array queue AND is a teamslave, begin moving its team master instead.
     if ( level.current_entity == ( ( flags & FL_TEAMSLAVE ) ? teammaster : this ) ) {
-        SelfType::onThink_MoveBegin( this );
+        this->onThink_MoveBegin( this );
         //} else if ( ent->targetEntities.movewith ) {
         //    SVG_PushMove_MoveBegin( ent );
         //} else {
     // Team Slaves start moving next frame:
     } else {
         nextthink = level.time + FRAME_TIME_S;
-        SetThinkCallback( &SelfType::onThink_MoveBegin );
+        SetThinkCallback( &this->onThink_MoveBegin );
     }
 }
 /**
@@ -64,7 +90,7 @@ void svg_pushmove_edict_t::SVG_PushMove_MoveCalculate( const Vector3 &destinatio
 
     // Non Accelerating Movement:
     if ( pushMoveInfo.speed == pushMoveInfo.accel && pushMoveInfo.speed == pushMoveInfo.decel ) {
-        SVG_PushMove_MoveRegular( destination, endMoveCallback );
+        this->SVG_PushMove_MoveRegular( destination, endMoveCallback );
     // Accelerative Movement: We're still accelerating up/down:
     } else {
         pushMoveInfo.current_speed = 0;
@@ -73,7 +99,7 @@ void svg_pushmove_edict_t::SVG_PushMove_MoveCalculate( const Vector3 &destinatio
 
         // Regular accelerate_think for 10hz.
         if ( gi.tick_rate == 10 ) {
-            SetThinkCallback( &SelfType::SVG_PushMove_Think_AccelerateMove );
+            SetThinkCallback( &this->SVG_PushMove_Think_AccelerateMove );
             // Specialized accelerate > 10hz.
         } else {
             // [Paril-KEX] rewritten to work better at higher tickrates
@@ -117,7 +143,7 @@ void svg_pushmove_edict_t::SVG_PushMove_MoveCalculate( const Vector3 &destinatio
             std::copy( distances.begin(), distances.end(), pushMoveInfo.curve.positions.ptr );
 
             pushMoveInfo.curve.numberFramesDone = 0;
-            SetThinkCallback( &SelfType::SVG_PushMove_Think_AccelerateMoveNew );
+            SetThinkCallback( &this->SVG_PushMove_Think_AccelerateMoveNew );
         }
     }
 }
@@ -181,7 +207,7 @@ void SVG_PushMove_AngleMoveFinal( svg_pushmove_edict_t *ent ) {
     ent->avelocity = QM_Vector3Scale( move, ( 1.0 / FRAMETIME ) ); /** ent->pushMoveInfo.sign*/
 
     // Set next frame think callback to be that of the end of movement processing.
-    ent->SetThinkCallback( SVG_PushMove_AngleMoveDone );
+    ent->SetThinkCallback( &SVG_PushMove_AngleMoveDone );
     ent->nextthink = level.time + FRAME_TIME_S;
 }
 /**
@@ -229,11 +255,11 @@ void SVG_PushMove_AngleMoveBegin( svg_pushmove_edict_t *ent ) {
     if ( ent->pushMoveInfo.speed >= ent->speed ) {
         // set nextthink to trigger a think when dest is reached
         ent->nextthink = level.time + ( FRAME_TIME_S * numFrames );
-        ent->SetThinkCallback( SVG_PushMove_AngleMoveFinal );
+        ent->SetThinkCallback( &SVG_PushMove_AngleMoveFinal );
     // Otherwise, keep on accelerating:
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( SVG_PushMove_AngleMoveBegin );
+        ent->SetThinkCallback( &SVG_PushMove_AngleMoveBegin );
     }
     // PGM
 }
@@ -260,7 +286,7 @@ void SVG_PushMove_AngleMoveCalculate( svg_pushmove_edict_t *ent, svg_pushmove_en
     // Team Slaves start moving next frame:
     } else {
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( SVG_PushMove_AngleMoveBegin );
+        ent->SetThinkCallback( &SVG_PushMove_AngleMoveBegin );
     }
 }
 
@@ -439,14 +465,14 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_Accelerat
 
     // will the entire move complete on next frame?
     if ( self->pushMoveInfo.remaining_distance <= self->pushMoveInfo.current_speed ) {
-        SelfType::onThink_MoveFinal( self );
+        self->onThink_MoveFinal( self );
         return;
     }
 
     VectorScale( self->pushMoveInfo.dir, self->pushMoveInfo.current_speed * 10., self->velocity );
 
     self->nextthink = level.time + 10_hz;
-    self->SetThinkCallback( &SelfType::SVG_PushMove_Think_AccelerateMove );
+    self->SetThinkCallback( &self->SVG_PushMove_Think_AccelerateMove );
 
     // Find entities that move along with this entity.
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
@@ -469,7 +495,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_Accelerat
             self->pushMoveInfo.curve.frame++;
 
             if ( self->pushMoveInfo.curve.frame == self->pushMoveInfo.curve.countPositions ) {
-                SelfType::onThink_MoveFinal( self );
+                self->onThink_MoveFinal( self );
                 return;
             }
         }
@@ -483,7 +509,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_Accelerat
     } else {
         if ( self->pushMoveInfo.curve.frame == self->pushMoveInfo.curve.countPositions ) {
             //Move_Final( ent );
-            SelfType::onThink_MoveFinal( self );
+            self->onThink_MoveFinal( self );
             return;
         }
 

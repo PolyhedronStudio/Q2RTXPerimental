@@ -653,7 +653,6 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     // Match: spawnflags
     else if ( keyStr == "spawnflags" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
         spawnflags = keyValuePair->integer;
-
         return true;
     }
     // Match: speed
@@ -682,12 +681,12 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
         return true;
     }
     // Match: path
-    else if ( keyStr == "path" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+    else if ( keyStr == "pathtarget" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
         targetNames.path = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
-    // Match: death
-    else if ( keyStr == "death" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+    //// Match: death
+    else if ( keyStr == "deathtarget" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
         targetNames.target = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }

@@ -187,6 +187,21 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     *
     **/
     /**
+    *   @brief  Set button lock state.
+    *   @param  isLocked
+    *           If true: Locks the button, thereby disabling it from being able to change state.
+    *           If false: UnLocks the button, thereby enabling it from being able to change state.
+    **/
+    void SetLockState( const bool isLocked );
+
+
+
+    /**
+    * 
+    *   Non-Rotating Movement:
+    * 
+    **/
+    /**
     *   @brief  Processes movement when at top speed, so there is no acceleration present anymore.
     **/
     void SVG_PushMove_MoveRegular( const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );

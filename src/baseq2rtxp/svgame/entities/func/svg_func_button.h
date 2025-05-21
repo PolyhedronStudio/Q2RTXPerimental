@@ -93,7 +93,7 @@ struct svg_func_button_t : public svg_pushmove_edict_t {
 
     /**
     *
-    *   TestDummy Callback Member Functions:
+    *   Callback Member Functions:
     *
     **/
     /**
@@ -151,6 +151,8 @@ struct svg_func_button_t : public svg_pushmove_edict_t {
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_button_t, onUnPressEndMove );
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_button_t, onPressEndMove );
 
+
+
     /**
     *
     *   Member Functions:
@@ -160,7 +162,14 @@ struct svg_func_button_t : public svg_pushmove_edict_t {
     //*	@brief  Open or Close the door's area portal.
     //**/
     //void SetAreaPortal( const bool isOpen );
+    /**
+    *   @brief  If idle, will toggle between the pressed and unpressed state. Used for "Toggle" Signalling.
+    **/
+    void ToggleMove();
 
+    /**
+    *   @brief  
+    **/
 
     /**
     *

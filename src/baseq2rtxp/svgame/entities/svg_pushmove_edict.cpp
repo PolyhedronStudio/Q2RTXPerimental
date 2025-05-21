@@ -43,7 +43,7 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_pushmove_edict_t, onOpenEndMove )( 
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveBegin )( svg_pushmove_edict_t *ent ) -> void {
     if ( ( ent->pushMoveInfo.speed * gi.frame_time_s ) >= ent->pushMoveInfo.remaining_distance ) {
-        SelfType::onThink_MoveFinal( ent );
+        ent->onThink_MoveFinal( ent );
         return;
     }
     // Recalculate velocity into current direction.
@@ -58,7 +58,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveBegin )( svg_pus
     const float frames = floor( ( ent->pushMoveInfo.remaining_distance / ent->pushMoveInfo.speed ) / gi.frame_time_s );
     ent->pushMoveInfo.remaining_distance -= frames * ent->pushMoveInfo.speed * gi.frame_time_s;
     ent->nextthink = level.time + ( FRAME_TIME_S * frames );
-    ent->SetThinkCallback( &SelfType::onThink_MoveFinal );
+    ent->SetThinkCallback( &ent->onThink_MoveFinal );
     //}
 
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
@@ -96,7 +96,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveFinal )( svg_pus
     //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
     //}
 
-    ent->SetThinkCallback( &svg_pushmove_edict_t::onThink_MoveDone );
+    ent->SetThinkCallback( &ent->onThink_MoveDone );
     ent->nextthink = level.time + FRAME_TIME_S;
     //if ( ent->targetEntities.movewith_next && ( ent->targetEntities.movewith_next->targetEntities.movewith == ent ) ) {
     //    SVG_MoveWith_SetChildEntityMovement( ent );

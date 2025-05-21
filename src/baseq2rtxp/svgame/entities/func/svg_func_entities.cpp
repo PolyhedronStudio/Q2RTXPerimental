@@ -39,7 +39,7 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_b
 /**
 *	@brief
 **/
-DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_base_edict_t *ent ) -> void {
+DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -> void {
     if ( !ent || !ent->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>() ) {
 		gi.dprintf( "(%s:%i) Invalid entity type!\n", __func__, __LINE__ );
 		return;
@@ -48,7 +48,7 @@ DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_base_edict_t *ent ) 
     svg_base_edict_t *other;
     vec3_t      mins, maxs;
     
-	svg_pushmove_edict_t *pushMoveEnt = static_cast<svg_pushmove_edict_t *>( ent );
+    svg_func_door_t *pushMoveEnt = static_cast<svg_func_door_t *>( ent );
     if ( pushMoveEnt->flags & FL_TEAMSLAVE )
         return;     // only the team leader spawns a trigger
 
@@ -73,7 +73,7 @@ DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_base_edict_t *ent ) 
     other->solid = SOLID_TRIGGER;
     other->movetype = MOVETYPE_NONE;
     other->s.entityType = ET_PUSH_TRIGGER;
-    other->SetTouchCallback( DoorTrigger_Touch );
+    other->SetTouchCallback( &DoorTrigger_Touch );
     gi.linkentity( other );
 
     if ( pushMoveEnt->spawnflags & svg_func_door_t::SPAWNFLAG_START_OPEN ) {

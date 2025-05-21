@@ -152,18 +152,8 @@ public:
 	**/
 	template<class TSubClass>
 	const bool IsSubClassType( const bool derivedCheckOnly = false ) const {
-		//// Make sure their IDs match.
-		//// Return true if the current type is the same as TSubClass.
-		//if ( IsClassTypeInfo( TSubClass::ClassInfo ) && !derivedCheckOnly ) {
-		//	return true;
-		//}
-		//// Iterate onto the parent if we got one, or false if we got none.
-		//if ( super == nullptr ) {
-		//	return false;
-		//}
-		//// Check parent.
-		//return super->IsSubClassType<TSubClass>( false );
 		return IsSubClassOfTypeInfo( TSubClass::ClassInfo, derivedCheckOnly );
+		//return IsSubClassOfTypeInfo( TSubClass::ClassInfo, derivedCheckOnly );
 	}
 
 	/**
@@ -287,7 +277,7 @@ public:
 	inline static EdictTypeInfo *head = nullptr;
 
 	// <Q2RTXP>: WID: TODO: maybe generate a CRC32 for each classname instead?
-	StaticEdictTypeInfoCounter classTypeInfoID = {};
+	inline static StaticEdictTypeInfoCounter classTypeInfoID = {};
 	//! Specified certain rights for the EdictTypeInfo class.
 	uint8_t	typeFlags = 0;
 
@@ -366,7 +356,7 @@ public:
 #define DefineAbstractClass( className, superClass )			\
 	using SelfType = className;		\
 	using Super = superClass;	/* Allows us to refer to super class using Base */ \
-	__DeclareTypeInfo( #className, #className, #superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
+	__DeclareTypeInfo( "abstract_"#className, #className, #superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
 
 
 

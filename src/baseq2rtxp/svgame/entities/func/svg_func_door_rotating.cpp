@@ -138,7 +138,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
     ent->SetBlockedCallback( &svg_func_door_rotating_t::onBlocked );
     ent->SetTouchCallback( &svg_func_door_rotating_t::onTouch );
     ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
-    //ent->pain = door_pain;
+    ent->SetPainCallback( &svg_func_door_rotating_t::onPain );
     ent->SetOnSignalInCallback( &svg_func_door_rotating_t::onSignalIn );
 
     // Calculate absolute move distance to get from pos1 to pos2.
@@ -189,7 +189,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
     } else if ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.
         ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( DoorTrigger_SpawnThink );
+        ent->SetThinkCallback( &DoorTrigger_SpawnThink );
     } else {
         // Apply next think time and method.
         ent->nextthink = level.time + FRAME_TIME_S;

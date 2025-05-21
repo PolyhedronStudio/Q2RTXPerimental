@@ -26,7 +26,8 @@ struct svg_base_edict_t;
 #include "svgame/svg_signalio.h"
 //! Required for save descriptors.
 #include "svgame/svg_save.h"
-
+//! UseTargets
+#include "svgame/svg_usetargets.h"
 
 //! Macro for validating a callback function pointer at time of assignment.
 #if ( defined( DEBUG_CALLBACK_ASSIGNMENTS ) && ( DEBUG_CALLBACK_ASSIGNMENTS == 1 ) )
@@ -676,9 +677,9 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         //} value;
         //int32_t value;
         //! The use target features for this entity.
-        entity_usetarget_flags_t flags;
+        entity_usetarget_flags_t flags = ENTITY_USETARGET_FLAG_NONE;
         //! The use target state.
-        entity_usetarget_state_t state;
+        entity_usetarget_state_t state = ENTITY_USETARGET_STATE_DEFAULT;
         //! The time at which this entity was last (+usetarget) activated.
         //QMTime timeChanged;
 
@@ -689,7 +690,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         //    //! Display flags for this entity's hint info.
         //    int32_t flags;
         //} hint;
-        const sg_usetarget_hint_t *hintInfo;
+        const sg_usetarget_hint_t *hintInfo = nullptr;
     } useTarget = {};
 
 
@@ -697,20 +698,20 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   Target Name Fields:
     **/
     //! [SpawnKey]: Targetname of this entity.
-    svg_level_qstring_t targetname;
+    svg_level_qstring_t targetname = nullptr;
     struct {
         //! [SpawnKey]: Name of the entity with a matching 'targetname' to (trigger-)use target.
-        svg_level_qstring_t target;
+        svg_level_qstring_t target = nullptr;
         //! [SpawnKey]: Name of entity to kill if triggered.
-        svg_level_qstring_t kill;
+        svg_level_qstring_t kill = nullptr;
         //! [SpawnKey]: Name of the team this entity is on. (For movers.)
-        svg_level_qstring_t team;
+        svg_level_qstring_t team = nullptr;
         //! [SpawnKey]: The path to traverse (For certain movers.)
-        svg_level_qstring_t path;
+        svg_level_qstring_t path = nullptr;
         //! [SpawnKey]: The targetted entity to trigger when this entity dies.
-        svg_level_qstring_t death;
+        svg_level_qstring_t death = nullptr;
         //! [SpawnKey]: Name of the entity with a matching 'targetname' to move along with. (PushMovers).
-        svg_level_qstring_t movewith;
+        svg_level_qstring_t movewith = nullptr;
     } targetNames;
 
 
@@ -732,7 +733,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     struct {
         //! [SpawnKey]: The name which its script methods are prepended by.
-        svg_level_qstring_t luaName;
+        svg_level_qstring_t luaName = nullptr;
     } luaProperties;
 
 
@@ -819,7 +820,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
     **/
-    svg_pushmove_info_t pushMoveInfo;
+    svg_pushmove_info_t pushMoveInfo = {};
 
     //! [SpawnKey]: PushMover Lip Distance.
     float   lip     = 0.f;
@@ -857,7 +858,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   NextThink AND Entity Callbacks:
     **/
     //! When to perform its next frame logic.
-    QMTime   nextthink;
+    QMTime   nextthink = 0_ms;
 
     svg_edict_callback_spawn_fptr spawnCallbackFuncPtr = nullptr;
     //! Gives a chance to setup references to other entities etc.
@@ -950,7 +951,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! Attenuation.
     float   attenuation = 0.f;
     //! Sound.
-    QMTime  last_sound_time;
+    QMTime  last_sound_time = 0_ms;
 
     /**
     *   Trigger(s) Data:
@@ -968,17 +969,17 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   Timers Data:
     **/
-    QMTime   air_finished_time;
-    QMTime   damage_debounce_time;
-    QMTime   fly_sound_debounce_time;    // move to clientinfo
-    QMTime   last_move_time;
-    QMTime   touch_debounce_time;        // are all these legit?  do we need more/less of them?
-    QMTime   pain_debounce_time;
-    QMTime   show_hostile_time;
+    QMTime   air_finished_time = 0_ms;
+    QMTime   damage_debounce_time = 0_ms;
+    QMTime   fly_sound_debounce_time = 0_ms;    // move to clientinfo
+    QMTime   last_move_time = 0_ms;
+    QMTime   touch_debounce_time = 0_ms;        // are all these legit?  do we need more/less of them?
+    QMTime   pain_debounce_time = 0_ms;
+    QMTime   show_hostile_time = 0_ms;
     //! Registers the time of the frame we died in.
-	QMTime   death_time;
+	QMTime   death_time = 0_ms;
     //! Used for player trail.
-    QMTime   trail_time;
+    QMTime   trail_time = 0_ms;
 
 
     /**

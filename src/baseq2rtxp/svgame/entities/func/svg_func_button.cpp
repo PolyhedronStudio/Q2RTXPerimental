@@ -67,7 +67,7 @@ There it will wait till the wait time is over, or if toggleable, until it is tog
 *   @brief  Called by spawn, move begin, and move end functions in order to determine 
 *           the appropriate UseTargetHint ID to use.
 **/
-void button_determine_usetarget_hint_id( svg_base_edict_t *self ) {
+void button_determine_usetarget_hint_id( svg_func_button_t *self ) {
     // Continous button?
     const bool isContinuousUseTarget = SVG_Entity_HasUseTargetFlags( self, ENTITY_USETARGET_FLAG_CONTINUOUS );
     // Continous active?
@@ -443,13 +443,16 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_button_t, onThink_UnPressMove )( svg_func
 }
 
 /**
-*   @brief  Used for "Toggle" Signalling.
+*   @brief  
 **/
-void button_toggle_move( svg_func_button_t *self ) {
-    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM || self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
-        svg_func_button_t::onThink_UnPressMove( self );
+/**
+*   @brief  If idle, will toggle between the pressed and unpressed state. Used for "Toggle" Signalling.
+**/
+void svg_func_button_t::ToggleMove() {
+    if ( pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM || pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
+        svg_func_button_t::onThink_UnPressMove( this );
     } else {
-        svg_func_button_t::onThink_PressMove( self );
+        svg_func_button_t::onThink_PressMove( this );
     }
 }
 
@@ -844,37 +847,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_func_button_t, onDie )( svg_func_button_t *self,
 }
 
 
-/**
-*
-*
-*
-*   Lock/UnLock:
-*
-*
-*
-**/
-/**
-*   @brief
-**/
-void button_lock( svg_base_edict_t *self ) {
-    // Of course it has to be locked if we want to play a sound.
-    if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
-        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
-    }
-    // Last but not least, unlock its state.
-    self->pushMoveInfo.lockState.isLocked = true;
-}
-/**
-*   @brief
-**/
-void button_unlock( svg_base_edict_t *self ) {
-    // Of course it has to be locked if we want to play a sound.
-    if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
-        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
-    }
-    // Last but not least, unlock its state.
-    self->pushMoveInfo.lockState.isLocked = false;
-}
+
 
 
 
@@ -913,7 +886,7 @@ DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_button_t, onSignalIn )( svg_func_bu
         self->activator = activator;
         self->other = other;
         // Toggle Move.
-        button_toggle_move( self );
+        self->ToggleMove();
     }
 
     /**
@@ -924,14 +897,14 @@ DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_button_t, onSignalIn )( svg_func_bu
         self->activator = activator;
         self->other = other;
         // Lock itself.
-        button_lock( self );
+        self->SetLockState( true );
     }
     // RotatingUnlock:
     if ( Q_strcasecmp( signalName, "Unlock" ) == 0 ) {
         self->activator = activator;
         self->other = other;
         // Unlock itself.
-        button_unlock( self );
+        self->SetLockState( false );
     }
     // RotatingLockToggle:
     if ( Q_strcasecmp( signalName, "LockToggle" ) == 0 ) {
@@ -939,10 +912,10 @@ DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_button_t, onSignalIn )( svg_func_bu
         self->other = other;
         // Lock if unlocked:
         if ( !self->pushMoveInfo.lockState.isLocked ) {
-            button_lock( self );
+            self->SetLockState( true );
         // Unlock if locked:
         } else {
-            button_unlock( self );
+            self->SetLockState( false );
         }
     }
 
@@ -968,168 +941,170 @@ DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_button_t, onSignalIn )( svg_func_bu
 /**
 *   @brief  Spawn function.
 **/
-DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_button_t, onSpawn )( svg_func_button_t *ent ) -> void {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_button_t, onSpawn )( svg_func_button_t *self ) -> void {
+    Super::onSpawn( self );
+
     // PushMove Entity Basics:
-    SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
+    SVG_Util_SetMoveDir( self->s.angles, self->movedir );
     #if 0
-    if ( ent->targetNames.movewith ) {
-        ent->movetype = MOVETYPE_PUSH;
+    if ( self->targetNames.movewith ) {
+        self->movetype = MOVETYPE_PUSH;
     } else {
-        ent->movetype = MOVETYPE_STOP;
+        self->movetype = MOVETYPE_STOP;
     }
     #endif
-    ent->movetype = MOVETYPE_STOP;
-    ent->solid = SOLID_BSP;
-    ent->s.entityType = ET_PUSHER;
-    ent->SetOnSignalInCallback( &svg_func_button_t::onSignalIn );
+    self->movetype = MOVETYPE_STOP;
+    self->solid = SOLID_BSP;
+    self->s.entityType = ET_PUSHER;
+    self->SetOnSignalInCallback( &svg_func_button_t::onSignalIn );
     // BSP Model, or otherwise, specified external model.
-    gi.setmodel( ent, ent->model );
+    gi.setmodel( self, self->model );
 
     // Default sounds:
-    if ( ent->sounds != 1 ) {
+    if ( self->sounds != 1 ) {
         // 'Mechanic':
-        ent->pushMoveInfo.sounds.start = gi.soundindex( "buttons/button_mechanic_press.wav" );
-        ent->pushMoveInfo.sounds.end = gi.soundindex( "buttons/button_mechanic_unpress.wav" );
+        self->pushMoveInfo.sounds.start = gi.soundindex( "buttons/button_mechanic_press.wav" );
+        self->pushMoveInfo.sounds.end = gi.soundindex( "buttons/button_mechanic_unpress.wav" );
     }
 
     // PushMove defaults:
-    if ( !ent->speed ) {
-        ent->speed = 40;
+    if ( !self->speed ) {
+        self->speed = 40;
     }
-    if ( !ent->accel ) {
-        ent->accel = ent->speed;
+    if ( !self->accel ) {
+        self->accel = self->speed;
     }
-    if ( !ent->decel ) {
-        ent->decel = ent->speed;
+    if ( !self->decel ) {
+        self->decel = self->speed;
     }
-    if ( !ent->lip ) {
-        ent->lip = 4;
+    if ( !self->lip ) {
+        self->lip = 4;
     }
     // Trigger defaults:
-    if ( !ent->wait ) {
-        ent->wait = 3;
+    if ( !self->wait ) {
+        self->wait = 3;
     }
 
     // Calculate absolute move distance to get from pos1 to pos2.
-    const Vector3 fabsMoveDirection = QM_Vector3Fabs( ent->movedir );
-    ent->pushMoveInfo.distance = QM_Vector3DotProduct( fabsMoveDirection, ent->size ) - ent->lip;
+    const Vector3 fabsMoveDirection = QM_Vector3Fabs( self->movedir );
+    self->pushMoveInfo.distance = QM_Vector3DotProduct( fabsMoveDirection, self->size ) - self->lip;
     // Translate the determined move distance into the move direction to get pos2, our move end origin.
-    ent->pos1 = ent->s.origin;
-    ent->pos2 = QM_Vector3MultiplyAdd( ent->pos1, ent->pushMoveInfo.distance, ent->movedir );
+    self->pos1 = self->s.origin;
+    self->pos2 = QM_Vector3MultiplyAdd( self->pos1, self->pushMoveInfo.distance, self->movedir );
 
     // if it starts open, switch the positions
-    const bool startPressed = SVG_HasSpawnFlags( ent, svg_func_button_t::SPAWNFLAG_START_PRESSED );
+    const bool startPressed = SVG_HasSpawnFlags( self, svg_func_button_t::SPAWNFLAG_START_PRESSED );
     if ( startPressed ) {
-        VectorCopy( ent->pos2, ent->s.origin );
-        ent->pos2 = ent->pos1;
-        ent->pos1 = ent->s.origin;
+        VectorCopy( self->pos2, self->s.origin );
+        self->pos2 = self->pos1;
+        self->pos1 = self->s.origin;
         // Initial pressed state.
-        ent->pushMoveInfo.state = svg_func_button_t::STATE_PRESSED;
+        self->pushMoveInfo.state = svg_func_button_t::STATE_PRESSED;
         // Initial texture position state animations frame setup.
-        ent->pushMoveInfo.startFrame = svg_func_button_t::FRAME_PRESSED_0;
-        ent->pushMoveInfo.endFrame = svg_func_button_t::FRAME_UNPRESSED_0;
+        self->pushMoveInfo.startFrame = svg_func_button_t::FRAME_PRESSED_0;
+        self->pushMoveInfo.endFrame = svg_func_button_t::FRAME_UNPRESSED_0;
 
         // Initial start frame.
-        ent->s.frame = ent->pushMoveInfo.startFrame;
+        self->s.frame = self->pushMoveInfo.startFrame;
         // Initial animation. ( Cycles between 0 and 1. )
         // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
-        // if ( SVG_HasSpawnFlags( ent, svg_func_button_t::SPAWNFLAG_ANIMATED ) ) {
-        ent->s.effects |= EF_ANIM_CYCLE2_2HZ;
+        // if ( SVG_HasSpawnFlags( self, svg_func_button_t::SPAWNFLAG_ANIMATED ) ) {
+        self->s.effects |= EF_ANIM_CYCLE2_2HZ;
         // }
     } else {
         // Initial 'unpressed' state.
-        ent->pushMoveInfo.state = svg_func_button_t::STATE_UNPRESSED;
+        self->pushMoveInfo.state = svg_func_button_t::STATE_UNPRESSED;
         // Initial texture frame setup.
-        ent->pushMoveInfo.startFrame = svg_func_button_t::FRAME_UNPRESSED_0;
-        ent->pushMoveInfo.endFrame = svg_func_button_t::FRAME_PRESSED_0;
+        self->pushMoveInfo.startFrame = svg_func_button_t::FRAME_UNPRESSED_0;
+        self->pushMoveInfo.endFrame = svg_func_button_t::FRAME_PRESSED_0;
 
         // Initial start frame.
-        ent->s.frame = ent->pushMoveInfo.startFrame;
+        self->s.frame = self->pushMoveInfo.startFrame;
         // Initial animation. ( Cycles between 0 and 1. )
         // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
-        // if ( SVG_HasSpawnFlags( ent, svg_func_button_t::SPAWNFLAG_ANIMATED ) ) {
-        ent->s.effects |= EF_ANIM_CYCLE2_2HZ;
+        // if ( SVG_HasSpawnFlags( self, svg_func_button_t::SPAWNFLAG_ANIMATED ) ) {
+        self->s.effects |= EF_ANIM_CYCLE2_2HZ;
         // }
     }
 
-    //ent->pushMoveInfo.startOrigin = ent->pos1;
-    ent->pushMoveInfo.startAngles = ent->s.angles;
-    //ent->pushMoveInfo.endOrigin = ent->pos2;
-    ent->pushMoveInfo.endAngles = ent->s.angles;
+    //self->pushMoveInfo.startOrigin = self->pos1;
+    self->pushMoveInfo.startAngles = self->s.angles;
+    //self->pushMoveInfo.endOrigin = self->pos2;
+    self->pushMoveInfo.endAngles = self->s.angles;
 
     // Default trigger callback.
-    ent->SetUseCallback( &svg_func_button_t::onUse );
+    self->SetUseCallback( &svg_func_button_t::onUse );
 
     // Used for condition checking, if we got a damage activating button we don't want to have it support pressing.
-    const bool damageActivates = SVG_HasSpawnFlags( ent, svg_func_button_t::SPAWNFLAG_DAMAGE_ACTIVATES );
+    const bool damageActivates = SVG_HasSpawnFlags( self, svg_func_button_t::SPAWNFLAG_DAMAGE_ACTIVATES );
     // Health trigger based button:
     if ( damageActivates ) {
         // Set max health, also used to reinitialize the button to revive.
-        ent->max_health = ent->health;
+        self->max_health = self->health;
         // Let it take damage.
-        ent->takedamage = DAMAGE_YES;
+        self->takedamage = DAMAGE_YES;
         // Die callback.
-        ent->SetDieCallback( &svg_func_button_t::onDie );
+        self->SetDieCallback( &svg_func_button_t::onDie );
         // Apply next think time and method.
-        ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( &svg_func_button_t::SVG_PushMove_Think_CalculateMoveSpeed );
+        self->nextthink = level.time + FRAME_TIME_S;
+        self->SetThinkCallback( &svg_func_button_t::SVG_PushMove_Think_CalculateMoveSpeed );
     // Touch based button:
-    } else if ( SVG_HasSpawnFlags( ent, svg_func_button_t::SPAWNFLAG_TOUCH_ACTIVATES ) ) {
+    } else if ( SVG_HasSpawnFlags( self, svg_func_button_t::SPAWNFLAG_TOUCH_ACTIVATES ) ) {
         // Apply next think time and method.
-        ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( &svg_func_button_t::SVG_PushMove_Think_CalculateMoveSpeed );
+        self->nextthink = level.time + FRAME_TIME_S;
+        self->SetThinkCallback( &svg_func_button_t::SVG_PushMove_Think_CalculateMoveSpeed );
         // Trigger use callback.
-        ent->SetTouchCallback( &svg_func_button_t::onTouch );
+        self->SetTouchCallback( &svg_func_button_t::onTouch );
     // Otherwise check for +usetarget features of this button:
     } else {
         // Apply next think time and method.
-        ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( &svg_func_button_t::SVG_PushMove_Think_CalculateMoveSpeed );
+        self->nextthink = level.time + FRAME_TIME_S;
+        self->SetThinkCallback( &svg_func_button_t::SVG_PushMove_Think_CalculateMoveSpeed );
 
         // This button acts on a single press and fires its targets when reaching its end destination.
-        if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
+        if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
             // Setup single press usage.
-            ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
-            ent->SetUseCallback( &svg_func_button_t::onUse_UseTarget_Press );
+            self->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
+            self->SetUseCallback( &svg_func_button_t::onUse_UseTarget_Press );
         // This button is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
-        } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
+        } else if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
             // Setup toggle press usage.
-            ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
-            ent->SetUseCallback( &svg_func_button_t::onUse_UseTarget_Toggle );
-        } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
+            self->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
+            self->SetUseCallback( &svg_func_button_t::onUse_UseTarget_Toggle );
+        } else if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
             // Setup continuous press usage.
-            ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
-            ent->SetUseCallback( &svg_func_button_t::onUse_UseTarget_Continuous_Press );
+            self->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
+            self->SetUseCallback( &svg_func_button_t::onUse_UseTarget_Continuous_Press );
         }
 
         // Is usetargetting disabled by default?
-        if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_DISABLED ) ) {
-            ent->useTarget.flags |= ENTITY_USETARGET_FLAG_DISABLED;
+        if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_DISABLED ) ) {
+            self->useTarget.flags |= ENTITY_USETARGET_FLAG_DISABLED;
         }
 
         // Determine the initial UseTargetHint ID.
-        button_determine_usetarget_hint_id( ent );
+        button_determine_usetarget_hint_id( self );
     }
 
     // Copy the calculated info into the pushMoveInfo state struct.
-    ent->pushMoveInfo.speed = ent->speed;
-    ent->pushMoveInfo.accel = ent->accel;
-    ent->pushMoveInfo.decel = ent->decel;
-    ent->pushMoveInfo.wait = ent->wait;
+    self->pushMoveInfo.speed = self->speed;
+    self->pushMoveInfo.accel = self->accel;
+    self->pushMoveInfo.decel = self->decel;
+    self->pushMoveInfo.wait = self->wait;
     // For PRESSED: pos1 = start, pos2 = end.
-    if ( SVG_HasSpawnFlags( ent, svg_func_button_t::SPAWNFLAG_START_PRESSED ) ) {
-        ent->pushMoveInfo.startOrigin = ent->pos2;
-        ent->pushMoveInfo.startAngles = ent->s.angles;
-        ent->pushMoveInfo.endOrigin = ent->pos1;
-        ent->pushMoveInfo.endAngles = ent->s.angles;
+    if ( SVG_HasSpawnFlags( self, svg_func_button_t::SPAWNFLAG_START_PRESSED ) ) {
+        self->pushMoveInfo.startOrigin = self->pos2;
+        self->pushMoveInfo.startAngles = self->s.angles;
+        self->pushMoveInfo.endOrigin = self->pos1;
+        self->pushMoveInfo.endAngles = self->s.angles;
     // For UNPRESSED: pos1 = start, pos2 = end.
     } else {
-        ent->pushMoveInfo.startOrigin = ent->pos1;
-        ent->pushMoveInfo.startAngles = ent->s.angles;
-        ent->pushMoveInfo.endOrigin = ent->pos2;
-        ent->pushMoveInfo.endAngles = ent->s.angles;
+        self->pushMoveInfo.startOrigin = self->pos1;
+        self->pushMoveInfo.startAngles = self->s.angles;
+        self->pushMoveInfo.endOrigin = self->pos2;
+        self->pushMoveInfo.endAngles = self->s.angles;
     }
 
     // Link it in.
-    gi.linkentity( ent );
+    gi.linkentity( self );
 }
