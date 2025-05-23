@@ -926,7 +926,7 @@ typedef struct {
 	*           between our predicted state and the server returned state. In case
 	*           the margin is too high, snap back to server provided player state.
 	**/
-	void ( *CheckPredictionError )( const int64_t frameIndex, const uint64_t commandIndex, struct client_movecmd_s *moveCommand );
+	void ( *CheckPredictionError )( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand );
 	//! Sets the predicted view angles.
 	void ( *PredictAngles )( void );
 	/**
@@ -934,7 +934,7 @@ typedef struct {
 	*           as the pending user move command. To finally store the predicted outcome
 	*           into the cl.predictedState struct.
 	**/
-	void ( *PredictMovement )( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber );
+	void ( *PredictMovement )( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber );
 	//! Setup the basic player move configuration parameters. (Used by server for new clients.)
 	//void ( *ConfigurePlayerMoveParameters )( pmoveParams_t *pmp );
 

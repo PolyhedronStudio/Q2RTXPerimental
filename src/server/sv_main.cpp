@@ -1359,7 +1359,8 @@ static void SV_GiveMsec(void)
 {
     client_t    *cl;
 
-    if (!(sv.framenum % ((int64_t)BASE_FRAMETIME))) {
+    //if (!(sv.framenum % ((int64_t)BASE_FRAMETIME))) {
+    if ( !( sv.framenum % ( (int64_t)BASE_FRAMETIME ) ) ) {
         FOR_EACH_CLIENT(cl) {
             cl->command_msec = 1800; // 1600 + some slop
         }
@@ -1816,7 +1817,7 @@ uint64_t SV_Frame(uint64_t msec)
 
     // move autonomous things around if enough time has passed
     sv.frameresidual += msec;
-    if (sv.frameresidual < SV_FRAMETIME) {
+    if (sv.frameresidual < SV_FRAMETIME ) {
         return SV_FRAMETIME - sv.frameresidual;
     }
 
@@ -1855,13 +1856,13 @@ uint64_t SV_Frame(uint64_t msec)
 
     // decide how long to sleep next frame
     sv.frameresidual -= SV_FRAMETIME;
-    if (sv.frameresidual < SV_FRAMETIME) {
+    if (sv.frameresidual < SV_FRAMETIME ) {
         return SV_FRAMETIME - sv.frameresidual;
     }
 
     // don't accumulate bogus residual
 	// WID: 64-bit-frame: Should we messabout with this?
-    if (sv.frameresidual > 75) { // Was: > 250
+    if (sv.frameresidual > 75 ) { // Was: > 250
         Com_DDDPrintf("Reset residual %u\n", sv.frameresidual);
         sv.frameresidual = SV_FRAMETIME; // WID: 40hz:
     }

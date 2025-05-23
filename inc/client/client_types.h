@@ -321,6 +321,7 @@ typedef struct client_state_s {
     //! Last(old)/Currently(frame) frames received from the server:
     server_frame_t	frame;
     server_frame_t	oldframe;
+	server_frame_t  predictedFrame; // Only used for player state right now.
     //! The server game time of the last received valid frame.
     int64_t			servertime;
     //! 

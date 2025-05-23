@@ -307,7 +307,7 @@ typedef struct {
 } message_packet_t;
 
 // WID: 40hz:
-static constexpr int32_t  RATE_MESSAGES = 10;
+static constexpr int32_t  RATE_MESSAGES = 40;
 //#define RATE_MESSAGES   SV_FRAMERATE
 
 /**

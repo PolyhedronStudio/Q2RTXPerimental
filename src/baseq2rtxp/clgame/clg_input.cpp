@@ -465,7 +465,7 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
 
     if ( moveCommand->cmd.msec > 75 ) { // Was: > 250
         // Time was unreasonable.
-        moveCommand->cmd.msec = BASE_FRAMERATE; // Was: 100
+        moveCommand->cmd.msec = BASE_FRAMETIME; // Was: 100
         // Debug display.
         #if USE_DEBUG
         clgi.Print( PRINT_DEVELOPER, "%s: moveCommand->cmd.msec(%i) was unreasonable(max is 75)!\n", __func__, moveCommand->cmd.msec );

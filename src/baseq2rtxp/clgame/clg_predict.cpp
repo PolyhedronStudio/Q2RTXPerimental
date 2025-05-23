@@ -108,16 +108,15 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
 **/
 void CLG_PredictNextBobCycle( pmove_t *pm ) {
     // Predict next bobcycle.
-    const float bobCycleFraction = (float)( clgi.client->time - clgi.client->servertime )
-        / ( ( clgi.client->time + clgi.frame_time_ms ) - clgi.client->servertime );
-    int32_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->playerState->bobCycle;// nextframe->ps.bobCycle;
+    const float bobCycleFraction = clgi.client->xerpFraction;
+    uint8_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->playerState->bobCycle;// nextframe->ps.bobCycle;
     // Handle wraparound:
     if ( bobCycle < pm->playerState->bobCycle ) {
         bobCycle += 256;
     }
     pm->playerState->bobCycle = pm->playerState->bobCycle + bobCycleFraction * ( bobCycle - clgi.client->frame.ps.bobCycle );
 
-    clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->playerState->bobCycle, bobCycleFraction );
+    //clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->playerState->bobCycle, bobCycleFraction );
 }
 
 /**
@@ -201,7 +200,7 @@ const qboolean PF_UsePrediction( void ) {
 *           between our predicted state and the server returned state. In case
 *           the margin is too high, snap back to server provided player state.
 **/
-void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIndex, struct client_movecmd_s *moveCommand ) {
+void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand ) {
     // Maximum delta allowed before snapping back.
     static constexpr double MAX_DELTA_ORIGIN = ( 2400 * ( 1.0 / BASE_FRAMERATE ) );
 
@@ -226,7 +225,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
             }
         };
 
-        clgi.ShowMiss( "First frame(%" PRIi64 ") frame #(%i). Nothing to predict yet.\n",
+        clgi.ShowMiss( "First frame(%" PRIi64 "). Nothing to predict yet.\n",
             clgi.client->frame.number );
         return;
     }
@@ -236,7 +235,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
 
     // Save the prediction error for interpolation.
     //const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
-    const float len = QM_Vector3Length( game.predictedState.error );
+    const float len = fabs( QM_Vector3Length( game.predictedState.error ) );
     //if (len < 1 || len > 640) {
     if ( len > .1f ) {
         // Snap back if the distance was too far off:
@@ -296,7 +295,7 @@ void PF_PredictAngles( void ) {
 *           as the pending user move command. To finally store the predicted outcome
 *           into the cl.predictedState struct.
 **/
-void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber ) {
+void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber ) {
     // Prepare the player move parameters.
     pmoveParams_t pmp;
     SG_ConfigurePlayerMoveParameters( &pmp );
@@ -334,6 +333,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     // Set view angles.
     // [NO-NEED]: This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
     //pm.playerState->viewangles = clgi.client->viewangles; 
+  //  clgi.Print( PRINT_DEVELOPER, "----------------------------------- \n" );
+  //  clgi.Print( PRINT_DEVELOPER, "frame(%" PRIx64 ") stime(%" PRIX64 ") etime(%" PRIX64 ") time(% " PRIx64 "rtime(% " PRIu64 ")\n",
+		//clgi.client->frame.number, clgi.client->servertime, clgi.client->extrapolatedTime, clgi.client->time, clgi.GetRealTime() );
+
 
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
@@ -344,11 +347,17 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         if ( moveCommand->cmd.msec ) {
             // Timestamp it so the client knows we have valid results.
             moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
-
+            
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
             pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.time );
             SG_PlayerMove( (pmove_s*)&pm, (pmoveParams_s*) & pmp);
+            // Predict the next bobCycle for the frame.
+            CLG_PredictNextBobCycle( &pm );
+
+            //clgi.Print( PRINT_DEVELOPER, "move: (%f, %f, %f) time(%" PRIu64 ")\n",
+            //    pm.playerState->pmove.origin[ 0 ], pm.playerState->pmove.origin[ 1 ], pm.playerState->pmove.origin[ 2 ],
+            //    moveCommand->prediction.time );
         }
 
         // Save for prediction checking.
@@ -357,33 +366,44 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     }
 
     // Now run the pending command number.
+    #if 1
     client_movecmd_t *pendingMoveCommand = &clgi.client->moveCommand;
     if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
         pendingMoveCommand->prediction.time = clgi.client->time;
         
         // Initialize pmove with the proper moveCommand data.
+        #if 1
         pm.cmd = pendingMoveCommand->cmd;
         pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
         pm.cmd.sidemove = clgi.client->localmove[ 1 ];
         pm.cmd.upmove = clgi.client->localmove[ 2 ];
-
+        #else
+        pendingMoveCommand->cmd.forwardmove = clgi.client->localmove[ 0 ];
+        pendingMoveCommand->cmd.sidemove = clgi.client->localmove[ 1 ];
+        pendingMoveCommand->cmd.upmove = clgi.client->localmove[ 2 ];
+        pm.cmd = pendingMoveCommand->cmd;
+        #endif
         // Perform movement.
         pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.time );
         SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
+        // Predict the next bobCycle for the frame.
+        CLG_PredictNextBobCycle( &pm );
+        // Save for prediction checking.
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
         pendingMoveCommand->prediction.origin = pm.playerState->pmove.origin;
         pendingMoveCommand->prediction.velocity = pm.playerState->pmove.velocity;
-
-        // Save for prediction checking.
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
 
         predictedState->cmd = *pendingMoveCommand;
-    }
 
-    // Predict the next bobCycle for the frame.
-    //CLG_PredictNextBobCycle( &pm );
+
+        //clgi.Print( PRINT_DEVELOPER, "pending:(%f, %f, %f) time(%" PRIu64 ") \n",
+        //    pm.playerState->pmove.origin[ 0 ], pm.playerState->pmove.origin[ 1 ], pm.playerState->pmove.origin[ 2 ],
+        //    pendingMoveCommand->prediction.time );
+    }
+    #endif
 
     // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the
     // previously predicted ground data.

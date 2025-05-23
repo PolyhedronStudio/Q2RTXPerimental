@@ -20,18 +20,29 @@
 DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
-    if ( other->health <= 0 )
+    if ( other->health <= 0 ) {
         return;
+    }
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) )
+    if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         return;
+    }
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    if ( ( self->owner->spawnflags & svg_func_door_t::SPAWNFLAG_NOMONSTER ) && ( other->svflags & SVF_MONSTER ) )
+    if ( ( self->owner->spawnflags & svg_func_door_t::SPAWNFLAG_NOMONSTER ) && ( other->svflags & SVF_MONSTER ) ) {
         return;
+    }
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    if ( level.time < self->touch_debounce_time )
+    if ( level.time < self->touch_debounce_time ) {
         return;
+    }
+    // New debounce time.
     self->touch_debounce_time = level.time + 1_sec;
+
+    // Can't trigger anything if we ain't got an owner.
+    if ( !self->owner || !self->owner->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>() ) {
+        gi.dprintf( "(%s:%i) No owner!\n", __func__, __LINE__ );
+        return;
+    }
 
     self->owner->DispatchUseCallback( /*self->owner, */other, other, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
 }
@@ -48,7 +59,7 @@ DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -
     svg_base_edict_t *other;
     vec3_t      mins, maxs;
     
-    svg_func_door_t *pushMoveEnt = static_cast<svg_func_door_t *>( ent );
+    svg_pushmove_edict_t *pushMoveEnt = static_cast<svg_pushmove_edict_t *>( ent );
     if ( pushMoveEnt->flags & FL_TEAMSLAVE )
         return;     // only the team leader spawns a trigger
 

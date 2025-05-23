@@ -2582,7 +2582,7 @@ static void CL_InitLocal(void)
 
 #if USE_DEBUG
     cl_shownet = Cvar_Get("cl_shownet", "0", 0);
-    cl_showmiss = Cvar_Get("cl_showmiss", "0", 0);
+    cl_showmiss = Cvar_Get("cl_showmiss", "1", 0);
     cl_showclamp = Cvar_Get("showclamp", "0", 0);
 #endif
 
@@ -2792,9 +2792,9 @@ static void CL_MeasureStats(void)
 
     // measure average ping
     if (cls.netchan.protocol) {
-        int ack = cls.netchan.incoming_acknowledged;
-        int ping = 0;
-        int j, k = 0;
+        int64_t ack = cls.netchan.incoming_acknowledged;
+        int64_t ping = 0;
+        int64_t j, k = 0;
 
         i = ack - 16 + 1;
         if (i < cl.initialSeq) {
@@ -3140,8 +3140,8 @@ uint64_t CL_Frame( uint64_t msec ) {
 
     // This should prevent frameTime overload which might happen if the application 
     // has been unresponsive for more than 2 frames.
-    if ( cls.frametime > ( BASE_1_FRAMETIME * 2 ) ) {//if ( cls.frametime > 1.0f / 5 ) {
-        cls.frametime = ( BASE_1_FRAMETIME * 2 );//    cls.frametime = 1.0f / 5;
+    if ( cls.frametime > 1.0 / 20. ) {
+        cls.frametime = 1.0 / 20.;
     }
 
     if ( !sv_paused->integer ) {

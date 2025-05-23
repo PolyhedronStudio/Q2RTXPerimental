@@ -720,7 +720,7 @@ static void CLG_SetupFirstPersonView( void ) {
 
     // Calculate bob cycle on the current predicting player state.    
     //CLG_CycleViewBob( currentPredictingPlayerState );
-    CLG_CycleViewBob( predictingPlayerState );
+    //CLG_CycleViewBob( predictingPlayerState );
 
     // Inform client state we're not in third-person view.
     clgi.client->thirdPersonView = false;
@@ -1036,9 +1036,13 @@ void PF_CalculateViewValues( void ) {
     const int32_t usePrediction = PF_UsePrediction();
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
         // use predicted values
-        const double backLerp = 1.0 - lerpFrac;
+        const double backLerp = lerpFrac - 1.0;
+        // Lerp the error.
+        const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
+
         // Take the prediction error into account.
-        VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
+        //VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
+		VectorAdd( game.predictedState.currentPs.pmove.origin, errorLerp, clgi.client->refdef.vieworg );
     } else {
         // Just use interpolated values.
         Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
@@ -1047,6 +1051,7 @@ void PF_CalculateViewValues( void ) {
         // WID: NOTE: If things break, look for this here.
         // WID: This should fix demos or cl_nopredict
         //VectorCopy( clgi.client->refdef.vieworg, game.predictedState.currentPs.pmove.origin );
+        //VectorCopy( game.predictedState.currentPs.pmove.origin, clgi.client->refdef.vieworg );
         game.predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
         #if 0
         clgi.client->refdef.vieworg[2] -= ops->pmove.origin.z;
@@ -1058,17 +1063,17 @@ void PF_CalculateViewValues( void ) {
 
     #if 1
     // use predicted values
-    const double backLerp = 1.0 - lerpFrac;
+    const double backLerp = lerpFrac - 1.0;
     // Lerp View Angles.
-    CLG_LerpViewAngles( ops, ps, &game.predictedState, lerpFrac );
+    CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
     // Interpolate old and current player state delta angles.
     CLG_LerpDeltaAngles( ops, ps, lerpFrac );
     // Interpolate blend colors if the last frame wasn't clear.
     CLG_LerpScreenBlend( ops, ps, &game.predictedState );
     // Interpolate Field of View.
-    CLG_LerpPointOfView( ops, ps, lerpFrac );
+    CLG_LerpPointOfView( ops, ps, backLerp );
     // Lerp the view offset.
-    CLG_LerpViewOffset( ops, ps, lerpFrac, finalViewOffset );
+    CLG_LerpViewOffset( ops, ps, backLerp, finalViewOffset );
     // Smooth out the ducking view height change over 100ms
     finalViewOffset.z += CLG_SmoothViewHeight();
     #else
@@ -1098,6 +1103,8 @@ void PF_CalculateViewValues( void ) {
     }
     // Adjust pitch slightly.
     clgi.client->playerEntityAngles[ PITCH ] = clgi.client->playerEntityAngles[ PITCH ] / 3;
+    clgi.client->predictedFrame = clgi.client->frame;
+    clgi.client->predictedFrame.ps = game.predictedState.currentPs;
 
     // Add the resulting final viewOffset to the refdef view origin.
     VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );

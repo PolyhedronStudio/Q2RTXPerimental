@@ -211,7 +211,8 @@ static void parse_entity_update(const entity_state_t *state)
 
     // Work around Q2PRO server bandwidth optimization.
     if ( entity_is_optimized( state ) ) {
-        VectorCopy( cl.frame.ps.pmove.origin, origin_v );
+        VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
+        //VectorCopy( cl.frame.ps.pmove.origin, origin_v );
         origin = origin_v;
     } else {
         origin = state->origin;
@@ -422,7 +423,7 @@ void CL_DeltaFrame(void)
     // this is needed in situations when player entity is invisible, but
     // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
     centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );
-    Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
+    Com_PlayerToEntityState( &cl.predictedFrame.ps, &clent->current );
 
     // Iterate over the current frame entity states and update them accordingly.
     for ( int32_t i = 0; i < cl.frame.numEntities; i++ ) {

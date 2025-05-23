@@ -501,10 +501,6 @@ void CL_FinalizeCommand( void ) {
         goto clear;
     }
 
-    // Pass control to client game for finalizing the move command.
-    if ( clge ) {
-        clge->FinalizeMoveCommand( &cl.moveCommand );
-    }
 
     // Store the frame number this was fired at.
     cl.moveCommand.cmd.frameNumber = cl.frame.number;
@@ -513,11 +509,18 @@ void CL_FinalizeCommand( void ) {
     cl.moveCommand.prediction.time = cl.time;
     //cl.moveCommand.systemTime = cls.realtime;
 
+    // Pass control to client game for finalizing the move command.
+    if ( clge ) {
+        clge->FinalizeMoveCommand( &cl.moveCommand );
+    }
+
     // save this command off for prediction
     cl.currentUserCommandNumber++;
     cl.moveCommands[ cl.currentUserCommandNumber & CMD_MASK ] = cl.moveCommand;
 
 clear:
+    cl.moveCommand = {};
+
     // Clear mouse move state.
     cl.mousemove[ 0 ] = 0;
     cl.mousemove[ 1 ] = 0;
@@ -708,7 +711,7 @@ static void CL_SendBatchedCmd( void ) {
     MSG_BeginWriting();
     //Cvar_ClampInteger( cl_packetdup, 0, MAX_PACKET_FRAMES - 1 );
     //numDups = cl_packetdup->integer;
-    numDups = 2;// MAX_PACKET_FRAMES - 1;
+    numDups = MAX_PACKET_FRAMES - 1;
 
     // Check whether cl_nodelta is wished for, or in case of an invalid frame, so we can
     // let the server know we want a full frame/snap, not a delta compressed one.
@@ -738,7 +741,7 @@ static void CL_SendBatchedCmd( void ) {
             break;
         }
         totalCmds += numCmds;
-        MSG_WriteBits( numCmds, 5 );
+        MSG_WriteBits( numCmds, 8 );
         //MSG_WriteUint8( numCmds );
         for ( j = oldest->commandNumber + 1; j <= history->commandNumber; j++ ) {
             cmd = &cl.moveCommands[ j & CMD_MASK ].cmd;
@@ -878,6 +881,7 @@ void CL_SendCommand( void ) {
     }
 
     // are there any new usercmds to send after all?
+    //if ( cl.lastTransmitCmdNumber == cl.currentUserCommandNumber ) {
     if ( cl.lastTransmitCmdNumber == cl.currentUserCommandNumber ) {
         return; // nothing to send
     }

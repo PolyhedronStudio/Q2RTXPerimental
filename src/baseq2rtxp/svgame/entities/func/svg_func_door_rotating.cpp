@@ -52,223 +52,223 @@ REVERSE will cause the door to rotate in the opposite direction.
 *	@brief
 **/
 void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir );
-DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door_rotating_t *ent ) -> void {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door_rotating_t *self ) -> void {
     //vec3_t  abs_movedir;
 
-    if ( ent->sounds != 1 ) {
-        ent->pushMoveInfo.sounds.start = gi.soundindex( "doors/door_start_01.wav" );
-        ent->pushMoveInfo.sounds.middle = gi.soundindex( "doors/door_mid_01.wav" );
-        ent->pushMoveInfo.sounds.end = gi.soundindex( "doors/door_end_01.wav" );
+    if ( self->sounds != 1 ) {
+        self->pushMoveInfo.sounds.start = gi.soundindex( "doors/door_start_01.wav" );
+        self->pushMoveInfo.sounds.middle = gi.soundindex( "doors/door_mid_01.wav" );
+        self->pushMoveInfo.sounds.end = gi.soundindex( "doors/door_end_01.wav" );
 
-        ent->pushMoveInfo.lockState.lockedSound = gi.soundindex( "misc/door_locked.wav" );
-        ent->pushMoveInfo.lockState.lockingSound = gi.soundindex( "misc/door_locking.wav" );
-        ent->pushMoveInfo.lockState.unlockingSound = gi.soundindex( "misc/door_unlocking.wav" );
+        self->pushMoveInfo.lockState.lockedSound = gi.soundindex( "misc/door_locked.wav" );
+        self->pushMoveInfo.lockState.lockingSound = gi.soundindex( "misc/door_locking.wav" );
+        self->pushMoveInfo.lockState.unlockingSound = gi.soundindex( "misc/door_unlocking.wav" );
     }
 
     // In case we ever go Q2 Rerelease movers I guess.
     #if 0
-    const bool isBothDirections = SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_BOTH_DIRECTIONS );
+    const bool isBothDirections = SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_BOTH_DIRECTIONS );
     if ( isBothDirections ) {
-        SVG_Util_SetMoveDir( ent->s.angles, ent->pushMoveInfo.dir);
+        SVG_Util_SetMoveDir( self->s.angles, self->pushMoveInfo.dir);
     }
     #endif
 
     // Clear the angles.
-    VectorClear( ent->s.angles );
+    VectorClear( self->s.angles );
 
     // Set the axis of rotation.
-    ent->movedir = QM_Vector3Zero();
-    if ( ent->spawnflags & svg_func_door_rotating_t::SPAWNFLAG_X_AXIS ) {
-        ent->movedir[ 2 ] = 1.0f;
-    } else if ( ent->spawnflags & svg_func_door_rotating_t::SPAWNFLAG_Y_AXIS ) {
-        ent->movedir[ 0 ] = 1.0f;
+    self->movedir = QM_Vector3Zero();
+    if ( self->spawnflags & svg_func_door_rotating_t::SPAWNFLAG_X_AXIS ) {
+        self->movedir[ 2 ] = 1.0f;
+    } else if ( self->spawnflags & svg_func_door_rotating_t::SPAWNFLAG_Y_AXIS ) {
+        self->movedir[ 0 ] = 1.0f;
     } else {// Z_AXIS
-        ent->movedir[ 1 ] = 1.0f;
+        self->movedir[ 1 ] = 1.0f;
     }
 
     // Check for reverse rotation.
-    if ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_REVERSE ) ) {
-        ent->movedir = QM_Vector3Negate( ent->movedir );
+    if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_REVERSE ) ) {
+        self->movedir = QM_Vector3Negate( self->movedir );
     }
 
     // Default distance to 90 degrees if not set.
-    if ( !ent->distance ) {
-        gi.dprintf( "%s at %s with no distance set\n", (const char *)ent->classname, vtos( ent->s.origin ) );
-        ent->distance = 90;
+    if ( !self->distance ) {
+        gi.dprintf( "%s at %s with no distance set\n", (const char *)self->classname, vtos( self->s.origin ) );
+        self->distance = 90;
     }
 
     // Determine move angles.
-    const float distance = ent->distance; // ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_REVERSE ) ? -st.distance : st.distance );
-    ent->angles1 = ent->s.angles;
-    VectorMA( ent->s.angles, distance, ent->movedir, ent->angles2 );
-    ent->pushMoveInfo.distance = distance;
+    const float distance = self->distance; // ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_REVERSE ) ? -st.distance : st.distance );
+    self->angles1 = self->s.angles;
+    VectorMA( self->s.angles, distance, self->movedir, self->angles2 );
+    self->pushMoveInfo.distance = distance;
 
-    //SVG_Util_SetMoveDir( ent->s.angles, ent->movedir );
-    ent->movetype = MOVETYPE_PUSH;
-    ent->solid = SOLID_BSP;
-    ent->s.renderfx |= RF_BRUSHTEXTURE_SET_FRAME_INDEX;
-    ent->s.entityType = ET_PUSHER;
-    ent->svflags |= SVF_DOOR;
+    //SVG_Util_SetMoveDir( self->s.angles, self->movedir );
+    self->movetype = MOVETYPE_PUSH;
+    self->solid = SOLID_BSP;
+    self->s.renderfx |= RF_BRUSHTEXTURE_SET_FRAME_INDEX;
+    self->s.entityType = ET_PUSHER;
+    self->svflags |= SVF_DOOR;
     // BSP Model, or otherwise, specified external model.
-    gi.setmodel( ent, ent->model );
+    gi.setmodel( self, self->model );
 
     // PushMove defaults:
-    if ( !ent->speed ) {
-        ent->speed = 100;
+    if ( !self->speed ) {
+        self->speed = 100;
     }
-    if ( !ent->accel ) {
-        ent->accel = ent->speed;
+    if ( !self->accel ) {
+        self->accel = self->speed;
     }
-    if ( !ent->decel ) {
-        ent->decel = ent->speed;
+    if ( !self->decel ) {
+        self->decel = self->speed;
     }
-    if ( !ent->lip ) {
-        ent->lip = 8;
+    if ( !self->lip ) {
+        self->lip = 8;
     }
     // Trigger defaults:
-    if ( !ent->wait ) {
-        ent->wait = 3;
+    if ( !self->wait ) {
+        self->wait = 3;
     }
-    if ( !ent->dmg ) {
-        ent->dmg = 2;
+    if ( !self->dmg ) {
+        self->dmg = 2;
     }
 
     // Callbacks.
-    ent->SetPostSpawnCallback( &svg_func_door_rotating_t::onPostSpawn );
-    ent->SetBlockedCallback( &svg_func_door_rotating_t::onBlocked );
-    ent->SetTouchCallback( &svg_func_door_rotating_t::onTouch );
-    ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
-    ent->SetPainCallback( &svg_func_door_rotating_t::onPain );
-    ent->SetOnSignalInCallback( &svg_func_door_rotating_t::onSignalIn );
+    self->SetPostSpawnCallback( &svg_func_door_rotating_t::onPostSpawn );
+    self->SetBlockedCallback( &svg_func_door_rotating_t::onBlocked );
+    self->SetTouchCallback( &svg_func_door_rotating_t::onTouch );
+    self->SetUseCallback( &svg_func_door_rotating_t::onUse );
+    self->SetPainCallback( &svg_func_door_rotating_t::onPain );
+    self->SetOnSignalInCallback( &svg_func_door_rotating_t::onSignalIn );
 
     // Calculate absolute move distance to get from pos1 to pos2.
-    ent->pos1 = ent->s.origin;
-    ent->pos2 = ent->s.origin;
+    self->pos1 = self->s.origin;
+    self->pos2 = self->s.origin;
 
     // if it starts open, switch the positions
-    if ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_START_OPEN ) ) {
-        VectorCopy( ent->angles2, ent->s.angles );
-        //ent->angles2 = ent->angles1;
-        //ent->angles1 = -Vector3(ent->s.angles);
-        //ent->movedir = QM_Vector3Negate( ent->movedir );
-        ent->pushMoveInfo.state = svg_func_door_rotating_t::DOOR_STATE_OPENED;
+    if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_START_OPEN ) ) {
+        VectorCopy( self->angles2, self->s.angles );
+        //self->angles2 = self->angles1;
+        //self->angles1 = -Vector3(self->s.angles);
+        //self->movedir = QM_Vector3Negate( self->movedir );
+        self->pushMoveInfo.state = svg_func_door_rotating_t::DOOR_STATE_OPENED;
     } else {
         // Initial closed state.
-        ent->pushMoveInfo.state = svg_func_door_rotating_t::DOOR_STATE_CLOSED;
+        self->pushMoveInfo.state = svg_func_door_rotating_t::DOOR_STATE_CLOSED;
     }
 
     // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
-    const bool damageActivates = SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_DAMAGE_ACTIVATES );
+    const bool damageActivates = SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_DAMAGE_ACTIVATES );
     // Health trigger based door:
     if ( damageActivates ) {
         // Spawn open, does not imply death, to do so, spawn open, set max_health for revival, and health to 0 for death.
-        if ( ent->max_health > 0 && ent->health <= 0 ) {
+        if ( self->max_health > 0 && self->health <= 0 ) {
             // Don't allow damaging.
-            ent->takedamage = DAMAGE_NO;
-            ent->lifeStatus = LIFESTATUS_DEAD;
+            self->takedamage = DAMAGE_NO;
+            self->lifeStatus = LIFESTATUS_DEAD;
             // Die callback.
-            ent->SetDieCallback( &svg_func_door_rotating_t::onDie );
-            ent->SetPainCallback( &svg_func_door_rotating_t::onPain );
+            self->SetDieCallback( &svg_func_door_rotating_t::onDie );
+            self->SetPainCallback( &svg_func_door_rotating_t::onPain );
         } else {
             // Set max health, in case it wasn't set.also used to reinitialize the door to revive.
-            if ( !ent->health ) {
-                ent->health = ent->max_health;
+            if ( !self->health ) {
+                self->health = self->max_health;
             }
             // Let it take damage.
-            ent->takedamage = DAMAGE_YES;
-            ent->lifeStatus = LIFESTATUS_ALIVE;
+            self->takedamage = DAMAGE_YES;
+            self->lifeStatus = LIFESTATUS_ALIVE;
             // Die callback.
-            ent->SetDieCallback( &svg_func_door_rotating_t::onDie );
-            ent->SetPainCallback( &svg_func_door_rotating_t::onPain );
+            self->SetDieCallback( &svg_func_door_rotating_t::onDie );
+            self->SetPainCallback( &svg_func_door_rotating_t::onPain );
         }
 
         // Apply next think time and method.
-        ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( &svg_func_door_rotating_t::SVG_PushMove_Think_CalculateMoveSpeed );
+        self->nextthink = level.time + FRAME_TIME_S;
+        self->SetThinkCallback( &svg_func_door_rotating_t::SVG_PushMove_Think_CalculateMoveSpeed );
     // Touch based door:svg_func_door_rotating_t::SPAWNFLAG_DAMAGE_ACTIVATES
-    } else if ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
+    } else if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.
-        ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( &DoorTrigger_SpawnThink );
+        self->nextthink = level.time + FRAME_TIME_S;
+        self->SetThinkCallback( &DoorTrigger_SpawnThink );
     } else {
         // Apply next think time and method.
-        ent->nextthink = level.time + FRAME_TIME_S;
-        ent->SetThinkCallback( &svg_func_door_rotating_t::SVG_PushMove_Think_CalculateMoveSpeed );
+        self->nextthink = level.time + FRAME_TIME_S;
+        self->SetThinkCallback( &svg_func_door_rotating_t::SVG_PushMove_Think_CalculateMoveSpeed );
 
         // This door is only toggled, never untoggled, by each (+usetarget) interaction.
-        if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
-            ent->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
+        if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
+            self->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
+            self->SetTouchCallback( nullptr );
+            self->SetUseCallback( &svg_func_door_rotating_t::onUse );
             // This door is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
-        } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
-            ent->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
+        } else if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
+            self->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
-        } else if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
-            ent->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
+            self->SetTouchCallback( nullptr );
+            self->SetUseCallback( &svg_func_door_rotating_t::onUse );
+        } else if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
+            self->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
-            ent->SetTouchCallback( nullptr );
-            ent->SetUseCallback( &svg_func_door_rotating_t::onUse );
+            self->SetTouchCallback( nullptr );
+            self->SetUseCallback( &svg_func_door_rotating_t::onUse );
         }
 
         // Is usetargetting disabled by default?
-        if ( SVG_HasSpawnFlags( ent, SPAWNFLAG_USETARGET_DISABLED ) ) {
-            ent->useTarget.flags |= ENTITY_USETARGET_FLAG_DISABLED;
+        if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_DISABLED ) ) {
+            self->useTarget.flags |= ENTITY_USETARGET_FLAG_DISABLED;
         }
     }
 
     // Copy the calculated info into the pushMoveInfo state struct.
-    ent->pushMoveInfo.speed = ent->speed;
-    ent->pushMoveInfo.accel = ent->accel;
-    ent->pushMoveInfo.decel = ent->decel;
-    ent->pushMoveInfo.wait = ent->wait;
+    self->pushMoveInfo.speed = self->speed;
+    self->pushMoveInfo.accel = self->accel;
+    self->pushMoveInfo.decel = self->decel;
+    self->pushMoveInfo.wait = self->wait;
     
     #if 1
-    ent->pushMoveInfo.startOrigin = ent->s.origin;
-    ent->pushMoveInfo.startAngles = ent->angles1;
-    ent->pushMoveInfo.endOrigin = ent->s.origin;
-    ent->pushMoveInfo.endAngles = ent->angles2;
+    self->pushMoveInfo.startOrigin = self->s.origin;
+    self->pushMoveInfo.startAngles = self->angles1;
+    self->pushMoveInfo.endOrigin = self->s.origin;
+    self->pushMoveInfo.endAngles = self->angles2;
     #else
     // For PRESSED: pos1 = start, pos2 = end.
-    if ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_START_OPEN ) ) {
-        ent->pushMoveInfo.state = DOOR_STATE_OPENED;
-        ent->pushMoveInfo.startOrigin = ent->s.origin;
-        ent->pushMoveInfo.startAngles = ent->angles1;
-        ent->pushMoveInfo.endOrigin = ent->s.origin;
-        ent->pushMoveInfo.endAngles = ent->angles2;
+    if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_START_OPEN ) ) {
+        self->pushMoveInfo.state = DOOR_STATE_OPENED;
+        self->pushMoveInfo.startOrigin = self->s.origin;
+        self->pushMoveInfo.startAngles = self->angles1;
+        self->pushMoveInfo.endOrigin = self->s.origin;
+        self->pushMoveInfo.endAngles = self->angles2;
     // For UNPRESSED: pos1 = start, pos2 = end.
     } else {
-        ent->pushMoveInfo.startOrigin = ent->s.origin;
-        ent->pushMoveInfo.startAngles = ent->angles1;
-        ent->pushMoveInfo.endOrigin = ent->s.origin;
-        ent->pushMoveInfo.endAngles = ent->angles2;
+        self->pushMoveInfo.startOrigin = self->s.origin;
+        self->pushMoveInfo.startAngles = self->angles1;
+        self->pushMoveInfo.endOrigin = self->s.origin;
+        self->pushMoveInfo.endAngles = self->angles2;
     }
     #endif
     // Animated doors:
-    if ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_ANIMATED ) ) {
-        ent->s.effects |= EF_ANIM_ALL;
+    if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_ANIMATED ) ) {
+        self->s.effects |= EF_ANIM_ALL;
     }
-    if ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_ANIMATED_FAST ) ) {
-        ent->s.effects |= EF_ANIM_ALLFAST;
+    if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_ANIMATED_FAST ) ) {
+        self->s.effects |= EF_ANIM_ALLFAST;
     }
     
     // WID: TODO: Necessary? Default frame?
     // WID: Perhaps better to allow as spawn key value field.
-    ent->s.frame = 0;
+    self->s.frame = 0;
 
     // Locked or not locked?
-    if ( SVG_HasSpawnFlags( ent, svg_func_door_rotating_t::SPAWNFLAG_START_LOCKED ) ) {
-        ent->pushMoveInfo.lockState.isLocked = true;
+    if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_START_LOCKED ) ) {
+        self->SetLockState( true );
     }
 
     // To simplify logic elsewhere, make non-teamed doors into a team of one
-    if ( !ent->targetNames.team ) {
-        ent->teammaster = ent;
+    if ( !self->targetNames.team ) {
+        self->teammaster = self;
     }
 
     // Link it in.
-    gi.linkentity( ent );
+    gi.linkentity( self );
 }

@@ -38,9 +38,9 @@ void CL_CheckPredictionError(void) {
     }
 
 	// Calculate the last usercmd_t we sent that the server has processed.
-	int64_t frameIndex = cls.netchan.incoming_acknowledged & CMD_MASK;
+    int64_t frameIndex = cls.netchan.incoming_acknowledged & CMD_MASK;
     // Get the move command index for this frame in history.
-	uint64_t commandIndex = cl.history[ frameIndex ].commandNumber;
+    uint64_t commandIndex = cl.history[ frameIndex ].commandNumber;
     // Finally get the pointer to the actual move command.
     client_movecmd_t *moveCommand = &cl.moveCommands[ commandIndex & CMD_MASK ];
 
@@ -76,12 +76,12 @@ void CL_PredictMovement(void) {
         return;
     }
 
-	uint64_t acknowledgedCommandNumber = cl.history[ cls.netchan.incoming_acknowledged & CMD_MASK ].commandNumber;
-	const uint64_t currentCommandNumber = cl.currentUserCommandNumber;
+    int64_t acknowledgedCommandNumber = cl.history[ cls.netchan.incoming_acknowledged & CMD_MASK ].commandNumber;
+    const int64_t currentCommandNumber = cl.currentUserCommandNumber;
 
     // if we are too far out of date, just freeze
     if ( currentCommandNumber - acknowledgedCommandNumber > CMD_BACKUP - 1 ) {
-        SHOWMISS("%i: exceeded CMD_BACKUP\n", cl.frame.number);
+        SHOWMISS( "%i: exceeded CMD_BACKUP\n", cl.frame.number );
         return;
     }
 

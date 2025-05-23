@@ -1113,7 +1113,7 @@ static void SV_NewClientExecuteMove( int c ) {
 	lastcmd = NULL;
 	for ( i = 0; i <= numDups; i++ ) {
 		//numCmds[ i ] = MSG_ReadUint8();
-        numCmds[ i ] = MSG_ReadBits(5);
+        numCmds[ i ] = MSG_ReadBits(8);
 		if ( msg_read.readcount > msg_read.cursize ) {
 			SV_DropClient( sv_client, "read past end of message" );
 			return;
@@ -1386,6 +1386,9 @@ void SV_ExecuteClientMessage(client_t *client)
             SV_NewClientExecuteMove( c );
             last_cmd = c;
             goto nextcmd;
+            break;
+        default:
+            break;
         }
 
         switch (c) {
