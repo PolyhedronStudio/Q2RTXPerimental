@@ -228,7 +228,7 @@ void door_team_toggle( svg_func_door_t *self, svg_base_edict_t *other, svg_base_
             if ( self->teammaster->HasUseCallback() ) {
                 door_team_toggle( (svg_func_door_t *)( self->teammaster ), other, activator, stateIsOpen, forceState );
             }
-                return;
+            return;
         // Default 'Team Slave' behavior:
         } else {
             return;
@@ -245,9 +245,9 @@ void door_team_toggle( svg_func_door_t *self, svg_base_edict_t *other, svg_base_
                 ent->SetTouchCallback( nullptr );
                 ent->activator = activator; // WID: We need to assign it right?
                 ent->other = other;
-                if ( self->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>() ) {
+                if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
                     svg_func_door_t *pushMoveEnt = static_cast<svg_func_door_t *>( ent );
-                    svg_func_door_t::onThink_CloseMove( pushMoveEnt );
+                    pushMoveEnt->onThink_CloseMove(pushMoveEnt);
                 }
             }
             return;
@@ -262,9 +262,9 @@ void door_team_toggle( svg_func_door_t *self, svg_base_edict_t *other, svg_base_
             ent->SetTouchCallback( nullptr );
             ent->activator = activator; // WID: We need to assign it right?
             ent->other = other;
-            if ( self->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>() ) {
+            if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
                 svg_func_door_t *pushMoveEnt = static_cast<svg_func_door_t *>( ent );
-                svg_func_door_t::onThink_OpenMove( pushMoveEnt/*, activator */ );
+                pushMoveEnt->onThink_OpenMove( pushMoveEnt/*, activator */ );
             }
         }
     }
@@ -421,7 +421,7 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove )( svg_f
     // If a wait time is set:
     if ( self->pushMoveInfo.wait >= 0 ) {
         // Assign close move think.
-        self->SetThinkCallback( &svg_func_door_t::onThink_CloseMove );
+        self->SetThinkCallback( &self->onThink_CloseMove );
         // Tell it when to start closing.
         self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
     }
@@ -499,17 +499,20 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_CloseMove )( svg_func_doo
     //}
 
 
-    // Engage moving to closed state.
-    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+    // The rotating door type is higher up the hierachy, so test for that first.
+    // Path for: func_door_rotating:
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>( true ) ) {
         // Set state to closing.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         // Engage moving to closed state.
-        self->SVG_PushMove_MoveCalculate( self->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &self->onCloseEndMove ) );
-    } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+        self->CalculateAngularMove( reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_rotating_t::onCloseEndMove ) );
+    }
+    // Path for: func_door
+    else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
         // Set state to closing.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_CLOSED_STATE;
         // Engage moving to closed state.
-        SVG_PushMove_AngleMoveCalculate( self, reinterpret_cast<svg_pushmove_endcallback>( &self->onCloseEndMove ) );
+        self->CalculateDirectionalMove( self->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onCloseEndMove ) );
     }
 
     // Since we're closing or closed, set usetarget hint ID to 'open door'.
@@ -555,18 +558,19 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door
         self->s.sound = self->pushMoveInfo.sounds.middle;
     }
 
+    // The rotating door type is higher up the hierachy, so test for that first.
+    // Path for: func_door_rotating:
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>( true ) ) {
+        // Set state to opening.
+        self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
+        // Engage door opening movement.
+        self->CalculateAngularMove( reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_rotating_t::onOpenEndMove ) );
     // Path for: func_door
-    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+    } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
         // Set state to opening.
         self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
         // Engage door opening movement.
-        self->SVG_PushMove_MoveCalculate( self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &self->onOpenEndMove ) );
-        // Path for: func_door_rotating:
-    } else if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
-        // Set state to opening.
-        self->pushMoveInfo.state = DOOR_STATE_MOVING_TO_OPENED_STATE;
-        // Engage door opening movement.
-        SVG_PushMove_AngleMoveCalculate( self, reinterpret_cast<svg_pushmove_endcallback>( &self->onOpenEndMove ) );
+        self->CalculateDirectionalMove( self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_door_t::onOpenEndMove ) );
     }
 
     // Since we're closing or closed, set usetarget hint ID to 'open door'.
@@ -872,13 +876,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self 
 
     // Default sounds:
     if ( self->sounds != 1 ) {
-        self->pushMoveInfo.sounds.start = gi.soundindex( "doors/door_start_01.wav" );
-        self->pushMoveInfo.sounds.middle = gi.soundindex( "doors/door_mid_01.wav" );
-        self->pushMoveInfo.sounds.end = gi.soundindex( "doors/door_end_01.wav" );
-
-        self->pushMoveInfo.lockState.lockedSound = gi.soundindex( "misc/door_locked.wav" );
-        self->pushMoveInfo.lockState.lockingSound = gi.soundindex( "misc/door_locking.wav" );
-        self->pushMoveInfo.lockState.unlockingSound = gi.soundindex( "misc/door_unlocking.wav" );
+        self->SetupDefaultSounds();
     }
 
     // PushMove defaults:
@@ -909,12 +907,12 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self 
     }
 
     // Callbacks.
-    self->SetPostSpawnCallback( &self->onPostSpawn );
-    self->SetBlockedCallback( &self->onBlocked );
-    self->SetTouchCallback( &self->onTouch );
-    self->SetUseCallback( &self->onUse );
-    self->SetPainCallback( &self->onPain );
-    self->SetOnSignalInCallback( &self->onSignalIn );
+    self->SetPostSpawnCallback( &svg_func_door_t::onPostSpawn );
+    self->SetBlockedCallback( &svg_func_door_t::onBlocked );
+    self->SetTouchCallback( &svg_func_door_t::onTouch );
+    self->SetUseCallback( &svg_func_door_t::onUse );
+    self->SetPainCallback( &svg_func_door_t::onPain );
+    self->SetOnSignalInCallback( &svg_func_door_t::onSignalIn );
 
     // Calculate absolute move distance to get from pos1 to pos2.
     const Vector3 fabsMoveDirection = QM_Vector3Fabs( self->movedir );
@@ -943,11 +941,11 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self 
         // Let it take damage.
         self->takedamage = DAMAGE_YES;
         // Die callback.
-        self->SetDieCallback( &self->onDie );
-        self->SetPainCallback( &self->onPain );
+        self->SetDieCallback( &svg_func_door_t::onDie );
+        self->SetPainCallback( &svg_func_door_t::onPain );
         // Apply next think time and method.
         self->nextthink = level.time + FRAME_TIME_S;
-        self->SetThinkCallback( &self->SVG_PushMove_Think_CalculateMoveSpeed );
+        self->SetThinkCallback( &svg_func_door_t::SVG_PushMove_Think_CalculateMoveSpeed );
     // Touch based door:svg_func_door_t::SPAWNFLAG_DAMAGE_ACTIVATES
     } else if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.
@@ -956,25 +954,25 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self 
     } else {
         // Apply next think time and method.
         self->nextthink = level.time + FRAME_TIME_S;
-        self->SetThinkCallback( &self->SVG_PushMove_Think_CalculateMoveSpeed );
+        self->SetThinkCallback( &svg_func_door_t::SVG_PushMove_Think_CalculateMoveSpeed );
 
         // This door is only toggled, never untoggled, by each (+usetarget) interaction.
         if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_PRESSABLE ) ) {
             self->useTarget.flags = ENTITY_USETARGET_FLAG_PRESS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             self->SetTouchCallback( nullptr );
-            self->SetUseCallback( &self->onUse );
+            self->SetUseCallback( &svg_func_door_t::onUse );
             // This door is dispatches untoggle/toggle callbacks by each (+usetarget) interaction, based on its usetarget state.
         } else if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_TOGGLEABLE ) ) {
             self->useTarget.flags = ENTITY_USETARGET_FLAG_TOGGLE;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             self->SetTouchCallback( nullptr );
-            self->SetUseCallback( &self->onUse );
+            self->SetUseCallback( &svg_func_door_t::onUse );
         } else if ( SVG_HasSpawnFlags( self, SPAWNFLAG_USETARGET_HOLDABLE ) ) {
             self->useTarget.flags = ENTITY_USETARGET_FLAG_CONTINUOUS;
             // Remove touch door functionality, instead, reside to usetarget functionality.
             self->SetTouchCallback( nullptr );
-            self->SetUseCallback( &self->onUse );
+            self->SetUseCallback( &svg_func_door_t::onUse );
         }
 
         // Is usetargetting disabled by default?

@@ -147,7 +147,7 @@ again:
     self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
     VectorCopy( self->s.origin, self->pushMoveInfo.startOrigin );
     VectorCopy( dest, self->pushMoveInfo.endOrigin );
-    SVG_PushMove_MoveCalculate( dest, train_wait );
+    CalculateDirectionalMove( dest, train_wait );
     self->spawnflags |= TRAIN_START_ON;
 }
 
@@ -161,7 +161,7 @@ void train_resume( svg_base_edict_t *self ) {
     self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
     VectorCopy( self->s.origin, self->pushMoveInfo.startOrigin );
     VectorCopy( dest, self->pushMoveInfo.endOrigin );
-    SVG_PushMove_MoveCalculate( self, dest, train_wait );
+    CalculateDirectionalMove( self, dest, train_wait );
     self->spawnflags |= TRAIN_START_ON;
 }
 

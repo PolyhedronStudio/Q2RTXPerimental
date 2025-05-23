@@ -109,7 +109,7 @@ void SVG_PushMove_MoveBegin(edict_t *ent)
 
 void SVG_PushMove_Think_AccelerateMove(edict_t *ent);
 
-void SVG_PushMove_MoveCalculate(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
+void CalculateDirectionalMove(edict_t *ent, const vec3_t dest, void(*func)(edict_t*))
 {
     VectorClear(ent->velocity);
     VectorSubtract(dest, ent->s.origin, ent->moveinfo.dir);
@@ -376,7 +376,7 @@ void plat_go_down(edict_t *ent)
         ent->s.sound = ent->moveinfo.sounds.middle;
     }
     ent->moveinfo.state = STATE_DOWN;
-    SVG_PushMove_MoveCalculate(ent, ent->moveinfo.endOrigin, plat_hit_bottom);
+    CalculateDirectionalMove(ent, ent->moveinfo.endOrigin, plat_hit_bottom);
 }
 
 void plat_go_up(edict_t *ent)
@@ -387,7 +387,7 @@ void plat_go_up(edict_t *ent)
         ent->s.sound = ent->moveinfo.sounds.middle;
     }
     ent->moveinfo.state = STATE_UP;
-    SVG_PushMove_MoveCalculate(ent, ent->moveinfo.startOrigin, plat_hit_top);
+    CalculateDirectionalMove(ent, ent->moveinfo.startOrigin, plat_hit_top);
 }
 
 void plat_blocked(edict_t *self, edict_t *other)
@@ -677,7 +677,7 @@ void button_return(edict_t *self)
 {
     self->moveinfo.state = STATE_DOWN;
 
-    SVG_PushMove_MoveCalculate(self, self->moveinfo.startOrigin, button_done);
+    CalculateDirectionalMove(self, self->moveinfo.startOrigin, button_done);
 
     self->s.frame = 0;
 
@@ -707,7 +707,7 @@ void button_fire(edict_t *self)
     self->moveinfo.state = STATE_UP;
     if (self->moveinfo.sounds.start && !(self->flags & FL_TEAMSLAVE))
         gi.sound(self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->moveinfo.sounds.start, 1, ATTN_STATIC, 0);
-    SVG_PushMove_MoveCalculate(self, self->moveinfo.endOrigin, button_wait);
+    CalculateDirectionalMove(self, self->moveinfo.endOrigin, button_wait);
 }
 
 void button_use(edict_t *self, edict_t *other, edict_t *activator)
@@ -891,7 +891,7 @@ void door_go_down(edict_t *self)
 
     self->moveinfo.state = STATE_DOWN;
     if (strcmp(self->classname, "func_door") == 0)
-        SVG_PushMove_MoveCalculate(self, self->moveinfo.startOrigin, door_hit_bottom);
+        CalculateDirectionalMove(self, self->moveinfo.startOrigin, door_hit_bottom);
     else if (strcmp(self->classname, "func_door_rotating") == 0)
         SVG_PushMove_AngleMoveCalculate(self, door_hit_bottom);
 }
@@ -915,7 +915,7 @@ void door_go_up(edict_t *self, edict_t *activator)
     }
     self->moveinfo.state = STATE_UP;
     if (strcmp(self->classname, "func_door") == 0)
-        SVG_PushMove_MoveCalculate(self, self->moveinfo.endOrigin, door_hit_top);
+        CalculateDirectionalMove(self, self->moveinfo.endOrigin, door_hit_top);
     else if (strcmp(self->classname, "func_door_rotating") == 0)
         SVG_PushMove_AngleMoveCalculate(self, door_hit_top);
 
@@ -1527,7 +1527,7 @@ again:
     self->moveinfo.state = PUSHMOVE_STATE_TOP;
     VectorCopy(self->s.origin, self->moveinfo.startOrigin);
     VectorCopy(dest, self->moveinfo.endOrigin);
-    SVG_PushMove_MoveCalculate(self, dest, train_wait);
+    CalculateDirectionalMove(self, dest, train_wait);
     self->spawnflags |= TRAIN_START_ON;
 }
 
@@ -1542,7 +1542,7 @@ void train_resume(edict_t *self)
     self->moveinfo.state = PUSHMOVE_STATE_TOP;
     VectorCopy(self->s.origin, self->moveinfo.startOrigin);
     VectorCopy(dest, self->moveinfo.endOrigin);
-    SVG_PushMove_MoveCalculate(self, dest, train_wait);
+    CalculateDirectionalMove(self, dest, train_wait);
     self->spawnflags |= TRAIN_START_ON;
 }
 
@@ -1814,7 +1814,7 @@ void door_secret_use(edict_t *self, edict_t *other, edict_t *activator)
     if (!VectorEmpty(self->s.origin))
         return;
 
-    SVG_PushMove_MoveCalculate(self, self->pos1, door_secret_move1);
+    CalculateDirectionalMove(self, self->pos1, door_secret_move1);
     door_use_areaportals(self, true);
 }
 
@@ -1826,7 +1826,7 @@ void door_secret_move1(edict_t *self)
 
 void door_secret_move2(edict_t *self)
 {
-    SVG_PushMove_MoveCalculate(self, self->pos2, door_secret_move3);
+    CalculateDirectionalMove(self, self->pos2, door_secret_move3);
 }
 
 void door_secret_move3(edict_t *self)
@@ -1839,7 +1839,7 @@ void door_secret_move3(edict_t *self)
 
 void door_secret_move4(edict_t *self)
 {
-    SVG_PushMove_MoveCalculate(self, self->pos1, door_secret_move5);
+    CalculateDirectionalMove(self, self->pos1, door_secret_move5);
 }
 
 void door_secret_move5(edict_t *self)
@@ -1850,7 +1850,7 @@ void door_secret_move5(edict_t *self)
 
 void door_secret_move6(edict_t *self)
 {
-    SVG_PushMove_MoveCalculate(self, vec3_origin, door_secret_done);
+    CalculateDirectionalMove(self, vec3_origin, door_secret_done);
 }
 
 void door_secret_done(edict_t *self)

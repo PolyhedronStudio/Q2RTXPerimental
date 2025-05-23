@@ -46,7 +46,7 @@ DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Move
 /**
 *   @brief
 **/
-void SVG_PushMove_MoveCalculate( svg_pushmove_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
+void CalculateDirectionalMove( svg_pushmove_edict_t *ent, const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
 #endif // #if 0
 
 /**

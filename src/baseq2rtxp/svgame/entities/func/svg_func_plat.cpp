@@ -154,7 +154,7 @@ void plat_go_down( svg_base_edict_t *ent ) {
         ent->s.sound = ent->pushMoveInfo.sounds.middle;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
-    SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.endOrigin, plat_hit_bottom );
+    CalculateDirectionalMove( ent, ent->pushMoveInfo.endOrigin, plat_hit_bottom );
 }
 
 void plat_go_up( svg_base_edict_t *ent ) {
@@ -164,7 +164,7 @@ void plat_go_up( svg_base_edict_t *ent ) {
         ent->s.sound = ent->pushMoveInfo.sounds.middle;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
-    SVG_PushMove_MoveCalculate( ent, ent->pushMoveInfo.startOrigin, plat_hit_top );
+    CalculateDirectionalMove( ent, ent->pushMoveInfo.startOrigin, plat_hit_top );
 }
 
 void plat_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {

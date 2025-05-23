@@ -133,8 +133,15 @@ public:
 	**/
 	const bool IsSubClassOfTypeInfo( EdictTypeInfo &typeInfo, const bool derivedCheckOnly = false ) const {
 		// We got a match, return true.
-		if ( IsClassTypeInfo( typeInfo ) && !derivedCheckOnly ) {
+		if ( !derivedCheckOnly && IsClassTypeInfo( typeInfo ) ) {
 			return true;
+		}
+		if ( derivedCheckOnly == true ) {
+			if ( super ) {
+				return super->IsClassTypeInfo( typeInfo );
+			} else {
+				return false;
+			}
 		}
 		// No parent, we never had a match.
 		if ( super == nullptr ) {

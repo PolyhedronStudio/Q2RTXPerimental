@@ -56,13 +56,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
     //vec3_t  abs_movedir;
 
     if ( self->sounds != 1 ) {
-        self->pushMoveInfo.sounds.start = gi.soundindex( "doors/door_start_01.wav" );
-        self->pushMoveInfo.sounds.middle = gi.soundindex( "doors/door_mid_01.wav" );
-        self->pushMoveInfo.sounds.end = gi.soundindex( "doors/door_end_01.wav" );
-
-        self->pushMoveInfo.lockState.lockedSound = gi.soundindex( "misc/door_locked.wav" );
-        self->pushMoveInfo.lockState.lockingSound = gi.soundindex( "misc/door_locking.wav" );
-        self->pushMoveInfo.lockState.unlockingSound = gi.soundindex( "misc/door_unlocking.wav" );
+        self->SetupDefaultSounds();
     }
 
     // In case we ever go Q2 Rerelease movers I guess.
@@ -161,6 +155,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
     const bool damageActivates = SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_DAMAGE_ACTIVATES );
     // Health trigger based door:
     if ( damageActivates ) {
+        #if 0
         // Spawn open, does not imply death, to do so, spawn open, set max_health for revival, and health to 0 for death.
         if ( self->max_health > 0 && self->health <= 0 ) {
             // Don't allow damaging.
@@ -185,6 +180,18 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
         // Apply next think time and method.
         self->nextthink = level.time + FRAME_TIME_S;
         self->SetThinkCallback( &svg_func_door_rotating_t::SVG_PushMove_Think_CalculateMoveSpeed );
+        #else
+        // Set max health, also used to reinitialize the door to revive.
+        self->max_health = self->health;
+        // Let it take damage.
+        self->takedamage = DAMAGE_YES;
+        // Die callback.
+        self->SetDieCallback( &svg_func_door_rotating_t::onDie );
+        self->SetPainCallback( &svg_func_door_rotating_t::onPain );
+        // Apply next think time and method.
+        self->nextthink = level.time + FRAME_TIME_S;
+        self->SetThinkCallback( &svg_func_door_rotating_t::SVG_PushMove_Think_CalculateMoveSpeed );
+        #endif
     // Touch based door:svg_func_door_rotating_t::SPAWNFLAG_DAMAGE_ACTIVATES
     } else if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_TOUCH_AREA_TRIGGERED ) ) {
         // Set its next think to create the trigger area.

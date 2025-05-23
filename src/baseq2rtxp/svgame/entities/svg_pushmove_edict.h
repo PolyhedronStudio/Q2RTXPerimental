@@ -101,11 +101,17 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     *
     **/
     /**
-    *   @brief  Thinking.
+    *   @brief  Directional Movement Thinking.
     **/
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveBegin );
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveDone );
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveFinal );
+    /**
+    *   @brief  Rotational Movement Thinking.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_AngleMoveBegin );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_AngleMoveDone );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_AngleMoveFinal );
 
     /**
     *   @brief  Thinking.
@@ -208,8 +214,25 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     /**
     *   @brief  Processes movement accelerating to top speed, or to idle speed.
     **/
-    void SVG_PushMove_MoveCalculate( const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
+    void CalculateDirectionalMove( const Vector3 &destination, svg_pushmove_endcallback endMoveCallback );
 
+
+    /**
+    *
+    *   Angular Rotational Movement:
+    *
+    **/
+    /**
+    *   @brief
+    **/
+    void CalculateAngularMove( svg_pushmove_endcallback endMoveCallback );
+
+
+    /**
+    *
+    *   Support Routines:
+    *
+    **/
     /**
 	*   @brief  Calculates the move speed for the next frame.
     **/

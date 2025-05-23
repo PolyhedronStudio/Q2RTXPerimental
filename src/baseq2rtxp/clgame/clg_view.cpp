@@ -1063,7 +1063,7 @@ void PF_CalculateViewValues( void ) {
 
     #if 1
     // use predicted values
-    const double backLerp = lerpFrac - 1.0;
+    const double backLerp = lerpFrac;
     // Lerp View Angles.
     CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
     // Interpolate old and current player state delta angles.

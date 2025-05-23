@@ -370,7 +370,7 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_func_button_t, onThink_PressMove)( svg_func_but
         gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
     }
     // Calculate and begin moving to the button's 'Pressed' state end origin.
-    self->SVG_PushMove_MoveCalculate( self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onPressEndMove ) );
+    self->CalculateDirectionalMove( self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onPressEndMove ) );
 
     // Dispatch a signal.
     SVG_SignalOut( self, self->other, self->activator, "OnPress" );
@@ -422,7 +422,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_button_t, onThink_UnPressMove )( svg_func
     }
     #endif
     // Calculate and begin moving back to the button's 'Unpressed' state start origin.
-    self->SVG_PushMove_MoveCalculate( self->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onUnPressEndMove ) );
+    self->CalculateDirectionalMove( self->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onUnPressEndMove ) );
     // Dispatch a signal.
     SVG_SignalOut( self, self->other, self->activator, "OnUnPress" );
     // Also a special one for touch buttons.
