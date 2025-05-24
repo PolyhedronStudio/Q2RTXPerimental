@@ -90,7 +90,7 @@ struct svg_light_light_t : public svg_base_edict_t {
 
     /**
     *
-    *   TestDummy Callback Member Functions:
+    *   Callback Member Functions:
     *
     **/
     /**

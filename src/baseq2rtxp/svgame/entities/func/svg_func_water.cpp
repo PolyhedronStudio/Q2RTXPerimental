@@ -46,6 +46,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_water_t, onSpawn )( svg_func_water_t *sel
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
     self->s.entityType = ET_PUSHER;
+    self->svflags = SVF_DOOR;
     gi.setmodel( self, self->model );
 
     switch ( self->sounds ) {

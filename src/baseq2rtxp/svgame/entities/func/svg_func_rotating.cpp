@@ -20,13 +20,6 @@
 
 
 
-/**
-*   For readability's sake:
-**/
-static constexpr svg_pushmove_state_t ROTATING_STATE_DECELERATE_END     = PUSHMOVE_STATE_TOP;
-static constexpr svg_pushmove_state_t ROTATING_STATE_ACCELERATE_END     = PUSHMOVE_STATE_BOTTOM;
-static constexpr svg_pushmove_state_t ROTATING_STATE_MOVE_DECELERATING  = PUSHMOVE_STATE_MOVING_UP;
-static constexpr svg_pushmove_state_t ROTATING_STATE_MOVE_ACCELERATING  = PUSHMOVE_STATE_MOVING_DOWN;
 
 
 /*QUAKED func_rotating (0 .5 .8) ? START_ON REVERSE X_AXIS Y_AXIS TOUCH_PAIN STOP ANIMATED ANIMATED_FAST
@@ -55,20 +48,20 @@ STOP mean it will stop moving instead of pushing entities
 /**
 *   @brief
 **/
-void rotating_sound_play_start( svg_base_edict_t *self ) {
-    if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.start ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+void svg_func_rotating_t::StartSoundPlayback( ) {
+    if ( !( flags & FL_TEAMSLAVE ) ) {
+        if ( pushMoveInfo.sounds.start ) {
+            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
         }
     }
 }
 /**
 *   @brief  
 **/
-void rotating_sound_play_end( svg_base_edict_t *self ) {
-    if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.end ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+void svg_func_rotating_t::EndSoundPlayback( ) {
+    if ( !( flags & FL_TEAMSLAVE ) ) {
+        if ( pushMoveInfo.sounds.end ) {
+            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
         }
     }
 }
@@ -87,24 +80,24 @@ void rotating_sound_play_end( svg_base_edict_t *self ) {
 /**
 *   @brief
 **/
-void rotating_lock( svg_base_edict_t *self ) {
+void svg_func_rotating_t::LockState( ) {
     // Of course it has to be locked if we want to play a sound.
-    if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
-        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
+    if ( !pushMoveInfo.lockState.isLocked && pushMoveInfo.lockState.lockingSound ) {
+        gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
     }
     // Last but not least, unlock its state.
-    self->pushMoveInfo.lockState.isLocked = true;
+    SetLockState( true );
 }
 /**
 *   @brief
 **/
-void rotating_unlock( svg_base_edict_t *self ) {
+void svg_func_rotating_t::UnLockState( ) {
     // Of course it has to be locked if we want to play a sound.
-    if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
-        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
+    if ( pushMoveInfo.lockState.isLocked && pushMoveInfo.lockState.unlockingSound ) {
+        gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
     }
     // Last but not least, unlock its state.
-    self->pushMoveInfo.lockState.isLocked = false;
+    SetLockState( false );
 }
 
 
@@ -131,10 +124,52 @@ void rotating_full_speeded( svg_base_edict_t *self ) {
 
 }
 /**
-*   @brief
+*   @brief  Start the acceleration process.
 **/
-void rotating_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
-void rotating_accelerate( svg_base_edict_t *self ) {
+void svg_func_rotating_t::StartAcceleration() {
+    // Already Accelerating:
+    if ( pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {// || pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {
+        return;
+    }
+
+    // Locked.
+    if ( pushMoveInfo.lockState.isLocked ) {
+        return;
+    }
+
+    // We are now accelerating.
+    pushMoveInfo.state = ROTATING_STATE_MOVE_ACCELERATING;
+
+    // Play start sound.
+	StartSoundPlayback();
+
+    // Start accelerating/immediate start.
+    onThink_ProcessAcceleration( this );
+}
+/**
+*   @brief  Start moving into the deceleration process.
+**/
+void svg_func_rotating_t::StartDeceleration() {
+    // Already decelerating.
+    if ( pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) { // } || pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) {
+        return;
+    }
+
+    // Locked.
+    if ( pushMoveInfo.lockState.isLocked ) {
+        return;
+    }
+
+    // We are now accelerating.
+    pushMoveInfo.state = ROTATING_STATE_MOVE_DECELERATING;
+
+    // End decelerating/immediate halt.
+    onThink_ProcessDeceleration( this );
+}
+/**
+*   @brief  Process the acceleration.
+**/
+DEFINE_MEMBER_CALLBACK_THINK( svg_func_rotating_t, onThink_ProcessAcceleration )( svg_func_rotating_t *self ) -> void {
     // Get angular velocity speed.
     const float current_speed = QM_Vector3Length( self->avelocity );
 
@@ -144,7 +179,7 @@ void rotating_accelerate( svg_base_edict_t *self ) {
         const float new_speed = current_speed;
         self->avelocity = self->movedir * new_speed;
         // Setup nextthink.
-        self->SetThinkCallback( rotating_accelerate );
+        self->SetThinkCallback( &svg_func_rotating_t::onThink_ProcessAcceleration );
         self->nextthink = level.time + FRAME_TIME_S;
         return;
     }
@@ -160,7 +195,7 @@ void rotating_accelerate( svg_base_edict_t *self ) {
         // On:
         //SVG_UseTargets( self, self, useType, useValue );
         SVG_UseTargets( self, self, ENTITY_USETARGET_TYPE_ON, 1 );
-    // 'Starts/Still is' Accelerating:
+        // 'Starts/Still is' Accelerating:
     } else {
         // Moving sound.
         self->s.sound = self->pushMoveInfo.sounds.middle;
@@ -168,41 +203,18 @@ void rotating_accelerate( svg_base_edict_t *self ) {
         const float new_speed = current_speed + self->accel;
         self->avelocity = self->movedir * new_speed;
         // Apply nextthink.
-        self->SetThinkCallback( rotating_accelerate );
+        self->SetThinkCallback( &svg_func_rotating_t::onThink_ProcessAcceleration );
         self->nextthink = level.time + FRAME_TIME_S;
     }
     // Reapply touch for blocking.
-    if ( self->spawnflags & FUNC_ROTATING_SPAWNFLAG_PAIN_ON_TOUCH ) {
-        self->SetTouchCallback( rotating_touch );
+    if ( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_PAIN_ON_TOUCH ) {
+        self->SetTouchCallback( &svg_func_rotating_t::onTouch );
     }
 }
 /**
-*   @brief
+*   @brief  Process the deceleration.
 **/
-void rotating_accelerate_start( svg_base_edict_t *self ) {
-    // Already Accelerating:
-    if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {// || self->pushMoveInfo.state == ROTATING_STATE_MOVE_ACCELERATING ) {
-        return;
-    }
-
-    // Locked.
-    if ( self->pushMoveInfo.lockState.isLocked ) {
-        return;
-    }
-
-    // We are now accelerating.
-    self->pushMoveInfo.state = ROTATING_STATE_MOVE_ACCELERATING;
-
-    // Play start sound.
-    rotating_sound_play_start( self );
-
-    // Start accelerating/immediate start.
-    rotating_accelerate( self );
-}
-/**
-*   @brief
-**/
-void rotating_decelerate( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_THINK( svg_func_rotating_t, onThink_ProcessDeceleration )( svg_func_rotating_t *self ) -> void {
     // Get angular velocity speed.
     const float current_speed = QM_Vector3Length( self->avelocity );
 
@@ -212,7 +224,7 @@ void rotating_decelerate( svg_base_edict_t *self ) {
         const float new_speed = current_speed;
         self->avelocity = self->movedir * new_speed;
         // Setup nextthink.
-        self->SetThinkCallback( rotating_decelerate );
+        self->SetThinkCallback( &svg_func_rotating_t::onThink_ProcessDeceleration );
         self->nextthink = level.time + FRAME_TIME_S;
         return;
     }
@@ -220,9 +232,9 @@ void rotating_decelerate( svg_base_edict_t *self ) {
     // It has finished Decelerating.
     if ( current_speed <= self->decel ) {
         // Decelerated state.
-        self->pushMoveInfo.state = ROTATING_STATE_DECELERATE_END;
+        self->pushMoveInfo.state = svg_func_rotating_t::ROTATING_STATE_DECELERATE_END;
         // End sound.
-        rotating_sound_play_end( self );
+        self->EndSoundPlayback();
         // No sound.
         self->s.sound = 0;
         // Set velocity.
@@ -239,41 +251,22 @@ void rotating_decelerate( svg_base_edict_t *self ) {
         const float new_speed = current_speed - self->decel;
         self->avelocity = self->movedir * new_speed;
         // Setup nextthink.
-        self->SetThinkCallback( rotating_decelerate );
+        self->SetThinkCallback( &svg_func_rotating_t::onThink_ProcessDeceleration );
         self->nextthink = level.time + FRAME_TIME_S;
     }
 }
-/**
-*   @brief
-**/
-void rotating_decelerate_start( svg_base_edict_t *self ) {
-    // Already decelerating.
-    if ( self->pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) { // } || self->pushMoveInfo.state == ROTATING_STATE_MOVE_DECELERATING ) {
-        return;
-    }
 
-    // Locked.
-    if ( self->pushMoveInfo.lockState.isLocked ) {
-        return;
-    }
-    
-    // We are now accelerating.
-    self->pushMoveInfo.state = ROTATING_STATE_MOVE_DECELERATING;
-
-    // End decelerating/immediate halt.
-    rotating_decelerate( self );
-}
 
 /**
-*   @brief  
+*   @brief  Togles moving into the acceleration/deceleration process.
 **/
-void rotating_toggle( svg_base_edict_t *self, const int32_t useValue ) {
+void svg_func_rotating_t::ToggleAcceleration( const int32_t useValue ) {
     if ( useValue != 0 ) {
         // Accelerate.
-        rotating_accelerate_start( self );
+		StartAcceleration();
     } else {
         // Decelerate.
-        rotating_decelerate_start( self );
+        StartDeceleration();
     }
 }
 
@@ -291,7 +284,7 @@ void rotating_toggle( svg_base_edict_t *self, const int32_t useValue ) {
 /**
 *   @brief
 **/
-void rotating_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
+DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_rotating_t, onBlocked )( svg_func_rotating_t *self, svg_base_edict_t *other ) -> void {
     // Only do damage if we had any set.
     if ( !self->dmg ) {
         return;
@@ -309,9 +302,9 @@ void rotating_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
 /**
 *   @brief
 **/
-void rotating_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_rotating_t, onTouch )( svg_func_rotating_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     // Exit if touching isn't hurting.
-    if ( !( self->spawnflags & FUNC_ROTATING_SPAWNFLAG_PAIN_ON_TOUCH ) ) {
+    if ( !( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_PAIN_ON_TOUCH ) ) {
         return;
     }
 
@@ -335,7 +328,7 @@ void rotating_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_p
 /**
 *   @brief
 **/
-void rotating_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+DEFINE_MEMBER_CALLBACK_USE( svg_func_rotating_t, onUse )( svg_func_rotating_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
     // Default to 'self' being its activator if this was called with none.
     self->activator = ( activator != nullptr ? activator : self );
     // Store other.
@@ -346,11 +339,11 @@ void rotating_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edi
         // On:
         if ( useValue != 0 ) {
             // Accelerate.
-            rotating_accelerate_start( self );
+            self->StartAcceleration( );
         // Off:
         } else {
             // Decelerate.
-            rotating_decelerate_start( self );
+            self->StartDeceleration( );
         }
         // Return.
         return;
@@ -358,17 +351,17 @@ void rotating_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edi
     } else {
         // Toggle:
         if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
-            rotating_toggle( self, useValue );
+            self->ToggleAcceleration( useValue );
         // On/Off:
         } else {
             // On:
             if ( useType == ENTITY_USETARGET_TYPE_ON ) {
                 // Accelerate.
-                rotating_accelerate_start( self );
+                self->StartAcceleration( );
             // Off:
             } else if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
                 // Decelerate.
-                rotating_decelerate_start( self );
+                self->StartDeceleration( );
             }
         }
     }
@@ -385,7 +378,7 @@ void rotating_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edi
 * 
 * 
 **/
-void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_rotating_t, onSignalIn )( svg_func_rotating_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void {
     /**
     *   Accelerate/Decelerate:
     **/
@@ -395,7 +388,7 @@ void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_b
         self->other = other;
 
         // Starts accelerating if it is not doing so yet.
-        rotating_accelerate_start( self );
+        self->StartAcceleration( );
     }
     // RotatingDecelerate:
     if ( Q_strcasecmp( signalName, "Decelerate" ) == 0 ) {
@@ -403,7 +396,7 @@ void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_b
         self->other = other;
 
         // Starts decelerating if it is not doing so yet.
-        rotating_decelerate_start( self );
+        self->StartDeceleration( );
     }
 
     /**
@@ -412,18 +405,18 @@ void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_b
     // WID: TODO: Mayhaps? 
     //// RotatingPause:
     //if ( Q_strcasecmp( signalName, "RotatingPause" ) == 0 ) {
-    //    self->activator = activator;
-    //    self->other = other;
+    //    activator = activator;
+    //    other = other;
     //}
     //// RotatingContinue:
     //if ( Q_strcasecmp( signalName, "RotatingContinue" ) == 0 ) {
-    //    self->activator = activator;
-    //    self->other = other;
+    //    activator = activator;
+    //    other = other;
     //}
     //// RotatingHalt:
     //if ( Q_strcasecmp( signalName, "RotatingHalt" ) == 0 ) {
-    //    self->activator = activator;
-    //    self->other = other;
+    //    activator = activator;
+    //    other = other;
     //}
 
     /**
@@ -433,13 +426,13 @@ void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_b
     if ( Q_strcasecmp( signalName, "Lock" ) == 0 ) {
         self->activator = activator;
         self->other = other;
-        rotating_lock( self );
+        self->LockState( );
     }
     // RotatingUnlock:
     if ( Q_strcasecmp( signalName, "Unlock" ) == 0 ) {
         self->activator = activator;
         self->other = other;
-        rotating_unlock( self );
+        self->UnLockState( );
     }
     // RotatingLockToggle:
     if ( Q_strcasecmp( signalName, "LockToggle" ) == 0 ) {
@@ -447,10 +440,10 @@ void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_b
         self->other = other;
         // Lock if unlocked:
         if ( !self->pushMoveInfo.lockState.isLocked ) {
-            rotating_lock( self );
+            self->LockState( );
             // Unlock if locked:
         } else {
-            rotating_unlock( self );
+            self->UnLockState( );
         }
     }
 
@@ -458,7 +451,7 @@ void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_b
     #if 0
     const int32_t otherNumber = ( other ? other->s.number : -1 );
     const int32_t activatorNumber = ( activator ? activator->s.number : -1 );
-    gi.dprintf( "rotating_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", self->s.number, signalName, otherNumber, activatorNumber );
+    gi.dprintf( "rotating_onsignalin[ self(#%d), \"%s\", other(#%d), activator(%d) ]\n", s.number, signalName, otherNumber, activatorNumber );
     #endif
 }
 
@@ -474,103 +467,103 @@ void rotating_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other, svg_b
 /**
 *   @brief
 **/
-void SP_func_rotating( svg_base_edict_t *ent ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_rotating_t, onSpawn )( svg_func_rotating_t *self ) -> void {
     // Solid.
-    ent->solid = SOLID_BSP;
+    self->solid = SOLID_BSP;
 
     // Blocking STOPS the rotation:
-    if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_BLOCK_STOPS ) {
-        ent->movetype = MOVETYPE_STOP;
-    // Rotation PUSHES the entities if blocking the mover.
+    if ( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_BLOCK_STOPS ) {
+        self->movetype = MOVETYPE_STOP;
+    // Rotation PUSHES the selfities if blocking the mover.
     } else {
-        ent->movetype = MOVETYPE_PUSH;
+        self->movetype = MOVETYPE_PUSH;
     }
 
     // Pusher Type.
-    ent->s.entityType = ET_PUSHER;
+    self->s.entityType = ET_PUSHER;
     // Default state.
-    ent->pushMoveInfo.state = ROTATING_STATE_DECELERATE_END;
+    self->pushMoveInfo.state = ROTATING_STATE_DECELERATE_END;
 
     // Set the axis of rotation.
-    ent->movedir = {};
+    self->movedir = {};
     // X Axis:
-    if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_ROTATE_X ) {
-        ent->movedir[ 2 ] = 1.0f;
+    if ( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_ROTATE_X ) {
+        self->movedir[ 2 ] = 1.0f;
     // Y Axis:
-    } else if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_ROTATE_Y ) {
-        ent->movedir[ 0 ] = 1.0f;
+    } else if ( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_ROTATE_Y ) {
+        self->movedir[ 0 ] = 1.0f;
     // Z_AXIS:
     } else { 
-        ent->movedir[ 1 ] = 1.0f;
+        self->movedir[ 1 ] = 1.0f;
     }
 
     // Check for reverse rotation.
-    if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_START_REVERSE ) {
+    if ( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_START_REVERSE ) {
         // Negate the move direction.
-        ent->movedir = QM_Vector3Negate( ent->movedir );
+        self->movedir = QM_Vector3Negate( self->movedir );
     }
 
     // Apply default speed.
-    if ( !ent->speed ) {
-        ent->speed = 100;
+    if ( !self->speed ) {
+        self->speed = 100;
     }
     // Apply default damage for blocking.
-    if ( !ent->dmg ) {
-        ent->dmg = 2;
+    if ( !self->dmg ) {
+        self->dmg = 2;
     }
 
-    //  ent->pushMoveInfo.sounds.middle = "doors/hydro1.wav";
-    ent->SetTouchCallback( rotating_touch );
-    ent->SetUseCallback( rotating_use );
-    ent->SetOnSignalInCallback( rotating_onsignalin );
+    //  self->pushMoveInfo.sounds.middle = "doors/hydro1.wav";
+    self->SetTouchCallback( &svg_func_rotating_t::onTouch );
+    self->SetUseCallback( &svg_func_rotating_t::onUse );
+    self->SetOnSignalInCallback( &svg_func_rotating_t::onSignalIn );
 
-    // Blockading entities get damaged if dmg is set.
-    if ( ent->dmg ) {
-        ent->SetBlockedCallback( rotating_blocked );
+    // Blockading selfities get damaged if dmg is set.
+    if ( self->dmg ) {
+        self->SetBlockedCallback( &svg_func_rotating_t::onBlocked );
     }
 
     // Start already rotating.
-    if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_START_ON ) {
-        ent->DispatchUseCallback( nullptr, nullptr, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_SET, 1 );
+    if ( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_START_ON ) {
+        self->DispatchUseCallback( nullptr, nullptr, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_SET, 1 );
     }
 
     // Animation.
-    if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_ANIMATE_ALL ) {
-        ent->s.effects |= EF_ANIM_ALL;
+    if ( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_ANIMATE_ALL ) {
+        self->s.effects |= EF_ANIM_ALL;
     }
-    if ( ent->spawnflags & FUNC_ROTATING_SPAWNFLAG_ANIMATE_ALL_FAST ) {
-        ent->s.effects |= EF_ANIM_ALLFAST;
+    if ( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_ANIMATE_ALL_FAST ) {
+        self->s.effects |= EF_ANIM_ALLFAST;
     }
 
     // PGM
     // Has acceleration and deceleration support.
-    if ( SVG_HasSpawnFlags( ent, FUNC_ROTATING_SPAWNFLAG_ACCELERATED ) ) {
+    if ( SVG_HasSpawnFlags( self, svg_func_rotating_t::SPAWNFLAG_ACCELERATED ) ) {
         // Acceleration:
-        if ( !ent->accel ) {
-            ent->accel = 1;
-        } else if ( ent->accel > ent->speed ) {
-            ent->accel = ent->speed;
+        if ( !self->accel ) {
+            self->accel = 1;
+        } else if ( self->accel > self->speed ) {
+            self->accel = self->speed;
         }
         // Deceleration:
-        if ( !ent->decel ) {
-            ent->decel = 1;
-        } else if ( ent->decel > ent->speed ) {
-            ent->decel = ent->speed;
+        if ( !self->decel ) {
+            self->decel = 1;
+        } else if ( self->decel > self->speed ) {
+            self->decel = self->speed;
         }
     }
     // PGM
 
     // <Q2RTXP>: WID: TODO: Get unique audio for func_rotating.
-    if ( ent->sounds ) {
-        ent->pushMoveInfo.sounds.start = gi.soundindex( "pushers/rotating_start_01.wav" );
-        ent->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/rotating_mid_01.wav" );
-        ent->pushMoveInfo.sounds.end = gi.soundindex( "pushers/rotating_end_01.wav" );
+    if ( self->sounds ) {
+        self->pushMoveInfo.sounds.start = gi.soundindex( "pushers/rotating_start_01.wav" );
+        self->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/rotating_mid_01.wav" );
+        self->pushMoveInfo.sounds.end = gi.soundindex( "pushers/rotating_end_01.wav" );
     } else {
-        ent->pushMoveInfo.sounds = {};
+        self->pushMoveInfo.sounds = {};
     }
 
     // Set (Assumed)brush model and thus also its bounds.
-    gi.setmodel( ent, ent->model );
+    gi.setmodel( self, self->model );
     // Link it in.
-    gi.linkentity( ent );
+    gi.linkentity( self );
 }

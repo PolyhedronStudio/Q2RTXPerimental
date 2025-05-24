@@ -94,7 +94,7 @@ struct svg_func_water_t : public svg_func_door_t {
 
     /**
     *
-    *   TestDummy Callback Member Functions:
+    *   Callback Member Functions:
     *
     **/
     /**

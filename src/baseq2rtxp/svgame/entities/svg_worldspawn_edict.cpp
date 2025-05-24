@@ -139,7 +139,7 @@ const bool svg_worldspawn_edict_t::KeyValue( const cm_entity_t *keyValuePair, st
 **/
 /**
 *
-*   TestDummy Callback Member Functions:
+*   Callback Member Functions:
 *
 **/
 /**

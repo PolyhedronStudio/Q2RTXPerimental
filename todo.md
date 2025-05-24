@@ -4,8 +4,6 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Notes:
 * Make sure that client and server both deduce frameTime based on animation framerates instead.
 ---
-* Is the actual bobCycle predicting working and necessary? We can do this in PMove right?
----
 * A load game will result in 8192*2 allocated blocks of tag zone memory. This needs to be researched
 and fixed, as it is not necessary to allocate this much memory for a load game. We should have 8192 instead.
 ---
@@ -17,7 +15,19 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 ---
 * [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
 	- It is a mistake in client game loop.
-	- [X] This actually seems fixed now, yay.
+	- [\] Still there at least for cl_async 0._
+---
+### Entities Remaining to be implemented using new Entity System:
+* [ ] func_breakable
+* [ ] func_conveyor
+* [ ] func_killbox
+* [ ] func_object
+* [ ] func_plat
+* [ ] func_rotating
+* [ ] func_timer
+* [ ] func_train
+* [ ] func_wall
+* [ ] func_water_
 ---
 ### Animated Brush Textures:
 * [ ] Animated Brush Textures: Any brush entity with an animated texture needs to be able to configure its
@@ -41,13 +51,13 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [x] None
 ### Medium Priority:
 * [ ] EAX sometimes remains as if we're underwater after exiting water. Re-entering and exiting usually helps though.
-* [ ] Getting stuck by a pusher brush entity has us 'wrap/teleport' far off.
+* [X] Getting stuck by a pusher brush entity has us 'wrap/teleport' far off.
 * [-] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
 	We'll just go for capsules instead. Perhaps look into even utilizing Jolt Physics at a bare minimum level for geometric clip testing.
 * [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
 	- [X] Filter so it doesn't clip to all entities.
 ### Low Priority:
-*	[ ] // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong... #undef max in svg_local.h etc_
+* [X] // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong... #undef max in svg_local.h etc_
 * [x] None
 ### Lowest, nearly redundant Priority:
 * [ ] Remove the if statement for cl_batchcmds in the (client/input.c)``ready_to_send``_to re-enable the bug for batched commands movement. The bug is that pushers have a steady pattern of 'spiking', moving neatly 5 units a frame as expected up to suddenly the double.
@@ -77,8 +87,8 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 		- [X] Add in a TypeInfo system allowing for:
 			- [X] Registering an inhericted svg_edict_t to a classname type.
 			- [X] Allocating the matching class type linked to an entity's classname key/value pair.
-			- [/] Registering an inherited svg_edict_t class its extra save field offsets.
-				- [ ] We want to do this Q2RE style since it is more convenient, lesser error prone.
+			- [X] Registering an inherited svg_edict_t class its extra save field offsets.
+				- [X] We want to do this Q2RE style since it is more convenient, lesser error prone.
 			- [ ] Registering an inherited svg_edict_t class its extra messaging field offsets.
 
 - [ ] The **IQM Animation** Scenario:

@@ -103,7 +103,7 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
 
     /**
     *
-    *   TestDummy Callback Member Functions:
+    *   Callback Member Functions:
     *
     **/
     /**

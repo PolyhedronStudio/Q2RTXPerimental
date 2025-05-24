@@ -104,7 +104,7 @@ struct svg_func_door_rotating_t : public svg_func_door_t {
 
     /**
     *
-    *   TestDummy Callback Member Functions:
+    *   Callback Member Functions:
     *
     **/
     /**
