@@ -358,11 +358,11 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
             //clgi.Print( PRINT_DEVELOPER, "move: (%f, %f, %f) time(%" PRIu64 ")\n",
             //    pm.playerState->pmove.origin[ 0 ], pm.playerState->pmove.origin[ 1 ], pm.playerState->pmove.origin[ 2 ],
             //    moveCommand->prediction.time );
-        }
 
-        // Save for prediction checking.
-        moveCommand->prediction.origin = pm.playerState->pmove.origin;
-        moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
+            // Save for prediction checking.
+            moveCommand->prediction.origin = pm.playerState->pmove.origin;
+            moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
+        }
     }
 
     // Now run the pending command number.

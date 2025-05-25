@@ -390,8 +390,9 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *s
 
     // PGM
     //  gib dead things
-    if ( other->health < 1 )
+    if ( other->health < 1 ) {
         SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    }
     // PGM
 
     const bool knockBack = false;

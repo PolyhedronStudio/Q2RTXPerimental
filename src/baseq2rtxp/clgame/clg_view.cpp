@@ -1036,7 +1036,7 @@ void PF_CalculateViewValues( void ) {
     const int32_t usePrediction = PF_UsePrediction();
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
         // use predicted values
-        const double backLerp = lerpFrac - 1.0;
+        const double backLerp = 1.0 - lerpFrac;
         // Lerp the error.
         const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
 
