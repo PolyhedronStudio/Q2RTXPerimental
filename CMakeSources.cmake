@@ -321,7 +321,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	#baseq2rtxp/svgame/entities/func/svg_func_door_secret.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_killbox.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_object.cpp
-	#baseq2rtxp/svgame/entities/func/svg_func_plat.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_plat.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_rotating.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_timer.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_train.cpp

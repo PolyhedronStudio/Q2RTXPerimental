@@ -16,7 +16,218 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_plat.h"
 
+#include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_means_of_death.h"
+
+
+void plat_go_down( svg_func_plat_t *ent );
+void plat_go_up( svg_func_plat_t *ent );
+
+/**
+*
+*
+*
+*   Save Descriptor Field Setup: svg_func_plat_trigger
+*
+*
+*
+**/
+/**
+*   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
+**/
+SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_func_plat_trigger_t )
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_func_plat_trigger_t, platformEntityNumber, SD_FIELD_TYPE_INT32 ),
+SAVE_DESCRIPTOR_FIELDS_END();
+
+//! Implement the methods for saving this edict type's save descriptor fields.
+SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_func_plat_trigger_t, svg_base_edict_t );
+
+
+/********************************************************************
+*
+*
+*
+*   func_plat_trigger
+*
+*   Spawned in-game, at bottom and/or top depending on spawnflags set.
+* 
+* 
+* 
+*********************************************************************/
+/**
+*   Reconstructs the object, optionally retaining the entityDictionary.
+**/
+void svg_func_plat_trigger_t::Reset( const bool retainDictionary ) {
+	Super::Reset( retainDictionary );
+    // Reset.
+    platformEntityNumber = -1;
+}
+
+/**
+*   @brief  Save the entity into a file using game_write_context.
+*   @note   Make sure to call the base parent class' Restore() function.
+**/
+void svg_func_plat_trigger_t::Save( struct game_write_context_t *ctx ) {
+	Super::Save( ctx );
+    // Save all the members of this entity type.
+    ctx->write_fields( svg_func_plat_trigger_t::saveDescriptorFields, this );
+}
+/**
+*   @brief  Restore the entity from a loadgame read context.
+*   @note   Make sure to call the base parent class' Restore() function.
+**/
+void svg_func_plat_trigger_t::Restore( struct game_read_context_t *ctx ) {
+	Super::Restore( ctx );
+    // Save all the members of this entity type.
+    ctx->read_fields( svg_func_plat_trigger_t::saveDescriptorFields, this );
+}
+
+/**
+*
+* 
+*   CallBack Member Functions:
+* 
+* 
+**/
+/**
+*   @brief  Spawn.
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_trigger_t, onSpawn )( svg_func_plat_trigger_t *self ) -> void {
+    //Super::onSpawn( self );
+    self->SetTouchCallback( &svg_func_plat_trigger_t::onTouch );
+	self->SetPostSpawnCallback( &svg_func_plat_trigger_t::onPostSpawn );
+    self->movetype = MOVETYPE_NONE;
+    self->solid = SOLID_TRIGGER;
+    self->s.entityType = ET_PUSH_TRIGGER;
+	self->svflags |= SVF_NOCLIENT; // Don't send to clients.
+    gi.linkentity( self );
+}
+/**
+*   @brief  PostSpawn.
+**/
+DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_plat_trigger_t, onPostSpawn )( svg_func_plat_trigger_t *self ) -> void {
+    // Get the platform owner entity.
+    svg_base_edict_t *foundEntity = g_edict_pool.EdictForNumber( self->platformEntityNumber );
+
+    // Make sure we have a valid platform entity.
+    if ( !SVG_Entity_IsActive( foundEntity ) || !foundEntity->GetTypeInfo()->IsSubClassType<svg_func_plat_t>() ) {
+        gi.dprintf( "%s: Invalid platform entity.\n", __func__ );
+        return;
+    }
+    // Setup touch callback.
+    self->SetTouchCallback( &svg_func_plat_trigger_t::onTouch );
+
+    // Acquire the platform entity.
+    svg_func_plat_t *platformEntity = static_cast<svg_func_plat_t *>( foundEntity );
+    #if 1
+        // Calculate trigger mins/maxs.
+        Vector3 triggerMins = platformEntity->mins + Vector3{ 25.f, 25.f, 0.f };
+        Vector3 triggerMaxs = platformEntity->maxs + Vector3{ -25.f, -25.f, 8.f };
+	    // Convert to BBox3.
+	    BBox3 triggerBox = QM_BBox3FromMinsMaxs( triggerMins, triggerMaxs );
+    
+        // 
+
+	    // If high trigger, adjust the z position.
+        Vector3 triggerOrigin = platformEntity->pos2;
+        if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER ) {
+            triggerOrigin = platformEntity->pos1;
+	    }
+
+        // Set the trigger's origin.
+        triggerOrigin += Vector3{ 0.f, 0.f, platformEntity->lip };
+        VectorCopy( triggerOrigin, self->s.origin );
+        // Calculate the final bounds for this trigger entity.
+        BBox3 finalBounds = QM_BBox3FromCenterSize( QM_BBox3Size( triggerBox ), QM_Vector3Zero() );
+	    // Set the trigger's mins and maxs.
+	    VectorCopy( finalBounds.mins, self->mins );
+	    VectorCopy( finalBounds.maxs, self->maxs );
+    #else
+        Vector3 tmin;
+        tmin[ 0 ] = platformEntity->mins[ 0 ] + 25;
+        tmin[ 1 ] = platformEntity->mins[ 1 ] + 25;
+        tmin[ 2 ] = platformEntity->mins[ 2 ];
+        Vector3 tmax;
+        tmax[ 0 ] = platformEntity->maxs[ 0 ] - 25;
+        tmax[ 1 ] = platformEntity->maxs[ 1 ] - 25;
+        tmax[ 2 ] = platformEntity->maxs[ 2 ] + 8;
+
+
+        if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER ) {
+            tmin[ 2 ] = tmax[ 2 ] + ( platformEntity->pos1[ 2 ] - platformEntity->pos2[ 2 ] + platformEntity->lip );
+            tmax[ 2 ] = tmin[ 2 ] + 8;
+        } else if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER ) {
+            tmin[ 2 ] = tmax[ 2 ] - ( platformEntity->pos1[ 2 ] + platformEntity->lip );
+
+            tmax[ 2 ] = tmin[ 2 ] + 8;
+        }
+
+        if ( tmax[ 0 ] - tmin[ 0 ] <= 0 ) {
+            tmin[ 0 ] = ( platformEntity->mins[ 0 ] + platformEntity->maxs[ 0 ] ) * 0.5f;
+            tmax[ 0 ] = tmin[ 0 ] + 1;
+        }
+        if ( tmax[ 1 ] - tmin[ 1 ] <= 0 ) {
+            tmin[ 1 ] = ( platformEntity->mins[ 1 ] + platformEntity->maxs[ 1 ] ) * 0.5f;
+            tmax[ 1 ] = tmin[ 1 ] + 1;
+        }
+
+        VectorCopy( tmin, self->mins );
+        VectorCopy( tmax, self->maxs );
+    #endif
+
+    gi.linkentity( self );
+}
+/**
+*   @brief  Touched.
+**/
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_plat_trigger_t, onTouch )( svg_func_plat_trigger_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
+	// Has to be a client.
+    if ( !SVG_Entity_IsClient( other, true /*healthCheck*/) ) {
+        return;
+    }
+    // Get platform entity.
+    svg_base_edict_t *platPtr = g_edict_pool.EdictForNumber( self->platformEntityNumber );
+
+    // Make sure we have a valid platform entity.
+    if ( !SVG_Entity_IsActive( platPtr ) || !platPtr->GetTypeInfo()->IsSubClassType<svg_func_plat_t>() ) {
+        gi.dprintf( "%s: Invalid platform entity.\n", __func__ );
+        return;
+    }
+
+	// Acquire the platform entity.
+    svg_func_plat_t *platformEntity = static_cast<svg_func_plat_t *>( platPtr );
+    
+	// If we are within the debounce time, return.
+	if ( platformEntity->touch_debounce_time > level.time ) {
+		gi.dprintf( "%s: Platform %s touch debounce time not expired.\n", __func__, platformEntity->classname.ptr );
+		return;
+	}
+
+	// Go up if we'r at the bottom.
+    if ( platformEntity->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
+        plat_go_up( static_cast<svg_func_plat_t*>( platformEntity ) );
+		gi.dprintf( "%s: Platform %s going up.\n", __func__, platformEntity->classname.ptr );
+        
+		// Set the debounce time to prevent immmediate re-triggering.
+        platformEntity->touch_debounce_time = level.time + 2_sec;
+    // Go down if we're at the top.
+    } else if ( platformEntity->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
+        #if 0
+            #if 1
+            platformEntity->onThink_Idle( platformEntity );
+            gi.dprintf( "%s: onThink_Idle.\n", __func__, platformEntity->classname.ptr );
+            #else
+            //platformEntity->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
+            #endif
+        #else
+            plat_go_down( static_cast<svg_func_plat_t *>( platformEntity ) );
+            gi.dprintf( "%s: Platform %s going down.\n", __func__, platformEntity->classname.ptr );
+
+            // Set the debounce time to prevent immmediate re-triggering.
+            platformEntity->touch_debounce_time = level.time + 2_sec;
+        #endif
+    }
+}
 
 
 /*QUAKED func_plat (0 .5 .8) ? PLAT_LOW_TRIGGER
@@ -72,102 +283,100 @@ Set "sounds" to one of the following:
 =========================================================
 */
 
-#define PLAT_LOW_TRIGGER    1
-
-#define DOOR_START_OPEN     1
-#define DOOR_REVERSE        2
-#define DOOR_CRUSHER        4
-#define DOOR_NOMONSTER      8
-#define DOOR_TOGGLE         32
-#define DOOR_X_AXIS         64
-#define DOOR_Y_AXIS         128
-
-
-
-void plat_go_down( svg_base_edict_t *ent );
-
-void plat_think_idle( svg_base_edict_t *ent ) {
-    ent->SetThinkCallback( plat_think_idle );
-    ent->nextthink = level.time + FRAME_TIME_MS;
+/**
+*   @brief  Thinking.
+**/
+DEFINE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink )( svg_func_plat_t *self ) -> void { }
+DEFINE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink_Idle )( svg_func_plat_t *self ) -> void {
+    self->SetThinkCallback( &svg_func_plat_t::onThink_Idle );
+    self->nextthink = level.time + FRAME_TIME_MS;
 }
 
-void plat_hit_top( svg_base_edict_t *ent ) {
-    if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pushMoveInfo.sounds.end )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
-        ent->s.sound = 0;
+/**
+*   @brief  PushMoveInfo EndMove Callback for when the platform hits the top.
+**/
+DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitTop )( svg_func_plat_t *self ) -> void {
+    if ( !( self->flags & FL_TEAMSLAVE ) ) {
+        if ( self->pushMoveInfo.sounds.end ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+        }
+        self->s.sound = 0;
     }
-    ent->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
+    self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
 
     #if 0
     ent->think = plat_go_down;
     ent->nextthink = level.time + 3_sec;
     #else
-    plat_think_idle( ent );
+    self->onThink_Idle( self );
     #endif
 
     // Get reference to sol lua state view.
     sol::state_view &solStateView = SVG_Lua_GetSolStateView();
     // Create temporary objects encapsulating access to svg_base_edict_t's.
-    auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent ) );
-    auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->other ) );
-    auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->activator ) );
+    auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( self ) );
+    auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( self->other ) );
+    auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( self->activator ) );
     // Call into function.
     bool callReturnValue = false;
-    bool calledFunction = LUA_CallLuaNameEntityFunction( ent, "OnPlatformHitTop",
+    bool calledFunction = LUA_CallLuaNameEntityFunction( self, "OnPlatformHitTop",
         solStateView,
         callReturnValue,
         leSelf, leOther, leActivator, ENTITY_USETARGET_TYPE_ON, 1
     );
 }
 
-void plat_hit_bottom( svg_base_edict_t *ent ) {
-    if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pushMoveInfo.sounds.end )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
-        ent->s.sound = 0;
+/**
+*   @brief  PushMoveInfo EndMove Callback for when the platform hits the bottom.
+**/
+DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitBottom )( svg_func_plat_t *self ) -> void {
+    if ( !( self->flags & FL_TEAMSLAVE ) ) {
+        if ( self->pushMoveInfo.sounds.end ) {
+            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+        }
+        self->s.sound = 0;
     }
-    ent->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+    self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
 
     // Engage into idle thinking.
-    plat_think_idle( ent );
+    self->onThink_Idle( self );
 
     // Get reference to sol lua state view.
     sol::state_view &solStateView = SVG_Lua_GetSolStateView();
     // Create temporary objects encapsulating access to svg_base_edict_t's.
-    auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent ) );
-    auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->other ) );
-    auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( ent->activator ) );
+    auto leSelf = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( self ) );
+    auto leOther = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( self->other ) );
+    auto leActivator = sol::make_object<lua_edict_t>( solStateView, lua_edict_t( self->activator ) );
     // Call into function.
     bool callReturnValue = false;
-    bool calledFunction = LUA_CallLuaNameEntityFunction( ent, "OnPlatformHitBottom",
+    bool calledFunction = LUA_CallLuaNameEntityFunction( self, "OnPlatformHitBottom",
         solStateView,
         callReturnValue, LUA_CALLFUNCTION_VERBOSE_MISSING,
         leSelf, leOther, leActivator, ENTITY_USETARGET_TYPE_OFF, 0
     );
 }
 
-void plat_go_down( svg_base_edict_t *ent ) {
+void plat_go_down( svg_func_plat_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
         if ( ent->pushMoveInfo.sounds.start )
             gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
         ent->s.sound = ent->pushMoveInfo.sounds.middle;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
-    CalculateDirectionalMove( ent, ent->pushMoveInfo.endOrigin, plat_hit_bottom );
+    ent->CalculateDirectionalMove( ent->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_plat_t::onPlatHitBottom ) );
 }
 
-void plat_go_up( svg_base_edict_t *ent ) {
+void plat_go_up( svg_func_plat_t *ent ) {
     if ( !( ent->flags & FL_TEAMSLAVE ) ) {
         if ( ent->pushMoveInfo.sounds.start )
             gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
         ent->s.sound = ent->pushMoveInfo.sounds.middle;
     }
     ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
-    CalculateDirectionalMove( ent, ent->pushMoveInfo.startOrigin, plat_hit_top );
+    ent->CalculateDirectionalMove( ent->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_plat_t::onPlatHitTop ) );
 }
 
-void plat_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
+DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *self, svg_base_edict_t *other ) -> void {
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         const bool knockBack = true;
         // give it a chance to go away on it's own terms (like gibs)
@@ -205,13 +414,13 @@ void plat_blocked( svg_base_edict_t *self, svg_base_edict_t *other ) {
 }
 
 
-void Use_Plat( svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+DEFINE_MEMBER_CALLBACK_USE( svg_func_plat_t, onUse )( svg_func_plat_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
     // WID: <Q2RTXP> For func_button support.
     //if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
-    if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
-        plat_go_down( ent );
-    } else if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN || ent->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
-        plat_go_up( ent );
+    if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || self->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
+        plat_go_down( self );
+    } else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN || self->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
+        plat_go_up( self );
     }
     //    return;     // already down
     //}
@@ -225,80 +434,47 @@ void Use_Plat( svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t 
     #endif
 }
 
+/**
+*	@brief  Spawns a trigger inside the plat, at
+*           PLAT_LOW_TRIGGER and/or PLAT_HIGH_TRIGGER
+*           when their spawnflags are set.
+**/
+void svg_func_plat_t::SpawnInsideTrigger( const bool isTop ) {
+    // Spawn a func_plat_trigger.
+    EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "func_plat_trigger" );
 
-void Touch_Plat_Center( svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
-    if ( !other->client )
-        return;
+    // Allocate it using the found typeInfo.
+    svg_func_plat_trigger_t *triggerEdictInstance = static_cast<svg_func_plat_trigger_t *>( typeInfo->allocateEdictInstanceCallback( nullptr ) );
 
-    if ( other->health <= 0 )
-        return;
-
-    ent = ent->enemy;   // now point at the plat, not the trigger
-    if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
-        plat_go_up( ent );
-    } else if ( ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
-        #if 1
-        plat_think_idle( ent );
-        #else
-        ent->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
-        #endif
+    // Emplace the spawned edict in the next avaible edict slot.
+    g_edict_pool.EmplaceNextFreeEdict( triggerEdictInstance );
+    // Spawn.
+    triggerEdictInstance->SetSpawnCallback( &svg_func_plat_trigger_t::onSpawn /*onSpawn*/ );
+    triggerEdictInstance->SetPostSpawnCallback( &svg_func_plat_trigger_t::onPostSpawn /*onSpawn*/ );
+    // Assign before spawn so we can refer to the platform entity that 'owns' this trigger.
+    triggerEdictInstance->platformEntityNumber = s.number;
+	triggerEdictInstance->spawnflags |= ( isTop ? svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER : svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER );
+    triggerEdictInstance->DispatchSpawnCallback();
+    if ( isTop ) {
+        triggerEdictInstance->spawnflags |= svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER;
+    } else {
+        triggerEdictInstance->spawnflags |= svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER;
     }
-}
-
-void plat_spawn_inside_trigger( svg_base_edict_t *ent ) {
-    svg_base_edict_t *trigger;
-    vec3_t  tmin, tmax;
-
-    //
-    // middle trigger
-    //
-    trigger = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-    trigger->SetTouchCallback( Touch_Plat_Center );
-    trigger->movetype = MOVETYPE_NONE;
-    trigger->solid = SOLID_TRIGGER;
-    trigger->s.entityType = ET_PUSH_TRIGGER;
-    trigger->enemy = ent;
-    //G_MoveWith_SetTargetParentEntity( ent->targetname, ent, trigger );
-
-    tmin[ 0 ] = ent->mins[ 0 ] + 25;
-    tmin[ 1 ] = ent->mins[ 1 ] + 25;
-    tmin[ 2 ] = ent->mins[ 2 ];
-
-    tmax[ 0 ] = ent->maxs[ 0 ] - 25;
-    tmax[ 1 ] = ent->maxs[ 1 ] - 25;
-    tmax[ 2 ] = ent->maxs[ 2 ] + 8;
-
-    tmin[ 2 ] = tmax[ 2 ] - ( ent->pos1[ 2 ] - ent->pos2[ 2 ] + ent->lip );
-
-    if ( ent->spawnflags & PLAT_LOW_TRIGGER )
-        tmax[ 2 ] = tmin[ 2 ] + 8;
-
-    if ( tmax[ 0 ] - tmin[ 0 ] <= 0 ) {
-        tmin[ 0 ] = ( ent->mins[ 0 ] + ent->maxs[ 0 ] ) * 0.5f;
-        tmax[ 0 ] = tmin[ 0 ] + 1;
-    }
-    if ( tmax[ 1 ] - tmin[ 1 ] <= 0 ) {
-        tmin[ 1 ] = ( ent->mins[ 1 ] + ent->maxs[ 1 ] ) * 0.5f;
-        tmax[ 1 ] = tmin[ 1 ] + 1;
-    }
-
-    VectorCopy( tmin, trigger->mins );
-    VectorCopy( tmax, trigger->maxs );
-
-    gi.linkentity( trigger );
 }
 
 /**
 *   @brief  
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self ) -> void {
+    Super::onSpawn( self );
+
     VectorClear( self->s.angles );
     self->solid = SOLID_BSP;
     self->movetype = MOVETYPE_PUSH;
     self->s.entityType = ET_PUSHER;
     gi.setmodel( self, self->model );
 
-    self->SetBlockedCallback( plat_blocked );
+    self->SetBlockedCallback( &svg_func_plat_t::onBlocked /*plat_blocked*/ );
 
     if ( !self->speed ) {
         self->speed = 20.f;
@@ -334,9 +510,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
         self->pos2[ 2 ] -= ( self->maxs[ 2 ] - self->mins[ 2 ] ) - self->lip;
     }
 
-    self->SetUseCallback( Use_Plat );
+    self->SetUseCallback( &svg_func_plat_t::onUse /*Use_Plat*/ );
 
-    plat_spawn_inside_trigger( self );     // the "start moving" trigger
 
     // WID: TODO: For Lua stuff we dun need this.
     //self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
@@ -346,6 +521,23 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
         gi.linkentity( self );
         self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
     }
+
+    // Spawn the trigger touch area entities.
+    if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER ) {
+        self->SpawnInsideTrigger( true );  // the "top" trigger
+    }
+    if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER ) {
+        self->SpawnInsideTrigger( false ); // the "bottom" trigger
+    }
+
+    // Animated doors:
+    if ( SVG_HasSpawnFlags( self, svg_func_plat_t::SPAWNFLAG_ANIMATED ) ) {
+        self->s.effects |= EF_ANIM_ALL;
+    }
+    if ( SVG_HasSpawnFlags( self, svg_func_plat_t::SPAWNFLAG_ANIMATED_FAST ) ) {
+        self->s.effects |= EF_ANIM_ALLFAST;
+    }
+
     #if 0 
     if ( self->targetname ) {
         self->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
@@ -364,6 +556,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     VectorCopy( self->s.angles, self->pushMoveInfo.startAngles );
     VectorCopy( self->pos2, self->pushMoveInfo.endOrigin );
     VectorCopy( self->s.angles, self->pushMoveInfo.endAngles );
+
+
 
     self->pushMoveInfo.sounds.start = gi.soundindex( "pushers/plat_start_01.wav" );
     self->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/plat_mid_01.wav" );

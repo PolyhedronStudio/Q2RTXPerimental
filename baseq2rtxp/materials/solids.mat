@@ -18,6 +18,7 @@ textures/skylight:
 	texture_base textures/skylight.png
 	kind SKY
 	base_factor 2.5
+	is_light 1
 textures/trigger:
 	texture_base textures/trigger.png
 	base_factor 2.5

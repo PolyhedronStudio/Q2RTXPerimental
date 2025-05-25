@@ -23,7 +23,7 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 * [ ] func_killbox
 * [ ] func_object
 * [ ] func_plat
-* [ ] func_rotating
+* [X] func_rotating
 * [ ] func_timer
 * [ ] func_train
 * [ ] func_wall

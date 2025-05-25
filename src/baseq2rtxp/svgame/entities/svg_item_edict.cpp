@@ -60,7 +60,7 @@ void svg_item_edict_t::Save( struct game_write_context_t *ctx ) {
     //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
     Super::Save( ctx );
     // Save all the members of this entity type.
-    ctx->write_fields( svg_item_edict_t::saveDescriptorFields, this );
+    //ctx->write_fields( svg_item_edict_t::saveDescriptorFields, this );
 }
 /**
 *   @brief  Restore the entity from a loadgame read context.
@@ -70,7 +70,7 @@ void svg_item_edict_t::Restore( struct game_read_context_t *ctx ) {
     // Restore parent class fields.
     Super::Restore( ctx );
     // Restore all the members of this entity type.
-    ctx->read_fields( svg_item_edict_t::saveDescriptorFields, this );
+    //ctx->read_fields( svg_item_edict_t::saveDescriptorFields, this );
 }
 
 

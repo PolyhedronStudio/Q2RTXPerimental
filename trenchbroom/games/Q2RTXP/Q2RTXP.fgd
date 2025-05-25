@@ -443,7 +443,14 @@
 [
 	spawnflags(Flags) =
 	[
-		1 : "Plat Low Trigger" : 0
+		1 : "Start Bottom" : 1
+		2 : "Plat High Trigger" : 1
+		4 : "Plat Low Trigger" : 1
+		8 : "Toggle" : 0 // Toggles platform instead of operating by trigger fields.
+		16 : "Pain on Touch" : 0
+		32 : "Block Stops" : 0
+		64 : "Animated" : 0
+		128 : "Animated Fast" : 0
 	]
 	speed(integer) : "Speed" : 100
 	accel(integer) : "Acceleration" : 500
