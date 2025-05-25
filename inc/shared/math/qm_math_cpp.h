@@ -593,8 +593,10 @@ struct Matrix {
 struct BBox3 {
     union {
         // X Y Z desegnator accessors.
-        Vector3 mins, maxs;
-        float points[ 6 ];
+        struct {
+            Vector3 mins, maxs;
+        };
+        float points[ 6 ] = { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f };
     };
 
     /**

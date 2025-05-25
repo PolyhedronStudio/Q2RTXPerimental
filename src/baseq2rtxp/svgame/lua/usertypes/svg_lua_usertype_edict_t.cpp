@@ -81,8 +81,13 @@ lua_edict_t::lua_edict_t() : handle( {} ) {
 lua_edict_t::lua_edict_t( svg_base_edict_t *_edict ) /*: edict(_edict)*/ {
 	//! Setup pointer.
 	handle.edictPtr		= _edict;
-	handle.number		= _edict->s.number;
-	handle.spawnCount	= _edict->spawn_count;
+	if ( _edict ) {
+		handle.number = _edict->s.number;
+		handle.spawnCount = _edict->spawn_count;
+	} else {
+		handle.number = -1;
+		handle.spawnCount = -1;
+	}
 
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_HANDLE();

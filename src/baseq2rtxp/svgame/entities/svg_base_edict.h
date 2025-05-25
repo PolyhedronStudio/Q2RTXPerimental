@@ -358,7 +358,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 		// Debug validate the function pointer.
         DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_SAVE_TYPE_SPAWN, __func__ );
 		// Set and return the function pointer.
-        spawnCallbackFuncPtr = static_cast<svg_edict_callback_spawn_fptr>( funcPtr );
+        spawnCallbackFuncPtr = reinterpret_cast<svg_edict_callback_spawn_fptr>( funcPtr );
         return funcPtr;
     }
 	/**

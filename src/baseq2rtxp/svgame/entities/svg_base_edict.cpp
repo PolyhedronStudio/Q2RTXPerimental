@@ -363,6 +363,10 @@ svg_save_descriptor_field_t *svg_base_edict_t::GetSaveDescriptorField( const cha
 
     // Get pointer to the type's save descriptor fields.
     svg_save_descriptor_field_t *fields = GetSaveDescriptorFields();
+    if ( !fields ) {
+        // TODO: Warn?
+        return nullptr;
+    }
 
     // Iterate this edict (derived-) type's save descriptor fields and return a pointer to it if found.
     for ( int32_t i = 0; i < GetSaveDescriptorFieldsCount(); i++ ) {
@@ -889,7 +893,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn )( svg_base_edict_t *sel
 /**
 *   @brief  PostSpawn Stub.
 **/
-DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onPostSpawn )( svg_base_edict_t *self ) -> void { }
+DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_base_edict_t, onPostSpawn )( svg_base_edict_t *self ) -> void { }
 /**
 *   @brief  Thinking Stubs.
 **/

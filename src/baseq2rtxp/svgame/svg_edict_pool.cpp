@@ -160,7 +160,8 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 		if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
 			//_InitEdict<EdictType>( entity, i );
 			// Restore the actual number.
-			ent->s.number = num_edicts;
+			//ent->s.number = num_edicts;
+			ent->s.number = entity->s.number;
 			// Make sure it is set to 'inuse'.
 			ent->inuse = true;
 			// Free the old entity.
