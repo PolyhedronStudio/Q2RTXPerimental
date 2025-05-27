@@ -255,7 +255,7 @@ void CL_KeyDown( keybutton_t *b ) {
     c = Cmd_Argv( 2 );
     b->downtime = atoi( c );
     if ( !b->downtime ) {
-        b->downtime = com_eventTime - 16; // Original was 10, hmm? WID: 40hz: BASE_FRAMETIME
+        b->downtime = com_eventTime - BASE_FRAMETIME_1000; // Original was 10, hmm? WID: 40hz: BASE_FRAMETIME 2.5 worked too?
     }
 
     b->state |= ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN );//1 + 2;    // down + impulse down
@@ -297,7 +297,7 @@ void CL_KeyUp( keybutton_t *b ) {
     c = Cmd_Argv( 2 );
     uptime = atoi( c );
     if ( !uptime ) {
-        b->msec += 16; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10;
+        b->msec += BASE_FRAMETIME_1000; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10; 2.5 worked too?
     } else if ( uptime > b->downtime ) {
         b->msec += uptime - b->downtime;
     }
@@ -321,7 +321,7 @@ void CL_KeyClear( keybutton_t *b ) {
 **/
 const double CL_KeyState( keybutton_t *key ) {
     #if 1
-    uint64_t msec = key->msec;
+    double msec = key->msec;
     //key->msec = 0;
 
     if ( key->state & BUTTON_STATE_HELD ) { // still down, reset downtime for next frame

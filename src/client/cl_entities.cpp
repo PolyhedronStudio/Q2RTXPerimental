@@ -234,7 +234,7 @@ static void parse_entity_update(const entity_state_t *state)
 
     // Work around Q2PRO server bandwidth optimization.
     if ( entity_is_optimized( state ) ) {
-        Com_PlayerToEntityState( &cl.frame.ps, &ent->current );
+        Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
     }
 }
 

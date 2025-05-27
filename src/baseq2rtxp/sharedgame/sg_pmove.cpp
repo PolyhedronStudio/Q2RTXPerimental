@@ -1774,7 +1774,7 @@ static void PM_EraseInputCommandState() {
 	pm->cmd.sidemove = 0;
 	pm->cmd.upmove = 0;
 	// Unset these two buttons so other code won't respond to it.
-	pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH );
+	pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH | BUTTON_USE_TARGET | BUTTON_RELOAD );
 }
 /**
 *
@@ -1782,30 +1782,27 @@ static void PM_EraseInputCommandState() {
 static void PM_DropTimers() {
 	if ( ps->pmove.pm_time ) {
 		#if 1
-		int32_t     msec;
-
-		msec = pm->cmd.msec >> 3; // fast divide by 8, 8 ms = 1 unit. (At 10hz.)
-		//msec /= 4;
-		if ( msec <= 0 ) {
-			msec = 1;
-		}
-		if ( msec >= ps->pmove.pm_time ) {
-			ps->pmove.pm_flags &= ~( PMF_ALL_TIMES );
-			ps->pmove.pm_time = 0;
-		} else {
-			ps->pmove.pm_time -= msec;
-		}
+			int32_t msec = pm->cmd.msec >> 3; // fast divide by 8, 8 ms = 1 unit. (At 10hz.)
+			//msec /= 4;
+			if ( msec <= 0 ) {
+				msec = 1;
+			}
+			if ( msec >= ps->pmove.pm_time ) {
+				ps->pmove.pm_flags &= ~( PMF_ALL_TIMES );
+				ps->pmove.pm_time = 0;
+			} else {
+				ps->pmove.pm_time -= msec;
+			}
 		#else
-		const int32_t msec = pm->cmd.msec;
-
-		if ( msec >= ps->pmove.pm_time ) {
-			// Somehow need this, Q2RE does not. If we don't do so, the code piece in this comment that resides above in PM_CategorizePosition
-			// causes us to remain unable to jump.
-			ps->pmove.pm_flags &= ~PMF_ALL_TIMES;
-			ps->pmove.pm_time = 0;
-		} else {
-			ps->pmove.pm_time -= msec;
-		}
+			const int32_t msec = pm->cmd.msec;
+			if ( msec >= ps->pmove.pm_time ) {
+				// Somehow need this, Q2RE does not. If we don't do so, the code piece in this comment that resides above in PM_CategorizePosition
+				// causes us to remain unable to jump.
+				ps->pmove.pm_flags &= ~PMF_ALL_TIMES;
+				ps->pmove.pm_time = 0;
+			} else {
+				ps->pmove.pm_time -= msec;
+			}
 		#endif
 	}
 }
@@ -1820,31 +1817,31 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 
 	// Clear out several member variables which require a fresh state before performing the move.
 	#if 1
-	pm->touchTraces = {};
-	ps->viewangles = {};
-	ps->pmove.viewheight = 0;
-	pm->ground = {};
-	pm->liquid = {
-		.type = CONTENTS_NONE,
-		.level = cm_liquid_level_t::LIQUID_NONE
-	},
-	ps->screen_blend[ 0 ] = ps->screen_blend[ 1 ] = ps->screen_blend[ 2 ] = ps->screen_blend[ 3 ] = 0;
-	ps->rdflags = refdef_flags_t::RDF_NONE;
-	pm->jump_sound = false;
-	pm->step_clip = false;
-	pm->step_height = 0;
-	pm->impact_delta = 0;
+		pm->touchTraces = {};
+		ps->viewangles = {};
+		ps->pmove.viewheight = 0;
+		pm->ground = {};
+		pm->liquid = {
+			.type = CONTENTS_NONE,
+			.level = cm_liquid_level_t::LIQUID_NONE
+		},
+		ps->screen_blend[ 0 ] = ps->screen_blend[ 1 ] = ps->screen_blend[ 2 ] = ps->screen_blend[ 3 ] = 0;
+		ps->rdflags = refdef_flags_t::RDF_NONE;
+		pm->jump_sound = false;
+		pm->step_clip = false;
+		pm->step_height = 0;
+		pm->impact_delta = 0;
 	#else
-	pm->touchTraces = {};
-	pm->ground = {};
-	pm->liquid = {
-		.type = CONTENTS_NONE,
-		.level = cm_liquid_level_t::LIQUID_NONE
-	},
-	pm->jump_sound = false;
-	pm->step_clip = false;
-	pm->step_height = 0;
-	pm->impact_delta = 0;
+		pm->touchTraces = {};
+		pm->ground = {};
+		pm->liquid = {
+			.type = CONTENTS_NONE,
+			.level = cm_liquid_level_t::LIQUID_NONE
+		},
+		pm->jump_sound = false;
+		pm->step_clip = false;
+		pm->step_height = 0;
+		pm->impact_delta = 0;
 	#endif
 	// Clear all pmove local vars
 	pml = {};
@@ -1868,6 +1865,8 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	**/
 	// Performs fly move, only clips in case of spectator mode, noclips otherwise.
 	if ( ps->pmove.pm_type == PM_SPECTATOR || ps->pmove.pm_type == PM_NOCLIP ) {
+		//pml.frameTime = pmp->pm_fly_speed * pm->cmd.msec * 0.001f;
+
 		// Re-ensure no flags are set anymore.
 		ps->pmove.pm_flags = PMF_NONE;
 
@@ -1909,15 +1908,16 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	PM_SetDimensions();
 	// General position categorize.
 	PM_CategorizePosition();
+
 	// If pmove values were changed outside of the pmove code, resnap to position first before continuing.
 	if ( pm->snapinitial ) {
 		PM_InitialSnapPosition();
 	}
+
 	// Recategorize if we're ducked. ( Set groundentity, liquid.type, and liquid.level. )
 	if ( PM_CheckDuck() ) {
 		PM_CategorizePosition();
 	}
-
 	// When dead, perform dead movement.
 	if ( ps->pmove.pm_type == PM_DEAD ) {
 		PM_DeadMove();
@@ -1929,7 +1929,6 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	*	Now all that is settled, start dropping the input command timing counter(s).
 	**/
 	PM_DropTimers();
-
 	// Do Nothing ( Teleport pause stays exactly in place ):
 	if ( ps->pmove.pm_flags & PMF_TIME_TELEPORT ) {
 		// ...
@@ -1973,7 +1972,6 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	if ( ps->pmove.pm_flags & PMF_TIME_TRICK_JUMP ) {
 		PM_CheckJump();
 	}
-
 	// Apply contents and other screen effects.
 	PM_ScreenEffects();
 
@@ -1986,7 +1984,6 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	PM_CycleBob();
 	// Entering / Leaving water splashes.
 	//PM_WaterEvents();
-
 	// Snap us back into a validated position.
 	PM_SnapPosition();
 }

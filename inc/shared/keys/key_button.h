@@ -53,7 +53,7 @@ QENUM_BIT_FLAGS( keybutton_state_t );
 **/
 typedef struct keybutton_s {
     int32_t     down[ 2 ];      //! Key numbers that are holding it down.
-    uint64_t    downtime;       //! Msec timestamp of when key was first pressed.
-    uint64_t	msec;           //! Msec down this frame.
+    uint64_t    downtime;           //! Msec timestamp of when key was first pressed.
+    double      msec;               //! Msec down this frame.
     keybutton_state_t state;    //! Actual state of the key at the downtime+msec moment in time.
 } keybutton_t;
