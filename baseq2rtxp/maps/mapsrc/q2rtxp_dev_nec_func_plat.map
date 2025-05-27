@@ -1106,11 +1106,12 @@
 "height" "592"
 "accel" "500"
 "speed" "100"
-"spawnflags" "15"
+"spawnflags" "31"
 "targetname" "plat_entrance"
 "lip" "8"
 "wait" "3"
 "_phong" "1"
+"dmg" "50"
 // brush 0
 {
 ( -144 128 608 ) ( -144 -128 608 ) ( -144 -128 592 ) pbr02/steel00 [ 0 1 0 0 ] [ 0 0 -1 1024 ] 180 0.0625 0.0625
@@ -1727,7 +1728,7 @@
 "height" "592"
 "accel" "500"
 "speed" "100"
-"spawnflags" "6"
+"spawnflags" "38"
 "targetname" "plat_entrance2"
 "lip" "8"
 "wait" "3"

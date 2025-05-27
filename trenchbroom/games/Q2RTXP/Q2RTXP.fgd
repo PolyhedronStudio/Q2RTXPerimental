@@ -447,7 +447,7 @@
 		2 : "Plat High Trigger" : 1
 		4 : "Plat Low Trigger" : 1
 		8 : "Toggle" : 0 // Toggles platform instead of operating by trigger fields.
-		16 : "Pain on Touch" : 0
+		16 : "Pain on Touch" : 1
 		32 : "Block Stops" : 0
 		64 : "Animated" : 0
 		128 : "Animated Fast" : 0

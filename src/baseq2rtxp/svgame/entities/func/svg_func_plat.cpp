@@ -255,6 +255,11 @@ Set "sounds" to one of the following:
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink )( svg_func_plat_t *self ) -> void { }
 DEFINE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink_Idle )( svg_func_plat_t *self ) -> void {
+    // Reset to pusher so we can try moving again this frame.
+    if ( self->spawnflags & SPAWNFLAG_BLOCK_STOPS ) {
+        self->movetype = MOVETYPE_PUSH;
+    }
+
     self->SetThinkCallback( &svg_func_plat_t::onThink_Idle );
     self->nextthink = level.time + FRAME_TIME_MS;
 }
@@ -337,76 +342,52 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitBottom )( svg
 }
 
 /**
-*   @brief  Engage the platform to go up.
+*   @brief  Blocked.
 **/
-void svg_func_plat_t::BeginUpMove() {
-    // Play the start sound if not a team slave, as well as apply the middle movement sound to entity state.
-    if ( !( flags & FL_TEAMSLAVE ) ) {
-        if ( pushMoveInfo.sounds.start ) {
-            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
-        }
-        s.sound = pushMoveInfo.sounds.middle;
-    }
-    // Set the state to moving down.
-    pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
-    // Engage the PushMover action.
-    CalculateDirectionalMove( pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &this->onPlatHitTop ) );
-    // Debug.
-    gi.dprintf( "%s: Platform %s going up.\n", __func__, (const char *)classname.ptr );
-}
-/**
-*   @brief  Engage the platform to go down.
-**/
-void svg_func_plat_t::BeginDownMove() {
-	// Play the start sound if not a team slave, as well as apply the middle movement sound to entity state.
-    if ( !( flags & FL_TEAMSLAVE ) ) {
-        if ( pushMoveInfo.sounds.start ) {
-            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
-        }
-        s.sound = pushMoveInfo.sounds.middle;
-    }
-	// Set the state to moving down.
-    pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
-    // Engage the PushMover action.
-    CalculateDirectionalMove( pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &this->onPlatHitBottom ) );
-    // Debug.
-    gi.dprintf( "%s: Platform %s going down.\n", __func__, (const char*)classname.ptr );
-}
-
 DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *self, svg_base_edict_t *other ) -> void {
-    if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
-        const bool knockBack = true;
-        // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
-        // if it's still there, nuke it
-        if ( other && other->inuse && other->solid ) { // PGM)
-            SVG_Misc_BecomeExplosion( other, 1 );
+    if ( self->spawnflags & SPAWNFLAG_PAIN_ON_TOUCH ) {
+        // This only does damage if the plat is set to do so.
+        if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
+            const bool knockBack = true;
+            // give it a chance to go away on it's own terms (like gibs)
+            SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+            // if it's still there, nuke it
+            if ( other && other->inuse && other->solid ) { // PGM)
+                SVG_Misc_BecomeExplosion( other, 1 );
+            }
+            return;
         }
+
+        // PGM
+        //  gib dead things
+        if ( other->health < 1 ) {
+            SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+        }
+        // PGM
+
+        const bool knockBack = false;
+        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+
+        // [Paril-KEX] killed the thing, so don't switch directions
+        //if ( !other->inuse || other->solid == SOLID_NOT ) {
+        // WID: Seems more appropriate since solid_not can still be inuse and alive but whatever.
+        if ( !other->inuse || ( other->inuse && other->solid == SOLID_NOT ) ) {
+            return;
+        }
+    }
+
+	// If the platform is a blocking platform, we don't change direction.
+	// Instead we become a MOVE_STOP platform.
+    if ( self->spawnflags & SPAWNFLAG_BLOCK_STOPS ) {
+        self->movetype = MOVETYPE_STOP;
         return;
     }
 
-    // PGM
-    //  gib dead things
-    if ( other->health < 1 ) {
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
-    }
-    // PGM
-
-    const bool knockBack = false;
-    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
-    
-    // [Paril-KEX] killed the thing, so don't switch directions
-    //if ( !other->inuse || other->solid == SOLID_NOT ) {
-    // WID: Seems more appropriate since solid_not can still be inuse and alive but whatever.
-    if ( !other->inuse || ( other->inuse && other->solid == SOLID_NOT ) ) {
-        return;
-    }
-
+	// If the platform is moving up or at the top, we begin a down move.
     if ( self->pushMoveInfo.state == PUSHMOVE_STATE_TOP || self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
-    //if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
         self->BeginDownMove();
+	// If the platform is moving down or at the bottom, we begin an up move.
     } else {
-    //} else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
         self->BeginUpMove();
     }
 }
@@ -432,33 +413,6 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_plat_t, onUse )( svg_func_plat_t *self, svg
     #endif
 }
 
-/**
-*	@brief  Spawns a trigger inside the plat, at
-*           PLAT_LOW_TRIGGER and/or PLAT_HIGH_TRIGGER
-*           when their spawnflags are set.
-**/
-void svg_func_plat_t::SpawnInsideTrigger( const bool isTop ) {
-    // Spawn a func_plat_trigger.
-    EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "func_plat_trigger" );
-
-    // Allocate it using the found typeInfo.
-    svg_func_plat_trigger_t *triggerEdictInstance = static_cast<svg_func_plat_trigger_t *>( typeInfo->allocateEdictInstanceCallback( nullptr ) );
-
-    // Emplace the spawned edict in the next avaible edict slot.
-    g_edict_pool.EmplaceNextFreeEdict( triggerEdictInstance );
-    // Spawn.
-    triggerEdictInstance->SetSpawnCallback( &svg_func_plat_trigger_t::onSpawn /*onSpawn*/ );
-    triggerEdictInstance->SetPostSpawnCallback( &svg_func_plat_trigger_t::onPostSpawn /*onSpawn*/ );
-    // Assign before spawn so we can refer to the platform entity that 'owns' this trigger.
-    triggerEdictInstance->platformEntityNumber = s.number;
-	triggerEdictInstance->spawnflags |= ( isTop ? svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER : svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER );
-    triggerEdictInstance->DispatchSpawnCallback();
-    if ( isTop ) {
-        triggerEdictInstance->spawnflags |= svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER;
-    } else {
-        triggerEdictInstance->spawnflags |= svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER;
-    }
-}
 
 /**
 *   @brief  
@@ -468,7 +422,13 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
 
     VectorClear( self->s.angles );
     self->solid = SOLID_BSP;
-    self->movetype = MOVETYPE_PUSH;
+    // Blocking STOPS the platform from moving further:
+    //if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_BLOCK_STOPS ) {
+    //    self->movetype = MOVETYPE_STOP;
+    // Blocking PUSHES the entities on the platform.
+    //} else {
+        self->movetype = MOVETYPE_PUSH;
+    //}
     self->s.entityType = ET_PUSHER;
     gi.setmodel( self, self->model );
 
@@ -559,4 +519,69 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     VectorCopy( self->s.angles, self->pushMoveInfo.startAngles );
     VectorCopy( self->pos2, self->pushMoveInfo.endOrigin );
     VectorCopy( self->s.angles, self->pushMoveInfo.endAngles );
+}
+
+/**
+*	@brief  Spawns a trigger inside the plat, at
+*           PLAT_LOW_TRIGGER and/or PLAT_HIGH_TRIGGER
+*           when their spawnflags are set.
+**/
+void svg_func_plat_t::SpawnInsideTrigger( const bool isTop ) {
+    // Spawn a func_plat_trigger.
+    EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "func_plat_trigger" );
+
+    // Allocate it using the found typeInfo.
+    svg_func_plat_trigger_t *triggerEdictInstance = static_cast<svg_func_plat_trigger_t *>( typeInfo->allocateEdictInstanceCallback( nullptr ) );
+
+    // Emplace the spawned edict in the next avaible edict slot.
+    g_edict_pool.EmplaceNextFreeEdict( triggerEdictInstance );
+    // Spawn.
+    triggerEdictInstance->SetSpawnCallback( &svg_func_plat_trigger_t::onSpawn /*onSpawn*/ );
+    triggerEdictInstance->SetPostSpawnCallback( &svg_func_plat_trigger_t::onPostSpawn /*onSpawn*/ );
+    // Assign before spawn so we can refer to the platform entity that 'owns' this trigger.
+    triggerEdictInstance->platformEntityNumber = s.number;
+    triggerEdictInstance->spawnflags |= ( isTop ? svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER : svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER );
+    triggerEdictInstance->DispatchSpawnCallback();
+    if ( isTop ) {
+        triggerEdictInstance->spawnflags |= svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER;
+    } else {
+        triggerEdictInstance->spawnflags |= svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER;
+    }
+}
+
+/**
+*   @brief  Engage the platform to go up.
+**/
+void svg_func_plat_t::BeginUpMove() {
+    // Play the start sound if not a team slave, as well as apply the middle movement sound to entity state.
+    if ( !( flags & FL_TEAMSLAVE ) ) {
+        if ( pushMoveInfo.sounds.start ) {
+            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        }
+        s.sound = pushMoveInfo.sounds.middle;
+    }
+    // Set the state to moving down.
+    pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
+    // Engage the PushMover action.
+    CalculateDirectionalMove( pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &this->onPlatHitTop ) );
+    // Debug.
+    gi.dprintf( "%s: Platform %s going up.\n", __func__, (const char *)classname.ptr );
+}
+/**
+*   @brief  Engage the platform to go down.
+**/
+void svg_func_plat_t::BeginDownMove() {
+    // Play the start sound if not a team slave, as well as apply the middle movement sound to entity state.
+    if ( !( flags & FL_TEAMSLAVE ) ) {
+        if ( pushMoveInfo.sounds.start ) {
+            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        }
+        s.sound = pushMoveInfo.sounds.middle;
+    }
+    // Set the state to moving down.
+    pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
+    // Engage the PushMover action.
+    CalculateDirectionalMove( pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &this->onPlatHitBottom ) );
+    // Debug.
+    gi.dprintf( "%s: Platform %s going down.\n", __func__, (const char *)classname.ptr );
 }
