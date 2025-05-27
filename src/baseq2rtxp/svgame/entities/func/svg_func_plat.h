@@ -271,6 +271,15 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     **/
     void SpawnInsideTrigger( const bool isTop );
 
+    /**
+	*   @brief  Engage the platform to go up.
+    **/
+    void BeginUpMove();
+    /**
+    *   @brief  Engage the platform to go down.
+    **/
+    void BeginDownMove();
+
 
     /**
     *
@@ -290,9 +299,9 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     //! Plat Toggle
     static constexpr spawnflag_t SPAWNFLAG_TOGGLE = BIT( 3 );
     //! Plat Pain On Touch
-    static constexpr spawnflag_t SPAWNFLAG_PAIN_ON_TOUCH = BIT( 4 );
+    //static constexpr spawnflag_t SPAWNFLAG_PAIN_ON_TOUCH = BIT( 4 ); // WID: TODO: Implement.
 	//! Block Stops
-	static constexpr spawnflag_t SPAWNFLAG_BLOCK_STOPS = BIT( 5 );
+	//static constexpr spawnflag_t SPAWNFLAG_BLOCK_STOPS = BIT( 5 ); // WID: TODO: Implement.
     //! Animated
     static constexpr spawnflag_t SPAWNFLAG_ANIMATED = BIT( 6 );
     //! Animated Fast

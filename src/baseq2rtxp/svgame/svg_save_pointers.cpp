@@ -151,38 +151,11 @@ extern void func_wall_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_
 
 extern void SVG_FreeEdict( svg_base_edict_t *self );
 
-extern void gib_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
-extern void gib_think( svg_base_edict_t *self );
-extern void gib_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
-
 extern void M_droptofloor( svg_base_edict_t *self );
-
-extern void SVG_PushMove_MoveBegin( svg_base_edict_t *ent );
-extern void SVG_PushMove_MoveDone( svg_base_edict_t *ent );
-extern void SVG_PushMove_MoveFinal( svg_base_edict_t *ent );
-extern void SVG_PushMove_Think_AccelerateMove( svg_base_edict_t *self );
-extern void SVG_PushMove_Think_AccelerateMoveNew( svg_base_edict_t *self );
-
 
 extern void path_corner_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
-extern void plat_blocked( svg_base_edict_t *self, svg_base_edict_t *other );
-extern void plat_go_down( svg_base_edict_t *self );
-extern void plat_hit_bottom( svg_base_edict_t *self );
-extern void plat_hit_top( svg_base_edict_t *self );
-
-//extern void player_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
-//extern void player_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage );
-
 //extern void point_combat_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
-
-//extern void rotating_start( svg_base_edict_t *self );
-//extern void rotating_end( svg_base_edict_t *self );
-extern void rotating_accelerate( svg_base_edict_t *self );
-extern void rotating_decelerate( svg_base_edict_t *self );
-extern void rotating_blocked( svg_base_edict_t *self, svg_base_edict_t *other );
-extern void rotating_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
-extern void rotating_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void target_crosslevel_target_think( svg_base_edict_t *self );
 
@@ -204,12 +177,6 @@ extern void teleporter_touch( svg_base_edict_t *self, svg_base_edict_t *other, c
 
 //extern void TH_viewthing( svg_base_edict_t *ent );
 
-
-extern void Think_UseTargetsDelay( svg_base_edict_t *self );
-extern void Think_SignalOutDelay( svg_base_edict_t *self );
-extern void DoorTrigger_Touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
-extern void Touch_Plat_Center( svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
-
 extern void train_blocked( svg_base_edict_t *self, svg_base_edict_t *other );
 extern void train_next( svg_base_edict_t *self );
 extern void train_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
@@ -220,9 +187,7 @@ extern void trigger_crosslevel_trigger_use( svg_base_edict_t *self, svg_base_edi
 extern void trigger_elevator_init( svg_base_edict_t *self );
 extern void trigger_elevator_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void Use_Areaportal( svg_base_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void use_killbox( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
-extern void Use_Plat( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void Use_Target_Tent( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void use_target_blaster( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );

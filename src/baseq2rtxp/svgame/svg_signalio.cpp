@@ -23,10 +23,12 @@
 *
 *
 **/
+DECLARE_GLOBAL_CALLBACK_THINK( Think_SignalOutDelay );
+
 /**
 *   @brief  'Think' support routine for delayed SignalOut signalling.
 **/
-void Think_SignalOutDelay( svg_base_edict_t *ent ) {
+DEFINE_GLOBAL_CALLBACK_THINK( Think_SignalOutDelay )( svg_base_edict_t *ent ) -> void {
     // SignalOut again, keep in mind that ent now has no delay set, so it will actually
     // proceed to calling the OnSignalIn functions.
     SVG_SignalOut( ent, ent->other, ent->activator, ent->delayed.signalOut.name );

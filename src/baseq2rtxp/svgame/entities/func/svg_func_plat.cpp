@@ -20,8 +20,6 @@
 #include "sharedgame/sg_means_of_death.h"
 
 
-void plat_go_down( svg_func_plat_t *ent );
-void plat_go_up( svg_func_plat_t *ent );
 
 /**
 *
@@ -119,61 +117,27 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_plat_trigger_t, onPostSpawn )( svg_fu
 
     // Acquire the platform entity.
     svg_func_plat_t *platformEntity = static_cast<svg_func_plat_t *>( foundEntity );
-    #if 1
-        // Calculate trigger mins/maxs.
-        Vector3 triggerMins = platformEntity->mins + Vector3{ 25.f, 25.f, 0.f };
-        Vector3 triggerMaxs = platformEntity->maxs + Vector3{ -25.f, -25.f, 8.f };
-	    // Convert to BBox3.
-	    BBox3 triggerBox = QM_BBox3FromMinsMaxs( triggerMins, triggerMaxs );
+
+    // Calculate trigger mins/maxs.
+    Vector3 triggerMins = platformEntity->mins + Vector3{ 25.f, 25.f, 0.f };
+    Vector3 triggerMaxs = platformEntity->maxs + Vector3{ -25.f, -25.f, 8.f };
+	// Convert to BBox3.
+	BBox3 triggerBox = QM_BBox3FromMinsMaxs( triggerMins, triggerMaxs );
     
-        // 
+	// If high trigger, adjust the z position.
+    Vector3 triggerOrigin = platformEntity->pos2;
+    if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER ) {
+        triggerOrigin = platformEntity->pos1;
+	}
+    // Set the trigger's origin.
+    triggerOrigin += Vector3{ 0.f, 0.f, platformEntity->lip };
+    VectorCopy( triggerOrigin, self->s.origin );
 
-	    // If high trigger, adjust the z position.
-        Vector3 triggerOrigin = platformEntity->pos2;
-        if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER ) {
-            triggerOrigin = platformEntity->pos1;
-	    }
-
-        // Set the trigger's origin.
-        triggerOrigin += Vector3{ 0.f, 0.f, platformEntity->lip };
-        VectorCopy( triggerOrigin, self->s.origin );
-        // Calculate the final bounds for this trigger entity.
-        BBox3 finalBounds = QM_BBox3FromCenterSize( QM_BBox3Size( triggerBox ), QM_Vector3Zero() );
-	    // Set the trigger's mins and maxs.
-	    VectorCopy( finalBounds.mins, self->mins );
-	    VectorCopy( finalBounds.maxs, self->maxs );
-    #else
-        Vector3 tmin;
-        tmin[ 0 ] = platformEntity->mins[ 0 ] + 25;
-        tmin[ 1 ] = platformEntity->mins[ 1 ] + 25;
-        tmin[ 2 ] = platformEntity->mins[ 2 ];
-        Vector3 tmax;
-        tmax[ 0 ] = platformEntity->maxs[ 0 ] - 25;
-        tmax[ 1 ] = platformEntity->maxs[ 1 ] - 25;
-        tmax[ 2 ] = platformEntity->maxs[ 2 ] + 8;
-
-
-        if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_HIGH_TRIGGER ) {
-            tmin[ 2 ] = tmax[ 2 ] + ( platformEntity->pos1[ 2 ] - platformEntity->pos2[ 2 ] + platformEntity->lip );
-            tmax[ 2 ] = tmin[ 2 ] + 8;
-        } else if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_LOW_TRIGGER ) {
-            tmin[ 2 ] = tmax[ 2 ] - ( platformEntity->pos1[ 2 ] + platformEntity->lip );
-
-            tmax[ 2 ] = tmin[ 2 ] + 8;
-        }
-
-        if ( tmax[ 0 ] - tmin[ 0 ] <= 0 ) {
-            tmin[ 0 ] = ( platformEntity->mins[ 0 ] + platformEntity->maxs[ 0 ] ) * 0.5f;
-            tmax[ 0 ] = tmin[ 0 ] + 1;
-        }
-        if ( tmax[ 1 ] - tmin[ 1 ] <= 0 ) {
-            tmin[ 1 ] = ( platformEntity->mins[ 1 ] + platformEntity->maxs[ 1 ] ) * 0.5f;
-            tmax[ 1 ] = tmin[ 1 ] + 1;
-        }
-
-        VectorCopy( tmin, self->mins );
-        VectorCopy( tmax, self->maxs );
-    #endif
+    // Calculate the final bounds for this trigger entity.
+    BBox3 finalBounds = QM_BBox3FromCenterSize( QM_BBox3Size( triggerBox ), QM_Vector3Zero() );
+	// Set the trigger's mins and maxs.
+	VectorCopy( finalBounds.mins, self->mins );
+	VectorCopy( finalBounds.maxs, self->maxs );
 
     gi.linkentity( self );
 }
@@ -190,7 +154,13 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_plat_trigger_t, onTouch )( svg_func_plat_
 
     // Make sure we have a valid platform entity.
     if ( !SVG_Entity_IsActive( platPtr ) || !platPtr->GetTypeInfo()->IsSubClassType<svg_func_plat_t>() ) {
-        gi.dprintf( "%s: Invalid platform entity.\n", __func__ );
+        // If we have a platform entity, but it's not valid, print a debug message.
+        if ( platPtr != nullptr ) {
+			gi.dprintf( "%s: Platform entity %i is not valid.\n", __func__, self->platformEntityNumber );
+        // If we don't have a platform entity, print a debug message.
+        } else {
+            gi.dprintf( "%s: Invalid platform entity.\n", __func__ );
+		}
         return;
     }
 
@@ -199,17 +169,18 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_plat_trigger_t, onTouch )( svg_func_plat_
     
 	// If we are within the debounce time, return.
 	if ( platformEntity->touch_debounce_time > level.time ) {
-		gi.dprintf( "%s: Platform %s touch debounce time not expired.\n", __func__, platformEntity->classname.ptr );
-		return;
+        gi.dprintf( "%s: Platform (#%i, \"%s\") touch debounce time not expired.\n", __func__, platformEntity->s.number, (const char *)platformEntity->classname.ptr );
+        return;
 	}
+    // If we are a toggle platform instead, we return.
+    if ( ( platformEntity->spawnflags & svg_func_plat_t::SPAWNFLAG_TOGGLE ) ) {
+        gi.dprintf( "%s: Platform (#%i, \"%s\") is toggleable only.\n", __func__, platformEntity->s.number, (const char*)platformEntity->classname.ptr );
+        return;
+    }
 
 	// Go up if we'r at the bottom.
     if ( platformEntity->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
-        plat_go_up( static_cast<svg_func_plat_t*>( platformEntity ) );
-		gi.dprintf( "%s: Platform %s going up.\n", __func__, platformEntity->classname.ptr );
-        
-		// Set the debounce time to prevent immmediate re-triggering.
-        platformEntity->touch_debounce_time = level.time + 2_sec;
+        platformEntity->BeginUpMove( );
     // Go down if we're at the top.
     } else if ( platformEntity->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
         #if 0
@@ -220,11 +191,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_plat_trigger_t, onTouch )( svg_func_plat_
             //platformEntity->nextthink = level.time + 1_sec; // the player is still on the plat, so delay going down
             #endif
         #else
-            plat_go_down( static_cast<svg_func_plat_t *>( platformEntity ) );
-            gi.dprintf( "%s: Platform %s going down.\n", __func__, platformEntity->classname.ptr );
-
-            // Set the debounce time to prevent immmediate re-triggering.
-            platformEntity->touch_debounce_time = level.time + 2_sec;
+            platformEntity->BeginDownMove();
         #endif
     }
 }
@@ -296,14 +263,20 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink_Idle )( svg_func_plat_t *
 *   @brief  PushMoveInfo EndMove Callback for when the platform hits the top.
 **/
 DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitTop )( svg_func_plat_t *self ) -> void {
+    // If not a team slave, play the end sound and reset the sound state.
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
         }
         self->s.sound = 0;
     }
+    // Set the state to top.
     self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
 
+    // Set the debounce time to prevent immmediate re-triggering.
+    if ( !( self->spawnflags & svg_func_plat_t::SPAWNFLAG_TOGGLE ) ) {
+        self->touch_debounce_time = level.time + QMTime::FromSeconds( self->wait );
+    }
     #if 0
     ent->think = plat_go_down;
     ent->nextthink = level.time + 3_sec;
@@ -330,13 +303,20 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitTop )( svg_fu
 *   @brief  PushMoveInfo EndMove Callback for when the platform hits the bottom.
 **/
 DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitBottom )( svg_func_plat_t *self ) -> void {
+	// If not a team slave, play the end sound and reset the sound state.
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.end ) {
             gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
         }
         self->s.sound = 0;
     }
+	// Set the state to bottom.
     self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
+
+    // Set the debounce time to prevent immmediate re-triggering.
+    if ( !( self->spawnflags & svg_func_plat_t::SPAWNFLAG_TOGGLE ) ) {
+        self->touch_debounce_time = level.time + QMTime::FromSeconds( self->wait );
+    }
 
     // Engage into idle thinking.
     self->onThink_Idle( self );
@@ -356,24 +336,41 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitBottom )( svg
     );
 }
 
-void plat_go_down( svg_func_plat_t *ent ) {
-    if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pushMoveInfo.sounds.start )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
-        ent->s.sound = ent->pushMoveInfo.sounds.middle;
+/**
+*   @brief  Engage the platform to go up.
+**/
+void svg_func_plat_t::BeginUpMove() {
+    // Play the start sound if not a team slave, as well as apply the middle movement sound to entity state.
+    if ( !( flags & FL_TEAMSLAVE ) ) {
+        if ( pushMoveInfo.sounds.start ) {
+            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        }
+        s.sound = pushMoveInfo.sounds.middle;
     }
-    ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
-    ent->CalculateDirectionalMove( ent->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_plat_t::onPlatHitBottom ) );
+    // Set the state to moving down.
+    pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
+    // Engage the PushMover action.
+    CalculateDirectionalMove( pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &this->onPlatHitTop ) );
+    // Debug.
+    gi.dprintf( "%s: Platform %s going up.\n", __func__, (const char *)classname.ptr );
 }
-
-void plat_go_up( svg_func_plat_t *ent ) {
-    if ( !( ent->flags & FL_TEAMSLAVE ) ) {
-        if ( ent->pushMoveInfo.sounds.start )
-            gi.sound( ent, CHAN_NO_PHS_ADD + CHAN_VOICE, ent->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
-        ent->s.sound = ent->pushMoveInfo.sounds.middle;
+/**
+*   @brief  Engage the platform to go down.
+**/
+void svg_func_plat_t::BeginDownMove() {
+	// Play the start sound if not a team slave, as well as apply the middle movement sound to entity state.
+    if ( !( flags & FL_TEAMSLAVE ) ) {
+        if ( pushMoveInfo.sounds.start ) {
+            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+        }
+        s.sound = pushMoveInfo.sounds.middle;
     }
-    ent->pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
-    ent->CalculateDirectionalMove( ent->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &svg_func_plat_t::onPlatHitTop ) );
+	// Set the state to moving down.
+    pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
+    // Engage the PushMover action.
+    CalculateDirectionalMove( pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &this->onPlatHitBottom ) );
+    // Debug.
+    gi.dprintf( "%s: Platform %s going down.\n", __func__, (const char*)classname.ptr );
 }
 
 DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *self, svg_base_edict_t *other ) -> void {
@@ -407,10 +404,10 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *s
 
     if ( self->pushMoveInfo.state == PUSHMOVE_STATE_TOP || self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
     //if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
-        plat_go_down( self );
+        self->BeginDownMove();
     } else {
     //} else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN ) {
-        plat_go_up( self );
+        self->BeginUpMove();
     }
 }
 
@@ -419,9 +416,9 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_plat_t, onUse )( svg_func_plat_t *self, svg
     // WID: <Q2RTXP> For func_button support.
     //if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
     if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP || self->pushMoveInfo.state == PUSHMOVE_STATE_TOP ) {
-        plat_go_down( self );
+        self->BeginDownMove( );
     } else if ( self->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_DOWN || self->pushMoveInfo.state == PUSHMOVE_STATE_BOTTOM ) {
-        plat_go_up( self );
+        self->BeginUpMove( );
     }
     //    return;     // already down
     //}
@@ -475,14 +472,17 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     self->s.entityType = ET_PUSHER;
     gi.setmodel( self, self->model );
 
-    self->SetBlockedCallback( &svg_func_plat_t::onBlocked /*plat_blocked*/ );
+    // Set audio.
+    self->pushMoveInfo.sounds.start = gi.soundindex( "pushers/plat_start_01.wav" );
+    self->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/plat_mid_01.wav" );
+    self->pushMoveInfo.sounds.end = gi.soundindex( "pushers/plat_end_01.wav" );
 
+	// SpawnKey Defaults:
     if ( !self->speed ) {
         self->speed = 20.f;
     } else {
         self->speed *= 0.1f;
     }
-
     if ( !self->accel ) {
         self->accel = 5.f;
     } else {
@@ -493,31 +493,28 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     } else {
         self->decel *= 0.1f;
     }
-
     if ( !self->dmg ) {
         self->dmg = 2;
     }
-
     if ( !self->lip ) {
         self->lip = 8;
     }
 
-    // pos1 is the top position, pos2 is the bottom
+    // Pos1 = top position, determine pos2 which = bottom position.
     VectorCopy( self->s.origin, self->pos1 );
     VectorCopy( self->s.origin, self->pos2 );
+    // Height was already set.
     if ( self->height ) {
         self->pos2[ 2 ] -= self->height;
+    // Determine height ourselves.
     } else {
-        self->pos2[ 2 ] -= ( self->maxs[ 2 ] - self->mins[ 2 ] ) - self->lip;
+        self->pos2[ 2 ] -= ( self->height = ( self->maxs[ 2 ] - self->mins[ 2 ] ) - self->lip );
     }
 
-    self->SetUseCallback( &svg_func_plat_t::onUse /*Use_Plat*/ );
-
-
     // WID: TODO: For Lua stuff we dun need this.
-    //self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
+    self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
     // WID: TODO: Add spawnflags for this stuff.
-    {
+    if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_START_BOTTOM ) {
         VectorCopy( self->pos2, self->s.origin );
         gi.linkentity( self );
         self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
@@ -549,6 +546,11 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     }
     #endif
 
+    // Setup callbacks.
+    self->SetBlockedCallback( &svg_func_plat_t::onBlocked /*plat_blocked*/ );
+    self->SetUseCallback( &svg_func_plat_t::onUse /*Use_Plat*/ );
+
+    // Setup PushMove Info.
     self->pushMoveInfo.speed = self->speed;
     self->pushMoveInfo.accel = self->accel;
     self->pushMoveInfo.decel = self->decel;
@@ -557,10 +559,4 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     VectorCopy( self->s.angles, self->pushMoveInfo.startAngles );
     VectorCopy( self->pos2, self->pushMoveInfo.endOrigin );
     VectorCopy( self->s.angles, self->pushMoveInfo.endAngles );
-
-
-
-    self->pushMoveInfo.sounds.start = gi.soundindex( "pushers/plat_start_01.wav" );
-    self->pushMoveInfo.sounds.middle = gi.soundindex( "pushers/plat_mid_01.wav" );
-    self->pushMoveInfo.sounds.end = gi.soundindex( "pushers/plat_end_01.wav" );
 }
