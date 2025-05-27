@@ -47,10 +47,11 @@ const int32_t SVG_Trigger_KillTargets( svg_base_edict_t *self );
 *
 *
 **/
+DECLARE_GLOBAL_CALLBACK_THINK( LUA_Think_UseTargetDelay );
 /**
 *	@brief	Utility/Support routine for delaying UseTarget when the 'delay' key/value is set on an entity.
 **/
-void LUA_Think_UseTargetDelay( svg_base_edict_t *entity ) {
+DEFINE_GLOBAL_CALLBACK_THINK( LUA_Think_UseTargetDelay)( svg_base_edict_t *entity ) -> void {
 	// Ensure it is still active.
 	if ( !SVG_Entity_IsActive( entity ) ) {
 		return;
@@ -233,7 +234,8 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 /**
 *	@brief	Utility/Support routine for delaying UseTarget when the 'delay' key/value is set on an entity.
 **/
-void LUA_Think_UseTargetsDelay( svg_base_edict_t *entity ) {
+DECLARE_GLOBAL_CALLBACK_THINK( LUA_Think_UseTargetsDelay );
+DEFINE_GLOBAL_CALLBACK_THINK( LUA_Think_UseTargetsDelay)( svg_base_edict_t *entity ) -> void {
 	// Ensure it is still active.
 	if ( !SVG_Entity_IsActive( entity ) ) {
 		return;

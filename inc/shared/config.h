@@ -15,8 +15,9 @@
 #define _STR(x) STRING(x)
 #define VERSION_STRING _STR(VERSION_MAJOR) "." _STR(VERSION_MINOR) "." _STR(VERSION_POINT)
 #define LONG_VERSION_STRING _STR(VERSION_MAJOR) "." _STR(VERSION_MINOR) "." _STR(VERSION_POINT) "-" _STR(VERSION_BRANCH) "-" _STR(VERSION_SHA)
-
-
+#ifdef __cplusplus
+constexpr const char *VERSION_STRING_C = LONG_VERSION_STRING; //!< Version string for use in C code, not C++.
+#endif
 /**
 *	CPU String for display usage.
 **/

@@ -22,10 +22,11 @@
 *
 *
 **/
+DECLARE_GLOBAL_CALLBACK_THINK( LUA_Think_SignalOutDelay );
 /**
 *	@brief	Utility/Support routine for delaying SignalOut when a 'delay' is given to it.
 **/
-void LUA_Think_SignalOutDelay( svg_base_edict_t *entity ) {
+DEFINE_GLOBAL_CALLBACK_THINK( LUA_Think_SignalOutDelay )( svg_base_edict_t *entity ) -> void {
 	svg_base_edict_t *creatorEntity = entity->delayed.signalOut.creatorEntity;
 	if ( !SVG_Entity_IsActive( creatorEntity ) ) {
 		return;
