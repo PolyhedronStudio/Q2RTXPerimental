@@ -76,8 +76,8 @@ typedef struct {
 
 typedef struct {
     loopmsg_t       msgs[MAX_LOOPBACK];
-    unsigned long   get;
-    unsigned long   send;
+    uint64_t        get;
+    uint64_t        send;
 } loopback_t;
 
 static loopback_t   loopbacks[NS_COUNT];
@@ -124,7 +124,7 @@ static ioentry_t    io_entries[FD_SETSIZE];
 static int          io_numfds;
 
 // current rate measurement
-static unsigned     net_rate_time;
+static uint64_t     net_rate_time;
 static size_t       net_rate_rcvd;
 static size_t       net_rate_sent;
 static size_t       net_rate_dn;
@@ -461,7 +461,7 @@ static void NET_LogPacket(const netadr_t *address, const char *prefix,
 
 void NET_UpdateStats(void)
 {
-    unsigned diff;
+    uint64_t diff;
 
     if (net_rate_time > com_eventTime) {
         net_rate_time = com_eventTime;

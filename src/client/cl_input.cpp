@@ -255,10 +255,10 @@ void CL_KeyDown( keybutton_t *b ) {
     c = Cmd_Argv( 2 );
     b->downtime = atoi( c );
     if ( !b->downtime ) {
-        b->downtime = com_eventTime - BASE_FRAMETIME;
+        b->downtime = com_eventTime - 16; // Original was 10, hmm? WID: 40hz: BASE_FRAMETIME
     }
 
-    b->state = static_cast<keybutton_state_t>( b->state | BUTTON_STATE_HELD | BUTTON_STATE_DOWN );//1 + 2;    // down + impulse down
+    b->state |= ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN );//1 + 2;    // down + impulse down
 }
 
 /**
@@ -297,12 +297,12 @@ void CL_KeyUp( keybutton_t *b ) {
     c = Cmd_Argv( 2 );
     uptime = atoi( c );
     if ( !uptime ) {
-        b->msec += BASE_FRAMETIME; // WID: 40hz: Used to be 10;
+        b->msec += 16; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10;
     } else if ( uptime > b->downtime ) {
         b->msec += uptime - b->downtime;
     }
 
-    b->state = static_cast<keybutton_state_t>( b->state & ~BUTTON_STATE_HELD );        // now up
+    b->state &= ~( BUTTON_STATE_HELD | BUTTON_STATE_DOWN );        // now up
 }
 
 /**
@@ -310,7 +310,7 @@ void CL_KeyUp( keybutton_t *b ) {
 **/
 void CL_KeyClear( keybutton_t *b ) {
     b->msec = 0;
-    b->state = static_cast<keybutton_state_t>( b->state & ~BUTTON_STATE_DOWN );        // clear impulses
+    b->state &= ~BUTTON_STATE_DOWN;        // clear impulses
     if ( b->state & BUTTON_STATE_HELD ) {
         b->downtime = com_eventTime; // still down
     }
@@ -320,6 +320,27 @@ void CL_KeyClear( keybutton_t *b ) {
 *   @brief  Returns the fraction of the command frame's interval for which the key was 'down'.
 **/
 const double CL_KeyState( keybutton_t *key ) {
+    #if 1
+    uint64_t msec = key->msec;
+    //key->msec = 0;
+
+    if ( key->state & BUTTON_STATE_HELD ) { // still down, reset downtime for next frame
+        // still down
+        if ( com_eventTime > key->downtime ) {
+            msec += com_eventTime - key->downtime;
+        }
+    }
+
+    // special case for instant packet
+    if ( !cl.moveCommand.cmd.msec ) {
+        return (double)( key->state & BUTTON_STATE_HELD );
+    }
+
+    const double frac = ( (double)msec * 1000.0 ) / ( (double)cl.moveCommand.cmd.msec * 1000.0 );
+
+    return QM_Clamp( frac, 0.0, 1.0 );
+
+    #else
     uint64_t msec = key->msec;
     double val;
 
@@ -338,6 +359,7 @@ const double CL_KeyState( keybutton_t *key ) {
     val = (double)msec / cl.moveCommand.cmd.msec;
 
     return std::clamp( val, 0., 1. );
+    #endif
 }
 
 //==========================================================================
@@ -455,8 +477,8 @@ void CL_RegisterInput( void ) {
     Cmd_AddCommand( "in_restart", IN_Restart_f );
 
     cl_nodelta = Cvar_Get( "cl_nodelta", "0", 0 );
-    // WID: netstuff: Changed from 30, to actually, 40.
-    cl_maxpackets = Cvar_Get( "cl_maxpackets", "40", 0 );
+    // WID: netstuff: Changed from 30, to actually, 125.
+    cl_maxpackets = Cvar_Get( "cl_maxpackets", "125", 0 );
     cl_fuzzhack = Cvar_Get( "cl_fuzzhack", "0", 0 );
     #if USE_DEBUG
     cl_showpackets = Cvar_Get( "cl_showpackets", "0", 0 );
@@ -519,7 +541,7 @@ void CL_FinalizeCommand( void ) {
     cl.moveCommands[ cl.currentUserCommandNumber & CMD_MASK ] = cl.moveCommand;
 
 clear:
-    cl.moveCommand = {};
+    cl.moveCommand.cmd = {};
 
     // Clear mouse move state.
     cl.mousemove[ 0 ] = 0;
@@ -558,7 +580,7 @@ static inline bool ready_to_send( void ) {
     // one is using cl_batchcmds :-) Not content about it, but it works for now.
     if ( cl_batchcmds->integer ) {
         //Com_DPrintf( "%s\n", "client_ready_to_send (cl_batchcmds->integer): true" );
-        return true;
+        //return true;
     }
 
     // WID: netstuff: Changed from 10, to actually, 40.

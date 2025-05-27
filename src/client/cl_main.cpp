@@ -2564,7 +2564,7 @@ static void CL_InitLocal(void)
     cl_predict = Cvar_Get("cl_predict", "1", 0);
     //cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
-    cl_maxfps = Cvar_Get("cl_maxfps", "62", 0);
+    cl_maxfps = Cvar_Get("cl_maxfps", "62.5", 0);
     cl_maxfps->changed = cl_maxfps_changed;
     cl_async = Cvar_Get("cl_async", "1", 0);
     cl_async->changed = cl_sync_changed;
@@ -2784,7 +2784,7 @@ static void CL_SetClientTime(void)
 
 static void CL_MeasureStats(void)
 {
-    int i;
+    int64_t i;
 
     if (com_localTime - cls.measure.time < 1000) {
         return;
@@ -3158,10 +3158,10 @@ uint64_t CL_Frame( uint64_t msec ) {
     if ( cls.state == ca_active && !sv_paused->integer ) {
         CL_SetClientTime();
 
-        // Let the client game run for another GAME frame.
-        if ( clientgame_frame ) {
-            clientgame_extra -= CL_ClientGameFrame( clientgame_msec );
-        }
+        //// Let the client game run for another GAME frame.
+        //if ( clientgame_frame ) {
+        //    clientgame_extra -= CL_ClientGameFrame( clientgame_msec );
+        //}
     }
 
     #if USE_AUTOREPLY
@@ -3217,7 +3217,8 @@ uint64_t CL_Frame( uint64_t msec ) {
         ref_extra -= ref_msec;
         R_FRAMES++;
 
-run_fx:
+    //run_fx:
+
         // Advance local game effects for next frame.
         if ( clge ) {
             clge->ClientRefreshFrame();
@@ -3231,8 +3232,8 @@ run_fx:
     } else if ( sync_mode == SYNC_SLEEP_10 ) {
         // Force audio and effects update if not rendering.
         CL_CalculateViewValues();
-        goto run_fx;
-        //S_Update();
+        //goto run_fx;
+        S_Update();
     }
 
     // check connection timeout

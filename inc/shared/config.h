@@ -79,7 +79,7 @@
 #define DEFAULT_GAME ""
 
 //! Compile with Windows NT ICMP:
-#define USE_ICMP 1
+#define USE_ICMP 0
 //! Compile with zlib enabled. TODO: We can't really live without it, so...?
 #define USE_ZLIB 1
 //! Compile with system console output utilities enabled.

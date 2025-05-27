@@ -344,9 +344,9 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         client_movecmd_t *moveCommand = &clgi.client->moveCommands[ acknowledgedCommandNumber & CMD_MASK ];
 
         // Only simulate it if it had movement.
-        if ( moveCommand->cmd.msec ) {
+        //if ( moveCommand->cmd.msec ) {
             // Timestamp it so the client knows we have valid results.
-            moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
+            //moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
             
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
@@ -360,9 +360,9 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
             //    moveCommand->prediction.time );
 
             // Save for prediction checking.
-            moveCommand->prediction.origin = pm.playerState->pmove.origin;
-            moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
-        }
+        //}
+        moveCommand->prediction.origin = pm.playerState->pmove.origin;
+        moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
     }
 
     // Now run the pending command number.
@@ -370,7 +370,7 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
     client_movecmd_t *pendingMoveCommand = &clgi.client->moveCommand;
     if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
-        pendingMoveCommand->prediction.time = clgi.client->time;
+        //pendingMoveCommand->prediction.time = clgi.client->time;
         
         // Initialize pmove with the proper moveCommand data.
         #if 1

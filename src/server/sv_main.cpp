@@ -1360,7 +1360,7 @@ static void SV_GiveMsec(void)
     client_t    *cl;
 
     //if (!(sv.framenum % ((int64_t)BASE_FRAMETIME))) {
-    if ( !( sv.framenum % ( (int64_t)BASE_FRAMETIME ) ) ) {
+    if ( !( sv.framenum % ( (int64_t)16 ) ) ) {
         FOR_EACH_CLIENT(cl) {
             cl->command_msec = 1800; // 1600 + some slop
         }
@@ -1369,11 +1369,11 @@ static void SV_GiveMsec(void)
     if (svs.realtime - svs.last_timescale_check < sv_timescale_time->integer)
         return;
 
-    float d = svs.realtime - svs.last_timescale_check;
+    uint64_t d = svs.realtime - svs.last_timescale_check;
     svs.last_timescale_check = svs.realtime;
 
     FOR_EACH_CLIENT(cl) {
-        cl->timescale = cl->cmd_msec_used / d;
+        cl->timescale = (double)cl->cmd_msec_used / (double)d;
         cl->cmd_msec_used = 0;
 
         if (sv_timescale_warn->value > 1.0f && cl->timescale > sv_timescale_warn->value) {
@@ -1804,7 +1804,7 @@ uint64_t SV_Frame(uint64_t msec)
 
     if (COM_DEDICATED) {
         // process console commands if not running a client
-        Cbuf_Execute(&cmd_buffer);
+        Cbuf_Execute( &cmd_buffer );
     }
 
     // read packets from UDP clients
@@ -1849,9 +1849,7 @@ uint64_t SV_Frame(uint64_t msec)
 
     if (COM_DEDICATED) {
         // run cmd buffer in dedicated mode
-        if (cmd_buffer.waitCount > 0) {
-            cmd_buffer.waitCount--;
-        }
+        Cbuf_Frame( &cmd_buffer );
     }
 
     // decide how long to sleep next frame
@@ -1979,7 +1977,7 @@ static void sv_rate_changed(cvar_t *self)
 {
 	// WID: 40hz:
     //Cvar_ClampInteger(sv_min_rate, 100, Cvar_ClampInteger(sv_max_rate, 1000, INT_MAX));
-	Cvar_ClampInteger( sv_min_rate, CLIENT_RATE_MIN, Cvar_ClampInteger( sv_max_rate, CLIENT_RATE_MIN, INT_MAX ) );
+	Cvar_ClampInteger( sv_min_rate, 25, Cvar_ClampInteger( sv_max_rate, 1000, INT_MAX ) );
 }
 
 void sv_sec_timeout_changed(cvar_t *self)
@@ -2099,8 +2097,8 @@ void SV_Init(void) {
     sv_max_download_size = Cvar_Get( "sv_max_download_size", "8388608", 0 );
     sv_max_packet_entities = Cvar_Get( "sv_max_packet_entities", STRINGIFY( MAX_PACKET_ENTITIES ), 0 );
 	// WID: 40hz:
-	//sv_min_rate = Cvar_Get("sv_min_rate", "100", CVAR_LATCH);
-	sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( CLIENT_RATE_MIN ).c_str( ), CVAR_LATCH );
+	sv_min_rate = Cvar_Get("sv_min_rate", "25", CVAR_LATCH);
+	//sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( CLIENT_RATE_MIN ).c_str( ), CVAR_LATCH );
     sv_max_rate = Cvar_Get("sv_max_rate", "15000", CVAR_LATCH);
     sv_max_rate->changed = sv_min_rate->changed = sv_rate_changed;
     sv_max_rate->changed(sv_max_rate);

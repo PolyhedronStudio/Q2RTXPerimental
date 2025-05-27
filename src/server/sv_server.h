@@ -382,11 +382,11 @@ typedef struct client_s {
 	uint64_t		lastactivity;   // svs.realtime when user activity was last seen
     int64_t			lastframe;      // for delta compression
     usercmd_t       lastcmd;        // for filling in big drops
-    int             command_msec;   // every seconds this is reset, if user
+    int64_t         command_msec;   // every seconds this is reset, if user
                                     // commands exhaust it, assume time cheating
     int64_t         num_moves;      // reset every 10 seconds
     int64_t         moves_per_sec;  // average movement FPS
-    int             cmd_msec_used;
+    int64_t         cmd_msec_used;
     double          timescale;
 
     int64_t			ping, min_ping, max_ping;
@@ -401,7 +401,7 @@ typedef struct client_s {
     uint64_t		frameflags;
 
     // rate dropping
-    unsigned        message_size[RATE_MESSAGES];    // Used to rate drop 'Normal' packets.
+    uint64_t        message_size[RATE_MESSAGES];    // Used to rate drop 'Normal' packets.
     int64_t         suppress_count;                 // Sumber of messages rate suppressed (rate-dropped).
     uint64_t		send_time, send_delta;          // Used to rate drop 'Async' packets.
 

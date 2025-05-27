@@ -91,6 +91,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
 		bool removeEntity = false;
 
 		// Read out entity number, whether to remove it or not, and its byteMask.
+        bits = 0;
 		newnum = MSG_ReadEntityNumber( &removeEntity, &bits );
 
         if (newnum < 0 || newnum >= MAX_EDICTS) {

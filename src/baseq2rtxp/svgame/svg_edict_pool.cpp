@@ -275,7 +275,7 @@ svg_base_edict_t **SVG_EdictPool_Allocate( svg_edict_pool_t *edictPool, const in
 	}
 
 	// Perform allocation, and set the pointer to the new edict array.
-	if ( edictPool->edicts ) {
+	if ( !edictPool->edicts ) {
 		edictPool->edicts = (svg_base_edict_t **)gi.TagMallocz( numReservedEntities * sizeof( svg_base_edict_t * ), TAG_SVGAME_EDICTS );
 	} else {
 		edictPool->edicts = (svg_base_edict_t **)gi.TagReMalloc( edictPool->edicts, numReservedEntities * sizeof( svg_base_edict_t * ) );//new svg_base_edict_t*[ numReservedEntities ];// 

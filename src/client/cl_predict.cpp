@@ -37,11 +37,11 @@ void CL_CheckPredictionError(void) {
         return;
     }
 
-	// Calculate the last usercmd_t we sent that the server has processed.
+	// Determine the last usercmd_t we sent that the server has processed.
     int64_t frameIndex = cls.netchan.incoming_acknowledged & CMD_MASK;
-    // Get the move command index for this frame in history.
+    // Get the move command history index for this frame index.
     uint64_t commandIndex = cl.history[ frameIndex ].commandNumber;
-    // Finally get the pointer to the actual move command.
+    // Finally get the pointer to the actual move command residing inside the list.
     client_movecmd_t *moveCommand = &cl.moveCommands[ commandIndex & CMD_MASK ];
 
     // Pass control to client game to implement its own error corrections.

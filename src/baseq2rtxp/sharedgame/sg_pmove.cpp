@@ -67,7 +67,7 @@ struct pml_t {
 		cm_contents_t	contents;
 		////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
 		//cm_material_t *material;
-	} ground;
+	} ground = {};
 
 	//! Used to reset ourselves in case we are truly stuck.
 	Vector3		previousOrigin = {};
@@ -1687,6 +1687,8 @@ static void PM_SnapPosition() {
 	ps->pmove.origin = pml.origin;
 	if ( PM_GoodPosition() ) {
 		return;
+	} else {
+		ps->pmove.origin = pml.previousOrigin;
 	}
 	//if ( G_FixStuckObject_Generic( ps->pmove.origin, pm->mins, pm->maxs  ) == stuck_result_t::NO_GOOD_POSITION ) {
 	//	ps->pmove.origin = pml.previousOrigin;
@@ -1779,6 +1781,21 @@ static void PM_EraseInputCommandState() {
 **/
 static void PM_DropTimers() {
 	if ( ps->pmove.pm_time ) {
+		#if 1
+		int32_t     msec;
+
+		msec = pm->cmd.msec >> 3; // fast divide by 8, 8 ms = 1 unit. (At 10hz.)
+		//msec /= 4;
+		if ( msec <= 0 ) {
+			msec = 1;
+		}
+		if ( msec >= ps->pmove.pm_time ) {
+			ps->pmove.pm_flags &= ~( PMF_ALL_TIMES );
+			ps->pmove.pm_time = 0;
+		} else {
+			ps->pmove.pm_time -= msec;
+		}
+		#else
 		const int32_t msec = pm->cmd.msec;
 
 		if ( msec >= ps->pmove.pm_time ) {
@@ -1789,6 +1806,7 @@ static void PM_DropTimers() {
 		} else {
 			ps->pmove.pm_time -= msec;
 		}
+		#endif
 	}
 }
 /**

@@ -1042,7 +1042,9 @@ void PF_CalculateViewValues( void ) {
 
         // Take the prediction error into account.
         //VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
-		VectorAdd( game.predictedState.currentPs.pmove.origin, errorLerp, clgi.client->refdef.vieworg );
+		//Vector3 errorOffset = QM_Vector3Lerp( game.predictedState.currentPs.pmove.origin, game.predictedState.lastPs.pmove.origin, backLerp );
+		//VectorCopy( errorOffset, clgi.client->refdef.vieworg );
+        VectorAdd( game.predictedState.currentPs.pmove.origin, errorLerp, clgi.client->refdef.vieworg );
     } else {
         // Just use interpolated values.
         Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
@@ -1061,9 +1063,9 @@ void PF_CalculateViewValues( void ) {
     // Smooth out step offset.
     CLG_SmoothStepOffset();
 
-    #if 1
+    #if 0
     // use predicted values
-    const double backLerp = lerpFrac;
+    const double backLerp = 1.0 - lerpFrac;
     // Lerp View Angles.
     CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
     // Interpolate old and current player state delta angles.
@@ -1106,6 +1108,22 @@ void PF_CalculateViewValues( void ) {
     clgi.client->predictedFrame = clgi.client->frame;
     clgi.client->predictedFrame.ps = game.predictedState.currentPs;
 
+    // WID: Debug
+    #if 0
+    Vector3 printViewOrg = clgi.client->refdef.vieworg;
+    Vector3 printFinalViewOrg = printViewOrg + finalViewOffset;
+    static uint64_t printFrame = clgi.client->frame.number;
+    if ( printFrame != clgi.client->frame.number ) {
+        //clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOffset(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
+        //    printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
+        //    finalViewOffset[ 0 ], finalViewOffset[ 1 ], finalViewOffset[ 2 ],
+        //    printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
+        clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
+            printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
+            printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
+        printFrame = clgi.client->frame.number;
+    }
+    #endif
     // Add the resulting final viewOffset to the refdef view origin.
     VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
     // Setup the new position for spatial audio recognition.
