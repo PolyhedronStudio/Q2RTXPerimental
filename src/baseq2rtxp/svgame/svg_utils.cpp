@@ -346,7 +346,7 @@ of ent.  Ent should be unlinked before calling this!
 *   @brief  Kills all entities that would touch the proposed new positioning
 *           of ent.  Ent should be unlinked before calling this!
 **/
-const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping ) {
+const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_means_of_death_t meansOfDeath = MEANS_OF_DEATH_TELEFRAGGED ) {
     // don't telefrag as spectator... or in noclip
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         return true;
@@ -361,7 +361,39 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping ) {
     memset( touchedEdicts, 0, MAX_EDICTS );
 
     int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+    
     for ( int32_t i = 0; i < num; i++ ) {
+        #if 0
+        svg_base_edict_t *hit = touchedEdicts[ i ];
+
+        if ( hit == ent )
+            continue;
+		// Will prevent spawn point telefragging if no client is assigned yet.
+        else if ( hit != nullptr && !hit->client && hit->s.entityType == ET_PLAYER )
+            continue;
+        else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP )
+            continue;
+        else if ( hit->client && !( mask & CONTENTS_PLAYER ) )
+            continue;
+
+        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
+            svg_trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
+
+            if ( clip.fraction == 1.0f )
+                continue;
+        }
+
+        // [Paril-KEX] don't allow telefragging of friends in coop.
+        // the player that is about to be telefragged will have collision
+        // disabled until another time.
+        //if ( ent->client && hit->client && coop->integer ) {
+        //    hit->clipmask &= ~CONTENTS_PLAYER;
+        //    ent->clipmask &= ~CONTENTS_PLAYER;
+        //    continue;
+        //}
+
+        SVG_TriggerDamage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, meansOfDeath );
+        #else
         // Pointer to touched entity.
         svg_base_edict_t *hit = touchedEdicts[ i ];
         // Make sure its valid.
@@ -414,6 +446,7 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping ) {
         if ( hit->solid ) {
             return false;
         }
+        #endif
     }
 
     return true;        // all clear

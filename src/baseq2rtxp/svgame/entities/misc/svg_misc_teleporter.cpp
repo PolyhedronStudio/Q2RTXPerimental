@@ -12,6 +12,7 @@
 #include "svgame/entities/misc/svg_misc_teleporter.h"
 
 #include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_means_of_death.h"
 
 /**
 *   @brief
@@ -55,7 +56,7 @@ void teleporter_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm
     QM_AngleVectors( other->client->viewMove.viewAngles, &other->client->viewMove.viewForward, nullptr, nullptr );
 
     // kill anything at the destination
-    SVG_Util_KillBox( other, !!other->client );
+    SVG_Util_KillBox( other, !!other->client, MEANS_OF_DEATH_TELEFRAGGED );
 
     gi.linkentity( other );
 }

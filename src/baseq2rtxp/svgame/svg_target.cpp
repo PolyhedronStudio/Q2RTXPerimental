@@ -344,7 +344,7 @@ void use_target_spawner( svg_base_edict_t *self, svg_base_edict_t *other, svg_ba
     VectorCopy(self->s.angles, ent->s.angles);
     ent->DispatchSpawnCallback();//ED_CallSpawn(ent);
     gi.unlinkentity(ent);
-    SVG_Util_KillBox(ent, false);
+    SVG_Util_KillBox(ent, false, MEANS_OF_DEATH_TELEFRAGGED );
     gi.linkentity(ent);
     if (self->speed)
         VectorCopy(self->movedir, ent->velocity);

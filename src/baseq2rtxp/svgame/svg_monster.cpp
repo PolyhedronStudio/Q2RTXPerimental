@@ -221,7 +221,7 @@ DEFINE_GLOBAL_CALLBACK_THINK( M_droptofloor )( svg_base_edict_t *ent ) -> void {
 
 	trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, end, ent, mask );
 
-	if ( trace.fraction == 1 || trace.allsolid ) {
+	if ( trace.fraction == 1 || trace.allsolid || ( trace.startsolid ) ) {
 		return;
 	}
 

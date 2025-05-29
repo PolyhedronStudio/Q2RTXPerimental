@@ -8,6 +8,7 @@
 #include "svgame/svg_local.h"
 
 #include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_muzzleflashes.h"
 #include "sharedgame/sg_pmove.h"
 #include "sharedgame/sg_usetarget_hints.h"
@@ -565,6 +566,10 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     index = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
     client = ent->client;
 
+    // Setup actual spawn origin that we found.
+    VectorCopy( spawn_origin, ent->s.origin );
+    VectorCopy( spawn_origin, client->ps.pmove.origin );
+
     if ( SG_IsMultiplayerGameMode( game.gamemode ) ) {
         // Store userinfo.
         char        userinfo[ MAX_INFO_STRING ];
@@ -666,6 +671,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
 
     // Set viewheight for player state pmove.
     ent->client->ps.pmove.viewheight = ent->viewheight;
+    ent->client->ps.pmove.origin = ent->s.origin;
 
     // Proper gunindex.
     if ( client->pers.weapon ) {
@@ -701,10 +707,14 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
         ent->s.origin[ 2 ] += 10; // make sure off ground
     }
 
+    // <Q2RTXP>: WID: Restore the origin.
     VectorCopy( ent->s.origin, ent->s.old_origin );
-
     client->ps.pmove.origin = ent->s.origin; // COORD2SHORT(ent->s.origin[i]); // WID: float-movement
-
+    // <Q2RTXP>: WID: 
+    // Link it to calculate absmins/absmaxs, this is to prevent actual
+    // other entities from Spawn Touching.
+    gi.linkentity( ent );
+    
     spawn_angles[ PITCH ] = 0;
     spawn_angles[ ROLL ] = 0;
 
@@ -733,10 +743,15 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
         client->resp.spectator = false;
     }
 
-    if ( !SVG_Util_KillBox( ent, true ) ) {
+    // Unlink it again, for SVG_UTIL_KillBox.
+    gi.unlinkentity( ent );
+
+    if ( !SVG_Util_KillBox( ent, true, MEANS_OF_DEATH_TELEFRAGGED ) ) {
         // could't spawn in?
+        int x = 10; // debug breakpoint
     }
 
+    // And link it back in.
     gi.linkentity( ent );
 
     // force the current weapon up

@@ -588,6 +588,7 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
 *   @brief  Will search for touching trigger and projectiles, dispatching their touch callback when touching.
 **/
 static void ClientProcessTouches( svg_base_edict_t *ent, svg_client_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
+
     // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
     if ( ent->movetype != MOVETYPE_NOCLIP ) {
         SVG_Util_TouchTriggers( ent );

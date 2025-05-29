@@ -466,23 +466,34 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
     }
 
     if (targ->svflags & SVF_MONSTER) {
-        M_ReactToDamage(targ, attacker);
+        if ( damage > 0 ) {
+            M_ReactToDamage( targ, attacker );
+        }
         // WID: TODO: Monster Reimplement.
         //if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {
-        if ( take ) {
-            if ( targ->HasPainCallback() ) {
-                targ->DispatchPainCallback( attacker, finalKnockBack, take );
-                // nightmare mode monsters don't go into pain frames often
-                if ( skill->value == 3 )
-                    targ->pain_debounce_time = level.time + 5_sec;
-            } else {
-                #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
-                gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
-                #endif
-            }
-        }
+        //if ( take ) {
+        //    if ( targ->HasPainCallback() ) {
+        //        targ->DispatchPainCallback( attacker, finalKnockBack, take );
+        //        // nightmare mode monsters don't go into pain frames often
+        //        if ( skill->value == 3 )
+        //            targ->pain_debounce_time = level.time + 5_sec;
+        //    } else {
+        //        #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
+        //        gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+        //        #endif
+        //    }
         //}
-    } else if (client) {
+        //}
+    } else if ( take ) {
+        if ( targ->HasPainCallback() ) {
+            targ->DispatchPainCallback( attacker, finalKnockBack, take );
+        } else {
+            #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
+            gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+            #endif
+        }
+    } 
+    if (client) {
         if ( !( targ->flags & FL_GODMODE ) && ( take ) ) {
             if ( targ->HasPainCallback() ) {
                 targ->DispatchPainCallback( attacker, finalKnockBack, take );
@@ -491,14 +502,6 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
                 gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
                 #endif
             }
-        }
-    } else if (take) {
-        if ( targ->HasPainCallback() ) {
-            targ->DispatchPainCallback( attacker, finalKnockBack, take );
-        } else {
-            #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
-            gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
-            #endif
         }
     }
 

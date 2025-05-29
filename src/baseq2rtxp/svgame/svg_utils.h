@@ -7,6 +7,8 @@
 ********************************************************************/
 #pragma once
 
+
+
 /**
 *	@brief	Wrapper for gi.trace that accepts Vector3 args.
 **/
@@ -78,7 +80,7 @@ void SVG_Util_InitTrigger( svg_base_edict_t *self );
 *   @brief  Kills all entities that would touch the proposed new positioning
 *           of ent.  Ent should be unlinked before calling this!
 **/
-const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping );
+const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_means_of_death_t meansOfDeath );
 
 
 
