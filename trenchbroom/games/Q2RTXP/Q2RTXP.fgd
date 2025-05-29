@@ -435,6 +435,7 @@
 	spawnflags(Flags) =
 	[
 		1 : "Release After Trigger Use" : 1
+		2 : "Hidden Until Trigger Use" : 1
 		16 : "No Monster" : 0
 		64 : "Animated" : 0
 		128 : "Animated Fast" : 0
@@ -518,7 +519,7 @@
 	[
 		1 : "Trigger Spawn" : 0
 		2 : "Toggle" : 0
-		4 : "Start On" : 0
+		4 : "Start On" : 1
 		8 : "Animated" : 0
 		16 : "Animated Fast" : 0
 	]

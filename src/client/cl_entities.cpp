@@ -211,8 +211,11 @@ static void parse_entity_update(const entity_state_t *state)
 
     // Work around Q2PRO server bandwidth optimization.
     if ( entity_is_optimized( state ) ) {
-        VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
-        //VectorCopy( cl.frame.ps.pmove.origin, origin_v );
+        //if ( cl.frame.number <= 0 ) {
+            VectorCopy( cl.frame.ps.pmove.origin, origin_v );
+        //} else {
+        //    VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
+        //}
         origin = origin_v;
     } else {
         origin = state->origin;
@@ -234,7 +237,11 @@ static void parse_entity_update(const entity_state_t *state)
 
     // Work around Q2PRO server bandwidth optimization.
     if ( entity_is_optimized( state ) ) {
-        Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
+        //if ( cl.frame.number <= 0 ) {
+            Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.frame.ps, &ent->current );
+        //} else {
+        //    Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current);
+        //}
     }
 }
 
@@ -462,7 +469,7 @@ void CL_DeltaFrame(void)
 
     // Determine whether the player state has to lerp between the current and old frame,
     // or snap 'to'.
-    CL_LerpOrSnapPlayerState( &cl.oldframe, &cl.frame, 1 );
+    CL_LerpOrSnapPlayerState( &cl.oldframe, &cl.frame, cl.serverdelta );
 
     if ( cls.demo.playback ) {
         // TODO: Proper stair smoothing.

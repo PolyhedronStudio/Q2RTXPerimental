@@ -325,7 +325,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_rotating.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_timer.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_train.cpp
-	#baseq2rtxp/svgame/entities/func/svg_func_wall.cpp
+	baseq2rtxp/svgame/entities/func/svg_func_wall.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_water.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_entities.cpp
 
