@@ -177,11 +177,6 @@ extern void teleporter_touch( svg_base_edict_t *self, svg_base_edict_t *other, c
 
 //extern void TH_viewthing( svg_base_edict_t *ent );
 
-extern void train_blocked( svg_base_edict_t *self, svg_base_edict_t *other );
-extern void train_next( svg_base_edict_t *self );
-extern void train_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
-extern void train_wait( svg_base_edict_t *self );
-
 extern void trigger_crosslevel_trigger_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 extern void trigger_elevator_init( svg_base_edict_t *self );

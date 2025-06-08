@@ -248,9 +248,9 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     //*   @brief
     //**/
     //DECLARE_MEMBER_CALLBACK_DIE( svg_func_plat_t, onDie );
-    ///**
-    //*   @brief  Signal Receiving:
-    //**/
+    /**
+    *   @brief  Signal Receiving:
+    **/
     //DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_plat_t, onSignalIn );
 
     /**
@@ -286,7 +286,6 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     *   Member Variables:
     *
     **/
-    //! An index to the entity number of the platform
     /**
     *   Spawnflags:
     **/
@@ -311,8 +310,8 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     /**
     *   For readability's sake:
     **/
-    static constexpr svg_pushmove_state_t DOOR_STATE_OPENED = PUSHMOVE_STATE_TOP;
-    static constexpr svg_pushmove_state_t DOOR_STATE_CLOSED = PUSHMOVE_STATE_BOTTOM;
-    static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_OPENED_STATE = PUSHMOVE_STATE_MOVING_UP;
-    static constexpr svg_pushmove_state_t DOOR_STATE_MOVING_TO_CLOSED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
+    static constexpr svg_pushmove_state_t PLAT_STATE_RAISED = PUSHMOVE_STATE_TOP;
+    static constexpr svg_pushmove_state_t PLAT_STATE_LOWERED = PUSHMOVE_STATE_BOTTOM;
+    static constexpr svg_pushmove_state_t PLAT_STATE_MOVING_TO_RAISED_STATE = PUSHMOVE_STATE_MOVING_UP;
+    static constexpr svg_pushmove_state_t PLAT_STATE_MOVING_TO_LOWERED_STATE = PUSHMOVE_STATE_MOVING_DOWN;
 };

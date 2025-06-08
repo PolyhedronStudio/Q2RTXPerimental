@@ -8,6 +8,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_trigger.h"
 
+
 #include "svgame/entities/path/svg_path_corner.h"
 
 
@@ -19,29 +20,37 @@ Pathtarget: gets used when an entity that has
 /**
 *   @brief
 **/
-void path_corner_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+/**
+*   @brief
+**/
+DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     vec3_t      v;
     svg_base_edict_t *next;
 
-    if ( other->movetarget != self )
+    if ( other->movetarget != self ) {
         return;
+    }
 
-    if ( other->enemy )
+    if ( other->enemy ) {
         return;
+    }
 
     if ( self->targetNames.path ) {
         char *savetarget;
-
+        svg_base_edict_t *savetargetent;
         savetarget = (char *)self->targetNames.target;
+        savetargetent = self->targetEntities.target;
         self->targetNames.target = self->targetNames.path;
         SVG_UseTargets( self, other );
         self->targetNames.target = savetarget;
+        self->targetEntities.target = savetargetent;
     }
 
-    if ( self->targetNames.target )
+    if ( self->targetNames.target ) {
         next = SVG_PickTarget( (const char *)self->targetNames.target );
-    else
+    } else {
         next = NULL;
+    }
 
     if ( ( next ) && ( next->spawnflags & 1 ) ) {
         VectorCopy( next->s.origin, v );
@@ -74,7 +83,7 @@ void path_corner_touch( svg_base_edict_t *self, svg_base_edict_t *other, const c
 /**
 *   @brief
 **/
-void SP_path_corner( svg_base_edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_path_corner_t, onSpawn )( svg_path_corner_t *self ) -> void {
     if ( !self->targetname ) {
         gi.dprintf( "path_corner with no targetname at %s\n", vtos( self->s.origin ) );
         SVG_FreeEdict( self );
@@ -82,7 +91,7 @@ void SP_path_corner( svg_base_edict_t *self ) {
     }
 
     self->solid = SOLID_TRIGGER;
-    self->SetTouchCallback( path_corner_touch );
+    self->SetTouchCallback( &svg_path_corner_t::onTouch );
     VectorSet( self->mins, -8, -8, -8 );
     VectorSet( self->maxs, 8, 8, 8 );
     self->svflags |= SVF_NOCLIENT;

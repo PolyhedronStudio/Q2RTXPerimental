@@ -223,8 +223,6 @@ void func_breakable_spawn_on_trigger( svg_base_edict_t *self, svg_base_edict_t *
 *
 *
 **/
-void SP_func_( svg_base_edict_t *self );
-
 /**
 *   @brief  Signal Receiving:
 **/

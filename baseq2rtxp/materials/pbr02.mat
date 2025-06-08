@@ -19,10 +19,10 @@ textures/pbr02/chkr_tiles00:
 textures/pbr02/chkr_tiles00:
 	texture_base textures/pbr02/chkr_tiles00.tga
 	texture_normals textures/pbr02/chkr_tiles00_n.tga
-	base_factor 2.5
+	base_factor 1.0
 	bump_scale 1.0
 	emissive_factor 0
-	metalness_factor 0.75
+	metalness_factor 0.125
 	specular_factor 0.125
 
 textures/pbr02/concrete01:

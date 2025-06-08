@@ -51,40 +51,6 @@ void svg_pushmove_edict_t::SetLockState( const bool lockButton ) {
 *
 *
 *
-*   Support routines for movement (changes in origin using velocity)
-*
-*
-*
-**/
-
-
-
-
-/**
-*
-*
-*
-*   Move Acceleration:
-*
-*
-*
-**/
-/*
-==============
-SVG_PushMove_Think_AccelerateMove
-
-The team has completed a frame of movement, so
-change the speed for the next frame
-==============
-*/
-
-
-
-
-/**
-*
-*
-*
 *   MoveWith Entities:
 *
 *

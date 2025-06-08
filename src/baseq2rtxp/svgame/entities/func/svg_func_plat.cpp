@@ -392,7 +392,9 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *s
     }
 }
 
-
+/**
+*   @brief  Used.
+**/
 DEFINE_MEMBER_CALLBACK_USE( svg_func_plat_t, onUse )( svg_func_plat_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
     // WID: <Q2RTXP> For func_button support.
     //if ( ( other && !strcmp( other->classname, "func_button" ) ) ) {
