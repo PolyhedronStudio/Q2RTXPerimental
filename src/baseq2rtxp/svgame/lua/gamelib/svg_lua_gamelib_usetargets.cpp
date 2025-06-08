@@ -144,6 +144,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 
 		delayEntity->message = entity->message;
 
+		delayEntity->targetEntities.target = entity->targetEntities.target;
 		delayEntity->targetNames.target = entity->targetNames.target;
 		delayEntity->targetNames.kill = entity->targetNames.kill;
 
@@ -289,6 +290,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 
 		delayEntity->message = entity->message;
 
+		delayEntity->targetEntities.target = entity->targetEntities.target;
 		delayEntity->targetNames.target = entity->targetNames.target;
 		delayEntity->targetNames.kill = entity->targetNames.kill;
 

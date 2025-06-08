@@ -432,9 +432,13 @@ struct svg_func_train_t : public svg_pushmove_edict_t {
     *   Spawnflags:
     **/
     //! Has the train moving instantly after spawning.
-    static constexpr spawnflag_t TRAIN_START_ON = BIT( 0 );
+    static constexpr spawnflag_t SPAWNFLAG_START_ON = BIT( 0 );
     //! Train movement can be toggled on/off.
-    static constexpr spawnflag_t TRAIN_TOGGLE = BIT( 1 );
+    static constexpr spawnflag_t SPAWNFLAG_TOGGLE = BIT( 1 );
     //! The train will stop instead of destructing the blocking entity.
-    static constexpr spawnflag_t TRAIN_BLOCK_STOPS = BIT( 2 );
+    static constexpr spawnflag_t SPAWNFLAG_BLOCK_STOPS = BIT( 2 );
+    //! Fixes the offset of the pusher.
+    static constexpr spawnflag_t SPAWNFLAG_FIX_OFFSET = BIT( 3 );
+    //! Uses the pusher's origin brush set origin.
+    static constexpr spawnflag_t SPAWNFLAG_USE_ORIGIN = BIT( 4 );
 };

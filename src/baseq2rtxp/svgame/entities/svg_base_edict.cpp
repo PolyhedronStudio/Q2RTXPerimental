@@ -146,6 +146,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, mass, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, gravity, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pausetime, SD_FIELD_TYPE_INT64 ),
 
     /**
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
@@ -848,10 +849,10 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
         noisePath = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
-    #if 0
+    #if 1
     // Match: pausetime
     else if ( keyStr == "pausetime" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-        pausetime = keyValuePair->value;
+        pausetime = QMTime::FromSeconds( keyValuePair->value );
         return true;
     }
     #endif

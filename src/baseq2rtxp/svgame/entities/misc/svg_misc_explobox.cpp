@@ -90,7 +90,7 @@ bool M_walkmove( svg_base_edict_t *ent, float yaw, float dist );
 **/
 DEFINE_MEMBER_CALLBACK_TOUCH( svg_misc_explobox_t, onTouch )( svg_misc_explobox_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
 
-    if ( ( !other->groundInfo.entity ) || ( other->groundInfo.entity == self ) ) {
+    if ( !other || ( !other->groundInfo.entity ) || ( other->groundInfo.entity == self ) ) {
         return;
     }
 
@@ -99,15 +99,16 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_misc_explobox_t, onTouch )( svg_misc_explobox_
     VectorSubtract( self->s.origin, other->s.origin, v );
 
     // Move ratio(based on their masses).
-    const float ratio = (float)other->mass / (float)self->mass;
+    const double ratio = (double)other->mass / (double)self->mass;
 
     // Yaw direction angle.
     const float yawAngle = QM_Vector3ToYaw( v );
     const float direction = yawAngle;
     // Distance to travel.
-    float distance = 20 * ratio * FRAMETIME;
+    const double distance = 20 * ratio * FRAMETIME;
 
     // Debug output:
+    #if 0
     if ( plane ) {
         gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
         gi.dprintf( "v( %s ), plane->normal( %s ), direction(%f), distance(%f)\n", vtos( v ), vtos( plane->normal ), direction, distance );
@@ -115,6 +116,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_misc_explobox_t, onTouch )( svg_misc_explobox_
         gi.dprintf( "self->s.origin( %s ), other->s.origin( %s )\n", vtos( self->s.origin ), vtos( other->s.origin ) );
         gi.dprintf( "v( %s ), direction(%f), distance(%f)\n", vtos( v ), direction, distance );
     }
+    #endif
 
     // WID: TODO: Use new monster walkmove/slidebox implementation.
     // Perform move.

@@ -214,11 +214,9 @@
 // Keep in mind when using func_areaportal that it must
 // *completely* separate two areas.  otherwise, you will
 // get an error message and the areaportal will not work
-//
-// 0221 - is there any point in a "style" key?
 @SolidClass base(Appearflags, Targetname) = func_areaportal : "Area portal (Vis blocker)" []
-// 0221 - added "pathtarget"
-// 0221 - changed "sounds" information
+
+
 @SolidClass base(Appearflags, Luaname, UseTargetFlags, Target, Targetname) color(0 128 204) = func_button : "Button"
 [
 	spawnflags(Flags) =
@@ -256,29 +254,23 @@
 	message(string) : "Activation message"
 	_minlight(integer) : "Minimum light (optional)"
 ]
-// 0221 - added "count" key...oops :)
-@PointClass base(Appearflags, Targetname) color(0 0 255) size(-8 -8 -8, 8 8 8) = func_clock : "Clock"
+
+@SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_breakable : "Breakable Brush"
 [
 	spawnflags(Flags) =
 	[
-		1 : "Timer Up" : 0
-		2 : "Timer Down" : 0
-		4 : "Start Off" : 0
-		8 : "Multi Use" : 0
+		1 : "Trigger Spawn" : 0
+		2 : "Toggle" : 1
+		4 : "Start On" : 1
+		8 : "Animated" : 0
+		16 : "Animated Fast" : 0
 	]
-	count(integer) : "Clock Count"
-	pathtarget(string) : "Target"
-	style(choices) : "Style" : 0 =
-	[
-		0 : "xx"
-		1 : "xx:xx"
-		2 : "xx:xx:xx"
-	]
+	target(string) : "Trigger when broken"
+	team(string) : "Team"
+	_minlight(integer) : "Minimum light (optional)"
 ]
 // func_conveyor code is incomplete.  use the surface attribute "flowing"
 // and the "current" content flag.  (texture won't scroll)
-//
-// 0221 - added _minlight
 @SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_conveyor : "Conveyor belt"
 [
 	spawnflags(Flags) =
@@ -289,8 +281,7 @@
 	speed(integer) : "Speed" : 100
 	_minlight(integer) : "Minimum light (optional)"
 ]
-// 0221 - updated "sounds" information
-// 0221 - added "killtarget"
+
 @SolidClass base(Angle, Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_door : "Door"
 [
 	spawnflags(Flags) =
@@ -333,9 +324,7 @@
 //	]
 	_minlight(integer) : "Minimum light (optional)"
 ]
-// 0221 - added "killtarget" and "target" keys
-// 0221 - updated "sounds" info
-// 0221 - removed "lip" key
+
 @SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) 
 	color(0 128 204)
 = func_door_rotating : "Rotating Door"
@@ -381,31 +370,8 @@
 //	]
 	_minlight(integer) : "Minimum light (optional)"
 ]
-// 0221 - added "_minlight" key (even tho you dont want it to stand out)
-// 0221 - added "message" key
-// 0221 - removed "team" key
-// <Q2RTXP> Removed.
-// @SolidClass base(Angle, Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_door_secret : "Secret Door"
-// [
-// 	spawnflags(Flags) =
-// 	[
-// 		1 : "Always shoot" : 0
-// 		2 : "1st Left" : 0
-// 		4 : "1st Down" : 0
-// 	]
-// 	dmg(integer) : "Damage when blocked" : 2
-// 	wait(choices) : "Wait before close" : 5 =
-// 	[
-// 		-1 : "Stay open"
-// 	]
-// 	message(string) : "Message"
-// 	_minlight(integer) : "Minimum light (optional)"
-// ]
-// </Q2RTXP>
-// not visible in DM mode
-//
-// 0221 - added "_minlight" key (even tho you dont want it to stand out)
-@SolidClass base(Appearflags, UseTargetFlags, Targetname, Target) color(0 128 204) = func_explosive : "Exploding/Breakable brush"
+
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_explosive : "Exploding/Breakable brush"
 [
 	spawnflags(Flags) =
 	[
@@ -419,7 +385,8 @@
 	dmg(integer) : "Damage" : 0
 	_minlight(integer) : "Minimum light (optional)"
 ]
-@SolidClass base(Appearflags, Targetname) color(255 0 0) = func_killbox : "Instant death" 
+
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(255 0 0) = func_killbox : "Instant death" 
 [
 	spawnflags(Flags) =
 	[
@@ -429,8 +396,8 @@
 		32 : "Trigger on Brush Clip" : 0
 	]
 ]
-// 0221 - added "_minlight" key
-@SolidClass base(Appearflags, Targetname) color (0 128 204) = func_object : "Solid bmodel, will fall if its support is removed"
+
+@SolidClass base(Appearflags, Luaname, Targetname) color (0 128 204) = func_object : "Solid bmodel, will fall if its support is removed"
 [
 	spawnflags(Flags) =
 	[
@@ -442,8 +409,8 @@
 	]
 	_minlight(integer) : "Minimum light (optional)"
 ]
-// 0221 - removed "sounds" key
-@SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_plat : "Platform"
+
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_plat : "Platform"
 [
 	spawnflags(Flags) =
 	[
@@ -462,8 +429,8 @@
 	height(integer) : "Movement distance"
 	_minlight(integer) : "Minimum light (optional)"
 ]
-// 0222 - added "team" key
-@SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_rotating : "Rotating brush"
+
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_rotating : "Rotating brush"
 [
 	spawnflags(Flags) =
 	[
@@ -485,50 +452,43 @@
 	dmg(integer) : "Damage when blocked" : 2
 	_minlight(integer) : "Minimum light (optional)"
 ]
-@PointClass base(Appearflags, Targetname, Target) color(76 25 153) size(-8 -8 -8, 8 8 8) = func_timer : "Timer"
-[
-	spawnflags(Flags) =
-	[
-		1 : "Start On" : 0
-	]
-	wait(integer) : "Base wait time" : 1
-	random(integer) : "Wait variance (+/-)"
-	delay(integer) : "Delay before first firing"
-	pausetime(integer) : "Additional delay"
-]
-// 0219 - added "team" key
-@SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_train : "Moving platform"
+
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_train : "Moving platform"
 [
 	spawnflags(Flags) =
 	[
 		1 : "Start On" : 0
 		2 : "Toggle" : 0
 		4 : "Block Stops" : 0
+		8 : "Fix Offset" : 0
+		16 : "Use Origin Brush" : 0
 	]
 	target(string) : "First stop target"
 	team(string) : "Team"
 	speed(integer) : "Speed" : 100
+	accel(integer) : "Acceleration" : 25
+	decel(integer) : "Deceleration" : 25
 	dmg(integer) : "Damage when blocked" : 2
 	noise(string) : "Sound (path/file.wav)"
 	_minlight(integer) : "Minimum light (optional)"
 ]
-// 0221 - added a "_minlight" key
-@SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_wall : "Solid Wall"
+
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_wall : "Solid Wall"
 [
 	spawnflags(Flags) =
 	[
 		1 : "Trigger Spawn" : 0
-		2 : "Toggle" : 0
+		2 : "Toggle" : 1
 		4 : "Start On" : 1
 		8 : "Animated" : 0
 		16 : "Animated Fast" : 0
 	]
+	target(string) : "First stop target"
+	team(string) : "Team"
 	_minlight(integer) : "Minimum light (optional)"
 ]
-// must never be transparent?
-//
-// 0221 - added a "_minlight" key
-@SolidClass base(Appearflags, UseTargetFlags, Targetname) color(0 128 204) = func_water : "Moveable water"
+
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_water : "Moveable water"
 [
 	spawnflags(Flags) =
 	[
@@ -694,7 +654,7 @@
 // resume as soon as it reaches a path corner with a "wait" value other than -1
 @PointClass base(Appearflags, Targetname) 
 	color( 128 76 0 ) 
-	size(-8 -8 -8, 8 8 8) 
+	size(-8 -8 -8, 8 8 8 ) 
 	sprite( { "path": "_tb_icons/path_corner.tga", "scale":0.25 } )	
 = path_corner : "Path marker"
 [
@@ -703,7 +663,7 @@
 		1 : "Teleport" : 0
 	]
 	target(string) : "Next path target"
-	pathtarget(string) : "Event to trigger"
+	pathtarget(string) : "Gets UseTargetted when an entity that has	this path_corner, targeted and touches it"
 	wait(choices) : "Wait" : 0 =
 	[
 		-1 : "Wait for retrigger"

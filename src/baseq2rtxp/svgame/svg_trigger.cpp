@@ -154,7 +154,7 @@ svg_base_edict_t *SVG_PickTarget( const char *targetname ) {
 **/
 DECLARE_GLOBAL_CALLBACK_THINK( Think_UseTargetsDelay );
 DEFINE_GLOBAL_CALLBACK_THINK( Think_UseTargetsDelay )( svg_base_edict_t *self ) -> void {
-    SVG_UseTargets( self, self->activator );
+    SVG_UseTargets( self, self->activator, self->delayed.useTarget.useType, self->delayed.useTarget.useValue, true );
     SVG_FreeEdict( self );
 }
 
@@ -174,7 +174,7 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool isDelayed ) {
     //
     // Check for a delay
     //
@@ -191,6 +191,7 @@ void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const e
         delayEntity->other = ent->other;
         delayEntity->message = ent->message;
 
+        delayEntity->targetEntities.target = ent->targetEntities.target;
         delayEntity->targetNames.target = ent->targetNames.target;
         delayEntity->targetNames.kill = ent->targetNames.kill;
 

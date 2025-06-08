@@ -36,15 +36,15 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *s
     }
 
     if ( self->targetNames.path ) {
-        char *savetarget;
-        svg_base_edict_t *savetargetent;
-        savetarget = (char *)self->targetNames.target;
-        savetargetent = self->targetEntities.target;
+        svg_level_qstring_t savetarget = self->targetNames.target;
+
         self->targetNames.target = self->targetNames.path;
-        SVG_UseTargets( self, other );
+        SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_ON, 1 );
         self->targetNames.target = savetarget;
-        self->targetEntities.target = savetargetent;
     }
+
+    // see m_move; this is just so we don't needlessly check it
+    self->flags |= FL_PARTIALGROUND;
 
     if ( self->targetNames.target ) {
         next = SVG_PickTarget( (const char *)self->targetNames.target );
@@ -52,19 +52,22 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *s
         next = NULL;
     }
 
-    if ( ( next ) && ( next->spawnflags & 1 ) ) {
-        VectorCopy( next->s.origin, v );
-        v[ 2 ] += next->mins[ 2 ];
-        v[ 2 ] -= other->mins[ 2 ];
-        VectorCopy( v, other->s.origin );
-        next = SVG_PickTarget( (const char *)next->targetNames.target );
-        other->s.event = EV_OTHER_TELEPORT;
+    if ( next && next->GetTypeInfo()->IsSubClassType<svg_path_corner_t>() ) {
+        if ( ( next->spawnflags & svg_path_corner_t::SPAWNFLAG_TELEPORT_PUSHER ) ) {
+            VectorCopy( next->s.origin, v );
+            v[ 2 ] += next->mins[ 2 ];
+            v[ 2 ] -= other->mins[ 2 ];
+            VectorCopy( v, other->s.origin );
+            next = SVG_PickTarget( (const char *)next->targetNames.target );
+            other->s.event = EV_OTHER_TELEPORT;
+        }
     }
 
     other->goalentity = other->movetarget = next;
 
     if ( self->wait ) {
         // WID: TODO: Monster Reimplement.
+        //other->pausetime = level.time + QMTime::FromSeconds( self->wait );
         //other->monsterinfo.pause_time = level.time + QMTime::FromMilliseconds( self->wait );
         //other->monsterinfo.stand(other);
         return;
@@ -72,7 +75,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *s
 
     if ( !other->movetarget ) {
         // WID: TODO: Monster Reimplement.
-        //other->monsterinfo.pause_time = HOLD_FOREVER;
+        other->pausetime = HOLD_FOREVER;
         //other->monsterinfo.stand(other);
     } else {
         VectorSubtract( other->goalentity->s.origin, other->s.origin, v );

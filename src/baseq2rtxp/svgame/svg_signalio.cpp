@@ -102,6 +102,7 @@ void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *signaller, svg_base
         }
         delayEntity->message = ent->message;
 
+        delayEntity->targetEntities.target = ent->targetEntities.target;
         delayEntity->targetNames.target = ent->targetNames.target;
         delayEntity->targetNames.kill = ent->targetNames.kill;
 

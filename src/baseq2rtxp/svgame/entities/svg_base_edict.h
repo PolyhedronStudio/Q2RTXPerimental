@@ -812,7 +812,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: For movers.
     //const char *noise;
     //! [SpawnKey]: For triggers.
-    double      pausetime = 0.;
+    QMTime      pausetime = 0_ms;
     //! [SpawnKey]: For items.
     svg_level_qstring_t itemName = nullptr;
 

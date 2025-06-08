@@ -139,6 +139,11 @@ struct svg_path_corner_t : public svg_base_edict_t {
     *   Member Variables:
     *
     **/
-    //! An index to the entity number of the platform
-    int32_t platformEntityNumber = -1;
+    //! An index to the entity number of the train.
+    //int32_t trainEntityNumber = -1;
+    /**
+    *   SpawnFlags:
+    **/
+    //! Teleport train.
+    static constexpr spawnflag_t SPAWNFLAG_TELEPORT_PUSHER = BIT( 0 );
 };
