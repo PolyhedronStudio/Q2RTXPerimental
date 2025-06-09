@@ -117,20 +117,24 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
 *   @brief  
 **/
 void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
-    int         i, num;
-    svg_base_edict_t     *touch[MAX_EDICTS], *hit;
+    svg_base_edict_t *hit;
 
     // dead things don't activate triggers!
     if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
         return;
 
-    num = gi.BoxEdicts(ent->absmin, ent->absmax, touch
-                       , MAX_EDICTS, AREA_TRIGGERS);
+    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
+
+    memset( touchedEdicts, 0, MAX_EDICTS );
+    const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_TRIGGERS );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
-    for (i = 0 ; i < num ; i++) {
-        hit = touch[i];
+    for (int32_t i = 0 ; i < num ; i++) {
+        hit = touchedEdicts[i];
+        if ( !hit ) {
+            continue;
+        }
         if ( !hit->inuse ) {
             continue;
         }
@@ -152,16 +156,20 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
 *           to force all entities it covers to immediately touch it
 **/
 void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
-    int         i, num;
-    svg_base_edict_t     *touch[MAX_EDICTS], *hit;
+    svg_base_edict_t *hit = nullptr;
 
-    num = gi.BoxEdicts(ent->absmin, ent->absmax, touch
-                       , MAX_EDICTS, AREA_SOLID);
+    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
+
+    memset( touchedEdicts, 0, MAX_EDICTS );
+    const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
-    for (i = 0 ; i < num ; i++) {
-        hit = touch[i];
+    for (int32_t i = 0 ; i < num ; i++) {
+        hit = touchedEdicts[i];
+        if ( !hit ) {
+            continue;
+        }
         if ( !hit->inuse ) {
             continue;
         }
@@ -475,6 +483,7 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, svg_base_edict_
     
     // Update targetname.
     childMover->targetNames.movewith = targetName;
+    childMover->targetEntities.movewith = parentMover;
 
     // Determine brushmodel bbox origins.
     Vector3 parentOriginOffset = QM_BBox3Center(
@@ -560,21 +569,24 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     SVG_Util_SetMoveDir( &newAngles.x, tempMoveDir );
 
     Vector3 relativeParentOffset = childMover->moveWith.relativeDeltaOffset;
-    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
+    //childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, -relativeParentOffset.x, parentVForward );
+    //childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.y, parentVRight );
+    //childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, -relativeParentOffset.z, parentVUp );
+    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, -relativeParentOffset.x, parentVForward );
     childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.y, parentVRight );
-    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.z, parentVUp );
+    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, -relativeParentOffset.z, parentVUp );
     // 
     // Pos2.
-    if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 ) {
+    if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 || strcmp( (const char*)childMover->classname, "func_button" ) != 0 ) {
         childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, childMover->movedir );
         //childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
         //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.y, parentVRight );
         //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.z, parentVUp );
         //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, childMover->pushMoveInfo.distance, childMover->movedir );
     } else {
-        childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
+        childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, -relativeParentOffset.x, parentVForward );
         childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.y, parentVRight );
-        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.z, parentVUp );
+        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, -relativeParentOffset.z, parentVUp );
     }
 
     childMover->pushMoveInfo.startOrigin = childMover->pos1;
@@ -594,7 +606,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
             VectorCopy( childMover->pos2, childMover->s.origin );
         }
     } else {
-        if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 ) {
+        if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 || strcmp( (const char *)childMover->classname, "func_button" ) != 0 ) {
             // Calculate what is expected to be the offset from parent origin.
             Vector3 parentMoverOrigin = parentMover->s.origin;
             Vector3 childMoverRelativeParentOffset = parentMoverOrigin;

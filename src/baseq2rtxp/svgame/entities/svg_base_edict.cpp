@@ -732,8 +732,12 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
         random = keyValuePair->value;
         return true;
     }
+    // Match: movewith
+    else if ( keyStr == "movewith" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
+        targetNames.movewith = svg_level_qstring_t::from_char_str( keyValuePair->string );
+        return true;
     // Match: move_origin
-    else if ( keyStr == "move_origin" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
+    } else if ( keyStr == "move_origin" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
         move_origin = keyValuePair->vec3;
         return true;
     }

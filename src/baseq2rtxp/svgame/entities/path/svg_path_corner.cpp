@@ -37,10 +37,12 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *s
 
     if ( self->targetNames.path ) {
         svg_level_qstring_t savetarget = self->targetNames.target;
-
+        svg_base_edict_t *saveedicttarget = self->targetEntities.target;
         self->targetNames.target = self->targetNames.path;
+        self->targetEntities.target = SVG_PickTarget( (const char *)self->targetNames.target );
         SVG_UseTargets( self, other, ENTITY_USETARGET_TYPE_ON, 1 );
         self->targetNames.target = savetarget;
+        self->targetEntities.target = saveedicttarget;
     }
 
     // see m_move; this is just so we don't needlessly check it
@@ -52,7 +54,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *s
         next = NULL;
     }
 
-    if ( next && next->GetTypeInfo()->IsSubClassType<svg_path_corner_t>() ) {
+    if ( next /*&& next->GetTypeInfo()->IsSubClassType<svg_path_corner_t>()*/ ) {
         if ( ( next->spawnflags & svg_path_corner_t::SPAWNFLAG_TELEPORT_PUSHER ) ) {
             VectorCopy( next->s.origin, v );
             v[ 2 ] += next->mins[ 2 ];

@@ -1,69 +1,51 @@
 /********************************************************************
 *
 *
-*	ServerGame: Pusher Entity 'func_train'.
+*	ServerGame: Target Entity 'target_earthquake'.
 *
 *
 ********************************************************************/
 #pragma once
-
-
-/**
-*	@brief	For trigger_elevator.
-**/
-void train_resume( svg_base_edict_t *self );
-
-/********************************************************************
-*
-*
-*	ServerGame: Pusher Entity 'func_train'.
-*
-*
-********************************************************************/
-#pragma once
-
-
 
 // Needed.
 #include "svgame/entities/svg_base_edict.h"
-#include "svgame/entities/svg_pushmove_edict.h"
-
 
 
 /**
 *
 *
-*   Path Corner Entity Structure:
+*   EarthQuake Entity Structure:
 *
 *
 **/
-struct svg_path_corner_t : public svg_base_edict_t {
+struct svg_target_earthquake_t : public svg_base_edict_t {
     /**
     *
     *	Construct/Destruct.
     *
     **/
     //! Constructor. 
-    svg_path_corner_t() = default;
+    svg_target_earthquake_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_path_corner_t( const cm_entity_t *ed ) : Super( ed ) { };
+    svg_target_earthquake_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
-    virtual ~svg_path_corner_t() = default;
+    virtual ~svg_target_earthquake_t() = default;
 
 
     /**
     *
-    *	Define this as: "path_corner" = svg_base_edict_t -> svg_path_corner_t
+    *	Define this as: "target_earthquake" = svg_base_edict -> svg_target_earthquake_t
     *
     **/
     DefineWorldSpawnClass(
         // classname:               classType:               superClassType:
-        "path_corner", svg_path_corner_t, svg_base_edict_t,
+        "target_earthquake", svg_target_earthquake_t, svg_base_edict_t,
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
         // spawnFunc:
-        svg_path_corner_t::onSpawn
+        svg_target_earthquake_t::onSpawn
     );
+
 
     #if 0
     /**
@@ -102,7 +84,7 @@ struct svg_path_corner_t : public svg_base_edict_t {
     *           If not handled, or unable to be handled by the derived entity type, it will return
     *           set errorStr and return false. True otherwise.
     **/
-    //virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
+    virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
     #endif // #if 0
 
 
@@ -114,23 +96,37 @@ struct svg_path_corner_t : public svg_base_edict_t {
     /**
     *   @brief  Spawn.
     **/
-    DECLARE_MEMBER_CALLBACK_SPAWN( svg_path_corner_t, onSpawn );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_target_earthquake_t, onSpawn );
     /**
-    *   @brief  Spawn.
+    *   @brief  Post-Spawn.
     **/
-    //DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_path_corner_t, onPostSpawn );
+    //DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_target_earthquake_t, onPostSpawn );
+    /**
+    *   @brief  Thinking.
+    **/
+    DECLARE_MEMBER_CALLBACK_THINK( svg_target_earthquake_t, onThink );
+    //DECLARE_MEMBER_CALLBACK_THINK( svg_target_earthquake_t, thinkExplode );
+
     /**
     *   @brief  Touched.
     **/
-    DECLARE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch );
-
-
-
+    //DECLARE_MEMBER_CALLBACK_TOUCH( svg_target_earthquake_t, onTouch );
     /**
-    *
-    *   Member Functions:
-    *
+    *   @brief
     **/
+    DECLARE_MEMBER_CALLBACK_USE( svg_target_earthquake_t, onUse );
+    /**
+    *   @brief  
+    **/
+    //DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_target_earthquake_t, onSignalIn );
+    /**
+    *   @brief
+    **/
+    //DECLARE_MEMBER_CALLBACK_PAIN( svg_target_earthquake_t, onPain );
+    /**
+    *   @brief
+    **/
+    //DECLARE_MEMBER_CALLBACK_DIE( svg_target_earthquake_t, onDie );
 
 
 
@@ -139,11 +135,5 @@ struct svg_path_corner_t : public svg_base_edict_t {
     *   Member Variables:
     *
     **/
-    //! An index to the entity number of the train.
-    //int32_t trainEntityNumber = -1;
-    /**
-    *   SpawnFlags:
-    **/
-    //! Teleport train.
-    static constexpr spawnflag_t SPAWNFLAG_TELEPORT_PUSHER = BIT( 0 );
+
 };

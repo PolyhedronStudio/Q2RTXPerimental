@@ -542,6 +542,9 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
     // list removed before we get to it (killtriggered)
     for (i = 0; i < num; i++) {
         touch = touchlist[ i ];
+        if ( touch == nullptr ) {
+            continue;
+        }
         if ( touch->solid == SOLID_NOT ) {
             continue;
         }

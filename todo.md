@@ -18,16 +18,16 @@ simulating a frame ahead for all things. Either way, weapon could looks like it 
 	- [\] Still there at least for cl_async 0._
 ---
 ### Entities Remaining to be implemented using new Entity System:
-* [ ] func_breakable
-* [ ] func_conveyor
-* [ ] func_killbox
-* [ ] func_object
-* [ ] func_plat
+* [X] func_breakable
+* [X] func_conveyor
+* [X] func_killbox
+* [X] func_object
+* [X] func_plat
 * [X] func_rotating
-* [ ] func_timer
-* [ ] func_train
-* [ ] func_wall
-* [ ] func_water_
+* [X] func_timer
+* [X] func_train
+* [X] func_wall
+* [X] func_water_
 ---
 ### Animated Brush Textures:
 * [ ] Animated Brush Textures: Any brush entity with an animated texture needs to be able to configure its
