@@ -349,6 +349,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	#baseq2rtxp/svgame/entities/target/svg_target_character.cpp
 	baseq2rtxp/svgame/entities/target/svg_target_earthquake.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_laser.cpp
 	baseq2rtxp/svgame/entities/target/svg_target_lightramp.cpp
 
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_always.cpp
@@ -467,6 +468,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	
 	#baseq2rtxp/svgame/entities/target/svg_target_character.h
 	baseq2rtxp/svgame/entities/target/svg_target_earthquake.h
+	baseq2rtxp/svgame/entities/target/svg_target_laser.h
 	baseq2rtxp/svgame/entities/target/svg_target_lightramp.h
 
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_always.h

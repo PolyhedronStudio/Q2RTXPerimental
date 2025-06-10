@@ -17,22 +17,14 @@
 *
 **/
 /**
+*
+*   info_notnull:
+*
+**/
+/**
 *   @brief  Spawn routine.
 **/
-void svg_info_null_t::info_null_spawn( svg_info_null_t *self ) {
-    // Frees itself.
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_null_t, onSpawn ) ( svg_info_null_t *self ) -> void {
+	// Frees itself.
 	g_edict_pool.FreeEdict( self );
-}
-
-
-/**
-*
-*   func_group:
-*
-**/
-/**
-*   @brief  Spawn routine.
-**/
-void svg_func_group_t::func_group_spawn( svg_func_group_t *self ) {
-	Super::info_null_spawn( self );
 }

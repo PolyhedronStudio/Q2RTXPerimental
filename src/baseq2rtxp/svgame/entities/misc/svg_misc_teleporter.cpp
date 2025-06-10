@@ -14,10 +14,83 @@
 #include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_means_of_death.h"
 
+
+#if 0
 /**
-*   @brief
+*   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
 **/
-void teleporter_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_misc_teleporter_t )
+SAVE_DESCRIPTOR_DEFINE_FIELD( svg_misc_teleporter_t, summedDistanceTraversed, SD_FIELD_TYPE_DOUBLE ),
+SAVE_DESCRIPTOR_DEFINE_FIELD( svg_misc_teleporter_t, testVar, SD_FIELD_TYPE_INT32 ),
+SAVE_DESCRIPTOR_DEFINE_FIELD( svg_misc_teleporter_t, testVar2, SD_FIELD_TYPE_VECTOR3 ),
+SAVE_DESCRIPTOR_FIELDS_END();
+
+//! Implement the methods for saving this edict type's save descriptor fields.
+SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_misc_teleporter_t, svg_base_edict_t );
+
+
+
+/**
+*
+*   Core:
+*
+**/
+/**
+*   Reconstructs the object, optionally retaining the entityDictionary.
+**/
+void svg_misc_teleporter_t::Reset( const bool retainDictionary ) {
+    // Call upon the base class.
+    Super::Reset( retainDictionary );
+    // Reset the edict's save descriptor fields.
+    //testVar = 1337;
+    //testVar2 = {};
+}
+
+
+/**
+*   @brief  Save the entity into a file using game_write_context.
+*   @note   Make sure to call the base parent class' Save() function.
+**/
+void svg_misc_teleporter_t::Save( struct game_write_context_t *ctx ) {
+    // Call upon the base class.
+    //sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
+    Super::Save( ctx );
+    // Save all the members of this entity type.
+    ctx->write_fields( svg_misc_teleporter_t::saveDescriptorFields, this );
+}
+/**
+*   @brief  Restore the entity from a loadgame read context.
+*   @note   Make sure to call the base parent class' Restore() function.
+**/
+void svg_misc_teleporter_t::Restore( struct game_read_context_t *ctx ) {
+    // Restore parent class fields.
+    Super::Restore( ctx );
+    // Restore all the members of this entity type.
+    ctx->read_fields( svg_misc_teleporter_t::saveDescriptorFields, this );
+}
+
+
+/**
+*   @brief  Called for each cm_entity_t key/value pair for this entity.
+*           If not handled, or unable to be handled by the derived entity type, it will return
+*           set errorStr and return false. True otherwise.
+**/
+const bool svg_misc_teleporter_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
+    return Super::KeyValue( keyValuePair, errorStr );
+}
+#endif // #if 0
+
+
+
+/*QUAKED misc_teleporter (0 .5 .8) (-16 -16 0) (16 16 40)
+Large exploding box.  You can override its mass (100),
+health (80), and dmg (150).
+*/
+/**
+*   @brief  Non member callback, because the trig is an svg_base_edict_t.
+**/
+DECLARE_GLOBAL_CALLBACK_TOUCH( svg_misc_teleporter_onTouch );
+DEFINE_GLOBAL_CALLBACK_TOUCH( svg_misc_teleporter_onTouch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     svg_base_edict_t *dest;
     int         i;
 
@@ -61,41 +134,37 @@ void teleporter_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm
     gi.linkentity( other );
 }
 
-/*QUAKED misc_teleporter (1 0 0) (-32 -32 -24) (32 32 -16)
-Stepping onto this disc will teleport players to the targeted misc_teleporter_dest object.
-*/
 /**
 *   @brief
 **/
-void SP_misc_teleporter( svg_base_edict_t *ent ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_teleporter_t, onSpawn ) ( svg_misc_teleporter_t *self ) -> void {
     svg_base_edict_t *trig;
 
-    if ( !ent->targetNames.target ) {
+    if ( !self->targetNames.target ) {
         gi.dprintf( "teleporter without a target.\n" );
-        SVG_FreeEdict( ent );
+        SVG_FreeEdict( self );
         return;
     }
 
-    gi.setmodel( ent, "models/objects/dmspot/tris.md2" );
-    ent->s.skinnum = 1;
-    ent->s.effects = EF_TELEPORTER;
-    ent->s.renderfx = RF_NOSHADOW;
-    //ent->s.sound = gi.soundindex("world/amb10.wav");
-    ent->solid = SOLID_BOUNDS_BOX;
+    gi.setmodel( self, "models/objects/dmspot/tris.md2" );
+    self->s.skinnum = 1;
+    self->s.effects = EF_TELEPORTER;
+    self->s.renderfx = RF_NOSHADOW;
+    //self->s.sound = gi.soundindex("world/amb10.wav");
+    self->solid = SOLID_BOUNDS_BOX;
 
-    VectorSet( ent->mins, -32, -32, -24 );
-    VectorSet( ent->maxs, 32, 32, -16 );
-    gi.linkentity( ent );
+    VectorSet( self->mins, -32, -32, -24 );
+    VectorSet( self->maxs, 32, 32, -16 );
+    gi.linkentity( self );
 
     trig = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-    trig->SetTouchCallback( teleporter_touch );
+    trig->SetTouchCallback( &svg_misc_teleporter_onTouch );
     trig->solid = SOLID_TRIGGER;
     trig->s.entityType = ET_TELEPORT_TRIGGER;
-    trig->targetNames.target = ent->targetNames.target;
-    trig->owner = ent;
-    VectorCopy( ent->s.origin, trig->s.origin );
+    trig->targetNames.target = self->targetNames.target;
+    trig->owner = self;
+    VectorCopy( self->s.origin, trig->s.origin );
     VectorSet( trig->mins, -8, -8, 8 );
     VectorSet( trig->maxs, 8, 8, 24 );
     gi.linkentity( trig );
-
 }

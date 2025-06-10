@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	ServerGame: Misc Entity 'misc_teleporter'.
+*	ServerGame: Target Entity 'target_laser'.
 *
 *
 ********************************************************************/
@@ -14,36 +14,36 @@
 /**
 *
 *
-*   Explosive Barrel Entity Structure:
+*   EarthQuake Entity Structure:
 *
 *
 **/
-struct svg_misc_teleporter_t : public svg_base_edict_t {
+struct svg_target_laser_t : public svg_base_edict_t {
     /**
     *
     *	Construct/Destruct.
     *
     **/
     //! Constructor. 
-    svg_misc_teleporter_t() = default;
+    svg_target_laser_t() = default;
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_misc_teleporter_t( const cm_entity_t *ed ) : Super( ed ) { };
+    svg_target_laser_t( const cm_entity_t *ed ) : Super( ed ) { };
     //! Destructor.
-    virtual ~svg_misc_teleporter_t() = default;
+    virtual ~svg_target_laser_t() = default;
 
 
     /**
     *
-    *	Define this as: "misc_teleporter" = svg_base_edict -> svg_misc_teleporter_t
+    *	Define this as: "target_laser" = svg_base_edict -> svg_target_laser_t
     *
     **/
     DefineWorldSpawnClass(
         // classname:               classType:               superClassType:
-        "misc_teleporter", svg_misc_teleporter_t, svg_base_edict_t,
+        "target_laser", svg_target_laser_t, svg_base_edict_t,
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
         // spawnFunc:
-        svg_misc_teleporter_t::onSpawn
+        svg_target_laser_t::onSpawn
     );
 
 
@@ -96,40 +96,71 @@ struct svg_misc_teleporter_t : public svg_base_edict_t {
     /**
     *   @brief  Spawn.
     **/
-    DECLARE_MEMBER_CALLBACK_SPAWN( svg_misc_teleporter_t, onSpawn );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_target_laser_t, onSpawn );
     /**
     *   @brief  Post-Spawn.
     **/
-    //DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_misc_teleporter_t, onPostSpawn );
+    //DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_target_laser_t, onPostSpawn );
     /**
     *   @brief  Thinking.
     **/
-    //DECLARE_MEMBER_CALLBACK_THINK( svg_misc_teleporter_t, onThink );
-    //DECLARE_MEMBER_CALLBACK_THINK( svg_misc_teleporter_t, thinkExplode );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink );
+    DECLARE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink_StartSpawnLaser );
+    //DECLARE_MEMBER_CALLBACK_THINK( svg_target_laser_t, thinkExplode );
 
     /**
     *   @brief  Touched.
     **/
-    //DECLARE_MEMBER_CALLBACK_TOUCH( svg_misc_teleporter_t, onTouch );
+    //DECLARE_MEMBER_CALLBACK_TOUCH( svg_target_laser_t, onTouch );
     /**
     *   @brief
     **/
-    //DECLARE_MEMBER_CALLBACK_USE( svg_misc_teleporter_t, onUse );
+    DECLARE_MEMBER_CALLBACK_USE( svg_target_laser_t, onUse );
     /**
     *   @brief
     **/
-    //DECLARE_MEMBER_CALLBACK_PAIN( svg_misc_teleporter_t, onPain );
+    //DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_target_laser_t, onSignalIn );
     /**
     *   @brief
     **/
-    //DECLARE_MEMBER_CALLBACK_DIE( svg_misc_teleporter_t, onDie );
+    //DECLARE_MEMBER_CALLBACK_PAIN( svg_target_laser_t, onPain );
+    /**
+    *   @brief
+    **/
+    //DECLARE_MEMBER_CALLBACK_DIE( svg_target_laser_t, onDie );
 
 
+
+    /**
+    *
+    *   Member Functions
+    *
+    **/
+    /**
+    *   @brief  Sets the laser state to either active or inactive(hides it.)
+    **/
+    void SetActive( const bool isActive );
 
     /**
     *
     *   Member Variables:
     *
     **/
-
+    /**
+    *   SpawnFlags:
+    **/
+    //! Starts on. (Active)
+    static constexpr spawnflag_t SPAWNFLAG_START_ON = BIT( 0 );
+    //! Red Color.
+    static constexpr spawnflag_t SPAWNFLAG_COLOR_RED = BIT( 1 );
+    //! Green Color.
+    static constexpr spawnflag_t SPAWNFLAG_COLOR_GREEN = BIT( 2 );
+    //! Blue Color.
+    static constexpr spawnflag_t SPAWNFLAG_COLOR_BLUE = BIT( 3 );
+    //! Yellow Color.
+    static constexpr spawnflag_t SPAWNFLAG_COLOR_YELLOW = BIT( 4 );
+    //! Orange Color.
+    static constexpr spawnflag_t SPAWNFLAG_COLOR_ORANGE = BIT( 5 );
+    //! Thick Laser.
+    static constexpr spawnflag_t SPAWNFLAG_THICK = BIT( 6 );
 };

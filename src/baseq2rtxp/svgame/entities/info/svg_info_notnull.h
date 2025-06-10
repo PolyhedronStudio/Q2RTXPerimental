@@ -46,7 +46,50 @@ struct svg_info_notnull_t : public svg_base_edict_t {
 		// typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, 
 		// spawnFunc:
-        svg_info_notnull_t::info_notnull_spawn 
+        svg_info_notnull_t::onSpawn 
+    );
+
+    /**
+    *
+    *   info_notnul:
+    *
+    **/
+    /**
+    *   @brief  Spawn.
+    **/
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_info_notnull_t, onSpawn );
+};
+
+
+/**
+*   @brief  For func_groups.
+*           Removes itself on spawn.
+**/
+struct svg_func_group_t : public svg_info_notnull_t {
+    /**
+    *
+    *	Construct/Destruct.
+    *
+    **/
+    //! Constructor. 
+    svg_func_group_t() = default;
+    //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
+    svg_func_group_t( const cm_entity_t *ed ) : Super( ed ) { };
+    //! Destructor.
+    virtual ~svg_func_group_t() = default;
+
+    /**
+    *
+    *	WorldSpawn Class Definition:
+    *
+    **/
+    DefineWorldSpawnClass(
+        // classname:    classType:         superClassType:
+        "func_group", svg_func_group_t, svg_info_notnull_t,
+        // typeInfoFlags:
+        EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
+        // spawnFunc:
+        svg_func_group_t::onSpawn
     );
 
     /**
@@ -55,7 +98,8 @@ struct svg_info_notnull_t : public svg_base_edict_t {
     *
     **/
     /**
-    *   @brief  Spawn routine.
+    *   @brief  Spawn.
     **/
-    static void info_notnull_spawn( svg_info_notnull_t *self );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_func_group_t, onSpawn );
 };
+

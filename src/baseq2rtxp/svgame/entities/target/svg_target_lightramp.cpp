@@ -171,7 +171,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_lightramp_t, onUse )( svg_target_lightram
     }
 
     self->timestamp = level.time;
-    self->onThink( self );
+    self->DispatchThinkCallback();
 }
 /**
 *   @brief

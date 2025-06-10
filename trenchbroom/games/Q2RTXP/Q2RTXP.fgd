@@ -560,32 +560,7 @@
 //
 //	Misc Entities:
 //
-// actor code is still broken...leaving this in because i know *someone* will fix
-// this because its pretty damn cool.
-@PointClass base(PlayerClass, Target) = misc_actor : "Actor"
-[
-	health(integer) : "Health" : 100
-]
-@PointClass base(Appearflags, Targetname) = target_actor : "Actor path"
-[
-	spawnflags(Flags) =
-	[
-		1 : "Jump" : 0
-		2 : "Shoot" : 0
-		4 : "Attack" : 0
-		16 : "Hold" : 0
-		32 : "Brutal" : 0
-	]
-	target(string) : "Next path target"
-	pathtarget(string) : "Action target"
-	wait(integer) : "Pause time"
-	message(string) : "Message"
-	speed(integer) : "Forward (jump)" : 200
-	height(integer) : "Height (jump)" : 200
-]
-// 0225 - removed "target" key - id concluded being able to target
-// something with a movable barrel was a bug and removed that function :(
-@PointClass base(Appearflags, Targetname) color(0 128 204) size(-16 -16 0, 16 16 40) model({ "path": ":models/objects/barrels/tris.md2" }) = misc_explobox : "Large exploding box"
+@PointClass base(Appearflags, Targetname) color(0 128 204) size(-16 -16 0, 16 16 40) model({ "path": ":models/objects/barrels/tris.md2" }) = misc_explobox : "Explosive Barrel"
 [
 	mass(integer) : "Mass" : 100
 	health(integer) : "Health" : 80
@@ -615,6 +590,7 @@
 
 //@PointClass base(Monsters) model({ "path": ":models/monsters/berserk/tris.md2" }) = monster_berserk : "Berserker" []
 //@PointClass base(Monsters) size(-56 -56 0, 56 56 80) model({ "path": ":models/monsters/boss2/tris.md2" }) = monster_boss2 : "Hornet" []
+
 
 // Just fidgets in one spot and teleports away when triggered
 //
@@ -675,22 +651,12 @@
 //
 //	Target Entities:
 //
-@PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) = target_blaster : "Blaster"
-[
-	spawnflags(Flags) =
-	[
-		1 : "No Trail" : 0
-		2 : "No Effects" : 0
-	]
-	dmg(integer) : "Damage" : 15
-	speed(integer) : "Speed" : 1000
-]
 // set "map" value to "mapname$playername" where playername equals
-// the targetname of a corresponding info_player_start in the
-// next map.  To play a cinematic before starting the level, the
-// "map" value should be "cinemeatic.cin+mapname$playername". Note
-// that a playername is not required if the corresponding info_player_start
-// doesn't have a targetname.  If you want this to be designated as the last
+// the targetname of a corresponding info_player_start in the next map.  
+// To play a cinematic before starting the level, the
+// "map" value should be "cinemeatic.cin+mapname$playername". 
+// Note that a playername is not required if the corresponding info_player_start
+// doesn't have a targetname. If you want this to be designated as the last
 // level of a unit, place an asterix (*) before the map name.
 @PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) = target_changelevel : "Change level"
 [

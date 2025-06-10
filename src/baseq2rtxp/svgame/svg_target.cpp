@@ -362,46 +362,6 @@ void SP_target_spawner(svg_base_edict_t *self)
 
 //==========================================================
 
-/*QUAKED target_blaster (1 0 0) (-8 -8 -8) (8 8 8) NOTRAIL NOEFFECTS
-Fires a blaster bolt in the set direction when triggered.
-
-dmg     default is 15
-speed   default is 1000
-*/
-
-void use_target_blaster( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-#if 0
-    int effect;
-
-    if (self->spawnflags & 2)
-        effect = 0;
-    else if (self->spawnflags & 1)
-        effect = EF_HYPERBLASTER;
-    else
-        effect = EF_BLASTER;
-#endif
-
-    //fire_blaster(self, self->s.origin, self->movedir, self->dmg, self->speed, EF_BLASTER, MOD_TARGET_BLASTER);
-    gi.sound(self, CHAN_VOICE, self->noise_index, 1, ATTN_NORM, 0);
-}
-
-void SP_target_blaster(svg_base_edict_t *self)
-{
-    self->SetUseCallback( use_target_blaster );
-    SVG_Util_SetMoveDir(self->s.angles, self->movedir );
-    self->noise_index = gi.soundindex("weapons/laser2.wav");
-
-    if (!self->dmg)
-        self->dmg = 15;
-    if (!self->speed)
-        self->speed = 1000;
-
-    self->svflags = SVF_NOCLIENT;
-}
-
-
-//==========================================================
-
 /*QUAKED target_crosslevel_trigger (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
 Once this trigger is touched/used, any trigger_crosslevel_target with the same trigger number is automatically used when a level is started within the same unit.  It is OK to check multiple triggers.  Message, delay, target, and targetNames.kill also work.
 */
@@ -591,90 +551,6 @@ void SP_target_laser(svg_base_edict_t *self)
     // let everything else get spawned before we start firing
     self->SetThinkCallback( target_laser_start );
     self->nextthink = level.time + 1_sec;
-}
-
-//==========================================================
-
-/*QUAKED target_lightramp (0 .5 .8) (-8 -8 -8) (8 8 8) TOGGLE
-speed       How many seconds the ramping will take
-message     two letters; starting lightlevel and ending lightlevel
-*/
-
-void target_lightramp_think(svg_base_edict_t *self)
-{
-    char    style[2];
-
-	style[ 0 ] = (char)( 'a' + self->movedir[ 0 ] + ( ( level.time - self->timestamp ) / gi.frame_time_s ).Seconds( ) * self->movedir[ 2 ] );
-    style[1] = 0;
-    gi.configstring(CS_LIGHTS + self->enemy->style, style);
-
-	if ( ( level.time - self->timestamp ).Seconds( ) < self->speed ) {
-		self->nextthink = level.time + FRAME_TIME_S;
-	} else if (self->spawnflags & 1) {
-        char    temp;
-
-        temp = self->movedir[0];
-        self->movedir[0] = self->movedir[1];
-        self->movedir[1] = temp;
-        self->movedir[2] *= -1;
-    }
-}
-
-void target_lightramp_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    if (!self->enemy) {
-        svg_base_edict_t     *e;
-
-        // check all the targets
-        e = NULL;
-        while (1) {
-            e = SVG_Entities_Find(e, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.target);
-            if (!e)
-                break;
-            if (strcmp( (const char *)e->classname, "light") != 0) {
-                gi.dprintf("%s at %s ", (const char *)self->classname, vtos(self->s.origin));
-                gi.dprintf("target %s (%s at %s) is not a light\n", (const char *)self->targetNames.target, (const char *)e->classname, vtos(e->s.origin));
-            } else {
-                self->enemy = e;
-            }
-        }
-
-        if (!self->enemy) {
-            gi.dprintf("%s target %s not found at %s\n", (const char *)self->classname, (const char *)self->targetNames.target, vtos(self->s.origin));
-            SVG_FreeEdict(self);
-            return;
-        }
-    }
-
-    self->timestamp = level.time;
-    target_lightramp_think(self);
-}
-
-void SP_target_lightramp(svg_base_edict_t *self)
-{
-    if (!self->message || strlen(self->message) != 2 || self->message[0] < 'a' || self->message[0] > 'z' || self->message[1] < 'a' || self->message[1] > 'z' || self->message[0] == self->message[1]) {
-        gi.dprintf("target_lightramp has bad ramp (%s) at %s\n", self->message, vtos(self->s.origin));
-        SVG_FreeEdict(self);
-        return;
-    }
-
-    if (deathmatch->value) {
-        SVG_FreeEdict(self);
-        return;
-    }
-
-    if (!self->targetNames.target) {
-        gi.dprintf("%s with no target at %s\n", (const char *)self->classname, vtos(self->s.origin));
-        SVG_FreeEdict(self);
-        return;
-    }
-
-    self->svflags |= SVF_NOCLIENT;
-    self->SetUseCallback( target_lightramp_use );
-    self->SetThinkCallback( target_lightramp_think );
-
-    self->movedir[0] = self->message[0] - 'a';
-    self->movedir[1] = self->message[1] - 'a';
-    self->movedir[2] = (self->movedir[1] - self->movedir[0]) / self->speed;
 }
 
 //==========================================================

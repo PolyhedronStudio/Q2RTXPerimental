@@ -19,8 +19,21 @@
 /**
 *   @brief  Spawn routine.
 **/
-void svg_info_notnull_t::info_notnull_spawn( svg_info_notnull_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_notnull_t, onSpawn ) ( svg_info_notnull_t *self ) -> void {
     // Does not free itself. Instead construct a 'point bbox'.
     VectorCopy( self->s.origin, self->absmin );
     VectorCopy( self->s.origin, self->absmax );
+}
+
+
+/**
+*
+*   func_group:
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_group_t, onSpawn ) ( svg_func_group_t *self ) -> void {
+    Super::onSpawn( self );
 }

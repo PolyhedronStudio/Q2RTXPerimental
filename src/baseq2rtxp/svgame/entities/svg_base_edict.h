@@ -706,7 +706,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         svg_level_qstring_t kill = nullptr;
         //! [SpawnKey]: Name of the team this entity is on. (For movers.)
         svg_level_qstring_t team = nullptr;
-        //! [SpawnKey]: The path to traverse (For certain movers.)
+        //! [SpawnKey]: The path to traverse (For movers, laser targets.)
         svg_level_qstring_t path = nullptr;
         //! [SpawnKey]: The targetted entity to trigger when this entity dies.
         svg_level_qstring_t death = nullptr;

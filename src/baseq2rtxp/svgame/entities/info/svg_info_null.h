@@ -41,52 +41,17 @@ struct svg_info_null_t : public svg_base_edict_t {
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
         // spawnFunc:
-        svg_info_null_t::info_null_spawn
+        svg_info_null_t::onSpawn
     );
 
     /**
     *
-    *   info_player_start:
+    *   info_null:
     *
     **/
     /**
-    *   @brief  Spawn routine.
+    *   @brief  Spawn.
     **/
-    static void info_null_spawn( svg_info_null_t *self );
-};
-
-/**
-*   @brief  For func_groups.
-*           Removes itself on spawn.
-**/
-struct svg_func_group_t : public svg_info_null_t {
-    /**
-    *
-    *	Construct/Destruct.
-    *
-    **/
-    //! Constructor. 
-    svg_func_group_t() = default;
-    //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_func_group_t( const cm_entity_t *ed ) : Super( ed ) { };
-    //! Destructor.
-    virtual ~svg_func_group_t() = default;
-
-    /**
-    *
-    *	Define this as: "worldspawn" = svg_base_edict -> svg_worldspawn_edict_t
-    *
-    **/
-    DefineWorldSpawnClass( "func_group", svg_func_group_t, svg_info_null_t, EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn, svg_func_group_t::func_group_spawn );
-
-    /**
-    *
-    *   info_player_start:
-    *
-    **/
-    /**
-    *   @brief  Spawn routine.
-    **/
-    static void func_group_spawn( svg_func_group_t *self );
+    DECLARE_MEMBER_CALLBACK_SPAWN( svg_info_null_t, onSpawn );
 };
 
