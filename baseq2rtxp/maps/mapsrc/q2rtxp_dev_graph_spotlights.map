@@ -366,7 +366,7 @@
 }
 // entity 2
 {
-"classname" "spotlight"
+"classname" "light_spotlight"
 "origin" "-192 -128 168"
 "angles" "90 0 0"
 "angle_width" "60"
@@ -377,7 +377,7 @@
 }
 // entity 3
 {
-"classname" "spotlight"
+"classname" "light_spotlight"
 "origin" "0 -184 100"
 "angles" "15 90 90"
 "angle_width" "30"
@@ -388,7 +388,7 @@
 }
 // entity 4
 {
-"classname" "spotlight"
+"classname" "light_spotlight"
 "origin" "192 -128 168"
 "angles" "90 0 90"
 "angle_width" "60"

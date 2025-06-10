@@ -249,6 +249,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_laser_t, onUse )( svg_target_laser_t *sel
     } else {
         self->SetActive( true );
     }
+
     SVG_UseTargets( self, self->activator, ENTITY_USETARGET_TYPE_TOGGLE, self->spawnflags & svg_target_laser_t::SPAWNFLAG_START_ON );
 }
 /**

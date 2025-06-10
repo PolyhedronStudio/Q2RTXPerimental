@@ -7,6 +7,7 @@
 // Thank you too, xaGe :-P
 //
 // Lasted updated by WatIsDeze : 2025-01-08
+@include "Q2RTXP_Base.fgd"
 
 //
 //	WorldSpawn:
@@ -23,70 +24,6 @@
 	message(string) : "Level name"
 	nextmap(string) : "Next map (DM only)"
 ]
-
-
-
-//
-//	AppearFlags BaseClass:
-//
-@baseclass = Appearflags [
-	spawnflags(Flags) =
-	[
-		524288 : "Not in Deathmatch" : 0
-		1048576 : "Not in Coop" : 0
-		2097152 : "Not in Easy" : 0
-		4194304 : "Not in Normal" : 0
-		8388608 : "Not in Hard" : 0
-	]
-]
-//
-//	Angle BaseClass:
-//
-@baseclass = Angle [ angle(integer) : "Direction" ]
-//
-//	TargetName BaseClass:
-//
-@baseclass = Targetname [ targetname(target_source) : "Name" ]
-//
-//	Target BaseClass:
-//
-@baseclass = Target [ target(target_destination) : "Target" ]
-// <Q2RTXP>
-//
-//	Lua Name:
-//
-@baseclass = Luaname [ luaName(string) : "Lua Name" ]
-//
-//	UseTarget Flags:
-//
-@baseclass = UseTargetFlags [
-	spawnflags(Flags) =
-	[
-		32768 : "UseTarget Disabled( disables (+usetarget) key actions )" : 0
-		65536 : "Pressable UseTarget( (+usetarget) single key press activates )" : 0
-		131072 : "Toggleable UseTarget( (+usetarget) single key press toggles, activates at end of press movement )" : 0
-		262144 : "Continuous UseTarget( (+usetarget) key held down, activates continuous )" : 0
-	]
-]
-// </Q2RTXP>
-
-//
-// Light BaseClass:
-//
-@baseclass base(Luaname, Targetname) 
-	size( -16 -16 -16, 16 16 16 )
-	color( 196 125 85 )
-	sprite( { "path": "_tb_icons/light.tga", "scale":1 } )
-= LightEntity[]
-
-//
-//	Player BaseClass:
-//
-@baseclass base(Appearflags, Targetname) 
-	size( -16 -16 -36, 16 16 36 ) 
-	color( 0 255 0 ) 
-	model( { "path": "players/playerdummy/tris.iqm" } ) 
-= PlayerClass []
 
 
 
@@ -115,12 +52,6 @@
 //
 //	Q2RTXP: Client Local Entities
 //
-// client_misc_model
-@baseclass base(Appearflags, Targetname, Target) size( -16 -16 -24, 16 16 24 ) color( 128 128 0 ) model({
-	"path" : model,
-	"skin" : skin,
-	"frame": frame
-}) = ModelClass[]
 @PointClass base(ModelClass) = client_misc_model : "Local entity decorative model" [
 	model(string) : "model path" : ""
 	frame(integer) : "model frame" : 0
@@ -488,7 +419,9 @@
 	_minlight(integer) : "Minimum light (optional)"
 ]
 
-@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) color(0 128 204) = func_water : "Moveable water"
+@SolidClass base(Appearflags, Luaname, UseTargetFlags, Targetname, Target) 
+	color(0 128 204) 
+= func_water : "Moveable water"
 [
 	spawnflags(Flags) =
 	[
@@ -519,11 +452,17 @@
 	color(0 128 0) 
 	size(-4 -4 -4, 4 4 4) 
 	sprite( { "path": "_tb_icons/info_null.tga", "scale":0.25 } )
-= info_null : "Spotlight target" []
+= info_null : "Spotlight target" 
+[
+
+]
 
 @PointClass base(info_null) 
 	sprite( { "path": "_tb_icons/info_notnull.tga", "scale":0.25 } )
-= info_notnull : "Lightning target" []
+= info_notnull : "Lightning target" 
+[
+
+]
 
 @BaseClass base(Appearflags, Target) color(76 76 255) size(-16 -16 -16, 16 16 16) = Items
 [
@@ -535,15 +474,32 @@
 //
 //	Light Entities:
 //
+
+// This is the default light entity which can be placed near surface emitting lights in order
+// to 'take control' and for example apply a lightstyle or spawnflags to an otherwise always
+// emitting surface.
 @PointClass base(LightEntity) = light : "Light Entity" [
-		customLightStyle(string) : "A custom light style to be applied to this light its style index, leave empty if set by other light entity." : ""
-		style(integer) : "The style number that this light relies on." : 0
-		spawnflags(Flags) =
-		[
-			1 : "Start Off" : 0
-		]
+	customLightStyle(string) : "A custom light style to be applied to this light its style index, leave empty if set by other light entity." : ""
+	style(integer) : "The style number that this light relies on." : 0
+	spawnflags(Flags) =
+	[
+		1 : "Start Off" : 0
+	]
 ]
-@PointClass base(light) color(0 255 0) size(-8 -8 -8, 8 8 8) = spotlight : "Spotlight"
+// <Q2RTXP>: WID: Implement.
+//@PointClass base(LightEntity) color(0 255 0) size(-8 -8 -8, 8 8 8) = light_pointlight : "Point Light"
+//[
+//	spawnflags(Flags) =
+//	[
+//		1 : "Start Off" : 0
+//	]
+//	intensity(float) : "Brightness" : "100.0"
+//	customLightStyle(string) : "The lightstyle string to apply." : ""
+//	angle_width(float) : "Size of spotlight" : "15.0"
+//	angle_falloff(float) : "Falloff for spotlight" : "45.0"
+//]
+// An actual spotlight that will target towards the set entity angle.
+@PointClass base(LightEntity) color(0 255 0) size(-8 -8 -8, 8 8 8) = light_spotlight : "Spot Light"
 [
 	spawnflags(Flags) =
 	[
@@ -712,15 +668,6 @@
 	delay(integer) : "Delay before explosion"
 	dmg(integer) : "Radius damage" : 0
 ]
-@PointClass base(Appearflags, Targetname) color(255 0 255) size(-8 -8 -8, 8 8 8) = target_goal : "Counts a goal completed" []
-@PointClass base(Appearflags, Targetname) color(255 0 255) size(-8 -8 -8, 8 8 8) = target_help : "Computer help message"
-[
-	spawnflags(Flags) =
-	[
-		1 : "Main Onjective" : 0
-	]
-	message(string) : "Computer message"
-]
 // if no color spawnflags are set, the laser color defaults to dim gray (and hard to see
 // setting the damage to 0 makes it use the default damage of 1
 // setting the damage to a negative number will actually give health
@@ -748,14 +695,12 @@
 	speed(integer) : "Speed"
 	message(string) : "start/end light level"
 ]
-@PointClass base(Appearflags, Targetname) color(255 0 255) size(-8 -8 -8, 8 8 8) = target_secret : "Counts a secret found"
-[
-	message(string) : "Message to print" : "You have found a secret."
-]
 // set speed and angle, otherwise spawned object drops
-//
 // 0221 - changed "target" key description for clarity
-@PointClass base(Appearflags, Targetname) color(255 0 0) size(-8 -8 -8, 8 8 8) = target_spawner : "Monster/Item spawner"
+@PointClass base(Appearflags, Targetname) 
+	color(255 0 0) 
+	size(-8 -8 -8, 8 8 8) 
+= target_spawner : "Monster/Item spawner"
 [
 	target(string) : "Monster/Item to spawn"
 	speed(integer) : "Speed"

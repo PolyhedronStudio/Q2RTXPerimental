@@ -507,6 +507,7 @@
 "targetname" "button_laser"
 "wait" "1"
 "delay" "2"
+"message" "Shooop da whooop! I'ma firin' my laser!!!11!1"
 "_tb_group" "143"
 "_tb_protected_properties" "message"
 // brush 0

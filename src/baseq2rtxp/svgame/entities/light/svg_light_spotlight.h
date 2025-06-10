@@ -39,7 +39,7 @@ struct svg_light_spotlight_t : public svg_base_edict_t {
     **/
     DefineWorldSpawnClass(
         // classname:               classType:               superClassType:
-        "spotlight", svg_light_spotlight_t, svg_base_edict_t,
+        "light_spotlight", svg_light_spotlight_t, svg_base_edict_t,
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
         // spawnFunc:
