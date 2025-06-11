@@ -208,7 +208,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
     if ( moveCommand->prediction.time == 0 ) {
         game.predictedState.lastPs = clgi.client->frame.ps;
         game.predictedState.currentPs = clgi.client->frame.ps;
-        game.predictedState.currentPs.pmove = clgi.client->frame.ps.pmove;
+        game.predictedState.currentPs.pmove = game.predictedState.currentPs.pmove;
         game.predictedState.error = {};
 
         game.predictedState.transition = {
@@ -246,7 +246,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
 
             game.predictedState.lastPs = clgi.client->frame.ps;
             game.predictedState.currentPs = clgi.client->frame.ps;
-            game.predictedState.currentPs.pmove = clgi.client->frame.ps.pmove;
+            //game.predictedState.currentPs.pmove = clgi.client->predictedFrame.ps.pmove;
             game.predictedState.error = {};
 
             game.predictedState.transition = {
@@ -284,8 +284,8 @@ void PF_PredictAngles( void ) {
     }
 
     // This is done even with cl_predict == 0.
-    game.predictedState.currentPs.viewangles = QM_Vector3AngleMod( clgi.client->viewangles + clgi.client->frame.ps.pmove.delta_angles );
-    //game.predictedState.currentPs.viewangles = clgi.client->viewangles + QM_Vector3AngleMod( clgi.client->frame.ps.pmove.delta_angles );
+    //game.predictedState.currentPs.viewangles = QM_Vector3AngleMod( clgi.client->viewangles + clgi.client->frame.ps.pmove.delta_angles );
+    game.predictedState.currentPs.viewangles = clgi.client->viewangles + QM_Vector3AngleMod( clgi.client->frame.ps.pmove.delta_angles );
 
 	//VectorAdd( , clgi.client->frame.ps.pmove.delta_angles, game.predictedState.currentPs.viewangles );
 }
@@ -347,11 +347,11 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         //if ( moveCommand->cmd.msec ) {
             // Timestamp it so the client knows we have valid results.
             //moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
-            
+
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
             pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.time );
-            SG_PlayerMove( (pmove_s*)&pm, (pmoveParams_s*) & pmp);
+            SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
             // Predict the next bobCycle for the frame.
             CLG_PredictNextBobCycle( &pm );
 
@@ -396,13 +396,11 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         pendingMoveCommand->prediction.velocity = pm.playerState->pmove.velocity;
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
 
-        predictedState->cmd = *pendingMoveCommand;
-
-
         //clgi.Print( PRINT_DEVELOPER, "pending:(%f, %f, %f) time(%" PRIu64 ") \n",
         //    pm.playerState->pmove.origin[ 0 ], pm.playerState->pmove.origin[ 1 ], pm.playerState->pmove.origin[ 2 ],
         //    pendingMoveCommand->prediction.time );
     }
+    predictedState->cmd = *pendingMoveCommand;
     #endif
 
     // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the

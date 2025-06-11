@@ -308,6 +308,12 @@ void MSG_WriteFloat( const float f ) {
 void MSG_WriteTruncatedFloat( const float f ) {
 	SZ_WriteTruncatedFloat( &msg_write, f );
 }
+/**
+*   @brief Writes a full precision double. (Transfered over the wire as an int64_t).
+**/
+void MSG_WriteDouble( const double d ) {
+	SZ_WriteDouble( &msg_write, d );
+}
 
 /**
 *   @brief Writes a character string.
@@ -444,16 +450,16 @@ const int64_t MSG_ReadIntBase128( ) {
 }
 
 /**
-*   @return A half float, converted to float, keep in mind that half floats have less precision.
-**/
-const float MSG_ReadHalfFloat() {
-	return SZ_ReadHalfFloat( &msg_read );
-}
-/**
 *   @return The full precision float.
 **/
 const float MSG_ReadFloat( ) {
 	return SZ_ReadFloat( &msg_read );
+}
+/**
+*   @return A half float, converted to float, keep in mind that half floats have less precision.
+**/
+const float MSG_ReadHalfFloat() {
+	return SZ_ReadHalfFloat( &msg_read );
 }
 /**
 *   @return The first 13 bits of what was a full precision float. Hence, 'truncated' float.
@@ -461,6 +467,13 @@ const float MSG_ReadFloat( ) {
 const float MSG_ReadTruncatedFloat() {
 	return SZ_ReadTruncatedFloat( &msg_read );
 }
+/**
+*   @return The full precision double;
+**/
+const double MSG_ReadDouble() {
+	return SZ_ReadDouble( &msg_read );
+}
+
 
 /**
 *   @return The full string until its end.

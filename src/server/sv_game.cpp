@@ -1100,7 +1100,10 @@ void SV_InitGameProgs(void) {
 	imports.WriteInt64 = MSG_WriteInt64;
 	imports.WriteUintBase128 = MSG_WriteUintBase128;
 	imports.WriteIntBase128 = MSG_WriteIntBase128;
+    imports.WriteHalfFloat = MSG_WriteHalfFloat;
+    imports.WriteTruncatedFloat = MSG_WriteTruncatedFloat;
     imports.WriteFloat = MSG_WriteFloat;
+    imports.WriteDouble = MSG_WriteDouble;
     imports.WriteString = MSG_WriteString;
     imports.WritePosition = MSG_WritePos;
     imports.WriteDir8 = MSG_WriteDir8;

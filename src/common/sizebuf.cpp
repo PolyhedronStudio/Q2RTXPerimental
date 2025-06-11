@@ -289,6 +289,19 @@ void SZ_WriteFloat( sizebuf_t *sb, const float f ) {
 	//SZ_WriteInt32( sb, std::bit_cast<std::int32_t>( f ) );
 }
 /**
+*	@brief
+**/
+void SZ_WriteDouble( sizebuf_t *sb, const double d ) {
+	// Conversion trick:
+	union {
+		double d;
+		int64_t l;
+	} dat;
+	dat.d = d;
+	// Wire as int64_t.
+	SZ_WriteInt64( sb, dat.l );
+}
+/**
 *	@brief	Uses the first 13 bits.
 **/
 void SZ_WriteTruncatedFloat( sizebuf_t *sb, const float f ) {
@@ -426,13 +439,6 @@ const int64_t SZ_ReadIntBase128( sizebuf_t *sb ) {
 }
 
 /**
-*	@brief	 
-**/
-const float SZ_ReadHalfFloat( sizebuf_t *sb ) {
-	const uint16_t half = SZ_ReadUint16( sb );
-	return half_to_float( half );
-}
-/**
 *	@brief
 **/
 const float SZ_ReadFloat( sizebuf_t *sb ) {
@@ -444,6 +450,13 @@ const float SZ_ReadFloat( sizebuf_t *sb ) {
 
 	dat.l = SZ_ReadInt32( sb );
 	return dat.f;
+}
+/**
+*	@brief
+**/
+const float SZ_ReadHalfFloat( sizebuf_t *sb ) {
+	const uint16_t half = SZ_ReadUint16( sb );
+	return half_to_float( half );
 }
 /**
 *	@brief	Uses the first 13 bits.
@@ -461,6 +474,19 @@ const float SZ_ReadTruncatedFloat( sizebuf_t *sb ) {
 	return dat.f;
 }
 
+/**
+*	@brief
+**/
+const double SZ_ReadDouble( sizebuf_t *sb ) {
+	// Conversion trick.
+	union {
+		double d;
+		int64_t l;
+	} dat;
+
+	dat.l = SZ_ReadInt64( sb );
+	return dat.d;
+}
 
 
 

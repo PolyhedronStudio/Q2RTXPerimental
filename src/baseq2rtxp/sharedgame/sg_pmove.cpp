@@ -1782,7 +1782,11 @@ static void PM_EraseInputCommandState() {
 static void PM_DropTimers() {
 	if ( ps->pmove.pm_time ) {
 		#if 1
-			int32_t msec = pm->cmd.msec >> 3; // fast divide by 8, 8 ms = 1 unit. (At 10hz.)
+			double msec = pm->cmd.msec / 2.5;
+			//int32_t msec = (int32_t)pm->cmd.msec >> 4; // fast divide by 8, 8 ms = 1 unit. (At 10hz.)
+		//int32_t msec = ( int32_t )pm->cmd.msec >> 3;// / ( 1000 / ( 40 * 8 ) );
+		
+		//100 / 40
 			//msec /= 4;
 			if ( msec <= 0 ) {
 				msec = 1;

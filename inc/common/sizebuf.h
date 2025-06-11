@@ -78,6 +78,7 @@ QEXTERN_C_OPEN
 	void SZ_WriteHalfFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteTruncatedFloat( sizebuf_t *sb, const float f );
+	void SZ_WriteDouble( sizebuf_t *sb, const double d );
 	void SZ_WriteString( sizebuf_t *sb, const char *s );
 
 
@@ -104,8 +105,9 @@ QEXTERN_C_OPEN
 	const int64_t SZ_ReadIntBase128( sizebuf_t *sb );
 
 	const float SZ_ReadHalfFloat( sizebuf_t *sb );
-	const float SZ_ReadFloat( sizebuf_t *sb );
 	const float SZ_ReadTruncatedFloat( sizebuf_t *sb );
+	const float SZ_ReadFloat( sizebuf_t *sb );
+	const double SZ_ReadDouble( sizebuf_t *sb );
 
 // Extern C
 QEXTERN_C_CLOSE

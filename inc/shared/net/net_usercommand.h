@@ -39,7 +39,7 @@
 **/
 typedef struct usercmd_s {
     //! Amount of miliseconds for this user command frame.
-    uint8_t  msec;
+    double  msec;
     //! Button bits, determines which keys are pressed.
     uint16_t buttons;
     //! View angles.

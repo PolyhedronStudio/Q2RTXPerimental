@@ -453,6 +453,14 @@ typedef struct {
 	*   @return A half float, converted to float, keep in mind that half floats have less precision.
 	**/
 	const float ( *MSG_ReadHalfFloat )( void );
+	/**
+	*   @return The first 13 bits of what was a full precision float. Hence, 'truncated' float.
+	**/
+	const float ( *MSG_ReadTruncatedFloat )( void );
+	/**
+*   @return The full precision double.
+**/
+	const double ( *MSG_ReadDouble )( void );
 
 	/**
 	*   @return The full string until its end.

@@ -325,7 +325,10 @@ typedef struct {
     void ( *WriteInt64 )( const int64_t c );
     void ( *WriteIntBase128 )( int64_t c );
     void ( *WriteUintBase128 )( uint64_t c );
+    void ( *WriteHalfFloat )( const float f );
+    void ( *WriteTruncatedFloat )( const float f );
     void ( *WriteFloat )( const float f );
+    void ( *WriteDouble )( const double d );
     void ( *WriteString )( const char *s );
     void ( *WritePosition )( const vec3_t pos, const msgPositionEncoding_t encoding );    // some fractional bits
     void ( *WriteDir8 )( const vec3_t pos );         // single byte encoded, very coarse

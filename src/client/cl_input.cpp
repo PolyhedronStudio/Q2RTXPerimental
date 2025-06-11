@@ -255,7 +255,7 @@ void CL_KeyDown( keybutton_t *b ) {
     c = Cmd_Argv( 2 );
     b->downtime = atoi( c );
     if ( !b->downtime ) {
-        b->downtime = com_eventTime - BASE_FRAMETIME_1000; // Original was 10, hmm? WID: 40hz: BASE_FRAMETIME 2.5 worked too?
+        b->downtime = com_eventTime - BASE_FRAMETIME;//BASE_FRAMETIME_1000; // Original was 10, hmm? WID: 40hz: BASE_FRAMETIME 2.5 worked too?
     }
 
     b->state |= ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN );//1 + 2;    // down + impulse down
@@ -296,8 +296,9 @@ void CL_KeyUp( keybutton_t *b ) {
     // save timestamp
     c = Cmd_Argv( 2 );
     uptime = atoi( c );
-    if ( !uptime ) {
-        b->msec += BASE_FRAMETIME_1000; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10; 2.5 worked too?
+    if ( uptime <= 0 ) {
+        constexpr double asd = BASE_FRAMETIME_1000;
+        b->msec += 4;//BASE_FRAMETIME_1000; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10; 2.5 worked too?
     } else if ( uptime > b->downtime ) {
         b->msec += uptime - b->downtime;
     }
@@ -336,7 +337,7 @@ const double CL_KeyState( keybutton_t *key ) {
         return (double)( key->state & BUTTON_STATE_HELD );
     }
 
-    const double frac = ( (double)msec * 1000.0 ) / ( (double)cl.moveCommand.cmd.msec * 1000.0 );
+    const double frac = ( (double)msec * 1000. ) / ( (double)cl.moveCommand.cmd.msec * 1000. );
 
     return QM_Clamp( frac, 0.0, 1.0 );
 
@@ -478,7 +479,7 @@ void CL_RegisterInput( void ) {
 
     cl_nodelta = Cvar_Get( "cl_nodelta", "0", 0 );
     // WID: netstuff: Changed from 30, to actually, 125.
-    cl_maxpackets = Cvar_Get( "cl_maxpackets", "125", 0 );
+    cl_maxpackets = Cvar_Get( "cl_maxpackets", "0", 0 );
     cl_fuzzhack = Cvar_Get( "cl_fuzzhack", "0", 0 );
     #if USE_DEBUG
     cl_showpackets = Cvar_Get( "cl_showpackets", "0", 0 );
@@ -557,7 +558,7 @@ clear:
 *   @brief  Returns true if ready to send.
 **/
 static inline bool ready_to_send( void ) {
-    uint64_t msec;
+    double msec;
 
     if ( cl.sendPacketNow ) {
         //Com_DPrintf( "%s\n", "client_ready_to_send(cl.sendPacketNow): true" );
@@ -588,11 +589,11 @@ static inline bool ready_to_send( void ) {
         Cvar_Set( "cl_maxpackets", std::to_string( BASE_FRAMERATE ).c_str() );
     }
 
-    msec = 1000 / cl_maxpackets->integer;
+    msec = 1000. / (double)cl_maxpackets->integer;
     if ( msec ) {
-        msec = BASE_FRAMETIME / ( BASE_FRAMETIME / msec );
+        msec = BASE_FRAMETIME / ( BASE_FRAMETIME / (double)msec );
     }
-    if ( cls.realtime - cl.lastTransmitTime < msec ) {
+    if ( (double)(cls.realtime - cl.lastTransmitTime) < msec ) {
         //Com_DPrintf( "client_ready_to_send (cls.realtime - cl.lastTransmitTime < msec): false\n" );
         //Com_DPrintf( "cls.realtime(%i), cl.lastTransmitTime(%i), msec(%i)\n", cls.realtime, cl.lastTransmitTime, msec );
         return false;

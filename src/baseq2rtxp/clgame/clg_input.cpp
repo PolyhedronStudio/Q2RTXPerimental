@@ -437,9 +437,9 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, cl
 
     CLG_ClampPitch();
 
-    moveCommand->cmd.angles[ 0 ] = /*ANGLE2SHORT*/( clgi.client->viewangles[ 0 ] );
-    moveCommand->cmd.angles[ 1 ] = /*ANGLE2SHORT*/( clgi.client->viewangles[ 1 ] );
-    moveCommand->cmd.angles[ 2 ] = /*ANGLE2SHORT*/( clgi.client->viewangles[ 2 ] );
+    moveCommand->cmd.angles[ 0 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 0 ] );
+    moveCommand->cmd.angles[ 1 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 1 ] );
+    moveCommand->cmd.angles[ 2 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 2 ] );
 }
 
 /**

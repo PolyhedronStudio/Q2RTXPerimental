@@ -66,9 +66,9 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 
 	// Set everything to the state we are delta'ing from.
 	if ( !from ) {
-		memset( to, 0, sizeof( *to ) );
+		*to = {};
 	} else if ( to != from ) {
-		memcpy( to, from, sizeof( *to ) );
+		*to = *from;
 	}
 
 	// Ensure its number is set.

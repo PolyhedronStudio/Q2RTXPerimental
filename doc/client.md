@@ -54,7 +54,7 @@ fall back to the previous supported version. Default value is 0.
 Number of packets client sends per second. 0 means no particular limit.
 Unless connected using Q2PRO protocol, this variable is ignored and packets
 are sent in sync with client physics frame rate, controlled with
-`cl_maxfps` variable. Default value is 40.
+`cl_maxfps` variable. Default value is 0.
 
 #### `cl_fuzzhack`
 Enables `cl_maxpackets` limit even if Q2PRO protocol is not in use by

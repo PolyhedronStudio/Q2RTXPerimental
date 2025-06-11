@@ -880,6 +880,8 @@ void CL_GM_LoadProgs( void ) {
 	imports.MSG_ReadIntBase128 = MSG_ReadIntBase128;
 	imports.MSG_ReadFloat = MSG_ReadFloat;
 	imports.MSG_ReadHalfFloat = MSG_ReadHalfFloat;
+	imports.MSG_ReadTruncatedFloat = MSG_ReadTruncatedFloat;
+	imports.MSG_ReadDouble = MSG_ReadDouble;
 	imports.MSG_ReadString = MSG_ReadString;
 	imports.MSG_ReadStringLine = MSG_ReadStringLine;
 	imports.MSG_ReadAngle8 = MSG_ReadAngle8;

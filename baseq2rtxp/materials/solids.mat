@@ -7,6 +7,9 @@ textures/hint:
 textures/monsterclip:
 	texture_base textures/monsterclip.png
 	base_factor 2.5
+textures/playerclip:
+	texture_base textures/playerclip.png
+	base_factor 2.5
 textures/origin:
 	texture_base textures/origin.png
 	base_factor 2.5
@@ -16,7 +19,6 @@ textures/sky:
 	base_factor 2.5
 textures/skylight:
 	texture_base textures/skylight.png
-	kind SKY
 	base_factor 2.5
 	is_light 1
 textures/trigger:

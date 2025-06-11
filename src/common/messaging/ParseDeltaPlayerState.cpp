@@ -41,9 +41,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 
 	// clear to old value before delta parsing
 	if ( !from ) {
-		memset( to, 0, sizeof( *to ) );
+		*to = {};
 	} else if ( to != from ) {
-		memcpy( to, from, sizeof( *to ) );
+		*to = *from;
 	}
 
 	//

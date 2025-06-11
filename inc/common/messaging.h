@@ -328,6 +328,10 @@ void MSG_WriteTruncatedFloat( const float f);
 *   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
 **/
 void MSG_WriteHalfFloat( const float f );
+/**
+*   @brief Writes a full precision double. (Transfered over the wire as an int64_t).
+**/
+void MSG_WriteDouble( const double d );
 
 /**
 *   @brief Writes a character string.
@@ -422,6 +426,7 @@ const uint64_t MSG_ReadUintBase128( void );
 *   @return Zig-Zac decoded signed integer.
 **/
 const int64_t MSG_ReadIntBase128( void );
+
 /**
 *   @return The full precision float.
 **/
@@ -434,6 +439,12 @@ const float MSG_ReadTruncatedFloat( void );
 *   @return A half float, converted to float, keep in mind that half floats have less precision.
 **/
 const float MSG_ReadHalfFloat( void );
+/**
+*   @return The full precision double.
+**/
+const double MSG_ReadDouble( void );
+
+
 
 /**
 *   @return The full string until its end.
