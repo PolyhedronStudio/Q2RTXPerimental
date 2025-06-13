@@ -1359,17 +1359,24 @@ static void SV_GiveMsec(void)
 {
     client_t    *cl;
 
-    //if (!(sv.framenum % ((int64_t)BASE_FRAMETIME))) {
+    #if 0
+    //if (!(sv.framenum % ((int64_t)BASE_FRAMERATE))) {
     if ( !( sv.framenum % ( (int64_t)16 ) ) ) {
+        FOR_EACH_CLIENT( cl ) {
+            cl->command_msec = ( BASE_FRAMETIME * 100 ) + 200;// 1800; // 1600 + some slop
+        }
+    }
+    #endif
+    if ( !( sv.framenum % ( (int64_t)BASE_FRAMERATE ) ) ) {
         FOR_EACH_CLIENT(cl) {
-            cl->command_msec = 1800; // 1600 + some slop
+            cl->command_msec = ( BASE_FRAMETIME * 100 ) + 200;// 1800; // 1600 + some slop
         }
     }
 
     if (svs.realtime - svs.last_timescale_check < sv_timescale_time->integer)
         return;
 
-    uint64_t d = svs.realtime - svs.last_timescale_check;
+    int64_t d = svs.realtime - svs.last_timescale_check;
     svs.last_timescale_check = svs.realtime;
 
     FOR_EACH_CLIENT(cl) {
@@ -2070,7 +2077,7 @@ void SV_Init(void) {
     sv_idlekick->changed = sv_sec_timeout_changed;
     sv_idlekick->changed(sv_idlekick);
     sv_enforcetime = Cvar_Get("sv_enforcetime", "1", 0);
-    sv_timescale_time = Cvar_Get("sv_timescale_time", "16", 0);
+    sv_timescale_time = Cvar_Get("sv_timescale_time", std::to_string( BASE_FRAMERATE).c_str()/*"16"*/, 0);
     sv_timescale_time->changed = sv_sec_timeout_changed;
     sv_timescale_time->changed(sv_timescale_time);
     sv_timescale_warn = Cvar_Get("sv_timescale_warn", "0", 0);
