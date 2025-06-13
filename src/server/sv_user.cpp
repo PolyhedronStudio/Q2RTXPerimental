@@ -423,7 +423,7 @@ void SV_Begin_f(void)
                 sv_client->name);
     sv_client->state = cs_spawned;
     sv_client->send_delta = 0;
-    sv_client->command_msec = 1800;
+    sv_client->command_msec = ( BASE_FRAMETIME * 100 ) + 200; // 1800 // Used to be 1600 + some slop
     sv_client->cmd_msec_used = 0;
     sv_client->suppress_count = 0;
     sv_client->http_download = false;
