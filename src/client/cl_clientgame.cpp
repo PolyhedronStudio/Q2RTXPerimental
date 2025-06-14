@@ -866,6 +866,8 @@ void CL_GM_LoadProgs( void ) {
 	imports.SetKeyEventDestination = PF_SetKeyEventDestination;
 	imports.GetKeyEventDestination = PF_GetKeyEventDestination;
 
+	imports.CL_ProcessMouseMove = CL_ProcessMouseMove;
+
 	imports.Print = PF_Print;
 	imports.Error = PF_Error;
 

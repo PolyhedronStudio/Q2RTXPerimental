@@ -258,7 +258,7 @@ void CL_KeyDown( keybutton_t *b ) {
         b->downtime = com_eventTime - BASE_FRAMETIME;//BASE_FRAMETIME_1000; // Original was 10, hmm? WID: 40hz: BASE_FRAMETIME 2.5 worked too?
     }
 
-    b->state |= ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN );//1 + 2;    // down + impulse down
+    b->state |= ( BUTTON_STATE_HELD | BUTTON_STATE_DOWN ); // down + impulse down   // down + impulse down
 }
 
 /**
@@ -296,14 +296,13 @@ void CL_KeyUp( keybutton_t *b ) {
     // save timestamp
     c = Cmd_Argv( 2 );
     uptime = atoi( c );
-    if ( uptime <= 0 ) {
-        constexpr double asd = BASE_FRAMETIME_1000;
-        b->msec += 4;//BASE_FRAMETIME_1000; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10; 2.5 worked too?
-    } else if ( uptime > b->downtime ) {
+    if ( uptime > b->downtime ) {
         b->msec += uptime - b->downtime;
+    } else {//if ( uptime <= 0 ) {
+        b->msec += BASE_FRAMETIME;//BASE_FRAMETIME_1000; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10; 2.5 worked too?
     }
 
-    b->state &= ~( BUTTON_STATE_HELD | BUTTON_STATE_DOWN );        // now up
+    b->state &= ~( BUTTON_STATE_HELD | BUTTON_STATE_DOWN );        // now up                       // impulse up
 }
 
 /**
@@ -337,7 +336,8 @@ const double CL_KeyState( keybutton_t *key ) {
         return (double)( key->state & BUTTON_STATE_HELD );
     }
 
-    const double frac = ( (double)msec * 1000. ) / ( (double)cl.moveCommand.cmd.msec * 1000. );
+    //const double frac = ( (double)msec * 1000. ) / ( (double)cl.moveCommand.cmd.msec * 1000. );
+    const double frac = ( (double)msec ) / ( (double)cl.moveCommand.cmd.msec );
 
     return QM_Clamp( frac, 0.0, 1.0 );
 
@@ -374,7 +374,7 @@ QEXTERN_C_ENCLOSE( float autosens_y; );
 *   @brief  A somewhat of a hack, we first read in mouse-movement, to then later on in
 *           UpdateCommand actually allow it to be handled and added to our local movement.
 **/
-static const client_mouse_motion_t CL_MouseMove( void ) {
+const client_mouse_motion_t CL_ProcessMouseMove( void ) {
     // Clear motion struct.
     client_mouse_motion_t motion = { .hasMotion = false };
 
@@ -421,37 +421,6 @@ static const client_mouse_motion_t CL_MouseMove( void ) {
 
     // Return final mouse movement motion result.
     return motion;
-}
-
-/**
-*   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
-*           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
-**/
-void CL_UpdateCommand( int64_t msec ) {
-    // Always clear out our local move.
-    VectorClear( cl.localmove );
-
-    if ( sv_paused->integer ) {
-        return;
-    }
-
-    // add to milliseconds of time to apply the move
-    cl.moveCommand.cmd.msec += msec;
-
-    // Store framenumber.
-    cl.moveCommand.cmd.frameNumber = cl.frame.number;
-
-    // Store times.
-    cl.moveCommand.prediction.time = cl.time;//cl.moveCommand.simulationTime = cl.time;
-    //cl.moveCommand.systemTime = cls.realtime;
-
-    // Catch mouse input data to pass into updateCommand.
-    client_mouse_motion_t mouseMotion = CL_MouseMove();
-
-    // Call into UpdateCommand for updating our local prediction move command.
-    if ( clge ) {
-        clge->UpdateMoveCommand( msec, &cl.moveCommand, &mouseMotion );
-    }
 }
 
 /**
@@ -505,6 +474,29 @@ void CL_RegisterInput( void ) {
     }
 }
 
+
+/**
+*   @brief  Updates msec, angles and builds up the later to be interpolated, movement vectors
+*           from performing local movement prediction. Doesn't touch command
+*           forward/side/upmove, these are filled by CL_FinalizeCommand.
+**/
+void CL_UpdateCommand( int64_t msec ) {
+    // Always clear out our local move.
+    VectorClear( cl.localmove );
+
+    if ( sv_paused->integer ) {
+        return;
+    }
+
+    // add to milliseconds of time to apply the move
+    cl.moveCommand.cmd.msec += msec;
+
+    // Call into UpdateCommand for updating our local prediction move command.
+    if ( clge ) {
+        clge->UpdateMoveCommand( msec, &cl.moveCommand );
+    }
+}
+
 /**
 *   @brief  Builds the actual movement vector for sending to server. Assumes that msec
 *           and angles are already set for this frame by CL_UpdateCommand.
@@ -524,11 +516,10 @@ void CL_FinalizeCommand( void ) {
         goto clear;
     }
 
-
     // Store the frame number this was fired at.
     cl.moveCommand.cmd.frameNumber = cl.frame.number;
 
-    // Store times.
+    // Store time, since this might be an unpredicted command.
     cl.moveCommand.prediction.time = cl.time;
     //cl.moveCommand.systemTime = cls.realtime;
 
@@ -542,8 +533,6 @@ void CL_FinalizeCommand( void ) {
     cl.moveCommands[ cl.currentUserCommandNumber & CMD_MASK ] = cl.moveCommand;
 
 clear:
-    cl.moveCommand.cmd = {};
-
     // Clear mouse move state.
     cl.mousemove[ 0 ] = 0;
     cl.mousemove[ 1 ] = 0;

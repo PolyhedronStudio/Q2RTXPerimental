@@ -380,10 +380,10 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
     }
 
     // No lerping if teleport bit was flipped.
-    //if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TELEPORT_BIT){
-    //    duplicate_player_state( ps, ops );
-    //    return;
-    //}
+    if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TIME_TELEPORT){
+        duplicate_player_state( ps, ops );
+        return;
+    }
     //if ( ( ops->rdflags ^ ps->rdflags ) & RDF_TELEPORT_BIT ) {
     //    duplicate_player_state( ps, ops );
     //    return;
@@ -479,7 +479,7 @@ void CL_DeltaFrame(void)
     }
 
     // See if we had any prediction errors.
-    CL_CheckPredictionError();
+    //CL_CheckPredictionError();
 
     // Notiy screen about the delta frame, so it may adjust some data if needed.
     SCR_DeltaFrame();

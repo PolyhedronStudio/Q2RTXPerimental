@@ -294,7 +294,7 @@ static void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 	Vector3 viewAnglesOffset = ent->client->weaponKicks.offsetAngles;//ent->client->ps.kick_angles;
 
 	// If dead, fix the angle and don't add any kicks
-	if ( ent->lifeStatus ) {
+	if ( ent->lifeStatus & entity_lifestatus_t::LIFESTATUS_DEAD ) {
 		// Clear out weapon kick angles.
 		VectorClear( ent->client->ps.kick_angles );
 

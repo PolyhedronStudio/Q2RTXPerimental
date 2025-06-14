@@ -45,7 +45,27 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
         game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
         game.predictedState.transition.view.height[ 0 ] = viewHeight;
         game.predictedState.transition.view.timeHeightChanged = clgi.client->time;
+        // Debug.
+        clgi.Print( PRINT_DEVELOPER, "%s: %f\n", __func__, game.predictedState.transition.view.height[ 0 ] );
     }
+
+    //if ( game.predictedState.transition.view.height[ 0 ] != viewHeight ) {
+    //    // Store current as previous.
+    //    game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
+    //    // Store new as current.
+    //    game.predictedState.transition.view.height[ 0 ] = viewHeight;
+    //    // Debug.
+    //    clgi.Print( PRINT_DEVELOPER, "%s: %f\n", __func__, game.predictedState.transition.view.height[ 0 ] );
+    //}
+
+    // Record viewheight changes.
+    //if ( game.predictedState.transition.view.height[ 0 ] != viewHeight && game.predictedState.transition.view.height[ 1 ] == viewHeight ) {
+    //    game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
+    //    game.predictedState.transition.view.height[ 0 ] = viewHeight;
+    //} else if ( game.predictedState.transition.view.height[ 1 ] != viewHeight && game.predictedState.transition.view.height[ 0 ] == viewHeight ) {
+    //    game.predictedState.transition.view.height[ 0 ] = game.predictedState.transition.view.height[ 1 ];
+    //    game.predictedState.transition.view.height[ 1 ] = viewHeight;
+    //}
 }
 
 /**
@@ -201,14 +221,14 @@ const qboolean PF_UsePrediction( void ) {
 *           the margin is too high, snap back to server provided player state.
 **/
 void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand ) {
-    // Maximum delta allowed before snapping back.
-    static constexpr double MAX_DELTA_ORIGIN = ( 2400 * ( 1.0 / BASE_FRAMERATE ) );
+    // Maximum delta allowed before snapping back. (80 units at 40hz)
+    static constexpr double MAX_DELTA_ORIGIN = ( 3200 * ( 1.0 / BASE_FRAMERATE ) );
 
     // If it is the first frame, we got nothing to predict yet.
     if ( moveCommand->prediction.time == 0 ) {
         game.predictedState.lastPs = clgi.client->frame.ps;
         game.predictedState.currentPs = clgi.client->frame.ps;
-        game.predictedState.currentPs.pmove = game.predictedState.currentPs.pmove;
+        //game.predictedState.currentPs.pmove = game.predictedState.currentPs.pmove;
         game.predictedState.error = {};
 
         game.predictedState.transition = {
@@ -278,7 +298,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
 **/
 void PF_PredictAngles( void ) {
     // Don't predict angles if the pmove asks so specifically.
-    if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )/* || !cl_predict->integer*/ ) {
+    if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) || !cl_predict->integer ) {
         VectorCopy( clgi.client->frame.ps.viewangles, game.predictedState.currentPs.viewangles );
         return;
     }
@@ -344,7 +364,7 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         client_movecmd_t *moveCommand = &clgi.client->moveCommands[ acknowledgedCommandNumber & CMD_MASK ];
 
         // Only simulate it if it had movement.
-        //if ( moveCommand->cmd.msec ) {
+        if ( moveCommand->cmd.msec ) {
             // Timestamp it so the client knows we have valid results.
             //moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
 
@@ -353,14 +373,15 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
             pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.time );
             SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
             // Predict the next bobCycle for the frame.
-            CLG_PredictNextBobCycle( &pm );
+            //CLG_PredictNextBobCycle( &pm );
 
             //clgi.Print( PRINT_DEVELOPER, "move: (%f, %f, %f) time(%" PRIu64 ")\n",
             //    pm.playerState->pmove.origin[ 0 ], pm.playerState->pmove.origin[ 1 ], pm.playerState->pmove.origin[ 2 ],
             //    moveCommand->prediction.time );
 
             // Save for prediction checking.
-        //}
+        }
+
         moveCommand->prediction.origin = pm.playerState->pmove.origin;
         moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
     }
@@ -370,10 +391,10 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
     client_movecmd_t *pendingMoveCommand = &clgi.client->moveCommand;
     if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
-        //pendingMoveCommand->prediction.time = clgi.client->time;
+        pendingMoveCommand->prediction.time = clgi.client->time;
         
         // Initialize pmove with the proper moveCommand data.
-        #if 1
+        #if 0
         pm.cmd = pendingMoveCommand->cmd;
         pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
         pm.cmd.sidemove = clgi.client->localmove[ 1 ];
@@ -388,7 +409,7 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.time );
         SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
         // Predict the next bobCycle for the frame.
-        CLG_PredictNextBobCycle( &pm );
+        //CLG_PredictNextBobCycle( &pm );
         // Save for prediction checking.
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
@@ -399,8 +420,10 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         //clgi.Print( PRINT_DEVELOPER, "pending:(%f, %f, %f) time(%" PRIu64 ") \n",
         //    pm.playerState->pmove.origin[ 0 ], pm.playerState->pmove.origin[ 1 ], pm.playerState->pmove.origin[ 2 ],
         //    pendingMoveCommand->prediction.time );
+
+        predictedState->cmd = *pendingMoveCommand;
     }
-    predictedState->cmd = *pendingMoveCommand;
+
     #endif
 
     // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the
@@ -414,11 +437,11 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
     predictedState->mins = pm.mins;
     predictedState->maxs = pm.maxs;
 
-    // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
-    PF_AdjustViewHeight( pm.playerState->pmove.viewheight );
-
     // Swap in the resulting new pmove player state.
     predictedState->currentPs = *pmPlayerState;
+
+    // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
+    PF_AdjustViewHeight( predictedState->currentPs.pmove.viewheight );
 
     // Check and execute any player state related events.
     CLG_CheckPlayerstateEvents( &predictedState->lastPs, &predictedState->currentPs );

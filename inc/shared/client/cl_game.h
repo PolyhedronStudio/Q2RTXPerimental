@@ -403,6 +403,8 @@ typedef struct {
 	//! Returns the 'layer' of where key events are handled by.
 	const keydest_t ( *GetKeyEventDestination )( void );
 
+	const client_mouse_motion_t ( *CL_ProcessMouseMove )( void );
+
 
 	/**
 	*
@@ -1062,8 +1064,12 @@ typedef struct {
 	**/
 	//! Called upon to register user input keybuttons.
 	void ( *RegisterUserInput )( void );
-	//!
-	void ( *UpdateMoveCommand )( const int64_t msec, struct client_movecmd_s *moveCommand, struct client_mouse_motion_s *mouseMotion );
+	/**
+	*   @brief  Builds up the later to be interpolated, movement vectors
+	*           from performing local movement prediction. Doesn't touch command
+	*           forward/side/upmove, these are filled by CL_FinalizeCommand.
+	**/
+	void ( *UpdateMoveCommand )( const int64_t msec, struct client_movecmd_s *moveCommand );
 	//!
 	void ( *FinalizeMoveCommand )( struct client_movecmd_s *moveCommand );
 	//!

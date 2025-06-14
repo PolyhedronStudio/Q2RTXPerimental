@@ -223,7 +223,7 @@ typedef struct client_state_s {
     int64_t initialSeq;
 
     //! Immediately send the 'command' packet, or not.
-    qboolean    sendPacketNow;
+    bool        sendPacketNow;
     //! Last time of packet transmission.
     uint64_t	lastTransmitTime;
     //! Last command number which is meant to be transmitted.

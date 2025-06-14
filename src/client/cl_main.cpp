@@ -2796,7 +2796,7 @@ static void CL_MeasureStats(void)
         int64_t ping = 0;
         int64_t j, k = 0;
 
-        i = ack - 16 + 1;
+        i = ack - CMD_MASK + 1;
         if (i < cl.initialSeq) {
             i = cl.initialSeq;
         }
@@ -2924,7 +2924,7 @@ static int64_t ref_msec = 0, phys_msec = 0, main_msec = 0;
 static int64_t ref_extra = 0, phys_extra = 0, main_extra = 0;
 static sync_mode_t sync_mode;
 
-#define MIN_PHYS_HZ 40
+#define MIN_PHYS_HZ 62.5
 #define MAX_PHYS_HZ 125
 #define MIN_REF_HZ MIN_PHYS_HZ
 #define MAX_REF_HZ 1000
@@ -2957,22 +2957,22 @@ void CL_UpdateFrameTimes(void)
         sync_mode = SYNC_TIMEDEMO;
     // Run at 10 fps if minimized:
     } else if ( cls.active == ACT_MINIMIZED ) {
-        clientgame_msec = main_msec = fps_to_msec( 10 );
+        clientgame_msec = main_msec = fps_to_msec( MIN_PHYS_HZ );
         sync_mode = SYNC_SLEEP_10;
     // Run at 60 fps if not active:
     } else if ( cls.active == ACT_RESTORED || cls.state != ca_active ) {
-        clientgame_msec = fps_to_msec( BASE_FRAMERATE );
-        main_msec = fps_to_msec( 62.5 );
+        clientgame_msec = fps_to_msec( MIN_PHYS_HZ );
+        main_msec = fps_to_msec( MIN_PHYS_HZ );
         sync_mode = SYNC_SLEEP_60;
     // Run client game, physics and refresh separately:
     } else if ( cl_async->integer > 0 ) {
-        clientgame_msec = fps_to_msec( BASE_FRAMERATE );
+        clientgame_msec = fps_to_msec( MIN_PHYS_HZ );
         phys_msec = fps_to_clamped_msec( cl_maxfps, MIN_PHYS_HZ, MAX_PHYS_HZ );
         ref_msec = fps_to_clamped_msec( r_maxfps, MIN_REF_HZ, MAX_REF_HZ );
         sync_mode = ASYNC_FULL;
     // Everything ticks in sync with refresh:
     } else {
-        clientgame_msec = fps_to_msec( BASE_FRAMERATE );
+        clientgame_msec = fps_to_msec( MIN_PHYS_HZ );
         main_msec = fps_to_clamped_msec( cl_maxfps, MIN_PHYS_HZ, MAX_PHYS_HZ );
         sync_mode = SYNC_MAXFPS;
     }
@@ -3092,11 +3092,11 @@ uint64_t CL_Frame( uint64_t msec ) {
         ref_extra += msec;
 
         // Check for client game frame:
-        if ( clientgame_extra < clientgame_msec ) {
-            clientgame_frame = false;
-        } else if ( clientgame_extra > clientgame_msec * 4 ) {
-            clientgame_extra = clientgame_msec;
-        }
+        //if ( clientgame_extra < clientgame_msec ) {
+        //    clientgame_frame = false;
+        //} else if ( clientgame_extra > clientgame_msec * 4 ) {
+        //    clientgame_extra = clientgame_msec;
+        //}
 
         // Check for physics frame.
         if ( phys_extra < phys_msec ) {
@@ -3141,7 +3141,8 @@ uint64_t CL_Frame( uint64_t msec ) {
     // This should prevent frameTime overload which might happen if the application 
     // has been unresponsive for more than 2 frames.
     if ( cls.frametime > 1.0 / 20. ) {
-        cls.frametime = 1.0 / 20.;
+        cls.frametime = BASE_1_FRAMETIME;
+        //constexpr double asdf = BASE_1_FRAMETIME;
     }
 
     if ( !sv_paused->integer ) {
@@ -3157,11 +3158,6 @@ uint64_t CL_Frame( uint64_t msec ) {
     // Calculate local time.
     if ( cls.state == ca_active && !sv_paused->integer ) {
         CL_SetClientTime();
-
-        //// Let the client game run for another GAME frame.
-        //if ( clientgame_frame ) {
-        //    clientgame_extra -= CL_ClientGameFrame( clientgame_msec );
-        //}
     }
 
     #if USE_AUTOREPLY
@@ -3176,11 +3172,16 @@ uint64_t CL_Frame( uint64_t msec ) {
     CL_UpdateCommand( main_extra );
 
     // Finalize the pending command to be send.
-    phys_frame |= static_cast<bool>( cl.sendPacketNow );
+    phys_frame |= ( cl.sendPacketNow );
 
     if ( phys_frame ) {
         CL_FinalizeCommand();
-        phys_extra -= phys_msec;
+        if ( cls.state == ca_active && !sv_paused->integer && !cl_paused->integer ) {
+            //phys_extra -= CL_ClientGameFrame( phys_msec );
+            phys_extra -= phys_msec;
+        } else {
+            phys_extra -= phys_msec;
+        }
         M_FRAMES++;
 
         // Don't let the time go too far off this can happen due to cl.sendPacketNow.
@@ -3197,6 +3198,10 @@ uint64_t CL_Frame( uint64_t msec ) {
 
     // Run any console commands right now.
     Con_RunConsole();
+
+    if ( cl.frame.valid ) {
+        CL_CheckPredictionError();
+    }
 
     // Run cinematic if any.
     SCR_RunCinematic();
@@ -3218,7 +3223,6 @@ uint64_t CL_Frame( uint64_t msec ) {
         R_FRAMES++;
 
     //run_fx:
-
         // Advance local game effects for next frame.
         if ( clge ) {
             clge->ClientRefreshFrame();
@@ -3226,7 +3230,6 @@ uint64_t CL_Frame( uint64_t msec ) {
 
         // Update audio after the 3D view was drawn.
         S_Update();
-
         // Update screen cinematic.
         SCR_RunCinematic();
     } else if ( sync_mode == SYNC_SLEEP_10 ) {

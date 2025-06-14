@@ -1319,15 +1319,15 @@ static inline const bool PM_CheckDuck() {
 		( pm->cmd.buttons & BUTTON_CROUCH ) &&
 		( pm->ground.entity || ( pm->liquid.level <= cm_liquid_level_t::LIQUID_FEET && !PM_AboveWater() ) ) &&
 		!( ps->pmove.pm_flags & PMF_ON_LADDER ) ) { 
-		if ( !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
-			// check that duck won't be blocked
-			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, 4 };
-			trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
-			if ( !trace.allsolid ) {
-				ps->pmove.pm_flags |= PMF_DUCKED;
-				flags_changed = true;
+			if ( !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
+				// check that duck won't be blocked
+				Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, 4 };
+				trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
+				if ( !trace.allsolid ) {
+					ps->pmove.pm_flags |= PMF_DUCKED;
+					flags_changed = true;
+				}
 			}
-		}
 	// Try and get out of the ducked state, stand up, if possible.
 	} else {
 		if ( ps->pmove.pm_flags & PMF_DUCKED ) {
@@ -1577,6 +1577,7 @@ void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 
 	// Set mins, maxs, and viewheight.
 	PM_SetDimensions();
+
 	// General position categorize.
 	PM_CategorizePosition();
 	// If pmove values were changed outside of the pmove code, resnap to position first before continuing.

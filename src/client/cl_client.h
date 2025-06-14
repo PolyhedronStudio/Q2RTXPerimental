@@ -508,13 +508,20 @@ void CL_KeyClear( keybutton_t *b );
 const double CL_KeyState( keybutton_t *key );
 
 /**
+*   @brief  A somewhat of a hack, we first read in mouse-movement, to then later on in
+*           UpdateCommand actually allow it to be handled and added to our local movement.
+**/
+const client_mouse_motion_t CL_ProcessMouseMove( void );
+
+/**
 *   @brief  Create all move related cvars, and registers all input commands. 
 *           (Also gives the client game a chance.)
 **/
 void CL_RegisterInput(void);
 /**
-*   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
-*           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
+*   @brief  Updates msec, angles and builds up the later to be interpolated, movement vectors
+*           from performing local movement prediction. Doesn't touch command
+*           forward/side/upmove, these are filled by CL_FinalizeCommand.
 **/
 void CL_UpdateCommand(int64_t msec);
 /**

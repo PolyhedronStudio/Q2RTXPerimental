@@ -1683,6 +1683,7 @@ static inline const bool PM_GoodPosition() {
 *			precision of the network channel and in a valid position.
 **/
 static void PM_SnapPosition() {
+	#if 1
 	ps->pmove.velocity = pml.velocity;
 	ps->pmove.origin = pml.origin;
 	if ( PM_GoodPosition() ) {
@@ -1690,6 +1691,16 @@ static void PM_SnapPosition() {
 	} else {
 		ps->pmove.origin = pml.previousOrigin;
 	}
+	#else
+	ps->pmove.velocity = pml.velocity;
+	ps->pmove.origin = pml.origin;
+	if ( PM_GoodPosition() ) {
+		return;
+	} else {
+		ps->pmove.origin = pml.origin = pml.previousOrigin;
+		ps->pmove.velocity = pml.velocity = pml.startVelocity;
+	}
+	#endif
 	//if ( G_FixStuckObject_Generic( ps->pmove.origin, pm->mins, pm->maxs  ) == stuck_result_t::NO_GOOD_POSITION ) {
 	//	ps->pmove.origin = pml.previousOrigin;
 	//	return;
@@ -1782,15 +1793,18 @@ static void PM_EraseInputCommandState() {
 static void PM_DropTimers() {
 	if ( ps->pmove.pm_time ) {
 		#if 1
-			double msec = pm->cmd.msec / 2.5;
+			//double msec = pm->cmd.msec / 2.5;
+			//double msec = pm->cmd.msec * 0.125;
+		int32_t msec = (int32_t)pm->cmd.msec >> 3;
+			//
 			//int32_t msec = (int32_t)pm->cmd.msec >> 4; // fast divide by 8, 8 ms = 1 unit. (At 10hz.)
 		//int32_t msec = ( int32_t )pm->cmd.msec >> 3;// / ( 1000 / ( 40 * 8 ) );
 		
 		//100 / 40
 			//msec /= 4;
-			if ( msec <= 0 ) {
-				msec = 1;
-			}
+			//if ( msec <= 0 ) {
+			//	msec = 1;
+			//}
 			if ( msec >= ps->pmove.pm_time ) {
 				ps->pmove.pm_flags &= ~( PMF_ALL_TIMES );
 				ps->pmove.pm_time = 0;
@@ -1821,16 +1835,18 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 
 	// Clear out several member variables which require a fresh state before performing the move.
 	#if 1
-		pm->touchTraces = {};
+		// Player State variables.
 		ps->viewangles = {};
-		ps->pmove.viewheight = 0;
+		//ps->pmove.viewheight = 0;
+		ps->screen_blend[ 0 ] = ps->screen_blend[ 1 ] = ps->screen_blend[ 2 ] = ps->screen_blend[ 3 ] = 0;
+		ps->rdflags = refdef_flags_t::RDF_NONE;
+		// Player State Move variables.
+		pm->touchTraces = {};
 		pm->ground = {};
 		pm->liquid = {
 			.type = CONTENTS_NONE,
 			.level = cm_liquid_level_t::LIQUID_NONE
 		},
-		ps->screen_blend[ 0 ] = ps->screen_blend[ 1 ] = ps->screen_blend[ 2 ] = ps->screen_blend[ 3 ] = 0;
-		ps->rdflags = refdef_flags_t::RDF_NONE;
 		pm->jump_sound = false;
 		pm->step_clip = false;
 		pm->step_height = 0;
@@ -1922,6 +1938,7 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	if ( PM_CheckDuck() ) {
 		PM_CategorizePosition();
 	}
+
 	// When dead, perform dead movement.
 	if ( ps->pmove.pm_type == PM_DEAD ) {
 		PM_DeadMove();
@@ -1933,6 +1950,7 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	*	Now all that is settled, start dropping the input command timing counter(s).
 	**/
 	PM_DropTimers();
+
 	// Do Nothing ( Teleport pause stays exactly in place ):
 	if ( ps->pmove.pm_flags & PMF_TIME_TELEPORT ) {
 		// ...
