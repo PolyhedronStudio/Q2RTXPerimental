@@ -91,8 +91,8 @@ message		two letters; starting lightlevel and ending lightlevel
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_lightramp_t, onSpawn ) ( svg_target_lightramp_t *self ) -> void {
     Super::onSpawn( self );
 
-    if ( !self->message || strlen( self->message ) != 2 || self->message[ 0 ] < 'a' || self->message[ 0 ] > 'z' || self->message[ 1 ] < 'a' || self->message[ 1 ] > 'z' || self->message[ 0 ] == self->message[ 1 ] ) {
-        gi.dprintf( "target_lightramp has bad ramp (%s) at %s\n", self->message, vtos( self->s.origin ) );
+    if ( !self->message.ptr || strlen( self->message.ptr ) != 2 || self->message.ptr[ 0 ] < 'a' || self->message.ptr[ 0 ] > 'z' || self->message.ptr[ 1 ] < 'a' || self->message.ptr[ 1 ] > 'z' || self->message.ptr[ 0 ] == self->message.ptr[ 1 ] ) {
+        gi.dprintf( "target_lightramp has bad ramp (%s) at %s\n", self->message.ptr, vtos( self->s.origin ) );
         SVG_FreeEdict( self );
         return;
     }
@@ -114,8 +114,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_lightramp_t, onSpawn ) ( svg_target_lig
     self->SetUseCallback( &svg_target_lightramp_t::onUse );
     self->SetThinkCallback( &svg_target_lightramp_t::onThink );
 
-    self->movedir[ 0 ] = self->message[ 0 ] - 'a';
-    self->movedir[ 1 ] = self->message[ 1 ] - 'a';
+    self->movedir[ 0 ] = self->message.ptr[ 0 ] - 'a';
+    self->movedir[ 1 ] = self->message.ptr[ 1 ] - 'a';
     self->movedir[ 2 ] = ( self->movedir[ 1 ] - self->movedir[ 0 ] ) / ( self->speed / gi.frame_time_s );
 }
 

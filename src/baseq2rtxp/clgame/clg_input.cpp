@@ -422,27 +422,21 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand ) {
         CLG_MouseMotionMove( &mouseMotion );
     }
 
-    #if 1
-    //
     // Figure button bits.
-    //
     CLG_FigureButtonBits( moveCommand );
 
-    //
     // Clear Various Down States.
-    //
     CLG_ClearStateDownFlags( moveCommand );
-    #endif
 
     // Add accumulated mouse forward/side movement.
     clgi.client->localmove[ 0 ] += clgi.client->mousemove[ 0 ];
     clgi.client->localmove[ 1 ] += clgi.client->mousemove[ 1 ];
 
-    // clamp to server defined max speed
+    // Clamp to server defined max speed
     clgi.client->localmove = CLG_ClampSpeed( clgi.client->localmove );
-
+    // Clamp the pitch.
     CLG_ClampPitch();
-
+    // Setup movecmd angles.
     moveCommand->cmd.angles[ 0 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 0 ] );
     moveCommand->cmd.angles[ 1 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 1 ] );
     moveCommand->cmd.angles[ 2 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 2 ] );
@@ -453,15 +447,10 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand ) {
 *           and angles are already set for this frame by CL_UpdateCommand.
 **/
 void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
-
-    //
     // Figure button bits.
-    //
     CLG_FigureButtonBits( moveCommand );
 
-    //
     // Clear Various Down States.
-    //
     CLG_ClearStateDownFlags( moveCommand );
 
     // Any key down flag.

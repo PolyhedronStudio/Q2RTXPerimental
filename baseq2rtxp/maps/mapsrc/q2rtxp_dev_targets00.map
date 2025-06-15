@@ -1017,6 +1017,7 @@
 "speed" "100"
 "spawnflags" "131200"
 "angle" "180"
+"wait" "2"
 // brush 0
 {
 ( -12 -513 48 ) ( -12 -516 48 ) ( -12 -516 40 ) pbr02/steel00 [ 0 1 0 0 ] [ 0 0 -1 0 ] 180 0.0625 0.0625
@@ -1195,7 +1196,7 @@
 }
 // entity 19
 {
-"classname" "trigger_always"
+"classname" "trigger_once"
 "target" "targ_changelevel"
 // brush 0
 {

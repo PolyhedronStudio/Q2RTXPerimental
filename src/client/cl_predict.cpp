@@ -56,27 +56,28 @@ void CL_PredictAngles(void) {
 }
 
 /**
-*   @brief  Performs player movement over the yet unacknowledged 'move command' frames, as well
-*           as the pending user move command. To finally store the predicted outcome
-*           into the cl.predictedState struct.
+*   @brief  Performs player movement over the circular unacknowledged 'move command' array its frames, 
+*           as well as for the pending user move command. Lastly, the predicted outcomes are 
+*           stored in cl.predictedState.
 **/
 void CL_PredictMovement(void) {
+    // Only predict when a map is actually loaded up.
     if ( !cl.collisionModel.cache ) {
         return;
     }
-
     // Can't predict anything without being in 'active client state' first.
     if ( cls.state != ca_active ) {
         return;
     }
-
+    // Will only hardset the received view angles.
     if ( !clge->UsePrediction() ) {
-        // just set angles
         CL_PredictAngles();
         return;
     }
 
+    // Get acknowledge incoming command(and frame) number.
     int64_t acknowledgedCommandNumber = cl.history[ cls.netchan.incoming_acknowledged & CMD_MASK ].commandNumber;
+    // The actual local current command number.
     const int64_t currentCommandNumber = cl.currentUserCommandNumber;
 
     // if we are too far out of date, just freeze
@@ -85,11 +86,13 @@ void CL_PredictMovement(void) {
         return;
     }
 
+    // If it has no msec(by keydown/mouse action), or the numbers are an equal match, we haven't moved a single inch.
     if ( !cl.moveCommand.cmd.msec && currentCommandNumber == acknowledgedCommandNumber ) {
         SHOWMISS("%i: not moved\n", cl.frame.number);
         return;
     }
 
+    // Pass on prediction to the client game.
     clge->PredictMovement( acknowledgedCommandNumber, currentCommandNumber );
 }
 

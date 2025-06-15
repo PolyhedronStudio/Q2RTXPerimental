@@ -348,6 +348,9 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
 
 	#baseq2rtxp/svgame/entities/target/svg_target_character.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_changelevel.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_crosslevel_target.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_crosslevel_trigger.cpp
 	baseq2rtxp/svgame/entities/target/svg_target_earthquake.cpp
 	baseq2rtxp/svgame/entities/target/svg_target_laser.cpp
 	baseq2rtxp/svgame/entities/target/svg_target_lightramp.cpp
@@ -467,6 +470,9 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/path/svg_path_corner.h
 	
 	#baseq2rtxp/svgame/entities/target/svg_target_character.h
+	baseq2rtxp/svgame/entities/target/svg_target_changelevel.h
+	baseq2rtxp/svgame/entities/target/svg_target_crosslevel_target.h
+	baseq2rtxp/svgame/entities/target/svg_target_crosslevel_trigger.h
 	baseq2rtxp/svgame/entities/target/svg_target_earthquake.h
 	baseq2rtxp/svgame/entities/target/svg_target_laser.h
 	baseq2rtxp/svgame/entities/target/svg_target_lightramp.h

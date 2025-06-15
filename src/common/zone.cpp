@@ -119,8 +119,21 @@ static inline void Z_CountAlloc(const zhead_t *z)
     s->bytes += z->size;
 }
 
-#define Z_Validate(z) \
-    Q_assert((z)->magic == Z_MAGIC && (z)->tag != TAG_FREE)
+//#define Z_Validate(z) \
+//    Q_assert((z)->magic == Z_MAGIC && (z)->tag != TAG_FREE)
+static const bool Z_Validate( const zhead_t *z ) {
+    // Should we assert at all.
+    bool shouldAssert = !( ( z )->magic == Z_MAGIC && ( z )->tag != TAG_FREE );
+    // Yes we should right? Most likely.
+    if ( shouldAssert ) {
+        // Well fuck me.
+        int _varForBreakPoint = 1337; // h4x 4 br34kp01nt
+    }
+    // It's actual magic!
+    Q_assert( ( z )->magic == Z_MAGIC && ( z )->tag != TAG_FREE );
+    // Boohooo
+    return true;
+}
 
 /**
 *   @brief  Tests for memory leaks by iterating through the linked list of memory blocks.

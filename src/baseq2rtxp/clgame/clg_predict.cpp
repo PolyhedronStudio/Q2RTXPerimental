@@ -45,27 +45,7 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
         game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
         game.predictedState.transition.view.height[ 0 ] = viewHeight;
         game.predictedState.transition.view.timeHeightChanged = clgi.client->time;
-        // Debug.
-        clgi.Print( PRINT_DEVELOPER, "%s: %f\n", __func__, game.predictedState.transition.view.height[ 0 ] );
     }
-
-    //if ( game.predictedState.transition.view.height[ 0 ] != viewHeight ) {
-    //    // Store current as previous.
-    //    game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
-    //    // Store new as current.
-    //    game.predictedState.transition.view.height[ 0 ] = viewHeight;
-    //    // Debug.
-    //    clgi.Print( PRINT_DEVELOPER, "%s: %f\n", __func__, game.predictedState.transition.view.height[ 0 ] );
-    //}
-
-    // Record viewheight changes.
-    //if ( game.predictedState.transition.view.height[ 0 ] != viewHeight && game.predictedState.transition.view.height[ 1 ] == viewHeight ) {
-    //    game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
-    //    game.predictedState.transition.view.height[ 0 ] = viewHeight;
-    //} else if ( game.predictedState.transition.view.height[ 1 ] != viewHeight && game.predictedState.transition.view.height[ 0 ] == viewHeight ) {
-    //    game.predictedState.transition.view.height[ 0 ] = game.predictedState.transition.view.height[ 1 ];
-    //    game.predictedState.transition.view.height[ 1 ] = viewHeight;
-    //}
 }
 
 /**
@@ -353,10 +333,6 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
     // Set view angles.
     // [NO-NEED]: This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
     //pm.playerState->viewangles = clgi.client->viewangles; 
-  //  clgi.Print( PRINT_DEVELOPER, "----------------------------------- \n" );
-  //  clgi.Print( PRINT_DEVELOPER, "frame(%" PRIx64 ") stime(%" PRIX64 ") etime(%" PRIX64 ") time(% " PRIx64 "rtime(% " PRIu64 ")\n",
-		//clgi.client->frame.number, clgi.client->servertime, clgi.client->extrapolatedTime, clgi.client->time, clgi.GetRealTime() );
-
 
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
@@ -365,30 +341,26 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
 
         // Only simulate it if it had movement.
         if ( moveCommand->cmd.msec ) {
-            // Timestamp it so the client knows we have valid results.
-            //moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
-
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
             pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.time );
             SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
             // Predict the next bobCycle for the frame.
-            //CLG_PredictNextBobCycle( &pm );
-
-            //clgi.Print( PRINT_DEVELOPER, "move: (%f, %f, %f) time(%" PRIu64 ")\n",
-            //    pm.playerState->pmove.origin[ 0 ], pm.playerState->pmove.origin[ 1 ], pm.playerState->pmove.origin[ 2 ],
-            //    moveCommand->prediction.time );
-
-            // Save for prediction checking.
+            #if 0
+            // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
+            CLG_PredictNextBobCycle( &pm );
+            #endif
         }
 
+        // Store the resulting outcome(if no msec was found, it'll be the origin that
+        // was left behind from the previous player move iteration.)
         moveCommand->prediction.origin = pm.playerState->pmove.origin;
         moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
     }
 
-    // Now run the pending command number.
-    #if 1
+    // Now predict results for the the pending command.
     client_movecmd_t *pendingMoveCommand = &clgi.client->moveCommand;
+    // We got msec, let's predict player movement.
     if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
         pendingMoveCommand->prediction.time = clgi.client->time;
@@ -409,22 +381,18 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.time );
         SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
         // Predict the next bobCycle for the frame.
-        //CLG_PredictNextBobCycle( &pm );
-        // Save for prediction checking.
-
-        // Save the now not pending anymore move command as the last entry in our circular buffer.
+        #if 0
+        // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
+        CLG_PredictNextBobCycle( &pm );
+        #endif
+        // Store the predicted outcome results 
         pendingMoveCommand->prediction.origin = pm.playerState->pmove.origin;
         pendingMoveCommand->prediction.velocity = pm.playerState->pmove.velocity;
+        // Save the pending move command as the last entry in our circular buffer.
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
-
-        //clgi.Print( PRINT_DEVELOPER, "pending:(%f, %f, %f) time(%" PRIu64 ") \n",
-        //    pm.playerState->pmove.origin[ 0 ], pm.playerState->pmove.origin[ 1 ], pm.playerState->pmove.origin[ 2 ],
-        //    pendingMoveCommand->prediction.time );
-
+        // And store it in the predictedState.
         predictedState->cmd = *pendingMoveCommand;
     }
-
-    #endif
 
     // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the
     // previously predicted ground data.
