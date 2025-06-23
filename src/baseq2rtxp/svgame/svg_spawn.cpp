@@ -397,34 +397,26 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // If we were running a previous session, make sure to save the session's client data before cleaning all level memory.
     SVG_Player_SaveClientData();
 
-    // Free up all SVGAME_LEVEL tag memory.
-    gi.FreeTags( TAG_SVGAME_LEVEL );
+
+    // Clamp maxentities within valid range.
+    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
+    // initialize all clients for this game
+    game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
+
+	// Clear this before clearing TAG_SVGAME_LEVEL memory, since it may have member variables that
+	// point to TAG_SVGAME_LEVEL memory.
+    g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+
 
     // Zero out all level struct data.
     level = {};
-
-    // Store cm_entity_t pointer.
+    // Restore cm_entity_t pointer.
     level.cm_entities = entities;
 
-    if ( g_edicts[ 0 ] ) {
-        // Reset all entities to 'baseline'.
-        for ( int32_t i = 0; i < game.maxentities; i++ ) {
-            if ( g_edicts[ i ] ) {
-                // Store original number.
-                const int32_t number = g_edicts[ i ]->s.number;
-                // Zero out.
-                //*g_edicts[ i ] = { }; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
-                // Reset the entity to base state.
-                g_edicts[ i ]->Reset( g_edicts[ i ]->entityDictionary );
-                // Retain the entity's original number.
-                g_edicts[ i ]->s.number = number;
-            }
-        }
-    }
     // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
-    //g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
+    g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
     // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
-    //g_edict_pool.num_edicts = game.maxclients + 1;
+    g_edict_pool.num_edicts = game.maxclients + 1;
 
     // Initialize a fresh clients array.
     //game.clients = SVG_Clients_Reallocate( game.maxclients );
@@ -432,21 +424,6 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Copy over the mapname and the spawn point. (Optionally set by appending a map name with a $spawntarget)
     Q_strlcpy( level.mapname, mapname, sizeof( level.mapname ) );
     Q_strlcpy( game.spawnpoint, spawnpoint, sizeof( game.spawnpoint ) );
-
-    // Set client fields on player entities.
-    for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        // Assign this entity to the designated client.
-        //g_edicts[ i + 1 ]->client = game.clients + i;
-        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
-        ent->client = &game.clients[ i ];
-
-        // Assign client number.
-        ent->client->clientNum = i;
-
-        // Set their states as disconnected, unspawned, since the level is switching.
-        game.clients[ i ].pers.connected = false;
-        game.clients[ i ].pers.spawned = false;
-    }
 
     // Ensure we got the number of items to check classnames against with.
     SVG_InitItems();
@@ -456,10 +433,8 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
     // Keep track of the internal entityID.
     int32_t entityID = 0;
-
     // Pointer to the first key/value pair entry of a collision model's entities.
     const cm_entity_t *cm_entity = nullptr;
-
     // Pointer to the most recent allocated edict to spawn.
     svg_base_edict_t *spawnEdict = nullptr;
 
@@ -474,7 +449,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         EdictTypeInfo *typeInfo = nullptr;
 
         // Get the incremental index entity.
-        cm_entity = entities[ i ];
+        cm_entity = level.cm_entities[ i ];
 
         // Call spawn on edicts that got a positive entityID. Worldspawn == entityID(#0).
         if ( entityID == 0 ) {
@@ -618,6 +593,30 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
             numPostSpawnedEntities++;
         }
     }
+
+    // Initialize a fresh clients array.
+    //game.clients = SVG_Clients_Reallocate( game.maxclients );
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+        ent->client = &game.clients[ i ];
+
+        // Assign client number.
+        //ent->client->clientNum = i;
+
+        //// Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
+    }
+    //// Set client fields on player entities.
+    //for ( int32_t i = 0; i < game.maxclients; i++ ) {
+    //    // Assign this entity to the designated client.
+    //    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+    //    //
+    //    ent->client = &game.clients[ i ];
+    //}
 
     // Developer print the inhibited entities.
     gi.dprintf( "%i entities inhibited\n", numInhibitedEntities );

@@ -275,7 +275,7 @@ void SV_BuildClientFrame(client_t *client)
     int cull_nonvisible_entities = Cvar_Get("sv_cull_nonvisible_entities", "1", CVAR_CHEAT)->integer;
     bool        need_clientnum_fix;
 
-    clent = client->edict;
+    clent = EDICT_FOR_NUMBER( client->number + 1 ); //client->edict;
     if (!clent->client)
         return;        // not in game yet
 

@@ -221,11 +221,11 @@ DEFINE_MEMBER_CALLBACK_USE( svg_light_spotlight_t, onUse )( svg_light_spotlight_
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_light_spotlight_t, onSpawn )( svg_light_spotlight_t *self ) -> void {
-	g_edict_pool._InitEdict( self, self->s.number );
+	Super::onSpawn( self );
 	
 	// Spotlight Type
 	self->s.entityType = ET_SPOTLIGHT;
-	self->classname = "spotlight";
+	//self->classname = svg_level_qstring_t::from_char_str( "spotlight" );
 	self->s.effects |= EF_SPOTLIGHT;
 
 	// Support for on/off triggering.

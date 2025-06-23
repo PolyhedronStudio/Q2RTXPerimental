@@ -131,7 +131,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 		if ( !SVG_Entity_IsActive( delayEntity ) ) {
 			return -1; // USETARGET_INVALID
 		}
-		delayEntity->classname = "DelayedLuaUseTarget";
+		delayEntity->classname = svg_level_qstring_t::from_char_str( "DelayedLuaUseTarget" );
 
 		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
 		delayEntity->SetThinkCallback( LUA_Think_UseTargetDelay );
@@ -277,7 +277,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 		if ( !SVG_Entity_IsActive( delayEntity ) ) {
 			return -1; // USETARGET_INVALID
 		}
-		delayEntity->classname = "DelayedLuaUseTargets";
+		delayEntity->classname = svg_level_qstring_t::from_char_str( "DelayedLuaUseTargets" );
 
 		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
 		delayEntity->SetThinkCallback( LUA_Think_UseTargetsDelay );

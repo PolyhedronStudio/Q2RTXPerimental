@@ -297,7 +297,8 @@ void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
 		}
 
 		if ( leaf1 ) {
-			leaf2 = CM_PointLeaf( &sv.cm, client->edict->s.origin );
+			sv_edict_t *clent = EDICT_FOR_NUMBER( client->number + 1 );
+			leaf2 = CM_PointLeaf( &sv.cm, clent->s.origin );
 			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
 				continue;
 			if ( leaf2->cluster == -1 )

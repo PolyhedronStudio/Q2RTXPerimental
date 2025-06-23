@@ -202,7 +202,7 @@ void SVG_Client_Disconnect( svg_base_edict_t *ent ) {
     ent->s.entityType = ET_GENERIC;
     ent->solid = SOLID_NOT;
     ent->inuse = false;
-    ent->classname = "disconnected";
+    ent->classname = svg_level_qstring_t::from_char_str( "disconnected" );
     ent->client->pers.spawned = false;
     ent->client->pers.connected = false;
     ent->timestamp = level.time + 1_sec;
@@ -648,7 +648,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
     ent->clipmask = ( CM_CONTENTMASK_PLAYERSOLID );
-    ent->model = "players/playerdummy/tris.iqm";
+    ent->model = svg_level_qstring_t::from_char_str( "players/playerdummy/tris.iqm" );
     ent->SetPainCallback( &svg_player_edict_t::onPain );//ent->SetPainCallback( player_pain );
     ent->SetDieCallback( &svg_player_edict_t::onDie );//ent->SetDieCallback( player_die );
     ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
@@ -814,7 +814,7 @@ void SVG_Client_BeginLoadGame( svg_base_edict_t *ent ) {
     // with deltaangles
     ent->client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( ent->client->ps.viewangles );
     // Make sure classname is player.
-    ent->classname = svg_level_qstring_t::from_char_str( "player" );;
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.

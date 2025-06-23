@@ -49,13 +49,13 @@ public:
 	/**
 	*   @brief  Write level qtag memory block to disk.
 	**/
-	template<typename T, int32_t tag = TAG_SVGAME_LEVEL>
-	void write_level_qtag_memory( sg_qtag_memory_t<T, tag> *qtagMemory );
+	template<typename T, const memtag_t tag = TAG_SVGAME_LEVEL>
+	void write_level_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *qtagMemory );
 	/**
 	*   @brief  Write game qtag memory block to disk.
 	**/
-	template<typename T, int32_t tag = TAG_SVGAME>
-	void write_game_qtag_memory( sg_qtag_memory_t<T, tag> *qtagMemory );
+	template<typename T, const memtag_t tag = TAG_SVGAME>
+	void write_game_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME> *qtagMemory );
 
 	//! Write a vector3 to the file.
 	void write_vector3( const vec_t *v );

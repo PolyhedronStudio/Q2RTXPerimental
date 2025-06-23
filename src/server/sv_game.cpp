@@ -635,7 +635,8 @@ static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
 
 		// PHS cull this sound
 		if ( !( channel & CHAN_NO_PHS_ADD ) ) {
-			leaf2 = CM_PointLeaf( &sv.cm, client->edict->s.origin );
+            sv_edict_t *clent = EDICT_FOR_NUMBER( client->number + 1 );
+			leaf2 = CM_PointLeaf( &sv.cm, clent->s.origin );
 			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
 				continue;
 			if ( leaf2->cluster == -1 )

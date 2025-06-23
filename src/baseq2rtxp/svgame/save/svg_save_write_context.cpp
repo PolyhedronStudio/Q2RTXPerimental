@@ -93,14 +93,14 @@ void game_write_context_t::write_level_qstring( svg_level_qstring_t *qstr ) {
         return;
     }
 
-    const size_t len = qstr->count;
-    if ( len >= 65536 ) {
+    const size_t len = qstr->size();
+    if ( len >= UINT16_MAX ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
     write_int32( len );
-    write_data( qstr->ptr, len * sizeof( char ) );
+    write_data( qstr->ptr, qstr->size() );
     return;
 }
 
@@ -111,52 +111,80 @@ void game_write_context_t::write_game_qstring( svg_game_qstring_t *qstr ) {
     }
 
     const size_t len = qstr->count;
-    if ( len >= 65536 ) {
+    if ( len >= UINT16_MAX ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
     write_int32( len );
-    write_data( qstr->ptr, len * sizeof( char ) );
+    write_data( qstr->ptr, qstr->size() );
     return;
 }
 
 /**
 *   @brief  Write level qtag memory block to disk.
 **/
-template<typename T, int32_t tag>
-void game_write_context_t::write_level_qtag_memory( sg_qtag_memory_t<T, tag> *qtagMemory ) {
-    if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->count <= 0 ) {
+template<typename T, const memtag_t tag = TAG_SVGAME_LEVEL>
+void game_write_context_t::write_level_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *qstr ) {
+    //if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->length() < 0 ) {
+    //    write_int32( -1 );
+    //    return;
+    //}
+
+    //const size_t len = qtagMemory->length();
+    //if ( len >= UINT32_MAX ) {
+    //    gzclose( f );
+    //    gi.error( "%s: bad length(%d)", __func__, len );
+    //}
+    //write_int32( len );
+    //write_data( qtagMemory->ptr, len * qtagMemory->type_size );
+    //return;
+    if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
         write_int32( -1 );
         return;
     }
 
-    const size_t len = qtagMemory->count;
-    if ( len >= 65536 ) {
+    const size_t len = qstr->length();
+    if ( len >= UINT32_MAX ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
+
     write_int32( len );
-    write_data( qtagMemory->ptr, len * sizeof( T ) );
+    write_data( qstr->ptr, qstr->size() );
     return;
 }
 /**
 *   @brief  Write game qtag memory block to disk.
 **/
-template<typename T, int32_t tag>
-void game_write_context_t::write_game_qtag_memory( sg_qtag_memory_t<T, tag> *qtagMemory ) {
-    if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->count <= 0 ) {
+template<typename T, const memtag_t tag = TAG_SVGAME>
+void game_write_context_t::write_game_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME> *qstr ) {
+    //if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->length() < 0 ) {
+    //    write_int32( -1 );
+    //    return;
+    //}
+
+    //const size_t len = qtagMemory->length();
+    //if ( len >= UINT32_MAX ) {
+    //    gzclose( f );
+    //    gi.error( "%s: bad length(%d)", __func__, len );
+    //}
+    //write_int32( len );
+    //write_data( qtagMemory->ptr, len * qtagMemory->type_size );
+    //return;
+    if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
         write_int32( -1 );
         return;
     }
 
-    const size_t len = qtagMemory->count;
-    if ( len >= 65536 ) {
+    const size_t len = qstr->length();
+    if ( len >= UINT32_MAX ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
+
     write_int32( len );
-    write_data( qtagMemory->ptr, len * sizeof( T ) );
+    write_data( qstr->ptr, qstr->size() );
     return;
 }
 
@@ -286,10 +314,10 @@ void game_write_context_t::write_field( const svg_save_descriptor_field_t *descr
         write_game_qstring( (svg_game_qstring_t *)p );
         break;
     case SD_FIELD_TYPE_LEVEL_QTAG_MEMORY:
-        write_level_qtag_memory<float>( ( ( sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> * )p ) );
+        write_level_qtag_memory( ( ( sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> * )p ) );
         break;
     case SD_FIELD_TYPE_GAME_QTAG_MEMORY:
-        write_game_qtag_memory<float>( ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
+        write_game_qtag_memory( ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
         break;
     case SD_FIELD_TYPE_EDICT:
         write_int32( g_edict_pool.NumberForEdict( ( *(svg_base_edict_t **)p ) ) );

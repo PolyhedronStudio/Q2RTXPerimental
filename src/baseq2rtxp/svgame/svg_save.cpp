@@ -24,6 +24,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_edict_pool.h"
 
 #include "svgame/entities/svg_player_edict.h"
+#include "svgame/entities/svg_worldspawn_edict.h"
+
 #include "svgame/player/svg_player_client.h"
 
 #if USE_ZLIB
@@ -98,9 +100,6 @@ void SVG_ReadGame( const char *filename ) {
     gzFile	f;
     int     i;
 
-    //if ( g_edict_pool.edicts != nullptr || g_edict_pool.max_edicts != game.maxentities ) {
-    //    SVG_EdictPool_Release( &g_edict_pool );
-    //}
     gi.FreeTags(TAG_SVGAME);
     game = {};
 
@@ -145,16 +144,17 @@ void SVG_ReadGame( const char *filename ) {
         gi.error("Savegame has bad maxentities");
     }
 
+    // Initialize a fresh clients array.
+    game.clients = SVG_Clients_Reallocate( game.maxclients );
+
     // Clamp maxentities within valid range.
     game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
     // Release all edicts.
     g_edicts = SVG_EdictPool_Release( &g_edict_pool );
     // Initialize the edicts array pointing to the memory allocated within the pool.
+    g_edict_pool.max_edicts = game.maxentities;
+    g_edict_pool.num_edicts = game.maxclients + 1;
     g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
-	g_edict_pool.max_edicts = game.maxentities;
-
-	// Initialize a fresh clients array.
-    game.clients = SVG_Clients_Reallocate( game.maxclients );
 
     // Now read in the fields for each client.
     for (i = 0; i < game.maxclients; i++) {
@@ -195,8 +195,12 @@ void SVG_WriteLevel(const char *filename)
     ctx.write_int32( SAVE_MAGIC2 );
     ctx.write_int32( SAVE_VERSION );
 
+	// First write out all the entity indices and their classnames.
+	// We do so for being able to allocate the entities first.
+    // 
+    // This helps restoring actual entity pointers to the entities of the saved game.
     // Write out all the entities.
-    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++) {
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
         svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
         //ent = &g_edicts[i];
         if ( !ent || !ent->inuse ) {
@@ -206,6 +210,23 @@ void SVG_WriteLevel(const char *filename)
         ctx.write_int32( i );
         // Entity classname.
         ctx.write_level_qstring( &ent->classname );
+        // Rest of entity fields.
+        //ent->Save( &ctx );
+        //write_fields(f, entityfields, ent);
+    }
+    // End of level data.
+    ctx.write_int32( -1 );
+    // Now write out an indice + the actual entity properties.
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+        //ent = &g_edicts[i];
+        if ( !ent || !ent->inuse ) {
+            continue;
+        }
+        // Entity number.
+        ctx.write_int32( i );
+        // Entity classname.
+        //ctx.write_level_qstring( &ent->classname );
         // Rest of entity fields.
         ent->Save( &ctx );
         //write_fields(f, entityfields, ent);
@@ -237,23 +258,24 @@ void SVG_WriteLevel(const char *filename)
 *   No clients are connected yet.
 **/
 void SVG_MoveWith_FindParentTargetEntities( void );
+void SVG_FindTeams( void );
+void PlayerTrail_Init( void );
 void SVG_ReadLevel(const char *filename)
 {
     int     entnum;
-    svg_base_edict_t *ent;
-
-	// For recovering the level cm_entity_t's.
-    static const cm_entity_t *cm_entities[ MAX_EDICTS ] = {};
-	for ( int32_t i = 0; i < game.maxentities; i++ ) {
-		cm_entities[ i ] = g_edict_pool.edicts[ i ]->entityDictionary;
-	}
+    svg_base_edict_t *ent = nullptr;
 
     // free any dynamic memory allocated by loading the level
     // base state.
-    //
-	// WID: Keep in mind that freeing entities after this, would invalidate their sg_qtag_memory_t blocks.
-    gi.FreeTags(TAG_SVGAME_LEVEL);
-    
+    // gi.FreeTags( TAG_SVGAME_LEVEL );
+
+	// Save the cm_entity_t pointer of the level struct for restoring after wiping.
+	const cm_entity_t **cm_entities = level.cm_entities;
+    // Zero out all level struct data.
+    level = {};
+    // Store cm_entity_t pointer.
+    level.cm_entities = cm_entities;
+
     gzFile f = gzopen(filename, "rb");
     if ( !f ) {
         gi.error( "Couldn't open %s", filename );
@@ -263,6 +285,7 @@ void SVG_ReadLevel(const char *filename)
     // Create read context.
     game_read_context_t ctx = game_read_context_t::make_read_context( f );
 
+    #if 1
     // Wipe all the entities back to 'baseline'.
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
         #if 0
@@ -273,23 +296,33 @@ void SVG_ReadLevel(const char *filename)
             // Retain the entity's original number.
             g_edicts[ i ]->s.number = number;
         #else
-            //// Reset the entity to base state.
-            //if ( g_edicts[ i ] ) {
-            //    // Reset entity.
-            //    g_edicts[ i ]->Reset( g_edicts[ i ]->entityDictionary );
-            //} else {
-                const int32_t entityNumber = g_edicts[ i ]->s.number;
-                ////*g_edicts[ i ] = { };
-                if ( i >= 1 && i < game.maxclients + 1 ) {
-                    g_edict_pool.edicts[ i ] = new svg_player_edict_t();
-                } else {
-                    g_edict_pool.edicts[ i ] = new svg_base_edict_t( cm_entities[ i ] );
-                }
-                //// Set the number to the current index.
-                g_edict_pool.edicts[ i ]->s.number = entityNumber;
-            //}
+            const int32_t entityNumber = i;
+
+            // Reset the entity to base state.
+            if ( g_edict_pool.edicts[ i ] ) {
+                // Reset entity.
+                //g_edict_pool.edicts[ i ]->Reset( level.cm_entities[ i ] /*g_edict_pool.edicts[ i ]->entityDictionary*/ );
+                delete g_edict_pool.edicts[ i ];
+            }
+            if ( i == 0 ) {
+                EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "worldspawn" );
+                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( level.cm_entities[ 0 ] );
+            } else if ( i >= 1 && i < game.maxclients + 1 ) {
+                EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "player" );
+                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+
+				svg_player_edict_t *playerEdict = static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] );
+				playerEdict->client = &game.clients[ i - 1 ];
+				playerEdict->s.number = i; // Set the number to the current index.
+            } else {
+                EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( level.cm_entities[ i ] );
+            }
+            // Set the number to the current index.
+            g_edict_pool.edicts[ i ]->s.number = i;
         #endif
     }
+    #endif
 
     // Default num_edicts.
     g_edict_pool.num_edicts = maxclients->value + 1;
@@ -308,6 +341,51 @@ void SVG_ReadLevel(const char *filename)
     }
 
     // load all the entities
+    while ( 1 ) {
+        // Read in entity number.
+        entnum = ctx.read_int32();
+        if ( entnum == -1 )
+            break;
+        if ( entnum < 0 || entnum >= game.maxentities ) {
+            gzclose( f );
+            gi.error( "%s: bad entity number", __func__ );
+        }
+        if ( entnum >= g_edict_pool.num_edicts ) {
+            g_edict_pool.num_edicts = entnum + 1;
+        }
+
+        // Inquire for the classname.
+        svg_level_qstring_t classname;
+        classname = ctx.read_level_qstring();
+
+        // Acquire the typeinfo.
+        // TypeInfo for this entity.
+        EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
+        if ( !typeInfo ) {
+            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+        }
+
+        // For restoring the cm_entity_t.
+        const cm_entity_t *cm_entity = level.cm_entities[ entnum ];//g_edict_pool.edicts[ entnum ]->entityDictionary;
+
+        // Worldspawn:
+        svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+        ent->classname = classname;
+        // Enable the entity (unless it was a "freed" entity).
+        if ( ent->classname == "freed" ) {
+            ent->inuse = false;
+        } else {
+            ent->inuse = true;
+        }
+        ent->s.number = entnum;
+        // It was the original entity instanced at the map load time.
+        // Set the entity's dictionary to the cm_entity_t pointer if it was the original entity at SpawnEntities time.
+        if ( ent->spawn_count == 0 ) {
+            ent->entityDictionary = cm_entity;
+        }
+    }
+
+    // load all the entities
     while (1) {
         // Read in entity number.
         entnum = ctx.read_int32( );
@@ -320,39 +398,50 @@ void SVG_ReadLevel(const char *filename)
         if ( entnum >= g_edict_pool.num_edicts ) {
             g_edict_pool.num_edicts = entnum + 1;
         }
-        // Inquire for the classname.
-		svg_level_qstring_t classname;
-        classname = ctx.read_level_qstring();
 
-        // Acquire the typeinfo.
-        // TypeInfo for this entity.
-        EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
-        if ( !typeInfo ) {
-            classname = "svg_base_edict_t";
-            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
-        }
+  //      // Inquire for the classname.
+		//svg_level_qstring_t classname;
+  //      classname = ctx.read_level_qstring();
 
-        // For restoring the cm_entity_t.
-        const cm_entity_t *cm_entity = cm_entities[ entnum ];//g_edict_pool.edicts[ entnum ]->entityDictionary;
-        // Worldspawn:
-        svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
-        ent->classname = classname;
-        // It was the original entity instanced at the map load time.
-		// Restore the cm_entity_t.
-        if ( ent->spawn_count == 0 ) {
-            ent->entityDictionary = cm_entity;
-        }
+        //// Acquire the typeinfo.
+        //// TypeInfo for this entity.
+        //EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
+        //if ( !typeInfo ) {
+        //    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+        //}
+
+        //// For restoring the cm_entity_t.
+        //const cm_entity_t *cm_entity = level.cm_entities[ entnum ];//g_edict_pool.edicts[ entnum ]->entityDictionary;
+
+        //// Worldspawn:
+        //svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+        //ent->classname = classname;
+        // Restore.
+        svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ];
         // Restore the entity.
-
         ent->Restore( &ctx );
-
-        ent->inuse = true;
-        ent->s.number = entnum;
-
+        #if 0
+        // Restore client pointer if this is a player entity.
+        if ( entnum >= 1 && entnum < game.maxclients + 1 ) {
+            // If this is a player entity, we need to set the client pointer.
+            ent->client = &game.clients[ entnum - 1 ];
+        }
+        #endif
         // Let the server relink the entity in.
         memset(&ent->area, 0, sizeof(ent->area));
         gi.linkentity(ent);
     }
+
+	// <Q2RTXPerimental> Level entities have been read.
+	// But we still need to assign the edict pointers to the actual entities.
+    // Assign the edict pointers to the entities.
+    //for ( int32_t i = 0; i < g_edict_pool.num_edicts; i++ ) {
+    //    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+    //    if ( ent && ent->inuse ) {
+    //        ent->edict = ent;
+    //    }
+    //}
+	// Read in the level fields.
 
 	// We load these right after the entities, so that we can
 	// optionally point to them from the svg_level_locals_t fields.
@@ -361,14 +450,26 @@ void SVG_ReadLevel(const char *filename)
 
     gzclose(f);
 
-    // Mark all clients as unconnected
-    for ( i = 0; i < maxclients->value; i++ ) {
-        //ent = &g_edicts[ i + 1 ];
-        ent = g_edict_pool.EdictForNumber( i + 1 );
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
         ent->client = &game.clients[ i ];
-        ent->client->pers.connected = false;
-        ent->client->pers.spawned = false;
+
+        // Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
     }
+
+    // Find entity 'teams', NOTE: these are not actual player game teams.
+    SVG_FindTeams();
+
+    // Find all entities that are following a parent's movement.
+    SVG_MoveWith_FindParentTargetEntities();
+
+    // Initialize player trail.
+    PlayerTrail_Init();
 
     // do any load time things at this point
     for (i = 0 ; i < g_edict_pool.num_edicts ; i++) {
@@ -379,9 +480,11 @@ void SVG_ReadLevel(const char *filename)
         }
 
         // fire any cross-level triggers
-        if (ent->classname)
-            if (strcmp( (const char *)ent->classname, "target_crosslevel_target") == 0)
+        if ( ent->classname ) {
+            if ( strcmp( (const char *)ent->classname, "target_crosslevel_target" ) == 0 ) {
                 ent->nextthink = level.time + QMTime::FromSeconds( ent->delay );
+            }
+        }
         #if 0
         if (ent->think == func_clock_think || ent->use == func_clock_use) {
             char *msg = ent->message;

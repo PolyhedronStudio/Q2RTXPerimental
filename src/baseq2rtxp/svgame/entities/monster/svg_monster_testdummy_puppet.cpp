@@ -125,8 +125,13 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
     //self->monsterinfo.aiflags = AI_NOSTEP;
 
     // Model/BBox:
-    self->model = "models/characters/mixadummy/tris.iqm";
+    self->model = svg_level_qstring_t::from_char_str( "models/characters/mixadummy/tris.iqm" );
     self->s.modelindex = gi.modelindex( self->model );
+    // Make sure to restore the actual root motion set data.
+    const char *modelname = self->model;
+    const model_t *model_forname = gi.GetModelDataForName( modelname );
+    self->rootMotionSet = &model_forname->skmConfig->rootMotion;
+
     VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MINS, self->mins );
     VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MAXS, self->maxs );
 
@@ -188,9 +193,9 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_t, onPostSpawn )( svg_mo
     //---------------------------
     // <TEMPORARY FOR TESTING>
     //---------------------------
-    const char *modelname = self->model;
-    const model_t *model_forname = gi.GetModelDataForName( modelname );
-    self->rootMotionSet = &model_forname->skmConfig->rootMotion;
+    //const char *modelname = self->model.ptr;
+    //const model_t *model_forname = gi.GetModelDataForName( modelname );
+    //self->rootMotionSet = &model_forname->skmConfig->rootMotion;
     //---------------------------
     // </TEMPORARY FOR TESTING>
     //---------------------------

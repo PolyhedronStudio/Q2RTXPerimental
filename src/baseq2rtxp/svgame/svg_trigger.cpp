@@ -73,11 +73,11 @@ void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activat
     if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
         // Print.
         if ( activator->client ) {
-            gi.centerprintf( activator, "%s", self->message );
+            gi.centerprintf( activator, "%s", (const char *)self->message );
         // <Q2RTXP>: WID: Do we want this else statement and condition?
         } else {
-			//gi.cprintf(nullptr, PRINT_ALL, "%s: %s\n", (const char*)self->classname, self->message );
-            gi.cprintf( nullptr, PRINT_ALL, "%s\n", self->message );
+			//gi.cprintf(nullptr, PRINT_ALL, "%s: %s\n", (const char*)self->classname, self->message.ptr );
+            gi.cprintf( nullptr, PRINT_ALL, "%s\n", (const char *)self->message );
         }
         // Play custom set audio.
         if ( self->noise_index ) {

@@ -73,12 +73,13 @@ struct svg_target_laser_t : public svg_base_edict_t {
     *   @note   Make sure to call the base parent class' Restore() function.
     **/
     virtual void Save( struct game_write_context_t *ctx ) override;
+    #endif
     /**
     *   @brief  Restore the entity from a loadgame read context.
     *   @note   Make sure to call the base parent class' Restore() function.
     **/
     virtual void Restore( struct game_read_context_t *ctx ) override;
-
+    #if 0
     /**
     *   @brief  Called for each cm_entity_t key/value pair for this entity.
     *           If not handled, or unable to be handled by the derived entity type, it will return

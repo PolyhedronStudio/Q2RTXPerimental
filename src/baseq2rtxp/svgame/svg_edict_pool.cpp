@@ -14,6 +14,7 @@
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/entities/svg_player_edict.h"
+#include "svgame/entities/svg_worldspawn_edict.h"
 
 
 
@@ -119,17 +120,19 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
 	// Clear the arguments std::vector just to be sure.
 	ed->delayed.signalOut.arguments.clear();
 	#if 0
+	svg_base_edict_t *olded = ed;
 	// Delete current in-memory entity object.
-	delete ed;
+	//delete ed;
+
 	// Reallocate it as a fresh svg_base_edict_t instead.
-	ed = g_edict_pool.edicts[ edictNumber ] = new svg_base_edict_t(); //*ed = {};
-	#endif
+	ed = g_edict_pool.edicts[ edictNumber ] = new( olded ) svg_base_edict_t(); //*ed = {};
+	#else
 	// Reset the entity to baseline values.
 	ed->Reset( ed->entityDictionary /* true = (ed->entityDictionary != nullptr)*/ );
-
+	#endif
 	// Setup the edict as a freed entity.
 	ed->s.number = edictNumber;
-	ed->classname = "freed";
+	ed->classname = svg_level_qstring_t::from_char_str( "freed" );
 	ed->freetime = level.time;
 	ed->inuse = false;
 	ed->spawn_count = nextSpawnCount;
@@ -184,7 +187,7 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 		// If we have a freed entity, use it.
 		if ( freedEntity ) {
 			//_InitEdict<EdictType>( entity, i );
-	// Restore the actual number.
+			// Restore the actual number.
 			ent->s.number = i;
 			// Make sure it is set to 'inuse'.
 			ent->inuse = true;
@@ -256,6 +259,8 @@ svg_base_edict_t **SVG_EdictPool_Release( svg_edict_pool_t *edictPool ) {
 
 		// Free any remainings.
 		gi.FreeTags( TAG_SVGAME_EDICTS );
+		// Free up all SVGAME_LEVEL tag memory.
+		gi.FreeTags( TAG_SVGAME_LEVEL );
 	}
 
 	return edictPool->edicts;
@@ -282,14 +287,38 @@ svg_base_edict_t **SVG_EdictPool_Allocate( svg_edict_pool_t *edictPool, const in
 	}
 	// Initialize objects.
 	for ( int32_t i = 0; i < numReservedEntities; i++ ) {
-		if ( i >= 1 && i < game.maxclients + 1 ) {
-			edictPool->edicts[ i ] = new svg_player_edict_t();
-			static_cast<svg_player_edict_t *>( edictPool->edicts[ i ] )->testVar = 1337 + i;
+		// Determine the type info for the edict to be spawned.
+		EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+		// If edict number == 0, it is the worldspawn entity.
+		if ( i == 0 ) {
+			typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "worldspawn" );
+		// And if edict number is within the range of maxclients, it is a player entity.
+		} else if ( i >= 1 && i < game.maxclients + 1 ) {
+			typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "player" );
+		// Otherwise, it is a generic entity.
 		} else {
-			edictPool->edicts[ i ] = new svg_base_edict_t();
+			// 
 		}
-		// Set the number to the current index.
-		edictPool->edicts[ i ]->s.number = i;
+		 
+		
+		// Allocate a new edict instance using the type info's callback.
+		svg_base_edict_t *spawnEdict = edictPool->edicts[ i ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+		// Ensure to assign the number to the edict.
+		spawnEdict->s.number = i;
+		spawnEdict->classname = svg_level_qstring_t::from_char_str( typeInfo->worldSpawnClassName );
+		//edictPool->edicts[ i ]->s.number = i;
+		//if ( i == 0 ) {
+		//	edictPool->edicts[ 0 ] = new svg_worldspawn_edict_t();
+		//}
+		//if ( i >= 1 && i < game.maxclients + 1 ) {
+		//	edictPool->edicts[ i ] = new svg_player_edict_t();
+		//	//edictPool->edicts[ i ]->client = &game.clients[ i - 1 ];
+		//	static_cast<svg_player_edict_t *>( edictPool->edicts[ i ] )->testVar = 1337 + i;
+		//} else {
+		//	edictPool->edicts[ i ] = new svg_base_edict_t();
+		//}
+		//// Set the number to the current index.
+		//edictPool->edicts[ i ]->s.number = i;
 	}
 	// Store the maximum number of reserved entities.
 	edictPool->max_edicts = numReservedEntities;

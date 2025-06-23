@@ -34,7 +34,7 @@ struct svg_level_locals_t {
     int64_t         intermissionFrameNumber = 0;  // time the intermission was started
 
     // WID: C++20: Added const.
-    const char *changemap = nullptr;
+    svg_level_qstring_t changemap = nullptr;
     int64_t     exitintermission = 0;
     Vector3     intermission_origin = QM_Vector3Zero();
     Vector3     intermission_angle = QM_Vector3Zero();

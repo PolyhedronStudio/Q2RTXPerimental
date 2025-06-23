@@ -119,8 +119,7 @@ void SVG_Entities_InitBodyQue( void ) {
 
     level.body_que = 0;
     for ( i = 0; i < BODY_QUEUE_SIZE; i++ ) {
-        ent = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-        ent->classname = "bodyque";
+        ent = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "bodyque" );
     }
 }
 /**
@@ -233,7 +232,7 @@ const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *oth
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_Entity_IsClient( self ) ) {
-        self->client->viewMove.viewForward;
+        forward = self->client->viewMove.viewForward;
     // Calculate forward vector:
     } else {
         QM_AngleVectors( self->s.angles, &forward, nullptr, nullptr );
@@ -258,7 +257,7 @@ const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOr
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_Entity_IsClient( self ) ) {
-        self->client->viewMove.viewForward;
+        forward = self->client->viewMove.viewForward;
         // Calculate forward vector:
     } else {
         QM_AngleVectors( self->s.angles, &forward, nullptr, nullptr );

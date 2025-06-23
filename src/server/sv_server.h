@@ -307,7 +307,7 @@ typedef struct {
 } message_packet_t;
 
 // WID: 40hz:
-static constexpr int32_t  RATE_MESSAGES = 40;
+static constexpr int32_t  RATE_MESSAGES = (int32_t)(SV_FRAMERATE);
 //#define RATE_MESSAGES   SV_FRAMERATE
 
 /**
@@ -351,7 +351,7 @@ typedef struct client_s {
 
     // core info
     clstate_t       state;
-    sv_edict_t         *edict;     // EDICT_FOR_NUMBER(clientnum+1)
+    sv_edict_t      *edict;     // EDICT_FOR_NUMBER(clientnum+1)
     int             number;     // client slot number
 
     // client flags

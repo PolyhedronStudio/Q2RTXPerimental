@@ -48,16 +48,14 @@ void SVG_Player_PlayerNoise( svg_base_edict_t *who, const vec3_t where, int type
 
 
     if ( !who->mynoise ) {
-        noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-        noise->classname = "player_noise";
+        noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
         noise->owner = who;
         noise->svflags = SVF_NOCLIENT;
         who->mynoise = noise;
 
-        noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-        noise->classname = "player_noise";
+        noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
         noise->owner = who;

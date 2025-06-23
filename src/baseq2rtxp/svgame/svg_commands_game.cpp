@@ -179,8 +179,7 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
         else
             ent->client->pers.inventory[index] += it->quantity;
     } else {
-        it_ent = g_edict_pool.AllocateNextFreeEdict<svg_item_edict_t>();
-        it_ent->classname = it->classname;
+        it_ent = g_edict_pool.AllocateNextFreeEdict<svg_item_edict_t>( it->classname );
         //SVG_Item_Spawn(it_ent, it);
         it_ent->DispatchSpawnCallback(); //Touch_Item(it_ent, ent, NULL, NULL);
 		it_ent->DispatchTouchCallback( ent, NULL, NULL );

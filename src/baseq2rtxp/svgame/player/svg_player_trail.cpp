@@ -54,7 +54,7 @@ void PlayerTrail_Init(void)
 
     for (n = 0; n < TRAIL_LENGTH; n++) {
         trail[n] = SVG_AllocateEdict();
-        trail[n]->classname = "player_trail";
+        trail[n]->classname = svg_level_qstring_t::from_char_str( "player_trail" );
     }
 
     trail_head = 0;

@@ -844,7 +844,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_door_t, onTouch )( svg_func_door_t *self,
 
     self->touch_debounce_time = level.time + 5_sec;
 
-    gi.centerprintf( other, "%s", self->message );
+    gi.centerprintf( other, "%s", (const char*)self->messag );
     gi.sound( other, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
     #endif
 }

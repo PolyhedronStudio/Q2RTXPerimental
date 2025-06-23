@@ -596,8 +596,9 @@ void SVG_Item_Spawn( svg_item_edict_t *ent, const gitem_t *item ) {
     ent->s.effects = item->world_model_flags;
     ent->s.renderfx = RF_GLOW;
     ent->s.entityType = ET_ITEM;
-    if (ent->model)
-        gi.modelindex(ent->model);
+    if ( ent->model ) {
+        gi.modelindex( ent->model );
+    }
 }
 
 /**

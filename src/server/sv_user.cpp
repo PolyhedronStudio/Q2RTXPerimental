@@ -909,7 +909,7 @@ static void SV_ExecuteUserCommand(const char *s)
     char *c;
 
     Cmd_TokenizeString(s, false);
-    sv_player = sv_client->edict;
+    sv_player = sv_client->edict = EDICT_FOR_NUMBER( sv_client->number + 1 );//sv_client->edict;
 
     c = Cmd_Argv(0);
     if (!c[0]) {
@@ -962,24 +962,25 @@ static int      userinfoUpdateCount;
 SV_ClientThink
 ==================
 */
-static inline void SV_ClientThink(usercmd_t *cmd)
-{
+static inline void SV_ClientThink( usercmd_t *cmd ) {
     usercmd_t *old = &sv_client->lastcmd;
 
     sv_client->command_msec -= cmd->msec;
     sv_client->cmd_msec_used += cmd->msec;
     sv_client->num_moves++;
 
-    if (sv_client->command_msec < 0 && sv_enforcetime->integer) {
-        Com_DPrintf("commandMsec underflow from %s: %d\n",
-                    sv_client->name, sv_client->command_msec);
+    if ( sv_client->command_msec < 0 && sv_enforcetime->integer ) {
+        Com_DPrintf( "commandMsec underflow from %s: %d\n",
+            sv_client->name, sv_client->command_msec );
         return;
     }
 
-    if (cmd->buttons != old->buttons
+    if ( cmd->buttons != old->buttons
         || cmd->forwardmove != old->forwardmove
         || cmd->sidemove != old->sidemove
-        || cmd->upmove != old->upmove) {
+        || cmd->upmove != old->upmove
+        || cmd->frameNumber != old->frameNumber
+        /*|| cmd->angles != old->angles */) {
         // don't timeout
         sv_client->lastactivity = svs.realtime;
     }
@@ -1363,7 +1364,7 @@ void SV_ExecuteClientMessage(client_t *client)
     int32_t c = -1, last_cmd = -1;
 
     sv_client = client;
-    sv_player = sv_client->edict;
+    sv_player = sv_client->edict = EDICT_FOR_NUMBER( sv_client->number + 1 );//sv_client->edict;
 
     // only allow one move command
     moveIssued = false;

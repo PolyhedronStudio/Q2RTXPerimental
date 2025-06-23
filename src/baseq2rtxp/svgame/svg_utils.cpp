@@ -253,8 +253,8 @@ void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
 
     self->solid = SOLID_TRIGGER;
     self->movetype = MOVETYPE_NONE;
-    if ( self->model ) {
-        gi.setmodel( self, self->model );
+    if ( self->model.ptr ) {
+        gi.setmodel( self, self->model.ptr );
     }
     self->svflags = SVF_NOCLIENT;
 }

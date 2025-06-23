@@ -317,7 +317,10 @@ void SVG_Misc_BecomeExplosion( svg_base_edict_t *self, int type, const bool free
 
     // Free the entity if requested.
 	if ( freeEntity ) {
-		SVG_FreeEdict( self );
+		self->nextthink = level.time + FRAME_TIME_S; // level.frameNumber + 1;
+        self->SetThinkCallback( &SVG_FreeEdict );
+
+        //SVG_FreeEdict( self )
 	}
 }
 

@@ -214,7 +214,7 @@ void SV_DropClient(client_t *client, const char *reason)
     if (oldstate == cs_spawned || (g_features->integer & GMF_WANT_ALL_DISCONNECTS)) {
         // call the prog function for removing a client
         // this will remove the body, among other things
-        ge->ClientDisconnect(client->edict);
+        ge->ClientDisconnect( EDICT_FOR_NUMBER( client->number + 1 ) );
     }
 
     SV_CleanClient(client);
@@ -421,9 +421,10 @@ static size_t SV_StatusString(char *status)
             if (cl->state == cs_zombie) {
                 continue;
             }
+            sv_edict_t *clent = EDICT_FOR_NUMBER( cl->number + 1 );
             len = Q_snprintf(entry, sizeof(entry),
                              "%i %i \"%s\"\n",
-                             cl->edict->client->ps.stats[STAT_FRAGS],
+                             clent->client->ps.stats[STAT_FRAGS],
                              cl->ping, cl->name);
             if (len >= sizeof(entry)) {
                 continue;
@@ -1341,8 +1342,11 @@ static void SV_CalcPings(void)
             cl->num_moves = 0;
         }
 
+        sv_edict_t *clent = EDICT_FOR_NUMBER( cl->number + 1 );
         // let the game dll know about the ping
-        cl->edict->client->ping = cl->ping;
+        if ( clent ) {
+            clent->client->ping = cl->ping;
+        }
     }
 }
 
@@ -1359,19 +1363,27 @@ static void SV_GiveMsec(void)
 {
     client_t    *cl;
 
-    #if 0
+    #if 1
+    //if (!(sv.framenum % ((int64_t)BASE_FRAMERATE))) {
+    //if ( !( sv.framenum % ( (int64_t)16 ) ) ) {
+    //    FOR_EACH_CLIENT( cl ) {
+    //        cl->command_msec = ( BASE_FRAMETIME * 100 ) + 200;// 1800; // 1600 + some slop
+    //    }
+    //}
     //if (!(sv.framenum % ((int64_t)BASE_FRAMERATE))) {
     if ( !( sv.framenum % ( (int64_t)16 ) ) ) {
         FOR_EACH_CLIENT( cl ) {
-            cl->command_msec = ( BASE_FRAMETIME * 100 ) + 200;// 1800; // 1600 + some slop
+            cl->command_msec = ( 16 * BASE_FRAMETIME ) + 50;// 1800; // 1600 + some slop
         }
     }
-    #endif
-    if ( !( sv.framenum % ( (int64_t)BASE_FRAMERATE ) ) ) {
+    #else
+    if ( !( sv.framenum % ( (int64_t)BASE_FRAMETIME ) ) ) {
         FOR_EACH_CLIENT(cl) {
             cl->command_msec = ( BASE_FRAMETIME * 100 ) + 200;// 1800; // 1600 + some slop
         }
     }
+    #endif
+
 
     if (svs.realtime - svs.last_timescale_check < sv_timescale_time->integer)
         return;
@@ -1893,7 +1905,7 @@ void SV_UserinfoChanged(client_t *cl)
     int     i;
 
     // call prog code to allow overrides
-    ge->ClientUserinfoChanged( cl->edict, cl->userinfo );
+    ge->ClientUserinfoChanged( EDICT_FOR_NUMBER( cl->number + 1 ), cl->userinfo );
 
     // name for C code
     val = Info_ValueForKey( cl->userinfo, "name" );
@@ -2077,7 +2089,7 @@ void SV_Init(void) {
     sv_idlekick->changed = sv_sec_timeout_changed;
     sv_idlekick->changed(sv_idlekick);
     sv_enforcetime = Cvar_Get("sv_enforcetime", "1", 0);
-    sv_timescale_time = Cvar_Get("sv_timescale_time", std::to_string( BASE_FRAMERATE).c_str()/*"16"*/, 0);
+    sv_timescale_time = Cvar_Get("sv_timescale_time", std::to_string( BASE_FRAMETIME).c_str()/*"16"*/, 0);
     sv_timescale_time->changed = sv_sec_timeout_changed;
     sv_timescale_time->changed(sv_timescale_time);
     sv_timescale_warn = Cvar_Get("sv_timescale_warn", "0", 0);

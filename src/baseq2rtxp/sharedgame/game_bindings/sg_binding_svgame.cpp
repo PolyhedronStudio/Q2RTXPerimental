@@ -173,7 +173,7 @@ void SG_Z_TagFree( void *block ) {
 /**
 *	@brief	FreeTags
 **/
-void SG_Z_TagFree( const uint32_t tag ) {
+void SG_Z_FreeTags( const uint32_t tag ) {
 	gi.FreeTags( tag );
 }
 

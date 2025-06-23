@@ -166,7 +166,7 @@ void SG_Z_TagFree( void *block );
 /**
 *	@brief	FreeTags
 **/
-void SG_Z_TagFree( const uint32_t tag );
+void SG_Z_FreeTags( const uint32_t tag );
 
 // We need these for this.
 #include "sharedgame/sg_qtag_string.hpp"

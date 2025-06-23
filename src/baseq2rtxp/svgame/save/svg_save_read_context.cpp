@@ -138,16 +138,17 @@ const svg_level_qstring_t game_read_context_t::read_level_qstring() {
         return nullptr;
     }
 
-    if ( len < 0 || len >= 65536 ) {
+    if ( len < 0 || len >= UINT16_MAX ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
     // Allocate level tag string space.
-    svg_level_qstring_t lstring = svg_level_qstring_t::new_for_size( len );
+    // <Q2RTXP>: WID: We use len - 1 since the saved length already includes the null terminator,
+    // and using new_for_size will allocate an extra byte for the null terminator.
+    svg_level_qstring_t lstring = svg_level_qstring_t::new_for_size( len - 1);
     // Delete temporary buffer.
-    read_data( lstring.ptr, len );
-
+    read_data( lstring.ptr, lstring.size() );
     return lstring;
 }
 /**
@@ -162,15 +163,17 @@ const svg_game_qstring_t game_read_context_t::read_game_qstring() {
         return nullptr;
     }
 
-    if ( len < 0 || len >= 65536 ) {
+    if ( len < 0 || len >= UINT16_MAX ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
     // Allocate level tag string space.
-    svg_game_qstring_t gstring = svg_game_qstring_t::new_for_size( len );
+	// <Q2RTXP>: WID: We use len - 1 since the saved length already includes the null terminator,
+	// and using new_for_size will allocate an extra byte for the null terminator.
+    svg_game_qstring_t gstring = svg_game_qstring_t::new_for_size( len - 1 );
     // Delete temporary buffer.
-    read_data( gstring.ptr, len );
+    read_data( gstring.ptr, gstring.size() );
     return gstring;
 }
 
@@ -183,17 +186,15 @@ sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *game_read_context_t::read_level_qtag_memo
 
     len = read_int32();
     if ( len == -1 ) {
-        return allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, 0 );
+        return allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, 1 );
     }
 
-    if ( len < 0 || len >= 65536 ) {
+    if ( len < 0 || len >= UINT32_MAX ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
-    // Allocate level tag string space.
     allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, len );
-    // Delete temporary buffer.
     read_data( p->ptr, /*len*/p->size() );
     return p;
 }
@@ -206,17 +207,15 @@ sg_qtag_memory_t<T, TAG_SVGAME> *game_read_context_t::read_game_qtag_memory( sg_
 
     len = read_int32();
     if ( len == -1 ) {
-        return allocate_qtag_memory<T, TAG_SVGAME>( p, 0 );
+        return allocate_qtag_memory<T, TAG_SVGAME>( p, 1 );
     }
 
-    if ( len < 0 || len >= 65536 ) {
+    if ( len < 0 || len >= UINT32_MAX ) {
         gzclose( f );
         gi.error( "%s: bad length(%d)", __func__, len );
     }
 
-    // Allocate game tag memory space.
     allocate_qtag_memory<T, TAG_SVGAME>( p, len );
-    // Delete temporary buffer.
     read_data( p->ptr, /*len*/p->size() );
     return p;
 }

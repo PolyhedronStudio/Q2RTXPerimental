@@ -171,7 +171,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_misc_explobox_t, thinkExplode )( svg_misc_expl
         SVG_Misc_BecomeExplosion( self, 1 );
     }
     #endif // #if 0
-    SVG_Misc_BecomeExplosion( self, 0 );
+    SVG_Misc_BecomeExplosion( self, true );
 }
 
 
@@ -202,7 +202,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_explobox_t, onSpawn) ( svg_misc_explobox_
     self->solid = SOLID_BOUNDS_OCTAGON;
     self->movetype = MOVETYPE_STEP;
 
-    self->model = "models/objects/barrels/tris.md2";
+    self->model = svg_level_qstring_t::from_char_str( "models/objects/barrels/tris.md2" );
     self->s.modelindex = gi.modelindex( self->model );
     VectorSet( self->mins, -16, -16, 0 );
     VectorSet( self->maxs, 16, 16, 40 );

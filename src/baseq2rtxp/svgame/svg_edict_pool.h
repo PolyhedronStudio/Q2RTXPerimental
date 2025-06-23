@@ -51,9 +51,10 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     *           because it can cause the client to think the entity morphed into something 
     *           else instead of being removed and recreated, which can cause interpolated
     *           angles and bad trails.
+   
     **/
     template<typename EdictType>
-    EdictType *AllocateNextFreeEdict( ) {
+    EdictType *AllocateNextFreeEdict( const char *classnameOverRuler = nullptr ) {
         svg_base_edict_t *entity = nullptr;
         EdictType *freedEntity = nullptr;
 
@@ -68,7 +69,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
             // the first couple seconds of server time can involve a lot of
             // freeing and allocating, so relax the replacement policy
             if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
-                _InitEdict<EdictType>( static_cast<EdictType *>( entity ), i );
+                _InitEdict<EdictType>( static_cast<EdictType *>( entity ), i, classnameOverRuler );
                 return static_cast<EdictType *>( entity );
             }
 
@@ -84,7 +85,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
             // If we have a freed entity, use it.
             if ( freedEntity ) {
                 // Initialize it.
-                _InitEdict<EdictType>( freedEntity, i );
+                _InitEdict<EdictType>( freedEntity, i, classnameOverRuler );
                 // Return it.
                 return static_cast<EdictType *>( freedEntity );
             }
@@ -93,7 +94,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         }
 
         // Initialize it.
-        _InitEdict<EdictType>( static_cast<EdictType *>( entity ), num_edicts );
+        _InitEdict<EdictType>( static_cast<EdictType *>( entity ), num_edicts, classnameOverRuler );
         // If we have free edicts left to go, use those instead.
         num_edicts++;
 
@@ -108,9 +109,9 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     *   @brief  Support routine for AllocateNextFreeEdict.
     **/
     template<class EdictType>
-    inline void _InitEdict( EdictType *ed, const int32_t stateNumber ) {
+    inline void _InitEdict( EdictType *ed, const int32_t stateNumber, const char *classnameOverRuler = nullptr ) {
         ed->inuse = true;
-        ed->classname = "noclass";
+        ed->classname = svg_level_qstring_t::from_char_str( ( classnameOverRuler != nullptr ? classnameOverRuler : EdictType::ClassInfo.worldSpawnClassName ) );
         ed->gravity = 1.0f;
         ed->s.number = stateNumber;// e - g_edicts;
 

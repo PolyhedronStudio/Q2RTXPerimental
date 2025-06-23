@@ -652,7 +652,7 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     }
     // Match: model
     else if ( keyStr == "model" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        model = ED_NewString( keyValuePair->string );
+        model = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
     // Match: spawnflags
@@ -702,7 +702,7 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     }
     // Match: message
     else if ( keyStr == "message" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        message = ED_NewString( keyValuePair->string );
+        message = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
     // Match: team
@@ -803,12 +803,12 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     }
     // Match: map
     else if ( keyStr == "map" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        map = ED_NewString( keyValuePair->string );
+        map = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
     // Match: customLightStyle
     else if ( keyStr == "customLightStyle" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-        customLightStyle = ED_NewString( keyValuePair->string );
+        customLightStyle = svg_level_qstring_t::from_char_str( keyValuePair->string );
         return true;
     }
     // Match: origin

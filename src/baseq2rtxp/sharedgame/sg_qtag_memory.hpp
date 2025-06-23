@@ -22,10 +22,13 @@
 
 template<typename T, const memtag_t tag>
 struct sg_qtag_memory_t {
+	// Size of the type T.
+	static constexpr size_t type_size = sizeof( T );
+
 	//! The actual pointer storing our block of memory..
 	T *ptr = nullptr;
 	//! The size in bytes.
-	size_t	count = 0;
+	size_t count = 0;
 
 	/**
 	*	Default constructor.
@@ -127,9 +130,13 @@ public:
 	constexpr operator bool() const { return !!ptr; }
 
 	/**
-	*	@brief	Return the size of the contained char array memory block.s
+	*	@brief	Return the size in bytes of the contained array memory block.
 	**/
 	constexpr size_t size() const noexcept { return count * sizeof( T ); }
+	/**
+	*	@brief	Return the size of the contained char array memory block.s
+	**/
+	constexpr size_t length() const noexcept { return count; }
 };
 
 /**

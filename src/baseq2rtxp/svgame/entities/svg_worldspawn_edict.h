@@ -121,12 +121,12 @@ struct svg_worldspawn_edict_t : public svg_base_edict_t {
     //! Default gravity value in case it is unset.
     static constexpr double DEFAULT_GRAVITY = 800.0;
     // World vars
-    svg_level_qstring_t sky = {};
+    svg_level_qstring_t sky = nullptr;
     float   skyrotate = 0.f;
     int     skyautorotate = 0;
     Vector3 skyaxis = QM_Vector3Zero();
-    svg_level_qstring_t gravity_str = {};
-    svg_level_qstring_t nextmap = {};
-    svg_level_qstring_t musictrack = {};
+    svg_level_qstring_t gravity_str = nullptr;
+    svg_level_qstring_t nextmap = nullptr;
+    svg_level_qstring_t musictrack = nullptr;
 };
 

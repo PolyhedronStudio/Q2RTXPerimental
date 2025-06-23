@@ -59,6 +59,7 @@ void svg_target_laser_t::Save( struct game_write_context_t *ctx ) {
     // Save all the members of this entity type.
     ctx->write_fields( svg_target_laser_t::saveDescriptorFields, this );
 }
+#endif
 /**
 *   @brief  Restore the entity from a loadgame read context.
 *   @note   Make sure to call the base parent class' Restore() function.
@@ -67,10 +68,19 @@ void svg_target_laser_t::Restore( struct game_read_context_t *ctx ) {
     // Restore parent class fields.
     Super::Restore( ctx );
     // Restore all the members of this entity type.
-    ctx->read_fields( svg_target_laser_t::saveDescriptorFields, this );
+    //ctx->read_fields( svg_target_laser_t::saveDescriptorFields, this );
+
+    // Let everything else get spawned before we start firing.
+    SetThinkCallback( &svg_target_laser_t::onThink );
+	nextthink = level.time + FRAME_TIME_S;
+    if ( this->spawnflags & svg_target_laser_t::SPAWNFLAG_START_ON ) {
+        this->SetActive( true );
+    } else {
+        this->SetActive( false );
+    }
 }
 
-
+#if 0
 /**
 *   @brief  Called for each cm_entity_t key/value pair for this entity.
 *           If not handled, or unable to be handled by the derived entity type, it will return
@@ -89,7 +99,7 @@ void svg_target_laser_t::SetActive( const bool isActive ) {
         if ( !activator ) {
             activator = this;
         }
-        spawnflags |= 0x80000001;
+        spawnflags |= svg_target_laser_t::SPAWNFLAG_START_ON;// 0x80000001;
         svflags &= ~SVF_NOCLIENT;
         DispatchThinkCallback( );
     } else {
@@ -218,7 +228,6 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink_StartSpawnLaser )( svg
             self->enemy = ent;
         }
     }
-
     SVG_Util_SetMoveDir( self->s.angles, self->movedir );
 
     self->SetUseCallback( &svg_target_laser_t::onUse );

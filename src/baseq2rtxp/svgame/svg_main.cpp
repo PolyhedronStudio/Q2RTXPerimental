@@ -313,12 +313,12 @@ void SVG_InitGame( void )
 
 
     // Clamp maxentities within valid range.
-    game.maxentities = QM_ClampUnsigned<uint32_t>(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
+    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
     // initialize all clients for this game
     game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
     
     // Clear the edict pool in case any previous data was there.
-    g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+    //g_edicts = SVG_EdictPool_Release( &g_edict_pool );
     // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
     g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
     // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
@@ -326,6 +326,21 @@ void SVG_InitGame( void )
 
     // Initialize a fresh clients array.
     game.clients = SVG_Clients_Reallocate( game.maxclients );
+
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+        ent->client = &game.clients[ i ];
+
+        // Assign client number.
+        //ent->client->clientNum = i;
+
+        //// Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
+    }
 }
 
 /**
@@ -343,6 +358,7 @@ void SVG_ShutdownGame( void ) {
 
     // Free level, lua AND the game module its allocated ram.
     //gi.FreeTags( TAG_SVGAME_LUA );
+    //SVG_EdictPool_Release( &g_edict_pool );
     gi.FreeTags( TAG_SVGAME_EDICTS );//SVG_EdictPool_Release( &g_edict_pool );
     gi.FreeTags( TAG_SVGAME_LEVEL );
     gi.FreeTags( TAG_SVGAME );
@@ -651,7 +667,7 @@ void ExitLevel(void) {
     SVG_Lua_CallBack_ExitMap();
 
 	// Generate the command string to change the map.
-    Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
+    Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", (const char*)level.changemap);
     gi.AddCommandString(command);
     level.changemap = NULL;
     level.exitintermission = 0;
@@ -704,6 +720,9 @@ void SVG_RunFrame(void) {
     //
     svg_base_edict_t *ent = ent = g_edict_pool.EdictForNumber( 0 );
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
+        if ( !ent ) {
+            continue;
+        }
         if ( ent && !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."
             if ( i > 0 && i <= game.maxclients ) {

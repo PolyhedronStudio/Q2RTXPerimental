@@ -53,8 +53,11 @@ void svg_worldspawn_edict_t::Reset( const bool retainDictionary ) {
     // Call upon the base class.
     Super::Reset( retainDictionary );
 
+    classname = svg_level_qstring_t::from_char_str( "worldspawn" );
+    model = svg_level_qstring_t::from_char_str( "*1" );
+
     // Print
-    gi.dprintf( "%s: Resetting classname: %s\n", __func__, classname );
+    gi.dprintf( "%s: Resetting classname: %s\n", __func__, (const char*)this->classname.ptr );
 }
 
 
@@ -168,9 +171,9 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     }
 
     // make some data visible to the server
-    if ( self->message && self->message[ 0 ] ) {
+    if ( self->message ) {
         gi.configstring( CS_NAME, self->message );
-        Q_strlcpy( level.level_name, self->message, sizeof( level.level_name ) );
+        Q_strlcpy( level.level_name, self->message.ptr, sizeof( level.level_name ) );
     } else {
         Q_strlcpy( level.level_name, level.mapname, sizeof( level.level_name ) );
     }

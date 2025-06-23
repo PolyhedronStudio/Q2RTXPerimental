@@ -226,7 +226,7 @@ static bool SV_SetPlayer(void)
     }
 
     sv_client = cl;
-    sv_player = sv_client->edict;
+    sv_player = sv_client->edict = EDICT_FOR_NUMBER( cl->number + 1 );
     return true;
 }
 

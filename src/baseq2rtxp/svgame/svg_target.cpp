@@ -162,49 +162,49 @@ void SP_target_explosion(svg_base_edict_t *ent)
 /*QUAKED target_changelevel (1 0 0) (-8 -8 -8) (8 8 8)
 Changes level to "map" when fired
 */
-void use_target_changelevel( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    if (level.intermissionFrameNumber)
-        return;     // already activated
-
-    if (!deathmatch->value && !coop->value) {
-        if ( g_edict_pool.EdictForNumber( 1 )->health <= 0)
-            return;
-    }
-
-    // if noexit, do a ton of damage to other
-    if (deathmatch->value && !((int)dmflags->value & DF_ALLOW_EXIT) && other != world) {
-        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, DAMAGE_NONE, MEANS_OF_DEATH_EXIT );
-        return;
-    }
-
-    // if multiplayer, let everyone know who hit the exit
-    if (deathmatch->value) {
-        if (activator && activator->client)
-            gi.bprintf(PRINT_HIGH, "%s exited the level.\n", activator->client->pers.netname);
-    }
-
-    // if going to a new unit, clear cross triggers
-    if (strchr(self->map, '*'))
-        game.serverflags &= ~(SFL_CROSS_TRIGGER_MASK);
-
-    SVG_HUD_BeginIntermission(self);
-}
-
-void SP_target_changelevel(svg_base_edict_t *ent)
-{
-    if (!ent->map) {
-        gi.dprintf("target_changelevel with no map at %s\n", vtos(ent->s.origin));
-        SVG_FreeEdict(ent);
-        return;
-    }
-
-    // ugly hack because *SOMEBODY* screwed up their map
-    if ((Q_stricmp(level.mapname, "fact1") == 0) && (Q_stricmp(ent->map, "fact3") == 0))
-        ent->map = "fact3$secret1";
-
-    ent->SetUseCallback( use_target_changelevel );
-    ent->svflags = SVF_NOCLIENT;
-}
+//void use_target_changelevel( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+//    if (level.intermissionFrameNumber)
+//        return;     // already activated
+//
+//    if (!deathmatch->value && !coop->value) {
+//        if ( g_edict_pool.EdictForNumber( 1 )->health <= 0)
+//            return;
+//    }
+//
+//    // if noexit, do a ton of damage to other
+//    if (deathmatch->value && !((int)dmflags->value & DF_ALLOW_EXIT) && other != world) {
+//        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, DAMAGE_NONE, MEANS_OF_DEATH_EXIT );
+//        return;
+//    }
+//
+//    // if multiplayer, let everyone know who hit the exit
+//    if (deathmatch->value) {
+//        if (activator && activator->client)
+//            gi.bprintf(PRINT_HIGH, "%s exited the level.\n", activator->client->pers.netname);
+//    }
+//
+//    // if going to a new unit, clear cross triggers
+//    if (strchr(self->map.ptr, '*'))
+//        game.serverflags &= ~(SFL_CROSS_TRIGGER_MASK);
+//
+//    SVG_HUD_BeginIntermission(self);
+//}
+//
+//void SP_target_changelevel(svg_base_edict_t *ent)
+//{
+//    if (!ent->map) {
+//        gi.dprintf("target_changelevel with no map at %s\n", vtos(ent->s.origin));
+//        SVG_FreeEdict(ent);
+//        return;
+//    }
+//
+//    // ugly hack because *SOMEBODY* screwed up their map
+//    if ((Q_stricmp(level.mapname, "fact1") == 0) && (Q_stricmp(ent->map, "fact3") == 0))
+//        ent->map = "fact3$secret1";
+//
+//    ent->SetUseCallback( use_target_changelevel );
+//    ent->svflags = SVF_NOCLIENT;
+//}
 
 
 //==========================================================

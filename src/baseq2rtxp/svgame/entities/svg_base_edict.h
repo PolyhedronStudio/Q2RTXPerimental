@@ -211,11 +211,48 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     * 
     * 
 	**/
-	//! New Operator Overload.
+    #if 0
+    //! New Operator Overload.
+    void *operator new( size_t size, void *ptr ) {
+        // Prevent possible malloc from succeeding if size is 0.
+        if ( size == 0 ) {
+            size = 0;
+        }
+        // Allocate.
+        if ( ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
+            // Debug about the allocation.
+            gi.dprintf( "%s: Allocating %d bytes.\n", __func__, size );
+            // Return the pointer.
+            return ptr;
+        }
+        // Debug about the failure to allocate
+        gi.dprintf( "%s: Failed allocationg %d bytes\n", __func__, size );
+        // Throw an exception.
+        //throw std::bad_alloc( "Failed to allocate memory" );
+        return nullptr;
+    }
+    //! New Operator Overload.
+    void operator delete( void *ptr, size_t size ) {
+        if ( ptr != nullptr ) {//TagAllocator::Free( ptr );
+            // Debug about deallocation.
+            gi.dprintf( "%s: Freeing %p\n", __func__, ptr );
+            // Deallocate.
+            gi.TagFree( ptr );
+            ptr = nullptr;
+            return;
+        }
+        // Debug about the failure to allocate
+        gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
+        // Throw an exception.
+        //throw std::bad_alloc( "Failed to allocate memory" );
+        return;
+    }
+    #endif
+    //! New Operator Overload.
 	void *operator new( size_t size ) {
         // Prevent possible malloc from succeeding if size is 0.
         if ( size == 0 ) {
-            size = 1;
+            size = 0;
         }
         // Allocate.
         if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
@@ -239,6 +276,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
             gi.TagFree( ptr );
             return;
         }
+        ptr = nullptr;
         // Debug about the failure to allocate
         gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
 	}
@@ -642,7 +680,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: Entity classname key/value.
     svg_level_qstring_t classname = nullptr;
     //! [SpawnKey]: Path to model.
-    const char *model = nullptr;
+    svg_level_qstring_t model = nullptr;
     //! [SpawnKey]: Key Spawn Angle.
     float       angle = 0.f;          // set in qe3, -1 = up, -2 = down
 
@@ -720,9 +758,9 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     struct {
         //! The active 'target' entity.
-        svg_base_edict_t *target;
+        svg_base_edict_t *target = nullptr;
         //! The parent entity to move along with.
-        svg_base_edict_t *movewith;
+        svg_base_edict_t *movewith = nullptr;
         //! Next child in the list of this 'movewith group' chain.
         //svg_base_edict_t *movewith_next;
     } targetEntities = {};
@@ -745,7 +783,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         //! For the SVG_UseTargets and its Lua companion.
         struct {
             //! The source entity that when UseTarget, created the DelayedUse entity.
-            svg_base_edict_t *creatorEntity;
+            svg_base_edict_t *creatorEntity = nullptr;
             //! The useType for delayed UseTarget.
             entity_usetarget_type_t useType;
             //! The useValue for delayed UseTarget.
@@ -754,7 +792,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 
         struct {
             //! The source entity that when SignalOut, created the DelayedSignalOut entity.
-            svg_base_edict_t *creatorEntity;
+            svg_base_edict_t *creatorEntity = nullptr;
             //! A copy of the actual signal name.
             char name[ 256 ];
             //! For delayed signaling.
@@ -915,7 +953,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: (Light-)Style.
     int32_t     style = 0;          // also used as areaportal number
     //! [SpawnKey]: A custom lightstyle string to set at lightstyle index 'style'.
-    const char *customLightStyle = nullptr;	// It is as it says.
+    svg_level_qstring_t customLightStyle = nullptr;	// It is as it says.
 
     /**
     *   Item Data:
@@ -957,7 +995,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   Trigger(s) Data:
     **/
     //! [SpawnKey]: Message to display, usually center printed. (When triggers are triggered etc.)
-    char *message = nullptr;
+    svg_level_qstring_t message = nullptr;
     //! [SpawnKey]: Wait time, usually for movers as a time before engaging movement back to their original state.
     float   wait = 0;
     //! [SpawnKey]: The delay(in seconds) to wait when triggered before triggering, or signalling the specified target.
@@ -988,7 +1026,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! Set when the entity gets hurt(SVG_TriggerDamage) and might be its cause of death.
     sg_means_of_death_t meansOfDeath = static_cast<sg_means_of_death_t>(0);
     //! [SpawnKey]: Used for target_changelevel. Set as key/value.
-    const char *map = nullptr;
+    svg_level_qstring_t map = nullptr;
     //! [SpawnKey]: Damage entity will do.
     int32_t     dmg = 0;
     //! Size of the radius where entities within will be damaged.
