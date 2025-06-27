@@ -24,6 +24,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
 
+/**
+*   <Q2RTXP>: WID: These are still left for the to-do list. Not in the mood for this right now.
+**/
+#if 0
+
 /*QUAKED target_temp_entity (1 0 0) (-8 -8 -8) (8 8 8)
 Fire an origin based temp entity event to the clients.
 "style"     type byte
@@ -39,9 +44,6 @@ void SP_target_temp_entity(svg_base_edict_t *ent)
 {
     ent->SetUseCallback( Use_Target_Tent );
 }
-
-
-//==========================================================
 
 //==========================================================
 
@@ -156,57 +158,6 @@ void SP_target_explosion(svg_base_edict_t *ent)
     ent->svflags = SVF_NOCLIENT;
 }
 
-
-//==========================================================
-
-/*QUAKED target_changelevel (1 0 0) (-8 -8 -8) (8 8 8)
-Changes level to "map" when fired
-*/
-//void use_target_changelevel( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-//    if (level.intermissionFrameNumber)
-//        return;     // already activated
-//
-//    if (!deathmatch->value && !coop->value) {
-//        if ( g_edict_pool.EdictForNumber( 1 )->health <= 0)
-//            return;
-//    }
-//
-//    // if noexit, do a ton of damage to other
-//    if (deathmatch->value && !((int)dmflags->value & DF_ALLOW_EXIT) && other != world) {
-//        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, DAMAGE_NONE, MEANS_OF_DEATH_EXIT );
-//        return;
-//    }
-//
-//    // if multiplayer, let everyone know who hit the exit
-//    if (deathmatch->value) {
-//        if (activator && activator->client)
-//            gi.bprintf(PRINT_HIGH, "%s exited the level.\n", activator->client->pers.netname);
-//    }
-//
-//    // if going to a new unit, clear cross triggers
-//    if (strchr(self->map.ptr, '*'))
-//        game.serverflags &= ~(SFL_CROSS_TRIGGER_MASK);
-//
-//    SVG_HUD_BeginIntermission(self);
-//}
-//
-//void SP_target_changelevel(svg_base_edict_t *ent)
-//{
-//    if (!ent->map) {
-//        gi.dprintf("target_changelevel with no map at %s\n", vtos(ent->s.origin));
-//        SVG_FreeEdict(ent);
-//        return;
-//    }
-//
-//    // ugly hack because *SOMEBODY* screwed up their map
-//    if ((Q_stricmp(level.mapname, "fact1") == 0) && (Q_stricmp(ent->map, "fact3") == 0))
-//        ent->map = "fact3$secret1";
-//
-//    ent->SetUseCallback( use_target_changelevel );
-//    ent->svflags = SVF_NOCLIENT;
-//}
-
-
 //==========================================================
 
 /*QUAKED target_splash (1 0 0) (-8 -8 -8) (8 8 8)
@@ -291,44 +242,4 @@ void SP_target_spawner(svg_base_edict_t *self)
     }
 }
 
-//==========================================================
-
-/*QUAKED target_crosslevel_trigger (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
-Once this trigger is touched/used, any trigger_crosslevel_target with the same trigger number is automatically used when a level is started within the same unit.  It is OK to check multiple triggers.  Message, delay, target, and targetNames.kill also work.
-*/
-void trigger_crosslevel_trigger_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    game.serverflags |= static_cast<crosslevel_target_flags_t>( self->spawnflags );
-    SVG_FreeEdict(self);
-}
-
-void SP_target_crosslevel_trigger(svg_base_edict_t *self)
-{
-    self->svflags = SVF_NOCLIENT;
-    self->SetUseCallback( trigger_crosslevel_trigger_use );
-}
-
-/*QUAKED target_crosslevel_target (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
-Triggered by a trigger_crosslevel elsewhere within a unit.  If multiple triggers are checked, all must be true.  Delay, target and
-targetNames.kill also work.
-
-"delay"     delay before using targets if the trigger has been activated (default 1)
-*/
-void target_crosslevel_target_think(svg_base_edict_t *self)
-{
-    if (self->spawnflags == (game.serverflags & SFL_CROSS_TRIGGER_MASK & self->spawnflags)) {
-        SVG_UseTargets(self, self);
-        SVG_FreeEdict(self);
-    }
-}
-
-void SP_target_crosslevel_target(svg_base_edict_t *self)
-{
-    if (! self->delay)
-        self->delay = 1;
-    self->svflags = SVF_NOCLIENT;
-
-    self->SetThinkCallback( target_crosslevel_target_think );
-    self->nextthink = level.time + QMTime::FromSeconds( self->delay );
-}
-
-//==========================================================
+#endif
