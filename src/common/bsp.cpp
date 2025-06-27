@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // bsp.c -- model loading
 
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 #include "common/bsp.h"
 #include "common/cmd.h"
 #include "common/common.h"
@@ -152,7 +152,7 @@ LOAD( Texinfo ) {
 
         memcpy( out->c.name, in, sizeof( out->c.name ) - 1 );
         memcpy( out->name, in, sizeof( out->name ) - 1 );
-        in += MAX_TEXNAME;
+        in += CM_MAX_TEXNAME;
 
         #if USE_REF
         out->radiance = out->c.value;
@@ -190,11 +190,11 @@ LOAD( Texinfo ) {
 }
 
 LOAD( Planes ) {
-    cplane_t *out;
+    cm_plane_t *out;
     int         i;
 
     bsp->numplanes = count;
-    bsp->planes = static_cast<cplane_t *>( ALLOC( sizeof( *out ) * count ) ); // WID: C++20: Added cast.
+    bsp->planes = static_cast<cm_plane_t *>( ALLOC( sizeof( *out ) * count ) ); // WID: C++20: Added cast.
 
     out = bsp->planes;
     for ( i = 0; i < count; i++, in += 4, out++ ) {
@@ -768,7 +768,7 @@ typedef struct {
 static const lump_info_t bsp_lumps[] = {
     L( Visibility,    3, byte,            1,  1 ),
     L( Texinfo,       5, mtexinfo_t,     76, 76 ),
-    L( Planes,        1, cplane_t,       20, 20 ),
+    L( Planes,        1, cm_plane_t,       20, 20 ),
     L( BrushSides,   15, mbrushside_t,    4,  8 ),
     L( Brushes,      14, mbrush_t,       12, 12 ),
     L( LeafBrushes,  10, mbrush_t *,      2,  4 ),
@@ -1230,7 +1230,7 @@ static void BSPX_LoadBrushList( bsp_t *bsp, const byte *in, size_t data_size ) {
     uint32_t br = 0;// , pl = 0;
     mbrush_t *brush = nullptr;
     //mbrushside_t *sides = nullptr;	//grr!
-    //cplane_t *planes = nullptr;	//bulky?
+    //cm_plane_t *planes = nullptr;	//bulky?
     uint32_t lumpsizeremaining = data_size;
     uint32_t numplanes = 0;
 
@@ -1441,7 +1441,7 @@ static void FixLeafContents( bsp_t *bsp ) {
     for ( size_t i = 0; i < bsp->numleafs; i++ ) {
         mleaf_t *leaf = &bsp->leafs[ i ];
 
-        contents_t contents = CONTENTS_NONE;
+        cm_contents_t contents = CONTENTS_NONE;
 
         leafbrush = leaf->firstleafbrush;
         for ( k = 0; k < leaf->numleafbrushes; k++, leafbrush++ ) {

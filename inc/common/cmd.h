@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef CMD_H
-#define CMD_H
 
 
 //
@@ -219,5 +218,3 @@ void Cmd_PrintHint(void);
 
 // Extern C
 QEXTERN_C_CLOSE
-
-#endif // CMD_H

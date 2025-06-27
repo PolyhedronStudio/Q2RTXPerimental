@@ -43,7 +43,7 @@ void SP_FixCoopSpots(edict_t *self)
     spot = NULL;
 
     while (1) {
-        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start");
+        spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_start");
         if (!spot)
             return;
         if (!spot->targetname)
@@ -388,7 +388,7 @@ void SVG_Player_Obituary(edict_t *self, edict_t *inflictor, edict_t *attacker)
 }
 
 
-void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
+void Touch_Item(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf);
 
 void TossClientWeapon(edict_t *self)
 {
@@ -425,7 +425,7 @@ void TossClientWeapon(edict_t *self)
 
     if (quad) {
         self->client->v_angle[YAW] += spread;
-        drop = Drop_Item(self, SVG_FindItemByClassname("item_quad"));
+        drop = Drop_Item(self, SVG_Item_FindByClassName("item_quad"));
         self->client->v_angle[YAW] -= spread;
         drop->spawnflags |= DROPPED_PLAYER_ITEM;
 
@@ -588,7 +588,7 @@ This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
-void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client)
+void SVG_Player_InitPersistantData(edict_t *ent, svg_client_t *client)
 {
 	gitem_t     *item;
 
@@ -596,7 +596,7 @@ void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client)
     client->pers = {};
 
     // Find the blaster item, add it to our inventory and appoint it as the selected weapon.
-	item = SVG_FindItem("Blaster");
+	item = SVG_Item_FindByPickupName("Blaster");
 	client->pers.selected_item = ITEM_INDEX(item);
 	client->pers.inventory[client->pers.selected_item] = 1;
 
@@ -606,14 +606,14 @@ void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client)
 	{
 		// Q2RTX: Spawn with a flare gun and some grenades to use with it.
 		// Flare gun is new and not found anywhere in the game as a pickup item.
-		gitem_t* item_flareg = SVG_FindItem("Flare Gun");
+		gitem_t* item_flareg = SVG_Item_FindByPickupName("Flare Gun");
 		if (item_flareg)
 		{
 			client->pers.inventory[ITEM_INDEX(item_flareg)] = 1;
 
 			if (sv_flaregun->value == 2)
 			{
-				gitem_t* item_grenades = SVG_FindItem("Grenades");
+				gitem_t* item_grenades = SVG_Item_FindByPickupName("Grenades");
 				client->pers.inventory[ITEM_INDEX(item_grenades)] = 5;
 			}
 		}
@@ -634,7 +634,7 @@ void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client)
 }
 
 
-void SVG_Player_InitRespawnData(gclient_t *client)
+void SVG_Player_InitRespawnData(svg_client_t *client)
 {
     // Clear out SVG_Client_RespawnPlayer data.
     client->resp = {};
@@ -751,7 +751,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint(void)
     range1 = range2 = 99999;
     spot1 = spot2 = NULL;
 
-    while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
+    while ((spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
         count++;
         range = PlayersRangeFromSpot(spot);
         if (range < range1) {
@@ -775,7 +775,7 @@ edict_t *SelectRandomDeathmatchSpawnPoint(void)
 
     spot = NULL;
     do {
-        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch");
+        spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch");
         if (spot == spot1 || spot == spot2)
             selection++;
     } while (selection--);
@@ -799,7 +799,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint(void)
     spot = NULL;
     bestspot = NULL;
     bestdistance = 0;
-    while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
+    while ((spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_deathmatch")) != NULL) {
         bestplayerdistance = PlayersRangeFromSpot(spot);
 
         if (bestplayerdistance > bestdistance) {
@@ -814,7 +814,7 @@ edict_t *SelectFarthestDeathmatchSpawnPoint(void)
 
     // if there is a player just spawned on each and every start spot
     // we have no choice to turn one into a telefrag meltdown
-    spot = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
+    spot = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
 
     return spot;
 }
@@ -845,7 +845,7 @@ edict_t *SelectCoopSpawnPoint(edict_t *ent)
 
     // assume there are four coop spots at each spawnpoint
     while (1) {
-        spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_coop");
+        spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_coop");
         if (!spot)
             return NULL;    // we didn't have enough...
 
@@ -883,7 +883,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
 
     // find a single player start spot
     if (!spot) {
-        while ((spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start")) != NULL) {
+        while ((spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_start")) != NULL) {
             if (!game.spawnpoint[0] && !spot->targetname)
                 break;
 
@@ -897,7 +897,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
         if (!spot) {
             if (!game.spawnpoint[0]) {
                 // there wasn't a spawnpoint without a target, so use any
-                spot = SVG_Find(spot, FOFS_GENTITY(classname), "info_player_start");
+                spot = SVG_Entities_Find(spot, FOFS_GENTITY(classname), "info_player_start");
             }
             if (!spot)
                 gi.error("Couldn't find spawn point %s", game.spawnpoint);
@@ -911,7 +911,7 @@ void    SelectSpawnPoint(edict_t *ent, vec3_t origin, vec3_t angles)
 //======================================================================
 
 
-void SVG_InitBodyQue(void)
+void SVG_Entities_InitBodyQue(void)
 {
     int     i;
     edict_t *ent;
@@ -1109,12 +1109,12 @@ void SVG_Player_PutInServer(edict_t *ent)
     vec3_t  maxs = {16, 16, 32};
     int     index;
     vec3_t  spawn_origin, spawn_angles;
-    gclient_t   *client;
+    svg_client_t   *client;
     int     i;
     client_persistant_t saved;
     client_respawn_t    resp;
     vec3_t temp, temp2;
-    trace_t tr;
+    cm_trace_t tr;
 
     // find a spawn point
     // do it before setting health back up, so farthest
@@ -1177,11 +1177,11 @@ void SVG_Player_PutInServer(edict_t *ent)
     ent->solid = SOLID_BOUNDS_BOX;
     ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = ( MASK_PLAYERSOLID );
+    ent->clipmask = ( CM_CONTENTMASK_PLAYERSOLID );
     ent->model = "players/male/tris.md2";
     ent->pain = player_pain;
     ent->die = player_die;
-    ent->liquidlevel = liquid_level_t::LIQUID_NONE;;
+    ent->liquidlevel = cm_liquid_level_t::LIQUID_NONE;;
     ent->liquidtype = CONTENTS_NONE;
     ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
@@ -1233,7 +1233,7 @@ void SVG_Player_PutInServer(edict_t *ent)
     VectorCopy(spawn_origin, temp2);
     temp[2] -= 64;
     temp2[2] += 16;
-    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, ( MASK_PLAYERSOLID ));
+    tr = gi.trace(temp2, ent->mins, ent->maxs, temp, ent, ( CM_CONTENTMASK_PLAYERSOLID ));
     if (!tr.allsolid && !tr.startsolid && Q_stricmp(level.mapname, "tech5")) {
         VectorCopy(tr.endpos, ent->s.origin);
         ent->groundentity = tr.ent;
@@ -1585,23 +1585,23 @@ void SVG_Client_Disconnect(edict_t *ent)
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Trace(const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask ) {
     //if (pm_passent->health > 0)
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
     return gi.trace( start, mins, maxs, end, (edict_t*)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentMask ) {
     return gi.clip( &g_edicts[ 0 ], start, mins, maxs, end, contentMask );
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+static const cm_contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
     return gi.pointcontents( point );
 }
 
@@ -1716,7 +1716,7 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t *ent, usercmd_t *ucmd)
 {
-    gclient_t   *client = nullptr;
+    svg_client_t   *client = nullptr;
     edict_t     *other = nullptr;
     
 	// Configure pmove.
@@ -1891,11 +1891,11 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
 
         // Touch other objects
         for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
-            trace_t &tr = pm.touchTraces.traces[ i ];
+            cm_trace_t &tr = pm.touchTraces.traces[ i ];
             edict_t *other = tr.ent;
 
             if ( other->touch ) {
-                // TODO: Q2RE has these for last 2 args: const trace_t &tr, bool other_touching_self
+                // TODO: Q2RE has these for last 2 args: const cm_trace_t &tr, bool other_touching_self
                 // What the??
                 other->touch( other, ent, &tr.plane, tr.surface );
             }
@@ -1974,7 +1974,7 @@ any other entities in the world.
 */
 void SVG_Client_BeginServerFrame(edict_t *ent)
 {
-    gclient_t   *client;
+    svg_client_t   *client;
     int         buttonMask;
 
     // Remove RF_STAIR_STEP if we're in a new frame, not stepping.

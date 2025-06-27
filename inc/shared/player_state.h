@@ -95,12 +95,19 @@ typedef struct pmove_state_s {
 /**
 *   player_state_t->refdef flags
 **/
-#define RDF_NONE            0       // No specific screen-space flags.
-#define RDF_UNDERWATER      1       // Warp the client's screen as apropriate.
-#define RDF_NOWORLDMODEL    2       // Used for rendering in the player configuration screen
-//ROGUE
-#define RDF_IRGOGGLES       4       //! Render IR Goggles.
-#define RDF_UVGOGGLES       8       //! Render UV Goggles. ( Not implemented in VKPT. )
+typedef enum refdef_flags_e {
+    //! No specific screen-space flags.
+	RDF_NONE = 0,
+    //! Warp the client's screen as appropriate.
+	RDF_UNDERWATER = BIT( 0 ),
+    //! Used for rendering in the player configuration screen.
+	RDF_NOWORLDMODEL = BIT( 1 ),
+    //! Render IR Goggles.
+	RDF_IRGOGGLES = BIT( 2 ),
+    //! Render UV Goggles. ( Not implemented in VKPT. )
+	RDF_UVGOGGLES = BIT( 3 )
+} refdef_flags_t;
+QENUM_BIT_FLAGS( refdef_flags_t );
 
 /**
 *   player_state->stats[] static indices that are shared with the engine( required for reasons. )
@@ -137,7 +144,7 @@ typedef struct pmove_state_s {
 // 
 // player_state_t is sent at a rate of 40hz:
 // (So, one time for each frame, meaning 40 times a second.)
-typedef struct {
+typedef struct player_state_s {
     // Communicate BIT precise.
     pmove_state_t   pmove;      // for prediction
 
@@ -171,7 +178,7 @@ typedef struct {
     //! horizontal field of view
     float fov;
     //! Refdef flags.
-    int32_t rdflags;
+    refdef_flags_t rdflags;
 
     /**
     *   Misc State:

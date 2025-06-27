@@ -24,7 +24,7 @@
 //! Stores data that remains accross level switches.
 game_locals_t   game;
 //! This structure is cleared as each map is entered, it stores data for the current level session.
-level_locals_t  level;
+svg_level_locals_t  level;
 //! Function pointers and variables imported from the Client.
 clgame_import_t clgi;
 //! Function pointers and variables meant to export to the Client.
@@ -352,7 +352,7 @@ void PF_InitGame( void ) {
 	*	Initialize effects and temp entities.
 	**/
 	CLG_InitEffects();
-	CLG_InitTEnts();
+	CLG_TemporaryEntities_Init();
 
 	/**
 	*	Default EAX Environment:
@@ -427,8 +427,8 @@ void PF_ClearState( void ) {
 /**
 *	@brief
 **/
-const char *PF_GetGamemodeName( int32_t gameModeID ) {
-	return SG_GetGamemodeName( gameModeID );
+const char *PF_GetGameModeName( int32_t gameModeID ) {
+	return SG_GetGameModeName( gameModeID );
 }
 
 
@@ -513,7 +513,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
-		globals.GetGamemodeName = PF_GetGamemodeName;
+		globals.GetGameModeName = PF_GetGameModeName;
 
 		globals.UsePrediction = PF_UsePrediction;
 		globals.AdjustViewHeight = PF_AdjustViewHeight;
@@ -556,7 +556,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.CalculateFieldOfView = PF_CalculateFieldOfView;
 		globals.CalculateViewValues = PF_CalculateViewValues;
 		globals.ClearViewScene = PF_ClearViewScene;
-		globals.PrepareViewEntities = PF_PrepareViewEntites;
+		globals.PrepareViewEntities = PF_PrepareViewEntities;
 
 		globals.entity_size = sizeof( centity_t );
 

@@ -15,7 +15,7 @@
 *	@brief	Specific 'Body Parts' which are specified a bone number for use with
 *			animation blending and general bone tag management.
 **/
-enum sg_skm_body_part_e {
+typedef enum sg_skm_body_part_e {
 	//! Indicates the lower hip bone. (Hip Bone)
 	SKM_BODY_LOWER = 0,
 	//! Indicates the upper spine torso bone. (Spine Bone)
@@ -25,7 +25,7 @@ enum sg_skm_body_part_e {
 
 	//! Actual limit.
 	SKM_BODY_MAX
-};
+} sg_skm_body_part_t;
 
 //! Number of queued up animation events to select the most prioritized from.
 static constexpr int32_t SKM_MAX_ANIMATION_QUEUE = 4;

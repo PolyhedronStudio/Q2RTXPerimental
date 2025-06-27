@@ -46,7 +46,7 @@ LIST_DECL(sv_infobanlist);
 LIST_DECL(sv_clientlist);   // linked list of non-free clients
 
 client_t    *sv_client;         // current client
-edict_t     *sv_player;         // current client edict
+sv_edict_t     *sv_player;         // current client edict
 
 bool     sv_pending_autosave = 0;
 
@@ -214,7 +214,7 @@ void SV_DropClient(client_t *client, const char *reason)
     if (oldstate == cs_spawned || (g_features->integer & GMF_WANT_ALL_DISCONNECTS)) {
         // call the prog function for removing a client
         // this will remove the body, among other things
-        ge->ClientDisconnect(client->edict);
+        ge->ClientDisconnect( EDICT_FOR_NUMBER( client->number + 1 ) );
     }
 
     SV_CleanClient(client);
@@ -421,9 +421,10 @@ static size_t SV_StatusString(char *status)
             if (cl->state == cs_zombie) {
                 continue;
             }
+            sv_edict_t *clent = EDICT_FOR_NUMBER( cl->number + 1 );
             len = Q_snprintf(entry, sizeof(entry),
                              "%i %i \"%s\"\n",
-                             cl->edict->client->ps.stats[STAT_FRAGS],
+                             clent->client->ps.stats[STAT_FRAGS],
                              cl->ping, cl->name);
             if (len >= sizeof(entry)) {
                 continue;
@@ -1018,7 +1019,7 @@ static void SVC_DirectConnect(void)
     newcl->gamedir = fs_game->string;
     newcl->mapname = sv.name;
     newcl->configstrings = (configstring_t *)&sv.configstrings[0];
-    newcl->pool = (edict_pool_t *)&ge->edicts;
+    newcl->pool = ge->edictPool;
     newcl->cm = &sv.cm;
     newcl->spawncount = sv.spawncount;
     newcl->maxclients = sv_maxclients->integer;
@@ -1341,8 +1342,11 @@ static void SV_CalcPings(void)
             cl->num_moves = 0;
         }
 
+        sv_edict_t *clent = EDICT_FOR_NUMBER( cl->number + 1 );
         // let the game dll know about the ping
-        cl->edict->client->ping = cl->ping;
+        if ( clent ) {
+            clent->client->ping = cl->ping;
+        }
     }
 }
 
@@ -1359,20 +1363,36 @@ static void SV_GiveMsec(void)
 {
     client_t    *cl;
 
-    if (!(sv.framenum % ((int64_t)BASE_FRAMETIME))) {
-        FOR_EACH_CLIENT(cl) {
-            cl->command_msec = 1800; // 1600 + some slop
+    #if 1
+    //if (!(sv.framenum % ((int64_t)BASE_FRAMERATE))) {
+    //if ( !( sv.framenum % ( (int64_t)16 ) ) ) {
+    //    FOR_EACH_CLIENT( cl ) {
+    //        cl->command_msec = ( BASE_FRAMETIME * 100 ) + 200;// 1800; // 1600 + some slop
+    //    }
+    //}
+    //if (!(sv.framenum % ((int64_t)BASE_FRAMERATE))) {
+    if ( !( sv.framenum % ( (int64_t)16 ) ) ) {
+        FOR_EACH_CLIENT( cl ) {
+            cl->command_msec = ( 16 * BASE_FRAMETIME ) + 50;// 1800; // 1600 + some slop
         }
     }
+    #else
+    if ( !( sv.framenum % ( (int64_t)BASE_FRAMETIME ) ) ) {
+        FOR_EACH_CLIENT(cl) {
+            cl->command_msec = ( BASE_FRAMETIME * 100 ) + 200;// 1800; // 1600 + some slop
+        }
+    }
+    #endif
+
 
     if (svs.realtime - svs.last_timescale_check < sv_timescale_time->integer)
         return;
 
-    float d = svs.realtime - svs.last_timescale_check;
+    int64_t d = svs.realtime - svs.last_timescale_check;
     svs.last_timescale_check = svs.realtime;
 
     FOR_EACH_CLIENT(cl) {
-        cl->timescale = cl->cmd_msec_used / d;
+        cl->timescale = (double)cl->cmd_msec_used / (double)d;
         cl->cmd_msec_used = 0;
 
         if (sv_timescale_warn->value > 1.0f && cl->timescale > sv_timescale_warn->value) {
@@ -1626,10 +1646,10 @@ player processing happens outside RunWorldFrame
 */
 static void SV_PrepWorldFrame(void)
 {
-    edict_t    *ent;
+    sv_edict_t    *ent;
     int        i;
 
-    for (i = 1; i < ge->num_edicts; i++) {
+    for (i = 1; i < ge->edictPool->num_edicts; i++) {
         ent = EDICT_FOR_NUMBER(i);
 
         // events only last for a single keyframe
@@ -1803,7 +1823,7 @@ uint64_t SV_Frame(uint64_t msec)
 
     if (COM_DEDICATED) {
         // process console commands if not running a client
-        Cbuf_Execute(&cmd_buffer);
+        Cbuf_Execute( &cmd_buffer );
     }
 
     // read packets from UDP clients
@@ -1816,7 +1836,7 @@ uint64_t SV_Frame(uint64_t msec)
 
     // move autonomous things around if enough time has passed
     sv.frameresidual += msec;
-    if (sv.frameresidual < SV_FRAMETIME) {
+    if (sv.frameresidual < SV_FRAMETIME ) {
         return SV_FRAMETIME - sv.frameresidual;
     }
 
@@ -1848,20 +1868,18 @@ uint64_t SV_Frame(uint64_t msec)
 
     if (COM_DEDICATED) {
         // run cmd buffer in dedicated mode
-        if (cmd_buffer.waitCount > 0) {
-            cmd_buffer.waitCount--;
-        }
+        Cbuf_Frame( &cmd_buffer );
     }
 
     // decide how long to sleep next frame
     sv.frameresidual -= SV_FRAMETIME;
-    if (sv.frameresidual < SV_FRAMETIME) {
+    if (sv.frameresidual < SV_FRAMETIME ) {
         return SV_FRAMETIME - sv.frameresidual;
     }
 
     // don't accumulate bogus residual
 	// WID: 64-bit-frame: Should we messabout with this?
-    if (sv.frameresidual > 75) { // Was: > 250
+    if (sv.frameresidual > 75 ) { // Was: > 250
         Com_DDDPrintf("Reset residual %u\n", sv.frameresidual);
         sv.frameresidual = SV_FRAMETIME; // WID: 40hz:
     }
@@ -1887,7 +1905,7 @@ void SV_UserinfoChanged(client_t *cl)
     int     i;
 
     // call prog code to allow overrides
-    ge->ClientUserinfoChanged( cl->edict, cl->userinfo );
+    ge->ClientUserinfoChanged( EDICT_FOR_NUMBER( cl->number + 1 ), cl->userinfo );
 
     // name for C code
     val = Info_ValueForKey( cl->userinfo, "name" );
@@ -1978,7 +1996,7 @@ static void sv_rate_changed(cvar_t *self)
 {
 	// WID: 40hz:
     //Cvar_ClampInteger(sv_min_rate, 100, Cvar_ClampInteger(sv_max_rate, 1000, INT_MAX));
-	Cvar_ClampInteger( sv_min_rate, CLIENT_RATE_MIN, Cvar_ClampInteger( sv_max_rate, CLIENT_RATE_MIN, INT_MAX ) );
+	Cvar_ClampInteger( sv_min_rate, 25, Cvar_ClampInteger( sv_max_rate, 1000, INT_MAX ) );
 }
 
 void sv_sec_timeout_changed(cvar_t *self)
@@ -2071,7 +2089,7 @@ void SV_Init(void) {
     sv_idlekick->changed = sv_sec_timeout_changed;
     sv_idlekick->changed(sv_idlekick);
     sv_enforcetime = Cvar_Get("sv_enforcetime", "1", 0);
-    sv_timescale_time = Cvar_Get("sv_timescale_time", "16", 0);
+    sv_timescale_time = Cvar_Get("sv_timescale_time", std::to_string( BASE_FRAMETIME).c_str()/*"16"*/, 0);
     sv_timescale_time->changed = sv_sec_timeout_changed;
     sv_timescale_time->changed(sv_timescale_time);
     sv_timescale_warn = Cvar_Get("sv_timescale_warn", "0", 0);
@@ -2098,8 +2116,8 @@ void SV_Init(void) {
     sv_max_download_size = Cvar_Get( "sv_max_download_size", "8388608", 0 );
     sv_max_packet_entities = Cvar_Get( "sv_max_packet_entities", STRINGIFY( MAX_PACKET_ENTITIES ), 0 );
 	// WID: 40hz:
-	//sv_min_rate = Cvar_Get("sv_min_rate", "100", CVAR_LATCH);
-	sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( CLIENT_RATE_MIN ).c_str( ), CVAR_LATCH );
+	sv_min_rate = Cvar_Get("sv_min_rate", "25", CVAR_LATCH);
+	//sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( CLIENT_RATE_MIN ).c_str( ), CVAR_LATCH );
     sv_max_rate = Cvar_Get("sv_max_rate", "15000", CVAR_LATCH);
     sv_max_rate->changed = sv_min_rate->changed = sv_rate_changed;
     sv_max_rate->changed(sv_max_rate);

@@ -30,7 +30,7 @@ void SVG_Util_ProjectSource(const vec3_t point, const vec3_t distance, const vec
 
 /*
 =============
-SVG_Find
+SVG_Entities_Find
 
 Searches all active entities for the next one that holds
 the matching string at fieldofs (use the FOFS_GENTITY() macro) in the structure.
@@ -41,7 +41,7 @@ NULL will be returned if the end of the list is reached.
 =============
 */
 // WID: C++20: Added const.
-edict_t *SVG_Find(edict_t *from, int fieldofs, const char *match)
+edict_t *SVG_Entities_Find(edict_t *from, int fieldofs, const char *match)
 {
     char    *s;
 
@@ -66,14 +66,14 @@ edict_t *SVG_Find(edict_t *from, int fieldofs, const char *match)
 
 /*
 =================
-SVG_FindWithinRadius
+SVG_Entities_FindWithinRadius
 
 Returns entities that have origins within a spherical area
 
-SVG_FindWithinRadius (origin, radius)
+SVG_Entities_FindWithinRadius (origin, radius)
 =================
 */
-edict_t *SVG_FindWithinRadius(edict_t *from, vec3_t org, float rad)
+edict_t *SVG_Entities_FindWithinRadius(edict_t *from, vec3_t org, float rad)
 {
     vec3_t  eorg;
     int     j;
@@ -124,7 +124,7 @@ edict_t *SVG_PickTarget(char *targetname)
     }
 
     while (1) {
-        ent = SVG_Find(ent, FOFS_GENTITY(targetname), targetname);
+        ent = SVG_Entities_Find(ent, FOFS_GENTITY(targetname), targetname);
         if (!ent)
             break;
         choice[num_choices++] = ent;
@@ -203,7 +203,7 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->targetNames.kill) {
         t = NULL;
-        while ((t = SVG_Find(t, FOFS_GENTITY(targetname), ent->targetNames.kill))) {
+        while ((t = SVG_Entities_Find(t, FOFS_GENTITY(targetname), ent->targetNames.kill))) {
             SVG_FreeEdict(t);
             if (!ent->inuse) {
                 gi.dprintf("entity was removed while using killtargets\n");
@@ -217,7 +217,7 @@ void SVG_UseTargets(edict_t *ent, edict_t *activator)
 //
     if (ent->target) {
         t = NULL;
-        while ((t = SVG_Find(t, FOFS_GENTITY(targetname), ent->target))) {
+        while ((t = SVG_Entities_Find(t, FOFS_GENTITY(targetname), ent->target))) {
             // doors fire area portals in a specific way
             if (!Q_stricmp(t->classname, "func_areaportal") &&
                 (!Q_stricmp(ent->classname, "func_door") || !Q_stricmp(ent->classname, "func_door_rotating")))
@@ -423,7 +423,7 @@ void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
     static std::vector<skipped_projectile> skipped;
 
     while ( true ) {
-        trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
+        cm_trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
 
         if ( tr.fraction == 1.0f ) {
             break;
@@ -479,7 +479,7 @@ const bool SVG_Util_KillBox(edict_t *ent, const bool bspClipping ) {
         return true;
     }
 
-    contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
+    cm_contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
 
     //// [Paril-KEX] don't gib other players in coop if we're not colliding
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
@@ -498,7 +498,7 @@ const bool SVG_Util_KillBox(edict_t *ent, const bool bspClipping ) {
         }
 
         if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
-            trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
+            cm_trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f ) {
                 continue;

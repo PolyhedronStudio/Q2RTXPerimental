@@ -16,11 +16,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef CMODEL_H
-#define CMODEL_H
+#pragma once
 
 
-#include "shared/format_bsp.h"
+
+#include "shared/formats/format_bsp.h"
 
 
 
@@ -136,7 +136,7 @@ const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t ma
 /**
 *   @return The contents mask of all leafs within the absolute bounds.
 **/
-const contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
+const cm_contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
 
 
 //
@@ -159,7 +159,11 @@ const cm_entity_t *CM_GetNullEntity( void );
 *   @return If found, a pointer to the key/value pair, otherwise a pointer to the 'cm_null_entity'.
 **/
 const cm_entity_t *CM_EntityKeyValue( const cm_entity_t *entity, const char *key );
-
+/**
+*   @brief  Returns the number of the cm_entity_t list root key/value pair within the cm->entities array.
+*   @note   This only works on the actual root key/value pair of the cm_entity_t list. Otherwise it returns -1.
+**/
+const int32_t CM_EntityNumber( const cm_t *cm, const cm_entity_t *entity );
 
 //
 // collisionmodel/cm_hull_boundingbox.cpp
@@ -176,7 +180,7 @@ void CM_InitBoxHull( cm_t *cm );
 *           The BSP trees' box will match with the bounds(mins, maxs) and have appointed
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
-mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents );
+mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents );
 
 
 
@@ -195,7 +199,7 @@ void CM_InitOctagonHull( cm_t *cm );
 *           The BSP trees' octagon box will match with the bounds(mins, maxs) and have appointed
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
-mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents );
+mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents );
 
 
 
@@ -223,12 +227,12 @@ mleaf_t *CM_PointLeaf( cm_t *cm, const vec3_t p );
 /**
 *   @return An ORed contents mask
 **/
-const contents_t CM_PointContents( cm_t *cm, const vec3_t p, mnode_t *headnode );
+const cm_contents_t CM_PointContents( cm_t *cm, const vec3_t p, mnode_t *headnode );
 /**
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities
 **/
-const contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t *headnode,
+const cm_contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t *headnode,
                                                 const vec3_t origin, const vec3_t angles );
 
 
@@ -239,23 +243,21 @@ const contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t 
 /**
 *   @brief
 **/
-void        CM_BoxTrace( cm_t *cm, trace_t *trace,
+void        CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
                         const vec3_t start, const vec3_t end,
                         const vec3_t mins, const vec3_t maxs,
-                        mnode_t *headnode, const contents_t brushmask );
+                        mnode_t *headnode, const cm_contents_t brushmask );
 /**
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities.
 **/
-void        CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
+void        CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
                                     const vec3_t start, const vec3_t end,
                                     const vec3_t mins, const vec3_t maxs,
-                                    mnode_t *headnode, const contents_t brushmask,
+                                    mnode_t *headnode, const cm_contents_t brushmask,
                                     const vec3_t origin, const vec3_t angles );
 /**
 *   @brief
 **/
-void        CM_ClipEntity( cm_t *cm, trace_t *dst, const trace_t *src, struct edict_s *ent );
-
-
-#endif // CMODEL_H
+void        CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int32_t entityNumber );
+ 

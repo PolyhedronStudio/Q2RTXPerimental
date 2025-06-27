@@ -66,9 +66,9 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 
 	// Set everything to the state we are delta'ing from.
 	if ( !from ) {
-		memset( to, 0, sizeof( *to ) );
+		*to = {};
 	} else if ( to != from ) {
-		memcpy( to, from, sizeof( *to ) );
+		*to = *from;
 	}
 
 	// Ensure its number is set.
@@ -111,16 +111,16 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_MODEL ) {
-		to->modelindex = QM_ClampInt32( MSG_ReadUintBase128( ), 0, MAX_MODELS ); //to->modelindex = MSG_ReadUintBase128( );
+		to->modelindex = QM_Clamp<int32_t>( MSG_ReadUintBase128( ), 0, MAX_MODELS ); //to->modelindex = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL2 ) {
-		to->modelindex2 = QM_ClampInt32( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex2 = MSG_ReadUintBase128( );
+		to->modelindex2 = QM_Clamp<int32_t>( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex2 = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL3 ) {
-		to->modelindex3 = QM_ClampInt32( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex3 = MSG_ReadUintBase128( );
+		to->modelindex3 = QM_Clamp<int32_t>( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex3 = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_MODEL4 ) {
-		to->modelindex4 = QM_ClampInt32( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex4 = MSG_ReadUintBase128( );
+		to->modelindex4 = QM_Clamp<int32_t>( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex4 = MSG_ReadUintBase128( );
 	}
 
 	if ( bits & U_ENTITY_TYPE ) {
@@ -153,16 +153,16 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: ReadLong by default.
-		to->solid = static_cast<solid_t>( MSG_ReadUintBase128() );
+		to->solid = static_cast<cm_solid_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_BOUNDINGBOX ) {
 		to->bounds = static_cast<uint32_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_CLIPMASK ) {
-		to->clipmask = static_cast<contents_t>( MSG_ReadUintBase128( ) );
+		to->clipmask = static_cast<cm_contents_t>( MSG_ReadUintBase128( ) );
 	}
 	if ( bits & U_HULL_CONTENTS ) {
-		to->hullContents = static_cast<contents_t>( MSG_ReadUintBase128() );
+		to->hullContents = static_cast<cm_contents_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_OWNER ) {
 		to->ownerNumber = MSG_ReadUintBase128( );

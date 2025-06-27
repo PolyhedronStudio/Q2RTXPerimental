@@ -7,10 +7,23 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
-/*QUAKED info_player_coop (1 0 1) (-16 -16 -24) (16 16 32)
-potential spawning position for coop games
-*/
-void SP_info_player_coop( edict_t *self ) {
+// Include player start class types header.
+#include "svgame/entities/info/svg_info_player_start.h"
+
+
+/**
+*
+*   info_player_coop:
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_coop_t, onSpawn )( svg_info_player_coop_t *self ) -> void {
+    // Call upon base spawn.
+    Super::onSpawn( self );
+
+    // If we are not in coop mode, then we don't want this entity to spawn.
     if ( !coop->value ) {
         SVG_FreeEdict( self );
         return;

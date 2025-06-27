@@ -17,20 +17,21 @@
 *
 **/
 // temp entity events
-typedef enum {
+typedef enum temp_entity_event_e {
     TE_GUNSHOT,
     // TE_OTHER_TYPE_GUNSHOT
 
     TE_BLOOD,
     TE_MOREBLOOD,
 
-    TE_EXPLOSION1,
-    TE_EXPLOSION2,
-    TE_ROCKET_EXPLOSION,
-    TE_GRENADE_EXPLOSION,
+    //TE_EXPLOSION1,
+    //TE_EXPLOSION2,
+    //TE_ROCKET_EXPLOSION,
+    //TE_GRENADE_EXPLOSION,
 
     TE_BUBBLETRAIL,
     TE_BUBBLETRAIL2,
+    //! A bullet hitting water.
     TE_SPLASH,
 
     TE_STEAM,
@@ -47,23 +48,23 @@ typedef enum {
     TE_FLAME,
 
     TE_PLAIN_EXPLOSION,
-    TE_EXPLOSION1_BIG,
-    TE_EXPLOSION1_NP,
-    TE_ROCKET_EXPLOSION_WATER,
-    TE_GRENADE_EXPLOSION_WATER,
-    
-    TE_NUKEBLAST,
+    //TE_EXPLOSION1_BIG,
+    //TE_EXPLOSION1_NP,
+    //TE_ROCKET_EXPLOSION_WATER,
+    //TE_GRENADE_EXPLOSION_WATER,
+    //
+    //TE_NUKEBLAST,
 
     TE_TELEPORT_EFFECT,
 
-    TE_GRAPPLE_CABLE,
+    //TE_GRAPPLE_CABLE,
     TE_FLASHLIGHT,
-
-    TE_FORCEWALL,
-
+    //! 
+    //TE_FORCEWALL,
+	//! Renders a debug trail.
     TE_DEBUGTRAIL,
 
-    TE_NUM_ENTITIES
+    TE_NUM_ENTITY_EVENTS
 } temp_entity_event_t;
 
 /**

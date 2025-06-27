@@ -17,7 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
-#include "svg_lua.h"
+#include "svgame/svg_signalio.h"
+#include "svgame/svg_lua.h"
 
 // UserTypes:
 #include "svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp"
@@ -166,7 +167,7 @@ LUA_ZoneTagAllocator( void *ud, void *ptr, size_t osize, size_t nsize ) {
 		if ( osize != 0 ) {
 			pRet = gi.TagReMalloc( ptr, nsize );//pRet = realloc( ptr, nsize );
 		} else {
-			pRet = gi.TagMalloc( nsize, TAG_SVGAME_LUA /*TAG_SVGAME_LUA*/ );//pRet = malloc( nsize );
+			pRet = gi.TagMallocz( nsize, TAG_SVGAME_LUA /*TAG_SVGAME_LUA*/ );//pRet = malloc( nsize );
 		}
 	}
 
@@ -479,7 +480,7 @@ void SVG_Lua_Initialize() {
 	/**
 	*	Initialize UserTypes:
 	**/
-	// First comes the member of edict_t: entity_state_t
+	// First comes the member of svg_base_edict_t: entity_state_t
 	UserType_Register_EdictState_t( luaMapInstance.solState );
 	UserType_Register_Edict_t( luaMapInstance.solState );
 
@@ -746,12 +747,12 @@ void SVG_Lua_CallBack_ExitMap() {
 /**
 *	@brief
 **/
-void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
+void SVG_Lua_CallBack_ClientEnterLevel( svg_base_edict_t *clientEntity ) {
 	// Ensure map script was interpreted, and the callback was found to be in the script.
 	LUA_CanDispatchCallback( luaMapInstance.callBacks.OnClientEnterLevel );
 
 	// Make sure it is a valid client entity.
-	if ( !SVG_IsClientEntity( clientEntity ) ) {
+	if ( !SVG_Entity_IsClient( clientEntity ) ) {
 		gi.dprintf( "%s: invalid clientEntity passed.\n", __func__ );
 		return;
 	}
@@ -780,12 +781,12 @@ void SVG_Lua_CallBack_ClientEnterLevel( edict_t *clientEntity ) {
 /**
 *	@brief
 **/
-void SVG_Lua_CallBack_ClientExitLevel( edict_t *clientEntity ) {
+void SVG_Lua_CallBack_ClientExitLevel( svg_base_edict_t *clientEntity ) {
 	// Ensure map script was interpreted, and the callback was found to be in the script.
 	LUA_CanDispatchCallback( luaMapInstance.callBacks.OnClientExitLevel );
 
 	// Make sure it is a valid client entity.
-	if ( !SVG_IsClientEntity( clientEntity ) ) {
+	if ( !SVG_Entity_IsClient( clientEntity ) ) {
 		gi.dprintf( "%s: invalid clientEntity passed.\n", __func__ );
 		return;
 	}

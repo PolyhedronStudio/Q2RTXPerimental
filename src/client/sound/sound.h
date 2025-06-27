@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // sound.h -- private sound functions
 
 #include "../cl_client.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 #if USE_SNDDMA
 #include "client/sound/dma.h"
@@ -218,7 +218,7 @@ static inline const bool S_IsFullVolume( channel_t *ch ) { //
 }
 
 static inline const bool S_IsUnderWater( void ) {
-    return ( cls.state == ca_active && ( ( cl.frame.ps.rdflags | cl.predictedState.currentPs.rdflags ) & RDF_UNDERWATER ) && s_underwater->integer ) ? true : false;
+    return ( cls.state == ca_active && ( ( cl.frame.ps.rdflags | clge->GetViewRenderDefinitionFlags() ) & RDF_UNDERWATER ) && s_underwater->integer ) ? true : false;
 }
 
 #define S_Malloc(x)     Z_TagMalloc(x, TAG_SOUND)

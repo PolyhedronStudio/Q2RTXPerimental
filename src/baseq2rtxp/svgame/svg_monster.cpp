@@ -16,13 +16,22 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_tempentity_events.h"
+
+/**
+*   @brief  Marks the edict as free
+**/
+DECLARE_GLOBAL_CALLBACK_THINK( M_droptofloor );
 
 #if 0
 /**
 *	@brief	
 **/
-void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype ) {
+void monster_fire_bullet( svg_base_edict_t *self, vec3_t start, vec3_t dir, const float damage, const float kick, const float hspread, const float vspread, int flashtype ) {
 	fire_bullet( self, start, dir, damage, kick, hspread, vspread, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
@@ -33,7 +42,7 @@ void monster_fire_bullet( edict_t *self, vec3_t start, vec3_t dir, const float d
 /**
 *	@brief
 **/
-void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype ) {
+void monster_fire_shotgun( svg_base_edict_t *self, vec3_t start, vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, int count, int flashtype ) {
 	fire_shotgun( self, start, aimdir, damage, kick, hspread, vspread, count, MEANS_OF_DEATH_UNKNOWN );
 
 	gi.WriteUint8( svc_muzzleflash2 );
@@ -46,9 +55,9 @@ void monster_fire_shotgun( edict_t *self, vec3_t start, vec3_t aimdir, const flo
 /**
 *	@brief
 **/
-void M_CheckGround( edict_t *ent, const contents_t mask ) {
+void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
 	vec3_t      point;
-	trace_t     trace;
+	svg_trace_t     trace;
 
 	// Swimming and flying monsters don't check for ground.
 	if ( ent->flags & ( FL_SWIM | FL_FLY ) ) {
@@ -66,7 +75,7 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 	point[ 1 ] = ent->s.origin[ 1 ];
 	point[ 2 ] = ent->s.origin[ 2 ] - 0.25f;
 
-	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, point, ent, mask );
+	trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, point, ent, mask );
 
 	// check steepness
 	if ( trace.plane.normal[ 2 ] < 0.7f && !trace.startsolid ) {
@@ -89,39 +98,39 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 /**
 *	@brief
 **/
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype ) {
+void M_CatagorizePosition( svg_base_edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype ) {
 	//
 	// get liquidlevel
 	//
 	Vector3 point = in_point + Vector3{ 0.f, 0.f, ent->mins[ 2 ] + 1 };
-	contents_t cont = gi.pointcontents( &point.x );
+	cm_contents_t cont = gi.pointcontents( &point.x );
 
-	if ( !( cont & MASK_WATER ) ) {
-		liquidlevel = liquid_level_t::LIQUID_NONE;
+	if ( !( cont & CM_CONTENTMASK_WATER ) ) {
+		liquidlevel = cm_liquid_level_t::LIQUID_NONE;
 		liquidtype = CONTENTS_NONE;
 		return;
 	}
 
 	liquidtype = cont;
-	liquidlevel = liquid_level_t::LIQUID_FEET;
+	liquidlevel = cm_liquid_level_t::LIQUID_FEET;
 	point.z += 26;
 	cont = gi.pointcontents( &point.x );
-	if ( !( cont & MASK_WATER ) ) {
+	if ( !( cont & CM_CONTENTMASK_WATER ) ) {
 		return;
 	}
 
-	liquidlevel = liquid_level_t::LIQUID_WAIST;
+	liquidlevel = cm_liquid_level_t::LIQUID_WAIST;
 	point[ 2 ] += 22;
 	cont = gi.pointcontents( &point.x );
-	if ( cont & MASK_WATER ) {
-		liquidlevel = liquid_level_t::LIQUID_UNDER;
+	if ( cont & CM_CONTENTMASK_WATER ) {
+		liquidlevel = cm_liquid_level_t::LIQUID_UNDER;
 	}
 }
 
 /**
 *	@brief	Apply world effects to monster entity.
 **/
-void M_WorldEffects( edict_t *ent ) {
+void M_WorldEffects( svg_base_edict_t *ent ) {
 	int     dmg;
 
     if (ent->health > 0) {
@@ -197,19 +206,22 @@ void M_WorldEffects( edict_t *ent ) {
     }
 }
 
-void M_droptofloor( edict_t *ent ) {
+/**
+*	@brief	
+**/
+DEFINE_GLOBAL_CALLBACK_THINK( M_droptofloor )( svg_base_edict_t *ent ) -> void {
 	vec3_t      end;
-	trace_t     trace;
+	svg_trace_t     trace;
 
-	contents_t mask = SVG_GetClipMask( ent );
+	cm_contents_t mask = SVG_GetClipMask( ent );
 
 	ent->s.origin[ 2 ] += 1;
 	VectorCopy( ent->s.origin, end );
 	end[ 2 ] -= 256;
 
-	trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, end, ent, mask );
+	trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, end, ent, mask );
 
-	if ( trace.fraction == 1 || trace.allsolid ) {
+	if ( trace.fraction == 1 || trace.allsolid || ( trace.startsolid ) ) {
 		return;
 	}
 
@@ -220,7 +232,7 @@ void M_droptofloor( edict_t *ent ) {
 	M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
 }
 
-void M_SetEffects( edict_t *ent ) {
+void M_SetEffects( svg_base_edict_t *ent ) {
 	ent->s.effects &= ~( EF_COLOR_SHELL );
 	ent->s.renderfx &= ~( RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE );
 

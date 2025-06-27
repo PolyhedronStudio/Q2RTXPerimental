@@ -437,7 +437,7 @@ static void draw_celshading(const maliasmesh_t *mesh)
     qglLineWidth(1);
 }
 
-static void proj_matrix(GLfloat *matrix, const cplane_t *plane, const vec3_t dir)
+static void proj_matrix(GLfloat *matrix, const cm_plane_t *plane, const vec3_t dir)
 {
     matrix[0] = plane->normal[1] * dir[1] + plane->normal[2] * dir[2];
     matrix[4] = -plane->normal[1] * dir[0];

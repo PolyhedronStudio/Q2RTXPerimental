@@ -46,7 +46,7 @@ edict_t *medic_FindDeadMonster(edict_t *self)
     edict_t *ent = NULL;
     edict_t *best = NULL;
 
-    while ((ent = SVG_FindWithinRadius(ent, self->s.origin, 1024)) != NULL) {
+    while ((ent = SVG_Entities_FindWithinRadius(ent, self->s.origin, 1024)) != NULL) {
         if (ent == self)
             continue;
         if (!(ent->svflags & SVF_MONSTER))
@@ -553,7 +553,7 @@ static vec3_t   medic_cable_offsets[] = {
 void medic_cable_attack(edict_t *self)
 {
     vec3_t  offset, start, end, f, r;
-    trace_t tr;
+    cm_trace_t tr;
     vec3_t  dir, angles;
     float   distance;
 
@@ -577,7 +577,7 @@ void medic_cable_attack(edict_t *self)
     if (fabsf(angles[0]) > 45)
         return;
 
-    tr = gi.trace(start, NULL, NULL, self->enemy->s.origin, self, MASK_SHOT);
+    tr = gi.trace(start, NULL, NULL, self->enemy->s.origin, self, CM_CONTENTMASK_SHOT);
     if (tr.fraction != 1.0f && tr.ent != self->enemy)
         return;
 

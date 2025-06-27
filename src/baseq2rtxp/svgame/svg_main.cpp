@@ -17,9 +17,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_combat.h"
 #include "svgame/svg_gamemode.h"
 #include "svgame/svg_commands_server.h"
+#include "svgame/svg_edict_pool.h"
+#include "svgame/svg_clients.h"
+#include "svgame/svg_utils.h"
 
+#include "svgame/player/svg_player_client.h"
+#include "svgame/player/svg_player_move.h"
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
 
@@ -27,15 +33,19 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/entities/svg_entities_pushermove.h"
 
+#include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_pmove.h"
+
+
+
 
 /**
 *	General used Game Objects.
 **/
-game_locals_t   game;
-level_locals_t  level;
+svg_game_locals_t game;
+svg_level_locals_t  level;
 svgame_import_t	gi;
 svgame_export_t	globals;
-spawn_temp_t    st;
 
 
 /**
@@ -52,9 +62,11 @@ QMTime FRAME_TIME_MS;
 *	Cached indexes and global meansOfDeath var.
 **/
 int sm_meat_index;
-int snd_fry;
 
-edict_t	*g_edicts;
+//! THIS!! is the ACTUAL ARRAY for STORING the EDICTS. (Also referred to by the term entities.)
+svg_base_edict_t **g_edicts;
+//! Memory Pool for entities.
+svg_edict_pool_t g_edict_pool;
 
 // WID: gamemode support:
 cvar_t *dedicated;
@@ -110,21 +122,15 @@ cvar_t *g_select_empty;
 //
 // Func Declarations:
 //
-void SVG_Client_Begin( edict_t *ent );
-void SVG_Client_Command( edict_t *ent );
-qboolean SVG_Client_Connect( edict_t *ent, char *userinfo );
-void SVG_Client_Disconnect( edict_t *ent );
-void SVG_Client_Think( edict_t *ent, usercmd_t *cmd );
-void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
+
+void SVG_Client_Command( svg_base_edict_t *ent );
 
 void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
-void SVG_RunEntity(edict_t *ent);
-void SVG_WriteGame(const char *filename, qboolean autosave);
-void SVG_ReadGame(const char *filename);
-void SVG_WriteLevel(const char *filename);
-void SVG_ReadLevel(const char *filename);
+void SVG_RunEntity(svg_base_edict_t *ent);
 void SVG_InitGame(void);
 void SVG_RunFrame(void);
+
+
 
 //===================================================================
 /**
@@ -161,34 +167,21 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
 *			is loaded from the main menu without having a game running
 *			in the background.
 **/
-void SVG_ShutdownGame(void)
-{
-    // Notify of shutdown.
-    gi.dprintf("==== Shutdown ServerGame ====\n");
-    
-    // Shutdown the Lua VM.
-    SVG_Lua_Shutdown();
-
-    // Free level, lua AND the game module its allocated ram.
-    gi.FreeTags( TAG_SVGAME_LEVEL );
-    gi.FreeTags( TAG_SVGAME );
-    gi.FreeTags( TAG_SVGAME_LUA );
-}
-
-/**
-*	@brief	This will be called when the dll is first loaded, which
-*			only happens when a new game is started or a save game
-*			is loaded from the main menu without having a game running
-*			in the background.
-**/
 void SVG_PreInitGame( void ) {
 	// Notify 
 	gi.dprintf( "==== PreInit ServerGame ====\n" );
 
+    // Setup the Edict Class TypeInfo system.
+    EdictTypeInfo::InitializeTypeInfoRegistry();
+
+	// Initialize the game local's movewith array.
+    game.moveWithEntities = static_cast<svg_game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
+    memset( game.moveWithEntities, 0, sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
+
 	maxclients = gi.cvar( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH );
 	maxspectators = gi.cvar( "maxspectators", "4", CVAR_SERVERINFO );
 
-	// 0 = SinglePlayer, 1 = Deathmatch, 2 = Coop.
+	// 0 = SinglePlayer, 1 = Coop, 2 = DeathMatch.
 	gamemode = gi.cvar( "gamemode", nullptr, 0 );
     //gamemode->changed = cvar_sv_gamemode_changed;
 
@@ -318,24 +311,60 @@ void SVG_InitGame( void )
     //    gi.configstring( CS_AIRACCEL, "0" );
     //}
 
-    // items
-    SVG_InitItems();
 
-    // initialize all entities for this game
-    game.maxentities = std::clamp(maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS);
-	// WID: C++20: Addec cast.
-    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
-    globals.edicts = g_edicts;
-    globals.max_edicts = game.maxentities;
-
+    // Clamp maxentities within valid range.
+    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
     // initialize all clients for this game
-    game.maxclients = maxclients->value;
-	// WID: C++20: Addec cast.
-    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
-    globals.num_edicts = game.maxclients + 1;
+    game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
+    
+    // Clear the edict pool in case any previous data was there.
+    //g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+    // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
+    g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
+    // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
+    g_edict_pool.num_edicts = game.maxclients + 1;
 
-    // Initialize the Lua VM.
-    //SVG_Lua_Initialize();
+    // Initialize a fresh clients array.
+    game.clients = SVG_Clients_Reallocate( game.maxclients );
+
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+        ent->client = &game.clients[ i ];
+
+        // Assign client number.
+        //ent->client->clientNum = i;
+
+        //// Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
+    }
+}
+
+/**
+*	@brief	This will be called when the dll is first loaded, which
+*			only happens when a new game is started or a save game
+*			is loaded from the main menu without having a game running
+*			in the background.
+**/
+void SVG_ShutdownGame( void ) {
+    // Notify of shutdown.
+    gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
+
+    // Shutdown the Lua VM.
+    SVG_Lua_Shutdown();
+
+    // Free level, lua AND the game module its allocated ram.
+    //gi.FreeTags( TAG_SVGAME_LUA );
+    //SVG_EdictPool_Release( &g_edict_pool );
+    gi.FreeTags( TAG_SVGAME_EDICTS );//SVG_EdictPool_Release( &g_edict_pool );
+    gi.FreeTags( TAG_SVGAME_LEVEL );
+    gi.FreeTags( TAG_SVGAME );
+
+    // Notify of shutdown.
+    gi.dprintf( "==== ServerGame Shutdown ====\n" );
 }
 
 
@@ -401,8 +430,8 @@ extern "C" { // WID: C++20: extern "C".
         globals.IsValidGameModeType = _Exports_SG_IsValidGameModeType;
         globals.IsMultiplayerGameMode = _Exports_SG_IsMultiplayerGameMode;
         globals.GetDefaultMultiplayerGamemodeType = _Exports_SG_GetDefaultMultiplayerGameModeType;
-		globals.GetGamemodeName = _Exports_SG_GetGameModeName;
-		globals.GamemodeNoSaveGames = SVG_GetGamemodeNoSaveGames;
+		globals.GetGameModeName = _Exports_SG_GetGameModeName;
+		globals.GameModeAllowSaveGames = SVG_GameModeAllowSaveGames;
 
 		globals.WriteGame = SVG_WriteGame;
 		globals.ReadGame = SVG_ReadGame;
@@ -423,7 +452,8 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.ServerCommand = SVG_ServerCommand;
 
-		globals.edict_size = sizeof( edict_t );
+		// Store a pointer to the edicts pool.
+        globals.edictPool = &g_edict_pool;
 
 		return &globals;
 	}
@@ -480,8 +510,8 @@ void ClientEndServerFrames(void) {
     // calc the player views now that all pushing
     // and damage has been added
     for ( int32_t i = 0 ; i < maxclients->value ; i++) {
-        edict_t *ent = g_edicts + 1 + i;
-        if ( !ent->inuse || !ent->client ) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
+        if ( !ent || !ent->inuse || !ent->client ) {
             continue;
         }
         SVG_Client_EndServerFrame(ent);
@@ -492,10 +522,10 @@ void ClientEndServerFrames(void) {
 /**
 *   @brief  Returns the created target changelevel
 **/
-edict_t *CreateTargetChangeLevel( char *map ) {
-    edict_t *ent;
+svg_base_edict_t *CreateTargetChangeLevel( char *map ) {
+    svg_base_edict_t *ent;
 
-    ent = SVG_AllocateEdict();
+    ent = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
     ent->classname = "target_changelevel";
     if ( map != level.nextmap ) {
         Q_strlcpy( level.nextmap, map, sizeof( level.nextmap ) );
@@ -508,7 +538,7 @@ edict_t *CreateTargetChangeLevel( char *map ) {
 *   @brief  The timelimit or fraglimit has been exceeded
 **/
 void EndDMLevel(void) {
-    edict_t     *ent;
+    svg_base_edict_t     *ent;
     char *s, *t, *f;
     static const char *seps = " ,\n\r";
 
@@ -550,14 +580,14 @@ void EndDMLevel(void) {
     if ( level.nextmap[ 0 ] ) {// go to a specific map
         SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
     } else {  // search for a changelevel
-        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "target_changelevel");
+        ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "target_changelevel" );
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level
-            SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
+            SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.mapname ) );
             return;
         }
-        SVG_HUD_BeginIntermission(ent);
+        SVG_HUD_BeginIntermission( ent );
     }
 }
 
@@ -590,7 +620,7 @@ void CheckNeedPass(void) {
 **/
 void CheckDMRules(void) {
     int         i;
-    gclient_t   *cl;
+    svg_client_t   *cl;
 
     if ( level.intermissionFrameNumber ) {
         return;
@@ -610,8 +640,9 @@ void CheckDMRules(void) {
 
     if (fraglimit->value) {
         for (i = 0 ; i < maxclients->value ; i++) {
-            cl = game.clients + i;
-            if ( !g_edicts[ i + 1 ].inuse ) {
+            cl = &game.clients[ i ];
+			svg_base_edict_t *cledict = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
+            if ( !cledict || !cledict->inuse ) {
                 continue;
             }
 
@@ -629,23 +660,23 @@ void CheckDMRules(void) {
 **/
 void ExitLevel(void) {
     int     i;
-    edict_t *ent;
+    svg_base_edict_t *ent;
     char    command [256];
 
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_ExitMap();
 
-
-    Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", level.changemap);
+	// Generate the command string to change the map.
+    Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", (const char*)level.changemap);
     gi.AddCommandString(command);
     level.changemap = NULL;
     level.exitintermission = 0;
     level.intermissionFrameNumber = 0;
 
-    // clear some things before going to next level
-    for (i = 0 ; i < maxclients->value ; i++) {
-        ent = g_edicts + 1 + i;
-        if ( !ent->inuse ) {
+    // Clear some things before going to next level.
+    for ( i = 0; i < maxclients->value; i++ ) {
+        ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
+        if ( !ent || !ent->inuse ) {
             continue;
         }
         if ( ent->health > ent->client->pers.max_health ) {
@@ -687,13 +718,16 @@ void SVG_RunFrame(void) {
     // Treat each object in turn
     // even the world gets a chance to think
     //
-    edict_t *ent = &g_edicts[ 0 ];
-    for ( int32_t i = 0; i < globals.num_edicts; i++, ent++ ) {
-        if ( !ent->inuse ) {
+    svg_base_edict_t *ent = ent = g_edict_pool.EdictForNumber( 0 );
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
+        if ( !ent ) {
+            continue;
+        }
+        if ( ent && !ent->inuse ) {
             // "Defer removing client info so that disconnected, etc works."
             if ( i > 0 && i <= game.maxclients ) {
                 if ( ent->timestamp && level.time < ent->timestamp ) {
-                    const int32_t playernum = ent - g_edicts - 1;
+                    const int32_t playernum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
                     gi.configstring( CS_PLAYERSKINS + playernum, "" );
                     ent->timestamp = 0_sec;
                 }
@@ -712,25 +746,24 @@ void SVG_RunFrame(void) {
 
         // If the ground entity moved, make sure we are still on it.
         if ( ( ent->groundInfo.entity ) && ( ent->groundInfo.entity->linkcount != ent->groundInfo.entityLinkCount ) ) {
-            contents_t mask = SVG_GetClipMask( ent );
+            cm_contents_t mask = SVG_GetClipMask( ent );
 
             // Monsters that don't SWIM or FLY, got their own unique ground check.
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
                 ent->groundInfo.entity = nullptr;
                 M_CheckGround( ent, mask );
-            }
-            //// All other entities use this route instead:
-            //} else {
-            //    // If the ground entity is still 1 unit below us, we're good.
-            //    Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-            //    trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+            // All other entities use this route instead:
+            } else {
+                // If the ground entity is still 1 unit below us, we're good.
+                Vector3 endPoint = Vector3( ent->s.origin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+                svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
 
-            //    if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
-            //        ent->groundentity = nullptr;
-            //    } else {
-            //        ent->groundentity_linkcount = ent->groundentity->linkcount;
-            //    }
-            //}
+                if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundInfo.entity ) {
+                    ent->groundInfo.entity = nullptr;
+                } else {
+                    ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkcount;
+                }
+            }
         }
 
         if ( i > 0 && i <= maxclients->value ) {

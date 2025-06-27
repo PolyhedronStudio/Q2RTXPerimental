@@ -226,7 +226,7 @@ static bool SV_SetPlayer(void)
     }
 
     sv_client = cl;
-    sv_player = sv_client->edict;
+    sv_player = sv_client->edict = EDICT_FOR_NUMBER( cl->number + 1 );
     return true;
 }
 
@@ -258,7 +258,8 @@ static void SV_Map(bool restart)
 {
     mapcmd_t    cmd;
 
-    memset(&cmd, 0, sizeof(cmd));
+    //memset(&cmd, 0, sizeof(cmd));
+    cmd = {};
 
     // save the mapcmd
     if (Cmd_ArgvBuffer(1, cmd.buffer, sizeof(cmd.buffer)) >= sizeof(cmd.buffer)) {

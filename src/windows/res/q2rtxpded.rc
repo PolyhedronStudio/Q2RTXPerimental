@@ -36,9 +36,9 @@ BEGIN
             VALUE "OriginalFilename", VER_ORIGINALFILENAME_STR
             VALUE "FileVersion", VERSION_STRING
             VALUE "InternalName", "q2rtxpded"
-            VALUE "LegalCopyright", "Copyright (C) 2019-2023, NVIDIA CORPORATION. All rights reserved."
+            VALUE "LegalCopyright", "Copyright (C) 2024-2025, Polyhedron Studio. Copyright (C) 2019-2025, NVIDIA CORPORATION. All rights reserved."
             VALUE "ProductName", "Quake II RTXPerimental Dedicated Server"
-            VALUE "ProductVersion", VERSION_STRING
+            VALUE "ProductVersion", LONG_VERSION_STRING
         END
     END
     BLOCK "VarFileInfo"

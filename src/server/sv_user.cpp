@@ -51,7 +51,7 @@ baseline will be transmitted
 static void SV_CreateBaselines(void)
 {
     int        i;
-    edict_t    *ent;
+    sv_edict_t    *ent;
     entity_packed_t *base, **chunk;
 
     // clear baselines from previous level
@@ -86,7 +86,7 @@ static void SV_CreateBaselines(void)
 		// WID: netstuff: This is actually where we should be assigning stuff to our internal local server entities.
 		// WID: netstuff: longsolid
 		//if (sv_client->esFlags & MSG_ES_LONGSOLID) {
-            base->solid = static_cast<solid_t>( sv.entities[i].solid32 );
+            base->solid = static_cast<cm_solid_t>( sv.entities[i].solid32 );
         //}
     }
 }
@@ -423,7 +423,11 @@ void SV_Begin_f(void)
                 sv_client->name);
     sv_client->state = cs_spawned;
     sv_client->send_delta = 0;
-    sv_client->command_msec = 1800;
+    #if 1
+    sv_client->command_msec = ( 16 * BASE_FRAMETIME ) + 50;// 400 + some slop.
+    #else
+    sv_client->command_msec = ( BASE_FRAMETIME * 100 ) + 200; // 1800 // Used to be 1600 + some slop
+    #endif
     sv_client->cmd_msec_used = 0;
     sv_client->suppress_count = 0;
     sv_client->http_download = false;
@@ -909,7 +913,7 @@ static void SV_ExecuteUserCommand(const char *s)
     char *c;
 
     Cmd_TokenizeString(s, false);
-    sv_player = sv_client->edict;
+    sv_player = sv_client->edict = EDICT_FOR_NUMBER( sv_client->number + 1 );//sv_client->edict;
 
     c = Cmd_Argv(0);
     if (!c[0]) {
@@ -962,24 +966,25 @@ static int      userinfoUpdateCount;
 SV_ClientThink
 ==================
 */
-static inline void SV_ClientThink(usercmd_t *cmd)
-{
+static inline void SV_ClientThink( usercmd_t *cmd ) {
     usercmd_t *old = &sv_client->lastcmd;
 
     sv_client->command_msec -= cmd->msec;
     sv_client->cmd_msec_used += cmd->msec;
     sv_client->num_moves++;
 
-    if (sv_client->command_msec < 0 && sv_enforcetime->integer) {
-        Com_DPrintf("commandMsec underflow from %s: %d\n",
-                    sv_client->name, sv_client->command_msec);
+    if ( sv_client->command_msec < 0 && sv_enforcetime->integer ) {
+        Com_DPrintf( "commandMsec underflow from %s: %d\n",
+            sv_client->name, sv_client->command_msec );
         return;
     }
 
-    if (cmd->buttons != old->buttons
+    if ( cmd->buttons != old->buttons
         || cmd->forwardmove != old->forwardmove
         || cmd->sidemove != old->sidemove
-        || cmd->upmove != old->upmove) {
+        || cmd->upmove != old->upmove
+        || cmd->frameNumber != old->frameNumber
+        /*|| cmd->angles != old->angles */) {
         // don't timeout
         sv_client->lastactivity = svs.realtime;
     }
@@ -1113,7 +1118,7 @@ static void SV_NewClientExecuteMove( int c ) {
 	lastcmd = NULL;
 	for ( i = 0; i <= numDups; i++ ) {
 		//numCmds[ i ] = MSG_ReadUint8();
-        numCmds[ i ] = MSG_ReadBits(5);
+        numCmds[ i ] = MSG_ReadBits(8);
 		if ( msg_read.readcount > msg_read.cursize ) {
 			SV_DropClient( sv_client, "read past end of message" );
 			return;
@@ -1363,7 +1368,7 @@ void SV_ExecuteClientMessage(client_t *client)
     int32_t c = -1, last_cmd = -1;
 
     sv_client = client;
-    sv_player = sv_client->edict;
+    sv_player = sv_client->edict = EDICT_FOR_NUMBER( sv_client->number + 1 );//sv_client->edict;
 
     // only allow one move command
     moveIssued = false;
@@ -1386,6 +1391,9 @@ void SV_ExecuteClientMessage(client_t *client)
             SV_NewClientExecuteMove( c );
             last_cmd = c;
             goto nextcmd;
+            break;
+        default:
+            break;
         }
 
         switch (c) {

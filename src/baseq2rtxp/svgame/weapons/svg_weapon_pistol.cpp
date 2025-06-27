@@ -6,8 +6,12 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_weapons.h"
 
 #include "svgame/player/svg_player_client.h"
+
+#include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_muzzleflashes.h"
 
 //! Enable to have the pistol auto reload when an empty clip occures while engaged in target aiming fire mode.
 //#define WEAPON_PISTOL_ENABLE_RELOAD_ON_AIMFIRE_EMPTY_CLIP
@@ -73,9 +77,9 @@ void Weapon_Pistol_Precached( const gitem_t *item ) {
 /**
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
-void weapon_pistol_fire_bullet( edict_t *ent, const Vector3 &shotOffset, const int32_t shotDamage = 10, const double &additionalKick = 2. ) {
+void weapon_pistol_fire_bullet( svg_base_edict_t *ent, const Vector3 &shotOffset, const int32_t shotDamage = 10, const double &additionalKick = 2. ) {
     // Get weapon state.
-    gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
+    svg_client_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Get the current recoil amount.
     const double recoilAmount = SVG_Client_GetFinalRecoilFactor( ent );
 
@@ -109,7 +113,7 @@ void weapon_pistol_fire_bullet( edict_t *ent, const Vector3 &shotOffset, const i
 /**
 *   @brief  Supplements the Primary Firing routine by actually performing a 'single bullet' shot.
 **/
-void weapon_pistol_primary_fire( edict_t *ent ) {
+void weapon_pistol_primary_fire( svg_base_edict_t *ent ) {
     // Default damage value.
     static constexpr int32_t shotDamage = 10;
     // Additional recoil kick force strength.
@@ -131,7 +135,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
-    gi.WriteInt16( ent - g_edicts );
+    gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) ); //ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
     gi.multicast( &muzzleFlashOrigin.x/*ent->s.origin*/, MULTICAST_PVS, false );
 
@@ -146,7 +150,7 @@ void weapon_pistol_primary_fire( edict_t *ent ) {
 /**
 *   @brief  Supplements the Secondary Firing routine by actually performing a more precise 'single bullet' shot.
 **/
-void weapon_pistol_aim_fire( edict_t *ent ) {
+void weapon_pistol_aim_fire( svg_base_edict_t *ent ) {
     constexpr int32_t shotDamage = 14;
     constexpr int32_t recoilKick = 10;
     // Project from shotOffset(source origin) to shot destination to determine the actual shot start.
@@ -166,7 +170,7 @@ void weapon_pistol_aim_fire( edict_t *ent ) {
 
     // Send a muzzle flash event.
     gi.WriteUint8( svc_muzzleflash );
-    gi.WriteInt16( ent - g_edicts );
+    gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
     gi.multicast( &muzzleFlashOrigin.x, MULTICAST_PVS, false );
 
@@ -181,7 +185,7 @@ void weapon_pistol_aim_fire( edict_t *ent ) {
 /**
 *   @brief  Will do the maths to reload the weapon clip.
 **/
-static const bool weapon_pistol_reload_clip( edict_t *ent ) {
+static const bool weapon_pistol_reload_clip( svg_base_edict_t *ent ) {
     // Clip capacity.
     const int32_t clipCapacity = ent->client->pers.weapon->clip_capacity;
     // Ammo to stuff into the clip.
@@ -207,7 +211,7 @@ static const bool weapon_pistol_reload_clip( edict_t *ent ) {
 /**
 *   @brief  Will play out of ammo sound.
 **/
-static void weapon_pistol_no_ammo( edict_t *ent ) {
+static void weapon_pistol_no_ammo( svg_base_edict_t *ent ) {
     // Reset recoil.
     ent->client->weaponState.recoil = {};
 
@@ -220,7 +224,7 @@ static void weapon_pistol_no_ammo( edict_t *ent ) {
 /**
 *   @brief  Helper method for primary fire routine.
 **/
-static void Weapon_Pistol_AddRecoil( gclient_t::weapon_state_s *weaponState, const float amount, QMTime accumulatedTime ) {
+static void Weapon_Pistol_AddRecoil( svg_client_t::weapon_state_s *weaponState, const float amount, QMTime accumulatedTime ) {
     // Add accumulated time.
     weaponState->recoil.accumulatedTime += accumulatedTime;
     // Increment recoil heavily.
@@ -234,11 +238,11 @@ static void Weapon_Pistol_AddRecoil( gclient_t::weapon_state_s *weaponState, con
 /**
 *   @brief  Processes responses to the user input.
 **/
-static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
+static void Weapon_Pistol_ProcessUserInput( svg_base_edict_t *ent ) {
     // Acquire weapon state.
-    gclient_t::weapon_state_s *weaponState = &ent->client->weaponState;
+    svg_client_t::weapon_state_s *weaponState = &ent->client->weaponState;
     // Acquire user button input states.
-    gclient_t::userinput_s &userInput = ent->client->userInput;
+    svg_client_t::userinput_s &userInput = ent->client->userInput;
 
     /**
     *   AIMING Path: We're AIMING, if the current MODE(and animation) >= WEAPON_MODE_AIM_IN
@@ -404,7 +408,7 @@ static void Weapon_Pistol_ProcessUserInput( edict_t *ent ) {
 * 
 *           The mode acting itself is dealt with by this function.
 **/
-void Weapon_Pistol( edict_t *ent, const bool processUserInputOnly ) {
+void Weapon_Pistol( svg_base_edict_t *ent, const bool processUserInputOnly ) {
     // Process the animation frames of the mode we're in.
     const bool isDoneAnimating = SVG_Player_Weapon_ProcessModeAnimation( ent, &pistolItemInfo.modeAnimations[ ent->client->weaponState.mode ] );
 

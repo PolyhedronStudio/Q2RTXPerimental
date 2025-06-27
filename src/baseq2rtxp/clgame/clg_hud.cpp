@@ -482,9 +482,9 @@ static const double CLG_HUD_UpdateRecoilLerpScale( const double start, const dou
     const double easeFactor = easeMethod( easeFraction );
 
     // Lerp value.
-	const double lerpFraction = QM_Lerp( start, end, easeFactor );
+	const double lerpFraction = QM_Lerp<double>( start, end, easeFactor );
     // Clamped lerp value.
-	const double clampedLerpFraction = QM_Clampd( lerpFraction, -1., 2. );
+	const double clampedLerpFraction = QM_Clamp<double>( lerpFraction, -1., 2. );
     // Return lerpfracion.
     return clampedLerpFraction;
 
@@ -645,7 +645,7 @@ void CLG_HUD_DrawCrosshair( void ) {
     }
 
     // Don't show when 'is aiming' weapon mode is true.
-    if ( clgi.client->predictedState.currentPs.stats[ STAT_WEAPON_FLAGS ] & STAT_WEAPON_FLAGS_IS_AIMING ) {
+    if ( game.predictedState.currentPs.stats[ STAT_WEAPON_FLAGS ] & STAT_WEAPON_FLAGS_IS_AIMING ) {
         return;
     }
 

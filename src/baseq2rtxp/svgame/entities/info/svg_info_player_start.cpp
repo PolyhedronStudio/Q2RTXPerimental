@@ -7,10 +7,36 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
-/*QUAKED info_player_start (1 0 0) (-16 -16 -24) (16 16 32)
-The normal starting point for a level (Singleplayer, and as last resort if missing gamemode specific spawn points.).
-*/
-void SP_info_player_start( edict_t *self ) {
-    if ( !coop->value )
-        return;
+// Include player start class types header.
+#include "svgame/entities/info/svg_info_player_start.h"
+
+/**
+*
+*   info_player_base_start:
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_base_start_t, onSpawn )( svg_info_player_base_start_t *self ) -> void {
+    // Call upon base spawn.
+    Super::onSpawn( self );
+}
+
+/**
+*
+*   info_player_start:
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_start_t, onSpawn )( svg_info_player_start_t *self ) -> void {
+    // Call upon base spawn.
+    Super::onSpawn( self );
+
+    // If we are not in coop mode, then we don't want this entity to spawn.
+    //if ( !coop->value ) {
+    //    return;
+    //}
 }

@@ -11,7 +11,7 @@
 
 
 //! edict->entityUseFlags
-typedef enum {
+typedef enum entity_usetarget_flags_e {
     //! No (+usetarget) key press supporting entity at all.
     ENTITY_USETARGET_FLAG_NONE = 0,
     //! Pressable UseTarget( (+usetarget) single key press activates )
@@ -29,7 +29,7 @@ typedef enum {
 // Enumerator Type Bit Flags Support:
 QENUM_BIT_FLAGS( entity_usetarget_flags_t );
 //! edict->entityUseState
-typedef enum {
+typedef enum entity_usetarget_state_e {
     //! Generic state.
     ENTITY_USETARGET_STATE_DEFAULT = 0,
     //! 'OFF' state.
@@ -46,7 +46,7 @@ QENUM_BIT_FLAGS( entity_usetarget_state_t );
 /**
 *   @brief  For SVG_UseTargets
 **/
-typedef enum {
+typedef enum entity_usetarget_type_e {
     //! Triggers as 'Off' type.
     ENTITY_USETARGET_TYPE_OFF = 0,
     //! Triggers as 'On' type.
@@ -63,7 +63,7 @@ typedef enum {
 *
 *
 *
-*   UseTarget Functionality:
+*   UseTargets:
 *
 *
 *

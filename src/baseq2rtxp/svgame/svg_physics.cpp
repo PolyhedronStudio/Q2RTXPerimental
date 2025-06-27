@@ -39,31 +39,31 @@ solid_edge items only clip against bsp models.
 
 // [Paril-KEX] fetch the clipmask for this entity; certain modifiers
 // affect the clipping behavior of objects.
-const contents_t SVG_GetClipMask( edict_t *ent ) {
+const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent ) {
     // Get current clip mask.
-    contents_t mask = ent->clipmask;
+    cm_contents_t mask = ent->clipmask;
 
     // If none, setup a default mask based on the svflags.
     if ( !mask ) {
         if ( ent->svflags & SVF_MONSTER ) {
-            mask = ( MASK_MONSTERSOLID );
+            mask = ( CM_CONTENTMASK_MONSTERSOLID );
         } else if ( ent->svflags & SVF_PROJECTILE ) {
-            mask = ( MASK_PROJECTILE );
+            mask = ( CM_CONTENTMASK_PROJECTILE );
         } else {
-            mask = static_cast<contents_t>( MASK_SHOT & ~CONTENTS_DEADMONSTER );
+            mask = static_cast<cm_contents_t>( CM_CONTENTMASK_SHOT & ~CONTENTS_DEADMONSTER );
         }
     }
 
     // Non-Solid objects (items, etc) shouldn't try to clip
     // against players/monsters.
     if ( ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
-        mask = static_cast<contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
+        mask = static_cast<cm_contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
     }
 
     // Monsters/Players that are also dead shouldn't clip
     // against players/monsters.
     if ( ( ent->svflags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svflags & SVF_DEADMONSTER ) ) {
-        mask = static_cast<contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
+        mask = static_cast<cm_contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
     }
 
     return mask;
@@ -75,19 +75,19 @@ SV_TestEntityPosition
 
 ============
 */
-edict_t *SV_TestEntityPosition(edict_t *ent)
+svg_base_edict_t *SV_TestEntityPosition(svg_base_edict_t *ent)
 {
-    trace_t trace;
-    //contents_t mask;
+    svg_trace_t trace;
+    //cm_contents_t mask;
 
     //if (ent->clipmask)
     //    mask = ent->clipmask;
     //else
-    //    mask = MASK_SOLID;
-    trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
+    //    mask = CM_CONTENTMASK_SOLID;
+    trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
 
     if ( trace.startsolid ) {
-        return g_edicts;
+        return g_edict_pool.EdictForNumber( 0 );
     }
 
     return nullptr;
@@ -98,7 +98,7 @@ edict_t *SV_TestEntityPosition(edict_t *ent)
 SV_CheckVelocity
 ================
 */
-void SV_CheckVelocity(edict_t *ent)
+void SV_CheckVelocity(svg_base_edict_t *ent)
 {
 //    int     i;
 
@@ -128,7 +128,7 @@ SV_RunThink
 Runs thinking code for this frame if necessary
 =============
 */
-bool SV_RunThink(edict_t *ent)
+bool SV_RunThink(svg_base_edict_t *ent)
 {
     QMTime     thinktime;
 
@@ -142,15 +142,15 @@ bool SV_RunThink(edict_t *ent)
 
     ent->nextthink = 0_ms;
 
-    if ( !ent->think ) {
+    if ( !ent->HasThinkCallback() ) {
         // WID: Useful to output exact information about what entity we are dealing with here, that'll help us fix the problem :-).
         gi.error( "[ entityNumber(%d), inUse(%s), classname(%s), targetname(%s), luaName(%s), (nullptr) ent->think ]\n",
-            ent->s.number, ( ent->inuse != false ? "true" : "false" ), ent->classname, ent->targetname, ent->luaProperties.luaName);
+            ent->s.number, ( ent->inuse != false ? "true" : "false" ), (const char*)ent->classname, (const char *)ent->targetname, (const char *)ent->luaProperties.luaName);
         // Failed.
         return false;
     }
 
-    ent->think(ent);
+    ent->DispatchThinkCallback();
 
     return true;
 }
@@ -162,19 +162,19 @@ SVG_Impact
 Two entities have touched, so run their touch functions
 ==================
 */
-void SVG_Impact(edict_t *e1, trace_t *trace)
+void SVG_Impact(svg_base_edict_t *e1, svg_trace_t *trace)
 {
-    edict_t     *e2;
-//  cplane_t    backplane;
+    svg_base_edict_t     *e2;
+//  cm_plane_t    backplane;
 
     e2 = trace->ent;
 
-    if ( e1->touch && e1->solid != SOLID_NOT ) {
-        e1->touch( e1, e2, &trace->plane, trace->surface );
+    if ( e1->HasTouchCallback() && e1->solid != SOLID_NOT ) {
+        e1->DispatchTouchCallback( e2, &trace->plane, trace->surface );
     }
 
-    if ( e2->touch && e2->solid != SOLID_NOT ) {
-        e2->touch( e2, e1, NULL, NULL );
+    if ( e2->HasTouchCallback() && e2->solid != SOLID_NOT ) {
+        e2->DispatchTouchCallback( e1, NULL, NULL );
     }
 }
 
@@ -243,9 +243,9 @@ Returns the clipflags if the velocity was modified (hit something solid)
 ============
 */
 #define MAX_CLIP_PLANES 5
-int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
+int SV_FlyMove(svg_base_edict_t *ent, float time, const cm_contents_t mask)
 {
-    edict_t     *hit;
+    svg_base_edict_t     *hit;
     int         bumpcount, numbumps;
     vec3_t      dir;
     float       d;
@@ -253,7 +253,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
     Vector3     planes[MAX_CLIP_PLANES];
     Vector3      primal_velocity, original_velocity, new_velocity;
     int         i, j;
-    trace_t     trace;
+    svg_trace_t     trace;
     vec3_t      end;
     float       time_left;
     int         blocked;
@@ -272,7 +272,7 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
         for (i = 0; i < 3; i++)
             end[i] = ent->s.origin[i] + time_left * ent->velocity[i];
 
-        trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, end, ent, mask);
+        trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, end, ent, mask);
 
         if (trace.allsolid) {
             // entity is trapped in another solid
@@ -367,13 +367,13 @@ int SV_FlyMove(edict_t *ent, float time, const contents_t mask)
 
 /*
 ============
-SV_AddGravity
+SVG_AddGravity
 
 ============
 */
-void SV_AddGravity(edict_t *ent)
+void SVG_AddGravity(svg_base_edict_t *ent)
 {
-    ent->velocity[2] -= ent->gravity * sv_gravity->value * FRAMETIME;
+    ent->velocity += ent->gravityVector * ( ent->gravity * level.gravity * gi.frame_time_s );
 }
 
 /*
@@ -391,9 +391,9 @@ SV_PushEntity
 Does not change the entities velocity at all
 ============
 */
-trace_t SV_PushEntity(edict_t *ent, vec3_t push)
+svg_trace_t SV_PushEntity(svg_base_edict_t *ent, vec3_t push)
 {
-    trace_t trace;
+    svg_trace_t trace;
     vec3_t  start;
     vec3_t  end;
 
@@ -404,9 +404,9 @@ retry:
     //if (ent->clipmask)
     //    mask = ent->clipmask;
     //else
-    //    mask = MASK_SOLID;
+    //    mask = CM_CONTENTMASK_SOLID;
 
-    trace = gi.trace(start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
+    trace = SVG_Trace(start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
 
     VectorCopy(trace.endpos, ent->s.origin);
     gi.linkentity(ent);
@@ -423,6 +423,11 @@ retry:
         }
     }
 
+    // PGM
+    // FIXME - is this needed?
+    ent->gravity = 1.0;
+    // PGM
+
     if (ent->inuse)
         SVG_Util_TouchTriggers(ent);
 
@@ -430,7 +435,7 @@ retry:
 }
 
 typedef struct {
-    edict_t *ent;
+    svg_base_edict_t *ent;
     vec3_t  origin;
     vec3_t  angles;
     //#if USE_SMOOTH_DELTA_ANGLES
@@ -439,7 +444,7 @@ typedef struct {
 } pushed_t;
 pushed_t    pushed[MAX_EDICTS], *pushed_p;
 
-edict_t *obstacle;
+svg_base_edict_t *obstacle;
 
 const float SnapToEights( const float x ) {
     // WID: Float-movement.
@@ -460,10 +465,10 @@ Objects need to be moved back on a failed push,
 otherwise riders would continue to slide.
 ============
 */
-bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
+bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
 {
     int         i, e;
-    edict_t     *check, *block;
+    svg_base_edict_t     *check, *block;
     vec3_t      mins, maxs;
     pushed_t    *p;
     vec3_t      org, org2, move2, forward, right, up;
@@ -503,8 +508,8 @@ bool SV_Push(edict_t *pusher, vec3_t move, vec3_t amove)
     gi.linkentity(pusher);
 
 // see if any solid entities are inside the final position
-    check = g_edicts + 1;
-    for (e = 1; e < globals.num_edicts; e++, check++) {
+    check = g_edict_pool.EdictForNumber( 1 );
+    for (e = 1; e < globals.edictPool->num_edicts; e++, check = g_edict_pool.EdictForNumber( e ) ) {
         if (!check->inuse)
             continue;
         if (check->movetype == MOVETYPE_PUSH
@@ -621,10 +626,10 @@ Bmodel objects don't interact with each other, but
 push all box objects
 ================
 */
-void SV_Physics_Pusher(edict_t *ent)
+void SV_Physics_Pusher(svg_base_edict_t *ent)
 {
     vec3_t      move, amove;
-    edict_t     *part, *mv;
+    svg_base_edict_t     *part, *mv;
 
     // if not a team captain, so movement will be handled elsewhere
     if (ent->flags & FL_TEAMSLAVE)
@@ -659,8 +664,9 @@ retry:
 
         // if the pusher has a "blocked" function, call it
         // otherwise, just stay in place until the obstacle is gone
-        if (part->blocked)
-            part->blocked(part, obstacle);
+        if ( part->HasBlockedCallback() ) {
+            part->DispatchBlockedCallback( obstacle );
+        }
 #if 0
         // if the pushed entity went away and the pusher is still there
         if (!obstacle->inuse && part->inuse)
@@ -683,7 +689,7 @@ SV_Physics_None
 Non moving objects can only think
 =============
 */
-void SV_Physics_None(edict_t *ent)
+void SV_Physics_None(svg_base_edict_t *ent)
 {
 // regular thinking
     SV_RunThink(ent);
@@ -696,7 +702,7 @@ SV_Physics_Noclip
 A moving object that doesn't obey physics
 =============
 */
-void SV_Physics_Noclip(edict_t *ent)
+void SV_Physics_Noclip(svg_base_edict_t *ent)
 {
 // regular thinking
     if (!SV_RunThink(ent))
@@ -725,12 +731,12 @@ SV_Physics_Toss
 Toss, bounce, and fly movement.  When onground, do nothing.
 =============
 */
-void SV_Physics_Toss(edict_t *ent)
+void SV_Physics_Toss(svg_base_edict_t *ent)
 {
-    trace_t     trace;
+    svg_trace_t     trace;
     vec3_t      move;
     float       backoff;
-    edict_t     *slave;
+    svg_base_edict_t     *slave;
     int         wasinwater;
     int         isinwater;
     vec3_t      old_origin;
@@ -758,7 +764,12 @@ void SV_Physics_Toss(edict_t *ent)
     }
 
 // if onground, return without moving
-    if ( ent->groundInfo.entity ) {
+    if ( ent->groundInfo.entity && ent->gravity > 0.0f ) {  // PGM - gravity hack
+        if ( ent->svflags & SVF_MONSTER ) {
+            M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
+            M_WorldEffects( ent );
+        }
+
         return;
     }
 
@@ -768,7 +779,7 @@ void SV_Physics_Toss(edict_t *ent)
 
 // add gravity
     if (ent->movetype != MOVETYPE_FLY && ent->movetype != MOVETYPE_FLYMISSILE)
-        SV_AddGravity(ent);
+        SVG_AddGravity(ent);
 
 // move angles
     VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
@@ -802,20 +813,20 @@ void SV_Physics_Toss(edict_t *ent)
     }
 
 // check for water transition
-    wasinwater = (ent->liquidInfo.type & MASK_WATER);
+    wasinwater = (ent->liquidInfo.type & CM_CONTENTMASK_WATER);
     ent->liquidInfo.type = gi.pointcontents(ent->s.origin);
-    isinwater = ent->liquidInfo.type & MASK_WATER;
+    isinwater = ent->liquidInfo.type & CM_CONTENTMASK_WATER;
 
     if (isinwater)
-        ent->liquidInfo.level = liquid_level_t::LIQUID_FEET;
+        ent->liquidInfo.level = cm_liquid_level_t::LIQUID_FEET;
     else
-        ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;
+        ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
 
     const qhandle_t water_sfx_index = gi.soundindex( SG_RandomResourcePath( "world/water_land_splash", ".wav", 0, 8 ).c_str() );
     if ( !wasinwater && isinwater ) {
-        gi.positioned_sound( old_origin, g_edicts, CHAN_AUTO, water_sfx_index, 1, 1, 0 );
+        gi.positioned_sound( old_origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
     } else if ( wasinwater && !isinwater ) {
-        gi.positioned_sound( ent->s.origin, g_edicts, CHAN_AUTO, water_sfx_index, 1, 1, 0 );
+        gi.positioned_sound( ent->s.origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
     }
 
 // move teamslaves
@@ -851,7 +862,7 @@ FIXME: is this true?
 #define sv_friction         6.f
 #define sv_waterfriction    1.f
 
-void SV_AddRotationalFriction(edict_t *ent)
+void SV_AddRotationalFriction(svg_base_edict_t *ent)
 {
     int     n;
     float   adjustment;
@@ -871,15 +882,15 @@ void SV_AddRotationalFriction(edict_t *ent)
     }
 }
 
-void SV_Physics_Step(edict_t *ent)
+void SV_Physics_Step(svg_base_edict_t *ent)
 {
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
     float	   speed, newspeed, control;
     float	   friction;
-    edict_t *groundentity;
-    contents_t mask = SVG_GetClipMask( ent );
+    svg_base_edict_t *groundentity;
+    cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
     if ( !ent->groundInfo.entity ) {
@@ -912,10 +923,12 @@ void SV_Physics_Step(edict_t *ent)
         if ( !( ent->flags & FL_FLY ) )
             if ( !( ( ent->flags & FL_SWIM ) && ( ent->liquidInfo.level > LIQUID_WAIST ) ) ) {
                 //if ( ent->velocity[ 2 ] < level.gravity * -0.1f )
-                if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
+                if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f ) {
                     hitsound = true;
-                if ( ent->liquidInfo.level != LIQUID_UNDER )
-                    SV_AddGravity( ent );
+                }
+                if ( ent->liquidInfo.level != LIQUID_UNDER ) {
+                    SVG_AddGravity( ent );
+                }
             }
 
     // friction for flying monsters that have been given vertical velocity
@@ -925,8 +938,9 @@ void SV_Physics_Step(edict_t *ent)
         control = speed < sv_stopspeed ? sv_stopspeed : speed;
         friction = sv_friction / 3;
         newspeed = speed - ( gi.frame_time_s * control * friction );
-        if ( newspeed < 0 )
+        if ( newspeed < 0 ) {
             newspeed = 0;
+        }
         newspeed /= speed;
         ent->velocity[ 2 ] *= newspeed;
     }
@@ -1026,8 +1040,8 @@ void SV_Physics_Step(edict_t *ent)
 //    float       *vel = nullptr;
 //    float       speed = 0.f, newspeed = 0.f, control = 0.f;
 //    float       friction = 0.f;
-//    edict_t     *groundentity = nullptr;
-//    contents_t  mask = SVG_GetClipMask( ent );
+//    svg_base_edict_t     *groundentity = nullptr;
+//    cm_contents_t  mask = SVG_GetClipMask( ent );
 //
 //    // airborn monsters should always check for ground
 //    if ( !ent->groundentity ) {
@@ -1055,7 +1069,7 @@ void SV_Physics_Step(edict_t *ent)
 //                if (ent->velocity[2] < sv_gravity->value * -0.1f)
 //                    hitsound = true;
 //                if (ent->liquidInfo.level == 0)
-//                    SV_AddGravity(ent);
+//                    SVG_AddGravity(ent);
 //            }
 //
 //    // friction for flying monsters that have been given vertical velocity
@@ -1104,9 +1118,9 @@ void SV_Physics_Step(edict_t *ent)
 //            }
 //
 //        if (ent->svflags & SVF_MONSTER)
-//            mask = MASK_MONSTERSOLID;
+//            mask = CM_CONTENTMASK_MONSTERSOLID;
 //        else
-//            mask = MASK_SOLID;
+//            mask = CM_CONTENTMASK_SOLID;
 //
 //        const Vector3 oldOrigin = ent->s.origin;
 //        SV_FlyMove(ent, FRAMETIME, mask);
@@ -1130,14 +1144,14 @@ void SV_Physics_Step(edict_t *ent)
 /**
 *   @brief  For RootMotion entities.
 **/
-void SV_Physics_RootMotion( edict_t *ent ) {
+void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
     float	   speed, newspeed, control;
     float	   friction;
-    edict_t *groundentity;
-    contents_t mask = SVG_GetClipMask( ent );
+    svg_base_edict_t *groundentity;
+    cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
     if ( !ent->groundInfo.entity ) {
@@ -1173,7 +1187,7 @@ void SV_Physics_RootMotion( edict_t *ent ) {
                 if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
                     hitsound = true;
                 if ( ent->liquidInfo.level != LIQUID_UNDER )
-                    SV_AddGravity( ent );
+                    SVG_AddGravity( ent );
             }
 
     // friction for flying monsters that have been given vertical velocity
@@ -1281,7 +1295,7 @@ SVG_RunEntity
 
 ================
 */
-void SVG_RunEntity(edict_t *ent)
+void SVG_RunEntity(svg_base_edict_t *ent)
 {
     Vector3	previousOrigin;
     bool	isMoveStepper = false;
@@ -1291,8 +1305,8 @@ void SVG_RunEntity(edict_t *ent)
         isMoveStepper = true;
     }
 
-    if ( ent->prethink ) {
-        ent->prethink( ent );
+    if ( ent->HasPreThinkCallback() ) {
+        ent->DispatchPreThinkCallback( );
     }
 
     switch ( ent->movetype ) {
@@ -1325,13 +1339,13 @@ void SVG_RunEntity(edict_t *ent)
     if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {
         // if we moved, check and fix origin if needed
         if ( !VectorCompare( ent->s.origin, previousOrigin ) ) {
-            trace_t trace = gi.trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
+            svg_trace_t trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
             if ( trace.allsolid || trace.startsolid )
                 VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;
         }
     }
 
-    if ( ent->postthink ) {
-        ent->postthink( ent );
+    if ( ent->HasPostThinkCallback() ) {
+        ent->DispatchPostThinkCallback();
     }
 }

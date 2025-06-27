@@ -14,10 +14,10 @@
 *   @return The bounding box of 'mins' and 'maxs'
 **/
 QM_API BBox3 QM_BBox3FromMinsMaxs( const Vector3 &mins, const Vector3 &maxs ) {
-    return {
+    return BBox3(
         mins,
         maxs
-    };
+    );
 }
 
 /**
@@ -32,10 +32,10 @@ QM_API Vector3 QM_BBox3Center( const BBox3 &bbox ) {
 *	@return A bbox3 containing the correct mins and maxs matching a zero center origin.
 **/
 QM_API BBox3 QM_BBox3FromSize( const Vector3 &size ) {
-    return BBox3{
+    return BBox3(
         QM_Vector3Scale( size, -0.5f ),
         QM_Vector3Scale( size, 0.5f )
-    };
+    );
 }
 /**
 *	@brief	Constructs a vec3_zero centered matching bounding box from the x,y,z values.
@@ -49,10 +49,10 @@ QM_API BBox3 QM_BBox3FromSize( const float x, const float y, const float z ) {
 *	@return A zero sized box.
 **/
 QM_API BBox3 QM_BBox3Zero() {
-    return BBox3{
+    return BBox3(
         QM_Vector3Zero(),
         QM_Vector3Zero()
-    };
+    );
 }
 /**
 *	@brief	Constructs an INFINITY sized box which can be used to add points to (ie it scaled down to),
@@ -60,10 +60,10 @@ QM_API BBox3 QM_BBox3Zero() {
 *	@return A box sized to INFINITY.
 **/
 QM_API BBox3 QM_BBox3Infinity() {
-    return BBox3{
-        { INFINITY, INFINITY, INFINITY },
-        { -INFINITY, -INFINITY, -INFINITY }
-    };
+    return BBox3(
+        Vector3{ INFINITY, INFINITY, INFINITY },
+        Vector3{ -INFINITY, -INFINITY, -INFINITY }
+    );
 }
 
 /**
@@ -120,6 +120,7 @@ QM_API_DISCARD void QM_BBox3ToPoints( const BBox3 &box, Vector3 *points ) {
 *	@brief	Returns true if boxA its bounds intersect the bounds of box B, false otherwise.
 **/
 QM_API bool QM_BBox3Intersects( const BBox3 &boxA, const BBox3 &boxB ) {
+    #if 0
     if ( boxA.mins.x >= boxB.maxs.x || boxA.mins.y >= boxB.maxs.y || boxA.mins.z >= boxB.maxs.z ) {
         return false;
     }
@@ -127,8 +128,31 @@ QM_API bool QM_BBox3Intersects( const BBox3 &boxA, const BBox3 &boxB ) {
     if ( boxA.maxs.x <= boxB.mins.x || boxA.maxs.y <= boxB.mins.y || boxA.maxs.z <= boxB.mins.z ) {
         return false;
     }
+    #else
+    if ( boxA.mins.x > boxB.maxs.x || boxA.mins.y > boxB.maxs.y || boxA.mins.z > boxB.maxs.z ) {
+        return false;
+    }
+
+    if ( boxA.maxs.x < boxB.mins.x || boxA.maxs.y < boxB.mins.y || boxA.maxs.z < boxB.mins.z ) {
+        return false;
+    }
+    #endif
 
     return true;
+}
+
+/**
+ * @return A `box_t` that is the intersection of the passed bounds.
+ */
+QM_API BBox3 QM_BBox3Intersection( const BBox3 &a, const BBox3 &b ) {
+    if ( !QM_BBox3Intersects( a, b ) ) {
+        return QM_BBox3Zero();
+    } else {
+        return BBox3(
+            QM_Vector3Maxf( a.mins, b.mins ),   // Mins.
+            QM_Vector3Minf( a.maxs, b.maxs )    // Maxs.
+        );
+    }
 }
 
 /**
@@ -174,10 +198,10 @@ QM_API float QM_BBox3Radius( const BBox3 &box ) {
 **/
 QM_API BBox3 QM_BBox3FromCenterSize( const Vector3 &size, const Vector3 &center = QM_Vector3Zero() ) {
     const Vector3 halfSize = QM_Vector3Scale( size, .5f );
-    return BBox3{
-        center - halfSize,
-        center + halfSize,
-    };
+    return BBox3(
+        Vector3( center - halfSize ),
+        Vector3( center + halfSize )
+    );
 }
 
 /**
@@ -185,20 +209,20 @@ QM_API BBox3 QM_BBox3FromCenterSize( const Vector3 &size, const Vector3 &center 
 **/
 QM_API BBox3 QM_BBox3FromCenterRadius( const float radius, const Vector3 &center = QM_Vector3Zero() ) {
     const Vector3 radiusVec = { radius, radius, radius };
-    return BBox3{
-        center - radiusVec,
-        center + radiusVec,
-    };
+    return BBox3(
+        Vector3( center - radiusVec ),
+        Vector3( center + radiusVec )
+    );
 }
 
 /**
 *	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
 **/
 QM_API BBox3 QM_BBox3ExpandVector3( const BBox3 &bounds, const Vector3 &expansion ) {
-    return BBox3{
-        bounds.mins - expansion,
-        bounds.maxs + expansion
-    };
+    return BBox3(
+        Vector3( bounds.mins - expansion ),
+		Vector3( bounds.maxs + expansion )
+    );
 }
 /**
 *	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
@@ -210,10 +234,10 @@ QM_API BBox3 QM_BBox3ExpandValue( const BBox3 &bounds, const float expansion ) {
 *	@return A bounding box expanded, or shrunk(in case of negative values), on all axis.
 **/
 QM_API BBox3 QM_BBox3ExpandBBox3( const BBox3 &boundsA, const BBox3 &boundsB ) {
-    return BBox3{
+    return BBox3(
         boundsA.mins + boundsB.mins,
         boundsA.maxs + boundsB.maxs
-    };
+    );
 }
 
 /**
@@ -227,10 +251,10 @@ QM_API Vector3 QM_BBox3ClampPoint( const BBox3 &bounds, const Vector3 &point ) {
 *	@return	The bounds of 'boundsB' clamped within and to the bounds of 'boundsA'.
 **/
 QM_API BBox3 QM_BBox3ClampBounds( const BBox3 &boundsA, const BBox3 &boundsB ) {
-    return BBox3{
+    return BBox3(
         QM_Vector3Clamp( boundsB.mins, boundsA.mins, boundsA.maxs ),
-        QM_Vector3Clamp( boundsB.maxs, boundsA.mins, boundsA.maxs ),
-    };
+        QM_Vector3Clamp( boundsB.maxs, boundsA.mins, boundsA.maxs )
+    );
 }
 
 /**
@@ -261,10 +285,10 @@ QM_API Vector3 QM_BBox3Symmetrical( const BBox3 &bounds ) {
 *	@return	A scaled version of 'bounds'.
 **/
 QM_API BBox3 QM_BBox3Scale( const BBox3 &bounds, const float scale ) {
-    return BBox3{
+    return BBox3(
         QM_Vector3Scale( bounds.mins, scale ),
-        QM_Vector3Scale( bounds.maxs, scale ),
-    };
+        QM_Vector3Scale( bounds.maxs, scale )
+    );
 }
 #endif // #ifdef __cplusplus
 

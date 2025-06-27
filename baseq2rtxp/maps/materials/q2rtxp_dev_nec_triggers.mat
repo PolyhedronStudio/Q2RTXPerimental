@@ -1,0 +1,37 @@
+textures/pbr02/bricks00:
+	texture_base textures/pbr02/bricks00.tga
+	texture_normals textures/pbr02/bricks00_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+    specular_factor 0.125
+textures/pbr02/concrete01:
+	texture_base textures/pbr02/concrete01.tga
+	texture_normals textures/pbr02/concrete01_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+	specular_factor 0.125
+textures/pbr02/steel00:
+    kind CHROME
+	texture_base textures/pbr02/steel00.tga
+	texture_normals textures/pbr02/steel00_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+    metalness_factor 1.0
+	specular_factor 0.1375
+    roughness_override 1.0
+textures/pbr02/tiles00:
+	texture_base textures/pbr02/tiles00.tga
+	texture_normals textures/pbr02/tiles00_n.tga
+	base_factor 2.5
+	bump_scale 1.0
+    specular_factor 0.25
+textures/lights/pa16_d2aa99:
+	texture_base textures/lights/pa16_d2aa99.tga
+    texture_emissive textures/lights/pa16_d2aa99_light.tga
+	base_factor 1.0
+	emissive_factor 0.1
+    is_light 1
+	light_styles 1
+	default_radiance 1.0
+	bsp_radiance 1.0
+

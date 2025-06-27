@@ -117,6 +117,59 @@ void CLG_AddBeams( void ) {
 
         // add new entities for the beams
         d = VectorNormalize( dist );
+        model_length = 30.0f;
+        steps = ceil( d / model_length );
+        len = ( d - model_length ) / ( steps - 1 );
+
+        memset( &ent, 0, sizeof( ent ) );
+        ent.model = b->model;
+
+        // PMM - special case for lightning model .. if the real length is shorter than the model,
+        // flip it around & draw it from the end to the start.  This prevents the model from going
+        // through the tesla mine (instead it goes through the target)
+
+        while ( d > 0 ) {
+            VectorCopy( org, ent.origin );
+            ent.angles[ 0 ] = angles[ 0 ];
+            ent.angles[ 1 ] = angles[ 1 ];
+            ent.angles[ 2 ] = irandom( 360 );
+            clgi.V_AddEntity( &ent );
+
+            for ( j = 0; j < 3; j++ )
+                org[ j ] += dist[ j ] * len;
+            d -= model_length;
+        }
+    }
+}
+// <Q2RTXP>: In case we may need to look into this.
+#if 0 
+void CLG_AddBeams( void ) {
+    int         i, j;
+    beam_t *b;
+    vec3_t      dist, org;
+    float       d;
+    entity_t    ent;
+    vec3_t      angles;
+    float       len, steps;
+    float       model_length;
+
+    // update beams
+    for ( i = 0, b = cl_beams; i < MAX_BEAMS; i++, b++ ) {
+        if ( !b->model || b->endtime < clgi.client->time )
+            continue;
+
+        // if coming from the player, update the start position
+        if ( b->entity == clgi.client->frame.clientNum + 1 )
+            VectorAdd( clgi.client->playerEntityOrigin, b->offset, org );
+        else
+            VectorAdd( b->start, b->offset, org );
+
+        // calculate pitch and yaw
+        VectorSubtract( b->end, org, dist );
+        QM_Vector3ToAngles( dist, angles );
+
+        // add new entities for the beams
+        d = VectorNormalize( dist );
         if ( b->model == precache.models.lightning ) {
             model_length = 35.0f;
             d -= 20.0f; // correction so it doesn't end in middle of tesla
@@ -163,6 +216,7 @@ void CLG_AddBeams( void ) {
         }
     }
 }
+#endif
 
 /*
 =================

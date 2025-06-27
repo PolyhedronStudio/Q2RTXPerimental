@@ -6,19 +6,19 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // Should already have been defined by CMake for this ClientGame target.
 // 
-// Define CLGAME_INCLUDE so that clgame.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// Define CLGAME_INCLUDE so that cl_game.h does not define the
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
 #ifndef CLGAME_INCLUDE
 #define CLGAME_INCLUDE
 #endif
-#include "shared/clgame.h"
+#include "shared/client/cl_game.h"
 
-// Extern here right after including shared/clgame.h
+// Extern here right after including shared/client/cl_game.h
 extern clgame_import_t clgi;
 extern clgame_export_t globals;
 
@@ -276,8 +276,8 @@ typedef struct centity_s {
 /**
 *	Memory tag IDs to allow dynamic memory to be cleaned up.
 **/
-#define TAG_CLGAME			777 // Clear when unloading the dll.
-#define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
+//#define TAG_CLGAME			777 // Clear when unloading the dll.
+//#define TAG_CLGAME_LEVEL	778 // Clear when loading a new level.
 
 
 
@@ -693,7 +693,7 @@ extern game_locals_t game;
 *
 *	@todo	In the future, look into saving its state in: level.clsv
 **/
-struct level_locals_t {
+struct svg_level_locals_t {
 	//! Frame number, starts incrementing when the level session has begun..
 	int64_t		framenum;
 	//! Time passed, also starts incrementing when the level session has begun.
@@ -744,7 +744,7 @@ struct level_locals_t {
 		float lerpFraction;
 	} eaxEffect;
 };
-extern level_locals_t level;
+extern svg_level_locals_t level;
 
 
 
@@ -791,8 +791,8 @@ typedef struct clg_explosion_s {
 		ex_misc,
 		ex_flash,
 		ex_mflash,
-		ex_poly,
-		ex_poly2,
+		ex_polygon_curvature,
+		ex_polygon_curvature2,
 		ex_light,
 		ex_blaster,
 		ex_flare

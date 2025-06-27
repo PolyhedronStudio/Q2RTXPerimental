@@ -18,6 +18,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "shared/shared.h"
 
+// Include nlohman::json library for easy parsing.
+#include <nlohmann/json.hpp>
+
+// Antique Quake Constant:
 const vec3_t vec3_origin = { 0, 0, 0 };
 
 /**

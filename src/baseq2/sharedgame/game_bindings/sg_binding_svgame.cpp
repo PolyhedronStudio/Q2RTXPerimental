@@ -6,15 +6,15 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // define SVGAME_INCLUDE so that game.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
-#include "shared/svgame.h"
+#include "shared/server/sv_game.h"
 #include "../../svgame/g_local.h"
 
-// Extern here right after including shared/clgame.h
+// Extern here right after including shared/client/cl_game.h
 extern svgame_import_t gi;
 
 /**

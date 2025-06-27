@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "shared/shared.h"
 #include "common/math.h"
 
-void SetPlaneType(cplane_t *plane)
+void SetPlaneType(cm_plane_t *plane)
 {
     vec_t *normal = plane->normal;
 
@@ -39,7 +39,7 @@ void SetPlaneType(cplane_t *plane)
     plane->type = PLANE_NON_AXIAL;
 }
 
-void SetPlaneSignbits(cplane_t *plane)
+void SetPlaneSignbits(cm_plane_t *plane)
 {
     int bits = 0;
 
@@ -63,7 +63,7 @@ BoxOnPlaneSide
 Returns 1, 2, or 1 + 2
 ==================
 */
-int BoxOnPlaneSide(const vec3_t emins, const vec3_t emaxs, const cplane_t *p)
+int BoxOnPlaneSide(const vec3_t emins, const vec3_t emaxs, const cm_plane_t *p)
 {
     const vec_t *bounds[2] = { emins, emaxs };
     int     i = p->signbits & 1;

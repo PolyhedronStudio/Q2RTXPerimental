@@ -17,17 +17,22 @@
 
 
 
-template<typename T, int32_t tag>
+template<typename T, const memtag_t tag>
 struct sg_qtag_string_t {
+	// Ensure that T is either char or wchar_t.
+	static_assert( std::is_same<T, char>::value || std::is_same<T, wchar_t>::value, "sg_qtag_string_t only supports char or wchar_t types!" );
+	// Size of the type T.
+	static constexpr size_t type_size = sizeof( T );
+
 	//! The actual pointer storing our string.
 	T *ptr;
-	//! The size in characters.
-	size_t	count;
+	//! The size in characters, the actual memory block has one extra character for the end of string.
+	size_t count;
 
 	/**
 	*	Default constructor.
 	**/
-	constexpr sg_qtag_string_t() noexcept {
+	sg_qtag_string_t() noexcept {
 		ptr = nullptr;
 		count = 0;
 	}
@@ -41,27 +46,27 @@ struct sg_qtag_string_t {
 			return;
 		}
 		// Acquire the count, add + 1 for end of string.
-		count = strlen( charStr ) + 1;
+		count = strlen( charStr );
 		// Reallocate the tag ptr if we already had space allocated for it.
 		if ( ptr ) {
 			ptr = reinterpret_cast<T *>( SG_Z_TagReMalloc( ptr, size() ) );
 		// Otherwise, allocate a new tag block.
 		} else {
-			ptr = reinterpret_cast<T *>( SG_Z_TagMalloc( size(), tag ) );
+			ptr = reinterpret_cast<T *>( SG_Z_TagMallocz( size(), tag ) );
 		}
 
 		// Copy over string.
 		if ( ptr ) {
-			memcpy( ptr, charStr, size() );
-			// Should not really ever happen!
+			// Clear the memory block first.
+			memset( ptr, 0, size() );
+			// Copy over the string data.
+			memcpy( ptr, charStr, length() );
+		// Should not really ever happen!
 		} else {
 			count = 0;
 			ptr = nullptr;
 			SG_DPrintf( "%s: failed to allocate ptr for assigning string[\"%s\"], releasing this object now!\n", __func__, charStr );
 		}
-
-		//move.ptr = nullptr;
-		//move.count = 0;
 	}
 
 private:
@@ -139,18 +144,21 @@ public:
 		*this = sg_qtag_string_t<T, tag>( charStr );
 		#else
 		// Acquire the count, add + 1 for end of string.
-		count = strlen( charStr ) + 1;
+		count = strlen( charStr );
 		// Reallocate the tag ptr if we already had space allocated for it.
 		if ( ptr ) {
 			ptr = reinterpret_cast<T *>( SG_Z_TagReMalloc( ptr, size() ) );
 		// Otherwise, allocate a new tag block.
 		} else {
-			ptr = reinterpret_cast<T *>( SG_Z_TagMalloc( size(), tag ) );
+			ptr = reinterpret_cast<T *>( SG_Z_TagMallocz( size(), tag ) );
 		}
 
 		// Copy over string.
 		if ( ptr ) {
-			memcpy( ptr, charStr, size() );
+			// Clear the memory block first.
+			memset( ptr, 0, size() );
+			// Copy over the string data.
+			memcpy( ptr, charStr, length() );
 		// Should not really ever happen!
 		} else {
 			count = 0;
@@ -167,7 +175,7 @@ public:
 	*	@brief	Releases tag allocated memory if we had any.
 	**/
 	inline void release() noexcept {
-		if ( ptr ) {
+		if ( ptr && *ptr != '\0' ) {
 			SG_Z_TagFree( ptr );
 			count = 0;
 			ptr = nullptr;
@@ -177,9 +185,9 @@ public:
 	/**
 	*	Pointer Operators:
 	**/
-	constexpr explicit operator T *( ) { return ptr; }
-	constexpr explicit operator const T *( ) { return ptr; }
-	constexpr explicit operator const T *( ) const { return ptr; }
+	constexpr explicit operator T *( ) { return ptr; };
+	constexpr operator const T *( ) { return ptr; }
+	constexpr operator const T *( ) const { return ptr; }
 	
 
 	/**
@@ -194,9 +202,13 @@ public:
 	constexpr operator bool() const { return !!ptr; }
 
 	/**
-	*	@brief	Return the size of the contained char array memory block.s
+	*	@brief	Return the size of the contained char array memory block.
 	**/
-	constexpr size_t size() const noexcept { return count * sizeof( T ); }
+	constexpr size_t size() const noexcept { return ( count + 1 ) * sizeof( T ); }
+	/**
+	*	@brief	Return the amount of characters of the string contained with the char array memory block.
+	**/
+	constexpr size_t length() const noexcept { return count * sizeof( T ); }
 
 	/**
 	*	@brief	Allocates a block of sg_qtag_string_t for the specified count of characters.
@@ -208,7 +220,14 @@ public:
 			return { nullptr, 0 };
 		}
 		// Allocate the space for the specified amount of characters and pass it into the sg_qtag_string_t.
-		return { reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * _count + 1, tag ) ), _count };
+		return { reinterpret_cast<T *>( memset( 
+					SG_Z_TagMallocz( ( _count + 1 ) * sizeof( T ), tag ), 
+					0,
+					( _count + 1 ) * sizeof( T ) 
+				) 
+			),
+			_count 
+		};
 	}
 	/**
 	*	@brief	Allocates a block of sg_qtag_string_t with a copy of the string argument.
@@ -231,11 +250,13 @@ public:
 		//count += 1;
 
 		// Allocate the space for the specified amount of characters.
-		T *_ptr = reinterpret_cast<T *>( SG_Z_TagMalloc( sizeof( T ) * _count + 1, tag ) );
+		T *_ptr = reinterpret_cast<T *>( SG_Z_TagMallocz( sizeof( T ) * _count + 1, tag ) );
+		// Clear the memory block first.
+		memset( _ptr, 0, sizeof( T ) * ( _count + 1 ) );
 		// Copy over the string data.
-		memcpy( _ptr, charStr, sizeof( T ) * _count );
+		memcpy( _ptr, charStr, ( _count ) * sizeof( T ) );
 		// Return a charstring_t with the designated pointer.
-		return { _ptr, _count + 1 };
+		return { _ptr, _count };
 	}
 	/**
 	*	@brief	Allocates a block of sg_qtag_string_t with a copy of the string argument.

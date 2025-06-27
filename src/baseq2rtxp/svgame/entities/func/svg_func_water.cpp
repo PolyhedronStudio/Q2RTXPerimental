@@ -20,11 +20,7 @@
 
 
 
-/**
-*   Spawnflags:
-**/
-static constexpr int32_t FUNC_WATER_START_OPEN  = BIT( 0 );
-static constexpr int32_t FUNC_WATER_TOGGLE      = BIT( 4 );
+
 
 
 
@@ -43,13 +39,14 @@ START_OPEN causes the water to move to its destination when spawned and operate 
 2)  lava
 */
 
-void SP_func_water( edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_water_t, onSpawn )( svg_func_water_t *self ) -> void {
     vec3_t  abs_movedir;
 
     SVG_Util_SetMoveDir( self->s.angles, self->movedir );
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
     self->s.entityType = ET_PUSHER;
+    self->svflags = SVF_DOOR;
     gi.setmodel( self, self->model );
 
     switch ( self->sounds ) {
@@ -72,11 +69,11 @@ void SP_func_water( edict_t *self ) {
     abs_movedir[ 0 ] = fabsf( self->movedir[ 0 ] );
     abs_movedir[ 1 ] = fabsf( self->movedir[ 1 ] );
     abs_movedir[ 2 ] = fabsf( self->movedir[ 2 ] );
-    self->pushMoveInfo.distance = abs_movedir[ 0 ] * self->size[ 0 ] + abs_movedir[ 1 ] * self->size[ 1 ] + abs_movedir[ 2 ] * self->size[ 2 ] - st.lip;
+    self->pushMoveInfo.distance = abs_movedir[ 0 ] * self->size[ 0 ] + abs_movedir[ 1 ] * self->size[ 1 ] + abs_movedir[ 2 ] * self->size[ 2 ] - self->lip;
     VectorMA( self->pos1, self->pushMoveInfo.distance, self->movedir, self->pos2 );
 
     // if it starts open, switch the positions
-    if ( self->spawnflags & FUNC_WATER_START_OPEN ) {
+    if ( self->spawnflags & SelfType::SPAWNFLAG_START_OPEN ) {
         VectorCopy( self->pos2, self->s.origin );
         VectorCopy( self->pos1, self->pos2 );
         VectorCopy( self->s.origin, self->pos1 );
@@ -97,12 +94,11 @@ void SP_func_water( edict_t *self ) {
         self->wait = -1;
     self->pushMoveInfo.wait = self->wait;
 
-    self->use = door_use;
+    self->SetUseCallback( &SelfType::onUse );
 
-    if ( self->wait == -1 )
-        self->spawnflags |= DOOR_SPAWNFLAG_TOGGLE;
-
-    self->classname = "func_door";
+    if ( self->wait == -1 ) {
+        self->spawnflags |= SelfType::SPAWNFLAG_TOGGLE;
+    }
 
     gi.linkentity( self );
 }

@@ -7,24 +7,25 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_chase.h"
-
+#include "svgame/svg_combat.h"
+#include "svgame/svg_utils.h"
 
 
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Update(edict_t *ent)
+void SVG_ChaseCam_Update(svg_base_edict_t *ent)
 {
     vec3_t o, ownerv, goal;
-    edict_t *targ;
+    svg_base_edict_t *targ;
     vec3_t forward, right;
-    trace_t trace;
+    svg_trace_t trace;
     vec3_t angles;
 
     // is our chase target gone?
     if (!ent->client->chase_target->inuse
         || ent->client->chase_target->client->resp.spectator) {
-        edict_t *old = ent->client->chase_target;
+        svg_base_edict_t *old = ent->client->chase_target;
         SVG_ChaseCam_Next(ent);
         if (ent->client->chase_target == old) {
             ent->client->chase_target = NULL;
@@ -54,7 +55,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
         o[ 2 ] += 16;
     }
 
-    trace = gi.trace(ownerv, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(ownerv, vec3_origin, vec3_origin, o, targ, CM_CONTENTMASK_SOLID);
 
     VectorCopy(trace.endpos, goal);
 
@@ -63,7 +64,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
     // pad for floors and ceilings
     VectorCopy(goal, o);
     o[2] += 6;
-    trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(goal, vec3_origin, vec3_origin, o, targ, CM_CONTENTMASK_SOLID);
     if (trace.fraction < 1) {
         VectorCopy(trace.endpos, goal);
         goal[2] -= 6;
@@ -71,7 +72,7 @@ void SVG_ChaseCam_Update(edict_t *ent)
 
     VectorCopy(goal, o);
     o[2] -= 6;
-    trace = gi.trace(goal, vec3_origin, vec3_origin, o, targ, MASK_SOLID);
+    trace = SVG_Trace(goal, vec3_origin, vec3_origin, o, targ, CM_CONTENTMASK_SOLID);
     if (trace.fraction < 1) {
         VectorCopy(trace.endpos, goal);
         goal[2] += 6;
@@ -105,24 +106,27 @@ void SVG_ChaseCam_Update(edict_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Next(edict_t *ent)
+void SVG_ChaseCam_Next(svg_base_edict_t *ent)
 {
     int i;
-    edict_t *e;
+    svg_base_edict_t *e;
 
     if (!ent->client->chase_target)
         return;
 
-    i = ent->client->chase_target - g_edicts;
+    i = g_edict_pool.NumberForEdict( ent->client->chase_target ); // ent->client->chase_target - g_edicts;
     do {
         i++;
-        if (i > maxclients->value)
+        if ( i > maxclients->value ) {
             i = 1;
-        e = g_edicts + i;
-        if (!e->inuse)
+        }
+        e = g_edict_pool.EdictForNumber( i );//g_edicts + i;
+        if ( !e || !e->inuse ) {
             continue;
-        if (!e->client->resp.spectator)
+        }
+        if ( !e->client->resp.spectator ) {
             break;
+        }
     } while (e != ent->client->chase_target);
 
     ent->client->chase_target = e;
@@ -134,24 +138,27 @@ void SVG_ChaseCam_Next(edict_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_Previous(edict_t *ent)
+void SVG_ChaseCam_Previous(svg_base_edict_t *ent)
 {
     int i;
-    edict_t *e;
+    svg_base_edict_t *e;
 
     if (!ent->client->chase_target)
         return;
 
-    i = ent->client->chase_target - g_edicts;
+    i = g_edict_pool.NumberForEdict( ent->client->chase_target ); //i = ent->client->chase_target - g_edicts;
     do {
         i--;
-        if (i < 1)
+        if ( i < 1 ) {
             i = maxclients->value;
-        e = g_edicts + i;
-        if (!e->inuse)
+        }
+        e = g_edict_pool.EdictForNumber( i ); //g_edicts + i;
+        if ( !e->inuse ) {
             continue;
-        if (!e->client->resp.spectator)
+        }
+        if ( !e->client->resp.spectator ) {
             break;
+        }
     } while (e != ent->client->chase_target);
 
     ent->client->chase_target = e;
@@ -163,14 +170,14 @@ void SVG_ChaseCam_Previous(edict_t *ent)
 /**
 *   @brief
 **/
-void SVG_ChaseCam_GetTarget(edict_t *ent)
+void SVG_ChaseCam_GetTarget(svg_base_edict_t *ent)
 {
     int i;
-    edict_t *other;
+    svg_base_edict_t *other;
 
     for (i = 1; i <= maxclients->value; i++) {
-        other = g_edicts + i;
-        if (other->inuse && !other->client->resp.spectator) {
+        other = g_edict_pool.EdictForNumber( i ); //g_edicts + i;
+        if (other && other->inuse && !other->client->resp.spectator) {
             ent->client->chase_target = other;
             ent->client->update_chase = true;
             SVG_ChaseCam_Update(ent);

@@ -117,7 +117,8 @@ void CM_FreeMap( cm_t *cm ) {
     BSP_Free( cm->cache );
 
     // Zero out all collision model memory for an optional new re-use.
-    memset( cm, 0, sizeof( *cm ) );
+    //memset( cm, 0, sizeof( *cm ) );
+    *cm = {};
 }
 
 

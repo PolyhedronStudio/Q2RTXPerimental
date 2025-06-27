@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/svg_lua.h"
@@ -15,19 +16,8 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_wall.h"
 
-
-
-
-//! Spawn the wall and trigger at spawn.
-static constexpr int32_t FUNC_WALL_TRIGGER_SPAWN= BIT( 0 );
-//! Only valid for TRIGGER_SPAWN walls. This allows the wall to be turned on and off.
-static constexpr int32_t FUNC_WALL_TOGGLE       = BIT( 1 );
-//! Only valid for TRIGGER_SPAWN walls. The wall will initially be present.
-static constexpr int32_t FUNC_WALL_START_ON     = BIT( 2 );
-//! The wall will animate.
-static constexpr int32_t FUNC_WALL_ANIMATE      = BIT( 3 );
-//! The wall will animate quickly.
-static constexpr int32_t FUNC_WALL_ANIMATE_FAST = BIT( 4 );
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_means_of_death.h"
 
 
 
@@ -41,66 +31,66 @@ static constexpr int32_t FUNC_WALL_ANIMATE_FAST = BIT( 4 );
 *
 **/
 /**
-*   @brief  'Turns on' the wall.
+*   @brief  'Turns on'/'Shows' the wall.
 **/
-static void func_wall_turn_on( edict_t *self ) {
+void svg_func_wall_t::TurnOn() {
 	// Set the wall to be solid.
-	self->solid = SOLID_BSP;
+	solid = SOLID_BSP;
 	// Enable entity to be send to clients.
-	self->svflags &= ~SVF_NOCLIENT;
+	svflags &= ~SVF_NOCLIENT;
     // Unlink the entity.
-    gi.unlinkentity( self );
+    gi.unlinkentity( this );
     // Perform a KillBox clipped to BSP for the entity.
-	SVG_Util_KillBox( self, true );
+	SVG_Util_KillBox( this, true, sg_means_of_death_t::MEANS_OF_DEATH_TELEFRAGGED );
     // Relink the entity.
-    gi.linkentity( self );
+    gi.linkentity( this );
 }
 
 /**
-*   @brief  'Turns off' the wall.
+*   @brief  'Turns off'/'Hides' the wall.
 **/
-static void func_wall_turn_off( edict_t *self ) {
+void svg_func_wall_t::TurnOff( ) {
 	// Set the wall to be non-solid.
-	self->solid = SOLID_NOT;
+	solid = SOLID_NOT;
 	// Disable entity from being send to clients.
-	self->svflags |= SVF_NOCLIENT;
+	svflags |= SVF_NOCLIENT;
 	// Relink the entity.
-	gi.linkentity( self );
+	gi.linkentity( this );
 }
 /**
 *   @brief  Will toggle the wall's state between on and off.
 **/
-static void func_wall_toggle( edict_t *self ) {
+void svg_func_wall_t::Toggle( ) {
 	// If the wall is currently solid, turn it off.
-	if ( self->solid == SOLID_NOT ) {
+	if ( solid == SOLID_NOT ) {
 		// Turn on the wall.
-		func_wall_turn_on( self );
+        TurnOn();
     // Otherwise, turn it off.
 	} else {
 		// Turn off the wall.
-		func_wall_turn_off( self );
+        TurnOff();
 	}
 }
 
 /**
 *   @brief
 **/
-void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+DEFINE_MEMBER_CALLBACK_USE( svg_func_wall_t, onUse )( svg_func_wall_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
     //
     // usetype: TOGGLE
     //
     if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_ON ) {
-        func_wall_turn_on( self );
+        self->TurnOn();
     } else if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_OFF ) {
-        func_wall_turn_off( self );
+        self->TurnOff();
     // Otherwise, regular toggle behavior.
     } else {
-        func_wall_toggle( self );
+        self->Toggle();
     }
 
 	// Unset the use function if the wall is not supposed to be toggled.
-    if ( !( self->spawnflags & FUNC_WALL_TOGGLE ) ) {
-        self->use = NULL;
+    if ( !( self->spawnflags & svg_func_wall_t::SPAWNFLAG_TOGGLE ) ) {
+        self->SetUseCallback( nullptr );
     }
 }
 
@@ -118,7 +108,7 @@ void func_wall_use( edict_t *self, edict_t *other, edict_t *activator, const ent
 /**
 *   @brief  Signal Receiving:
 **/
-void func_wall_onsignalin( edict_t *self, edict_t *other, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_wall_t, onSignalIn )( svg_func_wall_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void {
     /**
     *   Hide/Show:
     **/
@@ -128,7 +118,7 @@ void func_wall_onsignalin( edict_t *self, edict_t *other, edict_t *activator, co
         self->other = other;
 
         // Turn it on, showing itself.
-		func_wall_turn_on( self );
+        self->TurnOn();
     }
     // Hide:
     if ( Q_strcasecmp( signalName, "Hide" ) == 0 ) {
@@ -136,7 +126,7 @@ void func_wall_onsignalin( edict_t *self, edict_t *other, edict_t *activator, co
         self->other = other;
 
         // Turn it off, hiding itself.
-        func_wall_turn_off( self );
+        self->TurnOff();
     }
     /**
 	*   Toggle:
@@ -146,7 +136,7 @@ void func_wall_onsignalin( edict_t *self, edict_t *other, edict_t *activator, co
         self->other = other;
 
         // Turn it off, hiding itself.
-        func_wall_toggle( self );
+        self->Toggle();
     }
 
     // WID: Useful for debugging.
@@ -171,7 +161,7 @@ void func_wall_onsignalin( edict_t *self, edict_t *other, edict_t *activator, co
 /**
 *   @brief
 **/
-void SP_func_wall( edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_wall_t, onSpawn )( svg_func_wall_t *self ) -> void {
 	// Set the movetype.
     self->movetype = MOVETYPE_PUSH;
 	// Set the entity type.
@@ -180,41 +170,41 @@ void SP_func_wall( edict_t *self ) {
     gi.setmodel( self, self->model );
 
     // Animate all frames of the wall brush.
-    if ( self->spawnflags & FUNC_WALL_ANIMATE ) {
+    if ( self->spawnflags & svg_func_wall_t::SPAWNFLAG_ANIMATE ) {
         self->s.effects |= EF_ANIM_ALL;
     }
     // Aniamte them quickly.
-    if ( self->spawnflags & FUNC_WALL_ANIMATE_FAST ) {
+    if ( self->spawnflags & svg_func_wall_t::SPAWNFLAG_ANIMATE_FAST ) {
         self->s.effects |= EF_ANIM_ALLFAST;
     }
 
     // just a wall
-    if ( ( self->spawnflags & ( FUNC_WALL_START_ON | FUNC_WALL_TOGGLE | FUNC_WALL_TRIGGER_SPAWN ) ) == 0 ) {
+    if ( ( self->spawnflags & ( svg_func_wall_t::SPAWNFLAG_START_ON | svg_func_wall_t::SPAWNFLAG_TOGGLE | svg_func_wall_t::SPAWNFLAG_TRIGGER_SPAWN ) ) == 0 ) {
         self->solid = SOLID_BSP;
         gi.linkentity( self );
         return;
     }
 
     // It must be TRIGGER_SPAWN.
-    if ( !( self->spawnflags & FUNC_WALL_TRIGGER_SPAWN ) ) {
+    if ( !( self->spawnflags & svg_func_wall_t::SPAWNFLAG_TRIGGER_SPAWN ) ) {
         //      gi.dprintf("func_wall missing TRIGGER_SPAWN\n");
-        self->spawnflags |= FUNC_WALL_TRIGGER_SPAWN;
+        self->spawnflags |= svg_func_wall_t::SPAWNFLAG_TRIGGER_SPAWN;
     }
 
     // Yell if the spawnflags are odd.
-    if ( self->spawnflags & FUNC_WALL_START_ON ) {
-        if ( !( self->spawnflags & FUNC_WALL_TOGGLE ) ) {
+    if ( self->spawnflags & svg_func_wall_t::SPAWNFLAG_START_ON ) {
+        if ( !( self->spawnflags & svg_func_wall_t::SPAWNFLAG_TOGGLE ) ) {
             gi.dprintf( "func_wall START_ON without TOGGLE\n" );
-            self->spawnflags |= FUNC_WALL_TOGGLE;
+            self->spawnflags |= svg_func_wall_t::SPAWNFLAG_TOGGLE;
         }
     }
 
 	// Set the use function.
-    self->use = func_wall_use;
+    self->SetUseCallback( &svg_func_wall_t::onUse );
     // Set signalin callback.
-    self->onsignalin = func_wall_onsignalin;
+    self->SetOnSignalInCallback( &svg_func_wall_t::onSignalIn );
     // Start on, thus solid.
-    if ( self->spawnflags & FUNC_WALL_START_ON ) {
+    if ( self->spawnflags & svg_func_wall_t::SPAWNFLAG_START_ON ) {
         self->solid = SOLID_BSP;
     // Start off, non solid, non send to clients.
     } else {

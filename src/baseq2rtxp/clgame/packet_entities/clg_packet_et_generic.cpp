@@ -10,6 +10,8 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
 
+#include "sharedgame/sg_entity_effects.h"
+
 static const int32_t adjust_shell_fx( const int32_t renderfx ) {
     return renderfx;
 }
@@ -110,7 +112,7 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
         constexpr int32_t animationHz = BASE_FRAMERATE;
         constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
         refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-        refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
+        refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
         refreshEntity->frame = packetEntity->current_frame;
         refreshEntity->oldframe = packetEntity->last_frame;
     }
@@ -226,14 +228,14 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *packetEntity, entity_t 
                 Q_concat( buffer, sizeof( buffer ), "players/", ci->model_name, "/disguise.pcx" );
                 refreshEntity->skin = clgi.R_RegisterSkin( buffer );
             }
-            // A regular alias entity model instead:
+        // A regular alias entity model instead:
         } else {
             refreshEntity->skinnum = newState->skinnum;
             refreshEntity->skin = 0;
             refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
-            if ( refreshEntity->model == precache.models.laser || refreshEntity->model == precache.models.dmspot ) {
-                renderfx |= RF_NOSHADOW;
-            }
+            //if ( refreshEntity->model == precache.models.laser || refreshEntity->model == precache.models.dmspot ) {
+            //    renderfx |= RF_NOSHADOW;
+            //}
         }
 
         // Allow skin override for remaster.

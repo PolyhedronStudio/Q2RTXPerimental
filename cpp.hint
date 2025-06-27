@@ -1,0 +1,521 @@
+// Hint files help the Visual Studio IDE interpret Visual C++ identifiers
+// such as names of functions and macros.
+// For more information see https://go.microsoft.com/fwlink/?linkid=865984
+/**
+*
+*
+*
+*   Macros for properly declaring(and thus implementing) the static
+*	save descriptor field logics for any svg_base_edict_t derived classes.
+*
+*
+*
+**/
+/**
+*   @brief  Opens the save descriptor field definition for the specified classType.
+**/
+#define SAVE_DESCRIPTOR_FIELDS_BEGIN(classType) \
+    svg_save_descriptor_field_t classType::saveDescriptorFields[] = {\
+
+/**
+*   @brief  This macro actually declares the field descriptor. It is used as an internal macro for
+*           the other macros which are used to define the save field descriptors with.
+**/
+	#define _SAVE_DESCRIPTOR_FIELD(classType, fieldName, fieldType, fieldSize, flags)                            \
+		{                                                                          \
+			fieldType, #fieldName, q_offsetof(classType, fieldName), fieldSize, flags \
+		}
+/**
+*   @brief  This macro is used to define a field descriptor for a field in the save descriptor.
+**/
+#define SAVE_DESCRIPTOR_DEFINE_FIELD(classType, fieldName, fieldType) _SAVE_DESCRIPTOR_FIELD(classType, fieldName, fieldType, 1, 0)
+/**
+*   @brief  This macro is used to define a field descriptor for a field in the save descriptor.
+**/
+#define SAVE_DESCRIPTOR_DEFINE_FUNCPTR(classType, fieldName, fieldType, funcPtrType) _SAVE_DESCRIPTOR_FIELD(classType, fieldName, fieldType, 1, funcPtrType )
+/**
+*   @brief  This macro is used to define a field descriptor for a field in the save descriptor.
+*           It is used for fields that are arrays of a specific size.
+**/
+#define SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE(classType, fieldName, fieldType, fieldSize) _SAVE_DESCRIPTOR_FIELD(classType, fieldName, fieldType, fieldSize, 0)
+/**
+*   @brief  This macro is used to define a field descriptor for a field in the save descriptor.
+*           It is used for fields that are arrays of a specific size.
+**/
+#define SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY(classType, fieldName, fieldType, fieldSize) _SAVE_DESCRIPTOR_FIELD(classType, fieldName, fieldType, fieldSize, 0)
+
+/**
+*   @brief  Opens the save descriptor field definition for the specified classType.
+**/
+#define SAVE_DESCRIPTOR_FIELDS_END() \
+    } \
+
+
+/**
+*
+*   Macros for properly declaring and defining the static 
+*	save descriptor field logics for any svg_base_edict_t 
+*	derived classes.
+*
+**/
+/**
+*   @brief  Any derived class which needs support for saving implemented,
+*           it declare support routines using this macro.
+**/
+#define SVG_SAVE_DESCRIPTOR_FIELDS_DECLARE_IMPLEMENTATION() \
+    static svg_save_descriptor_field_t saveDescriptorFields[]; \
+    virtual svg_save_descriptor_field_t *GetSaveDescriptorFields() override; \
+    virtual int32_t GetSaveDescriptorFieldsCount() override; \
+    virtual svg_save_descriptor_field_t *GetSaveDescriptorField( const char *name ) override;
+
+/**
+*   @brief  This macro defines the necessary implementations for the save descriptor fields functions:
+*           GetSaveDescriptorFields(), GetSaveDescriptorFieldCount()  and GetSaveDescriptorField().
+**/
+#define SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( classType, parentClassType ) \
+	/*   @return A pointer of type `svg_save_descriptor_field_t` representing the save descriptor fields. */ \
+	svg_save_descriptor_field_t *classType::GetSaveDescriptorFields() { \
+		return classType::saveDescriptorFields; \
+	} \
+    /*  @return The number of save descriptor fields. */ \
+    int32_t classType::GetSaveDescriptorFieldsCount() { \
+		return sizeof( classType::saveDescriptorFields) / sizeof(svg_save_descriptor_field_t); \
+    } \
+    /*   A pointer to the save descriptor field with the given name. */\
+    svg_save_descriptor_field_t *classType::GetSaveDescriptorField( const char *name ) { \
+		/* Check if the name is valid. */\
+		if ( !name ) { \
+			return nullptr; \
+		} \
+		/* Check if the name is empty. */ \
+		if ( *name == '\0' ) { \
+			return nullptr; \
+		} \
+\
+		/* Check if parent type has a save descriptor field.*/ \
+		if ( parentClassType::GetSaveDescriptorField( name ) ) { \
+			return parentClassType::GetSaveDescriptorField( name ); \
+		} \
+\
+		/* Get pointer to the type's save descriptor fields.*/ \
+		svg_save_descriptor_field_t *fields = classType::GetSaveDescriptorFields(); \
+\
+		/* Iterate this edict (derived-) type's save descriptor fields and return a pointer to it if found. */ \
+        for ( int32_t i = 0; i < classType::GetSaveDescriptorFieldsCount(); i++ ) { \
+			if ( strcmp( name, fields[ i ].name ) == 0 ) { \
+				return &classType::saveDescriptorFields[ i ]; \
+			} \
+		} \
+\
+        /* Unable to find. */\
+        return nullptr;\
+    }\
+
+/**
+*	For use with "Non-Static-Member" function callbacks residing
+*	outside of an edict class.
+**/
+//
+//	Think:
+//
+//! Declares the global function in the notation style compatible for our use with
+//! DEFINE_GLOBAL_CALLBACK_THINK
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK(className, functionName) \
+	auto functionName( className *self ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_THINK(functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
+//
+//	Spawn:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_SPAWN(className, functionName) \
+	auto functionName( className *self ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_SPAWN(functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
+//
+//	PostSpawn:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTSPAWN(className, functionName) \
+	auto functionName( className *self ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_POSTSPAWN(functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
+//
+//	PreThink:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_PRETHINK(className, functionName) \
+	auto functionName( className *self ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_PRETHINK(functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
+
+//
+//	PostThink:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_POSTTHINK(className, functionName) \
+	auto functionName( className *self ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_POSTTHINK(functionName) \
+	auto functionName( svg_base_edict_t *self ) -> void \
+//
+//	Blocked:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_BLOCKED(className, functionName) \
+	auto functionName( className *self, svg_base_edict_t *other ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_BLOCKED(functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other ) -> void \
+//
+//	Touch:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_TOUCH(className, functionName) \
+	auto functionName( className *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf )-> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_TOUCH(functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf) -> void \
+//
+//	Use:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_USE(className, functionName) \
+	auto functionName( className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_USE(functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void \
+//
+//	OnSignalIn:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_ON_SIGNALIN(className, functionName) \
+	auto functionName( className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_ON_SIGNALIN(functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void \
+//
+//	Pain:
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_PAIN(className, functionName) \
+	auto functionName( className *self, svg_base_edict_t *other, float kick, int damage ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_PAIN(functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage ) -> void \	
+//
+//	Die.
+//
+#if 1
+#define DECLARE_GLOBAL_CLASSNAME_CALLBACK_DIE(className, functionName) \
+	auto functionName( className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void \
+
+#endif
+//!
+#define DECLARE_GLOBAL_CALLBACK_DIE(functionName) \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void \
+//
+//	PushMoveInfo EndMove.
+//
+#define DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE(className, functionName) \
+	static auto functionName(className *self) -> void; \
+
+//! Defines the start of the function definition, awaiting to be prepended by its user
+//! with the actual arguments and -> returnType;
+//! 
+//! aka
+//! 
+//! DEFINE_GLOBAL_CALLBACK_THINK(SVG_FreeEdict)(svg_base_edict_t *self) -> void {
+//!		...
+//! }
+#define DEFINE_GLOBAL_CALLBACK_THINK(functionName) \
+	static const svg_save_funcptr_instance_t save__global_ ##functionName(#functionName, FPTR_SAVE_TYPE_THINK, reinterpret_cast<void *>(##functionName) ); \
+	auto functionName \
+//! For Spawn.
+#define DEFINE_GLOBAL_CALLBACK_SPAWN(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_SPAWN, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+//! For PostSpawn.
+#define DEFINE_GLOBAL_CALLBACK_POSTSPAWN(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+//! For PreThink
+#define DEFINE_GLOBAL_CALLBACK_PRETHINK(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_PRETHINK, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+//! For PostThink.
+#define DEFINE_GLOBAL_CALLBACK_POSTTHINK(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+//! For Blocked.
+#define DEFINE_GLOBAL_CALLBACK_BLOCKED(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_BLOCKED, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+//! For Touch.
+#define DEFINE_GLOBAL_CALLBACK_TOUCH(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_TOUCH, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+//! For Use.
+#define DEFINE_GLOBAL_CALLBACK_USE(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_USE, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+
+//! For OnSignalIn.
+#define DEFINE_GLOBAL_CALLBACK_ONSIGNALIN(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_ONSIGNALIN, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+
+//! For Pain.
+#define DEFINE_GLOBAL_CALLBACK_PAIN(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_PAIN, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+
+//! For Die.
+#define DEFINE_GLOBAL_CALLBACK_DIE(functionName) \
+	static const svg_save_funcptr_instance_t save__global__ ##functionName(#functionName, FPTR_SAVE_TYPE_DIE, reinterpret_cast<void *>(##functionName)); \
+	auto functionName \
+
+
+//! Defines the start of the function definition, awaiting to be prepended by its user
+//! with the actual arguments and -> returnType;
+//! 
+//! aka
+//! 
+//! DEFINE_GLOBAL_CALLBACK_THINK(SVG_FreeEdict)(svg_base_edict_t *self) -> void {
+//!		...
+//! }
+/**
+*	For use with "Static-Member" function callbacks, residing inside
+*	an svg_base_edict_t or derived class.
+**/
+//! Generates a string such as: "className::functionName".
+#define _DEFINE_MEMBER_CALLBACK_FULLNAME(className, functionName) \
+	("" className "::" functionName "") \
+//
+//	Think:
+//
+//! Declares the member function in the notation style compatible for our use with
+//! DEFINE_MEMBER_CALLBACK_THINK
+#define DECLARE_MEMBER_CALLBACK_THINK(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//
+//	Spawn:
+//
+#define DECLARE_MEMBER_CALLBACK_SPAWN(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//
+//	PostSpawn:
+//
+#define DECLARE_MEMBER_CALLBACK_POSTSPAWN(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//
+//	PreThink:
+//
+#define DECLARE_MEMBER_CALLBACK_PRETHINK(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//
+//	PostThink:
+//
+#define DECLARE_MEMBER_CALLBACK_POSTTHINK(className, functionName) \
+	static auto functionName(className *self) -> void; \
+//
+//	Blocked:
+//
+#define DECLARE_MEMBER_CALLBACK_BLOCKED(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other ) -> void; \
+//
+//	Touch:
+//
+#define DECLARE_MEMBER_CALLBACK_TOUCH(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf )-> void; \
+//
+//	Use:
+//
+#define DECLARE_MEMBER_CALLBACK_USE(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void; \
+//
+//	OnSignalIn:
+//
+#define DECLARE_MEMBER_CALLBACK_ON_SIGNALIN(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) -> void; \
+//
+//	Pain:
+//
+#define DECLARE_MEMBER_CALLBACK_PAIN(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *other, float kick, int damage ) -> void; \
+//
+//	Die.
+//
+#define DECLARE_MEMBER_CALLBACK_DIE(className, functionName) \
+	static auto functionName(className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void; \
+
+
+//! Defines the start of the static member function definition, awaiting to be prepended by its user
+//! with the actual arguments and -> returnType;
+//! 
+//! aka
+//! 
+//! DEFINE_MEMBER_CALLBACK_THINK(svg_monster_testdummy_t, monster_testdummy_think)(svg_monster_testdummy_t *self) -> void {
+//!		...
+//! }
+#define DEFINE_MEMBER_CALLBACK_THINK(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_THINK, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For Spawn.
+#define DEFINE_MEMBER_CALLBACK_SPAWN(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_SPAWN, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For PostSpawn.
+#define DEFINE_MEMBER_CALLBACK_POSTSPAWN(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For PreThink
+#define DEFINE_MEMBER_CALLBACK_PRETHINK(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_PRETHINK, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For PostThink.
+#define DEFINE_MEMBER_CALLBACK_POSTTHINK(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_POSTSPAWN, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For Blocked.
+#define DEFINE_MEMBER_CALLBACK_BLOCKED(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_BLOCKED, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For Touch.
+#define DEFINE_MEMBER_CALLBACK_TOUCH(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_TOUCH, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For Use.
+#define DEFINE_MEMBER_CALLBACK_USE(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_USE, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For OnSignalIn.
+#define DEFINE_MEMBER_CALLBACK_ON_SIGNALIN(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_ONSIGNALIN, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For Pain.
+#define DEFINE_MEMBER_CALLBACK_PAIN(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_PAIN, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//! For Die.
+#define DEFINE_MEMBER_CALLBACK_DIE(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_DIE, reinterpret_cast<void *>(##className::##functionName)); \
+	auto className::##functionName \
+//
+//	PushMoveInfo EndMove.
+//
+#define DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE(className, functionName) \
+	static const svg_save_funcptr_instance_t save__ ##className ##__ ##functionName(_DEFINE_MEMBER_CALLBACK_FULLNAME(#className, #functionName), FPTR_SAVE_TYPE_PUSHER_MOVEINFO_ENDMOVECALLBACK, reinterpret_cast<void *>(##className::##functionName)); \
+	[[nodiscard]] auto className::##functionName \
+
+
+
+
+
+// Top abstract class, the start of the class tree 
+// Instances of this cannot be allocated, as it is abstract.
+#define __DeclareTopRootTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, allocatorFunction )	\
+	virtual inline EdictTypeInfo* GetTypeInfo() const {	\
+		return &ClassInfo;	\
+	}	\
+	inline static EdictTypeInfo ClassInfo = EdictTypeInfo( (worldSpawnClassName), (#className), (#superClass), (typeInfoFlags), (allocatorFunction) );
+
+// Top abstract class, the start of the class tree
+#define DefineTopRootClass( worldSpawnClassName, className, superClass, typeInfoFlags )	\
+	using SelfType = className;		\
+	using Super = superClass;	\
+	static className* AllocateInstance( const cm_entity_t* cm_entity ) {	\
+		className *baseEdict = new className( cm_entity );	\
+		baseEdict->classname = svg_level_qstring_t::from_char_str( worldSpawnClassName );	\
+		/*baseEdict->hashedClassname = baseEdict->GetTypeInfo()->hashedMapClass;*/ \
+		return baseEdict;	\
+	}	\
+	__DeclareTopRootTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, &className::AllocateInstance );
+
+//__DeclareTopRootTypeInfo( worldSpawnClassName, className, nullptr, EdictTypeInfo::TypeInfoFlag_WorldSpawn | typeInfoFlags, allocatorFunction );
+
+/**
+*	@brief	Declares the type information for a class, including its name, superclass, flags, and allocator function.
+*	@param	worldSpawnClassName The name of the world spawn class associated with this type.
+*	@param	classname The name of the class.
+*	@param	superClass The name of the superclass for this type.
+*	@param	typeFlags The flags associated with this type.
+*	@param	allocatorFunction The function used to allocate instances of this type.
+*	@note	This macro should be used in the class definition to declare the type information.
+**/
+#define __DeclareTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, allocatorFunction )	\
+	virtual inline EdictTypeInfo* GetTypeInfo() const override {	\
+		return &ClassInfo;											\
+	}																\
+	inline static EdictTypeInfo ClassInfo = EdictTypeInfo( (worldSpawnClassName), (#className), (#superClass), (typeInfoFlags), (allocatorFunction) );
+
+// Abstract class that inherits from another 
+// Instances of this cannot be allocated 
+// NOTE: multiple inheritance not supported
+#define DefineAbstractClass( className, superClass )			\
+	using SelfType = className;		\
+	using Super = superClass;	/* Allows us to refer to super class using Base */ \
+	__DeclareTypeInfo( #className, #className, #superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
+
+
+
+
+// Declares and initialises the type information for this class, so it can be spawned in a map. 
+// NOTE: multiple inheritance not supported
+// @param mapClassName (string) - the map classname of this entity, used during entity spawning
+// @param classname (symbol) - the internal C++ class name
+// @param superClass (symbol) - the class this entity class inherits from
+#define DefineWorldSpawnClass( worldSpawnClassName, className, superClass, typeInfoFlags, spawnFunc )	\
+	using SelfType = className;		\
+	using Super = superClass;	\
+	static svg_base_edict_t* AllocateInstance( const cm_entity_t* cm_entity ) {	\
+		className *baseEdict = new className( cm_entity );	\
+		baseEdict->classname = svg_level_qstring_t::from_char_str( worldSpawnClassName );	\
+		baseEdict->SetSpawnCallback( reinterpret_cast<svg_edict_callback_spawn_fptr>( spawnFunc ) );	\
+		return baseEdict;	\
+	}	\
+	__DeclareTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, &className::AllocateInstance );
+
+
+#if 0
+// Declares and initialises the type information for this class, so it can be spawned during gameplay. 
+// NOTE: multiple inheritance not supported
+// @param mapClassName (string) - the map classname of this entity, used during entity spawning
+// @param classname (symbol) - the internal C++ class name
+// @param superClass (symbol) - the class this entity class inherits from
+#define DefineGameClass( classname, superClass )	\
+using Super = superClass;										\
+static GameEntity* AllocateInstance( PODEntity* entity ) {		\
+	classname *baseEntity = new classname( entity );			\
+	baseEntity->SetClassname(#classname);						\
+	entity->hashedClassname = baseEntity->GetTypeInfo()->hashedMapClass;	\
+	entity->isLocal = true;										\
+	return baseEntity;											\
+}																\
+__DeclareTypeInfo( #classname, #classname, #superClass, TypeInfo::TypeFlag_GameSpawn, &classname::AllocateInstance );
+#endif

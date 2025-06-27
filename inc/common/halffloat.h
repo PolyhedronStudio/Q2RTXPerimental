@@ -73,8 +73,13 @@
 // we will snap a significant fraction of the overall FP32 range to denormals, not
 // exactly a fast operation. There's a reason this one prints regular progress
 // reports. You've been warned.
+#pragma once
 
-#include <stdint.h>
+#ifdef __cplusplus
+	#include <cstdint>
+#else
+	#include <stdint.h>
+#endif
 
 typedef union {
 	uint32_t u;

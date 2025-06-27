@@ -466,7 +466,7 @@ for JUMP only:
 "height"        speed thrown upwards (default 200)
 */
 
-void target_actor_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void target_actor_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     vec3_t  v;
 

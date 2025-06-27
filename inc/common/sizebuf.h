@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef SIZEBUF_H
-#define SIZEBUF_H
 
 // Extern C
 QEXTERN_C_OPEN
@@ -79,6 +78,7 @@ QEXTERN_C_OPEN
 	void SZ_WriteHalfFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteFloat( sizebuf_t *sb, const float f );
 	void SZ_WriteTruncatedFloat( sizebuf_t *sb, const float f );
+	void SZ_WriteDouble( sizebuf_t *sb, const double d );
 	void SZ_WriteString( sizebuf_t *sb, const char *s );
 
 
@@ -105,10 +105,9 @@ QEXTERN_C_OPEN
 	const int64_t SZ_ReadIntBase128( sizebuf_t *sb );
 
 	const float SZ_ReadHalfFloat( sizebuf_t *sb );
-	const float SZ_ReadFloat( sizebuf_t *sb );
 	const float SZ_ReadTruncatedFloat( sizebuf_t *sb );
+	const float SZ_ReadFloat( sizebuf_t *sb );
+	const double SZ_ReadDouble( sizebuf_t *sb );
 
 // Extern C
 QEXTERN_C_CLOSE
-
-#endif // SIZEBUF_H

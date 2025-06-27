@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
+#include "svgame/entities/light/svg_light_spotlight.h"
 
 //void V_AddSphereLight( const vec3_t org, float intensity, float r, float g, float b, float radius ) {
 //	dlight_t *dl;
@@ -140,14 +141,39 @@
 //	}
 //}
 
-
-#define START_OFF   1
-
+/**
+*   @brief  Called for each cm_entity_t key/value pair for this entity.
+*           If not handled, or unable to be handled by the derived entity type, it will return
+*           set errorStr and return false. True otherwise.
+**/
+const bool svg_light_spotlight_t::KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) {
+	// Ease of use.
+	const std::string keyStr = keyValuePair->key;
+	// Match: rgb
+	if ( keyStr == "rgb" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
+		VectorCopy( keyValuePair->vec3, s.spotlight.rgb ); // = static_cast<entity_usetarget_type_t>( );
+		return true;
+	// Match: angle_falloff
+	} else if ( keyStr == "intensity" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+		s.spotlight.intensity = keyValuePair->value;
+		return true;
+	// Match: angle_falloff
+	} else if ( keyStr == "angle_falloff" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+		s.spotlight.angle_falloff = keyValuePair->value;
+		return true;
+	// Match: angle_falloff
+	} else if ( keyStr == "angle_width" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
+		s.spotlight.angle_width = keyValuePair->value;
+		return true;
+	} else {
+		return Super::KeyValue( keyValuePair, errorStr );
+	}
+}
 
 /**
 *	@brief
 **/
-void spotlight_think( edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_THINK( svg_light_spotlight_t, onThink )( svg_light_spotlight_t *self ) -> void {
 	// Server-side lightstyles for spotlights.
 	// (This makes them consistent across all clients, while also not having to mess with VKPT.)
 	const char *lightStyle = self->customLightStyle;
@@ -167,23 +193,23 @@ void spotlight_think( edict_t *self ) {
 	}
 
 	// Setup for next frame's 'think'.
-	self->think = spotlight_think;	
+	self->SetThinkCallback( &svg_light_spotlight_t::onThink );
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 /**
 *	@brief	
 **/
-void spotlight_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-	if ( self->spawnflags & START_OFF ) {
+DEFINE_MEMBER_CALLBACK_USE( svg_light_spotlight_t, onUse )( svg_light_spotlight_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
+	if ( self->spawnflags & svg_light_spotlight_t::SPAWNFLAG_START_OFF ) {
 		// Remove the 'off' flag.
-		self->spawnflags &= ~START_OFF;
+		self->spawnflags &= ~svg_light_spotlight_t::SPAWNFLAG_START_OFF;
 		// Enable it being sent to clients again.
 		self->svflags &= ~SVF_NOCLIENT;
 	} else {
 		// Don't send to client when the light is off.
 		self->svflags |= SVF_NOCLIENT;
-		self->spawnflags |= START_OFF;
+		self->spawnflags |= svg_light_spotlight_t::SPAWNFLAG_START_OFF;
 
 		// Reset its intensity and frame, so it can start anew when turned on again.
 		self->s.spotlight.intensity = 0;
@@ -194,25 +220,24 @@ void spotlight_use( edict_t *self, edict_t *other, edict_t *activator, const ent
 /**
 *	@brief
 **/
-void SP_spotlight( edict_t *self ) {
-
-	SVG_InitEdict( self );
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_light_spotlight_t, onSpawn )( svg_light_spotlight_t *self ) -> void {
+	Super::onSpawn( self );
 	
 	// Spotlight Type
 	self->s.entityType = ET_SPOTLIGHT;
-	self->classname = "spotlight";
+	//self->classname = svg_level_qstring_t::from_char_str( "spotlight" );
 	self->s.effects |= EF_SPOTLIGHT;
 
 	// Support for on/off triggering.
-	self->use = spotlight_use;
+	self->SetUseCallback( &svg_light_spotlight_t::onUse );
 
 	// Immediately set a SVF_NOCLIENT flag if light is meant to start 'off'.
-	if ( self->spawnflags & START_OFF ) {
+	if ( self->spawnflags & svg_light_spotlight_t::SPAWNFLAG_START_OFF ) {
 		self->svflags |= SVF_NOCLIENT;
 	}
 
 	// Required think method.
-	self->think = spotlight_think;
+	self->SetThinkCallback( &svg_light_spotlight_t::onThink );
 	self->nextthink = level.time + FRAME_TIME_MS;
 
 	// Link it in.

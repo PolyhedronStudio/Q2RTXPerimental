@@ -15,19 +15,19 @@
 *
 */
 /**
-*   @brief
+*   @brief	Initialize the temporary entities system.
 **/
-void CLG_InitTEnts( void );
+void CLG_TemporaryEntities_Init( void );
 /**
-*   @brief
+*   @brief  Clear all temporary entities for the current frame.
 **/
 void CLG_TemporaryEntities_Clear( void );
 /**
-*   @brief
+*   @brief   Parses the Temp Entity packet data and creates the appropriate effects.
 **/
 void CLG_TemporaryEntities_Parse( void );
 /**
-*   @brief
+*   @brief	Add all temporary entity effects for the current frame.
 **/
 void CLG_TemporaryEntities_Add( void );
 
@@ -82,7 +82,7 @@ clg_explosion_t *CLG_AllocExplosion( void );
 /**
 *   @brief
 **/
-clg_explosion_t *CLG_PlainExplosion( bool big );
+clg_explosion_t *CLG_PlainExplosion( const bool withSmoke );
 /**
 *   @brief
 **/

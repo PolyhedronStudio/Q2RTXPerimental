@@ -496,13 +496,13 @@ POLYGONS BUILDING
 
 static uint32_t color_for_surface(mface_t *surf)
 {
-    if (surf->drawflags & SURF_TRANS33)
+    if (surf->drawflags & CM_SURF_TRANSLUCENT_33)
         return gl_static.inverse_intensity_33;
 
-    if (surf->drawflags & SURF_TRANS66)
+    if (surf->drawflags & CM_SURF_TRANSLUCENT_66)
         return gl_static.inverse_intensity_66;
 
-    if (surf->drawflags & SURF_WARP)
+    if (surf->drawflags & CM_SURFACE_FLAG_WARP)
         return gl_static.inverse_intensity_100;
 
     return U32_WHITE;
@@ -540,19 +540,19 @@ static void build_surface_poly(mface_t *surf, vec_t *vbo)
         }
     }
 
-    if (surf->drawflags & SURF_WARP) {
+    if (surf->drawflags & CM_SURFACE_FLAG_WARP) {
         surf->statebits |= GLS_WARP_ENABLE;
     }
 
     if (surf->drawflags & SURF_TRANS_MASK) {
         surf->statebits |= GLS_BLEND_BLEND | GLS_DEPTHMASK_FALSE;
-    } else if (surf->drawflags & SURF_ALPHATEST) {
+    } else if (surf->drawflags & CM_SURFACE_ALPHATEST) {
         surf->statebits |= GLS_ALPHATEST_ENABLE;
     }
 
-    if (surf->drawflags & SURF_FLOWING) {
+    if (surf->drawflags & CM_SURFACE_FLOWING) {
         surf->statebits |= GLS_SCROLL_ENABLE;
-        if (surf->drawflags & SURF_WARP) {
+        if (surf->drawflags & CM_SURFACE_FLAG_WARP) {
             surf->statebits |= GLS_SCROLL_SLOW;
         }
     }
@@ -561,17 +561,17 @@ static void build_surface_poly(mface_t *surf, vec_t *vbo)
     scale[0] = 1.0f / texinfo->image->width;
     scale[1] = 1.0f / texinfo->image->height;
 
-    if (surf->drawflags & SURF_N64_UV) {
+    if (surf->drawflags & CM_SURFACE_N64_UV) {
         scale[0] *= 0.5f;
         scale[1] *= 0.5f;
     }
-    if (surf->drawflags & SURF_N64_SCROLL_X) {
+    if (surf->drawflags & CM_SURFACE_N64_SCROLL_X) {
         surf->statebits |= GLS_SCROLL_ENABLE | GLS_SCROLL_X;
     }
-    if (surf->drawflags & SURF_N64_SCROLL_Y) {
+    if (surf->drawflags & CM_SURFACE_N64_SCROLL_Y) {
         surf->statebits |= GLS_SCROLL_ENABLE | GLS_SCROLL_Y;
     }
-    if (surf->drawflags & SURF_N64_SCROLL_FLIP) {
+    if (surf->drawflags & CM_SURFACE_N64_SCROLL_FLIP) {
         surf->statebits |= GLS_SCROLL_FLIP;
     }
 
@@ -812,7 +812,7 @@ static void upload_world_surfaces(void)
     currvert = 0;
     lastvert = 0;
     for (i = 0, surf = bsp->faces; i < bsp->numfaces; i++, surf++) {
-        if (surf->drawflags & (SURF_SKY | SURF_NODRAW))
+        if (surf->drawflags & (CM_SURFACE_FLAG_SKY | CM_SURFACE_NODRAW))
             continue;
 
         Q_assert(surf->numsurfedges <= TESS_MAX_VERTICES);
@@ -956,7 +956,7 @@ void GL_LoadWorld(const char *name)
 
     // register all texinfo
     for (i = 0, info = bsp->texinfo; i < bsp->numtexinfo; i++, info++) {
-        if (info->c.flags & SURF_WARP)
+        if (info->c.flags & CM_SURFACE_FLAG_WARP)
             flags = IF_TURBULENT;
         else
             flags = IF_NONE;
@@ -973,7 +973,7 @@ void GL_LoadWorld(const char *name)
         surf->drawflags |= surf->texinfo->c.flags & ~DSURF_PLANEBACK;
 
         // don't count sky surfaces
-        if (surf->drawflags & (SURF_SKY | SURF_NODRAW))
+        if (surf->drawflags & (CM_SURFACE_FLAG_SKY | CM_SURFACE_NODRAW))
             continue;
 
         size += surf->numsurfedges * VERTEX_SIZE * sizeof(vec_t);

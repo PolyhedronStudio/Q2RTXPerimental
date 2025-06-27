@@ -271,13 +271,13 @@ bool visible(edict_t *self, edict_t *other)
 {
     vec3_t  spot1;
     vec3_t  spot2;
-    trace_t trace;
+    cm_trace_t trace;
 
     VectorCopy(self->s.origin, spot1);
     spot1[2] += self->viewheight;
     VectorCopy(other->s.origin, spot2);
     spot2[2] += other->viewheight;
-    trace = gi.trace(spot1, vec3_origin, vec3_origin, spot2, self, MASK_OPAQUE);
+    trace = gi.trace(spot1, vec3_origin, vec3_origin, spot2, self, CM_CONTENTMASK_OPAQUE);
 
     if (trace.fraction == 1.0f)
         return true;
@@ -555,7 +555,7 @@ bool M_CheckAttack(edict_t *self)
 {
     Vector3  spot1, spot2;
     float   chance;
-    trace_t tr;
+    cm_trace_t tr;
 
     //if ( self->enemy->flags & FL_NOVISIBLE )
     //    return false;
@@ -569,7 +569,7 @@ bool M_CheckAttack(edict_t *self)
             spot2[ 2 ] += self->enemy->viewheight;
 
             tr = gi.trace( &spot1.x, nullptr, nullptr, &spot2.x, self,
-                contents_t( MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA ) );
+                cm_contents_t( CM_CONTENTMASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA ) );
         } else {
             tr.ent = world;
             tr.fraction = 0;
@@ -832,7 +832,7 @@ void ai_run(edict_t *self, float dist)
     bool        _new;
     edict_t     *marker;
     float       d1, d2;
-    trace_t     tr;
+    cm_trace_t     tr;
     vec3_t      v_forward, v_right;
     float       left, center, right;
     vec3_t      left_target, right_target;
@@ -941,7 +941,7 @@ void ai_run(edict_t *self, float dist)
     if (_new) {
 //      gi.dprintf("checking for course correction\n");
 
-        tr = gi.trace(self->s.origin, self->mins, self->maxs, self->monsterinfo.last_sighting, self, MASK_PLAYERSOLID);
+        tr = gi.trace(self->s.origin, self->mins, self->maxs, self->monsterinfo.last_sighting, self, CM_CONTENTMASK_PLAYERSOLID);
         if (tr.fraction < 1) {
             VectorSubtract(self->goalentity->s.origin, self->s.origin, v);
             d1 = VectorLength(v);
@@ -952,12 +952,12 @@ void ai_run(edict_t *self, float dist)
 
             VectorSet(v, d2, -16, 0);
             SVG_Util_ProjectSource(self->s.origin, v, v_forward, v_right, left_target);
-            tr = gi.trace(self->s.origin, self->mins, self->maxs, left_target, self, MASK_PLAYERSOLID);
+            tr = gi.trace(self->s.origin, self->mins, self->maxs, left_target, self, CM_CONTENTMASK_PLAYERSOLID);
             left = tr.fraction;
 
             VectorSet(v, d2, 16, 0);
             SVG_Util_ProjectSource(self->s.origin, v, v_forward, v_right, right_target);
-            tr = gi.trace(self->s.origin, self->mins, self->maxs, right_target, self, MASK_PLAYERSOLID);
+            tr = gi.trace(self->s.origin, self->mins, self->maxs, right_target, self, CM_CONTENTMASK_PLAYERSOLID);
             right = tr.fraction;
 
             center = (d1 * center) / d2;

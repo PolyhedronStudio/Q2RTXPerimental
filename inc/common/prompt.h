@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef PROMPT_H
-#define PROMPT_H
 
 
 #include "common/field.h"
@@ -60,4 +59,3 @@ void Prompt_Clear(commandPrompt_t *prompt);
 void Prompt_SaveHistory(commandPrompt_t *prompt, const char *filename, int lines);
 void Prompt_LoadHistory(commandPrompt_t *prompt, const char *filename);
 
-#endif // PROMPT_H

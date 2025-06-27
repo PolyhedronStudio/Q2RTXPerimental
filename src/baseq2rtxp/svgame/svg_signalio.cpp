@@ -23,10 +23,12 @@
 *
 *
 **/
+DECLARE_GLOBAL_CALLBACK_THINK( Think_SignalOutDelay );
+
 /**
 *   @brief  'Think' support routine for delayed SignalOut signalling.
 **/
-void Think_SignalOutDelay( edict_t *ent ) {
+DEFINE_GLOBAL_CALLBACK_THINK( Think_SignalOutDelay )( svg_base_edict_t *ent ) -> void {
     // SignalOut again, keep in mind that ent now has no delay set, so it will actually
     // proceed to calling the OnSignalIn functions.
     SVG_SignalOut( ent, ent->other, ent->activator, ent->delayed.signalOut.name );
@@ -82,17 +84,17 @@ static void SVG_SignalOut_DebugPrintArguments( const svg_signal_argument_array_t
 *   @param  other   (optional) The entity which Send Out the Signal.
 *   @param  activator   The entity which initiated the process that resulted in sending out a signal.
 **/
-//void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments, const int32_t numberOfSignalArguments ) {
-void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
+//void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *sender, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments, const int32_t numberOfSignalArguments ) {
+void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *signaller, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments ) {
     //
     // check for a delay
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        edict_t *delayEntity = SVG_AllocateEdict();
+        svg_base_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
         delayEntity->classname = "DelayedSignalOut";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
-        delayEntity->think = Think_SignalOutDelay;
+        delayEntity->SetThinkCallback( Think_SignalOutDelay );
         delayEntity->activator = activator;
         delayEntity->other = signaller;
         if ( !activator ) {
@@ -100,6 +102,7 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
         }
         delayEntity->message = ent->message;
 
+        delayEntity->targetEntities.target = ent->targetEntities.target;
         delayEntity->targetNames.target = ent->targetNames.target;
         delayEntity->targetNames.kill = ent->targetNames.kill;
 
@@ -119,12 +122,12 @@ void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const 
 
     // Whether to por
     bool propogateToLua = true;
-    if ( ent->onsignalin ) {
+    if ( ent->HasOnSignalInCallback() ) {
         ent->activator = activator;
         ent->other = signaller;
 
         // Notify of the signal coming in.
-        /*propogateToLua = */ent->onsignalin( ent, signaller, activator, signalName, signalArguments );
+        /*propogateToLua = */ent->DispatchOnSignalInCallback( signaller, activator, signalName, signalArguments );
     }
     // If desired, propogate the signal to Lua '_OnSignalIn' callbacks.
     if ( propogateToLua ) {

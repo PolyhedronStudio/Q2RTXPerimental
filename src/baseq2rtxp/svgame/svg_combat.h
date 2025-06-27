@@ -19,8 +19,6 @@
 *
 *
 ***/
-// max number of individual damage indicators we'll track
-static constexpr size_t MAX_DAMAGE_INDICATORS = 4;
 /**
 *   @brief  Stores data indicating where damage came from, and how much it damage it did.
 **/
@@ -36,11 +34,7 @@ struct damage_indicator_t {
 
 
 
-/**
-*   Gib Types:
-**/
-static constexpr int32_t GIB_TYPE_ORGANIC   = 0;
-static constexpr int32_t GIB_TYPE_METALLIC  = 1;
+
 
 
 /**
@@ -141,16 +135,16 @@ static constexpr int32_t PNOISE_IMPACT = 2;
 /**
 *   @brief
 **/
-const bool SVG_OnSameTeam( edict_t *ent1, edict_t *ent2 );
+const bool SVG_OnSameTeam( svg_base_edict_t *ent1, svg_base_edict_t *ent2 );
 /**
 *   @brief
 **/
-const bool SVG_CanDamage( edict_t *targ, edict_t *inflictor );
+const bool SVG_CanDamage( svg_base_edict_t *targ, svg_base_edict_t *inflictor );
 /**
 *   @brief
 **/
-void SVG_TriggerDamage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath );
+void SVG_TriggerDamage( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath );
 /**
 *   @brief
 **/
-void SVG_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );
+void SVG_RadiusDamage( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, float damage, svg_base_edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath );

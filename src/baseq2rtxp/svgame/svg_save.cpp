@@ -17,15 +17,19 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 // Game related types.
 #include "svgame/svg_local.h"
-#include "sharedgame/sg_usetarget_hints.h"
 // Save related types.
-#include "svg_save.h"
+#include "svgame/svg_save.h"
 
-// Function Pointer Needs:
+#include "svgame/svg_clients.h"
+#include "svgame/svg_edict_pool.h"
+
+#include "svgame/entities/svg_player_edict.h"
+#include "svgame/entities/svg_worldspawn_edict.h"
+
 #include "svgame/player/svg_player_client.h"
 
 #if USE_ZLIB
-#include <zlib.h>
+    #include <zlib.h>
 #else
 #define gzopen(name, mode)          fopen(name, mode)
 #define gzclose(file)               fclose(file)
@@ -35,1390 +39,100 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define gzFile                      FILE *
 #endif
 
-typedef struct {
-    fieldtype_t type;
-#if USE_DEBUG
-	// WID: C++20: Added const.
-    const char *name;
-#endif
-    unsigned ofs;
-    unsigned size;
-} save_field_t;
 
-#if USE_DEBUG
-#define _FA(type, name, size) { type, #name, _OFS(name), size }
-#define _DA(type, name, size) { type, #name, _OFS(name), size }
-#else
-#define _FA(type, name, size) { type, _OFS(name), size }
-#define _DA(type, name, size) { type, _OFS(name), size }
-#endif
-#define _F(type, name) _FA(type, name, 1)
-#define ZSTR(name, size) _FA(F_ZSTRING, name, size)
-#define BYTE_ARRAY(name, size) _FA(F_BYTE, name, size)
-#define BYTE(name) BYTE_ARRAY(name, 1)
-#define SHORT_ARRAY(name, size) _FA(F_SHORT, name, size)
-#define SHORT(name) SHORT_ARRAY(name, 1)
-#define INT32_ARRAY(name, size) _FA(F_INT, name, size)
-#define INT32(name) INT32_ARRAY(name, 1)
-#define BOOL_ARRAY(name, size) _FA(F_BOOL, name, size)
-#define BOOL(name) BOOL_ARRAY(name, 1)
-#define FLOAT_ARRAY(name, size) _FA(F_FLOAT, name, size)
-#define FLOAT(name) FLOAT_ARRAY(name, 1)
-#define DOUBLE_ARRAY(name, size) _DA(F_DOUBLE, name, size)
-#define DOUBLE(name) DOUBLE_ARRAY(name, 1)
-
-#define LQSTR(name) _F(F_LEVEL_QSTRING, name)
-#define GQSTR(name) _F(F_GAME_QSTRING, name)
-#define CHARPTR(name) _F(F_LSTRING, name)
-
-#define LEVEL_QTAG_MEMORY(name) _F(F_LEVEL_QTAG_MEMORY, name)
-#define GAME_QTAG_MEMORY(name) _F(F_GAME_QTAG_MEMORY, name)
-
-#define VEC3(name) _F(F_VECTOR3, name)
-#define VEC4(name) _F(F_VECTOR4, name)
-#define ITEM(name) _F(F_ITEM, name)
-
-#define ENTITY(name) _F(F_EDICT, name)
-#define POINTER(name, type) _FA(F_POINTER, name, type)
-#define FTIME(name) _F(F_FRAMETIME, name)
-#define I64_ARRAY(name, size) _FA(F_INT64, name, size)
-#define INT64(name) I64_ARRAY(name, 1)
-
-
-
-/***
-*
-*
-*
-*
-*   Save Field Arrays:
-*
-*
-*
-*
-***/
-/**
-*   gclient_t:
-**/
-static const save_field_t clientfields[] = {
-#define _OFS FOFS_GCLIENT
-    INT32( ps.pmove.pm_type ),
-    SHORT( ps.pmove.pm_flags ),
-    SHORT( ps.pmove.pm_time ),
-    SHORT( ps.pmove.gravity ),
-    VEC3( ps.pmove.origin ),
-    VEC3( ps.pmove.delta_angles ),
-    VEC3( ps.pmove.velocity ),
-    BYTE( ps.pmove.viewheight ),
-
-    VEC3( ps.viewangles ),
-    VEC3( ps.viewoffset ),
-    VEC3( ps.kick_angles ),
-
-    //VEC3( ps.gunangles ),
-    //VEC3( ps.gunoffset ),
-    INT32( ps.gun.modelIndex ),
-    INT32( ps.gun.animationID ),
-
-    //FLOAT_ARRAY( ps.damage_blend, 4 ),
-    FLOAT_ARRAY( ps.screen_blend, 4 ),
-    FLOAT( ps.fov ),
-    INT32( ps.rdflags ),
-    INT32( ps.bobCycle ),
-    INT32_ARRAY( ps.stats, MAX_STATS ),
-
-    ZSTR( pers.userinfo, MAX_INFO_STRING ),
-    ZSTR( pers.netname, 16 ),
-    INT32( pers.hand ),
-
-    BOOL( pers.connected ),
-    BOOL( pers.spawned ),
-
-    INT32( pers.health ),
-    INT32( pers.max_health ),
-    INT32( pers.savedFlags ),
-
-    INT32( pers.selected_item ),
-    INT32_ARRAY( pers.inventory, MAX_ITEMS ),
-
-    ITEM( pers.weapon ),
-    ITEM( pers.lastweapon ),
-    INT32_ARRAY( pers.weapon_clip_ammo, MAX_ITEMS ),
-
-    INT32( pers.ammoCapacities.pistol ),
-    INT32( pers.ammoCapacities.rifle ),
-    INT32( pers.ammoCapacities.smg ),
-    INT32( pers.ammoCapacities.sniper ),
-    INT32( pers.ammoCapacities.shotgun ),
-
-    INT32( pers.score ),
-
-    BOOL( pers.spectator ),
-
-    BOOL( showscores ),
-    BOOL( showinventory ),
-    BOOL( showhelp ),
-    BOOL( showhelpicon ),
-
-    //INT32( buttons ),
-    //INT32( oldbuttons ),
-    //INT32( latched_buttons ),
-
-    INT32( ammo_index ),
-
-    ITEM( newweapon ),
-
-    BOOL( weapon_thunk ),
-
-    BOOL( grenade_blew_up ),
-    INT64( grenade_time ),
-    INT64( grenade_finished_time ),
-
-    INT32( frameDamage.armor ),
-    INT32( frameDamage.blood ),
-    INT32( frameDamage.knockBack ),
-    VEC3( frameDamage.from ),
-
-    FLOAT( killer_yaw ),
-
-    INT32( weaponState.mode ),
-    INT32( weaponState.canChangeMode ),
-    INT32( weaponState.aimState.isAiming ),
-    INT32( weaponState.animation.currentFrame ),
-    INT32( weaponState.animation.startFrame ),
-    INT32( weaponState.animation.endFrame ),
-    INT64( weaponState.timers.lastEmptyWeaponClick ),
-    INT64( weaponState.timers.lastPrimaryFire ),
-    INT64( weaponState.timers.lastAimedFire ),
-    INT64( weaponState.timers.lastDrawn ),
-    INT64( weaponState.timers.lastHolster ),
-
-    VEC3( weaponKicks.offsetAngles ),
-    VEC3( weaponKicks.offsetOrigin ),
-
-    VEC3( viewMove.viewAngles ), VEC3( viewMove.viewForward ),
-    INT64( viewMove.damageTime ),
-    INT64( viewMove.fallTime ),
-    INT64( viewMove.quakeTime ),
-    FLOAT( viewMove.damageRoll ), FLOAT( viewMove.damagePitch ),
-    FLOAT( viewMove.fallValue ),
-
-    FLOAT( damage_alpha ),
-    FLOAT( bonus_alpha ),
-    VEC3( damage_blend ),
-    INT64( bobCycle ),
-    INT64( oldBobCycle ),
-    DOUBLE( bobFracSin ),
-    INT64( last_stair_step_frame ),
-    VEC3( last_ladder_pos ),
-    INT64( last_ladder_sound ),
-
-    VEC3( oldviewangles ),
-    VEC3( oldvelocity ),
-    ENTITY( oldgroundentity ),
-    INT32( old_waterlevel ),
-    INT64( next_drown_time ),
-
-    // WID: TODO: Animation Mixer States.
-
-    INT64( pickup_msg_time ), // WID: 64-bit-frame
-
-    // WID: C++20: Replaced {0}
-    {}
-#undef _OFS
-};
 
 /**
-*   edict_t:
+*   @description    WriteGame
+*
+*   This will be called whenever the game goes to a new level,
+*   and when the user explicitly saves the game.
+*
+*   Game information include cross level data, like multi level
+*   triggers, help computer info, and all client states.
+*
+*   A single player death will automatically restore from the
+*   last save position.
 **/
-static const save_field_t entityfields[] = {
-#define _OFS FOFS_GENTITY
-    /**
-    *   Server Edict Entity State Data:
-    **/
-    INT32( s.number ),
-    //SHORT( s.client ),
-    INT32( s.entityType ),
-
-    VEC3( s.origin ),
-    VEC3( s.angles ),
-    VEC3( s.old_origin ),
-
-    INT32( s.solid ),
-    INT32( s.clipmask ),
-    INT32( s.clipmask ),
-    INT32( s.hullContents ),
-    INT32( s.ownerNumber ),
-
-    INT32( s.modelindex ),
-    INT32( s.modelindex2 ),
-    INT32( s.modelindex3 ),
-    INT32( s.modelindex4 ),
-
-    INT32( s.skinnum ),
-    INT32( s.effects ),
-    INT32( s.renderfx ),
-
-    INT32( s.frame ),
-    INT32( s.old_frame ),
-
-    INT32( s.sound ),
-    INT32( s.event ),
-
-    // TODO: Do we really need to save this? Perhaps.
-    // For spotlights.
-    VEC3( s.spotlight.rgb ),
-    FLOAT( s.spotlight.intensity ),
-    FLOAT( s.spotlight.angle_width ),
-    FLOAT( s.spotlight.angle_falloff ),
-
-    /**
-    *   Server Edict Data:
-    **/
-    INT32( svflags ),
-    VEC3( mins ),
-    VEC3( maxs ),
-    VEC3( absmin ),
-    VEC3( absmax ),
-    VEC3( size ),
-    INT32( solid ),
-    INT32( clipmask ),
-    INT32( hullContents ),
-    ENTITY( owner ),
-
-    /**
-    *   Start of Game Edict data:
-    **/
-    INT32( spawn_count ),
-    INT64( freetime ),
-    INT64( timestamp ),
-
-    LQSTR( classname ),
-    CHARPTR( model ),
-    FLOAT( angle ),
-
-    INT32( spawnflags ),
-    INT32( flags ),
-
-    /**
-    *   Health/Body Status Conditions:
-    **/
-    INT32( health ),
-    INT32( max_health ),
-    INT32( gib_health ),
-    INT32( lifeStatus ),
-    INT32( takedamage ),
-
-    /**
-    *   UseTarget Properties and State:
-    **/
-    INT32( useTarget.flags ),
-    INT32( useTarget.state ),
-
-    /**
-    *   Target Name Fields:
-    **/
-    LQSTR( targetname ),
-    LQSTR( targetNames.target ),
-    LQSTR( targetNames.kill ),
-    LQSTR( targetNames.team ),
-    LQSTR( targetNames.path ),
-    LQSTR( targetNames.death ),
-    LQSTR( targetNames.movewith ),
-
-    /**
-    *   Target Entities:
-    **/
-    ENTITY( targetEntities.target ),
-    ENTITY( targetEntities.movewith ),
-
-    /**
-    *   Lua Properties:
-    **/
-    LQSTR( luaProperties.luaName ),
-
-    /**
-    *   "Delay" entities:
-    **/
-    ENTITY( delayed.useTarget.creatorEntity ),
-    INT32( delayed.useTarget.useType ),
-    INT32( delayed.useTarget.useValue ),
-    ENTITY( delayed.signalOut.creatorEntity ),
-    ZSTR( delayed.signalOut.name, 256 ),
-    // WID: TODO: We can't save these with a system like these, can we?
-    // WID: We can I guess, but it requires a specified save type for signal argument array indices.
-    //SIGNALARGUMENTS( delayed.signalOut.arguments ),
-
-    /**
-    *   Physics Related:
-    **/
-    VEC3( moveWith.absoluteOrigin ),
-    VEC3( moveWith.originOffset ),
-    VEC3( moveWith.relativeDeltaOffset ),
-    VEC3( moveWith.spawnDeltaAngles ),
-    VEC3( moveWith.spawnParentAttachAngles ),
-    VEC3( moveWith.totalVelocity ),
-    ENTITY( moveWith.parentMoveEntity ),
-    ENTITY( moveWith.moveNextEntity),
-
-    INT32( movetype ),
-    VEC3( velocity ),
-    VEC3( avelocity ),
-    INT32( viewheight ),
-
-    // WID: Are these actually needed? Would they not be recalculated the first frame around?
-    // WID: TODO: mm_ground_info_t
-    // WID: TODO: mm_liquid_info_t
-    INT32( mass ),
-    FLOAT( gravity ),
-
-    /**
-    *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
-    **/
-    // Start/End Data:
-    VEC3( pushMoveInfo.startOrigin ),
-    VEC3( pushMoveInfo.startAngles ),
-    VEC3( pushMoveInfo.endOrigin ),
-    VEC3( pushMoveInfo.endAngles ),
-    INT32( pushMoveInfo.startFrame ),
-    INT32( pushMoveInfo.endFrame ),
-    // Dynamic State Data
-    INT32( pushMoveInfo.state ),
-    VEC3( pushMoveInfo.dir ),
-    VEC3( pushMoveInfo.dest ),
-    BOOL( pushMoveInfo.in_motion ),
-    FLOAT( pushMoveInfo.current_speed ),
-    FLOAT( pushMoveInfo.move_speed ),
-    FLOAT( pushMoveInfo.next_speed ),
-    FLOAT( pushMoveInfo.remaining_distance ),
-    FLOAT( pushMoveInfo.decel_distance ),
-    //  Acceleration Data.
-    FLOAT( pushMoveInfo.accel ),
-    FLOAT( pushMoveInfo.speed ),
-    FLOAT( pushMoveInfo.decel ),
-    FLOAT( pushMoveInfo.distance ),
-    FLOAT( pushMoveInfo.wait ),
-    // Curve.
-    VEC3( pushMoveInfo.curve.referenceOrigin ),
-    //INT64( pushMoveInfo.curve.countPositions ),
-    // WID: TODO: This is problematic with this save system, size has to be dynamic in the future.
-    //FLOAT_ARRAY( pushMoveInfo.curve.positions, 1024 ),
-    LEVEL_QTAG_MEMORY( pushMoveInfo.curve.positions ),
-    INT64( pushMoveInfo.curve.frame ),
-    INT64( pushMoveInfo.curve.subFrame ),
-    INT64( pushMoveInfo.curve.numberSubFrames ),
-    INT64( pushMoveInfo.curve.numberFramesDone ),
-    // LockState
-    BOOL( pushMoveInfo.lockState.isLocked ),
-    INT32( pushMoveInfo.lockState.lockedSound ),
-    INT32( pushMoveInfo.lockState.lockingSound ),
-    INT32( pushMoveInfo.lockState.unlockingSound ),
-    // Sounds
-    INT32( pushMoveInfo.sounds.start ),
-    INT32( pushMoveInfo.sounds.middle ),
-    INT32( pushMoveInfo.sounds.end ),
-    // Callback
-    POINTER( pushMoveInfo.endMoveCallback, P_pusher_moveinfo_endmovecallback ),
-    // Movewith
-    VEC3( pushMoveInfo.lastVelocity ),
-    // WID: Are these actually needed? Would they not be recalculated the first frame around?
-    // WID: TODO: PushmoveInfo
-    FLOAT( speed ),
-    FLOAT( accel ),
-    FLOAT( decel ),
-
-    VEC3( movedir ),
-    VEC3( pos1 ),
-    VEC3( angles1 ),
-    VEC3( pos2 ),
-    VEC3( angles2 ),
-    VEC3( lastOrigin ),
-    VEC3( lastAngles ),
-    ENTITY( movetarget ),
-
-    /**
-    *   NextThink AND Entity Callbacks:
-    **/
-    INT64( nextthink ),
-
-    POINTER( postspawn, P_postspawn ),
-    POINTER( prethink, P_prethink ),
-    POINTER( think, P_think ),
-    POINTER( postthink, P_postthink ),
-    POINTER( blocked, P_blocked ),
-    POINTER( touch, P_touch ),
-    POINTER( use, P_use ),
-    POINTER( pain, P_pain ),
-    POINTER( onsignalin, P_onsignalin ),
-    POINTER( die, P_die ),
-
-    /**
-    *   Entity Pointers:
-    **/
-    ENTITY( enemy ),
-    ENTITY( oldenemy ),
-    ENTITY( goalentity ),
-    ENTITY( chain ),
-    ENTITY( teamchain ),
-    ENTITY( teammaster ),
-    ENTITY( activator ),
-    ENTITY( other ),
-
-    /**
-    *   Light Data:
-    **/
-    INT32( style ),
-    CHARPTR( customLightStyle ),
-
-    /**
-    *   Item Data:
-    **/
-    ITEM( item ),
-
-    /**
-    *   Monster Data:
-    **/
-    FLOAT( yaw_speed ),
-    FLOAT( ideal_yaw ),
-
-    /**
-    *   Player Noise/Trail:
-    **/
-    ENTITY( mynoise ),
-    ENTITY( mynoise2 ),
-
-    INT32( noise_index ),
-    INT32( noise_index2 ),
-
-    /**
-    *   Sound Data:
-    **/
-    FLOAT( volume ),
-    FLOAT( attenuation ),
-    INT64( last_sound_time ),
-
-    /**
-    *   Trigger(s) Data:
-    **/
-    CHARPTR( message ),
-    FLOAT( wait ),
-    FLOAT( delay ),
-
-    // WID: TODO: Fix this, wtf at the name of plain 'random'.
-    #undef random
-    FLOAT( random ),
-
-    /**
-    *   Timers Data:
-    **/
-    INT64( air_finished_time ),
-    INT64( damage_debounce_time ),
-    INT64( fly_sound_debounce_time ),
-    INT64( last_move_time ),
-    INT64( touch_debounce_time ),
-    INT64( pain_debounce_time ),
-    INT64( show_hostile_time ),
-    INT64( trail_time ),
-
-    /**
-    *   Various Data:
-    **/
-    INT32( meansOfDeath ),
-    CHARPTR( map ),
-
-    INT32( dmg ),
-    INT32( radius_dmg ),
-    FLOAT( dmg_radius ),
-    FLOAT( light ),
-    INT32( sounds ),
-    INT32( count ),
-
-    /**
-    *   Only used for g_turret.cpp - WID: Remove?:
-    **/
-    VEC3( move_origin ),
-    VEC3( move_angles ),
-
-    // WID: TODO: Monster Reimplement.
-    //POINTER( monsterinfo.currentmove, P_monsterinfo_currentmove ),
-    //POINTER( monsterinfo.nextmove, P_monsterinfo_nextmove ),
-    //INT32( monsterinfo.aiflags ),
-    //INT64( monsterinfo.nextframe ), // WID: 64-bit-frame
-    //FLOAT( monsterinfo.scale ),
-
-    //POINTER( monsterinfo.stand, P_monsterinfo_stand ),
-    //POINTER( monsterinfo.idle, P_monsterinfo_idle ),
-    //POINTER( monsterinfo.search, P_monsterinfo_search ),
-    //POINTER( monsterinfo.walk, P_monsterinfo_walk ),
-    //POINTER( monsterinfo.run, P_monsterinfo_run ),
-    //POINTER( monsterinfo.dodge, P_monsterinfo_dodge ),
-    //POINTER( monsterinfo.attack, P_monsterinfo_attack ),
-    //POINTER( monsterinfo.melee, P_monsterinfo_melee ),
-    //POINTER( monsterinfo.sight, P_monsterinfo_sight ),
-    //POINTER( monsterinfo.checkattack, P_monsterinfo_checkattack ),
-
-    //INT64( monsterinfo.next_move_time ),
-
-    //INT64( monsterinfo.pause_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.pause_time),
-    //INT64( monsterinfo.attack_finished ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.attack_finished),
-    //INT64( monsterinfo.fire_wait ),
-
-    //VEC3( monsterinfo.saved_goal ),
-    //INT64( monsterinfo.search_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.search_time),
-    //INT64( monsterinfo.trail_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.trail_time),
-    //VEC3( monsterinfo.last_sighting ),
-    //INT32( monsterinfo.attack_state ),
-    //INT32( monsterinfo.lefty ),
-    //INT64( monsterinfo.idle_time ),// WID: 64-bit-frame FRAMETIMEmonsterinfo.idle_time),
-    //INT32( monsterinfo.linkcount ),
-
-	// WID: C++20: Replaced {0}
-    {}
-#undef _OFS
-};
-
-/**
-*   game:
-**/
-static const save_field_t gamefields[] = {
-#define _OFS FOFS_GAME_LOCALS
-    INT32(maxclients),
-    INT32(maxentities),
-    INT32(gamemode),
-
-    INT32(serverflags),
-
-    INT32(num_items),
-
-    BOOL(autosaved),
-
-    INT32( num_movewithEntityStates ),
-
-	// WID: C++20: Replaced {0}
-    {}
-#undef _OFS
-};
-
-/**
-*   level:
-**/
-static const save_field_t levelfields[] = {
-#define _OFS FOFS_LEVEL_LOCALS
-    INT64( frameNumber ),
-    INT64( time ), // WID: 64-bit-frame
-
-    ZSTR( level_name, MAX_QPATH ),
-    ZSTR( mapname, MAX_QPATH ),
-    ZSTR( nextmap, MAX_QPATH ),
-
-    INT64( intermissionFrameNumber ),
-
-    CHARPTR( changemap ),
-    INT64( exitintermission ),
-    VEC3( intermission_origin ),
-    VEC3( intermission_angle ),
-
-    ENTITY( sight_client ),
-
-    ENTITY( sight_entity ),
-    INT64( sight_entity_framenum ), // WID: 64-bit-frame
-    ENTITY( sound_entity ),
-    INT64( sound_entity_framenum ), // WID: 64-bit-frame
-    ENTITY( sound2_entity ),
-    INT64( sound2_entity_framenum ),// WID: 64-bit-frame
-
-    INT32( pic_health ),
-
-    INT32( total_secrets ),
-    INT32( found_secrets ),
-
-    INT32( total_goals ),
-    INT32( found_goals ),
-
-    INT32( total_monsters ),
-    INT32( killed_monsters ),
-
-    ENTITY( current_entity ),
-
-    INT32( body_que ),
-
-    // WID: C++20: Replaced {0}
-    {}
-#undef _OFS
-};
-
-
-
-/***
-*
-*
-*
-*
-*   Write:
-*
-*
-*
-*
-***/
-static void write_data(void *buf, size_t len, gzFile f)
-{
-    if (gzwrite(f, buf, len) != len) {
-        gzclose(f);
-        gi.error("%s: couldn't write %zu bytes", __func__, len);
-    }
-}
-
-static void write_short(gzFile f, int16_t v)
-{
-    v = LittleShort(v);
-    write_data(&v, sizeof(v), f);
-}
-
-static void write_int(gzFile f, int32_t v)
-{
-    v = LittleLong(v);
-    write_data(&v, sizeof(v), f);
-}
-
-static void write_int64(gzFile f, int64_t v) {
-	v = LittleLongLong( v );
-	write_data( &v, sizeof( v ), f );
-}
-
-static void write_float(gzFile f, float v)
-{
-    v = LittleFloat(v);
-    write_data(&v, sizeof(v), f);
-}
-
-static void write_double( gzFile f, double v ) {
-    v = LittleDouble( v );
-    write_data( &v, sizeof( v ), f );
-}
-
-static void write_string(gzFile f, char *s)
-{
-    size_t len;
-
-    if (!s) {
-        write_int(f, -1);
-        return;
-    }
-
-    len = strlen(s);
-    if (len >= 65536) {
-        gzclose(f);
-        gi.error("%s: bad length", __func__);
-    }
-    write_int(f, len);
-    write_data(s, len, f);
-}
-
-static void write_level_qstring( gzFile f, svg_level_qstring_t *qstr ) {
-    if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
-        write_int( f, -1 );
-        return;
-    }
-
-    const size_t len = qstr->count;
-    if ( len >= 65536 ) {
-        gzclose( f );
-        gi.error( "%s: bad length(%d)", __func__, len );
-    }
-    
-    write_int( f, len );
-    write_data( qstr->ptr, len * sizeof( char ), f);
-    return;
-}
-
-static void write_game_qstring( gzFile f, svg_game_qstring_t *qstr ) {
-    if ( !qstr || !qstr->ptr || qstr->count <= 0 ) {
-        write_int( f, -1 );
-        return;
-    }
-
-    const size_t len = qstr->count;
-    if ( len >= 65536 ) {
-        gzclose( f );
-        gi.error( "%s: bad length(%d)", __func__, len );
-    }
-
-    write_int( f, len );
-    write_data( qstr->ptr, len * sizeof( char ), f );
-    return;
-}
-
-/**
-*   @brief  Write level qtag memory block to disk.
-**/
-template<typename T, int32_t tag = TAG_SVGAME_LEVEL>
-static void write_level_qtag_memory( gzFile f, sg_qtag_memory_t<T, tag> *qtagMemory ) {
-    if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->count <= 0 ) {
-        write_int( f, -1 );
-        return;
-    }
-
-    const size_t len = qtagMemory->count;
-    if ( len >= 65536 ) {
-        gzclose( f );
-        gi.error( "%s: bad length(%d)", __func__, len );
-    }
-    write_int( f, len );
-    write_data( qtagMemory->ptr, len * sizeof( T ), f );
-    return;
-}
-/**
-*   @brief  Write game qtag memory block to disk.
-**/
-template<typename T, int32_t tag = TAG_SVGAME>
-static void write_game_qtag_memory( gzFile f, sg_qtag_memory_t<T, tag> *qtagMemory ) {
-    if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->count <= 0 ) {
-        write_int( f, -1 );
-        return;
-    }
-
-    const size_t len = qtagMemory->count;
-    if ( len >= 65536 ) {
-        gzclose( f );
-        gi.error( "%s: bad length(%d)", __func__, len );
-    }
-    write_int( f, len );
-    write_data( qtagMemory->ptr, len * sizeof( T ), f );
-    return;
-}
-
-static void write_vector3(gzFile f, vec_t *v)
-{
-    write_float(f, v[0]);
-    write_float(f, v[1]);
-    write_float(f, v[2]);
-}
-
-static void write_vector4( gzFile f, vec_t *v ) {
-    write_float( f, v[ 0 ] );
-    write_float( f, v[ 1 ] );
-    write_float( f, v[ 2 ] );
-    write_float( f, v[ 3 ] );
-}
-
-static void write_index(gzFile f, void *p, size_t size, void *start, int max_index)
-{
-    uintptr_t diff;
-
-    if (!p) {
-        write_int(f, -1);
-        return;
-    }
-
-    diff = (uintptr_t)p - (uintptr_t)start;
-    if (diff > max_index * size) {
-        gzclose(f);
-        gi.error("%s: pointer out of range: %p", __func__, p);
-    }
-    if (diff % size) {
-        gzclose(f);
-        gi.error("%s: misaligned pointer: %p", __func__, p);
-    }
-    write_int(f, (int)(diff / size));
-}
-
-static void write_pointer(gzFile f, void *p, ptr_type_t type, const save_field_t *saveField ) {
-    const save_ptr_t *ptr;
-    int i;
-
-    if (!p) {
-        write_int(f, -1);
-        return;
-    }
-
-    for (i = 0, ptr = save_ptrs; i < num_save_ptrs; i++, ptr++) {
-        if (ptr->type == type && ptr->ptr == p) {
-            write_int(f, i);
-            return;
-        }
-    }
-
-    gzclose(f);
-    #if USE_DEBUG
-    gi.error( "%s: unknown pointer for '%s': %p", __func__, saveField->name, p );
-    #else
-    gi.error("%s: unknown pointer: %p", __func__, p);
-    #endif
-}
-
-static void write_field(gzFile f, const save_field_t *field, void *base)
-{
-    void *p = (byte *)base + field->ofs;
-    int i;
-
-    switch (field->type) {
-    case F_BYTE:
-        write_data(p, field->size, f);
-        break;
-    case F_SHORT:
-        for (i = 0; i < field->size; i++) {
-            write_short(f, ((short *)p)[i]);
-        }
-        break;
-    case F_INT:
-        for (i = 0; i < field->size; i++) {
-            write_int(f, ((int *)p)[i]);
-        }
-        break;
-    case F_BOOL:
-        for (i = 0; i < field->size; i++) {
-            write_int(f, ((bool *)p)[i]);
-        }
-        break;
-    case F_FLOAT:
-        for (i = 0; i < field->size; i++) {
-            write_float(f, ((float *)p)[i]);
-        }
-        break;
-    case F_DOUBLE:
-        for ( i = 0; i < field->size; i++ ) {
-            write_double( f, ( (double *)p )[ i ] );
-        }
-        break;
-    case F_VECTOR3:
-        write_vector3(f, (vec_t *)p);
-        break;
-    case F_VECTOR4:
-        write_vector4( f, (vec_t *)p );
-        break;
-    case F_ZSTRING:
-        write_string(f, (char *)p);
-        break;
-    case F_LSTRING:
-        write_string(f, *(char **)p);
-        break;
-    case F_LEVEL_QSTRING:
-        write_level_qstring( f, (svg_level_qstring_t*)p );
-        break;
-    case F_GAME_QSTRING:
-        write_game_qstring( f, (svg_game_qstring_t *)p );
-        break;
-    case F_LEVEL_QTAG_MEMORY:
-        write_level_qtag_memory<float>( f, ( ( sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> * )p ) );
-        break;
-    case F_GAME_QTAG_MEMORY:
-        write_game_qtag_memory<float>( f, ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
-        break;
-    case F_EDICT:
-        write_index(f, *(void **)p, sizeof(edict_t), g_edicts, MAX_EDICTS - 1);
-        break;
-    case F_CLIENT:
-        write_index(f, *(void **)p, sizeof(gclient_t), game.clients, game.maxclients - 1);
-        break;
-    case F_ITEM:
-        write_index(f, *(void **)p, sizeof(gitem_t), itemlist, game.num_items - 1);
-        break;
-
-    case F_POINTER:
-		// WID: C++20: Added cast.
-        write_pointer(f, *(void **)p, (ptr_type_t)field->size, field );
-        break;
-
-    case F_FRAMETIME:
-		// WID: We got QMTime, so we need int64 saving for frametime.
-        for (i = 0; i < field->size; i++) {
-            write_int64(f, ((int64_t *)p)[i]);
-        }
-        break;
-	case F_INT64:
-		for ( i = 0; i < field->size; i++ ) {
-			write_int64( f, ( (int64_t *)p )[ i ] );
-		}
-		break;
-
-    default:
-        #if !defined(_USE_DEBUG)
-        gi.error( "%s: unknown field type(%d)", __func__, field->type );
-        #else
-        gi.error( "%s: unknown field type(%d), name(%s)", __func__, field->type, field->name );
-        #endif
-    }
-}
-
-static void write_fields(gzFile f, const save_field_t *fields, void *base)
-{
-    const save_field_t *field;
-
-    for (field = fields; field->type; field++) {
-        write_field(f, field, base);
-    }
-}
-
-
-
-/***
-* 
-* 
-* 
-* 
-*   Reading:
-* 
-* 
-* 
-* 
-***/
-typedef struct game_read_context_s {
-	gzFile f;
-    //bool frametime_is_float;
-    const save_ptr_t* save_ptrs;
-    int num_save_ptrs;
-} game_read_context_t;
-
-static void read_data(void *buf, size_t len, gzFile f)
-{
-    if (gzread(f, buf, len) != len) {
-        gzclose(f);
-        gi.error("%s: couldn't read %zu bytes", __func__, len);
-    }
-}
-
-static int read_short(gzFile f)
-{
-    int16_t v;
-
-    read_data(&v, sizeof(v), f);
-    v = LittleShort(v);
-
-    return v;
-}
-
-static int read_int(gzFile f)
-{
-    int32_t v;
-
-    read_data(&v, sizeof(v), f);
-    v = LittleLong(v);
-
-    return v;
-}
-
-static float read_int64(gzFile f) {
-	int64_t v;
-
-	read_data( &v, sizeof( v ), f );
-	v = LittleLongLong( v );
-
-	return v;
-}
-
-static float read_float(gzFile f)
-{
-    float v;
-
-    read_data(&v, sizeof(v), f);
-    v = LittleFloat(v);
-
-    return v;
-}
-
-static double read_double( gzFile f ) {
-    double v;
-
-    read_data( &v, sizeof( v ), f );
-    v = LittleDouble( v );
-
-    return v;
-}
-
-static char *read_string(gzFile f)
-{
-    int len;
-    char *s;
-
-    len = read_int(f);
-    if (len == -1) {
-        return NULL;
-    }
-
-    if (len < 0 || len >= 65536) {
-        gzclose(f);
-        gi.error("%s: bad length", __func__);
-    }
-
-	// WID: C++20: Added cast.
-    s = (char*)gi.TagMalloc(len + 1, TAG_SVGAME_LEVEL);
-    read_data(s, len, f);
-    s[len] = 0;
-
-    return s;
-}
-
-static const svg_level_qstring_t read_level_qstring( gzFile f ) {
-    int len;
-
-    len = read_int( f );
-    if ( len == -1 ) {
-        return nullptr;
-    }
-
-    if ( len < 0 || len >= 65536 ) {
-        gzclose( f );
-        gi.error( "%s: bad length(%d)", __func__, len );
-    }
-
-    // Allocate level tag string space.
-    svg_level_qstring_t lstring = svg_level_qstring_t::new_for_size( len );
-    // Delete temporary buffer.
-    read_data( lstring.ptr, len, f );
-
-    return lstring;
-}
-
-static const svg_game_qstring_t read_game_qstring( gzFile f ) {
-    int len;
-
-    len = read_int( f );
-    if ( len == -1 ) {
-        return nullptr;
-    }
-
-    if ( len < 0 || len >= 65536 ) {
-        gzclose( f );
-        gi.error( "%s: bad length(%d)", __func__, len );
-    }
-
-    // Allocate level tag string space.
-    svg_game_qstring_t gstring = svg_game_qstring_t::new_for_size( len );
-    // Delete temporary buffer.
-    read_data( gstring.ptr, len, f );
-    return gstring;
-}
-
-/**
-*   @brief 
-**/
-template<typename T>
-static sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *read_level_qtag_memory( gzFile f, sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *p ) {
-    int len;
-
-    len = read_int( f );
-    if ( len == -1 ) {
-        return allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, 0 );
-    }
-
-    if ( len < 0 || len >= 65536 ) {
-        gzclose( f );
-        gi.error( "%s: bad length(%d)", __func__, len );
-    }
-
-    // Allocate level tag string space.
-    allocate_qtag_memory<T, TAG_SVGAME_LEVEL>( p, len );
-    // Delete temporary buffer.
-    read_data( p->ptr, /*len*/p->size(), f );
-    return p;
-}
-/**
-*   @brief
-**/
-template<typename T>
-static sg_qtag_memory_t<T, TAG_SVGAME> *read_game_qtag_memory( gzFile f, sg_qtag_memory_t<T, TAG_SVGAME> *p ) {
-    int len;
-
-    len = read_int( f );
-    if ( len == -1 ) {
-        return allocate_qtag_memory<T, TAG_SVGAME>( p, 0 );
-    }
-
-    if ( len < 0 || len >= 65536 ) {
-        gzclose( f );
-        gi.error( "%s: bad length(%d)", __func__, len );
-    }
-
-    // Allocate level tag string space.
-    allocate_qtag_memory<T, TAG_SVGAME>( p, len );
-    // Delete temporary buffer.
-    read_data( p->ptr, /*len*/p->size(), f);
-    return p;
-}
-
-static void read_zstring(gzFile f, char *s, size_t size)
-{
-    int len;
-
-    len = read_int(f);
-    if (len < 0 || len >= size) {
-        gzclose(f);
-        gi.error("%s: bad length", __func__);
-    }
-
-    read_data(s, len, f);
-    s[len] = 0;
-}
-
-static void read_vector3(gzFile f, vec_t *v)
-{
-    v[0] = static_cast<vec_t>( read_float(f) );
-    v[1] = static_cast<vec_t>( read_float( f ) );
-    v[2] = static_cast<vec_t>( read_float( f ) );
-}
-static void read_vector4( gzFile f, vec_t *v ) {
-    v[ 0 ] = static_cast<vec_t>( read_float( f ) );
-    v[ 1 ] = static_cast<vec_t>( read_float( f ) );
-    v[ 2 ] = static_cast<vec_t>( read_float( f ) );
-    v[ 3 ] = static_cast<vec_t>( read_float( f ) );
-}
-
-static void *read_index(gzFile f, size_t size, void *start, int max_index)
-{
-    int index;
-    byte *p;
-
-    index = read_int(f);
-    if (index == -1) {
-        return NULL;
-    }
-
-    if (index < 0 || index > max_index) {
-        gzclose(f);
-        gi.error("%s: bad index", __func__);
-    }
-
-    p = (byte *)start + index * size;
-    return p;
-}
-
-static void *read_pointer(game_read_context_t* ctx, ptr_type_t type)
-{
-    int index;
-    const save_ptr_t *ptr;
-
-    index = read_int(ctx->f);
-    if (index == -1) {
-        return NULL;
-    }
-
-    if (index < 0 || index >= ctx->num_save_ptrs) {
-        gzclose(ctx->f);
-        gi.error("%s: bad index", __func__);
-    }
-
-    ptr = &ctx->save_ptrs[index];
-    if (ptr->type != type) {
-        gzclose(ctx->f);
-        gi.error("%s: type mismatch", __func__);
-    }
-
-    return ptr->ptr;
-}
-
-static void read_field(game_read_context_t* ctx, const save_field_t *field, void *base)
-{
-    void *p = (byte *)base + field->ofs;
-    int i;
-
-    switch (field->type) {
-    case F_BYTE:
-        read_data(p, field->size, ctx->f);
-        break;
-    case F_SHORT:
-        for (i = 0; i < field->size; i++) {
-            ((short *)p)[i] = read_short(ctx->f);
-        }
-        break;
-    case F_INT:
-        for (i = 0; i < field->size; i++) {
-            ((int *)p)[i] = read_int(ctx->f);
-        }
-        break;
-    case F_BOOL:
-        for (i = 0; i < field->size; i++) {
-            ((bool *)p)[i] = read_int(ctx->f);
-        }
-        break;
-    case F_FLOAT:
-        for (i = 0; i < field->size; i++) {
-            ((float *)p)[i] = read_float(ctx->f);
-        }
-        break;
-    case F_DOUBLE:
-        for ( i = 0; i < field->size; i++ ) {
-            ( (double *)p )[ i ] = read_double( ctx->f );
-        }
-        break;
-    case F_VECTOR3:
-        read_vector3(ctx->f, (vec_t *)p);
-        break;
-    case F_VECTOR4:
-        read_vector4( ctx->f, (vec_t *)p );
-        break;
-    case F_LSTRING:
-        *(char **)p = read_string(ctx->f);
-        break;
-    case F_LEVEL_QSTRING:
-        ( *(svg_level_qstring_t *)p ) = read_level_qstring( ctx->f );
-        break;
-    case F_GAME_QSTRING:
-        ( *(svg_game_qstring_t *)p ) = read_game_qstring( ctx->f );
-        break;
-    case F_LEVEL_QTAG_MEMORY:
-        read_level_qtag_memory<float>( ctx->f, ( ( sg_qtag_memory_t<float, TAG_SVGAME_LEVEL> * )p ) );
-        break;
-    case F_GAME_QTAG_MEMORY:
-        read_game_qtag_memory<float>( ctx->f, ( ( sg_qtag_memory_t<float, TAG_SVGAME> * )p ) );
-        break;
-    case F_ZSTRING:
-        read_zstring(ctx->f, (char *)p, field->size);
-        break;
-    case F_EDICT:
-		// WID: C++20: Added cast.
-		*(edict_t **)p = (edict_t*)read_index(ctx->f, sizeof(edict_t), g_edicts, game.maxentities - 1);
-        break;
-    case F_CLIENT:
-		// WID: C++20: Added cast.
-		*(gclient_t **)p = (gclient_t*)read_index(ctx->f, sizeof(gclient_t), game.clients, game.maxclients - 1);
-        break;
-    case F_ITEM:
-		// WID: C++20: Added cast.
-        *(gitem_t **)p = (gitem_t*)read_index(ctx->f, sizeof(gitem_t), itemlist, game.num_items - 1);
-        break;
-
-    case F_POINTER:
-		// WID: C++20: Added cast.
-        *(void **)p = read_pointer(ctx, (ptr_type_t)field->size);
-        break;
-
-    case F_FRAMETIME:
-		// WID: We got QMTime, so we need int64 saving for frametime.
-		for (i = 0; i < field->size; i++) {
-	        ((int64_t *)p)[i] = read_int64(ctx->f);
-        }
-        break;
-	case F_INT64:
-		for ( i = 0; i < field->size; i++ ) {
-			( (int64_t *)p )[ i ] = read_int64( ctx->f );
-		}
-		break;
-
-    default:
-        #if !defined( _USE_DEBUG )
-        gi.error("%s: unknown field type(%d)", __func__, field->type );
-        #else
-        gi.error( "%s: unknown field type(%d), name(%s)", __func__, field->type, field->name );
-        #endif
-    }
-}
-
-static void read_fields(game_read_context_t* ctx, const save_field_t *fields, void *base)
-{
-    const save_field_t *field;
-
-    for (field = fields; field->type; field++) {
-        read_field(ctx, field, base);
-    }
-}
-
-
-
-/***
-*
-*
-*
-*
-*   Game Read/Write:
-*
-*
-*
-*
-***/
-#define SAVE_MAGIC1     MakeLittleLong('G','S','V','1')
-#define SAVE_MAGIC2     MakeLittleLong('L','S','V','1')
-// WID: We got our own version number obviously.
-//#define SAVE_VERSION    8
-#define SAVE_VERSION	1337
-
-static void check_gzip(int magic)
-{
-#if !USE_ZLIB
-    if ((magic & 0xe0ffffff) == 0x00088b1f)
-        gi.error("Savegame is compressed, but no gzip support linked in");
-#endif
-}
-
-/*
-============
-WriteGame
-
-This will be called whenever the game goes to a new level,
-and when the user explicitly saves the game.
-
-Game information include cross level data, like multi level
-triggers, help computer info, and all client states.
-
-A single player death will automatically restore from the
-last save position.
-============
-*/
-void SVG_WriteGame(const char *filename, qboolean autosave)
-{
-    gzFile  f;
-    int     i;
-
-    if (!autosave)
+void SVG_WriteGame( const char *filename, const bool isAutoSave ) {
+    // If not an autosave, make sure to save client data properly.
+    if ( !isAutoSave ) {
         SVG_Player_SaveClientData();
+    }
 
-    f = gzopen(filename, "wb");
-    if (!f)
-        gi.error("Couldn't open %s", filename);
+    gzFile f = gzopen( filename, "wb" );
+    if ( !f ) {
+        gi.error( "Couldn't open %s", filename );
+    }
 
-    write_int(f, SAVE_MAGIC1);
-    write_int(f, SAVE_VERSION);
+    // Create a savegame write context.
+    game_write_context_t ctx = game_write_context_t::make_write_context( f );
 
-    game.autosaved = autosave;
-    write_fields(f, gamefields, &game);
+    //f = gzopen(filename, "wb");
+    //if (!f)
+    //    gi.error("Couldn't open %s", filename);
+
+    ctx.write_int32( SAVE_MAGIC1 );
+    ctx.write_int32( SAVE_VERSION );
+
+    game.autosaved = isAutoSave;
+    ctx.write_fields( svg_game_locals_t::saveDescriptorFields, &game );//write_fields(f, gamefields, &game);
     game.autosaved = false;
 
-    for (i = 0; i < game.maxclients; i++) {
-        write_fields(f, clientfields, &game.clients[i]);
+    for ( int32_t i = 0; i < game.maxclients; i++) {
+        //write_fields(f, clientfields, &game.clients[i] );
+		ctx.write_fields( svg_client_t::saveDescriptorFields, &game.clients[ i ] );
     }
 
-    if (gzclose(f))
-        gi.error("Couldn't write %s", filename);
+    // Possibly throw an error if the file couldn't be written.
+    if ( gzclose( f ) ) {
+        gi.error( "Couldn't write %s", filename );
+    }
 }
 
-static game_read_context_t make_read_context(gzFile f, int version)
-{
-    game_read_context_t ctx;
-    ctx.f = f;
-	ctx.save_ptrs = save_ptrs;
-	ctx.num_save_ptrs = num_save_ptrs;
-    return ctx;
-}
-
-void SVG_ReadGame(const char *filename)
-{
+/**
+*   @brief  Reads a game save file and initializes the game state.
+*   @param  filename The name of the save file to read.
+*   @description    This function reads a save file and initializes the game state.
+*                   It allocates memory for the game state and clients, and reads the game data from the file.
+*                   It also checks the version of the save file and ensures that the game state is valid.
+**/
+void SVG_ReadGame( const char *filename ) {
     gzFile	f;
     int     i;
 
     gi.FreeTags(TAG_SVGAME);
+    game = {};
 
+    // ReInitialize the game local's movewith array.
+    game.moveWithEntities = static_cast<svg_game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
+    memset( game.moveWithEntities, 0, sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
+
+	// Open the file.
     f = gzopen(filename, "rb");
-    if (!f)
-        gi.error("Couldn't open %s", filename);
-
+    if ( !f ) {
+        gi.error( "Couldn't open %s", filename );
+    }
+	// Set the buffer size to 64k.
     gzbuffer(f, 65536);
+    // Create a savegame read context.
+    game_read_context_t ctx = game_read_context_t::make_read_context( f );
 
-    i = read_int(f);
+	// Read the magic number.
+    i = ctx.read_int32();
     if (i != SAVE_MAGIC1) {
         gzclose(f);
-        check_gzip(i);
-        gi.error("Not a Q2PRO save game");
+        gi.error("Not a Q2RTXPerimental save game");
     }
-
-    i = read_int(f);
+	// Read the version number.
+    i = ctx.read_int32();
     if ((i != SAVE_VERSION)  && (i != 2)) {
         // Version 2 was written by Q2RTX 1.5.0, and the savegame code was crafted such to allow reading it
         gzclose(f);
         gi.error("Savegame from different version (got %d, expected %d)", i, SAVE_VERSION);
     }
 
-    game_read_context_t ctx = make_read_context(f, i);
-
-    read_fields(&ctx, gamefields, &game);
+    // Read in svg_game_locals_t fields.
+    ctx.read_fields( svg_game_locals_t::saveDescriptorFields, &game ); //read_fields(&ctx, gamefields, &game);
 
     // should agree with server's version
     if (game.maxclients != (int)maxclients->value) {
@@ -1430,15 +144,23 @@ void SVG_ReadGame(const char *filename)
         gi.error("Savegame has bad maxentities");
     }
 
-	// WID: C++20: Added cast.
-    g_edicts = (edict_t*)gi.TagMalloc(game.maxentities * sizeof(g_edicts[0]), TAG_SVGAME);
-    globals.edicts = g_edicts;
-    globals.max_edicts = game.maxentities;
-	
-	// WID: C++20: Added cast.
-    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
+    // Initialize a fresh clients array.
+    game.clients = SVG_Clients_Reallocate( game.maxclients );
+
+    // Clamp maxentities within valid range.
+    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
+    // Release all edicts.
+    g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+    // Initialize the edicts array pointing to the memory allocated within the pool.
+    g_edict_pool.max_edicts = game.maxentities;
+    g_edict_pool.num_edicts = game.maxclients + 1;
+    g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
+
+    // Now read in the fields for each client.
     for (i = 0; i < game.maxclients; i++) {
-        read_fields(&ctx, clientfields, &game.clients[i]);
+        // Now read in the fields.
+        //read_fields(&ctx, clientfields, &game.clients[i]);
+        ctx.read_fields( svg_client_t::saveDescriptorFields, &game.clients[ i ] );
     }
 
     gzclose(f);
@@ -1457,150 +179,339 @@ void SVG_ReadGame(const char *filename)
 *
 *
 ***/
-/*
-=================
-WriteLevel
-
-=================
-*/
+/**
+*   @brief  Writes the state of the current level to a file.
+**/
 void SVG_WriteLevel(const char *filename)
 {
-    int     i;
-    edict_t *ent;
-    gzFile  f;
-
-    f = gzopen(filename, "wb");
-    if (!f)
-        gi.error("Couldn't open %s", filename);
-
-    write_int(f, SAVE_MAGIC2);
-    write_int(f, SAVE_VERSION);
-
-    // write out level_locals_t
-    write_fields(f, levelfields, &level);
-
-    // write out all the entities
-    for (i = 0; i < globals.num_edicts; i++) {
-        ent = &g_edicts[i];
-        if (!ent->inuse)
-            continue;
-        write_int(f, i);
-        write_fields(f, entityfields, ent);
+    gzFile f = gzopen(filename, "wb");
+    if ( !f ) {
+        gi.error( "Couldn't open %s", filename );
     }
-    write_int(f, -1);
 
-    if (gzclose(f))
-        gi.error("Couldn't write %s", filename);
-}
+    // Create a savegame write context.
+    game_write_context_t ctx = game_write_context_t::make_write_context( f );
 
+    ctx.write_int32( SAVE_MAGIC2 );
+    ctx.write_int32( SAVE_VERSION );
 
-/*
-=================
-ReadLevel
+	// First write out all the entity indices and their classnames.
+	// We do so for being able to allocate the entities first.
+    // 
+    // This helps restoring actual entity pointers to the entities of the saved game.
+    // Write out all the entities.
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+        //ent = &g_edicts[i];
+        if ( !ent || !ent->inuse ) {
+            continue;
+        }
+        // Entity number.
+        ctx.write_int32( i );
+        // Entity classname.
+        ctx.write_level_qstring( &ent->classname );
+        // Rest of entity fields.
+        //ent->Save( &ctx );
+        //write_fields(f, entityfields, ent);
+    }
+    // End of level data.
+    ctx.write_int32( -1 );
+    // Now write out an indice + the actual entity properties.
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+        //ent = &g_edicts[i];
+        if ( !ent || !ent->inuse ) {
+            continue;
+        }
+        // Entity number.
+        ctx.write_int32( i );
+        // Entity classname.
+        //ctx.write_level_qstring( &ent->classname );
+        // Rest of entity fields.
+        ent->Save( &ctx );
+        //write_fields(f, entityfields, ent);
+    }
 
-SpawnEntities will allready have been called on the
-level the same way it was when the level was saved.
+    // End of level data.
+    ctx.write_int32( -1 );
 
-That is necessary to get the baselines set up identically.
+    // Write out svg_level_locals_t. We do this after writing out the entities.
+	// This is so that while loading the level, we initialize entities first
+    // which in turn, the levelfields can optionally be pointing at.
+	ctx.write_fields( svg_level_locals_t::saveDescriptorFields, &level );
 
-The server will have cleared all of the world links before
-calling ReadLevel.
+	// Possibly throw an error if the file couldn't be written.
+    if ( gzclose( f ) ) {
+        gi.error( "Couldn't write %s", filename );
+    }
+} 
 
-No clients are connected yet.
-=================
-*/
+/**
+*   @brief  SpawnEntities will allready have been called on the
+*   level the same way it was when the level was saved.
+*   
+*   That is necessary to get the baselines set up identically.
+*
+*   The server will have cleared all of the world links before
+*   calling ReadLevel.
+*
+*   No clients are connected yet.
+**/
 void SVG_MoveWith_FindParentTargetEntities( void );
+void SVG_FindTeams( void );
+void PlayerTrail_Init( void );
 void SVG_ReadLevel(const char *filename)
 {
     int     entnum;
-    gzFile  f;
-    int     i;
-    edict_t *ent;
+    svg_base_edict_t *ent = nullptr;
 
     // free any dynamic memory allocated by loading the level
-    // base state
-    gi.FreeTags(TAG_SVGAME_LEVEL);
+    // base state.
+    // gi.FreeTags( TAG_SVGAME_LEVEL );
 
-    f = gzopen(filename, "rb");
-    if (!f)
-        gi.error("Couldn't open %s", filename);
+	// Save the cm_entity_t pointer of the level struct for restoring after wiping.
+	const cm_entity_t **cm_entities = level.cm_entities;
+    // Zero out all level struct data.
+    level = {};
+    // Store cm_entity_t pointer.
+    level.cm_entities = cm_entities;
 
+    gzFile f = gzopen(filename, "rb");
+    if ( !f ) {
+        gi.error( "Couldn't open %s", filename );
+    }
     gzbuffer(f, 65536);
 
-    // wipe all the entities
-    for ( int32_t i = 0; i < game.maxentities; i++ ) {
-        g_edicts[ i ] = {};
-    }
-    //memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
-    globals.num_edicts = maxclients->value + 1;
+    // Create read context.
+    game_read_context_t ctx = game_read_context_t::make_read_context( f );
 
-    i = read_int(f);
+    // Wipe all the entities back to 'baseline'.
+    for ( int32_t i = 0; i < game.maxentities; i++ ) {
+        // <Q2RTXP>: WID: This isn't very friendly, it results in actual crashes.
+        #if 0
+            // Store original number.
+            const int32_t number = g_edicts[ i ]->s.number;
+            // Zero out.
+            *g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
+            // Retain the entity's original number.
+            g_edicts[ i ]->s.number = number;
+        // <Q2RTXP>: WID: Thus we resort to deleting the edict and allocating a fresh new one in place.
+        // this is necessary to ensure that the entity numbers are reset appropriately.
+        #else
+		    // Store the entity number.
+            const int32_t entityNumber = i;
+			// Eventual pointer to the original cm_entity_t.
+			const cm_entity_t *cm_entity = nullptr;
+            // Store the original spawn_count.
+			int32_t spawn_count = 0;
+
+            // Reset the entity to base state.
+            if ( g_edict_pool.edicts[ i ] ) {
+				// Retain the spawn_count.
+                spawn_count = g_edict_pool.edicts[ i ]->spawn_count;
+				// Retain the original cm_entity_t pointer.
+                if ( g_edict_pool.edicts[ i ]->entityDictionary ) {
+                    cm_entity = g_edict_pool.edicts[ i ]->entityDictionary;
+				}
+                //g_edict_pool.edicts[ i ]->Reset( level.cm_entities[ i ] /*g_edict_pool.edicts[ i ]->entityDictionary*/ );
+                delete g_edict_pool.edicts[ i ];
+            }
+			// Allocate a new edict instance.
+            if ( i == 0 ) {
+				// Get the typeinfo for worldspawn.
+                EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "worldspawn" );
+				// Allocate a new worldspawn entity.
+                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( level.cm_entities[ 0 ] );
+            // If this is a client entity, allocate a player classname entity.
+            } else if ( i >= 1 && i < game.maxclients + 1 ) {
+				// Get the typeinfo for player entities.
+                EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "player" );
+				// Allocate a new player entity.
+                svg_player_edict_t *playerEdict = static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( cm_entity ) );
+			    // Set the client pointer to the corresponding client.
+                playerEdict->client = &game.clients[ i - 1 ];
+                // Set the number to the current index.
+				playerEdict->s.number = i;
+            // If this is not worldspawn, and a non-player entity, allocate a generic base entity instead.
+            } else {
+				// Get the typeinfo for base entities.
+                EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+				// Allocate a new base entity.
+                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( cm_entity );
+				// Set the spawn_count to the original spawn_count.
+                g_edict_pool.edicts[ i ]->spawn_count = spawn_count;
+            }
+            // Set the number to the current index.
+            g_edict_pool.edicts[ i ]->s.number = i;
+        #endif
+    }
+
+    // Default num_edicts.
+    g_edict_pool.num_edicts = maxclients->value + 1;
+
+    int32_t i = ctx.read_int32();
     if (i != SAVE_MAGIC2) {
         gzclose(f);
-        check_gzip(i);
-        gi.error("Not a Q2PRO save game");
+        gi.error("Not a Q2RTXPerimental save game");
     }
 
-    i = read_int(f);
+    i = ctx.read_int32();
     if ((i != SAVE_VERSION) && (i != 2)) {
         // Version 2 was written by Q2RTX 1.5.0, and the savegame code was crafted such to allow reading it
         gzclose(f);
         gi.error("Savegame from different version (got %d, expected %d)", i, SAVE_VERSION);
     }
 
-    game_read_context_t ctx = make_read_context(f, i);
+    // load all the entities
+    while ( 1 ) {
+        // Read in entity number.
+        entnum = ctx.read_int32();
+        if ( entnum == -1 )
+            break;
+        if ( entnum < 0 || entnum >= game.maxentities ) {
+            gzclose( f );
+            gi.error( "%s: bad entity number", __func__ );
+        }
+        if ( entnum >= g_edict_pool.num_edicts ) {
+            g_edict_pool.num_edicts = entnum + 1;
+        }
 
-    // load the level locals
-    read_fields(&ctx, levelfields, &level);
+        // Inquire for the classname.
+        svg_level_qstring_t classname;
+        classname = ctx.read_level_qstring();
+
+        // Acquire the typeinfo.
+        // TypeInfo for this entity.
+        EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
+        if ( !typeInfo ) {
+            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+        }
+
+        // For restoring the cm_entity_t.
+        const cm_entity_t *cm_entity = level.cm_entities[ entnum ];//g_edict_pool.edicts[ entnum ]->entityDictionary;
+
+        // Worldspawn:
+        svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+        ent->classname = classname;
+        // Enable the entity (unless it was a "freed" entity).
+        if ( ent->classname == "freed" ) {
+            ent->inuse = false;
+        } else {
+            ent->inuse = true;
+        }
+        ent->s.number = entnum;
+        // It was the original entity instanced at the map load time.
+        // Set the entity's dictionary to the cm_entity_t pointer if it was the original entity at SpawnEntities time.
+        if ( ent->spawn_count == 0 ) {
+            ent->entityDictionary = cm_entity;
+        }
+    }
 
     // load all the entities
     while (1) {
-        entnum = read_int(f);
-        if (entnum == -1)
+        // Read in entity number.
+        entnum = ctx.read_int32( );
+        if ( entnum == -1 )
             break;
-        if (entnum < 0 || entnum >= game.maxentities) {
-            gzclose(f);
-            gi.error("%s: bad entity number", __func__);
+        if ( entnum < 0 || entnum >= game.maxentities ) {
+            gzclose( f );
+            gi.error( "%s: bad entity number", __func__ );
         }
-        if (entnum >= globals.num_edicts)
-            globals.num_edicts = entnum + 1;
+        if ( entnum >= g_edict_pool.num_edicts ) {
+            g_edict_pool.num_edicts = entnum + 1;
+        }
 
-        ent = g_edicts + entnum;
-        read_fields(&ctx, entityfields, ent);
-        ent->inuse = true;
-        ent->s.number = entnum;
+  //      // Inquire for the classname.
+		//svg_level_qstring_t classname;
+  //      classname = ctx.read_level_qstring();
 
-        // let the server rebuild world links for this ent
+        //// Acquire the typeinfo.
+        //// TypeInfo for this entity.
+        //EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classname.ptr );
+        //if ( !typeInfo ) {
+        //    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+        //}
+
+        //// For restoring the cm_entity_t.
+        //const cm_entity_t *cm_entity = level.cm_entities[ entnum ];//g_edict_pool.edicts[ entnum ]->entityDictionary;
+
+        //// Worldspawn:
+        //svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ] = typeInfo->allocateEdictInstanceCallback( nullptr );
+        //ent->classname = classname;
+        // Restore.
+        svg_base_edict_t *ent = g_edict_pool.edicts[ entnum ];
+        // Restore the entity.
+        ent->Restore( &ctx );
+        #if 0
+        // Restore client pointer if this is a player entity.
+        if ( entnum >= 1 && entnum < game.maxclients + 1 ) {
+            // If this is a player entity, we need to set the client pointer.
+            ent->client = &game.clients[ entnum - 1 ];
+        }
+        #endif
+        // Let the server relink the entity in.
         memset(&ent->area, 0, sizeof(ent->area));
         gi.linkentity(ent);
     }
 
+	// <Q2RTXPerimental> Level entities have been read.
+	// But we still need to assign the edict pointers to the actual entities.
+    // Assign the edict pointers to the entities.
+    //for ( int32_t i = 0; i < g_edict_pool.num_edicts; i++ ) {
+    //    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+    //    if ( ent && ent->inuse ) {
+    //        ent->edict = ent;
+    //    }
+    //}
+	// Read in the level fields.
+
+	// We load these right after the entities, so that we can
+	// optionally point to them from the svg_level_locals_t fields.
+    //read_fields( &ctx, levelfields, &level );
+	ctx.read_fields( svg_level_locals_t::saveDescriptorFields, &level );
+
     gzclose(f);
 
-    // mark all clients as unconnected
-    for ( i = 0; i < maxclients->value; i++ ) {
-        ent = &g_edicts[ i + 1 ];
-        ent->client = game.clients + i;
-        ent->client->pers.connected = false;
-        ent->client->pers.spawned = false;
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+        ent->client = &game.clients[ i ];
+
+        // Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
     }
 
-    // do any load time things at this point
-    for (i = 0 ; i < globals.num_edicts ; i++) {
-        ent = &g_edicts[i];
+    // Find entity 'teams', NOTE: these are not actual player game teams.
+    SVG_FindTeams();
 
-        if (!ent->inuse)
+    // Find all entities that are following a parent's movement.
+    SVG_MoveWith_FindParentTargetEntities();
+
+    // Initialize player trail.
+    PlayerTrail_Init();
+
+    // do any load time things at this point
+    for (i = 0 ; i < g_edict_pool.num_edicts ; i++) {
+        ent = g_edict_pool.EdictForNumber( i ); //&g_edicts[i];
+
+        if ( !ent || !ent->inuse ) {
             continue;
+        }
 
         // fire any cross-level triggers
-        if (ent->classname)
-            if (strcmp( (const char *)ent->classname, "target_crosslevel_target") == 0)
+        if ( ent->classname ) {
+            if ( strcmp( (const char *)ent->classname, "target_crosslevel_target" ) == 0 ) {
                 ent->nextthink = level.time + QMTime::FromSeconds( ent->delay );
+            }
+        }
         #if 0
         if (ent->think == func_clock_think || ent->use == func_clock_use) {
             char *msg = ent->message;
 			// WID: C++20: Added cast.
-            ent->message = (char*)gi.TagMalloc(CLOCK_MESSAGE_SIZE, TAG_SVGAME_LEVEL);
+            ent->message = (char*)gi.TagMallocz(CLOCK_MESSAGE_SIZE, TAG_SVGAME_LEVEL);
             if (msg) {
                 Q_strlcpy(ent->message, msg, CLOCK_MESSAGE_SIZE);
                 gi.TagFree(msg);

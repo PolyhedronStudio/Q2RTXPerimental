@@ -17,6 +17,9 @@
 #include "clgame/clg_packet_entities.h"
 #include "clgame/clg_temp_entities.h"
 
+#include "sharedgame/sg_entity_types.h"
+
+
 // WID: TODO: Move to client where it determines old/new states?
 #if 1 
 /**
@@ -55,8 +58,8 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
 
     // If we're the local client player, just use the PREDICTED player_state_t vAngles instead.
     if ( isLocalClientEntity ) {
-        currentAngles = clgi.client->predictedState.currentPs.viewangles;
-        previousAngles = clgi.client->predictedState.lastPs.viewangles;
+        currentAngles = game.predictedState.currentPs.viewangles;
+        previousAngles = game.predictedState.lastPs.viewangles;
 
         //packetEntity->vAngles.forward = clgi.client->v_forward;
         //packetEntity->vAngles.right = clgi.client->v_right;
@@ -77,8 +80,8 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
     Vector3 previousOrigin = packetEntity->current.origin;
     // If we're the local client player, use the PREDICTED player_state_t origins instead.
     if ( isLocalClientEntity ) {
-        currentOrigin = clgi.client->predictedState.currentPs.pmove.origin;
-        previousOrigin = clgi.client->predictedState.lastPs.pmove.origin;
+        currentOrigin = game.predictedState.currentPs.pmove.origin;
+        previousOrigin = game.predictedState.lastPs.pmove.origin;
     }
     // Update and adjust ONLY if the origin has changed between frames.
     // Avoid usage of more expensive Vector3 compare Operator here. Instead thus any change at all means a recalculation.

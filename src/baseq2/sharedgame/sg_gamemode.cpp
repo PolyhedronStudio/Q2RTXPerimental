@@ -11,7 +11,7 @@
 /**
 *	@return	A string representative of the passed in gameModeID.
 **/
-const char *SG_GetGamemodeName( int32_t gameModeID ) {
+const char *SG_GetGameModeName( int32_t gameModeID ) {
 	// CooperativeL
 	if ( gameModeID == GAMEMODE_COOPERATIVE ) {
 		return "Cooperative";
@@ -19,7 +19,9 @@ const char *SG_GetGamemodeName( int32_t gameModeID ) {
 	} else if ( gameModeID == GAMEMODE_DEATHMATCH ) {
 		return "Deathmatch";
 	// Default, Singleplayer
-	} else {
+	} else if ( gameModeID == GAMEMODE_SINGLEPLAYER ) {
 		return "Singleplayer";
+	} else {
+		return "Unknown";
 	}
 }

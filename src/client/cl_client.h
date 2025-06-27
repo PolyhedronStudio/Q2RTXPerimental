@@ -18,8 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // client.h -- primary header for client
 #include "shared/shared.h"
-#include "shared/util_list.h"
-#include "shared/clgame.h"
+#include "shared/util/util_list.h"
+#include "shared/client/cl_game.h"
 
 #include "common/bsp.h"
 #include "common/cmd.h"
@@ -58,7 +58,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 /**
 * 
-* The client defined centity_t moved to inc/shared/clgame.h
+* The client defined centity_t moved to inc/shared/client/cl_game.h
 * If CLGAME_INCLUDE is defined it'll declare the entire whole
 * game side version.
 * 
@@ -366,7 +366,7 @@ extern cvar_t    *cl_showclamp;
 
 //extern cvar_t    *cl_vwep;
 
-extern cvar_t    *cl_disable_explosions;
+//extern cvar_t    *cl_disable_explosions;
 extern cvar_t    *cl_explosion_sprites;
 extern cvar_t    *cl_explosion_frametime;
 extern cvar_t    *cl_dlight_hacks;
@@ -508,13 +508,20 @@ void CL_KeyClear( keybutton_t *b );
 const double CL_KeyState( keybutton_t *key );
 
 /**
+*   @brief  A somewhat of a hack, we first read in mouse-movement, to then later on in
+*           UpdateCommand actually allow it to be handled and added to our local movement.
+**/
+const client_mouse_motion_t CL_ProcessMouseMove( void );
+
+/**
 *   @brief  Create all move related cvars, and registers all input commands. 
 *           (Also gives the client game a chance.)
 **/
 void CL_RegisterInput(void);
 /**
-*   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
-*           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
+*   @brief  Updates msec, angles and builds up the later to be interpolated, movement vectors
+*           from performing local movement prediction. Doesn't touch command
+*           forward/side/upmove, these are filled by CL_FinalizeCommand.
 **/
 void CL_UpdateCommand(int64_t msec);
 /**
@@ -794,13 +801,13 @@ void FX_Init(void);
 /**
 *   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
 **/
-const trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const contents_t contentmask );
+const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const cm_contents_t contentmask );
 /**
 *   @brief  Will perform a clipping trace to the specified entity.
 *           If clipEntity == nullptr, it'll perform a clipping trace against the World.
 **/
-const trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const contents_t contentmask );
+const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const cm_contents_t contentmask );
 /**
 *   @return The type of 'contents' at the given point.
 **/
-const contents_t q_gameabi CL_PointContents( const vec3_t point );
+const cm_contents_t q_gameabi CL_PointContents( const vec3_t point );

@@ -23,6 +23,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "server/sv_send.h"
 #include "server/sv_world.h"
 
+#include "shared/cm/cm_entity.h"
+
+
 svgame_export_t    *ge;
 
 static void PF_configstring(int index, const char *val);
@@ -112,7 +115,7 @@ Sends the contents of the mutlicast buffer to a single client.
 Archived in MVD stream.
 ===============
 */
-static void PF_Unicast(edict_t *ent, bool reliable)
+static void PF_Unicast(edict_ptr_t *ent, bool reliable)
 {
 	client_t *client;
 	int         cmd, flags, clientNum;
@@ -121,7 +124,7 @@ static void PF_Unicast(edict_t *ent, bool reliable)
 		goto clear;
 	}
 
-	clientNum = NUMBER_OF_EDICT( ent ) - 1;
+    clientNum = ent->client->clientNum;//NUMBER_OF_EDICT( ent ) - 1;
 	if ( clientNum < 0 || clientNum >= sv_maxclients->integer ) {
 		Com_WPrintf( "%s to a non-client %d\n", __func__, clientNum );
 		goto clear;
@@ -253,7 +256,7 @@ Print to a single client if the level passes.
 Archived in MVD stream.
 ===============
 */
-static void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
+static void PF_cprintf(edict_ptr_t *ent, int level, const char *fmt, ...)
 {
     char        msg[MAX_STRING_CHARS];
     va_list     argptr;
@@ -275,7 +278,7 @@ static void PF_cprintf(edict_t *ent, int level, const char *fmt, ...)
         return;
     }
 
-    clientNum = NUMBER_OF_EDICT(ent) - 1;
+    clientNum = ent->client->clientNum;// NUMBER_OF_EDICT( ent ) - 1;
     if (clientNum < 0 || clientNum >= sv_maxclients->integer) {
         Com_Error(ERR_DROP, "%s to a non-client %d", __func__, clientNum);
     }
@@ -305,7 +308,7 @@ Centerprint to a single client.
 Archived in MVD stream.
 ===============
 */
-static void PF_centerprintf(edict_t *ent, const char *fmt, ...)
+static void PF_centerprintf(edict_ptr_t *ent, const char *fmt, ...)
 {
     char        msg[MAX_STRING_CHARS];
     va_list     argptr;
@@ -363,7 +366,7 @@ PF_setmodel
 Also sets mins and maxs for inline bmodels
 =================
 */
-static void PF_setmodel(edict_t *ent, const char *name)
+static void PF_setmodel(edict_ptr_t *ent, const char *name)
 {
     mmodel_t    *mod;
 
@@ -463,9 +466,10 @@ static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
 }
 
 /**
-*   @return True if the points p1 to p2 are within the specified vis type.
+*   @return True if the points p1 to p2 are within two visible areas of the specified vis type.
+*   @note   Also checks portalareas so that doors block sight
 **/
-static const qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t vis)
+static const bool PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t vis)
 {
     mleaf_t *leaf1, *leaf2;
     byte mask[VIS_MAX_BYTES];
@@ -491,7 +495,7 @@ static const qboolean PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t v
 /**
 *   @brief  Also checks portalareas so that doors block sight
 **/
-static const qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
+static const bool PF_inPVS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PVS);
 }
@@ -499,7 +503,7 @@ static const qboolean PF_inPVS(const vec3_t p1, const vec3_t p2)
 /**
 *   @brief  Also checks portalareas so that doors block sound
 **/
-static const qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
+static const bool PF_inPHS(const vec3_t p1, const vec3_t p2)
 {
     return PF_inVIS(p1, p2, DVIS_PHS);
 }
@@ -526,7 +530,7 @@ static const qboolean PF_inPHS(const vec3_t p1, const vec3_t p2)
 *                   If origin is NULL, the origin is determined from the entity origin
 *                   or the midpoint of the entity box for bmodels.
 **/
-static void SV_StartSound(const vec3_t origin, edict_t *edict,
+static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
                           int channel, int soundindex, float volume,
                           float attenuation, float timeofs)
 {
@@ -631,7 +635,8 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
 
 		// PHS cull this sound
 		if ( !( channel & CHAN_NO_PHS_ADD ) ) {
-			leaf2 = CM_PointLeaf( &sv.cm, client->edict->s.origin );
+            sv_edict_t *clent = EDICT_FOR_NUMBER( client->number + 1 );
+			leaf2 = CM_PointLeaf( &sv.cm, clent->s.origin );
 			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
 				continue;
 			if ( leaf2->cluster == -1 )
@@ -675,7 +680,7 @@ static void SV_StartSound(const vec3_t origin, edict_t *edict,
 /**
 *   @brief
 **/
-static void PF_StartSound(edict_t *entity, int channel,
+static void PF_StartSound(edict_ptr_t *entity, int channel,
                           int soundindex, float volume,
                           float attenuation, float timeofs)
 {
@@ -750,7 +755,7 @@ static const int32_t PF_GetAreaPortalState( const int32_t portalnum ) {
 /**
 *   @brief   
 **/
-static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2)
+static const bool PF_AreasConnected(const int32_t area1, const int32_t area2)
 {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
@@ -758,7 +763,13 @@ static const qboolean PF_AreasConnected(const int32_t area1, const int32_t area2
     return CM_AreasConnected(&sv.cm, area1, area2);
 }
 
-
+/**
+*   @brief  Returns the number of the cm_entity_t list root key/value pair within the cm->entities array.
+*   @note   This only works on the actual root key/value pair of the cm_entity_t list. Otherwise it returns -1.
+**/
+const int32_t PF_CM_EntityNumber( const cm_entity_t *entity ) {
+    return CM_EntityNumber( &sv.cm, entity );
+}
 
 /**
 *
@@ -795,19 +806,37 @@ static void PF_FS_FreeFile( void *buffer ) {
 * 
 * 
 **/
-static void *PF_TagReMalloc( void *ptr, unsigned newsize ) {
+static void *PF_TagReMalloc( void *ptr, const uint32_t newsize ) {
     return Z_Realloc( ptr, newsize );
 }
-static void *PF_TagMalloc(unsigned size, unsigned tag)
+/**
+*   @brief Allocates memory with a specific tag for tracking purposes.
+*   @param size The size of the memory block to allocate, in bytes.
+*   @param tag The tag used to categorize the allocated memory. Must not exceed UINT16_MAX - TAG_MAX.
+*   @note  The memory is NOT initialized to zero state.
+*   @return A pointer to the allocated memory block, or NULL if the allocation fails.
+**/
+static void *PF_TagMalloc( const uint32_t size, const memtag_t tag)
 {
     Q_assert(tag <= UINT16_MAX - TAG_MAX);
-    return Z_TagMallocz(size, static_cast<memtag_t>( tag + TAG_MAX) );
+    return Z_TagMalloc(size, static_cast<memtag_t>( tag /*+ TAG_MAX*/) );
+}
+/**
+*   @brief Allocates memory with a specific tag for tracking purposes.
+*   @param size The size of the memory block to allocate, in bytes.
+*   @param tag The tag used to categorize the allocated memory. Must not exceed UINT16_MAX - TAG_MAX.
+*   @note  The memory is initialized to zero.
+*   @return A pointer to the allocated memory block, or NULL if the allocation fails.
+**/
+static void *PF_TagMallocz( const uint32_t size, const memtag_t tag ) {
+    Q_assert( tag <= UINT16_MAX - TAG_MAX );
+    return Z_TagMallocz( size, static_cast<memtag_t>( tag /*+ TAG_MAX */) );
 }
 
-static void PF_FreeTags( unsigned tag)
+static void PF_FreeTags( const memtag_t tag)
 {
     Q_assert(tag <= UINT16_MAX - TAG_MAX);
-    Z_FreeTags(static_cast<memtag_t>( tag + TAG_MAX ) );
+    Z_FreeTags(static_cast<memtag_t>( tag /*+ TAG_MAX */) );
 }
 
 static void PF_DebugGraph(float value, int color)
@@ -1026,6 +1055,7 @@ void SV_InitGameProgs(void) {
     imports.centerprintf = PF_centerprintf;
     imports.error = PF_error;
 
+    imports.CM_EntityNumber = PF_CM_EntityNumber;
     imports.CM_EntityKeyValue = CM_EntityKeyValue;
     imports.CM_GetNullEntity = CM_GetNullEntity;
 
@@ -1071,7 +1101,10 @@ void SV_InitGameProgs(void) {
 	imports.WriteInt64 = MSG_WriteInt64;
 	imports.WriteUintBase128 = MSG_WriteUintBase128;
 	imports.WriteIntBase128 = MSG_WriteIntBase128;
+    imports.WriteHalfFloat = MSG_WriteHalfFloat;
+    imports.WriteTruncatedFloat = MSG_WriteTruncatedFloat;
     imports.WriteFloat = MSG_WriteFloat;
+    imports.WriteDouble = MSG_WriteDouble;
     imports.WriteString = MSG_WriteString;
     imports.WritePosition = MSG_WritePos;
     imports.WriteDir8 = MSG_WriteDir8;
@@ -1079,8 +1112,10 @@ void SV_InitGameProgs(void) {
 	imports.WriteAngle16 = MSG_WriteAngle16;
 
     imports.TagReMalloc = PF_TagReMalloc;
+    imports.TagMallocz = PF_TagMallocz;
     imports.TagMalloc = PF_TagMalloc;
     imports.TagFree = Z_Free;
+    imports.TagFreeP = Z_Freep;
     imports.FreeTags = PF_FreeTags;
 
     imports.cvar = PF_cvar;

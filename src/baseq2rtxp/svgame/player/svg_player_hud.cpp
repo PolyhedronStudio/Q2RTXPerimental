@@ -7,8 +7,12 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_game_items.h"
+#include "svgame/svg_weapons.h"
+
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
+
+#include "sharedgame/sg_gamemode.h"
 
 
 
@@ -24,7 +28,7 @@
 /**
 *   @brief
 **/
-void SVG_HUD_MoveClientToIntermission(edict_t *ent)
+void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
 {
     ent->client->showhelp = false;
 
@@ -47,7 +51,7 @@ void SVG_HUD_MoveClientToIntermission(edict_t *ent)
     ent->client->grenade_time = 0_ms;
 
     ent->liquidInfo.type = CONTENTS_NONE;
-    ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;;
+    ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;;
     ent->viewheight = 0;
     ent->s.modelindex = 0;
     ent->s.modelindex2 = 0;
@@ -74,11 +78,11 @@ void SVG_HUD_MoveClientToIntermission(edict_t *ent)
 /**
 *   @brief
 **/
-void SVG_HUD_BeginIntermission(edict_t *targ)
+void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
 {
     int     i = 0;
-    edict_t *ent = nullptr;
-    edict_t *client = nullptr;
+    svg_base_edict_t *ent = nullptr;
+    svg_base_edict_t *client = nullptr;
 
     if (level.intermissionFrameNumber)
         return;     // already activated
@@ -87,11 +91,14 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
 
     // Respawn any dead clients
     for (i = 0 ; i < maxclients->value ; i++) {
-        client = g_edicts + 1 + i;
-        if (!client->inuse)
+        client = g_edict_pool.EdictForNumber( i + 1 );
+        //client = g_edicts + 1 + i;
+        if ( !client || !client->inuse ) {
             continue;
-        if (client->health <= 0)
-            SVG_Client_RespawnPlayer(client);
+        }
+        if ( client->health <= 0 ) {
+            SVG_Client_RespawnPlayer( client );
+        }
     }
 
     level.intermissionFrameNumber = level.frameNumber;
@@ -99,10 +106,12 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
 
     if (strchr(level.changemap, '*')) {
         if (coop->value) {
-            for (i = 0 ; i < maxclients->value ; i++) {
-                client = g_edicts + 1 + i;
-                if (!client->inuse)
+            for ( i = 0; i < maxclients->value; i++ ) {
+                client = g_edict_pool.EdictForNumber( i + 1 );
+                //client = g_edicts + 1 + i;
+                if ( !client || !client->inuse ) {
                     continue;
+                }
                 //// strip players of all keys between units
                 //for (n = 0; n < game.num_items; n++) {
                 //    if (itemlist[n].flags & ITEM_FLAG_KEY)
@@ -121,19 +130,19 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
     level.exitintermission = 0;
 
     // find an intermission spot
-    ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_intermission");
+    ent = SVG_Entities_Find(NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission");
     if (!ent) {
         // the map creator forgot to put in an intermission point...
-        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_start");
+        ent = SVG_Entities_Find(NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_start");
         if (!ent)
-            ent = SVG_Find(NULL, FOFS_GENTITY(classname), "info_player_deathmatch");
+            ent = SVG_Entities_Find(NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch");
     } else {
         // chose one of four spots
         i = Q_rand() & 3;
         while (i--) {
-            ent = SVG_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
+            ent = SVG_Entities_Find(ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission");
             if (!ent)   // wrap around the list
-                ent = SVG_Find(ent, FOFS_GENTITY(classname), "info_player_intermission");
+                ent = SVG_Entities_Find(ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission");
         }
     }
 
@@ -143,10 +152,12 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
     }
 
     // move all clients to the intermission point
-    for (i = 0 ; i < maxclients->value ; i++) {
-        client = g_edicts + 1 + i;
-        if (!client->inuse)
+    for ( i = 0; i < maxclients->value; i++ ) {
+        client = g_edict_pool.EdictForNumber( i + 1 );
+        //client = g_edicts + 1 + i;
+        if ( !client || !client->inuse ) {
             continue;
+        }
         SVG_HUD_MoveClientToIntermission(client);
     }
 }
@@ -166,7 +177,7 @@ void SVG_HUD_BeginIntermission(edict_t *targ)
 /**
 *   @brief
 **/
-void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer = nullptr, const bool sendAsReliable ) {
+void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t *killer = nullptr, const bool sendAsReliable ) {
     #if 0
     char    entry[ 1024 ];
     char    string[ 1400 ];
@@ -176,8 +187,8 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer = nullptr
     int     sortedscores[ MAX_CLIENTS ];
     int     score, total;
     int     x, y;
-    gclient_t *cl;
-    edict_t *cl_ent;
+    svg_client_t *cl;
+    svg_base_edict_t *cl_ent;
     // WID: C++20: Added const.
     const char *tag;
     // sort the clients by score
@@ -257,8 +268,8 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer = nullptr
     // First count the total of clients we got in-game.
     int32_t numberOfClients = 0;
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        edict_t *cl_ent = g_edicts + 1 + i;
-        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+        svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
+        if ( !cl_ent || !cl_ent->inuse || game.clients[ i ].resp.spectator 
             /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
         }
@@ -269,8 +280,8 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer = nullptr
 
     // Now, for each client, send index, time, score, and ping.
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        edict_t *cl_ent = g_edicts + 1 + i;
-        if ( !cl_ent->inuse || game.clients[ i ].resp.spectator 
+        svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
+        if ( !cl_ent || !cl_ent->inuse || game.clients[ i ].resp.spectator
             /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
         }
@@ -295,7 +306,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer = nullptr
 *   @brief  Draw instead of help message.
 *   @note that it isn't that hard to overflow the 1400 byte message limit!
 **/
-void SVG_HUD_DeathmatchScoreboard(edict_t *ent)
+void SVG_HUD_DeathmatchScoreboard(svg_base_edict_t *ent)
 {
     SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, true );
 }
@@ -309,7 +320,7 @@ void SVG_HUD_DeathmatchScoreboard(edict_t *ent)
 /**
 *   @brief  Specific 'Weaponry' substitute function for SVG_HUD_SetStats.
 **/
-void SVG_SetWeaponStats( edict_t *ent ) {
+void SVG_SetWeaponStats( svg_base_edict_t *ent ) {
     //
     // Type of ammo to display the total carrying amount of.
     //
@@ -341,7 +352,7 @@ void SVG_SetWeaponStats( edict_t *ent ) {
         ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO ] = 0;
     } else {
         // Find the item matching the 
-        //int32_t clip_ammo_item_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->pickup_name ) );
+        //int32_t clip_ammo_item_index = ITEM_INDEX( SVG_Item_FindByPickupName( ent->client->pers.weapon->pickup_name ) );
         const int32_t clip_ammo_item_index = ent->client->pers.weapon->weapon_index;
         //item = &itemlist[ ent->client->ammo_index ];
         //ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO_ICON ] = gi.imageindex( item->icon );
@@ -378,11 +389,11 @@ void SVG_SetWeaponStats( edict_t *ent ) {
 /**
 *   @brief  Will update the client's player_state_t stats array with the current client entity's values.
 **/
-void SVG_HUD_SetStats(edict_t *ent) {
+void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     // Health
     //
-    ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
+    ent->client->ps.stats[ STAT_HEALTH_ICON ] = 0;// level.pic_health;
     ent->client->ps.stats[STAT_HEALTH] = ent->health;
     
     //
@@ -400,7 +411,7 @@ void SVG_HUD_SetStats(edict_t *ent) {
     //
     //index = ArmorIndex(ent);
     //if (index) {
-    //    item = SVG_GetItemByIndex(index);
+    //    item = SVG_Item_GetByIndex(index);
     //    if ( item && item->flags == ITEM_FLAG_ARMOR ) {
     //        ent->client->ps.stats[ STAT_ARMOR_ICON ] = gi.imageindex( item->icon );
     //        ent->client->ps.stats[ STAT_ARMOR ] = ent->client->pers.inventory[ index ];
@@ -498,8 +509,8 @@ void SVG_HUD_SetStats(edict_t *ent) {
 /**
 *   @brief
 **/
-void SVG_HUD_SetSpectatorStats( edict_t *ent ) {
-    gclient_t *cl = ent->client;
+void SVG_HUD_SetSpectatorStats( svg_base_edict_t *ent ) {
+    svg_client_t *cl = ent->client;
 
     if ( !cl->chase_target )
         SVG_HUD_SetStats( ent );
@@ -516,7 +527,7 @@ void SVG_HUD_SetSpectatorStats( edict_t *ent ) {
 
     if ( cl->chase_target && cl->chase_target->inuse )
         cl->ps.stats[ STAT_CHASE ] = CS_PLAYERSKINS +
-        ( cl->chase_target - g_edicts ) - 1;
+        ( cl->chase_target->s.number - 1 );//( cl->chase_target - g_edicts ) - 1;
     else
         cl->ps.stats[ STAT_CHASE ] = 0;
 }
@@ -524,16 +535,20 @@ void SVG_HUD_SetSpectatorStats( edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_HUD_CheckChaseStats(edict_t *ent)
+void SVG_HUD_CheckChaseStats(svg_base_edict_t *ent)
 {
     int i;
-    gclient_t *cl;
+    svg_client_t *cl;
 
     for (i = 1; i <= maxclients->value; i++) {
-        cl = g_edicts[i].client;
-        if (!g_edicts[i].inuse || cl->chase_target != ent)
+        //cl = g_edicts[i].client;
+		svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i );
+        cl = (cl_ent ? cl_ent->client : nullptr );
+        if ( !cl || !cl_ent || !cl_ent->inuse || cl->chase_target != ent ) {
             continue;
+        }
+
         memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
-        SVG_HUD_SetSpectatorStats(g_edicts + i);
+        SVG_HUD_SetSpectatorStats( cl_ent );
     }
 }

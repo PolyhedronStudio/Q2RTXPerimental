@@ -225,7 +225,7 @@ static void IN_ReloadUp( void ) {
 
 
 //! Called upon when mouse movement is detected.
-void CLG_MouseMotionMove( client_mouse_motion_t *mouseMotion ) {
+void CLG_MouseMotionMove( const client_mouse_motion_t *mouseMotion ) {
     //if ( ( in_strafe.state & BUTTON_STATE_HELD ) || ( lookstrafe->integer && !in_mlooking ) ) {
     //    clgi.client->mousemove[ 1 ] += m_side->value * moveX;
     //} else {
@@ -278,7 +278,7 @@ static void CLG_AdjustAngles( const int64_t msec ) {
 /**
 *   @brief  Build the intended movement vector
 **/
-static void CLG_BaseMove( Vector3 &move ) {
+static Vector3 CLG_BaseMove( Vector3 move ) {
     if ( in_strafe.state & BUTTON_STATE_HELD ) {
         move[ 1 ] += cl_sidespeed->value * clgi.KeyState( &in_right );
         move[ 1 ] -= cl_sidespeed->value * clgi.KeyState( &in_left );
@@ -299,25 +299,27 @@ static void CLG_BaseMove( Vector3 &move ) {
     if ( ( in_speed.state & BUTTON_STATE_HELD ) ^ cl_run->integer ) {
         VectorScale( move, 2, move );
     }
+
+    return move;
 }
 
 /**
 *   @brief  
 **/
-static void CLG_ClampSpeed( Vector3 &move ) {
+static Vector3 CLG_ClampSpeed( Vector3 move ) {
     // Determine the speed limit value to account for.
-    float speed = default_pmoveParams_t::pm_max_speed; // default (maximum) running speed
+    float speed = 400.f;// default_pmoveParams_t::pm_max_speed; // default (maximum) running speed
     // For 'flying' aka noclip or spectating.
     if ( clgi.client->frame.ps.pmove.pm_type == PM_SPECTATOR
         || clgi.client->frame.ps.pmove.pm_type == PM_NOCLIP ) {
         speed = default_pmoveParams_t::pm_fly_speed;
     }
     // For in case we're 'swimming'.
-    if ( clgi.client->predictedState.liquid.level >= liquid_level_t::LIQUID_WAIST ) {
+    if ( game.predictedState.liquid.level >= cm_liquid_level_t::LIQUID_WAIST ) {
         speed = default_pmoveParams_t::pm_water_speed;
     }
 
-    move = QM_Vector3Clamp( move,
+    return QM_Vector3Clamp( move,
         {
             -speed,
             -speed,
@@ -396,50 +398,48 @@ void CLG_ClearStateDownFlags( client_movecmd_t *moveCommand ) {
     in_use_item.state = static_cast<keybutton_state_t>( in_use_item.state & ~BUTTON_STATE_DOWN );
     in_reload.state = static_cast<keybutton_state_t>( in_reload.state & ~BUTTON_STATE_DOWN );
 
-    in_speed.state = static_cast<keybutton_state_t>( in_speed.state & ~BUTTON_STATE_DOWN );
-    in_strafe.state = static_cast<keybutton_state_t>( in_strafe.state & ~BUTTON_STATE_DOWN );
-    in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
-    in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
+    //in_speed.state = static_cast<keybutton_state_t>( in_speed.state & ~BUTTON_STATE_DOWN );
+    //in_strafe.state = static_cast<keybutton_state_t>( in_strafe.state & ~BUTTON_STATE_DOWN );
+    //in_up.state = static_cast<keybutton_state_t>( in_up.state & ~BUTTON_STATE_DOWN );
+    //in_down.state = static_cast<keybutton_state_t>( in_down.state & ~BUTTON_STATE_DOWN );
 }
 
 /**
 *   @brief  Updates msec, angles and builds the interpolated movement vector for local movement prediction.
 *           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
 **/
-void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, client_mouse_motion_t *mouseMotion ) {
+void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand ) {
     // adjust viewangles
     CLG_AdjustAngles( msec );
 
-    // get basic movement from keyboard, including jump/crouch.
-    CLG_BaseMove( clgi.client->localmove );
+    // Get basic movement from keyboard, including jump/crouch.
+    clgi.client->localmove = CLG_BaseMove( clgi.client->localmove );
 
-    //
+    // Process Mouse Motion.
+    const client_mouse_motion_t mouseMotion = clgi.CL_ProcessMouseMove();
+    // Allow mice to add to the move
+    if ( mouseMotion.hasMotion ) {
+        CLG_MouseMotionMove( &mouseMotion );
+    }
+
     // Figure button bits.
-    //
     CLG_FigureButtonBits( moveCommand );
 
-    //
     // Clear Various Down States.
-    //
     CLG_ClearStateDownFlags( moveCommand );
-
-    // Allow mice to add to the move
-    if ( mouseMotion->hasMotion ) {
-        CLG_MouseMotionMove( mouseMotion );
-    }
 
     // Add accumulated mouse forward/side movement.
     clgi.client->localmove[ 0 ] += clgi.client->mousemove[ 0 ];
     clgi.client->localmove[ 1 ] += clgi.client->mousemove[ 1 ];
 
-    // clamp to server defined max speed
-    CLG_ClampSpeed( clgi.client->localmove );
-
+    // Clamp to server defined max speed
+    clgi.client->localmove = CLG_ClampSpeed( clgi.client->localmove );
+    // Clamp the pitch.
     CLG_ClampPitch();
-
-    moveCommand->cmd.angles[ 0 ] = /*ANGLE2SHORT*/( clgi.client->viewangles[ 0 ] );
-    moveCommand->cmd.angles[ 1 ] = /*ANGLE2SHORT*/( clgi.client->viewangles[ 1 ] );
-    moveCommand->cmd.angles[ 2 ] = /*ANGLE2SHORT*/( clgi.client->viewangles[ 2 ] );
+    // Setup movecmd angles.
+    moveCommand->cmd.angles[ 0 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 0 ] );
+    moveCommand->cmd.angles[ 1 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 1 ] );
+    moveCommand->cmd.angles[ 2 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 2 ] );
 }
 
 /**
@@ -447,15 +447,10 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand, cl
 *           and angles are already set for this frame by CL_UpdateCommand.
 **/
 void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
-
-    //
     // Figure button bits.
-    //
     CLG_FigureButtonBits( moveCommand );
 
-    //
     // Clear Various Down States.
-    //
     CLG_ClearStateDownFlags( moveCommand );
 
     // Any key down flag.
@@ -465,7 +460,7 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
 
     if ( moveCommand->cmd.msec > 75 ) { // Was: > 250
         // Time was unreasonable.
-        moveCommand->cmd.msec = BASE_FRAMERATE; // Was: 100
+        moveCommand->cmd.msec = BASE_FRAMETIME; // Was: 100
         // Debug display.
         #if USE_DEBUG
         clgi.Print( PRINT_DEVELOPER, "%s: moveCommand->cmd.msec(%i) was unreasonable(max is 75)!\n", __func__, moveCommand->cmd.msec );
@@ -476,14 +471,14 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     Vector3 move = QM_Vector3Zero();
 
     // get basic movement from keyboard
-    CLG_BaseMove( move );
+    move = CLG_BaseMove( move );
 
     // add mouse forward/side movement
     move.x += clgi.client->mousemove.x;
     move.y += clgi.client->mousemove.y;
 
     // clamp to server defined max speed
-    CLG_ClampSpeed( move );
+    move = CLG_ClampSpeed( move );
 
     // Store the movement vector
     moveCommand->cmd.forwardmove = move.x;
@@ -500,6 +495,7 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
 void PF_ClearMoveCommand( client_movecmd_t *moveCommand ) {
     // clear pending cmd
     moveCommand->cmd = {};
+    moveCommand->prediction = { .error = moveCommand->prediction.error };
 
     CLG_ClearStateDownFlags( moveCommand );
 

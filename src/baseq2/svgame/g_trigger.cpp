@@ -88,7 +88,7 @@ void Use_Multi( edict_t *ent, edict_t *other, edict_t *activator ) {
 /**
 *	@brief
 **/
-void Touch_Multi( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void Touch_Multi( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 	if ( other->client ) {
 		if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_NOT_PLAYER ) {
 			return;
@@ -102,7 +102,7 @@ void Touch_Multi( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *su
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MULTIPLE_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -331,7 +331,7 @@ void SP_trigger_key( edict_t *self ) {
 		gi.dprintf( "no key item for trigger_key at %s\n", vtos( self->s.origin ) );
 		return;
 	}
-	self->item = SVG_FindItemByClassname( st.item );
+	self->item = SVG_Item_FindByClassName( st.item );
 
 	if ( !self->item ) {
 		gi.dprintf( "item %s not found for trigger_key at %s\n", st.item, vtos( self->s.origin ) );
@@ -439,10 +439,10 @@ static int windsound = 0;
 /**
 *	@brief
 **/
-void trigger_push_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void trigger_push_touch( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 	
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_PUSH_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -528,7 +528,7 @@ void hurt_use( edict_t *self, edict_t *other, edict_t *activator ) {
 /**
 *	@brief	
 **/
-void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void hurt_touch( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 	int     dflags;
 
 	if ( !other->takedamage ) {
@@ -540,7 +540,7 @@ void hurt_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *sur
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_HURT_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -618,9 +618,9 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP = 32;
 /**
 *	@brief	Touch callback in order to change the gravity of 'other', the touching entity.
 **/
-void trigger_gravity_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void trigger_gravity_touch( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_GRAVITY_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;
@@ -664,7 +664,7 @@ static constexpr int32_t SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP = 32;
 /**
 *	@brief	
 **/
-void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void trigger_monsterjump_touch( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
 	if ( other->flags & ( FL_FLY | FL_SWIM ) ) {
 		return;
 	}
@@ -676,7 +676,7 @@ void trigger_monsterjump_touch( edict_t *self, edict_t *other, cplane_t *plane, 
 	}
 
 	if ( self->spawnflags & SPAWNFLAG_TRIGGER_MONSTERJUMP_BRUSH_CLIP ) {
-		trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
+		cm_trace_t clip = gi.clip( self, other->s.origin, other->mins, other->maxs, other->s.origin, SVG_GetClipMask( other ) );
 
 		if ( clip.fraction == 1.0f ) {
 			return;

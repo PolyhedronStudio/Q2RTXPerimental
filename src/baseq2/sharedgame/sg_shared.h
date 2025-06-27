@@ -8,7 +8,7 @@
 #pragma once
 
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 //! Define the entity type based on from which game module we're compiling.
 #ifdef CLGAME_INCLUDE

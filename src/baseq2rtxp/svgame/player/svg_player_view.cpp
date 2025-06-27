@@ -21,10 +21,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_trail.h"
 
+#include "sharedgame/sg_cmd_messages.h"
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_means_of_death.h"
 
 
-static  edict_t *current_player;
-static  gclient_t *current_client;
+static  svg_base_edict_t *current_player;
+static  svg_client_t *current_client;
 
 static  vec3_t  forward, right, up;
 
@@ -36,7 +39,7 @@ static  vec3_t  forward, right, up;
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-void SVG_CheckClientPlayerstateEvents( const edict_t *ent, player_state_t *ops, player_state_t *ps );
+void SVG_CheckClientPlayerstateEvents( const svg_base_edict_t *ent, player_state_t *ops, player_state_t *ps );
 
 inline bool SkipViewModifiers( ) {
 	//if ( g_skipViewModifiers->integer && sv_cheats->integer ) {
@@ -88,14 +91,14 @@ P_DamageFeedback
 Handles color blends and view kicks
 ===============
 */
-static void P_DamageFeedback( edict_t *player ) {
+static void P_DamageFeedback( svg_base_edict_t *player ) {
 	float   side;
 	int32_t   r, l;
 	constexpr Vector3 armor_color = { 1.0, 1.0, 1.0 };
 	constexpr Vector3 power_color = { 0.0, 1.0, 0.0 };
 	constexpr Vector3 blood_color = { 1.0, 0.0, 0.0 };
 
-	gclient_t *client = player->client;
+	svg_client_t *client = player->client;
 
 	// flash the backgrounds behind the status numbers
 	int16_t want_flashes = 0;
@@ -281,7 +284,7 @@ Auto pitching on slopes?
 
 ===============
 */
-static void P_CalculateViewOffset( edict_t *ent ) {
+static void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 	//float *angles;
 	//float       bob;
 	float       ratio;
@@ -291,7 +294,7 @@ static void P_CalculateViewOffset( edict_t *ent ) {
 	Vector3 viewAnglesOffset = ent->client->weaponKicks.offsetAngles;//ent->client->ps.kick_angles;
 
 	// If dead, fix the angle and don't add any kicks
-	if ( ent->lifeStatus ) {
+	if ( ent->lifeStatus & entity_lifestatus_t::LIFESTATUS_DEAD ) {
 		// Clear out weapon kick angles.
 		VectorClear( ent->client->ps.kick_angles );
 
@@ -435,7 +438,7 @@ SV_CalculateGunOffset
 ==============
 */
 // WID: Moved to CLGame.
-//void SV_CalculateGunOffset( edict_t *ent ) {
+//void SV_CalculateGunOffset( svg_base_edict_t *ent ) {
 //	int     i;
 //	float   delta;
 //
@@ -500,7 +503,7 @@ void SV_AddBlend( float r, float g, float b, float a, float *v_blend ) {
 P_CalculateBlend
 =============
 */
-static void P_CalculateBlend( edict_t *ent ) {
+static void P_CalculateBlend( svg_base_edict_t *ent ) {
 	QMTime remaining;
 
 	// Clear player state screen blend.
@@ -567,7 +570,7 @@ P_CheckWorldEffects
 =============
 */
 static void P_CheckWorldEffects( void ) {
-	liquid_level_t liquidlevel, old_waterlevel;
+	cm_liquid_level_t liquidlevel, old_waterlevel;
 
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
 		current_player->air_finished_time = level.time + 12_sec; // don't need air
@@ -583,7 +586,7 @@ static void P_CheckWorldEffects( void ) {
 	//
 	if ( !old_waterlevel && liquidlevel ) {
 		// Feet in.
-		if ( liquidlevel == liquid_level_t::LIQUID_FEET ) {
+		if ( liquidlevel == cm_liquid_level_t::LIQUID_FEET ) {
 			SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 			if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
 				//gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
@@ -596,7 +599,7 @@ static void P_CheckWorldEffects( void ) {
 			} else if ( current_player->liquidInfo.type & CONTENTS_WATER ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
 			}
-		} else if ( liquidlevel >= liquid_level_t::LIQUID_WAIST ) {
+		} else if ( liquidlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
 			SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 			if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
@@ -616,25 +619,25 @@ static void P_CheckWorldEffects( void ) {
 	}
 
 	// If just completely exited a water volume while only feet in, play a sound.
-	if ( !liquidlevel && old_waterlevel == liquid_level_t::LIQUID_FEET ) {
+	if ( !liquidlevel && old_waterlevel == cm_liquid_level_t::LIQUID_FEET ) {
 		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
 
 	}
 	// If just completely exited a water volume waist or head in, play a sound.
-	if ( !liquidlevel && old_waterlevel >= liquid_level_t::LIQUID_WAIST ) {
+	if ( !liquidlevel && old_waterlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
 		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
 		current_player->flags = static_cast<entity_flags_t>( current_player->flags & ~FL_INWATER );
 	}
 
 	// Check for head just going under water.
-	if ( old_waterlevel < liquid_level_t::LIQUID_UNDER && liquidlevel == liquid_level_t::LIQUID_UNDER ) {
+	if ( old_waterlevel < cm_liquid_level_t::LIQUID_UNDER && liquidlevel == cm_liquid_level_t::LIQUID_UNDER ) {
 		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
 	}
 	//
 	// Check for head just coming out of water.
-	if ( old_waterlevel == liquid_level_t::LIQUID_UNDER && liquidlevel != liquid_level_t::LIQUID_UNDER ) {
+	if ( old_waterlevel == cm_liquid_level_t::LIQUID_UNDER && liquidlevel != cm_liquid_level_t::LIQUID_UNDER ) {
 		if ( current_player->air_finished_time < level.time ) {
 			// gasp for air
 			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
@@ -648,7 +651,7 @@ static void P_CheckWorldEffects( void ) {
 	//
 	// check for drowning
 	//
-	if ( liquidlevel == liquid_level_t::LIQUID_UNDER ) {
+	if ( liquidlevel == cm_liquid_level_t::LIQUID_UNDER ) {
 		// if out of air, start drowning
 		if ( current_player->air_finished_time < level.time ) {
 			// drown!
@@ -710,7 +713,7 @@ static void P_CheckWorldEffects( void ) {
 SVG_SetClientEffects
 ===============
 */
-void SVG_SetClientEffects( edict_t *ent ) {
+void SVG_SetClientEffects( svg_base_edict_t *ent ) {
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
 
@@ -731,7 +734,7 @@ void SVG_SetClientEffects( edict_t *ent ) {
 SVG_SetClientEvent
 ===============
 */
-void SVG_SetClientEvent( edict_t *ent ) {
+void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	// We're already occupied by an event.
 	if ( ent->s.event ) {
 		return;
@@ -765,10 +768,10 @@ void SVG_SetClientEvent( edict_t *ent ) {
 SVG_SetClientSound
 ===============
 */
-void SVG_SetClientSound( edict_t *ent ) {
+void SVG_SetClientSound( svg_base_edict_t *ent ) {
 	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
 	if ( ent->liquidInfo.level && ( ent->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
-		ent->s.sound = snd_fry;
+		ent->s.sound = gi.soundindex( "player/burn01.wav" );;
 	// Override entity sound with that of the weapon's activeSound.
 	} else if ( ent->client->weaponState.activeSound ) {
 		ent->s.sound = ent->client->weaponState.activeSound;
@@ -781,15 +784,15 @@ void SVG_SetClientSound( edict_t *ent ) {
 /**
 *	@brief	Will set the client entity's animation for the current frame.
 **/
-void SVG_P_ProcessAnimations( const edict_t *ent );
-void SVG_SetClientFrame( edict_t *ent ) {
+void SVG_P_ProcessAnimations( const svg_base_edict_t *ent );
+void SVG_SetClientFrame( svg_base_edict_t *ent ) {
 	// Return if not viewing a player model entity.
 	if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
 		return;     // not in the player model
 	}
 
 	// Acquire its client info.
-	gclient_t *client = ent->client;
+	svg_client_t *client = ent->client;
 	if ( !client ) {
 		return; // Need a client entity.
 	}
@@ -848,12 +851,12 @@ void SVG_SetClientFrame( edict_t *ent ) {
 /**
 *   @brief
 **/
-void SVG_Client_TraceForUseTarget( edict_t *ent, gclient_t *client, const bool processUserInput = false );
+void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput = false );
 /**
 *   @brief  This will be called once for each server frame, before running any other entities in the world.
 **/
-void SVG_Client_BeginServerFrame( edict_t *ent ) {
-	gclient_t *client;
+void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
+	svg_client_t *client;
 	int32_t buttonMask;
 
 	/**
@@ -926,10 +929,10 @@ void SVG_Client_BeginServerFrame( edict_t *ent ) {
 	*   Add player trail so monsters can follow
 	**/
 	if ( !deathmatch->value ) {
-		// WID: TODO: Monster Reimplement.
-		if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
-			PlayerTrail_Add( ent->s.old_origin );
-		}
+		//// WID: TODO: Monster Reimplement.
+		//if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
+		//	PlayerTrail_Add( ent->s.old_origin );
+		//}
 	}
 
 	/**
@@ -941,7 +944,7 @@ void SVG_Client_BeginServerFrame( edict_t *ent ) {
 /**
 *	@brief	Called for each player at the end of the server frame, and right after spawning.
 **/
-void SVG_Client_EndServerFrame( edict_t *ent ) {
+void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
 	int     i;
 
 	// no player exists yet (load game)

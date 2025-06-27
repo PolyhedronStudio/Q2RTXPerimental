@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef COMMON_ERROR_H
-#define COMMON_ERROR_H
 
 // Extern C
 QEXTERN_C_OPEN
@@ -77,5 +76,3 @@ const char *Q_ErrorString( const int32_t error );
 
 // Extern C
 QEXTERN_C_CLOSE
-
-#endif // COMMON_ERROR_H

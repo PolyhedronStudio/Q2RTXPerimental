@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cmd.c -- Quake script command processing module
 
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 #include "common/cmd.h"
 #include "common/common.h"
 #include "common/cvar.h"

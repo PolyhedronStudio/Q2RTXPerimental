@@ -57,3 +57,39 @@ textures/texts/targetsleft4:
 	light_styles 1
 	default_radiance 1.0
 	bsp_radiance 1.0
+
+textures/texts/trigger_push:
+	texture_base textures/texts/trigger_push.tga
+	texture_normals textures/texts/trigger_push_n.tga
+	base_factor 2.5
+	kind GLASS
+textures/texts/trigger_gravity:
+	texture_base textures/texts/trigger_gravity.tga
+	texture_normals textures/texts/trigger_gravity_n.tga
+	base_factor 2.5
+	kind GLASS
+textures/texts/trigger_once:
+	texture_base textures/texts/trigger_once.tga
+	texture_normals textures/texts/trigger_once_n.tga
+	base_factor 2.5
+	kind GLAS
+textures/texts/trigger_multiple:
+	texture_base textures/texts/trigger_multiple.tga
+	texture_normals textures/texts/trigger_multiple_n.tga
+	base_factor 2.5
+	kind GLASS
+textures/texts/trigger_once:
+	texture_base textures/texts/trigger_once.tga
+	texture_normals textures/texts/trigger_once_n.tga
+	base_factor 2.5
+	kind GLASS
+textures/texts/trigger_hurt:
+	texture_base textures/texts/trigger_hurt.tga
+	texture_normals textures/texts/trigger_hurt_n.tga
+	base_factor 2.5
+	kind GLASS
+textures/texts/trigger_counter:
+	texture_base textures/texts/trigger_counter.tga
+	texture_normals textures/texts/trigger_counter_n.tga
+	base_factor 2.5
+	kind GLASS

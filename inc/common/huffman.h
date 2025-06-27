@@ -16,8 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef HUFFMAN_H
-#define HUFFMAN_H
+#pragma once
+
 
 
 
@@ -79,6 +79,3 @@ extern huffman_t clientHuffTables;
 #define	CL_ENCODE_START		12
 #define CL_DECODE_START		4
 
-
-
-#endif // #define HUFFMAN_H

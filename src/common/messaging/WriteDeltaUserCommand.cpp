@@ -96,7 +96,7 @@ const int64_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t 
 	}
 
 	// Write command ran time.
-	MSG_WriteUint8( cmd->msec );
+	MSG_WriteDouble( cmd->msec );
 
 	// Read out the current frame number, for possibly deterministics.
 	MSG_WriteIntBase128( cmd->frameNumber );

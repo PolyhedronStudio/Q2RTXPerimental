@@ -8,6 +8,9 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
 
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_muzzleflashes.h"
+
 // Wall Impact Puffs.
 void CLG_ParticleEffect( const vec3_t org, const vec3_t dir, int color, int count ) {
     vec3_t oy;

@@ -18,7 +18,7 @@ void PF_AdjustViewHeight( const int32_t viewHeight );
 *           between our predicted state and the server returned state. In case
 *           the margin is too high, snap back to server provided player state.
 **/
-void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIndex, const pmove_state_t *in, struct client_movecmd_s *moveCommand, client_predicted_state_t *out );
+void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandIndex, const pmove_state_t *in, struct client_movecmd_s *moveCommand, client_predicted_state_t *out );
 /**
 *   @brief  Sets the predicted view angles.
 **/

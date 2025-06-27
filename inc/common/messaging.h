@@ -15,9 +15,7 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-
-#ifndef MSG_H
-#define MSG_H
+#pragma once
 
 
 // Protocol necessities.
@@ -61,10 +59,10 @@ typedef struct {
 	vec3_t		angles; // WID: float-movement
 	vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
 
-	solid_t solid;	//! Solid for collision prediction.
+	cm_solid_t solid;	//! Solid for collision prediction.
 	bounds_packed_t bounds;	//! The bounding box for the solid's hull type, also needed for collision prediction.
 	int32_t clipmask;		//! Clipmask for collision prediction.
-	contents_t hullContents;//! Hull Contents for collision prediction.
+	cm_contents_t hullContents;//! Hull Contents for collision prediction.
 	int32_t ownerNumber;	//! Entity which owns this entity, for collision prediction.
 
 	uint32_t	modelindex;
@@ -330,6 +328,10 @@ void MSG_WriteTruncatedFloat( const float f);
 *   @brief Writes a half float, lesser precision. (Transfered over the wire as an uint16_t)
 **/
 void MSG_WriteHalfFloat( const float f );
+/**
+*   @brief Writes a full precision double. (Transfered over the wire as an int64_t).
+**/
+void MSG_WriteDouble( const double d );
 
 /**
 *   @brief Writes a character string.
@@ -424,6 +426,7 @@ const uint64_t MSG_ReadUintBase128( void );
 *   @return Zig-Zac decoded signed integer.
 **/
 const int64_t MSG_ReadIntBase128( void );
+
 /**
 *   @return The full precision float.
 **/
@@ -436,6 +439,12 @@ const float MSG_ReadTruncatedFloat( void );
 *   @return A half float, converted to float, keep in mind that half floats have less precision.
 **/
 const float MSG_ReadHalfFloat( void );
+/**
+*   @return The full precision double.
+**/
+const double MSG_ReadDouble( void );
+
+
 
 /**
 *   @return The full string until its end.
@@ -515,5 +524,3 @@ void MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int n
 				MSG_ServerCommandString(cmd))
 	#endif // USE_CLIENT
 #endif // USE_DEBUG
-
-#endif // MSG_H

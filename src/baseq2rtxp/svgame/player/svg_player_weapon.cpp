@@ -19,6 +19,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
+#include "svgame/svg_weapons.h"
+#include "svgame/entities/svg_item_edict.h"
+
+#include "sharedgame/sg_misc.h"
+#include "sharedgame/sg_pmove.h"
+
 
 static bool     is_quad;
 static byte     is_silenced;
@@ -31,8 +37,8 @@ static byte     is_silenced;
 *           Monsters that don't directly see the player can move
 *           to a noise in hopes of seeing the player from there.
 **/
-void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
-    edict_t *noise;
+void SVG_Player_PlayerNoise( svg_base_edict_t *who, const vec3_t where, int type ) {
+    svg_base_edict_t *noise;
 
     if ( deathmatch->value )
         return;
@@ -42,16 +48,14 @@ void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
 
 
     if ( !who->mynoise ) {
-        noise = SVG_AllocateEdict();
-        noise->classname = "player_noise";
+        noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
         noise->owner = who;
         noise->svflags = SVF_NOCLIENT;
         who->mynoise = noise;
 
-        noise = SVG_AllocateEdict();
-        noise->classname = "player_noise";
+        noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
         noise->owner = who;
@@ -61,10 +65,16 @@ void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
 
     if ( type == PNOISE_SELF || type == PNOISE_WEAPON ) {
         noise = who->mynoise;
+        if ( noise ) {
+            noise->inuse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+        }
         level.sound_entity = noise;
         level.sound_entity_framenum = level.frameNumber;
     } else { // type == PNOISE_IMPACT
         noise = who->mynoise2;
+        if ( noise ) {
+            noise->inuse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+        }
         level.sound2_entity = noise;
         level.sound2_entity_framenum = level.frameNumber;
     }
@@ -80,7 +90,7 @@ void SVG_Player_PlayerNoise( edict_t *who, const vec3_t where, int type ) {
 /** 
 *   @brief  Called when a weapon item has been touched.
 **/
-const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
+const bool SVG_Player_Weapon_Pickup( svg_item_edict_t *ent, svg_base_edict_t *other ) {
     int         index;
 
     // Get the item index.
@@ -100,11 +110,11 @@ const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
         // Pointer to ammo type.
         const gitem_t *ammo;
         // give them some ammo with it
-        ammo = SVG_FindItem(ent->item->ammo);
+        ammo = SVG_Item_FindByPickupName(ent->item->ammo);
         if ( (int)dmflags->value & DF_INFINITE_AMMO ) {
-            Add_Ammo( other, ammo, 1000 );
+            SVG_ItemAmmo_Add( other, ammo, 1000 );
         } else {
-            Add_Ammo( other, ammo, ammo->quantity );
+            SVG_ItemAmmo_Add( other, ammo, ammo->quantity );
         }
 
         // If weapon wasn't dropped by a player.
@@ -116,7 +126,7 @@ const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
                     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
                 // Set a duration for respawning:
                 } else {
-                    SVG_SetItemRespawn( ent, 30 );
+                    SVG_Item_SetRespawn( ent, 30 );
                 }
             }
             // Coop Path:
@@ -130,7 +140,7 @@ const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
     // Set item as the new weapon to switch to.
     if ( other->client->pers.weapon != ent->item &&
         ( other->client->pers.inventory[ index ] == 1 ) &&
-        ( !deathmatch->value || other->client->pers.weapon == SVG_FindItem( "pistol" ) ) ) {
+        ( !deathmatch->value || other->client->pers.weapon == SVG_Item_FindByPickupName( "pistol" ) ) ) {
         other->client->newweapon = ent->item;
     }
 
@@ -143,7 +153,7 @@ const bool SVG_Player_Weapon_Pickup( edict_t *ent, edict_t *other ) {
 *   @brief  Called when the 'Old Weapon' has been dropped all the way. This function will
 *           make the 'newweapon' as the client's current weapon.
 **/
-void SVG_Player_Weapon_Change(edict_t *ent) {
+void SVG_Player_Weapon_Change(svg_base_edict_t *ent) {
     int32_t i = 0;
 
     //if (ent->client->grenade_time) {
@@ -202,12 +212,12 @@ allowchange:
         } else {
             i = 0;
         }
-        ent->s.skinnum = (ent - g_edicts - 1) | i;
+        ent->s.skinnum = ( g_edict_pool.NumberForEdict( ent ) - 1) | i;//(ent - g_edicts - 1) | i;
     }
 
     // Find the appropriate matching ammo index.
     if ( ent->client->pers.weapon && ent->client->pers.weapon->ammo ) {
-        ent->client->ammo_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->ammo ) );
+        ent->client->ammo_index = ITEM_INDEX( SVG_Item_FindByPickupName( ent->client->pers.weapon->ammo ) );
     } else {
         ent->client->ammo_index = 0;
     }
@@ -245,7 +255,7 @@ allowchange:
 /**
 *   @brief  Callback for when a weapon change is enforced to occure due to having ran out of ammo.
 **/
-//static void P_NoAmmoWeaponChange( edict_t *ent, bool sound = false ) {
+//static void P_NoAmmoWeaponChange( svg_base_edict_t *ent, bool sound = false ) {
 //	if ( sound ) {
 //		if ( level.time >= ent->client->empty_weapon_click_sound ) {
 //			gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/noammo.wav" ), 1, ATTN_NORM, 0 );
@@ -254,24 +264,24 @@ allowchange:
 //	}
 //
 //    // Find the next best weapon to utilize.
-//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("bullets"))]
-//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("machinegun"))]) {
-//    //    ent->client->newweapon = SVG_FindItem("machinegun");
+//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_Item_FindByPickupName("bullets"))]
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_Item_FindByPickupName("machinegun"))]) {
+//    //    ent->client->newweapon = SVG_Item_FindByPickupName("machinegun");
 //    //    return;
 //    //}
-//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shells"))] > 1
-//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("super shotgun"))]) {
-//    //    ent->client->newweapon = SVG_FindItem("super shotgun");
+//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_Item_FindByPickupName("shells"))] > 1
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_Item_FindByPickupName("super shotgun"))]) {
+//    //    ent->client->newweapon = SVG_Item_FindByPickupName("super shotgun");
 //    //    return;
 //    //}
-//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shells"))]
-//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_FindItem("shotgun"))]) {
-//    //    ent->client->newweapon = SVG_FindItem("shotgun");
+//    //if (ent->client->pers.inventory[ITEM_INDEX(SVG_Item_FindByPickupName("shells"))]
+//    //    &&  ent->client->pers.inventory[ITEM_INDEX(SVG_Item_FindByPickupName("shotgun"))]) {
+//    //    ent->client->newweapon = SVG_Item_FindByPickupName("shotgun");
 //    //    return;
 //    //}
 //    
 //    // We got no other weapons yet.
-//    ent->client->newweapon = SVG_FindItem( "fists" );
+//    ent->client->newweapon = SVG_Item_FindByPickupName( "fists" );
 //}
 
 
@@ -279,7 +289,7 @@ allowchange:
 /**
 *   @brief  Will prepare a switch to the newly passed weapon.
 **/
-void SVG_Player_Weapon_Use( edict_t *ent, const gitem_t *item ) {
+void SVG_Player_Weapon_Use( svg_base_edict_t *ent, const gitem_t *item ) {
     int32_t ammo_index = 0;
     const gitem_t *ammo_item = nullptr;
 
@@ -299,7 +309,7 @@ void SVG_Player_Weapon_Use( edict_t *ent, const gitem_t *item ) {
     //}
 
     if ( item->ammo && !g_select_empty->value && !( item->flags & ITEM_FLAG_AMMO ) ) {
-        ammo_item = SVG_FindItem( item->ammo );
+        ammo_item = SVG_Item_FindByPickupName( item->ammo );
         ammo_index = ITEM_INDEX( ammo_item );
 
         if ( ent->client->pers.weapon_clip_ammo[ ammo_index] && ent->client->pers.inventory[ent->client->ammo_index] <= 0 ) {
@@ -326,7 +336,7 @@ void SVG_Player_Weapon_Use( edict_t *ent, const gitem_t *item ) {
 /**
 *   @brief  Called if the weapon item is wanted to be dropped by the player.
 **/
-void SVG_Player_Weapon_Drop( edict_t *ent, const gitem_t *item ) {
+void SVG_Player_Weapon_Drop( svg_base_edict_t *ent, const gitem_t *item ) {
     int     index;
 
     // Don't allow dropping in WEAPONS_STAY Deathmatch mode.
@@ -361,7 +371,7 @@ void SVG_Player_Weapon_Drop( edict_t *ent, const gitem_t *item ) {
 /**
 *   @brief  Wraps up the new more modern SVG_Player_ProjectDistance.
 **/
-void SVG_Player_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
+void SVG_Player_ProjectDistance( svg_base_edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
     // Adjust distance to handedness.
     Vector3 _distance = distance;
     if ( ent->client->pers.hand == LEFT_HANDED ) {
@@ -376,7 +386,7 @@ void SVG_Player_ProjectDistance( edict_t *ent, vec3_t point, vec3_t distance, ve
 /**
 *   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
-const Vector3 SVG_Player_ProjectDistance( edict_t *ent, const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
+const Vector3 SVG_Player_ProjectDistance( svg_base_edict_t *ent, const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
     // Adjust distance to handedness.
     Vector3 _distance = distance;
     if ( ent->client->pers.hand == LEFT_HANDED ) {
@@ -394,7 +404,7 @@ const Vector3 SVG_Player_ProjectDistance( edict_t *ent, const Vector3 &point, co
     //    VectorSet( start, ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight );
     //    VectorMA( start, CM_MAX_WORLD_SIZE, forward, end );
 
-    //    trace_t	tr = gi.trace( start, NULL, NULL, end, ent, MASK_SHOT );
+    //    svg_trace_t	tr = SVG_Trace( start, NULL, NULL, end, ent, CM_CONTENTMASK_SHOT );
     //    if ( tr.fraction < 1 ) {
     //        VectorSubtract( tr.endpos, result, forward );
     //        VectorNormalize( forward );
@@ -406,7 +416,7 @@ const Vector3 SVG_Player_ProjectDistance( edict_t *ent, const Vector3 &point, co
 *          point as the final destination.
 *   @note   The forward vector is normalized.
 **/
-void SVG_Player_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
+void SVG_Player_ProjectSource( svg_base_edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
     // Adjust distance to handedness.
     Vector3 _distance = distance;
     if ( ent->client->pers.hand == LEFT_HANDED ) {
@@ -420,7 +430,7 @@ void SVG_Player_ProjectSource( edict_t *ent, vec3_t point, vec3_t distance, vec3
     // Now the projectile hits exactly where the scope is pointing.
     const Vector3 start = { ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + (float)ent->viewheight };
     const Vector3 end = QM_Vector3MultiplyAdd( start, CM_MAX_WORLD_SIZE, forward );
-    trace_t	tr = gi.trace( &start.x, NULL, NULL, &end.x, ent, MASK_SHOT );
+    svg_trace_t	tr = SVG_Trace( &start.x, qm_vector3_null, qm_vector3_null, &end.x, ent, CM_CONTENTMASK_SHOT );
     if ( tr.fraction < 1 ) {
         VectorSubtract( tr.endpos, result, forward );
         VectorNormalize( forward );
@@ -535,7 +545,7 @@ const bool SVG_Player_Weapon_PrecacheItemInfo( weapon_item_info_t *weaponItemInf
 /**
 *   @brief  Will switch the weapon to its 'newMode' if it can, unless enforced(force == true).
 **/
-void SVG_Player_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, const weapon_mode_animation_t *weaponModeAnimations, const bool force = false ) {
+void SVG_Player_Weapon_SwitchMode( svg_base_edict_t *ent, const weapon_mode_t newMode, const weapon_mode_animation_t *weaponModeAnimations, const bool force = false ) {
     // Only switch if we're allowed to.
     if ( ( ent->client->weaponState.canChangeMode || force ) /* &&
         ( ent->client->weaponState.mode != ent->client->weaponState.oldMode )*/ ) {
@@ -574,7 +584,7 @@ void SVG_Player_Weapon_SwitchMode( edict_t *ent, const weapon_mode_t newMode, co
 /**
 *   @brief  Advances the animation of the 'mode' we're currently in.
 **/
-const bool SVG_Player_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mode_animation_t *weaponModeAnimation ) {
+const bool SVG_Player_Weapon_ProcessModeAnimation( svg_base_edict_t *ent, const weapon_mode_animation_t *weaponModeAnimation ) {
     // Debug print if we ever run into this, which we normally shouldn't.
     if ( !ent->client->pers.weapon ) {
         gi.dprintf( "%s: if ( !ent->client->pers.weapon) {..\n", __func__ );
@@ -652,7 +662,7 @@ const bool SVG_Player_Weapon_ProcessModeAnimation( edict_t *ent, const weapon_mo
 }
 
 // Determine whether to add player state (predictable-) weapon events.
-void P_Weapon_DeterminePredictableEvents( edict_t *ent ) {
+void P_Weapon_DeterminePredictableEvents( svg_base_edict_t *ent ) {
     if ( !ent->client ) {
         return;
     }
@@ -684,7 +694,7 @@ void P_Weapon_DeterminePredictableEvents( edict_t *ent ) {
 *   @brief  Perform the weapon's logical 'think' routine. This is Is either
 *           called by SVG_Client_BeginServerFrame or ClientThink.
 **/
-void SVG_Player_Weapon_Think( edict_t *ent, const bool processUserInputOnly ) {
+void SVG_Player_Weapon_Think( svg_base_edict_t *ent, const bool processUserInputOnly ) {
     // If we just died, put the weapon away.
     if ( ent->health < 1 ) {
         // Select no weapon.

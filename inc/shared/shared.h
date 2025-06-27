@@ -27,69 +27,13 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *	Include based on whether the unit including is .c or .cpp
 **/
-#ifndef __cplusplus
-    // C STD Headers:
-    #include <ctype.h>
-    #include <errno.h>
-    #include <float.h>
-    #include <math.h>
-    #include <stdio.h>
-    #include <stdarg.h>
-    #include <string.h>
-    #include <stdlib.h>
-    #include <stdint.h>
-    #include <stdbool.h>
-    #include <inttypes.h>
-    #include <limits.h>
-    #include <time.h>
-#else//__cplusplus
-    // C STD Headers:
-    #include <cctype>
-    #include <cerrno>
-    #include <cfloat>
-    #include <cinttypes>
-    #include <climits>
-    #include <cmath>
-    #include <cstdarg>
-    #include <cstdbool>
-    #include <cstdint>
-    #include <cstdio>
-    #include <cstdlib>
-    #include <cstring>
-    #include <ctime>
-
-    // C++ STL Headers:
-    #include <version>
-    #include <algorithm> // std::min, std::max etc, buuut still got vkpt code in C so.
-    //#include <array>
-    //#include <bit>
-    #include <chrono>
-    #include <type_traits>
-    //#include <algorithm>
-    //#include <array>
-    #include <list>
-    //#include <functional>
-    #include <map>
-    #include <numbers>
-    #include <numeric>
-    //#include <unordered_map>
-    //#include <set>
-    //#include <unordered_set>
-    #include <random>
-    //#include <string_view>
-    #include <variant>
-    #include <vector>
-#endif//__cplusplus
-
+#include "shared/stdlibs.h"
 //! Include Endianness utilities if not already included by another system header.
 #if HAVE_ENDIAN_H
     #include <endian.h>
 #endif
-
 //! Include shared platform specifics.
 #include "shared/platform.h"
-
-
 //! Determine and define which endianness we're compiling for.
 #if __BYTE_ORDER == __LITTLE_ENDIAN
     #define USE_LITTLE_ENDIAN   1
@@ -99,7 +43,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //! Include (Quake-)Error Code Definitions:
 #include "shared/qerrors.h"
-
 //! Utility to get the count of arrays.
 #define q_countof(a) (sizeof(a) / sizeof(a[0]))
 
@@ -121,7 +64,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 	// Include our 'shared_cpp.h' header.
 	#include "shared_cpp.h"
-
 #else // __cplusplus
 	typedef uint8_t byte;
 	typedef enum { qfalse, qtrue } qboolean;    // ABI compat only, don't use: will be int32_t on x86-64 systems.
@@ -198,11 +140,30 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 //! Maximum clients char array name size.
 #define MAX_CLIENT_NAME     16
 
+/**
+*   Reserved client numbers.
+**/
 //! Client number for 'none'.
 #define CLIENTNUM_NONE        (MAX_CLIENTS - 1)
 #define CLIENTNUM_RESERVED    (MAX_CLIENTS - 1)
 
+/**
+*   Reserved entity numbers.
+**/
+//! Entity number for 'none'.
+#define ENTITYNUM_NONE      ( -1 )
+//! Entity number for 'World'.
+#define ENTITYNUM_WORLD     ( 0 )
 
+/**
+*   Reserved model handle indices.
+**/
+//! None
+#define MODELINDEX_NONE			( 0 )
+//! Player model.
+#define MODELINDEX_PLAYER		( MAX_MODELS_OLD - 1 ) // 255
+//! Worldspawn world model.
+#define MODELINDEX_WORLDSPAWN	( 1 )
 
 /**
 *   Math Library:
@@ -226,48 +187,26 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #include "shared/ui_shared.h"
 
 //! Bit Utilities:
-#include "shared/util_bits.h"
+#include "shared/util/util_bits.h"
 //! Endian Utilities:
-#include "shared/util_endian.h"
+#include "shared/util/util_endian.h"
 //! Encode/Decode utilities
-#include "shared/util_decode.h"
-#include "shared/util_encode.h"
-#include "shared/util_halffloat.h"
+#include "shared/util/util_decode.h"
+#include "shared/util/util_encode.h"
+#include "shared/util/util_halffloat.h"
 //! List Utility:
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 //! String Utilities:
-#include "shared/util_strings.h"
+#include "shared/util/util_strings.h"
 
 
 //! Key/Value Info Strings:
 #include "shared/info_strings.h"
 
 
-//! KeyButton/KeyButton State:
-#include "shared/key_button.h"
-//! Key indices/numbers:
-#include "shared/key_numbers.h"
-
-
-//! CommandBuffers/Console/CVars:
-#include "shared/command_cvars.h"
-#include "shared/command_buffer.h"
-#include "shared/command_print.h"
-
-
-//! Collision: 
-//! Maximum World 'Half-Size'. Now 8 times larger(+/- 32768) than the old Q2 Vanilla 'Half-Size': (+/- 4096).
-#define CM_MAX_WORLD_HALF_SIZE 32768
-//! Maximum World Size, used for calculating various trace distance end point vectors. ( 32768 * 2 == 65536 )
-#define CM_MAX_WORLD_SIZE ( CM_MAX_WORLD_HALF_SIZE * 2 )
-//! Maximum amount of entity clusters.
-#define MAX_ENT_CLUSTERS    16
-//! Maximum total entity leafs.
-#define MAX_TOTAL_ENT_LEAFS 128
-//! Collision(-Model) Shared Subsystem Stuff:
-#include "shared/collision.h"
-
-//! BSP Format Data Structure:
+/**
+*   @brief  Hunk allocation memory block, used for resource allocation.
+**/
 typedef struct {
     void *base;
     size_t  maxsize;
@@ -275,26 +214,64 @@ typedef struct {
     size_t  mapped;
 } memhunk_t;
 
-#include "shared/format_bsp.h"
+
+//! KeyButton/KeyButton State:
+#include "shared/keys/key_button.h"
+//! Key indices/numbers:
+#include "shared/keys/key_numbers.h"
 
 
-//! Collision Model:
-#include "shared/cm_entity.h"
-#include "shared/cm_material.h"
-#include "shared/cm_model.h"
+//! CommandBuffers/Console/CVars:
+#include "shared/cmd/cmd_cvars.h"
+#include "shared/cmd/cmd_buffer.h"
+#include "shared/cmd/cmd_print.h"
+
+
+//! Collision: 
+//! Maximum World 'Half-Size'. Now 8 times larger(+/- 32768) than the old Q2 Vanilla 'Half-Size': (+/- 4096).
+#define CM_MAX_WORLD_HALF_SIZE 32768
+//! Maximum World Size, used for calculating various trace distance end point vectors. ( 32768 * 2 == 65536 )
+#define CM_MAX_WORLD_SIZE ( CM_MAX_WORLD_HALF_SIZE * 2 )
+//! The maximum amount of characters in a texture name.
+#define CM_MAX_TEXNAME     32
+
+//! Maximum amount of entity clusters.
+#define MAX_ENT_CLUSTERS    16
+//! Maximum total entity leafs.
+#define MAX_TOTAL_ENT_LEAFS 128
+
+//! Collision(-Model) Shared Subsystem Stuff:
+#include "shared/cm/cm_types.h"
+#include "shared/cm/cm_entity.h"
+#include "shared/cm/cm_plane.h"
+#include "shared/cm/cm_surface.h"
+#include "shared/cm/cm_material.h"
+#include "shared/cm/cm_trace.h"
+#include "shared/formats/format_bsp.h"
+#include "shared/cm/cm_model.h"
+
+// gi.BoxEdicts() can return a list of either solid or trigger entities
+// FIXME: eliminate AREA_ distinction?
+typedef enum sector_area_s {
+	AREA_SOLID = 1,
+	AREA_TRIGGERS = 2
+} sector_area_t;
 
 
 //!	Entity Muzzleflashes/Player Effects:
-#include "shared/entity_effects.h"
+#include "shared/entities/entity_effects.h"
 //!	Entity Render Flags:
-#include "shared/entity_renderflags.h"
+#include "shared/entities/entity_renderflags.h"
 //!	Entity Events:
-#include "shared/entity_events.h"
+#include "shared/entities/entity_events.h"
 //! Entity Types:
-#include "shared/entity_types.h"
+#include "shared/entities/entity_types.h"
 //! Entity State:
-#include "shared/entity_state.h"
-
+#include "shared/entities/entity_state.h"
+#ifdef __cplusplus
+    //! Shared Server/ServerGame Entity Data:
+    #include "shared/server/sv_shared_edict.h"
+#endif
 //! Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
 #include "shared/gamemode_flags.h"
 
@@ -321,7 +298,9 @@ typedef struct {
 #define UF_PLAYERFOV        64
 
 
-//! Destination determinant for gi.multicast()
+/**
+*   @brief  Destination determinant for gi.multicast()
+**/
 typedef enum {
     //! Multicast to all client.
     MULTICAST_ALL,
@@ -333,19 +312,19 @@ typedef enum {
 
 // Used for identifying brush model solids with so that it uses the internal BSP bounding box.
 // An otherwise SOLID_BOUNDS_BOX etc, will never create this value(Used to be 255):
-#define BOUNDS_BRUSHMODEL      ( ( solid_t )( 0xffffffff ) )
+#define BOUNDS_BRUSHMODEL      ( ( cm_solid_t )( 0xffffffff ) )
 
 /***
 * 	Config Strings: A general means of communication from the server to all connected clients.
 *                   Each config string can be at most MAX_QPATH characters.
 ***/
-#include "shared/net_configstrings.h"
+#include "shared/net/net_configstrings.h"
 //! Elements Communicated across the NET.
-#include "shared/net_elements.h"
+#include "shared/net/net_elements.h"
 //! Server to Client, and Client to Server CommandMessages.
-#include "shared/net_command_messages.h"
+#include "shared/net/net_command_messages.h"
 //! User Commands( User Input ):
-#include "shared/net_usercommand.h"
+#include "shared/net/net_usercommand.h"
 //! Network Frame Flags:
 #define FF_NONE			0
 #define FF_SUPPRESSED   (1<<0)
@@ -357,8 +336,16 @@ typedef enum {
 /**
 *	Player State:
 **/
-#include "shared/player_state.h"
+//#ifdef __cplusplus
+    #include "shared/player_state.h"
+//#endif // #ifdef __cplusplus
+
 /**
-*	Player Movement:
+*   Tag Memory Allocation Zones:
 **/
-#include "shared/player_move.h"
+#include "shared/zone_tags.h"
+
+//! Import cpplib shared code.
+#ifdef __cplusplus
+
+#endif // #ifdef __cplusplus

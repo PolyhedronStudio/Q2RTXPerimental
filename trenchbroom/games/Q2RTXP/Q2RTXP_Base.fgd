@@ -1,0 +1,71 @@
+//
+//	AppearFlags BaseClass:
+//
+@baseclass = Appearflags [
+	spawnflags(Flags) =
+	[
+		524288 : "Not in Deathmatch" : 0
+		1048576 : "Not in Coop" : 0
+		2097152 : "Not in Easy" : 0
+		4194304 : "Not in Normal" : 0
+		8388608 : "Not in Hard" : 0
+	]
+]
+//
+//	Angle BaseClass:
+//
+@baseclass = Angle [ angle(integer) : "Direction" ]
+//
+//	TargetName BaseClass:
+//
+@baseclass = Targetname [ targetname(target_source) : "Name" ]
+//
+//	Target BaseClass:
+//
+@baseclass = Target [ target(target_destination) : "Target" ]
+// <Q2RTXP>
+//
+//	Lua Name:
+//
+@baseclass = Luaname [ luaName(string) : "Lua Name" ]
+//
+//	UseTarget Flags:
+//
+@baseclass = UseTargetFlags [
+	spawnflags(Flags) =
+	[
+		32768 : "UseTarget Disabled( disables (+usetarget) key actions )" : 0
+		65536 : "Pressable UseTarget( (+usetarget) single key press activates )" : 0
+		131072 : "Toggleable UseTarget( (+usetarget) single key press toggles, activates at end of press movement )" : 0
+		262144 : "Continuous UseTarget( (+usetarget) key held down, activates continuous )" : 0
+	]
+]
+// </Q2RTXP>
+
+//
+// Light BaseClass:
+//
+@baseclass base(Luaname, Targetname) 
+	size( -16 -16 -16, 16 16 16 )
+	color( 196 125 85 )
+	sprite( { "path": "_tb_icons/light.tga", "scale":1 } )
+= LightEntity[]
+
+//
+//	Player BaseClass:
+//
+@baseclass base(Appearflags, Targetname) 
+	size( -16 -16 -36, 16 16 36 ) 
+	color( 0 255 0 ) 
+	model( { "path": "players/playerdummy/tris.iqm" } ) 
+= PlayerClass []
+
+//
+//	Q2RTXP: Client Local Entities
+//
+// client_misc_model
+@baseclass base(Appearflags, Targetname, Target) size( -16 -16 -24, 16 16 24 ) color( 128 128 0 ) model({
+	"path" : model,
+	"skin" : skin,
+	"frame": frame
+}) = ModelClass[]

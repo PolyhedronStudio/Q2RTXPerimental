@@ -72,25 +72,25 @@ static bool SV_RateDrop(client_t *client)
         return false;
     }
 	
-    total = 0;
-    for (i = 0; i < RATE_MESSAGES; i++) {
-        total += client->message_size[i];
-    }
+	total = 0;
+	for ( i = 0; i < RATE_MESSAGES; i++ ) {
+		total += client->message_size[ i ];
+	}
 
-//#if USE_FPS
-//    total = total * sv.framediv / client->framediv;
-//#endif
+	//#if USE_FPS
+	//    total = total * sv.framediv / client->framediv;
+	//#endif
 
-    if (total > client->rate) {
-        SV_DPrintf(0, "Frame %d suppressed for %s (total = %zu)\n",
-                   client->framenum, client->name, total);
-        client->frameflags |= FF_SUPPRESSED;
-        client->suppress_count++;
-        client->message_size[client->framenum % RATE_MESSAGES] = 0;
-        return true;
-    }
+	if ( total > client->rate ) {
+		SV_DPrintf( 0, "Frame %d suppressed for %s (total = %zu)\n",
+			client->framenum, client->name, total );
+		client->frameflags |= FF_SUPPRESSED;
+		client->suppress_count++;
+		client->message_size[ client->framenum % RATE_MESSAGES ] = 0;
+		return true;
+	}
 
-    return false;
+	return false;
 }
 
 static void SV_CalcSendTime(client_t *client, size_t size)
@@ -297,7 +297,8 @@ void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
 		}
 
 		if ( leaf1 ) {
-			leaf2 = CM_PointLeaf( &sv.cm, client->edict->s.origin );
+			sv_edict_t *clent = EDICT_FOR_NUMBER( client->number + 1 );
+			leaf2 = CM_PointLeaf( &sv.cm, clent->s.origin );
 			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
 				continue;
 			if ( leaf2->cluster == -1 )

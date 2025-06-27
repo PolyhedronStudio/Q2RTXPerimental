@@ -799,16 +799,16 @@ static bool Push( menuFrameWork_t *self ) {
     /**
     *   Sliders for factors:
     **/
-    m_rmaterial.materialKeyFields.factorBase.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->base_factor, 0.f, 10.f );
-    m_rmaterial.materialKeyFields.factorEmissive.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->emissive_factor, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.factorMetalness.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->metalness_factor, 0.f, 1.f );
-    m_rmaterial.materialKeyFields.factorSpecular.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->specular_factor, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.factorBase.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->base_factor, 0.f, 10.f );
+    m_rmaterial.materialKeyFields.factorEmissive.curvalue = QM_Clamp01( m_rmaterial.materialKeyValues.material->emissive_factor );// , 0.f, 1.f );, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.factorMetalness.curvalue = QM_Clamp01( m_rmaterial.materialKeyValues.material->metalness_factor );// , 0.f, 1.f );, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.factorSpecular.curvalue = QM_Clamp01( m_rmaterial.materialKeyValues.material->specular_factor );// , 0.f, 1.f );, 0.f, 1.f );
 
     /**
     *   Bump Scale/Roughness Override Sliders:
     **/
-    m_rmaterial.materialKeyFields.bumpScale.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->bump_scale, 0.f, 10.f );
-    m_rmaterial.materialKeyFields.roughnessOverride.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->roughness_override, -1.f, 1.f );
+    m_rmaterial.materialKeyFields.bumpScale.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->bump_scale, 0.f, 10.f );
+    m_rmaterial.materialKeyFields.roughnessOverride.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->roughness_override, -1.f, 1.f );
 
     /**
     *   LightStyle/BSPRadiance/DefaultRadiance:
@@ -816,19 +816,19 @@ static bool Push( menuFrameWork_t *self ) {
     m_rmaterial.materialKeyFields.isLight.curvalue = ( m_rmaterial.materialKeyValues.material->flags & MATERIAL_FLAG_LIGHT ? 1 : 0 );
     m_rmaterial.materialKeyFields.lightStyles.curvalue = ( m_rmaterial.materialKeyValues.material->light_styles ? 1 : 0 );
     m_rmaterial.materialKeyFields.bspRadiance.curvalue = ( m_rmaterial.materialKeyValues.material->bsp_radiance ? 1 : 0 );
-    m_rmaterial.materialKeyFields.defaultRadiance.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->default_radiance, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.defaultRadiance.curvalue = QM_Clamp01( m_rmaterial.materialKeyValues.material->default_radiance );// , 0.f, 1.f );
 
     /**
     *   Synth Emissive/Emissive Threshhold:
     **/
-    m_rmaterial.materialKeyFields.synthEmissiveTexture.curvalue = QM_ClampInt32( m_rmaterial.materialKeyValues.material->synth_emissive, 0, 1 );
+    m_rmaterial.materialKeyFields.synthEmissiveTexture.curvalue = QM_Clamp<int32_t>( m_rmaterial.materialKeyValues.material->synth_emissive, 0, 1 );
     // [EMISSIVE_THRESHOLD]:
     IF_Init(
         &m_rmaterial.materialKeyFields.emissiveThreshold.field,
         3,
         m_rmaterial.materialKeyFields.emissiveThreshold.width
     );
-    std::string threshold = std::to_string( QM_ClampInt32( m_rmaterial.materialKeyValues.material->emissive_threshold, 0, 255 ) );
+    std::string threshold = std::to_string( QM_ClampUnsigned<uint32_t>( m_rmaterial.materialKeyValues.material->emissive_threshold, 0, 255 ) );
     IF_Replace( &m_rmaterial.materialKeyFields.emissiveThreshold.field, threshold.c_str() );
 
 
@@ -1114,7 +1114,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorBase.generic.change = MenuChange_Material_BaseFactor;
     m_rmaterial.materialKeyFields.factorBase.minvalue = 0;
     m_rmaterial.materialKeyFields.factorBase.maxvalue = 10;
-    m_rmaterial.materialKeyFields.factorBase.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->base_factor, 0.f, 10.f );
+    m_rmaterial.materialKeyFields.factorBase.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->base_factor, 0.f, 10.f );
     m_rmaterial.materialKeyFields.factorBase.format = (char *)"%.1f";
     m_rmaterial.materialKeyFields.factorBase.step = 0.1f;
 
@@ -1124,7 +1124,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorEmissive.generic.change = MenuChange_Material_EmissiveFactor;
     m_rmaterial.materialKeyFields.factorEmissive.minvalue = 0;
     m_rmaterial.materialKeyFields.factorEmissive.maxvalue = 1;
-    m_rmaterial.materialKeyFields.factorEmissive.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->emissive_factor, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.factorEmissive.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->emissive_factor, 0.f, 1.f );
     m_rmaterial.materialKeyFields.factorEmissive.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.factorEmissive.step = 0.0125f;
 
@@ -1134,7 +1134,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorMetalness.generic.change = MenuChange_Material_MetalnessFactor;
     m_rmaterial.materialKeyFields.factorMetalness.minvalue = 0;
     m_rmaterial.materialKeyFields.factorMetalness.maxvalue = 1;
-    m_rmaterial.materialKeyFields.factorMetalness.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->metalness_factor, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.factorMetalness.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->metalness_factor, 0.f, 1.f );
     m_rmaterial.materialKeyFields.factorMetalness.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.factorMetalness.step = 0.0125f;
 
@@ -1144,7 +1144,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.factorSpecular.generic.change = MenuChange_Material_SpecularFactor;
     m_rmaterial.materialKeyFields.factorSpecular.minvalue = 0;
     m_rmaterial.materialKeyFields.factorSpecular.maxvalue = 1;
-    m_rmaterial.materialKeyFields.factorSpecular.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->specular_factor, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.factorSpecular.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->specular_factor, 0.f, 1.f );
     m_rmaterial.materialKeyFields.factorSpecular.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.factorSpecular.step = 0.0125f;
 
@@ -1157,7 +1157,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.bumpScale.generic.change = MenuChange_Material_BumpScale;
     m_rmaterial.materialKeyFields.bumpScale.minvalue = 0;
     m_rmaterial.materialKeyFields.bumpScale.maxvalue = 10;
-    m_rmaterial.materialKeyFields.bumpScale.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->bump_scale, 0.f, 10.f );
+    m_rmaterial.materialKeyFields.bumpScale.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->bump_scale, 0.f, 10.f );
     m_rmaterial.materialKeyFields.bumpScale.format = (char *)"%.4f";
     m_rmaterial.materialKeyFields.bumpScale.step = 0.0125f;
 
@@ -1167,7 +1167,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.roughnessOverride.generic.change = MenuChange_Material_RoughnessOverride;
     m_rmaterial.materialKeyFields.roughnessOverride.minvalue = -1;
     m_rmaterial.materialKeyFields.roughnessOverride.maxvalue = 1;
-    m_rmaterial.materialKeyFields.roughnessOverride.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->roughness_override, -1.f, 1.f );
+    m_rmaterial.materialKeyFields.roughnessOverride.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->roughness_override, -1.f, 1.f );
     m_rmaterial.materialKeyFields.roughnessOverride.format = (char *)( "%.1f" );
     m_rmaterial.materialKeyFields.roughnessOverride.step = 0.1f;
 
@@ -1204,7 +1204,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.defaultRadiance.generic.change = MenuChange_Material_DefaultRadiance;
     m_rmaterial.materialKeyFields.defaultRadiance.minvalue = 0;
     m_rmaterial.materialKeyFields.defaultRadiance.maxvalue = 1;
-    m_rmaterial.materialKeyFields.defaultRadiance.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->default_radiance, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.defaultRadiance.curvalue = QM_Clamp( m_rmaterial.materialKeyValues.material->default_radiance, 0.f, 1.f );
     m_rmaterial.materialKeyFields.defaultRadiance.format = (char *)"%.1f";
     m_rmaterial.materialKeyFields.defaultRadiance.step = 0.1f;
 
@@ -1215,7 +1215,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.synthEmissiveTexture.generic.name = "Synthesize Emissive Texture";
     m_rmaterial.materialKeyFields.synthEmissiveTexture.generic.flags = 0;
     m_rmaterial.materialKeyFields.synthEmissiveTexture.generic.change = MenuChange_Material_SynthesizeEmissiveTexture;
-    m_rmaterial.materialKeyFields.synthEmissiveTexture.curvalue = QM_Clampf( m_rmaterial.materialKeyValues.material->synth_emissive, 0.f, 1.f );
+    m_rmaterial.materialKeyFields.synthEmissiveTexture.curvalue = QM_Clamp<uint32_t>( m_rmaterial.materialKeyValues.material->synth_emissive, 0, 1 );
     m_rmaterial.materialKeyFields.synthEmissiveTexture.itemnames = (char **)synthEmissive_ItemNames;
     m_rmaterial.materialKeyFields.synthEmissiveTexture.itemvalues = (char **)synthEmissive_ItemValues;
 
@@ -1226,7 +1226,7 @@ void M_Menu_Editor_RefreshMaterial( void ) {
     m_rmaterial.materialKeyFields.emissiveThreshold.generic.keydown = Keydown_Material_Fields;
     m_rmaterial.materialKeyFields.emissiveThreshold.generic.width = 3;
     m_rmaterial.materialKeyFields.emissiveThreshold.width = 3;
-    const int32_t clampedThreshold = QM_ClampInt32( m_rmaterial.materialKeyValues.material->emissive_threshold, 0, 255 );
+    const uint32_t clampedThreshold = QM_ClampUnsigned<uint32_t>( m_rmaterial.materialKeyValues.material->emissive_threshold, 0, 255 );
     Q_snprintf( m_rmaterial.materialKeyFields.emissiveThreshold.field.text, 3, "%d", clampedThreshold );
 
 

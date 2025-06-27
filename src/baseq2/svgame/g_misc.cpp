@@ -92,7 +92,7 @@ void gib_think(edict_t *self)
     }
 }
 
-void gib_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void gib_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     vec3_t  normal_angles, right;
 
@@ -318,7 +318,7 @@ Pathtarget: gets used when an entity that has
     this path_corner targeted touches it
 */
 
-void path_corner_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void path_corner_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     vec3_t      v;
     edict_t     *next;
@@ -391,7 +391,7 @@ Makes this the target of a monster and it will head here
 when first activated before going after the activator.  If
 hold is selected, it will stay here.
 */
-void point_combat_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void point_combat_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     edict_t *activator;
 
@@ -612,7 +612,7 @@ void SP_func_wall(edict_t *self)
 This is solid bmodel that will fall if it's support it removed.
 */
 
-void func_object_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void func_object_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     // only squash thing we fall on top of
     if (!plane)
@@ -670,7 +670,7 @@ void SP_func_object(edict_t *self)
     if (self->spawnflags & 4)
         self->s.effects |= EF_ANIM_ALLFAST;
 
-    self->clipmask = MASK_MONSTERSOLID;
+    self->clipmask = CM_CONTENTMASK_MONSTERSOLID;
 
     gi.linkentity(self);
 }
@@ -806,7 +806,7 @@ Large exploding box.  You can override its mass (100),
 health (80), and dmg (150).
 */
 
-void barrel_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+void barrel_touch( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf ) {
     
     if ( ( !other->groundentity ) || ( other->groundentity == self ) ) {
         return;
@@ -1253,7 +1253,7 @@ void SP_misc_bigviper(edict_t *ent)
 /*QUAKED misc_viper_bomb (1 0 0) (-8 -8 -8) (8 8 8)
 "dmg"   how much boom should the bomb make?
 */
-void misc_viper_bomb_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void misc_viper_bomb_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     SVG_UseTargets(self, self->activator);
 
@@ -1294,7 +1294,7 @@ void misc_viper_bomb_use(edict_t *self, edict_t *other, edict_t *activator)
     self->activator = activator;
 	self->timestamp = level.time;
 
-    viper = SVG_Find(NULL, FOFS_GENTITY(classname), "misc_viper");
+    viper = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "misc_viper");
 	if ( viper ) {
 		VectorScale( viper->moveinfo.dir, viper->moveinfo.speed, self->velocity );
 		VectorCopy( viper->moveinfo.dir, self->moveinfo.dir );
@@ -1587,7 +1587,7 @@ static void func_clock_format_countdown(edict_t *self)
 void func_clock_think(edict_t *self)
 {
     if (!self->enemy) {
-        self->enemy = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
+        self->enemy = SVG_Entities_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
         if (!self->enemy)
             return;
     }
@@ -1686,14 +1686,14 @@ void SP_func_clock(edict_t *self)
 
 //=================================================================================
 
-void teleporter_touch(edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf)
+void teleporter_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     edict_t     *dest;
     int         i;
 
     if (!other->client)
         return;
-    dest = SVG_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
+    dest = SVG_Entities_Find(NULL, FOFS_GENTITY(targetname), self->targetNames.target);
     if (!dest) {
         gi.dprintf("Couldn't find destination\n");
         return;

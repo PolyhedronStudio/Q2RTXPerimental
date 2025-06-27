@@ -25,5 +25,9 @@ void PF_ClearViewScene( void );
 /**
 *   @brief
 **/
-void PF_PrepareViewEntites( void );
+void PF_PrepareViewEntities( void );
+/**
+*	@brief	Returns the predictedState based player view render definition flags.
+**/
+const refdef_flags_t PF_GetViewRenderDefinitionFlags( void );
 

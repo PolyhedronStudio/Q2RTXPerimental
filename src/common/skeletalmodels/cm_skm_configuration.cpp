@@ -7,7 +7,7 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 #include "refresh/shared_types.h"
 
@@ -21,9 +21,8 @@
 
 #include "system/hunk.h"
 
-// Jasmine json parser.
-#define JSMN_STATIC
-#include "shared/jsmn.h"
+// Include nlohman::json library for easy parsing.
+#include <nlohmann/json.hpp>
 
 
 //!
@@ -78,143 +77,13 @@ char *SKM_LoadConfigurationFile( model_t *model, const char *configurationFilePa
         Com_LPrintf( PRINT_DEVELOPER, "%s: Couldn't read %s\n", __func__, configurationFilePath );
         #endif
         *loadResult = false;
-        return fileBuffer;
+        return nullptr;
     }
 
     // All is well, we got our buffer.
     *loadResult = true;
 
     return fileBuffer;
-}
-
-
-
-/**
-*
-*
-*	JSMN JSON Utility Functions: Token Type Tests (TODO: Move elsewhere.)
-*
-*
-**/
-/**
-*   @return True if the token is a 'primitive' type.
-**/
-static inline const int32_t json_token_type_is_primitive( jsmntok_t *token ) {
-    return ( token != nullptr ? token->type == JSMN_PRIMITIVE ? true : false : -1 );
-}
-/**
-*   @return True if the token is an 'object' type.
-**/
-static inline const int32_t json_token_type_is_object( jsmntok_t *token ) {
-    return ( token != nullptr ? token->type == JSMN_OBJECT ? true : false : -1 );
-}
-/**
-*   @return True if the token is an 'array' type.
-**/
-static inline const int32_t json_token_type_is_array( jsmntok_t *token ) {
-    return ( token != nullptr ? token->type == JSMN_ARRAY ? true : false : -1 );
-}
-/**
-*   @return True if the token is a 'string' type.
-**/
-static inline const int32_t json_token_type_is_string( jsmntok_t *token ) {
-    return ( token != nullptr ? token->type == JSMN_STRING ? true : false : -1 );
-}
-
-
-
-/**
-*
-*
-*	JSMN JSON Utility Functions: Value Acquisition/Comparison/Conversion (TODO: Move elsewhere.) 
-*
-*
-**/
-/**
-*   @return True if the token is JSMN_STRING and the token string value matches that of *s.
-*   @brief  When 'enforce_string_type' is set to false, it won't require the token to be a JSMN_STRING type.
-**/
-static const int32_t json_token_value_strcmp( const char *jsonBuffer, jsmntok_t *token, const char *str, const bool enforce_string_type = true ) {
-    // Need a valid token ptr.
-    if ( token == nullptr ) {
-        // Failure.
-        return -1;
-    }
-    // Ensure the token type is a string, that its length as well as its contents matches that of *s.
-    if ( ( enforce_string_type ? json_token_type_is_string( token ) == 1 : true )
-        && (int)strlen( str ) == token->end - token->start
-        && strncmp( jsonBuffer + token->start, str, token->end - token->start ) == 0 ) {
-        return 1;
-    }
-    // Failure.
-    return -1;
-}
-
-/**
-*   @brief  Will copy the JSON token its string value into the designated buffer.
-*   @note   When it is an actual string token type, the first and last double quote(") are removed.
-*   @return The amount of characters copied over. (This is always < outputBufferLength)
-**/
-static const int32_t json_token_value_to_buffer( const char *jsonBuffer, jsmntok_t *token, char *outputBuffer, const uint32_t outputBufferLength ) {
-    // Token string/value size.
-    const int32_t tokenValueSize = QM_ClampInt32( token->end - token->start, 0, outputBufferLength );
-
-    // Parse field value into buffer.
-    return Q_scnprintf( outputBuffer, tokenValueSize + 1, "%s\0", jsonBuffer + token->start );
-}
-
-/**
-*
-*
-*	JSMN JSON Utility Functions: Primitive Type Tests (TODO: Move elsewhere.)
-*
-*
-**/
-/**
-*   @return The primitive type of the json token.
-**/
-typedef enum json_primitive_type_s {
-    //! For 'true' and 'false'.
-    JSON_PRIMITIVE_TYPE_BOOLEAN,
-    //! For js 'null'.
-    JSON_PRIMITIVE_TYPE_NULL,
-    //! For (signed)-integers and floats. 
-    JSON_PRIMITIVE_TYPE_NUMERIC,
-    
-    //! For unknown primitive types.
-    JSON_PRIMITIVE_TYPE_UNKNOWN,
-    //! For when the token is not even a primitive.
-    JSON_PRIMITIVE_IS_NO_PRIMITIVE,
-    //! FOr when the token is a (nullptr).
-    JSON_PRIMITIVE_TOKEN_IS_NULLPTR
-} json_primitive_type_t;
-/**
-*   @return The actual type of the primitive token. On failure, either type unknown or 'is no primitive'.
-**/
-static inline const json_primitive_type_t json_token_primitive_type( const char *jsonBuffer, jsmntok_t *token ) {
-    // Failure if token is a nullptr.
-    if ( !token ) {
-        return JSON_PRIMITIVE_TOKEN_IS_NULLPTR;
-    }
-    // Failure if token is not an actual primitive.
-    if ( !json_token_type_is_primitive( token ) ) {
-        return JSON_PRIMITIVE_IS_NO_PRIMITIVE;
-    }
-    // See whether it is numeric.
-    const char *firstChar = jsonBuffer + token->start;
-    if ( Q_isnumeric( *firstChar ) ) {
-        return JSON_PRIMITIVE_TYPE_NUMERIC;
-    }
-    // See whether it is a 'boolean' true/false.
-    if ( json_token_value_strcmp( jsonBuffer, token, "true", false ) || json_token_value_strcmp( jsonBuffer, token, "false", false ) ) {
-        return JSON_PRIMITIVE_TYPE_BOOLEAN;
-    }
-    // See whether it is a 'null'
-    if ( json_token_value_strcmp( jsonBuffer, token, "null", false ) ) {
-        return JSON_PRIMITIVE_TYPE_NULL;
-    }
-    // Type unknown.
-    return JSON_PRIMITIVE_TYPE_UNKNOWN;
 }
 
 
@@ -428,18 +297,11 @@ fail:
 *	@brief	Parses the buffer, allocates specified memory in the model_t struct and fills it up with the results.
 *	@return	True on success, false on failure.
 **/
-const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configurationFilePath, char *fileBuffer ) {
+const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configurationFilePath, char *jsonBuffer ) {
     // Used for the CHECK( ) macro.
     int ret = 0;
 
     int32_t motionBoneNumber = -1;
-    // WID: TODO: REMOVE AFTER FINISHING THIS.
-    //
-    // This sits here for debugging purposes only, so we can place breakpoints without
-    // them triggering for each model it attemps to load a config for.
-    if ( strcmp( configurationFilePath, "players/testdummy/tris.skc" ) == 0 ) {
-        int x = 10;
-    }
 
     /**
     *   Sanity Checks:
@@ -447,218 +309,145 @@ const int32_t SKM_ParseConfigurationBuffer( model_t *model, const char *configur
     // Ensure the model ptr is valid.
     if ( !model ) {
         #ifdef _DEBUG_PRINT_SKM_CONFIGURATION_PARSE_FAILURE
-        Com_LPrintf( PRINT_DEVELOPER, "%s: model_t *model == nullptr! while trying to parse '%s', \n", __func__, configurationFilePath );
+            Com_LPrintf( PRINT_DEVELOPER, "%s: model_t *model == nullptr! while trying to parse '%s', \n", __func__, configurationFilePath );
         #endif
         return false;
     }
     // Ensure that there is valid iqmData to work with.
     if ( !model->skmData ) {
         #ifdef _DEBUG_PRINT_SKM_CONFIGURATION_PARSE_FAILURE
-        Com_LPrintf( PRINT_DEVELOPER, "%s: model->iqmData == nullptr! while trying to parse '%s', \n", __func__, configurationFilePath );
+            Com_LPrintf( PRINT_DEVELOPER, "%s: model->iqmData == nullptr! while trying to parse '%s', \n", __func__, configurationFilePath );
         #endif
         return false;
     }
     // Ensure the input buffer is valid.
-    if ( !fileBuffer ) {
+    if ( !jsonBuffer ) {
         #ifdef _DEBUG_PRINT_SKM_CONFIGURATION_PARSE_FAILURE
-        Com_LPrintf( PRINT_DEVELOPER, "%s: char **fileBuffer == nullptr! while trying to parse '%s'.\n", __func__, configurationFilePath );
+            Com_LPrintf( PRINT_DEVELOPER, "%s: char **jsonBuffer == nullptr! while trying to parse '%s'.\n", __func__, configurationFilePath );
         #endif
         return false;
     }
-
     
-    /**
-    *   JSON Buffer Tokenizing.
-    **/
-    // Initialize JSON parser.
-    jsmn_parser parser;
-    jsmn_init( &parser );
-
-    // Parse tokens.
-    constexpr int32_t MaxJSONTokens = 1024;
-    jsmntok_t tokens[ MaxJSONTokens ];
-    int32_t numTokensParsed = jsmn_parse(
-        &parser, fileBuffer, strlen( fileBuffer ), tokens, MaxJSONTokens//( sizeof( tokens ) / sizeof( tokens[ 0 ] )
-    );
-// WID: TODO: Dynamically allocating somehow fails.
-#if 0
-    // Analyze parse to determine how much space to allocate for all tokens.
-    jsmntok_t *tokens = nullptr;
-    int32_t numTokensParsed = jsmn_parse(
-        &parser, fileBuffer, strlen( fileBuffer ), tokens, 4096 / sizeof( jsmntok_t ) );//( sizeof( tokens ) / sizeof( tokens[ 0 ] )
-    );
-#endif
-    // If lesser than 0 we failed to parse the json properly.
-    if ( numTokensParsed < 0 ) {
-        if ( numTokensParsed == JSMN_ERROR_INVAL ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_INVAL), bad token, JSON string is corrupted\n", __func__, configurationFilePath );
-        } else if ( numTokensParsed == JSMN_ERROR_NOMEM ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_INVAL), not enough tokens, JSON string is too large\n", __func__, configurationFilePath );
-        } else if ( numTokensParsed == JSMN_ERROR_PART ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_PART),  JSON string is too short, expecting more JSON data\n", __func__, configurationFilePath );
-        } else {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(unknown)\n", __func__, configurationFilePath );
-        }
-        return false;
+    // Parse JSON using nlohmann::json.
+    nlohmann::json json;
+    try {
+        json = nlohmann::json::parse( jsonBuffer );
     }
-// WID: TODO: Dynamically allocating somehow fails.
-#if 0
-// Allocate enough space for parsing JSON tokens.
-tokens = static_cast<jsmntok_t *> ( Z_Malloc( sizeof( jsmntok_t ) * 4096 ) );
-// Parse JSON into tokens.
-numTokensParsed = jsmn_parse(
-    &parser, fileBuffer, strlen( fileBuffer ), tokens, numTokensParsed );
-#endif
-    // Error out if the top level element is not an object.
-    if ( numTokensParsed < 1 || tokens[ 0 ].type != JSMN_OBJECT ) {
-        Com_LPrintf( PRINT_DEVELOPER, "%s: Expected a json Object at the root of file '%s'!\n", __func__, configurationFilePath );
+    // Catch parsing errors if any.
+    catch ( const nlohmann::json::parse_error &e ) {
+        // Output parsing error.
+        #ifdef _DEBUG_PRINT_SKM_CONFIGURATION_PARSE_FAILURE
+            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(%s)\n", __func__, configurationFilePath, e.what());
+        #endif
+        // Return as we failed to parse the json.
         return false;
     }
 
-    /**
-    *   All went well so far, so now we can start allocating things.
-    **/
-    int32_t boneArrayResult = 0;
-    int32_t boneTreeResult = 0;
-    // First of all, allocate our config object in general.
-    CHECK( model->skmConfig = static_cast<skm_config_t*>( MOD_Malloc( sizeof( skm_config_t ) ) ) );
-    // Collect and fill the bones array.
-    boneArrayResult = SKM_GenerateBonesArray( model, configurationFilePath );
-    // Build a proper boneTree based on the bone array data.
-    boneTreeResult = SKM_CreateBonesTree( model, configurationFilePath );
+	// Try and read the skm configuration properties.
+    try {
+        /**
+        *   All went well so far, so now we can start allocating things.
+        **/
+        int32_t boneArrayResult = 0;
+        int32_t boneTreeResult = 0;
 
-    // Debug print.
-    Com_LPrintf( PRINT_DEVELOPER, " ------------------------- JSON SKC Parsing: \"%s\" ----------------------- \n", configurationFilePath );
+        // First of all, allocate our config object in general.
+        CHECK( model->skmConfig = static_cast<skm_config_t *>( MOD_Malloc( sizeof( skm_config_t ) ) ) );
+        // Collect and fill the bones array.
+        boneArrayResult = SKM_GenerateBonesArray( model, configurationFilePath );
+        // Build a proper boneTree based on the bone array data.
+        boneTreeResult = SKM_CreateBonesTree( model, configurationFilePath );
 
-    /**
-    *   JSON Token Iterating:
-    **/
-    // Begin iterating at tokenID 1, since tokenID 0 is our 'Root' JSON Object.
-    for ( int32_t tokenID = 1; tokenID < numTokensParsed; tokenID++ ) {
-        // The actual previous token.
-        const uint32_t previousTokenID = tokenID - 1;
-        jsmntok_t *previousToken = &tokens[ previousTokenID ];
-        // The current token.
-        jsmntok_t *currentToken = &tokens[ tokenID ];
-        // The next token.
-        const uint32_t nextTokenID = tokenID + 1;
-        jsmntok_t *nextToken = ( nextTokenID < ( numTokensParsed - 1 ) ? &tokens[ nextTokenID ] : nullptr );
+        // Debug print.
+        Com_LPrintf( PRINT_DEVELOPER, " ------------------------- JSON SKC Parsing: \"%s\" ----------------------- \n", configurationFilePath );
 
-        //
-        // RootMotion Tracking Bone:
-        //
-        if ( json_token_value_strcmp( fileBuffer, previousToken, "rootmotionbone" ) == 1 ) {
-            // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
-            if ( json_token_type_is_string( currentToken ) == 1 /*true*/ ) {
-                // Name buffer.
-                char rootMotionBoneName[ MAX_QPATH ] = {};
-                if ( json_token_value_to_buffer( fileBuffer, currentToken, rootMotionBoneName, MAX_QPATH ) ) {
-                    // Get the bone node that has the matching name.
-                    skm_bone_node_t *rootMotionBoneNode = SKM_GetBoneByName( model, rootMotionBoneName );
-                    if ( rootMotionBoneNode ) {
-                        // Setup root motion bone node pointer.
-                        model->skmConfig->rootBones.motion = rootMotionBoneNode;
-
-                        // Debug print.
-                        Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - RootMotionBone Set To (#%i, \"%s\")\n", configurationFilePath, rootMotionBoneNode->number, rootMotionBoneName );
-                    }
+        // Ensure it is nullptr.
+        model->skmConfig->rootBones.motion = nullptr;
+        if ( json.contains( "rootmotionbone" ) ) {
+            // Get root motion bone name.
+            const std::string rootMotionBoneName = json["rootmotionbone"].get< const std::string >();
+            // Ensure the key its value is not empty.
+            if ( !rootMotionBoneName.empty() ) {
+                // Get the bone node that has the matching name.
+                skm_bone_node_t *rootMotionBoneNode = SKM_GetBoneByName( model, rootMotionBoneName.c_str() );
+                // Assign bone node pointer if we found a matching bone.
+                if ( rootMotionBoneNode ) {
+                    model->skmConfig->rootBones.motion = rootMotionBoneNode;
+                    // Debug print.
+                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - RootMotionBone Set To (#%i, \"%s\")\n", configurationFilePath, rootMotionBoneNode->number, rootMotionBoneName.c_str() );
                 }
-                continue;
             }
         }
-        //
-        // (SKM_BODY_LOWER) Hip Bone:
-        //
-        if ( json_token_value_strcmp( fileBuffer, previousToken, "hipbone" ) == 1 ) {
-            // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
-            if ( json_token_type_is_string( currentToken ) == 1 /*true*/ ) {
-                // Name buffer.
-                char hipBoneName[ MAX_QPATH ] = {};
-                if ( json_token_value_to_buffer( fileBuffer, currentToken, hipBoneName, MAX_QPATH ) ) {
-                    // Get the bone node that has the matching name.
-                    skm_bone_node_t *hipBoneNode = SKM_GetBoneByName( model, hipBoneName );
-                    if ( hipBoneNode ) {
-                        // Setup hipe bone node pointer.
-                        model->skmConfig->rootBones.hip = hipBoneNode;
 
-                        // Debug print.
-                        Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - hipBone(#%i, \"%s\")\n", configurationFilePath, hipBoneNode->number, hipBoneName );
-                    }
+        // Ensure it is nullptr.
+        model->skmConfig->rootBones.head = nullptr;
+        if ( json.contains( "headbone" ) ) {
+            // Get head bone name.
+            const std::string headBoneName = json[ "headbone" ].get< const std::string >();
+            // Ensure the key its value is not empty.
+            if ( !headBoneName.empty() ) {
+                // Get the bone node that has the matching name.
+                skm_bone_node_t *headBoneNode = SKM_GetBoneByName( model, headBoneName.c_str() );
+                // Assign bone node pointer if we found a matching bone.
+                if ( headBoneNode ) {
+                    model->skmConfig->rootBones.head = headBoneNode;
+                    // Debug print.
+                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - headBone Set To (#%i, \"%s\")\n", configurationFilePath, headBoneNode->number, headBoneName.c_str() );
                 }
-                continue;
             }
         }
-        //
-        // (SKM_BODY_UPPER) Torso Bone:
-        //
-        if ( json_token_value_strcmp( fileBuffer, previousToken, "torsobone" ) == 1 ) {
-            // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
-            if ( json_token_type_is_string( currentToken ) == 1 /*true*/ ) {
-                // Name buffer.
-                char torsoBoneName[ MAX_QPATH ] = {};
-                if ( json_token_value_to_buffer( fileBuffer, currentToken, torsoBoneName, MAX_QPATH ) ) {
-                    // Get the bone node that has the matching name.
-                    skm_bone_node_t *torsoBoneNode = SKM_GetBoneByName( model, torsoBoneName );
-                    if ( torsoBoneNode ) {
-                        // Setup hipe bone node pointer.
-                        model->skmConfig->rootBones.torso = torsoBoneNode;
 
-                        // Debug Print.
-                        Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - torsoBoneName(#%i, \"%s\")\n", configurationFilePath, torsoBoneNode->number, torsoBoneName );
-                    }
+        // Ensure it is nullptr.
+        model->skmConfig->rootBones.torso = nullptr;
+        if ( json.contains( "torsobone" ) ) {
+            // Get bone name.
+            const std::string torsoBoneName = json[ "torsobone" ].get< const std::string >();
+            // Ensure the key its value is not empty.
+            if ( !torsoBoneName.empty() ) {
+                // Get the bone node that has the matching name.
+                skm_bone_node_t *torsoBoneNode = SKM_GetBoneByName( model, torsoBoneName.c_str() );
+                // Assign bone node pointer if we found a matching bone.
+                if ( torsoBoneNode ) {
+                    model->skmConfig->rootBones.torso = torsoBoneNode;
+                    // Debug print.
+                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - torsoBone Set To (#%i, \"%s\")\n", configurationFilePath, torsoBoneNode->number, torsoBoneName.c_str() );
                 }
-                continue;
             }
         }
-        //
-        // (SKM_BODY_HEAD) Head Bone:
-        //
-        if ( json_token_value_strcmp( fileBuffer, previousToken, "headbone" ) == 1 ) {
-            // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
-            if ( json_token_type_is_string( currentToken ) == 1 /*true*/ ) {
-                // Name buffer.
-                char headBoneName[ MAX_QPATH ] = {};
-                if ( json_token_value_to_buffer( fileBuffer, currentToken, headBoneName, MAX_QPATH ) ) {
-                    // Get the bone node that has the matching name.
-                    skm_bone_node_t *headBoneNode = SKM_GetBoneByName( model, headBoneName );
-                    if ( headBoneNode ) {
-                        // Setup hipe bone node pointer.
-                        model->skmConfig->rootBones.head = headBoneNode;
 
-                        // Debug print.
-                        Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - headBoneName(#%i, \"%s\")\n", configurationFilePath, headBoneNode->number, headBoneName );
-                    }
+        // Ensure it is nullptr.
+        model->skmConfig->rootBones.hip = nullptr;
+        if ( json.contains( "hipbone" ) ) {
+            // Get bone name.
+            const std::string hipsBoneName = json[ "hipbone" ].get< const std::string >();
+			// Ensure the key its value is not empty.
+            if ( !hipsBoneName.empty() ) {
+                // Get the bone node that has the matching name.
+                skm_bone_node_t *hipsBoneNode = SKM_GetBoneByName( model, hipsBoneName.c_str() );
+                // Assign bone node pointer if we found a matching bone.
+                if ( hipsBoneNode ) {
+                    model->skmConfig->rootBones.hip = hipsBoneNode;
+                    // Debug print.
+                    Com_LPrintf( PRINT_DEVELOPER, " \"%s\" - hipsBone Set To (#%i, \"%s\")\n", configurationFilePath, hipsBoneNode->number, hipsBoneName.c_str() );
                 }
-                continue;
             }
         }
-        ////
-        ////  RootMotion Configuration Object:
-        ////
-        //else if ( nextToken && json_token_value_strcmp( fileBuffer, currentToken, "rootmotion" ) == 1 ) {
-        //    // Make sure it is an object token. (Using 1 to prevent compiler warning C4805)...)
-        //    if ( json_token_type_is_object( nextToken ) == 1 /*true*/ ) {
-        //        // Proceed into parsing the JSON for the RootMotion object.
-        //        //SKM_ParseJSON_RootMotionObject( fileBuffer, tokens, numTokensParsed, tokenID + 1 );
-        //    }
-        //    //// Value
-        //    //char fieldValue[ MAX_QPATH ] = { };
-        //    //// Fetch field value string size.
-        //    //const int32_t size = tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start;// constclamp( , 0, MAX_QPATH );
-        //    //// Parse field value into buffer.
-        //    //Q_snprintf( fieldValue, size + 1, jsonBuffer + tokens[ tokenID + 1 ].start );
-
-        //    //// Copy it over into our material kind string buffer.
-        //    //memset( material->physical.kind, 0, sizeof( material->physical.kind )/*MAX_QPATH*/ );
-        //    //Q_strlcpy( material->physical.kind, fieldValue, sizeof( material->physical.kind )/*MAX_QPATH*/ );//jsonBuffer + tokens[tokenID].start, size);
-
-        //}
+    }
+    // Catch any json parsing errors.
+    catch ( const nlohmann::json::exception &e ) {
+        // Output parsing error.
+        #ifdef _DEBUG_PRINT_SKM_CONFIGURATION_PARSE_FAILURE
+            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(%s)\n", __func__, configurationFilePath, e.what() );
+        #endif
+        // Return 0 as we failed to parse the json.
+        return false;
     }
 
     // Debug print.
     #ifdef _DEBUG_PRINT_SKM_ROOTMOTION_DATA
-    Com_LPrintf( PRINT_DEVELOPER, " -------------------- RootMotion Bone Tracking: \"%s\" --------------------- \n", configurationFilePath );
+        Com_LPrintf( PRINT_DEVELOPER, " -------------------- RootMotion Bone Tracking: \"%s\" --------------------- \n", configurationFilePath );
     #endif
+
     // Determine the root motion bone number.
     motionBoneNumber = ( model->skmConfig && model->skmConfig->rootBones.motion ? model->skmConfig->rootBones.motion->number : -1 );
     // If the rootmotion bone number == -1, it means we don't want to generate rootmotion data.
@@ -666,15 +455,11 @@ numTokensParsed = jsmn_parse(
         SKM_GenerateRootMotionSet( model, motionBoneNumber, 0 );
     }
 
-// WID: TODO: Dynamically allocating somehow fails.
-#if 0
-    // Free tokens.
-    Z_Free( tokens );
-#endif
-    #ifdef _DEBUG_PRINT_SKM_ROOTMOTION_DATA
     // Debug print.
-    Com_LPrintf( PRINT_DEVELOPER, " -------------------------------------------------------------------------- \n", configurationFilePath );
+    #ifdef _DEBUG_PRINT_SKM_ROOTMOTION_DATA
+        Com_LPrintf( PRINT_DEVELOPER, " -------------------------------------------------------------------------- \n", configurationFilePath );
     #endif
+
     // Success.
     return true;
 

@@ -8,11 +8,14 @@
 ********************************************************************/
 #pragma once
 
+#include "sharedgame/sg_skm.h"
+
+#include "svgame/svg_combat.h"
 
 /**
 *   @brief  Client data that persists to exist across multiple level loads.
 **/
-typedef struct {
+struct client_persistant_t {
     //! String buffer of the client's user info.
     char        userinfo[ MAX_INFO_STRING ];
     //! The 'nickname' this client has for display.
@@ -67,12 +70,12 @@ typedef struct {
 
     //! If true, this client is engaged in 'Spectator' mode.
     bool        spectator;
-} client_persistant_t;
+};
 
 /**
 *   @brief  Client respawn data that stays across multiplayer mode respawns.
 **/
-typedef struct {
+struct client_respawn_t {
     //! Data which is to be set pn client->pers on a respawn.
     client_persistant_t pers_respawn;
 
@@ -88,17 +91,21 @@ typedef struct {
     vec3_t cmd_angles;  
     //! Client is a spectator.
     bool spectator;
-} client_respawn_t;
+};
 
 // this structure is cleared on each SVG_Player_PutInServer(),
 // except for 'client->pers'
-struct gclient_s {
+struct svg_client_t {
     /**
     *	Known and Shared with the Server:
     /**/
     player_state_t  ps;             // communicated by server to clients
     player_state_t  ops;            // old player state from the previous frame.
     int64_t         ping;			// WID: 64-bit-frame
+
+    // the game dll can add anything it wants after
+    // this point in the structure
+    int32_t         clientNum;
 
     /**
     *	Private to game:
@@ -186,17 +193,17 @@ struct gclient_s {
         //! in case of it finding itself in repetitive mode changes.
         //!
         //! In other words, this allows the client to be made aware of when an animation changed OR restarted.
-        qboolean updatePlayerStateAnimationID;
+        bool updatePlayerStateAnimationID;
 
         //! Determines if the weapon can change 'mode'.
-        qboolean canChangeMode;
+        bool canChangeMode;
         //! If set, will be applied to the client entity's state sound member.
         int32_t activeSound;
 
         //! State for 'Aiming' weapon modes.
         struct {
             //! If true, the weapon is using secondary fire to engage in 'aim' mode.
-            qboolean isAiming;
+            bool isAiming;
         } aimState;
 
         //! Stores the 'Weapon Animation' data, which if still actively being processed
@@ -222,7 +229,7 @@ struct gclient_s {
             QMTime currentTime;
 
             //! Optional callback function pointer.
-            //void ( *finished_animating )( edict_t *ent );
+            //void ( *finished_animating )( svg_base_edict_t *ent );
         } animation;
 
         //! Recoil.
@@ -300,8 +307,8 @@ struct gclient_s {
 
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
-    edict_t     *oldgroundentity; // [Paril-KEX]
-    liquid_level_t	old_waterlevel;
+    svg_base_edict_t     *oldgroundentity; // [Paril-KEX]
+    cm_liquid_level_t	old_waterlevel;
     QMTime      flash_time; // [Paril-KEX] for high tickrate
 
     /**
@@ -315,9 +322,9 @@ struct gclient_s {
     **/
     struct {
         //! The entity we are currently pointing at.
-        edict_t *currentEntity;
+        svg_base_edict_t *currentEntity;
         //! The previous frame entity which we were pointing at.
-        edict_t *previousEntity;
+        svg_base_edict_t *previousEntity;
 
         //! To ensure we check for processing useTargets only once.
         uint64_t tracedFrameNumber;
@@ -347,6 +354,10 @@ struct gclient_s {
     /**
     *   Spectator Chasing:
     **/
-    edict_t     *chase_target;  // Player we are chasing.
+    svg_base_edict_t     *chase_target;  // Player we are chasing.
     bool        update_chase;   // Need to update chase info?
+
+    //! Used for registering the fields which need save and restoring 
+    //! of the session's level locals.
+    static svg_save_descriptor_field_t saveDescriptorFields[];
 };

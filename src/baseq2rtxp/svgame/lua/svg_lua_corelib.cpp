@@ -31,6 +31,30 @@ static const int32_t CoreLib_DPrint( std::string string ) {
 	return 1;
 }
 
+/**
+*	@brief	Enumeration for time types.
+**/
+typedef enum timeType_s {
+	TIME_MILLISECONDS = 0,
+	TIME_SECONDS,
+	TIME_MINUTES
+} timeType_t;
+/**
+*	@return	Returns the current time in timeType measurement, for the current (possibly client-) frame.
+**/
+static const int64_t CoreLib_GetWorldTime( const timeType_t timeType ) {
+	if ( timeType == TIME_MILLISECONDS ) {
+		return level.time.Milliseconds();
+	} else if ( timeType == TIME_SECONDS ) {
+		return level.time.Seconds();
+	} else if ( timeType == TIME_MINUTES ) {
+		return level.time.Minutes();
+		// Unknown type, just return milliseconds then.
+	} else {
+		return level.time.Milliseconds();
+	}
+}
+
 
 
 /**
@@ -43,6 +67,18 @@ void CoreLib_Initialize( sol::state_view &solStateView ) {
 	// Create namespace.
 	sol::table solNameSpace = solStateView[ nameSpaceName ].get_or_create< sol::table >();
 	solNameSpace.set_function( "DPrint", CoreLib_DPrint );
+
+	//
+	// Time Type:
+	//
+	solStateView.new_enum( "TimeType", 
+		//! Prints using default conchars text and thus color.
+		"MILLISECONDS", PRINT_ALL,
+		"SECONDS", PRINT_TALK,
+		"MINUTES", PRINT_DEVELOPER
+	);
+	// Time.
+	solNameSpace.set_function( "GetWorldTime", CoreLib_GetWorldTime );
 
 	// Developer print.
 	gi.dprintf( "[Lua]: %s as -> \"%s\"\n", __func__, nameSpaceName );
@@ -59,10 +95,10 @@ void CoreLib_Initialize( sol::state_view &solStateView ) {
 	#endif
 	// Developer mode:
 	cvar_t *developer = gi.cvar( "developer", 0, 0 );
-	if ( developer && developer->integer != 0 ) {
-		solStateView.set( "DEVELOPER", gi.cvar( "developer", 0, 0 )->integer );
+	if ( developer && developer->integer > 0 ) {
+		solStateView.set( "DEVELOPER", 1 );
 	} else {
-		solStateView.set( "DEVELOPER", gi.cvar( "developer", 0, 0 ) );
+		solStateView.set( "DEVELOPER", 0 );
 	}
 	
 	// None..

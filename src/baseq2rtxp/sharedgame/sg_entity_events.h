@@ -13,7 +13,7 @@
 *				 to an existing entities origin.  Very network efficient.
 *				 All muzzle flashes really should be converted to events...
 **/
-typedef enum {
+typedef enum sg_entity_events_e {
     // Player/Entities:
     EV_FALL = EV_ENGINE_MAX,
     EV_FALLSHORT,

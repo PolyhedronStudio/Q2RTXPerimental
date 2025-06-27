@@ -18,19 +18,19 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_local.h -- local definitions for ServerGame module
 
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // Should already have been defined by CMake for this ClientGame target.
 //
 // Define SVGAME_INCLUDE so that game.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
 #ifndef SVGAME_INCLUDE
 #define SVGAME_INCLUDE
 #endif
-#include "shared/svgame.h"
+#include "shared/server/sv_game.h"
 
-// Extern here right after including shared/svgame.h
+// Extern here right after including shared/server/sv_game.h
 extern svgame_import_t gi;
 extern svgame_export_t globals;
 
@@ -395,7 +395,7 @@ typedef struct {
     int         helpchanged;    // flash F1 icon if non 0, play sound
                                 // and increment only if 1, 2, or 3
 
-    gclient_t   *clients;       // [maxclients]
+    svg_client_t   *clients;       // [maxclients]
 
     // can't store spawnpoint in level, because
     // it would get overwritten by the savegame restore
@@ -460,7 +460,7 @@ typedef struct {
     int         body_que;           // dead bodies
 
     int         power_cubes;        // ugly necessity for coop
-} level_locals_t;
+} svg_level_locals_t;
 
 
 // spawn_temp_t is only used to hold entity field values that
@@ -575,7 +575,7 @@ typedef struct {
 
 
 extern  game_locals_t   game;
-extern  level_locals_t  level;
+extern  svg_level_locals_t  level;
 extern  spawn_temp_t    st;
 
 extern  int sm_meat_index;
@@ -630,9 +630,9 @@ extern  edict_t         *g_edicts;
 
 #define FOFS_GENTITY(x) q_offsetof(edict_t, x)
 #define FOFS_SPAWN_TEMP(x) q_offsetof(spawn_temp_t, x)
-#define FOFS_LEVEL_LOCALS(x) q_offsetof(level_locals_t, x)
+#define FOFS_LEVEL_LOCALS(x) q_offsetof(svg_level_locals_t, x)
 #define FOFS_GAME_LOCALS(x) q_offsetof(game_locals_t, x)
-#define FOFS_GCLIENT(x) q_offsetof(gclient_t, x)
+#define FOFS_GCLIENT(x) q_offsetof(svg_client_t, x)
 
 #define random()    frand()
 #define crandom()   crand()
@@ -728,7 +728,7 @@ const int32_t G_GetActiveGameModeType( );
 *	@return	True in case the current gamemode allows for saving the game.
 *			(This should only be true for single and cooperative play modes.)
 **/
-const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer );
+const bool G_GameModeAllowSaveGames( const bool isDedicatedServer );
 
 //
 // g_cmds.c
@@ -742,27 +742,27 @@ void SVG_Cmd_Score_f(edict_t *ent);
 void SVG_PrecacheItem(gitem_t *it);
 void SVG_InitItems(void);
 void SVG_SetItemNames(void);
-gitem_t *SVG_FindItem(const char *pickup_name);
-gitem_t *SVG_FindItemByClassname(const char *classname);
+gitem_t *SVG_Item_FindByPickupName(const char *pickup_name);
+gitem_t *SVG_Item_FindByClassName(const char *classname);
 #define ITEM_INDEX(x) ((x)-itemlist)
 edict_t *Drop_Item(edict_t *ent, gitem_t *item);
-void SVG_SetItemRespawn(edict_t *ent, float delay);
+void SVG_Item_SetRespawn(edict_t *ent, float delay);
 void ChangeWeapon(edict_t *ent);
-void SVG_SpawnItem(edict_t *ent, gitem_t *item);
+void SVG_Item_Spawn(edict_t *ent, gitem_t *item);
 void Think_Weapon(edict_t *ent);
 int ArmorIndex(edict_t *ent);
 int PowerArmorType(edict_t *ent);
-gitem_t *SVG_GetItemByIndex(int index);
-bool Add_Ammo(edict_t *ent, gitem_t *item, int count);
-void Touch_Item(edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf);
+gitem_t *SVG_Item_GetByIndex(int index);
+bool SVG_ItemAmmo_Add(edict_t *ent, gitem_t *item, int count);
+void Touch_Item(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t *surf);
 
 //
 // g_utils.c
 //
 const bool    SVG_Util_KillBox( edict_t *ent, const bool bspClipping );
 void    SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
-edict_t *SVG_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
-edict_t *SVG_FindWithinRadius( edict_t *from, vec3_t org, float rad );
+edict_t *SVG_Entities_Find( edict_t *from, int fieldofs, const char *match ); // WID: C++20: Added const.
+edict_t *SVG_Entities_FindWithinRadius( edict_t *from, vec3_t org, float rad );
 edict_t *SVG_PickTarget( char *targetname );
 void    SVG_UseTargets( edict_t *ent, edict_t *activator );
 void    SVG_SetMovedir( vec3_t angles, vec3_t movedir );
@@ -819,10 +819,10 @@ void swimmonster_start(edict_t *self);
 void flymonster_start(edict_t *self);
 void AttackFinished(edict_t *self, float time);
 void monster_death_use(edict_t *self);
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype );
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype );
 bool M_CheckAttack(edict_t *self);
 void M_FlyCheck(edict_t *self);
-void M_CheckGround(edict_t *ent, const contents_t mask);
+void M_CheckGround(edict_t *ent, const cm_contents_t mask);
 void M_WorldEffects( edict_t *ent );
 void M_SetAnimation( edict_t *self, mmove_t *move, bool instant = true );
 
@@ -889,11 +889,11 @@ edict_t *PlayerTrail_LastSpot(void);
 //
 void SVG_Client_RespawnPlayer(edict_t *ent);
 void SVG_Player_PutInServer(edict_t *ent);
-void SVG_Player_InitPersistantData(edict_t *ent, gclient_t *client);
-void SVG_Player_InitRespawnData(gclient_t *client);
+void SVG_Player_InitPersistantData(edict_t *ent, svg_client_t *client);
+void SVG_Player_InitRespawnData(svg_client_t *client);
 void SVG_Client_BeginServerFrame(edict_t *ent);
 
-void SVG_InitBodyQue( void );
+void SVG_Entities_InitBodyQue( void );
 
 //
 // g_player.c
@@ -938,8 +938,8 @@ void M_ChangeYaw(edict_t *ent);
 //
 // g_phys.c
 //
-void SVG_Impact( edict_t *e1, trace_t *trace );
-const contents_t SVG_GetClipMask( edict_t *ent );
+void SVG_Impact( edict_t *e1, cm_trace_t *trace );
+const cm_contents_t SVG_GetClipMask( edict_t *ent );
 void SVG_RunEntity(edict_t *ent);
 
 //
@@ -1135,7 +1135,7 @@ struct gclient_s {
     vec3_t      oldviewangles;
     vec3_t      oldvelocity;
     edict_t     *oldgroundentity; // [Paril-KEX]
-    liquid_level_t	old_waterlevel;
+    cm_liquid_level_t	old_waterlevel;
 
 	/**
 	*   Misc:
@@ -1198,9 +1198,9 @@ struct edict_s {
     int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
-    solid_t     solid;
-    contents_t  clipmask;
-    contents_t  hullContents;
+    cm_solid_t     solid;
+    cm_contents_t  clipmask;
+    cm_contents_t  hullContents;
     edict_t     *owner;
 
     const cm_entity_t *entityDictionary;
@@ -1260,7 +1260,7 @@ struct edict_s {
     void        ( *think )( edict_t *self );
     void        ( *postthink )( edict_t *ent );
     void        ( *blocked )( edict_t *self, edict_t *other );         // move to moveinfo?
-    void        ( *touch )( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf );
+    void        ( *touch )( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf );
     void        ( *use )( edict_t *self, edict_t *other, edict_t *activator );
     void        ( *pain )( edict_t *self, edict_t *other, float kick, int damage );
     void        ( *die )( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point );
@@ -1316,9 +1316,9 @@ struct edict_s {
     QMTime		last_sound_time;
 
     //! The possible liquid 'solid' brush we're intersecting with, or inside of.
-    contents_t      liquidtype;
+    cm_contents_t      liquidtype;
     //! The level of degree at which we're intersecting with, or inside of the liquid 'solid' brush.
-	liquid_level_t	liquidlevel;
+	cm_liquid_level_t	liquidlevel;
 
     vec3_t      move_origin;
     vec3_t      move_angles;

@@ -7,9 +7,24 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
-/*QUAKED info_player_intermission (1 0 1) (-16 -16 -24) (16 16 32)
-The deathmatch intermission point will be at one of these
-Use 'angles' instead of 'angle', so you can set pitch or roll as well as yaw.  'pitch yaw roll'
-*/
-void SP_info_player_intermission( edict_t *ent ) {
+// Include player start class types header.
+#include "svgame/entities/info/svg_info_player_start.h"
+
+
+/**
+*
+*   info_player_intermission:
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_player_intermission_t, onSpawn )( svg_info_player_intermission_t *self ) -> void {
+    // Call upon base spawn.
+    Super::onSpawn( self );
+
+    // If we are not in coop mode, then we don't want this entity to spawn.
+    //if ( !coop->value ) {
+    //    return;
+    //}
 }

@@ -16,7 +16,7 @@
 
 
 //! Used to check whether CM_EntityValue was able/unable to find a matching key in the cm_entity_t.
-static cm_entity_t cm_null_entity = { /*.nullable_string = nullptr*/ };
+static cm_entity_t cm_null_entity = { .id = -1/*.nullable_string = nullptr*/ };
 
 /**
 *   @brief  Parse and set the appropriate pair value flags, as well as the value itself for the types
@@ -181,6 +181,9 @@ static const std::list<cm_entity_t *> CM_EntityDictionariesFromString( cm_t *cm 
     // Token.
     const char *com_token = nullptr;
 
+    // cm_entity_t id.
+    int32_t cmEntityID = 0;
+	// Parse until EOF entity string.
     while ( 1 ) {
         // Parse until EOF entity string.
         com_token = COM_Parse( &entityString );
@@ -199,6 +202,11 @@ static const std::list<cm_entity_t *> CM_EntityDictionariesFromString( cm_t *cm 
                 // So we break out.
                 break;
             }
+
+            // Stash ID.
+            entity->id = cmEntityID;
+            // Increment the ID.
+            cmEntityID++;
 
             // Push back parsed entity result on the entity list.
             entities.push_back( entity );
@@ -225,7 +233,6 @@ void CM_ParseEntityString( cm_t *cm ) {
     // a list each containing their own separate list of key:value sets.
     //
     // We'll parse the BSP entity string into a list of cm_entity_t key:value sets per entity.
-    typedef std::list<cm_entity_t *> cm_entity_list_t;
     cm_entity_list_t entities = CM_EntityDictionariesFromString( cm );
 
     // Actually allocate the BSP entities array and fill it with the entities from our generated list.
@@ -277,8 +284,9 @@ void CM_ParseEntityString( cm_t *cm ) {
 }
 
 /**
- * @brief
- */
+*   @brief  Returns the number of the cm_entity_t list root key/value pair within the cm->entities array.
+*   @note   This only works on the actual root key/value pair of the cm_entity_t list. Otherwise it returns -1.
+**/
 const int32_t CM_EntityNumber( const cm_t *cm, const cm_entity_t *entity ) {
     // This should technically never happen, but prevent crashing if it did.
     if ( !cm || !cm->cache ) {

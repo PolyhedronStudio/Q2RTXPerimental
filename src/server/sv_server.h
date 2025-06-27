@@ -20,8 +20,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 #include "shared/shared.h"
-#include "shared/util_list.h"
-#include "shared/svgame.h"
+#include "shared/util/util_list.h"
+#include "shared/server/sv_game.h"
 
 #include "common/bsp.h"
 #include "common/cmd.h"
@@ -137,7 +137,7 @@ static constexpr int32_t SV_BASELINES_CHUNKS    = ( MAX_EDICTS >> SV_BASELINES_S
 /**
 *   Game features this server supports.
 **/
-static constexpr int32_t SV_FEATURES = (GMF_CLIENTNUM | GMF_PROPERINUSE |
+static constexpr int32_t SV_FEATURES = ( GMF_CLIENTNUM | GMF_PROPERINUSE |
                                         GMF_WANT_ALL_DISCONNECTS |
                                         GMF_EXTRA_USERINFO | GMF_IPV6_ADDRESS_AWARE );
 
@@ -163,16 +163,18 @@ static inline cvar_t *SV_InfoSet( const char *var, const char *value ) {
 /**
 *   @return Returns a pointer to the edict matching the number.
 **/
-static inline edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
-    //#define EDICT_FOR_NUMBER(n) ((edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
-    return ( (edict_t *)( (byte *)ge->edicts + ge->edict_size * ( number ) ) );
+static inline sv_edict_t *EDICT_FOR_NUMBER( const int32_t number ) {
+    //#define EDICT_FOR_NUMBER(n) ((sv_edict_t *)((byte *)ge->edicts + ge->edict_size*(n)))
+    //return ( (sv_edict_t *)( (byte *)ge->edictPool.edicts + ge->edictPool.edict_size * ( number ) ) );
+    return static_cast<sv_edict_t *>( ge->edictPool->EdictForNumber( number ) );
 }
 /**
 *   @return Returns the number of the pointer entity.
 **/
-static inline const int32_t NUMBER_OF_EDICT( const edict_t *ent ) {
+static inline const int32_t NUMBER_OF_EDICT( const sv_edict_t *ent ) {
     //#define EDICT_NUM(e) ((int)(((byte *)(e) - (byte *)ge->edicts) / ge->edict_size))
-    return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edicts ) / ge->edict_size ) );
+    //return ( (int32_t)( ( (byte *)(ent)-(byte *)ge->edictPool.edicts ) / ge->edictPool.edict_size ) );
+	return ge->edictPool->NumberForEdict( ent );
 }
 
 
@@ -222,7 +224,7 @@ typedef struct {
 **/
 typedef struct {
 	// WID: upgr-solid: Q2RE Approach.
-    solid_t	solid32;
+    cm_solid_t	solid32;
 } server_entity_t;
 
 /**
@@ -305,7 +307,7 @@ typedef struct {
 } message_packet_t;
 
 // WID: 40hz:
-static constexpr int32_t  RATE_MESSAGES = 10;
+static constexpr int32_t  RATE_MESSAGES = (int32_t)(SV_FRAMERATE);
 //#define RATE_MESSAGES   SV_FRAMERATE
 
 /**
@@ -341,16 +343,6 @@ typedef struct {
 } ratelimit_t;
 
 /**
-*   @brief  Memory Pool for game allocated EDICTS.
-**/
-typedef struct {
-    struct edict_s  *edicts;
-    int32_t         edict_size;
-    int32_t         num_edicts;     // current number, <= max_edicts
-    int32_t         max_edicts;
-} edict_pool_t;
-
-/**
 *   @brief  Stores all the data about connected clients, including their number,
 *           state, userinfo, etc.
 **/
@@ -359,7 +351,7 @@ typedef struct client_s {
 
     // core info
     clstate_t       state;
-    edict_t         *edict;     // EDICT_FOR_NUMBER(clientnum+1)
+    sv_edict_t      *edict;     // EDICT_FOR_NUMBER(clientnum+1)
     int             number;     // client slot number
 
     // client flags
@@ -390,11 +382,11 @@ typedef struct client_s {
 	uint64_t		lastactivity;   // svs.realtime when user activity was last seen
     int64_t			lastframe;      // for delta compression
     usercmd_t       lastcmd;        // for filling in big drops
-    int             command_msec;   // every seconds this is reset, if user
+    int64_t         command_msec;   // every seconds this is reset, if user
                                     // commands exhaust it, assume time cheating
     int64_t         num_moves;      // reset every 10 seconds
     int64_t         moves_per_sec;  // average movement FPS
-    int             cmd_msec_used;
+    int64_t         cmd_msec_used;
     double          timescale;
 
     int64_t			ping, min_ping, max_ping;
@@ -409,7 +401,7 @@ typedef struct client_s {
     uint64_t		frameflags;
 
     // rate dropping
-    unsigned        message_size[RATE_MESSAGES];    // Used to rate drop 'Normal' packets.
+    uint64_t        message_size[RATE_MESSAGES];    // Used to rate drop 'Normal' packets.
     int64_t         suppress_count;                 // Sumber of messages rate suppressed (rate-dropped).
     uint64_t		send_time, send_delta;          // Used to rate drop 'Async' packets.
 
@@ -443,7 +435,7 @@ typedef struct client_s {
     // server state pointers (hack for MVD channels implementation)
 	configstring_t	*configstrings;
     char            *gamedir, *mapname;
-    edict_pool_t    *pool;
+    sv_edict_pool_i *pool;
     cm_t            *cm;
     int             slot;
     int             spawncount;
@@ -460,9 +452,10 @@ typedef struct client_s {
 /**
 *   @return Returns the edict for the client entity pool matching the number.
 **/
-static inline edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
-    //#define EDICT_POOL(c, n) ((edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
-    return ( (edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
+static inline sv_edict_t *EDICT_POOL( client_s *client, const int32_t number ) {
+    //#define EDICT_POOL(c, n) ((sv_edict_t *)((byte *)(c)->pool->edicts + (c)->pool->edict_size*(n)))
+    //return ( (sv_edict_t *)( (byte *)( client )->pool->edicts + ( client )->pool->edict_size * ( number ) ) );
+    return client->pool->EdictForNumber( number );
 }
 
 // a client can leave the server in one of four ways:
@@ -673,7 +666,7 @@ extern cvar_t       *sv_zombietime;
 extern cvar_t       *sv_ghostime;
 
 extern client_t     *sv_client;
-extern edict_t      *sv_player;
+extern sv_edict_t      *sv_player;
 
 extern bool     sv_pending_autosave;
 

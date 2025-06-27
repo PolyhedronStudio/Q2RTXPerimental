@@ -18,12 +18,16 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // g_utils.c -- misc utility functions for game module
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
 #include "svgame/lua/svg_lua_signals.hpp"
 
 #include "svgame/entities/svg_entities_pushermove.h"
+
+#include "sharedgame/sg_means_of_death.h"
+
 
 
 /**
@@ -112,29 +116,38 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
 /**
 *   @brief  
 **/
-void SVG_Util_TouchTriggers(edict_t *ent) {
-    int         i, num;
-    edict_t     *touch[MAX_EDICTS], *hit;
+void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
+    svg_base_edict_t *hit;
 
     // dead things don't activate triggers!
     if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
         return;
 
-    num = gi.BoxEdicts(ent->absmin, ent->absmax, touch
-                       , MAX_EDICTS, AREA_TRIGGERS);
+    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
+
+    memset( touchedEdicts, 0, MAX_EDICTS );
+    const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_TRIGGERS );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
-    for (i = 0 ; i < num ; i++) {
-        hit = touch[i];
+    for (int32_t i = 0 ; i < num ; i++) {
+        hit = touchedEdicts[i];
+        if ( !hit ) {
+            continue;
+        }
         if ( !hit->inuse ) {
             continue;
         }
-        if ( !hit->touch ) {
+        if ( !hit->HasTouchCallback() ) {
             continue;
         }
 
-        hit->touch(hit, ent, NULL, NULL);
+        hit->DispatchTouchCallback( ent, nullptr, nullptr );
+		// <Q2RTXP>: WID: Prevent the touch from being called again if the previous
+        // touch 'removed' the entity, it is not in use.
+        if ( !ent->inuse ) {
+            break;
+        }
     }
 }
 
@@ -142,23 +155,29 @@ void SVG_Util_TouchTriggers(edict_t *ent) {
 *   @brief  Call after linking a new trigger in during gameplay
 *           to force all entities it covers to immediately touch it
 **/
-void SVG_Util_TouchSolids(edict_t *ent) {
-    int         i, num;
-    edict_t     *touch[MAX_EDICTS], *hit;
+void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
+    svg_base_edict_t *hit = nullptr;
 
-    num = gi.BoxEdicts(ent->absmin, ent->absmax, touch
-                       , MAX_EDICTS, AREA_SOLID);
+    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
+
+    memset( touchedEdicts, 0, MAX_EDICTS );
+    const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
-    for (i = 0 ; i < num ; i++) {
-        hit = touch[i];
+    for (int32_t i = 0 ; i < num ; i++) {
+        hit = touchedEdicts[i];
+        if ( !hit ) {
+            continue;
+        }
         if ( !hit->inuse ) {
             continue;
         }
-        if ( ent->touch ) {
-            ent->touch( hit, ent, NULL, NULL );
+        if ( !hit->HasTouchCallback() ) {
+            continue;
         }
+
+        hit->DispatchTouchCallback( ent, nullptr, nullptr );
         if ( !ent->inuse ) {
             break;
         }
@@ -170,16 +189,16 @@ void SVG_Util_TouchSolids(edict_t *ent) {
 *   @brief  Scan for projectiles between our movement positions
 *           to see if we need to collide against them.
 **/
-void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
+void SVG_Util_TouchProjectiles( svg_base_edict_t *ent, const Vector3 &previous_origin ) {
     struct skipped_projectile {
-        edict_t *projectile;
+        svg_base_edict_t *projectile;
         int32_t spawn_count;
     };
     // a bit ugly, but we'll store projectiles we are ignoring here.
     static std::vector<skipped_projectile> skipped;
 
     while ( true ) {
-        trace_t tr = gi.trace( &previous_origin.x, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
+        svg_trace_t tr = SVG_Trace( previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
 
         if ( tr.fraction == 1.0f ) {
             break;
@@ -227,15 +246,15 @@ void SVG_Util_TouchProjectiles( edict_t *ent, const Vector3 &previous_origin ) {
 /**
 *	@brief	Basic Trigger initialization mechanism.
 **/
-void SVG_Util_InitTrigger( edict_t *self ) {
+void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
     if ( !VectorEmpty( self->s.angles ) ) {
         SVG_Util_SetMoveDir( self->s.angles, self->movedir );
     }
 
     self->solid = SOLID_TRIGGER;
     self->movetype = MOVETYPE_NONE;
-    if ( self->model ) {
-        gi.setmodel( self, self->model );
+    if ( self->model.ptr ) {
+        gi.setmodel( self, self->model.ptr );
     }
     self->svflags = SVF_NOCLIENT;
 }
@@ -259,24 +278,24 @@ Kills all entities that would touch the proposed new positioning
 of ent.  Ent should be unlinked before calling this!
 =================
 */
-//const bool SVG_Util_KillBox(edict_t *ent, const bool bspClipping ) {
+//const bool SVG_Util_KillBox(svg_base_edict_t *ent, const bool bspClipping ) {
 //    // don't telefrag as spectator... or in noclip
 //    if ( ent->movetype == MOVETYPE_NOCLIP ) {
 //        return true;
 //    }
 //
-//    contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
+//    cm_contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
 //
 //    //// [Paril-KEX] don't gib other players in coop if we're not colliding
 //    //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
 //    //    mask &= ~CONTENTS_PLAYER;
-//    static edict_t *touchedEdicts[ MAX_EDICTS ];
+//    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
 //    memset( touchedEdicts, 0, MAX_EDICTS );
 //
 //    int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 //    for ( int32_t i = 0; i < num; i++ ) {
 //        // Pointer to touched entity.
-//        edict_t *hit = touchedEdicts[ i ];
+//        svg_base_edict_t *hit = touchedEdicts[ i ];
 //        // Make sure its valid.
 //        if ( hit == nullptr ) {
 //            continue;
@@ -291,9 +310,9 @@ of ent.  Ent should be unlinked before calling this!
 //            continue;
 //        }
 //
-//        trace_t clip = {};
+//        svg_trace_t clip = {};
 //        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
-//            clip = gi.clip(ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask(hit));
+//            clip = SVG_Trace(ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask(hit));
 //
 //            if ( clip.fraction == 1.0f ) {
 //                continue;
@@ -335,24 +354,56 @@ of ent.  Ent should be unlinked before calling this!
 *   @brief  Kills all entities that would touch the proposed new positioning
 *           of ent.  Ent should be unlinked before calling this!
 **/
-const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
+const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_means_of_death_t meansOfDeath = MEANS_OF_DEATH_TELEFRAGGED ) {
     // don't telefrag as spectator... or in noclip
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         return true;
     }
 
-    contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
+    cm_contents_t mask = ( CONTENTS_MONSTER | CONTENTS_PLAYER );
 
     //// [Paril-KEX] don't gib other players in coop if we're not colliding
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
     //    mask &= ~CONTENTS_PLAYER;
-    static edict_t *touchedEdicts[ MAX_EDICTS ];
+    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
     memset( touchedEdicts, 0, MAX_EDICTS );
 
     int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+    
     for ( int32_t i = 0; i < num; i++ ) {
+        #if 0
+        svg_base_edict_t *hit = touchedEdicts[ i ];
+
+        if ( hit == ent )
+            continue;
+		// Will prevent spawn point telefragging if no client is assigned yet.
+        else if ( hit != nullptr && !hit->client && hit->s.entityType == ET_PLAYER )
+            continue;
+        else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP )
+            continue;
+        else if ( hit->client && !( mask & CONTENTS_PLAYER ) )
+            continue;
+
+        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
+            svg_trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
+
+            if ( clip.fraction == 1.0f )
+                continue;
+        }
+
+        // [Paril-KEX] don't allow telefragging of friends in coop.
+        // the player that is about to be telefragged will have collision
+        // disabled until another time.
+        //if ( ent->client && hit->client && coop->integer ) {
+        //    hit->clipmask &= ~CONTENTS_PLAYER;
+        //    ent->clipmask &= ~CONTENTS_PLAYER;
+        //    continue;
+        //}
+
+        SVG_TriggerDamage( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, meansOfDeath );
+        #else
         // Pointer to touched entity.
-        edict_t *hit = touchedEdicts[ i ];
+        svg_base_edict_t *hit = touchedEdicts[ i ];
         // Make sure its valid.
         if ( hit == nullptr ) {
             continue;
@@ -367,9 +418,9 @@ const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
             continue;
         }
 
-        trace_t clip = {};
+        svg_trace_t clip = {};
         if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
-            clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
+            clip = SVG_Clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f ) {
                 continue;
@@ -403,6 +454,7 @@ const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
         if ( hit->solid ) {
             return false;
         }
+        #endif
     }
 
     return true;        // all clear
@@ -424,13 +476,14 @@ const bool SVG_Util_KillBox( edict_t *ent, const bool bspClipping ) {
 *   @note   At the time of calling, parent entity has to reside in its default state.
 *           (This so the actual offsets can be calculated easily.)
 **/
-void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parentMover, edict_t *childMover ) {
-    if ( !SVG_IsActiveEntity( parentMover ) || !SVG_IsActiveEntity( childMover ) ) {
+void SVG_MoveWith_SetTargetParentEntity( const char *targetName, svg_base_edict_t *parentMover, svg_base_edict_t *childMover ) {
+    if ( !SVG_Entity_IsActive( parentMover ) || !SVG_Entity_IsActive( childMover ) ) {
         return;
     }
     
     // Update targetname.
     childMover->targetNames.movewith = targetName;
+    childMover->targetEntities.movewith = parentMover;
 
     // Determine brushmodel bbox origins.
     Vector3 parentOriginOffset = QM_BBox3Center(
@@ -441,7 +494,7 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parent
     );
 
     // Add it to the chain.
-    edict_t *nextInlineMover = parentMover;
+    svg_base_edict_t *nextInlineMover = parentMover;
     while ( nextInlineMover->moveWith.moveNextEntity ) {
         nextInlineMover = nextInlineMover->moveWith.moveNextEntity;
     }
@@ -471,14 +524,14 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, edict_t *parent
     gi.dprintf( "%s: found parent(%s) for child entity(%s).\n", __func__, (const char*)parentMover->targetNames.target, (const char *)childMover->targetNames.movewith );
 }
 
-void SVG_MoveWith_Init( edict_t *self, edict_t *parent ) {
+void SVG_MoveWith_Init( svg_base_edict_t *self, svg_base_edict_t *parent ) {
 
 }
 
 /**
 *   @brief
 **/
-void SVG_MoveWith_SetChildEntityMovement( edict_t *self ) {
+void SVG_MoveWith_SetChildEntityMovement( svg_base_edict_t *self ) {
     //// Parent origin.
     //Vector3 parentOrigin = moveWithEntity->s.origin;
     //// Difference atm between parent origin and child origin.
@@ -492,10 +545,10 @@ void SVG_MoveWith_SetChildEntityMovement( edict_t *self ) {
 /**
 *   @brief 
 **/
-bool SV_Push( edict_t *pusher, vec3_t move, vec3_t amove );
-trace_t SV_PushEntity( edict_t *ent, vec3_t push );
+bool SV_Push( svg_base_edict_t *pusher, vec3_t move, vec3_t amove );
+svg_trace_t SV_PushEntity( svg_base_edict_t *ent, vec3_t push );
 
-void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, edict_t *parentMover, edict_t *childMover ) {
+void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, svg_base_edict_t *parentMover, svg_base_edict_t *childMover ) {
     // Calculate origin to adjust by.
     #if 0
 
@@ -516,21 +569,24 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     SVG_Util_SetMoveDir( &newAngles.x, tempMoveDir );
 
     Vector3 relativeParentOffset = childMover->moveWith.relativeDeltaOffset;
-    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
+    //childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, -relativeParentOffset.x, parentVForward );
+    //childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.y, parentVRight );
+    //childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, -relativeParentOffset.z, parentVUp );
+    childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, -relativeParentOffset.x, parentVForward );
     childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.y, parentVRight );
-    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, relativeParentOffset.z, parentVUp );
+    childMover->pos1 = QM_Vector3MultiplyAdd( childMover->pos1, -relativeParentOffset.z, parentVUp );
     // 
     // Pos2.
-    if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 ) {
+    if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 || strcmp( (const char*)childMover->classname, "func_button" ) != 0 ) {
         childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos1, childMover->pushMoveInfo.distance, childMover->movedir );
         //childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
         //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.y, parentVRight );
         //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.z, parentVUp );
         //childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, childMover->pushMoveInfo.distance, childMover->movedir );
     } else {
-        childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, relativeParentOffset.x, parentVForward );
+        childMover->pos2 = QM_Vector3MultiplyAdd( parentMover->s.origin, -relativeParentOffset.x, parentVForward );
         childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.y, parentVRight );
-        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, relativeParentOffset.z, parentVUp );
+        childMover->pos2 = QM_Vector3MultiplyAdd( childMover->pos2, -relativeParentOffset.z, parentVUp );
     }
 
     childMover->pushMoveInfo.startOrigin = childMover->pos1;
@@ -550,7 +606,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
             VectorCopy( childMover->pos2, childMover->s.origin );
         }
     } else {
-        if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 ) {
+        if ( strcmp( (const char *)childMover->classname, "func_door_rotating" ) != 0 || strcmp( (const char *)childMover->classname, "func_button" ) != 0 ) {
             // Calculate what is expected to be the offset from parent origin.
             Vector3 parentMoverOrigin = parentMover->s.origin;
             Vector3 childMoverRelativeParentOffset = parentMoverOrigin;
@@ -572,7 +628,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 
             // object is moving
             //SV_PushEntity( childMover, offset );
-            //trace_t SV_PushEntity( edict_t * ent, vec3_t push )
+            //svg_trace_t SV_PushEntity( svg_base_edict_t * ent, vec3_t push )
             //    if ( !VectorEmpty( part->velocity ) || !VectorEmpty( part->avelocity ) ) {
             //        // object is moving
             //        VectorScale( part->velocity, gi.frame_time_s, move );
@@ -609,7 +665,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 }
 
 //if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
-//    edict_t *moveWithEntity = ent->targetEntities.movewith;
+//    svg_base_edict_t *moveWithEntity = ent->targetEntities.movewith;
 //    if ( moveWithEntity->inuse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
 //        // Parent origin.
 //        Vector3 parentOrigin = moveWithEntity->s.origin;

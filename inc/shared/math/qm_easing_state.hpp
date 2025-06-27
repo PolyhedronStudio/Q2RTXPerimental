@@ -133,10 +133,10 @@ private:
         }
 
         // Lerp fraction, clamp for discrepancies.
-        const double lerpFraction = QM_Clampd(
+        const double lerpFraction = QM_Clamp(
             (double)( time.Milliseconds() - timeStart.Milliseconds() ) / (double)timeDuration.Milliseconds(), 0., 1. );
         // Call upon the callback.
-        easeFactor = QM_Clampd( easingCallback( lerpFraction ), 0., 1. );
+        easeFactor = QM_Clamp( easingCallback( lerpFraction ), 0., 1. );
         // Return result.
         return easeFactor;
     }

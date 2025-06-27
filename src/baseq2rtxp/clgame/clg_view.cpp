@@ -15,6 +15,8 @@
 #include "clgame/clg_temp_entities.h"
 #include "clgame/clg_view.h"
 
+#include "sharedgame/sg_entity_effects.h"
+
 
 
 //=============
@@ -318,16 +320,16 @@ static void CLG_AddViewWeapon( void ) {
     //Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( ops->gunoffset, ps->gunoffset, clgi.client->lerpfrac );
     //// Calculate the lerped gun angles.
     //Vector3 gunAngles = clgi.client->refdef.viewangles + QM_Vector3LerpAngles( ops->gunangles, ps->gunangles, clgi.client->lerpfrac );
-    Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( clgi.client->predictedState.lastPs.gunoffset, clgi.client->predictedState.currentPs.gunoffset, clgi.client->lerpfrac );
+    Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( game.predictedState.lastPs.gunoffset, game.predictedState.currentPs.gunoffset, clgi.client->lerpfrac );
     // Calculate the lerped gun angles.
-    Vector3 gunAngles = clgi.client->refdef.viewangles + QM_Vector3LerpAngles( clgi.client->predictedState.lastPs.gunangles, clgi.client->predictedState.currentPs.gunangles, clgi.client->lerpfrac );
+    Vector3 gunAngles = clgi.client->refdef.viewangles + QM_Vector3LerpAngles( game.predictedState.lastPs.gunangles, game.predictedState.currentPs.gunangles, clgi.client->lerpfrac );
     // Copy the calculated gun position and angles into vec3_t's from refresh 'entity_t'.
     VectorCopy( gunOrigin, gun.origin );
     VectorCopy( gunAngles, gun.angles );
 
     // Calculate view weapon drag to prevent origin jumps when yaw changes rapidly.
     //if ( !sv_paused->integer ) {
-    //    CLG_ApplyViewWeaponDrag( &clgi.client->predictedState.lastPs, &clgi.client->predictedState.currentPs, &gun );
+    //    CLG_ApplyViewWeaponDrag( &game.predictedState.lastPs, &game.predictedState.currentPs, &gun );
     //}
     //gunOrigin = QM_Vector3Lerp( gunOrigin, gun.origin, clgi.client->lerpfrac );
 
@@ -472,7 +474,7 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 static void CLG_CycleViewBob( player_state_t *ps ) {
     // Calculate base bob data.
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
-    level.viewBob.fracSin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
+    level.viewBob.fracSin = fabs( sin( (double)( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
     level.viewBob.xySpeed = ps->xySpeed;
         
 #if 0
@@ -536,6 +538,15 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
             ps->gunangles[ ROLL ] += 0.1 * delta;
         }
         ps->gunangles[ i ] += 0.2 * delta;
+
+        #if 0
+        float reduction_factor = delta ? 0.05f : 0.15f;
+
+        if ( delta > 0 )
+            delta = std::max( 0., delta - clgi.frame_time_ms * reduction_factor );
+        else if ( delta < 0 )
+            delta = std::min( 0., delta + clgi.frame_time_ms * reduction_factor );
+        #endif
     }
     #else
     static Vector3 slowAngles = {};
@@ -575,7 +586,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
         if ( delta > 0 )
             delta = std::max( 0.f, delta - clgi.frame_time_ms * reduction_factor );
         else if ( delta < 0 )
-            delta = min( 0.f, delta + clgi.frame_time_ms * reduction_factor );
+            delta = std::min( 0.f, delta + clgi.frame_time_ms * reduction_factor );
     }
     #endif
     // gun height
@@ -602,17 +613,17 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
     //bob_up = gi.cvar( "bob_up", "0.005", 0 );
     //bob_pitch = gi.cvar( "bob_pitch", "0.002", 0 );
     //bob_roll = gi.cvar( "bob_roll", "0.002", 0 );
-
     // TODO: Turn into cvars.
     const float clg_run_pitch = cl_run_pitch->value;
     const float clg_run_roll = cl_run_roll->value;
     const float clg_bob_up = cl_bob_up->value;
     const float clg_bob_pitch = cl_bob_pitch->value;
     const float clg_bob_roll = cl_bob_roll->value;
+
     // TODO: Make vector, assign result later?
     //float *viewAngles = clgi.client->refdef.viewangles;
     Vector3 viewAngles = QM_Vector3Zero();
-
+    #if 0
     // Lerp the velocity so it doesn't just "snap" back to nothing when we suddenly are standing idle.
     Vector3 velocityLerp = QM_Vector3Lerp( ops->pmove.velocity, ps->pmove.velocity, lerpFraction );
 
@@ -654,7 +665,7 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
         bobHeight = 6;
     }
     clgi.client->refdef.vieworg[ 2 ] += bobHeight;
-
+    #endif
     // Clamp angles.
     viewAngles = QM_Vector3Clamp( viewAngles,
         {
@@ -680,7 +691,7 @@ static void CLG_SetupFirstPersonView( void ) {
     player_state_t *lastServerFramePlayerState = &clgi.client->oldframe.ps;
 
     // Client predicting and predicted frames Player States:
-    client_predicted_state_t *predictedState = &clgi.client->predictedState;
+    client_predicted_state_t *predictedState = &game.predictedState;
     player_state_t *predictingPlayerState = &predictedState->currentPs; //( PF_UsePrediction() ? &predictedState->currentPs : serverFramePlayerState );
     player_state_t *lastPredictingPlayerState = &predictedState->lastPs; //( PF_UsePrediction() ? &predictedState->lastPs : lastServerFramePlayerState );
 
@@ -709,7 +720,7 @@ static void CLG_SetupFirstPersonView( void ) {
 
     // Calculate bob cycle on the current predicting player state.    
     //CLG_CycleViewBob( currentPredictingPlayerState );
-    CLG_CycleViewBob( predictingPlayerState );
+    //CLG_CycleViewBob( predictingPlayerState );
 
     // Inform client state we're not in third-person view.
     clgi.client->thirdPersonView = false;
@@ -722,7 +733,7 @@ static void CLG_SetupThirdPersionView( void ) {
     vec3_t focus;
     float fscale, rscale;
     float dist, angle, range;
-    trace_t trace;
+    cm_trace_t trace;
     static const vec3_t mins = { -4, -4, -4 }, maxs = { 4, 4, 4 };
 
     // if dead, set a nice view angle
@@ -747,15 +758,15 @@ static void CLG_SetupThirdPersionView( void ) {
     VectorMA( clgi.client->refdef.vieworg, -range * rscale, clgi.client->v_right, clgi.client->refdef.vieworg );
 
     //CM_BoxTrace( &trace, clgi.client->playerEntityOrigin, clgi.client->refdef.vieworg,
-    //    mins, maxs, clgi.client->bsp->nodes, MASK_SOLID );
+    //    mins, maxs, clgi.client->bsp->nodes, CM_CONTENTMASK_SOLID );
     // When clipping we 
-    //trace = clgi.Clip( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, nullptr, (contents_t)( MASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ) );
+    //trace = clgi.Clip( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, nullptr, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ) );
     trace = clgi.Trace( 
         clgi.client->playerEntityOrigin, 
         mins, maxs, 
         clgi.client->refdef.vieworg, 
         clgi.client->clientEntity/*&clg_entities[ 1 ]*/, 
-        MASK_SOLID//(contents_t)( MASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP )
+        CM_CONTENTMASK_SOLID//(cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP )
     );
     if ( trace.fraction != 1.0f ) {
         VectorCopy( trace.endpos, clgi.client->refdef.vieworg );
@@ -845,9 +856,9 @@ const double CLG_SmoothViewHeight() {
     //! Base 1 Frametime.
     static constexpr double HEIGHT_CHANGE_BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE_TIME );
     //! Determine delta time.
-    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<uint64_t>( ( clgi.client->time - clgi.client->predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
+    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<int64_t>( ( clgi.client->time - game.predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
     //! Return the frame's adjustment for viewHeight which is added on top of the final vieworigin + viweoffset.
-    return clgi.client->predictedState.transition.view.height[ 0 ] + (double)( clgi.client->predictedState.transition.view.height[ 1 ] - clgi.client->predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE_BASE_1_FRAMETIME;
+    return game.predictedState.transition.view.height[ 0 ] + ( (double)( game.predictedState.transition.view.height[ 1 ] - game.predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE_BASE_1_FRAMETIME );
 }
 
 /**
@@ -865,14 +876,15 @@ static void CLG_SmoothStepOffset() {
     static constexpr double STEP_CHANGE_BASE_1_FRAMETIME = ( 1. / STEP_CHANGE_TIME );
 
     // Time delta.
-    uint64_t delta = ( clgi.GetRealTime() - clgi.client->predictedState.transition.step.timeChanged );
+    uint64_t delta = ( clgi.GetRealTime() - game.predictedState.transition.step.timeChanged );
     // Smooth out stair climbing.
-    if ( fabsf( clgi.client->predictedState.transition.step.height ) < STEP_SMALL_HEIGHT ) {
-        delta <<= 1; // Small steps.
+    if ( fabsf( game.predictedState.transition.step.height ) < STEP_SMALL_HEIGHT ) {
+        // Will multiply it by 2 for smaller steps to still lerp over time.
+        delta <<= 1;
     }
     // Adjust view org by step height change.
     if ( delta < STEP_CHANGE_TIME ) {
-        clgi.client->refdef.vieworg[ 2 ] -= clgi.client->predictedState.transition.step.height * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME;
+        clgi.client->refdef.vieworg[ 2 ] -= game.predictedState.transition.step.height * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME;
     }
 }
 
@@ -894,7 +906,7 @@ static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_
         const Vector3 predictedAngles = pps->viewangles;
         VectorCopy( predictedAngles, clgi.client->refdef.viewangles );
     // Else if the old state was PM_DEAD, lerp from predicted state(pps) to playerstate(ps).
-    } else if ( ops->pmove.pm_type < PM_DEAD /*&& !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )*/ ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
+    } else if ( ops->pmove.pm_type == PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
         const Vector3 lerpedAngles = QM_Vector3LerpAngles( pps->viewangles, ps->viewangles, lerpFraction );
@@ -1026,8 +1038,19 @@ void PF_CalculateViewValues( void ) {
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
         // use predicted values
         const double backLerp = 1.0 - lerpFrac;
+        // Lerp the error.
+        //const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, 1.0 - backLerp );
+        //const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.cmd.prediction.error, backLerp );
+
         // Take the prediction error into account.
-        VectorMA( clgi.client->predictedState.currentPs.pmove.origin, backLerp, clgi.client->predictedState.error, clgi.client->refdef.vieworg );
+        VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
+
+        //Vector3 errorOffset = QM_Vector3Lerp( game.predictedState.currentPs.pmove.origin, game.predictedState.lastPs.pmove.origin, backLerp );
+		//VectorCopy( errorOffset, clgi.client->refdef.vieworg );
+        
+        //VectorAdd( game.predictedState.cmd.prediction.origin, errorLerp, clgi.client->refdef.vieworg );
+        //VectorAdd( game.predictedState.currentPs.pmove.origin, errorLerp, clgi.client->refdef.vieworg );
+        
     } else {
         // Just use interpolated values.
         Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
@@ -1035,8 +1058,9 @@ void PF_CalculateViewValues( void ) {
         
         // WID: NOTE: If things break, look for this here.
         // WID: This should fix demos or cl_nopredict
-        //VectorCopy( clgi.client->refdef.vieworg, clgi.client->predictedState.currentPs.pmove.origin );
-        clgi.client->predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
+        //VectorCopy( clgi.client->refdef.vieworg, game.predictedState.currentPs.pmove.origin );
+        //VectorCopy( game.predictedState.currentPs.pmove.origin, clgi.client->refdef.vieworg );
+        game.predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
         #if 0
         clgi.client->refdef.vieworg[2] -= ops->pmove.origin.z;
         #endif
@@ -1045,28 +1069,28 @@ void PF_CalculateViewValues( void ) {
     // Smooth out step offset.
     CLG_SmoothStepOffset();
 
-    #if 1
+    #if 0
     // use predicted values
     const double backLerp = 1.0 - lerpFrac;
     // Lerp View Angles.
-    CLG_LerpViewAngles( ops, ps, &clgi.client->predictedState, lerpFrac );
+    CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
     // Interpolate old and current player state delta angles.
     CLG_LerpDeltaAngles( ops, ps, lerpFrac );
     // Interpolate blend colors if the last frame wasn't clear.
-    CLG_LerpScreenBlend( ops, ps, &clgi.client->predictedState );
+    CLG_LerpScreenBlend( ops, ps, &game.predictedState );
     // Interpolate Field of View.
-    CLG_LerpPointOfView( ops, ps, lerpFrac );
+    CLG_LerpPointOfView( ops, ps, backLerp );
     // Lerp the view offset.
-    CLG_LerpViewOffset( ops, ps, lerpFrac, finalViewOffset );
+    CLG_LerpViewOffset( ops, ps, backLerp, finalViewOffset );
     // Smooth out the ducking view height change over 100ms
     finalViewOffset.z += CLG_SmoothViewHeight();
     #else
     // Lerp View Angles.
-    CLG_LerpViewAngles( ops, ps, &clgi.client->predictedState, lerpFrac );
+    CLG_LerpViewAngles( ops, ps, &game.predictedState, lerpFrac );
     // Interpolate old and current player state delta angles.
     CLG_LerpDeltaAngles( ops, ps, lerpFrac );
     // Interpolate blend colors if the last frame wasn't clear.
-    CLG_LerpScreenBlend( ops, ps, &clgi.client->predictedState );
+    CLG_LerpScreenBlend( ops, ps, &game.predictedState );
     // Interpolate Field of View.
     CLG_LerpPointOfView( ops, ps, lerpFrac );
     // Lerp the view offset.
@@ -1088,6 +1112,22 @@ void PF_CalculateViewValues( void ) {
     // Adjust pitch slightly.
     clgi.client->playerEntityAngles[ PITCH ] = clgi.client->playerEntityAngles[ PITCH ] / 3;
 
+    // WID: Debug
+    #if 0
+    Vector3 printViewOrg = clgi.client->refdef.vieworg;
+    Vector3 printFinalViewOrg = printViewOrg + finalViewOffset;
+    static uint64_t printFrame = clgi.client->frame.number;
+    if ( printFrame != clgi.client->frame.number ) {
+        //clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOffset(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
+        //    printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
+        //    finalViewOffset[ 0 ], finalViewOffset[ 1 ], finalViewOffset[ 2 ],
+        //    printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
+        clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
+            printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
+            printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
+        printFrame = clgi.client->frame.number;
+    }
+    #endif
     // Add the resulting final viewOffset to the refdef view origin.
     VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
     // Setup the new position for spatial audio recognition.
@@ -1117,7 +1157,7 @@ void PF_ClearViewScene( void ) {
 *           emitting all frame data(entities, particles, dynamic lights, lightstyles,
 *           and temp entities) to the refresh definition.
 **/
-void PF_PrepareViewEntites( void ) {
+void PF_PrepareViewEntities( void ) {
     // Calculate view and spatial audio listener origins.
     PF_CalculateViewValues();
     // Finish it off by determing third or first -person view, and the required thirdperson/firstperson view model.
@@ -1148,4 +1188,11 @@ void PF_PrepareViewEntites( void ) {
     //if ( cl_flashlight->integer ) {
     //    //CLG_View_Flashlight();
     //}
+}
+
+/**
+*	@brief	Returns the predictedState based player view render definition flags.
+**/
+const refdef_flags_t PF_GetViewRenderDefinitionFlags( void ) {
+    return game.predictedState.currentPs.rdflags;
 }

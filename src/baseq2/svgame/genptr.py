@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     exprs = '|'.join(p.replace('_', '\\.') for p in pointers if not p == 'moveinfo_endfunc')
     regex = re.compile(r'->\s*(%s)\s*=\s*&?\s*(\w+)' % exprs, re.ASCII)
-    regex2 = re.compile(r'\b(?:Angle)?SVG_PushMove_MoveCalculate\s*\(.+,\s*(\w+)\s*\)', re.ASCII)
+    regex2 = re.compile(r'\b(?:Angle)?CalculateDirectionalMove\s*\(.+,\s*(\w+)\s*\)', re.ASCII)
 
     types = {}
     for p in pointers:

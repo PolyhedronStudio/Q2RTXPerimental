@@ -16,8 +16,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef COMMON_H
-#define COMMON_H
+#pragma once
+
+
 
 #include "common/cmd.h"
 #include "common/utils.h"
@@ -190,6 +191,4 @@ extern time_t       com_startTime;
 // <Q2RTXP>: WID: extern C for unix system.c
 QEXTERN_C_ENCLOSE( void Qcommon_Init(int argc, char **argv); );
 // <Q2RTXP>: WID: extern C for unix system.c
-QEXTERN_C_ENCLOSE( void Qcommon_Frame( void ); );
-
-#endif // COMMON_H
+QEXTERN_C_ENCLOSE( void Qcommon_Frame( void ); ); 

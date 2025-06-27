@@ -195,6 +195,7 @@ SET(HEADERS_BASEQ2RTXP_SHAREDGAME
 	baseq2rtxp/sharedgame/sg_qtag_memory.hpp
 	baseq2rtxp/sharedgame/sg_qtag_string.hpp
 	baseq2rtxp/sharedgame/sg_shared.h
+	baseq2rtxp/sharedgame/sg_shared_fwd.h
 	baseq2rtxp/sharedgame/sg_skm.h
 	baseq2rtxp/sharedgame/sg_skm_rootmotion.h
 	baseq2rtxp/sharedgame/sg_tempentity_events.h
@@ -285,12 +286,17 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	# ServerGame
 	baseq2rtxp/svgame/svg_ai.cpp
 	baseq2rtxp/svgame/svg_chase.cpp
+	baseq2rtxp/svgame/svg_clients.cpp
 	baseq2rtxp/svgame/svg_commands_game.cpp
 	baseq2rtxp/svgame/svg_commands_server.cpp
 	baseq2rtxp/svgame/svg_combat.cpp
 	baseq2rtxp/svgame/svg_edicts.cpp
+	baseq2rtxp/svgame/svg_edict_pool.cpp
 	baseq2rtxp/svgame/svg_gamemode.cpp
-	baseq2rtxp/svgame/svg_items.cpp
+	baseq2rtxp/svgame/svg_game_client.cpp
+	baseq2rtxp/svgame/svg_game_items.cpp
+	baseq2rtxp/svgame/svg_game_locals.cpp
+	baseq2rtxp/svgame/svg_level_locals.cpp
 	baseq2rtxp/svgame/svg_lua.cpp
 	baseq2rtxp/svgame/svg_main.cpp
 	baseq2rtxp/svgame/svg_misc.cpp
@@ -300,6 +306,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_save.cpp
 	baseq2rtxp/svgame/svg_signalio.cpp
 	baseq2rtxp/svgame/svg_spawn.cpp
+	baseq2rtxp/svgame/svg_stepmove.cpp
 	baseq2rtxp/svgame/svg_target.cpp
 	baseq2rtxp/svgame/svg_trigger.cpp
 	baseq2rtxp/svgame/svg_utils.cpp
@@ -307,16 +314,16 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/entities/func/svg_func_areaportal.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_button.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_breakable.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_conveyor.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_breakable.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_conveyor.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_door_rotating.cpp
 	#baseq2rtxp/svgame/entities/func/svg_func_door_secret.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_killbox.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_killbox.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_object.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_plat.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_rotating.cpp
-	baseq2rtxp/svgame/entities/func/svg_func_timer.cpp
+	#baseq2rtxp/svgame/entities/func/svg_func_timer.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_train.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_wall.cpp
 	baseq2rtxp/svgame/entities/func/svg_func_water.cpp
@@ -341,6 +348,12 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
 
 	#baseq2rtxp/svgame/entities/target/svg_target_character.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_changelevel.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_crosslevel_target.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_crosslevel_trigger.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_earthquake.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_laser.cpp
+	baseq2rtxp/svgame/entities/target/svg_target_lightramp.cpp
 
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_always.cpp
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_counter.cpp
@@ -352,6 +365,11 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_push.cpp
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.cpp
 
+	baseq2rtxp/svgame/entities/svg_base_edict.cpp
+	baseq2rtxp/svgame/entities/svg_item_edict.cpp
+	baseq2rtxp/svgame/entities/svg_player_edict.cpp
+	baseq2rtxp/svgame/entities/svg_pushmove_edict.cpp
+	baseq2rtxp/svgame/entities/svg_worldspawn_edict.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
 	baseq2rtxp/svgame/lua/svg_lua_corelib.cpp
@@ -369,6 +387,11 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_state_t.hpp
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.cpp
 	baseq2rtxp/svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp
+
+	baseq2rtxp/svgame/save/svg_save_field_descriptor.cpp
+	baseq2rtxp/svgame/save/svg_save_funcptr_instance.cpp
+	baseq2rtxp/svgame/save/svg_save_read_context.cpp
+	baseq2rtxp/svgame/save/svg_save_write_context.cpp
 
 	baseq2rtxp/svgame/monsters/svg_mmove.cpp
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.cpp
@@ -389,13 +412,15 @@ SET(SRC_BASEQ2RTXP_SVGAME
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
+	baseq2rtxp/svgame/svg_clients.h
 	baseq2rtxp/svgame/svg_combat.h
+	baseq2rtxp/svgame/svg_edict_pool.h
 	baseq2rtxp/svgame/svg_game_client.h
-	baseq2rtxp/svgame/svg_game_edict.h
 	baseq2rtxp/svgame/svg_game_items.h
 	baseq2rtxp/svgame/svg_game_locals.h
 	baseq2rtxp/svgame/svg_level_locals.h
 	baseq2rtxp/svgame/svg_local.h
+	baseq2rtxp/svgame/svg_local_fwd.h
 	baseq2rtxp/svgame/svg_lua.h
 	baseq2rtxp/svgame/svg_misc.h
 	baseq2rtxp/svgame/svg_pushmove_info.h
@@ -429,7 +454,14 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/func/svg_func_water.h
 	baseq2rtxp/svgame/entities/func/svg_func_entities.h
 
-	#baseq2rtxp/svgame/entities/monsters/svg_monster_testdummy_puppet.h
+	baseq2rtxp/svgame/entities/info/svg_info_player_start.h
+	baseq2rtxp/svgame/entities/info/svg_info_notnull.h
+	baseq2rtxp/svgame/entities/info/svg_info_null.h
+
+	baseq2rtxp/svgame/entities/light/svg_light_light.h
+	baseq2rtxp/svgame/entities/light/svg_light_spotlight.h
+
+	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy.h
 	
 	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.h
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.h
@@ -438,6 +470,12 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/path/svg_path_corner.h
 	
 	#baseq2rtxp/svgame/entities/target/svg_target_character.h
+	baseq2rtxp/svgame/entities/target/svg_target_changelevel.h
+	baseq2rtxp/svgame/entities/target/svg_target_crosslevel_target.h
+	baseq2rtxp/svgame/entities/target/svg_target_crosslevel_trigger.h
+	baseq2rtxp/svgame/entities/target/svg_target_earthquake.h
+	baseq2rtxp/svgame/entities/target/svg_target_laser.h
+	baseq2rtxp/svgame/entities/target/svg_target_lightramp.h
 
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_always.h
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_counter.h
@@ -449,13 +487,27 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_push.h
 	baseq2rtxp/svgame/entities/trigger/svg_trigger_relay.h
 
+	baseq2rtxp/svgame/entities/typeinfo/svg_edict_typeinfo.h
+
+	baseq2rtxp/svgame/entities/svg_base_edict.h
+	baseq2rtxp/svgame/entities/svg_item_edict.h
+	baseq2rtxp/svgame/entities/svg_player_edict.h
+	baseq2rtxp/svgame/entities/svg_worldspawn_edict.h
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h
 
 	baseq2rtxp/svgame/player/svg_player_client.h
 	baseq2rtxp/svgame/player/svg_player_hud.h
+	baseq2rtxp/svgame/player/svg_player_move.h
 	baseq2rtxp/svgame/player/svg_player_trail.h
 	baseq2rtxp/svgame/player/svg_player_weapon.h
 	baseq2rtxp/svgame/player/svg_player_view.h
+
+	baseq2rtxp/svgame/save/svg_save_callback_global.h
+	baseq2rtxp/svgame/save/svg_save_callback_member.h
+	baseq2rtxp/svgame/save/svg_save_field_descriptor.h
+	baseq2rtxp/svgame/save/svg_save_funcptr_instance.h
+	baseq2rtxp/svgame/save/svg_save_read_context.h
+	baseq2rtxp/svgame/save/svg_save_write_context.h
 
 	baseq2rtxp/svgame/monsters/svg_mmove.h
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.h
@@ -469,29 +521,29 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 #
 #
 SET(SRC_CLIENT
-	client/ascii.cpp
-	client/console.cpp
-	client/cin.cpp
-	client/clgame.cpp
-	client/crc.cpp
-	client/demo.cpp
-	client/download.cpp
-	client/effects.cpp
-	client/entities.cpp
-	client/input.cpp
-	client/keys.cpp
-	client/locs.cpp
-	client/main.cpp
-	#client/newfx.cpp
-	#client/null.cpp
-	client/parse.cpp
-	client/precache.cpp
-	client/predict.cpp
-	client/refresh.cpp
-	client/screen.cpp
-	#client/tent.cpp
-	client/view.cpp
-	client/world.cpp
+	client/cl_ascii.cpp
+	client/cl_console.cpp
+	client/cl_cinematic.cpp
+	client/cl_clientgame.cpp
+	client/cl_crc.cpp
+	client/cl_demo.cpp
+	client/cl_download.cpp
+	client/cl_effects.cpp
+	client/cl_entities.cpp
+	client/cl_input.cpp
+	client/cl_keys.cpp
+	client/cl_locs.cpp
+	client/cl_main.cpp
+	#client/cl_newfx.cpp
+	#client/cl_null.cpp
+	client/cl_parse.cpp
+	client/cl_precache.cpp
+	client/cl_predict.cpp
+	client/cl_refresh.cpp
+	client/cl_screen.cpp
+	#client/cl_tent.cpp
+	client/cl_view.cpp
+	client/cl_world.cpp
 	client/ui/_scoreboard.cpp
 	client/ui/demos.cpp
 	client/ui/editor_rmaterial.cpp
@@ -511,7 +563,7 @@ SET(SRC_CLIENT
 )
 
 SET(SRC_CLIENT_HTTP
-	client/http.cpp
+	client/cl_http.cpp
 )
 
 SET(HEADERS_CLIENT
@@ -657,6 +709,7 @@ SET(HEADERS_COMMON
 SET(SRC_REFRESH
 	refresh/images.c
 	refresh/models.c
+	refresh/model_sp2_json.cpp
 	refresh/model_iqm.c
 	refresh/stb/stb.c
 )
@@ -688,25 +741,18 @@ SET(HEADERS_GL
 #
 #
 SET(HEADERS_SHARED
-	#shared/clgame.h
+	# <Q2RTXP>: WID: TODO: For some reason it won 't find them anyhow, also, list is outdated.'
+	#shared/client/cl_game.h
 	#shared/config.h
 	#shared/config_cpp.h
 	#shared/endian.h
 	#shared/info_strings.h
-	#shared/util_list.h
+	#shared/util/util_list.h
 	#shared/platform.h
 	#shared/shared.h
 	#shared/shared_cpp.h
 	#shared/string_utilities.h
-	#inc/shared/svgame.h
-
-	#inc/shared/math/qray_math.h
-	#inc/shared/math/qray_matrix4x4.h
-	#inc/shared/math/qray_quaternion.h
-	#inc/shared/math/qray_utils.h
-	#inc/shared/math/qray_vector2.h
-	#inc/shared/math/qray_vector3.h
-	#inc/shared/math/qray_vector4.h
+	#inc/shared/server/sv_game.h
 )
 SET(SRC_SHARED
 	shared/info_strings.cpp
@@ -714,6 +760,13 @@ SET(SRC_SHARED
 	shared/shared.cpp
 	shared/string_utilities.cpp
 )
+if (MSVC)
+	# MSVC specific
+	SET(SRC_SHARED
+		${SRC_SHARED}
+		${CMAKE_CURRENT_SOURCE_DIR}/cpp.hint
+	)
+endif()
 
 
 #
