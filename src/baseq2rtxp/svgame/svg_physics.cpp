@@ -145,7 +145,7 @@ bool SV_RunThink(svg_base_edict_t *ent)
     if ( !ent->HasThinkCallback() ) {
         // WID: Useful to output exact information about what entity we are dealing with here, that'll help us fix the problem :-).
         gi.error( "[ entityNumber(%d), inUse(%s), classname(%s), targetname(%s), luaName(%s), (nullptr) ent->think ]\n",
-            ent->s.number, ( ent->inuse != false ? "true" : "false" ), ent->classname, ent->targetname, ent->luaProperties.luaName);
+            ent->s.number, ( ent->inuse != false ? "true" : "false" ), (const char*)ent->classname, (const char *)ent->targetname, (const char *)ent->luaProperties.luaName);
         // Failed.
         return false;
     }

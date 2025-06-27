@@ -70,9 +70,9 @@ const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const
 **/
 void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activator ) {
     // If a message was set, the activator is not a monster, then center print it.
-    if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
+    if ( ( self->message ) && !( activator && activator->svflags & SVF_MONSTER ) ) {
         // Print.
-        if ( activator->client ) {
+        if ( activator && activator->client ) {
             gi.centerprintf( activator, "%s", (const char *)self->message );
         // <Q2RTXP>: WID: Do we want this else statement and condition?
         } else {
