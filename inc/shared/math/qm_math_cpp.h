@@ -38,8 +38,11 @@
 #pragma once
 
 #ifdef __cplusplus
-    #define QM_API [[nodiscard]] const inline // Functions may be inlined, no external out-of-line definition
-    #define QM_API_DISCARD const inline // Functions may be inlined, no external out-of-line definition
+    #define QM_API [[nodiscard]] inline const // Functions may be inlined, no external out-of-line definition
+    #define QM_API_DISCARD inline const // Functions may be inlined, no external out-of-line definition
+
+    #define QM_API_CONSTEXPR [[nodiscard]] constexpr inline const // Functions may be inlined, no external out-of-line definition.
+    #define QM_API_CONSTEXPR_DISCARD constexpr inline const // Functions may be inlined, no external out-of-line definition.
 #else
     #define QM_API const inline // Functions may be inlined, no external out-of-line definition
     #define QM_API_DISCARD const inline // Functions may be inlined, no external out-of-line definition
@@ -59,44 +62,29 @@
 *   QM PI:
 **/
 #ifndef QM_PI
-    #ifdef __cplusplus
-        static constexpr double QM_PI = std::numbers::pi;
-    #else
-        #define QM_PI 3.14159265358979323846
-    #endif
+    static constexpr double QM_PI = std::numbers::pi;
 #endif
 
 /**
 *   QM Epsilon:
 **/
 #ifndef QM_EPSILON
-    #ifdef __cplusplus
-        static constexpr double QM_EPSILON = 0.000001;
-    #else
-        #define QM_EPSILON 0.000001
-    #endif
+    static constexpr float QM_FLOAT_EPSILON = FLT_EPSILON;
+    static constexpr double QM_DOUBLE_EPSILON = DBL_EPSILON;
 #endif
 
 /**
 *   QM Degrees 2 Radians:
 **/
 #ifndef QM_DEG2RAD
-    #ifdef __cplusplus
-        static constexpr double QM_DEG2RAD = ( QM_PI / 180.0 );
-    #else
-        #define QM_DEG2RAD ( ( double )( QM_PI / 180.0 ) )
-    #endif
+    static constexpr double QM_DEG2RAD = ( QM_PI / 180.0 );
 #endif
 
 /**
 *   QM Radians 2 Degrees:
 **/
 #ifndef QM_RAD2DEG
-    #ifdef __cplusplus
-        static constexpr double QM_RAD2DEG = ( 180.0 / QM_PI );
-    #else
-        #define QM_RAD2DEG ( (double)( 180.0 / QM_PI ) )
-    #endif
+    static constexpr double QM_RAD2DEG = ( 180.0 / QM_PI );
 #endif
 
 /**
@@ -183,6 +171,8 @@ struct Vector2 {
 *
 **/
 #if !defined(RL_VECTOR3_TYPE)
+struct Vector3;
+
 // Vector3 type
 struct Vector3 {
     float x;
@@ -205,27 +195,27 @@ struct Vector3 {
         this->y = y;
         this->z = z;
     }
-    [[nodiscard]] inline Vector3( Vector2 &v ) {
+    [[nodiscard]] constexpr inline Vector3( Vector2 &v ) {
         this->x = v.x;
         this->y = v.y;
         this->z = 0;
     }
-    [[nodiscard]] inline Vector3( const Vector2 &v ) {
+    [[nodiscard]] constexpr inline Vector3( const Vector2 &v ) {
         this->x = v.x;
         this->y = v.y;
         this->z = 0;
     }
-    [[nodiscard]] inline Vector3( Vector3 &v ) {
+    [[nodiscard]] constexpr inline Vector3( Vector3 &v ) {
         this->x = v.x;
         this->y = v.y;
         this->z = v.z;
     }
-    [[nodiscard]] inline Vector3( const Vector3 &v ) {
+    [[nodiscard]] constexpr inline Vector3( const Vector3 &v ) {
         this->x = v.x;
         this->y = v.y;
         this->z = v.z;
     }
-    [[nodiscard]] inline Vector3( vec3_t v3 ) {
+    [[nodiscard]] constexpr inline Vector3( vec3_t v3 ) {
         if ( v3 ) {
             this->x = v3[ 0 ];
             this->y = v3[ 1 ];
@@ -234,7 +224,7 @@ struct Vector3 {
             this->x = this->y = this->z = 0;
         }
     }
-    [[nodiscard]] inline Vector3( const vec3_t v3 ) {
+    [[nodiscard]] constexpr inline Vector3( const vec3_t v3 ) {
         if ( v3 ) {
             this->x = v3[ 0 ];
             this->y = v3[ 1 ];
@@ -248,97 +238,179 @@ struct Vector3 {
     /**
     *   @brief  Vector3 C++ 'Plus' operator:
     **/
-    [[nodiscard]] constexpr inline Vector3 operator+( const Vector3 &right ) {
-        return QM_Vector3Add( *this, right );
-    }
-    [[nodiscard]] constexpr inline Vector3 operator+( const float &right ) {
-        return QM_Vector3AddValue( *this, right);
-    }
-
-    [[nodiscard]] constexpr inline const Vector3 operator+=( const Vector3 &right ) {
+    [[nodiscard]] constexpr inline Vector3 &operator+( const Vector3 right ) {
         return *this = QM_Vector3Add( *this, right );
     }
-    [[nodiscard]] constexpr inline const Vector3 operator+=( const float &right ) {
+    [[nodiscard]] constexpr inline Vector3 &operator+( const Vector3 &right ) {
+        return *this = QM_Vector3Add( *this, right );
+    }
+    [[nodiscard]] constexpr inline Vector3 &operator+( const float &right ) {
+        return *this = QM_Vector3AddValue( *this, right);
+    }
+    //[[nodiscard]] constexpr inline Vector3 &operator+( const Vector3 &right ) {
+	//	return *this = const Vector3{ +x, +y, +z };
+    //}
+
+    [[nodiscard]] constexpr inline Vector3 &operator+=( const Vector3 &right ) {
+        return *this = QM_Vector3Add( *this, right );
+    }
+    [[nodiscard]] constexpr inline Vector3 &operator+=( const float &right ) {
         return *this = QM_Vector3AddValue( *this, right );
     }
 
     /**
     *   @brief  Vector3 C++ 'Minus' operator:
     **/
-    [[nodiscard]] constexpr inline const Vector3 operator-( const Vector3 &right ) {
-        return QM_Vector3Subtract( *this, right );
-    }
-    [[nodiscard]] constexpr inline const Vector3 operator-( const float &right ) {
-        return QM_Vector3SubtractValue( *this, right );
-    }
-    [[nodiscard]] constexpr inline const Vector3 operator-( const Vector3 &v ) {
-        return QM_Vector3Negate( v );
-    }
-
-    [[nodiscard]] constexpr inline const Vector3 &operator-=( const Vector3 &right ) {
+	//[[nodiscard]] constexpr inline Vector3 &operator-( const Vector3 &right ) {
+	//	return *this = QM_Vector3Subtract( *this, right );
+	//}
+	//[[nodiscard]] constexpr inline Vector3 &operator-( const float &right ) {
+	//	return *this = QM_Vector3SubtractValue( *this, right );
+	//}
+    [[nodiscard]] constexpr inline const Vector3 operator-( const Vector3 right ) {
         return *this = QM_Vector3Subtract( *this, right );
     }
-    [[nodiscard]] constexpr inline const Vector3 &operator-=( const float &right ) {
+    [[nodiscard]] constexpr inline const Vector3 operator-( const Vector3 &right ) {
+        return *this = QM_Vector3Subtract( *this, right );
+    }
+ //   [[nodiscard]] constexpr inline Vector3 &operator-( const Vector3 &right ) {
+	//	return *this = QM_Vector3Subtract( *this, right );
+	//}
+    [[nodiscard]] constexpr inline Vector3 operator-( const float &right ) {
+        return *this = QM_Vector3SubtractValue( *this, right );
+    }
+    //[[nodiscard]] constexpr inline const Vector3 &operator-( const Vector3 &v ) {
+    //    return *this = QM_Vector3Negate( v );
+    //}
+
+    [[nodiscard]] constexpr inline Vector3 &operator-=( const Vector3 &right ) {
+        return *this = QM_Vector3Subtract( *this, right );
+    }
+    [[nodiscard]] constexpr inline Vector3 &operator-=( const float &right ) {
         return *this = QM_Vector3SubtractValue( *this, right);
     }
 
     /**
     *   @brief  Vector3 C++ 'Multiply' operator:
     **/
-    QM_API const Vector3 operator*( const Vector3 &right ) {
-        return QM_Vector3Multiply( *this, right );
-    }
-    QM_API const Vector3 operator*( const float &right ) {
-        return QM_Vector3Scale( *this, right );
-    }
-    // for: const Vector3 &v1 = floatVal * v2;
-    QM_API const Vector3 operator*( const float &right ) {
-        return QM_Vector3Scale( *this, right );
-    }
-
-    QM_API const Vector3 &operator*=( const Vector3 &right ) {
+    [[nodiscard]] constexpr inline Vector3 &operator*( const Vector3 right ) {
         return *this = QM_Vector3Multiply( *this, right );
     }
-    QM_API const Vector3 &operator*=( const float &right ) {
+    [[nodiscard]] constexpr inline Vector3 &operator*( const Vector3 &right ) {
+        return *this = QM_Vector3Multiply( *this, right );
+    }
+    // for: const Vector3 &v1 = floatVal * v2;
+    [[nodiscard]] constexpr inline Vector3 &operator*( const float &right ) {
+        return *this = QM_Vector3Scale( *this, right );
+    }
+
+    [[nodiscard]] constexpr inline Vector3 &operator*=( const Vector3 &right ) {
+        return *this = QM_Vector3Multiply( *this, right );
+    }
+    [[nodiscard]] constexpr inline Vector3 &operator*=( const float &right ) {
         return *this = QM_Vector3Scale( *this, right );
     }
 
     /**
     *   @brief  Vector3 C++ 'Divide' operator:
     **/
-    QM_API const Vector3 operator/( const Vector3 &right ) {
-        return QM_Vector3Divide( *this, right );
-    }
-    QM_API const Vector3 operator/( const float &right ) {
-        return QM_Vector3DivideValue( *this, right );
-    }
-
-    QM_API const Vector3 &operator/=( const Vector3 &right ) {
+    [[nodiscard]] inline constexpr Vector3 &operator/( const Vector3 right ) {
         return *this = QM_Vector3Divide( *this, right );
     }
-    QM_API const Vector3 &operator/=( const float &right ) {
+    [[nodiscard]] inline constexpr Vector3 &operator/( const Vector3 &right ) {
+        return *this = QM_Vector3Divide( *this, right );
+    }
+    [[nodiscard]] inline constexpr Vector3 &operator/( const float &right ) {
         return *this = QM_Vector3DivideValue( *this, right );
+    }
+
+    [[nodiscard]] inline constexpr Vector3 &operator/=( const Vector3 &right ) {
+        return *this = QM_Vector3Divide( *this, right );
+    }
+    [[nodiscard]] inline constexpr Vector3 &operator/=( const float &right ) {
+        return *this = QM_Vector3DivideValue( *this, right );
+    }
+
+    /**
+    *   @brief  Compare each element with s, return vector of 1 or 0 based on test.
+    **/
+    [[nodiscard]] inline constexpr const Vector3 &operator < ( const float &scalar ) {
+		return { ( x < scalar ? 1 : 0 ), ( y < scalar ? 1 : 0 ), ( z < scalar ? 1 : 0 ) };
+    }
+    [[nodiscard]] inline constexpr const Vector3 &operator > ( const float &scalar ) {
+        return { ( x > scalar ? 1 : 0 ), ( y > scalar ? 1 : 0 ), ( z > scalar ? 1 : 0 ) };
+    }
+
+    /**
+    *   @brief  Element-wise less than comparion, return vector of 1 or 0 based on test.
+    **/
+    [[nodiscard]] inline constexpr const Vector3 &operator < ( const Vector3 &v ) {
+        return { ( x < v.x ? 1 : 0 ), ( y < v.y? 1 : 0 ), ( z < v.z ? 1 : 0 ) };
+
+    }
+    /**
+    *   @brief  Element-wise greater than comparion, return vector of 1 or 0 based on test.
+    **/
+    [[nodiscard]] inline constexpr const Vector3 &operator > ( const Vector3 &v ) {
+        return { ( x > v.x ? 1 : 0 ), ( y > v.y ? 1 : 0 ), ( z > v.z ? 1 : 0 ) };
     }
 
     /**
     *   @brief  Vector3 C++ 'Equals' operator:
     **/
-    QM_API bool operator==( const Vector3 &right ) {
-        return QM_Vector3Equals( *this, right );
+    [[nodiscard]] inline const bool operator==( const Vector3 &right ) {
+        return QM_Vector3Equals( *this, right, QM_FLOAT_EPSILON );
     }
-
     /**
     *   @brief  Vector3 C++ 'Not Equals' operator:
     **/
-    [[nodiscard]] inline constexpr const bool operator!=( const Vector3 &right ) {
-        return !QM_Vector3Equals( *this, right );
+    [[nodiscard]] inline const bool operator!=( const Vector3 &right ) {
+        return ( QM_Vector3Equals( *this, right, QM_FLOAT_EPSILON ) ? false : true );
     }
     #endif // 0
+
+    /**
+    *   @brief  Compare each element with s, return vector of 1 or 0 based on test.
+    **/
+    [[nodiscard]] inline constexpr const Vector3 &operator < ( const float &scalar ) {
+		return { ( x < scalar ? 1 : 0 ), ( y < scalar ? 1 : 0 ), ( z < scalar ? 1 : 0 ) };
+    }
+    [[nodiscard]] inline constexpr const Vector3 &operator > ( const float &scalar ) {
+        return { ( x > scalar ? 1 : 0 ), ( y > scalar ? 1 : 0 ), ( z > scalar ? 1 : 0 ) };
+    }
+
+    /**
+    *   @brief  Element-wise less than comparion, return vector of 1 or 0 based on test.
+    **/
+    [[nodiscard]] inline constexpr const Vector3 &operator < ( const Vector3 &v ) {
+        return { ( x < v.x ? 1 : 0 ), ( y < v.y? 1 : 0 ), ( z < v.z ? 1 : 0 ) };
+
+    }
+    /**
+    *   @brief  Element-wise greater than comparion, return vector of 1 or 0 based on test.
+    **/
+    [[nodiscard]] inline constexpr const Vector3 &operator > ( const Vector3 &v ) {
+        return { ( x > v.x ? 1 : 0 ), ( y > v.y ? 1 : 0 ), ( z > v.z ? 1 : 0 ) };
+    }
+
     /**
     *  C++ Array like component accessors:
     **/
     [[nodiscard]] inline constexpr const float &operator[]( const size_t i ) const;
     [[nodiscard]] inline constexpr float &operator[]( const size_t i );
+
+    /**
+    *   @brief  Vector3 C++ 'Equals' operator:
+    **/
+    QM_API_CONSTEXPR bool operator==( const Vector3 *right ) {
+        return this == right;
+    }
+    /**
+    *   @brief  Vector3 C++ 'Equals' operator:
+    **/
+    QM_API_CONSTEXPR bool operator!=( const Vector3 *right ) {
+        return this != right;
+    }
 };
 // Define Type.
 #define RL_VECTOR3_TYPE
@@ -380,18 +452,6 @@ struct Vector4 {
         this->w = w;
     }
 
-    [[nodiscard]] inline Vector4( Vector3 &v ) {
-        this->x = v.x;
-        this->y = v.y;
-        this->z = v.z;
-        this->w = 1;
-    }
-    [[nodiscard]] inline Vector4( Vector4 &v ) {
-        this->x = v.x;
-        this->y = v.y;
-        this->z = v.z;
-        this->w = v.w;
-    }
     [[nodiscard]] inline Vector4( const Vector3 &v ) {
         this->x = v.x;
         this->y = v.y;
@@ -404,6 +464,18 @@ struct Vector4 {
         this->z = v.z;
         this->w = v.w;
     }
+    //[[nodiscard]] inline Vector4( const Vector3 &v ) {
+    //    this->x = v.x;
+    //    this->y = v.y;
+    //    this->z = v.z;
+    //    this->w = 1;
+    //}
+    //[[nodiscard]] inline Vector4( const Vector4 &v ) {
+    //    this->x = v.x;
+    //    this->y = v.y;
+    //    this->z = v.z;
+    //    this->w = v.w;
+    //}
     //[[nodiscard]] inline Vector4( vec3_t v3 ) {
     //    if ( v3 ) {
     //        this->x = v3[ 0 ];
@@ -521,8 +593,10 @@ struct Matrix {
 struct BBox3 {
     union {
         // X Y Z desegnator accessors.
-        Vector3 mins, maxs;
-        float points[ 6 ];
+        struct {
+            Vector3 mins, maxs;
+        };
+        float points[ 6 ] = { 0.f, 0.f, 0.f, 0.f, 0.f, 0.f };
     };
 
     /**

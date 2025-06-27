@@ -299,7 +299,7 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_BFG_EXPLOSION:
         ex = CLG_AllocExplosion();
         VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-        ex->type = clg_explosion_t::ex_poly;
+        ex->type = clg_explosion_t::ex_polygon_curvature;
         ex->ent.flags = RF_FULLBRIGHT;
         ex->start = clgi.client->servertime - clgi.frame_time_ms;
         ex->light = 350;
@@ -491,7 +491,7 @@ void TE_Color_g( genctx_t *ctx ) {
     }
 }
 
-void CLG_InitTEnts( void ) {
+void CLG_TemporaryEntities_Init( void ) {
     cl_railtrail_type = clgi.CVar_Get( "cl_railtrail_type", "0", 0 );
     cl_railtrail_time = clgi.CVar_Get( "cl_railtrail_time", "1.0", 0 );
     cl_railtrail_time->changed = cl_timeout_changed;

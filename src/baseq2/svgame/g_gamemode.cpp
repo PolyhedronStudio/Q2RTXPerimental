@@ -44,7 +44,7 @@ const int32_t G_GetActiveGameModeType( ) {
 *	@return	True in case the current gamemode allows for saving the game.
 *			(This should only be true for single and cooperative play modes.)
 **/
-const bool G_GetGamemodeNoSaveGames( const bool isDedicatedServer ) {
+const bool G_GameModeAllowSaveGames( const bool isDedicatedServer ) {
 	// A dedicated server only allows saving in coop mode.
 	if ( dedicated->integer && gamemode->integer != GAMEMODE_COOPERATIVE ) {
 		return false;

@@ -2,6 +2,9 @@
 //#define RAYMATH_IMPLEMENTATION
 #include "shared/shared.h"
 
+// For checking for a 'null reference' of type Vector3.
+const Vector3 qm_vector3_null = {};
+
 void MakeNormalVectors( const vec3_t forward, vec3_t right, vec3_t up ) {
 	float       d;
 

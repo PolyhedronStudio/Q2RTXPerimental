@@ -6,15 +6,17 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/util_list.h"
+#include "shared/util/util_list.h"
 
 // define CLGAME_INCLUDE so that game.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
-#include "shared/clgame.h"
+#include "shared/client/cl_game.h"
 #include "../../clgame/clg_local.h"
 
-// Extern here right after including shared/clgame.h
+#include "sharedgame/sg_pmove.h"
+
+// Extern here right after including shared/client/cl_game.h
 extern clgame_import_t clgi;
 
 
@@ -66,7 +68,12 @@ const int32_t SG_GetEntityNumber( sgentity_s *sgent ) {
 		return -1;
 	}
 }
-
+/**
+*	@brief	Returns the matching entity pointer for the given entity number.
+**/
+sgentity_s *SG_GetEntityForNumber( const int32_t number ) {
+	return &clg_entities[ number ];
+}
 
 
 /**
@@ -191,7 +198,7 @@ void SG_Z_TagFree( void *block ) {
 /**
 *	@brief	FreeTags
 **/
-void SG_Z_TagFree( const uint32_t tag ) {
+void SG_Z_FreeTags( const uint32_t tag ) {
 	clgi.FreeTags( tag );
 }
 

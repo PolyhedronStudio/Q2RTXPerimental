@@ -26,26 +26,26 @@ extern pmove_t *pm;
 /**
 *	@brief	Clips trace against world only.
 **/
-const trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
+const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
 	return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
 }
 
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, contents_t contentMask ) {
+const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, cm_contents_t contentMask ) {
 	// Spectators only clip against world, so use clip instead.
 	if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
-		return PM_Clip( start, mins, maxs, end, MASK_SOLID );
+		return PM_Clip( start, mins, maxs, end, CM_CONTENTMASK_SOLID );
 	}
 
 	if ( contentMask == CONTENTS_NONE ) {
 		if ( pm->playerState->pmove.pm_type == PM_DEAD || pm->playerState->pmove.pm_type == PM_GIB ) {
-			contentMask = MASK_DEADSOLID;
+			contentMask = CM_CONTENTMASK_DEADSOLID;
 		} else if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
-			contentMask = MASK_SOLID;
+			contentMask = CM_CONTENTMASK_SOLID;
 		} else {
-			contentMask = MASK_PLAYERSOLID;
+			contentMask = CM_CONTENTMASK_PLAYERSOLID;
 		}
 
 		//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
@@ -68,7 +68,7 @@ const trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
 *			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
 **/
-void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trace ) {
+void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &trace ) {
 	// Escape function if we are exceeding maximum touch traces.
 	if ( touchTraceList.numberOfTraces >= MAX_TOUCH_TRACES ) {
 		return;
@@ -138,7 +138,7 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 
 	Vector3 planes[ MAX_CLIP_PLANES ] = {};
 
-	trace_t	trace = {};
+	cm_trace_t	trace = {};
 	Vector3	end = {};
 
 	float d = 0;

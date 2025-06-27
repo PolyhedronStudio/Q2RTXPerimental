@@ -67,7 +67,7 @@ void CM_InitBoxHull( cm_t *cm ) {
 
         #if 0
         // Planes:
-        cplane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
+        cm_plane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
         plane->type = i >> 1;
         plane->normal[ i >> 1 ] = 1;
 
@@ -100,7 +100,7 @@ void CM_InitBoxHull( cm_t *cm ) {
 *           The BSP trees' box will match with the bounds(mins, maxs) and have appointed
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
-mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents ) {
+mnode_t *CM_HeadnodeForBox( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents ) {
     // Setup to CONTENTS_MONSTER in case of no contents being passed in.
     if ( contents == CONTENTS_NONE ) {
         cm->hull_boundingbox->leaf.contents = cm->hull_boundingbox->brush.contents = CONTENTS_MONSTER;

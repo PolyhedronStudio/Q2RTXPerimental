@@ -15,9 +15,9 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef HUNK_H
-#define HUNK_H
+
 
 // Extern C
 QEXTERN_C_OPEN
@@ -46,5 +46,3 @@ void    Hunk_Free(memhunk_t *hunk);
 
 // Extern C
 QEXTERN_C_CLOSE
-
-#endif // HUNK_H

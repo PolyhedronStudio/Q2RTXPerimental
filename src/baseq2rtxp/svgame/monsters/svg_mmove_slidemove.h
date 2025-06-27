@@ -32,9 +32,9 @@ const int32_t SVG_MMove_ClipVelocity( const Vector3 &in, const Vector3 &normal, 
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
 *			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
 **/
-void SVG_MMove_RegisterTouchTrace( mm_touch_trace_list_t &touchTraceList, trace_t &trace );
+void SVG_MMove_RegisterTouchTrace( mm_touch_trace_list_t &touchTraceList, svg_trace_t &trace );
 
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const int32_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time );
+const int32_t SVG_MMove_SlideMove( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, svg_base_edict_t *passEntity, mm_touch_trace_list_t &touch_traces, const bool has_time );

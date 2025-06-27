@@ -21,10 +21,13 @@
 #include "clgame/clg_view.h"
 
 
+#include "sharedgame/sg_gamemode.h"
+
+
 //! Stores data that remains accross level switches.
 game_locals_t   game;
 //! This structure is cleared as each map is entered, it stores data for the current level session.
-level_locals_t  level;
+clg_level_locals_t  level;
 //! Function pointers and variables imported from the Client.
 clgame_import_t clgi;
 //! Function pointers and variables meant to export to the Client.
@@ -133,6 +136,21 @@ static size_t CL_Armor_m( char *buffer, size_t size ) {
 	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_ARMOR ] );
 }
 /**
+*	@brief	The Quake Units per second of the player.
+**/
+static size_t CL_Ups_m( char *buffer, size_t size ) {
+	vec3_t vel;
+
+	if ( !clgi.IsDemoPlayback() && cl_predict->integer &&
+		!( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
+		VectorCopy( game.predictedState.currentPs.pmove.velocity, vel );
+	} else {
+		VectorCopy( clgi.client->frame.ps.pmove.velocity, vel );
+	}
+
+	return Q_scnprintf( buffer, size, "%.f", VectorLength( vel ) );
+}
+/**
 *	@brief	Weapon Model.
 **/
 static size_t CL_WeaponModel_m( char *buffer, size_t size ) {
@@ -193,8 +211,8 @@ void PF_PreShutdownGame( void ) {
 	clgi.Print( print_type_t::PRINT_ALL, "==== PreShutdown ClientGame ====\n" );
 
 	// Uncomment after we actually allocate anything using this.
-	clgi.FreeTags( TAG_CLGAME_LEVEL );
-	clgi.FreeTags( TAG_CLGAME );
+	//clgi.FreeTags( TAG_CLGAME_LEVEL );
+	//clgi.FreeTags( TAG_CLGAME );
 }
 
 /**
@@ -319,13 +337,14 @@ void PF_InitGame( void ) {
 	clgi.Cmd_AddMacro( "cl_health", CL_Health_m );
 	clgi.Cmd_AddMacro( "cl_ammo", CL_Ammo_m );
 	clgi.Cmd_AddMacro( "cl_armor", CL_Armor_m );
+	clgi.Cmd_AddMacro( "cl_ups", CL_Ups_m );
 	clgi.Cmd_AddMacro( "cl_weaponmodel", CL_WeaponModel_m );
 
 	/**
 	*	Initialize effects and temp entities.
 	**/
 	CLG_InitEffects();
-	CLG_InitTEnts();
+	CLG_TemporaryEntities_Init();
 
 	/**
 	*	Default EAX Environment:
@@ -426,7 +445,7 @@ void PF_ClearState( void ) {
 /**
 *	@brief
 **/
-const char *PF_GetGamemodeName( int32_t gameModeID ) {
+const char *PF_GetGameModeName( int32_t gameModeID ) {
 	return SG_GetGameModeName( static_cast<sg_gamemode_type_t>( gameModeID ) );
 }
 
@@ -513,7 +532,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 
-		globals.GetGamemodeName = PF_GetGamemodeName;
+		globals.GetGameModeName = PF_GetGameModeName;
 
 		globals.UsePrediction = PF_UsePrediction;
 		globals.AdjustViewHeight = PF_AdjustViewHeight;
@@ -555,7 +574,8 @@ extern "C" { // WID: C++20: extern "C".
 		globals.CalculateFieldOfView = PF_CalculateFieldOfView;
 		globals.CalculateViewValues = PF_CalculateViewValues;
 		globals.ClearViewScene = PF_ClearViewScene;
-		globals.PrepareViewEntities = PF_PrepareViewEntites;
+		globals.PrepareViewEntities = PF_PrepareViewEntities;
+		globals.GetViewRenderDefinitionFlags = PF_GetViewRenderDefinitionFlags;
 
 		globals.entity_size = sizeof( centity_t );
 

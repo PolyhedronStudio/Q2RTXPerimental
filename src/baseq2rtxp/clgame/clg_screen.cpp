@@ -1616,7 +1616,7 @@ static void SCR_DrawDamageDisplays( void ) {
 
         const double lerpFraction = ( entry->time - clgi.GetRealTime() ) / scr_damage_indicator_time->value;
 
-        float clientYawAngle = clgi.client->predictedState.currentPs.viewangles[ YAW ];
+        float clientYawAngle = game.predictedState.currentPs.viewangles[ YAW ];
         //vec3_t angles;
         //vectoangles2( entry->dir, angles );
         //Vector3 angles = QM_Vector3ToAngles( entry->dir );

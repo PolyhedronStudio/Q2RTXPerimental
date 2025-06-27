@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 #include "svg_mmove.h"
 #include "svg_mmove_slidemove.h"
@@ -20,28 +21,28 @@
 /**
 *	@brief	Clips trace against world only.
 **/
-const trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask ) {
+const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
 	//return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
 	// Clip against world.
-	return gi.clip( &g_edicts[ 0 ], &start.x, &mins.x, &maxs.x, &end.x, contentMask );
+	return SVG_Clip( g_edict_pool.EdictForNumber( 0 ) /* worldspawn */, start, mins, maxs, end, contentMask);
 }
 
 /**
 *	@brief	Determines the mask to use and returns a trace doing so.
 **/
-const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, contents_t contentMask ) {
+const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask ) {
 	//// Spectators only clip against world, so use clip instead.
 	//if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
-	//	return PM_Clip( start, mins, maxs, end, MASK_SOLID );
+	//	return PM_Clip( start, mins, maxs, end, CM_CONTENTMASK_SOLID );
 	//}
 
 	if ( contentMask == CONTENTS_NONE ) {
 		//	if ( pm->playerState->pmove.pm_type == PM_DEAD || pm->playerState->pmove.pm_type == PM_GIB ) {
-		//		contentMask = MASK_DEADSOLID;
+		//		contentMask = CM_CONTENTMASK_DEADSOLID;
 		//	} else if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
-		//		contentMask = MASK_SOLID;
+		//		contentMask = CM_CONTENTMASK_SOLID;
 		//	} else {
-		contentMask = MASK_MONSTERSOLID;
+		contentMask = CM_CONTENTMASK_MONSTERSOLID;
 		//	}
 
 		//	//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
@@ -49,7 +50,7 @@ const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const 
 	}
 
 	//return pm->trace( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, pm->player, contentMask );
-	return gi.trace( &start.x, &mins.x, &maxs.x, &end.x, passEntity, contentMask );
+	return SVG_Trace( start, mins, maxs, end, passEntity, contentMask );
 }
 
 
@@ -64,7 +65,7 @@ const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const 
 /**
 *	@return True if the trace yielded a step, false otherwise.
 **/
-static bool MMove_CheckStep( const trace_t *trace ) {
+static bool MMove_CheckStep( const svg_trace_t *trace ) {
 	// If not solid:
 	if ( !trace->allsolid ) {
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
@@ -81,7 +82,7 @@ static bool MMove_CheckStep( const trace_t *trace ) {
 *	@brief	Will step to the trace its end position, calculating the height difference and
 *			setting it as our step_height if it is equal or above the minimal step size.
 **/
-static void MMove_StepDown( mm_move_t *monsterMove, const trace_t *trace ) {
+static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 	// Apply the trace endpos as the new origin.
 	monsterMove->state.origin = trace->endpos;
 
@@ -103,7 +104,7 @@ static void MMove_StepDown( mm_move_t *monsterMove, const trace_t *trace ) {
 *			Does not modify any world state?
 **/
 const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
-	trace_t trace = {};
+	svg_trace_t trace = {};
 	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
 
@@ -145,7 +146,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
 	if ( !trace.allsolid ) {
 		// [Paril-KEX] from above, do the proper trace now
-		trace_t real_trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster );
+		svg_trace_t real_trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster );
 		//pml.origin = real_trace.endpos;
 
 		// WID: Use proper stair step checking.
@@ -179,7 +180,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 
 	// Paril: step down stairs/slopes
 	if ( ( monsterMove->state.mm_flags & MMF_ON_GROUND ) && !( monsterMove->state.mm_flags & MMF_ON_LADDER ) &&
-		( monsterMove->liquid.level < liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
+		( monsterMove->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
 		Vector3 down = monsterMove->state.origin - Vector3{ 0.f, 0.f, MM_MAX_STEP_SIZE };
 		trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
 
@@ -194,8 +195,14 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 		}
 	}
 
+	if ( monsterMove->state.gravity > 0 ) {
+		monsterMove->state.velocity.z = 0;
+	} else {
+		monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
+	}
+
 	// Apply gravity after having stored original startVelocity.
-	monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
+	//monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
 
 	return blockedMask;
 }
@@ -221,7 +228,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
 **/
-void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed ) {
+void SVG_MMove_FaceIdealYaw( svg_base_edict_t *ent, const float idealYaw, const float yawSpeed ) {
 	// Get angle modded angles.
 	const float currentYawAngle = QM_AngleMod( ent->s.angles[ YAW ] );
 
@@ -230,16 +237,16 @@ void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yaw
 		return;
 	}
 
-	float yawAngleMove = idealYaw - currentYawAngle;
+	double yawAngleMove = idealYaw - currentYawAngle;
 
 	// Prevent the monster from rotating a full circle around the yaw.
 	// Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
-	yawAngleMove = QM_Wrapf( yawAngleMove, -180.f, 180.f );
+	yawAngleMove = QM_Wrap( yawAngleMove, -180., 180. );
 	#if 0
 	if (ideal > current) { if ( yawAngleMove >= 180 ) { yawAngleMove = yawAngleMove - 360; } } else { if ( yawAngleMove <= -180 ) { yawAngleMove = yawAngleMove + 360; } }
 	#endif
 	// Clamp the yaw move speed.
-	yawAngleMove = QM_Clampf( yawAngleMove, -yawSpeed, yawSpeed );
+	yawAngleMove = QM_Clamp( yawAngleMove, (double) - yawSpeed, (double)yawSpeed );
 	#if 0
 	if (move > 0) { if ( yawAngleMove > yawSpeed ) { yawAngleMove = yawSpeed; } } else { if ( yawAngleMove < -yawSpeed ) { yawAngleMove = -yawSpeed; }
 	#endif

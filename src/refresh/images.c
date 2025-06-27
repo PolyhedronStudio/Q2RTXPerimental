@@ -1549,19 +1549,21 @@ image_t *IMG_FindExisting(const char *name, imagetype_t type)
 
     if (!name) {
         Com_Error(ERR_FATAL, "%s: NULL", __func__);
+        return R_NOTEXTURE;
     }
 
     // this should never happen
     len = strlen(name);
     if (len >= MAX_QPATH) {
         Com_Error(ERR_FATAL, "%s: oversize name", __func__);
+        return R_NOTEXTURE;
     }
 
     // must have an extension and at least 1 char of base name
     if (len <= 4) {
         return R_NOTEXTURE;
     }
-    if (name[len - 4] != '.') {
+    if (len > 4 && name && name[len - 4] != '.') {
         return R_NOTEXTURE;
     }
 

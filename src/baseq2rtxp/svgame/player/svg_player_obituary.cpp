@@ -6,13 +6,15 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/player/svg_player_obituary.h"
 
+#include "sharedgame/sg_means_of_death.h"
 
 
 /**
 *   @brief  
 **/
-void SVG_Player_Obituary( edict_t *self, edict_t *inflictor, edict_t *attacker ) {
+void SVG_Player_Obituary( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker ) {
     sg_means_of_death_t meansOfDeath = MEANS_OF_DEATH_UNKNOWN;
 
     // WID: TODO: In the future, use a gamemode callback for testing if it was friendly fire.

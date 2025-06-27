@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
@@ -29,12 +30,12 @@ so, the basic time between firing is a random time between
 
 These can used but not touched.
 */
-void func_timer_think( edict_t *self ) {
+void func_timer_think( svg_base_edict_t *self ) {
     SVG_UseTargets( self, self->activator );
     self->nextthink = level.time + QMTime::FromSeconds( self->wait + crandom() * self->random );
 }
 
-void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void func_timer_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
     self->activator = activator;
 
     // if on, turn it off
@@ -50,12 +51,12 @@ void func_timer_use( edict_t *self, edict_t *other, edict_t *activator, const en
         func_timer_think( self );
 }
 
-void SP_func_timer( edict_t *self ) {
+void SP_func_timer( svg_base_edict_t *self ) {
     if ( !self->wait )
         self->wait = 1.0f;
 
-    self->use = func_timer_use;
-    self->think = func_timer_think;
+    self->SetUseCallback( func_timer_use );
+    self->SetThinkCallback( func_timer_think );
 
     if ( self->random >= self->wait ) {
         self->random = self->wait - gi.frame_time_s;
@@ -63,7 +64,7 @@ void SP_func_timer( edict_t *self ) {
     }
 
     if ( self->spawnflags & 1 ) {
-        self->nextthink = level.time + 1_sec + QMTime::FromMilliseconds( st.pausetime + self->delay + self->wait + crandom() * self->random );
+        self->nextthink = level.time + 1_sec + QMTime::FromMilliseconds( self->pausetime.seconds() + self->delay + self->wait + crandom() * self->random);
         self->activator = self;
     }
 

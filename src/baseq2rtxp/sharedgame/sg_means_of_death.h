@@ -13,9 +13,9 @@
 /**
 *   @brief  Indicates the cause/reason/method of the entity's death.
 **/
-typedef enum {
+typedef enum sg_means_of_death_e {
     //! Unknown reasons.
-    MEANS_OF_DEATH_UNKNOWN,
+    MEANS_OF_DEATH_UNKNOWN = 0, // 0.
 
     //! When fists(or possibly in the future kicks) were the means of death.
     MEANS_OF_DEATH_HIT_FIGHTING,

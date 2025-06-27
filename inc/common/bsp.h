@@ -26,11 +26,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *	See: /shared/format_bsp.h
 *
 **/
+#pragma once
 
-#ifndef BSP_H
-#define BSP_H
 
-#include "shared/util_list.h"
+
+#include "shared/util/util_list.h"
 #include "common/error.h"
 #include "system/hunk.h"
 
@@ -45,7 +45,7 @@ const char *BSP_ErrorString(int err);
 // Also moved to shared/format_bsp.h
 //typedef struct {
 //    mface_t     *surf;
-//    cplane_t    plane;
+//    cm_plane_t    plane;
 //    float       s, t;
 //    float       fraction;
 //} lightpoint_t;
@@ -68,5 +68,3 @@ void BSP_Init(void);
 
 // Extern C
 QEXTERN_C_CLOSE
-
-#endif // BSP_H

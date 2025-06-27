@@ -73,8 +73,8 @@ void monster_fire_rocket( edict_t *self, vec3_t start, vec3_t dir, int damage, i
 }
 
 void monster_fire_railgun( edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int flashtype ) {
-	contents_t contents = gi.pointcontents( start );
-	if ( contents & (const contents_t)MASK_SOLID )
+	cm_contents_t contents = gi.pointcontents( start );
+	if ( contents & (const cm_contents_t)CM_CONTENTMASK_SOLID )
 		return;
 
 	fire_rail( self, start, aimdir, damage, kick );
@@ -132,9 +132,9 @@ void AttackFinished(edict_t *self, QMTime time)
 }
 
 
-void M_CheckGround( edict_t *ent, const contents_t mask ) {
+void M_CheckGround( edict_t *ent, const cm_contents_t mask ) {
 	vec3_t      point;
-	trace_t     trace;
+	cm_trace_t     trace;
 
 	// Swimming and flying monsters don't check for ground.
 	if ( ent->flags & ( FL_SWIM | FL_FLY ) ) {
@@ -173,32 +173,32 @@ void M_CheckGround( edict_t *ent, const contents_t mask ) {
 }
 
 
-void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, liquid_level_t &liquidlevel, contents_t &liquidtype ) {
+void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, cm_liquid_level_t &liquidlevel, cm_contents_t &liquidtype ) {
 	//
 	// get liquidlevel
 	//
 	Vector3 point = in_point + Vector3{ 0.f, 0.f, ent->mins[ 2 ] + 1 };
-	contents_t cont = gi.pointcontents( &point.x );
+	cm_contents_t cont = gi.pointcontents( &point.x );
 
-	if ( !( cont & MASK_WATER ) ) {
-		liquidlevel = liquid_level_t::LIQUID_NONE;
+	if ( !( cont & CM_CONTENTMASK_WATER ) ) {
+		liquidlevel = cm_liquid_level_t::LIQUID_NONE;
 		liquidtype = CONTENTS_NONE;
 		return;
 	}
 
 	liquidtype = cont;
-	liquidlevel = liquid_level_t::LIQUID_FEET;
+	liquidlevel = cm_liquid_level_t::LIQUID_FEET;
 	point.z += 26;
 	cont = gi.pointcontents( &point.x );
-	if ( !( cont & MASK_WATER ) ) {
+	if ( !( cont & CM_CONTENTMASK_WATER ) ) {
 		return;
 	}
 
-	liquidlevel = liquid_level_t::LIQUID_WAIST;
+	liquidlevel = cm_liquid_level_t::LIQUID_WAIST;
 	point[ 2 ] += 22;
 	cont = gi.pointcontents( &point.x );
-	if ( cont & MASK_WATER ) {
-		liquidlevel = liquid_level_t::LIQUID_UNDER;
+	if ( cont & CM_CONTENTMASK_WATER ) {
+		liquidlevel = cm_liquid_level_t::LIQUID_UNDER;
 	}
 }
 
@@ -279,9 +279,9 @@ void M_WorldEffects( edict_t *ent ) {
 
 void M_droptofloor( edict_t *ent ) {
 	vec3_t      end;
-	trace_t     trace;
+	cm_trace_t     trace;
 
-	contents_t mask = SVG_GetClipMask( ent );
+	cm_contents_t mask = SVG_GetClipMask( ent );
 
 	ent->s.origin[ 2 ] += 1;
 	VectorCopy( ent->s.origin, end );
@@ -599,7 +599,7 @@ bool monster_start( edict_t *self ) {
     self->air_finished_time = level.time + 12_sec;
     self->use = monster_use;
     self->max_health = self->health;
-    self->clipmask = MASK_MONSTERSOLID;
+    self->clipmask = CM_CONTENTMASK_MONSTERSOLID;
 
 	self->s.skinnum = 0;
 	self->lifeStatus = LIFESTATUS_ALIVE;
@@ -610,7 +610,7 @@ bool monster_start( edict_t *self ) {
 	VectorCopy( self->s.origin, self->s.old_origin );
 
 	if ( st.item ) {
-		self->item = SVG_FindItemByClassname( st.item );
+		self->item = SVG_Item_FindByClassName( st.item );
 		if ( !self->item )
 			gi.dprintf( "%s at %s has bad item: %s\n", self->classname, vtos( self->s.origin ), st.item );
 	}
@@ -637,7 +637,7 @@ void monster_start_go( edict_t *self ) {
 		target = NULL;
 		notcombat = false;
 		fixup = false;
-		while ( ( target = SVG_Find( target, FOFS_GENTITY( targetname ), self->targetNames.target ) ) != NULL ) {
+		while ( ( target = SVG_Entities_Find( target, FOFS_GENTITY( targetname ), self->targetNames.target ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) == 0 ) {
 				self->targetNames.combat = self->targetNames.target;
 				fixup = true;
@@ -656,7 +656,7 @@ void monster_start_go( edict_t *self ) {
 		edict_t *target;
 
 		target = NULL;
-		while ( ( target = SVG_Find( target, FOFS_GENTITY( targetname ), self->targetNames.combat ) ) != NULL ) {
+		while ( ( target = SVG_Entities_Find( target, FOFS_GENTITY( targetname ), self->targetNames.combat ) ) != NULL ) {
 			if ( strcmp( target->classname, "point_combat" ) != 0 ) {
 				gi.dprintf( "%s at %s has a bad targetNames.combat %s : %s at %s\n",
 						   self->classname, vtos( self->s.origin ),

@@ -98,24 +98,14 @@ static void SV_EmitPacketEntities(client_t         *client,
             // In case of a Player Entity:
             if (newnum <= client->maxclients) {
                 // WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_NEWENTITY );
+				flags |= MSG_ES_NEWENTITY;
             }
             // In case this is our own client entity, update the new ent's origin and angles.
             if (newnum == clientEntityNumber) {
-                //flags |= MSG_ES_FIRSTPERSON;
-				// WID: C++20:
-				//flags |= MSG_ES_NEWENTITY;
-				flags = static_cast<msgEsFlags_t>( flags | MSG_ES_FIRSTPERSON );
-                VectorCopy(oldent->origin, newent->origin);
+                flags |= MSG_ES_FIRSTPERSON;
+				VectorCopy(oldent->origin, newent->origin);
                 VectorCopy(oldent->angles, newent->angles);
             }
-            //if (Q2PRO_SHORTANGLES(client, newnum)) {
-            //  //flags |= MSG_ES_SHORTANGLES;
-			//	// WID: C++20:
-			//	//flags |= MSG_ES_NEWENTITY;
-			//	flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-			//}
             MSG_WriteDeltaEntity(oldent, newent, flags);
             oldindex++;
             newindex++;
@@ -124,11 +114,7 @@ static void SV_EmitPacketEntities(client_t         *client,
 
         // The old entity is present in the current frame.
         if ( newnum < oldnum ) {
-            // this is a new entity, send it from the baseline
-            //flags = client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY;
-            // WID: C++20:
-            //flags |= MSG_ES_NEWENTITY;
-            flags = (msgEsFlags_t)( client->esFlags | MSG_ES_FORCE | MSG_ES_NEWENTITY );
+            flags |= MSG_ES_FORCE | MSG_ES_NEWENTITY;
             oldent = client->baselines[ newnum >> SV_BASELINES_SHIFT ];
             if ( oldent ) {
                 oldent += ( newnum & SV_BASELINES_MASK );
@@ -137,19 +123,10 @@ static void SV_EmitPacketEntities(client_t         *client,
             }
             // In case this is our own client entity, update the new ent's origin and angles.
             if ( newnum == clientEntityNumber ) {
-                //flags |= MSG_ES_FIRSTPERSON;
-                // WID: C++20:
-                //flags |= MSG_ES_NEWENTITY;
-                flags = (msgEsFlags_t)( flags | MSG_ES_FIRSTPERSON );
+                flags |= MSG_ES_FIRSTPERSON;
                 VectorCopy( oldent->origin, newent->origin );
                 VectorCopy( oldent->angles, newent->angles );
             }
-            //if (Q2PRO_SHORTANGLES(client, newnum)) {
-            //  //flags |= MSG_ES_SHORTANGLES;
-            //  // WID: C++20:
-            //  //flags |= MSG_ES_NEWENTITY;
-            //  //flags = static_cast<msgEsFlags_t>( flags | MSG_ES_SHORTANGLES );
-            //}
             MSG_WriteDeltaEntity( oldent, newent, flags );
             newindex++;
             continue;
@@ -243,7 +220,7 @@ void SV_WriteFrameToClient( client_t *client ) {
         // PortalBits frame message.
         MSG_WriteUint8( svc_portalbits );
         // Clean zeroed memory portal bits buffer for writing.
-        byte portalBits[ MAX_MAP_PORTAL_BYTES ];// = { 0 };
+        static byte portalBits[ MAX_MAP_PORTAL_BYTES ] = { };
         memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
         // Write the current portal bit states to the portalBits buffer.
         int32_t numPortalBits = CM_WritePortalBits( &sv.cm, portalBits );
@@ -258,7 +235,7 @@ void SV_WriteFrameToClient( client_t *client ) {
 
 	// delta encode the entities
 	MSG_WriteUint8( svc_packetentities );
-	SV_EmitPacketEntities( client, oldFrame, newFrame, 0/*clientEntityNumber*/ );
+	SV_EmitPacketEntities( client, oldFrame, newFrame, 0/*newFrame->clientNum*/);
 }
 
 
@@ -282,21 +259,23 @@ void SV_BuildClientFrame(client_t *client)
 {
     int         e, i;
     vec3_t      org;
-    edict_t     *ent;
-    edict_t     *clent;
+    sv_edict_t     *ent;
+    sv_edict_t     *clent;
     sv_client_frame_t  *frame;
     entity_packed_t *state;
     player_state_t  *ps;
 	entity_state_t  es;
     int         clientarea, clientcluster;
     mleaf_t     *leaf;
-    byte        clientphs[VIS_MAX_BYTES];
-    byte        clientpvs[VIS_MAX_BYTES];
+    static byte        clientphs[VIS_MAX_BYTES];
+    memset( clientphs, 0, sizeof( clientphs ) );
+    static byte        clientpvs[VIS_MAX_BYTES];
+    memset( clientphs, 0, sizeof( clientpvs ) );
     bool    ent_visible;
     int cull_nonvisible_entities = Cvar_Get("sv_cull_nonvisible_entities", "1", CVAR_CHEAT)->integer;
     bool        need_clientnum_fix;
 
-    clent = client->edict;
+    clent = EDICT_FOR_NUMBER( client->number + 1 ); //client->edict;
     if (!clent->client)
         return;        // not in game yet
 
@@ -330,22 +309,28 @@ void SV_BuildClientFrame(client_t *client)
     MSG_PackPlayer(&frame->ps, ps);
 
     // grab the current clientNum
-    //if (g_features->integer & GMF_CLIENTNUM) {
-    //    frame->clientNum = clent->client->clientNum;
-    //    if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
-    //        Com_WPrintf("%s: bad clientNum %d for client %d\n",
-    //                    __func__, frame->clientNum, client->number);
-    //        frame->clientNum = client->number;
-    //    }
-    //} else {
+    if (g_features->integer & GMF_CLIENTNUM) {
+        frame->clientNum = clent->client->clientNum;
+        if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
+            Com_WPrintf("%s: bad clientNum %d for client %d\n",
+                        __func__, frame->clientNum, client->number);
+            frame->clientNum = client->number;
+        }
+    } else {
+        // <Q2RTXP>: WID: TODO: Do we need this? Probably best to test on dedicated server then.
+        //frame->clientNum = clent->client->clientNum;;
         frame->clientNum = client->number;
-    //}
+    }
 
     // fix clientNum if out of range for older version of Q2PRO protocol
     //need_clientnum_fix = client->protocol == PROTOCOL_VERSION_Q2PRO
     //    && client->version < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT
     //    && frame->clientNum >= CLIENTNUM_NONE;
-	need_clientnum_fix = false;
+    if ( frame->clientNum >= CLIENTNUM_NONE ) {
+        need_clientnum_fix = true;
+    } else {
+        need_clientnum_fix = false;
+    }
 
 	if (clientcluster >= 0)
 	{
@@ -441,7 +426,7 @@ void SV_BuildClientFrame(client_t *client)
 			ent->s.number = e;
 		}
 
-		memcpy(&es, &ent->s, sizeof(entity_state_t));
+        es = ent->s;//memcpy(&es, &ent->s, sizeof(entity_state_t));
 
 		if (!ent_visible) {
 			// if the entity is invisible, kill its sound

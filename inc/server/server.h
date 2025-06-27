@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef SERVER_H
-#define SERVER_H
 
 #include "common/net/net.h"
 
@@ -52,5 +51,3 @@ void SV_SetConsoleTitle(void);
 #if USE_CLIENT
 char *SV_GetSaveInfo(const char *dir);
 #endif
-
-#endif // SERVER_H

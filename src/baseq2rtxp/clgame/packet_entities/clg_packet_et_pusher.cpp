@@ -10,6 +10,9 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
 
+#include "sharedgame/sg_entity_effects.h"
+
+
 
 /**
 *   @brief  Adds trail effects to the entity.

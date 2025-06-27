@@ -348,13 +348,16 @@ static void SV_InitGame_Init( ) {
 	// initialize
 	ge->Init( );
 
-	// sanitize edict_size
-	if ( ge->edict_size < sizeof( edict_t ) || ge->edict_size >( unsigned )INT_MAX / MAX_EDICTS ) {
-		Com_Error( ERR_DROP, "ServerGame library returned bad size of edict_t" );
-	}
+	//// Sanitize edict_size.
+	//if ( ge->edictPool.edict_size < sizeof( sv_edict_t ) || ge->edictPool.edict_size > ( uint64_t )UINT64_MAX / MAX_EDICTS ) {
+	//	Com_Error( ERR_DROP, "ServerGame library returned bad size of sv_edict_t" );
+	//}
+    if ( !ge->edictPool ) {
+        Com_Error( ERR_DROP, "ServerGame library returned (nullptr) ge->edictPool" );
+    }
 
-	// sanitize max_edicts
-	if ( ge->max_edicts <= sv_maxclients->integer || ge->max_edicts > MAX_EDICTS ) {
+	// Sanitize max_edicts.
+	if ( ge->edictPool->max_edicts <= sv_maxclients->integer || ge->edictPool->max_edicts > MAX_EDICTS ) {
 		Com_Error( ERR_DROP, "ServerGame library returned bad number of max_edicts" );
 	}
 
@@ -382,7 +385,7 @@ void cvar_gamemode_changed( cvar_t *self ) {
 
         // Invalid somehow.
         Com_WPrintf( "%s: tried to assign a non valid gamemode type ID(#%i), resorting to default(#%i, %s)\n",
-            __func__, gamemode->integer, gamemode->integer, ge->GetGamemodeName( gamemode->integer) );
+            __func__, gamemode->integer, gamemode->integer, ge->GetGameModeName( gamemode->integer) );
     }
 }
 /*
@@ -396,7 +399,7 @@ If mvd_spawn is non-zero, load the built-in MVD game module.
 void SV_InitGame()
 {
     int     i, entnum;
-    edict_t *ent;
+    sv_edict_t *ent;
     client_t *client;
 
     if (svs.initialized) {
@@ -430,7 +433,7 @@ void SV_InitGame()
     // Ensure the gamemode is valid.
     if ( !ge->IsValidGameModeType( Cvar_VariableInteger( "gamemode" ) ) ) {
         // Warn.
-        Com_WPrintf( "Invalid gamemode detected, defaulting to %s\n", ge->GetGamemodeName( 0 ) );
+        Com_WPrintf( "Invalid gamemode detected, defaulting to %s\n", ge->GetGameModeName( 0 ) );
 
         // Set to singleplayer.
         Cvar_Set( "gamemode", "0" );
@@ -443,8 +446,8 @@ void SV_InitGame()
             const int32_t newGameModeID = ge->GetDefaultMultiplayerGamemodeType();
             // Warn.
             Com_WPrintf( "Can't do %s on a dedicated server. Defaulting to %s\n",
-                ge->GetGamemodeName( Cvar_VariableInteger( "gamemode" ) ),
-                ge->GetGamemodeName( newGameModeID ) );
+                ge->GetGameModeName( Cvar_VariableInteger( "gamemode" ) ),
+                ge->GetGameModeName( newGameModeID ) );
 
             std::string gameModeStr = std::to_string( newGameModeID );
             Cvar_Set( "gamemode", gameModeStr.c_str() );

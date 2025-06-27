@@ -62,7 +62,7 @@ bool SVG_OnSameTeam(edict_t *ent1, edict_t *ent2)
 
 void SVG_Inventory_SelectNextItem(edict_t *ent, int itflags)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         i, index;
     gitem_t     *it;
 
@@ -93,7 +93,7 @@ void SVG_Inventory_SelectNextItem(edict_t *ent, int itflags)
 
 void SVG_Inventory_SelectPrevItem(edict_t *ent, int itflags)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         i, index;
     gitem_t     *it;
 
@@ -124,7 +124,7 @@ void SVG_Inventory_SelectPrevItem(edict_t *ent, int itflags)
 
 void SVG_Inventory_ValidateSelectedItem(edict_t *ent)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
 
     cl = ent->client;
 
@@ -194,7 +194,7 @@ void Cmd_Give_f(edict_t *ent)
                 continue;
             if (!(it->flags & IT_AMMO))
                 continue;
-            Add_Ammo(ent, it, 1000);
+            SVG_ItemAmmo_Add(ent, it, 1000);
         }
         if (!give_all)
             return;
@@ -203,13 +203,13 @@ void Cmd_Give_f(edict_t *ent)
     if (give_all || Q_stricmp(name, "armor") == 0) {
         gitem_armor_t   *info;
 
-        it = SVG_FindItem("Jacket Armor");
+        it = SVG_Item_FindByPickupName("Jacket Armor");
         ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-        it = SVG_FindItem("Combat Armor");
+        it = SVG_Item_FindByPickupName("Combat Armor");
         ent->client->pers.inventory[ITEM_INDEX(it)] = 0;
 
-        it = SVG_FindItem("Body Armor");
+        it = SVG_Item_FindByPickupName("Body Armor");
         info = (gitem_armor_t *)it->info;
         ent->client->pers.inventory[ITEM_INDEX(it)] = info->max_count;
 
@@ -218,10 +218,10 @@ void Cmd_Give_f(edict_t *ent)
     }
 
     if (give_all || Q_stricmp(name, "Power Shield") == 0) {
-        it = SVG_FindItem("Power Shield");
+        it = SVG_Item_FindByPickupName("Power Shield");
         it_ent = SVG_AllocateEdict();
         it_ent->classname = it->classname;
-        SVG_SpawnItem(it_ent, it);
+        SVG_Item_Spawn(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
         if (it_ent->inuse)
             SVG_FreeEdict(it_ent);
@@ -242,10 +242,10 @@ void Cmd_Give_f(edict_t *ent)
         return;
     }
 
-    it = SVG_FindItem(name);
+    it = SVG_Item_FindByPickupName(name);
     if (!it) {
         name = gi.argv(1);
-        it = SVG_FindItem(name);
+        it = SVG_Item_FindByPickupName(name);
         if (!it) {
             gi.cprintf(ent, PRINT_HIGH, "unknown item\n");
             return;
@@ -267,7 +267,7 @@ void Cmd_Give_f(edict_t *ent)
     } else {
         it_ent = SVG_AllocateEdict();
         it_ent->classname = it->classname;
-        SVG_SpawnItem(it_ent, it);
+        SVG_Item_Spawn(it_ent, it);
         Touch_Item(it_ent, ent, NULL, NULL);
         if (it_ent->inuse)
             SVG_FreeEdict(it_ent);
@@ -361,7 +361,7 @@ void Cmd_Use_f(edict_t *ent)
     char        *s;
 
     s = gi.args();
-    it = SVG_FindItem(s);
+    it = SVG_Item_FindByPickupName(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -394,7 +394,7 @@ void Cmd_Drop_f(edict_t *ent)
     char        *s;
 
     s = gi.args();
-    it = SVG_FindItem(s);
+    it = SVG_Item_FindByPickupName(s);
     if (!it) {
         gi.cprintf(ent, PRINT_HIGH, "unknown item: %s\n", s);
         return;
@@ -421,7 +421,7 @@ Cmd_Inven_f
 void Cmd_Inven_f(edict_t *ent)
 {
     int         i;
-    gclient_t   *cl;
+    svg_client_t   *cl;
 
     cl = ent->client;
 
@@ -473,7 +473,7 @@ Cmd_WeapPrev_f
 */
 void Cmd_WeapPrev_f(edict_t *ent)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         i, index;
     gitem_t     *it;
     int         selected_weapon;
@@ -508,7 +508,7 @@ Cmd_WeapNext_f
 */
 void Cmd_WeapNext_f(edict_t *ent)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         i, index;
     gitem_t     *it;
     int         selected_weapon;
@@ -543,7 +543,7 @@ Cmd_WeapLast_f
 */
 void Cmd_WeapLast_f(edict_t *ent)
 {
-    gclient_t   *cl;
+    svg_client_t   *cl;
     int         index;
     gitem_t     *it;
 
@@ -570,14 +570,14 @@ Cmd_WeapFlare_f
 */
 void Cmd_WeapFlare_f(edict_t* ent)
 {
-    gclient_t* cl;
+    svg_client_t* cl;
     gitem_t* it;
 
     cl = ent->client;
     if (cl->pers.weapon && strcmp(cl->pers.weapon->pickup_name, "Flare Gun") == 0) {
         Cmd_WeapLast_f(ent);
     } else {
-        it = SVG_FindItem("Flare Gun");
+        it = SVG_Item_FindByPickupName("Flare Gun");
         it->use(ent, it);
     }
 }
@@ -749,7 +749,7 @@ static bool FloodProtect(edict_t *ent)
 	int     i;
 	//edict_t *other;
 	//char    text[ 2048 ];
-	gclient_t *cl;
+	svg_client_t *cl;
 
 	if ( flood_msgs->value ) {
 		cl = ent->client;

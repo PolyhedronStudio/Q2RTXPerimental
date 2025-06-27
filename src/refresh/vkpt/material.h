@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 #include <shared/shared.h>
-#include <shared/util_list.h>
+#include <shared/util/util_list.h>
 #include <refresh/refresh.h>
 
 #define MAX_PBR_MATERIALS 4096

@@ -7,66 +7,72 @@
 **/
 #pragma once
 
+// Forward declare.
+struct Vector3;
 
+// For checking for a 'null reference' of type Vector3.
+extern const Vector3 qm_vector3_null;
 
 // Vector with components value 0.0f
-QM_API Vector3 QM_Vector3Zero( void ) {
-    const Vector3 result = { 0.0f, 0.0f, 0.0f };
-
+QM_API_CONSTEXPR Vector3 QM_Vector3Zero( void ) {
+	Vector3 result = { 0.0f, 0.0f, 0.0f };
     return result;
 }
 
 // Vector with components value 1.0f
-QM_API Vector3 QM_Vector3One( void ) {
-    const Vector3 result = { 1.0f, 1.0f, 1.0f };
-
+QM_API_CONSTEXPR Vector3 QM_Vector3One( void ) {
+    Vector3 result = { 1.0f, 1.0f, 1.0f };
     return result;
 }
 
 // Vector3 with x and y component of Vector2.
+#ifdef __cplusplus
 QM_API Vector2 QM_Vector2FromVector3( const Vector3 &v1 ) {
     const Vector2 result = { v1.x, v1.y };
-
     return result;
 }
+#endif
 
 // Add two vectors
-QM_API Vector3 QM_Vector3Add( const Vector3 &v1, const Vector3 &v2 ) {
-    const Vector3 result = { v1.x + v2.x, v1.y + v2.y, v1.z + v2.z };
-
+QM_API_CONSTEXPR Vector3 QM_Vector3Add( const Vector3 &v1, const Vector3 &v2 ) {
+    Vector3 result = { 
+        v1.x + v2.x, 
+        v1.y + v2.y, 
+        v1.z + v2.z 
+    };
     return result;
 }
 
 // Add vector and float value
-QM_API Vector3 QM_Vector3AddValue( const Vector3 &v, const float add ) {
-    const Vector3 result = { v.x + add, v.y + add, v.z + add };
+QM_API_CONSTEXPR Vector3 QM_Vector3AddValue( const Vector3 &v, const float add ) {
+    Vector3 result = { v.x + add, v.y + add, v.z + add };
 
     return result;
 }
 
 // Subtract two vectors
-QM_API Vector3 QM_Vector3Subtract( const Vector3 &v1, const Vector3 &v2 ) {
-    const Vector3 result = { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
+QM_API_CONSTEXPR Vector3 QM_Vector3Subtract( const Vector3 &v1, const Vector3 &v2 ) {
+    Vector3 result = { v1.x - v2.x, v1.y - v2.y, v1.z - v2.z };
 
     return result;
 }
 
 // Subtract vector by float value
-QM_API Vector3 QM_Vector3SubtractValue( const Vector3 &v, const float sub ) {
+QM_API_CONSTEXPR Vector3 QM_Vector3SubtractValue( const Vector3 &v, const float sub ) {
     Vector3 result = { v.x - sub, v.y - sub, v.z - sub };
 
     return result;
 }
 
 // Multiply vector by scalar
-QM_API Vector3 QM_Vector3Scale( const Vector3 &v, const float scalar ) {
+QM_API_CONSTEXPR Vector3 QM_Vector3Scale( const Vector3 &v, const float scalar ) {
     Vector3 result = { v.x * scalar, v.y * scalar, v.z * scalar };
 
     return result;
 }
 
 // Multiply vector by vector
-QM_API Vector3 QM_Vector3Multiply( const Vector3 &v1, const Vector3 &v2 ) {
+QM_API_CONSTEXPR Vector3 QM_Vector3Multiply( const Vector3 &v1, const Vector3 &v2 ) {
     Vector3 result = { v1.x * v2.x, v1.y * v2.y, v1.z * v2.z };
 
     return result;
@@ -92,7 +98,7 @@ QM_API Vector3 QM_Vector3MultiplyAdd( const Vector3 &v, const float multiply, co
 }
 
 // Calculate two vectors cross product
-QM_API Vector3 QM_Vector3CrossProduct( const Vector3 &v1, const Vector3 &v2 ) {
+QM_API_CONSTEXPR Vector3 QM_Vector3CrossProduct( const Vector3 &v1, const Vector3 &v2 ) {
     Vector3 result = { v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x };
 
     return result;
@@ -198,24 +204,18 @@ QM_API float QM_Vector3Angle( const Vector3 &v1, const Vector3 &v2 ) {
 }
 
 // Negate provided vector (invert direction)
-QM_API Vector3 QM_Vector3Negate( const Vector3 &v ) {
-    const Vector3 result = { -v.x, -v.y, -v.z };
-
-    return result;
+[[nodiscard]] constexpr inline const Vector3 QM_Vector3Negate( const Vector3 &v ) {
+    return { -v.x, -v.y, -v.z };
 }
 
 // Divide vector by vector
-QM_API Vector3 QM_Vector3Divide( const Vector3 &v1, const Vector3 &v2 ) {
-    const Vector3 result = { v1.x / v2.x, v1.y / v2.y, v1.z / v2.z };
-
-    return result;
+[[nodiscard]] constexpr inline const Vector3 &QM_Vector3Divide( const Vector3 &v1, const Vector3 &v2 ) {
+    return { v1.x / v2.x, v1.y / v2.y, v1.z / v2.z };
 }
 
 // Q2RTXPerimental: Divide vector by vector
-QM_API Vector3 QM_Vector3DivideValue( const Vector3 &v1, const float scalar ) {
-    const Vector3 result = { v1.x / scalar, v1.y / scalar, v1.z / scalar };
-
-    return result;
+[[nodiscard]] constexpr inline const Vector3 &QM_Vector3DivideValue( const Vector3 &v1, const float scalar ) {
+    return { v1.x / scalar, v1.y / scalar, v1.z / scalar };
 }
 
 // Normalize provided vector
@@ -411,7 +411,7 @@ QM_API Vector3 QM_Vector3Lerp( const Vector3 &v1, const Vector3 &v2, const float
 }
 
 // Calculate reflected vector to normal
-QM_API Vector3 QM_Vector3Reflect( const Vector3 &v, const Vector3 &normal ) {
+QM_API_CONSTEXPR Vector3 &QM_Vector3Reflect( const Vector3 &v, const Vector3 &normal ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     // I is the original vector
@@ -428,36 +428,30 @@ QM_API Vector3 QM_Vector3Reflect( const Vector3 &v, const Vector3 &normal ) {
 }
 
 // Get min value for each pair of components
-QM_API Vector3 QM_Vector3Minf( const Vector3 &v1, const Vector3 &v2 ) {
-    Vector3 result = { 0.f, 0.f, 0.f };
-
-    result.x = fminf( v1.x, v2.x );
-    result.y = fminf( v1.y, v2.y );
-    result.z = fminf( v1.z, v2.z );
-
-    return result;
+QM_API_CONSTEXPR Vector3 &QM_Vector3Minf( const Vector3 &v1, const Vector3 &v2 ) {
+    return {
+        std::fmin( v1.x, v2.x ),
+        std::fmin( v1.y, v2.y ),
+        std::fmin( v1.z, v2.z ),
+    };
 }
 
 // Get max value for each pair of components
-QM_API Vector3 QM_Vector3Maxf( const Vector3 &v1, const Vector3 &v2 ) {
-    Vector3 result = { 0.f, 0.f, 0.f };
-
-    result.x = fmaxf( v1.x, v2.x );
-    result.y = fmaxf( v1.y, v2.y );
-    result.z = fmaxf( v1.z, v2.z );
-
-    return result;
+QM_API_CONSTEXPR Vector3 &QM_Vector3Maxf( const Vector3 &v1, const Vector3 &v2 ) {
+    return {
+        std::fmax( v1.x, v2.x ),
+        std::fmax( v1.y, v2.y ),
+        std::fmax( v1.z, v2.z ),
+    };
 }
 
 // Get absolute value for each pair of components
-QM_API Vector3 QM_Vector3Absf( const Vector3 &v ) {
-    Vector3 result = { 0.f, 0.f, 0.f };
-
-    result.x = fabsf( v.x );
-    result.y = fabsf( v.y );
-    result.z = fabsf( v.z );
-
-    return result;
+QM_API_CONSTEXPR Vector3 &QM_Vector3Absf( const Vector3 &v ) {
+    return {
+        std::fabs( v.x ),
+        std::fabs( v.y ),
+        std::fabs( v.z ),
+    };
 }
 
 
@@ -591,7 +585,7 @@ QM_API qfloat3 QM_Vector3ToQFloatV( const Vector3 &v ) {
 
 // Invert the given vector
 QM_API Vector3 QM_Vector3Invert( const Vector3 &v ) {
-    const Vector3 result = { 1.0f / v.x, 1.0f / v.y, 1.0f / v.z };
+    Vector3 result = { 1.0f / v.x, 1.0f / v.y, 1.0f / v.z };
 
     return result;
 }
@@ -634,25 +628,21 @@ QM_API Vector3 QM_Vector3ClampValue( const Vector3 &v, const float min, const fl
 
 // Check whether two given vectors are almost equal
 #ifdef __cplusplus
-QM_API int QM_Vector3EqualsEpsilon( Vector3 p, Vector3 q, const float epsilon = QM_EPSILON ) {
+QM_API int QM_Vector3EqualsEpsilon( const Vector3 &p, const Vector3 &q, const float epsilon = QM_EPSILON ) {
     #else
 QM_API int QM_Vector3EqualsEpsilon( Vector3 p, Vector3 q, const float epsilon ) {
 #endif
-    int result = ( ( fabsf( p.x - q.x ) ) <= ( epsilon * fmaxf( 1.0f, fmaxf( fabsf( p.x ), fabsf( q.x ) ) ) ) ) &&
-        ( ( fabsf( p.y - q.y ) ) <= ( epsilon * fmaxf( 1.0f, fmaxf( fabsf( p.y ), fabsf( q.y ) ) ) ) ) &&
-        ( ( fabsf( p.z - q.z ) ) <= ( epsilon * fmaxf( 1.0f, fmaxf( fabsf( p.z ), fabsf( q.z ) ) ) ) );
+    int result = ( ( std::fabs( p.x - q.x ) ) <= ( epsilon * std::max( 1.0f, std::max( fabsf( p.x ), std::fabs( q.x ) ) ) ) ) &&
+        ( ( std::fabs( p.y - q.y ) ) <= ( epsilon * std::max( 1.0f, std::max( std::fabs( p.y ), std::fabs( q.y ) ) ) ) ) &&
+        ( ( std::fabs( p.z - q.z ) ) <= ( epsilon * std::max( 1.0f, std::max( std::fabs( p.z ), std::fabs( q.z ) ) ) ) );
 
     return result;
 }
-#ifdef __cplusplus
-QM_API int QM_Vector3Equals( Vector3 p, Vector3 q, const float epsilon = QM_EPSILON ) {
-    #else
-QM_API int QM_Vector3Equals( Vector3 p, Vector3 q, const float epsilon ) {
-#endif
-    return QM_Vector3EqualsEpsilon( p, q, epsilon );
+QM_API bool QM_Vector3Equals( const Vector3 &p, const Vector3 &q ) {
+    return QM_Vector3EqualsEpsilon( p, q, QM_EPSILON );
 }
 // Less precise but more performance friendly check.
-QM_API int QM_Vector3EqualsFast( Vector3 p, Vector3 q ) {
+QM_API bool QM_Vector3EqualsFast( const Vector3 &p, const Vector3 &q ) {
     return ( p.x == q.x && p.y == q.y && p.z == q.z );
 }
 
@@ -707,29 +697,29 @@ QM_API float QM_Vector3ToYaw( vec3_t vec ) {
     #else
     QM_API float QM_Vector3ToYaw( vec3_t vec ) {
     #endif
-    float yaw;/*float	tmp, yaw, pitch;*/
+        float yaw;/*float	tmp, yaw, pitch;*/
 
-    if ( /*vec[ YAW ] == 0 &&*/ vec[ PITCH ] == 0 ) {
-        yaw = 0;
-        if ( vec[ YAW ] > 0 ) {
-            yaw = 270;
+        if ( /*vec[ YAW ] == 0 &&*/ vec[ PITCH ] == 0 ) {
+            yaw = 0;
+            if ( vec[ YAW ] > 0 ) {
+                yaw = 270;
+            } else {
+                yaw = 90;
+            }
         } else {
-            yaw = 90;
-        }
-    } else {
-        yaw = ( atan2f( vec[ YAW ], vec[ PITCH ] ) * 180 / M_PI );
-        if ( yaw < 0 ) {//if ( yaw < -180 )
-            yaw += 360;
+            yaw = ( atan2f( vec[ YAW ], vec[ PITCH ] ) * 180 / M_PI );
+            if ( yaw < 0 ) {//if ( yaw < -180 )
+                yaw += 360;
+            }
+
+            //tmp = sqrt( vec[ PITCH ] * vec[ PITCH ] + vec[ YAW ] * vec[ YAW ] );
+            //pitch = ( atan2( -vec[ ROLL ], tmp ) * 180 / M_PI );
+            //if ( pitch < 0 )
+            //    pitch += 360;
         }
 
-        //tmp = sqrt( vec[ PITCH ] * vec[ PITCH ] + vec[ YAW ] * vec[ YAW ] );
-        //pitch = ( atan2( -vec[ ROLL ], tmp ) * 180 / M_PI );
-        //if ( pitch < 0 )
-        //    pitch += 360;
+        return yaw;
     }
-
-    return yaw;
-}
 #endif
 
 
@@ -898,6 +888,7 @@ QM_API Vector3 QM_Vector3Random( void ) {
     return QM_Vector3RandomRange( 0.f, 1.f );
 }
 
+#if 1
 /**
 *   @brief  Access Vector3 members by their index instead.
 *   @return Value of the indexed Vector3 component.
@@ -926,95 +917,96 @@ QM_API Vector3 QM_Vector3Random( void ) {
     else
         throw std::out_of_range( "i" );
 }
-
 /**
 *   @brief  Vector3 C++ 'Plus' operator:
 **/
-QM_API Vector3 operator+( const Vector3 &left, const Vector3 &right ) {
+QM_API_CONSTEXPR Vector3 operator+( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Add( left, right );
 }
-QM_API Vector3 operator+( const Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR Vector3 &operator+( const Vector3 &left, const float &right ) {
     return QM_Vector3AddValue( left, right );
 }
 
-QM_API_DISCARD Vector3 &operator+=( Vector3 &left, const Vector3 &right ) {
+QM_API_CONSTEXPR_DISCARD Vector3 &operator+=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Add( left, right );
 }
-QM_API_DISCARD Vector3 &operator+=( Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR_DISCARD Vector3 &operator+=( Vector3 &left, const float &right ) {
     return left = QM_Vector3AddValue( left, right );
 }
 
 /**
 *   @brief  Vector3 C++ 'Minus' operator:
 **/
-QM_API Vector3 operator-( const Vector3 &left, const Vector3 &right ) {
+QM_API_CONSTEXPR Vector3 operator-( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Subtract( left, right );
 }
-QM_API Vector3 operator-( const Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR Vector3 &operator-( const Vector3 &left, const float &right ) {
     return QM_Vector3SubtractValue( left, right );
 }
-QM_API Vector3 operator-( const Vector3 &v ) {
+QM_API_CONSTEXPR Vector3 &operator-( const Vector3 &v ) {
     return QM_Vector3Negate( v );
 }
 
-QM_API_DISCARD Vector3 &operator-=( Vector3 &left, const Vector3 &right ) {
+QM_API_CONSTEXPR_DISCARD Vector3 &operator-=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Subtract( left, right );
 }
-QM_API_DISCARD Vector3 &operator-=( Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR_DISCARD Vector3 &operator-=( Vector3 &left, const float &right ) {
     return left = QM_Vector3SubtractValue( left, right );
 }
 
 /**
 *   @brief  Vector3 C++ 'Multiply' operator:
 **/
-QM_API Vector3 operator*( const Vector3 &left, const Vector3 &right ) {
+QM_API_CONSTEXPR Vector3 operator*( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Multiply( left, right );
 }
-QM_API Vector3 operator*( const Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR Vector3 operator*( const Vector3 &left, const float &right ) {
     return QM_Vector3Scale( left, right );
 }
 // for: const Vector3 &v1 = floatVal * v2;
-QM_API Vector3 operator*( const float &left, const Vector3 &right ) {
+QM_API_CONSTEXPR Vector3 operator*( const float &left, const Vector3 &right ) {
     return QM_Vector3Scale( right, left );
 }
 
-QM_API_DISCARD Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
+QM_API_CONSTEXPR_DISCARD Vector3 &operator*=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Multiply( left, right );
 }
-QM_API_DISCARD Vector3 &operator*=( Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR_DISCARD Vector3 &operator*=( Vector3 &left, const float &right ) {
     return left = QM_Vector3Scale( left, right );
 }
 
 /**
 *   @brief  Vector3 C++ 'Divide' operator:
 **/
-QM_API Vector3 operator/( const Vector3 &left, const Vector3 &right ) {
+QM_API_CONSTEXPR Vector3 operator/( const Vector3 &left, const Vector3 &right ) {
     return QM_Vector3Divide( left, right );
 }
-QM_API Vector3 operator/( const Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR Vector3 &operator/( const Vector3 &left, const float &right ) {
     return QM_Vector3DivideValue( left, right );
 }
 
-QM_API_DISCARD Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
+QM_API_CONSTEXPR_DISCARD Vector3 &operator/=( Vector3 &left, const Vector3 &right ) {
     return left = QM_Vector3Divide( left, right );
 }
-QM_API_DISCARD Vector3 &operator/=( Vector3 &left, const float &right ) {
+QM_API_CONSTEXPR_DISCARD Vector3 &operator/=( Vector3 &left, const float &right ) {
     return left = QM_Vector3DivideValue( left, right );
 }
 
 /**
 *   @brief  Vector3 C++ 'Equals' operator:
 **/
-QM_API bool operator==( const Vector3 &left, const Vector3 &right ) {
-    return QM_Vector3Equals( left, right );
+QM_API_DISCARD bool operator==( const Vector3 &left, const Vector3 &right ) {
+    return QM_Vector3EqualsFast( left, right );
 }
 
 /**
 *   @brief  Vector3 C++ 'Not Equals' operator:
 **/
-QM_API bool operator!=( const Vector3 &left, const Vector3 &right ) {
-    return !QM_Vector3Equals( left, right );
+QM_API_DISCARD bool operator!=( const Vector3 &left, const Vector3 &right ) {
+    return !QM_Vector3EqualsFast( left, right );
 }
+
+#endif
 
 /**
 *   @brief  Vector3 C++ 'AngleVectors' method for QMRayLib.

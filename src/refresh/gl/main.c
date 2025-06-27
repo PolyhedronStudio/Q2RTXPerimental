@@ -83,7 +83,7 @@ static void GL_SetupFrustum(void)
 {
     vec_t angle, sf, cf;
     vec3_t forward, left, up;
-    cplane_t *p;
+    cm_plane_t *p;
     int i;
 
     // right/left
@@ -141,7 +141,7 @@ glCullResult_t GL_CullBox(const vec3_t bounds[2])
 glCullResult_t GL_CullSphere(const vec3_t origin, float radius)
 {
     float dist;
-    cplane_t *p;
+    cm_plane_t *p;
     int i;
     glCullResult_t cull;
 
@@ -166,7 +166,7 @@ glCullResult_t GL_CullSphere(const vec3_t origin, float radius)
 glCullResult_t GL_CullLocalBox(const vec3_t origin, const vec3_t bounds[2])
 {
     vec3_t points[8];
-    cplane_t *p;
+    cm_plane_t *p;
     int i, j;
     vec_t dot;
     bool infront;

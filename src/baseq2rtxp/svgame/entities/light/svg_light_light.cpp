@@ -6,6 +6,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
+#include "svgame/entities/light/svg_light_light.h"
 
 
 /*QUAKED light (0 1 0) (-8 -8 -8) (8 8 8) START_OFF
@@ -16,44 +18,40 @@ If targeted, will toggle between on and off. Firing other set target also.
 Default _cone value is 10 (used to set size of light for spotlights)
 */
 
-static constexpr int32_t START_OFF = 1;
+
+
+
+/**
+*   @brief  Switches light on/off depending on lightOn value.
+**/
+void svg_light_light_t::SwitchLight( const bool lightOn ) {
+    if ( lightOn ) {
+        if ( customLightStyle ) {
+            gi.configstring( CS_LIGHTS + style, customLightStyle );
+        } else {
+            gi.configstring( CS_LIGHTS + style, "m" );
+        }
+        spawnflags &= ~svg_light_light_t::SPAWNFLAG_START_OFF;
+    } else {
+        gi.configstring( CS_LIGHTS + style, "a" );
+        spawnflags |= svg_light_light_t::SPAWNFLAG_START_OFF;
+    }
+}
+/**
+*   @brief  Will toggle between light on/off states.
+**/
+void svg_light_light_t::Toggle() {
+    if ( SVG_HasSpawnFlags( this, svg_light_light_t::SPAWNFLAG_START_OFF ) ) {
+        SwitchLight( true );
+    } else {
+        SwitchLight( false );
+    }
+}
 
 /**
 *   @brief
 **/
-static void light_off( edict_t *self ) {
-    //if ( !SVG_HasSpawnFlags( self, START_OFF ) ) {
-    gi.configstring( CS_LIGHTS + self->style, "a" );
-    self->spawnflags |= START_OFF;
-    //}
-}
-/**
-*   @brief
-**/
-static void light_on( edict_t *self ) {
-    //if ( SVG_HasSpawnFlags( self, START_OFF ) ) {
-    if ( self->customLightStyle ) {
-        gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
-    } else {
-        gi.configstring( CS_LIGHTS + self->style, "m" );
-    }
-    self->spawnflags &= ~START_OFF;
-    //}
-}
-/**
-*   @brief
-**/
-static void light_toggle( edict_t *self ) {
-    if ( SVG_HasSpawnFlags( self, START_OFF ) ) {
-        light_on( self );
-    } else {
-        light_off( self );
-    }
-}
-/**
-*   @brief
-**/
-void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+DEFINE_MEMBER_CALLBACK_USE( svg_light_light_t, onUse )( svg_light_light_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
     //if ( self->spawnflags & START_OFF ) {
     //    if ( self->customLightStyle ) {
     //        gi.configstring( CS_LIGHTS + self->style, self->customLightStyle );
@@ -75,19 +73,19 @@ void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_
     if ( useType == ENTITY_USETARGET_TYPE_SET ) {
         if ( useValue != 0 ) {
             // If it is on let it be.
-            light_on( self );
+            self->SwitchLight( true );
         } else {
             // If it is on let it be.
-            light_off( self );
+            self->SwitchLight( false );
         }
     } else {
         if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
-            light_toggle( self );
+            self->Toggle( );
         } else {
             if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
-                light_off( self );
+                self->SwitchLight( false );
             } else if ( useType == ENTITY_USETARGET_TYPE_ON ) {
-                light_on( self );
+                self->SwitchLight( true );
             }
         }
     }
@@ -98,7 +96,7 @@ void light_use( edict_t *self, edict_t *other, edict_t *activator, const entity_
 /**
 *   @brief
 **/
-void SP_light( edict_t *self ) {
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_light_light_t, onSpawn )( svg_light_light_t *self ) -> void {
     #if 0
     // no targeted lights in deathmatch, because they cause global messages
     if ( !self->targetname || deathmatch->value ) {
@@ -108,12 +106,19 @@ void SP_light( edict_t *self ) {
     #endif
 
     //if ( self->style >= 32 ) {
-        self->use = light_use;
-    // Set on or off depending on spawnflags.
-    if ( SVG_HasSpawnFlags( self, START_OFF ) ) {
-        light_off( self );
+    //self->SetUseCallback( &svg_light_light_t::onUse );
+    //}
+    self->SetUseCallback( &svg_light_light_t::onUse );
+    if ( SVG_HasSpawnFlags( self, svg_light_light_t::SPAWNFLAG_START_OFF ) ) {
+        self->SwitchLight( false );
     } else {
-        light_on( self );
+        self->SwitchLight( true );
     }
+    // Set on or off depending on spawnflags.
+    //if ( SVG_HasSpawnFlags( self, START_OFF ) ) {
+    //    light_off( self );
+    //} else {
+    //    light_on( self );
+    //}
     //}
 }

@@ -310,7 +310,9 @@ OGG_PlayTrack(const char* track_str)
 void
 OGG_Play(void)
 {
+	#if 0 // <Q2RTXP>: WID: We dun support this, so disable it.
 	OGG_PlayTrack(cl.configstrings[CS_CDTRACK]);
+	#endif
 }
 
 /*

@@ -16,11 +16,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
-#include "svg_misc.h"
+#include "svgame/svg_misc.h"
+
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_tempentity_events.h"
 
 
 
-void ClipGibVelocity(edict_t *ent)
+
+void ClipGibVelocity(svg_base_edict_t *ent)
 {
     ent->velocity = QM_Vector3Clamp( 
         ent->velocity, 
@@ -45,26 +49,26 @@ void ClipGibVelocity(edict_t *ent)
 /**
 *   @brief
 **/
-void gib_think(edict_t *self) {
+DEFINE_GLOBAL_CALLBACK_THINK( gib_think )( svg_base_edict_t *self ) -> void {
     self->s.frame++;
     //self->nextthink = level.frameNumber + 1;
 	self->nextthink = level.time + FRAME_TIME_S;
     if (self->s.frame == 10) {
-        self->think = SVG_FreeEdict;
+        self->SetThinkCallback( SVG_FreeEdict );
         self->nextthink = level.time + random_time(8_sec, 10_sec);//= level.frameNumber + (8 + random() * 10) * BASE_FRAMERATE;
     }
 }
 /**
 *   @brief
 **/
-void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf ) {
+DEFINE_GLOBAL_CALLBACK_TOUCH( gib_touch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     vec3_t  normal_angles, right;
 
     if ( !self->groundInfo.entity ) {
         return;
     }
 
-    self->touch = NULL;
+    self->SetTouchCallback( nullptr );
 
     if (plane) {
         gi.sound(self, CHAN_VOICE, gi.soundindex("world/gib_drop01.wav"), 1, ATTN_NORM, 0);
@@ -73,9 +77,10 @@ void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
         AngleVectors(normal_angles, NULL, right, NULL);
         QM_Vector3ToAngles(right, self->s.angles);
 
-        if (self->s.modelindex == sm_meat_index) {
+        if (self->s.modelindex == gi.modelindex( "models/objects/gibs/sm_meat/tris.md2" ) ) {
+            
             self->s.frame++;
-            self->think = gib_think;
+            self->SetThinkCallback( gib_think );
             self->nextthink = level.time + FRAME_TIME_S;//level.frameNumber + 1;
         }
     }
@@ -83,8 +88,8 @@ void gib_touch( edict_t *self, edict_t *other, cplane_t *plane, csurface_t *surf
 /**
 *   @brief
 **/
-void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
-    SVG_FreeEdict(self);
+DEFINE_GLOBAL_CALLBACK_DIE( gib_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
+    g_edict_pool.FreeEdict( self );
 }
 
 
@@ -101,12 +106,12 @@ void gib_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, 
 /**
 *   @brief
 **/
-void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
+void SVG_Misc_ThrowGib( svg_base_edict_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
     vec3_t  origin;
     vec3_t  size;
     float   vscale;
 
-    edict_t *gib = SVG_AllocateEdict();
+    svg_base_edict_t *gib = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();//SVG_AllocateEdict();
 
     VectorScale(self->size, 0.5f, size);
     VectorAdd(self->absmin, size, origin);
@@ -118,11 +123,11 @@ void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, const int32_t damage
     gib->s.effects |= EF_GIB;
     gib->flags = static_cast<entity_flags_t>( gib->flags | FL_NO_KNOCKBACK );
     gib->takedamage = DAMAGE_YES;
-    gib->die = gib_die;
+    gib->SetDieCallback( gib_die );
 
     if (type == GIB_TYPE_ORGANIC) {
         gib->movetype = MOVETYPE_TOSS;
-        gib->touch = gib_touch;
+        gib->SetTouchCallback( gib_touch );
         vscale = 0.5f;
     } else {
         gib->movetype = MOVETYPE_BOUNCE;
@@ -136,7 +141,7 @@ void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, const int32_t damage
     gib->avelocity[1] = random() * 600;
     gib->avelocity[2] = random() * 600;
 
-    gib->think = SVG_FreeEdict;
+    gib->SetThinkCallback( SVG_FreeEdict );
     gib->nextthink = level.time + random_time(10_sec, 20_sec);//= level.frameNumber + (10 + random() * 10) * BASE_FRAMERATE;
 
     gi.linkentity(gib);
@@ -144,7 +149,7 @@ void SVG_Misc_ThrowGib( edict_t *self, const char *gibname, const int32_t damage
 /**
 *   @brief
 **/
-void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
+void SVG_Misc_ThrowHead( svg_base_edict_t *self, const char *gibname, const int32_t damage, const int32_t type ) {
     vec3_t  vd;
     float   vscale;
 
@@ -163,11 +168,11 @@ void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damag
     self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
     self->svflags &= ~SVF_MONSTER;
     self->takedamage = DAMAGE_YES;
-    self->die = gib_die;
+    self->SetDieCallback( gib_die );
 
     if (type == GIB_TYPE_ORGANIC) {
         self->movetype = MOVETYPE_TOSS;
-        self->touch = gib_touch;
+        self->SetTouchCallback( gib_touch );
         vscale = 0.5f;
     } else {
         self->movetype = MOVETYPE_BOUNCE;
@@ -180,7 +185,7 @@ void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damag
 
     self->avelocity[YAW] = crandom() * 600;
 
-    self->think = SVG_FreeEdict;
+    self->SetThinkCallback( SVG_FreeEdict );
     self->nextthink = level.time + random_time( 10_sec, 20_sec ); //level.frameNumber + (10 + random() * 10) * BASE_FRAMERATE;
 
     gi.linkentity(self);
@@ -188,7 +193,7 @@ void SVG_Misc_ThrowHead( edict_t *self, const char *gibname, const int32_t damag
 /**
 *   @brief
 **/
-void SVG_Misc_ThrowClientHead( edict_t *self, const int32_t damage ) {
+void SVG_Misc_ThrowClientHead( svg_base_edict_t *self, const int32_t damage ) {
 	// WID: C++20: Added const.
     const char    *gibname;
 
@@ -221,7 +226,7 @@ void SVG_Misc_ThrowClientHead( edict_t *self, const int32_t damage ) {
         //self->client->anim_priority = ANIM_DEATH;
         //self->client->anim_end = self->s.frame;
     } else {
-        self->think = NULL;
+        self->SetThinkCallback( nullptr );
         self->nextthink = 0_ms;
     }
 
@@ -239,7 +244,7 @@ void SVG_Misc_ThrowClientHead( edict_t *self, const int32_t damage ) {
 * 
 * 
 ***/
-void debris_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)
+void debris_die(svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point)
 {
     SVG_FreeEdict(self);
 }
@@ -247,10 +252,10 @@ void debris_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 /**
 *   @brief  
 **/
-void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, const float speed, vec3_t origin)
+void SVG_Misc_ThrowDebris(svg_base_edict_t *self, const char *modelname, const float speed, vec3_t origin)
 {
 
-    edict_t *chunk = SVG_AllocateEdict();
+    svg_base_edict_t *chunk = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
     VectorCopy(origin, chunk->s.origin);
     gi.setmodel(chunk, modelname);
     Vector3 v = {
@@ -264,13 +269,13 @@ void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, const float spee
     chunk->avelocity[0] = random() * 600;
     chunk->avelocity[1] = random() * 600;
     chunk->avelocity[2] = random() * 600;
-    chunk->think = SVG_FreeEdict;
+    chunk->SetThinkCallback( SVG_FreeEdict );
     chunk->nextthink = level.time + random_time( 5_sec, 10_sec );//= level.frameNumber + (5 + random() * 5) * BASE_FRAMERATE;
     chunk->s.frame = 0;
     chunk->flags = FL_NONE;
     chunk->classname = "debris";
     chunk->takedamage = DAMAGE_YES;
-    chunk->die = debris_die;
+    chunk->SetDieCallback( debris_die );
     gi.linkentity(chunk);
 }
 
@@ -288,28 +293,34 @@ void SVG_Misc_ThrowDebris(edict_t *self, const char *modelname, const float spee
 /**
 *   @brief	Spawns a temp entity explosion effect at the entity's origin, and optionally frees the entity.
 **/
-void SVG_Misc_BecomeExplosion( edict_t *self, int type, const bool freeEntity ) {
+void SVG_Misc_BecomeExplosion( svg_base_edict_t *self, int type, const bool freeEntity ) {
     gi.WriteUint8(svc_temp_entity);
-    if ( type == 1 ) {
-        gi.WriteUint8( TE_EXPLOSION1 );
-    } else if ( type == 2 ) {
-        gi.WriteUint8( TE_EXPLOSION2 );
-    } else if ( type == 3 ) {
-        gi.WriteUint8( TE_EXPLOSION1_BIG );
-    } else if ( type == 4 ) {
-        gi.WriteUint8( TE_EXPLOSION1_NP );
-    } else if ( type == 5 ) {
-        gi.WriteUint8( TE_ROCKET_EXPLOSION_WATER );
-    } else if ( type == 6 ) {
-        gi.WriteUint8( TE_GRENADE_EXPLOSION_WATER );
-    } else {
-        gi.WriteUint8( TE_PLAIN_EXPLOSION );
-    }
+    //if ( type == 1 ) {
+    //    gi.WriteUint8( TE_EXPLOSION1 );
+    //} else if ( type == 2 ) {
+    //    gi.WriteUint8( TE_EXPLOSION2 );
+    //} else if ( type == 3 ) {
+    //    gi.WriteUint8( TE_EXPLOSION1_BIG );
+    //} else if ( type == 4 ) {
+    //    gi.WriteUint8( TE_EXPLOSION1_NP );
+    //} else if ( type == 5 ) {
+    //    gi.WriteUint8( TE_ROCKET_EXPLOSION_WATER );
+    //} else if ( type == 6 ) {
+    //    gi.WriteUint8( TE_GRENADE_EXPLOSION_WATER );
+    //} else {
+    //      gi.WriteUint8( TE_PLAIN_EXPLOSION );
+    //}
+    // Regular explosion.
+    gi.WriteUint8( TE_PLAIN_EXPLOSION );
     gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     gi.multicast( self->s.origin, MULTICAST_PVS, false );
 
+    // Free the entity if requested.
 	if ( freeEntity ) {
-		SVG_FreeEdict( self );
+		self->nextthink = level.time + FRAME_TIME_S; // level.frameNumber + 1;
+        self->SetThinkCallback( &SVG_FreeEdict );
+
+        //SVG_FreeEdict( self )
 	}
 }
 
@@ -344,7 +355,7 @@ const Vector3 SVG_Misc_VelocityForDamage( const int32_t damage ) {
 /*QUAKED misc_gib_arm (1 0 0) (-8 -8 -8) (8 8 8)
 Intended for use with the target_spawner
 */
-void SP_misc_gib_arm(edict_t *ent)
+void SP_misc_gib_arm(svg_base_edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/arm/tris.md2");
     ent->solid = SOLID_NOT;
@@ -366,7 +377,7 @@ void SP_misc_gib_arm(edict_t *ent)
 /*QUAKED misc_gib_leg (1 0 0) (-8 -8 -8) (8 8 8)
 Intended for use with the target_spawner
 */
-void SP_misc_gib_leg(edict_t *ent)
+void SP_misc_gib_leg(svg_base_edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/leg/tris.md2");
     ent->solid = SOLID_NOT;
@@ -388,7 +399,7 @@ void SP_misc_gib_leg(edict_t *ent)
 /*QUAKED misc_gib_head (1 0 0) (-8 -8 -8) (8 8 8)
 Intended for use with the target_spawner
 */
-void SP_misc_gib_head(edict_t *ent)
+void SP_misc_gib_head(svg_base_edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/head/tris.md2");
     ent->solid = SOLID_NOT;

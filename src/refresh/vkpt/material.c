@@ -174,7 +174,7 @@ void MAT_Reset(pbr_material_t * mat)
 	mat->base_factor = 1.f;
 	mat->light_styles = true;
 	mat->bsp_radiance = true;
-	/* Treat absence of SURF_LIGHT flag as "fully emissive" by default.
+	/* Treat absence of CM_SURFACE_FLAG_LIGHT flag as "fully emissive" by default.
 	 * Typically works well with explicit emissive image. */
 	mat->default_radiance = 1.f;
 	mat->flags = MATERIAL_KIND_REGULAR;
@@ -742,7 +742,7 @@ static void save_materials(const char* file_name, bool save_all, bool force)
 void MAT_ChangeMap(const char* map_name)
 {
 	// clear the old map-specific materials
-	uint32_t old_map_materails = num_map_materials;
+	uint32_t old_map_materials = num_map_materials;
 	if (num_map_materials > 0) {
 		memset(r_map_materials, 0, sizeof(pbr_material_t) * num_map_materials);
 	}
@@ -750,7 +750,7 @@ void MAT_ChangeMap(const char* map_name)
 	// load the new materials
 	char map_name_no_ext[MAX_QPATH];
 	truncate_extension(map_name, map_name_no_ext);
-	char file_name[MAX_QPATH];
+	char file_name[MAX_OSPATH];
 	Q_snprintf(file_name, sizeof(file_name), "%s.mat", map_name_no_ext);
 	num_map_materials = load_material_file(file_name, r_map_materials, MAX_PBR_MATERIALS);
 	if (num_map_materials > 0) {	
@@ -759,7 +759,7 @@ void MAT_ChangeMap(const char* map_name)
 
 	// if there are any overrides now or there were some overrides before,
 	// unload all wall materials to re-initialize them with the overrides
-	if (old_map_materails > 0 || num_map_materials > 0)
+	if (old_map_materials > 0 || num_map_materials > 0)
 	{
 		for (uint32_t i = 0; i < MAX_PBR_MATERIALS; i++)
 		{

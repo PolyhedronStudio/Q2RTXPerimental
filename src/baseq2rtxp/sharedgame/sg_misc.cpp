@@ -8,7 +8,8 @@
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
-#include "sg_misc.h"
+#include "sharedgame/sg_misc.h"
+#include "sharedgame/sg_pmove.h"
 
 //! Uncomment to enable debug print output of predictable events.
 //#define _DEBUG_PRINT_PREDICTABLE_EVENTS

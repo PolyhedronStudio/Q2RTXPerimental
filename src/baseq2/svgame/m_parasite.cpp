@@ -303,7 +303,7 @@ static bool parasite_drain_attack_ok(vec3_t start, vec3_t end)
 void parasite_drain_attack(edict_t *self)
 {
     vec3_t  offset, start, f, r, end, dir;
-    trace_t tr;
+    cm_trace_t tr;
     int damage;
 
     AngleVectors(self->s.angles, f, r, NULL);
@@ -321,7 +321,7 @@ void parasite_drain_attack(edict_t *self)
     }
     VectorCopy(self->enemy->s.origin, end);
 
-    tr = gi.trace(start, NULL, NULL, end, self, MASK_SHOT);
+    tr = gi.trace(start, NULL, NULL, end, self, CM_CONTENTMASK_SHOT);
     if (tr.ent != self->enemy)
         return;
 

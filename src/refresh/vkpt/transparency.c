@@ -670,25 +670,30 @@ static void write_sprite_geometry(const float* view_matrix, const entity_t* enti
 		}
 		else
 		{
-			VectorScale(view_x, frame->origin_x, left);
-			VectorScale(view_x, frame->origin_x - frame->width, right);
+			// <Q2RTXP>: WID: Sprite scaling.
+			const double scale = ( e->scale ? e->scale : 1. );
+
+			VectorScale(view_x, frame->origin_x * scale, left);
+			VectorScale(view_x, ( frame->origin_x - frame->width ) * scale, right);
 
 			if (model->sprite_vertical)
 			{
-				VectorScale(world_y, -frame->origin_y, down);
-				VectorScale(world_y, frame->height - frame->origin_y, up);
+				VectorScale(world_y, -frame->origin_y * scale, down);
+				VectorScale(world_y, ( frame->height - frame->origin_y ) * scale, up);
 			}
 			else
 			{
-				VectorScale(view_y, -frame->origin_y, down);
-				VectorScale(view_y, frame->height - frame->origin_y, up);
+				VectorScale(view_y, -frame->origin_y * scale, down);
+				VectorScale(view_y, ( frame->height - frame->origin_y ) * scale, up);
 			}
 		}
 
+		vec3_t scaledA = {};
 		VectorAdd3(e->origin, down, left, vertex_positions[0]);
 		VectorAdd3(e->origin, up, left, vertex_positions[1]);
 		VectorAdd3(e->origin, up, right, vertex_positions[2]);
 		VectorAdd3(e->origin, down, right, vertex_positions[3]);
+
 
 		vertex_positions += 4;
 		sprite_info += TR_SPRITE_INFO_SIZE / sizeof(int);

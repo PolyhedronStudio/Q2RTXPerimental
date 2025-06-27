@@ -12,7 +12,7 @@
 /**
 *   @brief  Describes the value type of a signal's argument.
 **/
-typedef enum {
+typedef enum svg_signal_argument_type_e {
     //! Argument type wasn't set!
     SIGNAL_ARGUMENT_TYPE_NONE = 0,
 
@@ -55,8 +55,8 @@ typedef std::vector<svg_signal_argument_t> svg_signal_argument_array_t;
 /**
 *   @brief
 **/
-//void SVG_SignalOut( edict_t *ent, edict_t *sender, edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments = nullptr, const int32_t numberOfSignalArguments = 0 );
-void SVG_SignalOut( edict_t *ent, edict_t *signaller, edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments = {} );
+//void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *sender, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_t *signalArguments = nullptr, const int32_t numberOfSignalArguments = 0 );
+void SVG_SignalOut( svg_base_edict_t *ent, svg_base_edict_t *signaller, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments = {} );
 
 /**
 *

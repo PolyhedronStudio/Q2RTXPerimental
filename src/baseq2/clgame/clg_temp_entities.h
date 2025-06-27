@@ -17,7 +17,7 @@
 /**
 *   @brief
 **/
-void CLG_InitTEnts( void );
+void CLG_TemporaryEntities_Init( void );
 /**
 *   @brief
 **/

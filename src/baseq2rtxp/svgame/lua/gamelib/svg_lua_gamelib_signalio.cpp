@@ -22,19 +22,20 @@
 *
 *
 **/
+DECLARE_GLOBAL_CALLBACK_THINK( LUA_Think_SignalOutDelay );
 /**
 *	@brief	Utility/Support routine for delaying SignalOut when a 'delay' is given to it.
 **/
-void LUA_Think_SignalOutDelay( edict_t *entity ) {
-	edict_t *creatorEntity = entity->delayed.signalOut.creatorEntity;
-	if ( !SVG_IsActiveEntity( creatorEntity ) ) {
+DEFINE_GLOBAL_CALLBACK_THINK( LUA_Think_SignalOutDelay )( svg_base_edict_t *entity ) -> void {
+	svg_base_edict_t *creatorEntity = entity->delayed.signalOut.creatorEntity;
+	if ( !SVG_Entity_IsActive( creatorEntity ) ) {
 		return;
 	}
 	const char *signalName = entity->delayed.signalOut.name;
 	bool propogateToLua = true;
-	if ( creatorEntity->onsignalin ) {
-		/*propogateToLua = */creatorEntity->onsignalin(
-			creatorEntity, entity->other, entity->activator,
+	if ( creatorEntity->HasOnSignalInCallback() ) {
+		/*propogateToLua = */creatorEntity->DispatchOnSignalInCallback(
+			entity->other, entity->activator,
 			signalName, entity->delayed.signalOut.arguments
 		);
 	}
@@ -189,7 +190,7 @@ static svg_signal_argument_array_t _GameLib_LuaTable_ToArgumentsArray( sol::this
 **/
 const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict_t leSignaller, lua_edict_t leActivator, std::string signalName, sol::table signalArguments ) {
 	// Make sure that the entity is at least active and valid to be signalling.
-	if ( !SVG_IsActiveEntity( leEnt.edict ) ) {
+	if ( !SVG_Entity_IsActive( leEnt.handle.edictPtr ) ) {
 		return -1; // SIGNALOUT_FAILED
 	}
 
@@ -197,22 +198,22 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 	svg_signal_argument_array_t signalArgumentsArray = {};// _GameLib_LuaTable_ToArgumentsArray( s, signalArguments );
 
 	// Acquire pointers from lua_edict_t handles.
-	edict_t *entity = leEnt.edict;
-	edict_t *signaller = leSignaller.edict;
-	edict_t *activator = leActivator.edict;
+	svg_base_edict_t *entity = leEnt.handle.edictPtr;
+	svg_base_edict_t *signaller = leSignaller.handle.edictPtr;
+	svg_base_edict_t *activator = leActivator.handle.edictPtr;
 
 	// Spawn a delayed signal out entity if a delay was requested.
 	if ( entity->delay ) {
 		// create a temp object to UseTarget at a later time.
-		edict_t *delayEntity = SVG_AllocateEdict();
+		svg_base_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
 		// In case it failed to allocate of course.
-		if ( !SVG_IsActiveEntity( delayEntity ) ) {
+		if ( !SVG_Entity_IsActive( delayEntity ) ) {
 			return -1; // SIGNALOUT_FAILED
 		}
-		delayEntity->classname = "DelayedLuaSignalOut";
+		delayEntity->classname = svg_level_qstring_t::from_char_str( "DelayedLuaSignalOut" );
 
 		delayEntity->nextthink = level.time + QMTime::FromMilliseconds( entity->delay );
-		delayEntity->think = LUA_Think_SignalOutDelay;
+		delayEntity->SetThinkCallback( LUA_Think_SignalOutDelay );
 		if ( !activator ) {
 			gi.dprintf( "LUA_Think_SignalOutDelay with no activator\n" );
 		}
@@ -221,6 +222,7 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 
 		delayEntity->message = entity->message;
 
+		delayEntity->targetEntities.target = entity->targetEntities.target;
 		delayEntity->targetNames.target = entity->targetNames.target;
 		delayEntity->targetNames.kill = entity->targetNames.kill;
 
@@ -240,12 +242,12 @@ const int32_t GameLib_SignalOut( sol::this_state s, lua_edict_t leEnt, lua_edict
 	// Fire the signal if it has a OnSignal method registered.
 	bool propogateToLua = true;
 	bool sentSignalOut = false;
-	if ( entity->onsignalin ) {
+	if ( entity->HasOnSignalInCallback() ) {
 		// Set activator/other.
 		entity->activator = activator;
 		entity->other = signaller;
 		// Fire away.
-		/*propogateToLua = */entity->onsignalin( entity, signaller, activator, signalName.c_str(), signalArgumentsArray );
+		/*propogateToLua = */entity->DispatchOnSignalInCallback( signaller, activator, signalName.c_str(), signalArgumentsArray );
 		sentSignalOut = true;
 	}
 

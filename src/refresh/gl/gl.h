@@ -108,7 +108,7 @@ typedef struct {
     unsigned        dlightframe;
     int             viewcluster1;
     int             viewcluster2;
-    cplane_t        frustumPlanes[4];
+    cm_plane_t        frustumPlanes[4];
     entity_t        *ent;
     bool            entrotated;
     vec3_t          entaxis[3];

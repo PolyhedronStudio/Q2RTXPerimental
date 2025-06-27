@@ -18,6 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_clients.h"
+#include "svgame/svg_game_items.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -42,14 +44,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! Whether to show what data types the key/value pair's value got parsed for:
 //#define DEBUG_ENTITY_SPAWN_PROCESS_SHOW_PARSED_FOR_FIELD_TYPES 1 // Uncomment to enable.
 
-
+#if 0
 /**
 *   @brief  Stores the entity spawn functon pointer by hooking it up with a string name used as identifier.
 **/
 typedef struct {
 	// WID: C++20: added const.
 	const char    *name;
-    void (*spawn)(edict_t *ent);
+    void (*spawn)(svg_base_edict_t *ent);
 } spawn_func_t;
 
 /**
@@ -72,77 +74,77 @@ typedef struct {
 * 
 **/
 // <Q2RTXP>:
-void SP_monster_testdummy_puppet( edict_t *self );
+void SP_monster_testdummy_puppet( svg_base_edict_t *self );
 // </Q2RTXP>
 
-void SP_item_health(edict_t *self);
-void SP_item_health_small(edict_t *self);
-void SP_item_health_large(edict_t *self);
-void SP_item_health_mega(edict_t *self);
+void SP_item_health(svg_base_edict_t *self);
+void SP_item_health_small(svg_base_edict_t *self);
+void SP_item_health_large(svg_base_edict_t *self);
+void SP_item_health_mega(svg_base_edict_t *self);
 
-void SP_info_player_start(edict_t *ent);
-void SP_info_player_deathmatch(edict_t *ent);
-void SP_info_player_coop(edict_t *ent);
-void SP_info_player_intermission(edict_t *ent);
+//void SP_info_player_start(svg_base_edict_t *ent);
+//void SP_info_player_deathmatch(svg_base_edict_t *ent);
+//void SP_info_player_coop(svg_base_edict_t *ent);
+//void SP_info_player_intermission(svg_base_edict_t *ent);
 
-void SP_func_plat(edict_t *ent);
-void SP_func_rotating(edict_t *ent);
-void SP_func_button(edict_t *ent);
-void SP_func_door(edict_t *ent);
+void SP_func_plat(svg_base_edict_t *ent);
+void SP_func_rotating(svg_base_edict_t *ent);
+void SP_func_button(svg_base_edict_t *ent);
+void SP_func_door(svg_base_edict_t *ent);
 #if 0
-void SP_func_door_secret(edict_t *ent);
+void SP_func_door_secret(svg_base_edict_t *ent);
 #endif
-void SP_func_door_rotating(edict_t *ent);
-void SP_func_water(edict_t *ent);
-void SP_func_train(edict_t *ent);
-void SP_func_conveyor(edict_t *self);
-void SP_func_wall(edict_t *self);
-void SP_func_object(edict_t *self);
-void SP_func_breakable(edict_t *self);
-void SP_func_timer(edict_t *self);
-void SP_func_areaportal(edict_t *ent);
-//void SP_func_clock(edict_t *ent);
-void SP_func_killbox(edict_t *ent);
+void SP_func_door_rotating(svg_base_edict_t *ent);
+void SP_func_water(svg_base_edict_t *ent);
+void SP_func_train(svg_base_edict_t *ent);
+void SP_func_conveyor(svg_base_edict_t *self);
+void SP_func_wall(svg_base_edict_t *self);
+void SP_func_object(svg_base_edict_t *self);
+void SP_func_breakable(svg_base_edict_t *self);
+void SP_func_timer(svg_base_edict_t *self);
+void SP_func_areaportal(svg_base_edict_t *ent);
+//void SP_func_clock(svg_base_edict_t *ent);
+void SP_func_killbox(svg_base_edict_t *ent);
 
-void SP_trigger_always(edict_t *ent);
-void SP_trigger_once(edict_t *ent);
-void SP_trigger_multiple(edict_t *ent);
-void SP_trigger_relay(edict_t *ent);
-void SP_trigger_push(edict_t *ent);
-void SP_trigger_hurt(edict_t *ent);
-void SP_trigger_counter(edict_t *ent);
-void SP_trigger_elevator(edict_t *ent);
-void SP_trigger_gravity(edict_t *ent);
+void SP_trigger_always(svg_base_edict_t *ent);
+void SP_trigger_once(svg_base_edict_t *ent);
+void SP_trigger_multiple(svg_base_edict_t *ent);
+void SP_trigger_relay(svg_base_edict_t *ent);
+void SP_trigger_push(svg_base_edict_t *ent);
+void SP_trigger_hurt(svg_base_edict_t *ent);
+void SP_trigger_counter(svg_base_edict_t *ent);
+void SP_trigger_elevator(svg_base_edict_t *ent);
+void SP_trigger_gravity(svg_base_edict_t *ent);
 
-void SP_target_temp_entity(edict_t *ent);
-void SP_target_speaker(edict_t *ent);
-void SP_target_explosion(edict_t *ent);
-void SP_target_changelevel(edict_t *ent);
-void SP_target_secret(edict_t *ent);
-void SP_target_goal(edict_t *ent);
-void SP_target_splash(edict_t *ent);
-void SP_target_spawner(edict_t *ent);
-void SP_target_blaster(edict_t *ent);
-void SP_target_crosslevel_trigger(edict_t *ent);
-void SP_target_crosslevel_target(edict_t *ent);
-void SP_target_laser(edict_t *self);
-void SP_target_lightramp(edict_t *self);
-void SP_target_earthquake(edict_t *ent);
+void SP_target_temp_entity(svg_base_edict_t *ent);
+void SP_target_speaker(svg_base_edict_t *ent);
+void SP_target_explosion(svg_base_edict_t *ent);
+void SP_target_changelevel(svg_base_edict_t *ent);
+void SP_target_secret(svg_base_edict_t *ent);
+void SP_target_goal(svg_base_edict_t *ent);
+void SP_target_splash(svg_base_edict_t *ent);
+void SP_target_spawner(svg_base_edict_t *ent);
+void SP_target_blaster(svg_base_edict_t *ent);
+void SP_target_crosslevel_trigger(svg_base_edict_t *ent);
+void SP_target_crosslevel_target(svg_base_edict_t *ent);
+void SP_target_laser(svg_base_edict_t *self);
+void SP_target_lightramp(svg_base_edict_t *self);
+void SP_target_earthquake(svg_base_edict_t *ent);
 
-void SP_worldspawn(edict_t *ent);
+//void SP_worldspawn(svg_base_edict_t *ent);
 
-void SP_spotlight(edict_t *self);
-void SP_light(edict_t *self);
-void SP_info_null(edict_t *self);
-void SP_info_notnull(edict_t *self);
-void SP_path_corner(edict_t *self);
+void SP_spotlight(svg_base_edict_t *self);
+void SP_light(svg_base_edict_t *self);
+//void SP_info_null(svg_base_edict_t *self);
+//void SP_info_notnull(svg_base_edict_t *self);
+void SP_path_corner(svg_base_edict_t *self);
 
-void SP_misc_explobox(edict_t *self);
-void SP_misc_gib_arm(edict_t *self);
-void SP_misc_gib_leg(edict_t *self);
-void SP_misc_gib_head(edict_t *self);
-void SP_misc_teleporter(edict_t *self);
-void SP_misc_teleporter_dest(edict_t *self);
+//void SP_misc_explobox(svg_base_edict_t *self);
+void SP_misc_gib_arm(svg_base_edict_t *self);
+void SP_misc_gib_leg(svg_base_edict_t *self);
+void SP_misc_gib_head(svg_base_edict_t *self);
+void SP_misc_teleporter(svg_base_edict_t *self);
+void SP_misc_teleporter_dest(svg_base_edict_t *self);
 
 
 /**
@@ -150,17 +152,17 @@ void SP_misc_teleporter_dest(edict_t *self);
 **/
 static const spawn_func_t spawn_funcs[] = {
     // <Q2RTXP>
-    { "monster_testdummy_puppet", SP_monster_testdummy_puppet },
+    //{ "monster_testdummy_puppet", SP_monster_testdummy_puppet },
     // </Q2RTXP>
     {"item_health", SP_item_health},
     {"item_health_small", SP_item_health_small},
     {"item_health_large", SP_item_health_large},
     {"item_health_mega", SP_item_health_mega},
 
-    {"info_player_start", SP_info_player_start},
-    {"info_player_deathmatch", SP_info_player_deathmatch},
-    {"info_player_coop", SP_info_player_coop},
-    {"info_player_intermission", SP_info_player_intermission},
+    // [X] Converted: {"info_player_start", SP_info_player_start},
+    // [X] Converted: {"info_player_deathmatch", SP_info_player_deathmatch},
+    // [X] Converted: {"info_player_coop", SP_info_player_coop},
+    // [X] Converted: {"info_player_intermission", SP_info_player_intermission},
 
     {"func_plat", SP_func_plat},
     {"func_button", SP_func_button},
@@ -205,16 +207,16 @@ static const spawn_func_t spawn_funcs[] = {
     {"target_lightramp", SP_target_lightramp},
     {"target_earthquake", SP_target_earthquake},
 
-    {"worldspawn", SP_worldspawn},
+    //{"worldspawn", SP_worldspawn},
 
 	{"spotlight", SP_spotlight},
     {"light", SP_light},
-    {"info_null", SP_info_null},
-    {"func_group", SP_info_null},
-    {"info_notnull", SP_info_notnull},
+    // [X] Converted: {"info_null", SP_info_null},
+    // [X] Converted: {"func_group", SP_info_null},
+    // [X] Converted: {"info_notnull", SP_info_notnull},
     {"path_corner", SP_path_corner},
 
-    {"misc_explobox", SP_misc_explobox},
+    //{"misc_explobox", SP_misc_explobox},
     #if 0
     {"misc_gib_arm", SP_misc_gib_arm},
     {"misc_gib_leg", SP_misc_gib_leg},
@@ -225,150 +227,7 @@ static const spawn_func_t spawn_funcs[] = {
 
     {NULL, NULL}
 };
-
-/**
-*   @brief  Hooks up the offset of an entity's struct member to a string, and stores
-*           what type of value it holds and what to parse the key/value pairs with.
-**/
-static const spawn_field_t spawn_fields[] = {
-	// ET_GENERIC:
-	{"classname", FOFS_GENTITY( classname ), F_LEVEL_QSTRING},
-	{"model", FOFS_GENTITY( model ), F_LSTRING},
-	{"spawnflags", FOFS_GENTITY( spawnflags ), F_INT},
-	{"speed", FOFS_GENTITY( speed ), F_FLOAT},
-	{"accel", FOFS_GENTITY( accel ), F_FLOAT},
-	{"decel", FOFS_GENTITY( decel ), F_FLOAT},
-	{"target", FOFS_GENTITY( targetNames.target ), F_LEVEL_QSTRING},
-	{"targetname", FOFS_GENTITY( targetname ), F_LEVEL_QSTRING},
-	{"path", FOFS_GENTITY( targetNames.path ), F_LEVEL_QSTRING},
-	{"death", FOFS_GENTITY( targetNames.death ), F_LEVEL_QSTRING},
-	{"kill", FOFS_GENTITY( targetNames.kill ), F_LEVEL_QSTRING},
-    {"message", FOFS_GENTITY( message ), F_LSTRING},
-	{"team", FOFS_GENTITY( targetNames.team ), F_LEVEL_QSTRING},
-	{"wait", FOFS_GENTITY( wait ), F_FLOAT},
-	{"delay", FOFS_GENTITY( delay ), F_FLOAT},
-	{"random", FOFS_GENTITY( random ), F_FLOAT},
-	{"move_origin", FOFS_GENTITY( move_origin ), F_VECTOR3},
-	{"move_angles", FOFS_GENTITY( move_angles ), F_VECTOR3},
-	{"style", FOFS_GENTITY( style ), F_INT},
-	{"count", FOFS_GENTITY( count ), F_INT},
-    {"maxhealth", FOFS_GENTITY( max_health ), F_INT},
-    {"health", FOFS_GENTITY( health ), F_INT},
-	{"sounds", FOFS_GENTITY( sounds ), F_INT},
-	{"light", FOFS_GENTITY( light ), F_FLOAT},
-	{"dmg", FOFS_GENTITY( dmg ), F_INT},
-	{"mass", FOFS_GENTITY( mass ), F_INT},
-	{"volume", FOFS_GENTITY( volume ), F_FLOAT},
-	{"attenuation", FOFS_GENTITY( attenuation ), F_FLOAT},
-	{"map", FOFS_GENTITY( map ), F_LSTRING},
-	{"origin", FOFS_GENTITY( s.origin ), F_VECTOR3},
-	{"angles", FOFS_GENTITY( s.angles ), F_VECTOR3},
-	{"angle", FOFS_GENTITY( s.angles ), F_ANGLEHACK},
-
-    // <Q2RTXP>:
-    // MoveWith:
-    { "movewith", FOFS_GENTITY( targetNames.movewith ), F_LEVEL_QSTRING },
-    // Lua:
-    { "luaName", FOFS_GENTITY( luaProperties.luaName ), F_LSTRING },
-    // (Spot-)light:
-    {"customLightStyle", FOFS_GENTITY( customLightStyle ), F_LSTRING},
-    {"rgb", FOFS_GENTITY( s.spotlight.rgb ), F_VECTOR3},
-	{"intensity", FOFS_GENTITY( s.spotlight.intensity ), F_FLOAT},
-	{"angle_width", FOFS_GENTITY( s.spotlight.angle_width ), F_FLOAT},
-	{"angle_falloff", FOFS_GENTITY( s.spotlight.angle_falloff ), F_FLOAT},
-    // </Q2RTXP>
-
-    {NULL}
-};
-
-/**
-*   @brief  Stores the spawn_field_t types for temporary spawn fields. Cleared at the start of 
-*           each iteration over the collision model entity key/value pairs.
-*           
-*           These are only valid at the time when ED_CallSpawn calls the entity's spawn function.
-**/
-// temp spawn vars -- only valid when the spawn function is called
-static const spawn_field_t temp_fields[] = {
-    {"lip", FOFS_SPAWN_TEMP(lip), F_INT},
-    {"distance", FOFS_SPAWN_TEMP(distance), F_INT},
-    {"height", FOFS_SPAWN_TEMP(height), F_INT},
-    {"noise", FOFS_SPAWN_TEMP(noise), F_LSTRING},
-    {"pausetime", FOFS_SPAWN_TEMP(pausetime), F_FLOAT},
-    {"item", FOFS_SPAWN_TEMP(item), F_LSTRING},
-
-    {"gravity", FOFS_SPAWN_TEMP(gravity), F_LSTRING},
-    {"sky", FOFS_SPAWN_TEMP(sky), F_LSTRING},
-    {"skyrotate", FOFS_SPAWN_TEMP(skyrotate), F_FLOAT},
-    {"skyautorotate", FOFS_SPAWN_TEMP(skyautorotate), F_INT},
-    {"skyaxis", FOFS_SPAWN_TEMP(skyaxis), F_VECTOR3},
-    {"minyaw", FOFS_SPAWN_TEMP(minyaw), F_FLOAT},
-    {"maxyaw", FOFS_SPAWN_TEMP(maxyaw), F_FLOAT},
-    {"minpitch", FOFS_SPAWN_TEMP(minpitch), F_FLOAT},
-    {"maxpitch", FOFS_SPAWN_TEMP(maxpitch), F_FLOAT},
-    {"nextmap", FOFS_SPAWN_TEMP(nextmap), F_LSTRING},
-    {"musictrack", FOFS_SPAWN_TEMP(musictrack), F_LSTRING},
-
-    {NULL}
-};
-
-
-/**
-*   @brief  Finds the spawn function for the entity and calls it
-**/
-void ED_CallSpawn(edict_t *ent)
-{
-    const spawn_func_t *s;
-    gitem_t *item;
-    int     i;
-
-    if (!ent->classname) {
-        gi.dprintf("%s: NULL classname\n", __func__ );
-        return;
-    }
-
-    #ifdef ENTITY_SPAWN_EXIT_EARLY_ON_RESERVED_NAMES
-    if ( strcmp( (const char *)ent->classname, "noclass" ) == 0 ) {
-        #ifdef DEBUG_ENTITY_SPAWN_PROCESS
-        gi.dprintf( "%s: 'noclass' classname for entity(#%d).\n", __func__, ent->s.number );
-        #endif
-        return;
-    }
-    if ( strcmp( (const char *)ent->classname, "freed" ) == 0 ) {
-        #ifdef DEBUG_ENTITY_SPAWN_PROCESS
-        gi.dprintf( "%s: 'freed' classname for entity(#%d).\n", __func__, ent->s.number );
-        #endif
-        return;
-    }
-    #endif
-
-    // Check item spawn functions.
-    for (i = 0, item = itemlist ; i < game.num_items ; i++, item++) {
-        // Skip if the item's classname is empty.
-        if (!item->classname)
-            continue;
-        // If the classnames are an equal match, defer to SVG_SpawnItem and exit.
-        if (!strcmp(item->classname, (const char *)ent->classname)) {
-            // found it
-            SVG_SpawnItem(ent, item);
-            return;
-        }
-    }
-
-    // Check normal entity spawn functions.
-    for (s = spawn_funcs ; s->name ; s++) {
-        // Matching classname.
-        if (!strcmp(s->name, (const char *)ent->classname)) {
-            // Spawn entity.
-            s->spawn(ent);
-            // Exit.
-            return;
-        }
-    }
-
-    #ifdef DEBUG_ENTITY_SPAWN_PROCESS
-    gi.dprintf("%s doesn't have a spawn function\n", ent->classname);
-    #endif
-}
+#endif // #if 0
 
 /**
 *   @brief  Chain together all entities with a matching team field.
@@ -377,13 +236,16 @@ void ED_CallSpawn(edict_t *ent)
 *           All but the last will have the teamchain field set to the next one
 **/
 void SVG_FindTeams( void ) {
-    edict_t *e, *e2, *chain;
+    svg_base_edict_t *e, *e2, *chain;
     int     i, j;
     int     c, c2;
 
     c = 0;
     c2 = 0;
-    for ( i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++ ) {
+    for ( i = 1, e = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, e = g_edict_pool.EdictForNumber( i ) ) {
+        if ( !e ) {
+            continue;
+        }
         if ( !e->inuse )
             continue;
         if ( !e->targetNames.team )
@@ -394,7 +256,10 @@ void SVG_FindTeams( void ) {
         e->teammaster = e;
         c++;
         c2++;
-        for ( j = i + 1, e2 = e + 1; j < globals.num_edicts; j++, e2++ ) {
+        for ( j = i + 1, e2 = g_edict_pool.EdictForNumber( j ); j < globals.edictPool->num_edicts; j++, e2 = g_edict_pool.EdictForNumber( j ) ) {
+            if ( !e2 ) {
+                continue;
+            }
             if ( !e2->inuse )
                 continue;
             if ( !e2->targetNames.team )
@@ -418,10 +283,10 @@ void SVG_FindTeams( void ) {
 *   @brief  Find and set the 'movewith' parent entity for entities that have this key set.
 **/
 void SVG_MoveWith_FindParentTargetEntities( void ) {
-    edict_t *ent = g_edicts;
+    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 0 );
     int32_t moveParents  = 0;
     int32_t i = 1;
-    for ( i = 1, ent = g_edicts + i; i < globals.num_edicts; i++, ent++ ) {
+    for ( i = 1, ent = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
         // It has to be in-use.
         //if ( !ent->inuse ) {
         //    continue;
@@ -437,7 +302,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
         }
 
         // Fetch 'parent' target entity.
-        edict_t *parentMover = SVG_Find( NULL, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.movewith.ptr );
+        svg_base_edict_t *parentMover = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, targetname ), (const char *)ent->targetNames.movewith.ptr );
         // Apply.
         if ( parentMover ) {
             // Set.
@@ -455,7 +320,7 @@ void SVG_MoveWith_FindParentTargetEntities( void ) {
 *   @brief  Allocates in Tag(TAG_SVGAME_LEVEL) a proper string for string entity fields.
 *           The string itself is freed at disconnecting/map changes causing TAG_SVGAME_LEVEL memory to be cleared.
 **/
-static char *ED_NewString(const char *string)
+char *ED_NewString(const char *string)
 {
     char    *newb, *new_p;
     int     i, l;
@@ -463,7 +328,7 @@ static char *ED_NewString(const char *string)
     l = strlen(string) + 1;
 
 	// WID: C++20: Addec cast.
-    newb = (char*)gi.TagMalloc(l, TAG_SVGAME_LEVEL);
+    newb = (char*)gi.TagMallocz(l, TAG_SVGAME_LEVEL);
 
     new_p = newb;
 
@@ -481,118 +346,38 @@ static char *ED_NewString(const char *string)
     return newb;
 }
 
+/*
+Goal:
+    - When the game loads a new map and SVG_SpawnEntities is called, we want to be able
+	to allocate the appropriate type of entity based on the classname cm_entity_t key/value pair.
+    The appropriate entity type to allocate is determined by looking into the TypeInfo system
+	for a cm_entity_t's classname key matching the allocator function to use.
+    - After that we want to reiterate the cm_entity_t key/value pairs and pass them to the edict's
+	SpawnKey function. This allows us to set the edict's fields based on the cm_entity_t key/value pairs.
+*/
 /**
-*   @return A pointer to the spawn field 'spawn_field_t' that has a matching key. (nullptr) otherwise.
+*   @brief  A pointer to the gitem_t structure if it matched by classname.
 **/
-static const spawn_field_t *GetSpawnFieldByKey( const char *key ) {
-    const spawn_field_t *f = nullptr;
-
-    for ( f = spawn_fields; f->name; f++ ) {
-        if ( !Q_stricmp( f->name, key ) ) {
-            return f;
-        }
+static const gitem_t *_GetItemByClassname( const char *classname ) {
+    // Obviously.
+    if ( !classname ) {
+        return nullptr;
     }
 
-    return nullptr;
+	// Iterate over the number of items.
+	for ( int32_t i = 0; i < game.num_items; i++ ) {
+		if ( !itemlist[ i ].classname ) {
+			continue;
+		}
+		// If we found a match, return the item.
+		if ( !strcmp( classname, itemlist[ i ].classname ) ) {
+			return &itemlist[ i ];
+		}
+	}
+
+	// No match found.
+	return nullptr;
 }
-
-/**
-*   @return A pointer to the temporary spawn field 'spawn_field_t' that has a matching key. (nullptr) otherwise.
-**/
-static const spawn_field_t *GetTempFieldByKey( const char *key ) {
-    const spawn_field_t *f = nullptr;
-
-    for ( f = temp_fields; f->name; f++ ) {
-        if ( !Q_stricmp( f->name, key ) ) {
-            return f;
-        }
-    }
-
-    return nullptr;
-}
-
-/**
-*   @brief  Will look up the (writeAddress + fields offset address) in order to write write the 
-*           key/value pair's value into the address specifically based on the type the field is 
-*           made to hold.into that address
-**/
-static void WritePairToEdictKeyField( byte *writeAddress, const spawn_field_t *keyOffsetField, const cm_entity_t *kv ) {
-    // Look up the kind of field type we're dealing with.
-    switch ( keyOffsetField->type ) {
-        case F_IGNORE:
-            break;
-        case F_INT:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-                *(int *)( writeAddress + keyOffsetField->ofs ) = kv->integer;
-            } else {
-                gi.dprintf( "%s: couldn't parse field '%s' as integer type.\n", __func__, kv->key );
-            }
-            break;
-        case F_FLOAT:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-                *(float *)( writeAddress + keyOffsetField->ofs ) = kv->value;
-            } else {
-                gi.dprintf( "%s: couldn't parse field '%s' as float type.\n", __func__, kv->key );
-            }
-            break;
-        case F_ANGLEHACK:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = 0;
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->value;
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
-            } else {
-                gi.dprintf( "%s: couldn't parse field '%s' as yaw angle(float) type.\n", __func__, kv->key );
-            }
-            break;
-        case F_LSTRING:
-            *(char **)( writeAddress + keyOffsetField->ofs ) = ED_NewString( kv->string );
-            break;
-        case F_LEVEL_QSTRING:
-            *(svg_level_qstring_t *)( writeAddress + keyOffsetField->ofs ) = svg_level_qstring_t::from_char_str( kv->string );
-            break;
-        case F_GAME_QSTRING:
-            *(svg_game_qstring_t *)( writeAddress + keyOffsetField->ofs ) = svg_game_qstring_t::from_char_str( kv->string );
-            break;
-        case F_VECTOR3:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec3[ 0 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec3[ 1 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec3[ 2 ];
-            } else if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR2 ) {
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec2[ 0 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec2[ 1 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
-                //( (float *)( b + f->ofs ) )[ 2 ] = vec[ 2 ];
-            } else {
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = 0;
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = 0;
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
-                gi.dprintf( "%s: couldn't parse field '%s' as vector type.\n", __func__, kv->key );
-            }
-            break;
-        case F_VECTOR4:
-            if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR4 ) {
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = kv->vec4[ 0 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = kv->vec4[ 1 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = kv->vec4[ 2 ];
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 3 ] = kv->vec4[ 3 ];
-                // TODO: We don't support vector4 yet, so just behave as if it were a Vector3 for now.
-                //( (float *)( b + f->ofs ) )[ 3 ] = pair->vec4[ 3 ];
-            } else {
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 0 ] = 0;
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 1 ] = 0;
-                ( (float *)( writeAddress + keyOffsetField->ofs ) )[ 2 ] = 0;
-                gi.dprintf( "%s: couldn't parse field '%s' as vector type.\n", __func__, kv->key );
-            }
-            break;
-        default:
-        //if ( edict ) {
-        //    gi.dprintf( "Unhandled key/value pair(%s, %s) for cm_entity(%d) and edict(%d)\n", kv->key, kv->string, i, edict->s.number );
-        //}
-        break;
-    }
-}
-
 /**
 *   @brief  Loads in the map name and iterates over the collision model's parsed key/value
 *           pairs in order to spawn entities appropriately matching the pair dictionary fields
@@ -603,7 +388,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // skill levels.
     float skill_level = floor( skill->value );
     skill_level = std::clamp( skill_level, 0.f, 3.f );
-    
+
     // If it is an out of bounds cvar, force set skill level within the clamped bounds.
     if ( skill->value != skill_level ) {
         gi.cvar_forceset( "skill", va( "%f", skill_level ) );
@@ -612,186 +397,187 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // If we were running a previous session, make sure to save the session's client data before cleaning all level memory.
     SVG_Player_SaveClientData();
 
-    // Free up all SVGAME_LEVEL tag memory.
-    gi.FreeTags(TAG_SVGAME_LEVEL);
 
-    // Zero out all level struct data as well as all the entities(edicts).
-    level = {}; //memset( &level, 0, sizeof( level ) );
-    for ( int32_t i = 0; i < game.maxentities; i++ ) {
-        g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
-    }
+    // Clamp maxentities within valid range.
+    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
+    // initialize all clients for this game
+    game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
+
+	// Clear this before clearing TAG_SVGAME_LEVEL memory, since it may have member variables that
+	// point to TAG_SVGAME_LEVEL memory.
+    g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+
+
+    // Zero out all level struct data.
+    level = {};
+    // Restore cm_entity_t pointer.
+    level.cm_entities = entities;
+
+    // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
+    g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
+    // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
+    g_edict_pool.num_edicts = game.maxclients + 1;
+
+    // Initialize a fresh clients array.
+    //game.clients = SVG_Clients_Reallocate( game.maxclients );
 
     // Copy over the mapname and the spawn point. (Optionally set by appending a map name with a $spawntarget)
     Q_strlcpy( level.mapname, mapname, sizeof( level.mapname ) );
     Q_strlcpy( game.spawnpoint, spawnpoint, sizeof( game.spawnpoint ) );
 
-    // Set client fields on player entities.
-    for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        // Assign this entity to the designated client.
-        g_edicts[ i + 1 ].client = game.clients + i;
+    // Ensure we got the number of items to check classnames against with.
+    SVG_InitItems();
 
-        // Set their states as disconnected, unspawned, since the level is switching.
-        game.clients[ i ].pers.connected = false;
-        game.clients[ i ].pers.spawned = false;
-    }
-    
     //! Keep score of the total 'inhibited' entities. (Those that got removed for distinct reasons.)
     int32_t numInhibitedEntities = 0;
 
     // Keep track of the internal entityID.
     int32_t entityID = 0;
-
     // Pointer to the first key/value pair entry of a collision model's entities.
     const cm_entity_t *cm_entity = nullptr;
-
     // Pointer to the most recent allocated edict to spawn.
-    edict_t *spawnEdict = nullptr;
+    svg_base_edict_t *spawnEdict = nullptr;
 
     // Iterate over the number of collision model entity entries.
     for ( size_t i = 0; i < numEntities; i++ ) {
-        // For each entity we clear the temporary spawn fields.
-        memset( &st, 0, sizeof( spawn_temp_t ) );
-
         // Pointer to the worldspawn edict in first instance, after that the first free entity
         // we can acquire.
-        spawnEdict = ( !spawnEdict ? g_edicts : SVG_AllocateEdict() );
+        //spawnEdict = ( !spawnEdict ? g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ : g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>() );
+        svg_base_edict_t *spawnEdict = nullptr;
+
+        // TypeInfo for this entity.
+        EdictTypeInfo *typeInfo = nullptr;
 
         // Get the incremental index entity.
-        cm_entity = entities[ i ];
+        cm_entity = level.cm_entities[ i ];
 
-        // DEBUG: Open brace for this entity we're parsing.
-        #ifdef DEBUG_ENTITY_SPAWN_PROCESS
-        gi.dprintf( "Entity(#%i) {\n", entityID );
-        #endif
+        // Call spawn on edicts that got a positive entityID. Worldspawn == entityID(#0).
+        if ( entityID == 0 ) {
+            // Get the type info for this entity.
+            typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "worldspawn" );
+            // Worldspawn:
+            g_edict_pool.edicts[ 0 ] = typeInfo->allocateEdictInstanceCallback( cm_entity );
+            // Set the worldspawn entityID.
+            g_edict_pool.edicts[ 0 ]->s.number = 0;
+            // Don't forget to increment num_edicts. Do so before spawning, since the worldspawn
+            // will actually pre-allocate entities for the dead client player's body queue.
+            g_edict_pool.num_edicts++;
+            // Spawn the worldspawn entity.
+            g_edict_pool.edicts[ 0 ]->DispatchSpawnCallback();
+            // Continue to next entity.
+            entityID++;
+            continue;
+        }
 
-        // Get the first key value.
+        // First seek out its classname so we can get the TypeInfo needed to allocate the proper svg_base_edict_t derivative.
+        const cm_entity_t *topCmEntity = cm_entity;
+        const cm_entity_t *classnameKv = cm_entity;
+
+        while ( classnameKv ) {
+            // If we have a matching key, then we can spawn the entity.
+            if ( strcmp( classnameKv->key, "classname" ) == 0 ) {
+                /**
+				*   First determine whether we are dealing with an item entity in order to spawn a specific type.
+                **/
+                //const gitem_t *item = nullptr;// _GetItemByClassname( classnameKv->nullable_string );
+                const gitem_t *item = nullptr;
+
+                if ( item = _GetItemByClassname( classnameKv->nullable_string ) ) {
+                    // Get the default 'item edict' typeInfo.
+                    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_item_edict_t" );
+                    // If we can't find its classname linked in the TypeInfo list, we'll resort to the default
+                    // svg_base_edict_t type instead.
+                    // If we don't have a type info, then we can't spawn it.
+                    if ( !typeInfo ) {
+                        typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+                        gi.dprintf( "No type info for entity(%s)!\n", classnameKv->string );
+
+                        // Nullify the item pointer again.
+                        item = nullptr;
+                    }
+                /**
+				*   Otherwise proceed as normal and first try to look up the typeInfo by its classname.
+                *   If that fails, resort to default svg_base_edict_t classname type instead.
+                **/
+                } else {
+                    // Get the type info for this entity.
+                    typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( classnameKv->string );
+                    // If we can't find its classname linked in the TypeInfo list, we'll resort to the default
+                    // svg_base_edict_t type instead.
+                    // If we don't have a type info, then we can't spawn it.
+                    if ( !typeInfo ) {
+                        typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+                        gi.dprintf( "No type info for entity(%s)!\n", classnameKv->string );
+                    }
+                }
+
+                /**
+                *   Allocate the entity for spawning.
+                **/
+                if ( typeInfo ) {
+                    // Allocate.
+                    spawnEdict = typeInfo->allocateEdictInstanceCallback( topCmEntity );
+                    // Assign its item info pointer in case we spawned an item entity.
+                    spawnEdict->item = item;
+                    // This should never happen, but still.
+                // Or, error out.
+                } else {
+                    spawnEdict = nullptr;
+                    gi.dprintf( "Failed to find TypeInfo for \"svg_base_edict_t\", entity(% s)!\n", classnameKv->string );
+                }
+                break;
+            }
+
+            // If the key is not 'classname', then we need to keep looking for it.
+            // Seek out the next key/value pair for one that has the matching key 'classname'.
+            classnameKv = classnameKv->next;
+        };
+
+        // If classnameKv == nullptr we never found any. Error out.
+        if ( classnameKv == nullptr ) {
+			gi.error( "%s: %s: No classname key/value pair found for entity(%d)!\n", __func__, mapname, i );
+			return;
+        }
+		// If we don't have a spawn edict, then we can't spawn it.
+        if ( !spawnEdict ) {
+            numInhibitedEntities++;
+			gi.dprintf( "%s: %s: No spawn edict found for entity(%d)!\n", __func__, mapname, i );
+			continue;
+        }
+
+        // Iterate and process the remaining key/values now that we allocated the entity type class instance.
         const cm_entity_t *kv = cm_entity;
         while ( kv ) {
-            // The eventual field address we'll be dealing with.
-            const spawn_field_t *keyField = nullptr;
-
-            // Try and find the spawn_field_t* that has a matching kv->key value.
-            const spawn_field_t *spf = GetSpawnFieldByKey( kv->key );
-            // Didn't find it in spawn fields, so check if the temporary entity fields got the matching key.
-            const spawn_field_t *tpf = GetTempFieldByKey( kv->key );
-
-            // The address to write the pair's value into.
-            byte *writeAddress = nullptr;
-
-            // Spawn Field matches dominate the temporary spawn fields structure.
-            if ( spf ) {
-                // Set address to the entity's struct.
-                writeAddress = (byte*)spawnEdict;
-                // Set the key field pointer.
-                keyField = spf;
-            // The spawn field list failed to find a match, but the temporary spawn fields do have a match.
-            } else if ( tpf ) {
-                // Set address to the temporary spawn fields struct.
-                writeAddress = (byte *)&st;
-                // Set the key field pointer.
-                keyField = tpf;
+            // For possible Key/Value errors/warnings.
+            std::string errorStr = "";
+            // Give the edict a chance to process and assign spawn key/value.
+            const bool processedKv = spawnEdict->KeyValue( kv, errorStr );
+            // Print errorStr.
+			if ( !errorStr.empty() ) {
+                // Print the error string.
+                gi.dprintf( "%s: KeyValue error. classname(%s) error: %s\n", __func__, spawnEdict->classname, errorStr.c_str() );
+			}
+            // Or generic unknown what went wrong error instead.
+			else if ( !processedKv ) {
+				// Print the error string.
+				gi.dprintf( "%s: KeyValue error for entity(%d) Key(%s), Value(%s).\n",
+                    __func__, spawnEdict->s.number,
+					kv->key, kv->string );
             }
-
-            // With a write address and the specific matching field for 'key', we can write the pairs entity 
-            // dictionary value to the designated variable's memory address.
-            if ( writeAddress ) {
-                // Write pair value to edict's key field address.
-                WritePairToEdictKeyField( writeAddress, keyField, kv );
-
-                // Debugging:
-                #ifdef DEBUG_ENTITY_SPAWN_PROCESS_SHOW_PARSED_FOR_FIELD_TYPES
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_STRING ) {
-                    gi.dprintf( "\"%s\":\"%s\" parsed for type(string) value=(%s) \n", kv->key, kv->string, kv->nullable_string );
-                }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
-                    gi.dprintf( "\"%s\":\"%s\" parsed for type(integer) value=(%d) \n", kv->key, kv->string, kv->integer );
-                }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_FLOAT ) {
-                    gi.dprintf( "\"%s\":\"%s\" parsed for type(float) value=(%f) \n", kv->key, kv->string, kv->value );
-                }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR2 ) {
-                    gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector2) value=(%f, %f) \n", kv->key, kv->string, kv->vec2[ 0 ], kv->vec2[ 1 ] );
-                }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
-                    gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector3) value=(%f, %f, %f) \n", kv->key, kv->string, kv->vec3[ 0 ], kv->vec3[ 1 ], kv->vec3[ 2 ] );
-                }
-                if ( kv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR4 ) {
-                    gi.dprintf( "\"%s\":\"%s\" parsed for type(Vector4) value=(%f, %f, %f, %f) \n", kv->key, kv->vec4[ 0 ], kv->vec4[ 1 ], kv->vec4[ 2 ], kv->vec4[ 3 ] );
-                }
-                #endif
-            // If we failed to find a field however, make sure to do warn/debug print.
-            } else {
-                #ifdef DEBUG_ENTITY_SPAWN_PROCESS
-                // Technically, in sane scenario's, only this condition would occure:
-                if ( spawnEdict ) {
-                    gi.dprintf( "Unhandled key/value pair(%s, %s) for cm_entity(%d) and edict(%d)\n", kv->key, kv->string, i, spawnEdict->s.number );
-                // Technically, in sane scenario's this would never happen:
-                } else {
-                    gi.dprintf( "Unhandled key/value pair(%s, %s) for cm_entity(%d) and edict(nullptr)\n", kv->key, kv->string, i );
-                }
-                #endif
-            }
-
             // Get the next key/value pair of this entity.
             kv = kv->next;
         }
 
-
-        // TODO: Move to some game mode specific function: CanEntitySpawn or a name of such nature.
-        // See if we need to remove things (except the world) from different skill levels or game mode.
-        if ( spawnEdict != g_edicts ) {
-            // When nomonsters is set, remove any entities that have the word monster in their classname.
-            if ( nomonsters->value && ( strstr( (const char *)spawnEdict->classname, "monster" )
-            /*  || strstr( spawnEdict->classname, "misc_deadsoldier" )
-                || strstr( spawnEdict->classname, "misc_insane" )*/ ) ) {
-                // Free entity.
-                SVG_FreeEdict( spawnEdict );
-                // Increase the amount of inhibited entities we're keeping track of.
-                numInhibitedEntities++;
-                // Iterate to the next entity key/value list entry.
-                continue;
-            }
-
-            // Deathmatch specific behavior, remove all entities that got a SPAWNFLAG_NOT_DEATHMATCH set.
-            if ( deathmatch->value ) {
-                if ( spawnEdict->spawnflags & SPAWNFLAG_NOT_DEATHMATCH ) {
-                    // Free entity.
-                    SVG_FreeEdict( spawnEdict );
-                    // Increase the amount of inhibited entities we're keeping track of.
-                    numInhibitedEntities++;
-                    // Iterate to the next entity key/value list entry.
-                }
-            // Otherwise, assuming singleplayer/coop, remove all entities that do not match the current skill level:
-            } else {
-                if ( /* ((coop->value) && (ent->spawnflags & SPAWNFLAG_NOT_COOP)) || */
-                    ( ( skill->value == 0 ) && ( spawnEdict->spawnflags & SPAWNFLAG_NOT_EASY ) ) ||
-                    ( ( skill->value == 1 ) && ( spawnEdict->spawnflags & SPAWNFLAG_NOT_MEDIUM ) ) ||
-                    ( ( ( skill->value == 2 ) || ( skill->value == 3 ) ) && ( spawnEdict->spawnflags & SPAWNFLAG_NOT_HARD ) )
-                    ) {
-                    // Free entity.
-                    SVG_FreeEdict( spawnEdict );
-                    // Increase the amount of inhibited entities we're keeping track of.
-                    numInhibitedEntities++;
-                    // Iterate to the next entity key/value list entry.
-                }
-            }
-
-            // Remove the spawnflags for save/load games. 
-            if ( spawnEdict != nullptr ) {
-                spawnEdict->spawnflags &= ~( SPAWNFLAG_NOT_EASY | SPAWNFLAG_NOT_MEDIUM | SPAWNFLAG_NOT_HARD | SPAWNFLAG_NOT_COOP | SPAWNFLAG_NOT_DEATHMATCH );
-            }
-        }
-        // EOF: TODO: Move to some game mode specific function: CanEntitySpawn or a name of such nature.
-            
-        // Call spawn on edicts that got a positive entityID. Worldspawn == entityID(#0).
-        if ( entityID >= 0 ) {
-            ED_CallSpawn( spawnEdict );
-        }
-
-        #ifdef DEBUG_ENTITY_SPAWN_PROCESS
-        // End of entity closing brace.
-        gi.dprintf( "}\n" );
-        #endif
+        // Emplace the spawned edict in the next avaible edict slot.
+        // Set the worldspawn entityID.
+        g_edict_pool.EmplaceNextFreeEdict( spawnEdict );
+        // PGM - do this before calling the spawn function so it can be overridden.
+        spawnEdict->gravityVector[ 0 ] = 0.0;
+        spawnEdict->gravityVector[ 1 ] = 0.0;
+        spawnEdict->gravityVector[ 2 ] = -1.0;
+        // PGM
+		// Set the entityID.
+        spawnEdict->DispatchSpawnCallback();
 
         // Increment entityID.
         entityID++;
@@ -799,29 +585,53 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 
     // Give entities a chance to 'post spawn'.
     int32_t numPostSpawnedEntities = 0;
-    for ( int32_t i = 0; i < globals.num_edicts; i++ ) {
-        edict_t *ent = &g_edicts[ i ];
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
 
-        if ( ent && ent->postspawn ) {
-            ent->postspawn( ent );
+        if ( ent && ent->HasPostSpawnCallback() ) {
+            ent->DispatchPostSpawnCallback();
             numPostSpawnedEntities++;
         }
     }
 
+    // Initialize a fresh clients array.
+    //game.clients = SVG_Clients_Reallocate( game.maxclients );
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+        ent->client = &game.clients[ i ];
+
+        // Assign client number.
+        //ent->client->clientNum = i;
+
+        //// Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
+    }
+    //// Set client fields on player entities.
+    //for ( int32_t i = 0; i < game.maxclients; i++ ) {
+    //    // Assign this entity to the designated client.
+    //    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+    //    //
+    //    ent->client = &game.clients[ i ];
+    //}
+
     // Developer print the inhibited entities.
     gi.dprintf( "%i entities inhibited\n", numInhibitedEntities );
     // Developer print the post spawned entities.
-    gi.dprintf( "%i entities post spanwed\n", numPostSpawnedEntities );
+    gi.dprintf( "%i entities post spawned\n", numPostSpawnedEntities );
 
-#ifdef DEBUG
+    #ifdef DEBUG
     i = 1;
-    ent = EDICT_FOR_NUMBER(i);
-    while (i < globals.num_edicts) {
-        if (ent->inuse != 0 || ent->inuse != 1)
-            Com_DPrintf("Invalid entity %d\n", i);
+    ent = EDICT_FOR_NUMBER( i );
+    while ( i < globals.edictPool.num_edicts ) {
+        if ( ent->inuse != 0 || ent->inuse != 1 )
+            Com_DPrintf( "Invalid entity %d\n", i );
         i++, ent++;
     }
-#endif
+    #endif
 
     // Find entity 'teams', NOTE: these are not actual player game teams.
     SVG_FindTeams();
@@ -838,365 +648,3 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // Give Lua a chance to precache media.
     SVG_Lua_CallBack_OnPrecacheMedia();
 }
-
-
-//===================================================================
-
-#if 0
-// cursor positioning
-xl <value>
-xr <value>
-yb <value>
-yt <value>
-xv <value>
-yv <value>
-
-// drawing
-statpic <name>
-pic <stat>
-num <fieldwidth> <stat>
-string <stat>
-
-// control
-if <stat>
-ifeq <stat> <value>
-ifbit <stat> <value>
-endif
-
-#endif
-
-static const char single_statusbar[] =
-"yb -24 "
-
-// health
-"xv 0 "
-"hnum "
-"xv 50 "
-"pic 3 "
-
-// ammo
-"if 4 " // ammo
-  "yb -40 "
-  "xr -70 "
-  "anum "
-  "xr -95 "
-  "pic 4 " // ammo icon.
-  // Clip ammo.
-  "xr -135 "
-  "cnum "
-"endif "
-"yb +40 "
-// armor
-"if 6 " // armor_icon
-  "xv 200 "
-  "rnum "
-  "xv 250 "
-  "pic 6 " // armor_icon
-"endif "
-
-// selected item
-"if 8 " // selected icon
-  "xv 296 "
-  "pic 8 "  // selected icon
-"endif "
-
-"yb -50 "
-
-// picked up item
-"if 9 "
-  "xv 0 "
-  "pic 9 " // pickup icon.
-  "xv 26 "
-  "yb -42 "
-  "stat_string 10 " // pickup string.
-  "yb -50 "
-"endif "
-
-// timer 1 (quad, enviro, breather)
-"if 11 " // timer icon
-  "xv 262 "
-  "num 2 12 " // timer
-  "xv 296 "
-  "pic 11 "
-"endif "
-
-// timer 2 (pent)
-"if 18 "
-  "yb -76 "
-  "xv 262 "
-  "num 2 19 "
-  "xv 296 "
-  "pic 18 "
-  "yb -50 "
-"endif "
-
-// help / weapon icon
-"if 13 "
-  "xv 148 "
-  "pic 13 "
-"endif "
-;
-
-static const char dm_statusbar[] =
-// frags
-"xr -50 "
-"yt 2 "
-"num 3 2 " // frags
-
-// spectator
-"if 17 " // stat_spectator
-  "xv 0 "
-  "yb -58 "
-  "string2 \"SPECTATOR MODE\" "
-"endif "
-
-// chase camera
-"if 16 "    // chase camera
-  "xv 0 "
-  "yb -68 "
-  "string \"Chasing\" "
-  "xv 64 "
-  "stat_string 16 "
-"endif "
-;
-
-
-/*QUAKED worldspawn (0 0 0) ?
-
-Only used for the world.
-"sky"   environment map name
-"skyaxis"   vector axis for rotating sky
-"skyrotate" speed of rotation in degrees/second
-"sounds"    music cd track number
-"gravity"   800 is default gravity
-"message"   text to print at user logon
-*/
-void SP_worldspawn(edict_t *ent)
-{
-    ent->movetype = MOVETYPE_PUSH;
-    ent->solid = SOLID_BSP;
-    ent->inuse = true;          // since the world doesn't use SVG_AllocateEdict()
-    ent->s.modelindex = 1;      // world model is always index 1
-
-    //---------------
-
-    // reserve some spots for dead player bodies for coop / deathmatch
-    SVG_InitBodyQue();
-
-    // set configstrings for items
-    SVG_SetItemNames();
-
-    if (st.nextmap)
-        Q_strlcpy(level.nextmap, st.nextmap, sizeof(level.nextmap));
-
-    // make some data visible to the server
-
-    if (ent->message && ent->message[0]) {
-        gi.configstring(CS_NAME, ent->message);
-        Q_strlcpy(level.level_name, ent->message, sizeof(level.level_name));
-    } else
-        Q_strlcpy(level.level_name, level.mapname, sizeof(level.level_name));
-
-    if (st.sky && st.sky[0])
-        gi.configstring(CS_SKY, st.sky);
-    else
-        gi.configstring(CS_SKY, "unit1_");
-
-    gi.configstring(CS_SKYROTATE, va("%f %d", st.skyrotate, st.skyautorotate));
-
-    gi.configstring(CS_SKYAXIS, va("%f %f %f",
-                                   st.skyaxis[0], st.skyaxis[1], st.skyaxis[2]));
-
-    if (st.musictrack && st.musictrack[0])
-        gi.configstring(CS_CDTRACK, st.musictrack);
-    else
-        gi.configstring(CS_CDTRACK, va("%i", ent->sounds));
-
-    gi.configstring(CS_MAXCLIENTS, va("%i", (int)(maxclients->value)));
-
-    // Set air acceleration properly.
-    if ( COM_IsUint( sv_airaccelerate->string ) || COM_IsFloat( sv_airaccelerate->string ) ) {
-        gi.configstring( CS_AIRACCEL, sv_airaccelerate->string );
-    } else {
-        gi.configstring( CS_AIRACCEL, "0" );
-    }
-     
-    // status bar program
-    if ( deathmatch->value ) {
-        gi.configstring( CS_STATUSBAR, dm_statusbar );
-    } else {
-        gi.configstring( CS_STATUSBAR, single_statusbar );
-    }
-    
-    // Gravity.
-    if ( !st.gravity ) {
-        gi.cvar_set( "sv_gravity", "800" );
-    } else {
-        gi.cvar_set( "sv_gravity", st.gravity );
-    }
-
-    // Certain precaches.
-    gi.modelindex( "players/playerdummy/tris.iqm" );
-
-    // help icon for statusbar
-    //gi.imageindex("i_help");
-    //level.pic_health = gi.imageindex("i_health");
-    //gi.imageindex("help");
-    //gi.imageindex("field_3");
-
-    SVG_PrecacheItem( SVG_FindItem( "Fists" ) );
-    SVG_PrecacheItem( SVG_FindItem( "Pistol" ) );
-
-    // HUD Chat.
-    gi.soundindex("hud/chat01.wav");
-
-    // Body Gib.
-    gi.soundindex( "world/gib01.wav" );
-    gi.soundindex( "world/gib_drop01.wav" );
-
-    // Item Respawn.
-    gi.soundindex("items/respawn01.wav");
-
-    // Login/Logout/Teleport.
-    gi.soundindex( "world/mz_login.wav" );
-    gi.soundindex( "world/mz_logout.wav" );
-    gi.soundindex( "world/mz_respawn.wav" );
-    gi.soundindex( "world/teleport01.wav" );
-
-    // sexed sounds
-    //gi.soundindex("*death1.wav");
-    //gi.soundindex("*death2.wav");
-    //gi.soundindex("*death3.wav");
-    //gi.soundindex("*death4.wav");
-    //gi.soundindex("*pain25_1.wav");
-    //gi.soundindex("*pain25_2.wav");
-    //gi.soundindex("*pain50_1.wav");
-    //gi.soundindex("*pain50_2.wav");
-    //gi.soundindex("*pain75_1.wav");
-    //gi.soundindex("*pain75_2.wav");
-    //gi.soundindex("*pain100_1.wav");
-    //gi.soundindex("*pain100_2.wav");
-
-    // Deaths:
-    gi.soundindex( "player/death01.wav" );
-    gi.soundindex( "player/death02.wav" );
-    gi.soundindex( "player/death03.wav" );
-    gi.soundindex( "player/death04.wav" );
-    // Pains:
-    gi.soundindex( "player/pain25_01.wav" );
-    gi.soundindex( "player/pain50_01.wav" );
-    gi.soundindex( "player/pain75_01.wav" );
-    gi.soundindex( "player/pain100_01.wav" );
-    // WID: All of these are now just burn01 and burn02 since the original sounds contained silly screams and all that.
-    snd_fry = gi.soundindex( "player/burn01.wav" );  // standing in lava / slime
-    //gi.soundindex( "player/lava_in.wav" );
-    //gi.soundindex( "player/burn1.wav" );
-    //gi.soundindex( "player/burn2.wav" );
-    //gi.soundindex( "player/lava1.wav" );
-    //gi.soundindex( "player/lava2.wav" );
-    gi.soundindex( "player/burn01.wav" );
-    gi.soundindex( "player/burn02.wav" );
-    // Kinematics:
-    gi.soundindex( "player/jump01.wav" );   // Player jump.
-    gi.soundindex( "player/jump02.wav" ); // Player jump.
-    gi.soundindex( "player/fall01.wav" );   // Player fall.
-    gi.soundindex( "player/fall02.wav" );   // Player heavy fall.
-    gi.soundindex( "player/land01.wav" );   // Player jump landing sound.
-    // Water:
-    gi.soundindex( "player/drown01.wav" );  // Drowning last breaths.
-    gi.soundindex( "player/gasp01.wav" );   // Gasping for air.
-    gi.soundindex( "player/gasp02.wav" );   // Head breaking surface, not gasping.
-    gi.soundindex( "player/gurp01.wav" );   // Drowning damage 01.
-    gi.soundindex( "player/gurp02.wav" );   // Drowning damage 02.
-    gi.soundindex( "player/water_body_out01.wav" );     // Feet hitting water.
-    gi.soundindex( "player/water_feet_in01.wav" );      // Feet hitting water.
-    gi.soundindex( "player/water_feet_out01.wav" );     // Feet leaving water.
-    gi.soundindex( "player/water_head_under01.wav" );   // Head going underwater.
-    gi.soundindex( "player/water_splash_in01.wav" );    // Head going underwater.
-    gi.soundindex( "player/water_splash_in02.wav" );    // Head going underwater.
-    gi.soundindex( "world/water_land_splash01.wav" );   // Landing splash 01.
-    gi.soundindex( "world/water_land_splash02.wav" );   // Landing splash 02.
-    // Misc/World(Kinematics):
-    gi.soundindex( "world/land01.wav" );    // Ground landing thud.
-
-    //gi.soundindex("*pain25_1.wav");
-    //gi.soundindex("*pain25_2.wav");
-    //gi.soundindex("*pain50_1.wav");
-    //gi.soundindex("*pain50_2.wav");
-    //gi.soundindex("*pain75_1.wav");
-    //gi.soundindex("*pain75_2.wav");
-    //gi.soundindex("*pain100_1.wav");
-    //gi.soundindex("*pain100_2.wav");
-     
-    // sexed models
-    // THIS ORDER MUST MATCH THE DEFINES IN g_local.h
-    // you can add more, max 15
-    //gi.modelindex( "#w_fists.iqm" ); // #w_fists.iqm
-    //gi.modelindex( "#w_pistol.iqm" );
-    //gi.modelindex( "#w_shotgun.md2" );
-    //gi.modelindex( "#w_sshotgun.md2" );
-    //gi.modelindex( "#w_machinegun.md2" );
-    //gi.modelindex( "#w_chaingun.md2" );
-    //gi.modelindex( "#a_grenades.md2" );
-    //gi.modelindex( "#w_glauncher.md2" );
-    //gi.modelindex( "#w_rlauncher.md2" );
-    //gi.modelindex( "#w_hyperblaster.md2" );
-    //gi.modelindex( "#w_railgun.md2" );
-    //gi.modelindex( "#w_bfg.md2" );
-
-    //-------------------
-
-    sm_meat_index = gi.modelindex("models/objects/gibs/sm_meat/tris.md2");
-    gi.modelindex("models/objects/gibs/arm/tris.md2");
-    gi.modelindex("models/objects/gibs/bone/tris.md2");
-    gi.modelindex("models/objects/gibs/bone2/tris.md2");
-    gi.modelindex("models/objects/gibs/chest/tris.md2");
-    gi.modelindex("models/objects/gibs/skull/tris.md2");
-    gi.modelindex("models/objects/gibs/head2/tris.md2");
-
-//
-// Setup light animation tables. 'a' is total darkness, 'z' is doublebright.
-//
-
-    // 0 normal
-    gi.configstring(CS_LIGHTS + 0, "m");
-
-    // 1 FLICKER (first variety)
-    gi.configstring(CS_LIGHTS + 1, "mmnmmommommnonmmonqnmmo");
-
-    // 2 SLOW STRONG PULSE
-    gi.configstring(CS_LIGHTS + 2, "abcdefghijklmnopqrstuvwxyzyxwvutsrqponmlkjihgfedcba");
-
-    // 3 CANDLE (first variety)
-    gi.configstring(CS_LIGHTS + 3, "mmmmmaaaaammmmmaaaaaabcdefgabcdefg");
-
-    // 4 FAST STROBE
-    gi.configstring(CS_LIGHTS + 4, "mamamamamama");
-
-    // 5 GENTLE PULSE 1
-    gi.configstring(CS_LIGHTS + 5, "jklmnopqrstuvwxyzyxwvutsrqponmlkj");
-
-    // 6 FLICKER (second variety)
-    gi.configstring(CS_LIGHTS + 6, "nmonqnmomnmomomno");
-
-    // 7 CANDLE (second variety)
-    gi.configstring(CS_LIGHTS + 7, "mmmaaaabcdefgmmmmaaaammmaamm");
-
-    // 8 CANDLE (third variety)
-    gi.configstring(CS_LIGHTS + 8, "mmmaaammmaaammmabcdefaaaammmmabcdefmmmaaaa");
-
-    // 9 SLOW STROBE (fourth variety)
-    gi.configstring(CS_LIGHTS + 9, "aaaaaaaazzzzzzzz");
-
-    // 10 FLUORESCENT FLICKER
-    gi.configstring(CS_LIGHTS + 10, "mmamammmmammamamaaamammma");
-
-    // 11 SLOW PULSE NOT FADE TO BLACK
-    gi.configstring(CS_LIGHTS + 11, "abcdefghijklmnopqrrqponmlkjihgfedcba");
-
-    // styles 32-62 are assigned by the light program for switchable lights
-
-    // 63 testing
-    gi.configstring(CS_LIGHTS + 63, "a");
-}
-

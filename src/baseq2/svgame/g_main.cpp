@@ -22,7 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *	General used Game Objects.
 **/
 game_locals_t   game;
-level_locals_t  level;
+svg_level_locals_t  level;
 svgame_import_t	gi;
 svgame_export_t	globals;
 spawn_temp_t    st;
@@ -146,7 +146,7 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
 
         // Invalid somehow.
         gi.bprintf( PRINT_WARNING, "%s: tried to assign a non valid gamemode ID(#%i), resorting to default(#%i, %s)\n",
-            __func__, gamemode->integer, GAMEMODE_SINGLEPLAYER, SG_GetGamemodeName( GAMEMODE_SINGLEPLAYER ) );
+            __func__, gamemode->integer, GAMEMODE_SINGLEPLAYER, SG_GetGameModeName( GAMEMODE_SINGLEPLAYER ) );
     }
 }
 
@@ -236,7 +236,7 @@ void InitGame( void )
 {
 	// Notify 
     gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
-				SG_GetGamemodeName( gamemode->integer ), maxclients->integer, maxspectators->integer, maxentities->integer );
+				SG_GetGameModeName( gamemode->integer ), maxclients->integer, maxspectators->integer, maxentities->integer );
 
     game.gamemode = gamemode->integer;
     game.maxclients = maxclients->integer;
@@ -319,7 +319,7 @@ void InitGame( void )
     // initialize all clients for this game
     game.maxclients = maxclients->value;
 	// WID: C++20: Addec cast.
-    game.clients = (gclient_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
+    game.clients = (svg_client_t*)gi.TagMalloc(game.maxclients * sizeof(game.clients[0]), TAG_SVGAME);
     globals.num_edicts = game.maxclients + 1;
 }
 
@@ -345,8 +345,8 @@ extern "C" { // WID: C++20: extern "C".
         globals.IsValidGameModeType = G_IsValidGameModeType;
         globals.IsMultiplayerGameMode = G_IsMultiplayerGameMode;
         globals.GetDefaultMultiplayerGamemodeType = G_GetDefaultMultiplayerGamemodeType;
-		globals.GetGamemodeName = SG_GetGamemodeName;
-		globals.GamemodeNoSaveGames = G_GetGamemodeNoSaveGames;
+		globals.GetGameModeName = SG_GetGameModeName;
+		globals.GameModeAllowSaveGames = G_GameModeAllowSaveGames;
 
 		globals.WriteGame = WriteGame;
 		globals.ReadGame = ReadGame;
@@ -505,7 +505,7 @@ void EndDMLevel(void)
     if (level.nextmap[0]) // go to a specific map
         SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.nextmap));
     else {  // search for a changelevel
-        ent = SVG_Find(NULL, FOFS_GENTITY(classname), "target_changelevel");
+        ent = SVG_Entities_Find(NULL, FOFS_GENTITY(classname), "target_changelevel");
         if (!ent) {
             // the map designer didn't include a changelevel,
             // so create a fake ent that goes back to the same level
@@ -550,7 +550,7 @@ CheckDMRules
 void CheckDMRules(void)
 {
     int         i;
-    gclient_t   *cl;
+    svg_client_t   *cl;
 
     if (level.intermissionFrameNumber)
         return;
@@ -667,7 +667,7 @@ void G_RunFrame(void)
 
         // If the ground entity moved, make sure we are still on it.
         if ( ( ent->groundentity ) && ( ent->groundentity->linkcount != ent->groundentity_linkcount ) ) {
-            contents_t mask = SVG_GetClipMask( ent );
+            cm_contents_t mask = SVG_GetClipMask( ent );
 
             // Monsters that don't SWIM or FLY, got their own unique ground check.
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
@@ -678,7 +678,7 @@ void G_RunFrame(void)
             //} else {
             //    // If the ground entity is still 1 unit below us, we're good.
             //    Vector3 endPoint = Vector3( ent->s.origin ) - Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-            //    trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+            //    cm_trace_t tr = gi.trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
 
             //    if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundentity ) {
             //        ent->groundentity = nullptr;

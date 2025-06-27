@@ -16,6 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/svg_lua.h"
@@ -35,7 +36,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 /**
 *   @brief  Calls the (usually key/value field luaName).."_Use" matching Lua function.
 **/
-const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, edict_t *entity, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
+const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const std::string &luaName, bool &functionReturnValue, svg_base_edict_t *entity, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool verboseIfMissing ) {
     if ( luaName.empty() ) {
         return false;
     }
@@ -67,11 +68,17 @@ const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const
 /**
 *   @brief  Centerprints the trigger message and plays a set sound, or default chat hud sound.
 **/
-void SVG_Trigger_PrintMessage( edict_t *self, edict_t *activator ) {
+void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activator ) {
     // If a message was set, the activator is not a monster, then center print it.
-    if ( ( self->message ) && !( activator->svflags & SVF_MONSTER ) ) {
+    if ( ( self->message ) && !( activator && activator->svflags & SVF_MONSTER ) ) {
         // Print.
-        gi.centerprintf( activator, "%s", self->message );
+        if ( activator && activator->client ) {
+            gi.centerprintf( activator, "%s", (const char *)self->message );
+        // <Q2RTXP>: WID: Do we want this else statement and condition?
+        } else {
+			//gi.cprintf(nullptr, PRINT_ALL, "%s: %s\n", (const char*)self->classname, self->message.ptr );
+            gi.cprintf( nullptr, PRINT_ALL, "%s\n", (const char *)self->message );
+        }
         // Play custom set audio.
         if ( self->noise_index ) {
             gi.sound( activator, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
@@ -84,10 +91,10 @@ void SVG_Trigger_PrintMessage( edict_t *self, edict_t *activator ) {
 /**
 *   @brief  Kills all entities matching the killtarget name.
 **/
-const int32_t SVG_Trigger_KillTargets( edict_t *self ) {
+const int32_t SVG_Trigger_KillTargets( svg_base_edict_t *self ) {
     if ( self->targetNames.kill ) {
-        edict_t *killTargetEntity = nullptr;
-        while ( ( killTargetEntity = SVG_Find( killTargetEntity, FOFS_GENTITY( targetname ), (const char *)self->targetNames.kill ) ) ) {
+        svg_base_edict_t *killTargetEntity = nullptr;
+        while ( ( killTargetEntity = SVG_Entities_Find( killTargetEntity, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.kill ) ) ) {
             SVG_FreeEdict( killTargetEntity );
             if ( !self->inuse ) {
                 gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, self->s.number, (const char *)self->classname );
@@ -115,10 +122,10 @@ static constexpr int32_t PICKTARGET_MAX = 8;
 /**
 *   @brief  Pick a random target of entities with a matching targetname.
 **/
-edict_t *SVG_PickTarget( const char *targetname ) {
-    edict_t *ent = NULL;
+svg_base_edict_t *SVG_PickTarget( const char *targetname ) {
+    svg_base_edict_t *ent = NULL;
     int     num_choices = 0;
-    edict_t *choice[ PICKTARGET_MAX ];
+    svg_base_edict_t *choice[ PICKTARGET_MAX ];
 
     if ( !targetname ) {
         gi.dprintf( "SVG_PickTarget called with NULL targetname\n" );
@@ -126,7 +133,7 @@ edict_t *SVG_PickTarget( const char *targetname ) {
     }
 
     while ( 1 ) {
-        ent = SVG_Find( ent, FOFS_GENTITY( targetname ), targetname );
+        ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, targetname ), targetname );
         if ( !ent )
             break;
         choice[ num_choices++ ] = ent;
@@ -142,11 +149,13 @@ edict_t *SVG_PickTarget( const char *targetname ) {
     return choice[ Q_rand_uniform( num_choices ) ];
 }
 
-
-
-void Think_UseTargetsDelay( edict_t *ent ) {
-    SVG_UseTargets( ent, ent->activator );
-    SVG_FreeEdict( ent );
+/**
+*   @brief  Support routine for delayed trigger Use Targets.
+**/
+DECLARE_GLOBAL_CALLBACK_THINK( Think_UseTargetsDelay );
+DEFINE_GLOBAL_CALLBACK_THINK( Think_UseTargetsDelay )( svg_base_edict_t *self ) -> void {
+    SVG_UseTargets( self, self->activator, self->delayed.useTarget.useType, self->delayed.useTarget.useValue, true );
+    SVG_FreeEdict( self );
 }
 
 /*
@@ -165,16 +174,16 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue, const bool isDelayed ) {
     //
     // Check for a delay
     //
     if ( ent->delay ) {
         // create a temp object to fire at a later time
-        edict_t *delayEntity = SVG_AllocateEdict();
+        svg_base_edict_t *delayEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
         delayEntity->classname = "DelayedUseTargets";
         delayEntity->nextthink = level.time + QMTime::FromSeconds( ent->delay );
-        delayEntity->think = Think_UseTargetsDelay;
+        delayEntity->SetThinkCallback( Think_UseTargetsDelay );
         if ( !activator ) {
             gi.dprintf( "Think_UseTargetsDelay with no activator\n" );
         }
@@ -182,6 +191,7 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
         delayEntity->other = ent->other;
         delayEntity->message = ent->message;
 
+        delayEntity->targetEntities.target = ent->targetEntities.target;
         delayEntity->targetNames.target = ent->targetNames.target;
         delayEntity->targetNames.kill = ent->targetNames.kill;
 
@@ -208,8 +218,8 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
     // fire targets
     //
     if ( ent->targetNames.target ) {
-        edict_t *fireTargetEntity = nullptr;
-        while ( ( fireTargetEntity = SVG_Find( fireTargetEntity, FOFS_GENTITY( targetname ), (const char *)ent->targetNames.target ) ) ) {
+        svg_base_edict_t *fireTargetEntity = nullptr;
+        while ( ( fireTargetEntity = SVG_Entities_Find( fireTargetEntity, q_offsetof( svg_base_edict_t, targetname ), (const char *)ent->targetNames.target ) ) ) {
             // Doors fire area portals in a specific way
             if ( !Q_stricmp( (const char *)fireTargetEntity->classname, "func_areaportal" )
                 && ( !Q_stricmp( (const char *)ent->classname, "func_door" ) || !Q_stricmp( (const char *)ent->classname, "func_door_rotating" ) ) ) {
@@ -219,8 +229,8 @@ void SVG_UseTargets( edict_t *ent, edict_t *activator, const entity_usetarget_ty
             if ( fireTargetEntity == ent ) {
                 gi.dprintf( "%s: entity(#%d, \"%s\") used itself!\n", __func__, ent->s.number, (const char *)ent->classname );
             } else {
-                if ( fireTargetEntity->use ) {
-                    fireTargetEntity->use( fireTargetEntity, ent, activator, useType, useValue );
+                if ( fireTargetEntity->HasUseCallback() ) {
+                    fireTargetEntity->DispatchUseCallback( ent, activator, useType, useValue );
                 }
 
                 if ( fireTargetEntity->luaProperties.luaName ) {

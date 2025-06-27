@@ -9,6 +9,8 @@
 #pragma once
 
 
+// Forward declaration
+struct svg_item_edict_t;
 
 /**
 *   Item SpawnFlags:
@@ -25,7 +27,7 @@ static constexpr spawnflag_t ITEM_TARGETS_USED = 0x00040000;
 *   @brief  Specific 'Item Tags' so we can identify what item category/type
 *           we are dealing with.
 **/
-typedef enum {
+typedef enum gitem_tag_e {
     //! Default for non tagged items.
     ITEM_TAG_NONE = 0,
 
@@ -102,14 +104,14 @@ typedef struct gitem_s {
     void        ( *precached )( const struct gitem_s *item );
 
     //! Pickup Callback.
-    const bool  ( *pickup )( struct edict_s *ent, struct edict_s *other );
+    const bool  ( *pickup )( svg_item_edict_t *ent, svg_base_edict_t *other );
     //! Use Callback.
-    void        ( *use )( struct edict_s *ent, const struct gitem_s *item );
+    void        ( *use )( svg_base_edict_t *ent, const struct gitem_s *item );
     //! Drop Callback.
-    void        ( *drop )( struct edict_s *ent, const struct gitem_s *item );
+    void        ( *drop )( svg_base_edict_t *ent, const struct gitem_s *item );
 
     //! WeaponThink Callback.
-    void        ( *weaponthink )( struct edict_s *ent, const bool processUserInputOnly );
+    void        ( *weaponthink )( svg_base_edict_t *ent, const bool processUserInputOnly );
 
     //! Path: Pickup Sound.
     const char *pickup_sound; // WID: C++20: Added const.
@@ -147,3 +149,55 @@ typedef struct gitem_s {
     //! String of all models, sounds, and images this item will use and needs to precache.
     const char *precaches;
 } gitem_t;
+
+//! For access all over.
+extern  gitem_t itemlist[];
+
+/**
+*   @brief
+**/
+void SVG_PrecacheItem( const gitem_t *it );
+/**
+*   @brief
+**/
+void SVG_InitItems( void );
+/**
+*   @brief
+**/
+void SVG_SetItemNames( void );
+/**
+*   @brief
+**/
+const gitem_t *SVG_Item_FindByPickupName( const char *pickup_name );
+/**
+*   @brief
+**/
+const gitem_t *SVG_Item_FindByClassName( const char *classname );
+/**
+*   @brief
+**/
+#define ITEM_INDEX(x) ((x)-itemlist)
+/**
+*   @brief
+**/
+svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item );
+/**
+*   @brief
+**/
+void SVG_Item_SetRespawn( svg_item_edict_t *ent, float delay );
+/**
+*   @brief
+**/
+void SVG_Item_Spawn( svg_item_edict_t *ent, const gitem_t *item );
+/**
+*   @brief
+**/
+const gitem_t *SVG_Item_GetByIndex( int index );
+/**
+*   @brief
+**/
+const bool SVG_ItemAmmo_Add( svg_base_edict_t *ent, const gitem_t *item, const int32_t count );
+/**
+*   @brief
+**/
+void Touch_Item( svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );

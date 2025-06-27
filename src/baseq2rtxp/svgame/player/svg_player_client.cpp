@@ -6,6 +6,11 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+
+#include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_muzzleflashes.h"
+#include "sharedgame/sg_pmove.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/svg_commands_server.h"
@@ -16,18 +21,20 @@
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
 
+#include "svgame/entities/svg_player_edict.h"
+
 #include "svgame/svg_lua.h"
 
 
 /**
 *   @brief
 **/
-void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo );
+void SVG_Client_UserinfoChanged( svg_base_edict_t *ent, char *userinfo );
 
 /**
 *   @brief  Will process(progress) the entity's active animations for each body state and event states.
 **/
-void SVG_P_ProcessAnimations( edict_t *ent );
+void SVG_P_ProcessAnimations( svg_base_edict_t *ent );
 
 
 
@@ -43,67 +50,9 @@ void SVG_P_ProcessAnimations( edict_t *ent );
 /**
 *   @brief
 **/
-void Touch_Item( edict_t *ent, edict_t *other, cplane_t *plane, csurface_t *surf );
-/**
-*   @brief
-**/
-static void TossClientWeapon( edict_t *self ) {
-    if ( !deathmatch->value )
-        return;
+void Touch_Item( svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 
-    // Need to have actual ammo to toss.
-    const gitem_t *item = self->client->pers.weapon;
-    if ( !self->client->pers.inventory[ self->client->ammo_index ] )
-        item = NULL;
-    // Can't toss away your fists.
-    if ( item && ( strcmp( item->pickup_name, "Fists" ) == 0 ) )
-        item = NULL;
 
-    //if (item && quad)
-    //    spread = 22.5f;
-    //else
-    float spread = 0.0f;
-
-    if ( item ) {
-        self->client->viewMove.viewAngles[ YAW ] -= spread;
-        edict_t *drop = Drop_Item( self, item );
-        self->client->viewMove.viewAngles[ YAW ] += spread;
-        drop->spawnflags = DROPPED_PLAYER_ITEM;
-    }
-}
-
-/**
-*   @brief  
-**/
-static void LookAtKiller( edict_t *self, edict_t *inflictor, edict_t *attacker ) {
-    vec3_t dir = {};
-    float killerYaw = 0.f;
-
-    if ( attacker && attacker != world && attacker != self ) {
-        VectorSubtract( attacker->s.origin, self->s.origin, dir );
-    } else if ( inflictor && inflictor != world && inflictor != self ) {
-        VectorSubtract( inflictor->s.origin, self->s.origin, dir );
-    } else {
-        self->client->killer_yaw = /*self->client->ps.stats[ STAT_KILLER_YAW ] */ self->s.angles[ YAW ];
-        return;
-    }
-
-    self->client->killer_yaw = /*self->client->ps.stats[ STAT_KILLER_YAW ] */ QM_Vector3ToYaw( dir );
-
-    //if ( dir[ 0 ] ) {
-    //    self->client->killer_yaw = RAD2DEG( atan2( dir[ 1 ], dir[ 0 ] ) );
-    //} else {
-    //    self->client->killer_yaw = 0;
-    //    if ( dir[ 1 ] > 0 ) {
-    //        self->client->killer_yaw = 90;
-    //    } else if ( dir[ 1 ] < 0 ) {
-    //        self->client->killer_yaw = 270; // WID: pitch-fix.
-    //    }
-    //}
-    //if ( self->client->killer_yaw < 0 ) {
-    //    self->client->killer_yaw += 360;
-    //}
-}
 
 
 
@@ -115,108 +64,11 @@ static void LookAtKiller( edict_t *self, edict_t *inflictor, edict_t *attacker )
 player_die
 ==================
 */
-void player_die( edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point ) {
-    int     n;
-
-    VectorClear( self->avelocity );
-
-    self->takedamage = DAMAGE_YES;
-    self->movetype = MOVETYPE_TOSS;
-
-    // Unset weapon model.
-    self->s.modelindex2 = 0;    // remove linked weapon model
-
-    // Clear X and Z angles.
-    self->s.angles[ 0 ] = 0;
-    self->s.angles[ 2 ] = 0;
-
-    // Stop playing any sounds.
-    self->s.sound = 0;
-    self->client->weaponState.activeSound = 0;
-
-    // Set bbox maxs to PM_BBOX_DUCKED_MAXS.
-    self->maxs[ 2 ] = PM_BBOX_DUCKED_MAXS.z;
-
-    //  self->solid = SOLID_NOT;
-        // Flag as to be treated as 'deadmonster' collision.
-    self->svflags |= SVF_DEADMONSTER;
-
-    if ( !self->lifeStatus ) {
-        // Determine respawn time.
-        self->client->respawn_time = ( level.time + 1_sec );
-        // Make sure the playerstate its pmove knows we're dead.
-        self->client->ps.pmove.pm_type = PM_DEAD;
-        // Set the look at killer yaw.
-        LookAtKiller( self, inflictor, attacker );
-        // Notify the obituary.
-        SVG_Player_Obituary( self, inflictor, attacker );
-        // Toss away weaponry.
-        TossClientWeapon( self );
-
-        // clear inventory
-        // this is kind of ugly, but it's how we want to handle keys in coop
-        //for (n = 0; n < game.num_items; n++) {
-        //    if (coop->value && itemlist[n].flags & IT_KEY)
-        //        self->client->resp.pers_respawn.inventory[n] = self->client->pers.inventory[n];
-        //    self->client->pers.inventory[n] = 0;
-        //}
-    }
-
-    // Gib Death:
-    if ( self->health < -40 ) {
-        // Play gib sound.
-        gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
-        //! Throw 4 small meat gibs around.
-        for ( n = 0; n < 4; n++ ) {
-            SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
-        }
-        // Turn ourself into the thrown head entity.
-        SVG_Misc_ThrowClientHead( self, damage );
-
-        // Gibs don't take damage, but fade away as time passes.
-        self->takedamage = DAMAGE_NO;
-        // Normal death:
-    } else {
-        if ( !self->lifeStatus ) {
-            static int i;
-
-            gi.dprintf( "%s: WID: TODO: Implement a player death player animation here\n", __func__ );
-
-            //i = (i + 1) % 3;
-            //// start a death animation
-            //self->client->anim_priority = ANIM_DEATH;
-            //if (self->client->ps.pmove.pm_flags & PMF_DUCKED) {
-            //    self->s.frame = FRAME_crdeath1 - 1;
-            //    self->client->anim_end = FRAME_crdeath5;
-            //} else switch (i) {
-            //    case 0:
-            //        self->s.frame = FRAME_death101 - 1;
-            //        self->client->anim_end = FRAME_death106;
-            //        break;
-            //    case 1:
-            //        self->s.frame = FRAME_death201 - 1;
-            //        self->client->anim_end = FRAME_death206;
-            //        break;
-            //    case 2:
-            //        self->s.frame = FRAME_death301 - 1;
-            //        self->client->anim_end = FRAME_death308;
-            //        break;
-            //    }
-            //gi.sound(self, CHAN_VOICE, gi.soundindex(va("*death%i.wav", (Q_rand() % 4) + 1)), 1, ATTN_NORM, 0);
-            gi.sound( self, CHAN_VOICE, gi.soundindex( va( "player/death0%i.wav", ( irandom( 0, 4 ) ) + 1 ) ), 1, ATTN_NORM, 0 );
-        }
-    }
-
-    self->lifeStatus = LIFESTATUS_DEAD;
-
-    gi.linkentity( self );
-}
+//void player_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
 /**
 *   @brief  Player pain is handled at the end of the frame in P_DamageFeedback.
 **/
-void player_pain( edict_t *self, edict_t *other, float kick, int damage ) {
-    // 
-}
+//void player_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage );
 
 
 
@@ -240,7 +92,7 @@ void player_pain( edict_t *self, edict_t *other, float kick, int damage ) {
 *               Changing levels will NOT cause this to be called again, but
 *               loadgames WILL.
 **/
-qboolean SVG_Client_Connect( edict_t *ent, char *userinfo ) {
+const bool SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo ) {
     // check to see if they are on the banned IP list
     char *value = Info_ValueForKey( userinfo, "ip" );
     if ( SVG_FilterPacket( value ) ) {
@@ -261,9 +113,12 @@ qboolean SVG_Client_Connect( edict_t *ent, char *userinfo ) {
         }
 
         // count spectators
-        for ( i = numspec = 0; i < maxclients->value; i++ )
-            if ( g_edicts[ i + 1 ].inuse && g_edicts[ i + 1 ].client->pers.spectator )
+        for ( i = numspec = 0; i < maxclients->value; i++ ) {
+            svg_base_edict_t *ed = g_edict_pool.EdictForNumber( i + 1);
+            if ( ed != nullptr && ed->inuse && ed->client->pers.spectator ) {
                 numspec++;
+            }
+        }
 
         if ( numspec >= maxspectators->value ) {
             Info_SetValueForKey( userinfo, "rejmsg", "Server spectator limit is full." );
@@ -280,7 +135,8 @@ qboolean SVG_Client_Connect( edict_t *ent, char *userinfo ) {
     }
 
     // they can connect
-    ent->client = game.clients + ( ent - g_edicts - 1 );
+    //ent->client = game.clients + ( ent - g_edicts - 1 );
+    ent->client = &game.clients[ g_edict_pool.NumberForEdict( ent ) - 1 ];
 
     // if there is already a body waiting for us (a loadgame), just
     // take it, otherwise spawn one from scratch
@@ -316,7 +172,7 @@ qboolean SVG_Client_Connect( edict_t *ent, char *userinfo ) {
 *   @brief  Called when a player drops from the server.
 *           Will NOT be called between levels.
 **/
-void SVG_Client_Disconnect( edict_t *ent ) {
+void SVG_Client_Disconnect( svg_base_edict_t *ent ) {
     //int     playernum;
 
     if ( !ent->client )
@@ -330,7 +186,7 @@ void SVG_Client_Disconnect( edict_t *ent ) {
     // send effect
     if ( ent->inuse ) {
         gi.WriteUint8( svc_muzzleflash );
-        gi.WriteInt16( ent - g_edicts );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//gi.WriteInt16( ent - g_edicts );
         gi.WriteUint8( MZ_LOGOUT );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
     }
@@ -346,7 +202,7 @@ void SVG_Client_Disconnect( edict_t *ent ) {
     ent->s.entityType = ET_GENERIC;
     ent->solid = SOLID_NOT;
     ent->inuse = false;
-    ent->classname = "disconnected";
+    ent->classname = svg_level_qstring_t::from_char_str( "disconnected" );
     ent->client->pers.spawned = false;
     ent->client->pers.connected = false;
     ent->timestamp = level.time + 1_sec;
@@ -372,17 +228,17 @@ void SVG_Client_Disconnect( edict_t *ent ) {
 *   @brief  For SinglePlayer: Called only once, at game first initialization.
 *           For Multiplayer Modes: Called after each death, and level change.
 **/
-void SVG_Player_InitPersistantData( edict_t *ent, gclient_t *client ) {
+void SVG_Player_InitPersistantData( svg_base_edict_t *ent, svg_client_t *client ) {
     // Clear out persistent data.
     client->pers = {};
 
     // Find the fists item, add it to our inventory.
-    const gitem_t *item_fists = SVG_FindItem( "Fists" );
+    const gitem_t *item_fists = SVG_Item_FindByPickupName( "Fists" );
     client->pers.selected_item = ITEM_INDEX( item_fists );
     client->pers.inventory[ client->pers.selected_item ] = 1;
 
     // Find the Pistol item, add it to our inventory and appoint it as the selected weapon.
-    const gitem_t *item_pistol = SVG_FindItem( "Pistol" );
+    const gitem_t *item_pistol = SVG_Item_FindByPickupName( "Pistol" );
     client->pers.selected_item = ITEM_INDEX( item_pistol );
     client->pers.inventory[ client->pers.selected_item ] = 1;
     // Assign it as our selected weapon.
@@ -390,7 +246,7 @@ void SVG_Player_InitPersistantData( edict_t *ent, gclient_t *client ) {
     // Give it a single full clip of ammo.
     client->pers.weapon_clip_ammo[ client->pers.weapon->weapon_index ] = item_pistol->clip_capacity;
     // And some extra bullets to reload with.
-    ent->client->ammo_index = ITEM_INDEX( SVG_FindItem( ent->client->pers.weapon->ammo ) );
+    ent->client->ammo_index = ITEM_INDEX( SVG_Item_FindByPickupName( ent->client->pers.weapon->ammo ) );
     client->pers.inventory[ ent->client->ammo_index ] = 78;
 
     // Obviously we need to allow this.
@@ -415,7 +271,7 @@ void SVG_Player_InitPersistantData( edict_t *ent, gclient_t *client ) {
 *   @brief  Clears respawnable client data, which stores the timing of respawn as well as a copy of
 *           the client persistent data, to reapply after respawn.
 **/
-void SVG_Player_InitRespawnData( gclient_t *client ) {
+void SVG_Player_InitRespawnData( svg_client_t *client ) {
     // Clear out respawn data.
     client->resp = {};
 
@@ -435,8 +291,8 @@ void SVG_Player_InitRespawnData( gclient_t *client ) {
 **/
 void SVG_Player_SaveClientData( void ) {
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        edict_t *ent = &g_edicts[ 1 + i ];
-        if ( !ent->inuse ) {
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts[ 1 + i ];
+        if ( !ent || !ent->inuse ) {
             continue;
         }
         game.clients[ i ].pers.health = ent->health;
@@ -450,7 +306,7 @@ void SVG_Player_SaveClientData( void ) {
 /**
 *   @brief  Restore the client stored persistent data to reinitialize several client entity fields.
 **/
-void SVG_Player_RestoreClientData( edict_t *ent ) {
+void SVG_Player_RestoreClientData( svg_base_edict_t *ent ) {
     ent->health = ent->client->pers.health;
     ent->max_health = ent->client->pers.max_health;
     ent->flags |= ent->client->pers.savedFlags;
@@ -461,7 +317,7 @@ void SVG_Player_RestoreClientData( edict_t *ent ) {
 /**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
-void SVG_Player_ResetPlayerStateFOV( gclient_t *client ) {
+void SVG_Player_ResetPlayerStateFOV( svg_client_t *client ) {
     // For DM Mode, possibly fixed FOV is set.
     if ( deathmatch->value && ( (int)dmflags->value & DF_FIXED_FOV ) ) {
         client->ps.fov = 90;
@@ -495,7 +351,7 @@ void SVG_Player_ResetPlayerStateFOV( gclient_t *client ) {
 *           The game can override any of the settings in place
 *           (forcing skins or names, etc) before copying it off.
 **/
-void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo ) {
+void SVG_Client_UserinfoChanged( svg_base_edict_t *ent, char *userinfo ) {
     char *s;
     int     playernum;
 
@@ -520,7 +376,7 @@ void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo ) {
     // set skin
     s = Info_ValueForKey( userinfo, "skin" );
 
-    playernum = ent - g_edicts - 1;
+    playernum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
 
     // combine name and skin into a configstring
     gi.configstring( CS_PLAYERSKINS + playernum, va( "%s\\%s", ent->client->pers.netname, s ) );
@@ -565,11 +421,11 @@ void SVG_Client_UserinfoChanged( edict_t *ent, char *userinfo ) {
 /**
 *   @brief  
 **/
-void SVG_Client_RespawnPlayer( edict_t *self ) {
+void SVG_Client_RespawnPlayer( svg_base_edict_t *self ) {
     if ( deathmatch->value || coop->value ) {
         // spectator's don't leave bodies
         if ( self->movetype != MOVETYPE_NOCLIP ) {
-            SVG_CopyToBodyQue( self );
+            SVG_Entities_AddForPlayer( self );
         }
         self->svflags &= ~SVF_NOCLIENT;
         SVG_Player_PutInServer( self );
@@ -594,7 +450,7 @@ void SVG_Client_RespawnPlayer( edict_t *self ) {
 *   @brief  Only called when pers.spectator changes.
 *   @note   That resp.spectator should be the opposite of pers.spectator here
 **/
-void SVG_Client_RespawnSpectator( edict_t *ent ) {
+void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
     int i, numspec;
 
     // if the user wants to become a spectator, make sure he doesn't
@@ -615,7 +471,8 @@ void SVG_Client_RespawnSpectator( edict_t *ent ) {
 
         // count spectators
         for ( i = 1, numspec = 0; i <= maxclients->value; i++ ) {
-            if ( g_edicts[ i ].inuse && g_edicts[ i ].client->pers.spectator ) {
+            svg_base_edict_t *ed = g_edict_pool.EdictForNumber( i );
+            if ( ed != nullptr && ed->inuse && ed->client->pers.spectator ) {
                 numspec++;
             }
         }
@@ -654,7 +511,7 @@ void SVG_Client_RespawnSpectator( edict_t *ent ) {
     if ( !ent->client->pers.spectator ) {
         // send effect
         gi.WriteUint8( svc_muzzleflash );
-        gi.WriteInt16( ent - g_edicts );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
         gi.WriteUint8( MZ_LOGIN );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
 
@@ -688,15 +545,15 @@ void SVG_Client_RespawnSpectator( edict_t *ent ) {
 *           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
 *           saved entity and persistant data. (This includes actually raising the weapon up.)
 **/
-void SVG_Player_PutInServer( edict_t *ent ) {
+void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     Vector3 mins = PM_BBOX_STANDUP_MINS;
     Vector3 maxs = PM_BBOX_STANDUP_MAXS;
     int     index;
     Vector3  spawn_origin, spawn_angles;
-    gclient_t *client;
+    svg_client_t *client;
     client_respawn_t    savedRespawnData = {};
     Vector3 temp, temp2;
-    trace_t tr;
+    svg_trace_t tr;
 
     // Always clear out any possibly previous left over of the useTargetHint.
     Client_ClearUseTargetHint( ent, ent->client, nullptr );
@@ -706,8 +563,12 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     // ranging doesn't count this client
     SVG_Player_SelectSpawnPoint( ent, spawn_origin, spawn_angles );
 
-    index = ent - g_edicts - 1;
+    index = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
     client = ent->client;
+
+    // Setup actual spawn origin that we found.
+    VectorCopy( spawn_origin, ent->s.origin );
+    VectorCopy( spawn_origin, client->ps.pmove.origin );
 
     if ( SG_IsMultiplayerGameMode( game.gamemode ) ) {
         // Store userinfo.
@@ -754,7 +615,12 @@ void SVG_Player_PutInServer( edict_t *ent ) {
 
     // Backup persistent data and clean everything.
     client_persistant_t savedPersistantData = client->pers;
-    memset( client, 0, sizeof( *client ) );
+    //memset( client, 0, sizeof( *client ) );
+    int32_t clientNum = client->clientNum;
+    // Reset client value.
+    *client = { };
+    client->clientNum = clientNum;
+    // Reinitialize persistent data.
     client->pers = savedPersistantData;
     // If dead at the time of the previous map switching to the current, reinitialize persistent data.
     if ( client->pers.health <= 0 ) {
@@ -775,21 +641,21 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     ent->movetype = MOVETYPE_WALK;
     ent->viewheight = PM_VIEWHEIGHT_STANDUP;
     ent->inuse = true;
-    ent->classname = "player";
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );
     ent->mass = 200;
+    ent->gravity = 1.0f;
     ent->solid = SOLID_BOUNDS_BOX;
     ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = ( MASK_PLAYERSOLID );
-    ent->model = "players/playerdummy/tris.iqm";
-    ent->pain = player_pain;
-    ent->die = player_die;
-    ent->liquidInfo.level = liquid_level_t::LIQUID_NONE;
+    ent->clipmask = ( CM_CONTENTMASK_PLAYERSOLID );
+    ent->model = svg_level_qstring_t::from_char_str( "players/playerdummy/tris.iqm" );
+    ent->SetPainCallback( &svg_player_edict_t::onPain );//ent->SetPainCallback( player_pain );
+    ent->SetDieCallback( &svg_player_edict_t::onDie );//ent->SetDieCallback( player_die );
+    ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
     ent->liquidInfo.type = CONTENTS_NONE;
     ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
     ent->svflags &= ~SVF_DEADMONSTER;
-    ent->svflags &= ~FL_NO_KNOCKBACK;
     ent->svflags |= SVF_PLAYER;
     // Player Entity Type:
     ent->s.entityType = ET_PLAYER;
@@ -805,6 +671,7 @@ void SVG_Player_PutInServer( edict_t *ent ) {
 
     // Set viewheight for player state pmove.
     ent->client->ps.pmove.viewheight = ent->viewheight;
+    ent->client->ps.pmove.origin = ent->s.origin;
 
     // Proper gunindex.
     if ( client->pers.weapon ) {
@@ -818,11 +685,11 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     ent->s.sound = 0;
     ent->s.effects = 0;
     ent->s.renderfx = 0;
-    ent->s.modelindex = 255;        // Will use the skin specified model.
-    ent->s.modelindex2 = 255;       // Custom gun model.
+    ent->s.modelindex = MODELINDEX_PLAYER;        // Will use the skin specified model.
+    ent->s.modelindex2 = MODELINDEX_PLAYER;       // Custom gun model.
     // sknum is player num and weapon number
     // weapon number will be added in changeweapon
-    ent->s.skinnum = ent - globals.edicts - 1;
+    ent->s.skinnum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - globals.edictPool->edicts - 1;
     ent->s.frame = 0;
     ent->s.old_frame = 0;
 
@@ -831,7 +698,7 @@ void SVG_Player_PutInServer( edict_t *ent ) {
     VectorCopy( spawn_origin, temp2 );
     temp[ 2 ] -= 64;
     temp2[ 2 ] += 16;
-    tr = gi.trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( MASK_PLAYERSOLID ) );
+    tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
     if ( !tr.allsolid && !tr.startsolid && Q_stricmp( level.mapname, "tech5" ) ) {
         VectorCopy( tr.endpos, ent->s.origin );
         ent->groundInfo.entity = tr.ent;
@@ -840,10 +707,14 @@ void SVG_Player_PutInServer( edict_t *ent ) {
         ent->s.origin[ 2 ] += 10; // make sure off ground
     }
 
+    // <Q2RTXP>: WID: Restore the origin.
     VectorCopy( ent->s.origin, ent->s.old_origin );
-
     client->ps.pmove.origin = ent->s.origin; // COORD2SHORT(ent->s.origin[i]); // WID: float-movement
-
+    // <Q2RTXP>: WID: 
+    // Link it to calculate absmins/absmaxs, this is to prevent actual
+    // other entities from Spawn Touching.
+    gi.linkentity( ent );
+    
     spawn_angles[ PITCH ] = 0;
     spawn_angles[ ROLL ] = 0;
 
@@ -872,10 +743,15 @@ void SVG_Player_PutInServer( edict_t *ent ) {
         client->resp.spectator = false;
     }
 
-    if ( !SVG_Util_KillBox( ent, true ) ) {
+    // Unlink it again, for SVG_UTIL_KillBox.
+    gi.unlinkentity( ent );
+
+    if ( !SVG_Util_KillBox( ent, true, MEANS_OF_DEATH_TELEFRAGGED ) ) {
         // could't spawn in?
+        int x = 10; // debug breakpoint
     }
 
+    // And link it back in.
     gi.linkentity( ent );
 
     // force the current weapon up
@@ -889,12 +765,12 @@ void SVG_Player_PutInServer( edict_t *ent ) {
 *           A client has just connected to the server in deathmatch mode, so clear everything 
 *           out that might've been there and (re-)initialize a full new player 'body'.
 **/
-void SVG_Client_BeginDeathmatch( edict_t *ent ) {
+void SVG_Client_BeginDeathmatch( svg_base_edict_t *ent ) {
     // Init Edict.
-    SVG_InitEdict( ent );
+    g_edict_pool._InitEdict( ent, ent->s.number );//SVG_InitEdict( ent );
 
     // Make sure classname is player.
-    ent->classname = "player";
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.
@@ -911,13 +787,17 @@ void SVG_Client_BeginDeathmatch( edict_t *ent ) {
     } else {
         // send effect
         gi.WriteUint8( svc_muzzleflash );
-        gi.WriteInt16( ent - g_edicts );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
         gi.WriteUint8( MZ_LOGIN );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
     }
 
     // Notify player joined.
     gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
+
+    // We're spawned now of course.
+    ent->client->pers.connected = true;
+    ent->client->pers.spawned = true;
 
     // Call upon EndServerFrame to make sure all view stuff is valid.
     SVG_Client_EndServerFrame( ent );
@@ -927,14 +807,14 @@ void SVG_Client_BeginDeathmatch( edict_t *ent ) {
 *   @brief  A client connected by loadgame(assuming singleplayer), there is already 
 *           a body waiting for us to use. We just need to adjust its angles.
 **/
-void SVG_Client_BeginLoadGame( edict_t *ent ) {
+void SVG_Client_BeginLoadGame( svg_base_edict_t *ent ) {
     // the client has cleared the client side viewangles upon
     // connecting to the server, which is different than the
     // state when the game is saved, so we need to compensate
     // with deltaangles
     ent->client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( ent->client->ps.viewangles );
     // Make sure classname is player.
-    ent->classname = "player";
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.
@@ -944,13 +824,13 @@ void SVG_Client_BeginLoadGame( edict_t *ent ) {
 /**
 *   @brief  There is no body waiting for us yet, so (re-)initialize the entity we have with a full new 'body'.
 **/
-void SVG_Client_BeginNewBody( edict_t *ent ) {
+void SVG_Client_BeginNewBody( svg_base_edict_t *ent ) {
     // A spawn point will completely reinitialize the entity
     // except for the persistant data that was initialized at
     // connect time
-    SVG_InitEdict( ent );
+    g_edict_pool._InitEdict( ent, ent->s.number );
     // Make sure classname is player.
-    ent->classname = "player";
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );;
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.
@@ -965,9 +845,9 @@ void SVG_Client_BeginNewBody( edict_t *ent ) {
 *   @brief  Called when a client has finished connecting, and is ready
 *           to be placed into the game. This will happen every level load.
 **/
-void SVG_Client_Begin( edict_t *ent ) {
+void SVG_Client_Begin( svg_base_edict_t *ent ) {
     // Assign matching client for this entity.
-    ent->client = game.clients + ( ent - g_edicts - 1 );
+    ent->client = &game.clients[ g_edict_pool.NumberForEdict( ent ) - 1 ]; //game.clients + ( ent - g_edicts - 1 );
 
     // [Paril-KEX] we're always connected by this point...
     ent->client->pers.connected = true;
@@ -983,10 +863,11 @@ void SVG_Client_Begin( edict_t *ent ) {
     }
 
     // We're spawned now of course.
+    ent->client->resp.entertime = level.time;
     ent->client->pers.spawned = true;
 
     // If there is already a body waiting for us (a loadgame), just take it:
-    if ( ent->inuse == (qboolean)true ) {
+    if ( ent->inuse == true ) {
         SVG_Client_BeginLoadGame( ent );
     // Otherwise spawn one from scratch:
     } else {
@@ -1001,7 +882,7 @@ void SVG_Client_Begin( edict_t *ent ) {
         // 
         if ( game.maxclients >= 1 ) {
             gi.WriteUint8( svc_muzzleflash );
-            gi.WriteInt16( ent - g_edicts );
+            gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
             gi.WriteUint8( MZ_LOGIN );
             gi.multicast( ent->s.origin, MULTICAST_PVS, false );
 
@@ -1033,7 +914,7 @@ void SVG_Client_Begin( edict_t *ent ) {
 /**
 *   @brief  Unsets the current client stats usetarget info.
 **/
-void Client_ClearUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity ) {
+void Client_ClearUseTargetHint( svg_base_edict_t *ent, svg_client_t *client, svg_base_edict_t *useTargetEntity ) {
     // Nothing for display.
     client->ps.stats[ STAT_USETARGET_HINT_ID ] = 0;
     client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] = 0;
@@ -1042,7 +923,7 @@ void Client_ClearUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTar
 *   @brief  Determines the necessary UseTarget Hint information for the hovered entity(if any).
 *   @return True if the entity has legitimate UseTarget Hint information. False if unset, or not found at all.
 **/
-const bool SVG_Client_UpdateUseTargetHint( edict_t *ent, gclient_t *client, edict_t *useTargetEntity ) {
+const bool SVG_Client_UpdateUseTargetHint( svg_base_edict_t *ent, svg_client_t *client, svg_base_edict_t *useTargetEntity ) {
     // We got an entity.
     if ( useTargetEntity && useTargetEntity->useTarget.hintInfo ) {
         // Determine UseTarget Hint Info:
@@ -1090,7 +971,7 @@ const bool SVG_Client_UpdateUseTargetHint( edict_t *ent, gclient_t *client, edic
 /**
 *	@brief	Calculates the to be determined movement induced recoil factor.
 **/
-void SVG_Client_CalculateMovementRecoil( edict_t *ent ) {
+void SVG_Client_CalculateMovementRecoil( svg_base_edict_t *ent ) {
     // Get playerstate.
     player_state_t *playerState = &ent->client->ps;
     
@@ -1104,19 +985,19 @@ void SVG_Client_CalculateMovementRecoil( edict_t *ent ) {
     // Determine if off-ground.
     bool isOnGround = ( ( playerState->pmove.pm_flags & PMF_ON_GROUND ) ? true : false );
     // Determine if in water.
-    bool isInWater = ( ent->liquidInfo.level > liquid_level_t::LIQUID_NONE ? true : false );
+    bool isInWater = ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_NONE ? true : false );
     // Get liquid level.
-	liquid_level_t liquidLevel = ent->liquidInfo.level;
+	cm_liquid_level_t liquidLevel = ent->liquidInfo.level;
     
     // Resulting move factor.
     double recoilMoveFactor = 0.;
 
     // First check if in water, so we can skip the other tests.
-    if ( isInWater && ent->liquidInfo.level > liquid_level_t::LIQUID_FEET) {
+    if ( isInWater && ent->liquidInfo.level > cm_liquid_level_t::LIQUID_FEET) {
         // Waist in water.
         recoilMoveFactor = 0.55;
         // Head under water.
-        if ( ent->liquidInfo.level > liquid_level_t::LIQUID_WAIST ) {
+        if ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_WAIST ) {
             recoilMoveFactor = 0.75;
         }
     } else {
@@ -1149,13 +1030,13 @@ void SVG_Client_CalculateMovementRecoil( edict_t *ent ) {
 /**
 *   @brief  Calculates the final resulting recoil value, being clamped between -1, to +1.
 **/
-const double SVG_Client_GetFinalRecoilFactor( edict_t *ent ) {
+const double SVG_Client_GetFinalRecoilFactor( svg_base_edict_t *ent ) {
     // Get the movement induced recoil factor.
-    const double movementRecoil = QM_Clampd( ent->client->weaponState.recoil.moveFactor, -1., 1. );
+    const double movementRecoil = QM_Clamp( ent->client->weaponState.recoil.moveFactor, -1., 1. );
 	// Get the fire induced recoil factor.
     const double fireRecoil = ent->client->weaponState.recoil.weaponFactor;
 	// Determine the final recoil factor and clamp it between -1, to +1.
-	const double recoilFactor = QM_Clampd( movementRecoil + fireRecoil, -1., 2. );
+	const double recoilFactor = QM_Clamp( movementRecoil + fireRecoil, -1., 2. );
 	// Clamp the recoil factor between -1, to +1.
 	// Return the final recoil factor.
 	return recoilFactor;

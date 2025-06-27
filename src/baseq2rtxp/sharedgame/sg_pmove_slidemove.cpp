@@ -7,8 +7,9 @@
 ********************************************************************/
 #include "shared/shared.h"
 
-#include "sg_pmove.h"
-#include "sg_pmove_slidemove.h"
+#include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_pmove.h"
+#include "sharedgame/sg_pmove_slidemove.h"
 
 //! Uncomment for enabling second best hit plane tracing results.
 #define SECOND_PLANE_TRACE
@@ -27,7 +28,7 @@
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
 *			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
 **/
-void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trace ) {
+void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &trace ) {
 	// Escape function if we are exceeding maximum touch traces.
 	if ( touchTraceList.numberOfTraces >= MAX_TOUCH_TRACES ) {
 		return;
@@ -36,7 +37,7 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, trace_t &trac
 	// Iterate for possible duplicates.
 	for ( int32_t i = 0; i < touchTraceList.numberOfTraces; i++ ) {
 		// Escape function if duplicate.
-		if ( touchTraceList.traces[ i ].ent == trace.ent ) {
+		if ( touchTraceList.traces[ i ].entityNumber == trace.entityNumber ) {
 			return;
 		}
 	}
@@ -112,7 +113,7 @@ const pm_slideMoveFlags_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &ve
 
 	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
 
-	trace_t	trace = {};
+	cm_trace_t	trace = {};
 	Vector3	end = {};
 
 	float d = 0;

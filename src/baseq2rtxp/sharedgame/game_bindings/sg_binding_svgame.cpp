@@ -6,15 +6,15 @@
 *
 ********************************************************************/
 #include "shared/shared.h"
-#include "shared/util_list.h"
 
 // define SVGAME_INCLUDE so that game.h does not define the
-// short, server-visible gclient_t and edict_t structures,
+// short, server-visible svg_client_t and edict_t structures,
 // because we define the full size ones in this file
-#include "shared/svgame.h"
+#include "shared/server/sv_game.h"
 #include "svgame/svg_local.h"
+#include "svgame/svg_local_fwd.h"
 
-// Extern here right after including shared/clgame.h
+// Extern here right after including shared/client/cl_game.h
 extern svgame_import_t gi;
 
 
@@ -57,7 +57,12 @@ const int32_t SG_GetEntityNumber( sgentity_s *sgent ) {
 		return -1;
 	}
 }
-
+/**
+*	@brief	Returns the matching entity pointer for the given entity number.
+**/
+sgentity_s *SG_GetEntityForNumber( const int32_t number ) {
+	return g_edict_pool.EdictForNumber( number );
+}
 
 
 /**
@@ -150,6 +155,12 @@ void *SG_Z_TagMalloc( const uint32_t size, const uint32_t tag ) {
 /**
 *	@brief
 **/
+void *SG_Z_TagMallocz( const uint32_t size, const uint32_t tag ) {
+	return gi.TagMallocz( size, tag );
+}
+/**
+*	@brief
+**/
 void *SG_Z_TagReMalloc( void *ptr, const uint32_t size ) {
 	return gi.TagReMalloc( ptr, size );
 }
@@ -162,7 +173,7 @@ void SG_Z_TagFree( void *block ) {
 /**
 *	@brief	FreeTags
 **/
-void SG_Z_TagFree( const uint32_t tag ) {
+void SG_Z_FreeTags( const uint32_t tag ) {
 	gi.FreeTags( tag );
 }
 

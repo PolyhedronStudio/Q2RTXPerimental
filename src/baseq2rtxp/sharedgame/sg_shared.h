@@ -7,42 +7,39 @@
 ********************************************************************/
 #pragma once
 
-#include "shared/shared.h"
-#include "shared/util_list.h"
-
 // Include needed shared refresh types.
 #include "refresh/shared_types.h"
 
 //! Define the entity type based on from which game module we're compiling.
 #ifdef CLGAME_INCLUDE
-//! Game Module Name STR.
-#define SG_GAME_MODULE_STR "CLGame"
-//! Entity type.
-typedef struct centity_s sgentity_s;
+	//! Game Module Name STR.
+	#define SG_GAME_MODULE_STR "CLGame"
+	//! Entity type.
+	typedef struct centity_s sgentity_s;
 #endif
 #ifdef SVGAME_INCLUDE
-//! Game Module Name STR.
-#define SG_GAME_MODULE_STR "SVGame"
-//! Entity type.
-typedef struct edict_s sgentity_s;
+	//! Game Module Name STR.
+	#define SG_GAME_MODULE_STR "SVGame"
+	//! Entity type.
+	typedef struct svg_base_edict_t sgentity_s;
 #endif
 
 // Game Times.
 #include "sharedgame/sg_time.h"
 
 // Include other shared game headers.
-#include "sharedgame/sg_cmd_messages.h"
-#include "sharedgame/sg_entity_effects.h"
-#include "sharedgame/sg_entity_events.h"
-#include "sharedgame/sg_entity_types.h"
-#include "sharedgame/sg_gamemode.h"
-#include "sharedgame/sg_means_of_death.h"
-#include "sharedgame/sg_misc.h"
-#include "sharedgame/sg_muzzleflashes.h"
-#include "sharedgame/sg_pmove.h"
-#include "sharedgame/sg_pmove_slidemove.h"
-#include "sharedgame/sg_skm.h"
-#include "sharedgame/sg_tempentity_events.h"
+//#include "sharedgame/sg_cmd_messages.h"
+//#include "sharedgame/sg_entity_effects.h"
+//#include "sharedgame/sg_entity_events.h"
+//#include "sharedgame/sg_entity_types.h"
+//#include "sharedgame/sg_gamemode.h"
+//#include "sharedgame/sg_means_of_death.h"
+//#include "sharedgame/sg_misc.h"
+//#include "sharedgame/sg_muzzleflashes.h"
+//#include "sharedgame/sg_pmove.h"
+//#include "sharedgame/sg_pmove_slidemove.h"
+//#include "sharedgame/sg_skm.h"
+//#include "sharedgame/sg_tempentity_events.h"
 
 
 
@@ -79,6 +76,10 @@ void SG_DPrintf( const char *fmt, ... );
 *	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
 **/
 const int32_t SG_GetEntityNumber( sgentity_s *sgent );
+/**
+*	@brief	Returns the matching entity pointer for the given entity number.
+**/
+sgentity_s *SG_GetEntityForNumber( const int32_t number );
 
 
 
@@ -153,6 +154,10 @@ void *SG_Z_TagMalloc( const uint32_t size, const uint32_t tag );
 /**
 *	@brief
 **/
+void *SG_Z_TagMallocz( const uint32_t size, const uint32_t tag );
+/**
+*	@brief
+**/
 void *SG_Z_TagReMalloc( void *ptr, const uint32_t size );
 /**
 *	@brief
@@ -161,7 +166,7 @@ void SG_Z_TagFree( void *block );
 /**
 *	@brief	FreeTags
 **/
-void SG_Z_TagFree( const uint32_t tag );
+void SG_Z_FreeTags( const uint32_t tag );
 
 // We need these for this.
 #include "sharedgame/sg_qtag_string.hpp"

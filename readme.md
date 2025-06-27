@@ -224,8 +224,8 @@ suffix, and emissive maps are searched with the `_light` suffix. If no replaceme
 texture will be used.
 
 Materials can also use the automatic emissive texture generation feature. This is the case for undefined materials when the
-`pt_enable_surface_lights` console variable is nonzero: wall surfaces with the `SURF_LIGHT` flag (but not `SURF_SKY` or
-`SURF_NODRAW`) will generate an emissive texture from the base texture and a threshold value, if no emissive texture is found,
+`pt_enable_surface_lights` console variable is nonzero: wall surfaces with the `CM_SURFACE_FLAG_LIGHT` flag (but not `CM_SURFACE_FLAG_SKY` or
+`CM_SURFACE_NODRAW`) will generate an emissive texture from the base texture and a threshold value, if no emissive texture is found,
 and marked with the `is_light` material flag.
 The threshold value is set using the `pt_surface_lights_threshold` variable.
 For defined materials you can the `synth_emissive` and `emissive_threshold` material properties to explicitly enable

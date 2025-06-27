@@ -9,6 +9,8 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_temp_entities.h"
 
+#include "sharedgame/sg_tempentity_events.h"
+
 static color_t  railcore_color;
 static color_t  railspiral_color;
 
@@ -60,17 +62,24 @@ static const byte splash_color[] = { 0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8 };
 /**
 *   @brief  Will select and play a random grenade explosion.
 **/
-static void CLG_StartRandomExplosionSfx( ) {
-    const int32_t index = irandom( 2 + 1 );
-    if ( index == 0 ) {
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_grenade01, 1, ATTN_NORM, 0 );
+static void CLG_StartRandomExplosionSfx( const bool isInWater, const Vector3 &point ) {
+    if ( isInWater ) {
+        clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_water, 1, ATTN_NORM, 0 );
+        clgi.Print( PRINT_WARNING, "%f %f %f contents_water\n", point.x, point.y, point.z );
     } else {
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_grenade02, 1, ATTN_NORM, 0 );
+        clgi.Print( PRINT_WARNING, "%f %f %f contents_none\n", point.x, point.y, point.z );
+        // In case we are in SOLID_NONE spaces:
+        const int32_t index = irandom( 2 + 1 );
+        if ( index == 0 ) {
+            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_grenade01, 1, ATTN_NORM, 0 );
+        } else {
+            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_grenade02, 1, ATTN_NORM, 0 );
+        }
     }
 }
 
 /**
-*   @brief   
+*   @brief   Parses the Temp Entity packet data and creates the appropriate effects.
 **/
 void CLG_TemporaryEntities_Parse( void ) {
     clg_explosion_t *ex;
@@ -93,7 +102,8 @@ void CLG_TemporaryEntities_Parse( void ) {
             CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe0, 6 );
 
         if ( level.parsedMessage.events.tempEntity.type != TE_SPARKS ) {
-            CLG_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+            // <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+            //CLG_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
 
             // impact sound
             r = Q_rand() & 15;
@@ -106,7 +116,8 @@ void CLG_TemporaryEntities_Parse( void ) {
         }
         break;
 
-    case TE_SPLASH:         // bullet hitting water
+    //! A bullet hitting water.
+    case TE_SPLASH:
         if ( level.parsedMessage.events.tempEntity.color < 0 || level.parsedMessage.events.tempEntity.color > 6 )
             r = 0x00;
         else
@@ -128,81 +139,8 @@ void CLG_TemporaryEntities_Parse( void ) {
         CLG_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
         break;
 
-    case TE_GRENADE_EXPLOSION:
-    case TE_GRENADE_EXPLOSION_WATER:
-        ex = CLG_PlainExplosion( false );
-        if ( !cl_explosion_sprites->integer ) {
-            ex->frames = 19;
-            ex->baseframe = 30;
-        }
-        //if ( cl_disable_explosions->integer & NOEXP_GRENADE )
-        //    ex->type = clg_explosion_t::ex_light; // WID: C++20: Was without clg_explosion_t::
-
-        //if ( !( cl_disable_particles->integer & NOPART_GRENADE_EXPLOSION ) )
-            CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-
-        //if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
-        //    ex->light = 200;
-
-        if ( level.parsedMessage.events.tempEntity.type == TE_GRENADE_EXPLOSION_WATER ) {
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_water, 1, ATTN_NORM, 0 );
-        } else {
-            //clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_grenade01, 1, ATTN_NORM, 0 );
-            CLG_StartRandomExplosionSfx();
-        }
-        break;
-
-    case TE_EXPLOSION2:
-        ex = CLG_PlainExplosion( false );
-        if ( !cl_explosion_sprites->integer ) {
-            ex->frames = 19;
-            ex->baseframe = 30;
-        }
-        CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-        CLG_StartRandomExplosionSfx(); //clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.grenexp, 1, ATTN_NORM, 0 );
-        break;
-
-    case TE_ROCKET_EXPLOSION:
-    case TE_ROCKET_EXPLOSION_WATER:
-        ex = CLG_PlainExplosion( false );
-        //if ( cl_disable_explosions->integer & NOEXP_ROCKET )
-        //    ex->type = clg_explosion_t::ex_light; // WID: C++20: This was without clg_explosion_t::
-
-        //if ( !( cl_disable_particles->integer & NOPART_ROCKET_EXPLOSION ) )
-            CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-
-        //if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
-        //    ex->light = 200;
-
-        if ( level.parsedMessage.events.tempEntity.type == TE_ROCKET_EXPLOSION_WATER )
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_water, 1, ATTN_NORM, 0 );
-        else
-            clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_rocket, 1, ATTN_NORM, 0 );
-        break;
-
-    case TE_EXPLOSION1:
-        CLG_PlainExplosion( false );
-        CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_rocket, 1, ATTN_NORM, 0 );
-        break;
-
-    case TE_EXPLOSION1_NP:
-        CLG_PlainExplosion( false );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_rocket, 1, ATTN_NORM, 0 );
-        break;
-
-    case TE_EXPLOSION1_BIG:
-        ex = CLG_PlainExplosion( true );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_rocket, 1, ATTN_NORM, 0 );
-        break;
-
     case TE_BUBBLETRAIL:
         CLG_BubbleTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
-        break;
-
-    case TE_GRAPPLE_CABLE:
-        level.parsedMessage.events.tempEntity.entity2 = 0;
-        CLG_ParseBeam( precache.models.grapple_cable );
         break;
 
     case TE_WELDING_SPARKS:
@@ -214,13 +152,14 @@ void CLG_TemporaryEntities_Parse( void ) {
         // note to self
         // we need a better no draw flag
         ex->ent.flags = RF_BEAM;
-        ex->start = clgi.client->servertime - CL_FRAMETIME;
+        ex->start = QMTime::FromMilliseconds( clgi.client->servertime - CL_FRAMETIME );
         ex->light = 100 + ( irandom( 75 ) );
         ex->lightcolor[ 0 ] = 1.0f;
         ex->lightcolor[ 1 ] = 1.0f;
         ex->lightcolor[ 2 ] = 0.3f;
-        ex->ent.model = precache.models.flash;
-        ex->frames = 2;
+        // <Q2RTXP>: TODO: We need a model for this or what are we gonna do with this anyhow?
+        //ex->ent.model = precache.models.flash;
+        //ex->frames = 2;
         break;
 
     case TE_TUNNEL_SPARKS:
@@ -232,15 +171,20 @@ void CLG_TemporaryEntities_Parse( void ) {
         break;
 
     case TE_PLAIN_EXPLOSION:
-        CLG_PlainExplosion( false );
+    {
+        // Test for what solid type we're in.
+        const cm_contents_t pointContents = clgi.PointContents( level.parsedMessage.events.tempEntity.pos1 );
+        // First determine whether we're actually under water.
+        const bool isUnderWater = ( pointContents & CM_CONTENTMASK_WATER ) != 0;
+        //! Do an explosion, if underwater, without smoke.
+        CLG_PlainExplosion( !isUnderWater /* withSmoke == false if under water*/);
+        // Handles playing the appropriate sound for the solid type found at the origin of pos1 vector.
+        CLG_StartRandomExplosionSfx( isUnderWater, level.parsedMessage.events.tempEntity.pos1 );
         break;
+    }
 
     case TE_FLASHLIGHT:
         CLG_Flashlight( level.parsedMessage.events.tempEntity.entity1, level.parsedMessage.events.tempEntity.pos1 );
-        break;
-
-    case TE_FORCEWALL:
-        CLG_ForceWall( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2, level.parsedMessage.events.tempEntity.color );
         break;
 
     case TE_HEATBEAM_SPARKS:
@@ -276,9 +220,86 @@ void CLG_TemporaryEntities_Parse( void ) {
         CLG_TeleportParticles( level.parsedMessage.events.tempEntity.pos1 );
         break;
 
-    case TE_NUKEBLAST:
-        CLG_ParseNuke();
-        break;
+
+        //case TE_GRENADE_EXPLOSION:
+        //case TE_GRENADE_EXPLOSION_WATER:
+        //    ex = CLG_PlainExplosion( false );
+        //    if ( !cl_explosion_sprites->integer ) {
+        //        ex->frames = 19;
+        //        ex->baseframe = 30;
+        //    }
+        //    //if ( cl_disable_explosions->integer & NOEXP_GRENADE )
+        //    //    ex->type = clg_explosion_t::ex_light; // WID: C++20: Was without clg_explosion_t::
+
+        //    //if ( !( cl_disable_particles->integer & NOPART_GRENADE_EXPLOSION ) )
+        //        CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
+
+        //    //if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
+        //    //    ex->light = 200;
+
+        //    if ( level.parsedMessage.events.tempEntity.type == TE_GRENADE_EXPLOSION_WATER ) {
+        //        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_water, 1, ATTN_NORM, 0 );
+        //    } else {
+        //        //clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_grenade01, 1, ATTN_NORM, 0 );
+        //        CLG_StartRandomExplosionSfx();
+        //    }
+        //    break;
+
+        //case TE_EXPLOSION2:
+        //    ex = CLG_PlainExplosion( false );
+        //    if ( !cl_explosion_sprites->integer ) {
+        //        ex->frames = 19;
+        //        ex->baseframe = 30;
+        //    }
+        //    CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
+        //    CLG_StartRandomExplosionSfx(); //clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.grenexp, 1, ATTN_NORM, 0 );
+        //    break;
+
+        //case TE_ROCKET_EXPLOSION:
+        //case TE_ROCKET_EXPLOSION_WATER:
+        //    ex = CLG_PlainExplosion( false );
+        //    //if ( cl_disable_explosions->integer & NOEXP_ROCKET )
+        //    //    ex->type = clg_explosion_t::ex_light; // WID: C++20: This was without clg_explosion_t::
+
+        //    //if ( !( cl_disable_particles->integer & NOPART_ROCKET_EXPLOSION ) )
+        //        CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
+
+        //    //if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
+        //    //    ex->light = 200;
+
+        //    if ( level.parsedMessage.events.tempEntity.type == TE_ROCKET_EXPLOSION_WATER )
+        //        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_water, 1, ATTN_NORM, 0 );
+        //    else
+        //        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_rocket, 1, ATTN_NORM, 0 );
+        //    break;
+
+        //case TE_EXPLOSION1:
+        //    CLG_PlainExplosion( false );
+        //    CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
+        //    clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_rocket, 1, ATTN_NORM, 0 );
+        //    break;
+
+        //case TE_EXPLOSION1_NP:
+        //    CLG_PlainExplosion( false );
+        //    clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_rocket, 1, ATTN_NORM, 0 );
+        //    break;
+
+        //case TE_EXPLOSION1_BIG:
+        //    ex = CLG_PlainExplosion( true );
+        //    clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.explosion_rocket, 1, ATTN_NORM, 0 );
+        //    break;
+
+        //case TE_GRAPPLE_CABLE:
+        //    level.parsedMessage.events.tempEntity.entity2 = 0;
+        //    CLG_ParseBeam( precache.models.grapple_cable );
+        //    break;
+    //case TE_FORCEWALL:
+    //    CLG_ForceWall( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2, level.parsedMessage.events.tempEntity.color );
+    //    break;
+    // 
+    //case TE_NUKEBLAST:
+    //    CLG_ParseNuke();
+    //    break;
 
         //case TE_SCREEN_SPARKS:
         //case TE_SHIELD_SPARKS:
@@ -365,7 +386,7 @@ void CLG_TemporaryEntities_Parse( void ) {
         //case TE_BFG_EXPLOSION:
         //    ex = CLG_AllocExplosion();
         //    VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
-        //    ex->type = clg_explosion_t::ex_poly;
+        //    ex->type = clg_explosion_t::ex_polygon_curvature;
         //    ex->ent.flags = RF_FULLBRIGHT;
         //    ex->start = clgi.client->servertime - clgi.frame_time_ms;
         //    ex->light = 350;
@@ -437,7 +458,7 @@ void CLG_TemporaryEntities_Parse( void ) {
 }
 
 /**
-*   @brief
+*   @brief  Add all temporary entity effects for the current frame.
 **/
 void CLG_TemporaryEntities_Add( void ) {
     CLG_AddBeams();
@@ -448,7 +469,7 @@ void CLG_TemporaryEntities_Add( void ) {
 }
 
 /**
-*   @brief
+*   @brief  Clear all temporary entities for the current frame.
 **/
 void CLG_TemporaryEntities_Clear( void ) {
     CLG_ClearBeams();
@@ -458,7 +479,7 @@ void CLG_TemporaryEntities_Clear( void ) {
 }
 
 /**
-*   @brief  
+*   @brief  Support routine for the rail core and spiral color cvar suggestion generator.
 **/
 void TE_Color_g( genctx_t *ctx ) {
     for ( int32_t color = /*0*/COLOR_BLACK; color < COLOR_ALT; color++ ) {
@@ -466,7 +487,10 @@ void TE_Color_g( genctx_t *ctx ) {
     }
 }
 
-void CLG_InitTEnts( void ) {
+/**
+*   @brief	Initialize the temporary entities system.
+**/
+void CLG_TemporaryEntities_Init( void ) {
     cl_railtrail_type = clgi.CVar_Get( "cl_railtrail_type", "0", 0 );
     cl_railtrail_time = clgi.CVar_Get( "cl_railtrail_time", "1.0", 0 );
     cl_railtrail_time->changed = cl_timeout_changed;
@@ -487,5 +511,5 @@ void CLG_InitTEnts( void ) {
     //cl_disable_particles = clgi.CVar_Get( "cl_disable_particles", "0", 0 );
     //cl_disable_explosions = clgi.CVar_Get( "cl_disable_explosions", "0", 0 );
     cl_explosion_sprites = clgi.CVar_Get( "cl_explosion_sprites", "1", 0 );
-    cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", std::to_string(clgi.frame_time_ms).c_str(), 0);
+    cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", std::to_string(50).c_str(), 0);
 }

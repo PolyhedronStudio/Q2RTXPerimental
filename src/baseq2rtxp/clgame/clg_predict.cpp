@@ -13,26 +13,26 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const contents_t contentMask ) {
-    trace_t t;
+static const cm_trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask ) {
+    cm_trace_t t;
     //if (pm_passent->health > 0)
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_PLAYERSOLID);
+    //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
-    //    return gi.trace(start, mins, maxs, end, pm_passent, MASK_DEADSOLID);
+    //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
     t = clgi.Trace( start, mins, maxs, end, (const centity_t *)passEntity, contentMask );
     return t;
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const contents_t contentMask ) {
-    const trace_t trace = clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
+static const cm_trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentMask ) {
+    const cm_trace_t trace = clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
     return trace;
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
+static const cm_contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
     return clgi.PointContents( point );
 }
 
@@ -41,10 +41,10 @@ static const contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
 **/
 void PF_AdjustViewHeight( const int32_t viewHeight ) {
     // Record viewheight changes.
-    if ( clgi.client->predictedState.transition.view.height[ 0 ] != viewHeight ) {
-        clgi.client->predictedState.transition.view.height[ 1 ] = clgi.client->predictedState.transition.view.height[ 0 ];
-        clgi.client->predictedState.transition.view.height[ 0 ] = viewHeight;
-        clgi.client->predictedState.transition.view.timeHeightChanged = clgi.client->time;
+    if ( game.predictedState.transition.view.height[ 0 ] != viewHeight ) {
+        game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
+        game.predictedState.transition.view.height[ 0 ] = viewHeight;
+        game.predictedState.transition.view.timeHeightChanged = clgi.client->time;
     }
 }
 
@@ -108,16 +108,15 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
 **/
 void CLG_PredictNextBobCycle( pmove_t *pm ) {
     // Predict next bobcycle.
-    const float bobCycleFraction = (float)( clgi.client->time - clgi.client->servertime )
-        / ( ( clgi.client->time + clgi.frame_time_ms ) - clgi.client->servertime );
-    int32_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->playerState->bobCycle;// nextframe->ps.bobCycle;
+    const float bobCycleFraction = clgi.client->xerpFraction;
+    uint8_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->playerState->bobCycle;// nextframe->ps.bobCycle;
     // Handle wraparound:
     if ( bobCycle < pm->playerState->bobCycle ) {
         bobCycle += 256;
     }
     pm->playerState->bobCycle = pm->playerState->bobCycle + bobCycleFraction * ( bobCycle - clgi.client->frame.ps.bobCycle );
 
-    clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->playerState->bobCycle, bobCycleFraction );
+    //clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->playerState->bobCycle, bobCycleFraction );
 }
 
 /**
@@ -136,7 +135,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
     const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
         && ( ( pm->playerState->pmove.pm_flags & PMF_ON_GROUND ) && pm->playerState->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
-        && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cplane_t ) ) != 0 // Plane memory isn't identical, OR..
+        && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 // Plane memory isn't identical, OR..
             || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
 
     if ( step_detected ) {
@@ -174,7 +173,7 @@ const qboolean PF_UsePrediction( void ) {
 
     // When the server is paused, nothing to predict, make sure to clear any possible predicted state error.
     if ( clgi.GetConnectionState() != ca_active || sv_paused->integer ) {
-        clgi.client->predictedState.error = {};
+        game.predictedState.error = {};
         return false;
     }
 
@@ -201,18 +200,18 @@ const qboolean PF_UsePrediction( void ) {
 *           between our predicted state and the server returned state. In case
 *           the margin is too high, snap back to server provided player state.
 **/
-void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIndex, const pmove_state_t *in, struct client_movecmd_s *moveCommand, client_predicted_state_t *out ) {
-    // Maximum delta allowed before snapping back.
-    static constexpr double MAX_DELTA_ORIGIN = ( 2400 * ( 1.0 / BASE_FRAMERATE ) );
+void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand ) {
+    // Maximum delta allowed before snapping back. (80 units at 40hz)
+    static constexpr double MAX_DELTA_ORIGIN = ( 3200 * ( 1.0 / BASE_FRAMERATE ) );
 
     // If it is the first frame, we got nothing to predict yet.
     if ( moveCommand->prediction.time == 0 ) {
-        out->lastPs = clgi.client->frame.ps;
-        out->currentPs = clgi.client->frame.ps;
-        out->currentPs.pmove = *in;
-        out->error = {};
+        game.predictedState.lastPs = clgi.client->frame.ps;
+        game.predictedState.currentPs = clgi.client->frame.ps;
+        //game.predictedState.currentPs.pmove = game.predictedState.currentPs.pmove;
+        game.predictedState.error = {};
 
-        out->transition = {
+        game.predictedState.transition = {
             .step = {
                 .height = 0,
                 .timeChanged = clgi.GetRealTime()
@@ -226,31 +225,31 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
             }
         };
 
-        clgi.ShowMiss( "First frame(%" PRIi64 ") frame #(%i). Nothing to predict yet.\n",
+        clgi.ShowMiss( "First frame(%" PRIi64 "). Nothing to predict yet.\n",
             clgi.client->frame.number );
         return;
     }
 
     // Subtract what the server returned from our predicted origin for that frame.
-    out->error = moveCommand->prediction.error = moveCommand->prediction.origin - in->origin;
+    game.predictedState.error = moveCommand->prediction.error = moveCommand->prediction.origin - clgi.client->frame.ps.pmove.origin;
 
     // Save the prediction error for interpolation.
     //const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
-    const float len = QM_Vector3Length( out->error );
+    const float len = fabs( QM_Vector3Length( game.predictedState.error ) );
     //if (len < 1 || len > 640) {
     if ( len > .1f ) {
         // Snap back if the distance was too far off:
         if ( len > MAX_DELTA_ORIGIN ) {
             // Debug misses:
             clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
-                clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+                clgi.client->frame.number, len, game.predictedState.error[ 0 ], game.predictedState.error[ 1 ], game.predictedState.error[ 2 ] );
 
-            out->lastPs = clgi.client->frame.ps;
-            out->currentPs = clgi.client->frame.ps;
-            out->currentPs.pmove = *in;
-            out->error = {};
+            game.predictedState.lastPs = clgi.client->frame.ps;
+            game.predictedState.currentPs = clgi.client->frame.ps;
+            //game.predictedState.currentPs.pmove = clgi.client->predictedFrame.ps.pmove;
+            game.predictedState.error = {};
 
-            out->transition = {
+            game.predictedState.transition = {
                 .step = {
                     .height = 0,
                     .timeChanged = clgi.GetRealTime()
@@ -269,7 +268,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
         } else {
             // Debug misses:
             clgi.ShowMiss( "Prediction miss on frame #(%" PRIi64 "): len(%f) (%f %f %f)\n",
-                clgi.client->frame.number, len, out->error[ 0 ], out->error[ 1 ], out->error[ 2 ] );
+                clgi.client->frame.number, len, game.predictedState.error[ 0 ], game.predictedState.error[ 1 ], game.predictedState.error[ 2 ] );
         }
     }
 }
@@ -279,16 +278,16 @@ void PF_CheckPredictionError( const int64_t frameIndex, const uint64_t commandIn
 **/
 void PF_PredictAngles( void ) {
     // Don't predict angles if the pmove asks so specifically.
-    if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION )/* || !cl_predict->integer*/ ) {
-        VectorCopy( clgi.client->frame.ps.viewangles, clgi.client->predictedState.currentPs.viewangles );
+    if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) || !cl_predict->integer ) {
+        VectorCopy( clgi.client->frame.ps.viewangles, game.predictedState.currentPs.viewangles );
         return;
     }
 
     // This is done even with cl_predict == 0.
-    clgi.client->predictedState.currentPs.viewangles = QM_Vector3AngleMod( clgi.client->viewangles + clgi.client->frame.ps.pmove.delta_angles );
-    //clgi.client->predictedState.currentPs.viewangles = clgi.client->viewangles + QM_Vector3AngleMod( clgi.client->frame.ps.pmove.delta_angles );
+    //game.predictedState.currentPs.viewangles = QM_Vector3AngleMod( clgi.client->viewangles + clgi.client->frame.ps.pmove.delta_angles );
+    game.predictedState.currentPs.viewangles = clgi.client->viewangles + QM_Vector3AngleMod( clgi.client->frame.ps.pmove.delta_angles );
 
-	//VectorAdd( , clgi.client->frame.ps.pmove.delta_angles, clgi.client->predictedState.currentPs.viewangles );
+	//VectorAdd( , clgi.client->frame.ps.pmove.delta_angles, game.predictedState.currentPs.viewangles );
 }
 
 /**
@@ -296,13 +295,13 @@ void PF_PredictAngles( void ) {
 *           as the pending user move command. To finally store the predicted outcome
 *           into the cl.predictedState struct.
 **/
-void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t currentCommandNumber ) {
+void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber ) {
     // Prepare the player move parameters.
     pmoveParams_t pmp;
     SG_ConfigurePlayerMoveParameters( &pmp );
 
     // Last predicted state.
-    client_predicted_state_t *predictedState = &clgi.client->predictedState;
+    client_predicted_state_t *predictedState = &game.predictedState;
 
     // Shuffle current to last playerState.
     predictedState->lastPs = predictedState->currentPs;
@@ -342,48 +341,58 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
 
         // Only simulate it if it had movement.
         if ( moveCommand->cmd.msec ) {
-            // Timestamp it so the client knows we have valid results.
-            moveCommand->prediction.time = clgi.client->time;//clgi.client->time;
-
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
             pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.time );
-            SG_PlayerMove( (pmove_s*)&pm, (pmoveParams_s*) & pmp);
+            SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
+            // Predict the next bobCycle for the frame.
+            #if 0
+            // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
+            CLG_PredictNextBobCycle( &pm );
+            #endif
         }
 
-        // Save for prediction checking.
+        // Store the resulting outcome(if no msec was found, it'll be the origin that
+        // was left behind from the previous player move iteration.)
         moveCommand->prediction.origin = pm.playerState->pmove.origin;
         moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
     }
 
-    // Now run the pending command number.
+    // Now predict results for the the pending command.
     client_movecmd_t *pendingMoveCommand = &clgi.client->moveCommand;
+    // We got msec, let's predict player movement.
     if ( pendingMoveCommand->cmd.msec ) {
         // Store time of prediction.
         pendingMoveCommand->prediction.time = clgi.client->time;
         
         // Initialize pmove with the proper moveCommand data.
+        #if 0
         pm.cmd = pendingMoveCommand->cmd;
         pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
         pm.cmd.sidemove = clgi.client->localmove[ 1 ];
         pm.cmd.upmove = clgi.client->localmove[ 2 ];
-
+        #else
+        pendingMoveCommand->cmd.forwardmove = clgi.client->localmove[ 0 ];
+        pendingMoveCommand->cmd.sidemove = clgi.client->localmove[ 1 ];
+        pendingMoveCommand->cmd.upmove = clgi.client->localmove[ 2 ];
+        pm.cmd = pendingMoveCommand->cmd;
+        #endif
         // Perform movement.
         pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.time );
         SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
-
-        // Save the now not pending anymore move command as the last entry in our circular buffer.
+        // Predict the next bobCycle for the frame.
+        #if 0
+        // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
+        CLG_PredictNextBobCycle( &pm );
+        #endif
+        // Store the predicted outcome results 
         pendingMoveCommand->prediction.origin = pm.playerState->pmove.origin;
         pendingMoveCommand->prediction.velocity = pm.playerState->pmove.velocity;
-
-        // Save for prediction checking.
+        // Save the pending move command as the last entry in our circular buffer.
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
-
+        // And store it in the predictedState.
         predictedState->cmd = *pendingMoveCommand;
     }
-
-    // Predict the next bobCycle for the frame.
-    //CLG_PredictNextBobCycle( &pm );
 
     // Smooth Out Stair Stepping. This is done before updating the ground data so we can test results to the
     // previously predicted ground data.
@@ -396,11 +405,11 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     predictedState->mins = pm.mins;
     predictedState->maxs = pm.maxs;
 
-    // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
-    PF_AdjustViewHeight( pm.playerState->pmove.viewheight );
-
     // Swap in the resulting new pmove player state.
     predictedState->currentPs = *pmPlayerState;
+
+    // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
+    PF_AdjustViewHeight( predictedState->currentPs.pmove.viewheight );
 
     // Check and execute any player state related events.
     CLG_CheckPlayerstateEvents( &predictedState->lastPs, &predictedState->currentPs );

@@ -25,12 +25,12 @@ void PlayerTrail_New( vec3_t spot );
 /**
 *   @brief
 **/
-edict_t *PlayerTrail_PickFirst( edict_t *self );
+svg_base_edict_t *PlayerTrail_PickFirst( svg_base_edict_t *self );
 /**
 *   @brief
 **/
-edict_t *PlayerTrail_PickNext( edict_t *self );
+svg_base_edict_t *PlayerTrail_PickNext( svg_base_edict_t *self );
 /**
 *   @brief
 **/
-edict_t *PlayerTrail_LastSpot( void );
+svg_base_edict_t *PlayerTrail_LastSpot( void );

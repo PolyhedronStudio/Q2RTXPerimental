@@ -11,46 +11,46 @@
 
 
 /**
-*   @brief  This structure is cleared as each map is entered
-*           it is read/written to the level.sav file for savegames
+*   @brief  This structure is cleared as each map is entered.
+*           It is read/written to the level.sav file for savegames.
 **/
-typedef struct {
-    uint64_t        frameNumber;
-    QMTime		time;
+struct svg_level_locals_t {
+    //! Used for registering the fields which need save and restoring 
+    //! of the session's level locals.
+    static svg_save_descriptor_field_t saveDescriptorFields[];
 
-    char        level_name[ MAX_QPATH ];  // the descriptive name (Outer Base, etc)
-    char        mapname[ MAX_QPATH ];     // the server name (base1, etc)
-    char        nextmap[ MAX_QPATH ];     // go here when fraglimit is hit
+    uint64_t    frameNumber = 0;
+    QMTime		time = 0_ms;
+
+    double      gravity = 0.;
+
+    const cm_entity_t **cm_entities = nullptr;
+
+    char        level_name[ MAX_QPATH ] = {};  // the descriptive name (Outer Base, etc)
+    char        mapname[ MAX_QPATH ] = {};     // the server name (base1, etc)
+    char        nextmap[ MAX_QPATH ] = {};     // go here when fraglimit is hit
 
     // intermission state
-    int64_t         intermissionFrameNumber;  // time the intermission was started
+    int64_t         intermissionFrameNumber = 0;  // time the intermission was started
 
     // WID: C++20: Added const.
-    const char *changemap;
-    int64_t     exitintermission;
-    vec3_t      intermission_origin;
-    vec3_t      intermission_angle;
+    svg_level_qstring_t changemap = nullptr;
+    int64_t     exitintermission = 0;
+    Vector3     intermission_origin = QM_Vector3Zero();
+    Vector3     intermission_angle = QM_Vector3Zero();
 
-    edict_t *sight_client;  // changed once each frame for coop games
+    svg_base_edict_t     *sight_client = nullptr;  // changed once each frame for coop games
 
-    edict_t *sight_entity;
-    int64_t		sight_entity_framenum;
-    edict_t *sound_entity;
-    int64_t		sound_entity_framenum;
-    edict_t *sound2_entity;
-    int64_t		sound2_entity_framenum;
+    svg_base_edict_t     *sight_entity = nullptr;
+    int64_t		sight_entity_framenum = 0;
+    svg_base_edict_t     *sound_entity = nullptr;
+    int64_t		sound_entity_framenum = 0;
+    svg_base_edict_t     *sound2_entity = nullptr;
+    int64_t		sound2_entity_framenum = 0;
 
-    int         pic_health;
+    svg_base_edict_t *current_entity = nullptr;   // entity running from SVG_RunFrame
+    int32_t     body_que = 0;               // dead bodies
+};
 
-    int         total_secrets;
-    int         found_secrets;
-
-    int         total_goals;
-    int         found_goals;
-
-    int         total_monsters;
-    int         killed_monsters;
-
-    edict_t *current_entity;    // entity running from SVG_RunFrame
-    int         body_que;           // dead bodies
-} level_locals_t;
+//! Extern it.
+extern svg_level_locals_t   level;

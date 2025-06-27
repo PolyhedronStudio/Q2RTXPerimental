@@ -32,18 +32,18 @@ mleaf_t *CM_PointLeaf( cm_t *cm, const vec3_t p ) {
 /**
 *   @return An ORed contents mask
 **/
-const contents_t CM_PointContents( cm_t *cm, const vec3_t p, mnode_t *headnode ) {
+const cm_contents_t CM_PointContents( cm_t *cm, const vec3_t p, mnode_t *headnode ) {
     if ( !headnode ) {
         return CONTENTS_NONE;
     }
-    return static_cast<contents_t>( BSP_PointLeaf( headnode, p )->contents );
+    return static_cast<cm_contents_t>( BSP_PointLeaf( headnode, p )->contents );
 }
 
 /**
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities
 **/
-const contents_t  CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t *headnode, const vec3_t origin, const vec3_t angles ) {
+const cm_contents_t  CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t *headnode, const vec3_t origin, const vec3_t angles ) {
     vec3_t      p_l;
     vec3_t      axis[ 3 ];
 
@@ -67,5 +67,5 @@ const contents_t  CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode_t
         RotatePoint( p_l, axis );
     }
 
-    return static_cast<contents_t>( BSP_PointLeaf( headnode, p_l )->contents );
+    return static_cast<cm_contents_t>( BSP_PointLeaf( headnode, p_l )->contents );
 }

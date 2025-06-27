@@ -11,6 +11,9 @@
 #include "clgame/clg_temp_entities.h"
 
 
+#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_misc.h"
+
 
 /**
 *
@@ -68,7 +71,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     if ( CLG_IsClientEntity( newState ) ) {
         // Determine 'Base' animation name.
         double frameTime = 1.f;
-        const std::string baseAnimStr = SG_Player_GetClientBaseAnimation( &clgi.client->predictedState.lastPs, &clgi.client->predictedState.currentPs, &frameTime );
+        const std::string baseAnimStr = SG_Player_GetClientBaseAnimation( &game.predictedState.lastPs, &game.predictedState.currentPs, &frameTime );
 
         // Start timer is always just servertime that we had.
         const QMTime startTimer = QMTime::FromMilliseconds( clgi.client->servertime );
@@ -278,8 +281,8 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
     // Get the desired 'Yaw' angle to rotate into based on the (predicted-) player states.
     if ( CLG_IsClientEntity( newState ) ) {
         // States to determine it by.
-        player_state_t *playerState = &clgi.client->predictedState.currentPs;
-        player_state_t *oldPlayerState = &clgi.client->predictedState.lastPs;
+        player_state_t *playerState = &game.predictedState.currentPs;
+        player_state_t *oldPlayerState = &game.predictedState.lastPs;
         // Go at it.
         updateYawControllers = CLG_ETPlayer_CalculateDesiredYaw( packetEntity, playerState, oldPlayerState, currentTime );
         // Get the desired 'Yaw' angle based on the packetEntity's moveInfo.
@@ -585,11 +588,11 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
             Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
             Vector3 correctedOldOrigin = packetEntity->current.origin;
             // For being Dead:
-            if ( clgi.client->predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
+            if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
                 correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
                 correctedOldOrigin.z += PM_BBOX_GIBBED_MINS.z;
                 // For being Ducked:
-            } else if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
+            } else if ( game.predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
                 correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
                 correctedOldOrigin.z += PM_BBOX_DUCKED_MINS.z;
             } else {
@@ -602,10 +605,10 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
             // We actually need to offset the Z axis origin by half the bbox height.
             Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
             // For being Dead( Gibbed ):
-            if ( clgi.client->predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
+            if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
                 correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
             // For being Ducked:
-            } else if ( clgi.client->predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
+            } else if ( game.predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {
                 correctedOrigin.z += PM_BBOX_DUCKED_MINS.z;
             } else {
                 correctedOrigin.z += PM_BBOX_STANDUP_MINS.z;
@@ -676,7 +679,7 @@ void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntit
 
             // Calculate lerped Z origin.
             //packetEntity->current.origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
-            refreshEntity->origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
+            refreshEntity->origin[ 2 ] = QM_Lerp<double>( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
             VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );
         }
     }

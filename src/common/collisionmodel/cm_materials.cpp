@@ -14,9 +14,8 @@
 #include "common/zone.h"
 #include "system/hunk.h"
 
-// Jasmine json parser.
-#define JSMN_STATIC
-#include "shared/jsmn.h"
+// Include nlohman::json library for easy parsing.
+#include <nlohmann/json.hpp>
 
 //! Enables material debug output.
 //#define _DEBUG_MAT_SUCCESSFUL 0
@@ -67,19 +66,6 @@ const int32_t CM_MaterialExists( cm_t *cm, const char *name ) {
     return materialID;
 }
 
-static const int32_t jsoneq( const char *json, jsmntok_t *tok, const char *s ) {
-    // Need a valid token ptr.
-    if ( tok == nullptr ) {
-        return -1;
-    }
-
-    if ( tok->type == JSMN_STRING && (int)strlen( s ) == tok->end - tok->start &&
-        strncmp( json + tok->start, s, tok->end - tok->start ) == 0 ) {
-        return 1;
-    }
-    return -1;
-}
-
 /**
 *   @brief  Tries to find a matching '.wal_json' file to load in order
 *           to read specific material properties out of.
@@ -105,84 +91,62 @@ const int32_t CM_LoadMaterialFromJSON( cm_t *cm, const char *name, const char *j
         return 0;
     }
 
-    // Initialize JSON parser.
-    jsmn_parser parser;
-    jsmn_init( &parser );
-
-    // Parse JSON into tokens. ( We aren't expecting more than 128 tokens, can be increased if needed though. )
-    jsmntok_t tokens[ 128 ]; 
-    const int32_t numTokensParsed = jsmn_parse( &parser, jsonBuffer, strlen( jsonBuffer ), tokens,
-        sizeof( tokens ) / sizeof( tokens[ 0 ] ) );
-
-    // If lesser than 0 we failed to parse the json properly.
-    if ( numTokensParsed < 0 ) {
-        if ( numTokensParsed == JSMN_ERROR_INVAL ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_INVAL), bad token, JSON string is corrupted\n", __func__, jsonPath );
-        } else if ( numTokensParsed == JSMN_ERROR_NOMEM ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_INVAL), not enough tokens, JSON string is too large\n", __func__, jsonPath );
-        } else if ( numTokensParsed == JSMN_ERROR_PART ) {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(JSMN_ERROR_PART),  JSON string is too short, expecting more JSON data\n", __func__, jsonPath );
-        } else {
-            Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(unknown)\n", __func__, jsonPath );
-        }
-        // Clear the jsonbuffer buffer.
-        Z_Free( jsonBuffer );
-        return 0;
-    }
-
-    // Assume the top-level element is an object.
-    if ( numTokensParsed < 1 || tokens[ 0 ].type != JSMN_OBJECT ) {
-        Com_LPrintf( PRINT_DEVELOPER, "%s: Expected a json Object at the root of file '%s'!\n", __func__, jsonPath );
-        // Clear the jsonbuffer buffer.
-        Z_Free( jsonBuffer );
-        return 0;
-    }
-
+	// Parse JSON using nlohmann::json.
+	nlohmann::json json;
+	try {
+		json = nlohmann::json::parse( jsonBuffer );
+	}
+    // Catch parsing errors if any.
+	catch ( const nlohmann::json::parse_error &e ) {
+        // Output parsing error.
+		Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(%s)\n", __func__, jsonPath, e.what() );
+		// Clear the jsonbuffer buffer.
+		Z_Free( jsonBuffer );
+		// Return 0 as we failed to parse the json.
+		return 0;
+	}
     // Allocate new materialID instance.
-    const int32_t materialID = ( cm->num_materials++ ) + 1;
-
-    // Get materialID pointer.
-    cm_material_t *material = &cm->materials[ materialID ];
-    // Initialize defaults.
-    material->materialID = materialID;
-    // Copy over the texture as being the material name.
-    memset( material->name, 0, MAX_MATERIAL_NAME );
-    Q_strlcpy( material->name, name, MAX_MATERIAL_NAME );
-
-    // Copy over defaulting physical properties.
-    material->physical = cm_default_material.physical;
-
-    // Iterate over json tokens.
-    for ( int32_t tokenID = 1; tokenID < numTokensParsed; tokenID++ ) {
-        if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "physical_friction" ) == 1 ) {
-            // Value
-            char fieldValue[ MAX_QPATH ] = { };
-            // Fetch field value string size.
-            const int32_t size = QM_ClampInt32( tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start, 0, MAX_QPATH );
-            // Parse field value into buffer.
-            Q_snprintf( fieldValue, size, jsonBuffer + tokens[ tokenID + 1 ].start );
-
-            // Try and convert it to a float for our material.
-            material->physical.friction = atof( fieldValue );
-        } else if ( jsoneq( jsonBuffer, &tokens[ tokenID ], "physical_material_kind" ) == 1 ) {
-            // Value
-            char fieldValue[ MAX_QPATH ] = { };
-            // Fetch field value string size.
-            const int32_t size = tokens[ tokenID + 1 ].end - tokens[ tokenID + 1 ].start;// constclamp( , 0, MAX_QPATH );
-            // Parse field value into buffer.
-            Q_snprintf( fieldValue, size + 1, jsonBuffer + tokens[ tokenID + 1 ].start );
-
-            // Copy it over into our material kind string buffer.
-            memset( material->physical.kind, 0, sizeof( material->physical.kind )/*MAX_QPATH*/ );
-            Q_strlcpy( material->physical.kind, fieldValue, sizeof( material->physical.kind )/*MAX_QPATH*/ );//jsonBuffer + tokens[tokenID].start, size);
-        }
-    }
-    
-    #ifdef _DEBUG_MAT_SUCCESSFUL
-    // Debug print:
-    Com_LPrintf( PRINT_DEVELOPER, "%s: Inserted new material[materialID(#%d), name(\"%s\"), kind(%s), friction(%f)]\n",
-        __func__, material->materialID, material->name, material->physical.kind, material->physical.friction );
-    #endif
+	const int32_t materialID = ( cm->num_materials++ ) + 1;
+	// Get materialID pointer.
+	cm_material_t *material = &cm->materials[ materialID ];
+	// Initialize defaults.
+	material->materialID = materialID;
+	// Copy over the texture as being the material name.
+	memset( material->name, 0, MAX_MATERIAL_NAME );
+	Q_strlcpy( material->name, name, MAX_MATERIAL_NAME );
+	// Copy over defaulting physical properties.
+	material->physical = cm_default_material.physical;
+	// Try and read the material properties.
+	try {
+		// Try and read the material properties.
+		if ( json.contains( "physical_friction" ) ) {
+			material->physical.friction = json["physical_friction"].get< float >();
+		}
+		if ( json.contains( "physical_material_kind" ) ) {
+            // Get key value.
+            const std::string physical_material_kind = json[ "physical_material_kind" ].get< const std::string >();
+            // Empty buffer.
+            memset( material->physical.kind, 0, MAX_MATERIAL_KIND_STR_LENGTH );
+            // Get and clamp length to copy.
+            const int32_t copyLength = QM_Clamp<int32_t>( physical_material_kind.length() + 1, 0, MAX_MATERIAL_KIND_STR_LENGTH );
+            // Copy over the material kind into the char buffer.
+            Q_strlcpy( material->physical.kind, physical_material_kind.c_str(), copyLength );
+		}
+	}
+	// Catch any json parsing errors.
+	catch ( const nlohmann::json::exception &e ) {
+		// Output parsing error.
+		Com_LPrintf( PRINT_DEVELOPER, "%s: Failed to parse json for file '%s', error(%s)\n", __func__, jsonPath, e.what() );
+		// Clear the jsonbuffer buffer.
+		Z_Free( jsonBuffer );
+		// Return 0 as we failed to parse the json.
+		return 0;
+	}
+	#ifdef _DEBUG_MAT_SUCCESSFUL
+	// Debug print:
+	Com_LPrintf( PRINT_DEVELOPER, "%s: Inserted new material[materialID(#%d), name(\"%s\"), kind(%s), friction(%f)]\n",
+		__func__, material->materialID, material->name, material->physical.kind, material->physical.friction );
+	#endif
 
     // Clear the jsonbuffer buffer.
     Z_Free( jsonBuffer );
@@ -252,7 +216,7 @@ const int32_t CM_LoadMaterials( cm_t *cm ) {
         }
 
         // Apply the final resulting materialID and pointer to the material into
-        // the texinfo's csurface_t.
+        // the texinfo's cm_surface_t.
         texinfo->c.materialID = materialID;
         texinfo->c.material = &cm->materials[ materialID ];
     }

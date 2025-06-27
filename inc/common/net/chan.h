@@ -15,9 +15,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef NET_CHAN_H
-#define NET_CHAN_H
 
 #include "common/messaging.h"
 #include "common/net/net.h"
@@ -108,5 +107,3 @@ void Netchan_Close(netchan_t *netchan);
 
 // Include the Q2RTXP Netchan
 #include "Q2RTXPerimentalNetChan.h"
-
-#endif // NET_CHAN_H

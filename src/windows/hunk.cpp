@@ -21,7 +21,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #define NOMINMAX
 #include <windows.h>
 
-static DWORD pagesize;
+//static DWORD pagesize;
+static size_t pagesize; // <Q2RTXP>: WID: Changed to size_t to prevent this warning:
+// src\windows\hunk.cpp( 41 ) : warning C4319 : '~' : zero extending 'DWORD' to 'size_t' of greater size
+// src\windows\hunk.cpp( 86 ) : warning C4319 : '~' : zero extending 'DWORD' to 'size_t' of greater size
 
 void Hunk_Init(void)
 {

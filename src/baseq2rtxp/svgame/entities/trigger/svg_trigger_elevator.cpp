@@ -7,6 +7,8 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_trigger.h"
+
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
@@ -19,8 +21,8 @@
 
 /*QUAKED trigger_elevator (0.3 0.1 0.6) (-8 -8 -8) (8 8 8)
 */
-void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    edict_t *target;
+void trigger_elevator_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
+    svg_base_edict_t *target;
 
     if ( self->movetarget->nextthink ) {
         //      gi.dprintf("elevator busy\n");
@@ -39,10 +41,11 @@ void trigger_elevator_use( edict_t *self, edict_t *other, edict_t *activator, co
     }
 
     self->movetarget->targetEntities.target = target;
-    train_resume( self->movetarget );
+    // temp commented out for linker error, uncomment later lol.
+    //train_resume( self->movetarget );
 }
 
-void trigger_elevator_init( edict_t *self ) {
+void trigger_elevator_init( svg_base_edict_t *self ) {
     if ( !self->targetNames.target ) {
         gi.dprintf( "trigger_elevator has no target\n" );
         return;
@@ -57,12 +60,12 @@ void trigger_elevator_init( edict_t *self ) {
         return;
     }
 
-    self->use = trigger_elevator_use;
+    self->SetUseCallback( trigger_elevator_use );
     self->svflags = SVF_NOCLIENT;
 }
 
-void SP_trigger_elevator( edict_t *self ) {
+void SP_trigger_elevator( svg_base_edict_t *self ) {
     self->s.entityType = ET_PUSH_TRIGGER;
-    self->think = trigger_elevator_init;
+    self->SetThinkCallback( trigger_elevator_init );
     self->nextthink = level.time + FRAME_TIME_S;
 }

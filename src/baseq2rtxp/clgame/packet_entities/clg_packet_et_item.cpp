@@ -10,6 +10,8 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
 
+#include "sharedgame/sg_entity_effects.h"
+
 /**
 *	@brief	Will setup the refresh entity for the ET_ITEM centity with the newState.
 **/

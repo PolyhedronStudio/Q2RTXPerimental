@@ -7,6 +7,24 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
-void SP_info_null( edict_t *self ) {
-    SVG_FreeEdict( self );
+// Include player start class types header.
+#include "svgame/entities/info/svg_info_null.h"
+
+
+/**
+*
+*   info_null:
+*
+**/
+/**
+*
+*   info_notnull:
+*
+**/
+/**
+*   @brief  Spawn routine.
+**/
+DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_null_t, onSpawn ) ( svg_info_null_t *self ) -> void {
+	// Frees itself.
+	g_edict_pool.FreeEdict( self );
 }

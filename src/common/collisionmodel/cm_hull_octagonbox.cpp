@@ -64,7 +64,7 @@ void CM_InitOctagonHull( cm_t *cm ) {
         //}
 
         // planes
-        cplane_t *plane = &cm->hull_octagonbox->planes[ i * 2 ];
+        cm_plane_t *plane = &cm->hull_octagonbox->planes[ i * 2 ];
         plane->type = i >> 1;
         plane->normal[ i >> 1 ] = 1;
         //SetPlaneType( plane );
@@ -101,7 +101,7 @@ void CM_InitOctagonHull( cm_t *cm ) {
         }
 
         // Planes
-        cplane_t *plane = &cm->hull_octagonbox->planes[ i * 2 ];
+        cm_plane_t *plane = &cm->hull_octagonbox->planes[ i * 2 ];
         plane->type = 3;
         VectorCopy( oct_dirs[ i - 6 ], plane->normal );
         //SetPlaneType( plane );
@@ -119,7 +119,7 @@ void CM_InitOctagonHull( cm_t *cm ) {
 /**
 *   @brief  Utility function to complement CM_HeadnodeForOctagon with.
 **/
-static inline const float CalculateOctagonPlaneDist( cplane_t &plane, const Vector3 &mins, const Vector3 &maxs, const bool negate = false ) {
+static inline const float CalculateOctagonPlaneDist( cm_plane_t &plane, const Vector3 &mins, const Vector3 &maxs, const bool negate = false ) {
     if ( negate == true ) {
         return QM_Vector3DotProduct( plane.normal, { ( plane.signbits & 1 ) ? -mins[ 0 ] : -maxs[ 0 ], ( plane.signbits & 2 ) ? -mins[ 1 ] : -maxs[ 1 ], ( plane.signbits & 4 ) ? -mins[ 2 ] : -maxs[ 2 ] } );//-d;//d;
     } else {
@@ -134,7 +134,7 @@ static inline const float CalculateOctagonPlaneDist( cplane_t &plane, const Vect
 *           The BSP trees' octagon box will match with the bounds(mins, maxs) and have appointed
 *           the specified contents. If contents == CONTENTS_NONE(0) then it'll default to CONTENTS_MONSTER.
 **/
-mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const contents_t contents ) {
+mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, const cm_contents_t contents ) {
     // Setup to CONTENTS_MONSTER in case of no contents being passed in.
     if ( contents == CONTENTS_NONE ) {
         cm->hull_octagonbox->leaf.contents = cm->hull_octagonbox->brush.contents = CONTENTS_MONSTER;

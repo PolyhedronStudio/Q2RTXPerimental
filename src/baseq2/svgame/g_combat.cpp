@@ -30,13 +30,13 @@ explosions and melee attacks.
 bool SVG_CanDamage(edict_t *targ, edict_t *inflictor)
 {
     vec3_t  dest;
-    trace_t trace;
+    cm_trace_t trace;
 
 // bmodels need special checking because their origin is 0,0,0
     if (targ->movetype == MOVETYPE_PUSH) {
         VectorAdd(targ->absmin, targ->absmax, dest);
         VectorScale(dest, 0.5f, dest);
-        trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+        trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
         if (trace.fraction == 1.0f)
             return true;
         if (trace.ent == targ)
@@ -44,35 +44,35 @@ bool SVG_CanDamage(edict_t *targ, edict_t *inflictor)
         return false;
     }
 
-    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, targ->s.origin, inflictor, MASK_SOLID);
+    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, targ->s.origin, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
     VectorCopy(targ->s.origin, dest);
     dest[0] += 15.0f;
     dest[1] += 15.0f;
-    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
     VectorCopy(targ->s.origin, dest);
     dest[0] += 15.0f;
     dest[1] -= 15.0f;
-    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
     VectorCopy(targ->s.origin, dest);
     dest[0] -= 15.0f;
     dest[1] += 15.0f;
-    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
     VectorCopy(targ->s.origin, dest);
     dest[0] -= 15.0f;
     dest[1] -= 15.0f;
-    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, MASK_SOLID);
+    trace = gi.trace(inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID);
     if (trace.fraction == 1.0f)
         return true;
 
@@ -164,7 +164,7 @@ dflags      these flags are used to control how SVG_TriggerDamage works
 */
 static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int damage, int dflags)
 {
-    gclient_t   *client;
+    svg_client_t   *client;
     int         save;
     int         power_armor_type;
     int         index;
@@ -186,7 +186,7 @@ static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal
     if (client) {
         power_armor_type = PowerArmorType(ent);
         if (power_armor_type != POWER_ARMOR_NONE) {
-            index = ITEM_INDEX(SVG_FindItem("Cells"));
+            index = ITEM_INDEX(SVG_Item_FindByPickupName("Cells"));
             power = client->pers.inventory[index];
         }
     } else if (ent->svflags & SVF_MONSTER) {
@@ -242,7 +242,7 @@ static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal
 
 static int CheckArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int damage, int te_sparks, int dflags)
 {
-    gclient_t   *client;
+    svg_client_t   *client;
     int         save;
     int         index;
     gitem_t     *armor;
@@ -262,7 +262,7 @@ static int CheckArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int
     if (!index)
         return 0;
 
-    armor = SVG_GetItemByIndex(index);
+    armor = SVG_Item_GetByIndex(index);
 
     if (dflags & DAMAGE_ENERGY)
         save = ceil(((gitem_armor_t *)armor->info)->energy_protection * damage);
@@ -362,7 +362,7 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
 
 void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod)
 {
-    gclient_t   *client;
+    svg_client_t   *client;
     int         take;
     int         save;
     int         asave;
@@ -524,7 +524,7 @@ void SVG_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict
     vec3_t  v;
     vec3_t  dir;
 
-    while ((ent = SVG_FindWithinRadius(ent, inflictor->s.origin, radius)) != NULL) {
+    while ((ent = SVG_Entities_FindWithinRadius(ent, inflictor->s.origin, radius)) != NULL) {
         if (ent == ignore)
             continue;
         if (!ent->takedamage)

@@ -43,6 +43,9 @@ music/
 *.tmp
 *.wal
 *.wav
+*.ssv
+*.sav
+*.sv2
 
 *.texinfo.json
 *-compile.map
@@ -51,8 +54,9 @@ music/
 Q2RTXPerimental
 Q2RTXPerimental_ded
 
+/CMakeFiles
 q2config.cfg
-save
+/save
 */docs
 baseq2/**/*.txt
 !baseq2/*.txt
@@ -96,3 +100,4 @@ baseq2rtxp/maps/*.bsp
 !/trenchbroom/games/Q2RTXP/
 !/baseq2rtxp/materials/
 !/baseq2rtxp/textures/
+/baseq2rtxp.zip

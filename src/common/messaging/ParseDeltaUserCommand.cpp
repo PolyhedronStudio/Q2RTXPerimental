@@ -31,9 +31,9 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 	
 
 	if ( from ) {
-		memcpy( to, from, sizeof( *to ) );
+		*to = *from;
 	} else {
-		memset( to, 0, sizeof( *to ) );
+		*to = {};
 	}
 
 	const int64_t bits = MSG_ReadUintBase128( );
@@ -69,7 +69,7 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 	}
 
 	// Read time to run command.
-	to->msec = MSG_ReadUint8( );
+	to->msec = MSG_ReadDouble( );
 
 	// Read in the current frame number, for possibly deterministics.
 	to->frameNumber = MSG_ReadIntBase128();

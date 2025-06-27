@@ -164,6 +164,9 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
     target_link_libraries(client tinyobjloader)
 	target_link_libraries(client OpenAL)
 	target_link_libraries(client SDL2main SDL2-static zlibstatic)
+	
+	target_link_libraries(client nlohmann-json)
+	target_include_directories(client PRIVATE nlohmann-json)
 
 	# Other WIN32 related options:
 	IF( WIN32 ) 
@@ -178,6 +181,14 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
 
 	target_include_directories(client PRIVATE ../inc)
     target_include_directories(client PRIVATE "${ZLIB_INCLUDE_DIRS}")
+
+	# Precompiled Header.
+	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+	  # Create precompiled header
+	  target_precompile_headers(client PRIVATE
+		<shared/shared.h>
+	  )
+	endif()
 
 	# Set the actual final binary output properties of the client.
 	set_target_properties(client
@@ -205,7 +216,7 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 			${SRC_SHARED} ${HEADERS_SHARED}
 			${SRC_WINDOWS} ${HEADERS_WINDOWS}
 			${SRC_SERVER} ${HEADERS_SERVER}
-			client/null.cpp
+			client/cl_null.cpp
 			windows/res/q2rtxpded.rc
 			windows/threads/threads.c
 		)
@@ -215,7 +226,7 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 			${SRC_SHARED} ${HEADERS_SHARED}
 			${SRC_LINUX}
 			${SRC_SERVER} ${HEADERS_SERVER}
-			client/null.cpp
+			client/cl_null.cpp
 		)
 	ENDIF()#IF(WIN32)
 
@@ -236,6 +247,8 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 
 	# General include directory.
 	target_include_directories(server PRIVATE ../inc)
+	target_link_libraries(server nlohmann-json)
+	target_include_directories(server PRIVATE nlohmann-json)
 
 	# ZLib:
 	target_include_directories(server PRIVATE "${ZLIB_INCLUDE_DIRS}")
@@ -245,6 +258,14 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 	IF( UNIX )
 		target_link_libraries(server dl rt m pthread)
 	ENDIF() # IF( UNIX )
+
+	# Precompiled Header.
+	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+	  # Create precompiled header
+	  target_precompile_headers(server PRIVATE
+		<shared/shared.h>
+	  )
+	endif()
 
 	set_target_properties(server
 		PROPERTIES
@@ -437,6 +458,23 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 
 	target_include_directories(baseq2rtxp_svgame PRIVATE ${CMAKE_SOURCE_DIR}/extern/lua-5.4.7/src )
     target_link_libraries(baseq2rtxp_svgame zlibstatic liblua-5.4.7 sol2::sol2)
+
+	target_link_libraries(baseq2rtxp_clgame nlohmann-json)
+	target_link_libraries(baseq2rtxp_svgame nlohmann-json)
+	target_include_directories(baseq2rtxp_clgame PRIVATE nlohmann-json)
+	target_include_directories(baseq2rtxp_svgame PRIVATE nlohmann-json)
+
+	# Precompiled Header.
+	if(MSVC OR CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+	  # Create precompiled header
+	  target_precompile_headers(baseq2rtxp_clgame PRIVATE
+		<shared/shared.h>
+	  )
+	  target_precompile_headers(baseq2rtxp_svgame PRIVATE
+		<shared/shared.h>
+		<svgame/svg_local.h>
+	  )
+	endif()
 
 	# Specify both LIBRARY and RUNTIME because one works only on Windows,
 	# and another works only on Linux.

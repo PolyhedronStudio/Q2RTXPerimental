@@ -134,7 +134,7 @@ typedef struct mmove_state_s {
 static constexpr int32_t MM_MAX_TOUCH_TRACES = 32;
 typedef struct mm_touch_trace_list_s {
     uint32_t numberOfTraces;
-    trace_t traces[ MM_MAX_TOUCH_TRACES ];
+    svg_trace_t traces[ MM_MAX_TOUCH_TRACES ];
 } mm_touch_trace_list_t;
 
 ///**
@@ -145,11 +145,11 @@ typedef struct mm_touch_trace_list_s {
 //    struct edict_s *entity;
 //
 //    //! A copy of the plane data from the ground entity.
-//    cplane_t        plane;
+//    cm_plane_t        plane;
 //    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
-//    csurface_t      surface;
+//    cm_surface_t      surface;
 //    //! A copy of the contents data from the ground entity's brush.
-//    contents_t      contents;
+//    cm_contents_t      contents;
 //    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
 //    cm_material_t *material;
 //} mm_ground_info_t;
@@ -159,9 +159,9 @@ typedef struct mm_touch_trace_list_s {
 //**/
 //typedef struct mm_liquid_info_s {
 //    //! The actual BSP liquid 'contents' type we're residing in.
-//    contents_t      type;
+//    cm_contents_t      type;
 //    //! The depth of the player in the actual liquid.
-//    liquid_level_t	level;
+//    cm_liquid_level_t	level;
 //} mm_liquid_info_t;
 
 /**
@@ -169,9 +169,9 @@ typedef struct mm_touch_trace_list_s {
 **/
 typedef struct mm_move_s {
     //! [In]: Used as trace skip/pass-entity, usually points to the monster itself.
-    edict_t *monster;
+    svg_base_edict_t *monster;
     //! [In]: Frametime.
-    float frameTime;
+    double frameTime;
     //! [In]: Bounds.
     Vector3 mins, maxs;
 
@@ -185,11 +185,11 @@ typedef struct mm_move_s {
     //! [Out]: Touch Traces.
     mm_touch_trace_list_t touchTraces;
     //! [Out]:
-    qboolean jump_sound;
+    bool jump_sound;
     //! [Out]:
     struct {
         //! If clipped to stair.
-        qboolean clipped;
+        bool clipped;
         //! Height of step.
         float height;
     } step;
@@ -207,11 +207,11 @@ typedef struct mm_move_s {
 /**
 *	@brief	Clips trace against world only.
 **/
-const trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const contents_t contentMask );
+const svg_trace_t SVG_MMove_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask );
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
-const trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, edict_t *passEntity, contents_t contentMask = CONTENTS_NONE );
+const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEntity, cm_contents_t contentMask = CONTENTS_NONE );
 
 
 
@@ -234,4 +234,4 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove );
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.
 **/
-void SVG_MMove_FaceIdealYaw( edict_t *ent, const float idealYaw, const float yawSpeed );
+void SVG_MMove_FaceIdealYaw( svg_base_edict_t *ent, const float idealYaw, const float yawSpeed );

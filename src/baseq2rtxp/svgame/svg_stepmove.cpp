@@ -18,6 +18,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // m_move.c -- monster movement
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_misc.h"
+#include "svgame/svg_utils.h"
 
 #define STEPSIZE    18
 
@@ -32,10 +34,10 @@ is not a staircase.
 */
 int c_yes, c_no;
 
-bool M_CheckBottom(edict_t *ent)
+bool M_CheckBottom(svg_base_edict_t *ent)
 {
     vec3_t  mins, maxs, start, stop;
-    trace_t trace;
+    svg_trace_t trace;
     int     x, y;
     float   mid, bottom;
 
@@ -46,6 +48,12 @@ bool M_CheckBottom(edict_t *ent)
 // with the tougher checks
 // the corners must be within 16 of the midpoint
     start[2] = mins[2] - 1;
+    if ( ent->gravityVector[ 2 ] > 0 ) {
+        // PGM
+        //  FIXME - this will only handle 0,0,1 and 0,0,-1 gravity vectors
+            start[ 2 ] = maxs[ 2 ] + 1;
+        // PGM
+    }
     for (x = 0 ; x <= 1 ; x++)
         for (y = 0 ; y <= 1 ; y++) {
             start[0] = x ? maxs[0] : mins[0];
@@ -67,8 +75,17 @@ realcheck:
 // the midpoint must be within 16 of the bottom
     start[0] = stop[0] = (mins[0] + maxs[0]) * 0.5f;
     start[1] = stop[1] = (mins[1] + maxs[1]) * 0.5f;
-    stop[2] = start[2] - 2 * STEPSIZE;
-    trace = gi.trace(start, vec3_origin, vec3_origin, stop, ent, MASK_MONSTERSOLID);
+    //stop[2] = start[2] - 2 * STEPSIZE;
+        // PGM
+    if ( ent->gravityVector[ 2 ] > 0 ) {
+        start[ 2 ] = ent->s.origin[2] + mins[ 2 ];
+        stop[ 2 ] = start[ 2 ] - STEPSIZE * 2;
+    } else {
+        start[ 2 ] = ent->s.origin[2] + maxs[ 2 ];
+        stop[ 2 ] = start[ 2 ] + STEPSIZE * 2;
+    }
+    // PGM
+    trace = SVG_Trace(start, vec3_origin, vec3_origin, stop, ent, CM_CONTENTMASK_MONSTERSOLID);
 
     if (trace.fraction == 1.0f)
         return false;
@@ -80,7 +97,7 @@ realcheck:
             start[0] = stop[0] = x ? maxs[0] : mins[0];
             start[1] = stop[1] = y ? maxs[1] : mins[1];
 
-            trace = gi.trace(start, vec3_origin, vec3_origin, stop, ent, MASK_MONSTERSOLID);
+            trace = SVG_Trace(start, vec3_origin, vec3_origin, stop, ent, CM_CONTENTMASK_MONSTERSOLID);
 
             if (trace.fraction != 1.0f && trace.endpos[2] > bottom)
                 bottom = trace.endpos[2];
@@ -105,11 +122,11 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 //FIXME since we need to test end position contents here, can we avoid doing
 //it again later in catagorize position?
-static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
+static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
 {
     float       dz;
     vec3_t      oldorg, neworg, end;
-    trace_t     trace;
+    svg_trace_t     trace;
     int         i;
     float       stepsize;
     vec3_t      test;
@@ -145,7 +162,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
                         neworg[2] += dz;
                 }
             }
-            trace = gi.trace(ent->s.origin, ent->mins, ent->maxs, neworg, ent, MASK_MONSTERSOLID);
+            trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, neworg, ent, CM_CONTENTMASK_MONSTERSOLID);
 
             // fly monsters don't enter water voluntarily
             if (ent->flags & FL_FLY) {
@@ -154,7 +171,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
                     test[1] = trace.endpos[1];
                     test[2] = trace.endpos[2] + ent->mins[2] + 1;
                     contents = gi.pointcontents(test);
-                    if (contents & MASK_WATER)
+                    if (contents & CM_CONTENTMASK_WATER)
                         return false;
                 }
             }
@@ -166,7 +183,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
                     test[1] = trace.endpos[1];
                     test[2] = trace.endpos[2] + ent->mins[2] + 1;
                     contents = gi.pointcontents(test);
-                    if (!(contents & MASK_WATER))
+                    if (!(contents & CM_CONTENTMASK_WATER))
                         return false;
                 }
             }
@@ -188,23 +205,27 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
     }
 
 // push down from a step height above the wished position
+    #if 0
     if (!(ent->monsterinfo.aiflags & AI_NOSTEP))
         stepsize = STEPSIZE;
     else
         stepsize = 1;
+    #else
+    	stepsize = STEPSIZE;
+    #endif
 
     neworg[2] += stepsize;
     VectorCopy(neworg, end);
     end[2] -= stepsize * 2;
 
-    trace = gi.trace(neworg, ent->mins, ent->maxs, end, ent, MASK_MONSTERSOLID);
+    trace = SVG_Trace(neworg, ent->mins, ent->maxs, end, ent, CM_CONTENTMASK_MONSTERSOLID);
 
     if (trace.allsolid)
         return false;
 
     if (trace.startsolid) {
         neworg[2] -= stepsize;
-        trace = gi.trace(neworg, ent->mins, ent->maxs, end, ent, MASK_MONSTERSOLID);
+        trace = SVG_Trace(neworg, ent->mins, ent->maxs, end, ent, CM_CONTENTMASK_MONSTERSOLID);
         if (trace.allsolid || trace.startsolid)
             return false;
     }
@@ -217,7 +238,7 @@ static const bool SV_movestep(edict_t *ent, Vector3 move, bool relink)
         test[2] = trace.endpos[2] + ent->mins[2] + 1;
         contents = gi.pointcontents(test);
 
-        if (contents & MASK_WATER)
+        if (contents & CM_CONTENTMASK_WATER)
             return false;
     }
 
@@ -285,7 +306,7 @@ M_ChangeYaw
 
 ===============
 */
-void M_ChangeYaw(edict_t *ent)
+void M_ChangeYaw(svg_base_edict_t *ent)
 {
     // Get angle modded angles.
     const float current = QM_AngleMod(ent->s.angles[YAW]);
@@ -302,7 +323,7 @@ void M_ChangeYaw(edict_t *ent)
 
     // Prevent the monster from rotating a full circle around the yaw.
     // Do so by keeping angles between -180/+180, depending on whether ideal yaw is higher or lower than current.
-    move = QM_Wrapf( move, -180.f, 180.f );
+    move = QM_Wrap( move, -180.f, 180.f );
     //if (ideal > current) {
     //    if ( move >= 180 ) {
     //        move = move - 360;
@@ -313,7 +334,7 @@ void M_ChangeYaw(edict_t *ent)
     //    }
     //}
     // Clamp the yaw move speed.
-    move = QM_Clampf( move, -speed, speed );
+    move = QM_Clamp( move, -speed, speed );
     //if (move > 0) {
     //    if ( move > speed ) {
     //        move = speed;
@@ -338,7 +359,7 @@ facing it.
 
 ======================
 */
-bool SV_StepDirection( edict_t *ent, float yaw, float dist ) {
+bool SV_StepDirection( svg_base_edict_t *ent, float yaw, float dist ) {
     ent->ideal_yaw = yaw;
     M_ChangeYaw( ent );
 
@@ -346,7 +367,7 @@ bool SV_StepDirection( edict_t *ent, float yaw, float dist ) {
     const Vector3 move = {
         cos( yaw ) * dist,
         sin( yaw ) * dist,
-        0
+        0.f
     };
 
     const Vector3 oldorigin = ent->s.origin;
@@ -372,7 +393,7 @@ SV_FixCheckBottom
 
 ======================
 */
-void SV_FixCheckBottom(edict_t *ent)
+void SV_FixCheckBottom(svg_base_edict_t *ent)
 {
     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_PARTIALGROUND );
 }
@@ -382,7 +403,7 @@ void SV_FixCheckBottom(edict_t *ent)
 M_walkmove
 ===============
 */
-bool M_walkmove(edict_t *ent, float yaw, float dist)
+bool M_walkmove(svg_base_edict_t *ent, float yaw, float dist)
 {
     vec3_t  move;
 

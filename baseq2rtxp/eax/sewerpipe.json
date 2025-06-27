@@ -17,9 +17,9 @@
   "echo_depth": 0,
   "modulation_time": 0.25,
   "modulation_depth": 0,
-  "air_absorbtion_hf": 0.9943,
+  "air_absorbtion_gain_hf": 0.9943,
   "hf_reference": 5000,
   "lf_reference": 250,
   "room_rolloff_factor": 0,
-  "decay_limit": 1
+  "decay_hf_limit": 1
 }

@@ -2,25 +2,34 @@ textures/pbr02/bricks00:
 	texture_base textures/pbr02/bricks00.tga
 	texture_normals textures/pbr02/bricks00_n.tga
 	base_factor 2.5
-	bump_scale 0.35
+	bump_scale 1.0
 	emissive_factor 0
 	metalness_factor 0
     specular_factor 0.125
     
-textures/pbr02/concrete00:
-	texture_base textures/pbr02/concrete00.tga
-	texture_normals textures/pbr02/concrete00_n.tga
+textures/pbr02/chkr_tiles00:
+	texture_base textures/pbr02/chkr_tiles00.tga
+	texture_normals textures/pbr02/chkr_tiles00_n.tga
 	base_factor 2.5
 	bump_scale 0.175
 	emissive_factor 0
 	metalness_factor 0
 	specular_factor 0.0125
 
+textures/pbr02/chkr_tiles00:
+	texture_base textures/pbr02/chkr_tiles00.tga
+	texture_normals textures/pbr02/chkr_tiles00_n.tga
+	base_factor 1.0
+	bump_scale 1.0
+	emissive_factor 0
+	metalness_factor 0.125
+	specular_factor 0.125
+
 textures/pbr02/concrete01:
 	texture_base textures/pbr02/concrete01.tga
 	texture_normals textures/pbr02/concrete01_n.tga
 	base_factor 2.5
-	bump_scale 0.325
+	bump_scale 1.0
 	emissive_factor 0
 	metalness_factor 0
 	specular_factor 0.125
@@ -31,7 +40,7 @@ textures/pbr02/crate00:
 	texture_base textures/pbr02/crate00.tga
 	texture_normals textures/pbr02/crate00_n.tga
 	base_factor 2.5
-	bump_scale 0.25
+	bump_scale 1.0
     metalness_factor 0.8
     emissive_factor 0.0
 	specular_factor 0.1375
@@ -41,7 +50,7 @@ textures/pbr02/ground00:
 	texture_base textures/pbr02/ground00.tga
 	texture_normals textures/pbr02/ground00_n.tga
 	base_factor 2.5
-	bump_scale 0.1875
+	bump_scale 1.0
 	emissive_factor 0
 	metalness_factor 0
 	specular_factor 0.125
@@ -52,7 +61,7 @@ textures/pbr02/metal00_dented:
 	texture_base textures/pbr02/metal00_dented.tga
 	texture_normals textures/pbr02/metal00_dented_n.tga
 	base_factor 2.5
-	bump_scale 0.55
+	bump_scale 1.0
     emissive_factor 0.0
     metalness_factor 0.55
 	specular_factor 0.137
@@ -62,7 +71,7 @@ textures/pbr02/rock00:
 	texture_base textures/pbr02/rock00.tga
 	texture_normals textures/pbr02/rock00_n.tga
 	base_factor 2.5
-	bump_scale 0.25
+	bump_scale 1.0
     metalness_factor 0.0
     emissive_factor 0.0
 	specular_factor 0.0125
@@ -71,7 +80,7 @@ textures/pbr02/rock01:
 	texture_base textures/pbr02/rock01.tga
 	texture_normals textures/pbr02/rock00_n.tga
 	base_factor 2.5
-	bump_scale 0.25
+	bump_scale 1.0
     metalness_factor 0.0
     emissive_factor 0.0
 	specular_factor 0.0125
@@ -81,7 +90,7 @@ textures/pbr02/steel00:
 	texture_base textures/pbr02/steel00.tga
 	texture_normals textures/pbr02/steel00_n.tga
 	base_factor 2.5
-	bump_scale 1.25
+	bump_scale 1.0
     metalness_factor 0.8
     emissive_factor 0.0
 	specular_factor 0.1375
@@ -91,7 +100,7 @@ textures/pbr02/tiles00:
 	texture_base textures/pbr02/tiles00.tga
 	texture_normals textures/pbr02/tiles00_n.tga
 	base_factor 2.5
-	bump_scale 0.375
+	bump_scale 1.0
 	metalness_factor 0.175
     emissive_factor 0.0
     specular_factor 0.25

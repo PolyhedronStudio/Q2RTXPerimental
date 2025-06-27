@@ -81,15 +81,21 @@ begin developer_menu
     action --align --status "func_doors testbed, teamed doors, lockables, reversable, both directions, usetargets, and rotating!" "Entities - func_door/func_door_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_doors force"
     action --align --status "func_plat tests, implements a simple elevator." "Entities - func_plat" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_plat force"
     action --align --status "func_rotating tests, various types of func_rotating doing their thing." "Entities - func_rotating" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_rotating force"
+    action --align --status "func_train test." "Entities - func_train" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_train force"
     action --align --status "func_wall tests." "Entities - func_wall" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_wall force"
+    blank
+    action --align --status "target_* tests." "Entities - target_* entities" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_targets00 force"
 
     blank
     action --align --status "A map that utilizes various PBR Makkon Textures in pt_nearest mode, very modern retro :-)" "Gfx - Makkon Textures PBR (pt_nearest 1)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_makkon force"
+    action --align --status "Sprites done using .spj" "Gfx - Sprites(JSON)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_sprites force"
     action --align --status "Is what it says really." "Gfx - SpotLights" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_graph_spotlights force"
+
     blank
     action --align --status "Showcases several local entities." "Local Entities - General" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_general force"
     action --align --status "A map that consists of several sound environments that apply EAX reverb etc effects." "Local Entities - env_sound(EAX Reverb Areas)" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_env_sound force"
     action --align --status "Testbed for svc_set_portalbit to notify local func_areaportals to open/close." "Local Entities - Local Client PVS" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_localents_pvs force"
+
     blank
     action --align --status "A simple moving target range level, utilizing Lua and Signal I/O" "Signal I/O - TargetRange" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_sigio_targetrange force"
     blank

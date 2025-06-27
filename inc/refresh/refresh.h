@@ -16,9 +16,8 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
+#pragma once
 
-#ifndef REFRESH_H
-#define REFRESH_H
 
 #include "common/cvar.h"
 #include "common/error.h"
@@ -128,5 +127,3 @@ r_opengl_config_t *R_GetGLConfig( void );
 
 // Extern C
 QEXTERN_C_CLOSE
-
-#endif // REFRESH_H

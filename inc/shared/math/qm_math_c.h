@@ -72,7 +72,7 @@
 *   QM Radians 2 Degrees:
 **/
 #ifndef QM_RAD2DEG
-    #define QM_RAD2DEG ( (double)( 180.0 / QM_PI ) )
+    #define QM_RAD2DEG ( ( double )( 180.0 / QM_PI ) )
 #endif
 
 
