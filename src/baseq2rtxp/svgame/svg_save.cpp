@@ -285,9 +285,9 @@ void SVG_ReadLevel(const char *filename)
     // Create read context.
     game_read_context_t ctx = game_read_context_t::make_read_context( f );
 
-    #if 1
     // Wipe all the entities back to 'baseline'.
     for ( int32_t i = 0; i < game.maxentities; i++ ) {
+        // <Q2RTXP>: WID: This isn't very friendly, it results in actual crashes.
         #if 0
             // Store original number.
             const int32_t number = g_edicts[ i ]->s.number;
@@ -295,34 +295,56 @@ void SVG_ReadLevel(const char *filename)
             *g_edicts[ i ] = {}; //memset( g_edicts, 0, game.maxentities * sizeof( g_edicts[ 0 ] ) );
             // Retain the entity's original number.
             g_edicts[ i ]->s.number = number;
+        // <Q2RTXP>: WID: Thus we resort to deleting the edict and allocating a fresh new one in place.
+        // this is necessary to ensure that the entity numbers are reset appropriately.
         #else
+		    // Store the entity number.
             const int32_t entityNumber = i;
+			// Eventual pointer to the original cm_entity_t.
+			const cm_entity_t *cm_entity = nullptr;
+            // Store the original spawn_count.
+			int32_t spawn_count = 0;
 
             // Reset the entity to base state.
             if ( g_edict_pool.edicts[ i ] ) {
-                // Reset entity.
+				// Retain the spawn_count.
+                spawn_count = g_edict_pool.edicts[ i ]->spawn_count;
+				// Retain the original cm_entity_t pointer.
+                if ( g_edict_pool.edicts[ i ]->entityDictionary ) {
+                    cm_entity = g_edict_pool.edicts[ i ]->entityDictionary;
+				}
                 //g_edict_pool.edicts[ i ]->Reset( level.cm_entities[ i ] /*g_edict_pool.edicts[ i ]->entityDictionary*/ );
                 delete g_edict_pool.edicts[ i ];
             }
+			// Allocate a new edict instance.
             if ( i == 0 ) {
+				// Get the typeinfo for worldspawn.
                 EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "worldspawn" );
+				// Allocate a new worldspawn entity.
                 g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( level.cm_entities[ 0 ] );
+            // If this is a client entity, allocate a player classname entity.
             } else if ( i >= 1 && i < game.maxclients + 1 ) {
+				// Get the typeinfo for player entities.
                 EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "player" );
-                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( nullptr );
-
-				svg_player_edict_t *playerEdict = static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] );
-				playerEdict->client = &game.clients[ i - 1 ];
-				playerEdict->s.number = i; // Set the number to the current index.
+				// Allocate a new player entity.
+                svg_player_edict_t *playerEdict = static_cast<svg_player_edict_t *>( g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( cm_entity ) );
+			    // Set the client pointer to the corresponding client.
+                playerEdict->client = &game.clients[ i - 1 ];
+                // Set the number to the current index.
+				playerEdict->s.number = i;
+            // If this is not worldspawn, and a non-player entity, allocate a generic base entity instead.
             } else {
+				// Get the typeinfo for base entities.
                 EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
-                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( level.cm_entities[ i ] );
+				// Allocate a new base entity.
+                g_edict_pool.edicts[ i ] = typeInfo->allocateEdictInstanceCallback( cm_entity );
+				// Set the spawn_count to the original spawn_count.
+                g_edict_pool.edicts[ i ]->spawn_count = spawn_count;
             }
             // Set the number to the current index.
             g_edict_pool.edicts[ i ]->s.number = i;
         #endif
     }
-    #endif
 
     // Default num_edicts.
     g_edict_pool.num_edicts = maxclients->value + 1;
