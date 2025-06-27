@@ -85,8 +85,8 @@ void CL_PredictMovement(void) {
 	const uint64_t currentCommandNumber = cl.currentUserCommandNumber;
 
     // if we are too far out of date, just freeze
-    if ( currentCommandNumber - acknowledgedCommandNumber > CMD_BACKUP - 1 ) {
-        SHOWMISS("%i: exceeded CMD_BACKUP\n", cl.frame.number);
+    if ( currentCommandNumber - acknowledgedCommandNumber > CMD_MASK /*CMD_BACKUP - 1*/ ) {
+        SHOWMISS( "%i: exceeded CMD_BACKUP\n", cl.frame.number );
         return;
     }
 

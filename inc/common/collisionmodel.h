@@ -71,6 +71,8 @@ static inline const int32_t CM_NumberForLeaf( cm_t *cm, mleaf_t *leaf ) {
 
 
 
+
+
 //
 //  collisionmodel/cm_areaportals.cpp
 //
@@ -140,7 +142,7 @@ const contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs,
 
 
 //
-//  collisionmodel/cm_entities.cpo
+//  collisionmodel/cm_entities.cpp
 //
 /**
 *   @brief  Parses the collision model its entity string into collision model entities
@@ -255,7 +257,19 @@ void        CM_TransformedBoxTrace( cm_t *cm, trace_t *trace,
 /**
 *   @brief
 **/
-void        CM_ClipEntity( cm_t *cm, trace_t *dst, const trace_t *src, struct edict_s *ent );
+void        CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int32_t entityNumber );
+ 
 
 
-#endif // CMODEL_H
+//
+//  common/collisionmodel/cm_plane.cpp
+//
+/**
+*	@return The PLANE_ type for the given normal vector.
+**/
+const int32_t CM_PlaneTypeForNormal( const vec3_t normal );
+/**
+*	@return A bit mask hinting at the sign of each normal vector component. This
+*			can be used to optimize plane side tests.
+**/
+const int32_t CM_SignBitsForNormal( const vec3_t normal );

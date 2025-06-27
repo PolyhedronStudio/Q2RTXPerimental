@@ -24,25 +24,28 @@
 *   can just be stored out and get a proper BSP clipping hull structure.
 **/
 void CM_InitBoxHull( cm_t *cm ) {
-    // Moved hull_boundingbox from heap memory to stack allocated memory, 
+    // Moved hull_boundingbox from stack memory to heap allocated memory, 
     // this so that we can properly call initialize only during CM_LoadMap.
     // 
-    // The server copies over the local function heap mapcmd_t cm into sv.cm 
+    // The server copies over the local function stack mapcmd_t cm into sv.cm 
     // which causes the hull_boundingbox.headnode pointer to an invalid nonexistent(old) memory address.
+	
+    // Bounding box hulls are used in CM_HeadnodeForBox() which is called by the server
     cm->hull_boundingbox = static_cast<hull_boundingbox_t *>( Z_TagMallocz( sizeof( hull_boundingbox_t ), TAG_CMODEL ) );
-
+	// Initialize the hull_boundingbox root node.
     cm->hull_boundingbox->headnode = &cm->hull_boundingbox->nodes[ 0 ];
-
+	// Initialize the hull_boundingbox brush.
     cm->hull_boundingbox->brush.numsides = 6;
     cm->hull_boundingbox->brush.firstbrushside = &cm->hull_boundingbox->brushsides[ 0 ];
     cm->hull_boundingbox->brush.contents = CONTENTS_MONSTER;
-
-    cm->hull_boundingbox->leaf.contents = CONTENTS_MONSTER;
+	// Initialize the hull_boundingbox leaf.
     cm->hull_boundingbox->leaf.firstleafbrush = &cm->hull_boundingbox->leafbrush;
     cm->hull_boundingbox->leaf.numleafbrushes = 1;
-
+    cm->hull_boundingbox->leaf.contents = CONTENTS_MONSTER;
+	// Initialize the hull_boundingbox leaf brush.
     cm->hull_boundingbox->leafbrush = &cm->hull_boundingbox->brush;
 
+	// Initialize the hull bounding box plane brush sides and clipping nodes.
     for ( int32_t i = 0; i < 6; i++ ) {
         // Brush Side Index:
         const int32_t side = i & 1;
@@ -62,6 +65,7 @@ void CM_InitBoxHull( cm_t *cm ) {
             clipNode->children[ side ^ 1 ] = (mnode_t *)&cm->hull_boundingbox->leaf;
         }
 
+        #if 0
         // Planes:
         cplane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
         plane->type = i >> 1;
@@ -71,6 +75,21 @@ void CM_InitBoxHull( cm_t *cm ) {
         plane->type = 3 + ( i >> 1 );
         plane->signbits = 1 << ( i >> 1 );
         plane->normal[ i >> 1 ] = -1;
+        #else
+        // Planes:
+        cm_plane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
+//        plane->type = i >> 1;
+        plane->normal[ i >> 1 ] = 1;
+        plane->type = CM_PlaneTypeForNormal( plane->normal );//SetPlaneType( plane );
+        plane->signbits = CM_SignBitsForNormal( plane->normal ); //SetPlaneSignbits( plane );
+
+        plane = &cm->hull_boundingbox->planes[ i * 2 + 1 ];
+        //plane->type = 3 + ( i >> 1 );
+        //plane->signbits = 1 << ( i >> 1 );
+        plane->normal[ i >> 1 ] = -1;
+        plane->type = CM_PlaneTypeForNormal( plane->normal );//SetPlaneType( plane );
+        plane->signbits = CM_SignBitsForNormal( plane->normal ); //SetPlaneSignbits( plane );
+        #endif
     }
 }
 
