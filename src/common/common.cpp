@@ -1047,7 +1047,7 @@ void Qcommon_Frame(void)
 	uint64_t clientrem;
 #endif
 	uint64_t oldtime, msec;
-    static uint64_t remaining;
+    static int64_t remaining;
     static double frac;
 
     if (setjmp(com_abortframe)) {
@@ -1077,7 +1077,7 @@ void Qcommon_Frame(void)
 
 #if USE_CLIENT
     // WID: Seems to fix the client side 'stuttering' for clgame related things?
-    #if 0
+    #if 1
     // spin until msec is non-zero if running a client
     if (!dedicated->integer && !com_timedemo->integer) {
         while (msec < 1) {

@@ -131,6 +131,20 @@ typedef struct clientinfo_s {
 } clientinfo_t;
 
 /**
+*   @brief
+**/
+typedef struct client_prediction_result_s {
+    // The simulation time(cl.time) when prediction was run.
+    uint64_t time;
+    // The predicted origin for this command.
+    Vector3 origin;
+    //! Predicted velocity for this command.
+    Vector3 velocity;
+    //! The prediction error for this command.
+    Vector3 error;
+} client_prediction_result_t;
+
+/**
 *   @brief  
 **/
 typedef struct client_movecmd_s {
@@ -145,16 +159,8 @@ typedef struct client_movecmd_s {
     //! System time when the command was received. (cls.realtime)
     //uint64_t timeReceived;
 
-    struct {
-        // The simulation time(cl.time) when prediction was run.
-        uint64_t time;
-        // The predicted origin for this command.
-        Vector3 origin;
-        //! Predicted velocity for this command.
-        Vector3 velocity;
-        //! The prediction error for this command.
-        Vector3 error;
-    } prediction;
+	//! The predicted result of this command.
+    client_prediction_result_t prediction;
 } client_movecmd_t;
 
 /**
@@ -235,6 +241,8 @@ typedef struct client_state_s {
     client_movecmd_t moveCommand;
     //! Circular client buffer of (predicted-)move commands.
     client_movecmd_t moveCommands[ CMD_BACKUP ];
+	//! Circular client buffer of (predicted-)move commands, used for prediction.
+    client_prediction_result_t predictedMoveResults[ CMD_BACKUP ];
 
     //! The current user command its numerical index.
     uint64_t currentUserCommandNumber;

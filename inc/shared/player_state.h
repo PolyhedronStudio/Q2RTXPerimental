@@ -74,7 +74,7 @@ typedef struct pmove_state_s {
     //! The state's flags describing the move's situation.
     uint16_t    pm_flags;		//! Ducked, jump_held, etc
     //! Timer value for a specific few of state flags.
-    uint16_t	pm_time;		//! Each unit = 8 ms
+    double	pm_time;		//! Each unit = 8 ms
 
     //! Gravity to apply.
     int16_t     gravity;

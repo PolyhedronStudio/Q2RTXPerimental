@@ -15,7 +15,7 @@
 #define SECOND_PLANE_TRACE
 
 //! Enables proper speed clamping instead of going full stop if the PM_STOP_EPSILON is reached.
-#define PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
+//#define PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
 
 /**
 *
@@ -108,7 +108,7 @@ const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const pm_slideMoveFlags_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const float frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
+const pm_slideMoveFlags_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const double frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time ) {
 	Vector3 dir = {};
 
 	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
@@ -116,8 +116,8 @@ const pm_slideMoveFlags_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &ve
 	cm_trace_t	trace = {};
 	Vector3	end = {};
 
-	float d = 0;
-	float time_left = 0.f;
+	double d = 0.;
+	double time_left = 0.;
 
 	int i = 0, j = 0;
 	int32_t bumpcount = 0;

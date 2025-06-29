@@ -41,7 +41,7 @@ void PF_ClientBegin( void ) {
 		// Use predicted view angles if we're alive:
 		if ( clgi.client->frame.ps.pmove.pm_type < PM_DEAD ) { // OLD Q2PRO: enhanced servers don't send viewangles
 			PF_PredictAngles();
-			// Otherwise, use whatever server provided.
+		// Otherwise, use whatever server provided.
 		} else {
 			// just use what server provided
 			game.predictedState.currentPs.viewangles = clgi.client->frame.ps.viewangles;

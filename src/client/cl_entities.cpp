@@ -180,7 +180,8 @@ static inline bool entity_is_new(const centity_t *ent) {
         return false;
     }
     //! Previous server frame was dropped, so we're new
-    if ( cl.oldframe.number != cl.frame.number - 1 ) {
+    //! if ( cl.oldframe.number != cl.frame.number - 1 ) {
+    if ( cl.oldframe.number != cl.frame.number - cl.serverdelta ) {
         return true;
     }
 
@@ -263,7 +264,7 @@ static void CL_SetActiveState(void)
     // Delta  
     cl.serverdelta = Q_align(cl.frame.number, 1);
     // Set time, needed for demos
-    cl.time = cl.servertime = 0; 
+    cl.time = cl.servertime = cl.extrapolatedTime = 0; 
 
     // Initialize oldframe so lerping doesn't hurt anything.
     cl.oldframe.valid = false;
@@ -332,10 +333,35 @@ static void CL_SetActiveState(void)
 *   @param ps Pointer to the state that we want to copy data into.
 *   @param ops Pointer to the state's data source.
 **/
-static void duplicate_player_state( player_state_t *ps, player_state_t *ops ) {
-    *ops = *ps;
-}
+static constexpr int32_t PS_DUP_DEBUG_OLDFRAME_INVALID = BIT( 0 );
+static constexpr int32_t PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER = BIT( 1 );
+static constexpr int32_t PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 = BIT( 2 );
+static constexpr int32_t PS_DUP_DEBUG_EVENT_TELEPORT = BIT( 3 );
+static constexpr int32_t PS_DUP_DEBUG_TIME_TELEPORT = BIT( 4 );
+static constexpr int32_t PS_DUP_DEBUG_CLIENTNUM_MISMATCH = BIT( 5 );
+static constexpr int32_t PS_DUP_DEBUG_NOLERP = BIT( 6 );
 
+static void duplicate_player_state( player_state_t *ps, player_state_t *ops, const int32_t debugID ) {
+    *ops = *ps;
+
+    if ( debugID == PS_DUP_DEBUG_OLDFRAME_INVALID ) {
+        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_OLDFRAME_INVALID\n", cl.frame.number );
+    } else if ( debugID == PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER ) {
+        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER \n", cl.frame.number );
+    } else if ( debugID == PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 ) {
+        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 \n", cl.frame.number );
+    } else if ( debugID == PS_DUP_DEBUG_EVENT_TELEPORT ) {
+        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_EVENT_TELEPORT \n", cl.frame.number );
+    } else if ( debugID == PS_DUP_DEBUG_TIME_TELEPORT ) {
+        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_TIME_TELEPORT \n", cl.frame.number );
+    } else if ( debugID == PS_DUP_DEBUG_CLIENTNUM_MISMATCH ) {
+        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_CLIENTNUM_MISMATCH \n", cl.frame.number );
+    } else if ( debugID == PS_DUP_DEBUG_NOLERP ) {
+        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_NOLERP \n", cl.frame.number );
+    } else {
+        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) No player state duplicating. \n", cl.frame.number );
+    }
+}
 /**
 *   Determine whether the player state has to lerp between the current and old frame,
 *   or snap 'to'.
@@ -347,7 +373,7 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
 
     // No lerping if previous frame was dropped or invalid.
     if ( !oldframe->valid ) {
-        duplicate_player_state( ps, ops );
+        duplicate_player_state( ps, ops, PS_DUP_DEBUG_OLDFRAME_INVALID );
         return;
     }
 
@@ -355,7 +381,7 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
     // expected last frame number.
     const int32_t lastFrameNumber = frame->number - framediv;
     if ( oldframe->number != lastFrameNumber ) {
-        duplicate_player_state( ps, ops );
+        duplicate_player_state( ps, ops, PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER );
         return;
     }
 
@@ -363,7 +389,7 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
     if ( fabsf( ops->pmove.origin[ 0 ] - ps->pmove.origin[ 0 ] ) > 256 || // * 8 || // WID: float-movement
         fabsf( ops->pmove.origin[ 1 ] - ps->pmove.origin[ 1 ] ) > 256 || // * 8 || // WID: float-movement
         fabsf( ops->pmove.origin[ 2 ] - ps->pmove.origin[ 2 ] ) > 256 ) {// * 8) { // WID: float-movement
-        duplicate_player_state( ps, ops );
+        duplicate_player_state( ps, ops, PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 );
         return;
     }
 
@@ -375,13 +401,13 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
     // to prevent it from lerping afar distance.
     if ( clent->serverframe > lastFrameNumber && clent->serverframe <= frame->number &&
         ( clent->current.event == EV_PLAYER_TELEPORT || clent->current.event == EV_OTHER_TELEPORT ) ) {
-        duplicate_player_state( ps, ops );
+        duplicate_player_state( ps, ops, PS_DUP_DEBUG_EVENT_TELEPORT );
         return;
     }
 
     // No lerping if teleport bit was flipped.
     if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TIME_TELEPORT){
-        duplicate_player_state( ps, ops );
+        duplicate_player_state( ps, ops, PS_DUP_DEBUG_TIME_TELEPORT );
         return;
     }
     //if ( ( ops->rdflags ^ ps->rdflags ) & RDF_TELEPORT_BIT ) {
@@ -391,13 +417,13 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
 
     // No lerping if POV number changed.
     if ( oldframe->clientNum != frame->clientNum ) {
-        duplicate_player_state( ps, ops );
+        duplicate_player_state( ps, ops, PS_DUP_DEBUG_CLIENTNUM_MISMATCH );
         return;
     }
 
     // No lerping in case of the enabled developer option.
     if ( cl_nolerp->integer == 1 ) {
-        duplicate_player_state( ps, ops );
+        duplicate_player_state( ps, ops, PS_DUP_DEBUG_NOLERP );
         return;
     }
 }
@@ -426,11 +452,19 @@ void CL_DeltaFrame(void)
     // Rebuild the list of solid entities for this frame
     cl.numSolidEntities = 0;
 
+	// If this si the first frame, overwrite the whole predicted state with the current frame's player state.
+    pmove_state_t pmoveState = cl.predictedFrame.ps.pmove;
+	cl.predictedFrame = cl.frame; // Copy the current frame to the predicted frame.
+    if ( framenum >= 1 ) {
+        cl.predictedFrame.ps.pmove = pmoveState; // Restore the pmove state.
+    }
+
     // Initialize position of the player's own entity from playerstate.
     // this is needed in situations when player entity is invisible, but
     // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
     centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );
     Com_PlayerToEntityState( &cl.predictedFrame.ps, &clent->current );
+    //Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
 
     // Iterate over the current frame entity states and update them accordingly.
     for ( int32_t i = 0; i < cl.frame.numEntities; i++ ) {
@@ -479,7 +513,7 @@ void CL_DeltaFrame(void)
     }
 
     // See if we had any prediction errors.
-    //CL_CheckPredictionError();
+    CL_CheckPredictionError();
 
     // Notiy screen about the delta frame, so it may adjust some data if needed.
     SCR_DeltaFrame();

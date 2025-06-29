@@ -723,6 +723,8 @@ typedef struct client_predicted_state_s {
 
 	//! Margin of origin error to correct for this frame.
 	Vector3 error;
+	//! The origin of the player entity for this frame, used for prediction.
+	Vector3 origin;
 } client_predicted_state_t;
 
 

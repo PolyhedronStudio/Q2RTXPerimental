@@ -520,8 +520,8 @@ void CL_FinalizeCommand( void ) {
     cl.moveCommand.cmd.frameNumber = cl.frame.number;
 
     // Store time, since this might be an unpredicted command.
-    cl.moveCommand.prediction.time = cl.time;
-    //cl.moveCommand.systemTime = cls.realtime;
+    //cl.moveCommand.prediction.time = cl.extrapolatedTime;
+    cl.moveCommand.prediction.time = cls.realtime;// cls.realtime;
 
     // Pass control to client game for finalizing the move command.
     if ( clge ) {
@@ -696,9 +696,10 @@ static void CL_SendDefaultCmd( void ) {
 *   @brief  Will send up to (MAX_PACKET_FRAMES - 1) of the most recent move commands. 'Batching'.
 **/
 static void CL_SendBatchedCmd( void ) {
-    int i, j, seq, bits q_unused;
-    int numCmds, numDups;
-    int totalCmds, totalMsec;
+    int64_t i, j, seq, bits q_unused;
+    int64_t numCmds, numDups;
+    int64_t totalCmds;
+    double totalMsec;
     size_t cursize q_unused;
     usercmd_t *cmd, *oldcmd;
     client_usercmd_history_t *history, *oldest;
@@ -781,7 +782,7 @@ static void CL_SendBatchedCmd( void ) {
     if ( cl_showpackets->integer == 1 ) {
         Com_Printf( "%zu(%i) \n", cursize, totalCmds );
     } else if ( cl_showpackets->integer == 2 ) {
-        Com_Printf( "%zu(%i) \n", cursize, totalMsec );
+        Com_Printf( "%zu(%f) \n", cursize, totalMsec );
     } else if ( cl_showpackets->integer == 3 ) {
         Com_Printf( " | \n" );
     }

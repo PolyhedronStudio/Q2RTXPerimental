@@ -297,7 +297,9 @@ static Vector3 CLG_BaseMove( Vector3 move ) {
 
     // adjust for speed key / running
     if ( ( in_speed.state & BUTTON_STATE_HELD ) ^ cl_run->integer ) {
-        VectorScale( move, 2, move );
+        // Scale to 1.5 so we can get up to the actual speed for running.
+        // <Q2RTXP>: WID: TODO: Derive this from pmp data.
+        VectorScale( move, 1.5, move );
     }
 
     return move;
@@ -308,7 +310,7 @@ static Vector3 CLG_BaseMove( Vector3 move ) {
 **/
 static Vector3 CLG_ClampSpeed( Vector3 move ) {
     // Determine the speed limit value to account for.
-    float speed = 400.f;// default_pmoveParams_t::pm_max_speed; // default (maximum) running speed
+    float speed = default_pmoveParams_t::pm_max_speed; // default (maximum) running speed
     // For 'flying' aka noclip or spectating.
     if ( clgi.client->frame.ps.pmove.pm_type == PM_SPECTATOR
         || clgi.client->frame.ps.pmove.pm_type == PM_NOCLIP ) {
@@ -494,8 +496,13 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
 **/
 void PF_ClearMoveCommand( client_movecmd_t *moveCommand ) {
     // clear pending cmd
-    moveCommand->cmd = {};
-    moveCommand->prediction = { .error = moveCommand->prediction.error };
+    //*moveCommand = {};
+    //moveCommand->cmd = {};
+    //moveCommand->prediction = { .origin = moveCommand->prediction.origin, .velocity = moveCommand->prediction.velocity, .error = moveCommand->prediction.error };
+    // Retain the prediction results.
+    *moveCommand = {
+        .prediction = { .time = moveCommand->prediction.time, .origin = moveCommand->prediction.origin, .velocity = moveCommand->prediction.velocity, .error = moveCommand->prediction.error }
+    };
 
     CLG_ClearStateDownFlags( moveCommand );
 

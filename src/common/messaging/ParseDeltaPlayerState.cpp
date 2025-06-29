@@ -64,7 +64,7 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->pmove.velocity[ 2 ] = MSG_ReadFloat(); // MSG_ReadInt16( ); // WID: float-movement 
 	}
 	if ( flags & PS_M_TIME ) {
-		to->pmove.pm_time = MSG_ReadUint16( );
+		to->pmove.pm_time = MSG_ReadHalfFloat(); //MSG_ReadUint16( );
 	}
 	if ( flags & PS_M_FLAGS ) {
 		to->pmove.pm_flags = MSG_ReadUintBase128( );

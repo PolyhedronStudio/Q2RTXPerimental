@@ -189,7 +189,8 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteFloat( to->pmove.velocity[ 2 ] ); //MSG_WriteInt16( to->pmove.velocity[ 2 ] ); // WID: float-movement
 	}
 	if ( pflags & PS_M_TIME ) {
-		MSG_WriteUint16( to->pmove.pm_time );
+		//MSG_WriteUint16( to->pmove.pm_time );
+		MSG_WriteHalfFloat( to->pmove.pm_time );
 	}
 	if ( pflags & PS_M_FLAGS ) {
 		MSG_WriteUintBase128( to->pmove.pm_flags );

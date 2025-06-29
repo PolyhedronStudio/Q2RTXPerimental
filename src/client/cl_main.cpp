@@ -2583,7 +2583,7 @@ static void CL_InitLocal(void)
 #if USE_DEBUG
     cl_shownet = Cvar_Get("cl_shownet", "0", 0);
     cl_showmiss = Cvar_Get("cl_showmiss", "1", 0);
-    cl_showclamp = Cvar_Get("showclamp", "0", 0);
+    cl_showclamp = Cvar_Get("showclamp", "1", 0);
 #endif
 
     cl_timeout = Cvar_Get("cl_timeout", "120", 0);
@@ -2735,15 +2735,18 @@ void CL_Activate( active_t active ) {
  */
 static void CL_SetClientTime(void)
 {
-    int prevtime;
+    int64_t prevtime;
 
     if (com_timedemo->integer) {
         cl.time = cl.servertime;
-        cl.lerpfrac = 1.0f;
+        cl.lerpfrac = 1.0;
         return;
     }
 
     prevtime = cl.servertime - CL_FRAMETIME;
+    #if 0
+    cl.lerpfrac = ( cl.time - prevtime ) * CL_1_FRAMETIME;
+    #else
     if (cl.time > cl.servertime) {
         SHOWCLAMP(1, "high clamp %i\n", cl.time - cl.servertime);
         cl.time = cl.servertime;
@@ -2755,6 +2758,9 @@ static void CL_SetClientTime(void)
     } else {
         cl.lerpfrac = (cl.time - prevtime) * CL_1_FRAMETIME;
     }
+    SHOWCLAMP( 2, "time(%llu) servertime(%llu), lerpfrac %.3f\n",
+        cl.time, cl.servertime, cl.lerpfrac );
+    #endif
 
     /**
     *	Maintain our extrapolated time to be between frame and nextframe so we can keep
@@ -2778,8 +2784,8 @@ static void CL_SetClientTime(void)
         cl.xerpFraction = 0.f;
     }
 
-    SHOWCLAMP(2, "time %d %d, lerpfrac %.3f\n",
-              cl.time, cl.servertime, cl.lerpfrac);
+    SHOWCLAMP(2, "extrapolatedTime(%llu) servertime(%llu), lerpfrac %.3f\n",
+              cl.extrapolatedTime, cl.servertime, cl.xerpFraction);
 }
 
 static void CL_MeasureStats(void)
@@ -2796,7 +2802,7 @@ static void CL_MeasureStats(void)
         int64_t ping = 0;
         int64_t j, k = 0;
 
-        i = ack - CMD_MASK + 1;
+        i = ack - 16 + 1;
         if (i < cl.initialSeq) {
             i = cl.initialSeq;
         }
@@ -3062,7 +3068,7 @@ uint64_t CL_Frame( uint64_t msec ) {
     main_extra += msec;
     //cls.realtime += msec;
     const uint64_t current = cls.realtime + msec;
-    cls.realdelta = ( current - cls.realtime ) / 1000.f;
+    cls.realdelta = ( current - cls.realtime ) / 1000.;
     cls.realtime = current;
 
     // Clear the bone cache.
@@ -3160,6 +3166,11 @@ uint64_t CL_Frame( uint64_t msec ) {
         CL_SetClientTime();
     }
 
+    // See if we had any prediction errors.
+    //if ( cl.frame.valid ) {
+    //    CL_CheckPredictionError();
+    //}
+
     #if USE_AUTOREPLY
     // check for version reply
     CL_CheckForReply();
@@ -3198,10 +3209,6 @@ uint64_t CL_Frame( uint64_t msec ) {
 
     // Run any console commands right now.
     Con_RunConsole();
-
-    if ( cl.frame.valid ) {
-        CL_CheckPredictionError();
-    }
 
     // Run cinematic if any.
     SCR_RunCinematic();

@@ -1024,6 +1024,15 @@ static void PM_FlyMove( bool doclip ) {
 		drop += control * friction * pml.frameTime;
 
 		// Scale the velocity
+		#if 1
+		// Scale the velocity
+		float newspeed = speed - drop;
+		if ( newspeed < 0 ) {
+			newspeed = 0;
+		}
+		newspeed /= speed;
+
+		pml.velocity *= newspeed;
 		//float newspeed = speed - drop;
 		//if ( newspeed < 0 ) {
 		//	newspeed = 0;
@@ -1031,6 +1040,7 @@ static void PM_FlyMove( bool doclip ) {
 		//newspeed /= speed;
 
 		//pml.velocity *= newspeed;
+		#else
 		// Scale the velocity.
 		float newspeed = speed - drop;
 		if ( newspeed <= 0 ) {
@@ -1040,6 +1050,7 @@ static void PM_FlyMove( bool doclip ) {
 			newspeed /= speed;
 			pml.velocity *= newspeed;
 		}
+		#endif
 	}
 
 	// Accelerate
@@ -1066,7 +1077,7 @@ static void PM_FlyMove( bool doclip ) {
 	}
 
 	// Paril: newer clients do this.
-	wishspeed *= 2;
+	wishspeed *= 1.5;
 
 	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishdir );
 	float addspeed = wishspeed - currentspeed;
@@ -1793,18 +1804,12 @@ static void PM_EraseInputCommandState() {
 static void PM_DropTimers() {
 	if ( ps->pmove.pm_time ) {
 		#if 1
-			//double msec = pm->cmd.msec / 2.5;
-			//double msec = pm->cmd.msec * 0.125;
-		int32_t msec = (int32_t)pm->cmd.msec >> 3;
-			//
-			//int32_t msec = (int32_t)pm->cmd.msec >> 4; // fast divide by 8, 8 ms = 1 unit. (At 10hz.)
-		//int32_t msec = ( int32_t )pm->cmd.msec >> 3;// / ( 1000 / ( 40 * 8 ) );
-		
-		//100 / 40
-			//msec /= 4;
-			//if ( msec <= 0 ) {
-			//	msec = 1;
-			//}
+			//int32_t msec = (int32_t)pm->cmd.msec >> 3;
+			//double msec = pm->cmd.msec;// / 2.5;
+			double msec = pm->cmd.msec * 0.125;
+			if ( pm->cmd.msec <= 0 ) {
+				msec = 1.0;// *0.125; // 8 ms = 1 unit. (At 10hz.)
+			}
 			if ( msec >= ps->pmove.pm_time ) {
 				ps->pmove.pm_flags &= ~( PMF_ALL_TIMES );
 				ps->pmove.pm_time = 0;

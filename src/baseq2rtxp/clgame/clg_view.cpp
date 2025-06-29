@@ -856,7 +856,7 @@ const double CLG_SmoothViewHeight() {
     //! Base 1 Frametime.
     static constexpr double HEIGHT_CHANGE_BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE_TIME );
     //! Determine delta time.
-    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<int64_t>( ( clgi.client->time - game.predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
+    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<int64_t>( ( clgi.client->extrapolatedTime - game.predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
     //! Return the frame's adjustment for viewHeight which is added on top of the final vieworigin + viweoffset.
     return game.predictedState.transition.view.height[ 0 ] + ( (double)( game.predictedState.transition.view.height[ 1 ] - game.predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE_BASE_1_FRAMETIME );
 }
@@ -1037,20 +1037,24 @@ void PF_CalculateViewValues( void ) {
     const int32_t usePrediction = PF_UsePrediction();
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
         // use predicted values
-        const double backLerp = 1.0 - lerpFrac;
+        //const double backLerp = 1.0 - lerpFrac;
         // Lerp the error.
-        //const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, 1.0 - backLerp );
-        //const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.cmd.prediction.error, backLerp );
+        #if 0
+            // Take the prediction error into account.
+            const double backLerp = lerpFrac - 1.0;
+            VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
+            //VectorMA( game.predictedState.cmd.prediction.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
+        #else
+        const double backLerp = lerpFrac - 1.0;
 
-        // Take the prediction error into account.
-        VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
-
-        //Vector3 errorOffset = QM_Vector3Lerp( game.predictedState.currentPs.pmove.origin, game.predictedState.lastPs.pmove.origin, backLerp );
-		//VectorCopy( errorOffset, clgi.client->refdef.vieworg );
-        
+        //Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, 1.0 - clgi.client->xerpFraction );
+        Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
         //VectorAdd( game.predictedState.cmd.prediction.origin, errorLerp, clgi.client->refdef.vieworg );
-        //VectorAdd( game.predictedState.currentPs.pmove.origin, errorLerp, clgi.client->refdef.vieworg );
-        
+        //VectorAdd( game.predictedState.cmd.prediction.origin, errorLerp, clgi.client->refdef.vieworg );
+        VectorAdd( game.predictedState.origin, errorLerp, clgi.client->refdef.vieworg );
+		//ps = &game.predictedState.currentPs;
+        //ops = &clgi.client->oldframe.ps;
+        #endif
     } else {
         // Just use interpolated values.
         Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
@@ -1060,7 +1064,7 @@ void PF_CalculateViewValues( void ) {
         // WID: This should fix demos or cl_nopredict
         //VectorCopy( clgi.client->refdef.vieworg, game.predictedState.currentPs.pmove.origin );
         //VectorCopy( game.predictedState.currentPs.pmove.origin, clgi.client->refdef.vieworg );
-        game.predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
+        game.predictedState.origin = game.predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
         #if 0
         clgi.client->refdef.vieworg[2] -= ops->pmove.origin.z;
         #endif
@@ -1085,16 +1089,17 @@ void PF_CalculateViewValues( void ) {
     // Smooth out the ducking view height change over 100ms
     finalViewOffset.z += CLG_SmoothViewHeight();
     #else
+    const double backLerp = lerpFrac - 1.0;
     // Lerp View Angles.
-    CLG_LerpViewAngles( ops, ps, &game.predictedState, lerpFrac );
+    CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
     // Interpolate old and current player state delta angles.
-    CLG_LerpDeltaAngles( ops, ps, lerpFrac );
+    CLG_LerpDeltaAngles( ops, ps, backLerp );
     // Interpolate blend colors if the last frame wasn't clear.
     CLG_LerpScreenBlend( ops, ps, &game.predictedState );
     // Interpolate Field of View.
-    CLG_LerpPointOfView( ops, ps, lerpFrac );
+    CLG_LerpPointOfView( ops, ps, backLerp );
     // Lerp the view offset.
-    CLG_LerpViewOffset( ops, ps, lerpFrac, finalViewOffset );
+    CLG_LerpViewOffset( ops, ps, backLerp, finalViewOffset );
     // Smooth out the ducking view height change over 100ms
     finalViewOffset.z += CLG_SmoothViewHeight();
     #endif
@@ -1113,18 +1118,27 @@ void PF_CalculateViewValues( void ) {
     clgi.client->playerEntityAngles[ PITCH ] = clgi.client->playerEntityAngles[ PITCH ] / 3;
 
     // WID: Debug
-    #if 0
-    Vector3 printViewOrg = clgi.client->refdef.vieworg;
-    Vector3 printFinalViewOrg = printViewOrg + finalViewOffset;
+    #if 1
+    
     static uint64_t printFrame = clgi.client->frame.number;
     if ( printFrame != clgi.client->frame.number ) {
+        const Vector3 predStateCurPsOrigin = game.predictedState.origin;
+        const Vector3 framePsOrigin = clgi.client->frame.ps.pmove.origin;
         //clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOffset(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
         //    printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
         //    finalViewOffset[ 0 ], finalViewOffset[ 1 ], finalViewOffset[ 2 ],
         //    printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
-        clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
-            printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
-            printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
+        //clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
+        //    printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
+        //    printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
+        clgi.Print( PRINT_DEVELOPER, "Frame( #%llu ):\n", clgi.client->frame.number );
+
+        clgi.Print( PRINT_DEVELOPER, "        org( %f, %f, %f )\n",
+            framePsOrigin[ 0 ], framePsOrigin[ 1 ], framePsOrigin[ 2 ] );
+        
+        clgi.Print( PRINT_DEVELOPER, "      prorg( %f , %f , %f )\n", 
+            predStateCurPsOrigin[ 0 ], predStateCurPsOrigin[ 1 ], predStateCurPsOrigin[ 2 ] );
+
         printFrame = clgi.client->frame.number;
     }
     #endif
