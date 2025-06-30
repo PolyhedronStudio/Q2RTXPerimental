@@ -189,7 +189,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_earthquake_t, onUse )( svg_target_earthqu
 /**
 *   @brief  
 **/
-//DEFINE_MEMBER_CALLBACK_PAIN( svg_target_earthquake_t, onPain )( svg_target_earthquake_t *self, svg_base_edict_t *other, float kick, int damage ) -> void { }
+//DEFINE_MEMBER_CALLBACK_PAIN( svg_target_earthquake_t, onPain )( svg_target_earthquake_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void { }
 /**
 *   @brief
 **/

@@ -1,0 +1,20 @@
+textures/office/ceil01:
+    texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 1.0
+	bump_scale 0.3125
+	emissive_factor 0
+	metalness_factor 0.1
+    specular_factor 0.125
+    roughness_override -1
+
+textures/office/ceil04:
+    texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+    texture_emissive textures/office/*_light.tga
+	base_factor 2.5
+	bump_scale 0.35
+	emissive_factor 0.25
+	metalness_factor 0.125
+    specular_factor 0.125
+    roughness_override 1

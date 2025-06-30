@@ -24,7 +24,7 @@
 class StaticEdictTypeInfoCounter {
 public:
 	//! The total number of known about TypeInfo classes.
-	inline static size_t GlobalTypeInfoCount = 0U;
+	inline static size_t GlobalTypeInfoCount;
 
 	//! Constructor.
 	StaticEdictTypeInfoCounter() {
@@ -284,7 +284,7 @@ public:
 	inline static EdictTypeInfo *head = nullptr;
 
 	// <Q2RTXP>: WID: TODO: maybe generate a CRC32 for each classname instead?
-	inline static StaticEdictTypeInfoCounter classTypeInfoID = {};
+	StaticEdictTypeInfoCounter classTypeInfoID;
 	//! Specified certain rights for the EdictTypeInfo class.
 	uint8_t	typeFlags = 0;
 
@@ -324,7 +324,7 @@ public:
 // Instances of this cannot be allocated, as it is abstract.
 #define __DeclareTopRootTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, allocatorFunction )	\
 	virtual inline EdictTypeInfo* GetTypeInfo() const {	\
-		return &ClassInfo;	\
+		return &SelfType::ClassInfo;	\
 	}	\
 	inline static EdictTypeInfo ClassInfo = EdictTypeInfo( (worldSpawnClassName), (#className), (#superClass), (typeInfoFlags), (allocatorFunction) );
 
@@ -353,7 +353,7 @@ public:
 **/
 #define __DeclareTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, allocatorFunction )	\
 	virtual inline EdictTypeInfo* GetTypeInfo() const override {	\
-		return &ClassInfo;											\
+		return &SelfType::ClassInfo;											\
 	}																\
 	inline static EdictTypeInfo ClassInfo = EdictTypeInfo( (worldSpawnClassName), (#className), (#superClass), (typeInfoFlags), (allocatorFunction) );
 

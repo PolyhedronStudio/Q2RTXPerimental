@@ -266,6 +266,6 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie) ( svg_player_edict_t *sel
 /**
 *   @brief  Player pain is handled at the end of the frame in P_DamageFeedback.
 **/
-DEFINE_MEMBER_CALLBACK_PAIN( svg_player_edict_t, onPain)( svg_player_edict_t *self, svg_base_edict_t *other, float kick, int damage ) -> void {
+DEFINE_MEMBER_CALLBACK_PAIN( svg_player_edict_t, onPain)( svg_player_edict_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void {
     // Player pain is handled at the end of the frame in P_DamageFeedback.
 }

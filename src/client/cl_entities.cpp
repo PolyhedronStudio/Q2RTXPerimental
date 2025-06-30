@@ -344,6 +344,8 @@ static constexpr int32_t PS_DUP_DEBUG_NOLERP = BIT( 6 );
 static void duplicate_player_state( player_state_t *ps, player_state_t *ops, const int32_t debugID ) {
     *ops = *ps;
 
+	// Debugging output for player state duplication.
+    #if 0
     if ( debugID == PS_DUP_DEBUG_OLDFRAME_INVALID ) {
         Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_OLDFRAME_INVALID\n", cl.frame.number );
     } else if ( debugID == PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER ) {
@@ -361,6 +363,7 @@ static void duplicate_player_state( player_state_t *ps, player_state_t *ops, con
     } else {
         Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) No player state duplicating. \n", cl.frame.number );
     }
+    #endif
 }
 /**
 *   Determine whether the player state has to lerp between the current and old frame,

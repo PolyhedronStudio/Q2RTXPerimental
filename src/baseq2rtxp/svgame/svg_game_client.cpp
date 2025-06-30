@@ -11,7 +11,7 @@
 
 
 /**
-*   Save field descriptors for restoring/writing the svg_level_locals_t data to save games:
+*   Save field descriptors for restoring/writing the svg_client_t data to save games:
 **/
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_client_t )
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, ps.pmove.pm_type, SD_FIELD_TYPE_INT32 ),

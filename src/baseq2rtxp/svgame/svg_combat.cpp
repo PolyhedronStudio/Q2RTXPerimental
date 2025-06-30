@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
+#include "svgame/entities/monster/svg_monster_testdummy.h"
 
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
@@ -347,11 +348,12 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
     // If enabled you can't hurt teammates (but you can hurt yourself)
     // Knockback still occurs.
     if ((targ != attacker) && ((deathmatch->value && ((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))) || (coop->value && targ->client))) {
-        if (SVG_OnSameTeam(targ, attacker)) {
+    
+    if (SVG_OnSameTeam(targ, attacker)) {
             if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
                 finalDamage = 0;
             } else {
-                finalMeansOfDeath = static_cast<sg_means_of_death_t>( finalMeansOfDeath | MEANS_OF_DEATH_FRIENDLY_FIRE );
+                finalMeansOfDeath |= MEANS_OF_DEATH_FRIENDLY_FIRE;
             }
         }
     }
@@ -375,10 +377,14 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
 
     // Determine knockback value.
     int32_t finalKnockBack = ( /*targ->flags & FL_NO_KNOCKBACK ? 0 : */ knockBack );
-    if ( ( targ->flags & FL_NO_KNOCKBACK ) ||
-        ( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
-            ( !targ->lifeStatus || targ->death_time != level.time ) ) ) {
+    if ( ( targ->flags & FL_NO_KNOCKBACK ) ) {//||
+        //( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
+        //    ( !targ->lifeStatus || targ->death_time != level.time ) ) ) {
         finalKnockBack = 0;
+        if ( targ->GetTypeInfo()->classTypeInfoID.GetID() == svg_monster_testdummy_t::ClassInfo.classTypeInfoID.GetID() ) {
+
+            int x = 10;// continue;
+        }
     }
 
     // Figure momentum add.
@@ -443,7 +449,6 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
         else
             SpawnDamage(te_sparks, point, normal, take);
 
-
         targ->health = targ->health - take;
 
         if (targ->health <= 0) {
@@ -468,25 +473,44 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
     if (targ->svflags & SVF_MONSTER) {
         if ( damage > 0 ) {
             M_ReactToDamage( targ, attacker );
+
+            float kick = (float)abs( finalKnockBack );
+            if ( kick && targ->health > 0 ) { // kick of 0 means no view adjust at all
+                //kick = kick * 100 / targ->health;
+
+                //if ( kick < damage * 0.5f ) {
+                //    kick = damage * 0.5f;
+                //}
+                //if ( kick > 50 ) {
+                //    kick = 50;
+                //}
+
+                Vector3 knockBackVelocity = targ->s.origin - Vector3( inflictor ? inflictor->s.origin : attacker->s.origin );
+                knockBackVelocity = QM_Vector3Normalize( knockBackVelocity );
+                //knockBackVelocity *= kick;
+				targ->velocity = QM_Vector3MultiplyAdd( knockBackVelocity, kick, targ->velocity );
+				//targ->velocity += knockBackVelocity;
+
+            }
         }
         // WID: TODO: Monster Reimplement.
         //if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {
-        //if ( take ) {
-        //    if ( targ->HasPainCallback() ) {
-        //        targ->DispatchPainCallback( attacker, finalKnockBack, take );
-        //        // nightmare mode monsters don't go into pain frames often
-        //        if ( skill->value == 3 )
-        //            targ->pain_debounce_time = level.time + 5_sec;
-        //    } else {
-        //        #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
-        //        gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
-        //        #endif
-        //    }
-        //}
+        if ( take ) {
+            if ( targ->HasPainCallback() ) {
+                targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
+                // nightmare mode monsters don't go into pain frames often
+                if ( skill->value == 3 )
+                    targ->pain_debounce_time = level.time + 5_sec;
+            } else {
+                #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
+                gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+                #endif
+            }
+        }
         //}
     } else if ( take ) {
         if ( targ->HasPainCallback() ) {
-            targ->DispatchPainCallback( attacker, finalKnockBack, take );
+            targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
         } else {
             #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
             gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
@@ -496,7 +520,7 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
     if (client) {
         if ( !( targ->flags & FL_GODMODE ) && ( take ) ) {
             if ( targ->HasPainCallback() ) {
-                targ->DispatchPainCallback( attacker, finalKnockBack, take );
+                targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
             } else {
                 #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
                 gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
@@ -534,7 +558,7 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
                 indicator = &client->frameDamage.damage_indicators[ i ];
                 // for projectile direct hits, use the attacker; otherwise
                 // use the inflictor (rocket splash should point to the rocket)
-                indicator->from = ( damageFlags & DAMAGE_RADIUS ) ? inflictor->s.origin : attacker->s.origin;
+                indicator->from = ( damageFlags & DAMAGE_RADIUS && inflictor != nullptr ) ? inflictor->s.origin : attacker->s.origin;
                 indicator->health = indicator->armor = 0;
                 client->frameDamage.num_damage_indicators++;
             }
@@ -553,33 +577,36 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
 SVG_RadiusDamage
 ============
 */
-void SVG_RadiusDamage(svg_base_edict_t *inflictor, svg_base_edict_t *attacker, float damage, svg_base_edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath ) 
-{
+void SVG_RadiusDamage( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, float damage, svg_base_edict_t *ignore, float radius, const sg_means_of_death_t meansOfDeath ) {
     float   points;
     svg_base_edict_t *ent = NULL;
     vec3_t  v;
     vec3_t  dir;
 
-    while ((ent = SVG_Entities_FindWithinRadius(ent, inflictor->s.origin, radius)) != NULL) {
-        if (ent == ignore)
+    while ( ( ent = SVG_Entities_FindWithinRadius( ent, inflictor->s.origin, radius ) ) != NULL ) {
+        if ( ent == ignore )
             continue;
-        if (!ent->takedamage)
+        if ( !ent->takedamage )
             continue;
 
-        VectorAdd(ent->mins, ent->maxs, v);
-        VectorMA(ent->s.origin, 0.5f, v, v);
-        VectorSubtract(inflictor->s.origin, v, v);
-        points = damage - 0.5f * VectorLength(v);
-        if (ent == attacker)
+        VectorAdd( ent->mins, ent->maxs, v );
+        VectorMA( ent->s.origin, 0.5f, v, v );
+        VectorSubtract( inflictor->s.origin, v, v );
+        points = damage - 0.5f * VectorLength( v );
+        if ( ent == attacker )
             points = points * 0.5f;
-        if (points > 0) {
-            if (SVG_CanDamage(ent, inflictor)) {
-                VectorSubtract(ent->s.origin, inflictor->s.origin, dir);
-                SVG_TriggerDamage(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, meansOfDeath );
+        if ( points > 0 ) {
+
+            if ( SVG_CanDamage( ent, inflictor ) ) {
+                if ( ent->GetTypeInfo()->classTypeInfoID.GetID() == svg_monster_testdummy_t::ClassInfo.classTypeInfoID.GetID() ) {
+
+                    int x = 10;// continue;
+                }
+                VectorSubtract( ent->s.origin, inflictor->s.origin, dir );
+                SVG_TriggerDamage( ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, meansOfDeath );
             }
         }
     }
 }
-
 
 

@@ -219,7 +219,7 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *cent, entity_t *ent, en
             Q_concat( buffer, sizeof( buffer ), "players/", ci->model_name, "/disguise.pcx" );
             ent->skin = clgi.R_RegisterSkin( buffer );
         }
-        // A regular alias entity model instead:
+    // A regular alias entity model instead:
     } else {
         ent->skinnum = newState->skinnum;
         ent->skin = 0;

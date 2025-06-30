@@ -140,7 +140,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
         self->mass = 200;
     }
     if ( !self->health ) {
-        self->health = 100;
+        self->health = 200;
     }
     if ( !self->dmg ) {
         self->dmg = 150;
@@ -306,7 +306,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             }
 
             // Is done in MMove_StepSlideMove.
-            //SVG_AddGravity( self );
+            SVG_AddGravity( self );
 
             // Generate frame velocity vector.
             Vector3 entityVelocity = self->velocity;
@@ -382,8 +382,6 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
         const double diffLength = QM_Vector3LengthSqr( diffOrigin );
         self->summedDistanceTraversed += diffLength;
 
-        // Reset gravity to 1.0
-        self->gravity = 1.0f;
         //---------------------------
         // </TEMPORARY FOR TESTING>
         //---------------------------
@@ -535,6 +533,6 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdu
 /**
 *   @brief  Death routine.
 **/
-DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_t, onPain )( svg_monster_testdummy_t *self, svg_base_edict_t *other, float kick, int damage ) -> void {
+DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_t, onPain )( svg_monster_testdummy_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void {
 
 }

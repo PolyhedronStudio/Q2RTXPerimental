@@ -234,6 +234,7 @@ static void CLG_AnimateViewWeapon( entity_t *refreshEntity, const int32_t firstF
     double lerpFraction = SG_AnimationFrameForTime( &frameForTime,
         //QMTime::FromMilliseconds( clgi.GetRealTime() ), QMTime::FromMilliseconds( game.viewWeapon.real_time ),
         QMTime::FromMilliseconds( clgi.client->extrapolatedTime ), QMTime::FromMilliseconds( game.viewWeapon.server_time ),
+        //QMTime::FromMilliseconds( clgi.client->accumulatedRealTime ), QMTime::FromMilliseconds( game.viewWeapon.real_time ),
         BASE_FRAMETIME,
         firstFrame, lastFrame,
         1, false
@@ -296,6 +297,26 @@ static void CLG_AddViewWeapon( void ) {
         gun.model = gun_model;  // development tool
     } else {
         gun.model = clgi.client->model_draw[ ps->gun.modelIndex ];
+        #if 0
+        // If no model handle is set, use the model from the player state.
+        int32_t skinnum = clgi.client->clientEntity->current.skinnum;
+        // Fetch client info ID. (encoded in skinnum)
+        clientinfo_t *ci = &clgi.client->clientinfo[ skinnum & 0xff ];
+        // Fetch weapon ID. (encoded in skinnum).
+        int32_t weaponModelIndex = ( skinnum >> 8 ); // 0 is default weapon model
+        if ( weaponModelIndex < 0 || weaponModelIndex > precache.numViewModels - 1 ) {
+            weaponModelIndex = 0;
+        }
+        gun.model = clgi.client->model_draw[ weaponModelIndex ];
+        if ( !gun.model ) {
+            if ( weaponModelIndex != 0 ) {
+                gun.model = ci->weaponmodel[ 0 ];
+            }
+            if ( !gun.model ) {
+                gun.model = clgi.client->baseclientinfo.weaponmodel[ 0 ];
+            }
+        }
+        #endif
     }
     if ( !ps->gun.modelIndex || !gun.model ) {
         return;
@@ -380,6 +401,7 @@ static void CLG_AddViewWeapon( void ) {
             if ( game.viewWeapon.server_time < clgi.client->servertime ) {
                 // Local real time of animation change.
                 game.viewWeapon.real_time = clgi.GetRealTime();
+                //game.viewWeapon.real_time = clgi.client->accumulatedRealTime;
                 // Server time of animation change.
                 game.viewWeapon.server_time = clgi.client->servertime/* - BASE_FRAMETIME*/;
                 // Reset animation frame.
@@ -1118,24 +1140,16 @@ void PF_CalculateViewValues( void ) {
     clgi.client->playerEntityAngles[ PITCH ] = clgi.client->playerEntityAngles[ PITCH ] / 3;
 
     // WID: Debug
-    #if 1
-    
+    #if 0
     static uint64_t printFrame = clgi.client->frame.number;
     if ( printFrame != clgi.client->frame.number ) {
-        const Vector3 predStateCurPsOrigin = game.predictedState.origin;
-        const Vector3 framePsOrigin = clgi.client->frame.ps.pmove.origin;
-        //clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOffset(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
-        //    printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
-        //    finalViewOffset[ 0 ], finalViewOffset[ 1 ], finalViewOffset[ 2 ],
-        //    printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
-        //clgi.Print( PRINT_DEVELOPER, "frame(%llu):ViewOrg(%f,%f,%f),finalViewOrg(%f,%f,%f)\n", clgi.client->frame.number,
-        //    printViewOrg[ 0 ], printViewOrg[ 1 ], printViewOrg[ 2 ],
-        //    printFinalViewOrg[ 0 ], printFinalViewOrg[ 1 ], printFinalViewOrg[ 2 ] );
         clgi.Print( PRINT_DEVELOPER, "Frame( #%llu ):\n", clgi.client->frame.number );
 
+        const Vector3 framePsOrigin = clgi.client->frame.ps.pmove.origin;
         clgi.Print( PRINT_DEVELOPER, "        org( %f, %f, %f )\n",
             framePsOrigin[ 0 ], framePsOrigin[ 1 ], framePsOrigin[ 2 ] );
-        
+
+        const Vector3 predStateCurPsOrigin = game.predictedState.origin;
         clgi.Print( PRINT_DEVELOPER, "      prorg( %f , %f , %f )\n", 
             predStateCurPsOrigin[ 0 ], predStateCurPsOrigin[ 1 ], predStateCurPsOrigin[ 2 ] );
 

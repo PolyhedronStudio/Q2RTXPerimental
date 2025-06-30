@@ -118,7 +118,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_crosslevel_target_t, onThink )( svg_tar
 /**
 *   @brief
 **/
-//DEFINE_MEMBER_CALLBACK_PAIN( svg_target_crosslevel_target_t, onPain )( svg_target_crosslevel_target_t *self, svg_base_edict_t *other, float kick, int damage ) -> void { }
+//DEFINE_MEMBER_CALLBACK_PAIN( svg_target_crosslevel_target_t, onPain )( svg_target_crosslevel_target_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void { }
 /**
 *   @brief
 **/

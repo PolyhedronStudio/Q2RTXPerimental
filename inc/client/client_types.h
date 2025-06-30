@@ -332,9 +332,12 @@ typedef struct client_state_s {
 	server_frame_t  predictedFrame; // Only used for player state right now.
     //! The server game time of the last received valid frame.
     int64_t			servertime;
-    //! 
+	//! The delta ms of the previous and last received valid frame.
     int64_t			serverdelta;
     
+	//! A total accumulation of the system's realtime, excluding the time spent in server paused state.
+    int64_t accumulatedRealTime;
+
     //! This is the 'moment-in-time' value that the client is interpolating at.
     //! Always <= cl.servertime
     int64_t     time;

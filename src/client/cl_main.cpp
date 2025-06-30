@@ -3071,6 +3071,10 @@ uint64_t CL_Frame( uint64_t msec ) {
     cls.realdelta = ( current - cls.realtime ) / 1000.;
     cls.realtime = current;
 
+    if ( !sv_paused->integer ) {
+		cl.accumulatedRealTime += msec;
+	}
+
     // Clear the bone cache.
     SKM_PoseCache_ClearCache( cls.clientPoseCache );
 
@@ -3186,7 +3190,9 @@ uint64_t CL_Frame( uint64_t msec ) {
     phys_frame |= ( cl.sendPacketNow );
 
     if ( phys_frame ) {
+		// Build the final movement vector to be sent to the server.
         CL_FinalizeCommand();
+		// If need be, let the client game module run for a frame.
         if ( cls.state == ca_active && !sv_paused->integer && !cl_paused->integer ) {
             //phys_extra -= CL_ClientGameFrame( phys_msec );
             phys_extra -= phys_msec;

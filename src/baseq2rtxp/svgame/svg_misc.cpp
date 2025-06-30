@@ -121,7 +121,7 @@ void SVG_Misc_ThrowGib( svg_base_edict_t *self, const char *gibname, const int32
     gib->solid = SOLID_NOT;
     gib->s.entityType = ET_GIB;
     gib->s.effects |= EF_GIB;
-    gib->flags = static_cast<entity_flags_t>( gib->flags | FL_NO_KNOCKBACK );
+    gib->flags |= FL_NO_KNOCKBACK;
     gib->takedamage = DAMAGE_YES;
     gib->SetDieCallback( gib_die );
 
@@ -165,7 +165,7 @@ void SVG_Misc_ThrowHead( svg_base_edict_t *self, const char *gibname, const int3
     self->s.effects |= EF_GIB;
     //self->s.effects &= ~EF_FLIES;
     self->s.sound = 0;
-    self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
+    self->flags |= FL_NO_KNOCKBACK;
     self->svflags &= ~SVF_MONSTER;
     self->takedamage = DAMAGE_YES;
     self->SetDieCallback( gib_die );
@@ -215,7 +215,7 @@ void SVG_Misc_ThrowClientHead( svg_base_edict_t *self, const int32_t damage ) {
     self->solid = SOLID_NOT;
     self->s.effects = EF_GIB;
     self->s.sound = 0;
-    self->flags = static_cast<entity_flags_t>( self->flags | FL_NO_KNOCKBACK );
+    self->flags |= FL_NO_KNOCKBACK;
 
     self->movetype = MOVETYPE_BOUNCE;
     Vector3 velocityDamage = SVG_Misc_VelocityForDamage( damage );

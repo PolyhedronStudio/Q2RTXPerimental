@@ -74,7 +74,7 @@
 //	Pain:
 //
 #define DECLARE_MEMBER_CALLBACK_PAIN(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *other, float kick, int damage ) -> void; \
+	static auto functionName(className *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void; \
 //
 //	Die.
 //

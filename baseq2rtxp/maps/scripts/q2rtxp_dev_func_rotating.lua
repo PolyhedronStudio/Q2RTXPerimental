@@ -139,6 +139,34 @@ function button_func_rotating00_toggle_OnSignalIn( self, signaller, activator, s
     return true
 end
 
+-----------------------------------------------------------------------------
+--  SignalIn: button_func_rotating_toy
+-----------------------------------------------------------------------------
+function button_func_rotating_toy_OnSignalIn( self, signaller, activator, signalName, signalArguments )
+    -- Get rotator target entity.
+    local rotatorEntity = Game.GetEntityForTargetName( "func_rotating_toy" )
+    -- Get toggle button entity.
+    --local buttonEntity = Game.GetEntityForTargetName( "button_func_rotating_toy" )
+
+    -- Toggle into accelerating.
+    if ( signalName == "OnPressed" ) then
+        -- Notify players.
+        -- Game.Print( PrintLevel.NOTICE, "Toggled into Accelerating...\n" )
+        -- Signal.
+        Game.SignalOut( rotatorEntity, signaller, activator, "Accelerate", {} )
+    end
+    -- Toggle into decelerating.
+    if ( signalName == "OnUnPressed" ) then 
+        -- Notify players.
+        -- Game.Print( PrintLevel.NOTICE, "Toggled into Decelerating...\n" )
+        -- Signal.
+        Game.SignalOut( rotatorEntity, signaller, activator, "Decelerate", {} )
+    end
+    
+    -- Done handling signal.
+    return true
+end
+
 
 ----------------------------------------------------------------------
 --

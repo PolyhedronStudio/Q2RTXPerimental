@@ -166,7 +166,7 @@ using svg_edict_callback_use_fptr = void ( * )( svg_base_edict_t *self, svg_base
 using svg_edict_callback_onsignalin_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const char *signalName, const svg_signal_argument_array_t &signalArguments );
 
 //! Called when it gets damaged.
-using svg_edict_callback_pain_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage );
+using svg_edict_callback_pain_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, const float kick, const int damage, const entity_damageflags_t damageFlags );
 //! Called to die.
 using svg_edict_callback_die_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point );
 
@@ -329,7 +329,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   @brief  Calls the 'pain' callback that is configured for this entity.
     **/
-    virtual void DispatchPainCallback( svg_base_edict_t *other, const float kick, const int32_t damage );
+    virtual void DispatchPainCallback( svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags );
     /**
     *   @brief  Calls the 'die' callback that is configured for this entity.
     **/

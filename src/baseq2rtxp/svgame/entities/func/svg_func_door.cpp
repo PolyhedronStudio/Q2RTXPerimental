@@ -801,7 +801,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_func_door_t, onDie )( svg_func_door_t *self, svg
 /**
 *   @brief  Pain for door.
 **/
-DEFINE_MEMBER_CALLBACK_PAIN( svg_func_door_t, onPain )( svg_func_door_t *self, svg_base_edict_t *other, float kick, int damage ) -> void {
+DEFINE_MEMBER_CALLBACK_PAIN( svg_func_door_t, onPain )( svg_func_door_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void {
     const svg_signal_argument_array_t signalArguments = {
             {
                 .type = SIGNAL_ARGUMENT_TYPE_NUMBER,

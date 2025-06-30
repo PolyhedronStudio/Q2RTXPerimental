@@ -44,7 +44,7 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
     if ( game.predictedState.transition.view.height[ 0 ] != viewHeight ) {
         game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
         game.predictedState.transition.view.height[ 0 ] = viewHeight;
-        game.predictedState.transition.view.timeHeightChanged = clgi.client->time;
+        game.predictedState.transition.view.timeHeightChanged = clgi.client->extrapolatedTime;
     }
 }
 
@@ -222,7 +222,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
                     (float)clgi.client->frame.ps.pmove.viewheight,
                     (float)clgi.client->frame.ps.pmove.viewheight
                 },
-                .timeHeightChanged = (uint64_t)clgi.client->time
+                .timeHeightChanged = (uint64_t)clgi.client->extrapolatedTime
             }
         };
 
@@ -263,7 +263,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
                         (float)clgi.client->frame.ps.pmove.viewheight,
                         (float)clgi.client->frame.ps.pmove.viewheight
                     },
-                    .timeHeightChanged = (uint64_t)clgi.client->time
+                    .timeHeightChanged = (uint64_t)clgi.client->extrapolatedTime
                 }
             };
 
@@ -364,8 +364,9 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         moveCommand->prediction.origin = pm.playerState->pmove.origin;
         moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
 
+        // Backup into our circular buffer.
         clgi.client->predictedMoveResults[ ( acknowledgedCommandNumber ) & CMD_MASK ] = moveCommand->prediction;
-
+        // Store it as the current predicted origin state.
         game.predictedState.origin = moveCommand->prediction.origin;
     }
 
@@ -401,8 +402,8 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         pendingMoveCommand->prediction.velocity = pm.playerState->pmove.velocity;
         // Save the pending move command as the last entry in our circular buffer.
         clgi.client->predictedMoveResults[ ( currentCommandNumber + 1 ) & CMD_MASK ] = pendingMoveCommand->prediction;
+        // Store it as the current predicted origin state.
         game.predictedState.origin = pendingMoveCommand->prediction.origin;
-
         // And store it in the predictedState.
         predictedState->cmd = *pendingMoveCommand;
     }
@@ -417,13 +418,11 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
     // Same for mins/maxs.
     predictedState->mins = pm.mins;
     predictedState->maxs = pm.maxs;
-
     // Swap in the resulting new pmove player state.
     predictedState->currentPs = *pmPlayerState;
 
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     PF_AdjustViewHeight( predictedState->currentPs.pmove.viewheight );
-
     // Check and execute any player state related events.
     CLG_CheckPlayerstateEvents( &predictedState->lastPs, &predictedState->currentPs );
 

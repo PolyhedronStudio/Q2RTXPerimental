@@ -465,9 +465,9 @@ void svg_base_edict_t::DispatchOnSignalInCallback( svg_base_edict_t *other, svg_
 /**
 *   @brief  Calls the 'pain' callback that is configured for this entity.
 **/
-void svg_base_edict_t::DispatchPainCallback( svg_base_edict_t *other, const float kick, const int32_t damage ) {
+void svg_base_edict_t::DispatchPainCallback( svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) {
     if ( painCallbackFuncPtr != nullptr ) {
-        painCallbackFuncPtr( this, other, kick, damage );
+        painCallbackFuncPtr( this, other, kick, damage, damageFlags );
     }
 }
 /**
@@ -920,7 +920,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_base_edict_t, onUse )( svg_base_edict_t *self, s
 /**
 *   @brief  Pain Stub.
 **/
-DEFINE_MEMBER_CALLBACK_PAIN( svg_base_edict_t, onPain )( svg_base_edict_t *self, svg_base_edict_t *other, const float kick, const int32_t damage ) -> void { }
+DEFINE_MEMBER_CALLBACK_PAIN( svg_base_edict_t, onPain )( svg_base_edict_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void { }
 /**
 *   @brief  Die Stub.
 **/

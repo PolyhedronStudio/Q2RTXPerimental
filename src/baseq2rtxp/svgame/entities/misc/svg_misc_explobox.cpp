@@ -231,6 +231,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_explobox_t, onSpawn) ( svg_misc_explobox_
 /**
 *   @brief  Death routine.
 **/
-DEFINE_MEMBER_CALLBACK_PAIN( svg_misc_explobox_t, onPain )( svg_misc_explobox_t *self, svg_base_edict_t *other, float kick, int damage ) -> void {
+DEFINE_MEMBER_CALLBACK_PAIN( svg_misc_explobox_t, onPain )( svg_misc_explobox_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void {
 
 }
