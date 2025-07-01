@@ -1119,7 +1119,7 @@ void PF_CalculateViewValues( void ) {
     // Interpolate blend colors if the last frame wasn't clear.
     CLG_LerpScreenBlend( ops, ps, &game.predictedState );
     // Interpolate Field of View.
-    CLG_LerpPointOfView( ops, ps, backLerp );
+    CLG_LerpPointOfView( ops, ps, lerpFrac );
     // Lerp the view offset.
     CLG_LerpViewOffset( ops, ps, backLerp, finalViewOffset );
     // Smooth out the ducking view height change over 100ms

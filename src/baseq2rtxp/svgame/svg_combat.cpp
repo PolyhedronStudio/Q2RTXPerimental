@@ -327,10 +327,10 @@ bool CheckTeamDamage(svg_base_edict_t *targ, svg_base_edict_t *attacker)
     return false;
 }
 
-void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
+void SVG_TriggerDamage( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
     // Final means of death.
     sg_means_of_death_t finalMeansOfDeath = meansOfDeath;
-    
+
     // No use if we aren't accepting damage.
     if ( !targ->takedamage ) {
         return;
@@ -338,18 +338,17 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
 
     // easy mode takes half damage
     int32_t finalDamage = damage;
-    if (skill->value == 0 && deathmatch->value == 0 && targ->client) {
+    if ( skill->value == 0 && deathmatch->value == 0 && targ->client ) {
         finalDamage *= 0.5f;
-        if (!finalDamage )
+        if ( !finalDamage )
             finalDamage = 1;
     }
 
     // Friendly fire avoidance.
     // If enabled you can't hurt teammates (but you can hurt yourself)
     // Knockback still occurs.
-    if ((targ != attacker) && ((deathmatch->value && ((int)(dmflags->value) & (DF_MODELTEAMS | DF_SKINTEAMS))) || (coop->value && targ->client))) {
-    
-    if (SVG_OnSameTeam(targ, attacker)) {
+    if ( ( targ != attacker ) && ( ( deathmatch->value && ( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) ) || ( coop->value && targ->client ) ) ) {
+        if ( SVG_OnSameTeam( targ, attacker ) ) {
             if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
                 finalDamage = 0;
             } else {
@@ -375,23 +374,31 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
         finalDamage *= 2;
     }
 
+    #if 0
     // Determine knockback value.
     int32_t finalKnockBack = ( /*targ->flags & FL_NO_KNOCKBACK ? 0 : */ knockBack );
     if ( ( targ->flags & FL_NO_KNOCKBACK ) ) {//||
         //( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
         //    ( !targ->lifeStatus || targ->death_time != level.time ) ) ) {
         finalKnockBack = 0;
-        if ( targ->GetTypeInfo()->classTypeInfoID.GetID() == svg_monster_testdummy_t::ClassInfo.classTypeInfoID.GetID() ) {
-
-            int x = 10;// continue;
-        }
     }
-
+    #else
+    // Determine knockback value.
+    int32_t finalKnockBack = ( /*targ->flags & FL_NO_KNOCKBACK ? 0 : */ knockBack );
+    if ( targ->flags & FL_NO_KNOCKBACK ||
+        ( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
+            ( !(targ->lifeStatus == entity_lifestatus_t::LIFESTATUS_ALIVE ) ) 
+            /*|| ( targ->death_time && targ->death_time < level.time )*/
+        ) ) {
+        finalKnockBack = 0;
+    }
+    #endif
     // Figure momentum add.
     if ( !( damageFlags & DAMAGE_NO_KNOCKBACK ) ) {
         if ( ( finalKnockBack ) && (targ->movetype != MOVETYPE_NONE) && (targ->movetype != MOVETYPE_BOUNCE) 
             && (targ->movetype != MOVETYPE_PUSH) && (targ->movetype != MOVETYPE_STOP)) {
-                vec3_t  kvel;
+	    		Vector3 normalizedDir = QM_Vector3Normalize( dir );
+                Vector3 kvel;
                 float   mass;
 
                 if ( targ->mass < 50 ) {
@@ -400,12 +407,12 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
                     mass = targ->mass;
                 }
 
-                VectorNormalize2(dir, kvel);
-
+                // <Q2RTXP>: WID: This will do the classic "rocket jump" engagement when a
+                // player is the actual cause of the explosion itself.
                 if ( targ->client && attacker == targ ) {
-                    VectorScale( kvel, 1600.0f * (float)knockBack / mass, kvel );  // the rocket jump hack...
+                    kvel = normalizedDir * ( 1600.0f * (float)knockBack / mass );
                 } else {
-                    VectorScale( kvel, 500.0f * (float)knockBack / mass, kvel );
+                    kvel = normalizedDir * ( 500.0f * (float)knockBack / mass );
                 }
                 VectorAdd(targ->velocity, kvel, targ->velocity);
         }
@@ -453,9 +460,9 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
 
         if (targ->health <= 0) {
             if ( ( targ->svflags & SVF_MONSTER ) || ( client ) ) {
-                targ->flags |= FL_NO_KNOCKBACK;
+                //targ->flags |= FL_NO_KNOCKBACK;
                 //targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
-                targ->death_time = level.time;
+                //targ->death_time = level.time;
             }
             #if 0
             targ->monsterinfo.damage_blood += take;
@@ -508,16 +515,7 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
             }
         }
         //}
-    } else if ( take ) {
-        if ( targ->HasPainCallback() ) {
-            targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
-        } else {
-            #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
-            gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
-            #endif
-        }
-    } 
-    if (client) {
+    } else if ( client ) {
         if ( !( targ->flags & FL_GODMODE ) && ( take ) ) {
             if ( targ->HasPainCallback() ) {
                 targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
@@ -527,7 +525,16 @@ void SVG_TriggerDamage(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_
                 #endif
             }
         }
-    }
+    } else if ( take ) {
+        if ( targ->HasPainCallback() ) {
+            targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
+        } else {
+            #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
+            gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+            #endif
+        }
+    } 
+
 
     // add to the damage inflicted on a player this frame
     // the total will be turned into screen blends and view angle kicks

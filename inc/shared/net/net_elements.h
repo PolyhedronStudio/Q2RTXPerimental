@@ -15,7 +15,7 @@
 #define MAX_MAP_PORTAL_BYTES    MAX_MAP_AREA_BYTES
 
 //! Circular update array.
-#define UPDATE_BACKUP           1024 //! 16	//! copies of entity_state_t to keep buffered must be power of two
+#define UPDATE_BACKUP           16 //! 16	//! copies of entity_state_t to keep buffered must be power of two
 #define UPDATE_MASK             (UPDATE_BACKUP - 1)
 
 //! Circular command array.
@@ -33,17 +33,23 @@
 //! Entity State messaging flags:
 typedef enum {
     MSG_ES_NONE = 0,
+    //! Send even if unchanged.
     MSG_ES_FORCE = ( 1 << 0 ),
+    //! Send old_origin.
     MSG_ES_NEWENTITY = ( 1 << 1 ),
+    //! Ignore origin/angles.
     MSG_ES_FIRSTPERSON = ( 1 << 2 ),
+    //! Client has RF_BEAM old_origin fix.
     MSG_ES_BEAMORIGIN = ( 1 << 3 ),
-    MSG_ES_REMOVE = ( 1 << 4 )
 } msgEsFlags_t;
 QENUM_BIT_FLAGS( msgEsFlags_t );
 
 //! Optional (Read/Write-)Position Encoding Types:
 typedef enum {
-    MSG_POSITION_ENCODING_NONE = 0,           //! Writes out as a full float.
-    MSG_POSITION_ENCODING_SHORT = 1,           //! Encodes to short coordinate, -4096/+4096 range.
-    MSG_POSITION_ENCODING_TRUNCATED_FLOAT = 2, //! Writes out 13 bits + float bias.
+    //! Writes out as a full float.
+    MSG_POSITION_ENCODING_NONE = 0,           
+    //! Encodes to short coordinate, -4096/+4096 range.
+    MSG_POSITION_ENCODING_SHORT = 1,           
+    //! Writes out 13 bits + float bias.
+    MSG_POSITION_ENCODING_TRUNCATED_FLOAT = 2, 
 } msgPositionEncoding_t;

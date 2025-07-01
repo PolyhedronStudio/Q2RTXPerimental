@@ -2564,7 +2564,7 @@ static void CL_InitLocal(void)
     cl_predict = Cvar_Get("cl_predict", "1", 0);
     //cl_kickangles = Cvar_Get("cl_kickangles", "1", CVAR_CHEAT);
     cl_warn_on_fps_rounding = Cvar_Get("cl_warn_on_fps_rounding", "1", 0);
-    cl_maxfps = Cvar_Get("cl_maxfps", "62.5", 0);
+    cl_maxfps = Cvar_Get("cl_maxfps", "40", 0);
     cl_maxfps->changed = cl_maxfps_changed;
     cl_async = Cvar_Get("cl_async", "1", 0);
     cl_async->changed = cl_sync_changed;
@@ -2930,7 +2930,7 @@ static int64_t ref_msec = 0, phys_msec = 0, main_msec = 0;
 static int64_t ref_extra = 0, phys_extra = 0, main_extra = 0;
 static sync_mode_t sync_mode;
 
-#define MIN_PHYS_HZ 62.5
+#define MIN_PHYS_HZ 40
 #define MAX_PHYS_HZ 125
 #define MIN_REF_HZ MIN_PHYS_HZ
 #define MAX_REF_HZ 1000
@@ -3150,11 +3150,9 @@ uint64_t CL_Frame( uint64_t msec ) {
 
     // This should prevent frameTime overload which might happen if the application 
     // has been unresponsive for more than 2 frames.
-    if ( cls.frametime > 1.0 / 20. ) {
-        cls.frametime = BASE_1_FRAMETIME;
-        //constexpr double asdf = BASE_1_FRAMETIME;
+    if ( cls.frametime > 0.25 ) {
+        cls.frametime = 0.25;
     }
-
     if ( !sv_paused->integer ) {
         cl.time += main_extra;
         cl.extrapolatedTime += main_extra;

@@ -512,6 +512,9 @@ static void CL_ParseServerData(void)
         cls.serverProtocol = protocol;
     }
 
+    // <Q2RTXP>: WID: TODO: Research this since we aren't using it?
+    //cl.esFlags |= MSG_ES_BEAMORIGIN;
+
     // game directory
     if (MSG_ReadString(cl.gamedir, sizeof(cl.gamedir)) >= sizeof(cl.gamedir)) {
         Com_Error(ERR_DROP, "Oversize gamedir string");
@@ -575,39 +578,38 @@ static void CL_ParseServerData(void)
 /**
 *   @brief  
 **/
-static void CL_ParseStartSoundPacket(void)
-{
-	int flags, channel, entity;
+static void CL_ParseStartSoundPacket( void ) {
+    const int32_t flags = MSG_ReadUint8();
 
-	flags = MSG_ReadUint8( );
+    if ( flags & SND_INDEX16 ) {
+        cl.snd.index = MSG_ReadUint16();
+    } else {
+        cl.snd.index = MSG_ReadUint8();
+    }
+    if ( cl.snd.index >= MAX_SOUNDS ) {
+        Com_Error( ERR_DROP, "%s: bad index: %d", __func__, cl.snd.index );
+    }
 
-	if ( flags & SND_INDEX16 )
-		cl.snd.index = MSG_ReadUint16( );
-	else
-		cl.snd.index = MSG_ReadUint8( );
+    if ( flags & SND_VOLUME ) {
+        cl.snd.volume = MSG_ReadUint8() / 255.0f;
+    } else {
+        cl.snd.volume = DEFAULT_SOUND_PACKET_VOLUME;
+    }
+    if ( flags & SND_ATTENUATION ) {
+        cl.snd.attenuation = MSG_ReadUint8() / 64.0f;
+    } else {
+        cl.snd.attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
+    }
 
-	if ( cl.snd.index >= MAX_SOUNDS )
-		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, cl.snd.index );
-
-	if ( flags & SND_VOLUME )
-		cl.snd.volume = MSG_ReadUint8( ) / 255.0f;
-	else
-		cl.snd.volume = DEFAULT_SOUND_PACKET_VOLUME;
-
-	if ( flags & SND_ATTENUATION )
-		cl.snd.attenuation = MSG_ReadUint8( ) / 64.0f;
-	else
-		cl.snd.attenuation = DEFAULT_SOUND_PACKET_ATTENUATION;
-
-	if ( flags & SND_OFFSET )
-		cl.snd.timeofs = MSG_ReadUint8( ) / 1000.0f;
-	else
-		cl.snd.timeofs = 0;
-
+    if ( flags & SND_OFFSET ) {
+        cl.snd.timeofs = MSG_ReadUint8() / 1000.0f;
+    } else {
+        cl.snd.timeofs = 0;
+    }
 	if ( flags & SND_ENT ) {
 		// entity relative
-		channel = MSG_ReadUint16( );
-		entity = channel >> 3;
+		const int32_t channel = MSG_ReadUint16( );
+        const int32_t entity = channel >> 3;
 		if ( entity < 0 || entity >= MAX_EDICTS )
 			Com_Error( ERR_DROP, "%s: bad entity: %d", __func__, entity );
 		cl.snd.entity = entity;
@@ -618,8 +620,9 @@ static void CL_ParseStartSoundPacket(void)
 	}
 
 	// positioned in space
-	if ( flags & SND_POS )
-		MSG_ReadPos( cl.snd.pos, MSG_POSITION_ENCODING_NONE );
+    if ( flags & SND_POS ) {
+        MSG_ReadPos( cl.snd.pos, MSG_POSITION_ENCODING_NONE );
+    }
 
 	cl.snd.flags = flags;
 

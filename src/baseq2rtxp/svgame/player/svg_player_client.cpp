@@ -653,7 +653,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     ent->SetDieCallback( &svg_player_edict_t::onDie );//ent->SetDieCallback( player_die );
     ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
     ent->liquidInfo.type = CONTENTS_NONE;
-    ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
+    ent->flags &= ~FL_NO_KNOCKBACK;
 
     ent->svflags &= ~SVF_DEADMONSTER;
     ent->svflags |= SVF_PLAYER;
@@ -737,6 +737,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
         ent->svflags |= SVF_NOCLIENT;
         ent->client->ps.gun.modelIndex = 0;
         ent->client->ps.gun.animationID = 0;
+
         gi.linkentity( ent );
         return;
     } else {
@@ -748,7 +749,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
 
     if ( !SVG_Util_KillBox( ent, true, MEANS_OF_DEATH_TELEFRAGGED ) ) {
         // could't spawn in?
-        int x = 10; // debug breakpoint
+        //int x = 10; // debug breakpoint
     }
 
     // And link it back in.
