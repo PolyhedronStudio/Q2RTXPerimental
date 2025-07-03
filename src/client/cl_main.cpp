@@ -3055,7 +3055,7 @@ int64_t CL_ClientGameFrame( uint64_t msec ) {
 /**
 *   @brief  Advances the client for yet another frame.
 **/
-uint64_t CL_Frame( uint64_t msec ) {
+int64_t CL_Frame( uint64_t msec ) {
     bool clientgame_frame = true, phys_frame = true, ref_frame = true;
 
     time_after_ref = time_before_ref = 0;
@@ -3150,8 +3150,8 @@ uint64_t CL_Frame( uint64_t msec ) {
 
     // This should prevent frameTime overload which might happen if the application 
     // has been unresponsive for more than 2 frames.
-    if ( cls.frametime > 0.25 ) {
-        cls.frametime = 0.25;
+    if ( cls.frametime > 0.05 ) {
+        cls.frametime = 0.025;
     }
     if ( !sv_paused->integer ) {
         cl.time += main_extra;

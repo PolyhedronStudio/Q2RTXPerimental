@@ -1812,7 +1812,7 @@ processing are run even when server is not yet initalized.
 Returns amount of extra frametime available for sleeping on IO.
 ==================
 */
-uint64_t SV_Frame(uint64_t msec)
+int64_t SV_Frame(uint64_t msec)
 {
 #if USE_CLIENT
     time_before_svgame = time_after_svgame = 0;
@@ -2089,7 +2089,7 @@ void SV_Init(void) {
     sv_idlekick->changed = sv_sec_timeout_changed;
     sv_idlekick->changed(sv_idlekick);
     sv_enforcetime = Cvar_Get("sv_enforcetime", "1", 0);
-    sv_timescale_time = Cvar_Get("sv_timescale_time", std::to_string( BASE_FRAMETIME).c_str()/*"16"*/, 0);
+    sv_timescale_time = Cvar_Get("sv_timescale_time", std::to_string( 16 /*BASE_FRAMERATE*/).c_str()/*"16"*/, 0);
     sv_timescale_time->changed = sv_sec_timeout_changed;
     sv_timescale_time->changed(sv_timescale_time);
     sv_timescale_warn = Cvar_Get("sv_timescale_warn", "0", 0);
@@ -2116,8 +2116,8 @@ void SV_Init(void) {
     sv_max_download_size = Cvar_Get( "sv_max_download_size", "8388608", 0 );
     sv_max_packet_entities = Cvar_Get( "sv_max_packet_entities", STRINGIFY( MAX_PACKET_ENTITIES ), 0 );
 	// WID: 40hz:
-	sv_min_rate = Cvar_Get("sv_min_rate", "25", CVAR_LATCH);
-	//sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( CLIENT_RATE_MIN ).c_str( ), CVAR_LATCH );
+	//sv_min_rate = Cvar_Get("sv_min_rate", "16", CVAR_LATCH);
+	sv_min_rate = Cvar_Get( "sv_min_rate", std::to_string( CLIENT_RATE_MIN ).c_str( ), CVAR_LATCH );
     sv_max_rate = Cvar_Get("sv_max_rate", "15000", CVAR_LATCH);
     sv_max_rate->changed = sv_min_rate->changed = sv_rate_changed;
     sv_max_rate->changed(sv_max_rate);

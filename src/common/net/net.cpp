@@ -461,7 +461,7 @@ static void NET_LogPacket(const netadr_t *address, const char *prefix,
 
 void NET_UpdateStats(void)
 {
-    uint64_t diff;
+    int64_t diff;
 
     if (net_rate_time > com_eventTime) {
         net_rate_time = com_eventTime;

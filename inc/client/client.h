@@ -98,7 +98,7 @@ void CL_ErrorEvent(netadr_t *from);
 void CL_Init(void);
 void CL_Disconnect(error_type_t type);
 void CL_Shutdown(void);
-uint64_t CL_Frame( uint64_t msec );
+int64_t CL_Frame( uint64_t msec );
 void CL_RestartFilesystem(bool total);
 void CL_Activate(active_t active);
 void CL_UpdateUserinfo(cvar_t *var, from_t from);

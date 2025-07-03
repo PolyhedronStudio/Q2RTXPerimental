@@ -26,7 +26,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
  * bandwidth saturation point in order to maintain some level of connectivity.
  * However, they must accept at least 16KB/s. (Used to be 8.)
  */
-#define CLIENT_RATE_MIN		8192*2
+#define CLIENT_RATE_MIN		( 8192*2 )
 
 // if this is changed, Q2PRO protocol version must be changed too!
 typedef enum {
@@ -42,7 +42,7 @@ void SV_ErrorEvent(netadr_t *from, int ee_errno, int ee_info);
 #endif
 void SV_Init(void);
 void SV_Shutdown(const char *finalmsg, error_type_t type);
-uint64_t SV_Frame( uint64_t msec );
+int64_t SV_Frame( uint64_t msec );
 #if USE_SYSCON
 void SV_SetConsoleTitle(void);
 #endif
