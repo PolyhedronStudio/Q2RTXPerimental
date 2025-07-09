@@ -1046,7 +1046,8 @@ void Qcommon_Frame(void)
     uint64_t time_before, time_event, time_between, time_after;
 	uint64_t clientrem;
 #endif
-	uint64_t oldtime, msec;
+    uint64_t oldtime; 
+    double msec;
     static int64_t remaining;
     static double frac;
 

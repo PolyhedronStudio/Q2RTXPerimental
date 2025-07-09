@@ -1382,7 +1382,7 @@ static void PM_CheckSpecialMovement() {
 		pml.forward.x,
 		pml.forward.y,
 		0.f
-		} );
+	} );
 	const Vector3 spot = pml.origin + ( flatforward * 1 );
 	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (cm_contents_t)( CONTENTS_LADDER ) );
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST ) {
@@ -1807,8 +1807,8 @@ static void PM_DropTimers() {
 			//int32_t msec = (int32_t)pm->cmd.msec >> 3;
 			//double msec = pm->cmd.msec;// / 2.5;
 			double msec = pm->cmd.msec * 0.125;
-			if ( pm->cmd.msec <= 0 ) {
-				msec = 1.0;// *0.125; // 8 ms = 1 unit. (At 10hz.)
+			if ( pm->cmd.msec < 0. ) { // This was <= 0, this seemed to cause a slight jitter in the player movement.
+				msec = 1.0 * 0.125; // 8 ms = 1 unit. (At 10hz.)
 			}
 			if ( msec >= ps->pmove.pm_time ) {
 				ps->pmove.pm_flags &= ~( PMF_ALL_TIMES );
