@@ -247,8 +247,10 @@ get_model_class(const char *name)
 {
 	if (!strcmp(name, "models/objects/explode/tris.md2"))
 		return MCLASS_EXPLOSION;
-    //if ( !strcmp( name, "sprites/explo00/explo00.spj" ) )
-    //    return MCLASS_EXPLOSION;
+    else if ( !strcmp( name, "sprites/explo00/explo00.spj" ) )
+        return MCLASS_EXPLOSION;
+    else if ( !strcmp( name, "sprites/explo01/explo01.spj" ) )
+        return MCLASS_EXPLOSION;
 	else if (!strcmp(name, "models/objects/r_explode/tris.md2"))
 		return MCLASS_EXPLOSION;
 	else if (!strcmp(name, "models/objects/flash/tris.md2"))

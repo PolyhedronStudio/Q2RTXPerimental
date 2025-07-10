@@ -120,8 +120,9 @@ vec4 pt_logic_beam(int primitiveID, vec2 beam_fade_and_thickness, float hitT, fl
 
 	    int texnum = global_ubo.current_frame_idx & (NUM_BLUE_NOISE_TEX - 1);
 	    ivec2 texpos = ivec2(rt_LaunchID.xy) & ivec2(BLUE_NOISE_RES - 1);
-	    float noise = texelFetch(TEX_BLUE_NOISE, ivec3(texpos, texnum), 0).r;
-	    color.rgb *= noise * noise + 0.1;
+		// <Q2RTXP>: NOTE: We don't use the noise here, as it doesn't look good with the beam.
+	    //float noise = texelFetch(TEX_BLUE_NOISE, ivec3(texpos, texnum), 0).r;
+		//color.rgb *= noise * noise + 0.1;
 
 	    float thickness = beam_fade_and_thickness.y;
 	    if (thickness > 0)
