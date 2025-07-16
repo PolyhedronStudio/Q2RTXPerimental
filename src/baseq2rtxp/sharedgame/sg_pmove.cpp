@@ -1806,10 +1806,10 @@ static void PM_DropTimers() {
 		#if 1
 			//int32_t msec = (int32_t)pm->cmd.msec >> 3;
 			//double msec = pm->cmd.msec;// / 2.5;
-			double msec = pm->cmd.msec * 0.125;
-			if ( pm->cmd.msec < 0. ) { // This was <= 0, this seemed to cause a slight jitter in the player movement.
-				msec = 1.0 * 0.125; // 8 ms = 1 unit. (At 10hz.)
-			}
+			double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 8.0 ) : (pm->cmd.msec / 8.) );
+			//if ( pm->cmd.msec < 0. ) { // This was <= 0, this seemed to cause a slight jitter in the player movement.
+			//	msec = 1.0 / 8.; // 8 ms = 1 unit. (At 10hz.)
+			//}
 			if ( msec >= ps->pmove.pm_time ) {
 				ps->pmove.pm_flags &= ~( PMF_ALL_TIMES );
 				ps->pmove.pm_time = 0;
@@ -1874,10 +1874,10 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	// Store the origin and velocity in pmove local.
 	pml.origin = ps->pmove.origin;
 	pml.velocity = ps->pmove.velocity;
-	// Save the start velocity.
-	pml.startVelocity = ps->pmove.velocity;
 	// Save the origin as 'old origin' for in case we get stuck.
 	pml.previousOrigin = ps->pmove.origin;
+	// Save the start velocity.
+	pml.startVelocity = ps->pmove.velocity;
 
 	// Calculate frameTime.
 	pml.frameTime = (double)pm->cmd.msec * 0.001;
@@ -1979,10 +1979,10 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 		} else {
 			// Different pitch handling.
 			Vector3 angles = ps->viewangles;
-			if ( angles[ PITCH ] > 180 ) {
-				angles[ PITCH ] = angles[ PITCH ] - 360;
+			if ( angles[ PITCH ] > 180. ) {
+				angles[ PITCH ] = angles[ PITCH ] - 360.;
 			}
-			angles[ PITCH ] /= 3;
+			angles[ PITCH ] /= 3.;
 
 			// Recalculate angle vectors.
 			QM_AngleVectors( angles, &pml.forward, &pml.right, &pml.up );

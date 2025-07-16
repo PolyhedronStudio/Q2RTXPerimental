@@ -2,7 +2,7 @@
 # ---------- Main ----------------------------------------------
 #
 # Set minimum requirements.
-cmake_minimum_required (VERSION 3.9)
+cmake_minimum_required (VERSION 3.9 VERSION 4.1)
 cmake_policy(SET CMP0069 NEW)
 
 ####
@@ -131,7 +131,7 @@ IF(MSVC)
         set(${var} "${${var}} ${value}")
     endmacro(replace_msvcrt)
     
-    replace_msvcrt(CMAKE_C_FLAGS_DEBUG "/MTd")
+    replace_msvcrt(CMAKE_C_FLAGS_DEBUG "/MDd")
     replace_msvcrt(CMAKE_C_FLAGS_MINSIZEREL "/MT")
     replace_msvcrt(CMAKE_C_FLAGS_RELEASE "/MT")
     replace_msvcrt(CMAKE_C_FLAGS_RELWITHDEBINFO "/MT")
@@ -140,7 +140,7 @@ IF(MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
 
     # Also adjust C++ flags, needed for 3rd party code
-    replace_msvcrt(CMAKE_CXX_FLAGS_DEBUG "/MTd")
+    replace_msvcrt(CMAKE_CXX_FLAGS_DEBUG "/MDd")
     replace_msvcrt(CMAKE_CXX_FLAGS_MINSIZEREL "/MT")
     replace_msvcrt(CMAKE_CXX_FLAGS_RELEASE "/MT")
     replace_msvcrt(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MT")

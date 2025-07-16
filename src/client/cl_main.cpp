@@ -3055,6 +3055,8 @@ int64_t CL_ClientGameFrame( uint64_t msec ) {
 /**
 *   @brief  Advances the client for yet another frame.
 **/
+static constexpr int32_t CL_MAX_STRAY_TIME_MULTIPLIER = 4;
+
 int64_t CL_Frame( uint64_t msec ) {
     bool clientgame_frame = true, phys_frame = true, ref_frame = true;
 
@@ -3111,14 +3113,14 @@ int64_t CL_Frame( uint64_t msec ) {
         // Check for physics frame.
         if ( phys_extra < phys_msec ) {
             phys_frame = false;
-        } else if ( phys_extra > phys_msec * 4 ) {
+        } else if ( phys_extra > phys_msec * CL_MAX_STRAY_TIME_MULTIPLIER ) {
             phys_extra = phys_msec;
         }
 
         // Check for refresh frame.
         if ( ref_extra < ref_msec ) {
             ref_frame = false;
-        } else if ( ref_extra > ref_msec * 4 ) {
+        } else if ( ref_extra > ref_msec * CL_MAX_STRAY_TIME_MULTIPLIER ) {
             ref_extra = ref_msec;
         }
 
@@ -3146,7 +3148,7 @@ int64_t CL_Frame( uint64_t msec ) {
         clientgame_frame, clientgame_extra );
 
     // Decide the simulation time.
-    cls.frametime = main_extra * 0.001f;
+    cls.frametime = main_extra * 0.001;
 
     // This should prevent frameTime overload which might happen if the application 
     // has been unresponsive for more than 2 frames.
@@ -3200,7 +3202,7 @@ int64_t CL_Frame( uint64_t msec ) {
         M_FRAMES++;
 
         // Don't let the time go too far off this can happen due to cl.sendPacketNow.
-        if ( phys_extra < -phys_msec * 4 ) {
+        if ( phys_extra < -phys_msec * CL_MAX_STRAY_TIME_MULTIPLIER ) {
             phys_extra = 0;
         }
     }

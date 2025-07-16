@@ -1,46 +1,22 @@
-# Quake II RTXPerimental Todo Lists:
+# Quake II RTXPerimental Notes:
 These are mainly my personal notes/ideas/interests, and do not per se reflect the actual changes to be made.
 
 ## Notes:
-* Make sure that client and server both deduce frameTime based on animation framerates instead.
----
-* A load game will result in 8192*2 allocated blocks of tag zone memory. This needs to be researched
-and fixed, as it is not necessary to allocate this much memory for a load game. We should have 8192 instead.
----
-
-## Random Ideas for The Day:
+### Random Ideas for The Day:
 * If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
 the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
 simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
 ---
-* [X] It seems with cl_async 0/1 it sometimes 'hitches' a bit, likely because of a mistake in implementing client game loop.
-	- It is a mistake in client game loop.
-	- [\] Still there at least for cl_async 0._
----
-### Entities Remaining to be implemented using new Entity System:
-* [X] func_breakable
-* [X] func_conveyor
-* [X] func_killbox
-* [X] func_object
-* [X] func_plat
-* [X] func_rotating
-* [X] func_timer
-* [X] func_train
-* [X] func_wall
-* [X] func_water_
----
-### Animated Brush Textures:
+#### Animated Brush Textures:
 * [ ] Animated Brush Textures: Any brush entity with an animated texture needs to be able to configure its
 animations for open/closed/transit-in/transit-out states throughout TB editor. (``func_button,func_door etc``)
 ---
-### UseTarget Trigger System:
+#### UseTarget Trigger System (To do, or not to do?):
 * [ ] Add trigger_state_t and trigger_type_t to store the entity trigger state, entity_usetarget_type_t, the latter holds the usetarget type for +usetarget interaction.
 * [ ] Add in the FGD, the basis for triggertype and triggervalue.
 * [ ] This'll allow us to determine how an entity should proceed to trigger any other entity.
 * [ ] Unify signal names, i.e DoorLock RotatingLock just use Lock, etc etc.
----
-### Client:
-* [ ] Check client download.cpp and add in support for 'SPJ Ident' and 'SPJ Data' for the client to download.
+
 
 ---
 ## Bugfixes: 
@@ -51,20 +27,68 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [x] None
 ### Medium Priority:
 * [ ] EAX sometimes remains as if we're underwater after exiting water. Re-entering and exiting usually helps though.
-* [X] Getting stuck by a pusher brush entity has us 'wrap/teleport' far off.
-* [-] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
+* [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
 	We'll just go for capsules instead. Perhaps look into even utilizing Jolt Physics at a bare minimum level for geometric clip testing.
-* [X] It seems for thirdperson camera, func_wall hitting traces get the camera inside the mesh..?
-	- [X] Filter so it doesn't clip to all entities.
-### Low Priority:
-* [X] // TODO: Fix the whole max shenanigan in shared.h,  because this is wrong... #undef max in svg_local.h etc_
-* [x] None
-### Lowest, nearly redundant Priority:
-* [ ] Remove the if statement for cl_batchcmds in the (client/input.c)``ready_to_send``_to re-enable the bug for batched commands movement. The bug is that pushers have a steady pattern of 'spiking', moving neatly 5 units a frame as expected up to suddenly the double.
+
+
+---
+## V0.0.6 TODO:
+These items are to be done before we can call it a day for v0.0.6.
+### Add:
+- [ ] Ensure the weapon model material is an actual 'chrome'/'metal' PBR material.
+### Fix:
+
+### Refactor/Rework:
+- [ ] Third-person player model animations.
+
+---
+## Generic TODO:
+
+
+### Common/Collision:
+#### Add:
+* [ ] None.
+#### Fix:
+* [ ] None.
+
+### VKPT:
+#### Add:
+* [ ] None.
+#### Fix:
+* [ ] None.
+
+### Client:
+#### Add:
+* [ ] Check client download.cpp and add in support for 'SPJ Ident' and 'SPJ Data' for the client to download.
+#### Fix:
+* [ ] None.
+
+### Server:
+#### Add:
+* [ ] When an entity is linked, recalculate its transform matrixes and hull.
+#### Fix:
+* [ ] None.
+
+### Client Game:
+#### Add:
+* [ ] A nice looking, decent HUD, which possibly will also serve its functionality for the currently boring crosshair.
+#### Fix:
+* [ ] None.
+
+### Server Game:
+#### Add:
+* [ ] Check client download.cpp and add in support for 'SPJ Ident' and 'SPJ Data' for the client to download.
+* [ ] Replace all cvar deathmatch/coop checks with svgame gamemode checks.
+	* [ ] Implement a sharedgame ``base`` gamemode structure, this is the base which will contain functionality necessary for both the client and servergame. 
+	* [ ] Each client/server game mode will inherit from the ``base``.
+* [ ] Add Save/Load support for the (optional) Lua's in-game mapState table data.
+#### Fix:
+* [ ] Player animations are still not nice...
+
 
 ---
 ## TODO v0.0.6:
-- [ ] - [ ] **Core/Generic/Code-Style/Important(DoNotForget)**:
+- [ ] **Core/Generic/Code-Style/Important(DoNotForget)**:
 	- [X] Fix Save/Load games, the state for client(mostly weaponry) seems to not be (re-)stored properly.
 		- [ ] Add Save/Load for the (optional) Lua's in-game mapState table data.
 		- [ ] Add in support for signal_argument_t array.

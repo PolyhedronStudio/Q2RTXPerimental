@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 void SetPlaneType(cm_plane_t *plane)
 {
+    #if 0
     vec_t *normal = plane->normal;
 
     if (normal[0] == 1) {
@@ -37,10 +38,36 @@ void SetPlaneType(cm_plane_t *plane)
     }
 
     plane->type = PLANE_NON_AXIAL;
+    #else
+    const float x = fabsf( plane->normal[0]);
+    if ( x > 1.f - FLT_EPSILON ) {
+        plane->type = PLANE_X;
+    }
+
+    const float y = fabsf( plane->normal[ 1 ] );
+    if ( y > 1.f - FLT_EPSILON ) {
+        plane->type = PLANE_Y;
+    }
+
+    const float z = fabsf( plane->normal[ 2 ] );
+    if ( z > 1.f - FLT_EPSILON ) {
+        plane->type = PLANE_Z;
+    }
+
+    if ( x >= y && x >= z ) {
+        plane->type = PLANE_ANYX;
+    }
+    if ( y >= x && y >= z ) {
+        plane->type = PLANE_ANYY;
+    }
+
+    plane->type = PLANE_ANYZ;
+    #endif
 }
 
 void SetPlaneSignbits(cm_plane_t *plane)
 {
+    #if 0
     int bits = 0;
 
     if (plane->normal[0] < 0) {
@@ -54,6 +81,17 @@ void SetPlaneSignbits(cm_plane_t *plane)
     }
 
     plane->signbits = bits;
+    #else
+    plane->signbits = 0;
+
+    for ( int32_t i = 0; i < 3; i++ ) {
+        if ( plane->normal[ i ] < 0.0f ) {
+            plane->signbits |= 1 << i;
+        }
+    }
+
+    //return bits;
+    #endif
 }
 
 /*
@@ -65,6 +103,7 @@ Returns 1, 2, or 1 + 2
 */
 int BoxOnPlaneSide(const vec3_t emins, const vec3_t emaxs, const cm_plane_t *p)
 {
+    #if 0
     const vec_t *bounds[2] = { emins, emaxs };
     int     i = p->signbits & 1;
     int     j = (p->signbits >> 1) & 1;
@@ -87,6 +126,67 @@ int BoxOnPlaneSide(const vec3_t emins, const vec3_t emaxs, const cm_plane_t *p)
         sides |= BOX_BEHIND;
 
     return sides;
+    #else
+    if ( p->type < 3) { 
+        if ( emins[ p->type ] - p->dist >= 0. ) {
+            return BOX_INFRONT;
+        }
+        if ( emaxs[ p->type ] - p->dist < 0. ) {
+            return BOX_BEHIND;
+        }
+        return BOX_INTERSECTS;
+    }
+
+    double dist1, dist2;
+    switch ( p->signbits ) {
+    case 0:
+        dist1 = QM_Vector3DotProduct( p->normal, emaxs );
+        dist2 = QM_Vector3DotProduct( p->normal, emins );
+        break;
+    case 1:
+        dist1 = p->normal[ 0 ] * emins[ 0 ] + p->normal[ 1 ] * emaxs[ 1 ] + p->normal[ 2 ] * emaxs[ 2 ];
+        dist2 = p->normal[ 0 ] * emaxs[ 0 ] + p->normal[ 1 ] * emins[ 1 ] + p->normal[ 2 ] * emins[2];
+        break;
+    case 2:
+        dist1 = p->normal[ 0 ] * emaxs[ 0 ] + p->normal[ 1 ] * emins[ 1 ] + p->normal[ 2 ] * emaxs[ 2 ];
+        dist2 = p->normal[ 0 ] * emins[ 0 ] + p->normal[ 1 ] * emaxs[ 1 ] + p->normal[ 2 ] * emins[2];
+        break;
+    case 3:
+        dist1 = p->normal[ 0 ] * emins[ 0 ] + p->normal[ 1 ] * emins[ 1 ] + p->normal[ 2 ] * emaxs[ 2 ];
+        dist2 = p->normal[ 0 ] * emaxs[ 0 ] + p->normal[ 1 ] * emaxs[ 1 ] + p->normal[ 2 ] * emins[ 2 ];
+        break;
+    case 4:
+        dist1 = p->normal[ 0 ] * emaxs[ 0 ] + p->normal[ 1 ] * emaxs[ 1 ] + p->normal[ 2 ] * emins[ 2 ];
+        dist2 = p->normal[ 0 ] * emins[ 0 ] + p->normal[ 1 ] * emins[ 1 ] + p->normal[ 2 ] * emaxs[ 2 ];
+        break;
+    case 5:
+        dist1 = p->normal[ 0 ] * emins[ 0 ] + p->normal[ 1 ] * emaxs[ 1 ] + p->normal[ 2 ] * emins[ 2 ];
+        dist2 = p->normal[ 0 ] * emaxs[ 0 ] + p->normal[ 1 ] * emins[ 1 ] + p->normal[ 2 ] * emaxs[ 2 ];
+        break;
+    case 6:
+        dist1 = p->normal[ 0 ] * emaxs[ 0 ] + p->normal[ 1 ] * emins[ 1 ] + p->normal[ 2 ] * emins[ 2 ];
+        dist2 = p->normal[ 0 ] * emins[ 0 ] + p->normal[ 1 ] * emaxs[ 1 ] + p->normal[ 2 ] * emaxs[ 2 ];
+        break;
+    case 7:
+        dist1 = QM_Vector3DotProduct( p->normal, emins );
+        dist2 = QM_Vector3DotProduct( p->normal, emaxs );
+        break;
+    default:
+        dist1 = dist2 = 0.0; // shut up compiler
+        break;
+    }
+
+    int32_t side = 0;
+
+    if ( dist1 - p->dist >= 0. ) {
+        side = BOX_INFRONT;
+    }
+    if ( dist2 - p->dist < 0. ) {
+        side |= BOX_BEHIND;
+    }
+
+    return side;
+    #endif
 }
 
 void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point, float degrees)

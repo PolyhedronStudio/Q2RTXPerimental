@@ -590,26 +590,31 @@ void SVG_RadiusDamage( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, 
     vec3_t  v;
     vec3_t  dir;
 
-    while ( ( ent = SVG_Entities_FindWithinRadius( ent, inflictor->s.origin, radius ) ) != NULL ) {
-        if ( ent == ignore )
+    while ( ( ent = SVG_Entities_FindWithinRadius( ent, inflictor->s.origin, radius ) ) != nullptr ) {
+		// Ensure that the entity is valid for damage processing.
+        if ( ent == ignore ) {
             continue;
-        if ( !ent->takedamage )
+        }
+        if ( ent->takedamage == DAMAGE_NO ) {
             continue;
-
+        }
+		// Get the distance from the inflictor to the entity's center.
         VectorAdd( ent->mins, ent->maxs, v );
         VectorMA( ent->s.origin, 0.5f, v, v );
         VectorSubtract( inflictor->s.origin, v, v );
+		// Calculate the amount of damage points to apply based on the distance.
         points = damage - 0.5f * VectorLength( v );
-        if ( ent == attacker )
+		// Half damage if the attacker is the same as the entity.
+        if ( ent == attacker ) {
             points = points * 0.5f;
+        }
+		// Only apply damage if the point count is greater than 0.
         if ( points > 0 ) {
-
+			// Make sure that the entity can be damaged.
             if ( SVG_CanDamage( ent, inflictor ) ) {
-                if ( ent->GetTypeInfo()->classTypeInfoID.GetID() == svg_monster_testdummy_t::ClassInfo.classTypeInfoID.GetID() ) {
-
-                    int x = 10;// continue;
-                }
+				// Determe the direction vector of the damage.
                 VectorSubtract( ent->s.origin, inflictor->s.origin, dir );
+				// Apply the damage to the entity.
                 SVG_TriggerDamage( ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, meansOfDeath );
             }
         }

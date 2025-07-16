@@ -627,7 +627,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
 *   @brief  Calculates additional offsets based on the bobCycle for both 
 *           viewOrigin and viewAngles(thus, additional client side kickangles).
 **/
-static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, const float lerpFraction ) {
+static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, const double lerpFraction ) {
     //clgi.Print( PRINT_DEVELOPER, "%s: cycle(%i), fracSin(%f), xySpeed(%f)\n", __func__, ps->bobCycle, level.viewBob.fracSin, level.viewBob.xySpeed );
 
     //run_pitch = gi.cvar( "run_pitch", "0.002", 0 );
@@ -933,17 +933,28 @@ static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_
         // do not send viewangles each frame
         const Vector3 lerpedAngles = QM_Vector3LerpAngles( pps->viewangles, ps->viewangles, lerpFraction );
         VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
+    
+    #if 1
+    // Use the local predicted player state view angles instead.
+    } else {
+        VectorCopy( pps->viewangles, clgi.client->refdef.viewangles );
+
+        //const Vector3 lerpedAngles = QM_Vector3LerpAngles( ps->viewangles, pps->viewangles, lerpFraction );
+        //VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
+    }
+    #else
     // Under any other circumstances, just use lerped angles from ops to ps.
     } else {
         const Vector3 lerpedAngles = QM_Vector3LerpAngles( ops->viewangles, ps->viewangles, lerpFraction );
         VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
     }
+    #endif
 }
 
 /**
 *   @brief  Smooth lerp the old and current player state delta angles.
 **/
-static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
+static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
     // Calculate delta angles between old and current player state.
     clgi.client->delta_angles = QM_Vector3AngleMod( QM_Vector3LerpAngles( ops->pmove.delta_angles, ps->pmove.delta_angles, lerpFrac ) );
 }
@@ -952,7 +963,7 @@ static void CLG_LerpDeltaAngles( player_state_t *ops, player_state_t *ps, const 
 /**
 *   @brief  Lerp the client's POV range.
 **/
-static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const float lerpFrac ) {
+static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
     // Amount of MS to lerp FOV over.
     static constexpr QMTime FOV_EASE_DURATION = 225_ms;
     static QMTime realTime = QMTime::FromMilliseconds( clgi.GetRealTime() );
@@ -1000,11 +1011,20 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
 /**
 *   @brief  Lerp the client's viewOffset.
 **/
-static void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const float lerpFrac, Vector3 &finalViewOffset ) {
+static void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const double lerpFrac, Vector3 &finalViewOffset ) {
+    player_state_t *pps = &game.predictedState.currentPs;
     if ( clgi.client->frame.valid ) {
+        #if 1
+        finalViewOffset = QM_Vector3Lerp( ps->viewoffset, pps->viewoffset, lerpFrac );
+        #else
         finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
+        #endif
     } else {
+        #if 1
+        finalViewOffset = pps->viewoffset; //finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );inalViewOffset = pps->viewoffset; //finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
+        #else
         finalViewOffset = ops->viewoffset; //finalViewOffset = QM_Vector3Lerp( ops->viewoffset, ps->viewoffset, lerpFrac );
+        #endif
     }
 }
 
@@ -1070,7 +1090,7 @@ void PF_CalculateViewValues( void ) {
         const double backLerp = lerpFrac - 1.0;
 
         //Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, 1.0 - clgi.client->xerpFraction );
-        Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
+        const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
         //VectorAdd( game.predictedState.cmd.prediction.origin, errorLerp, clgi.client->refdef.vieworg );
         //VectorAdd( game.predictedState.cmd.prediction.origin, errorLerp, clgi.client->refdef.vieworg );
         VectorAdd( game.predictedState.origin, errorLerp, clgi.client->refdef.vieworg );
@@ -1079,7 +1099,7 @@ void PF_CalculateViewValues( void ) {
         #endif
     } else {
         // Just use interpolated values.
-        Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
+        const Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
         VectorCopy( viewOrg, clgi.client->refdef.vieworg );
         
         // WID: NOTE: If things break, look for this here.
@@ -1092,9 +1112,11 @@ void PF_CalculateViewValues( void ) {
         #endif
     }
 
-    // Smooth out step offset.
-    CLG_SmoothStepOffset();
 
+    // <Q2RTXP>: Reasons are unclear at time of writing,
+    // but doing it here seems to be too smooth. As if stairs are a slope.
+    // Smooth out step offset.
+    //CLG_SmoothStepOffset();
     #if 0
     // use predicted values
     const double backLerp = 1.0 - lerpFrac;
@@ -1119,9 +1141,11 @@ void PF_CalculateViewValues( void ) {
     // Interpolate blend colors if the last frame wasn't clear.
     CLG_LerpScreenBlend( ops, ps, &game.predictedState );
     // Interpolate Field of View.
-    CLG_LerpPointOfView( ops, ps, lerpFrac );
+    CLG_LerpPointOfView( ops, ps, backLerp );
     // Lerp the view offset.
     CLG_LerpViewOffset( ops, ps, backLerp, finalViewOffset );
+    // Smooth out step offset.
+    CLG_SmoothStepOffset();
     // Smooth out the ducking view height change over 100ms
     finalViewOffset.z += CLG_SmoothViewHeight();
     #endif

@@ -25,12 +25,12 @@ const bool SG_IsValidGameModeType( const sg_gamemode_type_t gameModeType ) {
 *   @return True if the game mode is multiplayer.
 **/
 const bool SG_IsMultiplayerGameMode( const sg_gamemode_type_t gameModeType ) {
-	// All indices above GAMEMODE_SINGLEPLAYER are multiplayer modes.
-	if ( gameModeType > GAMEMODE_TYPE_SINGLEPLAYER && gameModeType < GAMEMODE_TYPE_MAX ) {
+	// All indices above and equal to GAMEMODE_TYPE_COOPERATIVE are multiplayer modes.
+	if ( gameModeType >= GAMEMODE_TYPE_COOPERATIVE && gameModeType < GAMEMODE_TYPE_MAX ) {
 		// Multiplayer mode.
 		return true;
 	}
-	// Singleplayer mode.
+	// (Singleplayer/Unknown)-mode.
 	return false;
 }
 /**

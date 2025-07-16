@@ -210,6 +210,42 @@ static void parse_entity_update(const entity_state_t *state)
         VectorClear( ent->maxs );
     }
 
+    #if 1
+    // Work around Q2PRO server bandwidth optimization.
+    if ( entity_is_optimized( state ) ) {
+        if ( cl.frame.number <= 0 ) {
+            VectorCopy( cl.frame.ps.pmove.origin, origin_v );
+        } else {
+            VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
+        }
+        origin = origin_v;
+    } else {
+        origin = state->origin;
+    }
+
+    // See if the entity is new for the current serverframe or not and base our next move on that.
+    if ( entity_is_new( ent ) ) {
+        // Wasn't in last update, so initialize some things.
+        entity_update_new( ent, state, origin );
+    } else {
+        // Was around, sp update some things.
+        entity_update_old( ent, state, origin );
+    }
+
+    // Assign last received server frame.
+    ent->serverframe = cl.frame.number;
+    // Assign new state.
+    ent->current = *state;
+
+    // Work around Q2PRO server bandwidth optimization.
+    if ( entity_is_optimized( state ) ) {
+        //if ( cl.frame.number <= 0 ) {
+            Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.frame.ps, &ent->current );
+        //} else {
+        //    Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
+        //}
+    }
+    #else
     // Work around Q2PRO server bandwidth optimization.
     if ( entity_is_optimized( state ) ) {
         //if ( cl.frame.number <= 0 ) {
@@ -244,6 +280,7 @@ static void parse_entity_update(const entity_state_t *state)
         //    Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current);
         //}
     }
+    #endif
 }
 
 /**

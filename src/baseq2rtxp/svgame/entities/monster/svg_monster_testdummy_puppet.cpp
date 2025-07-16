@@ -136,9 +136,9 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
     VectorCopy( svg_monster_testdummy_t::DUMMY_BBOX_STANDUP_MAXS, self->maxs );
 
     // Defaults:
-    if ( !self->mass ) {
+    //if ( !self->mass ) {
         self->mass = 200;
-    }
+    //}
     if ( !self->health ) {
         self->health = 200;
     }
@@ -247,24 +247,24 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 
             // Get the distance for the frame:
             #if 1
-                // WID: This is exact, but looks odd if you want faster paced gameplay.
-                //float distance = rootMotion->distances[ rootMotionFrame ];
-                // WID: This is quite 'average':
-                //float distance = ( rootMotion->totalDistance ) * ( 1.0f / rootMotion->frameCount );
-                // WID: Try and accustom to Velocity 'METHOD':
-                //*pflGroundSpeed = sqrt( pseqdesc->linearmovement[ 0 ] * pseqdesc->linearmovement[ 0 ] + pseqdesc->linearmovement[ 1 ] * pseqdesc->linearmovement[ 1 ] + pseqdesc->linearmovement[ 2 ] * pseqdesc->linearmovement[ 2 ] );
-                //*pflGroundSpeed = *pflGroundSpeed * pseqdesc->fps / ( pseqdesc->numframes - 1 );
+            // WID: This is exact, but looks odd if you want faster paced gameplay.
+            //float distance = rootMotion->distances[ rootMotionFrame ];
+            // WID: This is quite 'average':
+            //float distance = ( rootMotion->totalDistance ) * ( 1.0f / rootMotion->frameCount );
+            // WID: Try and accustom to Velocity 'METHOD':
+            //*pflGroundSpeed = sqrt( pseqdesc->linearmovement[ 0 ] * pseqdesc->linearmovement[ 0 ] + pseqdesc->linearmovement[ 1 ] * pseqdesc->linearmovement[ 1 ] + pseqdesc->linearmovement[ 2 ] * pseqdesc->linearmovement[ 2 ] );
+            //*pflGroundSpeed = *pflGroundSpeed * pseqdesc->fps / ( pseqdesc->numframes - 1 );
 
                 // WID: This one is solid from what I can tell right now.
             Vector3 translation = *rootMotion->translations[ rootMotionFrame ];
             double distance = std::sqrt( translation.x * translation.x +
                 translation.y * translation.y /*+ translation.z * translation.z*/ );
             // Unit distance per 'frame'.
-            double unitDistance = 8.;
+            double unitDistance = 24.;
             // Scale distance to frame count
-            distance = distance * ( 40. / rootMotion->frameCount - 1 );
+            //distance = distance * ( 40. / rootMotion->frameCount - 1 );
             // Scale distance to 'unit distance'.
-            distance = unitDistance * ( unitDistance / distance );
+            distance = distance * unitDistance;// / ( unitDistance / distance );
             #else
                 // WID: Works also, somewhat.
             #if 0
@@ -305,21 +305,41 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 self->trail_time = level.time;
             }
 
-            // Is done in MMove_StepSlideMove.
-            SVG_AddGravity( self );
-
             // Generate frame velocity vector.
-            Vector3 entityVelocity = self->velocity;
-            Vector3 frameVelocity = {
-                cos( self->s.angles[ YAW ] * QM_DEG2RAD ) * (double)distance,
-                sin( self->s.angles[ YAW ] * QM_DEG2RAD ) * (double)distance,
-                (double)entityVelocity.z
-            };
-            //// If not onground, zero out the frameVelocity.
-            //if ( self->groundInfo.entity == nullptr ) {
-            //    frameVelocity = self->velocity;
-            //}
+            Vector3 previousVelocity = self->velocity;
 
+
+
+            Vector3 wishDirVelocity = {
+                cos( self->s.angles[ YAW ] * QM_DEG2RAD ),
+                sin( self->s.angles[ YAW ] * QM_DEG2RAD ),
+                0.
+            };
+            //entityVelocity = entityVelocity + ( frameVelocity * distance );
+            Vector3 xyVec = QM_Vector3MultiplyAdd( self->velocity, distance, wishDirVelocity ) - self->velocity;
+            self->velocity.x = xyVec.x;
+            self->velocity.y = xyVec.y;
+            // Is done in MMove_StepSlideMove.
+            //SVG_AddGravity( self );
+            // If not onground, zero out the frameVelocity.
+            #if 0
+            if ( self->groundInfo.entity != nullptr ) {
+
+                const float currentspeed = QM_Vector3DotProduct( previousVelocity, wishDirVelocity );
+                const float addSpeed = QM_Vector3NormalizeLength( wishDirVelocity ) - currentspeed;
+                if ( addSpeed <= 0 ) {
+                    return;
+                }
+                float accelerationSpeed = distance * gi.frame_time_s * QM_Vector3NormalizeLength( wishDirVelocity );
+                if ( accelerationSpeed > addSpeed ) {
+                    accelerationSpeed = addSpeed;
+                }
+
+                Vector3 oldVelocity = self->velocity;
+                self->velocity = QM_Vector3MultiplyAdd( self->velocity, accelerationSpeed, wishDirVelocity );
+				wishDirVelocity = self->velocity - oldVelocity;
+            }
+            #endif
 
             // Setup the monster move structure.
             mm_move_t monsterMove = {
@@ -335,15 +355,15 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 .state = {
                     .mm_type = MM_NORMAL,
                     .mm_flags = ( self->groundInfo.entity != nullptr ? MMF_ON_GROUND : 0 ),
-                    .mm_time = 8,
+                    .mm_time = 0,
 
-                    .gravity = (int16_t)( sv_gravity->value * self->gravity ),
+                    .gravity = (int16_t)( self->gravity * sv_gravity->value ),
 
                     .origin = self->s.origin,
-                    .velocity = frameVelocity,
+                    .velocity = self->velocity,
 
                     .previousOrigin = self->s.origin,
-                    .previousVelocity = self->velocity,
+                    .previousVelocity = previousVelocity,
                 },
 
                 // Proper ground and liquid information.
