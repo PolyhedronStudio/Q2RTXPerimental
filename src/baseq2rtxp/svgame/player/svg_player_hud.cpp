@@ -14,6 +14,7 @@
 
 #include "sharedgame/sg_gamemode.h"
 
+#include "svgame/svg_gamemode.h"
 
 
 /***

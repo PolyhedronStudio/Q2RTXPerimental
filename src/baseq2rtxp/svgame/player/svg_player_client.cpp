@@ -14,6 +14,7 @@
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/svg_commands_server.h"
+#include "svgame/svg_gamemode.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_utils.h"
 

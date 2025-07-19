@@ -49,9 +49,9 @@ struct svg_game_locals_t {
     int32_t             maxclients = 0;
     int32_t             maxentities = 0;
 	//! The gamemode type.
-    sg_gamemode_type_t  gameModeType = ( sg_gamemode_type_t)0;
+    sg_gamemode_type_t  gameModeType = ( sg_gamemode_type_t )0;
     //! The gamemode type matching object.
-	sg_igamemode_t *mode = nullptr;
+    svg_gamemode_t *mode = nullptr;
 
     //! Cross level triggers.
     crosslevel_target_flags_t serverflags = SFL_CROSS_TRIGGER_NONE;

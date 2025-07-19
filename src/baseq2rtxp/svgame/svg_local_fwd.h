@@ -72,8 +72,12 @@ struct mm_ground_info_t;
 struct mm_liquid_info_t;
 
 //
-// Game/Level Locals:
+// Game/Level Mode & Locals:
 //
+struct svg_gamemode_t;
+struct svg_gamemode_singleplayer_t;
+struct svg_gamemode_cooperative_t;
+struct svg_gamemode_deathmatch_t;
 struct svg_game_locals_t;
 struct svg_level_locals_t;
 

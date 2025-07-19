@@ -419,10 +419,10 @@ void Com_Error(error_type_t type, const char *fmt, ...)
 
 /*
 =================
-ClientEndServerFrames
+EndClientServerFrames
 =================
 */
-void ClientEndServerFrames(void)
+void EndClientServerFrames(void)
 {
     int     i;
     edict_t *ent;
@@ -703,6 +703,6 @@ void G_RunFrame(void)
     CheckNeedPass();
 
     // build the playerstate_t structures for all players
-    ClientEndServerFrames();
+    EndClientServerFrames();
 }
 

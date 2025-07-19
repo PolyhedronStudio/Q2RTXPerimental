@@ -9,9 +9,9 @@
 
 
 
-//
-// g_gamemode.cpp
-//
+/**
+*	@brief	Enumeration of all game modes.
+**/
 typedef enum sg_gamemode_type_e {
 	//! If you ever get this value, something is badly wrong.
 	GAMEMODE_TYPE_UNKNOWN = -1,
@@ -29,9 +29,9 @@ typedef enum sg_gamemode_type_e {
 } sg_gamemode_type_t;
 
 /**
-*	@brief	Gamemode base interface.
+*	@brief	Gamemode base object.
 **/
-struct sg_igamemode_t {
+struct sg_gamemode_base_t {
 	/**
 	*   @brief  Returns the game mode type.
 	**/
@@ -44,155 +44,7 @@ struct sg_igamemode_t {
 	*   @brief  Returns the game mode description.
 	**/
 	virtual const char *GetGameModeDescription() const = 0;
-
-	/**
-	*	@brief	Returns true if this gamemode is one of the multiplayer gamemodes.
-	**/
-	virtual const bool IsMultiplayer() const = 0;
-	/**
-	*	@brief	Returns true if this gamemode allows saving the game.
-	**/
-	virtual const bool AllowSaveGames() const = 0;
-
-	/**
-	*	@brief	Called once by client during connection to the server. Called once by
-	*			the server when a new game is started.
-	**/
-	virtual void PrepareCVars() = 0;
 };
-
-
-/**
-*
-*
-*
-*	SinglePlayer GameMode(Also the default for Unknown ID -1):
-*
-*
-*
-**/
-struct sg_singleplayer_gamemode_t : public sg_igamemode_t {
-	/**
-	*   @brief  Returns the game mode type.
-	**/
-	const sg_gamemode_type_t GetGameModeType() const override { return GAMEMODE_TYPE_SINGLEPLAYER; }
-	/**
-	*   @brief  Returns the game mode name.
-	**/
-	const char *GetGameModeName() const override { return "SinglePlayer"; }
-	/**
-	*   @brief  Returns the game mode description.
-	**/
-	const char *GetGameModeDescription() const override { return "Play through a singleplayer adventure."; }
-
-	/**
-	*	@brief	Returns true if this gamemode is one of the multiplayer gamemodes.
-	**/
-	const bool IsMultiplayer() const override { return false; }
-	/**
-	*	@brief	Returns true if this gamemode allows saving the game.
-	**/
-	const bool AllowSaveGames() const override; // Singleplayer allows saving games.
-
-	/**
-	*	@brief	Called once by client during connection to the server. Called once by
-	*			the server when a new game is started.
-	**/
-	virtual void PrepareCVars() override { };
-};
-
-
-
-/**
-*
-*
-*
-*	Cooperative GameMode:
-*
-*
-*
-**/
-struct sg_cooperative_gamemode_t : public sg_igamemode_t {
-	/**
-	*   @brief  Returns the game mode type.
-	**/
-	const sg_gamemode_type_t GetGameModeType() const override { return GAMEMODE_TYPE_COOPERATIVE; }
-	/**
-	*   @brief  Returns the game mode name.
-	**/
-	const char *GetGameModeName() const override { return "Cooperative"; }
-	/**
-	*   @brief  Returns the game mode description.
-	**/
-	const char *GetGameModeDescription() const override { return "Play with other clients against monsters."; }
-
-	/**
-	*	@brief	Returns true if this gamemode is one of the multiplayer gamemodes.
-	**/
-	const bool IsMultiplayer() const override { return true; }
-	/**
-	*	@brief	Returns true if this gamemode allows saving the game.
-	**/
-	const bool AllowSaveGames() const override; // Cooperative allows saving games.
-
-	/**
-	*	@brief	Called once by client during connection to the server. Called once by
-	*			the server when a new game is started.
-	**/
-	virtual void PrepareCVars() override { };
-};
-
-
-/**
-*
-*
-*
-*	DeathMatch GameMode:
-*
-*
-*
-**/
-struct sg_deathmatch_gamemode_t : public sg_igamemode_t {
-	/**
-	*   @brief  Returns the game mode type.
-	**/
-	const sg_gamemode_type_t GetGameModeType() const override { return GAMEMODE_TYPE_DEATHMATCH; }
-	/**
-	*   @brief  Returns the game mode name.
-	**/
-	const char *GetGameModeName() const override { return "Deathmatch"; }
-	/**
-	*   @brief  Returns the game mode description.
-	**/
-	const char *GetGameModeDescription() const override { return "Play versus other clients."; }
-
-	/**
-	*	@brief	Returns true if this gamemode is one of the multiplayer gamemodes.
-	**/
-	const bool IsMultiplayer() const override { return true; }
-	/**
-	*	@brief	Returns true if this gamemode allows saving the game.
-	**/
-	const bool AllowSaveGames() const override;	// Deathmatch does not allow saving games.
-
-	/**
-	*	@brief	Called once by client during connection to the server. Called once by
-	*			the server when a new game is started.
-	**/
-	virtual void PrepareCVars() override { };
-};
-
-
-
-/**
-*
-*
-*
-*	Team DeathMatch GameMode:
-*
-*
-*
-**/
 
 
 

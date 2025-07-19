@@ -63,42 +63,42 @@ QMTime FRAME_TIME_MS;
 int sm_meat_index;
 
 //! THIS!! is the ACTUAL ARRAY for STORING the EDICTS. (Also referred to by the term entities.)
-svg_base_edict_t **g_edicts;
+svg_base_edict_t **g_edicts = nullptr;
 //! Memory Pool for entities.
-svg_edict_pool_t g_edict_pool;
+svg_edict_pool_t g_edict_pool = {};
 
 // WID: gamemode support:
-cvar_t *dedicated;
-cvar_t *password;
-cvar_t *spectator_password;
-cvar_t *needpass;
-cvar_t *filterban;
+cvar_t *dedicated = nullptr;
+cvar_t *password = nullptr;
+cvar_t *spectator_password = nullptr;
+cvar_t *needpass = nullptr;
+cvar_t *filterban = nullptr;
 
-cvar_t *maxclients;
-cvar_t *maxspectators;
-cvar_t *maxentities;
-cvar_t *nomonsters;
-cvar_t *aimfix;
+cvar_t *maxclients = nullptr;
+cvar_t *maxspectators = nullptr;
+cvar_t *maxentities = nullptr;
+cvar_t *nomonsters = nullptr;
+cvar_t *aimfix = nullptr;
 
-cvar_t *gamemode;
-cvar_t *deathmatch;
-cvar_t *coop;
-cvar_t *dmflags;
-cvar_t *skill;
-cvar_t *fraglimit;
-cvar_t *timelimit;
+cvar_t *gamemode = nullptr;
+cvar_t *deathmatch = nullptr;
+cvar_t *coop = nullptr;
+cvar_t *dmflags = nullptr;
+cvar_t *skill = nullptr;
+cvar_t *fraglimit = nullptr;
+cvar_t *timelimit = nullptr;
 
-cvar_t *sv_cheats;
-cvar_t *sv_flaregun;
-cvar_t *sv_maplist;
-cvar_t *sv_features;
+cvar_t *sv_cheats = nullptr;
+cvar_t *sv_flaregun = nullptr;
+cvar_t *sv_maplist = nullptr;
+cvar_t *sv_features = nullptr;
 
-cvar_t *sv_airaccelerate;
-cvar_t *sv_maxvelocity;
-cvar_t *sv_gravity;
+cvar_t *sv_airaccelerate = nullptr;
+cvar_t *sv_maxvelocity = nullptr;
+cvar_t *sv_gravity = nullptr;
 
-cvar_t *sv_rollspeed;
-cvar_t *sv_rollangle;
+cvar_t *sv_rollspeed = nullptr;
+cvar_t *sv_rollangle = nullptr;
 
 // Moved to CLGame.
 //cvar_t *gun_x;
@@ -112,11 +112,11 @@ cvar_t *sv_rollangle;
 //cvar_t *bob_pitch;
 //cvar_t *bob_roll;
 
-cvar_t *flood_msgs;
-cvar_t *flood_persecond;
-cvar_t *flood_waitdelay;
+cvar_t *flood_msgs = nullptr;
+cvar_t *flood_persecond = nullptr;
+cvar_t *flood_waitdelay = nullptr;
 
-cvar_t *g_select_empty;
+cvar_t *g_select_empty = nullptr;
 
 //
 // Func Declarations:
@@ -160,200 +160,6 @@ static void cvar_sv_gamemode_changed( cvar_t *self ) {
     }
 }
 #endif
-/**
-*	@brief	This will be called when the dll is first loaded, which
-*			only happens when a new game is started or a save game
-*			is loaded from the main menu without having a game running
-*			in the background.
-**/
-void SVG_PreInitGame( void ) {
-	// Notify 
-	gi.dprintf( "==== PreInit ServerGame ====\n" );
-
-    // Setup the Edict Class TypeInfo system.
-    EdictTypeInfo::InitializeTypeInfoRegistry();
-
-	// Initialize the game local's movewith array.
-    game.moveWithEntities = static_cast<svg_game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
-    memset( game.moveWithEntities, 0, sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
-
-	maxclients = gi.cvar( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH );
-	maxspectators = gi.cvar( "maxspectators", "4", CVAR_SERVERINFO );
-
-	// 0 = SinglePlayer, 1 = Coop, 2 = DeathMatch.
-	gamemode = gi.cvar( "gamemode", nullptr, 0 );
-    //gamemode->changed = cvar_sv_gamemode_changed;
-
-	// The following is to for now keep code compatability.
-	deathmatch = gi.cvar( "deathmatch", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );
-	gi.cvar_forceset( "deathmatch", "0" );
-	coop = gi.cvar( "coop", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );
-	gi.cvar_forceset( "coop", "0" );
-
-	// These are possibily game mode related also.
-	nomonsters = gi.cvar( "nomonsters", "0", 0 );
-	skill = gi.cvar( "skill", "1", CVAR_LATCH );
-    maxentities = gi.cvar( "maxentities", std::to_string( MAX_EDICTS ).c_str(), CVAR_LATCH);
-	dmflags = gi.cvar( "dmflags", "0", CVAR_SERVERINFO );
-	fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
-	timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );
-    sv_airaccelerate = gi.cvar( "sv_airaccelerate", "0", CVAR_SERVERINFO | CVAR_LATCH );
-    sv_airaccelerate->changed = cvar_sv_airaccelerate_changed;
-    // Force set its value so the config string gets updated accordingly.
-    //gi.cvar_forceset( "sv_airaccelerate", "0" );
-	// Air acceleration defaults to 0 and is only set for DM mode.
-	//gi.configstring( CS_AIRACCEL, "0" );
-
-    // Get the current gamemode type.
-    sg_gamemode_type_t requestedGameModeType = SG_GetRequestedGameModeType();
-	// Allocate a matching game mode object based on the gamemode type.
-	game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
-    if ( !game.mode ) {
-        // Invalid gamemode, default to singleplayer.
-        game.gameModeType = requestedGameModeType = GAMEMODE_TYPE_SINGLEPLAYER;
-		game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
-    }
-    // Give it a chance to prepare any CVars that it needs to set up.
-	game.mode->PrepareCVars();
-
-    // Get its corresponding name.
-    const char *gameModeName = SG_GetGameModeName( requestedGameModeType );
-    // Output the game mode type, and the maximum clients allowed for this session.
-    gi.dprintf( "[GameMode(#%d): %s][maxclients=%d]\n", 
-        requestedGameModeType, gameModeName, maxclients->integer );
-}
-
-/**
-*	@brief	Called after PreInitGame when the game has set up gamemode specific cvars.
-**/
-void SVG_InitGame( void )
-{
-	// Notify 
-    gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
-				SG_GetGameModeName( static_cast<const sg_gamemode_type_t>( gamemode->integer ) ), maxclients->integer, maxspectators->integer, maxentities->integer );
-
-    game.maxclients = maxclients->integer;
-    game.maxentities = maxentities->integer;
-
-	// C Random time initializing.
-    Q_srand(time(NULL));
-	
-	// seed RNG
-	mt_rand.seed( (uint32_t)std::chrono::system_clock::now( ).time_since_epoch( ).count( ) );
-
-    //FIXME: sv_ prefix is wrong for these
-    sv_rollspeed = gi.cvar("sv_rollspeed", "200", 0);
-    sv_rollangle = gi.cvar("sv_rollangle", "2", 0);
-    sv_maxvelocity = gi.cvar("sv_maxvelocity", "2000", 0);
-    sv_gravity = gi.cvar("sv_gravity", "800", 0);
-
-    // noset vars
-    dedicated = gi.cvar("dedicated", "0", CVAR_NOSET);
-
-    aimfix = gi.cvar("aimfix", "0", CVAR_ARCHIVE);
-
-    // latched vars
-    sv_cheats = gi.cvar("cheats", "0", CVAR_SERVERINFO | CVAR_LATCH);
-    gi.cvar("gamename", GAMEVERSION , CVAR_SERVERINFO | CVAR_LATCH);
-    gi.cvar("gamedate", __DATE__ , CVAR_SERVERINFO | CVAR_LATCH);
-
-    // change anytime vars
-	password = gi.cvar("password", "", CVAR_USERINFO);
-    spectator_password = gi.cvar("spectator_password", "", CVAR_USERINFO);
-    needpass = gi.cvar("needpass", "0", CVAR_SERVERINFO);
-    filterban = gi.cvar("filterban", "1", 0);
-
-    g_select_empty = gi.cvar("g_select_empty", "0", CVAR_ARCHIVE);
-
-    // flood control
-    flood_msgs = gi.cvar("flood_msgs", "4", 0);
-    flood_persecond = gi.cvar("flood_persecond", "4", 0);
-    flood_waitdelay = gi.cvar("flood_waitdelay", "10", 0);
-
-    // dm map list
-    sv_maplist = gi.cvar("sv_maplist", "", 0);
-
-    // obtain server features
-    sv_features = gi.cvar("sv_features", NULL, 0);
-
-	// flare gun switch: 
-	//   0 = no flare gun
-	//   1 = spawn with the flare gun
-	//   2 = spawn with the flare gun and some grenades
-	sv_flaregun = gi.cvar("sv_flaregun", "2", 0);
-
-    // export our own features
-    gi.cvar_forceset("g_features", va("%d", SVG_FEATURES));
-    
-    // In case we've modified air acceleration, update the config string.
-    //gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
-    // Update air acceleration config string.
-    //if ( COM_IsUint( sv_airaccelerate->string ) || COM_IsFloat( sv_airaccelerate->string ) ) {
-    //    gi.configstring( CS_AIRACCEL, sv_airaccelerate->string );
-    //} else {
-    //    gi.configstring( CS_AIRACCEL, "0" );
-    //}
-
-
-    // Clamp maxentities within valid range.
-    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
-    // initialize all clients for this game
-    game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
-    
-    // Clear the edict pool in case any previous data was there.
-    //g_edicts = SVG_EdictPool_Release( &g_edict_pool );
-    // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
-    g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
-    // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
-    g_edict_pool.num_edicts = game.maxclients + 1;
-
-    // Initialize a fresh clients array.
-    game.clients = SVG_Clients_Reallocate( game.maxclients );
-
-    // Set client fields on player entities.
-    for ( int32_t i = 0; i < game.maxclients; i++ ) {
-        // Assign this entity to the designated client.
-        //g_edicts[ i + 1 ]->client = game.clients + i;
-        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
-        ent->client = &game.clients[ i ];
-
-        // Assign client number.
-        //ent->client->clientNum = i;
-
-        //// Set their states as disconnected, unspawned, since the level is switching.
-        game.clients[ i ].pers.connected = false;
-        game.clients[ i ].pers.spawned = false;
-    }
-}
-
-/**
-*	@brief	This will be called when the dll is first loaded, which
-*			only happens when a new game is started or a save game
-*			is loaded from the main menu without having a game running
-*			in the background.
-**/
-void SVG_ShutdownGame( void ) {
-    // Notify of shutdown.
-    gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
-
-    // Shutdown the Lua VM.
-    SVG_Lua_Shutdown();
-
-    // Free game mode object.
-	// game.mode->Shutdown();
-    delete game.mode;
-	game.mode = nullptr;
-
-    // Free level, lua AND the game module its allocated ram.
-    //gi.FreeTags( TAG_SVGAME_LUA );
-    //SVG_EdictPool_Release( &g_edict_pool );
-    gi.FreeTags( TAG_SVGAME_EDICTS );//SVG_EdictPool_Release( &g_edict_pool );
-    gi.FreeTags( TAG_SVGAME_LEVEL );
-    gi.FreeTags( TAG_SVGAME );
-
-    // Notify of shutdown.
-    gi.dprintf( "==== ServerGame Shutdown ====\n" );
-}
 
 
 
@@ -395,6 +201,10 @@ const int32_t _Exports_SG_GetRequestedGameModeType() {
 const char *_Exports_SG_GetGameModeName( const int32_t gameModeType ) {
     return SG_GetGameModeName( static_cast<const sg_gamemode_type_t>( gameModeType ) );
 }
+
+void SVG_PreInitGame( void );
+void SVG_InitGame( void );
+void SVG_ShutdownGame( void );
 
 /**
 *	@brief	Returns a pointer to the structure with all entry points
@@ -488,95 +298,200 @@ void Com_Error(error_type_t type, const char *fmt, ...)
 }
 #endif
 
-//======================================================================
 
+
+/**
+*	@brief	This will be called when the dll is first loaded, which
+*			only happens when a new game is started or a save game
+*			is loaded from the main menu without having a game running
+*			in the background.
+**/
+void SVG_PreInitGame( void ) {
+    // Notify 
+    gi.dprintf( "==== PreInit ServerGame ====\n" );
+
+    // Setup the Edict Class TypeInfo system.
+    EdictTypeInfo::InitializeTypeInfoRegistry();
+
+    // Initialize the game local's movewith array.
+    game.moveWithEntities = static_cast<svg_game_locals_t::game_locals_movewith_t *>( gi.TagMalloc( sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS, TAG_SVGAME ) );
+    memset( game.moveWithEntities, 0, sizeof( svg_game_locals_t::game_locals_movewith_t ) * MAX_EDICTS );
+
+    maxclients = gi.cvar( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH );
+    maxentities = gi.cvar( "maxentities", std::to_string( MAX_EDICTS ).c_str(), CVAR_LATCH );
+    maxspectators = gi.cvar( "maxspectators", "4", CVAR_SERVERINFO );
+
+    // 0 = SinglePlayer, 1 = Coop, 2 = DeathMatch.
+    gamemode = gi.cvar( "gamemode", nullptr, 0 );
+    //gamemode->changed = cvar_sv_gamemode_changed;
+
+    // The following is to for now keep code compatability.
+    deathmatch = gi.cvar( "deathmatch", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );
+    gi.cvar_forceset( "deathmatch", "0" );
+    coop = gi.cvar( "coop", "0", CVAR_SERVERINFO | CVAR_LATCH | CVAR_ROM );
+    gi.cvar_forceset( "coop", "0" );
+
+    // These are possibily game mode related also.
+    nomonsters = gi.cvar( "nomonsters", "0", 0 );
+    skill = gi.cvar( "skill", "1", CVAR_LATCH );
+    dmflags = gi.cvar( "dmflags", "0", CVAR_SERVERINFO );
+    fraglimit = gi.cvar( "fraglimit", "0", CVAR_SERVERINFO );
+    timelimit = gi.cvar( "timelimit", "0", CVAR_SERVERINFO );
+    sv_airaccelerate = gi.cvar( "sv_airaccelerate", "0", CVAR_SERVERINFO | CVAR_LATCH );
+    sv_airaccelerate->changed = cvar_sv_airaccelerate_changed;
+    // Force set its value so the config string gets updated accordingly.
+    //gi.cvar_forceset( "sv_airaccelerate", "0" );
+    // Air acceleration defaults to 0 and is only set for DM mode.
+    //gi.configstring( CS_AIRACCEL, "0" );
+}
+
+/**
+*	@brief	Called after PreInitGame when the game has set up gamemode specific cvars.
+**/
+void SVG_InitGame( void ) {
+    // Notify 
+    gi.dprintf( "==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
+        SG_GetGameModeName( static_cast<const sg_gamemode_type_t>( gamemode->integer ) ), maxclients->integer, maxspectators->integer, maxentities->integer );
+
+    game.maxclients = maxclients->integer;
+    game.maxentities = maxentities->integer;
+
+    // C Random time initializing.
+    Q_srand( time( NULL ) );
+
+    // seed RNG
+    mt_rand.seed( (uint32_t)std::chrono::system_clock::now().time_since_epoch().count() );
+
+    //FIXME: sv_ prefix is wrong for these
+    sv_rollspeed = gi.cvar( "sv_rollspeed", "200", 0 );
+    sv_rollangle = gi.cvar( "sv_rollangle", "2", 0 );
+    sv_maxvelocity = gi.cvar( "sv_maxvelocity", "2000", 0 );
+    sv_gravity = gi.cvar( "sv_gravity", "800", 0 );
+
+    // noset vars
+    dedicated = gi.cvar( "dedicated", "0", CVAR_NOSET );
+
+    aimfix = gi.cvar( "aimfix", "0", CVAR_ARCHIVE );
+
+    // latched vars
+    sv_cheats = gi.cvar( "cheats", "0", CVAR_SERVERINFO | CVAR_LATCH );
+    gi.cvar( "gamename", GAMEVERSION, CVAR_SERVERINFO | CVAR_LATCH );
+    gi.cvar( "gamedate", __DATE__, CVAR_SERVERINFO | CVAR_LATCH );
+
+    // change anytime vars
+    password = gi.cvar( "password", "", CVAR_USERINFO );
+    spectator_password = gi.cvar( "spectator_password", "", CVAR_USERINFO );
+    needpass = gi.cvar( "needpass", "0", CVAR_SERVERINFO );
+    filterban = gi.cvar( "filterban", "1", 0 );
+
+    g_select_empty = gi.cvar( "g_select_empty", "0", CVAR_ARCHIVE );
+
+    // flood control
+    flood_msgs = gi.cvar( "flood_msgs", "4", 0 );
+    flood_persecond = gi.cvar( "flood_persecond", "4", 0 );
+    flood_waitdelay = gi.cvar( "flood_waitdelay", "10", 0 );
+
+    // dm map list
+    sv_maplist = gi.cvar( "sv_maplist", "", 0 );
+
+    // obtain server features
+    sv_features = gi.cvar( "sv_features", NULL, 0 );
+
+    // flare gun switch: 
+    //   0 = no flare gun
+    //   1 = spawn with the flare gun
+    //   2 = spawn with the flare gun and some grenades
+    sv_flaregun = gi.cvar( "sv_flaregun", "2", 0 );
+
+    // export our own features
+    gi.cvar_forceset( "g_features", va( "%d", SVG_FEATURES ) );
+
+    // In case we've modified air acceleration, update the config string.
+    //gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
+    // Update air acceleration config string.
+    //if ( COM_IsUint( sv_airaccelerate->string ) || COM_IsFloat( sv_airaccelerate->string ) ) {
+    //    gi.configstring( CS_AIRACCEL, sv_airaccelerate->string );
+    //} else {
+    //    gi.configstring( CS_AIRACCEL, "0" );
+    //}
+
+
+    // Clamp maxentities within valid range.
+    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
+    // initialize all clients for this game
+    game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
+
+    // Clear the edict pool in case any previous data was there.
+    //g_edicts = SVG_EdictPool_Release( &g_edict_pool );
+    // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
+    g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
+    // Set the number of edicts to the maxclients + 1 (Encounting for the world at slot #0).
+    g_edict_pool.num_edicts = game.maxclients + 1;
+
+    // Initialize a fresh clients array.
+    game.clients = SVG_Clients_Reallocate( game.maxclients );
+
+    // Set client fields on player entities.
+    for ( int32_t i = 0; i < game.maxclients; i++ ) {
+        // Assign this entity to the designated client.
+        //g_edicts[ i + 1 ]->client = game.clients + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+        ent->client = &game.clients[ i ];
+
+        // Assign client number.
+        //ent->client->clientNum = i;
+
+        //// Set their states as disconnected, unspawned, since the level is switching.
+        game.clients[ i ].pers.connected = false;
+        game.clients[ i ].pers.spawned = false;
+    }
+}
+
+/**
+*	@brief	This will be called when the dll is first loaded, which
+*			only happens when a new game is started or a save game
+*			is loaded from the main menu without having a game running
+*			in the background.
+**/
+void SVG_ShutdownGame( void ) {
+    // Notify of shutdown.
+    gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
+
+    // Shutdown the Lua VM.
+    SVG_Lua_Shutdown();
+
+    // Free game mode object.
+    // game.mode->Shutdown();
+    delete game.mode;
+    game.mode = nullptr;
+
+    // Free level, lua AND the game module its allocated ram.
+    //gi.FreeTags( TAG_SVGAME_LUA );
+    //SVG_EdictPool_Release( &g_edict_pool );
+    gi.FreeTags( TAG_SVGAME_EDICTS );//SVG_EdictPool_Release( &g_edict_pool );
+    gi.FreeTags( TAG_SVGAME_LEVEL );
+    gi.FreeTags( TAG_SVGAME );
+
+    // Notify of shutdown.
+    gi.dprintf( "==== ServerGame Shutdown ====\n" );
+}
+
+//======================================================================
 
 /**
 *   @brief 
 **/
-void ClientEndServerFrames(void) {
+void EndClientServerFrames(void) {
     // calc the player views now that all pushing
     // and damage has been added
     for ( int32_t i = 0 ; i < maxclients->value ; i++) {
-        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
         if ( !ent || !ent->inuse || !ent->client ) {
             continue;
         }
         SVG_Client_EndServerFrame(ent);
     }
 
-}
-
-/**
-*   @brief  Returns the created target changelevel
-**/
-svg_base_edict_t *CreateTargetChangeLevel( char *map ) {
-    svg_base_edict_t *ent;
-
-    ent = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
-    ent->classname = "target_changelevel";
-    if ( map != level.nextmap ) {
-        Q_strlcpy( level.nextmap, map, sizeof( level.nextmap ) );
-    }
-    ent->map = level.nextmap;
-    return ent;
-}
-
-/**
-*   @brief  The timelimit or fraglimit has been exceeded
-**/
-void EndDMLevel(void) {
-    svg_base_edict_t     *ent;
-    char *s, *t, *f;
-    static const char *seps = " ,\n\r";
-
-    // stay on same level flag
-    if ((int)dmflags->value & DF_SAME_LEVEL) {
-        SVG_HUD_BeginIntermission(CreateTargetChangeLevel(level.mapname));
-        return;
-    }
-
-    // see if it's in the map list
-    if (*sv_maplist->string) {
-        s = strdup(sv_maplist->string);
-        f = NULL;
-        t = strtok(s, seps);
-        while (t != NULL) {
-            if (Q_stricmp(t, level.mapname) == 0) {
-                // it's in the list, go to the next one
-                t = strtok(NULL, seps);
-                if (t == NULL) { // end of list, go to first one
-                    if ( f == NULL ) {// there isn't a first one, same level
-                        SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.mapname ) );
-                    } else {
-                        SVG_HUD_BeginIntermission( CreateTargetChangeLevel( f ) );
-                    }
-                } else {
-                    SVG_HUD_BeginIntermission( CreateTargetChangeLevel( t ) );
-                }
-                free(s);
-                return;
-            }
-            if ( !f ) {
-                f = t;
-            }
-            t = strtok(NULL, seps);
-        }
-        free(s);
-    }
-
-    if ( level.nextmap[ 0 ] ) {// go to a specific map
-        SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.nextmap ) );
-    } else {  // search for a changelevel
-        ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "target_changelevel" );
-        if (!ent) {
-            // the map designer didn't include a changelevel,
-            // so create a fake ent that goes back to the same level
-            SVG_HUD_BeginIntermission( CreateTargetChangeLevel( level.mapname ) );
-            return;
-        }
-        SVG_HUD_BeginIntermission( ent );
-    }
 }
 
 /**
@@ -604,77 +519,6 @@ void CheckNeedPass(void) {
 }
 
 /**
-*   @brief
-**/
-void CheckDMRules(void) {
-    int         i;
-    svg_client_t   *cl;
-
-    if ( level.intermissionFrameNumber ) {
-        return;
-    }
-
-    if ( !deathmatch->value ) {
-        return;
-    }
-
-    if (timelimit->value) {
-        if (level.time >= QMTime::FromMinutes( timelimit->value * 60 ) ) {
-            gi.bprintf(PRINT_HIGH, "Timelimit hit.\n");
-            EndDMLevel();
-            return;
-        }
-    }
-
-    if (fraglimit->value) {
-        for (i = 0 ; i < maxclients->value ; i++) {
-            cl = &game.clients[ i ];
-			svg_base_edict_t *cledict = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
-            if ( !cledict || !cledict->inuse ) {
-                continue;
-            }
-
-            if (cl->resp.score >= fraglimit->value) {
-                gi.bprintf(PRINT_HIGH, "Fraglimit hit.\n");
-                EndDMLevel();
-                return;
-            }
-        }
-    }
-}
-
-/**
-*   @brief
-**/
-void ExitLevel(void) {
-    int     i;
-    svg_base_edict_t *ent;
-    char    command [256];
-
-    // WID: LUA: CallBack.
-    SVG_Lua_CallBack_ExitMap();
-
-	// Generate the command string to change the map.
-    Q_snprintf(command, sizeof(command), "gamemap \"%s\"\n", (const char*)level.changemap);
-    gi.AddCommandString(command);
-    level.changemap = NULL;
-    level.exitintermission = 0;
-    level.intermissionFrameNumber = 0;
-
-    // Clear some things before going to next level.
-    for ( i = 0; i < maxclients->value; i++ ) {
-        ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts + 1 + i;
-        if ( !ent || !ent->inuse ) {
-            continue;
-        }
-        if ( ent->health > ent->client->pers.max_health ) {
-            ent->health = ent->client->pers.max_health;
-        }
-    }
-
-}
-
-/**
 *   @brief  Advances the world by FRAME_TIME_MS seconds
 **/
 void SVG_RunFrame(void) {
@@ -693,11 +537,15 @@ void SVG_RunFrame(void) {
     // WID: TODO: Monster Reimplement.
     //AI_SetSightClient();
 
+    #if 0
     // Exit intermissions.
     if ( level.exitintermission ) {
         ExitLevel();
         return;
     }
+    #else
+    game.mode->PreCheckGameRuleConditions();
+    #endif
 
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_BeginServerFrame();
@@ -773,14 +621,15 @@ void SVG_RunFrame(void) {
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_RunFrame();
 
-    // see if it is time to end a deathmatch
-    CheckDMRules();
+    // Give the gamemode a chance to run its own logic to determine whether to
+	// engage into some game mode specific behavior.
+    game.mode->PostCheckGameRuleConditions();
 
     // see if needpass needs updated
     CheckNeedPass();
 
     // build the playerstate_t structures for all players
-    ClientEndServerFrames();
+    EndClientServerFrames();
 
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_EndServerFrame();

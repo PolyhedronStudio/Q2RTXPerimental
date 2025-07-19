@@ -12,56 +12,6 @@
 
 
 
-/**
-*
-*
-*
-*	SinglePlayer GameMode(Also the default for Unknown ID -1):
-*
-*
-*
-**/
-/**
-*	@brief	Returns true if this gamemode allows saving the game.
-**/
-const bool sg_singleplayer_gamemode_t::AllowSaveGames() const { 
-	return true; // Singleplayer allows saving games.
-}
-
-
-
-/**
-*
-*
-*
-*	Cooperative GameMode:
-*
-*
-*
-**/
-/**
-*	@brief	Returns true if this gamemode allows saving the game.
-**/
-const bool sg_cooperative_gamemode_t::AllowSaveGames() const {
-	return true; // Cooperative allows saving games.
-}
-
-
-
-/**
-*
-*
-*
-*	DeathMatch GameMode:
-*
-*
-*
-**/
-const bool sg_deathmatch_gamemode_t::AllowSaveGames() const {
-	return false; // Deathmatch does not allow saving games.
-}
-
-
 
 /**
 *

@@ -30,6 +30,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svg_lua.h"
 
+#include "sharedgame/sg_gamemode.h"
+
+#include "svgame/svg_gamemode.h"
+
 
 
 /**
@@ -384,6 +388,24 @@ static const gitem_t *_GetItemByClassname( const char *classname ) {
 *           of each entity.
 **/
 void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities ) {
+    // Get the current gamemode type.
+    sg_gamemode_type_t requestedGameModeType = SG_GetRequestedGameModeType();
+    // Allocate a matching game mode object based on the gamemode type.
+    game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
+    if ( !game.mode ) {
+        // Invalid gamemode, default to singleplayer.
+        game.gameModeType = requestedGameModeType = GAMEMODE_TYPE_SINGLEPLAYER;
+        game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
+    }
+    // Give it a chance to prepare any CVars that it needs to set up.
+    game.mode->PrepareCVars();
+
+    // Get its corresponding name.
+    const char *gameModeName = SG_GetGameModeName( requestedGameModeType );
+    // Output the game mode type, and the maximum clients allowed for this session.
+    gi.dprintf( "[GameMode(#%d): %s][maxclients=%d]\n",
+        requestedGameModeType, gameModeName, maxclients->integer );
+
     // Acquire the 'skill' level cvar value in order to exlude various entities for various
     // skill levels.
     float skill_level = floor( skill->value );
