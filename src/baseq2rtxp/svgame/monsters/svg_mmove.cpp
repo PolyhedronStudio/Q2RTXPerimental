@@ -198,11 +198,13 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	//if ( monsterMove->state.gravity > 0 ) {
 	//	monsterMove->state.velocity.z = 0;
 	//} else {
-		monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
+	//	monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
 	//}
 
 	// Apply gravity after having stored original startVelocity.
-	//monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
+	if (! ( monsterMove->state.mm_flags & MMF_ON_GROUND ) ) {
+		monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
+	}
 
 	return blockedMask;
 }

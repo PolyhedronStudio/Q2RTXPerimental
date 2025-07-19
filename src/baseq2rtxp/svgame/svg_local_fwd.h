@@ -107,6 +107,7 @@ typedef struct weapon_mode_animation_s weapon_mode_animation_t;
 enum entity_flags_t;
 enum svg_movetype_t;
 
+
 typedef enum entity_type_e entity_type_t;
 
 typedef enum crosslevel_target_flags_e crosslevel_target_flags_t;

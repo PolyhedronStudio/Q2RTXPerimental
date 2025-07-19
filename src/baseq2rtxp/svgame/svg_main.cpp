@@ -18,7 +18,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/svg_local.h"
 #include "svgame/svg_combat.h"
-#include "svgame/svg_gamemode.h"
 #include "svgame/svg_commands_server.h"
 #include "svgame/svg_edict_pool.h"
 #include "svgame/svg_clients.h"
@@ -36,7 +35,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_pmove.h"
 
-
+#include "svgame/svg_gamemode.h"
 
 
 /**
@@ -206,37 +205,22 @@ void SVG_PreInitGame( void ) {
 	//gi.configstring( CS_AIRACCEL, "0" );
 
     // Get the current gamemode type.
-    sg_gamemode_type_t activeGameModeType = SG_GetActiveGameModeType();
-    // And its corresponding name.
-    const char *gameModeName = SG_GetGameModeName( activeGameModeType );
+    sg_gamemode_type_t requestedGameModeType = SG_GetRequestedGameModeType();
+	// Allocate a matching game mode object based on the gamemode type.
+	game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
+    if ( !game.mode ) {
+        // Invalid gamemode, default to singleplayer.
+        game.gameModeType = requestedGameModeType = GAMEMODE_TYPE_SINGLEPLAYER;
+		game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
+    }
+    // Give it a chance to prepare any CVars that it needs to set up.
+	game.mode->PrepareCVars();
 
-    // Deathmatch:
-    if ( activeGameModeType == GAMEMODE_TYPE_DEATHMATCH ) {
-		// Set the cvar for keeping old code in-tact. TODO: Remove in the future.
-		gi.cvar_forceset( "deathmatch", "1" );
-
-		// Setup maxclients correctly.
-		if ( maxclients->integer <= 1 ) {
-			gi.cvar_forceset( "maxclients", "8" ); //Cvar_SetInteger( maxclients, 8, FROM_CODE );
-		} else if ( maxclients->integer > CLIENTNUM_RESERVED ) {
-			gi.cvar_forceset( "maxclients", std::to_string( CLIENTNUM_RESERVED ).c_str() );
-		}
-	// Cooperative:
-	} else if ( activeGameModeType == GAMEMODE_TYPE_COOPERATIVE ) {
-		gi.cvar_forceset( "coop", "1" );
-
-		if ( maxclients->integer <= 1 || maxclients->integer > 4 ) {
-			gi.cvar_forceset( "maxclients", "4" ); // Cvar_Set( "maxclients", "4" );
-		}
-	// Default: Singleplayer.
-	} else {    
-        // Non-deathmatch, non-coop is one player.
-		//Cvar_FullSet( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH, FROM_CODE );
-		gi.cvar_forceset( "maxclients", "1" );
-	}
-
+    // Get its corresponding name.
+    const char *gameModeName = SG_GetGameModeName( requestedGameModeType );
     // Output the game mode type, and the maximum clients allowed for this session.
-    gi.dprintf( "[GameMode(#%d): %s][maxclients=%d]\n", activeGameModeType, gameModeName, maxclients->integer );
+    gi.dprintf( "[GameMode(#%d): %s][maxclients=%d]\n", 
+        requestedGameModeType, gameModeName, maxclients->integer );
 }
 
 /**
@@ -248,7 +232,6 @@ void SVG_InitGame( void )
     gi.dprintf("==== Init ServerGame(Gamemode: \"%s\", maxclients=%d, maxspectators=%d, maxentities=%d) ====\n",
 				SG_GetGameModeName( static_cast<const sg_gamemode_type_t>( gamemode->integer ) ), maxclients->integer, maxspectators->integer, maxentities->integer );
 
-    game.gamemode = static_cast<sg_gamemode_type_t>( gamemode->integer );
     game.maxclients = maxclients->integer;
     game.maxentities = maxentities->integer;
 
@@ -356,6 +339,11 @@ void SVG_ShutdownGame( void ) {
     // Shutdown the Lua VM.
     SVG_Lua_Shutdown();
 
+    // Free game mode object.
+	// game.mode->Shutdown();
+    delete game.mode;
+	game.mode = nullptr;
+
     // Free level, lua AND the game module its allocated ram.
     //gi.FreeTags( TAG_SVGAME_LUA );
     //SVG_EdictPool_Release( &g_edict_pool );
@@ -398,8 +386,8 @@ const int32_t _Exports_SG_GetDefaultMultiplayerGameModeType() {
 /**
 *	@return	The actual Type of the current gamemode.
 **/
-const int32_t _Exports_SG_GetActiveGameModeType() {
-    return static_cast<const int32_t>( SG_GetActiveGameModeType() );
+const int32_t _Exports_SG_GetRequestedGameModeType() {
+    return static_cast<const int32_t>( SG_GetRequestedGameModeType() );
 }
 /**
 *	@return	A string representative of the passed in gameModeType.
@@ -426,7 +414,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Shutdown = SVG_ShutdownGame;
 		globals.SpawnEntities = SVG_SpawnEntities;
 
-		globals.GetActiveGameModeType = _Exports_SG_GetActiveGameModeType;
+		globals.GetRequestedGameModeType = _Exports_SG_GetRequestedGameModeType;
         globals.IsValidGameModeType = _Exports_SG_IsValidGameModeType;
         globals.IsMultiplayerGameMode = _Exports_SG_IsMultiplayerGameMode;
         globals.GetDefaultMultiplayerGamemodeType = _Exports_SG_GetDefaultMultiplayerGameModeType;

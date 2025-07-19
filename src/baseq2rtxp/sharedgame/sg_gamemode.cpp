@@ -11,6 +11,106 @@
 #include "sharedgame/sg_gamemode.h"
 
 
+
+/**
+*
+*
+*
+*	SinglePlayer GameMode(Also the default for Unknown ID -1):
+*
+*
+*
+**/
+/**
+*	@brief	Returns true if this gamemode allows saving the game.
+**/
+const bool sg_singleplayer_gamemode_t::AllowSaveGames() const { 
+	return true; // Singleplayer allows saving games.
+}
+
+
+
+/**
+*
+*
+*
+*	Cooperative GameMode:
+*
+*
+*
+**/
+/**
+*	@brief	Returns true if this gamemode allows saving the game.
+**/
+const bool sg_cooperative_gamemode_t::AllowSaveGames() const {
+	return true; // Cooperative allows saving games.
+}
+
+
+
+/**
+*
+*
+*
+*	DeathMatch GameMode:
+*
+*
+*
+**/
+const bool sg_deathmatch_gamemode_t::AllowSaveGames() const {
+	return false; // Deathmatch does not allow saving games.
+}
+
+
+
+/**
+*
+*
+*
+*	Team DeathMatch GameMode:
+*
+*
+*
+**/
+
+
+#if 0
+/**
+*
+*
+*
+*	Game Mode API:
+*
+*
+*
+**/
+/**
+*	@brief	Factory function to create a game mode object based on the gameModeType.
+**/
+sg_igamemode_t *SG_CreateGameMode( const sg_gamemode_type_t gameModeType ) {
+	switch ( gameModeType ) {
+		case GAMEMODE_TYPE_SINGLEPLAYER:
+			return new sg_singleplayer_gamemode_t();
+		case GAMEMODE_TYPE_COOPERATIVE:
+			return new sg_cooperative_gamemode_t();
+		case GAMEMODE_TYPE_DEATHMATCH:
+			return new sg_deathmatch_gamemode_t();
+		default:
+			// Unknown gamemode, return nullptr.
+			return nullptr;
+	}
+}
+#endif
+
+/**
+*
+*
+*
+*	Game Mode related Game API Entry Points:
+*
+*
+*
+**/
 /**
 *	@return	True if the game mode is a legitimate existing one.
 **/
@@ -44,7 +144,7 @@ const sg_gamemode_type_t SG_GetDefaultMultiplayerGameModeType() {
 /**
 *	@return	The actual Type of the current gamemode.
 **/
-const sg_gamemode_type_t SG_GetActiveGameModeType() {
+const sg_gamemode_type_t SG_GetRequestedGameModeType() {
 	// Acquire gamemode cvar.
 	cvar_t *gamemode = SG_CVar_Get( "gamemode", nullptr, 0 );
 

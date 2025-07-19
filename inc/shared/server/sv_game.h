@@ -444,7 +444,7 @@ typedef struct {
     /**
     *	@return	The current active game mode ID.
     **/
-    const int32_t( *GetActiveGameModeType )( void );
+    const int32_t( *GetRequestedGameModeType )( void );
     /**
     *	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
     **/

@@ -570,7 +570,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     VectorCopy( spawn_origin, ent->s.origin );
     VectorCopy( spawn_origin, client->ps.pmove.origin );
 
-    if ( SG_IsMultiplayerGameMode( game.gamemode ) ) {
+    if ( game.mode->IsMultiplayer() ) {
         // Store userinfo.
         char        userinfo[ MAX_INFO_STRING ];
         memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
@@ -578,11 +578,12 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
         // Store respawn data.
         savedRespawnData = client->resp;
 
+        // <Q2RTXP>: TODO: Move into game mode class object.
         // DeathMatch: Reinitialize a fresh persistent data.
-        if ( game.gamemode == GAMEMODE_TYPE_DEATHMATCH ) {
+        if ( game.mode->GetGameModeType() == GAMEMODE_TYPE_DEATHMATCH ) {
             SVG_Player_InitPersistantData( ent, client );
         // Cooperative: 
-        } else if ( game.gamemode == GAMEMODE_TYPE_COOPERATIVE ) {
+        } else if ( game.mode->GetGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
             // this is kind of ugly, but it's how we want to handle keys in coop
             //for (n = 0; n < game.num_items; n++)
             //{

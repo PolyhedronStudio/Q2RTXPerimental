@@ -133,7 +133,8 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_changelevel_t, onUse )( svg_target_change
 
     // if going to a new unit, clear cross triggers
     if ( strchr( self->map.ptr, '*' ) ) {
-        game.serverflags &= ~( SFL_CROSS_TRIGGER_MASK );
+        //game.serverflags &= ~( SFL_CROSS_TRIGGER_MASK );
+		game.serverflags = SFL_CROSS_TRIGGER_NONE; // Clear all cross triggers.
     }
 
     // Engage into "intermission", which'll gradually seek and change into the other map.

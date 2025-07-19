@@ -16,7 +16,7 @@
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_game_locals_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_game_locals_t, maxclients, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_game_locals_t, maxentities, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_game_locals_t, gamemode, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_game_locals_t, gameModeType, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_game_locals_t, serverflags, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_game_locals_t, num_items, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_game_locals_t, autosaved, SD_FIELD_TYPE_BOOL ),

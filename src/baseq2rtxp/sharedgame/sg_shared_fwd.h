@@ -34,6 +34,11 @@ typedef enum sg_entity_events_e sg_entity_events_t;
 typedef enum sg_entity_type_e sg_entity_type_t;
 //#include "sharedgame/sg_gamemode.h"
 typedef enum sg_gamemode_type_e sg_gamemode_type_t;
+struct sg_igamemode_t;
+struct sg_singleplayer_gamemode_t;
+struct sg_cooperative_gamemode_t;
+struct sg_deathmatch_gamemode_t;
+
 typedef enum sg_means_of_death_e sg_means_of_death_t;
 //#include "sharedgame/sg_misc.h"
 //#include "sharedgame/sg_muzzleflashes.h"

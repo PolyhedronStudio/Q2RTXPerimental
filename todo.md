@@ -32,22 +32,45 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 
 
 ---
+## V0.0.7 TODO:
+These items are to be done before we can call it a day for v0.0.7.
+### Add:
+- [ ] Ensure the weapon model material is an actual 'chrome'/'metal' PBR material.
+- [ ] Add new weapons: shotgun, machinegun, grenades(flash,smoke,frag), crossbow, knife, and taser.
+	- It may vary from what is written down here. It is just a list of ideas.
+- [ ] Add our own variation of the CS 'hostage rescue' type of inspired gamemode.
+	- [ ] This requires a minimal UI to be implemented.
+### Fix:
+- [ ] Fix the monster code to properly work with gravity, and to properly use the new skeletal model system.
+- [ ] - [ ] Nothing yet.
+### Refactor/Rework:
+- [ ] Third-person player model and other client animations. (This has been left unfinished).
+
+
+
+---
 ## V0.0.6 TODO:
 These items are to be done before we can call it a day for v0.0.6.
 ### Add:
-- [ ] Ensure the weapon model material is an actual 'chrome'/'metal' PBR material.
+- [ ] Create a basic deathmatch map, weapons and ammo scattered around, with a set of "custom" PBR materials. ( We got no "buy" menu yet. )
+- [ ] Two proper game modes to choose from, deathmatch and team deathmatch.
 ### Fix:
-
+- [ ] Nothing yet.
 ### Refactor/Rework:
-- [ ] Third-person player model animations.
+- [ ] Nothing yet.
+
 
 ---
 ## Generic TODO:
-
+These are generic TODO items that are not specific to a version, but rather to the project as a whole.
 
 ### Common/Collision:
 #### Add:
-* [ ] None.
+* [ ] A SIMPLE but networked-capable User Interface designed for game mode related user interface elements.
+	* [ ] Begin Playing/Spectating Menu??
+	* [ ] Select Team Menu.
+	* [ ] (Buy?-)Inventory Menu. Obviously this requires more weapons first lol.
+* [ ] Move part of weapon processing logic to "playermove", effectively requiring us to rename the mechanic. Perhaps a "Controller" as used in other engines is a good idea?
 #### Fix:
 * [ ] None.
 
@@ -61,11 +84,12 @@ These items are to be done before we can call it a day for v0.0.6.
 #### Add:
 * [ ] Check client download.cpp and add in support for 'SPJ Ident' and 'SPJ Data' for the client to download.
 #### Fix:
-* [ ] None.
+* [ ] Technically Client Game related also, ensure that the proper (back-) lerp/xerp fractions are used in-place for playerstate and error transitions.
 
 ### Server:
 #### Add:
-* [ ] When an entity is linked, recalculate its transform matrixes and hull.
+* [ ] Check client download.cpp and add in support for 'SPJ Ident' and 'SPJ Data' for the client to download.
+* [ ] When Linking an entity, calculate the absolute and relative transform matrices for the entity.
 #### Fix:
 * [ ] None.
 
@@ -77,13 +101,16 @@ These items are to be done before we can call it a day for v0.0.6.
 
 ### Server Game:
 #### Add:
-* [ ] Check client download.cpp and add in support for 'SPJ Ident' and 'SPJ Data' for the client to download.
 * [ ] Replace all cvar deathmatch/coop checks with svgame gamemode checks.
 	* [ ] Implement a sharedgame ``base`` gamemode structure, this is the base which will contain functionality necessary for both the client and servergame. 
 	* [ ] Each client/server game mode will inherit from the ``base``.
 * [ ] Add Save/Load support for the (optional) Lua's in-game mapState table data.
+* [ ] Add in support for signal_argument_t array.
+* [ ] Rework the 'movewith' system using matrixes/quaternions instead of those silly vector maths.
 #### Fix:
 * [ ] Player animations are still not nice...
+#### Experiment:
+* [ ] Add a func_door_model which allows for a model to be used as a door, and which can be animated using the IQM animation system.
 
 
 ---

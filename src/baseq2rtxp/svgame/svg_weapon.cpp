@@ -399,7 +399,7 @@ void fire_shotgun(svg_base_edict_t *self, const vec3_t start, const vec3_t aimdi
 
 //static const bool SVG_ShouldPlayersCollideProjectile( svg_base_edict_t *self ) {
 //    // In Coop they don't.
-//    if ( SG_GetActiveGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
+//    if ( SG_GetRequestedGameModeType() == GAMEMODE_TYPE_COOPERATIVE ) {
 //        return false;
 //    }
 //

@@ -341,7 +341,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Shutdown = ShutdownGame;
 		globals.SpawnEntities = SpawnEntities;
 
-		globals.GetActiveGameModeType = G_GetActiveGameModeType;
+		globals.GetRequestedGameModeType = G_GetRequestedGameModeType;
         globals.IsValidGameModeType = G_IsValidGameModeType;
         globals.IsMultiplayerGameMode = G_IsMultiplayerGameMode;
         globals.GetDefaultMultiplayerGamemodeType = G_GetDefaultMultiplayerGamemodeType;

@@ -318,7 +318,7 @@ void blaster_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_
 
 static const bool G_ShouldPlayersCollideProjectile( edict_t *self ) {
     // In Coop they don't.
-    if ( G_GetActiveGameModeType() == GAMEMODE_COOPERATIVE ) {
+    if ( G_GetRequestedGameModeType() == GAMEMODE_COOPERATIVE ) {
         return false;
     }
 

@@ -31,7 +31,7 @@ const int32_t G_GetDefaultMultiplayerGamemodeType() {
 /**
 *	@return	The actual ID of the current gamemode.
 **/
-const int32_t G_GetActiveGameModeType( ) {
+const int32_t G_GetRequestedGameModeType( ) {
 	if ( gamemode->integer >= GAMEMODE_SINGLEPLAYER && gamemode->integer < GAMEMODE_MAX ) {
 		return gamemode->integer;
 	}

@@ -1135,7 +1135,7 @@ void PF_CalculateViewValues( void ) {
     #else
     const double backLerp = lerpFrac - 1.0;
     // Lerp View Angles.
-    CLG_LerpViewAngles( ops, ps, &game.predictedState, clgi.client->xerpFraction );
+    CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
     // Interpolate old and current player state delta angles.
     CLG_LerpDeltaAngles( ops, ps, clgi.client->lerpfrac );
     // Interpolate blend colors if the last frame wasn't clear.

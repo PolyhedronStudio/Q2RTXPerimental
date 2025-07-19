@@ -715,7 +715,7 @@ const bool G_IsMultiplayerGameMode( const int32_t gameModeID );
 /**
 *	@return	The current active game mode ID.
 **/
-const int32_t G_GetActiveGameModeType();
+const int32_t G_GetRequestedGameModeType();
 /**
 *	@return	The default game mode which is to be set. Used in case of booting a dedicated server without gamemode args.
 **/
@@ -723,7 +723,7 @@ const int32_t G_GetDefaultMultiplayerGamemodeType();
 /**
 *	@return	The actual ID of the current gamemode.
 **/
-const int32_t G_GetActiveGameModeType( );
+const int32_t G_GetRequestedGameModeType( );
 /**
 *	@return	True in case the current gamemode allows for saving the game.
 *			(This should only be true for single and cooperative play modes.)

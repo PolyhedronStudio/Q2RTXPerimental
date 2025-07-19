@@ -12,6 +12,8 @@
 
 // game.serverflags values
 typedef enum crosslevel_target_flags_e {
+    SFL_CROSS_TRIGGER_NONE = 0,
+
     SFL_CROSS_TRIGGER_1 = BIT( 0 ),
     SFL_CROSS_TRIGGER_2 = BIT( 1 ),
     SFL_CROSS_TRIGGER_3 = BIT( 2 ),
@@ -33,43 +35,43 @@ QENUM_BIT_FLAGS( crosslevel_target_flags_t );
 *           the server.ssv file for savegames
 **/
 struct svg_game_locals_t {
-    //! Used for registering the fields which need save and restoring 
-    //! of the session's level locals.
+    //! Used for registering the fields which need save and restoring of the session's level locals.
     static svg_save_descriptor_field_t saveDescriptorFields[];
 
     //! [maxclients] of client pointers.
-    svg_client_t *clients;
+    svg_client_t *clients = nullptr;
 
-    //! Can't store spawnpoint in level, because
-    //! it would get overwritten by the savegame restore.
-    //!
+    //! Can't store spawnpoint in level, because it would get overwritten by the savegame restore.
     //! Needed for coop respawns.
-    char        spawnpoint[ 512 ];
+    char        spawnpoint[ 512 ] = {};
 
     //! Store latched cvars here that we want to get at often.
-    int32_t             maxclients;
-    int32_t             maxentities;
-    sg_gamemode_type_t  gamemode;
+    int32_t             maxclients = 0;
+    int32_t             maxentities = 0;
+	//! The gamemode type.
+    sg_gamemode_type_t  gameModeType = ( sg_gamemode_type_t)0;
+    //! The gamemode type matching object.
+	sg_igamemode_t *mode = nullptr;
 
     //! Cross level triggers.
-    crosslevel_target_flags_t     serverflags;
+    crosslevel_target_flags_t serverflags = SFL_CROSS_TRIGGER_NONE;
     //! Number of items.
-    int32_t     num_items;
+    int32_t     num_items = 0;
     //! Autosaved.
-    bool        autosaved;
+    bool        autosaved = false;
 
     /**
     *   Information for PUSH/STOP -movers.
     *
     *   We use numbers so we can fetch entities in-frame ensuring that we always have valid pointers.
     **/
-    int32_t num_movewithEntityStates;
+    int32_t num_movewithEntityStates = 0;
     struct game_locals_movewith_t {
         //! The child entity that has to move with its parent entity.
-        int32_t childNumber;
+        int32_t childNumber = 0;
         //! The parent entity that has to move its child entity.
-        int32_t parentNumber;
-    } *moveWithEntities;
+        int32_t parentNumber = 0;
+    } *moveWithEntities = {};
 };
 
 //! Extern, access all over game dll code.

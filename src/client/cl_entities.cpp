@@ -477,8 +477,7 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
 *           Will switch the clientstatic state to 'ca_active' if it is the first
 *           parsed valid frame and the client is done precaching all data.
 **/
-void CL_DeltaFrame(void)
-{
+void CL_DeltaFrame( void ) {
     // Getting a valid frame message ends the connection process
     //if ( cls.state == ca_precached ) {
     if ( cl.frame.valid && cls.state == ca_precached ) {
@@ -492,10 +491,10 @@ void CL_DeltaFrame(void)
     // Rebuild the list of solid entities for this frame
     cl.numSolidEntities = 0;
 
-	// If this si the first frame, overwrite the whole predicted state with the current frame's player state.
+    // If this si the first frame, overwrite the whole predicted state with the current frame's player state.
     pmove_state_t pmoveState = cl.predictedFrame.ps.pmove;
-	cl.predictedFrame = cl.frame; // Copy the current frame to the predicted frame.
-    if ( framenum >= 1 ) {
+    cl.predictedFrame = cl.frame; // Copy the current frame to the predicted frame.
+    if ( /*framenum*/cl.frame.number >= 1 ) {
         cl.predictedFrame.ps.pmove = pmoveState; // Restore the pmove state.
     }
 
@@ -503,8 +502,11 @@ void CL_DeltaFrame(void)
     // this is needed in situations when player entity is invisible, but
     // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
     centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );
-    Com_PlayerToEntityState( &cl.predictedFrame.ps, &clent->current );
-    //Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
+    if ( /*framenum*/cl.frame.number <= 0 ) {
+        Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
+    } else {
+        Com_PlayerToEntityState( &cl.predictedFrame.ps, &clent->current );
+    }
 
     // Iterate over the current frame entity states and update them accordingly.
     for ( int32_t i = 0; i < cl.frame.numEntities; i++ ) {

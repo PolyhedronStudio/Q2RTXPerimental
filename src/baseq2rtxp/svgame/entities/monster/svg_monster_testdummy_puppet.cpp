@@ -316,7 +316,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 0.
             };
             //entityVelocity = entityVelocity + ( frameVelocity * distance );
-            Vector3 xyVec = QM_Vector3MultiplyAdd( self->velocity, distance, wishDirVelocity ) - self->velocity;
+            Vector3 xyVec = QM_Vector3MultiplyAdd( self->velocity, distance, wishDirVelocity );
             self->velocity.x = xyVec.x;
             self->velocity.y = xyVec.y;
             // Is done in MMove_StepSlideMove.
