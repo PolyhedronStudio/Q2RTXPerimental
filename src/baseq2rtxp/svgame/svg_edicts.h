@@ -60,7 +60,7 @@ void SVG_Entities_InitBodyQue( void );
 /**
 *   @brief
 **/
-void SVG_Entities_AddForPlayer( svg_base_edict_t *ent );
+void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent );
 
 
 

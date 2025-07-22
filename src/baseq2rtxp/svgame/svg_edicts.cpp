@@ -125,7 +125,7 @@ void SVG_Entities_InitBodyQue( void ) {
 /**
 *   @brief
 **/
-void body_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+DECLARE_GLOBAL_CALLBACK_DIE( body_die ) {
     int n;
 
     if ( self->health < -40 ) {
@@ -142,7 +142,7 @@ void body_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edi
 /**
 *   @brief  Get a que slot, leave an effect, and remove body into the queue.
 **/
-void SVG_Entities_AddForPlayer( svg_base_edict_t *ent ) {
+void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
     // Unlink entity.
     gi.unlinkentity( ent );
 

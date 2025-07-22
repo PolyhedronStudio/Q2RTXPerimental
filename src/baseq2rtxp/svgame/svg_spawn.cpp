@@ -33,6 +33,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_gamemode.h"
 
 #include "svgame/svg_gamemode.h"
+#include "svgame/gamemodes/svg_gm_basemode.h"
 
 
 
@@ -388,6 +389,13 @@ static const gitem_t *_GetItemByClassname( const char *classname ) {
 *           of each entity.
 **/
 void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities ) {
+    // If we have a game mode, we need to shut it down as it is now the previous one.
+    if ( game.mode != nullptr ) {
+        //game.mode->Shutdown();
+        delete game.mode;
+        game.mode = nullptr;
+	}
+
     // Get the current gamemode type.
     sg_gamemode_type_t requestedGameModeType = SG_GetRequestedGameModeType();
     // Allocate a matching game mode object based on the gamemode type.
@@ -399,12 +407,9 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     }
     // Give it a chance to prepare any CVars that it needs to set up.
     game.mode->PrepareCVars();
-
-    // Get its corresponding name.
-    const char *gameModeName = SG_GetGameModeName( requestedGameModeType );
     // Output the game mode type, and the maximum clients allowed for this session.
     gi.dprintf( "[GameMode(#%d): %s][maxclients=%d]\n",
-        requestedGameModeType, gameModeName, maxclients->integer );
+        requestedGameModeType, SG_GetGameModeName( requestedGameModeType ), maxclients->integer );
 
     // Acquire the 'skill' level cvar value in order to exlude various entities for various
     // skill levels.
@@ -419,7 +424,6 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     // If we were running a previous session, make sure to save the session's client data before cleaning all level memory.
     SVG_Player_SaveClientData();
 
-
     // Clamp maxentities within valid range.
     game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
     // initialize all clients for this game
@@ -428,7 +432,6 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	// Clear this before clearing TAG_SVGAME_LEVEL memory, since it may have member variables that
 	// point to TAG_SVGAME_LEVEL memory.
     g_edicts = SVG_EdictPool_Release( &g_edict_pool );
-
 
     // Zero out all level struct data.
     level = {};

@@ -878,7 +878,7 @@ const double CLG_SmoothViewHeight() {
     //! Base 1 Frametime.
     static constexpr double HEIGHT_CHANGE_BASE_1_FRAMETIME = ( 1. / HEIGHT_CHANGE_TIME );
     //! Determine delta time.
-    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<int64_t>( ( clgi.client->extrapolatedTime - game.predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
+    int64_t timeDelta = HEIGHT_CHANGE_TIME - std::min<int64_t>( ( clgi.client->accumulatedRealTime - game.predictedState.transition.view.timeHeightChanged ), HEIGHT_CHANGE_TIME );
     //! Return the frame's adjustment for viewHeight which is added on top of the final vieworigin + viweoffset.
     return game.predictedState.transition.view.height[ 0 ] + ( (double)( game.predictedState.transition.view.height[ 1 ] - game.predictedState.transition.view.height[ 0 ] ) * timeDelta * HEIGHT_CHANGE_BASE_1_FRAMETIME );
 }
@@ -886,7 +886,7 @@ const double CLG_SmoothViewHeight() {
 /**
 *   @brief  Smoothly transit the 'step' offset.
 **/
-static void CLG_SmoothStepOffset() {
+static double CLG_SmoothStepOffset() {
     // The original code was short integer coordinate based and had the following 'formula':
     // 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_CHANGE_HEIGHT(18) resulting in 15.875 as STEP_SMALL_HEIGHT
     // What is considered to be a 'small' step.
@@ -898,16 +898,18 @@ static void CLG_SmoothStepOffset() {
     static constexpr double STEP_CHANGE_BASE_1_FRAMETIME = ( 1. / STEP_CHANGE_TIME );
 
     // Time delta.
-    uint64_t delta = ( clgi.GetRealTime() - game.predictedState.transition.step.timeChanged );
+    int64_t delta = ( clgi.GetRealTime() - game.predictedState.transition.step.timeChanged );
     // Smooth out stair climbing.
-    if ( fabsf( game.predictedState.transition.step.height ) < STEP_SMALL_HEIGHT ) {
+    if ( fabsf( game.predictedState.transition.step.height ) <= STEP_SMALL_HEIGHT ) {
         // Will multiply it by 2 for smaller steps to still lerp over time.
         delta <<= 1;
     }
     // Adjust view org by step height change.
-    if ( delta < STEP_CHANGE_TIME ) {
-        clgi.client->refdef.vieworg[ 2 ] -= game.predictedState.transition.step.height * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME;
+    if ( delta <= STEP_CHANGE_TIME ) {
+        return -( game.predictedState.transition.step.height * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME );
     }
+
+    return 0.;
 }
 
 /**
@@ -1013,6 +1015,7 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
 **/
 static void CLG_LerpViewOffset( player_state_t *ops, player_state_t *ps, const double lerpFrac, Vector3 &finalViewOffset ) {
     player_state_t *pps = &game.predictedState.currentPs;
+
     if ( clgi.client->frame.valid ) {
         #if 1
         finalViewOffset = QM_Vector3Lerp( ps->viewoffset, pps->viewoffset, lerpFrac );
@@ -1078,8 +1081,6 @@ void PF_CalculateViewValues( void ) {
     //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
     const int32_t usePrediction = PF_UsePrediction();
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
-        // use predicted values
-        //const double backLerp = 1.0 - lerpFrac;
         // Lerp the error.
         #if 0
             // Take the prediction error into account.
@@ -1087,15 +1088,14 @@ void PF_CalculateViewValues( void ) {
             VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
             //VectorMA( game.predictedState.cmd.prediction.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
         #else
-        const double backLerp = lerpFrac - 1.0;
-
-        //Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, 1.0 - clgi.client->xerpFraction );
-        const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
-        //VectorAdd( game.predictedState.cmd.prediction.origin, errorLerp, clgi.client->refdef.vieworg );
-        //VectorAdd( game.predictedState.cmd.prediction.origin, errorLerp, clgi.client->refdef.vieworg );
-        VectorAdd( game.predictedState.origin, errorLerp, clgi.client->refdef.vieworg );
-		//ps = &game.predictedState.currentPs;
-        //ops = &clgi.client->oldframe.ps;
+		    // Backlerp fraction for the error.
+            const double backLerp = lerpFrac - 1.0;
+		    // Calculate errorLerp and add it to the predicted origin.
+            const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
+            // Calculate errorLerp and add it to the predicted origin.
+            game.predictedState.origin += errorLerp;
+		    // Set the view origin to the predicted origin + errorLerp.
+            VectorCopy( game.predictedState.origin, clgi.client->refdef.vieworg );
         #endif
     } else {
         // Just use interpolated values.
@@ -1106,6 +1106,7 @@ void PF_CalculateViewValues( void ) {
         // WID: This should fix demos or cl_nopredict
         //VectorCopy( clgi.client->refdef.vieworg, game.predictedState.currentPs.pmove.origin );
         //VectorCopy( game.predictedState.currentPs.pmove.origin, clgi.client->refdef.vieworg );
+
         game.predictedState.origin = game.predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
         #if 0
         clgi.client->refdef.vieworg[2] -= ops->pmove.origin.z;
@@ -1118,42 +1119,42 @@ void PF_CalculateViewValues( void ) {
     // Smooth out step offset.
     //CLG_SmoothStepOffset();
     #if 0
-    // use predicted values
-    const double backLerp = 1.0 - lerpFrac;
-    // Lerp View Angles.
-    CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
-    // Interpolate old and current player state delta angles.
-    CLG_LerpDeltaAngles( ops, ps, lerpFrac );
-    // Interpolate blend colors if the last frame wasn't clear.
-    CLG_LerpScreenBlend( ops, ps, &game.predictedState );
-    // Interpolate Field of View.
-    CLG_LerpPointOfView( ops, ps, backLerp );
-    // Lerp the view offset.
-    CLG_LerpViewOffset( ops, ps, backLerp, finalViewOffset );
-    // Smooth out the ducking view height change over 100ms
-    finalViewOffset.z += CLG_SmoothViewHeight();
+        // use predicted values
+        const double backLerp = 1.0 - lerpFrac;
+        // Lerp View Angles.
+        CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
+        // Interpolate old and current player state delta angles.
+        CLG_LerpDeltaAngles( ops, ps, lerpFrac );
+        // Interpolate blend colors if the last frame wasn't clear.
+        CLG_LerpScreenBlend( ops, ps, &game.predictedState );
+        // Interpolate Field of View.
+        CLG_LerpPointOfView( ops, ps, backLerp );
+        // Lerp the view offset.
+        CLG_LerpViewOffset( ops, ps, backLerp, finalViewOffset );
+        // Smooth out the ducking view height change over 100ms
+        finalViewOffset.z += CLG_SmoothViewHeight();
     #else
-    const double backLerp = lerpFrac - 1.0;
-    // Lerp View Angles.
-    CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
-    // Interpolate old and current player state delta angles.
-    CLG_LerpDeltaAngles( ops, ps, clgi.client->lerpfrac );
-    // Interpolate blend colors if the last frame wasn't clear.
-    CLG_LerpScreenBlend( ops, ps, &game.predictedState );
-    // Interpolate Field of View.
-    CLG_LerpPointOfView( ops, ps, clgi.client->xerpFraction );
-    // Lerp the view offset.
-    CLG_LerpViewOffset( ops, ps, backLerp, finalViewOffset );
-    // Smooth out step offset.
-    CLG_SmoothStepOffset();
-    // Smooth out the ducking view height change over 100ms
-    finalViewOffset.z += CLG_SmoothViewHeight();
+        const double backLerp = 1.0 - lerpFrac; // lerpFrac - 1.0;
+        // Lerp View Angles.
+        CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
+        // Interpolate old and current player state delta angles.
+        CLG_LerpDeltaAngles( ops, ps, clgi.client->lerpfrac );
+        // Interpolate blend colors if the last frame wasn't clear.
+        CLG_LerpScreenBlend( ops, ps, &game.predictedState );
+        // Interpolate Field of View.
+        CLG_LerpPointOfView( ops, ps, clgi.client->xerpFraction );
+        // Lerp the view offset.
+        CLG_LerpViewOffset( ops, ps, lerpFrac, finalViewOffset );
+        // Smooth out step offset.
+        finalViewOffset.z += CLG_SmoothStepOffset();
+        // Smooth out the ducking view height change over 100ms
+        finalViewOffset.z += CLG_SmoothViewHeight();
     #endif
 
     // Calculate the angle vectors for the current view angles.
     AngleVectors( clgi.client->refdef.viewangles, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 
-    // Copy the view origin and angles for the thirdperson(and also shadow casing) entity.
+    // Copy the view origin and angles for the thirdperson(and also shadow casting) entity.
     VectorCopy( clgi.client->refdef.vieworg, clgi.client->playerEntityOrigin );
     VectorCopy( clgi.client->refdef.viewangles, clgi.client->playerEntityAngles );
     // Keep pitch in bounds.

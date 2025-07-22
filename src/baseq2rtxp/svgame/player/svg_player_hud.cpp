@@ -15,6 +15,8 @@
 #include "sharedgame/sg_gamemode.h"
 
 #include "svgame/svg_gamemode.h"
+#include "svgame/svg_gamemode.h"
+#include "svgame/gamemodes/svg_gm_basemode.h"
 
 
 /***
@@ -27,7 +29,8 @@
 *
 ***/
 /**
-*   @brief
+*   @brief  Will move the client to the intermission point, setting the client's origin and viewangles.
+*			Sets the client to intermission state, clearing out most of the entity's state and other client related data.
 **/
 void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
 {
@@ -70,96 +73,104 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
 
     // Scoreboard:
     if (deathmatch->value || coop->value ) {
-
         // Write out svc_scoreboard command.
         SVG_HUD_DeathmatchScoreboardMessage( ent, nullptr, true );
     }
 }
 
 /**
-*   @brief
+*   @brief  Will engage the intermission mode in which all clients are moved to
+*           the intermission point, and the game will wait for a map change.
 **/
 void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
 {
-    int     i = 0;
-    svg_base_edict_t *ent = nullptr;
-    svg_base_edict_t *client = nullptr;
-
-    if (level.intermissionFrameNumber)
+    // The intermission is already actively running.
+    if ( level.intermissionFrameNumber ) {
         return;     // already activated
-
+    }
+    // It isn't auto-saved.
     game.autosaved = false;
 
     // Respawn any dead clients
-    for (i = 0 ; i < maxclients->value ; i++) {
-        client = g_edict_pool.EdictForNumber( i + 1 );
-        //client = g_edicts + 1 + i;
+    for (int32_t i = 0 ; i < maxclients->value ; i++) {
+        // Get valid entity.
+        svg_base_edict_t *client = g_edict_pool.EdictForNumber( i + 1 );
         if ( !client || !client->inuse ) {
             continue;
         }
+        // Respawn since dead.
         if ( client->health <= 0 ) {
             SVG_Client_RespawnPlayer( client );
         }
     }
-
+    // When an intermission framenumber is set, we are engaged into intermission.
+    // Thus we set it right here.
     level.intermissionFrameNumber = level.frameNumber;
+	// Set the change map to the target's map.
     level.changemap = targ->map;
 
-    if (strchr(level.changemap, '*')) {
-        if (coop->value) {
-            for ( i = 0; i < maxclients->value; i++ ) {
-                client = g_edict_pool.EdictForNumber( i + 1 );
-                //client = g_edicts + 1 + i;
-                if ( !client || !client->inuse ) {
-                    continue;
-                }
-                //// strip players of all keys between units
-                //for (n = 0; n < game.num_items; n++) {
-                //    if (itemlist[n].flags & ITEM_FLAG_KEY)
-                //        client->client->pers.inventory[n] = 0;
-                //}
-                //client->client->pers.power_cubes = 0;
-            }
-        }
-    } else {
-        if (!deathmatch->value) {
-            level.exitintermission = 1;     // go immediately to the next level
-            return;
-        }
+    //if (strchr(level.changemap, '*')) {
+    //    if (coop->value) {
+    //        for ( i = 0; i < maxclients->value; i++ ) {
+    //            svg_base_edict_t *client = g_edict_pool.EdictForNumber( i + 1 );
+    //            //client = g_edicts + 1 + i;
+    //            if ( !client || !client->inuse ) {
+    //                continue;
+    //            }
+    //            //// strip players of all keys between units
+    //            //for (n = 0; n < game.num_items; n++) {
+    //            //    if (itemlist[n].flags & ITEM_FLAG_KEY)
+    //            //        client->client->pers.inventory[n] = 0;
+    //            //}
+    //            //client->client->pers.power_cubes = 0;
+    //        }
+    //    }
+    //} else {
+	// For singleplayer, immediately exit intermission and go to the next level.
+    if ( !game.mode->IsMultiplayer() ) {
+        level.exitintermission = 1;     // Go immediately to the next level
+        return;
     }
+    //}
 
+    // Do not exit intermission for this frame.
     level.exitintermission = 0;
 
-    // find an intermission spot
-    ent = SVG_Entities_Find(NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission");
-    if (!ent) {
+	// Find an intermission point, or a start point if none is found.
+    svg_base_edict_t *ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
+    if ( !ent ) {
         // the map creator forgot to put in an intermission point...
-        ent = SVG_Entities_Find(NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_start");
-        if (!ent)
-            ent = SVG_Entities_Find(NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch");
+        ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_start" );
+        if ( !ent ) {
+            ent = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
+        }
     } else {
         // chose one of four spots
-        i = Q_rand() & 3;
-        while (i--) {
-            ent = SVG_Entities_Find(ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission");
-            if (!ent)   // wrap around the list
-                ent = SVG_Entities_Find(ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission");
+        int32_t i = Q_rand() & 3;
+        while ( i-- ) {
+            ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
+            // wrap around the list
+            if ( !ent ) {
+                ent = SVG_Entities_Find( ent, q_offsetof( svg_base_edict_t, classname ), "info_player_intermission" );
+            }
         }
     }
 
-    if (ent) {
-        VectorCopy(ent->s.origin, level.intermission_origin);
-        VectorCopy(ent->s.angles, level.intermission_angle);
+	// Since we found an intermission point, set the intermission origin and angle.
+    if ( ent ) {
+        level.intermission_origin = ent->s.origin;
+        level.intermission_angle = ent->s.angles;
     }
 
-    // move all clients to the intermission point
-    for ( i = 0; i < maxclients->value; i++ ) {
-        client = g_edict_pool.EdictForNumber( i + 1 );
-        //client = g_edicts + 1 + i;
-        if ( !client || !client->inuse ) {
+    // Move all the game's clients to the intermission point
+    for ( int32_t i = 0; i < maxclients->value; i++ ) {
+        // Get valid entity.
+        svg_base_edict_t *clent = g_edict_pool.EdictForNumber( i + 1 );
+        if ( !clent || !clent->inuse ) {
             continue;
         }
-        SVG_HUD_MoveClientToIntermission(client);
+        // Move it into intermission mode.
+        SVG_HUD_MoveClientToIntermission(clent);
     }
 }
 
@@ -174,7 +185,6 @@ void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
 *
 *
 ***/
-
 /**
 *   @brief
 **/
@@ -313,11 +323,16 @@ void SVG_HUD_DeathmatchScoreboard(svg_base_edict_t *ent)
 }
 
 
-
-
-
-
 //=======================================================================
+/**
+*
+*
+*
+*   Stats Updates:
+*
+*
+*
+**/
 /**
 *   @brief  Specific 'Weaponry' substitute function for SVG_HUD_SetStats.
 **/
@@ -513,24 +528,29 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
 void SVG_HUD_SetSpectatorStats( svg_base_edict_t *ent ) {
     svg_client_t *cl = ent->client;
 
-    if ( !cl->chase_target )
+    // If the client is not chasing a target, we set the stats to that of our own entity.
+    if ( !cl->chase_target ) {
         SVG_HUD_SetStats( ent );
-
+    }
+        
     // If this function was called, enable spectator mode stats.
     cl->ps.stats[ STAT_SPECTATOR ] = 1;
 
     // layouts are independant in spectator
     cl->ps.stats[ STAT_LAYOUTS ] = 0;
-    if ( cl->pers.health <= 0 || level.intermissionFrameNumber || cl->showscores )
+    if ( cl->pers.health <= 0 || level.intermissionFrameNumber || cl->showscores ) {
         cl->ps.stats[ STAT_LAYOUTS ] |= 1;
-    if ( cl->showinventory && cl->pers.health > 0 )
+    }
+    if ( cl->showinventory && cl->pers.health > 0 ) {
         cl->ps.stats[ STAT_LAYOUTS ] |= 2;
-
-    if ( cl->chase_target && cl->chase_target->inuse )
+    }
+    // Set the chase target client index as STAT_CHASE.
+    if ( cl->chase_target && cl->chase_target->inuse ) {
         cl->ps.stats[ STAT_CHASE ] = CS_PLAYERSKINS +
-        ( cl->chase_target->s.number - 1 );//( cl->chase_target - g_edicts ) - 1;
-    else
+            ( cl->chase_target->s.number - 1 );//( cl->chase_target - g_edicts ) - 1;
+    } else {
         cl->ps.stats[ STAT_CHASE ] = 0;
+    }
 }
 
 /**
@@ -544,12 +564,13 @@ void SVG_HUD_CheckChaseStats(svg_base_edict_t *ent)
     for (i = 1; i <= maxclients->value; i++) {
         //cl = g_edicts[i].client;
 		svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i );
-        cl = (cl_ent ? cl_ent->client : nullptr );
+        svg_client_t* cl = (cl_ent ? cl_ent->client : nullptr );
         if ( !cl || !cl_ent || !cl_ent->inuse || cl->chase_target != ent ) {
             continue;
         }
-
+		// Copy over the player state stats from the chased entity to the chasing client.
         memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
+		// Set the chase target client index as STAT_CHASE.
         SVG_HUD_SetSpectatorStats( cl_ent );
     }
 }

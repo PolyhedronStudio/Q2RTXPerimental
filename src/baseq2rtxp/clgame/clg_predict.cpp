@@ -44,7 +44,7 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
     if ( game.predictedState.transition.view.height[ 0 ] != viewHeight ) {
         game.predictedState.transition.view.height[ 1 ] = game.predictedState.transition.view.height[ 0 ];
         game.predictedState.transition.view.height[ 0 ] = viewHeight;
-        game.predictedState.transition.view.timeHeightChanged = clgi.client->extrapolatedTime;
+        game.predictedState.transition.view.timeHeightChanged = clgi.client->accumulatedRealTime;
     }
 }
 
@@ -222,7 +222,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
                     (float)clgi.client->frame.ps.pmove.viewheight,
                     (float)clgi.client->frame.ps.pmove.viewheight
                 },
-                .timeHeightChanged = (uint64_t)clgi.client->extrapolatedTime
+                .timeHeightChanged = (uint64_t)clgi.client->accumulatedRealTime
             }
         };
 
@@ -263,7 +263,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
                         (float)clgi.client->frame.ps.pmove.viewheight,
                         (float)clgi.client->frame.ps.pmove.viewheight
                     },
-                    .timeHeightChanged = (uint64_t)clgi.client->extrapolatedTime
+                    .timeHeightChanged = (uint64_t)clgi.client->accumulatedRealTime
                 }
             };
 

@@ -1426,7 +1426,7 @@ static void PM_InitialSnapPosition() {
 **/
 static void PM_UpdateViewAngles( player_state_t *playerState, const usercmd_t *userCommand ) {
 	if ( ps->pmove.pm_type == PM_INTERMISSION || ps->pmove.pm_type == PM_SPINTERMISSION ) {
-		return;		// no view changes at all
+	//	return;		// no view changes at all
 	}
 	//if ( ps->pm_type != PM_SPECTATOR && ps->stats[ STAT_HEALTH ] <= 0 ) {
 	//	return;		// no view changes at all

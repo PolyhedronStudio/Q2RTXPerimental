@@ -22,6 +22,10 @@
 
 #include "sharedgame/sg_means_of_death.h"
 
+#include "sharedgame/sg_gamemode.h"
+#include "svgame/svg_gamemode.h"
+#include "svgame/gamemodes/svg_gm_basemode.h"
+
 
 /**
 *	@brief
@@ -523,19 +527,6 @@ void SVG_Command_Kill_f(svg_base_edict_t *ent)
     ent->DispatchDieCallback( ent, ent, 100000, ent->s.origin );
 }
 
-/*
-=================
-SVG_Command_PutAway_f
-=================
-*/
-void SVG_Command_PutAway_f(svg_base_edict_t *ent)
-{
-    ent->client->showscores = false;
-    ent->client->showhelp = false;
-    ent->client->showinventory = false;
-}
-
-
 int PlayerSort(void const *a, void const *b)
 {
     int     anum, bnum;
@@ -695,23 +686,24 @@ void SVG_Command_Say_f(svg_base_edict_t *ent, bool team, bool arg0)
 *   @brief  Display the scoreboard
 **/
 void SVG_Command_Score_f( svg_base_edict_t *ent ) {
+    // Hide inventory and help layout screens.
     ent->client->showinventory = false;
     ent->client->showhelp = false;
 
-    if ( !deathmatch->value && !coop->value ) {
+    if ( !game.mode->IsMultiplayer() ) {
         return;
     }
 
+    // Hide scores if they were visible.
     if ( ent->client->showscores ) {
         ent->client->showscores = false;
         //gi.dprintf( "hidescores\n" );
-    
         return;
     }
 
+    // Otherwise show them.
     ent->client->showscores = true;
     //gi.dprintf( "showscores\n" );
-    
     // Engage in sending svc_scoreboard messages, send this one as part of a Reliable packet.
     SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, true );
 }
@@ -790,6 +782,7 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
         SVG_Command_UseItem_f( ent );
     } else if ( Q_stricmp( cmd, "drop" ) == 0 ) {
         SVG_Command_Drop_f( ent );
+    #if 0
     }
     if ( Q_stricmp( cmd, "inven" ) == 0 ) {
         SVG_Command_Inven_f( ent );
@@ -805,14 +798,13 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
         SVG_Command_InvUseSelectedItem_f( ent );
     } else if ( Q_stricmp( cmd, "invdrop" ) == 0 ) {
         SVG_Command_InvDrop_f( ent );
+    #endif
     } else if ( Q_stricmp( cmd, "weapprev" ) == 0 ) {
         SVG_Command_WeapPrev_f( ent );
     } else if ( Q_stricmp( cmd, "weapnext" ) == 0 ) {
         SVG_Command_WeapNext_f( ent );
     } else if ( Q_stricmp( cmd, "weaplast" ) == 0 ) {
         SVG_Command_WeapLast_f( ent );
-    } else if ( Q_stricmp( cmd, "putaway" ) == 0 ) {
-        SVG_Command_PutAway_f( ent );
     //
     // 'Cheats':
     //

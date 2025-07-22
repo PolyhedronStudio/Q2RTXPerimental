@@ -372,6 +372,11 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.cpp
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.cpp
 
+	baseq2rtxp/svgame/gamemodes/svg_gm_basemode.cpp
+	baseq2rtxp/svgame/gamemodes/svg_gm_cooperative.cpp
+	baseq2rtxp/svgame/gamemodes/svg_gm_deathmatch.cpp
+	baseq2rtxp/svgame/gamemodes/svg_gm_singleplayer.cpp
+
 	baseq2rtxp/svgame/lua/svg_lua_corelib.cpp
 	baseq2rtxp/svgame/lua/svg_lua_gamelib.cpp
 	baseq2rtxp/svgame/lua/svg_lua_medialib.cpp
@@ -494,6 +499,11 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/svg_player_edict.h
 	baseq2rtxp/svgame/entities/svg_worldspawn_edict.h
 	baseq2rtxp/svgame/entities/svg_entities_pushermove.h
+
+	baseq2rtxp/svgame/gamemodes/svg_gm_basemode.h
+	baseq2rtxp/svgame/gamemodes/svg_gm_cooperative.h
+	baseq2rtxp/svgame/gamemodes/svg_gm_deathmatch.h
+	baseq2rtxp/svgame/gamemodes/svg_gm_singleplayer.h
 
 	baseq2rtxp/svgame/player/svg_player_client.h
 	baseq2rtxp/svgame/player/svg_player_hud.h

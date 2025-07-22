@@ -16,10 +16,13 @@
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/entities/svg_player_edict.h"
+
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_move.h"
 
-
+#include "sharedgame/sg_gamemode.h"
+#include "svgame/svg_gamemode.h"
+#include "svgame/gamemodes/svg_gm_basemode.h"
 
 /**
 *
@@ -333,7 +336,7 @@ static void ClientUpdateUserInput( svg_base_edict_t *ent, svg_client_t *client, 
 **/
 static const bool ClientCheckIntermission( svg_base_edict_t *ent, svg_client_t *client ) {
     if ( level.intermissionFrameNumber ) {
-        client->ps.pmove.pm_type = PM_FREEZE;
+        client->ps.pmove.pm_type = ( !game.mode->IsMultiplayer() ? PM_SPINTERMISSION : PM_INTERMISSION );
 
         // can exit intermission after five seconds
         if ( ( level.frameNumber > level.intermissionFrameNumber + 5.0f * BASE_FRAMERATE ) && ( client->buttons & BUTTON_ANY ) ) {

@@ -32,6 +32,8 @@ typedef enum sg_gamemode_type_e {
 *	@brief	Gamemode base object.
 **/
 struct sg_gamemode_base_t {
+	virtual ~sg_gamemode_base_t() = default; // Virtual destructor for proper cleanup.
+
 	/**
 	*   @brief  Returns the game mode type.
 	**/

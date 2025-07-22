@@ -15,7 +15,8 @@
 **/
 void SVG_HUD_BeginIntermission( svg_base_edict_t *targ );
 /**
-*   @brief
+*   @brief  Will move the client to the intermission point, setting the client's origin and viewangles.
+*			Sets the client to intermission state, clearing out most of the entity's state and other client related data.
 **/
 void SVG_HUD_MoveClientToIntermission( svg_base_edict_t *client );
 /**

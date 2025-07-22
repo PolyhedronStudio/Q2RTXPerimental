@@ -149,6 +149,10 @@ struct svg_info_player_intermission_t : public svg_info_player_base_start_t {
     *   @brief  Spawn.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_info_player_intermission_t, onSpawn );
+    /**
+    *   @brief
+    **/
+    DECLARE_MEMBER_CALLBACK_USE( svg_info_player_intermission_t, onUse );
 };
 
 /**

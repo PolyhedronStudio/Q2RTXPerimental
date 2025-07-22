@@ -36,7 +36,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_pmove.h"
 
 #include "svgame/svg_gamemode.h"
-
+#include "svgame/gamemodes/svg_gm_basemode.h"
 
 /**
 *	General used Game Objects.

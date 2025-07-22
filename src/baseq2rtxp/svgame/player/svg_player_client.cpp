@@ -14,9 +14,12 @@
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/svg_commands_server.h"
-#include "svgame/svg_gamemode.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_utils.h"
+
+#include "sharedgame/sg_gamemode.h"
+#include "svgame/svg_gamemode.h"
+#include "svgame/gamemodes/svg_gm_basemode.h"
 
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
@@ -94,63 +97,28 @@ player_die
 *               loadgames WILL.
 **/
 const bool SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo ) {
-    // check to see if they are on the banned IP list
+	// Ensure it is a player entity.
+    if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+        gi.dprintf( "SVG_Client_Connect: Not a player entity.\n" );
+        return false;
+	}
+
+    // Check to see if they are on the banned IP list.
     char *value = Info_ValueForKey( userinfo, "ip" );
     if ( SVG_FilterPacket( value ) ) {
         Info_SetValueForKey( userinfo, "rejmsg", "Banned." );
+        // Refused.
         return false;
     }
 
-    // check for a spectator
-    value = Info_ValueForKey( userinfo, "spectator" );
-    if ( deathmatch->value && *value && strcmp( value, "0" ) ) {
-        int i, numspec;
+	// Pass over control to the gamemode.
+    if ( !game.mode->ClientConnect( static_cast<svg_player_edict_t*>( ent ), userinfo ) ) {
+        // Refused.
+        return false;
+	}
 
-        if ( *spectator_password->string &&
-            strcmp( spectator_password->string, "none" ) &&
-            strcmp( spectator_password->string, value ) ) {
-            Info_SetValueForKey( userinfo, "rejmsg", "Spectator password required or incorrect." );
-            return false;
-        }
-
-        // count spectators
-        for ( i = numspec = 0; i < maxclients->value; i++ ) {
-            svg_base_edict_t *ed = g_edict_pool.EdictForNumber( i + 1);
-            if ( ed != nullptr && ed->inuse && ed->client->pers.spectator ) {
-                numspec++;
-            }
-        }
-
-        if ( numspec >= maxspectators->value ) {
-            Info_SetValueForKey( userinfo, "rejmsg", "Server spectator limit is full." );
-            return false;
-        }
-    } else {
-        // check for a password
-        value = Info_ValueForKey( userinfo, "password" );
-        if ( *password->string && strcmp( password->string, "none" ) &&
-            strcmp( password->string, value ) ) {
-            Info_SetValueForKey( userinfo, "rejmsg", "Password required or incorrect." );
-            return false;
-        }
-    }
-
-    // they can connect
-    //ent->client = game.clients + ( ent - g_edicts - 1 );
-    ent->client = &game.clients[ g_edict_pool.NumberForEdict( ent ) - 1 ];
-
-    // if there is already a body waiting for us (a loadgame), just
-    // take it, otherwise spawn one from scratch
-    if ( ent->inuse == false ) {
-        // clear the respawning variables
-        SVG_Player_InitRespawnData( ent->client );
-        if ( !game.autosaved || !ent->client->pers.weapon ) {
-            SVG_Player_InitPersistantData( ent, ent->client );
-        }
-    }
-
+	// Connected, so set the userinfo.
     // make sure we start with known default(s)
-    //ent->svflags = SVF_PLAYER;
     SVG_Client_UserinfoChanged( ent, userinfo );
 
     // Developer connection print.
@@ -166,6 +134,7 @@ const bool SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo ) {
     // We're connected.
     ent->client->pers.connected = true;
 
+    // Connected.
     return true;
 }
 
@@ -426,7 +395,7 @@ void SVG_Client_RespawnPlayer( svg_base_edict_t *self ) {
     if ( deathmatch->value || coop->value ) {
         // spectator's don't leave bodies
         if ( self->movetype != MOVETYPE_NOCLIP ) {
-            SVG_Entities_AddForPlayer( self );
+            SVG_Entities_BodyQueueAddForPlayer( self );
         }
         self->svflags &= ~SVF_NOCLIENT;
         SVG_Player_PutInServer( self );
