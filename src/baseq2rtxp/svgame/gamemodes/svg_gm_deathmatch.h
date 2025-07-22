@@ -68,6 +68,13 @@ struct svg_gamemode_deathmatch_t : public svg_gamemode_t {
 	**/
 	virtual const bool ClientConnect( svg_player_edict_t *ent, char *userinfo ) override;
 	/**
+	*   @brief  called whenever the player updates a userinfo variable.
+	*
+	*           The game can override any of the settings in place
+	*           (forcing skins or names, etc) before copying it off.
+	**/
+	virtual void ClientUserinfoChanged( svg_player_edict_t *ent, char *userinfo ) override;
+	/**
 	*	@brief	Called somewhere at the beginning of the game frame. This allows
 	*			to determine if conditions are met to engage exitting intermission
 	*			mode and/or exit the level.
@@ -81,8 +88,23 @@ struct svg_gamemode_deathmatch_t : public svg_gamemode_t {
 	virtual void PostCheckGameRuleConditions() override;
 
 	/**
+	*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
+	**/
+	virtual svg_base_edict_t *SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) override;
+
+	/**
 	*	@brief	Ends the DeathMatch, switching to intermission mode, and finding
 	*			the next level to play. After which it will spawn a TargetChangeLevel entity.
 	**/
 	void EndDeathMatch();
+
+private:
+	/**
+	*   @brief  Go to a random point, but NOT the two points closest to other players.
+	**/
+	svg_base_edict_t *SelectRandomDeathmatchSpawnPoint( void );
+	/**
+	*   @brief
+	**/
+	svg_base_edict_t *SelectFarthestDeathmatchSpawnPoint( void );
 };

@@ -125,7 +125,8 @@ void SVG_Entities_InitBodyQue( void ) {
 /**
 *   @brief
 **/
-DECLARE_GLOBAL_CALLBACK_DIE( body_die ) {
+DECLARE_GLOBAL_CALLBACK_DIE( body_die );
+DEFINE_GLOBAL_CALLBACK_DIE( body_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
     int n;
 
     if ( self->health < -40 ) {

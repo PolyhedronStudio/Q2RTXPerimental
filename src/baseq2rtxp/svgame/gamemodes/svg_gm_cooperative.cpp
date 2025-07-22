@@ -124,28 +124,40 @@ const bool svg_gamemode_cooperative_t::ClientConnect( svg_player_edict_t *ent, c
 		}
 	}
 
-	#if 0
-	// make sure we start with known default(s)
-	//ent->svflags = SVF_PLAYER;
-	SVG_Client_UserinfoChanged( ent, userinfo );
-
-	// Developer connection print.
-	if ( game.maxclients > 1 ) {
-		gi.dprintf( "%s connected\n", ent->client->pers.netname );
-	}
-
-	// Make sure we start with known default(s):
-	// We're a player.
-	ent->svflags = SVF_PLAYER;
-	ent->s.entityType = ET_PLAYER;
-
-	// We're connected.
-	ent->client->pers.connected = true;
-	#endif
-
 	// Connected.
 	return true;
 }
+/**
+*   @brief  called whenever the player updates a userinfo variable.
+*
+*           The game can override any of the settings in place
+*           (forcing skins or names, etc) before copying it off.
+**/
+void svg_gamemode_cooperative_t::ClientUserinfoChanged( svg_player_edict_t *ent, char *userinfo ) {
+	// Set spectator
+	char *strSpectator = Info_ValueForKey( userinfo, "spectator" );
+	if ( /*deathmatch->value && */*strSpectator && strcmp( strSpectator, "0" ) ) {
+		ent->client->pers.spectator = true;
+	} else {
+		ent->client->pers.spectator = false;
+	}
+
+	// Set character skin.
+	const int32_t playernum = g_edict_pool.NumberForEdict( ent ) - 1;
+	// Combine name and skin into a configstring.
+	char *strSkin = Info_ValueForKey( userinfo, "skin" );
+	gi.configstring( CS_PLAYERSKINS + playernum, va( "%s\\%s", ent->client->pers.netname, strSkin ) );
+
+	// Reset the FOV in case it had been changed by any in-use weapon modes.
+	SVG_Player_ResetPlayerStateFOV( ent->client );
+
+	// Set weapon handedness
+	char *strHand = Info_ValueForKey( userinfo, "hand" );
+	if ( strlen( strHand ) ) {
+		ent->client->pers.hand = atoi( strHand );
+	}
+}
+
 /**
 *	@brief	Called somewhere at the beginning of the game frame. This allows
 *			to determine if conditions are met to engage exitting intermission
@@ -166,3 +178,74 @@ void svg_gamemode_cooperative_t::PreCheckGameRuleConditions() {
 void svg_gamemode_cooperative_t::PostCheckGameRuleConditions() {
 
 };
+
+/**
+*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
+**/
+svg_base_edict_t *svg_gamemode_cooperative_t::SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) {
+	svg_base_edict_t *spot = nullptr;
+
+	// <Q2RTXP>: WID: Implement dmflags as gamemodeflags?
+	//if ( (int)( dmflags->value ) & DF_SPAWN_FARTHEST ) {
+	//	spot = SelectFarthestDeathmatchSpawnPoint();
+	//} else {
+		spot = SelectCoopSpawnPoint( ent );
+	//}
+
+	// Resort to seeking 'info_player_start' spot since the game modes found none.
+	if ( !spot ) {
+		spot = svg_gamemode_t::SelectSpawnPoint( ent, origin, angles );
+	}
+
+	// If we found a spot, set the origin and angles.
+	if ( spot ) {
+		origin = spot->s.origin;
+		angles = spot->s.angles;
+	} else {
+		// Debug print if no spawn point was found.
+		gi.dprintf( "%s: No spawn point found for player %s, using default origin and angles.\n", __func__, ent->client->pers.netname );
+		origin = Vector3( 0, 0, 10 ); // Default origin.
+		angles = Vector3( 0, 0, 0 ); // Default angles.
+	}
+
+	return spot;
+}
+
+/**
+*	@brief  Will select a coop spawn point for the player.
+**/
+svg_base_edict_t *svg_gamemode_cooperative_t::SelectCoopSpawnPoint( svg_player_edict_t *ent ) {
+	int     index;
+	svg_base_edict_t *spot = nullptr;
+	// WID: C++20: Added const.
+	const char *target;
+
+	index = g_edict_pool.NumberForEdict( ent ) - 1; // ent->client - game.clients;
+
+	// player 0 starts in normal player spawn point
+	if ( !index ) {
+		return NULL;
+	}
+	spot = NULL;
+
+	// assume there are four coop spots at each spawnpoint
+	while ( 1 ) {
+		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_coop" );
+		if ( !spot ) {
+			return NULL;    // we didn't have enough...
+		}
+		target = (const char *)spot->targetname;
+		if ( !target ) {
+			target = "";
+		}
+		if ( Q_stricmp( game.spawnpoint, target ) == 0 ) {
+			// this is a coop spawn point for one of the clients here
+			index--;
+			if ( !index ) {
+				return spot;        // this is it
+			}
+		}
+	}
+
+	return spot;
+}

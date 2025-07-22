@@ -78,19 +78,40 @@ const bool svg_gamemode_singleplayer_t::ClientConnect( svg_player_edict_t *ent, 
 		}
 	}
 
-	// Make sure we start with known default(s)
-	SVG_Client_UserinfoChanged( ent, userinfo );
-
-	// Make sure we start with known default(s):
-	// We're a player.
-	ent->svflags = SVF_PLAYER;
-	ent->s.entityType = ET_PLAYER;
-
-	// We're connected.
-	ent->client->pers.connected = true;
-
 	// Connected.
 	return true;
+}
+/**
+*   @brief  called whenever the player updates a userinfo variable.
+*
+*           The game can override any of the settings in place
+*           (forcing skins or names, etc) before copying it off.
+**/
+void svg_gamemode_singleplayer_t::ClientUserinfoChanged( svg_player_edict_t *ent, char *userinfo ) {
+	// Singleplayer has no spectators, so we don't need to check for that.
+	#if 0
+	// Set spectator
+	char *strSpectator = Info_ValueForKey( userinfo, "spectator" );
+	if ( /*deathmatch->value && */*strSpectator && strcmp( strSpectator, "0" ) ) {
+		ent->client->pers.spectator = true;
+	} else {
+		ent->client->pers.spectator = false;
+	}
+	#endif // #if 0
+	// Set character skin.
+	const int32_t playernum = g_edict_pool.NumberForEdict( ent ) - 1;
+	// Combine name and skin into a configstring.
+	char *strSkin = Info_ValueForKey( userinfo, "skin" );
+	gi.configstring( CS_PLAYERSKINS + playernum, va( "%s\\%s", ent->client->pers.netname, strSkin ) );
+
+	// Reset the FOV in case it had been changed by any in-use weapon modes.
+	SVG_Player_ResetPlayerStateFOV( ent->client );
+
+	// Set weapon handedness
+	char *strHand = Info_ValueForKey( userinfo, "hand" );
+	if ( strlen( strHand ) ) {
+		ent->client->pers.hand = atoi( strHand );
+	}
 }
 /**
 *	@brief	Called somewhere at the beginning of the game frame. This allows
@@ -117,3 +138,28 @@ void svg_gamemode_singleplayer_t::PostCheckGameRuleConditions() {
 	// Perform the base gamemode checks first.
 	//svg_gamemode_t::PostCheckGameRuleConditions();
 };
+
+/**
+*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
+**/
+svg_base_edict_t *svg_gamemode_singleplayer_t::SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) {
+	svg_base_edict_t *spot = nullptr;
+
+	// Start seeking 'info_player_start' spot since this is singleplayer mode.
+	if ( !spot ) {
+		spot = svg_gamemode_t::SelectSpawnPoint( ent, origin, angles );
+	}
+
+	// If we found a spot, set the origin and angles.
+	if ( spot ) {
+		origin = spot->s.origin;
+		angles = spot->s.angles;
+	} else {
+		// Debug print if no spawn point was found.
+		gi.dprintf( "%s: No spawn point found for player %s, using default origin and angles.\n", __func__, ent->client->pers.netname );
+		origin = Vector3( 0, 0, 10 ); // Default origin.
+		angles = Vector3( 0, 0, 0 ); // Default angles.
+	}
+
+	return spot;
+}

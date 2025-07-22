@@ -11,8 +11,19 @@
 
 
 /**
+* 
+* 
+* 
 *   Player:
+* 
+* 
+* 
 **/
+/**
+*   @brief  Determines the client that is most near to the entity,
+*           and returns its length for ( ent->origin - client->origin ).
+**/
+const float SVG_Player_DistanceToEntity( svg_base_edict_t *ent );
 /**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
@@ -36,11 +47,6 @@ void SVG_Player_SaveClientData( void );
 *   @brief  Restore the client stored persistent data to reinitialize several client entity fields.
 **/
 void SVG_Player_RestoreClientData( svg_base_edict_t *ent );
-/**
-*   @brief  Only called when pers.spectator changes.
-*   @note   That resp.spectator should be the opposite of pers.spectator here
-**/
-void SVG_Player_SelectSpawnPoint( svg_base_edict_t *ent, Vector3 &origin, Vector3 &angles );
 /**
 *   @brief
 **/
@@ -75,9 +81,9 @@ void SVG_Client_UserinfoChanged( svg_base_edict_t *ent, char *userinfo );
 **/
 void SVG_Client_Begin( svg_base_edict_t *ent );
 /**
-*   @details    Called when a player begins connecting to the server.
+*   @details    Called when a client starts connecting to the server.
 *
-*               The game can refuse entrance to a client by returning false.
+*               The game and active game mode, can refuse entrance to a client by returning false.
 *
 *               If the client is allowed, the connection process will continue
 *               and eventually get to ClientBegin()

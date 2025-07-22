@@ -66,6 +66,114 @@ void svg_gamemode_deathmatch_t::PreCheckGameRuleConditions() {
 	}
 }
 
+/**
+*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
+**/
+svg_base_edict_t *svg_gamemode_deathmatch_t::SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) {
+	svg_base_edict_t *spot = NULL;
+
+	// <Q2RTXP>: WID: Implement dmflags as gamemodeflags?
+	if ( (int)( dmflags->value ) & DF_SPAWN_FARTHEST ) {
+		spot = SelectFarthestDeathmatchSpawnPoint();
+	} else {
+		spot = SelectRandomDeathmatchSpawnPoint();
+	}
+
+	// Resort to seeking 'info_player_start' spot since the game modes found none.
+	if ( !spot ) {
+		spot = svg_gamemode_t::SelectSpawnPoint( ent, origin, angles );
+	}
+
+	// If we found a spot, set the origin and angles.
+	if ( spot ) {
+		origin = spot->s.origin;
+		angles = spot->s.angles;
+	} else {
+		// Debug print if no spawn point was found.
+		gi.dprintf( "%s: No spawn point found for player %s, using default origin and angles.\n", __func__, ent->client->pers.netname );
+		origin = Vector3( 0, 0, 10 ); // Default origin.
+		angles = Vector3( 0, 0, 0 ); // Default angles.
+	}
+
+	return spot;
+}
+
+/**
+*   @brief  Go to a random point, but NOT the two points closest to other players.
+**/
+svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( void ) {
+	svg_base_edict_t *spot, *spot1, *spot2;
+	int     count = 0;
+	int     selection;
+	float   range, range1, range2;
+
+	spot = NULL;
+	range1 = range2 = 99999;
+	spot1 = spot2 = NULL;
+
+	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
+		count++;
+		range = SVG_Player_DistanceToEntity( spot );
+		if ( range < range1 ) {
+			range1 = range;
+			spot1 = spot;
+		} else if ( range < range2 ) {
+			range2 = range;
+			spot2 = spot;
+		}
+	}
+
+	if ( !count )
+		return NULL;
+
+	if ( count <= 2 ) {
+		spot1 = spot2 = NULL;
+	} else
+		count -= 2;
+
+	selection = Q_rand_uniform( count );
+
+	spot = NULL;
+	do {
+		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
+		if ( spot == spot1 || spot == spot2 )
+			selection++;
+	} while ( selection-- );
+
+	return spot;
+}
+
+/**
+*   @brief
+**/
+svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint( void ) {
+	svg_base_edict_t *bestspot;
+	float   bestdistance, bestplayerdistance;
+	svg_base_edict_t *spot;
+
+
+	spot = NULL;
+	bestspot = NULL;
+	bestdistance = 0;
+	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
+		bestplayerdistance = SVG_Player_DistanceToEntity( spot );
+
+		if ( bestplayerdistance > bestdistance ) {
+			bestspot = spot;
+			bestdistance = bestplayerdistance;
+		}
+	}
+
+	if ( bestspot ) {
+		return bestspot;
+	}
+
+	// if there is a player just spawned on each and every start spot
+	// we have no choice to turn one into a telefrag meltdown
+	spot = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
+
+	return spot;
+}
 
 /**
 *   @details    Called when a player begins connecting to the server.
@@ -138,26 +246,38 @@ const bool svg_gamemode_deathmatch_t::ClientConnect( svg_player_edict_t *ent, ch
 		}
 	}
 
-	#if 0
-	// make sure we start with known default(s)
-	//ent->svflags = SVF_PLAYER;
-	SVG_Client_UserinfoChanged( ent, userinfo );
-
-	// Developer connection print.
-	if ( game.maxclients > 1 ) {
-		gi.dprintf( "%s connected\n", ent->client->pers.netname );
-	}
-
-	// Make sure we start with known default(s):
-	// We're a player.
-	ent->svflags = SVF_PLAYER;
-	ent->s.entityType = ET_PLAYER;
-
-	// We're connected.
-	ent->client->pers.connected = true;
-	#endif
 	// Connected.
 	return true;
+}
+/**
+*   @brief  called whenever the player updates a userinfo variable.
+*
+*           The game can override any of the settings in place
+*           (forcing skins or names, etc) before copying it off.
+**/
+void svg_gamemode_deathmatch_t::ClientUserinfoChanged( svg_player_edict_t *ent, char *userinfo ) {
+	// Set spectator
+	char *strSpectator = Info_ValueForKey( userinfo, "spectator" );
+	if ( /*deathmatch->value && */*strSpectator && strcmp( strSpectator, "0" ) ) {
+		ent->client->pers.spectator = true;
+	} else {
+		ent->client->pers.spectator = false;
+	}
+
+	// Set character skin.
+	const int32_t playernum = g_edict_pool.NumberForEdict( ent ) - 1;
+	// Combine name and skin into a configstring.
+	char *strSkin = Info_ValueForKey( userinfo, "skin" );
+	gi.configstring( CS_PLAYERSKINS + playernum, va( "%s\\%s", ent->client->pers.netname, strSkin ) );
+
+	// Reset the FOV in case it had been changed by any in-use weapon modes.
+	SVG_Player_ResetPlayerStateFOV( ent->client );
+
+	// Set weapon handedness
+	char *strHand = Info_ValueForKey( userinfo, "hand" );
+	if ( strlen( strHand ) ) {
+		ent->client->pers.hand = atoi( strHand );
+	}
 }
 /**
 *	@brief	Called somewhere at the end of the game frame. This allows

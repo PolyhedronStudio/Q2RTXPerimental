@@ -62,6 +62,14 @@ struct svg_gamemode_t : public sg_gamemode_base_t {
 	**/
 	virtual const bool ClientConnect( svg_player_edict_t *ent, char *userinfo ) = 0;
 	/**
+	*   @brief  called whenever the player updates a userinfo variable.
+	*
+	*           The game can override any of the settings in place
+	*           (forcing skins or names, etc) before copying it off.
+	**/
+	virtual void ClientUserinfoChanged( svg_player_edict_t *ent, char *userinfo ) = 0;
+	
+	/**
 	*	@brief	Called somewhere at the beginning of the game frame. This allows
 	*			to determine if conditions are met to engage exitting intermission
 	*			mode and/or exit the level.
@@ -81,10 +89,13 @@ struct svg_gamemode_t : public sg_gamemode_base_t {
 	*
 	**/
 	/**
+	*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
+	**/
+	virtual svg_base_edict_t *SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles );
+	/**
 	*	@brief	Defines the behavior for the game mode when the level has to exit.
 	**/
 	virtual void ExitLevel();
-
 
 	/**
 	*   @brief  Returns the created target changelevel

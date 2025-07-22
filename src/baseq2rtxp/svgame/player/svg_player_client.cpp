@@ -145,23 +145,26 @@ const bool SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo ) {
 void SVG_Client_Disconnect( svg_base_edict_t *ent ) {
     //int     playernum;
 
-    if ( !ent->client )
+    if ( !ent->client ) {
         return;
+    }
 
     // WID: LUA:
     SVG_Lua_CallBack_ClientExitLevel( ent );
 
+	// Notify the game that the player has disconnected.
     gi.bprintf( PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname );
 
-    // send effect
+    // Send 'Logout' -effect.
     if ( ent->inuse ) {
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//gi.WriteInt16( ent - g_edicts );
         gi.WriteUint8( MZ_LOGOUT );
         gi.multicast( ent->s.origin, MULTICAST_PVS, false );
     }
-
+    // Unlink.
     gi.unlinkentity( ent );
+	// Clear the entity.
     ent->s.modelindex = 0;
     ent->s.modelindex2 = 0;
     ent->s.sound = 0;
@@ -249,9 +252,8 @@ void SVG_Player_InitRespawnData( svg_client_t *client ) {
     client->resp.enterframe = level.frameNumber;
     client->resp.entertime = level.time;
 
-    // In case of a coop game mode, we make sure to store the 
-    // 'persistent across level changes' data into the client's
-    // persistent respawn field, so we can restore it each respawn.
+    // We make sure to store the  'persistent across level changes' data into the client's
+    // persistent respawn field, so we can restore it each respawn(cooperative/sp).
     client->resp.pers_respawn = client->pers;
 }
 
@@ -260,14 +262,19 @@ void SVG_Player_InitRespawnData( svg_client_t *client ) {
 *            So it needs to be mirrored out to the client structure before all the edicts are wiped.
 **/
 void SVG_Player_SaveClientData( void ) {
+    // Iterate the clients.
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
+		// Get entity for this client.
         svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts[ 1 + i ];
+		// If the entity is not valid, or not in use, skip it.
         if ( !ent || !ent->inuse ) {
             continue;
         }
+		// Store the persistent data into the client structure.
         game.clients[ i ].pers.health = ent->health;
         game.clients[ i ].pers.max_health = ent->max_health;
         game.clients[ i ].pers.savedFlags = static_cast<entity_flags_t>( ent->flags & ( FL_GODMODE | FL_NOTARGET /*| FL_POWER_ARMOR*/ ) );
+		// Store the respawn score.
         if ( coop->value ) {
             game.clients[ i ].pers.score = ent->client->resp.score;
         }
@@ -277,11 +284,14 @@ void SVG_Player_SaveClientData( void ) {
 *   @brief  Restore the client stored persistent data to reinitialize several client entity fields.
 **/
 void SVG_Player_RestoreClientData( svg_base_edict_t *ent ) {
+	// Restore the persistent data from the client structure to the entity.
     ent->health = ent->client->pers.health;
     ent->max_health = ent->client->pers.max_health;
     ent->flags |= ent->client->pers.savedFlags;
-    if ( coop->value )
+	// If we are in cooperative mode, restore the score.
+    if ( coop->value ) {
         ent->client->resp.score = ent->client->pers.score;
+    }
 }
 
 /**
@@ -289,7 +299,7 @@ void SVG_Player_RestoreClientData( svg_base_edict_t *ent ) {
 **/
 void SVG_Player_ResetPlayerStateFOV( svg_client_t *client ) {
     // For DM Mode, possibly fixed FOV is set.
-    if ( deathmatch->value && ( (int)dmflags->value & DF_FIXED_FOV ) ) {
+    if ( /*deathmatch->value && */( (int)dmflags->value & DF_FIXED_FOV ) ) {
         client->ps.fov = 90;
         // Otherwise:
     } else {
@@ -322,57 +332,31 @@ void SVG_Player_ResetPlayerStateFOV( svg_client_t *client ) {
 *           (forcing skins or names, etc) before copying it off.
 **/
 void SVG_Client_UserinfoChanged( svg_base_edict_t *ent, char *userinfo ) {
-    char *s;
-    int     playernum;
-
-    // check for malformed or illegal info strings
+    // Check for malformed or illegal info strings
     if ( !Info_Validate( userinfo ) ) {
+		// Overwrite the userinfo with a default value that is not malformed.
         strcpy( userinfo, "\\name\\badinfo\\skin\\testdummy/skin" );
     }
 
-    // set name
-    s = Info_ValueForKey( userinfo, "name" );
+    // Make sure we got game mode.
+    if ( !game.mode ) {
+        gi.dprintf( "SVG_Client_UserinfoChanged: No game mode set.\n" );
+        return;
+	}
+	// Make sure entity is a player entity.
+    if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+        gi.dprintf( "SVG_Client_UserinfoChanged: Not a player entity.\n" );
+        return;
+    }
+
+    // Set name
+    char *s = Info_ValueForKey( userinfo, "name" );
     Q_strlcpy( ent->client->pers.netname, s, sizeof( ent->client->pers.netname ) );
 
-    // set spectator
-    s = Info_ValueForKey( userinfo, "spectator" );
-    // spectators are only supported in deathmatch
-    if ( deathmatch->value && *s && strcmp( s, "0" ) ) {
-        ent->client->pers.spectator = true;
-    } else {
-        ent->client->pers.spectator = false;
-    }
+    // Give the game mode a chance to deal with the user info.
+    game.mode->ClientUserinfoChanged( static_cast<svg_player_edict_t*>( ent ), userinfo );
 
-    // set skin
-    s = Info_ValueForKey( userinfo, "skin" );
-
-    playernum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
-
-    // combine name and skin into a configstring
-    gi.configstring( CS_PLAYERSKINS + playernum, va( "%s\\%s", ent->client->pers.netname, s ) );
-
-    // fov
-    #if 1
-    SVG_Player_ResetPlayerStateFOV( ent->client );
-    #else
-    if ( deathmatch->value && ( (int)dmflags->value & DF_FIXED_FOV ) ) {
-        ent->client->ps.fov = 90;
-    } else {
-        ent->client->ps.fov = atoi( Info_ValueForKey( userinfo, "fov" ) );
-        if ( ent->client->ps.fov < 1 )
-            ent->client->ps.fov = 90;
-        else if ( ent->client->ps.fov > 160 )
-            ent->client->ps.fov = 160;
-    }
-    #endif
-
-    // handedness
-    s = Info_ValueForKey( userinfo, "hand" );
-    if ( strlen( s ) ) {
-        ent->client->pers.hand = atoi( s );
-    }
-
-    // save off the userinfo in case we want to check something later
+    // Save off the userinfo in case we want to check something later.
     Q_strlcpy( ent->client->pers.userinfo, userinfo, sizeof( ent->client->pers.userinfo ) );
 }
 
@@ -525,13 +509,19 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     Vector3 temp, temp2;
     svg_trace_t tr;
 
+    if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+        gi.dprintf( "SVG_Player_PutInServer: Not a player entity.\n" );
+        return;
+	}
+
     // Always clear out any possibly previous left over of the useTargetHint.
     Client_ClearUseTargetHint( ent, ent->client, nullptr );
 
     // find a spawn point
     // do it before setting health back up, so farthest
     // ranging doesn't count this client
-    SVG_Player_SelectSpawnPoint( ent, spawn_origin, spawn_angles );
+    //SVG_Player_SelectSpawnPoint( ent, spawn_origin, spawn_angles );
+	game.mode->SelectSpawnPoint( static_cast<svg_player_edict_t*>( ent ), spawn_origin, spawn_angles );
 
     index = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
     client = ent->client;

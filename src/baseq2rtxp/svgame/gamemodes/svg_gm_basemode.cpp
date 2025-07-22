@@ -31,6 +31,52 @@
 *
 **/
 /**
+*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
+**/
+svg_base_edict_t *svg_gamemode_t::SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) {
+    svg_base_edict_t *spot = nullptr;
+
+    //if ( deathmatch->value ) {
+    //    spot = SelectDeathmatchSpawnPoint();
+    //} else if ( coop->value ) {
+    //    spot = SelectCoopSpawnPoint( ent );
+    //}
+
+    // Find a single player start spot since the game modes found none.
+    if ( !spot ) {
+        // Iterate for info_player_start that matches the game.spawnpoint targetname to spawn at..
+        while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_start" ) ) != NULL ) {
+            // Break out if the string data is invalid.
+            if ( !game.spawnpoint[ 0 ] && !(const char *)spot->targetname )
+                break;
+            if ( !game.spawnpoint[ 0 ] || !(const char *)spot->targetname )
+                continue;
+
+            // Break out in case we found the game.spawnpoint matching info_player_start 'targetname'.
+            if ( Q_stricmp( game.spawnpoint, (const char *)spot->targetname ) == 0 )
+                break;
+        }
+
+        // Couldn't find any designated spawn points, pick one with just a matching classname instead.
+        if ( !spot ) {
+            if ( !game.spawnpoint[ 0 ] ) {
+                // there wasn't a spawnpoint without a target, so use any
+                spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_start" );
+            }
+            if ( !spot )
+                gi.error( "Couldn't find spawn point %s", game.spawnpoint );
+        }
+    }
+
+	// If we found a spot, set the origin and angles.
+	if ( spot ) {
+		origin = spot->s.origin;
+		angles = spot->s.angles;
+	}
+
+	return spot;
+}
+/**
 *	@brief	Defines the behavior for the game mode when the level has to exit.
 **/
 void svg_gamemode_t::ExitLevel() {

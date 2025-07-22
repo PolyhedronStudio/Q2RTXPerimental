@@ -84,6 +84,8 @@ begin developer_menu
     action --align --status "func_train test." "Entities - func_train" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_train force"
     action --align --status "func_wall tests." "Entities - func_wall" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_func_wall force"
     blank
+    action --align --status "info_intermission entity testing." "Entities - info_intermission DM" "skill 0; gamemode 2; maxclients 4; map q2rtxp_dev_intermission force"
+    blank
     action --align --status "target_* tests." "Entities - target_* entities" "skill 0; gamemode 0; maxclients 1; map q2rtxp_dev_targets00 force"
 
     blank
