@@ -994,7 +994,7 @@ void SVG_Client_RespawnPlayer(edict_t *self)
         if (self->movetype != MOVETYPE_NOCLIP)
             CopyToBodyQue(self);
         self->svflags &= ~SVF_NOCLIENT;
-        SVG_Player_SpawnBody(self);
+        SVG_Player_SpawnInBody(self);
 
         // add a teleportation effect
         self->s.event = EV_PLAYER_TELEPORT;
@@ -1069,7 +1069,7 @@ void spectator_respawn(edict_t *ent)
     ent->client->resp.score = ent->client->pers.score = 0;
 
     ent->svflags &= ~SVF_NOCLIENT;
-    SVG_Player_SpawnBody(ent);
+    SVG_Player_SpawnInBody(ent);
 
     // add a teleportation effect
     if (!ent->client->pers.spectator)  {
@@ -1097,13 +1097,13 @@ void spectator_respawn(edict_t *ent)
 
 /*
 ===========
-SVG_Player_SpawnBody
+SVG_Player_SpawnInBody
 
 Called when a player connects to a server or respawns in
 a deathmatch.
 ============
 */
-void SVG_Player_SpawnBody(edict_t *ent)
+void SVG_Player_SpawnInBody(edict_t *ent)
 {
     vec3_t  mins = { -16, -16, -24};
     vec3_t  maxs = {16, 16, 32};
@@ -1306,7 +1306,7 @@ void ClientBeginDeathmatch(edict_t *ent)
     SVG_Player_InitRespawnData(ent->client);
 
     // locate ent at a spawn point
-    SVG_Player_SpawnBody(ent);
+    SVG_Player_SpawnInBody(ent);
 
     if (level.intermissionFrameNumber) {
         SVG_HUD_MoveClientToIntermission(ent);
@@ -1366,7 +1366,7 @@ void ClientBegin(edict_t *ent)
         SVG_InitEdict(ent);
         ent->classname = "player";
         SVG_Player_InitRespawnData(ent->client);
-        SVG_Player_SpawnBody(ent);
+        SVG_Player_SpawnInBody(ent);
     }
 
     ent->svflags |= SVF_PLAYER;

@@ -70,9 +70,9 @@ typedef enum entity_lifestatus_e {
     //! The entity is alive and kicking.
     LIFESTATUS_ALIVE  = 0,
     //! The entity is in the process of dying.
-    LIFESTATUS_DYING  = 1, // Acts as: BIT( 0 ),
+    LIFESTATUS_DYING  = BIT( 0 ), // Acts as: BIT( 0 ),
     //! The entity is actually dead, on floor somewhere or gibbed out.
-    LIFESTATUS_DEAD   = 2, // Acts as: BIT( 1 ),
+    LIFESTATUS_DEAD   = BIT( 1 ), // Acts as: BIT( 1 ),
     //! It is dead, but, respawnable.
     LIFESTATUS_RESPAWNABLE = BIT( 2 ) // BIT( 2 )== 4
 } entity_lifestatus_t;

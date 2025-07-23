@@ -17,6 +17,7 @@
 #include "sharedgame/sg_pmove.h"
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_muzzleflashes.h"
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 #include "svgame/gamemodes/svg_gm_singleplayer.h"
@@ -47,6 +48,10 @@ const bool svg_gamemode_singleplayer_t::AllowSaveGames() const {
 *			the server when a new game is started.
 **/
 void svg_gamemode_singleplayer_t::PrepareCVars() {
+    // Set the CVar for keeping old code in-tact. TODO: Remove in the future.
+    gi.cvar_forceset( "coop", "0" );
+    gi.cvar_forceset( "deathmatch", "0" );
+
 	// Non-deathmatch, non-coop is one player.
 	//Cvar_FullSet( "maxclients", "1", CVAR_SERVERINFO | CVAR_LATCH, FROM_CODE );
 	gi.cvar_forceset( "maxclients", "1" );
@@ -86,6 +91,44 @@ const bool svg_gamemode_singleplayer_t::ClientConnect( svg_player_edict_t *ent, 
 	return true;
 }
 /**
+*	@brief	Called when a a player purposely disconnects, or is dropped due to
+*			connectivity problems.
+**/
+void svg_gamemode_singleplayer_t::ClientDisconnect( svg_player_edict_t *ent ) {
+    // Notify the game that the player has disconnected.
+    gi.bprintf( PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname );
+
+    // Send 'Logout' -effect.
+    if ( ent->inuse ) {
+        gi.WriteUint8( svc_muzzleflash );
+        gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//gi.WriteInt16( ent - g_edicts );
+        gi.WriteUint8( MZ_LOGOUT );
+        gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+    }
+    // Unlink.
+    gi.unlinkentity( ent );
+    // Clear the entity.
+    ent->s.modelindex = 0;
+    ent->s.modelindex2 = 0;
+    ent->s.sound = 0;
+    ent->s.event = 0;
+    ent->s.effects = 0;
+    ent->s.renderfx = 0;
+    ent->s.solid = SOLID_NOT; // 0
+    ent->s.entityType = ET_GENERIC;
+    ent->solid = SOLID_NOT;
+    ent->inuse = false;
+    ent->classname = svg_level_qstring_t::from_char_str( "disconnected" );
+    ent->client->pers.spawned = false;
+    ent->client->pers.connected = false;
+    ent->timestamp = level.time + 1_sec;
+
+    // WID: This is now residing in RunFrame
+    // FIXME: don't break skins on corpses, etc
+    //playernum = ent-g_edicts-1;
+    //gi.configstring (CS_PLAYERSKINS+playernum, "");
+}
+/**
 *   @brief  called whenever the player updates a userinfo variable.
 *
 *           The game can override any of the settings in place
@@ -101,7 +144,11 @@ void svg_gamemode_singleplayer_t::ClientUserinfoChanged( svg_player_edict_t *ent
 	} else {
 		ent->client->pers.spectator = false;
 	}
+    #else
+    // Set spectator to false, disabled in SP mode.
+    ent->client->pers.spectator = false;
 	#endif // #if 0
+
 	// Set character skin.
 	const int32_t playernum = g_edict_pool.NumberForEdict( ent ) - 1;
 	// Combine name and skin into a configstring.
@@ -123,7 +170,7 @@ void svg_gamemode_singleplayer_t::ClientUserinfoChanged( svg_player_edict_t *ent
 *           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
 *           saved entity and persistant data. (This includes actually raising the weapon up.)
 **/
-void svg_gamemode_singleplayer_t::ClientSpawnBody( svg_player_edict_t *ent ) {
+void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // Always clear out any possibly previous left over of the useTargetHint.
     Client_ClearUseTargetHint( ent, ent->client, nullptr );
 
@@ -321,6 +368,61 @@ void svg_gamemode_singleplayer_t::ClientSpawnBody( svg_player_edict_t *ent ) {
     SVG_Player_Weapon_Change( ent );
 }
 /**
+*   @brief  Called when a client has finished connecting, and is ready
+*           to be placed into the game. This will happen every level load.
+**/
+void svg_gamemode_singleplayer_t::ClientBegin( svg_player_edict_t *ent ) {
+    // Assign matching client for this entity.
+    ent->client = &game.clients[ g_edict_pool.NumberForEdict( ent ) - 1 ]; //game.clients + ( ent - g_edicts - 1 );
+
+    // [Paril-KEX] we're always connected by this point...
+    ent->client->pers.connected = true;
+
+    // Always clear out any previous left over useTargetHint stuff.
+    Client_ClearUseTargetHint( ent, ent->client, nullptr );
+
+    // We're spawned now of course.
+    ent->client->resp.entertime = level.time;
+    ent->client->pers.spawned = true;
+
+    // If there is already a body waiting for us (a loadgame), just take it:
+    if ( ent->inuse == true ) {
+        // Spawn inside the body which was created during load time.
+        SetupLoadGameBody( ent );
+    // Otherwise spawn one from scratch:
+    } else {
+        // Create a new body for this player and spawn inside it.
+        SetupNewGameBody( ent );
+    }
+
+    // If in intermission, move our client over into intermission state. (We connected at the end of a match).
+    if ( level.intermissionFrameNumber ) {
+        SVG_HUD_MoveClientToIntermission( ent );
+        // Otherwise, send 'Login' effect even if NOT in a multiplayer game 
+    } else {
+        // 
+        if ( game.maxclients >= 1 ) {
+            gi.WriteUint8( svc_muzzleflash );
+            gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
+            gi.WriteUint8( MZ_LOGIN );
+            gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+
+            // Only print this though, if NOT in a singleplayer game.
+            //if ( game.gamemode != GAMEMODE_TYPE_SINGLEPLAYER ) {
+            gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
+            //}
+        }
+    }
+
+    // Call upon EndServerFrame to make sure all view stuff is valid.
+    SVG_Client_EndServerFrame( ent );
+
+    // WID: LUA:
+    SVG_Lua_CallBack_ClientEnterLevel( ent );
+}
+
+
+/**
 *	@brief	Called somewhere at the beginning of the game frame. This allows
 *			to determine if conditions are met to engage exitting intermission
 *			mode and/or exit the level.
@@ -369,4 +471,41 @@ svg_base_edict_t *svg_gamemode_singleplayer_t::SelectSpawnPoint( svg_player_edic
 	}
 
 	return spot;
+}
+
+/**
+*   @brief  A client connected by loadgame(assuming singleplayer), there is already
+*           a body waiting for us to use. We just need to adjust its angles.
+**/
+void svg_gamemode_singleplayer_t::SetupLoadGameBody( svg_player_edict_t *ent ) {
+    // The client has cleared the client side viewangles upon
+    // connecting to the server, which is different than the
+    // state when the game is saved, so we need to compensate
+    // with deltaangles
+    ent->client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( ent->client->ps.viewangles );
+    // Make sure classname is player.
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );
+    // Make sure entity type is player.
+    ent->s.entityType = ET_PLAYER;
+    // Ensure proper player flag is set.
+    ent->svflags |= SVF_PLAYER;
+}
+/**
+*   @brief  There is no body waiting for us yet, so (re-)initialize the entity we have with a full new 'body'.
+**/
+void svg_gamemode_singleplayer_t::SetupNewGameBody( svg_player_edict_t *ent ) {
+    // A spawn point will completely reinitialize the entity
+    // except for the persistant data that was initialized at
+    // connect time
+    g_edict_pool._InitEdict( ent, ent->s.number );
+    // Make sure classname is player.
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );;
+    // Make sure entity type is player.
+    ent->s.entityType = ET_PLAYER;
+    // Ensure proper player flag is set.
+    ent->svflags |= SVF_PLAYER;
+    // Initialize respawn data.
+    SVG_Player_InitRespawnData( ent->client );
+    // Actually finds a spawnpoint and places the 'body' into the game.
+    SVG_Player_SpawnInBody( ent );
 }

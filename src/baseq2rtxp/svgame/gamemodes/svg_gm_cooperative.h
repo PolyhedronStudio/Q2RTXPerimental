@@ -65,6 +65,11 @@ struct svg_gamemode_cooperative_t : public svg_gamemode_t {
 	**/
 	virtual const bool ClientConnect( svg_player_edict_t *ent, char *userinfo ) override;
 	/**
+	*	@brief	Called when a a player purposely disconnects, or is dropped due to
+	*			connectivity problems.
+	**/
+	virtual void ClientDisconnect( svg_player_edict_t *ent ) override;
+	/**
 	*   @brief  called whenever the player updates a userinfo variable.
 	*
 	*           The game can override any of the settings in place
@@ -77,7 +82,13 @@ struct svg_gamemode_cooperative_t : public svg_gamemode_t {
 	*           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
 	*           saved entity and persistant data. (This includes actually raising the weapon up.)
 	**/
-	virtual void ClientSpawnBody( svg_player_edict_t *ent ) override;
+	virtual void ClientSpawnInBody( svg_player_edict_t *ent ) override;
+	/**
+	*   @brief  Called when a client has finished connecting, and is ready
+	*           to be placed into the game. This will happen every level load.
+	**/
+	virtual void ClientBegin( svg_player_edict_t *ent ) override;
+
 	/**
 	*	@brief	Called somewhere at the beginning of the game frame. This allows
 	*			to determine if conditions are met to engage exitting intermission
@@ -98,4 +109,14 @@ struct svg_gamemode_cooperative_t : public svg_gamemode_t {
 
 private:
 	svg_base_edict_t *SelectCoopSpawnPoint( svg_player_edict_t *ent );
+
+	/**
+	*   @brief  A client connected by loadgame(assuming singleplayer), there is already
+	*           a body waiting for us to use. We just need to adjust its angles.
+	**/
+	void SetupLoadGameBody( svg_player_edict_t *ent );
+	/**
+	*   @brief  There is no body waiting for us yet, so (re-)initialize the entity we have with a full new 'body'.
+	**/
+	void SetupNewGameBody( svg_player_edict_t *ent );
 };

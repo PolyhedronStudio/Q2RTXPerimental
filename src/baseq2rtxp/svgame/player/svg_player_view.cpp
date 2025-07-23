@@ -991,14 +991,14 @@ void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
 	// set model angles from view angles so other things in
 	// the world can tell which direction you are looking
 	//
-	if ( ent->client->viewMove.viewAngles[ PITCH ] > 180 ) {
-		ent->s.angles[ PITCH ] = ( -360 + ent->client->viewMove.viewAngles[ PITCH ] ) / 3;
+	if ( ent->client->viewMove.viewAngles[ PITCH ] > 180. ) {
+		ent->s.angles[ PITCH ] = ( -360. + ent->client->viewMove.viewAngles[ PITCH ] ) / 3.;
 	} else {
-		ent->s.angles[ PITCH ] = ent->client->viewMove.viewAngles[ PITCH ] / 3;
+		ent->s.angles[ PITCH ] = ent->client->viewMove.viewAngles[ PITCH ] / 3.;
 	}
 	ent->s.angles[ YAW ] = ent->client->viewMove.viewAngles[ YAW ];
 	ent->s.angles[ ROLL ] = 0;
-	ent->s.angles[ ROLL ] = SV_CalcRoll( ent->s.angles, ent->velocity ) * 4;
+	ent->s.angles[ ROLL ] = SV_CalcRoll( ent->s.angles, ent->velocity ) * 4.;
 
 	//
 	// Update the client's bob cycle.

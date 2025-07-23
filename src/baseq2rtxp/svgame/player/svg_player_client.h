@@ -57,7 +57,7 @@ void SVG_Player_Obituary( svg_base_edict_t *self, svg_base_edict_t *inflictor, s
 *           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
 *           saved entity and persistant data. (This includes actually raising the weapon up.)
 **/
-void SVG_Player_SpawnBody( svg_base_edict_t *ent );
+void SVG_Player_SpawnInBody( svg_base_edict_t *ent );
 
 /**
 *   @brief
