@@ -115,6 +115,10 @@ void SVG_Client_Think( svg_base_edict_t * ent, usercmd_t * ucmd );
 *
 **/
 /**
+*   @brief
+**/
+void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput = false );
+/**
 *   @brief  Unsets the current client stats usetarget info.
 **/
 void Client_ClearUseTargetHint( svg_base_edict_t *ent, svg_client_t *client, svg_base_edict_t *useTargetEntity );

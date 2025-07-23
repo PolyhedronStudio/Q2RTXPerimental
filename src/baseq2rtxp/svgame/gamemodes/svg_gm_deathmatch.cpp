@@ -9,6 +9,7 @@
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
+#include "svgame/player/svg_player_events.h"
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
 
@@ -77,6 +78,177 @@ void svg_gamemode_deathmatch_t::PreCheckGameRuleConditions() {
 }
 
 /**
+*   @brief  This will be called once for all clients on each server frame, before running any other entities in the world.
+**/
+void svg_gamemode_deathmatch_t::BeginServerFrame( svg_player_edict_t *ent ) {
+	/**
+	*   Opt out of function if we're in intermission mode.
+	**/
+	if ( level.intermissionFrameNumber ) {
+		return;
+	}
+
+	/**
+	*   Handle respawning as a spectating client:
+	**/
+	svg_client_t *client = ent->client;
+
+	if ( client->pers.spectator != client->resp.spectator && ( level.time - client->respawn_time ) >= 5_sec ) {
+		// Respawn as spectator.
+		SVG_Client_RespawnSpectator( ent );
+		// Return.
+		return;
+	}
+
+	/**
+	*   Run (+usetarget) logics.
+	**/
+	// Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
+	if ( client->useTarget.tracedFrameNumber < level.frameNumber && !client->resp.spectator ) {
+		SVG_Client_TraceForUseTarget( ent, client, false );
+	} else {
+		client->useTarget.tracedFrameNumber = level.frameNumber;
+	}
+
+	/**
+	*   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
+	**/
+	if ( client->weapon_thunk == false && !client->resp.spectator ) {
+		SVG_Player_Weapon_Think( ent, false );
+	} else {
+		client->weapon_thunk = false;
+	}
+
+	/**
+	*   If dead, check for any user input after the client's respawn_time has expired.
+	**/
+	if ( ent->lifeStatus != LIFESTATUS_ALIVE ) {
+		// wait for any button just going down
+		if ( level.time > client->respawn_time ) {
+			// in deathmatch, only wait for attack button
+			const int32_t buttonMask = BUTTON_PRIMARY_FIRE;
+
+			if ( ( client->latched_buttons & buttonMask ) || ( (int)dmflags->value & DF_FORCE_RESPAWN ) ) {
+				// respawn as player.
+				SVG_Client_RespawnPlayer( ent );
+				// Unlatch.
+				client->latched_buttons = BUTTON_NONE;
+			}
+		}
+		return;
+	}
+
+	/**
+	*   Add player trail so monsters can follow
+	**/
+	//// WID: TODO: Monster Reimplement.
+	//if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
+	//	PlayerTrail_Add( ent->s.old_origin );
+	//}
+
+	/**
+	*   UNLATCH ALL LATCHED BUTTONS:
+	**/
+	client->latched_buttons = BUTTON_NONE;
+}
+/**
+*	@brief	Called for each player at the end of the server frame, also right after spawning as well to finalize the view.
+**/
+void svg_gamemode_deathmatch_t::EndServerFrame( svg_player_edict_t *ent ) {
+	//
+	// If the end of unit layout is displayed, don't give
+	// the player any normal movement attributes
+	//
+	if ( level.intermissionFrameNumber ) {
+		// FIXME: add view drifting here?
+		ent->client->ps.screen_blend[ 3 ] = 0;
+		ent->client->ps.fov = 90;
+		SVG_HUD_SetStats( ent );
+		return;
+	}
+
+	//// Calculate angle vectors.
+	//Vector3 vForward = QM_Vector3Zero();
+	//Vector3 vRight = QM_Vector3Zero();
+	//Vector3 vUp = QM_Vector3Zero();
+	//AngleVectors( &ent->client->viewMove.viewAngles.x, forward, vRight, vUp );
+
+	// burn from lava, etc
+	P_CheckWorldEffects();
+
+	//
+	// set model angles from view angles so other things in
+	// the world can tell which direction you are looking
+	//
+	if ( ent->client->viewMove.viewAngles[ PITCH ] > 180. ) {
+		ent->s.angles[ PITCH ] = ( -360. + ent->client->viewMove.viewAngles[ PITCH ] ) / 3.;
+	} else {
+		ent->s.angles[ PITCH ] = ent->client->viewMove.viewAngles[ PITCH ] / 3.;
+	}
+	ent->s.angles[ YAW ] = ent->client->viewMove.viewAngles[ YAW ];
+	ent->s.angles[ ROLL ] = 0;
+	ent->s.angles[ ROLL ] = SV_CalcRoll( ent->s.angles, ent->velocity ) * 4.;
+
+	//
+	// Update the client's bob cycle.
+	//
+	ent->client->oldBobCycle = ent->client->bobCycle;
+	ent->client->bobCycle = ( ent->client->ps.bobCycle & 128 ) >> 7;
+	ent->client->bobFracSin = fabs( sin( ( ent->client->ps.bobCycle & 127 ) / 127.0 * M_PI ) );
+
+	// apply all the damage taken this frame
+	P_DamageFeedback( ent );
+
+	// determine the view offsets
+	P_CalculateViewOffset( ent );
+
+	// WID: Moved to CLGame.
+	// determine the gun offsets
+	//SV_CalculateGunOffset( ent );
+
+	// Determine the full screen color blend which must happen after applying viewoffset, 
+	// so eye contents can be accurately determined.
+	// FIXME: with client prediction, the contents should be determined by the client.
+	P_CalculateBlend( ent );
+
+	// Different layout when spectating.
+	if ( ent->client->resp.spectator ) {
+		SVG_HUD_SetSpectatorStats( ent );
+		// Regular layout.
+	} else {
+		SVG_HUD_SetStats( ent );
+	}
+	// Set stats to that of the entity which we're tracing. (Overriding previously set stats.)
+	SVG_HUD_CheckChaseStats( ent );
+	// Events.
+	SVG_SetClientEvent( ent );
+	// Effects.
+	SVG_SetClientEffects( ent );
+	// Sound.
+	SVG_SetClientSound( ent );
+	// Check for client playerstate its pmove generated events.
+	SVG_CheckClientPlayerstateEvents( ent, &ent->client->ops, &ent->client->ps );
+	// Animation Frame.
+	SVG_SetClientFrame( ent );
+
+	// Backup velocity, viewangles, and ground entity.
+	VectorCopy( ent->velocity, ent->client->oldvelocity );
+	VectorCopy( ent->client->ps.viewangles, ent->client->oldviewangles );
+	ent->client->oldgroundentity = ent->groundInfo.entity;
+
+	// Clear out the weapon kicks.
+	ent->client->weaponKicks = {};
+
+	// <Q2RTXP?: WID: Dun have this in SP mode.
+	#if 1
+	// If the scoreboard is up, update it.
+	if ( ent->client->showscores && !( level.frameNumber & 63 ) ) {
+		SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, false );
+	}
+	#endif // #if 0
+}
+
+/**
 *	@brief	Sets the spawn origin and angles to that matching the found spawn point.
 **/
 svg_base_edict_t *svg_gamemode_deathmatch_t::SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) {
@@ -108,82 +280,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectSpawnPoint( svg_player_edict_
 	return spot;
 }
 
-/**
-*   @brief  Go to a random point, but NOT the two points closest to other players.
-**/
-svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( void ) {
-	svg_base_edict_t *spot, *spot1, *spot2;
-	int     count = 0;
-	int     selection;
-	float   range, range1, range2;
 
-	spot = NULL;
-	range1 = range2 = 99999;
-	spot1 = spot2 = NULL;
-
-	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
-		count++;
-		range = SVG_Player_DistanceToEntity( spot );
-		if ( range < range1 ) {
-			range1 = range;
-			spot1 = spot;
-		} else if ( range < range2 ) {
-			range2 = range;
-			spot2 = spot;
-		}
-	}
-
-	if ( !count )
-		return NULL;
-
-	if ( count <= 2 ) {
-		spot1 = spot2 = NULL;
-	} else
-		count -= 2;
-
-	selection = Q_rand_uniform( count );
-
-	spot = NULL;
-	do {
-		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
-		if ( spot == spot1 || spot == spot2 )
-			selection++;
-	} while ( selection-- );
-
-	return spot;
-}
-
-/**
-*   @brief
-**/
-svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint( void ) {
-	svg_base_edict_t *bestspot;
-	float   bestdistance, bestplayerdistance;
-	svg_base_edict_t *spot;
-
-
-	spot = NULL;
-	bestspot = NULL;
-	bestdistance = 0;
-	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
-		bestplayerdistance = SVG_Player_DistanceToEntity( spot );
-
-		if ( bestplayerdistance > bestdistance ) {
-			bestspot = spot;
-			bestdistance = bestplayerdistance;
-		}
-	}
-
-	if ( bestspot ) {
-		return bestspot;
-	}
-
-	// if there is a player just spawned on each and every start spot
-	// we have no choice to turn one into a telefrag meltdown
-	spot = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
-
-	return spot;
-}
 
 /**
 *   @details    Called when a player begins connecting to the server.
@@ -617,6 +714,84 @@ void svg_gamemode_deathmatch_t::PostCheckGameRuleConditions() {
 		}
 	}
 };
+
+
+/**
+*   @brief  Go to a random point, but NOT the two points closest to other players.
+**/
+svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( void ) {
+	svg_base_edict_t *spot, *spot1, *spot2;
+	int     count = 0;
+	int     selection;
+	float   range, range1, range2;
+
+	spot = NULL;
+	range1 = range2 = 99999;
+	spot1 = spot2 = NULL;
+
+	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
+		count++;
+		range = SVG_Player_DistanceToEntity( spot );
+		if ( range < range1 ) {
+			range1 = range;
+			spot1 = spot;
+		} else if ( range < range2 ) {
+			range2 = range;
+			spot2 = spot;
+		}
+	}
+
+	if ( !count )
+		return NULL;
+
+	if ( count <= 2 ) {
+		spot1 = spot2 = NULL;
+	} else
+		count -= 2;
+
+	selection = Q_rand_uniform( count );
+
+	spot = NULL;
+	do {
+		spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
+		if ( spot == spot1 || spot == spot2 )
+			selection++;
+	} while ( selection-- );
+
+	return spot;
+}
+
+/**
+*   @brief
+**/
+svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint( void ) {
+	svg_base_edict_t *bestspot;
+	float   bestdistance, bestplayerdistance;
+	svg_base_edict_t *spot;
+
+
+	spot = NULL;
+	bestspot = NULL;
+	bestdistance = 0;
+	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
+		bestplayerdistance = SVG_Player_DistanceToEntity( spot );
+
+		if ( bestplayerdistance > bestdistance ) {
+			bestspot = spot;
+			bestdistance = bestplayerdistance;
+		}
+	}
+
+	if ( bestspot ) {
+		return bestspot;
+	}
+
+	// if there is a player just spawned on each and every start spot
+	// we have no choice to turn one into a telefrag meltdown
+	spot = SVG_Entities_Find( NULL, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" );
+
+	return spot;
+}
 /**
 *	@brief	Ends the DeathMatch, switching to intermission mode, and finding
 *			the next level to play. After which it will spawn a TargetChangeLevel entity.

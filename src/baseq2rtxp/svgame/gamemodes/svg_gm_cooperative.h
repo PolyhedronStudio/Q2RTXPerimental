@@ -103,6 +103,16 @@ struct svg_gamemode_cooperative_t : public svg_gamemode_t {
 	virtual void PostCheckGameRuleConditions() override;
 
 	/**
+	*   @brief  This will be called once for all clients on each server frame, before running any other entities in the world.
+	**/
+	virtual void BeginServerFrame( svg_player_edict_t *ent ) override;
+	/**
+	*	@brief	Called for each player at the end of the server frame, also right after spawning as well to finalize the view.
+	**/
+	virtual void EndServerFrame( svg_player_edict_t *ent ) override;
+
+
+	/**
 	*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
 	**/
 	virtual svg_base_edict_t *SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) override;

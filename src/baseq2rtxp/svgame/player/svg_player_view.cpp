@@ -20,10 +20,17 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_trail.h"
+#include "svgame/player/svg_player_view.h"
 
 #include "sharedgame/sg_cmd_messages.h"
 #include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_means_of_death.h"
+
+#include "sharedgame/sg_gamemode.h"
+#include "svgame/svg_gamemode.h"
+#include "svgame/gamemodes/svg_gm_basemode.h"
+
+#include "svgame/entities/svg_player_edict.h"
 
 
 static  svg_base_edict_t *current_player;
@@ -63,7 +70,7 @@ SV_CalcRoll
 
 ===============
 */
-const float SV_CalcRoll( const Vector3 &angles, const Vector3 &velocity ) {
+const double SV_CalcRoll( const Vector3 &angles, const Vector3 &velocity ) {
 	float   sign;
 	float   side;
 	float   value;
@@ -84,14 +91,10 @@ const float SV_CalcRoll( const Vector3 &angles, const Vector3 &velocity ) {
 }
 
 
-/*
-===============
-P_DamageFeedback
-
-Handles color blends and view kicks
-===============
-*/
-static void P_DamageFeedback( svg_base_edict_t *player ) {
+/**
+*	@brief	Handles and applies the screen color blends and view kicks
+**/
+void P_DamageFeedback( svg_base_edict_t *player ) {
 	float   side;
 	int32_t   r, l;
 	constexpr Vector3 armor_color = { 1.0, 1.0, 1.0 };
@@ -284,7 +287,7 @@ Auto pitching on slopes?
 
 ===============
 */
-static void P_CalculateViewOffset( svg_base_edict_t *ent ) {
+void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 	//float *angles;
 	//float       bob;
 	float       ratio;
@@ -483,27 +486,26 @@ SV_CalculateGunOffset
 SV_AddBlend
 =============
 */
-void SV_AddBlend( float r, float g, float b, float a, float *v_blend ) {
-	float   a2, a3;
+void SV_AddBlend( const double r, const double g, const double b, const double a, float *v_blend ) {
+	double a2, a3;
 
 	if ( a <= 0 )
 		return;
-	a2 = v_blend[ 3 ] + ( 1 - v_blend[ 3 ] ) * a; // new total alpha
+	a2 = v_blend[ 3 ] + ( 1. - v_blend[ 3 ] ) * a; // new total alpha
 	a3 = v_blend[ 3 ] / a2;   // fraction of color from old
 
-	v_blend[ 0 ] = v_blend[ 0 ] * a3 + r * ( 1 - a3 );
-	v_blend[ 1 ] = v_blend[ 1 ] * a3 + g * ( 1 - a3 );
-	v_blend[ 2 ] = v_blend[ 2 ] * a3 + b * ( 1 - a3 );
+	v_blend[ 0 ] = v_blend[ 0 ] * a3 + r * ( 1. - a3 );
+	v_blend[ 1 ] = v_blend[ 1 ] * a3 + g * ( 1. - a3 );
+	v_blend[ 2 ] = v_blend[ 2 ] * a3 + b * ( 1. - a3 );
 	v_blend[ 3 ] = a2;
 }
 
 
-/*
-=============
-P_CalculateBlend
-=============
-*/
-static void P_CalculateBlend( svg_base_edict_t *ent ) {
+/**
+*	@brief	Determine the contents of the client's view org as well calculate possible
+*			damage influenced screen blends.
+**/
+void P_CalculateBlend( svg_base_edict_t *ent ) {
 	QMTime remaining;
 
 	// Clear player state screen blend.
@@ -564,12 +566,10 @@ static void P_CalculateBlend( svg_base_edict_t *ent ) {
 	}
 }
 
-/*
-=============
-P_CheckWorldEffects
-=============
-*/
-static void P_CheckWorldEffects( void ) {
+/**
+*	@brief	Check if any world related collisions occure and if so apply necessary effects.
+**/
+void P_CheckWorldEffects( void ) {
 	cm_liquid_level_t liquidlevel, old_waterlevel;
 
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
@@ -708,11 +708,9 @@ static void P_CheckWorldEffects( void ) {
 }
 
 
-/*
-===============
-SVG_SetClientEffects
-===============
-*/
+/**
+*	@brief	Apply possibly applied 'effects'.
+**/
 void SVG_SetClientEffects( svg_base_edict_t *ent ) {
 	ent->s.effects = 0;
 	ent->s.renderfx = 0;
@@ -729,11 +727,9 @@ void SVG_SetClientEffects( svg_base_edict_t *ent ) {
 }
 
 
-/*
-===============
-SVG_SetClientEvent
-===============
-*/
+/**
+*	@brief	Determine the client's event.
+**/
 void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	// We're already occupied by an event.
 	if ( ent->s.event ) {
@@ -763,11 +759,9 @@ void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	}
 }
 
-/*
-===============
-SVG_SetClientSound
-===============
-*/
+/**
+*	@brief	Determine client sound.
+**/
 void SVG_SetClientSound( svg_base_edict_t *ent ) {
 	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
 	if ( ent->liquidInfo.level && ( ent->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
@@ -849,15 +843,19 @@ void SVG_SetClientFrame( svg_base_edict_t *ent ) {
 
 
 /**
-*   @brief
-**/
-void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput = false );
-/**
-*   @brief  This will be called once for each server frame, before running any other entities in the world.
+*   @brief  This will be called once for all clients on each server frame, before running any other entities in the world.
 **/
 void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
-	svg_client_t *client;
-	int32_t buttonMask;
+	// Ensure we are dealing with a player entity here.
+	if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+		gi.dprintf( "%s: Not a player entity.\n", __func__ );
+		return;
+	}
+
+	// <Q2RTXP>: WID: TODO: WARN?
+	if ( !ent->client ) {
+		return;
+	}
 
 	/**
 	*   Remove RF_STAIR_STEP if we're in a new frame, not stepping.
@@ -866,86 +864,28 @@ void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
 		ent->s.renderfx &= ~RF_STAIR_STEP;
 	}
 
-	/**
-	*   Opt out of function if we're in intermission mode.
-	**/
-	if ( level.intermissionFrameNumber ) {
-		return;
-	}
-
-	/**
-	*   Handle respawning as a spectating client:
-	**/
-	client = ent->client;
-
-	if ( deathmatch->value && client->pers.spectator != client->resp.spectator &&
-		( level.time - client->respawn_time ) >= 5_sec ) {
-		SVG_Client_RespawnSpectator( ent );
-		return;
-	}
-
-	/**
-	*   Run (+usetarget) logics.
-	**/
-	// Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
-	if ( client->useTarget.tracedFrameNumber < level.frameNumber && !client->resp.spectator ) {
-		SVG_Client_TraceForUseTarget( ent, client, false );
-	} else {
-		client->useTarget.tracedFrameNumber = level.frameNumber;
-	}
-
-	/**
-	*   Run weapon logic if it hasn't been done by a usercmd_t in ClientThink.
-	**/
-	if ( client->weapon_thunk == false && !client->resp.spectator ) {
-		SVG_Player_Weapon_Think( ent, false );
-	} else {
-		client->weapon_thunk = false;
-	}
-
-	/**
-	*   If dead, check for any user input after the client's respawn_time has expired.
-	**/
-	if ( ent->lifeStatus ) {
-		// wait for any button just going down
-		if ( level.time > client->respawn_time ) {
-			// in deathmatch, only wait for attack button
-			if ( deathmatch->value ) {
-				buttonMask = BUTTON_PRIMARY_FIRE;
-			} else {
-				buttonMask = -1;
-			}
-
-			if ( ( client->latched_buttons & buttonMask ) ||
-				( deathmatch->value && ( (int)dmflags->value & DF_FORCE_RESPAWN ) ) ) {
-				SVG_Client_RespawnPlayer( ent );
-				client->latched_buttons = BUTTON_NONE;
-			}
-		}
-		return;
-	}
-
-	/**
-	*   Add player trail so monsters can follow
-	**/
-	if ( !deathmatch->value ) {
-		//// WID: TODO: Monster Reimplement.
-		//if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
-		//	PlayerTrail_Add( ent->s.old_origin );
-		//}
-	}
+	// Give game mode control.
+	game.mode->BeginServerFrame( static_cast<svg_player_edict_t *>( ent ) );
 
 	/**
 	*   UNLATCH ALL LATCHED BUTTONS:
 	**/
-	client->latched_buttons = BUTTON_NONE;
+	ent->client->latched_buttons = BUTTON_NONE;
 }
 
 /**
 *	@brief	Called for each player at the end of the server frame, and right after spawning.
 **/
 void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
-	int     i;
+	// Ensure we are dealing with a player entity here.
+	if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+		gi.dprintf( "%s: Not a player entity.\n", __func__ );
+		return;
+	}
+	// <Q2RTXP>: WID: TODO: WARN?
+	if ( !ent->client ) {
+		return;
+	}
 
 	// no player exists yet (load game)
 	if ( !ent->client->pers.spawned ) {
@@ -964,95 +904,10 @@ void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
 	// If it wasn't updated here, the view position would lag a frame
 	// behind the body position when pushed -- "sinking into plats"
 	//
-	for ( i = 0; i < 3; i++ ) {
-		current_client->ps.pmove.origin[ i ] = ent->s.origin[ i ];//COORD2SHORT( ent->s.origin[ i ] ); // WID: float-movement
-		current_client->ps.pmove.velocity[ i ] = ent->velocity[ i ];//COORD2SHORT( ent->velocity[ i ] ); // WID: float-movement
-	}
+	current_client->ps.pmove.origin = ent->s.origin;
+	current_client->ps.pmove.velocity = ent->velocity;
 
-	//
-	// If the end of unit layout is displayed, don't give
-	// the player any normal movement attributes
-	//
-	if ( level.intermissionFrameNumber ) {
-		// FIXME: add view drifting here?
-		current_client->ps.screen_blend[ 3 ] = 0;
-		current_client->ps.fov = 90;
-		SVG_HUD_SetStats( ent );
-		return;
-	}
-
-	// Calculate angle vectors.
-	AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, up );
-
-	// burn from lava, etc
-	P_CheckWorldEffects( );
-
-	//
-	// set model angles from view angles so other things in
-	// the world can tell which direction you are looking
-	//
-	if ( ent->client->viewMove.viewAngles[ PITCH ] > 180. ) {
-		ent->s.angles[ PITCH ] = ( -360. + ent->client->viewMove.viewAngles[ PITCH ] ) / 3.;
-	} else {
-		ent->s.angles[ PITCH ] = ent->client->viewMove.viewAngles[ PITCH ] / 3.;
-	}
-	ent->s.angles[ YAW ] = ent->client->viewMove.viewAngles[ YAW ];
-	ent->s.angles[ ROLL ] = 0;
-	ent->s.angles[ ROLL ] = SV_CalcRoll( ent->s.angles, ent->velocity ) * 4.;
-
-	//
-	// Update the client's bob cycle.
-	//
-	current_client->oldBobCycle = current_client->bobCycle;
-	current_client->bobCycle = ( current_client->ps.bobCycle & 128 ) >> 7;
-	current_client->bobFracSin = fabs( sin( ( current_client->ps.bobCycle & 127 ) / 127.0 * M_PI ) );
-
-	// apply all the damage taken this frame
-	P_DamageFeedback( ent );
-
-	// determine the view offsets
-	P_CalculateViewOffset( ent );
-
-	// WID: Moved to CLGame.
-	// determine the gun offsets
-	//SV_CalculateGunOffset( ent );
-
-	// Determine the full screen color blend which must happen after applying viewoffset, 
-	// so eye contents can be accurately determined.
-	// FIXME: with client prediction, the contents should be determined by the client.
-	P_CalculateBlend( ent );
-
-	// Different layout when spectating.
-	if ( ent->client->resp.spectator ) {
-		SVG_HUD_SetSpectatorStats( ent );
-	// Regular layout.
-	} else {
-		SVG_HUD_SetStats( ent );
-	}
-	// Set stats to that of the entity which we're tracing. (Overriding previously set stats.)
-	SVG_HUD_CheckChaseStats( ent );
-	// Events.
-	SVG_SetClientEvent( ent );
-	// Effects.
-	SVG_SetClientEffects( ent );
-	// Sound.
-	SVG_SetClientSound( ent );
-	// Check for client playerstate its pmove generated events.
-	SVG_CheckClientPlayerstateEvents( ent, &current_client->ops, &current_client->ps );
-	// Animation Frame.
-	SVG_SetClientFrame( ent );
-
-	// Backup velocity, viewangles, and ground entity.
-	VectorCopy( ent->velocity, ent->client->oldvelocity );
-	VectorCopy( ent->client->ps.viewangles, ent->client->oldviewangles );
-	ent->client->oldgroundentity = ent->groundInfo.entity;
-
-	// Clear out the weapon kicks.
-	ent->client->weaponKicks = {};
-	
-	// If the scoreboard is up, update it.
-	if ( ent->client->showscores && !( level.frameNumber & 63 ) ) {
-		SVG_HUD_DeathmatchScoreboardMessage( ent, ent->enemy, false );
-	}
+	// Let game modes handle it from here.
+	game.mode->EndServerFrame( static_cast<svg_player_edict_t*>( ent ) );
 }
 

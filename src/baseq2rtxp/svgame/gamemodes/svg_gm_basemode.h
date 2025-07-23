@@ -85,6 +85,7 @@ struct svg_gamemode_t : public sg_gamemode_base_t {
 	*           to be placed into the game. This will happen every level load.
 	**/
 	virtual void ClientBegin( svg_player_edict_t *ent ) = 0;
+
 	/**
 	*	@brief	Called somewhere at the beginning of the game frame. This allows
 	*			to determine if conditions are met to engage exitting intermission
@@ -97,6 +98,15 @@ struct svg_gamemode_t : public sg_gamemode_base_t {
 	*			mode and/or exit the level.
 	**/
 	virtual void PostCheckGameRuleConditions() = 0;
+
+	/**
+	*   @brief  This will be called once for all clients on each server frame, before running any other entities in the world.
+	**/
+	virtual void BeginServerFrame( svg_player_edict_t *ent ) = 0;
+	/**
+	*	@brief	Called for each player at the end of the server frame, also right after spawning as well to finalize the view.
+	**/
+	virtual void EndServerFrame( svg_player_edict_t *ent ) = 0;
 
 
 	/**

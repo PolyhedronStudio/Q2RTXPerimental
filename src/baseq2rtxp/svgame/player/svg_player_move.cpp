@@ -86,7 +86,7 @@ static const cm_contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
 /**
 *   @brief  
 **/
-void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput = false ) {
+void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput /*= false */) {
     // Get the (+targetuse) key state.
     const bool isTargetUseKeyHolding = ( client->userInput.heldButtons & BUTTON_USE_TARGET );
     const bool isTargetUseKeyPressed = ( client->userInput.pressedButtons & BUTTON_USE_TARGET );

@@ -438,7 +438,7 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
 void SVG_Player_SpawnInBody( svg_base_edict_t *ent ) {
     // Ensure we are dealing with a player entity here.
     if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
-        gi.dprintf( "SVG_Player_SpawnInBody: Not a player entity.\n" );
+        gi.dprintf( "%s: Not a player entity.\n", __func__ );
         return;
 	}
 
@@ -454,7 +454,7 @@ void SVG_Client_Begin( svg_base_edict_t *ent ) {
     #if 1
     // Ensure we are dealing with a player entity here.
     if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
-        gi.dprintf( "SVG_Player_SpawnInBody: Not a player entity.\n" );
+        gi.dprintf( "%s: Not a player entity.\n", __func__ );
         return;
     }
 
