@@ -1284,7 +1284,7 @@ static void PM_CategorizePosition() {
 
 				if ( ( ps->pmove.pm_flags & PMF_DUCKED ) ) {
 					ps->pmove.pm_flags |= PMF_TIME_LAND;
-					ps->pmove.pm_time = 128;
+					ps->pmove.pm_time = 32;
 				}
 			// Setting inAir to false right here, will cause the player to still be 'in air' while
 			// it sends the landing event. Only the frame after that(where onground is set) do we

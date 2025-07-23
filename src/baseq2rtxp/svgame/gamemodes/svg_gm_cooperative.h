@@ -72,6 +72,13 @@ struct svg_gamemode_cooperative_t : public svg_gamemode_t {
 	**/
 	virtual void ClientUserinfoChanged( svg_player_edict_t *ent, char *userinfo ) override;
 	/**
+	*   @brief  Called either when a player connects to a server, OR (to respawn thus) respawns in a multiplayer game.
+	*
+	*           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
+	*           saved entity and persistant data. (This includes actually raising the weapon up.)
+	**/
+	virtual void ClientSpawnBody( svg_player_edict_t *ent ) override;
+	/**
 	*	@brief	Called somewhere at the beginning of the game frame. This allows
 	*			to determine if conditions are met to engage exitting intermission
 	*			mode and/or exit the level.

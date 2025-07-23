@@ -93,7 +93,7 @@ struct client_respawn_t {
     bool spectator;
 };
 
-// this structure is cleared on each SVG_Player_PutInServer(),
+// this structure is cleared on each SVG_Player_SpawnBody(),
 // except for 'client->pers'
 struct svg_client_t {
     /**

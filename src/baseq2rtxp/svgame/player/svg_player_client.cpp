@@ -46,40 +46,6 @@ void SVG_P_ProcessAnimations( svg_base_edict_t *ent );
 *
 *
 *
-*   Client Death:
-*
-*
-*
-**/
-/**
-*   @brief
-**/
-void Touch_Item( svg_base_edict_t *ent, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
-
-
-
-
-
-//=======================================================================
-
-
-/*
-==================
-player_die
-==================
-*/
-//void player_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
-/**
-*   @brief  Player pain is handled at the end of the frame in P_DamageFeedback.
-**/
-//void player_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage );
-
-
-
-/**
-*
-*
-*
 *   Connect/Disconnect:
 *
 *
@@ -382,12 +348,12 @@ void SVG_Client_RespawnPlayer( svg_base_edict_t *self ) {
             SVG_Entities_BodyQueueAddForPlayer( self );
         }
         self->svflags &= ~SVF_NOCLIENT;
-        SVG_Player_PutInServer( self );
+        SVG_Player_SpawnBody( self );
 
-        // add a teleportation effect
+        // Add a teleportation effect
         self->s.event = EV_PLAYER_TELEPORT;
 
-        // hold in place briefly
+        // Hold in place briefly
         self->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
         self->client->ps.pmove.pm_time = 14; // WID: 40hz: Q2RE has 112 here.
 
@@ -459,7 +425,7 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
     ent->client->resp.score = ent->client->pers.score = 0;
 
     ent->svflags &= ~SVF_NOCLIENT;
-    SVG_Player_PutInServer( ent );
+    SVG_Player_SpawnBody( ent );
 
     // add a teleportation effect
     if ( !ent->client->pers.spectator ) {
@@ -499,36 +465,46 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
 *           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
 *           saved entity and persistant data. (This includes actually raising the weapon up.)
 **/
-void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
+void SVG_Player_SpawnBody( svg_base_edict_t *ent ) {
     Vector3 mins = PM_BBOX_STANDUP_MINS;
     Vector3 maxs = PM_BBOX_STANDUP_MAXS;
     int     index;
-    Vector3  spawn_origin, spawn_angles;
-    svg_client_t *client;
+
     client_respawn_t    savedRespawnData = {};
     Vector3 temp, temp2;
     svg_trace_t tr;
 
+    // Ensure we are dealing with a player entity here.
     if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
-        gi.dprintf( "SVG_Player_PutInServer: Not a player entity.\n" );
+        gi.dprintf( "SVG_Player_SpawnBody: Not a player entity.\n" );
         return;
 	}
 
+    // Pass to game mode.
+    game.mode->ClientSpawnBody( static_cast<svg_player_edict_t*>( ent ) );
+    #if 0
     // Always clear out any possibly previous left over of the useTargetHint.
     Client_ClearUseTargetHint( ent, ent->client, nullptr );
 
     // find a spawn point
     // do it before setting health back up, so farthest
     // ranging doesn't count this client
-    //SVG_Player_SelectSpawnPoint( ent, spawn_origin, spawn_angles );
-	game.mode->SelectSpawnPoint( static_cast<svg_player_edict_t*>( ent ), spawn_origin, spawn_angles );
+    Vector3 spawn_origin = QM_Vector3Zero();
+    Vector3 spawn_angles = QM_Vector3Zero();
+    // Seek spawn 'spot' to position us on to.
+    if ( !game.mode->SelectSpawnPoint( static_cast<svg_player_edict_t *>( ent ), spawn_origin, spawn_angles ) ) {
+        // <Q2RTXP>: WID: TODO: Warn or error out, or just ignore it like it used to?
+    }
 
-    index = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
-    client = ent->client;
+    // Client Index.
+    const int32_t index = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
+    // GClient Ptr.
+    svg_client_t *client = ent->client;
 
-    // Setup actual spawn origin that we found.
+    // Assign the found spawnspot origin and angles.
     VectorCopy( spawn_origin, ent->s.origin );
     VectorCopy( spawn_origin, client->ps.pmove.origin );
+
 
     if ( game.mode->IsMultiplayer() ) {
         // Store userinfo.
@@ -719,6 +695,7 @@ void SVG_Player_PutInServer( svg_base_edict_t *ent ) {
     // force the current weapon up
     client->newweapon = client->pers.weapon;
     SVG_Player_Weapon_Change( ent );
+    #endif // #if 0
 }
 
 /**
@@ -740,7 +717,7 @@ void SVG_Client_BeginDeathmatch( svg_base_edict_t *ent ) {
     // Initialize respawn data.
     SVG_Player_InitRespawnData( ent->client );
     // Actually finds a spawnpoint and places the 'body' into the game.
-    SVG_Player_PutInServer( ent );
+    SVG_Player_SpawnBody( ent );
 
     // If in intermission, move our client over into intermission state. (We connected at the end of a match).
     if ( level.intermissionFrameNumber ) {
@@ -800,7 +777,7 @@ void SVG_Client_BeginNewBody( svg_base_edict_t *ent ) {
     // Initialize respawn data.
     SVG_Player_InitRespawnData( ent->client );
     // Actually finds a spawnpoint and places the 'body' into the game.
-    SVG_Player_PutInServer( ent );
+    SVG_Player_SpawnBody( ent );
 }
 
 /**

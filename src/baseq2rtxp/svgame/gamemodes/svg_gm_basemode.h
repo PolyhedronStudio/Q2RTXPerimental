@@ -68,7 +68,13 @@ struct svg_gamemode_t : public sg_gamemode_base_t {
 	*           (forcing skins or names, etc) before copying it off.
 	**/
 	virtual void ClientUserinfoChanged( svg_player_edict_t *ent, char *userinfo ) = 0;
-	
+	/**
+	*   @brief  Called either when a player connects to a server, OR (to respawn thus) respawns in a multiplayer game.
+	*
+	*           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
+	*           saved entity and persistant data. (This includes actually raising the weapon up.)
+	**/
+	virtual void ClientSpawnBody( svg_player_edict_t *ent ) = 0;
 	/**
 	*	@brief	Called somewhere at the beginning of the game frame. This allows
 	*			to determine if conditions are met to engage exitting intermission

@@ -888,7 +888,7 @@ edict_t *PlayerTrail_LastSpot(void);
 // g_client.c
 //
 void SVG_Client_RespawnPlayer(edict_t *ent);
-void SVG_Player_PutInServer(edict_t *ent);
+void SVG_Player_SpawnBody(edict_t *ent);
 void SVG_Player_InitPersistantData(edict_t *ent, svg_client_t *client);
 void SVG_Player_InitRespawnData(svg_client_t *client);
 void SVG_Client_BeginServerFrame(edict_t *ent);
@@ -1018,7 +1018,7 @@ typedef struct {
     bool spectator;     // Client is a spectator
 } client_respawn_t;
 
-// this structure is cleared on each SVG_Player_PutInServer(),
+// this structure is cleared on each SVG_Player_SpawnBody(),
 // except for 'client->pers'
 struct gclient_s {
     /**

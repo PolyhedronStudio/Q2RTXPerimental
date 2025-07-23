@@ -36,12 +36,6 @@
 svg_base_edict_t *svg_gamemode_t::SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) {
     svg_base_edict_t *spot = nullptr;
 
-    //if ( deathmatch->value ) {
-    //    spot = SelectDeathmatchSpawnPoint();
-    //} else if ( coop->value ) {
-    //    spot = SelectCoopSpawnPoint( ent );
-    //}
-
     // Find a single player start spot since the game modes found none.
     if ( !spot ) {
         // Iterate for info_player_start that matches the game.spawnpoint targetname to spawn at..

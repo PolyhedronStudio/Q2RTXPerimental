@@ -6,13 +6,17 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
+#include "svgame/player/svg_player_view.h"
 
 #include "svgame/svg_lua.h"
 
+#include "sharedgame/sg_pmove.h"
 #include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_means_of_death.h"
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 #include "svgame/gamemodes/svg_gm_singleplayer.h"
@@ -112,6 +116,209 @@ void svg_gamemode_singleplayer_t::ClientUserinfoChanged( svg_player_edict_t *ent
 	if ( strlen( strHand ) ) {
 		ent->client->pers.hand = atoi( strHand );
 	}
+}
+/**
+*   @brief  Called either when a player connects to a server, OR (to respawn thus) respawns in a multiplayer game.
+*
+*           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
+*           saved entity and persistant data. (This includes actually raising the weapon up.)
+**/
+void svg_gamemode_singleplayer_t::ClientSpawnBody( svg_player_edict_t *ent ) {
+    // Always clear out any possibly previous left over of the useTargetHint.
+    Client_ClearUseTargetHint( ent, ent->client, nullptr );
+
+    // find a spawn point
+    // do it before setting health back up, so farthest
+    // ranging doesn't count this client
+    Vector3 spawn_origin = QM_Vector3Zero();
+    Vector3 spawn_angles = QM_Vector3Zero();
+    // Seek spawn 'spot' to position us on to.
+    if ( !game.mode->SelectSpawnPoint( static_cast<svg_player_edict_t *>( ent ), spawn_origin, spawn_angles ) ) {
+        // <Q2RTXP>: WID: TODO: Warn or error out, or just ignore it like it used to?
+    }
+
+    // Client Index.
+    const int32_t index = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
+    // GClient Ptr.
+    svg_client_t *client = ent->client;
+
+    // Assign the found spawnspot origin and angles.
+    VectorCopy( spawn_origin, ent->s.origin );
+    VectorCopy( spawn_origin, client->ps.pmove.origin );
+
+    // Get persistent user info and store it into a buffer.
+    char    userinfo[ MAX_INFO_STRING ];
+    memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
+    // Use the buffer to restore the client user info which had been stored as persistent.
+    SVG_Client_UserinfoChanged( ent, userinfo );
+    // Acquire other respawn data.
+    const client_respawn_t savedRespawnData = client->resp;
+    // Restore client persistent data.
+    client->pers = savedRespawnData.pers_respawn;
+    // Fresh SP mode has 0 score.
+    client->pers.score = 0;
+    
+    // Backup persistent client data and wipe the client structure for reuse.
+    const client_persistant_t savedPersistantData = client->pers;
+    // Acquire actual client number.
+    const int32_t clientNum = client->clientNum;
+    // Reset client value.
+    *client = { };
+    //memset( client, 0, sizeof( *client ) );
+    // Restore client number.
+    client->clientNum = clientNum;
+    // Reinitialize persistent data.
+    client->pers = savedPersistantData;
+    // <Q2RTXP>: WID: TODO: Do we want this in singleplayer?
+    // If dead at the time of the previous map switching to the current, reinitialize persistent data.
+    if ( client->pers.health <= 0 ) {
+        SVG_Player_InitPersistantData( ent, client );
+    }
+    // Restore the client's originally set respawn data.
+    client->resp = savedRespawnData;
+
+    // copy some data from the client to the entity
+    SVG_Player_RestoreClientData( ent );
+
+    // <Q2RTXP>: WID: TODO: ???
+    // Fix level switch issue.
+    ent->client->pers.connected = true;
+
+    // Clear key entity values by reconfiguring this as a clean slate player entity.
+    ent->groundInfo = {};
+    ent->client = &game.clients[ index ];
+    ent->takedamage = DAMAGE_AIM;
+    ent->movetype = MOVETYPE_WALK;
+    ent->viewheight = PM_VIEWHEIGHT_STANDUP;
+    ent->inuse = true;
+    ent->classname = svg_level_qstring_t::from_char_str( "player" );
+    ent->mass = 200;
+    ent->gravity = 1.0f;
+    ent->solid = SOLID_BOUNDS_BOX;
+    ent->lifeStatus = LIFESTATUS_ALIVE;
+    ent->air_finished_time = level.time + 12_sec;
+    ent->clipmask = ( CM_CONTENTMASK_PLAYERSOLID );
+    ent->model = svg_level_qstring_t::from_char_str( "players/playerdummy/tris.iqm" );
+    ent->SetPainCallback( &svg_player_edict_t::onPain );//ent->SetPainCallback( player_pain );
+    ent->SetDieCallback( &svg_player_edict_t::onDie );//ent->SetDieCallback( player_die );
+    ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
+    ent->liquidInfo.type = CONTENTS_NONE;
+    ent->flags &= ~FL_NO_KNOCKBACK;
+
+    // Make sure it has no DEADMONSTER set anymore.
+    ent->svflags &= ~SVF_DEADMONSTER;
+    // Ensure it is a proper player entity.
+    ent->svflags |= SVF_PLAYER;
+    ent->s.entityType = ET_PLAYER;
+
+    // Copy in the bounds.
+    VectorCopy( PM_BBOX_STANDUP_MINS, ent->mins );
+    VectorCopy( PM_BBOX_STANDUP_MAXS, ent->maxs );
+    // Ensure velocity is cleared.
+    VectorClear( ent->velocity );
+
+    // Reset PlayerState values.
+    client->ps = {}; 
+    //memset( &ent->client->ps, 0, sizeof( client->ps ) );
+    // Reset the Field of View for the player state.
+    SVG_Player_ResetPlayerStateFOV( ent->client );
+
+    // Initialize basic player state and player move data.
+    ent->client->ps.pmove.viewheight = ent->viewheight;
+    ent->client->ps.pmove.origin = ent->s.origin;
+    // Proper gunindex.
+    if ( client->pers.weapon ) {
+        client->ps.gun.modelIndex = gi.modelindex( client->pers.weapon->view_model );
+    } else {
+        client->ps.gun.modelIndex = 0;
+        client->ps.gun.animationID = 0;
+    }
+
+    // Clear EntityState values.
+    ent->s.sound = 0;
+    ent->s.effects = 0;
+    ent->s.renderfx = 0;
+    ent->s.modelindex = MODELINDEX_PLAYER;        // Will use the skin specified model.
+    ent->s.modelindex2 = MODELINDEX_PLAYER;       // Custom gun model.
+    // sknum is player num and weapon number
+    // weapon number will be added in changeweapon
+    ent->s.skinnum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - globals.edictPool->edicts - 1;
+    ent->s.frame = 0;
+    ent->s.old_frame = 0;
+
+    // Try to properly clip to the floor / spawn
+    Vector3 temp = spawn_origin;
+    Vector3 temp2 = spawn_origin;
+    temp[ 2 ] -= 64;
+    temp2[ 2 ] += 16;
+    svg_trace_t tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
+    if ( !tr.allsolid && !tr.startsolid && Q_stricmp( level.mapname, "tech5" ) ) {
+        VectorCopy( tr.endpos, ent->s.origin );
+        ent->groundInfo.entity = tr.ent;
+    } else {
+        VectorCopy( spawn_origin, ent->s.origin );
+        ent->s.origin[ 2 ] += 10; // make sure off ground
+    }
+
+    // <Q2RTXP>: WID: Restore the origin.
+    VectorCopy( ent->s.origin, ent->s.old_origin );
+    client->ps.pmove.origin = ent->s.origin;
+
+    // <Q2RTXP>: WID: 
+    // Link it to calculate absmins/absmaxs, this is to prevent actual
+    // other entities from Spawn Touching.
+    gi.linkentity( ent );
+
+    // Ensure proper pitch and roll angles for calculating the delta angles.
+    spawn_angles[ PITCH ] = 0;
+    spawn_angles[ ROLL ] = 0;
+    // Configure all spawn view angles.
+    VectorCopy( spawn_angles, ent->s.angles );
+    client->ps.viewangles = spawn_angles;
+    client->viewMove.viewAngles = spawn_angles;
+    // Set the delta angle
+    client->ps.pmove.delta_angles = /*ANGLE2SHORT*/QM_Vector3AngleMod( spawn_angles - client->resp.cmd_angles );
+
+    // Calculate anglevectors.
+    AngleVectors( &client->viewMove.viewAngles.x, &client->viewMove.viewForward.x, nullptr, nullptr );
+
+    #if 0
+    // spawn a spectator
+    if ( client->pers.spectator ) {
+        client->chase_target = NULL;
+
+        client->resp.spectator = true;
+
+        ent->movetype = MOVETYPE_NOCLIP;
+        ent->solid = SOLID_NOT;
+        ent->svflags |= SVF_NOCLIENT;
+        ent->client->ps.gun.modelIndex = 0;
+        ent->client->ps.gun.animationID = 0;
+
+        gi.linkentity( ent );
+        return;
+    } else {
+        client->resp.spectator = false;
+    }
+    #else
+    // No spectator in singleplayer.
+    client->resp.spectator = false;
+    #endif
+
+    // Unlink it again, for SVG_UTIL_KillBox.
+    gi.unlinkentity( ent );
+
+    // Kill anything in its path.
+    if ( !SVG_Util_KillBox( ent, true, MEANS_OF_DEATH_TELEFRAGGED ) ) {
+        // could't spawn in?
+        //int x = 10; // debug breakpoint
+    }
+    // And link it back in.
+    gi.linkentity( ent );
+
+    // Force a current active weapon up
+    client->newweapon = client->pers.weapon;
+    SVG_Player_Weapon_Change( ent );
 }
 /**
 *	@brief	Called somewhere at the beginning of the game frame. This allows
