@@ -933,7 +933,7 @@ static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_
     } else if ( ops->pmove.pm_type == PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
         // lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
-        const Vector3 lerpedAngles = QM_Vector3LerpAngles( pps->viewangles, ps->viewangles, lerpFraction );
+        const Vector3 lerpedAngles = QM_Vector3LerpAngles( ops->viewangles, ps->viewangles, lerpFraction );
         VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
     
     #if 1
