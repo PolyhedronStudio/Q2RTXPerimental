@@ -481,25 +481,6 @@ SV_CalculateGunOffset
 //}
 
 
-/*
-=============
-SV_AddBlend
-=============
-*/
-void SV_AddBlend( const double r, const double g, const double b, const double a, float *v_blend ) {
-	double a2, a3;
-
-	if ( a <= 0 )
-		return;
-	a2 = v_blend[ 3 ] + ( 1. - v_blend[ 3 ] ) * a; // new total alpha
-	a3 = v_blend[ 3 ] / a2;   // fraction of color from old
-
-	v_blend[ 0 ] = v_blend[ 0 ] * a3 + r * ( 1. - a3 );
-	v_blend[ 1 ] = v_blend[ 1 ] * a3 + g * ( 1. - a3 );
-	v_blend[ 2 ] = v_blend[ 2 ] * a3 + b * ( 1. - a3 );
-	v_blend[ 3 ] = a2;
-}
-
 
 /**
 *	@brief	Determine the contents of the client's view org as well calculate possible
@@ -614,7 +595,7 @@ void P_CheckWorldEffects( void ) {
 				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
 			}
 		}
-		current_player->flags = static_cast<entity_flags_t>( current_player->flags | FL_INWATER );
+		current_player->flags |= FL_INWATER;
 
 	}
 
@@ -628,7 +609,7 @@ void P_CheckWorldEffects( void ) {
 	if ( !liquidlevel && old_waterlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
 		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
-		current_player->flags = static_cast<entity_flags_t>( current_player->flags & ~FL_INWATER );
+		current_player->flags &= ~FL_INWATER;
 	}
 
 	// Check for head just going under water.
@@ -674,7 +655,7 @@ void P_CheckWorldEffects( void ) {
 
 				current_player->pain_debounce_time = level.time;
 
-				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
+				SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
 			}
 		}
 	} else {
@@ -698,11 +679,11 @@ void P_CheckWorldEffects( void ) {
 				current_player->pain_debounce_time = level.time + 1_sec;
 			}
 
-			SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
+			SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
 		}
 
 		if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
-			SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
+			SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
 		}
 	}
 }

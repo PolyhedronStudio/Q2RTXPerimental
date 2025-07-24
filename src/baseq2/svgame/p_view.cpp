@@ -652,7 +652,7 @@ void P_WorldEffects( void ) {
 
 				current_player->pain_debounce_time = level.time;
 
-				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER );
+				SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MOD_WATER );
 			}
 		}
 	} else {
@@ -676,15 +676,15 @@ void P_WorldEffects( void ) {
 			}
 
 			if ( envirosuit ) // take 1/3 damage with envirosuit
-				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_LAVA );
+				SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_LAVA );
 			else
-				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MOD_LAVA );
+				SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, 0, MOD_LAVA );
 		}
 
 		if ( current_player->liquidtype & CONTENTS_SLIME ) {
 			if ( !envirosuit ) {
 				// no damage from slime with envirosuit
-				SVG_TriggerDamage( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_SLIME );
+				SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, 0, MOD_SLIME );
 			}
 		}
 	}

@@ -163,7 +163,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink )( svg_target_laser_t 
 
         // hurt it if we can
         if ( ( tr.ent->takedamage ) && !( tr.ent->flags & FL_IMMUNE_LASER ) )
-            SVG_TriggerDamage( tr.ent, self, self->activator, &self->movedir.x, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MEANS_OF_DEATH_LASER );
+            SVG_DamageEntity( tr.ent, self, self->activator, &self->movedir.x, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MEANS_OF_DEATH_LASER );
 
         // if we hit something that's not a monster or player or is immune to lasers, we're done
         if ( !( tr.ent->svflags & SVF_MONSTER ) && ( !tr.ent->client ) ) {

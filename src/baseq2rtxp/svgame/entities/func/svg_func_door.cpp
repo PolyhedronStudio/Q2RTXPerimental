@@ -713,7 +713,7 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_door_t, onBlocked )( svg_func_door_t *s
 
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+        SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
         if ( other ) {
             SVG_Misc_BecomeExplosion( other, 1 );
@@ -721,7 +721,7 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_door_t, onBlocked )( svg_func_door_t *s
         return;
     }
 
-    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 
     if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_CRUSHER ) {
         return;

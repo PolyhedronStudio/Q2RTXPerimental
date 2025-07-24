@@ -120,7 +120,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_changelevel_t, onUse )( svg_target_change
 
     // if noexit, do a ton of damage to other
     if ( deathmatch->value && !( (int)dmflags->value & DF_ALLOW_EXIT ) && other != world ) {
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, DAMAGE_NONE, MEANS_OF_DEATH_EXIT );
+        SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, DAMAGE_NONE, MEANS_OF_DEATH_EXIT );
         return;
     }
 

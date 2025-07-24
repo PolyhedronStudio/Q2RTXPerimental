@@ -268,6 +268,7 @@ void        CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, con
 //
 //  common/collisionmodel/cm_plane.cpp
 //
+const BBox3 CM_CalculateBrushBounds( mbrush_t *brush );
 /**
 *	@return The PLANE_ type for the given normal vector.
 **/

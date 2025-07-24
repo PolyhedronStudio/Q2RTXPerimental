@@ -273,7 +273,7 @@ void use_target_changelevel(edict_t *self, edict_t *other, edict_t *activator)
 
     // if noexit, do a ton of damage to other
     if (deathmatch->value && !((int)dmflags->value & DF_ALLOW_EXIT) && other != world) {
-        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, 0, MOD_EXIT);
+        SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, 0, MOD_EXIT);
         return;
     }
 
@@ -517,7 +517,7 @@ void target_laser_think(edict_t *self)
 
         // hurt it if we can
         if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER))
-            SVG_TriggerDamage(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MOD_TARGET_LASER);
+            SVG_DamageEntity(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MOD_TARGET_LASER);
 
         // if we hit something that's not a monster or player or is immune to lasers, we're done
         if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client)) {

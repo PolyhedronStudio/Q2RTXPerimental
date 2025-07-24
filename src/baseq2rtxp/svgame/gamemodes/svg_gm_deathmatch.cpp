@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_combat.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -19,6 +20,7 @@
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_muzzleflashes.h"
+#include "sharedgame/sg_tempentity_events.h"
 
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
@@ -714,6 +716,264 @@ void svg_gamemode_deathmatch_t::PostCheckGameRuleConditions() {
 		}
 	}
 };
+
+
+/**
+*   @brief  This function is used to apply damage to an entity.
+*           It handles the damage calculation, knockback, and any special
+*           effects based on the type of damage and the entities involved.
+**/
+void svg_gamemode_deathmatch_t::DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
+	// Final means of death.
+	sg_means_of_death_t finalMeansOfDeath = meansOfDeath;
+
+	// No use if we aren't accepting damage.
+	if ( !targ->takedamage ) {
+		return;
+	}
+
+	// easy mode takes half damage
+	int32_t finalDamage = damage;
+	if ( skill->value == 0 && deathmatch->value == 0 && targ->client ) {
+		finalDamage *= 0.5f;
+		if ( !finalDamage )
+			finalDamage = 1;
+	}
+
+	// Friendly fire avoidance.
+	// If enabled you can't hurt teammates (but you can hurt yourself)
+	// Knockback still occurs.
+	if ( ( targ != attacker ) && ( ( deathmatch->value && ( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) ) || ( coop->value && targ->client ) ) ) {
+		if ( SVG_OnSameTeam( targ, attacker ) ) {
+			if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
+				finalDamage = 0;
+			} else {
+				finalMeansOfDeath |= MEANS_OF_DEATH_FRIENDLY_FIRE;
+			}
+		}
+	}
+
+	targ->meansOfDeath = finalMeansOfDeath;
+
+	svg_client_t *client = targ->client;
+
+	// Default TE that got us was sparks.
+	int32_t te_sparks = TE_SPARKS;
+	// Special sparks for a bullet.
+	if ( damageFlags & DAMAGE_BULLET ) {
+		te_sparks = TE_BULLET_SPARKS;
+	}
+
+	// Bonus damage for suprising a monster.
+	if ( !( damageFlags & DAMAGE_RADIUS ) && ( targ->svflags & SVF_MONSTER )
+		&& ( attacker->client ) && ( !targ->enemy ) && ( targ->health > 0 ) ) {
+		finalDamage *= 2;
+	}
+
+	#if 0
+	// Determine knockback value.
+	int32_t finalKnockBack = ( /*targ->flags & FL_NO_KNOCKBACK ? 0 : */ knockBack );
+	if ( ( targ->flags & FL_NO_KNOCKBACK ) ) {//||
+		//( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
+		//    ( !targ->lifeStatus || targ->death_time != level.time ) ) ) {
+		finalKnockBack = 0;
+	}
+	#else
+	// Determine knockback value.
+	int32_t finalKnockBack = ( /*targ->flags & FL_NO_KNOCKBACK ? 0 : */ knockBack );
+	if ( targ->flags & FL_NO_KNOCKBACK ||
+		( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
+			( !( targ->lifeStatus == entity_lifestatus_t::LIFESTATUS_ALIVE ) )
+			/*|| ( targ->death_time && targ->death_time < level.time )*/
+			) ) {
+		finalKnockBack = 0;
+	}
+	#endif
+	// Figure momentum add.
+	if ( !( damageFlags & DAMAGE_NO_KNOCKBACK ) ) {
+		if ( ( finalKnockBack ) && ( targ->movetype != MOVETYPE_NONE ) && ( targ->movetype != MOVETYPE_BOUNCE )
+			&& ( targ->movetype != MOVETYPE_PUSH ) && ( targ->movetype != MOVETYPE_STOP ) ) {
+			Vector3 normalizedDir = QM_Vector3Normalize( dir );
+			Vector3 kvel;
+			float   mass;
+
+			if ( targ->mass < 50 ) {
+				mass = 50;
+			} else {
+				mass = targ->mass;
+			}
+
+			// <Q2RTXP>: WID: This will do the classic "rocket jump" engagement when a
+			// player is the actual cause of the explosion itself.
+			if ( targ->client && attacker == targ ) {
+				kvel = normalizedDir * ( 1600.0f * (float)knockBack / mass );
+			} else {
+				kvel = normalizedDir * ( 500.0f * (float)knockBack / mass );
+			}
+			VectorAdd( targ->velocity, kvel, targ->velocity );
+		}
+	}
+
+	int32_t take = finalDamage;
+	int32_t save = 0;
+
+	// check for godmode
+	if ( ( targ->flags & FL_GODMODE ) && !( damageFlags & DAMAGE_NO_PROTECTION ) ) {
+		take = 0;
+		save = finalDamage;
+		SVG_SpawnDamage( te_sparks, point, normal, save );
+	}
+
+	// check for invincibility
+	//if ((client && client->invincible_time > level.time) && !(dflags & DAMAGE_NO_PROTECTION)) {
+	//    if (targ->pain_debounce_time < level.time) {
+	//        gi.sound(targ, CHAN_ITEM, gi.soundindex("items/protect4.wav"), 1, ATTN_NORM, 0);
+	//        targ->pain_debounce_time = level.time + 2_sec;
+	//    }
+	//    take = 0;
+	//    save = damage;
+	//}
+
+	//treat cheat/powerup savings the same as armor
+	int32_t asave = save;
+
+	// team damage avoidance
+	if ( !( damageFlags & DAMAGE_NO_PROTECTION ) && SVG_CheckTeamDamage( targ, attacker ) ) {
+		return;
+	}
+
+	// do the damage
+	if ( take ) {
+		if (/* ( targ->svflags & SVF_MONSTER ) || */( client ) ) {
+			// SVG_SpawnDamage(TE_BLOOD, point, normal, take);
+			SVG_SpawnDamage( TE_BLOOD, point, dir, take );
+		} else
+			SVG_SpawnDamage( te_sparks, point, normal, take );
+
+		targ->health = targ->health - take;
+
+		if ( targ->health <= 0 ) {
+			if ( /*( targ->svflags & SVF_MONSTER ) || */( client ) ) {
+				//targ->flags |= FL_NO_KNOCKBACK;
+				//targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
+				//targ->death_time = level.time;
+			}
+			#if 0
+			targ->monsterinfo.damage_blood += take;
+			targ->monsterinfo.damage_attacker = attacker;
+			targ->monsterinfo.damage_inflictor = inflictor;
+			targ->monsterinfo.damage_from = point;
+			targ->monsterinfo.damage_mod = meansOfDeath;
+			targ->monsterinfo.damage_knockback += knockBack;
+			#endif
+			game.mode->EntityKilled( targ, inflictor, attacker, take, point );
+			return;
+		}
+	}
+
+	// <Q2RTXP>: WID: No monsters in DM.
+	#if 0
+	if ( targ->svflags & SVF_MONSTER ) {
+		if ( damage > 0 ) {
+			//M_ReactToDamage( targ, attacker );
+
+			float kick = (float)abs( finalKnockBack );
+			if ( kick && targ->health > 0 ) { // kick of 0 means no view adjust at all
+				//kick = kick * 100 / targ->health;
+
+				//if ( kick < damage * 0.5f ) {
+				//    kick = damage * 0.5f;
+				//}
+				//if ( kick > 50 ) {
+				//    kick = 50;
+				//}
+
+				Vector3 knockBackVelocity = targ->s.origin - Vector3( inflictor ? inflictor->s.origin : attacker->s.origin );
+				knockBackVelocity = QM_Vector3Normalize( knockBackVelocity );
+				//knockBackVelocity *= kick;
+				targ->velocity = QM_Vector3MultiplyAdd( knockBackVelocity, kick, targ->velocity );
+				//targ->velocity += knockBackVelocity;
+
+			}
+		}
+		// WID: TODO: Monster Reimplement.
+		//if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {
+		if ( take ) {
+			if ( targ->HasPainCallback() ) {
+				targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
+				// nightmare mode monsters don't go into pain frames often
+				if ( skill->value == 3 )
+					targ->pain_debounce_time = level.time + 5_sec;
+			} else {
+				#ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
+				gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+				#endif
+			}
+		}
+		//}
+	} else if ( client {
+	#endif
+
+	if ( client ) {
+		if ( !( targ->flags & FL_GODMODE ) && ( take ) ) {
+			if ( targ->HasPainCallback() ) {
+				targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
+			} else {
+				#ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
+				gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+				#endif
+			}
+		}
+	} else if ( take ) {
+		if ( targ->HasPainCallback() ) {
+			targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
+		} else {
+			#ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
+			gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );
+			#endif
+		}
+	}
+
+	// Add to the damage inflicted on a player this frame
+	// the total will be turned into screen blends and view angle kicks
+	// at the end of the frame
+	if ( client ) {
+		client->frameDamage.armor += asave;
+		client->frameDamage.blood += take;
+		client->frameDamage.knockBack += finalKnockBack;
+		VectorCopy( point, client->frameDamage.from );
+		//client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
+
+		if ( !( damageFlags & DAMAGE_NO_INDICATOR )
+			&& inflictor != world && attacker != world
+			&& ( take || asave ) ) {
+			damage_indicator_t *indicator = nullptr;
+			size_t i;
+
+			for ( i = 0; i < client->frameDamage.num_damage_indicators; i++ ) {
+				const float length = QM_Vector3Length( point - client->frameDamage.damage_indicators[ i ].from );
+				if ( length < 32.f ) {
+					indicator = &client->frameDamage.damage_indicators[ i ];
+					break;
+				}
+			}
+
+			if ( !indicator && i != MAX_DAMAGE_INDICATORS ) {
+				indicator = &client->frameDamage.damage_indicators[ i ];
+				// for projectile direct hits, use the attacker; otherwise
+				// use the inflictor (rocket splash should point to the rocket)
+				indicator->from = ( damageFlags & DAMAGE_RADIUS && inflictor != nullptr ) ? inflictor->s.origin : attacker->s.origin;
+				indicator->health = indicator->armor = 0;
+				client->frameDamage.num_damage_indicators++;
+			}
+
+			if ( indicator ) {
+				indicator->health += take;
+				indicator->armor += asave;
+			}
+		}
+	}
+}
 
 
 /**

@@ -314,7 +314,7 @@ void mutant_jump_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surf
             VectorNormalize(normal);
             VectorMA(self->s.origin, self->maxs[0], normal, point);
             damage = 40 + 10 * random();
-            SVG_TriggerDamage(other, self, self, self->velocity, point, normal, damage, damage, 0, MOD_UNKNOWN);
+            SVG_DamageEntity(other, self, self, self->velocity, point, normal, damage, damage, 0, MOD_UNKNOWN);
         }
     }
 

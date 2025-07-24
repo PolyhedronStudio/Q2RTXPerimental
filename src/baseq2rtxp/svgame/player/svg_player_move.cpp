@@ -448,7 +448,7 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
         VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
 
         if ( !deathmatch->integer ) {
-            SVG_TriggerDamage( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
+            SVG_DamageEntity( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
         }
     } else {
         ent->s.event = EV_FALLSHORT;

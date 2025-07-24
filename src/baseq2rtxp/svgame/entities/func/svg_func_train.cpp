@@ -38,7 +38,7 @@ noise   looping sound to play when the train is in motion
 DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_train_t, onBlocked )( svg_func_train_t *self, svg_base_edict_t *other ) -> void {
     if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+        SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
         if ( other && other->inuse && other->solid ) {
             SVG_Misc_BecomeExplosion( other, 1 );
@@ -55,7 +55,7 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_train_t, onBlocked )( svg_func_train_t 
     }
 
     self->touch_debounce_time = level.time + 0.5_sec;
-    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
 /**

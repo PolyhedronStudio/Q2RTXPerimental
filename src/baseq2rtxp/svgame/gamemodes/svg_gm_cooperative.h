@@ -89,6 +89,13 @@ struct svg_gamemode_cooperative_t : public svg_gamemode_t {
 	**/
 	virtual void ClientBegin( svg_player_edict_t *ent ) override;
 
+
+	/**
+	*	@brief	Overrides to update client scores when killing monsters in coop.
+	**/
+	virtual void EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) override;
+
+
 	/**
 	*	@brief	Called somewhere at the beginning of the game frame. This allows
 	*			to determine if conditions are met to engage exitting intermission
@@ -111,6 +118,12 @@ struct svg_gamemode_cooperative_t : public svg_gamemode_t {
 	**/
 	virtual void EndServerFrame( svg_player_edict_t *ent ) override;
 
+	/**
+	*   @brief  This function is used to apply damage to an entity.
+	*           It handles the damage calculation, knockback, and any special
+	*           effects based on the type of damage and the entities involved.
+	**/
+	virtual void DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) override;
 
 	/**
 	*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
@@ -118,6 +131,9 @@ struct svg_gamemode_cooperative_t : public svg_gamemode_t {
 	virtual svg_base_edict_t *SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles ) override;
 
 private:
+	/**
+	*	@brief  Will select a coop spawn point for the player.
+	**/
 	svg_base_edict_t *SelectCoopSpawnPoint( svg_player_edict_t *ent );
 
 	/**

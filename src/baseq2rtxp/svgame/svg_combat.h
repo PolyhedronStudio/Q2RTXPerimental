@@ -139,11 +139,21 @@ const bool SVG_OnSameTeam( svg_base_edict_t *ent1, svg_base_edict_t *ent2 );
 /**
 *   @brief
 **/
-const bool SVG_CanDamage( svg_base_edict_t *targ, svg_base_edict_t *inflictor );
+//const bool SVG_CanDamage( svg_base_edict_t *targ, svg_base_edict_t *inflictor );
 /**
-*   @brief
+*   @brief  Check whether we're allowed to damage a teammate.
 **/
-void SVG_TriggerDamage( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath );
+const bool SVG_CheckTeamDamage( svg_base_edict_t *targ, svg_base_edict_t *attacker );
+/**
+*   @brief  
+**/
+void SVG_SpawnDamage( const int32_t type, const vec3_t origin, const vec3_t normal, const int32_t damage );
+/**
+*   @brief  This function is used to apply damage to an entity.
+*           It handles the damage calculation, knockback, and any special
+*           effects based on the type of damage and the entities involved.
+**/
+void SVG_DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath );
 /**
 *   @brief
 **/

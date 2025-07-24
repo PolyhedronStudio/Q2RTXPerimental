@@ -296,7 +296,7 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_rotating_t, onBlocked )( svg_func_rotat
     // Take 100ms before going at it again.
     self->touch_debounce_time = level.time + 10_hz;
     // Perform damaging.
-    SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
 /**
@@ -310,7 +310,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_rotating_t, onTouch )( svg_func_rotating_
 
     // Perform damage if we got angular velocity.
     if ( !VectorEmpty( self->avelocity ) ) {
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+        SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
     }
 }
 

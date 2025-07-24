@@ -1023,7 +1023,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   Various Data:
     **/
-    //! Set when the entity gets hurt(SVG_TriggerDamage) and might be its cause of death.
+    //! Set when the entity gets hurt(SVG_DamageEntity) and might be its cause of death.
     sg_means_of_death_t meansOfDeath = static_cast<sg_means_of_death_t>(0);
     //! [SpawnKey]: Used for target_changelevel. Set as key/value.
     svg_level_qstring_t map = nullptr;

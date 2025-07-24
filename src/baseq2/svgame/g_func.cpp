@@ -394,14 +394,14 @@ void plat_blocked(edict_t *self, edict_t *other)
 {
     if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
         // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+        SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
         // if it's still there, nuke it
         if (other)
             SVG_Misc_BecomeExplosion1(other);
         return;
     }
 
-    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 
     if (self->moveinfo.state == STATE_UP)
         plat_go_down(self);
@@ -574,13 +574,13 @@ STOP mean it will stop moving instead of pushing entities
 
 void rotating_blocked(edict_t *self, edict_t *other)
 {
-    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void rotating_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *surf)
 {
     if (!VectorEmpty(self->avelocity))
-        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+        SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void rotating_use(edict_t *self, edict_t *other, edict_t *activator)
@@ -1049,14 +1049,14 @@ void door_blocked(edict_t *self, edict_t *other)
 
     if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
         // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+        SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
         // if it's still there, nuke it
         if (other)
             SVG_Misc_BecomeExplosion1(other);
         return;
     }
 
-    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 
     if (self->spawnflags & DOOR_CRUSHER)
         return;
@@ -1424,7 +1424,7 @@ void train_blocked(edict_t *self, edict_t *other)
 {
     if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
         // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+        SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
         // if it's still there, nuke it
         if (other)
             SVG_Misc_BecomeExplosion1(other);
@@ -1437,7 +1437,7 @@ void train_blocked(edict_t *self, edict_t *other)
     if (!self->dmg)
         return;
     self->touch_debounce_time = level.time + 0.5_sec;
-    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void train_wait(edict_t *self)
@@ -1866,7 +1866,7 @@ void door_secret_blocked(edict_t *self, edict_t *other)
 {
     if (!(other->svflags & SVF_MONSTER) && (!other->client)) {
         // give it a chance to go away on it's own terms (like gibs)
-        SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
+        SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, 0, MOD_CRUSH);
         // if it's still there, nuke it
         if (other)
             SVG_Misc_BecomeExplosion1(other);
@@ -1877,7 +1877,7 @@ void door_secret_blocked(edict_t *self, edict_t *other)
         return;
     self->touch_debounce_time = level.time + 0.5_sec;
 
-    SVG_TriggerDamage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_DamageEntity(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void door_secret_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, vec3_t point)

@@ -531,7 +531,7 @@ void floater_zap(edict_t *self)
     gi.WriteUint8(1);    //sparks
     gi.multicast( origin, MULTICAST_PVS, false );
 
-    SVG_TriggerDamage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, 5 + Q_rand() % 6, -10, DAMAGE_ENERGY, MOD_UNKNOWN);
+    SVG_DamageEntity(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, 5 + Q_rand() % 6, -10, DAMAGE_ENERGY, MOD_UNKNOWN);
 }
 
 void floater_attack(edict_t *self)

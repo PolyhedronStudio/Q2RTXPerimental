@@ -782,7 +782,7 @@ char *SVG_Util_CopyString( char *in );
 //
 const bool SVG_OnSameTeam( edict_t *ent1, edict_t *ent2 );
 const bool SVG_CanDamage( edict_t *targ, edict_t *inflictor );
-void SVG_TriggerDamage( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod );
+void SVG_DamageEntity( edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod );
 void SVG_RadiusDamage( edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, int mod );
 
 // damage flags

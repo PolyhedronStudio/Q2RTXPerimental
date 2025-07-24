@@ -122,10 +122,10 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, ve
 
 /*
 ================
-SpawnDamage
+SVG_SpawnDamage
 ================
 */
-void SpawnDamage(int type, const vec3_t origin, const vec3_t normal, int damage)
+void SVG_SpawnDamage(int type, const vec3_t origin, const vec3_t normal, int damage)
 {
     if (damage > 255)
         damage = 255;
@@ -140,7 +140,7 @@ void SpawnDamage(int type, const vec3_t origin, const vec3_t normal, int damage)
 
 /*
 ============
-SVG_TriggerDamage
+SVG_DamageEntity
 
 targ        entity that is being damaged
 inflictor   entity that is causing the damage
@@ -153,7 +153,7 @@ normal      normal vector from that point
 damage      amount of damage being inflicted
 knockback   force to be applied against targ as a result of the damage
 
-dflags      these flags are used to control how SVG_TriggerDamage works
+dflags      these flags are used to control how SVG_DamageEntity works
     DAMAGE_RADIUS           damage was indirect (from a nearby explosion)
     DAMAGE_NO_ARMOR         armor does not protect from this damage
     DAMAGE_ENERGY           damage is from an energy based weapon
@@ -228,7 +228,7 @@ static int CheckPowerArmor(edict_t *ent, const vec3_t point, const vec3_t normal
     if (save > damage)
         save = damage;
 
-    SpawnDamage(pa_te_type, point, normal, save);
+    SVG_SpawnDamage(pa_te_type, point, normal, save);
     ent->powerarmor_time = level.time + 0.2_sec;
 
     power_used = save / damagePerCell;
@@ -275,7 +275,7 @@ static int CheckArmor(edict_t *ent, const vec3_t point, const vec3_t normal, int
         return 0;
 
     client->pers.inventory[index] -= save;
-    SpawnDamage(te_sparks, point, normal, save);
+    SVG_SpawnDamage(te_sparks, point, normal, save);
 
     return save;
 }
@@ -360,7 +360,7 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
     return false;
 }
 
-void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod)
+void SVG_DamageEntity(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, int damage, int knockback, int dflags, int mod)
 {
     svg_client_t   *client;
     int         take;
@@ -435,7 +435,7 @@ void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, con
     if ((targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION)) {
         take = 0;
         save = damage;
-        SpawnDamage(te_sparks, point, normal, save);
+        SVG_SpawnDamage(te_sparks, point, normal, save);
     }
 
     // check for invincibility
@@ -465,11 +465,11 @@ void SVG_TriggerDamage(edict_t *targ, edict_t *inflictor, edict_t *attacker, con
     if (take) {
         if ((targ->svflags & SVF_MONSTER) || (client))
         {
-            // SpawnDamage(TE_BLOOD, point, normal, take);
-            SpawnDamage(TE_BLOOD, point, dir, take);
+            // SVG_SpawnDamage(TE_BLOOD, point, normal, take);
+            SVG_SpawnDamage(TE_BLOOD, point, dir, take);
         }
         else
-            SpawnDamage(te_sparks, point, normal, take);
+            SVG_SpawnDamage(te_sparks, point, normal, take);
 
 
         targ->health = targ->health - take;
@@ -539,7 +539,7 @@ void SVG_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict
         if (points > 0) {
             if (SVG_CanDamage(ent, inflictor)) {
                 VectorSubtract(ent->s.origin, inflictor->s.origin, dir);
-                SVG_TriggerDamage(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
+                SVG_DamageEntity(ent, inflictor, attacker, dir, inflictor->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
             }
         }
     }

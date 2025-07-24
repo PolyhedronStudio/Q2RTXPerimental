@@ -11,6 +11,22 @@
 #include "common/common.h"
 
 
+const BBox3 CM_CalculateBrushBounds( mbrush_t *brush ) {
+	if ( !brush->firstbrushside ) {
+		return QM_BBox3Zero();
+	}
+
+	brush->absmins[ 0 ] = -brush->firstbrushside[ 0 ].plane->dist;
+	brush->absmaxs[ 0 ] = brush->firstbrushside[ 1 ].plane->dist;
+
+	brush->absmins[ 1 ] = -brush->firstbrushside[ 2 ].plane->dist;
+	brush->absmaxs[ 1 ] = brush->firstbrushside[ 3 ].plane->dist;
+
+	brush->absmins[ 2 ] = -brush->firstbrushside[ 4 ].plane->dist;
+	brush->absmaxs[ 2 ] = brush->firstbrushside[ 5 ].plane->dist;
+
+	return { brush->absmins, brush->absmaxs };
+}
 /**
 *	@return The PLANE_ type for the given normal vector.
 **/

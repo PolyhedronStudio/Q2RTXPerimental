@@ -506,7 +506,7 @@ const bool SVG_Util_KillBox(edict_t *ent, const bool bspClipping ) {
         }
 
         // nail it
-        SVG_TriggerDamage(hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+        SVG_DamageEntity(hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
 
         //// if we didn't kill it, fail
         //if (tr.ent->solid)

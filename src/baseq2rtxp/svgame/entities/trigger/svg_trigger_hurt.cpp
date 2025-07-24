@@ -79,7 +79,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_hurt_t, onTouch )( svg_trigger_hurt_t 
 	}
 
 	// Perform the damage.
-	SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, self->dmg, dflags, MEANS_OF_DEATH_TRIGGER_HURT );
+	SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, self->dmg, dflags, MEANS_OF_DEATH_TRIGGER_HURT );
 }
 
 /*QUAKED trigger_hurt (.5 .5 .5) ? START_OFF TOGGLE SILENT NO_PROTECTION SLOW

@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
@@ -30,6 +31,121 @@
 *
 *
 **/
+/**
+*	@brief	Called when an entity has been killed.
+**/
+void svg_gamemode_t::EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+    if ( targ->health < -999 )
+        targ->health = -999;
+
+    targ->enemy = attacker;
+
+    if ( ( targ->svflags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
+        //targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
+        // WID: TODO: Monster Reimplement.        
+        //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
+        //level.killed_monsters++;
+        if ( coop->value && attacker->client ) {
+            attacker->client->resp.score++;
+        }
+        // medics won't heal monsters that they kill themselves
+        //if ( strcmp( (const char *)attacker->classname, "monster_medic" ) == 0 )
+        //    targ->owner = attacker;
+        //}
+    }
+
+    if ( targ->movetype == MOVETYPE_PUSH || targ->movetype == MOVETYPE_STOP || targ->movetype == MOVETYPE_NONE ) {
+        // doors, triggers, etc
+        if ( targ->HasDieCallback() ) {
+            targ->DispatchDieCallback( inflictor, attacker, damage, point );
+        }
+        return;
+    }
+
+    if ( ( targ->svflags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
+        targ->SetTouchCallback( nullptr );//targ->touch = NULL;
+        // WID: TODO: Actually trigger death.
+        //monster_death_use(targ);
+        //When a monster dies, it fires all of its targets with the current
+        //enemy as activator.
+        //void monster_death_use( svg_base_edict_t * self ) {
+        //    self->flags &= ~( FL_FLY | FL_SWIM );
+        //    self->monsterinfo.aiflags &= ( AI_HIGH_TICK_RATE | AI_GOOD_GUY );
+
+        //    if ( self->item ) {
+        //        Drop_Item( self, self->item );
+        //        self->item = NULL;
+        //    }
+
+        //    if ( self->targetNames.death )
+        //        self->targetNames.target = self->targetNames.death;
+
+        //    if ( !self->targetNames.target )
+        //        return;
+
+        //    SVG_UseTargets( self, self->enemy );
+        //}
+    }
+    if ( targ->HasDieCallback() ) {
+        targ->DispatchDieCallback( inflictor, attacker, damage, point );
+    }
+}
+
+/**
+*   @brief  Returns true if the inflictor can directly damage the target.  Used for
+*           explosions and melee attacks.
+**/
+const bool svg_gamemode_t::CanDamageEntityDirectly( svg_base_edict_t *targ, svg_base_edict_t *inflictor ) {
+    vec3_t  dest;
+    svg_trace_t trace;
+
+    // bmodels need special checking because their origin is 0,0,0
+    if ( targ->movetype == MOVETYPE_PUSH ) {
+        VectorAdd( targ->absmin, targ->absmax, dest );
+        VectorScale( dest, 0.5f, dest );
+        trace = SVG_Trace( inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID );
+        if ( trace.fraction == 1.0f )
+            return true;
+        if ( trace.ent == targ )
+            return true;
+        return false;
+    }
+
+    trace = SVG_Trace( inflictor->s.origin, vec3_origin, vec3_origin, targ->s.origin, inflictor, CM_CONTENTMASK_SOLID );
+    if ( trace.fraction == 1.0f )
+        return true;
+
+    VectorCopy( targ->s.origin, dest );
+    dest[ 0 ] += 15.0f;
+    dest[ 1 ] += 15.0f;
+    trace = SVG_Trace( inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID );
+    if ( trace.fraction == 1.0f )
+        return true;
+
+    VectorCopy( targ->s.origin, dest );
+    dest[ 0 ] += 15.0f;
+    dest[ 1 ] -= 15.0f;
+    trace = SVG_Trace( inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID );
+    if ( trace.fraction == 1.0f )
+        return true;
+
+    VectorCopy( targ->s.origin, dest );
+    dest[ 0 ] -= 15.0f;
+    dest[ 1 ] += 15.0f;
+    trace = SVG_Trace( inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID );
+    if ( trace.fraction == 1.0f )
+        return true;
+
+    VectorCopy( targ->s.origin, dest );
+    dest[ 0 ] -= 15.0f;
+    dest[ 1 ] -= 15.0f;
+    trace = SVG_Trace( inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID );
+    if ( trace.fraction == 1.0f )
+        return true;
+
+
+    return false;
+}
 /**
 *	@brief	Sets the spawn origin and angles to that matching the found spawn point.
 **/

@@ -621,7 +621,7 @@ void func_object_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surf
         return;
     if (other->takedamage == DAMAGE_NO)
         return;
-    SVG_TriggerDamage(other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
+    SVG_DamageEntity(other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, 0, MOD_CRUSH);
 }
 
 void func_object_release(edict_t *self)

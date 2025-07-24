@@ -350,7 +350,7 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *s
         if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
             const bool knockBack = true;
             // give it a chance to go away on it's own terms (like gibs)
-            SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+            SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
             // if it's still there, nuke it
             if ( other && other->inuse && other->solid ) { // PGM)
                 SVG_Misc_BecomeExplosion( other, 1 );
@@ -361,12 +361,12 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *s
         // PGM
         //  gib dead things
         if ( other->health < 1 ) {
-            SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+            SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         }
         // PGM
 
         const bool knockBack = false;
-        SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+        SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 
         // [Paril-KEX] killed the thing, so don't switch directions
         //if ( !other->inuse || other->solid == SOLID_NOT ) {

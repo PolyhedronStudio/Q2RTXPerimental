@@ -35,7 +35,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_object_t, onTouch )( svg_func_object_t *s
     if ( other && other->takedamage == DAMAGE_NO ) {
         return;
     }
-    SVG_TriggerDamage( other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    SVG_DamageEntity( other, self, self, vec3_origin, self->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
 /**

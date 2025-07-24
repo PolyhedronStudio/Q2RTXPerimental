@@ -124,7 +124,7 @@ bool fire_hit(svg_base_edict_t *self, vec3_t aim, int damage, int kick)
     VectorSubtract(point, self->enemy->s.origin, dir);
 
     // do the damage
-    SVG_TriggerDamage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MEANS_OF_DEATH_HIT_FIGHTING );
+    SVG_DamageEntity(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MEANS_OF_DEATH_HIT_FIGHTING );
 
     if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
         return false;
@@ -194,7 +194,7 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
         if ( tr.fraction < 1.0f ) {
             // It was an entity, if it takes damage, hit it:
             if ( tr.ent && tr.ent->takedamage >= DAMAGE_YES ) {
-                SVG_TriggerDamage( tr.ent, self, self, &aimDir.x, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MEANS_OF_DEATH_HIT_FIGHTING );
+                SVG_DamageEntity( tr.ent, self, self, &aimDir.x, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_NONE, MEANS_OF_DEATH_HIT_FIGHTING );
                 isTDamaged = true;
             // Otherwise, display something that shows we are hitting something senselessly.
             } else {
@@ -340,7 +340,7 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
     if ( !( ( tr.surface ) && ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) ) ) {
         if ( tr.fraction < 1.0f ) {
             if ( tr.ent->takedamage ) {
-                SVG_TriggerDamage( tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
+                SVG_DamageEntity( tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
             } else {
                 if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
                     gi.WriteUint8( svc_temp_entity );

@@ -115,6 +115,24 @@ struct svg_gamemode_t : public sg_gamemode_base_t {
 	*
 	**/
 	/**
+	*   @brief  This function is used to apply damage to an entity.
+	*           It handles the damage calculation, knockback, and any special
+	*           effects based on the type of damage and the entities involved.
+	**/
+	virtual void DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) = 0;
+
+	/**
+	*	@brief	Called when an entity has been killed.
+	**/
+	virtual void EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+
+	/**
+	*   @brief  Returns true if the inflictor can directly damage the target.  Used for
+	*           explosions and melee attacks.
+	**/
+	virtual const bool CanDamageEntityDirectly( svg_base_edict_t *targ, svg_base_edict_t *inflictor );
+
+	/**
 	*	@brief	Sets the spawn origin and angles to that matching the found spawn point.
 	**/
 	virtual svg_base_edict_t *SelectSpawnPoint( svg_player_edict_t *ent, Vector3 &origin, Vector3 &angles );

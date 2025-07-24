@@ -564,7 +564,7 @@ void hurt_touch( edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t 
 		dflags = DAMAGE_NO_PROTECTION;
 	else
 		dflags = 0;
-	SVG_TriggerDamage( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, self->dmg, dflags, MOD_TRIGGER_HURT );
+	SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, self->dmg, dflags, MOD_TRIGGER_HURT );
 }
 
 /*QUAKED trigger_hurt (.5 .5 .5) ? START_OFF TOGGLE SILENT NO_PROTECTION SLOW

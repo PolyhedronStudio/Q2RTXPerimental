@@ -100,7 +100,7 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
     VectorSubtract(point, self->enemy->s.origin, dir);
 
     // do the damage
-    SVG_TriggerDamage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
+    SVG_DamageEntity(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
 
     if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
         return false;
@@ -204,7 +204,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float da
     if (!((tr.surface) && (tr.surface->flags & CM_SURFACE_FLAG_SKY))) {
         if (tr.fraction < 1.0f) {
             if (tr.ent->takedamage) {
-                SVG_TriggerDamage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, mod);
+                SVG_DamageEntity(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, mod);
             } else {
                 if (strncmp(tr.surface->name, "sky", 3) != 0) {
                     gi.WriteUint8(svc_temp_entity);
@@ -301,7 +301,7 @@ void blaster_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_
             mod = MOD_HYPERBLASTER;
         else
             mod = MOD_BLASTER;
-        SVG_TriggerDamage(other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
+        SVG_DamageEntity(other, self, self->owner, self->velocity, self->s.origin, plane->normal, self->dmg, 1, DAMAGE_ENERGY, mod);
     } else {
         gi.WriteUint8(svc_temp_entity);
         gi.WriteUint8(TE_BLASTER);
@@ -406,7 +406,7 @@ void Grenade_Explode(edict_t *ent)
             mod = MOD_HANDGRENADE;
         else
             mod = MOD_GRENADE;
-        SVG_TriggerDamage(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
+        SVG_DamageEntity(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
     }
 
     if (ent->spawnflags & 2)
@@ -580,7 +580,7 @@ void rocket_touch(edict_t *ent, edict_t *other, cm_plane_t *plane, cm_surface_t 
     VectorMA(ent->s.origin, -0.02f, ent->velocity, origin);
 
     if (other->takedamage) {
-        SVG_TriggerDamage(other, ent, ent->owner, ent->velocity, ent->s.origin, plane->normal, ent->dmg, 0, 0, MOD_ROCKET);
+        SVG_DamageEntity(other, ent, ent->owner, ent->velocity, ent->s.origin, plane->normal, ent->dmg, 0, 0, MOD_ROCKET);
     } else {
         // don't throw any debris in net games
         if (!deathmatch->value && !coop->value) {
@@ -679,7 +679,7 @@ void fire_rail(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick)
                 ignore = NULL;
 
             if ((tr.ent != self) && (tr.ent->takedamage))
-                SVG_TriggerDamage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, 0, MOD_RAILGUN);
+                SVG_DamageEntity(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, 0, MOD_RAILGUN);
         }
 
         VectorCopy(tr.endpos, from);
@@ -743,7 +743,7 @@ void bfg_explode(edict_t *self)
             gi.WriteUint8(TE_BFG_EXPLOSION);
             gi.WritePosition( ent->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
             gi.multicast( ent->s.origin, MULTICAST_PHS, false );
-            SVG_TriggerDamage(ent, self, self->owner, self->velocity, ent->s.origin, vec3_origin, (int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
+            SVG_DamageEntity(ent, self, self->owner, self->velocity, ent->s.origin, vec3_origin, (int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
         }
     }
 
@@ -768,7 +768,7 @@ void bfg_touch(edict_t *self, edict_t *other, cm_plane_t *plane, cm_surface_t *s
 
     // core explosion - prevents firing it into the wall/floor
     if (other->takedamage)
-        SVG_TriggerDamage(other, self, self->owner, self->velocity, self->s.origin, plane->normal, 200, 0, 0, MOD_BFG_BLAST);
+        SVG_DamageEntity(other, self, self->owner, self->velocity, self->s.origin, plane->normal, 200, 0, 0, MOD_BFG_BLAST);
     SVG_RadiusDamage(self, self->owner, 200, other, 100, MOD_BFG_BLAST);
 
     gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/bfg__x1b.wav"), 1, ATTN_NORM, 0);
@@ -837,7 +837,7 @@ void bfg_think(edict_t *self)
 
             // hurt it if we can
             if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && (tr.ent != self->owner))
-                SVG_TriggerDamage(tr.ent, self, self->owner, dir, tr.endpos, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+                SVG_DamageEntity(tr.ent, self, self->owner, dir, tr.endpos, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
 
             // if we hit something that's not a monster or player we're done
             if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client)) {
