@@ -274,24 +274,39 @@ static void PM_CycleBob() {
 	// Default to no footstep:
 	footStep = false;
 
-	if ( ps->pmove.pm_flags & PMF_DUCKED ) {
-		// Ducked characters bob much faster:
-		ps->bobMove = 0.5;	
-	} else {
-		if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
-			// Faster speeds bob faster:
-			ps->bobMove = 0.4f;
-			footStep = true;
+	// Determine the bobMove factor:
+	if ( ps->xySpeed >= PM_BOB_CYCLE_IDLE_EPSILON && ps->xyzSpeed >= PM_BOB_CYCLE_IDLE_EPSILON ) {
+		// Ducked:
+		if ( ps->pmove.pm_flags & PMF_DUCKED ) {
+			// Ducked characters bob even slower than walking:
+			ps->bobMove = 0.2;
+		// Standing up:
 		} else {
-			// Walking bobs slow:
-			ps->bobMove = 0.3f;
+			if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
+				// Running bobs faster:
+				ps->bobMove = 0.4;
+				// And applies footstep sounds:
+				footStep = true;
+			} else {
+				// Walking bobs slower:
+				ps->bobMove = 0.3;
+			}
 		}
 	}
-
-	// check for footstep / splash sounds
-	oldBobCycle = ps->bobCycle;
-	ps->bobCycle = (int32_t)( (oldBobCycle + ps->bobMove * pm->cmd.msec) /* pml.msec */) & 255;
 	
+	// If not trying to move, slowly derade the bobMove factor.
+	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove ) {
+		// Check both xySpeed, and xyzSpeed. The last one is to prevent
+		// view wobbling when crouched, yet idle.
+		if ( ps->xySpeed < PM_BOB_CYCLE_IDLE_EPSILON && ps->xyzSpeed < PM_BOB_CYCLE_IDLE_EPSILON ) {
+			ps->bobMove = 0.;
+		}
+	}
+	
+	// Check for footstep / splash sounds.
+	oldBobCycle = ps->bobCycle;
+	ps->bobCycle = (int32_t)( ( oldBobCycle + ps->bobMove * pm->cmd.msec ) /* pml.msec */ ) & 255;
+
 	//SG_DPrintf( "%s: ps->bobCycle(%i), oldBobCycle(%i), bobMove(%f)\n", __func__, ps->bobCycle, oldBobCycle, bobMove );
 	
 	// if we just crossed a cycle boundary, play an appropriate footstep event

@@ -80,7 +80,7 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
 
 /**
 *   @brief  Will engage the intermission mode in which all clients are moved to
-*           the intermission point, and the game will wait for a map change.
+*           the intermission point, where usually the gamemode will wait for a map change.
 **/
 void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
 {

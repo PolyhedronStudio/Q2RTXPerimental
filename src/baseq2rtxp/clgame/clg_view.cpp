@@ -494,11 +494,18 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 *   @brief  Calculate the bob cycle and apply bob angles as well as a view offset.
 **/
 static void CLG_CycleViewBob( player_state_t *ps ) {
+
     // Calculate base bob data.
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
-    level.viewBob.fracSin = fabs( sin( (double)( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
+    const double scalarBobCycle = (double)( ( ps->bobCycle & 127 ) / 127.0 * M_PI );
+    const double scalarBobCycle2 = (double)( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) * 2.0;
+    level.viewBob.fracSin = fabs( sin( scalarBobCycle ) );
+    level.viewBob.fracSin2 = fabs( sin( scalarBobCycle ) + sin( scalarBobCycle ) );
+    level.viewBob.fracCos = fabs( cos( scalarBobCycle ) );
+    level.viewBob.fracCos2 = fabs( cos( scalarBobCycle ) + cos( scalarBobCycle ) );
     level.viewBob.xySpeed = ps->xySpeed;
-        
+    level.viewBob.xyzSpeed = ps->xyzSpeed;
+      
 #if 0
     // calculate speed and cycle to be used for all cyclic walking effects
     level.viewBob.xySpeed = ps->xySpeed; // sqrt( cg.predictedPlayerState.pmove.velocity[ 0 ] * cg.predictedPlayerState.pmove.velocity[ 0 ] + cg.predictedPlayerState.pmove.velocity[ 1 ] * cg.predictedPlayerState.pmove.velocity[ 1 ] );
@@ -528,10 +535,80 @@ static void CLG_CycleViewBob( player_state_t *ps ) {
 #endif
 }
 
+//! <Q2RTXP>: WID: These need to be defined elsewhere but for now this'll to
+static QMEaseState fovEaseState;
+static double easeLerpFactor = 0.;
+
 /**
 *   @brief  Calculates the gun offset as well as the gun angles based on the bobCycle.
 **/
-void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
+void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
+    #if 1
+    Vector3 gunOffset = {
+        ( -.075f * (float)-level.viewBob.fracSin2 ),
+        ( -.185f * (float)-level.viewBob.fracSin2 ),
+        //-(0.25f * (float)( easeLerpFactor ))
+        0.0f// + (float)easeLerpFactor * ( -0.25f - 0.f )
+    };
+    gunOffset.z = -.25f;
+    if ( level.viewBob.cycle & 1 ) {
+        gunOffset[ 0 ] = -gunOffset[ 0 ];
+    }
+
+    Vector3 gunOrigin = {};
+    for ( int32_t i = 0; i < 3; i++ ) {
+        gunOrigin[ i ] += clgi.client->v_forward[ i ] * ( gunOffset.y );
+        gunOrigin[ i ] += clgi.client->v_right[ i ] * gunOffset.x;
+        gunOrigin[ 2 ] += clgi.client->v_up[ i ] * ( gunOffset.z );
+    }
+
+    VectorCopy( gunOrigin, ps->gunoffset );
+
+    //ps->gunangles[ ROLL ] = level.viewBob.xySpeed * level.viewBob.fracSin2 * 0.005;
+    ////ps->gunangles[ YAW ] = level.viewBob.xySpeed * level.viewBob.fracSin2 * 0.0025;
+    //if ( level.viewBob.cycle & 1 ) {
+    //    ps->gunangles[ ROLL ] = -ps->gunangles[ ROLL ];
+    ////    ps->gunangles[ YAW ] = -ps->gunangles[ YAW ];
+    //}
+
+    //ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin2 * 0.015;
+    #if 0
+    // Gun angles from delta movement
+    for ( int32_t i = 0; i < 3; i++ ) {
+        double delta = QM_AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
+        if ( delta > 180. ) {
+            delta -= 360.;
+        }
+        if ( delta < -180. ) {
+            delta += 360.;
+        }
+        delta = std::clamp( delta, -45., 45. );
+
+        if ( i == YAW ) {
+            ps->gunangles[ ROLL ] += 0.01 * delta;
+        }
+        ps->gunangles[ i ] += 0.02 * delta;
+
+        #if 1
+        float reduction_factor = delta ? 0.005f : 0.015f;
+
+        if ( delta > 0 )
+            delta = std::max( 0., delta - clgi.frame_time_ms * reduction_factor );
+        else if ( delta < 0 )
+            delta = std::min( 0., delta + clgi.frame_time_ms * reduction_factor );
+        #endif
+    }
+    #endif
+    //// Gun angles from bobbing
+    //ps->gunangles[ ROLL ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
+    //ps->gunangles[ YAW ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.01;
+    //if ( level.viewBob.cycle & 1 ) {
+    //    ps->gunangles[ ROLL ] = -ps->gunangles[ ROLL ];
+    //    ps->gunangles[ YAW ] = -ps->gunangles[ YAW ];
+    //}
+
+    //ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
+    #else
     int     i;
     double   delta;
 
@@ -545,71 +622,71 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
 
     ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
     #if 1
-    // Gun angles from delta movement
-    for ( i = 0; i < 3; i++ ) {
-        delta = QM_AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
-        if ( delta > 180. ) {
-            delta -= 360.;
-        }
-        if ( delta < -180. ) {
-            delta += 360.;
-        }
-        delta = std::clamp( delta, -45., 45. );
+        // Gun angles from delta movement
+        for ( i = 0; i < 3; i++ ) {
+            delta = QM_AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
+            if ( delta > 180. ) {
+                delta -= 360.;
+            }
+            if ( delta < -180. ) {
+                delta += 360.;
+            }
+            delta = std::clamp( delta, -45., 45. );
 
-        if ( i == YAW ) {
-            ps->gunangles[ ROLL ] += 0.1 * delta;
+            if ( i == YAW ) {
+                ps->gunangles[ ROLL ] += 0.1 * delta;
+            }
+            ps->gunangles[ i ] += 0.2 * delta;
+
+            #if 0
+            float reduction_factor = delta ? 0.05f : 0.15f;
+
+            if ( delta > 0 )
+                delta = std::max( 0., delta - clgi.frame_time_ms * reduction_factor );
+            else if ( delta < 0 )
+                delta = std::min( 0., delta + clgi.frame_time_ms * reduction_factor );
+            #endif
         }
-        ps->gunangles[ i ] += 0.2 * delta;
-
-        #if 0
-        float reduction_factor = delta ? 0.05f : 0.15f;
-
-        if ( delta > 0 )
-            delta = std::max( 0., delta - clgi.frame_time_ms * reduction_factor );
-        else if ( delta < 0 )
-            delta = std::min( 0., delta + clgi.frame_time_ms * reduction_factor );
-        #endif
-    }
     #else
-    static Vector3 slowAngles = {};
-    Vector3 viewAnglesDelta = {};
-    // Gun angles from delta movement
-    for ( i = 0; i < 3; i++ ) {
-        viewAnglesDelta[ i ] = QM_AngleMod(ops->viewangles[i] - ps->viewangles[i]);
-    }
-    slowAngles += viewAnglesDelta;
-
-    for ( i = 0; i < 3; i++ ) {
-        float &delta = slowAngles[ i ];
-
-        if ( !delta )
-            continue;
-
-        if ( delta > 180 ) {
-            delta -= 360;
+        static Vector3 slowAngles = {};
+        Vector3 viewAnglesDelta = {};
+        // Gun angles from delta movement
+        for ( i = 0; i < 3; i++ ) {
+            viewAnglesDelta[ i ] = QM_AngleMod(ops->viewangles[i] - ps->viewangles[i]);
         }
-        if ( delta < -180 ) {
-            delta += 360;
-        }
-        if ( delta > 45 ) {
-            delta = 45;
-        }
-        if ( delta < -45 ) {
-            delta = -45;
-        }
-        //clamp( delta, -45, 45 );
+        slowAngles += viewAnglesDelta;
 
-        if ( i == YAW ) {
-            ps->gunangles[ ROLL ] += ( 0.1f * delta ) * 0.5f;
-        }
-        ps->gunangles[ i ] += ( 0.2f * delta ) * 0.5f;
-        float reduction_factor = viewAnglesDelta[ i ] ? 0.05f : 0.15f;
+        for ( i = 0; i < 3; i++ ) {
+            float &delta = slowAngles[ i ];
 
-        if ( delta > 0 )
-            delta = std::max( 0.f, delta - clgi.frame_time_ms * reduction_factor );
-        else if ( delta < 0 )
-            delta = std::min( 0.f, delta + clgi.frame_time_ms * reduction_factor );
-    }
+            if ( !delta )
+                continue;
+
+            if ( delta > 180 ) {
+                delta -= 360;
+            }
+            if ( delta < -180 ) {
+                delta += 360;
+            }
+            if ( delta > 45 ) {
+                delta = 45;
+            }
+            if ( delta < -45 ) {
+                delta = -45;
+            }
+            //clamp( delta, -45, 45 );
+
+            if ( i == YAW ) {
+                ps->gunangles[ ROLL ] += ( 0.1f * delta ) * 0.5f;
+            }
+            ps->gunangles[ i ] += ( 0.2f * delta ) * 0.5f;
+            float reduction_factor = viewAnglesDelta[ i ] ? 0.05f : 0.15f;
+
+            if ( delta > 0 )
+                delta = std::max( 0.f, delta - clgi.frame_time_ms * reduction_factor );
+            else if ( delta < 0 )
+                delta = std::min( 0.f, delta + clgi.frame_time_ms * reduction_factor );
+        }
     #endif
     // gun height
     VectorClear( ps->gunoffset );
@@ -621,6 +698,7 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
         ps->gunoffset[ i ] += clgi.client->v_right[ i ] * cl_gun_x->value;
         ps->gunoffset[ i ] += clgi.client->v_up[ i ] * ( -cl_gun_z->value );
     }
+    #endif
 }
 
 /**
@@ -718,10 +796,11 @@ static void CLG_SetupFirstPersonView( void ) {
     player_state_t *lastPredictingPlayerState = &predictedState->lastPs; //( PF_UsePrediction() ? &predictedState->lastPs : lastServerFramePlayerState );
 
     // Lerp fraction.
-    const float lerp = clgi.client->lerpfrac;
+    const double lerpFrac = clgi.client->lerpfrac;
 
     // Cycle the view bob on our predicted state.
-    //CLG_CycleViewBob( predictingPlayerState );
+    //CLG_CycleViewBob( lastPredictingPlayerState, 1. );
+    CLG_CycleViewBob( predictingPlayerState );
 
     // WID: TODO: This requires proper player state damage summing and 'wiring' as well as proper
     // player event predicting.
@@ -729,14 +808,19 @@ static void CLG_SetupFirstPersonView( void ) {
     //CLG_DamageFeedback( ent );
     
     // Determine the view offsets for the current predicting player state.
-    CLG_CalculateViewOffset( lastPredictingPlayerState, predictingPlayerState, lerp );
+    CLG_CalculateViewOffset( lastPredictingPlayerState, predictingPlayerState, lerpFrac );
 
     // Determine the gun origin and angle offsets.based on the bobCycles of the predicted player states.
-    CLG_CalculateViewWeaponOffset( &predictedState->lastPs, &predictedState->currentPs );
+    //CLG_CalculateViewWeaponOffset( &predictedState->lastPs, &predictedState->currentPs );
+    if ( clgi.client->frame.valid ) {
+        CLG_CalculateViewWeaponOffset( serverFramePlayerState, &predictedState->currentPs, lerpFrac );
+    } else {
+        CLG_CalculateViewWeaponOffset( lastServerFramePlayerState, serverFramePlayerState, lerpFrac );
+    }
 
     // Add server sided frame kick angles.
     if ( cl_kickangles->integer ) {
-        const Vector3 kickAngles = QM_Vector3LerpAngles( lastServerFramePlayerState->kick_angles, serverFramePlayerState->kick_angles, lerp );
+        const Vector3 kickAngles = QM_Vector3LerpAngles( lastServerFramePlayerState->kick_angles, serverFramePlayerState->kick_angles, lerpFrac );
         VectorAdd( clgi.client->refdef.viewangles, kickAngles, clgi.client->refdef.viewangles );
     }
 
@@ -974,7 +1058,7 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
     *   Determine whether the FOV changed, whether it is zoomed(lower or higher than previous FOV), and
     *   store the old FOV as well as the realtime of change.
     **/
-    static QMEaseState fovEaseState;
+
     //! Resort to cvar default value.
     static double oldFOV = info_fov->value;
     //! If fov changed, determine whether to start an ease in or out transition.
@@ -996,7 +1080,6 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
         realTime = QMTime::FromMilliseconds( clgi.GetRealTime() );
     }
     // Ease In:
-    static double easeLerpFactor = 0.;
     if ( fovEaseState.mode == fovEaseState.QM_EASE_STATE_TYPE_IN ) {
         easeLerpFactor = fovEaseState.EaseIn( realTime, QM_CubicEaseIn );
     // Ease Out:

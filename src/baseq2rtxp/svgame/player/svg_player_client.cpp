@@ -46,6 +46,48 @@ void SVG_P_ProcessAnimations( svg_base_edict_t *ent );
 *
 *
 *
+*   Client Generic Functions:
+*
+*
+*
+**/
+/**
+*   @brief  Called either when a player connects to a server, OR respawns in a multiplayer game.
+*
+*           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
+*           saved entity and persistant data. (This includes actually raising the weapon up.)
+**/
+void SVG_Player_SpawnInBody( svg_base_edict_t *ent ) {
+    // Ensure we are dealing with a player entity here.
+    if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+        gi.dprintf( "%s: Not a player entity.\n", __func__ );
+        return;
+    }
+
+    // Pass to game mode.
+    game.mode->ClientSpawnInBody( static_cast<svg_player_edict_t *>( ent ) );
+}
+
+/**
+*   @brief  Called when a client has finished connecting, and is ready
+*           to be placed into the game. This will happen every level load.
+**/
+void SVG_Client_Begin( svg_base_edict_t *ent ) {
+    // Ensure we are dealing with a player entity here.
+    if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+        gi.dprintf( "%s: Not a player entity.\n", __func__ );
+        return;
+    }
+
+    game.mode->ClientBegin( static_cast<svg_player_edict_t *>( ent ) );
+}
+
+
+
+/**
+*
+*
+*
 *   Connect/Disconnect:
 *
 *
@@ -417,105 +459,6 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
     } else {
         gi.bprintf( PRINT_HIGH, "%s joined the game\n", ent->client->pers.netname );
     }
-}
-
-
-/**
-*
-* 
-*
-*   Client Generic Functions:
-* 
-*
-*
-**/
-/**
-*   @brief  Called either when a player connects to a server, OR respawns in a multiplayer game.
-* 
-*           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
-*           saved entity and persistant data. (This includes actually raising the weapon up.)
-**/
-void SVG_Player_SpawnInBody( svg_base_edict_t *ent ) {
-    // Ensure we are dealing with a player entity here.
-    if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
-        gi.dprintf( "%s: Not a player entity.\n", __func__ );
-        return;
-	}
-
-    // Pass to game mode.
-    game.mode->ClientSpawnInBody( static_cast<svg_player_edict_t*>( ent ) );
-}
-
-/**
-*   @brief  Called when a client has finished connecting, and is ready
-*           to be placed into the game. This will happen every level load.
-**/
-void SVG_Client_Begin( svg_base_edict_t *ent ) {
-    #if 1
-    // Ensure we are dealing with a player entity here.
-    if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
-        gi.dprintf( "%s: Not a player entity.\n", __func__ );
-        return;
-    }
-
-    game.mode->ClientBegin( static_cast<svg_player_edict_t*>( ent ) );
-    #else
-    // Assign matching client for this entity.
-    ent->client = &game.clients[ g_edict_pool.NumberForEdict( ent ) - 1 ]; //game.clients + ( ent - g_edicts - 1 );
-
-    // [Paril-KEX] we're always connected by this point...
-    ent->client->pers.connected = true;
-
-    // Always clear out any previous left over useTargetHint stuff.
-    Client_ClearUseTargetHint( ent, ent->client, nullptr );
-
-    // <Q2RTXP>: WID: TODO:
-    // Determine the game mode, and handle specifically based on that.
-    if ( deathmatch->value ) {
-        SVG_Client_BeginDeathmatch( ent );
-        return;
-    }
-
-    // We're spawned now of course.
-    ent->client->resp.entertime = level.time;
-    ent->client->pers.spawned = true;
-
-    // If there is already a body waiting for us (a loadgame), just take it:
-    if ( ent->inuse == true ) {
-        // Spawn inside the body which was created during load time.
-        SVG_Client_BeginLoadGame( ent );
-    // Otherwise spawn one from scratch:
-    } else {
-        // Create a new body for this player and spawn inside it.
-        SVG_Client_BeginNewBody( ent );
-    }
-
-    // If in intermission, move our client over into intermission state. (We connected at the end of a match).
-    if ( level.intermissionFrameNumber ) {
-        SVG_HUD_MoveClientToIntermission( ent );
-    // Otherwise, send 'Login' effect even if NOT in a multiplayer game 
-    } else {
-        // 
-        if ( game.maxclients >= 1 ) {
-            gi.WriteUint8( svc_muzzleflash );
-            gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
-            gi.WriteUint8( MZ_LOGIN );
-            gi.multicast( ent->s.origin, MULTICAST_PVS, false );
-
-            // Only print this though, if NOT in a singleplayer game.
-            //if ( game.gamemode != GAMEMODE_TYPE_SINGLEPLAYER ) {
-            gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
-            //}
-        }
-    }
-
-    // Call upon EndServerFrame to make sure all view stuff is valid.
-    SVG_Client_EndServerFrame( ent );
-
-    // WID: LUA:
-    SVG_Lua_CallBack_ClientEnterLevel( ent );
-
-    #endif
 }
 
 

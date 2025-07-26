@@ -799,17 +799,22 @@ struct clg_level_locals_t {
 	struct {
 		//! Flattened speed.
 		double	xySpeed;
+		//! XYZ speed.
+		double	xyzSpeed;
 		//! Odd cycles are right foot going forward.
 		int64_t cycle/*, cycle_run*/;
 		//! sin(bobfrac*M_PI)
 		double	fracSin;
+		double	fracSin2;
+		double	fracCos;
+		double	fracCos2;
 		#if 0
 		//! Timer.
-		//double time;
+		double time;
 		//! Old Time of Bob.
-		//double oldTime;
+		double oldTime;
 		//! move.
-		//double	move;
+		double	bob;
 		//! Scale.
 		//double bobScale;
 		#endif

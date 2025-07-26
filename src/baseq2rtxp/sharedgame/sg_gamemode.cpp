@@ -22,35 +22,8 @@
 *
 *
 **/
+// <Q2RTXP>: TODO: ...
 
-
-#if 0
-/**
-*
-*
-*
-*	Game Mode API:
-*
-*
-*
-**/
-/**
-*	@brief	Factory function to create a game mode object based on the gameModeType.
-**/
-sg_igamemode_t *SG_CreateGameMode( const sg_gamemode_type_t gameModeType ) {
-	switch ( gameModeType ) {
-		case GAMEMODE_TYPE_SINGLEPLAYER:
-			return new sg_singleplayer_gamemode_t();
-		case GAMEMODE_TYPE_COOPERATIVE:
-			return new sg_cooperative_gamemode_t();
-		case GAMEMODE_TYPE_DEATHMATCH:
-			return new sg_deathmatch_gamemode_t();
-		default:
-			// Unknown gamemode, return nullptr.
-			return nullptr;
-	}
-}
-#endif
 
 /**
 *

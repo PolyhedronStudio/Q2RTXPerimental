@@ -59,12 +59,8 @@ struct sg_gamemode_base_t {
 *
 *
 **/
-#if 0
-/**
-*	@brief	Factory function to create a game mode object based on the gameModeType.
-**/
-sg_igamemode_t *SG_CreateGameMode( const sg_gamemode_type_t gameModeType );
-#endif
+// <Q2RTXP>: TODO: ...
+
 
 /**
 *
