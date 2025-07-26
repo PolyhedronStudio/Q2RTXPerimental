@@ -145,7 +145,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
     if ( !self->dmg ) {
         self->dmg = 150;
     }
-
+    // Initialize gravity properly
+    if ( !self->gravity ) {
+        self->gravity = 1.0f;
+    }
     // Monster Entity Faking:
     self->svflags &= ~SVF_DEADMONSTER;
     self->svflags |= SVF_MONSTER;
@@ -190,6 +193,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
 *   @brief  Post-Spawn routine.
 **/
 DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_t, onPostSpawn )( svg_monster_testdummy_t *self ) -> void {
+    // Make sure to fall to floor.
+    if ( !self->activator ) {
+        M_droptofloor( self );
+    }
     //---------------------------
     // <TEMPORARY FOR TESTING>
     //---------------------------
@@ -206,10 +213,7 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_monster_testdummy_t, onPostSpawn )( svg_mo
 *   @brief  Thinking routine.
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_testdummy_t *self ) -> void {
-    // Make sure to fall to floor.
-    if ( !self->activator ) {
-        M_droptofloor( self );
-    }
+
 
     // Ensure to remove RF_STAIR_STEP and RF_OLD_FRAME_LERP.
     self->s.renderfx &= ~( RF_STAIR_STEP | RF_OLD_FRAME_LERP );
@@ -245,42 +249,45 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             // Calculate the index for the rootmotion animation.
             int32_t rootMotionFrame = self->s.frame - rootMotion->firstFrameIndex;
 
-            // Get the distance for the frame:
-            #if 1
-            // WID: This is exact, but looks odd if you want faster paced gameplay.
-            //float distance = rootMotion->distances[ rootMotionFrame ];
-            // WID: This is quite 'average':
-            //float distance = ( rootMotion->totalDistance ) * ( 1.0f / rootMotion->frameCount );
-            // WID: Try and accustom to Velocity 'METHOD':
-            //*pflGroundSpeed = sqrt( pseqdesc->linearmovement[ 0 ] * pseqdesc->linearmovement[ 0 ] + pseqdesc->linearmovement[ 1 ] * pseqdesc->linearmovement[ 1 ] + pseqdesc->linearmovement[ 2 ] * pseqdesc->linearmovement[ 2 ] );
-            //*pflGroundSpeed = *pflGroundSpeed * pseqdesc->fps / ( pseqdesc->numframes - 1 );
+            // The clamp top limit as well as the divider, which acts as a magic number
+            // for dividing velocity's that are of the same scale as that of the players.
+            // 
+            // Desired average speed in units per second to match player movement
+            constexpr double desiredAverageSpeed = ( 260. ); // units per second (matching player exactly)
 
-                // WID: This one is solid from what I can tell right now.
-            Vector3 translation = *rootMotion->translations[ rootMotionFrame ];
-            double distance = std::sqrt( translation.x * translation.x +
-                translation.y * translation.y /*+ translation.z * translation.z*/ );
-            // Unit distance per 'frame'.
-            double unitDistance = 24.;
-            // Scale distance to frame count
-            //distance = distance * ( 40. / rootMotion->frameCount - 1 );
-            // Scale distance to 'unit distance'.
-            distance = distance * unitDistance;// / ( unitDistance / distance );
-            #else
-                // WID: Works also, somewhat.
-            #if 0
-                // Base Velocity.
-            constexpr float speed = 250.f;
-            constexpr float maxSpeed = 325.f;
-            float distance = QM_Normalizef( speed / rootMotion->frameCount, 0, maxSpeed );
-            distance *= speed;
-            // WID: This one actually is the best attempt so far.
-            #else
-                // Base Velocity.
-            constexpr float speed = 250.f;
-            // Determine distance to traverse based on Base Velocity.
-            float distance = ( ( speed / rootMotion->frameCount ) * ( rootMotion->frameCount / rootMotion->totalDistance ) );
-            #endif
-            #endif
+            // Get the raw translation from root motion data
+            Vector3 rawTranslation = *rootMotion->translations[ rootMotionFrame ];
+
+            // Calculate the raw 2D distance for this frame (ignore Z for movement)
+            double rawFrameDistance = std::sqrt( rawTranslation.x * rawTranslation.x +
+                rawTranslation.y * rawTranslation.y );
+
+            // **SIMPLIFIED APPROACH: Just set velocity to desired speed**
+            double frameVelocity = 0.0;
+
+            if ( rawFrameDistance > 0.0 ) {
+                // If there's any movement this frame, just use the desired speed
+                frameVelocity = desiredAverageSpeed;
+
+                // Optional: Scale by the frame's relative movement to preserve some animation rhythm
+                if ( rootMotion->totalDistance > 0.0 ) {
+                    // Calculate the average frame distance
+                    double avgFrameDistance = rootMotion->totalDistance / rootMotion->frameCount;
+
+                    // Scale the velocity based on this frame's movement relative to average
+                    double frameRatio = rawFrameDistance / avgFrameDistance;
+
+                    // Clamp the ratio to prevent extreme values
+                    frameRatio = QM_Clamp( frameRatio, 0.1, 3.0 );
+
+                    frameVelocity = desiredAverageSpeed * frameRatio;
+                }
+            }
+
+            // Debug output to see what's actually happening
+            gi.dprintf( "Frame %d: raw=%.4f, velocity=%.2f, frameTime=%.4f, totalDist=%.2f, frameCount=%d\n",
+                rootMotionFrame, rawFrameDistance, frameVelocity, gi.frame_time_s,
+                rootMotion->totalDistance, rootMotion->frameCount );
 
             // Goal Origin:
             Vector3 goalOrigin = self->activator->s.origin;
@@ -308,19 +315,21 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             // Generate frame velocity vector.
             Vector3 previousVelocity = self->velocity;
 
-
-
             Vector3 wishDirVelocity = {
                 cos( self->s.angles[ YAW ] * QM_DEG2RAD ),
                 sin( self->s.angles[ YAW ] * QM_DEG2RAD ),
-                0.
+                0.0 // Don't override Z velocity
             };
-            //entityVelocity = entityVelocity + ( frameVelocity * distance );
-            Vector3 xyVec = QM_Vector3MultiplyAdd( self->velocity, distance, wishDirVelocity );
-            self->velocity.x = xyVec.x;
-            self->velocity.y = xyVec.y;
+
+            // **SET VELOCITY DIRECTLY TO DESIRED SPEED**
+            if ( self->groundInfo.entity != nullptr ) {
+                // The movement system expects velocity in units per second
+                self->velocity.x = (float)( wishDirVelocity.x * frameVelocity );
+                self->velocity.y = (float)( wishDirVelocity.y * frameVelocity );
+            }
+            // Keep existing Z velocity for gravity/jumping
             // Is done in MMove_StepSlideMove.
-            //SVG_AddGravity( self );
+            SVG_AddGravity( self );
             // If not onground, zero out the frameVelocity.
             #if 0
             if ( self->groundInfo.entity != nullptr ) {
@@ -337,7 +346,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 
                 Vector3 oldVelocity = self->velocity;
                 self->velocity = QM_Vector3MultiplyAdd( self->velocity, accelerationSpeed, wishDirVelocity );
-				wishDirVelocity = self->velocity - oldVelocity;
+                wishDirVelocity = self->velocity - oldVelocity;
             }
             #endif
 
@@ -365,7 +374,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                     .previousOrigin = self->s.origin,
                     .previousVelocity = previousVelocity,
                 },
-
+                
                 // Proper ground and liquid information.
                 .ground = self->groundInfo,
                 .liquid = self->liquidInfo,

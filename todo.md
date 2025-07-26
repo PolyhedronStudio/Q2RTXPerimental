@@ -41,8 +41,8 @@ These items are to be done before we can call it a day for v0.0.7.
 - [ ] Add our own variation of the CS 'hostage rescue' type of inspired gamemode.
 	- [ ] This requires a minimal UI to be implemented.
 ### Fix:
-- [ ] Fix the monster code to properly work with gravity, and to properly use the new skeletal model system.
-- [ ] - [ ] Nothing yet.
+- [X] Fix the monster code to properly work with gravity, and to properly use the new skeletal model system.
+- [ ] Nothing yet.
 ### Refactor/Rework:
 - [ ] Third-person player model and other client animations. (This has been left unfinished).
 
@@ -54,6 +54,10 @@ These items are to be done before we can call it a day for v0.0.6.
 ### Add:
 - [ ] Create a basic deathmatch map, weapons and ammo scattered around, with a set of "custom" PBR materials. ( We got no "buy" menu yet. )
 - [ ] Two proper game modes to choose from, deathmatch and team deathmatch.
+- [ ] Add a basic hostage rescue gamemode, which will be the first gamemode to be implemented.
+	- [ ] This requires a minimal UI to be implemented.
+	- [ ] Change the monster_testdummy to an actual hostage monster that we can activate for it to follow us around, and which we can rescue at the end of the map.
+	- [ ] Check physics.cpp because we got MOVETYPE_ROOTMOTION, we want to combine the logic of the monster_testdummy that it holds right now, with the movetype, and abstract it away so our monster code remains clean. Yes..._
 ### Fix:
 - [ ] Nothing yet.
 ### Refactor/Rework:

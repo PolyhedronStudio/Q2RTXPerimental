@@ -19,6 +19,10 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 **/
 void PF_CalculateViewValues( void );
 /**
+*   @brief  Finishes the view values, or rather, determines whether to setup a third or first person view.
+**/
+void CLG_FinishViewValues( void );
+/**
 *   @brief
 **/
 void PF_ClearViewScene( void );

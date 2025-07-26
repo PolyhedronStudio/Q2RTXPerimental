@@ -1145,13 +1145,23 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 *   @brief  For RootMotion entities.
 **/
 void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
+    cm_contents_t mask = SVG_GetClipMask( ent );
+
+    // airborne monsters should always check for ground
+    if ( !ent->groundInfo.entity ) {
+        M_CheckGround( ent, mask );
+    }
+    SV_CheckVelocity( ent );
+    // regular thinking
+    SV_RunThink( ent );
+    return;
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
     float	   speed, newspeed, control;
     float	   friction;
     svg_base_edict_t *groundentity;
-    cm_contents_t mask = SVG_GetClipMask( ent );
+    //..cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
     if ( !ent->groundInfo.entity ) {
