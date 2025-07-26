@@ -543,7 +543,6 @@ static double easeLerpFactor = 0.;
 *   @brief  Calculates the gun offset as well as the gun angles based on the bobCycle.
 **/
 void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
-    #if 1
     //// Static variables to track gun offset lerping when idle and secondary fire
     //static Vector3 targetGunOffset = QM_Vector3Zero();
     //static Vector3 currentGunOffset = QM_Vector3Zero();
@@ -577,10 +576,10 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, con
     static Vector3 targetGunAngleDelta = QM_Vector3Zero();
     static Vector3 swingVelocity = QM_Vector3Zero(); // Track angular momentum
     static bool firstFrame = true;
-    static constexpr double VIEW_SWING_RESPONSIVENESS = 4.0; // How quickly gun responds to view changes (higher = faster)
-    static constexpr double VIEW_SWING_RECOVERY = 12.0; // How quickly gun returns to center (higher = faster)
-    static constexpr double VIEW_SWING_INTENSITY = 1.8; // How much the gun swings (higher = more swing)
-    static constexpr double MAX_SWING_ANGLE = 10.0; // Maximum swing angle in degrees
+    static constexpr double VIEW_SWING_RESPONSIVENESS = 6.0; // How quickly gun responds to view changes (higher = faster)
+    static constexpr double VIEW_SWING_RECOVERY = 8.0; // How quickly gun returns to center (higher = faster)
+    static constexpr double VIEW_SWING_INTENSITY = 2.0; // How much the gun swings (higher = more swing)
+    static constexpr double MAX_SWING_ANGLE = 12.5; // Maximum swing angle in degrees
     static constexpr double SWING_DAMPING = 0.88; // Damping factor for momentum (0.0-1.0, higher = less damping)
     static constexpr double MIN_INPUT_THRESHOLD = 0.05; // Minimum input to consider as movement
     static constexpr double VELOCITY_DECAY = 0.82; // How quickly velocity decays when no input (0.0-1.0)
@@ -591,6 +590,13 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, con
     // Check if secondary fire is being held (pistol aiming)
     const bool isSecondaryFiring = ( game.predictedState.cmd.cmd.buttons & BUTTON_SECONDARY_FIRE ) != 0;
 
+    /**
+    *
+    *
+	*   View Weapon `Bob` Offset Calculation:
+    *
+    *
+    **/
     // Calculate the normal bobbing gun offset
     Vector3 bobbingGunOffset = {
         ( -.075f * (float)level.viewBob.fracSin2 ),
@@ -662,6 +668,13 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, con
 
     VectorCopy( gunOrigin, ps->gunoffset );
 
+    /**
+    *
+    *
+    *   View Weapon `Bob` Angle Swing Calculation:
+    *
+    *
+    **/
     // Enhanced swing-like delay effect for gun angles with momentum and proper decay
     const Vector3 currentViewAngles = clgi.client->refdef.viewangles;
     const double deltaTime = clgi.GetFrameTime();
@@ -753,159 +766,29 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, con
         }
     }
 
-    // Apply the swing effect to gun angles
-    ps->gunangles[ PITCH ] = gunAngleDelta[ PITCH ];
-    ps->gunangles[ YAW ] = gunAngleDelta[ YAW ];
-    ps->gunangles[ ROLL ] = gunAngleDelta[ ROLL ];
-
-    // Add subtle bobbing effect when moving (reduced intensity to not interfere with swing)
+    // Calculate movement bobbing separately and add it to the swing effect
+    Vector3 movementBobAngles = QM_Vector3Zero();
     if ( isMoving ) {
-        ps->gunangles[ ROLL ] += level.viewBob.xySpeed * level.viewBob.fracSin * 0.001;
-        ps->gunangles[ PITCH ] += level.viewBob.xySpeed * level.viewBob.fracSin * 0.001;
+        // Calculate bobbing angles separately
+        double rollBob = level.viewBob.xySpeed * level.viewBob.fracSin * 0.001;
+        double pitchBob = level.viewBob.xySpeed * level.viewBob.fracSin * 0.001;
 
+        // Apply cycle direction only to the bobbing component
         if ( level.viewBob.cycle & 1 ) {
-            ps->gunangles[ ROLL ] = -ps->gunangles[ ROLL ];
+            rollBob = -rollBob;
         }
+
+        movementBobAngles[ ROLL ] = rollBob;
+        movementBobAngles[ PITCH ] = pitchBob;
     }
+
+    // Apply the final combined gun angles (swing + bobbing)
+    ps->gunangles[ PITCH ] = gunAngleDelta[ PITCH ] + movementBobAngles[ PITCH ];
+    ps->gunangles[ YAW ] = gunAngleDelta[ YAW ] + movementBobAngles[ YAW ];
+    ps->gunangles[ ROLL ] = gunAngleDelta[ ROLL ] + movementBobAngles[ ROLL ];
 
     // Store current view angles for next frame
     lastViewAngles = currentViewAngles;
-
-    //ps->gunangles[ ROLL ] = level.viewBob.xySpeed * level.viewBob.fracSin2 * 0.005;
-    ////ps->gunangles[ YAW ] = level.viewBob.xySpeed * level.viewBob.fracSin2 * 0.0025;
-    //if ( level.viewBob.cycle & 1 ) {
-    //    ps->gunangles[ ROLL ] = -ps->gunangles[ ROLL ];
-    ////    ps->gunangles[ YAW ] = -ps->gunangles[ YAW ];
-    //}
-
-    //ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin2 * 0.015;
-    #if 0
-    // Gun angles from delta movement
-    for ( int32_t i = 0; i < 3; i++ ) {
-        double delta = QM_AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
-        if ( delta > 180. ) {
-            delta -= 360.;
-        }
-        if ( delta < -180. ) {
-            delta += 360.;
-        }
-        delta = std::clamp( delta, -45., 45. );
-
-        if ( i == YAW ) {
-            ps->gunangles[ ROLL ] += 0.01 * delta;
-        }
-        ps->gunangles[ i ] += 0.02 * delta;
-
-        #if 1
-        float reduction_factor = delta ? 0.005f : 0.015f;
-
-        if ( delta > 0 )
-            delta = std::max( 0., delta - clgi.frame_time_ms * reduction_factor );
-        else if ( delta < 0 )
-            delta = std::min( 0., delta + clgi.frame_time_ms * reduction_factor );
-        #endif
-    }
-    #endif
-    //// Gun angles from bobbing
-    //ps->gunangles[ ROLL ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
-    //ps->gunangles[ YAW ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.01;
-    //if ( level.viewBob.cycle & 1 ) {
-    //    ps->gunangles[ ROLL ] = -ps->gunangles[ ROLL ];
-    //    ps->gunangles[ YAW ] = -ps->gunangles[ YAW ];
-    //}
-
-    //ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
-    #else
-    int     i;
-    double   delta;
-
-    // Gun angles from bobbing
-    ps->gunangles[ ROLL ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
-    ps->gunangles[ YAW ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.01;
-    if ( level.viewBob.cycle & 1 ) {
-        ps->gunangles[ ROLL ] = -ps->gunangles[ ROLL ];
-        ps->gunangles[ YAW ] = -ps->gunangles[ YAW ];
-    }
-
-    ps->gunangles[ PITCH ] = level.viewBob.xySpeed * level.viewBob.fracSin * 0.005;
-    #if 1
-        // Gun angles from delta movement
-        for ( i = 0; i < 3; i++ ) {
-            delta = QM_AngleMod( ops->viewangles[ i ] - ps->viewangles[ i ] );
-            if ( delta > 180. ) {
-                delta -= 360.;
-            }
-            if ( delta < -180. ) {
-                delta += 360.;
-            }
-            delta = std::clamp( delta, -45., 45. );
-
-            if ( i == YAW ) {
-                ps->gunangles[ ROLL ] += 0.1 * delta;
-            }
-            ps->gunangles[ i ] += 0.2 * delta;
-
-            #if 0
-            float reduction_factor = delta ? 0.05f : 0.15f;
-
-            if ( delta > 0 )
-                delta = std::max( 0., delta - clgi.frame_time_ms * reduction_factor );
-            else if ( delta < 0 )
-                delta = std::min( 0., delta + clgi.frame_time_ms * reduction_factor );
-            #endif
-        }
-    #else
-        static Vector3 slowAngles = {};
-        Vector3 viewAnglesDelta = {};
-        // Gun angles from delta movement
-        for ( i = 0; i < 3; i++ ) {
-            viewAnglesDelta[ i ] = QM_AngleMod(ops->viewangles[i] - ps->viewangles[i]);
-        }
-        slowAngles += viewAnglesDelta;
-
-        for ( i = 0; i < 3; i++ ) {
-            float &delta = slowAngles[ i ];
-
-            if ( !delta )
-                continue;
-
-            if ( delta > 180 ) {
-                delta -= 360;
-            }
-            if ( delta < -180 ) {
-                delta += 360;
-            }
-            if ( delta > 45 ) {
-                delta = 45;
-            }
-            if ( delta < -45 ) {
-                delta = -45;
-            }
-            //clamp( delta, -45, 45 );
-
-            if ( i == YAW ) {
-                ps->gunangles[ ROLL ] += ( 0.1f * delta ) * 0.5f;
-            }
-            ps->gunangles[ i ] += ( 0.2f * delta ) * 0.5f;
-            float reduction_factor = viewAnglesDelta[ i ] ? 0.05f : 0.15f;
-
-            if ( delta > 0 )
-                delta = std::max( 0.f, delta - clgi.frame_time_ms * reduction_factor );
-            else if ( delta < 0 )
-                delta = std::min( 0.f, delta + clgi.frame_time_ms * reduction_factor );
-        }
-    #endif
-    // gun height
-    VectorClear( ps->gunoffset );
-    //  ent->ps->gunorigin[2] += bob;
-
-    // gun_x / gun_y / gun_z are development tools
-    for ( int32_t i = 0; i < 3; i++ ) {
-        ps->gunoffset[ i ] += clgi.client->v_forward[ i ] * ( cl_gun_y->value );
-        ps->gunoffset[ i ] += clgi.client->v_right[ i ] * cl_gun_x->value;
-        ps->gunoffset[ i ] += clgi.client->v_up[ i ] * ( -cl_gun_z->value );
-    }
-    #endif
 }
 
 /**
