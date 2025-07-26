@@ -577,9 +577,9 @@ void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, con
     static Vector3 swingVelocity = QM_Vector3Zero(); // Track angular momentum
     static bool firstFrame = true;
     static constexpr double VIEW_SWING_RESPONSIVENESS = 6.0; // How quickly gun responds to view changes (higher = faster)
-    static constexpr double VIEW_SWING_RECOVERY = 8.0; // How quickly gun returns to center (higher = faster)
-    static constexpr double VIEW_SWING_INTENSITY = 2.0; // How much the gun swings (higher = more swing)
-    static constexpr double MAX_SWING_ANGLE = 12.5; // Maximum swing angle in degrees
+    static constexpr double VIEW_SWING_RECOVERY = 6.0; // How quickly gun returns to center (higher = faster)
+    static constexpr double VIEW_SWING_INTENSITY = 6.0; // How much the gun swings (higher = more swing)
+    static constexpr double MAX_SWING_ANGLE = 15; // Maximum swing angle in degrees
     static constexpr double SWING_DAMPING = 0.88; // Damping factor for momentum (0.0-1.0, higher = less damping)
     static constexpr double MIN_INPUT_THRESHOLD = 0.05; // Minimum input to consider as movement
     static constexpr double VELOCITY_DECAY = 0.82; // How quickly velocity decays when no input (0.0-1.0)
