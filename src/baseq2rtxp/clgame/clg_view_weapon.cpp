@@ -552,7 +552,7 @@ void CLG_AddViewWeapon( void ) {
 	Vector3 gunOrigin = clgi.client->refdef.vieworg + game.predictedState.currentPs.gunoffset;
     // Calculate the lerped gun angles.
     //Vector3 gunAngles = clgi.client->refdef.viewangles + /*QM_Vector3LerpAngles*/( game.predictedState.lastPs.gunangles, game.predictedState.currentPs.gunangles/*, clgi.client->lerpfrac*/ );
-    Vector3 gunAngles = clgi.client->refdef.viewangles + /*QM_Vector3LerpAngles*/( game.predictedState.currentPs.gunangles/*, clgi.client->lerpfrac*/ );
+    Vector3 gunAngles = QM_Vector3AngleMod( clgi.client->refdef.viewangles + game.predictedState.currentPs.gunangles );
     // Copy the calculated gun position and angles into vec3_t's from refresh 'entity_t'.
     VectorCopy( gunOrigin, gun.origin );
     VectorCopy( gunAngles, gun.angles );

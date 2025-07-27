@@ -1488,15 +1488,46 @@ static void PM_CheckSpecialMovement() {
 	ps->pmove.pm_time = 2048;
 }
 #ifdef PMOVE_ENABLE_WALLJUMPING
+const Vector3 ProjectPointOnPlane( const Vector3 &point, const Vector3 &normal ) {
+	Vector3 dst = {};
+	float d = -DotProduct( point, normal );
+	VectorMA( point, d, normal, dst );
+	return dst;
+}
 /**
 *	@brief	Performs the engagement of Wall Jumping.
 **/
 static const bool PM_WallJump() {
+	Vector3 movedir = {};
+	Vector3 refNormal = { 0.f, 0.f, 1.f }; // Default reference normal for the wall jump.
+	movedir = ProjectPointOnPlane( pml.forward, refNormal );
+	//VectorNormalize( movedir );
+	movedir = QM_Vector3Normalize( movedir );
+
+	if ( pm->cmd.forwardmove < 0 ) {
+		VectorNegate( movedir, movedir );
+	}
+
+	//allow strafe transitions
+	if ( pm->cmd.sidemove ) {
+		VectorCopy( pml.right, movedir );
+
+		if ( pm->cmd.sidemove < 0 ) {
+			VectorNegate( movedir, movedir );
+		}
+	}
+
+	//trace into direction we are moving
+	constexpr float jump_trace_distance = 2.0f; // 0.25f
+	Vector3 point = {};
+	VectorMA( pml.origin , jump_trace_distance, movedir, point );
+	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point, CM_CONTENTMASK_SOLID );
+
 	// Calculate the 'wishvel' which is our desired direction vector.
-	float jump_trace_distance = 2.0f;
+	//float jump_trace_distance = 2.0f;
 	Vector3 wishvel = QM_Vector3Normalize( pml.forward * pm->cmd.forwardmove + pml.right * pm->cmd.sidemove ) * jump_trace_distance;
 	Vector3 spot = pml.origin + wishvel;
-	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CM_CONTENTMASK_SOLID );
+	//cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CM_CONTENTMASK_SOLID );
 	// Trace must've hit something, and NOT BE STUCK inside of a brush either.
 	if ( trace.fraction < 1.0f && !trace.allsolid && !trace.startsolid
 		// Ensure that the plane's normal is an actual wall.
@@ -1519,10 +1550,10 @@ static const bool PM_WallJump() {
 		ps->pmove.pm_flags &= ~PMF_ON_GROUND;
 
 		// Jump height velocity for the wall jump..
-		constexpr float jump_height = 370;
+		constexpr float jump_height = 280;
 
 		// For use with the excluding Z component, and/or prevent walljumps if exceeding certain Z velocities.
-		pml.velocity[ 2 ] += jump_height * QM_Minf( 0.23, trace.plane.normal[ 2 ] );
+		//pml.velocity[ 2 ] += jump_height * QM_Min( 0.23f, trace.plane.normal[ 2 ] );
 		// No cap? :-)
 		//if ( pml.velocity[ 2 ] > jump_height ) {
 		//	pml.velocity[ 2 ] = jump_height;
@@ -1532,12 +1563,15 @@ static const bool PM_WallJump() {
 		Vector3 jumpNormal = QM_Vector3Zero();
 		jumpNormal[ 0 ] = trace.plane.normal[ 0 ];
 		jumpNormal[ 1 ] = trace.plane.normal[ 1 ];
-		//jumpNormal[ 2 ] = 1;
+		jumpNormal[ 2 ] = 1;
 		//const float xy_speed = 240. * QM_Minf( 0.23, trace.plane.normal[ 2 ] );
-		pml.velocity = pml.velocity + ( jumpNormal * 240. );
+		pml.velocity = pml.velocity + ( jumpNormal * jump_height );
 
 		// One can choose to exclude the jump_height addition up above and use this below instead.
 		//pml.velocity += Vector2( trace.plane.normal ) * 240.0f;
+
+		// Add 'Predictable' Event for Jumping Up.
+		PM_AddEvent( PS_EV_JUMP_UP, 0 );
 
 		// Success to jump.
 		return true;
@@ -1561,18 +1595,6 @@ static void PM_CheckJump() {
 		return;
 	}
 
-	#ifdef PMOVE_ENABLE_WALLJUMPING
-	// We moved Trick Jumping here.
-	if ( pm->ground.entity == nullptr && 
-		// We want the jump button to be pressed but not the PMF_JUMP_HELD flag to be set yet.
-		( pm->cmd.buttons & BUTTON_JUMP ) && !( ps->pmove.pm_flags & PMF_JUMP_HELD ) ) {
-			// Return if we managed to initiate a wall jump.
-			if ( PM_WallJump() ) {
-				return;
-			}
-	}
-	#endif
-
 	// Player has let go of jump button.
 	if ( !( pm->cmd.buttons & BUTTON_JUMP ) ) {
 		ps->pmove.pm_flags &= ~PMF_JUMP_HELD;
@@ -1595,6 +1617,18 @@ static void PM_CheckJump() {
 		pm->ground.entity = nullptr;
 		return;
 	}
+
+	#ifdef PMOVE_ENABLE_WALLJUMPING
+	// We moved Trick Jumping here.
+	if ( pm->ground.entity == nullptr &&
+		// We want the jump button to be pressed but not the PMF_JUMP_HELD flag to be set yet.
+		( pm->cmd.buttons & BUTTON_JUMP ) && !( ps->pmove.pm_flags & PMF_JUMP_HELD ) ) {
+		// Return if we managed to initiate a wall jump.
+		if ( PM_WallJump() ) {
+			return;
+		}
+	}
+	#endif
 
 	// In-air/liquid, so no effect, can't re-jump without ground.
 	if ( pm->ground.entity == nullptr ) {
@@ -1768,12 +1802,14 @@ static void PM_InitialSnapPosition() {
 *	@brief	Clamp view angles within range (0, 360).
 **/
 static void PM_UpdateViewAngles( player_state_t *playerState, const usercmd_t *userCommand ) {
+	// No view changes at all in intermissions.
 	if ( ps->pmove.pm_type == PM_INTERMISSION || ps->pmove.pm_type == PM_SPINTERMISSION ) {
 		return;		// no view changes at all
 	}
-	//if ( ps->pm_type != PM_SPECTATOR && ps->stats[ STAT_HEALTH ] <= 0 ) {
-	//	return;		// no view changes at all
-	//}
+	// Dead, or Gibbed.
+	if ( ps->pmove.pm_type != PM_SPECTATOR && ps->stats[ STAT_HEALTH ] <= 0 ) {
+		return;		// no view changes at all
+	}
 
 	if ( playerState->pmove.pm_flags & PMF_TIME_TELEPORT ) {
 		playerState->viewangles[ YAW ] = QM_AngleMod( userCommand->angles[ YAW ] + playerState->pmove.delta_angles[ YAW ] );
@@ -1810,7 +1846,7 @@ static void PM_EraseInputCommandState() {
 	pm->cmd.forwardmove = 0;
 	pm->cmd.sidemove = 0;
 	pm->cmd.upmove = 0;
-	// Unset these two buttons so other code won't respond to it.
+	// Unset these buttons so other code won't respond to it.
 	pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH | BUTTON_USE_TARGET | BUTTON_RELOAD );
 }
 /**
@@ -1821,7 +1857,8 @@ static void PM_DropTimers() {
 		#if 1
 			//int32_t msec = (int32_t)pm->cmd.msec >> 3;
 			//double msec = pm->cmd.msec;// / 2.5;
-			double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 8.0 ) : (pm->cmd.msec / 8.) );
+			//double msec = ( pm->cmd.msec < 0. ? ( 1.0 * 0.125 ) : (pm->cmd.msec * 0.125 ) );
+			double msec = ( pm->cmd.msec < 0. ? ( 1.0 * 0.125 ) : (pm->cmd.msec * 0.125 ) );
 			//if ( pm->cmd.msec < 0. ) { // This was <= 0, this seemed to cause a slight jitter in the player movement.
 			//	msec = 1.0 / 8.; // 8 ms = 1 unit. (At 10hz.)
 			//}

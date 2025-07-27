@@ -117,7 +117,7 @@ void weapon_pistol_primary_fire( svg_base_edict_t *ent ) {
     // Default damage value.
     static constexpr int32_t shotDamage = 10;
     // Additional recoil kick force strength.
-    static constexpr double additionalKick = 2.;
+    static constexpr double additionalKick = 4.;
     // Project from shotOffset(source origin) to shot destination to determine the actual shot start.
     const Vector3 shotOffset = { 0.f, 0.f, (float)ent->viewheight };
 
