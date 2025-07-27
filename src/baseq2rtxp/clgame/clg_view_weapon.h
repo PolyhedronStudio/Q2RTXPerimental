@@ -17,10 +17,10 @@ void CLG_AddViewWeapon( void );
 *           After that, it lerps the gun offset to the target position based on whether the player is moving or not.
 * 	@note   Will lerp back to center position when not moving or secondary firing.
 **/
-void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, const double lerpFrac );
+void CLG_ViewWeapon_CalculateOffset( player_state_t *ops, player_state_t *ps, const double lerpFrac );
 /**
 *   @brief  Calculates the gun view angles by lerping between the old and new angles, adding a
 *           swing-like delay effect based on view movement.
 **/
-void CLG_CalculateViewWeaponAngles( player_state_t *ops, player_state_t *ps, const double lerpFrac );
+void CLG_ViewWeapon_CalculateAngles( player_state_t *ops, player_state_t *ps, const double lerpFrac );
 

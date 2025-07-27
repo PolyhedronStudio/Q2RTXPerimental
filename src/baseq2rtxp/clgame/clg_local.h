@@ -744,18 +744,54 @@ struct game_locals_t {
 	//! Stores zone allocated entities[maxentities];
 	centity_t *entities;
 
-	//! Stores state of the view weapon.
+	//! Stores client state of the view weapon and its model.
 	struct {
+		/**
+		*	These are for the animation.
+		*	<Q2RTXP>: TODO: We really gotta change this to be proper time based and not frame based.
+		**/
 		//! Current frame on-screen.
-		int32_t frame;
+		int32_t frame = 0;
 		//! Last frame received.
-		int32_t last_frame;
+		int32_t last_frame = 0;
 		//! Received server frame time of the weapon's frame.
-		uint64_t server_time;
+		uint64_t server_time = 0;
 		//! Realtime of the received serverframe for the weapon's frame.
-		uint64_t real_time;
+		uint64_t real_time = 0;
+
+		/**
+		*	State of the view weapon (-model).
+		**/
 		//! If true, we're engaging a FOV change.
-		qboolean isAiming;
+		qboolean isAiming = false;
+
+		//! If true we're in the first ever frame.
+		bool firstFrame = true;
+		//! Were we moving last frame?
+		bool wasMoving = false;
+		//! Were we secondary firing last frame?
+		bool wasSecondaryFiring = false;
+
+		/**
+		*	Gun Offset Origin:
+		**/
+		//! The target goal for the gun offset.
+		Vector3 targetGunOffset = QM_Vector3Zero();
+		//! The current gun offset
+		Vector3 currentGunOffset = QM_Vector3Zero();
+
+		/**
+		*	Gun Angles and Angular Swing:
+		**/
+		//! Last view weapon angles.
+		Vector3 lastViewAngles = QM_Vector3Zero();
+		//! Gun Angle delta.
+		Vector3 gunAngleDelta = QM_Vector3Zero();
+		//! Target Gun Angle Delta.
+		Vector3 targetGunAngleDelta = QM_Vector3Zero();
+		//! Swing Velocity. (Tracks angular momentum.)
+		Vector3 swingVelocity = QM_Vector3Zero();
+
 	} viewWeapon;
 
 	//! Parsed inventory message data.

@@ -167,6 +167,12 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 *           viewOrigin and viewAngles(thus, additional client side kickangles).
 **/
 static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, const double lerpFraction ) {
+    /*
+    *   <Q2RTXP>: WID: We don't really use this anymore, do we? 
+    **/
+    //float *viewAngles = clgi.client->refdef.viewangles;
+    Vector3 viewAngles = QM_Vector3Zero();
+    #if 0
     // TODO: Turn into cvars.
     const float clg_run_pitch = cl_run_pitch->value;
     const float clg_run_roll = cl_run_roll->value;
@@ -174,10 +180,6 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
     const float clg_bob_pitch = cl_bob_pitch->value;
     const float clg_bob_roll = cl_bob_roll->value;
 
-    // TODO: Make vector, assign result later?
-    //float *viewAngles = clgi.client->refdef.viewangles;
-    Vector3 viewAngles = QM_Vector3Zero();
-    #if 0
     // Lerp the velocity so it doesn't just "snap" back to nothing when we suddenly are standing idle.
     Vector3 velocityLerp = QM_Vector3Lerp( ops->pmove.velocity, ps->pmove.velocity, lerpFraction );
 
@@ -239,7 +241,7 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
 /**
 *   @brief  Calculate the bob cycle and apply bob angles as well as a view offset.
 **/
-static void CLG_CycleViewBob( player_state_t *ps ) {
+static void CLG_View_CycleBob( player_state_t *ps ) {
     const double scalarBobCycle = (double)( ( ps->bobCycle & 127 ) / 127.0 * M_PI );
     const double scalarBobCycle2 = (double)( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) * 2.0;
     // Calculate base bob data.
@@ -270,8 +272,7 @@ static void CLG_SetupFirstPersonView( void ) {
     const double lerpFrac = clgi.client->lerpfrac;
 
     // Cycle the view bob on our predicted state.
-    //CLG_CycleViewBob( lastPredictingPlayerState, 1. );
-    CLG_CycleViewBob( predictingPlayerState );
+    CLG_View_CycleBob( predictingPlayerState );
 
     // WID: TODO: This requires proper player state damage summing and 'wiring' as well as proper
     // player event predicting.
@@ -282,19 +283,19 @@ static void CLG_SetupFirstPersonView( void ) {
     CLG_CalculateViewOffset( lastPredictingPlayerState, predictingPlayerState, lerpFrac );
 
     // Determine the gun origin and angle offsets.based on the bobCycles of the predicted player states.
-    //CLG_CalculateViewWeaponOffset( &predictedState->lastPs, &predictedState->currentPs );
+    //CLG_ViewWeapon_CalculateOffset( &predictedState->lastPs, &predictedState->currentPs );
     if ( clgi.client->frame.valid ) {
         // Will calculaate the view weapon offset necessary for adding on to the vieworigin of the player.
-        CLG_CalculateViewWeaponOffset( serverFramePlayerState, &predictedState->currentPs, lerpFrac );
+        CLG_ViewWeapon_CalculateOffset( serverFramePlayerState, &predictedState->currentPs, lerpFrac );
 		// Will calculate the view weapon angles necessary for adding on to the viewangles of the player,
         // and also apply weapon swing/drag.
-        CLG_CalculateViewWeaponAngles( serverFramePlayerState, &predictedState->currentPs, lerpFrac );
+        CLG_ViewWeapon_CalculateAngles( serverFramePlayerState, &predictedState->currentPs, lerpFrac );
     } else {
         // Will calculaate the view weapon offset necessary for adding on to the vieworigin of the player.
-        CLG_CalculateViewWeaponOffset( lastServerFramePlayerState, serverFramePlayerState, lerpFrac );
+        CLG_ViewWeapon_CalculateOffset( lastServerFramePlayerState, serverFramePlayerState, lerpFrac );
         // Will calculate the view weapon angles necessary for adding on to the viewangles of the player,
         // and also apply weapon swing/drag.
-        CLG_CalculateViewWeaponAngles( lastServerFramePlayerState, serverFramePlayerState, lerpFrac );
+        CLG_ViewWeapon_CalculateAngles( lastServerFramePlayerState, serverFramePlayerState, lerpFrac );
     }
 
     // Add server sided frame kick angles.
@@ -304,15 +305,15 @@ static void CLG_SetupFirstPersonView( void ) {
     }
 
     // Calculate bob cycle on the current predicting player state.    
-    //CLG_CycleViewBob( currentPredictingPlayerState );
-    //CLG_CycleViewBob( predictingPlayerState );
+    //CLG_View_CycleBob( currentPredictingPlayerState );
+    //CLG_View_CycleBob( predictingPlayerState );
 
     // Inform client state we're not in third-person view.
     clgi.client->thirdPersonView = false;
 }
 
 /**
-*   @brief
+*   @brief  <Q2RTXP>: WID: This isn't a thing we have focussed on yet so expect it to suck.
 **/
 static void CLG_SetupThirdPersionView( void ) {
     vec3_t focus;

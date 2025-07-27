@@ -289,8 +289,8 @@ void PF_InitGame( void ) {
 	cl_gun_z = clgi.CVar_Get( "cl_gun_z", "0", 0 );
 
 	// View Bob CVars, Read Only:
-	cl_run_pitch = clgi.CVar_Get( "run_pitch", "0.002", CVAR_ROM );
-	cl_run_roll = clgi.CVar_Get( "run_roll", "0.005", CVAR_ROM );
+	cl_run_pitch = clgi.CVar_Get( "run_pitch", "0.01", CVAR_ROM );
+	cl_run_roll = clgi.CVar_Get( "run_roll", "0.025", CVAR_ROM );
 	cl_bob_up = clgi.CVar_Get( "bob_up", "0.005", CVAR_ROM );
 	cl_bob_pitch = clgi.CVar_Get( "bob_pitch", "0.002", CVAR_ROM );
 	cl_bob_roll = clgi.CVar_Get( "bob_roll", "0.002", CVAR_ROM );

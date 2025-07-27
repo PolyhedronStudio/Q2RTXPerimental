@@ -367,7 +367,7 @@ const float PF_CalculateFieldOfView( const float fov_x, const float width, const
 /**
 *   @brief  Calculate the bob cycle and apply bob angles as well as a view offset.
 **/
-static void CLG_CycleViewBob( player_state_t *ps ) {
+static void CLG_View_CycleBob( player_state_t *ps ) {
     // Calculate base bob data.
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
     level.viewBob.fracSin = fabs( sin( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) );
@@ -377,7 +377,7 @@ static void CLG_CycleViewBob( player_state_t *ps ) {
 /**
 *   @brief  Calculates the gun offset as well as the gun angles based on the bobCycle.
 **/
-void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps ) {
+void CLG_ViewWeapon_CalculateOffset( player_state_t *ops, player_state_t *ps ) {
     int     i;
     float   delta;
 
@@ -558,7 +558,7 @@ static void CLG_SetupFirstPersonView( void ) {
     const float lerp = clgi.client->lerpfrac;
 
     // Cycle the view bob on our predicted state.
-    CLG_CycleViewBob( predictingPlayerState );
+    CLG_View_CycleBob( predictingPlayerState );
 
     // WID: TODO: This requires proper player state damage summing and 'wiring' as well as proper
     // player event predicting.
@@ -569,7 +569,7 @@ static void CLG_SetupFirstPersonView( void ) {
     CLG_CalculateViewOffset( predictingPlayerState );
 
     // Determine the gun origin and angle offsets.based on the bobCycles of the predicted player states.
-    CLG_CalculateViewWeaponOffset( &predictedState->lastPs, &predictedState->currentPs );
+    CLG_ViewWeapon_CalculateOffset( &predictedState->lastPs, &predictedState->currentPs );
 
     // Add server sided frame kick angles.
     if ( cl_kickangles->integer ) {
@@ -578,7 +578,7 @@ static void CLG_SetupFirstPersonView( void ) {
     }
 
     // Calculate bob cycle on the current predicting player state.    
-    //CLG_CycleViewBob( currentPredictingPlayerState );
+    //CLG_View_CycleBob( currentPredictingPlayerState );
 
     // Inform client state we're not in third-person view.
     clgi.client->thirdPersonView = false;
