@@ -44,6 +44,7 @@ SET(SRC_BASEQ2_CLGAME
 	baseq2/clgame/clg_temp_entities.cpp
 	baseq2/clgame/clg_screen.cpp
 	baseq2/clgame/clg_view.cpp
+	baseq2/clgame/clg_view_state_transition.cpp
 
 	baseq2/clgame/effects/clg_fx_classic.cpp
 	baseq2/clgame/effects/clg_fx_dynamiclights.cpp
@@ -225,6 +226,8 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_temp_entities.cpp
 	baseq2rtxp/clgame/clg_screen.cpp
 	baseq2rtxp/clgame/clg_view.cpp
+	baseq2rtxp/clgame/clg_view_weapon.cpp
+	baseq2rtxp/clgame/clg_view_state_transition.cpp
 
 	baseq2rtxp/clgame/effects/clg_fx_classic.cpp
 	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.cpp
@@ -272,6 +275,8 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_screen.h
 	baseq2rtxp/clgame/clg_temp_entities.h
 	baseq2rtxp/clgame/clg_view.h
+	baseq2rtxp/clgame/clg_view_weapon.h
+	baseq2rtxp/clgame/clg_view_state_transition.h
 
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.h
 	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h

@@ -1073,6 +1073,18 @@ QM_API Vector3 QM_Vector3AngleMod( const Vector3 &v ) {
 *   @brief  Will lerp between the euler angle, a2 and a1.
 **/
 QM_API Vector3 QM_Vector3LerpAngles( const Vector3 &angleVec2, const Vector3 &angleVec1, const float fraction ) {
+    //Vector3 av2 = angleVec2;
+    //Vector3 av1 = angleVec1;
+    //for ( int32_t i = 0; i < 3; i++ ) {
+    //    while ( av2[ i ] - av1[ i ] > 180. ) {
+    //        av1[ i ] -= 360.;
+    //    } 
+    //    while ( av2[ i ] - av1[ i ] < -180. ) {
+    //        av2[ i ] += 360.;
+    //    }
+    //}
+
+    //return QM_Vector3Lerp( av1, av2, fraction );
     return {
         LerpAngle( angleVec2.x, angleVec1.x, fraction ),
         LerpAngle( angleVec2.y, angleVec1.y, fraction ),

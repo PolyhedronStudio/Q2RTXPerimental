@@ -276,13 +276,14 @@ void PF_CalculateViewValues( void ) {
         VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
         //VectorMA( game.predictedState.cmd.prediction.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
         #else
-            // Backlerp fraction for the error.
+        // Backlerp fraction for the error.
         const double backLerp = lerpFrac - 1.0;
         // Calculate errorLerp and add it to the predicted origin.
         const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
         // Calculate errorLerp and add it to the predicted origin.
         game.predictedState.origin += errorLerp;
         // Set the view origin to the predicted origin + errorLerp.
+        game.predictedState.currentPs.pmove.origin += errorLerp;//= game.predictedState.origin;
         VectorCopy( game.predictedState.origin, clgi.client->refdef.vieworg );
         #endif
     } else {
@@ -308,9 +309,9 @@ void PF_CalculateViewValues( void ) {
     // Smooth out step offset.
     //CLG_SmoothStepOffset();
     // Lerp View Angles.
-    CLG_LerpViewAngles( ops, ps, &game.predictedState, backLerp );
+    CLG_LerpViewAngles( ops, ps, &game.predictedState, lerpFrac );
     // Interpolate old and current player state delta angles.
-    CLG_LerpDeltaAngles( ops, ps, clgi.client->lerpfrac );
+    CLG_LerpDeltaAngles( ops, ps, lerpFrac );
     // Interpolate blend colors if the last frame wasn't clear.
     CLG_LerpScreenBlend( ops, ps, &game.predictedState );
     // Interpolate Field of View.

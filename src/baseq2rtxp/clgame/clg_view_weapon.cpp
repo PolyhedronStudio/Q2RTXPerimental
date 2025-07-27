@@ -115,6 +115,309 @@ static const int32_t weapon_shell_effect( void ) {
     return flags;
 }
 
+
+/**
+*   @brief  Calculates the gun view origin offset, based on the bobcycle and its sinfrac2.
+*           After that, it lerps the gun offset to the target position based on whether the player is moving or not.
+* 	@note   Will lerp back to center position when not moving or secondary firing.
+**/
+void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
+    // Static variables to track gun offset lerping when idle and secondary fire
+    static Vector3 targetGunOffset = QM_Vector3Zero();
+    static Vector3 currentGunOffset = QM_Vector3Zero();
+    static bool wasMoving = false;
+    static bool wasSecondaryFiring = false;
+    static constexpr double IDLE_LERP_SPEED = 5.0; // Speed of lerp back to idle position (higher = faster).
+    static constexpr double MOVEMENT_LERP_SPEED = 8.0; // Speed of lerp back to movement (higher = faster).
+    static constexpr double SECONDARY_FIRE_LERP_SPEED = 6.0; // Speed of lerp for secondary fire transition (higher = faster).
+
+    // Check if player is moving
+    const bool isMoving = ( ps->xySpeed >= 0.1 || ps->xyzSpeed >= 0.1 );
+
+    // Check if secondary fire is being held (pistol aiming)
+    const bool isSecondaryFiring = ( game.predictedState.cmd.cmd.buttons & BUTTON_SECONDARY_FIRE ) != 0;
+
+    /**
+    *
+    *
+    *   View Weapon `Bob` Offset Calculation:
+    *
+    *
+    **/
+    // Calculate the normal bobbing gun offset
+    Vector3 bobbingGunOffset = {
+        ( -.075f * (float)level.viewBob.fracSin2 ),
+        ( -.185f * (float)level.viewBob.fracSin2 ),
+        -.25f
+    };
+
+    if ( level.viewBob.cycle & 1 ) {
+        bobbingGunOffset.x = -bobbingGunOffset.x;
+    }
+
+    // Handle secondary fire state transitions.
+    if ( isSecondaryFiring ) {
+        if ( !wasSecondaryFiring ) {
+            wasSecondaryFiring = true;
+        }
+
+        Vector3 baseOffset = bobbingGunOffset;
+        // If the player is moving, use default bobbingGunOffset.
+        if ( isMoving ) {
+            wasMoving = true;
+            // Otherwise, if the player is not moving, we want to adjust the gun offset to be more pronounced.
+        } else {
+            if ( wasMoving ) {
+                wasMoving = false;
+            }
+            baseOffset = { 0.0f, 0.0f, -.25f };
+        }
+        // Determine target gun offset origin based on secondary fire state.
+        targetGunOffset = { baseOffset.x, baseOffset.y, 0.0f };
+        // Lerp it over time to create a smooth transition effect.
+        const double deltaTime = clgi.GetFrameTime();
+        const double lerpFactor = std::min( 1.0, SECONDARY_FIRE_LERP_SPEED * deltaTime );
+        currentGunOffset = QM_Vector3Lerp( currentGunOffset, targetGunOffset, lerpFactor );
+        // Was secondary firing:
+    } else {
+        if ( wasSecondaryFiring ) {
+            wasSecondaryFiring = false;
+        }
+
+        // If the player is moving, use default bobbingGunOffset.
+        if ( isMoving ) {
+            if ( !wasMoving ) {
+                wasMoving = true;
+            }
+            // Determine target gun offset origin based on secondary fire state.
+            targetGunOffset = bobbingGunOffset;
+            // Lerp it over time to create a smooth transition effect.
+            const double deltaTime = clgi.GetFrameTime();
+            const double lerpFactor = std::min( 1.0, MOVEMENT_LERP_SPEED * deltaTime );
+            currentGunOffset = QM_Vector3Lerp( currentGunOffset, targetGunOffset, lerpFactor );
+            // Lerp the offset back to idle position when not moving or secondary firing.
+        } else {
+            if ( wasMoving ) {
+                wasMoving = false;
+            }
+            // Determine target gun offset origin based on secondary fire state.
+            targetGunOffset = { 0.0f, 0.0f, -.25f };
+            // Lerp it over time to create a smooth transition effect.
+            const double deltaTime = clgi.GetFrameTime();
+            const double lerpFactor = std::min( 1.0, IDLE_LERP_SPEED * deltaTime );
+            currentGunOffset = QM_Vector3Lerp( currentGunOffset, targetGunOffset, lerpFactor );
+
+            if ( QM_Vector3Length( currentGunOffset - targetGunOffset ) < 0.001 ) {
+                currentGunOffset = targetGunOffset;
+            }
+        }
+    }
+
+    // Apply the calculated gun offset
+    Vector3 gunOrigin = QM_Vector3Zero();
+    for ( int32_t i = 0; i < 3; i++ ) {
+        gunOrigin[ i ] += clgi.client->v_forward[ i ] * currentGunOffset.y;
+        gunOrigin[ i ] += clgi.client->v_right[ i ] * currentGunOffset.x;
+        gunOrigin[ 2 ] += clgi.client->v_up[ i ] * currentGunOffset.z;
+    }
+    // Copy into the final player state gunoffset.
+    VectorCopy( gunOrigin, ps->gunoffset );
+}
+
+/**
+*   @brief  Calculates the gun view angles by lerping between the old and new angles, adding a
+*           swing-like delay effect based on view movement.
+**/
+#define DEBUG_VIEWWEAPON_ANGLES 1
+void CLG_CalculateViewWeaponAngles( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
+    #if 1
+    #ifndef DEBUG_VIEWWEAPON_ANGLES
+        // Swing properties.
+        static constexpr double VIEW_SWING_RESPONSIVENESS = 10.0; // How quickly gun responds to view changes (higher = faster).
+        static constexpr double VIEW_SWING_RECOVERY = 6.0; // How quickly gun returns to center (higher = faster).
+        static constexpr double VIEW_SWING_INTENSITY = 12.0; // How much the gun swings (higher = more swing).
+        static constexpr double MAX_SWING_ANGLE = 15; // Maximum swing angle in degrees.
+        static constexpr double SWING_DAMPING = 0.88; // Damping factor for momentum (0.0-1.0, higher = less damping).
+        // Input decay velocty properties.
+        static constexpr double MIN_INPUT_THRESHOLD = 0.05; // Minimum input to consider as movement.
+        static constexpr double VELOCITY_DECAY = 0.82; // How quickly velocity decays when no input (0.0-1.0).
+        #else
+    const double VIEW_SWING_RESPONSIVENESS   = clgi.CVar( "cl_viewswing_responsiveness", "14.0", 0 )->value;
+    const double VIEW_SWING_RECOVERY         = clgi.CVar( "cl_viewswing_recovery", "8.0", 0 )->value;
+    const double VIEW_SWING_INTENSITY        = clgi.CVar( "cl_viewswing_intensity", "8.0", 0 )->value;
+
+    const double MAX_SWING_ANGLE    = clgi.CVar( "cl_viewswing_max_angle", "12.5", 0 )->value;
+    const double SWING_DAMPING      = clgi.CVar( "cl_viewswing_damping", "0.75", 0 )->value; // Was 0.88
+
+    const double MIN_INPUT_THRESHOLD    = clgi.CVar( "cl_viewswing_input_threshold", "0.05", 0 )->value;
+    const double VELOCITY_DECAY         = clgi.CVar( "cl_viewswing_velocity_decay", "0.82", 0 )->value;
+    #endif
+    // THESE WERE ORIGINAL
+    //static constexpr double VIEW_SWING_RESPONSIVENESS = 6.0; // How quickly gun responds to view changes (higher = faster)
+    //static constexpr double VIEW_SWING_RECOVERY = 8.0; // How quickly gun returns to center (higher = faster)
+    //static constexpr double VIEW_SWING_INTENSITY = 2.0; // How much the gun swings (higher = more swing)
+    //static constexpr double MAX_SWING_ANGLE = 12.5; // Maximum swing angle in degrees
+
+
+    // DEFAULT & DECENT working configuration:
+    #else
+    // Swing properties.
+    static constexpr double VIEW_SWING_RESPONSIVENESS = 10.0; // How quickly gun responds to view changes (higher = faster).
+    static constexpr double VIEW_SWING_RECOVERY = 6.0; // How quickly gun returns to center (higher = faster).
+    static constexpr double VIEW_SWING_INTENSITY = 12.0; // How much the gun swings (higher = more swing).
+    static constexpr double MAX_SWING_ANGLE = 15; // Maximum swing angle in degrees.
+    static constexpr double SWING_DAMPING = 0.88; // Damping factor for momentum (0.0-1.0, higher = less damping).
+    // Input decay velocty properties.
+    static constexpr double MIN_INPUT_THRESHOLD = 0.05; // Minimum input to consider as movement.
+    static constexpr double VELOCITY_DECAY = 0.82; // How quickly velocity decays when no input (0.0-1.0).
+    #endif
+    // Enhanced static variables for swing-like delay effect on gun angles
+    static Vector3 lastViewAngles = QM_Vector3Zero();
+    static Vector3 gunAngleDelta = QM_Vector3Zero();
+    static Vector3 targetGunAngleDelta = QM_Vector3Zero();
+    static Vector3 swingVelocity = QM_Vector3Zero(); // Track angular momentum
+    static bool firstFrame = true;
+
+    // Check if player is moving
+    const bool isMoving = ( ps->xySpeed >= 0.1 || ps->xyzSpeed >= 0.1 );
+
+    // Check if secondary fire is being held (pistol aiming)
+    const bool isSecondaryFiring = ( game.predictedState.cmd.cmd.buttons & BUTTON_SECONDARY_FIRE ) != 0;
+
+    /**
+    *
+    *
+    *   View Weapon `Bob` Angle Swing Calculation:
+    *
+    *
+    **/
+    // Enhanced swing-like delay effect for gun angles with momentum and proper decay
+    const Vector3 currentViewAngles = clgi.client->refdef.viewangles;
+
+    // Use framerate-independent delta time calculation like CLG_CalculateViewWeaponOffset
+    const double deltaTime = clgi.GetFrameTime();
+
+    // Handle first frame initialization
+    if ( firstFrame || deltaTime <= 0.0 ) {
+        lastViewAngles = currentViewAngles;
+        gunAngleDelta = QM_Vector3Zero();
+        targetGunAngleDelta = QM_Vector3Zero();
+        swingVelocity = QM_Vector3Zero();
+        firstFrame = false;
+        ps->gunangles[ PITCH ] = 0.0;
+        ps->gunangles[ YAW ] = 0.0;
+        ps->gunangles[ ROLL ] = 0.0;
+        return;
+    }
+
+    // Calculate view angle delta (how much the view has changed) - PROPER ANGLE DIFFERENCE
+    Vector3 viewAngleDelta = QM_Vector3Zero();
+    double totalInputMagnitude = 0.0;
+
+    for ( int32_t i = 0; i < 3; i++ ) {
+        #if 1
+        // Calculate raw difference using QM_AngleMod first, and then
+        // tormalize the difference to the shortest path (-180 to +180 range).
+        double delta = QM_Angle_Normalize180( QM_AngleMod( currentViewAngles[ i ] - lastViewAngles[ i ] ) );
+        // <Q2RTXP>: WID: This bugs out fetching incorrect shortest angle path.
+        #else
+        // Calculate raw difference without using QM_AngleMod first
+        double delta = currentViewAngles[ i ] - lastViewAngles[ i ];
+
+        // Normalize the difference to the shortest path (-180 to +180 range)
+        while ( delta > 180.0 ) {
+            delta -= 360.0;
+        }
+        while ( delta < -180.0 ) {
+            delta += 360.0;
+        }
+        #endif
+
+        viewAngleDelta[ i ] = delta;
+        totalInputMagnitude += fabs( delta );
+    }
+
+    // Determine if there's significant input
+    const bool hasSignificantInput = totalInputMagnitude > MIN_INPUT_THRESHOLD;
+
+    // Calculate the target gun angle delta based on view movement
+    Vector3 newTargetGunAngleDelta = QM_Vector3Zero();
+
+    if ( hasSignificantInput ) {
+        // Apply input-based swing (opposite to view movement for inertia effect)
+        newTargetGunAngleDelta[ PITCH ] = -viewAngleDelta[ PITCH ] * VIEW_SWING_INTENSITY;
+        newTargetGunAngleDelta[ YAW ] = -viewAngleDelta[ YAW ] * VIEW_SWING_INTENSITY;
+        newTargetGunAngleDelta[ ROLL ] = -viewAngleDelta[ YAW ] * VIEW_SWING_INTENSITY * 0.4;
+
+        // Add to swing velocity for momentum - framerate independent scaling
+        swingVelocity = QM_Vector3Add( swingVelocity, QM_Vector3Scale( newTargetGunAngleDelta, deltaTime * 15.0 ) );
+    } else {
+        // No significant input - apply velocity decay using framerate-independent calculation
+        const double decayFactor = std::pow( VELOCITY_DECAY, deltaTime * 60.0 ); // 60fps reference
+        swingVelocity = QM_Vector3Scale( swingVelocity, decayFactor );
+
+        // If velocity is very small, zero it out to prevent floating point drift
+        if ( QM_Vector3Length( swingVelocity ) < 0.01 ) {
+            swingVelocity = QM_Vector3Zero();
+        }
+    }
+
+    // Apply damping to swing velocity - framerate independent
+    const double dampingFactor = std::pow( SWING_DAMPING, deltaTime * 60.0 ); // 60fps reference
+    swingVelocity = QM_Vector3Scale( swingVelocity, dampingFactor );
+
+    // Calculate target based on velocity (momentum-based swing)
+    newTargetGunAngleDelta = QM_Vector3Scale( swingVelocity, 1.0 );
+
+    // Clamp the target swing angles to prevent excessive movement
+    for ( int32_t i = 0; i < 3; i++ ) {
+        newTargetGunAngleDelta[ i ] = std::clamp( (double)newTargetGunAngleDelta[ i ], -MAX_SWING_ANGLE, MAX_SWING_ANGLE );
+    }
+
+    // Update target with responsiveness (how quickly gun reacts to changes) - framerate independent
+    const double responseLerpFactor = std::min( 1.0, VIEW_SWING_RESPONSIVENESS * deltaTime );
+    targetGunAngleDelta = QM_Vector3Lerp( targetGunAngleDelta, newTargetGunAngleDelta, responseLerpFactor );
+
+    // Smoothly lerp gun angle delta towards target (creates the swing effect) - framerate independent
+    const double recoveryLerpFactor = std::min( 1.0, VIEW_SWING_RECOVERY * deltaTime );
+    gunAngleDelta = QM_Vector3Lerp( gunAngleDelta, targetGunAngleDelta, recoveryLerpFactor );
+
+    // Apply additional recovery force towards zero when no input - framerate independent
+    if ( !hasSignificantInput ) {
+        const double zeroingForce = 1.0 - std::pow( 0.95, deltaTime * 60.0 ); // Frame-rate independent decay
+        gunAngleDelta = QM_Vector3Scale( gunAngleDelta, 1.0 - zeroingForce );
+
+        // Snap to zero when very close to prevent drift
+        if ( QM_Vector3Length( gunAngleDelta ) < 0.02 ) {
+            gunAngleDelta = QM_Vector3Zero();
+        }
+    }
+
+    // Calculate movement bobbing separately and add it to the swing effect
+    Vector3 movementBobAngles = QM_Vector3Zero();
+    if ( isMoving ) {
+        // Calculate bobbing angles separately
+        double rollBob = level.viewBob.xySpeed * level.viewBob.fracSin * 0.001;
+        double pitchBob = level.viewBob.xySpeed * level.viewBob.fracSin * 0.001;
+        // Apply cycle direction only to the bobbing component
+        if ( level.viewBob.cycle & 1 ) {
+            rollBob = -rollBob;
+        }
+        // Assign the calculated bobbing angles to the movementBobAngles vector.
+        movementBobAngles[ ROLL ] = rollBob;
+        movementBobAngles[ PITCH ] = pitchBob;
+    }
+
+    // Apply the final combined gun angles (swing + bobbing)
+    ps->gunangles[ PITCH ] = gunAngleDelta[ PITCH ] + movementBobAngles[ PITCH ];
+    ps->gunangles[ YAW ] = gunAngleDelta[ YAW ] + movementBobAngles[ YAW ];
+    ps->gunangles[ ROLL ] = gunAngleDelta[ ROLL ] + movementBobAngles[ ROLL ];
+
+    // Store current view angles for next frame
+    lastViewAngles = currentViewAngles;
+}
+
+
 /**
 *   @brief  Takes care of applying the proper animation frame based on time.
 **/
@@ -181,11 +484,25 @@ void CLG_AddViewWeapon( void ) {
         return;
     }
 
-    // find states to interpolate between
+    // Find states to interpolate between
+    // Vanilla behavior:
+    #if 1
     player_state_t *ps = &clgi.client->frame.ps;
     player_state_t *ops = &clgi.client->oldframe.ps;
+    #endif
+    // Extrapolated behavior:
+    #if 0
+    player_state_t *ps = &( clgi.client->frame.valid ? game.predictedState.currentPs : clgi.client->frame.ps );
+    player_state_t *ops = &( clgi.client->frame.valid ? clgi.client->frame.ps : clgi.client->oldframe.ps );
+    #endif
+    // Full on client behavior:
+    #if 0
+    player_state_t *ps = &game.predictedState.currentPs;
+    player_state_t *ops = &game.predictedState.lastPs;
+    #endif
 
     memset( &gun, 0, sizeof( gun ) );
+
     if ( gun_model ) {
         gun.model = gun_model;  // development tool
     } else {
@@ -227,13 +544,15 @@ void CLG_AddViewWeapon( void ) {
         return;
     }
 
-	// Model entity index ID is reserved for the view weapon.
+    // Model entity index ID is reserved for the view weapon.
     gun.id = RENTITIY_RESERVED_GUN;
 
     // Calculate the lerped gun position.
-    Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( game.predictedState.lastPs.gunoffset, game.predictedState.currentPs.gunoffset, clgi.client->lerpfrac );
+    //Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( game.predictedState.lastPs.gunoffset, game.predictedState.currentPs.gunoffset, clgi.client->xerpFraction );
+	Vector3 gunOrigin = clgi.client->refdef.vieworg + game.predictedState.currentPs.gunoffset;
     // Calculate the lerped gun angles.
-    Vector3 gunAngles = clgi.client->refdef.viewangles + QM_Vector3LerpAngles( game.predictedState.lastPs.gunangles, game.predictedState.currentPs.gunangles, clgi.client->lerpfrac );
+    //Vector3 gunAngles = clgi.client->refdef.viewangles + /*QM_Vector3LerpAngles*/( game.predictedState.lastPs.gunangles, game.predictedState.currentPs.gunangles/*, clgi.client->lerpfrac*/ );
+    Vector3 gunAngles = clgi.client->refdef.viewangles + /*QM_Vector3LerpAngles*/( game.predictedState.currentPs.gunangles/*, clgi.client->lerpfrac*/ );
     // Copy the calculated gun position and angles into vec3_t's from refresh 'entity_t'.
     VectorCopy( gunOrigin, gun.origin );
     VectorCopy( gunAngles, gun.angles );
@@ -340,284 +659,4 @@ void CLG_AddViewWeapon( void ) {
         clgi.V_AddEntity( &gun );
     }
     #endif
-}
-
-
-/**
-*   @brief  Calculates the gun view origin offset, based on the bobcycle and its sinfrac2.
-*           After that, it lerps the gun offset to the target position based on whether the player is moving or not.
-* 	@note   Will lerp back to center position when not moving or secondary firing.
-**/
-void CLG_CalculateViewWeaponOffset( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
-    // Static variables to track gun offset lerping when idle and secondary fire
-    static Vector3 targetGunOffset = QM_Vector3Zero();
-    static Vector3 currentGunOffset = QM_Vector3Zero();
-    static bool wasMoving = false;
-    static bool wasSecondaryFiring = false;
-    static constexpr double IDLE_LERP_SPEED = 5.0; // Speed of lerp back to idle position (higher = faster).
-    static constexpr double MOVEMENT_LERP_SPEED = 8.0; // Speed of lerp back to movement (higher = faster).
-    static constexpr double SECONDARY_FIRE_LERP_SPEED = 6.0; // Speed of lerp for secondary fire transition (higher = faster).
-
-    // Enhanced static variables for swing-like delay effect on gun angles
-    static Vector3 lastViewAngles = QM_Vector3Zero();
-    static Vector3 gunAngleDelta = QM_Vector3Zero();
-    static Vector3 targetGunAngleDelta = QM_Vector3Zero();
-    static Vector3 swingVelocity = QM_Vector3Zero(); // Track angular momentum
-    static bool firstFrame = true;
-    static constexpr double VIEW_SWING_RESPONSIVENESS = 6.0; // How quickly gun responds to view changes (higher = faster).
-    static constexpr double VIEW_SWING_RECOVERY = 6.0; // How quickly gun returns to center (higher = faster).
-    static constexpr double VIEW_SWING_INTENSITY = 6.0; // How much the gun swings (higher = more swing).
-    static constexpr double MAX_SWING_ANGLE = 15; // Maximum swing angle in degrees.
-    static constexpr double SWING_DAMPING = 0.88; // Damping factor for momentum (0.0-1.0, higher = less damping).
-    static constexpr double MIN_INPUT_THRESHOLD = 0.05; // Minimum input to consider as movement.
-    static constexpr double VELOCITY_DECAY = 0.82; // How quickly velocity decays when no input (0.0-1.0).
-
-    // Check if player is moving
-    const bool isMoving = ( ps->xySpeed >= 0.1 || ps->xyzSpeed >= 0.1 );
-
-    // Check if secondary fire is being held (pistol aiming)
-    const bool isSecondaryFiring = ( game.predictedState.cmd.cmd.buttons & BUTTON_SECONDARY_FIRE ) != 0;
-
-    /**
-    *
-    *
-    *   View Weapon `Bob` Offset Calculation:
-    *
-    *
-    **/
-    // Calculate the normal bobbing gun offset
-    Vector3 bobbingGunOffset = {
-        ( -.075f * (float)level.viewBob.fracSin2 ),
-        ( -.185f * (float)level.viewBob.fracSin2 ),
-        -.25f
-    };
-
-    if ( level.viewBob.cycle & 1 ) {
-        bobbingGunOffset.x = -bobbingGunOffset.x;
-    }
-
-    // Handle secondary fire state transitions.
-    if ( isSecondaryFiring ) {
-        if ( !wasSecondaryFiring ) {
-            wasSecondaryFiring = true;
-        }
-
-        Vector3 baseOffset = bobbingGunOffset;
-        // If the player is moving, use default bobbingGunOffset.
-        if ( isMoving ) {
-            wasMoving = true;
-            // Otherwise, if the player is not moving, we want to adjust the gun offset to be more pronounced.
-        } else {
-            if ( wasMoving ) {
-                wasMoving = false;
-            }
-            baseOffset = { 0.0f, 0.0f, -.25f };
-        }
-        // Determine target gun offset origin based on secondary fire state.
-        targetGunOffset = { baseOffset.x, baseOffset.y, 0.0f };
-        // Lerp it over time to create a smooth transition effect.
-        const double deltaTime = clgi.GetFrameTime();
-        const double lerpFactor = std::min( 1.0, SECONDARY_FIRE_LERP_SPEED * deltaTime );
-        currentGunOffset = QM_Vector3Lerp( currentGunOffset, targetGunOffset, lerpFactor );
-        // Was secondary firing:
-    } else {
-        if ( wasSecondaryFiring ) {
-            wasSecondaryFiring = false;
-        }
-
-        // If the player is moving, use default bobbingGunOffset.
-        if ( isMoving ) {
-            if ( !wasMoving ) {
-                wasMoving = true;
-            }
-            // Determine target gun offset origin based on secondary fire state.
-            targetGunOffset = bobbingGunOffset;
-            // Lerp it over time to create a smooth transition effect.
-            const double deltaTime = clgi.GetFrameTime();
-            const double lerpFactor = std::min( 1.0, MOVEMENT_LERP_SPEED * deltaTime );
-            currentGunOffset = QM_Vector3Lerp( currentGunOffset, targetGunOffset, lerpFactor );
-            // Lerp the offset back to idle position when not moving or secondary firing.
-        } else {
-            if ( wasMoving ) {
-                wasMoving = false;
-            }
-            // Determine target gun offset origin based on secondary fire state.
-            targetGunOffset = { 0.0f, 0.0f, -.25f };
-            // Lerp it over time to create a smooth transition effect.
-            const double deltaTime = clgi.GetFrameTime();
-            const double lerpFactor = std::min( 1.0, IDLE_LERP_SPEED * deltaTime );
-            currentGunOffset = QM_Vector3Lerp( currentGunOffset, targetGunOffset, lerpFactor );
-
-            if ( QM_Vector3Length( currentGunOffset - targetGunOffset ) < 0.001 ) {
-                currentGunOffset = targetGunOffset;
-            }
-        }
-    }
-
-    // Apply the calculated gun offset
-    Vector3 gunOrigin = QM_Vector3Zero();
-    for ( int32_t i = 0; i < 3; i++ ) {
-        gunOrigin[ i ] += clgi.client->v_forward[ i ] * currentGunOffset.y;
-        gunOrigin[ i ] += clgi.client->v_right[ i ] * currentGunOffset.x;
-        gunOrigin[ 2 ] += clgi.client->v_up[ i ] * currentGunOffset.z;
-    }
-    // Copy into the final player state gunoffset.
-    VectorCopy( gunOrigin, ps->gunoffset );
-}
-
-/**
-*   @brief  Calculates the gun view angles by lerping between the old and new angles, adding a
-*           swing-like delay effect based on view movement.
-**/
-void CLG_CalculateViewWeaponAngles( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
-    // Swing properties.
-    static constexpr double VIEW_SWING_RESPONSIVENESS = 6.0; // How quickly gun responds to view changes (higher = faster).
-    static constexpr double VIEW_SWING_RECOVERY = 6.0; // How quickly gun returns to center (higher = faster).
-    static constexpr double VIEW_SWING_INTENSITY = 6.0; // How much the gun swings (higher = more swing).
-    static constexpr double MAX_SWING_ANGLE = 15; // Maximum swing angle in degrees.
-    static constexpr double SWING_DAMPING = 0.88; // Damping factor for momentum (0.0-1.0, higher = less damping).
-    // Input decay velocty properties.
-    static constexpr double MIN_INPUT_THRESHOLD = 0.05; // Minimum input to consider as movement.
-    static constexpr double VELOCITY_DECAY = 0.82; // How quickly velocity decays when no input (0.0-1.0).
-
-    // Enhanced static variables for swing-like delay effect on gun angles
-    static Vector3 lastViewAngles = QM_Vector3Zero();
-    static Vector3 gunAngleDelta = QM_Vector3Zero();
-    static Vector3 targetGunAngleDelta = QM_Vector3Zero();
-    static Vector3 swingVelocity = QM_Vector3Zero(); // Track angular momentum
-    static bool firstFrame = true;
-
-    // Check if player is moving
-    const bool isMoving = ( ps->xySpeed >= 0.1 || ps->xyzSpeed >= 0.1 );
-
-    // Check if secondary fire is being held (pistol aiming)
-    const bool isSecondaryFiring = ( game.predictedState.cmd.cmd.buttons & BUTTON_SECONDARY_FIRE ) != 0;
-
-    /**
-    *
-    *
-    *   View Weapon `Bob` Angle Swing Calculation:
-    *
-    *
-    **/
-    // Enhanced swing-like delay effect for gun angles with momentum and proper decay
-    const Vector3 currentViewAngles = clgi.client->refdef.viewangles;
-    const double deltaTime = clgi.GetFrameTime();
-
-    // Handle first frame initialization
-    if ( firstFrame || deltaTime <= 0.0 ) {
-        lastViewAngles = currentViewAngles;
-        gunAngleDelta = QM_Vector3Zero();
-        targetGunAngleDelta = QM_Vector3Zero();
-        swingVelocity = QM_Vector3Zero();
-        firstFrame = false;
-        ps->gunangles[ PITCH ] = 0.0;
-        ps->gunangles[ YAW ] = 0.0;
-        ps->gunangles[ ROLL ] = 0.0;
-        return;
-    }
-
-    // Calculate view angle delta (how much the view has changed) - PROPER ANGLE DIFFERENCE
-    Vector3 viewAngleDelta = QM_Vector3Zero();
-    double totalInputMagnitude = 0.0;
-
-    for ( int32_t i = 0; i < 3; i++ ) {
-        #if 1
-        // Calculate raw difference using QM_AngleMod first, and then
-        // tormalize the difference to the shortest path (-180 to +180 range).
-        double delta = QM_Angle_Normalize180( QM_AngleMod( currentViewAngles[ i ] - lastViewAngles[ i ] ) );
-        // <Q2RTXP>: WID: This bugs out fetching incorrect shortest angle path.
-        #else
-        // Calculate raw difference without using QM_AngleMod first
-        double delta = currentViewAngles[ i ] - lastViewAngles[ i ];
-
-        // Normalize the difference to the shortest path (-180 to +180 range)
-        while ( delta > 180.0 ) {
-            delta -= 360.0;
-        }
-        while ( delta < -180.0 ) {
-            delta += 360.0;
-        }
-        #endif
-
-        viewAngleDelta[ i ] = delta;
-        totalInputMagnitude += fabs( delta );
-    }
-
-    // Determine if there's significant input
-    const bool hasSignificantInput = totalInputMagnitude > MIN_INPUT_THRESHOLD;
-
-    // Calculate the target gun angle delta based on view movement
-    Vector3 newTargetGunAngleDelta = QM_Vector3Zero();
-
-    if ( hasSignificantInput ) {
-        // Apply input-based swing (opposite to view movement for inertia effect)
-        newTargetGunAngleDelta[ PITCH ] = -viewAngleDelta[ PITCH ] * VIEW_SWING_INTENSITY;
-        newTargetGunAngleDelta[ YAW ] = -viewAngleDelta[ YAW ] * VIEW_SWING_INTENSITY;
-        newTargetGunAngleDelta[ ROLL ] = -viewAngleDelta[ YAW ] * VIEW_SWING_INTENSITY * 0.4;
-
-        // Add to swing velocity for momentum
-        swingVelocity = QM_Vector3Add( swingVelocity, QM_Vector3Scale( newTargetGunAngleDelta, deltaTime * 15.0 ) );
-    } else {
-        // No significant input - apply velocity decay
-        swingVelocity = QM_Vector3Scale( swingVelocity, VELOCITY_DECAY );
-
-        // If velocity is very small, zero it out to prevent floating point drift
-        if ( QM_Vector3Length( swingVelocity ) < 0.01 ) {
-            swingVelocity = QM_Vector3Zero();
-        }
-    }
-
-    // Apply damping to swing velocity
-    swingVelocity = QM_Vector3Scale( swingVelocity, SWING_DAMPING );
-
-    // Calculate target based on velocity (momentum-based swing)
-    newTargetGunAngleDelta = QM_Vector3Scale( swingVelocity, 1.0 );
-
-    // Clamp the target swing angles to prevent excessive movement
-    for ( int32_t i = 0; i < 3; i++ ) {
-        newTargetGunAngleDelta[ i ] = std::clamp( (double)newTargetGunAngleDelta[ i ], -MAX_SWING_ANGLE, MAX_SWING_ANGLE );
-    }
-
-    // Update target with responsiveness (how quickly gun reacts to changes)
-    const double responseLerpFactor = std::min( 1.0, VIEW_SWING_RESPONSIVENESS * deltaTime );
-    targetGunAngleDelta = QM_Vector3Lerp( targetGunAngleDelta, newTargetGunAngleDelta, responseLerpFactor );
-
-    // Smoothly lerp gun angle delta towards target (creates the swing effect)
-    const double recoveryLerpFactor = std::min( 1.0, VIEW_SWING_RECOVERY * deltaTime );
-    gunAngleDelta = QM_Vector3Lerp( gunAngleDelta, targetGunAngleDelta, recoveryLerpFactor );
-
-    // Apply additional recovery force towards zero when no input
-    if ( !hasSignificantInput ) {
-        const double zeroingForce = 1.0 - pow( 0.95, deltaTime * 60.0 ); // Frame-rate independent decay
-        gunAngleDelta = QM_Vector3Scale( gunAngleDelta, 1.0 - zeroingForce );
-
-        // Snap to zero when very close to prevent drift
-        if ( QM_Vector3Length( gunAngleDelta ) < 0.02 ) {
-            gunAngleDelta = QM_Vector3Zero();
-        }
-    }
-
-    // Calculate movement bobbing separately and add it to the swing effect
-    Vector3 movementBobAngles = QM_Vector3Zero();
-    if ( isMoving ) {
-        // Calculate bobbing angles separately
-        double rollBob = level.viewBob.xySpeed * level.viewBob.fracSin * 0.001;
-        double pitchBob = level.viewBob.xySpeed * level.viewBob.fracSin * 0.001;
-        // Apply cycle direction only to the bobbing component
-        if ( level.viewBob.cycle & 1 ) {
-            rollBob = -rollBob;
-        }
-        // Assign the calculated bobbing angles to the movementBobAngles vector.
-        movementBobAngles[ ROLL ] = rollBob;
-        movementBobAngles[ PITCH ] = pitchBob;
-    }
-
-    // Apply the final combined gun angles (swing + bobbing)
-    ps->gunangles[ PITCH ] = gunAngleDelta[ PITCH ] + movementBobAngles[ PITCH ];
-    ps->gunangles[ YAW ] = gunAngleDelta[ YAW ] + movementBobAngles[ YAW ];
-    ps->gunangles[ ROLL ] = gunAngleDelta[ ROLL ] + movementBobAngles[ ROLL ];
-
-    // Store current view angles for next frame
-    lastViewAngles = currentViewAngles;
 }
