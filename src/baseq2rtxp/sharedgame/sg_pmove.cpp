@@ -433,7 +433,7 @@ static void PM_Animation_SetMovementDirection( void ) {
 *	@brief	Clips trace against world only.
 **/
 const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
-	return pm->clip( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, contentMask );
+	return pm->clip( &start.x, &mins.x, &maxs.x, &end.x, contentMask );
 }
 
 /**
@@ -458,7 +458,7 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 		//	mask &= ~CONTENTS_PLAYER;
 	}
 
-	return pm->trace( QM_Vector3ToQFloatV( start ).v, QM_Vector3ToQFloatV( mins ).v, QM_Vector3ToQFloatV( maxs ).v, QM_Vector3ToQFloatV( end ).v, pm->player, contentMask );
+	return pm->trace( &start.x, &mins.x, &maxs.x, &end.x, pm->player, contentMask );
 }
 
 

@@ -3104,11 +3104,11 @@ int64_t CL_Frame( uint64_t msec ) {
         ref_extra += msec;
 
         // Check for client game frame:
-        //if ( clientgame_extra < clientgame_msec ) {
-        //    clientgame_frame = false;
-        //} else if ( clientgame_extra > clientgame_msec * 4 ) {
-        //    clientgame_extra = clientgame_msec;
-        //}
+        if ( clientgame_extra < clientgame_msec ) {
+            clientgame_frame = false;
+        } else if ( clientgame_extra > clientgame_msec * 4 ) {
+            clientgame_extra = clientgame_msec;
+        }
 
         // Check for physics frame.
         if ( phys_extra < phys_msec ) {
@@ -3192,13 +3192,7 @@ int64_t CL_Frame( uint64_t msec ) {
     if ( phys_frame ) {
 		// Build the final movement vector to be sent to the server.
         CL_FinalizeCommand();
-		// If need be, let the client game module run for a frame.
-        if ( cls.state == ca_active && !sv_paused->integer && !cl_paused->integer ) {
-            //phys_extra -= CL_ClientGameFrame( phys_msec );
-            phys_extra -= phys_msec;
-        } else {
-            phys_extra -= phys_msec;
-        }
+        phys_extra -= phys_msec;
         M_FRAMES++;
 
         // Don't let the time go too far off this can happen due to cl.sendPacketNow.
@@ -3212,6 +3206,10 @@ int64_t CL_Frame( uint64_t msec ) {
 
     // Predict all unacknowledged movements.
     CL_PredictMovement();
+
+    if ( cls.state == ca_active && !sv_paused->integer /*&& !cl_paused->integer*/ ) {
+        clientgame_extra -= CL_ClientGameFrame( clientgame_extra );
+    }
 
     // Run any console commands right now.
     Con_RunConsole();

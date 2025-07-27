@@ -163,3 +163,17 @@ textures/office/ceil006:
 	metalness_factor 0.1
     specular_factor 0.125
     roughness_override -1
+
+textures/office/rubberstep01:
+    texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 1.0
+	bump_scale 1
+    specular_factor 0.25
+
+textures/office/path01:
+    texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 1.0
+	bump_scale 1
+    specular_factor 0.15
