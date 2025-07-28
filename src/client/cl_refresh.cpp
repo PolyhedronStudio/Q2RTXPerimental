@@ -472,6 +472,8 @@ int( *R_DrawString )( int x, int y, int flags, size_t maxChars,
     const char *string, qhandle_t font ) = NULL;
 void( *R_DrawPic )( int x, int y, qhandle_t pic ) = NULL;
 void( *R_DrawStretchPic )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
+void( *R_DrawPicEx )( double destX, double destY, double destW, double destH, qhandle_t pic,
+    double srcX, double srcY, double srcW, double srcH ) = NULL;
 void( *R_DrawRotateStretchPic )( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic ) = NULL;
 void( *R_DrawKeepAspectPic )( int x, int y, int w, int h, qhandle_t pic ) = NULL;
 void( *R_DrawStretchRaw )( int x, int y, int w, int h ) = NULL;

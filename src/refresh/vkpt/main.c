@@ -4565,6 +4565,7 @@ void R_RegisterFunctionsRTX()
 	R_DrawChar = R_DrawChar_RTX;
 	R_DrawString = R_DrawString_RTX;
 	R_DrawPic = R_DrawPic_RTX;
+	R_DrawPicEx = R_DrawPicEx_RTX;
 	R_DrawStretchPic = R_DrawStretchPic_RTX;
 	R_DrawRotateStretchPic = R_DrawRotateStretchPic_RTX;
 	R_DrawStretchRaw = R_DrawStretchRaw_RTX;

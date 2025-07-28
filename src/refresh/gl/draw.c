@@ -206,6 +206,23 @@ void R_DrawPic_GL(int x, int y, qhandle_t pic)
                   image->sl, image->tl, image->sh, image->th, draw.colors[0].u32, image);
 }
 
+void
+R_DrawPicEx_GL( double destX, double destY, double destW, double destH, qhandle_t pic,
+    double srcX, double srcY, double srcW, double srcH ) {
+    image_t *image = IMG_ForHandle( pic );
+
+    //GL_StretchPic( x, y, image->width, image->height,
+    //    image->sl, image->tl, image->sh, image->th, draw.colors[ 0 ].u32, image );
+
+    double s0 = srcX / image->width;
+    double t0 = srcY / image->height;
+    double s1 = ( srcX + srcW ) / image->width;
+    double t1 = ( srcY + srcH ) / image->height;
+
+    GL_StretchPic( destX, destY, destW, destH,
+        s0, t0, s1, t1, draw.colors[ 0 ].u32, image );
+}
+
 void R_DrawStretchRaw_GL(int x, int y, int w, int h)
 {
     _GL_StretchPic(x, y, w, h, 0, 0, 1, 1, U32_WHITE, TEXNUM_RAW, 0);

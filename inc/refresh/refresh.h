@@ -79,6 +79,8 @@ extern int     (*R_DrawString)(int x, int y, int flags, size_t maxChars,
                      const char *string, qhandle_t font);  // returns advanced x coord
 bool R_GetPicSize(int *w, int *h, qhandle_t pic);   // returns transparency bit
 extern void    (*R_DrawPic)(int x, int y, qhandle_t pic);
+extern void    ( *R_DrawPicEx )( double destX, double destY, double destW, double destH, qhandle_t pic,
+    double srcX, double srcY, double srcW, double srcH );
 extern void    (*R_DrawStretchPic)(int x, int y, int w, int h, qhandle_t pic);
 extern void    (*R_DrawRotateStretchPic)( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic );
 extern void    (*R_DrawKeepAspectPic)(int x, int y, int w, int h, qhandle_t pic);

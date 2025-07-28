@@ -74,8 +74,8 @@ typedef struct image_s {
     int             baselen; // without extension
     imagetype_t     type;
     imageflags_t    flags;
-    int             width, height; // source image
-    int             upload_width, upload_height; // after power of two and picmip
+    int             width, height; // source image size
+    int             upload_width, upload_height; // size after power of two and picmip
     int             registration_sequence; // 0 = free
 	char            filepath[MAX_QPATH]; // actual path loaded, with correct format extension
 	int             is_srgb;

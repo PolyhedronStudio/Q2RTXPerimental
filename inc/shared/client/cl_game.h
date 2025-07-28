@@ -546,6 +546,9 @@ typedef struct {
 	//!
 	void ( *R_DrawPic )( const int32_t x, const int32_t y, const qhandle_t pic );
 	//!
+	void( *R_DrawPicEx )( double destX, double destY, double destW, double destH, qhandle_t pic,
+			double srcX, double srcY, double srcW, double srcH );
+	//!
 	void ( *R_DrawStretchPic )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic );
 	//!
 	void ( *R_DrawRotateStretchPic )( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const float angle, const int32_t pivot_x, const int32_t pivot_y, const qhandle_t pic );

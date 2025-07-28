@@ -117,6 +117,17 @@ typedef struct hud_usetarget_hint_s {
 
 
 /**
+*
+*
+*   HUD Static
+*
+*
+**/
+typedef struct hud_static_s {
+	//! Handle to the default element background image, we use as a 9 grid.
+	qhandle_t hud_element_background = 0;
+} hud_static_t;
+/**
 * 
 * 
 *   HUD State:

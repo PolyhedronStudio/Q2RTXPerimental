@@ -25,9 +25,7 @@
 *
 *
 *
-*
 *   View/Scene Entities:
-*
 *
 *
 *
@@ -242,15 +240,19 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
 *   @brief  Calculate the bob cycle and apply bob angles as well as a view offset.
 **/
 static void CLG_View_CycleBob( player_state_t *ps ) {
+	// Scalar bob cycle, normalized to radians..
     const double scalarBobCycle = (double)( ( ps->bobCycle & 127 ) / 127.0 * M_PI );
-    const double scalarBobCycle2 = (double)( ( ps->bobCycle & 127 ) / 127.0 * M_PI ) * 2.0;
-    // Calculate base bob data.
+
+    // Calculate base next bob cycle.
     level.viewBob.cycle = ( ps->bobCycle & 128 ) >> 7;
 
+	// Calculate the fractional sine and cosine values for the bob cycle.
     level.viewBob.fracSin = fabs( sin( scalarBobCycle ) );
     level.viewBob.fracSin2 = fabs( sin( scalarBobCycle ) + sin( scalarBobCycle ) );
     level.viewBob.fracCos = fabs( cos( scalarBobCycle ) );
     level.viewBob.fracCos2 = fabs( cos( scalarBobCycle ) + cos( scalarBobCycle ) );
+
+	// Ensure that the player speeds are set correctly for the view bob.
     level.viewBob.xySpeed = ps->xySpeed;
     level.viewBob.xyzSpeed = ps->xyzSpeed;
 }
@@ -286,10 +288,10 @@ static void CLG_SetupFirstPersonView( void ) {
     //CLG_ViewWeapon_CalculateOffset( &predictedState->lastPs, &predictedState->currentPs );
     if ( clgi.client->frame.valid ) {
         // Will calculaate the view weapon offset necessary for adding on to the vieworigin of the player.
-        CLG_ViewWeapon_CalculateOffset( serverFramePlayerState, &predictedState->currentPs, lerpFrac );
+        CLG_ViewWeapon_CalculateOffset( serverFramePlayerState, predictingPlayerState, lerpFrac );
 		// Will calculate the view weapon angles necessary for adding on to the viewangles of the player,
         // and also apply weapon swing/drag.
-        CLG_ViewWeapon_CalculateAngles( serverFramePlayerState, &predictedState->currentPs, lerpFrac );
+        CLG_ViewWeapon_CalculateAngles( serverFramePlayerState, predictingPlayerState, lerpFrac );
     } else {
         // Will calculaate the view weapon offset necessary for adding on to the vieworigin of the player.
         CLG_ViewWeapon_CalculateOffset( lastServerFramePlayerState, serverFramePlayerState, lerpFrac );

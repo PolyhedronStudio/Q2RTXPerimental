@@ -37,6 +37,7 @@ cvar_t *hud_crosshair_scale = nullptr;
 
 // Client Game Hud state.
 hud_state_t clg_hud = {};
+static hud_static_t clg_hud_static = {};
 
 
 //! Used in various places.
@@ -196,6 +197,9 @@ void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
 *	@brief	Called when the screen module registers media.
 **/
 void CLG_HUD_RegisterScreenMedia( void ) {
+    // Reset static HUD.
+    clg_hud_static.hud_element_background = clgi.R_RegisterPic( "hud/hud_elmnt_bg.tga" );
+
     // Precache crosshair.
     scr_hud_crosshair_changed( hud_crosshair_type );
 }
@@ -275,6 +279,90 @@ void HUD_DrawAltCenterString( const int32_t x, const int32_t y, const char *str 
 }
 
 
+
+/**
+*
+*
+*
+*
+*   Miscellaneous HUD Draw Functions:
+*
+*
+*
+*
+**/
+void CLG_HUD_DrawElementBackground( const double &x, const double &y, const double &w, const double &h ) {
+    // Set text color to orange.
+    clgi.R_SetColor( clg_hud.colors.WHITE );
+
+    // The minimal width and height are 64x64.
+    const double _w = w < 64. ? 64. : w;
+    const double _h = h < 64. ? 64. : h;
+    // Determine the X position.
+    double elementX = x;
+    // Determine the Y position.
+    double elementY = y;
+    // Determine the width and height.
+    double elementWidth = _w;
+    double elementHeight = _h;
+
+    clgi.R_ClearColor();
+	clgi.R_SetClipRect( nullptr );
+    
+    // Top left corner.
+    clgi.R_DrawPicEx( elementX, elementY, 32, 32,
+        clg_hud_static.hud_element_background,
+    0, 0, 32, 32 );
+
+    // Top right corner.
+    clgi.R_DrawPicEx( elementX + ( elementWidth - 32 ), elementY, 32, 32,
+        clg_hud_static.hud_element_background,
+        256 - 32, 0, 32, 32 );
+
+    // Bottom left corner.
+    clgi.R_DrawPicEx( elementX, elementY + ( elementHeight - 32 ), 32, 32, 
+        clg_hud_static.hud_element_background,
+        0, 256 - 32, 32, 32 );
+    // Bottom right corner.
+    clgi.R_DrawPicEx( elementX + ( elementWidth - 32 ), elementY + ( elementHeight - 32 ), 32, 32,
+        clg_hud_static.hud_element_background,
+        256 - 32, 256 - 32, 32, 32 );
+
+}
+#if 0
+static constexpr int32_t HEALTH_BACKGROUND_WIDTH = 75;
+static constexpr int32_t HEALTH_BACKGROUND_HEIGHT = 40;
+static constexpr int32_t HEALTH_BACKGROUND_OFFSET_LEFT = 10;
+static constexpr int32_t HEALTH_BACKGROUND_OFFSET_BOTTOM = 10;
+int32_t healthBackGroundX = ( HEALTH_BACKGROUND_OFFSET_LEFT );
+int32_t healthBackGroundY = ( clg_hud.hud_scaled_height - ( HEALTH_BACKGROUND_HEIGHT + HEALTH_BACKGROUND_OFFSET_BOTTOM ) );
+// Health Name:
+const std::string strHealthName = "Health:";
+// Determine x/y for health name..
+const int32_t healthNameX = HEALTH_BACKGROUND_OFFSET_LEFT + 10;
+const int32_t healthNameY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT * 2 ) - 4;
+// Health:
+const std::string strHealth = std::to_string( clgi.client->frame.ps.stats[ STAT_HEALTH ] );
+// String length.
+const int32_t strHealthSize = strHealth.length() * CHAR_WIDTH;
+// Adjust offset.
+const int32_t healthX = ( 20 );
+const int32_t healthY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT );
+// Background with an Outlined Rectangle.
+CLG_HUD_DrawOutlinedRectangle( healthBackGroundX, healthBackGroundY, HEALTH_BACKGROUND_WIDTH, HEALTH_BACKGROUND_HEIGHT, clg_hud.colors.ORANGE2, clg_hud.colors.ORANGE );
+// Set text color to orange.
+clgi.R_SetColor( clg_hud.colors.WHITE );
+// Draw health name.
+HUD_DrawString( healthNameX, healthNameY, strHealthName.c_str() );
+// Set text color to white.
+if ( clgi.client->frame.ps.stats[ STAT_HEALTH ] <= 20 ) {
+    clgi.R_SetColor( clg_hud.colors.RED );
+} else {
+    clgi.R_SetColor( clg_hud.colors.WHITE );
+}
+// Draw health value.
+HUD_DrawString( healthX, healthY, strHealth.c_str() );
+#endif
 
 /**
 *
@@ -677,6 +765,21 @@ void CLG_HUD_DrawCrosshair( void ) {
 *	@brief  Renders the player's health and armor status to screen.
 **/
 static void CLG_HUD_DrawHealthIndicators() {
+    // Prevent assert if this happens to get called a frame before loading the actual image.
+    if ( clg_hud_static.hud_element_background <= 0 ) {
+        clgi.Print( PRINT_DEVELOPER, "CLG_HUD_DrawHealthIndicators: hud_element_background not registered yet!\n" );
+        clg_hud_static.hud_element_background = clgi.R_RegisterPic( "hud/hud_elmnt_bg.tga" );
+
+		// Return early.
+		return;
+    }
+
+	static constexpr double ELMT_OFFSET = 28.; // Offset from the top of the screen.
+	static constexpr double ELMT_WIDTH = 64.; // Width of the element.
+	static constexpr double ELMT_HEIGHT = 64.; // Height of the element.
+
+    CLG_HUD_DrawElementBackground( ELMT_OFFSET, ( clg_hud.hud_scaled_height - ( ELMT_OFFSET + ELMT_HEIGHT )), ELMT_WIDTH, ELMT_HEIGHT );
+    
     // Health Background:
     static constexpr int32_t HEALTH_BACKGROUND_WIDTH = 75;
     static constexpr int32_t HEALTH_BACKGROUND_HEIGHT = 40;

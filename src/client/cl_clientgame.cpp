@@ -375,6 +375,10 @@ const qboolean PF_R_GetPicSize( int32_t *w, int32_t *h, const qhandle_t pic ) {
 void PF_R_DrawPic( const int32_t x, const int32_t y, const qhandle_t pic ) {
 	R_DrawPic( x, y, pic );
 }
+void PF_R_DrawPicEx( double destX, double destY, double destW, double destH, qhandle_t pic,
+	double srcX, double srcY, double srcW, double srcH ) {
+	R_DrawPicEx( destX, destY, destW, destH, pic, srcX, srcY, srcW, srcH );
+}
 void PF_R_DrawStretchPic( const int32_t x, const int32_t y, const int32_t w, const int32_t h, const qhandle_t pic ) {
 	R_DrawStretchPic( x, y, w, h, pic );
 }
@@ -911,6 +915,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_DrawString = PF_R_DrawString;
 	imports.R_GetPicSize = PF_R_GetPicSize;
 	imports.R_DrawPic = PF_R_DrawPic;
+	imports.R_DrawPicEx = PF_R_DrawPicEx;
 	imports.R_DrawStretchPic = PF_R_DrawStretchPic;
 	imports.R_DrawRotateStretchPic = PF_R_DrawRotateStretchPic;
 	imports.R_DrawKeepAspectPic = PF_R_DrawKeepAspectPic;

@@ -1093,6 +1093,31 @@ R_DrawPic_RTX(int x, int y, qhandle_t pic)
 	image_t *image = IMG_ForHandle(pic);
 	R_DrawStretchPic(x, y, image->width, image->height, pic);
 }
+void
+R_DrawPicEx_RTX( double destX, double destY, double destW, double destH, qhandle_t pic,
+	double srcX, double srcY, double srcW, double srcH ) {
+
+	image_t *image = IMG_ForHandle( pic );
+	//R_DrawStretchPic( x, y, w, h, pic );
+
+	// Calculate the source coordinates in normalized texture space.
+	#if 1
+	double s0 = srcX / image->width;
+	double t0 = srcY / image->height;
+	double s1 = ( srcX + srcW ) / image->width;
+	double t1 = ( srcY + srcH ) / image->height;
+	#else
+	float s0 = ( 1.0 / image->width ) * srcX;
+	float t0 = ( 1.0 / image->height ) * srcY;
+	float s1 = ( ( 1.0 / image->width ) * srcX ) + ( ( 1.0 / image->width ) * srcW );
+	float t1 = ( ( 1.0 / image->height ) * srcY ) + ( ( 1.0 / image->height ) * srcH );
+	#endif
+	enqueue_stretch_pic(
+		destX, destY, destW, destH,
+		s0, t0, s1, t1,
+		//0, 0, 1, 1,
+		draw.colors[ 0 ].u32, pic );
+}
 
 void
 R_DrawStretchRaw_RTX(int x, int y, int w, int h)

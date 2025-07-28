@@ -851,6 +851,9 @@ void R_DrawStretchPic_RTX(int x, int y, int w, int h, qhandle_t pic);
 void R_DrawRotateStretchPic_RTX( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic );
 void R_DrawKeepAspectPic_RTX(int x, int y, int w, int h, qhandle_t pic);
 void R_DrawPic_RTX(int x, int y, qhandle_t pic);
+void
+R_DrawPicEx_RTX( double destX, double destY, double destW, double destH, qhandle_t pic,
+	double srcX, double srcY, double srcW, double srcH );
 void R_DrawStretchRaw_RTX(int x, int y, int w, int h);
 void R_UpdateRawPic_RTX(int pic_w, int pic_h, const uint32_t *pic);
 void R_DiscardRawPic_RTX(void);
