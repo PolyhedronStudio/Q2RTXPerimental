@@ -271,8 +271,15 @@ public:
 		EdictTypeInfo *current = head;
 		// Keep on going until we run into nullptr.
 		while ( current != nullptr ) {
-			// Set the super pointer to the superclass type name.
-			current->super = GetByClassTypeName( current->superClassTypeName );
+			EdictTypeInfo *super = current;
+			while ( ( super = super->prev ) != nullptr ) {
+				if ( !strcmp( current->classTypeName, current->prev->superClassTypeName ) ) {
+					// Set the super pointer to the superclass type name.
+					current->super = GetByClassTypeName( current->superClassTypeName );
+					break;
+				}
+				
+			}
 			// Debug output.
 			gi.dprintf( "ID: %d ClassName: %s, SuperClass: %s, TypeFlags: %i\n", current->classTypeInfoID.GetID(), current->classTypeName, current->superClassTypeName, current->typeFlags );
 			// If the superclass type name is not found, set the super pointer to nullptr.
@@ -324,7 +331,7 @@ public:
 // Instances of this cannot be allocated, as it is abstract.
 #define __DeclareTopRootTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, allocatorFunction )	\
 	virtual inline EdictTypeInfo* GetTypeInfo() const {	\
-		return &SelfType::ClassInfo;	\
+		return &className::ClassInfo;	\
 	}	\
 	inline static EdictTypeInfo ClassInfo = EdictTypeInfo( (worldSpawnClassName), (#className), (#superClass), (typeInfoFlags), (allocatorFunction) );
 
@@ -353,7 +360,7 @@ public:
 **/
 #define __DeclareTypeInfo( worldSpawnClassName, className, superClass, typeInfoFlags, allocatorFunction )	\
 	virtual inline EdictTypeInfo* GetTypeInfo() const override {	\
-		return &SelfType::ClassInfo;											\
+		return &className::ClassInfo;											\
 	}																\
 	inline static EdictTypeInfo ClassInfo = EdictTypeInfo( (worldSpawnClassName), (#className), (#superClass), (typeInfoFlags), (allocatorFunction) );
 
@@ -363,7 +370,7 @@ public:
 #define DefineAbstractClass( className, superClass )			\
 	using SelfType = className;		\
 	using Super = superClass;	/* Allows us to refer to super class using Base */ \
-	__DeclareTypeInfo( "abstract_"#className, #className, #superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
+	__DeclareTypeInfo( "abstract_"#className, className, superClass, EdictTypeInfo::TypeInfoFlag_Abstract, nullptr );
 
 
 

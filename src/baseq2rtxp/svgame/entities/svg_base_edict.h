@@ -8,7 +8,8 @@
 ********************************************************************/
 #pragma once
 
-
+// Enable to debug print the new/delete callback operation states.
+//#define DEBUG_EDICT_ALLOCATORS 1
 
 // Enable to debug the entity SetCallback functions.
 // It'll trigger with specific information about what is wrong with it.
@@ -257,12 +258,16 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         // Allocate.
         if ( void *ptr = gi.TagMalloc( size, TAG_SVGAME_EDICTS ) ) {//TagAllocator::Malloc( size, TagAllocator::_zoneTag );
             // Debug about the allocation.
+            #if DEBUG_EDICT_ALLOCATORS
             gi.dprintf( "%s: Allocating %d bytes.\n", __func__, size );
+            #endif
             // Return the pointer.
             return ptr;
         }
+        #if DEBUG_EDICT_ALLOCATORS
         // Debug about the failure to allocate
         gi.dprintf( "%s: Failed allocationg %d bytes\n", __func__, size );
+        #endif
 		// Throw an exception.
 		//throw std::bad_alloc( "Failed to allocate memory" );
 		return nullptr;
@@ -270,15 +275,19 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 	//! Delete Operator Overload.
 	void operator delete( void *ptr ) {
         if ( ptr != nullptr ) {//TagAllocator::Free( ptr );
+            #if DEBUG_EDICT_ALLOCATORS
             // Debug about deallocation.
             gi.dprintf( "%s: Freeing %p\n", __func__, ptr );
+            #endif
             // Deallocate.
             gi.TagFree( ptr );
             return;
         }
         ptr = nullptr;
+        #if DEBUG_EDICT_ALLOCATORS
         // Debug about the failure to allocate
         gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
+        #endif
 	}
 
 

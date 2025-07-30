@@ -17,6 +17,7 @@
 /**
 *	@brief
 **/
+DECLARE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch );
 DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
@@ -39,19 +40,29 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_b
     self->touch_debounce_time = level.time + 1_sec;
 
     // Can't trigger anything if we ain't got an owner.
-    if ( !self->owner || !self->owner->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>() ) {
+    if ( !self->owner ) {
         gi.dprintf( "(%s:%i) No owner!\n", __func__, __LINE__ );
         return;
     }
 
-    self->owner->DispatchUseCallback( /*self->owner, */other, other, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
+	// <Q2RTXP>: WID: This dun work right now.
+    #if 1
+    if ( !self->owner->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>(true) ) {
+        gi.dprintf( "(%s:%i) Owner is not a pushmove entity!\n", __func__, __LINE__ );
+        return;
+	}
+    #endif
+
+    // <Q2RTXP>: WID: This was (other, other, ...)
+    self->owner->DispatchUseCallback( other, other, entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE, 1 );
 }
 
 /**
 *	@brief
 **/
+DECLARE_GLOBAL_CLASSNAME_CALLBACK_THINK( svg_func_door_t, DoorTrigger_SpawnThink );
 DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -> void {
-    if ( !ent || !ent->GetTypeInfo()->IsSubClassType<svg_pushmove_edict_t>() ) {
+    if ( !ent || !ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>( false ) ) {
 		gi.dprintf( "(%s:%i) Invalid entity type!\n", __func__, __LINE__ );
 		return;
     }
@@ -88,12 +99,16 @@ DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -
     gi.linkentity( other );
 
     if ( pushMoveEnt->spawnflags & svg_func_door_t::SPAWNFLAG_START_OPEN ) {
-		if ( pushMoveEnt->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+		if ( pushMoveEnt->GetTypeInfo()->IsSubClassType<svg_func_door_t>( false ) ) {
 			static_cast<svg_func_door_t *>( pushMoveEnt )->SetAreaPortal( true );
 		}
     }
 
-    pushMoveEnt->SVG_PushMove_Think_CalculateMoveSpeed( pushMoveEnt );
+    // Apply next think time and method.
+    pushMoveEnt->nextthink = level.time + FRAME_TIME_S;
+    pushMoveEnt->SetThinkCallback( &svg_func_door_t::SVG_PushMove_Think_CalculateMoveSpeed );
+
+    //pushMoveEnt->SVG_PushMove_Think_CalculateMoveSpeed( pushMoveEnt );
 }
 
 

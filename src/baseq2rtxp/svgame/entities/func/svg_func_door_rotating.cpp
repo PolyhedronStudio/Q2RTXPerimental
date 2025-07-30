@@ -197,6 +197,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
         // Set its next think to create the trigger area.
         self->nextthink = level.time + FRAME_TIME_S;
         self->SetThinkCallback( &DoorTrigger_SpawnThink );
+        self->SetUseCallback( &svg_func_door_rotating_t::onUse );
     } else {
         // Apply next think time and method.
         self->nextthink = level.time + FRAME_TIME_S;
