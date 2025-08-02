@@ -40,20 +40,6 @@ void svg_gamemode_t::EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inf
 
     targ->enemy = attacker;
 
-    if ( ( targ->svflags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
-        //targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
-        // WID: TODO: Monster Reimplement.        
-        //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
-        //level.killed_monsters++;
-        if ( coop->value && attacker->client ) {
-            attacker->client->resp.score++;
-        }
-        // medics won't heal monsters that they kill themselves
-        //if ( strcmp( (const char *)attacker->classname, "monster_medic" ) == 0 )
-        //    targ->owner = attacker;
-        //}
-    }
-
     if ( targ->movetype == MOVETYPE_PUSH || targ->movetype == MOVETYPE_STOP || targ->movetype == MOVETYPE_NONE ) {
         // doors, triggers, etc
         if ( targ->HasDieCallback() ) {

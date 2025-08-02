@@ -633,7 +633,7 @@ void svg_gamemode_singleplayer_t::DamageEntity( svg_base_edict_t *targ, svg_base
 
     // easy mode takes half damage
     int32_t finalDamage = damage;
-    if ( skill->value == 0 && deathmatch->value == 0 && targ->client ) {
+    if ( skill->value == 0 && targ->client ) {
         finalDamage *= 0.5f;
         if ( !finalDamage )
             finalDamage = 1;
@@ -642,13 +642,13 @@ void svg_gamemode_singleplayer_t::DamageEntity( svg_base_edict_t *targ, svg_base
     // Friendly fire avoidance.
     // If enabled you can't hurt teammates (but you can hurt yourself)
     // Knockback still occurs.
-    if ( ( targ != attacker ) && ( ( deathmatch->value && ( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) ) || ( coop->value && targ->client ) ) ) {
+    if ( ( targ != attacker ) /* && ( ( deathmatch->value && ( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) ) || ( coop->value && targ->client ) ) */ && targ->client ) {
         if ( SVG_OnSameTeam( targ, attacker ) ) {
-            if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
-                finalDamage = 0;
-            } else {
+            //if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
+            //    finalDamage = 0;
+            //} else {
                 finalMeansOfDeath |= MEANS_OF_DEATH_FRIENDLY_FIRE;
-            }
+            //}
         }
     }
 
@@ -683,7 +683,7 @@ void svg_gamemode_singleplayer_t::DamageEntity( svg_base_edict_t *targ, svg_base
     if ( targ->flags & FL_NO_KNOCKBACK ||
         ( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
             ( !( targ->lifeStatus == entity_lifestatus_t::LIFESTATUS_ALIVE ) )
-            /*|| ( targ->death_time && targ->death_time < level.time )*/
+            //|| ( targ->death_time > 0_ms && targ->death_time < level.time )
             ) ) {
         finalKnockBack = 0;
     }
@@ -773,25 +773,26 @@ void svg_gamemode_singleplayer_t::DamageEntity( svg_base_edict_t *targ, svg_base
     if ( targ->svflags & SVF_MONSTER ) {
         if ( damage > 0 ) {
             //M_ReactToDamage( targ, attacker );
-
+            # if 1
             float kick = (float)abs( finalKnockBack );
             if ( kick && targ->health > 0 ) { // kick of 0 means no view adjust at all
-                //kick = kick * 100 / targ->health;
-
-                //if ( kick < damage * 0.5f ) {
-                //    kick = damage * 0.5f;
-                //}
-                //if ( kick > 50 ) {
-                //    kick = 50;
-                //}
-
+                if ( kick < damage * 0.5f ) {
+                    kick = damage * 0.5f;
+                }
+                if ( kick > 50 ) {
+                    kick = 50;
+                }
+                //kick = targ->mass / kick;
                 Vector3 knockBackVelocity = targ->s.origin - Vector3( inflictor ? inflictor->s.origin : attacker->s.origin );
-                knockBackVelocity = QM_Vector3Normalize( knockBackVelocity );
+                Vector3 normalizedDir = QM_Vector3Normalize( dir );
+
+                //knockBackVelocity = QM_Vector3Normalize( knockBackVelocity );
                 //knockBackVelocity *= kick;
-                targ->velocity = QM_Vector3MultiplyAdd( knockBackVelocity, kick, targ->velocity );
+                targ->velocity = QM_Vector3MultiplyAdd( targ->velocity, kick, normalizedDir );
                 //targ->velocity += knockBackVelocity;
 
             }
+            #endif
         }
         // WID: TODO: Monster Reimplement.
         //if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {

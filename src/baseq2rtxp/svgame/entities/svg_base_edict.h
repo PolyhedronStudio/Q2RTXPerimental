@@ -704,8 +704,13 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     //! [SpawnKey]: Current Health.
     int32_t     health = 0;
+	//! [SpawnKey]: Current Armor.
+	int32_t     armor = 0;
     //! [SpawnKey]: Maximum Health. (Usually used to reset health with in respawn scenarios.)
     int32_t     max_health = 0;
+	//! [SpawnKey]: Maximum Armor. (Usually used to reset armor with in respawn scenarios.)
+	int32_t     max_armor = 0;
+	//! Gib Health, used to determine if the entity is dead or not.
     int32_t     gib_health = 0;
     //! Officially dead, or still respawnable etc.
     entity_lifestatus_t     lifeStatus = entity_lifestatus_t::LIFESTATUS_ALIVE;

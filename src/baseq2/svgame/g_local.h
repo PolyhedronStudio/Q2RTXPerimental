@@ -1271,6 +1271,13 @@ struct edict_s {
     QMTime		fly_sound_debounce_time;    // move to clientinfo
 	QMTime		last_move_time;
 
+    struct {
+        int32_t health;
+		int32_t max_health;
+		int32_t armor;
+		int32_t max_armor;
+        int32_t lifeStatus;
+    } healthStatus;
     int32_t     health;
     int32_t     max_health;
     int32_t     gib_health;

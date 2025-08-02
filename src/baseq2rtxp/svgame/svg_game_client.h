@@ -17,59 +17,63 @@
 **/
 struct client_persistant_t {
     //! String buffer of the client's user info.
-    char        userinfo[ MAX_INFO_STRING ];
+    char        userinfo[ MAX_INFO_STRING ] = {};
     //! The 'nickname' this client has for display.
-    char        netname[ 16 ];
+    char        netname[ 16 ] = {};
     //! The 'hand' we're holding our weapon with.
-    int32_t     hand;
+    int32_t     hand = 0;
 
     //! A loadgame will leave valid entities that just don't have a connection yet.
-    bool        connected;
+    bool        connected = false;
     //! Stores whether spawned or not. 
-    bool        spawned;
+    bool        spawned = false;
 
     /**
     *   Values saved and restored from edicts when changing levels
     **/
     //! Current health.
-    int32_t         health;
+    int32_t         health = 0;
     //! Maximum allowed health.
-    int32_t         max_health;
+    int32_t         max_health = 0;
+	//! Current armor.
+	int32_t         armor = 0;
+	//! Maximum allowed armor.
+	int32_t         max_armor = 0;
     //! Saved entity flags.
-    entity_flags_t  savedFlags;
+    entity_flags_t  savedFlags = (entity_flags_t)0;
 
     //! The currently selected item.
-    int32_t         selected_item;
+    int32_t         selected_item = 0;
     //! A simple integer count for inventory of all item IDs.
-    int32_t         inventory[ MAX_ITEMS ];
+    int32_t         inventory[ MAX_ITEMS ] = {};
 
 
     //! A pointer to the item matching the currently 'used' ACTIVE weapon.
-    const gitem_t *weapon;
+    const gitem_t *weapon = nullptr;
     //! A pointer to the last(previously used) matching weapon item.
-    const gitem_t *lastweapon;
+    const gitem_t *lastweapon = nullptr;
     //! Stores the current clip ammo for each weapon that uses it.
-    int32_t weapon_clip_ammo[ MAX_ITEMS ];
+    int32_t weapon_clip_ammo[ MAX_ITEMS ] = {};
 
     //! Maximum carry ammo capacities.
     struct {
         //! Pistol Bullets.
-        int32_t pistol;
+        int32_t pistol = 0;
         //! Rifle Bullets.
-        int32_t rifle;
+        int32_t rifle = 0;
         //! SMG Bullets.
-        int32_t smg;
+        int32_t smg = 0;
         //! Sniper Bullets.
-        int32_t sniper;
+        int32_t sniper = 0;
         //! Shotgun Shells.
-        int32_t shotgun;
-    } ammoCapacities;
+        int32_t shotgun = 0;
+    } ammoCapacities = {};
 
     //! For calculating total unit score in coop games.
-    int32_t     score;
+    int32_t     score = 0;
 
     //! If true, this client is engaged in 'Spectator' mode.
-    bool        spectator;
+    bool        spectator = false;
 };
 
 /**
@@ -77,20 +81,20 @@ struct client_persistant_t {
 **/
 struct client_respawn_t {
     //! Data which is to be set pn client->pers on a respawn.
-    client_persistant_t pers_respawn;
+    client_persistant_t pers_respawn = {};
 
     //! level.frameNumber the client entered the game.
-    int64_t enterframe;
+    int64_t enterframe = 0;
     //! The moment in time the client entered the game.
-    QMTime entertime;
+    QMTime entertime = 0_ms;
 
     //! Frags, etc
-    int32_t score;
+    int32_t score = 0;
 
     //! Angles sent over in the last command.
-    vec3_t cmd_angles;  
+    Vector3 cmd_angles = {};
     //! Client is a spectator.
-    bool spectator;
+    bool spectator = false;
 };
 
 // this structure is cleared on each SVG_Player_SpawnInBody(),

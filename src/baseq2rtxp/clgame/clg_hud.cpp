@@ -197,8 +197,18 @@ void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
 *	@brief	Called when the screen module registers media.
 **/
 void CLG_HUD_RegisterScreenMedia( void ) {
-    // Reset static HUD.
     clg_hud_static.hud_element_background = clgi.R_RegisterPic( "hud/hud_elmnt_bg.tga" );
+
+    clg_hud_static.hud_icon_health = clgi.R_RegisterPic( "hud/hud_icon_health.tga" );
+    clg_hud_static.hud_icon_armor = clgi.R_RegisterPic( "hud/hud_icon_armor.tga" );
+
+    clg_hud_static.hud_icon_slash = clgi.R_RegisterPic( "hud/hud_icon_slash.tga" );
+    clg_hud_static.hud_icon_ammo_pistol = clgi.R_RegisterPic( "hud/hud_icon_ammo_pistol.tga" );
+
+    for ( int32_t i = 0; i < 10; i++ ) {
+        std::string numberPicName = "hud/hud_number" + std::to_string( i ) + "_l";
+        clg_hud_static.hud_icon_numbers[ i ] = clgi.R_RegisterPic( numberPicName.c_str() );
+    }
 
     // Precache crosshair.
     scr_hud_crosshair_changed( hud_crosshair_type );
@@ -291,13 +301,28 @@ void HUD_DrawAltCenterString( const int32_t x, const int32_t y, const char *str 
 *
 *
 **/
+//! Minimal width and height before the HUD Element it's center, column and middle row are drawn.
+static constexpr double HUD_ELEMENT_BACKGROUND_MIN_WIDTH    = 64.;
+static constexpr double HUD_ELEMENT_BACKGROUND_MIN_HEIGHT   = 64.;
+//! Half width and height of the minimal HUD Element background. These define the size of the corners.
+static constexpr double HUD_ELEMENT_BACKGROUND_HALF_WIDTH   = HUD_ELEMENT_BACKGROUND_MIN_WIDTH / 2.;
+static constexpr double HUD_ELEMENT_BACKGROUND_HALF_HEIGHT  = HUD_ELEMENT_BACKGROUND_MIN_HEIGHT / 2.;
+/**
+*   @brief Draws a background for HUD elements, such as health, ammo, etc. Operates as a simplified 9-grid system.
+**/
 void CLG_HUD_DrawElementBackground( const double &x, const double &y, const double &w, const double &h ) {
+	static constexpr double HUD_ELEMENT_BACKGROUND_MIN_SIZE = 64.0;
+    static constexpr double HUD_ELEMENT_BACKGROUND_CORNER_SIZE = 32.0;
+
+    static constexpr double HUD_ELEMENT_BACKGROUND_WIDTH = 256.0;
+    static constexpr double HUD_ELEMENT_BACKGROUND_HEIGHT = 256.0;
+
     // Set text color to orange.
     clgi.R_SetColor( clg_hud.colors.WHITE );
 
     // The minimal width and height are 64x64.
-    const double _w = w < 64. ? 64. : w;
-    const double _h = h < 64. ? 64. : h;
+    const double _w = w < HUD_ELEMENT_BACKGROUND_MIN_SIZE ? HUD_ELEMENT_BACKGROUND_MIN_SIZE : w;
+    const double _h = h < HUD_ELEMENT_BACKGROUND_MIN_SIZE ? HUD_ELEMENT_BACKGROUND_MIN_SIZE : h;
     // Determine the X position.
     double elementX = x;
     // Determine the Y position.
@@ -309,60 +334,154 @@ void CLG_HUD_DrawElementBackground( const double &x, const double &y, const doub
     clgi.R_ClearColor();
 	clgi.R_SetClipRect( nullptr );
     
-    // Top left corner.
-    clgi.R_DrawPicEx( elementX, elementY, 32, 32,
+    /**
+    *   Top Row
+    **/
+    // Left - Corner
+    clgi.R_DrawPicEx( 
+        elementX, elementY, 
+        HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE,
         clg_hud_static.hud_element_background,
-    0, 0, 32, 32 );
+        0, 0, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+    );
+    // Center - Width Piece
+    if ( elementWidth > HUD_ELEMENT_BACKGROUND_MIN_SIZE ) {
+        // Top center piece.
+        clgi.R_DrawPicEx(
+            elementX + HUD_ELEMENT_BACKGROUND_CORNER_SIZE, elementY, elementWidth - HUD_ELEMENT_BACKGROUND_MIN_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE,
+            clg_hud_static.hud_element_background,
+            32/*random pow2 width from source image*/, 0, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+        );
+    }
+    // Right - Corner
+    clgi.R_DrawPicEx( 
+        elementX + ( elementWidth - HUD_ELEMENT_BACKGROUND_CORNER_SIZE ), elementY, 
+        HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE,
+        clg_hud_static.hud_element_background,
+        HUD_ELEMENT_BACKGROUND_WIDTH - HUD_ELEMENT_BACKGROUND_CORNER_SIZE, 0, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+    );
 
-    // Top right corner.
-    clgi.R_DrawPicEx( elementX + ( elementWidth - 32 ), elementY, 32, 32,
-        clg_hud_static.hud_element_background,
-        256 - 32, 0, 32, 32 );
+    /**
+    *   Center Row
+    **/
+    if ( elementHeight > HUD_ELEMENT_BACKGROUND_MIN_SIZE || elementWidth > HUD_ELEMENT_BACKGROUND_MIN_SIZE ) {
+        // Left
+        clgi.R_DrawPicEx(
+            elementX, elementY + HUD_ELEMENT_BACKGROUND_CORNER_SIZE, 
+            HUD_ELEMENT_BACKGROUND_CORNER_SIZE, elementHeight - HUD_ELEMENT_BACKGROUND_MIN_SIZE,
+            clg_hud_static.hud_element_background,
+            0, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+        );
+        // Center - Width Piece.
+        if ( elementWidth > HUD_ELEMENT_BACKGROUND_MIN_SIZE ) {
+            // Bottom center piece.
+            clgi.R_DrawPicEx(
+                elementX + HUD_ELEMENT_BACKGROUND_CORNER_SIZE, elementY + HUD_ELEMENT_BACKGROUND_CORNER_SIZE,
+                elementWidth - HUD_ELEMENT_BACKGROUND_MIN_SIZE, ( elementHeight - HUD_ELEMENT_BACKGROUND_MIN_SIZE ),
+                clg_hud_static.hud_element_background,
+                32, HUD_ELEMENT_BACKGROUND_HEIGHT - HUD_ELEMENT_BACKGROUND_MIN_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+            );
+        }
+        // Right
+        clgi.R_DrawPicEx(
+            elementX + ( elementWidth - HUD_ELEMENT_BACKGROUND_CORNER_SIZE ), elementY + HUD_ELEMENT_BACKGROUND_CORNER_SIZE,
+            HUD_ELEMENT_BACKGROUND_CORNER_SIZE, elementHeight - HUD_ELEMENT_BACKGROUND_MIN_SIZE,
+            clg_hud_static.hud_element_background,
+            HUD_ELEMENT_BACKGROUND_WIDTH - HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+        );
+    }
 
-    // Bottom left corner.
-    clgi.R_DrawPicEx( elementX, elementY + ( elementHeight - 32 ), 32, 32, 
+    /**
+    *   Bottom Row
+    **/
+    // Left - Corner
+    clgi.R_DrawPicEx( 
+        elementX, elementY + ( elementHeight - HUD_ELEMENT_BACKGROUND_CORNER_SIZE ),
+        HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE,
         clg_hud_static.hud_element_background,
-        0, 256 - 32, 32, 32 );
-    // Bottom right corner.
-    clgi.R_DrawPicEx( elementX + ( elementWidth - 32 ), elementY + ( elementHeight - 32 ), 32, 32,
+        0, HUD_ELEMENT_BACKGROUND_HEIGHT - HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+    );
+    // Center - Width Piece.
+    if ( elementWidth > HUD_ELEMENT_BACKGROUND_MIN_SIZE ) {
+        // Bottom center piece.
+        clgi.R_DrawPicEx(
+            elementX + 32, elementY + ( elementHeight - HUD_ELEMENT_BACKGROUND_CORNER_SIZE ), elementWidth - HUD_ELEMENT_BACKGROUND_MIN_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE,
+            clg_hud_static.hud_element_background,
+            32, HUD_ELEMENT_BACKGROUND_HEIGHT - HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+        );
+    }
+    // Right - Corner
+    clgi.R_DrawPicEx( 
+        elementX + ( elementWidth - HUD_ELEMENT_BACKGROUND_CORNER_SIZE ), elementY + ( elementHeight - HUD_ELEMENT_BACKGROUND_CORNER_SIZE ), 
+        HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE,
         clg_hud_static.hud_element_background,
-        256 - 32, 256 - 32, 32, 32 );
+        HUD_ELEMENT_BACKGROUND_WIDTH - HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_HEIGHT - HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE, HUD_ELEMENT_BACKGROUND_CORNER_SIZE
+    );
 
 }
-#if 0
-static constexpr int32_t HEALTH_BACKGROUND_WIDTH = 75;
-static constexpr int32_t HEALTH_BACKGROUND_HEIGHT = 40;
-static constexpr int32_t HEALTH_BACKGROUND_OFFSET_LEFT = 10;
-static constexpr int32_t HEALTH_BACKGROUND_OFFSET_BOTTOM = 10;
-int32_t healthBackGroundX = ( HEALTH_BACKGROUND_OFFSET_LEFT );
-int32_t healthBackGroundY = ( clg_hud.hud_scaled_height - ( HEALTH_BACKGROUND_HEIGHT + HEALTH_BACKGROUND_OFFSET_BOTTOM ) );
-// Health Name:
-const std::string strHealthName = "Health:";
-// Determine x/y for health name..
-const int32_t healthNameX = HEALTH_BACKGROUND_OFFSET_LEFT + 10;
-const int32_t healthNameY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT * 2 ) - 4;
-// Health:
-const std::string strHealth = std::to_string( clgi.client->frame.ps.stats[ STAT_HEALTH ] );
-// String length.
-const int32_t strHealthSize = strHealth.length() * CHAR_WIDTH;
-// Adjust offset.
-const int32_t healthX = ( 20 );
-const int32_t healthY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT );
-// Background with an Outlined Rectangle.
-CLG_HUD_DrawOutlinedRectangle( healthBackGroundX, healthBackGroundY, HEALTH_BACKGROUND_WIDTH, HEALTH_BACKGROUND_HEIGHT, clg_hud.colors.ORANGE2, clg_hud.colors.ORANGE );
-// Set text color to orange.
-clgi.R_SetColor( clg_hud.colors.WHITE );
-// Draw health name.
-HUD_DrawString( healthNameX, healthNameY, strHealthName.c_str() );
-// Set text color to white.
-if ( clgi.client->frame.ps.stats[ STAT_HEALTH ] <= 20 ) {
-    clgi.R_SetColor( clg_hud.colors.RED );
-} else {
-    clgi.R_SetColor( clg_hud.colors.WHITE );
+
+/**
+*   @return Returns the next X offset for a HUD element context item positioned after the numbers last coordinates.
+**/
+const double CLG_HUD_GetWidthForElementNumberValue( const double numberPicWidth, const int32_t value ) {
+    // Convert value to string.
+    const std::string valueStr = std::to_string( value );
+    // Get the length of the string.
+    const int32_t valueStrLength = valueStr.length();
+    // Add 32 for each missing character, so we can right focus the numbers.
+    //const double centerX = w / 2.0;
+
+    // Calculate the width of the string.
+    const double valueStrWidth = valueStrLength * numberPicWidth;
+
+    return valueStrWidth;
 }
-// Draw health value.
-HUD_DrawString( healthX, healthY, strHealth.c_str() );
-#endif
+/**
+*   @brief Draws the numbers 0-9 for on top of a HUD element background.
+**/
+const double CLG_HUD_DrawElementNumberValue( const double &startXOffset, const double &startY, const double &w, const double &h, const int32_t value ) {
+	// Constant width/height for a number pic.
+	const double numberPicWidth = w;
+    const double numberPicHeight = h;
+
+    // Convert value to string.
+	const std::string valueStr = std::to_string( value );
+	// Get the length of the string.
+	const int32_t valueStrLength = valueStr.length();
+	// Add 32 for each missing character, so we can right focus the numbers.
+    //const double centerX = w / 2.0;
+
+    // Calculate the width of the string.
+    const double valueStrWidth = valueStrLength * numberPicWidth;
+	// Returns X coordinate for next element after numbers are drawn.
+	const double nextXOffset = startXOffset + ( valueStrLength * numberPicWidth );
+
+    // Iterate over the string its characters.
+    for ( int32_t i = 0; i < valueStrLength; i++ ) {
+        // Get the character at the current index.
+        const char numberChar = valueStr[ i ];
+        // Convert the character to an integer.
+        const int32_t number = numberChar - '0';
+        // Make sure the number is in range.
+        if ( number < 0 || number > 9 ) {
+            continue; // Skip invalid characters.
+        }
+
+        // Calculate the X position for the number pic.
+        //double numberX = _centerX - ( valueStrWidth / 4. ) + ( i * numberPicWidth / 2 );
+        const double baseX = startXOffset;
+        const double numberX = baseX + ( i * numberPicWidth );// -( numberPicWidth / 2.0 );
+        // Draw the number pic.
+        //CLG_HUD_DrawNumberPic( numberX, centerY, number );
+        const qhandle_t numberPic = clg_hud_static.hud_icon_numbers[ number ];
+        clgi.R_DrawStretchPic( numberX, startY,
+            numberPicWidth, numberPicHeight, 
+            numberPic 
+		);    
+	}
+
+	return nextXOffset; // Return the next X offset.
+}
 
 /**
 *
@@ -770,87 +889,114 @@ static void CLG_HUD_DrawHealthIndicators() {
         clgi.Print( PRINT_DEVELOPER, "CLG_HUD_DrawHealthIndicators: hud_element_background not registered yet!\n" );
         clg_hud_static.hud_element_background = clgi.R_RegisterPic( "hud/hud_elmnt_bg.tga" );
 
+        clg_hud_static.hud_icon_health = clgi.R_RegisterPic( "hud/hud_icon_health.tga" );
+        clg_hud_static.hud_icon_armor = clgi.R_RegisterPic( "hud/hud_icon_armor.tga" );
+
+        clg_hud_static.hud_icon_ammo_pistol = clgi.R_RegisterPic( "hud/hud_icon_ammo_pistol.tga" );
+        clg_hud_static.hud_icon_slash = clgi.R_RegisterPic( "hud/hud_icon_slash.tga" );
+
+        for ( int32_t i = 0; i < 10; i++ ) {
+            std::string numberPicName = "hud/hud_number" + std::to_string( i ) + "_l";
+            clg_hud_static.hud_icon_numbers[ i ] = clgi.R_RegisterPic( numberPicName.c_str() );
+        }
+
 		// Return early.
 		return;
     }
 
-	static constexpr double ELMT_OFFSET = 28.; // Offset from the top of the screen.
-	static constexpr double ELMT_WIDTH = 64.; // Width of the element.
-	static constexpr double ELMT_HEIGHT = 64.; // Height of the element.
+    /**
+    *   Health Indicating Element:
+    **/
+    // Size details for the element.
+	static constexpr double HUD_ELEMENT_OFFSET = 16.; // Offset from the bottom and left of the screen.
+	static constexpr double HUD_ELEMENT_HALF_OFFSET = ( HUD_ELEMENT_OFFSET / 2. ); // Half offset.
+    static constexpr double HUD_ELEMENT_PADDING = 12.; // Actual offset that takes the 'outer glow' space of the background in mind.
+	static constexpr double HUD_ELEMENT_HEIGHT = 72.; // Height of the element.
 
-    CLG_HUD_DrawElementBackground( ELMT_OFFSET, ( clg_hud.hud_scaled_height - ( ELMT_OFFSET + ELMT_HEIGHT )), ELMT_WIDTH, ELMT_HEIGHT );
-    
-    // Health Background:
-    static constexpr int32_t HEALTH_BACKGROUND_WIDTH = 75;
-    static constexpr int32_t HEALTH_BACKGROUND_HEIGHT = 40;
-    static constexpr int32_t HEALTH_BACKGROUND_OFFSET_LEFT = 10;
-    static constexpr int32_t HEALTH_BACKGROUND_OFFSET_BOTTOM = 10;
-    int32_t healthBackGroundX = ( HEALTH_BACKGROUND_OFFSET_LEFT );
-    int32_t healthBackGroundY = ( clg_hud.hud_scaled_height - ( HEALTH_BACKGROUND_HEIGHT + HEALTH_BACKGROUND_OFFSET_BOTTOM ) );
-    // Health Name:
-    const std::string strHealthName = "Health:";
-    // Determine x/y for health name..
-    const int32_t healthNameX = HEALTH_BACKGROUND_OFFSET_LEFT + 10;
-    const int32_t healthNameY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT * 2 ) - 4;
-    // Health:
-    const std::string strHealth = std::to_string( clgi.client->frame.ps.stats[ STAT_HEALTH ] );
-    // String length.
-    const int32_t strHealthSize = strHealth.length() * CHAR_WIDTH;
-    // Adjust offset.
-    const int32_t healthX = ( 20 );
-    const int32_t healthY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT ) ;
+    static constexpr double HUD_ELEMENT_NUMBERS_DEST_HEIGHT = 64.; // Height of the element.
+    static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH  = 32.; // Height of the element.
 
-    // Armor Background:
-    static constexpr int32_t ARMOR_BACKGROUND_WIDTH = 65;
-    static constexpr int32_t ARMOR_BACKGROUND_HEIGHT = 40;
-    static constexpr int32_t ARMOR_BACKGROUND_OFFSET_LEFT = ( 10 + HEALTH_BACKGROUND_OFFSET_LEFT + HEALTH_BACKGROUND_WIDTH );
-    static constexpr int32_t ARMOR_BACKGROUND_OFFSET_BOTTOM = 10;
-    int32_t armorBackGroundX = ( ARMOR_BACKGROUND_OFFSET_LEFT );
-    int32_t armorBackGroundY = ( clg_hud.hud_scaled_height - ( ARMOR_BACKGROUND_HEIGHT + ARMOR_BACKGROUND_OFFSET_BOTTOM ) );
-    // Armor Name:
-    const std::string strArmorName = "Armor:";
-    // Determine x/y for armor name..
-    const int32_t armorNameX = ARMOR_BACKGROUND_OFFSET_LEFT + 10;
-    const int32_t armorNameY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT * 2 ) - 4;
-    // Armor:
-    const std::string strArmor = std::to_string( clgi.client->frame.ps.stats[ STAT_ARMOR ] );
-    // String length.
-    const int32_t strArmorSize = strArmor.length() * CHAR_WIDTH;
-    // Adjust offset.
-    const int32_t armorX = armorNameX;
-    const int32_t armorY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT ) ;
+	// Start X position for the health element.
+    double backGroundStartX = HUD_ELEMENT_OFFSET;
+    double backGroundStartY = clg_hud.hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+    // Start X position for the health element.
+    double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
+    double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
+	// We precalculate the width of the health element, so we can use it for rendering the background first.
+    double numberStartX = iconStartX + 48. + 8;
+    double numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
+	// Width of the health element.
+    //double backGroundWidth = numberStartX + CLG_HUD_GetElementNumberValueSizePosition( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + HUD_ELEMENT_HALF_OFFSET;
+    double backGroundWidth = ( numberStartX - backGroundStartX ) + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + 8;
+
+    // Draw its background.
+    CLG_HUD_DrawElementBackground( 
+        backGroundStartX, backGroundStartY,
+        backGroundWidth, HUD_ELEMENT_HEIGHT 
+    );
+
+    // Icon is reddish.
+	clgi.R_SetColor( MakeColor( 217, 87, 99, 210 ) ); // == Mandy color in Krita Pixel
+    // Draw the health icon.
+    clgi.R_DrawStretchPic( 
+        iconStartX, iconStartY,
+        48, 48, // Icon size.
+        clg_hud_static.hud_icon_health 
+    );
+    // Draw the health count numbers.
+    clgi.R_SetColor( MakeColor( 255, 255, 255, 175 ) ); 
+	// Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
+    CLG_HUD_DrawElementNumberValue( 
+        numberStartX, // Center X for the health numbers.
+        numberStartY, // Center Y for the health numbers.
+        HUD_ELEMENT_NUMBERS_DEST_WIDTH, // Width of the health numbers.
+        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
+        clgi.client->frame.ps.stats[ STAT_HEALTH ] // Health value to display.
+	);
+    clgi.R_ClearColor();
+
 
     /**
-    *   Draw Health Indicator:
+	*   Armor Indicating Element:
     **/
-    // Background with an Outlined Rectangle.
-    CLG_HUD_DrawOutlinedRectangle( healthBackGroundX, healthBackGroundY, HEALTH_BACKGROUND_WIDTH, HEALTH_BACKGROUND_HEIGHT, clg_hud.colors.ORANGE2, clg_hud.colors.ORANGE );
-    // Set text color to orange.
-    clgi.R_SetColor( clg_hud.colors.WHITE );
-    // Draw health name.
-    HUD_DrawString( healthNameX, healthNameY, strHealthName.c_str() );
-    // Set text color to white.
-    if ( clgi.client->frame.ps.stats[ STAT_HEALTH ] <= 20 ) {
-        clgi.R_SetColor( clg_hud.colors.RED );
-    } else {
-        clgi.R_SetColor( clg_hud.colors.WHITE );
-    }
-    // Draw health value.
-    HUD_DrawString( healthX, healthY, strHealth.c_str() );
+    // Start X position for the armor element.
+    backGroundStartX += backGroundWidth + 4;
+    backGroundStartY = clg_hud.hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+    // Start X position for the health element.
+    iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
+    iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
+    // We precalculate the width of the health element, so we can use it for rendering the background first.
+    numberStartX = iconStartX + 48. + 8;
+    numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
+    // Width of the health element.
+    //double backGroundWidth = numberStartX + CLG_HUD_GetElementNumberValueSizePosition( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + HUD_ELEMENT_HALF_OFFSET;
+    backGroundWidth = ( numberStartX - backGroundStartX ) + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_ARMOR ] ) + 8;
 
-    /**
-    *   Draw Armor Indicator:
-    **/
-    // Background with an Outlined Rectangle.
-    CLG_HUD_DrawOutlinedRectangle( armorBackGroundX, armorBackGroundY, ARMOR_BACKGROUND_WIDTH, ARMOR_BACKGROUND_HEIGHT, clg_hud.colors.ORANGE2, clg_hud.colors.ORANGE );
-    // Set text color to orange.
-    clgi.R_SetColor( clg_hud.colors.WHITE );
-    // Draw armor display name.
-    HUD_DrawString( armorNameX, armorNameY, strArmorName.c_str() );
-    // Set text color to white.
-    clgi.R_SetColor( clg_hud.colors.WHITE );
-    // Draw armor value.
-    HUD_DrawString( armorX, armorY, strArmor.c_str() );
+    // Draw its background.
+    CLG_HUD_DrawElementBackground(
+        backGroundStartX, backGroundStartY,
+        backGroundWidth, HUD_ELEMENT_HEIGHT
+    );
+
+    // Icon is reddish.
+    clgi.R_SetColor( MakeColor( 99, 155, 255, 210 ) ); // == Cornflower color in Krita Pixel
+    // Draw the health icon.
+    clgi.R_DrawStretchPic(
+        iconStartX, iconStartY,
+        48, 48, // Icon size.
+        clg_hud_static.hud_icon_armor
+    );
+    // Draw the health count numbers.
+    clgi.R_SetColor( MakeColor( 255, 255, 255, 175 ) );
+    // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
+    CLG_HUD_DrawElementNumberValue(
+        numberStartX, // Center X for the health numbers.
+        numberStartY, // Center Y for the health numbers.
+        HUD_ELEMENT_NUMBERS_DEST_WIDTH, // Width of the health numbers.
+        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
+        clgi.client->frame.ps.stats[ STAT_ARMOR ] // Health value to display.
+    );
+    clgi.R_ClearColor();
 }
 
 /**
@@ -861,84 +1007,84 @@ static void CLG_HUD_DrawAmmoIndicators() {
         return;
     }
 
+    // <Q2RTXP>: WID: Determine this based on the weapon that is selected.
+    const qhandle_t ammoIcon = clg_hud_static.hud_icon_ammo_pistol;
+
     /**
-    *   Calculate position and sizes for each indicator item we render.
+    *   Clip Ammo Indicating Element:
     **/
-    // Ammo Background:
-    static constexpr int32_t AMMO_BACKGROUND_WIDTH = 85;
-    static constexpr int32_t AMMO_BACKGROUND_HEIGHT = 40;
-    static constexpr int32_t AMMO_BACKGROUND_OFFSET_RIGHT = 10;
-    static constexpr int32_t AMMO_BACKGROUND_OFFSET_BOTTOM = 10;
-    int32_t ammoBackGroundX = ( clg_hud.hud_scaled_width - ( AMMO_BACKGROUND_WIDTH + AMMO_BACKGROUND_OFFSET_RIGHT ));
-    int32_t ammoBackGroundY = ( clg_hud.hud_scaled_height - ( AMMO_BACKGROUND_HEIGHT + AMMO_BACKGROUND_OFFSET_BOTTOM ) );
+    // Size details for the element.
+    static constexpr double HUD_ELEMENT_OFFSET = 16.; // Offset from the bottom and left of the screen.
+    static constexpr double HUD_ELEMENT_HALF_OFFSET = ( HUD_ELEMENT_OFFSET / 2. ); // Half offset.
+    static constexpr double HUD_ELEMENT_PADDING = 12.; // Actual offset that takes the 'outer glow' space of the background in mind.
+    static constexpr double HUD_ELEMENT_HEIGHT = 72.; // Height of the element.
 
+    static constexpr double HUD_ELEMENT_NUMBERS_DEST_HEIGHT = 64.; // Height of the element.
+    static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH = 32.; // Height of the element.
 
-    // WeaponName:
-    // Generate weapon display string, defaults to Fists.
-    const int32_t weaponItemID = clgi.client->frame.ps.stats[ STAT_WEAPON_ITEM ];
-    std::string strWeaponName = clgi.client->configstrings[ CS_ITEMS + weaponItemID ];
-    strWeaponName += ":";
-    // Determine x/y for weapon name..
-    const int32_t weaponNameX = ( clg_hud.hud_scaled_width - 20 ) - strWeaponName.length() * CHAR_WIDTH;
-    const int32_t weaponNameY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT * 2 ) - 4;
-
-    // Ammo:
-    // Display String.
-    const std::string strTotalAmmo = std::to_string( clgi.client->frame.ps.stats[ STAT_AMMO ] );
-    // String length.
-    const int32_t strTotalAmmoSize = strTotalAmmo.length() * CHAR_WIDTH;
-    // Adjust offset.
-    const int32_t totalAmmoX = ( clg_hud.hud_scaled_width - 20 ) - strTotalAmmoSize;
-    const int32_t totalAmmoY = ( clg_hud.hud_scaled_height - 20 ) - ( CHAR_HEIGHT ) ;
+  
+    double backGroundStartX = 0;
+    double backGroundStartY = clg_hud.hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
     
-    // Separator(/) for 'Clip Ammo / Ammo' Display:
-    // Display String.
-    const std::string strSeparator = " / ";
-    // String length.
-    const int32_t strSeparatorWidth = strSeparator.length() * CHAR_WIDTH;
-    // Screen Position.
-    const int32_t separatorX = totalAmmoX - strSeparatorWidth;
-    const int32_t separatorY = totalAmmoY;
+    double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
+    double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
+    
+    double numberStartX = iconStartX + 48.;
+    double numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
+    
+    // Width of the element.
+    double backGroundWidth = 48. + HUD_ELEMENT_OFFSET + 4 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
+    backGroundWidth += HUD_ELEMENT_NUMBERS_DEST_WIDTH; // Account for the "/" separator pic.
+    backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_AMMO ] );
 
-    // Clip Ammo:
-    // Display String.
-    const std::string strClipAmmo = std::to_string( clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
-    // Display String length.
-    const int32_t strClipAmmoSize = strClipAmmo.length() * CHAR_WIDTH;
-    // Screen Position.
-    const int32_t clipAmmoX = separatorX - strClipAmmoSize;
-    const int32_t clipAmmoY = separatorY;
+    // Calculate this here now we have the total estimated width.
+	backGroundStartX = clg_hud.hud_scaled_width - ( backGroundWidth + HUD_ELEMENT_OFFSET );
 
+    // Draw its background.
+    CLG_HUD_DrawElementBackground(
+        backGroundStartX, backGroundStartY,
+        backGroundWidth, HUD_ELEMENT_HEIGHT
+    );
+
+    // Icon is orangie.
+    clgi.R_SetColor( MakeColor( 223, 113, 38, 210 ) ); // == Orangie color in Krita Pixel
+    // Draw the health icon.
+    clgi.R_DrawStretchPic(
+        backGroundStartX + iconStartX, iconStartY,
+        48, 48, // Icon size.
+        ammoIcon
+    );
+    // Draw the health count numbers.
+    clgi.R_SetColor( MakeColor( 255, 255, 255, 175 ) ); 
+    // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
+    CLG_HUD_DrawElementNumberValue(
+        backGroundStartX + numberStartX, // Center X for the health numbers.
+        numberStartY, // Center Y for the health numbers.
+        HUD_ELEMENT_NUMBERS_DEST_WIDTH, // Width of the health numbers.
+        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
+        clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] // Health value to display.
+    );
     /**
-    *   Draw Ammo Indicator:
+	*   The slash "/" separator pic, which is drawn between the clip ammo and the total ammo.
     **/
-    // Background with an Outlined Rectangle.
-    CLG_HUD_DrawOutlinedRectangle( ammoBackGroundX, ammoBackGroundY, AMMO_BACKGROUND_WIDTH, AMMO_BACKGROUND_HEIGHT, clg_hud.colors.ORANGE2, clg_hud.colors.ORANGE );
-    // Set text color to orange.
-    clgi.R_SetColor( clg_hud.colors.WHITE );
-    // Draw weapon name.
-    HUD_DrawString( weaponNameX, weaponNameY, strWeaponName.c_str() );
-
-    // Set text color to white/red.
-    if ( clgi.client->frame.ps.stats[ STAT_AMMO ] <= 30 ) {
-        clgi.R_SetColor( clg_hud.colors.RED );
-    } else {
-        clgi.R_SetColor( clg_hud.colors.WHITE );
-    }
-    // Draw ammo.
-    HUD_DrawString( totalAmmoX, totalAmmoY, strTotalAmmo.c_str() );
-
-    // Set text color to orange.
-    clgi.R_SetColor( clg_hud.colors.WHITE );
-    // Draw clip ammo.
-    HUD_DrawString( separatorX, separatorY, strSeparator.c_str() );
-
-    // Set text color to white/red.
-    if ( clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] <= 3 ) {
-        clgi.R_SetColor( clg_hud.colors.RED );
-    } else {
-        clgi.R_SetColor( clg_hud.colors.WHITE );
-    }
-    // Draw Clip Ammo count.
-    HUD_DrawString( clipAmmoX, clipAmmoY, strClipAmmo.c_str() );
+	// Draw the / pic.
+    numberStartX += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
+    // Draw the health icon.
+    clgi.R_DrawStretchPic(
+        backGroundStartX + numberStartX,
+        numberStartY,
+        HUD_ELEMENT_NUMBERS_DEST_WIDTH, 
+        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Icon size.
+        clg_hud_static.hud_icon_slash
+    );
+	numberStartX += HUD_ELEMENT_NUMBERS_DEST_WIDTH;
+    // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
+    CLG_HUD_DrawElementNumberValue(
+        backGroundStartX + numberStartX, // Center X for the health numbers.
+        numberStartY, // Center Y for the health numbers.
+        HUD_ELEMENT_NUMBERS_DEST_WIDTH, // Width of the health numbers.
+        HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
+        clgi.client->frame.ps.stats[ STAT_AMMO ] // Health value to display.
+    );
+    clgi.R_ClearColor();
 }

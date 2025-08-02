@@ -121,7 +121,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
 
     // Solid/MoveType:
     self->solid = SOLID_BOUNDS_BOX;
-    self->movetype = MOVETYPE_ROOTMOTION;
+    self->movetype = MOVETYPE_WALK;
     //self->monsterinfo.aiflags = AI_NOSTEP;
 
     // Model/BBox:
@@ -231,7 +231,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 
         // For summing up distance traversed.
         Vector3 preSumOrigin = self->s.origin;
-
+        // Generate frame velocity vector.
+        Vector3 previousVelocity = self->velocity;
         //---------------------------
         // <TEMPORARY FOR TESTING>
         //---------------------------
@@ -253,7 +254,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             // for dividing velocity's that are of the same scale as that of the players.
             // 
             // Desired average speed in units per second to match player movement
-            constexpr double desiredAverageSpeed = ( 260. ); // units per second (matching player exactly)
+            constexpr double desiredAverageSpeed = ( 220. ); // units per second (matching player exactly)
 
             // Get the raw translation from root motion data
             Vector3 rawTranslation = *rootMotion->translations[ rootMotionFrame ];
@@ -284,11 +285,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 }
             }
 
+            #if 0
             // Debug output to see what's actually happening
             gi.dprintf( "Frame %d: raw=%.4f, velocity=%.2f, frameTime=%.4f, totalDist=%.2f, frameCount=%d\n",
                 rootMotionFrame, rawFrameDistance, frameVelocity, gi.frame_time_s,
                 rootMotion->totalDistance, rootMotion->frameCount );
-
+            #endif
             // Goal Origin:
             Vector3 goalOrigin = self->activator->s.origin;
             if ( self->goalentity ) {
@@ -312,9 +314,6 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 self->trail_time = level.time;
             }
 
-            // Generate frame velocity vector.
-            Vector3 previousVelocity = self->velocity;
-
             Vector3 wishDirVelocity = {
                 cos( self->s.angles[ YAW ] * QM_DEG2RAD ),
                 sin( self->s.angles[ YAW ] * QM_DEG2RAD ),
@@ -327,9 +326,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 self->velocity.x = (float)( wishDirVelocity.x * frameVelocity );
                 self->velocity.y = (float)( wishDirVelocity.y * frameVelocity );
             }
+            SVG_AddGravity( self );
+
             // Keep existing Z velocity for gravity/jumping
             // Is done in MMove_StepSlideMove.
-            SVG_AddGravity( self );
             // If not onground, zero out the frameVelocity.
             #if 0
             if ( self->groundInfo.entity != nullptr ) {
@@ -401,6 +401,56 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 gi.linkentity( self );
             }
         } else if ( self->lifeStatus == LIFESTATUS_ALIVE ) {
+            // Setup the monster move structure.
+            mm_move_t monsterMove = {
+                // Pass/Skip-Entity pointer.
+                .monster = self,
+                // Frametime.
+                .frameTime = gi.frame_time_s,
+                // Bounds
+                .mins = self->mins,
+                .maxs = self->maxs,
+
+                // Movement state, TODO: Store as part of gedict_t??
+                .state = {
+                    .mm_type = MM_NORMAL,
+                    .mm_flags = ( self->groundInfo.entity != nullptr ? MMF_ON_GROUND : 0 ),
+                    .mm_time = 0,
+
+                    .gravity = (int16_t)( self->gravity * sv_gravity->value ),
+
+                    .origin = self->s.origin,
+                    .velocity = self->velocity,
+
+                    .previousOrigin = self->s.origin,
+                    .previousVelocity = previousVelocity,
+                },
+
+                // Proper ground and liquid information.
+                .ground = self->groundInfo,
+                .liquid = self->liquidInfo,
+            };
+
+            // Perform a step slide move for the specified monstermove state.
+            const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove );
+
+            // A step was taken, ensure to apply RF_STAIR_STEP renderflag.
+            if ( std::fabs( monsterMove.step.height ) > 0.f + FLT_EPSILON ) {
+                self->s.renderfx |= RF_STAIR_STEP;
+            }
+            // If the move was succesfull, copy over the state results into the entity's state.
+            if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
+                // Copy over the monster's move state.
+                // self->monsterMove = monsterMove;
+                // Copy over the resulting ground and liquid info.
+                self->groundInfo = monsterMove.ground;
+                self->liquidInfo = monsterMove.liquid;
+                // Copy over the resulting origin and velocity back into the entity.
+                VectorCopy( monsterMove.state.origin, self->s.origin );
+                VectorCopy( monsterMove.state.velocity, self->velocity );
+                // Last but not least, make sure to link it back in.
+                gi.linkentity( self );
+            }
             self->s.frame++;
             if ( self->s.frame >= 82 ) {
                 self->s.frame = 0;

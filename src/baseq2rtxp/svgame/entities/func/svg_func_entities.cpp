@@ -105,10 +105,10 @@ DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -
     }
 
     // Apply next think time and method.
-    pushMoveEnt->nextthink = level.time + FRAME_TIME_S;
-    pushMoveEnt->SetThinkCallback( &svg_func_door_t::SVG_PushMove_Think_CalculateMoveSpeed );
+    //pushMoveEnt->nextthink = level.time + FRAME_TIME_S;
+    //pushMoveEnt->SetThinkCallback( &svg_func_door_t::SVG_PushMove_Think_CalculateMoveSpeed );
 
-    //pushMoveEnt->SVG_PushMove_Think_CalculateMoveSpeed( pushMoveEnt );
+    pushMoveEnt->SVG_PushMove_Think_CalculateMoveSpeed( pushMoveEnt );
 }
 
 

@@ -94,6 +94,20 @@ textures/office/cncrwall01:
 	metalness_factor 0
     specular_factor 0.025
 
+textures/office/cncrwall02:
+	texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 3.5
+	bump_scale 1.0
+    specular_factor 0.125
+
+textures/office/cncrwall03:
+	texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 3.5
+	bump_scale 1.0
+    specular_factor 0.125
+
 textures/office/ceil001:
     texture_base textures/office/*.tga
 	texture_normals textures/office/*_n.tga
@@ -104,65 +118,25 @@ textures/office/ceil001:
     specular_factor 0.125
     roughness_override -1
 
-textures/office/ceil002:
+textures/office/ceillight01:
     texture_base textures/office/*.tga
 	texture_emissive textures/office/*_light.tga
 	texture_normals textures/office/*_n.tga
 	base_factor 1.0
 	is_light 1
-	bump_scale 0.3125
-	emissive_factor 0.25
+	bump_scale 1
+	emissive_factor 0.65
 	metalness_factor 0.1
     specular_factor 0.125
     roughness_override -1
 
-textures/office/ceil003:
+textures/office/decal01:
     texture_base textures/office/*.tga
-	texture_emissive textures/office/*_light.tga
+	texture_mask textures/office/*_m.tga
 	texture_normals textures/office/*_n.tga
 	base_factor 1.0
-	is_light 1
-	bump_scale 0.3125
-	emissive_factor 0.25
-	metalness_factor 0.1
+	bump_scale 1
     specular_factor 0.125
-    roughness_override -1
-
-textures/office/ceil004:
-    texture_base textures/office/*.tga
-	texture_emissive textures/office/*_light.tga
-	texture_normals textures/office/*_n.tga
-	base_factor 1.0
-	is_light 1
-	bump_scale 0.3125
-	emissive_factor 0.25
-	metalness_factor 0.1
-    specular_factor 0.125
-    roughness_override -1
-
-textures/office/ceil005:
-    texture_base textures/office/*.tga
-	texture_emissive textures/office/*_light.tga
-	texture_normals textures/office/*_n.tga
-	base_factor 1.0
-	is_light 1
-	bump_scale 0.3125
-	emissive_factor 0.25
-	metalness_factor 0.1
-    specular_factor 0.125
-    roughness_override -1
-
-textures/office/ceil006:
-    texture_base textures/office/*.tga
-	texture_emissive textures/office/*_light.tga
-	texture_normals textures/office/*_n.tga
-	base_factor 1.0
-	is_light 1
-	bump_scale 0.3125
-	emissive_factor 0.25
-	metalness_factor 0.1
-    specular_factor 0.125
-    roughness_override -1
 
 textures/office/rubberstep01:
     texture_base textures/office/*.tga
@@ -177,3 +151,47 @@ textures/office/path01:
 	base_factor 1.0
 	bump_scale 1
     specular_factor 0.15
+
+textures/office/stonetiles01:
+    texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 1.0
+	bump_scale 1
+    specular_factor 0.10
+	metalness_factor 0.15
+	roughness_override 0.1
+
+textures/office/stonetiles02:
+    texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 1.0
+	bump_scale 1
+    specular_factor 0.10
+	metalness_factor 0.15
+	roughness_override 0.1
+
+textures/office/stucco01:
+    texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 1.0
+	bump_scale 1
+    specular_factor 0.05
+	metalness_factor 0
+
+textures/office/wornwdsiding01:
+    texture_base textures/office/*.tga
+	texture_normals textures/office/*_n.tga
+	base_factor 1.0
+	bump_scale 1
+    specular_factor 0.15
+	metalness_factor 0
+
+textures/office/window01:
+    kind GLASS
+	texture_base textures/office/window01.tga
+	texture_normals textures/office/window01_n.tga
+	base_factor 1
+	bump_scale 1.0
+    metalness_factor 0.8
+	specular_factor 0.1375
+    roughness_override 0.3

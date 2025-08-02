@@ -489,14 +489,22 @@ void svg_gamemode_cooperative_t::ClientBegin( svg_player_edict_t *ent ) {
 *	@brief	Overrides to update client scores when killing monsters in coop.
 **/
 void svg_gamemode_cooperative_t::EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
-    // First call base method.
-    svg_gamemode_t::EntityKilled( targ, inflictor, attacker, damage, point );
-    // Special score treatment for cooperative game mode.
     if ( ( targ->svflags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
-        if ( coop->value && attacker->client ) {
+        targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
+        // WID: TODO: Monster Reimplement.        
+        //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
+        //level.killed_monsters++;
+        if ( attacker->client ) {
             attacker->client->resp.score++;
         }
+        // medics won't heal monsters that they kill themselves
+        //if ( strcmp( (const char *)attacker->classname, "monster_medic" ) == 0 )
+        //    targ->owner = attacker;
+        //}
     }
+
+    // First call base method.
+    svg_gamemode_t::EntityKilled( targ, inflictor, attacker, damage, point );
 }
 
 
@@ -708,7 +716,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
 
     // easy mode takes half damage
     int32_t finalDamage = damage;
-    if ( skill->value == 0 && deathmatch->value == 0 && targ->client ) {
+    if ( skill->value == 0 && targ->client ) {
         finalDamage *= 0.5f;
         if ( !finalDamage )
             finalDamage = 1;
@@ -717,7 +725,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
     // Friendly fire avoidance.
     // If enabled you can't hurt teammates (but you can hurt yourself)
     // Knockback still occurs.
-    if ( ( targ != attacker ) && ( ( deathmatch->value && ( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) ) || ( coop->value && targ->client ) ) ) {
+    if ( ( targ != attacker ) && ( /*( deathmatch->value && ( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) )|| ( coop->value && */ ( targ->client ) ) ) {
         if ( SVG_OnSameTeam( targ, attacker ) ) {
             if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
                 finalDamage = 0;
@@ -758,7 +766,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
     if ( targ->flags & FL_NO_KNOCKBACK ||
         ( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
             ( !( targ->lifeStatus == entity_lifestatus_t::LIFESTATUS_ALIVE ) )
-            /*|| ( targ->death_time && targ->death_time < level.time )*/
+            /*|| ( targ->death_time != 0_ms && targ->death_time < level.time )*/
             ) ) {
         finalKnockBack = 0;
     }
@@ -849,16 +857,17 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
         if ( damage > 0 ) {
             //M_ReactToDamage( targ, attacker );
 
+            # if 0
             float kick = (float)abs( finalKnockBack );
             if ( kick && targ->health > 0 ) { // kick of 0 means no view adjust at all
                 //kick = kick * 100 / targ->health;
 
-                //if ( kick < damage * 0.5f ) {
-                //    kick = damage * 0.5f;
-                //}
-                //if ( kick > 50 ) {
-                //    kick = 50;
-                //}
+                if ( kick < damage * 0.5f ) {
+                    kick = damage * 0.5f;
+                }
+                if ( kick > 50 ) {
+                    kick = 50;
+                }
 
                 Vector3 knockBackVelocity = targ->s.origin - Vector3( inflictor ? inflictor->s.origin : attacker->s.origin );
                 knockBackVelocity = QM_Vector3Normalize( knockBackVelocity );
@@ -867,6 +876,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
                 //targ->velocity += knockBackVelocity;
 
             }
+            #endif
         }
         // WID: TODO: Monster Reimplement.
         //if (!(targ->monsterinfo.aiflags & AI_DUCKED) && (take)) {

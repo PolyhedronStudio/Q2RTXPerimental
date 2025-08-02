@@ -147,7 +147,8 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	if ( !trace.allsolid ) {
 		// [Paril-KEX] from above, do the proper trace now
 		svg_trace_t real_trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, original_down, monsterMove->monster );
-		//pml.origin = real_trace.endpos;
+		//monsterMove.origin = real_trace.endpos;
+		//monsterMove->state.origin = real_trace.endpos;
 
 		// WID: Use proper stair step checking.
 		if ( MMove_CheckStep( &trace ) ) {

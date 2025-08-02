@@ -1151,10 +1151,11 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
     if ( !ent->groundInfo.entity ) {
         M_CheckGround( ent, mask );
     }
+
     SV_CheckVelocity( ent );
     // regular thinking
-    SV_RunThink( ent );
-    return;
+    //SV_RunThink( ent );
+
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
@@ -1190,8 +1191,8 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
     // add gravity except:
     //   flying monsters
     //   swimming monsters who are in the water
-    if ( !wasonground )
-        if ( !( ent->flags & FL_FLY ) )
+    if ( !wasonground ) {
+        if ( !( ent->flags & FL_FLY ) ) {
             if ( !( ( ent->flags & FL_SWIM ) && ( ent->liquidInfo.level > LIQUID_WAIST ) ) ) {
                 //if ( ent->velocity[ 2 ] < level.gravity * -0.1f )
                 if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
@@ -1199,6 +1200,8 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
                 if ( ent->liquidInfo.level != LIQUID_UNDER )
                     SVG_AddGravity( ent );
             }
+        }
+    }
 
     // friction for flying monsters that have been given vertical velocity
     if ( ( ent->flags & FL_FLY ) && ( ent->velocity[ 2 ] != 0 ) /*&& !( ent->monsterinfo.aiflags & AI_ALTERNATE_FLY )*/ ) {
@@ -1325,6 +1328,7 @@ void SVG_RunEntity(svg_base_edict_t *ent)
         SV_Physics_Pusher( ent );
         break;
     case MOVETYPE_NONE:
+    case MOVETYPE_WALK:
         SV_Physics_None( ent );
         break;
     case MOVETYPE_NOCLIP:

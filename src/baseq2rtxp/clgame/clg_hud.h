@@ -126,6 +126,19 @@ typedef struct hud_usetarget_hint_s {
 typedef struct hud_static_s {
 	//! Handle to the default element background image, we use as a 9 grid.
 	qhandle_t hud_element_background = 0;
+    
+    //! Handle to the health element icon.
+	qhandle_t hud_icon_health = 0;
+    //! Handle to the armor element icon.
+	qhandle_t hud_icon_armor = 0;
+
+    //! Icon for ammo indicator when using a pistol.
+    qhandle_t hud_icon_slash = 0;
+    //! Icon for ammo indicator when using a pistol.
+	qhandle_t hud_icon_ammo_pistol = 0;
+
+	//! Handles in an array, to the numbers used for armor/health/ammo indicators.
+	qhandle_t hud_icon_numbers[ 10 ] = { };
 } hud_static_t;
 /**
 * 

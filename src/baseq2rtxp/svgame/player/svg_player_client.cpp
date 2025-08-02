@@ -206,6 +206,9 @@ void SVG_Player_InitPersistantData( svg_base_edict_t *ent, svg_client_t *client 
     // Health.
     client->pers.health = 100;
     client->pers.max_health = 100;
+    // Armor.
+    client->pers.armor = 100;
+    client->pers.max_armor = 100;
 
     // Ammo capacities.
     client->pers.ammoCapacities.pistol = 120;
@@ -251,6 +254,10 @@ void SVG_Player_SaveClientData( void ) {
 		// Store the persistent data into the client structure.
         game.clients[ i ].pers.health = ent->health;
         game.clients[ i ].pers.max_health = ent->max_health;
+
+        game.clients[ i ].pers.health = ent->armor;
+        game.clients[ i ].pers.max_health = ent->max_armor;
+
         game.clients[ i ].pers.savedFlags = static_cast<entity_flags_t>( ent->flags & ( FL_GODMODE | FL_NOTARGET /*| FL_POWER_ARMOR*/ ) );
 		// Store the respawn score.
         if ( coop->value ) {
@@ -265,6 +272,10 @@ void SVG_Player_RestoreClientData( svg_base_edict_t *ent ) {
 	// Restore the persistent data from the client structure to the entity.
     ent->health = ent->client->pers.health;
     ent->max_health = ent->client->pers.max_health;
+
+    ent->armor = ent->client->pers.armor;
+    ent->max_armor = ent->client->pers.max_armor;
+
     ent->flags |= ent->client->pers.savedFlags;
 	// If we are in cooperative mode, restore the score.
     if ( coop->value ) {

@@ -407,6 +407,12 @@ void SVG_SetWeaponStats( svg_base_edict_t *ent ) {
 **/
 void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
+    // Armor
+    //
+    ent->client->ps.stats[ STAT_ARMOR_ICON ] = 0;
+    ent->client->ps.stats[ STAT_ARMOR ] = ent->armor;
+
+    //
     // Health
     //
     ent->client->ps.stats[ STAT_HEALTH_ICON ] = 0;// level.pic_health;
@@ -422,9 +428,7 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     SVG_SetWeaponStats( ent );
     
-    //
-    // Armor
-    //
+
     //index = ArmorIndex(ent);
     //if (index) {
     //    item = SVG_Item_GetByIndex(index);
@@ -433,8 +437,7 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //        ent->client->ps.stats[ STAT_ARMOR ] = ent->client->pers.inventory[ index ];
     //    }
     //} else {
-        ent->client->ps.stats[STAT_ARMOR_ICON] = 0;
-        ent->client->ps.stats[STAT_ARMOR] = 0;
+
     //}
 
     //

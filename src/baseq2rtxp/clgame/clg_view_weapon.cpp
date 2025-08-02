@@ -148,16 +148,35 @@ void CLG_ViewWeapon_CalculateOffset( player_state_t *ops, player_state_t *ps, co
     *
     *
     **/
+    #if 0
     // Calculate the normal bobbing gun offset
+    static double xRandomizer = drandom( 0.f, 0.075f );
+    static double yRandomizer = drandom( 0.f, 0.185f );
+
+    Vector3 bobbingGunOffset = {
+        // We use random values here to prevent repetitive continuous motions.
+        ( -xRandomizer * (double)level.viewBob.fracSin2 ),
+        ( -yRandomizer * (double)level.viewBob.fracSin2 ),
+        -.25
+    };
+
+    if ( level.viewBob.cycle & 1 ) {
+        bobbingGunOffset.x = -bobbingGunOffset.x;
+        xRandomizer = drandom( 0.f, 0.075f );
+        yRandomizer = drandom( 0.f, 0.185f );
+    }
+    #else
+    // Bobbing gun origin offset.
     Vector3 bobbingGunOffset = {
         ( -.075f * (float)level.viewBob.fracSin2 ),
         ( -.185f * (float)level.viewBob.fracSin2 ),
         -.25f
     };
-
+	// Change the direction of the bobbing based on the cycle.
     if ( level.viewBob.cycle & 1 ) {
         bobbingGunOffset.x = -bobbingGunOffset.x;
     }
+    #endif
 
     // Handle secondary fire state transitions.
     if ( isSecondaryFiring ) {

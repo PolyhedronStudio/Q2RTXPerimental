@@ -86,6 +86,8 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, health, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, max_health, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, armor, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, max_armor, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, gib_health, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, lifeStatus, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, takedamage, SD_FIELD_TYPE_INT32 ),
@@ -764,6 +766,16 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     // Match: health
     else if ( keyStr == "health" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
         health = keyValuePair->integer;
+        return true;
+    }
+    // Match: maxhealth
+    else if ( keyStr == "maxarmor" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        max_armor = keyValuePair->integer;
+        return true;
+    }
+    // Match: armor
+    else if ( keyStr == "armor" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
+        armor = keyValuePair->integer;
         return true;
     }
     // Match: sounds

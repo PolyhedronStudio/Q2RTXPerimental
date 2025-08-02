@@ -734,7 +734,7 @@ void svg_gamemode_deathmatch_t::DamageEntity( svg_base_edict_t *targ, svg_base_e
 
 	// easy mode takes half damage
 	int32_t finalDamage = damage;
-	if ( skill->value == 0 && deathmatch->value == 0 && targ->client ) {
+	if ( skill->value == 0 && targ->client ) {
 		finalDamage *= 0.5f;
 		if ( !finalDamage )
 			finalDamage = 1;
@@ -743,7 +743,7 @@ void svg_gamemode_deathmatch_t::DamageEntity( svg_base_edict_t *targ, svg_base_e
 	// Friendly fire avoidance.
 	// If enabled you can't hurt teammates (but you can hurt yourself)
 	// Knockback still occurs.
-	if ( ( targ != attacker ) && ( ( deathmatch->value && ( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) ) || ( coop->value && targ->client ) ) ) {
+	if ( ( targ != attacker ) && ( ( /*deathmatch->value &&*/ ( (int)( dmflags->value ) & ( DF_MODELTEAMS | DF_SKINTEAMS ) ) ) ) ) {
 		if ( SVG_OnSameTeam( targ, attacker ) ) {
 			if ( (int)( dmflags->value ) & DF_NO_FRIENDLY_FIRE ) {
 				finalDamage = 0;

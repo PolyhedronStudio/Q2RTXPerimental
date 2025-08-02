@@ -29,8 +29,7 @@
 *   @brief  Save descriptor array definition for all the members of svg_player_edict_t.
 **/
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_player_edict_t )
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_player_edict_t, testVar, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_player_edict_t, testVar2, SD_FIELD_TYPE_VECTOR3 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_player_edict_t, armor, SD_FIELD_TYPE_INT32 ),
 SAVE_DESCRIPTOR_FIELDS_END();
 
 //! Implement the methods for saving this edict type's save descriptor fields.
@@ -46,8 +45,7 @@ void svg_player_edict_t::Reset( const bool retainDictionary ) {
     // Call upon the base class.
     Super::Reset( retainDictionary );
 	// Reset the edict's save descriptor fields.
-    testVar = 1337;
-    testVar2 = {};
+    armor = 0;
 }
 
 
@@ -185,7 +183,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie) ( svg_player_edict_t *sel
     // Stop playing any sounds.
     self->s.sound = 0;
     self->client->weaponState.activeSound = 0;
-
+    
     // Set bbox maxs to PM_BBOX_DUCKED_MAXS.
     self->maxs[ 2 ] = PM_BBOX_DUCKED_MAXS.z;
 

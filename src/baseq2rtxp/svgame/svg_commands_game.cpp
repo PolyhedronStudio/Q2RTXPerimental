@@ -14,6 +14,7 @@
 #include "svgame/svg_weapons.h"
 
 #include "svgame/entities/svg_item_edict.h"
+#include "svgame/entities/svg_player_edict.h"
 
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
@@ -212,12 +213,41 @@ void SVG_Command_God_f(svg_base_edict_t *ent)
 }
 
 /**
+*   @brief  Sets client health to value of argv(1).
+**/
+void SVG_Command_SetHealth_f( svg_base_edict_t *ent ) {
+    if ( !ent || !ent->inuse || !ent->client || !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>( false ) ) {
+        gi.cprintf( ent, PRINT_HIGH, "You must be a player to use this command.\n" );
+        return;
+    }    
+    if ( /*( deathmatch->value || coop->value ) && */!sv_cheats->value ) {
+        gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
+        return;
+	}
+	ent->health = atoi( gi.argv( 1 ) );
+}
+/**
+*   @brief  Sets client health to value of argv(1).
+**/
+void SVG_Command_SetArmor_f( svg_base_edict_t *ent ) {
+    if ( !ent || !ent->inuse || !ent->client || !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>( false ) ) {
+        gi.cprintf( ent, PRINT_HIGH, "You must be a player to use this command.\n" );
+        return;
+    }
+    if ( /*( deathmatch->value || coop->value ) &&*/ !sv_cheats->value ) {
+        gi.cprintf( ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n" );
+        return;
+    }
+    svg_player_edict_t *playerEntity = static_cast<svg_player_edict_t *>( ent );
+    playerEntity->armor = atoi(gi.argv(1));
+}
+/**
 *   @brief  Sets client to notarget
 *   @note   argv(0) notarget
 **/
 void SVG_Command_Notarget_f(svg_base_edict_t *ent)
 {
-    if ((deathmatch->value || coop->value) && !sv_cheats->value) {
+    if (/*(deathmatch->value || coop->value) &&*/ !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
         return;
     }
@@ -235,7 +265,7 @@ void SVG_Command_Notarget_f(svg_base_edict_t *ent)
 **/
 void SVG_Command_Noclip_f(svg_base_edict_t *ent)
 {
-    if ((deathmatch->value || coop->value) && !sv_cheats->value) {
+    if (/*(deathmatch->value || coop->value) &&*/ !sv_cheats->value) {
         gi.cprintf(ent, PRINT_HIGH, "You must run the server with '+set cheats 1' to enable this command.\n");
         return;
     }
@@ -816,6 +846,11 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
         SVG_Command_Notarget_f( ent );
     } else if ( Q_stricmp( cmd, "noclip" ) == 0 ) {
         SVG_Command_Noclip_f( ent );
+    // <Q2RTXP>: For HUD debugging.
+    } else if ( Q_stricmp( cmd, "sethealth" ) == 0 ) {
+        SVG_Command_SetHealth_f( ent );
+    } else if ( Q_stricmp( cmd, "setarmor" ) == 0 ) {
+        SVG_Command_SetArmor_f( ent );
     //
     // Lua:
     // 

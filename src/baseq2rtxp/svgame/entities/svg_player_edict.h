@@ -117,7 +117,6 @@ struct svg_player_edict_t : public svg_base_edict_t {
     *   Member Variables:
     *
     **/
-    // Player variables.
-    int testVar = 100;
-    Vector3 testVar2 = {};
+    //! Player's actually have armor, next to health.
+    int32_t armor = 0;
 };
