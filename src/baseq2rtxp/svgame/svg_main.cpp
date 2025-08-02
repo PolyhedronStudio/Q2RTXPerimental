@@ -374,7 +374,9 @@ void SVG_InitGame( void ) {
     aimfix = gi.cvar( "aimfix", "0", CVAR_ARCHIVE );
 
     // latched vars
-    sv_cheats = gi.cvar( "cheats", "0", CVAR_SERVERINFO | CVAR_LATCH );
+	// If we are in development mode, we want to allow cheats.
+    //sv_cheats = gi.cvar( "cheats", "0", CVAR_SERVERINFO | CVAR_LATCH );
+    sv_cheats = gi.cvar( "cheats", nullptr, 0 );
     gi.cvar( "gamename", GAMEVERSION, CVAR_SERVERINFO | CVAR_LATCH );
     gi.cvar( "gamedate", __DATE__, CVAR_SERVERINFO | CVAR_LATCH );
 

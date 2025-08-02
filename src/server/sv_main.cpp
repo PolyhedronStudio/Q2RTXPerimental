@@ -1373,7 +1373,9 @@ static void SV_GiveMsec(void)
     //if (!(sv.framenum % ((int64_t)BASE_FRAMERATE))) {
     if ( !( sv.framenum % ( (int64_t)16 ) ) ) {
         FOR_EACH_CLIENT( cl ) {
-            cl->command_msec = ( 16 * BASE_FRAMETIME ) + 50;// 1800; // 1600 + some slop
+            cl->command_msec = ( 16 * BASE_FRAMETIME ) + 200;// 1800; // 1600 + some slop
+            // <Q2RTXP>: Hmm..
+            //cl->command_msec = ( 16 * BASE_FRAMETIME ) + 50;// 1800; // 1600 + some slop
         }
     }
     #else
@@ -2065,7 +2067,14 @@ void SV_Init(void) {
 	//Cvar_Get( "deathmatch", "0", CVAR_SERVERINFO | CVAR_LATCH );
 	//Cvar_Get( "coop", "0", /*CVAR_SERVERINFO|*/CVAR_LATCH );
     
-	Cvar_Get("cheats", "0", CVAR_SERVERINFO | CVAR_LATCH);
+	cvar_t *sv_cheats = nullptr; //Cvar_Get("cheats", "0", CVAR_SERVERINFO | CVAR_LATCH);
+    if ( developer->integer ) {
+        // Allow cheats.
+        sv_cheats = Cvar_Get( "cheats", "1", CVAR_SERVERINFO | CVAR_LATCH );
+    } else {
+        // Disable cheats.
+        sv_cheats = Cvar_Get( "cheats", "0", CVAR_SERVERINFO | CVAR_LATCH );
+    }
     Cvar_Get("dmflags", va("%i", DF_INSTANT_ITEMS), CVAR_SERVERINFO);
     Cvar_Get("fraglimit", "0", CVAR_SERVERINFO);
     Cvar_Get("timelimit", "0", CVAR_SERVERINFO);
