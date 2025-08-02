@@ -178,15 +178,21 @@ void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
 *	@brief	Called when screen module is drawing its 2D overlay(s).
 **/
 void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
+    clgi.R_ClearColor();
+    clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+    clgi.R_SetAlphaScale( 1.0 );
     // Got an index of hint display, but its flagged as invisible.
     CLG_HUD_DrawCrosshair();
-    // Display the use target hint information.
-    CLG_HUD_DrawUseTargetHintInfos();
-
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();
     clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
-
+    clgi.R_SetAlphaScale( 1.0 );
+    // Display the use target hint information.
+    CLG_HUD_DrawUseTargetHintInfos();
+    // The rest of 2D elements share common alpha.
+    clgi.R_ClearColor();
+    clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+	clgi.R_SetAlphaScale( clg_hud.hud_alpha );
     // Weapon Name AND (Clip-)Ammo Indicators.
     CLG_HUD_DrawAmmoIndicators();
     // Health AND Armor Indicators.
@@ -319,6 +325,8 @@ void CLG_HUD_DrawElementBackground( const double &x, const double &y, const doub
 
     // Set text color to orange.
     clgi.R_SetColor( clg_hud.colors.WHITE );
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
 
     // The minimal width and height are 64x64.
     const double _w = w < HUD_ELEMENT_BACKGROUND_MIN_SIZE ? HUD_ELEMENT_BACKGROUND_MIN_SIZE : w;
@@ -330,10 +338,7 @@ void CLG_HUD_DrawElementBackground( const double &x, const double &y, const doub
     // Determine the width and height.
     double elementWidth = _w;
     double elementHeight = _h;
-
-    clgi.R_ClearColor();
-	clgi.R_SetClipRect( nullptr );
-    
+        
     /**
     *   Top Row
     **/
@@ -628,17 +633,7 @@ void CLG_HUD_DrawChat( void ) {
             if ( !alpha ) {
                 break;
             }
-            //
-            // When I wake up, and got time tomorrow somewhere during the day:
-            // Use this method of chatlines, for displaying a fading in UseTargetHint,
-            // while rapidly easing the previously active UseTargetHint down to the next
-            // line, as it fades out!
-            //
-            //
-            //
-            //
-            //
-            //
+
             clgi.R_SetAlpha( alpha * scr_alpha->value );
             SCR_DrawString( x, y, flags, line->text );
             clgi.R_SetAlpha( scr_alpha->value );
@@ -810,7 +805,7 @@ void CLG_HUD_DrawLineCrosshair( ) {
     clgi.R_SetColor( clg_hud.colors.WHITE );
     // Apply generic crosshair alpha.
     clgi.R_SetAlpha( scr_alpha->value * clg_hud.crosshair.alpha );
-
+    
     // Thicker crosshair? Type 2:
     const bool thickCrossHair = ( hud_crosshair_type->integer > 1 );
 
@@ -936,7 +931,9 @@ static void CLG_HUD_DrawHealthIndicators() {
     );
 
     // Icon is reddish.
-	clgi.R_SetColor( MakeColor( 217, 87, 99, 210 ) ); // == Mandy color in Krita Pixel
+	clgi.R_SetColor( MakeColor( 217, 87, 99, 225 ) ); // == Mandy color in Krita Pixel
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
     // Draw the health icon.
     clgi.R_DrawStretchPic( 
         iconStartX, iconStartY,
@@ -944,7 +941,9 @@ static void CLG_HUD_DrawHealthIndicators() {
         clg_hud_static.hud_icon_health 
     );
     // Draw the health count numbers.
-    clgi.R_SetColor( MakeColor( 255, 255, 255, 175 ) ); 
+    clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
 	// Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue( 
         numberStartX, // Center X for the health numbers.
@@ -953,7 +952,7 @@ static void CLG_HUD_DrawHealthIndicators() {
         HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
         clgi.client->frame.ps.stats[ STAT_HEALTH ] // Health value to display.
 	);
-    clgi.R_ClearColor();
+    //clgi.R_ClearColor();
 
 
     /**
@@ -979,7 +978,9 @@ static void CLG_HUD_DrawHealthIndicators() {
     );
 
     // Icon is reddish.
-    clgi.R_SetColor( MakeColor( 99, 155, 255, 210 ) ); // == Cornflower color in Krita Pixel
+    clgi.R_SetColor( MakeColor( 99, 155, 255, 225 ) ); // == Cornflower color in Krita Pixel
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
     // Draw the health icon.
     clgi.R_DrawStretchPic(
         iconStartX, iconStartY,
@@ -987,7 +988,9 @@ static void CLG_HUD_DrawHealthIndicators() {
         clg_hud_static.hud_icon_armor
     );
     // Draw the health count numbers.
-    clgi.R_SetColor( MakeColor( 255, 255, 255, 175 ) );
+    clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( clg_hud.hud_alpha *scr_alpha->value );
     // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue(
         numberStartX, // Center X for the health numbers.
@@ -996,7 +999,9 @@ static void CLG_HUD_DrawHealthIndicators() {
         HUD_ELEMENT_NUMBERS_DEST_HEIGHT, // Height of the health numbers.
         clgi.client->frame.ps.stats[ STAT_ARMOR ] // Health value to display.
     );
+
     clgi.R_ClearColor();
+    clgi.R_SetAlpha( scr_alpha->value );
 }
 
 /**
@@ -1022,7 +1027,6 @@ static void CLG_HUD_DrawAmmoIndicators() {
     static constexpr double HUD_ELEMENT_NUMBERS_DEST_HEIGHT = 64.; // Height of the element.
     static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH = 32.; // Height of the element.
 
-  
     double backGroundStartX = 0;
     double backGroundStartY = clg_hud.hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
     
@@ -1047,7 +1051,9 @@ static void CLG_HUD_DrawAmmoIndicators() {
     );
 
     // Icon is orangie.
-    clgi.R_SetColor( MakeColor( 223, 113, 38, 210 ) ); // == Orangie color in Krita Pixel
+    clgi.R_SetColor( MakeColor( 217, 160, 102, 225 ) ); // == Orangie color in Krita Pixel
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
     // Draw the health icon.
     clgi.R_DrawStretchPic(
         backGroundStartX + iconStartX, iconStartY,
@@ -1055,7 +1061,9 @@ static void CLG_HUD_DrawAmmoIndicators() {
         ammoIcon
     );
     // Draw the health count numbers.
-    clgi.R_SetColor( MakeColor( 255, 255, 255, 175 ) ); 
+    clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
     // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue(
         backGroundStartX + numberStartX, // Center X for the health numbers.
@@ -1067,6 +1075,10 @@ static void CLG_HUD_DrawAmmoIndicators() {
     /**
 	*   The slash "/" separator pic, which is drawn between the clip ammo and the total ammo.
     **/
+    // Draw the health count numbers.
+    clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
+    // Apply generic crosshair alpha.
+    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
 	// Draw the / pic.
     numberStartX += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
     // Draw the health icon.
@@ -1087,4 +1099,5 @@ static void CLG_HUD_DrawAmmoIndicators() {
         clgi.client->frame.ps.stats[ STAT_AMMO ] // Health value to display.
     );
     clgi.R_ClearColor();
+    clgi.R_SetAlpha( scr_alpha->value );
 }

@@ -3551,7 +3551,8 @@ retry:;
 	vkpt_vertex_buffer_upload_models();
 	vkpt_draw_clear_stretch_pics();
 
-	SCR_SetHudAlpha(1.f);
+	// hud_alpha will be set elsewhere.
+	SCR_SetHudAlpha( Cvar_Get( "hud_alpha", "", 0 )->value );
 }
 
 void

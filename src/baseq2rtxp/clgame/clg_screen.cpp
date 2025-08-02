@@ -988,15 +988,22 @@ void PF_SCR_ModeChanged( void ) {
     //Con_CheckResize();
     //UI_ModeChanged();
     //cls.disable_screen = 0;
+    cvar_t *hud_alpha = nullptr;
     if ( scr.initialized ) {
         // Clamp scale.
         scr.hud_scale = clgi.R_ClampScale( scr_scale );
         // Notify HUD about the scale change.
         CLG_HUD_ModeChanged( scr.hud_scale );
+        scr.hud_alpha = clgi.CVar_ClampValue( hud_alpha, 0.0f, 1.0f );
+    } else {
+        hud_alpha = clgi.CVar_Get( "hud_alpha", "1.0", CVAR_ARCHIVE );
+        hud_alpha->changed = []( cvar_t *self ) {
+            scr.hud_alpha = clgi.CVar_ClampValue( self, 0.0f, 1.0f );
+            // Notify HUD about the alpha change.
+            CLG_HUD_AlphaChanged( scr.hud_alpha );
+        };
     }
 
-    // Now adjust alpha to default.
-    scr.hud_alpha = 1.f;
     // Notify HUD again.
     CLG_HUD_AlphaChanged( scr.hud_alpha );
 }

@@ -2062,11 +2062,9 @@ void SV_Init(void) {
     // Initialize core cvars.
     Cvar_Get("protocol", STRINGIFY(PROTOCOL_VERSION_Q2RTXPERIMENTAL), CVAR_SERVERINFO | CVAR_ROM);
     Cvar_Get("skill", "1", CVAR_LATCH);
-	// WID: gamemode
+	// <Q2RTXP>: WID: gamemode, default is 0 (normal game mode aka SinglePlayer).
 	Cvar_Get( "gamemode", "0", CVAR_SERVERINFO | CVAR_LATCH );
-	//Cvar_Get( "deathmatch", "0", CVAR_SERVERINFO | CVAR_LATCH );
-	//Cvar_Get( "coop", "0", /*CVAR_SERVERINFO|*/CVAR_LATCH );
-    
+	
 	cvar_t *sv_cheats = nullptr; //Cvar_Get("cheats", "0", CVAR_SERVERINFO | CVAR_LATCH);
     if ( developer->integer ) {
         // Allow cheats.

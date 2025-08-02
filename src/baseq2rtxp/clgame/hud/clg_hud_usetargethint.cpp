@@ -329,6 +329,8 @@ void CLG_HUD_DrawUseTargetHintInfos() {
             targetHintInfo->alpha = 1.0 - targetHintInfo->easeState.EaseInOut( realTime, QM_ExponentialEaseInOut );
         }
 
+        // Reset R color.
+        clgi.R_ClearColor();
         // Draw the info.
         HUD_DrawTargetHintInfo( targetHintInfo );
 
