@@ -21,9 +21,6 @@
 /**
 *   CVars:
 **/
-//! We need this one.
-extern cvar_t *scr_alpha;
-
 //! The chat hud.
 extern cvar_t *hud_chat;
 extern cvar_t *hud_chat_lines;
@@ -115,6 +112,15 @@ typedef struct hud_usetarget_hint_s {
 } hud_usetarget_hint_t;
 
 
+/**
+*   For storing svc_damage message 'damage indicators'.
+**/
+typedef struct {
+    int32_t     damage;
+    Vector3     color;
+    Vector3     dir;
+    uint64_t     time;
+} hud_damage_entry_t;
 
 /**
 *
@@ -140,6 +146,8 @@ typedef struct hud_static_s {
 	//! Handles in an array, to the numbers used for armor/health/ammo indicators.
 	qhandle_t hud_icon_numbers[ 10 ] = { };
 } hud_static_t;
+
+
 /**
 * 
 * 
@@ -210,14 +218,15 @@ struct hud_state_t {
         uint32_t        chathead;
     } chatState = {};
 
-    //! Real hud screen size.
-    int32_t     hud_real_width = 0, hud_real_height = 0;
-    //! Scaled hud screen size.
-    int32_t     hud_scaled_width = 0, hud_scaled_height = 0;
-    //! Scale.
-    float       hud_scale = 1.f;
-    //! Global alpha.
-    float       hud_alpha = 1.f;
+    // Damage entries(indicating damage count and direction of damage.)
+    struct hud_state_damage_entries_s {
+        //! 32 is more than enough.
+        static constexpr int32_t MAX_DAMAGE_INDICATOR_ENTRIES = 32;
+        //! Damage indicator fifo.
+        hud_damage_entry_t  indicatorEntries[ MAX_DAMAGE_INDICATOR_ENTRIES ] = {};
+        //! The width and height of the precached damage indicator picture.
+        int32_t indicatorWidth = 0, indicatorHeight = 0;
+    } damageDisplay = {};
 };
 //! Extern access for sub hud translation units.
 extern hud_state_t clg_hud;
@@ -226,6 +235,7 @@ extern hud_state_t clg_hud;
 *   @brief  Called when screen module is initialized.
 **/
 void CLG_HUD_Initialize( void );
+
 /**
 *   @brief  Called by PF_SCR_ModeChanged(video mode changed), or scr_scale_changed, in order to
 *           notify about the new HUD scale.
@@ -235,6 +245,7 @@ void CLG_HUD_ModeChanged( const float newHudScale );
 *   @brief  Called by PF_SetScreenHUDAlpha, in order to notify about the new HUD alpha.
 **/
 void CLG_HUD_AlphaChanged( const float newHudAlpha );
+
 /**
 *	@brief	Called when screen modfule is drawing its 2D overlay(s).
 **/
@@ -357,3 +368,23 @@ void CLG_HUD_AddChatLine( const char *text );
 *   @brief  Draws chat hud to screen.
 **/
 void CLG_HUD_DrawChat( void );
+
+
+
+/**
+*
+*
+*
+*   Damage Indicators:
+*
+*
+*
+**/
+/**
+*   @brief  Adds a damage indicator for the given damage using the given color pointing at given direction.
+**/
+void CLG_HUD_AddToDamageDisplay( const int32_t damage, const Vector3 &color, const Vector3 &dir );
+/**
+*   @brief
+**/
+void CLG_HUD_DrawDamageDisplays( void );

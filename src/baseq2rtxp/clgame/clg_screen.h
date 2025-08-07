@@ -14,11 +14,6 @@
 *           for a few moments
 **/
 void SCR_CenterPrint( const char *str );
-
-/**
-*   @brief  Adds a damage indicator for the given damage using the given color pointing at given direction.
-**/
-void SCR_AddToDamageDisplay( const int32_t damage, const Vector3 &color, const Vector3 &dir );
 /**
 *	@brief
 **/

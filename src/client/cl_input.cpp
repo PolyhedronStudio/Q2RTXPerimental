@@ -254,7 +254,7 @@ void CL_KeyDown( keybutton_t *b ) {
     // save timestamp
     c = Cmd_Argv( 2 );
     b->downtime = atoi( c );
-    if ( !b->downtime ) {
+    if ( b->downtime <= 0 ) {
         b->downtime = com_eventTime - BASE_FRAMETIME;//BASE_FRAMETIME_1000; // Original was 10, hmm? WID: 40hz: BASE_FRAMETIME 2.5 worked too?
     }
 
@@ -296,10 +296,10 @@ void CL_KeyUp( keybutton_t *b ) {
     // save timestamp
     c = Cmd_Argv( 2 );
     uptime = atoi( c );
-    if ( uptime > b->downtime ) {
+    if ( uptime/* > b->downtime */) {
         b->msec += uptime - b->downtime;
     } else {//if ( uptime <= 0 ) {
-        b->msec += BASE_FRAMETIME;//BASE_FRAMETIME_1000; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10; 2.5 worked too?
+        b->msec += BASE_FRAMETIME / 2.;//BASE_FRAMETIME_1000; // Original was 10 hmm? BASE_FRAMETIME WID: 40hz: Used to be 10; 2.5 worked too?
     }
 
     b->state &= ~( BUTTON_STATE_HELD | BUTTON_STATE_DOWN );        // now up                       // impulse up

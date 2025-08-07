@@ -144,7 +144,7 @@ typedef struct {
 
 	//! Client State. Shared with client game.
 	struct client_state_s *client;
-
+	struct cl_screen_shared_s *screen;
 
 	/**
 	*

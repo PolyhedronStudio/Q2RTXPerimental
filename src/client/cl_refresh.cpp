@@ -531,7 +531,7 @@ float R_ClampScale( cvar_t *var ) {
         return 1.0f;
 
     if ( var->value )
-        return 1.0f / Cvar_ClampValue( var, 1.0f, 10.0f );
+        return 1.0f / Cvar_ClampValue( var, 0.25f, 10.0f );
 
     return 1.0f / get_auto_scale();
 }

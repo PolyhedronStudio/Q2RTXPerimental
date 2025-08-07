@@ -704,19 +704,16 @@ extern vrect_t      scr_vrect;        // position of render window
 void    SCR_Init(void);
 void    SCR_Shutdown(void);
 void    SCR_UpdateScreen(void);
-void    SCR_SizeUp(void);
-void    SCR_SizeDown(void);
 void    SCR_CenterPrint(const char *str);
 void    SCR_BeginLoadingPlaque(void);
 void    SCR_EndLoadingPlaque(void);
-void    SCR_TouchPics(void);
 void    SCR_RegisterMedia(void);
 void    SCR_ModeChanged(void);
 void    SCR_LagSample(void);
 void    SCR_LagClear(void);
 void    SCR_DeltaFrame(void);
 QEXTERN_C_ENCLOSE( const qhandle_t SCR_GetFont( void ); );
-QEXTERN_C_ENCLOSE( void    SCR_SetHudAlpha( const float alpha ); );
+QEXTERN_C_ENCLOSE( void SCR_SetHudAlpha( const float alpha ); );
 /**
 *   @brief Fades alpha in and out, keeping the alpha visible for 'visTime' amount.
 *   @return 'Alpha' value of the current moment in time. from(startTime) to( startTime + visTime ).
@@ -724,15 +721,6 @@ QEXTERN_C_ENCLOSE( void    SCR_SetHudAlpha( const float alpha ); );
 const float SCR_FadeAlpha( const uint64_t startTime, const uint64_t visTime, const uint64_t fadeTime );
 QEXTERN_C_ENCLOSE( int     SCR_DrawStringEx( int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font ); );
 void    SCR_DrawStringMulti(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font);
-
-/**
-*   @brief  Clear the chat HUD.
-**/
-void CLG_HUD_ClearChat_f( void );
-/**
-*   @brief  Append text to chat HUD.
-**/
-void CLG_HUD_AddChatLine( const char *text );
 
 /**
 *   @return A lowercase string matching the textual name of the color for colorIndex.

@@ -195,7 +195,7 @@ static void CLG_ParseDamage( void ) {
         //clgi.Print( PRINT_DEVELOPER, "%s: svc_damage received(damage=%i, color=[%f,%f,%f], dir=[%f,%f,%f])\n",
         //    __func__, data.decoded.damage, colorBlend[ 0 ], colorBlend[ 1 ], colorBlend[ 2 ], dir[ 0 ], dir[ 1 ], dir[ 2 ] );
 
-        SCR_AddToDamageDisplay( data.decoded.damage, colorBlend, dir );
+        CLG_HUD_AddToDamageDisplay( data.decoded.damage, colorBlend, dir );
     }
 }
 

@@ -6,6 +6,8 @@
 #include "common/skeletalmodels/cm_skm_posecache.h"
 
 
+extern cl_screen_shared_t cl_scr;
+
 /**
 *
 *
@@ -768,6 +770,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.frame_time_ms = BASE_FRAMETIME;
 
 	imports.client = &cl;
+	imports.screen = &cl_scr;
 
 	// Client Static:
 	imports.IsDemoPlayback = PF_IsDemoPlayback;

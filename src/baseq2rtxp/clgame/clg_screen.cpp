@@ -25,65 +25,56 @@
 *   Screen Struct:
 *
 **/
-typedef struct {
-    int32_t     damage;
-    Vector3     color;
-    Vector3     dir;
-    int64_t     time;
-} scr_damage_entry_t;
-
-static constexpr int32_t MAX_DAMAGE_ENTRIES = 32;
-static constexpr int32_t DAMAGE_ENTRY_BASE_SIZE = 32;
 
 
-static struct {
-    bool        initialized;        // ready to draw
 
-    //! Fetched image sizes.
-    int32_t     pause_width, pause_height;
-    int32_t     loading_width, loading_height;
-    int32_t     damage_display_width, damage_display_height;
-
-    //! Stores entries from svc_damage.
-    scr_damage_entry_t  damage_entries[ MAX_DAMAGE_ENTRIES ];
-
-    //! The screen module keeps track of its own 'HUD' display properties.
-    int32_t     hud_width, hud_height;
-    float       hud_scale;
-    float       hud_alpha;
-} scr;
+//static struct {
+//    bool        initialized;        // ready to draw
+//
+//    //! Fetched image sizes.
+//    int32_t     pause_width, pause_height;
+//    int32_t     loading_width, loading_height;
+//    int32_t     damage_display_width, damage_display_height;
+//
+//    //! Stores entries from svc_damage.
+//    scr_damage_entry_t  damage_entries[ MAX_DAMAGE_ENTRIES ];
+//
+//    //! The screen module keeps track of its own 'HUD' display properties.
+//    int32_t     hud_width, hud_height;
+//    float       hud_scale;
+//    float       hud_alpha;
+//} scr;
 
 
 //! Created by engine(client) fetched by Client Game:
-static cvar_t *scr_viewsize;
+static cvar_t *scr_viewsize = nullptr;
 
 //! Client Game Screen Specific:
-static cvar_t *scr_centertime;
-static cvar_t *scr_showpause;
+static cvar_t *scr_centertime = nullptr;
+static cvar_t *scr_showpause = nullptr;
 #if USE_DEBUG
-static cvar_t *scr_showstats;
-static cvar_t *scr_showpmove;
+static cvar_t *scr_showstats = nullptr;
+static cvar_t *scr_showpmove = nullptr;
 #endif
-static cvar_t *scr_showturtle;
-static cvar_t *scr_showitemname;
+static cvar_t *scr_showturtle = nullptr;
+static cvar_t *scr_showitemname = nullptr;
 
-static cvar_t *scr_draw2d;
-static cvar_t *scr_lag_x;
-static cvar_t *scr_lag_y;
-static cvar_t *scr_lag_draw;
-static cvar_t *scr_lag_min;
-static cvar_t *scr_lag_max;
-cvar_t *scr_alpha;
-static cvar_t *scr_fps;
+static cvar_t *scr_draw2d = nullptr;
+static cvar_t *scr_lag_x = nullptr;
+static cvar_t *scr_lag_y = nullptr;
+static cvar_t *scr_lag_draw = nullptr;
+static cvar_t *scr_lag_min = nullptr;
+static cvar_t *scr_lag_max = nullptr;
+static cvar_t *scr_fps = nullptr;
 
-static cvar_t *scr_demobar;
-static cvar_t *scr_font;
-static cvar_t *scr_scale;
+static cvar_t *scr_demobar = nullptr;
 
-static cvar_t *scr_damage_indicators;
-static cvar_t *scr_damage_indicator_time;
+// Shared all over.
+cvar_t *scr_alpha = nullptr;
+cvar_t *scr_scale = nullptr;
+cvar_t *scr_font = nullptr;
 
-vrect_t     scr_vrect;      // position of render window on screen
+vrect_t     scr_vrect = {};      // position of render window on screen
 
 
 const uint32_t colorTable[ 8 ] = {
@@ -99,10 +90,10 @@ UTILS
 ===============================================================================
 */
 //static inline const int32_t SCR_DrawString( const int32_t x, const int32_t y, const int32_t flags, const char *str ) {
-//    SCR_DrawStringEx( x, y, flags, MAX_STRING_CHARS, str, scr.font_pic );
+//    SCR_DrawStringEx( x, y, flags, MAX_STRING_CHARS, str, clgi.screen->font_pic );
 //}
 //#define SCR_DrawString(x, y, flags, string) \
-//    SCR_DrawStringEx(x, y, flags, MAX_STRING_CHARS, string, scr.font_pic)
+//    SCR_DrawStringEx(x, y, flags, MAX_STRING_CHARS, string, clgi.screen->font_pic)
 
 /**
 *   @brief  Draws a string using at x/y up till maxlen.
@@ -246,18 +237,18 @@ static void draw_progress_bar( float progress, bool paused, int64_t framenum ) {
     size_t len;
     static const int64_t frameMs = FRAME_TIME_MS.Milliseconds(); // Used to be 10 ofc.
 
-    w = Q_rint( scr.hud_width * progress );
-    h = Q_rint( CHAR_HEIGHT / scr.hud_scale );
+    w = Q_rint( clgi.screen->hud_width * progress );
+    h = Q_rint( CHAR_HEIGHT / clgi.screen->hud_scale );
 
-    scr.hud_height -= h;
+    clgi.screen->hud_height -= h;
 
-    clgi.R_DrawFill8( 0, scr.hud_height, w, h, 4 );
-    clgi.R_DrawFill8( w, scr.hud_height, scr.hud_width - w, h, 0 );
+    clgi.R_DrawFill8( 0, clgi.screen->hud_height, w, h, 4 );
+    clgi.R_DrawFill8( w, clgi.screen->hud_height, clgi.screen->hud_width - w, h, 0 );
 
-    clgi.R_SetScale( scr.hud_scale );
+    clgi.R_SetScale( clgi.screen->hud_scale );
 
-    w = Q_rint( scr.hud_width * scr.hud_scale );
-    h = Q_rint( scr.hud_height * scr.hud_scale );
+    w = Q_rint( clgi.screen->hud_width * clgi.screen->hud_scale );
+    h = Q_rint( clgi.screen->hud_height * clgi.screen->hud_scale );
 
     len = Q_scnprintf( buffer, sizeof( buffer ), "%.f%%", progress * 100 );
     x = ( w - len * CHAR_WIDTH ) / 2;
@@ -271,11 +262,14 @@ static void draw_progress_bar( float progress, bool paused, int64_t framenum ) {
         clgi.R_DrawString( 0, h, 0, MAX_STRING_CHARS, buffer, precache.screen.font_pic );
     }
 
+	// Reset scale to default. (We don't want a shrinked down PAUSED text.)
+    clgi.R_SetScale( 1.0f );
+	// Draw pause indicator.
     if ( paused ) {
         SCR_DrawString( w, h, UI_RIGHT, "[PAUSED]" );
     }
 
-    clgi.R_SetScale( 1.0f );
+
 }
 
 static void SCR_DrawDemo( void ) {
@@ -349,9 +343,9 @@ static void SCR_DrawCenterString( void ) {
 
     clgi.R_SetAlpha( alpha * scr_alpha->value );
 
-    y = scr.hud_height / 4 - scr_center_lines * 8 / 2;
+    y = clgi.screen->hud_height / 4 - scr_center_lines * 8 / 2;
 
-    SCR_DrawStringMulti( scr.hud_width / 2, y, UI_CENTER,
+    SCR_DrawStringMulti( clgi.screen->hud_width / 2, y, UI_CENTER,
         MAX_STRING_CHARS, scr_centerstring, precache.screen.font_pic );
 
     clgi.R_SetAlpha( scr_alpha->value );
@@ -457,10 +451,10 @@ static void SCR_DrawNet( void ) {
     int y = scr_lag_y->integer;
 
     if ( x < 0 ) {
-        x += scr.hud_width - LAG_WIDTH + 1;
+        x += clgi.screen->hud_width - LAG_WIDTH + 1;
     }
     if ( y < 0 ) {
-        y += scr.hud_height - LAG_HEIGHT + 1;
+        y += clgi.screen->hud_height - LAG_HEIGHT + 1;
     }
 
     // draw ping graph
@@ -694,10 +688,10 @@ static void SCR_DrawObjects( void ) {
         x = obj->x;
         y = obj->y;
         if ( x < 0 ) {
-            x += scr.hud_width + 1;
+            x += clgi.screen->hud_width + 1;
         }
         if ( y < 0 ) {
-            y += scr.hud_height - CHAR_HEIGHT + 1;
+            y += clgi.screen->hud_height - CHAR_HEIGHT + 1;
         }
         if ( !( obj->flags & UI_IGNORECOLOR ) ) {
             clgi.R_SetColor( obj->color.u32 );
@@ -730,7 +724,7 @@ static void SCR_DrawFPS( void ) {
         Q_snprintf( buffer, MAX_QPATH, "%d FPS", fps );
     }
 
-    const int32_t x = scr.hud_width - 2;
+    const int32_t x = clgi.screen->hud_width - 2;
     const int32_t y = 1;
 
     clgi.R_SetColor( ~0u );
@@ -756,7 +750,7 @@ static void SCR_DrawTurtle( void ) {
         return;
 
     x = CHAR_WIDTH;
-    y = scr.hud_height - 11 * CHAR_HEIGHT;
+    y = clgi.screen->hud_height - 11 * CHAR_HEIGHT;
 
     #define DF(f) \
         if (clgi.client->frameflags & FF_##f) { \
@@ -795,7 +789,7 @@ static void SCR_DrawDebugStats( void ) {
         j = MAX_STATS;
 
     x = CHAR_WIDTH;
-    y = ( scr.hud_height - j * CHAR_HEIGHT ) / 2;
+    y = ( clgi.screen->hud_height - j * CHAR_HEIGHT ) / 2;
     for ( i = 0; i < j; i++ ) {
         Q_snprintf( buffer, sizeof( buffer ), "%2d: %d", i, clgi.client->frame.ps.stats[ i ] );
         if ( clgi.client->oldframe.ps.stats[ i ] != clgi.client->frame.ps.stats[ i ] ) {
@@ -829,7 +823,7 @@ static void SCR_DrawDebugPmove( void ) {
         return;
 
     x = CHAR_WIDTH;
-    y = ( scr.hud_height - 2 * CHAR_HEIGHT ) / 2;
+    y = ( clgi.screen->hud_height - 2 * CHAR_HEIGHT ) / 2;
 
     i = clgi.client->frame.ps.pmove.pm_type;
     if ( i > PM_FREEZE )
@@ -853,8 +847,8 @@ static void SCR_DrawDebugPmove( void ) {
 
 // Sets scr_vrect, the coordinates of the rendered window
 void SCR_CalcVrect( void ) {
-    scr_vrect.width = scr.hud_width;
-    scr_vrect.height = scr.hud_height;
+    scr_vrect.width = clgi.screen->hud_width;
+    scr_vrect.height = clgi.screen->hud_height;
     scr_vrect.x = 0;
     scr_vrect.y = 0;
 }
@@ -983,52 +977,46 @@ void PF_SCR_DeltaFrame( void ) {
 /**
 *	@brief
 **/
+void scr_scale_changed( cvar_t *cv );
 void PF_SCR_ModeChanged( void ) {
     //IN_Activate();
     //Con_CheckResize();
     //UI_ModeChanged();
     //cls.disable_screen = 0;
-    cvar_t *hud_alpha = nullptr;
-    if ( scr.initialized ) {
+
+    if ( clgi.screen->initialized ) {
         // Clamp scale.
-        scr.hud_scale = clgi.R_ClampScale( scr_scale );
+        clgi.screen->hud_scale = clgi.R_ClampScale(
+            clgi.CVar_Get( "scr_scale", nullptr, 0 )
+        );
+        //scr_scale_changed( clgi.CVar_Get( "hud_scale", nullptr, 0 ) );
         // Notify HUD about the scale change.
-        CLG_HUD_ModeChanged( scr.hud_scale );
-        scr.hud_alpha = clgi.CVar_ClampValue( hud_alpha, 0.0f, 1.0f );
+        //CLG_HUD_ModeChanged( clgi.screen->hud_scale );
+        //clgi.screen->hud_alpha = clgi.CVar_ClampValue(
+        //    clgi.CVar_Get( "hud_alpha", nullptr, 0 ),
+        //    0.0f, 1.0f
+        //);
+        //CLG_HUD_AlphaChanged( clgi.screen->hud_alpha );
     } else {
-        hud_alpha = clgi.CVar_Get( "hud_alpha", "1.0", CVAR_ARCHIVE );
-        hud_alpha->changed = []( cvar_t *self ) {
-            scr.hud_alpha = clgi.CVar_ClampValue( self, 0.0f, 1.0f );
-            // Notify HUD about the alpha change.
-            CLG_HUD_AlphaChanged( scr.hud_alpha );
-        };
+
     }
 
-    // Notify HUD again.
-    CLG_HUD_AlphaChanged( scr.hud_alpha );
+    //clgi.screen->hud_alpha = 1;
 }
 
 /**
 *	@brief
 **/
 void PF_SCR_RegisterMedia( void ) {
-    //int     i, j;
-
-    //for ( i = 0; i < 2; i++ )
-    //    for ( j = 0; j < precache.screen.STAT_PICS; j++ )
-    //        precache.screen.sb_pics[ i ][ j ] = clgi.R_RegisterPic( sb_nums[ i ][ j ] );
-
-    //precache.screen.inven_pic = clgi.R_RegisterPic( "inventory" );
-    //precache.screen.field_pic = clgi.R_RegisterPic( "field_3" );
-
-    //precache.screen.loading_pic = clgi.R_RegisterPic( "loading" );
-    //clgi.R_GetPicSize( &scr.loading_width, &scr.loading_height, precache.screen.loading_pic );
-
     precache.screen.damage_display_pic = clgi.R_RegisterPic( "damage_indicator" );
-    clgi.R_GetPicSize( &scr.damage_display_width, &scr.damage_display_height, precache.screen.damage_display_pic );
+    clgi.R_GetPicSize( 
+        &clg_hud.damageDisplay.indicatorWidth,
+        &clg_hud.damageDisplay.indicatorHeight,
+        precache.screen.damage_display_pic
+    );
 
     precache.screen.net_error_pic = clgi.R_RegisterPic( "icons/neterror.png" );
-    precache.screen.font_pic = clgi.R_RegisterFont( scr_font->string );
+    clgi.screen->font_pic = precache.screen.font_pic = clgi.R_RegisterFont( scr_font->string );
 
     // Register the 2D display HUD media.
     CLG_HUD_RegisterScreenMedia();
@@ -1037,16 +1025,25 @@ void PF_SCR_RegisterMedia( void ) {
 *	@brief
 **/
 static void scr_font_changed( cvar_t *self ) {
-    precache.screen.font_pic = clgi.R_RegisterFont( self->string );
+    clgi.screen->font_pic = precache.screen.font_pic = clgi.R_RegisterFont( self->string );
 }
 /**
 *	@brief
 **/
 static void scr_scale_changed( cvar_t *self ) {
     // Clamp scale.
-    scr.hud_scale = clgi.R_ClampScale( self );
+    self->value = clgi.R_ClampScale( self );
     // Notify HUD about the scale change.
-    CLG_HUD_ModeChanged( scr.hud_scale );
+    CLG_HUD_ModeChanged( self->value );
+}
+/**
+*	@brief
+**/
+static void scr_alpha_changed( cvar_t *self ) {
+    // Clamp scale.
+    self->value = clgi.CVar_ClampValue( self, 0.f, 1.f );
+    // Notify HUD about the scale change.
+    CLG_HUD_AlphaChanged( self->value );// scr_alpha->value *clgi.screen->hud_alpha );
 }
 
 static const cmdreg_t scr_cmds[] = {
@@ -1064,20 +1061,19 @@ static const cmdreg_t scr_cmds[] = {
 *	@brief
 **/
 void PF_SCR_Init( void ) {
-    // Fetch created by engine CVars.
-    scr_viewsize = clgi.CVar_Get( "viewsize", nullptr, 0 );
-
     // Created by client game:
+    //scr_viewsize = clgi.CVar_Get( "viewsize", "100", CVAR_ARCHIVE );
+    scr_viewsize = clgi.CVar_Get( "viewsize", nullptr, 0 );
     scr_showpause = clgi.CVar_Get( "scr_showpause", "1", 0 );
     scr_centertime = clgi.CVar_Get( "scr_centertime", "2.5", 0 );
     scr_demobar = clgi.CVar_Get( "scr_demobar", "1", 0 );
     scr_font = clgi.CVar_Get( "scr_font", "conchars", 0 );
     scr_font->changed = scr_font_changed;
-    scr_scale = clgi.CVar_Get( "scr_scale", "0", 0 );
-    scr_scale->changed = scr_scale_changed;
     
-    scr_damage_indicators = clgi.CVar_Get( "scr_damage_indicators", "1", 0 );
-    scr_damage_indicator_time = clgi.CVar_Get( "scr_damage_indicator_time", "3000", 0 );
+    scr_alpha = clgi.CVar_Get( "scr_alpha", "1", 0 );
+    scr_alpha->changed = scr_alpha_changed;
+    scr_scale = clgi.CVar_Get( "scr_scale", "1", 0 );
+    scr_scale->changed = scr_scale_changed;
 
     scr_draw2d = clgi.CVar_Get( "scr_draw2d", "2", 0 );
     scr_showturtle = clgi.CVar_Get( "scr_showturtle", "1", 0 );
@@ -1087,7 +1083,6 @@ void PF_SCR_Init( void ) {
     scr_lag_draw = clgi.CVar_Get( "scr_lag_draw", "0", 0 );
     scr_lag_min = clgi.CVar_Get( "scr_lag_min", "0", 0 );
     scr_lag_max = clgi.CVar_Get( "scr_lag_max", "200", 0 );
-    scr_alpha = clgi.CVar_Get( "scr_alpha", "1", 0 );
     #if USE_DEBUG
     scr_fps = clgi.CVar_Get( "scr_fps", "2", CVAR_ARCHIVE );
     #else
@@ -1100,13 +1095,10 @@ void PF_SCR_Init( void ) {
 
     // Register screen commands.
     clgi.Cmd_Register( scr_cmds );
-    // Notify screen is initialized.
-    scr.initialized = true;
-    // Register scale changed.
-    scr_scale_changed( scr_scale );
-
     // Initialize the HUD resources.
     CLG_HUD_Initialize();
+    // Notify screen is initialized.
+    clgi.screen->initialized = true;
 }
 /**
 *	@brief  
@@ -1114,9 +1106,10 @@ void PF_SCR_Init( void ) {
 void PF_SCR_Shutdown( void ) {
     // Notify HUD about Shutdown.
     CLG_HUD_Shutdown();
-
+	// Unregister the HUD console commands..
     clgi.Cmd_Deregister( scr_cmds );
-    scr.initialized = false;
+	// Screen is no longer initialized.
+    clgi.screen->initialized = false;
 }
 
 /**
@@ -1243,13 +1236,13 @@ static void SCR_ExecuteLayoutString( const char *s ) {
 
                 if ( token[ 1 ] == 'r' ) {
                     token = COM_Parse( &s );
-                    x = scr.hud_width + atoi( token );
+                    x = clgi.screen->hud_width + atoi( token );
                     continue;
                 }
 
                 if ( token[ 1 ] == 'v' ) {
                     token = COM_Parse( &s );
-                    x = scr.hud_width / 2 - 160 + atoi( token );
+                    x = clgi.screen->hud_width / 2 - 160 + atoi( token );
                     continue;
                 }
             }
@@ -1263,13 +1256,13 @@ static void SCR_ExecuteLayoutString( const char *s ) {
 
                 if ( token[ 1 ] == 'b' ) {
                     token = COM_Parse( &s );
-                    y = scr.hud_height + atoi( token );
+                    y = clgi.screen->hud_height + atoi( token );
                     continue;
                 }
 
                 if ( token[ 1 ] == 'v' ) {
                     token = COM_Parse( &s );
-                    y = scr.hud_height / 2 - 120 + atoi( token );
+                    y = clgi.screen->hud_height / 2 - 120 + atoi( token );
                     continue;
                 }
             }
@@ -1290,13 +1283,13 @@ static void SCR_ExecuteLayoutString( const char *s ) {
             if ( token[ 0 ] && clgi.client->image_precache[ index ] ) {
                 qhandle_t pic = clgi.client->image_precache[ index ];
                 // hack for action mod scope scaling
-                //if ( x == scr.hud_width / 2 - 160 &&
-                //    y == scr.hud_height / 2 - 120 &&
+                //if ( x == clgi.screen->hud_width / 2 - 160 &&
+                //    y == clgi.screen->hud_height / 2 - 120 &&
                 //    Com_WildCmp( "scope?x", token ) ) {
                 //    int w = 320 * ch_scale->value;
                 //    int h = 240 * ch_scale->value;
-                //    clgi.R_DrawStretchPic( ( scr.hud_width - w ) / 2 + ch_x->integer,
-                //        ( scr.hud_height - h ) / 2 + ch_y->integer,
+                //    clgi.R_DrawStretchPic( ( clgi.screen->hud_width - w ) / 2 + ch_x->integer,
+                //        ( clgi.screen->hud_height - h ) / 2 + ch_y->integer,
                 //        w, h, pic );
                 //} else {
                     clgi.R_DrawPic( x, y, pic );
@@ -1314,9 +1307,9 @@ static void SCR_ExecuteLayoutString( const char *s ) {
             int     score, ping, time;
 
             token = COM_Parse( &s );
-            x = scr.hud_width / 2 - 160 + atoi( token );
+            x = clgi.screen->hud_width / 2 - 160 + atoi( token );
             token = COM_Parse( &s );
-            y = scr.hud_height / 2 - 120 + atoi( token );
+            y = clgi.screen->hud_height / 2 - 120 + atoi( token );
 
             token = COM_Parse( &s );
             value = atoi( token );
@@ -1355,9 +1348,9 @@ static void SCR_ExecuteLayoutString( const char *s ) {
             int     score, ping;
 
             token = COM_Parse( &s );
-            x = scr.hud_width / 2 - 160 + atoi( token );
+            x = clgi.screen->hud_width / 2 - 160 + atoi( token );
             token = COM_Parse( &s );
-            y = scr.hud_height / 2 - 120 + atoi( token );
+            y = clgi.screen->hud_height / 2 - 120 + atoi( token );
 
             token = COM_Parse( &s );
             value = atoi( token );
@@ -1560,103 +1553,6 @@ static void SCR_ExecuteLayoutString( const char *s ) {
 #endif
 
 
-/**
-*
-* 
-*
-*   Damage Indicators:
-*
-*
-* 
-**/
-/**
-*   @brief
-**/
-static scr_damage_entry_t *SCR_AllocDamageDisplay( const Vector3 &dir ) {
-    scr_damage_entry_t *entry = scr.damage_entries;
-
-    for ( int i = 0; i < MAX_DAMAGE_ENTRIES; i++, entry++ ) {
-        if ( entry->time <= clgi.GetRealTime() ) {
-            goto new_entry;
-        }
-
-        float dot = QM_Vector3DotProduct( entry->dir, dir ); // DotProduct( entry->dir, dir );
-
-        if ( dot >= 0.95f ) {
-            return entry;
-        }
-    }
-
-    entry = scr.damage_entries;
-
-new_entry:
-    entry->damage = 0;
-    VectorClear( entry->color );
-    return entry;
-}
-/**
-*   @brief  Adds a damage indicator for the given damage using the given color pointing at given direction.
-**/
-void SCR_AddToDamageDisplay( const int32_t damage, const Vector3 &color, const Vector3 &dir ) {
-    if ( !scr_damage_indicators->integer ) {
-        return;
-    }
-
-    scr_damage_entry_t *entry = SCR_AllocDamageDisplay( dir );
-
-    entry->damage += damage;
-    entry->color += color;
-    entry->color = QM_Vector3Normalize( entry->color );
-    entry->dir = dir;
-    entry->time = clgi.GetRealTime() + scr_damage_indicator_time->integer;
-}
-/**
-*   @brief  
-**/
-static void SCR_DrawDamageDisplays( void ) {
-    for ( int32_t i = 0; i < MAX_DAMAGE_ENTRIES; i++ ) {
-        scr_damage_entry_t *entry = &scr.damage_entries[ i ];
-
-        if ( entry->time <= clgi.GetRealTime() ) {
-            continue;
-        }
-
-        const double lerpFraction = ( entry->time - clgi.GetRealTime() ) / scr_damage_indicator_time->value;
-
-        float clientYawAngle = game.predictedState.currentPs.viewangles[ YAW ];
-        //vec3_t angles;
-        //vectoangles2( entry->dir, angles );
-        //Vector3 angles = QM_Vector3ToAngles( entry->dir );
-        float damageYawAngle = QM_Vector3ToYaw( entry->dir );// angles[ YAW ];
-        float yawDifference = damageYawAngle/*- 180*/;// ( clientYawAngle - damageYawAngle ) - 180;
-        if ( yawDifference > 180 ) {
-            yawDifference -= 360;
-        }
-        if ( yawDifference < -180 ) {
-            yawDifference += 360;
-        }
-        //yawDifference = DEG2RAD( yawDifference );
-
-        clgi.R_SetColor( MakeColor(
-            (int)( entry->color[ 0 ] * 255.f ),
-            (int)( entry->color[ 1 ] * 255.f ),
-            (int)( entry->color[ 2 ] * 255.f ),
-            (int)( lerpFraction * 255.f ) ) );
-
-        const int32_t size_x = std::min( scr.damage_display_width, ( 32/*DAMAGE_ENTRY_BASE_SIZE */* entry->damage ) );
-        const int32_t size_y = std::min( scr.damage_display_height, ( 32/*DAMAGE_ENTRY_BASE_SIZE*/ * entry->damage ) );
-
-        const int32_t x = ( scr.hud_width - scr.damage_display_width ) / 2;
-        const int32_t y = ( scr.hud_height - scr.damage_display_height ) / 2;
-
-
-        //clgi.R_DrawStretchPic( x, y, scr.damage_display_height, scr.damage_display_width, scr.damage_display_pic );
-        clgi.R_DrawRotateStretchPic( x, y, size_x, scr.damage_display_height, yawDifference, ( scr.damage_display_width / 2 ), ( scr.damage_display_height / 2 ), precache.screen.damage_display_pic );
-    }
-}
-
-
-
 /***
 *
 *
@@ -1695,14 +1591,21 @@ static void SCR_DrawPause( void ) {
         return;
     }
 
-    // Determine center of screen.
-    const int32_t x = ( scr.hud_width /*- scr.pause_width */) / 2;
-    const int32_t y = ( scr.hud_height /*- scr.pause_height */) / 2;
+    // The string to display when paused.
+    const char *pauseStr = "[PAUSED]";
 
+    // Determine center of screen.
+    const int32_t x = ( clgi.screen->hud_real_width - ( ( CHAR_WIDTH * strlen( pauseStr ) ) / 2 ) );
+    const int32_t y = ( clgi.screen->hud_real_height - CHAR_HEIGHT ) / 2;
+
+    // Set scale back/
     // Use our 'Orange' color.
     clgi.R_SetColor( MakeColor( 255, 150, 100, 255 ) );
+    clgi.R_SetScale( 1.0f );
+    clgi.R_SetAlphaScale( scr_alpha->value );
+    clgi.R_SetAlpha( 1.0f );
     // Draw pause text info string.
-    HUD_DrawCenterString( x, y, "[PAUSED]" );
+    HUD_DrawCenterString( x, y, pauseStr );
     // Reset R color.
     clgi.R_ClearColor();
 }
@@ -1723,10 +1626,6 @@ static void SCR_DrawStats( void ) {
 *	@brief
 **/
 static void SCR_DrawLayout( void ) {
-    if ( scr_draw2d->integer == 3 && !clgi.Key_IsDown( K_F1 ) ) {
-        return;     // turn off for GTV
-    }
-
 #if 0
     if ( clgi.IsDemoPlayback() && clgi.Key_IsDown( K_F1 ) ) {
         goto draw;
@@ -1753,50 +1652,35 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
         return;
     }
 
-    // Set general alpha scale.
-    clgi.R_SetAlphaScale( scr.hud_alpha );
-
-    // Set HUD scale.
-    clgi.R_SetScale( scr.hud_scale );
-
-    // Determine screen width and height based on hud_scale.
-    scr.hud_height = Q_rint( scr.hud_height * scr.hud_scale );
-    scr.hud_width = Q_rint( scr.hud_width * scr.hud_scale );
-
     // Scale HUD.
     CLG_HUD_ScaleFrame( refcfg );
-
     // Draw the rest of the HUD overlay.
     CLG_HUD_DrawFrame( refcfg );
-
-    //SCR_DrawStats();
-
+    // Draw layouts. <Q2RTXP>: WID: We don't have these anymore.
+    #if 0
     SCR_DrawLayout();
-
-    //SCR_DrawInventory();
-
+    #endif
+    // Draw center message string.
     SCR_DrawCenterString();
-
+    // Draw net debug info.
     SCR_DrawNet();
-
+    // Draw console macro objects.
     SCR_DrawObjects();
-
+    // Draw FPS counter.
     SCR_DrawFPS();
-
+    // Draw HUD chat.
     CLG_HUD_DrawChat();
-
+    // Draw Turtle laggo thing.
     SCR_DrawTurtle();
-
+    // Draw "[PAUSED]" string.
     SCR_DrawPause();
-
-    // debug stats have no alpha
+    // Printing debug stats have no alpha.
     clgi.R_ClearColor();
-
     #if USE_DEBUG
     SCR_DrawDebugStats();
     SCR_DrawDebugPmove();
     #endif
-
+    // Reset scale and alpha scale to 1.0
     clgi.R_SetScale( 1.0f );
     clgi.R_SetAlphaScale( 1.0f );
 }
@@ -1814,8 +1698,8 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
 **/
 void PF_DrawActiveState( refcfg_t *refcfg ) {
     // Otherwise, start with full screen HUD.
-    scr.hud_height = refcfg->height;
-    scr.hud_width = refcfg->width;
+    clgi.screen->hud_height = refcfg->height;
+    clgi.screen->hud_width = refcfg->width;
 
     // Draw any demo specific data.
     SCR_DrawDemo();
@@ -1837,23 +1721,41 @@ void PF_DrawActiveState( refcfg_t *refcfg ) {
 *	@brief	Prepare and draw the loading screen's 2D state.
 **/
 void PF_DrawLoadState( refcfg_t *refcfg ) {
-    int x, y;
-
-    //if ( !scr.draw_loading ) {
+    //if ( !clgi.screen->draw_loading ) {
     //    return;
     //}
 
-    //scr.draw_loading = false;
+    //clgi.screen->draw_loading = false;
 
-    clgi.R_SetScale( scr.hud_scale );
+    if ( !clgi.screen->draw_loading ) {
+        return;
+    }
 
-    x = ( refcfg->width * scr.hud_scale - scr.loading_width ) / 2;
-    y = ( refcfg->height * scr.hud_scale - scr.loading_height ) / 2;
+    clgi.screen->draw_loading = false;
 
-    #if 0
-    clgi.R_DrawPic( x, y, precache.screen.loading_pic );
-    #endif
+    // Loading text display.
+    const char *loadingStrs[] = {
+        "[LOADING.  ]",
+        "[LOADING.. ]",
+        "[LOADING...]",
+        "[LOADING ..]",
+        "[LOADING  .]",
+        "[LOADING   ]"
+    };
+    const char *loadingStr = "[LOADING...]";
+
+    // Determine center of screen.
+    const int32_t x = ( clgi.screen->hud_real_width - ( ( CHAR_WIDTH * strlen( loadingStr ) ) / 2 ) );
+    const int32_t y = ( clgi.screen->hud_real_height - CHAR_HEIGHT ) / 2;
+
+    // Set scale back/
     clgi.R_SetScale( 1.0f );
+    // Use our 'Orange' color.
+    clgi.R_SetColor( MakeColor( 255, 150, 100, 255 ) );
+    // Draw pause text info string.
+    HUD_DrawCenterString( x, y, loadingStr );
+    // Reset R color.
+    clgi.R_ClearColor();
 }
 
 /**
@@ -1867,8 +1769,7 @@ const qhandle_t PF_GetScreenFontHandle( void ) {
 *   @brief  Set the alpha value of the HUD. (Used by ref/vkpt.)
 **/
 void PF_SetScreenHUDAlpha( const float alpha ) {
-    // Adjust our alpha.
-    scr.hud_alpha = alpha;
-    // Notify HUD.
-    CLG_HUD_AlphaChanged( scr.hud_alpha );
+    clgi.CVar_Set( "scr_alpha", std::to_string(alpha).c_str() );
+    //    scr_alpha->value = alpha;
+    //scr_alpha->changed( scr_alpha );
 }

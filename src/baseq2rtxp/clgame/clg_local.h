@@ -639,22 +639,10 @@ struct precached_media_s {
 	*	@brief	Stores all resource ID's for the screen related media.
 	**/
 	struct screen_media_s {
-		//! Reference to the 'Loading' center-screen display picture.
-		//qhandle_t   loading_pic;
 		//! Reference to the damage display indicatore picture.
 		qhandle_t   damage_display_pic;
-
-		//! Status Buffer pics.
-		//static constexpr int32_t STAT_PICS = 11;
-		//qhandle_t   sb_pics[ 2 ][ STAT_PICS ];
-		//! Inventory pic.
-		//qhandle_t   inven_pic;
-		//! Field pic.
-		//qhandle_t   field_pic;
-		
 		//! Net pic.
 		qhandle_t   net_error_pic;
-
 		//! All-round screen font pic.
 		qhandle_t   font_pic;
 	} screen;

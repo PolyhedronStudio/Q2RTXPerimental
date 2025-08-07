@@ -211,6 +211,36 @@ typedef struct {
 } snd_params_t;
 
 /**
+*   @brief  Shared client screen data, configured by the client game but also accessed
+*           by the client itself. (For rendering reasons.)
+**/
+#ifdef __cplusplus
+typedef struct cl_screen_shared_s {
+    //! The screen data is loaded up, ready to draw contents if true.
+    bool    initialized = false;
+    //! Whether the screen is currently rendering a load screen state.
+    bool    draw_loading = false;
+
+    //! Netgraph data picture.
+    qhandle_t   net_pic = 0;
+    //! Font picture.
+    qhandle_t   font_pic = 0;
+
+    //! The screen's HUD dimensions.
+    int32_t     hud_width = 0, hud_height = 0;
+    //! Real hud screen size.
+    int32_t     hud_real_width = 0, hud_real_height = 0;
+    //! Scaled hud screen size.
+    int32_t     hud_scaled_width = 0, hud_scaled_height = 0;
+    //! Scale.
+    float       hud_scale = 1.f;
+    //! Global alpha.
+    float       hud_alpha = 1.f;
+} cl_screen_shared_t;
+#else
+typedef void *cl_screen_shared_t; // For C compatibility, this is a forward declaration.
+#endif
+/**
  *  @brief  The client state structure is cleared at each level load, and is exposed to
  *          the client game module to provide access to media and other client state.
  **/

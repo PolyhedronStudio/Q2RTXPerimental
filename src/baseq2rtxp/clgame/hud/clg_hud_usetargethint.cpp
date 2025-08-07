@@ -19,6 +19,8 @@
 
 //! Used in various places.
 extern const bool SCR_ShouldDrawPause();
+extern cvar_t *scr_scale;
+extern cvar_t *scr_alpha;
 
 /**
 *
@@ -196,17 +198,16 @@ static const std::vector<hud_usetarget_hint_token_t> HUD_FormatUseTargetHintStri
 **/
 void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
     // Clear the original color.
-    clgi.R_ClearColor();
-    clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+    clgi.R_SetAlphaScale( scr_alpha->value );
 
     // Determine center of screen.
-    const int32_t x = ( clg_hud.hud_scaled_width/*- scr.pause_width */ ) / 2;
-    const int32_t y = ( clg_hud.hud_scaled_height /*- scr.pause_height */ ) / 2;
+    const int32_t x = ( clgi.screen->hud_real_width/*- scr.pause_width */ ) / 2;
+    const int32_t y = ( clgi.screen->hud_real_height /*- scr.pause_height */ - CHAR_HEIGHT ) / 2;
 
     // Current draw offset X axis.
     int32_t xOffset = 0;
     const int32_t yOffset = CHAR_HEIGHT * 4.5;
-    // Iterate to acquire total width.. sight lol.
+    // Iterate to acquire total width.. sigh lol.
     const int32_t xWidth = HUD_GetTokenVectorDrawWidth( targetHintInfo->hintStringTokens );
     // X Start location.
     int32_t xDrawLocation = x - ( xWidth / 2 );
@@ -217,21 +218,21 @@ void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
             // Clear the original color.
             clgi.R_ClearColor();
             // Set Alpha.
-            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            clgi.R_SetAlpha( targetHintInfo->alpha );
             // Draw it.
             HUD_DrawAltString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
         } else if ( hintStringToken.type == HUD_TOKEN_TYPE_ACTION_ACTIVATE ) {
             // Set color.
             clgi.R_SetColor( U32_GREEN );
             // Set Alpha.
-            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            clgi.R_SetAlpha( targetHintInfo->alpha );
             // Draw it.
             HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
         } else if ( hintStringToken.type == HUD_TOKEN_TYPE_ACTION_DEACTIVATE ) {
             // Set color.
             clgi.R_SetColor( U32_RED );
             // Set Alpha.
-            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            clgi.R_SetAlpha( targetHintInfo->alpha );
             // Draw it.
             HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
         } else if ( hintStringToken.type == HUD_TOKEN_TYPE_NOTE ) {
@@ -239,14 +240,14 @@ void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
             //clgi.R_SetColor( clg_hud.colors.ORANGE2 );
             clgi.R_SetColor( U32_YELLOW );
             // Set Alpha.
-            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            clgi.R_SetAlpha( targetHintInfo->alpha );
             // Draw it.
             HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
         } else {
             // Clear the original color.
             clgi.R_ClearColor();
             // Set Alpha.
-            clgi.R_SetAlpha( targetHintInfo->alpha * scr_alpha->value );
+            clgi.R_SetAlpha( targetHintInfo->alpha );
             // Draw it.
             HUD_DrawString( xDrawLocation + xOffset, y + yOffset, hintStringToken.value.c_str() );
         }
@@ -331,6 +332,12 @@ void CLG_HUD_DrawUseTargetHintInfos() {
 
         // Reset R color.
         clgi.R_ClearColor();
+        // Use this if we do wanna scale(it'll downscale, eww.)
+        //clgi.R_SetScale( scr_scale->value );
+        // Do not scale.
+        clgi.R_SetScale( 1.0 );
+        clgi.R_SetAlphaScale( scr_alpha->value );
+
         // Draw the info.
         HUD_DrawTargetHintInfo( targetHintInfo );
 

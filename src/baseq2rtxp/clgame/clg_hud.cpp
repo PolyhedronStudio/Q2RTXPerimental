@@ -19,6 +19,14 @@
 //
 //! We need this one.
 extern cvar_t *scr_alpha;
+extern cvar_t *scr_scale;
+#if 0
+cvar_t *hud_alpha = nullptr;
+cvar_t *hud_scale = nullptr;
+#endif
+// For damage indicators.
+cvar_t *hud_damage_indicators = nullptr;
+cvar_t *hud_damage_indicator_time = nullptr;
 
 //! The chat clg_hud.
 cvar_t *hud_chat = nullptr;
@@ -109,9 +117,6 @@ void CLG_HUD_Initialize( void ) {
     // Reset HUD.
     clg_hud = {};
 
-    // Get already initialized screen cvars we need often.
-    //scr_alpha = clgi.CVar_Get( "scr_alpha", nullptr, 0 );
-
     // Chat cvars.
     hud_chat = clgi.CVar_Get( "hud_chat", "0", 0 );
     hud_chat_lines = clgi.CVar_Get( "hud_chat_lines", "4", 0 );
@@ -135,19 +140,35 @@ void CLG_HUD_Initialize( void ) {
 
     hud_crosshair_type = clgi.CVar_Get( "hud_crosshair_type", "1", CVAR_ARCHIVE );
     hud_crosshair_type->changed = scr_hud_crosshair_changed;
+
+    #if 0
+    hud_alpha = clgi.CVar_Get( "hud_alpha", "1", CVAR_ARCHIVE );
+    hud_alpha->changed = []( cvar_t *self ) {
+        self->value = clgi.CVar_ClampValue( self, 0.f, 1.f );
+    };
+    hud_alpha->changed( hud_alpha );
+    hud_scale = clgi.CVar_Get( "hud_scale", "1", CVAR_ARCHIVE );
+    hud_scale->changed = []( cvar_t *self ) {
+        self->value = /*clg_hud.hud_scale = */clgi.R_ClampScale( self );
+    };
+    hud_scale->changed( hud_scale );
+    #endif
+
+    hud_damage_indicators = clgi.CVar_Get( "hud_damage_indicators", "1", 0 );
+    hud_damage_indicator_time = clgi.CVar_Get( "hud_damage_indicator_time", "3000", 0 );
 }
 /**
 *   @brief  Called by PF_SCR_ModeChanged(video mode changed), or scr_scale_changed, in order to
 *           notify about the new HUD scale.
 **/
 void CLG_HUD_ModeChanged( const float newHudScale ) {
-    clg_hud.hud_scale = newHudScale;
+    clgi.screen->hud_scale = newHudScale;
 }
 /**
 *   @brief  Called by PF_SetScreenHUDAlpha, in order to notify about the new HUD alpha.
 **/
 void CLG_HUD_AlphaChanged( const float newHudAlpha ) {
-    clg_hud.hud_alpha = newHudAlpha;
+    clgi.screen->hud_alpha = newHudAlpha;
 }
 /**
 *   @brief  Called upon when clearing client state.
@@ -159,19 +180,35 @@ void CLG_HUD_ClearTargetHints() {
 *	@brief	Called when screen module is drawing its 2D overlay(s).
 **/
 void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
+    #if 0
     // Recalculate hud height/width.
     clg_hud.hud_real_height = refcfg->height;
     clg_hud.hud_real_width = refcfg->width;
 
     // Set general alpha scale.
-    clgi.R_SetAlphaScale( clg_hud.hud_alpha );
+    clgi.R_SetAlphaScale( scr_alpha->value );
 
     // Set HUD scale.
-    clgi.R_SetScale( clg_hud.hud_scale );
+    clgi.R_SetScale( scr_scale->value );
 
     // Determine screen width and height based on hud_scale.
     clg_hud.hud_scaled_height = Q_rint( clg_hud.hud_real_height * clg_hud.hud_scale );
     clg_hud.hud_scaled_width = Q_rint( clg_hud.hud_real_width * clg_hud.hud_scale );
+    #else
+    // Recalculate hud height/width.
+    clgi.screen->hud_real_height = refcfg->height;
+    clgi.screen->hud_real_width = refcfg->width;
+
+    // Set general alpha scale.
+    clgi.R_SetAlphaScale( scr_alpha->value );
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Set HUD scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
+
+    // Determine screen width and height based on hud_scale.
+    clgi.screen->hud_scaled_height = Q_rint( clgi.screen->hud_real_height * clgi.screen->hud_scale );
+    clgi.screen->hud_scaled_width = Q_rint( clgi.screen->hud_real_width * clgi.screen->hud_scale );
+    #endif
 }
 
 /**
@@ -179,24 +216,34 @@ void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
 **/
 void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
     clgi.R_ClearColor();
-    clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
-    clgi.R_SetAlphaScale( 1.0 );
+    // Set general alpha scale.
+    //clgi.R_SetAlphaScale( clgi.screen->hud_alpha );
+    // Set HUD scale.
+    clgi.R_SetScale( hud_crosshair_scale->value );
     // Got an index of hint display, but its flagged as invisible.
     CLG_HUD_DrawCrosshair();
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();
-    clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
-    clgi.R_SetAlphaScale( 1.0 );
+    clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+    clgi.R_SetScale( 1.0 );
     // Display the use target hint information.
     CLG_HUD_DrawUseTargetHintInfos();
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();
-    clgi.R_SetAlpha( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
-	clgi.R_SetAlphaScale( clg_hud.hud_alpha );
+    clgi.R_SetScale( clgi.screen->hud_scale );
+    clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+    //clgi.R_SetScale( /*hud_scale->value * */scr_scale->value );
     // Weapon Name AND (Clip-)Ammo Indicators.
     CLG_HUD_DrawAmmoIndicators();
+    clgi.R_ClearColor();
+    clgi.R_SetScale( clgi.screen->hud_scale );
+    clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
     // Health AND Armor Indicators.
     CLG_HUD_DrawHealthIndicators();
+    clgi.R_ClearColor();
+    clgi.R_SetScale( 1.0 );
+	clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+    clgi.R_SetAlpha( 1.0 );
 }
 
 /**
@@ -326,7 +373,7 @@ void CLG_HUD_DrawElementBackground( const double &x, const double &y, const doub
     // Set text color to orange.
     clgi.R_SetColor( clg_hud.colors.WHITE );
     // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
 
     // The minimal width and height are 64x64.
     const double _w = w < HUD_ELEMENT_BACKGROUND_MIN_SIZE ? HUD_ELEMENT_BACKGROUND_MIN_SIZE : w;
@@ -608,7 +655,7 @@ void CLG_HUD_DrawChat( void ) {
     }
     // hud_x.
     if ( x < 0 ) {
-        x += clg_hud.hud_real_width + 1;
+        x += clgi.screen->hud_real_width + 1;
         flags |= UI_RIGHT;
     } else {
         flags |= UI_LEFT;
@@ -616,7 +663,7 @@ void CLG_HUD_DrawChat( void ) {
     // step.
     int32_t step = CHAR_HEIGHT;
     if ( y < 0 ) {
-        y += clg_hud.hud_real_height - CHAR_HEIGHT + 1;
+        y += clgi.screen->hud_real_height - CHAR_HEIGHT + 1;
         step = -CHAR_HEIGHT;
     }
 
@@ -798,14 +845,15 @@ void CLG_HUD_DrawLineCrosshair( ) {
     #endif
 
     // Determine center x/y for crosshair display.
-    const double center_x = ( clg_hud.hud_scaled_width ) / 2.;
-    const double center_y = ( clg_hud.hud_scaled_height ) / 2.;
+    const double center_x = ( clgi.screen->hud_real_width ) / 2.;
+    const double center_y = ( clgi.screen->hud_real_height ) / 2.;
 
     // Apply overlay base color.
     clgi.R_SetColor( clg_hud.colors.WHITE );
     // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( scr_alpha->value * clg_hud.crosshair.alpha );
-    
+    //clgi.R_SetAlphaScale( scr_alpha->value * clg_hud.crosshair.alpha );
+    clgi.R_SetAlphaScale( scr_alpha->value );
+    clgi.R_SetAlpha( clg_hud.crosshair.alpha );
     // Thicker crosshair? Type 2:
     const bool thickCrossHair = ( hud_crosshair_type->integer > 1 );
 
@@ -859,7 +907,7 @@ void CLG_HUD_DrawCrosshair( void ) {
     //! WID: Seemed a cool idea, but, I really do not like it lol.
     #if 0
         // Draw crosshair damage displays.
-    SCR_DrawDamageDisplays();
+    CLG_HUD_DrawDamageDisplays();
     #endif
 }
 
@@ -870,7 +918,7 @@ void CLG_HUD_DrawCrosshair( void ) {
 *
 *
 *
-*   Health and Ammo Indicators:
+*   Healt, Armor and Clip/WeaponAmmo Indicators:
 *
 *
 *
@@ -879,26 +927,6 @@ void CLG_HUD_DrawCrosshair( void ) {
 *	@brief  Renders the player's health and armor status to screen.
 **/
 static void CLG_HUD_DrawHealthIndicators() {
-    // Prevent assert if this happens to get called a frame before loading the actual image.
-    if ( clg_hud_static.hud_element_background <= 0 ) {
-        clgi.Print( PRINT_DEVELOPER, "CLG_HUD_DrawHealthIndicators: hud_element_background not registered yet!\n" );
-        clg_hud_static.hud_element_background = clgi.R_RegisterPic( "hud/hud_elmnt_bg.tga" );
-
-        clg_hud_static.hud_icon_health = clgi.R_RegisterPic( "hud/hud_icon_health.tga" );
-        clg_hud_static.hud_icon_armor = clgi.R_RegisterPic( "hud/hud_icon_armor.tga" );
-
-        clg_hud_static.hud_icon_ammo_pistol = clgi.R_RegisterPic( "hud/hud_icon_ammo_pistol.tga" );
-        clg_hud_static.hud_icon_slash = clgi.R_RegisterPic( "hud/hud_icon_slash.tga" );
-
-        for ( int32_t i = 0; i < 10; i++ ) {
-            std::string numberPicName = "hud/hud_number" + std::to_string( i ) + "_l";
-            clg_hud_static.hud_icon_numbers[ i ] = clgi.R_RegisterPic( numberPicName.c_str() );
-        }
-
-		// Return early.
-		return;
-    }
-
     /**
     *   Health Indicating Element:
     **/
@@ -913,7 +941,7 @@ static void CLG_HUD_DrawHealthIndicators() {
 
 	// Start X position for the health element.
     double backGroundStartX = HUD_ELEMENT_OFFSET;
-    double backGroundStartY = clg_hud.hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+    double backGroundStartY = clgi.screen->hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
     // Start X position for the health element.
     double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
     double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
@@ -933,7 +961,7 @@ static void CLG_HUD_DrawHealthIndicators() {
     // Icon is reddish.
 	clgi.R_SetColor( MakeColor( 217, 87, 99, 225 ) ); // == Mandy color in Krita Pixel
     // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
     // Draw the health icon.
     clgi.R_DrawStretchPic( 
         iconStartX, iconStartY,
@@ -943,7 +971,7 @@ static void CLG_HUD_DrawHealthIndicators() {
     // Draw the health count numbers.
     clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
     // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
 	// Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue( 
         numberStartX, // Center X for the health numbers.
@@ -954,13 +982,12 @@ static void CLG_HUD_DrawHealthIndicators() {
 	);
     //clgi.R_ClearColor();
 
-
     /**
 	*   Armor Indicating Element:
     **/
     // Start X position for the armor element.
     backGroundStartX += backGroundWidth + 4;
-    backGroundStartY = clg_hud.hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+    backGroundStartY = clgi.screen->hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
     // Start X position for the health element.
     iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
     iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
@@ -980,7 +1007,7 @@ static void CLG_HUD_DrawHealthIndicators() {
     // Icon is reddish.
     clgi.R_SetColor( MakeColor( 99, 155, 255, 225 ) ); // == Cornflower color in Krita Pixel
     // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
     // Draw the health icon.
     clgi.R_DrawStretchPic(
         iconStartX, iconStartY,
@@ -990,7 +1017,7 @@ static void CLG_HUD_DrawHealthIndicators() {
     // Draw the health count numbers.
     clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
     // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clg_hud.hud_alpha *scr_alpha->value );
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
     // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue(
         numberStartX, // Center X for the health numbers.
@@ -1001,7 +1028,6 @@ static void CLG_HUD_DrawHealthIndicators() {
     );
 
     clgi.R_ClearColor();
-    clgi.R_SetAlpha( scr_alpha->value );
 }
 
 /**
@@ -1028,7 +1054,7 @@ static void CLG_HUD_DrawAmmoIndicators() {
     static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH = 32.; // Height of the element.
 
     double backGroundStartX = 0;
-    double backGroundStartY = clg_hud.hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+    double backGroundStartY = clgi.screen->hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
     
     double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
     double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
@@ -1042,7 +1068,7 @@ static void CLG_HUD_DrawAmmoIndicators() {
     backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_AMMO ] );
 
     // Calculate this here now we have the total estimated width.
-	backGroundStartX = clg_hud.hud_scaled_width - ( backGroundWidth + HUD_ELEMENT_OFFSET );
+	backGroundStartX = clgi.screen->hud_scaled_width - ( backGroundWidth + HUD_ELEMENT_OFFSET );
 
     // Draw its background.
     CLG_HUD_DrawElementBackground(
@@ -1052,8 +1078,8 @@ static void CLG_HUD_DrawAmmoIndicators() {
 
     // Icon is orangie.
     clgi.R_SetColor( MakeColor( 217, 160, 102, 225 ) ); // == Orangie color in Krita Pixel
-    // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
+    // Apply generic HUD alpha.
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
     // Draw the health icon.
     clgi.R_DrawStretchPic(
         backGroundStartX + iconStartX, iconStartY,
@@ -1062,8 +1088,8 @@ static void CLG_HUD_DrawAmmoIndicators() {
     );
     // Draw the health count numbers.
     clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
-    // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
+    // Apply generic HUD alpha.
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
     // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue(
         backGroundStartX + numberStartX, // Center X for the health numbers.
@@ -1077,8 +1103,8 @@ static void CLG_HUD_DrawAmmoIndicators() {
     **/
     // Draw the health count numbers.
     clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
-    // Apply generic crosshair alpha.
-    clgi.R_SetAlpha( clg_hud.hud_alpha * scr_alpha->value );
+    // Apply generic HUD alpha.
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
 	// Draw the / pic.
     numberStartX += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
     // Draw the health icon.
@@ -1099,5 +1125,110 @@ static void CLG_HUD_DrawAmmoIndicators() {
         clgi.client->frame.ps.stats[ STAT_AMMO ] // Health value to display.
     );
     clgi.R_ClearColor();
-    clgi.R_SetAlpha( scr_alpha->value );
+    clgi.R_SetAlpha( 1.f );
+}
+
+
+
+/**
+*
+*
+*
+*   Damage Indicators:
+*
+*
+*
+**/
+static constexpr int32_t DAMAGE_ENTRY_BASE_SIZE = 32;
+
+/**
+*   @brief
+**/
+hud_damage_entry_t *CLG_HUD_AllocateDamageDisplay( const Vector3 &dir ) {
+    hud_damage_entry_t *entry = clg_hud.damageDisplay.indicatorEntries;
+
+    for ( int i = 0; i < hud_state_t::hud_state_damage_entries_s::MAX_DAMAGE_INDICATOR_ENTRIES; i++, entry++ ) {
+        if ( entry->time <= clgi.GetRealTime() ) {
+            goto new_entry;
+        }
+
+        float dot = QM_Vector3DotProduct( entry->dir, dir ); // DotProduct( entry->dir, dir );
+
+        if ( dot >= 0.95f ) {
+            return entry;
+        }
+    }
+
+    entry = clg_hud.damageDisplay.indicatorEntries;;
+
+new_entry:
+    entry->damage = 0;
+    VectorClear( entry->color );
+    return entry;
+}
+/**
+*   @brief  Adds a damage indicator for the given damage using the given color pointing at given direction.
+**/
+void CLG_HUD_AddToDamageDisplay( const int32_t damage, const Vector3 &color, const Vector3 &dir ) {
+    if ( !hud_damage_indicators->integer ) {
+        return;
+    }
+
+    hud_damage_entry_t *entry = CLG_HUD_AllocateDamageDisplay( dir );
+
+    entry->damage += damage;
+    entry->color += color;
+    entry->color = QM_Vector3Normalize( entry->color );
+    entry->dir = dir;
+    entry->time = clgi.GetRealTime() + hud_damage_indicator_time->integer;
+}
+/**
+*   @brief
+**/
+void CLG_HUD_DrawDamageDisplays( void ) {
+    for ( int32_t i = 0; i < hud_state_t::hud_state_damage_entries_s::MAX_DAMAGE_INDICATOR_ENTRIES; i++ ) {
+        hud_damage_entry_t *entry = &clg_hud.damageDisplay.indicatorEntries[ i ];
+
+        if ( entry->time <= clgi.GetRealTime() ) {
+            continue;
+        }
+
+        const double lerpFraction = ( entry->time - clgi.GetRealTime() ) / hud_damage_indicator_time->value;
+
+        float clientYawAngle = game.predictedState.currentPs.viewangles[ YAW ];
+        //vec3_t angles;
+        //vectoangles2( entry->dir, angles );
+        //Vector3 angles = QM_Vector3ToAngles( entry->dir );
+        float damageYawAngle = QM_Vector3ToYaw( entry->dir );// angles[ YAW ];
+        float yawDifference = damageYawAngle/*- 180*/;// ( clientYawAngle - damageYawAngle ) - 180;
+        if ( yawDifference > 180 ) {
+            yawDifference -= 360;
+        }
+        if ( yawDifference < -180 ) {
+            yawDifference += 360;
+        }
+        //yawDifference = DEG2RAD( yawDifference );
+
+        clgi.R_SetColor( MakeColor(
+            (int)( entry->color[ 0 ] * 255.f ),
+            (int)( entry->color[ 1 ] * 255.f ),
+            (int)( entry->color[ 2 ] * 255.f ),
+            (int)( lerpFraction * 255.f ) ) );
+
+        const int32_t size_x = std::min( clg_hud.damageDisplay.indicatorWidth, ( 32/*DAMAGE_ENTRY_BASE_SIZE */ * entry->damage ) );
+        const int32_t size_y = std::min( clg_hud.damageDisplay.indicatorHeight, ( 32/*DAMAGE_ENTRY_BASE_SIZE*/ * entry->damage ) );
+
+        const int32_t x = ( clgi.screen->hud_width - clg_hud.damageDisplay.indicatorWidth ) / 2;
+        const int32_t y = ( clgi.screen->hud_height - clg_hud.damageDisplay.indicatorHeight ) / 2;
+
+
+        //clgi.R_DrawStretchPic( x, y, clgi.screen->damage_display_height, clgi.screen->damage_display_width, clgi.screen->damage_display_pic );
+        clgi.R_DrawRotateStretchPic( x, y, 
+            size_x, clg_hud.damageDisplay.indicatorHeight,
+            yawDifference, 
+            ( clg_hud.damageDisplay.indicatorWidth / 2 ),
+            ( clg_hud.damageDisplay.indicatorHeight / 2 ), 
+            precache.screen.damage_display_pic 
+        );
+    }
 }

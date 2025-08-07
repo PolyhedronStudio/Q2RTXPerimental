@@ -25,35 +25,6 @@
 static constexpr int32_t STAT_PICS = 11;
 static constexpr int32_t STAT_MINUS = ( STAT_PICS - 1 );  // num frame for '-' stats digit
 
-static struct {
-    bool        initialized;        // ready to draw
-
-    qhandle_t   crosshair_pic;
-    int         crosshair_width, crosshair_height;
-    color_t     crosshair_color;
-
-    qhandle_t   pause_pic;
-    int         pause_width, pause_height;
-
-    qhandle_t   loading_pic;
-    int         loading_width, loading_height;
-    //bool        draw_loading;
-
-    qhandle_t   sb_pics[ 2 ][ STAT_PICS ];
-    qhandle_t   inven_pic;
-    qhandle_t   field_pic;
-
-    qhandle_t   backtile_pic;
-
-    qhandle_t   net_pic;
-    qhandle_t   font_pic;
-
-    int         hud_width, hud_height;
-    float       hud_scale;
-    float       hud_alpha;
-} scr;
-
-
 //! Created by engine(client) fetched by Client Game:
 static cvar_t *scr_viewsize;
 
