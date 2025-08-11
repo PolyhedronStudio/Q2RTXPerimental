@@ -57,6 +57,7 @@ textures/office/bricks04:
     specular_factor 0.125
 
 textures/office/chfence01:
+	kind CHROME
 	texture_base textures/office/chfence01.tga
 	texture_normals textures/office/chfence01_n.tga
 	texture_mask textures/office/chfence01_m.tga
@@ -67,6 +68,7 @@ textures/office/chfence01:
     specular_factor 0.125
 
 textures/office/chfence02:
+	kind CHROME
 	texture_base textures/office/chfence02.tga
 	texture_normals textures/office/chfence02_n.tga
 	texture_mask textures/office/chfence02_m.tga

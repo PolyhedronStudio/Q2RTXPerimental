@@ -9,8 +9,8 @@
 
 
 
-#define CHAR_WIDTH  8
-#define CHAR_HEIGHT 8
+#define CHAR_WIDTH  12
+#define CHAR_HEIGHT 18
 
 #define UI_LEFT             BIT( 0 )	// 0x00000001
 #define UI_RIGHT            BIT( 1 )	// 0x00000002

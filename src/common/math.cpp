@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 void SetPlaneType(cm_plane_t *plane)
 {
-    #if 0
+    #if 1
     vec_t *normal = plane->normal;
 
     if (normal[0] == 1) {
@@ -61,13 +61,13 @@ void SetPlaneType(cm_plane_t *plane)
         plane->type = PLANE_ANYY;
     }
 
-    plane->type = PLANE_ANYZ;
+    plane->type = PLANE_NON_AXIAL;
     #endif
 }
 
 void SetPlaneSignbits(cm_plane_t *plane)
 {
-    #if 0
+    #if 1
     int bits = 0;
 
     if (plane->normal[0] < 0) {

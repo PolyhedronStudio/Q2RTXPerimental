@@ -1854,31 +1854,18 @@ static void PM_EraseInputCommandState() {
 **/
 static void PM_DropTimers() {
 	if ( ps->pmove.pm_time ) {
-		#if 1
 			//int32_t msec = (int32_t)pm->cmd.msec >> 3;
-			//double msec = pm->cmd.msec;// / 2.5;
-			//double msec = ( pm->cmd.msec < 0. ? ( 1.0 * 0.125 ) : (pm->cmd.msec * 0.125 ) );
-			double msec = ( pm->cmd.msec < 0. ? ( 1.0 * 0.125 ) : (pm->cmd.msec * 0.125 ) );
+			double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 0.125 ) : (pm->cmd.msec / 0.125 ) );
 			//if ( pm->cmd.msec < 0. ) { // This was <= 0, this seemed to cause a slight jitter in the player movement.
 			//	msec = 1.0 / 8.; // 8 ms = 1 unit. (At 10hz.)
 			//}
+
 			if ( msec >= ps->pmove.pm_time ) {
 				ps->pmove.pm_flags &= ~( PMF_ALL_TIMES );
 				ps->pmove.pm_time = 0;
 			} else {
 				ps->pmove.pm_time -= msec;
 			}
-		#else
-			const int32_t msec = pm->cmd.msec;
-			if ( msec >= ps->pmove.pm_time ) {
-				// Somehow need this, Q2RE does not. If we don't do so, the code piece in this comment that resides above in PM_CategorizePosition
-				// causes us to remain unable to jump.
-				ps->pmove.pm_flags &= ~PMF_ALL_TIMES;
-				ps->pmove.pm_time = 0;
-			} else {
-				ps->pmove.pm_time -= msec;
-			}
-		#endif
 	}
 }
 /**

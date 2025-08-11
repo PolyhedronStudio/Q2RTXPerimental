@@ -468,9 +468,8 @@ void SVG_ShutdownGame( void ) {
     game.mode = nullptr;
 
     // Free level, lua AND the game module its allocated ram.
-    //gi.FreeTags( TAG_SVGAME_LUA );
-    //SVG_EdictPool_Release( &g_edict_pool );
-    gi.FreeTags( TAG_SVGAME_EDICTS );//SVG_EdictPool_Release( &g_edict_pool );
+	//gi.FreeTags( TAG_SVGAME_LUA ); // <-- WID: Moved to SVG_Lua_Shutdown().
+    gi.FreeTags( TAG_SVGAME_EDICTS );
     gi.FreeTags( TAG_SVGAME_LEVEL );
     gi.FreeTags( TAG_SVGAME );
 

@@ -116,14 +116,10 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *tra
                 enterfrac[ 1 ] = f;
                 clipplane[ 1 ] = plane;
                 leadside[ 1 ] = side;
-            }
-            #else
-            }
             #endif
-
-
-            // KEX
-    } else {
+            }
+        // KEX
+        } else {
             // leave
             // Paril: from Q3A
             f = std::min( 1.0f, ( d1 + DIST_EPSILON ) / ( d1 - d2 ) );
@@ -131,7 +127,7 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *tra
             if ( f < leavefrac )
                 leavefrac = f;
         }
-}
+    }
 
     if ( !startout ) {
         // original point was inside brush
@@ -359,6 +355,15 @@ void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
     const vec3_t start, const vec3_t end,
     const vec3_t mins, const vec3_t maxs,
     mnode_t *headnode, const cm_contents_t brushmask ) {
+
+    // Validate mins and maxs, ohterwise assign them vec3_origin.
+    if ( !mins ) {
+        mins = vec3_origin;
+    }
+    if ( !maxs ) {
+        maxs = vec3_origin;
+    }
+
     const vec_t *bounds[ 2 ] = { mins, maxs };
     int i, j;
 
@@ -366,9 +371,11 @@ void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
 
     // fill in a default trace
     trace_trace = trace;
+    //trace_trace = {};
     memset( trace_trace, 0, sizeof( *trace_trace ) );
     trace_trace->fraction = 1;
     trace_trace->surface = &nulltexinfo.c;
+    trace_trace->material = &cm_default_material;
 
     if ( !headnode ) {
         return;

@@ -10,7 +10,7 @@
 #include "common/collisionmodel.h"
 #include "common/common.h"
 
-
+#if 0
 const BBox3 CM_CalculateBrushBounds( mbrush_t *brush ) {
 	if ( !brush->firstbrushside ) {
 		return QM_BBox3Zero();
@@ -88,3 +88,4 @@ const int32_t CM_SignBitsForNormal( const vec3_t normal ) {
 
 	return bits;
 }
+#endif

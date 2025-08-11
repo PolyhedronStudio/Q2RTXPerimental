@@ -141,6 +141,13 @@ static void CM_BoxLeafs_r( box_leaf_test_t &boxLeafTest, mnode_t *node ) {
             node = node->children[ 1 ];
         }
     }
+    
+    // >Q2RTXP>: Do we need this here?
+    #if 0
+    // Accumulate contents flags.
+    mleaf_t *leaf = (mleaf_t *)( node );
+    boxLeafTest.leafs_contents = cm_contents_t( boxLeafTest.leafs_contents | leaf->contents );
+    #endif
 
     if ( boxLeafTest.leaf_count < boxLeafTest.leaf_max_count ) {
         boxLeafTest.leaf_list[ boxLeafTest.leaf_count++ ] = (mleaf_t *)node;

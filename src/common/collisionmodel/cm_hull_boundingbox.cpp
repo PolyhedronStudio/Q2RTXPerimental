@@ -65,7 +65,7 @@ void CM_InitBoxHull( cm_t *cm ) {
             clipNode->children[ side ^ 1 ] = (mnode_t *)&cm->hull_boundingbox->leaf;
         }
 
-        #if 0
+        #if 1
         // Planes:
         cm_plane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
         plane->type = i >> 1;

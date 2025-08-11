@@ -239,9 +239,11 @@ typedef struct {
 
 typedef struct {
     // <Q2RTXP>: BSPX BRUSHLIST loaded: mins/maxs
+    #if 0
     bool            isBspXBrush;
     vec3_t          absmins;
     vec3_t          absmaxs;
+    #endif
     // </Q2RTXP>
     int             contents;
     int             numsides;

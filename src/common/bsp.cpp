@@ -1202,6 +1202,7 @@ static size_t BSPX_ParseLightMapStylesHeader( bsp_t *bsp, const byte *in, size_t
 *
 *
 **/
+#if 0
 static void BSPX_LoadBrushList( bsp_t *bsp, const byte *in, size_t data_size ) {
     const struct srcmodel_t {
         unsigned int ver;
@@ -1337,7 +1338,7 @@ static void BSPX_LoadBrushList( bsp_t *bsp, const byte *in, size_t data_size ) {
 static size_t BSPX_ParseBrushListHeader( bsp_t *bsp, const byte *in, size_t data_size ) {
     return data_size;
 }
-
+#endif
 
 
 /**
