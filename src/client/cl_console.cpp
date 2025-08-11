@@ -478,7 +478,7 @@ void Con_Init(void)
     con_clock = Cvar_Get("con_clock", "0", 0);
     con_height = Cvar_Get("con_height", "0.5", 0);
     con_speed = Cvar_Get("scr_conspeed", "3", 0);
-    con_alpha = Cvar_Get("con_alpha", "0.85", 0);
+    con_alpha = Cvar_Get("con_alpha", "0.9125", 0);
     con_scale = Cvar_Get("con_scale", "1", 0);
     con_scale->changed = con_width_changed;
     con_font = Cvar_Get("con_font", "conchars", 0);

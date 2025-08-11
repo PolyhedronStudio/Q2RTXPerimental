@@ -343,12 +343,17 @@ static void SCR_DrawCenterString( void ) {
 
     clgi.R_SetAlpha( alpha * scr_alpha->value );
 
-    y = clgi.screen->hud_height / 4 - scr_center_lines * 8 / 2;
+    y = clgi.screen->hud_scaled_height / 4 - scr_center_lines * 8 / 2;
 
-    SCR_DrawStringMulti( clgi.screen->hud_width / 2, y, UI_CENTER,
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
+
+    SCR_DrawStringMulti( clgi.screen->hud_scaled_width / 2, y, UI_CENTER,
         MAX_STRING_CHARS, scr_centerstring, precache.screen.font_pic );
 
     clgi.R_SetAlpha( scr_alpha->value );
+    // Scale.
+    clgi.R_SetScale( 1.0 );
 }
 
 /*
@@ -996,11 +1001,12 @@ void PF_SCR_ModeChanged( void ) {
         //    clgi.CVar_Get( "hud_alpha", nullptr, 0 ),
         //    0.0f, 1.0f
         //);
-        //CLG_HUD_AlphaChanged( clgi.screen->hud_alpha );
+
     } else {
-
+        clgi.screen->initialized = true;
     }
-
+    //CLG_HUD_ModeChanged( clgi.screen->hud_scale );
+    //CLG_HUD_AlphaChanged( clgi.screen->hud_alpha );
     //clgi.screen->hud_alpha = 1;
 }
 
@@ -1070,11 +1076,12 @@ void PF_SCR_Init( void ) {
     scr_font = clgi.CVar_Get( "scr_font", "conchars", 0 );
     scr_font->changed = scr_font_changed;
     
-    scr_alpha = clgi.CVar_Get( "scr_alpha", "1", 0 );
+    scr_alpha = clgi.CVar_Get( "scr_alpha", "0.8", 0 );
     scr_alpha->changed = scr_alpha_changed;
-    scr_scale = clgi.CVar_Get( "scr_scale", "1", 0 );
+	scr_alpha_changed( scr_alpha );
+    scr_scale = clgi.CVar_Get( "scr_scale", "0.75", CVAR_ARCHIVE );
     scr_scale->changed = scr_scale_changed;
-
+    scr_scale_changed( scr_scale );
     scr_draw2d = clgi.CVar_Get( "scr_draw2d", "2", 0 );
     scr_showturtle = clgi.CVar_Get( "scr_showturtle", "1", 0 );
     scr_showitemname = clgi.CVar_Get( "scr_showitemname", "1", CVAR_ARCHIVE );

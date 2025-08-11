@@ -199,12 +199,6 @@ void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
     clgi.screen->hud_real_height = refcfg->height;
     clgi.screen->hud_real_width = refcfg->width;
 
-    // Set general alpha scale.
-    clgi.R_SetAlphaScale( scr_alpha->value );
-    clgi.R_SetAlpha( clgi.screen->hud_alpha );
-    // Set HUD scale.
-    clgi.R_SetScale( clgi.screen->hud_scale );
-
     // Determine screen width and height based on hud_scale.
     clgi.screen->hud_scaled_height = Q_rint( clgi.screen->hud_real_height * clgi.screen->hud_scale );
     clgi.screen->hud_scaled_width = Q_rint( clgi.screen->hud_real_width * clgi.screen->hud_scale );
@@ -224,26 +218,32 @@ void CLG_HUD_DrawFrame( refcfg_t *refcfg ) {
     CLG_HUD_DrawCrosshair();
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();
+    // Set general alpha scale.
     clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
-    clgi.R_SetScale( 1.0 );
+    // Set HUD scale.
+    //clgi.R_SetScale( 1.0 );
     // Display the use target hint information.
     CLG_HUD_DrawUseTargetHintInfos();
     // The rest of 2D elements share common alpha.
     clgi.R_ClearColor();
-    clgi.R_SetScale( clgi.screen->hud_scale );
     clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+    // Alpha.
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
     //clgi.R_SetScale( /*hud_scale->value * */scr_scale->value );
     // Weapon Name AND (Clip-)Ammo Indicators.
     CLG_HUD_DrawAmmoIndicators();
     clgi.R_ClearColor();
-    clgi.R_SetScale( clgi.screen->hud_scale );
     clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+    clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    clgi.R_SetScale( clgi.screen->hud_scale );
     // Health AND Armor Indicators.
     CLG_HUD_DrawHealthIndicators();
     clgi.R_ClearColor();
-    clgi.R_SetScale( 1.0 );
-	clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
-    clgi.R_SetAlpha( 1.0 );
+    clgi.R_SetAlphaScale( clgi.CVar_ClampValue( scr_alpha, 0, 1 ) );
+    clgi.R_SetAlpha( scr_alpha->value );
+    clgi.R_SetScale( 1.0f );
 }
 
 /**
@@ -374,6 +374,8 @@ void CLG_HUD_DrawElementBackground( const double &x, const double &y, const doub
     clgi.R_SetColor( clg_hud.colors.WHITE );
     // Apply generic crosshair alpha.
     clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
 
     // The minimal width and height are 64x64.
     const double _w = w < HUD_ELEMENT_BACKGROUND_MIN_SIZE ? HUD_ELEMENT_BACKGROUND_MIN_SIZE : w;
@@ -962,6 +964,8 @@ static void CLG_HUD_DrawHealthIndicators() {
 	clgi.R_SetColor( MakeColor( 217, 87, 99, 225 ) ); // == Mandy color in Krita Pixel
     // Apply generic crosshair alpha.
     clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
     // Draw the health icon.
     clgi.R_DrawStretchPic( 
         iconStartX, iconStartY,
@@ -972,6 +976,8 @@ static void CLG_HUD_DrawHealthIndicators() {
     clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
     // Apply generic crosshair alpha.
     clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
 	// Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue( 
         numberStartX, // Center X for the health numbers.
@@ -1008,6 +1014,8 @@ static void CLG_HUD_DrawHealthIndicators() {
     clgi.R_SetColor( MakeColor( 99, 155, 255, 225 ) ); // == Cornflower color in Krita Pixel
     // Apply generic crosshair alpha.
     clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
     // Draw the health icon.
     clgi.R_DrawStretchPic(
         iconStartX, iconStartY,
@@ -1018,6 +1026,8 @@ static void CLG_HUD_DrawHealthIndicators() {
     clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
     // Apply generic crosshair alpha.
     clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
     // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue(
         numberStartX, // Center X for the health numbers.
@@ -1080,6 +1090,8 @@ static void CLG_HUD_DrawAmmoIndicators() {
     clgi.R_SetColor( MakeColor( 217, 160, 102, 225 ) ); // == Orangie color in Krita Pixel
     // Apply generic HUD alpha.
     clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
     // Draw the health icon.
     clgi.R_DrawStretchPic(
         backGroundStartX + iconStartX, iconStartY,
@@ -1090,6 +1102,8 @@ static void CLG_HUD_DrawAmmoIndicators() {
     clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
     // Apply generic HUD alpha.
     clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
     // Note: We draw these from the right to left, so the X coordinate has to be set to the right side of the element.
     CLG_HUD_DrawElementNumberValue(
         backGroundStartX + numberStartX, // Center X for the health numbers.
@@ -1105,6 +1119,8 @@ static void CLG_HUD_DrawAmmoIndicators() {
     clgi.R_SetColor( MakeColor( 255, 255, 255, 164 ) );
     // Apply generic HUD alpha.
     clgi.R_SetAlpha( clgi.screen->hud_alpha );
+    // Scale.
+    clgi.R_SetScale( clgi.screen->hud_scale );
 	// Draw the / pic.
     numberStartX += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
     // Draw the health icon.
