@@ -1073,16 +1073,18 @@ R_SetScale_RTX(float scale)
 
 void
 R_DrawStretchPic_RTX(int x, int y, int w, int h, qhandle_t pic ) {
+	float eps = +1e-5f; /* fixes some ugly artifacts */
 	enqueue_stretch_pic(
 		x,    y,    w,    h,
-		0.0f, 0.0f, 1.0f, 1.0f,
+		0.0f + eps, 0.0f + eps, 1.0f - eps, 1.0f - eps,
 		draw.colors[0].u32, pic);
 }
 void
 R_DrawRotateStretchPic_RTX( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic ) {
+	float eps = +1e-5f; /* fixes some ugly artifacts */
 	enqueue_stretch_rotate_pic(
 		x, y, w, h,
-		0.0f, 0.0f, 1.0f, 1.0f,
+		0.0f + eps, 0.0f + eps, 1.0f - eps, 1.0f - eps,
 		angle, pivot_x, pivot_y,
 		draw.colors[ 0 ].u32, pic, 0 );
 }
@@ -1099,6 +1101,8 @@ R_DrawPicEx_RTX( double destX, double destY, double destW, double destH, qhandle
 
 	image_t *image = IMG_ForHandle( pic );
 
+	float eps = +1e-5f; /* fixes some ugly artifacts */
+
 	// Calculate the source coordinates in normalized texture space.
 	double s0 = srcX / image->width;
 	double t0 = srcY / image->height;
@@ -1106,7 +1110,7 @@ R_DrawPicEx_RTX( double destX, double destY, double destW, double destH, qhandle
 	double t1 = ( srcY + srcH ) / image->height;
 	enqueue_stretch_pic(
 		destX, destY, destW, destH,
-		s0, t0, s1, t1,
+		s0 + eps, t0 + eps, s1 - eps, t1 - eps,
 		draw.colors[ 0 ].u32, pic );
 }
 
