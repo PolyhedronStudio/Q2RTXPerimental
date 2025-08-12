@@ -34,7 +34,7 @@ extern clgame_export_t globals;
 // For forward declarations:
 #include "sharedgame/sg_shared_fwd.h"
 // Needed.
-#include "sharedgame/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove.h"
 // Needed.
 #include "sharedgame/sg_skm.h"
 // SharedGame includes:

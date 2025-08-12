@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 #include "svgame/svg_local.h"
 #include "svgame/player/svg_player_events.h"
-#include "sharedgame/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove.h"
 
 
 /**

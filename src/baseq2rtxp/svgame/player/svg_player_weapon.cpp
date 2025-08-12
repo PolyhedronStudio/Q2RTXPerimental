@@ -23,7 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/entities/svg_item_edict.h"
 
 #include "sharedgame/sg_misc.h"
-#include "sharedgame/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove.h"
 
 
 static bool     is_quad;

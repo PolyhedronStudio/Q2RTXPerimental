@@ -5,13 +5,12 @@
 *
 *
 ********************************************************************/
-#if 0
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
 #include "sharedgame/sg_misc.h"
-#include "sharedgame/sg_pmove.h"
-#include "sharedgame/sg_pmove_slidemove.h"
+#include "sharedgame/pmove/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove_slidemove.h"
 
 // TODO: FIX CLAMP BEING NAMED CLAMP... preventing std::clamp
 #undef clamp
@@ -2259,4 +2258,4 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_friction = default_pmoveParams_t::pm_friction;
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
 }
-#endif
+

@@ -10,14 +10,13 @@
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_muzzleflashes.h"
-#include "sharedgame/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/svg_commands_server.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_utils.h"
 
-#include "sharedgame/sg_gamemode.h"
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 

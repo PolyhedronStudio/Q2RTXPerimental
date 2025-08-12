@@ -17,7 +17,7 @@
 #include "clgame/local_entities/clg_local_entity_classes.h"
 #include "clgame/local_entities/clg_local_env_sound.h"
 
-#include "sharedgame/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove.h"
 
 
 

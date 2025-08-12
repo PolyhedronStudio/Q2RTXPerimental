@@ -21,7 +21,7 @@
 extern cvar_t *map_allsolid_bug;
 
 //! Uncomment for enabling second best hit plane tracing results.
-#define SECOND_PLANE_TRACE
+#define SECOND_PLANE_TRACEXX
 
 /**
 *
@@ -47,28 +47,42 @@ static bool     trace_ispoint;      // optimized case
 *   @brief
 **/
 static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *trace, mbrush_t *brush ) {
-    int         i;
-    cm_plane_t *plane, *clipplane[ 2 ];
-    float       dist;
-    float       enterfrac[ 2 ], leavefrac;
-    float       d1, d2;
-    bool        getout, startout;
-    float       f;
-    mbrushside_t *side, *leadside[ 2 ];
-
     if ( !brush->numsides )
         return;
 
-    enterfrac[ 0 ] = enterfrac[ 1 ] = -1;
-    leavefrac = 1;
-    clipplane[ 0 ] = clipplane[ 1 ] = NULL;
 
-    getout = false;
-    startout = false;
-    leadside[ 0 ] = leadside[ 1 ] = NULL;
+    // The actual plane.
+    cm_plane_t *plane = nullptr;
 
-    side = brush->firstbrushside;
-    for ( i = 0; i < brush->numsides; i++, side++ ) {
+    // lead side(s).
+    mbrushside_t *leadside[ 2 ] = { nullptr, nullptr };
+    // Clip plane.
+    cm_plane_t *clipplane[ 2 ] = { nullptr, nullptr, };
+
+    // Distances.
+    float d1 = 0.f;
+    float d2 = 0.f;
+    float dist = 0.f;
+
+    // Fractions.
+    float f = 0.f; // Actual fraction.
+    float enterfrac[ 2 ] = { -1, -1 };
+    float leavefrac = 1;
+
+    // Trace escaped the brush.
+    bool getout = false;
+	// Trace started outside the brush.
+    bool startout = false;
+
+    //
+    // Compares the trace against all planes of the brush,
+    // Seeks the latest time the trace crosses a plane towards the Interior,
+    // and the earliest time the trace crosses a plane towards the Exterior.
+    //
+    mbrushside_t *side = brush->firstbrushside;
+    mbrushside_t *endside = side + brush->numsides;
+    int32_t i = 0;
+    for ( i = 0, side = side; side < endside; i++, side++ ) {
         plane = side->plane;
 
         // FIXME: special case for axial
@@ -85,28 +99,31 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *tra
         d1 = DotProduct( p1, plane->normal ) - dist;
         d2 = DotProduct( p2, plane->normal ) - dist;
 
-        if ( d2 > 0 )
+        if ( d2 > 0 ) {
             getout = true; // endpoint is not in solid
-        if ( d1 > 0 )
+        }
+        if ( d1 > 0 ) {
             startout = true;
+        }
 
         // if completely in front of face, no intersection with the entire brush
         // Paril: Q3A fix
-        if ( d1 > 0 && ( d2 >= DIST_EPSILON || d2 >= d1 ) )
+        if ( d1 > 0 && ( d2 >= DIST_EPSILON || d2 >= d1 ) ) {
             // Paril
             return;
+        }
 
         // if it doesn't cross the plane, the plane isn't relevent
-        if ( d1 <= 0 && d2 <= 0 )
+        if ( d1 <= 0 && d2 <= 0 ) {
             continue;
+        }
 
-        // crosses face
-        if ( d1 > d2 ) {
-            // enter
-            // Paril: from Q3A
-            f = std::max( 0.0f, ( d1 - DIST_EPSILON ) / ( d1 - d2 ) );
-            // Paril
-            // KEX
+        // Crosses face.
+        if ( d1 > d2 ) { // Enter.
+            f = ( d1 - DIST_EPSILON ) / ( d1 - d2 );
+            if ( f < 0 ) {
+                f = 0;
+			}
             if ( f > enterfrac[ 0 ] ) {
                 enterfrac[ 0 ] = f;
                 clipplane[ 0 ] = plane;
@@ -119,13 +136,15 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *tra
             #endif
             }
         // KEX
-        } else {
-            // leave
-            // Paril: from Q3A
-            f = std::min( 1.0f, ( d1 + DIST_EPSILON ) / ( d1 - d2 ) );
+        } else { // Leave.
+            f = ( d1 + DIST_EPSILON ) / ( d1 - d2 );
+            if ( f > 1 ) {
+                f = 1;
+			}
             // Paril
-            if ( f < leavefrac )
+            if ( f < leavefrac ) {
                 leavefrac = f;
+            }
         }
     }
 
@@ -134,18 +153,20 @@ static void CM_ClipBoxToBrush( const vec3_t p1, const vec3_t p2, cm_trace_t *tra
         trace->startsolid = true;
         if ( !getout ) {
             trace->allsolid = true;
-            if ( !map_allsolid_bug->integer ) {
+            //if ( !map_allsolid_bug->integer ) {
                 // original Q2 didn't set these
                 trace->fraction = 0;
                 trace->contents = static_cast<cm_contents_t>( brush->contents );
                 trace->material = nullptr;
-            }
+            //}
         }
         return;
     }
     if ( enterfrac[ 0 ] < leavefrac ) {
         if ( enterfrac[ 0 ] > -1 && enterfrac[ 0 ] < trace->fraction ) {
-
+            if ( enterfrac[ 0 ] < 0 ) {
+                enterfrac[ 0 ] = 0;
+			}
             trace->fraction = enterfrac[ 0 ];
             trace->plane = *clipplane[ 0 ];
             trace->surface = &( leadside[ 0 ]->texinfo->c );

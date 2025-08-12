@@ -16,7 +16,7 @@
 
 #include "svgame/svg_lua.h"
 
-#include "sharedgame/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove.h"
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_muzzleflashes.h"

@@ -12,15 +12,15 @@
 
 #include "sharedgame/sg_shared.h"
 #include "sharedgame/sg_means_of_death.h"
-#include "sharedgame/sg_pmove.h"
+#include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_usetarget_hints.h"
+#include "sharedgame/pmove/sg_pmove.h"
 
 #include "svgame/entities/svg_player_edict.h"
 
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_move.h"
 
-#include "sharedgame/sg_gamemode.h"
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 

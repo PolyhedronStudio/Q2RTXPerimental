@@ -11,7 +11,7 @@
 #include "svgame/player/svg_player_obituary.h"
 #include "svgame/svg_save.h"
 
-#include "sharedgame/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove.h"
 #include "svgame/entities/svg_item_edict.h"
 #include "svgame/entities/svg_player_edict.h"
 

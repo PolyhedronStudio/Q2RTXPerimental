@@ -5,12 +5,11 @@
 *
 *
 ********************************************************************/
-#if 0
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
-#include "sharedgame/sg_pmove.h"
-#include "sharedgame/sg_pmove_slidemove.h"
+#include "sharedgame/pmove/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove_slidemove.h"
 
 //! Uncomment for enabling second best hit plane tracing results.
 //#define SECOND_PLANE_TRACE
@@ -289,4 +288,3 @@ const pm_slideMoveFlags_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &ve
 
 	return blockedMask;
 }
-#endif
