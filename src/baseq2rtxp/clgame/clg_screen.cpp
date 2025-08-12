@@ -237,18 +237,18 @@ static void draw_progress_bar( float progress, bool paused, int64_t framenum ) {
     size_t len;
     static const int64_t frameMs = FRAME_TIME_MS.Milliseconds(); // Used to be 10 ofc.
 
-    w = Q_rint( clgi.screen->hud_width * progress );
+    w = Q_rint( clgi.screen->screenWidth * progress );
     h = Q_rint( CHAR_HEIGHT / clgi.screen->hud_scale );
 
-    clgi.screen->hud_height -= h;
+    clgi.screen->screenHeight -= h;
 
-    clgi.R_DrawFill8( 0, clgi.screen->hud_height, w, h, 4 );
-    clgi.R_DrawFill8( w, clgi.screen->hud_height, clgi.screen->hud_width - w, h, 0 );
+    clgi.R_DrawFill8( 0, clgi.screen->screenHeight, w, h, 4 );
+    clgi.R_DrawFill8( w, clgi.screen->screenHeight, clgi.screen->screenWidth - w, h, 0 );
 
     clgi.R_SetScale( clgi.screen->hud_scale );
 
-    w = Q_rint( clgi.screen->hud_width * clgi.screen->hud_scale );
-    h = Q_rint( clgi.screen->hud_height * clgi.screen->hud_scale );
+    w = Q_rint( clgi.screen->screenWidth * clgi.screen->hud_scale );
+    h = Q_rint( clgi.screen->screenHeight * clgi.screen->hud_scale );
 
     len = Q_scnprintf( buffer, sizeof( buffer ), "%.f%%", progress * 100 );
     x = ( w - len * CHAR_WIDTH ) / 2;
@@ -343,12 +343,12 @@ static void SCR_DrawCenterString( void ) {
 
     clgi.R_SetAlpha( alpha * scr_alpha->value );
 
-    y = clgi.screen->hud_scaled_height / 4 - scr_center_lines * 8 / 2;
+    y = clgi.screen->hudScaledHeight / 4 - scr_center_lines * 8 / 2;
 
     // Scale.
     clgi.R_SetScale( clgi.screen->hud_scale );
 
-    SCR_DrawStringMulti( clgi.screen->hud_scaled_width / 2, y, UI_CENTER,
+    SCR_DrawStringMulti( clgi.screen->hudScaledWidth / 2, y, UI_CENTER,
         MAX_STRING_CHARS, scr_centerstring, precache.screen.font_pic );
 
     clgi.R_SetAlpha( scr_alpha->value );
@@ -456,10 +456,10 @@ static void SCR_DrawNet( void ) {
     int y = scr_lag_y->integer;
 
     if ( x < 0 ) {
-        x += clgi.screen->hud_width - LAG_WIDTH + 1;
+        x += clgi.screen->screenWidth - LAG_WIDTH + 1;
     }
     if ( y < 0 ) {
-        y += clgi.screen->hud_height - LAG_HEIGHT + 1;
+        y += clgi.screen->screenHeight - LAG_HEIGHT + 1;
     }
 
     // draw ping graph
@@ -487,7 +487,7 @@ static void SCR_DrawNet( void ) {
 /*
 ===============================================================================
 
-DRAW OBJECTS
+DRAW CVAR/MACRO OBJECTS
 
 ===============================================================================
 */
@@ -528,6 +528,7 @@ void SCR_Color_g( genctx_t *ctx ) {
     }
 }
 
+
 static void SCR_Draw_c( genctx_t *ctx, int argnum ) {
     if ( argnum == 1 ) {
         clgi.CVar_Variable_g( ctx );
@@ -537,7 +538,11 @@ static void SCR_Draw_c( genctx_t *ctx, int argnum ) {
     }
 }
 
+
 // draw cl_fps -1 80
+/**
+*   @brief  Draws object.
+**/
 static void SCR_Draw_f( void ) {
     int x, y;
     const char *s, *c;
@@ -619,6 +624,9 @@ static void SCR_Draw_f( void ) {
     List_Append( &scr_objects, &obj->entry );
 }
 
+/**
+*  @brief  Draws all registered draw objects.
+**/
 static void SCR_Draw_g( genctx_t *ctx ) {
     drawobj_t *obj;
     const char *s;
@@ -635,12 +643,24 @@ static void SCR_Draw_g( genctx_t *ctx ) {
     }
 }
 
+/**
+*   @brief  Unregisters a draw object.
+**/
 static void SCR_UnDraw_c( genctx_t *ctx, int argnum ) {
     if ( argnum == 1 ) {
         SCR_Draw_g( ctx );
     }
 }
 
+/**
+*   @brief  Unregisters a draw object.
+*   @details    If 'all' is specified, removes all draw objects.
+* 		        Otherwise, removes the specified draw object by name.
+* 		        Names can be cvars or macros.
+*   @note   If the specified draw object is not found, prints an error message.
+*   @note   If no arguments are specified, prints the usage message.
+*   @note   If no draw objects are registered, prints a message indicating that.
+**/
 static void SCR_UnDraw_f( void ) {
     const char *s; // WID: C++20: Added const.
     drawobj_t *obj, *next;
@@ -684,6 +704,9 @@ static void SCR_UnDraw_f( void ) {
     Com_Printf( "Draw string '%s' not found.\n", s );
 }
 
+/**
+*   @brief  Draws all registered draw objects.
+**/
 static void SCR_DrawObjects( void ) {
     char buffer[ MAX_QPATH ];
     int x, y;
@@ -693,10 +716,10 @@ static void SCR_DrawObjects( void ) {
         x = obj->x;
         y = obj->y;
         if ( x < 0 ) {
-            x += clgi.screen->hud_width + 1;
+            x += clgi.screen->screenWidth + 1;
         }
         if ( y < 0 ) {
-            y += clgi.screen->hud_height - CHAR_HEIGHT + 1;
+            y += clgi.screen->screenHeight - CHAR_HEIGHT + 1;
         }
         if ( !( obj->flags & UI_IGNORECOLOR ) ) {
             clgi.R_SetColor( obj->color.u32 );
@@ -729,11 +752,13 @@ static void SCR_DrawFPS( void ) {
         Q_snprintf( buffer, MAX_QPATH, "%d FPS", fps );
     }
 
-    const int32_t x = clgi.screen->hud_width - 2;
+    const int32_t x = clgi.screen->hudScaledWidth - 2;
     const int32_t y = 1;
 
     clgi.R_SetColor( ~0u );
+	clgi.R_SetScale( clgi.screen->hud_scale );
     SCR_DrawString( x, y, UI_RIGHT, buffer );
+    clgi.R_SetScale( 1.0f );
 }
 
 
@@ -755,7 +780,7 @@ static void SCR_DrawTurtle( void ) {
         return;
 
     x = CHAR_WIDTH;
-    y = clgi.screen->hud_height - 11 * CHAR_HEIGHT;
+    y = clgi.screen->screenHeight - 11 * CHAR_HEIGHT;
 
     #define DF(f) \
         if (clgi.client->frameflags & FF_##f) { \
@@ -794,7 +819,7 @@ static void SCR_DrawDebugStats( void ) {
         j = MAX_STATS;
 
     x = CHAR_WIDTH;
-    y = ( clgi.screen->hud_height - j * CHAR_HEIGHT ) / 2;
+    y = ( clgi.screen->screenHeight - j * CHAR_HEIGHT ) / 2;
     for ( i = 0; i < j; i++ ) {
         Q_snprintf( buffer, sizeof( buffer ), "%2d: %d", i, clgi.client->frame.ps.stats[ i ] );
         if ( clgi.client->oldframe.ps.stats[ i ] != clgi.client->frame.ps.stats[ i ] ) {
@@ -828,7 +853,7 @@ static void SCR_DrawDebugPmove( void ) {
         return;
 
     x = CHAR_WIDTH;
-    y = ( clgi.screen->hud_height - 2 * CHAR_HEIGHT ) / 2;
+    y = ( clgi.screen->screenHeight - 2 * CHAR_HEIGHT ) / 2;
 
     i = clgi.client->frame.ps.pmove.pm_type;
     if ( i > PM_FREEZE )
@@ -852,8 +877,8 @@ static void SCR_DrawDebugPmove( void ) {
 
 // Sets scr_vrect, the coordinates of the rendered window
 void SCR_CalcVrect( void ) {
-    scr_vrect.width = clgi.screen->hud_width;
-    scr_vrect.height = clgi.screen->hud_height;
+    scr_vrect.width = clgi.screen->screenWidth;
+    scr_vrect.height = clgi.screen->screenHeight;
     scr_vrect.x = 0;
     scr_vrect.y = 0;
 }
@@ -1076,7 +1101,7 @@ void PF_SCR_Init( void ) {
     scr_font = clgi.CVar_Get( "scr_font", "conchars", 0 );
     scr_font->changed = scr_font_changed;
     
-    scr_alpha = clgi.CVar_Get( "scr_alpha", "0.8", 0 );
+    scr_alpha = clgi.CVar_Get( "scr_alpha", "0.8", CVAR_ARCHIVE );
     scr_alpha->changed = scr_alpha_changed;
 	scr_alpha_changed( scr_alpha );
     scr_scale = clgi.CVar_Get( "scr_scale", "0.75", CVAR_ARCHIVE );
@@ -1132,432 +1157,6 @@ vrect_t *PF_GetScreenVideoRect( void ) {
 static void SCR_TileClear( void ) {
 }
 
-#if 0
-/*
-===============================================================================
-
-STAT PROGRAMS
-
-===============================================================================
-*/
-
-#define ICON_WIDTH  24
-#define ICON_HEIGHT 24
-#define DIGIT_WIDTH 16
-#define ICON_SPACE  8
-
-
-/**
-*	@brief
-**/
-static void HUD_DrawNumber( int x, int y, int color, int width, int value ) {
-    char    num[ 16 ], *ptr;
-    int     l;
-    int     frame;
-
-    if ( width < 1 )
-        return;
-
-    // draw number string
-    if ( width > 5 )
-        width = 5;
-
-    color &= 1;
-
-    l = Q_scnprintf( num, sizeof( num ), "%i", value );
-    if ( l > width )
-        l = width;
-    x += 2 + DIGIT_WIDTH * ( width - l );
-
-    ptr = num;
-    while ( *ptr && l ) {
-        if ( *ptr == '-' )
-            frame = STAT_MINUS;
-        else
-            frame = *ptr - '0';
-
-        clgi.R_DrawPic( x, y, precache.screen.sb_pics[ color ][ frame ] );
-        x += DIGIT_WIDTH;
-        ptr++;
-        l--;
-    }
-}
-
-/**
-*	@brief
-**/
-static void SCR_DrawSelectedItemName( int x, int y, int item ) {
-    static int display_item = -1;
-    static int64_t display_start_time = 0;
-
-    double duration = 0.f;
-    if ( display_item != item ) {
-        display_start_time = clgi.Sys_Milliseconds();
-        display_item = item;
-    } else {
-        duration = (double)( clgi.Sys_Milliseconds() - display_start_time ) * 0.001f;
-    }
-
-    float alpha;
-    if ( scr_showitemname->integer < 2 )
-        alpha = std::max( (double)0., std::min( 1., 5. - 4. * duration ) ); // show and hide
-    else
-        alpha = 1; // always show
-
-    if ( alpha > 0.f ) {
-        clgi.R_SetAlpha( alpha * scr_alpha->value );
-
-        int index = CS_ITEMS + item;
-        HUD_DrawString( x, y, clgi.client->configstrings[ index ] );
-
-        clgi.R_SetAlpha( scr_alpha->value );
-    }
-}
-/**
-*	@brief
-**/
-static void SCR_ExecuteLayoutString( const char *s ) {
-    char    buffer[ MAX_QPATH ];
-    int     x, y;
-    int     value;
-    char *token;
-    int     width;
-    int     index;
-    clientinfo_t *ci;
-
-    if ( !s[ 0 ] )
-        return;
-
-    x = 0;
-    y = 0;
-
-    while ( s ) {
-        token = COM_Parse( &s );
-        if ( token[ 2 ] == 0 ) {
-            if ( token[ 0 ] == 'x' ) {
-                if ( token[ 1 ] == 'l' ) {
-                    token = COM_Parse( &s );
-                    x = atoi( token );
-                    continue;
-                }
-
-                if ( token[ 1 ] == 'r' ) {
-                    token = COM_Parse( &s );
-                    x = clgi.screen->hud_width + atoi( token );
-                    continue;
-                }
-
-                if ( token[ 1 ] == 'v' ) {
-                    token = COM_Parse( &s );
-                    x = clgi.screen->hud_width / 2 - 160 + atoi( token );
-                    continue;
-                }
-            }
-
-            if ( token[ 0 ] == 'y' ) {
-                if ( token[ 1 ] == 't' ) {
-                    token = COM_Parse( &s );
-                    y = atoi( token );
-                    continue;
-                }
-
-                if ( token[ 1 ] == 'b' ) {
-                    token = COM_Parse( &s );
-                    y = clgi.screen->hud_height + atoi( token );
-                    continue;
-                }
-
-                if ( token[ 1 ] == 'v' ) {
-                    token = COM_Parse( &s );
-                    y = clgi.screen->hud_height / 2 - 120 + atoi( token );
-                    continue;
-                }
-            }
-        }
-
-        if ( !strcmp( token, "pic" ) ) {
-            // draw a pic from a stat number
-            token = COM_Parse( &s );
-            value = atoi( token );
-            if ( value < 0 || value >= MAX_STATS ) {
-                Com_Error( ERR_DROP, "%s: invalid stat index", __func__ );
-            }
-            index = clgi.client->frame.ps.stats[ value ];
-            if ( index < 0 || index >= MAX_IMAGES ) {
-                Com_Error( ERR_DROP, "%s: invalid pic index", __func__ );
-            }
-            token = clgi.client->configstrings[ CS_IMAGES + index ];
-            if ( token[ 0 ] && clgi.client->image_precache[ index ] ) {
-                qhandle_t pic = clgi.client->image_precache[ index ];
-                // hack for action mod scope scaling
-                //if ( x == clgi.screen->hud_width / 2 - 160 &&
-                //    y == clgi.screen->hud_height / 2 - 120 &&
-                //    Com_WildCmp( "scope?x", token ) ) {
-                //    int w = 320 * ch_scale->value;
-                //    int h = 240 * ch_scale->value;
-                //    clgi.R_DrawStretchPic( ( clgi.screen->hud_width - w ) / 2 + ch_x->integer,
-                //        ( clgi.screen->hud_height - h ) / 2 + ch_y->integer,
-                //        w, h, pic );
-                //} else {
-                    clgi.R_DrawPic( x, y, pic );
-                //}
-            }
-
-            if ( value == STAT_SELECTED_ICON && scr_showitemname->integer ) {
-                SCR_DrawSelectedItemName( x + 32, y + 8, clgi.client->frame.ps.stats[ STAT_SELECTED_ITEM ] );
-            }
-            continue;
-        }
-
-        if ( !strcmp( token, "client" ) ) {
-            // draw a deathmatch client block
-            int     score, ping, time;
-
-            token = COM_Parse( &s );
-            x = clgi.screen->hud_width / 2 - 160 + atoi( token );
-            token = COM_Parse( &s );
-            y = clgi.screen->hud_height / 2 - 120 + atoi( token );
-
-            token = COM_Parse( &s );
-            value = atoi( token );
-            if ( value < 0 || value >= MAX_CLIENTS ) {
-                Com_Error( ERR_DROP, "%s: invalid client index", __func__ );
-            }
-            ci = &clgi.client->clientinfo[ value ];
-
-            token = COM_Parse( &s );
-            score = atoi( token );
-
-            token = COM_Parse( &s );
-            ping = atoi( token );
-
-            token = COM_Parse( &s );
-            time = atoi( token );
-
-            HUD_DrawAltString( x + 32, y, ci->name );
-            HUD_DrawString( x + 32, y + CHAR_HEIGHT, "Score: " );
-            Q_snprintf( buffer, sizeof( buffer ), "%i", score );
-            HUD_DrawAltString( x + 32 + 7 * CHAR_WIDTH, y + CHAR_HEIGHT, buffer );
-            Q_snprintf( buffer, sizeof( buffer ), "Ping:  %i", ping );
-            HUD_DrawString( x + 32, y + 2 * CHAR_HEIGHT, buffer );
-            Q_snprintf( buffer, sizeof( buffer ), "Time:  %i", time );
-            HUD_DrawString( x + 32, y + 3 * CHAR_HEIGHT, buffer );
-
-            if ( !ci->icon ) {
-                ci = &clgi.client->baseclientinfo;
-            }
-            clgi.R_DrawPic( x, y, ci->icon );
-            continue;
-        }
-
-        if ( !strcmp( token, "ctf" ) ) {
-            // draw a ctf client block
-            int     score, ping;
-
-            token = COM_Parse( &s );
-            x = clgi.screen->hud_width / 2 - 160 + atoi( token );
-            token = COM_Parse( &s );
-            y = clgi.screen->hud_height / 2 - 120 + atoi( token );
-
-            token = COM_Parse( &s );
-            value = atoi( token );
-            if ( value < 0 || value >= MAX_CLIENTS ) {
-                Com_Error( ERR_DROP, "%s: invalid client index", __func__ );
-            }
-            ci = &clgi.client->clientinfo[ value ];
-
-            token = COM_Parse( &s );
-            score = atoi( token );
-
-            token = COM_Parse( &s );
-            ping = atoi( token );
-            if ( ping > 999 )
-                ping = 999;
-
-            Q_snprintf( buffer, sizeof( buffer ), "%3d %3d %-12.12s",
-                score, ping, ci->name );
-            if ( value == clgi.client->frame.clientNum ) {
-                HUD_DrawAltString( x, y, buffer );
-            } else {
-                HUD_DrawString( x, y, buffer );
-            }
-            continue;
-        }
-
-        if ( !strcmp( token, "picn" ) ) {
-            // draw a pic from a name
-            token = COM_Parse( &s );
-            clgi.R_DrawPic( x, y, clgi.R_RegisterPic2( token ) );
-            continue;
-        }
-
-        if ( !strcmp( token, "num" ) ) {
-            // draw a number
-            token = COM_Parse( &s );
-            width = atoi( token );
-            token = COM_Parse( &s );
-            value = atoi( token );
-            if ( value < 0 || value >= MAX_STATS ) {
-                Com_Error( ERR_DROP, "%s: invalid stat index", __func__ );
-            }
-            value = clgi.client->frame.ps.stats[ value ];
-            HUD_DrawNumber( x, y, 0, width, value );
-            continue;
-        }
-
-        if ( !strcmp( token, "hnum" ) ) {
-            // health number
-            int     color;
-
-            width = 3;
-            value = clgi.client->frame.ps.stats[ STAT_HEALTH ];
-            if ( value > 25 )
-                color = 0;  // green
-            else if ( value > 0 )
-                color = ( ( clgi.client->frame.number ) >> 2 ) & 1;     // flash
-            else
-                color = 1;
-
-            if ( clgi.client->frame.ps.stats[ STAT_FLASHES ] & 1 )
-                clgi.R_DrawPic( x, y, precache.screen.field_pic );
-
-            HUD_DrawNumber( x, y, color, width, value );
-            continue;
-        }
-
-        // carrying ammo.
-        if ( !strcmp( token, "anum" ) ) {
-            // ammo number
-            int     color;
-
-            width = 3;
-            value = clgi.client->frame.ps.stats[ STAT_AMMO ];
-            if ( value > 5 )
-                color = 0;  // green
-            else if ( value >= 0 )
-                color = ( ( clgi.client->frame.number ) >> 2 ) & 1;     // flash
-            else
-                continue;   // negative number = don't show
-
-            if ( clgi.client->frame.ps.stats[ STAT_FLASHES ] & 4 )
-                clgi.R_DrawPic( x, y, precache.screen.field_pic );
-
-            HUD_DrawNumber( x, y, color, width, value );
-            continue;
-        }
-        // clip ammo.
-        if ( !strcmp( token, "cnum" ) ) {
-            // ammo number
-            int     color;
-
-            width = 2;
-            value = clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ];
-            if ( value > 3 ) {
-                color = 0;  // green
-            } else if ( value >= 0 ) {
-                color = ( ( clgi.client->frame.number ) >> 2 ) & 1;     // flash 
-            } else {
-                continue;   // negative number = don't show
-            }
-
-            if ( clgi.client->frame.ps.stats[ STAT_FLASHES ] & 4 )
-                clgi.R_DrawPic( x, y, precache.screen.field_pic );
-
-            HUD_DrawNumber( x, y, color, width, value );
-            continue;
-        }
-
-        if ( !strcmp( token, "rnum" ) ) {
-            // armor number
-            int     color;
-
-            width = 3;
-            value = clgi.client->frame.ps.stats[ STAT_ARMOR ];
-            if ( value < 1 )
-                continue;
-
-            color = 0;  // green
-
-            if ( clgi.client->frame.ps.stats[ STAT_FLASHES ] & 2 )
-                clgi.R_DrawPic( x, y, precache.screen.field_pic );
-
-            HUD_DrawNumber( x, y, color, width, value );
-            continue;
-        }
-
-        if ( !strcmp( token, "stat_string" ) ) {
-            token = COM_Parse( &s );
-            index = atoi( token );
-            if ( index < 0 || index >= MAX_STATS ) {
-                Com_Error( ERR_DROP, "%s: invalid stat index", __func__ );
-            }
-            index = clgi.client->frame.ps.stats[ index ];
-            if ( index < 0 || index >= MAX_CONFIGSTRINGS ) {
-                Com_Error( ERR_DROP, "%s: invalid string index", __func__ );
-            }
-            HUD_DrawString( x, y, clgi.client->configstrings[ index ] );
-            continue;
-        }
-
-        if ( !strcmp( token, "cstring" ) ) {
-            token = COM_Parse( &s );
-            HUD_DrawCenterString( x + 320 / 2, y, token );
-            continue;
-        }
-
-        if ( !strcmp( token, "cstring2" ) ) {
-            token = COM_Parse( &s );
-            HUD_DrawAltCenterString( x + 320 / 2, y, token );
-            continue;
-        }
-
-        if ( !strcmp( token, "string" ) ) {
-            token = COM_Parse( &s );
-            HUD_DrawString( x, y, token );
-            continue;
-        }
-
-        if ( !strcmp( token, "string2" ) ) {
-            token = COM_Parse( &s );
-            HUD_DrawAltString( x, y, token );
-            continue;
-        }
-
-        if ( !strcmp( token, "if" ) ) {
-            token = COM_Parse( &s );
-            value = atoi( token );
-            if ( value < 0 || value >= MAX_STATS ) {
-                Com_Error( ERR_DROP, "%s: invalid stat index", __func__ );
-            }
-            value = clgi.client->frame.ps.stats[ value ];
-            if ( !value ) {   // skip to endif
-                while ( strcmp( token, "endif" ) ) {
-                    token = COM_Parse( &s );
-                    if ( !s ) {
-                        break;
-                    }
-                }
-            }
-            continue;
-        }
-
-        // Q2PRO extension
-        if ( !strcmp( token, "color" ) ) {
-            color_t     color;
-
-            token = COM_Parse( &s );
-            if ( clgi.SCR_ParseColor( token, &color ) ) {
-                color.u8[ 3 ] *= scr_alpha->value;
-                clgi.R_SetColor( color.u32 );
-            }
-            continue;
-        }
-    }
-
-    clgi.R_ClearColor();
-    clgi.R_SetAlpha( scr_alpha->value );
-}
-#endif
 
 
 /***
@@ -1602,17 +1201,17 @@ static void SCR_DrawPause( void ) {
     const char *pauseStr = "[PAUSED]";
 
     // Determine center of screen.
-    const int32_t x = ( clgi.screen->hud_real_width - ( ( CHAR_WIDTH * strlen( pauseStr ) ) / 2 ) );
-    const int32_t y = ( clgi.screen->hud_real_height - CHAR_HEIGHT ) / 2;
+    const double x = ( ( clgi.screen->hudRealWidth - ( ( CHAR_WIDTH * strlen( pauseStr ) ) / 2.0 ) ) ) * clgi.screen->hud_scale;
+    const double y = ( ( clgi.screen->hudRealHeight - CHAR_HEIGHT ) / 2.0 ) * clgi.screen->hud_scale;
 
     // Set scale back/
     // Use our 'Orange' color.
     clgi.R_SetColor( MakeColor( 255, 150, 100, 255 ) );
-    clgi.R_SetScale( 1.0f );
     clgi.R_SetAlphaScale( scr_alpha->value );
     clgi.R_SetAlpha( 1.0f );
+    clgi.R_SetScale( clgi.screen->hud_scale );
     // Draw pause text info string.
-    HUD_DrawCenterString( x, y, pauseStr );
+    SCR_DrawString( x, y, 0, pauseStr );
     // Reset R color.
     clgi.R_ClearColor();
 }
@@ -1669,12 +1268,13 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
     #endif
     // Draw center message string.
     SCR_DrawCenterString();
+    // Draw FPS counter.
+    SCR_DrawFPS();
+    clgi.R_SetScale( 1.0f );
     // Draw net debug info.
     SCR_DrawNet();
     // Draw console macro objects.
     SCR_DrawObjects();
-    // Draw FPS counter.
-    SCR_DrawFPS();
     // Draw HUD chat.
     CLG_HUD_DrawChat();
     // Draw Turtle laggo thing.
@@ -1705,8 +1305,8 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
 **/
 void PF_DrawActiveState( refcfg_t *refcfg ) {
     // Otherwise, start with full screen HUD.
-    clgi.screen->hud_height = refcfg->height;
-    clgi.screen->hud_width = refcfg->width;
+    clgi.screen->screenHeight = refcfg->height;
+    clgi.screen->screenWidth = refcfg->width;
 
     // Draw any demo specific data.
     SCR_DrawDemo();
@@ -1752,13 +1352,13 @@ void PF_DrawLoadState( refcfg_t *refcfg ) {
     const char *loadingStr = "[LOADING...]";
 
     // Determine center of screen.
-    const int32_t x = ( clgi.screen->hud_real_width - ( ( CHAR_WIDTH * strlen( loadingStr ) ) / 2 ) );
-    const int32_t y = ( clgi.screen->hud_real_height - CHAR_HEIGHT ) / 2;
+    const int32_t x = ( clgi.screen->hudRealWidth - ( ( CHAR_WIDTH * strlen( loadingStr ) ) / 2. ) / 2. );
+    const int32_t y = ( clgi.screen->hudRealHeight - ( CHAR_HEIGHT / 2. ) );
 
-    // Set scale back/
-    clgi.R_SetScale( 1.0f );
     // Use our 'Orange' color.
     clgi.R_SetColor( MakeColor( 255, 150, 100, 255 ) );
+    // Set scale back/
+    clgi.R_SetScale( 1.0f );
     // Draw pause text info string.
     HUD_DrawCenterString( x, y, loadingStr );
     // Reset R color.

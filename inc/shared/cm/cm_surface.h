@@ -44,7 +44,7 @@
 *   Stores material/texture name, flags as well as an
 *   integral 'value' which was commonly used for light flagged surfaces.
 **/
-typedef struct csurface_s {
+typedef struct cmsurface_s {
     //! Texture/Material name for the surface.
     char name[ CM_MAX_TEXNAME ]; // WID: materials: Was 16, but what for?
     //! Special specific surface flags such as transparent etc.

@@ -201,8 +201,8 @@ void HUD_DrawTargetHintInfo( hud_usetarget_hint_t *targetHintInfo ) {
     clgi.R_SetAlphaScale( scr_alpha->value );
 
     // Determine center of screen.
-    const int32_t x = ( clgi.screen->hud_scaled_width/*- scr.pause_width */ ) / 2;
-    const int32_t y = ( clgi.screen->hud_scaled_height /*- scr.pause_height */ - CHAR_HEIGHT ) / 2;
+    const int32_t x = ( clgi.screen->hudScaledWidth/*- scr.pause_width */ ) / 2;
+    const int32_t y = ( clgi.screen->hudScaledHeight /*- scr.pause_height */ - CHAR_HEIGHT ) / 2;
 
     // Current draw offset X axis.
     int32_t xOffset = 0;

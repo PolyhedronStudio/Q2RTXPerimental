@@ -209,73 +209,6 @@ const qboolean SCR_ParseColor(const char *s, color_t *color)
 /*
 ===============================================================================
 
-BAR GRAPHS
-
-===============================================================================
-*/
-
-static void draw_progress_bar(float progress, bool paused, int framenum)
-{
-    char buffer[16];
-    int x, w, h;
-    size_t len;
-
-    w = Q_rint( cl_scr.hud_width * progress);
-    h = Q_rint(CHAR_HEIGHT / cl_scr.hud_scale);
-
-    int32_t hud_height = cl_scr.hud_height - h;
-
-    R_DrawFill8(0, hud_height, w, h, 4);
-    R_DrawFill8(w, hud_height, cl_scr.hud_width - w, h, 0);
-
-    R_SetScale(cl_scr.hud_scale);
-
-    w = Q_rint( cl_scr.hud_width * cl_scr.hud_scale);
-    h = Q_rint( cl_scr.hud_height * cl_scr.hud_scale);
-
-    len = Q_scnprintf(buffer, sizeof(buffer), "%.f%%", progress * 100);
-    x = (w - len * CHAR_WIDTH) / 2;
-    R_DrawString(x, h, 0, MAX_STRING_CHARS, buffer, cl_scr.font_pic);
-
-    if (scr_demobar->integer > 1) {
-        int sec = framenum / 10;
-        int min = sec / 60; sec %= 60;
-
-        Q_scnprintf(buffer, sizeof(buffer), "%d:%02d.%d", min, sec, framenum % 10);
-        R_DrawString(0, h, 0, MAX_STRING_CHARS, buffer, cl_scr.font_pic);
-    }
-
-    if (paused) {
-        // Use our 'Orange' color.
-        R_SetColor( MakeColor( 255, 150, 100, 255 ) );
-        SCR_DrawString(w, h, UI_RIGHT, "[PAUSED]");
-    }
-
-    R_SetScale(1.0f);
-}
-
-static void SCR_DrawDemo(void)
-{
-    if (!scr_demobar->integer) {
-        return;
-    }
-
-    if (cls.demo.playback) {
-        if (cls.demo.file_size) {
-            draw_progress_bar(
-                cls.demo.file_progress,
-                sv_paused->integer &&
-                cl_paused->integer &&
-                scr_showpause->integer == 2,
-                cls.demo.frames_read);
-        }
-        return;
-    }
-}
-
-/*
-===============================================================================
-
 LAGOMETER
 
 ===============================================================================
@@ -366,10 +299,10 @@ static void SCR_DrawNet(void)
     int y = scr_lag_y->integer;
 
     if (x < 0) {
-        x += cl_scr.hud_width - LAG_WIDTH + 1;
+        x += cl_scr.screenWidth - LAG_WIDTH + 1;
     }
     if (y < 0) {
-        y += cl_scr.hud_height - LAG_HEIGHT + 1;
+        y += cl_scr.screenHeight - LAG_HEIGHT + 1;
     }
 
     // draw ping graph

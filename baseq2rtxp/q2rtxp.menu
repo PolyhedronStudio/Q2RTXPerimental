@@ -484,6 +484,7 @@ begin main
     title "Q2RTXPerimental"
     //ifeq developer 1
         action "developer" "pushmenu developer_menu"
+        blank
     //endif
     action "singleplayer" "pushmenu singleplayer"
     action "multiplayer" "pushmenu multiplayer"
@@ -509,7 +510,7 @@ begin game
     //endif
     action "singleplayer" "pushmenu singleplayer"
     action "multiplayer" "pushmenu multiplayer"
-    action "developer stuff" "pushmenu developer_menu"
+    //action "developer stuff" "pushmenu developer_menu"
     action "options" "pushmenu options"
     action "video settings" "pushmenu video"
     action "quit" "pushmenu quit"
@@ -625,8 +626,8 @@ begin keys_developer
     title "Developer Key Bindings" 
 
     bind "Give ALl" "give all"
-    bind "GodMode" god
-    bind "NoClip" noclip
+    bind "GodMode" "god"
+    bind "NoClip" "noclip"
 end
 
 begin weapons

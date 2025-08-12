@@ -196,12 +196,12 @@ void CLG_HUD_ScaleFrame( refcfg_t *refcfg ) {
     clg_hud.hud_scaled_width = Q_rint( clg_hud.hud_real_width * clg_hud.hud_scale );
     #else
     // Recalculate hud height/width.
-    clgi.screen->hud_real_height = refcfg->height;
-    clgi.screen->hud_real_width = refcfg->width;
+    clgi.screen->hudRealHeight = refcfg->height;
+    clgi.screen->hudRealWidth = refcfg->width;
 
     // Determine screen width and height based on hud_scale.
-    clgi.screen->hud_scaled_height = Q_rint( clgi.screen->hud_real_height * clgi.screen->hud_scale );
-    clgi.screen->hud_scaled_width = Q_rint( clgi.screen->hud_real_width * clgi.screen->hud_scale );
+    clgi.screen->hudScaledHeight = Q_rint( clgi.screen->hudRealHeight * clgi.screen->hud_scale );
+    clgi.screen->hudScaledWidth = Q_rint( clgi.screen->hudRealWidth * clgi.screen->hud_scale );
     #endif
 }
 
@@ -657,7 +657,7 @@ void CLG_HUD_DrawChat( void ) {
     }
     // hud_x.
     if ( x < 0 ) {
-        x += clgi.screen->hud_real_width + 1;
+        x += clgi.screen->hudRealWidth + 1;
         flags |= UI_RIGHT;
     } else {
         flags |= UI_LEFT;
@@ -665,7 +665,7 @@ void CLG_HUD_DrawChat( void ) {
     // step.
     int32_t step = CHAR_HEIGHT;
     if ( y < 0 ) {
-        y += clgi.screen->hud_real_height - CHAR_HEIGHT + 1;
+        y += clgi.screen->hudRealHeight - CHAR_HEIGHT + 1;
         step = -CHAR_HEIGHT;
     }
 
@@ -847,8 +847,8 @@ void CLG_HUD_DrawLineCrosshair( ) {
     #endif
 
     // Determine center x/y for crosshair display.
-    const double center_x = ( clgi.screen->hud_real_width ) / 2.;
-    const double center_y = ( clgi.screen->hud_real_height ) / 2.;
+    const double center_x = ( clgi.screen->screenWidth ) / 2.;
+    const double center_y = ( clgi.screen->screenHeight ) / 2.;
 
     // Apply overlay base color.
     clgi.R_SetColor( clg_hud.colors.WHITE );
@@ -943,7 +943,7 @@ static void CLG_HUD_DrawHealthIndicators() {
 
 	// Start X position for the health element.
     double backGroundStartX = HUD_ELEMENT_OFFSET;
-    double backGroundStartY = clgi.screen->hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+    double backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
     // Start X position for the health element.
     double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
     double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
@@ -993,7 +993,7 @@ static void CLG_HUD_DrawHealthIndicators() {
     **/
     // Start X position for the armor element.
     backGroundStartX += backGroundWidth + 4;
-    backGroundStartY = clgi.screen->hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+    backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
     // Start X position for the health element.
     iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
     iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
@@ -1064,7 +1064,7 @@ static void CLG_HUD_DrawAmmoIndicators() {
     static constexpr double HUD_ELEMENT_NUMBERS_DEST_WIDTH = 32.; // Height of the element.
 
     double backGroundStartX = 0;
-    double backGroundStartY = clgi.screen->hud_scaled_height - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
+    double backGroundStartY = clgi.screen->hudScaledHeight - ( HUD_ELEMENT_OFFSET + HUD_ELEMENT_HEIGHT );
     
     double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
     double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
@@ -1078,7 +1078,7 @@ static void CLG_HUD_DrawAmmoIndicators() {
     backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_AMMO ] );
 
     // Calculate this here now we have the total estimated width.
-	backGroundStartX = clgi.screen->hud_scaled_width - ( backGroundWidth + HUD_ELEMENT_OFFSET );
+	backGroundStartX = clgi.screen->hudScaledWidth - ( backGroundWidth + HUD_ELEMENT_OFFSET );
 
     // Draw its background.
     CLG_HUD_DrawElementBackground(
@@ -1234,8 +1234,8 @@ void CLG_HUD_DrawDamageDisplays( void ) {
         const int32_t size_x = std::min( clg_hud.damageDisplay.indicatorWidth, ( 32/*DAMAGE_ENTRY_BASE_SIZE */ * entry->damage ) );
         const int32_t size_y = std::min( clg_hud.damageDisplay.indicatorHeight, ( 32/*DAMAGE_ENTRY_BASE_SIZE*/ * entry->damage ) );
 
-        const int32_t x = ( clgi.screen->hud_width - clg_hud.damageDisplay.indicatorWidth ) / 2;
-        const int32_t y = ( clgi.screen->hud_height - clg_hud.damageDisplay.indicatorHeight ) / 2;
+        const int32_t x = ( clgi.screen->hudRealWidth - clg_hud.damageDisplay.indicatorWidth ) / 2;
+        const int32_t y = ( clgi.screen->hudRealHeight - clg_hud.damageDisplay.indicatorHeight ) / 2;
 
 
         //clgi.R_DrawStretchPic( x, y, clgi.screen->damage_display_height, clgi.screen->damage_display_width, clgi.screen->damage_display_pic );

@@ -226,12 +226,12 @@ typedef struct cl_screen_shared_s {
     //! Font picture.
     qhandle_t   font_pic = 0;
 
-    //! The screen's HUD dimensions.
-    int32_t     hud_width = 0, hud_height = 0;
-    //! Real hud screen size.
-    int32_t     hud_real_width = 0, hud_real_height = 0;
-    //! Scaled hud screen size.
-    int32_t     hud_scaled_width = 0, hud_scaled_height = 0;
+	//! The screen's pixel dimensions.
+    int32_t     screenWidth = 0, screenHeight = 0;
+    //! Real hud screen size in pixels.
+    int32_t     hudRealWidth = 0, hudRealHeight = 0;
+    //! Scaled hud screen size in pixels.
+    int32_t     hudScaledWidth = 0, hudScaledHeight = 0;
     //! Scale.
     float       hud_scale = 1.f;
     //! Global alpha.
