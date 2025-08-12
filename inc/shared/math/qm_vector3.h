@@ -1043,7 +1043,7 @@ QM_API_DISCARD void QM_AngleVectors( const Vector3 &angles, Vector3 *forward, Ve
 }
 
 /**
-*   @brief  Normalize provided vector, return the final length.
+*   @brief  Normalize provided [input/output] reference Vector, return the final length.
 **/
 QM_API float QM_Vector3NormalizeLength( Vector3 &v ) {
     float length = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
@@ -1053,6 +1053,23 @@ QM_API float QM_Vector3NormalizeLength( Vector3 &v ) {
         v.x *= ilength;
         v.y *= ilength;
         v.z *= ilength;
+    }
+
+    return length;
+}
+
+/**
+*   @brief  Normalize provided [input] reference Vector and write the result of that into [output] reference Vector.
+*   @return Return the final length.
+**/
+QM_API float QM_Vector3NormalizeLength2( const Vector3 &in, Vector3 &out ) {
+    float length = sqrtf( in.x * in.x + in.y * in.y + in.z * in.z );
+    if ( length ) {
+        float ilength = 1.0f / length;
+
+        out.x = in.x * ilength;
+        out.y = in.y * ilength;
+        out.z = in.z * ilength;
     }
 
     return length;
