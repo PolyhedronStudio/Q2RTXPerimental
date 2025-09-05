@@ -5,13 +5,12 @@
 *
 *
 ********************************************************************/
-#if 0
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
 #include "sharedgame/sg_misc.h"
-#include "sharedgame/sg_pmove.h"
-#include "sharedgame/sg_pmove_slidemove.h"
+#include "sharedgame/pmove/sg_pmove.h"
+#include "sharedgame/pmove/sg_pmove_slidemove.h"
 
 // TODO: FIX CLAMP BEING NAMED CLAMP... preventing std::clamp
 #undef clamp
@@ -21,10 +20,7 @@
 //#define PM_CLAMP_VIEWANGLES_0_TO_360
 
 //! Defining this will enable Q2 Rerelease style fixing of being stuck.
-#define PMOVE_Q2RE_STUCK_FIXES
-
-//! Defining this will enable 'second plane' tracing. For wedge/slant.
-#define PMOVE_TRACE_SECOND_PLANE
+//#define PMOVE_Q2RE_STUCK_FIXES
 
 //! Defining this will enable 'material physics' such as per example: Taking the friction value from the ground material.
 #define PMOVE_USE_MATERIAL_FRICTION
@@ -45,53 +41,17 @@ static constexpr double PM_BOB_CYCLE_IDLE_EPSILON = 0.1; // WID: Old was 0.1
 static constexpr double PM_ANIMATION_IDLE_EPSILON = 0.25; // WID: Old was 0.1
 
 
-/**
-*	@brief	Actual in-moment local move variables.
-*
-*			All of the locals will be zeroed before each pmove, just to make damn sure we don't have
-*			any differences when running on client or server
-**/
-struct pml_t {
-	//! Actual in-move origin and velocity.
-	Vector3	origin = {};
-	Vector3 velocity = {};
-
-	//! Forward, right and up vectors.
-	Vector3	forward = {}, right = {}, up = {};
-
-	//! Move frameTime.
-	double	frameTime = 0.;
-
-	struct pml_ground_info_s {
-		//! Pointer to the actual ground entity we are on. (nullptr if none).
-		//struct edict_s *entity;
-
-		//! A copy of the plane data from the ground entity.
-		//cm_plane_t	plane;
-		//! A pointer to the ground plane's surface data. (nullptr if none).
-		cm_surface_t	*surface;
-		//! A copy of the contents data from the ground entity's brush.
-		cm_contents_t	contents;
-		////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-		//cm_material_t *material;
-	} ground = {};
-
-	//! Used to reset ourselves in case we are truly stuck.
-	Vector3		previousOrigin = {};
-	//! Used for calculating the fall impact with.
-	Vector3		startVelocity = {};
-};
-
-
-
 //! An actual pointer to the pmove object that we're moving.
 pmove_t *pm;
+//! Contains our local in-moment move variables.
+pml_t pml;
+
 //! Pointer to the pmove's playerState.
 static player_state_t *ps;
 //! An actual pointer to the pmove parameters object for use with moving.
 static pmoveParams_t *pmp;
-//! Contains our local in-moment move variables.
-static pml_t pml;
+
+//static pml_t pml;
 
 #ifdef PMOVE_Q2RE_STUCK_FIXES
 enum class stuck_result_t {
@@ -261,8 +221,8 @@ static void PM_UpdateGroundFromTrace( const cm_trace_t *trace ) {
 		pm->ground.contents = CONTENTS_NONE;
 		pm->ground.material = nullptr;
 
-		//pml.ground.surface = nullptr;
-		//pml.ground.contents = CONTENTS_NONE;
+		//pml.groundTrace.surface = nullptr;
+		//pml.groundTrace.contents = CONTENTS_NONE;
 	} else {
 		pm->ground.entity = (struct edict_ptr_t*)SG_GetEntityForNumber( trace->entityNumber );
 		pm->ground.plane = trace->plane;
@@ -270,8 +230,8 @@ static void PM_UpdateGroundFromTrace( const cm_trace_t *trace ) {
 		pm->ground.contents = trace->contents;
 		pm->ground.material = trace->material;
 
-		//pml.ground.surface = &pm->ground.surface;
-		//pml.ground.contents = trace->contents;
+		//pml.groundTrace.surface = &pm->ground.surface;
+		//pml.groundTrace.contents = trace->contents;
 	}
 }
 /**
@@ -653,10 +613,10 @@ static bool PM_CheckStep( const cm_trace_t *trace ) {
 **/
 static void PM_StepDown( const cm_trace_t *trace ) {
 	// Apply the trace endpos as the new origin.
-	pml.origin = trace->endpos;
+	ps->pmove.origin = trace->endpos;
 
 	// Determine the step height based on the new, and previous origin.
-	const float step_height = pml.origin.z - pml.previousOrigin.z;
+	const float step_height = ps->pmove.origin.z - pml.previousOrigin.z;
 
 	// If its absolute(-/+) value >= PM_MIN_STEP_SIZE(4.0) then we got an official step.
 	if ( fabsf( step_height ) >= PM_MIN_STEP_SIZE ) {
@@ -667,23 +627,25 @@ static void PM_StepDown( const cm_trace_t *trace ) {
 		//PM_AddEvent( 1 /*PM_EVENT_STEP*/, fabs( step_height ) );
 	}
 }
+
+#if 0
 /**
-*	@brief	Each intersection will try to step over the obstruction instead of
-*			sliding along it.
+*	@brief	If intersecting a brush surface, will try to step over the obstruction 
+*			instead of sliding along it.
 * 
 *			Returns a new origin, velocity, and contact entity
 *			Does not modify any world state?
 **/
 static void PM_StepSlideMove() {
 	cm_trace_t trace;
-	Vector3 startOrigin = pml.origin;
-	Vector3 startVelocity = pml.velocity;
+	Vector3 startOrigin = ps->pmove.origin;
+	Vector3 startVelocity = ps->pmove.velocity;
 
 	// Perform an actual 'Step Slide'.
-	PM_StepSlideMove_Generic( pml.origin, pml.velocity, pml.frameTime, pm->mins, pm->maxs, pm->touchTraces, ps->pmove.pm_time );
+	PM_StepSlideMove_Generic( ps->pmove.origin, ps->pmove.velocity, pml.frameTime, pm->mins, pm->maxs, pm->touchTraces, ps->pmove.pm_time );
 
-	Vector3 downOrigin = pml.origin;
-	Vector3 downVelocity = pml.velocity;
+	Vector3 downOrigin = ps->pmove.origin;
+	Vector3 downVelocity = ps->pmove.velocity;
 
 	// Perform 'up-trace' to see whether we can step up at all.
 	Vector3 up = startOrigin + Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
@@ -696,14 +658,14 @@ static void PM_StepSlideMove() {
 	const float stepSize = trace.endpos[ 2 ] - startOrigin.z;
 
 	// We can step up. Try sliding above.
-	pml.origin = trace.endpos;
-	pml.velocity = startVelocity;
+	ps->pmove.origin = trace.endpos;
+	ps->pmove.velocity = startVelocity;
 
 	// Perform an actual 'Step Slide'.
-	PM_StepSlideMove_Generic( pml.origin, pml.velocity, pml.frameTime, pm->mins, pm->maxs, pm->touchTraces, ps->pmove.pm_time );
+	PM_StepSlideMove_Generic( ps->pmove.origin, ps->pmove.velocity, pml.frameTime, pm->mins, pm->maxs, pm->touchTraces, ps->pmove.pm_time );
 
 	// Push down the final amount.
-	Vector3 down = pml.origin - Vector3{ 0.f, 0.f, stepSize };
+	Vector3 down = ps->pmove.origin - Vector3{ 0.f, 0.f, stepSize };
 
 	// [Paril-KEX] jitspoe suggestion for stair clip fix; store
 	// the old down position, and pick a better spot for downwards
@@ -714,16 +676,16 @@ static void PM_StepSlideMove() {
 		down.z = startOrigin.z - 1.f;
 	}
 
-	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
+	trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, down );
 	if ( !trace.allsolid ) {
 		// [Paril-KEX] from above, do the proper trace now
-		cm_trace_t real_trace = PM_Trace( pml.origin, pm->mins, pm->maxs, original_down );
-		//pml.origin = real_trace.endpos;
+		cm_trace_t real_trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, original_down );
+		//ps->pmove.origin = real_trace.endpos;
 
 		// WID: Use proper stair step checking.
 		if ( PM_CheckStep( &trace ) ) {
 			// Only an upwards jump is a stair clip.
-			if ( pml.velocity.z > 0.f ) {
+			if ( ps->pmove.velocity.z > 0.f ) {
 				pm->step_clip = true;
 			}
 			// Step down to the new found ground.
@@ -731,29 +693,29 @@ static void PM_StepSlideMove() {
 		}
 	}
 
-	up = pml.origin;
+	up = ps->pmove.origin;
 
 	// Decide which one went farther, use 'Vector2Length', ignore the Z axis.
 	const float down_dist = ( downOrigin.x - startOrigin.x ) * ( downOrigin.y - startOrigin.y ) + ( downOrigin.y - startOrigin.y ) * ( downOrigin.y - startOrigin.y );
 	const float up_dist = ( up.x - startOrigin.x ) * ( up.x - startOrigin.x ) + ( up.y - startOrigin.y ) * ( up.y - startOrigin.y );
 
 	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL ) {
-		pml.origin = downOrigin;
-		pml.velocity = downVelocity;
+		ps->pmove.origin = downOrigin;
+		ps->pmove.velocity = downVelocity;
 	}
 	// [Paril-KEX] NB: this line being commented is crucial for ramp-jumps to work.
 	// thanks to Jitspoe for pointing this one out.
 	else {// if (ps->pmove.pm_flags & PMF_ON_GROUND)
 		//!! Special case
 		// if we were walking along a plane, then we need to copy the Z over
-		pml.velocity.z = downVelocity.z;
+		ps->pmove.velocity.z = downVelocity.z;
 	}
 
 	// Paril: step down stairs/slopes
 	if ( ( ps->pmove.pm_flags & PMF_ON_GROUND ) && !( ps->pmove.pm_flags & PMF_ON_LADDER ) &&
-		( pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
-		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
-		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
+		( pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && ps->pmove.velocity.z <= 0 ) ) ) {
+		Vector3 down = ps->pmove.origin - Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
+		trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, down );
 
 		// WID: Use proper stair step checking.
 		// Check for stairs:
@@ -762,11 +724,11 @@ static void PM_StepSlideMove() {
 			PM_StepDown( &trace );
 		// We're expecting it to be a slope, step down the slope instead:
 		} else if ( trace.fraction < 1.f ) {
-			pml.origin = trace.endpos;
+			ps->pmove.origin = trace.endpos;
 		}
 	}
 }
-
+#endif
 
 
 /**
@@ -780,7 +742,7 @@ static void PM_StepSlideMove() {
 *	@brief	Handles user intended acceleration.
 **/
 static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, const float acceleration ) {
-	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishDirection );
+	const float currentspeed = QM_Vector3DotProduct( ps->pmove.velocity, wishDirection );
 	const float addSpeed = wishSpeed - currentspeed;
 	if ( addSpeed <= 0 ) {
 		return;
@@ -790,9 +752,9 @@ static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, 
 #ifdef HL_LIKE_ACCELERATION
 	float drop = 0;
 	float friction = 1;
-	if ( ( pm->ground.entity != nullptr && pml.ground.surface != nullptr && !( pml.ground.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->ground.entity != nullptr && pml.groundTrace.surface != nullptr && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		// Get the material to fetch friction from.
-		cm_material_t *ground_material = ( pml.ground.surface != nullptr ? pml.ground.surface->material : nullptr );
+		cm_material_t *ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
 		friction = ( ground_material ? ground_material->physical.friction : 1 );
 		//const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 		//drop += control * friction * pml.frameTime;
@@ -808,7 +770,7 @@ static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, 
 		accelerationSpeed = addSpeed;
 	}
 
-	pml.velocity = QM_Vector3MultiplyAdd( pml.velocity, accelerationSpeed, wishDirection );
+	ps->pmove.velocity = QM_Vector3MultiplyAdd( ps->pmove.velocity, accelerationSpeed, wishDirection );
 }
 /**
 *	@brief	Handles user intended 'mid-air' acceleration.
@@ -819,7 +781,7 @@ static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpee
 		wishspd = 30;
 	}
 
-	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishDirection );
+	const float currentspeed = QM_Vector3DotProduct( ps->pmove.velocity, wishDirection );
 	const float addSpeed = wishspd - currentspeed;
 	if ( addSpeed <= 0 ) {
 		return;
@@ -830,7 +792,7 @@ static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpee
 		accelerationSpeed = addSpeed;
 	}
 
-	pml.velocity = QM_Vector3MultiplyAdd( pml.velocity, accelerationSpeed, wishDirection );
+	ps->pmove.velocity = QM_Vector3MultiplyAdd( ps->pmove.velocity, accelerationSpeed, wishDirection );
 }
 /**
 *	@brief	Handles both ground friction and water friction
@@ -838,19 +800,19 @@ static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpee
 static void PM_Friction() {
 	// Set us to a halt, if our speed is too low, otherwise we'll see
 	// ourselves sort of 'drifting'.
-	const float speed = QM_Vector3Length( pml.velocity );//sqrtf( pml.velocity.x * pml.velocity.x + pml.velocity.y * pml.velocity.y + pml.velocity.z * pml.velocity.z );
+	const float speed = QM_Vector3Length( ps->pmove.velocity );//sqrtf( ps->pmove.velocity.x * ps->pmove.velocity.x + ps->pmove.velocity.y * ps->pmove.velocity.y + ps->pmove.velocity.z * ps->pmove.velocity.z );
 	if ( speed < 1 ) {
-		pml.velocity.x = 0;
-		pml.velocity.y = 0;
+		ps->pmove.velocity.x = 0;
+		ps->pmove.velocity.y = 0;
 		return;
 	}
 
 	// Apply ground friction if on-ground.
 #ifdef PMOVE_USE_MATERIAL_FRICTION
 	float drop = 0;
-	if ( ( pm->ground.entity != nullptr && pml.ground.surface != nullptr && !( pml.ground.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->ground.entity != nullptr && pml.groundTrace.surface != nullptr && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		// Get the material to fetch friction from.
-		cm_material_t *ground_material = ( pml.ground.surface != nullptr ? pml.ground.surface->material : nullptr );
+		cm_material_t *ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
 		float friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
 		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 		drop += control * friction * pml.frameTime;
@@ -858,7 +820,7 @@ static void PM_Friction() {
 #else
 	// Apply ground friction if on-ground.
 	float drop = 0;
-	if ( ( pm->ground.entity && pml.ground.surface && !( pml.ground.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
+	if ( ( pm->ground.entity && pml.groundTrace.surface && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( ps->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		const float friction = pmp->pm_friction;
 		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 		drop += control * friction * pml.frameTime;
@@ -873,10 +835,10 @@ static void PM_Friction() {
 	float newspeed = speed - drop;
 	if ( newspeed <= 0 ) {
 		newspeed = 0;
-		pml.velocity = {};
+		ps->pmove.velocity = {};
 	} else {
 		newspeed /= speed;
-		pml.velocity *= newspeed;
+		ps->pmove.velocity *= newspeed;
 	}
 }
 /**
@@ -944,8 +906,8 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 					pml.forward.y,
 					0.f 
 				} );
-				Vector3 spot = pml.origin + ( flatforward * 1 );
-				cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
+				Vector3 spot = ps->pmove.origin + ( flatforward * 1 );
+				cm_trace_t trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
 
 				if ( trace.fraction != 1.f && ( trace.contents & CONTENTS_LADDER ) ) {
 					Vector3 right = QM_Vector3CrossProduct( trace.plane.normal, { 0.f, 0.f, 1.f } );
@@ -1004,22 +966,22 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 	if ( pm->ground.entity ) {
 		Vector3 velocity = QM_Vector3Zero();
 
-		if ( pml.ground.contents & CONTENTS_CURRENT_0 ) {
+		if ( pml.groundTrace.contents & CONTENTS_CURRENT_0 ) {
 			velocity.x += 1;
 		}
-		if ( pml.ground.contents & CONTENTS_CURRENT_90 ) {
+		if ( pml.groundTrace.contents & CONTENTS_CURRENT_90 ) {
 			velocity.y += 1;
 		}
-		if ( pml.ground.contents & CONTENTS_CURRENT_180 ) {
+		if ( pml.groundTrace.contents & CONTENTS_CURRENT_180 ) {
 			velocity.x -= 1;
 		}
-		if ( pml.ground.contents & CONTENTS_CURRENT_270 ) {
+		if ( pml.groundTrace.contents & CONTENTS_CURRENT_270 ) {
 			velocity.y -= 1;
 		}
-		if ( pml.ground.contents & CONTENTS_CURRENT_UP ) {
+		if ( pml.groundTrace.contents & CONTENTS_CURRENT_UP ) {
 			velocity.z += 1;
 		}
-		if ( pml.ground.contents & CONTENTS_CURRENT_DOWN ) {
+		if ( pml.groundTrace.contents & CONTENTS_CURRENT_DOWN ) {
 			velocity.z -= 1;
 		}
 
@@ -1067,41 +1029,61 @@ static void PM_GenericMove() {
 		PM_Accelerate( wishDirection, wishSpeed, pmp->pm_accelerate );
 		if ( !wishVelocity.z ) {
 			// Apply gravity as a form of 'friction' to prevent 'racing/sliding' against the ladder.
-			if ( pml.velocity.z > 0 ) {
-				pml.velocity.z -= ps->pmove.gravity * pml.frameTime;
-				if ( pml.velocity.z < 0 ) {
-					pml.velocity.z = 0;
+			if ( ps->pmove.velocity.z > 0 ) {
+				ps->pmove.velocity.z -= ps->pmove.gravity * pml.frameTime;
+				if ( ps->pmove.velocity.z < 0 ) {
+					ps->pmove.velocity.z = 0;
 				}
 			} else {
-				pml.velocity.z += ps->pmove.gravity * pml.frameTime;
-				if ( pml.velocity.z > 0 ) {
-					pml.velocity.z = 0;
+				ps->pmove.velocity.z += ps->pmove.gravity * pml.frameTime;
+				if ( ps->pmove.velocity.z > 0 ) {
+					ps->pmove.velocity.z = 0;
 				}
 			}
 		}
-		PM_StepSlideMove();
+		PM_StepSlideMove_Generic(
+			ps->pmove.origin, ps->pmove.velocity,
+			pm->step_height, pm->impact_delta,
+			pm->mins, pm->maxs,
+			pm->touchTraces,
+			pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
+			pml.groundTrace,
+			false,
+			pml.frameTime,
+			ps->pmove.pm_time
+		);
 	// Perform ground movement. (Walking on-ground):
-	} else if ( pm->ground.entity ) {
+	} else if ( ps->pmove.pm_flags & PMF_ON_GROUND ) {
 		// Erase Z before accelerating.
-		pml.velocity.z = 0; //!!! this is before the accel
+		//ps->pmove.velocity.z = 0; //!!! this is before the accel
 		PM_Accelerate( wishDirection, wishSpeed, pmp->pm_accelerate );
 
 		// PGM	-- fix for negative trigger_gravity fields
-		//		pml.velocity[2] = 0;
-		if ( ps->pmove.gravity > 0 ) {
-			pml.velocity.z = 0;
-		} else {
-			pml.velocity.z -= ps->pmove.gravity * pml.frameTime;
-		}
+		//		ps->pmove.velocity[2] = 0;
+		//if ( ps->pmove.gravity > 0 ) {
+		//	ps->pmove.velocity.z = 0;
+		//} else {
+			ps->pmove.velocity.z -= ps->pmove.gravity * pml.frameTime;
+		//}
 		// PGM
 
 		// Escape and prevent step slide moving if we have no x/y velocity.
-		if ( !pml.velocity.x && !pml.velocity.y ) {
-			return;
-		}
+		//if ( !ps->pmove.velocity.x && !ps->pmove.velocity.y ) {
+		//	return;
+		//}
 
 		// Step Slide.
-		PM_StepSlideMove();
+		PM_StepSlideMove_Generic(
+			ps->pmove.origin, ps->pmove.velocity,
+			pm->step_height, pm->impact_delta,
+			pm->mins, pm->maxs,
+			pm->touchTraces,
+			true,// /*pml.groundTrace.surface || */pml.groundTrace.entityNumber != ENTITYNUM_NONE /*|| pml.groundTrace.fraction < 1.0*/,
+			pml.groundTrace,
+			false,
+			pml.frameTime,
+			ps->pmove.pm_time
+		);
 	// Not on ground, so litte effect on velocity. Perform air acceleration in case it is enabled(has any value stored.):
 	} else {
 		// Accelerate appropriately.
@@ -1113,11 +1095,21 @@ static void PM_GenericMove() {
 
 		// Add gravity in case we're not in grappling mode.
 		if ( ps->pmove.pm_type != PM_GRAPPLE ) {
-			pml.velocity.z -= ps->pmove.gravity * pml.frameTime;
+			ps->pmove.velocity.z -= ps->pmove.gravity * pml.frameTime;
 		}
 
 		// Step Slide.
-		PM_StepSlideMove();
+		PM_StepSlideMove_Generic(
+			ps->pmove.origin, ps->pmove.velocity,
+			pm->step_height, pm->impact_delta,
+			pm->mins, pm->maxs,
+			pm->touchTraces,
+			false,//pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
+			pml.groundTrace,
+			true,
+			pml.frameTime,
+			ps->pmove.pm_time
+		);
 	}
 }
 /**
@@ -1161,23 +1153,43 @@ static void PM_WaterMove() {
 	PM_Accelerate( wishDirection, wishspeed, pmp->pm_water_accelerate );
 
 	// Step Slide.
-	PM_StepSlideMove();
+	PM_StepSlideMove_Generic(
+		ps->pmove.origin, ps->pmove.velocity,
+		pm->step_height, pm->impact_delta,
+		pm->mins, pm->maxs,
+		pm->touchTraces,
+		pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
+		pml.groundTrace,
+		true,
+		pml.frameTime,
+		ps->pmove.pm_time
+	);
 }
 /**
 *	@brief	Performs out of water jump movement. Apply gravity, check whether to cancel water jump mode, and slide move right after.
 **/
 static void PM_WaterJumpMove() {
 	// Apply downwards gravity to the velocity.
-	pml.velocity.z -= ps->pmove.gravity * pml.frameTime;
+	//ps->pmove.velocity.z -= ps->pmove.gravity * pml.frameTime;
 
 	// Cancel the WaterJump mode as soon as we are falling down again. (Velocity < 0).
-	if ( pml.velocity.z < 0 ) { // cancel as soon as we are falling down again
+	if ( ps->pmove.velocity.z < 0 ) { // cancel as soon as we are falling down again
 		ps->pmove.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP );
 		ps->pmove.pm_time = 0;
 	}
 
-	// Step slide move.
-	PM_StepSlideMove();
+	// Step Slide.
+	PM_StepSlideMove_Generic(
+		ps->pmove.origin, ps->pmove.velocity,
+		pm->step_height, pm->impact_delta,
+		pm->mins, pm->maxs,
+		pm->touchTraces,
+		pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
+		pml.groundTrace,
+		true,
+		pml.frameTime,
+		ps->pmove.pm_time
+	);
 }
 /**
 *	@brief
@@ -1189,9 +1201,9 @@ static void PM_FlyMove( bool doclip ) {
 	ps->pmove.viewheight = doclip ? 0 : PM_VIEWHEIGHT_STANDUP;
 
 	// Calculate friction
-	const float speed = QM_Vector3Length( pml.velocity );
+	const float speed = QM_Vector3Length( ps->pmove.velocity );
 	if ( speed < 1 ) {
-		pml.velocity = QM_Vector3Zero();
+		ps->pmove.velocity = QM_Vector3Zero();
 	} else {
 		drop = 0;
 
@@ -1208,23 +1220,23 @@ static void PM_FlyMove( bool doclip ) {
 		}
 		newspeed /= speed;
 
-		pml.velocity *= newspeed;
+		ps->pmove.velocity *= newspeed;
 		//float newspeed = speed - drop;
 		//if ( newspeed < 0 ) {
 		//	newspeed = 0;
 		//}
 		//newspeed /= speed;
 
-		//pml.velocity *= newspeed;
+		//ps->pmove.velocity *= newspeed;
 		#else
 		// Scale the velocity.
 		float newspeed = speed - drop;
 		if ( newspeed <= 0 ) {
 			newspeed = 0;
-			pml.velocity = {};
+			ps->pmove.velocity = {};
 		} else {
 			newspeed /= speed;
-			pml.velocity *= newspeed;
+			ps->pmove.velocity *= newspeed;
 		}
 		#endif
 	}
@@ -1255,7 +1267,7 @@ static void PM_FlyMove( bool doclip ) {
 	// Paril: newer clients do this.
 	wishspeed *= 1.5;
 
-	const float currentspeed = QM_Vector3DotProduct( pml.velocity, wishdir );
+	const float currentspeed = QM_Vector3DotProduct( ps->pmove.velocity, wishdir );
 	float addspeed = wishspeed - currentspeed;
 
 	if ( addspeed > 0 ) {
@@ -1263,21 +1275,32 @@ static void PM_FlyMove( bool doclip ) {
 		if ( accelspeed > addspeed ) {
 			accelspeed = addspeed;
 		}
-		pml.velocity += accelspeed * wishdir;
+		ps->pmove.velocity += accelspeed * wishdir;
 	}
 
 	if ( doclip ) {
 		/*for (i = 0; i < 3; i++)
-			end[i] = pml.origin[i] + pml.frameTime * pml.velocity[i];
+			end[i] = ps->pmove.origin[i] + pml.frameTime * ps->pmove.velocity[i];
 
-		trace = PM_Trace(pml.origin, pm->mins, pm->maxs, end);
+		trace = PM_Trace(ps->pmove.origin, pm->mins, pm->maxs, end);
 
-		pml.origin = trace.endpos;*/
+		ps->pmove.origin = trace.endpos;*/
 		// Step Slide.
-		PM_StepSlideMove();
+		// Step Slide.
+		PM_StepSlideMove_Generic(
+			ps->pmove.origin, ps->pmove.velocity,
+			pm->step_height, pm->impact_delta,
+			pm->mins, pm->maxs,
+			pm->touchTraces,
+			pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
+			pml.groundTrace,
+			false,
+			pml.frameTime,
+			ps->pmove.pm_time
+		);
 	} else {
 		// Hard set origin in order to move.
-		pml.origin += ( pml.velocity * pml.frameTime );
+		ps->pmove.origin += ( ps->pmove.velocity * pml.frameTime );
 	}
 }
 /**
@@ -1292,15 +1315,15 @@ static void PM_DeadMove() {
 	}
 
 	// Add extra friction for our dead body.
-	forward = QM_Vector3Length( pml.velocity );
+	forward = QM_Vector3Length( ps->pmove.velocity );
 	forward -= 20;
 	if ( forward <= 0 ) {
-		pml.velocity = QM_Vector3Zero();
+		ps->pmove.velocity = QM_Vector3Zero();
 	} else {
 		// Normalize.
-		pml.velocity = QM_Vector3Normalize( pml.velocity );
+		ps->pmove.velocity = QM_Vector3Normalize( ps->pmove.velocity );
 		// Scale by old velocity derived length.
-		pml.velocity *= forward;
+		ps->pmove.velocity *= forward;
 	}
 }
 
@@ -1335,11 +1358,11 @@ static inline void PM_GetWaterLevel( const Vector3 &position, cm_liquid_level_t 
 	if ( contentType & CM_CONTENTMASK_WATER ) {
 		type = contentType;
 		level = cm_liquid_level_t::LIQUID_FEET;
-		point.z = pml.origin.z + pm->mins.z + sample1;
+		point.z = ps->pmove.origin.z + pm->mins.z + sample1;
 		contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
 		if ( contentType & CM_CONTENTMASK_WATER ) {
 			level = cm_liquid_level_t::LIQUID_WAIST;
-			point.z = pml.origin.z + pm->mins.z + sample2;
+			point.z = ps->pmove.origin.z + pm->mins.z + sample2;
 			contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
 			if ( contentType & CM_CONTENTMASK_WATER ) {
 				level = cm_liquid_level_t::LIQUID_UNDER;
@@ -1355,9 +1378,9 @@ static void PM_CategorizePosition() {
 
 	// If the player hull point is 0.25 units down is solid, the player is on ground.
 	// See if standing on something solid
-	Vector3 point = pml.origin + Vector3{ 0.f, 0.f, -0.25f };
+	Vector3 point = ps->pmove.origin + Vector3{ 0.f, 0.f, -0.25f };
 
-	if ( pml.velocity.z > 180 || ps->pmove.pm_type == PM_GRAPPLE ) { //!!ZOID changed from 100 to 180 (ramp accel)
+	if ( ps->pmove.velocity.z > 180 || ps->pmove.pm_type == PM_GRAPPLE ) { //!!ZOID changed from 100 to 180 (ramp accel)
 		// We are going off-ground due to a too high velocit.
 		ps->pmove.pm_flags &= ~PMF_ON_GROUND;
 
@@ -1368,18 +1391,18 @@ static void PM_CategorizePosition() {
 		pm->ground.contents = CONTENTS_NONE;
 		pm->ground.material = nullptr;
 
-		pml.ground.surface = nullptr;
-		pml.ground.contents = CONTENTS_NONE;
+		pml.groundTrace.surface = nullptr;
+		pml.groundTrace.contents = CONTENTS_NONE;
 
 		// We are in air.
 		ps->animation.inAir = true;
 	} else {
-		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point );
+		trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, point );
 		pm->ground.plane = trace.plane;
 		//pml.groundSurface = trace.surface;
-		pm->ground.surface = *( pml.ground.surface = trace.surface );
+		pm->ground.surface = *( pml.groundTrace.surface = trace.surface );
 		//pml.groundContents = trace.contents;
-		pm->ground.contents = (cm_contents_t)( pml.ground.contents = trace.contents );
+		pm->ground.contents = (cm_contents_t)( pml.groundTrace.contents = trace.contents );
 		//pml.groundMaterial = trace.material;
 		pm->ground.material = trace.material;
 
@@ -1391,8 +1414,8 @@ static void PM_CategorizePosition() {
 		bool slanted_ground = trace.fraction < 1.0f && trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL;
 
 		if ( slanted_ground ) {
-			Vector3 slantTraceEnd = pml.origin + trace.plane.normal;
-			cm_trace_t slant = PM_Trace( pml.origin, pm->mins, pm->maxs, slantTraceEnd );
+			Vector3 slantTraceEnd = ps->pmove.origin + trace.plane.normal;
+			cm_trace_t slant = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, slantTraceEnd );
 
 			if ( slant.fraction < 1.0f && !slant.startsolid ) {
 				slanted_ground = false;
@@ -1404,8 +1427,8 @@ static void PM_CategorizePosition() {
 
 		// If the player hull point is 0.25 units down is solid, the player is on ground.
 		// See if standing on something solid
-		Vector3 landEndPoint = pml.origin + Vector3{ 0., 0., -30. };
-		cm_trace_t jumpLandTrace = PM_Trace( pml.origin, pm->mins, pm->maxs, landEndPoint );
+		Vector3 landEndPoint = ps->pmove.origin + Vector3{ 0., 0., -30. };
+		cm_trace_t jumpLandTrace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, landEndPoint );
 
 		if ( trace.fraction == 1.0f || ( slanted_ground && !trace.startsolid ) ) {
 			pm->ground.entity = nullptr;
@@ -1437,7 +1460,7 @@ static void PM_CategorizePosition() {
 				bool isJumpUpEventSet = false;
 
 				// [Paril-KEX]
-				if ( pml.velocity.z >= 100.f && pm->ground.plane.normal[ 2 ] >= 0.9f && !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
+				if ( ps->pmove.velocity.z >= 100.f && pm->ground.plane.normal[ 2 ] >= 0.9f && !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
 					ps->pmove.pm_flags |= PMF_TIME_TRICK_JUMP;
 					ps->pmove.pm_time = 64;
 
@@ -1450,9 +1473,9 @@ static void PM_CategorizePosition() {
 				// [Paril-KEX] calculate impact delta; this also fixes triple jumping
 				Vector3 clipped_velocity = QM_Vector3Zero();
 				// First clip the velocity.
-				PM_ClipVelocity( pml.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
+				PM_ClipVelocity( ps->pmove.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
 				// Calculate impact delta.
-				pm->impact_delta = pml.startVelocity.z - clipped_velocity.z;
+				pm->impact_delta = pml.previousVelocity.z - clipped_velocity.z;
 
 				// On ground.
 				ps->pmove.pm_flags |= PMF_ON_GROUND;
@@ -1482,22 +1505,22 @@ static void PM_CategorizePosition() {
 	}
 
 	// Get liquid.level, accounting for ducking.
-	PM_GetWaterLevel( pml.origin, pm->liquid.level, pm->liquid.type );
+	PM_GetWaterLevel( ps->pmove.origin, pm->liquid.level, pm->liquid.type );
 }
 /**
 *	@brief	Determine whether we're above water, or not.
 **/
 static inline const bool PM_AboveWater() {
 	// Testing point.
-	const Vector3 below = pml.origin + Vector3{ 0, 0, -8 };
+	const Vector3 below = ps->pmove.origin + Vector3{ 0, 0, -8 };
 	// We got solid below, not water:
-	bool solid_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
+	bool solid_below = pm->trace( QM_Vector3ToQFloatV( ps->pmove.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
 	if ( solid_below ) {
 		return false;
 	}
 
 	// We're above water:
-	bool water_below = pm->trace( QM_Vector3ToQFloatV( pml.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_WATER ).fraction < 1.0f;
+	bool water_below = pm->trace( QM_Vector3ToQFloatV( ps->pmove.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_WATER ).fraction < 1.0f;
 	if ( water_below ) {
 		return true;
 	}
@@ -1512,9 +1535,9 @@ static inline const bool PM_AboveWater() {
 static void PM_ScreenEffects() {
 	// Add for contents
 	Vector3 vieworg = {
-		pml.origin.x + ps->viewoffset.x,
-		pml.origin.y + ps->viewoffset.y,
-		pml.origin.z + ps->viewoffset.z + (float)ps->pmove.viewheight
+		ps->pmove.origin.x + ps->viewoffset.x,
+		ps->pmove.origin.y + ps->viewoffset.y,
+		ps->pmove.origin.z + ps->viewoffset.z + (float)ps->pmove.viewheight
 	};
 	const int32_t contents = pm->pointcontents( QM_Vector3ToQFloatV( vieworg ).v );//cm_contents_t contents = pm->pointcontents( vieworg );
 
@@ -1565,8 +1588,8 @@ static void PM_CheckSpecialMovement() {
 		pml.forward.y,
 		0.f
 	} );
-	const Vector3 spot = pml.origin + ( flatforward * 1 );
-	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, (cm_contents_t)( CONTENTS_LADDER ) );
+	const Vector3 spot = ps->pmove.origin + ( flatforward * 1 );
+	cm_trace_t trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, spot, (cm_contents_t)( CONTENTS_LADDER ) );
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) && pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST ) {
 		ps->pmove.pm_flags |= PMF_ON_LADDER;
 	}
@@ -1591,8 +1614,8 @@ static void PM_CheckSpecialMovement() {
 	}
 
 	// Quick check that something is even blocking us forward
-	Vector3 blockTraceEnd = pml.origin + flatforward * 40.f;
-	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, blockTraceEnd, CM_CONTENTMASK_SOLID );
+	Vector3 blockTraceEnd = ps->pmove.origin + flatforward * 40.f;
+	trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, blockTraceEnd, CM_CONTENTMASK_SOLID );
 
 	// we aren't blocked, or what we're blocked by is something we can walk up
 	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= PM_MIN_STEP_NORMAL ) {
@@ -1609,18 +1632,37 @@ static void PM_CheckSpecialMovement() {
 	// if we land on a dry spot we're good!
 	// simulate 1 sec worth of movement
 	pm_touch_trace_list_t touches;
-	Vector3 waterjump_origin = { pml.origin.x, pml.origin.y, pml.origin.z };//vec3_t waterjump_origin = pml.origin;
-	float time = 0.1f;
+	Vector3 waterjump_origin = { ps->pmove.origin.x, ps->pmove.origin.y, ps->pmove.origin.z };//vec3_t waterjump_origin = ps->pmove.origin;
+	double time = 0.1;
 	bool has_time = true;
 
-	for ( size_t i = 0; i < std::min( 50, (int32_t)( 10 * ( 800.f / ps->pmove.gravity ) ) ); i++ ) {
+	for ( size_t i = 0; i < std::min( 50, (int32_t)( 40 * ( 800.f / ps->pmove.gravity ) ) ); i++ ) {
 		waterjump_vel.z -= ps->pmove.gravity * time;
 
 		if ( waterjump_vel.z < 0 ) {
 			has_time = false;
 		}
 
-		PM_StepSlideMove_Generic( waterjump_origin, waterjump_vel, time, pm->mins, pm->maxs, touches, has_time );
+		#if 0
+		PM_StepSlideMove_Generic( 
+			waterjump_origin, waterjump_vel, 
+			time, 
+			pm->mins, pm->maxs, 
+			touches, has_time );
+		#else
+		PM_StepSlideMove_Generic(
+			waterjump_origin, waterjump_vel,
+			pm->step_height, pm->impact_delta,
+			pm->mins, pm->maxs,
+			touches,
+			false, //pml.groundTrace.surface || pml.groundTrace.entityNumber || pml.groundTrace.fraction < 1.0,
+			pml.groundTrace,
+			false,
+			pml.frameTime,
+			has_time
+		);
+
+		#endif
 	}
 
 	// snap down to ground
@@ -1628,12 +1670,12 @@ static void PM_CheckSpecialMovement() {
 	trace = PM_Trace( waterjump_origin, pm->mins, pm->maxs, snapTraceEnd, CM_CONTENTMASK_SOLID );
 
 	// Can't stand here.
-	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL || trace.endpos[ 2 ] < pml.origin.z ) {
+	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL || trace.endpos[ 2 ] < ps->pmove.origin.z ) {
 		return;
 	}
 
 	// We're currently standing on ground, and the snapped position is a step.
-	if ( pm->ground.entity && fabsf( pml.origin.z - trace.endpos[ 2 ] ) <= PM_MAX_STEP_SIZE ) {
+	if ( pm->ground.entity && fabsf( ps->pmove.origin.z - trace.endpos[ 2 ] ) <= PM_MAX_STEP_SIZE ) {
 		return;
 	}
 
@@ -1648,8 +1690,8 @@ static void PM_CheckSpecialMovement() {
 	}
 
 	// Valid waterjump! Set velocity to Jump out of water
-	pml.velocity = flatforward * 50;
-	pml.velocity.z = 350;
+	ps->pmove.velocity = flatforward * 50;
+	ps->pmove.velocity.z = 350;
 	// Engage PMF_TIME_WATERJUMP timer mode.
 	ps->pmove.pm_flags |= PMF_TIME_WATERJUMP;
 	ps->pmove.pm_time = 2048;
@@ -1687,14 +1729,14 @@ static const bool PM_WallJump() {
 	//trace into direction we are moving
 	constexpr float jump_trace_distance = 2.0f; // 0.25f
 	Vector3 point = {};
-	VectorMA( pml.origin , jump_trace_distance, movedir, point );
-	cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point, CM_CONTENTMASK_SOLID );
+	VectorMA( ps->pmove.origin , jump_trace_distance, movedir, point );
+	cm_trace_t trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, point, CM_CONTENTMASK_SOLID );
 
 	// Calculate the 'wishvel' which is our desired direction vector.
 	//float jump_trace_distance = 2.0f;
 	Vector3 wishvel = QM_Vector3Normalize( pml.forward * pm->cmd.forwardmove + pml.right * pm->cmd.sidemove ) * jump_trace_distance;
-	Vector3 spot = pml.origin + wishvel;
-	//cm_trace_t trace = PM_Trace( pml.origin, pm->mins, pm->maxs, spot, CM_CONTENTMASK_SOLID );
+	Vector3 spot = ps->pmove.origin + wishvel;
+	//cm_trace_t trace = PM_Trace( ps->pmove.origin, pm->mins, pm->maxs, spot, CM_CONTENTMASK_SOLID );
 	// Trace must've hit something, and NOT BE STUCK inside of a brush either.
 	if ( trace.fraction < 1.0f && !trace.allsolid && !trace.startsolid
 		// Ensure that the plane's normal is an actual wall.
@@ -1720,10 +1762,10 @@ static const bool PM_WallJump() {
 		constexpr float jump_height = 280;
 
 		// For use with the excluding Z component, and/or prevent walljumps if exceeding certain Z velocities.
-		//pml.velocity[ 2 ] += jump_height * QM_Min( 0.23f, trace.plane.normal[ 2 ] );
+		//ps->pmove.velocity[ 2 ] += jump_height * QM_Min( 0.23f, trace.plane.normal[ 2 ] );
 		// No cap? :-)
-		//if ( pml.velocity[ 2 ] > jump_height ) {
-		//	pml.velocity[ 2 ] = jump_height;
+		//if ( ps->pmove.velocity[ 2 ] > jump_height ) {
+		//	ps->pmove.velocity[ 2 ] = jump_height;
 		//}
 		
 		// Default Z component to straight up.
@@ -1732,10 +1774,10 @@ static const bool PM_WallJump() {
 		jumpNormal[ 1 ] = trace.plane.normal[ 1 ];
 		jumpNormal[ 2 ] = 1;
 		//const float xy_speed = 240. * QM_Minf( 0.23, trace.plane.normal[ 2 ] );
-		pml.velocity = pml.velocity + ( jumpNormal * jump_height );
+		ps->pmove.velocity = ps->pmove.velocity + ( jumpNormal * jump_height );
 
 		// One can choose to exclude the jump_height addition up above and use this below instead.
-		//pml.velocity += Vector2( trace.plane.normal ) * 240.0f;
+		//ps->pmove.velocity += Vector2( trace.plane.normal ) * 240.0f;
 
 		// Add 'Predictable' Event for Jumping Up.
 		PM_AddEvent( PS_EV_JUMP_UP, 0 );
@@ -1798,7 +1840,7 @@ static void PM_CheckJump() {
 	#endif
 
 	// In-air/liquid, so no effect, can't re-jump without ground.
-	if ( pm->ground.entity == nullptr ) {
+	if ( pm->ground.entity == nullptr || pml.groundTrace.entityNumber == ENTITYNUM_NONE ) {
 		return;
 	}
 
@@ -1811,10 +1853,10 @@ static void PM_CheckJump() {
 
 	// Apply upwards velocity.
 	const float jump_height = pmp->pm_jump_height;
-	pml.velocity.z += jump_height;
+	ps->pmove.velocity.z += jump_height;
 	// If still too low, force jump height velocity upwards.
-	if ( pml.velocity.z < jump_height ) {
-		pml.velocity.z = jump_height;
+	if ( ps->pmove.velocity.z < jump_height ) {
+		ps->pmove.velocity.z = jump_height;
 	}
 
 	// Add 'Predictable' Event for Jumping Up.
@@ -1848,7 +1890,7 @@ static inline const bool PM_CheckDuck() {
 		if ( !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
 			// check that duck won't be blocked
 			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, PM_BBOX_DUCKED_MAXS.z };
-			trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
+			trace = PM_Trace( ps->pmove.origin, pm->mins, check_maxs, ps->pmove.origin );
 			if ( !trace.allsolid ) {
 				ps->pmove.pm_flags |= PMF_DUCKED;
 				flags_changed = true;
@@ -1859,7 +1901,7 @@ static inline const bool PM_CheckDuck() {
 		if ( ps->pmove.pm_flags & PMF_DUCKED ) {
 			// try to stand up
 			Vector3 check_maxs = { pm->maxs.x, pm->maxs.y, PM_BBOX_STANDUP_MAXS.z };
-			trace = PM_Trace( pml.origin, pm->mins, check_maxs, pml.origin );
+			trace = PM_Trace( ps->pmove.origin, pm->mins, check_maxs, ps->pmove.origin );
 			if ( !trace.allsolid ) {
 				ps->pmove.pm_flags &= ~PMF_DUCKED;
 				flags_changed = true;
@@ -1912,8 +1954,8 @@ static inline const bool PM_GoodPosition() {
 static void PM_SnapPosition() {
 	// Original with fixed stuck object snapping.
 	#if 0
-	ps->pmove.velocity = pml.velocity;
-	ps->pmove.origin = pml.origin;
+	ps->pmove.velocity = ps->pmove.velocity;
+	ps->pmove.origin = ps->pmove.origin;
 	if ( PM_GoodPosition() ) {
 		return;
 	} else {
@@ -1933,13 +1975,13 @@ static void PM_SnapPosition() {
 		#endif
 	}
 	#else
-	ps->pmove.velocity = pml.velocity;
-	ps->pmove.origin = pml.origin;
+	ps->pmove.velocity = ps->pmove.velocity;
+	ps->pmove.origin = ps->pmove.origin;
 	if ( PM_GoodPosition() ) {
 		return;
 	} else {
-		ps->pmove.origin = pml.origin = pml.previousOrigin;
-		ps->pmove.velocity = pml.velocity = pml.startVelocity;
+		ps->pmove.origin = ps->pmove.origin = pml.previousOrigin;
+		ps->pmove.velocity = ps->pmove.velocity = pml.previousVelocity;
 	}
 	#endif
 }
@@ -1948,22 +1990,27 @@ static void PM_SnapPosition() {
 **/
 static void PM_InitialSnapPosition() {
 	constexpr int32_t offset[ 3 ] = { 0, -1, 1 };
-	const Vector3 base = ps->pmove.origin;
+	const Vector3 baseOrigin = ps->pmove.origin;
+	const Vector3 baseVelocity = ps->pmove.origin;
 	
 	for ( int32_t z = 0; z < 3; z++ ) {
-		ps->pmove.origin.z = base.z + offset[ z ];
+		ps->pmove.origin.z = baseOrigin.z + offset[ z ];
 		for ( int32_t y = 0; y < 3; y++ ) {
-			ps->pmove.origin.y = base.y + offset[ y ];
+			ps->pmove.origin.y = baseOrigin.y + offset[ y ];
 			for ( int32_t x = 0; x < 3; x++ ) {
-				ps->pmove.origin.x = base.x + offset[ x ];
+				ps->pmove.origin.x = baseOrigin.x + offset[ x ];
 				if ( PM_GoodPosition() ) {
-					pml.origin = ps->pmove.origin;
 					pml.previousOrigin = ps->pmove.origin;
+					pml.previousVelocity = ps->pmove.velocity;
 					return;
 				}
 			}
 		}
 	}
+
+	ps->pmove.origin = baseOrigin;
+	ps->pmove.velocity = baseVelocity;
+
 }
 
 
@@ -2032,7 +2079,8 @@ static void PM_EraseInputCommandState() {
 static void PM_DropTimers() {
 	if ( ps->pmove.pm_time ) {
 			//int32_t msec = (int32_t)pm->cmd.msec >> 3;
-			double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 0.125 ) : (pm->cmd.msec / 0.125 ) );
+			//double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 0.125 ) : (pm->cmd.msec / 0.125 ) );
+			double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 8 ) : ( pm->cmd.msec / 8 ) );
 			//if ( pm->cmd.msec < 0. ) { // This was <= 0, this seemed to cause a slight jitter in the player movement.
 			//	msec = 1.0 / 8.; // 8 ms = 1 unit. (At 10hz.)
 			//}
@@ -2088,12 +2136,12 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	pml = {};
 
 	// Store the origin and velocity in pmove local.
-	pml.origin = ps->pmove.origin;
-	pml.velocity = ps->pmove.velocity;
+	//ps->pmove.origin = ps->pmove.origin;
+	//ps->pmove.velocity = ps->pmove.velocity;
 	// Save the origin as 'old origin' for in case we get stuck.
 	pml.previousOrigin = ps->pmove.origin;
 	// Save the start velocity.
-	pml.startVelocity = ps->pmove.velocity;
+	pml.previousVelocity = ps->pmove.velocity;
 
 	// Calculate frameTime.
 	pml.frameTime = (double)pm->cmd.msec * 0.001;
@@ -2259,4 +2307,4 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_friction = default_pmoveParams_t::pm_friction;
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
 }
-#endif
+

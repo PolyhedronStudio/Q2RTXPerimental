@@ -30,12 +30,12 @@
 **/
 void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &trace ) {
 	// Escape function if we are exceeding maximum touch traces.
-	if ( touchTraceList.count >= MAX_TOUCH_TRACES ) {
+	if ( touchTraceList.numberOfTraces >= MAX_TOUCH_TRACES ) {
 		return;
 	}
 
 	// Iterate for possible duplicates.
-	for ( int32_t i = 0; i < touchTraceList.count; i++ ) {
+	for ( int32_t i = 0; i < touchTraceList.numberOfTraces; i++ ) {
 		// Escape function if duplicate.
 		if ( touchTraceList.traces[ i ].entityNumber == trace.entityNumber ) {
 			return;
@@ -43,7 +43,7 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 	}
 
 	// Add trace to list.
-	touchTraceList.traces[ touchTraceList.count++ ] = trace;
+	touchTraceList.traces[ touchTraceList.numberOfTraces++ ] = trace;
 }
 
 
@@ -95,7 +95,7 @@ const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const pm_slideMoveFlags_t PM_SlideMove_Generic(
+const pm_slideMoveFlags_t PM_SlideMove_Generic( 
 	Vector3 &origin, Vector3 &velocity, double &impactSpeed,
 	const Vector3 &mins, const Vector3 &maxs,
 
@@ -103,10 +103,10 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 
 	const bool &groundPlane, const cm_trace_t &groundTrace,
 
-	const bool gravity,
+	const bool gravity, 
 
-	const double frameTime, const double hasTime
-) {
+	const double frameTime,	const double hasTime
+) {	
 	pm_slideMoveFlags_t blockedMask = PM_SLIDEMOVEFLAG_NONE;
 
 	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
@@ -147,7 +147,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 		endVelocity.z -= gravity * frameTime;
 		velocity.z = ( velocity.z + endVelocity.z ) * 0.5f;
 		primalVelocity.z = endVelocity.z;
-		if ( groundPlane ) {
+		if ( groundPlane) {
 			// Slide along the ground plane.
 			PM_ClipVelocity( velocity, groundTrace.plane.normal, velocity, PM_OVERCLIP );
 		}
@@ -333,7 +333,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 *			Does not modify any world state?
 **/
 const void PM_StepSlideMove_Generic(
-	Vector3 &origin, Vector3 &velocity,
+	Vector3 &origin, Vector3 &velocity, 
 	double &stepHeight, double &impactSpeed,
 	const Vector3 &mins, const Vector3 &maxs,
 
@@ -346,132 +346,47 @@ const void PM_StepSlideMove_Generic(
 	const double frameTime, const double hasTime
 ) {
 	/**
-	*	Try a full slide move first.
+	*	Try a full slide move first, and if it fails, try stepping over the obstruction.
 	**/
 	// Start origin and velocity.
 	const Vector3 startOrigin = origin;
 	const Vector3 startVelocity = velocity;
-	// Move.
-	const bool cleanMove = PM_SlideMove_Generic( origin, velocity, impactSpeed, mins, maxs, touch_traces, groundPlane, groundTrace, gravity, frameTime, hasTime );
-	// Store current origin/velocity.
-	Vector3 downOrigin = origin;
-	Vector3 downVelocity = velocity;
 
-
-
-	/**
-	*	If we had a clean move, see if there is anything below us which we can 'step on' to.
-	**/
-	if ( cleanMove ) {
-		// Push down the final amount.
-		Vector3 down = origin;
-		down.z -= PM_MAX_STEP_SIZE;
-
-		// If we cannot slide move, try stepping over the obstruction.
-		Vector3 downPoint = startOrigin;
-		downPoint.z -= PM_MAX_STEP_SIZE;
-		// Trace down to see if we can step down.
-		cm_trace_t trace = PM_Trace( startOrigin, mins, maxs, downPoint );
-		// For velocity step up clip touch testing.
-		constexpr Vector3 vUp = { 0.f, 0.f, 1.f };
-		// Never step up when you still have up velocity.
-		if ( velocity.z > 0
-			&& ( /*!trace.allsolid
-					||*/ QM_Vector3DotProduct( trace.plane.normal, vUp ) < PM_MIN_STEP_NORMAL ) ) {
-			return;
-		}
-
-		// Push down the final amount.
-		trace = PM_Trace( origin, mins, maxs, down );
-		// If we are not solid, then we can step down.
-		if ( !trace.allsolid ) {
-			origin = trace.endpos;
-		}
-		// Otherwise, we clip along the obstruction.
-		if ( trace.fraction < 1.0 ) {
-			PM_ClipVelocity( velocity, trace.plane.normal, velocity, PM_OVERCLIP );
-		}
-
-		stepHeight = origin.z - startOrigin.z;
-		/**
-		*	Otherwise, look for whether we can step over the obstruction instead.
-		**/
-	} else {
-		// Test for obstruction above use.
-		Vector3 up = startOrigin;
-		up.z += PM_MAX_STEP_SIZE;
-		cm_trace_t trace = PM_Trace( startOrigin, mins, maxs, up );
-		if ( trace.allsolid ) {
-			// Can't step up.
-			return;
-		}
-
-		// Exact amount we can step up.
-		const float stepSize = trace.endpos[ 2 ] - startOrigin.z;
-
-		// Try sliding above.
-		origin = trace.endpos;
-		velocity = startVelocity;
-
-		PM_SlideMove_Generic( origin, velocity, impactSpeed, mins, maxs, touch_traces, groundPlane, groundTrace, gravity, frameTime, hasTime );
-
-		// Push down the final amount.
-		Vector3 down = origin;
-		down.z -= stepSize;
-
-		// Push down the final amount.
-		trace = PM_Trace( origin, mins, maxs, down );
-		// If we are not solid, then we can step down.
-		if ( !trace.allsolid ) {
-			origin = trace.endpos;
-		}
-		// Otherwise, we clip along the obstruction.
-		if ( trace.fraction < 1.0 ) {
-			PM_ClipVelocity( velocity, trace.plane.normal, velocity, PM_OVERCLIP );
-		}
-
-		stepHeight = origin.z - startOrigin.z;
-	}
-	#if 0
-	#if 0
 	// If we can slide move, do it.
 	const pm_slideMoveFlags_t moveMask = PM_SLIDEMOVEFLAG_NONE;// PM_SLIDEMOVEFLAG_PLANE_TOUCHED | PM_SLIDEMOVEFLAG_BLOCKED;
 	if ( (
 		PM_SlideMove_Generic( origin, velocity, impactSpeed, mins, maxs, touch_traces, groundPlane, groundTrace, gravity, frameTime, hasTime ) == moveMask ) ) {
 		return; // We got exactly where we wanted to go first try.
 	}
-	#endif
-	if ( PM_SlideMove_Generic( origin, velocity, impactSpeed, mins, maxs, touch_traces, groundPlane, groundTrace, gravity, frameTime, hasTime ) != 0 ) {
 
-		//} else {
-			// If we cannot slide move, try stepping over the obstruction.
-		Vector3 downPoint = startOrigin;
-		downPoint.z -= PM_MAX_STEP_SIZE;
-		// Trace down to see if we can step down.
-		cm_trace_t trace = PM_Trace( startOrigin, mins, maxs, downPoint );
-		// For velocity step up clip touch testing.
-		constexpr Vector3 vUp = { 0.f, 0.f, 1.f };
-		// Never step up when you still have up velocity.
-		if ( velocity.z > 0
-			&& ( /*!trace.allsolid
-					||*/ QM_Vector3DotProduct( trace.plane.normal, vUp ) < PM_MIN_STEP_NORMAL ) ) {
-			return;
-		}
+	// If we cannot slide move, try stepping over the obstruction.
+	Vector3 downPoint = startOrigin + Vector3{ 0.f, 0.f, -PM_MAX_STEP_SIZE };
+	// Trace down to see if we can step down.
+	cm_trace_t trace = PM_Trace( startOrigin, mins, maxs, downPoint );
+	// For velocity step up clip touch testing.
+	constexpr Vector3 vUp = { 0.f, 0.f, 1.f };
+	// Never step up when you still have up velocity.
+	if ( velocity.z > 0 
+			&& ( trace.fraction == 1.0 
+				|| QM_Vector3DotProduct( trace.plane.normal, vUp) < PM_MIN_STEP_NORMAL ) ) 
+	{
+		return;
 	}
+
 	// Copy over current origin and velocity as the down origin and velocity.
 	Vector3 downOrigin = origin;
 	Vector3 downVelocity = velocity;
 
 	// Test the player position above the obstruction, if they were a stepheight higher.
 	Vector3 upPoint = startOrigin + Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
-	cm_trace_t trace = PM_Trace( startOrigin, mins, maxs, upPoint );
+	trace = PM_Trace( startOrigin, mins, maxs, upPoint );
 	if ( trace.allsolid ) {
 		SG_DPrintf( "%s: bend can't step\n", __func__ );
 		return;
 	}
 
 	// Determine the step size.
-	const float stepSize = trace.endpos[ 2 ] - startOrigin.z;
+	const float stepSize = trace.endpos[2] - startOrigin.z;
 
 	// Try sliding above the obstruction.
 	origin = trace.endpos;
@@ -480,7 +395,7 @@ const void PM_StepSlideMove_Generic(
 	PM_SlideMove_Generic( origin, velocity, impactSpeed, mins, maxs, touch_traces, groundPlane, groundTrace, gravity, frameTime, hasTime );
 
 	// Push down the final amount.
-	Vector3 downPoint = origin + Vector3{ 0.f, 0.f, -stepSize };
+	downPoint = origin + Vector3{ 0.f, 0.f, -stepSize };
 	trace = PM_Trace( origin, mins, maxs, downPoint );
 	// If we are not solid, then we can step down.
 	if ( !trace.allsolid ) {
@@ -492,7 +407,4 @@ const void PM_StepSlideMove_Generic(
 	}
 
 	stepHeight = origin.z - startOrigin.z;
-
-	#endif
-
 }

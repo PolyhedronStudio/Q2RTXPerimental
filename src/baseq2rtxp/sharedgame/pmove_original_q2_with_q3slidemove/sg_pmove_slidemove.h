@@ -5,11 +5,13 @@
 *
 *
 ********************************************************************/
-#if 0
 #pragma once
 
 //! Maximum amount of clipping planes to test for.
 static constexpr int32_t PM_MAX_CLIP_PLANES = 5;
+//! The overclip factor for velocity clipping.
+static constexpr double PM_OVERCLIP = 1.001;
+
 
 //! Can't step up onto very steep slopes
 static constexpr float PM_MIN_STEP_NORMAL = 0.7f;
@@ -44,8 +46,9 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 
 /**
 *	@brief	Clips the velocity to surface normal.
+*			returns the blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
+const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
@@ -54,7 +57,22 @@ const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &
 void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &trace );
 
 /**
-*	@brief	Attempts to trace clip into velocity direction for the current frametime.
+*	@brief	If intersecting a brush surface, will try to step over the obstruction
+*			instead of sliding along it.
+*
+*			Returns a new origin, velocity, and contact entity
+*			Does not modify any world state?
 **/
-const pm_slideMoveFlags_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, const double frametime, const Vector3 &mins, const Vector3 &maxs, pm_touch_trace_list_t &touch_traces, const bool has_time );
-#endif
+const void PM_StepSlideMove_Generic(
+    Vector3 &origin, Vector3 &velocity,
+    double &stepHeight, double &impactSpeed,
+    const Vector3 &mins, const Vector3 &maxs,
+
+    pm_touch_trace_list_t &touch_traces,
+
+    const bool &groundPlane, const cm_trace_t &groundTrace,
+
+    const bool gravity,
+
+    const double frameTime, const double hasTime
+);

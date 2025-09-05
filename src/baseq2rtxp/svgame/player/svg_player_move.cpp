@@ -465,56 +465,53 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
 *           movement, copying back the resulting player move data into the client and entity fields.
 **/
 static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
-    // NoClip/Spectator:
-    if ( ent->movetype == MOVETYPE_NOCLIP ) {
-        if ( ent->client->resp.spectator ) {
-            client->ps.pmove.pm_type = PM_SPECTATOR;
-        } else {
-            client->ps.pmove.pm_type = PM_NOCLIP;
-        }
-        // If our model index differs, we're gibbing out:
-    } else if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
-        client->ps.pmove.pm_type = PM_GIB;
-        // Dead:
-    } else if ( ent->lifeStatus ) {
-        client->ps.pmove.pm_type = PM_DEAD;
-        // Otherwise, default, normal movement behavior:
-    } else {
-        client->ps.pmove.pm_type = PM_NORMAL;
-    }
-
-    // PGM	trigger_gravity support
-    client->ps.pmove.gravity = (short)( sv_gravity->value * ent->gravity );
-    //pm.playerState = client->ps;
+    // Prepare the player move structure properties for simulation.
     pm->playerState = &client->ps;
-
     // Copy the current entity origin and velocity into our 'pmove movestate'.
     pm->playerState->pmove.origin = ent->s.origin;
     pm->playerState->pmove.velocity = ent->velocity;
+    // Setup the gravity. PGM	trigger_gravity support
+    pm->playerState->pmove.gravity = (short)( sv_gravity->value * ent->gravity );
+    // Setup the specific Player Move controller type.
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        if ( ent->client->resp.spectator ) {
+            pm->playerState->pmove.pm_type = PM_SPECTATOR;
+        } else {
+            pm->playerState->pmove.pm_type = PM_NOCLIP;
+        }
+    // If our model index differs, we're gibbing out: (We are not assigned the 'player' model.)
+    } else if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
+        pm->playerState->pmove.pm_type = PM_GIB;
+    // Dead:
+    } else if ( ent->lifeStatus ) {
+        pm->playerState->pmove.pm_type = PM_DEAD;
+    // Otherwise, default, normal movement behavior:
+    } else {
+        pm->playerState->pmove.pm_type = PM_NORMAL;
+    }
     // Determine if it has changed and we should 'resnap' to position.
     if ( memcmp( &client->old_pmove, &pm->playerState->pmove, sizeof( pm->playerState->pmove ) ) ) {
         pm->snapinitial = true; // gi.dprintf ("pmove changed!\n");
     }
-    // Setup 'User Command', 'Player Skip Entity' and Function Pointers.
+    // Setup 'User Command'
     pm->cmd = *userCommand;
-    pm->player = reinterpret_cast<edict_ptr_t *>(ent);
+    // Assign a pointer to the game module's matching player client entity.
+    pm->player = reinterpret_cast<edict_ptr_t *>( ent );
+    // Prepare PMove specific trace wrapper function pointers.
     pm->trace = SV_PM_Trace;
     pm->pointcontents = SV_PM_PointContents;
     pm->clip = SV_PM_Clip;
-    //pm.viewoffset = ent->client->ps.viewoffset;
+    // Let us not forget about the simulation time before the actual mode.
     pm->simulationTime = level.time;
-    // Perform a PMove.
-    SG_PlayerMove( (pmove_s*)pm, (pmoveParams_s*)pmp );
-
-    // Save into the client pointer, the resulting move states pmove
-    client->ps = *pm->playerState;
-    //client->ps = pm.playerState;
+    // Move!
+    SG_PlayerMove( (pmove_s *)pm, (pmoveParams_s *)pmp );
+    // Backup the pmove result as the 'old' previous client player move.
     client->old_pmove = pm->playerState->pmove;
     // Backup the command angles given from last command.
     VectorCopy( userCommand->angles, client->resp.cmd_angles );
 
     // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
-    if ( pm->ground.entity && ent->groundInfo.entity ) {
+    if ( pm->ground.entity/* && ent->groundInfo.entity */) {
         const float stepsize = fabs( ent->s.origin[ 2 ] - pm->playerState->pmove.origin[ 2 ] );
         if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
             ent->s.renderfx |= RF_STAIR_STEP;
@@ -599,7 +596,7 @@ static void ClientProcessTouches( svg_base_edict_t *ent, svg_client_t *client, p
     }
 
     // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
-    for ( int32_t i = 0; i < pm.touchTraces.numberOfTraces; i++ ) {
+    for ( int32_t i = 0; i < pm.touchTraces.count; i++ ) {
         const svg_trace_t &tr = svg_trace_t( pm.touchTraces.traces[ i ] );
         svg_base_edict_t *other = tr.ent;
 

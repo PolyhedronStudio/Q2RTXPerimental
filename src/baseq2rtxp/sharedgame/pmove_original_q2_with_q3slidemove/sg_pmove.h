@@ -302,13 +302,67 @@ typedef struct pmove_s {
     //! Play jump sound.
     qboolean jump_sound;
     //! Impact delta, for falling damage.
-    float impact_delta;
+    double impact_delta;
 
     //! We clipped on top of an object from below.
     qboolean step_clip;
     //! Step taken, used for smooth lerping stair transitions.
-    float step_height;
+    double step_height;
 } pmove_t;
+
+/**
+*	@brief	Actual in-moment local move variables.
+*
+*			All of the locals will be zeroed before each pmove, just to make damn sure we don't have
+*			any differences when running on client or server
+**/
+struct pml_t {
+    ////! Actual in-move origin and velocity.
+    //Vector3	origin = {};
+    //Vector3 velocity = {};
+
+    //! Forward, right and up vectors.
+    Vector3	forward = {}, right = {}, up = {};
+
+    //! Move msec.
+    double msec = 0.;
+    //! Move frameTime.
+    double frameTime = 0.;
+
+    //! Walking?
+    bool walking = false;
+    //! Are we on an actual ground plane?
+    bool groundPlane = false;
+    //! The result of the last ground trace.
+    cm_trace_t groundTrace = {};
+
+    //! Speed at which we (impacted) the ground/other-surface.
+    double impactSpeed = 0.;
+
+    ////! Information about the ground we are on.
+    //struct pml_ground_info_s {
+    //	//! Pointer to the actual ground entity we are on. (nullptr if none).
+    //	//struct edict_s *entity;
+
+    //	//! A copy of the plane data from the ground entity.
+    //	//cm_plane_t	plane;
+    //	//! A pointer to the ground plane's surface data. (nullptr if none).
+    //	cm_surface_t	*surface;
+    //	//! A copy of the contents data from the ground entity's brush.
+    //	cm_contents_t	contents;
+    //	////! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
+    //	//cm_material_t *material;
+    //} ground = {};
+
+    //! Origin at the start of move.
+    Vector3		previousOrigin = {};
+    //! Velocity at the start of the move.
+    Vector3		previousVelocity = {};
+    //! Water level at start of move.
+    cm_liquid_level_t previousWaterLevel = cm_liquid_level_t::LIQUID_NONE;
+};
+//! The local player move state for the entity that we're moving.
+extern pml_t pml;
 
 /**
 *	@brief	Shard Game Player Movement code implementation:
