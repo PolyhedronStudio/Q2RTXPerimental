@@ -124,7 +124,7 @@ void game_write_context_t::write_game_qstring( svg_game_qstring_t *qstr ) {
 /**
 *   @brief  Write level qtag memory block to disk.
 **/
-template<typename T, const memtag_t tag = TAG_SVGAME_LEVEL>
+template<typename T, const memtag_t tag /*= TAG_SVGAME_LEVEL*/>
 void game_write_context_t::write_level_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME_LEVEL> *qstr ) {
     //if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->length() < 0 ) {
     //    write_int32( -1 );
@@ -157,7 +157,7 @@ void game_write_context_t::write_level_qtag_memory( sg_qtag_memory_t<T, TAG_SVGA
 /**
 *   @brief  Write game qtag memory block to disk.
 **/
-template<typename T, const memtag_t tag = TAG_SVGAME>
+template<typename T, const memtag_t tag /*= TAG_SVGAME*/>
 void game_write_context_t::write_game_qtag_memory( sg_qtag_memory_t<T, TAG_SVGAME> *qstr ) {
     //if ( !qtagMemory || !qtagMemory->ptr || qtagMemory->length() < 0 ) {
     //    write_int32( -1 );
