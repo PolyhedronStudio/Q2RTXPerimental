@@ -96,16 +96,12 @@ const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
 const pm_slideMoveFlags_t PM_SlideMove_Generic(
-	Vector3 &origin, Vector3 &velocity, double &impactSpeed,
-	const Vector3 &mins, const Vector3 &maxs,
-
-	pm_touch_trace_list_t &touch_traces,
-
-	const bool &groundPlane, const cm_trace_t &groundTrace,
-
-	const bool gravity,
-
-	const double frameTime, const double hasTime
+	//! Pointer to the player move instanced object we're dealing with.
+	pmove_t *pm,
+	//! Pointer to the actual player move local we're dealing with.
+	pml_t *pml,
+	//! Applies gravity if true.
+	const bool applyGravity
 ) {
 	pm_slideMoveFlags_t blockedMask = PM_SLIDEMOVEFLAG_NONE;
 
@@ -126,13 +122,13 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 	int32_t i = 0;
 	int32_t j = 0;
 
-	// Times we bumped.
+	// Times we bumped into a plane of a brush/hull.
 	int32_t bumpCount = 0;
-	// Maximum number of bumps we can do.
+	// Maximum number of plane's we'll bump and clip into.
 	int32_t numBumps = PM_MAX_CLIP_PLANES - 1;
 
 	// Primal velocity is used to determine the original direction of the player.
-	Vector3 primalVelocity = velocity;
+	Vector3 primalVelocity = pm->playerState->pmove.velocity;
 
 	// Clip velocity and end velocity are used to determine the new velocity after clipping.
 	Vector3 clipVelocity = {};
@@ -142,51 +138,51 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 	/**
 	*	Handle Gravity
 	**/
-	if ( gravity ) {
-		endVelocity = velocity;
-		endVelocity.z -= gravity * frameTime;
-		velocity.z = ( velocity.z + endVelocity.z ) * 0.5f;
+	if ( applyGravity ) {
+		endVelocity = pm->playerState->pmove.velocity;
+		endVelocity.z -= pm->playerState->pmove.gravity * pml->frameTime;
+		pm->playerState->pmove.velocity.z = ( pm->playerState->pmove.velocity.z + endVelocity.z ) * 0.5f;
 		primalVelocity.z = endVelocity.z;
-		if ( groundPlane ) {
+		if ( pml->groundPlane ) {
 			// Slide along the ground plane.
-			PM_ClipVelocity( velocity, groundTrace.plane.normal, velocity, PM_OVERCLIP );
+			PM_ClipVelocity( pm->playerState->pmove.velocity, pml->groundTrace.plane.normal, pm->playerState->pmove.velocity, PM_OVERCLIP );
 		}
 	}
 
 	// Setup the frametime.
-	timeLeft = frameTime;
+	timeLeft = pml->frameTime;
 
 	// Now prevent us from turning and clipping against the ground plane, by simply adding the trace 
 	// beforehand.
-	if ( groundPlane ) {
+	if ( pml->groundPlane ) {
 		numPlanes = 1;
-		planes[ 0 ] = groundTrace.plane.normal;
+		planes[ 0 ] = pml->groundTrace.plane.normal;
 	} else {
 		numPlanes = 0;
 	}
 
 	// Never turn against original velocity. (We assing to stop compiler from warnings about unused return value.)
-	const float l = QM_Vector3NormalizeLength2( velocity, planes[ numPlanes ] );
+	const float l = QM_Vector3NormalizeLength2( pm->playerState->pmove.velocity, planes[ numPlanes ] );
 	numPlanes++;
 
 	for ( bumpCount = 0; bumpCount < numBumps; bumpCount++ ) {
 		// Calculate the end position in which we're trying to move to.
-		VectorMA( origin, timeLeft, velocity, end );
+		VectorMA( pm->playerState->pmove.origin, timeLeft, pm->playerState->pmove.velocity, end );
 		// See if we can trace up to it in one go.
-		trace = PM_Trace( origin, mins, maxs, end );
+		trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, end );
 		// Entity is trapped in another solid, DON'T build up falling damage.
 		if ( trace.allsolid ) {
-			velocity[ 2 ] = 0;
+			pm->playerState->pmove.velocity[ 2 ] = 0;
 			// Save entity for contact.
 			//PM_RegisterTouchTrace( touch_traces, trace );
 			// Return trapped mask.
-			return PM_SLIDEMOVEFLAG_TRAPPED;
-			//return static_cast<pm_slideMoveFlags_t>( true );
+			//return PM_SLIDEMOVEFLAG_TRAPPED;
+			return static_cast<pm_slideMoveFlags_t>( true );
 		}
 
 		// We did cover some distance, so update the origin.
 		if ( trace.fraction > 0 ) {
-			origin = trace.endpos;
+			pm->playerState->pmove.origin = trace.endpos;
 		}
 
 		// We moved the entire distance, so no need to loop on, break out instead.
@@ -198,7 +194,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 			blockedMask |= PM_SLIDEMOVEFLAG_PLANE_TOUCHED;
 		}
 		// Save entity for contact.
-		PM_RegisterTouchTrace( touch_traces, trace );
+		PM_RegisterTouchTrace( pm->touchTraces, trace );
 
 		// Calculate movement time.
 		timeLeft -= timeLeft * trace.fraction;
@@ -206,23 +202,24 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 		// This should technically never happen, but if it does, we are blocked.
 		if ( numPlanes >= PM_MAX_CLIP_PLANES ) {
 			// This shouldn't really happen.
-			velocity = {}; // Clear out velocity.
-			blockedMask |= PM_SLIDEMOVEFLAG_TRAPPED;
-			return blockedMask;
+			pm->playerState->pmove.velocity = {}; // Clear out velocity.
+			//blockedMask |= PM_SLIDEMOVEFLAG_TRAPPED;
+			//return blockedMask;
+			return static_cast<pm_slideMoveFlags_t>( true );
 		}
 
-		// At this point we are blocked but not trapped.
-		blockedMask |= PM_SLIDEMOVEFLAG_BLOCKED;
-		// Is it a vertical wall?
-		if ( trace.plane.normal[ 2 ] < PM_MIN_WALL_NORMAL_Z ) {
-			blockedMask |= PM_SLIDEMOVEFLAG_WALL_BLOCKED;
-		}
+		//// At this point we are blocked but not trapped.
+		//blockedMask |= PM_SLIDEMOVEFLAG_BLOCKED;
+		//// Is it a vertical wall?
+		//if ( trace.plane.normal[ 2 ] < PM_MIN_WALL_NORMAL_Z ) {
+		//	blockedMask |= PM_SLIDEMOVEFLAG_WALL_BLOCKED;
+		//}
 
 		// If this is a plane we have touched before, try clipping
 		// the velocity along it's normal and repeat.
 		for ( i = 0; i < numPlanes; i++ ) {
 			if ( QM_Vector3DotProduct( trace.plane.normal, planes[ i ] ) > 0.99 ) {
-				velocity += trace.plane.normal; // VectorAdd( trace.plane.normal, velocity, velocity );
+				pm->playerState->pmove.velocity += trace.plane.normal; // VectorAdd( trace.plane.normal, velocity, velocity );
 				break;
 			}
 		}
@@ -241,20 +238,20 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 		// Find a plane it enters.
 		for ( i = 0; i < numPlanes; i++ ) {
 			// Determine if we bumped into it.
-			into = QM_Vector3DotProduct( velocity, planes[ i ] );
+			into = QM_Vector3DotProduct( pm->playerState->pmove.velocity, planes[ i ] );
 			// Not entering this plane.
 			if ( into >= 0.1 ) {
 				continue;
 			}
 
 			// See how hard we hit into things.
-			if ( -into > pml.impactSpeed ) {
+			if ( -into > pml->impactSpeed ) {
 				// Set the impact speed.
-				pml.impactSpeed = -into;
+				pml->impactSpeed = -into;
 			}
 
 			// Slide velocity along the plane.
-			PM_ClipVelocity( velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
+			PM_ClipVelocity( pm->playerState->pmove.velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
 			// Slide endVelocity along the plane.
 			PM_ClipVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
 
@@ -280,7 +277,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 				// Now we can slide the original velocity along the crease.
 				dir = QM_Vector3CrossProduct( planes[ i ], planes[ j ] );
 				dir = QM_Vector3Normalize( dir );
-				d = QM_Vector3DotProduct( dir, velocity );
+				d = QM_Vector3DotProduct( dir, pm->playerState->pmove.velocity );
 				clipVelocity = QM_Vector3Scale( dir, d );
 
 				dir = QM_Vector3CrossProduct( planes[ i ], planes[ j ] );
@@ -299,27 +296,28 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 						continue;
 					}
 					// Stop dead at a tripple plane interaction.
-					velocity = {};
-					blockedMask |= PM_SLIDEMOVEFLAG_TRAPPED;
-					return blockedMask;// static_cast<pm_slideMoveFlags_t>( true );
+					pm->playerState->pmove.velocity = {};
+					//blockedMask |= PM_SLIDEMOVEFLAG_TRAPPED;
+					//return blockedMask;//
+					return static_cast<pm_slideMoveFlags_t>( true );
 				}
 			}
 
 			// If we have fixed all interactions, try another move.
-			velocity = clipVelocity;
+			pm->playerState->pmove.velocity = clipVelocity;
 			endVelocity = endClipVelocity;
 			break;
 		}
 	}
 
 	// Gravity is enabled, so we need to set the velocity to the end velocity.
-	if ( gravity ) {
-		velocity = endVelocity;
+	if ( applyGravity ) {
+		pm->playerState->pmove.velocity = endVelocity;
 	}
 	// Don't set the velocity if we are in a timer.
 	// <Q2RTXP>: WID: TODO: This necessary?
-	if ( hasTime > 0 ) {
-		velocity = primalVelocity;
+	if ( pm->playerState->pmove.pm_time > 0 ) {
+		pm->playerState->pmove.velocity = primalVelocity;
 	}
 
 	return static_cast<pm_slideMoveFlags_t>( bumpCount != 0 );// || blockedMask == PM_SLIDEMOVEFLAG_MOVED ? PM_SLIDEMOVEFLAG_MOVED : blockedMask );
@@ -333,105 +331,96 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 *			Does not modify any world state?
 **/
 const void PM_StepSlideMove_Generic(
-	Vector3 &origin, Vector3 &velocity,
-	double &stepHeight, double &impactSpeed,
-	const Vector3 &mins, const Vector3 &maxs,
-
-	pm_touch_trace_list_t &touch_traces,
-
-	const bool &groundPlane, const cm_trace_t &groundTrace,
-
-	const bool gravity,
-
-	const double frameTime, const double hasTime
+	//! Pointer to the player move instanced object we're dealing with.
+	pmove_t *pm,
+	//! Pointer to the actual player move local we're dealing with.
+	pml_t *pml,
+	//! Applies gravity if true.
+	const bool applyGravity
 ) {
-	/**
-	*	Try a full slide move first.
-	**/
-	// Start origin and velocity.
-	const Vector3 startOrigin = origin;
-	const Vector3 startVelocity = velocity;
-	// Move.
-	const bool cleanMove = PM_SlideMove_Generic( origin, velocity, impactSpeed, mins, maxs, touch_traces, groundPlane, groundTrace, gravity, frameTime, hasTime );
-	// Store current origin/velocity.
-	Vector3 downOrigin = origin;
-	Vector3 downVelocity = velocity;
+	Vector3 start_o, start_v;
+	Vector3 down_o, down_v;
+	cm_trace_t trace;
+	float	down_dist, up_dist;
+	//	vec3_t		delta;
+	Vector3 up, down;
 
+	start_o = pm->playerState->pmove.origin;
+	start_v = pm->playerState->pmove.velocity;
 
+	PM_SlideMove_Generic( pm, pml, false );
 
-	/**
-	*	If we had a clean move, see if there is anything below us which we can 'step on' to.
-	**/
-	if ( cleanMove ) {
-		// Push down the final amount.
-		Vector3 down = origin;
-		down.z -= PM_MAX_STEP_SIZE;
+	down_o = pm->playerState->pmove.origin;
+	down_v = pm->playerState->pmove.velocity;
 
-		// If we cannot slide move, try stepping over the obstruction.
-		Vector3 downPoint = startOrigin;
-		downPoint.z -= PM_MAX_STEP_SIZE;
-		// Trace down to see if we can step down.
-		cm_trace_t trace = PM_Trace( startOrigin, mins, maxs, downPoint );
-		// For velocity step up clip touch testing.
-		constexpr Vector3 vUp = { 0.f, 0.f, 1.f };
-		// Never step up when you still have up velocity.
-		if ( velocity.z > 0
-			&& ( /*!trace.allsolid
-					||*/ QM_Vector3DotProduct( trace.plane.normal, vUp ) < PM_MIN_STEP_NORMAL ) ) {
-			return;
-		}
+	up = start_o;
+	up[ 2 ] += PM_MAX_STEP_SIZE;
 
-		// Push down the final amount.
-		trace = PM_Trace( origin, mins, maxs, down );
-		// If we are not solid, then we can step down.
-		if ( !trace.allsolid ) {
-			origin = trace.endpos;
-		}
-		// Otherwise, we clip along the obstruction.
-		if ( trace.fraction < 1.0 ) {
-			PM_ClipVelocity( velocity, trace.plane.normal, velocity, PM_OVERCLIP );
-		}
+	trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
+	if ( trace.allsolid )
+		return; // can't step up
 
-		stepHeight = origin.z - startOrigin.z;
-		/**
-		*	Otherwise, look for whether we can step over the obstruction instead.
-		**/
-	} else {
-		// Test for obstruction above use.
-		Vector3 up = startOrigin;
-		up.z += PM_MAX_STEP_SIZE;
-		cm_trace_t trace = PM_Trace( startOrigin, mins, maxs, up );
-		if ( trace.allsolid ) {
-			// Can't step up.
-			return;
-		}
+	float stepSize = trace.endpos[ 2 ] - start_o[ 2 ];
 
-		// Exact amount we can step up.
-		const float stepSize = trace.endpos[ 2 ] - startOrigin.z;
+	// try sliding above
+	pm->playerState->pmove.origin = trace.endpos;
+	pm->playerState->pmove.velocity = start_v;
 
-		// Try sliding above.
-		origin = trace.endpos;
-		velocity = startVelocity;
+	PM_SlideMove_Generic( pm, pml, false );
 
-		PM_SlideMove_Generic( origin, velocity, impactSpeed, mins, maxs, touch_traces, groundPlane, groundTrace, gravity, frameTime, hasTime );
+	// push down the final amount
+	down = pm->playerState->pmove.origin;
+	down[ 2 ] -= stepSize;
 
-		// Push down the final amount.
-		Vector3 down = origin;
-		down.z -= stepSize;
+	// [Paril-KEX] jitspoe suggestion for stair clip fix; store
+	// the old down position, and pick a better spot for downwards
+	// trace if the start origin's Z position is lower than the down end pt.
+	Vector3 original_down = down;
 
-		// Push down the final amount.
-		trace = PM_Trace( origin, mins, maxs, down );
-		// If we are not solid, then we can step down.
-		if ( !trace.allsolid ) {
-			origin = trace.endpos;
-		}
-		// Otherwise, we clip along the obstruction.
-		if ( trace.fraction < 1.0 ) {
-			PM_ClipVelocity( velocity, trace.plane.normal, velocity, PM_OVERCLIP );
-		}
-
-		stepHeight = origin.z - startOrigin.z;
+	if ( start_o[ 2 ] < down[ 2 ] ) {
+		down[ 2 ] = start_o[ 2 ] - 1.f;
 	}
+
+	trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, down );
+	if ( !trace.allsolid ) {
+		// [Paril-KEX] from above, do the proper trace now
+		cm_trace_t real_trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, original_down );
+		pm->playerState->pmove.origin = real_trace.endpos;
+
+		// only an upwards jump is a stair clip
+		if ( pm->playerState->pmove.velocity.z > 0.f ) {
+			pm->step_clip = true;
+		}
+	}
+
+	up = pm->playerState->pmove.origin;
+
+	// decide which one went farther
+	down_dist = ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
+	up_dist = ( up[ 0 ] - start_o[ 0 ] ) * ( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
+
+	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL ) {
+		pm->playerState->pmove.origin = down_o;
+		pm->playerState->pmove.velocity = down_v;
+	}
+	// [Paril-KEX] NB: this line being commented is crucial for ramp-jumps to work.
+	// thanks to Jitspoe for pointing this one out.
+	else// if (pm->s.pm_flags & PMF_ON_GROUND)
+		//!! Special case
+		// if we were walking along a plane, then we need to copy the Z over
+		pm->playerState->pmove.velocity[ 2 ] = down_v[ 2 ];
+
+	// Paril: step down stairs/slopes
+	if ( ( pm->playerState->pmove.pm_flags & PMF_ON_GROUND ) && !( pm->playerState->pmove.pm_flags & PMF_ON_LADDER ) &&
+		( pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST|| ( !( pm->cmd.buttons & BUTTON_JUMP ) && pm->playerState->pmove.velocity.z <= 0 ) ) ) {
+		down = pm->playerState->pmove.origin;
+		down[ 2 ] -= PM_MAX_STEP_SIZE;
+		trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, down );
+		if ( trace.fraction < 1.f ) {
+			pm->playerState->pmove.origin = trace.endpos;
+		}
+	}
+
 	#if 0
 	#if 0
 	// If we can slide move, do it.
@@ -492,7 +481,5 @@ const void PM_StepSlideMove_Generic(
 	}
 
 	stepHeight = origin.z - startOrigin.z;
-
 	#endif
-
 }

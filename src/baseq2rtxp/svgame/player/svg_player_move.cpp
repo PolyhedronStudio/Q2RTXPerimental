@@ -491,12 +491,12 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
     }
     // Determine if it has changed and we should 'resnap' to position.
     if ( memcmp( &client->old_pmove, &pm->playerState->pmove, sizeof( pm->playerState->pmove ) ) ) {
-        pm->snapinitial = true; // gi.dprintf ("pmove changed!\n");
+        pm->snapInitialPosition = true; // gi.dprintf ("pmove changed!\n");
     }
     // Setup 'User Command'
     pm->cmd = *userCommand;
     // Assign a pointer to the game module's matching player client entity.
-    pm->player = reinterpret_cast<edict_ptr_t *>( ent );
+    pm->playerEdict = reinterpret_cast<edict_ptr_t *>( ent );
     // Prepare PMove specific trace wrapper function pointers.
     pm->trace = SV_PM_Trace;
     pm->pointcontents = SV_PM_PointContents;

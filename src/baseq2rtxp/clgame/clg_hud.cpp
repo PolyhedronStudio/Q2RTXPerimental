@@ -955,10 +955,10 @@ static void CLG_HUD_DrawHealthIndicators() {
     double backGroundWidth = ( numberStartX - backGroundStartX ) + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + 8;
 
     // Draw its background.
-    CLG_HUD_DrawElementBackground( 
-        backGroundStartX, backGroundStartY,
-        backGroundWidth, HUD_ELEMENT_HEIGHT 
-    );
+    //CLG_HUD_DrawElementBackground( 
+    //    backGroundStartX, backGroundStartY,
+    //    backGroundWidth, HUD_ELEMENT_HEIGHT 
+    //);
 
     // Icon is reddish.
 	clgi.R_SetColor( MakeColor( 217, 87, 99, 225 ) ); // == Mandy color in Krita Pixel
@@ -1004,11 +1004,11 @@ static void CLG_HUD_DrawHealthIndicators() {
     //double backGroundWidth = numberStartX + CLG_HUD_GetElementNumberValueSizePosition( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + HUD_ELEMENT_HALF_OFFSET;
     backGroundWidth = ( numberStartX - backGroundStartX ) + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_ARMOR ] ) + 8;
 
-    // Draw its background.
-    CLG_HUD_DrawElementBackground(
-        backGroundStartX, backGroundStartY,
-        backGroundWidth, HUD_ELEMENT_HEIGHT
-    );
+    //// Draw its background.
+    //CLG_HUD_DrawElementBackground(
+    //    backGroundStartX, backGroundStartY,
+    //    backGroundWidth, HUD_ELEMENT_HEIGHT
+    //);
 
     // Icon is reddish.
     clgi.R_SetColor( MakeColor( 99, 155, 255, 225 ) ); // == Cornflower color in Krita Pixel
@@ -1080,11 +1080,11 @@ static void CLG_HUD_DrawAmmoIndicators() {
     // Calculate this here now we have the total estimated width.
 	backGroundStartX = clgi.screen->hudScaledWidth - ( backGroundWidth + HUD_ELEMENT_OFFSET );
 
-    // Draw its background.
-    CLG_HUD_DrawElementBackground(
-        backGroundStartX, backGroundStartY,
-        backGroundWidth, HUD_ELEMENT_HEIGHT
-    );
+    //// Draw its background.
+    //CLG_HUD_DrawElementBackground(
+    //    backGroundStartX, backGroundStartY,
+    //    backGroundWidth, HUD_ELEMENT_HEIGHT
+    //);
 
     // Icon is orangie.
     clgi.R_SetColor( MakeColor( 217, 160, 102, 225 ) ); // == Orangie color in Krita Pixel

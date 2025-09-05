@@ -303,40 +303,35 @@ void PF_PredictAngles( void ) {
 *           into the cl.predictedState struct.
 **/
 void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber ) {
-    // Prepare the player move parameters.
-    pmoveParams_t pmp;
-    SG_ConfigurePlayerMoveParameters( &pmp );
-
     // Last predicted state.
     client_predicted_state_t *predictedState = &game.predictedState;
 
-    // Shuffle current to last playerState.
+    // Shuffle the PREVIOUS playerState into our "LAST" playerState.
     predictedState->lastPs = predictedState->currentPs;
-
     // Start off with the latest valid frame player state.
-    //player_state_t pmPlayerState = predictedState->currentPs = clgi.client->frame.ps;
-    // Copy in player state.
     predictedState->currentPs = clgi.client->frame.ps;
-    // Get pointer to it for player move.
-    player_state_t *pmPlayerState = &predictedState->currentPs;
+
+    // Player move configuration parameters.
+    pmoveParams_t pmp;
+    // Prepare the player move configuration parameters.
+    SG_ConfigurePlayerMoveParameters( &pmp );
 
     // Prepare our player move, pointer to the player state, and setup the 
     // client side trace function pointers.
     pmove_t pm = {
-        .playerState = pmPlayerState,
-
         .trace = CLG_PM_Trace,
         .clip = CLG_PM_Clip,
         .pointcontents = CLG_PM_PointContents,
+        // The pointer to the player state we're predicting.
+        .playerState = &predictedState->currentPs,
     };
-
+    // Apply client delta_angles.
+    pm.playerState->pmove.delta_angles = clgi.client->delta_angles;
     // Setup client predicted ground data.
     pm.ground = predictedState->ground;
     // Setup client predicted liquid data.
     pm.liquid = predictedState->liquid;
 
-    // Apply client delta_angles.
-    pm.playerState->pmove.delta_angles = clgi.client->delta_angles;
     // Set view angles.
     // [NO-NEED]: This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
     //pm.playerState->viewangles = clgi.client->viewangles; 
@@ -366,6 +361,7 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
 
         // Backup into our circular buffer.
         clgi.client->predictedMoveResults[ ( acknowledgedCommandNumber ) & CMD_MASK ] = moveCommand->prediction;
+
         // Store it as the current predicted origin state.
         game.predictedState.origin = moveCommand->prediction.origin;
     }
@@ -379,15 +375,15 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         
         // Initialize pmove with the proper moveCommand data.
         #if 1
-        pm.cmd = pendingMoveCommand->cmd;
-        pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
-        pm.cmd.sidemove = clgi.client->localmove[ 1 ];
-        pm.cmd.upmove = clgi.client->localmove[ 2 ];
+            pm.cmd = pendingMoveCommand->cmd;
+            pm.cmd.forwardmove = clgi.client->localmove[ 0 ];
+            pm.cmd.sidemove = clgi.client->localmove[ 1 ];
+            pm.cmd.upmove = clgi.client->localmove[ 2 ];
         #else
-        pendingMoveCommand->cmd.forwardmove = clgi.client->localmove[ 0 ];
-        pendingMoveCommand->cmd.sidemove = clgi.client->localmove[ 1 ];
-        pendingMoveCommand->cmd.upmove = clgi.client->localmove[ 2 ];
-        pm.cmd = pendingMoveCommand->cmd;
+            pendingMoveCommand->cmd.forwardmove = clgi.client->localmove[ 0 ];
+            pendingMoveCommand->cmd.sidemove = clgi.client->localmove[ 1 ];
+            pendingMoveCommand->cmd.upmove = clgi.client->localmove[ 2 ];
+            pm.cmd = pendingMoveCommand->cmd;
         #endif
         // Perform movement.
         pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.time );
@@ -397,13 +393,17 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
         CLG_PredictNextBobCycle( &pm );
         #endif
+        
         // Store the predicted outcome results 
         pendingMoveCommand->prediction.origin = pm.playerState->pmove.origin;
         pendingMoveCommand->prediction.velocity = pm.playerState->pmove.velocity;
+        
         // Save the pending move command as the last entry in our circular buffer.
         clgi.client->predictedMoveResults[ ( currentCommandNumber + 1 ) & CMD_MASK ] = pendingMoveCommand->prediction;
+        
         // Store it as the current predicted origin state.
         game.predictedState.origin = pendingMoveCommand->prediction.origin;
+        
         // And store it in the predictedState.
         predictedState->cmd = *pendingMoveCommand;
     }
@@ -419,7 +419,7 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
     predictedState->mins = pm.mins;
     predictedState->maxs = pm.maxs;
     // Swap in the resulting new pmove player state.
-    predictedState->currentPs = *pmPlayerState;
+    //predictedState->currentPs = *pmPlayerState;
 
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     PF_AdjustViewHeight( predictedState->currentPs.pmove.viewheight );
@@ -427,5 +427,6 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
     CLG_CheckPlayerstateEvents( &predictedState->lastPs, &predictedState->currentPs );
 
 	//clgi.client->predictedFrame = clgi.client->frame; // Save the predicted frame for later use.
-	clgi.client->predictedFrame.ps.pmove = predictedState->currentPs.pmove; // Save the predicted player state.
+	//clgi.client->predictedFrame.ps.pmove = predictedState->currentPs.pmove; // Save the predicted player state.
+    clgi.client->predictedFrame.ps = predictedState->currentPs;
 }

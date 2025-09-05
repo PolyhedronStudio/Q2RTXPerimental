@@ -64,15 +64,10 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 *			Does not modify any world state?
 **/
 const void PM_StepSlideMove_Generic(
-    Vector3 &origin, Vector3 &velocity,
-    double &stepHeight, double &impactSpeed,
-    const Vector3 &mins, const Vector3 &maxs,
-
-    pm_touch_trace_list_t &touch_traces,
-
-    const bool &groundPlane, const cm_trace_t &groundTrace,
-
-    const bool gravity,
-
-    const double frameTime, const double hasTime
+    //! Pointer to the player move instanced object we're dealing with.
+    pmove_t *pm,
+    //! Pointer to the actual player move local we're dealing with.
+    pml_t *pml,
+    //! Applies gravity if true.
+    const bool applyGravity
 );

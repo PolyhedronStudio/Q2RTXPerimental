@@ -220,6 +220,8 @@ static void PM_UpdateGroundFromTrace( const cm_trace_t *trace ) {
 		pm->ground.contents = CONTENTS_NONE;
 		pm->ground.material = nullptr;
 
+		pml.groundPlane = false;
+		pml.groundTrace = *trace;
 		//pml.groundTrace.surface = nullptr;
 		//pml.groundTrace.contents = CONTENTS_NONE;
 	} else {
@@ -229,6 +231,8 @@ static void PM_UpdateGroundFromTrace( const cm_trace_t *trace ) {
 		pm->ground.contents = trace->contents;
 		pm->ground.material = trace->material;
 
+		pml.groundPlane = true;
+		pml.groundTrace = *trace;
 		//pml.groundTrace.surface = &pm->ground.surface;
 		//pml.groundTrace.contents = trace->contents;
 	}
@@ -578,7 +582,7 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 		//	mask &= ~CONTENTS_PLAYER;
 	}
 
-	return pm->trace( &start.x, &mins.x, &maxs.x, &end.x, pm->player, contentMask );
+	return pm->trace( &start.x, &mins.x, &maxs.x, &end.x, pm->playerEdict, contentMask );
 }
 
 
@@ -1041,15 +1045,9 @@ static void PM_GenericMove() {
 			}
 		}
 		PM_StepSlideMove_Generic(
-			pm->playerState->pmove.origin, pm->playerState->pmove.velocity,
-			pm->step_height, pm->impact_delta,
-			pm->mins, pm->maxs,
-			pm->touchTraces,
-			pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
-			pml.groundTrace,
-			false,
-			pml.frameTime,
-			pm->playerState->pmove.pm_time
+			pm,
+			&pml,
+			false
 		);
 		// Perform ground movement. (Walking on-ground):
 	} else if ( pm->playerState->pmove.pm_flags & PMF_ON_GROUND ) {
@@ -1073,15 +1071,9 @@ static void PM_GenericMove() {
 
 		// Step Slide.
 		PM_StepSlideMove_Generic(
-			pm->playerState->pmove.origin, pm->playerState->pmove.velocity,
-			pm->step_height, pm->impact_delta,
-			pm->mins, pm->maxs,
-			pm->touchTraces,
-			true,// /*pml.groundTrace.surface || */pml.groundTrace.entityNumber != ENTITYNUM_NONE /*|| pml.groundTrace.fraction < 1.0*/,
-			pml.groundTrace,
-			false,
-			pml.frameTime,
-			pm->playerState->pmove.pm_time
+			pm,
+			&pml,
+			false
 		);
 		// Not on ground, so litte effect on velocity. Perform air acceleration in case it is enabled(has any value stored.):
 	} else {
@@ -1099,15 +1091,9 @@ static void PM_GenericMove() {
 
 		// Step Slide.
 		PM_StepSlideMove_Generic(
-			pm->playerState->pmove.origin, pm->playerState->pmove.velocity,
-			pm->step_height, pm->impact_delta,
-			pm->mins, pm->maxs,
-			pm->touchTraces,
-			false,//pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
-			pml.groundTrace,
-			true,
-			pml.frameTime,
-			pm->playerState->pmove.pm_time
+			pm,
+			&pml,
+			true
 		);
 	}
 }
@@ -1153,15 +1139,9 @@ static void PM_WaterMove() {
 
 	// Step Slide.
 	PM_StepSlideMove_Generic(
-		pm->playerState->pmove.origin, pm->playerState->pmove.velocity,
-		pm->step_height, pm->impact_delta,
-		pm->mins, pm->maxs,
-		pm->touchTraces,
-		pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
-		pml.groundTrace,
-		true,
-		pml.frameTime,
-		pm->playerState->pmove.pm_time
+		pm,
+		&pml,
+		true
 	);
 }
 /**
@@ -1179,15 +1159,9 @@ static void PM_WaterJumpMove() {
 
 	// Step Slide.
 	PM_StepSlideMove_Generic(
-		pm->playerState->pmove.origin, pm->playerState->pmove.velocity,
-		pm->step_height, pm->impact_delta,
-		pm->mins, pm->maxs,
-		pm->touchTraces,
-		pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
-		pml.groundTrace,
-		true,
-		pml.frameTime,
-		pm->playerState->pmove.pm_time
+		pm,
+		&pml,
+		true
 	);
 }
 /**
@@ -1287,15 +1261,9 @@ static void PM_FlyMove( bool doclip ) {
 		// Step Slide.
 		// Step Slide.
 		PM_StepSlideMove_Generic(
-			pm->playerState->pmove.origin, pm->playerState->pmove.velocity,
-			pm->step_height, pm->impact_delta,
-			pm->mins, pm->maxs,
-			pm->touchTraces,
-			pml.groundTrace.surface || pml.groundTrace.entityNumber != ENTITYNUM_NONE || pml.groundTrace.fraction < 1.0,
-			pml.groundTrace,
-			false,
-			pml.frameTime,
-			pm->playerState->pmove.pm_time
+			pm,
+			&pml,
+			false
 		);
 	} else {
 		// Hard set origin in order to move.
@@ -1513,13 +1481,13 @@ static inline const bool PM_AboveWater() {
 	// Testing point.
 	const Vector3 below = pm->playerState->pmove.origin + Vector3{ 0, 0, -8 };
 	// We got solid below, not water:
-	bool solid_below = pm->trace( QM_Vector3ToQFloatV( pm->playerState->pmove.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
+	bool solid_below = pm->trace( &pm->playerState->pmove.origin.x, &pm->mins.x, &pm->maxs.x, &below.x, pm->playerEdict, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
 	if ( solid_below ) {
 		return false;
 	}
 
 	// We're above water:
-	bool water_below = pm->trace( QM_Vector3ToQFloatV( pm->playerState->pmove.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_WATER ).fraction < 1.0f;
+	bool water_below = pm->trace( &pm->playerState->pmove.origin.x, &pm->mins.x, &pm->maxs.x, &below.x, pm->playerEdict, CM_CONTENTMASK_WATER ).fraction < 1.0f;
 	if ( water_below ) {
 		return true;
 	}
@@ -1650,15 +1618,9 @@ static void PM_CheckSpecialMovement() {
 			touches, has_time );
 		#else
 		PM_StepSlideMove_Generic(
-			waterjump_origin, waterjump_vel,
-			pm->step_height, pm->impact_delta,
-			pm->mins, pm->maxs,
-			touches,
-			false, //pml.groundTrace.surface || pml.groundTrace.entityNumber || pml.groundTrace.fraction < 1.0,
-			pml.groundTrace,
-			false,
-			pml.frameTime,
-			has_time
+			pm,
+			&pml,
+			false
 		);
 
 		#endif
@@ -1944,7 +1906,7 @@ static inline const bool PM_GoodPosition() {
 	}
 	// Perform the solid trace.
 	const cm_trace_t trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, pm->playerState->pmove.origin );
-	return trace.fraction >= 1.0 || !trace.allsolid;
+	return trace.fraction >= 1.0;
 }
 /**
 *	@brief	On exit, the origin will have a value that is pre-quantized to the PMove
@@ -2095,14 +2057,14 @@ static void PM_DropTimers() {
 /**
 *	@brief	Can be called by either the server or the client game codes.
 **/
-void SG_PlayerMove_Frame( pmove_t *pmove ) {
+void SG_PlayerMove_Frame() {
 	// Clear out several member variables which require a fresh state before performing the move.
 	#if 1
 	// Player State variables.
-	pmove->playerState->viewangles = {};
+	pm->playerState->viewangles = {};
 	//pm->playerState->pmove.viewheight = 0;
-	pmove->playerState->screen_blend[ 0 ] = pmove->playerState->screen_blend[ 1 ] = pmove->playerState->screen_blend[ 2 ] = pmove->playerState->screen_blend[ 3 ] = 0;
-	pmove->playerState->rdflags = refdef_flags_t::RDF_NONE;
+	pm->playerState->screen_blend[ 0 ] = pm->playerState->screen_blend[ 1 ] = pm->playerState->screen_blend[ 2 ] = pm->playerState->screen_blend[ 3 ] = 0;
+	pm->playerState->rdflags = refdef_flags_t::RDF_NONE;
 	// Player State Move variables.
 	pm->touchTraces = {};
 	pm->ground = {};
@@ -2110,7 +2072,7 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 		.type = CONTENTS_NONE,
 		.level = cm_liquid_level_t::LIQUID_NONE
 	},
-		pm->jump_sound = false;
+	pm->jump_sound = false;
 	pm->step_clip = false;
 	pm->step_height = 0;
 	pm->impact_delta = 0;
@@ -2126,16 +2088,11 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 	pm->step_height = 0;
 	pm->impact_delta = 0;
 	#endif
-	// Clear all pmove local vars
-	pml = {};
 
-	// Store the origin and velocity in pmove local.
-	//pm->playerState->pmove.origin = pm->playerState->pmove.origin;
-	//pm->playerState->pmove.velocity = pm->playerState->pmove.velocity;
 	// Save the origin as 'old origin' for in case we get stuck.
-	pml.previousOrigin = pmove->playerState->pmove.origin;
+	pml.previousOrigin = pm->playerState->pmove.origin;
 	// Save the start velocity.
-	pml.previousVelocity = pmove->playerState->pmove.velocity;
+	pml.previousVelocity = pm->playerState->pmove.velocity;
 
 	// Calculate frameTime.
 	pml.frameTime = (double)pm->cmd.msec * 0.001;
@@ -2147,35 +2104,35 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 	*	PM_SPECTATOR/PM_NOCLIP:
 	**/
 	// Performs fly move, only clips in case of spectator mode, noclips otherwise.
-	if ( pmove->playerState->pmove.pm_type == PM_SPECTATOR || pmove->playerState->pmove.pm_type == PM_NOCLIP ) {
+	if ( pm->playerState->pmove.pm_type == PM_SPECTATOR || pm->playerState->pmove.pm_type == PM_NOCLIP ) {
 		//pml.frameTime = pmp->pm_fly_speed * pm->cmd.msec * 0.001f;
 
 		// Re-ensure no flags are set anymore.
-		pmove->playerState->pmove.pm_flags = PMF_NONE;
+		pm->playerState->pmove.pm_flags = PMF_NONE;
 
 		// Give the spectator a small 8x8x8 bounding box.
-		if ( pmove->playerState->pmove.pm_type == PM_SPECTATOR ) {
+		if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
 			pm->mins = { -8.f, -8.f, -8.f };
 			pm->maxs = { -8.f, -8.f,-8.f };
 		}
 
 		// Get moving.
-		PM_FlyMove( pmove->playerState->pmove.pm_type == PM_SPECTATOR );
+		PM_FlyMove( pm->playerState->pmove.pm_type == PM_SPECTATOR );
 		// Snap to position.
 		PM_SnapPosition();
-		return;
+ 		return;
 	}
 
 	/**
 	*	PM_FREEZE:
 	**/
-	if ( pmove->playerState->pmove.pm_type == PM_FREEZE ) {
+	if ( pm->playerState->pmove.pm_type == PM_FREEZE ) {
 		return;     // no movement at all
 	}
 	/**
 	*	PM_FREEZE:
 	**/
-	if ( pmove->playerState->pmove.pm_type == PM_INTERMISSION || pmove->playerState->pmove.pm_type == PM_SPINTERMISSION ) {
+	if ( pm->playerState->pmove.pm_type == PM_INTERMISSION || pm->playerState->pmove.pm_type == PM_SPINTERMISSION ) {
 		return;		// no movement at all
 	}
 
@@ -2183,7 +2140,7 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 	*	PM_DEAD:
 	**/
 	// Erase all input command state when dead, we don't want to allow user input to be moving our dead body.
-	if ( pmove->playerState->pmove.pm_type >= PM_DEAD ) {
+	if ( pm->playerState->pmove.pm_type >= PM_DEAD ) {
 		PM_EraseInputCommandState();
 	}
 
@@ -2193,7 +2150,7 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 	PM_CategorizePosition();
 
 	// If pmove values were changed outside of the pmove code, resnap to position first before continuing.
-	if ( pm->snapinitial ) {
+	if ( pm->snapInitialPosition ) {
 		PM_InitialSnapPosition();
 	}
 
@@ -2203,7 +2160,7 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 	}
 
 	// When dead, perform dead movement.
-	if ( pmove->playerState->pmove.pm_type == PM_DEAD ) {
+	if ( pm->playerState->pmove.pm_type == PM_DEAD ) {
 		PM_DeadMove();
 	}
 	// Performs the 'on-ladder' check as well as when to engage into the out of Water Jump movement.
@@ -2215,10 +2172,11 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 	PM_DropTimers();
 
 	// Do Nothing ( Teleport pause stays exactly in place ):
-	if ( pmove->playerState->pmove.pm_flags & PMF_TIME_TELEPORT ) {
+	if ( pm->playerState->pmove.pm_flags & PMF_TIME_TELEPORT ) {
 		// ...
+		int x = 10;
 	// WaterJump Move ( Has no control, but falls by gravity influences ):
-	} else if ( pmove->playerState->pmove.pm_flags & PMF_TIME_WATERJUMP ) {
+	} else if ( pm->playerState->pmove.pm_flags & PMF_TIME_WATERJUMP ) {
 		PM_WaterJumpMove();
 		// Generic Move & Water Move:
 	} else {
@@ -2236,7 +2194,7 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 			// Otherwise default to generic move code.
 		} else {
 			// Different pitch handling.
-			Vector3 angles = pmove->playerState->viewangles;
+			Vector3 angles = pm->playerState->viewangles;
 			if ( angles[ PITCH ] > 180. ) {
 				angles[ PITCH ] = angles[ PITCH ] - 360.;
 			}
@@ -2254,7 +2212,7 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 	// Recategorize position for contents, ground, and/or liquid since we've made a move.
 	PM_CategorizePosition();
 	// Determine whether we can pull a trick jump, and if so, perform the jump.
-	if ( pmove->playerState->pmove.pm_flags & PMF_TIME_TRICK_JUMP ) {
+	if ( pm->playerState->pmove.pm_flags & PMF_TIME_TRICK_JUMP ) {
 		PM_CheckJump();
 	}
 	// Apply contents and other screen effects.
@@ -2276,14 +2234,20 @@ void SG_PlayerMove_Frame( pmove_t *pmove ) {
 *	@brief	Can be called by either the server or the client game codes.
 **/
 void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
-	// Store pointers to the pmove object and the parameters supplied for this move.
-	pm = pmove;
-	//ps = pm->playerState;
-	pmp = reinterpret_cast<pmoveParams_t *>( params );
+	// Clear the player move locals.
+	pml = {};
 
-	SG_PlayerMove_Frame( pmove );
+	// Store pointers.
+	pm = pmove;
+	pmp = params;
+
+	// Iterate the player movement for yet another single frame.
+	SG_PlayerMove_Frame();
 }
 
+/**
+*	@brief	Default player move configuration parameters.
+**/
 void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	// Q2RTXPerimental Defaults:
 	pmp->pm_air_accelerate = atof( (const char *)SG_GetConfigString( CS_AIRACCEL ) );

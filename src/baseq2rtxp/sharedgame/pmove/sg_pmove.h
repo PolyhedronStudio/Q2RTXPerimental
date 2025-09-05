@@ -247,31 +247,31 @@ typedef struct pm_touch_trace_list_s {
 **/
 typedef struct pmove_s {
     /**
-    *   (In/Out):
+    *   Callbacks to test the world with:
     **/
-    player_state_t *playerState; //pmove_state_t s;
+    //! Trace against all entities.
+    const cm_trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask );
+    //! Clips to world only.
+    const cm_trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const cm_contents_t contentMask );
+    //! PointContents.
+    const cm_contents_t( *q_gameabi pointcontents )( const vec3_t point );
 
     /**
     *   (In):
     **/
     //! Time we're at in the simulation.
-    QMTime  simulationTime;
+    QMTime simulationTime;
     //! The player's move command.
-    usercmd_t	cmd;
+    usercmd_t cmd;
     //! Set to 'true' if player state 's' has been changed outside of pmove.
-    qboolean    snapinitial;
+    qboolean snapInitialPosition;
     //! Opaque pointer to the player entity.
-    struct edict_ptr_t *player;
-
-    /**
-    *   (Out):
-    **/
-    //! Contains the trace results of any entities touched.
-    pm_touch_trace_list_t touchTraces;
+    struct edict_ptr_t *playerEdict;
 
     /**
     *   (In/Out):
     **/
+    player_state_t *playerState; //pmove_state_t s;
     //! Actual view angles, clamped to (0 .. 360) and for Pitch(-89 .. 89).
     //Vector3 viewangles;
     //! Bounding Box.
@@ -283,17 +283,6 @@ typedef struct pmove_s {
     pm_contents_info_t liquid;
 
     /**
-    *   (Out):
-    **/
-    //! Callbacks to test the world with.
-    //! Trace against all entities.
-    const cm_trace_t( *q_gameabi trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask );
-    //! Clips to world only.
-    const cm_trace_t( *q_gameabi clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, /*const void *clipEntity,*/ const cm_contents_t contentMask );
-    //! PointContents.
-    const cm_contents_t( *q_gameabi pointcontents )( const vec3_t point );
-
-    /**
     *   (In):
     **/
     QMEaseState easeDuckHeight;
@@ -303,6 +292,8 @@ typedef struct pmove_s {
     /**
     *   (Out):
     **/
+    //! Contains the trace results of any entities touched.
+    pm_touch_trace_list_t touchTraces;
     // [KEX] results (out)
     //Vector4 screen_blend;
     //! Merged with rdflags from server.
@@ -311,15 +302,15 @@ typedef struct pmove_s {
     //! XY Speed:
     //float xySpeed;
 
-    //! Play jump sound.
-    qboolean jump_sound;
-    //! Impact delta, for falling damage.
-    double impact_delta;
-
     //! We clipped on top of an object from below.
     qboolean step_clip;
     //! Step taken, used for smooth lerping stair transitions.
     double step_height;
+
+    //! Play jump sound.
+    qboolean jump_sound;
+    //! Impact delta, for falling damage.
+    double impact_delta;
 } pmove_t;
 
 /**
