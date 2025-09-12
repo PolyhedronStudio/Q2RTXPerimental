@@ -119,6 +119,10 @@ void CLG_AddLasers( void );
 *   @brief
 **/
 void CLG_ParseLaser( const int32_t colors );
+/**
+*   @brief
+**/
+void CLG_ParseLaser_Pistol( const int32_t colors );
 
 
 

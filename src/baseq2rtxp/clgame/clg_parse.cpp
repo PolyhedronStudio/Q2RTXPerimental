@@ -114,6 +114,12 @@ static void CLG_ParseTEntPacket( void ) {
             }
         break;
 
+    case TE_PISTOL_LASER:
+        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        // <Q2RTXP>: TODO: Send direction, let clients trace the actual laser its end instead.
+        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        break;
+
     //case TE_HEATBEAM:
     //case TE_MONSTER_HEATBEAM:
     //    level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();

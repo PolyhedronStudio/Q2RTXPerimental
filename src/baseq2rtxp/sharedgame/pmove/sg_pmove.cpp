@@ -220,8 +220,9 @@ static void PM_UpdateGroundFromTrace( const cm_trace_t *trace ) {
 		pm->ground.contents = CONTENTS_NONE;
 		pm->ground.material = nullptr;
 
+		cm_trace_t nullTrace = { };
 		pml.groundPlane = false;
-		pml.groundTrace = *trace;
+		pml.groundTrace = ( trace ? *trace : nullTrace );
 		//pml.groundTrace.surface = nullptr;
 		//pml.groundTrace.contents = CONTENTS_NONE;
 	} else {
@@ -1060,7 +1061,7 @@ static void PM_GenericMove() {
 		//if ( pm->playerState->pmove.gravity > 0 ) {
 		//	pm->playerState->pmove.velocity.z = 0;
 		//} else {
-		pm->playerState->pmove.velocity.z -= pm->playerState->pmove.gravity * pml.frameTime;
+		//pm->playerState->pmove.velocity.z -= pm->playerState->pmove.gravity * pml.frameTime;
 		//}
 		// PGM
 
@@ -1086,7 +1087,7 @@ static void PM_GenericMove() {
 
 		// Add gravity in case we're not in grappling mode.
 		if ( pm->playerState->pmove.pm_type != PM_GRAPPLE ) {
-			pm->playerState->pmove.velocity.z -= pm->playerState->pmove.gravity * pml.frameTime;
+			//pm->playerState->pmove.velocity.z -= pm->playerState->pmove.gravity * pml.frameTime;
 		}
 
 		// Step Slide.
@@ -1358,6 +1359,7 @@ static void PM_CategorizePosition() {
 		pm->ground.contents = CONTENTS_NONE;
 		pm->ground.material = nullptr;
 
+		pml.groundPlane = false;
 		pml.groundTrace.surface = nullptr;
 		pml.groundTrace.contents = CONTENTS_NONE;
 
@@ -1365,6 +1367,11 @@ static void PM_CategorizePosition() {
 		pm->playerState->animation.inAir = true;
 	} else {
 		trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, point );
+		pml.groundTrace = trace;
+		pml.groundPlane = true;
+
+		pm->ground.entity = (struct edict_ptr_t *)SG_GetEntityForNumber( trace.entityNumber );
+
 		pm->ground.plane = trace.plane;
 		//pml.groundSurface = trace.surface;
 		pm->ground.surface = *( pml.groundTrace.surface = trace.surface );
@@ -1952,7 +1959,7 @@ static void PM_SnapPosition() {
 static void PM_InitialSnapPosition() {
 	constexpr int32_t offset[ 3 ] = { 0, -1, 1 };
 	const Vector3 baseOrigin = pm->playerState->pmove.origin;
-	const Vector3 baseVelocity = pm->playerState->pmove.origin;
+	const Vector3 baseVelocity = pm->playerState->pmove.velocity;
 
 	for ( int32_t z = 0; z < 3; z++ ) {
 		pm->playerState->pmove.origin.z = baseOrigin.z + offset[ z ];

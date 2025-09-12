@@ -503,10 +503,13 @@ void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
     if ( rotated && trace->fraction != 1.0f ) {
         TransposeAxis( axis );
         RotatePoint( trace->plane.normal, axis );
-
         // FIXME: offset plane distance?
-        trace->plane.dist += DotProduct( trace->plane.normal, origin );
+        trace->plane.dist = DotProduct( trace->plane.normal, origin );
     }
+    
+    // <Q2RTXP>: Don't do this for non rotated planes.
+    // FIXME: offset plane distance?
+    //trace->plane.dist += DotProduct( trace->plane.normal, origin );
 
     LerpVector( start, end, trace->fraction, trace->endpos );
 }

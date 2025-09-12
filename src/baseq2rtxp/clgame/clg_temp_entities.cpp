@@ -143,6 +143,10 @@ void CLG_TemporaryEntities_Parse( void ) {
         CLG_BubbleTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
         break;
 
+    case TE_PISTOL_LASER:
+        CLG_ParseLaser_Pistol( MakeColor( 255, 0, 0, 255 ) );
+        break;
+
     case TE_WELDING_SPARKS:
         CLG_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
 

@@ -338,6 +338,213 @@ const void PM_StepSlideMove_Generic(
 	//! Applies gravity if true.
 	const bool applyGravity
 ) {
+	// Q3 Stepmove
+	Vector3 start_o = {}, start_v = {};
+	Vector3 down_o = {}, down_v = {};
+	// For traces.
+	cm_trace_t trace = {};
+	float		down_dist, up_dist;
+	//	vec3_t		delta, delta2;
+	// For up and down traces.
+	Vector3	up = {}, down = {};
+	// Size of step.
+	double stepSize = 0.;
+	// Did we step?
+	bool stepped = false;
+
+	// Move.
+	start_o = pm->playerState->pmove.origin;
+	start_v = pm->playerState->pmove.velocity;
+	int32_t bumpCount = PM_SlideMove_Generic( pm, pml, applyGravity );
+	down_o = pm->playerState->pmove.origin;
+	down_v = pm->playerState->pmove.velocity;
+
+	// Try and step up.
+	up = start_o;
+	up.z += PM_MAX_STEP_SIZE;
+	trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
+	if ( trace.allsolid ) {
+		// Can't step up.
+		return;
+	}
+
+	// Get step size.
+	stepSize = trace.endpos[2] - start_o.z;
+	
+	// Try sliding above.
+	pm->playerState->pmove.origin = trace.endpos;
+	pm->playerState->pmove.velocity = start_v;
+	bumpCount = PM_SlideMove_Generic( pm, pml, applyGravity );
+	
+	// Push down the final amount.
+	down = pm->playerState->pmove.origin;
+	down.z -= stepSize;
+
+	// [Paril-KEX] jitspoe suggestion for stair clip fix; store
+	// the old down position, and pick a better spot for downwards
+	// trace if the start origin's Z position is lower than the down end pt.
+	Vector3 original_down = down;
+
+	if ( start_o[ 2 ] < down[ 2 ] )
+		down[ 2 ] = start_o[ 2 ] - 1.f;
+
+	trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, down );
+	if ( !trace.allsolid ) {
+		// [Paril-KEX] from above, do the proper trace now
+		cm_trace_t real_trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, original_down );
+		pm->playerState->pmove.origin = real_trace.endpos;
+
+		// only an upwards jump is a stair clip
+		if ( pm->playerState->pmove.velocity.z > 0.f ) {
+			pm->step_clip = true;
+		}
+	}
+
+	up = pm->playerState->pmove.origin;
+
+	// decide which one went farther
+	down_dist = ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
+	up_dist = ( up[ 0 ] - start_o[ 0 ] ) * ( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
+
+	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL ) {
+		pm->playerState->pmove.origin = down_o;
+		pm->playerState->pmove.velocity = down_v;
+	}
+	// [Paril-KEX] NB: this line being commented is crucial for ramp-jumps to work.
+	// thanks to Jitspoe for pointing this one out.
+	else// if (pm->s.pm_flags & PMF_ON_GROUND)
+		//!! Special case
+		// if we were walking along a plane, then we need to copy the Z over
+		pm->playerState->pmove.velocity[ 2 ] = down_v[ 2 ];
+
+	// Paril: step down stairs/slopes
+	if ( ( pm->playerState->pmove.pm_flags & PMF_ON_GROUND ) && !( pm->playerState->pmove.pm_flags & PMF_ON_LADDER ) &&
+		( pm->liquid.level < LIQUID_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pm->playerState->pmove.velocity.z <= 0 ) ) ) {
+		down = pm->playerState->pmove.origin;
+		down[ 2 ] -= PM_MAX_STEP_SIZE;
+		trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, down );
+		//if ( trace.fraction < 1.f ) {
+		//	pm->playerState->pmove.origin = trace.endpos;
+		//}
+		if ( !trace.allsolid ) {
+			pm->playerState->pmove.origin = trace.endpos;
+		}
+		if ( trace.fraction < 1.0 ) {
+				pm->playerState->pmove.origin = trace.endpos;
+
+			PM_ClipVelocity( pm->playerState->pmove.velocity, trace.plane.normal, pm->playerState->pmove.velocity, PM_OVERCLIP );
+		}
+	}
+
+	{
+		// use the step move
+		float	delta;
+
+		delta = pm->playerState->pmove.origin[ 2 ] - start_o[ 2 ];
+		if ( fabs( delta ) > 2 ) {
+			//if ( delta < 7 ) {
+			//	PM_AddEvent( EV_STEP_4 );
+			//} else if ( delta < 11 ) {
+			//	PM_AddEvent( EV_STEP_8 );
+			//} else if ( delta < 15 ) {
+			//	PM_AddEvent( EV_STEP_12 );
+			//} else {
+			//	PM_AddEvent( EV_STEP_16 );
+			//}
+			pm->step_height = delta;
+			SG_DPrintf( "%i:stepped\n", pm->simulationTime );
+		}
+		//if ( pm->debugLevel ) {
+			//Com_Printf( "%i:stepped\n", c_pmove );
+		//}
+	}
+
+	#if 0
+	start_o = pm->playerState->pmove.origin;
+	start_v = pm->playerState->pmove.velocity;
+
+	Vector3 normal = { 0., 0., 1. };
+	VectorMA( start_o, -PM_MAX_STEP_SIZE, normal, down );
+	trace = PM_Trace( start_o, pm->mins, pm->maxs, down );// , pm->ps->clientNum, pm->tracemask, 0 );
+
+	if ( PM_SlideMove_Generic( pm, pml, applyGravity ) == 0 ) {
+		//return;		// we got exactly where we wanted to go first try
+		// 		//we can step down
+		VectorMA( pm->playerState->pmove.origin, -PM_MAX_STEP_SIZE, normal, down );
+
+		trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, down );// , pm->ps->clientNum, pm->tracemask, 0 );
+
+		if ( trace.fraction > 0. && trace.fraction < 1.0f &&
+			!trace.allsolid && pml->groundPlane ) {
+			//if ( pm->debugLevel > 1 ) {
+				SG_DPrintf( "%d: step down\n", pm->simulationTime );
+			//}
+				// try slidemove from this position
+				pm->playerState->pmove.origin = trace.endpos;
+			stepped = true;
+			return;
+		}
+	} else {
+
+		down = start_o;//VectorCopy( start_o, down );
+		down[ 2 ] -= PM_MAX_STEP_SIZE;
+		trace = PM_Trace( start_o, pm->mins, pm->maxs, down );
+		VectorSet( up, 0, 0, 1 );
+		// never step up when you still have up velocity
+		if ( DotProduct( trace.plane.normal, pm->playerState->pmove.velocity ) > 0.f && 
+			( trace.fraction >= 1.0 || DotProduct( trace.plane.normal, up ) < 0.7f ) ) {
+				return;
+		}
+
+		down_o = pm->playerState->pmove.origin; // VectorCopy( pm->playerState->pmove.origin, down_o );
+		down_v = pm->playerState->pmove.velocity;// VectorCopy( pm->playerState->pmove.velocity, down_v );
+
+		up = start_o;// VectorCopy( start_o, up );
+		up[ 2 ] += PM_MAX_STEP_SIZE;
+
+		// test the player position if they were a stepheight higher
+		trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
+		if ( trace.allsolid ) {
+			//if ( pm->debugLevel ) {
+			SG_DPrintf( "%i:bend can't step\n", pm->simulationTime );
+			//}
+			return;		// can't step up
+		}
+
+		stepSize = trace.endpos[ 2 ] - start_o[ 2 ];
+		// try slidemove from this position
+		pm->playerState->pmove.origin = trace.endpos; // VectorCopy( trace.endpos, pm->ps->origin );
+		pm->playerState->pmove.velocity = start_v; // VectorCopy( start_v, pm->ps->velocity );
+
+		PM_SlideMove_Generic( pm, pml, applyGravity );
+
+		// push down the final amount
+		down = pm->playerState->pmove.origin; // VectorCopy( pm->ps->origin, down );
+		down[ 2 ] -= stepSize;
+		trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, down );
+		if ( !trace.allsolid ) {
+			pm->playerState->pmove.origin = trace.endpos; // VectorCopy( trace.endpos, pm->ps->origin );
+		}
+		if ( trace.fraction < 1.0 ) {
+			PM_ClipVelocity( pm->playerState->pmove.velocity, trace.plane.normal, pm->playerState->pmove.velocity, PM_OVERCLIP );
+		}
+	}
+	#endif
+	#if 0
+	// if the down trace can trace back to the original position directly, don't step
+	trace = PM_Trace( pm->playerState->pmove.origin, pm->mins, pm->maxs, start_o );
+	if ( trace.fraction == 1.0 ) {
+		// use the original move
+		pm->playerState->pmove.origin = down_o;// VectorCopy( down_o, pm->ps->origin );
+		pm->playerState->pmove.velocity = down_v;// VectorCopy( down_v, pm->ps->velocity );
+		//if ( pm->debugLevel ) {
+		SG_DPrintf( "%i:bend\n", pm->simulationTime );
+		//Com_Printf( "%i:bend\n", c_pmove );
+		//}
+	} else
+	#endif
+	////////////////////////
+	#if 0
 	Vector3 start_o, start_v;
 	Vector3 down_o, down_v;
 	cm_trace_t trace;
@@ -348,7 +555,7 @@ const void PM_StepSlideMove_Generic(
 	start_o = pm->playerState->pmove.origin;
 	start_v = pm->playerState->pmove.velocity;
 
-	PM_SlideMove_Generic( pm, pml, false );
+	const bool bumped = PM_SlideMove_Generic( pm, pml, false );
 
 	down_o = pm->playerState->pmove.origin;
 	down_v = pm->playerState->pmove.velocity;
@@ -420,6 +627,7 @@ const void PM_StepSlideMove_Generic(
 			pm->playerState->pmove.origin = trace.endpos;
 		}
 	}
+	#endif // Q2RE StepMove with Q3 slidemove.
 
 	#if 0
 	#if 0

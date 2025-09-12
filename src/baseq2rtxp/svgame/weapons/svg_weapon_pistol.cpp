@@ -12,6 +12,7 @@
 
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_muzzleflashes.h"
+#include "sharedgame/sg_tempentity_events.h"
 
 //! Enable to have the pistol auto reload when an empty clip occures while engaged in target aiming fire mode.
 //#define WEAPON_PISTOL_ENABLE_RELOAD_ON_AIMFIRE_EMPTY_CLIP
@@ -427,6 +428,22 @@ void Weapon_Pistol( svg_base_edict_t *ent, const bool processUserInputOnly ) {
             Weapon_Pistol_ProcessUserInput( ent );
     }
 
+    // <Q2RTXP>: TODO: This was experimental.
+    #if 0
+    vec3_t start = { ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + ent->viewheight - 8 };
+    VectorMA( start, 24, ent->client->viewMove.viewForward, start );
+    VectorMA( start, 10, ent->client->viewMove.viewRight, start );
+
+    vec3_t end = {};
+    VectorMA( start, CM_MAX_WORLD_SIZE, ent->client->viewMove.viewForward, end );
+    svg_trace_t tr = gi.trace( start, &qm_vector3_null.x, &qm_vector3_null.x, end, ent, CM_CONTENTMASK_SHOT );
+
+    gi.WriteUint8( svc_temp_entity );
+    gi.WriteUint8( TE_PISTOL_LASER );
+    gi.WritePosition( start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.multicast( start, MULTICAST_PHS, false );
+    #endif
     /**
     *   AIMING Path: We're AIMING, if the current MODE(and animation) >= WEAPON_MODE_AIM_IN
     **/

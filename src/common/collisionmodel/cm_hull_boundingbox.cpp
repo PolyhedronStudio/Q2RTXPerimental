@@ -65,7 +65,7 @@ void CM_InitBoxHull( cm_t *cm ) {
             clipNode->children[ side ^ 1 ] = (mnode_t *)&cm->hull_boundingbox->leaf;
         }
 
-        #if 1
+        #if 0
         // Planes:
         cm_plane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
         plane->type = i >> 1;
@@ -80,15 +80,15 @@ void CM_InitBoxHull( cm_t *cm ) {
         cm_plane_t *plane = &cm->hull_boundingbox->planes[ i * 2 ];
 //        plane->type = i >> 1;
         plane->normal[ i >> 1 ] = 1;
-        plane->type = CM_PlaneTypeForNormal( plane->normal );//SetPlaneType( plane );
-        plane->signbits = CM_SignBitsForNormal( plane->normal ); //SetPlaneSignbits( plane );
+        //SetPlaneType( plane );
+        SetPlaneSignbits( plane );
 
         plane = &cm->hull_boundingbox->planes[ i * 2 + 1 ];
-        //plane->type = 3 + ( i >> 1 );
+        plane->type = 3 + ( i >> 1 );
         //plane->signbits = 1 << ( i >> 1 );
         plane->normal[ i >> 1 ] = -1;
-        plane->type = CM_PlaneTypeForNormal( plane->normal );//SetPlaneType( plane );
-        plane->signbits = CM_SignBitsForNormal( plane->normal ); //SetPlaneSignbits( plane );
+        //SetPlaneType( plane );
+        SetPlaneSignbits( plane );
         #endif
     }
 }
