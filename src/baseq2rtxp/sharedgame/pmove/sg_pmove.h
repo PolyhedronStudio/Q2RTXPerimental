@@ -89,6 +89,8 @@ typedef struct default_pmoveParams_s {
 
     //! General acceleration.
     static constexpr float pm_accelerate = 10.f;
+    //! General acceleration.
+    static constexpr float pm_air_accelerate = 1.f;
     //! General water acceleration.
     static constexpr float pm_water_accelerate = 10.f;
 
@@ -121,6 +123,8 @@ static constexpr float   PM_VIEWHEIGHT_GIBBED = 8.f;
 static constexpr float PM_MIN_STEP_SIZE = 4.f;
 //! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
 static constexpr float PM_MAX_STEP_SIZE = 18.f;
+//! Offset for distance to account for between step and ground.
+static constexpr float PM_STEP_GROUND_DIST = 0.25f;
 
 /**
 *	Slide Move Results:
@@ -145,20 +149,6 @@ enum pm_slideMoveFlags_t {
 };
 QENUM_BIT_FLAGS( pm_slideMoveFlags_t );
 
-
-
-
-/**
-*
-*
-*
-*
-*	PMove Functions:
-*
-*
-*
-*
-**/
 /**
 *	@brief	Used to configure player movement with, it is set by SG_ConfigurePlayerMoveParameters.
 *
@@ -271,7 +261,7 @@ typedef struct pmove_s {
     /**
     *   (In/Out):
     **/
-    player_state_t *playerState; //pmove_state_t s;
+    player_state_t *state; //pmove_state_t s;
     //! Actual view angles, clamped to (0 .. 360) and for Pitch(-89 .. 89).
     //Vector3 viewangles;
     //! Bounding Box.
@@ -313,6 +303,23 @@ typedef struct pmove_s {
     double impact_delta;
 } pmove_t;
 
+
+
+
+
+
+
+/**
+*
+*
+*
+*
+*	PMove Functions:
+*
+*
+*
+*
+**/
 /**
 *	@brief	Actual in-moment local move variables.
 *
@@ -328,11 +335,13 @@ struct pml_t {
     //! Move frameTime.
     double frameTime = 0.;
 
+    //! Aerial?
+    bool isAerial = false;
     //! Walking?
-    bool walking = false;
+    bool isWalking = false;
     //! Are we on an actual ground plane?
-    bool groundPlane = false;
-    //! The result of the last ground trace.
+    bool hasGroundPlane = false;
+    //! A copy of the result from the last ground trace.
     cm_trace_t groundTrace = {};
 
     //! Speed at which we (impacted) the ground/other-surface.
@@ -342,8 +351,8 @@ struct pml_t {
     Vector3		previousOrigin = {};
     //! Velocity at the start of the move.
     Vector3		previousVelocity = {};
-    //! Water level at start of move.
-    cm_liquid_level_t previousWaterLevel = cm_liquid_level_t::LIQUID_NONE;
+    //! Stores the possible solid liquid type brush we're in(-touch with/inside of)
+    pm_contents_info_t previousLiquid = {};
 };
 //! The local player move state for the entity that we're moving.
 extern pml_t pml;

@@ -269,7 +269,7 @@ static void PM_SetDimensions() {
 		// Duck BBox:
 		pm->mins = PM_BBOX_DUCKED_MINS;
 		pm->maxs = PM_BBOX_DUCKED_MAXS;
-		pm->playerState->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
+		pm->state->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
 		// Ease in.
 		if ( pm->easeDuckHeight.GetEaseMode() <= QMEaseState::QM_EASE_STATE_MODE_DONE ) {
 			easeLerpFactor = pm->easeDuckHeight.EaseIn( pm->simulationTime, QM_CubicEaseIn );
@@ -279,7 +279,7 @@ static void PM_SetDimensions() {
 		// Standing BBox:
 		pm->mins = PM_BBOX_STANDUP_MINS;
 		pm->maxs = PM_BBOX_STANDUP_MAXS;
-		pm->playerState->pmove.viewheight = PM_VIEWHEIGHT_STANDUP;
+		pm->state->pmove.viewheight = PM_VIEWHEIGHT_STANDUP;
 		// Ease out.
 		if ( pm->easeDuckHeight.GetEaseMode() <= QMEaseState::QM_EASE_STATE_MODE_DONE ) {
 			easeLerpFactor = pm->easeDuckHeight.EaseOut( pm->simulationTime, QM_CubicEaseOut );
@@ -493,10 +493,10 @@ static void PM_Animation_SetMovementDirection( void ) {
 		}
 
 		// Running:
-		if ( pm->playerState->xySpeed > RUN_EPSILON ) {
+		if ( pm->state->xySpeed > RUN_EPSILON ) {
 			ps->animation.moveDirection |= PM_MOVEDIRECTION_RUN;
 		// Walking:
-		} else if ( pm->playerState->xySpeed > WALK_EPSILON ) {
+		} else if ( pm->state->xySpeed > WALK_EPSILON ) {
 			ps->animation.moveDirection |= PM_MOVEDIRECTION_WALK;
 		}
 	}
@@ -562,14 +562,14 @@ const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vecto
 **/
 const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, cm_contents_t contentMask ) {
 	// Spectators only clip against world, so use clip instead.
-	if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
+	if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
 		return PM_Clip( start, mins, maxs, end, CM_CONTENTMASK_SOLID );
 	}
 
 	if ( contentMask == CONTENTS_NONE ) {
-		if ( pm->playerState->pmove.pm_type == PM_DEAD || pm->playerState->pmove.pm_type == PM_GIB ) {
+		if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
 			contentMask = CM_CONTENTMASK_DEADSOLID;
-		} else if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
+		} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
 			contentMask = CM_CONTENTMASK_SOLID;
 		} else {
 			contentMask = CM_CONTENTMASK_PLAYERSOLID;
@@ -2099,7 +2099,7 @@ static void PM_DropTimers() {
 void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	// Store pointers to the pmove object and the parameters supplied for this move.
 	pm = pmove;
-	ps = pm->playerState;
+	ps = pm->state;
 	pmp = reinterpret_cast<pmoveParams_t *>( params );
 
 	// Clear out several member variables which require a fresh state before performing the move.

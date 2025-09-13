@@ -1493,12 +1493,12 @@ static void PM_DropTimers() {
 void SG_PlayerMove( pmove_t *pmove, pmoveParams_t *params ) {
 	// Store pointers to the pmove object and the parameters supplied for this move.
 	pm = pmove;
-	ps = pm->playerState;
+	ps = pm->state;
 	pmp = params;
 
 	// Clear out several member variables which require a fresh state before performing the move.
 	pm->touchTraces = {};
-	pm->playerState.viewangles = {};
+	pm->state.viewangles = {};
 	ps->pmove.viewheight = 0;
 	pm->ground = {};
 	pm->liquid = {

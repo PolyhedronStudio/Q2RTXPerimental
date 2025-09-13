@@ -8,15 +8,15 @@
 #pragma once
 
 //! Maximum amount of clipping planes to test for.
-static constexpr int32_t PM_MAX_CLIP_PLANES = 5;
+static constexpr int32_t PM_MAX_CLIP_PLANES = 8;
 //! The overclip factor for velocity clipping.
 static constexpr double PM_OVERCLIP = 1.001;
 
 
 //! Can't step up onto very steep slopes
-static constexpr float PM_MIN_STEP_NORMAL = 0.7f;
+static constexpr double PM_MIN_STEP_NORMAL = 0.7;
 //! Minimal Z Normal for testing whether something is legitimately a "WALL".
-static constexpr float PM_MIN_WALL_NORMAL_Z = 0.03125;
+static constexpr double PM_MIN_WALL_NORMAL_Z = 0.03125;
 
 /**
 *	Slide Move Results:
@@ -43,6 +43,7 @@ const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vecto
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
 **/
 const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask = CONTENTS_NONE );
+const cm_trace_t PM_TraceCorrectSolid( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, cm_contents_t contentMask = CONTENTS_NONE );
 
 /**
 *	@brief	Clips the velocity to surface normal.

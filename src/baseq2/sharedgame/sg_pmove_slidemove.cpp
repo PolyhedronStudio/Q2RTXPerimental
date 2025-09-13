@@ -35,14 +35,14 @@ const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vecto
 **/
 const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, cm_contents_t contentMask ) {
 	// Spectators only clip against world, so use clip instead.
-	if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
+	if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
 		return PM_Clip( start, mins, maxs, end, CM_CONTENTMASK_SOLID );
 	}
 
 	if ( contentMask == CONTENTS_NONE ) {
-		if ( pm->playerState->pmove.pm_type == PM_DEAD || pm->playerState->pmove.pm_type == PM_GIB ) {
+		if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
 			contentMask = CM_CONTENTMASK_DEADSOLID;
-		} else if ( pm->playerState->pmove.pm_type == PM_SPECTATOR ) {
+		} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
 			contentMask = CM_CONTENTMASK_SOLID;
 		} else {
 			contentMask = CM_CONTENTMASK_PLAYERSOLID;

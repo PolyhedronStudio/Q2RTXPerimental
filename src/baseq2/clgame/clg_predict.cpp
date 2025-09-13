@@ -53,14 +53,14 @@ void CLG_PredictNextBobCycle( pmove_t *pm ) {
     // Predict next bobcycle.
     const float bobCycleFraction = (float)( clgi.client->time - clgi.client->servertime )
         / ( ( clgi.client->time + clgi.frame_time_ms ) - clgi.client->servertime );
-    int32_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->playerState->bobCycle;// nextframe->ps.bobCycle;
+    int32_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->state->bobCycle;// nextframe->ps.bobCycle;
     // Handle wraparound:
-    if ( bobCycle < pm->playerState->bobCycle ) {
+    if ( bobCycle < pm->state->bobCycle ) {
         bobCycle += 256;
     }
-    pm->playerState->bobCycle = pm->playerState->bobCycle + bobCycleFraction * ( bobCycle - clgi.client->frame.ps.bobCycle );
+    pm->state->bobCycle = pm->state->bobCycle + bobCycleFraction * ( bobCycle - clgi.client->frame.ps.bobCycle );
 
-    clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->playerState->bobCycle, bobCycleFraction );
+    clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->state->bobCycle, bobCycleFraction );
 }
 
 /**
@@ -78,7 +78,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
     // Consider a Z change being "stepping" if...
     const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
-        && ( ( pm->playerState->pmove.pm_flags & PMF_ON_GROUND ) && pm->playerState->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
+        && ( ( pm->state->pmove.pm_flags & PMF_ON_GROUND ) && pm->state->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
         && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 // Plane memory isn't identical, OR..
             || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
 
@@ -271,10 +271,10 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     pm.liquid = predictedState->liquid;
 
     // Apply client delta_angles.
-    pm.playerState->pmove.delta_angles = clgi.client->delta_angles;
+    pm.state->pmove.delta_angles = clgi.client->delta_angles;
     // Set view angles.
     // [NO-NEED]: This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
-    //pm.playerState->viewangles = clgi.client->viewangles; 
+    //pm.state->viewangles = clgi.client->viewangles; 
 
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
@@ -292,8 +292,8 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         }
 
         // Save for prediction checking.
-        moveCommand->prediction.origin = pm.playerState->pmove.origin;
-        moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
+        moveCommand->prediction.origin = pm.state->pmove.origin;
+        moveCommand->prediction.velocity = pm.state->pmove.velocity;
     }
 
     // Now run the pending command number.
@@ -312,8 +312,8 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
         SG_PlayerMove( &pm, &pmp );
 
         // Save the now not pending anymore move command as the last entry in our circular buffer.
-        pendingMoveCommand->prediction.origin = pm.playerState->pmove.origin;
-        pendingMoveCommand->prediction.velocity = pm.playerState->pmove.velocity;
+        pendingMoveCommand->prediction.origin = pm.state->pmove.origin;
+        pendingMoveCommand->prediction.velocity = pm.state->pmove.velocity;
 
         // Save for prediction checking.
         clgi.client->moveCommands[ ( currentCommandNumber + 1 ) & CMD_MASK ] = *pendingMoveCommand;
@@ -336,7 +336,7 @@ void PF_PredictMovement( uint64_t acknowledgedCommandNumber, const uint64_t curr
     predictedState->maxs = pm.maxs;
 
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
-    PF_AdjustViewHeight( pm.playerState->pmove.viewheight );
+    PF_AdjustViewHeight( pm.state->pmove.viewheight );
 
     // Swap in the resulting new pmove player state.
     predictedState->currentPs = pmPlayerState;

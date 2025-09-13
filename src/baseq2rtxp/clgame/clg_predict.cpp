@@ -109,14 +109,14 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
 void CLG_PredictNextBobCycle( pmove_t *pm ) {
     // Predict next bobcycle.
     const float bobCycleFraction = clgi.client->xerpFraction;
-    uint8_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->playerState->bobCycle;// nextframe->ps.bobCycle;
+    uint8_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->state->bobCycle;// nextframe->ps.bobCycle;
     // Handle wraparound:
-    if ( bobCycle < pm->playerState->bobCycle ) {
+    if ( bobCycle < pm->state->bobCycle ) {
         bobCycle += 256;
     }
-    pm->playerState->bobCycle = pm->playerState->bobCycle + bobCycleFraction * ( bobCycle - clgi.client->frame.ps.bobCycle );
+    pm->state->bobCycle = pm->state->bobCycle + bobCycleFraction * ( bobCycle - clgi.client->frame.ps.bobCycle );
 
-    //clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->playerState->bobCycle, bobCycleFraction );
+    //clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->state->bobCycle, bobCycleFraction );
 }
 
 /**
@@ -126,18 +126,26 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
     // Time in miliseconds to lerp the step with.
     static constexpr double PM_STEP_TIME = 100.;
     // Maximum -/+ change we allow in step lerps.
-    static constexpr double PM_MAX_STEP_CHANGE = 32.;
+    static constexpr double PM_MAX_STEP_CHANGE = PM_MAX_STEP_SIZE * 2;
 
     // Get the absolute step's height value for testing against.
     const double fabsStep = std::fabs( stepHeight );
 
     // Consider a Z change being "stepping" if...
+    #if 0
     const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
-        && ( ( pm->playerState->pmove.pm_flags & PMF_ON_GROUND ) && pm->playerState->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
+        && ( ( pm->state->pmove.pm_flags & PMF_ON_GROUND ) && pm->state->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
+        && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 // Plane memory isn't identical, OR..
+            || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
+    #else
+    const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep <= PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
+        //&& ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
+        //&& ( ( pm->state->pmove.pm_flags & PMF_ON_GROUND ) && pm->state->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
         && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 // Plane memory isn't identical, OR..
             || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
 
+    #endif
     if ( step_detected ) {
         // check for stepping up before a previous step is completed
         const int64_t delta = ( clgi.GetRealTime() - predictedState->transition.step.timeChanged );
@@ -323,10 +331,10 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         .clip = CLG_PM_Clip,
         .pointcontents = CLG_PM_PointContents,
         // The pointer to the player state we're predicting.
-        .playerState = &predictedState->currentPs,
+        .state = &predictedState->currentPs,
     };
     // Apply client delta_angles.
-    pm.playerState->pmove.delta_angles = clgi.client->delta_angles;
+    pm.state->pmove.delta_angles = clgi.client->delta_angles;
     // Setup client predicted ground data.
     pm.ground = predictedState->ground;
     // Setup client predicted liquid data.
@@ -334,7 +342,7 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
 
     // Set view angles.
     // [NO-NEED]: This gets recalculated during PMove, based on the 'usercmd' and server 'delta angles'.
-    //pm.playerState->viewangles = clgi.client->viewangles; 
+    //pm.state->viewangles = clgi.client->viewangles; 
 
     // Run previously stored and acknowledged frames up and including the last one.
     while ( ++acknowledgedCommandNumber <= currentCommandNumber ) {
@@ -356,8 +364,8 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
 
         // Store the resulting outcome(if no msec was found, it'll be the origin that
         // was left behind from the previous player move iteration.)
-        moveCommand->prediction.origin = pm.playerState->pmove.origin;
-        moveCommand->prediction.velocity = pm.playerState->pmove.velocity;
+        moveCommand->prediction.origin = pm.state->pmove.origin;
+        moveCommand->prediction.velocity = pm.state->pmove.velocity;
 
         // Backup into our circular buffer.
         clgi.client->predictedMoveResults[ ( acknowledgedCommandNumber ) & CMD_MASK ] = moveCommand->prediction;
@@ -395,8 +403,8 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         #endif
         
         // Store the predicted outcome results 
-        pendingMoveCommand->prediction.origin = pm.playerState->pmove.origin;
-        pendingMoveCommand->prediction.velocity = pm.playerState->pmove.velocity;
+        pendingMoveCommand->prediction.origin = pm.state->pmove.origin;
+        pendingMoveCommand->prediction.velocity = pm.state->pmove.velocity;
         
         // Save the pending move command as the last entry in our circular buffer.
         clgi.client->predictedMoveResults[ ( currentCommandNumber + 1 ) & CMD_MASK ] = pendingMoveCommand->prediction;

@@ -7,6 +7,18 @@
 **/
 #pragma once
 
+/**
+*   Vector3 in:
+**/
+[[nodiscard]] inline Vector2::Vector2( Vector3 &v ) {
+    this->x = v.x;
+    this->y = v.y;
+}
+[[nodiscard]] inline Vector2::Vector2( const Vector3 &v ) {
+    this->x = v.x;
+    this->y = v.y;
+}
+
 // Vector with components value 0.0f
 QM_API Vector2 QM_Vector2Zero( void ) {
     Vector2 result = { 0.0f, 0.0f };

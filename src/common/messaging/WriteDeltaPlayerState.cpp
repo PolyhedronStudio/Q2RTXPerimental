@@ -108,6 +108,9 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( to->pmove.pm_flags != from->pmove.pm_flags ) {
 		pflags |= PS_M_FLAGS;
 	}
+	if ( to->pmove.speed != from->pmove.speed ) {
+		pflags |= PS_M_SPEED;
+	}
 	if ( to->pmove.gravity != from->pmove.gravity ) {
 		pflags |= PS_M_GRAVITY;
 	}
@@ -194,6 +197,9 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	}
 	if ( pflags & PS_M_FLAGS ) {
 		MSG_WriteUintBase128( to->pmove.pm_flags );
+	}
+	if ( pflags & PS_M_SPEED ) {
+		MSG_WriteInt16( to->pmove.speed );
 	}
 	if ( pflags & PS_M_GRAVITY ) {
 		MSG_WriteInt16( to->pmove.gravity );

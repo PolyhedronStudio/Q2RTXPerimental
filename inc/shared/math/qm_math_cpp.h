@@ -154,6 +154,12 @@ struct Vector2 {
     }
 
     /**
+    *   Vector3 in:
+    **/
+    [[nodiscard]] inline Vector2( Vector3 &v );
+    [[nodiscard]] inline Vector2( const Vector3 &v );
+
+    /**
     *   Array like component accessors:
     **/
     [[nodiscard]] inline constexpr const float &operator[]( const  size_t i ) const;

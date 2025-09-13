@@ -504,7 +504,7 @@ static void CLG_SetupFirstPersonView( void ) {
     //if ( level.viewBob.xySpeed < 5 ) {
     //    level.viewBob.move = 0;
     //    level.viewBob.time = 0;    // Retart at the beginning of a cycle again.
-    //} else if ( clgi.client->predictedState.pm.playerState.pmove.pm_flags & PMF_ON_GROUND ) {
+    //} else if ( clgi.client->predictedState.pm.state.pmove.pm_flags & PMF_ON_GROUND ) {
     //    // So bobbing only cycles when on ground
     //    //if ( xyspeed > 210 )
     //    //	bobmove = 0.25f;
@@ -527,7 +527,7 @@ static void CLG_SetupFirstPersonView( void ) {
     //const double bobtime_run = bobtime;
 
     //// Account for ducking.
-    //if ( ( clgi.client->predictedState.pm.playerState.pmove.pm_flags & PMF_DUCKED ) &&
+    //if ( ( clgi.client->predictedState.pm.state.pmove.pm_flags & PMF_DUCKED ) &&
     //    clgi.client->predictedState.pm.ground.entity != nullptr ) {
     //    bobtime *= 4;
     //}

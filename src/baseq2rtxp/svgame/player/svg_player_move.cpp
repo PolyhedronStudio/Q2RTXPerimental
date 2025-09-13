@@ -416,7 +416,7 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
     //}
 
     if ( delta < 15 ) {
-        if ( !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) {
+        if ( !( pm.state->pmove.pm_flags & PMF_ON_LADDER ) ) {
             ent->s.event = EV_FOOTSTEP;
             //gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
         }
@@ -456,7 +456,7 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
 
     // Falling damage noises alert monsters
     if ( ent->health >= 0 ) { // Was: if ( ent->health )
-        SVG_Player_PlayerNoise( ent, &pm.playerState->pmove.origin[ 0 ], PNOISE_SELF );
+        SVG_Player_PlayerNoise( ent, &pm.state->pmove.origin[ 0 ], PNOISE_SELF );
     }
 }
 
@@ -466,31 +466,32 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
 **/
 static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
     // Prepare the player move structure properties for simulation.
-    pm->playerState = &client->ps;
+    pm->state = &client->ps;
     // Copy the current entity origin and velocity into our 'pmove movestate'.
-    pm->playerState->pmove.origin = ent->s.origin;
-    pm->playerState->pmove.velocity = ent->velocity;
+    pm->state->pmove.origin = ent->s.origin;
+    pm->state->pmove.velocity = ent->velocity;
     // Setup the gravity. PGM	trigger_gravity support
-    pm->playerState->pmove.gravity = (short)( sv_gravity->value * ent->gravity );
+    pm->state->pmove.gravity = (short)( sv_gravity->value * ent->gravity );
+    pm->state->pmove.speed = pmp->pm_max_speed;
     // Setup the specific Player Move controller type.
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         if ( ent->client->resp.spectator ) {
-            pm->playerState->pmove.pm_type = PM_SPECTATOR;
+            pm->state->pmove.pm_type = PM_SPECTATOR;
         } else {
-            pm->playerState->pmove.pm_type = PM_NOCLIP;
+            pm->state->pmove.pm_type = PM_NOCLIP;
         }
     // If our model index differs, we're gibbing out: (We are not assigned the 'player' model.)
     } else if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
-        pm->playerState->pmove.pm_type = PM_GIB;
+        pm->state->pmove.pm_type = PM_GIB;
     // Dead:
     } else if ( ent->lifeStatus ) {
-        pm->playerState->pmove.pm_type = PM_DEAD;
+        pm->state->pmove.pm_type = PM_DEAD;
     // Otherwise, default, normal movement behavior:
     } else {
-        pm->playerState->pmove.pm_type = PM_NORMAL;
+        pm->state->pmove.pm_type = PM_NORMAL;
     }
     // Determine if it has changed and we should 'resnap' to position.
-    if ( memcmp( &client->old_pmove, &pm->playerState->pmove, sizeof( pm->playerState->pmove ) ) ) {
+    if ( memcmp( &client->old_pmove, &pm->state->pmove, sizeof( pm->state->pmove ) ) ) {
         pm->snapInitialPosition = true; // gi.dprintf ("pmove changed!\n");
     }
     // Setup 'User Command'
@@ -506,14 +507,14 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
     // Move!
     SG_PlayerMove( (pmove_s *)pm, (pmoveParams_s *)pmp );
     // Backup the pmove result as the 'old' previous client player move.
-    client->old_pmove = pm->playerState->pmove;
+    client->old_pmove = pm->state->pmove;
     // Backup the command angles given from last command.
-    VectorCopy( userCommand->angles, client->resp.cmd_angles );
+    client->resp.cmd_angles = userCommand->angles; // VectorCopy( userCommand->angles, client->resp.cmd_angles );
 
     // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
     if ( pm->ground.entity/* && ent->groundInfo.entity */) {
-        const float stepsize = fabs( ent->s.origin[ 2 ] - pm->playerState->pmove.origin[ 2 ] );
-        if ( stepsize > PM_MIN_STEP_SIZE && stepsize < PM_MAX_STEP_SIZE ) {
+        const double stepsize = fabs( ent->s.origin[ 2 ] - pm->state->pmove.origin[ 2 ] );
+        if ( stepsize > PM_MIN_STEP_SIZE && stepsize <= PM_MAX_STEP_SIZE ) {
             ent->s.renderfx |= RF_STAIR_STEP;
             ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
         }
@@ -524,10 +525,10 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
 **/
 static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
     // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
-    if ( ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
+    if ( ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
         VectorCopy( ent->s.origin, client->last_ladder_pos );
 
-        if ( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) {
+        if ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) {
             if ( !deathmatch->integer &&
                 client->last_ladder_sound < level.time ) {
                 ent->s.event = EV_FOOTSTEP_LADDER;
@@ -540,14 +541,14 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
     const Vector3 oldOrigin = ent->s.origin;
 
     // Copy back into the entity, both the resulting origin and velocity.
-    VectorCopy( pm.playerState->pmove.origin, ent->s.origin );
-    VectorCopy( pm.playerState->pmove.velocity, ent->velocity );
+    VectorCopy( pm.state->pmove.origin, ent->s.origin );
+    VectorCopy( pm.state->pmove.velocity, ent->velocity );
     // Copy back in bounding box results. (Player might've crouched for example.)
     VectorCopy( pm.mins, ent->mins );
     VectorCopy( pm.maxs, ent->maxs );
 
     // Play 'Jump' sound if pmove inquired so.
-    if ( pm.jump_sound && !( pm.playerState->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
+    if ( pm.jump_sound && !( pm.state->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
         // Jump sound to play.
         const int32_t sndIndex = irandom( 2 ) + 1;
         std::string pathJumpSnd = "player/jump0"; pathJumpSnd += std::to_string( sndIndex ); pathJumpSnd += ".wav";
@@ -561,10 +562,17 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
     }
 
     // Update the entity's remaining viewheight, liquid and ground information:
-    ent->viewheight = (int32_t)pm.playerState->pmove.viewheight;
+    ent->viewheight = (int32_t)pm.state->pmove.viewheight;
+    // Store all player move liquid info into the entity 'monster move' (fake name here) properties.
     ent->liquidInfo.level = pm.liquid.level;
     ent->liquidInfo.type = pm.liquid.type;
+    // Do the same for ground info.
     ent->groundInfo.entity = (svg_base_edict_t*)pm.ground.entity;
+    ent->groundInfo.contents = pm.ground.contents;
+    ent->groundInfo.material = pm.ground.material;
+    ent->groundInfo.plane = pm.ground.plane;
+    ent->groundInfo.surface = pm.ground.surface;
+    // Update link count.
     if ( ent->groundInfo.entity ) {
         ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkcount;
     }
@@ -576,7 +584,7 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
         client->ps.viewangles[ YAW ] = client->killer_yaw;
         // Otherwise, apply the player move state view angles:
     } else {
-        client->ps.viewangles = pm.playerState->viewangles; // VectorCopy( pm.playerState->viewangles, client->ps.viewangles );
+        client->ps.viewangles = pm.state->viewangles; // VectorCopy( pm.state->viewangles, client->ps.viewangles );
         client->viewMove.viewAngles = client->ps.viewangles; // VectorCopy( client->ps.viewangles, client->viewMove.viewAngles );
         QM_AngleVectors( client->viewMove.viewAngles, &client->viewMove.viewForward, &client->viewMove.viewRight, &client->viewMove.viewUp );
     }

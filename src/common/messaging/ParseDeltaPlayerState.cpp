@@ -69,6 +69,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	if ( flags & PS_M_FLAGS ) {
 		to->pmove.pm_flags = MSG_ReadUintBase128( );
 	}
+	if ( flags & PS_M_SPEED ) {
+		to->pmove.speed = MSG_ReadInt16();
+	}
 	if ( flags & PS_M_GRAVITY ) {
 		to->pmove.gravity = MSG_ReadInt16( );
 	}
