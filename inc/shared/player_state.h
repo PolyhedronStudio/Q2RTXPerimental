@@ -146,9 +146,10 @@ QENUM_BIT_FLAGS( refdef_flags_t );
 // 
 // player_state_t is sent at a rate of 40hz:
 // (So, one time for each frame, meaning 40 times a second.)
+// Communicate BIT precise.
 typedef struct player_state_s {
-    // Communicate BIT precise.
-    pmove_state_t   pmove;      // for prediction
+    //! Contains the current player movement values.
+    pmove_state_t   pmove;
 
     /**
     *   View State:

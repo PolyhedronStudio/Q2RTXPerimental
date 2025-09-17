@@ -122,14 +122,16 @@ void CLG_PredictNextBobCycle( pmove_t *pm ) {
 /**
 *   @brief  Will determine if we're stepping, and smooth out the step height in case of traversing multiple steps in a row.
 **/
-void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedState, const float stepHeight ) {
+void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedState, const double stepHeight ) {
     // Time in miliseconds to lerp the step with.
     static constexpr double PM_STEP_TIME = 100.;
     // Maximum -/+ change we allow in step lerps.
-    static constexpr double PM_MAX_STEP_CHANGE = PM_MAX_STEP_SIZE * 2;
+    static constexpr double PM_MAX_STEP_CHANGE = ( PM_MAX_STEP_SIZE * 2 );
 
+    // Clamp it just to be sure.
+    const double clampedStepHeight = std::clamp<double>( stepHeight, -(PM_MAX_STEP_SIZE + 4), PM_MAX_STEP_SIZE + 4);
     // Get the absolute step's height value for testing against.
-    const double fabsStep = std::fabs( stepHeight );
+    const double fabsStep = std::fabs( clampedStepHeight );
 
     // Consider a Z change being "stepping" if...
     #if 0
@@ -139,11 +141,15 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
         && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 // Plane memory isn't identical, OR..
             || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
     #else
-    const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep <= PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
-        //&& ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
-        //&& ( ( pm->state->pmove.pm_flags & PMF_ON_GROUND ) && pm->state->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
-        && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 // Plane memory isn't identical, OR..
-            || predictedState->ground.entity != pm->ground.entity ); // we stand on another plane or entity.
+    const bool step_detected = ( //( pm->step_clip && predictedState->ground.entity != pm->ground.entity )
+                                    /*||*/ ( fabsStep >= PM_MIN_STEP_SIZE && fabsStep <= PM_MAX_STEP_SIZE ) ) // Absolute change is in this limited range.
+        // And we started off on the ground.
+        //&& ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) 
+        // And are still predicted to be on the ground.
+        && (pm->ground.entity && pm->state->pmove.pm_type <= PM_GRAPPLE ) //&& ( ( pm->state->pmove.pm_flags & PMF_ON_GROUND ) && pm->state->pmove.pm_type <= PM_GRAPPLE ) 
+        // Plane memory isn't identical, OR.. we stand on another plane or entity.
+        && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 
+            || predictedState->ground.entity != pm->ground.entity ); 
 
     #endif
     if ( step_detected ) {
@@ -153,14 +159,14 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
         // Default old step to 0.
         double old_step = 0.;
         // If the delta timefor the previous step, up till the current step frame is smaller than PM_STEP_TIME.
-        if ( delta < PM_STEP_TIME ) {
+        if ( delta <= PM_STEP_TIME ) {
             // Calculate how far we've come.
             //old_step = stepHeight * ( PM_STEP_TIME - delta) / PM_STEP_TIME;
             old_step = predictedState->transition.step.height * ( PM_STEP_TIME - delta ) / PM_STEP_TIME;
         }
 
         // Add the stepHeight amount.
-        predictedState->transition.step.height = std::clamp( old_step + stepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+        predictedState->transition.step.height = std::clamp( old_step + clampedStepHeight, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
 
         // Set the new step_time.
         predictedState->transition.step.timeChanged = clgi.GetRealTime();

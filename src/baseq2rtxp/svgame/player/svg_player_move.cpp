@@ -727,9 +727,9 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
                 SVG_ChaseCam_GetTarget( ent );
             }
         }
-        /**
-        *   Regular Player (And Weapon-)Path:
-        **/
+    /**
+    *   Regular Player (And Weapon-)Path:
+    **/
     } else {
         // Perform use Targets if we haven't already.
         SVG_Client_TraceForUseTarget( ent, client, true );

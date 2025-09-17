@@ -36,7 +36,7 @@ public:
         QM_EASE_STATE_MODE_EASING_OUT,
         //! The ease is in/out active.
         QM_EASE_STATE_MODE_EASING_IN_OUT,
-    } mode;
+    } mode = QM_EASE_STATE_MODE_DONE;
 
     // Callback.
     using QMEaseStateMethod = const double( * )( const double &lerpFraction );

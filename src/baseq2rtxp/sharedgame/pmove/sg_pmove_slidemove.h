@@ -58,17 +58,39 @@ const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &
 void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &trace );
 
 /**
+*	@brief	Attempts to trace clip into velocity direction for the current frametime.
+**/
+const bool PM_SlideMove_Generic(
+	//! Pointer to the player move instanced object we're dealing with.
+	pmove_t *pm,
+	//! Pointer to the actual player move local we're dealing with.
+	pml_t *pml,
+	//! Applies gravity if true.
+	const bool applyGravity
+);
+/**
 *	@brief	If intersecting a brush surface, will try to step over the obstruction
 *			instead of sliding along it.
 *
 *			Returns a new origin, velocity, and contact entity
 *			Does not modify any world state?
 **/
-const void PM_StepSlideMove_Generic(
-    //! Pointer to the player move instanced object we're dealing with.
-    pmove_t *pm,
-    //! Pointer to the actual player move local we're dealing with.
-    pml_t *pml,
-    //! Applies gravity if true.
-    const bool applyGravity
+const bool PM_StepSlideMove_Generic(
+	//! Pointer to the player move instanced object we're dealing with.
+	pmove_t *pm,
+	//! Pointer to the actual player move local we're dealing with.
+	pml_t *pml,
+	//! Applies gravity if true.
+	const bool applyGravity,
+	//! Whether to predict or not.
+	const bool isPredictive = false
+);
+/**
+*	@brief	Predicts whether the step move actually stepped or not.
+**/
+const bool PM_PredictStepMove(
+	//! Pointer to the player move instanced object we're dealing with.
+	pmove_t *pm,
+	//! Pointer to the actual player move local we're dealing with.
+	pml_t *pml 
 );

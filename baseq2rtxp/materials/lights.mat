@@ -10,7 +10,8 @@ textures/lights/pa16_d2aa99,
 textures/lights/pa16_d27d2c,
 textures/lights/pa16_d04648,
 textures/lights/pa16_dad45e,
-textures/lights/pa16_deeed6:
+textures/lights/pa16_deeed6,
+textures/lights/stllight001:
 	texture_base textures/lights/*.tga
     texture_emissive textures/lights/*_light.tga
 	base_factor 1.0

@@ -49,14 +49,14 @@
 #endif
 
 
-// Don't reinclude if done so already.
-#ifndef _INC_MATH
-    #ifdef __cplusplus
-        #include <cmath>
-    #else
-        #include <math.h>       // Required for: sinf(), cosf(), tan(), atan2f(), sqrtf(), floor(), fminf(), fmaxf(), fabs()
-    #endif
-#endif
+//// Don't reinclude if done so already.
+//#ifndef _INC_MATH
+//    #ifdef __cplusplus
+//        #include <cmath>
+//    #else
+//        #include <math.h>       // Required for: sinf(), cosf(), tan(), atan2f(), sqrtf(), floor(), fminf(), fmaxf(), fabs()
+//    #endif
+//#endif
 
 /**
 *   QM PI:

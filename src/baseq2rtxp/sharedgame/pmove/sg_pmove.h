@@ -120,7 +120,7 @@ static constexpr float   PM_VIEWHEIGHT_GIBBED = 8.f;
 *	StepHeight:
 **/
 //! Minimal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr float PM_MIN_STEP_SIZE = 4.f;
+static constexpr float PM_MIN_STEP_SIZE = 2.f;
 //! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
 static constexpr float PM_MAX_STEP_SIZE = 18.f;
 //! Offset for distance to account for between step and ground.
