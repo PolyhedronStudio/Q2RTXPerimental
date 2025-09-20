@@ -1195,7 +1195,7 @@ struct edict_s {
 
     //================================
 
-    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
     vec3_t      mins, maxs;
     vec3_t      absmin, absmax, size;
     cm_solid_t     solid;

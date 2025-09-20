@@ -10,6 +10,8 @@
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
+#include "shared/player_state.h"
+
 #include "sharedgame/sg_shared.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_gamemode.h"
@@ -358,8 +360,8 @@ static const bool ClientCheckIntermission( svg_base_edict_t *ent, svg_client_t *
 *   @brief  Determine the impacting falling damage to take. Called directly by ClientThink after each PMove.
 **/
 void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
-    int	   damage;
-    vec3_t dir;
+    int32_t damage = 0;
+    Vector3 dir = {};
 
     // Dead stuff can't crater.
     if ( ent->health <= 0 || ent->lifeStatus ) {
@@ -448,7 +450,7 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
         VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
 
         if ( !deathmatch->integer ) {
-            SVG_DamageEntity( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
+            SVG_DamageEntity( ent, world, world, &dir.x, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
         }
     } else {
         ent->s.event = EV_FALLSHORT;

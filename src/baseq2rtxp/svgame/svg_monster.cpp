@@ -185,7 +185,7 @@ void M_WorldEffects( svg_base_edict_t *ent ) {
     }
 
 	if ( !( ent->flags & FL_INWATER ) ) {
-		if ( !( ent->svflags & SVF_DEADMONSTER ) ) {
+		if ( !( ent->svflags & SVF_DEADENTITY ) ) {
 			if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
 				//if ( random() <= 0.5f )
 				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava1.wav" ), 1, ATTN_NORM, 0 );

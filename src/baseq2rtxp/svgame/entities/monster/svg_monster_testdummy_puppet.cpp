@@ -150,7 +150,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
         self->gravity = 1.0f;
     }
     // Monster Entity Faking:
-    self->svflags &= ~SVF_DEADMONSTER;
+    self->svflags &= ~SVF_DEADENTITY;
     self->svflags |= SVF_MONSTER;
     //s.renderfx |= RF_FRAMELERP;
     self->s.skinnum = 0;
@@ -587,7 +587,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdu
 
         self->lifeStatus = LIFESTATUS_DYING;
         // Set this here so the entity does not block traces while playing death animation.
-        self->svflags |= SVF_DEADMONSTER;
+        self->svflags |= SVF_DEADENTITY;
     } else if ( self->s.frame == 643 ) {
         // Monster Corpse Entity Type:
         self->s.entityType = ET_MONSTER_CORPSE;

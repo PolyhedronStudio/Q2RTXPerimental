@@ -91,7 +91,7 @@ void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_
     targ->enemy = attacker;
 
     if ((targ->svflags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
-            //targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
+            //targ->svflags |= SVF_DEADENTITY;   // now treat as a different content type
             // WID: TODO: Monster Reimplement.        
             //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
             //level.killed_monsters++;
@@ -192,7 +192,7 @@ void M_ReactToDamage(svg_base_edict_t *targ, svg_base_edict_t *attacker)
 
     // dead monsters, like misc_deadsoldier, don't have AI functions, but 
     // M_ReactToDamage might still be called on them
-    if (targ->svflags & SVF_DEADMONSTER)
+    if (targ->svflags & SVF_DEADENTITY)
         return;
 
     // if we are a good guy monster and our attacker is a player

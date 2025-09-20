@@ -94,7 +94,7 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec
         }
 
         //if ( !( contentmask & CONTENTS_DEADMONSTER )
-        //    && ( ent->svflags & SVF_DEADMONSTER ) ) {
+        //    && ( ent->svflags & SVF_DEADENTITY ) ) {
         //    continue;
         //}
         //if ( !( contentmask & CONTENTS_PROJECTILE )

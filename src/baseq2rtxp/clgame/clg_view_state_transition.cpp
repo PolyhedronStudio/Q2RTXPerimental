@@ -71,29 +71,34 @@ static const double CLG_SmoothViewHeight() {
 /**
 *   @brief  Smoothly transit the 'step' offset.
 **/
-static double CLG_SmoothStepOffset() {
+static const double CLG_SmoothStepOffset() {
     // The original code was short integer coordinate based and had the following 'formula':
-    // 127 * 0.125 = 15.875, which is a 2.125 difference to PM_MAX_STEP_CHANGE_HEIGHT(18) resulting in 15.875 as STEP_SMALL_HEIGHT
+    // 127 * 0.125 = 15.875.
+    // 
+    // Ours differs: PM_MAX_STEP_CHANGE_HEIGHT(18) - STEP_SMALL_HEIGHT(0.25) resulting in 15.75 as STEP_SMALL_HEIGHT.
     // What is considered to be a 'small' step.
-    static constexpr double STEP_SMALL_HEIGHT = PM_MAX_STEP_SIZE - PM_MIN_STEP_SIZE;
-    //static constexpr double STEP_SMALL_HEIGHT = 15.f; //15.875;
+    static constexpr double STEP_SMALL_HEIGHT = ( PM_MAX_STEP_SIZE - ( PM_MIN_STEP_SIZE + PM_STEP_GROUND_DIST ) );
     // Time in miliseconds to smooth the view for the step offset with.
     static constexpr int32_t STEP_CHANGE_TIME = 100;
     // Base 1 FrameTime.
     static constexpr double STEP_CHANGE_BASE_1_FRAMETIME = ( 1. / STEP_CHANGE_TIME );
 
     // Time delta.
-    int64_t delta = ( clgi.GetRealTime() - game.predictedState.transition.step.timeChanged );
+    int64_t deltaTime = ( clgi.GetRealTime() - game.predictedState.transition.step.timeChanged );
+    // Absolute step size we had.
+    const double fabsStepSize = fabsf( game.predictedState.transition.step.size );
     // Smooth out stair climbing.
-    if ( fabsf( game.predictedState.transition.step.height ) <= STEP_SMALL_HEIGHT ) {
-        // Will multiply it by 2 for smaller steps to still lerp over time.
-        delta <<= 1;
+    if ( fabsStepSize > PM_MIN_STEP_SIZE && fabsf( game.predictedState.transition.step.size ) < STEP_SMALL_HEIGHT ) {
+        // Will multiply it by 2 for smaller steps to still lerp faster over time. 
+        // (Thus exceeding the limit faster, visual and logically makes sense.)
+        deltaTime <<= 1;
     }
     // Adjust view org by step height change.
-    if ( delta <= STEP_CHANGE_TIME ) {
-        return -( game.predictedState.transition.step.height * ( STEP_CHANGE_TIME - delta ) * STEP_CHANGE_BASE_1_FRAMETIME );
+    if ( fabsStepSize >= PM_MIN_STEP_SIZE && deltaTime <= STEP_CHANGE_TIME ) {
+        // Return negated.
+        return -( game.predictedState.transition.step.height * ( STEP_CHANGE_TIME - deltaTime ) * STEP_CHANGE_BASE_1_FRAMETIME );
     }
-
+    // Nothing to see here.
     return 0.;
 }
 

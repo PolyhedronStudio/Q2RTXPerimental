@@ -240,7 +240,7 @@ void flipper_dead(edict_t *self)
     VectorSet(self->mins, -16, -16, -24);
     VectorSet(self->maxs, 16, 16, -8);
     self->movetype = MOVETYPE_TOSS;
-    self->svflags |= SVF_DEADMONSTER;
+    self->svflags |= SVF_DEADENTITY;
     self->nextthink = 0_ms;
     gi.linkentity(self);
 }

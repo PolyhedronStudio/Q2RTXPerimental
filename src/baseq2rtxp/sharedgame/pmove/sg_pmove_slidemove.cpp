@@ -29,6 +29,10 @@
 *			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
 **/
 void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &trace ) {
+	// Don't add world.
+	if ( trace.entityNumber == ENTITYNUM_WORLD ) {
+		return;
+	}
 	// Escape function if we are exceeding maximum touch traces.
 	if ( touchTraceList.count >= MAX_TOUCH_TRACES ) {
 		return;
@@ -519,7 +523,7 @@ const bool PM_StepSlideMove_Generic(
 			// We clipped against a step wall.
 			pm->step_clip = true;
 			// We stepped, determine step size.
-			stepSize = pm->state->pmove.origin[ 2 ] - start_o.z;
+			//stepSize = pm->state->pmove.origin[ 2 ] - start_o.z;
 		}
 	}
 

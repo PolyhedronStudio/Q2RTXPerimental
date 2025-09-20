@@ -1,13 +1,26 @@
+#
+# SET "GLOBAL"! C STANDARD
+#
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-#set_property( TARGET client PROPERTY CXX_STANDARD 20 )
-#set_property( TARGET client PROPERTY CXX_STANDARD_REQUIRED 20 )
-#set_property( TARGET client PROPERTY CXX_EXTENSIONS OFF )
+#
+# Set target specific CXX project property values here, right now all use the same:
+#
 set( CMAKE_CXX_STANDARD 20 )
 set( CMAKE_CXX_STANDARD_REQUIRED ON )
 set( CMAKE_CXX_EXTENSIONS OFF )
 
+set( PRJ_CXX_DEFAULT_STANDARD_VERSION 20 )
+set( PRJ_CXX_DEFAULT_STANDARD_REQUIRED ON )
+set( PRJ_CXX_EXTENSIONS OFF )
+set( PRJ_CXX_DEFAULT_SCAN_FOR_MODULES OFF )
+
+
+#set( CMAKE_CXX_STANDARD 20 )
+#set( CMAKE_CXX_STANDARD_REQUIRED ON )
+#set( CMAKE_CXX_EXTENSIONS OFF )
+#set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 ####
 ##	Build VKPT shaders ONLY if the client is being built, with VKPT renderer enabled.
@@ -43,7 +56,7 @@ add_definitions(-DVERSION_MINOR=${Q2RTX_VERSION_MINOR})
 add_definitions(-DVERSION_POINT=${Q2RTX_VERSION_POINT})
 add_definitions(-DVERSION_SHA=${Q2RTX_VERSION_SHA})
 add_definitions(-DVERSION_BRANCH=${Q2RTX_VERSION_BRANCH})
-
+message(${Q2RTX_VERSION_MAJOR})
 add_definitions(-DHAVE_CONFIG_H=1 -DCURL_STATICLIB -DAL_LIBTYPE_STATIC)
 
 IF( WIN32 )
@@ -110,6 +123,12 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
 			${SRC_SERVER} ${HEADERS_SERVER}
 		)
 	ENDIF()
+
+	# Target specific CXX PROPERTIES:
+	set_property( TARGET client APPEND PROPERTY CMAKE_CXX_STANDARD ${PRJ_CPP_STANDARD_VERSION} )
+	set_property( TARGET client APPEND PROPERTY CMAKE_CXX_STANDARD_REQUIRED ${PRJ_CXX_DEFAULT_STANDARD_REQUIRED} )
+	set_property( TARGET client APPEND PROPERTY CXX_EXTENSIONS ${PRJ_CXX_EXTENSIONS} )
+	set_property( TARGET client APPEND PROPERTY CMAKE_CXX_SCAN_FOR_MODULES ${PRJ_CXX_DEFAULT_SCAN_FOR_MODULES} )
 
 	# Compile Definitions:
     target_compile_definitions(client PRIVATE USE_CLIENT=1 USE_FIXED_LIBAL=1 USE_SDL=1)
@@ -230,29 +249,37 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 		)
 	ENDIF()#IF(WIN32)
 
-	target_compile_definitions(server PRIVATE USE_SERVER=1)
-	target_compile_options(server PRIVATE "${WARN_MISSING_PROTOTYPES}")
+	# Target specific CXX PROPERTIES:
+	set_property( TARGET server APPEND PROPERTY CMAKE_CXX_STANDARD ${PRJ_CPP_STANDARD_VERSION} )
+	set_property( TARGET server APPEND PROPERTY CMAKE_CXX_STANDARD_REQUIRED ${PRJ_CXX_DEFAULT_STANDARD_REQUIRED} )
+	set_property( TARGET server APPEND PROPERTY CXX_EXTENSIONS ${PRJ_CXX_EXTENSIONS} )
+	set_property( TARGET server APPEND PROPERTY CMAKE_CXX_SCAN_FOR_MODULES ${PRJ_CXX_DEFAULT_SCAN_FOR_MODULES} )
+
+	# Compile Definitions:
+	target_compile_definitions( server PRIVATE USE_SERVER=1 )
+	# Compile Options:
+	target_compile_options( server PRIVATE "${WARN_MISSING_PROTOTYPES}" )
 
 	IF( WIN32 )
-		target_include_directories(server PRIVATE ../VC/inc)
-		target_link_libraries(server winmm ws2_32)
-		set_target_properties(server PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+		target_include_directories( server PRIVATE ../VC/inc)
+		target_link_libraries( server winmm ws2_32)
+		set_target_properties( server PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}" )
 
 		# macro redefinition, deprecation
-		target_compile_options(server PRIVATE /wd4996)
-		target_compile_options(server PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
+		target_compile_options( server PRIVATE /wd4996 )
+		target_compile_options( server PRIVATE /wd4200 ) # To prevent: inc\format\bsp.h(79): warning C4200: nonstandard extension used: zero-sized array in struct/union note: This member will be ignored by a defaulted constructor or copy/move assignment operator
 
 		#TARGET_COMPILE_OPTIONS(server PRIVATE /wd4005 /wd4996)
 	ENDIF()#IF(WIN32)
 
 	# General include directory.
-	target_include_directories(server PRIVATE ../inc)
-	target_link_libraries(server nlohmann-json)
-	target_include_directories(server PRIVATE nlohmann-json)
+	target_include_directories( server PRIVATE ../inc)
+	target_link_libraries( server nlohmann-json)
+	target_include_directories( server PRIVATE nlohmann-json )
 
 	# ZLib:
-	target_include_directories(server PRIVATE "${ZLIB_INCLUDE_DIRS}")
-	target_link_libraries(server zlibstatic)
+	target_include_directories( server PRIVATE "${ZLIB_INCLUDE_DIRS}" )
+	target_link_libraries( server zlibstatic )
 
 	# Unix Specific Link Libraries:
 	IF( UNIX )
@@ -418,18 +445,30 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 		${SRC_BASEQ2RTXP_SHAREDGAME} ${HEADERS_BASEQ2RTXP_SHAREDGAME} 
 		${SRC_SHARED} ${HEADERS_SHARED}
 	)
+	# Target specific CXX PROPERTIES:
+	set_property( TARGET baseq2rtxp_svgame APPEND  PROPERTY CMAKE_CXX_STANDARD ${PRJ_CPP_STANDARD_VERSION} )
+	set_property( TARGET baseq2rtxp_svgame APPEND PROPERTY CMAKE_CXX_STANDARD_REQUIRED ${PRJ_CXX_DEFAULT_STANDARD_REQUIRED} )
+	set_property( TARGET baseq2rtxp_svgame APPEND PROPERTY CXX_EXTENSIONS ${PRJ_CXX_EXTENSIONS} )
+	set_property( TARGET baseq2rtxp_svgame APPEND PROPERTY CMAKE_CXX_SCAN_FOR_MODULES ${PRJ_CXX_DEFAULT_SCAN_FOR_MODULES} )
 	# Client Game:
 	add_library(baseq2rtxp_clgame SHARED 
 		${SRC_BASEQ2RTXP_CLGAME} ${HEADERS_BASEQ2RTXP_CLGAME} 
 		${SRC_BASEQ2RTXP_SHAREDGAME} ${HEADERS_BASEQ2RTXP_SHAREDGAME} 
 		${SRC_SHARED} ${HEADERS_SHARED}
 	)
+	# Target specific CXX PROPERTIES:
+	set_property( TARGET baseq2rtxp_clgame APPEND PROPERTY CMAKE_CXX_STANDARD ${PRJ_CPP_STANDARD_VERSION} )
+	set_property( TARGET baseq2rtxp_clgame APPEND PROPERTY CMAKE_CXX_STANDARD_REQUIRED ${PRJ_CXX_DEFAULT_STANDARD_REQUIRED} )
+	set_property( TARGET baseq2rtxp_clgame APPEND PROPERTY CXX_EXTENSIONS ${PRJ_CXX_EXTENSIONS} )
+	set_property( TARGET baseq2rtxp_clgame APPEND PROPERTY CMAKE_CXX_SCAN_FOR_MODULES ${PRJ_CXX_DEFAULT_SCAN_FOR_MODULES} )
 
 	IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
 		# Workaround for GCC 10 linking shared libgcc by default
 		target_link_options(baseq2rtxp_clgame PRIVATE "-static-libgcc")
 		target_link_options(baseq2rtxp_svgame PRIVATE "-static-libgcc")
 	ENDIF() #IF( CMAKE_C_COMPILER_ID STREQUAL "GNU" )
+
+
 
 	# Add appropriate definition so the sharedgame code knows what binding it operates with.
 	target_compile_definitions(baseq2rtxp_clgame PRIVATE CLGAME_INCLUDE=1)

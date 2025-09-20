@@ -282,7 +282,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
     // encode the size into the entity_state for client prediction
     switch (ent->solid) {
     case SOLID_BOUNDS_BOX:
-        if ( ( ent->svflags & SVF_DEADMONSTER ) || VectorCompare( ent->mins, ent->maxs ) ) {
+        if ( ( ent->svflags & SVF_DEADENTITY ) || VectorCompare( ent->mins, ent->maxs ) ) {
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
@@ -291,7 +291,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
         }
         break;
     case SOLID_BOUNDS_OCTAGON:
-        if ( ( ent->svflags & SVF_DEADMONSTER ) || VectorCompare( ent->mins, ent->maxs ) ) {
+        if ( ( ent->svflags & SVF_DEADENTITY ) || VectorCompare( ent->mins, ent->maxs ) ) {
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
@@ -562,7 +562,7 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
         }
 
         if ( !( contentmask & CONTENTS_DEADMONSTER )
-            && ( touch->svflags & SVF_DEADMONSTER ) ) {
+            && ( touch->svflags & SVF_DEADENTITY ) ) {
             continue;
         }
 

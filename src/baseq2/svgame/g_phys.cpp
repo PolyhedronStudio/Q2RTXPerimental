@@ -61,7 +61,7 @@ const cm_contents_t SVG_GetClipMask( edict_t *ent ) {
 
     // Monsters/Players that are also dead shouldn't clip
     // against players/monsters.
-    if ( ( ent->svflags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svflags & SVF_DEADMONSTER ) ) {
+    if ( ( ent->svflags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svflags & SVF_DEADENTITY ) ) {
         mask = ( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
     }
 

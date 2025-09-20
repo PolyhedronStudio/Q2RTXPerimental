@@ -53,7 +53,7 @@ struct sv_shared_edict_t {
 
     //================================
 
-    int32_t         svflags = 0;    // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+    int32_t         svflags = 0;    // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
     vec3_t          mins = { 0.f, 0.f, 0.f }, maxs = { 0.f, 0.f, 0.f };
     vec3_t          absmin = { 0.f, 0.f, 0.f }, absmax = { 0.f, 0.f, 0.f }, size = { 0.f, 0.f, 0.f };
     cm_solid_t      solid = SOLID_NOT;
@@ -89,7 +89,7 @@ struct sv_shared_edict_t {
 
         //================================
 
-        svflags = 0;    // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+        svflags = 0;    // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
 
 		VectorSet( mins, 0.f, 0.f, 0.f );
 		VectorSet( maxs, 0.f, 0.f, 0.f );

@@ -258,7 +258,7 @@ void M_WorldEffects( edict_t *ent ) {
     }
 
 	if ( !( ent->flags & FL_INWATER ) ) {
-		if ( !( ent->svflags & SVF_DEADMONSTER ) ) {
+		if ( !( ent->svflags & SVF_DEADENTITY ) ) {
 			if ( ent->liquidtype & CONTENTS_LAVA )
 				if ( random( ) <= 0.5f )
 					gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava1.wav" ), 1, ATTN_NORM, 0 );
@@ -403,7 +403,7 @@ void M_MoveFrame(edict_t *self)
 					move = self->monsterinfo.currentmove;
 
 					// check for death
-					if ( self->svflags & SVF_DEADMONSTER ) {
+					if ( self->svflags & SVF_DEADENTITY ) {
 						return;
 					}
 				}
@@ -603,7 +603,7 @@ bool monster_start( edict_t *self ) {
 
 	self->s.skinnum = 0;
 	self->lifeStatus = LIFESTATUS_ALIVE;
-	self->svflags &= ~SVF_DEADMONSTER;
+	self->svflags &= ~SVF_DEADENTITY;
 
 	if ( !self->monsterinfo.checkattack )
 		self->monsterinfo.checkattack = M_CheckAttack;

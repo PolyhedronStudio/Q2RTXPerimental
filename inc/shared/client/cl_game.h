@@ -16,7 +16,7 @@
 // edict->svflags
 
 //#define SVF_NOCLIENT            0x00000001  // don't send entity to clients, even if it has effects
-//#define SVF_DEADMONSTER         0x00000002  // treat as CONTENTS_DEADMONSTER for collision
+//#define SVF_DEADENTITY         0x00000002  // treat as CONTENTS_DEADMONSTER for collision
 //#define SVF_MONSTER             0x00000004  // treat as CONTENTS_MONSTER for collision
 //
 //// edict->solid values
@@ -100,16 +100,18 @@ typedef struct centity_s {
 
 	// WID: 40hz
 	int32_t	current_frame, last_frame;
-	// Server Time of receiving the current frame.
+
+	// Server time at moment of receiving the current frame.
 	int64_t	frame_servertime;
-	// Real Time of receiving the current frame.
+	// Real time at momentof receiving the current frame.
 	int64_t frame_realtime;
-	// Server Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
+
+	// Server time at moment of receiving a (state.renderfx & SF_STAIR_STEP) entity.
 	int64_t	step_servertime;
-	// Real Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
+	// Real time at moment of receiving a (state.renderfx & SF_STAIR_STEP) entity.
 	int64_t	step_realtime;
 	// Actual height of the step taken.
-	float	step_height;
+	double	step_height;
 	// WID: 40hz
 
 	/**
@@ -138,7 +140,7 @@ typedef struct {
 	//! Tick Rate in hz.
 	uint32_t    tick_rate;
 	//! Frametime in seconds.
-	float       frame_time_s;
+	double	frame_time_s;
 	//! Frametime in miliseconds.
 	uint32_t    frame_time_ms;
 

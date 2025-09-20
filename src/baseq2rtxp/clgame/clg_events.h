@@ -7,7 +7,8 @@
 ********************************************************************/
 #pragma once
 
-
+#include "shared/shared.h"
+#include "shared/player_state.h"
 
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.

@@ -45,10 +45,16 @@ const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent ) {
 
     // If none, setup a default mask based on the svflags.
     if ( !mask ) {
-        if ( ent->svflags & SVF_MONSTER ) {
+        // Player clipmask:
+        if ( ent->svflags & SVF_PLAYER ) {
+            mask = CM_CONTENTMASK_PLAYERSOLID;
+        // Monster clipmasks:
+        } else if ( ent->svflags & SVF_MONSTER ) {
             mask = ( CM_CONTENTMASK_MONSTERSOLID );
+        // Projectile clipmask:
         } else if ( ent->svflags & SVF_PROJECTILE ) {
             mask = ( CM_CONTENTMASK_PROJECTILE );
+        // Resort to default mask.
         } else {
             mask = static_cast<cm_contents_t>( CM_CONTENTMASK_SHOT & ~CONTENTS_DEADMONSTER );
         }
@@ -62,7 +68,7 @@ const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent ) {
 
     // Monsters/Players that are also dead shouldn't clip
     // against players/monsters.
-    if ( ( ent->svflags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svflags & SVF_DEADMONSTER ) ) {
+    if ( ( ent->svflags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svflags & SVF_DEADENTITY ) ) {
         mask = static_cast<cm_contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
     }
 

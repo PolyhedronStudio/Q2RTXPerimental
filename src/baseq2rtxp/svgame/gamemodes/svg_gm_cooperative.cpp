@@ -307,7 +307,7 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     ent->flags &= ~FL_NO_KNOCKBACK;
 
     // Make sure it has no DEADMONSTER set anymore.
-    ent->svflags &= ~SVF_DEADMONSTER;
+    ent->svflags &= ~SVF_DEADENTITY;
     // Ensure it is a proper player entity.
     ent->svflags |= SVF_PLAYER;
     ent->s.entityType = ET_PLAYER;
@@ -490,7 +490,7 @@ void svg_gamemode_cooperative_t::ClientBegin( svg_player_edict_t *ent ) {
 **/
 void svg_gamemode_cooperative_t::EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
     if ( ( targ->svflags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
-        targ->svflags |= SVF_DEADMONSTER;   // now treat as a different content type
+        targ->svflags |= SVF_DEADENTITY;   // now treat as a different content type
         // WID: TODO: Monster Reimplement.        
         //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
         //level.killed_monsters++;

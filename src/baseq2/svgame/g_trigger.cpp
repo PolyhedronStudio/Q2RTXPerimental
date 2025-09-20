@@ -668,7 +668,7 @@ void trigger_monsterjump_touch( edict_t *self, edict_t *other, cm_plane_t *plane
 	if ( other->flags & ( FL_FLY | FL_SWIM ) ) {
 		return;
 	}
-	if ( other->svflags & SVF_DEADMONSTER ) {
+	if ( other->svflags & SVF_DEADENTITY ) {
 		return;
 	}
 	if ( !( other->svflags & SVF_MONSTER ) ) {

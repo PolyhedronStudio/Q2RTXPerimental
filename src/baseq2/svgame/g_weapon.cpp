@@ -334,7 +334,7 @@ void fire_blaster(edict_t *self, vec3_t start, vec3_t dir, int damage, int speed
 
     bolt = SVG_AllocateEdict();
     bolt->svflags = SVF_PROJECTILE; // Special net code for projectiles. 
-    // SVF_DEADMONSTER; // The following is now irrelevant:
+    // SVF_DEADENTITY; // The following is now irrelevant:
     // yes, I know it looks weird that projectiles are deadmonsters
     // what this means is that when prediction is used against the object
     // (blaster/hyperblaster shots), the player won't be solid clipped against

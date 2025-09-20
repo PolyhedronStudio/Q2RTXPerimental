@@ -634,7 +634,7 @@ void makron_dead(edict_t *self)
     VectorSet(self->mins, -60, -60, 0);
     VectorSet(self->maxs, 60, 60, 72);
     self->movetype = MOVETYPE_TOSS;
-    self->svflags |= SVF_DEADMONSTER;
+    self->svflags |= SVF_DEADENTITY;
     self->nextthink = 0_ms;
     gi.linkentity(self);
 }

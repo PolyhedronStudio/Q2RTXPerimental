@@ -502,7 +502,7 @@ void player_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 
 //  self->solid = SOLID_NOT;
     // Flag as to be treated as 'deadmonster' collision.
-    self->svflags |= SVF_DEADMONSTER;
+    self->svflags |= SVF_DEADENTITY;
 
     if (!self->lifeStatus) {
 		self->client->respawn_time = ( level.time + 1_sec );
@@ -1185,7 +1185,7 @@ void SVG_Player_SpawnInBody(edict_t *ent)
     ent->liquidtype = CONTENTS_NONE;
     ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_NO_KNOCKBACK );
 
-    ent->svflags &= ~SVF_DEADMONSTER;
+    ent->svflags &= ~SVF_DEADENTITY;
     ent->svflags &= ~FL_NO_KNOCKBACK;
     ent->svflags |= SVF_PLAYER;
 

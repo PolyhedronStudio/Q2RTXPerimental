@@ -514,7 +514,7 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     ent->flags &= ~FL_NO_KNOCKBACK;
 
     // Make sure it has no DEADMONSTER set anymore.
-    ent->svflags &= ~SVF_DEADMONSTER;
+    ent->svflags &= ~SVF_DEADENTITY;
     // Ensure it is a proper player entity.
     ent->svflags |= SVF_PLAYER;
     ent->s.entityType = ET_PLAYER;

@@ -688,7 +688,9 @@ typedef struct client_predicted_state_s {
 	//! Player(-Entity) Bounding Box.
 	Vector3 mins, maxs;
 
-	//! Stores the ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
+	//! Stores the last frame ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
+	pm_ground_info_t lastGround;
+	//! Stores the predicted current ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
 	pm_ground_info_t ground;
 	//! Stores the 'liquid' information. This can be lava, slime, or water.
 	pm_contents_info_t liquid;
@@ -696,7 +698,9 @@ typedef struct client_predicted_state_s {
 	//! Stores data for player origin/view transitions.
 	struct {
 		struct {
-			//! Stores the stepheight.
+			//! Stores initial step to be taken.
+			double size;
+			//! Stores the height we are currently at.
 			double height;
 			//! Stores cl.realtime of when the step was last changed.
 			uint64_t timeChanged;

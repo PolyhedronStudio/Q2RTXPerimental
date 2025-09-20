@@ -1184,7 +1184,7 @@ void SP_misc_deadsoldier(edict_t *ent)
     VectorSet(ent->maxs, 16, 16, 16);
     ent->lifeStatus = LIFESTATUS_DEAD;
     ent->takedamage = DAMAGE_YES;
-    ent->svflags |= SVF_MONSTER | SVF_DEADMONSTER;
+    ent->svflags |= SVF_MONSTER | SVF_DEADENTITY;
     ent->die = misc_deadsoldier_die;
     ent->monsterinfo.aiflags |= AI_GOOD_GUY;
 

@@ -32,14 +32,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 // Old Vanilla Q2 flags.
 //#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
-//#define SVF_DEADMONSTER         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
+//#define SVF_DEADENTITY         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
 //#define SVF_MONSTER             0x00000004  // Treat as CONTENTS_MONSTER for collision
 //#define SVF_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
 
 // Some [KEX] flags.
 #define SVF_NONE            0           // No serverflags.
 #define SVF_NOCLIENT        BIT( 0 )    // Don't send entity to clients, even if it has effects.
-#define SVF_DEADMONSTER     BIT( 1 )    // Treat as CONTENTS_DEADMONSTER for collision.
+#define SVF_DEADENTITY     BIT( 1 )    // Treat as CONTENTS_DEADMONSTER for collision.
 #define SVF_MONSTER         BIT( 2 )    // Treat as CONTENTS_MONSTER for collision.
 #define SVF_PLAYER          BIT( 3 )    // [Paril-KEX] Treat as CONTENTS_PLAYER for collision.
 //#define SVF_BOT           BIT( 4 )    // Entity is controlled by a bot AI.
@@ -100,7 +100,7 @@ struct svg_client_t;
 
     //    //================================
 
-    //    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADMONSTER, SVF_MONSTER, etc
+    //    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
     //    vec3_t      mins, maxs;
     //    vec3_t      absmin, absmax, size;
     //    cm_solid_t     solid;

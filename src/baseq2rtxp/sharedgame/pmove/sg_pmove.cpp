@@ -1317,7 +1317,7 @@ static void PM_LadderMove( void ) {
 **/
 static const bool PM_CheckWaterJump( void ) {
 	Vector3 spot = {};
-	cm_contents_t cont;
+	cm_contents_t cont = CONTENTS_NONE;
 	Vector3 flatforward = {};
 
 	// Already got time set, occupied with something else.
@@ -1416,7 +1416,6 @@ static void PM_WaterJumpMove( void ) {
 		pm->state->pmove.pm_flags &= ~PMF_ALL_TIMES;
 		pm->state->pmove.pm_time = 0;
 	}
-
 }
 /**
 *	@brief	Performs in-water movement.

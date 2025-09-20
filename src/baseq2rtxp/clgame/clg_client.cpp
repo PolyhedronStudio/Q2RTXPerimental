@@ -12,10 +12,6 @@
 #include "clgame/clg_hud.h"
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_predict.h"
-#include "clgame/clg_screen.h"
-
-#include "clgame/local_entities/clg_local_entity_classes.h"
-#include "clgame/local_entities/clg_local_env_sound.h"
 
 #include "sharedgame/pmove/sg_pmove.h"
 
