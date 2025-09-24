@@ -791,14 +791,36 @@ static int playercmp(serverslot_t *s1, serverslot_t *s2)
 
 static int addresscmp(serverslot_t *s1, serverslot_t *s2)
 {
-    if (s1->address.ip.u32 > s2->address.ip.u32)
-        return 1;
-    if (s1->address.ip.u32 < s2->address.ip.u32)
-        return -1;
-    if (s1->address.port > s2->address.port)
-        return 1;
-    if (s1->address.port < s2->address.port)
-        return -1;
+    // <Q2RTXP>: WID: This should fix the following warning:
+    // C5056: operator '>': deprecated for array types
+    #if 1
+        const int32_t r = memcmp( &s1->address.ip, &s2->address.ip, sizeof( s1->address.ip ) );
+        if ( r > 0 ) {
+            return 1;
+        }
+        if ( r < 0 ) {
+            return -1;
+        }
+        if ( s1->address.port > s2->address.port ) {
+            return 1;
+        }
+        if ( s1->address.port < s2->address.port ) {
+            return -1;
+        }
+    #else
+        if (s1->address.ip.u32 > s2->address.ip.u32) {
+            return 1;
+        }
+        if (s1->address.ip.u32 < s2->address.ip.u32) {
+            return -1;
+        }
+        if (s1->address.port > s2->address.port) {
+            return 1;
+        }
+        if (s1->address.port < s2->address.port) {
+            return -1;
+        }
+    #endif 
     return 0;
 }
 

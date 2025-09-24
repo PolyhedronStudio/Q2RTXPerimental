@@ -680,7 +680,7 @@ static void BitField_Pop(menuSpinControl_t *s)
 {
     int val = s->cvar->integer;
 
-    if (s->curvalue ^ s->negate) {
+    if (s->curvalue ^ (int)s->negate) {
         val |= s->mask;
     } else {
         val &= ~s->mask;
@@ -781,7 +781,7 @@ static void Toggle_Push(menuSpinControl_t *s)
     int val = s->cvar->integer;
 
     if (val == 0 || val == 1)
-        s->curvalue = val ^ s->negate;
+        s->curvalue = val ^ (int)s->negate;
     else
         s->curvalue = -1;
 }
@@ -789,7 +789,7 @@ static void Toggle_Push(menuSpinControl_t *s)
 static void Toggle_Pop(menuSpinControl_t *s)
 {
     if (s->curvalue == 0 || s->curvalue == 1)
-        Cvar_SetInteger(s->cvar, s->curvalue ^ s->negate, FROM_MENU);
+        Cvar_SetInteger(s->cvar, s->curvalue ^ (int)s->negate, FROM_MENU);
 }
 
 /*

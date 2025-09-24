@@ -146,7 +146,9 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
 **/
 void CLG_AddPacketEntities( void ) {
     // Get the current local client's player view entity. (Can be one we're chasing.)
-    clgi.client->clientEntity = CLG_ViewBoundEntity();
+    clgi.client->clientEntity = CLG_GetViewBoundEntity();
+    // Get the current frames' chasing player view entity. (Can be one we're chasing.)
+    clgi.client->chaseEntity = CLG_GetChaseBoundEntity();
 
     // Base entity flags.
     int32_t base_entity_flags = 0;
@@ -209,7 +211,7 @@ void CLG_AddPacketEntities( void ) {
         // Players:
         case ET_PLAYER:
             // First determine movement properties.
-            CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState, CLG_IsClientEntity( newState ) );
+            CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState, CLG_IsLocalClientEntity( newState ) );
             // Add Player Entity.
             CLG_PacketEntity_AddPlayer( packetEntity, &packetEntity->refreshEntity, newState );
             continue;

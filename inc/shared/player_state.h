@@ -14,23 +14,36 @@
 **/
 typedef enum {  // : uint8_t {
     //
-    // Types that can accelerate and turn:
-    // 
-    //! Gravity. Clips to world and its entities.
+    // Types that:
+    //  - Accelerate
+    //  - Turn
+    //  - (Stair-)Step
+	//  - Clip to world and its entities.
+    //! Gravity. Accelerates movement to velocity. Clips to world and its entities
     PM_NORMAL,
-    //! No gravity. Pull towards velocity.
+    //! No gravity. Pull towards velocity. Clips to world and its entities
     PM_GRAPPLE,
-    //! No gravity. Don't clip against entities/world at all. 
+
+    //
+	// Excentric types:
+    //  
+    //! Fly around, no clipping at all.
     PM_NOCLIP,
-    //! No gravity. Only clip against walls.
+    //! Fly around, but clips to world. (Can't escape it.).
     PM_SPECTATOR,
+
+    //
+    // Types that:
+    //  - No control over movement.
+    //  - Possibly 'auto move' the player.
+    // 
     //! No movement or status HUD.
     PM_INTERMISSION,
     //! No movement or status HUD.
     PM_SPINTERMISSION,
 
     //
-    // Types without support for user input(To accelerate and/or turn viewangles).
+    // Types that are non user input reliant:
     //
     //! Different bounding box for when the player is 'dead'.
     PM_DEAD,

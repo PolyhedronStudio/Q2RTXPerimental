@@ -89,7 +89,7 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 	// Determine the step height based on the new, and previous origin.
 	const float step_height = monsterMove->state.origin.z - monsterMove->state.previousOrigin.z;
 
-	// If its absolute(-/+) value >= PM_MIN_STEP_SIZE(4.0) then we got an official step.
+	// If its absolute(-/+) value >= PM_STEP_MIN_SIZE(4.0) then we got an official step.
 	if ( fabsf( step_height ) >= MM_MIN_STEP_SIZE ) {
 		// Store non absolute but exact step height.
 		monsterMove->step.height = step_height;

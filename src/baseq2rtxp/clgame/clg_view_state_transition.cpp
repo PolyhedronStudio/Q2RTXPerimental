@@ -77,7 +77,7 @@ static const double CLG_SmoothStepOffset() {
     // 
     // Ours differs: PM_MAX_STEP_CHANGE_HEIGHT(18) - STEP_SMALL_HEIGHT(0.25) resulting in 15.75 as STEP_SMALL_HEIGHT.
     // What is considered to be a 'small' step.
-    static constexpr double STEP_SMALL_HEIGHT = ( PM_MAX_STEP_SIZE - ( PM_MIN_STEP_SIZE + PM_STEP_GROUND_DIST ) );
+    static constexpr double STEP_SMALL_HEIGHT = ( PM_STEP_MAX_SIZE - ( PM_STEP_MIN_SIZE + PM_STEP_GROUND_DIST ) );
     // Time in miliseconds to smooth the view for the step offset with.
     static constexpr int32_t STEP_CHANGE_TIME = 100;
     // Base 1 FrameTime.
@@ -88,13 +88,13 @@ static const double CLG_SmoothStepOffset() {
     // Absolute step size we had.
     const double fabsStepSize = fabsf( game.predictedState.transition.step.size );
     // Smooth out stair climbing.
-    if ( fabsStepSize > PM_MIN_STEP_SIZE && fabsf( game.predictedState.transition.step.size ) < STEP_SMALL_HEIGHT ) {
+    if ( fabsStepSize >= PM_STEP_MIN_SIZE && fabsf( game.predictedState.transition.step.size ) < STEP_SMALL_HEIGHT ) {
         // Will multiply it by 2 for smaller steps to still lerp faster over time. 
         // (Thus exceeding the limit faster, visual and logically makes sense.)
         deltaTime <<= 1;
     }
     // Adjust view org by step height change.
-    if ( fabsStepSize >= PM_MIN_STEP_SIZE && deltaTime <= STEP_CHANGE_TIME ) {
+    if ( /*fabsStepSize >= PM_STEP_MIN_SIZE && */deltaTime <= STEP_CHANGE_TIME ) {
         // Return negated.
         return -( game.predictedState.transition.step.height * ( STEP_CHANGE_TIME - deltaTime ) * STEP_CHANGE_BASE_1_FRAMETIME );
     }
@@ -274,23 +274,16 @@ void PF_CalculateViewValues( void ) {
     //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
     const int32_t usePrediction = PF_UsePrediction();
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
-        // Lerp the error.
-        #if 0
-            // Take the prediction error into account.
-        const double backLerp = lerpFrac - 1.0;
-        VectorMA( game.predictedState.currentPs.pmove.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
-        //VectorMA( game.predictedState.cmd.prediction.origin, backLerp, game.predictedState.error, clgi.client->refdef.vieworg );
-        #else
         // Backlerp fraction for the error.
         const double backLerp = lerpFrac - 1.0;
         // Calculate errorLerp and add it to the predicted origin.
         const Vector3 errorLerp = QM_Vector3Scale( game.predictedState.error, backLerp );
+        // Add error lerp to the current predicted player state.
+        game.predictedState.currentPs.pmove.origin += errorLerp;//= game.predictedState.origin;
         // Calculate errorLerp and add it to the predicted origin.
         game.predictedState.origin += errorLerp;
-        // Set the view origin to the predicted origin + errorLerp.
-        game.predictedState.currentPs.pmove.origin += errorLerp;//= game.predictedState.origin;
+        // Set the view origin to the predicted origin.
         VectorCopy( game.predictedState.origin, clgi.client->refdef.vieworg );
-        #endif
     } else {
         // Just use interpolated values.
         const Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
@@ -309,10 +302,6 @@ void PF_CalculateViewValues( void ) {
 
 	// Back lerp fraction.
     const double backLerp = 1.0 - lerpFrac; // lerpFrac - 1.0;
-    // <Q2RTXP>: Reasons are unclear at time of writing,
-    // but doing it here seems to be too smooth. As if stairs are a slope.
-    // Smooth out step offset.
-    //CLG_SmoothStepOffset();
     // Lerp View Angles.
     CLG_LerpViewAngles( ops, ps, &game.predictedState, lerpFrac );
     // Interpolate old and current player state delta angles.
@@ -340,6 +329,10 @@ void PF_CalculateViewValues( void ) {
     }
     // Adjust pitch slightly.
     clgi.client->playerEntityAngles[ PITCH ] = clgi.client->playerEntityAngles[ PITCH ] / 3;
+    // Add the resulting final viewOffset to the refdef view origin.
+    VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
+    // Setup the new position for spatial audio recognition.
+    clgi.S_SetupSpatialListener( clgi.client->refdef.vieworg, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 
     // WID: Debug
     #if 0
@@ -358,8 +351,4 @@ void PF_CalculateViewValues( void ) {
         printFrame = clgi.client->frame.number;
     }
     #endif
-    // Add the resulting final viewOffset to the refdef view origin.
-    VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
-    // Setup the new position for spatial audio recognition.
-    clgi.S_SetupSpatialListener( clgi.client->refdef.vieworg, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 }

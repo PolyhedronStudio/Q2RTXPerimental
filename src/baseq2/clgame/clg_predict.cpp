@@ -76,7 +76,7 @@ void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predictedStat
     const float fabsStep = fabsf( stepHeight );
 
     // Consider a Z change being "stepping" if...
-    const bool step_detected = ( fabsStep > PM_MIN_STEP_SIZE && fabsStep < PM_MAX_STEP_SIZE ) // Absolute change is in this limited range.
+    const bool step_detected = ( fabsStep > PM_STEP_MIN_SIZE && fabsStep < PM_STEP_MAX_SIZE ) // Absolute change is in this limited range.
         && ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_ON_GROUND ) || pm->step_clip ) // And we started off on the ground.
         && ( ( pm->state->pmove.pm_flags & PMF_ON_GROUND ) && pm->state->pmove.pm_type <= PM_GRAPPLE ) // And are still predicted to be on the ground.
         && ( memcmp( &predictedState->ground.plane, &pm->ground.plane, sizeof( cm_plane_t ) ) != 0 // Plane memory isn't identical, OR..

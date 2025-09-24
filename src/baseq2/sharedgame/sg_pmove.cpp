@@ -299,7 +299,7 @@ static bool PM_CheckStep( const cm_trace_t *trace ) {
 	// If not solid:
 	if ( !trace->allsolid ) {
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
-		if ( trace->ent && trace->plane.normal[2] >= PM_MIN_STEP_NORMAL) {
+		if ( trace->ent && trace->plane.normal[2] >= PM_STEP_MIN_NORMAL) {
 			// We just traversed a step of sorts.
 			return true;
 		}
@@ -319,8 +319,8 @@ static void PM_StepDown( const cm_trace_t *trace ) {
 	// Determine the step height based on the new, and previous origin.
 	const float step_height = pml.origin.z - pml.previousOrigin.z;
 
-	// If its absolute(-/+) value >= PM_MIN_STEP_SIZE(4.0) then we got an official step.
-	if ( fabsf( step_height ) >= PM_MIN_STEP_SIZE ) {
+	// If its absolute(-/+) value >= PM_STEP_MIN_SIZE(4.0) then we got an official step.
+	if ( fabsf( step_height ) >= PM_STEP_MIN_SIZE ) {
 		// Store non absolute but exact step height.
 		pm->step_height = step_height;
 
@@ -347,7 +347,7 @@ static void PM_StepSlideMove() {
 	Vector3 downVelocity = pml.velocity;
 
 	// Perform 'up-trace' to see whether we can step up at all.
-	Vector3 up = startOrigin + Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
+	Vector3 up = startOrigin + Vector3{ 0.f, 0.f, PM_STEP_MAX_SIZE };
 	trace = PM_Trace( startOrigin, pm->mins, pm->maxs, up );
 	if ( trace.allsolid ) {
 		return; // can't step up
@@ -398,7 +398,7 @@ static void PM_StepSlideMove() {
 	const float down_dist = ( downOrigin.x - startOrigin.x ) * ( downOrigin.y - startOrigin.y ) + ( downOrigin.y - startOrigin.y ) * ( downOrigin.y - startOrigin.y );
 	const float up_dist = ( up.x - startOrigin.x ) * ( up.x - startOrigin.x ) + ( up.y - startOrigin.y ) * ( up.y - startOrigin.y );
 
-	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL ) {
+	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
 		pml.origin = downOrigin;
 		pml.velocity = downVelocity;
 	}
@@ -413,7 +413,7 @@ static void PM_StepSlideMove() {
 	// Paril: step down stairs/slopes
 	if ( ( ps->pmove.pm_flags & PMF_ON_GROUND ) && !( ps->pmove.pm_flags & PMF_ON_LADDER ) &&
 		( pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( !( pm->cmd.buttons & BUTTON_JUMP ) && pml.velocity.z <= 0 ) ) ) {
-		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
+		Vector3 down = pml.origin - Vector3{ 0.f, 0.f, PM_STEP_MAX_SIZE };
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, down );
 
 		// WID: Use proper stair step checking.
@@ -1014,7 +1014,7 @@ static void PM_CategorizePosition() {
 		// wedged between a slope and a wall (which is irrecoverable
 		// most of the time), we'll allow the player to "stand" on
 		// slopes if they are right up against a wall
-		bool slanted_ground = trace.fraction < 1.0f && trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL;
+		bool slanted_ground = trace.fraction < 1.0f && trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL;
 
 		if ( slanted_ground ) {
 			Vector3 slantTraceEnd = pml.origin + trace.plane.normal;
@@ -1048,7 +1048,7 @@ static void PM_CategorizePosition() {
 
 				// [Paril-KEX] calculate impact delta; this also fixes triple jumping
 				Vector3 clipped_velocity = QM_Vector3Zero();
-				PM_ClipVelocity( pml.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
+				PM_BounceVelocity( pml.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
 
 				pm->impact_delta = pml.startVelocity.z - clipped_velocity.z;
 
@@ -1178,7 +1178,7 @@ static void PM_CheckSpecialMovement() {
 	trace = PM_Trace( pml.origin, pm->mins, pm->maxs, blockTraceEnd, CM_CONTENTMASK_SOLID );
 
 	// we aren't blocked, or what we're blocked by is something we can walk up
-	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= PM_MIN_STEP_NORMAL ) {
+	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= PM_STEP_MIN_NORMAL ) {
 		return;
 	}
 
@@ -1211,12 +1211,12 @@ static void PM_CheckSpecialMovement() {
 	trace = PM_Trace( waterjump_origin, pm->mins, pm->maxs, snapTraceEnd, CM_CONTENTMASK_SOLID );
 
 	// Can't stand here.
-	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL || trace.endpos[ 2 ] < pml.origin.z ) {
+	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL || trace.endpos[ 2 ] < pml.origin.z ) {
 		return;
 	}
 
 	// We're currently standing on ground, and the snapped position is a step.
-	if ( pm->ground.entity && fabsf( pml.origin.z - trace.endpos[ 2 ] ) <= PM_MAX_STEP_SIZE ) {
+	if ( pm->ground.entity && fabsf( pml.origin.z - trace.endpos[ 2 ] ) <= PM_STEP_MAX_SIZE ) {
 		return;
 	}
 

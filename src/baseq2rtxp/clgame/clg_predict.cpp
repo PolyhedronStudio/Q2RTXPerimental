@@ -9,7 +9,7 @@
 #include "clgame/clg_events.h"
 #include "clgame/clg_predict.h"
 
-// For PM_MIN_STEP_NORMAL
+// For PM_STEP_MIN_NORMAL
 #include "sharedgame/pmove/sg_pmove_slidemove.h"
 
 
@@ -149,13 +149,13 @@ static void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predic
     // Time in miliseconds to lerp the step with.
     static constexpr double PM_STEP_TIME = 100.;
     // Maximum -/+ change we allow in step lerps.
-    static constexpr double PM_MAX_STEP_CHANGE = ( PM_MAX_STEP_SIZE * 2 ) + ( PM_MAX_STEP_SIZE );
+    static constexpr double PM_MAX_STEP_CHANGE = ( PM_STEP_MAX_SIZE * 2 ) + ( PM_STEP_MAX_SIZE );
     // Get the absolute step's height value for testing against.
     const double fabsStep = std::fabs( stepSize );
 
     // Absolute change is in this limited range.
-    static constexpr double STEP_MAX_FABS_HEIGHT = ( PM_MAX_STEP_SIZE + PM_STEP_GROUND_DIST);
-    static constexpr double STEP_MIN_FABS_HEIGHT = ( PM_MIN_STEP_SIZE );
+    static constexpr double STEP_MAX_FABS_HEIGHT = ( PM_STEP_MAX_SIZE + PM_STEP_GROUND_DIST);
+    static constexpr double STEP_MIN_FABS_HEIGHT = ( PM_STEP_MIN_SIZE );
     // Check for step.
     const bool step_detected = (
         // Consider a Z change being "stepping" if...

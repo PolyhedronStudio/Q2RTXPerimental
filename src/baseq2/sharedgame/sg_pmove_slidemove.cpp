@@ -104,7 +104,7 @@ static constexpr float STOP_EPSILON = 0.1f;
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-void PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
+void PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce ) {
 	float   backoff;
 	float   change;
 	int     i;
@@ -180,8 +180,8 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 		if ( trace.surface2 ) {
 			Vector3 clipped_a = QM_Vector3Zero();
 			Vector3 clipped_b = QM_Vector3Zero();
-			PM_ClipVelocity( velocity, trace.plane.normal, clipped_a, 1.01f );
-			PM_ClipVelocity( velocity, trace.plane2.normal, clipped_b, 1.01f );
+			PM_BounceVelocity( velocity, trace.plane.normal, clipped_a, 1.01f );
+			PM_BounceVelocity( velocity, trace.plane2.normal, clipped_b, 1.01f );
 
 			bool better = false;
 
@@ -272,7 +272,7 @@ const int32_t PM_StepSlideMove_Generic( Vector3 &origin, Vector3 &velocity, cons
 		int32_t i = 0;
 		int32_t j = 0;
 		for ( i = 0; i < numplanes; i++ ) {
-			PM_ClipVelocity( velocity, planes[ i ], velocity, 1.01f );
+			PM_BounceVelocity( velocity, planes[ i ], velocity, 1.01f );
 			for ( j = 0; j < numplanes; j++ ) {
 				if ( j != i ) {
 					if ( QM_Vector3DotProduct( velocity, planes[ j ] ) < 0 ) {

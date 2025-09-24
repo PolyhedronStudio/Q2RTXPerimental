@@ -1697,7 +1697,7 @@ void P_FallingDamage( edict_t *ent, const pmove_t &pm ) {
         if ( !deathmatch->integer /*|| !g_dm_no_fall_damage->integer*/ ) {
             SVG_DamageEntity( ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING );
         }
-    } else {
+    } else if ( delta > 0{
         ent->s.event = EV_FALLSHORT;
     }
 
@@ -1804,7 +1804,7 @@ void ClientThink(edict_t *ent, usercmd_t *ucmd)
         if ( pm.ground.entity && ent->groundentity ) {
             const double stepsize = fabs( ent->s.origin[ 2 ] - pm.state->pmove.origin[ 2 ] );
 
-            if ( stepsize > PM_MIN_STEP_SIZE && stepsize <= PM_MAX_STEP_SIZE ) {
+            if ( stepsize > PM_STEP_MIN_SIZE && stepsize <= PM_STEP_MAX_SIZE ) {
                 ent->s.renderfx |= RF_STAIR_STEP;
                 ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
             }

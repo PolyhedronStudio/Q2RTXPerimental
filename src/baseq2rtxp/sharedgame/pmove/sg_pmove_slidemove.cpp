@@ -16,38 +16,103 @@
 
 //! Enables proper speed clamping instead of going full stop if the PM_STOP_EPSILON is reached.
 //#define PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
+//! Enables proper speed clamping instead of going full stop if the PM_STOP_EPSILON is reached.
+//#define PM_SLIDEMOVE_BOUNCEVELOCITY_CLAMPING
+
+
 
 /**
 *
 *
-*	Touch Entities List:
+*	Clip/Bounce Velocity:
 *
 *
 **/
 /**
-*	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
-*			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
+*	@brief	Bounce clips the velocity From surface normal.
+*	@return	The blocked flags (1 = floor, 2 = step / wall)
 **/
-void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &trace ) {
-	// Don't add world.
-	if ( trace.entityNumber == ENTITYNUM_WORLD ) {
-		return;
+const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
+	// Whether we're actually blocked or not.
+	pm_velocityClipFlags_t blocked = PM_VELOCITY_CLIPPED_NONE;
+
+	// If the plane that is blocking us has a positive z component, then assume it's a floor.
+	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+		blocked |= PM_VELOCITY_CLIPPED_FLOOR;
 	}
-	// Escape function if we are exceeding maximum touch traces.
-	if ( touchTraceList.count >= MAX_TOUCH_TRACES ) {
-		return;
+	// If the plane has no Z, it is vertical Wall/Step:
+	if ( normal.z == 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+		blocked |= PM_VELOCITY_CLIPPED_WALL_OR_STEP;
 	}
 
-	// Iterate for possible duplicates.
-	for ( int32_t i = 0; i < touchTraceList.count; i++ ) {
-		// Escape function if duplicate.
-		if ( touchTraceList.traces[ i ].entityNumber == trace.entityNumber ) {
-			return;
+	// Determine how far to slide based on the incoming direction.
+	// Finish it by scaling with overBounce factor.
+	double backoff = QM_Vector3DotProductDP( in, normal );
+
+	if ( backoff < 0. ) {
+		backoff *= overbounce;
+	} else {
+		backoff /= overbounce;
+	}
+
+	for ( int32_t i = 0; i < 3; i++ ) {
+		const double change = normal[ i ] * backoff;
+		out[ i ] = in[ i ] - change;
+	}
+
+	#ifdef PM_SLIDEMOVE_BOUNCEVELOCITY_CLAMPING
+	{
+		const double oldSpeed = QM_Vector3Length( in );
+		const double newSpeed = QM_Vector3Length( out );
+		if ( newSpeed > oldSpeed ) {
+			out = QM_Vector3Normalize( out );
+			out = QM_Vector3Scale( oldspeed, out );
 		}
 	}
+	#endif
 
-	// Add trace to list.
-	touchTraceList.traces[ touchTraceList.count++ ] = trace;
+	// Return blocked by flag(s).
+	return blocked;
+}
+
+/**
+*	@brief	Clips the velocity to surface normal.
+*	@return	The blocked flags (1 = floor, 2 = step / wall)
+**/
+const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out ) {
+	// Whether we're actually blocked or not.
+	pm_velocityClipFlags_t blocked = PM_VELOCITY_CLIPPED_NONE;
+
+	// If the plane that is blocking us has a positive z component, then assume it's a floor.
+	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+		blocked |= PM_VELOCITY_CLIPPED_FLOOR;
+	}
+	// If the plane has no Z, it is vertical Wall/Step:
+	if ( normal.z == 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
+		blocked |= PM_VELOCITY_CLIPPED_WALL_OR_STEP;
+	}
+
+	// Determine how far to slide based on the incoming direction.
+	// Finish it by scaling with overBounce factor.
+	double backoff = QM_Vector3DotProductDP( in, normal );
+	for ( int32_t i = 0; i < 3; i++ ) {
+		const double change = normal[ i ] * backoff;
+		out[ i ] = in[ i ] - change;
+	}
+
+	#ifdef PM_SLIDEMOVE_BOUNCEVELOCITY_CLAMPING
+	{
+		const double oldSpeed = QM_Vector3Length( in );
+		const double newSpeed = QM_Vector3Length( out );
+		if ( newSpeed > oldSpeed ) {
+			out = QM_Vector3Normalize( out );
+			out = QM_Vector3Scale( oldspeed, out );
+		}
+	}
+	#endif
+
+	// Return blocked by flag(s).
+	return blocked;
 }
 
 
@@ -60,46 +125,9 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 *
 **/
 /**
-*	@brief	Clips the velocity to surface normal.
-*			returns the blocked flags (1 = floor, 2 = step / wall)
-**/
-const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
-	// Whether we're actually blocked or not.
-	pm_velocityClipFlags_t blocked = PM_VELOCITY_CLIPPED_NONE;
-
-	// <Q2RTXP>: WID: TODO: Properly implement the clipping flags.
-	// If the plane that is blocking us has a positive z component, then assume it's a floor.
-	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
-		blocked |= PM_VELOCITY_CLIPPED_FLOOR;
-	}
-	// If the plane has no Z, it is vertical Wall/Step:
-	if ( normal.z == 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
-		blocked |= PM_VELOCITY_CLIPPED_WALL_OR_STEP;
-	}
-
-	// Determine how far to slide based on the incoming direction.
-	// Finish it by scaling with overBounce factor.
-	double backoff = QM_Vector3DotProduct( in, normal );
-
-	if ( backoff < 0. ) {
-		backoff *= overbounce;
-	} else {
-		backoff /= overbounce;
-	}
-
-	for ( int32_t i = 0; i < 3; i++ ) {
-		const float change = normal[ i ] * backoff;
-		out[ i ] = in[ i ] - change;
-	}
-
-	// Return blocked by flag(s).
-	return blocked;
-}
-
-/**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const bool PM_SlideMove_Generic(
+const pm_slideMoveFlags_t PM_SlideMove_Generic(
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.
@@ -107,7 +135,7 @@ const bool PM_SlideMove_Generic(
 	//! Applies gravity if true.
 	const bool applyGravity
 ) {
-	pm_slideMoveFlags_t blockedMask = PM_SLIDEMOVEFLAG_NONE;
+	pm_slideMoveFlags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
 
 	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
 	Vector3 dir = {};
@@ -149,7 +177,7 @@ const bool PM_SlideMove_Generic(
 		primalVelocity.z = endVelocity.z;
 		if ( pml->hasGroundPlane ) {
 			// Slide along the ground plane.
-			PM_ClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			PM_BounceVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		}
 	}
 
@@ -165,8 +193,9 @@ const bool PM_SlideMove_Generic(
 		numPlanes = 0;
 	}
 
-	// Never turn against original velocity. (We assing to stop compiler from warnings about unused return value.)
-	const float l = QM_Vector3NormalizeLength2( pm->state->pmove.velocity, planes[ numPlanes ] );
+	// Never turn against original velocity. 
+	// (We assign it to a variable, to stop compiler from warnings about unused return value.)
+	const double velLength = QM_Vector3NormalizeLength2( pm->state->pmove.velocity, planes[ numPlanes ] );
 	numPlanes++;
 
 	for ( bumpCount = 0; bumpCount < numBumps; bumpCount++ ) {
@@ -180,8 +209,7 @@ const bool PM_SlideMove_Generic(
 			// Save entity for contact.
 			//PM_RegisterTouchTrace( pm->touchTraces, trace );
 			// Return trapped mask.
-			//return PM_SLIDEMOVEFLAG_TRAPPED;
-			return static_cast<pm_slideMoveFlags_t>( true );
+			return slideMoveFlags |= PM_SLIDEMOVEFLAG_TRAPPED;
 		}
 
 		// We did cover some distance, so update the origin.
@@ -191,11 +219,11 @@ const bool PM_SlideMove_Generic(
 
 		// We moved the entire distance, so no need to loop on, break out instead.
 		if ( trace.fraction == 1 ) {
-			blockedMask |= PM_SLIDEMOVEFLAG_MOVED;
+			slideMoveFlags |= PM_SLIDEMOVEFLAG_MOVED;
 			break;     // moved the entire distance
 		} else {
 			// Touched a plane.
-			blockedMask |= PM_SLIDEMOVEFLAG_PLANE_TOUCHED;
+			slideMoveFlags |= PM_SLIDEMOVEFLAG_PLANE_TOUCHED;
 		}
 
 		// Save entity for contact.
@@ -208,22 +236,26 @@ const bool PM_SlideMove_Generic(
 		if ( numPlanes >= PM_MAX_CLIP_PLANES ) {
 			// This shouldn't really happen.
 			pm->state->pmove.velocity = {}; // Clear out velocity.
-			blockedMask |= PM_SLIDEMOVEFLAG_TRAPPED;
-			//return blockedMask;
-			return static_cast<pm_slideMoveFlags_t>( true );
+			return slideMoveFlags |= PM_SLIDEMOVEFLAG_TRAPPED;
 		}
 
-		//// At this point we are blocked but not trapped.
-		//blockedMask |= PM_SLIDEMOVEFLAG_BLOCKED;
-		//// Is it a vertical wall?
-		//if ( trace.plane.normal[ 2 ] < PM_MIN_WALL_NORMAL_Z ) {
-		//	blockedMask |= PM_SLIDEMOVEFLAG_WALL_BLOCKED;
-		//}
+		// At this point we are blocked but not trapped.
+		//slideMoveFlags |= PM_SLIDEMOVEFLAG_BLOCKED;
+		// Is it a vertical wall?
+		if ( trace.plane.normal[ 2 ] >= 1.0 ) {
+			slideMoveFlags |= PM_SLIDEMOVEFLAG_WALL_BLOCKED;
+		} else if ( trace.plane.normal[ 2 ] > PM_STEP_MIN_NORMAL ) {
+			// We hit a wall/step.
+			slideMoveFlags |= PM_SLIDEMOVEFLAG_SLOPE_BLOCKED;
+		} else if ( trace.plane.normal[ 2 ] > 0.0 && trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
+			// We hit a slope.
+			slideMoveFlags |= PM_SLIDEMOVEFLAG_SLOPE_GROUND;
+		}
 
 		// If this is a plane we have touched before, try clipping
 		// the velocity along it's normal and repeat.
 		for ( i = 0; i < numPlanes; i++ ) {
-			if ( QM_Vector3DotProduct( trace.plane.normal, planes[ i ] ) > 0.99 ) {
+			if ( QM_Vector3DotProductDP( trace.plane.normal, planes[ i ] ) > 0.99 ) {
 				pm->state->pmove.velocity += trace.plane.normal; // VectorAdd( trace.plane.normal, velocity, velocity );
 				break;
 			}
@@ -243,7 +275,7 @@ const bool PM_SlideMove_Generic(
 		// Find a plane it enters.
 		for ( i = 0; i < numPlanes; i++ ) {
 			// Determine if we bumped into it.
-			into = QM_Vector3DotProduct( pm->state->pmove.velocity, planes[ i ] );
+			into = QM_Vector3DotProductDP( pm->state->pmove.velocity, planes[ i ] );
 			// Not entering this plane.
 			if ( into >= 0.1 ) {
 				continue;
@@ -256,9 +288,9 @@ const bool PM_SlideMove_Generic(
 			}
 
 			// Slide velocity along the plane.
-			PM_ClipVelocity( pm->state->pmove.velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
+			PM_BounceVelocity( pm->state->pmove.velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
 			// Slide endVelocity along the plane.
-			PM_ClipVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
+			PM_BounceVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
 
 			// See if there is a second plane that the new move enters.
 			for ( j = 0; j < numPlanes; j++ ) {
@@ -267,27 +299,27 @@ const bool PM_SlideMove_Generic(
 					continue;
 				}
 				// Move doesn't interact with the plane.
-				if ( QM_Vector3DotProduct( clipVelocity, planes[ j ] ) >= 0.1 ) {
+				if ( QM_Vector3DotProductDP( clipVelocity, planes[ j ] ) >= 0.1 ) {
 					continue;
 				}
 				// Try clipping the move to the plane.
-				PM_ClipVelocity( clipVelocity, planes[ j ], clipVelocity, PM_OVERCLIP );
-				PM_ClipVelocity( endClipVelocity, planes[ j ], endClipVelocity, PM_OVERCLIP );
+				PM_BounceVelocity( clipVelocity, planes[ j ], clipVelocity, PM_OVERCLIP );
+				PM_BounceVelocity( endClipVelocity, planes[ j ], endClipVelocity, PM_OVERCLIP );
 
 				// See if it goes back into the first clip plane.
-				if ( QM_Vector3DotProduct( clipVelocity, planes[ i ] ) >= 0 ) {
+				if ( QM_Vector3DotProductDP( clipVelocity, planes[ i ] ) >= 0. ) {
 					continue;
 				}
 
 				// Now we can slide the original velocity along the crease.
 				dir = QM_Vector3CrossProduct( planes[ i ], planes[ j ] );
 				dir = QM_Vector3Normalize( dir );
-				d = QM_Vector3DotProduct( dir, pm->state->pmove.velocity );
+				d = QM_Vector3DotProductDP( dir, pm->state->pmove.velocity );
 				clipVelocity = QM_Vector3Scale( dir, d );
 
 				dir = QM_Vector3CrossProduct( planes[ i ], planes[ j ] );
 				dir = QM_Vector3Normalize( dir );
-				d = QM_Vector3DotProduct( dir, endVelocity );
+				d = QM_Vector3DotProductDP( dir, endVelocity );
 				endClipVelocity = QM_Vector3Scale( dir, d );
 
 				// See if there is a third plane that the new move enters.
@@ -297,14 +329,12 @@ const bool PM_SlideMove_Generic(
 						continue;
 					}
 					// Move doesn't interact with the plane.
-					if ( QM_Vector3DotProduct( clipVelocity, planes[ k ] ) >= 0.1 ) {
+					if ( QM_Vector3DotProductDP( clipVelocity, planes[ k ] ) >= 0.1 ) {
 						continue;
 					}
 					// Stop dead at a tripple plane interaction.
 					pm->state->pmove.velocity = {};
-					blockedMask |= PM_SLIDEMOVEFLAG_TRAPPED;
-					//return blockedMask;//
-					return static_cast<pm_slideMoveFlags_t>( true );
+					return slideMoveFlags |= PM_SLIDEMOVEFLAG_TRAPPED;
 				}
 			}
 
@@ -325,7 +355,7 @@ const bool PM_SlideMove_Generic(
 		pm->state->pmove.velocity = primalVelocity;
 	}
 
-	return ( bumpCount != 0 );
+	return slideMoveFlags;
 }
 
 #if 0
@@ -370,7 +400,7 @@ const bool PM_StepSlideMove_Generic(
 
 	// Calculate for down step tracing.
 	Vector3 skyUp = { 0.f, 0.f, 1.f };
-	VectorMA( start_o, -PM_MAX_STEP_SIZE, skyUp, down);
+	VectorMA( start_o, -PM_STEP_MAX_SIZE, skyUp, down);
 	// Peform the down trace.
 	trace = PM_Trace( start_o, pm->mins, pm->maxs, down );
 	
@@ -393,7 +423,7 @@ const bool PM_StepSlideMove_Generic(
 		down_v = pm->state->pmove.velocity;
 
 		// test the player position if they were a stepheight higher
-		VectorMA( start_o, PM_MAX_STEP_SIZE, normal, up );
+		VectorMA( start_o, PM_STEP_MAX_SIZE, normal, up );
 		trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
 		if ( trace.allsolid ) {
 			SG_DPrintf( "%i: BEND, CAN'T STEP!\n", pm->simulationTime);
@@ -422,7 +452,7 @@ const bool PM_StepSlideMove_Generic(
 		}
 
 		if ( trace.fraction < 1.0f ) {
-			PM_ClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			PM_BounceVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		}
 	}
 
@@ -444,7 +474,7 @@ const bool PM_StepSlideMove_Generic(
 *			Returns a new origin, velocity, and contact entity
 *			Does not modify any world state?
 **/
-const bool PM_StepSlideMove_Generic(
+const pm_slideMoveFlags_t PM_StepSlideMove_Generic(
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.
@@ -470,19 +500,20 @@ const bool PM_StepSlideMove_Generic(
 	bool stepped = false;
 
 	// Move.
+	pm_slideMoveFlags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
 	start_o = pm->state->pmove.origin;
 	start_v = pm->state->pmove.velocity;
-	int32_t bumpCount = PM_SlideMove_Generic( pm, pml, applyGravity );
+	slideMoveFlags |= PM_SlideMove_Generic( pm, pml, applyGravity );
 	down_o = pm->state->pmove.origin;
 	down_v = pm->state->pmove.velocity;
 
 	// Try and step up.
 	up = start_o;
-	up.z += PM_MAX_STEP_SIZE /*+ PM_STEP_GROUND_DIST*/;
+	up.z += PM_STEP_MAX_SIZE /*+ PM_STEP_GROUND_DIST*/;
 	trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
 	if ( trace.allsolid ) {
 		// Can't step up.
-		return false;
+		return slideMoveFlags;
 	}
 
 	// Get step size.
@@ -491,8 +522,7 @@ const bool PM_StepSlideMove_Generic(
 	// Try sliding above.
 	pm->state->pmove.origin = trace.endpos;
 	pm->state->pmove.velocity = start_v;
-	bumpCount = PM_SlideMove_Generic( pm, pml, applyGravity );
-
+	slideMoveFlags |= PM_SlideMove_Generic( pm, pml, applyGravity );
 	// Push down the final amount.
 	down = pm->state->pmove.origin;
 	down.z -= stepSize + PM_STEP_GROUND_DIST;
@@ -501,11 +531,9 @@ const bool PM_StepSlideMove_Generic(
 	// the old down position, and pick a better spot for downwards
 	// trace if the start origin's Z position is lower than the down end pt.
 	Vector3 original_down = down;
-
 	if ( start_o.z < down.z ) {
 		down.z = start_o.z - 1.;
 	}
-
 	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down );
 
 	// Used below for down step.
@@ -533,7 +561,7 @@ const bool PM_StepSlideMove_Generic(
 	down_dist = QM_Vector2LengthSqr( down_o - start_o );// ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
 	up_dist = QM_Vector2LengthSqr( up - start_o ); //( up[ 0 ] - start_o[ 0 ] ) *( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
 
-	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL ) {
+	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
 		pm->state->pmove.origin = down_o;
 		pm->state->pmove.velocity = down_v;
 
@@ -564,7 +592,7 @@ const bool PM_StepSlideMove_Generic(
 			stepSize = pm->state->pmove.origin[ 2 ] - start_o.z;
 		}
 		if ( trace.fraction < 1.0 ) {
-			PM_ClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			PM_BounceVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		}
 
 		// if the down trace can trace back to the original position directly, don't step
@@ -586,14 +614,17 @@ const bool PM_StepSlideMove_Generic(
 		//	SG_DPrintf( "%i:bend %f\n", pm->simulationTime, stepSize );
 		//}
 		//}
-	} else if ( !isPredictive ) {
+	} else {
+		// We stepped.
+		slideMoveFlags |= PM_SLIDEMOVEFLAG_STEPPED;
 		//stepSize = pm->state->pmove.origin[ 2 ] - start_o.z;
-
-		if ( fabs( stepSize ) >= PM_MIN_STEP_SIZE ) {
-			SG_DPrintf( "%i:stepped %f\n", pm->simulationTime, stepSize );
+		// Only do this if we're not predictive(forward in time testing) the move.
+		if ( !isPredictive ) {
+			if ( fabs( stepSize ) >= PM_STEP_MIN_SIZE ) {
+				SG_DPrintf( "%i:stepped %f\n", pm->simulationTime, stepSize );
+			}
+			pm->step_height = stepSize;
 		}
-		pm->step_height = stepSize;
-
 		// use the step move
 		//double delta = pm->state->pmove.origin[ 2 ] - start_o[ 2 ];
 		//if ( delta < 7 ) {
@@ -611,7 +642,7 @@ const bool PM_StepSlideMove_Generic(
 		//}
 	}
 
-	return stepSize != 0;
+	return slideMoveFlags;
 }
 /**
 *	@brief	Predicts whether the step move actually stepped or not.
@@ -628,7 +659,7 @@ const bool PM_PredictStepMove(
 	const double impactSpeed = pml->impactSpeed;
 	// Test for whether we'll step.
 	bool stepped = false;
-	if ( PM_StepSlideMove_Generic( pm, pml, false, true ) ) {
+	if ( ( PM_StepSlideMove_Generic( pm, pml, false, true ) & PM_SLIDEMOVEFLAG_STEPPED ) != 0 ) {
 		stepped = true;
 	}
 	// Restore the original, previous origin and velocity from before testing.
@@ -704,7 +735,7 @@ const void PM_StepSlideMove_Generic(
 
 	// Try and step up.
 	up = start_o;
-	up.z += PM_MAX_STEP_SIZE + PM_STEP_GROUND_DIST;
+	up.z += PM_STEP_MAX_SIZE + PM_STEP_GROUND_DIST;
 	trace = PM_Trace( start_o, pm->mins, pm->maxs, up );
 	if ( trace.allsolid ) {
 		// Can't step up.
@@ -755,7 +786,7 @@ const void PM_StepSlideMove_Generic(
 	down_dist = QM_Vector2Length( down_o - start_o );// ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
 	up_dist = QM_Vector2Length( up - start_o ); //( up[ 0 ] - start_o[ 0 ] ) *( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
 
-	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_MIN_STEP_NORMAL ) {
+	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
 		pm->state->pmove.origin = down_o;
 		pm->state->pmove.velocity = down_v;
 	}
@@ -783,14 +814,14 @@ const void PM_StepSlideMove_Generic(
 			pm->state->pmove.origin = trace.endpos;
 		}
 		if ( trace.fraction < 1.0 && !trace.allsolid ) {
-			PM_ClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			PM_BounceVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		}
 		#else
 		if ( !trace.allsolid ) {
 			pm->state->pmove.origin = trace.endpos;
 		}
 		if ( trace.fraction < 1.0 ) {
-			PM_ClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			PM_BounceVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		}
 		#endif
 	}

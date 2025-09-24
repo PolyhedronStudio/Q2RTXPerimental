@@ -7,7 +7,7 @@
 ********************************************************************/
 #pragma once
 
-static constexpr float PM_MIN_STEP_NORMAL = 0.7f;    // can't step up onto very steep slopes
+static constexpr float PM_STEP_MIN_NORMAL = 0.7f;    // can't step up onto very steep slopes
 static constexpr int32_t MAX_CLIP_PLANES = 16;
 
 /**
@@ -23,7 +23,7 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-void PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
+void PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,

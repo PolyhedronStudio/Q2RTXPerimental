@@ -11,12 +11,8 @@
 /**
 *
 *
-*
-*
-*	PMove Constants:
-*
-*
-*
+*	PMove Events:
+* 
 *
 **/
 /**
@@ -59,95 +55,54 @@ typedef enum sg_player_state_event_e {
 extern const char *sg_player_state_event_strings[ PS_EV_MAX ];
 
 
+
+/**
+*
+*
+*   (Default-)Player Movement Parameters:
+*
+*
+**/
 /**
 *	@brief	Default player movement parameter constants.
 **/
 typedef struct default_pmoveParams_s {
     //! Stop speed.
-    static constexpr float pm_stop_speed = 100.f;
+    static constexpr double pm_stop_speed = 100.;
     //! Server determined maximum speed.
-    static constexpr float pm_max_speed = 300.f;
+    static constexpr double pm_max_speed = 300.;
     //! Velocity that is set for jumping. (Determines the height we aim for.)
-    static constexpr float pm_jump_height = 270.f;
+    static constexpr double pm_jump_height = 270.;
 
     //! General up/down movespeed for on a ladder.
-    static constexpr float pm_ladder_speed = 200.f;
+    static constexpr double pm_ladder_speed = 200.;
     //! Maximum 'strafe' side move speed while on a ladder.
-    static constexpr float pm_ladder_sidemove_speed = 150.f;
+    static constexpr double pm_ladder_sidemove_speed = 150.;
     //! Ladder modulation scalar for when being in-water and climbing a ladder.
-    static constexpr float pm_ladder_mod = 0.5f;
+    static constexpr double pm_ladder_mod = 0.5f;
 
     //! Speed for the viewheight and bounding box to ease in/out at when
     //! switching from crouch to stand-up and visa versa. ( 100ms )
     //static constexpr QMTime pm_duck_viewheight_speed = QMTime::FromMilliseconds( 100 );
     //! Movement speed for when ducked and crawling on-ground.
-    static constexpr float pm_crouch_move_speed = 100.f;
+    static constexpr double pm_crouch_move_speed = 100.;
     //! Movement speed for when moving in water(swimming).
-    static constexpr float pm_water_speed = 400.f;
+    static constexpr double pm_water_speed = 400.;
     //! Movement speed for when flying.
-    static constexpr float pm_fly_speed = 400.f;
+    static constexpr double pm_fly_speed = 400.;
 
     //! General acceleration.
-    static constexpr float pm_accelerate = 10.f;
+    static constexpr double pm_accelerate = 10.;
     //! General acceleration.
-    static constexpr float pm_air_accelerate = 1.f;
+    static constexpr double pm_air_accelerate = 1.;
     //! General water acceleration.
-    static constexpr float pm_water_accelerate = 10.f;
+    static constexpr double pm_water_accelerate = 10.;
 
     //! General friction.
-    static constexpr float pm_friction = 6.f;
+    static constexpr double pm_friction = 6.;
     //! General water friction.
-    static constexpr float pm_water_friction = 1.f;
+    static constexpr double pm_water_friction = 1.;
 } default_pmoveParams_t;
-
-/**
-*	Default BoundingBoxes:
-**/
-//! For when player is standing straight up.
-static constexpr Vector3 PM_BBOX_STANDUP_MINS = { -16.f, -16.f, -36.f };
-static constexpr Vector3 PM_BBOX_STANDUP_MAXS = { 16.f, 16.f, 36.f };
-static constexpr float   PM_VIEWHEIGHT_STANDUP = 30.f;
-//! For when player is crouching.
-static constexpr Vector3 PM_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
-static constexpr Vector3 PM_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
-static constexpr float   PM_VIEWHEIGHT_DUCKED = 4.f;
-//! For when player is gibbed out.
-static constexpr Vector3 PM_BBOX_GIBBED_MINS = { -16.f, -16.f, 0.f };
-static constexpr Vector3 PM_BBOX_GIBBED_MAXS = { 16.f, 16.f, 24.f };
-static constexpr float   PM_VIEWHEIGHT_GIBBED = 8.f;
-
-/**
-*	StepHeight:
-**/
-//! Minimal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr float PM_MIN_STEP_SIZE = 2.f;
-//! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr float PM_MAX_STEP_SIZE = 18.f;
-//! Offset for distance to account for between step and ground.
-static constexpr float PM_STEP_GROUND_DIST = 0.25f;
-
-/**
-*	Slide Move Results:
-**/
-enum pm_slideMoveFlags_t {
-    //! None.
-    PM_SLIDEMOVEFLAG_NONE = 0,
-    //! Successfully performed the move.
-    PM_SLIDEMOVEFLAG_MOVED = BIT( 0 ),
-    //! Touched at least a single plane along the way.
-    PM_SLIDEMOVEFLAG_PLANE_TOUCHED = BIT( 1 ),
-    //! It was blocked at some point, doesn't mean it didn't slide along the blocking object.
-    PM_SLIDEMOVEFLAG_BLOCKED = BIT( 2 ),
-    //! It is trapped.
-    PM_SLIDEMOVEFLAG_TRAPPED = BIT( 3 ),
-    //! Blocked by a literal wall(Normal UP == 1).
-    PM_SLIDEMOVEFLAG_WALL_BLOCKED = BIT( 4 ),
-    //! Standing on a sloped surface.
-    //PM_SLIDEMOVEFLAG_SLOPE_BLOCKED = BIT( 5 ),
-    //! Standing on a sloped surface.
-    //PM_SLIDEMOVEFLAG_SLOPE_STEPPED = BIT( 6 ),
-};
-QENUM_BIT_FLAGS( pm_slideMoveFlags_t );
 
 /**
 *	@brief	Used to configure player movement with, it is set by SG_ConfigurePlayerMoveParameters.
@@ -156,42 +111,120 @@ QENUM_BIT_FLAGS( pm_slideMoveFlags_t );
 **/
 typedef struct pmoveParams_s {
     //! Stop speed.
-    float pm_stop_speed;
+    double pm_stop_speed = default_pmoveParams_t::pm_stop_speed;
     //! Server determined maximum speed.
-    float pm_max_speed;
+    double pm_max_speed = default_pmoveParams_t::pm_max_speed;
     //! Velocity that is set for jumping. (Determines the height we aim for.)
-    float pm_jump_height;
+    double pm_jump_height = default_pmoveParams_t::pm_jump_height;
 
     //! General up/down movespeed for on a ladder.
-    float pm_ladder_speed;
+    double pm_ladder_speed = default_pmoveParams_t::pm_ladder_speed;
     //! Maximum 'strafe' side move speed while on a ladder.
-    float pm_ladder_sidemove_speed;
+    double pm_ladder_sidemove_speed = default_pmoveParams_t::pm_ladder_sidemove_speed;
     //! Ladder modulation scalar for when being in-water and climbing a ladder.
-    float pm_ladder_mod;
+    double pm_ladder_mod = default_pmoveParams_t::pm_ladder_mod;
 
     //! Speed for the viewheight and bounding box to ease in/out at when
     //! switching from crouch to stand-up and visa versa. ( 100ms )
     //QMTime pm_duck_viewheight_speed;
     //! Speed for when ducked and crawling on-ground.
-    float pm_crouch_move_speed;
+    double pm_crouch_move_speed = default_pmoveParams_t::pm_crouch_move_speed;
     //! Speed for when moving in water(swimming).
-    float pm_water_speed;
+    double pm_water_speed = default_pmoveParams_t::pm_water_speed;
     //! Speed for when flying.
-    float pm_fly_speed;
+    double pm_fly_speed = default_pmoveParams_t::pm_fly_speed;
 
     //! General acceleration.
-    float pm_accelerate;
+    double pm_accelerate = default_pmoveParams_t::pm_accelerate;
     //! If set, general 'in-air' acceleration.
-    float pm_air_accelerate;
+    double pm_air_accelerate = default_pmoveParams_t::pm_air_accelerate;
     //! General water acceleration.
-    float pm_water_accelerate;
+    double pm_water_accelerate = default_pmoveParams_t::pm_water_accelerate;
 
     //! General friction.
-    float pm_friction;
+    double pm_friction = default_pmoveParams_t::pm_friction;
     //! General water friction.
-    float pm_water_friction;
+    double pm_water_friction = default_pmoveParams_t::pm_water_friction;
 } pmoveParams_t;
 
+/**
+* 
+* 
+*	Player Bounding Boxes:
+* 
+* 
+**/
+//! For when player is standing straight up.
+static constexpr Vector3 PM_BBOX_STANDUP_MINS = { -16.f, -16.f, -36.f };
+static constexpr Vector3 PM_BBOX_STANDUP_MAXS = { 16.f, 16.f, 36.f };
+static constexpr double   PM_VIEWHEIGHT_STANDUP = 30.f;
+//! For when player is crouching.
+static constexpr Vector3 PM_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
+static constexpr Vector3 PM_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
+static constexpr double   PM_VIEWHEIGHT_DUCKED = 4.f;
+//! For when player is gibbed out.
+static constexpr Vector3 PM_BBOX_GIBBED_MINS = { -16.f, -16.f, 0.f };
+static constexpr Vector3 PM_BBOX_GIBBED_MAXS = { 16.f, 16.f, 24.f };
+static constexpr double   PM_VIEWHEIGHT_GIBBED = 8.f;
+
+/**
+* 
+* 
+*	Stair Step Configuration:
+* 
+* 
+**/
+//! Minimal step height difference for the Z axis before marking our move as a 'stair step'.
+static constexpr double PM_STEP_MIN_SIZE = 2.f;
+//! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
+static constexpr double PM_STEP_MAX_SIZE = 18.f;
+//! Offset for distance to account for between step and ground.
+static constexpr double PM_STEP_GROUND_DIST = 0.25f;
+
+
+
+/**
+*
+*
+*	Tracing:
+*
+*
+**/
+/**
+*	@brief	Clips trace against world only.
+**/
+const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask );
+
+/**
+*	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
+**/
+const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask = CONTENTS_NONE );
+const cm_trace_t PM_TraceCorrectSolid( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, cm_contents_t contentMask = CONTENTS_NONE );
+
+/**
+*   @brief  Used for registering entity touching resulting traces.
+**/
+static constexpr int32_t MAX_TOUCH_TRACES = 32;
+typedef struct pm_touch_trace_list_s {
+    //! Current count of stored traces. Always < MAX_TOUCH_TRACES.
+    uint32_t count;
+    //! Actual traces stored.
+    cm_trace_t traces[ MAX_TOUCH_TRACES ];
+} pm_touch_trace_list_t;
+/**
+*	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,
+*			this function adds the trace into the touchTraceList array and increases the numberOfTraces.
+**/
+void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &trace );
+
+
+/**
+*
+*
+*	Player Move API:
+*
+*
+**/
 /**
 *   @brief  Stores the final ground information results.
 **/
@@ -208,7 +241,6 @@ typedef struct pm_ground_info_s {
     //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
     struct cm_material_s *material;
 } pm_ground_info_t;
-
 /**
 *   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
 **/
@@ -219,21 +251,9 @@ typedef struct pm_contents_info_s {
     cm_liquid_level_t	level;
 } pm_contents_info_t;
 
-
 /**
-*   @brief  Used for registering entity touching resulting traces.
-**/
-static constexpr int32_t MAX_TOUCH_TRACES = 32;
-typedef struct pm_touch_trace_list_s {
-    //! Current count of stored traces. Always < MAX_TOUCH_TRACES.
-    uint32_t count;
-    //! Actual traces stored.
-    cm_trace_t traces[ MAX_TOUCH_TRACES ];
-} pm_touch_trace_list_t;
-
-/**
-*   @brief  Object storing data such as the player's move state, in order to perform another
-*           frame of movement on its data.
+*   @brief  Used to setup and store the necessary data/pointers needed in order to perform,
+*           another frame of movement on its data.
 **/
 typedef struct pmove_s {
     /**
@@ -303,23 +323,6 @@ typedef struct pmove_s {
     double impact_delta;
 } pmove_t;
 
-
-
-
-
-
-
-/**
-*
-*
-*
-*
-*	PMove Functions:
-*
-*
-*
-*
-**/
 /**
 *	@brief	Actual in-moment local move variables.
 *

@@ -391,6 +391,7 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
     
     // Get impact delta.
     float delta = pm.impact_delta;
+    #if 0
     // Determine fall damage based on impact delta.
     delta = delta * delta * 0.0001f;
     // Soften damage if inside liquid by the waist.
@@ -403,10 +404,10 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
     }
 
     // Damage is too small to be taken into consideration.
-    if ( delta < 1 ) {
+    if ( delta < 7 ) {
         return;
     }
-
+    #endif
     // WID: restart footstep timer <- NO MORE!! Because doing so causes the weapon bob 
     // position to insta shift back to start.
     //ent->client->ps.bobCycle = 0;
@@ -417,13 +418,13 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
     //    ent->client->landmark_noise_time = level.time + 100_ms;
     //}
 
-    if ( delta < 15 ) {
-        if ( !( pm.state->pmove.pm_flags & PMF_ON_LADDER ) ) {
-            ent->s.event = EV_FOOTSTEP;
-            //gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
-        }
-        return;
-    }
+    //if ( delta < 15  ) {
+    //    if ( !( pm.state->pmove.pm_flags & PMF_ON_LADDER ) ) {
+    //        ent->s.event = EV_FOOTSTEP;
+    //        gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
+    //    }
+    //    return;
+    //}
 
     // Calculate the fall value for view adjustments.
     ent->client->viewMove.fallValue = delta * 0.5f;
@@ -433,8 +434,8 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
     ent->client->viewMove.fallTime = level.time + FALL_TIME();
 
     // Apply fall event based on delta.
-    if ( delta > 30 ) {
-        if ( delta >= 55 ) {
+    if ( delta > 40 ) {
+        if ( delta >= 60 ) {
             ent->s.event = EV_FALLFAR;
         } else {
             ent->s.event = EV_FALL;
@@ -452,7 +453,7 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
         if ( !deathmatch->integer ) {
             SVG_DamageEntity( ent, world, world, &dir.x, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
         }
-    } else {
+    } else if ( delta >= 7 ){
         ent->s.event = EV_FALLSHORT;
     }
 
@@ -516,7 +517,7 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
     // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
     if ( pm->ground.entity/* && ent->groundInfo.entity */) {
         const double stepsize = fabs( ent->s.origin[ 2 ] - pm->state->pmove.origin[ 2 ] );
-        if ( stepsize > PM_MIN_STEP_SIZE && stepsize <= PM_MAX_STEP_SIZE ) {
+        if ( stepsize > PM_STEP_MIN_SIZE && stepsize <= PM_STEP_MAX_SIZE ) {
             ent->s.renderfx |= RF_STAIR_STEP;
             ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
         }

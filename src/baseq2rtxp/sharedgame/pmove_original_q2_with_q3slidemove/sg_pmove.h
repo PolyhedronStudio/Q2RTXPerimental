@@ -115,9 +115,9 @@ static constexpr float   PM_VIEWHEIGHT_GIBBED	= 8.f;
 *	StepHeight:
 **/
 //! Minimal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr float PM_MIN_STEP_SIZE = 4.f;
+static constexpr float PM_STEP_MIN_SIZE = 4.f;
 //! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr float PM_MAX_STEP_SIZE = 18.f;
+static constexpr float PM_STEP_MAX_SIZE = 18.f;
 
 /**
 *	Slide Move Results:

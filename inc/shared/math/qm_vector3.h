@@ -70,6 +70,11 @@ QM_API_CONSTEXPR Vector3 QM_Vector3Scale( const Vector3 &v, const float scalar )
 
     return result;
 }
+QM_API_CONSTEXPR Vector3 QM_Vector3ScaleDP( const Vector3 &v, const double scalar ) {
+    Vector3 result = { v.x * scalar, v.y * scalar, v.z * scalar };
+
+    return result;
+}
 
 // Multiply vector by vector
 QM_API_CONSTEXPR Vector3 QM_Vector3Multiply( const Vector3 &v1, const Vector3 &v2 ) {
@@ -172,6 +177,12 @@ QM_API float QM_Vector3DotProduct( const Vector3 &v1, const Vector3 &v2 ) {
 
     return result;
 }
+// Calculate two vectors dot product
+QM_API double QM_Vector3DotProductDP( const Vector3 &v1, const Vector3 &v2 ) {
+    const double result = ( double )( v1.x * v2.x + v1.y * v2.y + v1.z * v2.z );
+
+    return result;
+}
 
 // Calculate distance between two vectors
 QM_API float QM_Vector3Distance( const Vector3 &v1, const Vector3 &v2 ) {
@@ -222,9 +233,9 @@ QM_API float QM_Vector3Angle( const Vector3 &v1, const Vector3 &v2 ) {
 QM_API Vector3 QM_Vector3Normalize( const Vector3 &v ) {
     Vector3 result = v;
 
-    float length = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+    const double length = (double)std::sqrt( v.x * v.x + v.y * v.y + v.z * v.z );
     if ( length != 0.0f ) {
-        float ilength = 1.0f / length;
+        const double ilength = 1.0f / length;
 
         result.x *= ilength;
         result.y *= ilength;
@@ -1045,10 +1056,10 @@ QM_API_DISCARD void QM_AngleVectors( const Vector3 &angles, Vector3 *forward, Ve
 /**
 *   @brief  Normalize provided [input/output] reference Vector, return the final length.
 **/
-QM_API float QM_Vector3NormalizeLength( Vector3 &v ) {
-    float length = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
-    if ( length != 0.0f ) {
-        float ilength = 1.0f / length;
+QM_API double QM_Vector3NormalizeLength( Vector3 &v ) {
+    double length = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+    if ( length ) {
+        const double ilength = 1.0 / length;
 
         v.x *= ilength;
         v.y *= ilength;
@@ -1062,10 +1073,10 @@ QM_API float QM_Vector3NormalizeLength( Vector3 &v ) {
 *   @brief  Normalize provided [input] reference Vector and write the result of that into [output] reference Vector.
 *   @return Return the final length.
 **/
-QM_API float QM_Vector3NormalizeLength2( const Vector3 &in, Vector3 &out ) {
-    float length = sqrtf( in.x * in.x + in.y * in.y + in.z * in.z );
+QM_API double QM_Vector3NormalizeLength2( const Vector3 &in, Vector3 &out ) {
+    double length = std::sqrt( in.x * in.x + in.y * in.y + in.z * in.z );
     if ( length ) {
-        float ilength = 1.0f / length;
+        const double ilength = 1.0 / length;
 
         out.x = in.x * ilength;
         out.y = in.y * ilength;

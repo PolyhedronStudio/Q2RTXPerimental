@@ -124,20 +124,3 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
     // TODO: Determine whichever reverb effect is dominant for the current sound we're spatializing??    
 }
 
-/**
-*	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to
-*               a specific client number the current received frame, this'll point to the entity that
-*               is of the local client player himself(index of clientNumber was sent during connect.)
-**/
-centity_t *CLG_ViewBoundEntity( void ) {
-    // Default to clgi.client->clientNumberl.
-	int32_t index = clgi.client->clientNumber;
-
-    // Chase entity.
-	if ( clgi.client->frame.ps.stats[ STAT_CHASE ] ) {
-		index = clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS;
-	}
-
-    // + 1, because 0 == world.
-	return &clg_entities[ index + 1 ];
-}

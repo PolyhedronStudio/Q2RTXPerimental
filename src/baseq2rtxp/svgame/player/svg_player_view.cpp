@@ -596,14 +596,12 @@ void P_CheckWorldEffects( void ) {
 			}
 		}
 		current_player->flags |= FL_INWATER;
-
 	}
 
 	// If just completely exited a water volume while only feet in, play a sound.
 	if ( !liquidlevel && old_waterlevel == cm_liquid_level_t::LIQUID_FEET ) {
 		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
 		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
-
 	}
 	// If just completely exited a water volume waist or head in, play a sound.
 	if ( !liquidlevel && old_waterlevel >= cm_liquid_level_t::LIQUID_WAIST ) {

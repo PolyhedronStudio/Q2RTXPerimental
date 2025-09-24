@@ -461,13 +461,24 @@ typedef struct client_state_s {
     /**
     *   @brief      Our local client slot number, acts as our personal private index into `CS_PLAYERSKINS`.
     *               Never changed during gameplay, set by serverdata packet which is sent during connecting phase from SV_New_F.
+	*               
+	*   @note       To use this value as an index into `clg_entities`, it must be incremented by 1,
+	*               so that it matches the entity numbering scheme.
+    * 
+    *               -1 = no client slot yet assigned.
     **/
     int32_t		clientNumber;
     /**
-    *   @brief      The server entity which represents our local client view.
-    *               This is a pointer into `clg_entities`, and may point to an entity we are chasing.
+    *   @brief      The entity matching for the client number received during initial server connecting..
+    *               This is a pointer into `clg_entities`, that always points to our 'local game client' entity.
     **/
     centity_t   *clientEntity;
+    /**
+	*   @brief      The entity matching for the client number that we're currently chasing( frame.ps.stats[ STAT_CHASE ] ).
+    *               This is a pointer into `clg_entities`, and may point to a different 
+    *               (client-)entity than our own local clientEntity.
+    **/
+    centity_t   *chaseEntity;
 
     // Received pmove configuration.
     //pmoveParams_t pmp;

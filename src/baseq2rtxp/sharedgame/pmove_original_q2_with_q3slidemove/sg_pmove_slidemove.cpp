@@ -59,7 +59,7 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 *	@brief	Clips the velocity to surface normal.
 *			returns the blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
+const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
 	// Whether we're actually blocked or not.
 	pm_velocityClipFlags_t blocked = PM_VELOCITY_CLIPPED_NONE;
 
@@ -149,7 +149,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 		primalVelocity.z = endVelocity.z;
 		if ( groundPlane) {
 			// Slide along the ground plane.
-			PM_ClipVelocity( velocity, groundTrace.plane.normal, velocity, PM_OVERCLIP );
+			PM_BounceVelocity( velocity, groundTrace.plane.normal, velocity, PM_OVERCLIP );
 		}
 	}
 
@@ -254,9 +254,9 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 			}
 
 			// Slide velocity along the plane.
-			PM_ClipVelocity( velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
+			PM_BounceVelocity( velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
 			// Slide endVelocity along the plane.
-			PM_ClipVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
+			PM_BounceVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
 
 			// See if there is a second plane that the new move enters.
 			for ( j = 0; j < numPlanes; j++ ) {
@@ -269,8 +269,8 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 					continue;
 				}
 				// Try clipping the move to the plane.
-				PM_ClipVelocity( clipVelocity, planes[ j ], clipVelocity, PM_OVERCLIP );
-				PM_ClipVelocity( endClipVelocity, planes[ j ], endClipVelocity, PM_OVERCLIP );
+				PM_BounceVelocity( clipVelocity, planes[ j ], clipVelocity, PM_OVERCLIP );
+				PM_BounceVelocity( endClipVelocity, planes[ j ], endClipVelocity, PM_OVERCLIP );
 
 				// See if it goes back into the first clip plane.
 				if ( QM_Vector3DotProduct( clipVelocity, planes[ i ] ) >= 0 ) {
@@ -360,7 +360,7 @@ const void PM_StepSlideMove_Generic(
 	}
 
 	// If we cannot slide move, try stepping over the obstruction.
-	Vector3 downPoint = startOrigin + Vector3{ 0.f, 0.f, -PM_MAX_STEP_SIZE };
+	Vector3 downPoint = startOrigin + Vector3{ 0.f, 0.f, -PM_STEP_MAX_SIZE };
 	// Trace down to see if we can step down.
 	cm_trace_t trace = PM_Trace( startOrigin, mins, maxs, downPoint );
 	// For velocity step up clip touch testing.
@@ -368,7 +368,7 @@ const void PM_StepSlideMove_Generic(
 	// Never step up when you still have up velocity.
 	if ( velocity.z > 0 
 			&& ( trace.fraction == 1.0 
-				|| QM_Vector3DotProduct( trace.plane.normal, vUp) < PM_MIN_STEP_NORMAL ) ) 
+				|| QM_Vector3DotProduct( trace.plane.normal, vUp) < PM_STEP_MIN_NORMAL ) ) 
 	{
 		return;
 	}
@@ -378,7 +378,7 @@ const void PM_StepSlideMove_Generic(
 	Vector3 downVelocity = velocity;
 
 	// Test the player position above the obstruction, if they were a stepheight higher.
-	Vector3 upPoint = startOrigin + Vector3{ 0.f, 0.f, PM_MAX_STEP_SIZE };
+	Vector3 upPoint = startOrigin + Vector3{ 0.f, 0.f, PM_STEP_MAX_SIZE };
 	trace = PM_Trace( startOrigin, mins, maxs, upPoint );
 	if ( trace.allsolid ) {
 		SG_DPrintf( "%s: bend can't step\n", __func__ );
@@ -403,7 +403,7 @@ const void PM_StepSlideMove_Generic(
 	}
 	// Otherwise, we clip along the obstruction.
 	if ( trace.fraction < 1.0 ) {
-		PM_ClipVelocity( velocity, trace.plane.normal, velocity, PM_OVERCLIP );
+		PM_BounceVelocity( velocity, trace.plane.normal, velocity, PM_OVERCLIP );
 	}
 
 	stepHeight = origin.z - startOrigin.z;

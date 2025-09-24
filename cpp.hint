@@ -519,3 +519,63 @@ static GameEntity* AllocateInstance( PODEntity* entity ) {		\
 }																\
 __DeclareTypeInfo( #classname, #classname, #superClass, TypeInfo::TypeFlag_GameSpawn, &classname::AllocateInstance );
 #endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#define Com_Printf(...) Com_LPrintf(PRINT_ALL, __VA_ARGS__)
+#define Com_WPrintf(...) Com_LPrintf(PRINT_WARNING, __VA_ARGS__)
+#define Com_EPrintf(...) Com_LPrintf(PRINT_ERROR, __VA_ARGS__)
+
+//! WID: Assertions that always trigger.
+#define Q_assert(expr) \
+    do { if (!(expr)) Com_Error(ERR_FATAL, "%s: assertion `%s' failed", __func__, #expr); } while (0)
+//! WID: For when cvar developer >= 1
+#define Q_DevAssert(expr) \
+    do { if ( !(expr)) Com_LPrintf( PRINT_DEVELOPER, "%s:%s:%d: DevAssert failed: `%s'\n", __FILE__, __func__, __LINE__, #expr); } while (0)
+//! WID: For when cvar developer >= 1
+#define Q_DevPrint(...) \
+    do { Com_LPrintf( PRINT_DEVELOPER, "%s:%s:%d: %s\n", __FILE__, __func__, __LINE__, __VA_ARGS__ ); } while (0)
+
+#define q_noreturn __attribute__((noreturn))
+#define q_noreturn
+#define q_printf(f, a) __attribute__((format(gnu_printf, f, a)))
+#define q_printf(f, a) __attribute__((format(printf, f, a)))
+#define q_printf(f, a)
+/****
+*
+*
+*
+*   Neatly wraps up the enclosing and/or opening and closing of a block of
+*   code that demands us to require linking as extern "C".
+*
+*
+*
+****/
+#define QEXTERN_C_ENCLOSE(ENCLOSED_CODE) \
+extern "C" {                             \
+        ENCLOSED_CODE                    \
+};                                       \
+                                         \
+
+#define QEXTERN_C_OPEN          \
+extern "C" {                    \
+                                \
+
+#define QEXTERN_C_CLOSE         \
+};                              \
+                                \

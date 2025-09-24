@@ -68,7 +68,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     sg_skm_animation_state_t *lastBodyState = animationMixer->lastBodyStates;
 
     // Third-person/mirrors model of our own client entity:
-    if ( CLG_IsClientEntity( newState ) ) {
+    if ( CLG_IsLocalClientEntity( newState ) ) {
         // Determine 'Base' animation name.
         double frameTime = 1.f;
         const std::string baseAnimStr = SG_Player_GetClientBaseAnimation( &game.predictedState.lastPs, &game.predictedState.currentPs, &frameTime );
@@ -279,7 +279,7 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
     bool updateYawControllers = false;
 
     // Get the desired 'Yaw' angle to rotate into based on the (predicted-) player states.
-    if ( CLG_IsClientEntity( newState ) ) {
+    if ( CLG_IsLocalClientEntity( newState ) ) {
         // States to determine it by.
         player_state_t *playerState = &game.predictedState.currentPs;
         player_state_t *oldPlayerState = &game.predictedState.lastPs;
@@ -579,7 +579,7 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
 **/
 void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // If client entity, use predicted origin instead of Lerped:
-    if ( CLG_IsClientEntity( newState ) ) {
+    if ( CLG_IsLocalClientEntity( newState ) ) {
         #if 0
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
             VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );  // FIXME
@@ -620,10 +620,13 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
         #endif
     // Lerp Origin:
     } else {
+        // Lerp origin.
         Vector3 lerpedOrigin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
-        //Vector3 lerpedOrigin = QM_Vector3Lerp( packetEntity->current.origin, newState->origin, clgi.client->lerpfrac );
+        // We actually need to offset the Z axis origin by half the bbox height.
         Vector3 correctionVector = { 0.f, 0.f, packetEntity->mins[ 2 ] };
+        // Add the correction vector,
         lerpedOrigin += correctionVector;
+        // Assign to refresh entity object.
         VectorCopy( lerpedOrigin, refreshEntity->origin );
         VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
     }
@@ -632,7 +635,7 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
 *   @brief  Type specific routine for LERPing ET_PLAYER angles.
 **/
 void CLG_ETPlayer_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    if ( CLG_IsClientEntity( newState ) ) {
+    if ( CLG_IsLocalClientEntity( newState ) ) {
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
     } else {
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
@@ -762,7 +765,7 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
         }
 
         // In case of the state belonging to the frame's viewed client number:
-        if ( CLG_IsClientEntity( newState ) ) {
+        if ( CLG_IsLocalClientEntity( newState ) ) {
             // When not in third person mode:
             if ( !clgi.client->thirdPersonView ) {
                 // If we're running RTX, we want the player entity to render for shadow/reflection reasons:

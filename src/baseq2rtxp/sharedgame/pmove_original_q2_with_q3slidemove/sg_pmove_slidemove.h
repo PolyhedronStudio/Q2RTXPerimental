@@ -14,7 +14,7 @@ static constexpr double PM_OVERCLIP = 1.001;
 
 
 //! Can't step up onto very steep slopes
-static constexpr float PM_MIN_STEP_NORMAL = 0.7f;
+static constexpr float PM_STEP_MIN_NORMAL = 0.7f;
 //! Minimal Z Normal for testing whether something is legitimately a "WALL".
 static constexpr float PM_MIN_WALL_NORMAL_Z = 0.03125;
 
@@ -48,7 +48,7 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 *	@brief	Clips the velocity to surface normal.
 *			returns the blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
+const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,

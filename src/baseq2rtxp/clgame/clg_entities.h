@@ -25,33 +25,76 @@ void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
 *           information, so entities can be dynamically re-spatialized.
 **/
 void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
-/**
-*	@return		A pointer to the entity bound to the client game's view. Unless STAT_CHASE is set to
-*               a specific client number the current received frame, this'll point to the entity that
-*               is of the local client player himself.
-**/
-centity_t *CLG_ViewBoundEntity( void );
 
 /**
-*	@brief	Returns true if the entity state's number matches to our client's entity number.
+*	@brief	Returns true if the entityNumber matches to our local connection received entity number.
 **/
-static const inline qboolean CLG_IsClientEntity( const entity_state_t *state ) {
-	if ( state->number == clgi.client->clientNumber + 1 ) {
+static inline const bool CLG_IsLocalClientEntity( const int32_t entityNumber ) {
+	if ( entityNumber == clgi.client->clientNumber + 1 ) {
 		return true;
 	}
 	return false;
 }
-
+/**
+*	@brief	Returns true if the entity state's number matches to our local client entity number,
+*			received at initial time of connection.
+**/
+static inline const bool CLG_IsLocalClientEntity( const entity_state_t *state ) {
+	if ( state && state->number > 0 ) {
+		return CLG_IsLocalClientEntity( state->number );
+	}
+	return false;
+}
 
 /**
-*	@brief	Returns true if the entity state's number matches to our client's view entity number.
+*	@brief	Returns true if the entity state's number matches to the view entity number.
 **/
-static const inline qboolean CLG_IsViewClientEntity( const entity_state_t *state ) {
-	if ( state->number == clgi.client->frame.clientNum + 1 ) {
+static inline const bool CLG_IsCurrentViewEntity( const entity_state_t *state ) {
+	// The entity we're chasing with our view.
+	if ( clgi.client->frame.ps.stats[ STAT_CHASE ] > 0
+		/* Account for the entity number.( Do a - 1 ) */
+		&& ( state->number == clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS - 1 )
+		// State matches the localclient entity.
+		) {
+			return true;
+	} else if ( state->number == clgi.client->frame.clientNum + 1 ) {
 		return true;
-	}
-	//} else if ( state->number == clgi.client->frame.ps.stats[ STAT_CHASE ] ) {
-	//	return true;
-	//}
+	} 
+	// No match.
 	return false;
+}
+
+/**
+*	@return		A pointer into clg_entities that matches to the client we're currently chasing with our view.
+*               If we're not chasing anyone, it'll return a nullptr.
+**/
+static inline centity_t *CLG_GetChaseBoundEntity( void ) {
+	if ( clgi.client->frame.ps.stats[ STAT_CHASE ] > 0 ) {
+		return &clg_entities[ clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS - 1 ];
+	} else {
+		return nullptr;
+	}
+}
+
+/**
+*	@return		A pointer to the entity bound to the received server frame's view(index of clientNumber was sent during connect.)
+*               Unless STAT_CHASE is set to specific client number, this'll point to the local client player himself.
+**/
+static inline centity_t *CLG_GetViewBoundEntity( void ) {
+	// Sanity check.
+	if ( clgi.client->clientNumber == -1 ) {
+		clgi.Print( PRINT_DEVELOPER, "CLG_GetViewBoundEntity: No client number set yet(Value is -1).\n" );
+		// Return a nullptr.
+		return nullptr;
+	}
+
+	// Default to clgi.client->clientNumberl.
+	int32_t entityIndex = clgi.client->clientNumber + 1;
+	// Possibility of us chasing an entity.
+	if ( clgi.client->frame.ps.stats[ STAT_CHASE ] > 0 ) {
+		/* Account for the entity number( -1 ).*/
+		entityIndex = clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS - 1;
+	}
+	// Return the entity pointer.
+	return &clg_entities[ entityIndex ];
 }

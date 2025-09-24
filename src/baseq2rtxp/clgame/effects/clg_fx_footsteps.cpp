@@ -20,7 +20,7 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
     }
 
     // When isLadder is true, we don't need to do any material checks, instead we assume
-    // the ladder is mate out of metal, and apply that material sound instead.
+    // the ladder is made out of metal, and apply that material sound instead.
     if ( isLadder ) {
         uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_METAL_STEPS;
         qhandle_t *material_footsteps = precache.sfx.footsteps.metal;
@@ -36,14 +36,36 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
 
     // Get predicted state.
     client_predicted_state_t *predictedState = &game.predictedState;
-    //player_state_t *predictedPlayerState = &game.predictedState;
+    // Determine the material kind to fetch the sound data from.
+    cm_material_t *ground_material = predictedState->ground.material;
+    
+    // Path for local client entity:
+	if ( entityNumber == clgi.client->clientNumber + 1 ) {
+    // Path for other (packet-)entities:
+    } else {
+
+    }
+
     // The default type is "floor".
     uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
     qhandle_t *material_footsteps = precache.sfx.footsteps.floor;
-    // Determine the material kind to fetch the sound data from.
-    cm_material_t *ground_material = predictedState->ground.material;
+
     const char *material_kind = "floor";
 
+    // <Q2RTXP>: TODO: Check if this is our local client entity.
+    // OR ACTUALLY, MOVE THIS TO PMOVE CODE AND ADD IN THE EXTERNAL ENTITY EVENTS FROM Q3!!!!
+    // YES
+    // YES
+    // DO THIS WAKE UP
+    // 
+    // Then we can rewrite this function to work with playerstate for local entity,
+    // and otherwise entity events for other entities.
+    // 
+    // Similarly, we can also add in a client side version or sharedgame rather, for falling damage appliances and
+    // the screen blending, neato.
+    // 
+    // After that, move weapon code in there??
+    // 
     // Special water feet level footsteps:
     if ( predictedState->liquid.type & CONTENTS_WATER &&
         predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
@@ -63,12 +85,13 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
 
         // See if we're trick jumping, if so, perform a step height + ground offset trace for
         // finding a proper material sound to play while 'landing'.
+        #if 0
         player_state_t *currentPs = &predictedState->currentPs;
 
         if ( currentPs->pmove.pm_flags & PMF_TIME_TRICK_JUMP || currentPs->pmove.velocity.z > 100 ) {
             centity_t *traceSkipEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
             Vector3 traceStart = currentPs->pmove.origin;
-            Vector3 traceEnd = traceStart + Vector3{ 0., 0., -( PM_MAX_STEP_SIZE + 0.25 ) };
+            Vector3 traceEnd = traceStart + Vector3{ 0., 0., -( PM_STEP_MAX_SIZE + 0.25 ) };
             Vector3 traceMins = predictedState->mins;
             Vector3 traceMaxs = predictedState->maxs;
             cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &traceMins.x, &traceMaxs.x, &traceEnd.x, traceSkipEntity, CM_CONTENTMASK_SOLID );
@@ -79,6 +102,7 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
                 //clgi.Print( PRINT_DEVELOPER, "%s: Trick Jump Path(material_kind(%s))\n", __func__, material_kind );
             }
         }
+        #endif
 
         // Determine if we're on a different type of material, and if so, adjust the above variables accordingly.
         if ( strcmp( "carpet", material_kind ) == 0 ) {
