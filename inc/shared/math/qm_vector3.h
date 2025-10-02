@@ -163,6 +163,15 @@ QM_API float QM_Vector3Length( const Vector3 &v ) {
     #endif
     return result;
 }
+// Calculate vector length
+QM_API double QM_Vector3LengthDP( const Vector3 &v ) {
+    #ifdef __cplusplus
+    const double result = std::sqrt( v.x * v.x + v.y * v.y + v.z * v.z );
+    #else
+    const double result = sqrtf( v.x * v.x + v.y * v.y + v.z * v.z );
+    #endif
+    return result;
+}
 
 // Calculate vector square length
 QM_API float QM_Vector3LengthSqr( const Vector3 &v ) {

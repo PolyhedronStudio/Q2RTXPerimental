@@ -169,7 +169,8 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 	}
 
 	// Add trace to list.
-	touchTraceList.traces[ touchTraceList.count++ ] = trace;
+	touchTraceList.traces[ touchTraceList.count ] = trace;
+	touchTraceList.count++;
 }
 
 
@@ -656,24 +657,35 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 *			without getting a sqrt(2) distortion in speed.
 **/
 static double PM_CmdScale( const usercmd_t *cmd ) {
-	double max = fabs( cmd->forwardmove );
+	// Movement direction vector.
+	const Vector3 vDirection = { cmd->forwardmove, cmd->sidemove, cmd->upmove };
 
+	/**
+	*	Determine the maximum velocity direction force.
+	**/
+	// Forward move.
+	double max = std::fabs( cmd->forwardmove );
+	// Side move.
 	const double fabsSideMove = std::fabs( cmd->sidemove );
 	if ( fabsSideMove > max ) {
 		max = fabsSideMove;
 	}
-
+	// Up move.
 	const double fabsUpMove = std::fabs( cmd->upmove );
 	if ( fabsUpMove > max ) {
 		max = fabsUpMove;
 	}
-
+	/**
+	*	Now calculate the scale factor to use for applying to movement so we remain capped <= pmp->pm_max_speed.
+	**/
 	double scale = 0.;
 	if ( max ) {
-		const Vector3 vDirection = { cmd->forwardmove, cmd->sidemove, cmd->upmove };
-		const double total = std::sqrt( QM_Vector3DotProductDP( vDirection, vDirection ) );
+		// Get the total speed factor.
+		const double total = QM_Vector3LengthDP( vDirection );
+		// Calculate actual scale.
 		scale = pm->state->pmove.speed * max / ( /* 127 */ pmp->pm_max_speed * total );
 	}
+	// Bada bing bada boom.
 	return scale;
 }
 
@@ -1476,54 +1488,71 @@ static const bool PM_CheckWaterJump( void ) {
 		return false;
 	}
 	// Check for water jump.
-	if ( pm->liquid.level != LIQUID_WAIST ) {
+	//if ( pm->liquid.level != LIQUID_WAIST ) {
+	if ( pm->liquid.level < LIQUID_WAIST ) {
 		return false;
 	}
-
-	// Quick check that something is even blocking us forward.
-	static constexpr double blockTraceDist = 30.;
-	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, pm->state->pmove.origin + ( flatforward * blockTraceDist ), CM_CONTENTMASK_SOLID );
-
+	/**
+	*	Check whether something is blocking us up/forward.
+	**/
+	static constexpr double PM_WATERJUMP_PREDICT_DIST = 30.;
+	static constexpr double PM_WATERJUMP_FORWARD_VELOCITY = 200.;
+	static constexpr double PM_WATERJUMP_UP_VELOCITY = 350.;
+	static constexpr double PM_WATERJUMP_TIME = 32.;
+	// Perform the trace.
+	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, pm->state->pmove.origin + ( flatforward * PM_WATERJUMP_PREDICT_DIST ), CM_CONTENTMASK_SOLID );
 	// We aren't blocked, or what we're blocked by is something we can walk up.
-	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= 0.7f ) {
+	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= PM_STEP_MIN_NORMAL ) {
 		return false;
 	}
-
-	VectorMA( pm->state->pmove.origin, blockTraceDist, flatforward, spot );
+	// Test for any obstructions above us near the forward destination spot.
+	VectorMA( pm->state->pmove.origin, PM_WATERJUMP_PREDICT_DIST, flatforward, spot );
 	spot[ 2 ] += 4;
-	cm_contents_t conte = pm->pointcontents( &spot.x );//cont = pm->pointcontents( spot, pm->ps->clientNum );
-	if ( !( conte & CONTENTS_SOLID ) /*&& !( cont & CONTENTS_PLAYER)*/ ) {
+	cm_contents_t destSpotContents = pm->pointcontents( &spot.x /*, skip = playerEntity */ );
+	if ( !( destSpotContents & CONTENTS_SOLID ) /*&& !( cont & CONTENTS_PLAYER)*/ ) {
 		return false;
 	}
-
+	// Another test, but a little higher.
 	spot[ 2 ] += 16;
-	conte = pm->pointcontents( &spot.x ); //cont = pm->pointcontents( spot, pm->ps->clientNum );
-	if ( conte/* && !( cont & CONTENTS_PLAYER )*/ ) {
+	destSpotContents = pm->pointcontents( &spot.x /*, skip = playerEntity */ );
+	if ( destSpotContents /* && !( cont & CONTENTS_PLAYER )*/ ) {
 		return false;
 	}
 
-	// Test if we can predict to reach where we want to be.
-	// Jump up and forward out of the water
-	pm->state->pmove.velocity = flatforward * 200;//VectorScale( pml.forward, 200, pm->state->pmove.velocity );
-	pm->state->pmove.velocity.z = 350;
-	// Time water jump and land.
+	/**
+	*	Test if we can predict to reach where we want to be.
+	**/
+	// Jump up and forwards and out of the water
+	pm->state->pmove.velocity = flatforward * PM_WATERJUMP_FORWARD_VELOCITY;
+	pm->state->pmove.velocity.z = PM_WATERJUMP_UP_VELOCITY;
+	#if 1
+	// Time water.
+	pm->state->pmove.pm_time = PM_WATERJUMP_TIME;
+	// WaterJump and land flags.
 	pm->state->pmove.pm_flags |= PMF_TIME_WATERJUMP | PMF_TIME_LAND;
-	pm->state->pmove.pm_time = 32;
 	// 'Fake' the jump key held, so there won't be any immediate jump upon the
 	// landing on surface. (ground surface, floor entity, you know?)
 	pm->state->pmove.pm_flags |= PMF_JUMP_HELD;
-
-	if ( PM_PredictStepMove( pm, &pml ) ) {
-		// Jump up and forward out of the water
-		pm->state->pmove.velocity = flatforward * 200;//VectorScale( pml.forward, 200, pm->state->pmove.velocity );
-		pm->state->pmove.velocity.z = 350;
-		// Time water jump and land.
+	#endif
+	// Predict the move ahead in time, no gravity applied.
+	pm_slideMoveFlags_t predictMoveResults = PM_PredictStepMove( pm, &pml, false );
+	// What matters is only, did we step up to a surface from mid-air?
+	if ( ( predictMoveResults & PM_SLIDEMOVEFLAG_STEPPED ) != 0 ) {
+		#if 1
+		// Jump up and forwards and out of the water
+		pm->state->pmove.velocity = flatforward * PM_WATERJUMP_FORWARD_VELOCITY;
+		pm->state->pmove.velocity.z = PM_WATERJUMP_UP_VELOCITY;
+		#endif
+		// Time water.
+		pm->state->pmove.pm_time = PM_WATERJUMP_TIME;
+		// WaterJump and land flags.
 		pm->state->pmove.pm_flags |= PMF_TIME_WATERJUMP | PMF_TIME_LAND;
-		pm->state->pmove.pm_time = 32;
 		// 'Fake' the jump key held, so there won't be any immediate jump upon the
 		// landing on surface. (ground surface, floor entity, you know?)
 		pm->state->pmove.pm_flags |= PMF_JUMP_HELD;
 	} else {
+		//pm->state->pmove.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND );
+
 		return false;
 	}
 	return true;
@@ -1936,6 +1965,7 @@ static void PM_AirMove( void ) {
 	else
 		PM_SlideMove( qtrue );
 	#endif
+
 	PM_StepSlideMove_Generic(
 		pm,
 		&pml,
@@ -2047,7 +2077,7 @@ static void PM_EraseInputCommandState() {
 	pm->cmd.buttons &= ~( BUTTON_JUMP | BUTTON_CROUCH | BUTTON_USE_TARGET | BUTTON_RELOAD );
 }
 /**
-*	@brief
+*	@brief	Will look for whether we're latching on to a ladder.
 **/
 static void PM_CheckSpecialMovement() {
 	// Having time means we're already doing some form of 'special' movement.
@@ -2065,7 +2095,7 @@ static void PM_CheckSpecialMovement() {
 		0.f
 		} );
 	const Vector3 spot = pm->state->pmove.origin + ( flatforward * 1 );
-	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, spot, (cm_contents_t)( CONTENTS_LADDER ) );
+	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
 	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) 
 		// Uncomment to disable underwater ladders.
 		/*&& pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST*/ ) {
@@ -2078,14 +2108,15 @@ static void PM_CheckSpecialMovement() {
 	}
 }
 /**
-*
+*	@brief	Drops the movement pm_time factor for movement states.
 **/
 static void PM_DropTimers() {
 	if ( pm->state->pmove.pm_time ) {
 		//int32_t msec = (int32_t)pm->cmd.msec >> 3;
 		//double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 0.125 ) : (pm->cmd.msec / 0.125 ) );
-		double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 8 ) : ( pm->cmd.msec / 8 ) );
-		//if ( pm->cmd.msec < 0. ) { // This was <= 0, this seemed to cause a slight jitter in the player movement.
+		double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 8. ) : ( pm->cmd.msec / 8. ) );
+		// This was <= 0, this seemed to cause a slight jitter in the player movement.
+		//if ( pm->cmd.msec < 0. ) {
 		//	msec = 1.0 / 8.; // 8 ms = 1 unit. (At 10hz.)
 		//}
 
@@ -2102,7 +2133,6 @@ static void PM_DropTimers() {
 **/
 void SG_PlayerMove_Frame() {
 	// Clear out several member variables which require a fresh state before performing the move.
-	#if 1
 	// Player State variables.
 	pm->state->viewangles = {};
 	//pm->state->pmove.viewheight = 0;
@@ -2119,18 +2149,6 @@ void SG_PlayerMove_Frame() {
 	pm->step_clip = false;
 	pm->step_height = 0;
 	pm->impact_delta = 0;
-	#else
-	pm->touchTraces = {};
-	pm->ground = {};
-	pm->liquid = {
-		.type = CONTENTS_NONE,
-		.level = cm_liquid_level_t::LIQUID_NONE
-	},
-	pm->jump_sound = false;
-	pm->step_clip = false;
-	pm->step_height = 0;
-	pm->impact_delta = 0;
-	#endif
 
 	// Save the origin as 'old origin' for in case we get stuck.
 	pml.previousOrigin = pm->state->pmove.origin;
@@ -2142,16 +2160,6 @@ void SG_PlayerMove_Frame() {
 
 	// Clamp view angles.
 	PM_UpdateViewAngles( pm->state, &pm->cmd );
-
-	/**
-	*	Key Stuff:
-	**/
-	#if 1
-	//// Player has let go of jump button.
-	//if ( !( pm->cmd.buttons & BUTTON_JUMP ) && pm->cmd.upmove < 10 ) {
-	//	pm->state->pmove.pm_flags &= ~PMF_JUMP_HELD;
-	//}
-	#endif
 
 	/**
 	*	PM_DEAD:
@@ -2190,13 +2198,15 @@ void SG_PlayerMove_Frame() {
 	*	PM_FREEZE:
 	**/
 	if ( pm->state->pmove.pm_type == PM_FREEZE ) {
-		return;     // no movement at all
+		// No movement at all.
+		return;
 	}
 	/**
 	*	PM_FREEZE:
 	**/
 	if ( pm->state->pmove.pm_type == PM_INTERMISSION || pm->state->pmove.pm_type == PM_SPINTERMISSION ) {
-		return;		// no movement at all
+		// No movement at all.
+		return;
 	}
 
 	// Set mins, maxs, and viewheight.
@@ -2205,20 +2215,12 @@ void SG_PlayerMove_Frame() {
 	PM_GetWaterLevel( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
 	// Back it up as the first previous liquid. (Start of frame position.)
 	pml.previousLiquid = pm->liquid;
-
-	#if 0
-	// If pmove values were changed outside of the pmove code, resnap to position first before continuing.
-	if ( pm->snapInitialPosition ) {
-		PM_InitialSnapPosition();
-	}
-	#endif
 	// Recategorize if we're ducked. ( Set groundentity, liquid.type, and liquid.level. )
 	if ( PM_CheckDuck() ) {
-		// Back it up as the first previous liquid. (Start of frame position.)
-		pml.previousLiquid = pm->liquid;
-		//PM_CategorizePosition();
 		// Get liquid.level, accounting for ducking.
 		PM_GetWaterLevel( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
+		// Back it up as the first previous liquid. (Start of frame position.)
+		pml.previousLiquid = pm->liquid;
 	}
 	// Get and set ground entity.
 	PM_GroundTrace();
@@ -2231,11 +2233,12 @@ void SG_PlayerMove_Frame() {
 		PM_DeadMove();
 	}
 
-	PM_CheckSpecialMovement();
-
 	/**
-	*	Drop Timers:
+	*	Actual Movement:
 	**/
+	// Look for whether we're latching on to a ladder.
+	PM_CheckSpecialMovement();
+	// Drop Timers:
 	PM_DropTimers();
 
 	// Do Nothing:
@@ -2269,20 +2272,13 @@ void SG_PlayerMove_Frame() {
 		}
 	}
 
-	#if 0
-	// Recategorize position for contents, ground, and/or liquid since we've made a move.
-	PM_CategorizePosition();
-	#endif
+	/**
+	*	Recategorize position for contents, ground, and /or liquid since we've made a move.
+	**/
 	// Get and set ground entity.
 	PM_GroundTrace();
 	// Get liquid.level, accounting for ducking.
 	PM_GetWaterLevel( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
-	#if 0
-	// Determine whether we can pull a trick jump, and if so, perform the jump.
-	if ( pm->state->pmove.pm_flags & PMF_TIME_TRICK_JUMP ) {
-		PM_CheckJump();
-	}
-	#endif
 	// Apply contents and other screen effects.
 	PM_UpdateScreenContents();
 

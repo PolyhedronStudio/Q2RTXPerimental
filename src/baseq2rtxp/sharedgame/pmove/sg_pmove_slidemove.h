@@ -114,9 +114,11 @@ const pm_slideMoveFlags_t PM_StepSlideMove_Generic(
 /**
 *	@brief	Predicts whether the step move actually stepped or not.
 **/
-const bool PM_PredictStepMove(
+const pm_slideMoveFlags_t PM_PredictStepMove(
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.
-	pml_t *pml 
+	pml_t *pml,
+	// Apply gravity?
+	const bool applyGravity
 );
