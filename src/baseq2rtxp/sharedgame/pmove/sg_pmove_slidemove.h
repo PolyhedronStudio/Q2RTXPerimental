@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*	SharedGame: Player SlideBox Implementation
+*	SharedGame: Player SlideBox Implementation.
 *
 *
 ********************************************************************/
@@ -23,14 +23,25 @@ static constexpr double PM_MIN_WALL_NORMAL_Z = 0.03125;
 /**
 *
 *
-*	Internal Exposed SlideMove Utilities:
+*	Bounce("Bouncy Reflection") and Sliding("Clipping") velocity
+*	to Surface Normal utilities.
+*
+*	"PM_BounceVelocity" usage examples:
+*		- Ground movement with slight bounce.
+*		- Collision responce that needs elasticity.
+*		- "Step" movement where a slight bounce helps prevent sticking.
+*
+*	"PM_ClipVelocity" usage examples:
+*		- Wall sliding, no bounce.
+*		- Surface alignment, no bounce.
+*		- Preventing penetration without bounce.
 *
 *
 **/
 /**
 *	Slide Move Results:
 **/
-enum pm_velocityClipFlags_t {
+enum pm_clipflags_t {
 	//! None.
 	PM_VELOCITY_CLIPPED_NONE = 0,
 	//! Velocity has been clipped by a Floor.
@@ -38,17 +49,27 @@ enum pm_velocityClipFlags_t {
 	//! Velocity has been clipped by a Wall/Step.
 	PM_VELOCITY_CLIPPED_WALL_OR_STEP = BIT( 1 ),
 };
-QENUM_BIT_FLAGS( pm_velocityClipFlags_t );
+QENUM_BIT_FLAGS( pm_clipflags_t );
 /**
-*	@brief	Bounce clips the velocity From surface normal.
+*	@brief	Bounces("Bouncy reflection") the velocity off the surface normal.
+*	@details	Overbounce > 1 = bouncier, < 1 = less bouncy.
+*				Usage examples:
+*					- Ground movement with slight bounce.
+*					- Collision responce that needs elasticity.
+*					- "Step" movement where a slight bounce helps prevent sticking.
 *	@return	The blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
+const pm_clipflags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
 /**
-*	@brief	Clips the velocity to surface normal.
+*	@brief	Slides("Clips"), the velocity (strictly-)along the surface normal.
+*	@details	Usage examples:
+*					- Wall sliding, no bounce.
+*					- Surface alignment, no bounce.
+*					- Preventing penetration without bounce.
 *	@return	The blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out );
+const pm_clipflags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out );
+
 
 
 /**
@@ -61,7 +82,7 @@ const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &
 /**
 *	Slide Move Results:
 **/
-enum pm_slideMoveFlags_t {
+enum pm_slidemove_flags_t {
 	//! None.
 	PM_SLIDEMOVEFLAG_NONE = 0,
 	//! Successfully performed the move.
@@ -81,12 +102,12 @@ enum pm_slideMoveFlags_t {
 	//! Blocked by a sloped surface.
 	PM_SLIDEMOVEFLAG_SLOPE_BLOCKED = BIT( 7 ),
 };
-QENUM_BIT_FLAGS( pm_slideMoveFlags_t );
+QENUM_BIT_FLAGS( pm_slidemove_flags_t );
 
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const pm_slideMoveFlags_t PM_SlideMove_Generic(
+const pm_slidemove_flags_t PM_SlideMove_Generic(
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.
@@ -101,7 +122,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 *			Returns a new origin, velocity, and contact entity
 *			Does not modify any world state?
 **/
-const pm_slideMoveFlags_t PM_StepSlideMove_Generic(
+const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.
@@ -114,7 +135,7 @@ const pm_slideMoveFlags_t PM_StepSlideMove_Generic(
 /**
 *	@brief	Predicts whether the step move actually stepped or not.
 **/
-const pm_slideMoveFlags_t PM_PredictStepMove(
+const pm_slidemove_flags_t PM_PredictStepMove(
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.

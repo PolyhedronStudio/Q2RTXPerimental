@@ -24,17 +24,33 @@
 /**
 *
 *
-*	Clip/Bounce Velocity:
+*	Bounce("Bouncy Reflection") and Sliding("Clipping") velocity 
+*	to Surface Normal utilities.
 *
+*	"PM_BounceVelocity" usage examples:
+*		- Ground movement with slight bounce.
+*		- Collision responce that needs elasticity.
+*		- "Step" movement where a slight bounce helps prevent sticking.
 *
+*	"PM_ClipVelocity" usage examples:
+*		- Wall sliding, no bounce.
+*		- Surface alignment, no bounce.
+*		- Preventing penetration without bounce.
+* 
+* 
 **/
 /**
-*	@brief	Bounce clips the velocity From surface normal.
+*	@brief	Bounces("Bouncy reflection") the velocity off the surface normal.
+*	@details	Overbounce > 1 = bouncier, < 1 = less bouncy.
+*				Usage examples:
+*					- Ground movement with slight bounce.
+*					- Collision responce that needs elasticity.
+*					- "Step" movement where a slight bounce helps prevent sticking.
 *	@return	The blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
+const pm_clipflags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
 	// Whether we're actually blocked or not.
-	pm_velocityClipFlags_t blocked = PM_VELOCITY_CLIPPED_NONE;
+	pm_clipflags_t blocked = PM_VELOCITY_CLIPPED_NONE;
 
 	// If the plane that is blocking us has a positive z component, then assume it's a floor.
 	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
@@ -46,19 +62,18 @@ const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3
 	}
 
 	// Determine how far to slide based on the incoming direction.
-	// Finish it by scaling with overBounce factor.
-	double backoff = QM_Vector3DotProductDP( in, normal );
+	// Finish it by scaling by the overBounce factor.
+	double backOff = QM_Vector3DotProductDP( in, normal );
 
-	if ( backoff < 0. ) {
-		backoff *= overbounce;
+	// Amplifies reverse direction for bounce:
+	if ( backOff < 0. ) {
+		backOff *= overbounce;
+	// Reduces along-surface movement:
 	} else {
-		backoff /= overbounce;
+		backOff /= overbounce;
 	}
-
-	for ( int32_t i = 0; i < 3; i++ ) {
-		const double change = normal[ i ] * backoff;
-		out[ i ] = in[ i ] - change;
-	}
+	// Reflect the velocity along the normal.
+	out = in - ( normal * backOff );
 
 	#ifdef PM_SLIDEMOVE_BOUNCEVELOCITY_CLAMPING
 	{
@@ -76,12 +91,16 @@ const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3
 }
 
 /**
-*	@brief	Clips the velocity to surface normal.
+*	@brief	Slides("Clips"), the velocity (strictly-)along the surface normal.
+*	@details	Usage examples:
+*					- Wall sliding, no bounce.
+*					- Surface alignment, no bounce.
+*					- Preventing penetration without bounce.
 *	@return	The blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out ) {
+const pm_clipflags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out ) {
 	// Whether we're actually blocked or not.
-	pm_velocityClipFlags_t blocked = PM_VELOCITY_CLIPPED_NONE;
+	pm_clipflags_t blocked = PM_VELOCITY_CLIPPED_NONE;
 
 	// If the plane that is blocking us has a positive z component, then assume it's a floor.
 	if ( normal.z > 0 /*PM_MIN_WALL_NORMAL_Z*/ ) {
@@ -94,11 +113,8 @@ const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &
 
 	// Determine how far to slide based on the incoming direction.
 	// Finish it by scaling with overBounce factor.
-	double backoff = QM_Vector3DotProductDP( in, normal );
-	for ( int32_t i = 0; i < 3; i++ ) {
-		const double change = normal[ i ] * backoff;
-		out[ i ] = in[ i ] - change;
-	}
+	double backOff = QM_Vector3DotProductDP( in, normal );
+	out = in - ( normal * backOff );
 
 	#ifdef PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
 	{
@@ -127,7 +143,7 @@ const pm_velocityClipFlags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const pm_slideMoveFlags_t PM_SlideMove_Generic(
+const pm_slidemove_flags_t PM_SlideMove_Generic(
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.
@@ -135,7 +151,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 	//! Applies gravity if true.
 	const bool applyGravity
 ) {
-	pm_slideMoveFlags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
+	pm_slidemove_flags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
 
 	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
 	Vector3 dir = {};
@@ -474,7 +490,7 @@ const bool PM_StepSlideMove_Generic(
 *			Returns a new origin, velocity, and contact entity
 *			Does not modify any world state?
 **/
-const pm_slideMoveFlags_t PM_StepSlideMove_Generic(
+const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.
@@ -500,7 +516,7 @@ const pm_slideMoveFlags_t PM_StepSlideMove_Generic(
 	bool stepped = false;
 
 	// Move.
-	pm_slideMoveFlags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
+	pm_slidemove_flags_t slideMoveFlags = PM_SLIDEMOVEFLAG_NONE;
 	start_o = pm->state->pmove.origin;
 	start_v = pm->state->pmove.velocity;
 	slideMoveFlags |= PM_SlideMove_Generic( pm, pml, applyGravity );
@@ -693,7 +709,7 @@ const pm_slideMoveFlags_t PM_StepSlideMove_Generic(
 /**
 *	@brief	Predicts whether the step move actually stepped or not.
 **/
-const pm_slideMoveFlags_t PM_PredictStepMove(	
+const pm_slidemove_flags_t PM_PredictStepMove(	
 	//! Pointer to the player move instanced object we're dealing with.
 	pmove_t *pm,
 	//! Pointer to the actual player move local we're dealing with.
@@ -709,7 +725,7 @@ const pm_slideMoveFlags_t PM_PredictStepMove(
 	//const double stepSize = pm->step_height;
 	//const bool stepClip = pm->step_clip;
 	// Test for whether we'll step.
-	pm_slideMoveFlags_t moveResultFlags = PM_StepSlideMove_Generic( pm, pml, applyGravity, true );
+	pm_slidemove_flags_t moveResultFlags = PM_StepSlideMove_Generic( pm, pml, applyGravity, true );
 	// Restore the original, previous origin and velocity from before testing.
 	pm->state->pmove.origin = origin;
 	pm->state->pmove.velocity = velocity;

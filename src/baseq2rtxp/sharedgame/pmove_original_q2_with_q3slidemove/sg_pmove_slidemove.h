@@ -21,7 +21,7 @@ static constexpr float PM_MIN_WALL_NORMAL_Z = 0.03125;
 /**
 *	Slide Move Results:
 **/
-enum pm_velocityClipFlags_t {
+enum pm_clipflags_t {
     //! None.
     PM_VELOCITY_NOCLIP = 0,
     //! Velocity has not been clipped by a Floor, nor any Wall/Step.
@@ -31,7 +31,7 @@ enum pm_velocityClipFlags_t {
     //! Velocity has been clipped by a Wall/Step.
     PM_VELOCITY_CLIPPED_WALL_OR_STEP = BIT( 2 ),
 };
-QENUM_BIT_FLAGS( pm_velocityClipFlags_t );
+QENUM_BIT_FLAGS( pm_clipflags_t );
 
 
 /**
@@ -48,7 +48,7 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 *	@brief	Clips the velocity to surface normal.
 *			returns the blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
+const pm_clipflags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,

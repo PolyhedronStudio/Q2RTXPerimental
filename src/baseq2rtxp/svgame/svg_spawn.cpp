@@ -404,9 +404,12 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         // Invalid gamemode, default to singleplayer.
         game.gameModeType = requestedGameModeType = GAMEMODE_TYPE_SINGLEPLAYER;
         game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
+        // Developer warn just in case.
+		gi.dprintf( "[WARNING] Invalid gamemode requested, defaulting to singleplayer.\n" );
     }
     // Give it a chance to prepare any CVars that it needs to set up.
     game.mode->PrepareCVars();
+
     // Output the game mode type, and the maximum clients allowed for this session.
     gi.dprintf( "[GameMode(#%d): %s][maxclients=%d]\n",
         requestedGameModeType, SG_GetGameModeName( requestedGameModeType ), maxclients->integer );
@@ -425,7 +428,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     SVG_Player_SaveClientData();
 
     // Clamp maxentities within valid range.
-    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int)maxclients->integer + 1, MAX_EDICTS );
+    game.maxentities = QM_ClampUnsigned<uint32_t>( maxentities->integer, (int32_t)maxclients->integer + 1, MAX_EDICTS );
     // initialize all clients for this game
     game.maxclients = QM_ClampUnsigned<uint32_t>( maxclients->integer, 0, MAX_CLIENTS );
 

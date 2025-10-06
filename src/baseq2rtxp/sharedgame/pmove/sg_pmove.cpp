@@ -49,6 +49,137 @@ pml_t pml;
 //! An actual pointer to the pmove parameters object for use with moving.
 static pmoveParams_t *pmp;
 
+//! Needed for ground traces' impact detection.
+static void PM_CrashLand( void );
+
+
+
+
+
+/**
+*
+*
+*
+*	Misc
+*
+*
+*
+**/
+/**
+*	@brief	Returns the scale factor to apply to user input command movements
+*			This allows the clients to use axial -pmp_max_speed to pmp_max_speed values for all directions
+*			without getting a sqrt(2) distortion in speed.
+**/
+static double PM_CmdScale( const usercmd_t *cmd ) {
+	/**
+	*	Determine the maximum velocity direction force.
+	**/
+	// Forward move.
+	double max = std::fabs( cmd->forwardmove );
+	// Side move.
+	const double fabsSideMove = std::fabs( cmd->sidemove );
+	if ( fabsSideMove > max ) {
+		max = fabsSideMove;
+	}
+	// Up move.
+	const double fabsUpMove = std::fabs( cmd->upmove );
+	if ( fabsUpMove > max ) {
+		max = fabsUpMove;
+	}
+	/**
+	*	Now calculate the scale factor to use for applying to movement so we remain capped <= pmp->pm_max_speed.
+	**/
+	double scale = 0.;
+	if ( max ) {
+		// Movement direction vector.
+		const Vector3 vDirection = { cmd->forwardmove, cmd->sidemove, cmd->upmove };
+		// Get the total speed factor.
+		const double total = QM_Vector3LengthDP( vDirection );
+		// Calculate actual scale.
+		scale = pm->state->pmove.speed * max / ( /* 127 */ pmp->pm_max_speed * total );
+	}
+	// Bada bing bada boom.
+	return scale;
+}
+
+/**
+*	@brief	Sets the player's movement bounding box depending on various state factors.
+**/
+static void PM_UpdateBoundingBox() {
+	// Start with the default bbox for standing straight up.
+	pm->mins = PM_BBOX_STANDUP_MINS;
+	pm->maxs = PM_BBOX_STANDUP_MAXS;
+	pm->state->pmove.viewheight = PM_VIEWHEIGHT_STANDUP;
+
+	// Specifical gib treatment.
+	if ( pm->state->pmove.pm_type == PM_GIB ) {
+		pm->mins = PM_BBOX_GIBBED_MINS;
+		pm->maxs = PM_BBOX_GIBBED_MAXS;
+		pm->state->pmove.viewheight = PM_VIEWHEIGHT_GIBBED;
+		return;
+	}
+	// Give the spectator/noclipper a small 8x8x8 bounding box.
+	if ( pm->state->pmove.pm_type == PM_SPECTATOR || pm->state->pmove.pm_type == PM_NOCLIP ) {
+		pm->mins = PM_BBOX_FLYING_MINS;
+		pm->maxs = PM_BBOX_FLYING_MAXS;
+		pm->state->pmove.viewheight = PM_VIEWHEIGHT_FLYING;
+		return;
+	}
+
+	// Ducked AND Death BBox:
+	if ( pm->state->pmove.pm_type == PM_DEAD || ( pm->state->pmove.pm_flags & PMF_DUCKED ) ) {
+		//! Set bounds to ducked.
+		pm->mins = PM_BBOX_DUCKED_MINS;
+		pm->maxs = PM_BBOX_DUCKED_MAXS;
+		// Viewheight to ducked.
+		pm->state->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
+	}
+}
+
+/**
+*	@brief	Determine the vieworg's brush contents, apply Blend effect based on results.
+*			Also determines whether the view is underwater and to render it as such.
+**/
+static void PM_UpdateScreenContents() {
+	// Add for contents
+	Vector3 vieworg = {
+		pm->state->pmove.origin.x + pm->state->viewoffset.x,
+		pm->state->pmove.origin.y + pm->state->viewoffset.y,
+		pm->state->pmove.origin.z + pm->state->viewoffset.z + (float)pm->state->pmove.viewheight
+	};
+
+	// Get contents at view position.
+	const cm_contents_t contents = pm->pointcontents( &vieworg.x );//cm_contents_t contents = pm->pointcontents( vieworg );
+	// Under a 'liquid' like solid:
+	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) {
+		pm->state->rdflags |= RDF_UNDERWATER;
+		// Or not:
+	} else {
+		pm->state->rdflags &= ~RDF_UNDERWATER;
+	}
+
+	// Prevent it from adding screenblend if we're inside a client entity, by checking
+	// if its brush has CONTENTS_PLAYER set in its clipmask.
+	if ( !( contents & CONTENTS_PLAYER )
+		// Otherwise, add screen blend for inside solid and lava, as red color.
+		&& ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
+		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->state->screen_blend );
+		// Add screen blend for slime as "greenish" color.
+	} else if ( contents & CONTENTS_SLIME ) {
+		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->state->screen_blend );
+		// Add screen blend for water as "brownish" color.
+	} else if ( contents & CONTENTS_WATER ) {
+		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->state->screen_blend );
+	}
+}
+
+/**
+*	@brief	Inline-wrapper to for convenience.
+**/
+void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
+	SG_PlayerState_AddPredictableEvent( newEvent, parameter, pm->state );
+}
+
 
 
 /**
@@ -90,60 +221,190 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 
 	return pm->trace( &start.x, &mins.x, &maxs.x, &end.x, pm->playerEdict, contentMask );
 }
+
+
+
 /**
-*	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
+*
+*
+*
+*	Friction/Acceleration/Currents:
+*
+*
+*
 **/
-const cm_trace_t PM_TraceCorrectSolid( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, cm_contents_t contentMask ) {
-	// Spectators only clip against world, so use clip instead.
-	if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
-		return PM_Clip( start, mins, maxs, end, CM_CONTENTMASK_SOLID );
+/**
+*	@brief	Handles friction for the player, covering all scenarios.
+**/
+static void PM_Friction() {
+	// Get velocity.
+	const Vector3 velocity = pm->state->pmove.velocity;
+	// Ignore slope movement. ( Remove Z velocity. )
+	const Vector3 noSlopeVelocity = ( pml.isWalking ? Vector3( Vector2( velocity ) ) : Vector3( velocity ) );
+
+	// Set us to a halt, if our speed is too low, otherwise we'll see
+	// ourselves sort of 'drifting'.
+	//
+	// Allow for sinking underwater,so don't touch Z.
+	const double speed = QM_Vector3Length( pm->state->pmove.velocity );
+	// Allow sinking underwater.
+	if ( speed < 1. ) {
+		pm->state->pmove.velocity.x = 0.;
+		pm->state->pmove.velocity.y = 0.;
+		return;
 	}
 
-	if ( contentMask == CONTENTS_NONE ) {
-		if ( pm->state->pmove.pm_type == PM_DEAD || pm->state->pmove.pm_type == PM_GIB ) {
-			contentMask = CM_CONTENTMASK_DEADSOLID;
-		} else if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
-			contentMask = CM_CONTENTMASK_SOLID;
-		} else {
-			contentMask = CM_CONTENTMASK_PLAYERSOLID;
-		}
+	// Drop value.
+	double drop = 0.;
 
-		//if ( pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION )
-		//	mask &= ~CONTENTS_PLAYER;
+	// Apply ground friction if on-ground.
+	#ifdef PMOVE_USE_MATERIAL_FRICTION
+	if ( ( pm->ground.entity != nullptr
+		&& ( pml.groundTrace.surface != nullptr && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
+		) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
+		) {
+		// Get the material to fetch friction from.
+		cm_material_t *ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
+		double friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
+		const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+		drop += control * friction * pml.frameTime;
+	}
+	#else
+		// Apply ground friction if on-ground.
+	if ( ( pm->ground.entity && pml.groundTrace.surface
+		&& !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
+		|| ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
+		) {
+		const float friction = pmp->pm_friction;
+		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+		drop += control * friction * pml.frameTime;
+	}
+	#endif
+	const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+	// Apply water friction, and not off-ground yet on a ladder.
+	if ( pm->liquid.level && !( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
+		drop += speed * pmp->pm_water_friction * (float)pm->liquid.level * pml.frameTime;
+	}
+	// Apply flying friction for spectator/noclip.
+	if ( pm->state->pmove.pm_type == PM_SPECTATOR || pm->state->pmove.pm_type == PM_NOCLIP ) {
+		// Spectator friction.
+		drop += control * pmp->pm_fly_friction * pml.frameTime;
 	}
 
-	const vec3_t offsets = { 0.f, 1.f, -1.f };
-
-	// Jitter around
-	for ( int32_t i = -1; i < 1; i++ ) {
-		for ( int32_t j = -1; j < 1; j++ ) {
-			for ( int32_t k = -1; k < 1; k++ ) {
-				// Calculate start.
-				const Vector3 point = start + vec3_t{
-					(float)i,
-					(float)j,
-					(float)k//offsets[ i ],
-					//offsets[ j ],
-					//offsets[ k ]
-				};
-
-				cm_trace_t trace = pm->trace( &point.x, &mins.x, &maxs.x, &end.x, pm->playerEdict, contentMask );
-				if ( !trace.startsolid ) {
-					return trace;
-				}
-			}
-		}
+	// Scale the velocity.
+	double newSpeed = speed - drop;
+	if ( newSpeed < 0. ) {
+		newSpeed = 0.;
 	}
-	return pm->trace( &start.x, &mins.x, &maxs.x, &end.x, pm->playerEdict, contentMask );
+	newSpeed /= speed;
+	pm->state->pmove.velocity *= newSpeed;
 }
 
+/**
+*	@brief	Handles user intended 'mid-air' acceleration.
+**/
+static void PM_AirAccelerate( const Vector3 &wishDirection, const double wishSpeed, const double acceleration ) {
+	// Cap air acceleration speed if set.
+	const double air_wish_speed_cap = pmp->pm_air_wish_speed_cap;
+	const double wishspd = ( wishSpeed > air_wish_speed_cap && air_wish_speed_cap ? air_wish_speed_cap : wishSpeed );
+
+	// See if we are changing direction a bit.
+	const double currentspeed = QM_Vector3DotProduct( pm->state->pmove.velocity, wishDirection );
+	const double addSpeed = wishspd - currentspeed;
+	if ( addSpeed <= 0 ) {
+		return;
+	}
+
+	// Use the same acceleration as on-ground, but scaled down.
+	double accelerationSpeed = acceleration * wishSpeed * pml.frameTime;
+	if ( accelerationSpeed > addSpeed ) {
+		accelerationSpeed = addSpeed;
+	}
+
+	// Adjust the velocity.
+	pm->state->pmove.velocity = QM_Vector3MultiplyAdd( pm->state->pmove.velocity, accelerationSpeed, wishDirection );
+}
+
+// HL like Acceleration:
+#ifdef HL_LIKE_ACCELERATION
+/**
+*	@brief	Handles user intended acceleration(Supposed HL formula).
+**/
+static void PM_Accelerate( const Vector3 &wishDirection, const double wishSpeed, const double acceleration ) {
+	const double currentspeed = QM_Vector3DotProductDP( pm->state->pmove.velocity, wishDirection );
+	const double addSpeed = wishSpeed - currentspeed;
+	if ( addSpeed <= 0. ) {
+		return;
+	}
+
+	// HL like acceleration.
+	double drop = 0.;
+	double friction = 1.;
+	if ( ( pm->ground.entity != nullptr
+		&& ( pml.groundTrace.surface != nullptr
+			&& !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) ) )
+		|| ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
+		// Get the material to fetch friction from.
+		cm_material_t * ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
+		friction = ( ground_material ? ground_material->physical.friction : 1 );
+		//const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+		//drop += control * friction * pml.frameTime;
+	}
+	double accelerationSpeed = acceleration * pml.frameTime * wishSpeed * friction;
+	if ( accelerationSpeed > addSpeed ) {
+		accelerationSpeed = addSpeed;
+	}
+
+	double accelerationSpeed = acceleration * pml.frameTime * wishSpeed;
+	if ( accelerationSpeed > addSpeed ) {
+		accelerationSpeed = addSpeed;
+	}
+
+	pm->state->pmove.velocity = QM_Vector3MultiplyAdd( pm->state->pmove.velocity, accelerationSpeed, wishDirection );
+}
+// Vanilla Q2RTX Acceleration:
+#else
+/**
+*	@brief	Handles user intended acceleration.
+**/
+static void PM_Accelerate( const Vector3 &wishDirection, const double wishSpeed, const double acceleration ) {
+	// Q2 Acceleration:
+	#if 1
+		const double currentspeed = QM_Vector3DotProductDP( pm->state->pmove.velocity, wishDirection );
+		const double addSpeed = wishSpeed - currentspeed;
+		if ( addSpeed <= 0. ) {
+			return;
+		}
+
+		double accelerationSpeed = acceleration * pml.frameTime * wishSpeed;
+		if ( accelerationSpeed > addSpeed ) {
+			accelerationSpeed = addSpeed;
+		}
+
+		pm->state->pmove.velocity = QM_Vector3MultiplyAdd( pm->state->pmove.velocity, accelerationSpeed, wishDirection );
+	// Q3: Prevents Jump Strafe "bug" but claimed to feel bad by some.
+	#else
+		const Vector3 wishVelocity = QM_Vector3Scale( wishDirection, wishSpeed );
+		Vector3 pushDirection = wishVelocity - pm->state->pmove.velocity;
+		const double pushLength = QM_Vector3NormalizeLength( pushDirection );
+		double canPush = acceleration * pml.frameTime * wishSpeed;
+		if ( canPush > pushLength ) {
+			canPush = pushLength;
+		}
+		pm->state->pmove.velocity = QM_Vector3MultiplyAdd( pm->state->pmove.velocity, canPush, pushDirection );
+	#endif
+}
+#endif
+
 
 
 /**
 *
 *
+* 
 *	Touch Entities List:
 *
+* 
 *
 **/
 /**
@@ -178,104 +439,6 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 /**
 *
 *
-*
-*	Misc
-*
-*
-*
-**/
-/**
-*	@brief	Inline-wrapper to for convenience.
-**/
-void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
-	SG_PlayerState_AddPredictableEvent( newEvent, parameter, pm->state );
-}
-static void PM_CrashLand( void ) {
-	#if 0
-	// Decide which landing animation to use.
-	if ( pm->state->pmove->pm_flags & PMF_JUMP_HELD ) {
-		PM_ForceLegsAnim( LEGS_LANDB );
-	} else if ( pm->state->pmove.pm_flags & PMF_TIME_KNOCKBACK ) {
-		PM_ForceLegsAnim( LEGS_LAND );
-	}
-	// Set legs timer.
-	pm->ps->legsTimer = TIMER_LAND;
-	#endif
-
-	// First make sure to reset it just in case.
-	pm->impact_delta = 0.;
-
-	// Calculate the exact velocity on landing.
-	const double zDistance = pm->state->pmove.origin.z - pml.previousOrigin.z;
-	const double zVelocity = pml.previousVelocity.z;
-	const double acceleration = -pm->state->pmove.gravity;
-
-	const double a = acceleration / 2.;
-	const double b = zVelocity;
-	const double c = -zDistance;
-
-	const double den = b * b - 4. * a * c;
-	if ( den < 0. ) {
-		return;
-	}
-	const double t = ( -b - sqrt( den ) ) / ( 2. * a );
-
-	double delta = zVelocity + t * acceleration;
-	delta = delta * delta * 0.0001;
-
-	// Ducking while falling doubles damage.
-	if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
-		delta *= 2.;
-	}
-	// Vever take falling damage if completely underwater.
-	if ( pm->liquid.level == LIQUID_UNDER ) {
-		return;
-	}
-	// Reduce falling damage if there is with the waist standing in the water.
-	if ( pm->liquid.level == LIQUID_WAIST ) {
-		delta *= 0.25;
-	}
-	// Reduce falling damage if there is with the feet standing in the water.
-	if ( pm->liquid.level == LIQUID_FEET ) {
-		delta *= 0.5;
-	}
-	// Ignore if negative delta.
-	if ( delta < 1. ) {
-		return;
-	}
-	// Apply impact delta.
-	pm->impact_delta = delta;
-
-	#if 0
-	// create a local entity event to play the sound
-
-	// SURF_NODAMAGE is used for bounce pads where you don't ever
-	// want to take damage or play a crunch sound
-	if ( !( pml.groundTrace.surfaceFlags & SURF_NODAMAGE ) ) {
-		if ( delta > 60 ) {
-			PM_AddEvent( EV_FALL_FAR );
-		} else if ( delta > 40 ) {
-			// this is a pain grunt, so don't play it if dead
-			if ( pm->ps->stats[ STAT_HEALTH ] > 0 ) {
-				PM_AddEvent( EV_FALL_MEDIUM );
-			}
-		} else if ( delta > 7 ) {
-			PM_AddEvent( EV_FALL_SHORT );
-		} else {
-			PM_AddEvent( PM_FootstepForSurface() );
-		}
-	}
-	#endif
-
-	// start footstep cycle over
-	pm->state->bobCycle = 0;
-}
-
-
-
-/**
-*
-*
 * 
 *	Categorization of liquid/ground information:
 *
@@ -283,79 +446,9 @@ static void PM_CrashLand( void ) {
 * 
 **/
 /**
-*	@brief	Determine the vieworg's brush contents, apply Blend effect based on results.
-*			Also determines whether the view is underwater and to render it as such.
-**/
-static void PM_UpdateScreenContents() {
-	// Add for contents
-	Vector3 vieworg = {
-		pm->state->pmove.origin.x + pm->state->viewoffset.x,
-		pm->state->pmove.origin.y + pm->state->viewoffset.y,
-		pm->state->pmove.origin.z + pm->state->viewoffset.z + (float)pm->state->pmove.viewheight
-	};
-	const cm_contents_t contents = pm->pointcontents( &vieworg.x );//cm_contents_t contents = pm->pointcontents( vieworg );
-
-	// Under a 'water' like solid:
-	if ( contents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) {
-		pm->state->rdflags |= RDF_UNDERWATER;
-		// Or not:
-	} else {
-		pm->state->rdflags &= ~RDF_UNDERWATER;
-	}
-
-	// Prevent it from adding screenblend if we're inside a client entity, by checking
-	// if its brush has CONTENTS_PLAYER set in its clipmask.
-	if ( !( contents & CONTENTS_PLAYER )
-		&& ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
-		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->state->screen_blend );
-	} else if ( contents & CONTENTS_SLIME ) {
-		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->state->screen_blend );
-	} else if ( contents & CONTENTS_WATER ) {
-		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->state->screen_blend );
-	}
-}
-/**
-*	@brief	Will fill in the cm_liquid_level_t and cm_contents_t references with the data 
-*			found at the specified position.
-**/
-static inline void PM_GetWaterLevel( const Vector3 &position, cm_liquid_level_t &level, cm_contents_t &type ) {
-	//
-	// get liquid.level, accounting for ducking
-	//
-	level = cm_liquid_level_t::LIQUID_NONE;
-	type = CONTENTS_NONE;
-
-	int32_t sample2 = (int)( pm->state->pmove.viewheight - pm->mins.z );
-	int32_t sample1 = sample2 / 2;
-
-	Vector3 point = position;
-
-	point.z += pm->mins.z + 1;
-
-	cm_contents_t contentType = pm->pointcontents( &point.x );
-
-	if ( contentType & CM_CONTENTMASK_WATER ) {
-		sample2 = pm->state->pmove.viewheight - pm->mins.z;
-		sample1 = sample2 / 2;
-
-		type = contentType;
-		level = cm_liquid_level_t::LIQUID_FEET;
-		point.z = pm->state->pmove.origin.z + pm->mins.z + sample1;
-		contentType = pm->pointcontents( &point.x );
-		if ( contentType & CM_CONTENTMASK_WATER ) {
-			level = cm_liquid_level_t::LIQUID_WAIST;
-			point.z = pm->state->pmove.origin.z + pm->mins.z + sample2;
-			contentType = pm->pointcontents( &point.x );
-			if ( contentType & CM_CONTENTMASK_WATER ) {
-				level = cm_liquid_level_t::LIQUID_UNDER;
-			}
-		}
-	}
-}
-/**
 *	@brief	Determine whether we're above water, or not.
 **/
-static inline const bool PM_AboveWater() {
+static inline const bool PM_AboveLiquid() {
 	// Testing point.
 	const Vector3 below = pm->state->pmove.origin + Vector3{ 0, 0, -8 };
 	// We got solid below, not water:
@@ -373,126 +466,261 @@ static inline const bool PM_AboveWater() {
 	// No water below.
 	return false;
 }
-
-
-
 /**
-*
-*
-*	Acceleration/Friction/Currents:
-*
-*
+*	@brief	Will fill in the cm_liquid_level_t and cm_contents_t BSP/Hull data,
+*			for the the specified position.
 **/
-/**
-*	@brief	Handles user intended acceleration.
-**/
-static void PM_Accelerate( const Vector3 &wishDirection, const float wishSpeed, const float acceleration ) {
-	const float currentspeed = QM_Vector3DotProduct( pm->state->pmove.velocity, wishDirection );
-	const float addSpeed = wishSpeed - currentspeed;
-	if ( addSpeed <= 0 ) {
-		return;
-	}
+static inline void PM_GetLiquidContentsForPoint( const Vector3 &position, cm_liquid_level_t &level, cm_contents_t &type ) {
+	// Default to none.
+	level = cm_liquid_level_t::LIQUID_NONE;
+	type = CONTENTS_NONE;
 
-	// HL like acceleration.
-	#ifdef HL_LIKE_ACCELERATION
-	float drop = 0;
-	float friction = 1;
-	if ( ( pm->ground.entity != nullptr
-		&& ( pml.groundTrace.surface != nullptr
-			&& !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) ) )
-		|| ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
-		// Get the material to fetch friction from.
-		cm_material_t * ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
-		friction = ( ground_material ? ground_material->physical.friction : 1 );
-		//const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
-		//drop += control * friction * pml.frameTime;
-	}
-	float accelerationSpeed = acceleration * pml.frameTime * wishSpeed * friction;
-	if ( accelerationSpeed > addSpeed ) {
-		accelerationSpeed = addSpeed;
-	}
-	#endif
+	// Determine the height of the samples.
+	double sample2 = (int)( pm->state->pmove.viewheight - pm->mins.z );
+	double sample1 = sample2 / 2.;
 
-	float accelerationSpeed = acceleration * pml.frameTime * wishSpeed;
-	if ( accelerationSpeed > addSpeed ) {
-		accelerationSpeed = addSpeed;
-	}
+	// First sample point, just above feet.
+	Vector3 point = position;
+	point.z += pm->mins.z + 1;
+	// Get contents at feet.
+	cm_contents_t contentType = pm->pointcontents( &point.x );
 
-	pm->state->pmove.velocity = QM_Vector3MultiplyAdd( pm->state->pmove.velocity, accelerationSpeed, wishDirection );
-}
-/**
-*	@brief	Handles user intended 'mid-air' acceleration.
-**/
-static void PM_AirAccelerate( const Vector3 &wishDirection, const float wishSpeed, const float acceleration ) {
-	float wishspd = wishSpeed;
-	if ( wishspd > 30 ) {
-		wishspd = 30;
-	}
+	// If we found a liquid, sample further up.
+	if ( contentType & CM_CONTENTMASK_WATER ) {
+		// Second sample point, halfway up body.
+		sample2 = pm->state->pmove.viewheight - pm->mins.z;
+		sample1 = sample2 / 2;
+		// Set the content type and the level to feet.
+		type = contentType;
+		level = cm_liquid_level_t::LIQUID_FEET;
 
-	const float currentspeed = QM_Vector3DotProduct( pm->state->pmove.velocity, wishDirection );
-	const float addSpeed = wishspd - currentspeed;
-	if ( addSpeed <= 0 ) {
-		return;
-	}
+		// Sample halfway up body.
+		point.z = pm->state->pmove.origin.z + pm->mins.z + sample1;
+		contentType = pm->pointcontents( &point.x );
+		// If we found a liquid, sample further up.
+		if ( contentType & CM_CONTENTMASK_WATER ) {
+			// Set level to waist.
+			level = cm_liquid_level_t::LIQUID_WAIST;
 
-	float accelerationSpeed = acceleration * wishSpeed * pml.frameTime;
-	if ( accelerationSpeed > addSpeed ) {
-		accelerationSpeed = addSpeed;
-	}
-
-	pm->state->pmove.velocity = QM_Vector3MultiplyAdd( pm->state->pmove.velocity, accelerationSpeed, wishDirection );
-}
-/**
-*	@brief	Handles both ground friction and water friction
-**/
-static void PM_Friction() {
-	// Set us to a halt, if our speed is too low, otherwise we'll see
-	// ourselves sort of 'drifting'.
-	const float speed = QM_Vector3Length( pm->state->pmove.velocity );//sqrtf( pm->state->pmove.velocity.x * pm->state->pmove.velocity.x + pm->state->pmove.velocity.y * pm->state->pmove.velocity.y + pm->state->pmove.velocity.z * pm->state->pmove.velocity.z );
-	if ( speed < 1 ) {
-		pm->state->pmove.velocity.x = 0;
-		pm->state->pmove.velocity.y = 0;
-		return;
-	}
-
-	// Apply ground friction if on-ground.
-	#ifdef PMOVE_USE_MATERIAL_FRICTION
-		float drop = 0;
-		if ( ( pm->ground.entity != nullptr
-			&& ( pml.groundTrace.surface != nullptr
-			&& !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) ) )
-			|| ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
-		) {
-			// Get the material to fetch friction from.
-			cm_material_t *ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
-			float friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
-			const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
-			drop += control * friction * pml.frameTime;
+			// Sample at eye level.
+			point.z = pm->state->pmove.origin.z + pm->mins.z + sample2;
+			contentType = pm->pointcontents( &point.x );
+			// If we found a liquid, set level to eyes.
+			if ( contentType & CM_CONTENTMASK_WATER ) {
+				level = cm_liquid_level_t::LIQUID_UNDER;
+			}
 		}
-	#else
-		// Apply ground friction if on-ground.
-		float drop = 0;
-		if ( ( pm->ground.entity && pml.groundTrace.surface && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) ) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
-			const float friction = pmp->pm_friction;
-			const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
-			drop += control * friction * pml.frameTime;
+	}
+}
+
+
+
+/**
+*
+*
+*
+*	Ground Tracing:
+*
+*
+*
+**/
+/**
+*	@brief	Corrects a allsolid ground trace by jittering around the current position.
+*			Returns true if a valid ground trace was found.
+*	@note	In case of success the pml.groundTrace will be set to the new valid trace.
+*			When this function returns false, the player is in freefall.
+**/
+static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
+	int32_t	i, j, k;
+
+	//if ( pm->debugLevel ) {
+	//	Com_Printf( "%i:allsolid\n", c_pmove );
+	//}
+	Vector3 testPoint = {};
+
+	// jitter around
+	for ( i = -1; i <= 1; i++ ) {
+		for ( j = -1; j <= 1; j++ ) {
+			for ( k = -1; k <= 1; k++ ) {
+				testPoint = pm->state->pmove.origin;
+				testPoint[ 0 ] += (float)i;
+				testPoint[ 1 ] += (float)j;
+				testPoint[ 2 ] += (float)k;
+				*trace = PM_Trace( testPoint, pm->mins, pm->maxs, testPoint );
+				if ( !trace->allsolid ) {
+					Vector3 down_point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, 0.25f };
+					*trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down_point );
+					pml.groundTrace = *trace;
+					return true;
+				}
+			}
 		}
-	#endif
-	// Apply water friction, and not off-ground yet on a ladder.
-	if ( pm->liquid.level && !( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
-		drop += speed * pmp->pm_water_friction * (float)pm->liquid.level * pml.frameTime;
 	}
 
-	// Scale the velocity.
-	float newspeed = speed - drop;
-	if ( newspeed <= 0 ) {
-		newspeed = 0;
-		pm->state->pmove.velocity = {};
+	// Not walking or on ground.
+	pml.hasGroundPlane = false;
+	pml.isWalking = false;
+	pml.isAerial = true;
+	pm->ground.entity = nullptr;
+
+	return false;
+}
+
+/**
+*	@brief	The ground trace didn't hit a surface, so we are in freefall
+**/
+static void PM_GroundTraceMissed( void ) {
+	Vector3		point = {};
+
+	if ( pm->ground.entity != nullptr/*pm->ps->groundEntityNum != ENTITYNUM_NONE*/ ) {
+		//// we just transitioned into freefall
+		//if ( pm->debugLevel ) {
+		//	Com_Printf( "%i:lift\n", c_pmove );
+		//}
+		#if 0
+		// if they aren't in a jumping animation and the ground is a ways away, force into it
+		// if we didn't do the trace, the player would be backflipping down staircases
+		VectorCopy( pm->ps->origin, point );
+		point[ 2 ] -= 64;
+		trace_t		trace;
+		pm->trace( &trace, pm->ps->origin, pm->mins, pm->maxs, point, pm->ps->clientNum, pm->tracemask );
+		if ( trace.fraction == 1.0 ) {
+			if ( pm->cmd.forwardmove >= 0 ) {
+				PM_ForceLegsAnim( LEGS_JUMP );
+				pm->ps->pm_flags &= ~PMF_BACKWARDS_JUMP;
+			} else {
+				PM_ForceLegsAnim( LEGS_JUMPB );
+				pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
+			}
+		}
+		#endif
+	}
+}
+
+/**
+*	@brief	Called before, and after moving, to catagorize which entity/surface/plane we're standing
+*			on if any at all.
+**/
+static void PM_GroundTrace( void ) {
+	// Trace downwards to find ground.
+	Vector3 point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
+	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, point );
+	// Assign the ground trace.
+	pml.groundTrace = trace;
+
+	// Do something corrective if the trace starts in a solid.
+	if ( trace.allsolid ) {
+		// Did not find valid ground.
+		if ( !PM_CorrectAllSolidGround( &trace ) ) {
+			return;
+		}
+	}
+
+	// If the trace didn't hit anything, we are in free fall.
+	if ( trace.fraction == 1.0 ) {
+		PM_GroundTraceMissed();
+
+		pm->ground.entity = nullptr;
+		pml.hasGroundPlane = false;
+		pml.isWalking = false;
+		pml.isAerial = true;
+		return;
+	}
+
+	// Check if getting thrown off the ground
+	if ( pm->state->pmove.velocity.z > 0 && QM_Vector3DotProduct( pm->state->pmove.velocity, trace.plane.normal ) > 10. ) {
+		//if ( pm->debugLevel ) {
+		//	Com_Printf( "%i:kickoff\n", c_pmove );
+		//}
+		#if 0
+		// go into jump animation
+		if ( pm->cmd.forwardmove >= 0 ) {
+			PM_ForceLegsAnim( LEGS_JUMP );
+			pm->ps->pm_flags &= ~PMF_BACKWARDS_JUMP;
+		} else {
+			PM_ForceLegsAnim( LEGS_JUMPB );
+			pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
+		}
+		#endif
+		pm->ground.entity = nullptr;
+		pml.hasGroundPlane = false;
+		pml.isWalking = false;
+		pml.isAerial = true;
+		return;
+	}
+
+	// slopes that are too steep and thus will not be considered onground
+	if ( trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
+		//if ( pm->debugLevel ) {
+		//	Com_Printf( "%i:steep\n", c_pmove );
+		//}
+
+		// <Q2RTXP>: This is what Q3 said anyhow.
+		// FIXME: if they can't slide down the slope, let them
+		// walk (sharp crevices)
+		pm->ground.entity = nullptr;
+		pml.hasGroundPlane = true;
+		pml.isWalking = false;
+		pml.isAerial = false;
+		return;
+	}
+
+	pml.hasGroundPlane = true;
+	pml.isWalking = true;
+	pml.isAerial = false;
+
+	// Hitting solid ground will end a waterjump.
+	if ( pm->state->pmove.pm_flags & PMF_TIME_WATERJUMP ) {
+		pm->state->pmove.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND );
+		pm->state->pmove.pm_time = 0;
+	}
+
+	if ( pm->ground.entity == nullptr ) {
+		//// just hit the ground
+		//if ( pm->debugLevel ) {
+		//	Com_Printf( "%i:Land\n", c_pmove );
+		//}
+
+		// Damage crash landing.
+		PM_CrashLand();
+
+		// Don't do landing time if we were just going down a slope.
+		if ( pml.previousVelocity.z < -200. ) {
+			// Don't allow another jump for a little while
+			pm->state->pmove.pm_flags |= PMF_TIME_LAND;
+			pm->state->pmove.pm_time = 24;
+		}
+	}
+
+	// If we have an entity, or a ground plane, assign the remaining ground properties.
+	if ( pml.hasGroundPlane || pm->ground.entity ) {
+		if ( pml.hasGroundPlane ) {
+			pm->ground.plane = pml.groundTrace.plane;
+			//}
+			// <Q2RTXP>: WID: This one is already zerod out at pmove preparation.
+		} else {
+			pm->ground.plane = {};
+		}
+		pm->ground.contents = pml.groundTrace.contents;
+		pm->ground.material = ( pml.groundTrace.material ? pml.groundTrace.material : nullptr );
+		pm->ground.surface = ( pml.groundTrace.surface ? *pml.groundTrace.surface : cm_surface_t() );
 	} else {
-		newspeed /= speed;
-		pm->state->pmove.velocity *= newspeed;
+		//pm->ground = {};
 	}
+	// Always fetch the actual entity found by the ground trace.
+	pm->ground.entity = ( SG_GetEntityForNumber( trace.entityNumber ) );
+
+	// Don't reset the z velocity for slopes.
+//	pm->ps->velocity[2] = 0;
+
+	// Register the touch trace.
+	PM_RegisterTouchTrace( pm->touchTraces, trace );
 }
+
+
+
+#if 0
+
 /**
 *	@brief	Handles the velocities for 'ladders', as well as water and conveyor belt by applying their 'currents'.
 **/
@@ -581,7 +809,7 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			}
 		}
 	}
-
+	
 	// Add water currents.
 	if ( pm->liquid.type & CM_CONTENTMASK_CURRENT ) {
 		Vector3 velocity = QM_Vector3Zero();
@@ -640,81 +868,19 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 		wishVelocity = QM_Vector3MultiplyAdd( wishVelocity, 100.f, velocity );
 	}
 }
+#endif
+
 
 
 /**
 *
 *
 *
-*	Special Movement: Jump and Duck!
+*	Special Movement: Duck, Jump, and Jump (Crash-)landing!
 *
 *
 *
 **/
-/**
-*	@brief	Returns the scale factor to apply to user input command movements
-*			This allows the clients to use axial -pmp_max_speed to pmp_max_speed values for all directions
-*			without getting a sqrt(2) distortion in speed.
-**/
-static double PM_CmdScale( const usercmd_t *cmd ) {
-	// Movement direction vector.
-	const Vector3 vDirection = { cmd->forwardmove, cmd->sidemove, cmd->upmove };
-
-	/**
-	*	Determine the maximum velocity direction force.
-	**/
-	// Forward move.
-	double max = std::fabs( cmd->forwardmove );
-	// Side move.
-	const double fabsSideMove = std::fabs( cmd->sidemove );
-	if ( fabsSideMove > max ) {
-		max = fabsSideMove;
-	}
-	// Up move.
-	const double fabsUpMove = std::fabs( cmd->upmove );
-	if ( fabsUpMove > max ) {
-		max = fabsUpMove;
-	}
-	/**
-	*	Now calculate the scale factor to use for applying to movement so we remain capped <= pmp->pm_max_speed.
-	**/
-	double scale = 0.;
-	if ( max ) {
-		// Get the total speed factor.
-		const double total = QM_Vector3LengthDP( vDirection );
-		// Calculate actual scale.
-		scale = pm->state->pmove.speed * max / ( /* 127 */ pmp->pm_max_speed * total );
-	}
-	// Bada bing bada boom.
-	return scale;
-}
-
-/**
-*	@brief	Sets the player's movement bounding box depending on various state factors.
-**/
-static void PM_SetDimensions() {
-	// Start with the default bbox for standing straight up.
-	pm->mins = PM_BBOX_STANDUP_MINS;
-	pm->maxs = PM_BBOX_STANDUP_MAXS;
-	pm->state->pmove.viewheight = PM_VIEWHEIGHT_STANDUP;
-
-	// Specifical gib treatment.
-	if ( pm->state->pmove.pm_type == PM_GIB ) {
-		pm->mins = PM_BBOX_GIBBED_MINS;
-		pm->maxs = PM_BBOX_GIBBED_MAXS;
-		pm->state->pmove.viewheight = PM_VIEWHEIGHT_GIBBED;
-		return;
-	}
-
-	// Dead BBox:
-	if ( ( pm->state->pmove.pm_flags & PMF_DUCKED ) || pm->state->pmove.pm_type == PM_DEAD ) {
-		//! Set bounds to ducked.
-		pm->mins = PM_BBOX_DUCKED_MINS;
-		pm->maxs = PM_BBOX_DUCKED_MAXS;
-		// Viewheight to ducked.
-		pm->state->pmove.viewheight = PM_VIEWHEIGHT_DUCKED;
-	}
-}
 /**
 *	@brief	Decide whether to duck, and/or unduck.
 **/
@@ -738,7 +904,7 @@ static inline const bool PM_CheckDuck() {
 		// Duck:
 	} else if (
 		( pm->cmd.buttons & BUTTON_CROUCH ) &&
-		( /*pm->ground.entity*/ pml.isWalking || ( pm->liquid.level <= cm_liquid_level_t::LIQUID_FEET && !PM_AboveWater() ) ) &&
+		( /*pm->ground.entity*/ pml.isWalking || ( pm->liquid.level <= cm_liquid_level_t::LIQUID_FEET && !PM_AboveLiquid() ) ) &&
 		!( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		if ( !( pm->state->pmove.pm_flags & PMF_DUCKED ) ) {
 			// check that duck won't be blocked
@@ -773,10 +939,94 @@ static inline const bool PM_CheckDuck() {
 	}
 
 	// Determine the possible new dimensions since our flags have changed.
-	PM_SetDimensions();
+	PM_UpdateBoundingBox();
 
 	// We're ducked.
 	return true;
+}
+
+/**
+*	@brief	Checks for hard landings that generate sound events and impact damage.
+**/
+static void PM_CrashLand( void ) {
+	#if 0
+	// Decide which landing animation to use.
+	if ( pm->state->pmove->pm_flags & PMF_JUMP_HELD ) {
+		PM_ForceLegsAnim( LEGS_LANDB );
+	} else if ( pm->state->pmove.pm_flags & PMF_TIME_KNOCKBACK ) {
+		PM_ForceLegsAnim( LEGS_LAND );
+	}
+	// Set legs timer.
+	pm->ps->legsTimer = TIMER_LAND;
+	#endif
+
+	// First make sure to reset it just in case.
+	pm->impact_delta = 0.;
+
+	// Calculate the exact velocity on landing.
+	const double zDistance = pm->state->pmove.origin.z - pml.previousOrigin.z;
+	const double zVelocity = pml.previousVelocity.z;
+	const double acceleration = -pm->state->pmove.gravity;
+
+	const double a = acceleration / 2.;
+	const double b = zVelocity;
+	const double c = -zDistance;
+
+	const double den = b * b - 4. * a * c;
+	if ( den < 0. ) {
+		return;
+	}
+	const double t = ( -b - sqrt( den ) ) / ( 2. * a );
+
+	double delta = zVelocity + t * acceleration;
+	delta = delta * delta * 0.0001;
+
+	// Ducking while falling doubles damage.
+	if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
+		delta *= 2.;
+	}
+	// Vever take falling damage if completely underwater.
+	if ( pm->liquid.level == LIQUID_UNDER ) {
+		return;
+	}
+	// Reduce falling damage if there is with the waist standing in the water.
+	if ( pm->liquid.level == LIQUID_WAIST ) {
+		delta *= 0.25;
+	}
+	// Reduce falling damage if there is with the feet standing in the water.
+	if ( pm->liquid.level == LIQUID_FEET ) {
+		delta *= 0.5;
+	}
+	// Ignore if negative delta.
+	if ( delta < 1. ) {
+		return;
+	}
+	// Apply impact delta.
+	pm->impact_delta = delta;
+
+	#if 0
+	// create a local entity event to play the sound
+
+	// SURF_NODAMAGE is used for bounce pads where you don't ever
+	// want to take damage or play a crunch sound
+	if ( !( pml.groundTrace.surfaceFlags & SURF_NODAMAGE ) ) {
+		if ( delta > 60 ) {
+			PM_AddEvent( EV_FALL_FAR );
+		} else if ( delta > 40 ) {
+			// this is a pain grunt, so don't play it if dead
+			if ( pm->ps->stats[ STAT_HEALTH ] > 0 ) {
+				PM_AddEvent( EV_FALL_MEDIUM );
+			}
+		} else if ( delta > 7 ) {
+			PM_AddEvent( EV_FALL_SHORT );
+		} else {
+			PM_AddEvent( PM_FootstepForSurface() );
+		}
+	}
+	#endif
+
+	// start footstep cycle over
+	pm->state->bobCycle = 0;
 }
 /**
 *	@brief	Will engage into the jump movement.
@@ -852,212 +1102,11 @@ static const bool PM_CheckJump() {
 
 
 
-
-/**
-*
-* 
-* 
-*	Ground Tracing:
-* 
-* 
-* 
-**/
-/**
-*	@brief	
-**/
-static const int32_t PM_CorrectAllSolid( cm_trace_t *trace ) {
-	int32_t	i, j, k;
-
-	//if ( pm->debugLevel ) {
-	//	Com_Printf( "%i:allsolid\n", c_pmove );
-	//}
-	Vector3 testPoint = {};
-
-	// jitter around
-	for ( i = -1; i <= 1; i++ ) {
-		for ( j = -1; j <= 1; j++ ) {
-			for ( k = -1; k <= 1; k++ ) {
-				testPoint = pm->state->pmove.origin;
-				testPoint[ 0 ] += (float)i;
-				testPoint[ 1 ] += (float)j;
-				testPoint[ 2 ] += (float)k;
-				*trace = PM_Trace( testPoint, pm->mins, pm->maxs, testPoint );
-				if ( !trace->allsolid ) {
-					Vector3 down_point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, 0.25f };
-					*trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down_point );
-					pml.groundTrace = *trace;
-					return true;
-				}
-			}
-		}
-	}
-
-	// Not walking or on ground.
-	pml.hasGroundPlane = false;
-	pml.isWalking = false;
-	pml.isAerial = true;
-	pm->ground.entity = nullptr;
-
-	return false;
-}
-
-/**
-*	@brief	The ground trace didn't hit a surface, so we are in freefall
-**/
-static void PM_GroundTraceMissed( void ) {
-	Vector3		point = {};
-
-	if ( pm->ground.entity != nullptr/*pm->ps->groundEntityNum != ENTITYNUM_NONE*/ ) {
-		//// we just transitioned into freefall
-		//if ( pm->debugLevel ) {
-		//	Com_Printf( "%i:lift\n", c_pmove );
-		//}
-		#if 0
-		// if they aren't in a jumping animation and the ground is a ways away, force into it
-		// if we didn't do the trace, the player would be backflipping down staircases
-		VectorCopy( pm->ps->origin, point );
-		point[ 2 ] -= 64;
-		trace_t		trace;
-		pm->trace( &trace, pm->ps->origin, pm->mins, pm->maxs, point, pm->ps->clientNum, pm->tracemask );
-		if ( trace.fraction == 1.0 ) {
-			if ( pm->cmd.forwardmove >= 0 ) {
-				PM_ForceLegsAnim( LEGS_JUMP );
-				pm->ps->pm_flags &= ~PMF_BACKWARDS_JUMP;
-			} else {
-				PM_ForceLegsAnim( LEGS_JUMPB );
-				pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
-			}
-		}
-		#endif
-	}
-}
-/**
-*	@brief	Called before, and after moving, to catagorize which entity/surface/plane we're standing
-*			on if any at all.
-**/
-static void PM_GroundTrace( void ) {
-	// Trace downwards to find ground.
-	Vector3 point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
-	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, point );
-	// Assign the ground trace.
-	pml.groundTrace = trace;
-
-	// Do something corrective if the trace starts in a solid.
-	if ( trace.allsolid ) {
-		// Did not find valid ground.
-		if ( !PM_CorrectAllSolid( &trace ) ) {
-			return;
-		}
-	}
-
-	// If the trace didn't hit anything, we are in free fall.
-	if ( trace.fraction == 1.0 ) {
-		PM_GroundTraceMissed();
-
-		pm->ground.entity = nullptr;
-		pml.hasGroundPlane = false;
-		pml.isWalking = false;
-		pml.isAerial = true;
-		return;
-	}
-
-	// Check if getting thrown off the ground
-	if ( pm->state->pmove.velocity.z > 0 && QM_Vector3DotProduct( pm->state->pmove.velocity, trace.plane.normal ) > 10. ) {
-		//if ( pm->debugLevel ) {
-		//	Com_Printf( "%i:kickoff\n", c_pmove );
-		//}
-		#if 0
-		// go into jump animation
-		if ( pm->cmd.forwardmove >= 0 ) {
-			PM_ForceLegsAnim( LEGS_JUMP );
-			pm->ps->pm_flags &= ~PMF_BACKWARDS_JUMP;
-		} else {
-			PM_ForceLegsAnim( LEGS_JUMPB );
-			pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
-		}
-		#endif
-		pm->ground.entity = nullptr;
-		pml.hasGroundPlane = false;
-		pml.isWalking = false;
-		pml.isAerial = true;
-		return;
-	}
-
-	// slopes that are too steep and thus will not be considered onground
-	if ( trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
-		//if ( pm->debugLevel ) {
-		//	Com_Printf( "%i:steep\n", c_pmove );
-		//}
-		
-		// <Q2RTXP>: This is what Q3 said anyhow.
-		// FIXME: if they can't slide down the slope, let them
-		// walk (sharp crevices)
-		pm->ground.entity = nullptr;
-		pml.hasGroundPlane = true;
-		pml.isWalking = false;
-		pml.isAerial = false;
-		return;
-	}
-
-	pml.hasGroundPlane = true;
-	pml.isWalking = true;
-	pml.isAerial = false;
-
-	// Hitting solid ground will end a waterjump.
-	if ( pm->state->pmove.pm_flags & PMF_TIME_WATERJUMP ) {
-		pm->state->pmove.pm_flags &= ~( PMF_TIME_WATERJUMP | PMF_TIME_LAND );
-		pm->state->pmove.pm_time = 0;
-	}
-
-	if ( pm->ground.entity == nullptr ) {
-		//// just hit the ground
-		//if ( pm->debugLevel ) {
-		//	Com_Printf( "%i:Land\n", c_pmove );
-		//}
-
-		// Damage crash landing.
-		PM_CrashLand();
-
-		//Don't do landing time if we were just going down a slope.
-		if ( pml.previousVelocity.z < -200. ) {
-			// don't allow another jump for a little while
-			pm->state->pmove.pm_flags |= PMF_TIME_LAND;
-			pm->state->pmove.pm_time = 8;
-		}
-	}
-
-	// If we have an entity, or a ground plane, assign the remaining ground properties.
-	if ( pml.hasGroundPlane || pm->ground.entity ) {
-		if ( pml.hasGroundPlane ) {
-			pm->ground.plane = pml.groundTrace.plane;
-		//}
-		// <Q2RTXP>: WID: This one is already zerod out at pmove preparation.
-		} else {
-			pm->ground.plane = {};
-		}
-		pm->ground.contents = pml.groundTrace.contents;
-		pm->ground.material = ( pml.groundTrace.material ? pml.groundTrace.material : nullptr );
-		pm->ground.surface = ( pml.groundTrace.surface ? *pml.groundTrace.surface : cm_surface_t() );
-	} else {
-		//pm->ground = {};
-	}
-	// Always fetch the actual entity found by the ground trace.
-	pm->ground.entity = (edict_ptr_t *)( SG_GetEntityForNumber( trace.entityNumber ) );
-
-	// Don't reset the z velocity for slopes.
-//	pm->ps->velocity[2] = 0;
-	
-	// Register the touch trace.
-	PM_RegisterTouchTrace( pm->touchTraces, trace );
-}
-
-
-
 /**
 *
 * 
 *
-*	Animations/(XY/XYZ-)speed and BobCycle:
+*	Animations / BobCycle / (XY/XYZ-)Speed(s):
 * 
 *
 * 
@@ -1072,7 +1121,7 @@ static void PM_RefreshAnimationState() {
 	// Animation State: We're crouched.
 	if ( pm->cmd.buttons & BUTTON_CROUCH || pm->state->pmove.pm_flags & PMF_DUCKED ) {
 		pm->state->animation.isCrouched = true;
-		// Animation State: We're NOT crouched.
+	// Animation State: We're NOT crouched.
 	} else if ( !( pm->cmd.buttons & BUTTON_CROUCH || pm->state->pmove.pm_flags & PMF_DUCKED ) ) {
 		pm->state->animation.isCrouched = false;
 	}
@@ -1098,7 +1147,7 @@ static void PM_RefreshAnimationState() {
 			pm->state->bobCycle = 0;
 			// Idling at last.
 			//pm->state->animation.isIdle = true;
-			// Not idling yet, there's still velocities at play.
+		// Not idling yet, there's still velocities at play.
 		} else {
 			//pm->state->animation.isIdle = false;
 		}
@@ -1107,7 +1156,7 @@ static void PM_RefreshAnimationState() {
 		if ( pm->state->xySpeed < PM_ANIMATION_IDLE_EPSILON && pm->state->xyzSpeed < PM_ANIMATION_IDLE_EPSILON ) {
 			// Idling at last.
 			pm->state->animation.isIdle = true;
-			// Not idling yet, there's still velocities at play.
+		// Not idling yet, there's still velocities at play.
 		} else {
 			pm->state->animation.isIdle = false;
 		}
@@ -1117,95 +1166,7 @@ static void PM_RefreshAnimationState() {
 		pm->state->animation.isIdle = false;
 	}
 }
-/**
-*	@brief	Keeps track of the player's xySpeed and bobCycle:
-**/
-//static void PM_Footsteps( void ) {
-// Determine the animation move direction.
-static void PM_Animation_SetMovementDirection();
-static void PM_CycleBob() {
-	//float		bobMove = 0.f;
-	int32_t		oldBobCycle = 0;
-	// Defaults to false and checked for later on:
-	qboolean	footStep = false;
 
-	//
-	// Calculate the speed and cycle to be used for all cyclic walking effects.
-	//
-	pm->state->xySpeed = QM_Vector2Length( QM_Vector2FromVector3( pm->state->pmove.velocity ) );
-	pm->state->xyzSpeed = QM_Vector3Length( pm->state->pmove.velocity );
-
-	// Reset bobmove.
-	//pm->state->bobMove = 0.f; // WID: Doing this just.. gives jitter like gameplay feel, but enable if you wanna...
-
-	// Determine(refresh) the animation state.
-	PM_RefreshAnimationState();
-
-	// Determine the animation move direction.
-	PM_Animation_SetMovementDirection();
-
-	// Airborne leaves cycle intact, but doesn't advance either.
-	if ( pm->ground.entity == nullptr ) {
-		return;
-	}
-
-	// Default to no footstep:
-	footStep = false;
-
-	// Determine the bobMove factor:
-	if ( pm->state->xySpeed >= PM_BOB_CYCLE_IDLE_EPSILON && pm->state->xyzSpeed >= PM_BOB_CYCLE_IDLE_EPSILON ) {
-		// Ducked:
-		if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
-			// Ducked characters bob even slower than walking:
-			pm->state->bobMove = 0.2;
-			// Standing up:
-		} else {
-			if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
-				// Running bobs faster:
-				pm->state->bobMove = 0.4;
-				// And applies footstep sounds:
-				footStep = true;
-			} else {
-				// Walking bobs slower:
-				pm->state->bobMove = 0.3;
-			}
-		}
-	}
-
-	// If not trying to move, slowly derade the bobMove factor.
-	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove ) {
-		// Check both xySpeed, and xyzSpeed. The last one is to prevent
-		// view wobbling when crouched, yet idle.
-		if ( pm->state->xySpeed < PM_BOB_CYCLE_IDLE_EPSILON && pm->state->xyzSpeed < PM_BOB_CYCLE_IDLE_EPSILON ) {
-			pm->state->bobMove = 0.;
-		}
-	}
-
-	// Check for footstep / splash sounds.
-	oldBobCycle = pm->state->bobCycle;
-	pm->state->bobCycle = (int32_t)( ( oldBobCycle + pm->state->bobMove * pm->cmd.msec ) /* pml.msec */ ) & 255;
-
-	//SG_DPrintf( "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%f)\n", __func__, pm->state->bobCycle, oldBobCycle, bobMove );
-
-	// if we just crossed a cycle boundary, play an appropriate footstep event
-	//if ( ( ( oldBobCycle + 64 ) ^ ( pm->state->bobCycle + 64 ) ) & 128 ) {
-	//	// On-ground will only play sounds if running:
-	//	if ( pm->liquid.level == LIQUID_NONE ) {
-	//		if ( footStep && !pm->noFootsteps ) {
-	//			PM_AddEvent( PM_FootstepForSurface() );
-	//		}
-	//	// Splashing:
-	//	} else if ( pm->liquid.level == LIQUID_FEET ) {
-	//		PM_AddEvent( EV_FOOTSPLASH );
-	//	// Wading / Swimming at surface.
-	//	} else if ( pm->liquid.level == LIQUID_WAIST ) {
-	//		PM_AddEvent( EV_SWIM );
-	//	// None:
-	//	} else if ( pm->liquid.level == LIQUID_UNDER ) {
-	//		// No sound when completely underwater. Lol.
-	//	}
-	//}
-}
 /**
 *	@brief	Determine the rotation of the legs relative to the facing dir.
 **/
@@ -1299,7 +1260,92 @@ static void PM_Animation_SetMovementDirection( void ) {
 	#endif
 }
 
+/**
+*	@brief	Keeps track of the player's xySpeed and bobCycle:
+**/
+static void PM_CycleBob() {
+	//float		bobMove = 0.f;
+	int32_t		oldBobCycle = 0;
+	// Defaults to false and checked for later on:
+	qboolean	footStep = false;
 
+	//
+	// Calculate the speed and cycle to be used for all cyclic walking effects.
+	//
+	pm->state->xySpeed = QM_Vector2Length( QM_Vector2FromVector3( pm->state->pmove.velocity ) );
+	pm->state->xyzSpeed = QM_Vector3Length( pm->state->pmove.velocity );
+
+	// Reset bobmove.
+	//pm->state->bobMove = 0.f; // WID: Doing this just.. gives jitter like gameplay feel, but enable if you wanna...
+
+	// Determine(refresh) the animation state.
+	PM_RefreshAnimationState();
+
+	// Determine the animation move direction.
+	PM_Animation_SetMovementDirection();
+
+	// Airborne leaves cycle intact, but doesn't advance either.
+	if ( pm->ground.entity == nullptr ) {
+		return;
+	}
+
+	// Default to no footstep:
+	footStep = false;
+
+	// Determine the bobMove factor:
+	if ( pm->state->xySpeed >= PM_BOB_CYCLE_IDLE_EPSILON && pm->state->xyzSpeed >= PM_BOB_CYCLE_IDLE_EPSILON ) {
+		// Ducked:
+		if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
+			// Ducked characters bob even slower than walking:
+			pm->state->bobMove = 0.2;
+			// Standing up:
+		} else {
+			if ( !( pm->cmd.buttons & BUTTON_WALK ) ) {
+				// Running bobs faster:
+				pm->state->bobMove = 0.4;
+				// And applies footstep sounds:
+				footStep = true;
+			} else {
+				// Walking bobs slower:
+				pm->state->bobMove = 0.3;
+			}
+		}
+	}
+
+	// If not trying to move, slowly derade the bobMove factor.
+	if ( !pm->cmd.forwardmove && !pm->cmd.sidemove ) {
+		// Check both xySpeed, and xyzSpeed. The last one is to prevent
+		// view wobbling when crouched, yet idle.
+		if ( pm->state->xySpeed < PM_BOB_CYCLE_IDLE_EPSILON && pm->state->xyzSpeed < PM_BOB_CYCLE_IDLE_EPSILON ) {
+			pm->state->bobMove = 0.;
+		}
+	}
+
+	// Check for footstep / splash sounds.
+	oldBobCycle = pm->state->bobCycle;
+	pm->state->bobCycle = (int32_t)( ( oldBobCycle + pm->state->bobMove * pm->cmd.msec ) /* pml.msec */ ) & 255;
+
+	//SG_DPrintf( "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%f)\n", __func__, pm->state->bobCycle, oldBobCycle, bobMove );
+
+	// if we just crossed a cycle boundary, play an appropriate footstep event
+	//if ( ( ( oldBobCycle + 64 ) ^ ( pm->state->bobCycle + 64 ) ) & 128 ) {
+	//	// On-ground will only play sounds if running:
+	//	if ( pm->liquid.level == LIQUID_NONE ) {
+	//		if ( footStep && !pm->noFootsteps ) {
+	//			PM_AddEvent( PM_FootstepForSurface() );
+	//		}
+	//	// Splashing:
+	//	} else if ( pm->liquid.level == LIQUID_FEET ) {
+	//		PM_AddEvent( EV_FOOTSPLASH );
+	//	// Wading / Swimming at surface.
+	//	} else if ( pm->liquid.level == LIQUID_WAIST ) {
+	//		PM_AddEvent( EV_SWIM );
+	//	// None:
+	//	} else if ( pm->liquid.level == LIQUID_UNDER ) {
+	//		// No sound when completely underwater. Lol.
+	//	}
+	//}
+}
 
 
 
@@ -1535,7 +1581,7 @@ static const bool PM_CheckWaterJump( void ) {
 	pm->state->pmove.pm_flags |= PMF_JUMP_HELD;
 	#endif
 	// Predict the move ahead in time, no gravity applied.
-	pm_slideMoveFlags_t predictMoveResults = PM_PredictStepMove( pm, &pml, false );
+	pm_slidemove_flags_t predictMoveResults = PM_PredictStepMove( pm, &pml, false );
 	// What matters is only, did we step up to a surface from mid-air?
 	if ( ( predictMoveResults & PM_SLIDEMOVEFLAG_STEPPED ) != 0 ) {
 		#if 1
@@ -1653,98 +1699,50 @@ static void PM_WaterMove() {
 /**
 *	@brief
 **/
-static void PM_FlyMove( bool doclip ) {
-	float drop = 0.f;
+static void PM_FlyMove( bool noClip = false ) {
+	int32_t i = 0;
+	Vector3 wishvel = {};
+	double fmove = 0., smove = 0.;
+	double wishspeed = 0.;
+	Vector3 wishdir = {};
+	double scale = 0.;
+	double vel = 0.;
+	usercmd_t cmd = {};
 
-	// When clipping don 't adjust viewheight, if no-clipping, default a viewheight of 22.
-	pm->state->pmove.viewheight = doclip ? 0 : PM_VIEWHEIGHT_STANDUP;
+	PM_Friction();
 
-	// Calculate friction
-	const float speed = QM_Vector3Length( pm->state->pmove.velocity );
-	if ( speed < 1 ) {
-		pm->state->pmove.velocity = QM_Vector3Zero();
-	} else {
-		drop = 0;
+	cmd = pm->cmd;
+	scale = PM_CmdScale( &cmd );
 
-		const float friction = pmp->pm_friction * 1.5f; // extra friction
-		const float control = speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed;
-		drop += control * friction * pml.frameTime;
+	fmove = cmd.forwardmove;
+	smove = cmd.sidemove;
 
-		// Scale the velocity
-		#if 1
-		// Scale the velocity
-		float newspeed = speed - drop;
-		if ( newspeed < 0 ) {
-			newspeed = 0;
+	// project moves down to flat plane
+	if ( scale ) {
+		for ( i = 0; i < 3; i++ ) {
+			wishvel[ i ] = scale * pml.forward[ i ] * fmove + scale * pml.right[ i ] * smove;
 		}
-		newspeed /= speed;
+		wishvel[ 2 ] += scale * cmd.upmove;
+	}
 
-		pm->state->pmove.velocity *= newspeed;
-		//float newspeed = speed - drop;
-		//if ( newspeed < 0 ) {
-		//	newspeed = 0;
-		//}
-		//newspeed /= speed;
+	VectorCopy( wishvel, wishdir );
+	wishspeed = VectorNormalize( &wishdir.x );
+	//wishspeed *= scale;
+	// 
+	// not on ground, so little effect on velocity
+	//PM_Accelerate( wishdir, wishspeed, pmp->pm_air_accelerate );
+	// <Q2RTXP>: WID: This pm_air_accelerate is a boolean cvar lol, we can't use it like q3.
+	PM_Accelerate( wishdir, wishspeed, pmp->pm_fly_accelerate );
 
-		//pm->state->pmove.velocity *= newspeed;
-		#else
-		// Scale the velocity.
-		float newspeed = speed - drop;
-		if ( newspeed <= 0 ) {
-			newspeed = 0;
-			pm->state->pmove.velocity = {};
-		} else {
-			newspeed /= speed;
-			pm->state->pmove.velocity *= newspeed;
+	if ( !noClip ) {
+		// we may have a ground plane that is very steep, even
+		// though we don't have a groundentity
+		// slide along the steep plane
+		if ( pml.hasGroundPlane ) {
+			PM_BounceVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+				pm->state->pmove.velocity, PM_OVERCLIP );
 		}
-		#endif
-	}
 
-	// Accelerate
-	const float forwardMove = pm->cmd.forwardmove;
-	const float sidewardMove = pm->cmd.sidemove;
-	pml.forward = QM_Vector3Normalize( pml.forward );
-	pml.right = QM_Vector3Normalize( pml.right );
-	Vector3 wishvel = pml.forward * forwardMove + pml.right * sidewardMove;
-
-	if ( pm->cmd.buttons & BUTTON_JUMP ) {
-		wishvel.z += ( pmp->pm_fly_speed * 0.5f );
-	}
-	if ( pm->cmd.buttons & BUTTON_CROUCH ) {
-		wishvel.z -= ( pmp->pm_fly_speed * 0.5f );
-	}
-
-	Vector3 wishdir = wishvel;
-	float wishspeed = QM_Vector3NormalizeLength( wishdir );
-
-	// Clamp to server defined max speed.
-	if ( wishspeed > pmp->pm_max_speed ) {
-		wishvel *= pmp->pm_max_speed / wishspeed;
-		wishspeed = pmp->pm_max_speed;
-	}
-
-	// Paril: newer clients do this.
-	wishspeed *= 1.5;
-
-	const float currentspeed = QM_Vector3DotProduct( pm->state->pmove.velocity, wishdir );
-	float addspeed = wishspeed - currentspeed;
-
-	if ( addspeed > 0 ) {
-		float accelspeed = pmp->pm_accelerate * pml.frameTime * wishspeed;
-		if ( accelspeed > addspeed ) {
-			accelspeed = addspeed;
-		}
-		pm->state->pmove.velocity += accelspeed * wishdir;
-	}
-
-	if ( doclip ) {
-		/*for (i = 0; i < 3; i++)
-			end[i] = pm->state->pmove.origin[i] + pml.frameTime * pm->state->pmove.velocity[i];
-
-		trace = PM_Trace(pm->state->pmove.origin, pm->mins, pm->maxs, end);
-
-		pm->state->pmove.origin = trace.endpos;*/
-		// Step Slide.
 		// Step Slide.
 		PM_StepSlideMove_Generic(
 			pm,
@@ -1755,141 +1753,6 @@ static void PM_FlyMove( bool doclip ) {
 		// Hard set origin in order to move.
 		pm->state->pmove.origin += ( pm->state->pmove.velocity * pml.frameTime );
 	}
-}
-
-
-
-/**
-*
-*
-*
-*	MoveType: Walk Move
-*
-*
-*
-**/
-static void PM_AirMove();
-/**
-*	@brief
-**/
-static void PM_WalkMove( const bool canJump ) {
-	int32_t i = 0;
-	Vector3 wishvel = {};
-	double fmove = 0., smove = 0.;
-	double wishspeed = 0.;
-	Vector3 wishdir = {};
-	double scale = 0.;
-	usercmd_t cmd = {};
-	double accelerate = 0.;
-	double vel = 0.;
-
-	// Watermove.
-	if ( pm->liquid.level > LIQUID_WAIST && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
-		PM_WaterMove();
-		return;
-	// Jump up/down if we can.
-	}
-	if ( canJump && PM_CheckJump() ) {
-		if ( pm->liquid.level > LIQUID_FEET ) {
-			PM_WaterMove();
-		} else {
-			PM_AirMove();
-		}
-		return;
-	}
-
-	PM_Friction();
-
-	fmove = pm->cmd.forwardmove;
-	smove = pm->cmd.sidemove;
-
-	cmd = pm->cmd;
-	scale = PM_CmdScale( &cmd );
-
-	// set the movementDir so clients can rotate the legs for strafing
-	PM_Animation_SetMovementDirection();
-
-	// project moves down to flat plane
-	pml.forward[ 2 ] = 0;
-	pml.right[ 2 ] = 0;
-
-	// project the forward and right directions onto the ground plane
-	PM_BounceVelocity( pml.forward, pml.groundTrace.plane.normal, pml.forward, PM_OVERCLIP );
-	PM_BounceVelocity( pml.right, pml.groundTrace.plane.normal, pml.right, PM_OVERCLIP );
-	//
-	VectorNormalize( &pml.forward.x );
-	VectorNormalize( &pml.right.x );
-
-	for ( i = 0; i < 3; i++ ) {
-		wishvel[ i ] = pml.forward[ i ] * fmove + pml.right[ i ] * smove;
-	}
-	// when going up or down slopes the wish velocity should Not be zero
-//	wishvel[2] = 0;
-
-	VectorCopy( wishvel, wishdir );
-	wishspeed = VectorNormalize( &wishdir.x );
-	wishspeed *= scale;
-
-	// clamp the speed lower if ducking
-	if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
-		constexpr double pm_duckScale = 0.25;
-		if ( wishspeed > pm->state->pmove.speed * pm_duckScale ) {
-			wishspeed = pm->state->pmove.speed * pm_duckScale;
-		}
-	}
-
-	// clamp the speed lower if wading or walking on the bottom
-	if ( pm->liquid.level ) {
-		constexpr double pm_swimScale = 0.5;
-		double waterScale = (double)( pm->liquid.level ) / 3.0;
-		waterScale = 1.0 - ( 1.0 - pm_swimScale ) * waterScale;
-		if ( wishspeed > pm->state->pmove.speed * waterScale ) {
-			wishspeed = pm->state->pmove.speed * waterScale;
-		}
-	}
-
-	// when a player gets hit, they temporarily lose
-	// full control, which allows them to be moved a bit
-	if ( ( pml.groundTrace.surface && pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) || pm->state->pmove.pm_flags & PMF_TIME_KNOCKBACK ) {
-		accelerate = pmp->pm_air_accelerate;
-	} else {
-		accelerate = pmp->pm_accelerate;
-	}
-
-	PM_Accelerate( wishdir, wishspeed, accelerate );
-
-	//Com_Printf("velocity = %1.1f %1.1f %1.1f\n", pm->ps->velocity[0], pm->ps->velocity[1], pm->ps->velocity[2]);
-	//Com_Printf("velocity1 = %1.1f\n", VectorLength(pm->ps->velocity));
-
-	if ( ( pml.groundTrace.surface && pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) || pm->state->pmove.pm_flags & PMF_TIME_KNOCKBACK ) {
-		pm->state->pmove.velocity.z -= pm->state->pmove.gravity * pml.frameTime;
-	} else {
-		// don't reset the z velocity for slopes
-//		pm->ps->velocity[2] = 0;
-	}
-
-	vel = VectorLength( pm->state->pmove.velocity );
-
-	// slide along the ground plane
-	PM_BounceVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
-		pm->state->pmove.velocity, PM_OVERCLIP );
-
-	// don't decrease velocity when going up or down a slope
-	VectorNormalize( &pm->state->pmove.velocity.x );
-	VectorScale( pm->state->pmove.velocity, vel, pm->state->pmove.velocity );
-
-	// don't do anything if standing still
-	static constexpr double STOP_EPSILON = 0.05;
-	if ( !( pm->state->pmove.velocity[ 0 ] ) && !( pm->state->pmove.velocity[ 1 ] ) ) {
-		return;
-	}
-
-	PM_StepSlideMove_Generic(
-		pm,
-		&pml,
-		false
-	);
-	//Com_Printf("velocity2 = %1.1f\n", VectorLength(pm->ps->velocity));
 }
 
 
@@ -1977,39 +1840,134 @@ static void PM_AirMove( void ) {
 
 /**
 *
-* 
-* 
 *
-*	(Initial-)Position Snapping/Validation:
 *
-* 
-* 
+*	MoveType: Walk Move
+*
+*
 *
 **/
 /**
-*	@brief	True if we're standing in a legitimate non solid position.
+*	@brief
 **/
-static inline const bool PM_GoodPosition() {
-	// Position is always valid if no-clipping.
-	if ( pm->state->pmove.pm_type == PM_NOCLIP ) {
-		return true;
-	}
-	// Perform the solid trace.
-	const cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, pm->state->pmove.origin );
-	return !trace.allsolid && !trace.startsolid;
-}
-/**
-*	@brief	On exit, the origin will have a value that is pre-quantized to the PMove
-*			precision of the network channel and in a valid position.
-**/
-static void PM_SnapPosition() {
-	if ( PM_GoodPosition() ) {
+static void PM_WalkMove( const bool canJump ) {
+	int32_t i = 0;
+	Vector3 wishvel = {};
+	double wishspeed = 0.;
+	Vector3 wishdir = {};
+	double accelerate = 0.;
+	double vel = 0.;
+
+	// Watermove.
+	//if ( pm->liquid.level > LIQUID_WAIST && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
+	if ( pm->liquid.level >= LIQUID_WAIST && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
+		PM_WaterMove();
 		return;
-	} else {
-		pm->state->pmove.origin = pml.previousOrigin;
-		pm->state->pmove.velocity = pml.previousVelocity;
-		pm->liquid = pml.previousLiquid;
 	}
+	// If we CAN jump, and want to, do so.
+	// Then engage into jumping, to then pursuit either water(- move/jumping) or airmoving.
+	if ( canJump && PM_CheckJump() ) {
+		if ( pm->liquid.level > LIQUID_FEET ) {
+			PM_WaterMove();
+		} else {
+			PM_AirMove();
+		}
+		return;
+	}
+
+	// Always apply friction.
+	PM_Friction();
+
+	double fmove = pm->cmd.forwardmove;
+	double smove = pm->cmd.sidemove;
+
+	usercmd_t scaledUserCmd = pm->cmd;
+	double scale = PM_CmdScale( &scaledUserCmd );
+
+	// set the movementDir so clients can rotate the legs for strafing
+	PM_Animation_SetMovementDirection();
+
+	// project moves down to flat plane
+	pml.forward[ 2 ] = 0;
+	pml.right[ 2 ] = 0;
+
+	// project the forward and right directions onto the ground plane
+	PM_BounceVelocity( pml.forward, pml.groundTrace.plane.normal, pml.forward, PM_OVERCLIP );
+	PM_BounceVelocity( pml.right, pml.groundTrace.plane.normal, pml.right, PM_OVERCLIP );
+	//
+	VectorNormalize( &pml.forward.x );
+	VectorNormalize( &pml.right.x );
+
+	for ( i = 0; i < 3; i++ ) {
+		wishvel[ i ] = pml.forward[ i ] * fmove + pml.right[ i ] * smove;
+	}
+	// when going up or down slopes the wish velocity should Not be zero
+//	wishvel[2] = 0;
+
+	VectorCopy( wishvel, wishdir );
+	wishspeed = VectorNormalize( &wishdir.x );
+	wishspeed *= scale;
+
+	// clamp the speed lower if ducking
+	if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
+		constexpr double pm_duckScale = 0.25;
+		if ( wishspeed > pm->state->pmove.speed * pm_duckScale ) {
+			wishspeed = pm->state->pmove.speed * pm_duckScale;
+		}
+	}
+
+	// clamp the speed lower if wading or walking on the bottom
+	if ( pm->liquid.level ) {
+		constexpr double pm_swimScale = 0.5;
+		double waterScale = (double)( pm->liquid.level ) / 3.0;
+		waterScale = 1.0 - ( 1.0 - pm_swimScale ) * waterScale;
+		if ( wishspeed > pm->state->pmove.speed * waterScale ) {
+			wishspeed = pm->state->pmove.speed * waterScale;
+		}
+	}
+
+	// when a player gets hit, they temporarily lose
+	// full control, which allows them to be moved a bit
+	if ( ( pml.groundTrace.surface && pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) || pm->state->pmove.pm_flags & PMF_TIME_KNOCKBACK ) {
+		accelerate = pmp->pm_air_accelerate;
+	} else {
+		accelerate = pmp->pm_accelerate;
+	}
+
+	PM_Accelerate( wishdir, wishspeed, accelerate );
+
+	//Com_Printf("velocity = %1.1f %1.1f %1.1f\n", pm->ps->velocity[0], pm->ps->velocity[1], pm->ps->velocity[2]);
+	//Com_Printf("velocity1 = %1.1f\n", VectorLength(pm->ps->velocity));
+
+	if ( ( pml.groundTrace.surface && pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) || pm->state->pmove.pm_flags & PMF_TIME_KNOCKBACK ) {
+		pm->state->pmove.velocity.z -= pm->state->pmove.gravity * pml.frameTime;
+	} else {
+		// don't reset the z velocity for slopes
+//		pm->ps->velocity[2] = 0;
+	}
+
+	vel = VectorLength( pm->state->pmove.velocity );
+
+	// slide along the ground plane
+	PM_BounceVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+		pm->state->pmove.velocity, PM_OVERCLIP );
+
+	// don't decrease velocity when going up or down a slope
+	VectorNormalize( &pm->state->pmove.velocity.x );
+	VectorScale( pm->state->pmove.velocity, vel, pm->state->pmove.velocity );
+
+	// don't do anything if standing still
+	static constexpr double STOP_EPSILON = 0.05;
+	if ( !( pm->state->pmove.velocity[ 0 ] ) && !( pm->state->pmove.velocity[ 1 ] ) ) {
+		return;
+	}
+
+	PM_StepSlideMove_Generic(
+		pm,
+		&pml,
+		false
+	);
+	//Com_Printf("velocity2 = %1.1f\n", VectorLength(pm->ps->velocity));
 }
 
 
@@ -2156,7 +2114,7 @@ void SG_PlayerMove_Frame() {
 	pml.previousVelocity = pm->state->pmove.velocity;
 
 	// Calculate frameTime.
-	pml.frameTime = (double)pm->cmd.msec * 0.001;
+	pml.frameTime = pm->cmd.msec * 0.001;
 
 	// Clamp view angles.
 	PM_UpdateViewAngles( pm->state, &pm->cmd );
@@ -2170,23 +2128,17 @@ void SG_PlayerMove_Frame() {
 	}
 
 	/**
-	*	PM_SPECTATOR/PM_NOCLIP:
+	*	PM_SPECTATOR / PM_NOCLIP:
 	**/
 	// Performs fly move, only clips in case of spectator mode, noclips otherwise.
 	if ( pm->state->pmove.pm_type == PM_SPECTATOR || pm->state->pmove.pm_type == PM_NOCLIP ) {
-		//pml.frameTime = pmp->pm_fly_speed * pm->cmd.msec * 0.001f;
-
 		// Re-ensure no flags are set anymore.
 		pm->state->pmove.pm_flags = PMF_NONE;
-
-		// Give the spectator a small 8x8x8 bounding box.
-		if ( pm->state->pmove.pm_type == PM_SPECTATOR ) {
-			pm->mins = { -8.f, -8.f, -8.f };
-			pm->maxs = { -8.f, -8.f,-8.f };
-		}
-
+		// Set mins, maxs, and viewheight.
+		PM_UpdateBoundingBox();
 		// Get moving.
-		PM_FlyMove( pm->state->pmove.pm_type == PM_SPECTATOR );
+		//pml.frameTime = pmp->pm_fly_speed * pm->cmd.msec * 0.001f;
+		PM_FlyMove( pm->state->pmove.pm_type == PM_NOCLIP );
 		// Drop timers.
 		PM_DropTimers();
 		// Snap to position.
@@ -2202,7 +2154,7 @@ void SG_PlayerMove_Frame() {
 		return;
 	}
 	/**
-	*	PM_FREEZE:
+	*	PM_INTERMISSION / PM_SPINTERMISSION:
 	**/
 	if ( pm->state->pmove.pm_type == PM_INTERMISSION || pm->state->pmove.pm_type == PM_SPINTERMISSION ) {
 		// No movement at all.
@@ -2210,15 +2162,15 @@ void SG_PlayerMove_Frame() {
 	}
 
 	// Set mins, maxs, and viewheight.
-	PM_SetDimensions();
+	PM_UpdateBoundingBox();
 	// Get liquid.level, accounting for ducking.
-	PM_GetWaterLevel( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
+	PM_GetLiquidContentsForPoint( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
 	// Back it up as the first previous liquid. (Start of frame position.)
 	pml.previousLiquid = pm->liquid;
 	// Recategorize if we're ducked. ( Set groundentity, liquid.type, and liquid.level. )
 	if ( PM_CheckDuck() ) {
 		// Get liquid.level, accounting for ducking.
-		PM_GetWaterLevel( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
+		PM_GetLiquidContentsForPoint( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
 		// Back it up as the first previous liquid. (Start of frame position.)
 		pml.previousLiquid = pm->liquid;
 	}
@@ -2253,7 +2205,7 @@ void SG_PlayerMove_Frame() {
 	// Ladder Move ( Can strafe on ladder. )
 	} else if ( pm->state->pmove.pm_flags & PMF_ON_LADDER ) {
 		PM_LadderMove();
-	// Ground Walk Move.
+	// Air/Ground(Walk-) Move.
 	} else {
 		// Different pitch handling.
 		Vector3 angles = pm->state->viewangles;
@@ -2278,20 +2230,33 @@ void SG_PlayerMove_Frame() {
 	// Get and set ground entity.
 	PM_GroundTrace();
 	// Get liquid.level, accounting for ducking.
-	PM_GetWaterLevel( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
+	PM_GetLiquidContentsForPoint( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
+	/**
+	*	Apply the screen contents effects.
+	**/
 	// Apply contents and other screen effects.
 	PM_UpdateScreenContents();
 
-	// Weapons.
+	/**
+	*	Weapons.
+	**/
 	//PM_Weapon();
-	// Torso animation.
+	/**
+	*	Torso animation.
+	**/
 	//PM_TorsoAnimation();
-	// Bob Cycle / Footstep events / legs animations.
+	/**
+	*	Bob Cycle / Footstep events / legs animations.
+	**/
 	//PM_Footsteps();
 	PM_CycleBob();
-	// Entering / Leaving water splashes.
+	/**
+	*	Entering / Leaving water splashes.
+	**/
 	//PM_WaterEvents();
-	// Snap us back into a validated position.
+	/**
+	*	Snap us back into a validated position.
+	**/
 	//PM_SnapPosition();
 }
 /**
@@ -2336,11 +2301,13 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 
 	pmp->pm_accelerate = default_pmoveParams_t::pm_accelerate;
 	pmp->pm_water_accelerate = default_pmoveParams_t::pm_water_accelerate;
+	pmp->pm_fly_accelerate = default_pmoveParams_t::pm_fly_accelerate;
 	if ( pmp->pm_air_accelerate <= 0 ) {
 		pmp->pm_air_accelerate = default_pmoveParams_t::pm_air_accelerate;
 	}
 
 	pmp->pm_friction = default_pmoveParams_t::pm_friction;
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
+	pmp->pm_fly_friction = default_pmoveParams_t::pm_fly_friction;
 }
 

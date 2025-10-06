@@ -91,15 +91,21 @@ typedef struct default_pmoveParams_s {
     //! Movement speed for when flying.
     static constexpr double pm_fly_speed = 400.;
 
-    //! General acceleration.
+    //! General player acceleration.
     static constexpr double pm_accelerate = 10.;
-    //! General acceleration.
+    //! General 'in-air' acceleration.
     static constexpr double pm_air_accelerate = 1.;
+    //! General spectator/noclip acceleration.
+    static constexpr double pm_fly_accelerate = 8.;
     //! General water acceleration.
     static constexpr double pm_water_accelerate = 10.;
+	//! If set, cap the maximum speed we can gain from air-accelerating.
+    static constexpr double pm_air_wish_speed_cap = 30.;
 
     //! General friction.
     static constexpr double pm_friction = 6.;
+    //! General spectator/noclip friction.
+    static constexpr double pm_fly_friction = 4.;
     //! General water friction.
     static constexpr double pm_water_friction = 1.;
 } default_pmoveParams_t;
@@ -136,13 +142,19 @@ typedef struct pmoveParams_s {
 
     //! General acceleration.
     double pm_accelerate = default_pmoveParams_t::pm_accelerate;
-    //! If set, general 'in-air' acceleration.
+    //! If set, general 'in-air' player acceleration.
     double pm_air_accelerate = default_pmoveParams_t::pm_air_accelerate;
+    //! If set, general 'in-air' spectator/noclip acceleration.
+    double pm_fly_accelerate = default_pmoveParams_t::pm_fly_accelerate;
     //! General water acceleration.
     double pm_water_accelerate = default_pmoveParams_t::pm_water_accelerate;
+	//! If set, cap the maximum speed we can gain from air-accelerating.
+    double pm_air_wish_speed_cap = default_pmoveParams_t::pm_air_wish_speed_cap;
 
     //! General friction.
     double pm_friction = default_pmoveParams_t::pm_friction;
+    //! General spectator/noclip friction.
+    double pm_fly_friction = default_pmoveParams_t::pm_fly_friction;
     //! General water friction.
     double pm_water_friction = default_pmoveParams_t::pm_water_friction;
 } pmoveParams_t;
@@ -157,15 +169,20 @@ typedef struct pmoveParams_s {
 //! For when player is standing straight up.
 static constexpr Vector3 PM_BBOX_STANDUP_MINS = { -16.f, -16.f, -36.f };
 static constexpr Vector3 PM_BBOX_STANDUP_MAXS = { 16.f, 16.f, 36.f };
-static constexpr double   PM_VIEWHEIGHT_STANDUP = 30.f;
+static constexpr double  PM_VIEWHEIGHT_STANDUP = 30.f;
 //! For when player is crouching.
 static constexpr Vector3 PM_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
 static constexpr Vector3 PM_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
-static constexpr double   PM_VIEWHEIGHT_DUCKED = 4.f;
+static constexpr double  PM_VIEWHEIGHT_DUCKED = 4.f;
 //! For when player is gibbed out.
 static constexpr Vector3 PM_BBOX_GIBBED_MINS = { -16.f, -16.f, 0.f };
 static constexpr Vector3 PM_BBOX_GIBBED_MAXS = { 16.f, 16.f, 24.f };
-static constexpr double   PM_VIEWHEIGHT_GIBBED = 8.f;
+static constexpr double  PM_VIEWHEIGHT_GIBBED = 8.f;
+//! For when player is spectating/noclipping.
+static constexpr Vector3 PM_BBOX_FLYING_MINS = { -8.f, -8.f, -8.f };
+static constexpr Vector3 PM_BBOX_FLYING_MAXS = { 8.f, 8.f, 8.f };
+static constexpr double  PM_VIEWHEIGHT_FLYING = 0.f;
+
 
 /**
 * 
@@ -230,7 +247,7 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 **/
 typedef struct pm_ground_info_s {
     //! Pointer to the actual ground entity we are on.(nullptr if none).
-    struct edict_ptr_t *entity;
+    sgentity_s *entity;
 
     //! A copy of the plane data from the ground entity.
     cm_plane_t        plane;

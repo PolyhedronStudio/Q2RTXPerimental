@@ -122,7 +122,7 @@ static constexpr float PM_STEP_MAX_SIZE = 18.f;
 /**
 *	Slide Move Results:
 **/
-enum pm_slideMoveFlags_t {
+enum pm_slidemove_flags_t {
     //! None.
 	PM_SLIDEMOVEFLAG_NONE = 0,
     //! Successfully performed the move.
@@ -140,7 +140,7 @@ enum pm_slideMoveFlags_t {
     //! Standing on a sloped surface.
     //PM_SLIDEMOVEFLAG_SLOPE_STEPPED = BIT( 6 ),
 };
-QENUM_BIT_FLAGS( pm_slideMoveFlags_t );
+QENUM_BIT_FLAGS( pm_slidemove_flags_t );
 
 /**
 *

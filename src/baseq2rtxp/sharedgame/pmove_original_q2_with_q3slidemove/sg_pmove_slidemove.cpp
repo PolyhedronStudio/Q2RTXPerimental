@@ -59,9 +59,9 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 *	@brief	Clips the velocity to surface normal.
 *			returns the blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
+const pm_clipflags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
 	// Whether we're actually blocked or not.
-	pm_velocityClipFlags_t blocked = PM_VELOCITY_CLIPPED_NONE;
+	pm_clipflags_t blocked = PM_VELOCITY_CLIPPED_NONE;
 
 	// <Q2RTXP>: WID: TODO: Properly implement the clipping flags.
 	//// If the plane that is blocking us has a positive z component, then assume it's a floor.
@@ -95,7 +95,7 @@ const pm_velocityClipFlags_t PM_BounceVelocity( const Vector3 &in, const Vector3
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
-const pm_slideMoveFlags_t PM_SlideMove_Generic( 
+const pm_slidemove_flags_t PM_SlideMove_Generic( 
 	Vector3 &origin, Vector3 &velocity, double &impactSpeed,
 	const Vector3 &mins, const Vector3 &maxs,
 
@@ -107,7 +107,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 
 	const double frameTime,	const double hasTime
 ) {	
-	pm_slideMoveFlags_t blockedMask = PM_SLIDEMOVEFLAG_NONE;
+	pm_slidemove_flags_t blockedMask = PM_SLIDEMOVEFLAG_NONE;
 
 	Vector3 planes[ PM_MAX_CLIP_PLANES ] = {};
 	Vector3 dir = {};
@@ -181,7 +181,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 			//PM_RegisterTouchTrace( touch_traces, trace );
 			// Return trapped mask.
 			return PM_SLIDEMOVEFLAG_TRAPPED;
-			//return static_cast<pm_slideMoveFlags_t>( true );
+			//return static_cast<pm_slidemove_flags_t>( true );
 		}
 
 		// We did cover some distance, so update the origin.
@@ -301,7 +301,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 					// Stop dead at a tripple plane interaction.
 					velocity = {};
 					blockedMask |= PM_SLIDEMOVEFLAG_TRAPPED;
-					return blockedMask;// static_cast<pm_slideMoveFlags_t>( true );
+					return blockedMask;// static_cast<pm_slidemove_flags_t>( true );
 				}
 			}
 
@@ -322,7 +322,7 @@ const pm_slideMoveFlags_t PM_SlideMove_Generic(
 		velocity = primalVelocity;
 	}
 
-	return static_cast<pm_slideMoveFlags_t>( bumpCount != 0 );// || blockedMask == PM_SLIDEMOVEFLAG_MOVED ? PM_SLIDEMOVEFLAG_MOVED : blockedMask );
+	return static_cast<pm_slidemove_flags_t>( bumpCount != 0 );// || blockedMask == PM_SLIDEMOVEFLAG_MOVED ? PM_SLIDEMOVEFLAG_MOVED : blockedMask );
 }
 
 /**
@@ -353,7 +353,7 @@ const void PM_StepSlideMove_Generic(
 	const Vector3 startVelocity = velocity;
 
 	// If we can slide move, do it.
-	const pm_slideMoveFlags_t moveMask = PM_SLIDEMOVEFLAG_NONE;// PM_SLIDEMOVEFLAG_PLANE_TOUCHED | PM_SLIDEMOVEFLAG_BLOCKED;
+	const pm_slidemove_flags_t moveMask = PM_SLIDEMOVEFLAG_NONE;// PM_SLIDEMOVEFLAG_PLANE_TOUCHED | PM_SLIDEMOVEFLAG_BLOCKED;
 	if ( (
 		PM_SlideMove_Generic( origin, velocity, impactSpeed, mins, maxs, touch_traces, groundPlane, groundTrace, gravity, frameTime, hasTime ) == moveMask ) ) {
 		return; // We got exactly where we wanted to go first try.
