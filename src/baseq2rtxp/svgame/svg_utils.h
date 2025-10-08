@@ -10,48 +10,102 @@
 
 
 /**
+*
+*
+*
+*	Generic Entity Utility Functions:
+*
+*
+*
+**/
+/**
+*	@brief	Basic Trigger initialization mechanism.
+**/
+void SVG_Util_InitTrigger( svg_base_edict_t *self );
+
+/**
+*   @brief	Will set the movedir vector based on the angles.
+* 
+*	@note	Will clear out the angles if clearAngles is true (default).
+* 
+*			A value of -1 for any angle will be treated as straight down.
+*			A value of -2 for any angle will be treated as straight up.
+**/
+void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir, const bool clearAngles = true );
+
+/**
+*   @brief  Determines the client that is most near to the entity,
+*           and returns its length for ( ent->origin - client->origin ).
+**/
+const double SVG_UTIL_ClosestClientForEntity( svg_base_edict_t *ent );
+
+
+
+/**
+*
+*
+*
+*	Trace Utility Functions:
+*
+*
+*
+**/
+/**
 *	@brief	Wrapper for gi.trace that accepts Vector3 args.
 **/
 static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
+	////if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
+	////	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
 	//if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
 	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
-	if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
-		&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
-		return gi.trace( &start.x, nullptr, nullptr, &end.x, passEdict, contentMask );
-	}
+	//	return gi.trace( &start.x, nullptr, nullptr, &end.x, passEdict, contentMask );
+	//}
 	return gi.trace( &start.x, &mins.x, &maxs.x, &end.x, passEdict, contentMask );
 }
 /**
 *	@brief	Wrapper for gi.clipthat accepts Vector3 args.
 **/
 static inline const svg_trace_t SVG_Clip( svg_base_edict_t *clipEdict, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
-	if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
-		&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
-	//if ( mins == qm_vector3_null && maxs == qm_vector3_null ) {
-		return gi.clip( clipEdict, &start.x, nullptr, nullptr, &end.x, contentMask );
-	}
+	//if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
+	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
+	////if ( mins == qm_vector3_null && maxs == qm_vector3_null ) {
+	//	return gi.clip( clipEdict, &start.x, nullptr, nullptr, &end.x, contentMask );
+	//}
 	return gi.clip( clipEdict, &start.x, &mins.x, &maxs.x, &end.x, contentMask );
 }
 
 
+
 /**
-*   @brief  Wraps up the new more modern SVG_Util_ProjectSource.
+*
+*
+*
+*	Mathemathical Utility Functions:
+*		- Vector Projection from Source
+*		- Set Move Direction from Angles
+*
+*
+*
 **/
-void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
 /**
-*   @brief  Project vector from source.
+*   @brief  Project vector from a source point, to distance, based on forward/right angle vectors.
 **/
 const Vector3 SVG_Util_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
-
+/**
+*   @brief  Utility version of above that uses vec3_t args and result.
+**/
+void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
 
 
 /**
-*   @brief
+*
+*
+*
+*	'Touch' Utility Functions:
+*
+*
+*
 **/
-void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir );
-
-
-
 /**
 *   @brief
 **/
@@ -66,15 +120,6 @@ void SVG_Util_TouchProjectiles( svg_base_edict_t *ent, const Vector3 &previous_o
 *           to force all entities it covers to immediately touch it
 **/
 void SVG_Util_TouchSolids( svg_base_edict_t *ent );
-
-
-
-/**
-*	@brief	Basic Trigger initialization mechanism.
-**/
-void SVG_Util_InitTrigger( svg_base_edict_t *self );
-
-
 
 /**
 *   @brief  Kills all entities that would touch the proposed new positioning

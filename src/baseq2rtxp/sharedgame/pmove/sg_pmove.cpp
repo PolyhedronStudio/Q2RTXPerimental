@@ -730,7 +730,6 @@ static void PM_GroundTrace( void ) {
 
 
 #if 0
-
 /**
 *	@brief	Handles the velocities for 'ladders', as well as water and conveyor belt by applying their 'currents'.
 **/
@@ -1412,6 +1411,7 @@ static void PM_LadderMove( void ) {
 	// Calculate the vertical scale based on the view pitch .
 	// (Forward Angle Vector Z Component).
 	double upScale = ( pml.forward.z + 0.5 ) * 2.5;
+	// Scale it to not be too fast.
 	if ( upScale > 1.0 ) {
 		upScale = 1.0;
 	} else if ( upScale < -1.0 ) {
@@ -1471,6 +1471,7 @@ static void PM_LadderMove( void ) {
 			}
 		}
 	}
+
 	// Last but not least, step it.
 	PM_StepSlideMove_Generic(
 		pm,
@@ -1499,6 +1500,8 @@ static const bool PM_CheckWaterJump( void ) {
 		return false;
 	}
 
+	pm->state->pmove.pm_flags &= ~PMF_ON_LADDER;
+
 	// Check for ladder.
 	Vector3 flatForward = QM_Vector3Normalize( Vector2( pml.forward ) );
 	// Spot to test for possible ladder we're riding.
@@ -1526,7 +1529,8 @@ static const bool PM_CheckWaterJump( void ) {
 	/**
 	*	Check whether something is blocking us up/forward.
 	**/
-	static constexpr double PM_WATERJUMP_PREDICT_DIST = 30.;
+	
+	double PM_WATERJUMP_PREDICT_DIST = QM_BBox3Distance( BBox3( Vector2( pm->mins ), Vector2( pm->maxs ) ) );
 	static constexpr double PM_WATERJUMP_FORWARD_VELOCITY = 100.;
 	static constexpr double PM_WATERJUMP_UP_VELOCITY = 350.;
 	static constexpr double PM_WATERJUMP_TIME = 24.;

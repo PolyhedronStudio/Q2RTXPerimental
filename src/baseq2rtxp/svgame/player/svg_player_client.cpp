@@ -128,11 +128,6 @@ const bool SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo ) {
     // make sure we start with known default(s)
     SVG_Client_UserinfoChanged( ent, userinfo );
 
-    // Developer connection print.
-    if ( game.maxclients > 1 ) {
-        gi.dprintf( "%s connected\n", ent->client->pers.netname );
-    }
-
     // Make sure we start with known default(s):
     // We're a player.
     ent->svflags = SVF_PLAYER;
@@ -550,15 +545,16 @@ void SVG_Client_CalculateMovementRecoil( svg_base_edict_t *ent ) {
     double baseMovementRecoil = 0.;
 
     // Is on a ladder?
-	bool isOnLadder = ( ( playerState->pmove.pm_flags & PMF_ON_LADDER ) ? true : false );
+	const bool isOnLadder = ( ( playerState->pmove.pm_flags & PMF_ON_LADDER ) ? true : false );
     // Determine if crouched(ducked).
-    bool isDucked = ( ( playerState->pmove.pm_flags & PMF_DUCKED) ? true : false );
+    const bool isDucked = ( ( playerState->pmove.pm_flags & PMF_DUCKED ) ? true : false );
     // Determine if off-ground.
-    bool isOnGround = ( ( playerState->pmove.pm_flags & PMF_ON_GROUND ) ? true : false );
+    //bool isOnGround = ( ( playerState->pmove.pm_flags & PMF_ON_GROUND ) ? true : false );
+    const bool isOnGround = ( ent->groundInfo.entity != nullptr ? true : false );
     // Determine if in water.
-    bool isInWater = ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_NONE ? true : false );
+    const bool isInWater = ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_NONE ? true : false );
     // Get liquid level.
-	cm_liquid_level_t liquidLevel = ent->liquidInfo.level;
+    const cm_liquid_level_t liquidLevel = ent->liquidInfo.level;
     
     // Resulting move factor.
     double recoilMoveFactor = 0.;
@@ -586,10 +582,8 @@ void SVG_Client_CalculateMovementRecoil( svg_base_edict_t *ent ) {
         const double multiplyFactor = ( 1.0 / default_pmoveParams_t::pm_max_speed );
         // Calculate actual scale factor.
         const double scaleFactor = multiplyFactor * playerState->xyzSpeed;
-
         // Assign.
         recoilMoveFactor += 0.5 * scaleFactor;
-
         //gi.dprintf( "playerState->xyzSpeed(%f), scaleFactor(%f)\n", playerState->xyzSpeed, multiplyFactor, scaleFactor );
     } else {
         //gi.dprintf( "playerState->xyzSpeed\n", playerState->xyzSpeed );

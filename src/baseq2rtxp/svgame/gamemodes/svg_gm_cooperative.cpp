@@ -135,6 +135,11 @@ const bool svg_gamemode_cooperative_t::ClientConnect( svg_player_edict_t *ent, c
 		}
 	}
 
+    // Developer connection print.
+    if ( game.maxclients >= 1 ) {
+        gi.bprintf( PRINT_HIGH, "%s connected\n", ent->client->pers.netname );
+    }
+
 	// Connected.
 	return true;
 }

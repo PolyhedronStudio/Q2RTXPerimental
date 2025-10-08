@@ -384,7 +384,7 @@ void SVG_Player_ProjectDistance( svg_base_edict_t *ent, vec3_t point, vec3_t dis
     VectorCopy( _result, result );
 }
 /**
-*   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
+*   @brief  Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
 const Vector3 SVG_Player_ProjectDistance( svg_base_edict_t *ent, const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
     // Adjust distance to handedness.
@@ -412,8 +412,8 @@ const Vector3 SVG_Player_ProjectDistance( svg_base_edict_t *ent, const Vector3 &
     //}
 }
 /**
-*   @brief Project the 'ray of fire' from the source, and then target the crosshair/scope's center screen
-*          point as the final destination.
+*   @brief  Project the 'ray of fire' from the source, and then target the crosshair/scope's center screen
+*           point as the final destination.
 *   @note   The forward vector is normalized.
 **/
 void SVG_Player_ProjectSource( svg_base_edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {

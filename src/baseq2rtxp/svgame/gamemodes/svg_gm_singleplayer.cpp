@@ -91,6 +91,11 @@ const bool svg_gamemode_singleplayer_t::ClientConnect( svg_player_edict_t *ent, 
 		}
 	}
 
+    // Developer connection print.
+    //if ( game.maxclients >= 1 ) {
+        gi.bprintf( PRINT_HIGH, "%s spawned in a singleplayer campaign!\n", ent->client->pers.netname );
+    //}
+
 	// Connected.
 	return true;
 }

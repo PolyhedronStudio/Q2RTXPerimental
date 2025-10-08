@@ -20,11 +20,6 @@
 * 
 **/
 /**
-*   @brief  Determines the client that is most near to the entity,
-*           and returns its length for ( ent->origin - client->origin ).
-**/
-const float SVG_Player_DistanceToEntity( svg_base_edict_t *ent );
-/**
 *   @brief  Will reset the entity client's 'Field of View' back to its defaults.
 **/
 void SVG_Player_ResetPlayerStateFOV( svg_client_t *client );

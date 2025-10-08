@@ -30,18 +30,118 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 
+
+
+
 /**
 *
 *
 *
-*   Vector Utilities:
+*	Generic Entity Utility Functions:
 *
 *
 *
 **/
+/**
+*	@brief	Basic Trigger initialization mechanism.
+**/
+void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
+	// Set the movedir vector based on the angles.
+    if ( !VectorEmpty( self->s.angles ) ) {
+		// Set the movedir vector based on the angles.
+        SVG_Util_SetMoveDir( self->s.angles, self->movedir );
+    }
+    //
+    self->solid = SOLID_TRIGGER;
+    self->movetype = MOVETYPE_NONE;
+	// Set the model.
+    if ( self->model.ptr ) {
+        gi.setmodel( self, self->model.ptr );
+    }
+    // Ensure it is never sent over the wire to any clients.
+    self->svflags = SVF_NOCLIENT;
+}
 
 /**
-*   @brief  Project vector from source.
+*   @brief	Will set the movedir vector based on the angles.
+*
+*	@note	Will clear out the angles if clearAngles is true (default).
+*
+*			A value of -1 for any angle will be treated as straight down.
+*			A value of -2 for any angle will be treated as straight up.
+**/
+void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir, const bool clearAngles ) {
+    static constexpr Vector3 VEC_UP = { 0., -1.,  0. };
+    static constexpr Vector3 MOVEDIR_UP = { 0.,  0.,  1. };
+    static constexpr Vector3 VEC_DOWN = { 0., -2.,  0. };
+    static constexpr Vector3 MOVEDIR_DOWN = { 0.,  0., -1. };
+
+    // Check for special cases first.
+    // If straight up or down, set the movedir to the proper value.
+    if ( VectorCompare( angles, VEC_UP ) ) {
+        VectorCopy( MOVEDIR_UP, movedir );
+    } else if ( VectorCompare( angles, VEC_DOWN ) ) {
+        VectorCopy( MOVEDIR_DOWN, movedir );
+        // Otherwise, use the normal angle to vector conversion.
+    } else {
+        QM_AngleVectors( angles, &movedir, NULL, NULL );
+    }
+    // Clear out the angles, we don't need them anymore.
+    if ( clearAngles ) {
+        VectorClear( angles );
+    }
+}
+
+/**
+*   @brief  Determines the client that is most near to the entity,
+*           and returns its length for ( ent->origin - client->origin ).
+**/
+const double SVG_UTIL_ClosestClientForEntity( svg_base_edict_t *ent ) {
+    // The best distance will always be flt_max.
+    double bestDistance = CM_MAX_WORLD_SIZE + 1.f;
+
+    if ( !SVG_Entity_IsActive( ent ) ) {
+        // Debug print.
+        gi.dprintf( "%s: Entity isn't active.\n", __func__ );
+        return bestDistance;
+    }
+
+    for ( int32_t n = 1; n <= maxclients->value; n++ ) {
+        // Get client.
+        svg_base_edict_t *clientEntity = g_edict_pool.EdictForNumber( n );//&g_edicts[ n ];
+        // Ensure is active and alive player.
+        if ( !SVG_Entity_IsClient( clientEntity, true ) ) {
+            continue;
+        }
+
+        // Calculate distance.
+        const double distanceLength = QM_Vector3Length( Vector3( ent->s.origin ) - clientEntity->s.origin );
+
+        // Assign as best distance if nearer to ent.
+        if ( distanceLength < bestDistance ) {
+            bestDistance = distanceLength;
+        }
+    }
+
+    // Return result.
+    return bestDistance;
+}
+
+
+
+/**
+*
+*
+*
+*	Mathemathical Utility Functions:
+*		- Vector Projection from Source
+*		- Set Move Direction from Angles
+*
+*
+*
+**/
+/**
+*   @brief  Project vector from a source point, to distance, based on forward/right angle vectors.
 **/
 const Vector3 SVG_Util_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
     return {
@@ -51,7 +151,7 @@ const Vector3 SVG_Util_ProjectSource( const Vector3 &point, const Vector3 &dista
     };
 }
 /**
-*   @brief  Wraps up the new more modern SVG_Util_ProjectSource.
+*   @brief  Utility version of above that uses vec3_t args and result.
 **/
 void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result ) {
     // Call the new more modern SVG_Util_ProjectSource.
@@ -62,53 +162,11 @@ void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const ve
 
 
 
-
-/**
-*
-* 
-* 
-*   Move Direction for PushMovers: 
-* 
-* 
-* 
-**/
-vec3_t VEC_UP       = {0, -1, 0};
-vec3_t MOVEDIR_UP   = {0, 0, 1};
-vec3_t VEC_DOWN     = {0, -2, 0};
-vec3_t MOVEDIR_DOWN = {0, 0, -1};
-
-void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir ) {
-    if ( VectorCompare( angles, VEC_UP ) ) {
-        VectorCopy( MOVEDIR_UP, movedir );
-    } else if ( VectorCompare( angles, VEC_DOWN ) ) {
-        VectorCopy( MOVEDIR_DOWN, movedir );
-    } else {
-        QM_AngleVectors( angles, &movedir, NULL, NULL );
-    }
-
-    VectorClear( angles );
-}
-
-
-
 /**
 *
 *
 *
-*   Strings:
-*
-*
-*
-**/
-
-
-
-
-/**
-*
-*
-*
-*   Touch... Implementations:
+*	'Touch' Utility Functions:
 *
 *
 *
@@ -124,8 +182,8 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
         return;
 
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
+    memset( touchedEdicts, 0, sizeof(svg_base_edict_t*) * MAX_EDICTS );
 
-    memset( touchedEdicts, 0, MAX_EDICTS );
     const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_TRIGGERS );
 
     // be careful, it is possible to have an entity in this
@@ -159,8 +217,8 @@ void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
     svg_base_edict_t *hit = nullptr;
 
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
+    memset( touchedEdicts, 0, sizeof( svg_base_edict_t * ) * MAX_EDICTS );
 
-    memset( touchedEdicts, 0, MAX_EDICTS );
     const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 
     // be careful, it is possible to have an entity in this
@@ -231,45 +289,6 @@ void SVG_Util_TouchProjectiles( svg_base_edict_t *ent, const Vector3 &previous_o
 
     skipped.clear();
 }
-
-
-
-/**
-*
-*
-*
-*   Triggers:
-*
-*
-*
-**/
-/**
-*	@brief	Basic Trigger initialization mechanism.
-**/
-void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
-    if ( !VectorEmpty( self->s.angles ) ) {
-        SVG_Util_SetMoveDir( self->s.angles, self->movedir );
-    }
-
-    self->solid = SOLID_TRIGGER;
-    self->movetype = MOVETYPE_NONE;
-    if ( self->model.ptr ) {
-        gi.setmodel( self, self->model.ptr );
-    }
-    self->svflags = SVF_NOCLIENT;
-}
-
-
-
-/**
-*
-*
-*
-*   SVG_Util_KillBox:
-*
-*
-*
-**/
 /*
 =================
 SVG_Util_KillBox
@@ -366,7 +385,7 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
     //    mask &= ~CONTENTS_PLAYER;
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
-    memset( touchedEdicts, 0, MAX_EDICTS );
+    memset( touchedEdicts, 0, sizeof( svg_base_edict_t * ) * MAX_EDICTS );
 
     int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
     

@@ -355,6 +355,11 @@ const bool svg_gamemode_deathmatch_t::ClientConnect( svg_player_edict_t *ent, ch
 		}
 	}
 
+	// Developer connection print.
+	if ( game.maxclients >= 1 ) {
+		gi.bprintf( PRINT_HIGH, "%s connected\n", ent->client->pers.netname );
+	}
+
 	// Connected.
 	return true;
 }
@@ -560,19 +565,17 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     temp[ 2 ] -= 64;
     temp2[ 2 ] += 16;
     svg_trace_t tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
-    if ( !tr.allsolid && !tr.startsolid && Q_stricmp( level.mapname, "tech5" ) ) {
+    if ( !tr.allsolid && !tr.startsolid /*&& Q_stricmp( level.mapname, "tech5" )*/ ) {
         VectorCopy( tr.endpos, ent->s.origin );
         ent->groundInfo.entity = tr.ent;
     } else {
         VectorCopy( spawn_origin, ent->s.origin );
         ent->s.origin[ 2 ] += 10; // make sure off ground
     }
-
-    // <Q2RTXP>: WID: Restore the origin.
+	// <Q2RTXP>: WID: Restore the origin.
     VectorCopy( ent->s.origin, ent->s.old_origin );
     client->ps.pmove.origin = ent->s.origin;
-
-    // <Q2RTXP>: WID: 
+	// <Q2RTXP>: WID: 
     // Link it to calculate absmins/absmaxs, this is to prevent actual
     // other entities from Spawn Touching.
     gi.linkentity( ent );
@@ -590,8 +593,7 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // Calculate anglevectors.
     AngleVectors( &client->viewMove.viewAngles.x, &client->viewMove.viewForward.x, nullptr, nullptr );
 
-    #if 1
-    // spawn a spectator
+    // spawn as spectator
     if ( client->pers.spectator ) {
         client->chase_target = NULL;
 
@@ -608,10 +610,6 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     } else {
         client->resp.spectator = false;
     }
-    #else
-    // No spectator in singleplayer.
-    client->resp.spectator = false;
-    #endif
 
     // Unlink it again, for SVG_UTIL_KillBox.
     gi.unlinkentity( ent );
@@ -991,7 +989,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( v
 
 	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
 		count++;
-		range = SVG_Player_DistanceToEntity( spot );
+		range = SVG_UTIL_ClosestClientForEntity( spot );
 		if ( range < range1 ) {
 			range1 = range;
 			spot1 = spot;
@@ -1034,7 +1032,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint(
 	bestspot = NULL;
 	bestdistance = 0;
 	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
-		bestplayerdistance = SVG_Player_DistanceToEntity( spot );
+		bestplayerdistance = SVG_UTIL_ClosestClientForEntity( spot );
 
 		if ( bestplayerdistance > bestdistance ) {
 			bestspot = spot;
