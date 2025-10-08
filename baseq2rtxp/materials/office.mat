@@ -72,11 +72,11 @@ textures/office/chfence02:
 	texture_base textures/office/chfence02.tga
 	texture_normals textures/office/chfence02_n.tga
 	texture_mask textures/office/chfence02_m.tga
-	base_factor 1.0
-	bump_scale 1.0
+	base_factor 2.5
+	bump_scale 0.25
 	emissive_factor 0
-	metalness_factor 1
-    specular_factor 0.125
+	metalness_factor 0.25
+    specular_factor 0.25
 
 textures/office/cncrfloor01:
 	texture_base textures/office/cncrfloor01.tga

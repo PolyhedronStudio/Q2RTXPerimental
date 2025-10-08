@@ -26,12 +26,12 @@ static constexpr double PM_MIN_WALL_NORMAL_Z = 0.03125;
 *	Bounce("Bouncy Reflection") and Sliding("Clipping") velocity
 *	to Surface Normal utilities.
 *
-*	"PM_BounceVelocity" usage examples:
+*	"PM_BounceClipVelocity" usage examples:
 *		- Ground movement with slight bounce.
 *		- Collision responce that needs elasticity.
 *		- "Step" movement where a slight bounce helps prevent sticking.
 *
-*	"PM_ClipVelocity" usage examples:
+*	"PM_SlideClipVelocity" usage examples:
 *		- Wall sliding, no bounce.
 *		- Surface alignment, no bounce.
 *		- Preventing penetration without bounce.
@@ -59,7 +59,7 @@ QENUM_BIT_FLAGS( pm_clipflags_t );
 *					- "Step" movement where a slight bounce helps prevent sticking.
 *	@return	The blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_clipflags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
+const pm_clipflags_t PM_BounceClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce );
 /**
 *	@brief	Slides("Clips"), the velocity (strictly-)along the surface normal.
 *	@details	Usage examples:
@@ -68,7 +68,7 @@ const pm_clipflags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal
 *					- Preventing penetration without bounce.
 *	@return	The blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_clipflags_t PM_ClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out );
+const pm_clipflags_t PM_SlideClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out );
 
 
 

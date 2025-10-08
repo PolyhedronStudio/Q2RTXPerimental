@@ -2807,7 +2807,7 @@ static void CL_MeasureStats(void)
             i = cl.initialSeq;
         }
         for (j = i; j <= ack; j++) {
-            client_usercmd_history_t *h = &cl.history[j & CMD_MASK];
+            client_packet_out_t *h = &cl.outPacketHistory[j & CMD_MASK];
             if (h->timeReceived > h->timeSent) {
                 ping += h->timeReceived - h->timeSent;
                 k++;

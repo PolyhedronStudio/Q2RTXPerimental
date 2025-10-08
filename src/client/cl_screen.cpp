@@ -237,7 +237,7 @@ void SCR_LagClear(void)
 void SCR_LagSample(void)
 {
     int64_t i = cls.netchan.incoming_acknowledged & CMD_MASK;
-    client_usercmd_history_t *h = &cl.history[i];
+    client_packet_out_t *h = &cl.outPacketHistory[i];
     uint64_t ping;
 
     h->timeReceived = cls.realtime;

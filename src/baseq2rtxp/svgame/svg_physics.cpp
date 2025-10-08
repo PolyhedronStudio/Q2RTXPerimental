@@ -819,9 +819,9 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
     }
 
 // check for water transition
-    wasinwater = (ent->liquidInfo.type & CM_CONTENTMASK_WATER);
+    wasinwater = (ent->liquidInfo.type & CM_CONTENTMASK_LIQUID);
     ent->liquidInfo.type = gi.pointcontents(ent->s.origin);
-    isinwater = ent->liquidInfo.type & CM_CONTENTMASK_WATER;
+    isinwater = ent->liquidInfo.type & CM_CONTENTMASK_LIQUID;
 
     if (isinwater)
         ent->liquidInfo.level = cm_liquid_level_t::LIQUID_FEET;

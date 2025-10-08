@@ -390,7 +390,7 @@ void SCR_LagClear( void ) {
 **/
 void SCR_LagSample( void ) {
     int64_t i = clgi.Netchan_GetIncomingAcknowledged() & CMD_MASK; //cls.netchan.incoming_acknowledged & CMD_MASK;
-    client_usercmd_history_t *h = &clgi.client->history[ i ];
+    client_packet_out_t *h = &clgi.client->outPacketHistory[ i ];
     int64_t ping;
 
     h->timeReceived = clgi.GetRealTime();

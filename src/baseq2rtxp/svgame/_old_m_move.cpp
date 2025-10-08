@@ -154,7 +154,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
                     test[1] = trace.endpos[1];
                     test[2] = trace.endpos[2] + ent->mins[2] + 1;
                     contents = gi.pointcontents(test);
-                    if (contents & CM_CONTENTMASK_WATER)
+                    if (contents & CM_CONTENTMASK_LIQUID)
                         return false;
                 }
             }
@@ -166,7 +166,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
                     test[1] = trace.endpos[1];
                     test[2] = trace.endpos[2] + ent->mins[2] + 1;
                     contents = gi.pointcontents(test);
-                    if (!(contents & CM_CONTENTMASK_WATER))
+                    if (!(contents & CM_CONTENTMASK_LIQUID))
                         return false;
                 }
             }
@@ -217,7 +217,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
         test[2] = trace.endpos[2] + ent->mins[2] + 1;
         contents = gi.pointcontents(test);
 
-        if (contents & CM_CONTENTMASK_WATER)
+        if (contents & CM_CONTENTMASK_LIQUID)
             return false;
     }
 

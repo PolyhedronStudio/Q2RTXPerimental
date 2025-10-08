@@ -385,7 +385,7 @@ LAGOMETER
 //
 //void SCR_LagSample( void ) {
 //    int i = cls.netchan.incoming_acknowledged & CMD_MASK;
-//    client_usercmd_history_t *h = &clgi.client->history[ i ];
+//    client_packet_out_t *h = &clgi.client->history[ i ];
 //    unsigned ping;
 //
 //    h->timeReceived = clgi.GetRealTime();

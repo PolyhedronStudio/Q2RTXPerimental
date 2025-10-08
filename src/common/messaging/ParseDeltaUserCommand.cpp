@@ -73,4 +73,7 @@ void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *to ) {
 
 	// Read in the current frame number, for possibly deterministics.
 	to->frameNumber = MSG_ReadIntBase128();
+
+	// Read in the server time the command is valid for.
+	to->serverTime = MSG_ReadUintBase128();
 }

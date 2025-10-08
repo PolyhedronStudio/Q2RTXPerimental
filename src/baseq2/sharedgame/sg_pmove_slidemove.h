@@ -23,7 +23,7 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 /**
 *	@brief	Clips the velocity to surface normal.
 **/
-void PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
+void PM_BounceClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const float overbounce );
 
 /**
 *	@brief	As long as numberOfTraces does not exceed MAX_TOUCH_TRACES, and there is not a duplicate trace registered,

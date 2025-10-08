@@ -251,7 +251,7 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
     Vector3 end = {};
     Vector3 water_start = {};
     bool    water = false;
-    cm_contents_t  content_mask = ( CM_CONTENTMASK_SHOT | CM_CONTENTMASK_WATER );
+    cm_contents_t  content_mask = ( CM_CONTENTMASK_SHOT | CM_CONTENTMASK_LIQUID );
     
 	// Trace a line from the origin the supposed bullet shot start point.
     svg_trace_t tr = SVG_Trace(self->s.origin, qm_vector3_null, qm_vector3_null, start, self, CM_CONTENTMASK_SHOT);
@@ -273,20 +273,20 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
         VectorMA(end, u, up, end);
 
         // Determine if we started from within a water brush.
-        if ( gi.pointcontents(start) & CM_CONTENTMASK_WATER ) {
+        if ( gi.pointcontents(start) & CM_CONTENTMASK_LIQUID ) {
 			// We are in water.
             water = true;
 			// Copy the start point into the water start point.
             VectorCopy(start, water_start);
 			// Remove the water mask from the content mask.
-            content_mask = static_cast<cm_contents_t>( content_mask & ~CM_CONTENTMASK_WATER ); // content_mask &= ~CM_CONTENTMASK_WATER
+            content_mask = static_cast<cm_contents_t>( content_mask & ~CM_CONTENTMASK_LIQUID ); // content_mask &= ~CM_CONTENTMASK_LIQUID
         }
 
 		// Trace the bullet.
         tr = SVG_Trace(start, qm_vector3_null, qm_vector3_null, &end.x, self, content_mask);
 
         // See if we hit water.
-        if ( tr.contents & CM_CONTENTMASK_WATER ) {
+        if ( tr.contents & CM_CONTENTMASK_LIQUID ) {
             int32_t color = SPLASH_UNKNOWN;
 
             // We are in water.
@@ -363,10 +363,10 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
         VectorSubtract( tr.endpos, water_start, dir );
         VectorNormalize( &dir.x );
         VectorMA( tr.endpos, -2, dir, pos );
-        if ( gi.pointcontents( pos ) & CM_CONTENTMASK_WATER )
+        if ( gi.pointcontents( pos ) & CM_CONTENTMASK_LIQUID )
             VectorCopy( pos, tr.endpos );
         else
-            tr = SVG_Trace( pos, qm_vector3_null, qm_vector3_null, &water_start.x, tr.ent, CM_CONTENTMASK_WATER );
+            tr = SVG_Trace( pos, qm_vector3_null, qm_vector3_null, &water_start.x, tr.ent, CM_CONTENTMASK_LIQUID );
 
         VectorAdd( water_start, tr.endpos, pos );
         VectorScale( pos, 0.5f, pos );

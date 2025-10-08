@@ -50,4 +50,6 @@ typedef struct usercmd_s {
     byte    impulse;        // remove?
     //! The frame number, can be used for possible anti-lag. TODO: Implement something for that.
     int64_t frameNumber;
+	//! The server time the command is valid for.
+	uint64_t serverTime;
 } usercmd_t;

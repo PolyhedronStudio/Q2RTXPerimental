@@ -518,10 +518,12 @@ void CL_FinalizeCommand( void ) {
 
     // Store the frame number this was fired at.
     cl.moveCommand.cmd.frameNumber = cl.frame.number;
+	cl.moveCommand.cmd.serverTime = cl.servertime;
 
     // Store time, since this might be an unpredicted command.
     //cl.moveCommand.prediction.time = cl.extrapolatedTime;
-    cl.moveCommand.prediction.time = cls.realtime;// cls.realtime;
+    cl.moveCommand.prediction.simulationTime = cl.servertime;// cl.servertime;
+    cl.moveCommand.prediction.realTime = cls.realtime;
 
     // Pass control to client game for finalizing the move command.
     if ( clge ) {
@@ -610,34 +612,32 @@ static inline bool ready_to_send_hacked( void ) {
 *   @brief  Will send the last 3 move commands available. 
 **/
 static void CL_SendDefaultCmd( void ) {
-    size_t cursize q_unused, checksumIndex;
+    size_t cursize q_unused;
     usercmd_t *cmd, *oldcmd;
-    client_usercmd_history_t *history;
 
-    // archive this packet
-    history = &cl.history[ cls.netchan.outgoing_sequence & CMD_MASK ];
-    history->commandNumber = cl.currentUserCommandNumber;
-    history->timeSent = cls.realtime;    // for ping calculation
-    history->timeReceived = 0;
-
+	// The intended command to be sent is the current one.
     cl.lastTransmitCmdNumber = cl.currentUserCommandNumber;
 
-    // see if we are ready to send this packet
+    // But, first let's see if we are ready to send this packet.
     if ( !ready_to_send_hacked() ) {
-        cls.netchan.outgoing_sequence++; // just drop the packet
+        // Otherwise, we just drop the packet.
+        cls.netchan.outgoing_sequence++;
+        // Opt out.
         return;
     }
 
+	// Store the realtime we last sent a packet.
     cl.lastTransmitTime = cls.realtime;
+	// Store the "real" command number, the one that passed the ready_to_send_hacked() check.
     cl.lastTransmitCmdNumberReal = cl.currentUserCommandNumber;
 
     // begin a client move command
     MSG_WriteUint8( clc_move );
 
     // save the position for a checksum byte
-    checksumIndex = 0;
+    //checksumIndex = 0;
     //if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-    checksumIndex = msg_write.cursize;
+    size_t checksumIndex = msg_write.cursize;
     SZ_GetSpace( &msg_write, 1 );
     //} else if (cls.serverProtocol == PROTOCOL_VERSION_R1Q2) {
     //    version = cls.protocolVersion;
@@ -679,6 +679,15 @@ static void CL_SendDefaultCmd( void ) {
 
     P_FRAMES++;
 
+    // archive this packet
+    int64_t outPacketNumber = cls.netchan.outgoing_sequence & CMD_MASK;
+    client_packet_out_t *historyPacket = &cl.outPacketHistory[ outPacketNumber ];
+    // Store the command number.
+    historyPacket->commandNumber = cl.currentUserCommandNumber;
+    historyPacket->timeSent = cls.realtime;    // for ping calculation
+    historyPacket->timeReceived = 0;
+    historyPacket->serverTime = oldcmd->serverTime;
+
     //
     // deliver the message
     //
@@ -702,7 +711,7 @@ static void CL_SendBatchedCmd( void ) {
     double totalMsec;
     size_t cursize q_unused;
     usercmd_t *cmd, *oldcmd;
-    client_usercmd_history_t *history, *oldest;
+    client_packet_out_t *historyPacket, *oldestPacket;
     //byte *patch;
 
     // see if we are ready to send this packet
@@ -712,15 +721,28 @@ static void CL_SendBatchedCmd( void ) {
 
     // archive this packet
     seq = cls.netchan.outgoing_sequence;
-    history = &cl.history[ seq & CMD_MASK ];
-    history->commandNumber = cl.currentUserCommandNumber;
-    history->timeSent = cls.realtime;    // for ping calculation
-    history->timeReceived = 0;
+	#if 0 // Moved below.
+    historyPacket = &cl.outPacketHistory[ seq & CMD_MASK ];
+    historyPacket->commandNumber = cl.currentUserCommandNumber;
+    historyPacket->timeSent = cls.realtime;    // for ping calculation
+    historyPacket->timeReceived = 0;
+    // This...
+    historyPacket->serverTime = oldcmd->serverTime;
+    #endif
+    historyPacket = &cl.outPacketHistory[ seq & CMD_MASK ];
+    historyPacket->commandNumber = cl.currentUserCommandNumber;
+    historyPacket->timeSent = cls.realtime;    // for ping calculation
+    historyPacket->timeReceived = 0;
+    //historyPacket->serverTime = oldcmd->serverTime;
 
+	// Store the realtime we last sent a packet.
     cl.lastTransmitTime = cls.realtime;
+	// Store the intended command number to be sent.
     cl.lastTransmitCmdNumber = cl.currentUserCommandNumber;
+	// Store the "real" command number, the one that passed the ready_to_send() check.
     cl.lastTransmitCmdNumberReal = cl.currentUserCommandNumber;
 
+    // Begin writing to the message buffer.
     MSG_BeginWriting();
     //Cvar_ClampInteger( cl_packetdup, 0, MAX_PACKET_FRAMES - 1 );
     //numDups = cl_packetdup->integer;
@@ -735,6 +757,7 @@ static void CL_SendBatchedCmd( void ) {
         MSG_WriteIntBase128( cl.frame.number );
     }
 
+	// Write out number of duplicates.
     MSG_WriteUint8( numDups );
 
     // send this and the previous cmds in the message, so
@@ -743,10 +766,10 @@ static void CL_SendBatchedCmd( void ) {
     totalCmds = 0;
     totalMsec = 0;
     for ( i = seq - numDups; i <= seq; i++ ) {
-        oldest = &cl.history[ ( i - 1 ) & CMD_MASK ];
-        history = &cl.history[ i & CMD_MASK ];
+        oldestPacket = &cl.outPacketHistory[ ( i - 1 ) & CMD_MASK ];
+        historyPacket = &cl.outPacketHistory[ i & CMD_MASK ];
 
-        numCmds = history->commandNumber - oldest->commandNumber;
+        numCmds = historyPacket->commandNumber - oldestPacket->commandNumber;
         if ( numCmds >= MAX_PACKET_USERCMDS ) {
             Com_WPrintf( "%s: MAX_PACKET_USERCMDS exceeded\n", __func__ );
             SZ_Clear( &msg_write );
@@ -756,7 +779,7 @@ static void CL_SendBatchedCmd( void ) {
         totalCmds += numCmds;
         MSG_WriteBits( numCmds, 8 );
         //MSG_WriteUint8( numCmds );
-        for ( j = oldest->commandNumber + 1; j <= history->commandNumber; j++ ) {
+        for ( j = oldestPacket->commandNumber + 1; j <= historyPacket->commandNumber; j++ ) {
             cmd = &cl.moveCommands[ j & CMD_MASK ].cmd;
             totalMsec += cmd->msec;
             bits = MSG_WriteDeltaUserCommand( oldcmd, cmd, cls.serverProtocol );
@@ -773,6 +796,10 @@ static void CL_SendBatchedCmd( void ) {
     //MSG_FlushBits( );
 
     P_FRAMES++;
+
+	// Store the server time of the last command sent.
+    historyPacket = &cl.outPacketHistory[ seq & CMD_MASK ];
+    historyPacket->serverTime = oldcmd->serverTime;
 
     //
     // deliver the message
@@ -795,20 +822,22 @@ static void CL_SendBatchedCmd( void ) {
 *   @brief  Sends a 'keep-alive' to prevent us from timing out.
 **/
 static void CL_SendKeepAlive( void ) {
-    client_usercmd_history_t *history;
-    size_t cursize q_unused;
-
     // archive this packet
-    history = &cl.history[ cls.netchan.outgoing_sequence & CMD_MASK ];
-    history->commandNumber = cl.currentUserCommandNumber;
-    history->timeSent = cls.realtime;    // for ping calculation
-    history->timeReceived = 0;
+    client_packet_out_t *historyPacket = &cl.outPacketHistory[ cls.netchan.outgoing_sequence & CMD_MASK ];
+    historyPacket->commandNumber = cl.currentUserCommandNumber;
+    historyPacket->timeSent = cls.realtime;    // for ping calculation
+    historyPacket->timeReceived = 0;
+    historyPacket->serverTime = cl.servertime;
 
+	// Store the realtime we last sent a packet.
     cl.lastTransmitTime = cls.realtime;
+	// Store the intended command number to be sent.
     cl.lastTransmitCmdNumber = cl.currentUserCommandNumber;
+	// Store the "real" command number, the one that passed the ready_to_send() check.
     cl.lastTransmitCmdNumberReal = cl.currentUserCommandNumber;
 
-    cursize = NetchanQ2RTXPerimental_Transmit( &cls.netchan, 0, "" );
+	// Write out the keep-alive message.
+    const size_t cursize = NetchanQ2RTXPerimental_Transmit( &cls.netchan, 0, "" );
     #if USE_DEBUG
     if ( cl_showpackets->integer ) {
         Com_Printf( "%zu ", cursize );

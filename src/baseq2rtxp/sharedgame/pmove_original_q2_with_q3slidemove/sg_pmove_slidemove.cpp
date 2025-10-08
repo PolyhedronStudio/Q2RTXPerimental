@@ -59,7 +59,7 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 *	@brief	Clips the velocity to surface normal.
 *			returns the blocked flags (1 = floor, 2 = step / wall)
 **/
-const pm_clipflags_t PM_BounceVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
+const pm_clipflags_t PM_BounceClipVelocity( const Vector3 &in, const Vector3 &normal, Vector3 &out, const double overbounce ) {
 	// Whether we're actually blocked or not.
 	pm_clipflags_t blocked = PM_VELOCITY_CLIPPED_NONE;
 
@@ -149,7 +149,7 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 		primalVelocity.z = endVelocity.z;
 		if ( groundPlane) {
 			// Slide along the ground plane.
-			PM_BounceVelocity( velocity, groundTrace.plane.normal, velocity, PM_OVERCLIP );
+			PM_BounceClipVelocity( velocity, groundTrace.plane.normal, velocity, PM_OVERCLIP );
 		}
 	}
 
@@ -254,9 +254,9 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 			}
 
 			// Slide velocity along the plane.
-			PM_BounceVelocity( velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
+			PM_BounceClipVelocity( velocity, planes[ i ], clipVelocity, PM_OVERCLIP );
 			// Slide endVelocity along the plane.
-			PM_BounceVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
+			PM_BounceClipVelocity( endVelocity, planes[ i ], endClipVelocity, PM_OVERCLIP );
 
 			// See if there is a second plane that the new move enters.
 			for ( j = 0; j < numPlanes; j++ ) {
@@ -269,8 +269,8 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 					continue;
 				}
 				// Try clipping the move to the plane.
-				PM_BounceVelocity( clipVelocity, planes[ j ], clipVelocity, PM_OVERCLIP );
-				PM_BounceVelocity( endClipVelocity, planes[ j ], endClipVelocity, PM_OVERCLIP );
+				PM_BounceClipVelocity( clipVelocity, planes[ j ], clipVelocity, PM_OVERCLIP );
+				PM_BounceClipVelocity( endClipVelocity, planes[ j ], endClipVelocity, PM_OVERCLIP );
 
 				// See if it goes back into the first clip plane.
 				if ( QM_Vector3DotProduct( clipVelocity, planes[ i ] ) >= 0 ) {
@@ -403,7 +403,7 @@ const void PM_StepSlideMove_Generic(
 	}
 	// Otherwise, we clip along the obstruction.
 	if ( trace.fraction < 1.0 ) {
-		PM_BounceVelocity( velocity, trace.plane.normal, velocity, PM_OVERCLIP );
+		PM_BounceClipVelocity( velocity, trace.plane.normal, velocity, PM_OVERCLIP );
 	}
 
 	stepHeight = origin.z - startOrigin.z;

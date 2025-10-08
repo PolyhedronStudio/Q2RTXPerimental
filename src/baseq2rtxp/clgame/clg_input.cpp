@@ -489,6 +489,9 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
 
     // Store impulse.
     moveCommand->cmd.impulse = in_impulse;
+
+    // Store frame and time.
+    moveCommand->cmd.serverTime = clgi.client->servertime;
 }
 
 /**
@@ -501,7 +504,8 @@ void PF_ClearMoveCommand( client_movecmd_t *moveCommand ) {
     //moveCommand->prediction = { .origin = moveCommand->prediction.origin, .velocity = moveCommand->prediction.velocity, .error = moveCommand->prediction.error };
     // Retain the prediction results.
     *moveCommand = {
-        .prediction = { .time = moveCommand->prediction.time, .origin = moveCommand->prediction.origin, .velocity = moveCommand->prediction.velocity, .error = moveCommand->prediction.error }
+        // Retain predicted state of move command.
+        .prediction = moveCommand->prediction,
     };
 
     CLG_ClearStateDownFlags( moveCommand );

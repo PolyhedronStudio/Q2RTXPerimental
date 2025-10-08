@@ -131,21 +131,30 @@ typedef struct clientinfo_s {
 } clientinfo_t;
 
 /**
-*   @brief
+*   @brief  Stores the predicted result of a client move command.
 **/
-typedef struct client_prediction_result_s {
-    // The simulation time(cl.time) when prediction was run.
-    uint64_t time;
-    // The predicted origin for this command.
+typedef struct client_movecmd_prediction_s {
+    /**
+	*   Predicted State:
+    **/
+    //! The predicted origin.
     Vector3 origin;
-    //! Predicted velocity for this command.
+    //! The Predicted velocity.
     Vector3 velocity;
-    //! The prediction error for this command.
+    //! The predicted error offset margin for this command.
     Vector3 error;
-} client_prediction_result_t;
+
+    /**
+	*   Moment in time this prediction was made:
+    **/
+    // The simulation time(cl.time) when prediction was run.
+    uint64_t simulationTime;
+    // The real time(cl.realtime) when prediction was run.
+    uint64_t realTime;
+} client_movecmd_prediction_t;
 
 /**
-*   @brief  
+*   @brief  Stores a client user input command for history as well as its predicted result.
 **/
 typedef struct client_movecmd_s {
     //! The command number.
@@ -160,21 +169,23 @@ typedef struct client_movecmd_s {
     //uint64_t timeReceived;
 
 	//! The predicted result of this command.
-    client_prediction_result_t prediction;
+    client_movecmd_prediction_t prediction;
 } client_movecmd_t;
 
 /**
-*	@brief  Data needed for storing a 'client user input' command history. Store its time at which
-*	        it was sent as well as when it was received. Used for calculating pings.
+*   @brief  Used as a circular history buffer for sent user commands. 
+*           Stores the command number, serverTime, and the realTimes at which it was sent and received.
 **/
-typedef struct client_usercmd_history_s {
+typedef struct client_packet_out_s {
     //! Command Number indexing into the cl.moveCommands.
     uint64_t commandNumber;
-    //! Time sent, for calculating pings.
+	//! The serverTime time the command is valid for.
+    uint64_t serverTime;
+    //! RealTime sent, for calculating pings.
     uint64_t timeSent;
-    //! Time rcvd, for calculating pings.
+    //! RealTime rcvd, for calculating pings.
     uint64_t timeReceived;
-} client_usercmd_history_t;
+} client_packet_out_t;
 
 /**
 *   @brief  Used to store the client's audio 'spatial awareness'.
@@ -262,9 +273,10 @@ typedef struct client_state_s {
     bool        sendPacketNow;
     //! Last time of packet transmission.
     uint64_t	lastTransmitTime;
-    //! Last command number which is meant to be transmitted.
+    //! Last command number which is meant to be transmitted, but the packet for it
+	//! might be dropped in case of it not being ready to send a new packet yet.
     uint64_t	lastTransmitCmdNumber;
-    //! Real last command number that actually got transmitted.
+    //! Real last command number that actually made it through the ready to send check and got sent out.
     uint64_t	lastTransmitCmdNumberReal;
 
     //! Current client move command that user input is enacting on.
@@ -272,12 +284,12 @@ typedef struct client_state_s {
     //! Circular client buffer of (predicted-)move commands.
     client_movecmd_t moveCommands[ CMD_BACKUP ];
 	//! Circular client buffer of (predicted-)move commands, used for prediction.
-    client_prediction_result_t predictedMoveResults[ CMD_BACKUP ];
+    client_movecmd_prediction_t predictedMoveResults[ CMD_BACKUP ];
 
     //! The current user command its numerical index.
     uint64_t currentUserCommandNumber;
     //! Circular client history buffer that stores the user command index, its time sent, and time received.
-    client_usercmd_history_t history[ CMD_BACKUP ];
+    client_packet_out_t outPacketHistory[ CMD_BACKUP ];
     
     
 

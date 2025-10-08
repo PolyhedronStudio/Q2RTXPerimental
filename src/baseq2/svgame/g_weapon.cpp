@@ -133,7 +133,7 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float da
     float       u;
     vec3_t      water_start;
     bool        water = false;
-    cm_contents_t  content_mask = ( CM_CONTENTMASK_SHOT | CM_CONTENTMASK_WATER );
+    cm_contents_t  content_mask = ( CM_CONTENTMASK_SHOT | CM_CONTENTMASK_LIQUID );
 
     tr = gi.trace(self->s.origin, NULL, NULL, start, self, CM_CONTENTMASK_SHOT);
     if (!(tr.fraction < 1.0f)) {
@@ -146,16 +146,16 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float da
         VectorMA(end, r, right, end);
         VectorMA(end, u, up, end);
 
-        if (gi.pointcontents(start) & CM_CONTENTMASK_WATER) {
+        if (gi.pointcontents(start) & CM_CONTENTMASK_LIQUID) {
             water = true;
             VectorCopy(start, water_start);
-            content_mask = ( content_mask & ~CM_CONTENTMASK_WATER ); // content_mask &= ~CM_CONTENTMASK_WATER
+            content_mask = ( content_mask & ~CM_CONTENTMASK_LIQUID ); // content_mask &= ~CM_CONTENTMASK_LIQUID
         }
 
         tr = gi.trace(start, NULL, NULL, end, self, content_mask);
 
         // see if we hit water
-        if (tr.contents & CM_CONTENTMASK_WATER) {
+        if (tr.contents & CM_CONTENTMASK_LIQUID) {
             int     color;
 
             water = true;
@@ -227,10 +227,10 @@ static void fire_lead(edict_t *self, vec3_t start, vec3_t aimdir, const float da
         VectorSubtract(tr.endpos, water_start, dir);
         VectorNormalize(dir);
         VectorMA(tr.endpos, -2, dir, pos);
-        if (gi.pointcontents(pos) & CM_CONTENTMASK_WATER)
+        if (gi.pointcontents(pos) & CM_CONTENTMASK_LIQUID)
             VectorCopy(pos, tr.endpos);
         else
-            tr = gi.trace(pos, NULL, NULL, water_start, tr.ent, CM_CONTENTMASK_WATER);
+            tr = gi.trace(pos, NULL, NULL, water_start, tr.ent, CM_CONTENTMASK_LIQUID);
 
         VectorAdd(water_start, tr.endpos, pos);
         VectorScale(pos, 0.5f, pos);

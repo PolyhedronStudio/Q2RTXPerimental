@@ -99,6 +99,7 @@ typedef struct default_pmoveParams_s {
     static constexpr double pm_fly_accelerate = 8.;
     //! General water acceleration.
     static constexpr double pm_water_accelerate = 10.;
+
 	//! If set, cap the maximum speed we can gain from air-accelerating.
     static constexpr double pm_air_wish_speed_cap = 30.;
 

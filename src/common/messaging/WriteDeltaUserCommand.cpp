@@ -101,6 +101,9 @@ const int64_t MSG_WriteDeltaUserCommand( const usercmd_t *from, const usercmd_t 
 	// Read out the current frame number, for possibly deterministics.
 	MSG_WriteIntBase128( cmd->frameNumber );
 
+	// Write the server time the command is valid for.
+	MSG_WriteUintBase128( cmd->serverTime );
+
 	return bits;
 }
 

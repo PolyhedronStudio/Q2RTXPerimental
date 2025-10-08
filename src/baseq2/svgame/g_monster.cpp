@@ -180,7 +180,7 @@ void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, cm_liquid_leve
 	Vector3 point = in_point + Vector3{ 0.f, 0.f, ent->mins[ 2 ] + 1 };
 	cm_contents_t cont = gi.pointcontents( &point.x );
 
-	if ( !( cont & CM_CONTENTMASK_WATER ) ) {
+	if ( !( cont & CM_CONTENTMASK_LIQUID ) ) {
 		liquidlevel = cm_liquid_level_t::LIQUID_NONE;
 		liquidtype = CONTENTS_NONE;
 		return;
@@ -190,14 +190,14 @@ void M_CatagorizePosition( edict_t *ent, const Vector3 &in_point, cm_liquid_leve
 	liquidlevel = cm_liquid_level_t::LIQUID_FEET;
 	point.z += 26;
 	cont = gi.pointcontents( &point.x );
-	if ( !( cont & CM_CONTENTMASK_WATER ) ) {
+	if ( !( cont & CM_CONTENTMASK_LIQUID ) ) {
 		return;
 	}
 
 	liquidlevel = cm_liquid_level_t::LIQUID_WAIST;
 	point[ 2 ] += 22;
 	cont = gi.pointcontents( &point.x );
-	if ( cont & CM_CONTENTMASK_WATER ) {
+	if ( cont & CM_CONTENTMASK_LIQUID ) {
 		liquidlevel = cm_liquid_level_t::LIQUID_UNDER;
 	}
 }

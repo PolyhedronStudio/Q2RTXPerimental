@@ -131,7 +131,7 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
 **/
 static void CLG_PredictNextBobCycle( pmove_t *pm ) {
     // Predict next bobcycle.
-    const float bobCycleFraction = clgi.client->xerpFraction;
+    const double bobCycleFraction = clgi.client->xerpFraction;
     uint8_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->state->bobCycle;// nextframe->ps.bobCycle;
     // Handle wraparound:
     if ( bobCycle < pm->state->bobCycle ) {
@@ -174,7 +174,7 @@ static void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predic
         // Get delta time interval.
         int64_t deltaTime = ( clgi.GetRealTime() - predictedState->transition.step.timeChanged );
         // Default old step to 0.
-        double oldStep = 0;
+        double oldStep = 0.;
         // We use < since we want to know if we were already stepping up. Keep things smooth that way.
         if ( deltaTime < PM_STEP_TIME ) {
             // Calculate how far we've come.
@@ -232,10 +232,10 @@ const qboolean PF_UsePrediction( void ) {
 **/
 void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand ) {
     // Maximum delta allowed before snapping back. (80 units at 40hz)
-    static constexpr double MAX_DELTA_ORIGIN = ( 3200 * ( 1.0 / BASE_FRAMERATE ) );
+    static constexpr double MAX_DELTA_ORIGIN = ( 3200. * ( 1.0 / BASE_FRAMERATE ) );
 
     // If it is the first frame, we got nothing to predict yet.
-    if ( moveCommand->prediction.time == 0 ) {
+    if ( moveCommand->prediction.simulationTime == 0 ) {
         game.predictedState.lastPs = clgi.client->frame.ps;
         game.predictedState.currentPs = clgi.client->frame.ps;
         //game.predictedState.currentPs.pmove = game.predictedState.currentPs.pmove;
@@ -261,7 +261,7 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
         return;
     }
 
-	client_prediction_result_t *predictedMoveResult = &clgi.client->predictedMoveResults[ (commandIndex)&CMD_MASK ]; // Get the predicted move results for this command index.
+	client_movecmd_prediction_t *predictedMoveResult = &clgi.client->predictedMoveResults[ (commandIndex)&CMD_MASK ]; // Get the predicted move results for this command index.
     // Subtract what the server returned from our predicted origin for that frame.
     //game.predictedState.error = moveCommand->prediction.error = moveCommand->prediction.origin - clgi.client->frame.ps.pmove.origin;
     game.predictedState.error = predictedMoveResult->error = moveCommand->prediction.error = clgi.client->frame.ps.pmove.origin - predictedMoveResult->origin;
@@ -270,7 +270,8 @@ void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandInd
     //const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
     const float len = fabs( QM_Vector3Length( game.predictedState.error ) );
     //if (len < 1 || len > 640) {
-    if ( len > .1f ) {
+    if ( len > .1f 
+        && game.predictedState.cmd.prediction.simulationTime == moveCommand->prediction.simulationTime ) {
         // Snap back if the distance was too far off:
         if ( len > MAX_DELTA_ORIGIN ) {
             // Debug misses:
@@ -378,7 +379,20 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         //if ( moveCommand->cmd.msec ) {
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
-            pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.time );
+            pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.simulationTime );
+            
+            #if 0
+            // don't do anything if the time is before the snapshot player time
+            if ( pm.simulationTime.Milliseconds() <= game.predictedState.cmd.prediction.simulationTime ) {
+                continue;
+            }
+
+            // don't do anything if the command was from a previous map_restart
+            if ( pm.simulationTime.Milliseconds() > moveCommand->prediction.simulationTime ) {
+                continue;
+            }
+            #endif
+
             SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
             // Predict the next bobCycle for the frame.
             #if 0
@@ -419,7 +433,7 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
             pm.cmd = pendingMoveCommand->cmd;
         #endif
         // Perform movement.
-        pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.time );
+        pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.simulationTime );
         SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
         // Predict the next bobCycle for the frame.
         #if 0
@@ -434,10 +448,10 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         // Save the pending move command as the last entry in our circular buffer.
         clgi.client->predictedMoveResults[ ( currentCommandNumber + 1 ) & CMD_MASK ] = pendingMoveCommand->prediction;
         
-        // Store it as the current predicted origin state.
+        // Store it as the current last-predicted origin state.
         game.predictedState.origin = pendingMoveCommand->prediction.origin;
         
-        // And store it in the predictedState.
+        // And store it in the predictedState as the last command.
         predictedState->cmd = *pendingMoveCommand;
     }
 

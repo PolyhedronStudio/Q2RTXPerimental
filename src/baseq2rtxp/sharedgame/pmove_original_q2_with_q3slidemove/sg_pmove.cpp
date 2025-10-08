@@ -1355,16 +1355,16 @@ static inline void PM_GetWaterLevel( const Vector3 &position, cm_liquid_level_t 
 
 	cm_contents_t contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
 
-	if ( contentType & CM_CONTENTMASK_WATER ) {
+	if ( contentType & CM_CONTENTMASK_LIQUID ) {
 		type = contentType;
 		level = cm_liquid_level_t::LIQUID_FEET;
 		point.z = ps->pmove.origin.z + pm->mins.z + sample1;
 		contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
-		if ( contentType & CM_CONTENTMASK_WATER ) {
+		if ( contentType & CM_CONTENTMASK_LIQUID ) {
 			level = cm_liquid_level_t::LIQUID_WAIST;
 			point.z = ps->pmove.origin.z + pm->mins.z + sample2;
 			contentType = pm->pointcontents( QM_Vector3ToQFloatV( point ).v );
-			if ( contentType & CM_CONTENTMASK_WATER ) {
+			if ( contentType & CM_CONTENTMASK_LIQUID ) {
 				level = cm_liquid_level_t::LIQUID_UNDER;
 			}
 		}
@@ -1473,7 +1473,7 @@ static void PM_CategorizePosition() {
 				// [Paril-KEX] calculate impact delta; this also fixes triple jumping
 				Vector3 clipped_velocity = QM_Vector3Zero();
 				// First clip the velocity.
-				PM_BounceVelocity( ps->pmove.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
+				PM_BounceClipVelocity( ps->pmove.velocity, pm->ground.plane.normal, clipped_velocity, 1.01f );
 				// Calculate impact delta.
 				pm->impact_delta = pml.previousVelocity.z - clipped_velocity.z;
 
@@ -1520,7 +1520,7 @@ static inline const bool PM_AboveWater() {
 	}
 
 	// We're above water:
-	bool water_below = pm->trace( QM_Vector3ToQFloatV( ps->pmove.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_WATER ).fraction < 1.0f;
+	bool water_below = pm->trace( QM_Vector3ToQFloatV( ps->pmove.origin ).v, QM_Vector3ToQFloatV( pm->mins ).v, QM_Vector3ToQFloatV( pm->maxs ).v, QM_Vector3ToQFloatV( below ).v, pm->player, CM_CONTENTMASK_LIQUID ).fraction < 1.0f;
 	if ( water_below ) {
 		return true;
 	}

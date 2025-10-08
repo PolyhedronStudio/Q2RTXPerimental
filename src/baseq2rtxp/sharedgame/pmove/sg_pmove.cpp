@@ -259,31 +259,37 @@ static void PM_Friction() {
 
 	// Apply ground friction if on-ground.
 	#ifdef PMOVE_USE_MATERIAL_FRICTION
-	if ( ( pm->ground.entity != nullptr
-		&& ( pml.groundTrace.surface != nullptr && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
-		) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
+		if ( ( pm->ground.entity != nullptr
+			&& ( pml.groundTrace.surface != nullptr && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
+			) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
 		) {
-		// Get the material to fetch friction from.
-		cm_material_t *ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
-		double friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
-		const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
-		drop += control * friction * pml.frameTime;
-	}
+			// Get the material to fetch friction from.
+			cm_material_t *ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
+			double friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
+			const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+			drop += control * friction * pml.frameTime;
+		}
+	// Apply ground friction if on-ground.
 	#else
-		// Apply ground friction if on-ground.
-	if ( ( pm->ground.entity && pml.groundTrace.surface
-		&& !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
-		|| ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
+		if ( ( pm->ground.entity && pml.groundTrace.surface
+			&& !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
+			|| ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
 		) {
-		const float friction = pmp->pm_friction;
-		const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
-		drop += control * friction * pml.frameTime;
-	}
+			const float friction = pmp->pm_friction;
+			const float control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+			drop += control * friction * pml.frameTime;
+		}
 	#endif
+
 	const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+
 	// Apply water friction, and not off-ground yet on a ladder.
 	if ( pm->liquid.level && !( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		drop += speed * pmp->pm_water_friction * (float)pm->liquid.level * pml.frameTime;
+	}
+	// Apply ladder friction, if climbing a ladder and in-water.
+	if ( pm->liquid.level && ( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
+		drop *= ( pmp->pm_ladder_mod / (float)pm->liquid.level ) * pml.frameTime;
 	}
 	// Apply flying friction for spectator/noclip.
 	if ( pm->state->pmove.pm_type == PM_SPECTATOR || pm->state->pmove.pm_type == PM_NOCLIP ) {
@@ -458,7 +464,7 @@ static inline const bool PM_AboveLiquid() {
 	}
 
 	// We're above water:
-	bool water_below = pm->trace( &pm->state->pmove.origin.x, &pm->mins.x, &pm->maxs.x, &below.x, pm->playerEdict, CM_CONTENTMASK_WATER ).fraction < 1.0f;
+	bool water_below = pm->trace( &pm->state->pmove.origin.x, &pm->mins.x, &pm->maxs.x, &below.x, pm->playerEdict, CM_CONTENTMASK_LIQUID ).fraction < 1.0f;
 	if ( water_below ) {
 		return true;
 	}
@@ -481,15 +487,15 @@ static inline void PM_GetLiquidContentsForPoint( const Vector3 &position, cm_liq
 
 	// First sample point, just above feet.
 	Vector3 point = position;
-	point.z += pm->mins.z + 1;
+	point.z += pm->mins.z + 1.;
 	// Get contents at feet.
 	cm_contents_t contentType = pm->pointcontents( &point.x );
 
 	// If we found a liquid, sample further up.
-	if ( contentType & CM_CONTENTMASK_WATER ) {
+	if ( contentType & CM_CONTENTMASK_LIQUID ) {
 		// Second sample point, halfway up body.
 		sample2 = pm->state->pmove.viewheight - pm->mins.z;
-		sample1 = sample2 / 2;
+		sample1 = sample2 / 2.;
 		// Set the content type and the level to feet.
 		type = contentType;
 		level = cm_liquid_level_t::LIQUID_FEET;
@@ -498,7 +504,7 @@ static inline void PM_GetLiquidContentsForPoint( const Vector3 &position, cm_liq
 		point.z = pm->state->pmove.origin.z + pm->mins.z + sample1;
 		contentType = pm->pointcontents( &point.x );
 		// If we found a liquid, sample further up.
-		if ( contentType & CM_CONTENTMASK_WATER ) {
+		if ( contentType & CM_CONTENTMASK_LIQUID ) {
 			// Set level to waist.
 			level = cm_liquid_level_t::LIQUID_WAIST;
 
@@ -506,7 +512,7 @@ static inline void PM_GetLiquidContentsForPoint( const Vector3 &position, cm_liq
 			point.z = pm->state->pmove.origin.z + pm->mins.z + sample2;
 			contentType = pm->pointcontents( &point.x );
 			// If we found a liquid, set level to eyes.
-			if ( contentType & CM_CONTENTMASK_WATER ) {
+			if ( contentType & CM_CONTENTMASK_LIQUID ) {
 				level = cm_liquid_level_t::LIQUID_UNDER;
 			}
 		}
@@ -1430,8 +1436,12 @@ static void PM_LadderMove( void ) {
 	scale = PM_CmdScale( &pm->cmd );
 	VectorClear( wishvel );
 
-	if ( pm->cmd.forwardmove ) {
-		wishvel[ 2 ] = 0.9 * upscale * scale * (float)pm->cmd.forwardmove;
+	// Clamp the forwardmove to not be faster than the ladder speed.
+	// This prevents us from climbing the ladder too fast.
+	const double forwardMove = std::clamp( (double)pm->cmd.forwardmove, -pmp->pm_ladder_speed, pmp->pm_ladder_speed );
+
+	if ( forwardMove ) {
+		wishvel[ 2 ] = 0.9 * upscale * scale * (float)forwardMove;
 	}
 	//Com_Printf("wishvel[2] = %i, fwdmove = %i\n", (int)wishvel[2], (int)pm->cmd.forwardmove );
 
@@ -1446,12 +1456,15 @@ static void PM_LadderMove( void ) {
 			VectorInverse( ladder_right );
 		}
 
+		// Clamp the speed to not be faster than the ladder side speed.
+		const double sideMove = std::clamp( (double)pm->cmd.sidemove, -pmp->pm_ladder_sidemove_speed, pmp->pm_ladder_sidemove_speed );
+
 		// Allows for strafing on ladder.
 		#if 1
-		VectorMA( wishvel, 0.5 * scale * (float)pm->cmd.sidemove, pml.right, wishvel );
+		VectorMA( wishvel, 0.5 * scale * sideMove, pml.right, wishvel );
 		// Moves without strafe capability on ladder.
 		#else
-		VectorMA( wishvel, 0.5 * scale * (float)pm->cmd.sidemove, ladder_right, wishvel );
+		VectorMA( wishvel, 0.5 * scale * sideMove, ladder_right, wishvel );
 		#endif
 	}
 
@@ -1651,7 +1664,7 @@ static void PM_WaterMove() {
 		wishvel[ 2 ] = -60;		// sink towards bottom
 	} else {
 		for ( i = 0; i < 3; i++ )
-			wishvel[ i ] = scale * pml.forward[ i ] * pm->cmd.forwardmove + scale * pml.right[ i ] * pm->cmd.sidemove;
+			wishVelocity[ i ] = scale * pml.forward[ i ] * pm->cmd.forwardmove + scale * pml.right[ i ] * pm->cmd.sidemove;
 
 		wishvel[ 2 ] += scale * pm->cmd.upmove;
 	}
@@ -1670,7 +1683,7 @@ static void PM_WaterMove() {
 	if ( pml.hasGroundPlane && DotProduct( pm->state->pmove.velocity, pml.groundTrace.plane.normal ) < 0 ) {
 		vel = VectorLength( pm->state->pmove.velocity );
 		// slide along the ground plane
-		PM_BounceVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+		PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
 			pm->state->pmove.velocity, PM_OVERCLIP );
 
 		VectorNormalize( &pm->state->pmove.velocity.x );
@@ -1739,7 +1752,7 @@ static void PM_FlyMove( bool noClip = false ) {
 		// though we don't have a groundentity
 		// slide along the steep plane
 		if ( pml.hasGroundPlane ) {
-			PM_BounceVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+			PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
 				pm->state->pmove.velocity, PM_OVERCLIP );
 		}
 
@@ -1815,7 +1828,7 @@ static void PM_AirMove( void ) {
 	// though we don't have a groundentity
 	// slide along the steep plane
 	if ( pml.hasGroundPlane ) {
-		PM_BounceVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+		PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
 			pm->state->pmove.velocity, PM_OVERCLIP );
 	}
 
@@ -1892,8 +1905,8 @@ static void PM_WalkMove( const bool canJump ) {
 	pml.right[ 2 ] = 0;
 
 	// project the forward and right directions onto the ground plane
-	PM_BounceVelocity( pml.forward, pml.groundTrace.plane.normal, pml.forward, PM_OVERCLIP );
-	PM_BounceVelocity( pml.right, pml.groundTrace.plane.normal, pml.right, PM_OVERCLIP );
+	PM_BounceClipVelocity( pml.forward, pml.groundTrace.plane.normal, pml.forward, PM_OVERCLIP );
+	PM_BounceClipVelocity( pml.right, pml.groundTrace.plane.normal, pml.right, PM_OVERCLIP );
 	//
 	VectorNormalize( &pml.forward.x );
 	VectorNormalize( &pml.right.x );
@@ -1949,7 +1962,7 @@ static void PM_WalkMove( const bool canJump ) {
 	vel = VectorLength( pm->state->pmove.velocity );
 
 	// slide along the ground plane
-	PM_BounceVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
+	PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
 		pm->state->pmove.velocity, PM_OVERCLIP );
 
 	// don't decrease velocity when going up or down a slope
@@ -2272,15 +2285,30 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 
 	// Iterate the player movement for yet another single frame.
 	SG_PlayerMove_Frame();
+
+	//int64_t finalTime = pm->simulationTime.Milliseconds();
+	//if ( finalTime < pm->cmd.serverTime ) {
+	//	return; // Should not happen.
+	//}
+
+	//if ( finalTime > pm->cmd.serverTime + 200 ) {
+	//	finalTime = pm->cmd.serverTime - 200;
+	//}
+
+	//while ( pm->cmd.serverTime != finalTime ) {
+	//	int64_t msec = finalTime - pm->cmd.serverTime;
+	//	if ( msec > 66 ) {
+	//					msec = 66;
+	//	}
+	//	pm->cmd.serverTime = pm->simulationTime.Milliseconds() + (double)msec;
+
+	//}
 }
 
 /**
 *	@brief	Default player move configuration parameters.
 **/
 void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
-	// Q2RTXPerimental Defaults:
-	pmp->pm_air_accelerate = atof( (const char *)SG_GetConfigString( CS_AIRACCEL ) );
-
 	//
 	// Configure the defaults, however, here one could for example use the
 	// player move stats by adding a 'class' slot, and basing movement parameters
@@ -2300,11 +2328,12 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_fly_speed = default_pmoveParams_t::pm_fly_speed;
 
 	pmp->pm_accelerate = default_pmoveParams_t::pm_accelerate;
-	pmp->pm_water_accelerate = default_pmoveParams_t::pm_water_accelerate;
-	pmp->pm_fly_accelerate = default_pmoveParams_t::pm_fly_accelerate;
+	pmp->pm_air_accelerate = atof( (const char *)SG_GetConfigString( CS_AIRACCEL ) );
 	if ( pmp->pm_air_accelerate <= 0 ) {
 		pmp->pm_air_accelerate = default_pmoveParams_t::pm_air_accelerate;
 	}
+	pmp->pm_fly_accelerate = default_pmoveParams_t::pm_fly_accelerate;
+	pmp->pm_water_accelerate = default_pmoveParams_t::pm_water_accelerate;
 
 	pmp->pm_friction = default_pmoveParams_t::pm_friction;
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
