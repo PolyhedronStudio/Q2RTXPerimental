@@ -209,13 +209,14 @@ typedef struct player_state_s {
     **/
     //! PMove generated state events.
     //int32_t     eventSequence;
-    int32_t     events[ MAX_PS_EVENTS ];
-    int32_t     eventParms[ MAX_PS_EVENTS ];
+    int32_t events[ MAX_PS_EVENTS ];
+    int32_t eventParms[ MAX_PS_EVENTS ];
 
     // WID: TODO: Just use its entity events instead?
-    //int32_t   externalEvent;	//! Events set on player from another source.
-    //int32_t   externalEventParm;
-    //int32_t   externalEventTime;
+    int32_t externalEvent;	//! Events set on player from another source.
+    int32_t externalEventParm;
+    int64_t externalEventTime;
+
 
     /**
     * 

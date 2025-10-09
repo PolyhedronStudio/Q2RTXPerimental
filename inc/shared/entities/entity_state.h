@@ -70,6 +70,7 @@ typedef struct entity_state_s {
     int32_t	sound;  //! For looping sounds, to guarantee shutoff
     int32_t	event;  //! Impulse events -- muzzle flashes, footsteps, etc.
                     //! Events only go out for a single frame, and they are automatically cleared after that.
+	int32_t eventParm; //! Even parameter.
 
     /**
     *   ET Specifics:

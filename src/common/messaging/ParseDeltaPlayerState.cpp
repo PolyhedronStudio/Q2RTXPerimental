@@ -87,20 +87,26 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 		to->bobCycle = MSG_ReadUint8();
 	}
 	// Sequenced Events:
-	if ( flags & PS_M_EVENT_SEQUENCE ) {
+	if ( flags & PS_EVENT_SEQUENCE ) {
 		to->eventSequence = MSG_ReadUint8();
 	}
-	if ( flags & PS_M_EVENT_FIRST ) {
+	if ( flags & PS_EVENT_FIRST ) {
 		to->events[ 0 ] = MSG_ReadUint8();
 	}
-	if ( flags & PS_M_EVENT_FIRST_PARM ) {
+	if ( flags & PS_EVENT_FIRST_PARM ) {
 		to->eventParms[ 0 ] = MSG_ReadUint8();
 	}
-	if ( flags & PS_M_EVENT_SECOND ) {
+	if ( flags & PS_EVENT_SECOND ) {
 		to->events[ 1 ] = MSG_ReadUint8();
 	}
-	if ( flags & PS_M_EVENT_SECOND_PARM ) {
+	if ( flags & PS_EVENT_SECOND_PARM ) {
 		to->eventParms[ 1 ] = MSG_ReadUint8();
+	}
+	if ( flags & PS_EXTERNAL_EVENT ) {
+		to->externalEvent = MSG_ReadUint8();
+	}
+	if ( flags & PS_EXTERNAL_EVENT_PARM ) {
+		to->externalEventParm = MSG_ReadIntBase128();
 	}
 
 

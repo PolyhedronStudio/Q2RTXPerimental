@@ -818,7 +818,11 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			}
 		}
 	}
-	
+	#endif
+/**
+*	@brief	Handles the water and conveyor belt by applying their 'currents'.
+**/
+static void PM_AddCurrents( Vector3 & wishVelocity ) {
 	// Add water currents.
 	if ( pm->liquid.type & CM_CONTENTMASK_CURRENT ) {
 		Vector3 velocity = QM_Vector3Zero();
@@ -842,10 +846,10 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 			velocity.z -= 1;
 		}
 
-		float speed = pmp->pm_water_speed;
+		double speed = pmp->pm_water_speed;
 		// Walking in water, against a current, so slow down our 
 		if ( ( pm->liquid.level == cm_liquid_level_t::LIQUID_FEET ) && ( pm->ground.entity ) ) {
-			speed /= 2;
+			speed /= 2.;
 		}
 
 		wishVelocity = QM_Vector3MultiplyAdd( wishVelocity, speed, velocity );
@@ -877,7 +881,6 @@ static void PM_AddCurrents( Vector3 &wishVelocity ) {
 		wishVelocity = QM_Vector3MultiplyAdd( wishVelocity, 100.f, velocity );
 	}
 }
-#endif
 
 
 
@@ -1529,17 +1532,20 @@ static const bool PM_CheckWaterJump( void ) {
 	/**
 	*	Check whether something is blocking us up/forward.
 	**/
-	
-	double PM_WATERJUMP_PREDICT_DIST = QM_BBox3Distance( BBox3( Vector2( pm->mins ), Vector2( pm->maxs ) ) );
 	static constexpr double PM_WATERJUMP_FORWARD_VELOCITY = 100.;
 	static constexpr double PM_WATERJUMP_UP_VELOCITY = 350.;
 	static constexpr double PM_WATERJUMP_TIME = 24.;
+
+	// The distance ahead to check for obstructions.
+	double PM_WATERJUMP_PREDICT_DIST = QM_BBox3Distance( BBox3( Vector2( pm->mins ), Vector2( pm->maxs ) ) );
+	
 	// Perform the trace.
 	trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, pm->state->pmove.origin + ( flatForward * PM_WATERJUMP_PREDICT_DIST ), CM_CONTENTMASK_SOLID );
 	// We aren't blocked, or what we're blocked by is something we can walk up.
 	if ( trace.fraction == 1.0f || trace.plane.normal[ 2 ] >= PM_STEP_MIN_NORMAL ) {
 		return false;
 	}
+
 	// Test for any obstructions above us near the forward destination spot.
 	spot = QM_Vector3MultiplyAdd( pm->state->pmove.origin, PM_WATERJUMP_PREDICT_DIST, flatForward );
 	spot[ 2 ] += 4;
@@ -1649,6 +1655,9 @@ static void PM_WaterMove() {
 		// Ensure to add up move.
 		wishVelocity[ 2 ] += cmdScale * pm->cmd.upmove;
 	}
+
+	// Add currents.
+	PM_AddCurrents( wishVelocity );
 
 	// Determine the speed of the movement.
 	Vector3 wishDirection = wishVelocity;
@@ -1791,6 +1800,9 @@ static void PM_AirMove( void ) {
 		wishVelocity[ i ] = pml.forward[ i ] * forwardMove + pml.right[ i ] * sideMove;
 	}
 	wishVelocity[ 2 ] = 0;
+
+	// Add currents.
+	PM_AddCurrents( wishVelocity );
 	
 	// set the movementDir so clients can rotate the legs for strafing
 	PM_Animation_SetMovementDirection();
@@ -1891,6 +1903,9 @@ static void PM_WalkMove( const bool canJump ) {
 
 	// when going up or down slopes the wish velocity should Not be zero
 	//	wishVelocity[2] = 0;
+	// 
+	// Add currents.
+	PM_AddCurrents( wishVelocity );
 
 	// Determine the speed of the movement.
 	Vector3 wishDirection = wishVelocity;

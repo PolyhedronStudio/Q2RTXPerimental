@@ -150,6 +150,9 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	if ( bits & U_EVENT ) {
 		to->event = MSG_ReadUintBase128( );
 	}
+	if ( bits & U_EVENT_PARM ) {
+		to->eventParm = MSG_ReadIntBase128();
+	}
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: ReadLong by default.

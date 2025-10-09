@@ -78,7 +78,8 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
     //if ( !clgi.client->clientEntity ) {
     //    return;
     //}
-    //centity_t *cent = clgi.client->clientEntity;
+    
+    //centity_t *clientEntity = clgi.client->clientEntity;
     // Get client entity.
     centity_t *clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
 
@@ -90,38 +91,42 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
     // WID: We don't have support for external events yet. In fact, they would in Q3 style rely on
     // 'temp entities', which are alike a normal entity. Point being is this requires too much refactoring
     // right now.
-    #if 0
+    #if 1
     if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
-        centity_t *clientEntity = clgi.client->clientEntity;//cent = &cg_entities[ ps->clientNum + 1 ];
-        clientEntity->currentState.event = ps->externalEvent;
-        clientEntity->currentState.eventParm = ps->externalEventParm;
-        CG_EntityEvent( clientEntity, clientEntity->lerpOrigin );
+        //cent = &cg_entities[ ps->clientNum + 1 ];
+        centity_t *clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+        clientEntity->current.event = ps->externalEvent;
+        clientEntity->current.eventParm = ps->externalEventParm;
+        //CLG_EntityEvent( clientEntity, clientEntity->lerpOrigin );
     }
     #endif
 
-    // 
-    //centity_t *clientEntity= &clg_entities[ clgi.client->frame.clientNum + 1 ];//clgi.client->clientEntity; // cg_entities[ ps->clientNum + 1 ];
+    // cg_entities[ ps->clientNum + 1 ];
+    clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+
     // go through the predictable events buffer
     for ( int64_t i = ps->eventSequence - MAX_PS_EVENTS; i < ps->eventSequence; i++ ) {
         // If we have a new predictable event:
         if ( i >= ops->eventSequence
             // OR the server told us to play another event instead of a predicted event we already issued
+            
             // OR something the server told us changed our prediction causing a different event
-            || ( i > ops->eventSequence - MAX_PS_EVENTS && ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] != ops->events[ i & ( MAX_PS_EVENTS - 1 ) ] ) ) {
-
-            //clientEntity->current.event = event;
-            //clientEntity->current.eventParm = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
-            //CLG_EntityEvent( cent, cent->lerp_origin );
-
-            // Get the event number.
+            || ( i > ops->eventSequence - MAX_PS_EVENTS && ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] != ops->events[ i & ( MAX_PS_EVENTS - 1 ) ] ) 
+        ) {
+			// Get the event number.
             const int32_t playerStateEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
+			// Assign to the client entity.
+            clientEntity->current.event = playerStateEvent;
+            clientEntity->current.eventParm = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
+
             // Proceed to firing the predicted/received event.
+            //CLG_EntityEvent( clientEntity, clientEntity->lerp_origin );
             CLG_FirePlayerStateEvent( ops, ps, playerStateEvent, clientEntity->lerp_origin );
 
-            //// Add to the list of predictable events.
-            //game.predictableEvents[ i & ( MAX_PREDICTED_EVENTS - 1 ) ] = event;
-            //// Increment Event Sequence.
-            //game.eventSequence++;
+            // Add to the list of predictable events.
+            game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] = playerStateEvent;
+            // Increment Event Sequence.
+            game.eventSequence++;
         }
     }
 }

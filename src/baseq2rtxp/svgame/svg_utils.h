@@ -37,7 +37,7 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir, const bool clearAngle
 *   @brief  Determines the client that is most near to the entity,
 *           and returns its length for ( ent->origin - client->origin ).
 **/
-const double SVG_UTIL_ClosestClientForEntity( svg_base_edict_t *ent );
+const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent );
 
 
 
@@ -95,6 +95,7 @@ const Vector3 SVG_Util_ProjectSource( const Vector3 &point, const Vector3 &dista
 *   @brief  Utility version of above that uses vec3_t args and result.
 **/
 void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result );
+
 
 
 /**

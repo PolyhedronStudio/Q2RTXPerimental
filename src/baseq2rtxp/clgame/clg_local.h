@@ -726,17 +726,26 @@ typedef struct client_predicted_state_s {
 *	@todo	In the future, look into saving its state in: client.clsv
 **/
 struct game_locals_t {
-	//! This always has its value reset to the latest received frame's data. For all the time in-between the
-	//! received frames, it maintains track of the predicted client states.
-	//! (Currently though, player_state_t only.)
-	client_predicted_state_t predictedState;
-
 	//! Stores zone allocated clients[maxclients];
 	cclient_t *clients;
 	//! Stores zone allocated entities[maxentities];
 	centity_t *entities;
 
-	//! Stores client state of the view weapon and its model.
+	//! This always has its value reset to the latest received frame's data. For all the time in-between the
+	//! received frames, it maintains track of the predicted client states.
+	//! (Currently though, player_state_t only.)
+	client_predicted_state_t predictedState;
+
+	/**
+	*	Stores the last event sequence number and an array of the last MAX_PREDICTED_EVENTS.
+	**/
+	static constexpr int32_t MAX_PREDICTED_EVENTS = 16;
+	int64_t		eventSequence;
+	int32_t		predictableEvents[ game_locals_t::MAX_PREDICTED_EVENTS ];
+
+	/**
+	*	Stores client state of the view weapon and its model.
+	**/
 	struct {
 		/**
 		*	These are for the animation.

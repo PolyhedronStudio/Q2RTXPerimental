@@ -989,7 +989,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectRandomDeathmatchSpawnPoint( v
 
 	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
 		count++;
-		range = SVG_UTIL_ClosestClientForEntity( spot );
+		range = SVG_Util_ClosestClientForEntity( spot );
 		if ( range < range1 ) {
 			range1 = range;
 			spot1 = spot;
@@ -1032,7 +1032,7 @@ svg_base_edict_t *svg_gamemode_deathmatch_t::SelectFarthestDeathmatchSpawnPoint(
 	bestspot = NULL;
 	bestdistance = 0;
 	while ( ( spot = SVG_Entities_Find( spot, q_offsetof( svg_base_edict_t, classname ), "info_player_deathmatch" ) ) != NULL ) {
-		bestplayerdistance = SVG_UTIL_ClosestClientForEntity( spot );
+		bestplayerdistance = SVG_Util_ClosestClientForEntity( spot );
 
 		if ( bestplayerdistance > bestdistance ) {
 			bestspot = spot;

@@ -27,6 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/entities/svg_entities_pushermove.h"
 
 #include "sharedgame/sg_means_of_death.h"
+#include "sharedgame/sg_misc.h"
 
 
 
@@ -96,7 +97,7 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir, const bool clearAngle
 *   @brief  Determines the client that is most near to the entity,
 *           and returns its length for ( ent->origin - client->origin ).
 **/
-const double SVG_UTIL_ClosestClientForEntity( svg_base_edict_t *ent ) {
+const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent ) {
     // The best distance will always be flt_max.
     double bestDistance = CM_MAX_WORLD_SIZE + 1.f;
 
@@ -125,6 +126,60 @@ const double SVG_UTIL_ClosestClientForEntity( svg_base_edict_t *ent ) {
 
     // Return result.
     return bestDistance;
+}
+
+
+
+/**
+*   @brief  Use for non-pmove events that would also be predicted on the
+*           client side: jumppads and item pickups
+*           Adds an event+parm and twiddles the event counter
+**/
+void SVG_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+    if ( !ent->client ) {
+        return;
+    }
+    
+    SG_PlayerState_AddPredictableEvent( event, eventParm, &ent->client->ps );
+}
+
+/**
+*   @brief Adds an event+parm and twiddles the event counter.
+**/
+void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+    if ( !event ) {
+        SG_DPrintf( "G_AddEvent: zero event added for entity %i\n", ent->s.number );
+        return;
+    }
+	
+    static constexpr int32_t EV_EVENT_BIT1 = BIT( 0 ); // OLD: 0x00000100
+    static constexpr int32_t EV_EVENT_BIT2 = BIT( 1 ); // OLD: 0x00000200
+    static constexpr int32_t EV_EVENT_BITS = ( EV_EVENT_BIT1 | EV_EVENT_BIT2 );
+
+    #if 1
+        // clients need to add the event in playerState_t instead of entityState_t
+        if ( ent->client ) {
+		    // Set the event.
+            int32_t bits = ent->client->ps.externalEvent & EV_EVENT_BITS;
+		    // EV_EVENT_BIT1 and EV_EVENT_BIT2 are a two bit counter, so go to the next one.
+            bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
+		    // Set the event and parm.
+            ent->client->ps.externalEvent = event | bits;
+            ent->client->ps.externalEventParm = eventParm;
+            ent->client->ps.externalEventTime = level.time.Milliseconds();
+        // non-clients just add it to the entityState_t
+        } else {
+		    // Set the event.
+            int32_t bits = ent->s.event & EV_EVENT_BITS;
+		    // EV_EVENT_BIT1 and EV_EVENT_BIT2 are a two bit counter, so go to the next one.
+            bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
+		    // Set the event and parm.
+            ent->s.event = event | bits;
+            ent->s.eventParm = eventParm;
+        }
+	    // Stamp the time of the event.
+        ent->eventTime = level.time.Milliseconds();
+    #endif
 }
 
 
@@ -182,7 +237,7 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
         return;
 
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
-    memset( touchedEdicts, 0, sizeof(svg_base_edict_t*) * MAX_EDICTS );
+    memset( touchedEdicts, 0, sizeof touchedEdicts );
 
     const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_TRIGGERS );
 
@@ -217,7 +272,7 @@ void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
     svg_base_edict_t *hit = nullptr;
 
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
-    memset( touchedEdicts, 0, sizeof( svg_base_edict_t * ) * MAX_EDICTS );
+    memset( touchedEdicts, 0, sizeof touchedEdicts );
 
     const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 
@@ -385,7 +440,7 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
     //if ( from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide( false ) )
     //    mask &= ~CONTENTS_PLAYER;
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
-    memset( touchedEdicts, 0, sizeof( svg_base_edict_t * ) * MAX_EDICTS );
+    memset( touchedEdicts, 0, sizeof touchedEdicts );
 
     int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
     
@@ -490,7 +545,6 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
 *
 *
 **/
-
 /**
 *   @note   At the time of calling, parent entity has to reside in its default state.
 *           (This so the actual offsets can be calculated easily.)

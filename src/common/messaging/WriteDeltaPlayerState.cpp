@@ -43,6 +43,8 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	out->events[ 1 ] = in->events[ 1 ];
 	out->eventParms[ 0 ] = in->eventParms[ 0 ];
 	out->eventParms[ 1 ] = in->eventParms[ 1 ];
+	out->externalEvent = in->externalEvent;
+	out->externalEventParm = in->externalEventParm;
 
 	out->viewangles[ 0 ] = QM_AngleMod( in->viewangles[ 0 ] );
 	out->viewangles[ 1 ] = QM_AngleMod( in->viewangles[ 1 ] );
@@ -154,21 +156,27 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	}
 
 	if ( to->eventSequence != from->eventSequence ) {
-		pflags |= PS_M_EVENT_SEQUENCE;
+		pflags |= PS_EVENT_SEQUENCE;
 	}
 	if ( to->events[ 0 ] != from->events[ 0 ] ) {
-		pflags |= PS_M_EVENT_FIRST;
+		pflags |= PS_EVENT_FIRST;
 	}
 	if ( to->events[ 1 ] != from->events[ 1 ] ) {
-		pflags |= PS_M_EVENT_SECOND;
+		pflags |= PS_EVENT_SECOND;
 	}
 	if ( to->eventParms[ 0 ] != from->eventParms[ 0 ] ) {
-		pflags |= PS_M_EVENT_FIRST_PARM;
+		pflags |= PS_EVENT_FIRST_PARM;
 	}
 	if ( to->eventParms[ 1 ] != from->eventParms[ 1 ] ) {
-		pflags |= PS_M_EVENT_SECOND_PARM;
+		pflags |= PS_EVENT_SECOND_PARM;
 	}
 
+	if ( to->externalEvent != from->externalEvent ) {
+		pflags |= PS_EXTERNAL_EVENT;
+	}
+	if ( to->externalEventParm != from->externalEventParm ) {
+		pflags |= PS_EXTERNAL_EVENT_PARM;
+	}
 
 	//
 	// write it
@@ -216,20 +224,26 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		MSG_WriteUint8( to->bobCycle );
 	}
 	// Sequenced Events:
-	if ( pflags & PS_M_EVENT_SEQUENCE ) {
+	if ( pflags & PS_EVENT_SEQUENCE ) {
 		MSG_WriteUint8( to->eventSequence );
 	}
-	if ( pflags & PS_M_EVENT_FIRST ) {
+	if ( pflags & PS_EVENT_FIRST ) {
 		MSG_WriteUint8( to->events[ 0 ] );
 	}
-	if ( pflags & PS_M_EVENT_FIRST_PARM ) {
+	if ( pflags & PS_EVENT_FIRST_PARM ) {
 		MSG_WriteUint8( to->eventParms[ 0 ] );
 	}
-	if ( pflags & PS_M_EVENT_SECOND ) {
+	if ( pflags & PS_EVENT_SECOND ) {
 		MSG_WriteUint8( to->events[ 1 ] );
 	}
-	if ( pflags & PS_M_EVENT_SECOND_PARM ) {
+	if ( pflags & PS_EVENT_SECOND_PARM ) {
 		MSG_WriteUint8( to->eventParms[ 1 ] );
+	}
+	if ( pflags & PS_EXTERNAL_EVENT ) {
+		MSG_WriteUint8( to->externalEvent );
+	}
+	if ( pflags & PS_EXTERNAL_EVENT_PARM ) {
+		MSG_WriteIntBase128( to->externalEventParm );
 	}
 
 

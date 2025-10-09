@@ -78,7 +78,9 @@ typedef struct {
 	uint32_t	old_frame;
 
 	uint16_t    sound;
+
 	uint8_t     event;
+	int32_t		eventParm;
 
 	// Spotlights
 	vec3_t rgb;
@@ -113,6 +115,9 @@ typedef struct {
 	uint8_t			eventSequence;
 	uint8_t			events[ MAX_PS_EVENTS ];
 	uint8_t			eventParms[ MAX_PS_EVENTS ];
+
+	uint8_t			externalEvent;
+	int32_t			externalEventParm;
 
 	uint8_t			bobCycle;
 } player_packed_t;

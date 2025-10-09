@@ -59,14 +59,16 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define PS_M_TIME				BIT( 4 )
 #define PS_M_FLAGS				BIT( 5 )
 #define PS_M_DELTA_ANGLES		BIT( 6 )
-#define PS_M_EVENT_SEQUENCE		BIT( 7 )
-#define PS_M_EVENT_FIRST		BIT( 8 )
-#define PS_M_EVENT_FIRST_PARM	BIT( 9 )
-#define PS_M_EVENT_SECOND		BIT( 10 )
-#define PS_M_EVENT_SECOND_PARM	BIT( 11 )
-#define PS_M_VIEWHEIGHT			BIT( 12 )
+#define PS_M_VIEWHEIGHT			BIT( 7 )
 
-#define PS_BOB_CYCLE		BIT( 13 )
+#define PS_BOB_CYCLE			BIT( 8 )
+
+#define PS_EVENT_SEQUENCE		BIT( 9 )
+#define PS_EVENT_FIRST			BIT( 10 )
+#define PS_EVENT_FIRST_PARM		BIT( 11 )
+#define PS_EVENT_SECOND			BIT( 12 )
+#define PS_EVENT_SECOND_PARM	BIT( 13 )
+
 #define PS_GUN_ANIMATION	BIT( 14 )
 #define PS_GUN_MODELINDEX	BIT( 15 )
 
@@ -74,10 +76,13 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define PS_KICKANGLES       BIT( 17 )
 #define PS_VIEWOFFSET       BIT( 18 )
 
-#define PS_BLEND            BIT( 19 )
-#define PS_FOV					BIT( 20 )
-#define PS_RDFLAGS				BIT( 21 )
-#define PS_M_GRAVITY			BIT( 22 )
+#define PS_EXTERNAL_EVENT		BIT( 19 )
+#define PS_EXTERNAL_EVENT_PARM	BIT( 20 )
+
+#define PS_BLEND            BIT( 21 )
+#define PS_FOV				BIT( 22 )
+#define PS_RDFLAGS			BIT( 23 )
+#define PS_M_GRAVITY		BIT( 24 )
 
 //==============================================
 
@@ -117,35 +122,36 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define U_ANGLE3    (1<<3)
 #define U_FRAME     (1<<4)			// 
 #define U_EVENT     (1<<5)
-#define U_SKIN		(1<<6)
-#define U_SOLID		(1<<7)
+#define U_EVENT_PARM (1<<6)
+#define U_SKIN		(1<<7)
+#define U_SOLID		(1<<8)
 
 
 // second byte
-#define U_SOUND		(1<<8)
-#define U_ORIGIN3   (1<<9)
-#define U_ANGLE1    (1<<10)
-#define U_MODEL     (1<<11)
-#define U_RENDERFX  (1<<12)			// fullbright, etc
-#define U_EFFECTS	(1<<13)
-#define U_OLDORIGIN	(1<<14)			// autorotate, trails, etc
-#define U_MODEL2	(1<<15)
+#define U_SOUND		(1<<9)
+#define U_ORIGIN3   (1<<10)
+#define U_ANGLE1    (1<<11)
+#define U_MODEL     (1<<12)
+#define U_RENDERFX  (1<<13)			// fullbright, etc
+#define U_EFFECTS	(1<<14)
+#define U_OLDORIGIN	(1<<15)			// autorotate, trails, etc
+#define U_MODEL2	(1<<16)
 
 // third byte
-#define U_MODEL3					(1<<16)
-#define U_MODEL4					(1<<17)
-#define U_ENTITY_TYPE				(1<<18)		// TODO: Move to other bit location.
-#define U_SPOTLIGHT_RGB				(1<<19)
-#define U_SPOTLIGHT_INTENSITY		(1<<20)
-#define U_SPOTLIGHT_ANGLE_WIDTH		(1<<21)
-#define U_SPOTLIGHT_ANGLE_FALLOFF	(1<<22)
-#define U_CLIPMASK					(1<<23)
+#define U_MODEL3					(1<<17)
+#define U_MODEL4					(1<<18)
+#define U_ENTITY_TYPE				(1<<19)		// TODO: Move to other bit location.
+#define U_SPOTLIGHT_RGB				(1<<20)
+#define U_SPOTLIGHT_INTENSITY		(1<<21)
+#define U_SPOTLIGHT_ANGLE_WIDTH		(1<<22)
+#define U_SPOTLIGHT_ANGLE_FALLOFF	(1<<23)
+#define U_CLIPMASK					(1<<24)
 
 // fourth byte
-#define U_HULL_CONTENTS	(1<<24)
-#define U_OWNER 		(1<<25)
-#define U_BOUNDINGBOX	(1<<26)
-#define U_UNUSED0		(1<<27)
+#define U_HULL_CONTENTS	(1<<25)
+#define U_OWNER 		(1<<26)
+#define U_BOUNDINGBOX	(1<<27)
+#define U_UNUSED0		(1<<28)
 #define U_UNUSED1		(1<<28)
 #define U_UNUSED2		(1<<29)
 #define U_UNUSED3		(1<<30)

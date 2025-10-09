@@ -75,6 +75,7 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	out->old_frame = in->old_frame;
 	out->sound = in->sound;
 	out->event = in->event;
+	out->eventParm = in->eventParm;
 
 	// ET_SPOTLIGHT:
 	out->rgb[ 0 ] = in->spotlight.rgb[ 0 ];
@@ -208,6 +209,10 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( to->event ) {
 		bits |= U_EVENT;
 	}
+	// event is not delta compressed, just 0 compressed
+	if ( to->eventParm ) {
+		bits |= U_EVENT_PARM;
+	}
 
 	if ( to->renderfx & RF_FRAMELERP ) {
 		bits |= U_OLDORIGIN;
@@ -310,11 +315,16 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 		MSG_WriteUintBase128( to->renderfx );
 	}
 
-	if ( bits & U_SOUND )
+	if ( bits & U_SOUND ) {
 		MSG_WriteUintBase128( to->sound );
+	}
 
-	if ( bits & U_EVENT )
+	if ( bits & U_EVENT ) {
 		MSG_WriteUintBase128( to->event );
+	}
+	if ( bits & U_EVENT_PARM ) {
+		MSG_WriteIntBase128( to->eventParm );
+	}
 
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
