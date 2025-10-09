@@ -41,7 +41,7 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     *
     **/
     DefineWorldSpawnClass(
-        // classname:               classType:               superClassType:
+        // classname:     classType:        superClassType:
         "func_door", svg_func_door_t, svg_pushmove_edict_t,
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_WorldSpawn | EdictTypeInfo::TypeInfoFlag_GameSpawn,
@@ -147,6 +147,7 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onCloseEndMove );
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove );
 
+
     /**
     *
     *   Member Functions:
@@ -160,6 +161,7 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     *   @brief  Setup default PushMoveInfo sounds.
     **/
     void SetupDefaultSounds();
+
 
     /**
     *

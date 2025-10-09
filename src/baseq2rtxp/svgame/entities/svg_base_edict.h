@@ -685,6 +685,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     QMTime  freetime = 0_ms;
     //! Used for deferring client info so that disconnected, etc works
     QMTime  timestamp = 0_ms;
+    // Events will be cleared EVENT_VALID_MSEC after set.
+    QMTime  eventTime = 0_ms;
 
     //! [SpawnKey]: Entity classname key/value.
     svg_level_qstring_t classname = nullptr;
@@ -856,7 +858,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! Categorized ground information.
     mm_ground_info_t groundInfo = {};
     //! The directional gravity vector.
-	Vector3     gravityVector = QM_Vector3Zero();
+	Vector3     gravityVector = QM_Vector3Gravity();
     //! [SpawnKey]: Weight(mass) of entity.
     int32_t     mass = 0;
     //! [SpawnKey]: Per entity gravity multiplier (1.0 is normal) use for lowgrav artifact, flares.

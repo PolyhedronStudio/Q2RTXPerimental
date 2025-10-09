@@ -497,43 +497,93 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     // Call upon the base class.
     sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Reset( retainDictionary );
 
-    // Reset all member variables to defaults. (Avoid using memset because it corrupts vtable.)
+    /**
+    *   Reset all member variables to defaults. ( Avoid using memset because it corrupts vtable. )
+    **/
     spawn_count = 0;
     freetime = 0_ms;
     timestamp = 0_ms;
+    eventTime = 0_ms;
+
     classname = svg_level_qstring_t::from_char_str( "svg_base_edict_t" );
     model = nullptr;
     angle = 0.0f;
+    
     spawnflags = 0;
     flags = entity_flags_t::FL_NONE;
+
+    /**
+    *   Health/Body Status Conditions:
+    **/
     health = 0;
+    armor = 0;
     max_health = 0;
+    max_armor = 0;
     gib_health = 0;
     lifeStatus = entity_lifestatus_t::LIFESTATUS_ALIVE;
     takedamage = entity_takedamage_t::DAMAGE_NO;
+
+    /**
+    *   UseTarget Properties and State:
+    **/
     useTarget = {};
-    targetname = {};
+
+    /**
+    *   Target Name Fields:
+    **/
+    targetname = {}; // level_qstring_t
     targetNames = {};
+
+    /**
+    *   Target Entities:
+    **/
     targetEntities = {};
+
+    /**
+    *   Lua Properties:
+    **/
+    luaProperties = {};
+
+    /**
+    *   "Delay" entities, these are created when (UseTargets/SignalOut) with a
+    *   special "delay" worldspawn key/value set.
+    **/
     delayed.signalOut.arguments.clear();
     delayed = {};
+
+    /**
+    *   Physics Related:
+    **/
     moveWith = {};
+
     movetype = 0;
     velocity = QM_Vector3Zero();
     avelocity = QM_Vector3Zero();
     viewheight = 0;
+
     liquidInfo = {};
     groundInfo = {};
-    gravityVector = { 0.f, 0.f, -1.f };
+
+    gravityVector = QM_Vector3Gravity();
     mass = 0;
     gravity = 0.f;
+
+    pausetime = 0_ms;
+
+    itemName = nullptr;
+
+    /**
+    *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
+    **/
     pushMoveInfo = {};
-    speed = 0.f;
-    accel = 0.f;
-    decel = 0.f;
     distance = 0.f;
     lip = 0.f;
     height = 0.f;
+
+    speed = 0.f;
+    accel = 0.f;
+    decel = 0.f;
+
     movedir = QM_Vector3Zero();
     pos1 = QM_Vector3Zero();
     angles1 = QM_Vector3Zero();
@@ -543,18 +593,30 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     lastAngles = QM_Vector3Zero();
     movetarget = nullptr;
 
+    /**
+    *   NextThink AND Entity Callbacks:
+    **/
     nextthink = 0_ms;
+    // <Q2RTXP>: WID: We keep this around for reuse.
+	//spawnCallbackFuncPtr = nullptr;
+    // Clear all other callbacks.
     postSpawnCallbackFuncPtr = nullptr;
     preThinkCallbackFuncPtr = nullptr;
     thinkCallbackFuncPtr = nullptr;
     postThinkCallbackFuncPtr = nullptr;
+
     blockedCallbackFuncPtr = nullptr;
     touchCallbackFuncPtr = nullptr;
+
     useCallbackFuncPtr = nullptr;
     onSignalInCallbackFuncPtr = nullptr;
+
     painCallbackFuncPtr = nullptr;
     dieCallbackFuncPtr = nullptr;
 
+    /**
+    *   Entity Pointers:
+    **/
     enemy = nullptr;
     oldenemy = nullptr;
     goalentity = nullptr;
@@ -566,30 +628,51 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     activator = nullptr;
     other = nullptr;
 
+    /**
+    *   Light Data:
+    **/
     style = 0;
-
     customLightStyle = nullptr;
 
+    /**
+    *   Item Data:
+    **/
     item = nullptr;
     itemName = nullptr;
 
+    /**
+    *   Monster Data:
+    **/
     yaw_speed = 0.f;
     ideal_yaw = 0.f;
+
+    /**
+    *   (Player-)Noise/Trail:
+    **/
     noisePath = nullptr;
     mynoise = nullptr;
     mynoise2 = nullptr;
     noise_index = 0;
     noise_index2 = 0;
 
+    /**
+    *   Sound Data:
+    **/
     volume = 0.0f;
     attenuation = 0.0f;
     last_sound_time = 0_ms;
 
+    /**
+    *   Trigger(s) Data:
+    **/
     message = nullptr;
     wait = 0.f;
     delay = 0.f;
     random = 0.f;
 
+    /**
+    *   Timers Data:
+    **/
     air_finished_time = 0_ms;
     damage_debounce_time = 0_ms;
     fly_sound_debounce_time = 0_ms;
@@ -597,8 +680,12 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     touch_debounce_time = 0_ms;
     pain_debounce_time = 0_ms;
     show_hostile_time = 0_ms;
+    death_time = 0_ms;
     trail_time = 0_ms;
 
+    /**
+    *   Various Data:
+    **/
     meansOfDeath = sg_means_of_death_e::MEANS_OF_DEATH_UNKNOWN;
     map = nullptr;
 
@@ -608,6 +695,9 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     sounds = 0;
     count = 0;
 
+    /**
+    *   Only used for g_turret.cpp - WID: Remove?:
+    **/
     move_origin = QM_Vector3Zero();
     move_angles = QM_Vector3Zero();
 }
@@ -631,7 +721,7 @@ void svg_base_edict_t::Save( struct game_write_context_t *ctx ) {
 **/
 void svg_base_edict_t::Restore( struct game_read_context_t *ctx ) {
     // Call upon the base class.
-	//sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Save( ctx );
+	//sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Restore( ctx );
     // Read all the members of this entity type.
     ctx->read_fields( svg_base_edict_t::saveDescriptorFields, this );
 }

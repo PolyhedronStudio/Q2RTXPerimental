@@ -111,6 +111,7 @@ struct svg_func_door_rotating_t : public svg_func_door_t {
     *   @brief  Spawn.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn );
+ 
     #if 0
     /**
     *   @brief  Post-Spawn.
@@ -160,11 +161,13 @@ struct svg_func_door_rotating_t : public svg_func_door_t {
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_base_edict_t, onOpenEndMove );
     #endif
 
+
     /**
     *
     *   Member Functions:
     *
     **/
+
 
     /**
     *

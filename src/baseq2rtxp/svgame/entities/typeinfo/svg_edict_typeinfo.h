@@ -132,23 +132,50 @@ public:
 	*	@return True if the current type is a subclass of the specified type, otherwise false.
 	**/
 	const bool IsSubClassOfTypeInfo( EdictTypeInfo &typeInfo, const bool derivedCheckOnly = false ) const {
-		// We got a match, return true.
-		if ( !derivedCheckOnly && IsClassTypeInfo( typeInfo ) ) {
-			return true;
-		}
-		if ( derivedCheckOnly == true ) {
-			if ( super ) {
-				return super->IsClassTypeInfo( typeInfo );
-			} else {
+		// If we only want to check for derived classes, skip the first check.
+		if ( derivedCheckOnly ) {
+			// No parent, we never had a match.
+			if ( super == nullptr ) {
 				return false;
 			}
+			// Iterate onto parent type, now always checking the type itself also.
+			return super->IsSubClassOfTypeInfo( typeInfo, false );
+		} else {
+			// Check if the type is a match.
+			const bool isMatch = IsClassTypeInfo( typeInfo );
+			// Matched.
+			if ( isMatch == true ) {
+				return true;
+			// Not matched:
+			} else {
+				// No parent, we never had a match.
+				if ( super == nullptr ) {
+					return false;
+				}
+				// Iterate onto parent type, now always checking the type itself also.
+				return super->IsSubClassOfTypeInfo( typeInfo, false );
+			}
 		}
-		// No parent, we never had a match.
-		if ( super == nullptr ) {
-			return false;
-		}
-		// Iterate onto parent type.
-		return super->IsSubClassOfTypeInfo( typeInfo, derivedCheckOnly );
+		#if 0
+			// We got a match, return true.
+			if ( !derivedCheckOnly && IsClassTypeInfo( typeInfo ) ) {
+				return true;
+			}
+			if ( derivedCheckOnly == true ) {
+				if ( super ) {
+					return super->IsSubClassOfTypeInfo( typeInfo, derivedCheckOnly );
+					//return super->IsClassTypeInfo( typeInfo );
+				} else {
+					return false;
+				}
+			}
+			// No parent, we never had a match.
+			if ( super == nullptr ) {
+				return false;
+			}
+			// Iterate onto parent type.
+			return super->IsSubClassOfTypeInfo( typeInfo, derivedCheckOnly );
+		#endif
 	}
 
 	/**

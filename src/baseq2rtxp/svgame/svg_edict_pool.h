@@ -119,7 +119,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         ed->s.entityType = ET_GENERIC;
 
         // PGM - do this before calling the spawn function so it can be overridden.
-        ed->gravityVector = { 0.f, 0.f, -1.f };
+        ed->gravityVector = QM_Vector3Gravity();
         // PGM
     }
 };

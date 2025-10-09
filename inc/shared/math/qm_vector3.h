@@ -25,6 +25,12 @@ QM_API_CONSTEXPR Vector3 QM_Vector3One( void ) {
     return result;
 }
 
+// Vector for the default downward gravity direction.
+QM_API_CONSTEXPR Vector3 QM_Vector3Gravity( void ) {
+    Vector3 result = { 0.0f, 0.0f, -1.0f };
+    return result;
+}
+
 // Vector3 with x and y component of Vector2.
 #ifdef __cplusplus
 QM_API Vector2 QM_Vector2FromVector3( const Vector3 &v1 ) {

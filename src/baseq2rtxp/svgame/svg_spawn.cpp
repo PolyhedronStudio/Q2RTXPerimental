@@ -600,9 +600,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         // Set the worldspawn entityID.
         g_edict_pool.EmplaceNextFreeEdict( spawnEdict );
         // PGM - do this before calling the spawn function so it can be overridden.
-        spawnEdict->gravityVector[ 0 ] = 0.0;
-        spawnEdict->gravityVector[ 1 ] = 0.0;
-        spawnEdict->gravityVector[ 2 ] = -1.0;
+        spawnEdict->gravityVector = QM_Vector3Gravity();
         // PGM
 		// Set the entityID.
         spawnEdict->DispatchSpawnCallback();
