@@ -1648,6 +1648,8 @@ player processing happens outside RunWorldFrame
 */
 static void SV_PrepWorldFrame(void)
 {
+	// <Q2RTXP>: This is now done in SV_RunGameFrame, while iterating entities in ge->RunFrame().
+    #if 0
     sv_edict_t    *ent;
     int        i;
 
@@ -1657,6 +1659,7 @@ static void SV_PrepWorldFrame(void)
         // events only last for a single keyframe
         ent->s.event = 0;
     }
+    #endif
 }
 
 // pause if there is only local client on the server

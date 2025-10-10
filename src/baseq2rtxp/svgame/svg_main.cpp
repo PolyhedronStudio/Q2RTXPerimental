@@ -520,6 +520,41 @@ void CheckNeedPass(void) {
 }
 
 /**
+*   @brief  Checks the entity for whether its event should be cleared.
+*   @return True if the entity is meant to be skipped for iterating further on afterwards.
+**/
+static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
+	// We want the QMTime version of this.
+    static constexpr QMTime _EVENT_VALID_MSEC = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
+    // clear events that are too old
+    if ( level.time - ent->eventTime > _EVENT_VALID_MSEC ) {
+        if ( ent->s.event ) {
+            ent->s.event = 0;	// &= EV_EVENT_BITS;
+            if ( ent->client ) {
+                ent->client->ps.externalEvent = 0;
+                // predicted events should never be set to zero
+                //ent->client->ps.events[0] = 0;
+                //ent->client->ps.events[1] = 0;
+            }
+        }
+        // If true, we free it.
+        if ( ent->freeAfterEvent ) {
+            // tempEntities or dropped items completely go away after their event
+            SVG_FreeEdict( ent );
+            //continue;
+            return true; // Skip the entity for further processing. 
+        // Otherwise, if true, we unlink it.
+        } else if ( ent->unlinkAfterEvent ) {
+            // items that will respawn will hide themselves after their pickup event
+            ent->unlinkAfterEvent = false;
+            gi.unlinkentity( ent );
+        }
+    }
+
+    // Don't skip the entity for further processing.
+    return false;
+}
+/**
 *   @brief  Advances the world by FRAME_TIME_MS seconds
 **/
 void SVG_RunFrame(void) {
@@ -570,6 +605,13 @@ void SVG_RunFrame(void) {
                 }
             }
             // Skip since entity is not in use.
+            continue;
+        }
+
+		// Clear events that are too old.
+        if ( CheckClearEntityEvents( ent ) == true ) {
+            // Entity has been freed or whatever, but we shall not pass.
+			// Skip the entity for further processing.
             continue;
         }
 

@@ -468,6 +468,9 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
 *           movement, copying back the resulting player move data into the client and entity fields.
 **/
 static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
+    // Save for determining whether event changed.
+    //const int32_t oldEventSequence = client->ps.eventSequence;
+    
     // Prepare the player move structure properties for simulation.
     pm->state = &client->ps;
     // Copy the current entity origin and velocity into our 'pmove movestate'.
@@ -522,6 +525,12 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
             ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
         }
     }
+
+    //// Save results of pmove/
+    //if ( ent->client->ps.eventSequence != oldEventSequence ) {
+    //    ent->eventTime = level.time;
+    //}
+    //SendPendingPredictableEvents( &ent->client->ps );
 }
 /**
 *   @brief  Copy in the remaining player move data into the entity and client structs, responding to possible changes.
@@ -683,6 +692,10 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
 
         // Perform player movement.
         ClientRunPlayerMove( ent, client, ucmd, &pm, &pmp);
+        // Save result of the pmove.
+        if ( ent->client->ps.eventSequence != ent->client->ops.eventSequence ) {
+            ent->eventTime = level.time;
+        }
         // Check for client playerstate its pmove generated events.
         //ClientCheckPlayerstateEvents( ent, &client->ops, &client->ps );
 
@@ -711,6 +724,11 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
 
         // Process touch callback dispatching for Triggers and Projectiles.
         ClientProcessTouches( ent, client, pm, oldOrigin );
+
+        // Save results of triggers and client events.
+        if ( ent->client->ps.eventSequence != ent->client->ops.eventSequence ) {
+            ent->eventTime = level.time;
+        }
     }
 
     /**

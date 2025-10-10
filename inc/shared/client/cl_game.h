@@ -915,6 +915,21 @@ typedef struct {
 	**/
 	void ( *ParseEntityEvent )( const int32_t entityNumber );
 
+	/**
+	*	@brief	Called when a new frame has been received that contains an entity
+	*			which was not present in the previous frame.
+	**/
+	void ( *EntityState_FrameEnter )( centity_t *ent, const entity_state_t *state, const vec_t *origin );
+	/**
+	*	@brief	Called when a new frame has been received that contains an entity
+	*			already present in the previous frame.
+	**/
+	void ( *EntityState_FrameUpdate )( centity_t *ent, const entity_state_t *state, const vec_t *origin );
+	/**
+	*   Determine whether the player state has to lerp between the current and old frame,
+	*   or snap 'to'.
+	**/
+	void ( *PlayerState_LerpOrSnap )( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );
 
 
 	/**

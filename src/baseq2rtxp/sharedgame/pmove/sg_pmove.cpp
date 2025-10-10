@@ -1991,11 +1991,11 @@ static void PM_WalkMove( const bool canJump ) {
 **/
 static void PM_UpdateViewAngles( player_state_t *playerState, const usercmd_t *userCommand ) {
 	// No view changes at all in intermissions.
-	if ( pm->state->pmove.pm_type == PM_INTERMISSION || pm->state->pmove.pm_type == PM_SPINTERMISSION ) {
+	if ( playerState->pmove.pm_type == PM_INTERMISSION || playerState->pmove.pm_type == PM_SPINTERMISSION ) {
 		return;		// no view changes at all
 	}
 	// Dead, or Gibbed.
-	if ( pm->state->pmove.pm_type != PM_SPECTATOR && pm->state->stats[ STAT_HEALTH ] <= 0 ) {
+	if ( playerState->pmove.pm_type != PM_SPECTATOR && playerState->stats[ STAT_HEALTH ] <= 0 ) {
 		return;		// no view changes at all
 	}
 

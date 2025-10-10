@@ -685,8 +685,11 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     QMTime  freetime = 0_ms;
     //! Used for deferring client info so that disconnected, etc works
     QMTime  timestamp = 0_ms;
-    // Events will be cleared EVENT_VALID_MSEC after set.
-    QMTime  eventTime = 0_ms;
+
+    //! [SpawnKey]: Entity spawnflags key/value.
+    spawnflag_t spawnflags = 0;
+    //! Generic Entity flags.
+    entity_flags_t flags = entity_flags_t::FL_NONE;
 
     //! [SpawnKey]: Entity classname key/value.
     svg_level_qstring_t classname = nullptr;
@@ -695,10 +698,16 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: Key Spawn Angle.
     float       angle = 0.f;          // set in qe3, -1 = up, -2 = down
 
-    //! [SpawnKey]: Entity spawnflags key/value.
-    spawnflag_t spawnflags = 0;
-    //! Generic Entity flags.
-    entity_flags_t flags = entity_flags_t::FL_NONE;
+
+    /**
+    *   Entity Event Properties:
+    **/
+    //! Events will be cleared EVENT_VALID_MSEC after set.
+    QMTime  eventTime = 0_ms;
+	//! If true, entity will be freed once the event is done.
+	bool	freeAfterEvent = false;
+	//! If true, entity will be unlinked(thus, removed as in, no collision, no transmission) once the event is done.
+    bool    unlinkAfterEvent = false;
 
 
     /**

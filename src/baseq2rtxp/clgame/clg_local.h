@@ -78,6 +78,7 @@ extern cvar_t *cl_footsteps;
 
 extern cvar_t *cl_kickangles;
 extern cvar_t *cl_noskins;
+extern cvar_t *cl_nolerp;
 
 extern cvar_t *cl_gunalpha;
 extern cvar_t *cl_gunscale;

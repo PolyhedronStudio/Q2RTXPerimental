@@ -100,7 +100,7 @@ typedef enum {  // : uint8_t {
 
 
 //! Maximum number of player state events.
-#define MAX_PS_EVENTS 2
+#define MAX_MMS_EVENTS 2
 
 /**
 *   @brief  Stores in gedict_t and contains the actual relevant monster movement state.

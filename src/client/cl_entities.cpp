@@ -61,11 +61,12 @@ static inline bool entity_is_optimized(const entity_state_t *state)
     return true;
 }
 
+#if 0
 /**
 *   @brief  Will update a new 'in-frame' entity and initialize it according to that.
 **/
 static inline void entity_update_new( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
-    static int entity_ctr;
+    static int32_t entity_ctr = 0;
     ent->id = ++entity_ctr;
     ent->trailcount = 1024;     // for diminishing rocket / grenade trails
 
@@ -87,7 +88,7 @@ static inline void entity_update_new( centity_t *ent, const entity_state_t *stat
     if ( state->event == EV_PLAYER_TELEPORT ||
         state->event == EV_OTHER_TELEPORT ||
         ( state->entityType == ET_BEAM || state->renderfx & RF_BEAM ) ) {
-        // no lerping if teleported
+        // No lerping if teleported.
         VectorCopy( origin, ent->lerp_origin );
         return;
     }
@@ -158,6 +159,7 @@ static inline void entity_update_old( centity_t *ent, const entity_state_t *stat
     // Shuffle the last 'current' state to previous
     ent->prev = ent->current;
 }
+#endif
 
 /**
 *   @return True if the SAME entity was NOT IN the PREVIOUS frame.
@@ -226,10 +228,12 @@ static void parse_entity_update(const entity_state_t *state)
     // See if the entity is new for the current serverframe or not and base our next move on that.
     if ( entity_is_new( ent ) ) {
         // Wasn't in last update, so initialize some things.
-        entity_update_new( ent, state, origin );
+        //entity_update_new( ent, state, origin );
+        clge->EntityState_FrameEnter( ent, state, origin );
     } else {
         // Was around, sp update some things.
-        entity_update_old( ent, state, origin );
+        //entity_update_old( ent, state, origin );
+        clge->EntityState_FrameUpdate( ent, state, origin );
     }
 
     // Assign last received server frame.
@@ -240,46 +244,46 @@ static void parse_entity_update(const entity_state_t *state)
     // Work around Q2PRO server bandwidth optimization.
     if ( entity_is_optimized( state ) ) {
         //if ( cl.frame.number <= 0 ) {
-            Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.frame.ps, &ent->current );
+            Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
         //} else {
         //    Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
         //}
     }
     #else
-    // Work around Q2PRO server bandwidth optimization.
-    if ( entity_is_optimized( state ) ) {
-        //if ( cl.frame.number <= 0 ) {
-            VectorCopy( cl.frame.ps.pmove.origin, origin_v );
-        //} else {
-        //    VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
-        //}
-        origin = origin_v;
-    } else {
-        origin = state->origin;
-    }
+        // Work around Q2PRO server bandwidth optimization.
+        if ( entity_is_optimized( state ) ) {
+            //if ( cl.frame.number <= 0 ) {
+                VectorCopy( cl.frame.ps.pmove.origin, origin_v );
+            //} else {
+            //    VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
+            //}
+            origin = origin_v;
+        } else {
+            origin = state->origin;
+        }
 
-    // See if the entity is new for the current serverframe or not and base our next move on that.
-    if ( entity_is_new( ent ) ) {
-        // Wasn't in last update, so initialize some things.
-        entity_update_new( ent, state, origin );
-    } else {
-        // Was around, sp update some things.
-        entity_update_old( ent, state, origin );
-    }
+        // See if the entity is new for the current serverframe or not and base our next move on that.
+        if ( entity_is_new( ent ) ) {
+            // Wasn't in last update, so initialize some things.
+            entity_update_new( ent, state, origin );
+        } else {
+            // Was around, sp update some things.
+            entity_update_old( ent, state, origin );
+        }
 
-    // Assign last received server frame.
-    ent->serverframe = cl.frame.number;
-    // Assign new state.
-    ent->current = *state;
+        // Assign last received server frame.
+        ent->serverframe = cl.frame.number;
+        // Assign new state.
+        ent->current = *state;
 
-    // Work around Q2PRO server bandwidth optimization.
-    if ( entity_is_optimized( state ) ) {
-        //if ( cl.frame.number <= 0 ) {
-            Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.frame.ps, &ent->current );
-        //} else {
-        //    Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current);
-        //}
-    }
+        // Work around Q2PRO server bandwidth optimization.
+        if ( entity_is_optimized( state ) ) {
+            //if ( cl.frame.number <= 0 ) {
+                Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.frame.ps, &ent->current );
+            //} else {
+            //    Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current);
+            //}
+        }
     #endif
 }
 
@@ -366,106 +370,16 @@ static void CL_SetActiveState(void)
 }
 
 /**
-*   @brief  Duplicates old player state, into playerstate. Used as a utility function.
-*   @param ps Pointer to the state that we want to copy data into.
-*   @param ops Pointer to the state's data source.
-**/
-static constexpr int32_t PS_DUP_DEBUG_OLDFRAME_INVALID = BIT( 0 );
-static constexpr int32_t PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER = BIT( 1 );
-static constexpr int32_t PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 = BIT( 2 );
-static constexpr int32_t PS_DUP_DEBUG_EVENT_TELEPORT = BIT( 3 );
-static constexpr int32_t PS_DUP_DEBUG_TIME_TELEPORT = BIT( 4 );
-static constexpr int32_t PS_DUP_DEBUG_CLIENTNUM_MISMATCH = BIT( 5 );
-static constexpr int32_t PS_DUP_DEBUG_NOLERP = BIT( 6 );
-
-static void duplicate_player_state( player_state_t *ps, player_state_t *ops, const int32_t debugID ) {
-    *ops = *ps;
-
-	// Debugging output for player state duplication.
-    #if 0
-    if ( debugID == PS_DUP_DEBUG_OLDFRAME_INVALID ) {
-        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_OLDFRAME_INVALID\n", cl.frame.number );
-    } else if ( debugID == PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER ) {
-        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER \n", cl.frame.number );
-    } else if ( debugID == PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 ) {
-        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 \n", cl.frame.number );
-    } else if ( debugID == PS_DUP_DEBUG_EVENT_TELEPORT ) {
-        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_EVENT_TELEPORT \n", cl.frame.number );
-    } else if ( debugID == PS_DUP_DEBUG_TIME_TELEPORT ) {
-        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_TIME_TELEPORT \n", cl.frame.number );
-    } else if ( debugID == PS_DUP_DEBUG_CLIENTNUM_MISMATCH ) {
-        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_CLIENTNUM_MISMATCH \n", cl.frame.number );
-    } else if ( debugID == PS_DUP_DEBUG_NOLERP ) {
-        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) PS_DUP_DEBUG_NOLERP \n", cl.frame.number );
-    } else {
-        Com_LPrintf( PRINT_DEVELOPER, "FRAME(#%d) No player state duplicating. \n", cl.frame.number );
-    }
-    #endif
-}
-/**
 *   Determine whether the player state has to lerp between the current and old frame,
 *   or snap 'to'.
 **/
-static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv) {
-    // Find player states to interpolate between
-    player_state_t *ps = &frame->ps;
-    player_state_t *ops = &oldframe->ps;
-
-    // No lerping if previous frame was dropped or invalid.
-    if ( !oldframe->valid ) {
-        duplicate_player_state( ps, ops, PS_DUP_DEBUG_OLDFRAME_INVALID );
+static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
+    // No client game loaded yet.
+    if ( !clge ) {
         return;
     }
-
-    // Duplicate state in case the stored old frame number does not match to the
-    // expected last frame number.
-    const int32_t lastFrameNumber = frame->number - framediv;
-    if ( oldframe->number != lastFrameNumber ) {
-        duplicate_player_state( ps, ops, PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER );
-        return;
-    }
-
-    // No lerping if player entity was teleported (origin check).
-    if ( fabsf( ops->pmove.origin[ 0 ] - ps->pmove.origin[ 0 ] ) > 256 || // * 8 || // WID: float-movement
-        fabsf( ops->pmove.origin[ 1 ] - ps->pmove.origin[ 1 ] ) > 256 || // * 8 || // WID: float-movement
-        fabsf( ops->pmove.origin[ 2 ] - ps->pmove.origin[ 2 ] ) > 256 ) {// * 8) { // WID: float-movement
-        duplicate_player_state( ps, ops, PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 );
-        return;
-    }
-
-    // No lerping if player entity was teleported (event check).
-    centity_t *clent = ENTITY_FOR_NUMBER( frame->clientNum + 1 );//ent = &cl_entities[frame->clientNum + 1];
-
-    // If the player entity was within the range of lastFrameNumber and frame->number,
-    // and had any teleport events going on, duplicate the player state into the old player state,
-    // to prevent it from lerping afar distance.
-    if ( clent->serverframe > lastFrameNumber && clent->serverframe <= frame->number &&
-        ( clent->current.event == EV_PLAYER_TELEPORT || clent->current.event == EV_OTHER_TELEPORT ) ) {
-        duplicate_player_state( ps, ops, PS_DUP_DEBUG_EVENT_TELEPORT );
-        return;
-    }
-
-    // No lerping if teleport bit was flipped.
-    if ((ops->pmove.pm_flags ^ ps->pmove.pm_flags) & PMF_TIME_TELEPORT){
-        duplicate_player_state( ps, ops, PS_DUP_DEBUG_TIME_TELEPORT );
-        return;
-    }
-    //if ( ( ops->rdflags ^ ps->rdflags ) & RDF_TELEPORT_BIT ) {
-    //    duplicate_player_state( ps, ops );
-    //    return;
-    //}
-
-    // No lerping if POV number changed.
-    if ( oldframe->clientNum != frame->clientNum ) {
-        duplicate_player_state( ps, ops, PS_DUP_DEBUG_CLIENTNUM_MISMATCH );
-        return;
-    }
-
-    // No lerping in case of the enabled developer option.
-    if ( cl_nolerp->integer == 1 ) {
-        duplicate_player_state( ps, ops, PS_DUP_DEBUG_NOLERP );
-        return;
-    }
+    // Lerp or Snap the frame playerstates.
+    clge->PlayerState_LerpOrSnap( oldframe, frame, framediv );
 }
 
 /**

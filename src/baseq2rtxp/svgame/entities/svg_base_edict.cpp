@@ -503,7 +503,6 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     spawn_count = 0;
     freetime = 0_ms;
     timestamp = 0_ms;
-    eventTime = 0_ms;
 
     classname = svg_level_qstring_t::from_char_str( "svg_base_edict_t" );
     model = nullptr;
@@ -511,6 +510,13 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     
     spawnflags = 0;
     flags = entity_flags_t::FL_NONE;
+
+    /**
+    *   Entity Event Properties:
+    **/
+    eventTime = 0_ms;
+    freeAfterEvent = false;
+    unlinkAfterEvent = false;
 
     /**
     *   Health/Body Status Conditions:

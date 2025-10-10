@@ -63,6 +63,7 @@ cvar_t *cl_footsteps = nullptr;
 
 cvar_t *cl_kickangles = nullptr;
 cvar_t *cl_noskins = nullptr;
+cvar_t *cl_nolerp = nullptr;
 
 cvar_t *cl_gunalpha = nullptr;
 cvar_t *cl_gunscale = nullptr;
@@ -280,6 +281,7 @@ void PF_InitGame( void ) {
 	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );
 	cl_kickangles = clgi.CVar_Get( "cl_kickangles", "1", CVAR_CHEAT );
 	cl_noskins = clgi.CVar_Get( "cl_noskins", "0", 0 );
+	cl_nolerp = clgi.CVar_Get( "cl_nolerp", "0", 0 );
 
 	// Gun Debugging CVars:
 	cl_gunalpha = clgi.CVar_Get( "cl_gunalpha", "1", 0 );
@@ -438,6 +440,36 @@ void PF_ClearState( void ) {
 /**
 *
 *
+*	Entity Receive and Update:
+*
+*
+**/
+/**
+*	@brief	Called when a new frame has been received that contains an entity
+*			which was not present in the previous frame.
+**/
+static void PF_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
+	CLG_EntityState_FrameEnter( ent, state, origin );
+}
+/**
+*	@brief	Called when a new frame has been received that contains an entity
+*			already present in the previous frame.
+**/
+static void PF_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
+	CLG_EntityState_FrameUpdate( ent, state, origin );
+}
+/**
+*   Determine whether the player state has to lerp between the current and old frame,
+*   or snap 'to'.
+**/
+static void PF_PlayerState_LerpOrSnap( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
+	CLG_PlayerState_LerpOrSnap( oldframe, frame, framediv );
+}
+
+
+/**
+*
+*
 *	Gamemode:
 *
 *
@@ -529,8 +561,12 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.SpawnEntities = PF_SpawnEntities;
 		globals.PostSpawnEntities = PF_PostSpawnEntities;
+
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
+		globals.EntityState_FrameEnter = PF_EntityState_FrameEnter;
+		globals.EntityState_FrameUpdate = PF_EntityState_FrameUpdate;
+		globals.PlayerState_LerpOrSnap = PF_PlayerState_LerpOrSnap;
 
 		globals.GetGameModeName = PF_GetGameModeName;
 

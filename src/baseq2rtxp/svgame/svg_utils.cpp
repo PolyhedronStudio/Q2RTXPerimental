@@ -178,7 +178,7 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_
             ent->s.eventParm = eventParm;
         }
 	    // Stamp the time of the event.
-        ent->eventTime = level.time.Milliseconds();
+        ent->eventTime = level.time;
     #endif
 }
 

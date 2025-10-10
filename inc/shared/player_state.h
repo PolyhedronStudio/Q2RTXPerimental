@@ -8,9 +8,8 @@
 #pragma once
 
 
-
 /**
-*   pmove_state_t is the information necessary for client side movement prediction.
+*   @brief  Player Movement Type.
 **/
 typedef enum {  // : uint8_t {
     //
@@ -56,26 +55,28 @@ typedef enum {  // : uint8_t {
 /**
 *   pmove_state->pm_flags
 **/
-#define PMF_NONE						0           //! No flags.
-#define PMF_DUCKED						BIT( 0 )    //! Player is ducked.
-#define PMF_JUMP_HELD					BIT( 1 )    //! Player is keeping jump button pressed.
-#define PMF_ON_GROUND					BIT( 2 )    //! Player is on-ground.
-#define PMF_TIME_LAND					BIT( 3 )    //! pm_time is time before rejump.
-#define PMF_TIME_KNOCKBACK              BIT( 4 )    //! pm_time is an air-accelerate only time
-#define PMF_TIME_WATERJUMP				BIT( 5 )    //! pm_time is waterjump.
-#define PMF_TIME_TELEPORT				BIT( 6 )    //! pm_time is non-moving time.
-#define PMF_NO_POSITIONAL_PREDICTION	BIT( 7 )    //! Temporarily disables prediction (used for grappling hook).
-//#define PMF_TELEPORT_BIT				BIT( 7 )    //! used by q2pro
-#define PMF_ON_LADDER					BIT( 8 )	//! Signal to game that we are on a ladder.
-#define PMF_NO_ANGULAR_PREDICTION		BIT( 9 )    //! Temporary disables angular prediction.
-#define PMF_IGNORE_PLAYER_COLLISION		BIT( 10 )	//! Don't collide with other players.
-#define PMF_TIME_TRICK_JUMP				BIT( 11 )   //! pm_time is the trick jump time.
-//#define PMF_GROUNDENTITY_CHANGED      BIT( 12 )   //! Set if the ground entity has changed between previous and current pmove state.
-#define	PMF_ALL_TIMES                   ( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_KNOCKBACK | PMF_TIME_TELEPORT | PMF_TIME_TRICK_JUMP )
+typedef uint16_t pmflags_t;
 
+#define PMF_NONE                        ( 0 )    //! No flags.
+#define PMF_DUCKED		                BIT( 0 ) //! Player is ducked.
+#define PMF_JUMP_HELD	                BIT( 1 ) //! Player is keeping jump button pressed.
+//#define PMF_ON_GROUND	BIT( 2 )  //! Player is on-ground.
+#define PMF_ON_LADDER                   BIT( 2 ) //! Player is on a ladder.
+#define PMF_TIME_LAND                   BIT( 3 ) //! pm_time is time before rejump.
+#define PMF_TIME_KNOCKBACK              BIT( 4 ) //! pm_time is an air-accelerate only time
+#define PMF_TIME_WATERJUMP              BIT( 5 ) //! pm_time is waterjump.
+#define PMF_TIME_TELEPORT               BIT( 6 ) //! pm_time is non-moving time.
+#define PMF_NO_POSITIONAL_PREDICTION    BIT( 7 ) //! Temporarily disables prediction (used for grappling hook).
+#define PMF_NO_ANGULAR_PREDICTION       BIT( 8 ) //! Temporary disables angular prediction.
+//#define PMF_IGNORE_PLAYER_COLLISION		BIT( 9 )	//! Don't collide with other players.
+//#define PMF_TELEPORT_BIT				BIT( 10 )    //! used by q2pro
+//#define PMF_TIME_TRICK_JUMP				BIT( 12 )   //! pm_time is the trick jump time.
+//#define PMF_GROUNDENTITY_CHANGED      BIT( 13 )   //! Set if the ground entity has changed between previous and current pmove state.
+#define PMF_ALL_TIMES   ( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_KNOCKBACK | PMF_TIME_TELEPORT )
 
 //! Maximum number of player state events.
-#define MAX_PS_EVENTS 2
+#define MAX_PS_EVENTS   ( 2 )
+//static constexpr int32_t MAX_PS_EVENTS = 2;
 
 /**
 *   This structure needs to be communicated bit-accurate from the server to the client to guarantee that
@@ -86,7 +87,7 @@ typedef struct pmove_state_s {
     //! The player move type.
     pmtype_t    pm_type;
     //! The state's flags describing the move's situation.
-    uint16_t    pm_flags;		//! Ducked, jump_held, etc
+    pmflags_t   pm_flags;		//! Ducked, jump_held, etc
     //! Timer value for a specific few of state flags.
     double	pm_time;		//! Each unit = 8 ms
 
