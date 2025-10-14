@@ -75,7 +75,7 @@ typedef uint16_t pmflags_t;
 #define PMF_ALL_TIMES   ( PMF_TIME_WATERJUMP | PMF_TIME_LAND | PMF_TIME_KNOCKBACK | PMF_TIME_TELEPORT )
 
 //! Maximum number of player state events.
-#define MAX_PS_EVENTS   ( 2 )
+#define MAX_PS_EVENTS   ( 4 )
 //static constexpr int32_t MAX_PS_EVENTS = 2;
 
 /**
@@ -154,14 +154,25 @@ QENUM_BIT_FLAGS( refdef_flags_t );
 
 //#define PM_MOVEDIRECTION_BACKWARD       1
 
-// pmove_state_t is the information needed in addition to player_state_t
-// to rendered a view. These are sent from client to server in an amount relative
-// to the client's (optionally set) frame rate limit.
-// 
-// player_state_t is sent at a rate of 40hz:
-// (So, one time for each frame, meaning 40 times a second.)
-// Communicate BIT precise.
+/**
+*   @brief  pmove_state_t is the information needed in addition to player_state_t
+*           to rendered a view. These are sent from client to server in an amount relative
+*           // to the client's (optionally set) frame rate limit.
+*            
+*           player_state_t is sent at a rate of 40hz:
+*           (So, one time for each frame, meaning 40 times a second.)
+*           Communicate BIT precise.
+**/
 typedef struct player_state_s {
+    /**
+    *   
+    **/
+    //! The client number for the frame this player_state_t belongs to.
+    //int32_t         clientNum;
+
+    /**
+    *   Movement State:
+    **/
     //! Contains the current player movement values.
     pmove_state_t   pmove;
 
@@ -228,7 +239,8 @@ typedef struct player_state_s {
     * 
     **/
     //! [Client/Server]: Event Sequencing - To differentiate from a same event ID.
-    int64_t	eventSequence;
+    int64_t	eventSequence;          //! Tracks the internal player state event sequence.
+    int64_t	entityEventSequence;    //! Tracks the external entity event sequence.
 
     //! [Client]: Gun Angles on-screen.
     Vector3 gunangles;

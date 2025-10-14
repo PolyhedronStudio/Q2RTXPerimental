@@ -13,6 +13,7 @@
 #include "shared/player_state.h"
 
 #include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_usetarget_hints.h"
@@ -21,6 +22,7 @@
 #include "svgame/entities/svg_player_edict.h"
 
 #include "svgame/player/svg_player_client.h"
+#include "svgame/player/svg_player_events.h"
 #include "svgame/player/svg_player_move.h"
 
 #include "svgame/svg_gamemode.h"
@@ -434,28 +436,28 @@ void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
     ent->client->viewMove.fallTime = level.time + FALL_TIME();
 
     // Apply fall event based on delta.
-    if ( delta > 40 ) {
-        if ( delta >= 60 ) {
-            ent->s.event = EV_FALLFAR;
-        } else {
-            ent->s.event = EV_FALL;
-        }
+    //if ( delta > 40 ) {
+    //    if ( delta >= 60 ) {
+    //        ent->s.event = EV_FALLFAR;
+    //    } else {
+    //        ent->s.event = EV_FALL;
+    //    }
 
-        // WID: We DO want the VOICE channel to SHOUT in PAIN
-        //ent->pain_debounce_time = level.time + FRAME_TIME_S; // No normal pain sound.
+    //    // WID: We DO want the VOICE channel to SHOUT in PAIN
+    //    //ent->pain_debounce_time = level.time + FRAME_TIME_S; // No normal pain sound.
 
-        damage = (int)( ( delta - 30 ) / 2 );
-        if ( damage < 1 ) {
-            damage = 1;
-        }
-        VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
+    //    damage = (int)( ( delta - 30 ) / 2 );
+    //    if ( damage < 1 ) {
+    //        damage = 1;
+    //    }
+    //    VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
 
-        if ( !deathmatch->integer ) {
-            SVG_DamageEntity( ent, world, world, &dir.x, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
-        }
-    } else if ( delta >= 7 ){
-        ent->s.event = EV_FALLSHORT;
-    }
+    //    if ( !deathmatch->integer ) {
+    //        SVG_DamageEntity( ent, world, world, &dir.x, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
+    //    }
+    //} else if ( delta >= 7 ){
+    //    ent->s.event = EV_FALLSHORT;
+    //}
 
     // Falling damage noises alert monsters
     if ( ent->health >= 0 ) { // Was: if ( ent->health )
@@ -543,7 +545,8 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
         if ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) {
             if ( !deathmatch->integer &&
                 client->last_ladder_sound < level.time ) {
-                ent->s.event = EV_FOOTSTEP_LADDER;
+                //ent->s.event = EV_FOOTSTEP_LADDER;
+                SVG_Util_AddEvent( ent, EV_FOOTSTEP_LADDER, 0 );
                 client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
             }
         }
@@ -553,7 +556,8 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
     const Vector3 oldOrigin = ent->s.origin;
 
     // Copy back into the entity, both the resulting origin and velocity.
-    VectorCopy( pm.state->pmove.origin, ent->s.origin );
+    // <Q2RTXP>: WID: We do this after processing touches instead to prevent collision issues.
+    //VectorCopy( pm.state->pmove.origin, ent->s.origin );
     VectorCopy( pm.state->pmove.velocity, ent->velocity );
     // Copy back in bounding box results. (Player might've crouched for example.)
     VectorCopy( pm.mins, ent->mins );
@@ -563,7 +567,7 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
     if ( pm.jump_sound && !( pm.state->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
         // Jump sound to play.
         const int32_t sndIndex = irandom( 2 ) + 1;
-        std::string pathJumpSnd = "player/jump0"; pathJumpSnd += std::to_string( sndIndex ); pathJumpSnd += ".wav";
+        std::string pathJumpSnd = "player/jump0"; pathJumpSnd += std::to_string( ( irandom( 2 ) + 1) ) + ".wav";
         gi.sound( ent, CHAN_VOICE, gi.soundindex( pathJumpSnd.c_str() ), 1, ATTN_NORM, 0 );
         // Jump sound to play.
         //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/jump01.wav" ), 1, ATTN_NORM, 0 );
@@ -604,6 +608,7 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
     // Return the oldOrigin for later use.
     return oldOrigin;
 }
+
 /**
 *   @brief  Will search for touching trigger and projectiles, dispatching their touch callback when touching.
 **/
@@ -650,6 +655,9 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         return;
     }
 
+    // Backup old event sequence.
+    int32_t oldEventSequence = client->ops.eventSequence;
+
     // Backup the old player state.
     client->ops = client->ps;
 
@@ -690,15 +698,18 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         //gi.dprintf( "%s: player_ent->testVar = %d\n", __func__, player_ent->testVar );
 		//gi.cprintf(player_ent, PRINT_TALK, "player_ent->testVar = %d\n", player_ent->testVar);
 
+        const Vector3 oldOrigin = client->ps.pmove.origin;
+
         // Perform player movement.
         ClientRunPlayerMove( ent, client, ucmd, &pm, &pmp);
         // Save result of the pmove.
-        if ( ent->client->ps.eventSequence != ent->client->ops.eventSequence ) {
+        if ( ent->client->ps.eventSequence != oldEventSequence ) {
             ent->eventTime = level.time;
         }
-        // Check for client playerstate its pmove generated events.
-        //ClientCheckPlayerstateEvents( ent, &client->ops, &client->ps );
 
+        // Convert certain playerstate properties into entity state properties.
+        SG_PlayerStateToEntityState( ent->client->clientNum, &ent->client->ps, &ent->s, false );
+ 
         // Apply falling damage directly.
         P_FallingDamage( ent, pm );
 
@@ -706,11 +717,18 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         //    ent->client->landmark_free_fall = false;
         //    ent->client->landmark_noise_time = level.time + 100_ms;
         //}
-        // [Paril-KEX] save old position for SVG_Util_TouchProjectiles
+        
         //vec3_t old_origin = ent->s.origin;
 
+        // [Paril-KEX] save old position for SVG_Util_TouchProjectiles
         // Updates the entity origin, angles, bbox, groundinfo, etc.
-        const Vector3 oldOrigin = ClientPostPlayerMove( ent, client, pm );
+        /*const Vector3 oldOrigin = */ClientPostPlayerMove( ent, client, pm );
+
+        // Check for client playerstate its pmove generated events.
+        SVG_CheckClientEvents( ent, &client->ops, &client->ps );
+
+        // Process player client events.
+        //ProcessClientEvents( ent, oldEventSequence );
 
         // Calculate recoil based on movement factors.
         SVG_Client_CalculateMovementRecoil( ent );
@@ -725,8 +743,12 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         // Process touch callback dispatching for Triggers and Projectiles.
         ClientProcessTouches( ent, client, pm, oldOrigin );
 
+        // <Q2RTXP>: WID: We do this here to prevent collision issues.
+        // Copy back into the entity, both the resulting origin.
+        VectorCopy( pm.state->pmove.origin, ent->s.origin );
+
         // Save results of triggers and client events.
-        if ( ent->client->ps.eventSequence != ent->client->ops.eventSequence ) {
+        if ( ent->client->ps.eventSequence != oldEventSequence ) {
             ent->eventTime = level.time;
         }
     }
@@ -791,7 +813,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
 
     // Update chase cam if being followed.
     for ( int32_t i = 1; i <= maxclients->value; i++ ) {
-        svg_base_edict_t *other = g_edict_pool.EdictForNumber( i );//g_edicts + i;
+        svg_base_edict_t *other = g_edict_pool.EdictForNumber( i );
         if ( other && other->inuse && other->client->chase_target == ent ) {
             SVG_ChaseCam_Update( other );
         }

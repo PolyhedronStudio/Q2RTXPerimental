@@ -316,7 +316,7 @@ void CL_DeltaFrame( void ) {
     // this is needed in situations when player entity is invisible, but
     // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
     centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );
-    if ( /*framenum*/cl.frame.number <= 0 ) {
+    if ( /*framenum*/cl.frame.number <= 1 ) {
         Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
     } else {
         Com_PlayerToEntityState( &cl.predictedFrame.ps, &clent->current );
@@ -363,7 +363,6 @@ void CL_DeltaFrame( void ) {
 
     if ( cls.demo.playback ) {
         // TODO: Proper stair smoothing.
-
         // Record time of changing and adjusting viewheight if it differs from previous time.
         CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
     }

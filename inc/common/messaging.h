@@ -35,15 +35,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *	@brief	union struct, for packing the bounds as uint32_t.
 **/
 typedef union bounds_packed_u {
+	//! Memory packed representation of the bounds.
 	struct p {
 		uint8_t x;
 		uint8_t y;
-		uint8_t zd; // always negative
-		uint8_t zu; // encoded as + 32
+		uint8_t zd; //! "z=down" always negative
+		uint8_t zu; //! "z-up", encoded as + 32
 	} p;
 
+	//! Actual uint32_t value used for bounds.
 	uint32_t u;
 } bounds_packed_t;
+
 
 /**
 *	@brief	entity and player states are pre-quantized before sending to make delta
@@ -51,19 +54,23 @@ typedef union bounds_packed_u {
 **/
 typedef struct {
 	uint16_t    number;
-	//int16_t		client;
-
 	uint8_t		entityType;
 
-	vec3_t		origin;//int16_t     origin[3]; // WID: float-movement
-	vec3_t		angles; // WID: float-movement
-	vec3_t		old_origin; //int16_t     old_origin[3]; // WID: float-movement
+	Vector3		origin;
+	Vector3		angles;
+	Vector3		old_origin;
 
-	cm_solid_t solid;	//! Solid for collision prediction.
-	bounds_packed_t bounds;	//! The bounding box for the solid's hull type, also needed for collision prediction.
-	int32_t clipmask;		//! Clipmask for collision prediction.
-	cm_contents_t hullContents;//! Hull Contents for collision prediction.
-	int32_t ownerNumber;	//! Entity which owns this entity, for collision prediction.
+	//! Solid for collision prediction.
+	cm_solid_t solid;
+	//! The bounding box for the solid's hull type, also needed for collision prediction.
+	bounds_packed_t bounds;
+	//! Clipmask for collision prediction.
+	int32_t clipmask;
+	//! Hull Contents for collision prediction.
+	cm_contents_t hullContents;
+	//! Entity which owns this entity, for collision prediction.
+	int32_t ownerNumber;
+
 
 	uint32_t	modelindex;
 	uint32_t	modelindex2;
@@ -100,10 +107,12 @@ typedef struct {
 
 	int16_t			viewoffset[3];	// WID: new-pmove int8_t          viewoffset[3];
 	int16_t			kick_angles[3];	// WID: new-pmove int8_t          kick_angles[3];
+
 	// WID: Moved to CLGame.
 	//int16_t		gunangles[3]; // WID: new-pmove //int8_t          gunangles[3];
 	// WID: Moved to CLGame.
 	//int16_t		gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
+
 	uint32_t		gunModelIndex;
 	uint8_t			gunAnimationID;
 	//uint8_t         damage_blend[ 4 ];

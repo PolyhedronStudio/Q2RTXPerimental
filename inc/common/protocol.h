@@ -82,7 +82,9 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define PS_BLEND            BIT( 21 )
 #define PS_FOV				BIT( 22 )
 #define PS_RDFLAGS			BIT( 23 )
+
 #define PS_M_GRAVITY		BIT( 24 )
+//#define PS_CLIENT_NUMBER	BIT( 25 )
 
 //==============================================
 

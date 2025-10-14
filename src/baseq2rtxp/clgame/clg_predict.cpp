@@ -9,6 +9,7 @@
 #include "clgame/clg_events.h"
 #include "clgame/clg_predict.h"
 
+#include "sharedgame/sg_entities.h"
 // For PM_STEP_MIN_NORMAL
 #include "sharedgame/pmove/sg_pmove_slidemove.h"
 
@@ -97,7 +98,7 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
         centity_t *clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
         clientEntity->current.event = ps->externalEvent;
         clientEntity->current.eventParm = ps->externalEventParm;
-        CLG_CheckForEntityEvents( clientEntity );
+        CLG_CheckEntityEvents( clientEntity );
     }
     #endif
 
@@ -120,11 +121,9 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
             clientEntity->current.eventParm = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
 
             // Proceed to firing the predicted/received event.
-            //
-            if ( playerStateEvent < 9 ) {
-                CLG_FirePlayerStateEvent( ops, ps, playerStateEvent, clientEntity->lerp_origin );
-            } else {
-                CLG_CheckForEntityEvents( clientEntity );
+            const bool processedPlayerStateViewBoundEffect = CLG_CheckPlayerEvent( ops, ps, playerStateEvent, clientEntity->lerp_origin );
+            if ( !processedPlayerStateViewBoundEffect ) {
+                CLG_CheckEntityEvents( clientEntity );
             }
 
             // Add to the list of predictable events.
@@ -141,6 +140,7 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
 static void CLG_PredictNextBobCycle( pmove_t *pm ) {
     // Predict next bobcycle.
     const double bobCycleFraction = clgi.client->xerpFraction;
+	// Get the bobcycle from the last received server frame.
     uint8_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->state->bobCycle;// nextframe->ps.bobCycle;
     // Handle wraparound:
     if ( bobCycle < pm->state->bobCycle ) {
@@ -345,6 +345,9 @@ void PF_PredictAngles( void ) {
 void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber ) {
     // Last predicted state.
     client_predicted_state_t *predictedState = &game.predictedState;
+    
+	// Get the entity for the client.
+    centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
 
     // Shuffle the still "CURRENT" ground info into our "LAST" groundinfo.
     predictedState->lastGround = predictedState->ground;
@@ -402,9 +405,17 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
             }
             #endif
 
+			// Move the simulation.
             SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
+            // Convert certain playerstate properties into entity state properties.
+            //SG_PlayerStateToEntityState( clgi.client->frame.clientNum, pm.state, &cent->current, false );
+
+
             // Predict the next bobCycle for the frame.
             #if 0
+            // Convert certain playerstate properties into entity state properties.
+            centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+            SG_PlayerStateToEntityState( clgi.client->frame.clientNum, pm.state, &cent->current, false );
             // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
             CLG_PredictNextBobCycle( &pm );
             #endif
@@ -444,8 +455,11 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         // Perform movement.
         pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.simulationTime );
         SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
+        // Convert certain playerstate properties into entity state properties.
+        SG_PlayerStateToEntityState( clgi.client->frame.clientNum, pm.state, &cent->current, false );
+
         // Predict the next bobCycle for the frame.
-        #if 0
+        #if 0            
         // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
         CLG_PredictNextBobCycle( &pm );
         #endif

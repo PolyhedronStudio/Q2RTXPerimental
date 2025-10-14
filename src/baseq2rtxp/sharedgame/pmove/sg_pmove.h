@@ -20,39 +20,37 @@
 **/
 //! Enumerator event numbers, also act as string indices.
 typedef enum sg_player_state_event_e {
-    PS_EV_NONE = 0,
+    //PS_EV_NONE = 0,
 
-    //
-    // External Events:
-    //
-    //! Reload Weapon.
-    PS_EV_WEAPON_RELOAD,
-    //! Weapon Primary Fire.
-    PS_EV_WEAPON_PRIMARY_FIRE,
-    //! Weapon Secondary Fire.
-    PS_EV_WEAPON_SECONDARY_FIRE,
+    ////
+    //// External Events:
+    ////
+    ////! Reload Weapon.
+    //PS_EV_WEAPON_RELOAD,
+    ////! Weapon Primary Fire.
+    //PS_EV_WEAPON_PRIMARY_FIRE,
+    ////! Weapon Secondary Fire.
+    //PS_EV_WEAPON_SECONDARY_FIRE,
 
-    //! Weapon Holster/Draw:
-    PS_EV_WEAPON_HOLSTER_AND_DRAW,
-    // TODO: We really do wanna split weapon draw and holstering, but, alas, lack animation skills.
-    //! Draw Weapon.
-    PS_EV_WEAPON_DRAW,
-    //! Holster Weapon.
-    PS_EV_WEAPON_HOLSTER,
+    ////! Weapon Holster/Draw:
+    //PS_EV_WEAPON_HOLSTER_AND_DRAW,
+    //// TODO: We really do wanna split weapon draw and holstering, but, alas, lack animation skills.
+    ////! Draw Weapon.
+    //PS_EV_WEAPON_DRAW,
+    ////! Holster Weapon.
+    //PS_EV_WEAPON_HOLSTER,
 
-    //
-    // Non External Events:
-    // 
-    //! For when jumping up.
-    PS_EV_JUMP_UP,
-    //! Or Fall, FallShort, FallFar??
-    PS_EV_JUMP_LAND,
+    ////
+    //// Non External Events:
+    //// 
+    ////! For when jumping up.
+    //PS_EV_JUMP_UP,
+    ////! Or Fall, FallShort, FallFar??
+    //PS_EV_JUMP_LAND,
 
-    //! Maximum.
-    PS_EV_MAX,
+    ////! Maximum.
+    //PS_EV_MAX,
 } sg_player_state_event_t;
-//! String representatives.
-extern const char *sg_player_state_event_strings[ PS_EV_MAX ];
 
 
 

@@ -8,6 +8,7 @@
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_misc.h"
 #include "sharedgame/pmove/sg_pmove.h"
 #include "sharedgame/pmove/sg_pmove_slidemove.h"
@@ -45,6 +46,9 @@ static constexpr double PM_ANIMATION_IDLE_EPSILON = 0.25; // WID: Old was 0.1
 pmove_t *pm;
 //! Contains our local in-moment move variables.
 pml_t pml;
+
+//! String representatives.
+extern const char *sg_player_state_event_strings[ PS_EV_MAX ];
 
 //! An actual pointer to the pmove parameters object for use with moving.
 static pmoveParams_t *pmp;
@@ -1016,23 +1020,25 @@ static void PM_CrashLand( void ) {
 	// Apply impact delta.
 	pm->impact_delta = delta;
 
-	#if 0
+	#if 1
 	// create a local entity event to play the sound
 
 	// SURF_NODAMAGE is used for bounce pads where you don't ever
 	// want to take damage or play a crunch sound
-	if ( !( pml.groundTrace.surfaceFlags & SURF_NODAMAGE ) ) {
+	//if ( !( pml.groundTrace.surface && pml.groundTrace.surface.flags & SURF_NODAMAGE ) ) {
+	{
 		if ( delta > 60 ) {
-			PM_AddEvent( EV_FALL_FAR );
+			PM_AddEvent( EV_FALL_FAR, delta );
 		} else if ( delta > 40 ) {
 			// this is a pain grunt, so don't play it if dead
-			if ( pm->ps->stats[ STAT_HEALTH ] > 0 ) {
-				PM_AddEvent( EV_FALL_MEDIUM );
+			if ( pm->state->stats[ STAT_HEALTH ] > delta ) {
+				PM_AddEvent( EV_FALL_MEDIUM, delta );
 			}
 		} else if ( delta > 7 ) {
-			PM_AddEvent( EV_FALL_SHORT );
+			PM_AddEvent( EV_FALL_SHORT, delta );
 		} else {
-			PM_AddEvent( PM_FootstepForSurface() );
+			//PM_AddEvent( PM_FootstepForSurface() );
+			//PM_AddEvent( EV_FOOTSTEP, 0 );
 		}
 	}
 	#endif
@@ -1107,7 +1113,7 @@ static const bool PM_CheckJump() {
 		pm->state->pmove.velocity.z = jump_height;
 	}
 	// Add 'Predictable' Event for Jumping Up.
-	PM_AddEvent( PS_EV_JUMP_UP, 0 );
+	PM_AddEvent( EV_JUMP_UP, 0 );
 
 	return true;
 }
@@ -1335,28 +1341,35 @@ static void PM_CycleBob() {
 
 	// Check for footstep / splash sounds.
 	oldBobCycle = pm->state->bobCycle;
-	pm->state->bobCycle = (int32_t)( ( oldBobCycle + pm->state->bobMove * pm->cmd.msec ) /* pml.msec */ ) & 255;
+	pm->state->bobCycle = (int32_t)( oldBobCycle + ( pm->state->bobMove * pm->cmd.msec ) /* pml.msec */ ) & 255;
 
 	//SG_DPrintf( "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%f)\n", __func__, pm->state->bobCycle, oldBobCycle, bobMove );
 
-	// if we just crossed a cycle boundary, play an appropriate footstep event
-	//if ( ( ( oldBobCycle + 64 ) ^ ( pm->state->bobCycle + 64 ) ) & 128 ) {
-	//	// On-ground will only play sounds if running:
-	//	if ( pm->liquid.level == LIQUID_NONE ) {
-	//		if ( footStep && !pm->noFootsteps ) {
-	//			PM_AddEvent( PM_FootstepForSurface() );
-	//		}
-	//	// Splashing:
-	//	} else if ( pm->liquid.level == LIQUID_FEET ) {
-	//		PM_AddEvent( EV_FOOTSPLASH );
-	//	// Wading / Swimming at surface.
-	//	} else if ( pm->liquid.level == LIQUID_WAIST ) {
-	//		PM_AddEvent( EV_SWIM );
-	//	// None:
-	//	} else if ( pm->liquid.level == LIQUID_UNDER ) {
-	//		// No sound when completely underwater. Lol.
-	//	}
-	//}
+	// If we just crossed a cycle boundary, play an appropriate footstep event.
+	if ( ( ( oldBobCycle + 64 ) ^ ( pm->state->bobCycle + 64 ) ) & 128 ) {
+		// On-ground will only play sounds if running:
+		if ( pm->liquid.level == LIQUID_NONE || pm->liquid.level == LIQUID_FEET ) {
+			if ( footStep && pm->state->xySpeed > 225 /*&& !pm->noFootsteps*/ ) {
+				//if ( pm->state->pmove.pm_flags & PMF_ON_LADDER ) {
+				//	PM_AddEvent( EV_FOOTSTEP_LADDER, 0 );
+				//	SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(% i), oldBobCycle(% i), bobMove(% f), Event(EV_FOOTSTEP_LADDER), Time(%" PRIx64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
+				//} else {
+					PM_AddEvent( EV_FOOTSTEP, 0 /*PM_FootstepForSurface()*/ );
+					SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%f), Event(EV_FOOTSTEP), Time(%" PRIx64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
+				//}
+			}
+		}
+		// Splashing:
+		//} else if ( pm->liquid.level == LIQUID_FEET ) {
+		//	PM_AddEvent( EV_FOOTSPLASH );
+		//// Wading / Swimming at surface.
+		//} else if ( pm->liquid.level == LIQUID_WAIST ) {
+		//	PM_AddEvent( EV_SWIM );
+		//// None:
+		//} else if ( pm->liquid.level == LIQUID_UNDER ) {
+		//	// No sound when completely underwater. Lol.
+		//}
+	}
 }
 
 
@@ -2069,21 +2082,34 @@ static void PM_CheckSpecialMovement() {
 	}
 }
 /**
-*	@brief	Drops the movement pm_time factor for movement states.
+*	@brief	Drops the movement pm_time factor for movement states, and clears its flags when time is up.
 **/
 static void PM_DropTimers() {
 	if ( pm->state->pmove.pm_time ) {
-		//int32_t msec = (int32_t)pm->cmd.msec >> 3;
+
+		//--
+		// This is troublesome also, for obvious reasons.
 		//double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 0.125 ) : (pm->cmd.msec / 0.125 ) );
-		double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 8. ) : ( pm->cmd.msec / 8. ) );
+		//--
+		// This obviously isn't going to help for the accuracy we needed.
+		//int32_t msec = (int32_t)pm->cmd.msec >> 3;
+		//--
 		// This was <= 0, this seemed to cause a slight jitter in the player movement.
 		//if ( pm->cmd.msec < 0. ) {
 		//	msec = 1.0 / 8.; // 8 ms = 1 unit. (At 10hz.)
 		//}
-
+		//--
+		// So we came up with this instead.
+		const double msec = ( pm->cmd.msec < 0. ? ( 1.0 / 8. ) : ( pm->cmd.msec / 8. ) );
+		//--
+		
+		// If we went past the set time, reset it and all related time flags.
 		if ( msec >= pm->state->pmove.pm_time ) {
+			// Remove all time related flags.
 			pm->state->pmove.pm_flags &= ~( PMF_ALL_TIMES );
+			// Reset time engagement for the player movement state.
 			pm->state->pmove.pm_time = 0;
+		// Otherwise, substract it by msec units.
 		} else {
 			pm->state->pmove.pm_time -= msec;
 		}
@@ -2164,20 +2190,32 @@ void SG_PlayerMove_Frame() {
 		return;
 	}
 
+	/**
+	*	Recatagorize bounding box, and the liquid(contents) state.
+	**/
 	// Set mins, maxs, and viewheight.
 	PM_UpdateBoundingBox();
 	// Get liquid.level, accounting for ducking.
 	PM_GetLiquidContentsForPoint( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
 	// Back it up as the first previous liquid. (Start of frame position.)
 	pml.previousLiquid = pm->liquid;
-	// Recategorize if we're ducked. ( Set groundentity, liquid.type, and liquid.level. )
+
+	/**
+	*	Check if we want, and CAN engage into ducking movement. 
+	*	Recatagorize bounding box, and the liquid(contents) state.
+	**/
 	if ( PM_CheckDuck() ) {
+		// Set mins, maxs, and viewheight.
+		PM_UpdateBoundingBox();
 		// Get liquid.level, accounting for ducking.
 		PM_GetLiquidContentsForPoint( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
 		// Back it up as the first previous liquid. (Start of frame position.)
 		pml.previousLiquid = pm->liquid;
 	}
-	// Get and set ground entity.
+	/**
+	*	Seek for ground.
+	**/
+	// Determine and update the current ground entity.
 	PM_GroundTrace();
 
 	/**
@@ -2228,12 +2266,13 @@ void SG_PlayerMove_Frame() {
 	}
 
 	/**
-	*	Recategorize position for contents, ground, and /or liquid since we've made a move.
+	*	Recategorize position for ground, and/or liquid(contents) since we've made a move.
 	**/
 	// Get and set ground entity.
 	PM_GroundTrace();
 	// Get liquid.level, accounting for ducking.
 	PM_GetLiquidContentsForPoint( pm->state->pmove.origin, pm->liquid.level, pm->liquid.type );
+
 	/**
 	*	Apply the screen contents effects.
 	**/
@@ -2244,19 +2283,23 @@ void SG_PlayerMove_Frame() {
 	*	Weapons.
 	**/
 	//PM_Weapon();
+
 	/**
 	*	Torso animation.
 	**/
 	//PM_TorsoAnimation();
+
 	/**
 	*	Bob Cycle / Footstep events / legs animations.
 	**/
 	//PM_Footsteps();
 	PM_CycleBob();
+
 	/**
 	*	Entering / Leaving water splashes.
 	**/
 	//PM_WaterEvents();
+
 	/**
 	*	Snap us back into a validated position.
 	**/

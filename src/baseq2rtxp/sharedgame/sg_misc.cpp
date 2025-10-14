@@ -8,6 +8,7 @@
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_misc.h"
 #include "sharedgame/pmove/sg_pmove.h"
 
@@ -26,11 +27,23 @@
 //! String representatives.
 const char *sg_player_state_event_strings[ PS_EV_MAX ] = {
 	"None",			        // PS_EV_NONE
+    
+    "FootStep",
+    "FootStep[Ladder]",
+    
+    "Jump Up",		        // PS_EV_JUMP_UP
+    "Jump Land",	        // PS_EV_JUMP_LAND
+    
+    "Fall Short",
+    "Fall Medium",
+    "Fall Far",
+    
     "Weapon Reload",        // PS_EV_WEAPON_RELOAD
     "Weapon Primary Fire",  // PS_EV_WEAPON_PRIMARY_FIRE
     "Weapon Secondary Fire",// PS_EV_WEAPON_SECONDARY_FIRE
-	"Jump Up",		        // PS_EV_JUMP_UP
-	"Jump Land",	        // PS_EV_JUMP_LAND
+    "Weapon Holster and Draw",
+    "Weapon Draw",
+    "Weapon Holster"
 };
 
 /**
@@ -41,12 +54,8 @@ void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t
 	const int64_t sequenceIndex = playerState->eventSequence & ( MAX_PS_EVENTS - 1 );
 
 	// Ensure it is within bounds.
-	if ( newEvent < PS_EV_NONE || newEvent >= PS_EV_MAX ) {
-		#ifdef CLGAME_INCLUDE
-		SG_DPrintf( "CLGame PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
-		#else
-		//SG_DPrintf( "SVGame PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
-		#endif
+	if ( newEvent < 0 || newEvent >= EV_GAME_MAX ) {
+		SG_DPrintf( SG_GAME_MODULE_STR "PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[ newEvent ], eventParm );
 	}
 	//#ifndef CLGAME_INCLUDE
 	// Add predicted player move state event.
@@ -60,10 +69,10 @@ void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t
 	#ifdef _DEBUG_PRINT_PREDICTABLE_EVENTS
 	{
         // Ensure string is within bounds.
-        if ( newEvent < q_countof( sg_player_state_event_strings ) ) {
-            SG_DPrintf( SG_GAME_MODULE_STR PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_player_state_event_strings[ newEvent ], eventParm );
+        if ( newEvent < q_countof( sg_event_string_names ) ) {
+            SG_DPrintf( SG_GAME_MODULE_STR "PMoveState Event(sequenceIndex: % i) : newEvent(# % i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[newEvent], eventParm);
         } else {
-            SG_DPrintf( SG_GAME_MODULE_STR PMoveState Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_player_state_event_strings", eventParm);
+            SG_DPrintf( SG_GAME_MODULE_STR "PMoveState Event(sequenceIndex: % i) : newEvent(# % i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_event_string_names", eventParm);
         }
 	}
 	#endif

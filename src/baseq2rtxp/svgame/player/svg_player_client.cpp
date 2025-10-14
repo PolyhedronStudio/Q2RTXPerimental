@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_muzzleflashes.h"
@@ -51,6 +52,11 @@ void SVG_P_ProcessAnimations( svg_base_edict_t *ent );
 *
 **/
 /**
+*   @brief  Packs up the client number, weapon number and viewheigt of the player into entity skinnum.
+**/
+
+
+/**
 *   @brief  Called either when a player connects to a server, OR respawns in a multiplayer game.
 *
 *           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
@@ -65,6 +71,9 @@ void SVG_Player_SpawnInBody( svg_base_edict_t *ent ) {
 
     // Pass to game mode.
     game.mode->ClientSpawnInBody( static_cast<svg_player_edict_t *>( ent ) );
+
+    // Convert certain playerstate properties into entity state properties.
+    SG_PlayerStateToEntityState( ent->client->clientNum, &ent->client->ps, &ent->s, false );
 }
 
 /**

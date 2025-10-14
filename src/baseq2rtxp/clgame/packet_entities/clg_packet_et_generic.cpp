@@ -135,7 +135,7 @@ static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refr
         // Default to lerp:
     } else {
         // If client entity, use predicted origin instead of Lerped:
-        if ( newState->number == clgi.client->frame.clientNum + 1 ) {
+        if ( newState->number == clgi.client->clientNumber + 1 ) {
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->oldorigin );
             // Lerp Origin:

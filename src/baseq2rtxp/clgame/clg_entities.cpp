@@ -321,7 +321,7 @@ void CLG_PlayerState_LerpOrSnap( server_frame_t *oldframe, server_frame_t *frame
     }
 
     // No lerping if player entity was teleported (event check).
-    centity_t *clent = &clg_entities[frame->clientNum + 1];
+    centity_t *clent = &clg_entities[ frame->clientNum + 1 ];
 
     // If the player entity was within the range of lastFrameNumber and frame->number,
     // and had any teleport events going on, duplicate the player state into the old player state,

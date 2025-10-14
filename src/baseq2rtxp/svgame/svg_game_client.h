@@ -296,10 +296,6 @@ struct svg_client_t {
     float       damage_alpha;
     float       bonus_alpha;
     vec3_t      damage_blend;
-    int64_t     bobCycle;
-    int64_t     oldBobCycle;
-    double      bobFracSin;
-    //float       bobtime;            // Store it, so we know where we're at (To Prevent off-ground from changing it).
 
     /**
     *   Old/Previous frames data:

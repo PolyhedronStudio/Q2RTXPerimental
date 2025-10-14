@@ -40,29 +40,45 @@ void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigi
 
     // Handle the event.
     switch ( eventValue ) {
-        case EV_ITEM_RESPAWN:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn01.wav" ), 1, ATTN_IDLE, 0 );
-            CLG_ItemRespawnParticles( &effectOrigin.x );
-            break;
-        case EV_PLAYER_TELEPORT:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
-            CLG_TeleportParticles( &effectOrigin.x );
-            break;
+        /**
+        *   FootStep Events:
+        **/
         case EV_FOOTSTEP:
             CLG_FootstepEvent( entityNumber );
             break;
         case EV_FOOTSTEP_LADDER:
             CLG_FootstepLadderEvent( entityNumber );
             break;
-        case EV_FALLSHORT:
+
+        /**
+        *   Fall and Landing Events:
+        **/
+        case EV_FALL_MEDIUM:
             clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
             break;
-        case EV_FALL:
+        case EV_FALL_SHORT:
             clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
             break;
-        case EV_FALLFAR:
+        case EV_FALL_FAR:
             clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
             break;
+
+        /**
+        *   Teleport Events:
+        **/
+        case EV_PLAYER_TELEPORT:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
+            CLG_TeleportParticles( &effectOrigin.x );
+            break;
+
+        /**
+        *   Item Events:
+        **/
+        case EV_ITEM_RESPAWN:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn01.wav" ), 1, ATTN_IDLE, 0 );
+            CLG_ItemRespawnParticles( &effectOrigin.x );
+            break;
+
         default:
             break;
     }
@@ -70,7 +86,7 @@ void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigi
 /**
 *   @brief  Checks for entity generated events and processes them for execution.
 **/
-void CLG_CheckForEntityEvents( centity_t *cent ) {
+void CLG_CheckEntityEvents( centity_t *cent ) {
     #if 0
     // Check for event-only entities
     if ( cent->current.entityType > ET_EVENTS ) {
@@ -212,15 +228,23 @@ static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_s
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-void CLG_FirePlayerStateEvent( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
+const bool CLG_CheckPlayerEvent( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
     //if ( !clgi.client->clientEntity ) {
     //    return;
     //}
+    
     //centity_t *cent = clgi.client->clientEntity;
     centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
 
     if ( cent->serverframe != clgi.client->frame.number ) {
-        return;
+        return false;
+    }
+
+    // Is this the view bound entity?
+    centity_t *viewBoundEntity = cent;//CLG_GetViewBoundEntity();
+    // If the viewbound entity does not match, we won't process.
+    if ( !viewBoundEntity ) {
+        return false;
     }
 
     // Get model resource.
@@ -236,48 +260,71 @@ void CLG_FirePlayerStateEvent( const player_state_t *ops, const player_state_t *
 
     // Proceed to executing the event.
     // -- Jump Up:
-    if ( playerStateEvent == PS_EV_JUMP_UP ) {
+    if ( playerStateEvent == EV_JUMP_UP ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_JUMP_UP\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_LOWER ], "jump_up_pistol", QMTime::FromMilliseconds( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+
+        // Did handle the player state event.
+        return true;
     // -- Jump Land:
-    } else if ( playerStateEvent == PS_EV_JUMP_LAND ) {
+    } else if ( playerStateEvent == EV_JUMP_LAND ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_JUMP_LAND\n", __func__ );
         // We really do NOT want this when we are crouched when having hit the ground.
         if ( !( ps->pmove.pm_flags & PMF_DUCKED ) ) {
             // Set event state animation.
             SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_LOWER ], "jump_land_pistol", QMTime::FromMilliseconds( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+
+            // Did handle the player state event.
+            return true;
         }
     // -- Weapon Fire Primary:
-    } else if ( playerStateEvent == PS_EV_WEAPON_PRIMARY_FIRE ) {
+    } else if ( playerStateEvent == EV_WEAPON_PRIMARY_FIRE ) {
         const std::string animationName = CLG_PrimaryFireEvent_DetermineAnimation( ops, ps, playerStateEvent, lerpOrigin );
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_PRIMARY_FIRE\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], animationName.c_str(), QMTime::FromMilliseconds( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+
+        // Did handle the player state event.
+        return true;
     // -- Weapon Reload:
-    } else if ( playerStateEvent == PS_EV_WEAPON_RELOAD ) {
+    } else if ( playerStateEvent == EV_WEAPON_RELOAD ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "reload_stand_pistol", QMTime::FromMilliseconds( clgi.client->servertime ), BASE_FRAMETIME, false, true );
-    
+
+        // Did handle the player state event.
+        return true;
     #if 1
     // -- Weapon Holster AND Draw:
-    } else if ( playerStateEvent == PS_EV_WEAPON_HOLSTER_AND_DRAW ) {
+    } else if ( playerStateEvent == EV_WEAPON_HOLSTER_AND_DRAW ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "holster_draw_pistol", QMTime::FromMilliseconds( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+
+        // Did handle the player state event.
+        return true;
     }
     #else
     // -- Weapon Draw:
-    } else if ( playerStateEvent == PS_EV_WEAPON_HOLSTER ) {
+    } else if ( playerStateEvent == EV_WEAPON_HOLSTER ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "holster_pistol", QMTime::FromMilliseconds( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+
+        // Did handle the player state event.
+        return true;
     // -- Weapon Holster:
-    } else if ( playerStateEvent == PS_EV_WEAPON_DRAW ) {
+    } else if ( playerStateEvent == EV_WEAPON_DRAW ) {
         //clgi.Print( PRINT_NOTICE, "%s: PS_EV_WEAPON_RELOAD\n", __func__ );
         // Set event state animation.
         SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_UPPER ], "draw_pistol", QMTime::FromMilliseconds( clgi.client->servertime ), BASE_FRAMETIME, false, true );
+
+        // Did handle the player state event.
+        return true;
     }
     #endif
+
+    // Did NOT handle any player state event.
+    return false;
 }

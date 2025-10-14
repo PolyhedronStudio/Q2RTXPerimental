@@ -7,25 +7,31 @@
 ********************************************************************/
 #pragma once
 
-// entity_state_t is the information conveyed from the server
-// in an update message about entities that the client will
-// need to render in some way
+
+
+/**
+*   @brief  entity_state_t is the information conveyed from the server
+*           in an update message about entities that the client will
+*           need to render in some way
+**/
 typedef struct entity_state_s {
     /**
     *   Core Entity State Data:
     **/
+
+    //! The entity's clientinfo index. (Resides in skinnum).
+    //uint8_t client;
     //! Server edict index.
     int32_t	number;
-    //! The entity's clientinfo index.
-    //uint8_t client;
     //! The specific type of entity.
     int32_t	entityType; // ET_GENERIC, ET_PLAYER, ET_MONSTER_PLAYER, ET_SPOTLIGHT etc..
+
     //! Entity origin.
     vec3_t  origin;
-    //! Entity 'view' angles.
-    vec3_t  angles;
     //! For lerping. Also used for RF_BEAM its termination point.
     vec3_t  old_origin;
+    //! Entity 'view' angles.
+    vec3_t  angles;
 
     /**
     *   The following fields are communicated to the client for prediction needs,

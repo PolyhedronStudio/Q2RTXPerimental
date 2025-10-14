@@ -24,9 +24,11 @@
 //! distinguished from the first fired event. 
 //!
 //! To get the actual event value,off it with the value with ~EV_EVENT_BITS
-static constexpr int32_t EV_EVENT_BIT1 = BIT( 0 ); // OLD: 0x00000100
-static constexpr int32_t EV_EVENT_BIT2 = BIT( 1 ); // OLD: 0x00000200
+static constexpr int32_t EV_EVENT_BIT1 = BIT( 8 ); // 0x00000100;// BIT( 0 ); // OLD: 0x00000100
+static constexpr int32_t EV_EVENT_BIT2 = BIT( 9 ); // 0x00000200;// BIT( 1 ); // OLD: 0x00000200
 static constexpr int32_t EV_EVENT_BITS = ( EV_EVENT_BIT1 | EV_EVENT_BIT2 );
+
+
 
 /**
 *
@@ -80,29 +82,58 @@ static constexpr int32_t EVENT_VALID_MSEC = 300;
 **/
 typedef enum sg_entity_events_e {
     /**
-    *
+    *   Footstep Events:
     **/
+    EV_FOOTSTEP = EV_ENGINE_MAX + 1,
+    EV_FOOTSTEP_LADDER,
+
+    /**
+    *   Player/(Humanoid-)Monster Events:   
+    **/
+    //! For when jumping up.
+    EV_JUMP_UP,
+    //! Or Fall, FallShort, FallFar??
+    EV_JUMP_LAND,
+
+    //! "Short" Fell to the ground.
+    EV_FALL_SHORT,
+    //! "Short" fall to the ground.
+    EV_FALL_MEDIUM,
+    // "Hard Far" fall to the ground.
+    EV_FALL_FAR,
+
+
+    //
+    // External Events:
+    //
+    //! Reload Weapon.
+    EV_WEAPON_RELOAD,
+    //! Weapon Primary Fire.
+    EV_WEAPON_PRIMARY_FIRE,
+    //! Weapon Secondary Fire.
+    EV_WEAPON_SECONDARY_FIRE,
+
+    //! Weapon Holster/Draw:
+    EV_WEAPON_HOLSTER_AND_DRAW,
+
+    // TODO: We really do wanna split weapon draw and holstering, but, alas, lack animation skills.
+    //! Draw Weapon.
+    EV_WEAPON_DRAW,
+    //! Holster Weapon.
+    EV_WEAPON_HOLSTER,
+    
+    //!
+    //! The maximum predictable player events.
+    //! 
+    PS_EV_MAX,
 
     /**
     *   Teleport Effects:
     **/
     //! Player teleporting.
-    EV_PLAYER_TELEPORT = 9 + 1,
+    EV_PLAYER_TELEPORT, // <Q2RTXP>: TODO: PS_EV_MAX? Or... just use these for PS_EV_...
 	//! Other entity teleporting.
     EV_OTHER_TELEPORT,
-
-    /**
-	*   Falling Events:
-    **/
-    EV_FALL,
-    EV_FALLSHORT,
-    EV_FALLFAR,
-
-    /**
-	*   Footstep Events:
-    **/
-    EV_FOOTSTEP,
-    EV_FOOTSTEP_LADDER,
 
     /**
     *   Item Events:
@@ -113,3 +144,43 @@ typedef enum sg_entity_events_e {
     EV_GAME_MAX
 } sg_entity_events_t;
 
+
+
+/**
+*
+*
+*
+*   Entity Event String Names:
+*
+*
+*
+**/
+static constexpr const char *sg_event_string_names[ EV_GAME_MAX ] = {
+    "EV_ENGINE_NONE",
+
+    "EV_FOOTSTEP",
+    "EV_FOOTSTEP_LADDER",
+
+    "EV_JUMP_UP",
+    "EV_JUMP_LAND",
+
+    "EV_FALL_SHORT",
+    "EV_FALL_MEDIUM",
+    "EV_FALL_FAR",
+
+
+    "EV_WEAPON_RELOAD",
+    "EV_WEAPON_PRIMARY_FIRE",
+    "EV_WEAPON_SECONDARY_FIRE",
+    "EV_WEAPON_HOLSTER_AND_DRAW",
+
+    "EV_WEAPON_DRAW",
+    "EV_WEAPON_HOLSTER",
+
+    "PS_EV_MAX",
+
+    "EV_PLAYER_TELEPORT",
+    "EV_OTHER_TELEPORT",
+
+    "EV_ITEM_RESPAWN"
+};

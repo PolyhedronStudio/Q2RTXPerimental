@@ -17,6 +17,7 @@
 #include "svgame/svg_lua.h"
 
 #include "sharedgame/pmove/sg_pmove.h"
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_muzzleflashes.h"
@@ -216,23 +217,26 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     
     // Backup persistent client data and wipe the client structure for reuse.
     const client_persistant_t savedPersistantData = client->pers;
-    // Acquire actual client number.
+    // Acquire actual client number and eventSequence.
     const int32_t clientNum = client->clientNum;
+    const int32_t eventSequence = client->ps.eventSequence;
+
     // Reset client value.
-    *client = { };
-    //memset( client, 0, sizeof( *client ) );
-    // Restore client number.
+    *client = { }; //memset( client, 0, sizeof( *client ) );
+    // Reassign the client number.
     client->clientNum = clientNum;
+    // Reassign the event sequence.
+    //client->ps.eventSequence = eventSequence;
+
     // Reinitialize persistent data.
     client->pers = savedPersistantData;
+    // Restore the client's originally set respawn data.
+    client->resp = savedRespawnData;
     // <Q2RTXP>: WID: TODO: Do we want this in singleplayer?
     // If dead at the time of the previous map switching to the current, reinitialize persistent data.
     if ( client->pers.health <= 0 ) {
         SVG_Player_InitPersistantData( ent, client );
     }
-    // Restore the client's originally set respawn data.
-    client->resp = savedRespawnData;
-
     // copy some data from the client to the entity
     SVG_Player_RestoreClientData( ent );
 
@@ -274,8 +278,10 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     VectorClear( ent->velocity );
 
     // Reset PlayerState values.
-    client->ps = {}; 
-    //memset( &ent->client->ps, 0, sizeof( client->ps ) );
+    client->ps = {
+        .eventSequence = eventSequence,
+    };
+
     // Reset the Field of View for the player state.
     SVG_Player_ResetPlayerStateFOV( ent->client );
 
@@ -375,6 +381,9 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     // Force a current active weapon up
     client->newweapon = client->pers.weapon;
     SVG_Player_Weapon_Change( ent );
+
+    // Presend anything else and clear state variables.
+    SVG_Client_EndServerFrame( ent );
 }
 /**
 *   @brief  Called when a client has finished connecting, and is ready
@@ -562,13 +571,6 @@ void svg_gamemode_singleplayer_t::EndServerFrame( svg_player_edict_t *ent ) {
     ent->s.angles[ ROLL ] = 0;
     ent->s.angles[ ROLL ] = SV_CalcRoll( ent->s.angles, ent->velocity ) * 4.;
 
-    //
-    // Update the client's bob cycle.
-    //
-    ent->client->oldBobCycle = ent->client->bobCycle;
-    ent->client->bobCycle = ( ent->client->ps.bobCycle & 128 ) >> 7;
-    ent->client->bobFracSin = fabs( sin( ( ent->client->ps.bobCycle & 127 ) / 127.0 * M_PI ) );
-
     // apply all the damage taken this frame
     P_DamageFeedback( ent );
 
@@ -600,7 +602,7 @@ void svg_gamemode_singleplayer_t::EndServerFrame( svg_player_edict_t *ent ) {
     // Sound.
     SVG_SetClientSound( ent );
     // Check for client playerstate its pmove generated events.
-    SVG_CheckClientPlayerstateEvents( ent, &ent->client->ops, &ent->client->ps );
+    SVG_CheckClientEvents( ent, &ent->client->ops, &ent->client->ps );
     // Animation Frame.
     SVG_SetClientFrame( ent );
 

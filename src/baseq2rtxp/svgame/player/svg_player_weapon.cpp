@@ -181,7 +181,7 @@ void SVG_Player_Weapon_Change(svg_base_edict_t *ent) {
             SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_animation_t *)ent->client->pers.weapon->info, true );
             // Fire an actual event for the client at hand.
             //SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_HOLSTER, 0, &ent->client->ps );
-            SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_HOLSTER_AND_DRAW, 0, &ent->client->ps );
+            SG_PlayerState_AddPredictableEvent( EV_WEAPON_HOLSTER_AND_DRAW, 0, &ent->client->ps );
             return;
         }
         // We know this function will continue to be called if newweapon is not nulled out.
@@ -674,16 +674,16 @@ void P_Weapon_DeterminePredictableEvents( svg_base_edict_t *ent ) {
         // Add corresponding predictable player state event.
         switch ( modeID ) {
             case WEAPON_MODE_AIM_FIRE:
-                SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
+                SG_PlayerState_AddPredictableEvent( EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
                 break;
             case WEAPON_MODE_PRIMARY_FIRING:
-                SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
+                SG_PlayerState_AddPredictableEvent( EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
                 break;
             case WEAPON_MODE_SECONDARY_FIRING:
-                SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_SECONDARY_FIRE, 0, &ent->client->ps );
+                SG_PlayerState_AddPredictableEvent( EV_WEAPON_SECONDARY_FIRE, 0, &ent->client->ps );
                 break;
             case WEAPON_MODE_RELOADING:
-                SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_RELOAD, 0, &ent->client->ps );
+                SG_PlayerState_AddPredictableEvent( EV_WEAPON_RELOAD, 0, &ent->client->ps );
                 break;
             default:
                 break;

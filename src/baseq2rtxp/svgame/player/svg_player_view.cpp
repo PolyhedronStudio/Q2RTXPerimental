@@ -17,12 +17,15 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_trail.h"
 #include "svgame/player/svg_player_view.h"
 
 #include "sharedgame/sg_cmd_messages.h"
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_means_of_death.h"
 
@@ -46,8 +49,6 @@ static  vec3_t  forward, right, up;
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-void SVG_CheckClientPlayerstateEvents( const svg_base_edict_t *ent, player_state_t *ops, player_state_t *ps );
-
 inline bool SkipViewModifiers( ) {
 	//if ( g_skipViewModifiers->integer && sv_cheats->integer ) {
 	//	return true;
@@ -553,6 +554,10 @@ void P_CalculateBlend( svg_base_edict_t *ent ) {
 void P_CheckWorldEffects( void ) {
 	cm_liquid_level_t liquidlevel, old_waterlevel;
 
+	if ( !current_player || !current_client ) {
+		return;
+	}
+
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
 		current_player->air_finished_time = level.time + 12_sec; // don't need air
 		return;
@@ -711,31 +716,52 @@ void SVG_SetClientEffects( svg_base_edict_t *ent ) {
 **/
 void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	// We're already occupied by an event.
-	if ( ent->s.event ) {
-		return;
-	}
+	//if ( ent->s.event ) {
+	//	return;
+	//}
 
+	//if ( level.time - ent->eventTime < QMTime::FromMilliseconds( EVENT_VALID_MSEC ) ) {
+	//	return;
+	//}
 	//if ( ent->groundentity && xyspeed > 225 ) {
 	//	if ( (int)( current_client->bobtime + bobmove ) != bobcycle )
 	//		ent->s.event = EV_FOOTSTEP;
 	//}
-	Vector3 ladderDistVec = QM_Vector3Subtract( current_client->last_ladder_pos, ent->s.origin );
-	float ladderDistance = QM_Vector3LengthSqr( ladderDistVec );
-
-	if ( ent->client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
+	const Vector3 ladderDistVec = QM_Vector3Subtract( current_client->last_ladder_pos, ent->s.origin );
+	const double ladderDistance = QM_Vector3LengthSqr( ladderDistVec );
+	#if 1
+	if ( current_client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
 		if ( !deathmatch->integer &&
 			current_client->last_ladder_sound < level.time &&
 			ladderDistance > 48.f ) {
-			ent->s.event = EV_FOOTSTEP_LADDER;
+			//ent->s.event = EV_FOOTSTEP_LADDER;
+			SVG_Util_AddEvent( ent, EV_FOOTSTEP_LADDER, 0 );
 			VectorCopy( ent->s.origin, current_client->last_ladder_pos );
 			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
+
+			gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRIx64 ")\n", __func__, level.frameNumber );
+		}
+	}
+	#else
+	if ( current_client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
+		if ( !deathmatch->integer &&
+			current_client->last_ladder_sound < level.time &&
+			ladderDistance > 48.f ) {
+			//ent->s.event = EV_FOOTSTEP_LADDER;
+			SVG_Util_AddEvent( ent, EV_FOOTSTEP_LADDER, 0 );
+			VectorCopy( ent->s.origin, current_client->last_ladder_pos );
+			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
+
+			gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRIx64 ")\n", __func__, level.frameNumber );
 		}
 	} else if ( ent->groundInfo.entity && ent->client->ps.xySpeed > 225 ) {
 		if ( ( current_client->bobCycle != current_client->oldBobCycle ) ) {
-			ent->s.event = EV_FOOTSTEP;
-			//gi.dprintf( "%s: EV_FOOTSTEP ent->ground xyspeed > 225\n", __func__ );
+			SVG_Util_AddEvent( ent, EV_FOOTSTEP, 0 );
+			//ent->s.event = EV_FOOTSTEP;
+			gi.dprintf( "%s: EV_FOOTSTEP ent->ground xyspeed > 225 - Frame(#%" PRIx64 ")\n", __func__, level.frameNumber );
 		}
 	}
+	#endif
 }
 
 /**
@@ -744,7 +770,7 @@ void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 void SVG_SetClientSound( svg_base_edict_t *ent ) {
 	// Override sound with the 'fry' sound in case of being in a 'fryer' liquid, lol.
 	if ( ent->liquidInfo.level && ( ent->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
-		ent->s.sound = gi.soundindex( "player/burn01.wav" );;
+		ent->s.sound = gi.soundindex( "player/burn01.wav" );
 	// Override entity sound with that of the weapon's activeSound.
 	} else if ( ent->client->weaponState.activeSound ) {
 		ent->s.sound = ent->client->weaponState.activeSound;
@@ -769,7 +795,6 @@ void SVG_SetClientFrame( svg_base_edict_t *ent ) {
 	if ( !client ) {
 		return; // Need a client entity.
 	}
-
 
 	// Finally process the actual player_state animations.
 	SVG_P_ProcessAnimations( ent );
@@ -833,6 +858,7 @@ void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
 
 	// <Q2RTXP>: WID: TODO: WARN?
 	if ( !ent->client ) {
+		gi.dprintf( "%s: !ent->client->pers.spawned\n", __func__ );
 		return;
 	}
 
@@ -888,5 +914,8 @@ void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
 
 	// Let game modes handle it from here.
 	game.mode->EndServerFrame( static_cast<svg_player_edict_t*>( ent ) );
+
+	// Convert certain playerstate properties into entity state properties.
+	SG_PlayerStateToEntityState( ent->client->clientNum, &ent->client->ps, &ent->s, false );
 }
 

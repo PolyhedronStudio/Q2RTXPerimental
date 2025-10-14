@@ -608,15 +608,22 @@ void SVG_RunFrame(void) {
             continue;
         }
 
+
+        // Set the current entity being processed for the current frame.
+        level.current_entity = ent;
+
 		// Clear events that are too old.
         if ( CheckClearEntityEvents( ent ) == true ) {
             // Entity has been freed or whatever, but we shall not pass.
 			// Skip the entity for further processing.
             continue;
         }
+        // Temp entities never think.
+        if ( ent->freeAfterEvent ) {
+            // Skip.
+            continue;
+        }
 
-        // Set the current entity being processed for the current frame.
-        level.current_entity = ent;
 
         // RF Beam Entities update their old_origin by hand.
         if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
