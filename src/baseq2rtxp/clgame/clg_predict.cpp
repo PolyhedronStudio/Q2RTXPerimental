@@ -97,7 +97,7 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
         centity_t *clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
         clientEntity->current.event = ps->externalEvent;
         clientEntity->current.eventParm = ps->externalEventParm;
-        //CLG_EntityEvent( clientEntity, clientEntity->lerpOrigin );
+        CLG_CheckForEntityEvents( clientEntity );
     }
     #endif
 
@@ -120,8 +120,12 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
             clientEntity->current.eventParm = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
 
             // Proceed to firing the predicted/received event.
-            //CLG_EntityEvent( clientEntity, clientEntity->lerp_origin );
-            CLG_FirePlayerStateEvent( ops, ps, playerStateEvent, clientEntity->lerp_origin );
+            //
+            if ( playerStateEvent < 9 ) {
+                CLG_FirePlayerStateEvent( ops, ps, playerStateEvent, clientEntity->lerp_origin );
+            } else {
+                CLG_CheckForEntityEvents( clientEntity );
+            }
 
             // Add to the list of predictable events.
             game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] = playerStateEvent;

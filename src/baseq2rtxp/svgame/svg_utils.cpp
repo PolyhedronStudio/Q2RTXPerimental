@@ -148,13 +148,9 @@ void SVG_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const 
 **/
 void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm ) {
     if ( !event ) {
-        SG_DPrintf( "G_AddEvent: zero event added for entity %i\n", ent->s.number );
+        SG_DPrintf( "%s: zero event added for entity(#%i)\n", __func__, ent->s.number );
         return;
     }
-	
-    static constexpr int32_t EV_EVENT_BIT1 = BIT( 0 ); // OLD: 0x00000100
-    static constexpr int32_t EV_EVENT_BIT2 = BIT( 1 ); // OLD: 0x00000200
-    static constexpr int32_t EV_EVENT_BITS = ( EV_EVENT_BIT1 | EV_EVENT_BIT2 );
 
     #if 1
         // clients need to add the event in playerState_t instead of entityState_t

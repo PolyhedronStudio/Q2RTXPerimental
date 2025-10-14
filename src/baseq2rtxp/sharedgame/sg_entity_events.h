@@ -80,10 +80,14 @@ static constexpr int32_t EVENT_VALID_MSEC = 300;
 **/
 typedef enum sg_entity_events_e {
     /**
+    *
+    **/
+
+    /**
     *   Teleport Effects:
     **/
     //! Player teleporting.
-    EV_PLAYER_TELEPORT = EV_ENGINE_MAX + 1,
+    EV_PLAYER_TELEPORT = 9 + 1,
 	//! Other entity teleporting.
     EV_OTHER_TELEPORT,
 

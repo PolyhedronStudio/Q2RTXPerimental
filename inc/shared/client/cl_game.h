@@ -74,6 +74,12 @@ typedef struct cclient_s {
 *	mirror the 'first part' of the structure defined within the Client-Game.
 **/
 typedef struct centity_s {
+	//! Entity id for the refresh(render) entity.
+	int32_t	id;
+
+	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
+	int64_t	serverframe;
+
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
 	//! Previous entity state. Will always be valid, but might be just a copy of the current state.
@@ -84,36 +90,6 @@ typedef struct centity_s {
 	//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
 	vec3_t	absmin, absmax, size;
 	
-	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
-	int64_t	serverframe;
-
-	//! For diminishing grenade trails.
-	int32_t	trailcount;         // for diminishing grenade trails
-	//! for trails (variable hz)
-	vec3_t	lerp_origin;
-
-	//! Used for CL_FlyEffect and CL_TrapParticles to determine when to stop the effect.
-	int32_t	fly_stoptime;
-
-	//! Entity id for the refresh(render) entity.
-	int32_t	id;
-
-	// WID: 40hz
-	int32_t	current_frame, last_frame;
-
-	// Server time at moment of receiving the current frame.
-	int64_t	frame_servertime;
-	// Real time at momentof receiving the current frame.
-	int64_t frame_realtime;
-
-	// Server time at moment of receiving a (state.renderfx & SF_STAIR_STEP) entity.
-	int64_t	step_servertime;
-	// Real time at moment of receiving a (state.renderfx & SF_STAIR_STEP) entity.
-	int64_t	step_realtime;
-	// Actual height of the step taken.
-	double	step_height;
-	// WID: 40hz
-
 	/**
 	*	The game dll can add anything it wants after this point in the structure.
 	**/

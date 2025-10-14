@@ -208,6 +208,12 @@ typedef struct clg_entity_moveinfo_s {
 *	mirror the 'first part' of the structure defined within the Client.
 **/
 typedef struct centity_s {
+	//! Entity id for the refresh(render) entity.
+	int32_t	id;
+
+	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
+	int64_t	serverframe;
+
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
 	//! Previous entity state. Will always be valid, but might be just a copy of the current state.
@@ -218,20 +224,20 @@ typedef struct centity_s {
 	//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
 	vec3_t	absmin, absmax, size;
 
-	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
-	int64_t	serverframe;
 
-	//! For diminishing grenade trails.
-	int32_t	trailcount;         // for diminishing grenade trails
-	//! for trails (variable hz)
-	vec3_t	lerp_origin;
 
-	//! Used for CL_FlyEffect and CL_TrapParticles to determine when to stop the effect.
-	int32_t	fly_stoptime;
-
-	//! Entity id for the refresh(render) entity.
-	int32_t	id;
-
+	/**
+	*
+	* 
+	* 
+	*	The game dll can add anything it wants after this point in the structure.
+	* 
+	* 
+	* 
+	**/
+	/**
+	*	TODO: Catagorize :
+	**/
 	// WID: 40hz
 	int32_t	current_frame, last_frame;
 	// Server Time of receiving the current frame.
@@ -247,7 +253,7 @@ typedef struct centity_s {
 	// WID: 40hz
 
 	/**
-	*	The game dll can add anything it wants after this point in the structure.
+	*	Rendering:
 	**/
 	//! Refresh Entity.
 	entity_t refreshEntity;
@@ -263,6 +269,17 @@ typedef struct centity_s {
 	//! Bone Controllers.
 	skm_bone_controller_t boneControllers[ 4 ];
 
+
+	/**
+	*	Events:
+	**/
+	//! The most recent event that was added to this entity.
+	int64_t previousEvent;
+
+
+	/**
+	*	Movement Info:
+	**/
 	struct {
 		//! The most recently calculated move information.
 		clg_entity_moveinfo_t current;
@@ -277,6 +294,16 @@ typedef struct centity_s {
 		Vector3 right;
 	} vAngles;
 
+
+	/**
+	*	Misc:
+	**/
+	//! Used for CL_FlyEffect and CL_TrapParticles to determine when to stop the effect.
+	int32_t	fly_stoptime;
+	//! For diminishing grenade trails.
+	int32_t	trailcount;         // for diminishing grenade trails
+	//! for trails (variable hz)
+	vec3_t	lerp_origin;
 } centity_t;
 
 /**

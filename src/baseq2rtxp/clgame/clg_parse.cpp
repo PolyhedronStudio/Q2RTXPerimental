@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
+#include "clgame/clg_events.h"
 #include "clgame/clg_hud.h"
 #include "clgame/clg_parse.h"
 #include "clgame/clg_screen.h"
@@ -473,38 +474,10 @@ void PF_ParseEntityEvent( const int32_t entityNumber ) {
         return;
     }
 
+    // Get the entity.
     centity_t *cent = &clg_entities[ entityNumber ];//centity_t *cent = &cl_entities[number];
-
-    // EF_TELEPORTER acts like an event, but is not cleared each frame
-    if ( ( cent->current.effects & EF_TELEPORTER ) ) {
-        CLG_TeleporterParticles( cent->current.origin );
-    }
-
-    switch ( cent->current.event ) {
-        case EV_ITEM_RESPAWN:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn01.wav" ), 1, ATTN_IDLE, 0 );
-            CLG_ItemRespawnParticles( cent->current.origin );
-            break;
-        case EV_PLAYER_TELEPORT:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
-            CLG_TeleportParticles( cent->current.origin );
-            break;
-        case EV_FOOTSTEP:
-            CLG_FootstepEvent( entityNumber );
-            break;
-        case EV_FOOTSTEP_LADDER:
-            CLG_FootstepLadderEvent( entityNumber );
-            break;
-        case EV_FALLSHORT:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
-            break;
-        case EV_FALL:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
-            break;
-        case EV_FALLFAR:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
-            break;
-    }
+    // Check for events.
+    CLG_CheckForEntityEvents( cent );
 }
 
 

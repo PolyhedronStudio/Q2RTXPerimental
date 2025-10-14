@@ -39,6 +39,17 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir, const bool clearAngle
 **/
 const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent );
 
+/**
+*   @brief  Use for non-pmove events that would also be predicted on the
+*           client side: jumppads and item pickups
+*           Adds an event+parm and twiddles the event counter
+**/
+void SVG_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm );
+/**
+*   @brief Adds an event+parm and twiddles the event counter.
+**/
+void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm );
+
 
 
 /**

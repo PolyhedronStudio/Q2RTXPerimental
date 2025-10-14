@@ -6,10 +6,171 @@
 *
 ********************************************************************/
 #include "clgame/clg_local.h"
+#include "clgame/clg_entities.h"
+#include "clgame/clg_effects.h"
 #include "clgame/clg_events.h"
 
+// Needed:
+#include "sharedgame/sg_entity_events.h"
+#include "sharedgame/sg_entity_effects.h"
 
 
+/**
+*
+*
+*
+*   Entity Event Handling:
+*
+*
+*
+**/
+/**
+*   @brief  Processes the given entity event.
+**/
+void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigin, centity_t *cent, const int32_t entityNumber, const int32_t clientNumber, clientinfo_t *clientInfo ) {
+
+    // <Q2RTXP>: TODO: Fix so it doesn't do the teleporter at incorrect spawn origin.
+    const Vector3 effectOrigin = lerpOrigin; // cent->current.origin 
+
+
+    // EF_TELEPORTER acts like an event, but is not cleared each frame
+    if ( ( cent->current.effects & EF_TELEPORTER ) ) {
+        CLG_TeleporterParticles( &effectOrigin.x );
+    }
+
+    // Handle the event.
+    switch ( eventValue ) {
+        case EV_ITEM_RESPAWN:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn01.wav" ), 1, ATTN_IDLE, 0 );
+            CLG_ItemRespawnParticles( &effectOrigin.x );
+            break;
+        case EV_PLAYER_TELEPORT:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
+            CLG_TeleportParticles( &effectOrigin.x );
+            break;
+        case EV_FOOTSTEP:
+            CLG_FootstepEvent( entityNumber );
+            break;
+        case EV_FOOTSTEP_LADDER:
+            CLG_FootstepLadderEvent( entityNumber );
+            break;
+        case EV_FALLSHORT:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
+            break;
+        case EV_FALL:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
+            break;
+        case EV_FALLFAR:
+            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
+            break;
+        default:
+            break;
+    }
+}
+/**
+*   @brief  Checks for entity generated events and processes them for execution.
+**/
+void CLG_CheckForEntityEvents( centity_t *cent ) {
+    #if 0
+    // Check for event-only entities
+    if ( cent->current.entityType > ET_EVENTS ) {
+        if ( cent->previousEvent ) {
+            return;	// already fired
+        }
+        // if this is a player event set the entity number of the client entity number
+        if ( cent->current.eFlags & EF_PLAYER_EVENT ) {
+            cent->current.number = cent->current.otherEntityNum;
+        }
+
+        cent->previousEvent = 1;
+
+        cent->current.event = cent->current.entityType - ET_EVENTS;
+    } else
+    #endif
+    /**
+    *   Check for events riding with another entity:
+    **/
+    {
+        // Already fired the event.
+        if ( cent->current.event == cent->previousEvent ) {
+            return;
+        }
+		// Save as previous event.
+        cent->previousEvent = cent->current.event;
+		// If no event, don't process anything. ( It hasn't changed again. )
+        if ( ( cent->current.event & ~EV_EVENT_BITS ) == 0 ) {
+            return;
+        }
+    }
+
+    /**
+    *   Event Value Decoding:
+    **/
+	//  Get the entity state.
+    entity_state_t *currentEntityState = &cent->current;
+	// Acquire the actual event value by offing it with EV_EVENT_BITS.
+    const int32_t eventValue = currentEntityState->event & ~EV_EVENT_BITS;
+
+    #if 0
+    if ( cg_debugEvents.integer ) {
+        CG_Printf( "ent:%3i  event:%3i ", currentEntityState->number, eventValue );
+    }
+
+    if ( !eventValue ) {
+        DEBUGNAME( "ZEROEVENT" );
+        return;
+    }
+    #else
+    if ( !eventValue ) {
+        return;
+	}
+    #endif
+
+    /**
+    *   Client Info Fetching by skinnum decoding:
+    **/
+	// The client info we'll acquire based on entity client number(decoded from skinnum if a player). 
+    clientinfo_t *clientInfo = nullptr;
+    // The client number of the entity, if any.
+    int32_t clientNumber = -1;
+	// Get client number of entity, if any.
+    if ( currentEntityState->modelindex == MODELINDEX_PLAYER ) {
+		// It's a player model, so decode the client number from skinnum.
+        clientNumber = currentEntityState->skinnum & 0xFF;
+        // Invalid client number by skin.
+        if ( clientNumber < 0 || clientNumber >= MAX_CLIENTS ) {
+            clientNumber = -1;
+        // Valid client number, get the client info.
+        } else {
+			clientInfo = &clgi.client->clientinfo[ clientNumber ];
+        }
+    }
+
+    // calculate the position at exactly the frame time
+    //BG_EvaluateTrajectory( &cent->currentState.pos, cg.snap->serverTime, cent->lerpOrigin );
+    //CG_SetEntitySoundPosition( cent );
+     
+    /**
+    *   Determine LerpOrigin and Process the Entity Events:
+    **/
+    // Calculate the position for lerp_origin at exactly the frame time.
+	PF_GetEntitySoundOrigin( cent->current.number, cent->lerp_origin );
+	// Process the event.
+    // <Q2RTXP>: TODO: Use event value.
+    CLG_ProcessEntityEvents( eventValue, cent->lerp_origin, cent, cent->current.number, clientNumber, clientInfo );
+}
+
+
+
+/**
+*
+*
+*
+*   PlayerState Event Handling:
+*
+*
+*
+**/
 /**
 *   @brief  Determines the 'fire' animation to play for the given primary fire event.
 **/
