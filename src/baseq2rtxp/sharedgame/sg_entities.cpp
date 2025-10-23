@@ -39,6 +39,40 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	entityState->skinnum = skinnum.skinnum;
 	#endif
 
+	#if 0
+		// Copy over the playerState values.
+		entityState->number = clientNumber;
+		entityState->entityType = ET_PLAYER;
+		entityState->modelindex = MODELINDEX_PLAYER;
+		entityState->modelindex2 = playerState->gun.modelIndex; // View weapon model.
+		entityState->frame = playerState->gun.animationID;
+		//entityState->frame = playerState->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT;
+		entityState->angles = playerState->viewangles; // VectorCopy( playerState->viewangles, entityState->angles );
+		// Copy over the origin.
+		if ( snapOrigin ) {
+			// Snap to integer coordinates for network transmission.
+			entityState->origin[ 0 ] = (int32_t)playerState->pmove.origin[ 0 ];
+			entityState->origin[ 1 ] = (int32_t)playerState->pmove.origin[ 1 ];
+			entityState->origin[ 2 ] = (int32_t)playerState->pmove.origin[ 2 ];
+		} else {
+			// Copy without snapping.
+			entityState->origin[ 0 ] = playerState->pmove.origin[ 0 ];
+			entityState->origin[ 1 ] = playerState->pmove.origin[ 1 ];
+			entityState->origin[ 2 ] = playerState->pmove.origin[ 2 ];
+		}
+	#else
+		// Copy without snapping.
+		VectorCopy( playerState->pmove.origin, entityState->origin );
+
+		double pitch = playerState->viewangles[ PITCH ];
+		if ( pitch > 180. ) {
+			pitch -= 360.;
+		}
+		entityState->angles[ PITCH ] = pitch / 3.;
+		entityState->angles[ YAW ] = playerState->viewangles[ YAW ];
+		entityState->angles[ ROLL ] = 0.;
+	#endif
+
 	// Check for an external event first.
 	if ( playerState->externalEvent ) {
 		entityState->event = playerState->externalEvent;

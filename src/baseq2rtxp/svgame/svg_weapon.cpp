@@ -201,12 +201,14 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
                 if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
                     gi.WriteUint8( svc_temp_entity );
                     gi.WriteUint8( TE_BLOOD );
-                    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    gi.WriteDir8( tr.plane.normal );
-                    gi.multicast( tr.endpos, MULTICAST_PVS, false );
+                    gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+					const Vector3 planeNormal = tr.plane.normal;
+                    gi.WriteDir8( &planeNormal );
+                    gi.multicast( &tr.endpos, MULTICAST_PVS, false );
 
-                    if ( self->client )
+                    if ( self->client ) {
                         SVG_Player_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
+                    }
                 }
             }
 
@@ -245,7 +247,7 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
 /**
 *   @brief  This is an internal support routine used for bullet/pellet based weapons.
 **/
-static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
+static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector3 &aimdir, const float damage, const float kick, const int32_t te_impact, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
     Vector3 dir = { };
     Vector3 forward = {}, right = {}, up = {};
     Vector3 end = {};
@@ -273,7 +275,7 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
         VectorMA(end, u, up, end);
 
         // Determine if we started from within a water brush.
-        if ( gi.pointcontents(start) & CM_CONTENTMASK_LIQUID ) {
+        if ( gi.pointcontents(&start) & CM_CONTENTMASK_LIQUID ) {
 			// We are in water.
             water = true;
 			// Copy the start point into the water start point.
@@ -313,10 +315,11 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
                     gi.WriteUint8( svc_temp_entity );
                     gi.WriteUint8( TE_SPLASH );
                     gi.WriteUint8( 8 );
-                    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    gi.WriteDir8( tr.plane.normal );
+                    gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+                    const Vector3 planeNormal = tr.plane.normal;
+                    gi.WriteDir8( &planeNormal );
                     gi.WriteUint8( color );
-                    gi.multicast( tr.endpos, MULTICAST_PVS, false );
+                    gi.multicast( &tr.endpos, MULTICAST_PVS, false );
                 }
 
                 // Change bullet's course when it has entered enters water
@@ -345,9 +348,10 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
                 if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
                     gi.WriteUint8( svc_temp_entity );
                     gi.WriteUint8( te_impact );
-                    gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    gi.WriteDir8( tr.plane.normal );
-                    gi.multicast( tr.endpos, MULTICAST_PVS, false );
+                    gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+                    const Vector3 planeNormal = tr.plane.normal;
+                    gi.WriteDir8( &planeNormal );
+                    gi.multicast( &tr.endpos, MULTICAST_PVS, false );
 
                     if ( self->client )
                         SVG_Player_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
@@ -358,12 +362,12 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
 
     // if went through water, determine where the end and make a bubble trail
     if ( water ) {
-        vec3_t  pos;
+        Vector3  pos;
 
         VectorSubtract( tr.endpos, water_start, dir );
         VectorNormalize( &dir.x );
         VectorMA( tr.endpos, -2, dir, pos );
-        if ( gi.pointcontents( pos ) & CM_CONTENTMASK_LIQUID )
+        if ( gi.pointcontents( &pos ) & CM_CONTENTMASK_LIQUID )
             VectorCopy( pos, tr.endpos );
         else
             tr = SVG_Trace( pos, qm_vector3_null, qm_vector3_null, &water_start.x, tr.ent, CM_CONTENTMASK_LIQUID );
@@ -373,9 +377,9 @@ static void fire_lead(svg_base_edict_t *self, const vec3_t start, const vec3_t a
 
         gi.WriteUint8( svc_temp_entity );
         gi.WriteUint8( TE_BUBBLETRAIL );
-        gi.WritePosition( &water_start.x, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        gi.multicast( pos, MULTICAST_PVS, false );
+        gi.WritePosition( &water_start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        gi.multicast( &pos, MULTICAST_PVS, false );
     }
 }
 

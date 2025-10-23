@@ -84,7 +84,7 @@ svg_base_edict_t *SVG_Entities_Find( svg_base_edict_t *from, const int32_t field
 /**
 *   @brief  Similar to SVG_Entities_Find, but, returns entities that have origins within a spherical area.
 **/
-svg_base_edict_t *SVG_Entities_FindWithinRadius( svg_base_edict_t *from, const vec3_t org, const float rad );
+svg_base_edict_t *SVG_Entities_FindWithinRadius( svg_base_edict_t *from, const Vector3 &org, const float rad );
 
 
 

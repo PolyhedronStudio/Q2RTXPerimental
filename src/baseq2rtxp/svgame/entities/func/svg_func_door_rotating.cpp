@@ -51,7 +51,7 @@ REVERSE will cause the door to rotate in the opposite direction.
 /**
 *	@brief
 **/
-void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir );
+void SVG_Util_SetMoveDir( Vector3 &angles, Vector3 &movedir );
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door_rotating_t *self ) -> void {
     //vec3_t  abs_movedir;
 

@@ -17,6 +17,6 @@ typedef enum engine_entity_event_e {
     // Engine Specific:
     EV_NONE = 0,
     //! Game can start entities from this index.
-    EV_ENGINE_MAX = EV_NONE,
+    EV_ENGINE_MAX = EV_NONE + 1,
 } engine_entity_events_t;
 typedef uint32_t entity_event_t;

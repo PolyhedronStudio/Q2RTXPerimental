@@ -23,47 +23,76 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_usetarget_hints.h"
 #include "sharedgame/pmove/sg_pmove.h"
-
+#include "svgame/entities/svg_player_edict.h"
 
 /**
 *   @brief  Handles fall events:
 **/
-static void PlayerStateEvent_Fall( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm ) {
-    // Get client.
-    svg_client_t *client = ent->client;
+static void PlayerStateEvent_Fall( svg_player_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+    // Dead stuff can't crater.
+    if ( ent->health <= 0 || ent->lifeStatus ) {
+        return;
+    }
 
-    Vector3 dir = { 0., 0., 1. };
-    int32_t damage = 5;
-    if ( ent->s.entityType != ET_PLAYER ) {
+    if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
         return; // not in the player model
     }
-    //if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
-    //    break; // not in the player model.
-    //}
-    //if ( g_dmflags.integer & DF_NO_FALLING ) {
-    //    break;
-    //}
-    if ( event == EV_FALL_FAR ) {
-        damage = 10;
-    } else {
-        damage = 5;
+
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        return;
     }
 
+    // Never take falling damage if completely underwater.
+    if ( ent->liquidInfo.level == LIQUID_UNDER ) {
+        return;
+    }
+
+    // Get impact delta.
+    const double delta = eventParm;
+
+    // Damage is too small to be taken into consideration.
+    if ( delta < 7. ) {
+        return;
+    }
+    // WID: restart footstep timer <- NO MORE!! Because doing so causes the weapon bob 
+    // position to instantly shift back to start.
+    //ent->client->ps.bobCycle = 0;
+
+    //if ( ent->client->landmark_free_fall ) {
+    //    delta = min( 30.f, delta );
+    //    ent->client->landmark_free_fall = false;
+    //    ent->client->landmark_noise_time = level.time + 100_ms;
+    //}
+
+    //if ( delta < 15  ) {
+    //    if ( !( pm.state->pmove.pm_flags & PMF_ON_LADDER ) ) {
+    //        ent->s.event = EV_FOOTSTEP;
+    //        gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
+    //    }
+    //    return;
+    //}
+
     // Calculate the fall value for view adjustments.
-    ent->client->viewMove.fallValue = eventParm * 0.5f;
+    ent->client->viewMove.fallValue = delta * 0.5f;
     if ( ent->client->viewMove.fallValue > 40 ) {
         ent->client->viewMove.fallValue = 40;
     }
     ent->client->viewMove.fallTime = level.time + FALL_TIME();
 
-    damage = (int)( ( eventParm - 30 ) / 2 );
-    if ( damage < 1 ) {
-        damage = 1;
+    // Apply fall event based on delta.
+    if ( delta > 30. ) {
+        // WID: We DO want the VOICE channel to SHOUT in PAIN
+        //ent->pain_debounce_time = level.time + FRAME_TIME_S; // No normal pain sound.
+
+        int32_t damage = (int32_t)( ( delta - 30. ) / 2. );
+        if ( damage < 1 ) {
+            damage = 1;
+        }
+        Vector3 dir = { 0., 0., 1. };
+        
+        SVG_DamageEntity( ent, world, world, &dir.x, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
     }
-    ent->pain_debounce_time = level.time + 200_ms;	// no normal pain sound
-    //if ( !deathmatch->integer ) {
-    SVG_DamageEntity( ent, world, world, &dir.x, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
-    //}
+
     // Falling damage noises alert monsters
     if ( ent->health >= 0 ) { // Was: if ( ent->health )
         SVG_Player_PlayerNoise( ent, &ent->client->ps.pmove.origin[ 0 ], PNOISE_SELF );
@@ -73,7 +102,7 @@ static void PlayerStateEvent_Fall( svg_base_edict_t *ent, const int32_t event, c
 /**
 *	@brief	Inspects the player state events for any events which may fire animation playbacks.
 **/
-static void SVG_FireClientPlayerStateEvent( svg_base_edict_t *ent, const int32_t playerStateEvent, const int32_t playerStateEventParm ) {
+static void SVG_PlayerState_FireEvent( svg_player_edict_t *ent, const int32_t playerStateEvent, const int32_t playerStateEventParm ) {
     // Sanity check.
     if ( !ent ) {
         return;
@@ -93,7 +122,10 @@ static void SVG_FireClientPlayerStateEvent( svg_base_edict_t *ent, const int32_t
     /**
     *   Regular Events:
     **/
-    if ( playerStateEvent == EV_FALL_MEDIUM || playerStateEvent == EV_FALL_FAR ) {
+	gi.dprintf( "PLAYER EVENT: event(%d) maskedevent(%d) parm=%d\n", playerStateEvent & ~EV_EVENT_BITS, playerStateEvent, playerStateEventParm );
+    if ( playerStateEvent == EV_FALL_MEDIUM 
+        || playerStateEvent == EV_FALL_FAR 
+        || playerStateEvent == EV_FALL_SHORT ) {
         PlayerStateEvent_Fall( ent, playerStateEvent, playerStateEventParm );
         return;
     }
@@ -140,7 +172,7 @@ static void SVG_FireClientPlayerStateEvent( svg_base_edict_t *ent, const int32_t
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-void SVG_CheckClientEvents( svg_base_edict_t *ent, player_state_t *ops, player_state_t *ps ) {
+void SVG_PlayerState_CheckForEvents( svg_player_edict_t *ent, player_state_t *ops, player_state_t *ps, const int64_t oldEventSequence ) {
     // Sanity check.
     if ( !ent ) {
         return;
@@ -165,18 +197,18 @@ void SVG_CheckClientEvents( svg_base_edict_t *ent, player_state_t *ops, player_s
     #endif
 
     // 
-    int64_t oldEventSequence = client->ps.eventSequence;
-    if ( oldEventSequence < client->ps.eventSequence - MAX_PS_EVENTS ) {
-        oldEventSequence = client->ps.eventSequence - MAX_PS_EVENTS;
+    int64_t _oldEventSequence = oldEventSequence;
+    if ( _oldEventSequence < client->ps.eventSequence - MAX_PS_EVENTS ) {
+        _oldEventSequence = client->ps.eventSequence - MAX_PS_EVENTS;
     }
     //centity_t *clientEntity= &clg_entities[ clgi.client->frame.clientNum + 1 ];//clgi.client->clientEntity; // cg_entities[ ps->clientNum + 1 ];
     // go through the predictable events buffer
-    for ( int64_t i = oldEventSequence; i < ps->eventSequence; i++ ) {
+    for ( int64_t i = _oldEventSequence; i < ps->eventSequence; i++ ) {
         // Get the event number.
         const int32_t playerStateEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
-        const int32_t playerStateEventParm = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
+        const int32_t playerStateEventParm = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
 
         // Proceed to firing the predicted/received event.
-        SVG_FireClientPlayerStateEvent( ent, /*ops, ps, */playerStateEvent, playerStateEventParm );
+        SVG_PlayerState_FireEvent( ent, /*ops, ps, */playerStateEvent, playerStateEventParm );
     }
 }

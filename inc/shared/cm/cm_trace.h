@@ -27,7 +27,7 @@ typedef struct trace_s {
     //! The fraction of the trace that was completed. ( 1.0 = didn't hit anything. )
     float       fraction;
     //! Final position.
-    vec3_t      endpos;
+    Vector3     endpos;
 
     /**
     *   The first (most close) surface hit by the trace.

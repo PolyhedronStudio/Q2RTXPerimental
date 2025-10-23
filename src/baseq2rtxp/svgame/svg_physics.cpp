@@ -745,7 +745,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
     svg_base_edict_t     *slave;
     int         wasinwater;
     int         isinwater;
-    vec3_t      old_origin;
+    Vector3     old_origin;
 
 // regular thinking
     SV_RunThink(ent);
@@ -820,7 +820,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 
 // check for water transition
     wasinwater = (ent->liquidInfo.type & CM_CONTENTMASK_LIQUID);
-    ent->liquidInfo.type = gi.pointcontents(ent->s.origin);
+    ent->liquidInfo.type = gi.pointcontents( &ent->s.origin );
     isinwater = ent->liquidInfo.type & CM_CONTENTMASK_LIQUID;
 
     if (isinwater)
@@ -830,9 +830,9 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 
     const qhandle_t water_sfx_index = gi.soundindex( SG_RandomResourcePath( "world/water_land_splash", ".wav", 0, 8 ).c_str() );
     if ( !wasinwater && isinwater ) {
-        gi.positioned_sound( old_origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
+        gi.positioned_sound( &old_origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
     } else if ( wasinwater && !isinwater ) {
-        gi.positioned_sound( ent->s.origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
+        gi.positioned_sound( &ent->s.origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
     }
 
 // move teamslaves
@@ -1017,7 +1017,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
         if ( ent->groundInfo.entity ) {
             if ( !wasonground ) {
                 if ( hitsound ) {
-                    ent->s.event = EV_FOOTSTEP;
+                    SVG_Util_AddEvent( ent, EV_OTHER_FOOTSTEP, 0 );
                 }
             }
         }
@@ -1288,7 +1288,8 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
         if ( ent->groundInfo.entity ) {
             if ( !wasonground ) {
                 if ( hitsound ) {
-                    ent->s.event = EV_FOOTSTEP;
+                    //ent->s.event = EV_OTHER_FOOTSTEP;
+                    SVG_Util_AddEvent( ent, EV_OTHER_FOOTSTEP, 0 );
                 }
             }
         }

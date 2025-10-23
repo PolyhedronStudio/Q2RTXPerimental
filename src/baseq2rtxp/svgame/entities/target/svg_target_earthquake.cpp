@@ -115,7 +115,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_earthquake_t, onSpawn ) ( svg_target_ea
 DEFINE_MEMBER_CALLBACK_THINK( svg_target_earthquake_t, onThink )( svg_target_earthquake_t *self ) -> void { 
     // Positioned Sound.
     if ( self->last_move_time < level.time ) {
-        gi.positioned_sound( self->s.origin, self, CHAN_AUTO, self->noise_index, 1.0f, ATTN_NONE, 0 );
+        gi.positioned_sound( &self->s.origin, self, CHAN_AUTO, self->noise_index, 1.0f, ATTN_NONE, 0 );
         self->last_move_time = level.time + 6.5_sec;
     }
 
@@ -193,4 +193,4 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_earthquake_t, onUse )( svg_target_earthqu
 /**
 *   @brief
 **/
-//DEFINE_MEMBER_CALLBACK_DIE( svg_target_earthquake_t, onDie )( svg_target_earthquake_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void { }
+//DEFINE_MEMBER_CALLBACK_DIE( svg_target_earthquake_t, onDie )( svg_target_earthquake_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void { }

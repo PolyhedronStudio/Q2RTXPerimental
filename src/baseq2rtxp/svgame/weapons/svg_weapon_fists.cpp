@@ -63,7 +63,7 @@ void Weapon_Fists_Precached( const gitem_t *item ) {
 **/
 const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, const Vector3 &aimDir, const int32_t damage, const int32_t kick );
 void weapon_fists_primary_fire( svg_base_edict_t *ent ) {
-    vec3_t      start;
+    Vector3      start;
     Vector3     forward, right;
     int         damage = 1;
     int         kick = 8;
@@ -77,8 +77,8 @@ void weapon_fists_primary_fire( svg_base_edict_t *ent ) {
     ent->client->weaponKicks.offsetAngles[ 1 ] = -2; // Left punch angle.
 
     // Project from source to shot destination.
-    vec3_t fistOffset = { 0, -10, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    SVG_Player_ProjectDistance( ent, ent->s.origin, fistOffset, &forward.x, &right.x, start ); //SVG_Player_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    Vector3 fistOffset = { 0.f, -10.f, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
+    start = SVG_Player_ProjectDistance( ent, ent->s.origin, fistOffset, forward, right ); //SVG_Player_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
@@ -87,7 +87,7 @@ void weapon_fists_primary_fire( svg_base_edict_t *ent ) {
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
         gi.WriteUint8( MZ_FIST_LEFT /*| is_silenced*/ );
-        gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+        gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
     }
 
     // Notify we're making noise.
@@ -111,8 +111,8 @@ void weapon_fists_secondary_fire( svg_base_edict_t *ent ) {
     ent->client->weaponKicks.offsetAngles[ 1 ] = 2; // Right punch angle.
 
     // Project from source to shot destination.
-    vec3_t fistOffset = { 0, 10, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
-    SVG_Player_ProjectDistance( ent, ent->s.origin, fistOffset, &forward.x, &right.x, &start.x); //SVG_Player_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
+    Vector3 fistOffset = { 0.f, 10.f, (float)ent->viewheight - 5.5f }; // VectorSet( offset, 0, 8, ent->viewheight - 8 );
+    start = SVG_Player_ProjectDistance( ent, ent->s.origin, fistOffset, forward, right ); //SVG_Player_ProjectSource( ent, ent->s.origin, offset, forward, right, start );
 
     // Fire the actual bullet itself.
     //fire_bullet( ent, start, forward, damage, kick, PRIMARY_FIRE_BULLET_HSPREAD, PRIMARY_FIRE_BULLET_VSPREAD, MOD_CHAINGUN );
@@ -121,7 +121,7 @@ void weapon_fists_secondary_fire( svg_base_edict_t *ent ) {
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );
         gi.WriteUint8( MZ_FIST_RIGHT /*| is_silenced*/ );
-        gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+        gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
     }
 
     // Notify we're making noise.

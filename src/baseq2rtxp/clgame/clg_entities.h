@@ -44,12 +44,12 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
 *	@brief	Called when a new frame has been received that contains an entity
 *			which was not present in the previous frame.
 **/
-void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const vec_t *origin );
+void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
 /**
 *	@brief	Called when a new frame has been received that contains an entity 
 *			already present in the previous frame.
 **/
-void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const vec_t *origin );
+void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
 
 
 
@@ -132,16 +132,14 @@ static inline centity_t *CLG_GetViewBoundEntity( void ) {
 		// Return a nullptr.
 		return nullptr;
 	}
-
-	// Default to clgi.client->clientNumberl.
-	int32_t entityIndex = clgi.client->clientNumber + 1;
-	// Possibility of us chasing an entity.
-	if ( clgi.client->frame.ps.stats[ STAT_CHASE ] > 0 ) {
-		/* Account for the entity number( -1 ).*/
-		entityIndex = clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS - 1;
+	// Get chase entity.
+	centity_t *viewBoundEntity = CLG_GetChaseBoundEntity();
+	// If not chasing anyone, assign it the local client entity.
+	if ( !viewBoundEntity ) {
+		viewBoundEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
 	}
-	// Return the entity pointer.
-	return &clg_entities[ entityIndex ];
+	// Return the view bound entity.
+	return viewBoundEntity;
 }
 
 /**

@@ -12,6 +12,8 @@
 #include "svgame/player/svg_player_events.h"
 #include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
+#include "svgame/player/svg_player_usetargets.h"
+
 
 #include "sharedgame/pmove/sg_pmove.h"
 
@@ -105,7 +107,7 @@ void svg_gamemode_deathmatch_t::BeginServerFrame( svg_player_edict_t *ent ) {
 	**/
 	// Update the (+/-usetarget) key state actions if not done so already by ClientUserThink.
 	if ( client->useTarget.tracedFrameNumber < level.frameNumber && !client->resp.spectator ) {
-		SVG_Client_TraceForUseTarget( ent, client, false );
+		SVG_Player_TraceForUseTarget( ent, client, false );
 	} else {
 		client->useTarget.tracedFrameNumber = level.frameNumber;
 	}
@@ -201,7 +203,10 @@ void svg_gamemode_deathmatch_t::EndServerFrame( svg_player_edict_t *ent ) {
 
 	// Determine the full screen color blend which must happen after applying viewoffset, 
 	// so eye contents can be accurately determined.
+	//----
 	// FIXME: with client prediction, the contents should be determined by the client.
+	// <Q2RTXP>: WID: Fixed, we only apply external blends here, the pmove will apply the rest.
+	//----
 	P_CalculateBlend( ent );
 
 	// Different layout when spectating.
@@ -220,7 +225,7 @@ void svg_gamemode_deathmatch_t::EndServerFrame( svg_player_edict_t *ent ) {
 	// Sound.
 	SVG_SetClientSound( ent );
 	// Check for client playerstate its pmove generated events.
-	SVG_CheckClientEvents( ent, &ent->client->ops, &ent->client->ps );
+	//SVG_PlayerState_CheckForEvents( ent, &ent->client->ops, &ent->client->ps );
 	// Animation Frame.
 	SVG_SetClientFrame( ent );
 
@@ -370,7 +375,7 @@ void svg_gamemode_deathmatch_t::ClientDisconnect( svg_player_edict_t *ent ) {
 		gi.WriteUint8( svc_muzzleflash );
 		gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//gi.WriteInt16( ent - g_edicts );
 		gi.WriteUint8( MZ_LOGOUT );
-		gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+		gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
 	}
 	// Unlink.
 	gi.unlinkentity( ent );
@@ -433,7 +438,7 @@ void svg_gamemode_deathmatch_t::ClientUserinfoChanged( svg_player_edict_t *ent, 
 **/
 void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 	// Always clear out any possibly previous left over of the useTargetHint.
-	Client_ClearUseTargetHint( ent, ent->client, nullptr );
+	SVG_Player_ClearUseTargetHint( ent, ent->client, nullptr );
 
 	// find a spawn point
 	// do it before setting health back up, so farthest
@@ -640,7 +645,7 @@ void svg_gamemode_deathmatch_t::ClientBegin( svg_player_edict_t *ent ) {
 	ent->client->pers.connected = true;
 
 	// Always clear out any previous left over useTargetHint stuff.
-	Client_ClearUseTargetHint( ent, ent->client, nullptr );
+	SVG_Player_ClearUseTargetHint( ent, ent->client, nullptr );
 
 	// Init Edict.
 	g_edict_pool._InitEdict( ent, ent->s.number );//SVG_InitEdict( ent );
@@ -659,13 +664,18 @@ void svg_gamemode_deathmatch_t::ClientBegin( svg_player_edict_t *ent ) {
 	// If in intermission, move our client over into intermission state. (We connected at the end of a match).
 	if ( level.intermissionFrameNumber ) {
 		SVG_HUD_MoveClientToIntermission( ent );
-		// Otherwise, send 'Login' effect even if NOT in a multiplayer game 
+	// Otherwise, send 'Login' effect even if NOT in a multiplayer game 
 	} else {
-		// send effect
+		#if 0 // svc_muzzleflash now is events :-)
 		gi.WriteUint8( svc_muzzleflash );
 		gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
 		gi.WriteUint8( MZ_LOGIN );
-		gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+		gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
+		#else
+		SVG_Util_AddEvent( ent, EV_PLAYER_LOGIN, 0 );
+		#endif
+
+		gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
 	}
 
 	// Notify player joined.
@@ -723,7 +733,7 @@ void svg_gamemode_deathmatch_t::PostCheckGameRuleConditions() {
 *           It handles the damage calculation, knockback, and any special
 *           effects based on the type of damage and the entities involved.
 **/
-void svg_gamemode_deathmatch_t::DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
+void svg_gamemode_deathmatch_t::DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const Vector3 &dir, Vector3 &point, const Vector3 &normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
 	// Final means of death.
 	sg_means_of_death_t finalMeansOfDeath = meansOfDeath;
 
@@ -866,7 +876,7 @@ void svg_gamemode_deathmatch_t::DamageEntity( svg_base_edict_t *targ, svg_base_e
 			targ->monsterinfo.damage_mod = meansOfDeath;
 			targ->monsterinfo.damage_knockback += knockBack;
 			#endif
-			game.mode->EntityKilled( targ, inflictor, attacker, take, point );
+			game.mode->EntityKilled( targ, inflictor, attacker, take, &point );
 			return;
 		}
 	}

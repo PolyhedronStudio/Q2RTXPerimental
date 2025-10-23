@@ -26,7 +26,7 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
         qhandle_t *material_footsteps = precache.sfx.footsteps.metal;
 
         // Debug print.
-        //clgi.Print( PRINT_DEVELOPER, "CLIMBING LADDER(%s), num_footsteps(%i)\n", "metal", material_num_footsteps);
+        clgi.Print( PRINT_DEVELOPER, "CLIMBING LADDER(%s), num_footsteps(%i)\n", "metal", material_num_footsteps);
 
         // Play a randomly appointed footstep from the material_footsteps array.
         clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );

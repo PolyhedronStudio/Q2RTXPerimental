@@ -417,6 +417,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/player/svg_player_move.cpp
 	baseq2rtxp/svgame/player/svg_player_obituary.cpp
 	baseq2rtxp/svgame/player/svg_player_trail.cpp
+	baseq2rtxp/svgame/player/svg_player_usetargets.cpp
 	baseq2rtxp/svgame/player/svg_player_view.cpp
 	baseq2rtxp/svgame/player/svg_player_weapon.cpp
 
@@ -517,8 +518,9 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/player/svg_player_hud.h
 	baseq2rtxp/svgame/player/svg_player_move.h
 	baseq2rtxp/svgame/player/svg_player_trail.h
-	baseq2rtxp/svgame/player/svg_player_weapon.h
+	baseq2rtxp/svgame/player/svg_player_usetargets.cpp
 	baseq2rtxp/svgame/player/svg_player_view.h
+	baseq2rtxp/svgame/player/svg_player_weapon.h
 
 	baseq2rtxp/svgame/save/svg_save_callback_global.h
 	baseq2rtxp/svgame/save/svg_save_callback_member.h

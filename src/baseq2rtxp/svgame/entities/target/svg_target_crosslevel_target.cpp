@@ -122,4 +122,4 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_crosslevel_target_t, onThink )( svg_tar
 /**
 *   @brief
 **/
-//DEFINE_MEMBER_CALLBACK_DIE( svg_target_crosslevel_target_t, onDie )( svg_target_crosslevel_target_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void { }
+//DEFINE_MEMBER_CALLBACK_DIE( svg_target_crosslevel_target_t, onDie )( svg_target_crosslevel_target_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void { }

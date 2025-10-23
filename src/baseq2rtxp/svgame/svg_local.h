@@ -90,8 +90,9 @@ constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<in
 //! Time between ladder sounds.
 static constexpr QMTime LADDER_SOUND_TIME = 375_ms;
 
-//! View pitching times
+//! Time slack to ensure damage/fall effects are not cut off mid-way due to frame timing.
 static inline constexpr QMTime DAMAGE_TIME_SLACK() {
+	// 100ms minus frame time to ensure we have enough time to show the effect. (10hz == 100ms so no slack needed then.)
     return ( 100_ms - FRAME_TIME_MS );
 }
 //! Time for damage effect.

@@ -43,7 +43,7 @@ typedef struct worldSector_s {
 static worldSector_t    sv_sectorNodes[SECTOR_NODES];
 static int              sv_numSectorNodes;
 
-static const vec_t  *sector_mins, *sector_maxs;
+static Vector3  sector_mins, sector_maxs;
 static sv_edict_t      **sector_list;
 static int          sector_count, sector_maxcount;
 static int          sector_type;
@@ -418,11 +418,11 @@ static void SV_AreaEdicts_r(worldSector_t *node)
 *   @todo: Does this always return the world?
 *   @return The number of pointers filled in.
 **/
-const int32_t SV_AreaEdicts(const vec3_t mins, const vec3_t maxs,
+const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
                   sv_edict_t **list, const int32_t maxcount, const int32_t areatype)
 {
-    sector_mins = mins;
-    sector_maxs = maxs;
+    sector_mins = *mins;
+    sector_maxs = *maxs;
     sector_list = list;
     sector_count = 0;
     sector_maxcount = maxcount;
@@ -478,7 +478,7 @@ static mnode_t *SV_WorldNodes( void ) {
 *	@return	The CONTENTS_* value from the world at the given point.
 *			Quake 2 extends this to also check entities, to allow moving liquids
 **/
-const cm_contents_t SV_PointContents( const vec3_t p ) {
+const cm_contents_t SV_PointContents( const Vector3 *p ) {
 	sv_edict_t *touch[ MAX_EDICTS ], *hit;
 	int         i, num;
     cm_contents_t  contents;
@@ -493,7 +493,7 @@ const cm_contents_t SV_PointContents( const vec3_t p ) {
     }
 
 	// get base contents from world
-    contents = ( CM_PointContents( &sv.cm, p, SV_WorldNodes() ) );
+    contents = ( CM_PointContents( &sv.cm, &p->x, SV_WorldNodes() ) );
 
 	// or in contents from all the other entities
 	num = SV_AreaEdicts( p, p, touch, MAX_EDICTS, AREA_SOLID );
@@ -501,14 +501,14 @@ const cm_contents_t SV_PointContents( const vec3_t p ) {
 	for ( i = 0; i < num; i++ ) {
 		hit = touch[ i ];
 
-        //// Skip client entiteis if their SVF_PLAYER flag is set.
-        //if ( hit->s.number <= sv_maxclients->integer && ( hit->svflags & SVF_PLAYER ) ) {
-        //    continue;
-        //}
+        // Skip client entiteis if their SVF_PLAYER flag is set.
+        if ( hit->s.number <= sv_maxclients->integer && ( hit->svflags & SVF_PLAYER ) ) {
+            continue;
+        }
 
 		// Might intersect, so do an exact clip.
-		contents = ( contents | CM_TransformedPointContents( &sv.cm, p, SV_HullForEntity(hit),
-												hit->s.origin, hit->s.angles ) );
+		contents = ( contents | CM_TransformedPointContents( &sv.cm, &p->x, SV_HullForEntity(  hit ),
+												&hit->s.origin.x, &hit->s.angles.x ) );
 	}
 
 	return contents;
@@ -517,26 +517,26 @@ const cm_contents_t SV_PointContents( const vec3_t p ) {
 /**
 *	@brief	SV_ClipMoveToEntities
 **/
-static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
-                                  const vec3_t maxs, const vec3_t end,
+static void SV_ClipMoveToEntities(const Vector3 *start, const Vector3 *mins,
+                                  const Vector3 *maxs, const Vector3 *end,
                                   sv_edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *tr)
 {
-    vec3_t      boxmins, boxmaxs;
+    Vector3      boxmins, boxmaxs;
     int         i, num;
     sv_edict_t     *touchlist[MAX_EDICTS], *touch;
     cm_trace_t     trace = {};
     // create the bounding box of the entire move
     for (i = 0; i < 3; i++) {
-        if (end[i] > start[i]) {
-            boxmins[i] = start[i] + mins[i] - 1;
-            boxmaxs[i] = end[i] + maxs[i] + 1;
+        if ( ( *end )[i] > ( *start )[i]) {
+            boxmins[i] = ( *start )[i] + ( *mins )[i] - 1;
+            boxmaxs[i] = ( *end )[i] + ( *maxs )[i] + 1;
         } else {
-            boxmins[i] = end[i] + mins[i] - 1;
-            boxmaxs[i] = start[i] + maxs[i] + 1;
+            boxmins[i] = ( *end )[i] + (*mins )[i] - 1;
+            boxmaxs[i] = ( *start )[i] + (*maxs )[i] + 1;
         }
     }
 
-    num = SV_AreaEdicts(boxmins, boxmaxs, touchlist, MAX_EDICTS, AREA_SOLID);
+    num = SV_AreaEdicts(&boxmins, &boxmaxs, touchlist, MAX_EDICTS, AREA_SOLID);
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
@@ -576,9 +576,9 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
         }
 
         // might intersect, so do an exact clip
-        CM_TransformedBoxTrace( &sv.cm, &trace, start, end, mins, maxs,
+        CM_TransformedBoxTrace( &sv.cm, &trace, &( *start ).x, &( *end ).x, &( *mins ).x, &( *maxs ).x,
                                SV_HullForEntity(touch), contentmask,
-                               touch->s.origin, touch->s.angles);
+                               &touch->s.origin.x, &touch->s.angles.x);
 
         CM_ClipEntity( &sv.cm, tr, &trace, touch->s.number );
     }
@@ -595,8 +595,8 @@ static void SV_ClipMoveToEntities(const vec3_t start, const vec3_t mins,
 *
 *					passedict is explicitly excluded from clipping checks (normally NULL)
 **/
-const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
-                           const vec3_t maxs, const vec3_t end,
+const cm_trace_t q_gameabi SV_Trace( const Vector3 *start, const Vector3 *mins,
+                           const Vector3 *maxs, const Vector3 *end,
                            edict_ptr_t *passEdict, const cm_contents_t contentmask)
 {
     cm_trace_t     trace;
@@ -607,17 +607,17 @@ const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 
     // Set for 'Special Point Case':
     if ( !mins ) {
-        mins = vec3_origin;
+        mins = &qm_vector3_null;
     }
     // Set for 'Special Point Case':
     if ( !maxs ) {
-        maxs = vec3_origin;
+        maxs = &qm_vector3_null;
     }
 
     // First Clip to world.
     CM_BoxTrace( 
         &sv.cm, &trace, 
-        start, end, mins, maxs, 
+        &( *start ).x, &( *end ).x, &( *mins ).x, &( *maxs ).x,
         SV_WorldNodes( ), 
         contentmask 
     );
@@ -648,8 +648,8 @@ const cm_trace_t q_gameabi SV_Trace(const vec3_t start, const vec3_t mins,
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clip, const vec3_t start, const vec3_t mins,
-                            const vec3_t maxs, const vec3_t end,
+const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clip, const Vector3 *start, const Vector3 *mins,
+                            const Vector3 *maxs, const Vector3 *end,
                             const cm_contents_t contentmask ) {
 	cm_trace_t     trace;
 
@@ -658,19 +658,21 @@ const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clip, const vec3_t start, const
     }
 
     // Set for 'Special Point Case':
-    if ( !mins ) {
-        mins = vec3_origin;
+	const vec_t *mins_local = nullptr;
+    if ( mins ) {
+        mins_local = (const vec_t*)& mins[0];
     }
     // Set for 'Special Point Case':
-    if ( !maxs ) {
-        maxs = vec3_origin;
+    const vec_t *maxs_local = nullptr;
+    if ( maxs ) {
+        maxs_local = (const vec_t *)&maxs[ 0 ];
     }
 
     // Clip to world.
     if ( clip == ge->edictPool->edicts[ 0 ] /* worldspawn */ ) {
         CM_BoxTrace( 
             &sv.cm, &trace, 
-            start, end, mins, maxs, 
+            &( *start ).x, &( *end ).x, mins_local, maxs_local,
             SV_WorldNodes(), 
             contentmask 
         );
@@ -678,10 +680,10 @@ const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clip, const vec3_t start, const
     } else {
         CM_TransformedBoxTrace( 
             &sv.cm, &trace, 
-            start, end, mins, maxs,
+            &( *start ).x, &( *end ).x, mins_local, maxs_local,
             SV_HullForEntity( clip, true ), 
             contentmask, 
-            clip->s.origin, clip->s.angles 
+            &clip->s.origin.x, &clip->s.angles.x
         );
     }
 

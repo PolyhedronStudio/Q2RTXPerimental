@@ -798,4 +798,4 @@ const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const
 /**
 *   @return The type of 'contents' at the given point.
 **/
-const cm_contents_t q_gameabi CL_PointContents( const vec3_t point );
+const cm_contents_t q_gameabi CL_PointContents( const Vector3 *point );

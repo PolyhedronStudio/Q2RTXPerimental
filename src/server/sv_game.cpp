@@ -167,8 +167,8 @@ clear:
 /**
 *	@brief	Wrapper around SV_Multicast that always uses false for reliable.
 **/
-static void PF_Multicast( const vec3_t origin, multicast_t to, bool reliable = false ) {
-	return SV_Multicast( origin, to, reliable );
+static void PF_Multicast( const Vector3 *origin, multicast_t to, bool reliable = false ) {
+	return SV_Multicast( ( origin ? &origin->x : nullptr ), to, reliable);
 }
 
 /*
@@ -469,7 +469,7 @@ static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
 *   @return True if the points p1 to p2 are within two visible areas of the specified vis type.
 *   @note   Also checks portalareas so that doors block sight
 **/
-static const bool PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t vis)
+static const bool PF_inVIS(const Vector3 *p1, const Vector3 *p2, const int32_t vis)
 {
     mleaf_t *leaf1, *leaf2;
     byte mask[VIS_MAX_BYTES];
@@ -479,10 +479,10 @@ static const bool PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t vis)
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
     }
 
-    leaf1 = BSP_PointLeaf(bsp->nodes, p1);
+    leaf1 = BSP_PointLeaf(bsp->nodes, &p1->x);
     BSP_ClusterVis(bsp, mask, leaf1->cluster, vis);
 
-    leaf2 = BSP_PointLeaf(bsp->nodes, p2);
+    leaf2 = BSP_PointLeaf(bsp->nodes, &p2->x);
     if (leaf2->cluster == -1)
         return false;
     if (!Q_IsBitSet(mask, leaf2->cluster))
@@ -495,7 +495,7 @@ static const bool PF_inVIS(const vec3_t p1, const vec3_t p2, const int32_t vis)
 /**
 *   @brief  Also checks portalareas so that doors block sight
 **/
-static const bool PF_inPVS(const vec3_t p1, const vec3_t p2)
+static const bool PF_inPVS(const Vector3 *p1, const Vector3 *p2)
 {
     return PF_inVIS(p1, p2, DVIS_PVS);
 }
@@ -503,7 +503,7 @@ static const bool PF_inPVS(const vec3_t p1, const vec3_t p2)
 /**
 *   @brief  Also checks portalareas so that doors block sound
 **/
-static const bool PF_inPHS(const vec3_t p1, const vec3_t p2)
+static const bool PF_inPHS(const Vector3 *p1, const Vector3 *p2)
 {
     return PF_inVIS(p1, p2, DVIS_PHS);
 }
@@ -530,17 +530,17 @@ static const bool PF_inPHS(const vec3_t p1, const vec3_t p2)
 *                   If origin is NULL, the origin is determined from the entity origin
 *                   or the midpoint of the entity box for bmodels.
 **/
-static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
+static void SV_StartSound( const Vector3 *origin, edict_ptr_t *edict,
                           int channel, int soundindex, float volume,
                           float attenuation, float timeofs)
 {
-	int         ent, vol, att, ofs, flags, sendchan;
-	vec3_t      origin_v;
-	client_t *client;
-	byte        mask[ VIS_MAX_BYTES ];
-	mleaf_t *leaf1, *leaf2;
-	message_packet_t *msg;
-	bool        force_pos;
+	int32_t ent = 0, vol = 0, att = 0, ofs = 0, flags = 0, sendchan = 0;
+    Vector3 origin_v = {};
+	client_t *client = nullptr;
+    byte mask[ VIS_MAX_BYTES ] = {};
+	mleaf_t *leaf1 = nullptr, *leaf2 = nullptr;
+	message_packet_t *msg = nullptr;
+	bool force_pos = false;
 
 	if ( !edict )
 		Com_Error( ERR_DROP, "%s: edict = NULL", __func__ );
@@ -563,14 +563,18 @@ static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
 
 	// always send the entity number for channel overrides
 	flags = SND_ENT;
-	if ( vol != 255 )
-		flags |= SND_VOLUME;
-	if ( att != 64 )
-		flags |= SND_ATTENUATION;
-	if ( ofs )
-		flags |= SND_OFFSET;
-	if ( soundindex > 255 )
-		flags |= SND_INDEX16;
+    if ( vol != 255 ) {
+        flags |= SND_VOLUME;
+    }
+    if ( att != 64 ) {
+        flags |= SND_ATTENUATION;
+    }
+    if ( ofs ) {
+        flags |= SND_OFFSET;
+    }
+    if ( soundindex > 255 ) {
+        flags |= SND_INDEX16;
+    }
 
 	// send origin for invisible entities
 	// the origin can also be explicitly set
@@ -581,9 +585,9 @@ static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
 		if ( edict->solid == SOLID_BSP ) {
 			VectorAvg( edict->mins, edict->maxs, origin_v );
 			VectorAdd( origin_v, edict->s.origin, origin_v );
-			origin = origin_v;
+			origin = &origin_v;
 		} else {
-			origin = edict->s.origin;
+            origin = &edict->s.origin;
 		}
 	}
 
@@ -603,7 +607,7 @@ static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
 		MSG_WriteUint8( ofs );
 
 	MSG_WriteUint16( sendchan );
-	MSG_WritePos( origin, MSG_POSITION_ENCODING_NONE );
+	MSG_WritePosition( &origin->x, MSG_POSITION_ENCODING_NONE );
 	
 	// if the sound doesn't attenuate, send it to everyone
 	// (global radio chatter, voiceovers, etc)
@@ -615,14 +619,14 @@ static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
 		if ( channel & CHAN_NO_PHS_ADD ) {
 			SV_Multicast( NULL, MULTICAST_ALL, channel & CHAN_RELIABLE );
 		} else {
-			SV_Multicast( origin, MULTICAST_PHS, channel & CHAN_RELIABLE );
+			SV_Multicast( &origin->x, MULTICAST_PHS, channel & CHAN_RELIABLE );
 		}
 		return;
 	}
 
 	leaf1 = NULL;
 	if ( !( channel & CHAN_NO_PHS_ADD ) ) {
-		leaf1 = CM_PointLeaf( &sv.cm, origin );
+		leaf1 = CM_PointLeaf( &sv.cm, &origin->x );
 		BSP_ClusterVis( sv.cm.cache, mask, leaf1->cluster, DVIS_PHS );
 	}
 
@@ -636,7 +640,7 @@ static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
 		// PHS cull this sound
 		if ( !( channel & CHAN_NO_PHS_ADD ) ) {
             sv_edict_t *clent = EDICT_FOR_NUMBER( client->number + 1 );
-			leaf2 = CM_PointLeaf( &sv.cm, clent->s.origin );
+			leaf2 = CM_PointLeaf( &sv.cm, &clent->s.origin.x );
 			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
 				continue;
 			if ( leaf2->cluster == -1 )
@@ -667,7 +671,7 @@ static void SV_StartSound(const vec3_t origin, edict_ptr_t *edict,
 		msg->attenuation = att;
 		msg->timeofs = ofs;
 		msg->sendchan = sendchan;
-		VectorCopy( origin, msg->pos );
+		VectorCopy( *origin, msg->pos );
 
 		List_Remove( &msg->entry );
 		List_Append( &client->msg_unreliable_list, &msg->entry );
@@ -929,6 +933,23 @@ static const model_t *PF_GetModelDataForHandle( const qhandle_t handle ) {
 
 /**
 *
+*
+*   Message Wrapper Methods:
+*
+*
+**/
+static void PF_SV_MSG_WritePosition( const Vector3 *position, const msgPositionEncoding_t encoding ) {
+	MSG_WritePosition( &position->x, encoding );
+}
+static void PF_SV_MSG_WriteDir8( const Vector3 *dir ) {
+    MSG_WriteDir8( &dir->x );
+}
+
+
+
+
+/**
+*
 * 
 * 
 *   Progs Loading:
@@ -1106,8 +1127,8 @@ void SV_InitGameProgs(void) {
     imports.WriteFloat = MSG_WriteFloat;
     imports.WriteDouble = MSG_WriteDouble;
     imports.WriteString = MSG_WriteString;
-    imports.WritePosition = MSG_WritePos;
-    imports.WriteDir8 = MSG_WriteDir8;
+    imports.WritePosition = PF_SV_MSG_WritePosition;
+    imports.WriteDir8 = PF_SV_MSG_WriteDir8;
     imports.WriteAngle8 = MSG_WriteAngle8;
 	imports.WriteAngle16 = MSG_WriteAngle16;
 

@@ -18,14 +18,14 @@
 *           Monsters that don't directly see the player can move
 *           to a noise in hopes of seeing the player from there.
 **/
-void SVG_Player_PlayerNoise( svg_base_edict_t *who, const vec3_t where, int type );
+void SVG_Player_PlayerNoise( svg_base_edict_t *who, const Vector3 &where, int type );
 
 /**
 *   @brief  Wraps up the new more modern SVG_Player_ProjectDistance.
 **/
 void SVG_Player_ProjectDistance( svg_base_edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
 /**
-*   @brief Project the 'ray of fire' from the source to its (source + dir * distance) target.
+*   @brief	Project the 'ray of fire' from the source to its (source + dir * distance) target.
 **/
 const Vector3 SVG_Player_ProjectDistance( svg_base_edict_t *ent, const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right );
 /**
@@ -33,7 +33,11 @@ const Vector3 SVG_Player_ProjectDistance( svg_base_edict_t *ent, const Vector3 &
 *          point as the final destination.
 *   @note   The forward vector is normalized.
 **/
-void SVG_Player_ProjectSource( svg_base_edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
+void SVG_Player_ProjectSource( svg_base_edict_t *ent, const vec3_t point, const vec3_t distance, vec3_t forward, vec3_t right, vec3_t result );
+/**
+*   @brief  Wraps up the new more modern SVG_Player_ProjectSource.
+**/
+const Vector3 SVG_Player_ProjectSource( svg_base_edict_t *ent, const Vector3 &point, const Vector3 &distance, Vector3 &forward, Vector3 &right );
 
 
 /**

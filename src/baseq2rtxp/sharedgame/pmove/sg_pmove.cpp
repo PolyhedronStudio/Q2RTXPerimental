@@ -71,7 +71,7 @@ static void PM_CrashLand( void );
 *	@brief	Clips trace against world only.
 **/
 const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
-	return pm->clip( &start.x, &mins.x, &maxs.x, &end.x, contentMask );
+	return pm->clip( &start, &mins, &maxs, &end, contentMask );
 }
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
@@ -95,14 +95,14 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 		//	mask &= ~CONTENTS_PLAYER;
 	}
 
-	return pm->trace( &start.x, &mins.x, &maxs.x, &end.x, pm->playerEdict, contentMask );
+	return pm->trace( &start, &mins, &maxs, &end, pm->playerEdict, contentMask );
 }
 
 /**
 *	@brief	Returns the contents at a given point.
 **/
 const cm_contents_t PM_PointContents( const Vector3 &point ) {
-	return pm->pointcontents( &point.x );
+	return pm->pointcontents( &point );
 }
 
 
@@ -191,34 +191,44 @@ static void PM_UpdateBoundingBox() {
 *			Also determines whether the view is underwater and to render it as such.
 **/
 static void PM_UpdateScreenContents() {
-	// Add for contents
+	// Compute view origin (eye position)
 	const Vector3 viewOrigin = {
 		pm->state->pmove.origin.x + pm->state->viewoffset.x,
 		pm->state->pmove.origin.y + pm->state->viewoffset.y,
 		pm->state->pmove.origin.z + pm->state->viewoffset.z + (float)pm->state->pmove.viewheight
 	};
 
-	// Get contents at view position.
-	const cm_contents_t viewContents = PM_PointContents( viewOrigin );//cm_contents_t contents = PM_PointContents( vieworg );
-	// Under a 'liquid' like solid:
-	if ( viewContents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) {
+	// Get contents at view position (fallback/secondary source)
+	const cm_contents_t viewContents = PM_PointContents( viewOrigin );
+
+	// Prefer the body-level liquid classification when available, because it is sampled
+	// in PM_GetLiquidContentsForPoint and is more stable while the body is inside a liquid brush.
+	cm_contents_t liquidType = pm->liquid.type;
+	cm_liquid_level_t liquidLevel = pm->liquid.level;
+
+	// If we don't have a reliable liquid type (edge cases), fallback to the view sample.
+	if ( liquidType == CONTENTS_NONE ) {
+		liquidType = viewContents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER );
+	}
+
+	// RDF_UNDERWATER: prefer pm->liquid.level (accurate body sampling). fallback to viewContents check.
+	if ( pm->liquid.level == cm_liquid_level_t::LIQUID_UNDER || ( viewContents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) ) {
 		pm->state->rdflags |= RDF_UNDERWATER;
-		// Or not:
 	} else {
 		pm->state->rdflags &= ~RDF_UNDERWATER;
 	}
 
-	// Prevent it from adding screenblend if we're inside a client entity, by checking
-	// if its brush has CONTENTS_PLAYER set in its clipmask.
-	if ( !( viewContents & CONTENTS_PLAYER )
-		// Otherwise, add screen blend for inside solid and lava, as red color.
-		&& ( viewContents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
+	// Prevent adding screenblend if we're inside a client entity brush (CONTENTS_PLAYER)
+	// Use liquidType for blend selection, fallback to viewContents if needed.
+	const bool insidePlayerBrush = ( viewContents & CONTENTS_PLAYER ) != 0;
+
+	// If inside a player brush, skip blends; otherwise apply blends based on liquidType (or viewContents fallback).
+	if ( !insidePlayerBrush && ( viewContents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
+		// Inside a solid or lava at view position (keep old behaviour to handle solid-lava cases)
 		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->state->screen_blend );
-		// Add screen blend for slime as "greenish" color.
-	} else if ( viewContents & CONTENTS_SLIME ) {
+	} else if ( ( liquidLevel == LIQUID_UNDER && liquidType & CONTENTS_SLIME ) ) {
 		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->state->screen_blend );
-		// Add screen blend for water as "brownish" color.
-	} else if ( viewContents & CONTENTS_WATER ) {
+	} else if ( ( liquidLevel == LIQUID_UNDER && liquidType & CONTENTS_WATER ) || viewContents & CONTENTS_WATER ) {
 		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->state->screen_blend );
 	}
 }
@@ -466,13 +476,13 @@ static inline const bool PM_AboveLiquid() {
 	// Testing point.
 	const Vector3 below = pm->state->pmove.origin + Vector3{ 0, 0, -8 };
 	// We got solid below, not water:
-	bool solid_below = pm->trace( &pm->state->pmove.origin.x, &pm->mins.x, &pm->maxs.x, &below.x, pm->playerEdict, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
+	bool solid_below = pm->trace( &pm->state->pmove.origin, &pm->mins, &pm->maxs, &below, pm->playerEdict, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
 	if ( solid_below ) {
 		return false;
 	}
 
 	// We're above water:
-	bool water_below = pm->trace( &pm->state->pmove.origin.x, &pm->mins.x, &pm->maxs.x, &below.x, pm->playerEdict, CM_CONTENTMASK_LIQUID ).fraction < 1.0f;
+	bool water_below = pm->trace( &pm->state->pmove.origin, &pm->mins, &pm->maxs, &below, pm->playerEdict, CM_CONTENTMASK_LIQUID ).fraction < 1.0f;
 	if ( water_below ) {
 		return true;
 	}
@@ -917,7 +927,7 @@ static inline const bool PM_CheckDuck() {
 			pm->state->pmove.pm_flags |= PMF_DUCKED;
 			flags_changed = true;
 		}
-		// Duck:
+	// Duck:
 	} else if (
 		( pm->cmd.buttons & BUTTON_CROUCH ) &&
 		( /*pm->ground.entity*/ pml.isWalking || ( pm->liquid.level <= cm_liquid_level_t::LIQUID_FEET && !PM_AboveLiquid() ) ) &&
@@ -931,7 +941,7 @@ static inline const bool PM_CheckDuck() {
 				flags_changed = true;
 			}
 		}
-		// Try and get out of the ducked state, stand up, if possible.
+	// Stand Up: If possible, try to get out of the "ducked" state.
 	} else {
 		if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
 			// try to stand up
@@ -979,23 +989,28 @@ static void PM_CrashLand( void ) {
 	// First make sure to reset it just in case.
 	pm->impact_delta = 0.;
 
-	// Calculate the exact velocity on landing.
+	/**
+	*	Calculate the exact velocity on landing.
+	**/
+	// Displacement in Z between current origin and the previous frame origin (how far the player moved vertically).
 	const double zDistance = pm->state->pmove.origin.z - pml.previousOrigin.z;
+	// Vertical velocity at the start of the move (v0).
 	const double zVelocity = pml.previousVelocity.z;
+	// Gravity is positive in pmove, so negative here is the acceleration acting on velocity (v' = v + a*t).
 	const double acceleration = -pm->state->pmove.gravity;
 
-	const double a = acceleration / 2.;
-	const double b = zVelocity;
-	const double c = -zDistance;
-
-	const double den = b * b - 4. * a * c;
-	if ( den < 0. ) {
+	// Replace solving the quadratic for t with the kinematic energy relation:
+	//   v^2 = v0^2 + 2 * a * s
+	// This is numerically simpler, avoids division-by-zero when gravity is zero,
+	// and yields the final impact speed squared directly.
+	const double impactVelSq = zVelocity * zVelocity + 2.0 * acceleration * zDistance;
+	if ( impactVelSq < 0.0 ) {
+		// No valid real impact velocity (numerical or pathological case) — bail out.
 		return;
 	}
-	const double t = ( -b - sqrt( den ) ) / ( 2. * a );
 
-	double delta = zVelocity + t * acceleration;
-	delta = delta * delta * 0.0001;
+	// Use the impact energy-scaled value the original code expected (delta = v^2 * 0.0001).
+	double delta = impactVelSq * 0.0001;
 
 	// Ducking while falling doubles damage.
 	if ( pm->state->pmove.pm_flags & PMF_DUCKED ) {
@@ -1027,24 +1042,37 @@ static void PM_CrashLand( void ) {
 	// want to take damage or play a crunch sound
 	//if ( !( pml.groundTrace.surface && pml.groundTrace.surface.flags & SURF_NODAMAGE ) ) {
 	{
-		if ( delta > 60 ) {
-			PM_AddEvent( EV_FALL_FAR, delta );
-		} else if ( delta > 40 ) {
-			// this is a pain grunt, so don't play it if dead
-			if ( pm->state->stats[ STAT_HEALTH ] > delta ) {
-				PM_AddEvent( EV_FALL_MEDIUM, delta );
+		if ( delta < 15 ) {
+			if ( delta > 7 && !( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
+				PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 );
+			} else {
+				// start footstep cycle over
+				//pm->state->bobCycle = 0;
+				//SG_DPrintf( "[" SG_GAME_MODULE_STR "]: %s: --  #0  --  pm->state->bobCycle = pm->state->bobCycle;\n", __func__ );
 			}
-		} else if ( delta > 7 ) {
-			PM_AddEvent( EV_FALL_SHORT, delta );
+			// To prevent 'landing' events and bobCycle reset. (Slopes.)
+			return;
+		}
+
+		if ( delta > 30 ) {
+			if ( delta >= 55 ) {
+				PM_AddEvent( EV_FALL_FAR, delta );
+			} else {
+				// this is a pain grunt, so don't play it if dead
+				//if ( pm->state->stats[ STAT_HEALTH ] > delta ) {
+					PM_AddEvent( EV_FALL_MEDIUM, delta );
+				//}
+			}
 		} else {
-			//PM_AddEvent( PM_FootstepForSurface() );
-			//PM_AddEvent( EV_FOOTSTEP, 0 );
+			PM_AddEvent( EV_FALL_SHORT, delta );
 		}
 	}
 	#endif
-
-	// start footstep cycle over
+	
+	
+	// Start footstep cycle over
 	pm->state->bobCycle = 0;
+	//SG_DPrintf( "[" SG_GAME_MODULE_STR "]: %s: --  #1  --  pm->state->bobCycle = 0;\n", __func__ );
 }
 /**
 *	@brief	Will engage into the jump movement.
@@ -1354,8 +1382,8 @@ static void PM_CycleBob() {
 				//	PM_AddEvent( EV_FOOTSTEP_LADDER, 0 );
 				//	SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(% i), oldBobCycle(% i), bobMove(% f), Event(EV_FOOTSTEP_LADDER), Time(%" PRIx64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
 				//} else {
-					PM_AddEvent( EV_FOOTSTEP, 0 /*PM_FootstepForSurface()*/ );
-					SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%f), Event(EV_FOOTSTEP), Time(%" PRIx64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
+					PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 /*PM_FootstepForSurface()*/ );
+					//SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%lf), Event(EV_FOOTSTEP), Time(%" PRId64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
 				//}
 			}
 		}
@@ -1388,22 +1416,23 @@ static void PM_CycleBob() {
 *			Apply extra friction of the dead body is on-ground.
 **/
 static void PM_DeadMove() {
-	float forward;
-
+	// We want ground before we 'slide' like a dead boss yo dawg.
 	if ( !pm->ground.entity ) {
 		return;
 	}
 
 	// Add extra friction for our dead body.
-	forward = QM_Vector3Length( pm->state->pmove.velocity );
-	forward -= 20;
-	if ( forward <= 0 ) {
+	const double forwardScalar = QM_Vector3Length( pm->state->pmove.velocity ) - 20.;
+
+	// Stop the dead body completely if forward becomes negative.
+	if ( forwardScalar <= 0 ) {
 		pm->state->pmove.velocity = QM_Vector3Zero();
+	// Still have some velocity left, so scale it down.
 	} else {
 		// Normalize.
 		pm->state->pmove.velocity = QM_Vector3Normalize( pm->state->pmove.velocity );
 		// Scale by old velocity derived length.
-		pm->state->pmove.velocity *= forward;
+		pm->state->pmove.velocity *= forwardScalar;
 	}
 }
 

@@ -165,7 +165,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_player_edict_t, onSpawn )( svg_player_edict_t 
 player_die
 ==================
 */
-DEFINE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie) ( svg_player_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
+DEFINE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie) ( svg_player_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void {
     int     n;
 
     VectorClear( self->avelocity );

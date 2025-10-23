@@ -475,7 +475,7 @@ void svg_base_edict_t::DispatchPainCallback( svg_base_edict_t *other, const floa
 /**
 *   @brief  Calls the 'die' callback that is configured for this entity.
 **/
-void svg_base_edict_t::DispatchDieCallback( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const int32_t damage, vec_t *point ) {
+void svg_base_edict_t::DispatchDieCallback( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const int32_t damage, Vector3 *point ) {
     if ( dieCallbackFuncPtr != nullptr ) {
         dieCallbackFuncPtr( this, inflictor, attacker, damage, point );
     }
@@ -1032,7 +1032,7 @@ DEFINE_MEMBER_CALLBACK_PAIN( svg_base_edict_t, onPain )( svg_base_edict_t *self,
 /**
 *   @brief  Die Stub.
 **/
-DEFINE_MEMBER_CALLBACK_DIE( svg_base_edict_t, onDie )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void { }
+DEFINE_MEMBER_CALLBACK_DIE( svg_base_edict_t, onDie )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void { }
 /**
 *   @brief  Signal Receiving Stub.
 **/

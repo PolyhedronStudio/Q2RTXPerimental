@@ -25,11 +25,25 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/math.h"
 #include "common/intreadwrite.h"
 
+/**
+*	mas - bandwidth gaffer on games' bitpack serializer.
+* 
+*	
+* 
+**/
+//! Whether to build it as a release, or debug build.
+#ifndef _DEBUG
+	#define SERIALIZE_RELEASE
+#else
+	#define SERIALIZE_DEBUG
+#endif
+#include "serialize.h"
+
 //////////////////////////////////////////// HUFFMAN /////////////////////////////////////////////
-huffman_t		msgHuff;
-static qboolean			msgInit = qfalse;
-int32_t pcount[ 256 ];
-int32_t oldsize = 0;
+huffman_t			msgHuff;
+static qboolean		msgInit = qfalse;
+int32_t				pcount[ 256 ];
+int32_t				oldsize = 0;
 static void MSG_initHuffman( void );
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -344,7 +358,7 @@ void MSG_WriteAngleHalfFloat( const vec_t f ) {
 /**
 *   @brief Writes out the position/coordinate, optionally 'short' encoded. (Limits us between range -4096/4096+)
 **/
-void MSG_WritePos( const vec3_t pos, const msgPositionEncoding_t encoding = MSG_POSITION_ENCODING_NONE ) {
+void MSG_WritePosition( const vec3_t pos, const msgPositionEncoding_t encoding = MSG_POSITION_ENCODING_NONE ) {
 	if ( encoding == MSG_POSITION_ENCODING_SHORT ) {
 		MSG_WriteInt16( COORD2SHORT( pos[ 0 ] ) );
 		MSG_WriteInt16( COORD2SHORT( pos[ 1 ] ) );

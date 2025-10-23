@@ -178,7 +178,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_misc_explobox_t, thinkExplode )( svg_misc_expl
 /**
 *   @brief
 **/
-DEFINE_MEMBER_CALLBACK_DIE( svg_misc_explobox_t, onDie )( svg_misc_explobox_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
+DEFINE_MEMBER_CALLBACK_DIE( svg_misc_explobox_t, onDie )( svg_misc_explobox_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void {
     self->takedamage = DAMAGE_NO;
     self->nextthink = level.time + random_time( 150_ms );
     self->SetThinkCallback( &svg_misc_explobox_t::thinkExplode );

@@ -138,12 +138,12 @@
 //
 #if 1
 #define DECLARE_GLOBAL_CLASSNAME_CALLBACK_DIE(className, functionName) \
-	auto functionName( className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void \
+	auto functionName( className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void \
 
 #endif
 //!
 #define DECLARE_GLOBAL_CALLBACK_DIE(functionName) \
-	auto functionName( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void \
+	auto functionName( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void \
 //
 //	PushMoveInfo EndMove.
 //

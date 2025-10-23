@@ -14,6 +14,35 @@
 #include "sharedgame/pmove/sg_pmove_slidemove.h"
 
 
+
+/**
+*
+*
+*
+*	Trace Utility Functions:
+*
+*
+*
+**/
+/**
+*	@brief	Wrapper for gi.trace that accepts Vector3 args.
+**/
+//static inline const cm_trace_t CLG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, centity_t *passEdict, const cm_contents_t contentMask ) {
+//    const Vector3 *_mins = ( mins == qm_vector3_null || &mins == &qm_vector3_null ) ? nullptr : &mins;
+//    const Vector3 *_maxs = ( maxs == qm_vector3_null || &maxs == &qm_vector3_null ) ? nullptr : &maxs;
+//    return clgi.Trace( &start, _mins, _maxs, &end, passEdict, contentMask );
+//}
+///**
+//*	@brief	Wrapper for gi.clipthat accepts Vector3 args.
+//**/
+//static inline const cm_trace_t CLG_Clip( centity_t *clipEdict, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+//    const Vector3 *_mins = ( mins == qm_vector3_null || &mins == &qm_vector3_null ) ? nullptr : &mins;
+//    const Vector3 *_maxs = ( maxs == qm_vector3_null || &maxs == &qm_vector3_null ) ? nullptr : &maxs;
+//    return clgi.Clip( &start, _mins, _maxs, &end, clipEdict, contentMask );
+//}
+
+
+
 /**
 *
 *
@@ -26,26 +55,34 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const cm_trace_t q_gameabi CLG_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask ) {
+static const cm_trace_t q_gameabi CLG_PM_Trace( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const void *passEntity, const cm_contents_t contentMask ) {
     cm_trace_t t;
     //if (pm_passent->health > 0)
     //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
     //    return gi.trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
-    t = clgi.Trace( start, mins, maxs, end, (const centity_t *)passEntity, contentMask );
+	vec_t *_start = ( *start == qm_vector3_null || !start ) ? nullptr : (vec_t*)start;
+	vec_t *_mins = ( *mins == qm_vector3_null || !mins ) ? nullptr : (vec_t *)mins;
+	vec_t *_maxs = ( *maxs == qm_vector3_null || !maxs ) ? nullptr : (vec_t *)maxs;
+	vec_t *_end = ( *end == qm_vector3_null || !end ) ? nullptr : (vec_t *)end;
+    t = clgi.Trace( _start, _mins, _maxs, _end, (const centity_t *)passEntity, contentMask );
     return t;
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const cm_trace_t q_gameabi CLG_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentMask ) {
-    const cm_trace_t trace = clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
+static const cm_trace_t q_gameabi CLG_PM_Clip( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentMask ) {
+    vec_t *_start = ( *start == qm_vector3_null || !start ) ? nullptr : (vec_t *)start;
+    vec_t *_mins = ( *mins == qm_vector3_null || !mins ) ? nullptr : (vec_t *)mins;
+    vec_t *_maxs = ( *maxs == qm_vector3_null || !maxs ) ? nullptr : (vec_t *)maxs;
+    vec_t *_end = ( *end == qm_vector3_null || !end ) ? nullptr : (vec_t *)end;
+    const cm_trace_t trace = clgi.Clip( _start, _mins, _maxs, _end, nullptr, contentMask );
     return trace;
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const cm_contents_t q_gameabi CLG_PM_PointContents( const vec3_t point ) {
+static const cm_contents_t q_gameabi CLG_PM_PointContents( const Vector3 *point ) {
     return clgi.PointContents( point );
 }
 
@@ -116,12 +153,29 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
         ) {
 			// Get the event number.
             const int32_t playerStateEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
-			// Assign to the client entity.
+            // Assign to the client entity.
             clientEntity->current.event = playerStateEvent;
             clientEntity->current.eventParm = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
-
+            
+            /**
+            *
+            *   Either join the two together...
+            *   Or keep them separated?
+            * 
+            *   Q3 only thinks "all clients are basically an entity"....
+            * 
+            *   But, we got monsters as well as players. How to deal with this?
+            * 
+            *   Let players deal with the same event if the entity number matches to
+			*   that of the view bound entity. Otherwise, let the entity events deal with it?
+            *    ---> see below
+			*   The problem here seems that for playing the sound we need to know the entity's origin.
+			*   So, we need to know which entity to use for that.
+            *
+            **/
+            
             // Proceed to firing the predicted/received event.
-            const bool processedPlayerStateViewBoundEffect = CLG_CheckPlayerEvent( ops, ps, playerStateEvent, clientEntity->lerp_origin );
+            const bool processedPlayerStateViewBoundEffect = CLG_CheckPlayerStateEvent( ops, ps, playerStateEvent, clgi.client->predictedFrame.ps.pmove.origin );
             if ( !processedPlayerStateViewBoundEffect ) {
                 CLG_CheckEntityEvents( clientEntity );
             }
@@ -159,12 +213,13 @@ static void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predic
     static constexpr double PM_STEP_TIME = 100.;
     // Maximum -/+ change we allow in step lerps.
     static constexpr double PM_MAX_STEP_CHANGE = ( PM_STEP_MAX_SIZE * 2 ) + ( PM_STEP_MAX_SIZE );
-    // Get the absolute step's height value for testing against.
-    const double fabsStep = std::fabs( stepSize );
-
     // Absolute change is in this limited range.
     static constexpr double STEP_MAX_FABS_HEIGHT = ( PM_STEP_MAX_SIZE + PM_STEP_GROUND_DIST);
     static constexpr double STEP_MIN_FABS_HEIGHT = ( PM_STEP_MIN_SIZE );
+
+    // Get the absolute step's height value for testing against.
+    const double fabsStep = std::fabs( stepSize );
+
     // Check for step.
     const bool step_detected = (
         // Consider a Z change being "stepping" if...
@@ -343,12 +398,11 @@ void PF_PredictAngles( void ) {
 *           into the cl.predictedState struct.
 **/
 void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber ) {
+    // Get the entity for the client.
+    centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
     // Last predicted state.
     client_predicted_state_t *predictedState = &game.predictedState;
-    
-	// Get the entity for the client.
-    centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
-
+   
     // Shuffle the still "CURRENT" ground info into our "LAST" groundinfo.
     predictedState->lastGround = predictedState->ground;
     // Shuffle the still "CURRENT" playerState into our "LAST" playerState.
@@ -394,12 +448,12 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
             pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.simulationTime );
             
             #if 0
-            // don't do anything if the time is before the snapshot player time
+            // Don't do anything if the time is before the snapshot player time
             if ( pm.simulationTime.Milliseconds() <= game.predictedState.cmd.prediction.simulationTime ) {
                 continue;
             }
 
-            // don't do anything if the command was from a previous map_restart
+            // Don't do anything if the command was from a previous map_restart
             if ( pm.simulationTime.Milliseconds() > moveCommand->prediction.simulationTime ) {
                 continue;
             }
@@ -407,17 +461,13 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
 
 			// Move the simulation.
             SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
-            // Convert certain playerstate properties into entity state properties.
-            //SG_PlayerStateToEntityState( clgi.client->frame.clientNum, pm.state, &cent->current, false );
-
-
             // Predict the next bobCycle for the frame.
             #if 0
-            // Convert certain playerstate properties into entity state properties.
-            centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
-            SG_PlayerStateToEntityState( clgi.client->frame.clientNum, pm.state, &cent->current, false );
-            // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
-            CLG_PredictNextBobCycle( &pm );
+                // Convert certain playerstate properties into entity state properties.
+                centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+                SG_PlayerStateToEntityState( clgi.client->frame.clientNum, pm.state, &cent->current, false );
+                // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
+                CLG_PredictNextBobCycle( &pm );
             #endif
         //}
 
@@ -459,7 +509,7 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         SG_PlayerStateToEntityState( clgi.client->frame.clientNum, pm.state, &cent->current, false );
 
         // Predict the next bobCycle for the frame.
-        #if 0            
+        #if 1            
         // <Q2RTXP>: WID: We'll keep this in case we fuck up viewweapon animations.
         CLG_PredictNextBobCycle( &pm );
         #endif
@@ -468,14 +518,13 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         pendingMoveCommand->prediction.origin = pm.state->pmove.origin;
         pendingMoveCommand->prediction.velocity = pm.state->pmove.velocity;
         
-        // Save the pending move command as the last entry in our circular buffer.
-        clgi.client->predictedMoveResults[ ( currentCommandNumber + 1 ) & CMD_MASK ] = pendingMoveCommand->prediction;
-        
         // Store it as the current last-predicted origin state.
-        game.predictedState.origin = pendingMoveCommand->prediction.origin;
-        
+        predictedState->origin = pendingMoveCommand->prediction.origin;
         // And store it in the predictedState as the last command.
         predictedState->cmd = *pendingMoveCommand;
+
+        // Save the pending move command as the last entry in our circular buffer.
+        clgi.client->predictedMoveResults[ ( currentCommandNumber + 1 ) & CMD_MASK ] = pendingMoveCommand->prediction;
     }
 
     // Copy ground and liquid results out into the current predicted state.

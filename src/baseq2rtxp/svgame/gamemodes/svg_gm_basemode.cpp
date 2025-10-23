@@ -34,7 +34,7 @@
 /**
 *	@brief	Called when an entity has been killed.
 **/
-void svg_gamemode_t::EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+void svg_gamemode_t::EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) {
     if ( targ->health < -999 )
         targ->health = -999;
 

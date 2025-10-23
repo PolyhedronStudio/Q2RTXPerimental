@@ -36,7 +36,7 @@ int c_yes, c_no;
 
 bool M_CheckBottom(svg_base_edict_t *ent)
 {
-    vec3_t  mins, maxs, start, stop;
+    Vector3  mins, maxs, start, stop;
     svg_trace_t trace;
     int     x, y;
     float   mid, bottom;
@@ -58,7 +58,7 @@ bool M_CheckBottom(svg_base_edict_t *ent)
         for (y = 0 ; y <= 1 ; y++) {
             start[0] = x ? maxs[0] : mins[0];
             start[1] = y ? maxs[1] : mins[1];
-            if (gi.pointcontents(start) != CONTENTS_SOLID)
+            if (gi.pointcontents(&start) != CONTENTS_SOLID)
                 goto realcheck;
         }
 
@@ -129,7 +129,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
     svg_trace_t     trace;
     int         i;
     float       stepsize;
-    vec3_t      test;
+    Vector3      test;
     int         contents;
 
 // try the move
@@ -170,7 +170,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
                     test[0] = trace.endpos[0];
                     test[1] = trace.endpos[1];
                     test[2] = trace.endpos[2] + ent->mins[2] + 1;
-                    contents = gi.pointcontents(test);
+                    contents = gi.pointcontents(&test);
                     if (contents & CM_CONTENTMASK_LIQUID)
                         return false;
                 }
@@ -182,7 +182,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
                     test[0] = trace.endpos[0];
                     test[1] = trace.endpos[1];
                     test[2] = trace.endpos[2] + ent->mins[2] + 1;
-                    contents = gi.pointcontents(test);
+                    contents = gi.pointcontents(&test);
                     if (!(contents & CM_CONTENTMASK_LIQUID))
                         return false;
                 }
@@ -236,7 +236,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
         test[0] = trace.endpos[0];
         test[1] = trace.endpos[1];
         test[2] = trace.endpos[2] + ent->mins[2] + 1;
-        contents = gi.pointcontents(test);
+        contents = gi.pointcontents(&test);
 
         if (contents & CM_CONTENTMASK_LIQUID)
             return false;

@@ -138,7 +138,7 @@ void weapon_pistol_primary_fire( svg_base_edict_t *ent ) {
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) ); //ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
-    gi.multicast( &muzzleFlashOrigin.x/*ent->s.origin*/, MULTICAST_PVS, false );
+    gi.multicast( &muzzleFlashOrigin/*ent->s.origin*/, MULTICAST_PVS, false );
 
     // Notify we're making noise.
     SVG_Player_PlayerNoise( ent, &muzzleFlashOrigin.x, PNOISE_WEAPON );
@@ -173,7 +173,7 @@ void weapon_pistol_aim_fire( svg_base_edict_t *ent ) {
     gi.WriteUint8( svc_muzzleflash );
     gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
     gi.WriteUint8( MZ_PISTOL /*| is_silenced*/ );
-    gi.multicast( &muzzleFlashOrigin.x, MULTICAST_PVS, false );
+    gi.multicast( &muzzleFlashOrigin, MULTICAST_PVS, false );
 
     // Notify we're making noise.
     SVG_Player_PlayerNoise( ent, &muzzleFlashOrigin.x, PNOISE_WEAPON );
@@ -430,7 +430,7 @@ void Weapon_Pistol( svg_base_edict_t *ent, const bool processUserInputOnly ) {
 
     // <Q2RTXP>: TODO: This was experimental.
     #if 0
-    vec3_t start = { ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + ent->viewheight - 8 };
+    Vector3 start = { ent->s.origin[ 0 ], ent->s.origin[ 1 ], ent->s.origin[ 2 ] + ent->viewheight - 8 };
     VectorMA( start, 24, ent->client->viewMove.viewForward, start );
     VectorMA( start, 10, ent->client->viewMove.viewRight, start );
 

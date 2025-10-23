@@ -104,31 +104,6 @@ void SVG_Client_Think( svg_base_edict_t * ent, usercmd_t * ucmd );
 *
 *
 *
-*   Client UseTargetHint Functionality.:
-*
-*
-*
-**/
-/**
-*   @brief
-**/
-void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput = false );
-/**
-*   @brief  Unsets the current client stats usetarget info.
-**/
-void Client_ClearUseTargetHint( svg_base_edict_t *ent, svg_client_t *client, svg_base_edict_t *useTargetEntity );
-/**
-*   @brief  Determines the necessary UseTarget Hint information for the hovered entity(if any).
-*   @return True if the entity has legitimate UseTarget Hint information. False if unset, or not found at all.
-**/
-const bool SVG_Client_UpdateUseTargetHint( svg_base_edict_t *ent, svg_client_t *client, svg_base_edict_t *useTargetEntity );
-
-
-
-/**
-*
-*
-*
 *   Client Recoil Utilities:
 *
 *

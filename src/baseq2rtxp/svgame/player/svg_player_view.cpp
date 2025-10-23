@@ -254,7 +254,7 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 			Vector3 damageDir = player->s.origin;
 			damageDir -= indicator.from;
 			const Vector3 normalizedDir = QM_Vector3Normalize( damageDir );
-			gi.WriteDir8( &normalizedDir.x );
+			gi.WriteDir8( &normalizedDir );
 		}
 
 		// Cast damage indicator to player entity.
@@ -288,47 +288,69 @@ Auto pitching on slopes?
 
 ===============
 */
+//! Time slack to ensure damage/fall effects are not cut off mid-way due to frame timing.
+static inline constexpr QMTime WEAPON_RECOIL_TIME_SLACK() {
+	// 100ms minus frame time to ensure we have enough time to show the effect. (10hz == 100ms so no slack needed then.)
+	return ( 100_ms - FRAME_TIME_MS );
+}
+//! Time for damage effect.
+static inline constexpr QMTime WEAPON_RECOIL_TIME() {
+	return 50_ms + WEAPON_RECOIL_TIME_SLACK();
+}
 void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 	//float *angles;
 	//float       bob;
-	float       ratio;
+	double       ratio;
 	//float       delta;
 
+	//Vector3 viewAnglesOffset = ent->client->weaponKicks.offsetAngles;
+	Vector3 viewAnglesOffset = QM_Vector3Zero();
+	//Vector3 viewAnglesOffset = ent->client->ps.kick_angles;
 	Vector3 viewOriginOffset = QM_Vector3Zero();
-	Vector3 viewAnglesOffset = ent->client->weaponKicks.offsetAngles;//ent->client->ps.kick_angles;
 
 	// If dead, fix the angle and don't add any kicks
 	if ( ent->lifeStatus & entity_lifestatus_t::LIFESTATUS_DEAD ) {
 		// Clear out weapon kick angles.
-		VectorClear( ent->client->ps.kick_angles );
+		ent->client->ps.kick_angles = QM_Vector3Zero();
 
 		// Apply death view angles.
 		ent->client->ps.viewangles[ ROLL ] = 40;
 		ent->client->ps.viewangles[ PITCH ] = -15;
 		ent->client->ps.viewangles[ YAW ] = ent->client->killer_yaw;
-	
 	/**
 	*	Add view angle kicks for: Damage, Falling, Velocity and EarthQuakes.
 	**/
 	} else {
 		// First apply weapon angle kicks.
-		VectorCopy( ent->client->weaponKicks.offsetAngles, viewAnglesOffset );
+		viewAnglesOffset = ent->client->weaponKicks.offsetAngles; // VectorCopy( ent->client->weaponKicks.offsetAngles, viewAnglesOffset );
+		
+		//if ( ent->client->weaponState.timers.lastPrimaryFire >= level.time ) {
+		//	// Add recoil kick angles from firing the weapon.
+		//	QMTime diff = ( ent->client->weaponState.timers.lastPrimaryFire - level.time);
+
+		//	// Slack time remaining
+		//	if ( WEAPON_RECOIL_TIME_SLACK() && diff > WEAPON_RECOIL_TIME() - WEAPON_RECOIL_TIME_SLACK() ) {
+		//		ratio = ( WEAPON_RECOIL_TIME() - diff ).Seconds() / WEAPON_RECOIL_TIME_SLACK().Seconds();
+		//	} else {
+		//		ratio = diff.Seconds() / ( WEAPON_RECOIL_TIME() - WEAPON_RECOIL_TIME_SLACK() ).Seconds();
+		//	}
+		//	//ratio = ( level.time - ent->client->weaponState.timers.lastPrimaryFire ).Seconds() / WEAPON_RECOIL_TIME().Seconds();
+		//	//ratio = std::clamp( ratio, 0.0, 1.0 );
+		//	viewAnglesOffset[ PITCH ] -= ratio * ( ent->client->weaponKicks.offsetAngles[PITCH]/* * ent->client->weaponState.recoil.weaponFactor*/ );
+		//}
 
 		// Add angles based on the damage impackt kick.
 		if ( ent->client->viewMove.damageTime > level.time ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
 			QMTime diff = ent->client->viewMove.damageTime - level.time;
-
-			// slack time remaining
-			if ( DAMAGE_TIME_SLACK( ) ) {
-				if ( diff > DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) )
-					ratio = ( DAMAGE_TIME( ) - diff ).Seconds( ) / DAMAGE_TIME_SLACK( ).Seconds( );
-				else
-					ratio = diff.Seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).Seconds( );
-			} else
-				ratio = diff.Seconds( ) / ( DAMAGE_TIME( ) - DAMAGE_TIME_SLACK( ) ).Seconds( );
-
+			// Slack time remaining
+			if ( DAMAGE_TIME_SLACK() && diff > DAMAGE_TIME() - DAMAGE_TIME_SLACK() ) {
+				ratio = ( DAMAGE_TIME() - diff ).Seconds() / DAMAGE_TIME_SLACK().Seconds();
+			} else {
+				ratio = diff.Seconds() / ( DAMAGE_TIME() - DAMAGE_TIME_SLACK() ).Seconds();
+			}
+			// Adjust view angles.
 			viewAnglesOffset[ PITCH ] += ratio * ent->client->viewMove.damagePitch;
 			viewAnglesOffset[ ROLL ] += ratio * ent->client->viewMove.damageRoll;
 		}
@@ -338,15 +360,14 @@ void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
 			QMTime diff = ent->client->viewMove.fallTime - level.time;
-
-			// slack time remaining
-			if ( DAMAGE_TIME_SLACK( ) ) {
-				if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) )
-					ratio = ( FALL_TIME( ) - diff ).Seconds( ) / DAMAGE_TIME_SLACK( ).Seconds( );
-				else
-					ratio = diff.Seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).Seconds( );
-			} else
-				ratio = diff.Seconds( ) / ( FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ).Seconds( );
+			// > 10hz > 100ms of slack time remaining
+			if ( DAMAGE_TIME_SLACK() && diff > FALL_TIME() - DAMAGE_TIME_SLACK() ) {
+				ratio = ( FALL_TIME() - diff ).Seconds() / DAMAGE_TIME_SLACK().Seconds();
+			// Calculate ratio normally. (No slack, 100ms == 10hz game rate.)
+			} else {
+				ratio = diff.Seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).Seconds();
+			}
+			// Adjust view angles.
 			viewAnglesOffset[ PITCH ] += ratio * ent->client->viewMove.fallValue;
 		}
 
@@ -378,11 +399,11 @@ void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 
 		// Add earthquake view offset angles
 		if ( ent->client->viewMove.quakeTime > level.time ) {
-			float factor = std::min( 1.0f, (float)( ent->client->viewMove.quakeTime.Seconds( ) / level.time.Seconds( ) ) * 0.25f );
+			double factor = std::min( 1.0, (double)( ent->client->viewMove.quakeTime.Seconds( ) / level.time.Seconds( ) ) * 0.25f );
 
-			viewAnglesOffset.x += crandom_openf( ) * factor;
-			viewAnglesOffset.y += crandom_openf( ) * factor;
-			viewAnglesOffset.z += crandom_openf( ) * factor;
+			viewAnglesOffset.x += crandom_opend( ) * factor;
+			viewAnglesOffset.y += crandom_opend( ) * factor;
+			viewAnglesOffset.z += crandom_opend( ) * factor;
 		}
 	}
 	// [Paril-KEX] Clamp view offset angles within a pleasant realistic range.
@@ -401,17 +422,13 @@ void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 		// [Paril-KEX] 100ms of slack is added to account for
 		// visual difference in higher tickrates
 		QMTime diff = ent->client->viewMove.fallTime - level.time;
-
 		// Slack time remaining
-		if ( DAMAGE_TIME_SLACK( ) ) {
-			if ( diff > FALL_TIME( ) - DAMAGE_TIME_SLACK( ) ) {
-				ratio = ( FALL_TIME( ) - diff ).Seconds( ) / DAMAGE_TIME_SLACK( ).Seconds( );
-			} else {
-				ratio = diff.Seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).Seconds();
-			}
+		if ( DAMAGE_TIME_SLACK() && diff > FALL_TIME() - DAMAGE_TIME_SLACK() ) {
+			ratio = ( FALL_TIME( ) - diff ).Seconds( ) / DAMAGE_TIME_SLACK( ).Seconds( );
 		} else {
 			ratio = diff.Seconds() / ( FALL_TIME() - DAMAGE_TIME_SLACK() ).Seconds();
 		}
+
 		viewOriginOffset.z -= ratio * ent->client->viewMove.fallValue * 0.4f;
 	}
 
@@ -423,17 +440,18 @@ void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 	////gi.DebugGraph (bob *2, 255);
 	//viewOffset[ 2 ] += bob;
 
-	// Add weapon kicks offset into the final viewOffset.
-	viewOriginOffset += ent->client->weaponKicks.offsetOrigin;
-
-	// Clamp the viewOffset values to remain within the player bounding box.
-	viewOriginOffset[ 0 ] = std::clamp( viewOriginOffset[ 0 ], -14.f, 14.f );
-	viewOriginOffset[ 1 ] = std::clamp( viewOriginOffset[ 1 ], -14.f, 14.f );
-	viewOriginOffset[ 2 ] = std::clamp( viewOriginOffset[ 2 ], -22.f, 30.f );
+	// Finalize viewOriginOffset.
+	viewOriginOffset = QM_Vector3Clamp( 
+		// Add weapon kicks offset into the final viewOffset.
+		viewOriginOffset + ent->client->weaponKicks.offsetOrigin,
+		// Clamp the viewOffset values to remain within the player bounding box
+		{ -14.f, -14.f, -22.f },
+		{ 14.f, 14.f, 30.f }
+	);
 
 	// Store the viewOriginOffset and viewAnglesOffset(as KickAngles in the client's playerState.
-	VectorCopy( viewOriginOffset, ent->client->ps.viewoffset );
-	VectorCopy( viewAnglesOffset, ent->client->ps.kick_angles );
+	ent->client->ps.viewoffset = viewOriginOffset;
+	ent->client->ps.kick_angles = viewAnglesOffset;
 }
 
 /*
@@ -490,31 +508,31 @@ SV_CalculateGunOffset
 void P_CalculateBlend( svg_base_edict_t *ent ) {
 	QMTime remaining;
 
-	// Clear player state screen blend.
-	Vector4Clear( ent->client->ps.screen_blend );
+	//// Clear player state screen blend.
+	//Vector4Clear( ent->client->ps.screen_blend );
 
-	// Add for contents specific.
-	vec3_t vieworg = {};
-	VectorAdd( ent->s.origin, ent->client->ps.viewoffset, vieworg );
-	vieworg[ 2 ] += ent->client->ps.pmove.viewheight;
+	//// Add for contents specific.
+	//Vector3 vieworg = {};
+	//VectorAdd( ent->s.origin, ent->client->ps.viewoffset, vieworg );
+	//vieworg[ 2 ] += ent->client->ps.pmove.viewheight;
 
-	int32_t contents = gi.pointcontents( vieworg );
-	if ( contents & ( CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA ) ) {
-		ent->client->ps.rdflags |= RDF_UNDERWATER;
-	} else {
-		ent->client->ps.rdflags &= ~RDF_UNDERWATER;
-	}
-	
-	// Prevent it from adding screenblend if we're inside a client entity, by checking
-	// if its brush has CONTENTS_PLAYER set in its clipmask.
-	if ( /*!( contents & CONTENTS_PLAYER ) 
-		&&*/ ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
-		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ent->client->ps.screen_blend );
-	} else if ( contents & CONTENTS_SLIME ) {
-		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, ent->client->ps.screen_blend );
-	} else if ( contents & CONTENTS_WATER ) {
-		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screen_blend );
-	}
+	//int32_t contents = gi.pointcontents( &vieworg );
+	//if ( contents & ( CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA ) ) {
+	//	ent->client->ps.rdflags |= RDF_UNDERWATER;
+	//} else {
+	//	ent->client->ps.rdflags &= ~RDF_UNDERWATER;
+	//}
+	//
+	//// Prevent it from adding screenblend if we're inside a client entity, by checking
+	//// if its brush has CONTENTS_PLAYER set in its clipmask.
+	//if ( /*!( contents & CONTENTS_PLAYER ) 
+	//	&&*/ ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
+	//	SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ent->client->ps.screen_blend );
+	//} else if ( contents & CONTENTS_SLIME ) {
+	//	SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, ent->client->ps.screen_blend );
+	//} else if ( contents & CONTENTS_WATER ) {
+	//	SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, ent->client->ps.screen_blend );
+	//}
 
 	// Add for damage
 	if ( ent->client->damage_alpha > 0 ) {
@@ -522,14 +540,14 @@ void P_CalculateBlend( svg_base_edict_t *ent ) {
 			, ent->client->damage_blend[ 2 ], ent->client->damage_alpha, ent->client->ps.screen_blend );
 	}
 
-	// [Paril-KEX] drowning visual indicator
-	if ( ent->air_finished_time < level.time + 9_sec ) {
-		constexpr vec3_t drown_color = { 0.1f, 0.1f, 0.2f };
-		constexpr float max_drown_alpha = 0.75f;
-		float alpha = ( ent->air_finished_time < level.time ) ? 1 : ( 1.f - ( ( ent->air_finished_time - level.time ).Seconds() / 9.0f ) );
-		//SV_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], min( alpha, max_drown_alpha ), ent->client->ps.damage_blend );
-		SG_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], std::min( alpha, max_drown_alpha ), ent->client->damage_blend );
-	}
+	//// [Paril-KEX] drowning visual indicator
+	//if ( ent->air_finished_time < level.time + 9_sec ) {
+	//	constexpr vec3_t drown_color = { 0.1f, 0.1f, 0.2f };
+	//	constexpr float max_drown_alpha = 0.75f;
+	//	float alpha = ( ent->air_finished_time < level.time ) ? 1 : ( 1.f - ( ( ent->air_finished_time - level.time ).Seconds() / 9.0f ) );
+	//	//SV_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], min( alpha, max_drown_alpha ), ent->client->ps.damage_blend );
+	//	SG_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], std::min( alpha, max_drown_alpha ), ent->client->damage_blend );
+	//}
 
 #if 0
 	if ( ent->client->bonus_alpha > 0 )
@@ -729,7 +747,6 @@ void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	//}
 	const Vector3 ladderDistVec = QM_Vector3Subtract( current_client->last_ladder_pos, ent->s.origin );
 	const double ladderDistance = QM_Vector3LengthSqr( ladderDistVec );
-	#if 1
 	if ( current_client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
 		if ( !deathmatch->integer &&
 			current_client->last_ladder_sound < level.time &&
@@ -742,26 +759,6 @@ void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 			gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRIx64 ")\n", __func__, level.frameNumber );
 		}
 	}
-	#else
-	if ( current_client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
-		if ( !deathmatch->integer &&
-			current_client->last_ladder_sound < level.time &&
-			ladderDistance > 48.f ) {
-			//ent->s.event = EV_FOOTSTEP_LADDER;
-			SVG_Util_AddEvent( ent, EV_FOOTSTEP_LADDER, 0 );
-			VectorCopy( ent->s.origin, current_client->last_ladder_pos );
-			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
-
-			gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRIx64 ")\n", __func__, level.frameNumber );
-		}
-	} else if ( ent->groundInfo.entity && ent->client->ps.xySpeed > 225 ) {
-		if ( ( current_client->bobCycle != current_client->oldBobCycle ) ) {
-			SVG_Util_AddEvent( ent, EV_FOOTSTEP, 0 );
-			//ent->s.event = EV_FOOTSTEP;
-			gi.dprintf( "%s: EV_FOOTSTEP ent->ground xyspeed > 225 - Frame(#%" PRIx64 ")\n", __func__, level.frameNumber );
-		}
-	}
-	#endif
 }
 
 /**

@@ -13,6 +13,8 @@
 // Needed:
 #include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_muzzleflashes.h"
+
 
 
 /**
@@ -35,41 +37,58 @@ void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigi
 
     // EF_TELEPORTER acts like an event, but is not cleared each frame
     if ( ( cent->current.effects & EF_TELEPORTER ) ) {
-        CLG_TeleporterParticles( &effectOrigin.x );
+        // Use player state pmove origin if we're the view bound entity.
+        if ( CLG_GetViewBoundEntity() == cent && clientNumber != -1 ) {
+            CLG_TeleporterParticles( &clgi.client->frame.ps.pmove.origin.x );
+            clgi.Print( PRINT_DEVELOPER, "%s: PLAYER TELEPORTERRRRR (%f,%f,%f)\n",
+                clgi.client->frame.ps.pmove.origin.x,
+                clgi.client->frame.ps.pmove.origin.y,
+                clgi.client->frame.ps.pmove.origin.z
+            );
+        // Otherwise, use lerp origin.
+        } else {
+            CLG_TeleporterParticles( &effectOrigin.x );
+
+            clgi.Print( PRINT_DEVELOPER, "%s: ENTITY TELEPORTERRRRR (%f,%f,%f)\n",
+                effectOrigin.x,
+                effectOrigin.y,
+                effectOrigin.z
+            );
+        }
     }
 
     // Handle the event.
     switch ( eventValue ) {
-        /**
-        *   FootStep Events:
-        **/
-        case EV_FOOTSTEP:
-            CLG_FootstepEvent( entityNumber );
-            break;
+        ///**
+        //*   FootStep Events:
+        //**/
+        //case EV_FOOTSTEP:
+        //    CLG_FootstepEvent( entityNumber );
+        //    break;
         case EV_FOOTSTEP_LADDER:
             CLG_FootstepLadderEvent( entityNumber );
-            break;
+        break;
 
-        /**
-        *   Fall and Landing Events:
-        **/
-        case EV_FALL_MEDIUM:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
-            break;
-        case EV_FALL_SHORT:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
-            break;
-        case EV_FALL_FAR:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
-            break;
+        ///**
+        //*   Fall and Landing Events:
+        //**/
+        //case EV_FALL_MEDIUM:
+        //    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
+        //    break;
+        //case EV_FALL_SHORT:
+        //    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
+        //    break;
+        //case EV_FALL_FAR:
+        //    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
+        //    break;
 
-        /**
-        *   Teleport Events:
-        **/
-        case EV_PLAYER_TELEPORT:
-            clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
-            CLG_TeleportParticles( &effectOrigin.x );
-            break;
+        ///**
+        //*   Teleport Events:
+        //**/
+        //case EV_PLAYER_TELEPORT:
+        //    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
+        //    CLG_TeleportParticles( &effectOrigin.x );
+        //    break;
 
         /**
         *   Item Events:
@@ -124,6 +143,7 @@ void CLG_CheckEntityEvents( centity_t *cent ) {
     **/
 	//  Get the entity state.
     entity_state_t *currentEntityState = &cent->current;
+
 	// Acquire the actual event value by offing it with EV_EVENT_BITS.
     const int32_t eventValue = currentEntityState->event & ~EV_EVENT_BITS;
 
@@ -228,24 +248,34 @@ static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_s
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-const bool CLG_CheckPlayerEvent( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
-    //if ( !clgi.client->clientEntity ) {
-    //    return;
-    //}
-    
-    //centity_t *cent = clgi.client->clientEntity;
-    centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
+	// Get the frame's client entity.
+    //centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
 
-    if ( cent->serverframe != clgi.client->frame.number ) {
-        return false;
-    }
+	// Entity has to be in the current frame to process though.
+    //if ( cent->serverframe != clgi.client->frame.number ) {
+    //    return false;
+    //}
+
+    // For dynamic muzzleflash lights.
+	clg_dlight_t *dl = nullptr;
 
     // Is this the view bound entity?
-    centity_t *viewBoundEntity = cent;//CLG_GetViewBoundEntity();
+    centity_t *viewBoundEntity = CLG_GetViewBoundEntity();
     // If the viewbound entity does not match, we won't process.
     if ( !viewBoundEntity ) {
         return false;
     }
+    
+    // Entity has to be in the current frame to process though.
+    centity_t *cent = viewBoundEntity;
+    if ( cent->serverframe != clgi.client->frame.number ) {
+        return false;
+    }
+
+    // Calculate the angle vectors.
+    Vector3 fv = {}, rv = {};
+    QM_AngleVectors( cent->current.angles, &fv, &rv, NULL );
 
     // Get model resource.
     const model_t *model = clgi.R_GetModelDataForHandle( clgi.client->baseclientinfo.model /*cent->current.modelindex*/ );
@@ -258,6 +288,61 @@ const bool CLG_CheckPlayerEvent( const player_state_t *ops, const player_state_t
 
     sg_skm_animation_state_t *eventBodyState = animationMixer->eventBodyState;
 
+    int32_t entityNumber = cent->current.number;
+
+    switch ( playerStateEvent ) {
+        /**
+        *   FootStep Events:
+        **/
+        case EV_PLAYER_FOOTSTEP:
+                CLG_FootstepEvent( entityNumber );
+                return true;
+            break;
+        // Applied externally outside of pmove.
+        //case EV_FOOTSTEP_LADDER:
+        //        CLG_FootstepLadderEvent( entityNumber );
+        //        return true;
+        //    break;
+
+        /**
+        *   Fall and Landing Events:
+        **/
+        case EV_FALL_SHORT:
+                clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
+                return true;
+            break;
+        case EV_FALL_MEDIUM:
+                clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
+                return true;
+            break;
+        case EV_FALL_FAR:
+                clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
+                return true;
+            break;
+
+        /**
+        *   Teleport Events:
+        **/
+        case EV_PLAYER_LOGIN:
+                dl = CLG_AddMuzzleflashDLight( cent, fv, rv );
+                VectorSet( dl->color, 0, 1, 0 );
+                clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_login.wav" ), 1, ATTN_NORM, 0 );
+                CLG_LogoutEffect( &clgi.client->frame.ps.pmove.origin.x, 3/*MZ_LOGIN*/ );
+            return true;
+        break;
+        case EV_PLAYER_LOGOUT:
+                dl = CLG_AddMuzzleflashDLight( cent, fv, rv ); 
+                VectorSet( dl->color, 0, 1, 0 );
+                clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_logout.wav" ), 1, ATTN_NORM, 0 );
+                CLG_LogoutEffect( &clgi.client->frame.ps.pmove.origin.x, 4/*MZ_LOGOUT*/ );
+            return true;
+        break;
+        case EV_PLAYER_TELEPORT:
+                clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
+                CLG_TeleportParticles( &clgi.client->frame.ps.pmove.origin.x );
+            return true;
+        break;
+    }
     // Proceed to executing the event.
     // -- Jump Up:
     if ( playerStateEvent == EV_JUMP_UP ) {

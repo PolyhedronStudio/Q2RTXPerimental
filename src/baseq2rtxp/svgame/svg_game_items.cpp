@@ -218,9 +218,9 @@ void SVG_Item_SetRespawn(svg_item_edict_t *ent, float delay)
 *   @brief
 **/
 svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item ) {
-    svg_item_edict_t *dropped;
-    vec3_t  forward, right;
-    vec3_t  offset;
+    svg_item_edict_t *dropped = nullptr;
+    Vector3 forward = {}, right = {};
+    Vector3 offset = {};
 
     dropped = g_edict_pool.AllocateNextFreeEdict<svg_item_edict_t>();
 
@@ -241,14 +241,14 @@ svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item ) {
     if ( ent->client ) {
         svg_trace_t trace;
 
-        AngleVectors( &ent->client->viewMove.viewAngles.x, forward, right, NULL );
+        QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
         VectorSet( offset, 24, 0, -16 );
-        SVG_Util_ProjectSource( ent->s.origin, offset, forward, right, dropped->s.origin );
+        dropped->s.origin = SVG_Util_ProjectSource( ent->s.origin, offset, forward, right );
         trace = SVG_Trace( ent->s.origin, dropped->mins, dropped->maxs,
             dropped->s.origin, ent, CONTENTS_SOLID );
         VectorCopy( trace.endpos, dropped->s.origin );
     } else {
-        AngleVectors( ent->s.angles, forward, right, NULL );
+        QM_AngleVectors( ent->s.angles, &forward, &right, NULL );
         VectorCopy( ent->s.origin, dropped->s.origin );
     }
 

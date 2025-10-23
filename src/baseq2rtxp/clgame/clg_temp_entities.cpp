@@ -177,7 +177,8 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_PLAIN_EXPLOSION:
     {
         // Test for what solid type we're in.
-        const cm_contents_t pointContents = clgi.PointContents( level.parsedMessage.events.tempEntity.pos1 );
+        Vector3 pointPos = level.parsedMessage.events.tempEntity.pos1;
+        const cm_contents_t pointContents = clgi.PointContents( &pointPos );
         // First determine whether we're actually under water.
         const bool isUnderWater = ( pointContents & CM_CONTENTMASK_LIQUID ) != 0;
         //! Do an explosion, if underwater, without smoke.

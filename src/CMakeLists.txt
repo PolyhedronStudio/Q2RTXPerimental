@@ -179,6 +179,7 @@ IF( CONFIG_BUILD_CLIENT_TARGET )
         ENDIF() #IF( WIN32 )
     ENDIF()#IF( CONFIG_VKPT_RENDERER )
 
+    target_link_libraries(client mas-bandwith-serialize)
     target_link_libraries(client stb)
     target_link_libraries(client tinyobjloader)
 	target_link_libraries(client OpenAL)
@@ -281,6 +282,8 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 	target_include_directories( server PRIVATE "${ZLIB_INCLUDE_DIRS}" )
 	target_link_libraries( server zlibstatic )
 
+	# mas-bandwith-serialize
+    target_link_libraries(server mas-bandwith-serialize)
 	# Unix Specific Link Libraries:
 	IF( UNIX )
 		target_link_libraries(server dl rt m pthread)

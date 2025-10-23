@@ -55,7 +55,9 @@ void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t
 
 	// Ensure it is within bounds.
 	if ( newEvent < 0 || newEvent >= EV_GAME_MAX ) {
-		SG_DPrintf( SG_GAME_MODULE_STR "PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[ newEvent ], eventParm );
+        if ( newEvent < q_countof( sg_event_string_names ) ) {
+            SG_DPrintf( SG_GAME_MODULE_STR " PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[ newEvent ], eventParm );
+        }
 	}
 	//#ifndef CLGAME_INCLUDE
 	// Add predicted player move state event.
@@ -70,9 +72,9 @@ void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t
 	{
         // Ensure string is within bounds.
         if ( newEvent < q_countof( sg_event_string_names ) ) {
-            SG_DPrintf( SG_GAME_MODULE_STR "PMoveState Event(sequenceIndex: % i) : newEvent(# % i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[newEvent], eventParm);
+            SG_DPrintf( SG_GAME_MODULE_STR " PMoveState Event(sequenceIndex: % i) : newEvent(# % i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[newEvent], eventParm);
         } else {
-            SG_DPrintf( SG_GAME_MODULE_STR "PMoveState Event(sequenceIndex: % i) : newEvent(# % i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_event_string_names", eventParm);
+            SG_DPrintf( SG_GAME_MODULE_STR " PMoveState Event(sequenceIndex: % i) : newEvent(# % i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_event_string_names", eventParm);
         }
 	}
 	#endif

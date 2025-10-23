@@ -298,7 +298,7 @@ void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
 
 		if ( leaf1 ) {
 			sv_edict_t *clent = EDICT_FOR_NUMBER( client->number + 1 );
-			leaf2 = CM_PointLeaf( &sv.cm, clent->s.origin );
+			leaf2 = CM_PointLeaf( &sv.cm, &clent->s.origin.x );
 			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
 				continue;
 			if ( leaf2->cluster == -1 )
@@ -568,7 +568,7 @@ static void emit_snd( client_t *client, message_packet_t *msg ) {
 	MSG_WriteUint16( msg->sendchan );
 
 	if ( flags & SND_POS ) {
-		MSG_WritePos( msg->pos, MSG_POSITION_ENCODING_NONE );
+		MSG_WritePosition( msg->pos, MSG_POSITION_ENCODING_NONE );
 	}
 }
 

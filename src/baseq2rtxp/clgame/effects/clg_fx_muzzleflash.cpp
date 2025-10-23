@@ -12,10 +12,10 @@
 #include "sharedgame/sg_muzzleflashes.h"
 
 
-static clg_dlight_t *CLG_AddMuzzleflashDLight( centity_t *pl, vec3_t fv, vec3_t rv ) {
+clg_dlight_t *CLG_AddMuzzleflashDLight( centity_t *pl, Vector3 &fv, Vector3 &rv ) {
     clg_dlight_t *dl = CLG_AllocDlight( level.parsedMessage.events.muzzleFlash.entity );
     VectorCopy( pl->current.origin, dl->origin );
-    AngleVectors( pl->current.angles, fv, rv, NULL );
+    QM_AngleVectors( pl->current.angles, &fv, &rv, NULL );
     VectorMA( dl->origin, 18, fv, dl->origin );
     VectorMA( dl->origin, 16, rv, dl->origin );
     dl->radius = 100 * ( 2 - level.parsedMessage.events.muzzleFlash.silenced ) + ( Q_rand() & 31 );
@@ -39,8 +39,8 @@ void CLG_MuzzleFlash( void ) {
     // Get player client entity.
     centity_t *pl = &clg_entities[ level.parsedMessage.events.muzzleFlash.entity ];
     // Create the angle vectors.
-    vec3_t fv = {}, rv = {};
-    AngleVectors( pl->current.angles, fv, rv, NULL );
+    Vector3 fv = {}, rv = {};
+    QM_AngleVectors( pl->current.angles, &fv, &rv, NULL );
 
     /**
     *   Figure out the effects that do NOT want a DLight. If not in the list, a DLight

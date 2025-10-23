@@ -271,7 +271,7 @@ CLG_LogoutEffect
 
 ===============
 */
-void CLG_LogoutEffect( const vec3_t org, int type ) {
+void CLG_LogoutEffect( const Vector3 &org, int type ) {
     int         i, j;
     clg_particle_t *p;
 

@@ -368,7 +368,7 @@ void MSG_WriteAngleHalfFloat( const float f );
 /**
 *   @brief Writes an optional 'short' encoded coordinate position vector.
 **/
-void MSG_WritePos( const vec3_t pos, const msgPositionEncoding_t encoding );
+void MSG_WritePosition( const vec3_t pos, const msgPositionEncoding_t encoding );
 /**
 *	@brief	Writes an 8 bit byte, table index encoded direction vector.
 **/

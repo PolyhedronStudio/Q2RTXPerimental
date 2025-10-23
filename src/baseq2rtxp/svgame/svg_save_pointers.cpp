@@ -79,8 +79,8 @@ void func_breakable_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other,
 //void monster_testdummy_puppet_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
 //extern void SP_monster_testdummy_puppet( svg_base_edict_t *self );
-//extern void monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
-//void svg_monster_testdummy_t::monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+//extern void monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
+//void svg_monster_testdummy_t::monster_testdummy_puppet_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
 //extern void monster_testdummy_puppet_think( svg_base_edict_t *self );
 //extern void monster_testdummy_puppet_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 //extern void monster_testdummy_puppet_post_spawn( svg_base_edict_t *self );
@@ -95,23 +95,23 @@ extern void SVG_PushMove_AngleMoveBegin( svg_base_edict_t *ent );
 extern void SVG_PushMove_AngleMoveDone( svg_base_edict_t *ent );
 extern void SVG_PushMove_AngleMoveFinal( svg_base_edict_t *ent );
 
-extern void body_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+extern void body_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
 
 extern void button_unpress_move_done( svg_base_edict_t *self );
 extern void button_think_return( svg_base_edict_t *self );
 extern void button_press_move_done( svg_base_edict_t *self );
-extern void button_killed( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+extern void button_killed( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
 extern void button_touch( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
 extern void button_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void button_usetarget_press( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void button_usetarget_toggle( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void button_usetarget_continuous_press( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void debris_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+extern void debris_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
 
 #if 0
 extern void door_secret_blocked( svg_base_edict_t *self, svg_base_edict_t *other );
-extern void door_secret_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+extern void door_secret_die( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
 extern void door_secret_done( svg_base_edict_t *self );
 extern void door_secret_move1( svg_base_edict_t *self );
 extern void door_secret_move2( svg_base_edict_t *self );
@@ -133,7 +133,7 @@ extern void droptofloor( svg_base_edict_t *self );
 
 extern void func_conveyor_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 
-extern void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+extern void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
 extern void func_breakable_pain( svg_base_edict_t *self, svg_base_edict_t *other, float kick, int damage );
 extern void func_breakable_spawn_on_trigger( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
 extern void func_breakable_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );

@@ -83,7 +83,7 @@ const bool SVG_OnSameTeam( svg_base_edict_t *ent1, svg_base_edict_t *ent2 ) {
 Killed
 ============
 */
-void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point)
+static void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point)
 {
     if (targ->health < -999)
         targ->health = -999;
@@ -146,15 +146,15 @@ void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_
 SVG_SpawnDamage
 ================
 */
-void SVG_SpawnDamage(const int32_t type, const vec3_t origin, const vec3_t normal, const int32_t damage) {
+void SVG_SpawnDamage(const int32_t type, const Vector3 &origin, const Vector3 &normal, const int32_t damage) {
     const int32_t cappedDamage = damage > 255 ? 255 : damage;
 
     gi.WriteUint8( svc_temp_entity );
     gi.WriteUint8( type );
 //  gi.WriteByte ( cappedDamage );
-    gi.WritePosition( origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.WriteDir8( normal );
-    gi.multicast( origin, MULTICAST_PVS, false );
+    gi.WritePosition( &origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.WriteDir8( &normal );
+    gi.multicast( &origin, MULTICAST_PVS, false );
 }
 
 
@@ -276,7 +276,7 @@ const bool SVG_CheckTeamDamage(svg_base_edict_t *targ, svg_base_edict_t *attacke
 *           It handles the damage calculation, knockback, and any special
 *           effects based on the type of damage and the entities involved.
 **/
-void SVG_DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
+void SVG_DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const Vector3 &dir, Vector3 &point, const Vector3 &normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) {
     // Let game mode decide.
     game.mode->DamageEntity( targ, inflictor, attacker, dir, point, normal, damage, knockBack, damageFlags, meansOfDeath );
 }

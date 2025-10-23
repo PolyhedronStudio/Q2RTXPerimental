@@ -93,8 +93,8 @@ static inline bool entity_is_new(const centity_t *ent) {
 static void parse_entity_update(const entity_state_t *state)
 {
     centity_t *ent = ENTITY_FOR_NUMBER( state->number );
-    const vec_t *origin;
-    vec3_t origin_v;
+    const Vector3 *origin;
+    Vector3 origin_v;
 
     // If entity is solid, and not our client entity, add it to the solid entity list.
     if ( state->solid && state->number != cl.frame.clientNum + 1 && cl.numSolidEntities < MAX_PACKET_ENTITIES ) {
@@ -120,9 +120,9 @@ static void parse_entity_update(const entity_state_t *state)
         } else {
             VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
         }
-        origin = origin_v;
+        origin = &origin_v;
     } else {
-        origin = state->origin;
+        origin = &state->origin;
     }
 
     // See if the entity is new for the current serverframe or not and base our next move on that.

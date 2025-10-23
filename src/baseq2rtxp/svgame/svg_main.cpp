@@ -520,6 +520,17 @@ void CheckNeedPass(void) {
 }
 
 /**
+*   @brief  Defer
+**/
+static void DeferRemoveClientInfo( svg_base_edict_t *ent ) {
+    // "Defer removing client info so that disconnected, etc works."
+    if ( ent->timestamp && level.time < ent->timestamp ) {
+        const int32_t playernum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
+        gi.configstring( CS_PLAYERSKINS + playernum, "" );
+        ent->timestamp = 0_sec;
+    }
+}
+/**
 *   @brief  Checks the entity for whether its event should be cleared.
 *   @return True if the entity is meant to be skipped for iterating further on afterwards.
 **/
@@ -592,45 +603,54 @@ void SVG_RunFrame(void) {
     //
     svg_base_edict_t *ent = ent = g_edict_pool.EdictForNumber( 0 );
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
+		// skip nullptr edicts.
         if ( !ent ) {
             continue;
         }
-        if ( ent && !ent->inuse ) {
-            // "Defer removing client info so that disconnected, etc works."
-            if ( i > 0 && i <= game.maxclients ) {
-                if ( ent->timestamp && level.time < ent->timestamp ) {
-                    const int32_t playernum = g_edict_pool.NumberForEdict( ent ) - 1;//ent - g_edicts - 1;
-                    gi.configstring( CS_PLAYERSKINS + playernum, "" );
-                    ent->timestamp = 0_sec;
-                }
+        // Determine whether it is a client entity based on the loop indexer.
+        const bool isClientEntity = i > 0 && i <= game.maxclients;
+		/**
+        *   Defer removing client info for clients that are no longer in use.
+        **/
+        if ( !ent->inuse ) {
+            if ( isClientEntity ) {
+                DeferRemoveClientInfo( ent );
             }
             // Skip since entity is not in use.
             continue;
         }
 
-
-        // Set the current entity being processed for the current frame.
+        /**
+        *   Set the current entity being processed for the current frame.
+        **/
         level.current_entity = ent;
 
-		// Clear events that are too old.
+        /**
+		*   Clear events that are too old.
+        **/
         if ( CheckClearEntityEvents( ent ) == true ) {
             // Entity has been freed or whatever, but we shall not pass.
 			// Skip the entity for further processing.
             continue;
         }
-        // Temp entities never think.
+
+        /**
+        *   Temp entities never think. 
+        **/
         if ( ent->freeAfterEvent ) {
             // Skip.
             continue;
         }
-
-
-        // RF Beam Entities update their old_origin by hand.
+        /**
+        *   RF Beam Entities update their old_origin by hand.
+        **/
         if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
             VectorCopy( ent->s.origin, ent->s.old_origin );
         }
 
-        // If the ground entity moved, make sure we are still on it.
+        /**
+        *   If the ground entity moved, make sure we are still on it.
+        **/
         if ( ( ent->groundInfo.entity ) && ( ent->groundInfo.entity->linkcount != ent->groundInfo.entityLinkCount ) ) {
             cm_contents_t mask = SVG_GetClipMask( ent );
 
@@ -652,15 +672,23 @@ void SVG_RunFrame(void) {
             }
         }
 
-        if ( i > 0 && i <= maxclients->value ) {
+        /**
+		*   Client entities are handled seperately.
+        **/
+        if ( isClientEntity ) {
             SVG_Client_BeginServerFrame( ent );
             continue;
+        /**
+		*   Other entities are handled here.
+        **/
         } else {
+			// For Pushers, store their last origins and angles before running them.
             if ( ent->s.entityType == ET_PUSHER ) {
                 // Make sure to store the last ... origins and angles.
                 ent->lastOrigin = ent->s.origin;
                 ent->lastAngles = ent->s.angles;
             }
+            // Run the entity now. (Make it 'think'.)
             SVG_RunEntity( ent );
         }
     }

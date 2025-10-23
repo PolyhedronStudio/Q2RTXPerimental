@@ -79,7 +79,7 @@
 //	Die.
 //
 #define DECLARE_MEMBER_CALLBACK_DIE(className, functionName) \
-	static auto functionName(className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point ) -> void; \
+	static auto functionName(className *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void; \
 
 //
 //	PushMoveInfo EndMove.

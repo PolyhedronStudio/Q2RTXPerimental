@@ -443,7 +443,9 @@ char *vtos( const vec3_t v ) {
 
 	return str[ index ];
 }
-
+char *vtos( const Vector3 &v ) {
+	return vtos( &v.x );
+}
 
 
 /**

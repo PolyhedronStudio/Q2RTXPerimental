@@ -172,10 +172,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink )( svg_target_laser_t 
                 gi.WriteUint8( svc_temp_entity );
                 gi.WriteUint8( TE_LASER_SPARKS );
                 gi.WriteUint8( count );
-                gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                gi.WriteDir8( tr.plane.normal );
+                gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+				const Vector3 planeNormal = tr.plane.normal;
+                gi.WriteDir8( &planeNormal );
                 gi.WriteUint8( self->s.skinnum );
-                gi.multicast( tr.endpos, MULTICAST_PVS, false );
+                gi.multicast( &tr.endpos, MULTICAST_PVS, false );
             }
             break;
         }
@@ -273,4 +274,4 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_laser_t, onUse )( svg_target_laser_t *sel
 /**
 *   @brief
 **/
-//DEFINE_MEMBER_CALLBACK_DIE( svg_target_laser_t, onDie )( svg_target_laser_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void { }
+//DEFINE_MEMBER_CALLBACK_DIE( svg_target_laser_t, onDie )( svg_target_laser_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void { }

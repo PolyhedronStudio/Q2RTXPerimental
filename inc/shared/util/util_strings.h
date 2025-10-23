@@ -250,6 +250,7 @@ char *vtos( const vec3_t v );
 QEXTERN_C_CLOSE
 
 #ifdef __cplusplus
+char *vtos( const Vector3 &v );
 /**
 *	@brief	Formats a size in bytes into a human-readable string.
 *	@param	bytes The size in bytes to format.

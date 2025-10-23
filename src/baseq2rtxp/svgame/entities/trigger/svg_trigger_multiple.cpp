@@ -94,9 +94,9 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_multiple_t, onTouch )( svg_trigger_mul
 	}
 
 	if ( !VectorEmpty( self->movedir ) ) {
-		vec3_t  forward;
+		Vector3  forward;
 
-		AngleVectors( other->s.angles, forward, NULL, NULL );
+		QM_AngleVectors( other->s.angles, &forward, NULL, NULL );
 		if ( DotProduct( forward, self->movedir ) < 0 ) {
 			return;
 		}

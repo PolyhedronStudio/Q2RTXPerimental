@@ -157,7 +157,7 @@ typedef struct {
 	**/
 	const cm_trace_t( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const cm_contents_t contentmask );
 	const cm_trace_t( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const cm_contents_t contentmask );
-	const cm_contents_t( *q_gameabi PointContents )( const vec3_t point );
+	const cm_contents_t( *q_gameabi PointContents )( const Vector3 *point );
 
 
 
@@ -895,12 +895,12 @@ typedef struct {
 	*	@brief	Called when a new frame has been received that contains an entity
 	*			which was not present in the previous frame.
 	**/
-	void ( *EntityState_FrameEnter )( centity_t *ent, const entity_state_t *state, const vec_t *origin );
+	void ( *EntityState_FrameEnter )( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
 	/**
 	*	@brief	Called when a new frame has been received that contains an entity
 	*			already present in the previous frame.
 	**/
-	void ( *EntityState_FrameUpdate )( centity_t *ent, const entity_state_t *state, const vec_t *origin );
+	void ( *EntityState_FrameUpdate )( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
 	/**
 	*   Determine whether the player state has to lerp between the current and old frame,
 	*   or snap 'to'.

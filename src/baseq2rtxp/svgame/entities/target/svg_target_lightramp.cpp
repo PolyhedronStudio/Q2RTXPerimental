@@ -185,4 +185,4 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_lightramp_t, onUse )( svg_target_lightram
 /**
 *   @brief
 **/
-//DEFINE_MEMBER_CALLBACK_DIE( svg_target_lightramp_t, onDie )( svg_target_lightramp_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void { }
+//DEFINE_MEMBER_CALLBACK_DIE( svg_target_lightramp_t, onDie )( svg_target_lightramp_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void { }

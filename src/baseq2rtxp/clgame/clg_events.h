@@ -22,4 +22,4 @@ void CLG_CheckEntityEvents( centity_t *cent );
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-const bool CLG_CheckPlayerEvent( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin );
+const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin );

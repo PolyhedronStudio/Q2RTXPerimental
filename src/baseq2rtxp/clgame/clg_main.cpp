@@ -448,14 +448,14 @@ void PF_ClearState( void ) {
 *	@brief	Called when a new frame has been received that contains an entity
 *			which was not present in the previous frame.
 **/
-static void PF_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
+static void PF_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
 	CLG_EntityState_FrameEnter( ent, state, origin );
 }
 /**
 *	@brief	Called when a new frame has been received that contains an entity
 *			already present in the previous frame.
 **/
-static void PF_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
+static void PF_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
 	CLG_EntityState_FrameUpdate( ent, state, origin );
 }
 /**

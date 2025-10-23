@@ -52,11 +52,6 @@ void SVG_P_ProcessAnimations( svg_base_edict_t *ent );
 *
 **/
 /**
-*   @brief  Packs up the client number, weapon number and viewheigt of the player into entity skinnum.
-**/
-
-
-/**
 *   @brief  Called either when a player connects to a server, OR respawns in a multiplayer game.
 *
 *           Will look up a spawn point, spawn(placing) the player 'body' into the server and (re-)initializing
@@ -354,7 +349,6 @@ void SVG_Client_UserinfoChanged( svg_base_edict_t *ent, char *userinfo ) {
 
 
 
-
 /**
 *
 *
@@ -377,7 +371,8 @@ void SVG_Client_RespawnPlayer( svg_base_edict_t *self ) {
         SVG_Player_SpawnInBody( self );
 
         // Add a teleportation effect
-        self->s.event = EV_PLAYER_TELEPORT;
+        //self->s.event = EV_PLAYER_TELEPORT;
+		SVG_Util_AddEvent( self, EV_PLAYER_TELEPORT, 0 );
 
         // Hold in place briefly
         self->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
@@ -459,7 +454,7 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
         gi.WriteUint8( MZ_LOGIN );
-        gi.multicast( ent->s.origin, MULTICAST_PVS, false );
+        gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
 
         // hold in place briefly
         ent->client->ps.pmove.pm_flags = PMF_TIME_TELEPORT;
@@ -473,63 +468,6 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
     } else {
         gi.bprintf( PRINT_HIGH, "%s joined the game\n", ent->client->pers.netname );
     }
-}
-
-
-
-/**
-*
-*
-*
-*   Client UseTargetHint Functionality.:
-*
-*
-*
-**/
-/**
-*   @brief  Unsets the current client stats usetarget info.
-**/
-void Client_ClearUseTargetHint( svg_base_edict_t *ent, svg_client_t *client, svg_base_edict_t *useTargetEntity ) {
-    // Nothing for display.
-    client->ps.stats[ STAT_USETARGET_HINT_ID ] = 0;
-    client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] = 0;
-}
-/**
-*   @brief  Determines the necessary UseTarget Hint information for the hovered entity(if any).
-*   @return True if the entity has legitimate UseTarget Hint information. False if unset, or not found at all.
-**/
-const bool SVG_Client_UpdateUseTargetHint( svg_base_edict_t *ent, svg_client_t *client, svg_base_edict_t *useTargetEntity ) {
-    // We got an entity.
-    if ( useTargetEntity && useTargetEntity->useTarget.hintInfo ) {
-        // Determine UseTarget Hint Info:
-        const sg_usetarget_hint_t *useTargetHint = SG_UseTargetHint_GetByID( useTargetEntity->useTarget.hintInfo->index );
-        // > 0 means it is a const char in our data array.
-        if ( useTargetEntity->useTarget.hintInfo->index > USETARGET_HINT_ID_NONE ) {
-            // Apply stats if valid data.
-            if ( useTargetHint &&
-                ( useTargetHint->index > USETARGET_HINT_ID_NONE && useTargetHint->index < USETARGET_HINT_ID_MAX ) ) {
-                client->ps.stats[ STAT_USETARGET_HINT_ID ] = useTargetHint->index;
-                client->ps.stats[ STAT_USETARGET_HINT_FLAGS ] |= ( SG_USETARGET_HINT_FLAGS_DISPLAY | useTargetHint->flags );
-            // Clear out otherwise.
-            } else {
-                Client_ClearUseTargetHint( ent, client, useTargetEntity );
-            }
-        // < 0 means that it is passed to us by a usetarget hint info command.
-        } else if ( useTargetEntity->useTarget.hintInfo->index < 0 ) {
-            // TODO:
-            Client_ClearUseTargetHint( ent, client, useTargetEntity );
-        // Clear whichever it previously contained. we got nothing to display.
-        } else {
-            // Clear whichever it previously contained. we got nothing to display.
-            Client_ClearUseTargetHint( ent, client, useTargetEntity );
-        }
-    } else {
-        // Clear whichever it previously contained. we got nothing to display.
-        Client_ClearUseTargetHint( ent, client, useTargetEntity );
-    }
-
-    // Succeeded at updating the UseTarget Hint if it is NOT zero.
-    return ( client->ps.stats[ STAT_USETARGET_HINT_ID ] == 0 ? false : true );
 }
 
 

@@ -75,7 +75,7 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( gib_touch )( svg_base_edict_t *self, svg_base_edic
 
         QM_Vector3ToAngles(plane->normal, normal_angles);
         AngleVectors(normal_angles, NULL, right, NULL);
-        QM_Vector3ToAngles(right, self->s.angles);
+        self->s.angles = QM_Vector3ToAngles(right);
 
         if (self->s.modelindex == gi.modelindex( "models/objects/gibs/sm_meat/tris.md2" ) ) {
             
@@ -88,7 +88,7 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( gib_touch )( svg_base_edict_t *self, svg_base_edic
 /**
 *   @brief
 **/
-DEFINE_GLOBAL_CALLBACK_DIE( gib_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
+DEFINE_GLOBAL_CALLBACK_DIE( gib_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void {
     g_edict_pool.FreeEdict( self );
 }
 
@@ -244,7 +244,7 @@ void SVG_Misc_ThrowClientHead( svg_base_edict_t *self, const int32_t damage ) {
 * 
 * 
 ***/
-void debris_die(svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point)
+void debris_die(svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point)
 {
     SVG_FreeEdict(self);
 }
@@ -312,8 +312,8 @@ void SVG_Misc_BecomeExplosion( svg_base_edict_t *self, int type, const bool free
     //}
     // Regular explosion.
     gi.WriteUint8( TE_PLAIN_EXPLOSION );
-    gi.WritePosition( self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.multicast( self->s.origin, MULTICAST_PVS, false );
+    gi.WritePosition( &self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    gi.multicast( &self->s.origin, MULTICAST_PVS, false );
 
     // Free the entity if requested.
 	if ( freeEntity ) {

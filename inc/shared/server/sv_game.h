@@ -18,6 +18,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #pragma once
 
 
+// To make this file compatible for inclusion in both C and C++ files.
+// We will typedef for Vector3, a reference and a pointer type.
+typedef Vector3* cpp_vec3_t;
+
 // Include needed shared refresh types.
 // ( We need some data so we can partially get and process animation data. )
 #include "refresh/shared_types.h"
@@ -193,7 +197,7 @@ typedef struct {
     void ( *q_printf( 3, 4 ) cprintf )( edict_ptr_t *ent, int printlevel, const char *fmt, ... );
     void ( *q_printf( 2, 3 ) centerprintf )( edict_ptr_t *ent, const char *fmt, ... );
     void ( *sound )( edict_ptr_t *ent, int channel, int soundindex, float volume, float attenuation, float timeofs );
-    void ( *positioned_sound )( const vec3_t origin, edict_ptr_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs );
+    void ( *positioned_sound )( const Vector3 *origin, edict_ptr_t *ent, int channel, int soundinedex, float volume, float attenuation, float timeofs );
 
 
     /**
@@ -231,21 +235,21 @@ typedef struct {
     *
     **/
     //! Perform a trace through the world and its entities with a bbox from start to end point.
-    const cm_trace_t( *trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, edict_ptr_t *passent, const cm_contents_t contentmask );
+    const cm_trace_t( *trace )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, edict_ptr_t *passent, const cm_contents_t contentmask );
     //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
-    const cm_trace_t( *clip )( edict_ptr_t *entity, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentmask );
+    const cm_trace_t( *clip )( edict_ptr_t *entity, const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentmask );
     //! Returns a cm_contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
-    const cm_contents_t( *pointcontents )( const vec3_t point );
+    const cm_contents_t( *pointcontents )( const Vector3 *point );
     /**
     *   @return True if the points p1 to p2 are within two visible areas.
     *   @note   Also checks portalareas so that doors block sight.
     **/
-    const bool( *inPVS )( const vec3_t p1, const vec3_t p2 );
+    const bool( *inPVS )( const Vector3 *p1, const Vector3 *p2 );
     /**
     *   @return True if the points p1 to p2 are within two hearable areas.
     *   @note   Also checks portalareas so that doors block hearing.
     **/
-    const bool( *inPHS )( const vec3_t p1, const vec3_t p2 );
+    const bool( *inPHS )( const Vector3 *p1, const Vector3 *p2 );
     //! Set the state of the matching area portal number.
     void ( *SetAreaPortalState )( const int32_t portalnum, const bool open );
     //! Get state of the matching area portal number.
@@ -261,7 +265,7 @@ typedef struct {
     //! UnLink the entity from the world area grid for collision detection.
     void ( *unlinkentity )( edict_ptr_t *ent );
     //! Return all entities that are inside or touching the bounding box area into the list array.
-    const int32_t( *BoxEdicts )( const vec3_t mins, const vec3_t maxs, edict_ptr_t **list, const int32_t maxcount, const int32_t areatype );
+    const int32_t( *BoxEdicts )( const Vector3 *mins, const Vector3 *maxs, edict_ptr_t **list, const int32_t maxcount, const int32_t areatype );
 
 
     /**
@@ -314,7 +318,7 @@ typedef struct {
     *
     **/
     //! Will broadcast the current written message write buffer to all(multiple) clients (optional: that are in the same PVS/PHS as origin.)
-    void ( *multicast )( const vec3_t origin, multicast_t to, bool reliable );
+    void ( *multicast )( const Vector3 *origin, multicast_t to, bool reliable );
     //! Will broadcast the current written message write buffer to the client that is attached to ent.
     void ( *unicast )( edict_ptr_t *ent, bool reliable );
     void ( *WriteInt8 )( const int32_t c );
@@ -330,8 +334,8 @@ typedef struct {
     void ( *WriteFloat )( const float f );
     void ( *WriteDouble )( const double d );
     void ( *WriteString )( const char *s );
-    void ( *WritePosition )( const vec3_t pos, const msgPositionEncoding_t encoding );    // some fractional bits
-    void ( *WriteDir8 )( const vec3_t pos );         // single byte encoded, very coarse
+    void ( *WritePosition )( const Vector3 *pos, const msgPositionEncoding_t encoding );    // some fractional bits
+    void ( *WriteDir8 )( const Vector3 *pos );         // single byte encoded, very coarse
     void ( *WriteAngle8 )( const float f );
     void ( *WriteAngle16 )( const float f );
 

@@ -50,7 +50,7 @@ void CLG_ParticleEffectWaterSplash( const vec3_t org, const vec3_t dir, int colo
 void CLG_BloodParticleEffect( const vec3_t org, const vec3_t dir, int color, int count );
 void CLG_ParticleEffect2( const vec3_t org, const vec3_t dir, int color, int count );
 void CLG_TeleporterParticles( const vec3_t org );
-void CLG_LogoutEffect( const vec3_t org, int type );
+void CLG_LogoutEffect( const Vector3 &org, int type );
 void CLG_ItemRespawnParticles( const vec3_t org );
 void CLG_ExplosionParticles( const vec3_t org );
 void CLG_BigTeleportParticles( const vec3_t org );
@@ -115,6 +115,10 @@ void CLG_AddLightStyles( void );
 *	effects/clg_fx_muzzleflash.cpp & effects/clg_fx_muzzleflash2.cpp
 *
 ***/
+/**
+*	@brief	Adds a muzzleflash dynamic light.
+**/
+clg_dlight_t *CLG_AddMuzzleflashDLight( centity_t *pl, Vector3 &fv, Vector3 &rv );
 /**
 *   @brief  Handles the parsed client muzzleflash effects.
 **/

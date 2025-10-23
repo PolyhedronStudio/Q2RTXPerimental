@@ -66,7 +66,7 @@ svg_base_edict_t *SVG_Entities_Find( svg_base_edict_t *from, const int32_t field
 /**
 *   @brief  Similar to SVG_Entities_Find, but, returns entities that have origins within a spherical area.
 **/
-svg_base_edict_t *SVG_Entities_FindWithinRadius( svg_base_edict_t *from, const vec3_t org, const float rad ) {
+svg_base_edict_t *SVG_Entities_FindWithinRadius( svg_base_edict_t *from, const Vector3 &org, const float rad ) {
     vec3_t  eorg;
     int     j;
 
@@ -126,7 +126,7 @@ void SVG_Entities_InitBodyQue( void ) {
 *   @brief
 **/
 DECLARE_GLOBAL_CALLBACK_DIE( body_die );
-DEFINE_GLOBAL_CALLBACK_DIE( body_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) -> void {
+DEFINE_GLOBAL_CALLBACK_DIE( body_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void {
     int n;
 
     if ( self->health < -40 ) {
@@ -155,9 +155,9 @@ void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
     if ( body->s.modelindex ) {
         gi.WriteUint8( svc_temp_entity );
         gi.WriteUint8( TE_BLOOD );
-        gi.WritePosition( body->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        gi.WriteDir8( vec3_origin );
-        gi.multicast( body->s.origin, MULTICAST_PVS, false );
+        gi.WritePosition( &body->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        gi.WriteDir8( (const Vector3*)&qm_vector3_null );
+        gi.multicast( &body->s.origin, MULTICAST_PVS, false );
     }
 
     gi.unlinkentity( body );

@@ -84,7 +84,11 @@ typedef enum sg_entity_events_e {
     /**
     *   Footstep Events:
     **/
-    EV_FOOTSTEP = EV_ENGINE_MAX + 1,
+    //! For players.
+    EV_PLAYER_FOOTSTEP = EV_ENGINE_MAX,
+	//! For other entities.
+    EV_OTHER_FOOTSTEP,
+	//! For ladder climbing entities.
     EV_FOOTSTEP_LADDER,
 
     /**
@@ -130,8 +134,13 @@ typedef enum sg_entity_events_e {
     /**
     *   Teleport Effects:
     **/
+    //! Player Login.
+    EV_PLAYER_LOGIN,
+    //! Player Logout.
+    EV_PLAYER_LOGOUT,
     //! Player teleporting.
     EV_PLAYER_TELEPORT, // <Q2RTXP>: TODO: PS_EV_MAX? Or... just use these for PS_EV_...
+
 	//! Other entity teleporting.
     EV_OTHER_TELEPORT,
 
@@ -155,7 +164,7 @@ typedef enum sg_entity_events_e {
 *
 *
 **/
-static constexpr const char *sg_event_string_names[ EV_GAME_MAX ] = {
+static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     "EV_ENGINE_NONE",
 
     "EV_FOOTSTEP",
@@ -179,8 +188,18 @@ static constexpr const char *sg_event_string_names[ EV_GAME_MAX ] = {
 
     "PS_EV_MAX",
 
+    "EV_PLAYER_LOGIN",
+    "EV_PLAYER_LOGOUT",
+
     "EV_PLAYER_TELEPORT",
     "EV_OTHER_TELEPORT",
 
-    "EV_ITEM_RESPAWN"
+    "EV_ITEM_RESPAWN",
+
+    "EV_GAME_MAX",
 };
+
+/**
+*   @brief   Compile-time assert to ensure that the sg_event_string_names array size matches EV_GAME_MAX.
+**/
+static_assert( std::size( sg_event_string_names ) == EV_GAME_MAX, "sg_event_string_names array size does not match expected size(EV_GAME_MAX), make sure all string identifiers for each event exist and are validly indexed." );

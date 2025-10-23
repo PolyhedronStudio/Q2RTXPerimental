@@ -24,6 +24,7 @@
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_events.h"
 #include "svgame/player/svg_player_move.h"
+#include "svgame/player/svg_player_usetargets.h"
 
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
@@ -38,267 +39,24 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const cm_trace_t q_gameabi SV_PM_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const void *passEntity, const cm_contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Trace( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const void *passEntity, const cm_contents_t contentMask ) {
     //if (pm_passent->health > 0)
     //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
     //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
-    return SVG_Trace( start, mins, maxs, end, (svg_base_edict_t *)passEntity, contentMask );
+    return gi.trace( start, mins, maxs, end, (svg_base_edict_t *)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const cm_trace_t q_gameabi SV_PM_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const cm_contents_t contentMask ) {
-    return SVG_Clip( g_edict_pool.EdictForNumber( 0 ) /* worldspawn */, start, mins, maxs, end, contentMask);
+static const cm_trace_t q_gameabi SV_PM_Clip( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentMask ) {
+    return gi.clip( g_edict_pool.EdictForNumber( 0 ) /* worldspawn */, start, mins, maxs, end, contentMask);
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const cm_contents_t q_gameabi SV_PM_PointContents( const vec3_t point ) {
+static const cm_contents_t q_gameabi SV_PM_PointContents( const Vector3 *point ) {
     return gi.pointcontents( point );
-}
-
-
-
-/**
-*
-*   +usetarget/-usetarget:
-*
-*   Toggle Entities:
-*   Will trigger an entity only once in case of the keypress(+usetarget).
-*
-*   Toggle Example:
-*   When the keypress(+usetarget) is processed on a button, it will trigger it
-*   only once. For the next keypress(+usetarget) it will trigger the button once
-*   again, resulting in its state now untoggling.
-*
-*
-*   Hold Entities:
-*   In case of a 'hold' entity, it means we trigger on both the keypress(+usetarget),
-*   and keyrelease(-usetarget), as well as when the client loses the entity out of its
-*   crosshair's focus. Whether this can be perceived as truly holding depends on the
-*   entity its own implementation. See the example below:
-*
-*   Hold Example:
-*   We could have a box entity. When +usetarget triggered, it assigns the client as its
-*   owner. In its 'use' callback, if its 'owner' pointer != (nullptr),
-*   it can check if the activator is its actual owner. If it is, then it can reset its
-*   'owner' pointer back to (nullptr). Theoretically this allows for concepts such as
-*   the possibility of objects that one can pick up and move around.
-*
-**/
-/**
-*   @brief  
-**/
-void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput /*= false */) {
-    // Get the (+targetuse) key state.
-    const bool isTargetUseKeyHolding = ( client->userInput.heldButtons & BUTTON_USE_TARGET );
-    const bool isTargetUseKeyPressed = ( client->userInput.pressedButtons & BUTTON_USE_TARGET );
-    const bool isTargetUseKeyReleased = ( client->userInput.releasedButtons & BUTTON_USE_TARGET );
-
-    // AngleVecs.
-    Vector3 vForward, vRight;
-    QM_AngleVectors( client->viewMove.viewAngles, &vForward, &vRight, NULL );
-
-    // Determine the point that is the center of the crosshair, to use as the
-    // start of the trace for finding the entity that is in-focus.
-    Vector3 traceStart;
-    Vector3 viewHeightOffset = { 0., 0., (double)ent->viewheight };
-    SVG_Player_ProjectSource( ent, ent->s.origin, &viewHeightOffset.x, &vForward.x, &vRight.x, &traceStart.x );
-
-    // Translate 48 units into the forward direction from the starting trace, to get our trace end position.
-    constexpr float USE_TARGET_TRACE_DISTANCE = 48.f;
-    Vector3 traceEnd = QM_Vector3MultiplyAdd( traceStart, USE_TARGET_TRACE_DISTANCE, vForward );
-    // Now perform the trace.
-    svg_trace_t traceUseTarget = SVG_Trace( traceStart, qm_vector3_null, qm_vector3_null, traceEnd, ent, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID | CM_CONTENTMASK_MONSTERSOLID ));
-
-    // Get the current activate(in last frame) entity we were (+usetarget) using.
-    svg_base_edict_t *currentTargetEntity = ent->client->useTarget.currentEntity;
-
-    // If it is a valid pointer and in use entity.
-    if ( currentTargetEntity && currentTargetEntity->inuse ) {
-        // And it differs from the one we found by tracing:
-        if ( currentTargetEntity != traceUseTarget.ent ) {
-            // AND it is a continuous usetarget supporting entity, with its state being continuously held:
-            if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
-                && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
-                // Stop useTargetting the entity:
-                if ( currentTargetEntity->HasUseCallback() ) {
-                    currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
-                }
-                // Remove continuous state flag.
-                currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_CONTINUOUS );
-            }
-
-            // Store it as the previous usetarget entity that we had.
-            client->useTarget.previousEntity = client->useTarget.currentEntity;
-
-            // Remove the glow from specified entity.
-            //if ( client->useTarget.previousEntity != nullptr ) {
-            //    client->useTarget.previousEntity->s.renderfx &= ~RF_SHELL_DOUBLE;
-            //}
-        } else {
-            //if ( traceUseTarget.ent ) {
-            //    traceUseTarget.ent->s.renderfx |= RF_SHELL_DOUBLE;
-            //}
-        }
-    }
-
-    // Update the current target entity to that of the new found trace.
-    currentTargetEntity = client->useTarget.currentEntity = traceUseTarget.ent;
-
-    // Update the UseTarget Hinting since the entity has changed.
-    const bool useTargetHintUpdated = SVG_Client_UpdateUseTargetHint( ent, client, currentTargetEntity );
-
-    // Don't process user input?
-    if ( !processUserInput ) {
-        return;
-    }
-
-    // Are we continously holding +usetarget or did we single press it? If so, proceed.
-    if ( currentTargetEntity && ( currentTargetEntity->inuse && currentTargetEntity->s.number != 0 ) ) {
-        // The (+usetarget) key is neither pressed, nor held continuously, thus it was released this frame.
-        if ( isTargetUseKeyReleased ) {
-            // Stop with the continous entity usage:
-            if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
-                && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
-                // Continous entity husage:
-                if ( currentTargetEntity->HasUseCallback() ) {
-                    currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
-                }
-                // Remove continuous state flag.
-                currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
-            }
-        }
-    }
-
-    // Don't continue if there is no (+usetarget) key activity present.
-    if ( ( ( client->userInput.buttons | client->userInput.pressedButtons | client->userInput.releasedButtons ) & BUTTON_USE_TARGET ) == 0 ) {
-        return;
-    }
-
-    // Are we continously holding +usetarget or did we single press it? If so, proceed.
-    if ( currentTargetEntity && ( currentTargetEntity->inuse && currentTargetEntity->s.number != 0 ) ) {
-        // Play audio sound for when pressing onto a valid entity.
-        if ( isTargetUseKeyPressed ) {
-            if ( currentTargetEntity->useTarget.flags != ENTITY_USETARGET_FLAG_NONE ) {
-                if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_DISABLED ) ) {
-                    // Invalid, disabled, sound.
-                    gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
-
-                    // Stop with the continous entity usage:
-                    if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
-                        // Continous entity husage:
-                        if ( currentTargetEntity->HasUseCallback() ) {
-                            currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 0 );
-                        }
-                        // Remove continuous state flag.
-                        currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
-                    }
-                    return;
-                } else {
-                    // Use sound.
-                    gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_use.wav" ), 0.25, ATTN_NORM, 0 );
-                }
-            }
-        }
-        
-        if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ( ENTITY_USETARGET_FLAG_PRESS | ENTITY_USETARGET_FLAG_TOGGLE | ENTITY_USETARGET_FLAG_CONTINUOUS ) )
-            && ( isTargetUseKeyPressed /*|| isTargetUseKeyHolding*/ ) ) 
-        {
-            // Single press entity usage:
-            if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_PRESS ) ) {
-                if ( currentTargetEntity->HasUseCallback() ) {
-                    //// Trigger 'OFF' if it is toggled.
-                    if ( SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_ON ) ) {
-                        currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_OFF, 0 );
-                        //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_ON );
-                        //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_OFF );
-                        currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
-                        // Trigger 'ON' if it is untoggled.
-                    } else {
-                        currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_ON, 1 );
-                        //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ~ENTITY_USETARGET_STATE_OFF );
-                        //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_ON );
-                        currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_ON;
-                    }
-                }
-            }
-            // Toggle press entity usage:
-            else if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_TOGGLE ) ) {
-                if ( currentTargetEntity->HasUseCallback() ) {
-                    // Trigger 'TOGGLE OFF' if it is toggled.
-                    if ( SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_TOGGLED ) ) {
-                        currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 0 );
-                        //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state & ENTITY_USETARGET_STATE_TOGGLED );
-                        currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_OFF;
-                        // Trigger 'TOGGLE ON' if it is untoggled.
-                    } else {
-                        currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_TOGGLE, 1 );
-                        //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_TOGGLED );
-                        currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_TOGGLED;
-                    }
-                }
-            }
-
-            // Toggle press entity usage:
-            else if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
-                if ( currentTargetEntity->HasUseCallback() ) {
-                    currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
-                }
-                currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_CONTINUOUS;
-            }
-        // Holding (+usetarget) key, if it is continuous and has its state set to it,
-        // we CONTINUOUSLY USE the target.
-        } else if ( isTargetUseKeyHolding
-            && SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
-            && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) {
-            // Continous entity husage:
-            if ( currentTargetEntity->HasUseCallback() ) {
-                currentTargetEntity->DispatchUseCallback( ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
-            }
-            // Apply continuous hold state.
-            //currentTargetEntity->useTarget.state = ( currentTargetEntity->useTarget.state | ENTITY_USETARGET_STATE_CONTINUOUS );
-            currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_CONTINUOUS;
-        // Holding (+usetarget) key, thus we continously USE the target entity.
-        } //else if ( !isTargetUseKeyPressed && isTargetUseKeyHolding  
-        //    && SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS )
-        //    && SVG_Entity_HasUseTargetState( currentTargetEntity, ENTITY_USETARGET_STATE_CONTINUOUS ) ) 
-        //{
-        //    // Continous entity husage:
-        //    if ( currentTargetEntity->use ) {
-        //        currentTargetEntity->use( currentTargetEntity, ent, ent, ENTITY_USETARGET_TYPE_SET, 1 );
-        //    }
-        //    currentTargetEntity->useTarget.state = ENTITY_USETARGET_STATE_CONTINUOUS;
-        //} 
-
-    } else {
-        // Play audio sound for when pressing onto an invalid (+usetarget) entity.
-        if ( isTargetUseKeyPressed ) {
-            gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
-        }
-    }
-
-    //if ( SVG_Entity_IsActive( currentTargetEntity ) ) {
-    //    gi.dprintf( "targetname(\"%s\", %d)target(\"%s\", %d), isLocked(%s)\n", 
-    //        currentTargetEntity->targetname.ptr, 
-    //        currentTargetEntity->targetname.count,
-    //        currentTargetEntity->targetNames.target.ptr, 
-    //        currentTargetEntity->targetNames.target.count,
-    //        currentTargetEntity->pushMoveInfo.lockState.isLocked ? "true" : "false"
-    //    );
-    //}
-    //// <Debug>
-    //std::string keys = "BUTTONS [ ";
-    //keys += "isTargetUseKeyHolding(";
-    //keys += isTargetUseKeyHolding ? "true" : "false";
-    //keys += "), isTargetUseKeyPressed(";
-    //keys += isTargetUseKeyPressed ? "true" : "false";
-    //keys += "), isTargetUseKeyReleased(";
-    //keys += isTargetUseKeyReleased ? "true" : "false";
-    //keys += ") ]";
-    //Q_DevPrint( keys.c_str() );
-    //// </Debug>
 }
 
 
@@ -315,12 +73,22 @@ void SVG_Client_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
 /**
 *   @brief  Updates the client's userinput states based on the usercommand.
 **/
-static void ClientUpdateUserInput( svg_base_edict_t *ent, svg_client_t *client, usercmd_t *userCommand ) {
-    // [Paril-KEX] pass the usercommand buttons through even if we are in intermission or chasing.
+static void ClientUpdateUserInput( svg_player_edict_t *ent, svg_client_t *client, usercmd_t *userCommand ) {
+	/**
+    *   Regular button update as Q2 does:
+    **/
+    // Store old buttons.
     client->oldbuttons = client->buttons;
+	// Update current buttons.
     client->buttons = userCommand->buttons;
+	// Determine latched buttons.
     client->latched_buttons |= ( client->buttons & ~client->oldbuttons );
+    //client->lastUserCommand = *userCommand;
 
+	/**
+    *   New button update for our extended userInput structure :
+    *       - Makes it easier to deal with certain button states required for entity interactions.
+    **/
     // Store last userInput buttons.
     client->userInput.lastButtons = client->userInput.buttons; // client->buttons
     // Update with the new userCmd buttons.
@@ -338,7 +106,7 @@ static void ClientUpdateUserInput( svg_base_edict_t *ent, svg_client_t *client, 
 /**
 *   @return True if we're still in intermission mode.
 **/
-static const bool ClientCheckIntermission( svg_base_edict_t *ent, svg_client_t *client ) {
+static const bool ClientCheckForIntermission( svg_player_edict_t *ent, svg_client_t *client ) {
     if ( level.intermissionFrameNumber ) {
         client->ps.pmove.pm_type = ( !game.mode->IsMultiplayer() ? PM_SPINTERMISSION : PM_INTERMISSION );
 
@@ -359,117 +127,10 @@ static const bool ClientCheckIntermission( svg_base_edict_t *ent, svg_client_t *
 }
 
 /**
-*   @brief  Determine the impacting falling damage to take. Called directly by ClientThink after each PMove.
-**/
-void P_FallingDamage( svg_base_edict_t *ent, const pmove_t &pm ) {
-    int32_t damage = 0;
-    Vector3 dir = {};
-
-    // Dead stuff can't crater.
-    if ( ent->health <= 0 || ent->lifeStatus ) {
-        return;
-    }
-
-    if ( ent->s.modelindex != MODELINDEX_PLAYER ) {
-        return; // not in the player model
-    }
-
-    if ( ent->movetype == MOVETYPE_NOCLIP ) {
-        return;
-    }
-
-    // Never take falling damage if completely underwater.
-    if ( pm.liquid.level == LIQUID_UNDER ) {
-        return;
-    }
-
-    // ZOID
-    //  never take damage if just release grapple or on grapple
-    //if ( ent->client->ctf_grapplereleasetime >= level.time ||
-    //    ( ent->client->ctf_grapple &&
-    //        ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY ) )
-    //    return;
-    // ZOID
-    
-    // Get impact delta.
-    float delta = pm.impact_delta;
-    #if 0
-    // Determine fall damage based on impact delta.
-    delta = delta * delta * 0.0001f;
-    // Soften damage if inside liquid by the waist.
-    if ( pm.liquid.level == LIQUID_WAIST ) {
-        delta *= 0.25f;
-    }
-    // Soften damage if inside liquid by the feet.
-    if ( pm.liquid.level == LIQUID_FEET ) {
-        delta *= 0.5f;
-    }
-
-    // Damage is too small to be taken into consideration.
-    if ( delta < 7 ) {
-        return;
-    }
-    #endif
-    // WID: restart footstep timer <- NO MORE!! Because doing so causes the weapon bob 
-    // position to insta shift back to start.
-    //ent->client->ps.bobCycle = 0;
-
-    //if ( ent->client->landmark_free_fall ) {
-    //    delta = min( 30.f, delta );
-    //    ent->client->landmark_free_fall = false;
-    //    ent->client->landmark_noise_time = level.time + 100_ms;
-    //}
-
-    //if ( delta < 15  ) {
-    //    if ( !( pm.state->pmove.pm_flags & PMF_ON_LADDER ) ) {
-    //        ent->s.event = EV_FOOTSTEP;
-    //        gi.dprintf( "%s: delta < 15 footstep\n", __func__ );
-    //    }
-    //    return;
-    //}
-
-    // Calculate the fall value for view adjustments.
-    ent->client->viewMove.fallValue = delta * 0.5f;
-    if ( ent->client->viewMove.fallValue > 40 ) {
-        ent->client->viewMove.fallValue = 40;
-    }
-    ent->client->viewMove.fallTime = level.time + FALL_TIME();
-
-    // Apply fall event based on delta.
-    //if ( delta > 40 ) {
-    //    if ( delta >= 60 ) {
-    //        ent->s.event = EV_FALLFAR;
-    //    } else {
-    //        ent->s.event = EV_FALL;
-    //    }
-
-    //    // WID: We DO want the VOICE channel to SHOUT in PAIN
-    //    //ent->pain_debounce_time = level.time + FRAME_TIME_S; // No normal pain sound.
-
-    //    damage = (int)( ( delta - 30 ) / 2 );
-    //    if ( damage < 1 ) {
-    //        damage = 1;
-    //    }
-    //    VectorSet( dir, 0.f, 0.f, 1.f );// dir = { 0, 0, 1 };
-
-    //    if ( !deathmatch->integer ) {
-    //        SVG_DamageEntity( ent, world, world, &dir.x, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
-    //    }
-    //} else if ( delta >= 7 ){
-    //    ent->s.event = EV_FALLSHORT;
-    //}
-
-    // Falling damage noises alert monsters
-    if ( ent->health >= 0 ) { // Was: if ( ent->health )
-        SVG_Player_PlayerNoise( ent, &pm.state->pmove.origin[ 0 ], PNOISE_SELF );
-    }
-}
-
-/**
 *   @brief  Copies in the necessary client data into the player move struct in order to perform a frame worth of
 *           movement, copying back the resulting player move data into the client and entity fields.
 **/
-static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
+static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
     // Save for determining whether event changed.
     //const int32_t oldEventSequence = client->ps.eventSequence;
     
@@ -512,6 +173,7 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
     pm->clip = SV_PM_Clip;
     // Let us not forget about the simulation time before the actual mode.
     pm->simulationTime = level.time;
+
     // Move!
     SG_PlayerMove( (pmove_s *)pm, (pmoveParams_s *)pmp );
     // Backup the pmove result as the 'old' previous client player move.
@@ -520,7 +182,7 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
     client->resp.cmd_angles = userCommand->angles; // VectorCopy( userCommand->angles, client->resp.cmd_angles );
 
     // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
-    if ( pm->ground.entity/* && ent->groundInfo.entity */) {
+    if ( pm->ground.entity && ent->groundInfo.entity ) {
         const double stepsize = fabs( ent->s.origin[ 2 ] - pm->state->pmove.origin[ 2 ] );
         if ( stepsize > PM_STEP_MIN_SIZE && stepsize <= PM_STEP_MAX_SIZE ) {
             ent->s.renderfx |= RF_STAIR_STEP;
@@ -537,7 +199,7 @@ static void ClientRunPlayerMove( svg_base_edict_t *ent, svg_client_t *client, us
 /**
 *   @brief  Copy in the remaining player move data into the entity and client structs, responding to possible changes.
 **/
-static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
+static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
     // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
     if ( ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
         VectorCopy( ent->s.origin, client->last_ladder_pos );
@@ -552,13 +214,13 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
         }
     }
 
-    // [Paril-KEX] save old position for ClientProcessTouches
+    // [Paril-KEX] save old position for PMove_ProcessTouchTraces
     const Vector3 oldOrigin = ent->s.origin;
 
     // Copy back into the entity, both the resulting origin and velocity.
     // <Q2RTXP>: WID: We do this after processing touches instead to prevent collision issues.
-    //VectorCopy( pm.state->pmove.origin, ent->s.origin );
-    VectorCopy( pm.state->pmove.velocity, ent->velocity );
+    ent->s.origin = pm.state->pmove.origin;
+    ent->velocity = pm.state->pmove.velocity;
     // Copy back in bounding box results. (Player might've crouched for example.)
     VectorCopy( pm.mins, ent->mins );
     VectorCopy( pm.maxs, ent->maxs );
@@ -583,7 +245,7 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
     ent->liquidInfo.level = pm.liquid.level;
     ent->liquidInfo.type = pm.liquid.type;
     // Do the same for ground info.
-    ent->groundInfo.entity = (svg_base_edict_t*)pm.ground.entity;
+    ent->groundInfo.entity = static_cast<svg_base_edict_t *>( pm.ground.entity );
     ent->groundInfo.contents = pm.ground.contents;
     ent->groundInfo.material = pm.ground.material;
     ent->groundInfo.plane = pm.ground.plane;
@@ -598,7 +260,7 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
         client->ps.viewangles[ ROLL ] = 40;
         client->ps.viewangles[ PITCH ] = -15;
         client->ps.viewangles[ YAW ] = client->killer_yaw;
-        // Otherwise, apply the player move state view angles:
+    // Otherwise, apply the player move state view angles:
     } else {
         client->ps.viewangles = pm.state->viewangles; // VectorCopy( pm.state->viewangles, client->ps.viewangles );
         client->viewMove.viewAngles = client->ps.viewangles; // VectorCopy( client->ps.viewangles, client->viewMove.viewAngles );
@@ -612,13 +274,17 @@ static const Vector3 ClientPostPlayerMove( svg_base_edict_t *ent, svg_client_t *
 /**
 *   @brief  Will search for touching trigger and projectiles, dispatching their touch callback when touching.
 **/
-static void ClientProcessTouches( svg_base_edict_t *ent, svg_client_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
+static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
 
     // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
     if ( ent->movetype != MOVETYPE_NOCLIP ) {
         SVG_Util_TouchTriggers( ent );
         SVG_Util_TouchProjectiles( ent, oldOrigin );
     }
+
+    // <Q2RTXP>: WID: We do this here to prevent collision issues.
+    // Copy back into the entity, both the resulting origin.
+    ent->s.origin = pm.state->pmove.origin;
 
     // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
     for ( int32_t i = 0; i < pm.touchTraces.count; i++ ) {
@@ -632,6 +298,8 @@ static void ClientProcessTouches( svg_base_edict_t *ent, svg_client_t *client, p
         }
     }
 }
+
+
 
 /**
 *   @brief  This will be called once for each client frame, which will usually
@@ -647,85 +315,99 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         return;
     }
 
+    // Ensure we are dealing with a player entity here.
+    if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+        gi.dprintf( "%s: Not a player entity.\n", __func__ );
+        return;
+    }
+
+    // In a function that is assigned to a function pointer, where we expect a 
+    // svg_player_edict_t it'll already be the argument so we won't need casting :-)
+    //
+    // Just make sure to never assign it to an incorrect entity type.
+    svg_player_edict_t *player_ent = static_cast<svg_player_edict_t *>( ent );
+
     // Acquire its client pointer.
-    svg_client_t *client = ent->client;
+    svg_client_t *client = player_ent->client;
     // Warn in case if it is not a client.
     if ( !client ) {
         gi.bprintf( PRINT_WARNING, "%s: ent->client == nullptr\n", __func__ );
         return;
     }
 
+    /**
+	*   Backup some soon to be old client data:
+    **/
     // Backup old event sequence.
-    int32_t oldEventSequence = client->ops.eventSequence;
-
+    int32_t oldEventSequence = client->ps.eventSequence;
     // Backup the old player state.
     client->ops = client->ps;
 
-    // Configure player movement data.
-    pmove_t pm = {};
-    pmoveParams_t pmp = {};
-    SG_ConfigurePlayerMoveParameters( &pmp );
-
-    // Update client user input.
-    ClientUpdateUserInput( ent, client, ucmd );
+    /**
+    *   Update client user input:
+    **/
+    ClientUpdateUserInput( player_ent, client, ucmd );
 
     /**
     *   Level Intermission Path:
     **/
     // Update intermission status.
-    const bool intermissionResult = ClientCheckIntermission( ent, client );
+    const bool isInIntermission = ClientCheckForIntermission( player_ent, client );
     // Exit.
-    if ( intermissionResult ) {
+    if ( isInIntermission ) {
         return;
     }
 
     /**
     *   Chase Target:
     **/
-    if ( ent->client->chase_target ) {
+    if ( player_ent->client->chase_target ) {
+		// Update the chase cam angles respectively.
         VectorCopy( ucmd->angles, client->resp.cmd_angles );
-        /**
-        *   Player Move, and other 'Thinking' logic:
-        **/
+    /**
+    *   Player Move, and other 'Thinking' logic:
+    **/
     } else {
-        // In a function that is assigned to a function pointer, where we expect a 
-        // svg_player_edict_t it'll already be the argument so we won't need casting :-)
-        //
-        // Just make sure to never assign it to an incorrect entity type.
-		svg_player_edict_t *player_ent = static_cast<svg_player_edict_t *>(ent);
-        //player_ent->testVar = 100 + ent->s.number;
-
-        //gi.dprintf( "%s: player_ent->testVar = %d\n", __func__, player_ent->testVar );
-		//gi.cprintf(player_ent, PRINT_TALK, "player_ent->testVar = %d\n", player_ent->testVar);
-
+        /**
+        *   Configure player movement data and run a frame.
+        **/
+        // Backup old origin for touch processing.
         const Vector3 oldOrigin = client->ps.pmove.origin;
 
+        pmove_t pm = {};
+        pmoveParams_t pmp = {};
+        SG_ConfigurePlayerMoveParameters( &pmp );
+
         // Perform player movement.
-        ClientRunPlayerMove( ent, client, ucmd, &pm, &pmp);
-        // Save result of the pmove.
-        if ( ent->client->ps.eventSequence != oldEventSequence ) {
-            ent->eventTime = level.time;
+        PMove_RunFrame( player_ent, client, ucmd, &pm, &pmp);
+
+		// Save results of pmove/events before processing touch traces.
+        if ( client->ps.eventSequence != oldEventSequence ) {
+            player_ent->eventTime = level.time;
         }
 
+        /**
+		*   Player State to Entity State conversion:
+        **/
+        // Copy back into the entity, both the resulting origin.
+        // We do this now so that the entity is in the correct position for touch traces
+        // and events that may be triggered during the PMove.
         // Convert certain playerstate properties into entity state properties.
-        SG_PlayerStateToEntityState( ent->client->clientNum, &ent->client->ps, &ent->s, false );
- 
-        // Apply falling damage directly.
-        P_FallingDamage( ent, pm );
+        SG_PlayerStateToEntityState( client->clientNum, &client->ps, &player_ent->s, false );
 
-        //if ( ent->client->landmark_free_fall && pm.groundentity ) {
-        //    ent->client->landmark_free_fall = false;
-        //    ent->client->landmark_noise_time = level.time + 100_ms;
+        //if ( player_ent->client->landmark_free_fall && pm.groundentity ) {
+        //    player_ent->client->landmark_free_fall = false;
+        //    player_ent->client->landmark_noise_time = level.time + 100_ms;
         //}
         
-        //vec3_t old_origin = ent->s.origin;
+        //vec3_t old_origin = player_ent->s.origin;
 
         // [Paril-KEX] save old position for SVG_Util_TouchProjectiles
         // Updates the entity origin, angles, bbox, groundinfo, etc.
-        /*const Vector3 oldOrigin = */ClientPostPlayerMove( ent, client, pm );
+        /*const Vector3 oldOrigin = */PMove_PostFrame( player_ent, client, pm );
 
         // Check for client playerstate its pmove generated events.
-        SVG_CheckClientEvents( ent, &client->ops, &client->ps );
+        SVG_PlayerState_CheckForEvents( player_ent, &client->ops, &client->ps, oldEventSequence );
 
         // Process player client events.
         //ProcessClientEvents( ent, oldEventSequence );
@@ -734,22 +416,18 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         SVG_Client_CalculateMovementRecoil( ent );
 
         // Finally link the entity back in.
-        gi.linkentity( ent );
+        gi.linkentity( player_ent );
 
         // PGM trigger_gravity support
-        ent->gravity = 1.0;
+        player_ent->gravity = 1.0;
         // PGM
 
         // Process touch callback dispatching for Triggers and Projectiles.
-        ClientProcessTouches( ent, client, pm, oldOrigin );
-
-        // <Q2RTXP>: WID: We do this here to prevent collision issues.
-        // Copy back into the entity, both the resulting origin.
-        VectorCopy( pm.state->pmove.origin, ent->s.origin );
+        PMove_ProcessTouchTraces( player_ent, client, pm, oldOrigin );
 
         // Save results of triggers and client events.
-        if ( ent->client->ps.eventSequence != oldEventSequence ) {
-            ent->eventTime = level.time;
+        if ( client->ps.eventSequence != oldEventSequence ) {
+            player_ent->eventTime = level.time;
         }
     }
 
@@ -775,17 +453,17 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
     **/
     } else {
         // Perform use Targets if we haven't already.
-        SVG_Client_TraceForUseTarget( ent, client, true );
+        SVG_Player_TraceForUseTarget( ent, client, true );
 
         // Check whether to engage switching to a new weapon.
         if ( client->newweapon ) {
             SVG_Player_Weapon_Change( ent );
         }
         // Process weapon thinking.
-        //if ( ent->client->weapon_thunk == false ) {
+        //if ( player_ent->client->weapon_thunk == false ) {
         SVG_Player_Weapon_Think( ent, true );
         // Store that we thought for this frame.
-        ent->client->weapon_thunk = true;
+        player_ent->client->weapon_thunk = true;
         //}
         // Determine any possibly necessary player state events to go along.
     }

@@ -143,7 +143,7 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
 *	@brief	Called when a new frame has been received that contains an entity
 *			which was not present in the previous frame.
 **/
-void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
+void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
 	// Assign a unique id to each entity for tracking it over multiple frames.
     static int64_t entity_ctr = 0;
     ent->id = ++entity_ctr;
@@ -169,7 +169,7 @@ void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, co
         state->event == EV_OTHER_TELEPORT ||
         ( state->entityType == ET_BEAM || state->renderfx & RF_BEAM ) ) {
         // No lerping if teleported.
-        VectorCopy( origin, ent->lerp_origin );
+        VectorCopy( (*origin), ent->lerp_origin );
         return;
     }
 
@@ -182,7 +182,7 @@ void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, co
 *	@brief	Called when a new frame has been received that contains an entity
 *			already present in the previous frame.
 **/
-void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const vec_t *origin ) {
+void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
     const int32_t event = state->event;
 
     // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
@@ -214,9 +214,9 @@ void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, c
         || state->modelindex4 != ent->current.modelindex4
         || event == EV_PLAYER_TELEPORT
         || event == EV_OTHER_TELEPORT
-        || fabsf( origin[ 0 ] - ent->current.origin[ 0 ] ) > 64//512
-        || fabsf( origin[ 1 ] - ent->current.origin[ 1 ] ) > 64//512
-        || fabsf( origin[ 2 ] - ent->current.origin[ 2 ] ) > 64//512
+        || fabsf( (*origin)[ 0 ] - ent->current.origin[ 0 ] ) > 64//512
+        || fabsf( (*origin)[ 1 ] - ent->current.origin[ 1 ] ) > 64//512
+        || fabsf( (*origin)[ 2 ] - ent->current.origin[ 2 ] ) > 64//512
         || cl_nolerp->integer == 1 ) {
         // some data changes will force no lerping
         ent->trailcount = 1024;     // for diminishing rocket / grenade trails
@@ -232,7 +232,7 @@ void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, c
         // WID: 40hz
         #endif
         // no lerping if teleported or morphed
-        VectorCopy( origin, ent->lerp_origin );
+        VectorCopy( (*origin), ent->lerp_origin );
         return;
     }
 

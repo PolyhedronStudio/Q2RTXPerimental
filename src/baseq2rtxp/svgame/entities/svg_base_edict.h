@@ -169,7 +169,7 @@ using svg_edict_callback_onsignalin_fptr = void ( * )( svg_base_edict_t *self, s
 //! Called when it gets damaged.
 using svg_edict_callback_pain_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, const float kick, const int damage, const entity_damageflags_t damageFlags );
 //! Called to die.
-using svg_edict_callback_die_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec_t *point );
+using svg_edict_callback_die_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
 
 
 
@@ -342,7 +342,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   @brief  Calls the 'die' callback that is configured for this entity.
     **/
-    virtual void DispatchDieCallback( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const int32_t damage, vec_t *point );
+    virtual void DispatchDieCallback( svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const int32_t damage, Vector3 *point );
 
 
 

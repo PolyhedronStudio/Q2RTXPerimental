@@ -57,7 +57,7 @@ void _become_( svg_base_edict_t *self ) {
 /**
 *   @brief
 **/
-void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point ) {
+void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) {
     // bmodel origins are (0 0 0), we need to adjust that here
     const Vector3 size = Vector3( self->size ) * 0.5f; // VectorScale( self->size, 0.5f, size );
     const Vector3 origin = Vector3( self->absmin ) + size; // VectorAdd( self->absmin, size, origin );

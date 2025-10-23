@@ -71,7 +71,7 @@ void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
 *			A value of -1 for any angle will be treated as straight down.
 *			A value of -2 for any angle will be treated as straight up.
 **/
-void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir, const bool clearAngles ) {
+void SVG_Util_SetMoveDir( Vector3 &angles, Vector3 &movedir, const bool clearAngles ) {
     static constexpr Vector3 VEC_UP = { 0., -1.,  0. };
     static constexpr Vector3 MOVEDIR_UP = { 0.,  0.,  1. };
     static constexpr Vector3 VEC_DOWN = { 0., -2.,  0. };
@@ -80,9 +80,9 @@ void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir, const bool clearAngle
     // Check for special cases first.
     // If straight up or down, set the movedir to the proper value.
     if ( VectorCompare( angles, VEC_UP ) ) {
-        VectorCopy( MOVEDIR_UP, movedir );
+        movedir = MOVEDIR_UP;
     } else if ( VectorCompare( angles, VEC_DOWN ) ) {
-        VectorCopy( MOVEDIR_DOWN, movedir );
+        movedir = MOVEDIR_DOWN;
         // Otherwise, use the normal angle to vector conversion.
     } else {
         QM_AngleVectors( angles, &movedir, NULL, NULL );
@@ -101,6 +101,7 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent ) {
     // The best distance will always be flt_max.
     double bestDistance = CM_MAX_WORLD_SIZE + 1.f;
 
+	// Ensure entity is active.
     if ( !SVG_Entity_IsActive( ent ) ) {
         // Debug print.
         gi.dprintf( "%s: Entity isn't active.\n", __func__ );
@@ -135,11 +136,15 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent ) {
 *           client side: jumppads and item pickups
 *           Adds an event+parm and twiddles the event counter
 **/
-void SVG_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+	// Make sure we have a client.
     if ( !ent->client ) {
+		// Warn about it.
+		gi.dprintf( "%s: Entity(#%i) is not a client, cannot add predictable event.\n", __func__, ent->s.number );
         return;
     }
-    
+
+	// Otherwise, add the predictable event.
     SG_PlayerState_AddPredictableEvent( event, eventParm, &ent->client->ps );
 }
 
@@ -147,8 +152,10 @@ void SVG_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const 
 *   @brief Adds an event+parm and twiddles the event counter.
 **/
 void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+	// Sanity check.
     if ( !event ) {
-        SG_DPrintf( "%s: zero event added for entity(#%i)\n", __func__, ent->s.number );
+		// Debug about zero event.
+        gi.dprintf( "%s: zero event added for entity(#%i), lastEventTime(%" PRIx64 ")\n", __func__, ent->s.number, ent->eventTime );
         return;
     }
 
@@ -235,7 +242,9 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
     memset( touchedEdicts, 0, sizeof touchedEdicts );
 
-    const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_TRIGGERS );
+	const Vector3 absmin = ent->absmin;
+    const Vector3 absmax = ent->absmax;
+    const int32_t num = gi.BoxEdicts( &absmin, &absmax, touchedEdicts, MAX_EDICTS, AREA_TRIGGERS );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
@@ -270,7 +279,9 @@ void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
     memset( touchedEdicts, 0, sizeof touchedEdicts );
 
-    const int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+    const Vector3 absmin = ent->absmin;
+    const Vector3 absmax = ent->absmax;
+    const int32_t num = gi.BoxEdicts( &absmin, &absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
@@ -438,7 +449,9 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
     memset( touchedEdicts, 0, sizeof touchedEdicts );
 
-    int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+    const Vector3 absmin = ent->absmin;
+    const Vector3 absmax = ent->absmax;
+    int32_t num = gi.BoxEdicts( &absmin, &absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
     
     for ( int32_t i = 0; i < num; i++ ) {
         #if 0
@@ -635,7 +648,7 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
 //  SVG_Util_SetMoveDir( angles, ent->movedir );
     Vector3 newAngles = childMover->s.angles;// +deltaParentAngles;
     Vector3 tempMoveDir = {};
-    SVG_Util_SetMoveDir( &newAngles.x, tempMoveDir );
+    SVG_Util_SetMoveDir( newAngles, tempMoveDir );
 
     Vector3 relativeParentOffset = childMover->moveWith.relativeDeltaOffset;
     //childMover->pos1 = QM_Vector3MultiplyAdd( parentMover->s.origin, -relativeParentOffset.x, parentVForward );

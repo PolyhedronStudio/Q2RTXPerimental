@@ -119,12 +119,12 @@ struct svg_gamemode_t : public sg_gamemode_base_t {
 	*           It handles the damage calculation, knockback, and any special
 	*           effects based on the type of damage and the entities involved.
 	**/
-	virtual void DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const vec3_t dir, vec3_t point, const vec3_t normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) = 0;
+	virtual void DamageEntity( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, const Vector3 &dir, Vector3 &point, const Vector3 &normal, const int32_t damage, const int32_t knockBack, const entity_damageflags_t damageFlags, const sg_means_of_death_t meansOfDeath ) = 0;
 
 	/**
 	*	@brief	Called when an entity has been killed.
 	**/
-	virtual void EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int damage, vec3_t point );
+	virtual void EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point );
 
 	/**
 	*   @brief  Returns true if the inflictor can directly damage the target.  Used for

@@ -27,11 +27,11 @@ typedef struct entity_state_s {
     int32_t	entityType; // ET_GENERIC, ET_PLAYER, ET_MONSTER_PLAYER, ET_SPOTLIGHT etc..
 
     //! Entity origin.
-    vec3_t  origin;
+    Vector3  origin;
     //! For lerping. Also used for RF_BEAM its termination point.
-    vec3_t  old_origin;
+    Vector3  old_origin;
     //! Entity 'view' angles.
-    vec3_t  angles;
+    Vector3  angles;
 
     /**
     *   The following fields are communicated to the client for prediction needs,

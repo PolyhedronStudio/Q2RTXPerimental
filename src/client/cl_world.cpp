@@ -130,7 +130,7 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec
         // Perform the BSP box sweep.
         CM_TransformedBoxTrace( &cl.collisionModel, &trace, start, end,
             mins, maxs, headNode, contentmask,
-            ent->current.origin, ent->current.angles );
+            &ent->current.origin.x, &ent->current.angles.x );
 
         // Determine clipped entity trace result.
         CM_ClipEntity( &cl.collisionModel, tr, &trace, ent->current.number );
@@ -228,7 +228,7 @@ const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const
             // Perform clip.
             cm_trace_t tr;
             CM_TransformedBoxTrace( &cl.collisionModel, &tr, start, end, mins, maxs, headNode, contentmask,
-                clipEntity->current.origin, clipEntity->current.angles );
+                &clipEntity->current.origin.x, &clipEntity->current.angles.x );
 
             // Determine clipped entity trace result.
             CM_ClipEntity( &cl.collisionModel, &trace, &tr, clipEntity->current.number );
@@ -240,9 +240,9 @@ const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const
 /**
 *   @brief  Player Move specific 'PointContents' implementation:
 **/
-const cm_contents_t q_gameabi CL_PointContents( const vec3_t point ) {
+const cm_contents_t q_gameabi CL_PointContents( const Vector3 *point ) {
     // Perform point contents against world.
-    cm_contents_t contents = ( CM_PointContents( &cl.collisionModel, point, cl.collisionModel.cache->nodes ) );
+    cm_contents_t contents = ( CM_PointContents( &cl.collisionModel, &point->x, cl.collisionModel.cache->nodes ) );
 	// We hit world, so return contents.
 	if ( contents != CONTENTS_NONE ) {
 		return contents;
@@ -286,7 +286,7 @@ const cm_contents_t q_gameabi CL_PointContents( const vec3_t point ) {
         //}
 
         // Might intersect, so do an exact clip.
-        contents = ( contents | CM_TransformedPointContents( &cl.collisionModel, point, headNode, ent->current.origin, ent->current.angles ) );
+        contents |= CM_TransformedPointContents( &cl.collisionModel, &point->x, headNode, &ent->current.origin.x, &ent->current.angles.x );
     }
 
     // Et voila.

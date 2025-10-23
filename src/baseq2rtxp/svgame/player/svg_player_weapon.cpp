@@ -37,7 +37,7 @@ static byte     is_silenced;
 *           Monsters that don't directly see the player can move
 *           to a noise in hopes of seeing the player from there.
 **/
-void SVG_Player_PlayerNoise( svg_base_edict_t *who, const vec3_t where, int type ) {
+void SVG_Player_PlayerNoise( svg_base_edict_t *who, const Vector3 &where, int type ) {
     svg_base_edict_t *noise;
 
     if ( deathmatch->value )
@@ -416,7 +416,7 @@ const Vector3 SVG_Player_ProjectDistance( svg_base_edict_t *ent, const Vector3 &
 *           point as the final destination.
 *   @note   The forward vector is normalized.
 **/
-void SVG_Player_ProjectSource( svg_base_edict_t *ent, vec3_t point, vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
+void SVG_Player_ProjectSource( svg_base_edict_t *ent, const vec3_t point, const vec3_t distance, vec3_t forward, vec3_t right, vec3_t result ) {
     // Adjust distance to handedness.
     Vector3 _distance = distance;
     if ( ent->client->pers.hand == LEFT_HANDED ) {
@@ -436,8 +436,14 @@ void SVG_Player_ProjectSource( svg_base_edict_t *ent, vec3_t point, vec3_t dista
         VectorNormalize( forward );
     }
 }
-
-
+/**
+*   @brief  Wraps up the new more modern SVG_Player_ProjectSource.
+**/
+const Vector3 SVG_Player_ProjectSource( svg_base_edict_t *ent, const Vector3 &point, const Vector3 &distance, Vector3 &forward, Vector3 &right ) {
+    Vector3 result = {};
+    SVG_Player_ProjectSource( ent, &point.x, &distance.x, &forward.x, &right.x, &result.x );
+    return result;
+}
 
 /**
 *

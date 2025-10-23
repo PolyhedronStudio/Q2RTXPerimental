@@ -31,7 +31,7 @@ void SVG_Util_InitTrigger( svg_base_edict_t *self );
 *			A value of -1 for any angle will be treated as straight down.
 *			A value of -2 for any angle will be treated as straight up.
 **/
-void SVG_Util_SetMoveDir( vec3_t angles, Vector3 &movedir, const bool clearAngles = true );
+void SVG_Util_SetMoveDir( Vector3 &angles, Vector3 &movedir, const bool clearAngles = true );
 
 /**
 *   @brief  Determines the client that is most near to the entity,
@@ -44,7 +44,7 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent );
 *           client side: jumppads and item pickups
 *           Adds an event+parm and twiddles the event counter
 **/
-void SVG_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm );
+void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm );
 /**
 *   @brief Adds an event+parm and twiddles the event counter.
 **/
@@ -71,7 +71,9 @@ static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &
 	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
 	//	return gi.trace( &start.x, nullptr, nullptr, &end.x, passEdict, contentMask );
 	//}
-	return gi.trace( &start.x, &mins.x, &maxs.x, &end.x, passEdict, contentMask );
+	const Vector3 *_mins = ( &mins == &qm_vector3_null || mins == qm_vector3_null ) ? nullptr : &mins;
+	const Vector3 *_maxs = ( &maxs == &qm_vector3_null || maxs == qm_vector3_null ) ? nullptr : &maxs;
+	return gi.trace( &start, _mins, _maxs, &end, passEdict, contentMask );
 }
 /**
 *	@brief	Wrapper for gi.clipthat accepts Vector3 args.
@@ -82,7 +84,9 @@ static inline const svg_trace_t SVG_Clip( svg_base_edict_t *clipEdict, const Vec
 	////if ( mins == qm_vector3_null && maxs == qm_vector3_null ) {
 	//	return gi.clip( clipEdict, &start.x, nullptr, nullptr, &end.x, contentMask );
 	//}
-	return gi.clip( clipEdict, &start.x, &mins.x, &maxs.x, &end.x, contentMask );
+	const Vector3 *_mins = ( &mins == &qm_vector3_null || mins == qm_vector3_null ) ? nullptr : &mins;
+	const Vector3 *_maxs = ( &maxs == &qm_vector3_null || maxs == qm_vector3_null ) ? nullptr : &maxs;
+	return gi.clip( clipEdict, &start, _mins, _maxs, &end, contentMask );
 }
 
 

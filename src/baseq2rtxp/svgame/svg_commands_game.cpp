@@ -554,7 +554,7 @@ void SVG_Command_Kill_f(svg_base_edict_t *ent)
     ent->health = 0;
     ent->meansOfDeath = MEANS_OF_DEATH_SUICIDE;
     //player_die(ent, ent, ent, 100000, ent->s.origin);
-    ent->DispatchDieCallback( ent, ent, 100000, ent->s.origin );
+    ent->DispatchDieCallback( ent, ent, 100000, &ent->s.origin );
 }
 
 int PlayerSort(void const *a, void const *b)
