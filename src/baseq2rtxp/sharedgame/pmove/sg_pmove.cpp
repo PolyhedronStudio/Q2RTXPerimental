@@ -741,98 +741,6 @@ static void PM_GroundTrace( void ) {
 	PM_RegisterTouchTrace( pm->touchTraces, trace );
 }
 
-
-
-#if 0
-/**
-*	@brief	Handles the velocities for 'ladders', as well as water and conveyor belt by applying their 'currents'.
-**/
-static void PM_AddCurrents( Vector3 &wishVelocity ) {
-	// Account for ladders.
-	if ( pm->state->pmove.pm_flags & PMF_ON_LADDER ) {
-		if ( pm->cmd.buttons & ( BUTTON_JUMP | BUTTON_CROUCH ) ) {
-			// [Paril-KEX]: if we're underwater, use full speed on ladders
-			const double ladder_speed = pm->liquid.level >= cm_liquid_level_t::LIQUID_WAIST ? pmp->pm_max_speed : pmp->pm_ladder_speed;
-			if ( pm->cmd.buttons & BUTTON_JUMP ) {
-				wishVelocity.z = ladder_speed;
-			} else if ( pm->cmd.buttons & BUTTON_CROUCH ) {
-				wishVelocity.z = -ladder_speed;
-			}
-		} else if ( pm->cmd.forwardmove ) {
-			// [Paril-KEX] clamp the speed a bit so we're not too fast
-			const double ladder_speed = std::clamp( (double)pm->cmd.forwardmove, -pmp->pm_ladder_speed, pmp->pm_ladder_speed );
-			if ( pm->cmd.forwardmove > 0 ) {
-				#ifdef PM_CLAMP_VIEWANGLES_0_TO_360
-					if ( pm->state->viewangles[ PITCH ] >= 271 && pm->state->viewangles[ PITCH ] < 345 ) {
-						wishVelocity.z = ladder_speed;
-					} else if ( pm->state->viewangles[ PITCH ] < 271 && pm->state->viewangles[ PITCH ] >= 15 ) {
-						wishVelocity.z = -ladder_speed;
-					}
-				#else
-					if ( pm->state->viewangles[ PITCH ] < 15 ) {
-						wishVelocity.z = ladder_speed;
-					} else if ( pm->state->viewangles[ PITCH ] < 271 && pm->state->viewangles[ PITCH ] >= 15 ) {
-						wishVelocity.z = -ladder_speed;
-					}
-				#endif
-			}
-			// [Paril-KEX] allow using "back" arrow to go down on ladder
-			else if ( pm->cmd.forwardmove < 0 ) {
-				// if we haven't touched ground yet, remove x/y so we don't
-				// slide off of the ladder
-				if ( !pm->ground.entity ) {
-					wishVelocity.x = wishVelocity.y = 0;
-				}
-
-				wishVelocity.z = ladder_speed;
-			}
-		} else {
-			wishVelocity.z = 0;
-		}
-
-		// limit horizontal speed when on a ladder
-		// [Paril-KEX] unless we're on the ground
-		if ( !pm->ground.entity ) {
-			// [Paril-KEX] instead of left/right not doing anything,
-			// have them move you perpendicular to the ladder plane
-			if ( pm->cmd.sidemove ) {
-				// clamp side speed so it's not jarring...
-				float ladder_speed = std::clamp( (double)pm->cmd.sidemove, -pmp->pm_ladder_sidemove_speed, pmp->pm_ladder_sidemove_speed );
-
-				if ( pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST ) {
-					ladder_speed *= pmp->pm_ladder_mod;
-				}
-
-				// Check for ladder.
-				Vector3 flatforward = QM_Vector3Normalize( {
-					pml.forward.x,
-					pml.forward.y,
-					0.f
-					} );
-				Vector3 spot = pm->state->pmove.origin + ( flatforward * 1 );
-				cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
-
-				if ( trace.fraction != 1.f && ( trace.contents & CONTENTS_LADDER ) ) {
-					Vector3 right = QM_Vector3CrossProduct( trace.plane.normal, { 0.f, 0.f, 1.f } );
-					wishVelocity.x = wishVelocity.y = 0;
-					wishVelocity = QM_Vector3MultiplyAdd( wishVelocity, -ladder_speed, right );
-				}
-			} else {
-				if ( wishVelocity.x < -25 ) {
-					wishVelocity.x = -25.f;
-				} else if ( wishVelocity.x > 25 ) {
-					wishVelocity.x = 25.f;
-				}
-
-				if ( wishVelocity.y < -25 ) {
-					wishVelocity.y = -25.f;
-				} else if ( wishVelocity.y > 25 ) {
-					wishVelocity.y = 25.f;
-				}
-			}
-		}
-	}
-	#endif
 /**
 *	@brief	Handles the water and conveyor belt by applying their 'currents'.
 **/
@@ -1690,12 +1598,18 @@ static void PM_WaterMove() {
 	//
 	// user cmd intentions
 	//
-	Vector3 wishVelocity = { 0., 0., -60. }; // Sink towards bottom by default.
+	Vector3 wishVelocity = QM_Vector3Zero();
 	if ( cmdScale ) {
 		// Scale wish velocity.
 		wishVelocity = cmdScale * pml.forward * pm->cmd.forwardmove + cmdScale * pml.right * pm->cmd.sidemove;
 		// Ensure to add up move.
 		wishVelocity[ 2 ] += cmdScale * pm->cmd.upmove;
+	// Sink towards bottom by default:
+	} else {
+		// Only if not on ground. Otherwise it'll nudge the origin up and down, causing jitter.
+		if ( !pml.hasGroundPlane && pm->ground.entity == nullptr ) {
+			wishVelocity[ 2 ] = -60.;
+		}
 	}
 
 	// Add currents.
@@ -1727,7 +1641,7 @@ static void PM_WaterMove() {
 	}
 
 	// Step Slide.
-	PM_StepSlideMove_Generic(
+	PM_SlideMove_Generic(
 		pm,
 		&pml,
 		false
@@ -2345,32 +2259,8 @@ void SG_PlayerMove( pmove_s *pmove, pmoveParams_s *params ) {
 	pm = pmove;
 	pmp = params;
 
-	#if 1
-		// Iterate the player movement for yet another single frame.
-		SG_PlayerMove_Frame();
-	#else
-		// chop the move up if it is too long, to prevent framerate
-		// dependent behavior
-		int64_t finalTime = pm->cmd.serverTime;
-		if ( finalTime < pm->simulationTime.Milliseconds() ) {
-		//if ( finalTime < pm->cmd.serverTime ) {
-			//finalTime = pm->cmd.serverTime; // Should not happen.
-			return;
-		}
-		if ( finalTime > pm->simulationTime.Milliseconds() + 250 ) {
-			//pm->cmd.serverTime = finalTime - 250;
-			pm->simulationTime = pm->simulationTime.FromMilliseconds( finalTime - 250 );
-		}
-
-		while ( pm->simulationTime.Milliseconds() != finalTime ) {
-			int64_t msec = finalTime - pm->simulationTime.Milliseconds();
-			if ( msec > 25 ) {
-				msec = 25;
-			}
-			pm->cmd.serverTime = pm->simulationTime.Milliseconds() + (double)msec;
-			SG_PlayerMove_Frame();
-		}
-	#endif
+	// Iterate the player movement for yet another single frame.
+	SG_PlayerMove_Frame();
 }
 
 /**
