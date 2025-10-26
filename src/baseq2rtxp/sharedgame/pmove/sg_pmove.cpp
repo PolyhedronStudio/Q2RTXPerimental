@@ -708,6 +708,9 @@ static void PM_GroundTrace( void ) {
 		// Damage crash landing.
 		PM_CrashLand();
 
+		// Don't reset the z velocity for slopes.
+		//	pm->state->velocity[2] = 0;
+
 		// Don't do landing time if we were just going down a slope.
 		if ( pml.previousVelocity.z < -200. ) {
 			// Don't allow another jump for a little while
@@ -720,8 +723,7 @@ static void PM_GroundTrace( void ) {
 	if ( pml.hasGroundPlane || pm->ground.entity ) {
 		if ( pml.hasGroundPlane ) {
 			pm->ground.plane = pml.groundTrace.plane;
-			//}
-			// <Q2RTXP>: WID: This one is already zerod out at pmove preparation.
+		// <Q2RTXP>: WID: This one is already zerod out at pmove preparation.
 		} else {
 			pm->ground.plane = {};
 		}
@@ -1305,6 +1307,40 @@ static void PM_CycleBob() {
 		//} else if ( pm->liquid.level == LIQUID_UNDER ) {
 		//	// No sound when completely underwater. Lol.
 		//}
+	}
+}
+
+/**
+*	@brief	Handles water entry/exit events.
+**/
+static void PM_WaterEvents( void ) {		// FIXME?
+	/**
+	*	If just entered a water volume, play a sound
+	**/
+	if ( !pml.previousLiquid.level && pm->liquid.level ) {
+		if ( pm->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
+			PM_AddEvent( EV_WATER_SPLASH_TOUCH_FEET );
+		} else if ( pm->liquid.level >= {
+			PM_AddEvent( EV_WATER_SPLASH_TOUCH_WAIST );
+		}
+	}
+	/**
+	*	If just completely exited a water volume, play a sound
+	**/
+	if ( pml.previous_waterlevel && !pm->waterlevel ) {
+		PM_AddEvent( EV_WATER_LEAVE );
+	}
+	/**
+	*	Check for head just going under water
+	**/
+	if ( pml.previous_waterlevel != 3 && pm->waterlevel == 3 ) {
+		PM_AddEvent( EV_WATER_UNDER );
+	}
+	/**
+	*	check for head just coming out of water
+	**/
+	if ( pml.previous_waterlevel == 3 && pm->waterlevel != 3 ) {
+		PM_AddEvent( EV_WATER_CLEAR );
 	}
 }
 
@@ -2241,7 +2277,7 @@ void SG_PlayerMove_Frame() {
 	/**
 	*	Entering / Leaving water splashes.
 	**/
-	//PM_WaterEvents();
+	PM_WaterEvents();
 
 	/**
 	*	Snap us back into a validated position.

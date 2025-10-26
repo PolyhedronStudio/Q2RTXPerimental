@@ -309,7 +309,7 @@ void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 	Vector3 viewOriginOffset = QM_Vector3Zero();
 
 	// If dead, fix the angle and don't add any kicks
-	if ( ent->lifeStatus & entity_lifestatus_t::LIFESTATUS_DEAD ) {
+	if ( ent->lifeStatus > entity_lifestatus_t::LIFESTATUS_ALIVE ) {
 		// Clear out weapon kick angles.
 		ent->client->ps.kick_angles = QM_Vector3Zero();
 
@@ -576,13 +576,21 @@ void P_CheckWorldEffects( void ) {
 		return;
 	}
 
+	/**
+	*	if the player is noclipping, don't drown, and ignore world effects:
+	**/
 	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
-		current_player->air_finished_time = level.time + 12_sec; // don't need air
+		// To prevent drowning.
+		current_player->air_finished_time = level.time + 12_sec;
+		// Exit.
 		return;
 	}
 
+	// Current water level.
 	liquidlevel = current_player->liquidInfo.level;
+	// Copy a backup of the previous water level.
 	old_waterlevel = current_client->old_waterlevel;
+	// Store current water level for next check.
 	current_client->old_waterlevel = liquidlevel;
 
 	//

@@ -44,8 +44,12 @@ void SG_DPrintf( const char *fmt, ... ) {
 
 /**
 *
+* 
+* 
 *	Entities:
 *
+* 
+* 
 **/
 /**
 *	@brief	Returns the entity number, -1 if invalid(nullptr, or out of bounds).
@@ -65,10 +69,28 @@ sgentity_s *SG_GetEntityForNumber( const int32_t number ) {
 }
 
 
+
 /**
 *
+*
+*
+*	Player State:
+*
+*
+*
+**/
+
+
+
+
+/**
+*
+* 
+* 
 *	ConfigStrings:
 *
+* 
+* 
 **/
 /**
 *	@brief	Returns the given configstring that sits at index.
@@ -81,8 +103,12 @@ configstring_t *SG_GetConfigString( const int32_t configStringIndex ) {
 
 /**
 *
+* 
+* 
 *	CVars:
 *
+* 
+* 
 **/
 /**
 *	@brief	Wraps around CVar_Get
@@ -95,9 +121,11 @@ cvar_t *SG_CVar_Get( const char *var_name, const char *value, const int32_t flag
 
 /**
 *
-*
+* 
+* 
 *	FileSystem:
 *
+* 
 *
 **/
 /**
@@ -122,9 +150,13 @@ void SG_FS_FreeFile( void *buffer ) {
 
 
 /**
+* 
+* 
 *
 *	(Skeletal-) Model:
 *
+* 
+* 
 **/
 /**
 *   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
@@ -143,8 +175,12 @@ const model_t *SG_GetModelDataForHandle( const qhandle_t handle ) {
 
 /**
 *
+* 
+* 
 *	Zone (Tag-)Malloc:
 *
+* 
+* 
 **/
 /**
 *	@brief
@@ -180,9 +216,13 @@ void SG_Z_FreeTags( const uint32_t tag ) {
 
 
 /**
+* 
+* 
 *
 *	Other:
 *
+* 
+* 
 **/
 /**
 *	@brief	Server side sharedgame implementation of QMTime::frames.

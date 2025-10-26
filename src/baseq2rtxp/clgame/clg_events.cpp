@@ -148,18 +148,18 @@ void CLG_CheckEntityEvents( centity_t *cent ) {
     const int32_t eventValue = currentEntityState->event & ~EV_EVENT_BITS;
 
     #if 0
-    if ( cg_debugEvents.integer ) {
-        CG_Printf( "ent:%3i  event:%3i ", currentEntityState->number, eventValue );
-    }
+        if ( cg_debugEvents.integer ) {
+            CG_Printf( "ent:%3i  event:%3i ", currentEntityState->number, eventValue );
+        }
 
-    if ( !eventValue ) {
-        DEBUGNAME( "ZEROEVENT" );
-        return;
-    }
+        if ( !eventValue ) {
+            DEBUGNAME( "ZEROEVENT" );
+            return;
+        }
     #else
-    if ( !eventValue ) {
-        return;
-	}
+        if ( !eventValue ) {
+            return;
+	    }
     #endif
 
     /**
@@ -305,6 +305,15 @@ const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_st
         //    break;
 
         /**
+		*   Jump Events:
+        **/
+        case EV_JUMP_UP: {
+                const std::string jump_up_sfx_path = SG_RandomResourcePath( "player/jump", "wav", 0, 1 );
+                clgi.S_StartSound( NULL, entityNumber, CHAN_VOICE, clgi.S_RegisterSound( jump_up_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+			break;
+        }
+
+        /**
         *   Fall and Landing Events:
         **/
         case EV_FALL_SHORT:
@@ -343,6 +352,7 @@ const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_st
             return true;
         break;
     }
+
     // Proceed to executing the event.
     // -- Jump Up:
     if ( playerStateEvent == EV_JUMP_UP ) {

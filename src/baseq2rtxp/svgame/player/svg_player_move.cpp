@@ -61,11 +61,115 @@ static const cm_contents_t q_gameabi SV_PM_PointContents( const Vector3 *point )
 
 
 
+/**
+*
+*
+*
+*   Intermission:
+*
+*
+*
+**/
+/**
+*   @return True if we're still in intermission mode.
+**/
+static const bool ClientCheckForIntermission( svg_player_edict_t *ent, svg_client_t *client ) {
+    if ( level.intermissionFrameNumber ) {
+        client->ps.pmove.pm_type = ( !game.mode->IsMultiplayer() ? PM_SPINTERMISSION : PM_INTERMISSION );
+
+        // can exit intermission after five seconds
+        if ( ( level.frameNumber > level.intermissionFrameNumber + 5.0f * BASE_FRAMERATE ) && ( client->buttons & BUTTON_ANY ) ) {
+            level.exitintermission = true;
+        }
+
+        // WID: Also seems set in p_hud.cpp -> SVG_HUD_MoveClientToIntermission
+        client->ps.pmove.viewheight = ent->viewheight = PM_VIEWHEIGHT_STANDUP;
+
+        // We're in intermission
+        return true;
+    }
+
+    // Not in intermission.
+    return false;
+}
+
+
+
+/**
+*
+*
+*
+*   Movement Recoil:
+*
+*
+*
+**/
+/**
+*	@brief	Calculates the to be determined movement induced recoil factor.
+**/
+static void ClientCalculateMovementRecoil( svg_base_edict_t *ent ) {
+    // Get playerstate.
+    player_state_t *playerState = &ent->client->ps;
+
+    // Base movement recoil factor.
+    double baseMovementRecoil = 0.;
+
+    // Is on a ladder?
+    const bool isOnLadder = ( ( playerState->pmove.pm_flags & PMF_ON_LADDER ) ? true : false );
+    // Determine if crouched(ducked).
+    const bool isDucked = ( ( playerState->pmove.pm_flags & PMF_DUCKED ) ? true : false );
+    // Determine if off-ground.
+    //bool isOnGround = ( ( playerState->pmove.pm_flags & PMF_ON_GROUND ) ? true : false );
+    const bool isOnGround = ( ent->groundInfo.entity != nullptr ? true : false );
+    // Determine if in water.
+    const bool isInWater = ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_NONE ? true : false );
+    // Get liquid level.
+    const cm_liquid_level_t liquidLevel = ent->liquidInfo.level;
+
+    // Resulting move factor.
+    double recoilMoveFactor = 0.;
+
+    // First check if in water, so we can skip the other tests.
+    if ( isInWater && ent->liquidInfo.level > cm_liquid_level_t::LIQUID_FEET ) {
+        // Waist in water.
+        recoilMoveFactor = 0.55;
+        // Head under water.
+        if ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_WAIST ) {
+            recoilMoveFactor = 0.75;
+        }
+    } else {
+        // If ducked, -0.3.
+        if ( isDucked && isOnGround && !isOnLadder ) {
+            recoilMoveFactor -= 0.3;
+        } else if ( isOnLadder ) {
+            recoilMoveFactor = 0.5;
+        }
+    }
+
+    // Divide 1 by max speed, multiply by velocity length, ONLY if, speed > pm_stop_speed
+    if ( playerState->xyzSpeed >= default_pmoveParams_t::pm_stop_speed / 2. ) {
+        // Get multiply factor.
+        const double multiplyFactor = ( 1.0 / default_pmoveParams_t::pm_max_speed );
+        // Calculate actual scale factor.
+        const double scaleFactor = multiplyFactor * playerState->xyzSpeed;
+        // Assign.
+        recoilMoveFactor += 0.5 * scaleFactor;
+        //gi.dprintf( "playerState->xyzSpeed(%f), scaleFactor(%f)\n", playerState->xyzSpeed, multiplyFactor, scaleFactor );
+    } else {
+        //gi.dprintf( "playerState->xyzSpeed\n", playerState->xyzSpeed );
+    }
+
+    // ( We default to idle. ) Default to 0.
+    ent->client->weaponState.recoil.moveFactor = recoilMoveFactor;
+}
+
+
+
 /***
 *
 *
 *
-*   Client
+*   User Input:
 *
 *
 *
@@ -103,37 +207,22 @@ static void ClientUpdateUserInput( svg_player_edict_t *ent, svg_client_t *client
     client->userInput.releasedButtons = ( buttonsChanged & ( ~client->userInput.buttons ) );
 }
 
+
+
 /**
-*   @return True if we're still in intermission mode.
+*
+*
+*
+*   PMove:
+*
+*
+*
 **/
-static const bool ClientCheckForIntermission( svg_player_edict_t *ent, svg_client_t *client ) {
-    if ( level.intermissionFrameNumber ) {
-        client->ps.pmove.pm_type = ( !game.mode->IsMultiplayer() ? PM_SPINTERMISSION : PM_INTERMISSION );
-
-        // can exit intermission after five seconds
-        if ( ( level.frameNumber > level.intermissionFrameNumber + 5.0f * BASE_FRAMERATE ) && ( client->buttons & BUTTON_ANY ) ) {
-            level.exitintermission = true;
-        }
-
-        // WID: Also seems set in p_hud.cpp -> SVG_HUD_MoveClientToIntermission
-        client->ps.pmove.viewheight = ent->viewheight = PM_VIEWHEIGHT_STANDUP;
-
-        // We're in intermission
-        return true;
-    }
-
-    // Not in intermission.
-    return false;
-}
-
 /**
 *   @brief  Copies in the necessary client data into the player move struct in order to perform a frame worth of
 *           movement, copying back the resulting player move data into the client and entity fields.
 **/
 static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
-    // Save for determining whether event changed.
-    //const int32_t oldEventSequence = client->ps.eventSequence;
-    
     // Prepare the player move structure properties for simulation.
     pm->state = &client->ps;
     // Copy the current entity origin and velocity into our 'pmove movestate'.
@@ -189,12 +278,6 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
             ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
         }
     }
-
-    //// Save results of pmove/
-    //if ( ent->client->ps.eventSequence != oldEventSequence ) {
-    //    ent->eventTime = level.time;
-    //}
-    //SendPendingPredictableEvents( &ent->client->ps );
 }
 /**
 *   @brief  Copy in the remaining player move data into the entity and client structs, responding to possible changes.
@@ -218,32 +301,21 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
     const Vector3 oldOrigin = ent->s.origin;
 
     // Copy back into the entity, both the resulting origin and velocity.
-    // <Q2RTXP>: WID: We do this after processing touches instead to prevent collision issues.
-    ent->s.origin = pm.state->pmove.origin;
+    // <Q2RTXP>: WID: We do this before processing touches instead to prevent collision issues.
+	// WID: Moved to already called SG_PlayerStateToEntityState earlier in SVG_Client_Think.
+    //ent->s.origin = pm.state->pmove.origin;
     ent->velocity = pm.state->pmove.velocity;
-    // Copy back in bounding box results. (Player might've crouched for example.)
-    VectorCopy( pm.mins, ent->mins );
-    VectorCopy( pm.maxs, ent->maxs );
 
-    // Play 'Jump' sound if pmove inquired so.
-    if ( pm.jump_sound && !( pm.state->pmove.pm_flags & PMF_ON_LADDER ) ) { //if (~client->ps.pmove.pm_flags & pm.s.pm_flags & PMF_JUMP_HELD && pm.liquid.level == 0) {
-        // Jump sound to play.
-        const int32_t sndIndex = irandom( 2 ) + 1;
-        std::string pathJumpSnd = "player/jump0"; pathJumpSnd += std::to_string( ( irandom( 2 ) + 1) ) + ".wav";
-        gi.sound( ent, CHAN_VOICE, gi.soundindex( pathJumpSnd.c_str() ), 1, ATTN_NORM, 0 );
-        // Jump sound to play.
-        //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/jump01.wav" ), 1, ATTN_NORM, 0 );
-
-        // Paril: removed to make ambushes more effective and to
-        // not have monsters around corners come to jumps
-        // SVG_PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
-    }
-
+    // Update entity bounding box.
+    ent->mins = pm.mins; 
+    ent->maxs = pm.maxs;
     // Update the entity's remaining viewheight, liquid and ground information:
     ent->viewheight = (int32_t)pm.state->pmove.viewheight;
+
     // Store all player move liquid info into the entity 'monster move' (fake name here) properties.
     ent->liquidInfo.level = pm.liquid.level;
     ent->liquidInfo.type = pm.liquid.type;
+    
     // Do the same for ground info.
     ent->groundInfo.entity = static_cast<svg_base_edict_t *>( pm.ground.entity );
     ent->groundInfo.contents = pm.ground.contents;
@@ -256,15 +328,25 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
     }
 
     // Apply a specific view angle if dead:
-    if ( ent->lifeStatus ) {
+    // If dead, fix the angle and don't add any kicks
+    if ( ent->lifeStatus > entity_lifestatus_t::LIFESTATUS_ALIVE ) {
+        // Clear out weapon kick angles.
+        client->ps.kick_angles = QM_Vector3Zero();
         client->ps.viewangles[ ROLL ] = 40;
         client->ps.viewangles[ PITCH ] = -15;
         client->ps.viewangles[ YAW ] = client->killer_yaw;
     // Otherwise, apply the player move state view angles:
     } else {
-        client->ps.viewangles = pm.state->viewangles; // VectorCopy( pm.state->viewangles, client->ps.viewangles );
-        client->viewMove.viewAngles = client->ps.viewangles; // VectorCopy( client->ps.viewangles, client->viewMove.viewAngles );
-        QM_AngleVectors( client->viewMove.viewAngles, &client->viewMove.viewForward, &client->viewMove.viewRight, &client->viewMove.viewUp );
+		// Copy over the viewangles from pmove state.
+        client->ps.viewangles = pm.state->viewangles;
+		// Update the viewMove structure as well.
+        client->viewMove.viewAngles = client->ps.viewangles;
+		// Also derive the forward/right/up vectors from it.
+        QM_AngleVectors( client->viewMove.viewAngles, 
+            &client->viewMove.viewForward, 
+            &client->viewMove.viewRight, 
+            &client->viewMove.viewUp 
+        );
     }
 
     // Return the oldOrigin for later use.
@@ -286,6 +368,9 @@ static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *cli
     // Copy back into the entity, both the resulting origin.
     ent->s.origin = pm.state->pmove.origin;
 
+	// Relink the entity now that its position has been updated.
+    gi.linkentity( ent );
+
     // Dispatch touch callbacks on all the remaining 'Solid' traced objects during our PMove.
     for ( int32_t i = 0; i < pm.touchTraces.count; i++ ) {
         const svg_trace_t &tr = svg_trace_t( pm.touchTraces.traces[ i ] );
@@ -301,6 +386,97 @@ static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *cli
 
 
 
+/**
+*
+*
+*
+*   Spectator Think:
+*
+*
+*
+**/
+/**
+*   @brief  Spectator specific thinking logic.
+**/
+static void Client_SpectatorThink( svg_player_edict_t *ent, svg_client_t *client, usercmd_t *ucmd ) {
+    /**
+    *   Switch ChaseTarget:
+    **/
+    if ( client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
+        // Zero out latched buttons.
+        client->latched_buttons = BUTTON_NONE;
+
+        // Switch from chase target to no chase target:
+        if ( client->chase_target ) {
+            client->chase_target = nullptr;
+            client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
+        // Otherwise, get an active chase target:
+        } else {
+            SVG_ChaseCam_GetTarget( ent );
+        }
+    }
+
+    /**
+    *   Chase-Cam specific behaviors:
+    **/
+    // Switch to next chase target (or the first in-line if not chasing any).
+    if ( ucmd->upmove >= 10 ) {
+        if ( !( client->ps.pmove.pm_flags & PMF_JUMP_HELD ) ) {
+            client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
+
+            if ( client->chase_target ) {
+                SVG_ChaseCam_Next( ent );
+            } else {
+                SVG_ChaseCam_GetTarget( ent );
+            }
+        }
+    // Untoggle playerstate jump_held.
+    } else {
+        client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
+    }
+}
+
+
+
+/**
+*
+*
+*
+*   Player Think:
+*
+*
+*
+**/
+/**
+*   @brief  Player specific thinking logic.
+**/
+static void Client_PlayerThink( svg_player_edict_t *ent, svg_client_t *client, usercmd_t *ucmd ) {
+    // Perform use Targets if we haven't already.
+    SVG_Player_TraceForUseTarget( ent, client, true );
+
+    // Check whether to engage switching to a new weapon.
+    if ( client->newweapon ) {
+        SVG_Player_Weapon_Change( ent );
+    }
+    // Process weapon thinking.
+    //if ( player_ent->client->weapon_thunk == false ) {
+    SVG_Player_Weapon_Think( ent, true );
+	//}
+    // Store that we thought for this frame.
+    ent->client->weapon_thunk = true;
+}
+
+
+
+/**
+*
+*
+*
+*   Client Think: The core of a client's logic. (Mainly, user input response and thus movement!)
+* 
+* 
+* 
+**/
 /**
 *   @brief  This will be called once for each client frame, which will usually
 *           be a couple times for each server frame.
@@ -339,7 +515,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
 	*   Backup some soon to be old client data:
     **/
     // Backup old event sequence.
-    int32_t oldEventSequence = client->ps.eventSequence;
+    int64_t oldEventSequence = client->ps.eventSequence;
     // Backup the old player state.
     client->ops = client->ps;
 
@@ -355,6 +531,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
     const bool isInIntermission = ClientCheckForIntermission( player_ent, client );
     // Exit.
     if ( isInIntermission ) {
+
         return;
     }
 
@@ -363,7 +540,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
     **/
     if ( player_ent->client->chase_target ) {
 		// Update the chase cam angles respectively.
-        VectorCopy( ucmd->angles, client->resp.cmd_angles );
+        client->resp.cmd_angles = ucmd->angles;
     /**
     *   Player Move, and other 'Thinking' logic:
     **/
@@ -371,16 +548,16 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         /**
         *   Configure player movement data and run a frame.
         **/
-        // Backup old origin for touch processing.
-        const Vector3 oldOrigin = client->ps.pmove.origin;
-
         pmove_t pm = {};
         pmoveParams_t pmp = {};
-        SG_ConfigurePlayerMoveParameters( &pmp );
 
+        // Backup old origin for touch processing.
+        const Vector3 oldOrigin = client->ps.pmove.origin;
+        
+		// Configure default player move parameters.
+        SG_ConfigurePlayerMoveParameters( &pmp );
         // Perform player movement.
         PMove_RunFrame( player_ent, client, ucmd, &pm, &pmp);
-
 		// Save results of pmove/events before processing touch traces.
         if ( client->ps.eventSequence != oldEventSequence ) {
             player_ent->eventTime = level.time;
@@ -395,36 +572,32 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         // Convert certain playerstate properties into entity state properties.
         SG_PlayerStateToEntityState( client->clientNum, &client->ps, &player_ent->s, false );
 
-        //if ( player_ent->client->landmark_free_fall && pm.groundentity ) {
-        //    player_ent->client->landmark_free_fall = false;
-        //    player_ent->client->landmark_noise_time = level.time + 100_ms;
-        //}
-        
+        /**
+		*   <Q2RTXP>: WID: TODO: Implement SendPendingPredictableEvents.
+        **/
+        //SendPendingPredictableEvents( &ent->client->ps );
+
         //vec3_t old_origin = player_ent->s.origin;
 
-        // [Paril-KEX] save old position for SVG_Util_TouchProjectiles
-        // Updates the entity origin, angles, bbox, groundinfo, etc.
+        // Save old position for SVG_Util_TouchProjectiles
+        // Updates bbox, groundinfo, etc.
         /*const Vector3 oldOrigin = */PMove_PostFrame( player_ent, client, pm );
 
         // Check for client playerstate its pmove generated events.
         SVG_PlayerState_CheckForEvents( player_ent, &client->ops, &client->ps, oldEventSequence );
 
-        // Process player client events.
-        //ProcessClientEvents( ent, oldEventSequence );
-
-        // Calculate recoil based on movement factors.
-        SVG_Client_CalculateMovementRecoil( ent );
-
-        // Finally link the entity back in.
-        gi.linkentity( player_ent );
-
         // PGM trigger_gravity support
         player_ent->gravity = 1.0;
         // PGM
 
+        // Link the entity back in right after events.
+        gi.linkentity( player_ent );
+
+        // Calculate recoil based on movement factors.
+        ClientCalculateMovementRecoil( ent );
+
         // Process touch callback dispatching for Triggers and Projectiles.
         PMove_ProcessTouchTraces( player_ent, client, pm, oldOrigin );
-
         // Save results of triggers and client events.
         if ( client->ps.eventSequence != oldEventSequence ) {
             player_ent->eventTime = level.time;
@@ -435,61 +608,17 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
     *   Spectator Path:
     **/
     if ( client->resp.spectator ) {
-        if ( client->latched_buttons & BUTTON_PRIMARY_FIRE ) {
-            // Zero out latched buttons.
-            client->latched_buttons = BUTTON_NONE;
-
-            // Switch from chase target to no chase target:
-            if ( client->chase_target ) {
-                client->chase_target = nullptr;
-                client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
-                // Otherwise, get an active chase target:
-            } else {
-                SVG_ChaseCam_GetTarget( ent );
-            }
-        }
+		Client_SpectatorThink( player_ent, client, ucmd );
     /**
     *   Regular Player (And Weapon-)Path:
     **/
     } else {
-        // Perform use Targets if we haven't already.
-        SVG_Player_TraceForUseTarget( ent, client, true );
-
-        // Check whether to engage switching to a new weapon.
-        if ( client->newweapon ) {
-            SVG_Player_Weapon_Change( ent );
-        }
-        // Process weapon thinking.
-        //if ( player_ent->client->weapon_thunk == false ) {
-        SVG_Player_Weapon_Think( ent, true );
-        // Store that we thought for this frame.
-        player_ent->client->weapon_thunk = true;
-        //}
-        // Determine any possibly necessary player state events to go along.
+		Client_PlayerThink( player_ent, client, ucmd );
     }
 
     /**
-    *   Spectator/Chase-Cam specific behaviors:
+    *   Update chase cam if being followed.
     **/
-    if ( client->resp.spectator ) {
-        // Switch to next chase target (or the first in-line if not chasing any).
-        if ( ucmd->upmove >= 10 ) {
-            if ( !( client->ps.pmove.pm_flags & PMF_JUMP_HELD ) ) {
-                client->ps.pmove.pm_flags |= PMF_JUMP_HELD;
-
-                if ( client->chase_target ) {
-                    SVG_ChaseCam_Next( ent );
-                } else {
-                    SVG_ChaseCam_GetTarget( ent );
-                }
-            }
-        // Untoggle playerstate jump_held.
-        } else {
-            client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
-        }
-    }
-
-    // Update chase cam if being followed.
     for ( int32_t i = 1; i <= maxclients->value; i++ ) {
         svg_base_edict_t *other = g_edict_pool.EdictForNumber( i );
         if ( other && other->inuse && other->client->chase_target == ent ) {

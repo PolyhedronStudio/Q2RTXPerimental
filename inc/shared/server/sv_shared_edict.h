@@ -54,8 +54,8 @@ struct sv_shared_edict_t {
     //================================
 
     int32_t         svflags = 0;    // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
-    vec3_t          mins = { 0.f, 0.f, 0.f }, maxs = { 0.f, 0.f, 0.f };
-    vec3_t          absmin = { 0.f, 0.f, 0.f }, absmax = { 0.f, 0.f, 0.f }, size = { 0.f, 0.f, 0.f };
+    Vector3         mins = { 0.f, 0.f, 0.f }, maxs = { 0.f, 0.f, 0.f };
+    Vector3         absmin = { 0.f, 0.f, 0.f }, absmax = { 0.f, 0.f, 0.f }, size = { 0.f, 0.f, 0.f };
     cm_solid_t      solid = SOLID_NOT;
     cm_contents_t   clipmask = cm_contents_t::CONTENTS_NONE;
     cm_contents_t   hullContents = cm_contents_t::CONTENTS_NONE;

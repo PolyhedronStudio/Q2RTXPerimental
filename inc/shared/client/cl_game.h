@@ -86,9 +86,9 @@ typedef struct centity_s {
 	entity_state_t	prev;
 
 	//! Modelspace Mins/Maxs of Bounding Box.
-	vec3_t	mins, maxs;
+	Vector3	mins, maxs;
 	//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
-	vec3_t	absmin, absmax, size;
+	Vector3	absmin, absmax, size;
 	
 	/**
 	*	The game dll can add anything it wants after this point in the structure.

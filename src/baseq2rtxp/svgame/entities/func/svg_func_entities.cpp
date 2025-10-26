@@ -78,8 +78,8 @@ DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -
     VectorCopy( pushMoveEnt->absmax, maxs );
 
     for ( other = pushMoveEnt->teamchain; other; other = other->teamchain ) {
-        AddPointToBounds( other->absmin, mins, maxs );
-        AddPointToBounds( other->absmax, mins, maxs );
+        AddPointToBounds( &other->absmin.x, mins, maxs );
+        AddPointToBounds( &other->absmax.x, mins, maxs );
     }
 
     // expand

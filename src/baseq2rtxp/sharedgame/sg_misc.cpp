@@ -59,6 +59,7 @@ void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t
             SG_DPrintf( SG_GAME_MODULE_STR " PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[ newEvent ], eventParm );
         }
 	}
+
 	//#ifndef CLGAME_INCLUDE
 	// Add predicted player move state event.
     //playerState->events[ sequenceIndex ] = ( ( playerState->events[ sequenceIndex ] & GUN_ANIMATION_TOGGLE_BIT ) ^ GUN_ANIMATION_TOGGLE_BIT )

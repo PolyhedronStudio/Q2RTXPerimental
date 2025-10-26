@@ -8,6 +8,7 @@
 #include "shared/shared.h"
 
 #include "sharedgame/sg_shared.h"
+#include "sharedgame/sg_entity_types.h"
 #include "sharedgame/sg_entities.h"
 
 
@@ -15,9 +16,11 @@
 /**
 *
 *
+* 
 *
 *   Entity State:
 *
+* 
 *
 *
 **/
@@ -28,51 +31,43 @@
 *			and after local prediction on the client.
 **/
 void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool snapOrigin ) {
-	#if 0
+	/**
+	*	Entity Type, Model Index, etc:
+	**/
+	entityState->entityType = ET_PLAYER;
+	entityState->modelindex = MODELINDEX_PLAYER;
+
+	/**
+	*	Skin and Weapon Model Index:
+	**/
 	//! Setup the skin number.
-	sg_player_skinnum_t skinnum;
+	sg_player_skinnum_t encodedSkin;
 	//! Set the client number.
-	skinnum.clientNumber = (uint8_t)clientNumber;
+	encodedSkin.clientNumber = (uint8_t)clientNumber;
 	//! Set the view weapon index.
-	skinnum.viewWeaponIndex = playerState->gun.modelIndex;
+	encodedSkin.viewWeaponIndex = (uint8_t)playerState->gun.modelIndex;
 	// Set the entity state values.
-	entityState->skinnum = skinnum.skinnum;
-	#endif
+	entityState->skinnum = encodedSkin.skinnum;
 
-	#if 0
-		// Copy over the playerState values.
-		entityState->number = clientNumber;
-		entityState->entityType = ET_PLAYER;
-		entityState->modelindex = MODELINDEX_PLAYER;
-		entityState->modelindex2 = playerState->gun.modelIndex; // View weapon model.
-		entityState->frame = playerState->gun.animationID;
-		//entityState->frame = playerState->gun.animationID & ~GUN_ANIMATION_TOGGLE_BIT;
-		entityState->angles = playerState->viewangles; // VectorCopy( playerState->viewangles, entityState->angles );
-		// Copy over the origin.
-		if ( snapOrigin ) {
-			// Snap to integer coordinates for network transmission.
-			entityState->origin[ 0 ] = (int32_t)playerState->pmove.origin[ 0 ];
-			entityState->origin[ 1 ] = (int32_t)playerState->pmove.origin[ 1 ];
-			entityState->origin[ 2 ] = (int32_t)playerState->pmove.origin[ 2 ];
-		} else {
-			// Copy without snapping.
-			entityState->origin[ 0 ] = playerState->pmove.origin[ 0 ];
-			entityState->origin[ 1 ] = playerState->pmove.origin[ 1 ];
-			entityState->origin[ 2 ] = playerState->pmove.origin[ 2 ];
-		}
-	#else
-		// Copy without snapping.
-		VectorCopy( playerState->pmove.origin, entityState->origin );
+	/**
+	*	Origin:
+	**/
+	entityState->origin = ( snapOrigin ? QM_Vector3Snap( playerState->pmove.origin ) : playerState->pmove.origin );
 
-		double pitch = playerState->viewangles[ PITCH ];
-		if ( pitch > 180. ) {
-			pitch -= 360.;
-		}
-		entityState->angles[ PITCH ] = pitch / 3.;
-		entityState->angles[ YAW ] = playerState->viewangles[ YAW ];
-		entityState->angles[ ROLL ] = 0.;
-	#endif
+	/**
+	*	Angles:
+	**/
+	double pitch = playerState->viewangles[ PITCH ];
+	if ( pitch > 180. ) {
+		pitch -= 360.;
+	}
+	entityState->angles[ PITCH ] = pitch / 3.;
+	entityState->angles[ YAW ] = playerState->viewangles[ YAW ];
+	entityState->angles[ ROLL ] = 0.;
 
+	/**
+	*	Check for Events:
+	**/
 	// Check for an external event first.
 	if ( playerState->externalEvent ) {
 		entityState->event = playerState->externalEvent;

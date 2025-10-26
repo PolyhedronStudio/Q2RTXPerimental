@@ -37,9 +37,9 @@ static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSoli
 
     // Create a temp hull from entity bounds and contents clipmask for the specific type of 'solid'.
     if ( ent->current.solid == SOLID_BOUNDS_OCTAGON ) {
-        return CM_HeadnodeForOctagon( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
+        return CM_HeadnodeForOctagon( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
     } else {
-        return CM_HeadnodeForBox( &cl.collisionModel, ent->mins, ent->maxs, ent->current.hullContents );
+        return CM_HeadnodeForBox( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
     }
 }
 

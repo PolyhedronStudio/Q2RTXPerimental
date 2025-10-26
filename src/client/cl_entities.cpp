@@ -35,7 +35,16 @@ FRAME PARSING
 =========================================================================
 */
 
-// returns true if origin/angles update has been optimized out
+/**
+*	@brief	Will decode/unpack the solid_packet_t uint32_t, into the pointers mins/maxs.
+**/
+static inline void _MSG_UnpackBoundsUint32( const bounds_packed_t packedBounds, Vector3 &mins, Vector3 &maxs ) {
+    MSG_UnpackBoundsUint32( packedBounds, &mins.x, &maxs.x );
+}
+
+/**
+*   @return True if origin / angles update has been optimized out to the player state.
+**/
 static inline bool entity_is_optimized(const entity_state_t *state)
 {
     //return cls.serverProtocol == PROTOCOL_VERSION_Q2PRO
@@ -96,7 +105,9 @@ static void parse_entity_update(const entity_state_t *state)
     const Vector3 *origin;
     Vector3 origin_v;
 
-    // If entity is solid, and not our client entity, add it to the solid entity list.
+    // If entity is solid, and not the frame's client entity, add it to the solid entity list.
+	// (We don't want to add the client's own entity, to prevent issues with self-collision).
+    //
     if ( state->solid && state->number != cl.frame.clientNum + 1 && cl.numSolidEntities < MAX_PACKET_ENTITIES ) {
         // Add it to the solids entity list.
         cl.solidEntities[ cl.numSolidEntities++ ] = ent;
@@ -105,20 +116,25 @@ static void parse_entity_update(const entity_state_t *state)
     // If not a brush model, acquire the bounds from the state. (It will use the clip brush node its bounds otherwise.)
     if ( state->solid && state->solid != BOUNDS_BRUSHMODEL ) {
         // If not a brush bsp entity, decode its mins and maxs.
-        MSG_UnpackBoundsUint32( bounds_packed_t{ .u = state->bounds }, ent->mins, ent->maxs );
+        _MSG_UnpackBoundsUint32( 
+            bounds_packed_t{ 
+                .u = state->bounds 
+            }, 
+            ent->mins, ent->maxs
+        );
     // Clear out the mins and maxs.
     } else {
-        VectorClear( ent->mins );
-        VectorClear( ent->maxs );
+        ent->mins = QM_Vector3Zero();
+        ent->maxs = QM_Vector3Zero();
     }
 
     #if 1
     // Work around Q2PRO server bandwidth optimization.
     if ( entity_is_optimized( state ) ) {
         if ( cl.frame.number <= 0 ) {
-            VectorCopy( cl.frame.ps.pmove.origin, origin_v );
+            origin_v = cl.frame.ps.pmove.origin;// VectorCopy( cl.frame.ps.pmove.origin, origin_v );
         } else {
-            VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
+            origin_v = cl.predictedFrame.ps.pmove.origin;// VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
         }
         origin = &origin_v;
     } else {

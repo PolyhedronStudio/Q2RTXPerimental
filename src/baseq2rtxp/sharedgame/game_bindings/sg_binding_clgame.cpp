@@ -76,6 +76,20 @@ sgentity_s *SG_GetEntityForNumber( const int32_t number ) {
 }
 
 
+
+/**
+*
+*
+*
+*	Player State:
+*
+*
+*
+**/
+
+
+
+
 /**
 *
 * 

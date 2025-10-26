@@ -92,6 +92,19 @@ typedef enum sg_entity_events_e {
     EV_FOOTSTEP_LADDER,
 
     /**
+	*   Water (Footstep-)Splash Events:
+    **/
+	//! For when the feet touch water.
+    EV_WATER_SPLASH_TOUCH_FEET,
+	//! For when deep diving in water.
+	EV_WATER_SPLASH_TOUCH_WAIST,
+
+	EV_WATER_SPLASH_LEAVE,
+    EV_WATER_SPLASH_UNDER,
+
+    EV_WATER_SPLASH_CLEAR,
+
+    /**
     *   Player/(Humanoid-)Monster Events:   
     **/
     //! For when jumping up.

@@ -482,64 +482,6 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
 *
 **/
 /**
-*	@brief	Calculates the to be determined movement induced recoil factor.
-**/
-void SVG_Client_CalculateMovementRecoil( svg_base_edict_t *ent ) {
-    // Get playerstate.
-    player_state_t *playerState = &ent->client->ps;
-    
-    // Base movement recoil factor.
-    double baseMovementRecoil = 0.;
-
-    // Is on a ladder?
-	const bool isOnLadder = ( ( playerState->pmove.pm_flags & PMF_ON_LADDER ) ? true : false );
-    // Determine if crouched(ducked).
-    const bool isDucked = ( ( playerState->pmove.pm_flags & PMF_DUCKED ) ? true : false );
-    // Determine if off-ground.
-    //bool isOnGround = ( ( playerState->pmove.pm_flags & PMF_ON_GROUND ) ? true : false );
-    const bool isOnGround = ( ent->groundInfo.entity != nullptr ? true : false );
-    // Determine if in water.
-    const bool isInWater = ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_NONE ? true : false );
-    // Get liquid level.
-    const cm_liquid_level_t liquidLevel = ent->liquidInfo.level;
-    
-    // Resulting move factor.
-    double recoilMoveFactor = 0.;
-
-    // First check if in water, so we can skip the other tests.
-    if ( isInWater && ent->liquidInfo.level > cm_liquid_level_t::LIQUID_FEET) {
-        // Waist in water.
-        recoilMoveFactor = 0.55;
-        // Head under water.
-        if ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_WAIST ) {
-            recoilMoveFactor = 0.75;
-        }
-    } else {
-        // If ducked, -0.3.
-        if ( isDucked && isOnGround && !isOnLadder ) {
-            recoilMoveFactor -= 0.3;
-        } else if ( isOnLadder ) {
-            recoilMoveFactor = 0.5;
-        }
-    }
-
-    // Divide 1 by max speed, multiply by velocity length, ONLY if, speed > pm_stop_speed
-    if ( playerState->xyzSpeed >= default_pmoveParams_t::pm_stop_speed / 2. ) {
-        // Get multiply factor.
-        const double multiplyFactor = ( 1.0 / default_pmoveParams_t::pm_max_speed );
-        // Calculate actual scale factor.
-        const double scaleFactor = multiplyFactor * playerState->xyzSpeed;
-        // Assign.
-        recoilMoveFactor += 0.5 * scaleFactor;
-        //gi.dprintf( "playerState->xyzSpeed(%f), scaleFactor(%f)\n", playerState->xyzSpeed, multiplyFactor, scaleFactor );
-    } else {
-        //gi.dprintf( "playerState->xyzSpeed\n", playerState->xyzSpeed );
-    }
-
-    // ( We default to idle. ) Default to 0.
-    ent->client->weaponState.recoil.moveFactor = recoilMoveFactor;
-}
-/**
 *   @brief  Calculates the final resulting recoil value, being clamped between -1, to +1.
 **/
 const double SVG_Client_GetFinalRecoilFactor( svg_base_edict_t *ent ) {

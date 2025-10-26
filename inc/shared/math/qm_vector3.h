@@ -31,6 +31,16 @@ QM_API_CONSTEXPR Vector3 QM_Vector3Gravity( void ) {
     return result;
 }
 
+// Add two vectors
+QM_API_CONSTEXPR Vector3 QM_Vector3Snap( const Vector3 &v1 ) {
+    Vector3 result = {
+        (float)( (int32_t)v1.x ),
+		(float)( (int32_t)v1.y ),
+		(float)( (int32_t)v1.z )
+    };
+    return result;
+}
+
 // Vector3 with x and y component of Vector2.
 #ifdef __cplusplus
 QM_API Vector2 QM_Vector2FromVector3( const Vector3 &v1 ) {

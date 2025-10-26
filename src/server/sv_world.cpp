@@ -121,6 +121,24 @@ void SV_ClearWorld(void)
     }
 }
 
+
+
+/**
+*
+*
+*
+*   Entity World Area Linking:
+*
+*
+*
+**/
+/**
+*	@brief	Will encode/pack the mins/maxs bounds into the solid_packet_t uint32_t.
+**/
+static inline const bounds_packed_t _MSG_PackBoundsUint32( const Vector3 &mins, const Vector3 &maxs ) {
+    return MSG_PackBoundsUint32( &mins.x, &maxs.x );
+}
+
 /**
 *   @brief  Needs to be called any time an entity changes origin, mins, maxs,
 *           or solid.  Automatically unlinks if needed.
@@ -179,7 +197,7 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
     ent->areanum2 = 0;
 
     //get all leafs, including solids
-    num_leafs = CM_BoxLeafs(cm, ent->absmin, ent->absmax,
+    num_leafs = CM_BoxLeafs(cm, &ent->absmin.x, &ent->absmax.x,
                             leafs, MAX_TOTAL_ENT_LEAFS, &topnode);
 
     // set areas
@@ -287,7 +305,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
             sent->solid32 = SOLID_NOT;  // 0
         } else {
             ent->s.solid = static_cast<cm_solid_t>( sent->solid32 = ent->solid );
-            ent->s.bounds = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
+            ent->s.bounds = static_cast<uint32_t>( _MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
         }
         break;
     case SOLID_BOUNDS_OCTAGON:
@@ -296,7 +314,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
             sent->solid32 = SOLID_NOT;  // 0
         } else {
             ent->s.solid = static_cast<cm_solid_t>( sent->solid32 = ent->solid );
-            ent->s.bounds = static_cast<uint32_t>( MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
+            ent->s.bounds = static_cast<uint32_t>( _MSG_PackBoundsUint32( ent->mins, ent->maxs ).u );
         }
         break;
     case SOLID_BSP:
@@ -461,9 +479,9 @@ static mnode_t *SV_HullForEntity(sv_edict_t *ent, const bool includeSolidTrigger
 
     // Create a temp hull from entity bounds and contents clipmask for the specific type of 'solid'.
     if ( ent->solid == SOLID_BOUNDS_OCTAGON ) {
-        return CM_HeadnodeForOctagon( &sv.cm, ent->mins, ent->maxs, ent->hullContents );
+        return CM_HeadnodeForOctagon( &sv.cm, &ent->mins.x, &ent->maxs.x, ent->hullContents );
     } else {
-        return CM_HeadnodeForBox( &sv.cm, ent->mins, ent->maxs, ent->hullContents );
+        return CM_HeadnodeForBox( &sv.cm, &ent->mins.x, &ent->maxs.x, ent->hullContents );
     }
 }
 

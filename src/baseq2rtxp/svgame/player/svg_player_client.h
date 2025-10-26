@@ -110,10 +110,6 @@ void SVG_Client_Think( svg_base_edict_t * ent, usercmd_t * ucmd );
 *
 **/
 /**
-*	@brief	Calculates the to be determined movement induced recoil factor.
-**/
-void SVG_Client_CalculateMovementRecoil( svg_base_edict_t *ent );
-/**
 *   @brief  Calculates the final resulting recoil value, being clamped between -1, to +1.
 **/
 const double SVG_Client_GetFinalRecoilFactor( svg_base_edict_t *ent );

@@ -30,7 +30,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 static void PlayerStateEvent_Fall( svg_player_edict_t *ent, const int32_t event, const int32_t eventParm ) {
     // Dead stuff can't crater.
-    if ( ent->health <= 0 || ent->lifeStatus ) {
+    if ( ent->health <= 0 || ent->lifeStatus > entity_lifestatus_t::LIFESTATUS_ALIVE ) {
         return;
     }
 
@@ -123,9 +123,10 @@ static void SVG_PlayerState_FireEvent( svg_player_edict_t *ent, const int32_t pl
     *   Regular Events:
     **/
 	gi.dprintf( "PLAYER EVENT: event(%d) maskedevent(%d) parm=%d\n", playerStateEvent & ~EV_EVENT_BITS, playerStateEvent, playerStateEventParm );
-    if ( playerStateEvent == EV_FALL_MEDIUM 
-        || playerStateEvent == EV_FALL_FAR 
-        || playerStateEvent == EV_FALL_SHORT ) {
+
+    if ( playerStateEvent == EV_FALL_SHORT
+        || playerStateEvent == EV_FALL_MEDIUM 
+        || playerStateEvent == EV_FALL_FAR ) {
         PlayerStateEvent_Fall( ent, playerStateEvent, playerStateEventParm );
         return;
     }
