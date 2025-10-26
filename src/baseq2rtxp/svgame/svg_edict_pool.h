@@ -113,7 +113,9 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         ed->inuse = true;
         ed->classname = svg_level_qstring_t::from_char_str( ( classnameOverRuler != nullptr ? classnameOverRuler : EdictType::ClassInfo.worldSpawnClassName ) );
         ed->gravity = 1.0f;
-        ed->s.number = stateNumber;// e - g_edicts;
+        ed->s.number = stateNumber;
+		// <Q2RTXP>: For temp entities spawned by other entities.
+		ed->owner = nullptr;
 
         // A generic entity type by default.
         ed->s.entityType = ET_GENERIC;

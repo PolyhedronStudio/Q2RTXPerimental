@@ -132,6 +132,15 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent ) {
 
 
 /**
+*
+*
+*
+*	(Event-) Entity Utility Functions:
+*
+*
+*
+**/
+/**
 *   @brief  Use for non-pmove events that would also be predicted on the
 *           client side: jumppads and item pickups
 *           Adds an event+parm and twiddles the event counter
@@ -155,37 +164,58 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_
 	// Sanity check.
     if ( !event ) {
 		// Debug about zero event.
-        gi.dprintf( "%s: zero event added for entity(#%i), lastEventTime(%" PRIx64 ")\n", __func__, ent->s.number, ent->eventTime );
+        gi.dprintf( "%s: zero event added for entity(#%i), lastEventTime(%" PRId64 ")\n", __func__, ent->s.number, ent->eventTime );
         return;
     }
 
-    #if 1
-        // clients need to add the event in playerState_t instead of entityState_t
-        if ( ent->client ) {
-		    // Set the event.
-            int32_t bits = ent->client->ps.externalEvent & EV_EVENT_BITS;
-		    // EV_EVENT_BIT1 and EV_EVENT_BIT2 are a two bit counter, so go to the next one.
-            bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
-		    // Set the event and parm.
-            ent->client->ps.externalEvent = event | bits;
-            ent->client->ps.externalEventParm = eventParm;
-            ent->client->ps.externalEventTime = level.time.Milliseconds();
-        // non-clients just add it to the entityState_t
-        } else {
-		    // Set the event.
-            int32_t bits = ent->s.event & EV_EVENT_BITS;
-		    // EV_EVENT_BIT1 and EV_EVENT_BIT2 are a two bit counter, so go to the next one.
-            bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
-		    // Set the event and parm.
-            ent->s.event = event | bits;
-            ent->s.eventParm = eventParm;
-        }
-	    // Stamp the time of the event.
-        ent->eventTime = level.time;
-    #endif
+    /**
+    *   Clients need to add the event in playerState_t instead of entityState_t.
+    **/
+    if ( ent->client ) {
+		// Set the event.
+        int32_t bits = ent->client->ps.externalEvent & EV_EVENT_BITS;
+		// EV_EVENT_BIT1 and EV_EVENT_BIT2 are a two bit counter, so go to the next one.
+        bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
+		// Set the event and parm.
+        ent->client->ps.externalEvent = event | bits;
+        ent->client->ps.externalEventParm = eventParm;
+        ent->client->ps.externalEventTime = level.time.Milliseconds();
+    /**
+    *   Non-Clients just add it to the entityState_t
+    **/
+    } else {
+		// Set the event.
+        int32_t bits = ent->s.event & EV_EVENT_BITS;
+		// EV_EVENT_BIT1 and EV_EVENT_BIT2 are a two bit counter, so go to the next one.
+        bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
+		// Set the event and parm.
+        ent->s.event = event | bits;
+        ent->s.eventParm = eventParm;
+    }
+	// Stamp the time of the event.
+    ent->eventTime = level.time;
 }
 
+/**
+*   @brief  Adds a temp entity event at the given origin.
+**/
+void SVG_Util_AddTempEntity( const Vector3 &origin, const int32_t event, const int32_t eventParm ) {
+    // Spawn a func_plat_trigger.
+    EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+    // Allocate it using the found typeInfo.
+	// <Q2RTXP>: WID: Fix incorrect allocation of edict instance. (Create an entity event type instance instead of a base edict instance.)
+    svg_base_edict_t *triggerEdictInstance = static_cast<svg_base_edict_t *>( typeInfo->allocateEdictInstanceCallback( nullptr ) );
+    // Emplace the spawned edict in the next avaible edict slot.
+    g_edict_pool.EmplaceNextFreeEdict( triggerEdictInstance );
 
+    
+
+    //gi.WriteByte( svc_temp_entity );
+    //gi.WriteByte( event );
+    //gi.WritePosition( origin );
+    //gi.WriteByte( eventParm );
+    //gi.multicast( origin, MULTICAST_PVS );
+}
 
 /**
 *

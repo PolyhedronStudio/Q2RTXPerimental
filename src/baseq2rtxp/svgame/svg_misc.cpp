@@ -244,9 +244,11 @@ void SVG_Misc_ThrowClientHead( svg_base_edict_t *self, const int32_t damage ) {
 * 
 * 
 ***/
-void debris_die(svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point)
-{
-    SVG_FreeEdict(self);
+/**
+*   @brief
+**/
+DEFINE_GLOBAL_CALLBACK_DIE( debris_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void {
+    g_edict_pool.FreeEdict( self );
 }
 
 /**

@@ -1318,29 +1318,37 @@ static void PM_WaterEvents( void ) {		// FIXME?
 	*	If just entered a water volume, play a sound
 	**/
 	if ( !pml.previousLiquid.level && pm->liquid.level ) {
+		// Feet Deep Splash:
 		if ( pm->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
-			PM_AddEvent( EV_WATER_SPLASH_TOUCH_FEET );
-		} else if ( pm->liquid.level >= {
-			PM_AddEvent( EV_WATER_SPLASH_TOUCH_WAIST );
+			PM_AddEvent( EV_WATER_ENTER_FEET, pm->liquid.type );
+		// Waist Deep Splash:
+		} else if ( pm->liquid.level >= cm_liquid_level_t::LIQUID_WAIST ) {
+			PM_AddEvent( EV_WATER_ENTER_WAIST, pm->liquid.type );
 		}
 	}
 	/**
 	*	If just completely exited a water volume, play a sound
 	**/
-	if ( pml.previous_waterlevel && !pm->waterlevel ) {
-		PM_AddEvent( EV_WATER_LEAVE );
+	if ( pml.previousLiquid.level && !pm->liquid.level ) {
+		// Feet Deep Splash:
+		if ( pml.previousLiquid.level == cm_liquid_level_t::LIQUID_FEET ) {
+			PM_AddEvent( EV_WATER_LEAVE_FEET, pml.previousLiquid.type );
+			// Waist Deep Splash:
+		} else if ( pml.previousLiquid.level >= cm_liquid_level_t::LIQUID_WAIST ) {
+			PM_AddEvent( EV_WATER_LEAVE_WAIST, pml.previousLiquid.type );
+		}
 	}
 	/**
 	*	Check for head just going under water
 	**/
-	if ( pml.previous_waterlevel != 3 && pm->waterlevel == 3 ) {
-		PM_AddEvent( EV_WATER_UNDER );
+	if ( pml.previousLiquid.level < cm_liquid_level_t::LIQUID_UNDER && pm->liquid.level == cm_liquid_level_t::LIQUID_UNDER ) {
+		PM_AddEvent( EV_WATER_ENTER_HEAD, pm->liquid.type );
 	}
 	/**
 	*	check for head just coming out of water
 	**/
-	if ( pml.previous_waterlevel == 3 && pm->waterlevel != 3 ) {
-		PM_AddEvent( EV_WATER_CLEAR );
+	if ( pml.previousLiquid.level == cm_liquid_level_t::LIQUID_UNDER && pm->liquid.level != cm_liquid_level_t::LIQUID_UNDER ) {
+		PM_AddEvent( EV_WATER_LEAVE_HEAD, pm->liquid.type );
 	}
 }
 

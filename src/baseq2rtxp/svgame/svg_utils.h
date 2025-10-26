@@ -39,6 +39,17 @@ void SVG_Util_SetMoveDir( Vector3 &angles, Vector3 &movedir, const bool clearAng
 **/
 const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent );
 
+
+
+/**
+*
+*
+*
+*	(Event-) Entity Utility Functions:
+*
+*
+*
+**/
 /**
 *   @brief  Use for non-pmove events that would also be predicted on the
 *           client side: jumppads and item pickups
@@ -49,6 +60,10 @@ void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, c
 *   @brief Adds an event+parm and twiddles the event counter.
 **/
 void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm );
+/**
+*   @brief  Adds a temp entity event at the given origin.
+**/
+void SVG_Util_AddTempEntity( const Vector3 &origin, const int32_t event, const int32_t eventParm );
 
 
 

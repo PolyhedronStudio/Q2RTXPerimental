@@ -26,7 +26,7 @@
 /**
 *   @brief  (Re-)initialize an edict.
 **/
-void SVG_InitEdict( svg_base_edict_t *e, const int32_t stateNumber );
+//void SVG_InitEdict( svg_base_edict_t *e, const int32_t stateNumber );
 #if 0
 /**
 *   @brief  Either finds a free edict, or allocates a new one.

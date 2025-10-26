@@ -273,6 +273,7 @@ void SVG_InitEdict(edict_t *e)
     e->classname = "noclass";
     e->gravity = 1.0f;
     e->s.number = e - g_edicts;
+    e->owner = nullptr;
 	
 	// A generic entity type by default.
 	e->s.entityType = ET_GENERIC;

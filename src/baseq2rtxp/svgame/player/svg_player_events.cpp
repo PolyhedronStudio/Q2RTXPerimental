@@ -25,8 +25,102 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "sharedgame/pmove/sg_pmove.h"
 #include "svgame/entities/svg_player_edict.h"
 
+
+
 /**
-*   @brief  Handles fall events:
+*
+*
+*
+*   Event Implementations::
+*
+*
+*
+**/
+/**
+*   @brief  Water entry event processing.
+**/
+static void PlayerStateEvent_WaterEnter( svg_player_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+	// No-clip mode doesn't make a splash.
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        return;
+    }
+    
+	// Determine splash type.
+    if ( event == EV_WATER_ENTER_FEET ) {
+        SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
+            //gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
+            gi.sound( ent, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
+            // clear damage_debounce, so the pain sound will play immediately
+            ent->damage_debounce_time = level.time - 1_sec;
+        }
+        #if 0
+            else if ( ent->liquidInfo.type & CONTENTS_SLIME ) {
+                gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+            } else if ( ent->liquidInfo.type & CONTENTS_WATER ) {
+                gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+            }
+        #endif
+        ent->flags |= FL_INWATER;
+    } else if ( event >= EV_WATER_ENTER_WAIST ) {
+        SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
+            gi.sound( ent, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
+            // clear damage_debounce, so the pain sound will play immediately
+            ent->damage_debounce_time = level.time - 1_sec;
+        }
+        #if 0
+            else if ( ent->liquidInfo.type & CONTENTS_SLIME ) {
+                const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
+                gi.sound( ent, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+            } else if ( ent->liquidInfo.type & CONTENTS_WATER ) {
+                const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
+                gi.sound( ent, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+            }
+        #endif
+        ent->flags |= FL_INWATER;
+    }
+
+    // Check for head just going under water.
+    if ( event >= EV_WATER_ENTER_HEAD ) {
+        //gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
+        ent->flags |= FL_INWATER;
+    }
+}
+/**
+*   @brief  Water leave event processing.
+**/
+static void PlayerStateEvent_WaterLeave( svg_player_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+    // No-clip mode doesn't make a splash.
+    if ( ent->movetype == MOVETYPE_NOCLIP ) {
+        return;
+    }
+
+    // Determine splash type.
+    if ( event == EV_WATER_LEAVE_FEET ) {
+        SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        //gi.sound( ent, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+        ent->flags &= ~FL_INWATER;
+    }
+    if ( event == EV_WATER_LEAVE_WAIST ) {
+        SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        //gi.sound( ent, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
+        ent->flags &= ~FL_INWATER;
+    }
+	if ( event == EV_WATER_LEAVE_HEAD ) {
+        if ( ent->air_finished_time < level.time ) {
+            // gasp for air
+            gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
+            SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        } else  if ( ent->air_finished_time < level.time + 11_sec ) {
+            // just break surface
+            gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
+        }
+    }
+}
+
+/**
+*   @brief  Fall to the ground event processing.
 **/
 static void PlayerStateEvent_Fall( svg_player_edict_t *ent, const int32_t event, const int32_t eventParm ) {
     // Dead stuff can't crater.
@@ -99,6 +193,17 @@ static void PlayerStateEvent_Fall( svg_player_edict_t *ent, const int32_t event,
     }
 }
 
+
+
+/**
+*
+*
+*
+*   Event Firing:
+*
+*
+*
+**/
 /**
 *	@brief	Inspects the player state events for any events which may fire animation playbacks.
 **/
@@ -122,12 +227,26 @@ static void SVG_PlayerState_FireEvent( svg_player_edict_t *ent, const int32_t pl
     /**
     *   Regular Events:
     **/
-	gi.dprintf( "PLAYER EVENT: event(%d) maskedevent(%d) parm=%d\n", playerStateEvent & ~EV_EVENT_BITS, playerStateEvent, playerStateEventParm );
-
+	gi.dprintf( "PLAYER EVENT: name(\"%s\")eventID(#%d), maskedeventID(#%d), parm(%d)\n", sg_event_string_names[ playerStateEvent ], playerStateEvent & ~EV_EVENT_BITS, playerStateEvent, playerStateEventParm );
+	// All fall events are handled the same way.
     if ( playerStateEvent == EV_FALL_SHORT
         || playerStateEvent == EV_FALL_MEDIUM 
         || playerStateEvent == EV_FALL_FAR ) {
-        PlayerStateEvent_Fall( ent, playerStateEvent, playerStateEventParm );
+            PlayerStateEvent_Fall( ent, playerStateEvent, playerStateEventParm );
+        return;
+    }
+	// All water entry and exit events are handled the same way.
+    if ( playerStateEvent == EV_WATER_ENTER_FEET
+        || playerStateEvent == EV_WATER_ENTER_WAIST
+        || playerStateEvent == EV_WATER_ENTER_HEAD ) {
+            PlayerStateEvent_WaterEnter( ent, playerStateEvent, playerStateEventParm );
+        return;
+    }
+    // All water entry and exit events are handled the same way.
+    if ( playerStateEvent == EV_WATER_LEAVE_FEET
+        || playerStateEvent == EV_WATER_LEAVE_WAIST
+        || playerStateEvent == EV_WATER_LEAVE_HEAD ) {
+            PlayerStateEvent_WaterLeave( ent, playerStateEvent, playerStateEventParm );
         return;
     }
 

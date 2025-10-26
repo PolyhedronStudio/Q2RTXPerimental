@@ -95,14 +95,17 @@ typedef enum sg_entity_events_e {
 	*   Water (Footstep-)Splash Events:
     **/
 	//! For when the feet touch water.
-    EV_WATER_SPLASH_TOUCH_FEET,
+	EV_WATER_ENTER_FEET, // Also plays a possible footstep sound.
 	//! For when deep diving in water.
-	EV_WATER_SPLASH_TOUCH_WAIST,
-
-	EV_WATER_SPLASH_LEAVE,
-    EV_WATER_SPLASH_UNDER,
-
-    EV_WATER_SPLASH_CLEAR,
+	EV_WATER_ENTER_WAIST,
+	//! For when the head goes underwater.
+    EV_WATER_ENTER_HEAD,
+	//! For when the feet leave water.
+    EV_WATER_LEAVE_FEET,
+	//! For when waist leaves water.
+    EV_WATER_LEAVE_WAIST,
+	//! For when head leaves water.
+    EV_WATER_LEAVE_HEAD,
 
     /**
     *   Player/(Humanoid-)Monster Events:   
@@ -180,8 +183,17 @@ typedef enum sg_entity_events_e {
 static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     "EV_ENGINE_NONE",
 
-    "EV_FOOTSTEP",
+    "EV_PLAYER_FOOTSTEP",
+	"EV_OTHER_FOOTSTEP",
     "EV_FOOTSTEP_LADDER",
+
+	"EV_WATER_ENTER_FEET",
+	"EV_WATER_ENTER_WAIST",
+	"EV_WATER_ENTER_HEAD",
+
+	"EV_WATER_LEAVE_FEET",
+	"EV_WATER_LEAVE_WAIST",
+	"EV_WATER_LEAVE_HEAD",
 
     "EV_JUMP_UP",
     "EV_JUMP_LAND",
@@ -208,8 +220,6 @@ static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     "EV_OTHER_TELEPORT",
 
     "EV_ITEM_RESPAWN",
-
-    "EV_GAME_MAX",
 };
 
 /**

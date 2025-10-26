@@ -18,6 +18,46 @@
 
 
 /**
+*   @brief  Determines the 'fire' animation to play for the given primary fire event.
+**/
+static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
+    // Are we ducked?
+    const bool isDucked = ( ps->pmove.pm_flags & PMF_DUCKED ? true : false );
+
+    // Default animation
+    std::string animationName = "fire_stand_pistol";
+
+    if ( !ps->animation.isIdle ) {
+        if ( ps->animation.isCrouched ) {
+            //animationName = "fire_crouch_pistol";
+            animationName = "fire_crouch_pistol";
+        } else if ( ps->animation.isWalking ) {
+            //animationName = "fire_walk_pistol";
+            animationName = "fire_run_pistol";
+        } else {
+            // Only if not strafing though.
+            bool isStrafing = true;
+            if ( ( !( ps->animation.moveDirection & PM_MOVEDIRECTION_FORWARD ) && !( ps->animation.moveDirection & PM_MOVEDIRECTION_BACKWARD ) )
+                && ( ( ps->animation.moveDirection & PM_MOVEDIRECTION_LEFT ) || ( ps->animation.moveDirection & PM_MOVEDIRECTION_RIGHT ) ) ) {
+                animationName = "fire_stand_pistol";
+            } else {
+                animationName = "fire_run_pistol";
+            }
+        }
+    } else {
+        if ( ps->animation.isCrouched ) {
+            //animationName = "fire_crouch_pistol";
+            animationName = "fire_crouch_pistol";
+        } else {
+            animationName = "fire_stand_pistol";
+        }
+    }
+    return animationName;
+}
+
+
+
+/**
 *
 *
 *
@@ -208,44 +248,6 @@ void CLG_CheckEntityEvents( centity_t *cent ) {
 *
 **/
 /**
-*   @brief  Determines the 'fire' animation to play for the given primary fire event.
-**/
-static const std::string CLG_PrimaryFireEvent_DetermineAnimation( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
-    // Are we ducked?
-    const bool isDucked = ( ps->pmove.pm_flags & PMF_DUCKED ? true : false );
-
-    // Default animation
-    std::string animationName = "fire_stand_pistol";
-    
-    if ( !ps->animation.isIdle ) {
-        if ( ps->animation.isCrouched ) {
-            //animationName = "fire_crouch_pistol";
-            animationName = "fire_crouch_pistol";
-        } else if ( ps->animation.isWalking ) {
-            //animationName = "fire_walk_pistol";
-            animationName = "fire_run_pistol";
-        } else {
-            // Only if not strafing though.
-            bool isStrafing = true;
-            if ( ( !( ps->animation.moveDirection & PM_MOVEDIRECTION_FORWARD ) && !( ps->animation.moveDirection & PM_MOVEDIRECTION_BACKWARD ) )
-                && ( ( ps->animation.moveDirection & PM_MOVEDIRECTION_LEFT ) || ( ps->animation.moveDirection & PM_MOVEDIRECTION_RIGHT ) ) ) {
-                animationName = "fire_stand_pistol";
-            } else {
-                animationName = "fire_run_pistol";
-            }
-        }
-    } else {
-        if ( ps->animation.isCrouched ) {
-            //animationName = "fire_crouch_pistol";
-            animationName = "fire_crouch_pistol";
-        } else {
-            animationName = "fire_stand_pistol";
-        }
-    }
-        return animationName;
-}
-
-/**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
 const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
@@ -305,12 +307,55 @@ const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_st
         //    break;
 
         /**
+        *   Water Enter Events:
+        **/
+        case EV_WATER_ENTER_FEET:
+                clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, clgi.S_RegisterSound( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+				return true;
+            break;
+        case EV_WATER_ENTER_WAIST:
+				clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 ).c_str() ), 1, ATTN_NORM, 0 );
+                return true;
+            break;
+        case EV_WATER_ENTER_HEAD:
+                clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, clgi.S_RegisterSound( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
+			    return true;
+            break;
+
+        /**
+        *   Water Leave Events:
+        **/
+        case EV_WATER_LEAVE_FEET:
+                clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+                return true;
+			break;
+        case EV_WATER_LEAVE_WAIST:
+                clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
+                return true;
+            break;
+        case EV_WATER_LEAVE_HEAD:
+                //clgi.S_StartSound( NULL, entityNumber, CHAN_VOICE, clgi.S_RegisterSound( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
+				// <Q2RTXP>: TODO: Gasping sounds when surfacing from underwater.
+				// Requires tracking air_finished_time in client player entity.
+                //if ( ent->air_finished_time < level.time ) {
+                //    // gasp for air
+                //    gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
+                //    SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+                //} else  if ( ent->air_finished_time < level.time + 11_sec ) {
+                //    // just break surface
+                //    gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
+                //}
+                return true;
+            break;
+
+        /**
 		*   Jump Events:
         **/
         case EV_JUMP_UP: {
                 const std::string jump_up_sfx_path = SG_RandomResourcePath( "player/jump", "wav", 0, 1 );
                 clgi.S_StartSound( NULL, entityNumber, CHAN_VOICE, clgi.S_RegisterSound( jump_up_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
-			break;
+                return true;
+            break;
         }
 
         /**
@@ -351,6 +396,8 @@ const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_st
                 CLG_TeleportParticles( &clgi.client->frame.ps.pmove.origin.x );
             return true;
         break;
+        default:
+			break;
     }
 
     // Proceed to executing the event.
@@ -371,8 +418,9 @@ const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_st
             SG_SKM_SetStateAnimation( model, &eventBodyState[ SKM_BODY_LOWER ], "jump_land_pistol", QMTime::FromMilliseconds( clgi.client->servertime ), BASE_FRAMETIME, false, true );
 
             // Did handle the player state event.
-            return true;
+            //return true;
         }
+        return true;
     // -- Weapon Fire Primary:
     } else if ( playerStateEvent == EV_WEAPON_PRIMARY_FIRE ) {
         const std::string animationName = CLG_PrimaryFireEvent_DetermineAnimation( ops, ps, playerStateEvent, lerpOrigin );

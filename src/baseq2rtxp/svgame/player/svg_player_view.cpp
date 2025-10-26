@@ -596,6 +596,7 @@ void P_CheckWorldEffects( void ) {
 	//
 	// if just entered a water volume, play a sound
 	//
+	#if 0
 	if ( !old_waterlevel && liquidlevel ) {
 		// Feet in.
 		if ( liquidlevel == cm_liquid_level_t::LIQUID_FEET ) {
@@ -606,7 +607,8 @@ void P_CheckWorldEffects( void ) {
 
 				// clear damage_debounce, so the pain sound will play immediately
 				current_player->damage_debounce_time = level.time - 1_sec;
-			} else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
+			} 
+			else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
 			} else if ( current_player->liquidInfo.type & CONTENTS_WATER ) {
 				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
@@ -618,7 +620,8 @@ void P_CheckWorldEffects( void ) {
 
 				// clear damage_debounce, so the pain sound will play immediately
 				current_player->damage_debounce_time = level.time - 1_sec;
-			} else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
+			} 
+			else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
 				const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
 				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
 			} else if ( current_player->liquidInfo.type & CONTENTS_WATER ) {
@@ -632,18 +635,25 @@ void P_CheckWorldEffects( void ) {
 	// If just completely exited a water volume while only feet in, play a sound.
 	if ( !liquidlevel && old_waterlevel == cm_liquid_level_t::LIQUID_FEET ) {
 		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+		#if 0
+			gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+		#endif
+		current_player->flags &= ~FL_INWATER;
 	}
 	// If just completely exited a water volume waist or head in, play a sound.
 	if ( !liquidlevel && old_waterlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
 		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-		gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
+		#if 0
+			gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
+		#endif
 		current_player->flags &= ~FL_INWATER;
 	}
 
 	// Check for head just going under water.
 	if ( old_waterlevel < cm_liquid_level_t::LIQUID_UNDER && liquidlevel == cm_liquid_level_t::LIQUID_UNDER ) {
-		gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
+		#if 0
+			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
+		#endif
 	}
 	//
 	// Check for head just coming out of water.
@@ -657,6 +667,7 @@ void P_CheckWorldEffects( void ) {
 			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
 		}
 	}
+	#endif
 
 	//
 	// check for drowning

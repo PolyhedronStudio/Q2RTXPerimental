@@ -224,8 +224,8 @@ inline static void SG_AddBlend( const float &r, const float &g, const float &b, 
 }
 
 /**
-*	@return	A string path to the designated resource file which is randomly
-*			selected within ranges min-/+max.
+*	@return		A string path to the designated resource file which is randomly
+*				selected within ranges min-/+max.
 * 
 *	@remarks	Do not use the '.'(dot) for the extension parameter!
 **/

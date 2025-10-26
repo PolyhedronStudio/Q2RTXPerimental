@@ -67,6 +67,7 @@ OPTION(CONFIG_VKPT_ENABLE_IMAGE_DUMPS "Enable image dumping functionality" OFF)
 OPTION(CONFIG_GL_RENDERER "Enable GL renderer" ON)
 OPTION(CONFIG_USE_CURL "Use CURL for HTTP support" ON)
 OPTION(CONFIG_BUILD_FTEQW_IQM_TOOL "Build the fteqw-iqmtool target" ON)
+OPTION(CONFIG_BUILD_DEV_MATHS_VERIFIER "Build a verifier for the 4x4 mat maths" ON)
 
 # WIN32: Expect it to be installed by developer instead.
 IF( CONFIG_BUILD_CLIENT_TARGET )

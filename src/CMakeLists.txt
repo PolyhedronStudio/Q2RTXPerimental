@@ -596,6 +596,58 @@ IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 	ENDIF()
 ENDIF() #IF( CONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS )
 
+
+####
+##	Build Target: "FTEQW-IQMTool":
+####
+IF( CONFIG_BUILD_DEV_MATHS_VERIFIER )
+	####
+	#	Math Matrix Test Tool:
+	####
+	# Add Build Target:
+	IF( WIN32 )
+		add_executable(matrix_verify
+			${CMAKE_SOURCE_DIR}/src/tools/matrix_verify.cpp
+			${CMAKE_SOURCE_DIR}/src/shared/math.cpp
+		)
+	ELSE()
+		add_executable(matrix_verify
+			${CMAKE_SOURCE_DIR}/src/tools/matrix_verify.cpp
+			${CMAKE_SOURCE_DIR}/src/shared/math.cpp
+		)
+	ENDIF()
+
+	target_include_directories(matrix_verify PRIVATE ${CMAKE_SOURCE_DIR}/inc)
+	target_link_options(matrix_verify PRIVATE "$<$<CXX_COMPILER_ID:MSVC>:/SUBSYSTEM:CONSOLE>")
+	# Compile Definitions:
+    #target_compile_definitions(fteqw-iqmtool PRIVATE USE_CLIENT=1 USE_FIXED_LIBAL=1 USE_SDL=1)
+	# Compile Options:
+    target_compile_options(matrix_verify PRIVATE "${WARN_MISSING_PROTOTYPES}")
+
+	# Set the actual final binary output properties of the client.
+	set_target_properties(matrix_verify 
+		PROPERTIES
+        OUTPUT_NAME "q2rtxp-matrix-verify"
+		
+		# Linux:
+		LIBRARY_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tools"
+		LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/tools"
+		LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/tools"
+		LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/tools"
+		LIBRARY_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/tools"
+		# Windows:
+		RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/tools"
+		RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_SOURCE_DIR}/tools"
+		RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_SOURCE_DIR}/tools"
+		RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_SOURCE_DIR}/tools"
+		RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL "${CMAKE_SOURCE_DIR}/tools"
+		# No Prefixes.
+		PREFIX ""
+		DEBUG_POSTFIX "_d"
+    )
+ENDIF() #IF( CONFIG_BUILD_FTEQW_IQM_TOOL )
+
+
 ####
 ##	Build Target: "FTEQW-IQMTool":
 ####
@@ -644,6 +696,7 @@ IF( CONFIG_BUILD_FTEQW_IQM_TOOL )
 		DEBUG_POSTFIX "_d"
     )
 ENDIF() #IF( CONFIG_BUILD_FTEQW_IQM_TOOL )
+
 
 ####
 ##	MSVC Source Groups support for CMake generated "Solutions":
