@@ -560,7 +560,7 @@ void CL_SeekDemoMessage(void);
 *           Will switch the clientstatic state to 'ca_active' if it is the first
 *           parsed valid frame and the client is done precaching all data.
 **/
-void CL_DeltaFrame( void );
+void CL_ProcessDeltaFrames( void );
 /**
 *   @brief  Prepares the current frame's view scene for the refdef by
 *           emitting all frame data(entities, particles, dynamic lights, lightstyles,

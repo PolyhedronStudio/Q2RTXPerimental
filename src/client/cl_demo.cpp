@@ -223,6 +223,7 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
 
     // delta encode the playerstate
     MSG_WriteUint8(svc_playerinfo);
+    MSG_WriteUint8( to->clientNum );
     MSG_PackPlayer(&newpack, &to->ps);
     if (from) {
         MSG_PackPlayer(&oldpack, &from->ps);
@@ -1088,7 +1089,7 @@ static void CL_Seek_f(void)
     cl.serverdelta += cl.frame.number - prev;
 
     // Fire up destination frame
-    CL_DeltaFrame();
+    CL_ProcessDeltaFrames();
 
     if ( cls.demo.recording && !cls.demo.paused ) {
         resume_record();

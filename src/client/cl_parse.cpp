@@ -196,13 +196,12 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
 
 static void CL_ParseFrame()
 {
-    uint64_t bits = 0;
     // Current frame being parsed.
     server_frame_t  frame = { };
     // Previous old frame.
     server_frame_t *oldframe = nullptr;
     // Player state to interpolate from.
-    player_state_t *from;
+    player_state_t *from = nullptr;
 
     // Reset current frame flags.
     cl.frameflags = FF_NONE;
@@ -213,13 +212,11 @@ static void CL_ParseFrame()
     int64_t deltaframe = frame.delta = MSG_ReadIntBase128( );// WID: 64-bit-frame MSG_ReadInt32(); 
 
     // WID: net-protocol2: Removed the 'BIG HACK' to let old demos continue to work.
-    //if (cls.serverProtocol != PROTOCOL_VERSION_OLD) {
     // Read frame supressed count.
     int64_t suppressed = MSG_ReadUint8();
     if (suppressed) {
         cl.frameflags |= FF_SUPPRESSED;
     }
-    //}
     // Determine if the frame was dropped.
     if (cls.netchan.dropped) {
         cl.frameflags |= FF_SERVERDROP;
@@ -321,17 +318,18 @@ static void CL_ParseFrame()
     //}
 
     SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
-
+    // Set the client number.
+    frame.clientNum = MSG_ReadUint8();//cl.clientNumber;
     // parse playerstate
-    bits = MSG_ReadUintBase128();
-	MSG_ParseDeltaPlayerstate(from, &frame.ps, bits);
-#if USE_DEBUG
-        if (cl_shownet->integer > 2 && bits) {
-            MSG_ShowDeltaPlayerstateBits(bits);
+    const uint64_t playerStateBits = MSG_ReadUintBase128();
+	MSG_ParseDeltaPlayerstate( from, &frame.ps, playerStateBits );
+    #if USE_DEBUG
+        if ( cl_shownet->integer > 2 && playerStateBits ) {
+            MSG_ShowDeltaPlayerstateBits( playerStateBits );
             Com_LPrintf(PRINT_DEVELOPER, "\n");
         }
-#endif
-	frame.clientNum = cl.clientNumber;
+    #endif
+
 
     // parse packetentities
     if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
@@ -382,7 +380,7 @@ static void CL_ParseFrame()
     // Start to perform the delta frame lerping if we're not demo seeking,
     // this will also move our cls.state into ca_active if it is our first valid received frame.
     if ( !cls.demo.seeking ) {
-        CL_DeltaFrame();
+        CL_ProcessDeltaFrames();
     }
 }
 

@@ -214,7 +214,7 @@ static void parse_entity_event(const int32_t entityNumber ) {
 *   @brief  Prepares the client state for 'activation', also setting the predicted values
 *           to those of the initially received first valid frame.
 **/
-static void CL_SetActiveState(void)
+static void CL_SetInitialFrame(void)
 {
     cls.state = ca_active;
 
@@ -230,41 +230,13 @@ static void CL_SetActiveState(void)
     cl.frameflags = 0;
     cl.initialSeq = cls.netchan.outgoing_sequence;
 
-	// <Q2RTXP>: WID: Moved to ClientGame module. (ClientBegin).
-    #if 0
-    if (cls.demo.playback) {
+    if ( cls.demo.playback ) {
         // init some demo things
         CL_FirstDemoFrame();
     } else {
-        // Set the initial client predicted state values.
-        cl.predictedState.currentPs = cl.frame.ps;
-        cl.predictedState.lastPs = cl.predictedState.currentPs;
-        //VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.view.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
-        //VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.view.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
-        // 
-        // Use predicted view angles if we're alive:
-        if (cl.frame.ps.pmove.pm_type < PM_DEAD ) { // OLD Q2PRO: enhanced servers don't send viewangles
-            CL_PredictAngles();
-        // Otherwise, use whatever server provided.
-        } else {
-            // just use what server provided
-            VectorCopy( cl.frame.ps.viewangles, cl.predictedState.currentPs.viewangles );
-            VectorCopy( cl.frame.ps.viewangles, cl.predictedState.lastPs.viewangles );
-        }
+        // Fire the ClientBegin callback of the client game module.
+        clge->ClientBegin();
     }
-
-    // Reset local (view-)transitions.
-    cl.predictedState.transition = {};
-    //cl.predictedState.time.height_changed = 0;
-    //cl.predictedState.time.step_changed = 0;
-
-    // Reset ground information.
-    cl.predictedState.ground = {};
-    cl.predictedState.liquid = {};
-    #endif
-
-    // Fire the ClientBegin callback of the client game module.
-    clge->ClientBegin();
 
     //! Get rid of loading plaque.
     SCR_EndLoadingPlaque();     
@@ -307,11 +279,11 @@ static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *
 *           Will switch the clientstatic state to 'ca_active' if it is the first
 *           parsed valid frame and the client is done precaching all data.
 **/
-void CL_DeltaFrame( void ) {
+void CL_ProcessDeltaFrames( void ) {
     // Getting a valid frame message ends the connection process
     //if ( cls.state == ca_precached ) {
     if ( cl.frame.valid && cls.state == ca_precached ) {
-        CL_SetActiveState();
+        CL_SetInitialFrame();
     }
 
     // Determine the current delta frame's server time.
@@ -324,7 +296,7 @@ void CL_DeltaFrame( void ) {
     // If this si the first frame, overwrite the whole predicted state with the current frame's player state.
     pmove_state_t pmoveState = cl.predictedFrame.ps.pmove;
     cl.predictedFrame = cl.frame; // Copy the current frame to the predicted frame.
-    if ( /*framenum*/cl.frame.number >= 1 ) {
+    if ( /*framenum*/cl.frame.number >= 0 ) {
         cl.predictedFrame.ps.pmove = pmoveState; // Restore the pmove state.
     }
 

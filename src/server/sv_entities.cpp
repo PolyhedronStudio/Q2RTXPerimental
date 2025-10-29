@@ -231,6 +231,7 @@ void SV_WriteFrameToClient( client_t *client ) {
 
 	// delta encode the playerstate
 	MSG_WriteUint8( svc_playerinfo );
+    MSG_WriteUint8( newFrame->clientNum );
     MSG_WriteDeltaPlayerstate( oldPlayerState, &newFrame->ps );
 
 	// delta encode the entities
