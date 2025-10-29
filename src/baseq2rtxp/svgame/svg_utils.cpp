@@ -190,7 +190,7 @@ void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, c
 /**
 *   @brief Adds an event+parm and twiddles the event counter.
 **/
-void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm ) {
+void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm0, const int32_t eventParm1 ) {
 	// Sanity check.
     if ( !event ) {
 		// Debug about zero event.
@@ -208,8 +208,9 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_
         bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
 		// Set the event and parm.
         ent->client->ps.externalEvent = event | bits;
-        ent->client->ps.externalEventParm0 = eventParm; // = eventParm0;
-        //ent->client->ps.externalEventParm1 = eventParm1;
+        ent->client->ps.externalEventParm0 = eventParm0;
+        ent->client->ps.externalEventParm1 = eventParm1;
+		// Stamp the time of the event.
         ent->client->ps.externalEventTime = level.time.Milliseconds();
     /**
     *   Non-Clients just add it to the entityState_t
@@ -221,7 +222,8 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_
         bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
 		// Set the event and parm.
         ent->s.event = event | bits;
-        ent->s.eventParm0 = eventParm;
+        ent->s.eventParm0 = eventParm0;
+        ent->s.eventParm1 = eventParm1;
     }
 	// Stamp the time of the event.
     ent->eventTime = level.time;
@@ -229,7 +231,7 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_
 
 /**
 *   @brief  Adds a temp entity event at the given origin.
-*	@param	snapOrigin	If true, will snap the origin to integer values.
+*	@param	snapOrigin	If true, will snap the origin to 13 bits float precision.
 **/
 svg_base_edict_t *SVG_Util_CreateTempEntityEvent( const Vector3 &origin, const int32_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin /*= false*/ ) {
     /**
@@ -247,7 +249,7 @@ svg_base_edict_t *SVG_Util_CreateTempEntityEvent( const Vector3 &origin, const i
 
     // Set the actual entity event to part of entityState_t type.
     tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
-	// Stuff the eventParm in the entityState_t's eventParm.
+	// Stuff the eventParms in the entityState_t's eventParms.
 	tempEventEntity->s.eventParm0 = eventParm0;
     tempEventEntity->s.eventParm1 = eventParm1;
 	// However, do change the actual 'classname' to something meaningful for temp entities.

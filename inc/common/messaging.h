@@ -128,7 +128,7 @@ typedef struct {
 
 	uint8_t			externalEvent;
 	int32_t			externalEventParm0;
-	//int32_t			externalEventParm1;
+	int32_t			externalEventParm1;
 
 	uint8_t			bobCycle;
 } player_packed_t;

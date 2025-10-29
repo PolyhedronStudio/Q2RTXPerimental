@@ -573,7 +573,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         SG_PlayerStateToEntityState( client->clientNum, &client->ps, &player_ent->s, false );
         
 		// Send any remaining pending predictable events to all clients but "ourselves".
-        SVG_Client_SendPendingPredictableEvents( player_ent, ent->client );
+        SVG_Client_SendPendingPredictableEvents( player_ent, client );
 
         //vec3_t old_origin = player_ent->s.origin;
 

@@ -82,6 +82,8 @@ typedef uint16_t pmflags_t;
 *   This structure needs to be communicated bit-accurate from the server to the client to guarantee that
 *   prediction stays in sync. If any part of the game code modifies this struct, it will result in a
 *   prediction error of some degree.
+* 
+*   The only exception to this rule is the pm_time field, which is transmitted as a half-precision float.
 **/
 typedef struct pmove_state_s {
     //! The player move type.
@@ -227,6 +229,7 @@ typedef struct player_state_s {
     // WID: TODO: Just use its entity events instead?
     int32_t externalEvent;	//! Events set on player from another source.
     int32_t externalEventParm0;
+    int32_t externalEventParm1;
     int64_t externalEventTime;
 
     //! [Client/Server]: Event Sequencing - To differentiate from a same event ID.

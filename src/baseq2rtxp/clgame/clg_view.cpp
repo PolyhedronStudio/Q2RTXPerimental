@@ -33,7 +33,7 @@
 /**
 *   @brief
 **/
-void PF_ClearViewScene( void ) {
+void CLG_ClearViewScene( void ) {
     //cl.viewScene.r_numdlights = 0;
     //cl.viewScene.r_numentities = 0;
     //cl.viewScene.r_numparticles = 0;
@@ -44,9 +44,14 @@ void PF_ClearViewScene( void ) {
 *           emitting all frame data(entities, particles, dynamic lights, lightstyles,
 *           and temp entities) to the refresh definition.
 **/
-void PF_PrepareViewEntities( void ) {
+void CLG_PrepareViewEntities( void ) {
+    // Get the current local client's player view entity. (Can be one we're chasing.)
+    clgi.client->clientEntity = CLG_GetViewBoundEntity();
+    // Get the current frames' chasing player view entity. (Can be one we're chasing.)
+    clgi.client->chaseEntity = CLG_GetChaseBoundEntity();
+
     // Calculate view and spatial audio listener origins.
-    PF_CalculateViewValues();
+    CLG_CalculateViewValues();
     // Finish it off by determing third or first -person view, and the required thirdperson/firstperson view model.
     CLG_FinishViewValues();
 
@@ -80,14 +85,14 @@ void PF_PrepareViewEntities( void ) {
 /**
 *	@brief	Returns the predictedState based player view render definition flags.
 **/
-const refdef_flags_t PF_GetViewRenderDefinitionFlags( void ) {
+const refdef_flags_t CLG_GetViewRenderDefinitionFlags( void ) {
     return game.predictedState.currentPs.rdflags;
 }
 
 /**
 *   @brief  Calculates the client's field of view.
 **/
-const float PF_CalculateFieldOfView( const float fov_x, const float width, const float height ) {
+const float CLG_CalculateFieldOfView( const float fov_x, const float width, const float height ) {
     float    a;
     float    x;
 

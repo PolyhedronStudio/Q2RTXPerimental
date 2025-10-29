@@ -78,14 +78,14 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 
 #define PS_EXTERNAL_EVENT		BIT_ULL( 19 )
 #define PS_EXTERNAL_EVENT_PARM0	BIT_ULL( 20 )
-//#define PS_EXTERNAL_EVENT_PARM1	BIT_ULL( 20 )
+#define PS_EXTERNAL_EVENT_PARM1	BIT_ULL( 21 )
 
-#define PS_BLEND            BIT_ULL( 21 )
-#define PS_FOV				BIT_ULL( 22 )
-#define PS_RDFLAGS			BIT_ULL( 23 )
+#define PS_BLEND            BIT_ULL( 22 )
+#define PS_FOV				BIT_ULL( 23 )
+#define PS_RDFLAGS			BIT_ULL( 24 )
 
-#define PS_M_GRAVITY		BIT_ULL( 24 )
-//#define PS_CLIENT_NUMBER	BIT_ULL( 25 )
+#define PS_M_GRAVITY		BIT_ULL( 25 )
+
 
 //==============================================
 

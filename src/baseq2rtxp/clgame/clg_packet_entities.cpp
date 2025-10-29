@@ -145,11 +145,6 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
 *           has a matching ID.
 **/
 void CLG_AddPacketEntities( void ) {
-    // Get the current local client's player view entity. (Can be one we're chasing.)
-    clgi.client->clientEntity = CLG_GetViewBoundEntity();
-    // Get the current frames' chasing player view entity. (Can be one we're chasing.)
-    clgi.client->chaseEntity = CLG_GetChaseBoundEntity();
-
     // Base entity flags.
     int32_t base_entity_flags = 0;
 

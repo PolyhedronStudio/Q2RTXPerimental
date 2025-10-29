@@ -35,7 +35,6 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 
 	out->number = in->number;
 	out->entityType = in->entityType;
-	out->otherEntityNumber = in->otherEntityNumber;
 
 	//out->client = in->client;
 	out->origin = in->origin;
@@ -120,7 +119,6 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	// send an update
 	uint64_t bits = 0;
 
-
 	//if ( to->client != from->client ) {
 	//	bits |= U_CLIENT;
 	//}
@@ -152,9 +150,6 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 
 	if ( to->entityType != from->entityType ) {
 		bits |= U_ENTITY_TYPE;
-	}
-	if ( to->otherEntityNumber != from->otherEntityNumber ) {
-		bits |= U_OTHER_ENTITY_NUMBER;
 	}
 	if ( to->frame != from->frame ) {
 		bits |= U_FRAME;

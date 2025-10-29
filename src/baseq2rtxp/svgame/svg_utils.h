@@ -59,10 +59,10 @@ void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, c
 /**
 *   @brief Adds an event+parm and twiddles the event counter.
 **/
-void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm );
+void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm0, const int32_t eventParm1 = 0 );
 /**
 *   @brief  Adds a temp entity event at the given origin.
-*	@param	snapOrigin	If true, will snap the origin to integer values.
+*	@param	snapOrigin	If true, will snap the origin to 13 bits float precision.
 **/
 svg_base_edict_t *SVG_Util_CreateTempEntityEvent( const Vector3 &origin, const int32_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin = false );
 
@@ -91,28 +91,21 @@ void SVG_Util_Sound( svg_base_edict_t *ent, const int32_t channel, const qhandle
 *	@brief	Wrapper for gi.trace that accepts Vector3 args.
 **/
 static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
-	////if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
-	////	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
-	//if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
-	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
-	//	return gi.trace( &start.x, nullptr, nullptr, &end.x, passEdict, contentMask );
-	//}
-	const Vector3 *_mins = ( &mins == &qm_vector3_null || mins == qm_vector3_null ) ? nullptr : &mins;
-	const Vector3 *_maxs = ( &maxs == &qm_vector3_null || maxs == qm_vector3_null ) ? nullptr : &maxs;
-	return gi.trace( &start, _mins, _maxs, &end, passEdict, contentMask );
+	const Vector3 *_mins = ( ( &mins != &qm_vector3_null || mins != qm_vector3_null || mins != vec3_origin ) ? &mins : nullptr );
+	const Vector3 *_maxs = ( ( &maxs != &qm_vector3_null || maxs != qm_vector3_null || maxs != vec3_origin ) ? &maxs : nullptr );
+	const Vector3 *_start = ( ( &start != &qm_vector3_null || start != qm_vector3_null || start != vec3_origin ) ? &start : nullptr );
+	const Vector3 *_end = ( ( &end != &qm_vector3_null || end != qm_vector3_null || end != vec3_origin ) ? &end : nullptr );
+	return gi.trace( _start, _mins, _maxs, _end, passEdict, contentMask );
 }
 /**
 *	@brief	Wrapper for gi.clipthat accepts Vector3 args.
 **/
 static inline const svg_trace_t SVG_Clip( svg_base_edict_t *clipEdict, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
-	//if ( QM_Vector3EqualsFast( mins, QM_Vector3Zero() )
-	//	&& QM_Vector3EqualsFast( maxs, QM_Vector3Zero() ) ) {
-	////if ( mins == qm_vector3_null && maxs == qm_vector3_null ) {
-	//	return gi.clip( clipEdict, &start.x, nullptr, nullptr, &end.x, contentMask );
-	//}
-	const Vector3 *_mins = ( &mins == &qm_vector3_null || mins == qm_vector3_null ) ? nullptr : &mins;
-	const Vector3 *_maxs = ( &maxs == &qm_vector3_null || maxs == qm_vector3_null ) ? nullptr : &maxs;
-	return gi.clip( clipEdict, &start, _mins, _maxs, &end, contentMask );
+	const Vector3 *_mins = ( ( &mins != &qm_vector3_null || mins != qm_vector3_null || mins != vec3_origin ) ? &mins : nullptr );
+	const Vector3 *_maxs = ( ( &maxs != &qm_vector3_null || maxs != qm_vector3_null || maxs != vec3_origin ) ? &maxs : nullptr );
+	const Vector3 *_start = ( ( &start != &qm_vector3_null || start != qm_vector3_null || start != vec3_origin ) ? &start : nullptr );
+	const Vector3 *_end = ( ( &end != &qm_vector3_null || end != qm_vector3_null || end != vec3_origin ) ? &end : nullptr );
+	return gi.clip( clipEdict, _start, _mins, _maxs, _end, contentMask );
 }
 
 

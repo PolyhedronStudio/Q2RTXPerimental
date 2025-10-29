@@ -1290,7 +1290,7 @@ static void PM_CycleBob() {
 			if ( footStep && pm->state->xySpeed > 225 /*&& !pm->noFootsteps*/ ) {
 				//if ( pm->state->pmove.pm_flags & PMF_ON_LADDER ) {
 				//	PM_AddEvent( EV_FOOTSTEP_LADDER, 0 );
-				//	SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(% i), oldBobCycle(% i), bobMove(% f), Event(EV_FOOTSTEP_LADDER), Time(%" PRIx64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
+				//	SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(% i), oldBobCycle(% i), bobMove(%lf), Event(EV_FOOTSTEP_LADDER), Time(%" PRId64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
 				//} else {
 					PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 /*PM_FootstepForSurface()*/ );
 					//SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%lf), Event(EV_FOOTSTEP), Time(%" PRId64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );

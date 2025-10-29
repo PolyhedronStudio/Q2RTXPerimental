@@ -223,12 +223,6 @@ void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, c
         || fabsf( (*origin)[ 1 ] - ent->current.origin[ 1 ] ) > 64//512
         || fabsf( (*origin)[ 2 ] - ent->current.origin[ 2 ] ) > 64//512
         || cl_nolerp->integer == 1 ) {
-
-		// Clear the previous event if it is too old.
-        if ( ent->snapShotTime < clgi.client->time - EVENT_VALID_MSEC ) {
-            ent->previousEvent = 0;
-        }
-
         // For diminishing rocket / grenade trails.
         ent->trailcount = 1024;     
 
