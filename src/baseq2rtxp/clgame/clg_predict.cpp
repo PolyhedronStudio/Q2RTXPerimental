@@ -113,34 +113,22 @@ void PF_AdjustViewHeight( const int32_t viewHeight ) {
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
 static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
-    //if ( !clgi.client->clientEntity ) {
-    //    return;
-    //}
-    
-    //centity_t *clientEntity = clgi.client->clientEntity;
-    // Get client entity.
-    centity_t *clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
-
-    // Make sure it is valid for this frame.
-    if ( clientEntity->serverframe != clgi.client->frame.number ) {
-        return;
-    }
-
     // WID: We don't have support for external events yet. In fact, they would in Q3 style rely on
     // 'temp entities', which are alike a normal entity. Point being is this requires too much refactoring
     // right now.
     #if 1
     if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
         //cent = &cg_entities[ ps->clientNum + 1 ];
-        centity_t *clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
-        clientEntity->current.event = ps->externalEvent;
-        clientEntity->current.eventParm = ps->externalEventParm;
-        CLG_CheckEntityEvents( clientEntity );
+        centity_t *clgent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+        clgent->current.event = ps->externalEvent;
+        clgent->current.eventParm0 = ps->externalEventParm0;
+        clgent->current.eventParm1 = 0;// ps->externalEventParm1;
+        CLG_CheckEntityEvents( clgent );
     }
     #endif
 
-    // cg_entities[ ps->clientNum + 1 ];
-    clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+	// Get the  client entity.
+    centity_t *clientEntity = clgi.client->clientEntity;
 
     // go through the predictable events buffer
     for ( int64_t i = ps->eventSequence - MAX_PS_EVENTS; i < ps->eventSequence; i++ ) {
@@ -155,8 +143,9 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
             const int32_t playerStateEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
             // Assign to the client entity.
             clientEntity->current.event = playerStateEvent;
-            clientEntity->current.eventParm = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
-            
+            clientEntity->current.eventParm0 = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
+            clientEntity->current.eventParm1 = 0;/*ps->eventParms2[ i & ( MAX_PS_EVENTS - 1 ) ];*/
+
             /**
             *
             *   Either join the two together...
@@ -179,11 +168,43 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
             if ( !processedPlayerStateViewBoundEffect ) {
                 CLG_CheckEntityEvents( clientEntity );
             }
-
             // Add to the list of predictable events.
             game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] = playerStateEvent;
             // Increment Event Sequence.
             game.eventSequence++;
+        }
+    }
+}
+
+void CLG_CheckChangedPredictableEvents( player_state_t *ps ) {
+    int i;
+    int event;
+    centity_t *cent;
+
+    cent = clgi.client->clientEntity;// g.predictedPlayerEntity;
+    for ( i = ps->eventSequence - MAX_PS_EVENTS; i < ps->eventSequence; i++ ) {
+        //
+        if ( i >= game.eventSequence ) {
+            continue;
+        }
+        // if this event is not further back in than the maximum predictable events we remember
+        if ( i > game.eventSequence - game_locals_t::MAX_PREDICTED_EVENTS ) {
+            // if the new playerstate event is different from a previously predicted one
+            if ( ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] != game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] ) {
+
+                event = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
+                cent->current.event = event;
+                cent->current.eventParm0 = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
+                cent->current.eventParm1 = 0; // ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
+                CLG_CheckEntityEvents( cent );
+
+                game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] = event;
+
+                //if ( cg_showmiss.integer ) {
+                //    CG_Printf( "WARNING: changed predicted event\n" );
+                //}
+				clgi.Print( PRINT_DEVELOPER, "WARNING: changed predicted event\n" );
+            }
         }
     }
 }
@@ -476,6 +497,9 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
         moveCommand->prediction.origin = pm.state->pmove.origin;
         moveCommand->prediction.velocity = pm.state->pmove.velocity;
 
+        // Check for changed predictable events.
+        CLG_CheckChangedPredictableEvents( pm.state );
+
         // Backup into our circular buffer.
         clgi.client->predictedMoveResults[ ( acknowledgedCommandNumber ) & CMD_MASK ] = moveCommand->prediction;
 
@@ -538,7 +562,6 @@ void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curren
     CLG_PredictStepOffset( &pm, predictedState, pm.step_height );
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     PF_AdjustViewHeight( predictedState->currentPs.pmove.viewheight );
-    
     // Check and execute any player state related events.
     CLG_CheckPlayerstateEvents( &predictedState->lastPs, &predictedState->currentPs );
 

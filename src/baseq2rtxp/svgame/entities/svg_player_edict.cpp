@@ -189,7 +189,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie) ( svg_player_edict_t *sel
 
     //  self->solid = SOLID_NOT;
         // Flag as to be treated as 'deadmonster' collision.
-    self->svflags |= SVF_DEADENTITY;
+    self->svFlags |= SVF_DEADENTITY;
 
     if ( !self->lifeStatus ) {
         // Determine respawn time.

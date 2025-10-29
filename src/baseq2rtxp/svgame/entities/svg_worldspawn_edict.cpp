@@ -155,7 +155,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     // Setup the world spawn entity.
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
-    self->inuse = true;                           // Just to make damn sure it is always properly set.
+    self->inUse = true;                           // Just to make damn sure it is always properly set.
     self->s.modelindex = MODELINDEX_WORLDSPAWN;   // World model is always index 1
     //self->gravity = 1.0f;
     //---------------

@@ -7,7 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_trigger.h"
-
+#include "svgame/svg_utils.h"
 
 #include "svgame/entities/path/svg_path_corner.h"
 
@@ -61,7 +61,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *s
             v[ 2 ] -= other->mins[ 2 ];
             VectorCopy( v, other->s.origin );
             next = SVG_PickTarget( (const char *)next->targetNames.target );
-            other->s.event = EV_OTHER_TELEPORT;
+            SVG_Util_AddEvent( other, EV_OTHER_TELEPORT, 0 ); //other->s.event = EV_OTHER_TELEPORT;
         }
     }
 
@@ -99,6 +99,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_path_corner_t, onSpawn )( svg_path_corner_t *s
     self->SetTouchCallback( &svg_path_corner_t::onTouch );
     VectorSet( self->mins, -8, -8, -8 );
     VectorSet( self->maxs, 8, 8, 8 );
-    self->svflags |= SVF_NOCLIENT;
+    self->svFlags |= SVF_NOCLIENT;
     gi.linkentity( self );
 }

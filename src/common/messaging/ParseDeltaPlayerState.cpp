@@ -105,8 +105,8 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	if ( flags & PS_EXTERNAL_EVENT ) {
 		to->externalEvent = MSG_ReadUint8();
 	}
-	if ( flags & PS_EXTERNAL_EVENT_PARM ) {
-		to->externalEventParm = MSG_ReadIntBase128();
+	if ( flags & PS_EXTERNAL_EVENT_PARM0 ) {
+		to->externalEventParm0 = MSG_ReadIntBase128();
 	}
 
 

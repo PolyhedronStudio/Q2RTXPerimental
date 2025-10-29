@@ -142,7 +142,7 @@ static inline const bounds_packed_t _MSG_PackBoundsUint32( const Vector3 &mins, 
 /**
 *   @brief  Needs to be called any time an entity changes origin, mins, maxs,
 *           or solid.  Automatically unlinks if needed.
-*           sets ent->v.absmin and ent->v.absmax
+*           sets ent->v.absMin and ent->v.absMax
 *           sets ent->leafnums[] for pvs determination even if the entity.
 *           is not solid.
 **/
@@ -173,31 +173,31 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
                 max = v;
         }
         for ( i = 0; i < 3; i++ ) {
-            ent->absmin[ i ] = ent->s.origin[ i ] - max;
-            ent->absmax[ i ] = ent->s.origin[ i ] + max;
+            ent->absMin[ i ] = ent->s.origin[ i ] - max;
+            ent->absMax[ i ] = ent->s.origin[ i ] + max;
         }
     } else {
         // normal
-        VectorAdd( ent->s.origin, ent->mins, ent->absmin );
-        VectorAdd( ent->s.origin, ent->maxs, ent->absmax );
+        VectorAdd( ent->s.origin, ent->mins, ent->absMin );
+        VectorAdd( ent->s.origin, ent->maxs, ent->absMax );
     }
 
     // Because movement is clipped an epsilon away from an actual edge,
     // we must fully check even when bounding boxes don't quite touch.
-    ent->absmin[0] -= 1;
-    ent->absmin[1] -= 1;
-    ent->absmin[2] -= 1;
-    ent->absmax[0] += 1;
-    ent->absmax[1] += 1;
-    ent->absmax[2] += 1;
+    ent->absMin[0] -= 1;
+    ent->absMin[1] -= 1;
+    ent->absMin[2] -= 1;
+    ent->absMax[0] += 1;
+    ent->absMax[1] += 1;
+    ent->absMax[2] += 1;
 
     // Link to PVS leafs.
-    ent->num_clusters = 0;
-    ent->areanum = 0;
-    ent->areanum2 = 0;
+    ent->numberOfClusters = 0;
+    ent->areaNumber0 = 0;
+    ent->areaNumber0 = 0;
 
     //get all leafs, including solids
-    num_leafs = CM_BoxLeafs(cm, &ent->absmin.x, &ent->absmax.x,
+    num_leafs = CM_BoxLeafs(cm, &ent->absMin.x, &ent->absMax.x,
                             leafs, MAX_TOTAL_ENT_LEAFS, &topnode);
 
     // set areas
@@ -207,22 +207,22 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
         if ( area ) {
             // doors may legally straggle two areas,
             // but nothing should evern need more than that
-            if ( ent->areanum && ent->areanum != area ) {
-                if ( ent->areanum2 && ent->areanum2 != area && sv.state == ss_loading ) {
-                    Com_DPrintf( "Object touching 3 areas at %s\n", vtos( ent->absmin ) );
+            if ( ent->areaNumber0 && ent->areaNumber0 != area ) {
+                if ( ent->areaNumber0 && ent->areaNumber0 != area && sv.state == ss_loading ) {
+                    Com_DPrintf( "Object touching 3 areas at %s\n", vtos( ent->absMin ) );
                 }
-                ent->areanum2 = area;
+                ent->areaNumber0 = area;
             } else
-                ent->areanum = area;
+                ent->areaNumber0 = area;
         }
     }
 
     if ( num_leafs >= MAX_TOTAL_ENT_LEAFS ) {
-        // Assume we missed some leafs, and mark by headnode.
-        ent->num_clusters = -1;
-        ent->headnode = CM_NumberForNode( cm, topnode );
+        // Assume we missed some leafs, and mark by headNode.
+        ent->numberOfClusters = -1;
+        ent->headNode = CM_NumberForNode( cm, topnode );
     } else {
-        ent->num_clusters = 0;
+        ent->numberOfClusters = 0;
         for ( i = 0; i < num_leafs; i++ ) {
             if ( clusters[ i ] == -1 )
                 continue;        // not a visible leaf
@@ -230,14 +230,14 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
                 if ( clusters[ j ] == clusters[ i ] )
                     break;
             if ( j == i ) {
-                if ( ent->num_clusters == MAX_ENT_CLUSTERS ) {
-                    // Assume we missed some leafs, and mark by headnode.
-                    ent->num_clusters = -1;
-                    ent->headnode = CM_NumberForNode( cm, topnode );
+                if ( ent->numberOfClusters == MAX_ENT_CLUSTERS ) {
+                    // Assume we missed some leafs, and mark by headNode.
+                    ent->numberOfClusters = -1;
+                    ent->headNode = CM_NumberForNode( cm, topnode );
                     break;
                 }
 
-                ent->clusternums[ ent->num_clusters++ ] = clusters[ i ];
+                ent->clusterNumbers[ ent->numberOfClusters++ ] = clusters[ i ];
             }
         }
     }
@@ -258,7 +258,7 @@ void PF_UnlinkEdict(edict_ptr_t *ent)
 /**
 *   @brief  Needs to be called any time an entity changes origin, mins, maxs,
 *           or solid.  Automatically unlinks if needed.
-*           sets ent->v.absmin and ent->v.absmax
+*           sets ent->v.absMin and ent->v.absMax
 *           sets ent->leafnums[] for pvs determination even if the entity.
 *           is not solid.
 **/
@@ -282,7 +282,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
     }
 
     // Entity has to be in-use.
-    if (!ent->inuse) {
+    if (!ent->inUse) {
         Com_DPrintf("%s: entity %d is not in use\n", __func__, NUMBER_OF_EDICT(ent));
         return;
     }
@@ -300,7 +300,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
     // encode the size into the entity_state for client prediction
     switch (ent->solid) {
     case SOLID_BOUNDS_BOX:
-        if ( ( ent->svflags & SVF_DEADENTITY ) || VectorCompare( ent->mins, ent->maxs ) ) {
+        if ( ( ent->svFlags & SVF_DEADENTITY ) || VectorCompare( ent->mins, ent->maxs ) ) {
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
@@ -309,7 +309,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
         }
         break;
     case SOLID_BOUNDS_OCTAGON:
-        if ( ( ent->svflags & SVF_DEADENTITY ) || VectorCompare( ent->mins, ent->maxs ) ) {
+        if ( ( ent->svFlags & SVF_DEADENTITY ) || VectorCompare( ent->mins, ent->maxs ) ) {
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
         } else {
@@ -328,10 +328,10 @@ void PF_LinkEdict(edict_ptr_t *ent)
     }
 
     // Clipmask:
-    if ( ent->clipmask ) {
-        ent->s.clipmask = ent->clipmask;
+    if ( ent->clipMask ) {
+        ent->s.clipMask = ent->clipMask;
     } else {
-        ent->s.clipmask = CONTENTS_NONE;
+        ent->s.clipMask = CONTENTS_NONE;
     }
 
     // Hull Contents: (Further on this gets set to CONTENTS_NONE in case of a SOLID_NOT).
@@ -348,14 +348,14 @@ void PF_LinkEdict(edict_ptr_t *ent)
     SV_LinkEdict(&sv.cm, ent);
 
     // If its the entity's first time, make sure old_origin is valid, unless a BEAM which handles it by itself.
-    if ( !ent->linkcount ) {
+    if ( !ent->linkCount ) {
         if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
             VectorCopy( ent->s.origin, ent->s.old_origin );
         }
     }
 
     // Increment link count.
-    ent->linkcount++;
+    ent->linkCount++;
 
     // Solid NOT won't have any contents either.
     if ( ent->solid == SOLID_NOT ) {
@@ -368,9 +368,9 @@ void PF_LinkEdict(edict_ptr_t *ent)
     while (1) {
         if (node->axis == -1)
             break;
-        if (ent->absmin[node->axis] > node->dist)
+        if (ent->absMin[node->axis] > node->dist)
             node = node->children[0];
-        else if (ent->absmax[node->axis] < node->dist)
+        else if (ent->absMax[node->axis] < node->dist)
             node = node->children[1];
         else
             break;        // crosses the node
@@ -401,12 +401,12 @@ static void SV_AreaEdicts_r(worldSector_t *node)
     LIST_FOR_EACH(sv_edict_t, check, start, area) {
         if (check->solid == SOLID_NOT)
             continue;        // deactivated
-        if (check->absmin[0] > sector_maxs[0]
-            || check->absmin[1] > sector_maxs[1]
-            || check->absmin[2] > sector_maxs[2]
-            || check->absmax[0] < sector_mins[0]
-            || check->absmax[1] < sector_mins[1]
-            || check->absmax[2] < sector_mins[2])
+        if (check->absMin[0] > sector_maxs[0]
+            || check->absMin[1] > sector_maxs[1]
+            || check->absMin[2] > sector_maxs[2]
+            || check->absMax[0] < sector_mins[0]
+            || check->absMax[1] < sector_mins[1]
+            || check->absMax[2] < sector_mins[2])
             continue;        // not touching
 
         if (sector_count == sector_maxcount) {
@@ -455,7 +455,7 @@ const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
 //===========================================================================
 
 /**
-*	@return	A headnode that can be used for testing and/or clipping an
+*	@return	A headNode that can be used for testing and/or clipping an
 *			object 'hull' of mins/maxs size for the entity's said 'solid'.
 **/
 static mnode_t *SV_HullForEntity(sv_edict_t *ent, const bool includeSolidTriggers = false ) {
@@ -477,7 +477,7 @@ static mnode_t *SV_HullForEntity(sv_edict_t *ent, const bool includeSolidTrigger
         return sv.cm.cache->models[i].headnode;
     }
 
-    // Create a temp hull from entity bounds and contents clipmask for the specific type of 'solid'.
+    // Create a temp hull from entity bounds and contents clipMask for the specific type of 'solid'.
     if ( ent->solid == SOLID_BOUNDS_OCTAGON ) {
         return CM_HeadnodeForOctagon( &sv.cm, &ent->mins.x, &ent->maxs.x, ent->hullContents );
     } else {
@@ -520,7 +520,7 @@ const cm_contents_t SV_PointContents( const Vector3 *p ) {
 		hit = touch[ i ];
 
         // Skip client entiteis if their SVF_PLAYER flag is set.
-        if ( hit->s.number <= sv_maxclients->integer && ( hit->svflags & SVF_PLAYER ) ) {
+        if ( hit->s.number <= sv_maxclients->integer && ( hit->svFlags & SVF_PLAYER ) ) {
             continue;
         }
 
@@ -580,16 +580,16 @@ static void SV_ClipMoveToEntities(const Vector3 *start, const Vector3 *mins,
         }
 
         if ( !( contentmask & CONTENTS_DEADMONSTER )
-            && ( touch->svflags & SVF_DEADENTITY ) ) {
+            && ( touch->svFlags & SVF_DEADENTITY ) ) {
             continue;
         }
 
         if ( !( contentmask & CONTENTS_PROJECTILE )
-            && ( touch->svflags & SVF_PROJECTILE ) ) {
+            && ( touch->svFlags & SVF_PROJECTILE ) ) {
             continue;
         }
         if ( !( contentmask & CONTENTS_PLAYER ) 
-            && ( touch->svflags & SVF_PLAYER ) ) {
+            && ( touch->svFlags & SVF_PLAYER ) ) {
             continue;
         }
 

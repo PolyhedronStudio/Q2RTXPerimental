@@ -54,7 +54,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_counter_t, onTouch )( svg_trigger_coun
 		if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_NOT_PLAYER ) {
 			return;
 		}
-	} else if ( other->svflags & SVF_MONSTER ) {
+	} else if ( other->svFlags & SVF_MONSTER ) {
 		if ( !( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_MONSTER ) ) {
 			return;
 		}

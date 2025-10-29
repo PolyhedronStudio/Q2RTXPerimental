@@ -13,7 +13,7 @@
 *		float
 *		std::string
 *		char*(because of std::string)
-*		svg_base_edict_t*(if not a nullptr, and entity is inuse, it will push to stack the entity number, -1 otherwise.)
+*		svg_base_edict_t*(if not a nullptr, and entity is inUse, it will push to stack the entity number, -1 otherwise.)
 * 
 *	Implementation for custom types can be added.
 *	
@@ -39,7 +39,7 @@ typedef enum {
 //// svg_base_edict_t*
 //template <typename... Rest>
 //static inline void LUA_CallFunction_PushStackValue( lua_State *L, const svg_base_edict_t *e, const Rest&... rest ) {
-//	if ( e != nullptr && e->inuse ) {
+//	if ( e != nullptr && e->inUse ) {
 //		lua_pushinteger( L, e->s.number );
 //	} else {
 //		lua_pushinteger( L, -1 );

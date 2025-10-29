@@ -524,7 +524,7 @@ void P_CalculateBlend( svg_base_edict_t *ent ) {
 	//}
 	//
 	//// Prevent it from adding screenblend if we're inside a client entity, by checking
-	//// if its brush has CONTENTS_PLAYER set in its clipmask.
+	//// if its brush has CONTENTS_PLAYER set in its clipMask.
 	//if ( /*!( contents & CONTENTS_PLAYER ) 
 	//	&&*/ ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
 	//	SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ent->client->ps.screen_blend );
@@ -687,10 +687,12 @@ void P_CheckWorldEffects( void ) {
 
 				// Play a gurp sound instead of a normal pain sound
 				if ( current_player->health <= current_player->dmg ) {
-					gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
+					//gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
+					SVG_Util_Sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ) );
 				} else {
 					const qhandle_t gurp_sfx_index = gi.soundindex( SG_RandomResourcePath( "player/gurp", "wav", 0, 2 ).c_str() );
-					gi.sound( current_player, CHAN_VOICE, gurp_sfx_index, 1, ATTN_NORM, 0 );
+					//gi.sound( current_player, CHAN_VOICE, gurp_sfx_index, 1, ATTN_NORM, 0 );
+					SVG_Util_Sound( current_player, CHAN_VOICE, gurp_sfx_index );
 				}
 
 				current_player->pain_debounce_time = level.time;
@@ -925,13 +927,16 @@ void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
 	// If it wasn't updated here, the view position would lag a frame
 	// behind the body position when pushed -- "sinking into plats"
 	//
-	current_client->ps.pmove.origin = ent->s.origin;
-	current_client->ps.pmove.velocity = ent->velocity;
+	current_client->ps.pmove.origin = current_player->s.origin;
+	current_client->ps.pmove.velocity = current_player->velocity;
 
 	// Let game modes handle it from here.
-	game.mode->EndServerFrame( static_cast<svg_player_edict_t*>( ent ) );
+	game.mode->EndServerFrame( static_cast<svg_player_edict_t*>( current_player ) );
 
 	// Convert certain playerstate properties into entity state properties.
-	SG_PlayerStateToEntityState( ent->client->clientNum, &ent->client->ps, &ent->s, false );
+	SG_PlayerStateToEntityState( current_client->clientNum, &current_client->ps, &ent->s, false );
+
+	// Send any remaining pending predictable events to all clients but "ourselves".
+	SVG_Client_SendPendingPredictableEvents( static_cast<svg_player_edict_t*>( current_player ), current_client );
 }
 

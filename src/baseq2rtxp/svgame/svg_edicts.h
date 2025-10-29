@@ -98,7 +98,7 @@ svg_base_edict_t *SVG_Entities_FindWithinRadius( svg_base_edict_t *from, const V
 *
 **/
 /**
-*   @brief  Returns true if, ent != nullptr, ent->inuse == true.
+*   @brief  Returns true if, ent != nullptr, ent->inUse == true.
 **/
 static inline const bool SVG_Entity_IsActive( const svg_base_edict_t *ent ) {
     // nullptr:
@@ -106,7 +106,7 @@ static inline const bool SVG_Entity_IsActive( const svg_base_edict_t *ent ) {
         return false;
     }
     // Inactive:
-    if ( !ent->inuse ) {
+    if ( !ent->inUse ) {
         return false;
     }
     // Active.
@@ -141,7 +141,7 @@ static inline const bool SVG_Entity_IsMonster( const svg_base_edict_t *ent/*, co
         return false;
     }
     // Monster entity:
-    if ( ( ent->svflags & SVF_MONSTER ) || ent->s.entityType == ET_MONSTER || ent->s.entityType == ET_MONSTER_CORPSE ) {
+    if ( ( ent->svFlags & SVF_MONSTER ) || ent->s.entityType == ET_MONSTER || ent->s.entityType == ET_MONSTER_CORPSE ) {
         return true;
     }
     // No monster entity.

@@ -77,11 +77,11 @@ void CLG_LerpBeamSoundOrigin( const centity_t *ent, vec3_t org ) {
 void CLG_LerpBrushModelSoundOrigin( const centity_t *ent, vec3_t org ) {
     mmodel_t *brushModel = clgi.client->model_clip[ ent->current.modelindex ];
     if ( brushModel ) {
-        Vector3 absmin = org, absmax = org;
-        absmin += brushModel->mins;
-        absmax += brushModel->maxs;
+        Vector3 absMin = org, absMax = org;
+        absMin += brushModel->mins;
+        absMax += brushModel->maxs;
 
-        const Vector3 closestPoint = QM_Vector3ClosestPointToBox( clgi.client->playerEntityOrigin, absmin, absmax );
+        const Vector3 closestPoint = QM_Vector3ClosestPointToBox( clgi.client->playerEntityOrigin, absMin, absMax );
         VectorCopy( closestPoint, org );
     }
 }
@@ -164,26 +164,30 @@ void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, co
     // WID: 40hz
     #endif
 
+	// Off the entity event value.
+    const int32_t entityEvent = SG_GetEntityEventValue( state->event );
+
     // No lerping if teleported, or a BEAM effect entity.
-    if ( state->event == EV_PLAYER_TELEPORT ||
-        state->event == EV_OTHER_TELEPORT ||
+    if ( entityEvent == EV_PLAYER_TELEPORT ||
+        entityEvent == EV_OTHER_TELEPORT ||
         ( state->entityType == ET_BEAM || state->renderfx & RF_BEAM ) ) {
         // No lerping if teleported.
-        VectorCopy( (*origin), ent->lerp_origin );
+        ent->lerp_origin = *origin;
         return;
     }
 
     // old_origin is valid for new entities,
     // so use it as starting point for interpolating between
-    VectorCopy( state->old_origin, ent->prev.origin );
-    VectorCopy( state->old_origin, ent->lerp_origin );
+    ent->prev.origin = state->old_origin;
+    ent->lerp_origin = state->old_origin;
 }
 /**
 *	@brief	Called when a new frame has been received that contains an entity
 *			already present in the previous frame.
 **/
 void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
-    const int32_t event = state->event;
+    // Off the entity event value.
+    const int32_t entityEvent = SG_GetEntityEventValue( state->event );
 
     // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
     // Handle proper lerping for animated entities by Hz.    
@@ -207,21 +211,28 @@ void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, c
         ent->step_realtime = clgi.GetRealTime();
     }
 
+    // some data changes will force no lerping
     if ( state->entityType != ent->current.entityType
         || state->modelindex != ent->current.modelindex
         || state->modelindex2 != ent->current.modelindex2
         || state->modelindex3 != ent->current.modelindex3
         || state->modelindex4 != ent->current.modelindex4
-        || event == EV_PLAYER_TELEPORT
-        || event == EV_OTHER_TELEPORT
+        || entityEvent == EV_PLAYER_TELEPORT
+        || entityEvent == EV_OTHER_TELEPORT
         || fabsf( (*origin)[ 0 ] - ent->current.origin[ 0 ] ) > 64//512
         || fabsf( (*origin)[ 1 ] - ent->current.origin[ 1 ] ) > 64//512
         || fabsf( (*origin)[ 2 ] - ent->current.origin[ 2 ] ) > 64//512
         || cl_nolerp->integer == 1 ) {
-        // some data changes will force no lerping
-        ent->trailcount = 1024;     // for diminishing rocket / grenade trails
 
-        // duplicate the current state so lerping doesn't hurt anything
+		// Clear the previous event if it is too old.
+        if ( ent->snapShotTime < clgi.client->time - EVENT_VALID_MSEC ) {
+            ent->previousEvent = 0;
+        }
+
+        // For diminishing rocket / grenade trails.
+        ent->trailcount = 1024;     
+
+        // Duplicate the current state. This way, possible lerping doesn't 'hurt' anything.
         ent->prev = *state;
 
         // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
@@ -232,7 +243,7 @@ void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, c
         // WID: 40hz
         #endif
         // no lerping if teleported or morphed
-        VectorCopy( (*origin), ent->lerp_origin );
+        ent->lerp_origin = *origin;
         return;
     }
 

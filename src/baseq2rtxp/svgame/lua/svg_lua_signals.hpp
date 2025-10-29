@@ -13,7 +13,7 @@
 *		float
 *		std::string
 *		char*(because of std::string)
-*		svg_base_edict_t*(if not a nullptr, and entity is inuse, it will push to stack the entity number, -1 otherwise.)
+*		svg_base_edict_t*(if not a nullptr, and entity is inUse, it will push to stack the entity number, -1 otherwise.)
 *
 *	Implementation for custom types can be added.
 *

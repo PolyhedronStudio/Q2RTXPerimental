@@ -90,8 +90,8 @@ static void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base
 
     targ->enemy = attacker;
 
-    if ((targ->svflags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
-            //targ->svflags |= SVF_DEADENTITY;   // now treat as a different content type
+    if ((targ->svFlags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
+            //targ->svFlags |= SVF_DEADENTITY;   // now treat as a different content type
             // WID: TODO: Monster Reimplement.        
             //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
             //level.killed_monsters++;
@@ -111,7 +111,7 @@ static void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base
         return;
     }
 
-    if ((targ->svflags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
+    if ((targ->svFlags & SVF_MONSTER) && (targ->lifeStatus != LIFESTATUS_DEAD)) {
         targ->SetTouchCallback( nullptr );//targ->touch = NULL;
         // WID: TODO: Actually trigger death.
         //monster_death_use(targ);
@@ -184,7 +184,7 @@ dflags      these flags are used to control how SVG_DamageEntity works
 */
 void M_ReactToDamage(svg_base_edict_t *targ, svg_base_edict_t *attacker)
 {
-    if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
+    if (!(attacker->client) && !(attacker->svFlags & SVF_MONSTER))
         return;
 
     if (attacker == targ || attacker == targ->enemy)
@@ -192,7 +192,7 @@ void M_ReactToDamage(svg_base_edict_t *targ, svg_base_edict_t *attacker)
 
     // dead monsters, like misc_deadsoldier, don't have AI functions, but 
     // M_ReactToDamage might still be called on them
-    if (targ->svflags & SVF_DEADENTITY)
+    if (targ->svFlags & SVF_DEADENTITY)
         return;
 
     // if we are a good guy monster and our attacker is a player

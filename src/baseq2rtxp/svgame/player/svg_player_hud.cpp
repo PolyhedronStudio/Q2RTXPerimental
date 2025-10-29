@@ -68,7 +68,7 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
     ent->s.event = EV_NONE;
     ent->s.solid = SOLID_NOT; // 0
     ent->solid = SOLID_NOT;
-    ent->svflags = SVF_NOCLIENT;
+    ent->svFlags = SVF_NOCLIENT;
     gi.unlinkentity(ent);
 
     // Scoreboard:
@@ -95,7 +95,7 @@ void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
     for (int32_t i = 0 ; i < maxclients->value ; i++) {
         // Get valid entity.
         svg_base_edict_t *client = g_edict_pool.EdictForNumber( i + 1 );
-        if ( !client || !client->inuse ) {
+        if ( !client || !client->inUse ) {
             continue;
         }
         // Respawn since dead.
@@ -114,7 +114,7 @@ void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
     //        for ( i = 0; i < maxclients->value; i++ ) {
     //            svg_base_edict_t *client = g_edict_pool.EdictForNumber( i + 1 );
     //            //client = g_edicts + 1 + i;
-    //            if ( !client || !client->inuse ) {
+    //            if ( !client || !client->inUse ) {
     //                continue;
     //            }
     //            //// strip players of all keys between units
@@ -166,7 +166,7 @@ void SVG_HUD_BeginIntermission(svg_base_edict_t *targ)
     for ( int32_t i = 0; i < maxclients->value; i++ ) {
         // Get valid entity.
         svg_base_edict_t *clent = g_edict_pool.EdictForNumber( i + 1 );
-        if ( !clent || !clent->inuse ) {
+        if ( !clent || !clent->inUse ) {
             continue;
         }
         // Move it into intermission mode.
@@ -206,7 +206,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t
     total = 0;
     for (i = 0 ; i < game.maxclients ; i++) {
         cl_ent = g_edicts + 1 + i;
-        if (!cl_ent->inuse || game.clients[i].resp.spectator)
+        if (!cl_ent->inUse || game.clients[i].resp.spectator)
             continue;
         score = game.clients[i].resp.score;
         for (j = 0 ; j < total ; j++) {
@@ -280,7 +280,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t
     int32_t numberOfClients = 0;
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
         svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
-        if ( !cl_ent || !cl_ent->inuse || game.clients[ i ].resp.spectator 
+        if ( !cl_ent || !cl_ent->inUse || game.clients[ i ].resp.spectator 
             /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
         }
@@ -292,7 +292,7 @@ void SVG_HUD_DeathmatchScoreboardMessage(svg_base_edict_t *ent, svg_base_edict_t
     // Now, for each client, send index, time, score, and ping.
     for ( int32_t i = 0; i < game.maxclients; i++ ) {
         svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i + 1 );
-        if ( !cl_ent || !cl_ent->inuse || game.clients[ i ].resp.spectator
+        if ( !cl_ent || !cl_ent->inUse || game.clients[ i ].resp.spectator
             /*|| !cl_ent->client->pers.connected*/ ) {
             continue;
         }
@@ -548,7 +548,7 @@ void SVG_HUD_SetSpectatorStats( svg_base_edict_t *ent ) {
         cl->ps.stats[ STAT_LAYOUTS ] |= 2;
     }
     // Set the chase target client index as STAT_CHASE.
-    if ( cl->chase_target && cl->chase_target->inuse ) {
+    if ( cl->chase_target && cl->chase_target->inUse ) {
         cl->ps.stats[ STAT_CHASE ] = CS_PLAYERSKINS +
             ( cl->chase_target->s.number - 1 );//( cl->chase_target - g_edicts ) - 1;
     } else {
@@ -568,7 +568,7 @@ void SVG_HUD_CheckChaseStats(svg_base_edict_t *ent)
         //cl = g_edicts[i].client;
 		svg_base_edict_t *cl_ent = g_edict_pool.EdictForNumber( i );
         svg_client_t* cl = (cl_ent ? cl_ent->client : nullptr );
-        if ( !cl || !cl_ent || !cl_ent->inuse || cl->chase_target != ent ) {
+        if ( !cl || !cl_ent || !cl_ent->inUse || cl->chase_target != ent ) {
             continue;
         }
 		// Copy over the player state stats from the chased entity to the chasing client.

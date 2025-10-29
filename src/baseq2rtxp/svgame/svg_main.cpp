@@ -487,7 +487,7 @@ void EndClientServerFrames(void) {
     // and damage has been added
     for ( int32_t i = 0 ; i < maxclients->value ; i++) {
         svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
-        if ( !ent || !ent->inuse || !ent->client ) {
+        if ( !ent || !ent->inUse || !ent->client ) {
             continue;
         }
         SVG_Client_EndServerFrame(ent);
@@ -566,6 +566,31 @@ static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
     return false;
 }
 /**
+*   @brief  Check for whether the entity's ground has been moved below his ass.
+**/
+static void CheckEntityGroundChange( svg_base_edict_t *ent ) {
+    if ( ( ent->groundInfo.entity ) && ( ent->groundInfo.entity->linkCount != ent->groundInfo.entityLinkCount ) ) {
+        cm_contents_t mask = SVG_GetClipMask( ent );
+
+        // Monsters that don't SWIM or FLY, got their own unique ground check.
+        if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svFlags & SVF_MONSTER ) ) {
+            ent->groundInfo.entity = nullptr;
+            M_CheckGround( ent, mask );
+            // All other entities use this route instead:
+        } else {
+            // If the ground entity is still 1 unit below us, we're good.
+            Vector3 endPoint = Vector3( ent->s.origin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+            svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+
+            if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundInfo.entity ) {
+                ent->groundInfo.entity = nullptr;
+            } else {
+                ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkCount;
+            }
+        }
+    }
+}
+/**
 *   @brief  Advances the world by FRAME_TIME_MS seconds
 **/
 void SVG_RunFrame(void) {
@@ -612,7 +637,7 @@ void SVG_RunFrame(void) {
 		/**
         *   Defer removing client info for clients that are no longer in use.
         **/
-        if ( !ent->inuse ) {
+        if ( !ent->inUse ) {
             if ( isClientEntity ) {
                 DeferRemoveClientInfo( ent );
             }
@@ -644,33 +669,15 @@ void SVG_RunFrame(void) {
         /**
         *   RF Beam Entities update their old_origin by hand.
         **/
-        if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
-            VectorCopy( ent->s.origin, ent->s.old_origin );
+        if ( ent->s.entityType != ET_BEAM 
+            && !( ent->s.renderfx & RF_BEAM ) ) {
+            ent->s.old_origin = ent->s.origin;
         }
 
         /**
         *   If the ground entity moved, make sure we are still on it.
         **/
-        if ( ( ent->groundInfo.entity ) && ( ent->groundInfo.entity->linkcount != ent->groundInfo.entityLinkCount ) ) {
-            cm_contents_t mask = SVG_GetClipMask( ent );
-
-            // Monsters that don't SWIM or FLY, got their own unique ground check.
-            if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svflags & SVF_MONSTER ) ) {
-                ent->groundInfo.entity = nullptr;
-                M_CheckGround( ent, mask );
-            // All other entities use this route instead:
-            } else {
-                // If the ground entity is still 1 unit below us, we're good.
-                Vector3 endPoint = Vector3( ent->s.origin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-                svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
-
-                if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundInfo.entity ) {
-                    ent->groundInfo.entity = nullptr;
-                } else {
-                    ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkcount;
-                }
-            }
-        }
+        CheckEntityGroundChange( ent );
 
         /**
 		*   Client entities are handled seperately.

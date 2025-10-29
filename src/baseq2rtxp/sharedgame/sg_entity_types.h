@@ -16,7 +16,7 @@ typedef enum sg_entity_type_e {
 	// Player Entity Types:
 	// 
 	//! Client Player Entity.
-	ET_PLAYER = ET_GAME_TYPES,
+	ET_PLAYER = ET_ENGINE_MAX_TYPES,
 	//! Client Player Corps Entity.
 	ET_PLAYER_CORPSE,
 	
@@ -69,12 +69,17 @@ typedef enum sg_entity_type_e {
 	//!
 	//! Maximum types supported.
 	//!
-	ET_MAX_SHAREDGAME_TYPES
+	ET_MAX_SHAREDGAME_TYPES,
 
 	//! Invisible Entity.
 	//ET_INVISIBLE,
-	//! Event Entities:
-	//ET_EVENTS				// any of the EV_* events can be added freestanding
-							// by setting s.entityType to ET_EVENTS + eventNum
-							// this avoids having to set eFlags and eventNum
+
+	/**
+	*	Event Entities :
+	*	Any of the EV_* events can be added freestanding
+	*	by setting s.entityType to ET_TEMP_ENTITY_EVENT + eventNum
+	*	this avoids having to set eFlags and eventNum
+	**/
+	//! A Temporary Entity Event. To get the value of the event, subtract ET_TEMP_ENTITY_EVENT from the entityType value.
+	ET_TEMP_ENTITY_EVENT,
 } sg_entity_type_t;

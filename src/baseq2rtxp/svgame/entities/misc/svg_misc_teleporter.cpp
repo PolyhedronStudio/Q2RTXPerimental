@@ -115,8 +115,8 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( svg_misc_teleporter_onTouch )( svg_base_edict_t *s
     other->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
 
     // draw the teleport splash at source and on the player
-    self->owner->s.event = EV_PLAYER_TELEPORT;
-    other->s.event = EV_PLAYER_TELEPORT;
+    SVG_Util_AddEvent( self->owner, EV_PLAYER_TELEPORT, 0 );//self->owner->s.event = EV_PLAYER_TELEPORT;
+    SVG_Util_AddEvent( other, EV_PLAYER_TELEPORT, 0 );//other->s.event = EV_PLAYER_TELEPORT;
 
     // set angles
     for ( i = 0; i < 3; i++ ) {

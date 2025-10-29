@@ -132,7 +132,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_misc_explobox_t, thinkExplode )( svg_misc_expl
     SVG_RadiusDamage( self, self->activator, self->dmg, NULL, self->dmg + 40, MEANS_OF_DEATH_EXPLODED_BARREL );
 
     VectorCopy( self->s.origin, save );
-    VectorMA( self->absmin, 0.5f, self->size, self->s.origin );
+    VectorMA( self->absMin, 0.5f, self->size, self->s.origin );
 
     #if 0
     // a few big chunks
@@ -144,15 +144,15 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_misc_explobox_t, thinkExplode )( svg_misc_expl
 
     // bottom corners
     spd = 1.75f * (float)self->dmg / 200.0f;
-    VectorCopy( self->absmin, org );
+    VectorCopy( self->absMin, org );
     SVG_Misc_ThrowDebris( self, "models/debris/debris3/tris.md2", spd, org );
-    VectorCopy( self->absmin, org );
+    VectorCopy( self->absMin, org );
     org[ 0 ] += self->size[ 0 ];
     SVG_Misc_ThrowDebris( self, "models/debris/debris3/tris.md2", spd, org );
-    VectorCopy( self->absmin, org );
+    VectorCopy( self->absMin, org );
     org[ 1 ] += self->size[ 1 ];
     SVG_Misc_ThrowDebris( self, "models/debris/debris3/tris.md2", spd, org );
-    VectorCopy( self->absmin, org );
+    VectorCopy( self->absMin, org );
     org[ 0 ] += self->size[ 0 ];
     org[ 1 ] += self->size[ 1 ];
     SVG_Misc_ThrowDebris( self, "models/debris/debris3/tris.md2", spd, org );

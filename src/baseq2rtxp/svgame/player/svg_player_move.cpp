@@ -285,7 +285,7 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
 static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
     // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
     if ( ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
-        VectorCopy( ent->s.origin, client->last_ladder_pos );
+        client->last_ladder_pos = ent->s.origin;
 
         if ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) {
             if ( !deathmatch->integer &&
@@ -324,7 +324,7 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
     ent->groundInfo.surface = pm.ground.surface;
     // Update link count.
     if ( ent->groundInfo.entity ) {
-        ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkcount;
+        ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkCount;
     }
 
     // Apply a specific view angle if dead:
@@ -571,11 +571,9 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         // and events that may be triggered during the PMove.
         // Convert certain playerstate properties into entity state properties.
         SG_PlayerStateToEntityState( client->clientNum, &client->ps, &player_ent->s, false );
-
-        /**
-		*   <Q2RTXP>: WID: TODO: Implement SendPendingPredictableEvents.
-        **/
-        //SendPendingPredictableEvents( &ent->client->ps );
+        
+		// Send any remaining pending predictable events to all clients but "ourselves".
+        SVG_Client_SendPendingPredictableEvents( player_ent, ent->client );
 
         //vec3_t old_origin = player_ent->s.origin;
 
@@ -621,7 +619,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
     **/
     for ( int32_t i = 1; i <= maxclients->value; i++ ) {
         svg_base_edict_t *other = g_edict_pool.EdictForNumber( i );
-        if ( other && other->inuse && other->client->chase_target == ent ) {
+        if ( other && other->inUse && other->client->chase_target == ent ) {
             SVG_ChaseCam_Update( other );
         }
     }

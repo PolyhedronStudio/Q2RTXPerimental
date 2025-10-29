@@ -84,13 +84,13 @@ void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
 	}
 
 //  ent->groundentity = trace.ent;
-//  ent->groundentity_linkcount = trace.ent->linkcount;
+//  ent->groundentity_linkcount = trace.ent->linkCount;
 //  if (!trace.startsolid && !trace.allsolid)
 //      VectorCopy (trace.endpos, ent->s.origin);
 	if ( !trace.startsolid && !trace.allsolid ) {
 		VectorCopy( trace.endpos, ent->s.origin );
 		ent->groundInfo.entity = trace.ent;
-		ent->groundInfo.entityLinkCount = trace.ent->linkcount;
+		ent->groundInfo.entityLinkCount = trace.ent->linkCount;
 		ent->velocity[ 2 ] = 0;
 	}
 }
@@ -185,7 +185,7 @@ void M_WorldEffects( svg_base_edict_t *ent ) {
     }
 
 	if ( !( ent->flags & FL_INWATER ) ) {
-		if ( !( ent->svflags & SVF_DEADENTITY ) ) {
+		if ( !( ent->svFlags & SVF_DEADENTITY ) ) {
 			if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
 				//if ( random() <= 0.5f )
 				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava1.wav" ), 1, ATTN_NORM, 0 );

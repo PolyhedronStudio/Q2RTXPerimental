@@ -102,7 +102,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
     self->solid = SOLID_BSP;
     self->s.renderfx |= RF_BRUSHTEXTURE_SET_FRAME_INDEX;
     self->s.entityType = ET_PUSHER;
-    self->svflags |= SVF_DOOR;
+    self->svFlags |= SVF_DOOR;
     // BSP Model, or otherwise, specified external model.
     gi.setmodel( self, self->model );
 

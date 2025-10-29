@@ -31,6 +31,36 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 
+/**
+*
+*
+*
+*	Mathemathical Utility Functions:
+*		- Vector Projection from Source
+*		- Set Move Direction from Angles
+*
+*
+*
+**/
+/**
+*   @brief  Project vector from a source point, to distance, based on forward/right angle vectors.
+**/
+const Vector3 SVG_Util_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
+    return {
+        point[ 0 ] + forward[ 0 ] * distance[ 0 ] + right[ 0 ] * distance[ 1 ],
+        point[ 1 ] + forward[ 1 ] * distance[ 0 ] + right[ 1 ] * distance[ 1 ],
+        point[ 2 ] + forward[ 2 ] * distance[ 0 ] + right[ 2 ] * distance[ 1 ] + distance[ 2 ]
+    };
+}
+/**
+*   @brief  Utility version of above that uses vec3_t args and result.
+**/
+void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result ) {
+    // Call the new more modern SVG_Util_ProjectSource.
+    const Vector3 _result = SVG_Util_ProjectSource( point, distance, forward, right );
+    // Copy the resulting values into the result vec3_t array(ptr).
+    VectorCopy( _result, result );
+}
 
 
 
@@ -60,7 +90,7 @@ void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
         gi.setmodel( self, self->model.ptr );
     }
     // Ensure it is never sent over the wire to any clients.
-    self->svflags = SVF_NOCLIENT;
+    self->svFlags = SVF_NOCLIENT;
 }
 
 /**
@@ -178,7 +208,8 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_
         bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
 		// Set the event and parm.
         ent->client->ps.externalEvent = event | bits;
-        ent->client->ps.externalEventParm = eventParm;
+        ent->client->ps.externalEventParm0 = eventParm; // = eventParm0;
+        //ent->client->ps.externalEventParm1 = eventParm1;
         ent->client->ps.externalEventTime = level.time.Milliseconds();
     /**
     *   Non-Clients just add it to the entityState_t
@@ -190,7 +221,7 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_
         bits = ( bits + EV_EVENT_BIT1 ) & EV_EVENT_BITS;
 		// Set the event and parm.
         ent->s.event = event | bits;
-        ent->s.eventParm = eventParm;
+        ent->s.eventParm0 = eventParm;
     }
 	// Stamp the time of the event.
     ent->eventTime = level.time;
@@ -198,18 +229,45 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_
 
 /**
 *   @brief  Adds a temp entity event at the given origin.
+*	@param	snapOrigin	If true, will snap the origin to integer values.
 **/
-void SVG_Util_AddTempEntity( const Vector3 &origin, const int32_t event, const int32_t eventParm ) {
+svg_base_edict_t *SVG_Util_CreateTempEntityEvent( const Vector3 &origin, const int32_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin /*= false*/ ) {
+    /**
+    *   We don't need regular spawning etc dispatching and what not.
+    * 
+	*   Take the raw approach here.
+    **/
     // Spawn a func_plat_trigger.
     EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
     // Allocate it using the found typeInfo.
-	// <Q2RTXP>: WID: Fix incorrect allocation of edict instance. (Create an entity event type instance instead of a base edict instance.)
-    svg_base_edict_t *triggerEdictInstance = static_cast<svg_base_edict_t *>( typeInfo->allocateEdictInstanceCallback( nullptr ) );
+    // <Q2RTXP>: WID: Fix incorrect allocation of edict instance. (Create an entity event type instance instead of a base edict instance.)
+    svg_base_edict_t *tempEventEntity = static_cast<svg_base_edict_t *>( typeInfo->allocateEdictInstanceCallback( nullptr ) );
     // Emplace the spawned edict in the next avaible edict slot.
-    g_edict_pool.EmplaceNextFreeEdict( triggerEdictInstance );
+    g_edict_pool.EmplaceNextFreeEdict( tempEventEntity );
 
-    
+    // Set the actual entity event to part of entityState_t type.
+    tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
+	// Stuff the eventParm in the entityState_t's eventParm.
+	tempEventEntity->s.eventParm0 = eventParm0;
+    tempEventEntity->s.eventParm1 = eventParm1;
+	// However, do change the actual 'classname' to something meaningful for temp entities.
+	tempEventEntity->classname = svg_level_qstring_t::from_char_str( "svg_event_entity_t" );
+    // Setup the actual time of the event.
+	tempEventEntity->eventTime = level.time;
+	// Ensure it will be freed properly later after the event has finished processing.
+	tempEventEntity->freeAfterEvent = true;
+	// Ensure no client specific sending. (Can be set after creation if needed.)
+    tempEventEntity->sendClientID = SENDCLIENT_TO_ALL;
 
+    // Last but not least, set the origin, link it and return it.
+    // Now snap the origin into the entityState_t.
+	// <Q2RTXP>: WID: Use proper snapping function.
+    tempEventEntity->s.origin = ( snapOrigin ? QM_Vector3Snap( origin ) : origin );
+    // Link it in for PVS etc.
+    gi.linkentity( tempEventEntity );
+
+	// Return the temp entity.
+    return tempEventEntity;
     //gi.WriteByte( svc_temp_entity );
     //gi.WriteByte( event );
     //gi.WritePosition( origin );
@@ -218,34 +276,28 @@ void SVG_Util_AddTempEntity( const Vector3 &origin, const int32_t event, const i
 }
 
 /**
-*
-*
-*
-*	Mathemathical Utility Functions:
-*		- Vector Projection from Source
-*		- Set Move Direction from Angles
-*
-*
-*
+*	@brief	Creates a temp entity event at the entity's given origin.
+*   @note   Uses the entity's origin, or the client pmove origin if a client.
+*           Always players at full volume.
+*           Normal attenuation, and 0 sound offset.
+*	@param	channel	The sound channel to play the sound on.
+*	@param	soundResourceIndex	The sound resource index to play.
 **/
-/**
-*   @brief  Project vector from a source point, to distance, based on forward/right angle vectors.
-**/
-const Vector3 SVG_Util_ProjectSource( const Vector3 &point, const Vector3 &distance, const Vector3 &forward, const Vector3 &right ) {
-    return {
-        point[ 0 ] + forward[ 0 ] * distance[ 0 ] + right[ 0 ] * distance[ 1 ],
-        point[ 1 ] + forward[ 1 ] * distance[ 0 ] + right[ 1 ] * distance[ 1 ],
-        point[ 2 ] + forward[ 2 ] * distance[ 0 ] + right[ 2 ] * distance[ 1 ] + distance[ 2 ]
-    };
-}
-/**
-*   @brief  Utility version of above that uses vec3_t args and result.
-**/
-void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const vec3_t forward, const vec3_t right, vec3_t result ) {
-    // Call the new more modern SVG_Util_ProjectSource.
-    const Vector3 _result = SVG_Util_ProjectSource( point, distance, forward, right );
-    // Copy the resulting values into the result vec3_t array(ptr).
-    VectorCopy( _result, result );
+void SVG_Util_Sound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex ) {
+    // Fetch the origin of the entity.
+	Vector3 origin = ent->s.origin;
+    if ( ent->client ) {
+		origin = ent->client->ps.pmove.origin;
+    }
+    // Create a temporary entity event for all other clients.
+    svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEntityEvent(
+        // Use the acquired origin.
+        origin, 
+		// General sound event.
+        EV_GENERAL_SOUND, channel, soundResourceIndex, 
+        // Always snap the origin.
+        true 
+    );
 }
 
 
@@ -254,7 +306,7 @@ void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const ve
 *
 *
 *
-*	'Touch' Utility Functions:
+*	'Touch' & 'Solid' Entity Utility Functions:
 *
 *
 *
@@ -266,15 +318,15 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
     svg_base_edict_t *hit;
 
     // dead things don't activate triggers!
-    if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
+    if ((ent->client || (ent->svFlags & SVF_MONSTER)) && (ent->health <= 0))
         return;
 
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
     memset( touchedEdicts, 0, sizeof touchedEdicts );
 
-	const Vector3 absmin = ent->absmin;
-    const Vector3 absmax = ent->absmax;
-    const int32_t num = gi.BoxEdicts( &absmin, &absmax, touchedEdicts, MAX_EDICTS, AREA_TRIGGERS );
+	const Vector3 absMin = ent->absMin;
+    const Vector3 absMax = ent->absMax;
+    const int32_t num = gi.BoxEdicts( &absMin, &absMax, touchedEdicts, MAX_EDICTS, AREA_TRIGGERS );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
@@ -283,7 +335,7 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
         if ( !hit ) {
             continue;
         }
-        if ( !hit->inuse ) {
+        if ( !hit->inUse ) {
             continue;
         }
         if ( !hit->HasTouchCallback() ) {
@@ -293,7 +345,7 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
         hit->DispatchTouchCallback( ent, nullptr, nullptr );
 		// <Q2RTXP>: WID: Prevent the touch from being called again if the previous
         // touch 'removed' the entity, it is not in use.
-        if ( !ent->inuse ) {
+        if ( !ent->inUse ) {
             break;
         }
     }
@@ -309,9 +361,9 @@ void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
     memset( touchedEdicts, 0, sizeof touchedEdicts );
 
-    const Vector3 absmin = ent->absmin;
-    const Vector3 absmax = ent->absmax;
-    const int32_t num = gi.BoxEdicts( &absmin, &absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+    const Vector3 absMin = ent->absMin;
+    const Vector3 absMax = ent->absMax;
+    const int32_t num = gi.BoxEdicts( &absMin, &absMax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
@@ -320,7 +372,7 @@ void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
         if ( !hit ) {
             continue;
         }
-        if ( !hit->inuse ) {
+        if ( !hit->inUse ) {
             continue;
         }
         if ( !hit->HasTouchCallback() ) {
@@ -328,7 +380,7 @@ void SVG_Util_TouchSolids(svg_base_edict_t *ent) {
         }
 
         hit->DispatchTouchCallback( ent, nullptr, nullptr );
-        if ( !ent->inuse ) {
+        if ( !ent->inUse ) {
             break;
         }
     }
@@ -348,18 +400,18 @@ void SVG_Util_TouchProjectiles( svg_base_edict_t *ent, const Vector3 &previous_o
     static std::vector<skipped_projectile> skipped;
 
     while ( true ) {
-        svg_trace_t tr = SVG_Trace( previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipmask | CONTENTS_PROJECTILE ) );
+        svg_trace_t tr = SVG_Trace( previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ( ent->clipMask | CONTENTS_PROJECTILE ) );
 
         if ( tr.fraction == 1.0f ) {
             break;
         }
-        else if ( !( tr.ent->svflags & SVF_PROJECTILE ) ) {
+        else if ( !( tr.ent->svFlags & SVF_PROJECTILE ) ) {
             break;
         }
 
         // always skip this projectile since certain conditions may cause the projectile
         // to not disappear immediately
-        tr.ent->svflags &= ~SVF_PROJECTILE;
+        tr.ent->svFlags &= ~SVF_PROJECTILE;
         skipped.push_back( { tr.ent, tr.ent->spawn_count } );
 
         // Q2RE: if we're both players and it's coop, allow the projectile to "pass" through
@@ -374,8 +426,8 @@ void SVG_Util_TouchProjectiles( svg_base_edict_t *ent, const Vector3 &previous_o
     }
 
     for ( auto &skip : skipped ) {
-        if ( skip.projectile->inuse && skip.projectile->spawn_count == skip.spawn_count ) {
-            skip.projectile->svflags |= SVF_PROJECTILE;
+        if ( skip.projectile->inUse && skip.projectile->spawn_count == skip.spawn_count ) {
+            skip.projectile->svFlags |= SVF_PROJECTILE;
         }
     }
 
@@ -403,7 +455,7 @@ of ent.  Ent should be unlinked before calling this!
 //    static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
 //    memset( touchedEdicts, 0, MAX_EDICTS );
 //
-//    int32_t num = gi.BoxEdicts( ent->absmin, ent->absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+//    int32_t num = gi.BoxEdicts( ent->absMin, ent->absMax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 //    for ( int32_t i = 0; i < num; i++ ) {
 //        // Pointer to touched entity.
 //        svg_base_edict_t *hit = touchedEdicts[ i ];
@@ -415,14 +467,14 @@ of ent.  Ent should be unlinked before calling this!
 //        if ( hit == ent ) {
 //            continue;
 //        // Skip entities that are not in use, no takedamage, not solid, or solid_bsp/solid_trigger.
-//        } else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
+//        } else if ( !hit->inUse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
 //            continue;
 //        } else if ( hit->client && !( mask & CONTENTS_PLAYER ) ) {
 //            continue;
 //        }
 //
 //        svg_trace_t clip = {};
-//        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
+//        if ( ( ent->solid == SOLID_BSP || ( ent->svFlags & SVF_HULL ) ) && bspClipping ) {
 //            clip = SVG_Trace(ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask(hit));
 //
 //            if ( clip.fraction == 1.0f ) {
@@ -479,9 +531,9 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ];
     memset( touchedEdicts, 0, sizeof touchedEdicts );
 
-    const Vector3 absmin = ent->absmin;
-    const Vector3 absmax = ent->absmax;
-    int32_t num = gi.BoxEdicts( &absmin, &absmax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
+    const Vector3 absMin = ent->absMin;
+    const Vector3 absMax = ent->absMax;
+    int32_t num = gi.BoxEdicts( &absMin, &absMax, touchedEdicts, MAX_EDICTS, AREA_SOLID );
     
     for ( int32_t i = 0; i < num; i++ ) {
         #if 0
@@ -492,12 +544,12 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
 		// Will prevent spawn point telefragging if no client is assigned yet.
         else if ( hit != nullptr && !hit->client && hit->s.entityType == ET_PLAYER )
             continue;
-        else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP )
+        else if ( !hit->inUse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP )
             continue;
         else if ( hit->client && !( mask & CONTENTS_PLAYER ) )
             continue;
 
-        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
+        if ( ( ent->solid == SOLID_BSP || ( ent->svFlags & SVF_HULL ) ) && bspClipping ) {
             svg_trace_t clip = gi.clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f )
@@ -508,8 +560,8 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
         // the player that is about to be telefragged will have collision
         // disabled until another time.
         //if ( ent->client && hit->client && coop->integer ) {
-        //    hit->clipmask &= ~CONTENTS_PLAYER;
-        //    ent->clipmask &= ~CONTENTS_PLAYER;
+        //    hit->clipMask &= ~CONTENTS_PLAYER;
+        //    ent->clipMask &= ~CONTENTS_PLAYER;
         //    continue;
         //}
 
@@ -525,14 +577,14 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
         if ( hit == ent ) {
             continue;
         // Skip entities that are not in use, no takedamage, not solid, or solid_bsp/solid_trigger.
-        } else if ( !hit->inuse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
+        } else if ( !hit->inUse || !hit->takedamage || !hit->solid || hit->solid == SOLID_TRIGGER || hit->solid == SOLID_BSP ) {
             continue;
         } else if ( hit->client && !( mask & CONTENTS_PLAYER ) ) {
             continue;
         }
 
         svg_trace_t clip = {};
-        if ( ( ent->solid == SOLID_BSP || ( ent->svflags & SVF_HULL ) ) && bspClipping ) {
+        if ( ( ent->solid == SOLID_BSP || ( ent->svFlags & SVF_HULL ) ) && bspClipping ) {
             clip = SVG_Clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f ) {
@@ -599,10 +651,10 @@ void SVG_MoveWith_SetTargetParentEntity( const char *targetName, svg_base_edict_
 
     // Determine brushmodel bbox origins.
     Vector3 parentOriginOffset = QM_BBox3Center(
-        QM_BBox3FromMinsMaxs( parentMover->absmin, parentMover->absmax )
+        QM_BBox3FromMinsMaxs( parentMover->absMin, parentMover->absMax )
     );
     Vector3 childOriginOffset = QM_BBox3Center(
-        QM_BBox3FromMinsMaxs( childMover->absmin, childMover->absmax )
+        QM_BBox3FromMinsMaxs( childMover->absMin, childMover->absMax )
     );
 
     // Add it to the chain.
@@ -776,9 +828,9 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
     gi.linkentity( childMover );
 }
 
-//if ( ent->targetEntities.movewith && ent->inuse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
+//if ( ent->targetEntities.movewith && ent->inUse && ( ent->movetype == MOVETYPE_PUSH || ent->movetype == MOVETYPE_STOP ) ) {
 //    svg_base_edict_t *moveWithEntity = ent->targetEntities.movewith;
-//    if ( moveWithEntity->inuse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
+//    if ( moveWithEntity->inUse && ( moveWithEntity->movetype == MOVETYPE_PUSH || moveWithEntity->movetype == MOVETYPE_STOP ) ) {
 //        // Parent origin.
 //        Vector3 parentOrigin = moveWithEntity->s.origin;
 //        // Difference atm between parent origin and child origin.

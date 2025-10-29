@@ -205,15 +205,15 @@ void CLG_LocalEntity_Link( clg_local_entity_t *lent ) {
 	// Set entity size.
 	lent->locals.size = lent->locals.maxs - lent->locals.mins;
 
-	// Set absmin/absmax.
-	lent->locals.absmin = lent->locals.origin + lent->locals.mins;
-	lent->locals.absmax = lent->locals.origin + lent->locals.maxs;
+	// Set absMin/absMax.
+	lent->locals.absMin = lent->locals.origin + lent->locals.mins;
+	lent->locals.absMax = lent->locals.origin + lent->locals.maxs;
 
 	// For box leafs.
-	vec3_t absmin;
-	vec3_t absmax;
-	VectorCopy( lent->locals.absmin, absmin );
-	VectorCopy( lent->locals.absmax, absmax );
+	vec3_t absMin;
+	vec3_t absMax;
+	VectorCopy( lent->locals.absMin, absMin );
+	VectorCopy( lent->locals.absMax, absMax );
 
 	mleaf_t *leafs[ MAX_TOTAL_ENT_LEAFS ];
 	int         clusters[ MAX_TOTAL_ENT_LEAFS ];
@@ -224,7 +224,7 @@ void CLG_LocalEntity_Link( clg_local_entity_t *lent ) {
 	cm_t *cm = &clgi.client->collisionModel;
 
 	// Get all leafs, including solids.
-	num_leafs = clgi.CM_BoxLeafs( cm, absmin, absmax,
+	num_leafs = clgi.CM_BoxLeafs( cm, absMin, absMax,
 		leafs, MAX_TOTAL_ENT_LEAFS, &topnode );
 
 	// Set areas
@@ -236,7 +236,7 @@ void CLG_LocalEntity_Link( clg_local_entity_t *lent ) {
 			if ( lent->areanum && lent->areanum != area ) {
 				if ( lent->areanum2 && lent->areanum2 != area ) {
 					clgi.Print( PRINT_DEVELOPER, "%s: Object touching 3 areas at %f %f %f\n",
-						__func__, absmin[ 0 ], absmin[ 1 ], absmin[ 2 ] );
+						__func__, absMin[ 0 ], absMin[ 1 ], absMin[ 2 ] );
 				}
 				lent->areanum2 = area;
 			} else

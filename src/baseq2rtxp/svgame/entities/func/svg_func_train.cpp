@@ -8,6 +8,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_trigger.h"
+#include "svgame/svg_utils.h"
 
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
@@ -36,11 +37,11 @@ noise   looping sound to play when the train is in motion
 *   @brief  Blocked.
 **/
 DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_train_t, onBlocked )( svg_func_train_t *self, svg_base_edict_t *other ) -> void {
-    if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
+    if ( !( other->svFlags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
         SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
-        if ( other && other->inuse && other->solid ) {
+        if ( other && other->inUse && other->solid ) {
             SVG_Misc_BecomeExplosion( other, 1 );
         }
         return;
@@ -72,7 +73,7 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_train_t, onTrainWait )( svg_fu
         ent->targetNames.target = savetarget;
 
         // make sure we didn't get killed by a targetNames.kill
-        if ( !self->inuse ) {
+        if ( !self->inUse ) {
             return;
         }
     }
@@ -149,7 +150,8 @@ again:
             }
         }
         VectorCopy( self->s.origin, self->s.old_origin );
-        self->s.event = EV_OTHER_TELEPORT;
+        //self->s.event = EV_OTHER_TELEPORT;
+        SVG_Util_AddEvent( self, EV_OTHER_TELEPORT, 0 );
         gi.linkentity( self );
         goto again;
     }
@@ -425,6 +427,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_train_t, onSpawn )( svg_func_train_t *sel
         self->nextthink = level.time + FRAME_TIME_S;
         self->SetThinkCallback( &self->onThink_FindNextTarget );
     } else {
-        gi.dprintf( "func_train without a target at %s\n", vtos( self->absmin ) );
+        gi.dprintf( "func_train without a target at %s\n", vtos( self->absMin ) );
     }
 }

@@ -74,7 +74,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	// Ensure its number is set.
 	to->number = number;
 	// Always reset the event to begin with.
-	to->event = 0;
+	//to->event = 0;
 
 	// Don't proceed reading if no other bits were present.
 	if ( !bits ) {
@@ -124,8 +124,12 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_ENTITY_TYPE ) {
-		to->entityType = MSG_ReadUint8( );
+		to->entityType = MSG_ReadUintBase128();
 	}
+	if ( bits & U_OTHER_ENTITY_NUMBER ) {
+		to->otherEntityNumber = MSG_ReadUintBase128();
+	}
+
 	if ( bits & U_FRAME ) {
 		to->frame = MSG_ReadUintBase128( );
 	}
@@ -148,10 +152,13 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_EVENT ) {
-		to->event = MSG_ReadUintBase128( );
+		to->event = MSG_ReadIntBase128( );
 	}
-	if ( bits & U_EVENT_PARM ) {
-		to->eventParm = MSG_ReadIntBase128();
+	if ( bits & U_EVENT_PARM_0 ) {
+		to->eventParm0 = MSG_ReadIntBase128();
+	}
+	if ( bits & U_EVENT_PARM_1 ) {
+		to->eventParm1 = MSG_ReadIntBase128();
 	}
 
 	if ( bits & U_SOLID ) {
@@ -162,7 +169,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->bounds = static_cast<uint32_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_CLIPMASK ) {
-		to->clipmask = static_cast<cm_contents_t>( MSG_ReadUintBase128( ) );
+		to->clipMask = static_cast<cm_contents_t>( MSG_ReadUintBase128( ) );
 	}
 	if ( bits & U_HULL_CONTENTS ) {
 		to->hullContents = static_cast<cm_contents_t>( MSG_ReadUintBase128() );

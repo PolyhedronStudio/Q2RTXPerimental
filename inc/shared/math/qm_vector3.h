@@ -1148,11 +1148,11 @@ QM_API Vector3 QM_Vector3LerpAngles( const Vector3 &angleVec2, const Vector3 &an
 /**
 *   @return The closest point of the box that is near vector 'in'.
 **/
-QM_API Vector3 QM_Vector3ClosestPointToBox( const Vector3 &in, const Vector3 &absmin, const Vector3 &absmax ) {
+QM_API Vector3 QM_Vector3ClosestPointToBox( const Vector3 &in, const Vector3 &absMin, const Vector3 &absMax ) {
     Vector3 out = {};
 
     for ( int i = 0; i < 3; i++ ) {
-        out[ i ] = ( in[ i ] < absmin[ i ] ) ? absmin[ i ] : ( in[ i ] > absmax[ i ] ) ? absmax[ i ] : in[ i ];
+        out[ i ] = ( in[ i ] < absMin[ i ] ) ? absMin[ i ] : ( in[ i ] > absMax[ i ] ) ? absMax[ i ] : in[ i ];
     }
 
     return out;

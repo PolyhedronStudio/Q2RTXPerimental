@@ -578,7 +578,7 @@ static void SV_StartSound( const Vector3 *origin, edict_ptr_t *edict,
 
 	// send origin for invisible entities
 	// the origin can also be explicitly set
-	force_pos = ( edict->svflags & SVF_NOCLIENT ) || origin;
+	force_pos = ( edict->svFlags & SVF_NOCLIENT ) || origin;
 
 	// use the entity origin unless it is a bmodel or explicitly specified
 	if ( !origin ) {

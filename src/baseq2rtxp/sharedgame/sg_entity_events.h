@@ -28,7 +28,12 @@ static constexpr int32_t EV_EVENT_BIT1 = BIT( 8 ); // 0x00000100;// BIT( 0 ); //
 static constexpr int32_t EV_EVENT_BIT2 = BIT( 9 ); // 0x00000200;// BIT( 1 ); // OLD: 0x00000200
 static constexpr int32_t EV_EVENT_BITS = ( EV_EVENT_BIT1 | EV_EVENT_BIT2 );
 
-
+/**
+*   @return The actual event ID value by offing the given event value with EV_EVENT_BITS.
+**/
+static inline int32_t SG_GetEntityEventValue( const int32_t eventValue ) {
+    return ( eventValue & ~EV_EVENT_BITS );
+}
 
 /**
 *
@@ -165,6 +170,14 @@ typedef enum sg_entity_events_e {
     **/
     EV_ITEM_RESPAWN,
 
+    /**
+	*   Temporary External Entity Events:
+    **/
+	//! General sound event for entities, play a sound at the entity's origin on the specified channel.
+    EV_GENERAL_SOUND,
+	//! Global sound event, play a sound(Zero attenuation.) at the entity's origin for all clients to hear.
+	//EV_GLOBAL_SOUND,
+
 	//! Maximum number of entity events, must be last.
     EV_GAME_MAX
 } sg_entity_events_t;
@@ -220,6 +233,8 @@ static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     "EV_OTHER_TELEPORT",
 
     "EV_ITEM_RESPAWN",
+
+	"EV_GENERAL_SOUND",
 };
 
 /**

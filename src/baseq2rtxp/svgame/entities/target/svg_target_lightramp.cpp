@@ -110,7 +110,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_lightramp_t, onSpawn ) ( svg_target_lig
         return;
     }
 
-    self->svflags |= SVF_NOCLIENT;
+    self->svFlags |= SVF_NOCLIENT;
     self->SetUseCallback( &svg_target_lightramp_t::onUse );
     self->SetThinkCallback( &svg_target_lightramp_t::onThink );
 

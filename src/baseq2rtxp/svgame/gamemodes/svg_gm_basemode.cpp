@@ -48,7 +48,7 @@ void svg_gamemode_t::EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inf
         return;
     }
 
-    if ( ( targ->svflags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
+    if ( ( targ->svFlags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
         targ->SetTouchCallback( nullptr );//targ->touch = NULL;
         // WID: TODO: Actually trigger death.
         //monster_death_use(targ);
@@ -87,7 +87,7 @@ const bool svg_gamemode_t::CanDamageEntityDirectly( svg_base_edict_t *targ, svg_
 
     // bmodels need special checking because their origin is 0,0,0
     if ( targ->movetype == MOVETYPE_PUSH ) {
-        VectorAdd( targ->absmin, targ->absmax, dest );
+        VectorAdd( targ->absMin, targ->absMax, dest );
         VectorScale( dest, 0.5f, dest );
         trace = SVG_Trace( inflictor->s.origin, vec3_origin, vec3_origin, dest, inflictor, CM_CONTENTMASK_SOLID );
         if ( trace.fraction == 1.0f )
@@ -193,7 +193,7 @@ void svg_gamemode_t::ExitLevel() {
 	for ( int32_t i = 0; i < maxclients->value; i++ ) {
 		// Get client entity and ensure it is valid.
 		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
-		if ( !ent || !ent->inuse ) {
+		if ( !ent || !ent->inUse ) {
 			continue;
 		}
 		// Reset the health of the player to their max health.

@@ -102,7 +102,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_earthquake_t, onSpawn ) ( svg_target_ea
         self->speed = 200;
     }
 
-    self->svflags |= SVF_NOCLIENT;
+    self->svFlags |= SVF_NOCLIENT;
     self->SetThinkCallback( &svg_target_earthquake_t::onThink );
     self->SetUseCallback( &svg_target_earthquake_t::onUse );
 
@@ -122,7 +122,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_earthquake_t, onThink )( svg_target_ear
     int32_t i = 0;
     svg_base_edict_t *ed = g_edict_pool.EdictForNumber( i );
     for ( i = 1, ed = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, ed = g_edict_pool.EdictForNumber( i ) ) {
-        if ( !ed || !ed->inuse ) {
+        if ( !ed || !ed->inUse ) {
             continue;
         }
         if ( !ed->client ) {
@@ -150,7 +150,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_target_earthquake_t, onUse )( svg_target_earthqu
         uint32_t i = 1;
         svg_base_edict_t *ed = g_edict_pool.EdictForNumber( i );
         for ( i = 1, ed = g_edict_pool.EdictForNumber( i ); i < globals.edictPool->num_edicts; i++, ed = g_edict_pool.EdictForNumber( i ) ) {
-            if ( !ed || !ed->inuse ) {
+            if ( !ed || !ed->inUse ) {
                 continue;
             }
             if ( !ed->client ) {

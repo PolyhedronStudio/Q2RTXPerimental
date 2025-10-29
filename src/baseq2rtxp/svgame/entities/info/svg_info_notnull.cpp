@@ -21,8 +21,8 @@
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_notnull_t, onSpawn ) ( svg_info_notnull_t *self ) -> void {
     // Does not free itself. Instead construct a 'point bbox'.
-    VectorCopy( self->s.origin, self->absmin );
-    VectorCopy( self->s.origin, self->absmax );
+    VectorCopy( self->s.origin, self->absMin );
+    VectorCopy( self->s.origin, self->absMax );
 }
 
 

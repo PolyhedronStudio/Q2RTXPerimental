@@ -61,7 +61,7 @@ void trigger_elevator_init( svg_base_edict_t *self ) {
     }
 
     self->SetUseCallback( trigger_elevator_use );
-    self->svflags = SVF_NOCLIENT;
+    self->svFlags = SVF_NOCLIENT;
 }
 
 void SP_trigger_elevator( svg_base_edict_t *self ) {

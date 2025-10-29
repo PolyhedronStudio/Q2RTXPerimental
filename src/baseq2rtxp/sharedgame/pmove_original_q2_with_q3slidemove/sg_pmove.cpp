@@ -1550,7 +1550,7 @@ static void PM_ScreenEffects() {
 	}
 
 	// Prevent it from adding screenblend if we're inside a client entity, by checking
-	// if its brush has CONTENTS_PLAYER set in its clipmask.
+	// if its brush has CONTENTS_PLAYER set in its clipMask.
 	if ( !( contents & CONTENTS_PLAYER )
 		&& ( contents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
 		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, ps->screen_blend );
@@ -2308,6 +2308,8 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
 }
 
+#if 0
+
 gentity_t *G_Spawn( void ) {
 	int			i, force;
 	gentity_t *e;
@@ -2354,3 +2356,26 @@ gentity_t *G_Spawn( void ) {
 	G_InitGentity( e );
 	return e;
 }
+
+gentity_t * G_TempEntity( vec3_t origin, int event ) {
+	gentity_t *e;
+	vec3_t		snapped;
+
+	e = G_Spawn();
+	e->s.eType = ET_EVENTS + event;
+
+	e->classname = "tempEntity";
+	e->eventTime = level.time;
+	e->freeAfterEvent = qtrue;
+
+	VectorCopy( origin, snapped );
+	SnapVector( snapped );		// save network bandwidth
+	G_SetOrigin( e, snapped );
+
+	// find cluster for PVS
+	trap_LinkEntity( e );
+
+	return e;
+}
+
+#endif

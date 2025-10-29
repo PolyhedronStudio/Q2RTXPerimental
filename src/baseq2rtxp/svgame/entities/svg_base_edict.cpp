@@ -29,7 +29,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, s.old_origin, SD_FIELD_TYPE_VECTOR3, 1 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.solid, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.clipmask, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.clipMask, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.hullContents, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.ownerNumber, SD_FIELD_TYPE_INT32 ),
 
@@ -56,14 +56,14 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Server Edict Data:
     **/
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, svflags, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, svFlags, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, mins, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, maxs, SD_FIELD_TYPE_VECTOR3, 1 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, absmin, SD_FIELD_TYPE_VECTOR3, 1 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, absmax, SD_FIELD_TYPE_VECTOR3, 1 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, absMin, SD_FIELD_TYPE_VECTOR3, 1 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, absMax, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, size, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, solid, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, clipmask, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, clipMask, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, hullContents, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, owner, SD_FIELD_TYPE_EDICT ),
 
@@ -1000,8 +1000,8 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn )( svg_base_edict_t *self ) -> void {
     // Required for entities which might not directly link to world.
     // This'll position their bbox accordingly.
-    VectorCopy( self->s.origin, self->absmin );
-    VectorCopy( self->s.origin, self->absmax );
+    VectorCopy( self->s.origin, self->absMin );
+    VectorCopy( self->s.origin, self->absMax );
 }
 /**
 *   @brief  PostSpawn Stub.

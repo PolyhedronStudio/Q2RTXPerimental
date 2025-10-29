@@ -37,22 +37,22 @@ solid_edge items only clip against bsp models.
 
 */
 
-// [Paril-KEX] fetch the clipmask for this entity; certain modifiers
+// [Paril-KEX] fetch the clipMask for this entity; certain modifiers
 // affect the clipping behavior of objects.
 const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent ) {
     // Get current clip mask.
-    cm_contents_t mask = ent->clipmask;
+    cm_contents_t mask = ent->clipMask;
 
-    // If none, setup a default mask based on the svflags.
+    // If none, setup a default mask based on the svFlags.
     if ( !mask ) {
-        // Player clipmask:
-        if ( ent->svflags & SVF_PLAYER ) {
+        // Player clipMask:
+        if ( ent->svFlags & SVF_PLAYER ) {
             mask = CM_CONTENTMASK_PLAYERSOLID;
         // Monster clipmasks:
-        } else if ( ent->svflags & SVF_MONSTER ) {
+        } else if ( ent->svFlags & SVF_MONSTER ) {
             mask = ( CM_CONTENTMASK_MONSTERSOLID );
-        // Projectile clipmask:
-        } else if ( ent->svflags & SVF_PROJECTILE ) {
+        // Projectile clipMask:
+        } else if ( ent->svFlags & SVF_PROJECTILE ) {
             mask = ( CM_CONTENTMASK_PROJECTILE );
         // Resort to default mask.
         } else {
@@ -68,7 +68,7 @@ const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent ) {
 
     // Monsters/Players that are also dead shouldn't clip
     // against players/monsters.
-    if ( ( ent->svflags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svflags & SVF_DEADENTITY ) ) {
+    if ( ( ent->svFlags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svFlags & SVF_DEADENTITY ) ) {
         mask = static_cast<cm_contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
     }
 
@@ -86,8 +86,8 @@ svg_base_edict_t *SV_TestEntityPosition(svg_base_edict_t *ent)
     svg_trace_t trace;
     //cm_contents_t mask;
 
-    //if (ent->clipmask)
-    //    mask = ent->clipmask;
+    //if (ent->clipMask)
+    //    mask = ent->clipMask;
     //else
     //    mask = CM_CONTENTMASK_SOLID;
     trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
@@ -151,7 +151,7 @@ bool SV_RunThink(svg_base_edict_t *ent)
     if ( !ent->HasThinkCallback() ) {
         // WID: Useful to output exact information about what entity we are dealing with here, that'll help us fix the problem :-).
         gi.error( "[ entityNumber(%d), inUse(%s), classname(%s), targetname(%s), luaName(%s), (nullptr) ent->think ]\n",
-            ent->s.number, ( ent->inuse != false ? "true" : "false" ), (const char*)ent->classname, (const char *)ent->targetname, (const char *)ent->luaProperties.luaName);
+            ent->s.number, ( ent->inUse != false ? "true" : "false" ), (const char*)ent->classname, (const char *)ent->targetname, (const char *)ent->luaProperties.luaName);
         // Failed.
         return false;
     }
@@ -302,7 +302,7 @@ int SV_FlyMove(svg_base_edict_t *ent, float time, const cm_contents_t mask)
             blocked |= CLIPVELOCITY_CLIPPED_FLOOR;       // floor
             if (hit->solid == SOLID_BSP) {
                 ent->groundInfo.entity = hit;
-                ent->groundInfo.entityLinkCount = hit->linkcount;
+                ent->groundInfo.entityLinkCount = hit->linkCount;
             }
         }
         if (!trace.plane.normal[2]) {
@@ -313,7 +313,7 @@ int SV_FlyMove(svg_base_edict_t *ent, float time, const cm_contents_t mask)
 // run the impact function
 //
         SVG_Impact(ent, &trace);
-        if (!ent->inuse)
+        if (!ent->inUse)
             break;      // removed by the impact function
 
         time_left -= time_left * trace.fraction;
@@ -407,8 +407,8 @@ svg_trace_t SV_PushEntity(svg_base_edict_t *ent, vec3_t push)
     VectorAdd(start, push, end);
 
 retry:
-    //if (ent->clipmask)
-    //    mask = ent->clipmask;
+    //if (ent->clipMask)
+    //    mask = ent->clipMask;
     //else
     //    mask = CM_CONTENTMASK_SOLID;
 
@@ -421,7 +421,7 @@ retry:
         SVG_Impact(ent, &trace);
 
         // if the pushed entity went away and the pusher is still there
-        if (!trace.ent->inuse && ent->inuse) {
+        if (!trace.ent->inUse && ent->inUse) {
             // move the pusher back and try again
             VectorCopy(start, ent->s.origin);
             gi.linkentity(ent);
@@ -434,7 +434,7 @@ retry:
     ent->gravity = 1.0;
     // PGM
 
-    if (ent->inuse)
+    if (ent->inUse)
         SVG_Util_TouchTriggers(ent);
 
     return trace;
@@ -490,8 +490,8 @@ bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
 
     // find the bounding box
     for (i = 0; i < 3; i++) {
-        mins[i] = pusher->absmin[i] + move[i];
-        maxs[i] = pusher->absmax[i] + move[i];
+        mins[i] = pusher->absMin[i] + move[i];
+        maxs[i] = pusher->absMax[i] + move[i];
     }
 
 // we need this for pushing things later
@@ -516,7 +516,7 @@ bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
 // see if any solid entities are inside the final position
     check = g_edict_pool.EdictForNumber( 1 );
     for (e = 1; e < globals.edictPool->num_edicts; e++, check = g_edict_pool.EdictForNumber( e ) ) {
-        if (!check->inuse)
+        if (!check->inUse)
             continue;
         if (check->movetype == MOVETYPE_PUSH
             || check->movetype == MOVETYPE_STOP
@@ -530,12 +530,12 @@ bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
         // if the entity is standing on the pusher, it will definitely be moved
         if (check->groundInfo.entity != pusher) {
             // see if the ent needs to be tested
-            if (check->absmin[0] >= maxs[0]
-                || check->absmin[1] >= maxs[1]
-                || check->absmin[2] >= maxs[2]
-                || check->absmax[0] <= mins[0]
-                || check->absmax[1] <= mins[1]
-                || check->absmax[2] <= mins[2])
+            if (check->absMin[0] >= maxs[0]
+                || check->absMin[1] >= maxs[1]
+                || check->absMin[2] >= maxs[2]
+                || check->absMax[0] <= mins[0]
+                || check->absMax[1] <= mins[1]
+                || check->absMax[2] <= mins[2])
                 continue;
 
             // see if the ent's bbox is inside the pusher's final position
@@ -675,7 +675,7 @@ retry:
         }
 #if 0
         // if the pushed entity went away and the pusher is still there
-        if (!obstacle->inuse && part->inuse)
+        if (!obstacle->inUse && part->inUse)
             goto retry;
 #endif
     } else {
@@ -713,7 +713,7 @@ void SV_Physics_Noclip(svg_base_edict_t *ent)
 // regular thinking
     if (!SV_RunThink(ent))
         return;
-    if (!ent->inuse)
+    if (!ent->inUse)
         return;
 
     VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
@@ -749,7 +749,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 
 // regular thinking
     SV_RunThink(ent);
-    if ( !ent->inuse ) {
+    if ( !ent->inUse ) {
         return;
     }
 
@@ -764,14 +764,14 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 
 // check for the groundentity going away
     if ( ent->groundInfo.entity ) {
-        if ( !ent->groundInfo.entity->inuse ) {
+        if ( !ent->groundInfo.entity->inUse ) {
             ent->groundInfo.entity = nullptr;
         }
     }
 
 // if onground, return without moving
     if ( ent->groundInfo.entity && ent->gravity > 0.0f ) {  // PGM - gravity hack
-        if ( ent->svflags & SVF_MONSTER ) {
+        if ( ent->svFlags & SVF_MONSTER ) {
             M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
             M_WorldEffects( ent );
         }
@@ -793,7 +793,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 // move origin
     VectorScale(ent->velocity, FRAMETIME, move);
     trace = SV_PushEntity(ent, move);
-    if (!ent->inuse)
+    if (!ent->inUse)
         return;
 
     if (trace.fraction < 1) {
@@ -808,7 +808,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
         if (trace.plane.normal[2] > 0.7f) {
             if (ent->velocity[2] < 60 || ent->movetype != MOVETYPE_BOUNCE) {
                 ent->groundInfo.entity = trace.ent;
-                ent->groundInfo.entityLinkCount = trace.ent->linkcount;
+                ent->groundInfo.entityLinkCount = trace.ent->linkCount;
                 VectorClear(ent->velocity);
                 VectorClear(ent->avelocity);
             }
@@ -1010,7 +1010,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
             SVG_Util_TouchTriggers( ent );
         }
 
-        if ( !ent->inuse ) {
+        if ( !ent->inUse ) {
             return;
         }
 
@@ -1023,11 +1023,11 @@ void SV_Physics_Step(svg_base_edict_t *ent)
         }
     }
 
-    if ( !ent->inuse ) { // PGM g_touchtrigger free problem
+    if ( !ent->inUse ) { // PGM g_touchtrigger free problem
         return;
     }
 
-    if ( ent->svflags & SVF_MONSTER ) {
+    if ( ent->svFlags & SVF_MONSTER ) {
         M_CatagorizePosition( ent, Vector3( ent->s.origin ), ent->liquidInfo.level, ent->liquidInfo.type );
         M_WorldEffects( ent );
 
@@ -1123,7 +1123,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 //                }
 //            }
 //
-//        if (ent->svflags & SVF_MONSTER)
+//        if (ent->svFlags & SVF_MONSTER)
 //            mask = CM_CONTENTMASK_MONSTERSOLID;
 //        else
 //            mask = CM_CONTENTMASK_SOLID;
@@ -1134,7 +1134,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 //
 //        gi.linkentity(ent);
 //        SVG_Util_TouchTriggers(ent);
-//        if (!ent->inuse)
+//        if (!ent->inUse)
 //            return;
 //
 //        if (ent->groundentity)
@@ -1281,7 +1281,7 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
             SVG_Util_TouchTriggers( ent );
         }
 
-        if ( !ent->inuse ) {
+        if ( !ent->inUse ) {
             return;
         }
 
@@ -1295,11 +1295,11 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
         }
     }
 
-    if ( !ent->inuse ) { // PGM g_touchtrigger free problem
+    if ( !ent->inUse ) { // PGM g_touchtrigger free problem
         return;
     }
 
-    if ( ent->svflags & SVF_MONSTER ) {
+    if ( ent->svFlags & SVF_MONSTER ) {
         M_CatagorizePosition( ent, Vector3( ent->s.origin ), ent->liquidInfo.level, ent->liquidInfo.type );
         M_WorldEffects( ent );
     }

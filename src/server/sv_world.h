@@ -32,7 +32,7 @@ void PF_UnlinkEdict( edict_ptr_t *ent );
 /**
 *   @brief  Needs to be called any time an entity changes origin, mins, maxs,
 *           or solid.  Automatically unlinks if needed.
-*           sets ent->v.absmin and ent->v.absmax
+*           sets ent->v.absMin and ent->v.absMax
 *           sets ent->leafnums[] for pvs determination even if the entity.
 *           is not solid.
 **/

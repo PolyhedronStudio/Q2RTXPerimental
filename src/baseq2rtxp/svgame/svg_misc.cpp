@@ -114,7 +114,7 @@ void SVG_Misc_ThrowGib( svg_base_edict_t *self, const char *gibname, const int32
     svg_base_edict_t *gib = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();//SVG_AllocateEdict();
 
     VectorScale(self->size, 0.5f, size);
-    VectorAdd(self->absmin, size, origin);
+    VectorAdd(self->absMin, size, origin);
     VectorMA(origin, crandom(), size, gib->s.origin);
 
     gi.setmodel(gib, gibname);
@@ -166,7 +166,7 @@ void SVG_Misc_ThrowHead( svg_base_edict_t *self, const char *gibname, const int3
     //self->s.effects &= ~EF_FLIES;
     self->s.sound = 0;
     self->flags |= FL_NO_KNOCKBACK;
-    self->svflags &= ~SVF_MONSTER;
+    self->svFlags &= ~SVF_MONSTER;
     self->takedamage = DAMAGE_YES;
     self->SetDieCallback( gib_die );
 
@@ -366,7 +366,7 @@ void SP_misc_gib_arm(svg_base_edict_t *ent)
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
-    ent->svflags |= SVF_MONSTER;
+    ent->svFlags |= SVF_MONSTER;
     ent->lifeStatus = LIFESTATUS_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
@@ -388,7 +388,7 @@ void SP_misc_gib_leg(svg_base_edict_t *ent)
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
-    ent->svflags |= SVF_MONSTER;
+    ent->svFlags |= SVF_MONSTER;
     ent->lifeStatus = LIFESTATUS_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;
@@ -410,7 +410,7 @@ void SP_misc_gib_head(svg_base_edict_t *ent)
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;
     ent->movetype = MOVETYPE_TOSS;
-    ent->svflags |= SVF_MONSTER;
+    ent->svFlags |= SVF_MONSTER;
     ent->lifeStatus = LIFESTATUS_DEAD;
     ent->avelocity[0] = random() * 200;
     ent->avelocity[1] = random() * 200;

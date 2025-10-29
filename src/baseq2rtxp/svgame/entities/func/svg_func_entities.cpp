@@ -25,11 +25,11 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_b
         return;
     }
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
+    if ( !( other->svFlags & SVF_MONSTER ) && ( !other->client ) ) {
         return;
     }
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    if ( ( self->owner->spawnflags & svg_func_door_t::SPAWNFLAG_NOMONSTER ) && ( other->svflags & SVF_MONSTER ) ) {
+    if ( ( self->owner->spawnflags & svg_func_door_t::SPAWNFLAG_NOMONSTER ) && ( other->svFlags & SVF_MONSTER ) ) {
         return;
     }
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
@@ -74,12 +74,12 @@ DEFINE_GLOBAL_CALLBACK_THINK( DoorTrigger_SpawnThink )( svg_func_door_t *ent ) -
     if ( pushMoveEnt->flags & FL_TEAMSLAVE )
         return;     // only the team leader spawns a trigger
 
-    VectorCopy( pushMoveEnt->absmin, mins );
-    VectorCopy( pushMoveEnt->absmax, maxs );
+    VectorCopy( pushMoveEnt->absMin, mins );
+    VectorCopy( pushMoveEnt->absMax, maxs );
 
     for ( other = pushMoveEnt->teamchain; other; other = other->teamchain ) {
-        AddPointToBounds( &other->absmin.x, mins, maxs );
-        AddPointToBounds( &other->absmax.x, mins, maxs );
+        AddPointToBounds( &other->absMin.x, mins, maxs );
+        AddPointToBounds( &other->absMax.x, mins, maxs );
     }
 
     // expand

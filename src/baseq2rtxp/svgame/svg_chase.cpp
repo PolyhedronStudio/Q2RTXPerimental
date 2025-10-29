@@ -22,7 +22,7 @@ void SVG_ChaseCam_Update( svg_base_edict_t *ent ) {
     vec3_t angles;
 
     // is our chase target gone?
-    if ( !ent->client->chase_target->inuse
+    if ( !ent->client->chase_target->inUse
         || ent->client->chase_target->client->resp.spectator ) {
         svg_base_edict_t *old = ent->client->chase_target;
         SVG_ChaseCam_Next( ent );
@@ -117,7 +117,7 @@ void SVG_ChaseCam_Next( svg_base_edict_t *ent ) {
             i = 1;
         }
         e = g_edict_pool.EdictForNumber( i );//g_edicts + i;
-        if ( !e || !e->inuse ) {
+        if ( !e || !e->inUse ) {
             continue;
         }
         if ( !e->client->resp.spectator ) {
@@ -146,7 +146,7 @@ void SVG_ChaseCam_Previous( svg_base_edict_t *ent ) {
             i = maxclients->value;
         }
         e = g_edict_pool.EdictForNumber( i ); //g_edicts + i;
-        if ( !e->inuse ) {
+        if ( !e->inUse ) {
             continue;
         }
         if ( !e->client->resp.spectator ) {
@@ -166,7 +166,7 @@ void SVG_ChaseCam_GetTarget( svg_base_edict_t *ent ) {
 
     for ( i = 1; i <= maxclients->value; i++ ) {
         other = g_edict_pool.EdictForNumber( i ); //g_edicts + i;
-        if ( other && other->inuse && !other->client->resp.spectator ) {
+        if ( other && other->inUse && !other->client->resp.spectator ) {
             ent->client->chase_target = other;
             ent->client->update_chase = true;
             SVG_ChaseCam_Update( ent );

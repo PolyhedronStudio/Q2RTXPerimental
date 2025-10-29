@@ -203,7 +203,7 @@ void SVG_WriteLevel(const char *filename)
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
         svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
         //ent = &g_edicts[i];
-        if ( !ent || !ent->inuse ) {
+        if ( !ent || !ent->inUse ) {
             continue;
         }
         // Entity number.
@@ -220,7 +220,7 @@ void SVG_WriteLevel(const char *filename)
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++) {
         svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
         //ent = &g_edicts[i];
-        if ( !ent || !ent->inuse ) {
+        if ( !ent || !ent->inUse ) {
             continue;
         }
         // Entity number.
@@ -395,9 +395,9 @@ void SVG_ReadLevel(const char *filename)
         ent->classname = classname;
         // Enable the entity (unless it was a "freed" entity).
         if ( ent->classname == "freed" ) {
-            ent->inuse = false;
+            ent->inUse = false;
         } else {
-            ent->inuse = true;
+            ent->inUse = true;
         }
         ent->s.number = entnum;
         // It was the original entity instanced at the map load time.
@@ -459,7 +459,7 @@ void SVG_ReadLevel(const char *filename)
     // Assign the edict pointers to the entities.
     //for ( int32_t i = 0; i < g_edict_pool.num_edicts; i++ ) {
     //    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
-    //    if ( ent && ent->inuse ) {
+    //    if ( ent && ent->inUse ) {
     //        ent->edict = ent;
     //    }
     //}
@@ -497,7 +497,7 @@ void SVG_ReadLevel(const char *filename)
     for (i = 0 ; i < g_edict_pool.num_edicts ; i++) {
         ent = g_edict_pool.EdictForNumber( i ); //&g_edicts[i];
 
-        if ( !ent || !ent->inuse ) {
+        if ( !ent || !ent->inUse ) {
             continue;
         }
 

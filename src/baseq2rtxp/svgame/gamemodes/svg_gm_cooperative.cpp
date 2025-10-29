@@ -99,7 +99,7 @@ const bool svg_gamemode_cooperative_t::ClientConnect( svg_player_edict_t *ent, c
 			// Get edict.
 			svg_base_edict_t *ed = g_edict_pool.EdictForNumber( i + 1 );
 			// Entity is a spectator.
-			if ( ed != nullptr && ed->inuse && ed->client->pers.spectator ) {
+			if ( ed != nullptr && ed->inUse && ed->client->pers.spectator ) {
 				numspec++;
 			}
 		}
@@ -128,7 +128,7 @@ const bool svg_gamemode_cooperative_t::ClientConnect( svg_player_edict_t *ent, c
 
 	// If there is already a body waiting for us (a loadgame), just
 	// take it, otherwise spawn a new one from scratch.
-	if ( ent->inuse == false ) {
+	if ( ent->inUse == false ) {
 		// clear the respawning variables
 		SVG_Player_InitRespawnData( ent->client );
 		if ( !game.autosaved || !ent->client->pers.weapon ) {
@@ -153,7 +153,7 @@ void svg_gamemode_cooperative_t::ClientDisconnect( svg_player_edict_t *ent ) {
     gi.bprintf( PRINT_HIGH, "%s disconnected\n", ent->client->pers.netname );
 
     // Send 'Logout' -effect.
-    if ( ent->inuse ) {
+    if ( ent->inUse ) {
         gi.WriteUint8( svc_muzzleflash );
         gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//gi.WriteInt16( ent - g_edicts );
         gi.WriteUint8( MZ_LOGOUT );
@@ -171,7 +171,7 @@ void svg_gamemode_cooperative_t::ClientDisconnect( svg_player_edict_t *ent ) {
     ent->s.solid = SOLID_NOT; // 0
     ent->s.entityType = ET_GENERIC;
     ent->solid = SOLID_NOT;
-    ent->inuse = false;
+    ent->inUse = false;
     ent->classname = svg_level_qstring_t::from_char_str( "disconnected" );
     ent->client->pers.spawned = false;
     ent->client->pers.connected = false;
@@ -269,7 +269,7 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     const client_persistant_t savedPersistantData = client->pers;
     // Acquire actual client number and eventSequence.
     const int32_t clientNum = client->clientNum;
-    const int32_t eventSequence = client->ps.eventSequence;
+    const int64_t eventSequence = client->ps.eventSequence;
 
     // Reset client value.
     *client = { }; //memset( client, 0, sizeof( *client ) );
@@ -282,6 +282,9 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     client->pers = savedPersistantData;
     // Restore the client's originally set respawn data.
     client->resp = savedRespawnData;
+    // Make sure to restore event sequence.
+    client->ps.eventSequence = eventSequence;
+
     // <Q2RTXP>: WID: TODO: Do we want this in singleplayer?
     // If dead at the time of the previous map switching to the current, reinitialize persistent data.
     if ( client->pers.health <= 0 ) {
@@ -300,14 +303,14 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     ent->takedamage = DAMAGE_AIM;
     ent->movetype = MOVETYPE_WALK;
     ent->viewheight = PM_VIEWHEIGHT_STANDUP;
-    ent->inuse = true;
+    ent->inUse = true;
     ent->classname = svg_level_qstring_t::from_char_str( "player" );
     ent->mass = 200;
     ent->gravity = 1.0f;
     ent->solid = SOLID_BOUNDS_BOX;
     ent->lifeStatus = LIFESTATUS_ALIVE;
     ent->air_finished_time = level.time + 12_sec;
-    ent->clipmask = ( CM_CONTENTMASK_PLAYERSOLID );
+    ent->clipMask = ( CM_CONTENTMASK_PLAYERSOLID );
     ent->model = svg_level_qstring_t::from_char_str( "players/playerdummy/tris.iqm" );
     ent->SetPainCallback( &svg_player_edict_t::onPain );//ent->SetPainCallback( player_pain );
     ent->SetDieCallback( &svg_player_edict_t::onDie );//ent->SetDieCallback( player_die );
@@ -316,9 +319,9 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     ent->flags &= ~FL_NO_KNOCKBACK;
 
     // Make sure it has no DEADMONSTER set anymore.
-    ent->svflags &= ~SVF_DEADENTITY;
+    ent->svFlags &= ~SVF_DEADENTITY;
     // Ensure it is a proper player entity.
-    ent->svflags |= SVF_PLAYER;
+    ent->svFlags |= SVF_PLAYER;
     ent->s.entityType = ET_PLAYER;
 
     // Copy in the bounds.
@@ -407,7 +410,7 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 
         ent->movetype = MOVETYPE_NOCLIP;
         ent->solid = SOLID_NOT;
-        ent->svflags |= SVF_NOCLIENT;
+        ent->svFlags |= SVF_NOCLIENT;
         ent->client->ps.gun.modelIndex = 0;
         ent->client->ps.gun.animationID = 0;
 
@@ -458,7 +461,7 @@ void svg_gamemode_cooperative_t::ClientBegin( svg_player_edict_t *ent ) {
     ent->client->pers.spawned = true;
 
     // If there is already a body waiting for us (a loadgame), just take it:
-    if ( ent->inuse == true ) {
+    if ( ent->inUse == true ) {
         // Spawn inside the body which was created during load time.
         SetupLoadGameBody( ent );
         // Otherwise spawn one from scratch:
@@ -510,8 +513,8 @@ void svg_gamemode_cooperative_t::ClientBegin( svg_player_edict_t *ent ) {
 *	@brief	Overrides to update client scores when killing monsters in coop.
 **/
 void svg_gamemode_cooperative_t::EntityKilled( svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) {
-    if ( ( targ->svflags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
-        targ->svflags |= SVF_DEADENTITY;   // now treat as a different content type
+    if ( ( targ->svFlags & SVF_MONSTER ) && ( targ->lifeStatus != LIFESTATUS_DEAD ) ) {
+        targ->svFlags |= SVF_DEADENTITY;   // now treat as a different content type
         // WID: TODO: Monster Reimplement.        
         //if (!(targ->monsterinfo.aiflags & AI_GOOD_GUY)) {
         //level.killed_monsters++;
@@ -707,8 +710,9 @@ void svg_gamemode_cooperative_t::EndServerFrame( svg_player_edict_t *ent ) {
     // Clear out the weapon kicks.
     ent->client->weaponKicks = {};
 
+    // <Q2RTXP>: WID: Happens outside in SVG_Client_EndServerFrame.
     // Convert certain playerstate properties into entity state properties.
-    SG_PlayerStateToEntityState( ent->client->clientNum, &ent->client->ps, &ent->s, false );
+    //SG_PlayerStateToEntityState( ent->client->clientNum, &ent->client->ps, &ent->s, false );
 
     // <Q2RTXP?: WID: Dun have this in SP mode.
     #if 1
@@ -767,7 +771,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
     }
 
     // Bonus damage for suprising a monster.
-    if ( !( damageFlags & DAMAGE_RADIUS ) && ( targ->svflags & SVF_MONSTER )
+    if ( !( damageFlags & DAMAGE_RADIUS ) && ( targ->svFlags & SVF_MONSTER )
         && ( attacker->client ) && ( !targ->enemy ) && ( targ->health > 0 ) ) {
         finalDamage *= 2;
     }
@@ -846,7 +850,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
 
     // do the damage
     if ( take ) {
-        if ( ( targ->svflags & SVF_MONSTER ) || ( client ) ) {
+        if ( ( targ->svFlags & SVF_MONSTER ) || ( client ) ) {
             // SVG_SpawnDamage(TE_BLOOD, point, normal, take);
             SVG_SpawnDamage( TE_BLOOD, point, dir, take );
         } else
@@ -855,7 +859,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
         targ->health = targ->health - take;
 
         if ( targ->health <= 0 ) {
-            if ( ( targ->svflags & SVF_MONSTER ) || ( client ) ) {
+            if ( ( targ->svFlags & SVF_MONSTER ) || ( client ) ) {
                 //targ->flags |= FL_NO_KNOCKBACK;
                 //targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
                 //targ->death_time = level.time;
@@ -873,7 +877,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
         }
     }
 
-    if ( targ->svflags & SVF_MONSTER ) {
+    if ( targ->svFlags & SVF_MONSTER ) {
         if ( damage > 0 ) {
             //M_ReactToDamage( targ, attacker );
 
@@ -1063,7 +1067,7 @@ void svg_gamemode_cooperative_t::SetupLoadGameBody( svg_player_edict_t *ent ) {
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.
-    ent->svflags |= SVF_PLAYER;
+    ent->svFlags |= SVF_PLAYER;
 }
 /**
 *   @brief  There is no body waiting for us yet, so (re-)initialize the entity we have with a full new 'body'.
@@ -1078,7 +1082,7 @@ void svg_gamemode_cooperative_t::SetupNewGameBody( svg_player_edict_t *ent ) {
     // Make sure entity type is player.
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.
-    ent->svflags |= SVF_PLAYER;
+    ent->svFlags |= SVF_PLAYER;
     // Initialize respawn data.
     SVG_Player_InitRespawnData( ent->client );
     // Actually finds a spawnpoint and places the 'body' into the game.

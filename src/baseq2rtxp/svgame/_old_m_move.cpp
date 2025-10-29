@@ -262,7 +262,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
         ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_PARTIALGROUND );
     }
     ent->groundInfo.entity = trace.ent;
-    ent->groundInfo.entityLinkCount = trace.ent->linkcount;
+    ent->groundInfo.entityLinkCount = trace.ent->linkCount;
 
 // the move is ok
     if (relink) {
@@ -478,9 +478,9 @@ bool SV_CloseEnough(svg_base_edict_t *ent, svg_base_edict_t *goal, float dist)
     int     i;
 
     for (i = 0 ; i < 3 ; i++) {
-        if (goal->absmin[i] > ent->absmax[i] + dist)
+        if (goal->absMin[i] > ent->absMax[i] + dist)
             return false;
-        if (goal->absmax[i] < ent->absmin[i] - dist)
+        if (goal->absMax[i] < ent->absMin[i] - dist)
             return false;
     }
     return true;
@@ -507,7 +507,7 @@ void M_MoveToGoal(svg_base_edict_t *ent, float dist)
 
 // bump around...
     if ((Q_rand() & 3) == 1 || !SV_StepDirection(ent, ent->ideal_yaw, dist)) {
-        if (ent->inuse)
+        if (ent->inUse)
             SV_NewChaseDir(ent, goal, dist);
     }
 }

@@ -207,7 +207,7 @@ const gitem_t *SVG_Item_FindByPickupName(const char *pickup_name) {
 void SVG_Item_SetRespawn(svg_item_edict_t *ent, float delay)
 {
     ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
-    ent->svflags |= SVF_NOCLIENT;
+    ent->svFlags |= SVF_NOCLIENT;
     ent->solid = SOLID_NOT;
     ent->nextthink = level.time + QMTime::FromSeconds( delay );
     ent->SetThinkCallback( &svg_item_edict_t::onThink_Respawn );
@@ -449,7 +449,7 @@ const bool Pickup_Health( svg_item_edict_t *ent, svg_base_edict_t *other ) {
         ent->nextthink = level.time + 5_sec;
         ent->owner = other;
         ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
-        ent->svflags |= SVF_NOCLIENT;
+        ent->svFlags |= SVF_NOCLIENT;
         ent->solid = SOLID_NOT;
     } else {
         if ( !( ent->spawnflags & DROPPED_ITEM ) && ( deathmatch->value ) ) {

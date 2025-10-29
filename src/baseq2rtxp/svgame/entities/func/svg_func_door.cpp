@@ -199,7 +199,7 @@ void door_team_toggle( svg_func_door_t *self, svg_base_edict_t *other, svg_base_
     }
     #else
     // Determine whether the entity is capable of opening doors.
-    const bool entityIsCapable = ( SVG_Entity_IsClient( activator ) || activator->svflags & SVF_MONSTER ? true : false );
+    const bool entityIsCapable = ( SVG_Entity_IsClient( activator ) || activator->svFlags & SVF_MONSTER ? true : false );
 
     // If the activator is a client or a monster, determine whether to play a locked door sound.
     //if ( entityIsCapable ) {
@@ -597,7 +597,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_door_t, onUse )( svg_func_door_t *self, svg
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
 
     // Determine whether the entity is capable of opening doors.
-    const bool entityIsCapable = ( SVG_Entity_IsClient( activator ) || activator->svflags & SVF_MONSTER ? true : false );
+    const bool entityIsCapable = ( SVG_Entity_IsClient( activator ) || activator->svFlags & SVF_MONSTER ? true : false );
 
     // If the activator is a client or a monster, determine whether to play a locked door sound.
     if ( entityIsCapable ) {
@@ -711,7 +711,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_door_t, onUse )( svg_func_door_t *self, svg
 DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_door_t, onBlocked )( svg_func_door_t *self, svg_base_edict_t *other ) -> void {
     svg_base_edict_t *ent;
 
-    if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
+    if ( !( other->svFlags & SVF_MONSTER ) && ( !other->client ) ) {
         // give it a chance to go away on it's own terms (like gibs)
         SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
         // if it's still there, nuke it
@@ -870,7 +870,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self 
     self->movetype = MOVETYPE_PUSH;
     self->solid = SOLID_BSP;
     self->s.entityType = ET_PUSHER;
-    self->svflags |= SVF_DOOR;
+    self->svFlags |= SVF_DOOR;
     // BSP Model, or otherwise, specified external model.
     gi.setmodel( self, self->model );
 

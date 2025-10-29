@@ -68,7 +68,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
 
             // the first couple seconds of server time can involve a lot of
             // freeing and allocating, so relax the replacement policy
-            if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
+            if ( entity != nullptr && !entity->inUse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
                 _InitEdict<EdictType>( static_cast<EdictType *>( entity ), i, classnameOverRuler );
                 return static_cast<EdictType *>( entity );
             }
@@ -110,7 +110,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
     **/
     template<class EdictType>
     inline void _InitEdict( EdictType *ed, const int32_t stateNumber, const char *classnameOverRuler = nullptr ) {
-        ed->inuse = true;
+        ed->inUse = true;
         ed->classname = svg_level_qstring_t::from_char_str( ( classnameOverRuler != nullptr ? classnameOverRuler : EdictType::ClassInfo.worldSpawnClassName ) );
         ed->gravity = 1.0f;
         ed->s.number = stateNumber;

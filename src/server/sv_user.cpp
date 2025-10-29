@@ -65,7 +65,7 @@ static void SV_CreateBaselines(void)
     for (i = 1; i < sv_client->pool->num_edicts; i++) {
         ent = EDICT_POOL(sv_client, i);
 
-        if ((g_features->integer & GMF_PROPERINUSE) && !ent->inuse) {
+        if ((g_features->integer & GMF_PROPERINUSE) && !ent->inUse) {
             continue;
         }
 

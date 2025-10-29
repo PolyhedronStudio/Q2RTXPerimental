@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
+#include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
@@ -39,6 +40,61 @@ void SVG_Client_UserinfoChanged( svg_base_edict_t *ent, char *userinfo );
 *   @brief  Will process(progress) the entity's active animations for each body state and event states.
 **/
 void SVG_P_ProcessAnimations( svg_base_edict_t *ent );
+
+
+
+/**
+*
+*
+*
+*   Client PlayerState Pending Events:
+*
+*
+*
+**/
+/**
+*   @brief  Sends any pending of the remaining predictable events to all clients, except "ourselves".
+**/
+void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_client_t *client ) {
+	player_state_t *ps = &client->ps;
+
+	// Check for pending events.
+    if ( ps->entityEventSequence < ps->eventSequence ) {
+        // Create a temporary entity for this event which is send to all clients
+        // except "ourselves", who generated the event.
+        const int64_t seq = ps->entityEventSequence & ( MAX_PS_EVENTS - 1 );
+		const int32_t event = ps->events[ seq ] | ( ( ps->entityEventSequence & 3 ) << 8 );
+		
+        // Backup and zero out the external event before converting playerstate to entitystate.
+		const int32_t externalEvent = ps->externalEvent;
+		ps->externalEvent = 0;
+		
+        // Create a temporary entity event for all other clients.
+		svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEntityEvent( ps->pmove.origin, event, client->ps.eventParms[ seq ], client->clientNum + 1, true );
+
+		// Store number for restoration later.
+        const int32_t tempEventEntityNumber = tempEventEntity->s.number;
+        // Convert certain playerstate properties into entity state properties.
+        SG_PlayerStateToEntityState( client->clientNum, ps, &tempEventEntity->s, true );
+        // Restore the number.
+        tempEventEntity->s.number = tempEventEntityNumber;
+
+        // Adjust type, assign player event flag.
+        tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
+		tempEventEntity->s.effects |= EF_PLAYER_EVENT;
+		// Set other entity number to our client number + 1.
+		//tempEventEntity->s.otherEntityNum = client->clientNum + 1;
+        tempEventEntity->s.otherEntityNumber = ent->s.number;
+        // Use eventParm1 instead :-)
+		//tempEventEntity->s.eventParm1 = ;
+		// Mark as single-client no-send to ourselves.
+		tempEventEntity->svFlags |= SVF_SENDCLIENT_EXCLUDE_ID;
+		tempEventEntity->sendClientID = client->clientNum;
+        
+        // Set back the external event.
+		ps->externalEvent = externalEvent;
+    }
+}
 
 
 
@@ -134,7 +190,7 @@ const bool SVG_Client_Connect( svg_base_edict_t *ent, char *userinfo ) {
 
     // Make sure we start with known default(s):
     // We're a player.
-    ent->svflags = SVF_PLAYER;
+    ent->svFlags = SVF_PLAYER;
     ent->s.entityType = ET_PLAYER;
 
     // We're connected.
@@ -168,7 +224,7 @@ void SVG_Client_Disconnect( svg_base_edict_t *ent ) {
 *
 *
 *
-*   Client Data, Save, Restore, and Persistent.
+*   Client Data, Save, Restore, and Persistent(Session).
 *
 *
 *
@@ -246,7 +302,7 @@ void SVG_Player_SaveClientData( void ) {
 		// Get entity for this client.
         svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );//g_edicts[ 1 + i ];
 		// If the entity is not valid, or not in use, skip it.
-        if ( !ent || !ent->inuse ) {
+        if ( !ent || !ent->inUse ) {
             continue;
         }
 		// Store the persistent data into the client structure.
@@ -367,7 +423,7 @@ void SVG_Client_RespawnPlayer( svg_base_edict_t *self ) {
         if ( self->movetype != MOVETYPE_NOCLIP ) {
             SVG_Entities_BodyQueueAddForPlayer( self );
         }
-        self->svflags &= ~SVF_NOCLIENT;
+        self->svFlags &= ~SVF_NOCLIENT;
         SVG_Player_SpawnInBody( self );
 
         // Add a teleportation effect
@@ -413,7 +469,7 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
         // count spectators
         for ( i = 1, numspec = 0; i <= maxclients->value; i++ ) {
             svg_base_edict_t *ed = g_edict_pool.EdictForNumber( i );
-            if ( ed != nullptr && ed->inuse && ed->client->pers.spectator ) {
+            if ( ed != nullptr && ed->inUse && ed->client->pers.spectator ) {
                 numspec++;
             }
         }
@@ -445,7 +501,7 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
     // clear client on respawn
     ent->client->resp.score = ent->client->pers.score = 0;
 
-    ent->svflags &= ~SVF_NOCLIENT;
+    ent->svFlags &= ~SVF_NOCLIENT;
     SVG_Player_SpawnInBody( ent );
 
     // add a teleportation effect

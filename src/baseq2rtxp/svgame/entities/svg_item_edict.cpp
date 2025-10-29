@@ -159,7 +159,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_item_edict_t, onThink_DropToFloor )( svg_item_
         self->chain = self->teamchain;
         self->teamchain = NULL;
 
-        self->svflags |= SVF_NOCLIENT;
+        self->svFlags |= SVF_NOCLIENT;
         self->solid = SOLID_NOT;
         if ( self == self->teammaster ) {
             self->nextthink = level.time + 10_hz;
@@ -175,7 +175,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_item_edict_t, onThink_DropToFloor )( svg_item_
     }
 
     if ( self->spawnflags & ITEM_TRIGGER_SPAWN ) {
-        self->svflags |= SVF_NOCLIENT;
+        self->svFlags |= SVF_NOCLIENT;
         self->solid = SOLID_NOT;
         self->SetUseCallback( &svg_item_edict_t::onUse_UseItem );
     }
@@ -206,13 +206,14 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_item_edict_t, onThink_Respawn )( svg_item_edic
             ;
     }
 
-    ent->svflags &= ~SVF_NOCLIENT;
+    ent->svFlags &= ~SVF_NOCLIENT;
     ent->solid = SOLID_TRIGGER;
     ent->s.entityType = ET_ITEM;
     gi.linkentity( ent );
 
     // send an effect
-    ent->s.event = EV_ITEM_RESPAWN;
+    //ent->s.event = EV_ITEM_RESPAWN;
+    SVG_Util_AddEvent( ent, EV_ITEM_RESPAWN, 0 );
 }
 
 /**
@@ -313,7 +314,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_item_edict_t, onTouch_DropMakeTouchable )( svg
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_USE( svg_item_edict_t, onUse_UseItem ) ( svg_item_edict_t *ent, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
-    ent->svflags &= ~SVF_NOCLIENT;
+    ent->svFlags &= ~SVF_NOCLIENT;
     ent->SetUseCallback( nullptr );
 
     if ( ent->spawnflags & ITEM_NO_TOUCH ) {

@@ -62,7 +62,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //        if (check > game.maxclients)
 //            check = 1;
 //        ent = &g_edicts[check];
-//        if (ent->inuse
+//        if (ent->inUse
 //            && ent->health > 0
 //            && !(ent->flags & FL_NOTARGET)) {
 //            level.sight_client = ent;
@@ -399,7 +399,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    int         r;
 //
 //    if (self->monsterinfo.aiflags & AI_GOOD_GUY) {
-//        if (self->goalentity && self->goalentity->inuse && self->goalentity->classname) {
+//        if (self->goalentity && self->goalentity->inUse && self->goalentity->classname) {
 //            if (strcmp(self->goalentity->classname, "target_actor") == 0)
 //                return false;
 //        }
@@ -438,7 +438,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    }
 //
 //    // if the entity went away, forget it
-//    if (!client->inuse)
+//    if (!client->inUse)
 //        return false;
 //
 //    if (client == self->enemy)
@@ -447,7 +447,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //    if (client->client) {
 //        if (client->flags & FL_NOTARGET)
 //            return false;
-//    } else if (client->svflags & SVF_MONSTER) {
+//    } else if (client->svFlags & SVF_MONSTER) {
 //        if (!client->enemy)
 //            return false;
 //        if (client->enemy->flags & FL_NOTARGET)
@@ -743,7 +743,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 //// see if the enemy is dead
 //    hesDeadJim = false;
-//    if ((!self->enemy) || (!self->enemy->inuse)) {
+//    if ((!self->enemy) || (!self->enemy->inUse)) {
 //        hesDeadJim = true;
 //    } else if (self->monsterinfo.aiflags & AI_MEDIC) {
 //        if (self->enemy->health > 0) {

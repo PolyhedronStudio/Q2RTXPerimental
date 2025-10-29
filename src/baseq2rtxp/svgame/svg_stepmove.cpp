@@ -283,7 +283,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
         ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_PARTIALGROUND );
     }
     ent->groundInfo.entity = trace.ent;
-    ent->groundInfo.entityLinkCount = trace.ent->linkcount;
+    ent->groundInfo.entityLinkCount = trace.ent->linkCount;
 
 // the move is ok
     if (relink) {

@@ -13,7 +13,7 @@
 // Needed:
 #include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_entity_effects.h"
-#include "sharedgame/sg_muzzleflashes.h"
+#include "sharedgame/sg_entity_types.h"
 
 
 
@@ -74,7 +74,6 @@ void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigi
     // <Q2RTXP>: TODO: Fix so it doesn't do the teleporter at incorrect spawn origin.
     const Vector3 effectOrigin = lerpOrigin; // cent->current.origin 
 
-
     // EF_TELEPORTER acts like an event, but is not cleared each frame
     if ( ( cent->current.effects & EF_TELEPORTER ) ) {
         // Use player state pmove origin if we're the view bound entity.
@@ -102,7 +101,7 @@ void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigi
         ///**
         //*   FootStep Events:
         //**/
-        //case EV_FOOTSTEP:
+        //case EV_PLAYER_FOOTSTEP:
         //    CLG_FootstepEvent( entityNumber );
         //    break;
         case EV_FOOTSTEP_LADDER:
@@ -142,24 +141,31 @@ void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigi
             break;
     }
 }
+
 /**
 *   @brief  Checks for entity generated events and processes them for execution.
 **/
 void CLG_CheckEntityEvents( centity_t *cent ) {
-    #if 0
-    // Check for event-only entities
-    if ( cent->current.entityType > ET_EVENTS ) {
+	// The event value we'll process.
+    int32_t eventValue = EV_NONE;
+
+    #if 1
+    /**
+    *   Check for (temporary-) event-only entities
+    **/
+    if ( cent->current.entityType > ET_TEMP_ENTITY_EVENT ) {
+        // Already fired.
         if ( cent->previousEvent ) {
-            return;	// already fired
+            return;	
         }
-        // if this is a player event set the entity number of the client entity number
-        if ( cent->current.eFlags & EF_PLAYER_EVENT ) {
-            cent->current.number = cent->current.otherEntityNum;
+        // If this is a player event set the entity number as that of the client entity number.
+        if ( cent->current.effects & EF_PLAYER_EVENT ) {
+            cent->current.number = cent->current.otherEntityNumber;
         }
-
+		// Set previous event to true.
         cent->previousEvent = 1;
-
-        cent->current.event = cent->current.entityType - ET_EVENTS;
+		// The event is simply the entity type minus the ET_EVENTS offset.
+        cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT;
     } else
     #endif
     /**
@@ -172,55 +178,60 @@ void CLG_CheckEntityEvents( centity_t *cent ) {
         }
 		// Save as previous event.
         cent->previousEvent = cent->current.event;
-		// If no event, don't process anything. ( It hasn't changed again. )
-        if ( ( cent->current.event & ~EV_EVENT_BITS ) == 0 ) {
+		// Acquire the actual event value by offing it with EV_EVENT_BITS.
+        eventValue = SG_GetEntityEventValue( cent->current.event );
+        // If no event, don't process anything. ( It hasn't changed again. )
+        if ( eventValue == 0 ) {
             return;
+        }
+    }
+
+
+    /**
+    *   Client Info Fetching by skinnum decoding:
+    **/
+    // The client info we'll acquire based on entity client number(decoded from skinnum if a player). 
+    clientinfo_t *clientInfo = nullptr;
+    // The client number of the entity, if any.
+    int32_t clientNumber = -1;
+	// Get the entity state.
+    entity_state_t *currentEntityState = &cent->current;
+    // Get client number of entity, if any.
+    if ( cent->current.modelindex == MODELINDEX_PLAYER ) {
+        // It's a player model, so decode the client number from skinnum.
+        clientNumber = cent->current.skinnum & 0xFF;
+        // Invalid client number by skin.
+        if ( clientNumber < 0 || clientNumber > MAX_CLIENTS ) {
+            clientNumber = -1;
+        // Valid client number, get the client info.
+        } else {
+            clientInfo = &clgi.client->clientinfo[ clientNumber ];
+            if ( clgi.client->clientEntity ) {
+                currentEntityState = &clgi.client->clientEntity->current;
+            }
         }
     }
 
     /**
     *   Event Value Decoding:
     **/
-	//  Get the entity state.
-    entity_state_t *currentEntityState = &cent->current;
-
 	// Acquire the actual event value by offing it with EV_EVENT_BITS.
-    const int32_t eventValue = currentEntityState->event & ~EV_EVENT_BITS;
+    eventValue = SG_GetEntityEventValue( currentEntityState->event );
 
-    #if 0
-        if ( cg_debugEvents.integer ) {
-            CG_Printf( "ent:%3i  event:%3i ", currentEntityState->number, eventValue );
-        }
-
+	// Debugging:
+    if ( clg_debug_events->value ) {
+        clgi.Print( PRINT_DEVELOPER, "ent:%3i  event:%3i \n", currentEntityState->number, eventValue );
         if ( !eventValue ) {
-            DEBUGNAME( "ZEROEVENT" );
+            clgi.Print( PRINT_DEVELOPER, "ZEROEVENT\n" );
             return;
-        }
-    #else
-        if ( !eventValue ) {
-            return;
-	    }
-    #endif
-
-    /**
-    *   Client Info Fetching by skinnum decoding:
-    **/
-	// The client info we'll acquire based on entity client number(decoded from skinnum if a player). 
-    clientinfo_t *clientInfo = nullptr;
-    // The client number of the entity, if any.
-    int32_t clientNumber = -1;
-	// Get client number of entity, if any.
-    if ( currentEntityState->modelindex == MODELINDEX_PLAYER ) {
-		// It's a player model, so decode the client number from skinnum.
-        clientNumber = currentEntityState->skinnum & 0xFF;
-        // Invalid client number by skin.
-        if ( clientNumber < 0 || clientNumber >= MAX_CLIENTS ) {
-            clientNumber = -1;
-        // Valid client number, get the client info.
-        } else {
-			clientInfo = &clgi.client->clientinfo[ clientNumber ];
         }
     }
+
+	// If no event, don't process anything.
+    if ( !eventValue ) {
+        return;
+    }
+
 
     // calculate the position at exactly the frame time
     //BG_EvaluateTrajectory( &cent->currentState.pos, cg.snap->serverTime, cent->lerpOrigin );
@@ -230,7 +241,7 @@ void CLG_CheckEntityEvents( centity_t *cent ) {
     *   Determine LerpOrigin and Process the Entity Events:
     **/
     // Calculate the position for lerp_origin at exactly the frame time.
-	PF_GetEntitySoundOrigin( cent->current.number, cent->lerp_origin );
+	PF_GetEntitySoundOrigin( cent->current.number, &cent->lerp_origin.x );
 	// Process the event.
     // <Q2RTXP>: TODO: Use event value.
     CLG_ProcessEntityEvents( eventValue, cent->lerp_origin, cent, cent->current.number, clientNumber, clientInfo );
@@ -381,19 +392,19 @@ const bool CLG_CheckPlayerStateEvent( const player_state_t *ops, const player_st
                 dl = CLG_AddMuzzleflashDLight( cent, fv, rv );
                 VectorSet( dl->color, 0, 1, 0 );
                 clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_login.wav" ), 1, ATTN_NORM, 0 );
-                CLG_LogoutEffect( &clgi.client->frame.ps.pmove.origin.x, 3/*MZ_LOGIN*/ );
+                CLG_LogoutEffect( &clgi.client->predictedFrame.ps.pmove.origin.x, 3/*MZ_LOGIN*/ );
             return true;
         break;
         case EV_PLAYER_LOGOUT:
                 dl = CLG_AddMuzzleflashDLight( cent, fv, rv ); 
                 VectorSet( dl->color, 0, 1, 0 );
                 clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_logout.wav" ), 1, ATTN_NORM, 0 );
-                CLG_LogoutEffect( &clgi.client->frame.ps.pmove.origin.x, 4/*MZ_LOGOUT*/ );
+                CLG_LogoutEffect( &clgi.client->predictedFrame.ps.pmove.origin.x, 4/*MZ_LOGOUT*/ );
             return true;
         break;
         case EV_PLAYER_TELEPORT:
                 clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
-                CLG_TeleportParticles( &clgi.client->frame.ps.pmove.origin.x );
+                CLG_TeleportParticles( &clgi.client->predictedFrame.ps.pmove.origin.x );
             return true;
         break;
         default:

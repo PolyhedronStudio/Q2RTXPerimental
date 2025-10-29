@@ -268,10 +268,6 @@ typedef enum sector_area_s {
 #include "shared/entities/entity_types.h"
 //! Entity State:
 #include "shared/entities/entity_state.h"
-#ifdef __cplusplus
-    //! Shared Server/ServerGame Entity Data:
-    #include "shared/server/sv_shared_edict.h"
-#endif
 //! Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
 #include "shared/gamemode_flags.h"
 

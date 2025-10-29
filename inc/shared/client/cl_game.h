@@ -13,7 +13,7 @@
 //
 #define CLGAME_API_VERSION    4
 
-// edict->svflags
+// edict->svFlags
 
 //#define SVF_NOCLIENT            0x00000001  // don't send entity to clients, even if it has effects
 //#define SVF_DEADENTITY         0x00000002  // treat as CONTENTS_DEADMONSTER for collision
@@ -79,6 +79,8 @@ typedef struct centity_s {
 
 	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
 	int64_t	serverframe;
+	//! The time of the last received update for this entity.
+	int64_t snapShotTime;
 
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
@@ -88,7 +90,7 @@ typedef struct centity_s {
 	//! Modelspace Mins/Maxs of Bounding Box.
 	Vector3	mins, maxs;
 	//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
-	Vector3	absmin, absmax, size;
+	Vector3	absMin, absMax, size;
 	
 	/**
 	*	The game dll can add anything it wants after this point in the structure.

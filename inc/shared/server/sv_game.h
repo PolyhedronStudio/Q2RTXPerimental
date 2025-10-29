@@ -32,7 +32,7 @@ typedef Vector3* cpp_vec3_t;
 
 #define SVGAME_API_VERSION    1337
 
-// edict->svflags
+// edict->svFlags
 
 // Old Vanilla Q2 flags.
 //#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
@@ -41,20 +41,27 @@ typedef Vector3* cpp_vec3_t;
 //#define SVF_HULL	0x00000008	// When touching the trigger's bounding box, perform an additional clip to trigger brush. (Used for G_TouchTriggers)
 
 // Some [KEX] flags.
-#define SVF_NONE            0           // No serverflags.
-#define SVF_NOCLIENT        BIT( 0 )    // Don't send entity to clients, even if it has effects.
-#define SVF_DEADENTITY     BIT( 1 )    // Treat as CONTENTS_DEADMONSTER for collision.
-#define SVF_MONSTER         BIT( 2 )    // Treat as CONTENTS_MONSTER for collision.
-#define SVF_PLAYER          BIT( 3 )    // [Paril-KEX] Treat as CONTENTS_PLAYER for collision.
-//#define SVF_BOT           BIT( 4 )    // Entity is controlled by a bot AI.
-//#define SVF_NOBOTS        BIT( 5 )    // Don't allow bots to use/interact with entity.
-//#define SVF_RESPAWNING    BIT( 6 )    // Entity will respawn on it's next think.
-#define SVF_PROJECTILE      BIT( 7 )    // Treat as CONTENTS_PROJECTILE for collision.
-//#define SVF_INSTANCED     BIT( 8 )    // Entity has different visibility per player.
-#define SVF_DOOR            BIT( 9 )    // Entity is a door of some kind.
-//#define SVF_NOCULL        BIT( 10 )   // Always send, even if we normally wouldn't.
-#define SVF_HULL            BIT( 11 )   // Always use hull when appropriate (triggers, etc; for gi.clip).
-
+#define SVF_NONE            0           //! No serverflags.
+#define SVF_NOCLIENT        BIT( 0 )    //! Don't send entity to clients, even if it has effects.
+#define SVF_DEADENTITY      BIT( 1 )    //! Treat as CONTENTS_DEADMONSTER for collision.
+#define SVF_MONSTER         BIT( 2 )    //! Treat as CONTENTS_MONSTER for collision.
+#define SVF_PLAYER          BIT( 3 )    //! [Paril-KEX] Treat as CONTENTS_PLAYER for collision.
+//#define SVF_BOT           BIT( 4 )    //! Entity is controlled by a bot AI.
+//#define SVF_NOBOTS        BIT( 5 )    //! Don't allow bots to use/interact with entity.
+//#define SVF_RESPAWNING    BIT( 6 )    //! Entity will respawn on it's next think.
+#define SVF_PROJECTILE      BIT( 7 )    //! Treat as CONTENTS_PROJECTILE for collision.
+//#define SVF_INSTANCED     BIT( 8 )    //! Entity has different visibility per player.
+#define SVF_DOOR            BIT( 9 )    //! Entity is a door of some kind.
+//#define SVF_NOCULL        BIT( 10 )   //! Always send, even if we normally wouldn't.
+#define SVF_HULL            BIT( 11 )   //! Always use hull when appropriate (triggers, etc; for gi.clip).
+//! Only send entity to one client( edict->sendClientID ).
+#define SVF_SENDCLIENT_SEND_TO_ID   BIT( 12 )
+//! Send entity to everyone but one client.( edict->sendClientID ).
+#define SVF_SENDCLIENT_EXCLUDE_ID   BIT( 13 )
+//! When set, sendClientID is used as a bitmask to mark which clients to send it to.
+#define SVF_SENDCLIENT_BITMASK_IDS  BIT( 13 )
+//! Not a bits flag, but a value to indicate no client ID is set.
+#define SENDCLIENT_TO_ALL ( -1 )                                           
 // extended features
 
 #define GMF_CLIENTNUM               0x00000001 //! Client number for the edict, used for client->clientNum.
@@ -70,11 +77,12 @@ typedef Vector3* cpp_vec3_t;
 //=============================================================================================
 //=============================================================================================
 // Forward declarations of types used in the Server Game dll.
-struct edict_t;
+struct svg_base_edict_t;
 struct svg_client_t;
 
 //=============================================================================================
 //=============================================================================================
+#include "shared/server/sv_shared_edict.h"
 
 #ifndef SVGAME_INCLUDE
     struct svg_client_t {
@@ -91,24 +99,24 @@ struct svg_client_t;
     //    svg_client_t *client;   //! NULL if not a player the server expects the first part
     //                                //! of gclient_s to be a player_state_t but the rest of it is opaque
     //    qboolean inuse;
-    //    int32_t linkcount;
+    //    int32_t linkCount;
 
     //    // FIXME: move these fields to a server private sv_entity_t
     //    list_t area;    //! Linked to a division node or leaf
 
-    //    int32_t num_clusters;       // If -1, use headnode instead.
-    //    int32_t clusternums[MAX_ENT_CLUSTERS];
-    //    int32_t headnode;           // Unused if num_clusters != -1
+    //    int32_t num_clusters;       // If -1, use headNode instead.
+    //    int32_t clusterNumbers[MAX_ENT_CLUSTERS];
+    //    int32_t headNode;           // Unused if num_clusters != -1
     //
     //    int32_t areanum, areanum2;
 
     //    //================================
 
-    //    int32_t     svflags;            // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
+    //    int32_t     svFlags;            // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
     //    vec3_t      mins, maxs;
-    //    vec3_t      absmin, absmax, size;
+    //    vec3_t      absMin, absMax, size;
     //    cm_solid_t     solid;
-    //    cm_contents_t  clipmask;
+    //    cm_contents_t  clipMask;
     //    cm_contents_t  hullContents;
     //    edict_t *owner;
 
@@ -258,7 +266,7 @@ typedef struct {
     const bool( *AreasConnected )( const int32_t area1, const int32_t area2 );
     /**
     *	An entity will never be sent to a client or used for collision if it is not passed to linkentity.
-    *   If the size, position, solidity, clipmask, hullContents, or owner changes, it must be relinked.
+    *   If the size, position, solidity, clipMask, hullContents, or owner changes, it must be relinked.
     **/
     //! Link the entity into the world area grid for collision detection.
     void ( *linkentity )( edict_ptr_t *ent );

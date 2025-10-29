@@ -52,36 +52,36 @@ void SVG_Player_PlayerNoise( svg_base_edict_t *who, const Vector3 &where, int ty
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
         noise->owner = who;
-        noise->svflags = SVF_NOCLIENT;
+        noise->svFlags = SVF_NOCLIENT;
         who->mynoise = noise;
 
         noise = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_noise" );
         VectorSet( noise->mins, -8, -8, -8 );
         VectorSet( noise->maxs, 8, 8, 8 );
         noise->owner = who;
-        noise->svflags = SVF_NOCLIENT;
+        noise->svFlags = SVF_NOCLIENT;
         who->mynoise2 = noise;
     }
 
     if ( type == PNOISE_SELF || type == PNOISE_WEAPON ) {
         noise = who->mynoise;
         if ( noise ) {
-            noise->inuse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+            noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
         }
         level.sound_entity = noise;
         level.sound_entity_framenum = level.frameNumber;
     } else { // type == PNOISE_IMPACT
         noise = who->mynoise2;
         if ( noise ) {
-            noise->inuse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
+            noise->inUse = true; // <Q2RTXP>: TODO: Hmmm... This should happen at loadlevel time.
         }
         level.sound2_entity = noise;
         level.sound2_entity_framenum = level.frameNumber;
     }
 
     VectorCopy( where, noise->s.origin );
-    VectorSubtract( where, noise->maxs, noise->absmin );
-    VectorAdd( where, noise->maxs, noise->absmax );
+    VectorSubtract( where, noise->maxs, noise->absMin );
+    VectorAdd( where, noise->maxs, noise->absMax );
     noise->last_sound_time = level.time;
 
     gi.linkentity( noise );

@@ -205,10 +205,10 @@ DEFINE_MEMBER_CALLBACK_USE( svg_light_spotlight_t, onUse )( svg_light_spotlight_
 		// Remove the 'off' flag.
 		self->spawnflags &= ~svg_light_spotlight_t::SPAWNFLAG_START_OFF;
 		// Enable it being sent to clients again.
-		self->svflags &= ~SVF_NOCLIENT;
+		self->svFlags &= ~SVF_NOCLIENT;
 	} else {
 		// Don't send to client when the light is off.
-		self->svflags |= SVF_NOCLIENT;
+		self->svFlags |= SVF_NOCLIENT;
 		self->spawnflags |= svg_light_spotlight_t::SPAWNFLAG_START_OFF;
 
 		// Reset its intensity and frame, so it can start anew when turned on again.
@@ -233,7 +233,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_light_spotlight_t, onSpawn )( svg_light_spotli
 
 	// Immediately set a SVF_NOCLIENT flag if light is meant to start 'off'.
 	if ( self->spawnflags & svg_light_spotlight_t::SPAWNFLAG_START_OFF ) {
-		self->svflags |= SVF_NOCLIENT;
+		self->svFlags |= SVF_NOCLIENT;
 	}
 
 	// Required think method.

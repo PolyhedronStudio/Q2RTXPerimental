@@ -35,7 +35,7 @@ static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSoli
         return cl.collisionModel.cache->models[ i ].headnode;
     }
 
-    // Create a temp hull from entity bounds and contents clipmask for the specific type of 'solid'.
+    // Create a temp hull from entity bounds and contents clipMask for the specific type of 'solid'.
     if ( ent->current.solid == SOLID_BOUNDS_OCTAGON ) {
         return CM_HeadnodeForOctagon( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
     } else {
@@ -94,15 +94,15 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec
         }
 
         //if ( !( contentmask & CONTENTS_DEADMONSTER )
-        //    && ( ent->svflags & SVF_DEADENTITY ) ) {
+        //    && ( ent->svFlags & SVF_DEADENTITY ) ) {
         //    continue;
         //}
         //if ( !( contentmask & CONTENTS_PROJECTILE )
-        //    && ( ent->svflags & SVF_PROJECTILE ) ) {
+        //    && ( ent->svFlags & SVF_PROJECTILE ) ) {
         //    continue;
         //}
         //if ( !( contentmask & CONTENTS_PLAYER ) {
-        //    && ( ent->svflags & SVF_PLAYER ) )
+        //    && ( ent->svFlags & SVF_PLAYER ) )
         //    continue;
         //}
 

@@ -113,3 +113,19 @@ void SVG_Client_Think( svg_base_edict_t * ent, usercmd_t * ucmd );
 *   @brief  Calculates the final resulting recoil value, being clamped between -1, to +1.
 **/
 const double SVG_Client_GetFinalRecoilFactor( svg_base_edict_t *ent );
+
+
+
+/**
+*
+*
+*
+*   Client PlayerState Pending Events:
+*
+*
+*
+**/
+/**
+*   @brief  Sends any pending of the remaining predictable events to all clients, except "ourselves".
+**/
+void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_client_t *client );

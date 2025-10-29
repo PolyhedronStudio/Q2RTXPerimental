@@ -93,7 +93,7 @@ or a direction.
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_crosslevel_trigger_t, onSpawn ) ( svg_target_crosslevel_trigger_t *self ) -> void {
     Super::onSpawn( self );
 
-    self->svflags = SVF_NOCLIENT;
+    self->svFlags = SVF_NOCLIENT;
 
     self->SetUseCallback( &svg_target_crosslevel_trigger_t::onUse );
 }

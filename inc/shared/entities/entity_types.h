@@ -18,7 +18,8 @@ typedef enum entity_type_e {
 	ET_ENGINE_TYPES = 0,
 	//! Generic type, defaults for all entities unless specified otherwise.
 	ET_GENERIC = ET_ENGINE_TYPES,
-
+	//! A Temporary Entity Event. To get the value of the event, subtract ET_TEMP_ENTITY_EVENT from the entityType value.
+	//ET_TEMP_ENTITY_EVENT,
 	//! func_areaportal
 	ET_AREA_PORTAL,
 	//! spotlight
@@ -26,9 +27,6 @@ typedef enum entity_type_e {
 	//! Beam Entity.
 	ET_BEAM,
 
-	//! Types that are specific to the game modules only.
-	ET_GAME_TYPES,
-
-	//! Maximum types supported.
-	ET_MAX_TYPES = 255
+	//! Maximum engine types.
+	ET_ENGINE_MAX_TYPES
 } entity_type_t;

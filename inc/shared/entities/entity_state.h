@@ -18,13 +18,12 @@ typedef struct entity_state_s {
     /**
     *   Core Entity State Data:
     **/
-
-    //! The entity's clientinfo index. (Resides in skinnum).
-    //uint8_t client;
     //! Server edict index.
     int32_t	number;
     //! The specific type of entity.
     int32_t	entityType; // ET_GENERIC, ET_PLAYER, ET_MONSTER_PLAYER, ET_SPOTLIGHT etc..
+    //! For entity events.
+    int32_t otherEntityNumber;
 
     //! Entity origin.
     Vector3  origin;
@@ -42,7 +41,7 @@ typedef struct entity_state_s {
     //! The actual 'bounding box' mins/maxs for the solid type in question.
     uint32_t bounds;
     //! Clipmask for collision.
-    cm_contents_t clipmask;
+    cm_contents_t clipMask;
     //! The actual temporary hull's leaf and brush contents of this entity in case it is a SOLID_BOUNDS_BOX.
     cm_contents_t hullContents;
     //! Entity who owns this entity.
@@ -76,7 +75,9 @@ typedef struct entity_state_s {
     int32_t	sound;  //! For looping sounds, to guarantee shutoff
     int32_t	event;  //! Impulse events -- muzzle flashes, footsteps, etc.
                     //! Events only go out for a single frame, and they are automatically cleared after that.
-	int32_t eventParm; //! Even parameter.
+	int32_t eventParm0; //! Even parameter.
+	// <Q2RTXP>: TODO: For use with temporarily storing additional event data if needed.
+    int32_t eventParm1; //! Even parameter.
 
     /**
     *   ET Specifics:

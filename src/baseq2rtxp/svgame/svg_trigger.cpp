@@ -70,7 +70,7 @@ const bool SVG_Trigger_DispatchLuaUseCallback( sol::state_view &stateView, const
 **/
 void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activator ) {
     // If a message was set, the activator is not a monster, then center print it.
-    if ( ( self->message ) && !( activator && activator->svflags & SVF_MONSTER ) ) {
+    if ( ( self->message ) && !( activator && activator->svFlags & SVF_MONSTER ) ) {
         // Print.
         if ( activator && activator->client ) {
             gi.centerprintf( activator, "%s", (const char *)self->message );
@@ -96,7 +96,7 @@ const int32_t SVG_Trigger_KillTargets( svg_base_edict_t *self ) {
         svg_base_edict_t *killTargetEntity = nullptr;
         while ( ( killTargetEntity = SVG_Entities_Find( killTargetEntity, q_offsetof( svg_base_edict_t, targetname ), (const char *)self->targetNames.kill ) ) ) {
             SVG_FreeEdict( killTargetEntity );
-            if ( !self->inuse ) {
+            if ( !self->inUse ) {
                 gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, self->s.number, (const char *)self->classname );
                 return false;
             }
@@ -276,7 +276,7 @@ void SVG_UseTargets( svg_base_edict_t *ent, svg_base_edict_t *activator, const e
                     //}
                 }
             }
-            if ( !ent->inuse ) {
+            if ( !ent->inUse ) {
                 gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, ent->s.number, (const char *)ent->classname );
                 return;
             }

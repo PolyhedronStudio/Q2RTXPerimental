@@ -95,7 +95,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_crosslevel_target_t, onSpawn ) ( svg_ta
 
     if ( !self->delay )
         self->delay = 1;
-    self->svflags = SVF_NOCLIENT;
+    self->svFlags = SVF_NOCLIENT;
 
     self->SetThinkCallback( &svg_target_crosslevel_target_t::onThink );
     self->nextthink = level.time + QMTime::FromSeconds( self->delay );

@@ -302,14 +302,15 @@ struct svg_client_t {
     **/
     uint64_t    last_stair_step_frame;
 
-    vec3_t      last_ladder_pos; // For ladder step sounds.
+    Vector3     last_ladder_pos; // For ladder step sounds.
     QMTime      last_ladder_sound;
 
-    vec3_t      oldviewangles;
-    vec3_t      oldvelocity;
-    svg_base_edict_t     *oldgroundentity; // [Paril-KEX]
-    cm_liquid_level_t	old_waterlevel;
-    QMTime      flash_time; // [Paril-KEX] for high tickrate
+    Vector3     oldviewangles;
+    Vector3     oldvelocity;
+    svg_base_edict_t    *oldgroundentity; // [Paril-KEX]
+    cm_liquid_level_t   old_waterlevel;
+
+    QMTime  flash_time; // [Paril-KEX] for high tickrate
 
     /**
     *   Misc:

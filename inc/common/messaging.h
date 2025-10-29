@@ -55,6 +55,7 @@ typedef union bounds_packed_u {
 typedef struct {
 	uint16_t    number;
 	uint8_t		entityType;
+	uint16_t	otherEntityNumber;
 
 	Vector3		origin;
 	Vector3		angles;
@@ -65,7 +66,7 @@ typedef struct {
 	//! The bounding box for the solid's hull type, also needed for collision prediction.
 	bounds_packed_t bounds;
 	//! Clipmask for collision prediction.
-	int32_t clipmask;
+	int32_t clipMask;
 	//! Hull Contents for collision prediction.
 	cm_contents_t hullContents;
 	//! Entity which owns this entity, for collision prediction.
@@ -86,11 +87,11 @@ typedef struct {
 
 	uint16_t    sound;
 
-	uint8_t     event;
-	int32_t		eventParm;
+	int32_t		event;
+	int32_t		eventParm0, eventParm1; // Belong to 'event'.
 
 	// Spotlights
-	vec3_t rgb;
+	Vector3 rgb;
 	float intensity;
 	float angle_width;
 	float angle_falloff;
@@ -126,7 +127,8 @@ typedef struct {
 	uint8_t			eventParms[ MAX_PS_EVENTS ];
 
 	uint8_t			externalEvent;
-	int32_t			externalEventParm;
+	int32_t			externalEventParm0;
+	//int32_t			externalEventParm1;
 
 	uint8_t			bobCycle;
 } player_packed_t;

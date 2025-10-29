@@ -106,10 +106,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_always_t, onSpawn ) ( svg_trigger_alwa
 		self->delay = 1.f;
 	}
 	// Does not free itself. Instead construct a 'point bbox'.
-	VectorCopy( self->s.origin, self->absmin );
-	VectorCopy( self->s.origin, self->absmax );
+	VectorCopy( self->s.origin, self->absMin );
+	VectorCopy( self->s.origin, self->absMax );
 	self->movetype = MOVETYPE_NONE;
-	self->svflags = SVF_NOCLIENT;
+	self->svFlags = SVF_NOCLIENT;
 
 	// Here we actually perform the UseTargets with the actual passed in trigger_always
 	// spawn useType/useValue.

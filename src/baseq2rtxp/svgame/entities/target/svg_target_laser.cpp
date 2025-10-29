@@ -100,11 +100,11 @@ void svg_target_laser_t::SetActive( const bool isActive ) {
             activator = this;
         }
         spawnflags |= svg_target_laser_t::SPAWNFLAG_START_ON;// 0x80000001;
-        svflags &= ~SVF_NOCLIENT;
+        svFlags &= ~SVF_NOCLIENT;
         DispatchThinkCallback( );
     } else {
         spawnflags &= ~svg_target_laser_t::SPAWNFLAG_START_ON;
-        svflags |= SVF_NOCLIENT;
+        svFlags |= SVF_NOCLIENT;
         nextthink = 0_ms;
     }
 }
@@ -145,7 +145,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink )( svg_target_laser_t 
 
     if ( self->enemy ) {
         VectorCopy( self->movedir, last_movedir );
-        VectorMA( self->enemy->absmin, 0.5f, self->enemy->size, point );
+        VectorMA( self->enemy->absMin, 0.5f, self->enemy->size, point );
         VectorSubtract( point, self->s.origin, self->movedir );
         self->movedir = QM_Vector3Normalize( self->movedir );
         if ( !VectorCompare( self->movedir, last_movedir ) )
@@ -166,7 +166,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_laser_t, onThink )( svg_target_laser_t 
             SVG_DamageEntity( tr.ent, self, self->activator, &self->movedir.x, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MEANS_OF_DEATH_LASER );
 
         // if we hit something that's not a monster or player or is immune to lasers, we're done
-        if ( !( tr.ent->svflags & SVF_MONSTER ) && ( !tr.ent->client ) ) {
+        if ( !( tr.ent->svFlags & SVF_MONSTER ) && ( !tr.ent->client ) ) {
             if ( self->spawnflags & 0x80000000 ) {
                 self->spawnflags &= ~0x80000000;
                 gi.WriteUint8( svc_temp_entity );

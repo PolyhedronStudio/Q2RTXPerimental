@@ -37,7 +37,7 @@ void svg_func_wall_t::TurnOn() {
 	// Set the wall to be solid.
 	solid = SOLID_BSP;
 	// Enable entity to be send to clients.
-	svflags &= ~SVF_NOCLIENT;
+	svFlags &= ~SVF_NOCLIENT;
     // Unlink the entity.
     gi.unlinkentity( this );
     // Perform a KillBox clipped to BSP for the entity.
@@ -53,7 +53,7 @@ void svg_func_wall_t::TurnOff( ) {
 	// Set the wall to be non-solid.
 	solid = SOLID_NOT;
 	// Disable entity from being send to clients.
-	svflags |= SVF_NOCLIENT;
+	svFlags |= SVF_NOCLIENT;
 	// Relink the entity.
 	gi.linkentity( this );
 }
@@ -209,7 +209,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_wall_t, onSpawn )( svg_func_wall_t *self 
     // Start off, non solid, non send to clients.
     } else {
         self->solid = SOLID_NOT;
-        self->svflags |= SVF_NOCLIENT;
+        self->svFlags |= SVF_NOCLIENT;
     }
     // Link it in.
     gi.linkentity( self );

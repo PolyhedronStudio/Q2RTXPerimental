@@ -69,7 +69,7 @@ void SVG_PushMove_UpdateMoveWithEntities() {
             parentMover = g_edict_pool.EdictForNumber( game.moveWithEntities[ i ].parentNumber );//&g_edicts[ game.moveWithEntities[ i ].parentNumber ];
         }
 
-        if ( parentMover && parentMover->inuse && ( parentMover->movetype == MOVETYPE_PUSH || parentMover->movetype == MOVETYPE_STOP ) ) {
+        if ( parentMover && parentMover->inUse && ( parentMover->movetype == MOVETYPE_PUSH || parentMover->movetype == MOVETYPE_STOP ) ) {
             Vector3 parentAnglesDelta = parentMover->s.angles - parentMover->lastAngles;
             Vector3 parentOriginDelta = parentMover->s.origin - parentMover->lastOrigin;
 
@@ -91,7 +91,7 @@ void SVG_PushMove_UpdateMoveWithEntities() {
                     //childMover = &g_edicts[ game.moveWithEntities[ j ].childNumber ];
                     childMover = g_edict_pool.EdictForNumber( game.moveWithEntities[ j ].childNumber );
                 }
-                if ( childMover && childMover->inuse 
+                if ( childMover && childMover->inUse 
                     && ( 
                         //// Allow Triggers, 
                         //childMover->solid == SOLID_TRIGGER ||

@@ -121,7 +121,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_hurt_t, onSpawn )( svg_trigger_hurt_t 
 	gi.linkentity( self );
 
 	if ( self->spawnflags & svg_trigger_hurt_t::SPAWNFLAG_BRUSH_CLIP ) {
-		self->svflags |= SVF_HULL;
+		self->svFlags |= SVF_HULL;
 	}
 }
 

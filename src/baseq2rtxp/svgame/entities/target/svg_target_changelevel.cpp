@@ -102,7 +102,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_changelevel_t, onSpawn ) ( svg_target_c
 
     // For when used to change level.
     self->SetUseCallback( &svg_target_changelevel_t::onUse );
-    self->svflags = SVF_NOCLIENT;
+    self->svFlags = SVF_NOCLIENT;
 }
 
 /**

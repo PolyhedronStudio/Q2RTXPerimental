@@ -81,6 +81,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_gravity_t, onSpawn )( svg_trigger_grav
 	gi.linkentity( self );
 
 	if ( self->spawnflags & svg_trigger_gravity_t::SPAWNFLAG_BRUSH_CLIP ) {
-		self->svflags |= SVF_HULL;
+		self->svFlags |= SVF_HULL;
 	}
 }

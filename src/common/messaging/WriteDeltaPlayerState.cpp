@@ -44,7 +44,8 @@ void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
 	out->eventParms[ 0 ] = in->eventParms[ 0 ];
 	out->eventParms[ 1 ] = in->eventParms[ 1 ];
 	out->externalEvent = in->externalEvent;
-	out->externalEventParm = in->externalEventParm;
+	out->externalEventParm0 = in->externalEventParm0;
+	//out->externalEventParm1 = in->externalEventParm1;
 
 	out->viewangles[ 0 ] = QM_AngleMod( in->viewangles[ 0 ] );
 	out->viewangles[ 1 ] = QM_AngleMod( in->viewangles[ 1 ] );
@@ -174,9 +175,12 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( to->externalEvent != from->externalEvent ) {
 		pflags |= PS_EXTERNAL_EVENT;
 	}
-	if ( to->externalEventParm != from->externalEventParm ) {
-		pflags |= PS_EXTERNAL_EVENT_PARM;
+	if ( to->externalEventParm0 != from->externalEventParm0 ) {
+		pflags |= PS_EXTERNAL_EVENT_PARM0;
 	}
+	//if ( to->externalEventParm1 != from->externalEventParm1 ) {
+	//	pflags |= PS_EXTERNAL_EVENT_PARM1;
+	//}
 
 	//
 	// write it
@@ -242,8 +246,8 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( pflags & PS_EXTERNAL_EVENT ) {
 		MSG_WriteUint8( to->externalEvent );
 	}
-	if ( pflags & PS_EXTERNAL_EVENT_PARM ) {
-		MSG_WriteIntBase128( to->externalEventParm );
+	if ( pflags & PS_EXTERNAL_EVENT_PARM0 ) {
+		MSG_WriteIntBase128( to->externalEventParm0 );
 	}
 
 

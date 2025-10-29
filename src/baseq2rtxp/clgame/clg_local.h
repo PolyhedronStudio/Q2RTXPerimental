@@ -68,6 +68,8 @@ constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<in
 #if USE_DEBUG
 extern cvar_t *developer;
 #endif
+extern cvar_t *clg_debug_events;
+
 extern cvar_t *cl_predict;
 extern cvar_t *cl_running;
 extern cvar_t *cl_paused;
@@ -213,6 +215,8 @@ typedef struct centity_s {
 
 	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
 	int64_t	serverframe;
+	//! The time of the last received update for this entity.
+	int64_t snapShotTime;
 
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
@@ -222,7 +226,7 @@ typedef struct centity_s {
 	//! Modelspace Mins/Maxs of Bounding Box.
 	Vector3	mins, maxs;
 	//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
-	Vector3	absmin, absmax, size;
+	Vector3	absMin, absMax, size;
 
 
 
@@ -303,7 +307,7 @@ typedef struct centity_s {
 	//! For diminishing grenade trails.
 	int32_t	trailcount;         // for diminishing grenade trails
 	//! for trails (variable hz)
-	vec3_t	lerp_origin;
+	Vector3	lerp_origin;
 } centity_t;
 
 /**
@@ -521,7 +525,7 @@ typedef struct clg_local_entity_s {
 		//! Modelspace Mins/Maxs of Bounding Box.
 		Vector3	mins, maxs;
 		//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
-		Vector3	absmin, absmax, size;
+		Vector3	absMin, absMax, size;
 
 		//! ModelIndex #1 handle.
 		qhandle_t modelindex;

@@ -45,13 +45,13 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_object_t, onThink_ReleaseObject )( svg_fu
 	// Make visible and solid.
     self->solid = SOLID_BSP;
     // Send to clients.
-    self->svflags &= ~SVF_NOCLIENT;
+    self->svFlags &= ~SVF_NOCLIENT;
     // Set movetype to toss.
     self->movetype = MOVETYPE_TOSS;
     // Proper onTouch.
     self->SetTouchCallback( &svg_func_object_t::onTouch );
-    // Setup clipmask.
-    self->clipmask = CM_CONTENTMASK_MONSTERSOLID;
+    // Setup clipMask.
+    self->clipMask = CM_CONTENTMASK_MONSTERSOLID;
     // Link it.
     gi.linkentity( self );
 }
@@ -62,7 +62,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_object_t, onThink_ReleaseObject )( svg_fu
 DEFINE_MEMBER_CALLBACK_USE( svg_func_object_t, onUse )( svg_func_object_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
     // Don't allow monsters to use this.
     if ( self->spawnflags & SPAWNFLAG_NOMONSTER ) {
-		if ( other && other->svflags & SVF_MONSTER ) {
+		if ( other && other->svFlags & SVF_MONSTER ) {
 			return;
 		}
     }
@@ -85,7 +85,7 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_object_t, onPostSpawn )( svg_func_obj
     }
     // Set model.
     gi.setmodel( self, self->model );
-    self->svflags &= SVF_HULL;
+    self->svFlags &= SVF_HULL;
     // Expand the bounds a bit.
     self->mins[ 0 ] += 1;
     self->mins[ 1 ] += 1;
@@ -110,12 +110,12 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_object_t, onSpawn )( svg_func_object_t *s
     if ( self->spawnflags & SPAWNFLAG_HIDDEN_UNTIL_TRIGGER_USE ) {
         // Set invisible and not solid.
         self->solid = SOLID_NOT;
-        self->svflags |= SVF_NOCLIENT;
+        self->svFlags |= SVF_NOCLIENT;
     } else {
         // Set solid.
         self->solid = SOLID_BSP;
-        // Set clipmask.
-        self->clipmask = CM_CONTENTMASK_MONSTERSOLID;
+        // Set clipMask.
+        self->clipMask = CM_CONTENTMASK_MONSTERSOLID;
     }
 
     // Move Pusher.

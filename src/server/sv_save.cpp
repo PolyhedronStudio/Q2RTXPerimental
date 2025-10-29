@@ -560,18 +560,18 @@ void SV_AutoSaveBegin(mapcmd_t *cmd) {
 
     memset(bitmap, 0, sizeof(bitmap));
 
-    // Clear all the client inuse flags before saving so that
+    // Clear all the client inUse flags before saving so that
     // when the level is re-entered, the clients will spawn
     // at spawn points instead of occupying body shells
     for (i = 0; i < sv_maxclients->integer; i++) {
         // Get client edict.
         ent = EDICT_FOR_NUMBER(i + 1);
         // If in use.
-        if (ent->inuse) {
+        if (ent->inUse) {
             // Store client ID in the bitmap.
             Q_SetBit(bitmap, i);
-            // 'Disable' temporarily the client entity by inuse = false.
-            ent->inuse = false;
+            // 'Disable' temporarily the client entity by inUse = false.
+            ent->inUse = false;
         }
     }
 
@@ -582,7 +582,7 @@ void SV_AutoSaveBegin(mapcmd_t *cmd) {
     // We must restore these for clients to transfer over correctly.
     for ( i = 0; i < sv_maxclients->integer; i++ ) {
         ent = EDICT_FOR_NUMBER( i + 1 );
-        ent->inuse = Q_IsBitSet( bitmap, i );
+        ent->inUse = Q_IsBitSet( bitmap, i );
     }
 }
 

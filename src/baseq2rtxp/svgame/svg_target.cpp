@@ -155,7 +155,7 @@ void use_target_explosion( svg_base_edict_t *self, svg_base_edict_t *other, svg_
 void SP_target_explosion(svg_base_edict_t *ent)
 {
     ent->SetUseCallback( use_target_explosion );
-    ent->svflags = SVF_NOCLIENT;
+    ent->svFlags = SVF_NOCLIENT;
 }
 
 //==========================================================
@@ -197,7 +197,7 @@ void SP_target_splash(svg_base_edict_t *self)
     if (!self->count)
         self->count = 32;
 
-    self->svflags = SVF_NOCLIENT;
+    self->svFlags = SVF_NOCLIENT;
 }
 
 
@@ -235,7 +235,7 @@ void use_target_spawner( svg_base_edict_t *self, svg_base_edict_t *other, svg_ba
 void SP_target_spawner(svg_base_edict_t *self)
 {
     self->SetUseCallback( use_target_spawner );
-    self->svflags = SVF_NOCLIENT;
+    self->svFlags = SVF_NOCLIENT;
     if (self->speed) {
         SVG_Util_SetMoveDir(self->s.angles, self->movedir );
         VectorScale(self->movedir, self->speed, self->movedir);

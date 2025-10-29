@@ -50,6 +50,7 @@ QMTime FRAME_TIME_MS;
 #if USE_DEBUG
 cvar_t *developer = nullptr;
 #endif
+cvar_t *clg_debug_events = nullptr;
 cvar_t *cl_predict = nullptr;
 cvar_t *cl_running = nullptr;
 cvar_t *cl_paused = nullptr;
@@ -258,8 +259,10 @@ void PF_InitGame( void ) {
 	**/
 	#if USE_DEBUG
 	developer = clgi.CVar_Get( "developer", nullptr, 0 );
+	clg_debug_events = clgi.CVar_Get( "clg_debug_events", "1", 0 );
 	#else
 	//developer = clgi.CVar_Get( "developer", "0", CVAR_NOSET );
+	clg_debug_events = clgi.CVar_Get( "clg_debug_events", "0", 0 );
 	#endif
 	cl_predict = clgi.CVar_Get( "cl_predict", nullptr, 0 );
 	cl_running = clgi.CVar_Get( "cl_running", nullptr, 0 );

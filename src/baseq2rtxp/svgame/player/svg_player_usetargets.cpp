@@ -135,7 +135,7 @@ void SVG_Player_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
     svg_base_edict_t *currentTargetEntity = ent->client->useTarget.currentEntity;
 
     // If it is a valid pointer and in use entity.
-    if ( currentTargetEntity && currentTargetEntity->inuse ) {
+    if ( currentTargetEntity && currentTargetEntity->inUse ) {
         // And it differs from the one we found by tracing:
         if ( currentTargetEntity != traceUseTarget.ent ) {
             // AND it is a continuous usetarget supporting entity, with its state being continuously held:
@@ -175,7 +175,7 @@ void SVG_Player_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
     }
 
     // Are we continously holding +usetarget or did we single press it? If so, proceed.
-    if ( currentTargetEntity && ( currentTargetEntity->inuse && currentTargetEntity->s.number != 0 ) ) {
+    if ( currentTargetEntity && ( currentTargetEntity->inUse && currentTargetEntity->s.number != 0 ) ) {
         // The (+usetarget) key is neither pressed, nor held continuously, thus it was released this frame.
         if ( isTargetUseKeyReleased ) {
             // Stop with the continous entity usage:
@@ -197,7 +197,7 @@ void SVG_Player_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
     }
 
     // Are we continously holding +usetarget or did we single press it? If so, proceed.
-    if ( currentTargetEntity && ( currentTargetEntity->inuse && currentTargetEntity->s.number != 0 ) ) {
+    if ( currentTargetEntity && ( currentTargetEntity->inUse && currentTargetEntity->s.number != 0 ) ) {
         // Play audio sound for when pressing onto a valid entity.
         if ( isTargetUseKeyPressed ) {
             if ( currentTargetEntity->useTarget.flags != ENTITY_USETARGET_FLAG_NONE ) {

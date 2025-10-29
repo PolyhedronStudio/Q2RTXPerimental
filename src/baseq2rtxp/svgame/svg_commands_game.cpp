@@ -142,7 +142,7 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
     //    it_ent->classname = it->classname;
     //    SVG_Item_Spawn(it_ent, it);
     //    Touch_Item(it_ent, ent, NULL, NULL);
-    //    if (it_ent->inuse)
+    //    if (it_ent->inUse)
     //        SVG_FreeEdict(it_ent);
 
     //    if (!give_all)
@@ -188,7 +188,7 @@ void SVG_Command_Give_f(svg_base_edict_t *ent)
         //SVG_Item_Spawn(it_ent, it);
         it_ent->DispatchSpawnCallback(); //Touch_Item(it_ent, ent, NULL, NULL);
 		it_ent->DispatchTouchCallback( ent, NULL, NULL );
-        if ( it_ent->inuse ) {
+        if ( it_ent->inUse ) {
             SVG_FreeEdict( it_ent );
         }
     }
@@ -216,7 +216,7 @@ void SVG_Command_God_f(svg_base_edict_t *ent)
 *   @brief  Sets client health to value of argv(1).
 **/
 void SVG_Command_SetHealth_f( svg_base_edict_t *ent ) {
-    if ( !ent || !ent->inuse || !ent->client || !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>( false ) ) {
+    if ( !ent || !ent->inUse || !ent->client || !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>( false ) ) {
         gi.cprintf( ent, PRINT_HIGH, "You must be a player to use this command.\n" );
         return;
     }    
@@ -230,7 +230,7 @@ void SVG_Command_SetHealth_f( svg_base_edict_t *ent ) {
 *   @brief  Sets client health to value of argv(1).
 **/
 void SVG_Command_SetArmor_f( svg_base_edict_t *ent ) {
-    if ( !ent || !ent->inuse || !ent->client || !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>( false ) ) {
+    if ( !ent || !ent->inUse || !ent->client || !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>( false ) ) {
         gi.cprintf( ent, PRINT_HIGH, "You must be a player to use this command.\n" );
         return;
     }
@@ -697,7 +697,7 @@ void SVG_Command_Say_f(svg_base_edict_t *ent, bool team, bool arg0)
 
     for (j = 1; j <= game.maxclients; j++) {
         other = g_edict_pool.EdictForNumber( j );//&g_edicts[j];
-        if ( !other->inuse ) {
+        if ( !other->inUse ) {
             continue;
         }
         if ( !other->client ) {
@@ -748,7 +748,7 @@ void SVG_Command_PlayerList_f(svg_base_edict_t *ent)
     // connect time, ping, score, name
     *text = 0;
     for (i = 0, e2 = g_edict_pool.EdictForNumber( 1 ); i < maxclients->value; i++, e2 = g_edict_pool.EdictForNumber( i + 1 ) ) {
-        if (!e2->inuse)
+        if (!e2->inUse)
             continue;
 
         Q_snprintf(st, sizeof(st), "%02ld:%02ld %4d %3d %s%s\n",

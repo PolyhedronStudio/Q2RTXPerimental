@@ -226,9 +226,12 @@ typedef struct player_state_s {
 
     // WID: TODO: Just use its entity events instead?
     int32_t externalEvent;	//! Events set on player from another source.
-    int32_t externalEventParm;
+    int32_t externalEventParm0;
     int64_t externalEventTime;
 
+    //! [Client/Server]: Event Sequencing - To differentiate from a same event ID.
+    int64_t	eventSequence;          //! Tracks the internal player state event sequence.
+    int64_t	entityEventSequence;    //! Tracks the external entity event sequence.
 
     /**
     * 
@@ -238,9 +241,7 @@ typedef struct player_state_s {
     *   for either both Client AND/OR Server Game(s).
     * 
     **/
-    //! [Client/Server]: Event Sequencing - To differentiate from a same event ID.
-    int64_t	eventSequence;          //! Tracks the internal player state event sequence.
-    int64_t	entityEventSequence;    //! Tracks the external entity event sequence.
+
 
     //! [Client]: Gun Angles on-screen.
     Vector3 gunangles;

@@ -225,7 +225,7 @@ const int32_t GameLib_UseTarget( sol::this_state s, lua_edict_t leEnt, lua_edict
 		) ? 1/*USETARGET_FIRED*/ : -1/*USETARGET_INVALID*/ );
 	}
 
-	if ( !entity->inuse ) {
+	if ( !entity->inUse ) {
 		gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, (const char *)entity->classname );
 		return -1; // USETARGET_INVALID
 	}
@@ -375,7 +375,7 @@ const int32_t GameLib_UseTargets( sol::this_state s, lua_edict_t leEnt, lua_edic
 					) ? 1/*USETARGET_FIRED*/ : -1/*USETARGET_INVALID*/ );
 				}
 
-				if ( !entity->inuse ) {
+				if ( !entity->inUse ) {
 					gi.dprintf( "%s: entity(#%d, \"%s\") was removed while using killtargets\n", __func__, entity->s.number, (const char *)entity->classname );
 					return -1; // USETARGET_INVALID
 				}

@@ -97,7 +97,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_trigger_t, onSpawn )( svg_func_plat_
     self->movetype = MOVETYPE_NONE;
     self->solid = SOLID_TRIGGER;
     self->s.entityType = ET_PUSH_TRIGGER;
-	self->svflags |= SVF_NOCLIENT; // Don't send to clients.
+	self->svFlags |= SVF_NOCLIENT; // Don't send to clients.
     gi.linkentity( self );
 }
 /**
@@ -347,12 +347,12 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitBottom )( svg
 DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *self, svg_base_edict_t *other ) -> void {
     if ( self->spawnflags & SPAWNFLAG_PAIN_ON_TOUCH ) {
         // This only does damage if the plat is set to do so.
-        if ( !( other->svflags & SVF_MONSTER ) && ( !other->client ) ) {
+        if ( !( other->svFlags & SVF_MONSTER ) && ( !other->client ) ) {
             const bool knockBack = true;
             // give it a chance to go away on it's own terms (like gibs)
             SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, 100000, knockBack, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
             // if it's still there, nuke it
-            if ( other && other->inuse && other->solid ) { // PGM)
+            if ( other && other->inUse && other->solid ) { // PGM)
                 SVG_Misc_BecomeExplosion( other, 1 );
             }
             return;
@@ -369,9 +369,9 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked )( svg_func_plat_t *s
         SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 
         // [Paril-KEX] killed the thing, so don't switch directions
-        //if ( !other->inuse || other->solid == SOLID_NOT ) {
-        // WID: Seems more appropriate since solid_not can still be inuse and alive but whatever.
-        if ( !other->inuse || ( other->inuse && other->solid == SOLID_NOT ) ) {
+        //if ( !other->inUse || other->solid == SOLID_NOT ) {
+        // WID: Seems more appropriate since solid_not can still be inUse and alive but whatever.
+        if ( !other->inUse || ( other->inUse && other->solid == SOLID_NOT ) ) {
             return;
         }
     }

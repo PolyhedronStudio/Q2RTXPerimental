@@ -91,12 +91,17 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
 	}
 
 	// Already freed.
-	if ( !ed->inuse ) {
+	if ( !ed->inUse ) {
 		return;
 	}
 
 	// Unlink it from the world.
 	gi.unlinkentity( ed );
+
+	// If never freed is set, we don't free it, just only unlinked it.
+	if ( ed->freeAfterEvent == false ) {
+		return;
+	}
 
 	// Get its number and validate it.
 	const int32_t edictNumber = ed->s.number;
@@ -134,7 +139,8 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
 	ed->s.number = edictNumber;
 	ed->classname = svg_level_qstring_t::from_char_str( "freed" );
 	ed->freetime = level.time;
-	ed->inuse = false;
+	ed->inUse = false;
+	ed->owner = nullptr;
 	ed->spawn_count = nextSpawnCount;
 }
 
@@ -160,13 +166,13 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 
 		// the first couple seconds of server time can involve a lot of
 		// freeing and allocating, so relax the replacement policy
-		if ( entity != nullptr && !entity->inuse && ( entity->freetime < 2_sec || level.time - entity->freetime > 500_ms ) ) {
+		if ( entity != nullptr && !entity->inUse && ( entity->freetime > level.time + 2_sec || level.time - entity->freetime < 1000_ms ) ) {
 			//_InitEdict<EdictType>( entity, i );
 			// Restore the actual number.
 			//ent->s.number = num_edicts;
 			ent->s.number = entity->s.number;
-			// Make sure it is set to 'inuse'.
-			ent->inuse = true;
+			// Make sure it is set to 'inUse'.
+			ent->inUse = true;
 			// Free the old entity.
 			SVG_FreeEdict( entity );
 			// Initialize the new one.
@@ -189,8 +195,8 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 			//_InitEdict<EdictType>( entity, i );
 			// Restore the actual number.
 			ent->s.number = i;
-			// Make sure it is set to 'inuse'.
-			ent->inuse = true;
+			// Make sure it is set to 'inUse'.
+			ent->inUse = true;
 			// Free the old entity.
 			SVG_FreeEdict( freedEntity );
 			// Initialize the new one.
@@ -200,6 +206,8 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 		}
 		// If we don't have any free edicts, error out.
 		gi.error( "SVG_AllocateEdict: no free edicts" );
+		// Yeah.. should not really happen, then you made too big of a map lol.
+		return nullptr;
 	}
 
 	// Initialize it.
@@ -212,8 +220,8 @@ svg_base_edict_t *svg_edict_pool_t::EmplaceNextFreeEdict( svg_base_edict_t *ent 
 	edicts[ num_edicts ] = ent;
 	// Restore the actual number.
 	ent->s.number = num_edicts;
-	// Make sure it is set to 'inuse'.
-	ent->inuse = true;
+	// Make sure it is set to 'inUse'.
+	ent->inUse = true;
 	// If we have free edicts left to go, use those instead.
 	num_edicts++;
 

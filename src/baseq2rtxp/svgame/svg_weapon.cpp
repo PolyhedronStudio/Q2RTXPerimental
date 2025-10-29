@@ -45,7 +45,7 @@ static void check_dodge(svg_base_edict_t *self, vec3_t start, vec3_t dir, int sp
 
     //VectorMA(start, CM_MAX_WORLD_SIZE, dir, end);
     //tr = SVG_Trace(start, NULL, NULL, end, self, CM_CONTENTMASK_SHOT);
-    //if ((tr.ent) && (tr.ent->svflags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
+    //if ((tr.ent) && (tr.ent->svFlags & SVF_MONSTER) && (tr.ent->health > 0) && (tr.ent->monsterinfo.dodge) && infront(tr.ent, self)) {
     //    VectorSubtract(tr.endpos, start, v);
     //    QMTime eta = QMTime::FromMilliseconds(VectorLength(v) - tr.ent->maxs[0]) / speed;
     //    tr.ent->monsterinfo.dodge(tr.ent, self, eta.seconds() );
@@ -113,7 +113,7 @@ bool fire_hit(svg_base_edict_t *self, vec3_t aim, int damage, int kick)
         if (!tr.ent->takedamage)
             return false;
         // if it will hit any client/monster then hit the one we wanted to hit
-        if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
+        if ((tr.ent->svFlags & SVF_MONSTER) || (tr.ent->client))
             tr.ent = self->enemy;
     }
 
@@ -126,11 +126,11 @@ bool fire_hit(svg_base_edict_t *self, vec3_t aim, int damage, int kick)
     // do the damage
     SVG_DamageEntity(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MEANS_OF_DEATH_HIT_FIGHTING );
 
-    if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
+    if (!(tr.ent->svFlags & SVF_MONSTER) && (!tr.ent->client))
         return false;
 
     // do our special form of knockback here
-    VectorMA(self->enemy->absmin, 0.5f, self->enemy->size, v);
+    VectorMA(self->enemy->absMin, 0.5f, self->enemy->size, v);
     VectorSubtract(v, point, v);
     VectorNormalize(v);
     VectorMA(self->enemy->velocity, kick, v, self->enemy->velocity);
@@ -223,7 +223,7 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
 
     if ( !( tr.ent ) 
         || ( tr.ent != g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ )
-        || ( !(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client) )) {
+        || ( !(tr.ent->svFlags & SVF_MONSTER) && (!tr.ent->client) )) {
         //gi.dprintf( "%s: no monster flag set for '%s' ?!\n", __func__, tr.ent->classname );
         return false;
     }
@@ -232,7 +232,7 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
 
     if ( tr.ent != nullptr && ( tr.ent != g_edict_pool.EdictForNumber( 0 ) /* worldspawn */ ) ) {
         // Do our special form of knockback here
-        VectorMA( tr.ent->absmin, 0.5f, tr.ent->size, v );
+        VectorMA( tr.ent->absMin, 0.5f, tr.ent->size, v );
         VectorSubtract( v, point, v );
         VectorNormalize( v );
         VectorMA( tr.ent->velocity, kick, v, tr.ent->velocity );

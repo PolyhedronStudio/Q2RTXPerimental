@@ -68,5 +68,5 @@ void SP_func_timer( svg_base_edict_t *self ) {
         self->activator = self;
     }
 
-    self->svflags = SVF_NOCLIENT;
+    self->svFlags = SVF_NOCLIENT;
 }

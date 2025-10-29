@@ -35,18 +35,15 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 
 	out->number = in->number;
 	out->entityType = in->entityType;
+	out->otherEntityNumber = in->otherEntityNumber;
 
 	//out->client = in->client;
-	out->origin[ 0 ] = in->origin[ 0 ]; //COORD2SHORT( in->origin[ 0 ] ); // WID: float-movement
-	out->origin[ 1 ] = in->origin[ 1 ]; //COORD2SHORT( in->origin[ 1 ] ); // WID: float-movement
-	out->origin[ 2 ] = in->origin[ 2 ]; //COORD2SHORT( in->origin[ 2 ] ); // WID: float-movement
+	out->origin = in->origin;
 	//if ( short_angles ) {
 		//out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
 		//out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
 		//out->angles[ 2 ] = ANGLE2SHORT( in->angles[ 2 ] );
-		out->angles[ 0 ] = QM_AngleMod( in->angles[ 0 ] );
-		out->angles[ 1 ] = QM_AngleMod( in->angles[ 1 ] );
-		out->angles[ 2 ] = QM_AngleMod( in->angles[ 2 ] );
+		out->angles = QM_Vector3AngleMod( in->angles );
 	//} else {
 	//	// pack angles8 akin to angles16 to make delta compression happy when
 	//	// precision suddenly changes between entity updates
@@ -54,9 +51,7 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	//	out->angles[ 1 ] = ANGLE2BYTE( in->angles[ 1 ] ) << 8;
 	//	out->angles[ 2 ] = ANGLE2BYTE( in->angles[ 2 ] ) << 8;
 	//}
-	out->old_origin[ 0 ] = in->old_origin[ 0 ]; //COORD2SHORT( in->old_origin[ 0 ] ); // WID: float-movement
-	out->old_origin[ 1 ] = in->old_origin[ 1 ]; //COORD2SHORT( in->old_origin[ 1 ] ); // WID: float-movement
-	out->old_origin[ 2 ] = in->old_origin[ 2 ]; //COORD2SHORT( in->old_origin[ 2 ] ); // WID: float-movement
+	out->old_origin = in->old_origin; //COORD2SHORT( in->old_origin[ 0 ] ); // WID: float-movement
 	out->modelindex = in->modelindex;
 	out->modelindex2 = in->modelindex2;
 	out->modelindex3 = in->modelindex3;
@@ -67,7 +62,7 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 
 	out->solid = in->solid;
 	out->bounds.u = in->bounds;
-	out->clipmask = in->clipmask;
+	out->clipMask = in->clipMask;
 	out->hullContents = in->hullContents;
 	out->ownerNumber = in->ownerNumber;
 
@@ -75,7 +70,8 @@ void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
 	out->old_frame = in->old_frame;
 	out->sound = in->sound;
 	out->event = in->event;
-	out->eventParm = in->eventParm;
+	out->eventParm0 = in->eventParm0;
+	out->eventParm1 = in->eventParm1;
 
 	// ET_SPOTLIGHT:
 	out->rgb[ 0 ] = in->spotlight.rgb[ 0 ];
@@ -124,6 +120,7 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	// send an update
 	uint64_t bits = 0;
 
+
 	//if ( to->client != from->client ) {
 	//	bits |= U_CLIENT;
 	//}
@@ -156,6 +153,9 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( to->entityType != from->entityType ) {
 		bits |= U_ENTITY_TYPE;
 	}
+	if ( to->otherEntityNumber != from->otherEntityNumber ) {
+		bits |= U_OTHER_ENTITY_NUMBER;
+	}
 	if ( to->frame != from->frame ) {
 		bits |= U_FRAME;
 	}
@@ -176,7 +176,7 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( to->bounds.u != from->bounds.u ) {
 		bits |= U_BOUNDINGBOX;
 	}
-	if ( to->clipmask != from->clipmask ) {
+	if ( to->clipMask != from->clipMask ) {
 		bits |= U_CLIPMASK;
 	}
 	if ( to->hullContents != from->hullContents ) {
@@ -205,13 +205,17 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( to->sound != from->sound ) {
 		bits |= U_SOUND;
 	}
-	// event is not delta compressed, just 0 compressed
-	if ( to->event ) {
+	// <Q2RTXP>: WID: WRONG, it now is :-P "event is not delta compressed, just 0 compressed".
+	if ( to->event != from->event ) {
 		bits |= U_EVENT;
 	}
 	// event is not delta compressed, just 0 compressed
-	if ( to->eventParm ) {
-		bits |= U_EVENT_PARM;
+	if ( to->eventParm0 /*!= from->eventParm */) {
+		bits |= U_EVENT_PARM_0;
+	}
+	// event is not delta compressed, just 0 compressed
+	if ( to->eventParm1 /*!= from->eventParm */ ) {
+		bits |= U_EVENT_PARM_1;
 	}
 
 	if ( to->renderfx & RF_FRAMELERP ) {
@@ -296,7 +300,10 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	}
 
 	if ( bits & U_ENTITY_TYPE ) {
-		MSG_WriteUint8( to->entityType );
+		MSG_WriteUintBase128( to->entityType );
+	}
+	if ( bits & U_OTHER_ENTITY_NUMBER ) {
+		MSG_WriteUintBase128( to->otherEntityNumber );
 	}
 
 	if ( bits & U_FRAME ) {
@@ -320,12 +327,14 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	}
 
 	if ( bits & U_EVENT ) {
-		MSG_WriteUintBase128( to->event );
+		MSG_WriteIntBase128( to->event );
 	}
-	if ( bits & U_EVENT_PARM ) {
-		MSG_WriteIntBase128( to->eventParm );
+	if ( bits & U_EVENT_PARM_0 ) {
+		MSG_WriteIntBase128( to->eventParm0 );
 	}
-
+	if ( bits & U_EVENT_PARM_1 ) {
+		MSG_WriteIntBase128( to->eventParm1 );
+	}
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
 		MSG_WriteUintBase128( to->solid );
@@ -335,7 +344,7 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	}
 	if ( bits & U_CLIPMASK ) {
 		// WID: upgr-solid: WriteLong by default.
-		MSG_WriteUintBase128( to->clipmask );
+		MSG_WriteUintBase128( to->clipMask );
 	}
 	if ( bits & U_HULL_CONTENTS ) {
 		// WID: upgr-solid: WriteLong by default.

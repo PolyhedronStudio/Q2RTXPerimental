@@ -60,7 +60,7 @@ void _become_( svg_base_edict_t *self ) {
 void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) {
     // bmodel origins are (0 0 0), we need to adjust that here
     const Vector3 size = Vector3( self->size ) * 0.5f; // VectorScale( self->size, 0.5f, size );
-    const Vector3 origin = Vector3( self->absmin ) + size; // VectorAdd( self->absmin, size, origin );
+    const Vector3 origin = Vector3( self->absMin ) + size; // VectorAdd( self->absMin, size, origin );
     VectorCopy( origin, self->s.origin );
 
     // Take damage no more.
@@ -192,7 +192,7 @@ void func_breakable_spawn_on_trigger( svg_base_edict_t *self, svg_base_edict_t *
 	// Solid now that it's destroyable.
     self->solid = SOLID_BSP;
 	// Enable entity to be send to clients.
-    self->svflags &= ~SVF_NOCLIENT;
+    self->svFlags &= ~SVF_NOCLIENT;
     // Unset the use callback.
     self->SetUseCallback( nullptr );
     // Set pain.
@@ -245,7 +245,7 @@ void func_breakable_onsignalin( svg_base_edict_t *self, svg_base_edict_t *other,
         self->SetUseCallback( nullptr );
 		//self->pain = nullptr;
 		//self->takedamage = DAMAGE_NO;
-        self->svflags &= ~SVF_NOCLIENT;
+        self->svFlags &= ~SVF_NOCLIENT;
 
         // Spawn as usual.
         // Set pain.
@@ -330,11 +330,11 @@ void SP_func_breakable( svg_base_edict_t *self ) {
     self->SetOnSignalInCallback( func_breakable_onsignalin );
 
     // Always clip to hull.
-    self->svflags |= SVF_HULL;
+    self->svFlags |= SVF_HULL;
 
     // Spawn after being triggered instead of immediately at level start:
     if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_SPAWN_ON_TRIGGER ) ) {
-        self->svflags |= SVF_NOCLIENT;
+        self->svFlags |= SVF_NOCLIENT;
         self->solid = SOLID_NOT;
         self->SetUseCallback( func_breakable_spawn_on_trigger );
     // Spawned immediately:

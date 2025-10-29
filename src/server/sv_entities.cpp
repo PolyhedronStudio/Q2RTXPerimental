@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "server/sv_server.h"
 #include "server/sv_entities.h"
-
+#include "shared/server/sv_game.h"
 /*
 =============================================================================
 
@@ -246,225 +246,359 @@ Build a client frame structure
 
 =============================================================================
 */
+/**
+*   @brief  True if the entity should be skipped from being sent the given entity.
+**/
+static inline const bool SV_SendClientIDSkipCheck( sv_edict_t *ent, const int32_t frameClientNumber ) {
+    /**
+    *   Entities can be flagged to explicitly not be sent to the client.
+    **/
+    if ( ent->svFlags & SVF_NOCLIENT ) {
+        return true;
+    }
+    /**
+    *   Entities can be flagged to be sent to only one client.
+    **/
+    if ( ent->svFlags & SVF_SENDCLIENT_SEND_TO_ID ) {
+		// Don't skip if this is the client to send to.
+		if ( ent->sendClientID == frameClientNumber ) {
+            return false;
+        }
+    }
+    /**
+    *   Entities can be flagged to be sent to everyone but one client.
+    **/
+    if ( ent->svFlags & SVF_SENDCLIENT_EXCLUDE_ID ) {
+		// Skip if this is the excluded client.
+        if ( ent->sendClientID != frameClientNumber ) {
+            return true;
+        }
+    }
+    /**
+    *   Entities can be flagged to be sent to a given mask of clients.
+    **/
+    if ( ent->svFlags & SVF_SENDCLIENT_BITMASK_IDS ) {
+        if ( frameClientNumber == SENDCLIENT_TO_ALL ) {
+			Com_Error( ERR_DROP, "SVF_CLIENTMASK: SENDCLIENT_TO_ALL used with BITMASK\n" );
+            return false;
+        }
+        if ( frameClientNumber >= 32 ) {
+            Com_Error( ERR_DROP, "SVF_CLIENTMASK: cientNum >= 32\n" );
+            return false;
+        }
+		// Skip if the bit is not set for this client.
+        if ( !( ent->sendClientID & ( 1ULL << frameClientNumber ) ) ) {
+            return true;
+		}
+    }
 
-/*
-=============
-SV_BuildClientFrame
+	// Default: do not skip.
+    return false;
+}
 
-Decides which entities are going to be visible to the client, and
-copies off the playerstat and areabits.
-=============
-*/
+/**
+*   @brief  Determines if the entity is hearable to the client based on PHS.
+**/
+static inline const bool SV_CheckEntityHearableInFrame( sv_edict_t *ent, const Vector3 &viewOrg ) {
+    if ( !ent->s.modelindex && !( ent->s.effects & EF_SPOTLIGHT ) ) {
+        vec3_t delta;
+        double len;
+
+        VectorSubtract( viewOrg, ent->s.origin, delta );
+        len = VectorLength( delta );
+        if ( len > 400. ) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
+*   @brief  Determines if an entity is visible to the client based on PVS/PHS.
+**/
+static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &viewOrigin, cm_t *cm, const int32_t clientCluster, const int32_t clientArea, byte *clientPVS, byte *clientPHS, const int32_t cullNonVisibleEntities ) {
+    /**
+    *   Check area visibility:
+    **/
+    if ( clientCluster >= 0 && !CM_AreasConnected( cm, clientArea, ent->areaNumber0 ) ) {
+        // Doors can legally straddle two areas, so we may need to check another one.
+        if ( !CM_AreasConnected( cm, clientArea, ent->areaNumber0 ) ) {
+            // Blocked by a door.
+            return false;
+        }
+    /**
+    *   If visible by area:
+    **/ 
+    } else { 
+        if ( cullNonVisibleEntities ) {
+            // Too many leafs for individual check, go by headNode:
+            if ( ent->numberOfClusters == -1 ) {
+                // Does the client's PVS touch the ent's headnode?
+                if ( !CM_HeadnodeVisible( CM_NodeForNumber( cm, ent->headNode ), clientPVS ) ) {
+                    // Not visible
+                    return false;
+                }
+            } else {
+                // Check individual leafs.
+                int32_t i = 0;
+                for ( i = 0; i < ent->numberOfClusters; i++ ) {
+                    // Visible in one leaf?
+                    if ( Q_IsBitSet( clientPVS, ent->clusterNumbers[ i ] ) ) {
+                        break;
+                    }
+                }
+                // Not visible in any leaf.
+                if ( i == ent->numberOfClusters ) {
+                    // Not visible.
+                    return false;
+                }
+            }
+        }
+
+        /**
+        *   Don't send sounds if they will be attenuated away.
+        **/
+        if ( !SV_CheckEntityHearableInFrame( ent, viewOrigin ) ) {
+            return false;
+		}
+    }
+
+    return true;
+}
+
+/**
+*   @brief  Decides which entities are going to be visible to the client, and
+*           copies off the playerstat and areabits.
+**/
 void SV_BuildClientFrame(client_t *client)
 {
-    int         e, i;
-    vec3_t      org;
+    int32_t i = 0;
     sv_edict_t     *ent;
-    sv_edict_t     *clent;
-    sv_client_frame_t  *frame;
     entity_packed_t *state;
-    player_state_t  *ps;
 	entity_state_t  es;
-    int         clientarea, clientcluster;
-    mleaf_t     *leaf;
-    static byte        clientphs[VIS_MAX_BYTES];
-    memset( clientphs, 0, sizeof( clientphs ) );
-    static byte        clientpvs[VIS_MAX_BYTES];
-    memset( clientphs, 0, sizeof( clientpvs ) );
-    bool    ent_visible;
-    int cull_nonvisible_entities = Cvar_Get("sv_cull_nonvisible_entities", "1", CVAR_CHEAT)->integer;
+    static byte        clientPHS[VIS_MAX_BYTES];
+    memset( clientPHS, 0, sizeof( clientPHS ) );
+    static byte        clientPVS[VIS_MAX_BYTES];
+    memset( clientPHS, 0, sizeof( clientPVS ) );
+    bool    entityVisibleForFrame;
+    int cullNonVisibleEntities = Cvar_Get("sv_cull_nonvisible_entities", "1", CVAR_CHEAT)->integer;
     bool        need_clientnum_fix;
 
-    clent = EDICT_FOR_NUMBER( client->number + 1 ); //client->edict;
-    if (!clent->client)
-        return;        // not in game yet
+	/**
+    *   Get the client's edict.
+    **/
+    sv_edict_t *clent = EDICT_FOR_NUMBER( client->number + 1 ); //client->edict;
+    // Not in game yet.
+    if ( !clent->client ) {
+        return;        
+    }
 
-    // this is the frame we are creating
-    frame = &client->frames[client->framenum & UPDATE_MASK];
+    /**
+    *   This is the frame we are creating
+    **/
+	// Get the frame for this client.
+    sv_client_frame_t *frame = &client->frames[ client->framenum & UPDATE_MASK ];
+	// Set the frame number that we're at for this specific client.
     frame->number = client->framenum;
-    frame->sentTime = com_eventTime; // save it for ping calc later
-    frame->latency = -1; // not yet acked
+    // Save it for ping calc later.
+    frame->sentTime = com_eventTime;
+	// Not yet 'acked', (will be set later).
+    frame->latency = -1;
 
+	// Make sure to increment the count of sent frames
     client->frames_sent++;
 
-    // find the client's PVS
-    ps = &clent->client->ps;
-	VectorAdd( ps->viewoffset, ps->pmove.origin, org );
+    /**
+	*   Find the client's PVS to determine potentially visible entities
+    **/
+    player_state_t *ps = &clent->client->ps;
+	// Add the viewoffset to the pmove origin to get the full view position.
+    Vector3 viewOrigin = ps->pmove.origin + ps->viewoffset; //VectorAdd( ps->viewoffset, ps->pmove.origin, org );
+    // Also make sure to add the actual viewheight to the origin.
+    viewOrigin.z += ps->pmove.viewheight;
 
-    // Add the actual viewoffset to the origin.
-    org[ 2 ] += ps->pmove.viewheight;
+    /**
+	*   Determine the leaf and area/cluster the client is currently in.
+    **/
+    mleaf_t *leaf = CM_PointLeaf( client->cm, &viewOrigin.x );
+    const int32_t clientArea = leaf->area;
+    const int32_t clientCluster = leaf->cluster;
 
-    leaf = CM_PointLeaf(client->cm, org);
-    clientarea = leaf->area;
-    clientcluster = leaf->cluster;
-
-    // calculate the visible areas
-    frame->areabytes = CM_WriteAreaBits(client->cm, frame->areabits, clientarea);
+    /**
+	*   Calculate the visible areas for the client and write them to the frame.
+    **/
+    // Calculate the visible areas.
+    frame->areabytes = CM_WriteAreaBits( client->cm, frame->areabits, clientArea );
+	// If no area bits were calculated, make sure at least one byte is set.
+	// (All areas visible).
     if (!frame->areabytes/* && client->protocol != PROTOCOL_VERSION_Q2PRO*/) {
         frame->areabits[0] = 255;
         frame->areabytes = 1;
     }
 
+    /**
+	*   Pack up the current player_state_t, and ensure the frame has the correct clientNum.
+    **/
     // grab the current player_state_t
     MSG_PackPlayer(&frame->ps, ps);
 
-    // grab the current clientNum
+    // Grab the entity's client's current clientNum
     if (g_features->integer & GMF_CLIENTNUM) {
+		// Assign the clientNum from the entity's client structure.
         frame->clientNum = clent->client->clientNum;
+		// If the clientNum is invalid, fix it.
         if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
-            Com_WPrintf("%s: bad clientNum %d for client %d\n",
-                        __func__, frame->clientNum, client->number);
+            Com_WPrintf("%s: bad clientNum " PRId32 " for client " PRId32 "\n",
+                        __func__, frame->clientNum, client->number );
+			// Fix the clientNum.
             frame->clientNum = client->number;
         }
+    // Otherwise, hard-assign it from the client number.
     } else {
         // <Q2RTXP>: WID: TODO: Do we need this? Probably best to test on dedicated server then.
-        //frame->clientNum = clent->client->clientNum;;
         frame->clientNum = client->number;
     }
-
-    // fix clientNum if out of range for older version of Q2PRO protocol
-    //need_clientnum_fix = client->protocol == PROTOCOL_VERSION_Q2PRO
-    //    && client->version < PROTOCOL_VERSION_Q2PRO_CLIENTNUM_SHORT
-    //    && frame->clientNum >= CLIENTNUM_NONE;
+    // Remember to fix clientNum if out of range for older version of Q2PRO protocol.
     if ( frame->clientNum >= CLIENTNUM_NONE ) {
         need_clientnum_fix = true;
     } else {
         need_clientnum_fix = false;
     }
 
-	if (clientcluster >= 0)
-	{
-		CM_FatPVS(client->cm, clientpvs, org, DVIS_PVS2);
-		client->last_valid_cluster = clientcluster;
+    /**
+	*   Determine the PVS and PHS for the client.
+    **/
+	// If the client is in a valid cluster, calc full PVS.
+	if ( clientCluster >= 0 ) {
+		CM_FatPVS( client->cm, clientPVS, &viewOrigin.x, DVIS_PVS2 );
+		client->last_valid_cluster = clientCluster;
+    // PVS:
+	} else {
+		BSP_ClusterVis( client->cm->cache, clientPVS, client->last_valid_cluster, DVIS_PVS2 );
 	}
-	else
-	{
-		BSP_ClusterVis(client->cm->cache, clientpvs, client->last_valid_cluster, DVIS_PVS2);
-	}
+    // PHS:
+    BSP_ClusterVis( client->cm->cache, clientPHS, clientCluster, DVIS_PHS );
 
-    BSP_ClusterVis(client->cm->cache, clientphs, clientcluster, DVIS_PHS);
-
-    // build up the list of visible entities
+    /**
+	*   Now build the list of visible entities for this client frame.
+    **/
+	// Start with no entities.
     frame->num_entities = 0;
+	// Set the first entity index for this frame.
     frame->first_entity = svs.next_entity;
-
-    for (e = 1; e < client->pool->num_edicts; e++) {
-        ent = EDICT_POOL(client, e);
-
+	// Iterate all server entities, starting at 1. (World == 0 ).
+    int32_t entityNumber = 1;
+    for ( entityNumber = 1; entityNumber < client->pool->num_edicts; entityNumber++ ) {
+		// Get the entity.
+        ent = EDICT_POOL( client, entityNumber );
         // ignore entities not in use
-        if (!ent->inuse && (g_features->integer & GMF_PROPERINUSE)) {
+        if ( !ent->inUse && ( g_features->integer & GMF_PROPERINUSE ) ) {
             continue;
         }
 
-        // ignore ents without visible models
-        if (ent->svflags & SVF_NOCLIENT)
+        /**
+        *   Determine whether the entity should be sent to this client.
+        **/
+        if ( SV_SendClientIDSkipCheck( ent, frame->clientNum ) ) {
             continue;
-
-        // ignore ents without visible models unless they have an effect
-        if (!ent->s.modelindex && !ent->s.effects && !ent->s.sound) {
-            if (!ent->s.event) {
+		}
+        /**
+		*   Ignore ents without visible models if they have no effects, sound or events.
+        **/
+        if ( !ent->s.modelindex && !ent->s.effects && !ent->s.sound ) {
+            if ( !ent->s.event ) {
                 continue;
             }
         }
+        /**
+        *   Determine whether the entity is visible at all, or not:
+        **/
+        entityVisibleForFrame = true;
 
-        ent_visible = true;
+        /**
+		*   If we are not the entity's own client:
+        *   Check PVS/PHS for visibility, and ignore if not touching a PV leaf.
+        **/
+        if ( ent != clent ) {
 
-        // ignore if not touching a PV leaf
-        if (ent != clent) {
-            // check area
-			if (clientcluster >= 0 && !CM_AreasConnected(client->cm, clientarea, ent->areanum)) {
-                // doors can legally straddle two areas, so
-                // we may need to check another one
-                if (!CM_AreasConnected(client->cm, clientarea, ent->areanum2)) {
-                    ent_visible = false;        // blocked by a door
-                }
-            }
+            entityVisibleForFrame = SV_CheckEntityInFrame( 
+                ent, viewOrigin, 
+                client->cm, clientCluster, clientArea,
+                clientPVS, clientPHS, 
+                cullNonVisibleEntities 
+            );
 
-            if (ent_visible)
-            {
-                // beams just check one point for PHS
-                if ( ent->s.entityType == ET_BEAM || ent->s.renderfx & RF_BEAM) {
-                    if (!Q_IsBitSet(clientphs, ent->clusternums[0]))
-                        ent_visible = false;
-                }
-                else {
-                    if (cull_nonvisible_entities) {
-                        if (ent->num_clusters == -1) {
-                            // too many leafs for individual check, go by headnode
-                            if (!CM_HeadnodeVisible(CM_NodeForNumber(client->cm, ent->headnode), clientpvs))
-                                ent_visible = false;
-                        } else {
-                            // check individual leafs
-                            for (i = 0; i < ent->num_clusters; i++)
-                                if (Q_IsBitSet(clientpvs, ent->clusternums[i]))
-                                    break;
-                            if (i == ent->num_clusters)
-                                ent_visible = false;       // not visible
-                        }
-                    }
 
-                    if ( !ent->s.modelindex && !( ent->s.effects & EF_SPOTLIGHT ) ) {
-                        // don't send sounds if they will be attenuated away
-                        vec3_t    delta;
-                        float    len;
-
-                        VectorSubtract(org, ent->s.origin, delta);
-                        len = VectorLength(delta);
-                        if (len > 400)
-                            ent_visible = false;
-                    }
-                }
-            }
         }
 
-        if(!ent_visible && (!sv_novis->integer || !ent->s.modelindex))
+        /**
+		*   Skip if the entity is not visible, and sv_novis is set, or the entity has no model.
+        **/
+        if ( !entityVisibleForFrame && ( !sv_novis->integer || !ent->s.modelindex ) ) {
             continue;
-        
-		if (ent->s.number != e) {
-			Com_WPrintf("%s: fixing ent->s.number: %d to %d\n",
-				__func__, ent->s.number, e);
-			ent->s.number = e;
+        }
+
+        /**
+		*   If the entity number is different from the current iteration, fix it.
+        **/
+		if ( ent->s.number != entityNumber ) {
+			Com_WPrintf( "%s: fixing ent->s.number: %d to %d\n", __func__, ent->s.number, entityNumber );
+			ent->s.number = entityNumber;
 		}
 
-        es = ent->s;//memcpy(&es, &ent->s, sizeof(entity_state_t));
+        /**
+        *   Copy the of the entity. (So we can modify if needed.)
+        **/
+        es = ent->s;
 
-		if (!ent_visible) {
-			// if the entity is invisible, kill its sound
+        /**
+        *   If the entity is invisible, kill its sound.
+        **/
+		if ( entityVisibleForFrame == false ) {
 			es.sound = 0;
 		}
-
-        // add it to the circular client_entities array
-        state = &svs.entities[svs.next_entity % svs.num_entities];
+        /**
+        *   Add it to the circular client_entities array
+        **/
+        // 
+        state = &svs.entities[ svs.next_entity % svs.num_entities ];
         MSG_PackEntity( state, &es );
 
-        // clear footsteps
-        //if (state->event == EV_FOOTSTEP && client->settings[CLS_NOFOOTSTEPS]) {
-        //    state->event = 0;
-        //}
-
-        // hide POV entity from renderer, unless this is player's own entity
-        if (e == frame->clientNum + 1 && ent != clent &&
+        /**
+        *   Hide POV entity from renderer, unless this is player's own entity.
+        **/
+        if ( entityNumber == frame->clientNum + 1 && ent != clent &&
             (/*!Q2PRO_OPTIMIZE(client) || */need_clientnum_fix)) {
             state->modelindex = 0;
         }
 
-		// don't mark players missiles as solid
+        /**
+		*   Don't mark players missiles( or other owner entities ) as solid.
+        **/
         if (ent->owner == clent) {
             state->solid = SOLID_NOT;
         // WID: netstuff: longsolid
 		// else if (client->esFlags & MSG_ES_LONGSOLID) {
         } else {
-            state->solid = sv.entities[ e ].solid32;
+            state->solid = sv.entities[ entityNumber ].solid32;
         }
 
+        /**
+		*   Continue or break if we reached max entities for this frame.
+        **/
+		// Increment the circular buffer's 'next_entity' number.
         svs.next_entity++;
-
+		// Increment number of entities in this frame. And break if we reached max.
         if (++frame->num_entities == sv_max_packet_entities->integer ) {
             break;
         }
     }
 
-    if (need_clientnum_fix)
+	// <Q2RTXP>: WID: Do we still need this clientNum fix for older protocol versions?
+	// If needed, fix the clientNum for older protocol versions.
+    if ( need_clientnum_fix ) {
         frame->clientNum = client->slot;
+    }
 }
 

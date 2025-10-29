@@ -77,7 +77,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_multiple_t, onTouch )( svg_trigger_mul
 		if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_NOT_PLAYER ) {
 			return;
 		}
-	} else if ( other->svflags & SVF_MONSTER ) {
+	} else if ( other->svFlags & SVF_MONSTER ) {
 		if ( !( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_MONSTER ) ) {
 			return;
 		}
@@ -149,6 +149,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_trigger_multiple_t, onSpawn ) ( svg_trigger_mu
 	}
 
 	if ( self->spawnflags & svg_trigger_multiple_t::SPAWNFLAG_BRUSH_CLIP ) {
-		self->svflags |= SVF_HULL;
+		self->svFlags |= SVF_HULL;
 	}
 }

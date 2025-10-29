@@ -44,11 +44,11 @@ svg_base_edict_t *SVG_Entities_Find( svg_base_edict_t *from, const int32_t field
     const int32_t startIndex = ( from ? from->s.number + 1 : 0 );
 
     //for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
-    //    if ( !from || !from->inuse ) {
+    //    if ( !from || !from->inUse ) {
 	for ( int32_t i = startIndex; i < g_edict_pool.num_edicts; i++ ) {
         from = g_edict_pool.EdictForNumber( i );
 
-        if ( !from || !from->inuse ) {
+        if ( !from || !from->inUse ) {
             continue;
         }
         s = *(char **)( (byte *)from + fieldofs );
@@ -78,10 +78,10 @@ svg_base_edict_t *SVG_Entities_FindWithinRadius( svg_base_edict_t *from, const V
     const int32_t startIndex = ( from ? from->s.number + 1 : 0 );
 
     //for ( ; from < &g_edicts[ globals.edictPool->num_edicts ]; from++ ) {
-    //    if ( !from || !from->inuse ) {
+    //    if ( !from || !from->inUse ) {
     for ( int32_t i = startIndex; i < g_edict_pool.num_edicts; i++ ) {
         from = g_edict_pool.EdictForNumber( i );
-        if ( !from || !from->inuse ) {
+        if ( !from || !from->inUse ) {
             continue;
         }
         if ( from->solid == SOLID_NOT ) {
@@ -162,25 +162,20 @@ void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
 
     gi.unlinkentity( body );
 
-    body->s.number = g_edict_pool.NumberForEdict( body );//body - g_edicts;
-    VectorCopy( ent->s.origin, body->s.origin );
-    VectorCopy( ent->s.origin, body->s.old_origin );
-    VectorCopy( ent->s.angles, body->s.angles );
-    body->s.modelindex = ent->s.modelindex;
-    body->s.frame = ent->s.frame;
-    body->s.skinnum = ent->s.skinnum;
-    body->s.event = EV_OTHER_TELEPORT;
-
-    body->svflags = ent->svflags;
-    VectorCopy( ent->mins, body->mins );
-    VectorCopy( ent->maxs, body->maxs );
-    VectorCopy( ent->absmin, body->absmin );
-    VectorCopy( ent->absmax, body->absmax );
-    VectorCopy( ent->size, body->size );
+    const int32_t bodyEntityNumber =  g_edict_pool.NumberForEdict( body );//body - g_edicts;
+    body->s = ent->s;
+    body->s.number = bodyEntityNumber;
+        
+    body->svFlags = ent->svFlags;
+    body->mins = ent->mins;
+    body->maxs = ent->maxs;
+    body->absMin = ent->absMin;
+    body->absMax = ent->absMax;
+    body->size = ent->size;
     body->velocity = ent->velocity;
     body->avelocity = ent->avelocity;
     body->solid = ent->solid;
-    body->clipmask = ent->clipmask;
+    body->clipMask = ent->clipMask;
     body->owner = ent->owner;
     body->movetype = ent->movetype;
     body->groundInfo.entity = ent->groundInfo.entity;
@@ -189,6 +184,9 @@ void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
 
     body->SetDieCallback( body_die );
     body->takedamage = DAMAGE_YES;
+
+    // Apply teleport event.
+    SVG_Util_AddEvent( body, EV_OTHER_TELEPORT, 0 ); //body->s.event = EV_OTHER_TELEPORT;
 
     gi.linkentity( body );
 }
