@@ -72,8 +72,7 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	if ( playerState->externalEvent ) {
 		entityState->event = playerState->externalEvent;
 		entityState->eventParm0 = playerState->externalEventParm0;
-		// We only have a single parm in player_state_t for events, so set the second to 0.
-		entityState->eventParm1 = 0; // playerState->externalEventParm1;
+		entityState->eventParm1 = playerState->externalEventParm1;
 	// Otherwise, check for PMove generated events.
 	} else if ( playerState->entityEventSequence < playerState->eventSequence ) {
 		// Don't allow events to be generated if they are too old.
@@ -86,7 +85,7 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 		// Set the event.
 		entityState->event = playerState->events[ eventSequence ] | ( ( playerState->entityEventSequence & 3 ) << 8 );
 		entityState->eventParm0 = playerState->eventParms[ eventSequence ];
-		entityState->eventParm1 = 0; // = playerState->eventParms[ eventSequence ];
+		entityState->eventParm1 = 0; // playerState->eventParms1[ eventSequence ];
 
 		// Increment event sequence.
 		playerState->entityEventSequence++;

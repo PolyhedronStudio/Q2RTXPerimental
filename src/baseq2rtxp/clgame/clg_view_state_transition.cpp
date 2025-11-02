@@ -201,7 +201,7 @@ static void CLG_LerpPointOfView( player_state_t *ops, player_state_t *ps, const 
     *   Calculate appropriate fov for use.
     **/
     clgi.client->fov_x = lerp_client_fov( oldFOV, ps->fov, easeLerpFactor );
-    clgi.client->fov_y = PF_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
+    clgi.client->fov_y = CLG_CalculateFieldOfView( clgi.client->fov_x, 4, 3 );
 }
 /**
 *   @brief  Lerp the client's viewOffset.
@@ -254,7 +254,7 @@ static void CLG_LerpScreenBlend( player_state_t *ops, player_state_t *ps, client
 *           Usually called from CL_PrepareViewEntities, but may be directly called from the main
 *           loop if rendering is disabled but sound is running.
 **/
-void PF_CalculateViewValues( void ) {
+void CLG_CalculateViewValues( void ) {
     // Store the final view offset.
     Vector3 finalViewOffset = QM_Vector3Zero();
 
@@ -272,7 +272,7 @@ void PF_CalculateViewValues( void ) {
 
     // calculate the origin
     //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
-    const int32_t usePrediction = PF_UsePrediction();
+    const int32_t usePrediction = CLG_UsePrediction();
     if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
         // Backlerp fraction for the error.
         const double backLerp = lerpFrac - 1.0;

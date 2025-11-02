@@ -268,10 +268,15 @@ static float a1, a2, b0, b1, b2;
 
 // Implements "high shelf" biquad filter. This is what OpenAL Soft uses for
 // AL_FILTER_LOWPASS.
-static void s_underwater_gain_hf_changed(cvar_t *self)
+static void s_underwater_gain_hf_changed(float hfGain)
 {
     float f0norm = 5000.0f / dma.speed;
-    float gain = Cvar_ClampValue(self, 0, 1);
+    if ( hfGain < 0 ) {
+        hfGain = 0;
+    } else if ( hfGain > 1 ) {
+        hfGain = 1;
+	}
+    float gain = hfGain;
 
     // Limit to -60dB
     gain = max(gain, 0.001f);
@@ -585,8 +590,8 @@ static bool DMA_Init(void)
     if (ret != SIS_SUCCESS)
         return false;
 
-    s_underwater_gain_hf->changed = s_underwater_gain_hf_changed;
-    s_underwater_gain_hf_changed(s_underwater_gain_hf);
+    //s_underwater_gain_hf->changed = s_underwater_gain_hf_changed;
+    s_underwater_gain_hf_changed(0.25f);
 
     s_volume->changed = s_volume_changed;
     s_volume_changed(s_volume);
@@ -603,7 +608,6 @@ static void DMA_Shutdown(void)
     snddma.shutdown();
     s_numchannels = 0;
 
-    s_underwater_gain_hf->changed = NULL;
     s_volume->changed = NULL;
 }
 

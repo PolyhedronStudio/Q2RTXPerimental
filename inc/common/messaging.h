@@ -47,96 +47,10 @@ typedef union bounds_packed_u {
 	uint32_t u;
 } bounds_packed_t;
 
-
-/**
-*	@brief	entity and player states are pre-quantized before sending to make delta
-*			comparsion easier.
-**/
-typedef struct {
-	uint16_t    number;
-	uint8_t		entityType;
-	uint16_t	otherEntityNumber;
-
-	Vector3		origin;
-	Vector3		angles;
-	Vector3		old_origin;
-
-	//! Solid for collision prediction.
-	cm_solid_t solid;
-	//! The bounding box for the solid's hull type, also needed for collision prediction.
-	bounds_packed_t bounds;
-	//! Clipmask for collision prediction.
-	int32_t clipMask;
-	//! Hull Contents for collision prediction.
-	cm_contents_t hullContents;
-	//! Entity which owns this entity, for collision prediction.
-	int32_t ownerNumber;
-
-
-	uint32_t	modelindex;
-	uint32_t	modelindex2;
-	uint32_t	modelindex3;
-	uint32_t	modelindex4;
-
-	uint32_t    skinnum;
-	uint32_t    renderfx;
-	uint32_t    effects;
-
-	uint32_t    frame;
-	uint32_t	old_frame;
-
-	uint16_t    sound;
-
-	int32_t		event;
-	int32_t		eventParm0, eventParm1; // Belong to 'event'.
-
-	// Spotlights
-	Vector3 rgb;
-	float intensity;
-	float angle_width;
-	float angle_falloff;
-} entity_packed_t;
-
-/**
-*	@brief	entity and player states are pre-quantized before sending to make delta
-*			comparsion easier.
-**/
-typedef struct {
-	pmove_state_t   pmove;
-
-	vec3_t			viewangles;
-
-	int16_t			viewoffset[3];	// WID: new-pmove int8_t          viewoffset[3];
-	int16_t			kick_angles[3];	// WID: new-pmove int8_t          kick_angles[3];
-
-	// WID: Moved to CLGame.
-	//int16_t		gunangles[3]; // WID: new-pmove //int8_t          gunangles[3];
-	// WID: Moved to CLGame.
-	//int16_t		gunoffset[3]; // WID: new-pmove //int8_t          gunoffset[3];
-
-	uint32_t		gunModelIndex;
-	uint8_t			gunAnimationID;
-	//uint8_t         damage_blend[ 4 ];
-	uint8_t         screen_blend[4];
-	uint8_t         fov;
-	int32_t			rdflags;
-	int64_t         stats[MAX_STATS];
-
-	uint8_t			eventSequence;
-	uint8_t			events[ MAX_PS_EVENTS ];
-	uint8_t			eventParms[ MAX_PS_EVENTS ];
-
-	uint8_t			externalEvent;
-	int32_t			externalEventParm0;
-	int32_t			externalEventParm1;
-
-	uint8_t			bobCycle;
-} player_packed_t;
-
 //! Extern access to the 'NULL Baseline' states of entity, player, and user commands.
-extern const entity_packed_t    nullEntityState;
-extern const player_packed_t    nullPlayerState;
-extern const usercmd_t          nullUserCmd;
+extern const entity_state_t	nullEntityState;
+extern const player_state_t	nullPlayerState;
+extern const usercmd_t		nullUserCmd;
 
 /**
 *	@brief	Will encode/pack the mins/maxs bounds into the solid_packet_t uint32_t.
@@ -194,22 +108,6 @@ static inline void MSG_UnpackBoundsUint32( const bounds_packed_t packedBounds, v
 //	MSG_ES_BEAMORIGIN   = (1 << 5),
 //	MSG_ES_REMOVE       = (1 << 7)
 //} msgEsFlags_t;
-
-
-/**
-*
-*   Wire Delta Packing:
-*
-**/
-/**
-*   @brief	Pack a player state(in) encoding it into player_packed_t(out)
-**/
-void    MSG_PackPlayer( player_packed_t *out, const player_state_t *in );
-/**
-*   @brief	Pack an entity state(in) encoding it into entity_packed_t(out)
-**/
-void    MSG_PackEntity( entity_packed_t *out, const entity_state_t *in);
-
 
 
 /**
@@ -389,11 +287,11 @@ void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint6
 /**
 *   @brief Writes the delta values of the entity state.
 **/
-void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags );
+void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to, msgEsFlags_t flags );
 /**
 *   @brief Writes the delta player state.
 **/
-void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to );
+void MSG_WriteDeltaPlayerstate( const player_state_t *from, const player_state_t *to );
 
 
 

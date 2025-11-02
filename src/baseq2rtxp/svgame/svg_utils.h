@@ -55,26 +55,16 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent );
 *           client side: jumppads and item pickups
 *           Adds an event+parm and twiddles the event counter
 **/
-void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm );
+void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const sg_entity_events_t event, const int32_t eventParm );
 /**
 *   @brief Adds an event+parm and twiddles the event counter.
 **/
-void SVG_Util_AddEvent( svg_base_edict_t *ent, const int32_t event, const int32_t eventParm0, const int32_t eventParm1 = 0 );
+void SVG_Util_AddEvent( svg_base_edict_t *ent, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1 = 0 );
 /**
 *   @brief  Adds a temp entity event at the given origin.
 *	@param	snapOrigin	If true, will snap the origin to 13 bits float precision.
 **/
-svg_base_edict_t *SVG_Util_CreateTempEntityEvent( const Vector3 &origin, const int32_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin = false );
-
-/**
-*	@brief	Creates a temp entity event at the entity's given origin.
-*   @note   Uses the entity's origin, or the client pmove origin if a client.
-*           Always players at full volume.
-*           Normal attenuation, and 0 sound offset.
-*	@param	channel	The sound channel to play the sound on.
-*	@param	soundResourceIndex	The sound resource index to play.
-**/
-void SVG_Util_Sound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex );
+svg_base_edict_t *SVG_Util_CreateTempEntityEvent( const Vector3 &origin, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin = false );
 
 
 

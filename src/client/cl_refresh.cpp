@@ -451,6 +451,27 @@ void CL_ShutdownRefresh(void)
 
 // Extern C
 QEXTERN_C_OPEN
+void    CL_RefExport_GetViewOrigin( vec3_t origin ) {
+	VectorCopy( cl.refdef.vieworg, origin );
+}
+void    CL_RefExport_GetFieldOfViewXY( float *fovX, float *fovY ) {
+    *fovX = cl.refdef.fov_x;
+	*fovY = cl.refdef.fov_y;
+}
+const int32_t CL_RefExport_GetMaxClients( void ) {
+    return cl.maxclients;
+}
+const cvar_t *CL_RefExport_GetPlayerModelCvar( void ) {
+    return cl_player_model;
+}
+const qhandle_t CL_RefExport_GetBaseInfoModelHandle( void ) {
+    return cl.baseclientinfo.model;
+}
+// Extern C
+QEXTERN_C_CLOSE
+
+// Extern C
+QEXTERN_C_OPEN
 
 refcfg_t r_config;
 

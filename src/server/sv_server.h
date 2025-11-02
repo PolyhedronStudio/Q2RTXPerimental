@@ -199,8 +199,8 @@ typedef struct {
 	int32_t		num_entities;
     //! Entry index into the first entity_state_t for this client frame.
     uint32_t	first_entity;
-    //! Packed player_state_t.
-    player_packed_t ps;
+    //! player_state_t.
+    player_state_t ps;
     //! Client Number.
     int32_t		clientNum;
 
@@ -430,7 +430,7 @@ typedef struct client_s {
     unsigned            msg_dynamic_bytes;      // total size of dynamic memory allocated
 
     // per-client baseline chunks
-    entity_packed_t *baselines[SV_BASELINES_CHUNKS];
+    entity_state_t  *baselines[SV_BASELINES_CHUNKS];
 
     // server state pointers (hack for MVD channels implementation)
 	configstring_t	*configstrings;
@@ -577,11 +577,11 @@ typedef struct server_static_s {
     bool        initialized;        // sv_init has completed
     uint64_t    realtime;           // always increasing, no clamping, etc
 
-    client_t    *client_pool;   // [maxclients]
+    client_t    *client_pool;       // [maxclients]
 
-    unsigned        num_entities;   // maxclients*UPDATE_BACKUP*MAX_PACKET_ENTITIES
-    unsigned        next_entity;    // next state to use
-    entity_packed_t *entities;      // [num_entities]
+    uint32_t        num_entities;   // maxclients*UPDATE_BACKUP*MAX_PACKET_ENTITIES
+    uint32_t        next_entity;    // next state to use
+    entity_state_t  *entities;      // [num_entities]
 
 #if USE_ZLIB
     z_stream        z;  // for compressing messages at once

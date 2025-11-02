@@ -486,7 +486,7 @@ void SV_InitGame()
     svs.client_pool = static_cast<client_t*>( SV_Mallocz(sizeof(client_t) * sv_maxclients->integer) ); // WID: C++20: Added cast.
 
     svs.num_entities = sv_maxclients->integer * UPDATE_BACKUP * MAX_PACKET_ENTITIES;
-    svs.entities = static_cast<entity_packed_t*>( SV_Mallocz(sizeof(entity_packed_t) * svs.num_entities) ); // WID: C++20: Added cast.
+    svs.entities = static_cast<entity_state_t*>( SV_Mallocz(sizeof( entity_state_t ) * svs.num_entities) ); // WID: C++20: Added cast.
 
     Cvar_ClampInteger(sv_reserved_slots, 0, sv_maxclients->integer - 1);
 

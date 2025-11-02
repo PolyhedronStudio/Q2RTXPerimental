@@ -102,16 +102,26 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( svg_misc_teleporter_onTouch )( svg_base_edict_t *s
         return;
     }
 
+    // use temp events at source and destination to prevent the effect
+    // from getting dropped by a second player event
+    //if ( !self->client->pers.spectator ) {
+    //    tent = G_TempEntity( player->client->ps.origin, EV_PLAYER_TELEPORT_OUT );
+    //    tent->s.clientNum = player->s.clientNum;
+
+    //    tent = G_TempEntity( origin, EV_PLAYER_TELEPORT_IN );
+    //    tent->s.clientNum = player->s.clientNum;
+    //}
+
     // unlink to make sure it can't possibly interfere with SVG_Util_KillBox
     gi.unlinkentity( other );
 
-    VectorCopy( dest->s.origin, other->s.origin );
-    VectorCopy( dest->s.origin, other->s.old_origin );
+    other->s.origin = dest->s.origin;
+    other->s.old_origin = dest->s.origin;
     other->s.origin[ 2 ] += 10;
 
     // clear the velocity and hold them in place briefly
-    VectorClear( other->velocity );
-    other->client->ps.pmove.pm_time = 160 >> 3;     // hold time
+    other->velocity = QM_Vector3Zero();
+    other->client->ps.pmove.pm_time = 14;     // hold time
     other->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
 
     // draw the teleport splash at source and on the player
@@ -153,8 +163,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_teleporter_t, onSpawn ) ( svg_misc_telepo
     //self->s.sound = gi.soundindex("world/amb10.wav");
     self->solid = SOLID_BOUNDS_BOX;
 
-    VectorSet( self->mins, -32, -32, -24 );
-    VectorSet( self->maxs, 32, 32, -16 );
+    self->mins = { -32, -32, -24 };
+    self->maxs = { 32, 32, -16 };
     gi.linkentity( self );
 
     trig = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
@@ -163,8 +173,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_teleporter_t, onSpawn ) ( svg_misc_telepo
     trig->s.entityType = ET_TELEPORT_TRIGGER;
     trig->targetNames.target = self->targetNames.target;
     trig->owner = self;
-    VectorCopy( self->s.origin, trig->s.origin );
-    VectorSet( trig->mins, -8, -8, 8 );
-    VectorSet( trig->maxs, 8, 8, 24 );
+    trig->s.origin = self->s.origin;
+    trig->mins = { -8., -8., 8. };
+    trig->maxs = { 8., 8., 24. };
     gi.linkentity( trig );
 }

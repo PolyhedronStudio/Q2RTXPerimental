@@ -2204,7 +2204,7 @@ prepare_entities(EntityUploadInfo* upload_info)
 	int instance_idx = 0;
 	int iqm_matrix_offset = 0;
 
-	const bool first_person_model = (cl_player_model->integer == CL_PLAYER_MODEL_FIRST_PERSON) && cl.baseclientinfo.model;
+	const bool first_person_model = (CL_RefExport_GetPlayerModelCvar()->integer == CL_PLAYER_MODEL_FIRST_PERSON ) && CL_RefExport_GetBaseInfoModelHandle();
 
 	for (int i = 0; i < vkpt_refdef.fd->num_entities; i++)
 	{

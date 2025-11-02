@@ -28,7 +28,8 @@
 //#define EF_UNUSED_03		BIT( 11 )
 #define EF_HALF_DAMAGE		BIT( 12 )
 #define EF_TELEPORTER		BIT( 13 )		// Particle fountain.
-#define EF_PLAYER_EVENT	    BIT( 14 )
+#define EF_OTHER_ENTITY_EVENT	    BIT( 14 )
+//#define EF_OTHER_ENTITY_EVENT	    BIT( 15 )
 #define EF_UNUSED_15		BIT( 15 )
 #define EF_UNUSED_16		BIT( 16 )
 #define EF_UNUSED_17		BIT( 17 )

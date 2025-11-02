@@ -39,6 +39,8 @@
 #include "shared/shared.h"
 #include "sound.h"
 
+QEXTERN_C_ENCLOSE( cvar_t *fs_game; )
+
 #if defined(__GNUC__)
 // Warnings produced by std_vorbis
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"

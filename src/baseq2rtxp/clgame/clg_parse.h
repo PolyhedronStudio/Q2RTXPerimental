@@ -40,7 +40,7 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage );
 /**
 *	@brief	Parsess entity events.
 **/
-void PF_ParseEntityEvent( const int32_t entityNumber );
+void CLG_ParseEntityEvent( const int32_t entityNumber );
 /**
 *	@brief	Parses a clientinfo configstring.
 **/

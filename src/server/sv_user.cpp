@@ -50,38 +50,45 @@ baseline will be transmitted
 */
 static void SV_CreateBaselines(void)
 {
-    int        i;
-    sv_edict_t    *ent;
-    entity_packed_t *base, **chunk;
+    entity_state_t *base = nullptr;
 
-    // clear baselines from previous level
-    for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
+    // Clear baselines from previous level.
+    for ( int32_t i = 0; i < SV_BASELINES_CHUNKS; i++ ) {
+		// Get the baseline chunk.
         base = sv_client->baselines[i];
-        if (base) {
+		// Clear it if it exists.
+        if ( base ) {
             memset( base, 0, sizeof( *base ) * SV_BASELINES_PER_CHUNK );
         }
     }
 
-    for (i = 1; i < sv_client->pool->num_edicts; i++) {
-        ent = EDICT_POOL(sv_client, i);
+    for ( int32_t i = 1; i < sv_client->pool->num_edicts; i++ ) {
+		// Get the entity from the edict pool for this client.
+        sv_edict_t *ent = EDICT_POOL(sv_client, i);
 
+		// Ignore entities that aren't in use.
         if ((g_features->integer & GMF_PROPERINUSE) && !ent->inUse) {
             continue;
         }
 
+		// Ignore non-baseline entities.
         if (!ES_INUSE(&ent->s)) {
             continue;
         }
 
+		// Set the entity number.
         ent->s.number = i;
 
-        chunk = &sv_client->baselines[i >> SV_BASELINES_SHIFT];
+		// Allocate baseline chunk if needed.
+        entity_state_t **chunk = &sv_client->baselines[i >> SV_BASELINES_SHIFT];
         if (*chunk == NULL) {
-            *chunk = static_cast<entity_packed_t*>( SV_Mallocz(sizeof(*base) * SV_BASELINES_PER_CHUNK) ); // WID: C++20: Added cast.
+            *chunk = static_cast<entity_state_t *>( SV_Mallocz(sizeof(*base) * SV_BASELINES_PER_CHUNK) ); // WID: C++20: Added cast.
         }
 
+		// Set the baseline.
         base = *chunk + (i & SV_BASELINES_MASK);
-        MSG_PackEntity( base, &ent->s );
+		// Copy the entire entity state into the baseline.
+        *base = ent->s;
 
 		// WID: netstuff: This is actually where we should be assigning stuff to our internal local server entities.
 		// WID: netstuff: longsolid
@@ -92,8 +99,8 @@ static void SV_CreateBaselines(void)
 }
 
 
-static void write_baseline( entity_packed_t *base ) {
-	msgEsFlags_t flags = static_cast<msgEsFlags_t>( sv_client->esFlags | MSG_ES_FORCE ); // WID: C++20: Added cast.
+static void write_baseline( entity_state_t *base ) {
+	msgEsFlags_t flags = sv_client->esFlags | MSG_ES_FORCE; // WID: C++20: Added cast.
 
     //if (Q2PRO_SHORTANGLES(sv_client, base->number)) {
     ////// WID: C++20:
@@ -113,43 +120,44 @@ static void write_baseline( entity_packed_t *base ) {
 **/
 static void write_gamestate(void)
 {
-    entity_packed_t  *base;
-    int         i, j;
-    size_t      length;
-    configstring_t        *string;
+	// Write the gamestate message type.
+    MSG_WriteUint8( svc_gamestate );
 
-    MSG_WriteUint8(svc_gamestate);
-
-    // write configstrings
-    string = sv_client->configstrings;
-    for (i = 0; i < MAX_CONFIGSTRINGS; i++) {
-		string = &sv_client->configstrings[i];
-        if (!string[0]) {
+    // Write configstrings.
+    configstring_t *string = sv_client->configstrings;
+    for ( int32_t i = 0; i < MAX_CONFIGSTRINGS; i++ ) {
+        string = &sv_client->configstrings[ i ];
+        if ( !string[ 0 ] ) {
             continue;
         }
-        length = Q_strnlen((const char*)( string ), MAX_CS_STRING_LENGTH );
-        MSG_WriteInt16(i);
-        MSG_WriteData(string, length);
-        MSG_WriteUint8(0);
+        size_t length = Q_strnlen( (const char *)( string ), MAX_CS_STRING_LENGTH );
+        MSG_WriteInt16( i );
+        MSG_WriteData( string, length );
+        MSG_WriteUint8( 0 );
     }
-    MSG_WriteInt16(MAX_CONFIGSTRINGS);   // end of configstrings
-
-    // write baselines
-    for (i = 0; i < SV_BASELINES_CHUNKS; i++) {
-        base = sv_client->baselines[i];
-        if (!base) {
+    MSG_WriteInt16( MAX_CONFIGSTRINGS );
+    // -- End of configstrings.
+    // Write baselines.
+    for ( int32_t i = 0; i < SV_BASELINES_CHUNKS; i++ ) {
+		// Get the baseline chunk.
+        entity_state_t *base = sv_client->baselines[ i ];
+		// Skip empty chunks.
+        if ( !base ) {
             continue;
         }
-        for (j = 0; j < SV_BASELINES_PER_CHUNK; j++) {
-            if (base->number) {
-                write_baseline(base);
+		// Write each baseline in the chunk.
+        for ( int32_t j = 0; j < SV_BASELINES_PER_CHUNK; j++ ) {
+            if ( base->number ) {
+                write_baseline( base );
             }
             base++;
         }
     }
-    MSG_WriteInt16(0);   // end of baselines
+    MSG_WriteInt16( 0 );
+	// -- End of baselines.
 
-    SV_ClientAddMessage(sv_client, MSG_GAMESTATE);
+	// Add the message to be send to the client.
+    SV_ClientAddMessage( sv_client, MSG_GAMESTATE );
 }
 
 //-----------------------------------------------------------------------------------------------
@@ -195,7 +203,7 @@ static void write_configstring_stream( void ) {
 
 static void write_baseline_stream( void ) {
 	int i, j;
-	entity_packed_t *base;
+	entity_state_t *base;
 
 	MSG_WriteUint8( svc_baselinestream );
 

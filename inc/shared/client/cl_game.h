@@ -79,7 +79,7 @@ typedef struct centity_s {
 
 	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
 	int64_t	serverframe;
-	//! The time of the last received update for this entity.
+	//! The last moment in time of when this entity was available in a snapshot.
 	int64_t snapShotTime;
 
 	//! Current(and thus last acknowledged and received) entity state.
@@ -489,6 +489,8 @@ typedef struct {
 	*	Refresh:
 	*
 	**/
+	//! Render the current view.
+	void ( *R_RenderFrame )( refdef_t *fd );
 	//! Register a model for the current load sequence.
 	const qhandle_t( *R_RegisterModel )( const char *name );
 	//! Register a skin for the current load sequence.
@@ -672,18 +674,38 @@ typedef struct {
 	*	(Client-)View Scene
 	*
 	**/
-	void ( *V_RenderView )( void );
 	/**
 	*   @brief  Calculate the client's PVS which is a necessity for culling out
 	*           local client entities.
 	**/
 	void ( *V_CalculateLocalPVS )( const vec3_t viewOrigin );
+	/**
+	*   @brief Adds an entity to the view scene for the current frame.
+	**/
 	void ( *V_AddEntity )( entity_t *ent );
+	/**
+	*   @brief Adds a particle to the view scene for the current frame.
+	**/
 	void ( *V_AddParticle )( particle_t *p );
+	/**
+	*   @brief Adds a dynamic spherical light to the view scene for the current frame.
+	**/
 	void ( *V_AddSphereLight )( const vec3_t org, float intensity, float r, float g, float b, float radius );
+	/**
+	*   @brief Adds a spot light with a falloff profile to the view scene for the current frame.
+	**/
 	void ( *V_AddSpotLight )( const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, float falloff_angle );
+	/**
+	*   @brief Adds a spot light with a texture emission profile to the view scene for the current frame.
+	**/
 	void ( *V_AddSpotLightTexEmission )( const vec3_t org, const vec3_t dir, float intensity, float r, float g, float b, float width_angle, qhandle_t emission_tex );
+	/**
+	*   @brief Adds a spherical light to the view scene for the current frame.
+	**/
 	void ( *V_AddLight )( const vec3_t org, float intensity, float r, float g, float b );
+	/**
+	*   @brief Sets the value of a lightstyle for the current frame.
+	**/
 	void ( *V_AddLightStyle )( int style, float value );
 
 
@@ -907,7 +929,7 @@ typedef struct {
 	*   Determine whether the player state has to lerp between the current and old frame,
 	*   or snap 'to'.
 	**/
-	void ( *PlayerState_LerpOrSnap )( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );
+	void ( *PlayerState_Transition )( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );
 
 
 	/**
@@ -996,12 +1018,11 @@ typedef struct {
 	void ( *ScreenRegisterMedia )( void );
 	void ( *ScreenModeChanged )( void );
 	void ( *ScreenDeltaFrame )( void );
-	vrect_t *( *GetScreenVideoRect )( void );
 
 	/**
 	*	@brief	Prepare and draw the current 'active' state's 2D and 3D views.
 	**/
-	void ( *DrawActiveState )( refcfg_t *refcfg );
+	void ( *DrawActiveViewState )( refcfg_t *refcfg );
 	/**
 	*	@brief	Prepare and draw the loading screen's 2D state.
 	**/
@@ -1081,6 +1102,14 @@ typedef struct {
 	*
 	**/
 	/**
+	*	@brief	Called whenever the refresh module is (re-)initialized.
+	**/
+	void ( *InitViewScene )( void );
+	/**
+	*	@brief	Called whenever the refresh module is shutdown.
+	**/
+	void ( *ShutdownViewScene )( void );
+	/**
 	*   @brief  Calculates the client's field of view.
 	**/
 	const float ( *CalculateFieldOfView )( const float fov_x, const float width, const float height );
@@ -1090,20 +1119,7 @@ typedef struct {
 	*           loop if rendering is disabled but sound is running.
 	**/
 	void ( *CalculateViewValues )( void );
-	/**
-	*	@brief	
-	**/
-	void ( *ClearViewScene )( void );
-	/**
-	*   @brief  Prepares the current frame's view scene for the refdef by
-	*           emitting all frame data(entities, particles, dynamic lights, lightstyles,
-	*           and temp entities) to the refresh definition.
-	**/
-	void ( *PrepareViewEntities )( void );
-	/**
-	*	@brief	Returns the predictedState based player view render definition flags.
-	**/
-	const refdef_flags_t ( *GetViewRenderDefinitionFlags )( void );
+
 
 	/**
 	*	Global variables shared between game and client.

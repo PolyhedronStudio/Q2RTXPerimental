@@ -212,7 +212,7 @@ static cvar_t       *fs_autoexec;
 static cvar_t       *fs_debug;
 #endif
 
-cvar_t              *fs_game;
+QEXTERN_C_ENCLOSE( cvar_t *fs_game; )
 
 #if USE_ZLIB
 // local stream used for all file loads

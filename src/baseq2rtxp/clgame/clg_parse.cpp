@@ -468,7 +468,7 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
 /**
 *	@brief	Parsess entity events.
 **/
-void PF_ParseEntityEvent( const int32_t entityNumber ) {
+void CLG_ParseEntityEvent( const int32_t entityNumber ) {
     if ( entityNumber < 0 || entityNumber >= MAX_ENTITIES ) {
         clgi.Print( PRINT_WARNING, "PF_ParseEntityEvent: invalid range(%d) variable 'entityNumber'\n", entityNumber );
         return;

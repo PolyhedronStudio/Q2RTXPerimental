@@ -24,6 +24,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/intreadwrite.h"
 
 
+
 #if USE_CLIENT
 /**
 * @brief Reads out entity number of current message in the buffer.
@@ -127,7 +128,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->entityType = MSG_ReadUintBase128();
 	}
 	if ( bits & U_OTHER_ENTITY_NUMBER ) {
-		to->otherEntityNumber = MSG_ReadUintBase128();
+		to->otherEntityNumber = MSG_ReadIntBase128();
 	}
 
 	if ( bits & U_FRAME ) {
@@ -138,17 +139,17 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	//}
 
 	if ( bits & U_SKIN ) {
-		to->skinnum = MSG_ReadUintBase128( );
+		to->skinnum = MSG_ReadIntBase128( );
 	}
 	if ( bits & U_EFFECTS ) {
 		to->effects = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_RENDERFX ) {
-		to->renderfx = MSG_ReadUintBase128( );
+		to->renderfx = MSG_ReadIntBase128( );
 	}
 
 	if ( bits & U_SOUND ) {
-		to->sound = MSG_ReadUintBase128( );
+		to->sound = MSG_ReadIntBase128( );
 	}
 
 	if ( bits & U_EVENT ) {
@@ -175,7 +176,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		to->hullContents = static_cast<cm_contents_t>( MSG_ReadUintBase128() );
 	}
 	if ( bits & U_OWNER ) {
-		to->ownerNumber = MSG_ReadUintBase128( );
+		to->ownerNumber = MSG_ReadIntBase128( );
 	}
 
 	// START ET_SPOTLIGHT:

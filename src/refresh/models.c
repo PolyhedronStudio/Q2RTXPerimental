@@ -498,7 +498,7 @@ fail1:
 
 static void MOD_PutTest_f(void)
 {
-    VectorCopy(cl.refdef.vieworg, cl_testmodel_position);
+	CL_RefExport_GetViewOrigin( cl_testmodel_position );
     cl_testmodel_position[2] -= 46.12f; // player eye-level
 }
 

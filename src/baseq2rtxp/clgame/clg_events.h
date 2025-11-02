@@ -13,7 +13,7 @@
 /**
 *   @brief  Processes the given entity event.
 **/
-void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigin, centity_t *cent, const int32_t entityNumber, const int32_t clientNumber, clientinfo_t *clientInfo );
+//void CLG_ProcessEntityEvents( const int32_t eventValue, const Vector3 &lerpOrigin, centity_t *cent, const int32_t entityNumber, const int32_t clientNumber, clientinfo_t *clientInfo );
 /**
 *   @brief  Checks for entity generated events and processes them for execution.
 **/

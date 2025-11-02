@@ -23,65 +23,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/math.h"
 #include "common/intreadwrite.h"
 
-//! Used for 'wiring' various view offsets.
-static inline int16_t scaled_short( float x, int scale ) {
-	return std::clamp<float>( x * scale, -32768, 32767 );
-}
 
-/**
-*   @brief	Pack a player state(in) encoding it into player_packed_t(out)
-**/
-void MSG_PackPlayer( player_packed_t *out, const player_state_t *in ) {
-	int i;
-
-	out->pmove = in->pmove;
-
-	out->bobCycle = (uint8_t)in->bobCycle;
-
-	out->eventSequence = in->eventSequence & 0xff;
-	out->events[ 0 ] = in->events[ 0 ];
-	out->events[ 1 ] = in->events[ 1 ];
-	out->eventParms[ 0 ] = in->eventParms[ 0 ];
-	out->eventParms[ 1 ] = in->eventParms[ 1 ];
-	out->externalEvent = in->externalEvent;
-	out->externalEventParm0 = in->externalEventParm0;
-	out->externalEventParm1 = in->externalEventParm1;
-
-	out->viewangles[ 0 ] = QM_AngleMod( in->viewangles[ 0 ] );
-	out->viewangles[ 1 ] = QM_AngleMod( in->viewangles[ 1 ] );
-	out->viewangles[ 2 ] = QM_AngleMod( in->viewangles[ 2 ] );
-	out->viewoffset[ 0 ] = scaled_short( in->viewoffset[ 0 ], 16 ); // WID: new-pmove OFFSET2CHAR( in->viewoffset[ 0 ] );
-	out->viewoffset[ 1 ] = scaled_short( in->viewoffset[ 1 ], 16 ); // WID: new-pmove OFFSET2CHAR( in->viewoffset[ 1 ] );
-	out->viewoffset[ 2 ] = scaled_short( in->viewoffset[ 2 ], 16 ); // WID: new-pmove OFFSET2CHAR( in->viewoffset[ 2 ] );
-	out->kick_angles[ 0 ] = scaled_short( in->kick_angles[ 0 ], 1024 ); // WID: new-pmove OFFSET2CHAR( in->kick_angles[ 0 ] );
-	out->kick_angles[ 1 ] = scaled_short( in->kick_angles[ 1 ], 1024 ); // WID: new-pmove OFFSET2CHAR( in->kick_angles[ 1 ] );
-	out->kick_angles[ 2 ] = scaled_short( in->kick_angles[ 2 ], 1024 ); // WID: new-pmove OFFSET2CHAR( in->kick_angles[ 2 ] );
-
-	// Moved to CLGame.
-	//out->gunoffset[ 0 ] = COORD2SHORT( in->gunoffset[ 0 ] );
-	//out->gunoffset[ 1 ] = COORD2SHORT( in->gunoffset[ 1 ] );
-	//out->gunoffset[ 2 ] = COORD2SHORT( in->gunoffset[ 2 ] );
-	//out->gunangles[ 0 ] = ANGLE2SHORT( in->gunangles[ 0 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 0 ] );
-	//out->gunangles[ 1 ] = ANGLE2SHORT( in->gunangles[ 1 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 1 ] );
-	//out->gunangles[ 2 ] = ANGLE2SHORT( in->gunangles[ 2 ] );// WID: new-pmove OFFSET2CHAR( in->gunangles[ 2 ] );
-	out->gunModelIndex = in->gun.modelIndex;
-	out->gunAnimationID = in->gun.animationID;
-
-	out->screen_blend[ 0 ] = BLEND2BYTE( in->screen_blend[ 0 ] );
-	out->screen_blend[ 1 ] = BLEND2BYTE( in->screen_blend[ 1 ] );
-	out->screen_blend[ 2 ] = BLEND2BYTE( in->screen_blend[ 2 ] );
-	out->screen_blend[ 3 ] = BLEND2BYTE( in->screen_blend[ 3 ] );
-	out->rdflags = in->rdflags;
-	out->fov = (int)in->fov;
-
-	for ( i = 0; i < MAX_STATS; i++ )
-		out->stats[ i ] = in->stats[ i ];
-}
 
 /**
 *   @brief Writes the delta player state.
 **/
-void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed_t *to ) {
+void MSG_WriteDeltaPlayerstate( const player_state_t *from, const player_state_t *to ) {
 	uint64_t pflags;
 
 	if ( !to )
@@ -149,10 +96,10 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//if ( to->gunframe != from->gunframe ||
 	//	!VectorCompare( to->gunoffset, from->gunoffset ) ||
 	//	!VectorCompare( to->gunangles, from->gunangles ) ) {
-	if ( to->gunAnimationID != from->gunAnimationID ) {
+	if ( to->gun.animationID != from->gun.animationID ) {
 		pflags |= PS_GUN_ANIMATION;
 	}
-	if ( to->gunModelIndex != from->gunModelIndex ) {
+	if ( to->gun.modelIndex != from->gun.modelIndex ) {
 		pflags |= PS_GUN_MODELINDEX;
 	}
 
@@ -190,6 +137,7 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	//
 	// write the pmove_state_t
 	//
+	// Write out the pmove_state_t.
 	if ( pflags & PS_M_TYPE ) {
 		MSG_WriteUint8( to->pmove.pm_type );
 	}
@@ -213,67 +161,83 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 	if ( pflags & PS_M_SPEED ) {
 		MSG_WriteInt16( to->pmove.speed );
 	}
+	// Write out the gravity.
 	if ( pflags & PS_M_GRAVITY ) {
 		MSG_WriteInt16( to->pmove.gravity );
 	}
+	// Write out the delta angles.
 	if ( pflags & PS_M_DELTA_ANGLES ) {
 		MSG_WriteHalfFloat( to->pmove.delta_angles[ 0 ] );
 		MSG_WriteHalfFloat( to->pmove.delta_angles[ 1 ] );
 		MSG_WriteHalfFloat( to->pmove.delta_angles[ 2 ] );
 	}
+	// Write out the viewheight.
 	if ( pflags & PS_M_VIEWHEIGHT ) {
 		MSG_WriteInt8( to->pmove.viewheight );
 	}
+	
+	// Write out the bobcycle.
 	if ( pflags & PS_BOB_CYCLE ) {
-		MSG_WriteUint8( to->bobCycle );
+		MSG_WriteUint8( (uint8_t)to->bobCycle );
 	}
+
 	// Sequenced Events:
 	if ( pflags & PS_EVENT_SEQUENCE ) {
 		MSG_WriteUint8( to->eventSequence );
 	}
 	if ( pflags & PS_EVENT_FIRST ) {
-		MSG_WriteUint8( to->events[ 0 ] );
+		MSG_WriteIntBase128( to->events[ 0 ] );
 	}
 	if ( pflags & PS_EVENT_FIRST_PARM ) {
-		MSG_WriteUint8( to->eventParms[ 0 ] );
+		MSG_WriteIntBase128( to->eventParms[ 0 ] );
 	}
 	if ( pflags & PS_EVENT_SECOND ) {
-		MSG_WriteUint8( to->events[ 1 ] );
+		MSG_WriteIntBase128( to->events[ 1 ] );
 	}
 	if ( pflags & PS_EVENT_SECOND_PARM ) {
-		MSG_WriteUint8( to->eventParms[ 1 ] );
+		MSG_WriteIntBase128( to->eventParms[ 1 ] );
 	}
+	
+	// Write out external event.
 	if ( pflags & PS_EXTERNAL_EVENT ) {
-		MSG_WriteUint8( to->externalEvent );
+		MSG_WriteIntBase128( to->externalEvent );
 	}
 	if ( pflags & PS_EXTERNAL_EVENT_PARM0 ) {
 		MSG_WriteIntBase128( to->externalEventParm0 );
+	}
+	if ( pflags & PS_EXTERNAL_EVENT_PARM1 ) {
+		MSG_WriteIntBase128( to->externalEventParm1 );
 	}
 
 
 	//
 	// write the rest of the player_state_t
 	//
+	// Write out view offsets.
 	if ( pflags & PS_VIEWOFFSET ) {
-		MSG_WriteInt16( to->viewoffset[ 0 ] );
-		MSG_WriteInt16( to->viewoffset[ 1 ] );
-		MSG_WriteInt16( to->viewoffset[ 2 ] );
+		MSG_WriteHalfFloat( to->viewoffset[ 0 ] );
+		MSG_WriteHalfFloat( to->viewoffset[ 1 ] );
+		MSG_WriteHalfFloat( to->viewoffset[ 2 ] );
 	}
+	// Write out view angles.
 	if ( pflags & PS_VIEWANGLES ) {
-		MSG_WriteHalfFloat( to->viewangles[ 0 ] );
-		MSG_WriteHalfFloat( to->viewangles[ 1 ] );
-		MSG_WriteHalfFloat( to->viewangles[ 2 ] );
+		MSG_WriteHalfFloat( QM_AngleMod( to->viewangles[ 0 ] ) );
+		MSG_WriteHalfFloat( QM_AngleMod( to->viewangles[ 1 ] ) );
+		MSG_WriteHalfFloat( QM_AngleMod( to->viewangles[ 2 ] ) );
 	}
+	// Write out kick angles.
 	if ( pflags & PS_KICKANGLES ) {
-		MSG_WriteInt16( to->kick_angles[ 0 ] );
-		MSG_WriteInt16( to->kick_angles[ 1 ] );
-		MSG_WriteInt16( to->kick_angles[ 2 ] );
+		MSG_WriteHalfFloat( to->kick_angles[ 0 ] );
+		MSG_WriteHalfFloat( to->kick_angles[ 1 ] );
+		MSG_WriteHalfFloat( to->kick_angles[ 2 ] );
 	}
+	// Write out gun info.
 	if ( pflags & PS_GUN_MODELINDEX ) {
-		MSG_WriteUintBase128( to->gunModelIndex );
+		MSG_WriteUintBase128( to->gun.modelIndex );
 	}
+	// Write out gun animation.
 	if ( pflags & PS_GUN_ANIMATION ) {
-		MSG_WriteUint8( to->gunAnimationID );
+		MSG_WriteUint8( to->gun.animationID );
 		// Moved to CLGame.
 		//MSG_WriteInt16( to->gunoffset[ 0 ] );
 		//MSG_WriteInt16( to->gunoffset[ 1 ] );
@@ -282,30 +246,34 @@ void MSG_WriteDeltaPlayerstate( const player_packed_t *from, const player_packed
 		//MSG_WriteInt16( to->gunangles[ 1 ] );
 		//MSG_WriteInt16( to->gunangles[ 2 ] );
 	}
+
+	// Write out screen blend.
 	if ( pflags & PS_BLEND ) {
-		MSG_WriteUint8( to->screen_blend[ 0 ] );
-		MSG_WriteUint8( to->screen_blend[ 1 ] );
-		MSG_WriteUint8( to->screen_blend[ 2 ] );
-		MSG_WriteUint8( to->screen_blend[ 3 ] );
+		MSG_WriteUint8( BLEND2BYTE( to->screen_blend[ 0 ] ) );
+		MSG_WriteUint8( BLEND2BYTE( to->screen_blend[ 1 ] ) );
+		MSG_WriteUint8( BLEND2BYTE( to->screen_blend[ 2 ] ) );
+		MSG_WriteUint8( BLEND2BYTE( to->screen_blend[ 3 ] ) );
 	}
+	// Write out fov.
 	if ( pflags & PS_FOV ) {
-		MSG_WriteUint8( to->fov );
+		MSG_WriteUint8( (uint8_t)to->fov );
 	}
+	// Write out rdflags.
 	if ( pflags & PS_RDFLAGS ) {
 		MSG_WriteIntBase128( to->rdflags );
 	}
 
 	// Send stats
-	int64_t statbits = 0;
-	for ( int32_t i = 0; i < MAX_STATS; i++ ) {
+	int64_t statBits = 0;
+	for ( int64_t i = 0; i < MAX_STATS; i++ ) {
 		if ( to->stats[ i ] != from->stats[ i ] ) {
-			statbits |= 1LL << i;
+			statBits |= 1ULL << i;
 		}
 	}
 
-	MSG_WriteIntBase128( statbits );
-	for ( int32_t i = 0; i < MAX_STATS; i++ ) {
-		if ( statbits & ( 1LL << i ) ) {
+	MSG_WriteIntBase128( statBits );
+	for ( int64_t i = 0; i < MAX_STATS; i++ ) {
+		if ( statBits & ( 1ULL << i ) ) {
 			MSG_WriteIntBase128( to->stats[ i ] );
 		}
 	}

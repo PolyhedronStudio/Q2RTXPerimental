@@ -16,7 +16,7 @@ typedef enum sg_entity_type_e {
 	// Player Entity Types:
 	// 
 	//! Client Player Entity.
-	ET_PLAYER = ET_ENGINE_MAX_TYPES,
+	ET_PLAYER = ET_GAME_TYPES,
 	//! Client Player Corps Entity.
 	ET_PLAYER_CORPSE,
 	
@@ -66,10 +66,7 @@ typedef enum sg_entity_type_e {
 	ET_TELEPORT_TRIGGER,
 
 
-	//!
-	//! Maximum types supported.
-	//!
-	ET_MAX_SHAREDGAME_TYPES,
+
 
 	//! Invisible Entity.
 	//ET_INVISIBLE,
@@ -82,4 +79,10 @@ typedef enum sg_entity_type_e {
 	**/
 	//! A Temporary Entity Event. To get the value of the event, subtract ET_TEMP_ENTITY_EVENT from the entityType value.
 	ET_TEMP_ENTITY_EVENT,
+
+
+	//!
+	//! Maximum types supported.
+	//!
+	ET_MAX_SHAREDGAME_TYPES,
 } sg_entity_type_t;

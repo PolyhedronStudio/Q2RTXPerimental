@@ -93,7 +93,7 @@ typedef enum
 
 static int active_sun_preset(void)
 {
-	bool multiplayer = cl.maxclients > 1;
+	bool multiplayer = CL_RefExport_GetMaxClients() > 1;
 
 	if (multiplayer)
 	{

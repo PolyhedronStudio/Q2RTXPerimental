@@ -24,7 +24,7 @@ void CLG_CheckEntityPresent( int32_t entityNumber, const char *what );
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.
 **/
-void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
+void CLG_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
 
 
 
@@ -44,12 +44,12 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
 *	@brief	Called when a new frame has been received that contains an entity
 *			which was not present in the previous frame.
 **/
-void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
+void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 &origin );
 /**
 *	@brief	Called when a new frame has been received that contains an entity 
 *			already present in the previous frame.
 **/
-void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
+void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 &origin );
 
 
 
@@ -63,10 +63,10 @@ void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, c
 *
 **/
 /**
-*   Determine whether the player state has to lerp between the current and old frame,
-*   or snap 'to'.
+*   @brief  Handles player state transition between old and new server frames. Duplicates old state into current state
+*           in case of no lerping conditions being met.
 **/
-void CLG_PlayerState_LerpOrSnap( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );
+void CLG_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );
 
 
 
@@ -122,6 +122,20 @@ static inline centity_t *CLG_GetChaseBoundEntity( void ) {
 	}
 }
 /**
+*	@return	The local client entity pointer matching to the client number received at initial connection time.
+**/
+static inline centity_t *CLG_GetLocalClientEntity( void ) {
+	// Sanity check.
+	if ( clgi.client->clientNumber == -1 ) {
+		clgi.Print( PRINT_DEVELOPER, "CLG_GetLocalClientEntity: No client number set yet(Value is -1).\n" );
+		// Return a nullptr.
+		return nullptr;
+	}
+	// Return the local client entity.
+	return &clg_entities[ clgi.client->clientNumber + 1 ];
+}
+
+/**
 *	@return		A pointer to the entity bound to the received server frame's view(index of clientNumber was sent during connect.)
 *               Unless STAT_CHASE is set to specific client number, this'll point to the local client player himself.
 **/
@@ -136,7 +150,7 @@ static inline centity_t *CLG_GetViewBoundEntity( void ) {
 	centity_t *viewBoundEntity = CLG_GetChaseBoundEntity();
 	// If not chasing anyone, assign it the local client entity.
 	if ( !viewBoundEntity ) {
-		viewBoundEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
+		viewBoundEntity = CLG_GetLocalClientEntity();
 	}
 	// Return the view bound entity.
 	return viewBoundEntity;

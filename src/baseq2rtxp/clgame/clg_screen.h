@@ -38,11 +38,11 @@ void PF_SCR_Shutdown( void );
 /**
 *	@return	Pointer to the current frame's render "view rectangle".
 **/
-vrect_t *PF_GetScreenVideoRect( void );
+vrect_t *CLG_GetScreenVideoRect( void );
 /**
 *	@brief	Prepare and draw the current 'active' state's 2D and 3D views.
 **/
-void PF_DrawActiveState( refcfg_t *refcfg );
+void CLG_DrawActiveViewState( refcfg_t *refcfg );
 /**
 *	@brief	Prepare and draw the loading screen's 2D state.
 **/

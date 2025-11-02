@@ -293,6 +293,13 @@ static q_noreturn void PF_Error( const char *fmt, ... ) {
 /**
 *	@brief
 **/
+void PF_R_RenderFrame( refdef_t *fd ) {
+	R_RenderFrame( fd );
+}
+
+/**
+*	@brief
+**/
 const qhandle_t PF_R_RegisterModel( const char *name ) {
 	return R_RegisterModel( name );
 }
@@ -907,6 +914,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.R_RegisterPic = PF_R_RegisterPic;
 	imports.R_RegisterPic2 = PF_R_RegisterPic2;
 
+	imports.R_RenderFrame = PF_R_RenderFrame;
 	imports.R_ClearColor = PF_R_ClearColor;
 	imports.R_SetAlpha = PF_R_SetAlpha;
 	imports.R_SetAlphaScale = PF_R_SetAlphaScale;
@@ -969,7 +977,6 @@ void CL_GM_LoadProgs( void ) {
 	imports.TagFree = PF_TagFree;
 	imports.FreeTags = PF_FreeTags;
 
-	imports.V_RenderView = V_RenderView;
 	imports.V_CalculateLocalPVS = V_CalculateLocalPVS;
 	imports.V_AddEntity = V_AddEntity;
 	imports.V_AddParticle = V_AddParticle;

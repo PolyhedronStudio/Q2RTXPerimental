@@ -202,7 +202,6 @@ extern cvar_t       *s_ambient;
 extern cvar_t       *s_show;
 #endif
 extern cvar_t       *s_underwater;
-extern cvar_t       *s_underwater_gain_hf;
 
 /**
 *   Sound Utility Functions:
@@ -218,7 +217,7 @@ static inline const bool S_IsFullVolume( channel_t *ch ) { //
 }
 
 static inline const bool S_IsUnderWater( void ) {
-    return ( cls.state == ca_active && ( ( cl.frame.ps.rdflags | clge->GetViewRenderDefinitionFlags() ) & RDF_UNDERWATER ) && s_underwater->integer ) ? true : false;
+    return ( cls.state == ca_active && ( cl.refdef.rdflags & RDF_UNDERWATER ) && s_underwater->integer ) ? true : false;
 }
 
 #define S_Malloc(x)     Z_TagMalloc(x, TAG_SOUND)

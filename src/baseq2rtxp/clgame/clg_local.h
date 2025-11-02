@@ -68,8 +68,6 @@ constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<in
 #if USE_DEBUG
 extern cvar_t *developer;
 #endif
-extern cvar_t *clg_debug_events;
-
 extern cvar_t *cl_predict;
 extern cvar_t *cl_running;
 extern cvar_t *cl_paused;
@@ -215,9 +213,8 @@ typedef struct centity_s {
 
 	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
 	int64_t	serverframe;
-	//! The time of the last received update for this entity.
+	//! The last moment in time of when this entity was available in a snapshot.
 	int64_t snapShotTime;
-
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
 	//! Previous entity state. Will always be valid, but might be just a copy of the current state.

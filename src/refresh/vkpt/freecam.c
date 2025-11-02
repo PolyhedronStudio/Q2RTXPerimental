@@ -66,6 +66,8 @@ static void vkpt_freecam_mousemove(void)
 	int dx, dy;
 	float mx, my;
 	float speed;
+	float fovX = 0;
+	float fovY = 0;
 
 	if (!vid.get_mouse_motion)
 		return;
@@ -96,8 +98,9 @@ static void vkpt_freecam_mousemove(void)
 		my *= speed;
 
 		if (m_autosens->integer) {
-			mx *= cl.fov_x * autosens_x;
-			my *= cl.fov_y * autosens_y;
+			CL_RefExport_GetFieldOfViewXY( &fovX, &fovY );
+			mx *= fovX * autosens_x;
+			my *= fovY * autosens_y;
 		}
 
 		mx /= freecam_zoom;

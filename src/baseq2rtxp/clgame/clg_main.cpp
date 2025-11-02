@@ -50,7 +50,6 @@ QMTime FRAME_TIME_MS;
 #if USE_DEBUG
 cvar_t *developer = nullptr;
 #endif
-cvar_t *clg_debug_events = nullptr;
 cvar_t *cl_predict = nullptr;
 cvar_t *cl_running = nullptr;
 cvar_t *cl_paused = nullptr;
@@ -201,12 +200,239 @@ static void cl_vwep_changed( cvar_t *self ) {
 /**
 *
 *
+*	Client State:
+*
+*
+**/
+/**
+*   @return True if the server, or client, is non active(and/or thus paused).
+*	@note	clientOnly, false by default, is optional to check if just the client is paused.
+**/
+const bool CLG_IsGameplayPaused( const bool clientOnly ) {
+	// Determine whether paused or not.
+	if ( clgi.GetConnectionState() != ca_active 
+		// Client is paused.
+		|| cl_paused->integer 
+		// Optional to check if just the client is paused.
+		|| ( clientOnly ? 1 == 1 : sv_paused->integer ) ) {
+		// Paused.
+		return true;
+	}
+	return false;
+}
+
+/**
+*	@brief
+**/
+void PF_ClearState( void ) {
+	// Clear out the player's viewWeapon state.
+	game.viewWeapon = {};
+
+	// Hard reset the sound EAX environment.
+	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
+
+	// Clear Precache State.
+	CLG_Precache_ClearState();
+
+	// Clear Local Entity States.
+	CLG_LocalEntity_ClearState();
+
+	// Clear out Client Entities array.
+	//memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
+	for ( int32_t i = 0; i < sizeof( clg_entities ); i++ ) {
+		clg_entities[ i ] = {};
+	}
+	// Clear Temporary Entities.
+	CLG_TemporaryEntities_Clear();
+	// Clear out remaining effect types.
+	CLG_ClearEffects();
+
+	// Clear out level locals.
+	memset( &level, 0, sizeof( level ) );
+	//level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
+}
+
+
+
+/**
+*
+*
+*	Entity Receive and Update:
+*
+*
+**/
+/**
+*   @brief  The sound code makes callbacks to the client for entitiy position
+*           information, so entities can be dynamically re-spatialized.
+**/
+void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
+	CLG_GetEntitySoundOrigin( entityNumber, org );
+}
+/**
+*	@brief	Parsess entity events.
+**/
+void PF_ParseEntityEvent( const int32_t entityNumber ) {
+	CLG_ParseEntityEvent( entityNumber );
+}
+/**
+*	@brief	Called when a new frame has been received that contains an entity
+*			which was not present in the previous frame.
+**/
+static void PF_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
+	CLG_EntityState_FrameEnter( ent, state, ( origin ? *origin : QM_Vector3Zero() ) );
+}
+/**
+*	@brief	Called when a new frame has been received that contains an entity
+*			already present in the previous frame.
+**/
+static void PF_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
+	CLG_EntityState_FrameUpdate( ent, state, ( origin ? *origin : QM_Vector3Zero() ) );
+}
+/**
+*   Determine whether the player state has to lerp between the current and old frame,
+*   or snap 'to'.
+**/
+static void PF_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
+	CLG_PlayerState_Transition( oldframe, frame, framediv );
+}
+
+
+/**
+*
+*
+*	Gamemode:
+*
+*
+**/
+/**
+*	@brief
+**/
+const char *PF_GetGameModeName( int32_t gameModeID ) {
+	return SG_GetGameModeName( static_cast<sg_gamemode_type_t>( gameModeID ) );
+}
+
+
+
+/**
+*
+*
+*	Precache
+*
+*
+**/
+/**
+*	@brief	Used for the client in a scenario where it might have to download view models.
+*	@return	The number of view models.
+**/
+const uint32_t PF_GetNumberOfViewModels( void ) {
+	return precache.numViewModels;
+}
+/**
+*	@brief	Used for the client in a scenario where it might have to download view models.
+*	@return	The filename of the view model matching index.
+**/
+const char *PF_GetViewModelFilename( const uint32_t index ) {
+	if ( index >= 0 && index < MAX_CLIENTVIEWMODELS ) {
+		return precache.viewModels[ index ];
+	} else {
+		return "";
+	}
+}
+
+
+
+/**
+*
+*
+*	(Prediction-) Player Move:
+*
+*
+**/
+/**
+*   @brief  'ProgFunc' Wrapper for CLG_AdjustViewHeight.
+**/
+void PF_AdjustViewHeight( const int32_t viewHeight ) {
+	CLG_AdjustViewHeight( viewHeight );
+}
+/**
+*   @brief  'ProgFunc' Wrapper for CLG_CheckPredictionError.
+**/
+void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand ) {
+	CLG_CheckPredictionError( frameIndex, commandIndex, moveCommand );
+}
+/**
+*   @brief  'ProgFunc' Wrapper for CLG_PredictAngles.
+**/
+void PF_PredictAngles() {
+	CLG_PredictAngles();
+}
+/**
+*	@return	'ProgFunc' Wrapper for CLG_UsePrediction.
+**/
+const qboolean PF_UsePrediction() {
+	return CLG_UsePrediction();
+}
+/**
+*   @brief  'ProgFunc' Wrapper for CLG_PredictMovement.
+**/
+void PF_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber ) {
+	CLG_PredictMovement( acknowledgedCommandNumber, currentCommandNumber );
+}
+
+
+
+/**
+*
+*
+*	View Rendering:
+*
+*
+**/
+/**
+*	@brief	'ProgFunc' Wrapper for CLG_CalculateFieldOfView.
+**/
+static const float PF_CalculateFieldOfView( const float fov_x, const float width, const float height ) {
+	return CLG_CalculateFieldOfView( fov_x, width, height );
+}
+/**
+*	@brief	'ProgFunc' Wrapper for CLG_CalculateViewValues.
+**/
+static void PF_CalculateViewValues() {
+	CLG_CalculateViewValues();
+}
+/**
+* @brief	'ProgFunc' Wrapper for CLG_InitViewScene.
+**/
+static void PF_InitViewScene() {
+	CLG_InitViewScene();
+}
+/**
+*	@brief	'ProgFunc' Wrapper for CLG_ShutdownViewScene.
+**/
+static void PF_ShutdownViewScene() {
+	CLG_ShutdownViewScene();
+}
+/**
+* @brief	'ProgFunc' Wrapper for CLG_DrawActiveViewState.
+**/
+void PF_DrawActiveViewState( refcfg_t *refcfg ) {
+	CLG_DrawActiveViewState( refcfg );
+}
+
+
+
+
+
+
+/**
+*
+*
 *	Init/Shutdown
 *
 *
 **/
 /**
-*	@brief	Called when the client is about to shutdown, giving us a last minute 
+*	@brief	Called when the client is about to shutdown, giving us a last minute
 *			shot at accessing possible required data.
 **/
 void PF_PreShutdownGame( void ) {
@@ -251,7 +477,7 @@ void PF_InitGame( void ) {
 	// C Random time initializing.
 	Q_srand( time( NULL ) );
 	// Seed RNG
-	mt_rand.seed( (uint32_t)std::chrono::system_clock::now( ).time_since_epoch( ).count( ) );
+	mt_rand.seed( (uint32_t)std::chrono::system_clock::now().time_since_epoch().count() );
 
 
 	/**
@@ -259,17 +485,15 @@ void PF_InitGame( void ) {
 	**/
 	#if USE_DEBUG
 	developer = clgi.CVar_Get( "developer", nullptr, 0 );
-	clg_debug_events = clgi.CVar_Get( "clg_debug_events", "1", 0 );
 	#else
 	//developer = clgi.CVar_Get( "developer", "0", CVAR_NOSET );
-	clg_debug_events = clgi.CVar_Get( "clg_debug_events", "0", 0 );
 	#endif
 	cl_predict = clgi.CVar_Get( "cl_predict", nullptr, 0 );
 	cl_running = clgi.CVar_Get( "cl_running", nullptr, 0 );
 	cl_paused = clgi.CVar_Get( "cl_paused", nullptr, 0 );
 	sv_running = clgi.CVar_Get( "cl_running", nullptr, 0 );
 	sv_paused = clgi.CVar_Get( "cl_paused", nullptr, 0 );
-	
+
 	// Get cvars we'll latch at often.
 	gamemode = clgi.CVar( "gamemode", nullptr, 0 );
 	game.gamemode = gamemode->integer;
@@ -383,156 +607,6 @@ void PF_InitGame( void ) {
 /**
 *
 *
-*	Client State:
-*
-*
-**/
-/**
-*   @return True if the server, or client, is non active(and/or thus paused).
-*	@note	clientOnly, false by default, is optional to check if just the client is paused.
-**/
-const bool CLG_IsGameplayPaused( const bool clientOnly ) {
-	// Determine whether paused or not.
-	if ( clgi.GetConnectionState() != ca_active 
-		// Client is paused.
-		|| cl_paused->integer 
-		// Optional to check if just the client is paused.
-		|| ( clientOnly ? 1 == 1 : sv_paused->integer ) ) {
-		// Paused.
-		return true;
-	}
-	return false;
-}
-
-/**
-*	@brief
-**/
-void PF_ClearState( void ) {
-	// Clear out the player's viewWeapon state.
-	game.viewWeapon = {};
-
-	// 
-	
-
-	// Hard reset the sound EAX environment.
-	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );
-
-	// Clear Precache State.
-	CLG_Precache_ClearState();
-
-	// Clear Local Entity States.
-	CLG_LocalEntity_ClearState();
-
-	// Clear out Client Entities array.
-	//memset( clg_entities, 0, globals.entity_size * sizeof( clg_entities[ 0 ] ) );
-	for ( int32_t i = 0; i < sizeof( clg_entities ); i++ ) {
-		clg_entities[ i ] = {};
-	}
-	// Clear Temporary Entities.
-	CLG_TemporaryEntities_Clear();
-	// Clear out remaining effect types.
-	CLG_ClearEffects();
-
-	// Clear out level locals.
-	//memset( &level, 0, sizeof( level ) );
-	level = {};
-}
-
-
-
-/**
-*
-*
-*	Entity Receive and Update:
-*
-*
-**/
-/**
-*	@brief	Called when a new frame has been received that contains an entity
-*			which was not present in the previous frame.
-**/
-static void PF_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
-	CLG_EntityState_FrameEnter( ent, state, origin );
-}
-/**
-*	@brief	Called when a new frame has been received that contains an entity
-*			already present in the previous frame.
-**/
-static void PF_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
-	CLG_EntityState_FrameUpdate( ent, state, origin );
-}
-/**
-*   Determine whether the player state has to lerp between the current and old frame,
-*   or snap 'to'.
-**/
-static void PF_PlayerState_LerpOrSnap( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
-	CLG_PlayerState_LerpOrSnap( oldframe, frame, framediv );
-}
-
-
-/**
-*
-*
-*	Gamemode:
-*
-*
-**/
-/**
-*	@brief
-**/
-const char *PF_GetGameModeName( int32_t gameModeID ) {
-	return SG_GetGameModeName( static_cast<sg_gamemode_type_t>( gameModeID ) );
-}
-
-
-
-/**
-*
-*
-*	Player Move:
-*
-*
-**/
-/**
-*	@brief	
-**/
-//void PF_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
-//	SG_ConfigurePlayerMoveParameters( pmp );
-//}
-
-
-
-/**
-*
-*
-*	Precache
-*
-*
-**/
-/**
-*	@brief	Used for the client in a scenario where it might have to download view models.
-*	@return	The number of view models.
-**/
-const uint32_t PF_GetNumberOfViewModels( void ) {
-	return precache.numViewModels;
-}
-/**
-*	@brief	Used for the client in a scenario where it might have to download view models.
-*	@return	The filename of the view model matching index.
-**/
-const char *PF_GetViewModelFilename( const uint32_t index ) {
-	if ( index >= 0 && index < MAX_CLIENTVIEWMODELS ) {
-		return precache.viewModels[ index ];
-	} else {
-		return "";
-	}
-}
-
-
-
-/**
-*
-*
 *	GetGameAPI
 *
 *
@@ -569,7 +643,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ParseEntityEvent = PF_ParseEntityEvent;
 		globals.EntityState_FrameEnter = PF_EntityState_FrameEnter;
 		globals.EntityState_FrameUpdate = PF_EntityState_FrameUpdate;
-		globals.PlayerState_LerpOrSnap = PF_PlayerState_LerpOrSnap;
+		globals.PlayerState_Transition = PF_PlayerState_Transition;
 
 		globals.GetGameModeName = PF_GetGameModeName;
 
@@ -592,8 +666,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ScreenModeChanged = PF_SCR_ModeChanged;
 		globals.ScreenDeltaFrame = PF_SCR_DeltaFrame;
 		globals.ScreenShutdown = PF_SCR_Shutdown;
-		globals.GetScreenVideoRect = PF_GetScreenVideoRect;
-		globals.DrawActiveState = PF_DrawActiveState;
+		globals.DrawActiveViewState = PF_DrawActiveViewState;
 		globals.DrawLoadState = PF_DrawLoadState;
 		globals.GetScreenFontHandle = PF_GetScreenFontHandle;
 		globals.SetScreenHUDAlpha = PF_SetScreenHUDAlpha;
@@ -612,10 +685,8 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.CalculateFieldOfView = PF_CalculateFieldOfView;
 		globals.CalculateViewValues = PF_CalculateViewValues;
-		globals.ClearViewScene = PF_ClearViewScene;
-		globals.PrepareViewEntities = PF_PrepareViewEntities;
-		globals.GetViewRenderDefinitionFlags = PF_GetViewRenderDefinitionFlags;
-
+		globals.InitViewScene = PF_InitViewScene;
+		globals.ShutdownViewScene = PF_ShutdownViewScene;
 		globals.entity_size = sizeof( centity_t );
 
 		return &globals;

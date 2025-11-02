@@ -777,7 +777,7 @@ void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 			VectorCopy( ent->s.origin, current_client->last_ladder_pos );
 			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
 
-			gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRIx64 ")\n", __func__, level.frameNumber );
+			gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRId64 ")\n", __func__, level.frameNumber );
 		}
 	}
 }
@@ -930,13 +930,18 @@ void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
 	current_client->ps.pmove.origin = current_player->s.origin;
 	current_client->ps.pmove.velocity = current_player->velocity;
 
-	// Let game modes handle it from here.
-	game.mode->EndServerFrame( static_cast<svg_player_edict_t*>( current_player ) );
-
+	/**
+	*	Let game modes handle it from here.
+	**/
+	// For type sakeness.
+	svg_player_edict_t *player_edict = static_cast<svg_player_edict_t *>( current_player );
+	game.mode->EndServerFrame( player_edict );
+	/**
+	*	Finalize player state.
+	**/
 	// Convert certain playerstate properties into entity state properties.
-	SG_PlayerStateToEntityState( current_client->clientNum, &current_client->ps, &ent->s, false );
-
+	SG_PlayerStateToEntityState( player_edict->client->clientNum, &player_edict->client->ps, &player_edict->s, false );
 	// Send any remaining pending predictable events to all clients but "ourselves".
-	SVG_Client_SendPendingPredictableEvents( static_cast<svg_player_edict_t*>( current_player ), current_client );
+	SVG_Client_SendPendingPredictableEvents( player_edict, player_edict->client );
 }
 

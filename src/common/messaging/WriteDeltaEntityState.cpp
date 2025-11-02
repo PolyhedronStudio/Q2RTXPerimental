@@ -24,62 +24,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/intreadwrite.h"
 
 
-/**
-*   @brief	Pack an entity state(in) encoding it into entity_packed_t(out)
-**/
-void MSG_PackEntity( entity_packed_t *out, const entity_state_t *in ) {
-	// allow 0 to accomodate empty baselines
-	if ( in->number < 0 || in->number >= MAX_EDICTS ) {
-		Com_Error( ERR_DROP, "%s: bad number: %d", __func__, in->number );
-	}
-
-	out->number = in->number;
-	out->entityType = in->entityType;
-
-	//out->client = in->client;
-	out->origin = in->origin;
-	//if ( short_angles ) {
-		//out->angles[ 0 ] = ANGLE2SHORT( in->angles[ 0 ] );
-		//out->angles[ 1 ] = ANGLE2SHORT( in->angles[ 1 ] );
-		//out->angles[ 2 ] = ANGLE2SHORT( in->angles[ 2 ] );
-		out->angles = QM_Vector3AngleMod( in->angles );
-	//} else {
-	//	// pack angles8 akin to angles16 to make delta compression happy when
-	//	// precision suddenly changes between entity updates
-	//	out->angles[ 0 ] = ANGLE2BYTE( in->angles[ 0 ] ) << 8;
-	//	out->angles[ 1 ] = ANGLE2BYTE( in->angles[ 1 ] ) << 8;
-	//	out->angles[ 2 ] = ANGLE2BYTE( in->angles[ 2 ] ) << 8;
-	//}
-	out->old_origin = in->old_origin; //COORD2SHORT( in->old_origin[ 0 ] ); // WID: float-movement
-	out->modelindex = in->modelindex;
-	out->modelindex2 = in->modelindex2;
-	out->modelindex3 = in->modelindex3;
-	out->modelindex4 = in->modelindex4;
-	out->skinnum = in->skinnum;
-	out->effects = in->effects;
-	out->renderfx = in->renderfx;
-
-	out->solid = in->solid;
-	out->bounds.u = in->bounds;
-	out->clipMask = in->clipMask;
-	out->hullContents = in->hullContents;
-	out->ownerNumber = in->ownerNumber;
-
-	out->frame = in->frame;
-	out->old_frame = in->old_frame;
-	out->sound = in->sound;
-	out->event = in->event;
-	out->eventParm0 = in->eventParm0;
-	out->eventParm1 = in->eventParm1;
-
-	// ET_SPOTLIGHT:
-	out->rgb[ 0 ] = in->spotlight.rgb[ 0 ];
-	out->rgb[ 1 ] = in->spotlight.rgb[ 1 ];
-	out->rgb[ 2 ] = in->spotlight.rgb[ 2 ];
-	out->intensity = in->spotlight.intensity;
-	out->angle_falloff = in->spotlight.angle_falloff;
-	out->angle_width = in->spotlight.angle_width;
-}
 
 /**
 *   @brief  Writes entity number, remove bit, and the byte mask to buffer.
@@ -92,7 +36,7 @@ void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint6
 /**
 *   @brief Writes the delta values of the entity state.
 **/
-void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *to, msgEsFlags_t flags ) {
+void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to, msgEsFlags_t flags ) {
 	if ( !to ) {
 		if ( !from ) {
 			Com_Error( ERR_DROP, "%s: NULL", __func__ );
@@ -122,6 +66,7 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	//if ( to->client != from->client ) {
 	//	bits |= U_CLIENT;
 	//}
+
 	if ( !( flags & MSG_ES_FIRSTPERSON ) ) {
 		if ( to->origin[ 0 ] != from->origin[ 0 ] ) {
 			bits |= U_ORIGIN1;
@@ -168,7 +113,7 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( to->solid != from->solid ) {
 		bits |= U_SOLID;
 	}
-	if ( to->bounds.u != from->bounds.u ) {
+	if ( to->bounds != from->bounds ) {
 		bits |= U_BOUNDINGBOX;
 	}
 	if ( to->clipMask != from->clipMask ) {
@@ -227,18 +172,18 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 
 
 	// START ET_SPOTLIGHT:
-	if ( to->rgb[ 0 ] != from->rgb[ 0 ]
-		 || to->rgb[ 1 ] != from->rgb[ 1 ]
-		 || to->rgb[ 2 ] != from->rgb[ 2 ] ) {
+	if ( to->spotlight.rgb[ 0 ] != from->spotlight.rgb[ 0 ]
+		 || to->spotlight.rgb[ 1 ] != from->spotlight.rgb[ 1 ]
+		 || to->spotlight.rgb[ 2 ] != from->spotlight.rgb[ 2 ] ) {
 		bits |= U_SPOTLIGHT_RGB;
 	}
-	if ( to->intensity != from->intensity ) {
+	if ( to->spotlight.intensity != from->spotlight.intensity ) {
 		bits |= U_SPOTLIGHT_INTENSITY;
 	}
-	if ( to->angle_falloff != from->angle_falloff ) {
+	if ( to->spotlight.angle_falloff != from->spotlight.angle_falloff ) {
 		bits |= U_SPOTLIGHT_ANGLE_FALLOFF;
 	}
-	if ( to->angle_width != from->angle_width ) {
+	if ( to->spotlight.angle_width != from->spotlight.angle_width ) {
 		bits |= U_SPOTLIGHT_ANGLE_WIDTH;
 	}
 	// END ET_SPOTLIGHT
@@ -251,10 +196,7 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 
 	MSG_WriteEntityNumber( to->number, false, bits );
 
-	//if ( bits & U_CLIENT ) {
-	//	MSG_WriteInt16( to->client );
-	//}
-
+	// Write out the origin.
 	if ( bits & U_ORIGIN1 ) {
 		MSG_WriteFloat( to->origin[ 0 ] );
 	}
@@ -264,23 +206,24 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( bits & U_ORIGIN3 ) {
 		MSG_WriteFloat( to->origin[ 2 ] );
 	}
-
+	// Write out the angles.
 	if ( bits & U_ANGLE1 ) {
-		MSG_WriteHalfFloat( to->angles[ 0 ] );
+		MSG_WriteHalfFloat( QM_AngleMod( to->angles[ 0 ] ) );
 	}
 	if ( bits & U_ANGLE2 ) {
-		MSG_WriteHalfFloat( to->angles[ 1 ] );
+		MSG_WriteHalfFloat( QM_AngleMod( to->angles[ 1 ] ) );
 	}
 	if ( bits & U_ANGLE3 ) {
-		MSG_WriteHalfFloat( to->angles[ 2 ] );
+		MSG_WriteHalfFloat( QM_AngleMod( to->angles[ 2 ] ) );
 	}
-
+	// Write out the old_origin.
 	if ( bits & U_OLDORIGIN ) {
 		MSG_WriteFloat( to->old_origin[ 0 ] );//MSG_WriteInt16( to->old_origin[ 0 ] ); // WID: float-movement
 		MSG_WriteFloat( to->old_origin[ 1 ] );//MSG_WriteInt16( to->old_origin[ 1 ] ); // WID: float-movement
 		MSG_WriteFloat( to->old_origin[ 2 ] );//MSG_WriteInt16( to->old_origin[ 2 ] ); // WID: float-movement
 	}
 
+	// Write out the model indices.
 	if ( bits & U_MODEL ) {
 		MSG_WriteUintBase128( to->modelindex );
 	}
@@ -294,33 +237,42 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 		MSG_WriteUintBase128( to->modelindex4 );
 	}
 
+	// Write out the entity type.
 	if ( bits & U_ENTITY_TYPE ) {
 		MSG_WriteUintBase128( to->entityType );
 	}
+	// Write out the other entity number.
 	if ( bits & U_OTHER_ENTITY_NUMBER ) {
-		MSG_WriteUintBase128( to->otherEntityNumber );
+		MSG_WriteIntBase128( to->otherEntityNumber );
 	}
 
+	// Write out the frame.
 	if ( bits & U_FRAME ) {
 		MSG_WriteUintBase128( to->frame );
 	}
 	//if ( bits & U_OLD_FRAME ) {
 	//	MSG_WriteUintBase128( to->old_frame );
 	//}
+
+	// Write out the skin number.
 	if ( bits & U_SKIN ) {
-		MSG_WriteUintBase128( to->skinnum );
+		MSG_WriteIntBase128( to->skinnum );
 	}
+	// Write out the effects.
 	if ( bits & U_EFFECTS ) {
 		MSG_WriteUintBase128( to->effects );
 	}
+	// Write out the renderfx.
 	if ( bits & U_RENDERFX ) {
-		MSG_WriteUintBase128( to->renderfx );
+		MSG_WriteIntBase128( to->renderfx );
 	}
 
+	// Write out the sound.
 	if ( bits & U_SOUND ) {
-		MSG_WriteUintBase128( to->sound );
+		MSG_WriteIntBase128( to->sound );
 	}
 
+	// Write out the event.
 	if ( bits & U_EVENT ) {
 		MSG_WriteIntBase128( to->event );
 	}
@@ -330,40 +282,46 @@ void MSG_WriteDeltaEntity( const entity_packed_t *from, const entity_packed_t *t
 	if ( bits & U_EVENT_PARM_1 ) {
 		MSG_WriteIntBase128( to->eventParm1 );
 	}
+
+	// Write out the solid type.
 	if ( bits & U_SOLID ) {
 		// WID: upgr-solid: WriteLong by default.
 		MSG_WriteUintBase128( to->solid );
 	}
+	// Write out the bounding box.
 	if ( bits & U_BOUNDINGBOX ) {
-		MSG_WriteUintBase128( to->bounds.u );
+		MSG_WriteUintBase128( to->bounds );
 	}
+	// Write out the clipmask.
 	if ( bits & U_CLIPMASK ) {
 		// WID: upgr-solid: WriteLong by default.
 		MSG_WriteUintBase128( to->clipMask );
 	}
+	// Write out the hull contents.
 	if ( bits & U_HULL_CONTENTS ) {
 		// WID: upgr-solid: WriteLong by default.
 		MSG_WriteUintBase128( to->hullContents );
 	}
+	// Write out the owner number.
 	if ( bits & U_OWNER ) {
 		// WID: upgr-solid: WriteLong by default.
-		MSG_WriteUintBase128( to->ownerNumber );
+		MSG_WriteIntBase128( to->ownerNumber );
 	}
 
 	// START ET_SPOTLIGHT:
 	if ( bits & U_SPOTLIGHT_RGB ) {
-		MSG_WriteUint8( to->rgb[ 0 ] );
-		MSG_WriteUint8( to->rgb[ 1 ] );
-		MSG_WriteUint8( to->rgb[ 2 ] );
+		MSG_WriteUint8( to->spotlight.rgb[ 0 ] );
+		MSG_WriteUint8( to->spotlight.rgb[ 1 ] );
+		MSG_WriteUint8( to->spotlight.rgb[ 2 ] );
 	}
 	if ( bits & U_SPOTLIGHT_INTENSITY ) {
-		MSG_WriteHalfFloat( to->intensity );
+		MSG_WriteHalfFloat( to->spotlight.intensity );
 	}
 	if ( bits & U_SPOTLIGHT_ANGLE_FALLOFF ) {
-		MSG_WriteHalfFloat( to->angle_falloff );
+		MSG_WriteHalfFloat( to->spotlight.angle_falloff );
 	}
 	if ( bits & U_SPOTLIGHT_ANGLE_WIDTH ) {
-		MSG_WriteHalfFloat( to->angle_width );
+		MSG_WriteHalfFloat( to->spotlight.angle_width );
 	}
 	// END ET_SPOTLIGHT.
 }

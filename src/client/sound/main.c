@@ -61,7 +61,6 @@ cvar_t      *s_ambient;
 cvar_t      *s_show;
 #endif
 cvar_t      *s_underwater;
-cvar_t      *s_underwater_gain_hf;
 
 static cvar_t   *s_enable;
 static cvar_t   *s_auto_focus;
@@ -230,7 +229,6 @@ void S_Init(void)
 #endif
     s_auto_focus = Cvar_Get("s_auto_focus", "0", 0);
     s_underwater = Cvar_Get("s_underwater", "1", 0);
-    s_underwater_gain_hf = Cvar_Get("s_underwater_gain_hf", "0.25", 0);
 
     // start one of available sound engines
     s_started = SS_NOT;
@@ -413,7 +411,7 @@ static sfx_t *S_FindName(const char *name, size_t namelen)
     int     i;
     sfx_t   *sfx;
 
-    // see if already loaded
+    // See if already loaded.
     for (i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++) {
         if (!FS_pathcmp(sfx->name, name)) {
             sfx->registration_sequence = s_registration_sequence;
@@ -421,7 +419,7 @@ static sfx_t *S_FindName(const char *name, size_t namelen)
         }
     }
 
-    // allocate new one
+    // Allocate new one.
     sfx = S_AllocSfx();
     if (sfx) {
         memcpy(sfx->name, name, namelen + 1);
@@ -647,6 +645,7 @@ channel_t *S_PickChannel(int entnum, int entchannel)
 
 // Check for replacement sound, or find the best one to replace
     first_to_die = -1;
+    // life_left 
     life_left = 0x7fffffff;
     for (ch_idx = 0; ch_idx < s_numchannels; ch_idx++) {
         ch = &s_channels[ch_idx];
@@ -662,7 +661,7 @@ channel_t *S_PickChannel(int entnum, int entchannel)
         // don't let monster sounds override player sounds
         if (ch->entnum == cl.listener_spatialize.entnum && entnum != cl.listener_spatialize.entnum && ch->sfx)
             continue;
-
+		// find the channel with the least time left
         if (ch->end - s_paintedtime < life_left) {
             life_left = ch->end - s_paintedtime;
             first_to_die = ch_idx;
@@ -898,7 +897,11 @@ void S_RawSamples(int samples, int rate, int width, int channels, const byte *da
 // Update sound buffer
 // =======================================================================
 /**
-*   @brief  Iterates all packet entities and 
+*   @brief  Iterates all packet entities and builds a sound list
+*           according to s_ambient cvar value. When s_ambient is 2,
+*           only entities with models will have sounds, when 3,
+*           only the listener entity will have sounds.
+*           Otherwise, all entities will have their sound member processed.
 **/
 void S_BuildSoundList(int *sounds)
 {

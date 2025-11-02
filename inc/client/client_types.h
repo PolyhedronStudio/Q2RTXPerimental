@@ -428,7 +428,7 @@ typedef struct client_state_s {
 
 
     /**
-    *   @brief  Gets properly configured by the client game, when V_RenderView is called upon,
+    *   @brief  Gets properly configured by the client game, when CLG_DrawActiveViewState is called upon,
     *           and then passes on the data to the refresh render module.
     **/
     struct {
@@ -491,6 +491,10 @@ typedef struct client_state_s {
     *               (client-)entity than our own local clientEntity.
     **/
     centity_t   *chaseEntity;
+    /**
+	*   @brief  The entity that is currently bound to our view. (Either our own clientEntity, or the chaseEntity.)
+    **/
+    centity_t   *viewBoundEntity;
 
     // Received pmove configuration.
     //pmoveParams_t pmp;

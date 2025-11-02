@@ -75,6 +75,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //} centity_t;
 // Will point to the actual client game its client entity array.
 extern centity_t *cl_entities;
+
 // Extern it so we got access to it anywhere in the client.
 QEXTERN_C_ENCLOSE( extern clgame_export_t *clge; );
 //! Extern client_state_t so we can access it anyhwere.
@@ -560,19 +561,7 @@ void CL_SeekDemoMessage(void);
 *           Will switch the clientstatic state to 'ca_active' if it is the first
 *           parsed valid frame and the client is done precaching all data.
 **/
-void CL_ProcessDeltaFrames( void );
-/**
-*   @brief  Prepares the current frame's view scene for the refdef by
-*           emitting all frame data(entities, particles, dynamic lights, lightstyles,
-*           and temp entities) to the refresh definition.
-**/
-void CL_PrepareViewEntities( void );
-/**
-*   @brief  Sets cl.refdef view values and sound spatialization params.
-*           Usually called from CL_PrepareViewEntities, but may be directly called from the main
-*           loop if rendering is disabled but sound is running.
-**/
-void CL_CalculateViewValues( void );
+void CL_ProcessNextFrame( void );
 /**
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.
@@ -595,7 +584,14 @@ QEXTERN_C_ENCLOSE( void CL_CheckEntityPresent( const int32_t entityNumber, const
 //
 void V_Init(void);
 void V_Shutdown(void);
-void V_RenderView(void);
+/**
+*   @brief  Sets cl.refdef view values and sound spatialization params.
+*           Usually called from CL_PrepareViewEntities, but may be directly called from the main
+*           loop if rendering is disabled but sound is running.
+**/
+void CL_CalculateViewValues( void );
+
+
 /**
 *   @brief  Calculate the client's PVS which is a necessity for culling out
 *           local client entities.
@@ -693,7 +689,18 @@ void Char_Message(int key);
 void    CL_InitRefresh(void);
 void    CL_ShutdownRefresh(void);
 void    CL_RunRefresh(void);
-
+/**
+*   @note  This is exposed to refresh module, so we can rid it of the need to include cl_client.h
+**/
+// Extern C
+QEXTERN_C_OPEN
+void    CL_RefExport_GetViewOrigin( vec3_t origin );
+void    CL_RefExport_GetFieldOfViewXY( float *fovX, float *fovY );
+const int32_t CL_RefExport_GetMaxClients( void );
+const cvar_t *CL_RefExport_GetPlayerModelCvar( void );
+const qhandle_t CL_RefExport_GetBaseInfoModelHandle( void );
+// Extern C
+QEXTERN_C_CLOSE
 
 
 //

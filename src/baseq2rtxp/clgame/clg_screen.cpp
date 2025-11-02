@@ -9,7 +9,7 @@
 
 #include "clgame/clg_hud.h"
 #include "clgame/clg_screen.h"
-
+#include "clgame/clg_view.h"
 
 
 /**
@@ -1147,7 +1147,7 @@ void PF_SCR_Shutdown( void ) {
 /**
 *	@return	Pointer to the current frame's render "view rectangle".
 **/
-vrect_t *PF_GetScreenVideoRect( void ) {
+vrect_t *CLG_GetScreenVideoRect( void ) {
     return &scr_vrect;
 }
 
@@ -1303,7 +1303,7 @@ static void SCR_Draw2D( refcfg_t *refcfg ) {
 /**
 *	@brief	Prepare and draw the current 'active' state's 2D and 3D views.
 **/
-void PF_DrawActiveState( refcfg_t *refcfg ) {
+void CLG_DrawActiveViewState( refcfg_t *refcfg ) {
     // Otherwise, start with full screen HUD.
     clgi.screen->screenHeight = refcfg->height;
     clgi.screen->screenWidth = refcfg->width;
@@ -1318,7 +1318,7 @@ void PF_DrawActiveState( refcfg_t *refcfg ) {
     SCR_TileClear();
 
     // Draw 3D game view.
-    clgi.V_RenderView();
+    CLG_DrawActiveViewState();
 
     // Draw all 2D elements.
     SCR_Draw2D( refcfg );

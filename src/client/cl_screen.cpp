@@ -601,7 +601,7 @@ static void SCR_DrawActive(void)
     }
 
     // Call into client game for drawing active state.
-    clge->DrawActiveState( &r_config );
+    clge->DrawActiveViewState( &r_config );
 }
 
 //=======================================================

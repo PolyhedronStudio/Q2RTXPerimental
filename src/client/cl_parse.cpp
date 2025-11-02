@@ -234,7 +234,7 @@ static void CL_ParseFrame()
         if ( deltaframe == currentframe ) {
             Com_DPrintf( "%s: delta from current frame\n", __func__ );
             cl.frameflags |= FF_BADFRAME;
-            // Should never happen.
+        // Should never happen.
         } else if ( !oldframe->valid ) {
             Com_DPrintf( "%s: delta from invalid frame\n", __func__ );
             cl.frameflags |= FF_BADFRAME;
@@ -252,7 +252,7 @@ static void CL_ParseFrame()
         }
 
         // For demo playback, support invalid frames either way.
-        if ( !frame.valid && cl.frame.valid && cls.demo.playback ) {
+        if ( cls.demo.playback && !frame.valid && cl.frame.valid ) {
             Com_DPrintf( "%s: recovering broken demo\n", __func__ );
             oldframe = &cl.frame;
             from = &oldframe->ps;
@@ -340,6 +340,7 @@ static void CL_ParseFrame()
 
     SHOWNET(2, "%3zu:packetentities\n", msg_read.readcount - 1);
 
+	// Parse the entities that have been sent.
     CL_ParsePacketEntities(oldframe, &frame);
 
     // Save the frame off in the backup array for later delta comparisons
@@ -380,7 +381,7 @@ static void CL_ParseFrame()
     // Start to perform the delta frame lerping if we're not demo seeking,
     // this will also move our cls.state into ca_active if it is our first valid received frame.
     if ( !cls.demo.seeking ) {
-        CL_ProcessDeltaFrames();
+        CL_ProcessNextFrame();
     }
 }
 
@@ -619,7 +620,7 @@ static void CL_ParseStartSoundPacket( void ) {
 
 	// positioned in space
     if ( flags & SND_POS ) {
-        MSG_ReadPos( cl.snd.pos, MSG_POSITION_ENCODING_NONE );
+        MSG_ReadPos( cl.snd.pos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     }
 
 	cl.snd.flags = flags;

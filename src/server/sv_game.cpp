@@ -607,7 +607,8 @@ static void SV_StartSound( const Vector3 *origin, edict_ptr_t *edict,
 		MSG_WriteUint8( ofs );
 
 	MSG_WriteUint16( sendchan );
-	MSG_WritePosition( &origin->x, MSG_POSITION_ENCODING_NONE );
+    Vector3 snappedOrigin = QM_Vector3Snap( *origin );
+	MSG_WritePosition( &snappedOrigin.x, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 	
 	// if the sound doesn't attenuate, send it to everyone
 	// (global radio chatter, voiceovers, etc)

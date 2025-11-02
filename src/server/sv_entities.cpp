@@ -52,8 +52,8 @@ static void SV_EmitPacketEntities(client_t         *client,
     int32_t newnum = 0;
 
     // Pointer to old and new states.
-    entity_packed_t *newent = nullptr;
-    const entity_packed_t *oldent = nullptr;
+    entity_state_t *newent = nullptr;
+    const entity_state_t *oldent = nullptr;
     
     // Flags.
     msgEsFlags_t flags = MSG_ES_NONE;
@@ -186,7 +186,7 @@ SV_WriteFrameToClient
 */
 void SV_WriteFrameToClient( client_t *client ) {
     // Defaults to nullptr, gets set when we found an actual old frame to retreive player state from.
-	player_packed_t *oldPlayerState = nullptr;
+	player_state_t   *oldPlayerState = nullptr;
     // Defaults to -1, gets set when we found an actual old frame to delta from.
 	int64_t          lastFrameNumber = -1;
 
@@ -376,7 +376,7 @@ void SV_BuildClientFrame(client_t *client)
 {
     int32_t i = 0;
     sv_edict_t     *ent;
-    entity_packed_t *state;
+    entity_state_t *state;
 	entity_state_t  es;
     static byte        clientPHS[VIS_MAX_BYTES];
     memset( clientPHS, 0, sizeof( clientPHS ) );
@@ -442,8 +442,7 @@ void SV_BuildClientFrame(client_t *client)
 	*   Pack up the current player_state_t, and ensure the frame has the correct clientNum.
     **/
     // grab the current player_state_t
-    MSG_PackPlayer(&frame->ps, ps);
-
+    frame->ps = *ps;
     // Grab the entity's client's current clientNum
     if (g_features->integer & GMF_CLIENTNUM) {
 		// Assign the clientNum from the entity's client structure.
@@ -562,9 +561,10 @@ void SV_BuildClientFrame(client_t *client)
         /**
         *   Add it to the circular client_entities array
         **/
-        // 
+		// Get a pointer to the next entity state in the circular buffer.
         state = &svs.entities[ svs.next_entity % svs.num_entities ];
-        MSG_PackEntity( state, &es );
+		// Copy over the (modifyable) entity state.
+        *state = es;
 
         /**
         *   Hide POV entity from renderer, unless this is player's own entity.

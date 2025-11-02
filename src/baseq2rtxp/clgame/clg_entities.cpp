@@ -22,26 +22,39 @@
 *   @brief  For debugging problems when out-of-date entity origin is referenced.
 **/
 #if USE_DEBUG
-void CLG_CheckEntityPresent( int32_t entityNumber, const char *what ) {
-	server_frame_t *frame = &clgi.client->frame;
+void CLG_CheckEntityPresent( const int32_t entityNumber, const char *what ) {
+    if ( CLG_IsLocalClientEntity( entityNumber ) ) {
+        return; // local client entity = current
+    }
 
-	if ( entityNumber == clgi.client->frame.clientNum + 1 ) {
-		return; // player entity = current.
-	}
+    // Get the entity for the number.
+    centity_t *e = &clg_entities[ entityNumber ];
 
-	centity_t *e = &clg_entities[ entityNumber ]; //e = &cl_entities[entnum];
-	if ( e && e->serverframe == frame->number ) {
-		return; // current
-	}
+    // Check if the entity was present in the current frame.
+    if ( e && e->serverframe == clgi.client->frame.number ) {
+        return; // current
+    }
 
-	if ( e && e->serverframe ) {
-		clgi.Print( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d last seen %d frames ago\n", what, entityNumber, frame->number - e->serverframe );
-	} else {
-        clgi.Print( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d never seen before\n", what, entityNumber );
-	}
+    // Print debug info.
+    if ( e && e->serverframe ) {
+        Com_LPrintf( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d last seen %d frames ago\n", what, entityNumber, clgi.client->frame.number - e->serverframe );
+    } else {
+        Com_LPrintf( PRINT_DEVELOPER, "SERVER BUG: %s on entity %d never seen before\n", what, entityNumber );
+    }
 }
 #endif
 
+
+
+/**
+*
+*
+*
+*   Entity (Linear/Extrapolation-) for (Sound-)Spatialization:
+* 
+* 
+* 
+**/
 /**
 *   @brief  Performs general linear interpolation for the entity origin inquired by sound spatialization.
 **/
@@ -90,7 +103,7 @@ void CLG_LerpBrushModelSoundOrigin( const centity_t *ent, vec3_t org ) {
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.
 **/
-void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
+void CLG_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
     if ( entityNumber < 0 || entityNumber >= MAX_EDICTS ) {
         Com_Error( ERR_DROP, "%s: bad entnum: %d", __func__, entityNumber );
     }
@@ -139,19 +152,29 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
 *
 *
 **/
+static inline void EntityState_ResetState( centity_t *ent, const entity_state_t *newState ) {
+    // If the previous snapshot this entity was updated in is at least
+    // an event window back in time then we can reset the previous event
+    if ( ent->snapShotTime < clgi.client->time - EVENT_VALID_MSEC ) {
+        ent->previousEvent = 0;
+    }
+    // For diminishing rocket / grenade trails.
+    ent->trailcount = 1024;
+    // Duplicate the current state so lerping doesn't hurt anything.
+    ent->prev = *newState;
+}
+
 /**
 *	@brief	Called when a new frame has been received that contains an entity
 *			which was not present in the previous frame.
 **/
-void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
+void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 &newIntendOrigin ) {
 	// Assign a unique id to each entity for tracking it over multiple frames.
     static int64_t entity_ctr = 0;
     ent->id = ++entity_ctr;
-    // For diminishing rocket / grenade trails.
-    ent->trailcount = 1024;
 
-    // Duplicate the current state so lerping doesn't hurt anything.
-    ent->prev = *state;
+    // Reset the needed entity state properties.
+    EntityState_ResetState( ent, state );
 
     // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
     // Handle proper lerping for animated entities by Hz.    
@@ -166,13 +189,14 @@ void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, co
 
 	// Off the entity event value.
     const int32_t entityEvent = SG_GetEntityEventValue( state->event );
-
     // No lerping if teleported, or a BEAM effect entity.
     if ( entityEvent == EV_PLAYER_TELEPORT ||
         entityEvent == EV_OTHER_TELEPORT ||
-        ( state->entityType == ET_BEAM || state->renderfx & RF_BEAM ) ) {
-        // No lerping if teleported.
-        ent->lerp_origin = *origin;
+        ( state->entityType == ET_BEAM || state->renderfx & RF_BEAM )
+    ) {
+        ent->lerp_origin = newIntendOrigin;
+        // We also thus do not want to mess about with assigning the state's
+		// old_origin for lerping. Hence, we just return here.
         return;
     }
 
@@ -185,10 +209,7 @@ void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, co
 *	@brief	Called when a new frame has been received that contains an entity
 *			already present in the previous frame.
 **/
-void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
-    // Off the entity event value.
-    const int32_t entityEvent = SG_GetEntityEventValue( state->event );
-
+void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 &newIntendOrigin ) {
     // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
     // Handle proper lerping for animated entities by Hz.    
     #if 1
@@ -211,7 +232,9 @@ void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, c
         ent->step_realtime = clgi.GetRealTime();
     }
 
-    // some data changes will force no lerping
+    // Off the entity event value.
+    const int32_t entityEvent = SG_GetEntityEventValue( state->event );
+    // Some data changes will force no lerping
     if ( state->entityType != ent->current.entityType
         || state->modelindex != ent->current.modelindex
         || state->modelindex2 != ent->current.modelindex2
@@ -219,30 +242,27 @@ void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, c
         || state->modelindex4 != ent->current.modelindex4
         || entityEvent == EV_PLAYER_TELEPORT
         || entityEvent == EV_OTHER_TELEPORT
-        || fabsf( (*origin)[ 0 ] - ent->current.origin[ 0 ] ) > 64//512
-        || fabsf( (*origin)[ 1 ] - ent->current.origin[ 1 ] ) > 64//512
-        || fabsf( (*origin)[ 2 ] - ent->current.origin[ 2 ] ) > 64//512
-        || cl_nolerp->integer == 1 ) {
-        // For diminishing rocket / grenade trails.
-        ent->trailcount = 1024;     
+        || fabsf( ( newIntendOrigin )[ 0 ] - ent->current.origin[ 0 ] ) > 64//512
+        || fabsf( ( newIntendOrigin )[ 1 ] - ent->current.origin[ 1 ] ) > 64//512
+        || fabsf( ( newIntendOrigin )[ 2 ] - ent->current.origin[ 2 ] ) > 64//512
+        || cl_nolerp->integer == 1
+    ) {
+		// Reset the needed entity state properties.
+        EntityState_ResetState( ent, state );
 
-        // Duplicate the current state. This way, possible lerping doesn't 'hurt' anything.
-        ent->prev = *state;
+		// No lerping if Teleported or Morphed, so use the passed in current origin.
+        ent->lerp_origin = newIntendOrigin;
 
         // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
         // Handle proper lerping for animated entities by Hz.    
-        #if 1
-        // WID: 40hz
+        #if 1// WID: 40hz
         ent->last_frame = state->frame;
-        // WID: 40hz
-        #endif
-        // no lerping if teleported or morphed
-        ent->lerp_origin = *origin;
+        #endif// WID: 40hz
         return;
     }
 
-    // Shuffle the last 'current' state to previous
-    ent->prev = ent->current;
+    // All checks passed, this entity can lerp properly.
+    ent->prev = ent->current; // Shuffle the last 'current' state to previous
 }
 
 
@@ -295,10 +315,10 @@ static void duplicate_player_state( player_state_t *ps, player_state_t *ops, con
     #endif
 }
 /**
-*   Determine whether the player state has to lerp between the current and old frame,
-*   or snap 'to'.
+*   @brief  Handles player state transition between old and new server frames. Duplicates old state into current state
+*           in case of no lerping conditions being met.
 **/
-void CLG_PlayerState_LerpOrSnap( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
+void CLG_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
     // Find player states to interpolate between
     player_state_t *ps = &frame->ps;
     player_state_t *ops = &oldframe->ps;
@@ -318,9 +338,9 @@ void CLG_PlayerState_LerpOrSnap( server_frame_t *oldframe, server_frame_t *frame
     }
 
     // No lerping if player entity was teleported (origin check).
-    if ( fabsf( ops->pmove.origin[ 0 ] - ps->pmove.origin[ 0 ] ) > 256 || // * 8 || // WID: float-movement
-        fabsf( ops->pmove.origin[ 1 ] - ps->pmove.origin[ 1 ] ) > 256 || // * 8 || // WID: float-movement
-        fabsf( ops->pmove.origin[ 2 ] - ps->pmove.origin[ 2 ] ) > 256 ) {// * 8) { // WID: float-movement
+    if ( fabsf( ops->pmove.origin.x - ps->pmove.origin.x ) > 256 ||
+        fabsf( ops->pmove.origin.y - ps->pmove.origin.y ) > 256 ||
+        fabsf( ops->pmove.origin.z - ps->pmove.origin.z ) > 256 ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 );
         return;
     }
@@ -331,8 +351,9 @@ void CLG_PlayerState_LerpOrSnap( server_frame_t *oldframe, server_frame_t *frame
     // If the player entity was within the range of lastFrameNumber and frame->number,
     // and had any teleport events going on, duplicate the player state into the old player state,
     // to prevent it from lerping afar distance.
+    const int32_t entityEvent = SG_GetEntityEventValue( clent->current.event );
     if ( clent->serverframe > lastFrameNumber && clent->serverframe <= frame->number &&
-        ( clent->current.event == EV_PLAYER_TELEPORT || clent->current.event == EV_OTHER_TELEPORT ) ) {
+        ( entityEvent == EV_PLAYER_TELEPORT || entityEvent == EV_OTHER_TELEPORT ) ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_EVENT_TELEPORT );
         return;
     }

@@ -65,8 +65,18 @@ static inline int32_t SG_GetEntityEventValue( const int32_t eventValue ) {
 *	If you really want to optimize it, you could potentially reduce it to 250ms( 10 frames ),
 *	but I wouldn't go lower than that without extensive testing of all event types under various network conditions.
 **/
+/**
+*   <Q2RTXP>: We can change this value as we want, because we still have an acknowledgement system
+*             in-place for the frame we send the event in, so the client will always get the event 
+*             even if there is some packet loss.
+* 
+*             However, to keep things feeling responsive, we can reduce this value to 150ms at 40hz tickrate, 
+*             which should still be sufficient for our network conditions while improving responsiveness.
+*             
+*             (It remains at 6 frames duration at 40hz tickrate using 150ms.)
+**/
 //! Time in milliseconds that an entity event will be considered valid.
-static constexpr int32_t EVENT_VALID_MSEC = 300;
+static constexpr int32_t EVENT_VALID_MSEC = 150; // Original: 300ms at 20hz tickrate.
 
 
 
@@ -173,10 +183,14 @@ typedef enum sg_entity_events_e {
     /**
 	*   Temporary External Entity Events:
     **/
-	//! General sound event for entities, play a sound at the entity's origin on the specified channel.
+	//! General sound event for entities, play a sound on the (client's-) entity playing on the specified channel.
     EV_GENERAL_SOUND,
-	//! Global sound event, play a sound(Zero attenuation.) at the entity's origin for all clients to hear.
-	//EV_GLOBAL_SOUND,
+	//! Same as EV_GENERAL_SOUND but with attenuation parameter.
+    EV_GENERAL_SOUND_EX,
+    //! Positioned sound event for entities, play a sound at the (client/entity)'s origin on the specified channel.
+	EV_POSITIONED_SOUND,
+	//! Global sound event, will play at a client's head so the sound is not attenuated. (No diminishing.)
+	EV_GLOBAL_SOUND,
 
 	//! Maximum number of entity events, must be last.
     EV_GAME_MAX
@@ -235,6 +249,9 @@ static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     "EV_ITEM_RESPAWN",
 
 	"EV_GENERAL_SOUND",
+	"EV_GENERAL_SOUND_EX",
+    "EV_POSITIONED_SOUND",
+	"EV_GLOBAL_SOUND",
 };
 
 /**

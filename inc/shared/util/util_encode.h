@@ -18,6 +18,13 @@ static inline const float BYTE2ANGLE( const int s ) {
 	return ( ( s ) * ( 360.0f / 256 ) );
 }
 /**
+*	Blend to Byte.
+**/
+//! Used for decoding the 'wired' angle in a 'float'.
+static inline const float BYTE2BLEND( const int s ) {
+	return QM_Clamp( s / 255.0f, 0.0f, 1.0f );
+}
+/**
 *	Short to Angles/Angles to Shorts.
 **/
 //! Used for decoding the 'wired' angle in a 'float'.

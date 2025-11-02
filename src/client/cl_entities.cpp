@@ -101,9 +101,8 @@ static inline bool entity_is_new(const centity_t *ent) {
 
 static void parse_entity_update(const entity_state_t *state)
 {
+	// Get entity for this state.
     centity_t *ent = ENTITY_FOR_NUMBER( state->number );
-    const Vector3 *origin;
-    Vector3 origin_v;
 
     // If entity is solid, and not the frame's client entity, add it to the solid entity list.
 	// (We don't want to add the client's own entity, to prevent issues with self-collision).
@@ -128,28 +127,20 @@ static void parse_entity_update(const entity_state_t *state)
         ent->maxs = QM_Vector3Zero();
     }
 
-    #if 1
-    // Work around Q2PRO server bandwidth optimization.
+    // Default to the entity state origin.
+    Vector3 newIntendOrigin = state->origin;
+    // However, if an 'optimized' player entity, use its origin instead.
     if ( entity_is_optimized( state ) ) {
-        if ( cl.frame.number <= 0 ) {
-            origin_v = cl.frame.ps.pmove.origin;// VectorCopy( cl.frame.ps.pmove.origin, origin_v );
-        } else {
-            origin_v = cl.predictedFrame.ps.pmove.origin;// VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
-        }
-        origin = &origin_v;
-    } else {
-        origin = &state->origin;
+        newIntendOrigin = ( cl.frame.number <= 0 ? cl.frame.ps.pmove.origin : cl.predictedFrame.ps.pmove.origin );
     }
 
     // See if the entity is new for the current serverframe or not and base our next move on that.
     if ( entity_is_new( ent ) ) {
         // Wasn't in last update, so initialize some things.
-        //entity_update_new( ent, state, origin );
-        clge->EntityState_FrameEnter( ent, state, origin );
+        clge->EntityState_FrameEnter( ent, state, &newIntendOrigin );
     } else {
         // Was around, sp update some things.
-        //entity_update_old( ent, state, origin );
-        clge->EntityState_FrameUpdate( ent, state, origin );
+        clge->EntityState_FrameUpdate( ent, state, &newIntendOrigin );
     }
 
     // Assign last received server frame.
@@ -159,48 +150,8 @@ static void parse_entity_update(const entity_state_t *state)
 
     // Work around Q2PRO server bandwidth optimization.
     if ( entity_is_optimized( state ) ) {
-        //if ( cl.frame.number <= 0 ) {
-            Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
-        //} else {
-        //    Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
-        //}
+        Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
     }
-    #else
-        // Work around Q2PRO server bandwidth optimization.
-        if ( entity_is_optimized( state ) ) {
-            //if ( cl.frame.number <= 0 ) {
-                VectorCopy( cl.frame.ps.pmove.origin, origin_v );
-            //} else {
-            //    VectorCopy( cl.predictedFrame.ps.pmove.origin, origin_v );
-            //}
-            origin = origin_v;
-        } else {
-            origin = state->origin;
-        }
-
-        // See if the entity is new for the current serverframe or not and base our next move on that.
-        if ( entity_is_new( ent ) ) {
-            // Wasn't in last update, so initialize some things.
-            entity_update_new( ent, state, origin );
-        } else {
-            // Was around, sp update some things.
-            entity_update_old( ent, state, origin );
-        }
-
-        // Assign last received server frame.
-        ent->serverframe = cl.frame.number;
-        // Assign new state.
-        ent->current = *state;
-
-        // Work around Q2PRO server bandwidth optimization.
-        if ( entity_is_optimized( state ) ) {
-            //if ( cl.frame.number <= 0 ) {
-                Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.frame.ps, &ent->current );
-            //} else {
-            //    Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current);
-            //}
-        }
-    #endif
 }
 
 /**
@@ -226,10 +177,16 @@ static void CL_SetInitialFrame(void)
     // Initialize oldframe so lerping doesn't hurt anything.
     cl.oldframe.valid = false;
     cl.oldframe.ps = cl.frame.ps;
+	// Set predicted frame to the current frame.
+    cl.predictedFrame = cl.frame;
 
-    cl.frameflags = 0;
+	// Set frameflags.
+    cl.frameflags = FF_NONE;
+
+	// Set initial sequence.
     cl.initialSeq = cls.netchan.outgoing_sequence;
 
+	// If demo playback, initialize demo things.
     if ( cls.demo.playback ) {
         // init some demo things
         CL_FirstDemoFrame();
@@ -261,27 +218,33 @@ static void CL_SetInitialFrame(void)
 *   Determine whether the player state has to lerp between the current and old frame,
 *   or snap 'to'.
 **/
-static void CL_LerpOrSnapPlayerState( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
+static void CL_TransitionPlayerState( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
     // No client game loaded yet.
     if ( !clge ) {
         return;
     }
     // Lerp or Snap the frame playerstates.
-    clge->PlayerState_LerpOrSnap( oldframe, frame, framediv );
+    clge->PlayerState_Transition( oldframe, frame, framediv );
 }
 
 /**
 *   @brief  Called after finished parsing the frame data. All entity states and the
-*           player state will be updated, and checked for 'snapping to' their new state,
-*           or to smoothly lerp into it. It'll check for any prediction errors afterwards
-*           also and calculate its correction value.
-*           
-*           Will switch the clientstatic state to 'ca_active' if it is the first
-*           parsed valid frame and the client is done precaching all data.
+*           player state will be transitioned and/or reset as needed, to make sure
+*           the client has a proper view of the current server frame. It does the following:
+*               - Will switch the clientstatic state to 'ca_active' if it is the first
+*                 parsed valid frame and the client is done precaching all data.
+*               - Sets the client servertime.
+*               - Rebuilds the solid entity list for this frame.
+*               - Updates all entity states for this frame.
+*               - Fires any entity events for this frame.
+*               - Updates the predicted frame.
+*               - Initializes the player's own entity position from the playerstate.
+*               - Lerps or snaps the playerstate between the old and current frame.
+*               - Checks for prediction errors.
 **/
-void CL_ProcessDeltaFrames( void ) {
+void CL_ProcessNextFrame( void ) {
+
     // Getting a valid frame message ends the connection process
-    //if ( cls.state == ca_precached ) {
     if ( cl.frame.valid && cls.state == ca_precached ) {
         CL_SetInitialFrame();
     }
@@ -293,18 +256,11 @@ void CL_ProcessDeltaFrames( void ) {
     // Rebuild the list of solid entities for this frame
     cl.numSolidEntities = 0;
 
-    // If this si the first frame, overwrite the whole predicted state with the current frame's player state.
-    pmove_state_t pmoveState = cl.predictedFrame.ps.pmove;
-    cl.predictedFrame = cl.frame; // Copy the current frame to the predicted frame.
-    if ( /*framenum*/cl.frame.number >= 0 ) {
-        cl.predictedFrame.ps.pmove = pmoveState; // Restore the pmove state.
-    }
-
     // Initialize position of the player's own entity from playerstate.
     // this is needed in situations when player entity is invisible, but
     // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
     centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );
-    if ( /*framenum*/cl.frame.number <= 1 ) {
+    if ( /*framenum*/cl.frame.number <= 0 ) {
         Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
     } else {
         Com_PlayerToEntityState( &cl.predictedFrame.ps, &clent->current );
@@ -327,6 +283,10 @@ void CL_ProcessDeltaFrames( void ) {
         
         // Fire any needed entity events.
         parse_entity_event( state->number );
+
+        // Remember time of snapshot this entity was last updated in
+        centity_t *cent = ENTITY_FOR_NUMBER( state->number );
+        cent->snapShotTime = cl.servertime;
     }
 
     // If we're recording a demo, make sure to store this frame into the demo data.
@@ -340,14 +300,13 @@ void CL_ProcessDeltaFrames( void ) {
     }
 
     // Grab mouse in case of player move type changes between frames.
-    // TODO: I have no clue why this was here to begin with, it wasn't me.
     if ( cl.oldframe.ps.pmove.pm_type != cl.frame.ps.pmove.pm_type ) {
         IN_Activate();
     }
 
     // Determine whether the player state has to lerp between the current and old frame,
     // or snap 'to'.
-    CL_LerpOrSnapPlayerState( &cl.oldframe, &cl.frame, cl.serverdelta );
+    CL_TransitionPlayerState( &cl.oldframe, &cl.frame, cl.serverdelta );
 
     if ( cls.demo.playback ) {
         // TODO: Proper stair smoothing.
@@ -385,29 +344,6 @@ void CL_CheckEntityPresent( const int32_t entityNumber, const char *what)
     }
 }
 #endif
-
-
-/**
-*   @brief  Sets cl.refdef view values and sound spatialization params.
-*           Usually called from CL_PrepareViewEntities, but may be directly called from the main
-*           loop if rendering is disabled but sound is running.
-**/
-void CL_CalculateViewValues( void ) {
-    // Update view values.
-    clge->CalculateViewValues();
-}
-
-/**
-*   @brief  Prepares the current frame's view scene for the refdef by 
-*           emitting all frame data(entities, particles, dynamic lights, lightstyles,
-*           and temp entities) to the refresh definition.
-**/
-void CL_PrepareViewEntities(void) {
-    // Let the Client Game prepare view entities.
-    clge->PrepareViewEntities();
-
-    // WID: disable LOC: LOC_AddLocationsToScene();
-}
 
 /**
 *   @brief  The sound code makes callbacks to the client for entitiy position

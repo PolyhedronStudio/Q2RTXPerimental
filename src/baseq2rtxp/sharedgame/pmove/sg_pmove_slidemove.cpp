@@ -513,7 +513,6 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 			if ( !isPredictive ) {
 				// >= 2.0 is an actual step however,
 				if ( fabs( stepSize ) >= PM_STEP_MIN_SIZE ) {
-					SG_DPrintf( "%i:stepped %f\n", pm->simulationTime, stepSize );
 					// Set step size.
 					pm->step_height = stepSize;
 					// Stepped flag.

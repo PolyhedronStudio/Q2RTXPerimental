@@ -6,18 +6,338 @@
 *
 ********************************************************************/
 #include "clgame/clg_local.h"
-#include "clgame/clg_main.h"
+
 #include "clgame/clg_effects.h"
-#include "clgame/clg_entities.h"
+
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_packet_entities.h"
-#include "clgame/clg_predict.h"
+
 #include "clgame/clg_temp_entities.h"
+#include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
-#include "clgame/clg_view_state_transition.h"
+
 #include "clgame/clg_view_weapon.h"
 
-#include "sharedgame/sg_entity_effects.h"
+//=============
+//
+// development tools for weapons
+//
+int         gun_frame;
+qhandle_t   gun_model;
+
+//// gun frame debugging functions
+//static void V_Gun_Next_f( void ) {
+//    gun_frame++;
+//    Com_Printf( "frame %i\n", gun_frame );
+//}
+//
+//static void V_Gun_Prev_f( void ) {
+//    gun_frame--;
+//    if ( gun_frame < 0 )
+//        gun_frame = 0;
+//    Com_Printf( "frame %i\n", gun_frame );
+//}
+//
+//static void V_Gun_Model_f( void ) {
+//    char    name[ MAX_QPATH ];
+//
+//    if ( Cmd_Argc() != 2 ) {
+//        gun_model = 0;
+//        return;
+//    }
+//    Q_concat( name, sizeof( name ), "models/", Cmd_Argv( 1 ), "/tris.iqm" );
+//    gun_model = R_RegisterModel( name );
+//}
+
+//=============
+
+//void V_Flashlight( void ) {
+//    if ( cls.ref_type == REF_TYPE_VKPT ) {
+//        player_state_t *ps = &cl.frame.ps;
+//        player_state_t *ops = &cl.oldframe.ps;
+//
+//        // Flashlight origin
+//        vec3_t light_pos;
+//        // Flashlight direction (as angles)
+//        vec3_t flashlight_angles;
+//
+//        if ( cls.demo.playback ) {
+//            /* If a demo is played we don't have predicted_angles,
+//             * and we can't use cl.refdef.viewangles for the same reason
+//             * below. However, lerping the angles from the old & current frame
+//             * work nicely. */
+//            LerpAngles( cl.oldframe.ps.viewangles, cl.frame.ps.viewangles, cl.lerpfrac, flashlight_angles );
+//        } else {
+//            /* Use cl.playerEntityOrigin+viewoffset, playerEntityAngles instead of
+//             * cl.refdef.vieworg, cl.refdef.viewangles as as the cl.refdef values
+//             * are the camera values, but not the player "eye" values in 3rd person mode. */
+//            VectorCopy( cl.predictedState.view.angles, flashlight_angles );
+//        }
+//        // Add a bit of gun bob to the flashlight as well
+//        vec3_t gunangles;
+//        LerpVector( ops->gunangles, ps->gunangles, cl.lerpfrac, gunangles );
+//        VectorAdd( flashlight_angles, gunangles, flashlight_angles );
+//
+//        vec3_t view_dir, right_dir, up_dir;
+//        AngleVectors( flashlight_angles, view_dir, right_dir, up_dir );
+//
+//        /* Start off with the player eye position. */
+//        vec3_t viewoffset;
+//        LerpVector( ops->viewoffset, ps->viewoffset, cl.lerpfrac, viewoffset );
+//        VectorAdd( cl.playerEntityOrigin, viewoffset, light_pos );
+//
+//        /* Slightly move position downward, right, and forward to get a position
+//         * that looks somewhat as if it was attached to the gun.
+//         * Generally, the spot light origin should be placed away from the player model
+//         * to avoid interactions with it (mainly unexpected shadowing).
+//         * When adjusting the offsets care must be taken that
+//         * the flashlight doesn't also light the view weapon. */
+//        VectorMA( light_pos, flashlight_offset[ 2 ] * cl_gunscale->value, view_dir, light_pos );
+//        float leftright = flashlight_offset[ 0 ] * cl_gunscale->value;
+//        if ( info_hand->integer == 1 )
+//            leftright = -leftright; // left handed
+//        else if ( info_hand->integer == 2 )
+//            leftright = 0.f; // "center" handed
+//        VectorMA( light_pos, leftright, right_dir, light_pos );
+//        VectorMA( light_pos, flashlight_offset[ 1 ] * cl_gunscale->value, up_dir, light_pos );
+//
+//        V_AddSpotLightTexEmission( light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex );
+//    } else {
+//        // Flashlight is VKPT only
+//    }
+//}
+//==================================================================
+
+static cvar_t *cl_adjustfov = nullptr;
+
+static cvar_t *clg_view_add_blend = nullptr;
+static cvar_t *clg_view_add_entities = nullptr;
+static cvar_t *clg_view_add_lights = nullptr;
+static cvar_t *clg_view_add_particles = nullptr;
+
+static cvar_t *clg_show_lights = nullptr;
+
+static cvar_t *clg_flashlight = nullptr;
+static cvar_t *clg_flashlight_intensity = nullptr;
+
+//static cvar_t *clg_flashlight_offset;
+//static Vector3 flashlight_offset;
+
+#if USE_DEBUG
+static cvar_t *clg_testblend = nullptr;
+static cvar_t *clg_testentities = nullptr;
+static cvar_t *clg_testlights = nullptr;
+static cvar_t *clg_testparticles = nullptr;
+
+static cvar_t *clg_view_stats = nullptr;
+#endif
+
+
+
+/**
+*
+*
+*   View Debugging Stuff:
+*
+*
+**/
+#if USE_DEBUG
+/*
+================
+V_TestParticles
+
+If clg_testparticles is set, create 4096 particles in the view
+================
+*/
+static void V_TestParticles( void ) {
+    particle_t *p;
+    int         i, j;
+    float       d, r, u;
+
+    clgi.client->viewScene.r_numparticles = MAX_PARTICLES;
+    for ( i = 0; i < clgi.client->viewScene.r_numparticles; i++ ) {
+        d = i * 0.25f;
+        r = 4 * ( ( i & 7 ) - 3.5f );
+        u = 4 * ( ( ( i >> 3 ) & 7 ) - 3.5f );
+        p = &clgi.client->viewScene.r_particles[ i ];
+
+        for ( j = 0; j < 3; j++ )
+            p->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->v_forward[ j ] * d +
+            clgi.client->v_right[ j ] * r + clgi.client->v_up[ j ] * u;
+
+        p->color = 8;
+        p->alpha = 1;
+    }
+}
+
+/*
+================
+V_TestEntities
+
+If clg_testentities is set, create 32 player models
+================
+*/
+static void V_TestEntities( void ) {
+    int         i, j;
+    float       f, r;
+    entity_t *ent;
+
+    clgi.client->viewScene.r_numentities = 32;
+    memset( clgi.client->viewScene.r_entities, 0, sizeof( clgi.client->viewScene.r_entities ) );
+
+    for ( i = 0; i < clgi.client->viewScene.r_numentities; i++ ) {
+        ent = &clgi.client->viewScene.r_entities[ i ];
+
+        r = 64 * ( ( i % 4 ) - 1.5f );
+        f = 64 * ( i / 4 ) + 128;
+
+        for ( j = 0; j < 3; j++ )
+            ent->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->v_forward[ j ] * f +
+            clgi.client->v_right[ j ] * r;
+
+        ent->model = clgi.client->baseclientinfo.model;
+        ent->skin = clgi.client->baseclientinfo.skin;
+    }
+}
+
+/*
+================
+V_TestLights
+
+If clg_testlights is set, create 32 lights models
+================
+*/
+static void V_TestLights( void ) {
+    int         i, j;
+    float       f, r;
+    dlight_t *dl;
+
+    if ( clg_testlights->integer != 1 ) {
+        dl = &clgi.client->viewScene.r_dlights[ 0 ];
+        memset( dl, 0, sizeof( dlight_t ) );
+        clgi.client->viewScene.r_numdlights = 1;
+
+        VectorMA( clgi.client->refdef.vieworg, 256, clgi.client->v_forward, dl->origin );
+        if ( clg_testlights->integer == -1 )
+            VectorSet( dl->color, -1, -1, -1 );
+        else
+            VectorSet( dl->color, 1, 1, 1 );
+        dl->intensity = 256;
+        dl->radius = 16;
+        return;
+    }
+
+    clgi.client->viewScene.r_numdlights = 32;
+    memset( clgi.client->viewScene.r_dlights, 0, sizeof( clgi.client->viewScene.r_dlights ) );
+
+    for ( i = 0; i < clgi.client->viewScene.r_numdlights; i++ ) {
+        dl = &clgi.client->viewScene.r_dlights[ i ];
+
+        r = 64 * ( ( i % 4 ) - 1.5f );
+        f = 64 * ( i / 4 ) + 128;
+
+        for ( j = 0; j < 3; j++ )
+            dl->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->v_forward[ j ] * f +
+            clgi.client->v_right[ j ] * r;
+        dl->color[ 0 ] = ( ( i % 6 ) + 1 ) & 1;
+        dl->color[ 1 ] = ( ( ( i % 6 ) + 1 ) & 2 ) >> 1;
+        dl->color[ 2 ] = ( ( ( i % 6 ) + 1 ) & 4 ) >> 2;
+        dl->intensity = 200;
+        dl->radius = 16;
+    }
+}
+#endif
+
+
+/**
+*
+*
+*   View Commands:
+*
+*
+**/
+static void V_Cmd_ViewPosition_f( void ) {
+    clgi.Print( PRINT_NOTICE, "ViewOrigin:(%s) : ViewAngles(%.f,%.f,%.f)\n", 
+        vtos( clgi.client->refdef.vieworg ),
+        clgi.client->refdef.viewangles[ PITCH ],
+        clgi.client->refdef.viewangles[ YAW ],
+        clgi.client->refdef.viewangles[ ROLL ]
+    );
+}
+
+static const cmdreg_t viewCommands[] = {
+    //{ "gun_next", V_Gun_Next_f },
+    //{ "gun_prev", V_Gun_Prev_f },
+    //{ "gun_model", V_Gun_Model_f },
+    { "viewpos", V_Cmd_ViewPosition_f },
+    { NULL }
+};
+
+/**
+*
+*
+*   CVar Callbacks:
+*
+*
+**/
+static void clg_add_blend_changed( cvar_t *self ) {
+}
+
+
+
+/**
+*
+*
+*   View Init/Shutdown:
+*
+*
+**/
+/**
+*	@brief	Called whenever the refresh module is (re-)initialized.
+**/
+void CLG_InitViewScene( void ) {
+    /**
+    *   Engine View CVars:
+    **/
+    cl_adjustfov = clgi.CVar_Get( "cl_adjustfov", nullptr, 0 );
+
+    /**
+    *   Client Game View CVars:
+    **/
+    #if USE_DEBUG
+    clg_testblend = clgi.CVar_Get( "clg_testblend", "0", 0 );
+    clg_testparticles = clgi.CVar_Get( "clg_testparticles", "0", 0 );
+    clg_testentities = clgi.CVar_Get( "clg_testentities", "0", 0 );
+    clg_testlights = clgi.CVar_Get( "clg_testlights", "0", CVAR_CHEAT );
+
+    clg_view_stats = clgi.CVar_Get( "clg_view_stats", "0", 0 );
+    #endif
+
+    clg_view_add_lights = clgi.CVar_Get( "clg_view_add_lights", "1", 0 );
+    clg_show_lights = clgi.CVar_Get( "clg_show_lights", "0", 0 );
+    //clg_flashlight = Cvar_Get("clg_flashlight", "0", 0);
+    //clg_flashlight_intensity = Cvar_Get("clg_flashlight_intensity", "10000", CVAR_CHEAT);
+    //if(cls.ref_type == REF_TYPE_VKPT) {
+    //    flashlight_profile_tex = R_RegisterImage("flashlight_profile", IT_PIC, static_cast<imageflags_t>( IF_PERMANENT | IF_BILERP) ); // WID: C++20: Added static cast
+    //} else {
+    //    flashlight_profile_tex = -1;
+    //}
+    clg_view_add_particles = clgi.CVar_Get( "clg_view_add_particles", "1", 0 );
+    clg_view_add_entities = clgi.CVar_Get( "clg_view_add_entities", "1", 0 );
+    clg_view_add_blend = clgi.CVar_Get( "clg_view_add_blend", "1", 0 );
+    clg_view_add_blend->changed = clg_add_blend_changed;
+
+}
+/**
+*	@brief	Called whenever the refresh module is shutdown.
+**/
+void CLG_ShutdownViewScene( void ) {
+    //if(flashlight_profile_tex != -1) {
+    //    R_UnregisterImage(flashlight_profile_tex);
+	//}
+    // Deregister view scene related commands.
+    clgi.Cmd_Deregister( viewCommands );
+}
 
 
 
@@ -31,12 +351,16 @@
 *
 **/
 /**
-*   @brief
+*   @brief  Resets the counters for the current frame's view scene.
+*           The actual memories of the entities, particles, and dynamic lights
+*           are not cleared, only the counters are reset to zero.
+* 
+*           This is more efficient than clearing all the memories each frame.
 **/
 void CLG_ClearViewScene( void ) {
-    //cl.viewScene.r_numdlights = 0;
-    //cl.viewScene.r_numentities = 0;
-    //cl.viewScene.r_numparticles = 0;
+    clgi.client->viewScene.r_numdlights = 0;
+    clgi.client->viewScene.r_numentities = 0;
+    clgi.client->viewScene.r_numparticles = 0;
 }
 
 /**
@@ -45,29 +369,18 @@ void CLG_ClearViewScene( void ) {
 *           and temp entities) to the refresh definition.
 **/
 void CLG_PrepareViewEntities( void ) {
-    // Get the current local client's player view entity. (Can be one we're chasing.)
-    clgi.client->clientEntity = CLG_GetViewBoundEntity();
-    // Get the current frames' chasing player view entity. (Can be one we're chasing.)
-    clgi.client->chaseEntity = CLG_GetChaseBoundEntity();
-
-    // Calculate view and spatial audio listener origins.
-    CLG_CalculateViewValues();
-    // Finish it off by determing third or first -person view, and the required thirdperson/firstperson view model.
-    CLG_FinishViewValues();
-
-    // Now calculate the client's local PVS.
-    clgi.V_CalculateLocalPVS( clgi.client->refdef.vieworg );
-
     // Add all 'in-frame' received packet entities to the rendered view.
     CLG_AddPacketEntities();
-
     // Add all 'in-frame' local entities to the rendered view.
     CLG_AddLocalEntities();
 
     // Add special effects 'refresh entities'.
     CLG_TemporaryEntities_Add();
+	// Add particles.
     CLG_AddParticles();
+	// Add dynamic lights.
     CLG_AddDLights();
+	// Add/Update the entity light styles.
     CLG_AddLightStyles();
 
     // Add the view weapon model.
@@ -77,7 +390,7 @@ void CLG_PrepareViewEntities( void ) {
     //CLG_AddTestModel();
 
     //! Add in the client-side flashlight.
-    //if ( cl_flashlight->integer ) {
+    //if ( clg_flashlight->integer ) {
     //    //CLG_View_Flashlight();
     //}
 }
@@ -145,7 +458,7 @@ const float CLG_CalculateFieldOfView( const float fov_x, const float width, cons
 //            if ( numframes > 1 && prevtime != 0 ) {
 //                const float millisecond = 1e-3f;
 //
-//                int timediff = cl.time - prevtime;
+//                int timediff = clgi.client->time - prevtime;
 //                frame += (float)timediff * millisecond * max( cl_testfps->value, 0.f );
 //
 //                if ( frame >= (float)numframes || frame < 0.f )
@@ -399,4 +712,138 @@ void CLG_FinishViewValues( void ) {
 
 first:
     CLG_SetupFirstPersonView();
+}
+
+
+static int entitycmpfnc( const void *_a, const void *_b ) {
+    const entity_t *a = (const entity_t *)_a;
+    const entity_t *b = (const entity_t *)_b;
+
+    // all other models are sorted by model then skin
+    if ( a->model == b->model ) {
+        return a->skin - b->skin;
+    } else {
+        return a->model - b->model;
+    }
+}
+
+
+/**
+*   @details    Whenever we have received a valid frame from the server, we will
+*               build up a fresh refdef for rendering the scene from the player's point of view.
+* 
+*               In doing so we'll prepare the scene by clearing out the previous scene, transitioning
+*               the entities to their new states, interpolating where necessary. Similarly the player's 
+*               state will be predicted, the states transitioned and at last we'll
+*               calculate the view values calculated from that.
+**/
+void CLG_DrawActiveViewState( void ) {
+    // An invalid frame will just use the exact previous refdef
+    // we can't use the old frame if the video mode has changed, though...
+    if ( clgi.client->frame.valid ) {
+        // Clear out the scene.
+        CLG_ClearViewScene();
+
+        // Calculate view and spatial audio listener origins.
+        CLG_CalculateViewValues();
+        // Finish it off by determing third or first -person view, and the required thirdperson/firstperson view model.
+        CLG_FinishViewValues();
+
+        // Now calculate the client's local PVS.
+        clgi.V_CalculateLocalPVS( clgi.client->refdef.vieworg );
+
+        // Build a refresh entity list and calc clgi.client->sim*
+        // this also calls CL_CalcViewValues which loads
+        // v_forward, etc.
+        CLG_PrepareViewEntities();
+
+        #if USE_DEBUG
+        if ( clg_testparticles->integer )
+            V_TestParticles();
+        if ( clg_testentities->integer )
+            V_TestEntities();
+        if ( clg_testlights->integer )
+            V_TestLights();
+        if ( clg_testblend->integer ) {
+            clgi.client->refdef.screen_blend[ 0 ] = 1;
+            clgi.client->refdef.screen_blend[ 1 ] = 0.5f;
+            clgi.client->refdef.screen_blend[ 2 ] = 0.25f;
+            clgi.client->refdef.screen_blend[ 3 ] = 0.5f;
+        }
+        #endif
+
+        //if(clg_flashlight->integer)
+        //    V_Flashlight();
+
+        // never let it sit exactly on a node line, because a water plane can
+        // dissapear when viewed with the eye exactly on it.
+        // the server protocol only specifies to 1/8 pixel, so add 1/16 in each axis
+        //clgi.client->refdef.vieworg[ 0 ] += 1.0f / 16;
+        //clgi.client->refdef.vieworg[ 1 ] += 1.0f / 16;
+        //clgi.client->refdef.vieworg[ 2 ] += 1.0f / 16;
+
+        //clgi.client->refdef.x = scr_vrect.x;
+        //clgi.client->refdef.y = scr_vrect.y;
+        //clgi.client->refdef.width = scr_vrect.width;
+        //clgi.client->refdef.height = scr_vrect.height;
+        vrect_t *scr_vrect = CLG_GetScreenVideoRect();
+        clgi.client->refdef.x = scr_vrect->x;
+        clgi.client->refdef.y = scr_vrect->y;
+        clgi.client->refdef.width = scr_vrect->width;
+        clgi.client->refdef.height = scr_vrect->height;
+
+        // adjust for non-4/3 screens
+        if ( cl_adjustfov->integer ) {
+            clgi.client->refdef.fov_y = clgi.client->fov_y;
+            clgi.client->refdef.fov_x = CLG_CalculateFieldOfView( clgi.client->refdef.fov_y, clgi.client->refdef.height, clgi.client->refdef.width );
+        } else {
+            clgi.client->refdef.fov_x = clgi.client->fov_x;
+            clgi.client->refdef.fov_y = CLG_CalculateFieldOfView( clgi.client->refdef.fov_x, clgi.client->refdef.width, clgi.client->refdef.height );
+        }
+
+        clgi.client->refdef.time = clgi.client->time * 0.001f;
+
+        if ( clgi.client->frame.areabytes ) {
+            clgi.client->refdef.areabits = clgi.client->frame.areabits;
+        } else {
+            clgi.client->refdef.areabits = NULL;
+        }
+
+        if ( !clg_view_add_entities->integer ) {
+            clgi.client->viewScene.r_numentities = 0;
+        }
+        if ( !clg_view_add_particles->integer ) {
+            clgi.client->viewScene.r_numparticles = 0;
+        }
+        if ( !clg_view_add_lights->integer ) {
+            clgi.client->viewScene.r_numdlights = 0;
+        }
+        if ( !clg_view_add_blend->integer ) {
+            Vector4Clear( clgi.client->refdef.screen_blend );
+        }
+
+        clgi.client->refdef.num_entities = clgi.client->viewScene.r_numentities;
+        clgi.client->refdef.entities = clgi.client->viewScene.r_entities;
+        clgi.client->refdef.num_particles = clgi.client->viewScene.r_numparticles;
+        clgi.client->refdef.particles = clgi.client->viewScene.r_particles;
+        clgi.client->refdef.num_dlights = clgi.client->viewScene.r_numdlights;
+        clgi.client->refdef.dlights = clgi.client->viewScene.r_dlights;
+        clgi.client->refdef.lightstyles = clgi.client->viewScene.r_lightstyles;
+
+        //clgi.client->refdef.rdflags = clgi.client->frame.ps.rdflags | CLG_GetViewRenderDefinitionFlags();
+        clgi.client->refdef.rdflags = /*clgi.client->predictedFrame.ps.rdflags |*/ CLG_GetViewRenderDefinitionFlags();
+
+        // sort entities for better cache locality
+        qsort( clgi.client->refdef.entities, clgi.client->refdef.num_entities, sizeof( clgi.client->refdef.entities[ 0 ] ), entitycmpfnc );
+    }
+
+    // Render the scene.
+    clgi.R_RenderFrame( &clgi.client->refdef );
+
+    // 
+    #if USE_DEBUG
+    if ( clg_view_stats->integer ) {
+        Com_Printf( "ent:%i  lt:%i  part:%i\n", clgi.client->refdef.num_entities, clgi.client->refdef.num_dlights, clgi.client->refdef.num_particles );
+    }
+    #endif
 }

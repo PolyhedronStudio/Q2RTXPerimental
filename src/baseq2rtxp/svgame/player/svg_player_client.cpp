@@ -64,33 +64,32 @@ void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_clien
         // except "ourselves", who generated the event.
         const int64_t seq = ps->entityEventSequence & ( MAX_PS_EVENTS - 1 );
 		const int32_t event = ps->events[ seq ] | ( ( ps->entityEventSequence & 3 ) << 8 );
-		
-        // Backup and zero out the external event before converting playerstate to entitystate.
+		const int32_t eventParm = ps->eventParms[ seq ];
+
+		// Backup and zero out the external event before converting playerstate to entitystate.
 		const int32_t externalEvent = ps->externalEvent;
 		ps->externalEvent = 0;
-		
-        // Create a temporary entity event for all other clients.
+		// Create a temporary entity event for all other clients.
 		svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEntityEvent( ps->pmove.origin, event, client->ps.eventParms[ seq ], client->clientNum + 1, true );
 
 		// Store number for restoration later.
         const int32_t tempEventEntityNumber = tempEventEntity->s.number;
-        // Convert certain playerstate properties into entity state properties.
-        SG_PlayerStateToEntityState( client->clientNum, ps, &tempEventEntity->s, true );
+		// Convert certain playerstate properties into entity state properties.
+		SG_PlayerStateToEntityState( client->clientNum, ps, &tempEventEntity->s, true );
         // Restore the number.
         tempEventEntity->s.number = tempEventEntityNumber;
 
         // Adjust type, assign player event flag.
         tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
 		tempEventEntity->s.effects |= EF_PLAYER_EVENT;
-		// Set other entity number to our client number + 1.
-		//tempEventEntity->s.otherEntityNum = client->clientNum + 1;
+		// Set other entity number to that of our client.
         tempEventEntity->s.otherEntityNumber = ent->s.number;
-        // Use eventParm1 instead :-)
-		//tempEventEntity->s.eventParm1 = ;
+		// Set eventParm from playerstate.
+		tempEventEntity->s.eventParm0 = eventParm;
+        tempEventEntity->s.eventParm1 = 0; // eventParm1.
 		// Mark as single-client no-send to ourselves.
 		tempEventEntity->svFlags |= SVF_SENDCLIENT_EXCLUDE_ID;
 		tempEventEntity->sendClientID = client->clientNum;
-        
         // Set back the external event.
 		ps->externalEvent = externalEvent;
     }
