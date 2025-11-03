@@ -6,7 +6,9 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_trigger.h"
+#include "svgame/svg_utils.h"
 
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_callfunction.hpp"
@@ -51,7 +53,8 @@ STOP mean it will stop moving instead of pushing entities
 void svg_func_rotating_t::StartSoundPlayback( ) {
     if ( !( flags & FL_TEAMSLAVE ) ) {
         if ( pushMoveInfo.sounds.start ) {
-            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+			//SVG_TempEventEntity_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, ATTN_STATIC );
+            SVG_EntityEvent_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, ATTN_STATIC );
         }
     }
 }
@@ -61,7 +64,8 @@ void svg_func_rotating_t::StartSoundPlayback( ) {
 void svg_func_rotating_t::EndSoundPlayback( ) {
     if ( !( flags & FL_TEAMSLAVE ) ) {
         if ( pushMoveInfo.sounds.end ) {
-            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+            //SVG_TempEventEntity_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, ATTN_STATIC );
+            SVG_EntityEvent_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, ATTN_STATIC );
         }
     }
 }
@@ -83,7 +87,8 @@ void svg_func_rotating_t::EndSoundPlayback( ) {
 void svg_func_rotating_t::LockState( ) {
     // Of course it has to be locked if we want to play a sound.
     if ( !pushMoveInfo.lockState.isLocked && pushMoveInfo.lockState.lockingSound ) {
-        gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
+        //SVG_TempEventEntity_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.lockState.lockingSound, ATTN_STATIC );
+        SVG_EntityEvent_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.lockState.lockingSound, ATTN_STATIC );
     }
     // Last but not least, unlock its state.
     SetLockState( true );
@@ -94,7 +99,8 @@ void svg_func_rotating_t::LockState( ) {
 void svg_func_rotating_t::UnLockState( ) {
     // Of course it has to be locked if we want to play a sound.
     if ( pushMoveInfo.lockState.isLocked && pushMoveInfo.lockState.unlockingSound ) {
-        gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
+        //SVG_TempEventEntity_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.lockState.unlockingSound, ATTN_STATIC );
+        SVG_EntityEvent_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.lockState.unlockingSound, ATTN_STATIC );
     }
     // Last but not least, unlock its state.
     SetLockState( false );
@@ -111,18 +117,6 @@ void svg_func_rotating_t::UnLockState( ) {
 *
 * 
 **/
-/**
-*   @brief
-**/
-void rotating_halt( svg_base_edict_t *self ) {
-
-}
-/**
-*   @brief
-**/
-void rotating_full_speeded( svg_base_edict_t *self ) {
-
-}
 /**
 *   @brief  Start the acceleration process.
 **/

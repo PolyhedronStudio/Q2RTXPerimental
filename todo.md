@@ -29,7 +29,9 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 * [ ] EAX sometimes remains as if we're underwater after exiting water. Re-entering and exiting usually helps though.
 * [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.
 	We'll just go for capsules instead. Perhaps look into even utilizing Jolt Physics at a bare minimum level for geometric clip testing.
-
+### Low Priority:
+* [ ] - The demo playback seems to read in an incorrect client number at times, causing it to
+	sometimes not show the player model and not play sound properly.
 
 ---
 ## V0.0.7 TODO:

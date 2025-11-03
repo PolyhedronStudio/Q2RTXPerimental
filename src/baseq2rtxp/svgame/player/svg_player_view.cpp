@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -678,7 +679,7 @@ void P_CheckWorldEffects( void ) {
 			// drown!
 			if ( current_player->client->next_drown_time < level.time
 				&& current_player->health > 0 ) {
-				current_player->client->next_drown_time = level.time + 3_sec;
+				current_player->client->next_drown_time = level.time + 2700_ms;
 
 				// take more damage the longer underwater
 				current_player->dmg += 15;
@@ -688,11 +689,11 @@ void P_CheckWorldEffects( void ) {
 				// Play a gurp sound instead of a normal pain sound
 				if ( current_player->health <= current_player->dmg ) {
 					//gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
-					SVG_Util_Sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ) );
+					SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ) );
 				} else {
 					const qhandle_t gurp_sfx_index = gi.soundindex( SG_RandomResourcePath( "player/gurp", "wav", 0, 2 ).c_str() );
 					//gi.sound( current_player, CHAN_VOICE, gurp_sfx_index, 1, ATTN_NORM, 0 );
-					SVG_Util_Sound( current_player, CHAN_VOICE, gurp_sfx_index );
+					SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gurp_sfx_index );
 				}
 
 				current_player->pain_debounce_time = level.time;
@@ -709,22 +710,21 @@ void P_CheckWorldEffects( void ) {
 	// Check for sizzle damage
 	//
 	if ( liquidlevel && ( current_player->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
+		// Lava or slime damage
 		if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
-			if ( current_player->health > 0
-				&& current_player->pain_debounce_time <= level.time ) {
-				//if ( Q_rand( ) & 1 )
-				//	gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/burn1.wav" ), 1, ATTN_NORM, 0 );
-				//else
-				//	gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/burn2.wav" ), 1, ATTN_NORM, 0 );
+			// Play burn sound if time to next pain sound has elapsed.
+			if ( current_player->health > 0	&& current_player->pain_debounce_time <= level.time ) {
+				// Acquire path to a random burn sound.
 				const std::string burn_sfx_path = SG_RandomResourcePath( "player/burn", "wav", 0, 2 );
-				gi.sound( current_player, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+				//gi.sound( current_player, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+				SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ) );
+				// Set next pain time.
 				current_player->pain_debounce_time = level.time + 1_sec;
 			}
-
+			// Lava damage
 			SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
-		}
-
-		if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
+		} else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
+			// Slime damage
 			SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
 		}
 	}
@@ -769,8 +769,7 @@ void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	const Vector3 ladderDistVec = QM_Vector3Subtract( current_client->last_ladder_pos, ent->s.origin );
 	const double ladderDistance = QM_Vector3LengthSqr( ladderDistVec );
 	if ( current_client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
-		if ( !deathmatch->integer &&
-			current_client->last_ladder_sound < level.time &&
+		if ( current_client->last_ladder_sound < level.time &&
 			ladderDistance > 48.f ) {
 			//ent->s.event = EV_FOOTSTEP_LADDER;
 			SVG_Util_AddEvent( ent, EV_FOOTSTEP_LADDER, 0 );
@@ -822,23 +821,18 @@ void SVG_SetClientFrame( svg_base_edict_t *ent ) {
 
 	// Get animation mixer.
 	sg_skm_animation_mixer_t *animationMixer = &client->animationMixer;
-	// Get lower body state.
+	// Get body states.
 	sg_skm_animation_state_t *lowerBodyState = &animationMixer->currentBodyStates[ SKM_BODY_LOWER ];
-	// Get upper body state.
 	sg_skm_animation_state_t *upperBodyState = &animationMixer->currentBodyStates[ SKM_BODY_UPPER ];
-
-	// Get lower event body state.
 	sg_skm_animation_state_t *lowerEventState = &animationMixer->eventBodyState[ SKM_BODY_LOWER ];
-	// Get upper event body state.
 	sg_skm_animation_state_t *upperEventState = &animationMixer->eventBodyState[ SKM_BODY_UPPER ];
 
 	// Default to body states.
-	uint8_t lowerBodyAnimationID = lowerBodyState->animationID;
 	uint8_t upperBodyAnimationID = upperBodyState->animationID;
-
+	uint8_t lowerBodyAnimationID = lowerBodyState->animationID;
 	// These are 0 in case of being inactive!
-	uint8_t lowerEventAnimationID = 0;
 	uint8_t upperEventAnimationID = 0;
+	uint8_t lowerEventAnimationID = 0;
 
 	// Only override the actual animationIDs if the event is still actively playing.
 	if ( lowerEventState->timeEnd >= level.time ) {
@@ -868,15 +862,14 @@ void SVG_SetClientFrame( svg_base_edict_t *ent ) {
 *   @brief  This will be called once for all clients on each server frame, before running any other entities in the world.
 **/
 void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
+	// <Q2RTXP>: WID: TODO: WARN?
+	if ( !ent->client ) {
+		gi.dprintf( "%s: !ent->client && !ent->client->pers.spawned\n", __func__ );
+		return;
+	}
 	// Ensure we are dealing with a player entity here.
 	if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
 		gi.dprintf( "%s: Not a player entity.\n", __func__ );
-		return;
-	}
-
-	// <Q2RTXP>: WID: TODO: WARN?
-	if ( !ent->client ) {
-		gi.dprintf( "%s: !ent->client->pers.spawned\n", __func__ );
 		return;
 	}
 
@@ -886,8 +879,9 @@ void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
 	if ( gi.GetServerFrameNumber() != ent->client->last_stair_step_frame ) {
 		ent->s.renderfx &= ~RF_STAIR_STEP;
 	}
-
-	// Give game mode control.
+	/**
+	*	Give game mode control.
+	**/
 	game.mode->BeginServerFrame( static_cast<svg_player_edict_t *>( ent ) );
 
 	/**
@@ -900,19 +894,19 @@ void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
 *	@brief	Called for each player at the end of the server frame, and right after spawning.
 **/
 void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
-	// Ensure we are dealing with a player entity here.
-	if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
-		gi.dprintf( "%s: Not a player entity.\n", __func__ );
-		return;
-	}
 	// <Q2RTXP>: WID: TODO: WARN?
 	if ( !ent->client ) {
 		return;
 	}
-
 	// no player exists yet (load game)
 	if ( !ent->client->pers.spawned ) {
 		gi.dprintf( "%s: !ent->client->pers.spawned\n", __func__ );
+		return;
+	}
+
+	// Ensure we are dealing with a player entity here.
+	if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+		gi.dprintf( "%s: Not a player entity.\n", __func__ );
 		return;
 	}
 

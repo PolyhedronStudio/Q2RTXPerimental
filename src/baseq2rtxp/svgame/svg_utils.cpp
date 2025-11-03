@@ -165,28 +165,11 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent ) {
 *
 *
 *
-*	(Event-) Entity Utility Functions:
+*	(Temp-) Entity Event Utility Functions:
 *
 *
 *
 **/
-/**
-*   @brief  Use for non-pmove events that would also be predicted on the
-*           client side: jumppads and item pickups
-*           Adds an event+parm and twiddles the event counter
-**/
-void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const sg_entity_events_t event, const int32_t eventParm ) {
-	// Make sure we have a client.
-    if ( !ent->client ) {
-		// Warn about it.
-		gi.dprintf( "%s: Entity(#%i) is not a client, cannot add predictable event.\n", __func__, ent->s.number );
-        return;
-    }
-
-	// Otherwise, add the predictable event.
-    SG_PlayerState_AddPredictableEvent( event, eventParm, &ent->client->ps );
-}
-
 /**
 *   @brief Adds an event+parm and twiddles the event counter.
 **/
@@ -227,6 +210,23 @@ void SVG_Util_AddEvent( svg_base_edict_t *ent, const sg_entity_events_t event, c
     }
 	// Stamp the time of the event.
     ent->eventTime = level.time;
+}
+
+/**
+*   @brief  Use for non-pmove events that would also be predicted on the
+*           client side: jumppads and item pickups
+*           Adds an event+parm and twiddles the event counter
+**/
+void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const sg_entity_events_t event, const int32_t eventParm ) {
+    // Make sure we have a client.
+    if ( !ent->client ) {
+        // Warn about it.
+        gi.dprintf( "%s: Entity(#%i) is not a client, cannot add predictable event.\n", __func__, ent->s.number );
+        return;
+    }
+
+    // Otherwise, add the predictable event.
+    SG_PlayerState_AddPredictableEvent( event, eventParm, &ent->client->ps );
 }
 
 /**

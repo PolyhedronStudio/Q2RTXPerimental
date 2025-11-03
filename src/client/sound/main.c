@@ -499,68 +499,81 @@ qhandle_t S_RegisterSound(const char *name)
 S_RegisterSexedSound
 ====================
 */
-static sfx_t *S_RegisterSexedSound(int entnum, const char *base)
-{
-    sfx_t           *sfx;
-    const char      *model;
-    char            buffer[MAX_QPATH];
+static sfx_t *S_RegisterClientInfoModelSound( int entnum, const char *base ) {
+    sfx_t *sfx = NULL;
+    const char *model;
+    char         buffer[ MAX_QPATH ];
+    int          len;
 
-    // determine what model the client is using
+    // Determine which player model to use (baseclientinfo for entnum<=0)
     if ( entnum > 0 && entnum <= MAX_CLIENTS ) {
         model = cl.clientinfo[ entnum - 1 ].model_name;
     } else {
         model = cl.baseclientinfo.model_name;
     }
 
-    // if we can't figure it out, they're male
+    // Default to "playerdummy" if model is empty
     if ( !*model ) {
         model = "playerdummy";
     }
 
-    // See if we already know of the model specific sound.
-    if ( Q_concat( buffer, MAX_QPATH, "players/", base + 1 ) >= MAX_QPATH
-        && Q_concat( buffer, MAX_QPATH, "players/", "/", base + 1 ) >= MAX_QPATH ) {
+    // 1) Try model-specific path: "players/<model>/<sound>"
+    len = snprintf( buffer, MAX_QPATH, "players/%s/%s", model, base + 1 );
+    if ( len >= MAX_QPATH )
         return NULL;
+    len = FS_NormalizePath( buffer );
+    sfx = S_FindName( buffer, len );
+
+    // 2) If model-specific not found, fall back to generic player sound "sound/player/<sound>"
+    if ( !sfx ) {
+        len = snprintf( buffer, MAX_QPATH, "sound/player/%s", base + 1 );
+        if ( len >= MAX_QPATH )
+            return NULL;
+        len = FS_NormalizePath( buffer );
+        sfx = S_FindName( buffer, len );
     }
 
-    sfx = S_FindName(buffer, FS_NormalizePath(buffer));
-
-    // see if it exists
-    if (sfx && !sfx->truename && !s_registering && !S_LoadSound(sfx)) {
-        // no, revert to the male sound in the pak0.pak
-        if (Q_concat(buffer, MAX_QPATH, "sound/player/male/", base + 1) < MAX_QPATH) {
-            FS_NormalizePath(buffer);
+    // If we found an sfx placeholder and it's not registered, preserve legacy behavior:
+    // set truename fallback when not currently registering and the sfx can't be loaded.
+    if ( sfx && !sfx->truename && !s_registering && !S_LoadSound( sfx ) ) {
+        // ensure buffer contains the fallback path; prefer explicit "sound/player/..." truename
+        if ( snprintf( buffer, MAX_QPATH, "sound/player/%s", base + 1 ) < MAX_QPATH ) {
+            FS_NormalizePath( buffer );
             sfx->error = Q_ERR_SUCCESS;
-            sfx->truename = S_CopyString(buffer);
+            sfx->truename = S_CopyString( buffer );
         }
     }
 
     return sfx;
 }
 
-static void S_RegisterSexedSounds(void)
+static void S_RegisterClientInfoModelSounds(void)
 {
-    int     sounds[MAX_SFX];
-    int     i, j, total;
+    static int32_t     sounds[MAX_SFX];
+    int32_t     i, j, total;
     sfx_t   *sfx;
 
-    // find sexed sounds
+    // Find player sounds
     total = 0;
-    for (i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++) {
-        if (sfx->name[0] != '*')
+    for ( i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++ ) {
+        //if ( sfx->name[ 0 ] != '*' ) {
+        //    continue;
+        //}
+        if ( sfx->registration_sequence != s_registration_sequence ) {
             continue;
-        if (sfx->registration_sequence != s_registration_sequence)
-            continue;
-        sounds[total++] = i;
+        }
+
+        sounds[ total++ ] = i;
     }
 
-    // register sounds for baseclientinfo and other valid clientinfos
-    for (i = 0; i <= MAX_CLIENTS; i++) {
-        if (i > 0 && !cl.clientinfo[i - 1].model_name[0])
+    // Register sounds for baseclientinfo and other valid clientinfos
+    for ( i = 0; i <= MAX_CLIENTS; i++ ) {
+        if ( i > 0 && !cl.clientinfo[ i - 1 ].model_name[ 0 ] ) {
             continue;
-        for (j = 0; j < total; j++) {
-            sfx = &known_sfx[sounds[j]];
-            S_RegisterSexedSound(i, sfx->name);
+        }
+        for ( j = 0; j < total; j++ ) {
+            sfx = &known_sfx[ sounds[ j ] ];
+            S_RegisterClientInfoModelSound( i, sfx->name );
         }
     }
 }
@@ -597,7 +610,7 @@ void S_EndRegistration(void)
     int     i;
     sfx_t   *sfx;
 
-    S_RegisterSexedSounds();
+    S_RegisterClientInfoModelSounds();
 
     // clear playsound list, so we don't free sfx still present there
     S_StopAllSounds();
@@ -647,11 +660,11 @@ channel_t *S_PickChannel(int entnum, int entchannel)
     first_to_die = -1;
     // life_left 
     life_left = 0x7fffffff;
-    for (ch_idx = 0; ch_idx < s_numchannels; ch_idx++) {
-        ch = &s_channels[ch_idx];
+    for ( ch_idx = 0; ch_idx < s_numchannels; ch_idx++ ) {
+        ch = &s_channels[ ch_idx ];
         // channel 0 never overrides unless out of channels
-        if (ch->entnum == entnum && ch->entchannel == entchannel && entchannel != 0) {
-            if (entchannel > 255 && ch->sfx)
+        if ( ch->entnum == entnum && ch->entchannel == entchannel && entchannel != 0 ) {
+            if ( entchannel > 255 && ch->sfx )
                 return NULL;    // channels >255 only allow single sfx on that channel
             // always override sound from same entity
             first_to_die = ch_idx;
@@ -659,8 +672,9 @@ channel_t *S_PickChannel(int entnum, int entchannel)
         }
 
         // don't let monster sounds override player sounds
-        if (ch->entnum == cl.listener_spatialize.entnum && entnum != cl.listener_spatialize.entnum && ch->sfx)
-            continue;
+        if ( ch->entnum == cl.listener_spatialize.entnum && entnum != cl.listener_spatialize.entnum && ch->sfx ) {
+           continue;
+        }
 		// find the channel with the least time left
         if (ch->end - s_paintedtime < life_left) {
             life_left = ch->end - s_paintedtime;
@@ -668,8 +682,9 @@ channel_t *S_PickChannel(int entnum, int entchannel)
         }
     }
 
-    if (first_to_die == -1)
+    if ( first_to_die == -1 ) {
         return NULL;
+    }
 
     ch = &s_channels[first_to_die];
     if (s_api.stop_channel)
@@ -776,28 +791,33 @@ void S_StartSound(const vec3_t origin, const int32_t entnum, const int32_t entch
     playsound_t *ps, *sort;
     sfx_t       *sfx;
 
-    if (!s_started)
+    if ( !s_started ) {
         return;
-    if (!s_active)
-        return;
-    if (!(sfx = S_SfxForHandle(hSfx)))
-        return;
-
-    if (sfx->name[0] == '*') {
-        sfx = S_RegisterSexedSound(entnum, sfx->name);
-        if (!sfx)
-            return;
     }
+    if ( !s_active ) {
+        return;
+    }
+    if ( !( sfx = S_SfxForHandle( hSfx ) ) ) {
+        return;
+    }
+
+    //if (sfx->name[0] == '*') {
+    //    sfx = S_RegisterClientInfoModelSound(entnum, sfx->name);
+    //    if ( !sfx ) {
+    //        return;
+    //    }
+    //}
 
     // make sure the sound is loaded
     sc = S_LoadSound(sfx);
-    if (!sc)
+    if ( !sc ) {
         return;     // couldn't load the sound's data
-
+    }
     // make the playsound_t
     ps = S_AllocPlaysound();
-    if (!ps)
+    if ( !ps ) {
         return;
+    }
 
     if (origin) {
         VectorCopy(origin, ps->origin);

@@ -187,7 +187,9 @@ typedef enum sg_entity_events_e {
     EV_GENERAL_SOUND,
 	//! Same as EV_GENERAL_SOUND but with attenuation parameter.
     EV_GENERAL_SOUND_EX,
-    //! Positioned sound event for entities, play a sound at the (client/entity)'s origin on the specified channel.
+    //! Positioned sound event for entities, play a sound at the designated position, or
+	//! at the entity's origin if used with an entity. The sound will remain persistent at
+    //! said position.
 	EV_POSITIONED_SOUND,
 	//! Global sound event, will play at a client's head so the sound is not attenuated. (No diminishing.)
 	EV_GLOBAL_SOUND,

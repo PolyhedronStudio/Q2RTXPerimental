@@ -35,14 +35,18 @@ struct sv_shared_edict_t {
     *   (In other words, we don't want a ~vtable() and/or alignment/sizeof differences.)
     **/
     //! Entity state.
-    entity_state_t  s = {};
+    entity_state_t s = {
+        .otherEntityNumber = -1,
+        .ownerNumber = -1,
+    };
     //! NULL if not a player the server expects the first part
     //! of gclient_s to be a player_state_t but the rest of it is opaque
     BaseClientType *client = nullptr;
 
-    //! Only send to this client when SVF_SENDCLIENT_SEND_TO_ID is set.
-	//! Or send to all clients BUT this client when SVF_SENDCLIENT_EXCLUDE_ID is set.
-    //! And if SVF_SENDCLIENT_BITMASK_IDS is set, use it as a bitmask for clients to send to (maxclients must be <= 32, up to the mod to enforce this)
+    //! Only send to this client when ent.svFlags == SVF_SENDCLIENT_SEND_TO_ID
+	//! Or send to all clients BUT this client when ent.svFlags == SVF_SENDCLIENT_EXCLUDE_ID.
+    //! Or if ent.svFlags == SVF_SENDCLIENT_BITMASK_IDS, use it as a bitmask for clients to send to (maxclients must be <= 32, up to the mod to enforce this)
+    //! 
 	//! <Q2RTXP>: TODO: In the future, perhaps a 64 player limit 
     int64_t sendClientID = SENDCLIENT_TO_ALL;
 
@@ -79,7 +83,10 @@ struct sv_shared_edict_t {
     **/
 	virtual void Reset( const bool retainDictionary = false ) {
         //! Entity state.
-        s = {};
+        s = s = {
+            .otherEntityNumber = -1,
+            .ownerNumber = -1,
+        };
         //! NULL, make sure it is not a player.
         client = nullptr;
         // Send to all clients by default.

@@ -121,10 +121,9 @@ static const std::string PrimaryFireEvent_DetermineAnimation( const player_state
 * 
 **/
 /**
-*	@brief	Creates a temp entity event to let the client play a general sound on the entity
+*	@brief	Handle the (temp-) entity event to let the client play a general sound on the entity
 *           with the passed in parameters.
-*   @note   Uses the entity's origin, or the client pmove origin if a client.
-*           Always players at full volume.
+*   @note   Always players at full volume.
 *           Normal attenuation, and 0 sound offset.
 *	@param	channel	The sound channel to play the sound on.
 *	@param	soundResourceIndex	The sound resource index to play.
@@ -150,7 +149,7 @@ static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel
     }
 }
 /**
-*	@brief	Creates a temp entity event to let the client play a general sound on the entity
+*	@brief	Handle the (temp-) entity event to let the client play a general sound on the entity
 *           with the passed in parameters.
 *   @note   Will pack the attenuation parameter together with the channel parameter into the eventParameter.
 *	@param	channel	The sound channel to play the sound on.
@@ -169,25 +168,16 @@ static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t chann
     if ( !soundResourceHandle ) {
         return;
     }
-	//// Decode the channel and the attenuation from the channel parameter.
-	//const int32_t decodedChannel = channel & 0xFF;
-	//// Stored as 0-3 in the event. <Q2RTXP>: TODO: (0-10 if we implement all attenuation levels)
-	//const float decodedAttenuation = static_cast<float>( ( channel & 0xFFFF ) >> 8 ) / 64.f;
-    typedef union channel_attenuation_packed_u {
-        //! Memory packed representation of the channel and attenuation.
-        struct packed {
-            uint8_t channel;
-            uint8_t attenuation;
-        } pack;
 
-        //! Actual uint32_t value used for bounds.
-        int32_t value;
-    } channel_attenuation_packed_t;
-    channel_attenuation_packed_t packed = { .value = channel };
-	int32_t decodedChannel = static_cast<int32_t>( packed.pack.channel );
-	const float decodedAttenuation = static_cast<float>( packed.pack.attenuation ) / 64.f;
+	// Decode the channel and the attenuation from the channel parameter.
+    int32_t decodedChannel = (uint8_t)( channel & 0xFF );
+	// Stored as 0-3 in the event. <Q2RTXP>: TODO: (0-10 if we implement all attenuation levels)
+	const float decodedAttenuation = static_cast<float>( ( channel & 0xFFFF ) >> 8 ) / 64.f;
 
-    decodedChannel &= ~( CHAN_NO_PHS_ADD | CHAN_RELIABLE );
+	// Clear the no phs and reliable flags from the channel.
+	// They are intend for svc_sound server commands only.
+	constexpr int32_t removeChannelMask = ( CHAN_NO_PHS_ADD | CHAN_RELIABLE );
+    decodedChannel &= ~removeChannelMask;
 
 	// Play the sound on the entity.
     if ( ( cent->current.effects & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber ) {
@@ -199,10 +189,9 @@ static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t chann
 }
 
 /**
-*	@brief	Creates a temp entity event at the specified origin to let the 
+*	@brief	Handle the (temp-) entity event at the specified origin to let the 
 *           client play a positioned general sound.
-*   @note   Uses the entity's origin, or the client pmove origin if a client.
-*           Always players at full volume.
+*   @note   Always players at full volume.
 *           Normal attenuation, and 0 sound offset.
 *	@param	channel	The sound channel to play the sound on.
 *	@param	soundResourceIndex	The sound resource index to play.
@@ -218,7 +207,7 @@ static void CLG_EntityEvent_PositionedSound( const Vector3 &origin, const int32_
 }
 
 /**
-*	@brief	Creates a temp entity event that plays a global sound for all clients
+*	@brief	Handle the (temp-) entity event that plays a global sound for all clients
 * 		    at their 'head' so it never diminishes.
 *   @note   Always players at full volume.
 *           Normal attenuation, and 0 sound offset.
@@ -344,8 +333,9 @@ static void ProcessEntityEvent( const int32_t eventValue, const Vector3 &lerpOri
 void CLG_CheckEntityEvents( centity_t *cent ) {
     // The event value we'll process.
     int32_t eventValue = EV_NONE;
-    #if 1
-    // Check for event-only entities
+    /**
+    *   Check for Entity Event - only entity types:
+    **/
     if ( cent->current.entityType > ET_TEMP_ENTITY_EVENT ) {
 		// Already fired for this entity.
         if ( cent->previousEvent ) {
@@ -359,12 +349,10 @@ void CLG_CheckEntityEvents( centity_t *cent ) {
         cent->previousEvent = 1;
         // The event is simply the entity type minus the ET_EVENTS offset.
         cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT;
-    } else
-    #endif
     /**
     *   Check for events riding with another entity:
     **/
-    {
+    } else {
         // Already fired the event.
         if ( cent->current.event == cent->previousEvent ) {
             return;

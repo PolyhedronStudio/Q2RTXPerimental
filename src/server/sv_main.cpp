@@ -45,75 +45,76 @@ LIST_DECL(sv_cvarbanlist);
 LIST_DECL(sv_infobanlist);
 LIST_DECL(sv_clientlist);   // linked list of non-free clients
 
-client_t    *sv_client;         // current client
-sv_edict_t     *sv_player;         // current client edict
+client_t    *sv_client = nullptr;         // current client
+sv_edict_t     *sv_player = nullptr;         // current client edict
 
-bool     sv_pending_autosave = 0;
+bool    sv_pending_autosave = false;
 
-cvar_t  *sv_enforcetime;
-cvar_t  *sv_timescale_time;
-cvar_t  *sv_timescale_warn;
-cvar_t  *sv_timescale_kick;
-cvar_t  *sv_allow_nodelta;
+cvar_t  *sv_enforcetime = nullptr;
+cvar_t  *sv_timescale_time = nullptr;
+cvar_t  *sv_timescale_warn = nullptr;
+cvar_t  *sv_timescale_kick = nullptr;
+cvar_t  *sv_allow_nodelta = nullptr;
 
-cvar_t  *sv_timeout;            // seconds without any message
-cvar_t  *sv_zombietime;         // seconds to sink messages after disconnect
-cvar_t  *sv_ghostime;
-cvar_t  *sv_idlekick;
+cvar_t  *sv_timeout = nullptr;            // seconds without any message
+cvar_t  *sv_zombietime = nullptr;         // seconds to sink messages after disconnect
+cvar_t  *sv_ghostime = nullptr;
+cvar_t  *sv_idlekick = nullptr;
 
-cvar_t  *sv_password;
-cvar_t  *sv_reserved_password;
+cvar_t  *sv_password = nullptr;
+cvar_t  *sv_reserved_password = nullptr;
 
-cvar_t  *sv_force_reconnect;
-cvar_t  *sv_show_name_changes;
+cvar_t  *sv_force_reconnect = nullptr;
+cvar_t  *sv_show_name_changes = nullptr;
 
 //cvar_t  *sv_airaccelerate;
 //cvar_t  *sv_qwmod;              // atu QW Physics modificator
-cvar_t  *sv_novis;
+cvar_t  *sv_novis = nullptr;
+cvar_t  *sv_cull_nonvisible_entities = nullptr;
 
-cvar_t  *sv_maxclients;
-cvar_t  *sv_reserved_slots;
-cvar_t  *sv_locked;
-cvar_t  *sv_downloadserver;
-cvar_t  *sv_redirect_address;
+cvar_t  *sv_maxclients = nullptr;
+cvar_t  *sv_reserved_slots = nullptr;
+cvar_t  *sv_locked = nullptr;
+cvar_t  *sv_downloadserver = nullptr;
+cvar_t  *sv_redirect_address = nullptr;
 
-cvar_t  *sv_hostname;
-cvar_t  *sv_public;            // should heartbeats be sent
+cvar_t  *sv_hostname = nullptr;
+cvar_t  *sv_public = nullptr;            // should heartbeats be sent
 
 #if USE_DEBUG
-cvar_t  *sv_debug;
-cvar_t  *sv_pad_packets;
+cvar_t  *sv_debug = nullptr;
+cvar_t  *sv_pad_packets = nullptr;
 #endif
-cvar_t  *sv_lan_force_rate;
-cvar_t  *sv_min_rate;
-cvar_t  *sv_max_rate;
-cvar_t  *sv_calcpings_method;
-cvar_t  *sv_changemapcmd;
-cvar_t  *sv_max_download_size;
-cvar_t  *sv_max_packet_entities;
+cvar_t  *sv_lan_force_rate = nullptr;
+cvar_t  *sv_min_rate = nullptr;
+cvar_t  *sv_max_rate = nullptr;
+cvar_t  *sv_calcpings_method = nullptr;
+cvar_t  *sv_changemapcmd = nullptr;
+cvar_t  *sv_max_download_size = nullptr;
+cvar_t  *sv_max_packet_entities = nullptr;
 
-cvar_t  *sv_allow_map;
-cvar_t  *sv_cinematics;
+cvar_t  *sv_allow_map = nullptr;
+cvar_t  *sv_cinematics = nullptr;
 #if !USE_CLIENT
-cvar_t  *sv_recycle;
+cvar_t  *sv_recycle = nullptr;
 #endif
-cvar_t  *sv_enhanced_setplayer;
+cvar_t  *sv_enhanced_setplayer = nullptr;
 
-cvar_t  *sv_iplimit;
-cvar_t  *sv_status_limit;
-cvar_t  *sv_status_show;
-cvar_t  *sv_uptime;
-cvar_t  *sv_auth_limit;
-cvar_t  *sv_rcon_limit;
-cvar_t  *sv_namechange_limit;
+cvar_t  *sv_iplimit = nullptr;
+cvar_t  *sv_status_limit = nullptr;
+cvar_t  *sv_status_show = nullptr;
+cvar_t  *sv_uptime = nullptr;
+cvar_t  *sv_auth_limit = nullptr;
+cvar_t  *sv_rcon_limit = nullptr;
+cvar_t  *sv_namechange_limit = nullptr;
 
-cvar_t  *sv_allow_unconnected_cmds;
+cvar_t  *sv_allow_unconnected_cmds = nullptr;
 
-cvar_t  *sv_lrcon_password;
+cvar_t  *sv_lrcon_password = nullptr;
 
-cvar_t  *g_features;
+cvar_t  *g_features = nullptr;
 
-static bool     sv_registered;
+static bool sv_registered = false;
 
 //============================================================================
 
@@ -2115,6 +2116,7 @@ void SV_Init(void) {
     sv_reserved_password = Cvar_Get("sv_reserved_password", "", CVAR_PRIVATE);
     sv_locked = Cvar_Get("sv_locked", "0", 0);
     sv_novis = Cvar_Get("sv_novis", "0", 0);
+    sv_cull_nonvisible_entities = Cvar_Get( "sv_cull_nonvisible_entities", "1", CVAR_CHEAT );
     sv_downloadserver = Cvar_Get("sv_downloadserver", "", 0);
     sv_redirect_address = Cvar_Get("sv_redirect_address", "", 0);
 

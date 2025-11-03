@@ -251,6 +251,26 @@ Build a client frame structure
 *   @brief  True if the entity should be skipped from being sent the given entity.
 **/
 static inline const bool SV_SendClientIDSkipCheck( sv_edict_t *ent, const int32_t frameClientNumber ) {
+	/**
+    *   Sanity check :
+	*   We can't have an entity that has SVF_NOCLIENT as well as SVF_NO_CULL or SVF_SENDCLIENT_* flags set.
+    **/
+    if ( ( ent->svFlags & SVF_NOCLIENT ) &&
+         ( ent->svFlags & ( 
+             SVF_NO_CULL 
+             | SVF_SENDCLIENT_EXCLUDE_ID 
+             | SVF_SENDCLIENT_SEND_TO_ID 
+             | SVF_SENDCLIENT_BITMASK_IDS ) ) 
+    ) {
+        //Com_Error( ERR_DROP, "SV_SendClientIDSkipCheck: Entity(#%d) has both SVF_NOCLIENT + SVF_SENDCLIENT_* and/or SVF_NO_CULL flags set.\n", ent->s.number );
+        if ( developer->integer ) {
+			Com_DPrintf( "SV_SendClientIDSkipCheck: Entity(#%d) has both SVF_NOCLIENT + SVF_SENDCLIENT_* and/or SVF_NO_CULL flags set.\n", ent->s.number );
+        } else {
+            Com_Error( ERR_DROP, "SV_SendClientIDSkipCheck: Entity(#%d) has both SVF_NOCLIENT + SVF_SENDCLIENT_* and/or SVF_NO_CULL flags set.\n", ent->s.number );
+        }
+        return true;
+	}
+    
     /**
     *   Entities can be flagged to explicitly not be sent to the client.
     **/
@@ -298,27 +318,31 @@ static inline const bool SV_SendClientIDSkipCheck( sv_edict_t *ent, const int32_
 }
 
 /**
-*   @brief  Determines if the entity is hearable to the client based on PHS.
+*   @brief  Determines if the entity is to be 'attenuated' away.
 **/
-static inline const bool SV_CheckEntityHearableInFrame( sv_edict_t *ent, const Vector3 &viewOrg ) {
+static inline const bool SV_CheckEntitySoundDistance( sv_edict_t *ent, const Vector3 &viewOrg ) {
+	// We only cull non-model, non-spotlight entities by distance.
     if ( !ent->s.modelindex && !( ent->s.effects & EF_SPOTLIGHT ) ) {
-        vec3_t delta;
-        double len;
-
-        VectorSubtract( viewOrg, ent->s.origin, delta );
-        len = VectorLength( delta );
-        if ( len > 400. ) {
+		// Calculate the distance from the entity to the client's view origin.
+        const Vector3 delta = viewOrg - ent->s.origin;
+		// Calculate the length of the delta.
+        const double len = QM_Vector3LengthDP( delta );
+        // Distance for culling.
+		constexpr double soundCullDistance = 400.;
+		// Test against cull distance.
+        if ( len > soundCullDistance ) {
+			// Culled by sound distance.
             return false;
         }
     }
-
+	// Default: not culled.
     return true;
 }
 
 /**
 *   @brief  Determines if an entity is visible to the client based on PVS/PHS.
 **/
-static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &viewOrigin, cm_t *cm, const int32_t clientCluster, const int32_t clientArea, byte *clientPVS, byte *clientPHS, const int32_t cullNonVisibleEntities ) {
+static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &viewOrigin, cm_t *cm, const int32_t clientCluster, const int32_t clientArea, byte *clientPVS, byte *clientPHS, const int32_t cullNonVisibleEntities ) {   
     /**
     *   Check area visibility:
     **/
@@ -360,7 +384,7 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
         /**
         *   Don't send sounds if they will be attenuated away.
         **/
-        if ( !SV_CheckEntityHearableInFrame( ent, viewOrigin ) ) {
+        if ( !SV_CheckEntitySoundDistance( ent, viewOrigin ) ) {
             return false;
 		}
     }
@@ -374,17 +398,15 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
 **/
 void SV_BuildClientFrame(client_t *client)
 {
-    int32_t i = 0;
-    sv_edict_t     *ent;
-    entity_state_t *state;
-	entity_state_t  es;
+	// Static PHS/PVS buffers.
     static byte        clientPHS[VIS_MAX_BYTES];
+    static byte        clientPVS[ VIS_MAX_BYTES ];
+	// Clear the PHS/PVS buffers.
     memset( clientPHS, 0, sizeof( clientPHS ) );
-    static byte        clientPVS[VIS_MAX_BYTES];
-    memset( clientPHS, 0, sizeof( clientPVS ) );
-    bool    entityVisibleForFrame;
-    int cullNonVisibleEntities = Cvar_Get("sv_cull_nonvisible_entities", "1", CVAR_CHEAT)->integer;
-    bool        need_clientnum_fix;
+    memset( clientPVS, 0, sizeof( clientPVS ) );
+	
+    // Cvar to cull non-visible entities.
+    int32_t cullNonVisibleEntities = sv_cull_nonvisible_entities->integer;
 
 	/**
     *   Get the client's edict.
@@ -433,15 +455,15 @@ void SV_BuildClientFrame(client_t *client)
     frame->areabytes = CM_WriteAreaBits( client->cm, frame->areabits, clientArea );
 	// If no area bits were calculated, make sure at least one byte is set.
 	// (All areas visible).
-    if (!frame->areabytes/* && client->protocol != PROTOCOL_VERSION_Q2PRO*/) {
+    if ( !frame->areabytes/* && client->protocol != PROTOCOL_VERSION_Q2PRO*/) {
         frame->areabits[0] = 255;
         frame->areabytes = 1;
     }
 
     /**
-	*   Pack up the current player_state_t, and ensure the frame has the correct clientNum.
+	*   Setup playerstate, ensure the frame has the correct clientNum:
     **/
-    // grab the current player_state_t
+    // Set the frame's playerstate to the current player_state_t
     frame->ps = *ps;
     // Grab the entity's client's current clientNum
     if (g_features->integer & GMF_CLIENTNUM) {
@@ -459,11 +481,12 @@ void SV_BuildClientFrame(client_t *client)
         // <Q2RTXP>: WID: TODO: Do we need this? Probably best to test on dedicated server then.
         frame->clientNum = client->number;
     }
+
+    // <Q2RTXP>: WID: TODO: We still need this?
     // Remember to fix clientNum if out of range for older version of Q2PRO protocol.
+    bool need_clientnum_fix = false;
     if ( frame->clientNum >= CLIENTNUM_NONE ) {
         need_clientnum_fix = true;
-    } else {
-        need_clientnum_fix = false;
     }
 
     /**
@@ -489,11 +512,18 @@ void SV_BuildClientFrame(client_t *client)
     frame->first_entity = svs.next_entity;
 	// Iterate all server entities, starting at 1. (World == 0 ).
     int32_t entityNumber = 1;
+	// Iterate all entities.
     for ( entityNumber = 1; entityNumber < client->pool->num_edicts; entityNumber++ ) {
 		// Get the entity.
-        ent = EDICT_POOL( client, entityNumber );
-        // ignore entities not in use
-        if ( !ent->inUse && ( g_features->integer & GMF_PROPERINUSE ) ) {
+        sv_edict_t *ent = EDICT_POOL( client, entityNumber );
+
+        /**
+        *   Ignore entities not in use.
+        **/
+        if ( ent == nullptr || ( ent->inUse == false && ( g_features->integer & GMF_PROPERINUSE ) ) ) {
+            if ( ent == nullptr ) {
+				Com_WPrintf( "%s: WARNING: ent == nullptr for entityNumber: %d\n", __func__, entityNumber );
+            }
             continue;
         }
 
@@ -503,37 +533,45 @@ void SV_BuildClientFrame(client_t *client)
         if ( SV_SendClientIDSkipCheck( ent, frame->clientNum ) ) {
             continue;
 		}
+
         /**
-		*   Ignore ents without visible models if they have no effects, sound or events.
+        *   Skip PHS/PVS Culling if the entity has the SVF_NO_CULL flag set.
         **/
-        if ( !ent->s.modelindex && !ent->s.effects && !ent->s.sound ) {
-            if ( !ent->s.event ) {
-                continue;
+		// Default to visible.
+        bool entityVisibleForFrame = true;
+		// Cull non-visible entities unless this entity is requested not to.
+        if ( !( ent->svFlags & SVF_NO_CULL ) ) {
+            /**
+		    *   Ignore ents without visible models if they have no effects, sound or events.
+            **/
+            if ( !ent->s.modelindex && !ent->s.effects && !ent->s.sound ) {
+                if ( !ent->s.event ) {
+                    continue;
+                }
+            }
+
+            /**
+            *   If we are not the entity's own client:
+            *   Check PVS/PHS for visibility, and ignore if not touching a PV leaf.
+            **/
+            if ( ent != clent ) {
+				// Check PVS/PHS visibility.
+                entityVisibleForFrame = SV_CheckEntityInFrame(
+                    ent,
+                    viewOrigin,
+
+                    client->cm,
+
+                    clientCluster, clientArea,
+                    clientPVS, clientPHS,
+
+                    cullNonVisibleEntities
+                );
             }
         }
+        
         /**
-        *   Determine whether the entity is visible at all, or not:
-        **/
-        entityVisibleForFrame = true;
-
-        /**
-		*   If we are not the entity's own client:
-        *   Check PVS/PHS for visibility, and ignore if not touching a PV leaf.
-        **/
-        if ( ent != clent ) {
-
-            entityVisibleForFrame = SV_CheckEntityInFrame( 
-                ent, viewOrigin, 
-                client->cm, clientCluster, clientArea,
-                clientPVS, clientPHS, 
-                cullNonVisibleEntities 
-            );
-
-
-        }
-
-        /**
-		*   Skip if the entity is not visible, and sv_novis is set, or the entity has no model.
+        *   Skip if the entity is not visible, and sv_novis is set, or the entity has no model.
         **/
         if ( !entityVisibleForFrame && ( !sv_novis->integer || !ent->s.modelindex ) ) {
             continue;
@@ -548,42 +586,43 @@ void SV_BuildClientFrame(client_t *client)
 		}
 
         /**
-        *   Copy the of the entity. (So we can modify if needed.)
+        *   Copy the state of the entity. (So we can modify if needed.)
         **/
-        es = ent->s;
+        entity_state_t entityStateCopy = ent->s;
 
         /**
-        *   If the entity is invisible, kill its sound.
+		*   If the entity is invisible, kill its sound. (Unless SVF_NO_CULL is set.)
         **/
-		if ( entityVisibleForFrame == false ) {
-			es.sound = 0;
+		if ( entityVisibleForFrame == false && !( ent->svFlags & SVF_NO_CULL ) ) {
+            entityStateCopy.sound = 0;
 		}
-        /**
-        *   Add it to the circular client_entities array
-        **/
-		// Get a pointer to the next entity state in the circular buffer.
-        state = &svs.entities[ svs.next_entity % svs.num_entities ];
-		// Copy over the (modifyable) entity state.
-        *state = es;
 
         /**
         *   Hide POV entity from renderer, unless this is player's own entity.
         **/
         if ( entityNumber == frame->clientNum + 1 && ent != clent &&
             (/*!Q2PRO_OPTIMIZE(client) || */need_clientnum_fix)) {
-            state->modelindex = 0;
+            entityStateCopy.modelindex = 0;
         }
 
         /**
 		*   Don't mark players missiles( or other owner entities ) as solid.
         **/
-        if (ent->owner == clent) {
-            state->solid = SOLID_NOT;
+        if ( ent->owner == clent ) {
+            entityStateCopy.solid = SOLID_NOT;
         // WID: netstuff: longsolid
 		// else if (client->esFlags & MSG_ES_LONGSOLID) {
         } else {
-            state->solid = sv.entities[ entityNumber ].solid32;
+            entityStateCopy.solid = sv.entities[ entityNumber ].solid32;
         }
+
+        /**
+        *   Add it to the circular client_entities array
+        **/
+		// Get a pointer to the next entity state in the circular buffer.
+        entity_state_t *bufferEntityState = &svs.entities[ svs.next_entity % svs.num_entities ];
+		// Copy over the (modifyable) entity state.
+        *bufferEntityState = entityStateCopy;
 
         /**
 		*   Continue or break if we reached max entities for this frame.
@@ -591,7 +630,7 @@ void SV_BuildClientFrame(client_t *client)
 		// Increment the circular buffer's 'next_entity' number.
         svs.next_entity++;
 		// Increment number of entities in this frame. And break if we reached max.
-        if (++frame->num_entities == sv_max_packet_entities->integer ) {
+        if ( ++frame->num_entities == sv_max_packet_entities->integer ) {
             break;
         }
     }

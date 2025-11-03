@@ -2190,8 +2190,6 @@ void CL_WriteConfig(void)
 **/
 void CL_RestartFilesystem(bool total)
 {
-    int cls_state;
-
     if (!cl_running->integer) {
         FS_Restart(total);
         return;
@@ -2199,53 +2197,64 @@ void CL_RestartFilesystem(bool total)
 
     Com_DPrintf("%s(%d)\n", __func__, total);
 
-    // temporary switch to loading state
-    cls_state = cls.state;
+    // Backup whichever state we were in so we can recover back into it after finishing the FS restart.
+    connstate_t cls_state = cls.state;
+    // Temporary switch to loading state.
     if (cls.state >= ca_precached) {
         cls.state = ca_loading;
     }
 
+    // Yes popup the console, thank you ma'am.
     Con_Popup(false);
-
+	// Shutdown UI to free any file handles it may have open.
     UI_Shutdown();
-
+	// Stop all sounds and free them.
     S_StopAllSounds();
     S_FreeAllSounds();
 
-    // write current config before changing game directory
+    // Write current config before possibly changing game directory
     CL_WriteConfig();
 
+	// If refresh was initialized, we need to do a full restart of the renderer as well.
     if (cls.ref_initialized) {
+        // Shutdown the renderer.
         R_Shutdown(false);
-
+        // Now restart the FS.
         FS_Restart(total);
-
+        // Reinitialize the renderer.
         R_Init(false);
 
+        // Register important persistence media once again.
         SCR_RegisterMedia();
         Con_RegisterMedia();
         UI_Init();
+		// Otherwise just restart the FS alone.
     } else {
         FS_Restart(total);
     }
 
+	// We're not even connected so the first logical thing is opening the menu.
     if (cls_state == ca_disconnected) {
         UI_OpenMenu(UIMENU_DEFAULT);
+	// Reload all refresh related data.
     } else if (cls_state >= ca_loading && cls_state <= ca_active) {
         CL_LoadState(LOAD_MAP);
         CL_PrepRefresh();
         CL_LoadState(LOAD_SOUNDS);
         CL_RegisterSounds();
         CL_LoadState(LOAD_NONE);
+    // Cinematics use their own reload mechanic.
     } else if (cls_state == ca_cinematic) {
         SCR_ReloadCinematic();
     }
 
+	// Reload download ignores..
     CL_LoadDownloadIgnores();
+	// Load OGG track list.
     OGG_LoadTrackList();
 
-    // switch back to original state
-    cls.state = static_cast<connstate_t>( cls_state ); // WID: C++20: Was without a cast.
+    // Switch back to original state
+    cls.state = cls_state; // WID: C++20: Was without a cast.
 
     Con_Close(false);
 

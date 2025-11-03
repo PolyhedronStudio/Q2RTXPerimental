@@ -6,16 +6,14 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_trigger.h"
 
 #include "sharedgame/sg_entity_effects.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/svg_utils.h"
-#include "svgame/svg_lua.h"
 
-#include "svgame/entities/svg_entities_pushermove.h"
-#include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_button.h"
 
 
@@ -214,8 +212,12 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_button_t, onUnPressEndMove )( 
     if ( isToggleUseTarget ) {
         #if 0
         // Play sound.
-        if ( self->pushMoveInfo.sounds.end && !( self->flags & FL_TEAMSLAVE ) ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+        //if ( !( self->flags & FL_TEAMSLAVE ) && self->pushMoveInfo.sounds.end ) {
+        //    gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+        //}
+        if ( !( self->flags & FL_TEAMSLAVE ) && pushMoveInfo.sounds.end ) {
+            //SVG_TempEventEntity_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, ATTN_STATIC );
+            SVG_Util_AddGeneralSoundExEvent( this, EV_GENERAL_SOUND_EX, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, ATTN_STATIC );
         }
         #endif
         // Fire use targets.
@@ -366,8 +368,9 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_func_button_t, onThink_PressMove)( svg_func_but
     button_determine_usetarget_hint_id( self );
 
     // Play sound.
-    if ( self->pushMoveInfo.sounds.start && !( self->flags & FL_TEAMSLAVE ) ) {
-        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+    if ( !( self->flags & FL_TEAMSLAVE ) && self->pushMoveInfo.sounds.start ) {
+        //SVG_TempEventEntity_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, ATTN_STATIC );
+        SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, ATTN_STATIC );
     }
     // Calculate and begin moving to the button's 'Pressed' state end origin.
     self->CalculateDirectionalMove( self->pushMoveInfo.endOrigin, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onPressEndMove ) );
@@ -416,10 +419,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_button_t, onThink_UnPressMove )( svg_func
     // by determining the new material texture animation.
     //button_determine_animation( self, self->pushMoveInfo.state );
     #ifdef FUNC_ENABLE_END_SOUND
-    // Play sound.
-    if ( self->pushMoveInfo.sounds.end && !( self->flags & FL_TEAMSLAVE ) ) {
-        gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
-    }
+        // Play sound.
+        if ( !( self->flags & FL_TEAMSLAVE ) && self->pushMoveInfo.sounds.end ) {
+            //SVG_TempEventEntity_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, ATTN_STATIC );
+            //SVG_Util_AddGeneralSoundExEvent( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, ATTN_STATIC );
+            SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, ATTN_STATIC );
+        }
     #endif
     // Calculate and begin moving back to the button's 'Unpressed' state start origin.
     self->CalculateDirectionalMove( self->pushMoveInfo.startOrigin, reinterpret_cast<svg_pushmove_endcallback>( &SelfType::onUnPressEndMove ) );

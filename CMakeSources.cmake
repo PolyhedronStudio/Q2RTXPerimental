@@ -220,6 +220,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_events.cpp
 	baseq2rtxp/clgame/clg_input.cpp
 	baseq2rtxp/clgame/clg_local_entities.cpp
+	baseq2rtxp/clgame/clg_frame.cpp
 	baseq2rtxp/clgame/clg_gamemode.cpp
 	baseq2rtxp/clgame/clg_hud.cpp
 	baseq2rtxp/clgame/clg_main.cpp
@@ -268,6 +269,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_effects.h
 	baseq2rtxp/clgame/clg_entities.h
 	baseq2rtxp/clgame/clg_events.h
+	baseq2rtxp/clgame/clg_frame.h
 	baseq2rtxp/clgame/clg_hud.h
 	baseq2rtxp/clgame/clg_input.h
 	baseq2rtxp/clgame/clg_local.h
@@ -301,6 +303,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_combat.cpp
 	baseq2rtxp/svgame/svg_edicts.cpp
 	baseq2rtxp/svgame/svg_edict_pool.cpp
+	baseq2rtxp/svgame/svg_entity_events.cpp
 	baseq2rtxp/svgame/svg_gamemode.cpp
 	baseq2rtxp/svgame/svg_game_client.cpp
 	baseq2rtxp/svgame/svg_game_items.cpp
@@ -429,6 +432,8 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_clients.h
 	baseq2rtxp/svgame/svg_combat.h
 	baseq2rtxp/svgame/svg_edict_pool.h
+	baseq2rtxp/svgame/svg_edicts.h
+	baseq2rtxp/svgame/svg_entity_events.h
 	baseq2rtxp/svgame/svg_game_client.h
 	baseq2rtxp/svgame/svg_game_items.h
 	baseq2rtxp/svgame/svg_game_locals.h

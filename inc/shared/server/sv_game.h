@@ -52,15 +52,15 @@ typedef Vector3* cpp_vec3_t;
 #define SVF_PROJECTILE      BIT( 7 )    //! Treat as CONTENTS_PROJECTILE for collision.
 //#define SVF_INSTANCED     BIT( 8 )    //! Entity has different visibility per player.
 #define SVF_DOOR            BIT( 9 )    //! Entity is a door of some kind.
-//#define SVF_NOCULL        BIT( 10 )   //! Always send, even if we normally wouldn't.
+#define SVF_NO_CULL          BIT( 10 )   //! Always send, even if we normally wouldn't.
 #define SVF_HULL            BIT( 11 )   //! Always use hull when appropriate (triggers, etc; for gi.clip).
 //! Only send entity to one client( edict->sendClientID ).
 #define SVF_SENDCLIENT_SEND_TO_ID   BIT( 12 )
 //! Send entity to everyone but one client.( edict->sendClientID ).
 #define SVF_SENDCLIENT_EXCLUDE_ID   BIT( 13 )
 //! When set, sendClientID is used as a bitmask to mark which clients to send it to.
-#define SVF_SENDCLIENT_BITMASK_IDS  BIT( 13 )
-//! Not a bits flag, but a value to indicate no client ID is set.
+#define SVF_SENDCLIENT_BITMASK_IDS  BIT( 14 )
+//! Not a bits flag, but a value for entity's sendClientID property, to indicate no client ID is set.
 #define SENDCLIENT_TO_ALL ( -1 )                                           
 // extended features
 

@@ -45,21 +45,22 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent );
 *
 *
 *
-*	(Event-) Entity Utility Functions:
+*	(Temp-) Event Entity Utility Functions:
 *
 *
 *
 **/
+/**
+*   @brief Adds an event+parm and twiddles the event counter.
+**/
+void SVG_Util_AddEvent( svg_base_edict_t *ent, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1 = 0 );
 /**
 *   @brief  Use for non-pmove events that would also be predicted on the
 *           client side: jumppads and item pickups
 *           Adds an event+parm and twiddles the event counter
 **/
 void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const sg_entity_events_t event, const int32_t eventParm );
-/**
-*   @brief Adds an event+parm and twiddles the event counter.
-**/
-void SVG_Util_AddEvent( svg_base_edict_t *ent, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1 = 0 );
+
 /**
 *   @brief  Adds a temp entity event at the given origin.
 *	@param	snapOrigin	If true, will snap the origin to 13 bits float precision.
