@@ -9,7 +9,7 @@
 #include "svgame/svg_entity_events.h"
 #include "svgame/svg_trigger.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/svg_utils.h"
@@ -197,12 +197,12 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_button_t, onUnPressEndMove )( 
     // Adjust entity animation effects for the client to display.
     // We use EF_ANIM_CYCLE2_2HZ at spawn instead.
     #if 0
-    if ( self->s.effects & EF_ANIM23 ) {
-        self->s.effects &= ~EF_ANIM23;
-        self->s.effects |= EF_ANIM01;
-    } else if ( self->s.effects & EF_ANIM01 ) {
-        self->s.effects &= ~EF_ANIM01;
-        self->s.effects |= EF_ANIM23;
+    if ( self->s.entityFlags & EF_ANIM23 ) {
+        self->s.entityFlags &= ~EF_ANIM23;
+        self->s.entityFlags |= EF_ANIM01;
+    } else if ( self->s.entityFlags & EF_ANIM01 ) {
+        self->s.entityFlags &= ~EF_ANIM01;
+        self->s.entityFlags |= EF_ANIM23;
     }
     #endif
 
@@ -297,12 +297,12 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_button_t, onPressEndMove )( sv
     // Adjust entity animation effects for the client to display.
     // We use EF_ANIM_CYCLE2_2HZ at spawn instead.
     #if 0
-    if ( self->s.effects & EF_ANIM23 ) {
-        self->s.effects &= ~EF_ANIM23;
-        self->s.effects |= EF_ANIM01;
-    } else if ( self->s.effects & EF_ANIM01 ) {
-        self->s.effects &= ~EF_ANIM01;
-        self->s.effects |= EF_ANIM23;
+    if ( self->s.entityFlags & EF_ANIM23 ) {
+        self->s.entityFlags &= ~EF_ANIM23;
+        self->s.entityFlags |= EF_ANIM01;
+    } else if ( self->s.entityFlags & EF_ANIM01 ) {
+        self->s.entityFlags &= ~EF_ANIM01;
+        self->s.entityFlags |= EF_ANIM23;
     }
     #endif
 
@@ -1014,7 +1014,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_button_t, onSpawn )( svg_func_button_t *s
         // Initial animation. ( Cycles between 0 and 1. )
         // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
         // if ( SVG_HasSpawnFlags( self, svg_func_button_t::SPAWNFLAG_ANIMATED ) ) {
-        self->s.effects |= EF_ANIM_CYCLE2_2HZ;
+        self->s.entityFlags |= EF_ANIM_CYCLE2_2HZ;
         // }
     } else {
         // Initial 'unpressed' state.
@@ -1028,7 +1028,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_button_t, onSpawn )( svg_func_button_t *s
         // Initial animation. ( Cycles between 0 and 1. )
         // <Q2RTXP>: WID: TODO: Guess it's nice if you can determine animation style yourself, right?
         // if ( SVG_HasSpawnFlags( self, svg_func_button_t::SPAWNFLAG_ANIMATED ) ) {
-        self->s.effects |= EF_ANIM_CYCLE2_2HZ;
+        self->s.entityFlags |= EF_ANIM_CYCLE2_2HZ;
         // }
     }
 

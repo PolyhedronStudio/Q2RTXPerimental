@@ -10,7 +10,7 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 
 
 /**
@@ -38,9 +38,9 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
 
     // If no rotation flag is set, add specified trail flags. We don't need it spamming
     // a blood trail of entities when it basically stopped motion.
-    if ( newState->effects & ~EF_ROTATE ) {
-        if ( newState->effects & EF_GIB ) {
-            CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->effects | EF_GIB );
+    if ( newState->entityFlags & ~EF_ROTATE ) {
+        if ( newState->entityFlags & EF_GIB ) {
+            CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->entityFlags | EF_GIB );
         }
     }
 
@@ -88,7 +88,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
         refreshEntity->skin = 0;
         // Model.
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
-        // Render effects.
+        // Render entityFlags.
         refreshEntity->flags = newState->renderfx;
 
         // Allow skin override for remaster.

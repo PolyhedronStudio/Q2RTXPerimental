@@ -8,12 +8,17 @@
 ********************************************************************/
 #pragma once
 
-// entity_state_t->effects
-// Effects are things handled on the client side (lights, particles, frame animations)
-// that happen constantly on the given entity.
-// 
-// NOTE!!:
-// An entity that HAS EFFECTS, WILL BE SENT, to the client EVEN IF it HAS A ZERO MODEL INDEX.
+
+
+/**
+*	entity_state_t->entityFlags
+*
+*	Entity Flags are sent to the client as part of the entity_state_t structure.
+*
+*	Indicates special effects/treatment for the entity(usually client side),
+*	even if it has a zero index model.
+*
+**/
 #define EF_ROTATE           EF_ENGINE_MAX	// Rotate (Bonus Items).
 #define EF_GIB              BIT( 2 )		// Leave a trail.
 #define EF_ANIM_CYCLE2_2HZ	BIT( 3 )		// Automatically cycle between frames 0 and 1 at 2 hz.

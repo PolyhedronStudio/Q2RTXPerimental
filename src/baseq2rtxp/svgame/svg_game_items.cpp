@@ -24,7 +24,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_usetargets.h"
 #include "svgame/svg_utils.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "svgame/entities/svg_item_edict.h"
@@ -228,7 +228,7 @@ svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item ) {
     dropped->item = item;
     dropped->spawnflags = DROPPED_ITEM;
     dropped->s.entityType = ET_ITEM;
-    dropped->s.effects = item->world_model_flags;
+    dropped->s.entityFlags = item->world_model_flags;
     dropped->s.renderfx = RF_GLOW;
     VectorSet( dropped->mins, -15, -15, -15 );
     VectorSet( dropped->maxs, 15, 15, 15 );
@@ -593,7 +593,7 @@ void SVG_Item_Spawn( svg_item_edict_t *ent, const gitem_t *item ) {
     ent->item = item;
     ent->nextthink = level.time + 20_hz;    // items start after other solids
     ent->SetThinkCallback( &svg_item_edict_t::onThink_DropToFloor );
-    ent->s.effects = item->world_model_flags;
+    ent->s.entityFlags = item->world_model_flags;
     ent->s.renderfx = RF_GLOW;
     ent->s.entityType = ET_ITEM;
     if ( ent->model ) {

@@ -385,7 +385,7 @@ void svg_gamemode_deathmatch_t::ClientDisconnect( svg_player_edict_t *ent ) {
 	ent->s.modelindex2 = 0;
 	ent->s.sound = 0;
 	ent->s.event = 0;
-	ent->s.effects = 0;
+	ent->s.entityFlags = 0;
 	ent->s.renderfx = 0;
 	ent->s.solid = SOLID_NOT; // 0
 	ent->s.entityType = ET_GENERIC;
@@ -554,7 +554,7 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 
     // Clear EntityState values.
     ent->s.sound = 0;
-    ent->s.effects = 0;
+    ent->s.entityFlags = 0;
     ent->s.renderfx = 0;
     ent->s.modelindex = MODELINDEX_PLAYER;        // Will use the skin specified model.
     ent->s.modelindex2 = MODELINDEX_PLAYER;       // Custom gun model.

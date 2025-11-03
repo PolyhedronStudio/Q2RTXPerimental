@@ -10,19 +10,19 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 
 
 
 /**
-*   @brief  Adds trail effects to the entity.
+*   @brief  Adds trail entityFlags to the entity.
 **/
-static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t effects ) {
+static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t entityFlags ) {
     // If no rotation flag is set, add specified trail flags.
     // WID: Why not? Let's just do this.
-    //if ( effects & ~EF_ROTATE ) {
-    if ( effects & EF_GIB ) {
-        CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, effects );
+    //if ( entityFlags & ~EF_ROTATE ) {
+    if ( entityFlags & EF_GIB ) {
+        CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, entityFlags );
     }
     //}
 }
@@ -34,24 +34,24 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     // Brush models can auto animate their frames.
     int64_t autoanim = 2 * clgi.client->time / 1000;
 
-    if ( newState->effects & EF_ANIM01 ) {
+    if ( newState->entityFlags & EF_ANIM01 ) {
         refreshEntity->frame = autoanim & 1;
         refreshEntity->oldframe = packetEntity->prev.frame;
 
         //clgi.Print( PRINT_DEVELOPER, "%s: EF_ANIM01 refreshEntity->frame(%d), refreshEntity->oldframe(%d)\n",
         //    __func__, refreshEntity->frame, refreshEntity->oldframe );
-    } else if ( newState->effects & EF_ANIM23 ) {
+    } else if ( newState->entityFlags & EF_ANIM23 ) {
         refreshEntity->frame = 2 + ( autoanim & 1 );
         refreshEntity->oldframe = packetEntity->prev.frame;
         //clgi.Print( PRINT_DEVELOPER, "%s: EF_ANIM23 refreshEntity->frame(%d), refreshEntity->oldframe(%d)\n",
         //    __func__, refreshEntity->frame, refreshEntity->oldframe );
-    } else if ( newState->effects & EF_ANIM_ALL ) {
+    } else if ( newState->entityFlags & EF_ANIM_ALL ) {
         refreshEntity->frame = autoanim;
         refreshEntity->oldframe = packetEntity->prev.frame;
-    } else if ( newState->effects & EF_ANIM_ALLFAST ) {
+    } else if ( newState->entityFlags & EF_ANIM_ALLFAST ) {
         refreshEntity->frame = clgi.client->time / BASE_FRAMETIME; // WID: 40hz: Adjusted. clgi.client->time / 100;
         refreshEntity->oldframe = packetEntity->prev.frame;
-    } else if ( newState->effects & EF_ANIM_CYCLE2_2HZ ) {
+    } else if ( newState->entityFlags & EF_ANIM_CYCLE2_2HZ ) {
         refreshEntity->frame = newState->frame + ( autoanim & 1 );
         refreshEntity->oldframe = packetEntity->prev.frame;
     // For hard set animated texture chain frames.
@@ -66,7 +66,7 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     //refreshEntity->skinnum = newState->skinnum;
     //refreshEntity->skin = 0;
     refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
-    // Render effects.
+    // Render entityFlags.
     refreshEntity->flags = newState->renderfx;
 
     // Lerp Origin:
@@ -78,14 +78,14 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
 
     // Add automatic particle trails
-    CLG_PacketEntity_AddTrailEffects( packetEntity, refreshEntity, newState, newState->effects );
+    CLG_PacketEntity_AddTrailEffects( packetEntity, refreshEntity, newState, newState->entityFlags );
 
     // Add entity to refresh list
     clgi.V_AddEntity( refreshEntity );
 
     #if 0
-    // Render effects.
-    if ( newState->effects & EF_COLOR_SHELL ) {
+    // Render entityFlags.
+    if ( newState->entityFlags & EF_COLOR_SHELL ) {
         refreshEntity->flags |= RF_SHELL_GREEN | RF_TRANSLUCENT;
         refreshEntity->alpha = 0.3;
         refreshEntity->scale = 1.03125;

@@ -17,7 +17,7 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_breakable.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
 
@@ -349,10 +349,10 @@ void SP_func_breakable( svg_base_edict_t *self ) {
 
     // Animation Effects SpawnFlags:
     if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_ANIMATE_ALL ) ) {
-        self->s.effects |= EF_ANIM_ALL;
+        self->s.entityFlags |= EF_ANIM_ALL;
     }
     if ( SVG_HasSpawnFlags( self, FUNC_BREAKABLE_SPAWNFLAG_ANIMATE_ALL_FAST ) ) {
-        self->s.effects |= EF_ANIM_ALLFAST;
+        self->s.entityFlags |= EF_ANIM_ALLFAST;
     }
 
     // No default use callback was set, so resort to actual default behavior of the object:

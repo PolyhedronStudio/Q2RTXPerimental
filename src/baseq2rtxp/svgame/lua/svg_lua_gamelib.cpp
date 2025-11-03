@@ -14,7 +14,7 @@
 
 #include "svgame/entities/svg_entities_pushermove.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 
 // UserTypes:
 #include "svgame/lua/usertypes/svg_lua_usertype_edict_t.hpp"

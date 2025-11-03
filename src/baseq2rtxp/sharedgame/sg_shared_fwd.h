@@ -29,7 +29,7 @@
 
 // Include other shared game headers.
 //#include "sharedgame/sg_cmd_messages.h"
-//#include "sharedgame/sg_entity_effects.h"
+//#include "sharedgame/sg_entity_flags.h"
 typedef enum sg_entity_events_e sg_entity_events_t;
 typedef enum sg_entity_type_e sg_entity_type_t;
 //#include "sharedgame/sg_gamemode.h"

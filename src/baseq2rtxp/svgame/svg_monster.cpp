@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
 
@@ -233,12 +233,12 @@ DEFINE_GLOBAL_CALLBACK_THINK( M_droptofloor )( svg_base_edict_t *ent ) -> void {
 }
 
 void M_SetEffects( svg_base_edict_t *ent ) {
-	ent->s.effects &= ~( EF_COLOR_SHELL );
+	ent->s.entityFlags &= ~( EF_COLOR_SHELL );
 	ent->s.renderfx &= ~( RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE );
 
 	// WID: TODO: Monster Reimplement.
 	//if ( ent->monsterinfo.aiflags & AI_RESURRECTING ) {
-	//	ent->s.effects |= EF_COLOR_SHELL;
+	//	ent->s.entityFlags |= EF_COLOR_SHELL;
 	//	ent->s.renderfx |= RF_SHELL_RED;
 	//}
 

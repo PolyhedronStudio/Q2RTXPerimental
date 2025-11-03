@@ -16,7 +16,7 @@
 #include "svgame/entities/func/svg_func_door.h"
 #include "svgame/entities/func/svg_func_door_rotating.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 
 
 /*QUAKED func_door_rotating (0 .5 .8) ? START_OPEN REVERSE CRUSHER NOMONSTER ANIMATED TOGGLE X_AXIS Y_AXIS
@@ -257,10 +257,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
     #endif
     // Animated doors:
     if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_ANIMATED ) ) {
-        self->s.effects |= EF_ANIM_ALL;
+        self->s.entityFlags |= EF_ANIM_ALL;
     }
     if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_ANIMATED_FAST ) ) {
-        self->s.effects |= EF_ANIM_ALLFAST;
+        self->s.entityFlags |= EF_ANIM_ALLFAST;
     }
     
     // WID: TODO: Necessary? Default frame?

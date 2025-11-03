@@ -616,8 +616,8 @@ void MSG_ShowDeltaEntityBits( const uint64_t bits ) {
 	S( MODEL, "modelindex" );
 	if ( bits & U_RENDERFX )
 		SHOWBITS( "renderfx" );
-	if ( bits & U_EFFECTS )
-		SHOWBITS( "effects" );
+	if ( bits & U_ENTITY_FLAGS )
+		SHOWBITS( "entityFlags" );
 	S( OLDORIGIN, "old_origin" );
 	S( MODEL2, "modelindex2" );
 	S( MODEL3, "modelindex3" );

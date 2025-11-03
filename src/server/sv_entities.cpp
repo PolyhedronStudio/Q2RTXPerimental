@@ -322,7 +322,7 @@ static inline const bool SV_SendClientIDSkipCheck( sv_edict_t *ent, const int32_
 **/
 static inline const bool SV_CheckEntitySoundDistance( sv_edict_t *ent, const Vector3 &viewOrg ) {
 	// We only cull non-model, non-spotlight entities by distance.
-    if ( !ent->s.modelindex && !( ent->s.effects & EF_SPOTLIGHT ) ) {
+    if ( !ent->s.modelindex && !( ent->s.entityFlags & EF_SPOTLIGHT ) ) {
 		// Calculate the distance from the entity to the client's view origin.
         const Vector3 delta = viewOrg - ent->s.origin;
 		// Calculate the length of the delta.
@@ -544,7 +544,7 @@ void SV_BuildClientFrame(client_t *client)
             /**
 		    *   Ignore ents without visible models if they have no effects, sound or events.
             **/
-            if ( !ent->s.modelindex && !ent->s.effects && !ent->s.sound ) {
+            if ( !ent->s.modelindex && !ent->s.entityFlags && !ent->s.sound ) {
                 if ( !ent->s.event ) {
                     continue;
                 }

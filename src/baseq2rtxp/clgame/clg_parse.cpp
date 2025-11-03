@@ -14,7 +14,7 @@
 #include "clgame/clg_temp_entities.h"
 
 #include "sharedgame/sg_cmd_messages.h"
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_tempentity_events.h"
 

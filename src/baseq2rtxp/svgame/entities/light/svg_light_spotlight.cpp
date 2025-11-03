@@ -226,7 +226,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_light_spotlight_t, onSpawn )( svg_light_spotli
 	// Spotlight Type
 	self->s.entityType = ET_SPOTLIGHT;
 	//self->classname = svg_level_qstring_t::from_char_str( "spotlight" );
-	self->s.effects |= EF_SPOTLIGHT;
+	self->s.entityFlags |= EF_SPOTLIGHT;
 
 	// Support for on/off triggering.
 	self->SetUseCallback( &svg_light_spotlight_t::onUse );

@@ -27,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "sharedgame/sg_cmd_messages.h"
 #include "sharedgame/sg_entities.h"
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 
 #include "sharedgame/sg_gamemode.h"
@@ -735,7 +735,7 @@ void P_CheckWorldEffects( void ) {
 *	@brief	Apply possibly applied 'effects'.
 **/
 void SVG_SetClientEffects( svg_base_edict_t *ent ) {
-	ent->s.effects = 0;
+	ent->s.entityFlags = 0;
 	ent->s.renderfx = 0;
 
 	if ( ent->health <= 0 || level.intermissionFrameNumber ) {
@@ -744,7 +744,7 @@ void SVG_SetClientEffects( svg_base_edict_t *ent ) {
 
 	// show cheaters!!!
 	if ( ent->flags & FL_GODMODE ) {
-		ent->s.effects |= EF_COLOR_SHELL;
+		ent->s.entityFlags |= EF_COLOR_SHELL;
 		ent->s.renderfx |= ( RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE );
 	}
 }

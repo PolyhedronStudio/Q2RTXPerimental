@@ -39,7 +39,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.modelindex4, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.skinnum, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.effects, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.entityFlags, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.renderfx, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.frame, SD_FIELD_TYPE_INT32 ),

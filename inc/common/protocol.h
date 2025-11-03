@@ -134,7 +134,7 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define U_EVENT_PARM_1		BIT_ULL(  10 )
 #define U_FRAME				BIT_ULL(  11 )
 #define U_MODEL				BIT_ULL( 12 )
-#define U_EFFECTS			BIT_ULL( 13 )	
+#define U_ENTITY_FLAGS		BIT_ULL( 13 )	
 #define U_RENDERFX			BIT_ULL( 14 )	// fullbright, etc
 #define U_SOLID				BIT_ULL( 15 )
 

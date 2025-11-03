@@ -63,7 +63,7 @@ public:
 	/**
 	*	@return Get EntityEffects.
 	**/
-	const int32_t get_entity_effects( sol::this_state s );
+	const int32_t get_entity_entityFlags( sol::this_state s );
 	/**
 	*	@return Set EntityEffects.
 	**/

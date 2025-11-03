@@ -13,7 +13,7 @@
 #include "svgame/svg_game_items.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/entities/svg_item_edict.h"
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 
 /**
 *
@@ -107,7 +107,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_item_edict_t, onSpawn )( svg_item_edict_t *sel
     self->nextthink = level.time + 20_hz;    // items start after other solids
     self->SetThinkCallback( &svg_item_edict_t::onThink_DropToFloor );
     // Setup meta and visual properties.
-    self->s.effects = self->item->world_model_flags;
+    self->s.entityFlags = self->item->world_model_flags;
     self->s.renderfx = RF_GLOW;
     self->s.entityType = ET_ITEM;
     if ( self->model ) {
@@ -170,7 +170,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_item_edict_t, onThink_DropToFloor )( svg_item_
     if ( self->spawnflags & ITEM_NO_TOUCH ) {
         self->solid = SOLID_BOUNDS_BOX;
         self->SetTouchCallback( nullptr );
-        self->s.effects &= ~EF_ROTATE;
+        self->s.entityFlags &= ~EF_ROTATE;
         self->s.renderfx &= ~RF_GLOW;
     }
 

@@ -8,7 +8,7 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_muzzleflashes.h"
 
 // Wall Impact Puffs.

@@ -11,7 +11,7 @@
 
 #include "svgame/entities/misc/svg_misc_teleporter.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 
 
@@ -158,7 +158,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_teleporter_t, onSpawn ) ( svg_misc_telepo
 
     gi.setmodel( self, "models/objects/dmspot/tris.md2" );
     self->s.skinnum = 1;
-    self->s.effects = EF_TELEPORTER;
+    self->s.entityFlags = EF_TELEPORTER;
     self->s.renderfx = RF_NOSHADOW;
     //self->s.sound = gi.soundindex("world/amb10.wav");
     self->solid = SOLID_BOUNDS_BOX;

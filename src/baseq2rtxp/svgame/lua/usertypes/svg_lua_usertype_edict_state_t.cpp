@@ -120,11 +120,11 @@ const int32_t lua_edict_state_t::get_number( sol::this_state s ) {
 /**
 *	@return Get EntityEffects.
 **/
-const int32_t lua_edict_state_t::get_entity_effects( sol::this_state s ) {
+const int32_t lua_edict_state_t::get_entity_entityFlags( sol::this_state s ) {
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_HANDLE_RETVAL( EF_NONE );
 	// Return entity state effects.
-	return handle.edictPtr->s.effects;
+	return handle.edictPtr->s.entityFlags;
 }
 /**
 *	@return Set EntityEffects.
@@ -133,7 +133,7 @@ void lua_edict_state_t::set_entity_effects( sol::this_state s, const int32_t eff
 	// Returns if invalid.
 	LUA_VALIDATE_EDICT_HANDLE( );
 	// Assign entity state effects.
-	handle.edictPtr->s.effects = effects;
+	handle.edictPtr->s.entityFlags = effects;
 }
 
 //
@@ -296,7 +296,7 @@ void UserType_Register_EdictState_t( sol::state &solState ) {
 	// Register Lua 'Properties', so we got get and setters for each accessible entity_state_t member.
 	lua_edict_state_type[ "number" ] = sol::property( &lua_edict_state_t::get_number/*, &lua_edict_state_t::set_number */);
 
-	lua_edict_state_type[ "effects" ] = sol::property( &lua_edict_state_t::get_entity_effects, &lua_edict_state_t::set_entity_effects);
+	lua_edict_state_type[ "entityFlags" ] = sol::property( &lua_edict_state_t::get_entity_entityFlags, &lua_edict_state_t::set_entity_effects);
 	lua_edict_state_type[ "renderFx" ] = sol::property( &lua_edict_state_t::get_renderfx, &lua_edict_state_t::set_renderfx );
 
 	lua_edict_state_type[ "frame" ] = sol::property( &lua_edict_state_t::get_frame, &lua_edict_state_t::set_frame );

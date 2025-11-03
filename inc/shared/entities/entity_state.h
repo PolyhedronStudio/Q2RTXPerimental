@@ -58,8 +58,8 @@ typedef struct entity_state_s {
     int32_t	skinnum;
     //! Render Effect Flags: RF_NOSHADOW etc.
     int32_t	renderfx;
-    //! General Effect Flags: EF_ROTATE etc.
-    uint32_t effects;
+    //! General Entity Flags: EF_ROTATE etc.
+    uint32_t entityFlags;
 
     /**
     *   Animation:

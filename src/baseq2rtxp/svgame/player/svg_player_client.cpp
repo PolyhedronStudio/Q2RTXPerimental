@@ -7,7 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_gamemode.h"
 #include "sharedgame/sg_means_of_death.h"
@@ -87,7 +87,7 @@ void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_clien
 
         // Adjust type, assign player event flag.
         tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
-		tempEventEntity->s.effects |= EF_OTHER_ENTITY_EVENT;
+		tempEventEntity->s.entityFlags |= EF_OTHER_ENTITY_EVENT;
 		// Set other entity number to that of our client.
         tempEventEntity->s.otherEntityNumber = ent->s.number;
 		// Set eventParm from playerstate.

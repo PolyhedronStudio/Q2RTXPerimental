@@ -11,7 +11,7 @@
 #include "clgame/clg_temp_entities.h"
 
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_misc.h"
 
 
@@ -642,21 +642,21 @@ void CLG_ETPlayer_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, 
     }
 }
 /**
-*   @brief Apply flag specified effects.
+*   @brief Apply flag specified entityFlags.
 **/
 void CLG_ETPlayer_AddEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // This is specific to when the player entity turns into GIB without being an ET_GIB.
     // If no rotation flag is set, add specified trail flags. We don't need it spamming
     // a blood trail of entities when it basically stopped motion.
-    if ( newState->effects & ~EF_ROTATE ) {
-        if ( newState->effects & EF_GIB ) {
-            CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->effects | EF_GIB );
+    if ( newState->entityFlags & ~EF_ROTATE ) {
+        if ( newState->entityFlags & EF_GIB ) {
+            CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->entityFlags | EF_GIB );
         }
     }
 }
 
 /**
-*   @brief Apply flag specified effects.
+*   @brief Apply flag specified entityFlags.
 **/
 void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // Handle the possibility of a stair step occuring.
@@ -754,7 +754,7 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             refreshEntity->skinnum = 0;
         }
 
-        // Render effects.
+        // Render entityFlags.
         refreshEntity->flags = newState->renderfx;
 
         //
@@ -841,7 +841,7 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             refreshEntity->model = clgi.client->model_draw[ newState->modelindex2 ];
         }
         // Add shell effect.
-        //if ( newState->effects & EF_COLOR_SHELL ) {
+        //if ( newState->entityFlags & EF_COLOR_SHELL ) {
         //    refreshEntity->flags = renderfx;
         //}
         clgi.V_AddEntity( refreshEntity );

@@ -16,7 +16,7 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_plat.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 
 
@@ -492,10 +492,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
 
     // Animated doors:
     if ( SVG_HasSpawnFlags( self, svg_func_plat_t::SPAWNFLAG_ANIMATED ) ) {
-        self->s.effects |= EF_ANIM_ALL;
+        self->s.entityFlags |= EF_ANIM_ALL;
     }
     if ( SVG_HasSpawnFlags( self, svg_func_plat_t::SPAWNFLAG_ANIMATED_FAST ) ) {
-        self->s.effects |= EF_ANIM_ALLFAST;
+        self->s.entityFlags |= EF_ANIM_ALLFAST;
     }
 
     #if 0 

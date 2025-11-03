@@ -258,8 +258,8 @@ typedef enum sector_area_s {
 } sector_area_t;
 
 
-//!	Entity Muzzleflashes/Player Effects:
-#include "shared/entities/entity_effects.h"
+//!	Entity Flags.:
+#include "shared/entities/entity_flags.h"
 //!	Entity Render Flags:
 #include "shared/entities/entity_renderflags.h"
 //!	Entity Events:

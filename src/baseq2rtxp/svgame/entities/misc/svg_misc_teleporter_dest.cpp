@@ -11,7 +11,7 @@
 
 #include "svgame/entities/misc/svg_misc_teleporter_dest.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 
 

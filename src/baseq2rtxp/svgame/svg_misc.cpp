@@ -18,7 +18,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_local.h"
 #include "svgame/svg_misc.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_tempentity_events.h"
 
 
@@ -120,7 +120,7 @@ void SVG_Misc_ThrowGib( svg_base_edict_t *self, const char *gibname, const int32
     gi.setmodel(gib, gibname);
     gib->solid = SOLID_NOT;
     gib->s.entityType = ET_GIB;
-    gib->s.effects |= EF_GIB;
+    gib->s.entityFlags |= EF_GIB;
     gib->flags |= FL_NO_KNOCKBACK;
     gib->takedamage = DAMAGE_YES;
     gib->SetDieCallback( gib_die );
@@ -162,8 +162,8 @@ void SVG_Misc_ThrowHead( svg_base_edict_t *self, const char *gibname, const int3
     gi.setmodel(self, gibname);
     self->solid = SOLID_NOT;
     self->s.entityType = ET_GIB;
-    self->s.effects |= EF_GIB;
-    //self->s.effects &= ~EF_FLIES;
+    self->s.entityFlags |= EF_GIB;
+    //self->s.entityFlags &= ~EF_FLIES;
     self->s.sound = 0;
     self->flags |= FL_NO_KNOCKBACK;
     self->svFlags &= ~SVF_MONSTER;
@@ -213,7 +213,7 @@ void SVG_Misc_ThrowClientHead( svg_base_edict_t *self, const int32_t damage ) {
 
     self->takedamage = DAMAGE_NO;
     self->solid = SOLID_NOT;
-    self->s.effects = EF_GIB;
+    self->s.entityFlags = EF_GIB;
     self->s.sound = 0;
     self->flags |= FL_NO_KNOCKBACK;
 
@@ -361,7 +361,7 @@ void SP_misc_gib_arm(svg_base_edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/arm/tris.md2");
     ent->solid = SOLID_NOT;
-    ent->s.effects |= EF_GIB;
+    ent->s.entityFlags |= EF_GIB;
     ent->s.entityType = ET_GIB;
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;
@@ -383,7 +383,7 @@ void SP_misc_gib_leg(svg_base_edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/leg/tris.md2");
     ent->solid = SOLID_NOT;
-    ent->s.effects |= EF_GIB;
+    ent->s.entityFlags |= EF_GIB;
     ent->s.entityType = ET_GIB;
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;
@@ -405,7 +405,7 @@ void SP_misc_gib_head(svg_base_edict_t *ent)
 {
     gi.setmodel(ent, "models/objects/gibs/head/tris.md2");
     ent->solid = SOLID_NOT;
-    ent->s.effects |= EF_GIB;
+    ent->s.entityFlags |= EF_GIB;
     ent->s.entityType = ET_GIB;
     ent->takedamage = DAMAGE_YES;
     ent->die = gib_die;

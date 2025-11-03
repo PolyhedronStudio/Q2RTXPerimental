@@ -62,7 +62,7 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
     ent->s.modelindex3 = 0;
     ent->s.modelindex4 = 0;
 
-    ent->s.effects = EF_NONE;
+    ent->s.entityFlags = EF_NONE;
     ent->s.renderfx = RF_NONE;
     ent->s.sound = 0;
     ent->s.event = EV_NONE;

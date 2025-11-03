@@ -106,8 +106,8 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 	if ( to->renderfx != from->renderfx ) {
 		bits |= U_RENDERFX;
 	}
-	if ( to->effects != from->effects ) {
-		bits |= U_EFFECTS;
+	if ( to->entityFlags != from->entityFlags ) {
+		bits |= U_ENTITY_FLAGS;
 	}
 
 	if ( to->solid != from->solid ) {
@@ -258,9 +258,9 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 	if ( bits & U_SKIN ) {
 		MSG_WriteIntBase128( to->skinnum );
 	}
-	// Write out the effects.
-	if ( bits & U_EFFECTS ) {
-		MSG_WriteUintBase128( to->effects );
+	// Write out the entityFlags.
+	if ( bits & U_ENTITY_FLAGS ) {
+		MSG_WriteUintBase128( to->entityFlags );
 	}
 	// Write out the renderfx.
 	if ( bits & U_RENDERFX ) {

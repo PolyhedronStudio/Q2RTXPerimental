@@ -10,7 +10,7 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 
 /**
 *	@brief	Will setup the refresh entity for the ET_ITEM centity with the newState.
@@ -27,7 +27,7 @@ void CLG_PacketEntity_AddItem( centity_t *packetEntity, entity_t *refreshEntity,
     refreshEntity->skinnum = newState->skinnum;
     refreshEntity->skin = 0;
     refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
-    // Render effects.
+    // Render entityFlags.
     refreshEntity->flags = newState->renderfx;
 
     // Lerp Origin:
@@ -36,7 +36,7 @@ void CLG_PacketEntity_AddItem( centity_t *packetEntity, entity_t *refreshEntity,
     VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
 
     // For General Rotate: (Some bonus items auto-rotate.)
-    if ( newState->effects & EF_ROTATE ) {
+    if ( newState->entityFlags & EF_ROTATE ) {
         // Bonus items rotate at a fixed rate.
         const float autorotate = QM_AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
 

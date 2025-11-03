@@ -11,7 +11,7 @@
 *	@brief
 **/
 static inline const bool ES_INUSE( entity_state_t *s ) {
-	return ( ( s )->modelindex || ( s )->effects || ( s )->sound || ( s )->event );
+	return ( ( s )->modelindex || ( s )->entityFlags || ( s )->sound || ( s )->event );
 }
 
 /**

@@ -16,7 +16,7 @@
 #include "svgame/entities/func/svg_func_entities.h"
 #include "svgame/entities/func/svg_func_wall.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 
 
@@ -171,11 +171,11 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_wall_t, onSpawn )( svg_func_wall_t *self 
 
     // Animate all frames of the wall brush.
     if ( self->spawnflags & svg_func_wall_t::SPAWNFLAG_ANIMATE ) {
-        self->s.effects |= EF_ANIM_ALL;
+        self->s.entityFlags |= EF_ANIM_ALL;
     }
     // Aniamte them quickly.
     if ( self->spawnflags & svg_func_wall_t::SPAWNFLAG_ANIMATE_FAST ) {
-        self->s.effects |= EF_ANIM_ALLFAST;
+        self->s.entityFlags |= EF_ANIM_ALLFAST;
     }
 
     // just a wall

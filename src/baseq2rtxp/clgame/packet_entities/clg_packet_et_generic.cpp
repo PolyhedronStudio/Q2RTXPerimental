@@ -10,7 +10,7 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_temp_entities.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 
 static const int32_t adjust_shell_fx( const int32_t renderfx ) {
     return renderfx;
@@ -66,17 +66,17 @@ static const int32_t adjust_shell_fx( const int32_t renderfx ) {
 /**
 *   @brief  Animates the entity's frame for both brush as well as alias models.
 **/
-static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t effects ) {
+static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t entityFlags ) {
     // Brush models can auto animate their frames.
     int64_t autoanim = 2 * clgi.client->time / 1000;
 
-    if ( effects & EF_ANIM01 ) {
+    if ( entityFlags & EF_ANIM01 ) {
         refreshEntity->frame = autoanim & 1;
-    } else if ( effects & EF_ANIM23 ) {
+    } else if ( entityFlags & EF_ANIM23 ) {
         refreshEntity->frame = 2 + ( autoanim & 1 );
-    } else if ( effects & EF_ANIM_ALL ) {
+    } else if ( entityFlags & EF_ANIM_ALL ) {
         refreshEntity->frame = autoanim;
-    } else if ( effects & EF_ANIM_ALLFAST ) {
+    } else if ( entityFlags & EF_ANIM_ALLFAST ) {
         refreshEntity->frame = clgi.client->time / BASE_FRAMETIME; // WID: 40hz: Adjusted. clgi.client->time / 100;
     } else {
         refreshEntity->frame = newState->frame;
@@ -180,9 +180,9 @@ static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refr
 /**
 *   @brief  Handles the 'lerping' of the packet and its corresponding refresh entity angles.
 **/
-static void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t effects, const float autorotate ) {
+static void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t entityFlags, const float autorotate ) {
     // For General Rotate: (Some bonus items auto-rotate.)
-    if ( effects & EF_ROTATE ) {  // some bonus items auto-rotate
+    if ( entityFlags & EF_ROTATE ) {  // some bonus items auto-rotate
         refreshEntity->angles[ 0 ] = 0;
         refreshEntity->angles[ 1 ] = autorotate;
         refreshEntity->angles[ 2 ] = 0;
@@ -250,7 +250,7 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *packetEntity, entity_t 
 /**
 *   @brief  Sets the packet entity's render skin and modelindex 2 correctly.
 **/
-static void CLG_PacketEntity_SetModel2AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t effects, int32_t &renderfx ) {
+static void CLG_PacketEntity_SetModel2AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t entityFlags, int32_t &renderfx ) {
     if ( newState->modelindex2 ) {
         // Client Entity Weapon Model:
         if ( newState->modelindex2 == MODELINDEX_PLAYER ) {
@@ -279,7 +279,7 @@ static void CLG_PacketEntity_SetModel2AndSkin( centity_t *packetEntity, entity_t
             refreshEntity->model = clgi.client->model_draw[ newState->modelindex2 ];
         }
         // Add shell effect.
-        if ( effects & EF_COLOR_SHELL ) {
+        if ( entityFlags & EF_COLOR_SHELL ) {
             refreshEntity->flags |= renderfx;
         }
         clgi.V_AddEntity( refreshEntity );
@@ -288,7 +288,7 @@ static void CLG_PacketEntity_SetModel2AndSkin( centity_t *packetEntity, entity_t
 /**
 *   @brief  Sets the packet entity's render skin and modelindex 3 correctly.
 **/
-static void CLG_PacketEntity_SetModel3AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t effects, const int32_t base_entity_flags, int32_t &renderfx ) {
+static void CLG_PacketEntity_SetModel3AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t entityFlags, const int32_t base_entity_flags, int32_t &renderfx ) {
     if ( newState->modelindex3 ) {
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex3 ];
         clgi.V_AddEntity( refreshEntity );
@@ -297,39 +297,39 @@ static void CLG_PacketEntity_SetModel3AndSkin( centity_t *packetEntity, entity_t
 /**
 *   @brief  Sets the packet entity's render skin and modelindex 4 correctly.
 **/
-static void CLG_PacketEntity_SetModel4AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t effects, const int32_t base_entity_flags, int32_t &renderfx ) {
+static void CLG_PacketEntity_SetModel4AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t entityFlags, const int32_t base_entity_flags, int32_t &renderfx ) {
     if ( newState->modelindex4 ) {
         refreshEntity->model = clgi.client->model_draw[ newState->modelindex4 ];
         clgi.V_AddEntity( refreshEntity );
     }
 }
 /**
-*   @brief  Look for any effects demanding a shell renderfx, and apply where needed.
+*   @brief  Look for any entityFlags demanding a shell renderfx, and apply where needed.
 **/
-static void CLG_PacketEntity_ApplyShellEffects( uint32_t &effects, int32_t &renderfx ) {
+static void CLG_PacketEntity_ApplyShellEffects( uint32_t &entityFlags, int32_t &renderfx ) {
     // quad and pent can do different things on client
-    if ( effects & EF_PENT ) {
-        effects &= ~EF_PENT;
-        effects |= EF_COLOR_SHELL;
+    if ( entityFlags & EF_PENT ) {
+        entityFlags &= ~EF_PENT;
+        entityFlags |= EF_COLOR_SHELL;
         renderfx |= RF_SHELL_RED;
     }
 
-    if ( effects & EF_QUAD ) {
-        effects &= ~EF_QUAD;
-        effects |= EF_COLOR_SHELL;
+    if ( entityFlags & EF_QUAD ) {
+        entityFlags &= ~EF_QUAD;
+        entityFlags |= EF_COLOR_SHELL;
         renderfx |= RF_SHELL_BLUE;
     }
 }
 
 /**
-*   @brief  Adds trail effects to the entity.
+*   @brief  Adds trail entityFlags to the entity.
 **/
-static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t effects ) {
+static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t entityFlags ) {
     // If no rotation flag is set, add specified trail flags.
     // WID: Why not? Let's just do this.
-    //if ( effects & ~EF_ROTATE ) {
-    if ( effects & EF_GIB ) {
-        CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, effects );
+    //if ( entityFlags & ~EF_ROTATE ) {
+    if ( entityFlags & EF_GIB ) {
+        CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, entityFlags );
     }
     //}
 }
@@ -344,24 +344,24 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     // Bonus items rotate at a fixed rate.
     const float autorotate = QM_AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
 
-    // Acquire the state's effects, and render effects.
-    uint32_t effects = newState->effects;
+    // Acquire the state's entityFlags, and render entityFlags.
+    uint32_t entityFlags = newState->entityFlags;
     int32_t renderfx = newState->renderfx;
 
     // Set refresh entity frame:
-    CLG_PacketEntity_AnimateFrame( packetEntity, refreshEntity, newState, effects );
-    // Apply 'Shell' render effects based on various effects that are set:
-    CLG_PacketEntity_ApplyShellEffects( effects, renderfx );
+    CLG_PacketEntity_AnimateFrame( packetEntity, refreshEntity, newState, entityFlags );
+    // Apply 'Shell' render entityFlags based on various entityFlags that are set:
+    CLG_PacketEntity_ApplyShellEffects( entityFlags, renderfx );
     // Lerp entity origins:
     CLG_PacketEntity_LerpOrigin( packetEntity, refreshEntity, newState );
     // Set model and skin.
     CLG_PacketEntity_SetModelAndSkin( packetEntity, refreshEntity, newState, renderfx );
     // Calculate Angles, lerp if needed:
-    CLG_PacketEntity_LerpAngles( packetEntity, refreshEntity, newState, effects, autorotate );
+    CLG_PacketEntity_LerpAngles( packetEntity, refreshEntity, newState, entityFlags, autorotate );
 
-    // Render effects (fullbright, translucent, etc)
+    // Render entityFlags (fullbright, translucent, etc)
     // In case of a shell entity, they are applied to it instead:
-    if ( ( effects & EF_COLOR_SHELL ) ) {
+    if ( ( entityFlags & EF_COLOR_SHELL ) ) {
         refreshEntity->flags = 0;
         // Any other entities apply renderfx to themselves:
     } else {
@@ -399,7 +399,7 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     }
 
     // Spotlight:
-    //if ( newState->effects & EF_SPOTLIGHT ) {
+    //if ( newState->entityFlags & EF_SPOTLIGHT ) {
     //    CLG_PacketEntity_AddSpotlight( packetEntity, &refreshEntity, newState );
     //}
 
@@ -415,7 +415,7 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
         clgi.V_AddEntity( refreshEntity );
 
         // The base entity has the renderfx set on it for 'Shell' effect.
-        if ( ( effects & EF_COLOR_SHELL ) ) {
+        if ( ( entityFlags & EF_COLOR_SHELL ) ) {
             // color shells generate a separate entity for the main model
             refreshEntity->flags |= base_entity_flags;
             refreshEntity->flags |= renderfx;
@@ -424,7 +424,7 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
         }
     } else {
         // The base entity has the renderfx set on it for 'Shell' effect.
-        if ( ( effects & EF_COLOR_SHELL ) ) {
+        if ( ( entityFlags & EF_COLOR_SHELL ) ) {
             refreshEntity->flags |= renderfx;
         }
         // Add entity to refresh list
@@ -436,16 +436,16 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     refreshEntity->skinnum = 0;
     refreshEntity->flags = base_entity_flags;
     refreshEntity->alpha = 0;
-    CLG_PacketEntity_SetModel2AndSkin( packetEntity, refreshEntity, newState, effects, renderfx );
+    CLG_PacketEntity_SetModel2AndSkin( packetEntity, refreshEntity, newState, entityFlags, renderfx );
     // Reset these:
     refreshEntity->flags = base_entity_flags;
     refreshEntity->alpha = 0;
     // #(3nd) Model Index:
-    CLG_PacketEntity_SetModel3AndSkin( packetEntity, refreshEntity, newState, effects, base_entity_flags, renderfx );
+    CLG_PacketEntity_SetModel3AndSkin( packetEntity, refreshEntity, newState, entityFlags, base_entity_flags, renderfx );
     // #(4nd) Model Index:
-    CLG_PacketEntity_SetModel4AndSkin( packetEntity, refreshEntity, newState, effects, base_entity_flags, renderfx );
+    CLG_PacketEntity_SetModel4AndSkin( packetEntity, refreshEntity, newState, entityFlags, base_entity_flags, renderfx );
     // Add automatic particle trails
-    CLG_PacketEntity_AddTrailEffects( packetEntity, refreshEntity, newState, effects );
+    CLG_PacketEntity_AddTrailEffects( packetEntity, refreshEntity, newState, entityFlags );
 
     // When the entity is skipped, copy over the origin 
 skip:

@@ -20,7 +20,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 #include "svgame/svg_entity_events.h"
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_misc.h"
 
@@ -162,7 +162,7 @@ svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const
 	// Set the otherEntity to the source entity.
 	tempEventEntity->s.otherEntityNumber = ent->s.number;
     // Set the effect flag to indicate an other entity is the target for this event.
-    tempEventEntity->s.effects = EF_OTHER_ENTITY_EVENT;
+    tempEventEntity->s.entityFlags = EF_OTHER_ENTITY_EVENT;
 
     // Make sure to send it to all clients if requested.
     // This is because a request to ignore PHS culling is made.
@@ -198,7 +198,7 @@ svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, con
     // Set the otherEntity to the source entity.
     tempEventEntity->s.otherEntityNumber = ent->s.number;
     // Set the effect flag to indicate an other entity is the target for this event.
-    tempEventEntity->s.effects = EF_OTHER_ENTITY_EVENT;
+    tempEventEntity->s.entityFlags = EF_OTHER_ENTITY_EVENT;
 
     // Make sure to send it to all clients if requested.
     // This is because a request to ignore PHS culling is made.

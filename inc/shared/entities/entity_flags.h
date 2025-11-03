@@ -8,11 +8,15 @@
 #pragma once
 
 
-// entity_state_t->effects
-// Effects are things handled on the client side (lights, particles, frame animations)
-// that happen constantly on the given entity.
-// An entity that has effects will be sent to the client
-// even if it has a zero index model.
+/**
+*	entity_state_t->entityFlags
+*
+*	Entity Flags are sent to the client as part of the entity_state_t structure.
+*
+*	Indicates special effects/treatment for the entity(usually client side),
+*	even if it has a zero index model.
+*
+**/
 #define EF_NONE             0 //BIT( 0 )
 #define EF_SPOTLIGHT		BIT( 0 )
 //! Game Entity Effects can start from here:

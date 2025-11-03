@@ -12,7 +12,7 @@
 
 // Needed:
 #include "sharedgame/sg_entity_events.h"
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_entity_types.h"
 #include "sharedgame/sg_muzzleflashes.h"
 
@@ -141,7 +141,7 @@ static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel
         return;
     }
     // Play the sound on the entity.
-    if ( ( cent->current.effects & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber > 0 ) {
+    if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber > 0 ) {
         // Get the other entity.
         clgi.S_StartSound( nullptr, cent->current.otherEntityNumber, channel, soundResourceHandle, defaultSoundVolume, defaultSoundAttenuation, defaultSoundTimeOffset );
     } else {
@@ -180,7 +180,7 @@ static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t chann
     decodedChannel &= ~removeChannelMask;
 
 	// Play the sound on the entity.
-    if ( ( cent->current.effects & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber ) {
+    if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber ) {
         // Get the other entity.
         clgi.S_StartSound( nullptr, cent->current.otherEntityNumber, decodedChannel, soundResourceHandle, defaultSoundVolume, decodedAttenuation, defaultSoundTimeOffset );
     } else {
@@ -258,7 +258,7 @@ static void ProcessEntityEvent( const int32_t eventValue, const Vector3 &lerpOri
 
 
     // EF_TELEPORTER acts like an event, but is not cleared each frame
-    if ( ( cent->current.effects & EF_TELEPORTER ) ) {
+    if ( ( cent->current.entityFlags & EF_TELEPORTER ) ) {
         CLG_TeleporterParticles( &effectOrigin.x );
     }
 
@@ -342,7 +342,7 @@ void CLG_CheckEntityEvents( centity_t *cent ) {
             return;
         }
         // if this is a player event set the entity number of the client entity number
-        if ( cent->current.effects & EF_OTHER_ENTITY_EVENT ) {
+        if ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) {
             cent->current.number = cent->current.otherEntityNumber;
         }
         // Set previous event to true.

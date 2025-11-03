@@ -141,8 +141,8 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	if ( bits & U_SKIN ) {
 		to->skinnum = MSG_ReadIntBase128( );
 	}
-	if ( bits & U_EFFECTS ) {
-		to->effects = MSG_ReadUintBase128( );
+	if ( bits & U_ENTITY_FLAGS ) {
+		to->entityFlags = MSG_ReadUintBase128( );
 	}
 	if ( bits & U_RENDERFX ) {
 		to->renderfx = MSG_ReadIntBase128( );

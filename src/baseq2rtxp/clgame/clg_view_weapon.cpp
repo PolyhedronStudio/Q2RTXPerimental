@@ -15,7 +15,7 @@
 #include "clgame/clg_temp_entities.h"
 #include "clgame/clg_view.h"
 
-#include "sharedgame/sg_entity_effects.h"
+#include "sharedgame/sg_entity_flags.h"
 
 
 //! Enables strafe affecting view weapon roll and pitch angles.
@@ -98,20 +98,20 @@ static const int32_t weapon_shell_effect( void ) {
     }
 
     // Determine distinct shell effect.
-    if ( ent->current.effects & EF_PENT ) {
+    if ( ent->current.entityFlags & EF_PENT ) {
         flags |= RF_SHELL_RED;
     }
-    if ( ent->current.effects & EF_QUAD ) {
+    if ( ent->current.entityFlags & EF_QUAD ) {
         flags |= RF_SHELL_BLUE;
     }
-    if ( ent->current.effects & EF_DOUBLE ) {
+    if ( ent->current.entityFlags & EF_DOUBLE ) {
         flags |= RF_SHELL_DOUBLE;
     }
-    if ( ent->current.effects & EF_HALF_DAMAGE ) {
+    if ( ent->current.entityFlags & EF_HALF_DAMAGE ) {
         flags |= RF_SHELL_HALF_DAM;
     }
     // For godmode.
-    if ( ent->current.effects & EF_COLOR_SHELL ) {
+    if ( ent->current.entityFlags & EF_COLOR_SHELL ) {
         flags |= ent->current.renderfx; //( RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE );
     }
 
