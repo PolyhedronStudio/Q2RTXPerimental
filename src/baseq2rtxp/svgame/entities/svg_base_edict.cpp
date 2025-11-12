@@ -515,6 +515,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *   Entity Event Properties:
     **/
     eventTime = 0_ms;
+    neverFreeOnlyUnlink = false;
     freeAfterEvent = false;
     unlinkAfterEvent = false;
 

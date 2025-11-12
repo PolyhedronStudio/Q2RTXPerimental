@@ -227,7 +227,15 @@ static void SVG_PlayerState_FireEvent( svg_player_edict_t *ent, const int32_t pl
     /**
     *   Regular Events:
     **/
-	gi.dprintf( "PLAYER EVENT: name(\"%s\")eventID(#%d), maskedeventID(#%d), parm(%d)\n", sg_event_string_names[ playerStateEvent ], playerStateEvent & ~EV_EVENT_BITS, playerStateEvent, playerStateEventParm );
+    #ifdef _DEBUG_PRINT_PLAYER_EVENTS
+    gi.dprintf( "PLAYER EVENT: name(\"%s\")eventID(#%d), maskedeventID(#%d), parm(%d)\n", 
+        sg_event_string_names[ playerStateEvent ], 
+        playerStateEvent & ~EV_EVENT_BITS, 
+        playerStateEvent, 
+        playerStateEventParm 
+    );
+    #endif
+
 	// All fall events are handled the same way.
     if ( playerStateEvent == EV_FALL_SHORT
         || playerStateEvent == EV_FALL_MEDIUM 

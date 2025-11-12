@@ -131,9 +131,8 @@ static constexpr int32_t SV_BASELINES_SHIFT     = ( 6 );
 static constexpr int32_t SV_BASELINES_PER_CHUNK = ( 1 << SV_BASELINES_SHIFT ); // 64
 //! Mask for baselines.
 static constexpr int32_t SV_BASELINES_MASK      = ( SV_BASELINES_PER_CHUNK - 1 ); // 63
-//! Number of chunks.
-static constexpr int32_t SV_BASELINES_CHUNKS    = ( MAX_EDICTS >> SV_BASELINES_SHIFT ); // 128
-
+//! Number of chunks. ( Use ceiling division to cover any non-power-of-two MAX_EDICTS )
+static constexpr int32_t SV_BASELINES_CHUNKS    = ( ( MAX_EDICTS + SV_BASELINES_PER_CHUNK - 1 ) >> SV_BASELINES_SHIFT ); // 128
 /**
 *   Game features this server supports.
 **/

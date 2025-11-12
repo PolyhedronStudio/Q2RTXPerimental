@@ -62,28 +62,39 @@ static void SV_EmitPacketEntities(client_t         *client,
     // Fetch where in the circular buffer we start from.
     const int32_t from_num_entities = ( !from ? 0 : from->num_entities );
 
-	// Write the 'svc_packetentities' command.
+    // one-time developer log guard for missing/out-of-range baseline usage
+    static bool baseline_oob_logged = false;
+
+    /**
+	*   Write the 'svc_packetentities' command.
+    **/
     while (newindex < to->num_entities || oldindex < from_num_entities) {
+        /**
+        *   New Entity Index:
+        **/
 		// Fetch the new entity number.
         if (newindex >= to->num_entities) {
             newnum = 9999;
         } else {
-			// Fetch the new entity number.
+            // Fetch the new entity index into the entities array..
             i = (to->first_entity + newindex) % svs.num_entities;
 			// Fetch the new entity.
             newent = &svs.entities[i];
-			// Fetch the new entity its number as the 'new entity' number.
+            // Fetch the new entity its number and back it up.
             newnum = newent->number;
         }
+        /**
+        *   Old Entity Index:
+        **/
 		// Fetch the old entity number.
         if (oldindex >= from_num_entities) {
             oldnum = 9999;
         } else {
-			// Fetch the old entity number.
+			// Fetch the old entity index into the entities array..
             i = (from->first_entity + oldindex) % svs.num_entities;
 			// Fetch the old entity.
             oldent = &svs.entities[i];
-			// Fetch the old entity its number as the 'old entity' number.
+			// Fetch the old entity its number and back it up.
             oldnum = oldent->number;
         }
 
@@ -95,40 +106,85 @@ static void SV_EmitPacketEntities(client_t         *client,
             // this updates their old_origin always and prevents warping in case
             // of packet loss.
             flags = client->esFlags;
-            // In case of a Player Entity:
+            // In case of a Player Entity, force the new entity state flag to be set.
             if (newnum <= client->maxclients) {
-                // WID: C++20:
 				flags |= MSG_ES_NEWENTITY;
             }
             // In case this is our own client entity, update the new ent's origin and angles.
             if (newnum == clientEntityNumber) {
+				// Indicate first-person entity.
                 flags |= MSG_ES_FIRSTPERSON;
-				VectorCopy(oldent->origin, newent->origin);
-                VectorCopy(oldent->angles, newent->angles);
+				// Backup origin and angles.
+                newent->origin = oldent->origin; //VectorCopy(oldent->origin, newent->origin);
+                newent->angles = oldent->angles; //VectorCopy(oldent->angles, newent->angles);
             }
+			// Write the delta entity.
             MSG_WriteDeltaEntity(oldent, newent, flags);
+			// Advance both indices.
             oldindex++;
             newindex++;
+			// Skip the remainder to the next iteration.
             continue;
         }
 
-        // The old entity is present in the current frame.
+        /**
+        *   The old entity is present in the current frame.
+        **/
         if ( newnum < oldnum ) {
             flags |= MSG_ES_FORCE | MSG_ES_NEWENTITY;
-            oldent = client->baselines[ newnum >> SV_BASELINES_SHIFT ];
-            if ( oldent ) {
-                oldent += ( newnum & SV_BASELINES_MASK );
+            const uint32_t baselineIndex = (uint32_t)( newnum >> SV_BASELINES_SHIFT );
+
+            // Default fallback
+            const entity_state_t *fallback_oldent = &nullEntityState;
+
+            if ( baselineIndex < (uint32_t)SV_BASELINES_CHUNKS ) {
+                entity_state_t *chunk = client->baselines[ baselineIndex ];
+                if ( chunk ) {
+                    const uint32_t baselineOffset = (uint32_t)( newnum & SV_BASELINES_MASK );
+                    if ( baselineOffset < (uint32_t)SV_BASELINES_PER_CHUNK ) {
+                        fallback_oldent = chunk + baselineOffset;
+                    } else {
+                        // out-of-range offset: log once
+                        if ( !baseline_oob_logged ) {
+                            Com_DPrintf( "%s: baseline offset OOB newnum=%d baselineIndex=%u offset=%u (falling back to nullEntityState)\n",
+                                client->name[ 0 ] ? client->name : "<unknown>", newnum, baselineIndex, baselineOffset );
+                            baseline_oob_logged = true;
+                        }
+                        fallback_oldent = &nullEntityState;
+                    }
+                } else {
+                    // Missing chunk pointer: log once
+                    if ( !baseline_oob_logged ) {
+                        Com_DPrintf( "%s: missing baseline chunk for newnum=%d baselineIndex=%u (falling back to nullEntityState)\n",
+                            client->name[ 0 ] ? client->name : "<unknown>", newnum, baselineIndex );
+                        baseline_oob_logged = true;
+                    }
+                    fallback_oldent = &nullEntityState;
+                }
             } else {
-                oldent = &nullEntityState;
+                // baselineIndex out-of-range: log once
+                if ( !baseline_oob_logged ) {
+                    Com_DPrintf( "%s: baselineIndex OOB newnum=%d baselineIndex=%u (SV_BASELINES_CHUNKS=%d) (falling back to nullEntityState)\n",
+                        client->name[ 0 ] ? client->name : "<unknown>", newnum, baselineIndex, SV_BASELINES_CHUNKS );
+                    baseline_oob_logged = true;
+                }
+                fallback_oldent = &nullEntityState;
             }
+
+            oldent = fallback_oldent;
             // In case this is our own client entity, update the new ent's origin and angles.
             if ( newnum == clientEntityNumber ) {
+                // Indicate first-person entity.
                 flags |= MSG_ES_FIRSTPERSON;
-                VectorCopy( oldent->origin, newent->origin );
-                VectorCopy( oldent->angles, newent->angles );
+                // Backup origin and angles.
+                newent->origin = oldent->origin; //VectorCopy(oldent->origin, newent->origin);
+                newent->angles = oldent->angles; //VectorCopy(oldent->angles, newent->angles);
             }
+			// Write the delta entity.
             MSG_WriteDeltaEntity( oldent, newent, flags );
+			// Advance the new index.
             newindex++;
+			// Skip the remainder to the next iteration.
             continue;
         }
 
@@ -136,42 +192,52 @@ static void SV_EmitPacketEntities(client_t         *client,
         if (newnum > oldnum) {
             // The old entity isn't present in the new message.
             MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE );
+			// Advance the old index.
             oldindex++;
+			// Skip the remainder to the next iteration.
             continue;
         }
     }
 
+    /**
+    *   End Of 'svc_packetentities' command.
+    **/
     MSG_WriteInt16(0);      // End Of 'svc_packetentities'.
 }
 
+/**
+*   @brief  Retrieves the last frame to delta from for the given client.
+**/
 static sv_client_frame_t *get_last_frame(client_t *client)
 {
-    sv_client_frame_t *frame;
-
-    if (client->lastframe <= 0) {
-        // client is asking for a retransmit
+    // Client is asking for a retransmit.
+    if ( client->lastframe <= 0 ) {
+		// Count no-delta frames for stats.
         client->frames_nodelta++;
         return NULL;
     }
 
+	// Reset no-delta counter
     client->frames_nodelta = 0;
 
+	// Check if the frame is too old
     if (client->framenum - client->lastframe >= UPDATE_BACKUP) {
-        // client hasn't gotten a good message through in a long time
+        // Client hasn't gotten a good message through in a long time.
         Com_DPrintf("%s: delta request from out-of-date packet.\n", client->name);
         return NULL;
     }
 
-    // we have a valid message to delta from
-    frame = &client->frames[client->lastframe & UPDATE_MASK];
+    // We have a valid message to delta from
+    sv_client_frame_t *frame = &client->frames[client->lastframe & UPDATE_MASK];
     if (frame->number != client->lastframe) {
-        // but it got never sent
+        // But it got never sent.
         Com_DPrintf("%s: delta request from dropped frame.\n", client->name);
         return NULL;
     }
 
+	// Check if the entities are still valid.
     if (svs.next_entity - frame->first_entity > svs.num_entities) {
-        // but entities are too old
+        // But entities are too old.
         Com_DPrintf("%s: delta request from out-of-date entities.\n", client->name);
         return NULL;
     }
@@ -179,6 +245,24 @@ static sv_client_frame_t *get_last_frame(client_t *client)
     return frame;
 }
 
+/**
+*   @brief  Write the portal bits for the current server state to the message.
+**/
+static void WriteCurrentPortalBits( ) {
+	// Static buffer for portal bits.
+    static byte portalBits[ MAX_MAP_PORTAL_BYTES ] = { };
+    // Clean zeroed memory portal bits buffer for writing.
+    memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+
+    // Write the current portal bit states to the portalBits buffer.
+    const int32_t numPortalBits = CM_WritePortalBits( &sv.cm, portalBits );
+
+    // PortalBits frame message.
+    MSG_WriteUint8( svc_portalbits );
+    // Write data for message.
+    MSG_WriteUint8( numPortalBits );
+    MSG_WriteData( portalBits, numPortalBits );
+}
 /*
 ==================
 SV_WriteFrameToClient
@@ -190,10 +274,10 @@ void SV_WriteFrameToClient( client_t *client ) {
     // Defaults to -1, gets set when we found an actual old frame to delta from.
 	int64_t          lastFrameNumber = -1;
 
-	// this is the frame we are creating
+	// This is the frame we are creating, and writing out to the client.
 	sv_client_frame_t *newFrame = &client->frames[ client->framenum & UPDATE_MASK ];
 
-	// this is the frame we are delta'ing from
+	// This is the frame we are delta'ing from.
 	sv_client_frame_t *oldFrame = get_last_frame( client );
 	if ( oldFrame ) {
 		oldPlayerState = &oldFrame->ps;
@@ -217,24 +301,15 @@ void SV_WriteFrameToClient( client_t *client ) {
     // Send over entire frame's portal bits if this is the very first frame
     // or the client required a full on retransmit.
     if ( oldFrame == nullptr ) {
-        // PortalBits frame message.
-        MSG_WriteUint8( svc_portalbits );
-        // Clean zeroed memory portal bits buffer for writing.
-        static byte portalBits[ MAX_MAP_PORTAL_BYTES ] = { };
-        memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
-        // Write the current portal bit states to the portalBits buffer.
-        int32_t numPortalBits = CM_WritePortalBits( &sv.cm, portalBits );
-        // Write data to message.
-        MSG_WriteUint8( numPortalBits );
-        MSG_WriteData( portalBits, numPortalBits );
+        WriteCurrentPortalBits();
     }
 
-	// delta encode the playerstate
+	// Delta encode the playerstate.
 	MSG_WriteUint8( svc_playerinfo );
     MSG_WriteUint8( newFrame->clientNum );
     MSG_WriteDeltaPlayerstate( oldPlayerState, &newFrame->ps );
 
-	// delta encode the entities
+	// Delta encode the entities.
 	MSG_WriteUint8( svc_packetentities );
 	SV_EmitPacketEntities( client, oldFrame, newFrame, 0/*newFrame->clientNum*/);
 }
@@ -510,7 +585,7 @@ void SV_BuildClientFrame(client_t *client)
     frame->num_entities = 0;
 	// Set the first entity index for this frame.
     frame->first_entity = svs.next_entity;
-	// Iterate all server entities, starting at 1. (World == 0 ).
+	// Iterate all server entities, starting at 1. (World == 0 )."
     int32_t entityNumber = 1;
 	// Iterate all entities.
     for ( entityNumber = 1; entityNumber < client->pool->num_edicts; entityNumber++ ) {
@@ -581,7 +656,7 @@ void SV_BuildClientFrame(client_t *client)
 		*   If the entity number is different from the current iteration, fix it.
         **/
 		if ( ent->s.number != entityNumber ) {
-			Com_WPrintf( "%s: fixing ent->s.number: %d to %d\n", __func__, ent->s.number, entityNumber );
+			Com_WPrintf( "%s: fixing ent->s.number: (#%d) to (#%d)!\n", __func__, ent->s.number, entityNumber );
 			ent->s.number = entityNumber;
 		}
 

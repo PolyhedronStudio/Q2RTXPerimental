@@ -47,9 +47,6 @@ pmove_t *pm;
 //! Contains our local in-moment move variables.
 pml_t pml;
 
-//! String representatives.
-extern const char *sg_player_state_event_strings[ PS_EV_MAX ];
-
 //! An actual pointer to the pmove parameters object for use with moving.
 static pmoveParams_t *pmp;
 
@@ -557,9 +554,6 @@ static inline void PM_GetLiquidContentsForPoint( const Vector3 &position, cm_liq
 static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 	int32_t	i, j, k;
 
-	//if ( pm->debugLevel ) {
-	//	Com_Printf( "%i:allsolid\n", c_pmove );
-	//}
 	Vector3 testPoint = {};
 
 	// jitter around

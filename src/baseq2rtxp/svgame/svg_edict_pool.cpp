@@ -99,7 +99,7 @@ void svg_edict_pool_t::FreeEdict( svg_base_edict_t *ed ) {
 	gi.unlinkentity( ed );
 
 	// If never freed is set, we don't free it, just only unlinked it.
-	if ( ed->freeAfterEvent == false ) {
+	if ( ed->neverFreeOnlyUnlink == true ) {
 		return;
 	}
 

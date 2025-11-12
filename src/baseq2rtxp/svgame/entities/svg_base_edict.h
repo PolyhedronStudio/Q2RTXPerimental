@@ -702,6 +702,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   Entity Event Properties:
     **/
+	//! If true, entity will never be freed, only unlinked(thus, removed as in, no collision, no transmission).
+    bool    neverFreeOnlyUnlink = false;
     //! Events will be cleared EVENT_VALID_MSEC after set.
     QMTime  eventTime = 0_ms;
 	//! If true, entity will be freed once the event is done.

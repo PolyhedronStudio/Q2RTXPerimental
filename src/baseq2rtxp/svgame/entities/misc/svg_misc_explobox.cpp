@@ -171,7 +171,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_misc_explobox_t, thinkExplode )( svg_misc_expl
         SVG_Misc_BecomeExplosion( self, 1 );
     }
     #endif // #if 0
-    SVG_Misc_BecomeExplosion( self, true );
+    if ( self->groundInfo.entity ) {
+        SVG_Misc_BecomeExplosion( self, 2, true );
+    } else {
+        SVG_Misc_BecomeExplosion( self, 1, true );
+    }
+    //SVG_Misc_BecomeExplosion( self, true );
 }
 
 

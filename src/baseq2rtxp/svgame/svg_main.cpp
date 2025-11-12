@@ -556,9 +556,10 @@ static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
             return true; // Skip the entity for further processing. 
         // Otherwise, if true, we unlink it.
         } else if ( ent->unlinkAfterEvent ) {
-            // items that will respawn will hide themselves after their pickup event
-            ent->unlinkAfterEvent = false;
+            // Unlink it now.
             gi.unlinkentity( ent );
+            // Items that will respawn will hide themselves after their pickup event.
+            ent->unlinkAfterEvent = false;
         }
     }
 
@@ -652,6 +653,8 @@ void SVG_RunFrame(void) {
 
         /**
 		*   Clear events that are too old.
+        * 
+        *   (Temp entities never think.)
         **/
         if ( CheckClearEntityEvents( ent ) == true ) {
             // Entity has been freed or whatever, but we shall not pass.
@@ -660,10 +663,10 @@ void SVG_RunFrame(void) {
         }
 
         /**
-        *   Temp entities never think. 
+		*   Not linked in, so skip it.
         **/
-        if ( ent->freeAfterEvent ) {
-            // Skip.
+        // Not linked in anywhere.
+        if ( !ent->area.prev && ent->neverFreeOnlyUnlink ) {
             continue;
         }
         /**

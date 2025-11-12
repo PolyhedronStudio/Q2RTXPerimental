@@ -327,6 +327,8 @@ void CLG_InitViewScene( void ) {
     clg_view_add_blend = clgi.CVar_Get( "clg_view_add_blend", "1", 0 );
     clg_view_add_blend->changed = clg_add_blend_changed;
 
+	// Register view scene related commands.
+    clgi.Cmd_Register( viewCommands );
 }
 /**
 *	@brief	Called whenever the refresh module is shutdown.
@@ -693,28 +695,46 @@ static void CLG_SetupThirdPersionView( void ) {
 void CLG_FinishViewValues( void ) {
     centity_t *ent;
 
+    /**
+    *   If we aren't even desiring third-person view, instantly prepare a first-person view.
+    **/
     if ( cl_player_model->integer != CL_PLAYER_MODEL_THIRD_PERSON ) {
-        goto first;
+        goto setup_fps_view;
     }
 
+	/**
+    *   Ensure the client's own entity is valid for third-person view.
+    **/
     ent = &clg_entities[ clgi.client->frame.clientNum + 1 ]; //ENTITY_FOR_NUMBER( clgi.client->frame.clientNum + 1 );//ent = &cl_entities[clgi.client->frame.clientNum + 1];
     if ( ent->serverframe != clgi.client->frame.number ) {
-        goto first;
+        goto setup_fps_view;
     }
 
-    // Need a model to display if we want to go third-person mode.
+    /**
+    *   Need a model to display if we want to go third - person mode.
+    **/
     if ( !ent->current.modelindex ) {
-        goto first;
+        goto setup_fps_view;
     }
 
+	// Free to go into third-person view.
     CLG_SetupThirdPersionView();
+	// Obviously exit here to prevent still setting up first-person view.
     return;
 
-first:
+/**
+*   Escape hatch to first - person view setup.
+**/
+setup_fps_view:
     CLG_SetupFirstPersonView();
 }
 
-
+/**
+ * @brief   Comparison function for qsort to sort entities by model and skin.
+ * @param _a
+ * @param _b 
+ * @return 
+ */
 static int entitycmpfnc( const void *_a, const void *_b ) {
     const entity_t *a = (const entity_t *)_a;
     const entity_t *b = (const entity_t *)_b;
@@ -726,7 +746,6 @@ static int entitycmpfnc( const void *_a, const void *_b ) {
         return a->model - b->model;
     }
 }
-
 
 /**
 *   @details    Whenever we have received a valid frame from the server, we will
@@ -758,34 +777,34 @@ void CLG_DrawActiveViewState( void ) {
         CLG_PrepareViewEntities();
 
         #if USE_DEBUG
-        if ( clg_testparticles->integer )
-            V_TestParticles();
-        if ( clg_testentities->integer )
-            V_TestEntities();
-        if ( clg_testlights->integer )
-            V_TestLights();
-        if ( clg_testblend->integer ) {
-            clgi.client->refdef.screen_blend[ 0 ] = 1;
-            clgi.client->refdef.screen_blend[ 1 ] = 0.5f;
-            clgi.client->refdef.screen_blend[ 2 ] = 0.25f;
-            clgi.client->refdef.screen_blend[ 3 ] = 0.5f;
-        }
+            if ( clg_testparticles->integer ) {
+                V_TestParticles();
+            }
+            if ( clg_testentities->integer ) {
+                V_TestEntities();
+            }
+            if ( clg_testlights->integer ) {
+                V_TestLights();
+            }
+            if ( clg_testblend->integer ) {
+                clgi.client->refdef.screen_blend[ 0 ] = 1;
+                clgi.client->refdef.screen_blend[ 1 ] = 0.5f;
+                clgi.client->refdef.screen_blend[ 2 ] = 0.25f;
+                clgi.client->refdef.screen_blend[ 3 ] = 0.5f;
+            }
         #endif
 
         //if(clg_flashlight->integer)
         //    V_Flashlight();
 
-        // never let it sit exactly on a node line, because a water plane can
-        // dissapear when viewed with the eye exactly on it.
-        // the server protocol only specifies to 1/8 pixel, so add 1/16 in each axis
-        //clgi.client->refdef.vieworg[ 0 ] += 1.0f / 16;
-        //clgi.client->refdef.vieworg[ 1 ] += 1.0f / 16;
-        //clgi.client->refdef.vieworg[ 2 ] += 1.0f / 16;
-
-        //clgi.client->refdef.x = scr_vrect.x;
-        //clgi.client->refdef.y = scr_vrect.y;
-        //clgi.client->refdef.width = scr_vrect.width;
-        //clgi.client->refdef.height = scr_vrect.height;
+        #if 0
+            // never let it sit exactly on a node line, because a water plane can
+            // dissapear when viewed with the eye exactly on it.
+            // the server protocol only specifies to 1/8 pixel, so add 1/16 in each axis
+            clgi.client->refdef.vieworg[ 0 ] += 1.0f / 16;
+            clgi.client->refdef.vieworg[ 1 ] += 1.0f / 16;
+            clgi.client->refdef.vieworg[ 2 ] += 1.0f / 16;
+        #endif
         vrect_t *scr_vrect = CLG_GetScreenVideoRect();
         clgi.client->refdef.x = scr_vrect->x;
         clgi.client->refdef.y = scr_vrect->y;
@@ -801,14 +820,21 @@ void CLG_DrawActiveViewState( void ) {
             clgi.client->refdef.fov_y = CLG_CalculateFieldOfView( clgi.client->refdef.fov_x, clgi.client->refdef.width, clgi.client->refdef.height );
         }
 
+        // Setup the refresh def time to that of the client.
         clgi.client->refdef.time = clgi.client->time * 0.001f;
 
+		// Determine the area bits for the PVS.
         if ( clgi.client->frame.areabytes ) {
             clgi.client->refdef.areabits = clgi.client->frame.areabits;
+        // No area bits for this frame.
         } else {
             clgi.client->refdef.areabits = NULL;
         }
 
+        /**
+		*   Disable/Enable various scene elements based on the view CVars.
+		*   Simply by setting the counts to zero, or for the blend, clear it.
+        **/
         if ( !clg_view_add_entities->integer ) {
             clgi.client->viewScene.r_numentities = 0;
         }
@@ -822,6 +848,7 @@ void CLG_DrawActiveViewState( void ) {
             Vector4Clear( clgi.client->refdef.screen_blend );
         }
 
+		// Set the refdef scene data from the view scene data.
         clgi.client->refdef.num_entities = clgi.client->viewScene.r_numentities;
         clgi.client->refdef.entities = clgi.client->viewScene.r_entities;
         clgi.client->refdef.num_particles = clgi.client->viewScene.r_numparticles;
@@ -842,8 +869,12 @@ void CLG_DrawActiveViewState( void ) {
 
     // 
     #if USE_DEBUG
-    if ( clg_view_stats->integer ) {
-        Com_Printf( "ent:%i  lt:%i  part:%i\n", clgi.client->refdef.num_entities, clgi.client->refdef.num_dlights, clgi.client->refdef.num_particles );
-    }
+        if ( clg_view_stats->integer ) {
+            Com_Printf( "refdef_stats:[ r_entities:(#%i)  dlights:(#%i)  particles:(#%i) ]\n", 
+                clgi.client->refdef.num_entities, 
+                clgi.client->refdef.num_dlights, 
+                clgi.client->refdef.num_particles 
+            );
+        }
     #endif
 }
