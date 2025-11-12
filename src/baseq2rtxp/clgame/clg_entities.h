@@ -28,45 +28,6 @@ void CLG_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org );
 
 
 
-/**
-*
-*
-*
-*	Entity Receive and Update:
-* 
-*	Callbacks for the client game when it receives entity states from the server,
-*	to update them for when entering from new frame or updating from a deltaframe
-*
-*
-*
-**/
-/**
-*	@brief	Called when a new frame has been received that contains an entity
-*			which was not present in the previous frame.
-**/
-void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 &origin );
-/**
-*	@brief	Called when a new frame has been received that contains an entity 
-*			already present in the previous frame.
-**/
-void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 &origin );
-
-
-
-/**
-*
-*
-*
-*	PlayerState Updating:
-*
-*
-*
-**/
-/**
-*   @brief  Handles player state transition between old and new server frames. Duplicates old state into current state
-*           in case of no lerping conditions being met.
-**/
-void CLG_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );
 
 
 
@@ -80,23 +41,37 @@ void CLG_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame
 *
 **/
 /**
-*	@brief	Returns true if the entityNumber matches to our local connection received entity number.
-**/
-static inline const bool CLG_IsLocalClientEntity( const int32_t entityNumber ) {
-	if ( entityNumber == clgi.client->clientNumber + 1 ) {
-		return true;
-	}
-	return false;
-}
-/**
 *	@brief	Returns true if the entity state's number matches to our local client entity number,
 *			received at initial time of connection.
 **/
 static inline const bool CLG_IsLocalClientEntity( const entity_state_t *state ) {
-	if ( state && state->number > 0 ) {
-		return CLG_IsLocalClientEntity( state->number );
+	//if ( state && state->number > 0 ) {
+	//	return CLG_IsLocalClientEntity( state->number );
+	//}
+	if ( state ) {
+		// Decode skinnum.
+		const encoded_skinnum_t encodedSkin = static_cast<const encoded_skinnum_t>( state->skinnum );
+		// Check for client number match.
+		if ( encodedSkin.clientNumber == clgi.client->clientNumber ) {
+			return true;
+		}
 	}
 	return false;
+}
+/**
+*	@brief	Returns true if the entityNumber matches to our local connection received entity number.
+**/
+static inline const bool CLG_IsLocalClientEntity( const int32_t entityNumber ) {
+	if ( entityNumber < 0 ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: Invalid entity number (#%d) < (#0).\n", __func__, entityNumber );
+		return false;
+	}
+	if ( entityNumber >= MAX_EDICTS ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: Entity number (#%d) exceeds MAX_EDICTS(#%d).\n", __func__, entityNumber, MAX_EDICTS );
+		return false;
+	}
+	// Get the entity state.
+	return CLG_IsLocalClientEntity( &clg_entities[ entityNumber ].current );
 }
 
 
@@ -173,10 +148,10 @@ static inline const bool CLG_IsCurrentViewEntity( const centity_t *cent ) {
 	// Check if we match with the chase entity first.
 	if ( chaseEntity && cent->current.number == chaseEntity->current.number ) {
 		return true;
-	// Check if we match with the view entity.
+		// Check if we match with the view entity.
 	} else if ( viewEntity && cent->current.number == viewEntity->current.number ) {
 		return true;
-	// No match.
+		// No match.
 	} else {
 		return false;
 	}
@@ -196,3 +171,44 @@ static inline const bool CLG_IsCurrentViewEntity( const centity_t *cent ) {
 	return false;
 	#endif
 }
+
+
+/**
+*
+*
+*
+*	Entity Receive and Update:
+* 
+*	Callbacks for the client game when it receives entity states from the server,
+*	to update them for when entering from new frame or updating from a deltaframe
+*
+*
+*
+**/
+/**
+*	@brief	Called when a new frame has been received that contains an entity
+*			which was not present in the previous frame.
+**/
+void CLG_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 &origin );
+/**
+*	@brief	Called when a new frame has been received that contains an entity 
+*			already present in the previous frame.
+**/
+void CLG_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 &origin );
+
+
+
+/**
+*
+*
+*
+*	PlayerState Updating:
+*
+*
+*
+**/
+/**
+*   @brief  Handles player state transition between old and new server frames. Duplicates old state into current state
+*           in case of no lerping conditions being met.
+**/
+void CLG_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );

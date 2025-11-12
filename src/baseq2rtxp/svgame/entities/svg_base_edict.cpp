@@ -23,12 +23,14 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.number, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.entityType, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.otherEntityNumber, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, s.origin, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, s.angles, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, s.old_origin, SD_FIELD_TYPE_VECTOR3, 1 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.solid, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.bounds, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.clipMask, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.hullContents, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.ownerNumber, SD_FIELD_TYPE_INT32 ),
@@ -39,14 +41,16 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.modelindex4, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.skinnum, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.entityFlags, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.renderfx, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.entityFlags, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.frame, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.old_frame, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.sound, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.event, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.eventParm0, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.eventParm1, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, s.spotlight.rgb, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.spotlight.intensity, SD_FIELD_TYPE_FLOAT ),
@@ -56,6 +60,10 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Server Edict Data:
     **/
+
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, sendClientID, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, inUse, SD_FIELD_TYPE_BOOL ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, svFlags, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, mins, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, maxs, SD_FIELD_TYPE_VECTOR3, 1 ),
@@ -73,13 +81,21 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, spawn_count, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, freetime, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, timestamp, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, neverFreeOnlyUnlink, SD_FIELD_TYPE_BOOL ),
+
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, spawnflags, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, flags, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, classname, SD_FIELD_TYPE_LEVEL_QSTRING ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, model, SD_FIELD_TYPE_LSTRING ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, angle, SD_FIELD_TYPE_FLOAT ),
 
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, spawnflags, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, flags, SD_FIELD_TYPE_INT32 ),
+    /**
+    *   Entity Event Properties:
+    **/
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, eventTime, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, freeAfterEvent, SD_FIELD_TYPE_BOOL ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, unlinkAfterEvent, SD_FIELD_TYPE_BOOL ),
 
     /**
     *   Health/Body Status Conditions:
@@ -126,8 +142,11 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, delayed.useTarget.creatorEntity, SD_FIELD_TYPE_EDICT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, delayed.useTarget.useType, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, delayed.useTarget.useValue, SD_FIELD_TYPE_INT32 ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, delayed.signalOut.creatorEntity, SD_FIELD_TYPE_EDICT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_base_edict_t, delayed.signalOut.name, SD_FIELD_TYPE_ZSTRING, 256 ),
+	// <Q2RTXP>: TODO: Add signal arguments array saving.
+    //SAVE_DESCRIPTOR_DEFINE_FIELD_SIZE( svg_base_edict_t, delayed.signalOut.arguments, SD_FIELD_TYPE_SIGNAL_ARGUMENTS, 256 ),
 
     /**
     *   Physics Related:
@@ -135,9 +154,12 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, moveWith.absoluteOrigin, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, moveWith.originOffset, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, moveWith.relativeDeltaOffset, SD_FIELD_TYPE_VECTOR3, 1 ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, moveWith.spawnDeltaAngles, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, moveWith.spawnParentAttachAngles, SD_FIELD_TYPE_VECTOR3, 1 ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, moveWith.totalVelocity, SD_FIELD_TYPE_VECTOR3, 1 ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, moveWith.parentMoveEntity, SD_FIELD_TYPE_EDICT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, moveWith.moveNextEntity, SD_FIELD_TYPE_EDICT ),
 
@@ -145,10 +167,19 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, velocity, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, avelocity, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, viewheight, SD_FIELD_TYPE_INT32 ),
-
+    // Liquid Info: {
+        SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, liquidInfo.type, SD_FIELD_TYPE_INT32 ),
+        SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, liquidInfo.level, SD_FIELD_TYPE_INT32 ),
+    // }
+    // Ground Info: {
+        SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, groundInfo.entity, SD_FIELD_TYPE_EDICT ),
+        SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, groundInfo.entityLinkCount, SD_FIELD_TYPE_INT32 ),
+    // }
+    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, gravityVector, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, mass, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, gravity, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pausetime, SD_FIELD_TYPE_INT64 ),
+
 
     /**
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
@@ -204,7 +235,6 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, speed, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, accel, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, decel, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, gravityVector, SD_FIELD_TYPE_VECTOR3, 1 ),
 
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
     // WID: TODO: PushmoveInfo
@@ -269,6 +299,8 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Player Noise/Trail:
     **/
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noisePath, SD_FIELD_TYPE_LEVEL_QSTRING ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, mynoise, SD_FIELD_TYPE_EDICT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, mynoise2, SD_FIELD_TYPE_EDICT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noise_index, SD_FIELD_TYPE_INT32 ),
@@ -282,7 +314,6 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Trigger(s) Data:
     **/
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, noisePath, SD_FIELD_TYPE_LEVEL_QSTRING ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, message, SD_FIELD_TYPE_LSTRING ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, wait, SD_FIELD_TYPE_FLOAT ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, delay, SD_FIELD_TYPE_FLOAT ),
@@ -298,14 +329,16 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, touch_debounce_time, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pain_debounce_time, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, show_hostile_time, SD_FIELD_TYPE_INT64 ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, death_time, SD_FIELD_TYPE_INT64 ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, trail_time, SD_FIELD_TYPE_INT64 ),
 
     /**
     *   Various Data:
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, meansOfDeath, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, map, SD_FIELD_TYPE_LSTRING ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, map, SD_FIELD_TYPE_LEVEL_QSTRING ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, dmg, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, radius_dmg, SD_FIELD_TYPE_INT32 ),
@@ -503,6 +536,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     spawn_count = 0;
     freetime = 0_ms;
     timestamp = 0_ms;
+    neverFreeOnlyUnlink = false;
 
     classname = svg_level_qstring_t::from_char_str( "svg_base_edict_t" );
     model = nullptr;
@@ -515,7 +549,6 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *   Entity Event Properties:
     **/
     eventTime = 0_ms;
-    neverFreeOnlyUnlink = false;
     freeAfterEvent = false;
     unlinkAfterEvent = false;
 
@@ -577,14 +610,14 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
 
     pausetime = 0_ms;
 
-    itemName = nullptr;
 
     /**
     *   Pushers(MOVETYPE_PUSH/MOVETYPE_STOP) Physics:
     **/
     pushMoveInfo = {};
-    distance = 0.f;
+
     lip = 0.f;
+    distance = 0.f;
     height = 0.f;
 
     speed = 0.f;
@@ -605,6 +638,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     **/
     nextthink = 0_ms;
     // <Q2RTXP>: WID: We keep this around for reuse.
+	//SetSpawnCallback( svg_base_edict_t::onSpawn );
 	//spawnCallbackFuncPtr = nullptr;
     // Clear all other callbacks.
     postSpawnCallbackFuncPtr = nullptr;
@@ -922,12 +956,12 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     }
     // Match: origin
     else if ( keyStr == "origin" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
-        VectorCopy( keyValuePair->vec3, s.origin );
+        s.origin = keyValuePair->vec3;
         return true;
     }
     // Match: angles
     else if ( keyStr == "angles" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
-        VectorCopy( keyValuePair->vec3, s.angles );
+        s.angles = keyValuePair->vec3;
         return true;
     }
     // Match: attenuation

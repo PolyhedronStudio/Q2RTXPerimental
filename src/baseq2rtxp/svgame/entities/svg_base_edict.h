@@ -685,6 +685,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     QMTime  freetime = 0_ms;
     //! Used for deferring client info so that disconnected, etc works
     QMTime  timestamp = 0_ms;
+    //! If true, entity will never be freed, only unlinked(thus, removed as in, no collision, no transmission).
+    bool    neverFreeOnlyUnlink = false;
 
     //! [SpawnKey]: Entity spawnflags key/value.
     spawnflag_t spawnflags = 0;
@@ -702,8 +704,6 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   Entity Event Properties:
     **/
-	//! If true, entity will never be freed, only unlinked(thus, removed as in, no collision, no transmission).
-    bool    neverFreeOnlyUnlink = false;
     //! Events will be cleared EVENT_VALID_MSEC after set.
     QMTime  eventTime = 0_ms;
 	//! If true, entity will be freed once the event is done.
@@ -824,6 +824,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
             char name[ 256 ];
             //! For delayed signaling.
             std::vector<svg_signal_argument_t> arguments;
+			// <Q2RTXP>: TODO: Implement saving and restoring of these arguments.
+            //sg_qtag_memory_t<svg_signal_argument_t, TAG_SVGAME_LEVEL> arguments = sg_qtag_memory_t<svg_signal_argument_t, TAG_SVGAME_LEVEL>::sg_qtag_memory_t( nullptr, 0 );
         } signalOut;
     } delayed = {};
 
@@ -878,8 +880,6 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //const char *noise;
     //! [SpawnKey]: For triggers.
     QMTime      pausetime = 0_ms;
-    //! [SpawnKey]: For items.
-    svg_level_qstring_t itemName = nullptr;
 
 
     /**
@@ -968,7 +968,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! Team master.
     svg_base_edict_t *teammaster = nullptr;
 
-    //! Trigger Activator.
+    //! Entity that activated the triggering.
     svg_base_edict_t *activator = nullptr;
     //! The entity that called upon the SignalOut/UseTarget
     svg_base_edict_t *other = nullptr;
@@ -987,6 +987,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     //! If not nullptr, will point to one of the items in the itemlist.
     const gitem_t *item = nullptr;          // for bonus items
+    //! [SpawnKey]: For items.
+    svg_level_qstring_t itemName = nullptr;
 
     /**
     *   Monster Data:

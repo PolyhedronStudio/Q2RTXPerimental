@@ -8,6 +8,23 @@
 #pragma once
 
 
+/**
+*   @brief  Encodes client index, weapon index, and viewheight.
+*           Used in entity_state_t skinnum field, whenever we're dealing with
+*           a player entity.
+**/
+typedef union encoded_skinnum_s {
+    //! Actual value.
+    int32_t         skinnum;
+    //! Union for easy access.
+    struct {
+        uint8_t     clientNumber;
+        uint8_t     viewWeaponIndex;
+        int8_t      viewHeight;
+        uint8_t     reserved;
+    };
+} encoded_skinnum_t;
+
 
 /**
 *   @brief  entity_state_t is the information conveyed from the server
@@ -55,7 +72,7 @@ typedef struct entity_state_s {
     //! Used for weapons, CTF flags, etc
     int32_t	modelindex2, modelindex3, modelindex4;
     //! Skinnumber, in case of clients, packs player (client)number index and weapon model index.
-    int32_t	skinnum;
+    int32_t skinnum;
     //! Render Effect Flags: RF_NOSHADOW etc.
     int32_t	renderfx;
     //! General Entity Flags: EF_ROTATE etc.

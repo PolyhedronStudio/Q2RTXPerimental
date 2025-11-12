@@ -366,7 +366,7 @@ static inline const bool SV_SendClientIDSkipCheck( sv_edict_t *ent, const int32_
     **/
     if ( ent->svFlags & SVF_SENDCLIENT_EXCLUDE_ID ) {
 		// Skip if this is the excluded client.
-        if ( ent->sendClientID != frameClientNumber ) {
+        if ( ent->sendClientID == frameClientNumber ) {
             return true;
         }
     }

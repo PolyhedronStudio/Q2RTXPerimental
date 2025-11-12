@@ -78,13 +78,25 @@ void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_clien
             true 
         );
 
-		// Store number for restoration later.
-        const int32_t tempEventEntityNumber = tempEventEntity->s.number;
-		// Convert certain playerstate properties into entity state properties.
-		SG_PlayerStateToEntityState( client->clientNum, ps, &tempEventEntity->s, true );
-        // Restore the number.
-        tempEventEntity->s.number = tempEventEntityNumber;
-
+        // This seems to be ok.
+        #if 1
+		    // Store number for restoration later.
+            const int32_t tempEventEntityNumber = tempEventEntity->s.number;
+		    // Convert certain playerstate properties into entity state properties.
+            SG_PlayerStateToMinimalEntityState( client->clientNum, ps, &tempEventEntity->s, true );
+            // Restore the number.
+            tempEventEntity->s.number = tempEventEntityNumber;
+		    // No model for temp event entities.
+		    tempEventEntity->s.modelindex = 0; // Undo the model just in case. (Set by SG_PlayerStateToEntityState).
+        // This will send it with the model and no frame, tposing it hard.
+        #else
+            // Store number for restoration later.
+            const int32_t tempEventEntityNumber = tempEventEntity->s.number;
+            // Convert certain playerstate properties into entity state properties.
+            SG_PlayerStateToEntityState( client->clientNum, ps, &tempEventEntity->s, true );
+            // Restore the number.
+            tempEventEntity->s.number = tempEventEntityNumber;
+        #endif
         // Adjust type, assign player event flag.
         tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
 		tempEventEntity->s.entityFlags |= EF_OTHER_ENTITY_EVENT;

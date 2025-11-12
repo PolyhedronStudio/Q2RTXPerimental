@@ -83,7 +83,7 @@ struct sv_shared_edict_t {
     **/
 	virtual void Reset( const bool retainDictionary = false ) {
         //! Entity state.
-        s = s = {
+        s = {
             .otherEntityNumber = -1,
             .ownerNumber = -1,
         };

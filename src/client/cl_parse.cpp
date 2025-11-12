@@ -1152,7 +1152,7 @@ void CL_SeekDemoMessage(void)
         case svc_print:
             MSG_ReadUint8();
             // fall through
-
+            /* level = */ MSG_ReadUint8();
         case svc_centerprint:
         case svc_stufftext:
             MSG_ReadString(NULL, 0);

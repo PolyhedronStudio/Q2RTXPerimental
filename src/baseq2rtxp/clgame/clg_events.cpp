@@ -400,14 +400,16 @@ void CLG_CheckEntityEvents( centity_t *cent ) {
     int32_t clientNumber = -1;
 	// Get client number of entity, if any.
     if ( currentEntityState->modelindex == MODELINDEX_PLAYER ) {
-		// It's a player model, so decode the client number from skinnum.
-        clientNumber = currentEntityState->skinnum & 0xFF;
+        // Decode the skinnum properties because we're dealing with a player model entity here.
+        encoded_skinnum_t skinnum = static_cast<encoded_skinnum_t>( currentEntityState->skinnum );
+        // It's a player model, so decode the client number from skinnum.
+        clientNumber = skinnum.clientNumber;
         // Invalid client number by skin.
-        if ( clientNumber < 0 || clientNumber >= MAX_CLIENTS ) {
-            clientNumber = -1;
-        // Valid client number, get the client info.
+        if ( clientNumber >= 0 || clientNumber < MAX_CLIENTS ) {
+            clientInfo = &clgi.client->clientinfo[ clientNumber ];
         } else {
-			clientInfo = &clgi.client->clientinfo[ clientNumber ];
+            clientInfo = nullptr;
+            clientNumber = -1;
         }
     }
 
