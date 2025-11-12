@@ -315,63 +315,63 @@ void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
 }
 
 #if USE_ZLIB
-static bool can_auto_compress( client_t *client ) {
-	if ( !client->has_zlib )
-		return false;
+	static bool can_auto_compress( client_t *client ) {
+		if ( !client->has_zlib )
+			return false;
 
-	// compress only sufficiently large layouts
-	if ( msg_write.cursize < client->netchan.maxpacketlen / 2 )
-		return false;
+		// compress only sufficiently large layouts
+		if ( msg_write.cursize < client->netchan.maxpacketlen / 2 )
+			return false;
 
-	return true;
-}
-
-static int compress_message( client_t *client ) {
-	int     ret, len;
-	byte *hdr;
-
-	if ( !client->has_zlib )
-		return 0;
-
-	svs.z.next_in = msg_write.data;
-	svs.z.avail_in = msg_write.cursize;
-	svs.z.next_out = svs.z_buffer + ZPACKET_HEADER;
-	svs.z.avail_out = svs.z_buffer_size - ZPACKET_HEADER;
-
-	ret = deflate( &svs.z, Z_FINISH );
-	len = svs.z.total_out;
-
-	// prepare for next deflate()
-	deflateReset( &svs.z );
-
-	if ( ret != Z_STREAM_END ) {
-		Com_WPrintf( "Error %d compressing %zu bytes message for %s\n",
-					ret, msg_write.cursize, client->name );
-		return 0;
+		return true;
 	}
 
-	// write the packet header
-	//hdr = svs.z_buffer;
-	//hdr[ 0 ] = svc_zpacket;
-	//hdr[ 1 ] = len & 255;
-	//hdr[ 2 ] = ( len >> 8 ) & 255;
-	//hdr[ 3 ] = msg_write.cursize & 255;
-	//hdr[ 4 ] = ( msg_write.cursize >> 8 ) & 255;
-	// write the packet header
-	hdr = svs.z_buffer;
-	hdr[ 0 ] = svc_zpacket;
-	WL16( &hdr[ 1 ], len );
-	WL16( &hdr[ 3 ], msg_write.cursize );
+	static int compress_message( client_t *client ) {
+		int     ret, len;
+		byte *hdr;
 
-	return len + ZPACKET_HEADER;
-}
-static byte *get_compressed_data( void ) {
-	return svs.z_buffer;
-}
+		if ( !client->has_zlib )
+			return 0;
+
+		svs.z.next_in = msg_write.data;
+		svs.z.avail_in = msg_write.cursize;
+		svs.z.next_out = svs.z_buffer + ZPACKET_HEADER;
+		svs.z.avail_out = svs.z_buffer_size - ZPACKET_HEADER;
+
+		ret = deflate( &svs.z, Z_FINISH );
+		len = svs.z.total_out;
+
+		// prepare for next deflate()
+		deflateReset( &svs.z );
+
+		if ( ret != Z_STREAM_END ) {
+			Com_WPrintf( "Error %d compressing %zu bytes message for %s\n",
+						ret, msg_write.cursize, client->name );
+			return 0;
+		}
+
+		// write the packet header
+		//hdr = svs.z_buffer;
+		//hdr[ 0 ] = svc_zpacket;
+		//hdr[ 1 ] = len & 255;
+		//hdr[ 2 ] = ( len >> 8 ) & 255;
+		//hdr[ 3 ] = msg_write.cursize & 255;
+		//hdr[ 4 ] = ( msg_write.cursize >> 8 ) & 255;
+		// write the packet header
+		hdr = svs.z_buffer;
+		hdr[ 0 ] = svc_zpacket;
+		WL16( &hdr[ 1 ], len );
+		WL16( &hdr[ 3 ], msg_write.cursize );
+
+		return len + ZPACKET_HEADER;
+	}
+	static byte *get_compressed_data( void ) {
+		return svs.z_buffer;
+	}
 #else
-#define can_auto_compress(c)    false
-#define compress_message(c)     0
-#define get_compressed_data()   NULL
+	#define can_auto_compress(c)    false
+	#define compress_message(c)     0
+	#define get_compressed_data()   NULL
 #endif
 /*
 =======================
@@ -537,7 +537,9 @@ static bool check_entity( client_t *client, int entnum ) {
 	return false;
 }
 
-// sounds reliative to entities are handled specially
+/**
+*	svc_sound commands reliative to entities are handled specially.
+**/
 static void emit_snd( client_t *client, message_packet_t *msg ) {
 	int flags, entnum;
 
@@ -568,7 +570,7 @@ static void emit_snd( client_t *client, message_packet_t *msg ) {
 	MSG_WriteUint16( msg->sendchan );
 
 	if ( flags & SND_POS ) {
-		MSG_WritePosition( msg->pos, MSG_POSITION_ENCODING_NONE );
+		MSG_WritePosition( msg->pos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 	}
 }
 

@@ -740,6 +740,7 @@ static void SV_Savegame_f(void)
 
     //if ( sv_maxclients->integer == 1 && svs.client_pool[ 0 ].edict->client->ps.stats[ STAT_HEALTH ] <= 0 ) {
     sv_edict_t *clent = EDICT_FOR_NUMBER( 1 );//sv_client->edict;
+	// <Q2RTXPP>: WID: TODO: Test for a singleplayer game actually being played.
     if ( sv_maxclients->integer == 1 && ( /*clent &&*/ clent->client->ps.stats[ STAT_HEALTH ] <= 0 ) ) {
         Com_Printf( "Can't savegame while dead!\n" );
         return;

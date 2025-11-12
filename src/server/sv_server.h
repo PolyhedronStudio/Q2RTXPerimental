@@ -54,6 +54,58 @@ extern svgame_export_t *ge;
 
 
 /**
+* 
+* 
+*   Extern CVars
+* 
+* 
+**/
+extern cvar_t       *sv_hostname;
+extern cvar_t       *sv_maxclients;
+extern cvar_t       *sv_password;
+extern cvar_t       *sv_reserved_slots;
+//extern cvar_t       *sv_airaccelerate;        // development tool
+//extern cvar_t       *sv_qwmod;                // atu QW Physics modificator
+extern cvar_t       *sv_enforcetime;
+extern cvar_t       *sv_force_reconnect;
+extern cvar_t       *sv_iplimit;
+
+#if USE_DEBUG
+    extern cvar_t       *sv_debug;
+    extern cvar_t       *sv_pad_packets;
+#endif
+extern cvar_t       *sv_novis;
+extern cvar_t       *sv_cull_nonvisible_entities;
+extern cvar_t       *sv_lan_force_rate;
+extern cvar_t       *sv_calcpings_method;
+extern cvar_t       *sv_changemapcmd;
+extern cvar_t       *sv_max_download_size;
+extern cvar_t       *sv_max_packet_entities;
+
+extern cvar_t       *sv_allow_map;
+extern cvar_t       *sv_cinematics;
+#if !USE_CLIENT
+    extern cvar_t       *sv_recycle;
+#endif
+extern cvar_t       *sv_enhanced_setplayer;
+
+extern cvar_t       *sv_status_limit;
+extern cvar_t       *sv_status_show;
+extern cvar_t       *sv_auth_limit;
+extern cvar_t       *sv_rcon_limit;
+extern cvar_t       *sv_uptime;
+
+extern cvar_t       *sv_allow_unconnected_cmds;
+
+extern cvar_t       *g_features;
+
+extern cvar_t       *sv_timeout;
+extern cvar_t       *sv_zombietime;
+extern cvar_t       *sv_ghostime;
+
+
+
+/**
 *   
 *   Wrapper functions for TAG_SERVER memory allocation.
 * 
@@ -103,12 +155,12 @@ static inline void SV_FreeFile( void *ptr ) {
 *   In Release builds this will do nothing.
 **/
 #if USE_DEBUG
-#define SV_DPrintf(level,...) \
-    if (sv_debug && sv_debug->integer > level) { \
-        Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__); \
-    }
-#else
-    #define SV_DPrintf(...)
+    #define SV_DPrintf(level,...) \
+        if (sv_debug && sv_debug->integer > level) { \
+            Com_LPrintf(PRINT_DEVELOPER, __VA_ARGS__); \
+        }
+    #else
+        #define SV_DPrintf(...)
 #endif
 
 
@@ -145,7 +197,7 @@ static constexpr int32_t SV_FEATURES = ( GMF_CLIENTNUM | GMF_PROPERINUSE |
 *   Test for whether server is paued or not, this is only used for client/server combined builds.
 **/
 #if USE_CLIENT
-    #define SV_PAUSED (sv_paused->integer != 0)
+    #define SV_PAUSED ( sv_paused->integer != 0 )
 #else
     #define SV_PAUSED 0
 #endif
@@ -270,6 +322,8 @@ typedef enum {
 static constexpr int32_t MSG_POOLSIZE        = 1024;
 //! Ensure message_packet_t is 64 bytes aligned.
 static constexpr int32_t MSG_TRESHOLD        = ( 62 - sizeof( list_t ) );   // keep message_packet_t 64 bytes aligned
+//! This one accounts the float pos?
+//static constexpr int32_t MSG_TRESHOLD = ( 162 - sizeof( list_t ) );   // keep message_packet_t 160 bytes aligned
 
 //! Reliable message.
 static constexpr int32_t MSG_RELIABLE        = BIT( 0 );
@@ -346,14 +400,25 @@ typedef struct {
 *           state, userinfo, etc.
 **/
 typedef struct client_s {
+	/**
+	*   Client List Entry:
+    **/
+	//! Entry in the server's client list.
     list_t          entry;
 
-    // core info
+    /**
+    *   Core Info:
+    **/
+    //! Client (Connection-) State:
     clstate_t       state;
-    sv_edict_t      *edict;     // EDICT_FOR_NUMBER(clientnum+1)
-    int             number;     // client slot number
+	//! Pointer to the client's edict. EDICT_FOR_NUMBER(clientnum+1)
+    sv_edict_t      *edict;
+	//! Client slot number.
+    int32_t         number;
 
-    // client flags
+    /**
+    *   Client Flags:
+    **/
     bool            reconnected: 1;
     bool            nodata: 1;
     bool            has_zlib: 1;
@@ -363,89 +428,114 @@ typedef struct client_s {
 #endif
     bool            http_download: 1;
 
-    // userinfo
-    char            userinfo[MAX_INFO_STRING];  // name, etc
-    char            name[MAX_CLIENT_NAME];      // extracted from userinfo, high bits masked
-    int             messagelevel;               // for filtering printed messages
+    /**
+    *   UserInfo:
+    **/
+    char            userinfo[MAX_INFO_STRING];  //! Stores a client's name, etc
+    char            name[MAX_CLIENT_NAME];      //! Extracted from userinfo, high bits masked.
+    int32_t         messagelevel;               //! For filtering printed messages.
 	uint64_t		rate;
-    ratelimit_t     ratelimit_namechange;       // for suppressing "foo changed name" flood
+    ratelimit_t     ratelimit_namechange;       //! For suppressing "foo changed name" flood.
 
-    // console var probes
+    /**
+    *   Console Variable Probes:
+    **/
     char            *version_string;
     char            reconnect_var[16];
     char            reconnect_val[16];
-    int             console_queries;
+    int32_t         console_queries;
 
-    // usercmd stuff
-	uint64_t		lastmessage;    // svs.realtime when packet was last received
-	uint64_t		lastactivity;   // svs.realtime when user activity was last seen
-    int64_t			lastframe;      // for delta compression
-    usercmd_t       lastcmd;        // for filling in big drops
-    int64_t         command_msec;   // every seconds this is reset, if user
-                                    // commands exhaust it, assume time cheating
-    int64_t         num_moves;      // reset every 10 seconds
-    int64_t         moves_per_sec;  // average movement FPS
+    /**
+    *   UserCmd Stuff:
+    **/
+    uint64_t		lastmessage;    //! svs.realtime when packet was last received.
+	uint64_t		lastactivity;   //! svs.realtime when user activity was last seen.
+    int64_t			lastframe;      //! For delta compression.
+    usercmd_t       lastcmd;        //! For filling in big drops.
+    int64_t         command_msec;   //! Every seconds this is reset, if user.
+                                    //! Commands exhaust it, assume time cheating.
+    int64_t         num_moves;      //! Reset every 10 seconds.
+    int64_t         moves_per_sec;  //! Average movement FPS.
     int64_t         cmd_msec_used;
     double          timescale;
 
     int64_t			ping, min_ping, max_ping;
     int64_t			avg_ping_time, avg_ping_count;
 
-    // frame encoding
-    sv_client_frame_t  frames[UPDATE_BACKUP];    // updates can be delta'd from here
-    uint64_t		frames_sent; //! Number of frames sent. 
-    uint64_t		frames_acked; //! Number of frames acknowledged.
-    uint64_t        frames_nodelta; //! Number of frames that did not have delta compression.
+    /**
+    *   Frame Encoding:
+    **/
+    sv_client_frame_t  frames[UPDATE_BACKUP];   //! Updates can be delta'd from here.
+    uint64_t		frames_sent;                //! Number of frames sent. 
+    uint64_t		frames_acked;               //! Number of frames acknowledged.
+    uint64_t        frames_nodelta;             //! Number of frames that did not have delta compression.
     int64_t			framenum;
     uint64_t		frameflags;
 
-    // rate dropping
-    uint64_t        message_size[RATE_MESSAGES];    // Used to rate drop 'Normal' packets.
-    int64_t         suppress_count;                 // Sumber of messages rate suppressed (rate-dropped).
-    uint64_t		send_time, send_delta;          // Used to rate drop 'Async' packets.
+    /**
+    *   Rate Dropping:
+    **/
+    uint64_t        message_size[RATE_MESSAGES];    //! Used to rate drop 'Normal' packets.
+    int64_t         suppress_count;                 //! Number of messages rate suppressed (rate-dropped).
+    uint64_t		send_time, send_delta;          //! Used to rate drop 'Async' packets.
 
-    // current download
-    byte            *download;      // file being downloaded
-    int             downloadsize;   // total bytes (can't use EOF because of paks)
-    int             downloadcount;  // bytes sent
-    char            *downloadname;  // name of the file
-    int             downloadcmd;    // svc_(z)download
+    /**
+    *   Current Download:
+    **/
+    byte            *download;      //! File being downloaded
+    int32_t         downloadsize;   //! Total Bytes (can't use EOF because of paks).
+    int32_t         downloadcount;  //! Bytes Sent
+    char            *downloadname;  //! Name of the file.
+    int32_t         downloadcmd;    //! svc_(z)download.
     bool            downloadpending;
 
-    // protocol stuff
-    int             challenge;  // challenge of this user, randomly generated
-    int             protocol;   // major version
-    int             version;    // minor version
+    /**
+    *   Protocol Stuff:
+    **/
+    int32_t             challenge;  //! Challenge of this user, randomly generated.
+    int32_t             protocol;   //! Major version.
+    int32_t             version;    //! Minor version.
+    //pmoveParams_t     pmp;        //! Spectator speed, etc.
+    msgEsFlags_t        esFlags;    //! Entity Protocol Flags.
 
-    //pmoveParams_t   pmp;        // spectator speed, etc
-    msgEsFlags_t    esFlags;    // entity protocol flags
-
-    // packetized messages
+    /**
+    *   Packetized Messages:
+    **/
     list_t              msg_free_list;
     list_t              msg_unreliable_list;
     list_t              msg_reliable_list;
     message_packet_t    *msg_pool;
-    unsigned            msg_unreliable_bytes;   // total size of unreliable datagram
-    unsigned            msg_dynamic_bytes;      // total size of dynamic memory allocated
+    uint64_t            msg_unreliable_bytes;   //! Total size of unreliable datagram.
+    uint64_t            msg_dynamic_bytes;      //! Total size of dynamic memory allocated.
 
-    // per-client baseline chunks
+    /**
+    *   Per-Client Baseline Chunks:
+    **/
     entity_state_t  *baselines[SV_BASELINES_CHUNKS];
 
-    // server state pointers (hack for MVD channels implementation)
+    /**
+    *   Server State Pointers:
+    **/
 	configstring_t	*configstrings;
     char            *gamedir, *mapname;
     sv_edict_pool_i *pool;
     cm_t            *cm;
-    int             slot;
-    int             spawncount;
-    int             maxclients;
+    int32_t         slot;
+    int32_t         spawncount;
+    int32_t         maxclients;
 
-    // netchan
+    /**
+    *   NetChan:
+    **/
     netchan_t       netchan;
 
-    // misc
-    time_t          connect_time; // time of initial connect
-	int             last_valid_cluster;
+    /**
+    *   Misc:
+    **/
+	//! (C-) system time of last received packet.
+    time_t          connect_time;
+	//! Last valid cluster for PVS checking.
+	int32_t         last_valid_cluster;
 } client_t;
 
 /**
@@ -492,28 +582,44 @@ typedef struct {
 } addrmatch_t;
 
 /**
-*   @brief
+*   @brief  StuffCmd Commands.
 **/
 typedef struct {
+	//! List Entry.
     list_t  entry;
-    char    string[1];
+	//! Command String.
+    char    string[]; // Pre C99 char    string[1];
 } stuffcmd_t;
 
 /**
-*   @brief
+*   @brief  Filter Actions.
+* 
+*           Encodes how the server should react when it encounters a 
+*           filtered (client command/banned cvar/banned userinfo) entry.
+* 
+*           Selects the specified response for matched filter rules.
+* 
+*           Or in simple words: 
+*           filtered client commands are prevented from being forwarded to 
+*           the game module and the chosen action is taken instead.
 **/
 typedef enum {
+    //! Drop/Ignore the matched command/value.
     FA_IGNORE,
+    //! Log the event.
     FA_LOG,
+    //! Print a message (server console / to clients).
     FA_PRINT,
+	//! Stuff a command string back to the client.
     FA_STUFF,
+	//! Kick the client.
     FA_KICK,
-
+	// !< Maximum filter action value.
     FA_MAX
 } filteraction_t;
 
 /**
-*   @brief
+*   @brief  A server filter command(filter action).
 **/
 typedef struct {
     list_t          entry;
@@ -523,7 +629,7 @@ typedef struct {
 } filtercmd_t;
 
 /**
-*   @brief
+*   @brief  A server cvar ban entry.(filter action)
 **/
 typedef struct {
     list_t          entry;
@@ -533,6 +639,9 @@ typedef struct {
     char            *comment;
 } cvarban_t;
 
+/**
+*   Master Server Heartbeat Constants.
+**/
 #define MAX_MASTERS         8       // max recipients for heartbeat packets
 #define HEARTBEAT_SECONDS   300
 
@@ -552,11 +661,11 @@ typedef struct {
 **/
 typedef struct {
     //! Original map command.
-    char            buffer[MAX_QPATH];  // original mapcmd
+    char    buffer[MAX_QPATH];  // original mapcmd
     //! Parsed map name.
-    char            server[MAX_QPATH];  // parsed map name
+    char    server[MAX_QPATH];  // parsed map name
 	//! Parsed spawnpoint for next map continuation(If any).
-    char            *spawnpoint;
+    char    *spawnpoint;
 
 	//! Server state.
     server_state_t  state;
@@ -620,53 +729,14 @@ extern list_t       sv_clientlist;  // linked list of non-free clients
 extern server_static_t      svs;        // persistant server info
 extern server_t             sv;         // local server
 
+
+extern client_t *sv_client;
+extern sv_edict_t *sv_player;
+
+
 //extern pmoveParams_t    sv_pmp;
 
-extern cvar_t       *sv_hostname;
-extern cvar_t       *sv_maxclients;
-extern cvar_t       *sv_password;
-extern cvar_t       *sv_reserved_slots;
-//extern cvar_t       *sv_airaccelerate;        // development tool
-//extern cvar_t       *sv_qwmod;                // atu QW Physics modificator
-extern cvar_t       *sv_enforcetime;
-extern cvar_t       *sv_force_reconnect;
-extern cvar_t       *sv_iplimit;
 
-#if USE_DEBUG
-extern cvar_t       *sv_debug;
-extern cvar_t       *sv_pad_packets;
-#endif
-extern cvar_t       *sv_novis;
-extern cvar_t       *sv_cull_nonvisible_entities;
-extern cvar_t       *sv_lan_force_rate;
-extern cvar_t       *sv_calcpings_method;
-extern cvar_t       *sv_changemapcmd;
-extern cvar_t       *sv_max_download_size;
-extern cvar_t       *sv_max_packet_entities;
-
-extern cvar_t       *sv_allow_map;
-extern cvar_t       *sv_cinematics;
-#if !USE_CLIENT
-extern cvar_t       *sv_recycle;
-#endif
-extern cvar_t       *sv_enhanced_setplayer;
-
-extern cvar_t       *sv_status_limit;
-extern cvar_t       *sv_status_show;
-extern cvar_t       *sv_auth_limit;
-extern cvar_t       *sv_rcon_limit;
-extern cvar_t       *sv_uptime;
-
-extern cvar_t       *sv_allow_unconnected_cmds;
-
-extern cvar_t       *g_features;
-
-extern cvar_t       *sv_timeout;
-extern cvar_t       *sv_zombietime;
-extern cvar_t       *sv_ghostime;
-
-extern client_t     *sv_client;
-extern sv_edict_t      *sv_player;
 
 extern bool     sv_pending_autosave;
 

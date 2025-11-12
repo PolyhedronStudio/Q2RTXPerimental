@@ -678,7 +678,7 @@ const char *MSG_ServerCommandString( const int32_t cmd ) {
 		case -1: return "END OF MESSAGE";
 		default: return "UNKNOWN COMMAND";
 			#define S(x) case svc_##x: return "svc_" #x;
-			S( bad )
+				S( bad )
 				S( nop )
 				S( disconnect )
 				S( reconnect )
@@ -694,17 +694,23 @@ const char *MSG_ServerCommandString( const int32_t cmd ) {
 				S( packetentities )
 				S( deltapacketentities )
 				S( frame )
+
 				S( portalbits )
 				S( set_portalbit )
+
 				S( zpacket )
 				S( zdownload )
+
 				S( gamestate )
 				S( configstringstream )
 				S( baselinestream )
+
 				S( muzzleflash )
+
 				S( temp_entity )
 				S( layout )
 				S( inventory )
+				S( scoreboard )
 				S( svgame )
 			#undef S
 	}

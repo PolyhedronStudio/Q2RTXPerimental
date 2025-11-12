@@ -32,8 +32,10 @@ typedef Vector3* cpp_vec3_t;
 
 #define SVGAME_API_VERSION    1337
 
-// edict->svFlags
 
+/**
+*   edict->svFlags:
+**/
 // Old Vanilla Q2 flags.
 //#define SVF_NOCLIENT            0x00000001  // Don't send entity to clients, even if it has effects
 //#define SVF_DEADENTITY         0x00000002  // Treat as CONTENTS_DEADMONSTER for collision
@@ -54,23 +56,30 @@ typedef Vector3* cpp_vec3_t;
 #define SVF_DOOR            BIT( 9 )    //! Entity is a door of some kind.
 #define SVF_NO_CULL          BIT( 10 )   //! Always send, even if we normally wouldn't.
 #define SVF_HULL            BIT( 11 )   //! Always use hull when appropriate (triggers, etc; for gi.clip).
+
+/**
+*   SVF_SENDCLIENT_*** flags:
+**/
 //! Only send entity to one client( edict->sendClientID ).
 #define SVF_SENDCLIENT_SEND_TO_ID   BIT( 12 )
 //! Send entity to everyone but one client.( edict->sendClientID ).
 #define SVF_SENDCLIENT_EXCLUDE_ID   BIT( 13 )
 //! When set, sendClientID is used as a bitmask to mark which clients to send it to.
 #define SVF_SENDCLIENT_BITMASK_IDS  BIT( 14 )
+
 //! Not a bits flag, but a value for entity's sendClientID property, to indicate no client ID is set.
 #define SENDCLIENT_TO_ALL ( -1 )                                           
-// extended features
 
+
+
+/**
+*   General features flags for the server game module:
+**/
 #define GMF_CLIENTNUM               0x00000001 //! Client number for the edict, used for client->clientNum.
 #define GMF_PROPERINUSE             0x00000002 //! Proper inuse check for edicts.
 //#define GMF_MVDSPEC               0x00000004
 #define GMF_WANT_ALL_DISCONNECTS    0x00000008 //!! Want all disconnects to be sent to the client.
 
-//#define GMF_ENHANCED_SAVEGAMES    0x00000400
-//#define GMF_VARIABLE_FPS          0x00000800
 #define GMF_EXTRA_USERINFO          0x00001000 //! Extra userinfo for the client, like the 'cl_guid' and 'cl_steamid'.
 #define GMF_IPV6_ADDRESS_AWARE      0x00002000 //! Whether the server is aware of IPv6 addresses and can handle them properly.
 
