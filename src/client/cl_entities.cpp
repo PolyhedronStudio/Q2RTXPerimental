@@ -63,9 +63,9 @@ static inline bool entity_is_optimized(const entity_state_t *state)
     // WID: TODO: It does WORK with this, but do we want to do this?
     // using the entity origin for the player, wouldn't that mean
     // it is a slower update rate than the actual player is?
-    if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
-        return true;
-    }
+    //if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
+    //    return true;
+    //}
 
     return true;
 }
@@ -91,7 +91,7 @@ static inline bool entity_is_new(const centity_t *ent) {
         return false;
     }
     //! Previous server frame was dropped, so we're new
-    //! if ( cl.oldframe.number != cl.frame.number - 1 ) {
+    //! if ( cl.oldframe.number != cl.frame.number - 1 ) { <-- OLD ORIGINAL.
     if ( cl.oldframe.number != cl.frame.number - cl.serverdelta ) {
         return true;
     }
@@ -107,7 +107,9 @@ static void parse_entity_update(const entity_state_t *state)
     // If entity is solid, and not the frame's client entity, add it to the solid entity list.
 	// (We don't want to add the client's own entity, to prevent issues with self-collision).
     //
-    if ( state->solid && state->number != cl.frame.clientNum + 1 && cl.numSolidEntities < MAX_PACKET_ENTITIES ) {
+    if ( state->solid 
+        && state->number != cl.frame.clientNum + 1 
+        && cl.numSolidEntities < MAX_PACKET_ENTITIES ) {
         // Add it to the solids entity list.
         cl.solidEntities[ cl.numSolidEntities++ ] = ent;
     }
@@ -129,6 +131,7 @@ static void parse_entity_update(const entity_state_t *state)
 
     // Default to the entity state origin.
     Vector3 newIntendOrigin = state->origin;
+
     // However, if an 'optimized' player entity, use its origin instead.
     if ( entity_is_optimized( state ) ) {
         newIntendOrigin = ( cl.frame.number <= 0 ? cl.frame.ps.pmove.origin : cl.predictedFrame.ps.pmove.origin );

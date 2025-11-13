@@ -948,17 +948,18 @@ static void CLG_HUD_DrawHealthIndicators() {
     double iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
     double iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
 	// We precalculate the width of the health element, so we can use it for rendering the background first.
-    double numberStartX = iconStartX + 48. + 8;
+    double numberStartX = iconStartX + 48. + 10;
     double numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
 	// Width of the health element.
     //double backGroundWidth = numberStartX + CLG_HUD_GetElementNumberValueSizePosition( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + HUD_ELEMENT_HALF_OFFSET;
-    double backGroundWidth = ( numberStartX - backGroundStartX ) + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + 8;
+    // Yes, 10 is a hard constant value, suck it.
+    double backGroundWidth = ( numberStartX - backGroundStartX ) + 10 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] );
 
     // Draw its background.
-    //CLG_HUD_DrawElementBackground( 
-    //    backGroundStartX, backGroundStartY,
-    //    backGroundWidth, HUD_ELEMENT_HEIGHT 
-    //);
+    CLG_HUD_DrawElementBackground( 
+        backGroundStartX, backGroundStartY,
+        backGroundWidth, HUD_ELEMENT_HEIGHT 
+    );
 
     // Icon is reddish.
 	clgi.R_SetColor( MakeColor( 217, 87, 99, 225 ) ); // == Mandy color in Krita Pixel
@@ -998,17 +999,18 @@ static void CLG_HUD_DrawHealthIndicators() {
     iconStartX = backGroundStartX + HUD_ELEMENT_PADDING;
     iconStartY = backGroundStartY + HUD_ELEMENT_PADDING;
     // We precalculate the width of the health element, so we can use it for rendering the background first.
-    numberStartX = iconStartX + 48. + 8;
+    numberStartX = iconStartX + 48. + 10;
     numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
     // Width of the health element.
     //double backGroundWidth = numberStartX + CLG_HUD_GetElementNumberValueSizePosition( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_HEALTH ] ) + HUD_ELEMENT_HALF_OFFSET;
-    backGroundWidth = ( numberStartX - backGroundStartX ) + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_ARMOR ] ) + 8;
+    // Yes, 10 is a hard constant value, suck it.
+    backGroundWidth = ( numberStartX - backGroundStartX ) + 10 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_ARMOR ] );
 
-    //// Draw its background.
-    //CLG_HUD_DrawElementBackground(
-    //    backGroundStartX, backGroundStartY,
-    //    backGroundWidth, HUD_ELEMENT_HEIGHT
-    //);
+    // Draw its background.
+    CLG_HUD_DrawElementBackground(
+        backGroundStartX, backGroundStartY,
+        backGroundWidth, HUD_ELEMENT_HEIGHT
+    );
 
     // Icon is reddish.
     clgi.R_SetColor( MakeColor( 99, 155, 255, 225 ) ); // == Cornflower color in Krita Pixel
@@ -1073,7 +1075,7 @@ static void CLG_HUD_DrawAmmoIndicators() {
     double numberStartY = ( backGroundStartY + 4 ); // ( HUD_ELEMENT_HEIGHT / 2. ) ) - ( HUD_ELEMENT_NUMBERS_DEST_HEIGHT / 2. );
     
     // Width of the element.
-    double backGroundWidth = 48. + HUD_ELEMENT_OFFSET + 4 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
+    double backGroundWidth = 48. + HUD_ELEMENT_OFFSET + 8 + CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_WEAPON_CLIP_AMMO ] );
     backGroundWidth += HUD_ELEMENT_NUMBERS_DEST_WIDTH; // Account for the "/" separator pic.
     backGroundWidth += CLG_HUD_GetWidthForElementNumberValue( HUD_ELEMENT_NUMBERS_DEST_WIDTH, clgi.client->frame.ps.stats[ STAT_AMMO ] );
 
@@ -1081,10 +1083,10 @@ static void CLG_HUD_DrawAmmoIndicators() {
 	backGroundStartX = clgi.screen->hudScaledWidth - ( backGroundWidth + HUD_ELEMENT_OFFSET );
 
     //// Draw its background.
-    //CLG_HUD_DrawElementBackground(
-    //    backGroundStartX, backGroundStartY,
-    //    backGroundWidth, HUD_ELEMENT_HEIGHT
-    //);
+    CLG_HUD_DrawElementBackground(
+        backGroundStartX, backGroundStartY,
+        backGroundWidth, HUD_ELEMENT_HEIGHT
+    );
 
     // Icon is orangie.
     clgi.R_SetColor( MakeColor( 217, 160, 102, 225 ) ); // == Orangie color in Krita Pixel

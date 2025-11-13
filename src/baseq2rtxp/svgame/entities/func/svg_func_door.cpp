@@ -83,19 +83,25 @@ void door_usetarget_update_hint( svg_func_door_t *self ) {
 *	@brief  Open or Close the door's area portal.
 **/
 void svg_func_door_t::SetAreaPortal( const bool isOpen ) {
-    svg_base_edict_t *t = NULL;
+    svg_base_edict_t *func_area = nullptr;
 
     if ( !targetNames.target ) {
         return;
     }
 
-    while ( ( t = SVG_Entities_Find( t, q_offsetof( svg_base_edict_t, targetname ), (const char *)targetNames.target ) ) ) {
-        //if (Q_stricmp(t->classname, "func_areaportal") == 0) {
-        if ( t->s.entityType == ET_AREA_PORTAL ) {
-            gi.SetAreaPortalState( t->style, isOpen );
-            //self->s.event = ( open ? EV_AREAPORTAL_OPEN : EV_AREAPORTAL_CLOSE );
-            //self->s.event[ 1 ] = t->style;
-            //self->s.event[ 2 ] = open;
+    while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname ), (const char *)targetNames.target ) ) ) {
+        if ( func_area->s.entityType == ET_AREA_PORTAL ) {
+            // Update collision model portal state (flooding will be recalculated there)
+            gi.SetAreaPortalState( func_area->style, isOpen );
+            // Keep the areaportal entity itself in sync so server code / spawn logic
+            // that inspects the entity (and any networked fields) isn't left stale.
+            func_area->count = ( isOpen ? 1 : 0 );
+            // Re-link the entity so the server/client snapshots reflect the change.
+            gi.linkentity( func_area );
+
+            // Developer debug to help track intermittent map-specific failures.
+            gi.dprintf( "%s: SetAreaPortal targetname=\"%s\" style=%d isOpen=%d\n",
+                __func__, ( func_area->targetname ? (const char *)func_area->targetname : "<null>" ), func_area->style, (int)func_area->count );
         }
     }
 }
@@ -405,12 +411,17 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove )( svg_f
     SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
 
     // Adjust areaportal.
-    if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
-        if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-			// Update areaportals for PVS awareness.
-			static_cast<svg_func_door_t *>( self )->SetAreaPortal( false );
-		}
-    }
+  //  if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+  //      if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+		//	// Update areaportals for PVS awareness.
+		//	self->SetAreaPortal( false );
+		//}
+  //  }
+
+    //// Adjust areaportal: door is now opened -> portal should be open
+    //if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+    //    static_cast<svg_func_door_t *>( self )->SetAreaPortal( true );
+    //}
 
     // If it is a toggle door, don't set any next think to 'go down' again.
     if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_TOGGLE ) {
@@ -425,7 +436,6 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove )( svg_f
         // Tell it when to start closing.
         self->nextthink = level.time + QMTime::FromSeconds( self->pushMoveInfo.wait );
     }
-
 }
 
 /**
@@ -457,11 +467,16 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onCloseEndMove )( svg_
     SVG_SignalOut( self, self->other, self->activator, "OnClosed" );
 
     // Adjust areaportal.
-    if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
-        if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-            // Update areaportals for PVS awareness.
-            static_cast<svg_func_door_t*>( self )->SetAreaPortal( false );
-        }
+    //if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+    //    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+    //        // Update areaportals for PVS awareness.
+    //        self->SetAreaPortal( false );
+    //    }
+    //}
+    // Update areaportals for PVS awareness.
+    // Adjust areaportal: door is now closed -> portal should be closed
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+        self->SetAreaPortal( false );
     }
 }
 
@@ -522,12 +537,16 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_CloseMove )( svg_func_doo
     SVG_SignalOut( self, self->other, self->activator, "OnClose" );
 
     // Adjust areaportal.
-    if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
-        if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-            // Update areaportals for PVS awareness.
-            static_cast<svg_func_door_t*>( self )->SetAreaPortal( true );
-        }
-    }
+    //if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+    //    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+    //        // Update areaportals for PVS awareness.
+    //        static_cast<svg_func_door_t*>( self )->SetAreaPortal( true );
+    //    }
+    //}
+    //    // Adjust areaportal: starting to close -> mark portal closed
+    //if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+    //    static_cast<svg_func_door_t *>( self )->SetAreaPortal( false );
+    //}
 }
 
 /**
@@ -581,11 +600,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnOpen" );
 
-    if ( !SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
-        // Update areaportals for PVS awareness.
-        if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-            static_cast<svg_func_door_t *>( self )->SetAreaPortal( false );
-        }
+    // Adjust areaportal: starting to open -> mark portal open
+    if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+        self->SetAreaPortal( true );
     }
 }
 
@@ -853,11 +870,11 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_door_t, onTouch )( svg_func_door_t *self,
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_door_t, onPostSpawn )( svg_func_door_t *self ) -> void {
-    //if ( self->spawnflags & DOOR_START_OPEN ) {
-    //    //SVG_UseTargets( self, self );
-    //    door_use_areaportals( self, true );
-    //    //self->pushMoveInfo.state = DOOR_STATE_OPENED;
-    //}
+    if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_START_OPEN ) {
+        //SVG_UseTargets( self, self );
+        self->SetAreaPortal( true );
+        //self->pushMoveInfo.state = DOOR_STATE_OPENED;
+    }
 }
 
 /**
@@ -990,9 +1007,9 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self 
     // For PRESSED: pos1 = start, pos2 = end.
     if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
         self->pushMoveInfo.state = DOOR_STATE_OPENED;
-        self->pushMoveInfo.startOrigin = self->pos2;
+        self->pushMoveInfo.startOrigin = self->pos1;
         self->pushMoveInfo.startAngles = self->s.angles;
-        self->pushMoveInfo.endOrigin = self->pos1;
+        self->pushMoveInfo.endOrigin = self->pos2;
         self->pushMoveInfo.endAngles = self->s.angles;
     // For UNPRESSED: pos1 = start, pos2 = end.
     } else {

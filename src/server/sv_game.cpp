@@ -732,7 +732,7 @@ void SV_SendSetPortalBitMessage( const int32_t portalnum, const bool open ) {
     MSG_WriteUint8( svc_set_portalbit );
     // Send a portal number update message
     MSG_WriteInt32( portalnum );
-    MSG_WriteUint8( open ? true : false );
+    MSG_WriteUint8( open );
     // Multicast to all clients.
     SV_Multicast( NULL, MULTICAST_ALL, CHAN_RELIABLE );
     // Clear multicast buffer

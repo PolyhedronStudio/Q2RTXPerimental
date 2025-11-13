@@ -194,7 +194,7 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
     // Link to PVS leafs.
     ent->numberOfClusters = 0;
     ent->areaNumber0 = 0;
-    ent->areaNumber0 = 0;
+    ent->areaNumber1 = 0;
 
     //get all leafs, including solids
     num_leafs = CM_BoxLeafs(cm, &ent->absMin.x, &ent->absMax.x,
@@ -208,12 +208,13 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
             // doors may legally straggle two areas,
             // but nothing should evern need more than that
             if ( ent->areaNumber0 && ent->areaNumber0 != area ) {
-                if ( ent->areaNumber0 && ent->areaNumber0 != area && sv.state == ss_loading ) {
+                if ( ent->areaNumber1 && ent->areaNumber1 != area && sv.state == ss_loading ) {
                     Com_DPrintf( "Object touching 3 areas at %s\n", vtos( ent->absMin ) );
                 }
+                ent->areaNumber1 = area;
+            } else {
                 ent->areaNumber0 = area;
-            } else
-                ent->areaNumber0 = area;
+            }
         }
     }
 

@@ -31,6 +31,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //! Validate the client number.
 inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 	return ( ( x ) >= -1 && ( x ) < MAX_CLIENTS );
+	//return ( ( x ) >= -1 && ( x ) < MAX_EDICTS - 1 );
+	//return ( ( x ) >= -1 && ( x ) < MAX_CLIENTS - 1 );
 }
 
 //=========================================

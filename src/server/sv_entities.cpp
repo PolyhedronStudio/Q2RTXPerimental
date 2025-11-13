@@ -415,7 +415,7 @@ static inline const bool SV_CheckEntitySoundDistance( sv_edict_t *ent, const Vec
 }
 
 /**
-*   @brief  Determines if an entity is visible to the client based on PVS/PHS.
+*   @brief  Determines if an entity is hearable/visible to the client based on PVS/PHS.
 **/
 static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &viewOrigin, cm_t *cm, const int32_t clientCluster, const int32_t clientArea, byte *clientPVS, byte *clientPHS, const int32_t cullNonVisibleEntities ) {   
     /**
@@ -423,7 +423,7 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
     **/
     if ( clientCluster >= 0 && !CM_AreasConnected( cm, clientArea, ent->areaNumber0 ) ) {
         // Doors can legally straddle two areas, so we may need to check another one.
-        if ( !CM_AreasConnected( cm, clientArea, ent->areaNumber0 ) ) {
+        if ( !CM_AreasConnected( cm, clientArea, ent->areaNumber1 ) ) {
             // Blocked by a door.
             return false;
         }
@@ -431,37 +431,50 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
     *   If visible by area:
     **/ 
     } else { 
-        if ( cullNonVisibleEntities ) {
-            // Too many leafs for individual check, go by headNode:
-            if ( ent->numberOfClusters == -1 ) {
-                // Does the client's PVS touch the ent's headnode?
-                if ( !CM_HeadnodeVisible( CM_NodeForNumber( cm, ent->headNode ), clientPVS ) ) {
-                    // Not visible
-                    return false;
-                }
-            } else {
-                // Check individual leafs.
-                int32_t i = 0;
-                for ( i = 0; i < ent->numberOfClusters; i++ ) {
-                    // Visible in one leaf?
-                    if ( Q_IsBitSet( clientPVS, ent->clusterNumbers[ i ] ) ) {
-                        break;
+        // beams just check one point for PHS
+        if ( ent->s.renderfx & RF_BEAM ) {
+            if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
+                return false;
+            }
+        } else {
+            if ( cullNonVisibleEntities ) {
+                // Too many leafs for individual check, go by headNode:
+                if ( ent->numberOfClusters == -1 ) {
+                    // Does the client's PVS touch the ent's headnode?
+                    if ( !CM_HeadnodeVisible( CM_NodeForNumber( cm, ent->headNode ), clientPVS ) ) {
+                        // Not visible
+                        return false;
+                    }
+                } else {
+                    // Check individual leafs.
+                    int32_t i = 0;
+                    for ( i = 0; i < ent->numberOfClusters; i++ ) {
+                        // Visible in one leaf?
+                        if ( Q_IsBitSet( clientPVS, ent->clusterNumbers[ i ] ) ) {
+                            break;
+                        }
+                    }
+                    // Not visible in any leaf.
+                    if ( i == ent->numberOfClusters ) {
+                        // Not visible.
+                        return false;
                     }
                 }
-                // Not visible in any leaf.
-                if ( i == ent->numberOfClusters ) {
-                    // Not visible.
-                    return false;
-                }
             }
-        }
 
-        /**
-        *   Don't send sounds if they will be attenuated away.
-        **/
-        if ( !SV_CheckEntitySoundDistance( ent, viewOrigin ) ) {
-            return false;
-		}
+            /**
+            *   Don't send sounds if they will be attenuated away.
+            **/
+            if ( !SV_CheckEntitySoundDistance( ent, viewOrigin ) ) {
+                return false;
+	        }
+        }
+        ///**
+        //*   Don't send sounds if they will be attenuated away.
+        //**/
+        //if ( !SV_CheckEntitySoundDistance( ent, viewOrigin ) ) {
+        //  return false;
+        //}
     }
 
     return true;

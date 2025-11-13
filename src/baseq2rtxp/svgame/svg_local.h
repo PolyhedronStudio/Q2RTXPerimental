@@ -134,7 +134,13 @@ static constexpr size_t MAX_DAMAGE_INDICATORS = 4;
 * 
 **/
 //! Features this game supports.
-static constexpr int32_t SVG_FEATURES = ( GMF_PROPERINUSE | GMF_WANT_ALL_DISCONNECTS | GMF_IPV6_ADDRESS_AWARE );
+static constexpr int32_t SVG_FEATURES = ( GMF_CLIENTNUM 
+    | GMF_PROPERINUSE 
+    | GMF_EXTRA_USERINFO 
+    | GMF_WANT_ALL_DISCONNECTS 
+    | GMF_IPV6_ADDRESS_AWARE 
+);
+
 // The "gameversion" client command will print this plus compile date.
 static constexpr const char *GAMEVERSION = "BaseQ2RTXP";
 
@@ -300,9 +306,9 @@ struct mm_ground_info_t {
     //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
     cm_surface_t    surface;
     //! A copy of the contents data from the ground entity's brush.
-    cm_contents_t      contents;
+    cm_contents_t   contents;
     //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-    cm_material_t *material;
+    cm_material_t   *material;
 };
 
 /**

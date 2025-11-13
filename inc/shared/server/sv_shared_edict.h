@@ -62,7 +62,7 @@ struct sv_shared_edict_t {
     int32_t clusterNumbers[ MAX_ENT_CLUSTERS ] = {};
     int32_t headNode = 0;           // Unused if num_clusters != -1
 
-    int32_t areaNumber0 = 0, areaNumber2 = 0;
+    int32_t areaNumber0 = 0, areaNumber1 = 0;
 
     //================================
 
@@ -107,7 +107,7 @@ struct sv_shared_edict_t {
         }
         // Unused if num_clusters != -1.
         headNode = 0;           
-        areaNumber0 = 0, areaNumber2 = 0;
+        areaNumber0 = 0, areaNumber1 = 0;
 
         //================================
 
