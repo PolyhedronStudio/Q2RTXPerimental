@@ -512,7 +512,7 @@ static void CL_ParseServerData(void)
     }
 
     // <Q2RTXP>: WID: TODO: Research this since we aren't using it?
-    //cl.esFlags |= MSG_ES_BEAMORIGIN;
+    cl.esFlags |= MSG_ES_BEAMORIGIN;
 
     // game directory
     if (MSG_ReadString(cl.gamedir, sizeof(cl.gamedir)) >= sizeof(cl.gamedir)) {
@@ -1150,7 +1150,6 @@ void CL_SeekDemoMessage(void)
             break;
 
         case svc_print:
-            MSG_ReadUint8();
             // fall through
             /* level = */ MSG_ReadUint8();
         case svc_centerprint:

@@ -4787,3 +4787,75 @@
 ( 1056 528 324 ) ( 1056 544 324 ) ( 1056 544 320.25 ) lights/pa16_6dc2ca [ 0 1 0 0 ] [ 0 0 -1 0 ] 90 0.125 0.125
 }
 }
+// entity 58
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-520 56 72"
+"angle" "0"
+}
+// entity 59
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-520 136 72"
+"angle" "0"
+}
+// entity 60
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-456 56 72"
+"angle" "0"
+}
+// entity 61
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-456 136 72"
+"angle" "0"
+}
+// entity 62
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-392 56 72"
+"angle" "0"
+}
+// entity 63
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-392 136 72"
+"angle" "0"
+}
+// entity 64
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-328 56 72"
+"angle" "0"
+}
+// entity 65
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-328 136 72"
+"angle" "0"
+}
+// entity 66
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-264 56 72"
+"angle" "0"
+}
+// entity 67
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-264 136 72"
+"angle" "0"
+}
+// entity 68
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-200 56 72"
+"angle" "0"
+}
+// entity 69
+{
+"classname" "monster_testdummy_puppet"
+"origin" "-200 136 72"
+"angle" "0"
+}
