@@ -26,6 +26,7 @@ Ideally this list would never exist, but in this world we can't have it all so, 
 ### High Priority:
 * [x] None
 ### Medium Priority:
+* [ ] func_door when started open, does not seem to respond to touch trigger brush areas properly..
 * [X] Makkon map, when entering the garage area, ensuring the door is out of PVS, then back in, prediction fails for client somehow. (As if the touch trigger is involved?)
 * [ ] EAX sometimes remains as if we're underwater after exiting water. Re-entering and exiting usually helps though.
 * [ ] Find the bug that is currently making the OctagonHull not enjoy colliding to certain specific bounding boxes.

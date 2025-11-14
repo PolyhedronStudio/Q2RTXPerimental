@@ -498,10 +498,10 @@ static mnode_t *SV_WorldNodes( void ) {
 *			Quake 2 extends this to also check entities, to allow moving liquids
 **/
 const cm_contents_t SV_PointContents( const Vector3 *p ) {
-	sv_edict_t *touch[ MAX_EDICTS ], *hit;
-	int         i, num;
-    cm_contents_t  contents;
+    sv_edict_t *hit = nullptr;
 
+    static sv_edict_t *touchedEdicts[ MAX_EDICTS ] = {};//
+    std::fill( std::begin( touchedEdicts ), std::end( touchedEdicts ), nullptr );
 
 	if ( !sv.cm.cache ) {
 		Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
@@ -512,13 +512,18 @@ const cm_contents_t SV_PointContents( const Vector3 *p ) {
     }
 
 	// get base contents from world
-    contents = ( CM_PointContents( &sv.cm, &p->x, SV_WorldNodes() ) );
+    cm_contents_t contents = ( CM_PointContents( &sv.cm, &p->x, SV_WorldNodes() ) );
 
 	// or in contents from all the other entities
-	num = SV_AreaEdicts( p, p, touch, MAX_EDICTS, AREA_SOLID );
+	const int32_t num = SV_AreaEdicts( p, p, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 
-	for ( i = 0; i < num; i++ ) {
-		hit = touch[ i ];
+	for ( int32_t i = 0; i < num; i++ ) {
+        sv_edict_t *hit = touchedEdicts[ i ];
+
+        // Skip if nullptr;
+        if ( hit == nullptr ) {
+            continue;
+		}
 
         // Skip client entiteis if their SVF_PLAYER flag is set.
         if ( hit->s.number <= sv_maxclients->integer && ( hit->svFlags & SVF_PLAYER ) ) {
