@@ -12,16 +12,19 @@
 #include "sharedgame/sg_muzzleflashes.h"
 
 
-clg_dlight_t *CLG_AddMuzzleflashDLight( centity_t *pl, Vector3 &fv, Vector3 &rv ) {
-    clg_dlight_t *dl = CLG_AllocDlight( level.parsedMessage.events.muzzleFlash.entity );
-    VectorCopy( pl->current.origin, dl->origin );
-    QM_AngleVectors( pl->current.angles, &fv, &rv, NULL );
-    VectorMA( dl->origin, 18, fv, dl->origin );
-    VectorMA( dl->origin, 16, rv, dl->origin );
-    dl->radius = 100 * ( 2 - level.parsedMessage.events.muzzleFlash.silenced ) + ( Q_rand() & 31 );
-    dl->die = clgi.client->time + 16;
+clg_dlight_t *CLG_AddMuzzleflashDLight( const centity_t *pl, const Vector3 &vForward, const Vector3 &vRight ) {
+    clg_dlight_t *dynamicLight = CLG_AllocDlight( pl->current.number );
+    VectorCopy( pl->current.origin, dynamicLight->origin );
 
-    return dl;
+    //QM_AngleVectors( pl->current.angles, &vForward, &vRight, NULL );
+
+    VectorMA( dynamicLight->origin, 18, vForward, dynamicLight->origin );
+    VectorMA( dynamicLight->origin, 16, vRight, dynamicLight->origin );
+
+    dynamicLight->radius = 100 * ( 2 ) + ( Q_rand() & 31 );
+    dynamicLight->die = clgi.client->time + 16;
+
+    return dynamicLight;
 }
 /**
 *   @brief  Handles the parsed client muzzleflash effects. 

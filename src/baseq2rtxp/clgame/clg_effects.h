@@ -118,7 +118,7 @@ void CLG_AddLightStyles( void );
 /**
 *	@brief	Adds a muzzleflash dynamic light.
 **/
-clg_dlight_t *CLG_AddMuzzleflashDLight( centity_t *pl, Vector3 &fv, Vector3 &rv );
+clg_dlight_t *CLG_AddMuzzleflashDLight( const centity_t *pl, const Vector3 &vForward, const Vector3 &vRight );
 /**
 *   @brief  Handles the parsed client muzzleflash effects.
 **/

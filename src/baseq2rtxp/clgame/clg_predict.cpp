@@ -103,7 +103,7 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
         clientEntity->current.event = ps->externalEvent;
         clientEntity->current.eventParm0 = ps->externalEventParm0;
         clientEntity->current.eventParm0 = ps->externalEventParm1;
-        CLG_CheckEntityEvents( clientEntity );
+        CLG_Events_CheckForEntity( clientEntity );
     }
     #endif
 
@@ -143,9 +143,9 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
             **/
             
             // Proceed to firing the predicted/received event.
-            const bool processedPlayerStateViewBoundEffect = CLG_CheckPlayerStateEvent( ops, ps, playerStateEvent, clgi.client->predictedFrame.ps.pmove.origin );
+            const bool processedPlayerStateViewBoundEffect = CLG_Events_CheckForPlayerState( ops, ps, playerStateEvent, clgi.client->predictedFrame.ps.pmove.origin );
             if ( !processedPlayerStateViewBoundEffect ) {
-                CLG_CheckEntityEvents( clientEntity );
+                CLG_Events_CheckForEntity( clientEntity );
             }
 
             // Add to the list of predictable events.
@@ -178,7 +178,7 @@ void CLG_CheckChangedPredictableEvents( const player_state_t *ps, const QMTime &
                 cent->current.event = event;
                 cent->current.eventParm0 = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
 				cent->current.eventParm1 = 0;// ps->eventParms1[ i & ( MAX_PS_EVENTS - 1 ) ];
-                CLG_CheckEntityEvents( cent );
+                CLG_Events_CheckForEntity( cent );
 
                 game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] = event;
 

@@ -6,7 +6,14 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ---
 * [ ] func_button map, the first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
 * [ ] When testing the target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
-
+* [ ] Load and register all media, store handles neatly in a global media struct.
+This prevents unnecessary repeated lookups for media handles. (Sounds, Models, Textures, Materials, etc etc)
+* [ ] Move player state event check and events into playerstate.cpp and playerstate_events.cpp
+* [ ] Refactor weapon code to be more modular, and easier to extend.
+This involves adding part of it to pmove as well.
+* [ ] Implement client game cvars for debugging things more appropriately.
+* [ ] Add in clg_media struct to hold all media handles for the client game.
+Including wrapper functions for getting the resource handles.
 ---
 
 ### Random Ideas for The Day:

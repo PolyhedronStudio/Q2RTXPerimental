@@ -477,7 +477,7 @@ void CLG_ParseEntityEvent( const int32_t entityNumber ) {
     // Get the entity.
     centity_t *cent = &clg_entities[ entityNumber ];//centity_t *cent = &cl_entities[number];
     // Check for events.
-    CLG_CheckEntityEvents( cent );
+    CLG_Events_CheckForEntity( cent );
 }
 
 

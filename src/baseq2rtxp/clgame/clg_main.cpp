@@ -45,47 +45,68 @@ QMTime FRAME_TIME_MS;
 
 
 /**
-*	CVars.
+* 
+* 
+* 
+*	Client(-Game Module) CVars.
+* 
+* 
+* 
+**/
+/**
+*	Client CVars, fetched by the game module:
 **/
 #if USE_DEBUG
-cvar_t *developer = nullptr;
+	cvar_t *developer = nullptr;
 #endif
-cvar_t *cl_predict = nullptr;
-cvar_t *cl_running = nullptr;
-cvar_t *cl_paused = nullptr;
 cvar_t *sv_running = nullptr;
 cvar_t *sv_paused = nullptr;
+cvar_t *cl_running = nullptr;
+cvar_t *cl_paused = nullptr;
+
 cvar_t *gamemode = nullptr;
+
 cvar_t *maxclients = nullptr;
-//cvar_t *maxspectators = nullptr;
 cvar_t *maxentities = nullptr;
-cvar_t *cl_footsteps = nullptr;
+//cvar_t *maxspectators = nullptr;
 
 cvar_t *cl_kickangles = nullptr;
 cvar_t *cl_noskins = nullptr;
+cvar_t *cl_predict = nullptr;
 cvar_t *cl_nolerp = nullptr;
+cvar_t *cl_footsteps = nullptr;
 
-cvar_t *cl_gunalpha = nullptr;
-cvar_t *cl_gunscale = nullptr;
-cvar_t *cl_gun_x = nullptr;
-cvar_t *cl_gun_y = nullptr;
-cvar_t *cl_gun_z = nullptr;
+// Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
+cvar_t *cvar_pt_particle_emissive = nullptr; // from client FX_Init
+cvar_t *cl_particle_num_factor = nullptr; // from client FX_Init
 
+/**
+*	Client View CVars:
+**/
 cvar_t *cl_run_pitch = nullptr;
 cvar_t *cl_run_roll = nullptr;
 cvar_t *cl_bob_up = nullptr;
 cvar_t *cl_bob_pitch = nullptr;
 cvar_t *cl_bob_roll = nullptr;
 
+//! Whether to show the player model in 3rd person.
 cvar_t *cl_player_model = nullptr;
+//! Camera third person angle.
 cvar_t *cl_thirdperson_angle = nullptr;
+//! Camera third person range.
 cvar_t *cl_thirdperson_range = nullptr;
+//! View Weapon CVar.
+cvar_t *cl_vwep = nullptr;
 
+/**
+*	Chat Related CVars:
+**/
 cvar_t *cl_chat_notify = nullptr;
 cvar_t *cl_chat_filter = nullptr;
 
-cvar_t *cl_vwep = nullptr;
-
+/**
+*	Info String CVars:
+**/
 cvar_t *info_password = nullptr;
 cvar_t *info_spectator = nullptr;
 cvar_t *info_name = nullptr;
@@ -96,10 +117,19 @@ cvar_t *info_msg = nullptr;
 cvar_t *info_hand = nullptr;
 cvar_t *info_uf = nullptr;
 
-// Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
-cvar_t *cvar_pt_particle_emissive = nullptr; // from client FX_Init
-cvar_t *cl_particle_num_factor = nullptr; // from client FX_Init
-
+/**
+*	(Developer-) Gun CVars:
+**/
+//! Developer gun alpha adjustment.
+cvar_t *cl_gunalpha = nullptr;
+//! Generic gun scale adjustment.
+cvar_t *cl_gunscale = nullptr;
+//! Developer gun X offset adjustment.
+cvar_t *cl_gun_x = nullptr;
+//! Developer gun Y offset adjustment.
+cvar_t *cl_gun_y = nullptr;
+//! Developer gun Z offset adjustment.
+cvar_t *cl_gun_z = nullptr;
 
 /**
 *	Other.
@@ -248,8 +278,9 @@ void PF_ClearState( void ) {
 	CLG_ClearEffects();
 
 	// Clear out level locals.
-	memset( &level, 0, sizeof( level ) );
-	//level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
+	//memset( &level, 0, sizeof( level ) );
+	std::fill_n( reinterpret_cast<std::byte *>( &level ), sizeof( level ), std::byte{ 0 } ); // level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
+	
 }
 
 

@@ -924,12 +924,12 @@ extern clg_level_locals_t level;
 **/
 typedef struct clg_dlight_s {
 	int32_t key;        // so entities can reuse same entry
-	vec3_t  color;
-	vec3_t  origin;
+	Vector3 color;
+	Vector3	origin;
 	float   radius;
 	float   die;        // stop lighting after this time
 	float   decay;      // drop this each second
-	vec3_t  velosity;     // move this far each second
+	Vector3 velocity;     // move this far each second
 } clg_dlight_t;
 
 /**

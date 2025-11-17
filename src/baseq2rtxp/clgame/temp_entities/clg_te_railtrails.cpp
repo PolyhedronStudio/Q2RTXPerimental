@@ -126,7 +126,7 @@ void CLG_RailLights( const color_t color ) {
         dl->radius = 400;
         dl->decay = 400;
         dl->die = clgi.client->time + 1000;
-        VectorScale( vec, segment_size * 0.5f, dl->velosity );
+        VectorScale( vec, segment_size * 0.5f, dl->velocity );
     }
 }
 

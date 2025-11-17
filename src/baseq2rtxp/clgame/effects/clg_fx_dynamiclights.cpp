@@ -64,7 +64,7 @@ void CLG_AddDLights( void ) {
     for ( i = 0; i < MAX_DLIGHTS; i++, dl++ ) {
         if ( dl->die < clgi.client->time )
             continue;
-        clgi.V_AddLight( dl->origin, dl->radius,
+        clgi.V_AddLight( &dl->origin.x, dl->radius,
             dl->color[ 0 ], dl->color[ 1 ], dl->color[ 2 ] );
     }
 }
