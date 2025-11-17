@@ -120,7 +120,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
     self->s.entityType = ET_MONSTER;
 
     // Solid/MoveType:
-    self->solid = SOLID_BOUNDS_OCTAGON;
+    self->solid = SOLID_BOUNDS_BOX;//SOLID_BOUNDS_OCTAGON;
     self->movetype = MOVETYPE_WALK;
     //self->monsterinfo.aiflags = AI_NOSTEP;
 
@@ -614,4 +614,4 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdu
 **/
 DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_t, onPain )( svg_monster_testdummy_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void {
 
-}
+}////////////////////

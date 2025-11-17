@@ -120,9 +120,9 @@ void CM_InitOctagonHull( cm_t *cm ) {
 **/
 static inline const float CalculateOctagonPlaneDist( cm_plane_t &plane, const Vector3 &mins, const Vector3 &maxs, const bool negate = false ) {
     if ( negate == true ) {
-        return QM_Vector3DotProduct( plane.normal, { ( plane.signbits & 1 ) ? -mins[ 0 ] : -maxs[ 0 ], ( plane.signbits & 2 ) ? -mins[ 1 ] : -maxs[ 1 ], ( plane.signbits & 4 ) ? -mins[ 2 ] : -maxs[ 2 ] } );//-d;//d;
+        return QM_Vector3DotProduct( plane.normal, { ( plane.signbits & 1 ) ? -mins[ 0 ] : -maxs[ 0 ], ( plane.signbits & 2 ) ? -mins[ 1 ] : -maxs[ 1 ], ( plane.signbits & 4 ) ? -mins[ 2 ] : -maxs[ 2 ] } );
     } else {
-        return QM_Vector3DotProduct( plane.normal, { ( plane.signbits & 1 ) ? mins[ 0 ] : maxs[ 0 ], ( plane.signbits & 2 ) ? mins[ 1 ] : maxs[ 1 ], ( plane.signbits & 4 ) ? mins[ 2 ] : maxs[ 2 ] } );//-d;//d;
+        return QM_Vector3DotProduct( plane.normal, { ( plane.signbits & 1 ) ? mins[ 0 ] : maxs[ 0 ], ( plane.signbits & 2 ) ? mins[ 1 ] : maxs[ 1 ], ( plane.signbits & 4 ) ? mins[ 2 ] : maxs[ 2 ] } );
     }
 }
 
@@ -149,33 +149,21 @@ mnode_t *CM_HeadnodeForOctagon( cm_t *cm, const vec3_t mins, const vec3_t maxs, 
     VectorCopy( maxs, cm->hull_octagonbox->leaf.maxs );
 
     // Setup planes.
-    cm->hull_octagonbox->planes[ 0 ].dist = maxs[ 0 ];
-    cm->hull_octagonbox->planes[ 1 ].dist = -maxs[ 0 ];
-    cm->hull_octagonbox->planes[ 2 ].dist = mins[ 0 ];
-    cm->hull_octagonbox->planes[ 3 ].dist = -mins[ 0 ];
-    cm->hull_octagonbox->planes[ 4 ].dist = maxs[ 1 ];
-    cm->hull_octagonbox->planes[ 5 ].dist = -maxs[ 1 ];
-    cm->hull_octagonbox->planes[ 6 ].dist = mins[ 1 ];
-    cm->hull_octagonbox->planes[ 7 ].dist = -mins[ 1 ];
-    cm->hull_octagonbox->planes[ 8 ].dist = maxs[ 2 ];
-    cm->hull_octagonbox->planes[ 9 ].dist = -maxs[ 2 ];
-    cm->hull_octagonbox->planes[ 10 ].dist = mins[ 2 ];
-    cm->hull_octagonbox->planes[ 11 ].dist = -mins[ 2 ];
+    // Fix: compute axis-aligned plane distances from plane normals and the actual box corners.
+    // Use the helper to pick the correct corner for each plane based on signbits.
+    for ( int i = 0; i < 12; ++i ) {
+        cm->hull_octagonbox->planes[ i ].dist = CalculateOctagonPlaneDist(cm->hull_octagonbox->planes[ i ], mins, maxs );
+    }
 
     // Cylindrical offset.
     for ( int32_t i = 0; i < 3; i++ ) {
         cm->hull_octagonbox->cylinder_offset[ i ] = ( mins[ i ] + maxs[ i ] ) * 0.5;
     }
 
-    // Determine half size.
-    Vector3 halfSize[ 2 ] = {
-        QM_Vector3Scale( mins, 0.5f ),
-        QM_Vector3Scale( maxs, 0.5f ),
-    };
-
     // Calculate actual up to scale normals for the non axial planes.
-    const float a = maxs[ 0 ];
-    const float b = maxs[ 1 ];
+    // Fix: use half-sizes (extents) instead of raw maxs which assumed symmetric bounds.
+    const float a = ( maxs[ 0 ] - mins[ 0 ] ) * 0.5f;
+    const float b = ( maxs[ 1 ] - mins[ 1 ] ) * 0.5f;
 
     float dist = sqrtf( a * a + b * b ); // Hypothenuse
 

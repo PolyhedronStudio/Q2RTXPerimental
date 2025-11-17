@@ -204,7 +204,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_explobox_t, onSpawn) ( svg_misc_explobox_
     gi.modelindex( "models/debris/debris2/tris.md2" );
     gi.modelindex( "models/debris/debris3/tris.md2" );
 
-    self->solid = SOLID_BOUNDS_OCTAGON;
+    self->solid = SOLID_BOUNDS_BOX;
     self->movetype = MOVETYPE_STEP;
 
     self->model = svg_level_qstring_t::from_char_str( "models/objects/barrels/tris.md2" );

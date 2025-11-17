@@ -476,14 +476,14 @@ void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
         !VectorEmpty( angles )
         );
 
-    //if ( isOctagonHull ) {
-    //    // cylinder offset
-    //    VectorSubtract( start, cm->hull_octagonbox->cylinder_offset, start_l );
-    //    VectorSubtract( end, cm->hull_octagonbox->cylinder_offset, end_l );
-    //} else {
-    VectorCopy( start, start_l );
-    VectorCopy( end, end_l );
-    //}
+    if ( isOctagonHull ) {
+    ////    // cylinder offset
+        VectorSubtract( start, cm->hull_octagonbox->cylinder_offset, start_l );
+        VectorSubtract( end, cm->hull_octagonbox->cylinder_offset, end_l );
+    } else {
+        VectorCopy( start, start_l );
+        VectorCopy( end, end_l );
+    }
 
     // subtract origin offset
     VectorSubtract( start_l, origin, start_l );
@@ -501,15 +501,17 @@ void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
 
     // rotate plane normal into the worlds frame of reference
     if ( rotated && trace->fraction != 1.0f ) {
-        TransposeAxis( axis );
+        vec3_t a;
+        VectorNegate( angles, a );
+        AnglesToAxis( a, axis );
         RotatePoint( trace->plane.normal, axis );
         // FIXME: offset plane distance?
-        //trace->plane.dist = DotProduct( trace->plane.normal, origin );
+        trace->plane.dist = DotProduct( trace->plane.normal, origin );
     }
     
     // <Q2RTXP>: Don't do this for non rotated planes.
     // FIXME: offset plane distance?
-    trace->plane.dist += DotProduct( trace->plane.normal, origin );
+    //trace->plane.dist += DotProduct( trace->plane.normal, origin );
 
     LerpVector( start, end, trace->fraction, trace->endpos );
 }

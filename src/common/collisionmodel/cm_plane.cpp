@@ -38,6 +38,7 @@ const int32_t CM_PlaneTypeForNormal( const vec3_t normal ) {
 	// PLANE_ANY_X: normal = (x, 0, 0) where |x| > 0.707
 	// PLANE_ANY_Y: normal = (0, y, 0) where |y| > 0.707
 	// PLANE_ANY_Z: normal = (0, 0, z) where |z| > 0.707
+	#if 0
 	const float x = std::fabsf( normal[ 0 ] );
 	if ( x > 1.f - FLT_EPSILON ) {
 		return PLANE_X;
@@ -61,6 +62,22 @@ const int32_t CM_PlaneTypeForNormal( const vec3_t normal ) {
 	}
 
 	return PLANE_ANYZ;
+	
+	#else
+	// NOTE: should these have an epsilon around 1.0?
+	if ( normal[ 0 ] >= 1.0 ) {
+		return PLANE_X;
+	}
+	if ( normal[ 1 ] >= 1.0 ) {
+		return PLANE_Y;
+	}
+	if ( normal[ 2 ] >= 1.0 ) {
+		return PLANE_Z;
+	}
+
+	return PLANE_NONAXIAL;
+	#endif
+
 }
 
 /**

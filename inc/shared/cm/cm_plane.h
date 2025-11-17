@@ -26,10 +26,14 @@ typedef struct cm_plane_s {
 #define PLANE_Y         1
 #define PLANE_Z         2
 
+#if 0
 //! 3-5 are non-axial planes snapped to the nearest.
 #define PLANE_ANYX      3
 #define PLANE_ANYY      4
 #define PLANE_ANYZ      5
-
-//! Planes (x&~1) and (x&~1)+1 are always opposites.
 #define PLANE_NON_AXIAL 6
+#else
+//! Planes (x&~1) and (x&~1)+1 are always opposites.
+#define PLANE_NON_AXIAL 3
+#endif
+

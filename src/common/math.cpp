@@ -41,6 +41,7 @@ void SetPlaneType(cm_plane_t *plane)
 
 void SetPlaneSignbits(cm_plane_t *plane)
 {
+    #if 0
     int bits = 0;
 
     if ( plane->normal[ 0 ] < 0 ) {
@@ -54,6 +55,15 @@ void SetPlaneSignbits(cm_plane_t *plane)
     }
 
     plane->signbits = bits;
+    #else
+    // for fast box on planeside test
+    plane->signbits = 0;
+    for ( int32_t j = 0; j < 3; j++ ) {
+        if ( plane->normal[ j ] < 0 ) {
+            plane->signbits |= 1 << j;
+        }
+    }
+    #endif
 }
 
 /*
