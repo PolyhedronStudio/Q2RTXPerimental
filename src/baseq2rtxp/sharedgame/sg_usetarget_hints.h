@@ -83,20 +83,20 @@ inline constexpr const sg_usetarget_hint_t useTargetHints[] = {
     { USETARGET_HINT_ID_CUSTOM_0,   SG_USETARGET_HINT_FLAGS_NONE,  "" },
     { USETARGET_HINT_ID_CUSTOM_1,   SG_USETARGET_HINT_FLAGS_NONE,  "" },
     // For Door UseTargets, default hint information.
-    { USETARGET_HINT_ID_DOOR_OPEN,  SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Open) this (Door)" },
-    { USETARGET_HINT_ID_DOOR_CLOSE, SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-Close) this (Door)" },
+    { USETARGET_HINT_ID_DOOR_OPEN,  SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Open)" },
+    { USETARGET_HINT_ID_DOOR_CLOSE, SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-Close)" },
     // For Button UseTargets, default hint information.
-    { USETARGET_HINT_ID_BUTTON_PRESS,       SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Activate) this (Button)" },
-    { USETARGET_HINT_ID_BUTTON_UNPRESS,     SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-Deactivate) this (Button)" },
-    { USETARGET_HINT_ID_BUTTON_TOGGLE,      SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Toggle) this (Button)" },
-    { USETARGET_HINT_ID_BUTTON_UNTOGGLE,    SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-UnToggle) this (Button)" },
+    { USETARGET_HINT_ID_BUTTON_PRESS,       SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Activate)" },
+    { USETARGET_HINT_ID_BUTTON_UNPRESS,     SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-Deactivate)" },
+    { USETARGET_HINT_ID_BUTTON_TOGGLE,      SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Toggle)" },
+    { USETARGET_HINT_ID_BUTTON_UNTOGGLE,    SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-UnToggle)" },
     // For Hold UseTargets, default hint information.
-    { USETARGET_HINT_ID_BUTTON_HOLD,    SG_USETARGET_HINT_FLAGS_NONE,  "Hold the [+usetarget] key to (+Use) this (Button)" },
-    { USETARGET_HINT_ID_BUTTON_UNHOLD,  SG_USETARGET_HINT_FLAGS_NONE,  "Release the [+usetarget] key to (-Stop) using this (Button)" },
+    { USETARGET_HINT_ID_BUTTON_HOLD,    SG_USETARGET_HINT_FLAGS_NONE,  "Hold the [+usetarget] key to (+Use)" },
+    { USETARGET_HINT_ID_BUTTON_UNHOLD,  SG_USETARGET_HINT_FLAGS_NONE,  "Release the [+usetarget] key to (-Stop)" },
 
 	// For NPC UseTargets, default hint information.
-	{ USETARGET_HINT_ID_NPC_ENGAGE,       SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Engage) with this (NPC)" },
-	{ USETARGET_HINT_ID_NPC_DISENGAGE,     SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-Disengage) with this (NPC)" },
+	{ USETARGET_HINT_ID_NPC_ENGAGE,       SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (+Engage) with (NPC)" },
+	{ USETARGET_HINT_ID_NPC_DISENGAGE,     SG_USETARGET_HINT_FLAGS_NONE,  "Press [+usetarget] to (-Disengage) with (NPC)" },
 
     // End.
     { USETARGET_HINT_ID_MAX, SG_USETARGET_HINT_FLAGS_NONE, nullptr }
