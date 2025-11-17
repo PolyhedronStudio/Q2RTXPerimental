@@ -1,4 +1,4 @@
 {
-    "physical_friction": 0.25,
+    "physical_friction": 2.0,
     "physical_material_kind": "snow"
 }

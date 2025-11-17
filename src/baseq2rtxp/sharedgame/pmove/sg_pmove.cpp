@@ -271,11 +271,13 @@ static void PM_Friction() {
 
 	// Drop value.
 	double drop = 0.;
+	const double control = pmp->pm_stop_speed;
 
 	// Apply ground friction if on-ground.
 	#ifdef PMOVE_USE_MATERIAL_FRICTION
+		// Ensure we are on-ground.
 		if ( ( pm->ground.entity != nullptr
-			&& ( pml.groundTrace.surface != nullptr && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
+			&& ( ( pml.groundTrace.surface == nullptr ) || !( pml.groundTrace.surface && pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
 			) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
 		) {
 			// Get the material to fetch friction from.
@@ -296,10 +298,10 @@ static void PM_Friction() {
 		}
 	#endif
 
-	const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+	//const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 
 	// Apply water friction, and not off-ground yet on a ladder.
-	if ( pm->liquid.level && !( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
+	if ( pm->liquid.level /*&& !( pm->state->pmove.pm_flags & PMF_ON_LADDER )*/ ) {
 		drop += speed * pmp->pm_water_friction * (float)pm->liquid.level * pml.frameTime;
 	}
 	// Apply ladder friction, if climbing a ladder and in-water.
@@ -2336,3 +2338,4 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_fly_friction = default_pmoveParams_t::pm_fly_friction;
 }
 
+//////////

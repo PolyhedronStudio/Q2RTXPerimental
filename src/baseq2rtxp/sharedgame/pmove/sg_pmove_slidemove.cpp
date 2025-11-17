@@ -140,6 +140,9 @@ const pm_clipflags_t PM_SlideClipVelocity( const Vector3 &in, const Vector3 &nor
 *
 *
 **/
+//! Maximum amount of clipping planes to test for.
+static constexpr int32_t PM_MAX_CLIP_PLANES = 16;
+
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/

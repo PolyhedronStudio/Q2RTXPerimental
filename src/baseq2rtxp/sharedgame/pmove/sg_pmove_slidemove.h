@@ -7,8 +7,6 @@
 ********************************************************************/
 #pragma once
 
-//! Maximum amount of clipping planes to test for.
-static constexpr int32_t PM_MAX_CLIP_PLANES = 8;
 //! The overclip factor for velocity clipping.
 static constexpr double PM_OVERCLIP = 1.001;
 

@@ -68,16 +68,16 @@ typedef struct default_pmoveParams_s {
     //! Stop speed.
     static constexpr double pm_stop_speed = 100.;
     //! Server determined maximum speed.
-    static constexpr double pm_max_speed = 300.;
+    static constexpr double pm_max_speed = 265.;
     //! Velocity that is set for jumping. (Determines the height we aim for.)
     static constexpr double pm_jump_height = 270.;
 
     //! General up/down movespeed for on a ladder.
-    static constexpr double pm_ladder_speed = 200.;
+    static constexpr double pm_ladder_speed = 125.;
     //! Maximum 'strafe' side move speed while on a ladder.
-    static constexpr double pm_ladder_sidemove_speed = 150.;
+    static constexpr double pm_ladder_sidemove_speed = 90.;
     //! Ladder modulation scalar for when being in-water and climbing a ladder.
-    static constexpr double pm_ladder_mod = 0.5f;
+    static constexpr double pm_ladder_mod = 0.5;
 
     //! Speed for the viewheight and bounding box to ease in/out at when
     //! switching from crouch to stand-up and visa versa. ( 100ms )
@@ -85,7 +85,7 @@ typedef struct default_pmoveParams_s {
     //! Movement speed for when ducked and crawling on-ground.
     static constexpr double pm_crouch_move_speed = 100.;
     //! Movement speed for when moving in water(swimming).
-    static constexpr double pm_water_speed = 400.;
+    static constexpr double pm_water_speed = 180.;
     //! Movement speed for when flying.
     static constexpr double pm_fly_speed = 400.;
 
@@ -96,7 +96,7 @@ typedef struct default_pmoveParams_s {
     //! General spectator/noclip acceleration.
     static constexpr double pm_fly_accelerate = 8.;
     //! General water acceleration.
-    static constexpr double pm_water_accelerate = 10.;
+    static constexpr double pm_water_accelerate = 7.5;
 
 	//! If set, cap the maximum speed we can gain from air-accelerating.
     static constexpr double pm_air_wish_speed_cap = 30.;

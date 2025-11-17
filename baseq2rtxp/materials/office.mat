@@ -90,7 +90,7 @@ textures/office/cncrfloor01:
 textures/office/cncrwall01:
 	texture_base textures/office/cncrwall01.tga
 	texture_normals textures/office/cncrwall01_n.tga
-	base_factor 3.5
+	base_factor 1.0
 	bump_scale 1.0
 	emissive_factor 0
 	metalness_factor 0
@@ -99,14 +99,14 @@ textures/office/cncrwall01:
 textures/office/cncrwall02:
 	texture_base textures/office/*.tga
 	texture_normals textures/office/*_n.tga
-	base_factor 3.5
+	base_factor 1.0
 	bump_scale 1.0
     specular_factor 0.125
 
 textures/office/cncrwall03:
 	texture_base textures/office/*.tga
 	texture_normals textures/office/*_n.tga
-	base_factor 3.5
+	base_factor 1.0
 	bump_scale 1.0
     specular_factor 0.125
 
