@@ -43,8 +43,12 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_item_edict_t, svg_base_edi
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
 void svg_item_edict_t::Reset( const bool retainDictionary ) {
+    // Now, reset derived-class state.
+    IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
+    #if 0
     // Call upon the base class.
     Super::Reset( retainDictionary );
+    #endif
     // Reset the edict's save descriptor fields.
     //testVar = 1337;
     //testVar2 = {};

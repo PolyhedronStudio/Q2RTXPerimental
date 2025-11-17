@@ -2,6 +2,13 @@
 These are mainly my personal notes/ideas/interests, and do not per se reflect the actual changes to be made.
 
 ## Notes:
+* This is a todo in order to keep track of things to do, ideas to implement, bugs to fix, and so on.
+---
+* [ ] func_button map, the first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
+* [ ] When testing the target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
+
+---
+
 ### Random Ideas for The Day:
 * If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
 the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require

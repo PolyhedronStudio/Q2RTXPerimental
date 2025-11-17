@@ -44,6 +44,33 @@ struct svg_base_edict_t;
 
 
 /**
+*   Implements a Base Copy reset of the svg_base_edict_t object, optionally retaining 
+*   the original load time pointer to the entityDictionary. This allows for literally
+*   restoring the entity to a freshly spawned world state.
+*
+*   Useful for let's say, a map with multiple matches/rounds, where you want to
+*   reset all entities to their original spawn state without having to reload
+*   the entire map.
+**/
+#define IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( BaseType, SelfType, retainDictionary ) \
+    do { \
+        /* Keep a copy of the base-class state so we can restore it */ \
+        BaseType baseCopy = *static_cast<BaseType *>( this ); \
+        /* Create a value-initialized temporary and assign it to this object. */ \
+        static SelfType temp{}; \
+        /* Retain the dictionary if necessary */ \
+        if ( retainDictionary ) { \
+            temp.entityDictionary = this->entityDictionary; \
+		} \
+        /* Assign to this object. This resets all derived members using their normal copy-assignment semantics. */ \
+        *this = temp; \
+        /* Now, restore base-class state produced by Base::Reset(...) */ \
+        *static_cast<BaseType *>( this ) = baseCopy; \
+    } while ( 0 )
+
+
+
+/**
 *   @brief  edict->spawnflags T
 *           These are set with checkboxes on each entity in the map editor.
 **/

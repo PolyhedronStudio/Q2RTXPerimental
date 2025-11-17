@@ -50,14 +50,25 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_worldspawn_edict_t, svg_ba
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
 void svg_worldspawn_edict_t::Reset( const bool retainDictionary ) {
-    // Call upon the base class.
-    Super::Reset( retainDictionary );
+        // Now, reset derived-class state.
+    IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
 
     classname = svg_level_qstring_t::from_char_str( "worldspawn" );
     model = svg_level_qstring_t::from_char_str( "*1" );
 
     // Print
     gi.dprintf( "%s: Resetting classname: %s\n", __func__, (const char*)this->classname.ptr );
+
+    #if 0
+        // Call upon the base class.
+        Super::Reset( retainDictionary );
+
+        classname = svg_level_qstring_t::from_char_str( "worldspawn" );
+        model = svg_level_qstring_t::from_char_str( "*1" );
+
+        // Print
+        gi.dprintf( "%s: Resetting classname: %s\n", __func__, (const char *)this->classname.ptr );
+    #endif
 }
 
 

@@ -41,8 +41,13 @@ SVG_SAVE_DESCRIPTOR_FIELDS_DEFINE_IMPLEMENTATION( svg_trigger_relay_t, svg_base_
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
 void svg_trigger_relay_t::Reset( const bool retainDictionary ) {
-    // Call upon the base class.
-    Super::Reset( retainDictionary );
+    // Now, reset derived-class state.
+    IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
+
+    #if 0
+        // Call upon the base class.
+        Super::Reset( retainDictionary );
+    #endif
 }
 
 

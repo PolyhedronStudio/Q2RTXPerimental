@@ -527,9 +527,29 @@ void svg_base_edict_t::DispatchDieCallback( svg_base_edict_t *inflictor, svg_bas
 *   Reconstructs the object, optionally retaining the entityDictionary.
 **/
 void svg_base_edict_t::Reset( const bool retainDictionary ) {
-    // Call upon the base class.
-    sv_shared_edict_t<svg_base_edict_t, svg_client_t>::Reset( retainDictionary );
+    // Reset base-class state first and keep a copy of it so we can restore it
+    using Base = sv_shared_edict_t<svg_base_edict_t, svg_client_t>;
+	// Call base-class Reset(...)
+    Base::Reset( retainDictionary );
+    
+    // Now, reset derived-class state.
+    IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
+    #if 0
+	// Make a copy of the base-class portion of this object.
+    Base baseCopy = *static_cast<Base *>( this );
 
+    // Create a value-initialized temporary and assign it to this object.
+    // This resets all derived members using their normal copy-assignment semantics.
+    // ( No vtable corruption because we're not destroying the object nor changing its type! ).
+    static svg_base_edict_t temp{};
+	// Assign to this object.
+    *this = temp;
+
+    // Now, restore base-class state produced by Base::Reset(...)
+    *static_cast<Base *>( this ) = baseCopy;
+    #endif
+
+    #if 0
     /**
     *   Reset all member variables to defaults. ( Avoid using memset because it corrupts vtable. )
     **/
@@ -741,6 +761,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     **/
     move_origin = QM_Vector3Zero();
     move_angles = QM_Vector3Zero();
+    #endif
 }
 /**
 *   @brief  Used for savegaming the entity. Each derived entity type
