@@ -97,6 +97,9 @@ DEFINE_MEMBER_CALLBACK_USE( svg_light_light_t, onUse )( svg_light_light_t *self,
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_light_light_t, onSpawn )( svg_light_light_t *self ) -> void {
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
     #if 0
     // no targeted lights in deathmatch, because they cause global messages
     if ( !self->targetname || deathmatch->value ) {

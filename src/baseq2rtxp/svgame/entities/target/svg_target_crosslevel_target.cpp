@@ -91,6 +91,7 @@ or a direction.
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_crosslevel_target_t, onSpawn ) ( svg_target_crosslevel_target_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
 
     if ( !self->delay )

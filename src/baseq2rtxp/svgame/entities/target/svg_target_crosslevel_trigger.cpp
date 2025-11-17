@@ -91,7 +91,9 @@ or a direction.
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_crosslevel_trigger_t, onSpawn ) ( svg_target_crosslevel_trigger_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
+
 
     self->svFlags = SVF_NOCLIENT;
 

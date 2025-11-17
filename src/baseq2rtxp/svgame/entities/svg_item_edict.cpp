@@ -98,6 +98,9 @@ const bool svg_item_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
 *   @brief  Spawn routine.
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_item_edict_t, onSpawn )( svg_item_edict_t *self ) -> void {
+    // Spawn Super class.
+    Super::onSpawn( self );
+
     // Precache the item data.
     SVG_PrecacheItem( self->item );
 

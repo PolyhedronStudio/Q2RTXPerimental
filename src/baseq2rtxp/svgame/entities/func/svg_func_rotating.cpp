@@ -462,6 +462,9 @@ DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_rotating_t, onSignalIn )( svg_func_
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_rotating_t, onSpawn )( svg_func_rotating_t *self ) -> void {
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
     // Solid.
     self->solid = SOLID_BSP;
 

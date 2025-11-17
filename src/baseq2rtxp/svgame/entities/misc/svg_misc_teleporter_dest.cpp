@@ -90,6 +90,9 @@ health (80), and dmg (150).
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_teleporter_dest_t, onSpawn ) ( svg_misc_teleporter_dest_t *self ) -> void {
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
     gi.setmodel( self, "models/objects/dmspot/tris.md2" );
     self->s.skinnum = 0;
     self->solid = SOLID_BOUNDS_BOX;

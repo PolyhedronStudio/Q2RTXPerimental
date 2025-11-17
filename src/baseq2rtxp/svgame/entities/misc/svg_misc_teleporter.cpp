@@ -148,6 +148,9 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( svg_misc_teleporter_onTouch )( svg_base_edict_t *s
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_teleporter_t, onSpawn ) ( svg_misc_teleporter_t *self ) -> void {
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
     svg_base_edict_t *trig;
 
     if ( !self->targetNames.target ) {

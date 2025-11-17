@@ -40,6 +40,9 @@ START_OPEN causes the water to move to its destination when spawned and operate 
 */
 
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_water_t, onSpawn )( svg_func_water_t *self ) -> void {
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
     vec3_t  abs_movedir;
 
     SVG_Util_SetMoveDir( self->s.angles, self->movedir );

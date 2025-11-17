@@ -25,6 +25,9 @@
 *   @brief  Spawn routine.
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_null_t, onSpawn ) ( svg_info_null_t *self ) -> void {
+	// Always spawn Super class.
+	Super::onSpawn( self );
+
 	// Frees itself.
 	g_edict_pool.FreeEdict( self );
 }

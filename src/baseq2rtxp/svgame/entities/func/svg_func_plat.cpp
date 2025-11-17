@@ -420,6 +420,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_plat_t, onUse )( svg_func_plat_t *self, svg
 *   @brief  
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
 
     VectorClear( self->s.angles );

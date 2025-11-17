@@ -89,7 +89,9 @@ message		two letters; starting lightlevel and ending lightlevel
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_lightramp_t, onSpawn ) ( svg_target_lightramp_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
+
 
     if ( !self->message.ptr || strlen( self->message.ptr ) != 2 || self->message.ptr[ 0 ] < 'a' || self->message.ptr[ 0 ] > 'z' || self->message.ptr[ 1 ] < 'a' || self->message.ptr[ 1 ] > 'z' || self->message.ptr[ 0 ] == self->message.ptr[ 1 ] ) {
         gi.dprintf( "target_lightramp has bad ramp (%s) at %s\n", self->message.ptr, vtos( self->s.origin ) );

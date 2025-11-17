@@ -101,6 +101,9 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_object_t, onPostSpawn )( svg_func_obj
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_object_t, onSpawn )( svg_func_object_t *self ) -> void {
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
     // Set default dmg if unset.
     if ( !self->dmg ) {
         self->dmg = 100;

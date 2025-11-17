@@ -194,6 +194,10 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_misc_explobox_t, onDie )( svg_misc_explobox_t *s
 *   @brief  
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_misc_explobox_t, onSpawn) ( svg_misc_explobox_t *self ) -> void {
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
+
     if ( deathmatch->value ) {
         // auto-remove for deathmatch
         SVG_FreeEdict( self );

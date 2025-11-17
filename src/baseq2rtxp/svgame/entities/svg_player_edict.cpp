@@ -157,7 +157,8 @@ static void TossClientWeapon( svg_base_edict_t *self ) {
 *   @brief  Spawn routine.
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_player_edict_t, onSpawn )( svg_player_edict_t *self ) -> void {
-
+    // Spawn Super class.
+    Super::onSpawn( self );
 }
 
 /*

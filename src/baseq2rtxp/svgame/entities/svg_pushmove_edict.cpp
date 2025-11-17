@@ -577,3 +577,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink )( svg_pushmove_edic
 DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_OpenMove )( svg_pushmove_edict_t *ent ) -> void { }
 //! Stub.
 DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_CloseMove )( svg_pushmove_edict_t *ent ) -> void { }
+//! 
+DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onSpawn )( svg_pushmove_edict_t *self ) -> void { 
+    // Spawn Super class.
+    Super::onSpawn( self );
+}

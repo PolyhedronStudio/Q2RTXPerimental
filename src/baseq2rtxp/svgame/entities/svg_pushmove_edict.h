@@ -119,12 +119,12 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink );
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_OpenMove );
     DECLARE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_CloseMove );
-
-    #if 0
+    
     /**
     *   @brief  Spawn.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_pushmove_edict_t, onSpawn );
+    #if 0
     /**
     *   @brief  Post-Spawn.
     **/

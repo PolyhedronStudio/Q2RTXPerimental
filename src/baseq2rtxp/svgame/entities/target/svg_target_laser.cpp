@@ -118,7 +118,9 @@ or a direction.
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_laser_t, onSpawn ) ( svg_target_laser_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
+
 
     // Let everything else get spawned before we start firing.
     self->SetThinkCallback( &svg_target_laser_t::onThink_StartSpawnLaser );

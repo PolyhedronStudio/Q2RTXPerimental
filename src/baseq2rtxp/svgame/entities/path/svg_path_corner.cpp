@@ -89,6 +89,9 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *s
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_path_corner_t, onSpawn )( svg_path_corner_t *self ) -> void {
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
     if ( !self->targetname ) {
         gi.dprintf( "path_corner with no targetname at %s\n", vtos( self->s.origin ) );
         SVG_FreeEdict( self );

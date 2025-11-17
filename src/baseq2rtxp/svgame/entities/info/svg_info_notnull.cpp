@@ -20,9 +20,8 @@
 *   @brief  Spawn routine.
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_notnull_t, onSpawn ) ( svg_info_notnull_t *self ) -> void {
-    // Does not free itself. Instead construct a 'point bbox'.
-    VectorCopy( self->s.origin, self->absMin );
-    VectorCopy( self->s.origin, self->absMax );
+    // Always spawn Super class.
+    Super::onSpawn( self );
 }
 
 
@@ -35,5 +34,6 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_info_notnull_t, onSpawn ) ( svg_info_notnull_t
 *   @brief  Spawn routine.
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_group_t, onSpawn ) ( svg_func_group_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
 }

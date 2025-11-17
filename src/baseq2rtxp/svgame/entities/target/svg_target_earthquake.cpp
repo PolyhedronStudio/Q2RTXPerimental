@@ -89,6 +89,7 @@ All players and monsters are affected.
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_earthquake_t, onSpawn ) ( svg_target_earthquake_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
 
     if ( !self->targetname ) {

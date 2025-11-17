@@ -382,6 +382,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_train_t, onUse )( svg_func_train_t *self, s
 *   @brief  Spawn.
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_train_t, onSpawn )( svg_func_train_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
 
     self->movetype = MOVETYPE_PUSH;

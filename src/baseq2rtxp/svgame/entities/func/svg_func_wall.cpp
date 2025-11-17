@@ -162,7 +162,10 @@ DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_wall_t, onSignalIn )( svg_func_wall
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_wall_t, onSpawn )( svg_func_wall_t *self ) -> void {
-	// Set the movetype.
+    // Always spawn Super class.
+    Super::onSpawn( self );
+
+    // Set the movetype.
     self->movetype = MOVETYPE_PUSH;
 	// Set the entity type.
     self->s.entityType = ET_PUSHER;

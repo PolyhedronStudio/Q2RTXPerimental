@@ -881,7 +881,8 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_door_t, onPostSpawn )( svg_func_door_
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self ) -> void {
-	Super::onSpawn( self );
+    //vec3_t  abs_movedir;
+    svg_pushmove_edict_t::onSpawn( self );
 
     SVG_Util_SetMoveDir( self->s.angles, self->movedir );
     self->movetype = MOVETYPE_PUSH;

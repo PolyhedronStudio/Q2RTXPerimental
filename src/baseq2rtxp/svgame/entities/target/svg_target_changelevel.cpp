@@ -91,6 +91,7 @@ or a direction.
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_target_changelevel_t, onSpawn ) ( svg_target_changelevel_t *self ) -> void {
+    // Always spawn Super class.
     Super::onSpawn( self );
     
     // We really need a map name or otherwise we'll get undefined behavior with this entity around.
