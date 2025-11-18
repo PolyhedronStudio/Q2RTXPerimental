@@ -9,6 +9,7 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_effects.h"
 #include "clgame/clg_events.h"
+#include "clgame/clg_precache.h"
 
 // Needed:
 #include "sharedgame/sg_entity_events.h"
@@ -200,7 +201,7 @@ static inline qhandle_t GetSoundResourceHandle( const int32_t soundIndex ) {
 **/
 static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNumber, const Vector3 &origin ) {
     // Play the respawn sound.
-    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "items/respawn01.wav" ), 1, ATTN_IDLE, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.items.respawn01, 1, ATTN_IDLE, 0 );
     // Spawn the respawn particles.
     CLG_ItemRespawnParticles( origin );
 }

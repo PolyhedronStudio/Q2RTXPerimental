@@ -8,10 +8,14 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
 #include "clgame/clg_entities.h"
+#include "clgame/clg_precache.h"
 
 #include "sharedgame/sg_muzzleflashes.h"
 
 
+/**
+*   @brief Adds a muzzleflash dynamic light effect.
+**/
 clg_dlight_t *CLG_AddMuzzleflashDLight( const centity_t *pl, const Vector3 &vForward, const Vector3 &vRight ) {
     clg_dlight_t *dynamicLight = CLG_AllocDlight( pl->current.number );
     VectorCopy( pl->current.origin, dynamicLight->origin );
@@ -55,14 +59,14 @@ void CLG_MuzzleFlash( void ) {
     const int32_t muzzleFlashWeapon = level.parsedMessage.events.muzzleFlash.weapon;
     // All effects that do NOT use the DLight.
     switch ( muzzleFlashWeapon ) {
-    case MZ_FIST_LEFT:
-    case MZ_FIST_RIGHT:
-        dl = nullptr;
-        break;
-    // Default to creating a DLight for other effects:
-    default:
-        dl = CLG_AddMuzzleflashDLight( pl, fv, rv );
-        break;
+        case MZ_FIST_LEFT:
+        case MZ_FIST_RIGHT:
+            dl = nullptr;
+            break;
+        // Default to creating a DLight for other effects:
+        default:
+            dl = CLG_AddMuzzleflashDLight( pl, fv, rv );
+            break;
     }
 
     /**
@@ -72,49 +76,51 @@ void CLG_MuzzleFlash( void ) {
     const float volume = 1.0f - 0.8f * level.parsedMessage.events.muzzleFlash.silenced;
     // Determine the effect to apply.
     switch ( muzzleFlashWeapon ) {
-    /**
-    *   NO DLight Effects:
-    **/
-    // Weapon( Fists ) Effect for throwing a left fist punch:
-    case MZ_FIST_LEFT:
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/fists/punch%i.wav", 1/*( irandom( 2 ) ) + 1*/ );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
-        break;
-    // Weapon( Fists ) Effect for throwing a right fist punch:
-    case MZ_FIST_RIGHT:
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/fists/punch%i.wav", 1/*( irandom( 2 ) ) + 1*/ );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
-        break;
+        /**
+        *   NO DLight Effects:
+        **/
+        // Weapon( Fists ) Effect for throwing a left fist punch:
+        case MZ_FIST_LEFT:
+            Q_snprintf( soundname, sizeof( soundname ), "weapons/fists/punch%i.wav", 1/*( irandom( 2 ) ) + 1*/ );
+            clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.weapons.fists.punch1, volume, ATTN_NORM, 0 );
+            break;
+        // Weapon( Fists ) Effect for throwing a right fist punch:
+        case MZ_FIST_RIGHT:
+            Q_snprintf( soundname, sizeof( soundname ), "weapons/fists/punch%i.wav", 1/*( irandom( 2 ) ) + 1*/ );
+            clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.weapons.fists.punch1, volume, ATTN_NORM, 0 );
+            break;
 
-    /**
-    *   DLight Effects:
-    **/
-    // Weapon( Pistol ) Fire Flash:
-    case MZ_PISTOL:
-        VectorSet( dl->color, 0.93, 0.82, 0.71 );
-        Q_snprintf( soundname, sizeof( soundname ), "weapons/pistol/fire%i.wav", ( irandom( 2 ) ) + 1 );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( soundname ), volume, ATTN_NORM, 0 );
-        break;
-    // Event( Login ) Particles(By having just connected and performing a first spawn):
-    case MZ_LOGIN:
-        VectorSet( dl->color, 0, 1, 0 );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_login.wav" ), 1, ATTN_NORM, 0 );
-        CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
-        break;
-    // Event( Logout ) Particles(Disconnected UnSpawn):
-    case MZ_LOGOUT:
-        VectorSet( dl->color, 1, 0, 0 );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_logout.wav" ), 1, ATTN_NORM, 0 );
-        CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
-        break;
-    // Event( Respawn ) Particles:
-    case MZ_RESPAWN:
-        VectorSet( dl->color, 1, 1, 0 );
-        clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, clgi.S_RegisterSound( "weapons/mz_respawn.wav" ), 1, ATTN_NORM, 0 );
-        CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
-        break;
-    default:
-        clgi.Print( PRINT_DEVELOPER, "%s: WARNING(Unhandled muzzle flash effect[#%i])!\n", __func__, muzzleFlashWeapon );
-        break;
+        /**
+        *   DLight Effects:
+        **/
+        // Weapon( Pistol ) Fire Flash:
+        case MZ_PISTOL:
+        {
+            VectorSet( dl->color, 0.93, 0.82, 0.71 );
+            const int32_t fireSoundIndex = ( irandom( 2 ) );
+            clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.weapons.pistol.fire[ fireSoundIndex ], volume, ATTN_NORM, 0 );
+            break;
+        }
+        // Event( Login ) Particles(By having just connected and performing a first spawn):
+        case MZ_LOGIN:
+            VectorSet( dl->color, 0, 1, 0 );
+            clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.world.mz_login, 1, ATTN_NORM, 0 );
+            CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+            break;
+        // Event( Logout ) Particles(Disconnected UnSpawn):
+        case MZ_LOGOUT:
+            VectorSet( dl->color, 1, 0, 0 );
+            clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.world.mz_logout, 1, ATTN_NORM, 0 );
+            CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+            break;
+        // Event( Respawn ) Particles:
+        case MZ_RESPAWN:
+            VectorSet( dl->color, 1, 1, 0 );
+            clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.world.mz_login, 1, ATTN_NORM, 0 );
+            CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+            break;
+        default:
+            clgi.Print( PRINT_DEVELOPER, "%s: WARNING(Unhandled muzzle flash effect[#%i])!\n", __func__, muzzleFlashWeapon );
+            break;
     }
 }

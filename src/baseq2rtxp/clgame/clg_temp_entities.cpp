@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
+#include "clgame/clg_precache.h"
 #include "clgame/clg_temp_entities.h"
 
 #include "sharedgame/sg_tempentity_events.h"
@@ -64,16 +65,16 @@ static const byte splash_color[] = { 0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8 };
 **/
 static void CLG_StartRandomExplosionSfx( const bool isInWater, const Vector3 &point ) {
     if ( isInWater ) {
-        clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_water, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosions.water, 1, ATTN_NORM, 0 );
         clgi.Print( PRINT_WARNING, "%f %f %f contents_water\n", point.x, point.y, point.z );
     } else {
         clgi.Print( PRINT_WARNING, "%f %f %f contents_none\n", point.x, point.y, point.z );
         // In case we are in SOLID_NONE spaces:
         const int32_t index = irandom( 2 + 1 );
         if ( index == 0 ) {
-            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_grenade01, 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosions.grenade01, 1, ATTN_NORM, 0 );
         } else {
-            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosion_grenade02, 1, ATTN_NORM, 0 );
+            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosions.grenade02, 1, ATTN_NORM, 0 );
         }
     }
 }
@@ -108,11 +109,11 @@ void CLG_TemporaryEntities_Parse( void ) {
             // impact sound
             r = Q_rand() & 15;
             if ( r == 1 )
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ric1, 1, ATTN_NORM, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
             else if ( r == 2 )
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ric2, 1, ATTN_NORM, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
             else if ( r == 3 )
-                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ric3, 1, ATTN_NORM, 0 );
+                clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
         }
         break;
 
@@ -194,12 +195,12 @@ void CLG_TemporaryEntities_Parse( void ) {
 
     case TE_HEATBEAM_SPARKS:
         CLG_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x8, 50, 60 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_HEATBEAM_STEAM:
         CLG_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xE0, 20, 60 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_STEAM:
@@ -208,7 +209,7 @@ void CLG_TemporaryEntities_Parse( void ) {
 
     case TE_BUBBLETRAIL2:
         CLG_BubbleTrail2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2, 8 );
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_MOREBLOOD:
@@ -218,7 +219,7 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_ELECTRIC_SPARKS:
         CLG_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x75, 40 );
         //FIXME : replace or remove this sound
-        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.lashit, 1, ATTN_NORM, 0 );
+        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
         break;
 
     case TE_TELEPORT_EFFECT:

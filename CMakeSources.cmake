@@ -241,7 +241,6 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/effects/clg_fx_footsteps.cpp
 	baseq2rtxp/clgame/effects/clg_fx_lightstyles.cpp
 	baseq2rtxp/clgame/effects/clg_fx_muzzleflash.cpp
-	baseq2rtxp/clgame/effects/clg_fx_muzzleflash2.cpp
 	baseq2rtxp/clgame/effects/clg_fx_particles.cpp
 	baseq2rtxp/clgame/effects/clg_fx_new.cpp
 	

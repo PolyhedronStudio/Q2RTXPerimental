@@ -10,6 +10,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_events.h"
 #include "clgame/clg_events_player.h"
+#include "clgame/clg_precache.h"
 
 // Needed:
 #include "sharedgame/sg_entity_events.h"
@@ -81,32 +82,38 @@ static const std::string PrimaryFireEvent_DetermineAnimation( const player_state
 *   @brief  
 **/
 static void CLG_PlayerEvent_WaterEnterFeet( const int32_t entityNumber ) {
-    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, clgi.S_RegisterSound( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.sfx.players.water_feet_in01, 1, ATTN_NORM, 0 );
 }
 /**
 *   @brief  
 **/
 static void CLG_PlayerEvent_WaterEnterWaist( const int32_t entityNumber ) {
-    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, clgi.S_RegisterSound( SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 ).c_str() ), 1, ATTN_NORM, 0 );
+        // Generate the random file index.
+    const int32_t index = irandom( 0, 2 ) + 1;
+    if ( index == 1 ) {
+        clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.sfx.players.water_splash_in01, 1, ATTN_NORM, 0 );
+	} else {
+        clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.sfx.players.water_splash_in02, 1, ATTN_NORM, 0 );
+    }
 }
 /**
 *   @brief  
 **/
 static void CLG_PlayerEvent_WaterEnterHead( const int32_t entityNumber ) {
-    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, clgi.S_RegisterSound( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, precache.sfx.players.water_head_under01, 1, ATTN_NORM, 0 );
 }
 
 /**
 *   @brief
 **/
 static void CLG_PlayerEvent_WaterLeaveFeet( const int32_t entityNumber ) {
-    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, precache.sfx.players.water_feet_out01, 1, ATTN_NORM, 0 );
 }
 /**
 *   @brief
 **/
 static void CLG_PlayerEvent_WaterLeaveWaist( const int32_t entityNumber ) {
-    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, precache.sfx.players.water_body_out01, 1, ATTN_NORM, 0 );
 }
 /**
 *   @brief
@@ -204,19 +211,19 @@ static void CLG_PlayerEvent_JumpLand( centity_t *playerEntity, const int32_t ent
 *   @brief
 **/
 static void CLG_PlayerEvent_ShortFall( const int32_t entityNumber ) {
-    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, precache.sfx.players.fall02, 1, ATTN_NORM, 0 );
 }
 /**
 *   @brief
 **/
 static void CLG_PlayerEvent_MediumFall( const int32_t entityNumber ) {
-    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, precache.sfx.players.land01, 1, ATTN_NORM, 0 );
 }
 /**
 *   @brief
 **/
 static void CLG_PlayerEvent_FarFall( const int32_t entityNumber ) {
-    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, precache.sfx.players.fall01, 1, ATTN_NORM, 0 );
 }
 
 
@@ -239,7 +246,7 @@ static void CLG_PlayerEvent_Login( const centity_t *playerEntity, const int32_t 
     // Color it green.
 	dynamicLight->color = Vector3{ 0.0f, 1.0f, 0.0f };
     // Play login sound.
-    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_login.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_login, 1, ATTN_NORM, 0 );
 	// Spawn login effect.
 	CLG_LogoutEffect( &playerEntity->lerp_origin.x, 3/*MZ_LOGIN*/ );
 }
@@ -252,7 +259,7 @@ static void CLG_PlayerEvent_Logout( const centity_t *playerEntity, const int32_t
     // Color it green.
     dynamicLight->color = Vector3{ 1.0f, 0.0f, 0.0f };
     // Play logout sound.
-    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_logout.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_logout, 1, ATTN_NORM, 0 );
     // Spawn logout effect.
     CLG_LogoutEffect( &playerEntity->lerp_origin.x, 4/*MZ_LOGOUT*/ );
 }
@@ -265,7 +272,7 @@ static void CLG_PlayerEvent_Teleport( const centity_t *playerEntity, const int32
     // Color it green.
     dynamicLight->color = Vector3{ 0.75f, 0.75f, 0.0f };
     // Play login sound.
-    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "world/mz_logout.wav" ), 1, ATTN_NORM, 0 );
+    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_logout, 1, ATTN_NORM, 0 );
     // Spawn login effect.
     CLG_LogoutEffect( &playerEntity->lerp_origin.x, 4/*MZ_LOGOUT*/ );
 }

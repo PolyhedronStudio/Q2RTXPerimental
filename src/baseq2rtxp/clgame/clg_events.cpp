@@ -134,7 +134,7 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
     clientinfo_t *clientInfo = nullptr;
     // The client number of the entity, if any.
     int32_t clientNumber = -1;
-
+	// Decode the client info from the entity state.
 	DecodeClientInfoFromEntityState( currentEntityState, clientNumber, &clientInfo );
 
     // calculate the position at exactly the frame time

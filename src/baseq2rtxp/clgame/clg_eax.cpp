@@ -9,6 +9,7 @@
 #include "clgame/clg_eax.h"
 #include "clgame/clg_eax_effects.h"
 #include "clgame/clg_local_entities.h"
+#include "clgame/clg_precache.h"
 #include "local_entities/clg_local_entity_classes.h"
 #include "local_entities/clg_local_env_sound.h"
 

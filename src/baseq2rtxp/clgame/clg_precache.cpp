@@ -54,22 +54,45 @@ void PF_PrecacheClientSounds( void ) {
     /**
     *   (Temp-) Entity Events:
     **/
-    // Ricochets SFX:
-    precache.sfx.ric1 = clgi.S_RegisterSound( "world/ricochet_01.wav" );
-    precache.sfx.ric2 = clgi.S_RegisterSound( "world/ricochet_02.wav" );
-    precache.sfx.ric3 = clgi.S_RegisterSound( "world/ricochet_03.wav" );
-    // Lasers SFX:
-    precache.sfx.lashit = clgi.S_RegisterSound( "world/lashit01.wav" );
-    // Weapon SFX:
-    precache.sfx.explosion_rocket = clgi.S_RegisterSound( "explosions/expl_rocket01.wav" );
-    precache.sfx.explosion_grenade01 = clgi.S_RegisterSound( "explosions/expl_grenade01.wav" );
-    precache.sfx.explosion_grenade02 = clgi.S_RegisterSound( "explosions/expl_grenade02.wav" );
-    precache.sfx.explosion_water = clgi.S_RegisterSound( "explosions/expl_water01.wav" );
+	// Items SFX:
+	precache.sfx.items.respawn01 = clgi.S_RegisterSound( "items/respawn01.wav" );
+	//precache.sfx.items.pickup = clgi.S_RegisterSound( "items/pkup.wav" );
+    
+    // Player SFX:
+    precache.sfx.players.fall02 = clgi.S_RegisterSound( "player/fall02.wav" );
+    precache.sfx.players.fall01 = clgi.S_RegisterSound( "player/fall01.wav" );
 
-    // Precache player land/fall.
-    clgi.S_RegisterSound( "player/land01.wav" );
-    clgi.S_RegisterSound( "player/fall02.wav" );
-    clgi.S_RegisterSound( "player/fall01.wav" );
+    precache.sfx.players.land01 = clgi.S_RegisterSound( "player/land01.wav" );
+    
+    precache.sfx.players.water_feet_in01 = clgi.S_RegisterSound( "player/water_feet_in01.wav" );
+	precache.sfx.players.water_splash_in01 = clgi.S_RegisterSound( "player/water_splash_in01.wav" );
+	precache.sfx.players.water_splash_in02 = clgi.S_RegisterSound( "player/water_splash_in02.wav" );
+	precache.sfx.players.water_head_under01 = clgi.S_RegisterSound( "player/water_head_under01.wav" );
+	precache.sfx.players.water_feet_out01 = clgi.S_RegisterSound( "player/water_feet_out01.wav" );
+	precache.sfx.players.water_body_out01 = clgi.S_RegisterSound( "player/water_body_out01.wav" );
+
+    // Ricochets SFX:
+    precache.sfx.ricochets.ric1 = clgi.S_RegisterSound( "world/ricochet_01.wav" );
+    precache.sfx.ricochets.ric2 = clgi.S_RegisterSound( "world/ricochet_02.wav" );
+    precache.sfx.ricochets.ric3 = clgi.S_RegisterSound( "world/ricochet_03.wav" );
+    precache.sfx.ricochets.lashit = clgi.S_RegisterSound( "world/lashit01.wav" );
+
+    // Explosion SFX:
+    precache.sfx.explosions.rocket = clgi.S_RegisterSound( "explosions/expl_rocket01.wav" );
+    precache.sfx.explosions.grenade01 = clgi.S_RegisterSound( "explosions/expl_grenade01.wav" );
+    precache.sfx.explosions.grenade02 = clgi.S_RegisterSound( "explosions/expl_grenade02.wav" );
+    precache.sfx.explosions.water = clgi.S_RegisterSound( "explosions/expl_water01.wav" );
+
+    // Weapons SFX:
+	precache.sfx.weapons.fists.punch1 = clgi.S_RegisterSound( "weapons/fist/punch1.wav" );
+
+    precache.sfx.weapons.pistol.fire[ 0 ] = clgi.S_RegisterSound( "weapons/pistol/fire1.wav" );
+	precache.sfx.weapons.pistol.fire[ 1 ] = clgi.S_RegisterSound( "weapons/pistol/fire2.wav" );
+	precache.sfx.weapons.pistol.fire[ 2 ] = clgi.S_RegisterSound( "weapons/pistol/fire3.wav" );
+
+    // World SFX:
+    precache.sfx.world.mz_login = clgi.S_RegisterSound( "world/mz_login.wav" );
+    precache.sfx.world.mz_logout = clgi.S_RegisterSound( "world/mz_logout.wav" );
 
     /**
     *   Material Footsteps:
@@ -77,7 +100,7 @@ void PF_PrecacheClientSounds( void ) {
     CLG_PrecacheFootsteps();
 
     /**
-    *   Precaches all local entity 'sound path' registered files. This has to be done after the other local sounds are loaded,
+    *   Precaches all local entity 'sound path' configstring registered files. This has to be done after the other local sounds are loaded,
     *   to prevent their indexes from mixing up.
     **/
     CLG_PrecacheLocalSounds();

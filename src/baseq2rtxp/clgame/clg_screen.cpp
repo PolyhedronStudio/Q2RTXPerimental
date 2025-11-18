@@ -8,6 +8,7 @@
 #include "sharedgame/sg_usetarget_hints.h"
 
 #include "clgame/clg_hud.h"
+#include "clgame/clg_precache.h"
 #include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
 

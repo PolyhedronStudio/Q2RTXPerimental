@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "clgame/clg_local.h"
+#include "clgame/clg_precache.h"
 #include "clgame/clg_temp_entities.h"
 
 //! An array storing slots for explosions to be stored in. 

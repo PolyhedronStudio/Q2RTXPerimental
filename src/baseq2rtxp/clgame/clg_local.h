@@ -52,55 +52,74 @@ extern QMTime FRAME_TIME_S;
 //! Frame time in miliseconds.
 extern QMTime FRAME_TIME_MS;
 
-// TODO: Fix the whole max shenanigan in shared.h,  because this is wrong...
-#undef max
-
 // Just to, hold time, forever.
 constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<int64_t>::max( ) );
 
 
 
 /**
-* 
-*	CVars
-* 
+*
+*
+*
+*	Client(-Game Module) CVars.
+*
+*
+*
+**/
+/**
+*	Client CVars, fetched by the game module:
 **/
 #if USE_DEBUG
 extern cvar_t *developer;
 #endif
-extern cvar_t *cl_predict;
-extern cvar_t *cl_running;
-extern cvar_t *cl_paused;
 extern cvar_t *sv_running;
 extern cvar_t *sv_paused;
+extern cvar_t *cl_running;
+extern cvar_t *cl_paused;
 
-extern cvar_t *cl_footsteps;
+extern cvar_t *gamemode;
+
+extern cvar_t *maxclients;
+extern cvar_t *maxentities;
+//extern cvar_t *maxspectators
 
 extern cvar_t *cl_kickangles;
 extern cvar_t *cl_noskins;
+extern cvar_t *cl_predict;
 extern cvar_t *cl_nolerp;
+extern cvar_t *cl_footsteps;
 
-extern cvar_t *cl_gunalpha;
-extern cvar_t *cl_gunscale;
-extern cvar_t *cl_gun_x;
-extern cvar_t *cl_gun_y;
-extern cvar_t *cl_gun_z;
+// Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
+extern cvar_t *cvar_pt_particle_emissive; // from client FX_Init
+extern cvar_t *cl_particle_num_factor; // from client FX_Init
 
+/**
+*	Client View CVars:
+**/
 extern cvar_t *cl_run_pitch;
 extern cvar_t *cl_run_roll;
 extern cvar_t *cl_bob_up;
 extern cvar_t *cl_bob_pitch;
 extern cvar_t *cl_bob_roll;
 
+//! Whether to show the player model in 3rd person.
 extern cvar_t *cl_player_model;
+//! Camera third person angle.
 extern cvar_t *cl_thirdperson_angle;
+//! Camera third person range.
 extern cvar_t *cl_thirdperson_range;
+//! View Weapon CVar.
+extern cvar_t *cl_vwep;
 
+/**
+*	Chat Related CVars:
+**/
 extern cvar_t *cl_chat_notify;
 extern cvar_t *cl_chat_filter;
 
-extern cvar_t *cl_vwep;
-
+/**
+*	Info String CVars:
+**/
 extern cvar_t *info_password;
 extern cvar_t *info_spectator;
 extern cvar_t *info_name;
@@ -111,9 +130,20 @@ extern cvar_t *info_msg;
 extern cvar_t *info_hand;
 extern cvar_t *info_uf;
 
-// Cheesy workaround for these two cvars initialized in client FX_Init
-extern cvar_t *cvar_pt_particle_emissive;
-extern cvar_t *cl_particle_num_factor;
+/**
+*	(Developer-) Gun CVars:
+**/
+//! Developer gun alpha adjustment.
+extern cvar_t *cl_gunalpha;
+//! Generic gun scale adjustment.
+extern cvar_t *cl_gunscale;
+//! Developer gun X offset adjustment.
+extern cvar_t *cl_gun_x;
+//! Developer gun Y offset adjustment.
+extern cvar_t *cl_gun_y;
+//! Developer gun Z offset adjustment.
+extern cvar_t *cl_gun_z;
+
 
 
 
@@ -562,132 +592,8 @@ extern uint32_t clg_num_local_entities;
 *
 *
 **/
-struct precached_media_s {
-	//
-	//	Local Entities:
-	//
-	//! Acts as a local 'configstring'. When a client entity's precache callback
-	//! is called, the CLG_RegisterLocalModel/CL_RegisterLocalSound functions
-	//! will store the model/sound name in the designated array.
-	//! 
-	//! This allows for them to be reloaded at the time of a possible restart of
-	//! the audio/video subsystems and have their handles be (re-)stored at the
-	//! same index.
-	char model_paths[ MAX_MODELS ][ MAX_QPATH ];
-	char sound_paths[ MAX_SOUNDS ][ MAX_QPATH ];
-
-	//! Stores the model indexes for each local client entity precached model.
-	qhandle_t local_draw_models[ MAX_MODELS ];
-	int32_t num_local_draw_models;
-	//! Stores the sound indexes for each local client entity precached sound.
-	qhandle_t local_sounds[ MAX_SOUNDS ];
-	int32_t num_local_sounds;
-
-
-
-	//
-	// Models:
-	//
-	struct models_s {
-		// <Q2RTXP>: Our own sprite/model precache entries.
-		qhandle_t sprite_explo00; //! Comes without smoke.
-		qhandle_t sprite_explo01; //! This explosion is always high, it comes with smoke, lol joke.
-	} models;
-
-	// 
-	// Sound Effects:
-	//
-	struct precached_sfx_s {
-		// Ricochet effects:
-		qhandle_t ric1;
-		qhandle_t ric2;
-		qhandle_t ric3;
-		// Seems 'burn' hit like, was called laser_hit. TODO: Rename burn_hit?
-		qhandle_t lashit;
-		// Explosions.
-		qhandle_t explosion_rocket;
-		qhandle_t explosion_grenade01;
-		qhandle_t explosion_grenade02;
-		qhandle_t explosion_water;
-
-		struct footstep_sfx_s {
-			// Kind - "default"/"floor" (Used as a default, and for "floor" specific materials):
-			static constexpr int32_t NUM_FLOOR_STEPS = 9;
-			qhandle_t floor[ NUM_FLOOR_STEPS ];
-
-			// Kind - "carpet":
-			static constexpr int32_t NUM_CARPET_STEPS = 8;
-			qhandle_t carpet[ NUM_CARPET_STEPS ];
-			// Kind - "dirt":
-			static constexpr int32_t NUM_DIRT_STEPS = 7;
-			qhandle_t dirt[ NUM_DIRT_STEPS ];
-			// Kind - "grass":
-			static constexpr int32_t NUM_GRASS_STEPS = 9;
-			qhandle_t grass[ NUM_GRASS_STEPS ];
-			// Kind - "gravel":
-			static constexpr int32_t NUM_GRAVEL_STEPS = 10;
-			qhandle_t gravel[ NUM_GRAVEL_STEPS ];
-			// Kind - "metal":
-			static constexpr int32_t NUM_METAL_STEPS = 8;
-			qhandle_t metal[ NUM_METAL_STEPS ];
-			// Kind - "snow":
-			static constexpr int32_t NUM_SNOW_STEPS = 8;
-			qhandle_t snow[ NUM_SNOW_STEPS ];
-			// Kind - "tile":
-			static constexpr int32_t NUM_TILE_STEPS = 9;
-			qhandle_t tile[ NUM_TILE_STEPS ];
-			// Kind - "water":
-			static constexpr int32_t NUM_WATER_STEPS = 5;
-			qhandle_t water[ NUM_WATER_STEPS ];
-			// Kind - "wood":
-			static constexpr int32_t NUM_WOOD_STEPS = 9;
-			qhandle_t wood[ NUM_WOOD_STEPS ];
-		} footsteps;
-	} sfx;
-
-	//
-	// Sound EAX:
-	// 
-	struct eax_s {
-		//! Stores all the loaded up EAX Effects:
-		sfx_eax_properties_t properties[ SOUND_EAX_EFFECT_MAX ];
-		//! Number of totally loaded eax effects.
-		int32_t num_effects;
-	} eax;
-
-	//
-	// View Models: (Moved here from client, was named weapon models but a more generic name is best fit.)
-	//
-	char	viewModels[ MAX_CLIENTVIEWMODELS ][ MAX_QPATH ];
-	int32_t	numViewModels;
-
-	//
-	// 2D Screen Media / HUD Media
-	// 
-	/**
-	*	@brief	Stores all resource ID's for the screen related media.
-	**/
-	struct screen_media_s {
-		//! Reference to the damage display indicatore picture.
-		qhandle_t   damage_display_pic;
-		//! Net pic.
-		qhandle_t   net_error_pic;
-		//! All-round screen font pic.
-		qhandle_t   font_pic;
-	} screen;
-	/**
-	*	@brief Stores all resource ID's for the HUD related media.
-	**/
-	struct hud_s {
-		//! Crosshair
-		//qhandle_t crosshair_pic;
-	} hud;
-
-	//
-	// Other:
-	//
-	// ...
-};
+//! Precached Media Structure( declared here, defined in clg_precache.h ).
+struct precached_media_s;
 //! Stores qhandles to all precached client game media.
 extern precached_media_s precache;
 
