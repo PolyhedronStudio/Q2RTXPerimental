@@ -61,9 +61,9 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
         currentAngles = game.predictedState.currentPs.viewangles;
         previousAngles = game.predictedState.lastPs.viewangles;
 
-        //packetEntity->vAngles.forward = clgi.client->v_forward;
-        //packetEntity->vAngles.right = clgi.client->v_right;
-        //packetEntity->vAngles.up = clgi.client->v_up;
+        //packetEntity->vAngles.forward = clgi.client->vForward;
+        //packetEntity->vAngles.right = clgi.client->vRight;
+        //packetEntity->vAngles.up = clgi.client->vUp;
     }
     // Avoid usage of more expensive Vector3 compare Operator here. Instead thus any change at all means a recalculation.
     if ( currentAngles.x != previousAngles.x || currentAngles.y != previousAngles.y || currentAngles.x != previousAngles.x ) {

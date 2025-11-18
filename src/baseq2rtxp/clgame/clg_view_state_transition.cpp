@@ -107,39 +107,52 @@ static const double CLG_SmoothStepOffset() {
 **/
 static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_predicted_state_t *predictedState, const double lerpFraction ) {
     // Predicted player state.
-    player_state_t *pps = &predictedState->currentPs;
+    player_state_t *predictedPlayerState = &predictedState->currentPs;
 
-    // Lerp from ops to ps in demo playbacks.
+    /**
+	*   With demo playback, always lerp from old to new server frame angles.
+    **/
     if ( clgi.IsDemoPlayback() ) {
+		// Lerp from server frame angles.
         const Vector3 lerpedAngles = QM_Vector3LerpAngles( ops->viewangles, ps->viewangles, lerpFraction );
+		// Apply.
         VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
-        //clgi.Print( PRINT_DEVELOPER, "%s: returned from first if #1\n", __func__ );
-    // Use 'Predicted State' if we're alive.
-    } else if ( ps->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {
-        // use predicted values
-        const Vector3 predictedAngles = pps->viewangles;
-        VectorCopy( predictedAngles, clgi.client->refdef.viewangles );
-        // Else if the old state was PM_DEAD, lerp from predicted state(pps) to playerstate(ps).
-    } else if ( ops->pmove.pm_type == PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
-        // lerp from predicted angles, since enhanced servers
+    /**
+    *   Use predicted player state view angles while alive.
+    **/
+    } else if ( ps->pmove.pm_type < PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGLES_PREDICTION ) ) {
+        VectorCopy( predictedPlayerState->viewangles, clgi.client->refdef.viewangles );
+    /**
+    *   Else if the old state was PM_DEAD, lerp from predicted state to server frame playerstate.
+    **/
+    } else if ( ops->pmove.pm_type == PM_DEAD && !( ps->pmove.pm_flags & PMF_NO_ANGLES_PREDICTION ) ) {/*cls.serverProtocol > PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {*/
+        // Lerp from predicted angles, since enhanced servers
         // do not send viewangles each frame
         const Vector3 lerpedAngles = QM_Vector3LerpAngles( ops->viewangles, ps->viewangles, lerpFraction );
+        // Apply.
         VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
 
-        #if 1
-        // Use the local predicted player state view angles instead.
-    } else {
-        VectorCopy( pps->viewangles, clgi.client->refdef.viewangles );
+    #if 1
+        /**
+        *   Use the local predicted player state view angles instead.
+        **/
+        } else {
+            VectorCopy( predictedPlayerState->viewangles, clgi.client->refdef.viewangles );
 
-        //const Vector3 lerpedAngles = QM_Vector3LerpAngles( ps->viewangles, pps->viewangles, lerpFraction );
-        //VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
-    }
+            //const Vector3 lerpedAngles = QM_Vector3LerpAngles( predictedPlayerState->viewangles, ps->viewangles, lerpFraction );
+            //const Vector3 lerpedAngles = QM_Vector3LerpAngles( ps->viewangles, pps->viewangles, lerpFraction );
+            //VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
+        }
     #else
-        // Under any other circumstances, just use lerped angles from ops to ps.
-} else {
-        const Vector3 lerpedAngles = QM_Vector3LerpAngles( ops->viewangles, ps->viewangles, lerpFraction );
-        VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
-    }
+        /**
+        *   Under any other circumstances, just use lerped angles from ops to ps.
+        **/
+        } else {
+			// Lerp from server frame angles.
+            const Vector3 lerpedAngles = QM_Vector3LerpAngles( ops->viewangles, ps->viewangles, lerpFraction );
+            // Apply.
+            VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
+        }
     #endif
 }
 
@@ -271,9 +284,14 @@ void CLG_CalculateViewValues( void ) {
     const double lerpFrac = clgi.client->lerpfrac;
 
     // calculate the origin
-    //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION) ) {
-    const int32_t usePrediction = CLG_UsePrediction();
-    if ( usePrediction && !( ps->pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
+    //if (!cls.demo.playback && cl_predict->integer && !(ps->pmove.pm_flags & PMF_NO_ORIGIN_PREDICTION) ) {
+    // Use positional prediction?
+	const int32_t useOriginPrediction = CLG_UsePrediction() & !( ps->pmove.pm_flags & PMF_NO_ORIGIN_PREDICTION );
+
+    /**
+	*   Correct the predicted origin by back lerping the 'error offset' margin.
+    **/
+    if ( useOriginPrediction ) {
         // Backlerp fraction for the error.
         const double backLerp = lerpFrac - 1.0;
         // Calculate errorLerp and add it to the predicted origin.
@@ -284,9 +302,13 @@ void CLG_CalculateViewValues( void ) {
         game.predictedState.origin += errorLerp;
         // Set the view origin to the predicted origin.
         VectorCopy( game.predictedState.origin, clgi.client->refdef.vieworg );
+    /**
+    *   Just use interpolated values.
+    **/
     } else {
-        // Just use interpolated values.
+		// Interpolate between the two origins( old player state and current player state. )
         const Vector3 viewOrg = QM_Vector3Lerp( ops->pmove.origin, ps->pmove.origin, lerpFrac );
+		// Set the view origin to the interpolated origin.
         VectorCopy( viewOrg, clgi.client->refdef.vieworg );
 
         // WID: NOTE: If things break, look for this here.
@@ -294,12 +316,17 @@ void CLG_CalculateViewValues( void ) {
         //VectorCopy( clgi.client->refdef.vieworg, game.predictedState.currentPs.pmove.origin );
         //VectorCopy( game.predictedState.currentPs.pmove.origin, clgi.client->refdef.vieworg );
 
+		// Ensure predicted state origin and currentPs origin are the same as refdef vieworg.
         game.predictedState.origin = game.predictedState.currentPs.pmove.origin = clgi.client->refdef.vieworg;
+
         #if 0
         clgi.client->refdef.vieworg[ 2 ] -= ops->pmove.origin.z;
         #endif
     }
 
+    /**
+	*   Transition the view states by lerping/xerping between them.
+    **/
 	// Back lerp fraction.
     const double backLerp = 1.0 - lerpFrac; // lerpFrac - 1.0;
     // Lerp View Angles.
@@ -317,24 +344,37 @@ void CLG_CalculateViewValues( void ) {
     // Smooth out the ducking view height change over 100ms
     finalViewOffset.z += CLG_SmoothViewHeight();
 
-    // Calculate the angle vectors for the current view angles.
-    AngleVectors( clgi.client->refdef.viewangles, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
+    /**
+    *   Calculate the final angle vectors for the current view angles.
+    **/
+    QM_AngleVectors( clgi.client->refdef.viewangles, &clgi.client->vForward, &clgi.client->vRight, &clgi.client->vUp );
 
-    // Copy the view origin and angles for the thirdperson(and also shadow casting) entity.
-    VectorCopy( clgi.client->refdef.vieworg, clgi.client->playerEntityOrigin );
-    VectorCopy( clgi.client->refdef.viewangles, clgi.client->playerEntityAngles );
+    /**
+    *   Copy the view origin and angles for the thirdperson(and also shadow casting) entity.
+    **/
+    // 
+    clgi.client->playerEntityOrigin = clgi.client->refdef.vieworg;// VectorCopy( clgi.client->refdef.vieworg, clgi.client->playerEntityOrigin );
+    clgi.client->playerEntityAngles = clgi.client->refdef.viewangles; //VectorCopy( clgi.client->refdef.viewangles, clgi.client->playerEntityAngles );
     // Keep pitch in bounds.
     if ( clgi.client->playerEntityAngles[ PITCH ] > 180 ) {
         clgi.client->playerEntityAngles[ PITCH ] -= 360;
     }
     // Adjust pitch slightly.
     clgi.client->playerEntityAngles[ PITCH ] = clgi.client->playerEntityAngles[ PITCH ] / 3;
-    // Add the resulting final viewOffset to the refdef view origin.
-    VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
-    // Setup the new position for spatial audio recognition.
-    clgi.S_SetupSpatialListener( clgi.client->refdef.vieworg, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
 
-    // WID: Debug
+    /**
+    *   Add the resulting final viewOffset to the refdef view origin.
+    **/
+    VectorAdd( clgi.client->refdef.vieworg, finalViewOffset, clgi.client->refdef.vieworg );
+    
+    /**
+    *   Setup the new position for spatial audio recognition.
+    **/
+    clgi.S_SetupSpatialListener( clgi.client->refdef.vieworg, &clgi.client->vForward.x, &clgi.client->vRight.x, &clgi.client->vUp.x );
+
+    /**
+    *   Debug Stuff:
+    **/
     #if 0
     static uint64_t printFrame = clgi.client->frame.number;
     if ( printFrame != clgi.client->frame.number ) {

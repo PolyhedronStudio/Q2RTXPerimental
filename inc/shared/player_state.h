@@ -66,8 +66,8 @@ typedef uint16_t pmflags_t;
 #define PMF_TIME_KNOCKBACK              BIT( 4 ) //! pm_time is an air-accelerate only time
 #define PMF_TIME_WATERJUMP              BIT( 5 ) //! pm_time is waterjump.
 #define PMF_TIME_TELEPORT               BIT( 6 ) //! pm_time is non-moving time.
-#define PMF_NO_POSITIONAL_PREDICTION    BIT( 7 ) //! Temporarily disables prediction (used for grappling hook).
-#define PMF_NO_ANGULAR_PREDICTION       BIT( 8 ) //! Temporary disables angular prediction.
+#define PMF_NO_ORIGIN_PREDICTION    BIT( 7 ) //! Temporarily disables prediction for the origin(used for grappling hook).
+#define PMF_NO_ANGLES_PREDICTION       BIT( 8 ) //! Temporary disables prediction for the angles.
 //#define PMF_IGNORE_PLAYER_COLLISION		BIT( 9 )	//! Don't collide with other players.
 //#define PMF_TELEPORT_BIT				BIT( 10 )    //! used by q2pro
 //#define PMF_TIME_TRICK_JUMP				BIT( 12 )   //! pm_time is the trick jump time.

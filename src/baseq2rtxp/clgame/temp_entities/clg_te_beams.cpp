@@ -260,23 +260,23 @@ void CLG_AddPlayerBeams( void ) {
                 b->start[ j ] = clgi.client->refdef.vieworg[ j ] + ops->gunoffset[ j ] +
                 clgi.client->lerpfrac * ( ps->gunoffset[ j ] - ops->gunoffset[ j ] );
 
-            VectorMA( b->start, ( hand_multiplier * b->offset[ 0 ] ), clgi.client->v_right, org );
-            VectorMA( org, b->offset[ 1 ], clgi.client->v_forward, org );
-            VectorMA( org, b->offset[ 2 ], clgi.client->v_up, org );
+            VectorMA( b->start, ( hand_multiplier * b->offset[ 0 ] ), clgi.client->vRight, org );
+            VectorMA( org, b->offset[ 1 ], clgi.client->vForward, org );
+            VectorMA( org, b->offset[ 2 ], clgi.client->vUp, org );
             if ( info_hand->integer == 2 )
-                VectorMA( org, -1, clgi.client->v_up, org );
+                VectorMA( org, -1, clgi.client->vUp, org );
 
             // calculate pitch and yaw
             VectorSubtract( b->end, org, dist );
 
             // FIXME: don't add offset twice?
             d = VectorLength( dist );
-            VectorScale( clgi.client->v_forward, d, dist );
-            VectorMA( dist, ( hand_multiplier * b->offset[ 0 ] ), clgi.client->v_right, dist );
-            VectorMA( dist, b->offset[ 1 ], clgi.client->v_forward, dist );
-            VectorMA( dist, b->offset[ 2 ], clgi.client->v_up, dist );
+            VectorScale( clgi.client->vForward, d, dist );
+            VectorMA( dist, ( hand_multiplier * b->offset[ 0 ] ), clgi.client->vRight, dist );
+            VectorMA( dist, b->offset[ 1 ], clgi.client->vForward, dist );
+            VectorMA( dist, b->offset[ 2 ], clgi.client->vUp, dist );
             if ( info_hand->integer == 2 )
-                VectorMA( org, -1, clgi.client->v_up, org );
+                VectorMA( org, -1, clgi.client->vUp, org );
 
             // FIXME: use cl.refdef.viewangles?
             QM_Vector3ToAngles( dist, angles );

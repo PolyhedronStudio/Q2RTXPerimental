@@ -206,11 +206,11 @@ void CLG_Heatbeam( const Vector3 &start, const Vector3 &forward ) {
 
             // trim it so it looks like it's starting at the origin
             if ( i < 10 ) {
-                VectorScale( clgi.client->v_right, c * ( i / 10.0f ), dir );
-                VectorMA( dir, s * ( i / 10.0f ), clgi.client->v_up, dir );
+                VectorScale( clgi.client->vRight, c * ( i / 10.0f ), dir );
+                VectorMA( dir, s * ( i / 10.0f ), clgi.client->vUp, dir );
             } else {
-                VectorScale( clgi.client->v_right, c, dir );
-                VectorMA( dir, s, clgi.client->v_up, dir );
+                VectorScale( clgi.client->vRight, c, dir );
+                VectorMA( dir, s, clgi.client->vUp, dir );
             }
 
             p->alpha = 0.5f;

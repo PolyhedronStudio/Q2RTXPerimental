@@ -239,9 +239,9 @@ void CLG_ViewWeapon_CalculateOffset( player_state_t *ops, player_state_t *ps, co
     // Apply the calculated gun offset
     Vector3 gunOrigin = QM_Vector3Zero();
     for ( int32_t i = 0; i < 3; i++ ) {
-        gunOrigin[ i ] += clgi.client->v_forward[ i ] * currentGunOffset.y;
-        gunOrigin[ i ] += clgi.client->v_right[ i ] * currentGunOffset.x;
-        gunOrigin[ 2 ] += clgi.client->v_up[ i ] * currentGunOffset.z;
+        gunOrigin[ i ] += clgi.client->vForward[ i ] * currentGunOffset.y;
+        gunOrigin[ i ] += clgi.client->vRight[ i ] * currentGunOffset.x;
+        gunOrigin[ 2 ] += clgi.client->vUp[ i ] * currentGunOffset.z;
     }
     // Copy into the final player state gunoffset.
     VectorCopy( gunOrigin, ps->gunoffset );
@@ -380,11 +380,11 @@ void CLG_ViewWeapon_CalculateAngles( player_state_t *ops, player_state_t *ps, co
         const Vector3 strafeVelocity = { game.predictedState.currentPs.pmove.velocity[ 0 ], game.predictedState.currentPs.pmove.velocity[ 1 ], 0.0f };
 
         // Running Pitch Angles.
-        double delta = QM_Vector3DotProduct( strafeVelocity, clgi.client->v_forward );
+        double delta = QM_Vector3DotProduct( strafeVelocity, clgi.client->vForward );
         newTargetGunAngleDelta[ PITCH ] += -delta * clg_run_pitch;
 
         // Strafing Roll Angles.
-        delta = QM_Vector3DotProduct( strafeVelocity, clgi.client->v_right );
+        delta = QM_Vector3DotProduct( strafeVelocity, clgi.client->vRight );
         newTargetGunAngleDelta[ ROLL ] += delta * clg_run_roll;
     #endif
 
@@ -582,9 +582,9 @@ void CLG_AddViewWeapon( void ) {
     // such as 0.01, they move significantly - so we clamp the scale value to an expected range here.
     gun.scale = clgi.CVar_ClampValue( cl_gunscale, 0.1f, 1.0f );
 
-    VectorMA( gun.origin, cl_gun_y->value * gun.scale, clgi.client->v_forward, gun.origin );
-    VectorMA( gun.origin, cl_gun_x->value * gun.scale, clgi.client->v_right, gun.origin );
-    VectorMA( gun.origin, cl_gun_z->value * gun.scale, clgi.client->v_up, gun.origin );
+    VectorMA( gun.origin, cl_gun_y->value * gun.scale, clgi.client->vForward, gun.origin );
+    VectorMA( gun.origin, cl_gun_x->value * gun.scale, clgi.client->vRight, gun.origin );
+    VectorMA( gun.origin, cl_gun_z->value * gun.scale, clgi.client->vUp, gun.origin );
 
     // Don't lerp at all.
     VectorCopy( gun.origin, gun.oldorigin );

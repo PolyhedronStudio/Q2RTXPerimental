@@ -947,8 +947,6 @@ typedef struct {
 	*	Player Movement:
 	*
 	**/
-	//! Will shuffle current viewheight into previous before updating the current viewheight, and record the time of changing.
-	void ( *AdjustViewHeight )( const int32_t viewHeight );
 	//! Returns false if cl_predict == 0, or player move inquired to perform no prediction.
 	const qboolean( *UsePrediction )( void );
 	/**

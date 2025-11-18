@@ -172,13 +172,15 @@ static size_t CL_Armor_m( char *buffer, size_t size ) {
 static size_t CL_Ups_m( char *buffer, size_t size ) {
 	vec3_t vel;
 
+	// Use predicted velocity if we're not in a demo playback and prediction is enabled.
 	if ( !clgi.IsDemoPlayback() && cl_predict->integer &&
-		!( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) ) {
+		!( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ORIGIN_PREDICTION ) ) {
 		VectorCopy( game.predictedState.currentPs.pmove.velocity, vel );
+	// Otherwise use the server sent velocity.
 	} else {
 		VectorCopy( clgi.client->frame.ps.pmove.velocity, vel );
 	}
-
+	// scnprintf it into the buffer.
 	return Q_scnprintf( buffer, size, "%.f", VectorLength( vel ) );
 }
 /**
@@ -379,12 +381,6 @@ const char *PF_GetViewModelFilename( const uint32_t index ) {
 *
 *
 **/
-/**
-*   @brief  'ProgFunc' Wrapper for CLG_AdjustViewHeight.
-**/
-void PF_AdjustViewHeight( const int32_t viewHeight ) {
-	CLG_AdjustViewHeight( viewHeight );
-}
 /**
 *   @brief  'ProgFunc' Wrapper for CLG_CheckPredictionError.
 **/
@@ -679,7 +675,6 @@ extern "C" { // WID: C++20: extern "C".
 		globals.GetGameModeName = PF_GetGameModeName;
 
 		globals.UsePrediction = PF_UsePrediction;
-		globals.AdjustViewHeight = PF_AdjustViewHeight;
 		globals.CheckPredictionError = PF_CheckPredictionError;
 		globals.PredictAngles = PF_PredictAngles;
 		globals.PredictMovement = PF_PredictMovement;

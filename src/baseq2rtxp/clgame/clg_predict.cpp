@@ -290,15 +290,6 @@ const qboolean CLG_UsePrediction( void ) {
     if ( !cl_predict->integer ) {
         return false;
     }
-    // Player state demands no positional('origin') prediction.
-    if ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_POSITIONAL_PREDICTION ) {
-        return false;
-    }
-    // Player state demands no angular('viewangles') prediction.
-    if ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) {
-        // TODO: 
-        return false;
-    }
     
     // We want predicting.
     return true;
@@ -314,13 +305,15 @@ void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIn
     static constexpr double MAX_DELTA_ORIGIN = ( 3200. * ( 1.0 / BASE_FRAMERATE ) );
 
     // If it is the first frame, we got nothing to predict yet.
-    if ( moveCommand->prediction.simulationTime == 0 ) {
+    if ( moveCommand->prediction.simulationTime == 0 && clgi.client->time == 0 ) {
+		// Snap back to server state.
         game.predictedState.lastPs = clgi.client->frame.ps;
         game.predictedState.currentPs = clgi.client->frame.ps;
         //game.predictedState.currentPs.pmove = game.predictedState.currentPs.pmove;
         game.predictedState.error = {};
         game.predictedState.origin = clgi.client->frame.ps.pmove.origin; // Store the server returned origin for this command index.
 
+		// Record transition state.
         game.predictedState.transition = {
             .step = {
                 .height = 0,
@@ -328,8 +321,8 @@ void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIn
             },
             .view = {
                 .height = {
-                    (float)clgi.client->frame.ps.pmove.viewheight,
-                    (float)clgi.client->frame.ps.pmove.viewheight
+                    (double)clgi.client->frame.ps.pmove.viewheight,
+                    (double)clgi.client->frame.ps.pmove.viewheight
                 },
                 .timeHeightChanged = (uint64_t)clgi.client->accumulatedRealTime
             }
@@ -340,16 +333,17 @@ void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIn
         return;
     }
 
-	client_movecmd_prediction_t *predictedMoveResult = &clgi.client->predictedMoveResults[ (commandIndex)&CMD_MASK ]; // Get the predicted move results for this command index.
+	// Get the predicted move result for this command index.
+	client_movecmd_prediction_t *predictedMoveResult = &clgi.client->predictedMoveResults[ commandIndex & CMD_MASK ]; // Get the predicted move results for this command index.
+
     // Subtract what the server returned from our predicted origin for that frame.
     //game.predictedState.error = moveCommand->prediction.error = moveCommand->prediction.origin - clgi.client->frame.ps.pmove.origin;
     game.predictedState.error = predictedMoveResult->error = moveCommand->prediction.error = clgi.client->frame.ps.pmove.origin - predictedMoveResult->origin;
 
     // Save the prediction error for interpolation.
-    //const float len = fabs( delta[ 0 ] ) + abs( delta[ 1 ] ) + abs( delta[ 2 ] );
-    const float len = fabs( QM_Vector3Length( game.predictedState.error ) );
+    const double len = std::abs( QM_Vector3LengthDP( game.predictedState.error ) );
     //if (len < 1 || len > 640) {
-    if ( len > .1f 
+    if ( len > .1 
         && game.predictedState.cmd.prediction.simulationTime == moveCommand->prediction.simulationTime ) {
         // Snap back if the distance was too far off:
         if ( len > MAX_DELTA_ORIGIN ) {
@@ -357,12 +351,14 @@ void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIn
             clgi.ShowMiss( "MAX_DELTA_ORIGIN on frame #(%" PRId64 "): len(%f) (%f %f %f)\n",
                 clgi.client->frame.number, len, game.predictedState.error[ 0 ], game.predictedState.error[ 1 ], game.predictedState.error[ 2 ] );
 
+			// Snap back to server state.
             game.predictedState.lastPs = clgi.client->frame.ps;
             game.predictedState.currentPs = clgi.client->frame.ps;
             //game.predictedState.currentPs.pmove = clgi.client->predictedFrame.ps.pmove;
             game.predictedState.error = {};
 			game.predictedState.origin = clgi.client->frame.ps.pmove.origin; // Store the server returned origin for this command index.
 
+			// Reset transition state.
             game.predictedState.transition = {
                 .step = {
                     .height = 0,
@@ -370,8 +366,8 @@ void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIn
                 },
                 .view = {
                     .height = {
-                        (float)clgi.client->frame.ps.pmove.viewheight,
-                        (float)clgi.client->frame.ps.pmove.viewheight
+                        (double)clgi.client->frame.ps.pmove.viewheight,
+                        (double)clgi.client->frame.ps.pmove.viewheight
                     },
                     .timeHeightChanged = (uint64_t)clgi.client->accumulatedRealTime
                 }
@@ -386,7 +382,8 @@ void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIn
         }
     }
 
-	game.predictedState.origin = predictedMoveResult->origin = clgi.client->frame.ps.pmove.origin; // Store the server returned origin for this command index.
+    // Store the server returned origin for this command index.
+	game.predictedState.origin = predictedMoveResult->origin = clgi.client->frame.ps.pmove.origin;
 }
 
 /**
@@ -394,17 +391,15 @@ void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIn
 **/
 void CLG_PredictAngles( void ) {
     // Don't predict angles if the pmove asks so specifically.
-    if ( ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGULAR_PREDICTION ) || !cl_predict->integer ) {
+    if ( !CLG_UsePrediction() || ( clgi.client->frame.ps.pmove.pm_flags & PMF_NO_ANGLES_PREDICTION ) ) {
+		// Just use the server provided viewangles.
         game.predictedState.currentPs.viewangles = clgi.client->frame.ps.viewangles;
+		// End here.
         return;
     }
 
-    // This is done even with cl_predict == 0.
-    //game.predictedState.currentPs.viewangles = QM_Vector3AngleMod( clgi.client->viewangles + clgi.client->frame.ps.pmove.delta_angles );
-    //game.predictedState.currentPs.viewangles = clgi.client->viewangles + QM_Vector3AngleMod( clgi.client->frame.ps.pmove.delta_angles );
+	// Otherwise use the client viewangles + delta angles for the predicted player state its view angles.
     game.predictedState.currentPs.viewangles = clgi.client->viewangles + QM_Vector3AngleMod( clgi.client->delta_angles );
-
-	//VectorAdd( , clgi.client->frame.ps.pmove.delta_angles, game.predictedState.currentPs.viewangles );
 }
 
 /**
@@ -505,10 +500,12 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         // was left behind from the previous player move iteration.)
         moveCommand->prediction.origin = pm.state->pmove.origin;
         moveCommand->prediction.velocity = pm.state->pmove.velocity;
-        // Backup into our circular buffer.
-        clgi.client->predictedMoveResults[ ( acknowledgedCommandNumber ) & CMD_MASK ] = moveCommand->prediction;
+        
         // Store it as the current predicted origin state.
-        game.predictedState.origin = moveCommand->prediction.origin;
+        predictedState->origin = moveCommand->prediction.origin;
+
+        // Backup the move command into our circular buffer.
+        clgi.client->predictedMoveResults[ ( acknowledgedCommandNumber ) & CMD_MASK ] = moveCommand->prediction;
     }
 
     // Now predict results for the the pending command.
@@ -547,7 +544,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         // Store the predicted outcome results 
         pendingMoveCommand->prediction.origin = pm.state->pmove.origin;
         pendingMoveCommand->prediction.velocity = pm.state->pmove.velocity;
-        
+
         // Store it as the current last-predicted origin state.
         predictedState->origin = pendingMoveCommand->prediction.origin;
         // And store it in the predictedState as the last command.

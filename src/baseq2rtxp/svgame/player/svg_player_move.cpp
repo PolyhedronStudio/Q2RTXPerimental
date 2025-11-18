@@ -409,7 +409,7 @@ static void Client_SpectatorThink( svg_player_edict_t *ent, svg_client_t *client
         // Switch from chase target to no chase target:
         if ( client->chase_target ) {
             client->chase_target = nullptr;
-            client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION );
+            client->ps.pmove.pm_flags &= ~( PMF_NO_ORIGIN_PREDICTION | PMF_NO_ANGLES_PREDICTION );
         // Otherwise, get an active chase target:
         } else {
             SVG_ChaseCam_GetTarget( ent );

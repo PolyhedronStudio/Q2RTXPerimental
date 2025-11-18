@@ -162,8 +162,8 @@ static void V_TestParticles( void ) {
         p = &clgi.client->viewScene.r_particles[ i ];
 
         for ( j = 0; j < 3; j++ )
-            p->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->v_forward[ j ] * d +
-            clgi.client->v_right[ j ] * r + clgi.client->v_up[ j ] * u;
+            p->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->vForward[ j ] * d +
+            clgi.client->vRight[ j ] * r + clgi.client->vUp[ j ] * u;
 
         p->color = 8;
         p->alpha = 1;
@@ -192,8 +192,8 @@ static void V_TestEntities( void ) {
         f = 64 * ( i / 4 ) + 128;
 
         for ( j = 0; j < 3; j++ )
-            ent->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->v_forward[ j ] * f +
-            clgi.client->v_right[ j ] * r;
+            ent->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->vForward[ j ] * f +
+            clgi.client->vRight[ j ] * r;
 
         ent->model = clgi.client->baseclientinfo.model;
         ent->skin = clgi.client->baseclientinfo.skin;
@@ -217,7 +217,7 @@ static void V_TestLights( void ) {
         memset( dl, 0, sizeof( dlight_t ) );
         clgi.client->viewScene.r_numdlights = 1;
 
-        VectorMA( clgi.client->refdef.vieworg, 256, clgi.client->v_forward, dl->origin );
+        VectorMA( clgi.client->refdef.vieworg, 256, clgi.client->vForward, dl->origin );
         if ( clg_testlights->integer == -1 )
             VectorSet( dl->color, -1, -1, -1 );
         else
@@ -237,8 +237,8 @@ static void V_TestLights( void ) {
         f = 64 * ( i / 4 ) + 128;
 
         for ( j = 0; j < 3; j++ )
-            dl->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->v_forward[ j ] * f +
-            clgi.client->v_right[ j ] * r;
+            dl->origin[ j ] = clgi.client->refdef.vieworg[ j ] + clgi.client->vForward[ j ] * f +
+            clgi.client->vRight[ j ] * r;
         dl->color[ 0 ] = ( ( i % 6 ) + 1 ) & 1;
         dl->color[ 1 ] = ( ( ( i % 6 ) + 1 ) & 2 ) >> 1;
         dl->color[ 2 ] = ( ( ( i % 6 ) + 1 ) & 4 ) >> 2;
@@ -502,10 +502,10 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
     Vector3 velocityLerp = QM_Vector3Lerp( ops->pmove.velocity, ps->pmove.velocity, lerpFraction );
 
     // Add angles based on velocity.
-    float delta = QM_Vector3DotProduct( velocityLerp, clgi.client->v_forward );
+    float delta = QM_Vector3DotProduct( velocityLerp, clgi.client->vForward );
     viewAngles[ PITCH ] += delta * clg_run_pitch;/*cg_runpitch.value*/;
 
-    delta = QM_Vector3DotProduct( velocityLerp, clgi.client->v_right );
+    delta = QM_Vector3DotProduct( velocityLerp, clgi.client->vRight );
     viewAngles[ ROLL ] += delta * clg_run_roll;/*cg_runroll.value*/;
 
     // Add angles based on bob.
@@ -651,26 +651,26 @@ static void CLG_SetupThirdPersionView( void ) {
         clgi.client->refdef.viewangles[ YAW ] = clgi.client->frame.ps.stats[ STAT_KILLER_YAW ];
     }
 
-    VectorMA( clgi.client->refdef.vieworg, 512, clgi.client->v_forward, focus );
+    VectorMA( clgi.client->refdef.vieworg, 512, clgi.client->vForward, focus );
 
     clgi.client->refdef.vieworg[ 2 ] += 8;
 
     clgi.client->refdef.viewangles[ PITCH ] *= 0.5f;
-    AngleVectors( clgi.client->refdef.viewangles, clgi.client->v_forward, clgi.client->v_right, clgi.client->v_up );
+    QM_AngleVectors( clgi.client->refdef.viewangles, &clgi.client->vForward, &clgi.client->vRight, &clgi.client->vUp );
 
     angle = DEG2RAD( cl_thirdperson_angle->value );
     range = cl_thirdperson_range->value;
     fscale = cos( angle );
     rscale = sin( angle );
-    VectorMA( clgi.client->refdef.vieworg, -range * fscale, clgi.client->v_forward, clgi.client->refdef.vieworg );
-    VectorMA( clgi.client->refdef.vieworg, -range * rscale, clgi.client->v_right, clgi.client->refdef.vieworg );
+    VectorMA( clgi.client->refdef.vieworg, -range * fscale, clgi.client->vForward, clgi.client->refdef.vieworg );
+    VectorMA( clgi.client->refdef.vieworg, -range * rscale, clgi.client->vRight, clgi.client->refdef.vieworg );
 
     //CM_BoxTrace( &trace, clgi.client->playerEntityOrigin, clgi.client->refdef.vieworg,
     //    mins, maxs, clgi.client->bsp->nodes, CM_CONTENTMASK_SOLID );
     // When clipping we 
     //trace = clgi.Clip( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, nullptr, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ) );
     trace = clgi.Trace( 
-        clgi.client->playerEntityOrigin, 
+        &clgi.client->playerEntityOrigin.x,
         mins, maxs, 
         clgi.client->refdef.vieworg, 
         clgi.client->clientEntity/*&clg_entities[ 1 ]*/, 
@@ -773,7 +773,7 @@ void CLG_DrawActiveViewState( void ) {
 
         // Build a refresh entity list and calc clgi.client->sim*
         // this also calls CL_CalcViewValues which loads
-        // v_forward, etc.
+        // vForward, etc.
         CLG_PrepareViewEntities();
 
         #if USE_DEBUG

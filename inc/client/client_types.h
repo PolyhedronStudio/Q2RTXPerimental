@@ -399,12 +399,12 @@ typedef struct client_state_s {
     float       fov_x;
     float       fov_y;      // derived from fov_x assuming 4/3 aspect ratio.
     //! Set when refdef.angles is set.
-    vec3_t      v_forward, v_right, v_up;
+    Vector3     vForward, vRight, vUp;
     //! Whether in thirdperson view or not.
     qboolean    thirdPersonView;
     //! Predicted values, used for smooth player entity movement in thirdperson view.
-    vec3_t      playerEntityOrigin;
-    vec3_t      playerEntityAngles;
+    Vector3     playerEntityOrigin;
+    Vector3     playerEntityAngles;
     //! Local PVS
     //byte localPVS[ VIS_MAX_BYTES ];
     //int32_t localLastValidCluster;

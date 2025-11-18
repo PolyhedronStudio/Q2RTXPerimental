@@ -28,7 +28,7 @@ void SVG_ChaseCam_Update( svg_base_edict_t *ent ) {
         SVG_ChaseCam_Next( ent );
         if ( ent->client->chase_target == old ) {
             ent->client->chase_target = NULL;
-            ent->client->ps.pmove.pm_flags &= ~( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION ); // WID: pmove_new
+            ent->client->ps.pmove.pm_flags &= ~( PMF_NO_ORIGIN_PREDICTION | PMF_NO_ANGLES_PREDICTION ); // WID: pmove_new
             return;
         }
     }
@@ -96,7 +96,7 @@ void SVG_ChaseCam_Update( svg_base_edict_t *ent ) {
     }
 
     ent->viewheight = 0;
-    ent->client->ps.pmove.pm_flags |= ( PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION ); // WID: pmove_new
+    ent->client->ps.pmove.pm_flags |= ( PMF_NO_ORIGIN_PREDICTION | PMF_NO_ANGLES_PREDICTION ); // WID: pmove_new
     gi.linkentity( ent );
 }
 

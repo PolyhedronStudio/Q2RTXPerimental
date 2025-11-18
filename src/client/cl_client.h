@@ -611,10 +611,6 @@ void V_AddLightStyle(int style, float value);
 // predict.cpp
 //
 /**
-*   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
-**/
-void CL_AdjustViewHeight( const int32_t viewHeight );
-/**
 *   @brief  Sets the predicted view angles.
 **/
 void CL_PredictAngles( void );

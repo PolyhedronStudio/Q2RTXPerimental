@@ -314,7 +314,7 @@ void CL_ProcessNextFrame( void ) {
     if ( cls.demo.playback ) {
         // TODO: Proper stair smoothing.
         // Record time of changing and adjusting viewheight if it differs from previous time.
-        CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
+        //CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
     }
 
     // See if we had any prediction errors.

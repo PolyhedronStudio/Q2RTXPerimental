@@ -2129,7 +2129,7 @@ static size_t CL_ViewPos_m(char *buffer, size_t size)
 
 static size_t CL_ViewDir_m(char *buffer, size_t size)
 {
-	return Q_scnprintf(buffer, size, "(%.3f, %.3f, %.3f)", cl.v_forward[0], cl.v_forward[1], cl.v_forward[2]);
+	return Q_scnprintf(buffer, size, "(%.3f, %.3f, %.3f)", cl.vForward[0], cl.vForward[1], cl.vForward[2]);
 }
 
 static size_t CL_HdrColor_m(char *buffer, size_t size)

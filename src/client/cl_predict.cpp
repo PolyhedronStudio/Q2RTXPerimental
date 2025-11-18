@@ -19,12 +19,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "cl_client.h"
 
 
-/**
-*   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
-**/
-void CL_AdjustViewHeight( const int32_t viewHeight ) {
-    clge->AdjustViewHeight( viewHeight );
-}
 
 /**
 *   @brief  Checks for prediction if desired. Will determine the error margin
