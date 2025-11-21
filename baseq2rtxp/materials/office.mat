@@ -99,9 +99,9 @@ textures/office/cncrwall01:
 textures/office/cncrwall02:
 	texture_base textures/office/*.tga
 	texture_normals textures/office/*_n.tga
-	base_factor 1.0
+	base_factor 1.5
 	bump_scale 1.0
-    specular_factor 0.125
+    specular_factor 0.175
 
 textures/office/cncrwall03:
 	texture_base textures/office/*.tga
@@ -168,9 +168,8 @@ textures/office/stonetiles02:
 	texture_normals textures/office/*_n.tga
 	base_factor 1.0
 	bump_scale 1
-    specular_factor 0.10
-	metalness_factor 0.15
-	roughness_override 0.1
+    specular_factor 0.35
+	metalness_factor 0.75
 
 textures/office/stucco01:
     texture_base textures/office/*.tga
