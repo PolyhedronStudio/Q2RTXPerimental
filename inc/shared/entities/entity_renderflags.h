@@ -10,20 +10,20 @@
 
 //! entity_state_t->renderfx flags
 #define RF_NONE             0
-#define RF_MINLIGHT         BIT( 0 ) // 1       // allways have some light (viewmodel)
-#define RF_VIEWERMODEL      BIT( 1 ) // 2       // don't draw through eyes, only mirrors
-#define RF_WEAPONMODEL      BIT( 2 ) // 4       // only draw through eyes
-#define RF_FULLBRIGHT       BIT( 3 ) // 8       // allways draw full intensity
-#define RF_DEPTHHACK        BIT( 4 ) // 16      // for view weapon Z crunching
-#define RF_TRANSLUCENT      BIT( 5 ) // 32
-#define RF_FRAMELERP        BIT( 6 ) // 64
-#define RF_BEAM             BIT( 7 ) // 128
-#define RF_CUSTOMSKIN       BIT( 8 ) // 256     // skin is an index in image_precache
-#define RF_GLOW             BIT( 9 ) // 512     // pulse lighting for bonus items
-#define RF_SHELL_RED        BIT( 10 ) // 1024
-#define RF_SHELL_GREEN      BIT( 11 ) // 2048
-#define RF_SHELL_BLUE       BIT( 12 ) // 4096
-#define RF_NOSHADOW         BIT( 13 ) // 8192    // <Q2RTXP>: WID: Will have the entity(alias or brush model) not cast any shadow.
+#define RF_MINLIGHT         BIT( 0 ) // 1       // Allways have some light (viewmodel).
+#define RF_VIEWERMODEL      BIT( 1 ) // 2       // Don't draw through eyes, only mirrors.
+#define RF_WEAPONMODEL      BIT( 2 ) // 4       // Only draw through eyes.
+#define RF_FULLBRIGHT       BIT( 3 ) // 8       // Allways draw full intensity
+#define RF_DEPTHHACK        BIT( 4 ) // 16      // For view weapon Z crunching.
+#define RF_TRANSLUCENT      BIT( 5 ) // 32		// Draw with full translucency.
+#define RF_NO_ORIGIN_LERP	BIT( 6 ) // 64		// Disable origin interpolation.
+#define RF_BEAM             BIT( 7 ) // 128		
+#define RF_CUSTOMSKIN       BIT( 8 ) // 256     // Skin is an index in image_precache.
+#define RF_GLOW             BIT( 9 ) // 512     // Pulse lighting for bonus items.
+#define RF_SHELL_RED        BIT( 10 ) // 1024	// Red shell effect.
+#define RF_SHELL_GREEN      BIT( 11 ) // 2048	// Green shell effect.
+#define RF_SHELL_BLUE       BIT( 12 ) // 4096	// Blue shell effect.
+#define RF_NOSHADOW         BIT( 13 ) // 8192   // <Q2RTXP>: WID: Will have the entity(alias or brush model) not cast any shadow.
 #define	RF_OLD_FRAME_LERP	BIT( 14 ) // 16384	// [Paril-KEX] force model to lerp from oldframe in entity state; otherwise it uses last frame client received
 #define RF_STAIR_STEP		BIT( 15 ) // 32768	// [Paril-KEX] re-tuned, now used to handle stair steps for monsters
 

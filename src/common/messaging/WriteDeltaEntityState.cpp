@@ -158,7 +158,7 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 		bits |= U_EVENT_PARM_1;
 	}
 
-	if ( to->renderfx & RF_FRAMELERP ) {
+	if ( to->renderfx & RF_OLD_FRAME_LERP ) {
 		bits |= U_OLDORIGIN;
 	} else if ( to->entityType == ET_BEAM || to->renderfx & RF_BEAM ) {
 		if ( flags & MSG_ES_BEAMORIGIN ) {
