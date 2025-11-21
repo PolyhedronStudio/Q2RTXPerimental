@@ -597,6 +597,7 @@ void CL_CalculateViewValues( void );
 *           local client entities.
 **/
 void V_CalculateLocalPVS( const vec3_t viewOrigin );
+
 void V_AddEntity(entity_t *ent);
 void V_AddParticle(particle_t *p);
 void V_AddLight(const vec3_t org, float intensity, float r, float g, float b);

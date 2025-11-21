@@ -276,8 +276,8 @@ static bool Push(menuFrameWork_t *self)
         *p++ = 0;
         Q_strlcpy(currentskin, p, sizeof(currentskin));
     } else {
-        strcpy(currentdirectory, "male");
-        strcpy(currentskin, "grunt");
+        strcpy(currentdirectory, "playerdummy");
+        strcpy(currentskin, "playerdummy");
     }
 
     for (i = 0; i < uis.numPlayerModels; i++) {
