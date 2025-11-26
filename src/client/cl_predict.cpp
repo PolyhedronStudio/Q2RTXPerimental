@@ -63,6 +63,7 @@ void CL_PredictMovement(void) {
     if ( cls.state != ca_active ) {
         return;
     }
+
     // Will only hardset the received view angles.
     if ( !clge->UsePrediction() ) {
         CL_PredictAngles();
@@ -70,7 +71,7 @@ void CL_PredictMovement(void) {
     }
 
     // Get acknowledge incoming command(and frame) number.
-    int64_t acknowledgedCommandNumber = cl.outPacketHistory[ cls.netchan.incoming_acknowledged & CMD_MASK ].commandNumber;
+    const int64_t acknowledgedCommandNumber = cl.outPacketHistory[ cls.netchan.incoming_acknowledged & CMD_MASK ].commandNumber;
     // The actual local current command number.
     const int64_t currentCommandNumber = cl.currentUserCommandNumber;
 

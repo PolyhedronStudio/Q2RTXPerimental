@@ -83,6 +83,9 @@ extern cvar_t *maxclients;
 extern cvar_t *maxentities;
 //extern cvar_t *maxspectators
 
+extern cvar_t *cl_showmiss;
+extern cvar_t *cl_debug_entity_events;
+
 extern cvar_t *cl_kickangles;
 extern cvar_t *cl_noskins;
 extern cvar_t *cl_predict;

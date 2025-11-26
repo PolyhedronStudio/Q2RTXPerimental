@@ -18,4 +18,4 @@
 *   @param  clientNumber        The client number of the entity generating the event, if any (-1 otherwise.).
 *   @param  clientInfo          The clientinfo_t of the entity generating the event, if any (nullptr otherwise).
 **/
-void CLG_Events_ProcessEntityEvent( const int32_t eventValue, const Vector3 &lerpOrigin, centity_t *cent, const int32_t entityNumber, const int32_t clientNumber, clientinfo_t *clientInfo );
+void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOrigin, centity_t *cent, const int32_t entityNumber, const int32_t clientNumber, clientinfo_t *clientInfo );

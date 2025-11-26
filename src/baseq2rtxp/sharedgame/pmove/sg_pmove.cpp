@@ -254,8 +254,6 @@ void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
 static void PM_Friction() {
 	// Get velocity.
 	const Vector3 velocity = pm->state->pmove.velocity;
-	// Ignore slope movement. ( Remove Z velocity. )
-	const Vector3 noSlopeVelocity = ( pml.isWalking ? Vector3( Vector2( velocity ) ) : Vector3( velocity ) );
 
 	// Set us to a halt, if our speed is too low, otherwise we'll see
 	// ourselves sort of 'drifting'.
@@ -1283,7 +1281,7 @@ static void PM_CycleBob() {
 	if ( ( ( oldBobCycle + 64 ) ^ ( pm->state->bobCycle + 64 ) ) & 128 ) {
 		// On-ground will only play sounds if running:
 		if ( pm->liquid.level == LIQUID_NONE || pm->liquid.level == LIQUID_FEET ) {
-			if ( footStep && pm->state->xySpeed > 225 /*&& !pm->noFootsteps*/ ) {
+			if ( footStep && pm->state->xySpeed > pmp->pm_stop_speed /* && pm->state->xySpeed > 225 */ /*&& !pm->noFootsteps*/ ) {
 				//if ( pm->state->pmove.pm_flags & PMF_ON_LADDER ) {
 				//	PM_AddEvent( EV_FOOTSTEP_LADDER, 0 );
 				//	SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(% i), oldBobCycle(% i), bobMove(%lf), Event(EV_FOOTSTEP_LADDER), Time(%" PRId64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
@@ -2337,5 +2335,3 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
 	pmp->pm_fly_friction = default_pmoveParams_t::pm_fly_friction;
 }
-
-//////////

@@ -43,7 +43,7 @@ typedef struct usercmd_s {
     //! Button bits, determines which keys are pressed.
     uint16_t buttons;
     //! View angles.
-    vec3_t  angles;
+    Vector3 angles;
     //! Direction key when held, 'speeds':
     float   forwardmove, sidemove, upmove;
     //! The impulse.

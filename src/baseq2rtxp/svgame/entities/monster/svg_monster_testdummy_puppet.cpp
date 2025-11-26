@@ -9,6 +9,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_trigger.h"
+#include "svgame/svg_utils.h"
 
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
@@ -295,6 +296,14 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 rootMotionFrame, rawFrameDistance, frameVelocity, gi.frame_time_s,
                 rootMotion->totalDistance, rootMotion->frameCount );
             #endif
+
+            if ( rootMotionFrame == 0 ) {
+                SVG_Util_AddEvent( self, EV_OTHER_FOOTSTEP, 0 );
+            }
+            else if ( rootMotionFrame == 15 ) {
+                SVG_Util_AddEvent( self, EV_OTHER_FOOTSTEP, 0 );
+            }
+
             // Goal Origin:
             Vector3 goalOrigin = self->activator->s.origin;
             if ( self->goalentity ) {
@@ -456,6 +465,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 gi.linkentity( self );
             }
             self->s.frame++;
+
             if ( self->s.frame >= 82 ) {
                 self->s.frame = 0;
             }

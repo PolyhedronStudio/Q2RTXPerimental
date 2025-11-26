@@ -73,6 +73,25 @@ static const std::string PrimaryFireEvent_DetermineAnimation( const player_state
 *
 *
 *
+*   Player State FootStep Events:
+*
+*
+*
+**/
+/**
+*   @brief  The player footstep event handler.
+**/
+static void CLG_PlayerEvent_FootStep( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
+	// Play the footstep sound.
+    CLG_FX_FootStepSound( entityNumber, lerpOrigin, false, true );
+}
+
+
+
+/**
+*
+*
+*
 *   Player State Water Events:
 *
 *
@@ -380,13 +399,13 @@ static void CLG_PlayerEvent_WeaponHolsterAndDraw( centity_t *playerEntity, const
 /**
 *   @brief  Processes the given player state event.
 **/
-const bool CLG_Events_ProcessPlayerStateEvent( centity_t *playerEntity, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
+const bool CLG_Events_FirePlayerStateEvent( centity_t *playerEntity, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
     // For dynamic lights.
 	clg_dlight_t *dl = nullptr;
 
 	// Get entity number.
     const int32_t entityNumber = playerEntity->current.number;
-    
+
     #if 0
         // Calculate the angle vectors.
         Vector3 fv = {}, rv = {};
@@ -409,12 +428,13 @@ const bool CLG_Events_ProcessPlayerStateEvent( centity_t *playerEntity, const pl
         *   FootStep Events:
         **/
         case EV_PLAYER_FOOTSTEP:
-                CLG_FootstepEvent( entityNumber );
-                return true;
-            break;
+			DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_FOOTSTEP" );
+            CLG_PlayerEvent_FootStep( entityNumber, lerpOrigin );
+            return true;
+        break;
         // Applied externally outside of pmove.
         //case EV_FOOTSTEP_LADDER:
-        //        CLG_FootstepLadderEvent( entityNumber );
+        //        CLG_FootStepLadderEvent( entityNumber );
         //        return true;
         //    break;
 
@@ -422,14 +442,17 @@ const bool CLG_Events_ProcessPlayerStateEvent( centity_t *playerEntity, const pl
         *   Water Enter Events:
         **/
         case EV_WATER_ENTER_FEET:
+    			DEBUG_PRINT_EVENT_NAME( "EV_WATER_ENTER_FEET" );
     			CLG_PlayerEvent_WaterEnterFeet( entityNumber );
 				return true;
             break;
         case EV_WATER_ENTER_WAIST:
+			    DEBUG_PRINT_EVENT_NAME( "EV_WATER_ENTER_WAIST" );
 				CLG_PlayerEvent_WaterEnterWaist( entityNumber );
                 return true;
             break;
         case EV_WATER_ENTER_HEAD:
+			    DEBUG_PRINT_EVENT_NAME( "EV_WATER_ENTER_HEAD" );
                 CLG_PlayerEvent_WaterEnterHead( entityNumber );
 			    return true;
             break;
@@ -438,14 +461,17 @@ const bool CLG_Events_ProcessPlayerStateEvent( centity_t *playerEntity, const pl
         *   Water Leave Events:
         **/
         case EV_WATER_LEAVE_FEET:
+			    DEBUG_PRINT_EVENT_NAME( "EV_WATER_LEAVE_FEET" );
                 CLG_PlayerEvent_WaterLeaveFeet( entityNumber );
                 return true;
 			break;
         case EV_WATER_LEAVE_WAIST:
+			    DEBUG_PRINT_EVENT_NAME( "EV_WATER_LEAVE_WAIST" );
                 CLG_PlayerEvent_WaterLeaveWaist( entityNumber );
                 return true;
             break;
         case EV_WATER_LEAVE_HEAD:
+			    DEBUG_PRINT_EVENT_NAME( "EV_WATER_LEAVE_HEAD" );
     			CLG_PlayerEvent_WaterLeaveHead( entityNumber );
                 return true;
             break;
@@ -454,10 +480,12 @@ const bool CLG_Events_ProcessPlayerStateEvent( centity_t *playerEntity, const pl
 		*   Jump Events:
         **/
         case EV_JUMP_UP:
+			    DEBUG_PRINT_EVENT_NAME( "EV_JUMP_UP" );
 		        CLG_PlayerEvent_JumpUp( playerEntity, entityNumber );
                 return true;
             break;
         case EV_JUMP_LAND:
+			    DEBUG_PRINT_EVENT_NAME( "EV_JUMP_LAND" );
 			    CLG_PlayerEvent_JumpLand( playerEntity, entityNumber, ps );
                 return true;
 			break;
@@ -466,14 +494,17 @@ const bool CLG_Events_ProcessPlayerStateEvent( centity_t *playerEntity, const pl
         *   Fall and Landing Events:
         **/
         case EV_FALL_SHORT:
+			    DEBUG_PRINT_EVENT_NAME( "EV_FALL_SHORT" );
 			    CLG_PlayerEvent_ShortFall( entityNumber );
                 return true;
             break;
         case EV_FALL_MEDIUM:
+			    DEBUG_PRINT_EVENT_NAME( "EV_FALL_MEDIUM" );
                 CLG_PlayerEvent_MediumFall( entityNumber );
                 return true;
             break;
         case EV_FALL_FAR:
+			    DEBUG_PRINT_EVENT_NAME( "EV_FALL_FAR" );
                 CLG_PlayerEvent_FarFall( entityNumber );
                 return true;
             break;
@@ -482,14 +513,17 @@ const bool CLG_Events_ProcessPlayerStateEvent( centity_t *playerEntity, const pl
         *   Teleport Events:
         **/
         case EV_PLAYER_LOGIN:
+			DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_LOGIN" );
 			    CLG_PlayerEvent_Login( playerEntity, entityNumber );
                 return true;
             break;
         case EV_PLAYER_LOGOUT:
+			    DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_LOGOUT" );
                 CLG_PlayerEvent_Logout( playerEntity, entityNumber );
                 return true;
             break;
         case EV_PLAYER_TELEPORT:
+			    DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_TELEPORT" );
                 CLG_PlayerEvent_Teleport( playerEntity, entityNumber );
                 return true;
             break;
@@ -498,14 +532,17 @@ const bool CLG_Events_ProcessPlayerStateEvent( centity_t *playerEntity, const pl
 		*   Weapon Events:
         **/
 		case EV_WEAPON_PRIMARY_FIRE:
+			    DEBUG_PRINT_EVENT_NAME( "EV_WEAPON_PRIMARY_FIRE" );
 			    CLG_PlayerEvent_WeaponPrimaryFire( playerEntity, entityNumber, ps, playerStateEvent, lerpOrigin );
                 return true;
             break;
 		case EV_WEAPON_RELOAD:
+			    DEBUG_PRINT_EVENT_NAME( "EV_WEAPON_RELOAD" );
                 CLG_PlayerEvent_WeaponReload( playerEntity, entityNumber, ps, playerStateEvent, lerpOrigin );
                 return true;
             break;
         case EV_WEAPON_HOLSTER_AND_DRAW:
+			    DEBUG_PRINT_EVENT_NAME( "EV_WEAPON_HOLSTER_AND_DRAW" );
 			    CLG_PlayerEvent_WeaponHolsterAndDraw( playerEntity, entityNumber, ps, playerStateEvent, lerpOrigin );
                 return true;
             break;

@@ -64,17 +64,15 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	/**
 	*	Skin and Weapon Model Index:
 	**/
-	//! Setup the skin number.
-	encoded_skinnum_t encodedSkin;
-	//! Set the client number.
-	encodedSkin.clientNumber = (uint8_t)clientNumber;
-	//! Set the view weapon index.
-	encodedSkin.viewWeaponIndex = (uint8_t)playerState->gun.modelIndex;
-	//! Set the view height.
-	encodedSkin.viewHeight = (int8_t)playerState->pmove.viewheight;
-	//encodedSkin.viewHeight = 0; // Unused for now.
-	// Set the entity state values.
-	entityState->skinnum = encodedSkin.skinnum;
+	//! Encode into some client information into entity state its skin number.
+	entityState->skinnum = encoded_skinnum_t{
+		//! Set the client number.
+		.clientNumber = (uint8_t)clientNumber,
+		//! Set the view weapon index.
+		.viewWeaponIndex = (uint8_t)playerState->gun.modelIndex,
+		//! Set the view height.
+		.viewHeight = (int8_t)playerState->pmove.viewheight,
+	}.skinnum;
 
 	/**
 	*	Origin:

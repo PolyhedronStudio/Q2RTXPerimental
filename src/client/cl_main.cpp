@@ -2593,6 +2593,10 @@ static void CL_InitLocal(void)
     cl_shownet = Cvar_Get("cl_shownet", "0", 0);
     cl_showmiss = Cvar_Get("cl_showmiss", "1", 0);
     cl_showclamp = Cvar_Get("showclamp", "1", 0);
+#else
+    cl_shownet = Cvar_Get( "cl_shownet", "0", 0 );
+    cl_showmiss = Cvar_Get( "cl_showmiss", "0", 0 );
+    cl_showclamp = Cvar_Get( "showclamp", "0", 0 );
 #endif
 
     cl_timeout = Cvar_Get("cl_timeout", "120", 0);
@@ -3195,10 +3199,8 @@ int64_t CL_Frame( uint64_t msec ) {
 
     // Read user intentions. (Build up the local movement command for prediction.)
     CL_UpdateCommand( main_extra );
-
     // Finalize the pending command to be send.
     phys_frame |= ( cl.sendPacketNow );
-
     if ( phys_frame ) {
 		// Build the final movement vector to be sent to the server.
         CL_FinalizeCommand();
@@ -3210,7 +3212,6 @@ int64_t CL_Frame( uint64_t msec ) {
             phys_extra = 0;
         }
     }
-
     // Send pending cmds.
     CL_SendCommand();
 

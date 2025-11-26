@@ -70,6 +70,9 @@ cvar_t *maxclients = nullptr;
 cvar_t *maxentities = nullptr;
 //cvar_t *maxspectators = nullptr;
 
+cvar_t *cl_showmiss = nullptr;
+cvar_t *cl_debug_entity_events = nullptr;
+
 cvar_t *cl_kickangles = nullptr;
 cvar_t *cl_noskins = nullptr;
 cvar_t *cl_predict = nullptr;
@@ -530,6 +533,10 @@ void PF_InitGame( void ) {
 
 	cvar_pt_particle_emissive = clgi.CVar( "pt_particle_emissive", nullptr, 0 );
 	cl_particle_num_factor = clgi.CVar( "cl_particle_num_factor", nullptr, 0 );
+
+	// For debugging purposes.
+	cl_showmiss = clgi.CVar_Get( "cl_showmiss", "0", 0 ); // Fetched from engine.
+	cl_debug_entity_events = clgi.CVar_Get( "cl_debug_entity_events", "1", 0 );
 
 	// Client effects.
 	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );

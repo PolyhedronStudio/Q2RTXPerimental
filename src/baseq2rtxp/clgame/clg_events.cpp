@@ -10,6 +10,7 @@
 #include "clgame/clg_events.h"
 #include "clgame/clg_events_entities.h"
 #include "clgame/clg_events_player.h"
+#include "clgame/clg_effects.h"
 
 // Needed:
 #include "sharedgame/sg_entity_events.h"
@@ -111,21 +112,20 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
     entity_state_t *currentEntityState = &cent->current;
     // Acquire the actual event value by offing it with EV_EVENT_BITS.
     eventValue = SG_GetEntityEventValue( currentEntityState->event );
-    #if 0
-        //if ( cg_debugEvents.integer ) {
-    clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(%d), eventName(%s)\n", __func__, currentEntityState->number, eventValue, sg_event_string_names[ eventValue ] );
-//}
 
+	// Exit if this is a zero event.
     if ( !eventValue ) {
-        //DEBUGNAME( "ZEROEVENT" );
-        clgi.Print( PRINT_DEVELOPER, "%s: ZERO EVENT on entity(#%d)\n", __func__, currentEntityState->number );
+        // Debug print the event name.
+        if ( cl_debug_entity_events->integer ) {
+            clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(ZERO EVENT), eventName(%s)\n", __func__, currentEntityState->number, eventValue, sg_event_string_names[ eventValue ] );
+        }
         return;
+    } else {
+        // Debug print the event name.
+        if ( cl_debug_entity_events->integer ) {
+            clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(%d), eventName(%s)\n", __func__, currentEntityState->number, eventValue, sg_event_string_names[ eventValue ] );
+        }
     }
-    #else
-    if ( !eventValue ) {
-        return;
-    }
-    #endif
 
     /**
     *   Client Info Decoding by skinnum from entity state:
@@ -148,7 +148,7 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
     CLG_GetEntitySoundOrigin( cent->current.number, &cent->lerp_origin.x );
 
     // Process the event.
-    CLG_Events_ProcessEntityEvent( eventValue, cent->lerp_origin, cent, cent->current.number, clientNumber, clientInfo );
+    CLG_Events_FireEntityEvent( eventValue, cent->lerp_origin, cent, cent->current.number, clientNumber, clientInfo );
 }
 
 
@@ -172,28 +172,55 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
 *   @param  lerpOrigin          The origin to process the event at.
 *   @return True if an event was processed, false otherwise.
 **/
-const bool CLG_Events_CheckForPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
-	// Get the frame's client entity.
-    //centity_t *cent = &clg_entities[ clgi.client->frame.clientNum + 1 ];
-
-	// Entity has to be in the current frame to process though.
-    //if ( cent->serverframe != clgi.client->frame.number ) {
-    //    return false;
-    //}
-    
-    // Is this the view bound entity?
+const bool CLG_Events_LocalPlayerStateEvents( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin, const int32_t frameClientNumber ) {
+	// Is the view bound entity, the actual one which belongs to the player state data
+    // that is sent along the server frame?
     centity_t *viewBoundEntity = CLG_GetViewBoundEntity();
     // If the viewbound entity does not match, we won't process.
-    if ( !viewBoundEntity ) {
+    if ( !viewBoundEntity || !( CLG_IsLocalClientEntity( &viewBoundEntity->current ) ) || clgi.client->clientNumber != frameClientNumber ) {
         return false;
     }
-    
     // Entity has to be in the current frame to process though.
-    centity_t *cent = viewBoundEntity;
-    if ( cent->serverframe != clgi.client->frame.number ) {
+    if ( viewBoundEntity->serverframe != clgi.client->frame.number ) {
         return false;
     }
 
 	// Process the player state event.
-	return CLG_Events_ProcessPlayerStateEvent( cent, ops, ps, playerStateEvent, lerpOrigin );
+	return CLG_Events_FirePlayerStateEvent( viewBoundEntity, ops, ps, playerStateEvent, lerpOrigin );
+}
+
+
+
+/**
+*
+*
+*
+*	General Events:
+*
+*
+*
+**/
+/**
+*   @brief  The generic footstep sound event handler.
+**/
+void CLG_FootStepEvent( const int32_t entityNumber, centity_t *cent, const Vector3 &lerpOrigin ) {
+	// Pass on to the footstep sound effect handler.
+    CLG_FX_FootStepSound(
+        entityNumber,
+        lerpOrigin,
+        false,
+        CLG_IsLocalClientEntity( entityNumber )
+    );
+}
+/**
+*   @brief  Passes on to CLG_FX_FootStepSound with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
+**/
+void CLG_FootStepLadderEvent( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
+    // Pass on to the footstep sound effect handler.
+    CLG_FX_FootStepSound(
+        entityNumber,
+        lerpOrigin,
+        true,
+        CLG_IsLocalClientEntity( entityNumber )
+    );
 }

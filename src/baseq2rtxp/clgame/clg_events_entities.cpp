@@ -49,7 +49,7 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 *   @param  clientNumber        The client number of the entity generating the event, if any (-1 otherwise.).
 *   @param  clientInfo          The clientinfo_t of the entity generating the event, if any (nullptr otherwise).
 **/
-void CLG_Events_ProcessEntityEvent( const int32_t eventValue, const Vector3 &lerpOrigin, centity_t *cent, const int32_t entityNumber, const int32_t clientNumber, clientinfo_t *clientInfo ) {
+void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOrigin, centity_t *cent, const int32_t entityNumber, const int32_t clientNumber, clientinfo_t *clientInfo ) {
 
     // <Q2RTXP>: TODO: Fix so it doesn't do the teleporter at incorrect spawn origin.
     const Vector3 effectOrigin = lerpOrigin; // cent->current.origin 
@@ -62,15 +62,17 @@ void CLG_Events_ProcessEntityEvent( const int32_t eventValue, const Vector3 &ler
 
     // Handle the event.
     switch ( eventValue ) {
-        /**
-        *   FootStep Events:
-        **/
+    /**
+    *   FootStep Events:
+    **/
     case EV_OTHER_FOOTSTEP:
-        CLG_FootstepEvent( entityNumber );
+		DEBUG_PRINT_EVENT_NAME( "EV_OTHER_FOOTSTEP" );
+        CLG_FootStepEvent( entityNumber, cent, lerpOrigin );
         break;
     // General ladder footstep event:
     case EV_FOOTSTEP_LADDER:
-        CLG_FootstepLadderEvent( entityNumber );
+		DEBUG_PRINT_EVENT_NAME( "EV_FOOTSTEP_LADDER" );
+        CLG_FootStepLadderEvent( entityNumber, lerpOrigin );
         break;
 
     /**
@@ -78,17 +80,21 @@ void CLG_Events_ProcessEntityEvent( const int32_t eventValue, const Vector3 &ler
     **/
     // General entity sound event:
     case EV_GENERAL_SOUND:
+		DEBUG_PRINT_EVENT_NAME( "EV_GENERAL_SOUND" );
         CLG_EntityEvent_GeneralSound( cent, cent->current.eventParm0, cent->current.eventParm1 );
         break;
     case EV_GENERAL_SOUND_EX:
+		DEBUG_PRINT_EVENT_NAME( "EV_GENERAL_SOUND_EX" );
         CLG_EntityEvent_GeneralSoundEx( cent, cent->current.eventParm0, cent->current.eventParm1 );
         break;
     // General positioned sound event:
     case EV_POSITIONED_SOUND:
+		DEBUG_PRINT_EVENT_NAME( "EV_POSITIONED_SOUND" );
         CLG_EntityEvent_PositionedSound( lerpOrigin, cent->current.eventParm0, cent->current.eventParm1 );
         break;
     // General global sound event:
     case EV_GLOBAL_SOUND:
+		DEBUG_PRINT_EVENT_NAME( "EV_GLOBAL_SOUND" );
         CLG_EntityEvent_GlobalSound( cent->current.eventParm0 );
         break;
 
@@ -117,6 +123,7 @@ void CLG_Events_ProcessEntityEvent( const int32_t eventValue, const Vector3 &ler
     *   Item Events:
     **/
     case EV_ITEM_RESPAWN:
+		DEBUG_PRINT_EVENT_NAME( "EV_ITEM_RESPAWN" );
 		CLG_EntityEvent_ItemRespawn( cent, entityNumber, effectOrigin );
         break;
 

@@ -21,7 +21,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     // Lerp Origin:
     //   
     // Step origin discretely, because the frames do the animation properly:
-    if ( newState->renderfx & RF_FRAMELERP ) {
+    if ( newState->renderfx & RF_OLD_FRAME_LERP ) {
         VectorCopy( packetEntity->current.origin, refreshEntity->origin );
         VectorCopy( packetEntity->current.old_origin, refreshEntity->oldorigin );  // FIXME
     } else {

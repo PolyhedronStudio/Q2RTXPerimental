@@ -308,29 +308,30 @@ static Vector3 CLG_BaseMove( Vector3 move ) {
 /**
 *   @brief  
 **/
-static Vector3 CLG_ClampSpeed( Vector3 move ) {
+static Vector3 CLG_ClampSpeed( const Vector3 &move ) {
     // Determine the speed limit value to account for.
-    float speed = default_pmoveParams_t::pm_max_speed; // default (maximum) running speed
+    double maxSpeed = default_pmoveParams_t::pm_max_speed; // default (maximum) running speed
+
     // For 'flying' aka noclip or spectating.
     if ( clgi.client->frame.ps.pmove.pm_type == PM_SPECTATOR
         || clgi.client->frame.ps.pmove.pm_type == PM_NOCLIP ) {
-        speed = default_pmoveParams_t::pm_fly_speed;
+        maxSpeed = default_pmoveParams_t::pm_fly_speed;
     }
     // For in case we're 'swimming'.
     if ( game.predictedState.liquid.level >= cm_liquid_level_t::LIQUID_WAIST ) {
-        speed = default_pmoveParams_t::pm_water_speed;
+        maxSpeed = default_pmoveParams_t::pm_water_speed;
     }
 
     return QM_Vector3Clamp( move,
         {
-            -speed,
-            -speed,
-            -speed,
+            -maxSpeed,
+            -maxSpeed,
+            -maxSpeed,
         },
         {
-            speed,
-            speed,
-            speed,
+            maxSpeed,
+            maxSpeed,
+            maxSpeed,
         }
     );
 }
@@ -411,11 +412,11 @@ void CLG_ClearStateDownFlags( client_movecmd_t *moveCommand ) {
 *           Doesn't touch command forward/side/upmove, these are filled by CL_FinalizeCommand.
 **/
 void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand ) {
-    // adjust viewangles
+    // Adjust viewangles.
     CLG_AdjustAngles( msec );
 
     // Get basic movement from keyboard, including jump/crouch.
-    clgi.client->localmove = CLG_BaseMove( clgi.client->localmove );
+    Vector3 localMove = CLG_BaseMove( clgi.client->localmove );
 
     // Process Mouse Motion.
     const client_mouse_motion_t mouseMotion = clgi.CL_ProcessMouseMove();
@@ -423,25 +424,19 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand ) {
     if ( mouseMotion.hasMotion ) {
         CLG_MouseMotionMove( &mouseMotion );
     }
-
     // Figure button bits.
     CLG_FigureButtonBits( moveCommand );
-
     // Clear Various Down States.
     CLG_ClearStateDownFlags( moveCommand );
 
     // Add accumulated mouse forward/side movement.
-    clgi.client->localmove[ 0 ] += clgi.client->mousemove[ 0 ];
-    clgi.client->localmove[ 1 ] += clgi.client->mousemove[ 1 ];
-
-    // Clamp to server defined max speed
-    clgi.client->localmove = CLG_ClampSpeed( clgi.client->localmove );
+    // Clamp our local predicted move speed to the server defined max speed.
+    clgi.client->localmove = CLG_ClampSpeed( localMove + QM_Vector3FromVector2( clgi.client->mousemove ) );
     // Clamp the pitch.
     CLG_ClampPitch();
-    // Setup movecmd angles.
-    moveCommand->cmd.angles[ 0 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 0 ] );
-    moveCommand->cmd.angles[ 1 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 1 ] );
-    moveCommand->cmd.angles[ 2 ] = /*ANGLE2SHORT*/QM_AngleMod( clgi.client->viewangles[ 2 ] );
+
+	// Setup movecmd angles, ensure to angle mod them.
+	moveCommand->cmd.angles = QM_Vector3AngleMod( clgi.client->viewangles );
 }
 
 /**
@@ -451,7 +446,6 @@ void PF_UpdateMoveCommand( const int64_t msec, client_movecmd_t *moveCommand ) {
 void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
     // Figure button bits.
     CLG_FigureButtonBits( moveCommand );
-
     // Clear Various Down States.
     CLG_ClearStateDownFlags( moveCommand );
 
@@ -469,28 +463,23 @@ void PF_FinalizeMoveCommand( client_movecmd_t *moveCommand ) {
         #endif
     }
 
-    // rebuild the movement vector
-    Vector3 move = QM_Vector3Zero();
-
-    // get basic movement from keyboard
-    move = CLG_BaseMove( move );
-
-    // add mouse forward/side movement
-    move.x += clgi.client->mousemove.x;
-    move.y += clgi.client->mousemove.y;
-
-    // clamp to server defined max speed
-    move = CLG_ClampSpeed( move );
+    // Rebuild the movement vector, get basic movement from keyboard.
+    Vector3 move = CLG_BaseMove( QM_Vector3Zero() );
+    // Add mouse forward/side movement, and Clamp to server defined max speed.
+    move = CLG_ClampSpeed( 
+        move + QM_Vector3FromVector2( clgi.client->mousemove ) 
+    );
 
     // Store the movement vector
-    moveCommand->cmd.forwardmove = move.x;
-    moveCommand->cmd.sidemove = move.y;
-    moveCommand->cmd.upmove = move.z;
+    moveCommand->cmd.forwardmove    = move.x;
+    moveCommand->cmd.sidemove       = move.y;
+    moveCommand->cmd.upmove         = move.z;
 
     // Store impulse.
     moveCommand->cmd.impulse = in_impulse;
 
-    // Store frame and time.
+    // Store last valid frame and calculated actual servertime.
+	moveCommand->cmd.frameNumber = ( clgi.client->frame.valid ? clgi.client->frame.number : clgi.client->oldframe.number /* -1 */ );
     moveCommand->cmd.serverTime = clgi.client->servertime;
 }
 

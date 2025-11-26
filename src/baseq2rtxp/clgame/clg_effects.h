@@ -33,11 +33,8 @@ void CLG_PrecacheFootsteps( void );
 *   @brief  Will play an appropriate footstep sound effect depending on the material that we're currently
 *           standing on.
 **/
-void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder = false );
-/**
-*   @brief  Passes on to CLG_FootstepEvent with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
-**/
-void CLG_FootstepLadderEvent( const int32_t entityNumber );
+void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin, const bool isLadder = false, const bool isLocalClient = false );
+
 
 /***
 *

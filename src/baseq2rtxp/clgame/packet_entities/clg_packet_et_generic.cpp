@@ -122,7 +122,7 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
 **/
 static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
     // Step origin discretely, because the frames do the animation properly:
-    if ( newState->renderfx & RF_FRAMELERP ) {
+    if ( newState->renderfx & RF_OLD_FRAME_LERP ) {
         VectorCopy( packetEntity->current.origin, refreshEntity->origin );
         VectorCopy( packetEntity->current.old_origin, refreshEntity->oldorigin );  // FIXME
         // Interpolate start and end points for beams.

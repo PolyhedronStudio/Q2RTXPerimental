@@ -7,152 +7,234 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_precache.h"
+#include "clgame/clg_entities.h"
 
+#define _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS 1
+#define _DEBUG_PRINT_ENTITY_FOOTSTEPS 1
 
-
+/**
+*   @brief  Plays the footstep sound effect for the specified entity number,
+* 		    using the specified material footsteps and count.
+* 
+*   @note   That for local client entities, the attenuation is set to ATTN_NORM,
+* 		    while for other entities, it is set to ATTN_IDLE.
+**/
+static void FootStepSound( const int32_t entityNumber, const Vector3 *origin, const centity_t *cent, const char *material_kind, const qhandle_t *material_footsteps, const int32_t material_num_footsteps ) {
+    /**
+    *   Local Client Entity:
+    **/
+    if ( entityNumber == clgi.client->clientNumber + 1 ) {
+        // Play a randomly appointed footstep from the material_footsteps array that now points to the water footsteps.
+        clgi.S_StartSound(
+            // Play at the origin of the predicted state.
+            ( origin ? &origin->x : nullptr ),
+            // Entity number.
+            entityNumber,
+            // Channel.
+            CHAN_BODY,
+            // Random footstep sound from water footsteps.
+            material_footsteps[ Q_rand() & material_num_footsteps - 1 ],
+            // Volume.
+            1.,
+            // Attenuation.
+            ATTN_NORM,
+            // No time offset.
+            0.
+        );
+        // Debug print.
+        #if _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS
+            clgi.Print( PRINT_DEVELOPER, "%s: Local Client FootStep Path(material_kind(%s), num_footsteps(%i))\n", __func__, material_kind, material_num_footsteps );
+        #endif // _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS           
+    /**
+    *   Other Entity:
+    **/
+    } else {
+        // Play a randomly appointed footstep from the material_footsteps array that now points to the water footsteps.
+        clgi.S_StartSound(
+            // No specific origin, as the entity number is specified.
+            ( cent ? &cent->lerp_origin.x : nullptr ),
+            // Entity number.
+            entityNumber,
+            // Channel.
+            CHAN_BODY,
+            // Random footstep sound from water footsteps.
+            material_footsteps[ Q_rand() & material_num_footsteps - 1 ],
+            // Volume.
+            1.,
+            // IDLE Attenuation.
+            ATTN_IDLE,
+            // No time offset.
+            0.
+        );
+        // Debug print.
+        #if _DEBUG_PRINT_ENTITY_FOOTSTEPS
+            clgi.Print( PRINT_DEVELOPER, "%s: Other Entity FootStep Path(material_kind(%s), num_footsteps(%i))\n", __func__, material_kind, material_num_footsteps );
+        #endif // _DEBUG_PRINT_ENTITY_FOOTSTEPS
+    }
+}
 /**
 *   @brief  Will play an appropriate footstep sound effect depending on the material that we're currently
 *           standing on.
 **/
-void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
+void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin, const bool isLadder, const bool isLocalClient ) {
     // Opt-out in case footsteps are disabled.
     if ( !cl_footsteps->integer ) {
         return;
     }
 
-    // When isLadder is true, we don't need to do any material checks, instead we assume
-    // the ladder is made out of metal, and apply that material sound instead.
+    // Get predicted state.
+    client_predicted_state_t *predictedState = &game.predictedState;
+
+    // Get local client entity pointer:
+    centity_t *localClientEntity = CLG_GetLocalClientEntity(); //&clg_entities[ clgi.client->clientNumber + 1 ]
+	// Get the centity_t for this entity number.
+	centity_t *entityNumberEntity = &clg_entities[ entityNumber ];
+
+    // Material we're currently standing on: Defaults to null, varies by entity type.
+    cm_material_t *ground_material = nullptr;
+
+    // The default type is "floor".
+    const char *material_kind = "floor";
+	// Default footstep sound data:
+    qhandle_t *material_footsteps = precache.sfx.footsteps.floor;
+	// Default number of footsteps in the material_footsteps array:
+    uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
+
+    /**
+    * 
+	*   Ladder Path:
+    * 
+    **/
     if ( isLadder ) {
+        // When isLadder is true, we don't need to do any material checks, instead we assume
+        // the ladder is made out of metal, and apply that material sound instead.
         uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_METAL_STEPS;
         qhandle_t *material_footsteps = precache.sfx.footsteps.metal;
 
-        // Debug print.
-        clgi.Print( PRINT_DEVELOPER, "CLIMBING LADDER(%s), num_footsteps(%i)\n", "metal", material_num_footsteps);
+        // Origin if local client entity.
+        if ( isLocalClient ) {
+            // Play the footstep sound for metal ladders.
+            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, "ladder(metal)", material_footsteps, material_num_footsteps );
+        } else {
+            // Play the footstep sound for metal ladders.
+            FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, "ladder(metal)", material_footsteps, material_num_footsteps );
+        }
 
-        // Play a randomly appointed footstep from the material_footsteps array.
-        clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
 
         return;
     }
 
-	// Material we're currently standing on: Defaults to null, varies by entity type.
-    cm_material_t *ground_material = nullptr;
-    // The default type is "floor".
-    uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_FLOOR_STEPS;
-    qhandle_t *material_footsteps = precache.sfx.footsteps.floor;
-
-    const char *material_kind = "floor";
-
-    // Path for local client entity:
-	if ( entityNumber == clgi.client->clientNumber + 1 ) {
-        // Get predicted state.
-        client_predicted_state_t *predictedState = &game.predictedState;
+    /**
+    * 
+	*   Ground and Water Paths for both local client entity and other (packet-)entities:
+    *
+	*   Check for water at feet level first, and play sound and return if so.
+	*   Else, continue to ground material check and footstep sound playing.
+    * 
+    **/
+    /**
+    *   Path for local client entity (Play sound with ATTN_NORM):
+    **/
+    if ( isLocalClient ) {
         // Determine the material kind to fetch the sound data from.
-        ground_material = predictedState->ground.material;
+        if ( predictedState->ground.material ) {
+            ground_material = predictedState->ground.material;
+        }
 
+        #if 0
+		// If we have no ground material, and we're moving upwards fast enough, perform a ground trace to find the material.
+        if ( !ground_material && predictedState->currentPs.pmove.velocity.z > 100 ) {
+           // Perform a ground trace to determine the material we're currently standing on.
+            centity_t *traceSkipEntity = CLG_GetLocalClientEntity(); //&clg_entities[ clgi.client->clientNumber + 1 ];
+
+			// Trace from current origin to just below current origin to find ground material.
+            Vector3 traceStart = predictedState->currentPs.pmove.origin;
+            Vector3 traceEnd = traceStart + Vector3{ 0., 0., -( PM_STEP_MAX_SIZE + 0.25 ) };
+
+			// Perform the trace.
+            cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &predictedState->mins.x, &predictedState->maxs.x, &traceEnd.x, traceSkipEntity, CM_CONTENTMASK_SOLID );
+
+			// If we got a material from the ground trace, use it.
+            if ( groundTrace.material ) {
+                // Assign it.
+                ground_material = groundTrace.material;
+                material_kind = groundTrace.material->physical.kind;
+
+				#ifdef _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS
+                    clgi.Print( PRINT_DEVELOPER, "%s: Jump Path(material_kind(%s))\n", __func__, material_kind );
+                #endif
+            }
+        }
+        #endif
+
+		// Must be in a liquid of contents type water, and feet level liquid.
         if ( predictedState->liquid.type & CONTENTS_WATER &&
             predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
+			// Adjust material kind and footstep data for water.
             material_kind = "water";
             material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
             material_footsteps = precache.sfx.footsteps.water;
 
-            clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
-            clgi.Print( PRINT_DEVELOPER, "%s: Water Path(material_kind(%s))\n", __func__, material_kind );
+            // Play the footstep sound for water.
+            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, material_kind, material_footsteps, material_num_footsteps );
 
-            return;
+            //return;
         }
-    // Path for other (packet-)entities:
+    /**
+    *   Path for other (packet-)entities (Play sound with ATTN_IDLE):
+    *
+    *   Check for Water Feet Level first, and play sound and return if so.
+    **/
     } else {
         // Get the centity_t for this entity number.
         centity_t *cent = &clg_entities[ entityNumber ];
 
 		// Perform a ground trace to determine the material we're currently standing on.
         if ( cent ) {
-			// Trace from current origin to just below current origin to find ground material.
-            centity_t *traceSkipEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
-            Vector3 traceStart = cent->current.origin;
+            // Trace from current origin to just below current origin to find ground material.
+            Vector3 traceStart = lerpOrigin;
             Vector3 traceEnd = traceStart + Vector3{ 0., 0., -0.25 };
-            Vector3 traceMins = cent->mins;
-            Vector3 traceMaxs = cent->maxs;
-            cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &traceMins.x, &traceMaxs.x, &traceEnd.x, traceSkipEntity, CM_CONTENTMASK_SOLID );
+            // Perform the trace.
+            cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &cent->mins.x, &cent->maxs.x, &traceEnd.x, cent, CM_CONTENTMASK_SOLID );
 
+			// If we got a material from the ground trace, use it.
             if ( groundTrace.material ) {
-                ground_material = groundTrace.material;
+				// Default to the traced ground material.
+                ground_material = groundTrace.material;                
                 
-                
+				// Check for whether we're in water at feet level:
                 if ( groundTrace.contents & CONTENTS_WATER 
+					// <Q2RTXP>: TODO: Fix liquid level checking for packet entities.
                     /*&& predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET*/ ) {
+
+                    // Adjust material kind and footstep data for water.
                     material_kind = "water";
                     material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
                     material_footsteps = precache.sfx.footsteps.water;
 
-                    clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
-                    clgi.Print( PRINT_DEVELOPER, "%s: Water Path(material_kind(%s))\n", __func__, material_kind );
+                    // Play the footstep sound for water.
+                    FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, material_kind, material_footsteps, material_num_footsteps );
 
-                    return;
+                    // Exit.
+                    //return;
                 }
             }
 		}
     }
-
-
-
-    // <Q2RTXP>: TODO: Check if this is our local client entity.
-    // OR ACTUALLY, MOVE THIS TO PMOVE CODE AND ADD IN THE EXTERNAL ENTITY EVENTS FROM Q3!!!!
-    // YES
-    // YES
-    // DO THIS WAKE UP
-    // 
-    // Then we can rewrite this function to work with playerstate for local entity,
-    // and otherwise entity events for other entities.
-    // 
-    // Similarly, we can also add in a client side version or sharedgame rather, for falling damage appliances and
-    // the screen blending, neato.
-    // 
-    // After that, move weapon code in there??
-    // 
-    // Special water feet level footsteps:
-    #if 0
-    if ( predictedState->liquid.type & CONTENTS_WATER &&
-        predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
-        material_kind = "water";
-        material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
-        material_footsteps = precache.sfx.footsteps.water;
-
-        clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
-        clgi.Print( PRINT_DEVELOPER, "%s: Water Path(material_kind(%s))\n", __func__, material_kind );
-
-        return;
-    // Default behavior: Adjust footstep material kind based on the predicted ground material:
-    } else {//if ( ground_material ) {
-    #endif
+    
+    /**
+	*   We did not early out, so now we proceed with playing the footstep sound 
+    *   based on material kind that we found. Its default is "floor".
+    **/
     {
+		// If we have a ground material, override the default floor with acquire ground material kind.
         if ( ground_material ) {
             material_kind = ground_material->physical.kind;
         }
 
-        // See if we're trick jumping, if so, perform a step height + ground offset trace for
-        // finding a proper material sound to play while 'landing'.
-        #if 0
-        player_state_t *currentPs = &predictedState->currentPs;
-
-        if ( currentPs->pmove.pm_flags & PMF_TIME_TRICK_JUMP || currentPs->pmove.velocity.z > 100 ) {
-            centity_t *traceSkipEntity = &clg_entities[ clgi.client->clientNumber + 1 ];
-            Vector3 traceStart = currentPs->pmove.origin;
-            Vector3 traceEnd = traceStart + Vector3{ 0., 0., -( PM_STEP_MAX_SIZE + 0.25 ) };
-            Vector3 traceMins = predictedState->mins;
-            Vector3 traceMaxs = predictedState->maxs;
-            cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &traceMins.x, &traceMaxs.x, &traceEnd.x, traceSkipEntity, CM_CONTENTMASK_SOLID );
-
-            if ( groundTrace.material ) {
-                ground_material = groundTrace.material;
-                material_kind = groundTrace.material->physical.kind;
-                //clgi.Print( PRINT_DEVELOPER, "%s: Trick Jump Path(material_kind(%s))\n", __func__, material_kind );
-            }
-        }
-        #endif
-
-        // Determine if we're on a different type of material, and if so, adjust the above variables accordingly.
+        /**
+		*   Determine precache pointers for the footstep data based on the material kind string.
+        **/
         if ( strcmp( "carpet", material_kind ) == 0 ) {
             material_num_footsteps = precache.sfx.footsteps.NUM_CARPET_STEPS;
             material_footsteps = precache.sfx.footsteps.carpet;
@@ -185,19 +267,17 @@ void CLG_FootstepEvent( const int32_t entityNumber, const bool isLadder ) {
             material_footsteps = precache.sfx.footsteps.wood;
         }
 
-        // Play a randomly appointed footstep from the material_footsteps array.
-        //if ( ground_material ) {
-            clgi.S_StartSound( NULL, entityNumber, CHAN_BODY, material_footsteps[ Q_rand() & material_num_footsteps - 1 ], 1, ATTN_NORM, 0 );
-            //clgi.Print( PRINT_DEVELOPER, "%s: Default Path(material_kind(%s), num_footsteps(%i))\n", __func__, material_kind, material_num_footsteps );
-        //}
+        /**
+        *   Now play the sound:
+        **/
+        // Play the footstep sound for local client entity.
+        if ( isLocalClient ) {
+            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, material_kind, material_footsteps, material_num_footsteps );
+        // Play the footstep sound for other (packet-)entities.
+        } else {
+            FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, material_kind, material_footsteps, material_num_footsteps );
+        }
     }
-}
-
-/**
-*   @brief  Passes on to CLG_FootstepEvent with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
-**/
-void CLG_FootstepLadderEvent( const int32_t entityNumber ) {
-    CLG_FootstepEvent( entityNumber, true );
 }
 
 /**

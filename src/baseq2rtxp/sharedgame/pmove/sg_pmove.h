@@ -65,6 +65,8 @@ typedef enum sg_player_state_event_e {
 *	@brief	Default player movement parameter constants.
 **/
 typedef struct default_pmoveParams_s {
+    //! Minimum speed required for footstep sounds to be made.
+    static constexpr double pm_footstep_speed = 125;
     //! Stop speed.
     static constexpr double pm_stop_speed = 100.;
     //! Server determined maximum speed.
@@ -115,6 +117,8 @@ typedef struct default_pmoveParams_s {
 *			NOTE: In the future this will change, obviously.
 **/
 typedef struct pmoveParams_s {
+	//! Minimum speed required for footstep sounds to be made.
+    double pm_footstep_speed = default_pmoveParams_t::pm_footstep_speed;
     //! Stop speed.
     double pm_stop_speed = default_pmoveParams_t::pm_stop_speed;
     //! Server determined maximum speed.

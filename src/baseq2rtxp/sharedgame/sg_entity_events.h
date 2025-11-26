@@ -99,10 +99,15 @@ typedef enum sg_entity_events_e {
     /**
     *   Footstep Events:
     **/
+    #if 1
     //! For players.
     EV_PLAYER_FOOTSTEP = EV_ENGINE_MAX,
 	//! For other entities.
     EV_OTHER_FOOTSTEP,
+    #else
+    //! For players and monsters.
+    EV_FOOTSTEP = EV_ENGINE_MAX,
+    #endif
 	//! For ladder climbing entities.
     EV_FOOTSTEP_LADDER,
 
@@ -212,8 +217,12 @@ typedef enum sg_entity_events_e {
 static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     "EV_ENGINE_NONE",
 
+    #if 1
     "EV_PLAYER_FOOTSTEP",
 	"EV_OTHER_FOOTSTEP",
+    #else
+    "EV_FOOTSTEP",
+    #endif
     "EV_FOOTSTEP_LADDER",
 
 	"EV_WATER_ENTER_FEET",
