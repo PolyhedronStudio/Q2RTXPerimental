@@ -46,7 +46,7 @@ typedef struct server_frame_s {
     //! A snapshot of the player's state during this frame.
     player_state_t  ps;
     //! The client number that this frame belongs to.
-    int32_t         clientNum;
+    //int32_t         clientNum;
 
     //! The number of entities in the frame.
     int32_t         numEntities;
@@ -56,13 +56,6 @@ typedef struct server_frame_s {
     //! Stores the parsed entity states for this 'snapshot' frame.
     //entity_state_t  entities[ MAX_CLIENT_ENTITIES ];
 } server_frame_t;
-
-// locally calculated frame flags for debug display
-#define FF_SERVERDROP   (1<<4)
-#define FF_BADFRAME     (1<<5)
-#define FF_OLDFRAME     (1<<6)
-#define FF_OLDENT       (1<<7)
-#define FF_NODELTA      (1<<8)
 
 
 

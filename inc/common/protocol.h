@@ -30,8 +30,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 //! Validate the client number.
 inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
-	return ( ( x ) >= -1 && ( x ) < MAX_CLIENTS );
-	//return ( ( x ) >= -1 && ( x ) < MAX_EDICTS - 1 );
+	//return ( ( x ) >= 0 && ( x ) < CLIENTNUM_NONE );
+	//return ( ( x ) >= -1 && ( x ) < MAX_CLIENTS );
+	return ( ( x ) >= -1 && ( x ) < MAX_EDICTS - 1 );
 	//return ( ( x ) >= -1 && ( x ) < MAX_CLIENTS - 1 );
 }
 
@@ -88,6 +89,8 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 
 #define PS_M_GRAVITY		BIT_ULL( 25 )
 
+#define PS_CLIENT_NUMBER	BIT_ULL( 26 )
+
 
 //==============================================
 
@@ -111,7 +114,7 @@ inline static const bool VALIDATE_CLIENTNUM( int32_t x ) {
 #define SND_POS             (1<<2)  // three coordinates
 #define SND_ENT             (1<<3)  // a short 0-2: channel, 3-12: entity
 #define SND_OFFSET          (1<<4)  // a byte, msec offset from frame start
-#define SND_INDEX16         (1<<5)  // index is 16-bit
+//#define SND_INDEX16         (1<<5)  // index is 16-bit
 
 #define DEFAULT_SOUND_PACKET_VOLUME         1.0f
 #define DEFAULT_SOUND_PACKET_ATTENUATION    1.0f

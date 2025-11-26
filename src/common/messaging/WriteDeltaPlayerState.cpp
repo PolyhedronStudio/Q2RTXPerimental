@@ -42,6 +42,10 @@ void MSG_WriteDeltaPlayerstate( const player_state_t *from, const player_state_t
 	//
 	pflags = 0;
 
+	if ( to->clientNumber != from->clientNumber ) {
+		pflags |= PS_CLIENT_NUMBER;
+	}
+
 	// pmove_state_t:
 	if ( to->pmove.pm_type != from->pmove.pm_type ) {
 		pflags |= PS_M_TYPE;
@@ -133,6 +137,10 @@ void MSG_WriteDeltaPlayerstate( const player_state_t *from, const player_state_t
 	// write it
 	//
 	MSG_WriteUintBase128( pflags );
+
+	if ( pflags & PS_CLIENT_NUMBER ) {
+		MSG_WriteIntBase128( to->clientNumber );
+	}
 
 	//
 	// write the pmove_state_t

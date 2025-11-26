@@ -948,7 +948,9 @@ static void PM_CrashLand( void ) {
 	{
 		if ( delta < 15 ) {
 			if ( delta > 7 && !( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
-				PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 );
+				if ( pm->state->pmove.pm_type == PM_NORMAL ) {
+					PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 );
+				}
 			} else {
 				// start footstep cycle over
 				//pm->state->bobCycle = 0;
@@ -1286,7 +1288,9 @@ static void PM_CycleBob() {
 				//	PM_AddEvent( EV_FOOTSTEP_LADDER, 0 );
 				//	SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(% i), oldBobCycle(% i), bobMove(%lf), Event(EV_FOOTSTEP_LADDER), Time(%" PRId64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
 				//} else {
+				if ( pm->state->pmove.pm_type == PM_NORMAL ) {
 					PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 /*PM_FootstepForSurface()*/ );
+				}
 					//SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%lf), Event(EV_FOOTSTEP), Time(%" PRId64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
 				//}
 			}

@@ -66,19 +66,23 @@ static void SV_EmitPacketEntities(client_t         *client,
     static bool baseline_oob_logged = false;
 
     /**
-	*   Write the 'svc_packetentities' command.
+    *   Write the 'svc_packetentities' command.
     **/
     while (newindex < to->num_entities || oldindex < from_num_entities) {
+        // Reset per-entity flags at start of each iteration to avoid propagation
+        // of flags from previous entities.
+        flags = client->esFlags;
+
         /**
         *   New Entity Index:
         **/
-		// Fetch the new entity number.
+        // Fetch the new entity number.
         if (newindex >= to->num_entities) {
             newnum = 9999;
         } else {
             // Fetch the new entity index into the entities array..
             i = (to->first_entity + newindex) % svs.num_entities;
-			// Fetch the new entity.
+            // Fetch the new entity.
             newent = &svs.entities[i];
             // Fetch the new entity its number and back it up.
             newnum = newent->number;
@@ -86,44 +90,43 @@ static void SV_EmitPacketEntities(client_t         *client,
         /**
         *   Old Entity Index:
         **/
-		// Fetch the old entity number.
+        // Fetch the old entity number.
         if (oldindex >= from_num_entities) {
             oldnum = 9999;
         } else {
-			// Fetch the old entity index into the entities array..
+            // Fetch the old entity index into the entities array..
             i = (from->first_entity + oldindex) % svs.num_entities;
-			// Fetch the old entity.
+            // Fetch the old entity.
             oldent = &svs.entities[i];
-			// Fetch the old entity its number and back it up.
+            // Fetch the old entity its number and back it up.
             oldnum = oldent->number;
         }
 
-		// Compare the new and old entity numbers.
+        // Compare the new and old entity numbers.
         if (newnum == oldnum) {
             // Delta update from old position. Because the force parm is false,
             // this will not result in any bytes being emitted if the entity has
             // not changed at all. Note that players are always 'newentities',
             // this updates their old_origin always and prevents warping in case
             // of packet loss.
-            flags = client->esFlags;
             // In case of a Player Entity, force the new entity state flag to be set.
             if (newnum <= client->maxclients) {
-				flags |= MSG_ES_NEWENTITY;
+                flags |= MSG_ES_NEWENTITY;
             }
             // In case this is our own client entity, update the new ent's origin and angles.
             if (newnum == clientEntityNumber) {
-				// Indicate first-person entity.
+                // Indicate first-person entity.
                 flags |= MSG_ES_FIRSTPERSON;
-				// Backup origin and angles.
+                // Backup origin and angles.
                 newent->origin = oldent->origin; //VectorCopy(oldent->origin, newent->origin);
                 newent->angles = oldent->angles; //VectorCopy(oldent->angles, newent->angles);
             }
-			// Write the delta entity.
+            // Write the delta entity.
             MSG_WriteDeltaEntity(oldent, newent, flags);
-			// Advance both indices.
+            // Advance both indices.
             oldindex++;
             newindex++;
-			// Skip the remainder to the next iteration.
+            // Skip the remainder to the next iteration.
             continue;
         }
 
@@ -131,6 +134,8 @@ static void SV_EmitPacketEntities(client_t         *client,
         *   The old entity is present in the current frame.
         **/
         if ( newnum < oldnum ) {
+            // start from client's base flags for this entity
+            // (flags was already reset at top of loop)
             flags |= MSG_ES_FORCE | MSG_ES_NEWENTITY;
             const uint32_t baselineIndex = (uint32_t)( newnum >> SV_BASELINES_SHIFT );
 
@@ -180,11 +185,11 @@ static void SV_EmitPacketEntities(client_t         *client,
                 newent->origin = oldent->origin; //VectorCopy(oldent->origin, newent->origin);
                 newent->angles = oldent->angles; //VectorCopy(oldent->angles, newent->angles);
             }
-			// Write the delta entity.
+            // Write the delta entity.
             MSG_WriteDeltaEntity( oldent, newent, flags );
-			// Advance the new index.
+            // Advance the new index.
             newindex++;
-			// Skip the remainder to the next iteration.
+            // Skip the remainder to the next iteration.
             continue;
         }
 
@@ -192,9 +197,9 @@ static void SV_EmitPacketEntities(client_t         *client,
         if (newnum > oldnum) {
             // The old entity isn't present in the new message.
             MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE );
-			// Advance the old index.
+            // Advance the old index.
             oldindex++;
-			// Skip the remainder to the next iteration.
+            // Skip the remainder to the next iteration.
             continue;
         }
     }
@@ -291,6 +296,7 @@ void SV_WriteFrameToClient( client_t *client ) {
 	MSG_WriteIntBase128( client->framenum ); // WID: 64-bit-frame MSG_WriteInt32( client->framenum );
 	MSG_WriteIntBase128( lastFrameNumber ); // WID: 64-bit-frame MSG_WriteInt32( lastframe );   // what we are delta'ing from
 	MSG_WriteUint8( client->suppress_count );  // Rate dropped packets
+
 	client->suppress_count = 0;
 	client->frameflags = 0;
 
@@ -304,14 +310,24 @@ void SV_WriteFrameToClient( client_t *client ) {
         WriteCurrentPortalBits();
     }
 
+    #ifndef _NO_PM_TYPE_AFTER_DEATH
+        // Default.
+        int32_t clientEntityNumber = 0;
+	    // All pm_types < PM_DEAD are predicted, so we can send the client entity number for prediction.
+        if ( newFrame->ps.pmove.pm_type < PM_DEAD ) {
+            clientEntityNumber = newFrame->ps.clientNumber + 1;
+        }
+    #else
+        const int32_t clientEntityNumber = newFrame->ps.clientNumber + 1;
+    #endif
 	// Delta encode the playerstate.
 	MSG_WriteUint8( svc_playerinfo );
-    MSG_WriteUint8( newFrame->clientNum );
+    //MSG_WriteUint8( newFrame->ps.clientNumber );
     MSG_WriteDeltaPlayerstate( oldPlayerState, &newFrame->ps );
 
 	// Delta encode the entities.
 	MSG_WriteUint8( svc_packetentities );
-	SV_EmitPacketEntities( client, oldFrame, newFrame, 0/*newFrame->clientNum*/);
+	SV_EmitPacketEntities( client, oldFrame, newFrame, clientEntityNumber );
 }
 
 
@@ -551,31 +567,19 @@ void SV_BuildClientFrame(client_t *client)
     /**
 	*   Setup playerstate, ensure the frame has the correct clientNum:
     **/
+    // Assign the clientNum from the entity's client structure.
+    ps->clientNumber = clent->client->clientNum;
+	// If the clientNum is invalid, fix it.
+    if ( !VALIDATE_CLIENTNUM( ps->clientNumber) ) {
+        // Warn.
+        Com_WPrintf("%s: bad clientNum " PRId32 " for client " PRId32 "\n",
+                    __func__, ps->clientNumber, client->number );
+
+		// Fix the clientNum by resetting it to our own default received at connection time.
+        ps->clientNumber = client->number;
+    }
     // Set the frame's playerstate to the current player_state_t
     frame->ps = *ps;
-    // Grab the entity's client's current clientNum
-    if (g_features->integer & GMF_CLIENTNUM) {
-		// Assign the clientNum from the entity's client structure.
-        frame->clientNum = clent->client->clientNum;
-		// If the clientNum is invalid, fix it.
-        if (!VALIDATE_CLIENTNUM(frame->clientNum)) {
-            Com_WPrintf("%s: bad clientNum " PRId32 " for client " PRId32 "\n",
-                        __func__, frame->clientNum, client->number );
-			// Fix the clientNum.
-            frame->clientNum = client->number;
-        }
-    // Otherwise, hard-assign it from the client number.
-    } else {
-        // <Q2RTXP>: WID: TODO: Do we need this? Probably best to test on dedicated server then.
-        frame->clientNum = client->number;
-    }
-
-    // <Q2RTXP>: WID: TODO: We still need this?
-    // Remember to fix clientNum if out of range for older version of Q2PRO protocol.
-    bool need_clientnum_fix = false;
-    if ( frame->clientNum >= CLIENTNUM_NONE ) {
-        need_clientnum_fix = true;
-    }
 
     /**
 	*   Determine the PVS and PHS for the client.
@@ -618,7 +622,7 @@ void SV_BuildClientFrame(client_t *client)
         /**
         *   Determine whether the entity should be sent to this client.
         **/
-        if ( SV_SendClientIDSkipCheck( ent, frame->clientNum ) ) {
+        if ( SV_SendClientIDSkipCheck( ent, frame->ps.clientNumber ) ) {
             continue;
 		}
 
@@ -679,6 +683,21 @@ void SV_BuildClientFrame(client_t *client)
         entity_state_t entityStateCopy = ent->s;
 
         /**
+		*   Ensure entity state has the correct clientNumber set (if applicable).
+        **/
+        // Decode the skinnum to modify the clientNumber.
+        encoded_skinnum_t skinnum = static_cast<encoded_skinnum_t>( entityStateCopy.skinnum );
+        if ( ( ent->s.number > 0 && ent->s.number <= sv_maxclients->integer ) 
+            && ent == clent
+            && skinnum.clientNumber != ps->clientNumber
+        ) {
+			// Fix the skinnum to be the client's own number.
+	    	skinnum.clientNumber = ps->clientNumber;
+			// Set the skinnum back to the entity state.
+            entityStateCopy.skinnum = skinnum.skinnum;
+		}
+
+        /**
 		*   If the entity is invisible, kill its sound. (Unless SVF_NO_CULL is set.)
         **/
 		if ( entityVisibleForFrame == false && !( ent->svFlags & SVF_NO_CULL ) ) {
@@ -686,10 +705,9 @@ void SV_BuildClientFrame(client_t *client)
 		}
 
         /**
-        *   Hide POV entity from renderer, unless this is player's own entity.
+		*   Keep POV entity if this is player's own entity. Otherwise, remove it from rendering.
         **/
-        if ( entityNumber == frame->clientNum + 1 && ent != clent &&
-            (/*!Q2PRO_OPTIMIZE(client) || */need_clientnum_fix)) {
+        if ( entityNumber == frame->ps.clientNumber + 1 && ent != clent ) {
             entityStateCopy.modelindex = 0;
         }
 
@@ -725,8 +743,8 @@ void SV_BuildClientFrame(client_t *client)
 
 	// <Q2RTXP>: WID: Do we still need this clientNum fix for older protocol versions?
 	// If needed, fix the clientNum for older protocol versions.
-    if ( need_clientnum_fix ) {
-        frame->clientNum = client->slot;
-    }
+    //if ( need_clientnum_fix ) {
+    //    frame->ps.clientNumber = client->slot;
+    //}
 }
 

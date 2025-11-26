@@ -18,10 +18,10 @@ typedef union encoded_skinnum_s {
     int32_t         skinnum;
     //! Union for easy access.
     struct {
-        uint8_t     clientNumber;
+        int16_t     clientNumber;
         uint8_t     viewWeaponIndex;
         int8_t      viewHeight;
-        uint8_t     reserved;
+        //uint8_t     reserved;
     };
 } encoded_skinnum_t;
 

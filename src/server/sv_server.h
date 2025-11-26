@@ -253,7 +253,7 @@ typedef struct {
     //! player_state_t.
     player_state_t ps;
     //! Client Number.
-    int32_t		clientNum;
+    //int32_t		clientNum;
 
     //
     //! Portalarea Visibility Bits. 
@@ -470,7 +470,7 @@ typedef struct client_s {
     uint64_t		frames_acked;               //! Number of frames acknowledged.
     uint64_t        frames_nodelta;             //! Number of frames that did not have delta compression.
     int64_t			framenum;
-    uint64_t		frameflags;
+    frameflags_t    frameflags;
 
     /**
     *   Rate Dropping:

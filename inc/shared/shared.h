@@ -317,16 +317,12 @@ typedef enum {
 #include "shared/net/net_configstrings.h"
 //! Elements Communicated across the NET.
 #include "shared/net/net_elements.h"
+//! Frame Flags communicated across the NET.
+#include "shared/net/net_frameflags.h"
 //! Server to Client, and Client to Server CommandMessages.
 #include "shared/net/net_command_messages.h"
 //! User Commands( User Input ):
 #include "shared/net/net_usercommand.h"
-//! Network Frame Flags:
-#define FF_NONE			0
-#define FF_SUPPRESSED   (1<<0)
-#define FF_CLIENTDROP   (1<<1)
-#define FF_CLIENTPRED   (1<<2)	// Set but unused?
-#define FF_RESERVED     (1<<3)	// Literally reserved.
 
 
 /**

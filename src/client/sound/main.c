@@ -983,7 +983,7 @@ void S_Update(void)
     if (cls.state != ca_active) {
         cl.listener_spatialize.entnum = -1;
     } else {
-        cl.listener_spatialize.entnum = cl.frame.clientNum + 1;
+        cl.listener_spatialize.entnum = cl.frame.ps.clientNumber + 1;
     }
 
     OGG_Update();

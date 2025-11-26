@@ -170,7 +170,7 @@ typedef struct player_state_s {
     *   
     **/
     //! The client number for the frame this player_state_t belongs to.
-    //int32_t         clientNum;
+    int16_t clientNumber;
 
     /**
     *   Movement State:

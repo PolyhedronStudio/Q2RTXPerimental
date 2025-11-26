@@ -555,10 +555,11 @@ static void emit_snd( client_t *client, message_packet_t *msg ) {
 
 	MSG_WriteUint8( svc_sound );
 	MSG_WriteUint8( flags );
-	if ( flags & SND_INDEX16 )
-		MSG_WriteUint16( msg->index );
-	else
-		MSG_WriteUint8( msg->index );
+	//if ( flags & SND_INDEX16 )
+	//	MSG_WriteUint16( msg->index );
+	//else
+	//	MSG_WriteUint8( msg->index );
+	MSG_WriteUintBase128( msg->index );
 
 	if ( flags & SND_VOLUME )
 		MSG_WriteUint8( msg->volume );

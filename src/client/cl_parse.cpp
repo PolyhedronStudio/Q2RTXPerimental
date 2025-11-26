@@ -200,8 +200,9 @@ static void CL_ParseFrame()
     server_frame_t  frame = { };
     // Previous old frame.
     server_frame_t *oldframe = nullptr;
+
     // Player state to interpolate from.
-    player_state_t *from = nullptr;
+    player_state_t *fromPs = nullptr;
 
     // Reset current frame flags.
     cl.frameflags = FF_NONE;
@@ -229,24 +230,35 @@ static void CL_ParseFrame()
     // Delta Compressed Frame:
     if ( deltaframe > 0 ) {
         oldframe = &cl.frames[ deltaframe & UPDATE_MASK ];
-        from = &oldframe->ps;
-        // Old servers may cause this on map change:
+        fromPs = &oldframe->ps;
+
+        /**
+        *   Old servers may cause this on map change:
+        **/
         if ( deltaframe == currentframe ) {
             Com_DPrintf( "%s: delta from current frame\n", __func__ );
             cl.frameflags |= FF_BADFRAME;
-        // Should never happen.
+        /**
+        *   Should never happen:
+        **/
         } else if ( !oldframe->valid ) {
             Com_DPrintf( "%s: delta from invalid frame\n", __func__ );
             cl.frameflags |= FF_BADFRAME;
-        // The frame that the server did the delta from is too old, so we can't reconstruct it properly.
+        /**
+        *   The frame that the server did the delta from is too old, so we can't reconstruct it properly:
+        **/
         } else if ( oldframe->number != deltaframe ) {
             Com_DPrintf( "%s: delta frame was never received or too old\n", __func__ );
             cl.frameflags |= FF_OLDFRAME;
-        // The entities are outdated:
+        /**
+        *   The entities are outdated:
+        **/
         } else if ( ( cl.numEntityStates - oldframe->firstEntity ) > ( MAX_PARSE_ENTITIES - MAX_PACKET_ENTITIES ) ) {
             Com_DPrintf( "%s: delta entities too old\n", __func__ );
             cl.frameflags |= FF_OLDENT;
-        // A valid delta frame has been parsed.
+        /**
+        *   A valid delta frame has been parsed:
+        **/
         } else {
             frame.valid = true;
         }
@@ -255,28 +267,36 @@ static void CL_ParseFrame()
         if ( cls.demo.playback && !frame.valid && cl.frame.valid ) {
             Com_DPrintf( "%s: recovering broken demo\n", __func__ );
             oldframe = &cl.frame;
-            from = &oldframe->ps;
+            fromPs = &oldframe->ps;
             frame.valid = true;
         }
-    // Unompressed Frame:
+    /**
+    *   Unompressed Frame:
+    **/
     } else {
         oldframe = nullptr;
-        from = nullptr;
+        fromPs = nullptr;
         frame.valid = true; // uncompressed frame
         cl.frameflags |= FF_NODELTA;
     }
 
     // Read areabits
-    int32_t length = MSG_ReadUint8();
-    if (length) {
-        if (length < 0 || msg_read.readcount + length > msg_read.cursize) {
-            Com_Error(ERR_DROP, "%s: read past end of message", __func__);
+    const int32_t length = MSG_ReadUint8();
+    if ( length ) {
+		// Ensure we do not read past the end of the message.
+        if ( length < 0 || msg_read.readcount + length > msg_read.cursize ) {
+            Com_Error( ERR_DROP, "%s: read past end of message", __func__ );
         }
-        if (length > sizeof(frame.areabits)) {
-            Com_Error(ERR_DROP, "%s: invalid areabits length", __func__);
+		// Ensure length is sane.
+        if ( length > sizeof( frame.areabits ) ) {
+            Com_Error( ERR_DROP, "%s: invalid areabits length", __func__ );
         }
-        memcpy(frame.areabits, msg_read.data + msg_read.readcount, length);
+
+		// Copy over area bits.
+        std::memcpy( frame.areabits, msg_read.data + msg_read.readcount, length );
+		// Advance the readcount.
         msg_read.readcount += length;
+		// Set areabytes.
         frame.areabytes = length;
     } else {
         frame.areabytes = 0;
@@ -311,18 +331,35 @@ static void CL_ParseFrame()
         CM_FloodAreaConnections( &cl.collisionModel );
     }
 
-    //if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        if (MSG_ReadUint8() != svc_playerinfo) {
-            Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
-        }
-    //}
+    /**
+	*   Parse playerinfo.
+    **/
+	// Expect svc_playerinfo or bail out.
+    if (MSG_ReadUint8() != svc_playerinfo) {
+        Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
+    }
 
     SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
-    // Set the client number.
-    frame.clientNum = MSG_ReadUint8();//cl.clientNumber;
-    // parse playerstate
+	// <Q2RTXP>: Removed client number reading from playerinfo.
+	// Moved to be read in the playerstate delta instead..
+    #if 0
+    // Get the client number.
+    frame.ps.clientNumber = MSG_ReadUint8();//cl.clientNumber;
+    // parse clientNum
+    if ( !VALIDATE_CLIENTNUM( frame.ps.clientNumber ) ) {
+        Com_Error( ERR_DROP, "%s: bad clientNum(%d)", __func__, frame.ps.clientNumber );
+    }
+    #endif
+
+    /**
+    *   Parse playerstate.
+    **/
     const uint64_t playerStateBits = MSG_ReadUintBase128();
-	MSG_ParseDeltaPlayerstate( from, &frame.ps, playerStateBits );
+	MSG_ParseDeltaPlayerstate( fromPs, &frame.ps, playerStateBits );
+	// Validate clientNumber after reading it from the playerstate delta.
+    if ( !VALIDATE_CLIENTNUM( frame.ps.clientNumber ) ) {
+        Com_Error( ERR_DROP, "%s: bad clientNum(%d)", __func__, frame.ps.clientNumber );
+    }
     #if USE_DEBUG
         if ( cl_shownet->integer > 2 && playerStateBits ) {
             MSG_ShowDeltaPlayerstateBits( playerStateBits );
@@ -330,16 +367,13 @@ static void CL_ParseFrame()
         }
     #endif
 
-
-    // parse packetentities
-    if (cls.serverProtocol <= PROTOCOL_VERSION_Q2RTXPERIMENTAL) {
-        if (MSG_ReadUint8() != svc_packetentities) {
-            Com_Error(ERR_DROP, "%s: not packetentities", __func__);
-        }
+    /**
+    *   Parse packetentities.
+    **/
+    if (MSG_ReadUint8() != svc_packetentities) {
+        Com_Error(ERR_DROP, "%s: not packetentities", __func__);
     }
-
     SHOWNET(2, "%3zu:packetentities\n", msg_read.readcount - 1);
-
 	// Parse the entities that have been sent.
     CL_ParsePacketEntities(oldframe, &frame);
 
@@ -532,7 +566,7 @@ static void CL_ParseServerData(void)
         fs_game->flags |= CVAR_ROM;
     }
 
-    // parse player entity number
+    // Parse player entity number
     cl.clientNumber = MSG_ReadInt16();
 
     // get the full level name
@@ -549,11 +583,16 @@ static void CL_ParseServerData(void)
 // 
     // setup default server state
     cl.serverstate = ss_game;
-    cinematic = ( cl.clientNumber == -1 );
 
-    if (cinematic) {
-        SCR_PlayCinematic(levelname);
-    } else {
+    #ifdef ENABLE_CINEMATIC_SERVERDATA
+        cinematic = ( cl.clientNumber == -1 ? true : false );
+
+        if (cinematic) {
+            SCR_PlayCinematic(levelname);
+        } else {
+    #else
+    {
+    #endif
         // seperate the printfs so the server message can have a color
         Con_Printf(
             "\n\n"
@@ -567,8 +606,8 @@ static void CL_ParseServerData(void)
         Com_SetColor(COLOR_NONE);
 
         // make sure clientNum is in range
-        if (!VALIDATE_CLIENTNUM(cl.clientNumber)) {
-            Com_WPrintf("Serverdata has invalid playernum %d\n", cl.clientNumber);
+        if ( !VALIDATE_CLIENTNUM( cl.clientNumber ) ) {
+            Com_WPrintf( "Serverdata has invalid playernum %d\n", cl.clientNumber );
             cl.clientNumber = -1;
         }
     }
@@ -580,11 +619,12 @@ static void CL_ParseServerData(void)
 static void CL_ParseStartSoundPacket( void ) {
     const int32_t flags = MSG_ReadUint8();
 
-    if ( flags & SND_INDEX16 ) {
-        cl.snd.index = MSG_ReadUint16();
-    } else {
-        cl.snd.index = MSG_ReadUint8();
-    }
+    //if ( flags & SND_INDEX16 ) {
+    //    cl.snd.index = MSG_ReadUint16();
+    //} else {
+    //    cl.snd.index = MSG_ReadUint8();
+    //}
+    cl.snd.index = MSG_ReadUintBase128();
     if ( cl.snd.index >= MAX_SOUNDS ) {
         Com_Error( ERR_DROP, "%s: bad index: %d", __func__, cl.snd.index );
     }

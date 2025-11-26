@@ -49,6 +49,9 @@ void MSG_ParseDeltaPlayerstate( const player_state_t *from,
 	//
 	// parse the pmove_state_t
 	//
+	if ( flags & PS_CLIENT_NUMBER ) {
+		to->clientNumber = MSG_ReadIntBase128( );
+	}
 	if ( flags & PS_M_TYPE ) {
 		to->pmove.pm_type = static_cast<pmtype_t>( MSG_ReadUint8( ) ); // WID: C++20: Added cast.
 	}

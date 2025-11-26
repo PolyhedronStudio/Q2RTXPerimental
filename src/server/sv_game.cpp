@@ -572,9 +572,9 @@ static void SV_StartSound( const Vector3 *origin, edict_ptr_t *edict,
     if ( ofs ) {
         flags |= SND_OFFSET;
     }
-    if ( soundindex > 255 ) {
-        flags |= SND_INDEX16;
-    }
+    //if ( soundindex > 255 ) {
+    //    flags |= SND_INDEX16;
+    //}
 
 	// send origin for invisible entities
 	// the origin can also be explicitly set
@@ -594,17 +594,21 @@ static void SV_StartSound( const Vector3 *origin, edict_ptr_t *edict,
 	// prepare multicast message
 	MSG_WriteUint8( svc_sound );
 	MSG_WriteUint8( flags | SND_POS );
-	if ( flags & SND_INDEX16 )
-		MSG_WriteUint16( soundindex );
-	else
-		MSG_WriteUint8( soundindex );
+	//if ( flags & SND_INDEX16 )
+	//	MSG_WriteUint16( soundindex );
+	//else
+	//	MSG_WriteUint8( soundindex );
+    MSG_WriteUintBase128( soundindex );
 
-	if ( flags & SND_VOLUME )
-		MSG_WriteUint8( vol );
-	if ( flags & SND_ATTENUATION )
-		MSG_WriteUint8( att );
-	if ( flags & SND_OFFSET )
-		MSG_WriteUint8( ofs );
+    if ( flags & SND_VOLUME ) {
+        MSG_WriteUint8( vol );
+    }
+    if ( flags & SND_ATTENUATION ) {
+        MSG_WriteUint8( att );
+    }
+    if ( flags & SND_OFFSET ) {
+        MSG_WriteUint8( ofs );
+    }
 
 	MSG_WriteUint16( sendchan );
     Vector3 snappedOrigin = QM_Vector3Snap( *origin );
@@ -644,12 +648,15 @@ static void SV_StartSound( const Vector3 *origin, edict_ptr_t *edict,
 		if ( !( channel & CHAN_NO_PHS_ADD ) ) {
             sv_edict_t *clent = EDICT_FOR_NUMBER( client->number + 1 );
 			leaf2 = CM_PointLeaf( &sv.cm, &clent->s.origin.x );
-			if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) )
-				continue;
-			if ( leaf2->cluster == -1 )
-				continue;
-			if ( !Q_IsBitSet( mask, leaf2->cluster ) )
-				continue;
+            if ( !CM_AreasConnected( &sv.cm, leaf1->area, leaf2->area ) ) {
+                continue;
+            }
+            if ( leaf2->cluster == -1 ) {
+                continue;
+            }
+            if ( !Q_IsBitSet( mask, leaf2->cluster ) ) {
+                continue;
+            }
 		}
 
 		// reliable sounds will always have position explicitly set,
