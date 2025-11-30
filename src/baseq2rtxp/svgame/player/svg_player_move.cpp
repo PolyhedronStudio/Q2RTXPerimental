@@ -120,7 +120,7 @@ static void ClientCalculateMovementRecoil( svg_base_edict_t *ent ) {
     const bool isDucked = ( ( playerState->pmove.pm_flags & PMF_DUCKED ) ? true : false );
     // Determine if off-ground.
     //bool isOnGround = ( ( playerState->pmove.pm_flags & PMF_ON_GROUND ) ? true : false );
-    const bool isOnGround = ( ent->groundInfo.entity != nullptr ? true : false );
+    const bool isOnGround = ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ? true : false );
     // Determine if in water.
     const bool isInWater = ( ent->liquidInfo.level > cm_liquid_level_t::LIQUID_NONE ? true : false );
     // Get liquid level.
@@ -271,7 +271,7 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
     client->resp.cmd_angles = userCommand->angles; // VectorCopy( userCommand->angles, client->resp.cmd_angles );
 
     // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
-    if ( pm->ground.entity && ent->groundInfo.entity ) {
+    if ( pm->ground.entityNumber != ENTITYNUM_NONE && ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
         const double stepsize = fabs( ent->s.origin[ 2 ] - pm->state->pmove.origin[ 2 ] );
         if ( stepsize > PM_STEP_MIN_SIZE && stepsize <= PM_STEP_MAX_SIZE ) {
             ent->s.renderfx |= RF_STAIR_STEP;
@@ -312,19 +312,27 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
     // Update the entity's remaining viewheight, liquid and ground information:
     ent->viewheight = (int32_t)pm.state->pmove.viewheight;
 
-    // Store all player move liquid info into the entity 'monster move' (fake name here) properties.
-    ent->liquidInfo.level = pm.liquid.level;
-    ent->liquidInfo.type = pm.liquid.type;
+    #if 1
+	    // Store all player move liquid info into the entity 'liquidInfo' structure.
+        ent->liquidInfo = pm.liquid;
+	    // Store all player move ground info into the entity 'groundInfo' structure.
+    	ent->groundInfo = pm.ground;
+    #else
+        // Store all player move liquid info into the entity 'monster move' (fake name here) properties.
+        ent->liquidInfo.level = pm.liquid.level;
+        ent->liquidInfo.type = pm.liquid.type;
     
-    // Do the same for ground info.
-    ent->groundInfo.entity = static_cast<svg_base_edict_t *>( pm.ground.entity );
-    ent->groundInfo.contents = pm.ground.contents;
-    ent->groundInfo.material = pm.ground.material;
-    ent->groundInfo.plane = pm.ground.plane;
-    ent->groundInfo.surface = pm.ground.surface;
+        // Do the same for ground info.
+        ent->groundInfo.entity = static_cast<svg_base_edict_t *>( pm.ground.entity );
+        ent->groundInfo.contents = pm.ground.contents;
+        ent->groundInfo.material = pm.ground.material;
+        ent->groundInfo.plane = pm.ground.plane;
+        ent->groundInfo.surface = pm.ground.surface;
+    #endif
     // Update link count.
-    if ( ent->groundInfo.entity ) {
-        ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkCount;
+    if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
+		svg_base_edict_t *groundEnt = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
+        ent->groundInfo.entityLinkCount = groundEnt->linkCount;
     }
 
     // Apply a specific view angle if dead:

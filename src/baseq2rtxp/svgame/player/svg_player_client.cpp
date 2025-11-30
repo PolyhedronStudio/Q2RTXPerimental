@@ -64,7 +64,7 @@ void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_clien
         // except "ourselves", who generated the event.
         const int64_t seq = ps->entityEventSequence & ( MAX_PS_EVENTS - 1 );
 		const sg_entity_events_t event = ( sg_entity_events_t )(ps->events[ seq ] | ( ( ps->entityEventSequence & 3 ) << 8ULL ));
-		const int32_t eventParm = ps->eventParms[ seq ];
+		const int32_t eventParm0 = ps->eventParms[ seq ];
 
 		// Backup the external event before converting playerstate to entitystate.
 		const sg_entity_events_t externalEvent = ( sg_entity_events_t )ps->externalEvent;
@@ -73,7 +73,7 @@ void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_clien
 		// Create a temporary entity event for all other clients.
 		svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEntityEvent( 
             ps->pmove.origin, 
-            event, eventParm,
+            event, eventParm0,
             0/*client->clientNum + 1*/,
             true 
         );
@@ -103,7 +103,7 @@ void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_clien
 		// Set other entity number to that of our client.
         tempEventEntity->s.otherEntityNumber = ent->s.number;
 		// Set eventParm from playerstate.
-		tempEventEntity->s.eventParm0 = eventParm;
+		tempEventEntity->s.eventParm0 = eventParm0;
         tempEventEntity->s.eventParm1 = 0; // eventParm1.
 		// Mark as single-client no-send to ourselves.
 		tempEventEntity->svFlags |= SVF_SENDCLIENT_EXCLUDE_ID;

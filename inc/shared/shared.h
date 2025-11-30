@@ -260,6 +260,8 @@ typedef enum sector_area_s {
 
 //!	Entity Flags.:
 #include "shared/entities/entity_flags.h"
+//!	Entity Infos.:
+#include "shared/entities/entity_infos.h"
 //!	Entity Render Flags:
 #include "shared/entities/entity_renderflags.h"
 //!	Entity Events:

@@ -278,6 +278,9 @@ void Com_PlayerToEntityState(const player_state_t *ps, entity_state_t *es)
     //VectorScale(ps->pmove.origin, 0.125f, es->origin);
 	VectorCopy( ps->pmove.origin, es->origin ); // WID: float-movement
 
+    // Ensure old_origin is initialized so clients have a sane prev.origin for interpolation
+    //VectorCopy( ps->pmove.origin, es->old_origin );
+
     pitch = ps->viewangles[PITCH];
     if (pitch > 180) {
         pitch -= 360;

@@ -74,10 +74,20 @@ QM_API float QM_Vector2Length( const Vector2 &v ) {
 
     return result;
 }
+QM_API double QM_Vector2LengthDP( const Vector2 &v ) {
+    double result = sqrtf( ( v.x * v.x ) + ( v.y * v.y ) );
+
+    return result;
+}
 
 // Calculate vector square length
 QM_API float QM_Vector2LengthSqr( const Vector2 &v ) {
     float result = ( v.x * v.x ) + ( v.y * v.y );
+
+    return result;
+}
+QM_API double QM_Vector2LengthSqrDP( const Vector2 &v ) {
+    double result = ( v.x * v.x ) + ( v.y * v.y );
 
     return result;
 }

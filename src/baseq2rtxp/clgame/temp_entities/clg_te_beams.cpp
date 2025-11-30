@@ -106,7 +106,7 @@ void CLG_AddBeams( void ) {
             continue;
 
         // if coming from the player, update the start position
-        if ( b->entity == clgi.client->frame.clientNum + 1 )
+        if ( b->entity == clgi.client->frame.ps.clientNumber + 1 )
             VectorAdd( clgi.client->playerEntityOrigin, b->offset, org );
         else
             VectorAdd( b->start, b->offset, org );
@@ -251,7 +251,7 @@ void CLG_AddPlayerBeams( void ) {
             continue;
 
         // if coming from the player, update the start position
-        if ( b->entity == clgi.client->frame.clientNum + 1 ) {
+        if ( b->entity == clgi.client->frame.ps.clientNumber + 1 ) {
             // set up gun position
             ps = &clgi.client->frame.ps;
             ops = &clgi.client->oldframe.ps;

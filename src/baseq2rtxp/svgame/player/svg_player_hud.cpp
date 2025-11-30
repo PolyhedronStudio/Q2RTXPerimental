@@ -54,8 +54,13 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
     ent->client->grenade_blew_up = false;
     ent->client->grenade_time = 0_ms;
 
-    ent->liquidInfo.type = CONTENTS_NONE;
-    ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;;
+    ent->groundInfo = {
+        .entityNumber = ENTITYNUM_NONE,
+    };
+    ent->liquidInfo = {
+        .type = CONTENTS_NONE,
+        .level = cm_liquid_level_t::LIQUID_NONE,
+    };
     ent->viewheight = 0;
     ent->s.modelindex = 0;
     ent->s.modelindex2 = 0;

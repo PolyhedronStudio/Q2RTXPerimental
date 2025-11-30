@@ -296,7 +296,6 @@ static void CL_ParseFrame()
         std::memcpy( frame.areabits, msg_read.data + msg_read.readcount, length );
 		// Advance the readcount.
         msg_read.readcount += length;
-		// Set areabytes.
         frame.areabytes = length;
     } else {
         frame.areabytes = 0;
@@ -340,8 +339,8 @@ static void CL_ParseFrame()
     }
 
     SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
-	// <Q2RTXP>: Removed client number reading from playerinfo.
-	// Moved to be read in the playerstate delta instead..
+    // <Q2RTXP>: Removed client number reading from playerinfo.
+    // Moved to be read in the playerstate delta instead..
     #if 0
     // Get the client number.
     frame.ps.clientNumber = MSG_ReadUint8();//cl.clientNumber;
@@ -355,8 +354,8 @@ static void CL_ParseFrame()
     *   Parse playerstate.
     **/
     const uint64_t playerStateBits = MSG_ReadUintBase128();
-	MSG_ParseDeltaPlayerstate( fromPs, &frame.ps, playerStateBits );
-	// Validate clientNumber after reading it from the playerstate delta.
+    MSG_ParseDeltaPlayerstate( fromPs, &frame.ps, playerStateBits );
+    // Validate clientNumber after reading it from the playerstate delta.
     if ( !VALIDATE_CLIENTNUM( frame.ps.clientNumber ) ) {
         Com_Error( ERR_DROP, "%s: bad clientNum(%d)", __func__, frame.ps.clientNumber );
     }
@@ -370,9 +369,9 @@ static void CL_ParseFrame()
     /**
     *   Parse packetentities.
     **/
-    if (MSG_ReadUint8() != svc_packetentities) {
-        Com_Error(ERR_DROP, "%s: not packetentities", __func__);
-    }
+        if (MSG_ReadUint8() != svc_packetentities) {
+            Com_Error(ERR_DROP, "%s: not packetentities", __func__);
+        }
     SHOWNET(2, "%3zu:packetentities\n", msg_read.readcount - 1);
 	// Parse the entities that have been sent.
     CL_ParsePacketEntities(oldframe, &frame);
@@ -585,11 +584,10 @@ static void CL_ParseServerData(void)
     cl.serverstate = ss_game;
 
     #ifdef ENABLE_CINEMATIC_SERVERDATA
-        cinematic = ( cl.clientNumber == -1 ? true : false );
-
-        if (cinematic) {
-            SCR_PlayCinematic(levelname);
-        } else {
+    cinematic = ( cl.clientNumber == -1 ? true : false );
+    if (cinematic) {
+        SCR_PlayCinematic(levelname);
+    } else {
     #else
     {
     #endif

@@ -113,9 +113,9 @@ static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_
 	*   With demo playback, always lerp from old to new server frame angles.
     **/
     if ( clgi.IsDemoPlayback() ) {
-		// Lerp from server frame angles.
+        // Lerp from server frame angles.
         const Vector3 lerpedAngles = QM_Vector3LerpAngles( ops->viewangles, ps->viewangles, lerpFraction );
-		// Apply.
+        // Apply.
         VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
     /**
     *   Use predicted player state view angles while alive.
@@ -132,17 +132,17 @@ static void CLG_LerpViewAngles( player_state_t *ops, player_state_t *ps, client_
         // Apply.
         VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
 
-    #if 1
+        #if 1
         /**
         *   Use the local predicted player state view angles instead.
         **/
-        } else {
+    } else {
             VectorCopy( predictedPlayerState->viewangles, clgi.client->refdef.viewangles );
 
             //const Vector3 lerpedAngles = QM_Vector3LerpAngles( predictedPlayerState->viewangles, ps->viewangles, lerpFraction );
-            //const Vector3 lerpedAngles = QM_Vector3LerpAngles( ps->viewangles, pps->viewangles, lerpFraction );
-            //VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
-        }
+        //const Vector3 lerpedAngles = QM_Vector3LerpAngles( ps->viewangles, pps->viewangles, lerpFraction );
+        //VectorCopy( lerpedAngles, clgi.client->refdef.viewangles );
+    }
     #else
         /**
         *   Under any other circumstances, just use lerped angles from ops to ps.

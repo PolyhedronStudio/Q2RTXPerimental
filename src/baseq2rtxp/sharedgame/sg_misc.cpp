@@ -49,14 +49,14 @@ const char *sg_player_state_event_strings[ PS_EV_MAX ] = {
 /**
 *	@brief	Adds a player movement predictable event to the player move state.
 **/
-void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t eventParm, player_state_t *playerState ) {
+void SG_PlayerState_AddPredictableEvent( const int32_t newEvent, const int32_t eventParm0, /*const int32_t eventParm1,*/ player_state_t *playerState ) {
 	// Event sequence index.
 	const int64_t sequenceIndex = playerState->eventSequence & ( MAX_PS_EVENTS - 1 );
 
 	// Ensure it is within bounds.
 	if ( newEvent < 0 || newEvent >= EV_GAME_MAX ) {
         if ( newEvent < q_countof( sg_event_string_names ) ) {
-            SG_DPrintf( SG_GAME_MODULE_STR " PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[ newEvent ], eventParm );
+            SG_DPrintf( SG_GAME_MODULE_STR " PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[ newEvent ], eventParm0 );
         }
 	}
 
@@ -65,7 +65,8 @@ void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t
     //playerState->events[ sequenceIndex ] = ( ( playerState->events[ sequenceIndex ] & GUN_ANIMATION_TOGGLE_BIT ) ^ GUN_ANIMATION_TOGGLE_BIT )
     //    | newEvent;
     playerState->events[ sequenceIndex ] = newEvent;
-	playerState->eventParms[ sequenceIndex ] = eventParm;
+	playerState->eventParms[ sequenceIndex ] = eventParm0;
+    //playerState->eventParms[ sequenceIndex ] = eventParm1;
 	playerState->eventSequence++;
 
 	// Debug Output.

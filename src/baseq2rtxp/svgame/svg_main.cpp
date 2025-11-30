@@ -243,7 +243,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ClientUserinfoChanged = SVG_Client_UserinfoChanged;
 		globals.ClientCommand = SVG_Client_Command;
 
-		globals.PlayerMove = SG_PlayerMove;
+		//globals.PlayerMove = SG_PlayerMove;
 		//globals.ConfigurePlayerMoveParameters = SG_ConfigurePlayerMoveParameters;
 
 		globals.RunFrame = SVG_RunFrame;
@@ -570,23 +570,27 @@ static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
 *   @brief  Check for whether the entity's ground has been moved below his ass.
 **/
 static void CheckEntityGroundChange( svg_base_edict_t *ent ) {
-    if ( ( ent->groundInfo.entity ) && ( ent->groundInfo.entity->linkCount != ent->groundInfo.entityLinkCount ) ) {
-        cm_contents_t mask = SVG_GetClipMask( ent );
+    if ( ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) ) {
+        svg_base_edict_t *entityGroundEntity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
+        if ( entityGroundEntity != nullptr && ( entityGroundEntity->linkCount != ent->groundInfo.entityLinkCount ) ) {
+            cm_contents_t mask = SVG_GetClipMask( ent );
 
-        // Monsters that don't SWIM or FLY, got their own unique ground check.
-        if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svFlags & SVF_MONSTER ) ) {
-            ent->groundInfo.entity = nullptr;
-            M_CheckGround( ent, mask );
-            // All other entities use this route instead:
-        } else {
-            // If the ground entity is still 1 unit below us, we're good.
-            Vector3 endPoint = Vector3( ent->s.origin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-            svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
-
-            if ( tr.startsolid || tr.allsolid || tr.ent != ent->groundInfo.entity ) {
-                ent->groundInfo.entity = nullptr;
+            // Monsters that don't SWIM or FLY, got their own unique ground check.
+            if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svFlags & SVF_MONSTER ) ) {
+                ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+                M_CheckGround( ent, mask );
+                // All other entities use this route instead:
             } else {
-                ent->groundInfo.entityLinkCount = ent->groundInfo.entity->linkCount;
+                // If the ground entity is still 1 unit below us, we're good.
+                Vector3 endPoint = Vector3( ent->s.origin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+                svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+
+                if ( tr.startsolid || tr.allsolid || tr.entityNumber != ent->groundInfo.entityNumber ) {
+                    ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+                } else {
+                    svg_base_edict_t *traceGroundEntity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
+                    ent->groundInfo.entityLinkCount = traceGroundEntity->linkCount;
+                }
             }
         }
     }

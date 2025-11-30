@@ -346,7 +346,7 @@ void CLG_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame
     }
 
     // No lerping if player entity was teleported (event check).
-    centity_t *clent = &clg_entities[ frame->clientNum + 1 ];
+    centity_t *clent = &clg_entities[ frame->ps.clientNumber + 1 ];
 
     // If the player entity was within the range of lastFrameNumber and frame->number,
     // and had any teleport events going on, duplicate the player state into the old player state,
@@ -370,7 +370,7 @@ void CLG_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame
     //}
 
     // No lerping if POV number changed.
-    if ( oldframe->clientNum != frame->clientNum ) {
+    if ( oldframe->ps.clientNumber != frame->ps.clientNumber ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_CLIENTNUM_MISMATCH );
         return;
     }

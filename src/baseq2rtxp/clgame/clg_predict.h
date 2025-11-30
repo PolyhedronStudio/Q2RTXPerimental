@@ -10,6 +10,10 @@
 
 
 /**
+*   @brief  Will shuffle current viewheight into previous, update the current viewheight, and record the time of changing.
+**/
+void CLG_AdjustViewHeight( const int32_t viewHeight );
+/**
 *   @brief  Checks for prediction if desired. Will determine the error margin
 *           between our predicted state and the server returned state. In case
 *           the margin is too high, snap back to server provided player state.

@@ -273,7 +273,7 @@ int SV_FlyMove(svg_base_edict_t *ent, float time, const cm_contents_t mask)
 
     time_left = time;
 
-    ent->groundInfo.entity = nullptr;
+    ent->groundInfo.entityNumber = ENTITYNUM_NONE;
     for (bumpcount = 0; bumpcount < numbumps; bumpcount++) {
         for (i = 0; i < 3; i++)
             end[i] = ent->s.origin[i] + time_left * ent->velocity[i];
@@ -301,7 +301,7 @@ int SV_FlyMove(svg_base_edict_t *ent, float time, const cm_contents_t mask)
         if (trace.plane.normal[2] > 0.7f) {
             blocked |= CLIPVELOCITY_CLIPPED_FLOOR;       // floor
             if (hit->solid == SOLID_BSP) {
-                ent->groundInfo.entity = hit;
+                ent->groundInfo.entityNumber = trace.entityNumber;
                 ent->groundInfo.entityLinkCount = hit->linkCount;
             }
         }
@@ -528,7 +528,7 @@ bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
             continue;       // not linked in anywhere
 
         // if the entity is standing on the pusher, it will definitely be moved
-        if (check->groundInfo.entity != pusher) {
+        if ( check->groundInfo.entityNumber != pusher->s.number ) {
             // see if the ent needs to be tested
             if (check->absMin[0] >= maxs[0]
                 || check->absMin[1] >= maxs[1]
@@ -543,7 +543,7 @@ bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
                 continue;
         }
 
-        if ((pusher->movetype == MOVETYPE_PUSH) || (check->groundInfo.entity == pusher)) {
+        if ( ( pusher->movetype == MOVETYPE_PUSH ) || ( check->groundInfo.entityNumber == pusher->s.number ) ) {
             // move this entity
             pushed_p->ent = check;
             VectorCopy(check->s.origin, pushed_p->origin);
@@ -574,8 +574,9 @@ bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
             VectorAdd(check->s.origin, move2, check->s.origin);
 
             // may have pushed them off an edge
-            if (check->groundInfo.entity != pusher)
-                check->groundInfo.entity = NULL;
+            if ( check->groundInfo.entityNumber != pusher->s.number ) {
+                check->groundInfo.entityNumber = ENTITYNUM_NONE;
+            }
 
             block = SV_TestEntityPosition(check);
             if (!block) {
@@ -759,18 +760,21 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
     }
 
     if ( ent->velocity[ 2 ] > 0 ) {
-        ent->groundInfo.entity = nullptr;
+        ent->groundInfo.entityNumber = ENTITYNUM_NONE;
     }
 
 // check for the groundentity going away
-    if ( ent->groundInfo.entity ) {
-        if ( !ent->groundInfo.entity->inUse ) {
-            ent->groundInfo.entity = nullptr;
-        }
+    if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
+		svg_base_edict_t *groundEntity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
+        if ( ( groundEntity && !groundEntity->inUse ) ) {
+            ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+        } else if ( !groundEntity ) {
+            ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+		}
     }
 
 // if onground, return without moving
-    if ( ent->groundInfo.entity && ent->gravity > 0.0f ) {  // PGM - gravity hack
+    if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE && ent->gravity > 0.0f ) {  // PGM - gravity hack
         if ( ent->svFlags & SVF_MONSTER ) {
             M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
             M_WorldEffects( ent );
@@ -807,7 +811,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
         // stop if on ground
         if (trace.plane.normal[2] > 0.7f) {
             if (ent->velocity[2] < 60 || ent->movetype != MOVETYPE_BOUNCE) {
-                ent->groundInfo.entity = trace.ent;
+                ent->groundInfo.entityNumber = trace.entityNumber;
                 ent->groundInfo.entityLinkCount = trace.ent->linkCount;
                 VectorClear(ent->velocity);
                 VectorClear(ent->avelocity);
@@ -899,11 +903,11 @@ void SV_Physics_Step(svg_base_edict_t *ent)
     cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
-    if ( !ent->groundInfo.entity ) {
+    if ( ent->groundInfo.entityNumber == ENTITYNUM_NONE ) {
         M_CheckGround( ent, mask );
     }
 
-    groundentity = ent->groundInfo.entity;
+    groundentity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
 
     SV_CheckVelocity( ent );
 
@@ -1014,7 +1018,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
             return;
         }
 
-        if ( ent->groundInfo.entity ) {
+        if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
             if ( !wasonground ) {
                 if ( hitsound ) {
                     SVG_Util_AddEvent( ent, EV_OTHER_FOOTSTEP, 0 );
@@ -1154,7 +1158,7 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
     cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
-    if ( !ent->groundInfo.entity ) {
+    if ( ent->groundInfo.entityNumber == ENTITYNUM_NONE ) {
         M_CheckGround( ent, mask );
     }
 
@@ -1171,11 +1175,11 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
     //..cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
-    if ( !ent->groundInfo.entity ) {
+    if ( ent->groundInfo.entityNumber == ENTITYNUM_NONE ) {
         M_CheckGround( ent, mask );
     }
 
-    groundentity = ent->groundInfo.entity;
+    groundentity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
 
     SV_CheckVelocity( ent );
 
@@ -1285,7 +1289,7 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
             return;
         }
 
-        if ( ent->groundInfo.entity ) {
+        if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
             if ( !wasonground ) {
                 if ( hitsound ) {
                     //ent->s.event = EV_OTHER_FOOTSTEP;

@@ -894,9 +894,9 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! The entity's height above its 'origin', used to state where eyesight is determined.
     int32_t     viewheight = 0;
     //! Categorized liquid entity state.
-    mm_liquid_info_t liquidInfo = {};
+    liquid_info_t liquidInfo = {};
     //! Categorized ground information.
-    mm_ground_info_t groundInfo = {};
+    ground_info_t groundInfo = { .entityNumber = ENTITYNUM_NONE };
     //! The directional gravity vector.
 	Vector3     gravityVector = QM_Vector3Gravity();
     //! [SpawnKey]: Weight(mass) of entity.

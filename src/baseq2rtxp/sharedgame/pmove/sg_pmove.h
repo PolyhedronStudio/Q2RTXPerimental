@@ -65,21 +65,19 @@ typedef enum sg_player_state_event_e {
 *	@brief	Default player movement parameter constants.
 **/
 typedef struct default_pmoveParams_s {
-    //! Minimum speed required for footstep sounds to be made.
-    static constexpr double pm_footstep_speed = 125;
     //! Stop speed.
     static constexpr double pm_stop_speed = 100.;
     //! Server determined maximum speed.
-    static constexpr double pm_max_speed = 265.;
+    static constexpr double pm_max_speed = 300.;
     //! Velocity that is set for jumping. (Determines the height we aim for.)
     static constexpr double pm_jump_height = 270.;
 
     //! General up/down movespeed for on a ladder.
-    static constexpr double pm_ladder_speed = 125.;
+    static constexpr double pm_ladder_speed = 200.;
     //! Maximum 'strafe' side move speed while on a ladder.
-    static constexpr double pm_ladder_sidemove_speed = 90.;
+    static constexpr double pm_ladder_sidemove_speed = 150.;
     //! Ladder modulation scalar for when being in-water and climbing a ladder.
-    static constexpr double pm_ladder_mod = 0.5;
+    static constexpr double pm_ladder_mod = 0.5f;
 
     //! Speed for the viewheight and bounding box to ease in/out at when
     //! switching from crouch to stand-up and visa versa. ( 100ms )
@@ -87,7 +85,7 @@ typedef struct default_pmoveParams_s {
     //! Movement speed for when ducked and crawling on-ground.
     static constexpr double pm_crouch_move_speed = 100.;
     //! Movement speed for when moving in water(swimming).
-    static constexpr double pm_water_speed = 180.;
+    static constexpr double pm_water_speed = 400.;
     //! Movement speed for when flying.
     static constexpr double pm_fly_speed = 400.;
 
@@ -98,7 +96,7 @@ typedef struct default_pmoveParams_s {
     //! General spectator/noclip acceleration.
     static constexpr double pm_fly_accelerate = 8.;
     //! General water acceleration.
-    static constexpr double pm_water_accelerate = 7.5;
+    static constexpr double pm_water_accelerate = 10.;
 
 	//! If set, cap the maximum speed we can gain from air-accelerating.
     static constexpr double pm_air_wish_speed_cap = 30.;
@@ -117,8 +115,6 @@ typedef struct default_pmoveParams_s {
 *			NOTE: In the future this will change, obviously.
 **/
 typedef struct pmoveParams_s {
-	//! Minimum speed required for footstep sounds to be made.
-    double pm_footstep_speed = default_pmoveParams_t::pm_footstep_speed;
     //! Stop speed.
     double pm_stop_speed = default_pmoveParams_t::pm_stop_speed;
     //! Server determined maximum speed.
@@ -246,32 +242,6 @@ void PM_RegisterTouchTrace( pm_touch_trace_list_t &touchTraceList, cm_trace_t &t
 *
 **/
 /**
-*   @brief  Stores the final ground information results.
-**/
-typedef struct pm_ground_info_s {
-    //! Pointer to the actual ground entity we are on.(nullptr if none).
-    sgentity_s *entity;
-
-    //! A copy of the plane data from the ground entity.
-    cm_plane_t        plane;
-    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
-    cm_surface_t      surface;
-    //! A copy of the contents data from the ground entity's brush.
-    cm_contents_t      contents;
-    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-    struct cm_material_s *material;
-} pm_ground_info_t;
-/**
-*   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
-**/
-typedef struct pm_contents_info_s {
-    //! The actual BSP liquid 'contents' type we're residing in.
-    cm_contents_t      type;
-    //! The depth of the player in the actual liquid.
-    cm_liquid_level_t	level;
-} pm_contents_info_t;
-
-/**
 *   @brief  Used to setup and store the necessary data/pointers needed in order to perform,
 *           another frame of movement on its data.
 **/
@@ -308,9 +278,9 @@ typedef struct pmove_s {
     Vector3 mins, maxs;
 
     //! Stores the ground information. If there is no actual ground, ground.entity will be nullptr.
-    pm_ground_info_t ground;
+    ground_info_t ground;
     //! Stores the possible solid liquid type brush we're in(-touch with/inside of)
-    pm_contents_info_t liquid;
+    liquid_info_t liquid;
 
     /**
     *   (In):
@@ -375,7 +345,7 @@ struct pml_t {
     //! Velocity at the start of the move.
     Vector3		previousVelocity = {};
     //! Stores the possible solid liquid type brush we're in(-touch with/inside of)
-    pm_contents_info_t previousLiquid = {};
+    liquid_info_t previousLiquid = {};
 };
 //! The local player move state for the entity that we're moving.
 extern pml_t pml;

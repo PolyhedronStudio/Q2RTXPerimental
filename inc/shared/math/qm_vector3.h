@@ -195,6 +195,11 @@ QM_API float QM_Vector3LengthSqr( const Vector3 &v ) {
 
     return result;
 }
+QM_API double QM_Vector3LengthSqrDP( const Vector3 &v ) {
+    const double result = v.x * v.x + v.y * v.y + v.z * v.z;
+
+    return result;
+}
 
 // Calculate two vectors dot product
 QM_API float QM_Vector3DotProduct( const Vector3 &v1, const Vector3 &v2 ) {

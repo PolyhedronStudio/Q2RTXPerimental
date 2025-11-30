@@ -66,7 +66,7 @@ void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
 
 	// Too high of a velocity, we're moving upwards rapidly.
 	if ( ent->velocity[ 2 ] > 100 ) {
-		ent->groundInfo.entity = nullptr;
+		ent->groundInfo.entityNumber = ENTITYNUM_NONE;
 		return;
 	}
 
@@ -79,7 +79,7 @@ void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
 
 	// check steepness
 	if ( trace.plane.normal[ 2 ] < 0.7f && !trace.startsolid ) {
-		ent->groundInfo.entity = nullptr;
+		ent->groundInfo.entityNumber = ENTITYNUM_NONE;
 		return;
 	}
 
@@ -89,7 +89,7 @@ void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
 //      VectorCopy (trace.endpos, ent->s.origin);
 	if ( !trace.startsolid && !trace.allsolid ) {
 		VectorCopy( trace.endpos, ent->s.origin );
-		ent->groundInfo.entity = trace.ent;
+		ent->groundInfo.entityNumber = trace.ent->s.number;
 		ent->groundInfo.entityLinkCount = trace.ent->linkCount;
 		ent->velocity[ 2 ] = 0;
 	}

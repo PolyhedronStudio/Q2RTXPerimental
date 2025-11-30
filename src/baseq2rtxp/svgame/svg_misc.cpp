@@ -64,7 +64,7 @@ DEFINE_GLOBAL_CALLBACK_THINK( gib_think )( svg_base_edict_t *self ) -> void {
 DEFINE_GLOBAL_CALLBACK_TOUCH( gib_touch )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
     vec3_t  normal_angles, right;
 
-    if ( !self->groundInfo.entity ) {
+    if ( self->groundInfo.entityNumber == ENTITYNUM_NONE ) {
         return;
     }
 

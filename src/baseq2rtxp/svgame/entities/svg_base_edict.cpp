@@ -172,7 +172,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
         SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, liquidInfo.level, SD_FIELD_TYPE_INT32 ),
     // }
     // Ground Info: {
-        SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, groundInfo.entity, SD_FIELD_TYPE_EDICT ),
+        SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, groundInfo.entityNumber, SD_FIELD_TYPE_INT32 ),
         SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, groundInfo.entityLinkCount, SD_FIELD_TYPE_INT32 ),
     // }
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, gravityVector, SD_FIELD_TYPE_VECTOR3, 1 ),
@@ -549,7 +549,29 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *static_cast<Base *>( this ) = baseCopy;
     #endif
 
-    #if 0
+    #if 1
+    /**
+    *   Reset all member variables to defaults. ( Avoid using memset because it corrupts vtable. )
+    **/
+    spawn_count = 0;
+    freetime = 0_ms;
+    timestamp = 0_ms;
+    neverFreeOnlyUnlink = false;
+
+    classname = svg_level_qstring_t::from_char_str( "svg_base_edict_t" );
+    model = nullptr;
+    angle = 0.0f;
+
+    spawnflags = 0;
+    flags = entity_flags_t::FL_NONE;
+
+    /**
+    *   Entity Event Properties:
+    **/
+    eventTime = 0_ms;
+    freeAfterEvent = false;
+    unlinkAfterEvent = false;
+    #else
     /**
     *   Reset all member variables to defaults. ( Avoid using memset because it corrupts vtable. )
     **/
@@ -622,7 +644,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     viewheight = 0;
 
     liquidInfo = {};
-    groundInfo = {};
+    groundInfo = { .entityNumber = ENTITYNUM_NONE };
 
     gravityVector = QM_Vector3Gravity();
     mass = 0;

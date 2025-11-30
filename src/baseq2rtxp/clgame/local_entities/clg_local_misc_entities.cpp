@@ -266,7 +266,7 @@ void CLG_misc_playerholo_Precache( clg_local_entity_t *self, const cm_entity_t *
 		if ( clientnumKv->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_INTEGER ) {
 			selfClass->clientNumber = clientnumKv->integer;
 		} else {
-			selfClass->clientNumber = 0;
+			selfClass->clientNumber = -1;
 		}
 	}
 
@@ -335,6 +335,10 @@ void CLG_misc_playerholo_PrepareRefreshEntity( clg_local_entity_t *self ) {
 
 	// Get class.
 	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( self );
+
+	if ( selfClass->clientNumber == -1 ) { // <Q2RTXP>: WID: This was old behavior -1 ) {
+		return;
+	}
 
 	// Clamp client number value to prevent invalid index accessing.
 	const int32_t clientInfoNumber = std::clamp( selfClass->clientNumber, 0, MAX_CLIENTS );

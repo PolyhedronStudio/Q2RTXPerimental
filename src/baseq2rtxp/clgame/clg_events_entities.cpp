@@ -50,10 +50,8 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 *   @param  clientInfo          The clientinfo_t of the entity generating the event, if any (nullptr otherwise).
 **/
 void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOrigin, centity_t *cent, const int32_t entityNumber, const int32_t clientNumber, clientinfo_t *clientInfo ) {
-
     // <Q2RTXP>: TODO: Fix so it doesn't do the teleporter at incorrect spawn origin.
     const Vector3 effectOrigin = lerpOrigin; // cent->current.origin 
-
 
     // EF_TELEPORTER acts like an event, but is not cleared each frame
     if ( ( cent->current.entityFlags & EF_TELEPORTER ) ) {
@@ -65,9 +63,16 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
     /**
     *   FootStep Events:
     **/
+    case EV_PLAYER_FOOTSTEP:
+		// Prevent it from being triggered if it is our own local player entity.
+		if ( entityNumber != clgi.client->clientNumber + 1 ) {//clgi.client->frame.ps.clientNumber + 1 ) {
+            DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_FOOTSTEP" );
+            CLG_PlayerFootStepEvent( entityNumber, lerpOrigin );
+        }
+        break;
     case EV_OTHER_FOOTSTEP:
 		DEBUG_PRINT_EVENT_NAME( "EV_OTHER_FOOTSTEP" );
-        CLG_FootStepEvent( entityNumber, cent, lerpOrigin );
+        CLG_OtherFootStepEvent( entityNumber, lerpOrigin );
         break;
     // General ladder footstep event:
     case EV_FOOTSTEP_LADDER:

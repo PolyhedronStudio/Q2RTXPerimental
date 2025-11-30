@@ -68,8 +68,8 @@ struct svg_trace_t;
 //
 //	MonsterMove Structures:
 //
-struct mm_ground_info_t;
-struct mm_liquid_info_t;
+//struct ground_info_t;
+//struct liquid_info_t;
 
 //
 // Game/Level Mode & Locals:

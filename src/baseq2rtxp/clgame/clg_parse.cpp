@@ -543,12 +543,8 @@ void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s ) {
     return;
 
 default_skin:
-    if ( !Q_stricmp( model, "female" ) ) {
-        strcpy( model, "playerdummy" );
-        strcpy( skin, "skin" );
-    } else {
+        strcpy( skin, "playerdummy" );
 default_model:
         strcpy( model, "playerdummy" );
-        strcpy( skin, "skin" );
-    }
+        strcpy( skin, "playerdummy" );
 }

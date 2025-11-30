@@ -41,8 +41,6 @@ typedef enum sg_means_of_death_e sg_means_of_death_t;
 //#include "sharedgame/sg_muzzleflashes.h"
 //#include "sharedgame/sg_pmove.h"
 typedef struct pm_touch_trace_list_s pm_touch_trace_list_t;
-typedef struct pm_ground_info_s pm_ground_info_t;
-typedef struct pm_contents_info_s pm_contents_info_t;
 typedef enum sg_player_state_event_e sg_player_state_event_t;
 //#include "sharedgame/sg_pmove_slidemove.h"
 typedef enum sg_skm_body_part_e sg_skm_body_part_t;

@@ -140,9 +140,6 @@ const pm_clipflags_t PM_SlideClipVelocity( const Vector3 &in, const Vector3 &nor
 *
 *
 **/
-//! Maximum amount of clipping planes to test for.
-static constexpr int32_t PM_MAX_CLIP_PLANES = 16;
-
 /**
 *	@brief	Attempts to trace clip into velocity direction for the current frametime.
 **/
@@ -468,9 +465,9 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 
 	up = pm->state->pmove.origin;
 
-	// decide which one went farther
-	down_dist = QM_Vector2LengthSqr( down_o - start_o );// ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
-	up_dist = QM_Vector2LengthSqr( up - start_o ); //( up[ 0 ] - start_o[ 0 ] ) *( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
+	// dDcide which one went farther.
+	down_dist = QM_Vector2LengthSqrDP( down_o - start_o );// ( down_o[ 0 ] - start_o[ 0 ] ) * ( down_o[ 0 ] - start_o[ 0 ] ) + ( down_o[ 1 ] - start_o[ 1 ] ) * ( down_o[ 1 ] - start_o[ 1 ] );
+	up_dist = QM_Vector2LengthSqrDP( up - start_o ); //( up[ 0 ] - start_o[ 0 ] ) *( up[ 0 ] - start_o[ 0 ] ) + ( up[ 1 ] - start_o[ 1 ] ) * ( up[ 1 ] - start_o[ 1 ] );
 
 	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
 		pm->state->pmove.origin = down_o;

@@ -55,7 +55,7 @@ void CLG_Events_CheckForEntity( centity_t *cent );
 *   @param  lerpOrigin          The origin to process the event at.
 *   @return True if an event was processed, false otherwise.
 **/
-const bool CLG_Events_LocalPlayerStateEvents( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin, const int32_t frameClientNumber );
+const bool CLG_Events_CheckForLocalPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin );
 
 
 
@@ -69,9 +69,21 @@ const bool CLG_Events_LocalPlayerStateEvents( const player_state_t *ops, const p
 *
 **/
 /**
+*   @brief  The local (PLAYER) footstep sound event handler.
+**/
+void CLG_LocalFootStepEvent( const int32_t entityNumber, const Vector3 & lerpOrigin );
+/**
+*   @brief  The generic (PLAYER) footstep sound event handler.
+**/
+void CLG_PlayerFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin );
+/**
+*   @brief  The generic (OTHER entity) footstep sound event handler.
+**/
+void CLG_OtherFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin );
+/**
 *   @brief  The generic footstep sound event handler.
 **/
-void CLG_FootStepEvent( const int32_t entityNumber, centity_t *cent, const Vector3 &lerpOrigin );
+//void CLG_FootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin );
 /**
 *   @brief  Passes on to CLG_FX_FootStepSound with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
 **/

@@ -50,7 +50,7 @@ void SVG_ChaseCam_Update( svg_base_edict_t *ent ) {
         o[ 2 ] = targ->s.origin[ 2 ] + 20;
 
     // jump animation lifts
-    if ( !targ->groundInfo.entity ) {
+    if ( targ->groundInfo.entityNumber == ENTITYNUM_NONE ) {
         o[ 2 ] += 16;
     }
 

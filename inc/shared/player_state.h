@@ -244,8 +244,6 @@ typedef struct player_state_s {
     *   for either both Client AND/OR Server Game(s).
     * 
     **/
-
-
     //! [Client]: Gun Angles on-screen.
     Vector3 gunangles;
     //! [Client]: Gun Pffset on-screen.

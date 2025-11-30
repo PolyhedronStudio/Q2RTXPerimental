@@ -178,9 +178,9 @@ typedef struct mm_move_s {
     //! [In/Out]: The actual monster's move state.
     mmove_state_t state;
     //! [In/Out]: Stores the ground information. If there is no actual ground, ground.entity will be nullptr.
-    mm_ground_info_t ground;
+    ground_info_t ground;
     //! [In/Out]: Stores the possible solid liquid type brush we're in(-touch with/inside of)
-    mm_liquid_info_t liquid;
+    liquid_info_t liquid;
 
     //! [Out]: Touch Traces.
     mm_touch_trace_list_t touchTraces;

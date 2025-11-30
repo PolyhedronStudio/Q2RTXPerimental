@@ -178,7 +178,8 @@ void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
     body->clipMask = ent->clipMask;
     body->owner = ent->owner;
     body->movetype = ent->movetype;
-    body->groundInfo.entity = ent->groundInfo.entity;
+    body->groundInfo = ent->groundInfo;
+	body->liquidInfo = ent->liquidInfo;
 
     body->s.entityType = ET_PLAYER_CORPSE;
 

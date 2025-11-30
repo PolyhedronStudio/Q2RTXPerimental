@@ -47,6 +47,9 @@ pmove_t *pm;
 //! Contains our local in-moment move variables.
 pml_t pml;
 
+//! String representatives.
+extern const char *sg_player_state_event_strings[ PS_EV_MAX ];
+
 //! An actual pointer to the pmove parameters object for use with moving.
 static pmoveParams_t *pmp;
 
@@ -254,6 +257,8 @@ void PM_AddEvent( const uint8_t newEvent, const uint8_t parameter ) {
 static void PM_Friction() {
 	// Get velocity.
 	const Vector3 velocity = pm->state->pmove.velocity;
+	// Ignore slope movement. ( Remove Z velocity. )
+	const Vector3 noSlopeVelocity = ( pml.isWalking ? Vector3( Vector2( velocity ) ) : Vector3( velocity ) );
 
 	// Set us to a halt, if our speed is too low, otherwise we'll see
 	// ourselves sort of 'drifting'.
@@ -269,13 +274,11 @@ static void PM_Friction() {
 
 	// Drop value.
 	double drop = 0.;
-	const double control = pmp->pm_stop_speed;
 
 	// Apply ground friction if on-ground.
 	#ifdef PMOVE_USE_MATERIAL_FRICTION
-		// Ensure we are on-ground.
-		if ( ( pm->ground.entity != nullptr
-			&& ( ( pml.groundTrace.surface == nullptr ) || !( pml.groundTrace.surface && pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
+		if ( ( pm->ground.entityNumber != ENTITYNUM_NONE
+			&& ( pml.groundTrace.surface != nullptr && !( pml.groundTrace.surface->flags & CM_SURFACE_FLAG_SLICK ) )
 			) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
 		) {
 			// Get the material to fetch friction from.
@@ -296,10 +299,10 @@ static void PM_Friction() {
 		}
 	#endif
 
-	//const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+	const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 
 	// Apply water friction, and not off-ground yet on a ladder.
-	if ( pm->liquid.level /*&& !( pm->state->pmove.pm_flags & PMF_ON_LADDER )*/ ) {
+	if ( pm->liquid.level && !( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
 		drop += speed * pmp->pm_water_friction * (float)pm->liquid.level * pml.frameTime;
 	}
 	// Apply ladder friction, if climbing a ladder and in-water.
@@ -554,6 +557,9 @@ static inline void PM_GetLiquidContentsForPoint( const Vector3 &position, cm_liq
 static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 	int32_t	i, j, k;
 
+	//if ( pm->debugLevel ) {
+	//	Com_Printf( "%i:allsolid\n", c_pmove );
+	//}
 	Vector3 testPoint = {};
 
 	// jitter around
@@ -579,7 +585,7 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 	pml.hasGroundPlane = false;
 	pml.isWalking = false;
 	pml.isAerial = true;
-	pm->ground.entity = nullptr;
+	pm->ground.entityNumber = ENTITYNUM_NONE;
 
 	return false;
 }
@@ -590,7 +596,7 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 static void PM_GroundTraceMissed( void ) {
 	Vector3		point = {};
 
-	if ( pm->ground.entity != nullptr/*pm->ps->groundEntityNum != ENTITYNUM_NONE*/ ) {
+	if ( pm->ground.entityNumber != ENTITYNUM_NONE/*pm->ps->groundEntityNum != ENTITYNUM_NONE*/ ) {
 		//// we just transitioned into freefall
 		//if ( pm->debugLevel ) {
 		//	Com_Printf( "%i:lift\n", c_pmove );
@@ -638,7 +644,7 @@ static void PM_GroundTrace( void ) {
 	if ( trace.fraction == 1.0 ) {
 		PM_GroundTraceMissed();
 
-		pm->ground.entity = nullptr;
+		pm->ground.entityNumber = ENTITYNUM_NONE;
 		pml.hasGroundPlane = false;
 		pml.isWalking = false;
 		pml.isAerial = true;
@@ -660,7 +666,7 @@ static void PM_GroundTrace( void ) {
 			pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
 		}
 		#endif
-		pm->ground.entity = nullptr;
+		pm->ground.entityNumber = ENTITYNUM_NONE;
 		pml.hasGroundPlane = false;
 		pml.isWalking = false;
 		pml.isAerial = true;
@@ -676,7 +682,7 @@ static void PM_GroundTrace( void ) {
 		// <Q2RTXP>: This is what Q3 said anyhow.
 		// FIXME: if they can't slide down the slope, let them
 		// walk (sharp crevices)
-		pm->ground.entity = nullptr;
+		pm->ground.entityNumber = ENTITYNUM_NONE;
 		pml.hasGroundPlane = true;
 		pml.isWalking = false;
 		pml.isAerial = false;
@@ -693,7 +699,7 @@ static void PM_GroundTrace( void ) {
 		pm->state->pmove.pm_time = 0;
 	}
 
-	if ( pm->ground.entity == nullptr ) {
+	if ( pm->ground.entityNumber == ENTITYNUM_NONE ) {
 		//// just hit the ground
 		//if ( pm->debugLevel ) {
 		//	Com_Printf( "%i:Land\n", c_pmove );
@@ -714,7 +720,7 @@ static void PM_GroundTrace( void ) {
 	}
 
 	// If we have an entity, or a ground plane, assign the remaining ground properties.
-	if ( pml.hasGroundPlane || pm->ground.entity ) {
+	if ( pml.hasGroundPlane || pm->ground.entityNumber != ENTITYNUM_NONE ) {
 		if ( pml.hasGroundPlane ) {
 			pm->ground.plane = pml.groundTrace.plane;
 		// <Q2RTXP>: WID: This one is already zerod out at pmove preparation.
@@ -728,7 +734,7 @@ static void PM_GroundTrace( void ) {
 		//pm->ground = {};
 	}
 	// Always fetch the actual entity found by the ground trace.
-	pm->ground.entity = ( SG_GetEntityForNumber( trace.entityNumber ) );
+	pm->ground.entityNumber = trace.entityNumber;
 
 	// Don't reset the z velocity for slopes.
 //	pm->ps->velocity[2] = 0;
@@ -766,7 +772,7 @@ static void PM_AddCurrents( Vector3 & wishVelocity ) {
 
 		double speed = pmp->pm_water_speed;
 		// Walking in water, against a current, so slow down our 
-		if ( ( pm->liquid.level == cm_liquid_level_t::LIQUID_FEET ) && ( pm->ground.entity ) ) {
+		if ( ( pm->liquid.level == cm_liquid_level_t::LIQUID_FEET ) && ( pm->ground.entityNumber != ENTITYNUM_NONE ) ) {
 			speed /= 2.;
 		}
 
@@ -774,7 +780,7 @@ static void PM_AddCurrents( Vector3 & wishVelocity ) {
 	}
 
 	// Add conveyor belt velocities.
-	if ( pm->ground.entity ) {
+	if ( pm->ground.entityNumber != ENTITYNUM_NONE ) {
 		Vector3 velocity = QM_Vector3Zero();
 
 		if ( pml.groundTrace.contents & CONTENTS_CURRENT_0 ) {
@@ -948,9 +954,7 @@ static void PM_CrashLand( void ) {
 	{
 		if ( delta < 15 ) {
 			if ( delta > 7 && !( pm->state->pmove.pm_flags & PMF_ON_LADDER ) ) {
-				if ( pm->state->pmove.pm_type == PM_NORMAL ) {
-					PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 );
-				}
+				PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 );
 			} else {
 				// start footstep cycle over
 				//pm->state->bobCycle = 0;
@@ -1015,11 +1019,11 @@ static const bool PM_CheckJump() {
 		return false;
 	}
 	if ( pm->liquid.level >= LIQUID_WAIST ) {
-		pm->ground.entity = nullptr;
+		pm->ground.entityNumber = ENTITYNUM_NONE;
 		return false;
 	}
 	// In-air/liquid, so no effect, can't re-jump without ground.
-	if ( pm->ground.entity == nullptr 
+	if ( pm->ground.entityNumber == ENTITYNUM_NONE
 		|| pml.groundTrace.entityNumber == ENTITYNUM_NONE
 		|| ( !pml.hasGroundPlane ) || ( !pml.isWalking ) ) {
 		return false;
@@ -1037,7 +1041,7 @@ static const bool PM_CheckJump() {
 	// Play jump sound.
 	pm->jump_sound = true;
 	// Unset ground.
-	pm->ground.entity = nullptr;
+	pm->ground.entityNumber = ENTITYNUM_NONE;
 
 	// Adjust our pmove state to engage in the act of jumping.
 	pm->state->pmove.pm_flags |= PMF_JUMP_HELD;
@@ -1086,7 +1090,7 @@ static void PM_RefreshAnimationState() {
 	}
 
 	// Airborne leaves cycle intact, but doesn't advance either.
-	if ( pm->ground.entity == nullptr ) {
+	if ( pm->ground.entityNumber == ENTITYNUM_NONE ) {
 		return;
 	}
 
@@ -1237,7 +1241,7 @@ static void PM_CycleBob() {
 	PM_Animation_SetMovementDirection();
 
 	// Airborne leaves cycle intact, but doesn't advance either.
-	if ( pm->ground.entity == nullptr ) {
+	if ( pm->ground.entityNumber == ENTITYNUM_NONE ) {
 		return;
 	}
 
@@ -1283,14 +1287,12 @@ static void PM_CycleBob() {
 	if ( ( ( oldBobCycle + 64 ) ^ ( pm->state->bobCycle + 64 ) ) & 128 ) {
 		// On-ground will only play sounds if running:
 		if ( pm->liquid.level == LIQUID_NONE || pm->liquid.level == LIQUID_FEET ) {
-			if ( footStep && pm->state->xySpeed > pmp->pm_stop_speed /* && pm->state->xySpeed > 225 */ /*&& !pm->noFootsteps*/ ) {
+			if ( footStep && pm->state->xySpeed > 225 /*&& !pm->noFootsteps*/ ) {
 				//if ( pm->state->pmove.pm_flags & PMF_ON_LADDER ) {
 				//	PM_AddEvent( EV_FOOTSTEP_LADDER, 0 );
 				//	SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(% i), oldBobCycle(% i), bobMove(%lf), Event(EV_FOOTSTEP_LADDER), Time(%" PRId64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
 				//} else {
-				if ( pm->state->pmove.pm_type == PM_NORMAL ) {
 					PM_AddEvent( EV_PLAYER_FOOTSTEP, 0 /*PM_FootstepForSurface()*/ );
-				}
 					//SG_DPrintf( "[" SG_GAME_MODULE_STR "%s: pm->state->bobCycle(%i), oldBobCycle(%i), bobMove(%lf), Event(EV_FOOTSTEP), Time(%" PRId64 ")\n", __func__, pm->state->bobCycle, oldBobCycle, pm->state->bobMove, pm->simulationTime.Milliseconds() );
 				//}
 			}
@@ -1367,7 +1369,7 @@ static void PM_WaterEvents( void ) {		// FIXME?
 **/
 static void PM_DeadMove() {
 	// We want ground before we 'slide' like a dead boss yo dawg.
-	if ( !pm->ground.entity ) {
+	if ( pm->ground.entityNumber == ENTITYNUM_NONE ) {
 		return;
 	}
 
@@ -1649,7 +1651,7 @@ static void PM_WaterMove() {
 	// Sink towards bottom by default:
 	} else {
 		// Only if not on ground. Otherwise it'll nudge the origin up and down, causing jitter.
-		if ( !pml.hasGroundPlane && pm->ground.entity == nullptr ) {
+		if ( !pml.hasGroundPlane && pm->ground.entityNumber == ENTITYNUM_NONE ) {
 			wishVelocity[ 2 ] = -60.;
 		}
 	}
@@ -2339,3 +2341,4 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
 	pmp->pm_fly_friction = default_pmoveParams_t::pm_fly_friction;
 }
+

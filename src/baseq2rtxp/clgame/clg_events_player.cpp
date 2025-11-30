@@ -83,7 +83,8 @@ static const std::string PrimaryFireEvent_DetermineAnimation( const player_state
 **/
 static void CLG_PlayerEvent_FootStep( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
 	// Play the footstep sound.
-    CLG_FX_FootStepSound( entityNumber, lerpOrigin, false, true );
+    //CLG_FX_FootStepSound( entityNumber, lerpOrigin, false, true );
+    CLG_LocalFootStepEvent( entityNumber, lerpOrigin );
 }
 
 
@@ -399,7 +400,7 @@ static void CLG_PlayerEvent_WeaponHolsterAndDraw( centity_t *playerEntity, const
 /**
 *   @brief  Processes the given player state event.
 **/
-const bool CLG_Events_FirePlayerStateEvent( centity_t *playerEntity, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const Vector3 &lerpOrigin ) {
+const bool CLG_Events_FirePlayerStateEvent( centity_t *playerEntity, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin ) {
     // For dynamic lights.
 	clg_dlight_t *dl = nullptr;
 
@@ -428,10 +429,10 @@ const bool CLG_Events_FirePlayerStateEvent( centity_t *playerEntity, const playe
         *   FootStep Events:
         **/
         case EV_PLAYER_FOOTSTEP:
-			DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_FOOTSTEP" );
-            CLG_PlayerEvent_FootStep( entityNumber, lerpOrigin );
-            return true;
-        break;
+			    DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_FOOTSTEP" );
+                CLG_PlayerEvent_FootStep( entityNumber, lerpOrigin );
+                return true;
+            break;
         // Applied externally outside of pmove.
         //case EV_FOOTSTEP_LADDER:
         //        CLG_FootStepLadderEvent( entityNumber );
@@ -513,7 +514,7 @@ const bool CLG_Events_FirePlayerStateEvent( centity_t *playerEntity, const playe
         *   Teleport Events:
         **/
         case EV_PLAYER_LOGIN:
-			DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_LOGIN" );
+			    DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_LOGIN" );
 			    CLG_PlayerEvent_Login( playerEntity, entityNumber );
                 return true;
             break;

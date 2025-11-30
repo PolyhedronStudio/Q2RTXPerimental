@@ -477,7 +477,7 @@ void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
         );
 
     if ( isOctagonHull ) {
-    ////    // cylinder offset
+        // cylinder offset
         VectorSubtract( start, cm->hull_octagonbox->cylinder_offset, start_l );
         VectorSubtract( end, cm->hull_octagonbox->cylinder_offset, end_l );
     } else {
@@ -501,12 +501,19 @@ void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
 
     // rotate plane normal into the worlds frame of reference
     if ( rotated && trace->fraction != 1.0f ) {
+        #if 1
+        TransposeAxis( axis );
+        RotatePoint( trace->plane.normal, axis );
+        // FIXME: offset plane distance?
+        trace->plane.dist = DotProduct( trace->plane.normal, origin );
+        #else
         vec3_t a;
         VectorNegate( angles, a );
         AnglesToAxis( a, axis );
         RotatePoint( trace->plane.normal, axis );
         // FIXME: offset plane distance?
-        trace->plane.dist = DotProduct( trace->plane.normal, origin );
+        //trace->plane.dist = DotProduct( trace->plane.normal, origin );
+        #endif
     }
     
     // <Q2RTXP>: Don't do this for non rotated planes.
@@ -524,7 +531,7 @@ void CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int3
     if ( src->fraction < dst->fraction ) {
         dst->fraction = src->fraction;
         dst->entityNumber = entityNumber;
-        VectorCopy( src->endpos, dst->endpos );
+        dst->endpos = src->endpos;
 
         dst->plane = src->plane;
         dst->surface = src->surface;

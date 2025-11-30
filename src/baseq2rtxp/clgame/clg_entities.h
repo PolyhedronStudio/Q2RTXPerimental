@@ -50,7 +50,7 @@ static inline const bool CLG_IsLocalClientEntity( const server_frame_t *frame ) 
 	//}
 	if ( frame ) {
 		// Check for client number match.
-		if ( frame->clientNum == clgi.client->clientNumber ) {
+		if ( frame->ps.clientNumber == clgi.client->clientNumber ) {
 			return true;
 		}
 	}
@@ -117,7 +117,7 @@ static inline centity_t *CLG_GetChaseBoundEntity( void ) {
 static inline centity_t *CLG_GetLocalClientEntity( void ) {
 	// Sanity check.
 	if ( clgi.client->clientNumber == -1 ) {
-		clgi.Print( PRINT_DEVELOPER, "CLG_GetLocalClientEntity: No client number set yet(Value is -1).\n" );
+		clgi.Print( PRINT_DEVELOPER, "CLG_GetLocalClientEntity: No client number set yet(Value is CLIENTNUM_NONE(%d)).\n", CLIENTNUM_NONE );
 		// Return a nullptr.
 		return nullptr;
 	}

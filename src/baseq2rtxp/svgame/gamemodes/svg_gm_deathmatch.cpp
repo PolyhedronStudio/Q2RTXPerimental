@@ -228,11 +228,11 @@ void svg_gamemode_deathmatch_t::EndServerFrame( svg_player_edict_t *ent ) {
 	//SVG_PlayerState_CheckForEvents( ent, &ent->client->ops, &ent->client->ps );
 	// Animation Frame.
 	SVG_SetClientFrame( ent );
-
+	
 	// Backup velocity, viewangles, and ground entity.
-	VectorCopy( ent->velocity, ent->client->oldvelocity );
-	VectorCopy( ent->client->ps.viewangles, ent->client->oldviewangles );
-	ent->client->oldgroundentity = ent->groundInfo.entity;
+	ent->client->oldvelocity = ent->velocity; // VectorCopy( ent->velocity, ent->client->oldvelocity );
+	ent->client->oldviewangles = ent->client->ps.viewangles; // VectorCopy( ent->client->ps.viewangles, ent->client->oldviewangles );
+	ent->client->oldgroundentity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
 
 	// Clear out the weapon kicks.
 	ent->client->weaponKicks = {};
@@ -475,7 +475,7 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 	const client_persistant_t savedPersistantData = client->pers;
 	// Acquire actual client number and eventSequence.
 	const int32_t clientNum = client->clientNum;
-	const int32_t eventSequence = client->ps.eventSequence;
+	const int64_t eventSequence = client->ps.eventSequence;
 
 	// Reset client value.
 	*client = { }; //memset( client, 0, sizeof( *client ) );
@@ -572,7 +572,7 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     svg_trace_t tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
     if ( !tr.allsolid && !tr.startsolid /*&& Q_stricmp( level.mapname, "tech5" )*/ ) {
         VectorCopy( tr.endpos, ent->s.origin );
-        ent->groundInfo.entity = tr.ent;
+        ent->groundInfo.entityNumber = tr.entityNumber;
     } else {
         VectorCopy( spawn_origin, ent->s.origin );
         ent->s.origin[ 2 ] += 10; // make sure off ground

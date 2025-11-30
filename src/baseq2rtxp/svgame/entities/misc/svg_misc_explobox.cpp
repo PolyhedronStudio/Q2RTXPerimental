@@ -90,7 +90,7 @@ bool M_walkmove( svg_base_edict_t *ent, float yaw, float dist );
 **/
 DEFINE_MEMBER_CALLBACK_TOUCH( svg_misc_explobox_t, onTouch )( svg_misc_explobox_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) -> void {
 
-    if ( !other || ( !other->groundInfo.entity ) || ( other->groundInfo.entity == self ) ) {
+    if ( !other || ( other->groundInfo.entityNumber != ENTITYNUM_NONE ) || ( other->groundInfo.entityNumber == self->s.number ) ) {
         return;
     }
 
@@ -171,7 +171,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_misc_explobox_t, thinkExplode )( svg_misc_expl
         SVG_Misc_BecomeExplosion( self, 1 );
     }
     #endif // #if 0
-    if ( self->groundInfo.entity ) {
+    if ( self->groundInfo.entityNumber != ENTITYNUM_NONE ) {
         SVG_Misc_BecomeExplosion( self, 2, true );
     } else {
         SVG_Misc_BecomeExplosion( self, 1, true );

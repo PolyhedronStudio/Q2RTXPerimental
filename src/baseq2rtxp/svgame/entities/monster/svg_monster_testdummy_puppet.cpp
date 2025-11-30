@@ -334,7 +334,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             };
 
             // **SET VELOCITY DIRECTLY TO DESIRED SPEED**
-            if ( self->groundInfo.entity != nullptr ) {
+            if ( self->groundInfo.entityNumber != ENTITYNUM_NONE ) {
                 // The movement system expects velocity in units per second
                 self->velocity.x = (float)( wishDirVelocity.x * frameVelocity );
                 self->velocity.y = (float)( wishDirVelocity.y * frameVelocity );
@@ -345,7 +345,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             // Is done in MMove_StepSlideMove.
             // If not onground, zero out the frameVelocity.
             #if 0
-            if ( self->groundInfo.entity != nullptr ) {
+            if ( self->groundInfo.entityNumber != ENTITYNUM_NONE ) {
 
                 const float currentspeed = QM_Vector3DotProduct( previousVelocity, wishDirVelocity );
                 const float addSpeed = QM_Vector3NormalizeLength( wishDirVelocity ) - currentspeed;
@@ -376,7 +376,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 // Movement state, TODO: Store as part of gedict_t??
                 .state = {
                     .mm_type = MM_NORMAL,
-                    .mm_flags = ( self->groundInfo.entity != nullptr ? MMF_ON_GROUND : 0 ),
+                    .mm_flags = ( self->groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : 0 ),
                     .mm_time = 0,
 
                     .gravity = (int16_t)( self->gravity * sv_gravity->value ),
@@ -427,7 +427,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 // Movement state, TODO: Store as part of gedict_t??
                 .state = {
                     .mm_type = MM_NORMAL,
-                    .mm_flags = ( self->groundInfo.entity != nullptr ? MMF_ON_GROUND : 0 ),
+                    .mm_flags = ( self->groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : 0 ),
                     .mm_time = 0,
 
                     .gravity = (int16_t)( self->gravity * sv_gravity->value ),

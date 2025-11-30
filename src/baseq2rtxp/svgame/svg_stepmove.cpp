@@ -250,7 +250,7 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
                 gi.linkentity(ent);
                 SVG_Util_TouchTriggers(ent);
             }
-            ent->groundInfo.entity = NULL;
+            ent->groundInfo.entityNumber = ENTITYNUM_NONE;
             return true;
         }
 
@@ -282,8 +282,13 @@ static const bool SV_movestep(svg_base_edict_t *ent, Vector3 move, bool relink)
     if (ent->flags & FL_PARTIALGROUND) {
         ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_PARTIALGROUND );
     }
-    ent->groundInfo.entity = trace.ent;
-    ent->groundInfo.entityLinkCount = trace.ent->linkCount;
+	svg_base_edict_t *groundEnt = trace.ent;
+    if ( groundEnt ) {
+        ent->groundInfo.entityNumber = groundEnt->s.number;
+        ent->groundInfo.entityLinkCount = groundEnt->linkCount;
+    } else {
+		ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+    }
 
 // the move is ok
     if (relink) {
@@ -407,7 +412,7 @@ bool M_walkmove(svg_base_edict_t *ent, float yaw, float dist)
 {
     vec3_t  move;
 
-    if (!ent->groundInfo.entity && !(ent->flags & (FL_FLY | FL_SWIM)))
+    if ( ent->groundInfo.entityNumber == ENTITYNUM_NONE && !(ent->flags & (FL_FLY | FL_SWIM)))
         return false;
 
     yaw = DEG2RAD(yaw);

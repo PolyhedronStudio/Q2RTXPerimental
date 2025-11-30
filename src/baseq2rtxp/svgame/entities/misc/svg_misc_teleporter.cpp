@@ -121,7 +121,7 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( svg_misc_teleporter_onTouch )( svg_base_edict_t *s
 
     // clear the velocity and hold them in place briefly
     other->velocity = QM_Vector3Zero();
-    other->client->ps.pmove.pm_time = 14;     // hold time
+    other->client->ps.pmove.pm_time = 25;     // hold time
     other->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
 
     // draw the teleport splash at source and on the player

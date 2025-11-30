@@ -82,12 +82,12 @@ static const int32_t weapon_shell_effect( void ) {
     int32_t flags = 0;
 
     // Oh noes.
-    if ( clgi.client->frame.clientNum == CLIENTNUM_NONE ) {
+    if ( clgi.client->frame.ps.clientNumber == CLIENTNUM_NONE ) {
         return 0;
     }
 
     // Determine whether the entity was in the current frame or not.
-    centity_t *ent = &clg_entities[ clgi.client->frame.clientNum + 1 ]; //ent = ENTITY_FOR_NUMBER( clgi.client->frame.clientNum + 1 );//ent = &cl_entities[clgi.client->frame.clientNum + 1];
+    centity_t *ent = &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ]; //ent = ENTITY_FOR_NUMBER( clgi.client->frame.clientNum + 1 );//ent = &cl_entities[clgi.client->frame.clientNum + 1];
     if ( ent->serverframe != clgi.client->frame.number ) {
         return 0;
     }

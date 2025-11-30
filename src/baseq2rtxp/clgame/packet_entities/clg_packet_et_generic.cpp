@@ -185,10 +185,11 @@ static void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refr
         refreshEntity->angles[ 0 ] = 0;
         refreshEntity->angles[ 1 ] = autorotate;
         refreshEntity->angles[ 2 ] = 0;
-        // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
-    } else if ( newState->number == clgi.client->frame.clientNum + 1 ) {
+
+    // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
+    } else if ( newState->number == clgi.client->clientNumber ) {//clgi.client->frame.ps.clientNumber + 1 ) {
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
-        // Reguler entity angle interpolation:
+    // Reguler entity angle interpolation:
     } else {
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
     }
@@ -371,7 +372,7 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     base_entity_flags = 0; // WID: C++20: Make sure to however, reset it to 0.
 
     // In case of the state belonging to the frame's viewed client number:
-    if ( newState->number == clgi.client->frame.clientNum + 1 ) {
+    if ( newState->number == clgi.client->frame.ps.clientNumber + 1 ) {
         // When not in third person mode:
         if ( !clgi.client->thirdPersonView ) {
             // If we're running RTX, we want the player entity to render for shadow/reflection reasons:

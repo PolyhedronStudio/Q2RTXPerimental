@@ -231,7 +231,7 @@ static void emit_delta_frame(server_frame_t *from, server_frame_t *to,
 
     // delta encode the playerstate
     MSG_WriteUint8(svc_playerinfo);
-    MSG_WriteUint8( to->clientNum );
+    //MSG_WriteUint8( to->ps.clientNumber );
 
     newstate = to->ps;
     if (from) {

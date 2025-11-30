@@ -237,7 +237,7 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
         VectorNormalize( v );
         VectorMA( tr.ent->velocity, kick, v, tr.ent->velocity );
         if ( tr.ent->velocity[ 2 ] > 0 )
-            tr.ent->groundInfo.entity = NULL;
+            tr.ent->groundInfo.entityNumber = ENTITYNUM_NONE;
     }
 
     return isTDamaged;

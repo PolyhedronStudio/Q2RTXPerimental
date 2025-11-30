@@ -45,8 +45,8 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_push_t, onTouch ) ( svg_trigger_push_t
 
 		if ( other->client ) {
 			// don't take falling damage immediately from this.
-			VectorCopy( other->velocity, other->client->oldvelocity );
-			other->client->oldgroundentity = other->groundInfo.entity;
+			other->client->oldvelocity = other->velocity; // VectorCopy( other->velocity, other->client->oldvelocity );
+			other->client->oldgroundentity = g_edict_pool.EdictForNumber( other->groundInfo.entityNumber );
 
 			// Play wind sound.
 			if ( other->fly_sound_debounce_time < level.time ) {

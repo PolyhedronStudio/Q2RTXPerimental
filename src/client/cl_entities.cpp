@@ -43,7 +43,7 @@ static inline void _MSG_UnpackBoundsUint32( const bounds_packed_t packedBounds, 
 }
 
 /**
-*   @return True if origin / angles update has been optimized out to the player state.
+*   @return     True if origin / angles update has been optimized out to the player state.
 **/
 static inline bool entity_is_optimized(const entity_state_t *state)
 {
@@ -52,7 +52,7 @@ static inline bool entity_is_optimized(const entity_state_t *state)
     //    && cl.frame.ps.pmove.pm_type < PM_DEAD;
 	// WID: net-protocol2: We don't want this anyway, should get rid of it?
     //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO)
-    if ( state->number != cl.frame.clientNum + 1 ) {
+    if ( state->number != cl.frame.ps.clientNumber + 1 ) {
         return false;
     }
 
@@ -108,7 +108,7 @@ static void parse_entity_update(const entity_state_t *state)
 	// (We don't want to add the client's own entity, to prevent issues with self-collision).
     //
     if ( state->solid 
-        && state->number != cl.frame.clientNum + 1 
+        && state->number != cl.frame.ps.clientNumber + 1 // Our frame client entity.
         && cl.numSolidEntities < MAX_PACKET_ENTITIES ) {
         // Add it to the solids entity list.
         cl.solidEntities[ cl.numSolidEntities++ ] = ent;
@@ -131,7 +131,6 @@ static void parse_entity_update(const entity_state_t *state)
 
     // Default to the entity state origin.
     Vector3 newIntendOrigin = state->origin;
-
     // However, if an 'optimized' player entity, use its origin instead.
     if ( entity_is_optimized( state ) ) {
         newIntendOrigin = ( cl.frame.number <= 0 ? cl.frame.ps.pmove.origin : cl.predictedFrame.ps.pmove.origin );
@@ -221,7 +220,7 @@ static void CL_SetInitialFrame(void)
 *   Determine whether the player state has to lerp between the current and old frame,
 *   or snap 'to'.
 **/
-static void CL_TransitionPlayerState( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
+static void TransitionPlayerState( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
     // No client game loaded yet.
     if ( !clge ) {
         return;
@@ -262,7 +261,7 @@ void CL_ProcessNextFrame( void ) {
     // Initialize position of the player's own entity from playerstate.
     // this is needed in situations when player entity is invisible, but
     // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
-    centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.clientNum + 1 );
+    centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.ps.clientNumber + 1 );
     if ( /*framenum*/cl.frame.number <= 0 ) {
         Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
     } else {
@@ -309,7 +308,7 @@ void CL_ProcessNextFrame( void ) {
 
     // Determine whether the player state has to lerp between the current and old frame,
     // or snap 'to'.
-    CL_TransitionPlayerState( &cl.oldframe, &cl.frame, cl.serverdelta );
+    TransitionPlayerState( &cl.oldframe, &cl.frame, cl.serverdelta );
 
     if ( cls.demo.playback ) {
         // TODO: Proper stair smoothing.
@@ -330,7 +329,7 @@ void CL_ProcessNextFrame( void ) {
 #if USE_DEBUG
 void CL_CheckEntityPresent( const int32_t entityNumber, const char *what)
 {
-    if ( entityNumber == cl.frame.clientNum + 1 ) {
+    if ( entityNumber == cl.frame.ps.clientNumber + 1 ) {
         return; // player entity = current
     }
 

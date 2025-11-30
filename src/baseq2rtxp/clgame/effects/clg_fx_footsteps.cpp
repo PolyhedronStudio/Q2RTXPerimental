@@ -19,11 +19,33 @@
 *   @note   That for local client entities, the attenuation is set to ATTN_NORM,
 * 		    while for other entities, it is set to ATTN_IDLE.
 **/
-static void FootStepSound( const int32_t entityNumber, const Vector3 *origin, const centity_t *cent, const char *material_kind, const qhandle_t *material_footsteps, const int32_t material_num_footsteps ) {
+static void FootStepSound( const int32_t entityNumber, const Vector3 *origin, const centity_t *cent, const int32_t attenuation, const char *material_kind, const qhandle_t *material_footsteps, const uint32_t material_num_footsteps ) {
     /**
-    *   Local Client Entity:
+    *   View Bound Entity:
     **/
-    if ( entityNumber == clgi.client->clientNumber + 1 ) {
+    // Play a randomly appointed footstep from the material_footsteps array that now points to the water footsteps.
+    clgi.S_StartSound(
+        // No specific origin, as the entity number is specified.
+        ( origin ? &origin->x : nullptr ),
+        // Entity number.
+        entityNumber,
+        // Channel.
+        CHAN_BODY,
+        // Random footstep sound from water footsteps.
+        material_footsteps[ Q_rand() & material_num_footsteps - 1 ],
+        // Volume.
+        1.,
+        // IDLE Attenuation.
+        attenuation,
+        // No time offset.
+        0.
+    );
+
+    #if 0
+    /**
+    *   Player Client Entity:
+    **/
+    if ( entityNumber == clgi.client->frame.ps.clientNumber + 1 ) {
         // Play a randomly appointed footstep from the material_footsteps array that now points to the water footsteps.
         clgi.S_StartSound(
             // Play at the origin of the predicted state.
@@ -37,13 +59,13 @@ static void FootStepSound( const int32_t entityNumber, const Vector3 *origin, co
             // Volume.
             1.,
             // Attenuation.
-            ATTN_NORM,
+            attenuation,
             // No time offset.
             0.
         );
         // Debug print.
         #if _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS
-            clgi.Print( PRINT_DEVELOPER, "%s: Local Client FootStep Path(material_kind(%s), num_footsteps(%i))\n", __func__, material_kind, material_num_footsteps );
+            clgi.Print( PRINT_DEVELOPER, "%s: [Local Client] FootStep Path(material_kind(%s), num_footsteps(%i))\n", __func__, material_kind, material_num_footsteps );
         #endif // _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS           
     /**
     *   Other Entity:
@@ -52,7 +74,7 @@ static void FootStepSound( const int32_t entityNumber, const Vector3 *origin, co
         // Play a randomly appointed footstep from the material_footsteps array that now points to the water footsteps.
         clgi.S_StartSound(
             // No specific origin, as the entity number is specified.
-            ( cent ? &cent->lerp_origin.x : nullptr ),
+            ( origin ? &origin->x : nullptr ),
             // Entity number.
             entityNumber,
             // Channel.
@@ -68,9 +90,10 @@ static void FootStepSound( const int32_t entityNumber, const Vector3 *origin, co
         );
         // Debug print.
         #if _DEBUG_PRINT_ENTITY_FOOTSTEPS
-            clgi.Print( PRINT_DEVELOPER, "%s: Other Entity FootStep Path(material_kind(%s), num_footsteps(%i))\n", __func__, material_kind, material_num_footsteps );
+            clgi.Print( PRINT_DEVELOPER, "%s: [OTHER Entity] FootStep Path(material_kind(%s), num_footsteps(%i))\n", __func__, material_kind, material_num_footsteps );
         #endif // _DEBUG_PRINT_ENTITY_FOOTSTEPS
     }
+    #endif
 }
 /**
 *   @brief  Will play an appropriate footstep sound effect depending on the material that we're currently
@@ -108,18 +131,17 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
     if ( isLadder ) {
         // When isLadder is true, we don't need to do any material checks, instead we assume
         // the ladder is made out of metal, and apply that material sound instead.
-        uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_METAL_STEPS;
-        qhandle_t *material_footsteps = precache.sfx.footsteps.metal;
+        const uint32_t material_num_footsteps = precache.sfx.footsteps.NUM_METAL_STEPS;
+        const qhandle_t *material_footsteps = precache.sfx.footsteps.metal;
 
         // Origin if local client entity.
         if ( isLocalClient ) {
             // Play the footstep sound for metal ladders.
-            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, "ladder(metal)", material_footsteps, material_num_footsteps );
+            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, ATTN_NORM, "ladder(metal)", material_footsteps, material_num_footsteps );
         } else {
             // Play the footstep sound for metal ladders.
-            FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, "ladder(metal)", material_footsteps, material_num_footsteps );
+            FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, ATTN_STATIC, "ladder(metal)", material_footsteps, material_num_footsteps );
         }
-
 
         return;
     }
@@ -170,14 +192,8 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
 		// Must be in a liquid of contents type water, and feet level liquid.
         if ( predictedState->liquid.type & CONTENTS_WATER &&
             predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
-			// Adjust material kind and footstep data for water.
-            material_kind = "water";
-            material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
-            material_footsteps = precache.sfx.footsteps.water;
-
             // Play the footstep sound for water.
-            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, material_kind, material_footsteps, material_num_footsteps );
-
+            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, ATTN_NORM, "water", precache.sfx.footsteps.water, precache.sfx.footsteps.NUM_WATER_STEPS );
             //return;
         }
     /**
@@ -192,33 +208,27 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
 		// Perform a ground trace to determine the material we're currently standing on.
         if ( cent ) {
             // Trace from current origin to just below current origin to find ground material.
-            Vector3 traceStart = lerpOrigin;
+            Vector3 traceStart = cent->current.origin;
             Vector3 traceEnd = traceStart + Vector3{ 0., 0., -0.25 };
             // Perform the trace.
             cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &cent->mins.x, &cent->maxs.x, &traceEnd.x, cent, CM_CONTENTMASK_SOLID );
 
 			// If we got a material from the ground trace, use it.
-            if ( groundTrace.material ) {
+            //if ( groundTrace.material ) {
 				// Default to the traced ground material.
                 ground_material = groundTrace.material;                
                 
 				// Check for whether we're in water at feet level:
                 if ( groundTrace.contents & CONTENTS_WATER 
 					// <Q2RTXP>: TODO: Fix liquid level checking for packet entities.
-                    /*&& predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET*/ ) {
-
-                    // Adjust material kind and footstep data for water.
-                    material_kind = "water";
-                    material_num_footsteps = precache.sfx.footsteps.NUM_WATER_STEPS;
-                    material_footsteps = precache.sfx.footsteps.water;
-
+                    && predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
                     // Play the footstep sound for water.
-                    FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, material_kind, material_footsteps, material_num_footsteps );
+                    FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, ATTN_STATIC, "water", precache.sfx.footsteps.water, precache.sfx.footsteps.NUM_WATER_STEPS );
 
                     // Exit.
                     //return;
                 }
-            }
+            //}
 		}
     }
     
@@ -272,10 +282,10 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
         **/
         // Play the footstep sound for local client entity.
         if ( isLocalClient ) {
-            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, material_kind, material_footsteps, material_num_footsteps );
+            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, ATTN_NORM, material_kind, material_footsteps, material_num_footsteps );
         // Play the footstep sound for other (packet-)entities.
         } else {
-            FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, material_kind, material_footsteps, material_num_footsteps );
+            FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, ATTN_STATIC, material_kind, material_footsteps, material_num_footsteps );
         }
     }
 }

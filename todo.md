@@ -6,12 +6,14 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ---
 * [ ] func_button map, the first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
 * [ ] When testing the target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
-* [/] Load and register all media, store handles neatly in a global media struct.
+* [ ] Fix the odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
+* [ ] * [/] Load and register all media, store handles neatly in a global media struct.
 This prevents unnecessary repeated lookups for media handles. (Sounds, Models, Textures, Materials, etc etc)
 	* [X] Dealt with for client game sounds.
 	* [ ] Dealt with for server game sounds.
 * [ ] Implement client game cvars for debugging things more appropriately.
-* [ ] 
+* [ ] Fix stepping off sloped surfaces causing view twitching.
+* [ ] Fix func_door when started open, does not seem to respond to touch trigger brush areas properly..
 ---
 
 ### Random Ideas for The Day:

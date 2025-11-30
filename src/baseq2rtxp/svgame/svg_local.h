@@ -292,35 +292,6 @@ void fire_shotgun( svg_base_edict_t *self, const vec3_t start, const vec3_t aimd
 //! Player Weapon:
 #include "svgame/player/svg_player_weapon.h"
 
-/**
-*   @brief  Stores the final ground information results.
-**/
-struct mm_ground_info_t {
-    //! Pointer to the actual ground entity we are on.(nullptr if none).
-    svg_base_edict_t *entity;
-    //! Ground entity link count.
-    int32_t         entityLinkCount;
-
-    //! A copy of the plane data from the ground entity.
-    cm_plane_t      plane;
-    //! A copy of the ground plane's surface data. (May be none, in which case, it has a 0 name.)
-    cm_surface_t    surface;
-    //! A copy of the contents data from the ground entity's brush.
-    cm_contents_t   contents;
-    //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-    cm_material_t   *material;
-};
-
-/**
-*   @brief  Stores the final 'liquid' information results. This can be lava, slime, or water, or none.
-**/
-struct mm_liquid_info_t {
-    //! The actual BSP liquid 'contents' type we're intersecting with, or inside of.
-    cm_contents_t      type;
-    //! The level of degree at which we're intersecting with, or inside of the liquid 'solid' brush.
-    cm_liquid_level_t	level;
-};
-
 //! Client Data Structures:
 #include "svgame/svg_game_client.h"
 

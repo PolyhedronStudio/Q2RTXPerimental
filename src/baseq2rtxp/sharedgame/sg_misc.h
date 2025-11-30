@@ -18,7 +18,7 @@
 /**
 *	@brief	Adds a player movement predictable event to the player move state.
 **/
-void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t eventParm, player_state_t *playerState );
+void SG_PlayerState_AddPredictableEvent( const int32_t newEvent, const int32_t eventParm0, /*const int32_t eventParm1,*/ player_state_t *playerState );
 
 
 
@@ -26,8 +26,8 @@ void SG_PlayerState_AddPredictableEvent( const uint32_t newEvent, const uint32_t
 *
 *
 *	(Client-)Player: WID: TODO: Move to their own file sometime.
-* 
-* 
+*
+*
 **/
 /**
 *   @brief  Returns a string stating the determined 'Base' animation, and sets the FrameTime value for frameTime pointer.
