@@ -22,6 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 
 #include "cl_client.h"
+#include "common/collisionmodel.h"
 
 /**
 *   @brief  Breaks up playerskin into name (optional), model and skin components.

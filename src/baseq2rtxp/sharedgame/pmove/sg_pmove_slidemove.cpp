@@ -413,9 +413,11 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	slideMoveFlags |= PM_SlideMove_Generic( pm, pml, applyGravity );
 
 	down = pm->state->pmove.origin;
-	down.z -= stepSize + PM_STEP_GROUND_DIST;
+	down -= PM_STEP_MAX_SIZE + PM_STEP_GROUND_DIST;
+	//down.z -= stepSize + PM_STEP_GROUND_DIST;
 	trace = PM_Trace( start_o, pm->mins, pm->maxs, down );
-	// never step up when you still have up velocity
+
+	// Never step up when you still have up velocity.
 	if ( QM_Vector3DotProductDP( trace.plane.normal, pm->state->pmove.velocity ) > 0.0 &&
 		( trace.fraction == 1.0f || QM_Vector3DotProductDP( trace.plane.normal, QM_Vector3Up() ) < PM_STEP_MIN_NORMAL ) ) {
 		pm->step_clip = true;

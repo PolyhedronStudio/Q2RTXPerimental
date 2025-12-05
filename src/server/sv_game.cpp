@@ -508,6 +508,19 @@ static const bool PF_inPHS(const Vector3 *p1, const Vector3 *p2)
     return PF_inVIS(p1, p2, DVIS_PHS);
 }
 
+
+const cm_trace_t q_gameabi PF_SV_Trace( const Vector3 *start, const Vector3 *mins,
+    const Vector3 *maxs, const Vector3 *end,
+    edict_ptr_t *passEdict, const cm_contents_t contentmask ) {
+    return SV_Trace( *start, mins, maxs, *end, passEdict, contentmask );
+}
+
+const cm_trace_t q_gameabi PF_SV_Clip( edict_ptr_t *clip, const Vector3 *start, const Vector3 *mins,
+    const Vector3 *maxs, const Vector3 *end,
+    const cm_contents_t contentmask ) {
+    return SV_Clip( clip, *start, mins, maxs, *end, contentmask );
+}
+
 /**
 *   @description    Each entity can have eight independant sound sources, like voice,
 *                   weapon, feet, etc.
@@ -1095,8 +1108,8 @@ void SV_InitGameProgs(void) {
     imports.FS_FreeFile = PF_FS_FreeFile;
 
     imports.BoxEdicts = SV_AreaEdicts;
-    imports.trace = SV_Trace;
-	imports.clip = SV_Clip;
+    imports.trace = PF_SV_Trace;
+	imports.clip = PF_SV_Clip;
     imports.pointcontents = SV_PointContents;
     imports.linkentity = PF_LinkEdict;
     imports.unlinkentity = PF_UnlinkEdict;

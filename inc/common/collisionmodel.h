@@ -129,16 +129,16 @@ byte *CM_FatPVS( cm_t *cm, byte *mask, const vec3_t org, const int32_t vis );
 *           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
 *           contains the box.
 **/
-const int32_t CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+const int32_t CM_BoxLeafs( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode );
 /**
 *   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
 *           given box occupies in the data structure.
 **/
-const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
+const int32_t CM_BoxLeafs_headnode( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
 /**
 *   @return The contents mask of all leafs within the absolute bounds.
 **/
-const cm_contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
+const cm_contents_t CM_BoxContents( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mnode_t *headnode );
 
 
 //
@@ -246,16 +246,16 @@ const cm_contents_t CM_TransformedPointContents( cm_t *cm, const vec3_t p, mnode
 *   @brief
 **/
 void        CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
-                        const vec3_t start, const vec3_t end,
-                        const vec3_t mins, const vec3_t maxs,
+                        const Vector3 &start, const Vector3 &end,
+                        const Vector3 *mins, const Vector3 *maxs,
                         mnode_t *headnode, const cm_contents_t brushmask );
 /**
 *   @brief  Handles offseting and rotation of the end points for moving and
 *           rotating entities.
 **/
 void        CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
-                                    const vec3_t start, const vec3_t end,
-                                    const vec3_t mins, const vec3_t maxs,
+                                    const Vector3 &start, const Vector3 &end,
+                                    const Vector3 *mins, const Vector3 *maxs,
                                     mnode_t *headnode, const cm_contents_t brushmask,
                                     const vec3_t origin, const vec3_t angles );
 /**

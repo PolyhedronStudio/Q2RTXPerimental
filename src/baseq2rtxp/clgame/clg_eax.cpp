@@ -92,9 +92,9 @@ void CLG_EAX_DetermineEffect() {
 		clg_env_sound_locals_t *classLocals = CLG_LocalEntity_GetClass<clg_env_sound_locals_t>( env_sound );
 
 		// Perform a clipping trace on the world, from the env_sound its origin onto the player's (predicted-)origin.
-		const vec3_t traceStart = { env_sound->locals.origin.x, env_sound->locals.origin.y, env_sound->locals.origin.z };
-		const vec3_t traceEnd = { playerOrigin.x, playerOrigin.y, playerOrigin.z };
-		const cm_trace_t trace = clgi.Clip( traceStart, vec3_origin, vec3_origin, traceEnd, nullptr, CM_CONTENTMASK_SOLID );
+		const Vector3 traceStart = { env_sound->locals.origin.x, env_sound->locals.origin.y, env_sound->locals.origin.z };
+		const Vector3 traceEnd = { playerOrigin.x, playerOrigin.y, playerOrigin.z };
+		const cm_trace_t trace = clgi.Clip( &traceStart, nullptr, nullptr, &traceEnd, nullptr, CM_CONTENTMASK_SOLID );
 
 		// If we hit something, skip this env_sound entity.
 		if ( trace.fraction < 1.0f ) {

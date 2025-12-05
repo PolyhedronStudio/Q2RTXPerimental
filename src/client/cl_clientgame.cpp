@@ -2,9 +2,11 @@
 #include "refresh/models.h"
 #include "refresh/images.h"
 
+#include "common/collisionmodel.h"
 #include "common/skeletalmodels/cm_skm.h"
 #include "common/skeletalmodels/cm_skm_posecache.h"
 
+#include "client/cl_world.h"
 
 extern cl_screen_shared_t cl_scr;
 
@@ -98,6 +100,48 @@ static const int32_t PF_CM_NumberForLeaf( cm_t *cm, mleaf_t *leaf ) {
 **/
 const qboolean PF_CM_HeadnodeVisible( mnode_t *headnode, byte *visbits ) {
 	return CM_HeadnodeVisible( headnode, visbits );
+}
+/**
+*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+*           given box occupies in the data structure.
+**/
+const int32_t PF_CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
+	return CM_BoxLeafs( cm, mins, maxs, list, listsize, topnode );
+}
+/**
+*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+*           contains the box.
+**/
+const int32_t PF_CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode ) {
+	return CM_BoxLeafs_headnode( cm, mins, maxs, list, listsize, headnode, topnode );
+}
+/**
+*   @return The contents mask of all leafs within the absolute bounds.
+**/
+const cm_contents_t PF_CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode ) {
+	return CM_BoxContents( cm, mins, maxs, headnode );
+}
+
+
+/**
+*   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
+**/
+const cm_trace_t q_gameabi PF_CL_Trace( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *passEntity, const cm_contents_t contentmask ) {
+	return CL_Trace( *start, mins, maxs, *end, passEntity, contentmask );
+}
+/**
+*   @brief  Will perform a clipping trace to the specified entity.
+*           If clipEntity == nullptr, it'll perform a clipping trace against the World.
+**/
+const cm_trace_t q_gameabi PF_CL_Clip( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *clipEntity, const cm_contents_t contentmask ) {
+	return CL_Clip( *start, mins, maxs, *end, clipEntity, contentmask );
+}
+/**
+*   @return The type of 'contents' at the given point.
+**/
+const cm_contents_t q_gameabi PF_CL_PointContents( const Vector3 *point ) {
+	return CL_PointContents( *point );
 }
 
 
@@ -800,9 +844,9 @@ void CL_GM_LoadProgs( void ) {
 	imports.Netchan_GetDropped = PF_Netchan_GetDropped;
 	// End of Client Static.
 
-	imports.Trace = CL_Trace;
-	imports.Clip = CL_Clip;
-	imports.PointContents = CL_PointContents;
+	imports.Trace = PF_CL_Trace;
+	imports.Clip = PF_CL_Clip;
+	imports.PointContents = PF_CL_PointContents;
 
 	imports.GetConfigString = PF_GetConfigString;
 
@@ -859,9 +903,9 @@ void CL_GM_LoadProgs( void ) {
 	imports.CM_GetAreaPortalState = CM_GetAreaPortalState;
 	imports.CM_AreasConnected = CM_AreasConnected;
 
-	imports.CM_BoxLeafs = CM_BoxLeafs;
-	imports.CM_BoxLeafs_headnode = CM_BoxLeafs_headnode;
-	imports.CM_BoxContents = CM_BoxContents;
+	imports.CM_BoxLeafs = PF_CM_BoxLeafs;
+	imports.CM_BoxLeafs_headnode = PF_CM_BoxLeafs_headnode;
+	imports.CM_BoxContents = PF_CM_BoxContents;
 
 	imports.CM_EntityKeyValue = CM_EntityKeyValue;
 	imports.CM_GetNullEntity = CM_GetNullEntity;

@@ -642,7 +642,7 @@ static void CLG_SetupThirdPersionView( void ) {
     float fscale, rscale;
     float dist, angle, range;
     cm_trace_t trace;
-    static const vec3_t mins = { -4, -4, -4 }, maxs = { 4, 4, 4 };
+    static const Vector3 mins = { -4, -4, -4 }, maxs = { 4, 4, 4 };
 
     // if dead, set a nice view angle
     if ( clgi.client->frame.ps.stats[ STAT_HEALTH ] <= 0 ) {
@@ -669,10 +669,11 @@ static void CLG_SetupThirdPersionView( void ) {
     //    mins, maxs, clgi.client->bsp->nodes, CM_CONTENTMASK_SOLID );
     // When clipping we 
     //trace = clgi.Clip( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, nullptr, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ) );
+    Vector3 vorg = clgi.client->refdef.vieworg;
     trace = clgi.Trace( 
-        &clgi.client->playerEntityOrigin.x,
-        mins, maxs, 
-        clgi.client->refdef.vieworg, 
+        &clgi.client->playerEntityOrigin,
+        &mins, &maxs, 
+        &vorg,
         clgi.client->clientEntity/*&clg_entities[ 1 ]*/, 
         CM_CONTENTMASK_SOLID//(cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP )
     );

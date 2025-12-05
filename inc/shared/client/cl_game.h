@@ -157,8 +157,8 @@ typedef struct {
 	*	Clip Tracing:
 	*
 	**/
-	const cm_trace_t( *q_gameabi Trace )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const cm_contents_t contentmask );
-	const cm_trace_t( *q_gameabi Clip )( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const cm_contents_t contentmask );
+	const cm_trace_t( *q_gameabi Trace )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *passEntity, const cm_contents_t contentmask );
+	const cm_trace_t( *q_gameabi Clip )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *clipEntity, const cm_contents_t contentmask );
 	const cm_contents_t( *q_gameabi PointContents )( const Vector3 *point );
 
 

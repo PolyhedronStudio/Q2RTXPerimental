@@ -626,9 +626,9 @@ typedef struct client_predicted_state_s {
 	//! Player(-Entity) Bounding Box.
 	Vector3 mins, maxs;
 
-	//! Stores the last frame ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
+	//! Stores the last frame ground information. If there is no actual active, valid, ground, then ground.entityNumber will be ENTITYNUM_NONE.
 	ground_info_t lastGround;
-	//! Stores the predicted current ground information. If there is no actual active, valid, ground, then ground.entity will be nullptr.
+	//! Stores the predicted current ground information. If there is no actual active, valid, ground, then ground.entityNumber will be ENTITYNUM_NONE.
 	ground_info_t ground;
 	//! Stores the 'liquid' information. This can be lava, slime, or water.
 	liquid_info_t liquid;
@@ -655,6 +655,8 @@ typedef struct client_predicted_state_s {
 	Vector3 error;
 	//! The origin of the player entity for this frame, used for prediction.
 	Vector3 origin;
+	//! The Predicted velocity.
+	Vector3 velocity;
 } client_predicted_state_t;
 
 

@@ -41,7 +41,7 @@ void SetPlaneSignbits(cm_plane_t *plane);
 
 int BoxOnPlaneSide(const vec3_t emins, const vec3_t emaxs, const cm_plane_t *p);
 
-static inline int BoxOnPlaneSideFast(const vec3_t emins, const vec3_t emaxs, const cm_plane_t *p)
+static inline int BoxOnPlaneSideFast( const vec3_t emins, const vec3_t emaxs, const cm_plane_t *p )
 {
     // fast axial cases
     if (p->type < 3) {
@@ -55,6 +55,8 @@ static inline int BoxOnPlaneSideFast(const vec3_t emins, const vec3_t emaxs, con
     // slow generic case
     return BoxOnPlaneSide(emins, emaxs, p);
 }
+
+
 
 static inline vec_t PlaneDiffFast(const vec3_t v, const cm_plane_t *p)
 {
@@ -72,3 +74,12 @@ void SetupRotationMatrix(vec3_t matrix[3], const vec3_t dir, float degrees);
 // Extern C
 QEXTERN_C_CLOSE
 
+// C++ inline overloads
+#ifdef __cplusplus
+static inline Vector3 PlaneDiffFast( const Vector3 &v, const cm_plane_t *p ) {
+    return PlaneDiffFast( v, p );
+}
+static inline int BoxOnPlaneSideFast( const Vector3 &emins, const Vector3 &emaxs, const cm_plane_t *p ) {
+    return BoxOnPlaneSideFast( &emins.x, &emaxs.x, p );
+}
+#endif

@@ -23,6 +23,9 @@
 //! Defining this will enable Q2 Rerelease style fixing of being stuck.
 //#define PMOVE_Q2RE_STUCK_FIXES
 
+//! Defining this enables debugging for ground traces.
+#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+
 //! Defining this will enable 'material physics' such as per example: Taking the friction value from the ground material.
 #define PMOVE_USE_MATERIAL_FRICTION
 
@@ -560,6 +563,10 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 	//if ( pm->debugLevel ) {
 	//	Com_Printf( "%i:allsolid\n", c_pmove );
 	//}
+	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+	SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : allsolid; \n", pm->simulationTime.Milliseconds(), __func__ );
+	#endif
+
 	Vector3 testPoint = {};
 
 	// jitter around
@@ -582,6 +589,7 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 	}
 
 	// Not walking or on ground.
+	pm->ground.entityNumber = ENTITYNUM_NONE;
 	pml.hasGroundPlane = false;
 	pml.isWalking = false;
 	pml.isAerial = true;
@@ -601,6 +609,9 @@ static void PM_GroundTraceMissed( void ) {
 		//if ( pm->debugLevel ) {
 		//	Com_Printf( "%i:lift\n", c_pmove );
 		//}
+		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : lift; \n", pm->simulationTime.Milliseconds(), __func__ );
+		#endif
 		#if 0
 		// if they aren't in a jumping animation and the ground is a ways away, force into it
 		// if we didn't do the trace, the player would be backflipping down staircases
@@ -627,18 +638,21 @@ static void PM_GroundTraceMissed( void ) {
 **/
 static void PM_GroundTrace( void ) {
 	// Trace downwards to find ground.
+	//Vector3 point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
 	Vector3 point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
 	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, point );
 	// Assign the ground trace.
 	pml.groundTrace = trace;
 
 	// Do something corrective if the trace starts in a solid.
-	if ( trace.allsolid ) {
+	#if 1
+	if ( /*trace.startsolid || */trace.allsolid ) {
 		// Did not find valid ground.
 		if ( !PM_CorrectAllSolidGround( &trace ) ) {
 			return;
 		}
 	}
+	#endif
 
 	// If the trace didn't hit anything, we are in free fall.
 	if ( trace.fraction == 1.0 ) {
@@ -656,6 +670,9 @@ static void PM_GroundTrace( void ) {
 		//if ( pm->debugLevel ) {
 		//	Com_Printf( "%i:kickoff\n", c_pmove );
 		//}
+		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : kickoff; \n", pm->simulationTime.Milliseconds(), __func__ );
+		#endif
 		#if 0
 		// go into jump animation
 		if ( pm->cmd.forwardmove >= 0 ) {
@@ -678,6 +695,9 @@ static void PM_GroundTrace( void ) {
 		//if ( pm->debugLevel ) {
 		//	Com_Printf( "%i:steep\n", c_pmove );
 		//}
+		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : steep;\n", pm->simulationTime.Milliseconds(), __func__ );
+		#endif
 
 		// <Q2RTXP>: This is what Q3 said anyhow.
 		// FIXME: if they can't slide down the slope, let them
@@ -704,6 +724,9 @@ static void PM_GroundTrace( void ) {
 		//if ( pm->debugLevel ) {
 		//	Com_Printf( "%i:Land\n", c_pmove );
 		//}
+		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : Land;\n", pm->simulationTime.Milliseconds(), __func__ );
+		#endif
 
 		// Damage crash landing.
 		PM_CrashLand();
@@ -731,7 +754,7 @@ static void PM_GroundTrace( void ) {
 		pm->ground.material = ( pml.groundTrace.material ? pml.groundTrace.material : nullptr );
 		pm->ground.surface = ( pml.groundTrace.surface ? *pml.groundTrace.surface : cm_surface_t() );
 	} else {
-		//pm->ground = {};
+		//pm->ground = { .entityNumber = ENTITYNUM_NONE };
 	}
 	// Always fetch the actual entity found by the ground trace.
 	pm->ground.entityNumber = trace.entityNumber;
@@ -1143,8 +1166,8 @@ static void PM_Animation_SetMovementDirection( void ) {
 	Vector3 xyMoveDirNormalized = QM_Vector3FromVector2( QM_Vector2Normalize( xyMoveDir ) );
 
 	// Dot products.
-	const float xDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vRight );
-	const float yDotResult = QM_Vector3DotProduct( xyMoveDirNormalized, vForward );
+	const double xDotResult = QM_Vector3DotProductDP( xyMoveDirNormalized, vRight );
+	const double yDotResult = QM_Vector3DotProductDP( xyMoveDirNormalized, vForward );
 
 	// Resulting move flags.
 	pm->state->animation.moveDirection = 0;
@@ -1228,8 +1251,8 @@ static void PM_CycleBob() {
 	//
 	// Calculate the speed and cycle to be used for all cyclic walking effects.
 	//
-	pm->state->xySpeed = QM_Vector2Length( QM_Vector2FromVector3( pm->state->pmove.velocity ) );
-	pm->state->xyzSpeed = QM_Vector3Length( pm->state->pmove.velocity );
+	pm->state->xySpeed = QM_Vector2LengthDP( QM_Vector2FromVector3( pm->state->pmove.velocity ) );
+	pm->state->xyzSpeed = QM_Vector3LengthDP( pm->state->pmove.velocity );
 
 	// Reset bobmove.
 	//pm->state->bobMove = 0.f; // WID: Doing this just.. gives jitter like gameplay feel, but enable if you wanna...
@@ -2341,4 +2364,3 @@ void SG_ConfigurePlayerMoveParameters( pmoveParams_t *pmp ) {
 	pmp->pm_water_friction = default_pmoveParams_t::pm_water_friction;
 	pmp->pm_fly_friction = default_pmoveParams_t::pm_fly_friction;
 }
-

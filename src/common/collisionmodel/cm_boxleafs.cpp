@@ -25,8 +25,8 @@ typedef struct box_leaf_test_s {
     cm_t *cm;
 
     //! [In]: The bounds for the box that is testing leafs.
-    const vec_t *leaf_mins;
-    const vec_t *leaf_maxs;
+    const Vector3 leaf_mins;
+    const Vector3 leaf_maxs;
 
     //! [In]: List holding all leafs to test against.
     mleaf_t **leaf_list;
@@ -158,7 +158,7 @@ static void CM_BoxLeafs_r( box_leaf_test_t &boxLeafTest, mnode_t *node ) {
 *   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
 *           given box occupies in the data structure.
 **/
-const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode ) {
+const int32_t CM_BoxLeafs_headnode( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode ) {
     box_leaf_test_t boxLeafTest = {
         // [In]:
         .cm = cm,
@@ -191,7 +191,7 @@ const int32_t CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t ma
 *           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully 
 *           contains the box.
 **/
-const int32_t CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
+const int32_t CM_BoxLeafs( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
     // Map not loaded.
     if ( !cm->cache ) {
         return 0;
@@ -203,7 +203,7 @@ const int32_t CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf
 /**
 *   @return The contents mask of all leafs within the absolute bounds.
 **/
-const cm_contents_t CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode ) {
+const cm_contents_t CM_BoxContents( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mnode_t *headnode ) {
     box_leaf_test_t boxLeafTest = {
         // [In]:
         .cm = cm,

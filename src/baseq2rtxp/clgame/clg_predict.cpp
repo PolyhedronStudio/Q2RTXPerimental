@@ -30,21 +30,13 @@
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
 static const cm_trace_t q_gameabi CLG_PM_Trace( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const void *passEntity, const cm_contents_t contentMask ) {
-    const vec_t *_mins = ( ( &(*mins) != &qm_vector3_null || *mins != qm_vector3_null || *mins != vec3_origin ) ? &(*mins).x : nullptr );
-    const vec_t *_maxs = ( ( &(*maxs) != &qm_vector3_null || *maxs != qm_vector3_null || *maxs != vec3_origin ) ? &(*maxs).x : nullptr );
-    const vec_t *_start = ( ( &( *start ) != &qm_vector3_null || *start != qm_vector3_null || *start != vec3_origin ) ? &( *start ).x : nullptr );
-    const vec_t *_end = ( ( &( *end ) != &qm_vector3_null || *end != qm_vector3_null || *end != vec3_origin ) ? &( *end ).x : nullptr );
-    return clgi.Trace( _start, _mins, _maxs, _end, (const centity_t *)passEntity, contentMask );
+    return clgi.Trace( start, mins, maxs, end, (const centity_t *)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
 static const cm_trace_t q_gameabi CLG_PM_Clip( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentMask ) {
-    const vec_t *_mins = ( ( &( *mins ) != &qm_vector3_null || *mins != qm_vector3_null || *mins != vec3_origin ) ? &( *mins ).x : nullptr );
-    const vec_t *_maxs = ( ( &( *maxs ) != &qm_vector3_null || *maxs != qm_vector3_null || *maxs != vec3_origin ) ? &( *maxs ).x : nullptr );
-    const vec_t *_start = ( ( &( *start ) != &qm_vector3_null || *start != qm_vector3_null || *start != vec3_origin ) ? &( *start ).x : nullptr );
-    const vec_t *_end = ( ( &( *end ) != &qm_vector3_null || *end != qm_vector3_null || *end != vec3_origin ) ? &( *end ).x : nullptr );
-    return clgi.Clip( _start, _mins, _maxs, _end, nullptr, contentMask );
+    return clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
@@ -272,10 +264,11 @@ static void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predic
         // Or we stand on another different ground entity. 
         && ( predictedState->ground.entityNumber != predictedState->lastGround.entityNumber
             // Plane memory isn't identical thus we stand on a different plane. OR.. 
-            || memcmp( &predictedState->lastGround.plane, &predictedState->ground.plane, sizeof( cm_plane_t ) ) != 0 )
+            || std::memcmp( &predictedState->lastGround.plane, &predictedState->ground.plane, sizeof( cm_plane_t ) ) != 0 )
     );
     // Determine the transition step height.
     if ( step_detected ) {
+        #if 1
         // Get delta time interval.
         int64_t deltaTime = ( clgi.GetRealTime() - predictedState->transition.step.timeChanged );
         // Default old step to 0.
@@ -287,6 +280,7 @@ static void CLG_PredictStepOffset( pmove_t *pm, client_predicted_state_t *predic
         }
         // Add the stepHeight amount.
         predictedState->transition.step.height = std::clamp( oldStep + stepSize, -PM_MAX_STEP_CHANGE, PM_MAX_STEP_CHANGE );
+        #endif
         // Store time of change.
         predictedState->transition.step.timeChanged = clgi.GetRealTime();
         // Store the size of the stepheight.
@@ -367,7 +361,8 @@ void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIn
 
     // Subtract what the server returned from our predicted origin for that frame.
     //game.predictedState.error = moveCommand->prediction.error = moveCommand->prediction.origin - clgi.client->frame.ps.pmove.origin;
-    game.predictedState.error = predictedMoveResult->error = moveCommand->prediction.error = clgi.client->frame.ps.pmove.origin - predictedMoveResult->origin;
+    const Vector3 errorMargin = clgi.client->frame.ps.pmove.origin - predictedMoveResult->origin;
+    game.predictedState.error = predictedMoveResult->error = moveCommand->prediction.error = errorMargin;
 
     // Save the prediction error for interpolation.
     const double len = std::abs( QM_Vector3LengthDP( game.predictedState.error ) );
@@ -497,7 +492,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         client_movecmd_t *moveCommand = &clgi.client->moveCommands[ acknowledgedCommandNumber & CMD_MASK ];
 
         // Only simulate it if it had movement.
-        //if ( moveCommand->cmd.msec ) {
+        if ( moveCommand->cmd.msec ) {
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
             pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.simulationTime );
@@ -526,17 +521,17 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
                 // Predict the next bobCycle for the frame.
                 CLG_PredictNextBobCycle( &pm );
             #endif
-        //}
 
-        // Store the resulting outcome(if no msec was found, it'll be the origin that
-        // was left behind from the previous player move iteration.)
-        moveCommand->prediction.origin = pm.state->pmove.origin;
-        moveCommand->prediction.velocity = pm.state->pmove.velocity;
-        // Store it as the current predicted origin state.
-        game.predictedState.origin = moveCommand->prediction.origin;
+            moveCommand->prediction.origin  = pm.state->pmove.origin;
+            moveCommand->prediction.velocity= pm.state->pmove.velocity;
+        }
+
+        // Store the resulting outcome(if no msec was found, it'll be the origin and velocity which were left behind from the previous player move iteration)/
+        game.predictedState.origin      = pm.state->pmove.origin;
+        game.predictedState.velocity    = pm.state->pmove.velocity;
+
         // Backup into our circular buffer.
         clgi.client->predictedMoveResults[ ( acknowledgedCommandNumber ) & CMD_MASK ] = moveCommand->prediction;
-
     }
 
     // Now predict results for the the pending command.
@@ -558,7 +553,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
             pendingMoveCommand->cmd.upmove = clgi.client->localmove[ 2 ];
             pm.cmd = pendingMoveCommand->cmd;
         #endif
-        // Perform movement.
+        // Perform movement. // ?? clgi.client->servertime
         pm.simulationTime = QMTime::FromMilliseconds( pendingMoveCommand->prediction.simulationTime );
         SG_PlayerMove( (pmove_s *)&pm, (pmoveParams_s *)&pmp );
         #if 1
@@ -571,13 +566,15 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         // Predict the next bobCycle for the frame.
         CLG_PredictNextBobCycle( &pm );
         #endif
-        
+
+        // Store the resulting outcome(if no msec was found, it'll be the origin and velocity which were left behind from the previous player move iteration)/
+        game.predictedState.origin = pm.state->pmove.origin;
+        game.predictedState.velocity = pm.state->pmove.velocity;
+
         // Store the predicted outcome results 
         pendingMoveCommand->prediction.origin = pm.state->pmove.origin;
         pendingMoveCommand->prediction.velocity = pm.state->pmove.velocity;
         
-        // Store it as the current last-predicted origin state.
-        predictedState->origin = pendingMoveCommand->prediction.origin;
         // And store it in the predictedState as the last command.
         predictedState->cmd = *pendingMoveCommand;
 

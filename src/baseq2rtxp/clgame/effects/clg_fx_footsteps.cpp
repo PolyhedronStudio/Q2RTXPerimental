@@ -211,7 +211,7 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
             Vector3 traceStart = cent->current.origin;
             Vector3 traceEnd = traceStart + Vector3{ 0., 0., -0.25 };
             // Perform the trace.
-            cm_trace_t groundTrace = clgi.Trace( &traceStart.x, &cent->mins.x, &cent->maxs.x, &traceEnd.x, cent, CM_CONTENTMASK_SOLID );
+            cm_trace_t groundTrace = clgi.Trace( &traceStart, &cent->mins, &cent->maxs, &traceEnd, cent, CM_CONTENTMASK_SOLID );
 
 			// If we got a material from the ground trace, use it.
             //if ( groundTrace.material ) {

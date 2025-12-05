@@ -1003,6 +1003,18 @@ static void PM_CategorizePosition() {
 	} else {
 		trace = PM_Trace( pml.origin, pm->mins, pm->maxs, point );
 		pm->ground.plane = trace.plane;
+
+#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+    SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: PM_GroundTrace debug: origin.z=%.6f point.z=%.6f fraction=%.9f normal_z=%.6f ent=%d frameTime=%.6f msec=%d\n",
+                pm->simulationTime, /* server path uses time as double/int64 */
+                (double)pml.origin.z,
+                (double)point.z,
+                (double)trace.fraction,
+                (double)trace.plane.normal[2],
+                trace.ent ? trace.ent->s.number : -1,
+                (double)pml.frameTime,
+                pm->cmd.msec );
+#endif
 		//pml.groundSurface = trace.surface;
 		pm->ground.surface = *( pml.ground.surface = trace.surface );
 		//pml.groundContents = trace.contents;

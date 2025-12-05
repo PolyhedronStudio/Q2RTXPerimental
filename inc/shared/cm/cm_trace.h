@@ -25,7 +25,7 @@ typedef struct trace_s {
     int32_t entityNumber;
 
     //! The fraction of the trace that was completed. ( 1.0 = didn't hit anything. )
-    float       fraction;
+    double      fraction;
     //! Final position.
     Vector3     endpos;
 

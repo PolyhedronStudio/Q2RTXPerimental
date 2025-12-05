@@ -274,7 +274,7 @@ typedef struct client_state_s {
 
     //! Current client move command that user input is enacting on.
     client_movecmd_t moveCommand;
-    //! Circular client buffer of (predicted-)move commands.
+    //! Circular client buffer of move commands.
     client_movecmd_t moveCommands[ CMD_BACKUP ];
 	//! Circular client buffer of (predicted-)move commands, used for prediction.
     client_movecmd_prediction_t predictedMoveResults[ CMD_BACKUP ];

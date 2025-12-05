@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_view.c -- player rendering positioning
 
 #include "cl_client.h"
+#include "common/collisionmodel.h"
 
 
 // WID: C++20: For linkage with .c

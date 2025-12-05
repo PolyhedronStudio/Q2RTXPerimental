@@ -19,6 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_main.c  -- client main loop
 
 #include "cl_client.h"
+#include "common/collisionmodel.h"
 #include "common/skeletalmodels/cm_skm_posecache.h"
 #include "client/ui/ui.h"
 

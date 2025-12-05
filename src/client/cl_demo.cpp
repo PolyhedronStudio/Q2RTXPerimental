@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //
 
 #include "cl_client.h"
+#include "common/collisionmodel.h"
 
 #define CS_BITMAP_LONGS         (CS_BITMAP_BYTES / 4)
 

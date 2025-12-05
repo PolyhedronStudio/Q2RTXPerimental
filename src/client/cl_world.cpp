@@ -17,6 +17,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "cl_client.h"
+#include "common/collisionmodel.h"
+#include "client/cl_world.h"
 
 /**
 *	@return	A headnode that can be used for testing and/or clipping an
@@ -47,7 +49,7 @@ static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSoli
 /**
 *   @brief  Clips the trace to all entities currently in-frame.
 **/
-static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const cm_contents_t contentmask ) {
+static void CL_ClipMoveToEntities( cm_trace_t *tr, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentmask ) {
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
         cm_trace_t     trace = {};
@@ -129,7 +131,7 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec
 
         // Perform the BSP box sweep.
         CM_TransformedBoxTrace( &cl.collisionModel, &trace, start, end,
-            mins, maxs, headNode, contentmask,
+            &mins, &maxs, headNode, contentmask,
             &ent->current.origin.x, &ent->current.angles.x );
 
         // Determine clipped entity trace result.
@@ -140,17 +142,17 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const vec3_t start, const vec
 /**
 *   @brief  Substituting the below 'CL_PM_Trace' implementation:
 **/
-const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *passEntity, const cm_contents_t contentmask ) {
+const cm_trace_t q_gameabi CL_Trace( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentmask ) {
     // Trace results.
     cm_trace_t trace = {};
 
     // Set for 'Special Point Case':
     if ( !mins ) {
-        mins = vec3_origin;
+        mins = &qm_vector3_null;
     }
     // Set for 'Special Point Case':
     if ( !maxs ) {
-        maxs = vec3_origin;
+        maxs = &qm_vector3_null;
     }
 
     // Make sure we got world.
@@ -170,7 +172,7 @@ const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, cons
 
 	    // If we are not clipping to the world, and the trace fraction is 1.0,
         // test and clip to other solid entities.
-        CL_ClipMoveToEntities( &trace, start, mins, maxs, end, passEntity, contentmask );
+        CL_ClipMoveToEntities( &trace, start, *mins, *maxs, end, passEntity, contentmask );
     }
 
     // Return trace.
@@ -181,18 +183,18 @@ const cm_trace_t q_gameabi CL_Trace( const vec3_t start, const vec3_t mins, cons
 *   @brief  Will perform a clipping trace to the specified entity.
 *           If clipEntity == nullptr, it'll perform a clipping trace against the World.
 **/
-const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, const centity_t *clipEntity, const cm_contents_t contentmask ) {
+const cm_trace_t q_gameabi CL_Clip( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const centity_t *clipEntity, const cm_contents_t contentmask ) {
     // Trace results.
     cm_trace_t trace = {};
 
     // Allow for point tracing in case mins and maxs are null.
     // Set for 'Special Point Case':
     if ( !mins ) {
-        mins = vec3_origin;
+        mins = &qm_vector3_null;
     }
     // Set for 'Special Point Case':
     if ( !maxs ) {
-        maxs = vec3_origin;
+        maxs = &qm_vector3_null;
     }
 
     // Clip against World:
@@ -240,9 +242,9 @@ const cm_trace_t q_gameabi CL_Clip( const vec3_t start, const vec3_t mins, const
 /**
 *   @brief  Player Move specific 'PointContents' implementation:
 **/
-const cm_contents_t q_gameabi CL_PointContents( const Vector3 *point ) {
+const cm_contents_t q_gameabi CL_PointContents( const Vector3 &point ) {
     // Perform point contents against world.
-    cm_contents_t contents = ( CM_PointContents( &cl.collisionModel, &point->x, cl.collisionModel.cache->nodes ) );
+    cm_contents_t contents = ( CM_PointContents( &cl.collisionModel, &point.x, cl.collisionModel.cache->nodes ) );
 	// We hit world, so return contents.
 	if ( contents != CONTENTS_NONE ) {
 		return contents;
@@ -286,7 +288,7 @@ const cm_contents_t q_gameabi CL_PointContents( const Vector3 *point ) {
         //}
 
         // Might intersect, so do an exact clip.
-        contents |= CM_TransformedPointContents( &cl.collisionModel, &point->x, headNode, &ent->current.origin.x, &ent->current.angles.x );
+        contents |= CM_TransformedPointContents( &cl.collisionModel, &point.x, headNode, &ent->current.origin.x, &ent->current.angles.x );
     }
 
     // Et voila.
