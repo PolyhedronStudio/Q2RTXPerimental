@@ -6,20 +6,7 @@
 *
 **/
 #include "shared/shared.h"
-#include "common/bsp.h"
-#include "common/cmd.h"
 #include "common/collisionmodel.h"
-#include "common/common.h"
-#include "common/cvar.h"
-#include "common/files.h"
-#include "common/math.h"
-#include "common/sizebuf.h"
-#include "common/zone.h"
-#include "system/hunk.h"
-#include <cmath>
-
-//! Needed here.
-extern cvar_t *map_allsolid_bug;
 
 //! Uncomment for enabling second best hit plane tracing results.
 #define SECOND_PLANE_TRACEXX
@@ -107,7 +94,7 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_t 
         if ( plane->type < 3 ) {
             if ( !trace_ispoint ) {
                 // choose the offset coordinate corresponding to the plane axis and sign
-                double off = trace_offsets[ plane->signbits ][ plane->type ];
+                const double off = trace_offsets[ plane->signbits ][ plane->type ];
                 // axial normal has non-zero at plane->type only (usually ±1)
                 dist = plane->dist - off * plane->normal[ plane->type ];
             } else {
@@ -185,7 +172,6 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_t 
             trace->allsolid = true;
             //if ( !map_allsolid_bug->integer ) {
                 // original Q2 didn't set these
-            CM_DebugPrint( "CM_ClipBoxToBrush: original point inside brush %p contents=%u -> setting trace->fraction=0\n", (void *)brush, (unsigned)brush->contents );
             trace->fraction = 0;
             trace->contents = static_cast<cm_contents_t>( brush->contents );
             trace->material = nullptr;
@@ -203,14 +189,7 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_t 
             trace->surface = &( leadside[ 0 ]->texinfo->c );
             trace->contents = static_cast<cm_contents_t>( brush->contents );
             trace->material = trace->surface->material;
-            if ( trace->fraction <= 0.0 ) {
-                cm_plane_t *p = clipplane[ 0 ];
-                if ( p ) {
-                    CM_DebugPrint( "CM_ClipBoxToBrush: enterfrac 0 -> trace->fraction=%f, plane normal=(%f,%f,%f) dist=%f brush=%p contents=%u\n", trace->fraction, p->normal[ 0 ], p->normal[ 1 ], p->normal[ 2 ], p->dist, (void *)brush, (unsigned)brush->contents );
-                } else {
-                    CM_DebugPrint( "CM_ClipBoxToBrush: enterfrac 0 -> trace->fraction=%f, clipplane[0] is NULL brush=%p contents=%u\n", trace->fraction, (void *)brush, (unsigned)brush->contents );
-                }
-            }
+
             #ifdef SECOND_PLANE_TRACE
             if ( leadside[ 1 ] ) {
                 trace->plane2 = *clipplane[ 1 ];
@@ -274,7 +253,6 @@ static void CM_TestBoxInBrush( const Vector3 &p1, cm_trace_t *trace, mbrush_t *b
 
     // inside this brush
     trace->startsolid = trace->allsolid = true;
-    CM_DebugPrint( "CM_TestBoxInBrush: point inside brush %p contents=%u -> setting trace->fraction=0\n", (void *)brush, (unsigned)brush->contents );
     trace->fraction = 0;
     trace->contents = static_cast<cm_contents_t>( brush->contents );
     //if ( trace->material ) {
