@@ -368,20 +368,20 @@ recheck:
     } else {
         t1 = PlaneDiffDP( p1, plane );
         t2 = PlaneDiffDP( p2, plane );
-            if ( trace_ispoint )
+        if ( trace_ispoint )
             offset = 0.;
         else
-            offset = std::fabs( (double)trace_extents[ 0 ] * (double)plane->normal[ 0 ] ) +
-            std::fabs( (double)trace_extents[ 1 ] * (double)plane->normal[ 1 ] ) +
-            std::fabs( (double)trace_extents[ 2 ] * (double)plane->normal[ 2 ] );
+            offset = /*std::sqrt*/( std::fabs( (double)trace_extents[ 0 ] * (double)plane->normal[ 0 ] ) +
+                std::fabs( (double)trace_extents[ 1 ] * (double)plane->normal[ 1 ] ) +
+                std::fabs( (double)trace_extents[ 2 ] * (double)plane->normal[ 2 ] ) );
     }
 
     // see which sides we need to consider
-    if ( t1 >= offset && t2 >= offset ) {
+    if ( t1 >= offset + 1. && t2 >= offset + 1. ) {
         node = node->children[ 0 ];
         goto recheck;
     }
-    if ( t1 < -offset && t2 < -offset ) {
+    if ( t1 < -offset - 1. && t2 < -offset -1. ) {
         node = node->children[ 1 ];
         goto recheck;
     }
@@ -448,37 +448,24 @@ void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
 
     // fill in a default trace
     trace_trace = trace;
-    // ensure the entire trace struct is zeroed to avoid garbage from caller
-    memset( trace_trace, 0, sizeof( *trace_trace ) );
-    trace_trace->entityNumber = ENTITYNUM_NONE;
-    // initialize planes' normals to zero
-    trace_trace->plane.normal[ 0 ] = 0.0f;
-    trace_trace->plane.normal[ 1 ] = 0.0f;
-    trace_trace->plane.normal[ 2 ] = 0.0f;
-    // initialize plane type/signbits/dist to safe defaults
-    trace_trace->plane.type = PLANE_NON_AXIAL;
-    trace_trace->plane.signbits = 0;
-    trace_trace->plane.dist = 0.0f;
-    trace_trace->plane2.normal[ 0 ] = 0.0f;
-    trace_trace->plane2.normal[ 1 ] = 0.0f;
-    trace_trace->plane2.normal[ 2 ] = 0.0f;
-    trace_trace->plane2.type = PLANE_NON_AXIAL;
-    trace_trace->plane2.signbits = 0;
-    trace_trace->plane2.dist = 0.0f;
-    trace_trace->fraction = 1.0; // double precision literal
-    trace_trace->surface = &nulltexinfo.c;
-    trace_trace->material = &cm_default_material;
+    *trace_trace = {};
+    trace_trace->fraction = 1;
+    trace_trace->surface = &( nulltexinfo.c );
+	trace_trace->material = &(cm_default_material );
+	trace_trace->material2 = nullptr;
 
     if ( !headnode ) {
         return;
     }
 
     trace_contents = brushmask;
-    VectorCopy( start, trace_start );
-    VectorCopy( end, trace_end );
-    for ( i = 0; i < 8; i++ )
-        for ( j = 0; j < 3; j++ )
-            trace_offsets[ i ][ j ] = (*bounds[ ( i >> j ) & 1 ])[ j ];
+    trace_start = start;
+    trace_end = end;
+    for ( i = 0; i < 8; i++ ) {
+        for ( j = 0; j < 3; j++ ) {
+            trace_offsets[ i ][ j ] = ( *bounds[ ( i >> j ) & 1 ] )[ j ];
+        }
+    }
 
     //
     // check for position test special case
@@ -523,10 +510,7 @@ void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
     //
     CM_RecursiveHullCheck( cm, headnode, 0, 1, start, end );
 
-    if ( trace_trace->fraction >= 1. )
-        VectorCopy( end, trace_trace->endpos );
-    else
-        LerpVectorDP( start, end, trace_trace->fraction, trace_trace->endpos );
+    LerpVectorDP( start, end, trace_trace->fraction, trace_trace->endpos );
 }
 /**
 *   @brief  Handles offseting and rotation of the end points for moving and
@@ -578,7 +562,7 @@ void CM_TransformedBoxTrace( cm_t *cm, cm_trace_t *trace,
             RotatePoint( trace->plane.normal, axis );
         }
         // FIXME: offset plane distance?
-        trace->plane.dist += DotProduct( trace->plane.normal, origin );
+        //trace->plane.dist += DotProduct( trace->plane.normal, origin );
         #else
         vec3_t a;
         VectorNegate( angles, a );
@@ -617,7 +601,7 @@ void CM_ClipEntity( cm_t *cm, cm_trace_t *dst, const cm_trace_t *src, const int3
     }
 
 	// <Q2RTXP>: Fix for allsolid and startsolid traces losing their entity number.
-    if ( src->allsolid || src->startsolid ) {
-        dst->entityNumber = entityNumber;
-    }
-}
+    //if ( src->allsolid || src->startsolid ) {
+    //    dst->entityNumber = entityNumber;
+    //}
+}//

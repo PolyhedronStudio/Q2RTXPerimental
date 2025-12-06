@@ -274,6 +274,20 @@ QM_API Vector3 QM_Vector3Normalize( const Vector3 &v ) {
 
     return result;
 }
+QM_API Vector3 QM_Vector3NormalizeDP( const Vector3 &v ) {
+    Vector3 result = v;
+
+    const double length = (double)std::sqrt( (double)v.x * (double)v.x + (double)v.y * (double)v.y + (double)v.z * (double)v.z );
+    if ( length != 0.0f ) {
+        const double ilength = 1.0f / length;
+
+        result.x *= ilength;
+        result.y *= ilength;
+        result.z *= ilength;
+    }
+
+    return result;
+}
 
 //Calculate the projection of the vector v1 on to v2
 QM_API Vector3 QM_Vector3Project( const Vector3 &v1, const Vector3 &v2 ) {
@@ -1104,13 +1118,13 @@ QM_API double QM_Vector3NormalizeLength( Vector3 &v ) {
 *   @return Return the final length.
 **/
 QM_API double QM_Vector3NormalizeLength2( const Vector3 &in, Vector3 &out ) {
-    double length = std::sqrt( in.x * in.x + in.y * in.y + in.z * in.z );
+    const double length = std::sqrt( (double)in.x * (double)in.x + (double)in.y * (double)in.y + (double)in.z * (double)in.z );
     if ( length ) {
         const double ilength = 1.0 / length;
 
-        out.x = in.x * ilength;
-        out.y = in.y * ilength;
-        out.z = in.z * ilength;
+        out.x = (double)in.x * ilength;
+        out.y = (double)in.y * ilength;
+        out.z = (double)in.z * ilength;
     }
 
     return length;

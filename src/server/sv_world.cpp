@@ -541,30 +541,47 @@ const cm_contents_t SV_PointContents( const Vector3 *p ) {
 /**
 *	@brief	SV_ClipMoveToEntities
 **/
-static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 &mins,
-                                  const Vector3 &maxs, const Vector3 &end,
-                                  sv_edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *tr)
+static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
+                                  const Vector3 *maxs, const Vector3 &end,
+                                  const Vector3 &moveMins, const Vector3 &moveMaxs,
+                                  sv_edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *dst )
 {
-    Vector3      boxmins, boxmaxs;
     int         i, num;
     sv_edict_t     *touchlist[MAX_EDICTS], *touch;
-    cm_trace_t     trace = {};
-    // create the bounding box of the entire move
-    for (i = 0; i < 3; i++) {
-        if ( end[i] > start[i]) {
-            boxmins[i] = start[i] + mins[i] - 1;
-            boxmaxs[i] = end[i] + maxs[i] + 1;
-        } else {
-            boxmins[i] = end[i] + mins[i] - 1;
-            boxmaxs[i] = start[i] + maxs[i] + 1;
-        }
-    }
 
-    num = SV_AreaEdicts(&boxmins, &boxmaxs, touchlist, MAX_EDICTS, AREA_SOLID);
+    // Query potentially touching entities using the overall move bounds
+    num = SV_AreaEdicts(&moveMins, &moveMaxs, touchlist, MAX_EDICTS, AREA_SOLID);
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
     for (i = 0; i < num; i++) {
+        // Use a fresh trace per-entity to avoid stale results influencing others
+        cm_trace_t etrace = {
+            .entityNumber = ENTITYNUM_NONE,
+            .fraction = 1.0,
+            .endpos = end,
+            .plane = {
+                .normal = { 0.0f, 0.0f, 0.0f },
+                .dist = 0.0f,
+                .type = PLANE_NON_AXIAL,
+                .signbits = 0,
+            },
+
+            .surface = &nulltexinfo.c,
+            .material = &cm_default_material,
+
+            .plane2 = {
+                .normal = { 0.0f, 0.0f, 0.0f },
+                .dist = 0.0f,
+                .type = PLANE_NON_AXIAL,
+                .signbits = 0,
+            },
+        };
+        // early out if we already know everything is solid from previous world or entity hits
+        if ( dst->allsolid ) {
+            return;
+        }
+
         touch = touchlist[ i ];
         if ( touch == nullptr ) {
             continue;
@@ -575,15 +592,19 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 &mins,
         if ( touch == passedict ) {
             continue;
         }
-        if ( tr->allsolid ) {
-            return;
-        }
+        //if ( dst->allsolid ) {
+        //    return;
+        //}
         if ( passedict ) {
             if ( touch->owner == passedict )
                 continue;    // Don't clip against own missiles.
             if ( passedict->owner == touch )
                 continue;    // Don't clip against owner.
         }
+
+  //      if ( !(contentmask & touch->hullContents ) ) {
+  //          continue;
+		//}
 
         if ( !( contentmask & CONTENTS_DEADMONSTER )
             && ( touch->svFlags & SVF_DEADENTITY ) ) {
@@ -600,11 +621,29 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 &mins,
         }
 
         // might intersect, so do an exact clip
-        CM_TransformedBoxTrace( &sv.cm, &trace, start, end, &mins, &maxs,
+        CM_TransformedBoxTrace( &sv.cm, &etrace, start, end, mins, maxs,
                                SV_HullForEntity(touch), contentmask,
                                &touch->s.origin.x, &touch->s.angles.x);
 
-        CM_ClipEntity( &sv.cm, tr, &trace, touch->s.number );
+        //CM_ClipEntity( &sv.cm, dst, &trace, touch->s.number );
+
+        if ( etrace.allsolid ) {
+            dst->allsolid = true;
+            etrace.entityNumber = touch->s.number;
+        } else if ( etrace.startsolid ) {
+            dst->startsolid = true;
+            etrace.entityNumber = touch->s.number;
+        }
+
+        if ( etrace.fraction < dst->fraction ) {
+            // make sure we keep a startsolid from a previous trace
+            const int32_t oldStartSolid = dst->startsolid;
+            etrace.entityNumber = touch->s.number;
+            *dst = etrace;
+            // jmarshall
+            const int32_t startsolid = (int32_t)dst->startsolid | oldStartSolid;
+            dst->startsolid = (bool)startsolid;
+        }
     }
 }
 
@@ -623,17 +662,36 @@ const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
                            const Vector3 *maxs, const Vector3 &end,
                            edict_ptr_t *passEdict, const cm_contents_t contentmask)
 {
-    cm_trace_t     trace;
+	// Initialize to no collision for the initial trace.
+    cm_trace_t trace = {
+        .entityNumber = ENTITYNUM_NONE,
+        .fraction = 1.0,
+        .plane = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+
+        .surface = &nulltexinfo.c,
+        .material = &cm_default_material,
+
+        .plane2 = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+    };
 
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
     }
 
-    // Set for 'Special Point Case':
+    // Validate mins and maxs first, otherwise assign zero extents
     if ( !mins ) {
         mins = &qm_vector3_null;
     }
-    // Set for 'Special Point Case':
     if ( !maxs ) {
         maxs = &qm_vector3_null;
     }
@@ -646,20 +704,27 @@ const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
         contentmask 
     );
 
-    // Did we hit world? Set entity number to match with 'worldspawn' entity,
-    // and return.
-    //
-	// Otherwise we set the entity to 'None'(-1), and continue to test and clip to 
-    // the remaining server entities.
+    // Mark world hit if applicable but do not early-return; we still need to consider entities
     trace.entityNumber = trace.fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
-    if ( trace.fraction == 0 || ( passEdict != nullptr && passEdict->s.number == ENTITYNUM_WORLD ) ) {
-        return trace; // Blocked immediately by the world.
+
+    // create the bounding box of the entire move
+    Vector3 moveMins = {};
+    Vector3 moveMaxs = {};
+    for ( int32_t i = 0; i < 3; i++ ) {
+        if ( end[ i ] > start[ i ] ) {
+            moveMins[ i ] = start[ i ] + ( *mins )[ i ] - 1;
+            moveMaxs[ i ] = end[ i ] + ( *maxs )[ i ] + 1;
+        } else {
+            moveMins[ i ] = end[ i ] + ( *mins )[ i ] - 1;
+            moveMaxs[ i ] = start[ i ] + ( *maxs )[ i ] + 1;
+        }
     }
 
 	// If we are not clipping to the world, and the trace fraction is 1.0,
     // test and clip to other solid entities.
     SV_ClipMoveToEntities(
-        start, *mins, *maxs, end, 
+        start, mins, maxs, end, 
+        moveMins, moveMaxs,
         passEdict,
         contentmask, 
         &trace
@@ -672,48 +737,49 @@ const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clip, const Vector3 &start, const Vector3 *mins,
+const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clipEntity, const Vector3 &start, const Vector3 *mins,
                             const Vector3 *maxs, const Vector3 &end,
                             const cm_contents_t contentmask ) {
-	cm_trace_t     trace;
+    // Initialize to no collision for the initial trace.
+    cm_trace_t trace = {
+        .entityNumber = ENTITYNUM_NONE,
+        .fraction = 1.0,
+        .plane = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
 
-    if ( !sv.cm.cache ) {
-        Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
+        .surface = &nulltexinfo.c,
+        .material = &cm_default_material,
+
+        .plane2 = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+    };
+
+    if ( sv.cm.cache ) {
+        // Clip against World:
+        if ( clipEntity == nullptr || ( clipEntity && clipEntity->s.number == ENTITYNUM_WORLD ) ) {
+            CM_BoxTrace( &sv.cm, &trace, start, end, mins, maxs, sv.cm.cache->nodes, contentmask );
+            // Clip against clipEntity.
+        } else {
+            mnode_t *headNode = SV_HullForEntity( clipEntity );
+
+            // Perform clip.
+            if ( headNode != nullptr ) {
+                CM_TransformedBoxTrace( &sv.cm, &trace, start, end, mins, maxs, headNode, contentmask,
+                    &clipEntity->s.origin.x, &clipEntity->s.angles.x );
+
+                if ( trace.fraction < 1. ) {
+                    trace.entityNumber = clipEntity->s.number;
+                }
+            }
+        }
     }
-
-    // Set for 'Special Point Case':
-	const Vector3 *mins_local = nullptr;
-    if ( mins ) {
-        mins_local = mins;
-    }
-    // Set for 'Special Point Case':
-    const Vector3 *maxs_local = nullptr;
-    if ( maxs ) {
-        maxs_local = maxs;
-    }
-
-    // Clip to world.
-    if ( clip == ge->edictPool->edicts[ 0 ] /* worldspawn */ ) {
-        CM_BoxTrace( 
-            &sv.cm, &trace, 
-            start, end, mins_local, maxs_local,
-            SV_WorldNodes(), 
-            contentmask 
-        );
-    // If we are not clipping to the world, test and clip to the specified solid entity.
-    } else {
-        CM_TransformedBoxTrace( 
-            &sv.cm, &trace, 
-            start, end, mins_local, maxs_local,
-            SV_HullForEntity( clip, true ), 
-            contentmask, 
-            &clip->s.origin.x, &clip->s.angles.x
-        );
-    }
-
-    // Did we hit world or any other entity? Set the entity number of the trace,
-	// otherwise set it to 'None'(-1).
-    trace.entityNumber = trace.fraction != 1.0 ? clip->s.number : ENTITYNUM_NONE;
-
 	return trace;
 }

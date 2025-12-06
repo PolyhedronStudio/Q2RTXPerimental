@@ -340,12 +340,16 @@ struct pml_t {
     //! Speed at which we (impacted) the ground/other-surface.
     double impactSpeed = 0.;
 
+	//! Previous frame's pmove flags (transient/internal per-frame state)
+	pmflags_t   previousPMFlags = PMF_NONE;
     //! Origin at the start of move.
     Vector3		previousOrigin = {};
     //! Velocity at the start of the move.
     Vector3		previousVelocity = {};
     //! Stores the possible solid liquid type brush we're in(-touch with/inside of)
     liquid_info_t previousLiquid = {};
+    //! Previous frame's ground entity number (transient/internal per-frame state)
+    int32_t previousGroundEntity = ENTITYNUM_NONE;
 };
 //! The local player move state for the entity that we're moving.
 extern pml_t pml;

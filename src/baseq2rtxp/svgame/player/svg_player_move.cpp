@@ -225,12 +225,15 @@ static void ClientUpdateUserInput( svg_player_edict_t *ent, svg_client_t *client
 static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, usercmd_t *userCommand, pmove_t *pm, pmoveParams_t *pmp ) {
     // Prepare the player move structure properties for simulation.
     pm->state = &client->ps;
+
     // Copy the current entity origin and velocity into our 'pmove movestate'.
     pm->state->pmove.origin = ent->s.origin;
     pm->state->pmove.velocity = ent->velocity;
+
     // Setup the gravity. PGM	trigger_gravity support
     pm->state->pmove.gravity = (short)( sv_gravity->value * ent->gravity );
     pm->state->pmove.speed = pmp->pm_max_speed;
+
     // Setup the specific Player Move controller type.
     if ( ent->movetype == MOVETYPE_NOCLIP ) {
         if ( ent->client->resp.spectator ) {
@@ -249,7 +252,7 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
         pm->state->pmove.pm_type = PM_NORMAL;
     }
     // Determine if it has changed and we should 'resnap' to position.
-    if ( memcmp( &client->old_pmove, &pm->state->pmove, sizeof( pm->state->pmove ) ) ) {
+    if ( std::memcmp( &client->old_pmove, &pm->state->pmove, sizeof( pm->state->pmove ) ) ) {
         pm->snapInitialPosition = true; // gi.dprintf ("pmove changed!\n");
     }
     // Setup 'User Command'
@@ -317,6 +320,11 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
         ent->liquidInfo = pm.liquid;
 	    // Store all player move ground info into the entity 'groundInfo' structure.
     	ent->groundInfo = pm.ground;
+        // Update link count.
+        if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
+            svg_base_edict_t *groundEnt = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
+            ent->groundInfo.entityLinkCount = groundEnt->linkCount;
+        }
     #else
         // Store all player move liquid info into the entity 'monster move' (fake name here) properties.
         ent->liquidInfo.level = pm.liquid.level;
@@ -329,11 +337,7 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
         ent->groundInfo.plane = pm.ground.plane;
         ent->groundInfo.surface = pm.ground.surface;
     #endif
-    // Update link count.
-    if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
-		svg_base_edict_t *groundEnt = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
-        ent->groundInfo.entityLinkCount = groundEnt->linkCount;
-    }
+
 
     // Apply a specific view angle if dead:
     // If dead, fix the angle and don't add any kicks
@@ -556,7 +560,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         /**
         *   Configure player movement data and run a frame.
         **/
-        pmove_t pm = {};
+        pmove_t pm = { .ground = player_ent->groundInfo };
         pmoveParams_t pmp = {};
 
         // Backup old origin for touch processing.

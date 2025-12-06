@@ -492,7 +492,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         client_movecmd_t *moveCommand = &clgi.client->moveCommands[ acknowledgedCommandNumber & CMD_MASK ];
 
         // Only simulate it if it had movement.
-        if ( moveCommand->cmd.msec ) {
+        //if ( moveCommand->cmd.msec ) {
             // Simulate the movement.
             pm.cmd = moveCommand->cmd;
             pm.simulationTime = QMTime::FromMilliseconds( moveCommand->prediction.simulationTime );
@@ -524,7 +524,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
 
             moveCommand->prediction.origin  = pm.state->pmove.origin;
             moveCommand->prediction.velocity= pm.state->pmove.velocity;
-        }
+        //}
 
         // Store the resulting outcome(if no msec was found, it'll be the origin and velocity which were left behind from the previous player move iteration)/
         game.predictedState.origin      = pm.state->pmove.origin;
@@ -567,27 +567,26 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         CLG_PredictNextBobCycle( &pm );
         #endif
 
-        // Store the resulting outcome(if no msec was found, it'll be the origin and velocity which were left behind from the previous player move iteration)/
-        game.predictedState.origin = pm.state->pmove.origin;
-        game.predictedState.velocity = pm.state->pmove.velocity;
-
         // Store the predicted outcome results 
         pendingMoveCommand->prediction.origin = pm.state->pmove.origin;
         pendingMoveCommand->prediction.velocity = pm.state->pmove.velocity;
-        
-        // And store it in the predictedState as the last command.
-        predictedState->cmd = *pendingMoveCommand;
 
         // Save the pending move command as the last entry in our circular buffer.
         clgi.client->predictedMoveResults[ ( currentCommandNumber + 1 ) & CMD_MASK ] = pendingMoveCommand->prediction;
+
+        // And store it in the predictedState as the last command.
+        game.predictedState.cmd = *pendingMoveCommand;
     }
 
+    // Store the resulting outcome(if no msec was found, it'll be the origin and velocity which were left behind from the previous player move iteration)/
+    game.predictedState.origin = pm.state->pmove.origin;
+    game.predictedState.velocity = pm.state->pmove.velocity;
     // Copy ground and liquid results out into the current predicted state.
-    predictedState->ground = pm.ground;
-    predictedState->liquid = pm.liquid;
+    game.predictedState.ground = pm.ground;
+    game.predictedState.liquid = pm.liquid;
     // Same for mins/maxs.
-    predictedState->mins = pm.mins;
-    predictedState->maxs = pm.maxs;
+    game.predictedState.mins = pm.mins;
+    game.predictedState.maxs = pm.maxs;
 
     // Smooth Out Stair Stepping. We test results to the previously predicted ground data.
     CLG_PredictStepOffset( &pm, predictedState, pm.step_height );

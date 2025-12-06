@@ -49,11 +49,30 @@ static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSoli
 /**
 *   @brief  Clips the trace to all entities currently in-frame.
 **/
-static void CL_ClipMoveToEntities( cm_trace_t *tr, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentmask ) {
+static void CL_ClipMoveToEntities( cm_trace_t *tr, const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentmask ) {
+    cm_trace_t     trace = {
+        .entityNumber = ENTITYNUM_NONE,
+        .fraction = 0.0,
+        .plane = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+
+        .surface = &nulltexinfo.c,
+        .material = &cm_default_material,
+
+        .plane2 = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+    };
+
 
     for ( int32_t i = 0; i < cl.numSolidEntities; i++ ) {
-        cm_trace_t     trace = {};
-
         // Acquire the entity state.
         centity_t *ent = cl.solidEntities[ i ];
 
@@ -70,6 +89,7 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const Vector3 &start, const V
         //if ( !( contentmask & CONTENTS_PLAYERCLIP ) ) { // if ( !( contentmask & CONTENTS_PLAYER ) ) {
         //    continue;
         //}
+		// Skip dead clients if not specified as a player in contentmask. (Assumed to be CONTENTS_DEADMONSTER)
         if ( ent->current.number <= cl.maxclients && !( contentmask & CONTENTS_PLAYER ) ) {
             continue;
         }
@@ -79,6 +99,11 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const Vector3 &start, const V
         if ( passEntity != nullptr && ent != nullptr && ( ent->current.number == passEntity->current.number ) ) {
             continue;
         }
+
+        //// No need to continue if we're in all-solid.
+        //if ( tr->allsolid ) {
+        //    return;
+        //}
 
         // Don't clip if we're owner of said entity.
         if ( passEntity ) {
@@ -90,10 +115,7 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const Vector3 &start, const V
             }
         }
 
-        // No need to continue if we're in all-solid.
-        if ( tr->allsolid ) {
-            return;
-        }
+
 
         //if ( !( contentmask & CONTENTS_DEADMONSTER )
         //    && ( ent->svFlags & SVF_DEADENTITY ) ) {
@@ -131,11 +153,22 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const Vector3 &start, const V
 
         // Perform the BSP box sweep.
         CM_TransformedBoxTrace( &cl.collisionModel, &trace, start, end,
-            &mins, &maxs, headNode, contentmask,
+            mins, maxs, headNode, contentmask,
             &ent->current.origin.x, &ent->current.angles.x );
 
         // Determine clipped entity trace result.
-        CM_ClipEntity( &cl.collisionModel, tr, &trace, ent->current.number );
+        //CM_ClipEntity( &cl.collisionModel, tr, &trace, ent->current.number );
+        #if 1
+        if ( trace.allsolid || trace.fraction < tr->fraction ) {
+            trace.entityNumber = ent->current.number;
+            *tr = trace;
+        } else if ( trace.startsolid ) {
+            tr->startsolid = qtrue;
+        }
+        if ( tr->allsolid ) {
+            return;
+        }
+        #endif
     }
 }
 
@@ -143,17 +176,27 @@ static void CL_ClipMoveToEntities( cm_trace_t *tr, const Vector3 &start, const V
 *   @brief  Substituting the below 'CL_PM_Trace' implementation:
 **/
 const cm_trace_t q_gameabi CL_Trace( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const centity_t *passEntity, const cm_contents_t contentmask ) {
-    // Trace results.
-    cm_trace_t trace = {};
+    // Initialize to no collision for the initial trace.
+    cm_trace_t trace = {
+        .entityNumber = ENTITYNUM_NONE,
+        .fraction = 1.0,
+        .plane = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
 
-    // Set for 'Special Point Case':
-    if ( !mins ) {
-        mins = &qm_vector3_null;
-    }
-    // Set for 'Special Point Case':
-    if ( !maxs ) {
-        maxs = &qm_vector3_null;
-    }
+        .surface = &nulltexinfo.c,
+        .material = &cm_default_material,
+
+        .plane2 = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+    };
 
     // Make sure we got world.
     if ( cl.collisionModel.cache ) {
@@ -166,13 +209,13 @@ const cm_trace_t q_gameabi CL_Trace( const Vector3 &start, const Vector3 *mins, 
 	    // Otherwise we set the entity to 'None'(-1), and continue to test and clip to 
         // the remaining server entities.
         trace.entityNumber = trace.fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
-        if ( trace.fraction == 0 || ( passEntity != nullptr && passEntity->current.number == ENTITYNUM_WORLD ) ) {
-            return trace;		// blocked immediately by the world
-        }
+        //if ( trace.fraction == 0 || ( passEntity != nullptr && passEntity->current.number == ENTITYNUM_WORLD ) ) {
+        //    return trace;		// blocked immediately by the world
+        //}
 
 	    // If we are not clipping to the world, and the trace fraction is 1.0,
         // test and clip to other solid entities.
-        CL_ClipMoveToEntities( &trace, start, *mins, *maxs, end, passEntity, contentmask );
+        CL_ClipMoveToEntities( &trace, start, mins, maxs, end, passEntity, contentmask );
     }
 
     // Return trace.
@@ -184,56 +227,45 @@ const cm_trace_t q_gameabi CL_Trace( const Vector3 &start, const Vector3 *mins, 
 *           If clipEntity == nullptr, it'll perform a clipping trace against the World.
 **/
 const cm_trace_t q_gameabi CL_Clip( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const centity_t *clipEntity, const cm_contents_t contentmask ) {
-    // Trace results.
-    cm_trace_t trace = {};
+    // Initialize to no collision for the initial trace.
+    cm_trace_t trace = {
+        .entityNumber = ENTITYNUM_NONE,
+        .fraction = 1.0,
+        .plane = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
 
-    // Allow for point tracing in case mins and maxs are null.
-    // Set for 'Special Point Case':
-    if ( !mins ) {
-        mins = &qm_vector3_null;
-    }
-    // Set for 'Special Point Case':
-    if ( !maxs ) {
-        maxs = &qm_vector3_null;
-    }
+        .surface = &nulltexinfo.c,
+        .material = &cm_default_material,
 
-    // Clip against World:
+        .plane2 = {
+            .normal = { 0.0f, 0.0f, 0.0f },
+            .dist = 0.0f,
+            .type = PLANE_NON_AXIAL,
+            .signbits = 0,
+        },
+    };
+
     if ( cl.collisionModel.cache ) {
+        // Clip against World:
         if ( clipEntity == nullptr || clipEntity == cl_entities ) {
             CM_BoxTrace( &cl.collisionModel, &trace, start, end, mins, maxs, cl.collisionModel.cache->nodes, contentmask );
-            // Clip against Client Entity:
+        // Clip against clipEntity.
         } else {
             mnode_t *headNode = CL_HullForEntity( clipEntity );
 
-            //// BSP Brush Model Entity:
-            //if ( clipEntity->current.solid == BOUNDS_BRUSHMODEL ) {
-            //    // special value for bmodel
-            //    mmodel_t *cmodel = cl.model_clip[ clipEntity->current.modelindex ];
-            //    if ( !cmodel ) {
-            //        return trace;
-            //    }
-            //    headNode = cmodel->headnode;
-            //// Regular Entity, generate a temporary BSP Brush Box based on its mins/maxs:
-            //} else {
-            //    if ( clipEntity->current.solid == SOLID_BOUNDS_OCTAGON ) {
-            //        //headNode = CM_HeadnodeForOctagon( &cl.collisionModel, clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
-            //        vec3_t _mins;
-            //        vec3_t _maxs;
-            //        MSG_UnpackBoundsUint32( bounds_packed_t{ .u = clipEntity->current.bounds }, _mins, _maxs );
-            //        headNode = CM_HeadnodeForOctagon( &cl.collisionModel, _mins, _maxs, clipEntity->current.hullContents );
-            //    } else {
-            //        headNode = CM_HeadnodeForBox( &cl.collisionModel, clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
-            //    }
-            //    //headNode = CM_HeadnodeForBox( &cl.collisionModel, clipEntity->mins, clipEntity->maxs, clipEntity->current.hullContents );
-            //}
-
             // Perform clip.
-            cm_trace_t tr;
-            CM_TransformedBoxTrace( &cl.collisionModel, &tr, start, end, mins, maxs, headNode, contentmask,
-                &clipEntity->current.origin.x, &clipEntity->current.angles.x );
+            if ( headNode != nullptr ) {
+                CM_TransformedBoxTrace( &cl.collisionModel, &trace, start, end, mins, maxs, headNode, contentmask,
+                    &clipEntity->current.origin.x, &clipEntity->current.angles.x );
 
-            // Determine clipped entity trace result.
-            CM_ClipEntity( &cl.collisionModel, &trace, &tr, clipEntity->current.number );
+                if ( trace.fraction < 1. ) {
+                    trace.entityNumber = clipEntity->current.number;
+                }
+            }
         }
     }
     return trace;

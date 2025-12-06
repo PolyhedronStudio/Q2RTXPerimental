@@ -11,6 +11,37 @@
 #include "sharedgame/pmove/sg_pmove.h"
 #include "sharedgame/pmove/sg_pmove_slidemove.h"
 
+
+// Default normal/plane similarity tolerance (sane default for gameplay).
+static constexpr double DblEpsilon = 0.99;
+
+// Tight tolerance for tiny geometry or when you must avoid false positives.
+static constexpr double DblEpsilonTight = 0.999;
+
+// Loose tolerance for forgiving / approximate checks.
+static constexpr double DblEpsilonLoose = 0.95;
+
+// Plane entering threshold (angle-based). This is the normalized-dot threshold.
+// Values ~0.1 mean ~84 degrees tolerance (cosine); tune per gameplay needs.
+static constexpr double kPlaneEnterThreshold = 0.1;
+
+// Minimum speed below which plane-enter checks treat the entity as not-entering.
+// Prevents noisy behaviour when velocity is near zero.
+static constexpr double kMinSpeedForPlaneChecks = 1e-6;
+
+// Helper: return true when velocity is entering the plane (angle-based).
+// The routine normalizes the dot by speed so the decision is independent of speed.
+static inline bool QM_IsEnteringPlane( const Vector3 &vel, const Vector3 &plane, double threshold = kPlaneEnterThreshold ) {
+	const double speed = QM_Vector3Length( vel );
+	if ( speed < kMinSpeedForPlaneChecks ) {
+		// Not moving enough to consider entering a plane.
+		return false;
+	}
+	const double nd = QM_Vector3DotProductDP( vel, plane ) / speed;
+	// entering if the normalized projection onto the plane normal is less than threshold
+	return nd < threshold;
+}
+
 //! Uncomment for enabling second best hit plane tracing results.
 //#define SECOND_PLANE_TRACE
 
@@ -81,7 +112,7 @@ const pm_clipflags_t PM_BounceClipVelocity( const Vector3 &in, const Vector3 &no
 		const double newSpeed = QM_Vector3Length( out );
 		if ( newSpeed > oldSpeed ) {
 			out = QM_Vector3Normalize( out );
-			out = QM_Vector3Scale( oldspeed, out );
+			out = QM_Vector3Scale( oldSpeed, out );
 		}
 	}
 	#endif
@@ -118,12 +149,11 @@ const pm_clipflags_t PM_SlideClipVelocity( const Vector3 &in, const Vector3 &nor
 
 	#ifdef PM_SLIDEMOVE_CLIPVELOCITY_CLAMPING
 	{
-		const double oldSpeed = QM_Vector3Length( in );
-		const double newSpeed = QM_Vector3Length( out );
-		if ( newSpeed > oldSpeed ) {
-			out = QM_Vector3Normalize( out );
-			out = QM_Vector3Scale( oldspeed, out );
-		}
+	const double oldSpeed = QM_Vector3Length( in );
+	const double newSpeed = QM_Vector3Length( out );
+	if ( newSpeed > oldSpeed ) {
+		out = QM_Vector3Normalize( out );
+		out = QM_Vector3Scale( oldSpeed, out );
 	}
 	#endif
 
@@ -179,21 +209,36 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 	Vector3 primalVelocity = pm->state->pmove.velocity;
 
 	// Clip velocity and end velocity are used to determine the new velocity after clipping.
-	Vector3 clipVelocity = {};
-	Vector3 endVelocity = {};
-	Vector3 endClipVelocity = {};
+	Vector3 clipVelocity = pm->state->pmove.velocity;
+	Vector3 endVelocity = pm->state->pmove.velocity;//{};
+	Vector3 endClipVelocity = pm->state->pmove.velocity;//{};
 
 	/**
 	*	Handle Gravity
 	**/
 	if ( applyGravity ) {
+		// Initialize end velocity to current velocity.
 		endVelocity = pm->state->pmove.velocity;
+		// Calculate end velocity after gravity.
 		endVelocity.z -= pm->state->pmove.gravity * pml->frameTime;
+		// Average the velocities.
 		pm->state->pmove.velocity.z = ( pm->state->pmove.velocity.z + endVelocity.z ) * 0.5f;
+		// Store the endVelocity Z as primal Z velocity for later.
 		primalVelocity.z = endVelocity.z;
+		// Slide along the ground plane.
 		if ( pml->hasGroundPlane ) {
-			// Slide along the ground plane.
-			PM_BounceClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			#if 1
+				// Use a bouncy clip against the ground plane.
+				PM_BounceClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			#else
+				// Use a non-bouncy clip against the ground plane to avoid injecting upward velocity
+				// from overbounce/reflection which causes spurious kickoff/miss toggles.
+				PM_SlideClipVelocity( pm->state->pmove.velocity, pml->groundTrace.plane.normal, pm->state->pmove.velocity );
+				// Clear tiny vertical noise that can still remain from floating point ops / normalization.
+				if ( std::fabs( pm->state->pmove.velocity.z ) < 0.5 ) {
+					pm->state->pmove.velocity.z = 0.0;
+				}
+			#endif
 		}
 	}
 
@@ -230,12 +275,12 @@ const pm_slidemove_flags_t PM_SlideMove_Generic(
 		}
 
 		// We did cover some distance, so update the origin.
-		if ( trace.fraction > 0 ) {
+		if ( trace.fraction > 0. ) {
 			pm->state->pmove.origin = trace.endpos;
 		}
 
 		// We moved the entire distance, so no need to loop on, break out instead.
-		if ( trace.fraction == 1 ) {
+		if ( trace.fraction == 1. ) {
 			slideMoveFlags |= PM_SLIDEMOVEFLAG_MOVED;
 			break;     // moved the entire distance
 		} else {
@@ -412,8 +457,10 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 	start_v = pm->state->pmove.velocity;
 	slideMoveFlags |= PM_SlideMove_Generic( pm, pml, applyGravity );
 
+	// Initial down check: only a small ground contact probe.
+	// Do not pre-drop by a full step height when moving off edges; let gravity handle descent.
 	down = pm->state->pmove.origin;
-	down -= PM_STEP_MAX_SIZE + PM_STEP_GROUND_DIST;
+	down.z -= PM_STEP_GROUND_DIST;
 	//down.z -= stepSize + PM_STEP_GROUND_DIST;
 	trace = PM_Trace( start_o, pm->mins, pm->maxs, down );
 
@@ -436,7 +483,6 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 		return slideMoveFlags;
 	}
 
-
 	// Get step size.
 	stepSize = trace.endpos[ 2 ] - start_o.z;
 
@@ -451,18 +497,14 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 
 	// Used below for down step.
 	if ( !trace.allsolid ) {
-		// [Paril-KEX] from above, do the proper trace now
-		if ( !trace.allsolid ) {
-			#if 0
+		#if 0
 			// Get the step size.
 			stepSize = pm->state->pmove.origin[ 2 ] - trace.endpos[ 2 ];
 			// And assign trace endpos as new origin.
 			pm->state->pmove.origin = trace.endpos;
-			#else
+		#else
 			pm->state->pmove.origin = trace.endpos;
-			//stepSize = pm->state->pmove.origin[ 2 ] - start_o.z;
-			#endif
-		}
+		#endif
 	}
 
 	up = pm->state->pmove.origin;
@@ -493,8 +535,9 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 		&& !( pm->state->pmove.pm_flags & PMF_ON_LADDER )
 		// Do not step for waterjumps, if we still got up velocity.
 		&& !( ( pm->state->pmove.pm_flags & PMF_TIME_WATERJUMP ) && pm->state->pmove.velocity.z > 0. )
-		// Don't step if we're falling down.
+		// Don't step if we're sinking down.
 		&& ( pm->liquid.level < LIQUID_FEET
+			// Don't step if we're falling down.
 			|| ( !( pm->cmd.buttons & BUTTON_JUMP ) && pm->state->pmove.velocity.z <= 0. ) 
 	) ) {
 		down = pm->state->pmove.origin;
@@ -524,7 +567,7 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 				//pm->step_height = stepSize;
 			} else {
 				// >= 2.0 is an actual step however,
-				if ( fabs( stepSize >= PM_STEP_MIN_SIZE ) ) {
+				if ( fabs( stepSize ) >= PM_STEP_MIN_SIZE ) {
 					// Stepped flag.
 					slideMoveFlags |= PM_SLIDEMOVEFLAG_STEPPED;
 				}
@@ -540,10 +583,16 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 			//} else {
 			//	PM_AddEvent( EV_STEP_16 );
 			//}
+			// <Q2RTXP>: WID: Do bounce clip velocity to avoid sticking on slopes/stairs.
+			#if 0
+			PM_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+			#endif
 		}
+		#if 1
 		if ( trace.fraction < 1.0 ) {
 			PM_BounceClipVelocity( pm->state->pmove.velocity, trace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		}
+		#endif
 	}
 
 	#if 0
@@ -578,7 +627,7 @@ const pm_slidemove_flags_t PM_StepSlideMove_Generic(
 			//pm->step_height = stepSize;
 		} else {
 			// >= 2.0 is an actual step however,
-			if ( fabs( stepSize >= PM_STEP_MIN_SIZE ) ) {
+			if ( fabs( stepSize ) >= PM_STEP_MIN_SIZE ) {
 				slideMoveFlags |= PM_SLIDEMOVEFLAG_STEPPED;
 			}
 		}

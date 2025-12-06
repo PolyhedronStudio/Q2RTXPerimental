@@ -23,8 +23,13 @@
 //! Defining this will enable Q2 Rerelease style fixing of being stuck.
 //#define PMOVE_Q2RE_STUCK_FIXES
 
-//! Defining this enables debugging for ground traces.
+//! For groundtrace debugging.
+//! Defining this enables basic groundtrace logging.
 #define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+// Defining this enables ground pml trace debugging.
+//#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_PML_TRACE
+//#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_CCORRECTALLSOLID_FIRST
+//#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_CCORRECTALLSOLID_SECOND
 
 //! Defining this will enable 'material physics' such as per example: Taking the friction value from the ground material.
 #define PMOVE_USE_MATERIAL_FRICTION
@@ -285,7 +290,7 @@ static void PM_Friction() {
 			) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
 		) {
 			// Get the material to fetch friction from.
-			cm_material_t *ground_material = ( pml.groundTrace.surface != nullptr ? pml.groundTrace.surface->material : nullptr );
+			cm_material_t *ground_material = ( pml.groundTrace.surface->material != nullptr ? pml.groundTrace.surface->material : nullptr );
 			double friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
 			const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
 			drop += control * friction * pml.frameTime;
@@ -560,11 +565,19 @@ static inline void PM_GetLiquidContentsForPoint( const Vector3 &position, cm_liq
 static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 	int32_t	i, j, k;
 
-	//if ( pm->debugLevel ) {
-	//	Com_Printf( "%i:allsolid\n", c_pmove );
-	//}
 	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
-	SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : allsolid; \n", pm->simulationTime.Milliseconds(), __func__ );
+		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : allsolid; \n", pm->simulationTime.Milliseconds(), __func__ );
+	#endif
+
+	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_CCORRECTALLSOLID_FIRST
+		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : trace(startsolid=%d, allsolid=%d) plane.normal=(%.6f %.6f %.6f) surface=%p material=%p mins=(%.3f %.3f %.3f) maxs=(%.3f %.3f %.3f) origin=(%.3f %.3f %.3f)\n",
+			pm->simulationTime.Milliseconds(), __func__,
+			(int)trace->startsolid, (int)trace->allsolid,
+			(double)trace->plane.normal[0], (double)trace->plane.normal[1], (double)trace->plane.normal[2],
+			(void*)trace->surface, (void*)trace->material,
+			(double)pm->mins.x, (double)pm->mins.y, (double)pm->mins.z,
+			(double)pm->maxs.x, (double)pm->maxs.y, (double)pm->maxs.z,
+			(double)pm->state->pmove.origin.x, (double)pm->state->pmove.origin.y, (double)pm->state->pmove.origin.z );
 	#endif
 
 	Vector3 testPoint = {};
@@ -574,10 +587,18 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 		for ( j = -1; j <= 1; j++ ) {
 			for ( k = -1; k <= 1; k++ ) {
 				testPoint = pm->state->pmove.origin;
-				testPoint[ 0 ] += (float)i;
-				testPoint[ 1 ] += (float)j;
-				testPoint[ 2 ] += (float)k;
+				testPoint[ 0 ] += (float)( i );
+				testPoint[ 1 ] += (float)( j );
+				testPoint[ 2 ] += (float)( k );
 				*trace = PM_Trace( testPoint, pm->mins, pm->maxs, testPoint );
+				#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_CCORRECTALLSOLID_SECOND
+					SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : jitter testPoint=(%.3f %.3f %.3f) -> fraction=%.6f startsolid=%d allsolid=%d plane.normal=(%.6f %.6f %.6f) ent=%d\n",
+						pm->simulationTime.Milliseconds(), __func__,
+						(double)testPoint.x, (double)testPoint.y, (double)testPoint.z,
+						(double)trace->fraction, (int)trace->startsolid, (int)trace->allsolid,
+						(double)trace->plane.normal[0], (double)trace->plane.normal[1], (double)trace->plane.normal[2],
+						trace->entityNumber );
+				#endif
 				if ( !trace->allsolid ) {
 					Vector3 down_point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, 0.25f };
 					*trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, down_point );
@@ -590,10 +611,10 @@ static const int32_t PM_CorrectAllSolidGround( cm_trace_t *trace ) {
 
 	// Not walking or on ground.
 	pm->ground.entityNumber = ENTITYNUM_NONE;
+
 	pml.hasGroundPlane = false;
 	pml.isWalking = false;
 	pml.isAerial = true;
-	pm->ground.entityNumber = ENTITYNUM_NONE;
 
 	return false;
 }
@@ -605,13 +626,11 @@ static void PM_GroundTraceMissed( void ) {
 	Vector3		point = {};
 
 	if ( pm->ground.entityNumber != ENTITYNUM_NONE/*pm->ps->groundEntityNum != ENTITYNUM_NONE*/ ) {
-		//// we just transitioned into freefall
-		//if ( pm->debugLevel ) {
-		//	Com_Printf( "%i:lift\n", c_pmove );
-		//}
+		// we just transitioned into freefall
 		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
 		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : lift; \n", pm->simulationTime.Milliseconds(), __func__ );
 		#endif
+
 		#if 0
 		// if they aren't in a jumping animation and the ground is a ways away, force into it
 		// if we didn't do the trace, the player would be backflipping down staircases
@@ -630,6 +649,11 @@ static void PM_GroundTraceMissed( void ) {
 		}
 		#endif
 	}
+
+	pm->ground.entityNumber = ENTITYNUM_NONE;
+	pml.hasGroundPlane = false;
+	pml.isWalking = false;
+	pml.isAerial = false;
 }
 
 /**
@@ -638,11 +662,72 @@ static void PM_GroundTraceMissed( void ) {
 **/
 static void PM_GroundTrace( void ) {
 	// Trace downwards to find ground.
-	//Vector3 point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
 	Vector3 point = pm->state->pmove.origin - Vector3{ 0.f, 0.f, (float)PM_STEP_GROUND_DIST };
 	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, point );
 	// Assign the ground trace.
 	pml.groundTrace = trace;
+
+	// Extra targeted logging for near-boundary cases.
+	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_PML_TRACE
+	{
+		static constexpr double FRACTION_EPS = 1.0e-3;
+		static constexpr double NORMAL_EPS = 1.0e-4;
+		const bool nearFraction = ( trace.fraction >= ( 1.0 - FRACTION_EPS ) );
+		const bool nearNormalThreshold = ( std::fabs( (double)trace.plane.normal[ 2 ] - (double)PM_STEP_MIN_NORMAL ) <= NORMAL_EPS );
+		const bool entityChanged = ( trace.entityNumber != pm->ground.entityNumber );
+
+		if ( nearFraction || nearNormalThreshold || entityChanged ) {
+			SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: PM_GroundTrace EXTRA: reason=(%s%s%s)\n",
+				pm->simulationTime.Milliseconds(),
+				nearFraction ? "near_fraction " : "",
+				nearNormalThreshold ? "near_normal_threshold " : "",
+				entityChanged ? "entity_changed " : "" );
+
+			SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: PM_GroundTrace EXTRA: start=(%.6f %.6f %.6f) end=(%.6f %.6f %.6f) endpos=(%.6f %.6f %.6f) fraction=%.9f\n",
+				pm->simulationTime.Milliseconds(),
+				(double)pm->state->pmove.origin.x, (double)pm->state->pmove.origin.y, (double)pm->state->pmove.origin.z,
+				(double)point.x, (double)point.y, (double)point.z,
+				(double)trace.endpos.x, (double)trace.endpos.y, (double)trace.endpos.z,
+				(double)trace.fraction );
+
+			SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: PM_GroundTrace EXTRA: plane.normal=(%.9f %.9f %.9f) plane.dist=%.9f plane.dist_delta_to_origin=%.9f\n",
+				pm->simulationTime.Milliseconds(),
+				(double)trace.plane.normal[ 0 ], (double)trace.plane.normal[ 1 ], (double)trace.plane.normal[ 2 ],
+				(double)trace.plane.dist,
+				(double)( trace.plane.dist - ( pm->state->pmove.origin.x * trace.plane.normal[ 0 ] + pm->state->pmove.origin.y * trace.plane.normal[ 1 ] + pm->state->pmove.origin.z * trace.plane.normal[ 2 ] ) ) );
+
+			SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: PM_GroundTrace EXTRA: contents=0x%X surface=%p material=%p ent_before=%d ent_trace=%d pm->ground.entityNumber=%d\n",
+				pm->simulationTime.Milliseconds(),
+				(unsigned)trace.contents, (void *)trace.surface, (void *)trace.material,
+				pm->ground.entityNumber, trace.entityNumber, pm->ground.entityNumber );
+
+			SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: PM_GroundTrace EXTRA: mins=(%.6f %.6f %.6f) maxs=(%.6f %.6f %.6f) viewheight=%.6f step_height=%.6f step_clip=%d\n",
+				pm->simulationTime.Milliseconds(),
+				(double)pm->mins.x, (double)pm->mins.y, (double)pm->mins.z,
+				(double)pm->maxs.x, (double)pm->maxs.y, (double)pm->maxs.z,
+				(double)pm->state->pmove.viewheight, (double)pm->step_height, (int)pm->step_clip );
+
+			SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: PM_GroundTrace EXTRA: prevOrigin=(%.6f %.6f %.6f) prevVelocity=(%.6f %.6f %.6f) currVelocity=(%.6f %.6f %.6f) pml.frameTime=%.6f pm.cmd.msec=%d\n",
+				pm->simulationTime.Milliseconds(),
+				(double)pml.previousOrigin.x, (double)pml.previousOrigin.y, (double)pml.previousOrigin.z,
+				(double)pml.previousVelocity.x, (double)pml.previousVelocity.y, (double)pml.previousVelocity.z,
+				(double)pm->state->pmove.velocity.x, (double)pm->state->pmove.velocity.y, (double)pm->state->pmove.velocity.z,
+				(double)pml.frameTime, (int)pm->cmd.msec );
+		}
+	}
+	#endif
+
+	// Additional debug: while the player was standing on ground last frame, log trace fraction and endpos.z
+	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+	if ( pm->ground.entityNumber != ENTITYNUM_NONE || pml.isWalking ) {
+		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : STAND_DEBUG: trace.fraction=%.9f trace.endpos.z=%.6f origin.z=%.6f prevOrigin.z=%.6f prevVel.z=%.6f currVel.z=%.6f cmd.msec=%d pm_ground_ent(before)=%d\n",
+			pm->simulationTime.Milliseconds(), __func__,
+			(double)trace.fraction, (double)trace.endpos.z,
+			(double)pm->state->pmove.origin.z, (double)pml.previousOrigin.z,
+			(double)pml.previousVelocity.z, (double)pm->state->pmove.velocity.z,
+			(int)pm->cmd.msec, pm->ground.entityNumber );
+	}
+	#endif
 
 	// Do something corrective if the trace starts in a solid.
 	#if 1
@@ -666,10 +751,7 @@ static void PM_GroundTrace( void ) {
 	}
 
 	// Check if getting thrown off the ground
-	if ( pm->state->pmove.velocity.z > 0 && QM_Vector3DotProduct( pm->state->pmove.velocity, trace.plane.normal ) > 10. ) {
-		//if ( pm->debugLevel ) {
-		//	Com_Printf( "%i:kickoff\n", c_pmove );
-		//}
+	if ( pm->state->pmove.velocity.z > 1.0 && QM_Vector3DotProduct( pm->state->pmove.velocity, trace.plane.normal ) > 10. ) {
 		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
 		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : kickoff; \n", pm->simulationTime.Milliseconds(), __func__ );
 		#endif
@@ -692,9 +774,6 @@ static void PM_GroundTrace( void ) {
 
 	// slopes that are too steep and thus will not be considered onground
 	if ( trace.plane.normal[ 2 ] < PM_STEP_MIN_NORMAL ) {
-		//if ( pm->debugLevel ) {
-		//	Com_Printf( "%i:steep\n", c_pmove );
-		//}
 		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
 		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : steep;\n", pm->simulationTime.Milliseconds(), __func__ );
 		#endif
@@ -720,10 +799,7 @@ static void PM_GroundTrace( void ) {
 	}
 
 	if ( pm->ground.entityNumber == ENTITYNUM_NONE ) {
-		//// just hit the ground
-		//if ( pm->debugLevel ) {
-		//	Com_Printf( "%i:Land\n", c_pmove );
-		//}
+		// just hit the ground
 		#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
 		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : Land;\n", pm->simulationTime.Milliseconds(), __func__ );
 		#endif
@@ -743,21 +819,22 @@ static void PM_GroundTrace( void ) {
 	}
 
 	// If we have an entity, or a ground plane, assign the remaining ground properties.
-	if ( pml.hasGroundPlane || pm->ground.entityNumber != ENTITYNUM_NONE ) {
-		if ( pml.hasGroundPlane ) {
+	if ( pml.hasGroundPlane || pml.groundTrace.entityNumber != ENTITYNUM_NONE ) {
+		//if ( pml.hasGroundPlane ) {
 			pm->ground.plane = pml.groundTrace.plane;
-		// <Q2RTXP>: WID: This one is already zerod out at pmove preparation.
-		} else {
-			pm->ground.plane = {};
-		}
+			// <Q2RTXP>: WID: This one is already zerod out at pmove preparation.
+		//} else {
+		//	pm->ground.plane = {};
+		//}
 		pm->ground.contents = pml.groundTrace.contents;
 		pm->ground.material = ( pml.groundTrace.material ? pml.groundTrace.material : nullptr );
 		pm->ground.surface = ( pml.groundTrace.surface ? *pml.groundTrace.surface : cm_surface_t() );
 	} else {
 		//pm->ground = { .entityNumber = ENTITYNUM_NONE };
 	}
+
 	// Always fetch the actual entity found by the ground trace.
-	pm->ground.entityNumber = trace.entityNumber;
+	pm->ground.entityNumber = pml.groundTrace.entityNumber;
 
 	// Don't reset the z velocity for slopes.
 //	pm->ps->velocity[2] = 0;
@@ -857,7 +934,9 @@ static inline const bool PM_CheckDuck() {
 		// TODO: This makes no sense, since the actual check in SetDimensions
 		// does the same for PM_DEAD as it does for being DUCKED.
 		if ( !( pm->state->pmove.pm_flags & PMF_DUCKED ) ) {
+			// Force ducked bounding box.
 			pm->state->pmove.pm_flags |= PMF_DUCKED;
+			// Change occurred.
 			flags_changed = true;
 		}
 	// Duck:
@@ -870,7 +949,9 @@ static inline const bool PM_CheckDuck() {
 			Vector3 check_maxs = PM_BBOX_DUCKED_MAXS;// { pm->maxs.x, pm->maxs.y, PM_BBOX_DUCKED_MAXS.z };
 			trace = PM_Trace( pm->state->pmove.origin, pm->mins, check_maxs, pm->state->pmove.origin );
 			if ( !trace.allsolid ) {
+				// Duck is possible.
 				pm->state->pmove.pm_flags |= PMF_DUCKED;
+				// Change occurred.
 				flags_changed = true;
 			}
 		}
@@ -1242,7 +1323,7 @@ static void PM_Animation_SetMovementDirection( void ) {
 /**
 *	@brief	Keeps track of the player's xySpeed and bobCycle:
 **/
-static void PM_CycleBob() {
+static void PM_CycleFootStepBob() {
 	//float		bobMove = 0.f;
 	int32_t		oldBobCycle = 0;
 	// Defaults to false and checked for later on:
@@ -1631,7 +1712,7 @@ static void PM_WaterJumpMove( void ) {
 		false
 	);
 	// Decrease gravity (not in stepslide move).
-	pm->state->pmove.velocity.z-= pm->state->pmove.gravity * pml.frameTime;
+	pm->state->pmove.velocity.z -= pm->state->pmove.gravity * pml.frameTime;
 	//if ( pm->state->pmove.velocity[ 2 ] < 0 ) {
 	if ( pm->state->pmove.velocity.z < 0. ) {
 		// cancel as soon as we are falling down again
@@ -1673,9 +1754,15 @@ static void PM_WaterMove() {
 		wishVelocity[ 2 ] += cmdScale * pm->cmd.upmove;
 	// Sink towards bottom by default:
 	} else {
-		// Only if not on ground. Otherwise it'll nudge the origin up and down, causing jitter.
-		if ( !pml.hasGroundPlane && pm->ground.entityNumber == ENTITYNUM_NONE ) {
+		// Only sink when not on ground/walking. Setting a vertical wish velocity while
+		// standing on a flat underwater surface caused the small up/down nudges that
+		// produced the groundtrace toggling/jitter. Avoid applying the sink when we
+		// already are considered on-ground.
+		if ( pm->ground.entityNumber == ENTITYNUM_NONE || !pml.hasGroundPlane ) {
 			wishVelocity[ 2 ] = -60.;
+		} else {
+			// No vertical intent while standing on ground to avoid nudging origin.
+			wishVelocity[ 2 ] = 0.;
 		}
 	}
 
@@ -1698,9 +1785,14 @@ static void PM_WaterMove() {
 	if ( pml.hasGroundPlane && QM_Vector3DotProduct( pm->state->pmove.velocity, pml.groundTrace.plane.normal ) < 0. ) {
 		// Get velocity length.
 		const double velocityLength = QM_Vector3Length( pm->state->pmove.velocity );
-		// slide along the ground plane
-		PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,
-			pm->state->pmove.velocity, PM_OVERCLIP );
+		#if 1
+			// Use a non-bouncy clip against the ground plane to avoid injecting upward velocity
+			// from overbounce/reflection which causes spurious kickoff/miss toggles.
+			PM_SlideClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal, pm->state->pmove.velocity );
+		#else
+			// Use a bouncy clip against the ground plane. (This oscilates the Z axis when walking on bottom and moving down/ducking.)
+			PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
+		#endif
 		// Now normalize it.
 		pm->state->pmove.velocity = QM_Vector3Normalize( pm->state->pmove.velocity );
 		// And scale it accordingly.
@@ -1884,7 +1976,7 @@ static void PM_AirMove( void ) {
 static void PM_WalkMove( const bool canJump ) {
 	// Watermove.
 	//if ( pm->liquid.level > LIQUID_WAIST && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
-	if ( pm->liquid.level >= LIQUID_WAIST && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0 ) {
+	if ( pm->liquid.level >= LIQUID_WAIST && DotProduct( pml.forward, pml.groundTrace.plane.normal ) > 0. ) {
 		PM_WaterMove();
 		return;
 	}
@@ -2137,7 +2229,13 @@ void SG_PlayerMove_Frame() {
 	pm->state->rdflags = refdef_flags_t::RDF_NONE;
 	// Player State Move variables.
 	pm->touchTraces = {};
-	pm->ground = {};
+	//pm->ground = {
+	//	.entityNumber = ENTITYNUM_NONE
+	//};
+	//pm->ground = { 
+	//	.entityNumber = pm->ground.entityNumber, 
+	//	.entityLinkCount = pm->ground.entityLinkCount 
+	//};
 	pm->liquid = {
 		.type = CONTENTS_NONE,
 		.level = cm_liquid_level_t::LIQUID_NONE
@@ -2303,7 +2401,7 @@ void SG_PlayerMove_Frame() {
 	*	Bob Cycle / Footstep events / legs animations.
 	**/
 	//PM_Footsteps();
-	PM_CycleBob();
+	PM_CycleFootStepBob();
 
 	/**
 	*	Entering / Leaving water splashes.
