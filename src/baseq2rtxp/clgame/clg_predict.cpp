@@ -201,20 +201,14 @@ static void CLG_CheckChangedPredictableEvents( const player_state_t *ops, const 
                 game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] = event;
 
                 if ( cl_showmiss->integer ) {
-					clgi.ShowMiss( "WARNING: changed predicted event\n" );
+                    clgi.ShowMiss( "WARNING: changed predicted event\n" );
                 }
-                if ( developer->integer ) {
+
+                if ( clg_debug_pmove_changed_events->integer ) {
                     clgi.Print( PRINT_DEVELOPER, "-----\n" );
                     clgi.Print( PRINT_DEVELOPER, "WARNING: changed predicted event\n" );
-                    clgi.Print( PRINT_DEVELOPER, "Simulation Time: %lli Server Frame: %lli Client Frame: %lli\n",
-                        simulationTime.Milliseconds(),
-                        clgi.client->frame.number,
-                        clgi.client->predictedFrame.number
-                    );
-                    clgi.Print( PRINT_DEVELOPER, "  Old: %i, New: %i\n",
-                        game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ],
-                        ps->events[ i & ( MAX_PS_EVENTS - 1 ) ]
-                    );
+                    clgi.Print( PRINT_DEVELOPER, "Simulation Time: %lld Server Frame: %lld Client Frame: %lld\n", simulationTime.Milliseconds(), clgi.client->frame.number, clgi.client->predictedFrame.number );
+                    clgi.Print( PRINT_DEVELOPER, "  Old: %d, New: %d\n", game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ], ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] );
                 }
             }
         }
@@ -228,11 +222,12 @@ static void CLG_PredictNextBobCycle( pmove_t *pm ) {
     // Predict next bobcycle.
     const double bobCycleFraction = clgi.client->xerpFraction;
 	// Get the bobcycle from the last received server frame.
-    uint8_t bobCycle = clgi.client->frame.ps.bobCycle;//pm->state->bobCycle;// nextframe->ps.bobCycle;
+    uint8_t bobCycle = clgi.client->frame.ps.bobCycle;
     // Handle wraparound:
     if ( bobCycle < pm->state->bobCycle ) {
         bobCycle += 256;
     }
+	// Lerp to next bobcycle.
     pm->state->bobCycle = pm->state->bobCycle + bobCycleFraction * ( bobCycle - clgi.client->frame.ps.bobCycle );
 
     //clgi.Print( PRINT_DEVELOPER, "%s: bobCycle(%i), bobCycleFraction(%f)\n", __func__, pm->state->bobCycle, bobCycleFraction );

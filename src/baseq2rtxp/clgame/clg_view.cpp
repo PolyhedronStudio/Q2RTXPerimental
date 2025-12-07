@@ -92,14 +92,14 @@ qhandle_t   gun_model;
 //         * to avoid interactions with it (mainly unexpected shadowing).
 //         * When adjusting the offsets care must be taken that
 //         * the flashlight doesn't also light the view weapon. */
-//        VectorMA( light_pos, flashlight_offset[ 2 ] * cl_gunscale->value, view_dir, light_pos );
-//        float leftright = flashlight_offset[ 0 ] * cl_gunscale->value;
+//        VectorMA( light_pos, flashlight_offset[ 2 ] * clg_gunscale->value, view_dir, light_pos );
+//        float leftright = flashlight_offset[ 0 ] * clg_gunscale->value;
 //        if ( info_hand->integer == 1 )
 //            leftright = -leftright; // left handed
 //        else if ( info_hand->integer == 2 )
 //            leftright = 0.f; // "center" handed
 //        VectorMA( light_pos, leftright, right_dir, light_pos );
-//        VectorMA( light_pos, flashlight_offset[ 1 ] * cl_gunscale->value, up_dir, light_pos );
+//        VectorMA( light_pos, flashlight_offset[ 1 ] * clg_gunscale->value, up_dir, light_pos );
 //
 //        V_AddSpotLightTexEmission( light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex );
 //    } else {
@@ -492,11 +492,11 @@ static void CLG_CalculateViewOffset( player_state_t *ops, player_state_t *ps, co
     Vector3 viewAngles = QM_Vector3Zero();
     #if 0
     // TODO: Turn into cvars.
-    const float clg_run_pitch = cl_run_pitch->value;
-    const float clg_run_roll = cl_run_roll->value;
-    const float clg_bob_up = cl_bob_up->value;
-    const float clg_bob_pitch = cl_bob_pitch->value;
-    const float clg_bob_roll = cl_bob_roll->value;
+    const float clg_run_pitch = clg_run_pitch->value;
+    const float clg_run_roll = clg_run_roll->value;
+    const float clg_bob_up = clg_bob_up->value;
+    const float clg_bob_pitch = clg_bob_pitch->value;
+    const float clg_bob_roll = clg_bob_roll->value;
 
     // Lerp the velocity so it doesn't just "snap" back to nothing when we suddenly are standing idle.
     Vector3 velocityLerp = QM_Vector3Lerp( ops->pmove.velocity, ps->pmove.velocity, lerpFraction );
@@ -621,7 +621,7 @@ static void CLG_SetupFirstPersonView( void ) {
     }
 
     // Add server sided frame kick angles.
-    if ( cl_kickangles->integer ) {
+    if ( clg_kickangles->integer ) {
         const Vector3 kickAngles = QM_Vector3LerpAngles( lastServerFramePlayerState->kick_angles, serverFramePlayerState->kick_angles, lerpFrac );
         VectorAdd( clgi.client->refdef.viewangles, kickAngles, clgi.client->refdef.viewangles );
     }
@@ -658,8 +658,8 @@ static void CLG_SetupThirdPersionView( void ) {
     clgi.client->refdef.viewangles[ PITCH ] *= 0.5f;
     QM_AngleVectors( clgi.client->refdef.viewangles, &clgi.client->vForward, &clgi.client->vRight, &clgi.client->vUp );
 
-    angle = DEG2RAD( cl_thirdperson_angle->value );
-    range = cl_thirdperson_range->value;
+    angle = DEG2RAD( clg_thirdperson_angle->value );
+    range = clg_thirdperson_range->value;
     fscale = cos( angle );
     rscale = sin( angle );
     VectorMA( clgi.client->refdef.vieworg, -range * fscale, clgi.client->vForward, clgi.client->refdef.vieworg );
@@ -685,7 +685,7 @@ static void CLG_SetupThirdPersionView( void ) {
     dist = sqrtf( focus[ 0 ] * focus[ 0 ] + focus[ 1 ] * focus[ 1 ] );
 
     clgi.client->refdef.viewangles[ PITCH ] = -RAD2DEG( atan2( focus[ 2 ], dist ) );
-    clgi.client->refdef.viewangles[ YAW ] -= cl_thirdperson_angle->value;
+    clgi.client->refdef.viewangles[ YAW ] -= clg_thirdperson_angle->value;
 
     clgi.client->thirdPersonView = true;
 }

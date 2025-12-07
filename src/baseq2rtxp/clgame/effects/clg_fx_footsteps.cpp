@@ -101,7 +101,7 @@ static void FootStepSound( const int32_t entityNumber, const Vector3 *origin, co
 **/
 void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin, const bool isLadder, const bool isLocalClient ) {
     // Opt-out in case footsteps are disabled.
-    if ( !cl_footsteps->integer ) {
+    if ( !clg_footsteps->integer ) {
         return;
     }
 

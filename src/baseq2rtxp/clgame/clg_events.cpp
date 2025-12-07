@@ -78,14 +78,19 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
         if ( cent->previousEvent ) {
             return;
         }
-        // if this is a player event set the entity number of the client entity number
-        if ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) {
+        // If this is an external entity event set the entity number of the event to the 'other' target entity number
+        if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) && cent->current.otherEntityNumber > 0 ) {
             cent->current.number = cent->current.otherEntityNumber;
         }
         // Set previous event to true.
         cent->previousEvent = 1;
         // The event is simply the entity type minus the ET_EVENTS offset.
-        cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT;
+        eventValue = cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT;
+
+        if ( eventValue >= EV_ENGINE_MAX && clg_debug_entity_events->integer ) {
+			const char *otherEntityInfo = ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) ? " (other entity event)" : "";
+            clgi.Print( PRINT_DEVELOPER, "%s: %sentity(#%d), eventValue(#%d), eventName(%s)\n", __func__, otherEntityInfo, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
+		}
     /**
     *   Check for events riding with another entity:
     **/
@@ -102,11 +107,11 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
         **/
         // Acquire the actual event value by offing it with EV_EVENT_BITS.
         eventValue = SG_GetEntityEventValue( cent->current.event );
+        if ( eventValue >= EV_ENGINE_MAX && clg_debug_entity_events->integer ) {
+            clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(#%d), eventName(%s)\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
+        }
         // If no event, don't process anything. ( It hasn't changed again. )
         if ( eventValue == EV_NONE ) {
-            if ( cl_debug_entity_events->integer ) {
-                clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue( UNCHANGED ), eventName(%s)\n", __func__, cent->current.number, sg_event_string_names[ eventValue ] );
-			}
             return;
         }
     }
@@ -118,13 +123,13 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
     // Exit if this is a zero event.
     if ( eventValue == EV_NONE ) {
         // Debug print the event name.
-        if ( cl_debug_entity_events->integer ) {
+        if ( clg_debug_entity_events->integer ) {
             clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(%d), eventName(%s)\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
         }
         return;
     } else {
         // Debug print the event name.
-        if ( cl_debug_entity_events->integer ) {
+        if ( clg_debug_entity_events->integer ) {
             clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(%d), eventName(%s)\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
         }
     }
@@ -212,7 +217,7 @@ const bool CLG_Events_CheckForLocalPlayerState( const player_state_t *ops, const
 *
 **/
 /**
-*   @brief  The local (PLAYER) footstep sound event handler.
+*   @brief  The (LOCAL PLAYER) footstep sound event handler.
 **/
 void CLG_LocalFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
 	// Pass on to the footstep sound effect handler.
@@ -223,7 +228,7 @@ void CLG_LocalFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrig
         lerpOrigin,
         // No ladder.
         false,
-		// This event is never invoked by the local client itself.
+		// This is invoked by the local client itself.
         true
     );
 }

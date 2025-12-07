@@ -66,8 +66,8 @@ void CLG_AddPlayerBeams( void );
 *	temp_entities/clg_te_explosions.cpp
 *
 ***/
-extern cvar_t *cl_explosion_sprites;
-extern cvar_t *cl_explosion_frametime;
+extern cvar_t *clg_explosion_sprites;
+extern cvar_t *clg_explosion_frametime;
 
 extern cvar_t *gibs;
 
@@ -115,14 +115,11 @@ laser_t *CLG_AllocLaser( void );
 *   @brief
 **/
 void CLG_AddLasers( void );
+
 /**
 *   @brief
 **/
 void CLG_ParseLaser( const int32_t colors );
-/**
-*   @brief
-**/
-void CLG_ParseLaser_Pistol( const int32_t colors );
 
 
 

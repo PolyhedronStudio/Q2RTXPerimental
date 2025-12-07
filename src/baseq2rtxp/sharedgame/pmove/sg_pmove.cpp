@@ -25,7 +25,9 @@
 
 //! For groundtrace debugging.
 //! Defining this enables basic groundtrace logging.
-#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+//#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+//! Defining this enables groundtrace debugging for first frame after landing.
+//#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_STAND_LAST_FRAME
 // Defining this enables ground pml trace debugging.
 //#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_PML_TRACE
 //#define PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_CCORRECTALLSOLID_FIRST
@@ -718,7 +720,7 @@ static void PM_GroundTrace( void ) {
 	#endif
 
 	// Additional debug: while the player was standing on ground last frame, log trace fraction and endpos.z
-	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO
+	#ifdef PMOVE_PRINT_GROUNDTRACE_DEBUGINFO_STAND_LAST_FRAME
 	if ( pm->ground.entityNumber != ENTITYNUM_NONE || pml.isWalking ) {
 		SG_DPrintf( "[" SG_GAME_MODULE_STR " (%" PRId64 ")]: %s : STAND_DEBUG: trace.fraction=%.9f trace.endpos.z=%.6f origin.z=%.6f prevOrigin.z=%.6f prevVel.z=%.6f currVel.z=%.6f cmd.msec=%d pm_ground_ent(before)=%d\n",
 			pm->simulationTime.Milliseconds(), __func__,
@@ -1437,7 +1439,7 @@ static void PM_WaterEvents( void ) {		// FIXME?
 		// Feet Deep Splash:
 		if ( pml.previousLiquid.level == cm_liquid_level_t::LIQUID_FEET ) {
 			PM_AddEvent( EV_WATER_LEAVE_FEET, pml.previousLiquid.type );
-			// Waist Deep Splash:
+		// Waist Deep Splash:
 		} else if ( pml.previousLiquid.level >= cm_liquid_level_t::LIQUID_WAIST ) {
 			PM_AddEvent( EV_WATER_LEAVE_WAIST, pml.previousLiquid.type );
 		}

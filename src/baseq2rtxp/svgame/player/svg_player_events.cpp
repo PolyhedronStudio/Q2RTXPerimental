@@ -17,6 +17,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/player/svg_player_events.h"
 #include "sharedgame/sg_shared.h"
 #include "sharedgame/sg_means_of_death.h"
@@ -98,23 +99,40 @@ static void PlayerStateEvent_WaterLeave( svg_player_edict_t *ent, const int32_t 
 
     // Determine splash type.
     if ( event == EV_WATER_LEAVE_FEET ) {
+		// Generate the sound as a temporary event entity.
+		svg_base_edict_t *tEeSound = SVG_TempEventEntity_GeneralSound( ent, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ) );
+        // It is locally predicted, so exclude the client itself from the event.
+        tEeSound->svFlags |= SVF_SENDCLIENT_EXCLUDE_ID;
+        tEeSound->sendClientID = ent->client->clientNum;
+        // Alarm the environment to the player's noise.
         SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
         //gi.sound( ent, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
         ent->flags &= ~FL_INWATER;
     }
     if ( event == EV_WATER_LEAVE_WAIST ) {
+        // Generate the sound as a temporary event entity.
+        svg_base_edict_t *tempEntityEvent = SVG_TempEventEntity_GeneralSound( ent, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ) );
+        // It is locally predicted, so exclude the client itself from the event.
+        tempEntityEvent->svFlags |= SVF_SENDCLIENT_EXCLUDE_ID;
+        tempEntityEvent->sendClientID = ent->client->clientNum;
+        // Alarm the environment to the player's noise.
         SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
         //gi.sound( ent, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
         ent->flags &= ~FL_INWATER;
     }
 	if ( event == EV_WATER_LEAVE_HEAD ) {
+        // <Q2RTXP>: TODO: Can be implemented client-side, so exclude the client ID from this entity event.
+        //gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
         if ( ent->air_finished_time < level.time ) {
-            // gasp for air
-            gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
+            // Generate the sound as a temporary event entity.: Gasp for air.
+            svg_base_edict_t *tempEntityEvent = SVG_TempEventEntity_GeneralSoundEx( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), ATTN_NORM );
+            //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
+            // Alarm the environment to the player's noise.
             SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
         } else  if ( ent->air_finished_time < level.time + 11_sec ) {
-            // just break surface
-            gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
+            // Generate the sound as a temporary event entity: Just break the surface.
+            svg_base_edict_t *tempEntityEvent = SVG_TempEventEntity_GeneralSoundEx( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), ATTN_NORM );
+            //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
         }
     }
 }

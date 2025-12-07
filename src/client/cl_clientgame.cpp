@@ -1012,6 +1012,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.S_StartLocalSoundOnce = S_StartLocalSoundOnce;
 	imports.S_StopAllSounds = S_StopAllSounds;
 	imports.S_RegisterSound = S_RegisterSound;
+	imports.S_SoundNameForHandle = S_SoundNameForHandle;
 	imports.S_SetEAXEnvironmentProperties = S_SetEAXEnvironmentProperties;
 	imports.S_SetupSpatialListener = S_SetupSpatialListener;
 

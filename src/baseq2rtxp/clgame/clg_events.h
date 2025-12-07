@@ -22,13 +22,38 @@
 *
 **/
 /**
-*	Macro for debugging purposes:
+*	Macros for debugging purposes:
 **/
+//! Debug print entity event name.
 #define	DEBUG_PRINT_EVENT_NAME( eventNameStr ) \
-	if( cl_debug_entity_events->integer ) \
+	if( clg_debug_entity_events->integer ) \
 	{ \
 		clgi.Print( PRINT_DEVELOPER, "DEBUG EVENT: %s\n", eventNameStr ); \
 	} \
+
+//! Debug print sound resource info for entity events.
+#define DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( funcname, entity, soundIdx ) \
+    if ( clg_debug_entity_events->integer ) { \
+        const qhandle_t dbgSoundHandle = GetSoundIndexResourceHandle( soundIdx ); \
+        const std::string dbgSoundName = GetSoundResourceHandleName( dbgSoundHandle ); \
+        if ( !cent ) { \
+            clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on NULL entity!\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str() ); \
+        } else { \
+            if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber > 0 ) { \
+                clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on OTHER entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.otherEntityNumber ); \
+            } else { \
+                clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.number ); \
+            } \
+        } \
+    } \
+
+#define DBG_ENTITY_EVENT_SOUND_NAME_ORIGIN( funcname, origin, soundIdx ) \
+    if ( clg_debug_entity_events->integer ) { \
+        const qhandle_t dbgSoundHandle = GetSoundIndexResourceHandle( soundIdx ); \
+        const std::string dbgSoundName = GetSoundResourceHandleName( dbgSoundHandle ); \
+        clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') at origin (%f, %f, %f)\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), origin.x, origin.y, origin.z ); \
+    } \
+
 
 /**
 *   @brief  Checks for entity generated events and processes them for execution.
@@ -69,9 +94,10 @@ const bool CLG_Events_CheckForLocalPlayerState( const player_state_t *ops, const
 *
 **/
 /**
-*   @brief  The local (PLAYER) footstep sound event handler.
+*   @brief  The (LOCAL PLAYER) footstep sound event handler.
 **/
 void CLG_LocalFootStepEvent( const int32_t entityNumber, const Vector3 & lerpOrigin );
+
 /**
 *   @brief  The generic (PLAYER) footstep sound event handler.
 **/
@@ -80,10 +106,7 @@ void CLG_PlayerFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOri
 *   @brief  The generic (OTHER entity) footstep sound event handler.
 **/
 void CLG_OtherFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin );
-/**
-*   @brief  The generic footstep sound event handler.
-**/
-//void CLG_FootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin );
+
 /**
 *   @brief  Passes on to CLG_FX_FootStepSound with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
 **/

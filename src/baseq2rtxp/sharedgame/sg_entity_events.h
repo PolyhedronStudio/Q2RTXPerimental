@@ -185,8 +185,11 @@ typedef enum sg_entity_events_e {
     **/
     EV_ITEM_RESPAWN,
 
+
     /**
-	*   Temporary External Entity Events:
+	*   Temporary EXTERNAL -Entity Events:
+    * 
+    *   (Thus not meant to be latched on to an entity, as they will be created as an entity of their own.)
     **/
 	//! General sound event for entities, play a sound on the (client's-) entity playing on the specified channel.
     EV_GENERAL_SOUND,

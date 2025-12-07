@@ -69,7 +69,7 @@ static void CLG_HUD_DrawHealthIndicators();
 /**
 *	@brief
 **/
-static void cl_timeout_changed( cvar_t *self ) {
+static void clg_timeout_changed( cvar_t *self ) {
     self->integer = 1000 * clgi.CVar_ClampValue( self, 0, 24 * 24 * 60 * 60 );
 }
 
@@ -123,7 +123,7 @@ void CLG_HUD_Initialize( void ) {
     hud_chat = clgi.CVar_Get( "hud_chat", "0", 0 );
     hud_chat_lines = clgi.CVar_Get( "hud_chat_lines", "4", 0 );
     hud_chat_time = clgi.CVar_Get( "hud_chat_time", "0", 0 );
-    hud_chat_time->changed = cl_timeout_changed;
+    hud_chat_time->changed = clg_timeout_changed;
     hud_chat_time->changed( hud_chat_time );
     hud_chat_x = clgi.CVar_Get( "hud_chat_x", "8", 0 );
     hud_chat_y = clgi.CVar_Get( "hud_chat_y", "-64", 0 );

@@ -126,14 +126,14 @@
 //		 * to avoid interactions with it (mainly unexpected shadowing).
 //		 * When adjusting the offsets care must be taken that
 //		 * the flashlight doesn't also light the view weapon. */
-//		VectorMA( light_pos, flashlight_offset[ 2 ] * cl_gunscale->value, view_dir, light_pos );
-//		float leftright = flashlight_offset[ 0 ] * cl_gunscale->value;
+//		VectorMA( light_pos, flashlight_offset[ 2 ] * clg_gunscale->value, view_dir, light_pos );
+//		float leftright = flashlight_offset[ 0 ] * clg_gunscale->value;
 //		if ( info_hand->integer == 1 )
 //			leftright = -leftright; // left handed
 //		else if ( info_hand->integer == 2 )
 //			leftright = 0.f; // "center" handed
 //		VectorMA( light_pos, leftright, right_dir, light_pos );
-//		VectorMA( light_pos, flashlight_offset[ 1 ] * cl_gunscale->value, up_dir, light_pos );
+//		VectorMA( light_pos, flashlight_offset[ 1 ] * clg_gunscale->value, up_dir, light_pos );
 //
 //		V_AddSpotLightTexEmission( light_pos, view_dir, cl_flashlight_intensity->value, 1.f, 1.f, 1.f, 90.0f, flashlight_profile_tex );
 //	} else {

@@ -29,7 +29,7 @@ typedef enum temp_entity_event_e {
     //TE_ROCKET_EXPLOSION,
     //TE_GRENADE_EXPLOSION,
 
-    TE_PISTOL_LASER,
+    //TE_PISTOL_LASER,
 
     TE_BUBBLETRAIL,
     TE_BUBBLETRAIL2,

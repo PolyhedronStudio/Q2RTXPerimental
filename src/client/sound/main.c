@@ -494,6 +494,20 @@ qhandle_t S_RegisterSound(const char *name)
     return (sfx - known_sfx) + 1;
 }
 
+/**
+*   @brief  Returns the name of the sound matching the resource handle.
+**/
+const char *S_SoundNameForHandle( const qhandle_t soundResourceHandle ) {
+	// Get the sfx.
+    sfx_t *sfx = S_SfxForHandle( soundResourceHandle );
+	// Null check.
+    if ( !sfx ) {
+        return "<null>";
+    }
+	// Return the name.
+    return sfx->name;
+}
+
 /*
 ====================
 S_RegisterSexedSound

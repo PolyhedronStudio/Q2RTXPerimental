@@ -44,6 +44,12 @@ void S_Activate(void);
 
 void S_BeginRegistration(void);
 qhandle_t S_RegisterSound(const char *sample);
+
+/**
+*   @brief  Returns the name of the sound matching the resource handle.
+**/
+const char *S_SoundNameForHandle( const qhandle_t soundResourceHandle );
+
 /**
 *   @brief  Updates the EAX Environment settings.
 **/

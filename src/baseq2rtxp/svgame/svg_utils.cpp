@@ -239,14 +239,9 @@ svg_base_edict_t *SVG_Util_CreateTempEntityEvent( const Vector3 &origin, const s
     * 
 	*   Take the raw approach here.
     **/
-    // Spawn a func_plat_trigger.
-    EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
-    // Allocate it using the found typeInfo.
-    // <Q2RTXP>: WID: Fix incorrect allocation of edict instance. (Create an entity event type instance instead of a base edict instance.)
-    svg_base_edict_t *tempEventEntity = static_cast<svg_base_edict_t *>( typeInfo->allocateEdictInstanceCallback( nullptr ) );
-    // Emplace the spawned edict in the next avaible edict slot.
-    g_edict_pool.EmplaceNextFreeEdict( tempEventEntity );
-
+	// Create the temporary entity event entity.
+    svg_base_edict_t *tempEventEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "svg_temp_event_entity_t" );
+    
     // Set the actual entity event to part of entityState_t type.
     tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
 	// Stuff the eventParms in the entityState_t's eventParms.

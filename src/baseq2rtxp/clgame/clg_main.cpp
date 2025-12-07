@@ -71,13 +71,14 @@ cvar_t *maxentities = nullptr;
 //cvar_t *maxspectators = nullptr;
 
 cvar_t *cl_showmiss = nullptr;
-cvar_t *cl_debug_entity_events = nullptr;
+cvar_t *clg_debug_entity_events = nullptr;
+cvar_t *clg_debug_pmove_changed_events = nullptr;
 
-cvar_t *cl_kickangles = nullptr;
-cvar_t *cl_noskins = nullptr;
+cvar_t *clg_kickangles = nullptr;
+cvar_t *clg_noskins = nullptr;
 cvar_t *cl_predict = nullptr;
 cvar_t *cl_nolerp = nullptr;
-cvar_t *cl_footsteps = nullptr;
+cvar_t *clg_footsteps = nullptr;
 
 // Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
 cvar_t *cvar_pt_particle_emissive = nullptr; // from client FX_Init
@@ -86,26 +87,26 @@ cvar_t *cl_particle_num_factor = nullptr; // from client FX_Init
 /**
 *	Client View CVars:
 **/
-cvar_t *cl_run_pitch = nullptr;
-cvar_t *cl_run_roll = nullptr;
-cvar_t *cl_bob_up = nullptr;
-cvar_t *cl_bob_pitch = nullptr;
-cvar_t *cl_bob_roll = nullptr;
+cvar_t *clg_run_pitch = nullptr;
+cvar_t *clg_run_roll = nullptr;
+cvar_t *clg_bob_up = nullptr;
+cvar_t *clg_bob_pitch = nullptr;
+cvar_t *clg_bob_roll = nullptr;
 
 //! Whether to show the player model in 3rd person.
 cvar_t *cl_player_model = nullptr;
 //! Camera third person angle.
-cvar_t *cl_thirdperson_angle = nullptr;
+cvar_t *clg_thirdperson_angle = nullptr;
 //! Camera third person range.
-cvar_t *cl_thirdperson_range = nullptr;
+cvar_t *clg_thirdperson_range = nullptr;
 //! View Weapon CVar.
-cvar_t *cl_vwep = nullptr;
+cvar_t *clg_vwep = nullptr;
 
 /**
 *	Chat Related CVars:
 **/
-cvar_t *cl_chat_notify = nullptr;
-cvar_t *cl_chat_filter = nullptr;
+cvar_t *clg_chat_notify = nullptr;
+cvar_t *clg_chat_filter = nullptr;
 
 /**
 *	Info String CVars:
@@ -124,15 +125,15 @@ cvar_t *info_uf = nullptr;
 *	(Developer-) Gun CVars:
 **/
 //! Developer gun alpha adjustment.
-cvar_t *cl_gunalpha = nullptr;
+cvar_t *clg_gunalpha = nullptr;
 //! Generic gun scale adjustment.
-cvar_t *cl_gunscale = nullptr;
+cvar_t *clg_gunscale = nullptr;
 //! Developer gun X offset adjustment.
-cvar_t *cl_gun_x = nullptr;
+cvar_t *clg_gun_x = nullptr;
 //! Developer gun Y offset adjustment.
-cvar_t *cl_gun_y = nullptr;
+cvar_t *clg_gun_y = nullptr;
 //! Developer gun Z offset adjustment.
-cvar_t *cl_gun_z = nullptr;
+cvar_t *clg_gun_z = nullptr;
 
 /**
 *	Other.
@@ -154,25 +155,25 @@ extern cmdreg_t clg_view_cmds[];
 /**
 *	@brief	Health.
 **/
-static size_t CL_Health_m( char *buffer, size_t size ) {
+static size_t CLG_Health_m( char *buffer, size_t size ) {
 	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_HEALTH ] );
 }
 /**
 *	@brief	Ammo.
 **/
-static size_t CL_Ammo_m( char *buffer, size_t size ) {
+static size_t CLG_Ammo_m( char *buffer, size_t size ) {
 	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_AMMO ] );
 }
 /**
 *	@brief	Armor.
 **/
-static size_t CL_Armor_m( char *buffer, size_t size ) {
+static size_t CLG_Armor_m( char *buffer, size_t size ) {
 	return Q_scnprintf( buffer, size, "%i", clgi.client->frame.ps.stats[ STAT_ARMOR ] );
 }
 /**
 *	@brief	The Quake Units per second of the player.
 **/
-static size_t CL_Ups_m( char *buffer, size_t size ) {
+static size_t CLG_Ups_m( char *buffer, size_t size ) {
 	vec3_t vel;
 
 	// Use predicted velocity if we're not in a demo playback and prediction is enabled.
@@ -189,7 +190,7 @@ static size_t CL_Ups_m( char *buffer, size_t size ) {
 /**
 *	@brief	Weapon Model.
 **/
-static size_t CL_WeaponModel_m( char *buffer, size_t size ) {
+static size_t CLG_WeaponModel_m( char *buffer, size_t size ) {
 	return Q_scnprintf( buffer, size, "%s",
 		clgi.client->configstrings[ clgi.client->frame.ps.gun.modelIndex + CS_MODELS ] );
 }
@@ -536,39 +537,40 @@ void PF_InitGame( void ) {
 
 	// For debugging purposes.
 	cl_showmiss = clgi.CVar_Get( "cl_showmiss", "0", 0 ); // Fetched from engine.
-	cl_debug_entity_events = clgi.CVar_Get( "cl_debug_entity_events", "0", 0 );
+	clg_debug_entity_events = clgi.CVar_Get( "clg_debug_entity_events", "1", 0 );
+	clg_debug_pmove_changed_events = clgi.CVar_Get( "clg_debug_pmove_changed_events", "1", 0 );
 
 	// Client effects.
-	cl_footsteps = clgi.CVar_Get( "cl_footsteps", "1", 0 );
-	cl_kickangles = clgi.CVar_Get( "cl_kickangles", "1", CVAR_CHEAT );
-	cl_noskins = clgi.CVar_Get( "cl_noskins", "0", 0 );
-	cl_nolerp = clgi.CVar_Get( "cl_nolerp", "0", 0 );
+	clg_footsteps = clgi.CVar_Get( "clg_footsteps", "1", 0 );
+	clg_kickangles = clgi.CVar_Get( "clg_kickangles", "1", CVAR_CHEAT );
+	clg_noskins = clgi.CVar_Get( "clg_noskins", "0", 0 );
+	cl_nolerp = clgi.CVar_Get( "cl_nolerp", "0", 0 ); // Fetched from engine.
 
 	// Gun Debugging CVars:
-	cl_gunalpha = clgi.CVar_Get( "cl_gunalpha", "1", 0 );
-	cl_gunscale = clgi.CVar_Get( "cl_gunscale", "0.25", CVAR_ARCHIVE );
-	cl_gun_x = clgi.CVar_Get( "cl_gun_x", "0", 0 );
-	cl_gun_y = clgi.CVar_Get( "cl_gun_y", "0", 0 );
-	cl_gun_z = clgi.CVar_Get( "cl_gun_z", "0", 0 );
+	clg_gunalpha = clgi.CVar_Get( "clg_gunalpha", "1", 0 );
+	clg_gunscale = clgi.CVar_Get( "clg_gunscale", "0.25", CVAR_ARCHIVE );
+	clg_gun_x = clgi.CVar_Get( "clg_gun_x", "0", 0 );
+	clg_gun_y = clgi.CVar_Get( "clg_gun_y", "0", 0 );
+	clg_gun_z = clgi.CVar_Get( "clg_gun_z", "0", 0 );
 
 	// View Bob CVars, Read Only:
-	cl_run_pitch = clgi.CVar_Get( "run_pitch", "0.01", CVAR_ROM );
-	cl_run_roll = clgi.CVar_Get( "run_roll", "0.025", CVAR_ROM );
-	cl_bob_up = clgi.CVar_Get( "bob_up", "0.005", CVAR_ROM );
-	cl_bob_pitch = clgi.CVar_Get( "bob_pitch", "0.002", CVAR_ROM );
-	cl_bob_roll = clgi.CVar_Get( "bob_roll", "0.002", CVAR_ROM );
+	clg_run_pitch = clgi.CVar_Get( "clg_run_pitch", "0.01", CVAR_ROM );
+	clg_run_roll = clgi.CVar_Get( "clg_run_roll", "0.025", CVAR_ROM );
+	clg_bob_up = clgi.CVar_Get( "clg_bob_up", "0.005", CVAR_ROM );
+	clg_bob_pitch = clgi.CVar_Get( "clg_bob_pitch", "0.002", CVAR_ROM );
+	clg_bob_roll = clgi.CVar_Get( "clg_bob_roll", "0.002", CVAR_ROM );
 
 	// Shared with client thirdperson cvars, since refresh modules requires access to it.
 	cl_player_model = clgi.CVar_Get( "cl_player_model", nullptr, 0 );
 	// Client game specific thirdperson cvars.
-	cl_thirdperson_angle = clgi.CVar_Get( "cl_thirdperson_angle", "0", 0 );
-	cl_thirdperson_range = clgi.CVar_Get( "cl_thirdperson_range", "60", 0 );
+	clg_thirdperson_angle = clgi.CVar_Get( "clg_thirdperson_angle", "0", 0 );
+	clg_thirdperson_range = clgi.CVar_Get( "clg_thirdperson_range", "60", 0 );
 
-	cl_chat_notify = clgi.CVar_Get( "cl_chat_notify", "1", 0 );
-	cl_chat_filter = clgi.CVar_Get( "cl_chat_filter", "0", 0 );
+	clg_chat_notify = clgi.CVar_Get( "clg_chat_notify", "1", 0 );
+	clg_chat_filter = clgi.CVar_Get( "clg_chat_filter", "0", 0 );
 
-	cl_vwep = clgi.CVar_Get( "cl_vwep", "1", CVAR_ARCHIVE );
-	cl_vwep->changed = cl_vwep_changed;
+	clg_vwep = clgi.CVar_Get( "clg_vwep", "1", CVAR_ARCHIVE );
+	clg_vwep->changed = cl_vwep_changed;
 
 	/**
 	*	UserInfo - Initialized by the client, but we desire access to these user info cvars.
@@ -597,11 +599,11 @@ void PF_InitGame( void ) {
 	// Register view command callbacks.
 	clgi.Cmd_Register( clg_view_cmds );
 
-	clgi.Cmd_AddMacro( "cl_health", CL_Health_m );
-	clgi.Cmd_AddMacro( "cl_ammo", CL_Ammo_m );
-	clgi.Cmd_AddMacro( "cl_armor", CL_Armor_m );
-	clgi.Cmd_AddMacro( "cl_ups", CL_Ups_m );
-	clgi.Cmd_AddMacro( "cl_weaponmodel", CL_WeaponModel_m );
+	clgi.Cmd_AddMacro( "clg_health_m", CLG_Health_m );
+	clgi.Cmd_AddMacro( "clg_ammo_m", CLG_Ammo_m );
+	clgi.Cmd_AddMacro( "clg_armor_m", CLG_Armor_m );
+	clgi.Cmd_AddMacro( "clg_ups_m", CLG_Ups_m );
+	clgi.Cmd_AddMacro( "clg_weaponmodel_m", CLG_WeaponModel_m );
 
 	/**
 	*	Initialize effects and temp entities.

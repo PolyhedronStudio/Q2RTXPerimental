@@ -84,13 +84,14 @@ extern cvar_t *maxentities;
 //extern cvar_t *maxspectators
 
 extern cvar_t *cl_showmiss;
-extern cvar_t *cl_debug_entity_events;
+extern cvar_t *clg_debug_entity_events;
+extern cvar_t *clg_debug_pmove_changed_events;
 
-extern cvar_t *cl_kickangles;
-extern cvar_t *cl_noskins;
+extern cvar_t *clg_kickangles;
+extern cvar_t *clg_noskins;
 extern cvar_t *cl_predict;
 extern cvar_t *cl_nolerp;
-extern cvar_t *cl_footsteps;
+extern cvar_t *clg_footsteps;
 
 // Cheesy workaround for various cvars initialized elsewhere in the client, but we need access.
 extern cvar_t *cvar_pt_particle_emissive; // from client FX_Init
@@ -99,26 +100,26 @@ extern cvar_t *cl_particle_num_factor; // from client FX_Init
 /**
 *	Client View CVars:
 **/
-extern cvar_t *cl_run_pitch;
-extern cvar_t *cl_run_roll;
-extern cvar_t *cl_bob_up;
-extern cvar_t *cl_bob_pitch;
-extern cvar_t *cl_bob_roll;
+extern cvar_t *clg_run_pitch;
+extern cvar_t *clg_run_roll;
+extern cvar_t *clg_bob_up;
+extern cvar_t *clg_bob_pitch;
+extern cvar_t *clg_bob_roll;
 
 //! Whether to show the player model in 3rd person.
 extern cvar_t *cl_player_model;
 //! Camera third person angle.
-extern cvar_t *cl_thirdperson_angle;
+extern cvar_t *clg_thirdperson_angle;
 //! Camera third person range.
-extern cvar_t *cl_thirdperson_range;
+extern cvar_t *clg_thirdperson_range;
 //! View Weapon CVar.
-extern cvar_t *cl_vwep;
+extern cvar_t *clg_vwep;
 
 /**
 *	Chat Related CVars:
 **/
-extern cvar_t *cl_chat_notify;
-extern cvar_t *cl_chat_filter;
+extern cvar_t *clg_chat_notify;
+extern cvar_t *clg_chat_filter;
 
 /**
 *	Info String CVars:
@@ -137,15 +138,15 @@ extern cvar_t *info_uf;
 *	(Developer-) Gun CVars:
 **/
 //! Developer gun alpha adjustment.
-extern cvar_t *cl_gunalpha;
+extern cvar_t *clg_gunalpha;
 //! Generic gun scale adjustment.
-extern cvar_t *cl_gunscale;
+extern cvar_t *clg_gunscale;
 //! Developer gun X offset adjustment.
-extern cvar_t *cl_gun_x;
+extern cvar_t *clg_gun_x;
 //! Developer gun Y offset adjustment.
-extern cvar_t *cl_gun_y;
+extern cvar_t *clg_gun_y;
 //! Developer gun Z offset adjustment.
-extern cvar_t *cl_gun_z;
+extern cvar_t *clg_gun_z;
 
 
 

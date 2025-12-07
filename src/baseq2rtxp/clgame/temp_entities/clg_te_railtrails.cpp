@@ -12,12 +12,12 @@
 static color_t  railcore_color;
 static color_t  railspiral_color;
 
-extern cvar_t *cl_railtrail_type;
-extern cvar_t *cl_railtrail_time;
-extern cvar_t *cl_railcore_color;
-extern cvar_t *cl_railcore_width;
+extern cvar_t *clg_railtrail_type;
+extern cvar_t *clg_railtrail_time;
+extern cvar_t *clg_railcore_color;
+extern cvar_t *clg_railcore_width;
 extern cvar_t *cl_railspiral_color;
-extern cvar_t *cl_railspiral_radius;
+extern cvar_t *clg_railspiral_radius;
 
 extern cvar_t *cvar_pt_beam_lights;
 
@@ -47,8 +47,8 @@ void CLG_RailCore( void ) {
     VectorCopy( level.parsedMessage.events.tempEntity.pos1, l->start );
     VectorCopy( level.parsedMessage.events.tempEntity.pos2, l->end );
     l->color = -1;
-    l->lifetime = cl_railtrail_time->integer;
-    l->width = cl_railcore_width->integer;
+    l->lifetime = clg_railtrail_time->integer;
+    l->width = clg_railcore_width->integer;
     l->rgba.u32 = railcore_color.u32;
 }
 
@@ -85,12 +85,12 @@ void CLG_RailSpiral( void ) {
         VectorMA( dir, s, up, dir );
 
         p->alpha = 1.0f;
-        p->alphavel = -1.0f / ( cl_railtrail_time->value + frand() * 0.2f );
+        p->alphavel = -1.0f / ( clg_railtrail_time->value + frand() * 0.2f );
         p->color = -1;
         p->rgba.u32 = railspiral_color.u32;
         p->brightness = cvar_pt_particle_emissive->value;
         for ( j = 0; j < 3; j++ ) {
-            p->org[ j ] = move[ j ] + dir[ j ] * cl_railspiral_radius->value;
+            p->org[ j ] = move[ j ] + dir[ j ] * clg_railspiral_radius->value;
             p->vel[ j ] = dir[ j ] * 6;
         }
 
@@ -138,22 +138,22 @@ void CLG_RailTrail( void ) {
     color_t rail_color;
     const uint32_t *d_8to24table = clgi.R_Get8BitTo24BitTable();
 
-    if ( !cl_railtrail_type->integer ) {
+    if ( !clg_railtrail_type->integer ) {
         rail_color.u32 = d_8to24table[ 0x74 ];
 
         CLG_OldRailTrail();
     } else {
         rail_color = railcore_color;
 
-        if ( cl_railcore_width->integer > 0 ) {
+        if ( clg_railcore_width->integer > 0 ) {
             CLG_RailCore();
         }
-        if ( cl_railtrail_type->integer > 1 ) {
+        if ( clg_railtrail_type->integer > 1 ) {
             CLG_RailSpiral();
         }
     }
 
-    if ( !cl_railtrail_type->integer || cvar_pt_beam_lights->value <= 0 ) {
+    if ( !clg_railtrail_type->integer || cvar_pt_beam_lights->value <= 0 ) {
         CLG_RailLights( rail_color );
     }
 }

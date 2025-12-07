@@ -153,13 +153,13 @@ static inline const Vector3 CalculateEntityEventSoundOrigin( svg_base_edict_t *e
 svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex ) {
     // Default to just the origin of the entity.
     const Vector3 origin = CalculateEntityEventSoundOrigin( ent );
-
     // Create a temporary entity event for all other clients.
     svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
         EV_GENERAL_SOUND, 
         channel, soundResourceIndex
     );
-	// Set the otherEntity to the source entity.
+
+    // Set the otherEntity to the source entity.
 	tempEventEntity->s.otherEntityNumber = ent->s.number;
     // Set the effect flag to indicate an other entity is the target for this event.
     tempEventEntity->s.entityFlags = EF_OTHER_ENTITY_EVENT;
@@ -167,7 +167,7 @@ svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const
     // Make sure to send it to all clients if requested.
     // This is because a request to ignore PHS culling is made.
     if ( channel & CHAN_NO_PHS_ADD ) {
-        tempEventEntity->sendClientID = SENDCLIENT_TO_ALL;
+		// Set the no cull flag.
 		tempEventEntity->svFlags |= SVF_NO_CULL;
     }
 
@@ -186,15 +186,14 @@ svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const
 svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex, const float attenuation ) {
     // Default to just the origin of the entity.
     const Vector3 origin = CalculateEntityEventSoundOrigin( ent );
-
 	// Pack the attenuation into the higher bits of the channel parameter.
 	const int32_t packedChannel = channel | ( (uint8_t)( std::clamp<uint8_t>(attenuation * 64, 0, 255) ) << 8 );
-
     // Create a temporary entity event for all other clients.
     svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
         EV_GENERAL_SOUND_EX,
         packedChannel, soundResourceIndex
     );
+
     // Set the otherEntity to the source entity.
     tempEventEntity->s.otherEntityNumber = ent->s.number;
     // Set the effect flag to indicate an other entity is the target for this event.
@@ -203,7 +202,7 @@ svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, con
     // Make sure to send it to all clients if requested.
     // This is because a request to ignore PHS culling is made.
     if ( channel & CHAN_NO_PHS_ADD ) {
-        tempEventEntity->sendClientID = SENDCLIENT_TO_ALL;
+        // Set the no cull flag.
         tempEventEntity->svFlags |= SVF_NO_CULL;
     }
 
@@ -232,7 +231,7 @@ svg_base_edict_t *SVG_TempEventEntity_PositionedSound( const Vector3 &origin, co
     // Make sure to send it to all clients if requested.
     // This is because a request to ignore PHS culling is made.
     if ( channel & CHAN_NO_PHS_ADD ) {
-        tempEventEntity->sendClientID = SENDCLIENT_TO_ALL;
+        // Set the no cull flag.
         tempEventEntity->svFlags |= SVF_NO_CULL;
     }
 
@@ -277,8 +276,7 @@ svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const 
         EV_GLOBAL_SOUND,
         soundResourceIndex, 0
     );
-    // Make sure to send it to all clients.
-	tempEventEntity->sendClientID = SENDCLIENT_TO_ALL;
+
     // Send it to all clients.
     tempEventEntity->svFlags |= SVF_NO_CULL;
 

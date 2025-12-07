@@ -15,31 +15,31 @@
 static color_t  railcore_color;
 static color_t  railspiral_color;
 
-cvar_t *cl_railtrail_type = nullptr;
-cvar_t *cl_railtrail_time = nullptr;
-cvar_t *cl_railcore_color = nullptr;
-cvar_t *cl_railcore_width = nullptr;
+cvar_t *clg_railtrail_type = nullptr;
+cvar_t *clg_railtrail_time = nullptr;
+cvar_t *clg_railcore_color = nullptr;
+cvar_t *clg_railcore_width = nullptr;
 cvar_t *cl_railspiral_color = nullptr;
-cvar_t *cl_railspiral_radius = nullptr;
+cvar_t *clg_railspiral_radius = nullptr;
 
 cvar_t *cvar_pt_beam_lights = nullptr;
 
-//cvar_t *cl_disable_particles = nullptr;
-//cvar_t *cl_disable_explosions = nullptr;
-cvar_t *cl_explosion_sprites = nullptr;
-cvar_t *cl_explosion_frametime = nullptr;
+//cvar_t *clg_disable_particles = nullptr;
+//cvar_t *clg_disable_explosions = nullptr;
+cvar_t *clg_explosion_sprites = nullptr;
+cvar_t *clg_explosion_frametime = nullptr;
 
 
 /**
 *   @brief  
 **/
-static void cl_timeout_changed( cvar_t *self ) {
+static void clg_timeout_changed( cvar_t *self ) {
     self->integer = 1000 * clgi.CVar_ClampValue( self, 0, 24 * 24 * 60 * 60 );
 }
 /**
 *   @brief
 **/
-static void cl_railcore_color_changed( cvar_t *self ) {
+static void clg_railcore_color_changed( cvar_t *self ) {
     if ( !clgi.SCR_ParseColor( self->string, &railcore_color ) ) {
         Com_WPrintf( "Invalid value '%s' for '%s'\n", self->string, self->name );
         clgi.CVar_Reset( self );
@@ -49,7 +49,7 @@ static void cl_railcore_color_changed( cvar_t *self ) {
 /**
 *   @brief
 **/
-static void cl_railspiral_color_changed( cvar_t *self ) {
+static void clg_railspiral_color_changed( cvar_t *self ) {
     if ( !clgi.SCR_ParseColor( self->string, &railspiral_color ) ) {
         Com_WPrintf( "Invalid value '%s' for '%s'\n", self->string, self->name );
         clgi.CVar_Reset( self );
@@ -88,7 +88,7 @@ void CLG_TemporaryEntities_Parse( void ) {
 
     switch ( level.parsedMessage.events.tempEntity.type ) {
     case TE_BLOOD: // bullet hitting flesh
-        //if ( !( cl_disable_particles->integer & NOPART_BLOOD ) ) {
+        //if ( !( clg_disable_particles->integer & NOPART_BLOOD ) ) {
             // CLG_ParticleEffect(level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 60);
         CLG_BloodParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 1000 );
         //}
@@ -142,10 +142,6 @@ void CLG_TemporaryEntities_Parse( void ) {
 
     case TE_BUBBLETRAIL:
         CLG_BubbleTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
-        break;
-
-    case TE_PISTOL_LASER:
-        CLG_ParseLaser_Pistol( MakeColor( 255, 0, 0, 255 ) );
         break;
 
     case TE_WELDING_SPARKS:
@@ -230,14 +226,14 @@ void CLG_TemporaryEntities_Parse( void ) {
         //case TE_GRENADE_EXPLOSION:
         //case TE_GRENADE_EXPLOSION_WATER:
         //    ex = CLG_PlainExplosion( false );
-        //    if ( !cl_explosion_sprites->integer ) {
+        //    if ( !clg_explosion_sprites->integer ) {
         //        ex->frames = 19;
         //        ex->baseframe = 30;
         //    }
-        //    //if ( cl_disable_explosions->integer & NOEXP_GRENADE )
+        //    //if ( clg_disable_explosions->integer & NOEXP_GRENADE )
         //    //    ex->type = clg_explosion_t::ex_light; // WID: C++20: Was without clg_explosion_t::
 
-        //    //if ( !( cl_disable_particles->integer & NOPART_GRENADE_EXPLOSION ) )
+        //    //if ( !( clg_disable_particles->integer & NOPART_GRENADE_EXPLOSION ) )
         //        CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
 
         //    //if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
@@ -253,7 +249,7 @@ void CLG_TemporaryEntities_Parse( void ) {
 
         //case TE_EXPLOSION2:
         //    ex = CLG_PlainExplosion( false );
-        //    if ( !cl_explosion_sprites->integer ) {
+        //    if ( !clg_explosion_sprites->integer ) {
         //        ex->frames = 19;
         //        ex->baseframe = 30;
         //    }
@@ -264,10 +260,10 @@ void CLG_TemporaryEntities_Parse( void ) {
         //case TE_ROCKET_EXPLOSION:
         //case TE_ROCKET_EXPLOSION_WATER:
         //    ex = CLG_PlainExplosion( false );
-        //    //if ( cl_disable_explosions->integer & NOEXP_ROCKET )
+        //    //if ( clg_disable_explosions->integer & NOEXP_ROCKET )
         //    //    ex->type = clg_explosion_t::ex_light; // WID: C++20: This was without clg_explosion_t::
 
-        //    //if ( !( cl_disable_particles->integer & NOPART_ROCKET_EXPLOSION ) )
+        //    //if ( !( clg_disable_particles->integer & NOPART_ROCKET_EXPLOSION ) )
         //        CLG_ExplosionParticles( level.parsedMessage.events.tempEntity.pos1 );
 
         //    //if ( cl_dlight_hacks->integer & DLHACK_SMALLER_EXPLOSION )
@@ -497,25 +493,26 @@ void TE_Color_g( genctx_t *ctx ) {
 *   @brief	Initialize the temporary entities system.
 **/
 void CLG_TemporaryEntities_Init( void ) {
-    cl_railtrail_type = clgi.CVar_Get( "cl_railtrail_type", "0", 0 );
-    cl_railtrail_time = clgi.CVar_Get( "cl_railtrail_time", "1.0", 0 );
-    cl_railtrail_time->changed = cl_timeout_changed;
-    cl_railtrail_time->changed( cl_railtrail_time );
-    cl_railcore_color = clgi.CVar_Get( "cl_railcore_color", "red", 0 );
-    cl_railcore_color->changed = cl_railcore_color_changed;
-    cl_railcore_color->generator = TE_Color_g;
-    cl_railcore_color_changed( cl_railcore_color );
-    cl_railcore_width = clgi.CVar_Get( "cl_railcore_width", "2", 0 );
+    clg_railtrail_type = clgi.CVar_Get( "clg_railtrail_type", "0", 0 );
+    clg_railtrail_time = clgi.CVar_Get( "clg_railtrail_time", "1.0", 0 );
+    clg_railtrail_time->changed = clg_timeout_changed;
+    clg_railtrail_time->changed( clg_railtrail_time );
+    clg_railcore_color = clgi.CVar_Get( "clg_railcore_color", "red", 0 );
+    clg_railcore_color->changed = clg_railcore_color_changed;
+    clg_railcore_color->generator = TE_Color_g;
+    clg_railcore_color_changed( clg_railcore_color );
+    clg_railcore_width = clgi.CVar_Get( "clg_railcore_width", "2", 0 );
     cl_railspiral_color = clgi.CVar_Get( "cl_railspiral_color", "blue", 0 );
-    cl_railspiral_color->changed = cl_railspiral_color_changed;
+    cl_railspiral_color->changed = clg_railspiral_color_changed;
     cl_railspiral_color->generator = TE_Color_g;
-    cl_railspiral_color_changed( cl_railspiral_color );
-    cl_railspiral_radius = clgi.CVar_Get( "cl_railspiral_radius", "3", 0 );
+    clg_railspiral_color_changed( cl_railspiral_color );
+    clg_railspiral_radius = clgi.CVar_Get( "clg_railspiral_radius", "3", 0 );
 
+	// Fetched by engine for beam light effects on temp entities. (Created in renderer.)
     cvar_pt_beam_lights = clgi.CVar_Get( "pt_beam_lights", nullptr, 0 );
 
-    //cl_disable_particles = clgi.CVar_Get( "cl_disable_particles", "0", 0 );
-    //cl_disable_explosions = clgi.CVar_Get( "cl_disable_explosions", "0", 0 );
-    cl_explosion_sprites = clgi.CVar_Get( "cl_explosion_sprites", "1", 0 );
-    cl_explosion_frametime = clgi.CVar_Get( "cl_explosion_frametime", std::to_string(50).c_str(), 0);
+    //clg_disable_particles = clgi.CVar_Get( "clg_disable_particles", "0", 0 );
+    //clg_disable_explosions = clgi.CVar_Get( "clg_disable_explosions", "0", 0 );
+    clg_explosion_sprites = clgi.CVar_Get( "clg_explosion_sprites", "1", 0 );
+    clg_explosion_frametime = clgi.CVar_Get( "clg_explosion_frametime", std::to_string(50).c_str(), 0);
 }

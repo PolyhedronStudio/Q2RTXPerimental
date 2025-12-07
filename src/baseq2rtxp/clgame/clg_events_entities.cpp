@@ -19,13 +19,41 @@
 
 
 /**
+*
+* 
+*   Debug Helpers:
+* 
+* 
+**/
+#if USE_DEBUG
+#define DBG_ENTITY_EVENT_PRESENT( cent, funcname ) \
+    if ( developer->integer ) { \
+        if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) ) { \
+            CLG_CheckEntityPresent( cent->current.otherEntityNumber, "ERROR EVENT(EF_OTHER_ENTITY_EVENT): "#funcname ); \
+        } else { \
+            CLG_CheckEntityPresent( cent->current.number, "ERROR EVENT: "#funcname ); \
+        } \
+    } \
+
+#else
+#define DBG_ENTITY_EVENT_PRESENT( cent, funcname )
+#endif
+
+/**
+* 
+* 
+* 
 *   Predeclarations for static functions used below:
+* 
+* 
+* 
 **/
 //! Sound Event Handlers:
 static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel, const qhandle_t soundIndex );
 static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t channel, const qhandle_t soundIndex );
 static void CLG_EntityEvent_PositionedSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundIndex );
 static void CLG_EntityEvent_GlobalSound( const qhandle_t soundIndex );
+
 //! Item Event Handles:
 static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNumber, const Vector3 &origin );
 
@@ -65,6 +93,7 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
     **/
     case EV_PLAYER_FOOTSTEP:
 		// Prevent it from being triggered if it is our own local player entity.
+		// We handle that event elsewhere in CLG_Events_FirePlayerStateEvent.
 		if ( entityNumber != clgi.client->clientNumber + 1 ) {//clgi.client->frame.ps.clientNumber + 1 ) {
             DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_FOOTSTEP" );
             CLG_PlayerFootStepEvent( entityNumber, lerpOrigin );
@@ -169,14 +198,14 @@ static constexpr float defaultSoundTimeOffset = 0.f;
 /**
 *   @brief  Validates the given sound index, and errors out if invalid.
 **/
-static const bool ValidSoundIndexOrError( const qhandle_t soundIndex ) {
+static const bool ValidateIndexOrError( const qhandle_t index, const int32_t minIndex, const int32_t maxIndex, const char *indexTypeName  ) {
     // Ensure valid sound index.
-    if ( soundIndex < 0 ) {
-        Com_Error( ERR_DROP, "%s: bad sound resource index: %d < 0", __func__, soundIndex );
+    if ( minIndex < minIndex ) {
+        Com_Error( ERR_DROP, "%s: bad %s index: %d < 0", __func__, indexTypeName, index );
         return false;
     }
-    if ( soundIndex >= MAX_SOUNDS ) {
-        Com_Error( ERR_DROP, "%s: bad sound resource index: %d >= MAX_SOUNDS(%d)", __func__, soundIndex, MAX_SOUNDS );
+    if ( index >= maxIndex ) {
+        Com_Error( ERR_DROP, "%s: bad %s index: %d >= MAX_SOUNDS(%d)", __func__, indexTypeName, index, maxIndex );
         return false;
     }
 
@@ -186,9 +215,9 @@ static const bool ValidSoundIndexOrError( const qhandle_t soundIndex ) {
 /**
 *   @brief  Retreives and validates the sound handle for the given sound index.
 **/
-static inline qhandle_t GetSoundResourceHandle( const int32_t soundIndex ) {
+static inline qhandle_t GetSoundIndexResourceHandle( const int32_t soundIndex ) {
     // Sanity check.
-    if ( !ValidSoundIndexOrError( soundIndex ) ) {
+    if ( !ValidateIndexOrError( soundIndex, 0, MAX_SOUNDS, "Sound Index") ) {
         return 0;
     }
     // Get the sound handle.
@@ -200,29 +229,49 @@ static inline qhandle_t GetSoundResourceHandle( const int32_t soundIndex ) {
     // Return it.
     return handle;
 }
+/**
+*   @brief  Retreives the sound name handle for the given sound resource handle.
+**/
+static inline const std::string GetSoundResourceHandleName( const qhandle_t resourceHandle ) {
+    // Sanity check.
+    if ( !ValidateIndexOrError( resourceHandle, 0, MAX_SOUNDS, "Sound Resource Handle" ) ) {
+        return 0;
+    }
+    // Get the sound handle.
+	return clgi.S_SoundNameForHandle( resourceHandle );
+}
 
 
 /**
 *
+* 
 *
 *
 *   [ Item Events ] Implementations:
 * 
 * 
 * 
+* 
 **/
 static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNumber, const Vector3 &origin ) {
+    // Debug check for valid entity/entities.
+    DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
+
     // Play the respawn sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.items.respawn01, 1, ATTN_IDLE, 0 );
     // Spawn the respawn particles.
     CLG_ItemRespawnParticles( origin );
 }
 
+
+
 /**
 *
 *
+* 
 *
 *   [ Sound Events ] Implementations:
+* 
 * 
 * 
 * 
@@ -236,14 +285,20 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 *	@param	soundResourceIndex	The sound resource index to play.
 **/
 static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel, const qhandle_t soundIndex ) {
-    #if USE_DEBUG
-    if ( developer->integer ) {
-        CLG_CheckEntityPresent( cent->current.otherEntityNumber, __func__ );
+    // Sanity check.
+    if ( !cent ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: NULL cent entity passed in!\n", __func__ );
+        return;
     }
-    #endif
+
+    // Debug check for valid entity/entities.
+    DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
+    // Debug the resource name.
+    DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( __func__, cent, soundIndex );
+
 
 	// Get the sound handle.
-    qhandle_t soundResourceHandle = GetSoundResourceHandle( soundIndex );
+    qhandle_t soundResourceHandle = GetSoundIndexResourceHandle( soundIndex );
     if ( !soundResourceHandle ) {
         return;
     }
@@ -264,14 +319,19 @@ static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel
 *	@param	soundResourceIndex	The sound resource index to play.
 **/
 static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t channel, const qhandle_t soundIndex ) {
-    #if USE_DEBUG
-    if ( developer->integer ) {
-        CLG_CheckEntityPresent( cent->current.otherEntityNumber, __func__ );
+    // Sanity check.
+    if ( !cent ) {
+        clgi.Print( PRINT_DEVELOPER, "%s: NULL cent entity passed in!\n", __func__ );
+        return;
     }
-    #endif
 
+    // Debug check for valid entity/entities.
+    DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
+    // Debug the resource name.
+    DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( __func__, cent, soundIndex );
+    
     // Get the sound handle.
-    qhandle_t soundResourceHandle = GetSoundResourceHandle( soundIndex );
+    qhandle_t soundResourceHandle = GetSoundIndexResourceHandle( soundIndex );
     if ( !soundResourceHandle ) {
         return;
     }
@@ -287,7 +347,7 @@ static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t chann
     decodedChannel &= ~removeChannelMask;
 
 	// Play the sound on the entity.
-    if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber ) {
+    if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber > 0 ) {
         // Get the other entity.
         clgi.S_StartSound( nullptr, cent->current.otherEntityNumber, decodedChannel, soundResourceHandle, defaultSoundVolume, decodedAttenuation, defaultSoundTimeOffset );
     } else {
@@ -304,8 +364,11 @@ static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t chann
 *	@param	soundResourceIndex	The sound resource index to play.
 **/
 static void CLG_EntityEvent_PositionedSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundIndex ) {
+    // Debug the resource name.
+    DBG_ENTITY_EVENT_SOUND_NAME_ORIGIN( __func__, origin, soundIndex );
+
     // Get the sound handle.
-    qhandle_t handle = GetSoundResourceHandle( soundIndex );
+    qhandle_t handle = GetSoundIndexResourceHandle( soundIndex );
     if ( !handle ) {
         return;
     }
@@ -321,8 +384,11 @@ static void CLG_EntityEvent_PositionedSound( const Vector3 &origin, const int32_
 *	@param	soundResourceIndex	The sound resource index to play.
 **/
 static void CLG_EntityEvent_GlobalSound( const qhandle_t soundIndex ) {
+    // Debug the resource name.
+    DBG_ENTITY_EVENT_SOUND_NAME_ORIGIN( __func__, clgi.client->frame.ps.pmove.origin, soundIndex );
+
     // Get the sound handle.
-    qhandle_t handle = GetSoundResourceHandle( soundIndex );
+    qhandle_t handle = GetSoundIndexResourceHandle( soundIndex );
     if ( !handle ) {
         return;
     }

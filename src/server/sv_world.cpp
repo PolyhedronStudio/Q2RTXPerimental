@@ -461,13 +461,15 @@ const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
 **/
 static mnode_t *SV_HullForEntity(sv_edict_t *ent, const bool includeSolidTriggers = false ) {
     if ( ent->solid == SOLID_BSP || ( includeSolidTriggers && ent->solid == SOLID_TRIGGER ) ){
-        int32_t i = ent->s.modelindex - 1;
+		// Subtract 1 to get the modelindex into a 0-based array.
+		// ( Index 0 is reserved for no model )
+        const int32_t i = ent->s.modelindex - 1;
         
         //// account for "hole" in configstring namespace
         //if ( i >= MODELINDEX_PLAYER && sv.cm.cache->nummodels >= MODELINDEX_PLAYER )
         //    i--;
 
-        // Explicit hulls in the BSP model.
+        // Explicit hulls in the BSP model only.
         if ( i <= 0 || i >= sv.cm.cache->nummodels ) {
             if ( !includeSolidTriggers ) {
                 Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
@@ -475,6 +477,7 @@ static mnode_t *SV_HullForEntity(sv_edict_t *ent, const bool includeSolidTrigger
             }
         }
 
+		// Return the headnode for the model.
         return sv.cm.cache->models[i].headnode;
     }
 

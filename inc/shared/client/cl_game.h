@@ -651,6 +651,10 @@ typedef struct {
 	void ( *S_StopAllSounds )( void );
 	qhandle_t( *S_RegisterSound )( const char *sample );
 	/**
+	*   @brief  Returns the name of the sound matching the resource handle.
+	**/
+	const char *( *S_SoundNameForHandle )( const qhandle_t soundResourceHandle );
+	/**
 	*   @brief  Registers a reverb effect, returning a qhandle, which is -1 on failure, >= 0 otherwise.
 	**/
 	void ( *S_SetupSpatialListener )( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );

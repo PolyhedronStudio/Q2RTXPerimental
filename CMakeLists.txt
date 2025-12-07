@@ -32,7 +32,6 @@ set( PRJ_CXX_DEFAULT_STANDARD_REQUIRED ON )
 set( PRJ_CXX_EXTENSIONS OFF )
 set( PRJ_CXX_DEFAULT_SCAN_FOR_MODULES OFF )
 
-
 #
 # ---------- "Git Gut" -----------------------------------------
 #
@@ -68,6 +67,9 @@ OPTION(CONFIG_GL_RENDERER "Enable GL renderer" ON)
 OPTION(CONFIG_USE_CURL "Use CURL for HTTP support" ON)
 OPTION(CONFIG_BUILD_FTEQW_IQM_TOOL "Build the fteqw-iqmtool target" ON)
 OPTION(CONFIG_BUILD_DEV_MATHS_VERIFIER "Build a verifier for the 4x4 mat maths" ON)
+if (MSVC)
+    OPTION(CONFIG_BUILD_WITH_EDIT_AND_CONTINUE "Build with Edit and Continue support (MSVC only)" ON)
+endif()
 
 # WIN32: Expect it to be installed by developer instead.
 IF( CONFIG_BUILD_CLIENT_TARGET )
@@ -160,6 +162,14 @@ IF(MSVC)
     replace_msvcrt(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/MT")
 
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
+
+    IF(CONFIG_BUILD_WITH_EDIT_AND_CONTINUE)
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "$<$<CONFIG:Debug,RelWithDebInfo>:EditAndContinue>")
+        message(STATUS "Building with Edit and Continue support")
+    ELSE()
+        #message(STATUS "Building without Edit and Continue support")
+    ENDIF()
+
 ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "ppc64le")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mcpu=native")
 ELSEIF(CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64" OR CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")

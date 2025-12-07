@@ -112,7 +112,7 @@ extern std::mt19937_64 mt_rand;
 [[nodiscard]] inline const float frandom() {
     return std::uniform_real_distribution<float>()( mt_rand );
 }
-[[nodiscard]] inline const float drandom() {
+[[nodiscard]] inline const double drandom() {
     return std::uniform_real_distribution<double>()( mt_rand );
 }
 
@@ -120,7 +120,7 @@ extern std::mt19937_64 mt_rand;
 [[nodiscard]] inline const float frandom( const float min_inclusive, const float max_exclusive ) {
     return std::uniform_real_distribution<float>( min_inclusive, max_exclusive )( mt_rand );
 }
-[[nodiscard]] inline const float drandom( const double min_inclusive, const double max_exclusive ) {
+[[nodiscard]] inline const double drandom( const double min_inclusive, const double max_exclusive ) {
     return std::uniform_real_distribution<double>( min_inclusive, max_exclusive )( mt_rand );
 }
 

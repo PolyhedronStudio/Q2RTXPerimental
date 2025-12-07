@@ -325,13 +325,13 @@ clg_explosion_t *CLG_PlainExplosion( const bool withSmoke ) {
     const qboolean isValidSpriteModel = clgi.IsValidSpriteModelHandle( spriteHandle );
     //model_t *sprite_model = MOD_ForHandle( cl_mod_explosions[ model_idx ] );
 
-    //if ( cl_explosion_sprites->integer && !big && isValidSpriteModel ) {
+    //if ( clg_explosion_sprites->integer && !big && isValidSpriteModel ) {
     ex->ent.model = spriteHandle;//precache.models.explosions[ model_idx ];
     //ex->frames = sprite_model->numframes;
 
     ex->frames = clgi.GetSpriteModelFrameCount( ex->ent.model );
     ex->baseframe = ex->frames * ( Q_rand() & 1 );
-    ex->frametime = QMTime::FromMilliseconds( cl_explosion_frametime->integer );
+    ex->frametime = QMTime::FromMilliseconds( clg_explosion_frametime->integer );
 
     //ex->easeState = QMEaseState::new_ease_state(
     //    QMTime::FromMilliseconds( clgi.GetRealTime() ),

@@ -26,6 +26,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 **/
 static mnode_t *CL_HullForEntity( const centity_t *ent/*, const bool includeSolidTriggers = false */) {
     if ( ent->current.solid == (cm_solid_t)BOUNDS_BRUSHMODEL /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
+        // Subtract 1 to get the modelindex into a 0-based array.
+        // ( Index 0 is reserved for no model )
         const int32_t i = ent->current.modelindex - 1;
 
         // explicit hulls in the BSP model

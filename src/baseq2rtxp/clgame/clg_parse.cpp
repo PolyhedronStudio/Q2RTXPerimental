@@ -115,12 +115,6 @@ static void CLG_ParseTEntPacket( void ) {
             }
         break;
 
-    case TE_PISTOL_LASER:
-        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        // <Q2RTXP>: TODO: Send direction, let clients trace the actual laser its end instead.
-        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        break;
-
     //case TE_HEATBEAM:
     //case TE_MONSTER_HEATBEAM:
     //    level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
@@ -274,12 +268,12 @@ static void CLG_ParsePrint( void ) {
     clgi.CheckForIP( s );
 
     // Disable 'transparant' chat hud notifications.
-    if ( !cl_chat_notify->integer ) {
+    if ( !clg_chat_notify->integer ) {
         clgi.Con_SkipNotify( true );
     }
 
     // filter text
-    if ( cl_chat_filter->integer ) {
+    if ( clg_chat_filter->integer ) {
         COM_strclr( s );
         fmt = "%s\n";
     } else {
@@ -532,11 +526,11 @@ void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s ) {
     }
 
     // apply restrictions on skins
-    if ( cl_noskins->integer == 2 || !COM_IsPath( skin ) ) {
+    if ( clg_noskins->integer == 2 || !COM_IsPath( skin ) ) {
         goto default_skin;
     }
 
-    if ( cl_noskins->integer || !COM_IsPath( model ) ) {
+    if ( clg_noskins->integer || !COM_IsPath( model ) ) {
         goto default_model;
     }
 

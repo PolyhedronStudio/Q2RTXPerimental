@@ -74,19 +74,3 @@ void CLG_ParseLaser( const int32_t colors ) {
     l->color = ( colors >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
     l->width = 4;
 }
-
-void CLG_ParseLaser_Pistol( const int32_t colors ) {
-    laser_t *l;
-
-    l = CLG_AllocLaser();
-    if ( !l )
-        return;
-
-    VectorCopy( level.parsedMessage.events.tempEntity.pos1, l->start );
-    // <Q2RTXP>: TODO: Parse direction, let clients trace the actual laser its end instead.
-    VectorCopy( level.parsedMessage.events.tempEntity.pos2, l->end );
-    l->lifetime = 100;
-    l->color = colors;// ( colors >> ( ( irandom( 3 ) ) * 8 ) ) & 0xff;
-    l->color = MakeColor( (colors >> 8) & 0xff, (colors >> 16) & 0xff, (colors >> 24) & 0xff, irandom( 255 ) );// ( l->color >> 24 ) &irandom( 255 );
-    l->width = 1;
-}

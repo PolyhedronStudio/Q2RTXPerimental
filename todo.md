@@ -4,22 +4,39 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Notes:
 * This is a todo in order to keep track of things to do, ideas to implement, bugs to fix, and so on.
 ---
+* [ ] PMove Map: Fix the odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
+* [X] --
+* [ ] Look into all temp_entity_events and remove/comment all unnecessary events.
+	* [ ] Port all necessary ones to be actual entity events instead of temp_entity events.
+* [X] --
+* [ ] Fix the lack of the teleport effect at map spawn.
+* [ ] Fix the teleporter dest not working properly. ( Bugs out movement ).
+* [ ] For entity event type entities, snap their origins so we can network them properly.
+* [ ] Fix the ``EV_WATER_ENTER_WAIST`` and ``EV_WATER_LEAVE_WAIST`` events from not firing properly:
+	 - See ``PM_WaterEvents``
+* [X] --
 * [ ] func_button map, the first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
+* [ ] --
 * [ ] When testing the target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
-* [ ] Fix the odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
-* [ ] * [/] Load and register all media, store handles neatly in a global media struct.
-This prevents unnecessary repeated lookups for media handles. (Sounds, Models, Textures, Materials, etc etc)
+* [X] --
+* [X] Load and register all media, store handles neatly in a global media struct.
+      This prevents unnecessary repeated lookups for media handles. (Sounds, Models, Textures, Materials, etc etc)
 	* [X] Dealt with for client game sounds.
 	* [ ] Dealt with for server game sounds.
+* [X] --
 * [ ] Implement client game cvars for debugging things more appropriately.
-* [ ] Fix stepping off sloped surfaces causing view twitching.
-* [ ] Fix func_door when started open, does not seem to respond to touch trigger brush areas properly..
+	* [X] Added one for debugging events.
+	* [ ] Bounding Box Display.
+		* [ ] Look into Q2RTX 1.8 rendering for debug lines n stuff.
+* [X] --
+* [ ] Fix func_door(one that moves up) when started open, does not seem to respond to touch trigger brush areas properly..
+* [X] --
+* [ ] Allow custom models on func_ entities such as doors and buttons.
+* [X] --
 ---
-
 ### Random Ideas for The Day:
-* If we had event entities and then 'morphentity' function, for example: a blaster bullet could convert to an entity, eliminating
-the need for temp_entity_t behavior. For hit trace based weapons I suppose the hits could be done client side but that'd require
-simulating a frame ahead for all things. Either way, weapon could looks like it might be better off to go to shared some day.
+- None, not now, lol.
+
 ---
 #### Animated Brush Textures:
 * [ ] Animated Brush Textures: Any brush entity with an animated texture needs to be able to configure its

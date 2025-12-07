@@ -326,9 +326,14 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
                 VectorSubtract( end, start, dir );
                 QM_Vector3ToAngles( dir, &dir.x );
                 QM_AngleVectors( dir, &forward, &right, &up );
+                // Ensure to clamp the ranges properly.
+                float hMinArg = std::min( -hspread * 2.0f, hspread * 2.0f );
+                float hMaxArg = std::max( -hspread * 2.0f, hspread * 2.0f );
+                float vMinArg = std::min( -vspread * 2.0f, vspread * 2.0f );
+                float vMaxArg = std::max( -vspread * 2.0f, vspread * 2.0f );
                 // Calculate the spread of the bullet.
-                const float r = frandom( -hspread * 2, hspread * 2 );
-                const float u = frandom( -vspread * 2, vspread * 2 );
+                const float r = frandom( hMinArg, hMaxArg );
+                const float u = frandom( vMinArg, vMaxArg );
                 VectorMA( water_start, CM_MAX_WORLD_SIZE, forward, end );
                 VectorMA( end, r, right, end );
                 VectorMA( end, u, up, end );

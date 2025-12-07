@@ -156,8 +156,8 @@ void PF_PrecacheViewModels( void ) {
     strcpy( precache.viewModels[0], "weapon.md2");
 
     // Only default model when vwep is off.
-    cvar_t *cl_vwep = clgi.CVar_Get( "cl_vwep", 0, 0 );
-    if ( !cl_vwep->integer ) {
+    cvar_t *clg_vwep = clgi.CVar_Get( "clg_vwep", 0, 0 );
+    if ( !clg_vwep->integer ) {
         return;
     }
 

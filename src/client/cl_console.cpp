@@ -472,7 +472,7 @@ void Con_Init(void)
     Cmd_Register(c_console);
 
     con_notifytime = Cvar_Get("con_notifytime", "3", 0);
-    con_notifytime->changed = cl_timeout_changed;
+    con_notifytime->changed = clg_timeout_changed;
     con_notifytime->changed(con_notifytime);
     con_notifylines = Cvar_Get("con_notifylines", "4", 0);
     con_clock = Cvar_Get("con_clock", "0", 0);

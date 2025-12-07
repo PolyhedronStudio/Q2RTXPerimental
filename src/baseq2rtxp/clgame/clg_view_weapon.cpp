@@ -17,10 +17,11 @@
 
 #include "sharedgame/sg_entity_flags.h"
 
+//! Allows configuring and testing the view sway angles for the view weapon.
+#define DEBUG_VIEWWEAPON_ANGLE_SWAY 1
 
 //! Enables strafe affecting view weapon roll and pitch angles.
 #define ENABLE_STRAFE_VIEWMODEL_ANGLES 1
-
 
 //=============
 //
@@ -251,40 +252,31 @@ void CLG_ViewWeapon_CalculateOffset( player_state_t *ops, player_state_t *ps, co
 *   @brief  Calculates the gun view angles by lerping between the old and new angles, adding a
 *           swing-like delay effect based on view movement.
 **/
-#define DEBUG_VIEWWEAPON_ANGLES 1
 void CLG_ViewWeapon_CalculateAngles( player_state_t *ops, player_state_t *ps, const double lerpFrac ) {
-    #ifndef DEBUG_VIEWWEAPON_ANGLES
-    // Swing properties.
-    static constexpr double VIEW_SWING_RESPONSIVENESS = 14.0; // How quickly gun responds to view changes (higher = faster).
-    static constexpr double VIEW_SWING_RECOVERY = 3.0; // How quickly gun returns to center (higher = faster).
-    static constexpr double VIEW_SWING_INTENSITY = 8.0; // How much the gun swings (higher = more swing).
-    static constexpr double MAX_SWING_ANGLE = 12.5; // Maximum swing angle in degrees.
-    static constexpr double SWING_DAMPING = 0.75; // Damping factor for momentum (0.0-1.0, higher = less damping).
-    // Input decay velocty properties.
-    static constexpr double MIN_INPUT_THRESHOLD = 0.05; // Minimum input to consider as movement.
-    static constexpr double VELOCITY_DECAY = 0.82; // How quickly velocity decays when no input (0.0-1.0).
-        #else
-    const double VIEW_SWING_RESPONSIVENESS   = clgi.CVar( "cl_viewswing_responsiveness", "14.0", 0 )->value;
-    const double VIEW_SWING_RECOVERY         = clgi.CVar( "cl_viewswing_recovery", "3.0", 0 )->value;
-    const double VIEW_SWING_INTENSITY        = clgi.CVar( "cl_viewswing_intensity", "8.0", 0 )->value;
+    #ifndef DEBUG_VIEWWEAPON_ANGLE_SWAY
+        // Swing properties.
+        static constexpr double VIEW_SWING_RESPONSIVENESS = 14.0; // How quickly gun responds to view changes (higher = faster).
+        static constexpr double VIEW_SWING_RECOVERY = 3.0; // How quickly gun returns to center (higher = faster).
+        static constexpr double VIEW_SWING_INTENSITY = 8.0; // How much the gun swings (higher = more swing).
+        static constexpr double MAX_SWING_ANGLE = 12.5; // Maximum swing angle in degrees.
+        static constexpr double SWING_DAMPING = 0.75; // Damping factor for momentum (0.0-1.0, higher = less damping).
+        // Input decay velocty properties.
+        static constexpr double MIN_INPUT_THRESHOLD = 0.05; // Minimum input to consider as movement.
+        static constexpr double VELOCITY_DECAY = 0.82; // How quickly velocity decays when no input (0.0-1.0).
+    #else
+        const double VIEW_SWING_RESPONSIVENESS   = clgi.CVar( "cl_viewswing_responsiveness", "14.0", 0 )->value;
+        const double VIEW_SWING_RECOVERY         = clgi.CVar( "cl_viewswing_recovery", "3.0", 0 )->value;
+        const double VIEW_SWING_INTENSITY        = clgi.CVar( "cl_viewswing_intensity", "8.0", 0 )->value;
 
-    const double MAX_SWING_ANGLE    = clgi.CVar( "cl_viewswing_max_angle", "12.5", 0 )->value;
-    const double SWING_DAMPING      = clgi.CVar( "cl_viewswing_damping", "0.75", 0 )->value; // Was 0.88
+        const double MAX_SWING_ANGLE    = clgi.CVar( "cl_viewswing_max_angle", "12.5", 0 )->value;
+        const double SWING_DAMPING      = clgi.CVar( "cl_viewswing_damping", "0.75", 0 )->value; // Was 0.88
 
-    const double MIN_INPUT_THRESHOLD    = clgi.CVar( "cl_viewswing_input_threshold", "0.05", 0 )->value;
-    const double VELOCITY_DECAY         = clgi.CVar( "cl_viewswing_velocity_decay", "0.82", 0 )->value;
+        const double MIN_INPUT_THRESHOLD    = clgi.CVar( "cl_viewswing_input_threshold", "0.05", 0 )->value;
+        const double VELOCITY_DECAY         = clgi.CVar( "cl_viewswing_velocity_decay", "0.82", 0 )->value;
     #endif
-
-    // Enhanced static variables for swing-like delay effect on gun angles
-    //static Vector3 lastViewAngles = QM_Vector3Zero();
-    //static Vector3 gunAngleDelta = QM_Vector3Zero();
-    //static Vector3 targetGunAngleDelta = QM_Vector3Zero();
-    //static Vector3 swingVelocity = QM_Vector3Zero(); // Track angular momentum
-    //static bool firstFrame = true;
 
     // Check if player is moving
     const bool isMoving = ( ps->xySpeed >= 0.1 || ps->xyzSpeed >= 0.1 );
-
     // Check if secondary fire is being held (pistol aiming)
     const bool isSecondaryFiring = ( game.predictedState.cmd.cmd.buttons & BUTTON_SECONDARY_FIRE ) != 0;
 
@@ -319,25 +311,12 @@ void CLG_ViewWeapon_CalculateAngles( player_state_t *ops, player_state_t *ps, co
     double totalInputMagnitude = 0.0;
 
     for ( int32_t i = 0; i < 3; i++ ) {
-        #if 1
-            // Calculate raw difference using QM_AngleMod first, and then normalize 
-            // the difference to the shortest path (-180 to +180 range).
-            double delta = QM_Angle_Normalize180( QM_AngleMod( currentViewAngles[ i ] - game.viewWeapon.lastViewAngles[ i ] ) );
-        // <Q2RTXP>: WID: This bugs out fetching incorrect shortest angle path.
-        #else
-            // Calculate raw difference without using QM_AngleMod first
-            double delta = currentViewAngles[ i ] - lastViewAngles[ i ];
-
-            // Normalize the difference to the shortest path (-180 to +180 range)
-            while ( delta > 180.0 ) {
-                delta -= 360.0;
-            }
-            while ( delta < -180.0 ) {
-                delta += 360.0;
-            }
-        #endif
-
+        // Calculate raw difference using QM_AngleMod first, and then normalize 
+        // the difference to the shortest path (-180 to +180 range).
+        const double delta = QM_Angle_Normalize180( QM_AngleMod( currentViewAngles[ i ] - game.viewWeapon.lastViewAngles[ i ] ) );
+        // Store the view angle delta for this axis.
         viewAngleDelta[ i ] = delta;
+        // Accumulate total input magnitude for threshold checking
         totalInputMagnitude += fabs( delta );
     }
 
@@ -375,17 +354,17 @@ void CLG_ViewWeapon_CalculateAngles( player_state_t *ops, player_state_t *ps, co
     
     // Add angles that rely on the strafe directional velocity dotproducts.
     #ifdef ENABLE_STRAFE_VIEWMODEL_ANGLES
-        const double clg_run_pitch = cl_run_pitch->value;
-        const double clg_run_roll = cl_run_roll->value;
+        const double run_pitch = clg_run_pitch->value;
+        const double run_roll = clg_run_roll->value;
         const Vector3 strafeVelocity = { game.predictedState.currentPs.pmove.velocity[ 0 ], game.predictedState.currentPs.pmove.velocity[ 1 ], 0.0f };
 
         // Running Pitch Angles.
         double delta = QM_Vector3DotProduct( strafeVelocity, clgi.client->vForward );
-        newTargetGunAngleDelta[ PITCH ] += -delta * clg_run_pitch;
+        newTargetGunAngleDelta[ PITCH ] += -delta * run_pitch;
 
         // Strafing Roll Angles.
         delta = QM_Vector3DotProduct( strafeVelocity, clgi.client->vRight );
-        newTargetGunAngleDelta[ ROLL ] += delta * clg_run_roll;
+        newTargetGunAngleDelta[ ROLL ] += delta * run_roll;
     #endif
 
     // Clamp the target swing angles to prevent excessive movement
@@ -580,11 +559,11 @@ void CLG_AddViewWeapon( void ) {
     // The gun models are not exactly centered at the camera, so adjusting its scale makes them
     // shift on the screen a little when reasonable scale values are used. When extreme values are used,
     // such as 0.01, they move significantly - so we clamp the scale value to an expected range here.
-    gun.scale = clgi.CVar_ClampValue( cl_gunscale, 0.1f, 1.0f );
+    gun.scale = clgi.CVar_ClampValue( clg_gunscale, 0.1f, 1.0f );
 
-    VectorMA( gun.origin, cl_gun_y->value * gun.scale, clgi.client->vForward, gun.origin );
-    VectorMA( gun.origin, cl_gun_x->value * gun.scale, clgi.client->vRight, gun.origin );
-    VectorMA( gun.origin, cl_gun_z->value * gun.scale, clgi.client->vUp, gun.origin );
+    VectorMA( gun.origin, clg_gun_y->value * gun.scale, clgi.client->vForward, gun.origin );
+    VectorMA( gun.origin, clg_gun_x->value * gun.scale, clgi.client->vRight, gun.origin );
+    VectorMA( gun.origin, clg_gun_z->value * gun.scale, clgi.client->vUp, gun.origin );
 
     // Don't lerp at all.
     VectorCopy( gun.origin, gun.oldorigin );
@@ -651,8 +630,8 @@ void CLG_AddViewWeapon( void ) {
     // APply gun model flags.
     gun.flags = RF_MINLIGHT | RF_DEPTHHACK | RF_WEAPONMODEL;
 
-    if ( cl_gunalpha->value != 1 ) {
-        gun.alpha = clgi.CVar_ClampValue( cl_gunalpha, 0.1f, 1.0f );
+    if ( clg_gunalpha->value != 1 ) {
+        gun.alpha = clgi.CVar_ClampValue( clg_gunalpha, 0.1f, 1.0f );
         gun.flags |= RF_TRANSLUCENT;
     }
 
@@ -671,7 +650,7 @@ void CLG_AddViewWeapon( void ) {
         // Shells are applied to another separate entity in non-rtx mode
     if ( shell_flags && clgi.GetRefreshType() != REF_TYPE_VKPT ) {
         // Apply alpha to the shell entity.
-        gun.alpha = 0.30f * cl_gunalpha->value;
+        gun.alpha = 0.30f * clg_gunalpha->value;
         // Apply shell flags, and translucency.
         gun.flags |= shell_flags | RF_TRANSLUCENT;
         // Add gun shell entity.

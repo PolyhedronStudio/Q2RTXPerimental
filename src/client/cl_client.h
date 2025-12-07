@@ -334,14 +334,7 @@ extern char        cl_cmdbuf_text[MAX_STRING_CHARS];
 //
 // cvars
 //
-//extern cvar_t    *cl_gunalpha;
-extern cvar_t    *cl_gunscale;
-//extern cvar_t    *cl_gun_x;
-//extern cvar_t    *cl_gun_y;
-//extern cvar_t    *cl_gun_z;
 extern cvar_t    *cl_predict;
-//extern cvar_t    *cl_noskins;
-//extern cvar_t    *cl_kickangles;
 extern cvar_t    *cl_rollhack;
 extern cvar_t    *cl_noglow;
 extern cvar_t    *cl_nolerp;
@@ -365,28 +358,11 @@ extern cvar_t    *cl_showclamp;
 #define SHOWMISS(...)
 #endif
 
-//extern cvar_t    *cl_vwep;
-
-//extern cvar_t    *cl_disable_explosions;
-extern cvar_t    *cl_explosion_sprites;
-extern cvar_t    *cl_explosion_frametime;
-extern cvar_t    *cl_dlight_hacks;
-
-extern cvar_t    *cl_chat_notify;
-extern cvar_t    *cl_chat_sound;
-extern cvar_t    *cl_chat_filter;
-
 extern cvar_t    *cl_disconnectcmd;
 extern cvar_t    *cl_changemapcmd;
 extern cvar_t    *cl_beginmapcmd;
 
-// Moved to CLGame:
-//extern cvar_t    *cl_gibs;
-
 QEXTERN_C_ENCLOSE( extern cvar_t *cl_player_model; );
-// Moved to CLGame:
-//extern cvar_t    *cl_thirdperson_angle;
-//extern cvar_t    *cl_thirdperson_range;
 
 extern cvar_t    *cl_async;
 
@@ -445,7 +421,7 @@ void CL_UpdateFrameTimes(void);
 qboolean CL_CheckForIgnore(const char *s);
 void CL_WriteConfig(void);
 
-void cl_timeout_changed(cvar_t *self);
+void clg_timeout_changed(cvar_t *self);
 
 //
 // precache.cpp
