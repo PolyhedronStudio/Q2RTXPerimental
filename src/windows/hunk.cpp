@@ -41,7 +41,7 @@ void Hunk_Begin(memhunk_t *hunk, size_t maxsize)
 
     // Reserve a huge chunk of memory, but don't commit any yet
     hunk->cursize = 0;
-    hunk->maxsize = ALIGN(maxsize, pagesize);
+    hunk->maxsize = ALIGN(maxsize, (size_t)pagesize);
     hunk->base = VirtualAlloc(NULL, hunk->maxsize, MEM_RESERVE, PAGE_NOACCESS);
     if (!hunk->base)
         Com_Error(ERR_FATAL,
@@ -53,11 +53,11 @@ void *Hunk_TryAlloc(memhunk_t *hunk, size_t size)
 {
     void *buf;
 
-    Q_assert(size <= SIZE_MAX - 63);
-    Q_assert(hunk->cursize <= hunk->maxsize);
+    Q_assert( size <= SIZE_MAX - ( HUNK_ALIGN - 1 ) );
+    Q_assert( hunk->cursize <= hunk->maxsize );
 
     // round to cacheline
-    size = ALIGN(size, 64);
+    size = ALIGN( size, HUNK_ALIGN );
     if (size > hunk->maxsize - hunk->cursize)
         return NULL;
 
@@ -86,7 +86,7 @@ void Hunk_End(memhunk_t *hunk)
     Q_assert(hunk->cursize <= hunk->maxsize);
 
     // for statistics
-    hunk->mapped = ALIGN(hunk->cursize, pagesize);
+    hunk->mapped = ALIGN(hunk->cursize, (size_t)pagesize);
 }
 
 void Hunk_Free(memhunk_t *hunk)

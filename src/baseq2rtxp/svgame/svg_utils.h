@@ -65,7 +65,7 @@ void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const sg_entity_events
 *   @brief  Adds a temp entity event at the given origin.
 *	@param	snapOrigin	If true, will snap the origin to 13 bits float precision.
 **/
-svg_base_edict_t *SVG_Util_CreateTempEntityEvent( const Vector3 &origin, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin = false );
+svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin = false );
 
 
 

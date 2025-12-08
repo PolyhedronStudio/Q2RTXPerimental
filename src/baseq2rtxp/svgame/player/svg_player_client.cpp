@@ -71,7 +71,7 @@ void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_clien
 		// Reset external event.
         ps->externalEvent = EV_NONE;
 		// Create a temporary entity event for all other clients.
-		svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEntityEvent( 
+		svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEventEntity( 
             ps->pmove.origin, 
             event, eventParm0,
             0/*client->clientNum + 1*/,

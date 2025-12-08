@@ -101,7 +101,7 @@ void SVG_EntityEvent_PositionedSound( svg_base_edict_t *ent, const int32_t chann
 **/
 static inline svg_base_edict_t *CreateTempEntityForEvent( const Vector3 &origin, const bool snapOrigin, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1 ) {
     // Create a temporary entity event for all other clients.
-    svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEntityEvent(
+    svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEventEntity(
         // Use the acquired origin.
         origin,
         // General sound event.

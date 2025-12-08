@@ -209,7 +209,7 @@ static void PM_UpdateScreenContents() {
 	};
 
 	// Get contents at view position (fallback/secondary source)
-	const cm_contents_t viewContents = PM_PointContents( viewOrigin );
+	//const cm_contents_t viewContents = PM_PointContents( viewOrigin );
 
 	// Prefer the body-level liquid classification when available, because it is sampled
 	// in PM_GetLiquidContentsForPoint and is more stable while the body is inside a liquid brush.
@@ -217,12 +217,12 @@ static void PM_UpdateScreenContents() {
 	cm_liquid_level_t liquidLevel = pm->liquid.level;
 
 	// If we don't have a reliable liquid type (edge cases), fallback to the view sample.
-	if ( liquidType == CONTENTS_NONE ) {
-		liquidType = viewContents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER );
-	}
+	//if ( liquidType == CONTENTS_NONE ) {
+	//	liquidType = viewContents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER );
+	//}
 
 	// RDF_UNDERWATER: prefer pm->liquid.level (accurate body sampling). fallback to viewContents check.
-	if ( pm->liquid.level == cm_liquid_level_t::LIQUID_UNDER || ( viewContents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) ) {
+	if ( liquidLevel == cm_liquid_level_t::LIQUID_UNDER && ( ( liquidType & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) != 0 ) ) {//( viewContents & ( CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER ) ) ) {
 		pm->state->rdflags |= RDF_UNDERWATER;
 	} else {
 		pm->state->rdflags &= ~RDF_UNDERWATER;
@@ -230,15 +230,15 @@ static void PM_UpdateScreenContents() {
 
 	// Prevent adding screenblend if we're inside a client entity brush (CONTENTS_PLAYER)
 	// Use liquidType for blend selection, fallback to viewContents if needed.
-	const bool insidePlayerBrush = ( viewContents & CONTENTS_PLAYER ) != 0;
+	const bool insidePlayerBrush = false;// ( viewContents & CONTENTS_PLAYER ) != 0;
 
 	// If inside a player brush, skip blends; otherwise apply blends based on liquidType (or viewContents fallback).
-	if ( !insidePlayerBrush && ( viewContents & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) ) {
+	if ( !insidePlayerBrush && ( liquidType & ( CONTENTS_SOLID | CONTENTS_LAVA ) ) != 0 ) {
 		// Inside a solid or lava at view position (keep old behaviour to handle solid-lava cases)
 		SG_AddBlend( 1.0f, 0.3f, 0.0f, 0.6f, pm->state->screen_blend );
-	} else if ( ( liquidLevel == LIQUID_UNDER && liquidType & CONTENTS_SLIME ) ) {
+	} else if ( ( liquidLevel == LIQUID_UNDER ) && ( liquidType & CONTENTS_SLIME ) != 0 ) {
 		SG_AddBlend( 0.0f, 0.1f, 0.05f, 0.6f, pm->state->screen_blend );
-	} else if ( ( liquidLevel == LIQUID_UNDER && liquidType & CONTENTS_WATER ) || viewContents & CONTENTS_WATER ) {
+	} else if ( ( liquidLevel == LIQUID_UNDER ) && ( ( liquidType & CONTENTS_WATER ) != 0 ) ) {// || viewContents & CONTENTS_WATER ) {
 		SG_AddBlend( 0.5f, 0.3f, 0.2f, 0.4f, pm->state->screen_blend );
 	}
 }
@@ -421,7 +421,7 @@ static void PM_Accelerate( const Vector3 &wishDirection, const double wishSpeed,
 		pm->state->pmove.velocity = QM_Vector3MultiplyAdd( pm->state->pmove.velocity, accelerationSpeed, wishDirection );
 	// Q3: Prevents Jump Strafe "bug" but claimed to feel bad by some.
 	#else
-		const Vector3 wishVelocity = QM_Vector3Scale( wishDirection, wishSpeed );
+		const Vector3 wishVelocity = QM_Vector3ScaleDP( wishDirection, wishSpeed );
 		Vector3 pushDirection = wishVelocity - pm->state->pmove.velocity;
 		const double pushLength = QM_Vector3NormalizeLength( pushDirection );
 		double canPush = acceleration * pml.frameTime * wishSpeed;
@@ -1491,7 +1491,7 @@ static void PM_DeadMove() {
 	// Still have some velocity left, so scale it down.
 	} else {
 		// Normalize.
-		pm->state->pmove.velocity = QM_Vector3Normalize( pm->state->pmove.velocity );
+		pm->state->pmove.velocity = QM_Vector3NormalizeDP( pm->state->pmove.velocity );
 		// Scale by old velocity derived length.
 		pm->state->pmove.velocity *= forwardScalar;
 	}
@@ -1525,8 +1525,8 @@ static void PM_LadderMove( void ) {
 	}
 
 	// Only use horizontal components for forward/right anglevectors..
-	pml.forward = QM_Vector3Normalize( Vector2( pml.forward ) );
-	pml.right	= QM_Vector3Normalize( Vector2( pml.right ) );
+	pml.forward = QM_Vector3NormalizeDP( Vector2( pml.forward ) );
+	pml.right	= QM_Vector3NormalizeDP( Vector2( pml.right ) );
 
 	// Scale the user command movements.
 	const double cmdScale = PM_CmdScale( &pm->cmd );
@@ -1609,7 +1609,7 @@ static const bool PM_CheckWaterJump( void ) {
 	pm->state->pmove.pm_flags &= ~PMF_ON_LADDER;
 
 	// Check for ladder.
-	Vector3 flatForward = QM_Vector3Normalize( Vector2( pml.forward ) );
+	Vector3 flatForward = QM_Vector3NormalizeDP( Vector2( pml.forward ) );
 	// Spot to test for possible ladder we're riding.
 	Vector3 spot = pm->state->pmove.origin + ( flatForward * 1 );
 	// Perform trace.
@@ -1729,6 +1729,11 @@ static void PM_WaterJumpMove( void ) {
 *	@brief	Performs in-water movement.
 **/
 static void PM_WaterMove() {
+	// Force with which we sink.
+	static constexpr double PM_WATER_SINK_FORCE = -60.;
+	// Movement speed scale while swimming.
+	static constexpr double PM_WATER_SWIM_SCALE = 0.5;
+
 	// First check if we are (going-) in a water jump.
 	if ( PM_CheckWaterJump() ) {
 		// Perform water jump movement.
@@ -1756,7 +1761,8 @@ static void PM_WaterMove() {
 		// Scale wish velocity.
 		wishVelocity = cmdScale * pml.forward * forwardMove + cmdScale * pml.right * sideMove;
 		// Ensure to add up move.
-		wishVelocity[ 2 ] += cmdScale * scaledCmd.upmove;
+		Vector3 tempUpMove = cmdScale * pml.up * scaledCmd.upmove;
+		wishVelocity.z += tempUpMove.z;
 	// Sink towards bottom by default:
 	} else {
 		// Only sink when not on ground/walking. Setting a vertical wish velocity while
@@ -1764,10 +1770,10 @@ static void PM_WaterMove() {
 		// produced the groundtrace toggling/jitter. Avoid applying the sink when we
 		// already are considered on-ground.
 		if ( pm->ground.entityNumber == ENTITYNUM_NONE || !pml.hasGroundPlane ) {
-			wishVelocity[ 2 ] = -60.;
+			wishVelocity.z = PM_WATER_SINK_FORCE;
 		} else {
 			// No vertical intent while standing on ground to avoid nudging origin.
-			wishVelocity[ 2 ] = 0.;
+			wishVelocity.z = 0.;
 		}
 	}
 
@@ -1778,9 +1784,8 @@ static void PM_WaterMove() {
 	Vector3 wishDirection = wishVelocity;
 	double wishSpeed = QM_Vector3NormalizeLength( wishDirection );
 	// Cap speed.
-	constexpr double pm_swimScale = 0.5;
-	if ( wishSpeed > pm->state->pmove.speed * pm_swimScale ) {
-		wishSpeed = pm->state->pmove.speed * pm_swimScale;
+	if ( wishSpeed > pm->state->pmove.speed * PM_WATER_SWIM_SCALE ) {
+		wishSpeed = pm->state->pmove.speed * PM_WATER_SWIM_SCALE;
 	}
 
 	// Water acceleration.
@@ -1799,9 +1804,9 @@ static void PM_WaterMove() {
 			PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal, pm->state->pmove.velocity, PM_OVERCLIP );
 		#endif
 		// Now normalize it.
-		pm->state->pmove.velocity = QM_Vector3Normalize( pm->state->pmove.velocity );
+		pm->state->pmove.velocity = QM_Vector3NormalizeDP( pm->state->pmove.velocity );
 		// And scale it accordingly.
-		pm->state->pmove.velocity = QM_Vector3Scale( pm->state->pmove.velocity, velocityLength );
+		pm->state->pmove.velocity = QM_Vector3ScaleDP( pm->state->pmove.velocity, velocityLength );
 	}
 
 	// Step Slide.
@@ -1913,8 +1918,8 @@ static void PM_AirMove( void ) {
 	//PM_Animation_SetMovementDirection();
 
 	// project moves down to flat plane
-	pml.forward = QM_Vector3Normalize( Vector2( pml.forward ) );
-	pml.right = QM_Vector3Normalize( Vector2( pml.right ) );
+	pml.forward = QM_Vector3NormalizeDP( Vector2( pml.forward ) );
+	pml.right = QM_Vector3NormalizeDP( Vector2( pml.right ) );
 	Vector3 wishVelocity = {};
 	for ( int32_t i = 0; i < 2; i++ ) {
 		wishVelocity[ i ] = pml.forward[ i ] * forwardMove + pml.right[ i ] * sideMove;
@@ -2016,8 +2021,8 @@ static void PM_WalkMove( const bool canJump ) {
 	PM_BounceClipVelocity( pml.forward, pml.groundTrace.plane.normal, pml.forward, PM_OVERCLIP );
 	PM_BounceClipVelocity( pml.right, pml.groundTrace.plane.normal, pml.right, PM_OVERCLIP );
 	// Normalize them.
-	pml.forward = QM_Vector3Normalize( pml.forward );
-	pml.right = QM_Vector3Normalize( pml.right );
+	pml.forward = QM_Vector3NormalizeDP( pml.forward );
+	pml.right = QM_Vector3NormalizeDP( pml.right );
 
 	Vector3 wishVelocity = pml.forward * forwardMove + pml.right * sideMove;
 
@@ -2041,9 +2046,9 @@ static void PM_WalkMove( const bool canJump ) {
 	}
 	// Clamp the speed lower if wading or walking on the bottom.
 	if ( pm->liquid.level ) {
-		constexpr double pm_swimScale = 0.5;
+		constexpr double PM_WATER_SWIM_SCALE = 0.5;
 		double waterScale = (double)( pm->liquid.level ) / 3.0;
-		waterScale = 1.0 - ( 1.0 - pm_swimScale ) * waterScale;
+		waterScale = 1.0 - ( 1.0 - PM_WATER_SWIM_SCALE ) * waterScale;
 		if ( wishSpeed > pm->state->pmove.speed * waterScale ) {
 			wishSpeed = pm->state->pmove.speed * waterScale;
 		}
@@ -2075,8 +2080,8 @@ static void PM_WalkMove( const bool canJump ) {
 		pm->state->pmove.velocity, PM_OVERCLIP );
 
 	// don't decrease velocity when going up or down a slope
-	VectorNormalize( &pm->state->pmove.velocity.x );
-	pm->state->pmove.velocity = QM_Vector3Scale( pm->state->pmove.velocity, velocityLength );
+	pm->state->pmove.velocity = QM_Vector3NormalizeDP( pm->state->pmove.velocity );
+	pm->state->pmove.velocity = QM_Vector3ScaleDP( pm->state->pmove.velocity, velocityLength );
 
 	// don't do anything if standing still
 	static constexpr double STOP_EPSILON = 0.05;
@@ -2120,7 +2125,7 @@ static void PM_UpdateViewAngles( player_state_t *playerState, const usercmd_t *u
 	}
 
 	if ( playerState->pmove.pm_flags & PMF_TIME_TELEPORT ) {
-		playerState->viewangles[ YAW ] = QM_AngleMod( userCommand->angles[ YAW ] + playerState->pmove.delta_angles[ YAW ] );
+		playerState->viewangles[ YAW ] = QM_AngleMod( (double)userCommand->angles[ YAW ] + (double)playerState->pmove.delta_angles[ YAW ] );
 		playerState->viewangles[ PITCH ] = 0;
 		playerState->viewangles[ ROLL ] = 0;
 	} else {
@@ -2129,16 +2134,16 @@ static void PM_UpdateViewAngles( player_state_t *playerState, const usercmd_t *u
 
 		// Don't let the player look up or down more than 90 degrees.
 		#ifdef PM_CLAMP_VIEWANGLES_0_TO_360
-		if ( playerState->viewangles[ PITCH ] >= 90 && playerState->viewangles[ PITCH ] <= 180 ) {
+		if ( playerState->viewangles[ PITCH ] >= 90. && playerState->viewangles[ PITCH ] <= 180. ) {
 			playerState->viewangles[ PITCH ] = 90;
-		} else if ( playerState->viewangles[ PITCH ] <= 270 && playerState->viewangles[ PITCH ] >= 180 ) {
-			playerState->viewangles[ PITCH ] = 270;
+		} else if ( playerState->viewangles[ PITCH ] <= 270. && playerState->viewangles[ PITCH ] >= 180. ) {
+			playerState->viewangles[ PITCH ] = 270.;
 		}
 		#else
-		if ( playerState->viewangles[ PITCH ] > 90 && playerState->viewangles[ PITCH ] < 270 ) {
-			playerState->viewangles[ PITCH ] = 90;
-		} else if ( playerState->viewangles[ PITCH ] <= 360 && playerState->viewangles[ PITCH ] >= 270 ) {
-			playerState->viewangles[ PITCH ] -= 360;
+		if ( playerState->viewangles[ PITCH ] > 90. && playerState->viewangles[ PITCH ] < 270. ) {
+			playerState->viewangles[ PITCH ] = 90.;
+		} else if ( playerState->viewangles[ PITCH ] <= 360. && playerState->viewangles[ PITCH ] >= 270. ) {
+			playerState->viewangles[ PITCH ] -= 360.;
 		}
 		#endif
 	}
@@ -2170,14 +2175,14 @@ static void PM_CheckSpecialMovement() {
 	pm->state->pmove.pm_flags &= ~PMF_ON_LADDER;
 
 	// Re-Check for a ladder.
-	Vector3 flatforward = QM_Vector3Normalize( {
+	Vector3 flatforward = QM_Vector3NormalizeDP( {
 		pml.forward.x,
 		pml.forward.y,
 		0.f
 		} );
 	const Vector3 spot = pm->state->pmove.origin + ( flatforward * 1 );
 	cm_trace_t trace = PM_Trace( pm->state->pmove.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER );
-	if ( ( trace.fraction < 1 ) && ( trace.contents & CONTENTS_LADDER ) 
+	if ( ( trace.fraction < 1. ) && ( trace.contents & CONTENTS_LADDER ) 
 		// Uncomment to disable underwater ladders.
 		/*&& pm->liquid.level < cm_liquid_level_t::LIQUID_WAIST*/ ) {
 		pm->state->pmove.pm_flags |= PMF_ON_LADDER;
@@ -2226,14 +2231,20 @@ static void PM_DropTimers() {
 *	@brief	Can be called by either the server or the client game codes.
 **/
 void SG_PlayerMove_Frame() {
+	// Calculate frameTime.
+	pml.frameTime = pm->cmd.msec * 0.001;
+
+	// Save the origin as 'old origin' for in case we get stuck.
+	pml.previousOrigin = pm->state->pmove.origin;
+	// Save the start velocity.
+	pml.previousVelocity = pm->state->pmove.velocity;
+	// Save the previous liquid state.
+	pml.previousLiquid = pm->liquid;
+	// Save the previous ground entity.
+	pml.previousGroundEntity = pm->ground.entityNumber;
+
 	// Clear out several member variables which require a fresh state before performing the move.
 	// Player State variables.
-	pm->state->viewangles = {};
-	//pm->state->pmove.viewheight = 0;
-	pm->state->screen_blend[ 0 ] = pm->state->screen_blend[ 1 ] = pm->state->screen_blend[ 2 ] = pm->state->screen_blend[ 3 ] = 0;
-	pm->state->rdflags = refdef_flags_t::RDF_NONE;
-	// Player State Move variables.
-	pm->touchTraces = {};
 	//pm->ground = {
 	//	.entityNumber = ENTITYNUM_NONE
 	//};
@@ -2241,6 +2252,12 @@ void SG_PlayerMove_Frame() {
 	//	.entityNumber = pm->ground.entityNumber, 
 	//	.entityLinkCount = pm->ground.entityLinkCount 
 	//};
+	pm->state->viewangles = {};
+	//pm->state->pmove.viewheight = 0;
+	pm->state->screen_blend[ 0 ] = pm->state->screen_blend[ 1 ] = pm->state->screen_blend[ 2 ] = pm->state->screen_blend[ 3 ] = 0;
+	pm->state->rdflags = refdef_flags_t::RDF_NONE;
+	// Player State Move variables.
+	pm->touchTraces = {};
 	pm->liquid = {
 		.type = CONTENTS_NONE,
 		.level = cm_liquid_level_t::LIQUID_NONE
@@ -2250,15 +2267,9 @@ void SG_PlayerMove_Frame() {
 	pm->step_height = 0;
 	pm->impact_delta = 0;
 
-	// Save the origin as 'old origin' for in case we get stuck.
-	pml.previousOrigin = pm->state->pmove.origin;
-	// Save the start velocity.
-	pml.previousVelocity = pm->state->pmove.velocity;
-
-	// Calculate frameTime.
-	pml.frameTime = pm->cmd.msec * 0.001;
-
-	// Clamp view angles.
+	/**
+	*	Refresh and Clamp view angles:
+	**/
 	PM_UpdateViewAngles( pm->state, &pm->cmd );
 
 	/**
@@ -2325,6 +2336,7 @@ void SG_PlayerMove_Frame() {
 		// Back it up as the first previous liquid. (Start of frame position.)
 		pml.previousLiquid = pm->liquid;
 	}
+
 	/**
 	*	Seek for ground.
 	**/

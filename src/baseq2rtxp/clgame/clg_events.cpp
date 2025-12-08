@@ -80,21 +80,27 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
         if ( cent->previousEvent ) {
             return;
         }
+
         // Backup original entity number. (For debugging purposes.)
         const int32_t eventEntityNumber = cent->current.number;
-
+        const int32_t otherEntityNumber = cent->current.otherEntityNumber;
         // If this is an external entity event set the entity number of the event to the 'other' target entity number
-        if ( ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) && cent->current.otherEntityNumber > 0 ) {
-            cent->current.number = cent->current.otherEntityNumber;
+        if ( ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) && otherEntityNumber > 0 ) {
+            cent->current.number = otherEntityNumber;
         }
+
         // Set previous event to true.
         cent->previousEvent = 1;
+
         // The event is simply the entity type minus the ET_EVENTS offset.
         eventValue = cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT;
 
-        if ( eventValue >= EV_ENGINE_MAX && clg_debug_entity_events->integer ) {
-			const char *otherEntityInfo = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) ? " (other entity event)" : "";
-            clgi.Print( PRINT_DEVELOPER, "%s: %s source_entity(#%d), target_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, otherEntityInfo, eventEntityNumber, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
+        // Debugging purposes:
+        if ( clg_debug_entity_events->integer ) {
+            if ( eventValue >= EV_ENGINE_MAX ) {
+                const char *otherEntityInfo = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) ? " (other entity event)" : "";
+                clgi.Print( PRINT_DEVELOPER, "%s: %s source_entity(#%d), target_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, otherEntityInfo, eventEntityNumber, otherEntityNumber, eventValue, sg_event_string_names[ eventValue ] );
+            }
 		}
     /**
     *   Check for events riding with another entity:

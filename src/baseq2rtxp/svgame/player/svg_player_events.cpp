@@ -120,13 +120,13 @@ static void PlayerStateEvent_WaterLeave( svg_player_edict_t *ent, const int32_t 
         //gi.sound( ent, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
         ent->flags &= ~FL_INWATER;
     }
+    // <Q2RTXP>: TODO: Can be implemented client-side, so exclude the client ID from this entity event.
 	if ( event == EV_WATER_LEAVE_HEAD ) {
-        // <Q2RTXP>: TODO: Can be implemented client-side, so exclude the client ID from this entity event.
-        //gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
         if ( ent->air_finished_time < level.time ) {
             // Generate the sound as a temporary event entity.: Gasp for air.
             svg_base_edict_t *tempEntityEvent = SVG_TempEventEntity_GeneralSoundEx( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), ATTN_NORM );
             //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
+            
             // Alarm the environment to the player's noise.
             SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
         } else  if ( ent->air_finished_time < level.time + 11_sec ) {
