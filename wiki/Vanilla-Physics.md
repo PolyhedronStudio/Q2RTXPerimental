@@ -2,10 +2,12 @@
 
 The Quake 2 physics system handles movement, collision detection, gravity, and entity interactions. Understanding physics is crucial for entity behavior, collision, and game feel.
 
-**Primary Files:**
-- `src/baseq2rtxp/svgame/svg_physics.cpp` - Server-side entity physics
-- `src/baseq2rtxp/sharedgame/pmove/` - Player movement code
-- `src/baseq2rtxp/svgame/svg_stepmove.cpp` - Monster AI movement
+> **Note:** This page documents the **original Q2RTX** physics system from `/src/baseq2/`. For Q2RTXPerimental enhancements, see the main Entity and Physics documentation.
+
+**Primary Files (Vanilla Q2RTX):**
+- `src/baseq2/svgame/g_phys.cpp` - Server-side entity physics
+- `src/baseq2/sharedgame/sg_pmove.h` - Player movement code
+- `src/baseq2/svgame/m_move.cpp` - Monster AI movement
 
 ## Overview
 
@@ -23,7 +25,7 @@ Quake 2 physics operates on a **fixed timestep** (server framerate), typically 1
 Entities have different movement behaviors based on `movetype`:
 
 ```cpp
-// Movement types (entity->movetype)
+// Movement types (entity->movetype) - Original Quake 2
 #define MOVETYPE_NONE           0   // No movement, locked position
 #define MOVETYPE_NOCLIP         1   // No collision, flies through world
 #define MOVETYPE_PUSH           2   // Push movers (doors, platforms)
@@ -34,8 +36,10 @@ Entities have different movement behaviors based on `movetype`:
 #define MOVETYPE_TOSS           7   // Ballistic trajectory (gravity)
 #define MOVETYPE_FLYMISSILE     8   // Missile flight (no gravity)
 #define MOVETYPE_BOUNCE         9   // Bounces off surfaces
-#define MOVETYPE_PENDULUM       10  // Swinging pendulum (Q2RTXPerimental)
-#define MOVETYPE_PHYSICS        11  // Full physics sim (Q2RTXPerimental)
+
+// Q2RTXPerimental additions (not in vanilla Q2RTX):
+// #define MOVETYPE_PENDULUM    10  // Swinging pendulum
+// #define MOVETYPE_PHYSICS     11  // Full physics simulation
 ```
 
 ### Collision Types

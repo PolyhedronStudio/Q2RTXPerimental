@@ -2,10 +2,12 @@
 
 The Quake 2 weapon system handles player weapons, firing, ammunition, and weapon pickup. Understanding weapons is essential for combat gameplay and item systems.
 
-**Primary Files:**
-- `src/baseq2rtxp/svgame/svg_weapon.cpp` - Core weapon logic
-- `src/baseq2rtxp/svgame/player/svg_player_weapon.cpp` - Player weapon management
-- `src/baseq2rtxp/svgame/weapons/` - Individual weapon implementations
+> **Note:** This page documents the **original Q2RTX** weapon system from `/src/baseq2/`. For Q2RTXPerimental enhancements, see the Entity System documentation.
+
+**Primary Files (Vanilla Q2RTX):**
+- `src/baseq2/svgame/g_weapon.cpp` - Core weapon logic and firing functions
+- `src/baseq2/svgame/p_weapon.cpp` - Player weapon management and animations
+- `src/baseq2/svgame/g_items.cpp` - Weapon item definitions
 
 ## Overview
 

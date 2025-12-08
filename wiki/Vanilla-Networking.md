@@ -2,6 +2,8 @@
 
 Understanding Quake 2's original networking model is essential for comprehending Q2RTXPerimental's enhancements.
 
+> **Note:** This page documents the networking architecture used in both vanilla Q2RTX (`/src/baseq2/`) and Q2RTXPerimental (`/src/baseq2rtxp/`). The core protocol is shared; Q2RTXPerimental adds enhanced entity events and signals.
+
 ## Overview
 
 Quake 2 uses a **client-server model** with **delta compression** for efficient entity state transmission.

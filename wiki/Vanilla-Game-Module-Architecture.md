@@ -2,6 +2,8 @@
 
 Understanding vanilla Quake 2's architecture is essential before diving into Q2RTXPerimental's enhancements. This page covers the fundamental client-server separation and game module design that forms the foundation of the engine.
 
+> **Note:** This page documents the original Q2RTX architecture from `/src/baseq2/` (C-based, struct entities). Q2RTXPerimental (`/src/baseq2rtxp/`) uses the same architectural principles but with C++ classes and enhanced entity systems.
+
 ## Overview
 
 Quake 2's architecture separates the engine from game logic through a DLL-based plugin system. This design allows for:

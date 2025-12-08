@@ -2,9 +2,11 @@
 
 Understanding the Quake 2 BSP (Binary Space Partitioning) format is essential for map creation and understanding how entities are placed in the game world.
 
+> **Note:** This page documents the **original Quake 2/Q2RTX** BSP format. Q2RTXPerimental uses the same format with optional extensions (BSPX) for enhanced features.
+
 **File Format:** `.bsp` files
-**Header Location:** `inc/shared/formats/format_bsp.h`
-**Loading Code:** `src/common/bsp.cpp`
+**Header Location:** `inc/shared/formats/format_bsp.h` (shared between vanilla and enhanced)
+**Loading Code:** `src/common/bsp.cpp` (engine-level, shared)
 
 ## Overview
 
