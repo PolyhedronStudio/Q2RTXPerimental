@@ -381,7 +381,7 @@ void CLG_PrepareViewEntities( void ) {
 	// Add particles.
     CLG_AddParticles();
 	// Add dynamic lights.
-    CLG_AddDLights();
+    CLG_AddDynamicLights();
 	// Add/Update the entity light styles.
     CLG_AddLightStyles();
 

@@ -287,6 +287,14 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_view_weapon.h
 	baseq2rtxp/clgame/clg_view_state_transition.h
 
+	baseq2rtxp/clgame/effects/clg_fx_classic.h
+	baseq2rtxp/clgame/effects/clg_fx_dynamiclights.h
+	baseq2rtxp/clgame/effects/clg_fx_footsteps.h
+	baseq2rtxp/clgame/effects/clg_fx_lightstyles.h
+	baseq2rtxp/clgame/effects/clg_fx_muzzleflash.h
+	baseq2rtxp/clgame/effects/clg_fx_new.h
+	baseq2rtxp/clgame/effects/clg_fx_particles.h
+
 	baseq2rtxp/clgame/local_entities/clg_local_env_sound.h
 	baseq2rtxp/clgame/local_entities/clg_local_entity_classes.h
 

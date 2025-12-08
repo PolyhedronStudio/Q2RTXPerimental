@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
+#include "clgame/effects/clg_fx_dynamiclights.h"
 
 //!
 static clg_dlight_t       cl_dlights[ MAX_DLIGHTS ];
@@ -14,14 +15,14 @@ static clg_dlight_t       cl_dlights[ MAX_DLIGHTS ];
 /**
 *   @brief
 **/
-void CLG_ClearDlights( void ) {
+void CLG_ClearDynamicLights( void ) {
     memset( cl_dlights, 0, sizeof( cl_dlights ) );
 }
 
 /**
 *   @brief  
 **/
-clg_dlight_t *CLG_AllocDlight( const int32_t key ) {
+clg_dlight_t *CLG_AllocateDynamicLight( const int32_t key ) {
     int     i;
     clg_dlight_t *dl;
 
@@ -56,7 +57,7 @@ clg_dlight_t *CLG_AllocDlight( const int32_t key ) {
 /**
 *   @brief
 **/
-void CLG_AddDLights( void ) {
+void CLG_AddDynamicLights( void ) {
     int         i;
     clg_dlight_t *dl;
 

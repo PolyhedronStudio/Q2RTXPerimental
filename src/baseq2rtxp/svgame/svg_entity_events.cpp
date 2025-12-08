@@ -162,7 +162,7 @@ svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const
     // Set the otherEntity to the source entity.
 	tempEventEntity->s.otherEntityNumber = ent->s.number;
     // Set the effect flag to indicate an other entity is the target for this event.
-    tempEventEntity->s.entityFlags = EF_OTHER_ENTITY_EVENT;
+    tempEventEntity->s.entityFlags = EF_ENTITY_EVENT_TARGET_OTHER;
 
     // Make sure to send it to all clients if requested.
     // This is because a request to ignore PHS culling is made.
@@ -197,7 +197,7 @@ svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, con
     // Set the otherEntity to the source entity.
     tempEventEntity->s.otherEntityNumber = ent->s.number;
     // Set the effect flag to indicate an other entity is the target for this event.
-    tempEventEntity->s.entityFlags = EF_OTHER_ENTITY_EVENT;
+    tempEventEntity->s.entityFlags = EF_ENTITY_EVENT_TARGET_OTHER;
 
     // Make sure to send it to all clients if requested.
     // This is because a request to ignore PHS culling is made.

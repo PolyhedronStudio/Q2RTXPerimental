@@ -54,7 +54,7 @@ void CLG_PacketEntity_AddGib( centity_t *packetEntity, entity_t *refreshEntity, 
     // WID: Why not? Let's just do this.
     if ( newState->entityFlags & ~EF_ROTATE ) {
         //if ( newState->entityFlags & EF_GIB ) {
-        CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->entityFlags | EF_GIB );
+        CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->entityFlags | EF_GIB );
     }
     
     // Add refresh entity to scene.

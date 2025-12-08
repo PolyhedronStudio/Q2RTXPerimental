@@ -40,7 +40,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     // a blood trail of entities when it basically stopped motion.
     if ( newState->entityFlags & ~EF_ROTATE ) {
         if ( newState->entityFlags & EF_GIB ) {
-            CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->entityFlags | EF_GIB );
+            CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->entityFlags | EF_GIB );
         }
     }
 

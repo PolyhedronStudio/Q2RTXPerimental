@@ -39,8 +39,8 @@
         if ( !cent ) { \
             clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on NULL entity!\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str() ); \
         } else { \
-            if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber > 0 ) { \
-                clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on OTHER entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.otherEntityNumber ); \
+            if ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 && cent->current.otherEntityNumber > 0 ) { \
+                clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') from entity(%d) on OTHER entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.number, entity->current.otherEntityNumber ); \
             } else { \
                 clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.number ); \
             } \
@@ -81,33 +81,3 @@ void CLG_Events_CheckForEntity( centity_t *cent );
 *   @return True if an event was processed, false otherwise.
 **/
 const bool CLG_Events_CheckForLocalPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin );
-
-
-
-/**
-*
-*
-*
-*	General Events:
-*
-*
-*
-**/
-/**
-*   @brief  The (LOCAL PLAYER) footstep sound event handler.
-**/
-void CLG_LocalFootStepEvent( const int32_t entityNumber, const Vector3 & lerpOrigin );
-
-/**
-*   @brief  The generic (PLAYER) footstep sound event handler.
-**/
-void CLG_PlayerFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin );
-/**
-*   @brief  The generic (OTHER entity) footstep sound event handler.
-**/
-void CLG_OtherFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin );
-
-/**
-*   @brief  Passes on to CLG_FX_FootStepSound with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
-**/
-void CLG_FootStepLadderEvent( const int32_t entityNumber, const Vector3 &lerpOrigin );

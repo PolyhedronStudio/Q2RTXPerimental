@@ -46,7 +46,7 @@ void CLG_ParseSteam( void ) {
     clg_sustain_t *s;
 
     if ( level.parsedMessage.events.tempEntity.entity1 == -1 ) {
-        CLG_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color & 0xff, level.parsedMessage.events.tempEntity.count, level.parsedMessage.events.tempEntity.entity2 );
+        CLG_FX_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color & 0xff, level.parsedMessage.events.tempEntity.count, level.parsedMessage.events.tempEntity.entity2 );
         return;
     }
 
@@ -61,7 +61,7 @@ void CLG_ParseSteam( void ) {
     s->color = level.parsedMessage.events.tempEntity.color & 0xff;
     s->magnitude = level.parsedMessage.events.tempEntity.entity2;
     s->endtime = clgi.client->time + level.parsedMessage.events.tempEntity.time;
-    s->think = CLG_ParticleSteamEffect2;
+    s->think = CLG_FX_ParticleSteamEffect2;
     s->nextthink = clgi.client->time;
 }
 
@@ -75,7 +75,7 @@ void CLG_ParseWidow( void ) {
     s->id = level.parsedMessage.events.tempEntity.entity1;
     VectorCopy( level.parsedMessage.events.tempEntity.pos1, s->org );
     s->endtime = clgi.client->time + 2100;
-    s->think = CLG_Widowbeamout;
+    s->think = CLG_FX_Widowbeamout;
     s->nextthink = clgi.client->time;
 }
 
@@ -89,6 +89,6 @@ void CLG_ParseNuke( void ) {
     s->id = 21000;
     VectorCopy( level.parsedMessage.events.tempEntity.pos1, s->org );
     s->endtime = clgi.client->time + 1000;
-    s->think = CLG_Nukeblast;
+    s->think = CLG_FX_Nukeblast;
     s->nextthink = clgi.client->time;
 }

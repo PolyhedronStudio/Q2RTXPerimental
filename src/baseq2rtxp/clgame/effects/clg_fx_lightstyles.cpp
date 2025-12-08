@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
+#include "clgame/effects/clg_fx_lightstyles.h"
 
 //!
 typedef struct {

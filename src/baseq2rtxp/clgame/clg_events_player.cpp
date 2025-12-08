@@ -12,6 +12,8 @@
 #include "clgame/clg_events_player.h"
 #include "clgame/clg_precache.h"
 
+#include "clgame/effects/clg_fx_classic.h"
+
 // Needed:
 #include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_entity_flags.h"
@@ -84,7 +86,7 @@ static const std::string PrimaryFireEvent_DetermineAnimation( const player_state
 static void CLG_PlayerEvent_FootStep( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
 	// Play the footstep sound.
     //CLG_FX_FootStepSound( entityNumber, lerpOrigin, false, true );
-    CLG_LocalFootStepEvent( entityNumber, lerpOrigin );
+    CLG_FX_LocalFootStep( entityNumber, lerpOrigin );
 }
 
 
@@ -263,39 +265,39 @@ static void CLG_PlayerEvent_FarFall( const int32_t entityNumber ) {
 **/
 static void CLG_PlayerEvent_Login( const centity_t *playerEntity, const int32_t entityNumber ) {
     // Add dynamic light.
-	clg_dlight_t *dynamicLight = CLG_AddMuzzleflashDLight( playerEntity, playerEntity->vAngles.forward, playerEntity->vAngles.right );
+	clg_dlight_t *dynamicLight = CLG_AddMuzzleflashDynamicLight( playerEntity, playerEntity->vAngles.forward, playerEntity->vAngles.right );
     // Color it green.
 	dynamicLight->color = Vector3{ 0.0f, 1.0f, 0.0f };
     // Play login sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_login, 1, ATTN_NORM, 0 );
 	// Spawn login effect.
-	CLG_LogoutEffect( &playerEntity->lerp_origin.x, 3/*MZ_LOGIN*/ );
+	CLG_FX_LogoutEffect( &playerEntity->lerp_origin.x, 3/*MZ_LOGIN*/ );
 }
 /**
 *   @brief
 **/
 static void CLG_PlayerEvent_Logout( const centity_t *playerEntity, const int32_t entityNumber ) {
     // Add dynamic light.
-    clg_dlight_t *dynamicLight = CLG_AddMuzzleflashDLight( playerEntity, playerEntity->vAngles.forward, playerEntity->vAngles.right );
+    clg_dlight_t *dynamicLight = CLG_AddMuzzleflashDynamicLight( playerEntity, playerEntity->vAngles.forward, playerEntity->vAngles.right );
     // Color it green.
     dynamicLight->color = Vector3{ 1.0f, 0.0f, 0.0f };
     // Play logout sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_logout, 1, ATTN_NORM, 0 );
     // Spawn logout effect.
-    CLG_LogoutEffect( &playerEntity->lerp_origin.x, 4/*MZ_LOGOUT*/ );
+    CLG_FX_LogoutEffect( &playerEntity->lerp_origin.x, 4/*MZ_LOGOUT*/ );
 }
 /**
 *   @brief
 **/
 static void CLG_PlayerEvent_Teleport( const centity_t *playerEntity, const int32_t entityNumber ) {
     // Add dynamic light.
-    clg_dlight_t *dynamicLight = CLG_AddMuzzleflashDLight( playerEntity, playerEntity->vAngles.forward, playerEntity->vAngles.right );
+    clg_dlight_t *dynamicLight = CLG_AddMuzzleflashDynamicLight( playerEntity, playerEntity->vAngles.forward, playerEntity->vAngles.right );
     // Color it green.
     dynamicLight->color = Vector3{ 0.75f, 0.75f, 0.0f };
     // Play login sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_logout, 1, ATTN_NORM, 0 );
     // Spawn login effect.
-    CLG_LogoutEffect( &playerEntity->lerp_origin.x, 4/*MZ_LOGOUT*/ );
+    CLG_FX_LogoutEffect( &playerEntity->lerp_origin.x, 4/*MZ_LOGOUT*/ );
 }
 
 
@@ -436,7 +438,7 @@ const bool CLG_Events_FirePlayerStateEvent( centity_t *playerEntity, const playe
             break;
         // Applied externally outside of pmove.
         //case EV_FOOTSTEP_LADDER:
-        //        CLG_FootStepLadderEvent( entityNumber );
+        //        CLG_FX_LadderFootStep( entityNumber );
         //        return true;
         //    break;
 

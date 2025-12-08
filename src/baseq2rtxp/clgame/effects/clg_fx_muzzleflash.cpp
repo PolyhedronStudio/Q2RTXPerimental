@@ -9,6 +9,8 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_entities.h"
 #include "clgame/clg_precache.h"
+#include "clgame/effects/clg_fx_muzzleflash.h"
+
 
 #include "sharedgame/sg_muzzleflashes.h"
 
@@ -16,8 +18,8 @@
 /**
 *   @brief Adds a muzzleflash dynamic light effect.
 **/
-clg_dlight_t *CLG_AddMuzzleflashDLight( const centity_t *pl, const Vector3 &vForward, const Vector3 &vRight ) {
-    clg_dlight_t *dynamicLight = CLG_AllocDlight( pl->current.number );
+clg_dlight_t *CLG_AddMuzzleflashDynamicLight( const centity_t *pl, const Vector3 &vForward, const Vector3 &vRight ) {
+    clg_dlight_t *dynamicLight = CLG_AllocateDynamicLight( pl->current.number );
     VectorCopy( pl->current.origin, dynamicLight->origin );
 
     //QM_AngleVectors( pl->current.angles, &vForward, &vRight, NULL );
@@ -65,7 +67,7 @@ void CLG_MuzzleFlash( void ) {
             break;
         // Default to creating a DLight for other effects:
         default:
-            dl = CLG_AddMuzzleflashDLight( pl, fv, rv );
+            dl = CLG_AddMuzzleflashDynamicLight( pl, fv, rv );
             break;
     }
 
@@ -105,19 +107,19 @@ void CLG_MuzzleFlash( void ) {
         case MZ_LOGIN:
             VectorSet( dl->color, 0, 1, 0 );
             clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.world.mz_login, 1, ATTN_NORM, 0 );
-            CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+            CLG_FX_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
             break;
         // Event( Logout ) Particles(Disconnected UnSpawn):
         case MZ_LOGOUT:
             VectorSet( dl->color, 1, 0, 0 );
             clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.world.mz_logout, 1, ATTN_NORM, 0 );
-            CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+            CLG_FX_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
             break;
         // Event( Respawn ) Particles:
         case MZ_RESPAWN:
             VectorSet( dl->color, 1, 1, 0 );
             clgi.S_StartSound( NULL, level.parsedMessage.events.muzzleFlash.entity, CHAN_WEAPON, precache.sfx.world.mz_login, 1, ATTN_NORM, 0 );
-            CLG_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
+            CLG_FX_LogoutEffect( pl->current.origin, level.parsedMessage.events.muzzleFlash.weapon );
             break;
         default:
             clgi.Print( PRINT_DEVELOPER, "%s: WARNING(Unhandled muzzle flash effect[#%i])!\n", __func__, muzzleFlashWeapon );

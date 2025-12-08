@@ -7,12 +7,15 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
+#include "clgame/effects/clg_fx_dynamiclights.h"
+#include "clgame/effects/clg_fx_particles.h"
+#include "clgame/effects/clg_fx_new.h"
 
 
-void CLG_Flashlight( int ent, const Vector3 &pos ) {
+void CLG_FX_Flashlight( int ent, const Vector3 &pos ) {
     clg_dlight_t *dl;
 
-    dl = CLG_AllocDlight( ent );
+    dl = CLG_AllocateDynamicLight( ent );
     VectorCopy( pos, dl->origin );
     dl->radius = 400;
     dl->die = clgi.client->time + 100;
@@ -21,13 +24,13 @@ void CLG_Flashlight( int ent, const Vector3 &pos ) {
 
 /*
 ======
-CLG_ColorFlash - flash of light
+CLG_FX_ColorFlash - flash of light
 ======
 */
-void CLG_ColorFlash( const Vector3 &pos, int ent, int intensity, float r, float g, float b ) {
+void CLG_FX_ColorFlash( const Vector3 &pos, int ent, int intensity, float r, float g, float b ) {
     clg_dlight_t *dl;
 
-    dl = CLG_AllocDlight( ent );
+    dl = CLG_AllocateDynamicLight( ent );
     VectorCopy( pos, dl->origin );
     dl->radius = intensity;
     dl->die = clgi.client->time + 100;
@@ -36,10 +39,10 @@ void CLG_ColorFlash( const Vector3 &pos, int ent, int intensity, float r, float 
 
 /*
 ======
-CLG_DebugTrail
+CLG_FX_DebugTrail
 ======
 */
-void CLG_DebugTrail( const Vector3 &start, const Vector3 &end ) {
+void CLG_FX_DebugTrail( const Vector3 &start, const Vector3 &end ) {
     vec3_t      move;
     vec3_t      vec;
     float       len;
@@ -60,7 +63,7 @@ void CLG_DebugTrail( const Vector3 &start, const Vector3 &end ) {
     while ( len > 0 ) {
         len -= dec;
 
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 
@@ -75,7 +78,7 @@ void CLG_DebugTrail( const Vector3 &start, const Vector3 &end ) {
     }
 }
 
-void CLG_ForceWall( const Vector3 &start, const Vector3 &end, int color ) {
+void CLG_FX_ForceWall( const Vector3 &start, const Vector3 &end, int color ) {
     vec3_t      move;
     vec3_t      vec;
     float       len;
@@ -93,7 +96,7 @@ void CLG_ForceWall( const Vector3 &start, const Vector3 &end, int color ) {
         len -= 4;
 
         if ( frand() > 0.3f ) {
-            p = CLG_AllocParticle();
+            p = CLG_AllocateParticle();
             if ( !p )
                 return;
             VectorClear( p->accel );
@@ -119,11 +122,11 @@ void CLG_ForceWall( const Vector3 &start, const Vector3 &end, int color ) {
 
 /*
 ===============
-CLG_BubbleTrail2 (lets you control the # of bubbles by setting the distance between the spawns)
+CLG_FX_BubbleTrail2 (lets you control the # of bubbles by setting the distance between the spawns)
 
 ===============
 */
-void CLG_BubbleTrail2( const Vector3 &start, const Vector3 &end, int dist ) {
+void CLG_FX_BubbleTrail2( const Vector3 &start, const Vector3 &end, int dist ) {
     vec3_t      move;
     vec3_t      vec;
     float       len;
@@ -139,7 +142,7 @@ void CLG_BubbleTrail2( const Vector3 &start, const Vector3 &end, int dist ) {
     VectorScale( vec, dec, vec );
 
     for ( i = 0; i < len; i += dec ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 
@@ -160,7 +163,7 @@ void CLG_BubbleTrail2( const Vector3 &start, const Vector3 &end, int dist ) {
     }
 }
 
-void CLG_Heatbeam( const Vector3 &start, const Vector3 &forward ) {
+void CLG_FX_Heatbeam( const Vector3 &start, const Vector3 &forward ) {
     vec3_t      move;
     vec3_t      vec;
     float       len;
@@ -194,7 +197,7 @@ void CLG_Heatbeam( const Vector3 &start, const Vector3 &forward ) {
             break;
 
         for ( rot = 0; rot < M_PI * 2; rot += rstep ) {
-            p = CLG_AllocParticle();
+            p = CLG_AllocateParticle();
             if ( !p )
                 return;
 
@@ -229,12 +232,12 @@ void CLG_Heatbeam( const Vector3 &start, const Vector3 &forward ) {
 
 /*
 ===============
-CLG_ParticleSteamEffect
+CLG_FX_ParticleSteamEffect
 
 Puffs with velocity along direction, with some randomness thrown in
 ===============
 */
-void CLG_ParticleSteamEffect( const Vector3 &org, const Vector3 &dir, int color, int count, int magnitude ) {
+void CLG_FX_ParticleSteamEffect( const Vector3 &org, const Vector3 &dir, int color, int count, int magnitude ) {
     int         i, j;
     clg_particle_t *p;
     float       d;
@@ -244,7 +247,7 @@ void CLG_ParticleSteamEffect( const Vector3 &org, const Vector3 &dir, int color,
     MakeNormalVectors( &dir.x, r, u );
 
     for ( i = 0; i < count; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 
@@ -268,17 +271,17 @@ void CLG_ParticleSteamEffect( const Vector3 &org, const Vector3 &dir, int color,
     }
 }
 
-void CLG_ParticleSteamEffect2( clg_sustain_t *self ) {
-    CLG_ParticleSteamEffect( self->org, self->dir, self->color, self->count, self->magnitude );
+void CLG_FX_ParticleSteamEffect2( clg_sustain_t *self ) {
+    CLG_FX_ParticleSteamEffect( self->org, self->dir, self->color, self->count, self->magnitude );
     self->nextthink += 100;
 }
 
 /*
 ===============
-CLG_TrackerTrail
+CLG_FX_TrackerTrail
 ===============
 */
-void CLG_TrackerTrail( const Vector3 &start, const Vector3 &end, int particleColor ) {
+void CLG_FX_TrackerTrail( const Vector3 &start, const Vector3 &end, int particleColor ) {
     vec3_t      move;
     vec3_t      vec;
     vec3_t      forward, right, up, angle_dir;
@@ -303,7 +306,7 @@ void CLG_TrackerTrail( const Vector3 &start, const Vector3 &end, int particleCol
     while ( len > 0 ) {
         len -= dec;
 
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -325,13 +328,13 @@ void CLG_TrackerTrail( const Vector3 &start, const Vector3 &end, int particleCol
     }
 }
 
-void CLG_Tracker_Shell( const Vector3 &origin ) {
+void CLG_FX_Tracker_Shell( const Vector3 &origin ) {
     vec3_t          dir;
     int             i;
     clg_particle_t *p;
 
     for ( i = 0; i < 300; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -351,13 +354,13 @@ void CLG_Tracker_Shell( const Vector3 &origin ) {
     }
 }
 
-void CLG_MonsterPlasma_Shell( const Vector3 &origin ) {
+void CLG_FX_MonsterPlasma_Shell( const Vector3 &origin ) {
     vec3_t          dir;
     int             i;
     clg_particle_t *p;
 
     for ( i = 0; i < 40; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -377,7 +380,7 @@ void CLG_MonsterPlasma_Shell( const Vector3 &origin ) {
     }
 }
 
-void CLG_Widowbeamout( clg_sustain_t *self ) {
+void CLG_FX_Widowbeamout( clg_sustain_t *self ) {
     static const byte   colortable[ 4 ] = { 2 * 8, 13 * 8, 21 * 8, 18 * 8 };
     vec3_t          dir;
     int             i;
@@ -387,7 +390,7 @@ void CLG_Widowbeamout( clg_sustain_t *self ) {
     ratio = 1.0f - ( ( (float)self->endtime - (float)clgi.client->time ) / 2100.0f );
 
     for ( i = 0; i < 300; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -407,7 +410,7 @@ void CLG_Widowbeamout( clg_sustain_t *self ) {
     }
 }
 
-void CLG_Nukeblast( clg_sustain_t *self ) {
+void CLG_FX_Nukeblast( clg_sustain_t *self ) {
     static const byte   colortable[ 4 ] = { 110, 112, 114, 116 };
     vec3_t          dir;
     int             i;
@@ -417,7 +420,7 @@ void CLG_Nukeblast( clg_sustain_t *self ) {
     ratio = 1.0f - ( ( (float)self->endtime - (float)clgi.client->time ) / 1000.0f );
 
     for ( i = 0; i < 700; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -437,14 +440,14 @@ void CLG_Nukeblast( clg_sustain_t *self ) {
     }
 }
 
-void CLG_WidowSplash( void ) {
+void CLG_FX_WidowSplash( void ) {
     static const byte   colortable[ 4 ] = { 2 * 8, 13 * 8, 21 * 8, 18 * 8 };
     int         i;
     clg_particle_t *p;
     vec3_t      dir;
 
     for ( i = 0; i < 256; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 
@@ -467,11 +470,11 @@ void CLG_WidowSplash( void ) {
 
 /*
 ===============
-CLG_TagTrail
+CLG_FX_TagTrail
 
 ===============
 */
-void CLG_TagTrail( const Vector3 &start, const Vector3 &end, int color ) {
+void CLG_FX_TagTrail( const Vector3 &start, const Vector3 &end, int color ) {
     vec3_t      move;
     vec3_t      vec;
     float       len;
@@ -489,7 +492,7 @@ void CLG_TagTrail( const Vector3 &start, const Vector3 &end, int color ) {
     while ( len >= 0 ) {
         len -= dec;
 
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -511,15 +514,15 @@ void CLG_TagTrail( const Vector3 &start, const Vector3 &end, int color ) {
 
 /*
 ===============
-CLG_ColorExplosionParticles
+CLG_FX_ColorExplosionParticles
 ===============
 */
-void CLG_ColorExplosionParticles( const Vector3 &org, int color, int run ) {
+void CLG_FX_ColorExplosionParticles( const Vector3 &org, int color, int run ) {
     int         i, j;
     clg_particle_t *p;
 
     for ( i = 0; i < 128; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 
@@ -541,10 +544,10 @@ void CLG_ColorExplosionParticles( const Vector3 &org, int color, int run ) {
 
 /*
 ===============
-CLG_ParticleSmokeEffect - like the steam effect, but unaffected by gravity
+CLG_FX_ParticleSmokeEffect - like the steam effect, but unaffected by gravity
 ===============
 */
-void CLG_ParticleSmokeEffect( const Vector3 &org, const Vector3 &dir, int color, int count, int magnitude ) {
+void CLG_FX_ParticleSmokeEffect( const Vector3 &org, const Vector3 &dir, int color, int count, int magnitude ) {
     int         i, j;
     clg_particle_t *p;
     float       d;
@@ -553,7 +556,7 @@ void CLG_ParticleSmokeEffect( const Vector3 &org, const Vector3 &dir, int color,
     MakeNormalVectors( &dir.x, r, u );
 
     for ( i = 0; i < count; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 
@@ -578,12 +581,12 @@ void CLG_ParticleSmokeEffect( const Vector3 &org, const Vector3 &dir, int color,
 
 /*
 ===============
-CLG_BlasterParticles2
+CLG_FX_BlasterParticles2
 
 Wall impact puffs (Green)
 ===============
 */
-void CLG_BlasterParticles2( const Vector3 &org, const Vector3 &dir, unsigned int color ) {
+void CLG_FX_BlasterParticles2( const Vector3 &org, const Vector3 &dir, unsigned int color ) {
     int         i, j;
     clg_particle_t *p;
     float       d;
@@ -591,7 +594,7 @@ void CLG_BlasterParticles2( const Vector3 &org, const Vector3 &dir, unsigned int
 
     count = 40;
     for ( i = 0; i < count; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 
@@ -614,12 +617,12 @@ void CLG_BlasterParticles2( const Vector3 &org, const Vector3 &dir, unsigned int
 
 /*
 ===============
-CLG_BlasterTrail2
+CLG_FX_BlasterTrail2
 
 Green!
 ===============
 */
-void CLG_BlasterTrail2( const Vector3 &start, const Vector3 &end ) {
+void CLG_FX_BlasterTrail2( const Vector3 &start, const Vector3 &end ) {
     vec3_t      move;
     vec3_t      vec;
     float       len;
@@ -638,7 +641,7 @@ void CLG_BlasterTrail2( const Vector3 &start, const Vector3 &end ) {
     while ( len > 0 ) {
         len -= dec;
 
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -660,10 +663,10 @@ void CLG_BlasterTrail2( const Vector3 &start, const Vector3 &end ) {
 
 /*
 ===============
-CLG_IonripperTrail
+CLG_FX_IonripperTrail
 ===============
 */
-void CLG_IonripperTrail( const Vector3 &start, const Vector3 &ent ) {
+void CLG_FX_IonripperTrail( const Vector3 &start, const Vector3 &ent ) {
     vec3_t  move;
     vec3_t  vec;
     float   len;
@@ -682,7 +685,7 @@ void CLG_IonripperTrail( const Vector3 &start, const Vector3 &ent ) {
     while ( len > 0 ) {
         len -= dec;
 
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -713,10 +716,10 @@ void CLG_IonripperTrail( const Vector3 &start, const Vector3 &ent ) {
 
 /*
 ===============
-CLG_TrapParticles
+CLG_FX_TrapParticles
 ===============
 */
-void CLG_TrapParticles( centity_t *ent, const Vector3 &origin ) {
+void CLG_FX_TrapParticles( centity_t *ent, const Vector3 &origin ) {
     vec3_t      move;
     vec3_t      vec;
     vec3_t      start, end;
@@ -745,7 +748,7 @@ void CLG_TrapParticles( centity_t *ent, const Vector3 &origin ) {
     while ( len > 0 ) {
         len -= dec;
 
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
         VectorClear( p->accel );
@@ -777,7 +780,7 @@ void CLG_TrapParticles( centity_t *ent, const Vector3 &origin ) {
         for ( i = -2; i <= 2; i += 4 )
             for ( j = -2; j <= 2; j += 4 )
                 for ( k = -2; k <= 4; k += 4 ) {
-                    p = CLG_AllocParticle();
+                    p = CLG_AllocateParticle();
                     if ( !p )
                         return;
 
@@ -807,16 +810,16 @@ void CLG_TrapParticles( centity_t *ent, const Vector3 &origin ) {
 
 /*
 ===============
-CLG_ParticleEffect3
+CLG_FX_ParticleEffect3
 ===============
 */
-void CLG_ParticleEffect3( const Vector3 &org, const Vector3 &dir, int color, int count ) {
+void CLG_FX_ParticleEffect3( const Vector3 &org, const Vector3 &dir, int color, int count ) {
     int         i, j;
     clg_particle_t *p;
     float       d;
 
     for ( i = 0; i < count; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 

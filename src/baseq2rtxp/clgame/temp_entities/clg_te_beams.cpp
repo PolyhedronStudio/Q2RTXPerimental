@@ -282,7 +282,7 @@ void CLG_AddPlayerBeams( void ) {
             QM_Vector3ToAngles( dist, angles );
 
             // if it's the heatbeam, draw the particle effect
-            CLG_Heatbeam( org, dist );
+            CLG_FX_Heatbeam( org, dist );
 
             framenum = 1;
         } else {
@@ -306,7 +306,7 @@ void CLG_AddPlayerBeams( void ) {
                 VectorMA( org, -b->offset[ 2 ] - 10, u, org );
             } else {
                 // if it's a monster, do the particle effect
-                CLG_MonsterPlasma_Shell( b->start );
+                CLG_FX_MonsterPlasma_Shell( b->start );
             }
 
             framenum = 2;

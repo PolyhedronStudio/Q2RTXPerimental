@@ -274,7 +274,7 @@ static void PM_Friction() {
 	// ourselves sort of 'drifting'.
 	//
 	// Allow for sinking underwater,so don't touch Z.
-	const double speed = QM_Vector3Length( pm->state->pmove.velocity );
+	const double speed = QM_Vector3LengthDP( pm->state->pmove.velocity );
 	// Allow sinking underwater.
 	if ( speed < 1. ) {
 		pm->state->pmove.velocity.x = 0.;
@@ -292,9 +292,12 @@ static void PM_Friction() {
 			) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
 		) {
 			// Get the material to fetch friction from.
-			cm_material_t *ground_material = ( pml.groundTrace.surface->material != nullptr ? pml.groundTrace.surface->material : nullptr );
+			cm_material_t *ground_material = ( pml.groundTrace.material != nullptr ? pml.groundTrace.material : nullptr );
+			// Use material friction if available, otherwise fallback to default friction.
 			double friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
+			// Determine control value.
 			const double control = ( speed < pmp->pm_stop_speed ? pmp->pm_stop_speed : speed );
+			// Caculate friction drop.
 			drop += control * friction * pml.frameTime;
 		}
 	// Apply ground friction if on-ground.
@@ -1480,7 +1483,7 @@ static void PM_DeadMove() {
 	}
 
 	// Add extra friction for our dead body.
-	const double forwardScalar = QM_Vector3Length( pm->state->pmove.velocity ) - 20.;
+	const double forwardScalar = QM_Vector3LengthDP( pm->state->pmove.velocity ) - 20.;
 
 	// Stop the dead body completely if forward becomes negative.
 	if ( forwardScalar <= 0 ) {
@@ -1751,9 +1754,9 @@ static void PM_WaterMove() {
 	Vector3 wishVelocity = QM_Vector3Zero();
 	if ( cmdScale ) {
 		// Scale wish velocity.
-		wishVelocity = cmdScale * pml.forward * pm->cmd.forwardmove + cmdScale * pml.right * pm->cmd.sidemove;
+		wishVelocity = cmdScale * pml.forward * forwardMove + cmdScale * pml.right * sideMove;
 		// Ensure to add up move.
-		wishVelocity[ 2 ] += cmdScale * pm->cmd.upmove;
+		wishVelocity[ 2 ] += cmdScale * scaledCmd.upmove;
 	// Sink towards bottom by default:
 	} else {
 		// Only sink when not on ground/walking. Setting a vertical wish velocity while
@@ -1786,7 +1789,7 @@ static void PM_WaterMove() {
 	// Make sure we can go up slopes easily under water.
 	if ( pml.hasGroundPlane && QM_Vector3DotProduct( pm->state->pmove.velocity, pml.groundTrace.plane.normal ) < 0. ) {
 		// Get velocity length.
-		const double velocityLength = QM_Vector3Length( pm->state->pmove.velocity );
+		const double velocityLength = QM_Vector3LengthDP( pm->state->pmove.velocity );
 		#if 1
 			// Use a non-bouncy clip against the ground plane to avoid injecting upward velocity
 			// from overbounce/reflection which causes spurious kickoff/miss toggles.
@@ -2065,7 +2068,7 @@ static void PM_WalkMove( const bool canJump ) {
 //		pm->ps->velocity[2] = 0;
 	}
 
-	const double velocityLength = QM_Vector3Length( pm->state->pmove.velocity );
+	const double velocityLength = QM_Vector3LengthDP( pm->state->pmove.velocity );
 
 	// slide along the ground plane
 	PM_BounceClipVelocity( pm->state->pmove.velocity, pml.groundTrace.plane.normal,

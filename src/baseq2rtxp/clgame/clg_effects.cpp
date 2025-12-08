@@ -8,13 +8,15 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
 
+
+
 /**
 *   @brief 
 **/
 void CLG_ClearEffects( void ) {
     CLG_ClearLightStyles();
     CLG_ClearParticles();
-    CLG_ClearDlights();
+    CLG_ClearDynamicLights();
 }
 
 /**

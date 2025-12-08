@@ -99,7 +99,7 @@ void SVG_Client_SendPendingPredictableEvents( svg_player_edict_t *ent, svg_clien
         #endif
         // Adjust type, assign player event flag.
         tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
-		tempEventEntity->s.entityFlags |= EF_OTHER_ENTITY_EVENT;
+		tempEventEntity->s.entityFlags |= EF_ENTITY_EVENT_TARGET_OTHER;
 		// Set other entity number to that of our client.
         tempEventEntity->s.otherEntityNumber = ent->s.number;
 		// Set eventParm from playerstate.

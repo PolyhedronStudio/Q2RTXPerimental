@@ -28,8 +28,8 @@
 #if USE_DEBUG
 #define DBG_ENTITY_EVENT_PRESENT( cent, funcname ) \
     if ( developer->integer ) { \
-        if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) ) { \
-            CLG_CheckEntityPresent( cent->current.otherEntityNumber, "ERROR EVENT(EF_OTHER_ENTITY_EVENT): "#funcname ); \
+        if ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) { \
+            CLG_CheckEntityPresent( cent->current.otherEntityNumber, "ERROR EVENT(EF_ENTITY_EVENT_TARGET_OTHER): "#funcname ); \
         } else { \
             CLG_CheckEntityPresent( cent->current.number, "ERROR EVENT: "#funcname ); \
         } \
@@ -62,10 +62,12 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 /**
 *
 *
+* 
 *
-*   Entity Event Processing:
+*   Core Entity Event Processing:
 *
 *
+* 
 *
 **/
 /**
@@ -83,7 +85,7 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 
     // EF_TELEPORTER acts like an event, but is not cleared each frame
     if ( ( cent->current.entityFlags & EF_TELEPORTER ) ) {
-        CLG_TeleporterParticles( &effectOrigin.x );
+        CLG_FX_TeleporterParticles( &effectOrigin.x );
     }
 
     // Handle the event.
@@ -96,17 +98,17 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 		// We handle that event elsewhere in CLG_Events_FirePlayerStateEvent.
 		if ( entityNumber != clgi.client->clientNumber + 1 ) {//clgi.client->frame.ps.clientNumber + 1 ) {
             DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_FOOTSTEP" );
-            CLG_PlayerFootStepEvent( entityNumber, lerpOrigin );
+            CLG_FX_PlayerFootStep( entityNumber, lerpOrigin );
         }
         break;
     case EV_OTHER_FOOTSTEP:
 		DEBUG_PRINT_EVENT_NAME( "EV_OTHER_FOOTSTEP" );
-        CLG_OtherFootStepEvent( entityNumber, lerpOrigin );
+        CLG_FX_OtherFootStep( entityNumber, lerpOrigin );
         break;
     // General ladder footstep event:
     case EV_FOOTSTEP_LADDER:
 		DEBUG_PRINT_EVENT_NAME( "EV_FOOTSTEP_LADDER" );
-        CLG_FootStepLadderEvent( entityNumber, lerpOrigin );
+        CLG_FX_LadderFootStep( entityNumber, lerpOrigin );
         break;
 
     /**
@@ -190,8 +192,10 @@ static constexpr float defaultSoundTimeOffset = 0.f;
 *
 *
 *
+* 
 *   Commonly Used/Utility Functions:
 *
+* 
 *
 *
 **/
@@ -242,6 +246,7 @@ static inline const std::string GetSoundResourceHandleName( const qhandle_t reso
 }
 
 
+
 /**
 *
 * 
@@ -260,7 +265,7 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
     // Play the respawn sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.items.respawn01, 1, ATTN_IDLE, 0 );
     // Spawn the respawn particles.
-    CLG_ItemRespawnParticles( origin );
+    CLG_FX_ItemRespawnParticles( origin );
 }
 
 
@@ -269,8 +274,10 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 *
 *
 * 
+* 
 *
 *   [ Sound Events ] Implementations:
+* 
 * 
 * 
 * 
@@ -296,14 +303,13 @@ static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel
     // Debug the resource name.
     DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( __func__, cent, soundIndex );
 
-
 	// Get the sound handle.
     qhandle_t soundResourceHandle = GetSoundIndexResourceHandle( soundIndex );
     if ( !soundResourceHandle ) {
         return;
     }
     // Play the sound on the entity.
-    if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber > 0 ) {
+    if ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 && cent->current.otherEntityNumber > 0 ) {
         // Get the other entity.
         clgi.S_StartSound( nullptr, cent->current.otherEntityNumber, channel, soundResourceHandle, defaultSoundVolume, defaultSoundAttenuation, defaultSoundTimeOffset );
     } else {
@@ -347,7 +353,7 @@ static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t chann
     decodedChannel &= ~removeChannelMask;
 
 	// Play the sound on the entity.
-    if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) != 0 && cent->current.otherEntityNumber > 0 ) {
+    if ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 && cent->current.otherEntityNumber > 0 ) {
         // Get the other entity.
         clgi.S_StartSound( nullptr, cent->current.otherEntityNumber, decodedChannel, soundResourceHandle, defaultSoundVolume, decodedAttenuation, defaultSoundTimeOffset );
     } else {

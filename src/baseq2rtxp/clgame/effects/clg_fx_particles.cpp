@@ -7,10 +7,15 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
+#include "clgame/effects/clg_fx_particles.h"
+
+
 
 static clg_particle_t *active_particles, *free_particles;
 
 static clg_particle_t particles[ MAX_PARTICLES ];
+
+
 
 /**
 *   @brief  
@@ -30,7 +35,7 @@ void CLG_ClearParticles( void ) {
 /**
 *   @brief
 **/
-clg_particle_t *CLG_AllocParticle( void ) {
+clg_particle_t *CLG_AllocateParticle( void ) {
     clg_particle_t *p;
 
     if ( !free_particles ) {

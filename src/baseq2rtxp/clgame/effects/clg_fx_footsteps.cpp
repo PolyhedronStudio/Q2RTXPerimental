@@ -8,6 +8,7 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_precache.h"
 #include "clgame/clg_entities.h"
+#include "clgame/effects/clg_fx_footsteps.h"
 
 #define _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS 1
 #define _DEBUG_PRINT_ENTITY_FOOTSTEPS 1
@@ -408,4 +409,78 @@ void CLG_PrecacheFootsteps( void ) {
         // Precache footsteps for material kind.
         precache.sfx.footsteps.wood[ i ] = clgi.S_RegisterSound( path );
     }
+}
+
+
+
+/**
+*
+*
+*
+*
+*	FootStep Effect Wrappers:
+*
+*
+*
+*
+**/
+/**
+*   @brief  The (LOCAL PLAYER) footstep sound event handler.
+**/
+void CLG_FX_LocalFootStep( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
+    // Pass on to the footstep sound effect handler.
+    CLG_FX_FootStepSound(
+        // The entity number.
+        entityNumber,
+        // The origin to play the sound at.
+        lerpOrigin,
+        // No ladder.
+        false,
+        // This is invoked by the local client itself.
+        true
+    );
+}
+/**
+*   @brief  The generic (PLAYER) footstep sound event handler.
+**/
+void CLG_FX_PlayerFootStep( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
+    // Pass on to the footstep sound effect handler.
+    CLG_FX_FootStepSound(
+        // The entity number.
+        entityNumber,
+        // The origin to play the sound at.
+        lerpOrigin,
+        // No ladder.
+        false,
+        // This event is never invoked by the local client itself.
+        false
+    );
+}
+/**
+*   @brief  The generic (OTHER entity) footstep sound event handler.
+**/
+void CLG_FX_OtherFootStep( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
+    // Pass on to the footstep sound effect handler.
+    CLG_FX_FootStepSound(
+        // The entity number.
+        entityNumber,
+        // The origin to play the sound at.
+        lerpOrigin,
+        // No ladder.
+        false,
+        // This event is never invoked by the local client itself.
+        false
+    );
+}
+/**
+*   @brief  Passes on to CLG_FX_FootStepSound with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
+**/
+void CLG_FX_LadderFootStep( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
+    // Pass on to the footstep sound effect handler.
+    CLG_FX_FootStepSound(
+        entityNumber,
+        lerpOrigin,
+        true,
+        CLG_IsLocalClientEntity( entityNumber )
+    );
 }

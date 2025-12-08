@@ -8,6 +8,13 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 * [X] --
 * [ ] Look into all temp_entity_events and remove/comment all unnecessary events.
 	* [ ] Port all necessary ones to be actual entity events instead of temp_entity events.
+	* [ ] Sound Events. (gi.sound, gi.positional_sound)
+	* [ ] Explosion Events.
+	* [ ] Particle Events.
+	* [ ] Laser Events.
+	* [ ] Muzzle Flash Events.
+	* [ ] Misc Events.
+	* [ ] Login, Logout, Teleport. (Also for gamemodes.)
 * [X] --
 * [ ] Fix the lack of the teleport effect at map spawn.
 * [ ] Fix the teleporter dest not working properly. ( Bugs out movement ).

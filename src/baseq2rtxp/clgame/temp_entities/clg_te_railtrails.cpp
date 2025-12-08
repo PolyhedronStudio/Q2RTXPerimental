@@ -70,7 +70,7 @@ void CLG_RailSpiral( void ) {
     MakeNormalVectors( vec, right, up );
 
     for ( i = 0; i < len; i++ ) {
-        p = CLG_AllocParticle();
+        p = CLG_AllocateParticle();
         if ( !p )
             return;
 
@@ -120,7 +120,7 @@ void CLG_RailLights( const color_t color ) {
         vec3_t pos;
         VectorMA( move, offset, vec, pos );
 
-        clg_dlight_t *dl = CLG_AllocDlight( 0 );
+        clg_dlight_t *dl = CLG_AllocateDynamicLight( 0 );
         VectorScale( fcolor, 0.25f, dl->color );
         VectorCopy( pos, dl->origin );
         dl->radius = 400;
@@ -141,7 +141,7 @@ void CLG_RailTrail( void ) {
     if ( !clg_railtrail_type->integer ) {
         rail_color.u32 = d_8to24table[ 0x74 ];
 
-        CLG_OldRailTrail();
+        CLG_FX_OldRailTrail();
     } else {
         rail_color = railcore_color;
 

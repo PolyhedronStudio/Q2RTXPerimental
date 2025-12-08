@@ -23,8 +23,10 @@
 *
 *
 *
+* 
 *   Core Entity Event Handling:
 *
+* 
 *
 *
 **/
@@ -78,8 +80,11 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
         if ( cent->previousEvent ) {
             return;
         }
+        // Backup original entity number. (For debugging purposes.)
+        const int32_t eventEntityNumber = cent->current.number;
+
         // If this is an external entity event set the entity number of the event to the 'other' target entity number
-        if ( ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) && cent->current.otherEntityNumber > 0 ) {
+        if ( ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) && cent->current.otherEntityNumber > 0 ) {
             cent->current.number = cent->current.otherEntityNumber;
         }
         // Set previous event to true.
@@ -88,8 +93,8 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
         eventValue = cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT;
 
         if ( eventValue >= EV_ENGINE_MAX && clg_debug_entity_events->integer ) {
-			const char *otherEntityInfo = ( cent->current.entityFlags & EF_OTHER_ENTITY_EVENT ) ? " (other entity event)" : "";
-            clgi.Print( PRINT_DEVELOPER, "%s: %sentity(#%d), eventValue(#%d), eventName(%s)\n", __func__, otherEntityInfo, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
+			const char *otherEntityInfo = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) ? " (other entity event)" : "";
+            clgi.Print( PRINT_DEVELOPER, "%s: %s source_entity(#%d), target_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, otherEntityInfo, eventEntityNumber, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
 		}
     /**
     *   Check for events riding with another entity:
@@ -164,9 +169,11 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
 /**
 *
 *
+* 
 *
-*   PlayerState Event Handling:
+*   Core PlayerState Event Handling:
 *
+* 
 *
 *
 **/
@@ -203,76 +210,4 @@ const bool CLG_Events_CheckForLocalPlayerState( const player_state_t *ops, const
 
 	// Process the player state event.
 	return CLG_Events_FirePlayerStateEvent( viewBoundEntity, ops, ps, playerStateEvent, playerStateEventParm0, lerpOrigin );
-}
-
-
-
-/**
-*
-*
-*
-*	General Events:
-*
-*
-*
-**/
-/**
-*   @brief  The (LOCAL PLAYER) footstep sound event handler.
-**/
-void CLG_LocalFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
-	// Pass on to the footstep sound effect handler.
-    CLG_FX_FootStepSound(
-		// The entity number.
-        entityNumber,
-		// The origin to play the sound at.
-        lerpOrigin,
-        // No ladder.
-        false,
-		// This is invoked by the local client itself.
-        true
-    );
-}
-/**
-*   @brief  The generic (PLAYER) footstep sound event handler.
-**/
-void CLG_PlayerFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
-    // Pass on to the footstep sound effect handler.
-    CLG_FX_FootStepSound(
-        // The entity number.
-        entityNumber,
-        // The origin to play the sound at.
-        lerpOrigin,
-        // No ladder.
-        false,
-        // This event is never invoked by the local client itself.
-        false
-    );
-}
-/**
-*   @brief  The generic (OTHER entity) footstep sound event handler.
-**/
-void CLG_OtherFootStepEvent( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
-    // Pass on to the footstep sound effect handler.
-    CLG_FX_FootStepSound(
-        // The entity number.
-        entityNumber,
-        // The origin to play the sound at.
-        lerpOrigin,
-        // No ladder.
-        false,
-        // This event is never invoked by the local client itself.
-        false
-    );
-}
-/**
-*   @brief  Passes on to CLG_FX_FootStepSound with isLadder beign true. Used by EV_FOOTSTEP_LADDER.
-**/
-void CLG_FootStepLadderEvent( const int32_t entityNumber, const Vector3 &lerpOrigin ) {
-    // Pass on to the footstep sound effect handler.
-    CLG_FX_FootStepSound(
-        entityNumber,
-        lerpOrigin,
-        true,
-        CLG_IsLocalClientEntity( entityNumber )
-    );
 }

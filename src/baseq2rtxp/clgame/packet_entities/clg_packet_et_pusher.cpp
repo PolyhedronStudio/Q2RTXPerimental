@@ -22,7 +22,7 @@ static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t 
     // WID: Why not? Let's just do this.
     //if ( entityFlags & ~EF_ROTATE ) {
     if ( entityFlags & EF_GIB ) {
-        CLG_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, entityFlags );
+        CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, entityFlags );
     }
     //}
 }
