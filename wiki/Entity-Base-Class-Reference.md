@@ -1618,7 +1618,7 @@ void svg_custom_entity_t::Save(game_write_context_t *ctx) {
 **Load/Restore method:**
 ```cpp
 void svg_custom_entity_t::Restore(game_read_context_t *ctx) {
-    // ALWAYS call parent first
+    // ALWAYS call parent first - this automatically restores callbacks!
     svg_base_edict_t::Restore(ctx);
     
     // Load custom data IN SAME ORDER
@@ -1626,10 +1626,28 @@ void svg_custom_entity_t::Restore(game_read_context_t *ctx) {
     SVG_Save_Read(ctx, &custom_float, sizeof(custom_float));
     custom_string = SVG_Save_ReadString(ctx);
     
-    // Restore callbacks (not saved)
-    SetThinkCallback(&svg_custom_entity_t::Think);
-    SetTouchCallback(&svg_custom_entity_t::Touch);
+    // Callbacks are automatically restored by parent Restore()
+    // No manual callback setup needed!
 }
+```
+
+**How Callback Persistence Works:**
+
+Q2RTXPerimental uses an automatic function pointer registration system:
+
+1. **Registration**: All callbacks are registered at startup with unique IDs
+2. **Saving**: Function pointers are written with their type and ID to save file
+3. **Loading**: Function pointers are looked up by ID and restored automatically
+
+The `svg_base_edict_t` save descriptor includes all callback pointers:
+
+```cpp
+// From svg_base_edict.cpp - automatically handled
+SAVE_DESCRIPTOR_DEFINE_FUNCPTR(svg_base_edict_t, spawnCallbackFuncPtr, 
+                               SD_FIELD_TYPE_FUNCTION, FPTR_SAVE_TYPE_SPAWN),
+SAVE_DESCRIPTOR_DEFINE_FUNCPTR(svg_base_edict_t, thinkCallbackFuncPtr,
+                               SD_FIELD_TYPE_FUNCTION, FPTR_SAVE_TYPE_THINK),
+// ... all callbacks automatically saved/loaded
 ```
 
 ### Save Descriptor System

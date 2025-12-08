@@ -149,17 +149,38 @@ void Load(game_read_context_t *ctx) {
 - Client-only rendering data
 - Physics traces (redo on next frame)
 
-## Callback Restoration
+## Callback Persistence
 
-Callbacks are NOT saved. Restore them after loading:
+**Callbacks ARE automatically saved and restored** by the save descriptor system. Q2RTXPerimental uses a function pointer registration system that:
+
+1. **During startup**: All callback functions are registered with unique IDs
+2. **During save**: Function pointers are written with their type and ID
+3. **During load**: Function pointers are looked up and restored automatically
+
+The `svg_base_edict_t` save descriptor includes all callbacks:
 
 ```cpp
-void Load(game_read_context_t *ctx) {
+// From svg_base_edict.cpp - callbacks are automatically saved/loaded
+SAVE_DESCRIPTOR_DEFINE_FUNCPTR(svg_base_edict_t, spawnCallbackFuncPtr, 
+                               SD_FIELD_TYPE_FUNCTION, FPTR_SAVE_TYPE_SPAWN),
+SAVE_DESCRIPTOR_DEFINE_FUNCPTR(svg_base_edict_t, thinkCallbackFuncPtr,
+                               SD_FIELD_TYPE_FUNCTION, FPTR_SAVE_TYPE_THINK),
+SAVE_DESCRIPTOR_DEFINE_FUNCPTR(svg_base_edict_t, touchCallbackFuncPtr,
+                               SD_FIELD_TYPE_FUNCTION, FPTR_SAVE_TYPE_TOUCH),
+// ... all other callbacks
+```
+
+**You do NOT need to manually restore callbacks** - they are preserved automatically when you call the parent `Load()` method:
+
+```cpp
+void svg_custom_entity_t::Load(game_read_context_t *ctx) {
+    // This automatically restores all callbacks
     svg_base_edict_t::Load(ctx);
     
-    // Restore callbacks
-    SetThinkCallback(&svg_custom_entity_t::Think);
-    SetTouchCallback(&svg_custom_entity_t::Touch);
+    // Load your custom data
+    SVG_Save_Read(ctx, &custom_data, sizeof(custom_data));
+    
+    // Callbacks are already restored - no manual setup needed!
 }
 ```
 
@@ -188,15 +209,15 @@ public:
         svg_base_edict_t::Save(ctx);
         SVG_Save_Write(ctx, &rotation_speed, sizeof(rotation_speed));
         SVG_Save_Write(ctx, &light_on, sizeof(light_on));
+        // Callbacks are automatically saved by parent Save()
     }
     
     void Load(game_read_context_t *ctx) override {
         svg_base_edict_t::Load(ctx);
         SVG_Save_Read(ctx, &rotation_speed, sizeof(rotation_speed));
         SVG_Save_Read(ctx, &light_on, sizeof(light_on));
-        
-        // Restore callbacks
-        SetThinkCallback(&svg_rotating_light_t::Think);
+        // Callbacks are automatically restored by parent Load()
+        // No manual callback setup needed!
     }
     
 private:
@@ -289,10 +310,10 @@ void Save() {
 The save/load system preserves game state:
 
 - **Override Save/Load** in custom entities
-- **Call parent methods** first
+- **Call parent methods** first (this automatically saves/loads callbacks)
 - **Match save/load order** exactly
 - **Don't save pointers** directly (save entity numbers)
-- **Restore callbacks** after loading
+- **Callbacks are automatic** - no manual restoration needed
 - **Test thoroughly** to ensure state is preserved
 
 Proper save/load implementation ensures players can save their progress and resume seamlessly.
