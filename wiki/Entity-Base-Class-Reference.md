@@ -462,99 +462,930 @@ if (waterlevel && (watertype & CONTENTS_SLIME)) {
 }
 ```
 
-### Game Properties
+### 4. Game Properties and Status
 
+**Health and Damage:**
 ```cpp
-int health;                 // Hit points
-int max_health;             // Maximum health
-int takedamage;             // DAMAGE_NO, DAMAGE_YES, DAMAGE_AIM
-int flags;                  // FL_FLY, FL_SWIM, FL_GODMODE, etc.
-int svflags;                // SVF_MONSTER, SVF_NOCLIENT, etc.
+int health;                 // Current hit points
+int max_health;             // Maximum hit points (for respawning/healing)
+int armor;                  // Current armor points
+int max_armor;              // Maximum armor
+int gib_health;             // Health threshold for gibbing (usually -40)
+entity_lifestatus_t lifeStatus;  // ALIVE, DEAD, GIBBED
+entity_takedamage_t takedamage;  // Can entity take damage?
+
+// Take damage values:
+DAMAGE_NO       // Cannot be damaged
+DAMAGE_YES      // Can take damage normally
+DAMAGE_AIM      // Auto-aim targets this entity
+
+// Life status:
+LIFESTATUS_ALIVE    // Entity is alive
+LIFESTATUS_DEAD     // Entity is dead
+LIFESTATUS_GIBBED   // Entity was gibbed
+
+// Example: Setting up damageable entity
+health = 100;
+max_health = 100;
+takedamage = DAMAGE_YES;
+lifeStatus = LIFESTATUS_ALIVE;
+
+// Example: Check if entity should gib
+if (damage > 50 && health < gib_health) {
+    // Heavy damage and below gib threshold
+    ThrowGibs(GIB_ORGANIC);
+    lifeStatus = LIFESTATUS_GIBBED;
+}
+
+// Example: Invulnerable entity
+takedamage = DAMAGE_NO;  // Cannot be damaged (door, wall, etc.)
 ```
 
-### Entity Relationships
-
+**Entity Flags:**
 ```cpp
-svg_base_edict_t *groundentity;    // What entity is standing on
-svg_base_edict_t *enemy;           // AI: current target
-svg_base_edict_t *movetarget;      // AI: movement target
-svg_base_edict_t *activator;       // Who activated this entity
-svg_base_edict_t *owner;           // Who owns this entity (projectiles)
+entity_flags_t flags;       // Generic entity flags (bit field)
+
+// Common entity flags:
+FL_FLY                 // Entity can fly
+FL_SWIM                // Entity can swim
+FL_IMMUNE_LASER        // Immune to lasers
+FL_INWATER             // Currently in water
+FL_GODMODE             // Cannot take damage
+FL_NOTARGET            // Monsters ignore this entity
+FL_IMMUNE_SLIME        // Immune to slime damage
+FL_IMMUNE_LAVA         // Immune to lava damage
+FL_PARTIALGROUND       // Not all corners on ground
+FL_WATERJUMP           // Player jumping out of water
+FL_TEAMSLAVE           // Part of a team (train)
+FL_NO_KNOCKBACK        // Not affected by knockback
+FL_POWER_ARMOR         // Has power armor
+FL_RESPAWN             // Can respawn
+FL_MECHANICAL          // Mechanical (immune to drowning)
+
+// Example: Flying monster
+flags |= FL_FLY;
+movetype = MOVETYPE_FLY;
+
+// Example: Mechanical entity (immune to drowning)
+flags |= FL_MECHANICAL;
+
+// Example: God mode player
+flags |= FL_GODMODE;
+takedamage = DAMAGE_NO;
+
+// Example: Check if entity can be targeted by AI
+if (target->flags & FL_NOTARGET) {
+    // Don't attack this entity
+    return;
+}
 ```
 
-### Timing
-
+**Server Flags:**
 ```cpp
-float nextthink;            // Next time to call Think()
-float timestamp;            // General purpose timestamp
+int svflags;                // Server-specific flags
+
+// Server flags:
+SVF_NOCLIENT           // Don't send to clients (invisible)
+SVF_DEADMONSTER        // Dead monster, treat specially
+SVF_MONSTER            // Monster AI entity
+SVF_PROJECTILE         // Projectile (special collision)
+SVF_HULL               // Hull check entity
+
+// Example: Invisible entity (server-side only logic)
+svflags |= SVF_NOCLIENT;  // Clients won't see it
+
+// Example: Monster entity
+svflags |= SVF_MONSTER;
+flags |= FL_FLY;  // Flying monster
+
+// Example: Projectile
+svflags |= SVF_PROJECTILE;
+movetype = MOVETYPE_FLYMISSILE;
 ```
 
-### Target System
+### 5. Timing and Scheduling
 
+**Think Timing:**
 ```cpp
-const char *target;         // Target name to activate
-const char *targetname;     // This entity's name
-const char *killtarget;     // Entity to kill on activation
+float nextthink;            // Server time to call Think() (0 = don't think)
+float timestamp;            // General-purpose timestamp
+QMTime freetime;            // Time entity was freed
+QMTime eventTime;           // Event expiration time
+
+// Example: Schedule think for next frame
+nextthink = level.time + FRAMETIME;  // FRAMETIME = 0.025s (40 Hz)
+
+// Example: Schedule think in 2 seconds
+nextthink = level.time + 2.0f;
+
+// Example: Stop thinking
+nextthink = 0;
+
+// Example: Cooldown timer
+if (level.time < timestamp) {
+    return;  // Still on cooldown
+}
+// Do action...
+timestamp = level.time + 1.0f;  // 1 second cooldown
+
+// Example: Delayed respawn
+void Die(/*...*/) {
+    SetThinkCallback(&svg_item_health_t::Respawn);
+    nextthink = level.time + 30.0f;  // Respawn after 30 seconds
+}
+```
+
+**Respawn Timing:**
+```cpp
+float delay;                // Delay before action
+float wait;                 // Wait time between actions
+float random;               // Random time variance
+
+// Example: Trigger with random delay
+wait = 2.0f;     // 2 second base delay
+random = 1.0f;   // ±1 second randomness
+float actual_delay = wait + crandom() * random;  // 1-3 seconds
+
+// Example: Respawning item
+delay = 30.0f;   // 30 second respawn
+nextthink = level.time + delay;
+```
+
+### 6. Target System
+
+**Target Names:**
+```cpp
+const char *targetname;     // This entity's name (for targeting)
+const char *target;         // Entity to activate
+const char *killtarget;     // Entity to kill
+const char *team;           // Team name (for grouped entities)
+const char *pathtarget;     // Path to follow
+const char *deathtarget;    // Activate on death
+
+// Example: Button that opens a door
+// Button:
+target = "door1";           // Activate entity named "door1"
+
+// Door:
+targetname = "door1";       // This door is named "door1"
+
+// Example: Kill target
+// Trigger that removes monsters:
+killtarget = "wave1_monsters";
+
+// Monsters:
+targetname = "wave1_monsters";  // All monsters with this name will be killed
+
+// Example: Team of func_trains
+// Train 1:
+targetname = "train";
+team = "train_team";
+
+// Train 2:
+targetname = "train";
+team = "train_team";       // Moves together with train 1
+```
+
+**Messages and Sounds:**
+```cpp
 const char *message;        // Message to display
+const char *map;            // Map to load
+const char *music;          // Music to play
+int sounds;                 // Sound set index
+
+// Example: Trigger that displays message
+message = "You found a secret!";
+
+// Example: Level change
+map = "base2";  // Next map filename
+
+// Example: Ambient sound
+sounds = 1;     // Sound set (water, wind, etc.)
+```
+
+### 7. Entity Relationships
+
+**Entity Pointers:**
+```cpp
+svg_base_edict_t *groundentity;     // Entity standing on
+svg_base_edict_t *enemy;            // Current target (AI)
+svg_base_edict_t *oldenemy;         // Previous target
+svg_base_edict_t *movetarget;       // Movement destination
+svg_base_edict_t *goalentity;       // AI goal
+svg_base_edict_t *activator;        // Who activated this entity
+svg_base_edict_t *teamchain;        // Next entity in team
+svg_base_edict_t *teammaster;       // Team leader
+svg_base_edict_t *owner;            // Who owns this (projectiles)
+svg_base_edict_t *mynoise;          // Sound entity 1
+svg_base_edict_t *mynoise2;         // Sound entity 2
+
+// Example: Projectile ownership
+void FireRocket() {
+    auto *rocket = SVG_Spawn<svg_rocket_t>();
+    rocket->owner = player;         // Player owns this rocket
+    rocket->s.origin = muzzle_pos;
+    rocket->velocity = forward * 650;
+    // Rocket won't hit its owner
+}
+
+// Example: Monster AI
+void Think() {
+    if (enemy && CanSee(enemy)) {
+        // Attack current enemy
+        AttackEnemy();
+    } else if (oldenemy && CanSee(oldenemy)) {
+        // Return to previous target
+        enemy = oldenemy;
+        oldenemy = nullptr;
+    } else {
+        // No target, wander
+        Wander();
+    }
+}
+
+// Example: Path following
+void FollowPath() {
+    if (movetarget) {
+        // Move toward path target
+        vec3_t dir = movetarget->s.origin - s.origin;
+        VectorNormalize(dir);
+        velocity = dir * speed;
+        
+        // Check if reached
+        if (VectorDistance(s.origin, movetarget->s.origin) < 32) {
+            // Find next path target
+            movetarget = FindNextPathTarget();
+        }
+    }
+}
+
+// Example: Team movement
+void MoveTeam() {
+    if (teamchain) {
+        // Move all team members together
+        svg_base_edict_t *member = teamchain;
+        while (member) {
+            member->s.origin = s.origin + member->team_offset;
+            gi.linkentity(member);
+            member = member->teamchain;
+        }
+    }
+}
+```
+
+**Validation of Entity Pointers:**
+Always validate entity pointers before use:
+
+```cpp
+// WRONG: Unsafe - entity might be freed
+if (enemy) {
+    Attack(enemy);  // CRASH if enemy was freed!
+}
+
+// CORRECT: Validate with linkcount
+if (enemy && enemy->linkcount == enemy_linkcount) {
+    Attack(enemy);  // Safe
+} else {
+    enemy = nullptr;  // Clear stale pointer
+}
+
+// CORRECT: Check inuse flag
+if (enemy && enemy->inuse) {
+    Attack(enemy);  // Safe
+} else {
+    enemy = nullptr;
+}
+```
+
+### 8. AI Properties (for monsters)
+
+```cpp
+int enemy_vis_cache;        // Visibility cache flags
+float last_sound_time;      // Time last made sound
+int pain_debounce_time;     // Prevent pain spam
+int air_finished_time;      // Drowning countdown
+float search_time;          // Time spent searching
+float attack_finished_time; // Attack cooldown
+
+// AI state
+int aiflags;                // AI behavior flags
+float idle_time;            // Time spent idle
+float pausetime;            // Pause before action
+float attack_state;         // Current attack phase
+```
+
+### 9. Player-Specific Properties (svg_player_edict_t)
+
+```cpp
+svg_client_t *client;       // Client data (if player)
+
+// Client data includes:
+// - Player stats (health, ammo, score)
+// - Inventory
+// - Weapon state
+// - View angles
+// - Persistent info (name, skin)
+// - Network state
+
+// Example: Check if entity is a player
+if (entity->client) {
+    // This is a player
+    int score = entity->client->resp.score;
+}
 ```
 
 ## Virtual Callback Methods
 
-All callbacks are virtual and can be overridden in derived classes.
+All callbacks are virtual and can be overridden in derived classes. The callback system is type-safe and uses templated setter methods.
 
-### Spawn Callbacks
+### Lifecycle Callbacks
 
+#### PreSpawn()
 ```cpp
-virtual void PreSpawn();     // Before main spawn
-virtual void Spawn();        // Main spawn logic
-virtual void PostSpawn();    // After spawn finalization
+virtual void PreSpawn();
+
+// Called: Before main Spawn() method
+// Purpose: Early initialization, parse entity dictionary
+// Use for: Reading custom map keys, early validation
+```
+
+**Example:**
+```cpp
+void svg_custom_trigger_t::PreSpawn() {
+    // Call parent first
+    svg_trigger_multiple_t::PreSpawn();
+    
+    // Parse custom keys from map
+    if (const char *value = ED_GetString(entityDictionary, "custom_delay")) {
+        custom_delay = atof(value);
+    }
+    
+    // Validate spawn conditions
+    if (custom_delay < 0) {
+        gi.dprintf("WARNING: %s has negative delay!\n", classname);
+        custom_delay = 0;
+    }
+}
+```
+
+#### Spawn()
+```cpp
+virtual void Spawn();
+
+// Called: Main initialization phase
+// Purpose: Set up entity properties, models, physics, callbacks
+// Use for: Primary entity setup
+```
+
+**Example:**
+```cpp
+void svg_monster_soldier_t::Spawn() {
+    // Call parent
+    svg_monster_base_t::Spawn();
+    
+    // Set model and visuals
+    gi.SetModel(edict, "models/monsters/soldier/tris.md2");
+    s.skinnum = 0;
+    s.frame = 0;
+    
+    // Set bounding box
+    mins = {-16, -16, -24};
+    maxs = {16, 16, 32};
+    
+    // Set physics
+    movetype = MOVETYPE_STEP;
+    solid = SOLID_BBOX;
+    clipmask = MASK_MONSTERSOLID;
+    
+    // Set properties
+    health = 50;
+    max_health = 50;
+    takedamage = DAMAGE_YES;
+    mass = 200;
+    
+    // Set flags
+    flags |= FL_FLY;  // Can fly/jump
+    svflags |= SVF_MONSTER;
+    
+    // Set callbacks
+    SetThinkCallback(&svg_monster_soldier_t::AI_Think);
+    SetTouchCallback(&svg_monster_soldier_t::Touch);
+    SetPainCallback(&svg_monster_soldier_t::Pain);
+    SetDieCallback(&svg_monster_soldier_t::Die);
+    
+    // Link into world
+    gi.linkentity(edict);
+    
+    // Start thinking
+    nextthink = level.time + FRAMETIME;
+}
+```
+
+#### PostSpawn()
+```cpp
+virtual void PostSpawn();
+
+// Called: After main Spawn() completes
+// Purpose: Finalization, establish entity relationships
+// Use for: Finding target entities, team setup
+```
+
+**Example:**
+```cpp
+void svg_func_door_t::PostSpawn() {
+    // Call parent
+    svg_pushmove_edict_t::PostSpawn();
+    
+    // Find team members
+    if (team) {
+        svg_base_edict_t *master = this;
+        svg_base_edict_t *ent = nullptr;
+        
+        // Find all entities with same team name
+        while ((ent = SVG_Find(ent, FOFS(team), team)) != nullptr) {
+            if (ent == this)
+                continue;
+            
+            // Add to team chain
+            ent->teammaster = master;
+            ent->teamchain = master->teamchain;
+            master->teamchain = ent;
+        }
+    }
+    
+    // Calculate move distances
+    CalculateMoveDistance();
+}
 ```
 
 ### Think Callbacks
 
+#### PreThink()
 ```cpp
-virtual void PreThink();     // Before main think
-virtual void Think();        // Main logic update
-virtual void PostThink();    // After think
+virtual void PreThink();
+
+// Called: Before main Think()
+// Purpose: Preparation, early state updates
+// Frequency: Every frame (if nextthink set)
+```
+
+**Example:**
+```cpp
+void svg_player_edict_t::PreThink() {
+    // Update oxygen/drowning
+    CheckWaterLevel();
+    CheckAirSupply();
+    
+    // Process powerup timers
+    UpdatePowerups();
+    
+    // Update HUD stats
+    UpdateHUD();
+}
+```
+
+#### Think()
+```cpp
+virtual void Think();
+
+// Called: Main entity logic
+// Purpose: AI, state machines, primary behavior
+// Frequency: When nextthink <= level.time
+```
+
+**Example:**
+```cpp
+void svg_monster_soldier_t::Think() {
+    // Check if alive
+    if (health <= 0) {
+        return;
+    }
+    
+    // AI state machine
+    switch (ai_state) {
+        case AI_STAND:
+            AI_Stand();
+            break;
+        case AI_WALK:
+            AI_Walk();
+            break;
+        case AI_RUN:
+            AI_Run();
+            break;
+        case AI_ATTACK:
+            AI_Attack();
+            break;
+    }
+    
+    // Update animation
+    UpdateAnimation();
+    
+    // Schedule next think
+    nextthink = level.time + FRAMETIME;
+}
+```
+
+**Example: Door Think**
+```cpp
+void svg_func_door_t::Think() {
+    // Update door movement
+    if (moveinfo.state == STATE_UP) {
+        // Door is opening
+        if (level.time >= moveinfo.end_time) {
+            // Finished opening
+            moveinfo.state = STATE_TOP;
+            Door_HitTop();
+        } else {
+            // Continue moving
+            Move_Calc(moveinfo.end_origin, Door_HitTop);
+        }
+    } else if (moveinfo.state == STATE_DOWN) {
+        // Door is closing
+        if (level.time >= moveinfo.end_time) {
+            // Finished closing
+            moveinfo.state = STATE_BOTTOM;
+            Door_HitBottom();
+        } else {
+            // Continue moving
+            Move_Calc(moveinfo.start_origin, Door_HitBottom);
+        }
+    }
+    
+    // Schedule next think
+    if (moveinfo.state == STATE_UP || moveinfo.state == STATE_DOWN) {
+        nextthink = level.time + FRAMETIME;
+    }
+}
+```
+
+#### PostThink()
+```cpp
+virtual void PostThink();
+
+// Called: After main Think()
+// Purpose: Finalization, cleanup
+// Frequency: Every frame (if nextthink set)
+```
+
+**Example:**
+```cpp
+void svg_player_edict_t::PostThink() {
+    // Apply final velocity modifications
+    ApplyFriction();
+    
+    // Update view position
+    UpdateViewPosition();
+    
+    // Link entity with new position
+    gi.linkentity(edict);
+}
 ```
 
 ### Interaction Callbacks
 
+#### Touch()
 ```cpp
-// Entity collision
 virtual void Touch(svg_base_edict_t *other, 
                   const cm_plane_t *plane, 
                   cm_surface_t *surf);
 
-// Player uses entity
+// Called: When entities collide (solid == SOLID_TRIGGER or SOLID_BBOX)
+// Parameters:
+//   other: Entity that touched us
+//   plane: Collision plane (normal, distance)
+//   surf: Surface that was touched
+```
+
+**Example: Trigger Touch**
+```cpp
+void svg_trigger_multiple_t::Touch(svg_base_edict_t *other,
+                                   const cm_plane_t *plane,
+                                   cm_surface_t *surf) {
+    // Check if player
+    if (!other->client) {
+        return;  // Only players activate
+    }
+    
+    // Check cooldown
+    if (level.time < timestamp) {
+        return;  // Too soon
+    }
+    
+    // Check activation count
+    if (count > 0) {
+        count--;
+        if (count == 0) {
+            // Used up all activations
+            solid = SOLID_NOT;
+            gi.linkentity(edict);
+        }
+    }
+    
+    // Activate targets
+    UseTargets(other, other);
+    
+    // Set cooldown
+    timestamp = level.time + wait;
+}
+```
+
+**Example: Item Pickup**
+```cpp
+void svg_item_health_t::Touch(svg_base_edict_t *other,
+                              const cm_plane_t *plane,
+                              cm_surface_t *surf) {
+    // Must be a player
+    if (!other->client) {
+        return;
+    }
+    
+    // Check if already at max health
+    if (other->health >= other->max_health) {
+        return;
+    }
+    
+    // Give health
+    other->health += health_amount;
+    if (other->health > other->max_health) {
+        other->health = other->max_health;
+    }
+    
+    // Play pickup sound
+    gi.sound(other, CHAN_ITEM, gi.soundindex("items/health.wav"), 
+             1, ATTN_NORM, 0);
+    
+    // Remove item temporarily
+    solid = SOLID_NOT;
+    svflags |= SVF_NOCLIENT;
+    
+    // Schedule respawn
+    SetThinkCallback(&svg_item_health_t::Respawn);
+    nextthink = level.time + respawn_time;
+}
+```
+
+#### Use()
+```cpp
 virtual void Use(svg_base_edict_t *other, 
                 svg_base_edict_t *activator,
                 entity_usetarget_type_t useType,
                 int32_t useValue);
 
-// Moving entity blocked
+// Called: When entity is activated (target system or player +use key)
+// Parameters:
+//   other: Entity that called Use (button, trigger)
+//   activator: Original activator (usually player)
+//   useType: ON, OFF, TOGGLE, SET
+//   useValue: Optional value parameter
+```
+
+**Example: Door Use**
+```cpp
+void svg_func_door_t::Use(svg_base_edict_t *other,
+                          svg_base_edict_t *activator,
+                          entity_usetarget_type_t useType,
+                          int32_t useValue) {
+    // Check if door is moving
+    if (moveinfo.state == STATE_UP || moveinfo.state == STATE_DOWN) {
+        return;  // Already moving
+    }
+    
+    // Handle use type
+    if (useType == ENTITY_USETARGET_TYPE_ON || 
+        useType == ENTITY_USETARGET_TYPE_TOGGLE) {
+        
+        if (moveinfo.state == STATE_BOTTOM) {
+            // Door is closed, open it
+            Door_GoUp();
+        } else if (moveinfo.state == STATE_TOP) {
+            // Door is open, close it
+            Door_GoDown();
+        }
+    } else if (useType == ENTITY_USETARGET_TYPE_OFF) {
+        // Force close
+        if (moveinfo.state == STATE_TOP) {
+            Door_GoDown();
+        }
+    }
+}
+```
+
+**Example: Button Use**
+```cpp
+void svg_func_button_t::Use(svg_base_edict_t *other,
+                            svg_base_edict_t *activator,
+                            entity_usetarget_type_t useType,
+                            int32_t useValue) {
+    // Check if already pressed
+    if (moveinfo.state == STATE_UP || 
+        moveinfo.state == STATE_DOWN) {
+        return;
+    }
+    
+    // Play button sound
+    gi.sound(edict, CHAN_VOICE, moveinfo.sound_start, 1, ATTN_NORM, 0);
+    
+    // Move button
+    Button_Move();
+    
+    // Fire targets
+    UseTargets(activator, activator);
+}
+```
+
+#### Blocked()
+```cpp
 virtual void Blocked(svg_base_edict_t *other);
 
-// Entity takes damage
+// Called: When moving entity is blocked by another entity
+// Purpose: Handle collision with obstacles
+// Common for: Doors, platforms, trains
+```
+
+**Example: Door Blocked**
+```cpp
+void svg_func_door_t::Blocked(svg_base_edict_t *other) {
+    // Damage the blocker
+    if (dmg && other->takedamage) {
+        T_Damage(other, this, this, vec3_zero(), other->s.origin,
+                 vec3_zero(), dmg, 1, 0, MEANS_OF_DEATH_CRUSHED);
+    }
+    
+    // Check door behavior
+    if (spawnflags & SPAWNFLAG_CRUSHER) {
+        // Crusher: Continue crushing
+        return;
+    }
+    
+    // Normal door: Reverse direction
+    if (moveinfo.state == STATE_DOWN) {
+        // Was closing, reopen
+        Door_GoUp();
+    } else if (moveinfo.state == STATE_UP) {
+        // Was opening, close again
+        Door_GoDown();
+    }
+}
+```
+
+**Example: Train Blocked**
+```cpp
+void svg_func_train_t::Blocked(svg_base_edict_t *other) {
+    // Heavy damage to anything in the way
+    if (other->takedamage) {
+        T_Damage(other, this, this, vec3_zero(), other->s.origin,
+                 vec3_zero(), 10000, 1, 0, MEANS_OF_DEATH_CRUSHED);
+    }
+    
+    // Train doesn't stop for anything
+}
+```
+
+#### Pain()
+```cpp
 virtual void Pain(svg_base_edict_t *other, 
                  float kick, 
                  int32_t damage,
                  entity_damageflags_t damageFlags);
 
-// Entity dies
+// Called: When entity takes damage (but doesn't die)
+// Parameters:
+//   other: Attacker
+//   kick: Knockback amount
+//   damage: Damage taken
+//   damageFlags: Damage type flags
+```
+
+**Example: Monster Pain**
+```cpp
+void svg_monster_soldier_t::Pain(svg_base_edict_t *other,
+                                  float kick,
+                                  int32_t damage,
+                                  entity_damageflags_t damageFlags) {
+    // Don't interrupt death animation
+    if (lifeStatus == LIFESTATUS_DEAD) {
+        return;
+    }
+    
+    // Play pain sound
+    int sound_index = (rand() % 3);  // 3 pain sounds
+    gi.sound(edict, CHAN_VOICE, sound_pain[sound_index], 
+             1, ATTN_NORM, 0);
+    
+    // Play pain animation
+    if (damage < 10) {
+        // Light pain
+        s.frame = FRAME_pain1_01;
+    } else {
+        // Heavy pain
+        s.frame = FRAME_pain2_01;
+    }
+    
+    // If not alerted, become alerted to attacker
+    if (!enemy) {
+        enemy = other;
+        FoundTarget();
+    }
+}
+```
+
+**Example: Player Pain**
+```cpp
+void svg_player_edict_t::Pain(svg_base_edict_t *other,
+                               float kick,
+                               int32_t damage,
+                               entity_damageflags_t damageFlags) {
+    // Play pain sound
+    if (level.time > pain_debounce_time) {
+        gi.sound(edict, CHAN_VOICE, gi.soundindex("*pain100_1.wav"),
+                 1, ATTN_NORM, 0);
+        pain_debounce_time = level.time + 0.7f;
+    }
+    
+    // Apply view kick (screen shake)
+    client->kick_angles[0] = kick * 0.5f;
+    
+    // Show damage indicators in HUD
+    client->damage_blend[0] = 1.0f;  // Red
+    client->damage_alpha = 0.5f;
+}
+```
+
+#### Die()
+```cpp
 virtual void Die(svg_base_edict_t *inflictor, 
                 svg_base_edict_t *attacker, 
                 int32_t damage, 
                 Vector3 *point);
+
+// Called: When entity's health drops to 0 or below
+// Parameters:
+//   inflictor: Damage source (rocket, bullet, trigger)
+//   attacker: Who caused the damage (player, monster)
+//   damage: Final damage amount
+//   point: Location of damage
 ```
 
-### Signal System Callback
-
+**Example: Monster Death**
 ```cpp
-virtual void OnSignalIn(svg_base_edict_t *other, 
-                        svg_base_edict_t *activator,
-                        const char *signalName,
-                        const svg_signal_argument_array_t &args);
+void svg_monster_soldier_t::Die(svg_base_edict_t *inflictor,
+                                 svg_base_edict_t *attacker,
+                                 int32_t damage,
+                                 Vector3 *point) {
+    // Check for gibbing
+    if (health < gib_health) {
+        // Heavy damage, gib the corpse
+        gi.sound(edict, CHAN_VOICE, gi.soundindex("misc/udeath.wav"),
+                 1, ATTN_NORM, 0);
+        ThrowGibs(damage, GIB_ORGANIC);
+        lifeStatus = LIFESTATUS_GIBBED;
+        SVG_FreeEdict(this);
+        return;
+    }
+    
+    // Normal death
+    // Play death sound
+    gi.sound(edict, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
+    
+    // Change to corpse
+    s.entityType = ET_MONSTER_CORPSE;
+    lifeStatus = LIFESTATUS_DEAD;
+    
+    // Play death animation
+    int anim = (rand() % 3);  // 3 death animations
+    if (anim == 0) {
+        s.frame = FRAME_death1_01;
+    } else if (anim == 1) {
+        s.frame = FRAME_death2_01;
+    } else {
+        s.frame = FRAME_death3_01;
+    }
+    
+    // Stop thinking
+    SetThinkCallback(nullptr);
+    nextthink = 0;
+    
+    // Can no longer take damage
+    takedamage = DAMAGE_NO;
+    
+    // Become non-solid
+    solid = SOLID_NOT;
+    
+    // Drop to ground
+    movetype = MOVETYPE_TOSS;
+    
+    // Link changes
+    gi.linkentity(edict);
+    
+    // Award points to killer
+    if (attacker && attacker->client) {
+        attacker->client->resp.score += 10;
+    }
+    
+    // Remove corpse after 30 seconds
+    SetThinkCallback(&svg_base_edict_t::SVG_FreeEdict_Think);
+    nextthink = level.time + 30.0f;
+}
 ```
 
 ## Setting Callbacks
