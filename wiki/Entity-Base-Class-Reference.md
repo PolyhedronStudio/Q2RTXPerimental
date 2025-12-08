@@ -1390,86 +1390,369 @@ void svg_monster_soldier_t::Die(svg_base_edict_t *inflictor,
 
 ## Setting Callbacks
 
-Use type-safe setter methods:
+Use type-safe setter methods to assign callback functions:
+
+### Callback Setter Methods
+
+```cpp
+// All setter methods are templated for type safety
+template<typename FuncPtrType>
+FuncPtrType SetSpawnCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetPostSpawnCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetPreThinkCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetThinkCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetPostThinkCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetBlockedCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetTouchCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetUseCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetPainCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetDieCallback(FuncPtrType funcPtr);
+
+template<typename FuncPtrType>
+FuncPtrType SetOnSignalInCallback(FuncPtrType funcPtr);
+```
+
+### Checking if Callbacks are Set
+
+```cpp
+bool HasSpawnCallback() const;
+bool HasPostSpawnCallback() const;
+bool HasPreThinkCallback() const;
+bool HasThinkCallback() const;
+bool HasPostThinkCallback() const;
+bool HasBlockedCallback() const;
+bool HasTouchCallback() const;
+bool HasUseCallback() const;
+bool HasPainCallback() const;
+bool HasDieCallback() const;
+bool HasOnSignalInCallback() const;
+
+// Example: Check before calling
+if (entity->HasThinkCallback()) {
+    entity->DispatchThinkCallback();
+}
+```
+
+### Type-Safe Callback Assignment
+
+**Compile-time type checking:**
+```cpp
+void svg_custom_entity_t::Spawn() {
+    // CORRECT: Type-safe, compiler verifies signature
+    SetThinkCallback(&svg_custom_entity_t::CustomThink);
+    
+    // WRONG: Compiler error if signature doesn't match
+    // SetThinkCallback(&svg_custom_entity_t::WrongSignature);
+}
+
+// Correct signature
+void CustomThink() {
+    // Think logic
+}
+
+// Wrong signature (would cause compile error)
+void WrongSignature(int parameter) {  // Extra parameter!
+    // Won't compile if used with SetThinkCallback
+}
+```
+
+**Debug validation:**
+In debug builds, callback setters validate that the function pointer exists in the class's method table, preventing invalid assignments.
+
+### Setting Multiple Callbacks
 
 ```cpp
 void svg_monster_soldier_t::Spawn() {
-    // Set callback methods (type-checked at compile time)
+    // Set all needed callbacks at spawn time
     SetThinkCallback(&svg_monster_soldier_t::AI_Think);
     SetTouchCallback(&svg_monster_soldier_t::Touch);
     SetPainCallback(&svg_monster_soldier_t::Pain);
     SetDieCallback(&svg_monster_soldier_t::Die);
+    SetBlockedCallback(&svg_monster_soldier_t::Blocked);
+    
+    nextthink = level.time + FRAMETIME;
 }
 ```
 
-## Entity Dictionary
+### Changing Callbacks at Runtime
 
 ```cpp
-const cm_entity_t *entityDictionary;  // Parsed map entity data
+void svg_monster_soldier_t::BecomeAngry() {
+    // Switch to aggressive AI
+    SetThinkCallback(&svg_monster_soldier_t::AI_Attack);
+}
+
+void svg_monster_soldier_t::BecomePacific() {
+    // Switch to passive AI
+    SetThinkCallback(&svg_monster_soldier_t::AI_Wander);
+}
 ```
 
-Access map editor properties:
+### Clearing Callbacks
 
 ```cpp
-void Spawn() {
-    // Get custom key from map
-    if (const char *value = ED_GetString(entityDictionary, "custom_key")) {
-        // Use custom value
+// Stop thinking
+SetThinkCallback(nullptr);
+nextthink = 0;
+
+// Stop taking damage
+SetPainCallback(nullptr);
+SetDieCallback(nullptr);
+takedamage = DAMAGE_NO;
+
+// Disable touch
+SetTouchCallback(nullptr);
+solid = SOLID_NOT;
+```
+
+## Entity Dictionary Access
+
+Access map entity key/value pairs from the entity dictionary:
+
+```cpp
+const cm_entity_t *entityDictionary;  // Parsed map entity
+```
+
+### Reading String Keys
+
+```cpp
+const char *value = ED_GetString(entityDictionary, "key_name");
+
+// Example: Get custom map properties
+if (const char *sound = ED_GetString(entityDictionary, "noise")) {
+    sound_index = gi.soundindex(sound);
+}
+
+if (const char *msg = ED_GetString(entityDictionary, "message")) {
+    message = msg;
+}
+```
+
+### Reading Numeric Keys
+
+```cpp
+// Integer
+int value = ED_GetInt(entityDictionary, "key_name", default_value);
+
+// Float
+float value = ED_GetFloat(entityDictionary, "key_name", default_value);
+
+// Example: Get damage value
+int damage = ED_GetInt(entityDictionary, "dmg", 5);  // Default 5
+
+// Example: Get speed
+float speed = ED_GetFloat(entityDictionary, "speed", 100.0f);
+```
+
+### Reading Vector Keys
+
+```cpp
+vec3_t value;
+ED_GetVector(entityDictionary, "key_name", value);
+
+// Example: Get custom offset
+vec3_t offset;
+ED_GetVector(entityDictionary, "offset", offset);
+```
+
+### Custom Key Parsing
+
+```cpp
+void svg_custom_spawner_t::PreSpawn() {
+    svg_base_edict_t::PreSpawn();
+    
+    // Parse custom keys
+    if (const char *val = ED_GetString(entityDictionary, "monster_type")) {
+        if (!Q_strcasecmp(val, "soldier")) {
+            monster_type = MONSTER_SOLDIER;
+        } else if (!Q_strcasecmp(val, "tank")) {
+            monster_type = MONSTER_TANK;
+        }
     }
+    
+    spawn_count = ED_GetInt(entityDictionary, "count", 5);
+    spawn_delay = ED_GetFloat(entityDictionary, "delay", 2.0f);
 }
 ```
 
 ## Save/Load System
 
+### Implementing Save/Load
+
 ```cpp
 virtual void Save(game_write_context_t *ctx);
-virtual void Load(game_read_context_t *ctx);
+virtual void Restore(game_read_context_t *ctx);
 ```
 
-Implement for persistent entities:
-
+**Save method:**
 ```cpp
 void svg_custom_entity_t::Save(game_write_context_t *ctx) {
-    // Call parent save first
+    // ALWAYS call parent first
     svg_base_edict_t::Save(ctx);
     
     // Save custom data
-    SVG_Save_Write(ctx, &custom_data, sizeof(custom_data));
+    SVG_Save_Write(ctx, &custom_int, sizeof(custom_int));
+    SVG_Save_Write(ctx, &custom_float, sizeof(custom_float));
+    SVG_Save_WriteString(ctx, custom_string);
+}
+```
+
+**Load/Restore method:**
+```cpp
+void svg_custom_entity_t::Restore(game_read_context_t *ctx) {
+    // ALWAYS call parent first
+    svg_base_edict_t::Restore(ctx);
+    
+    // Load custom data IN SAME ORDER
+    SVG_Save_Read(ctx, &custom_int, sizeof(custom_int));
+    SVG_Save_Read(ctx, &custom_float, sizeof(custom_float));
+    custom_string = SVG_Save_ReadString(ctx);
+    
+    // Restore callbacks (not saved)
+    SetThinkCallback(&svg_custom_entity_t::Think);
+    SetTouchCallback(&svg_custom_entity_t::Touch);
+}
+```
+
+### Save Descriptor System
+
+For complex entities, use save descriptors:
+
+```cpp
+// Define fields to save
+static svg_save_descriptor_field_t saveDescriptorFields[] = {
+    {"custom_int", FOFS(custom_int), F_INT},
+    {"custom_float", FOFS(custom_float), F_FLOAT},
+    {"custom_vector", FOFS(custom_vector), F_VECTOR},
+    {"custom_string", FOFS(custom_string), F_STRING},
+    {"custom_entity", FOFS(custom_entity), F_EDICT},
+    {nullptr}  // Terminator
+};
+
+// Implement GetSaveDescriptorFields
+svg_save_descriptor_field_t *svg_custom_entity_t::GetSaveDescriptorFields() {
+    return saveDescriptorFields;
 }
 ```
 
 ## UseTargets System
 
+Activate entities with matching targetname:
+
 ```cpp
-void UseTargets(svg_base_edict_t *other, 
-                svg_base_edict_t *activator);
+void UseTargets(svg_base_edict_t *other, svg_base_edict_t *activator);
 ```
 
-Activate target entities:
-
+**Example:**
 ```cpp
 void svg_func_button_t::Use(/*...*/) {
-    // Fire all entities with matching targetname
+    // Activate all entities with matching targetname
     UseTargets(activator, activator);
 }
 ```
 
-## Signal I/O System
-
+**Target types:**
 ```cpp
-void SendSignalOut(const char *signalName, 
-                   svg_base_edict_t *activator,
-                   const svg_signal_argument_array_t &args);
+target      // Entity to activate
+killtarget  // Entity to remove
+deathtarget // Activate on death
 ```
 
-Send signals to other entities:
+## Signal I/O System
+
+Advanced entity communication with typed arguments:
 
 ```cpp
-void Think() {
-    // Send signal with arguments
+void SendSignalOut(const char *signalName,
+                   svg_base_edict_t *activator,
+                   const svg_signal_argument_array_t &args);
+
+virtual void OnSignalIn(svg_base_edict_t *other,
+                       svg_base_edict_t *activator,
+                       const char *signalName,
+                       const svg_signal_argument_array_t &args);
+```
+
+**Example: Sending signal**
+```cpp
+void svg_spawner_t::SpawnWave() {
+    // Create arguments
     svg_signal_argument_array_t args;
-    args[0] = 42;  // Integer argument
-    SendSignalOut("OnActivate", this, args);
+    
+    svg_signal_argument_t wave_arg;
+    wave_arg.type = SIGNAL_ARGUMENT_TYPE_NUMBER;
+    wave_arg.key = "wave_number";
+    wave_arg.value.integer = current_wave;
+    args.push_back(wave_arg);
+    
+    // Send signal
+    SendSignalOut("OnWaveStart", this, args);
+}
+```
+
+**Example: Receiving signal**
+```cpp
+void svg_hud_t::OnSignalIn(/*...*/, const char *signalName,
+                           const svg_signal_argument_array_t &args) {
+    if (!Q_strcasecmp(signalName, "OnWaveStart")) {
+        int wave = SVG_SignalArguments_GetValue<int>(args, "wave_number", 1);
+        DisplayMessage("Wave %d starting!", wave);
+    }
+}
+```
+
+## Type Information System
+
+Runtime type identification and spawning:
+
+```cpp
+// Define type info in class
+DefineTopRootClass(
+    "svg_base_edict_t",    // classname
+    svg_base_edict_t,      // class type
+    sv_shared_edict_t,     // parent type
+    EdictTypeInfo::TypeInfoFlag_GameSpawn  // flags
+);
+```
+
+**Derived class type info:**
+```cpp
+DefineClass(
+    "monster_soldier",      // classname (map editor)
+    svg_monster_soldier_t,  // class type
+    svg_monster_base_t,     // parent type
+    EdictTypeInfo::TypeInfoFlag_GameSpawn  // can spawn from map
+);
+```
+
+**Type-safe spawning:**
+```cpp
+// Spawn specific type
+auto *monster = SVG_Spawn<svg_monster_soldier_t>();
+monster->Spawn();
+
+// Spawn by classname (from map)
+svg_base_edict_t *ent = SVG_SpawnByClassname("monster_soldier");
+if (ent) {
+    ent->Spawn();
 }
 ```
 
