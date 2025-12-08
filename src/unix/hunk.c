@@ -48,15 +48,14 @@ void Hunk_Begin(memhunk_t *hunk, size_t maxsize)
     hunk->mapped = hunk->maxsize;
 }
 
-void *Hunk_TryAlloc(memhunk_t *hunk, size_t size)
-{
+void *Hunk_TryAlloc(memhunk_t *hunk, size_t size) {
     void *buf;
 
-    Q_assert(size <= SIZE_MAX - 63);
+    Q_assert(size <= SIZE_MAX - ( HUNK_ALIGN  - 1 ) );
     Q_assert(hunk->cursize <= hunk->maxsize);
 
     // round to cacheline
-    size = ALIGN(size, 64);
+    size = ALIGN(size, HUNK_ALIGN );
     if (size > hunk->maxsize - hunk->cursize)
         return NULL;
 

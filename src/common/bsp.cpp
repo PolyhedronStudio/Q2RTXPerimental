@@ -1128,7 +1128,7 @@ static void BSPX_LoadBspxNormals( bsp_t *bsp, const byte *in, size_t data_size )
 *   @brief
 **/
 static size_t BSPX_ParseNormalsHeader( bsp_t *bsp, const byte *in, size_t data_size ) {
-    return data_size;
+    return data_size + HUNK_ALIGN - 1; // extra memory to account for alignment in ALLOC();
 }
 
 
@@ -1421,7 +1421,7 @@ static size_t BSP_ParseExtensionHeader( bsp_t *bsp, lump_t *out, const byte *buf
                 break;
             }
             if ( e->parse_header )
-                extrasize += e->parse_header( bsp, buf + ofs, len );
+                extrasize += ALIGN( e->parse_header( bsp, buf + ofs, len ), HUNK_ALIGN ); // to mirror Hunk_TryAlloc() overallocation
             out[ j ].fileofs = ofs;
             out[ j ].filelen = len;
             break;
@@ -1550,7 +1550,7 @@ int BSP_Load( const char *name, bsp_t **bsp_p ) {
         lump_count[ i ] = count;
 
         // round to cacheline
-        memsize += ALIGN( count * info->memsize, 64 );
+        memsize += ALIGN( count * info->memsize, HUNK_ALIGN );
         maxpos = std::max( maxpos, end );
     }
 
