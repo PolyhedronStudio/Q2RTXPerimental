@@ -131,8 +131,8 @@ Provide step-by-step tutorials:
 Document the temporary entity (temp entity) system:
 
 #### Purpose and Architecture
-- **What are Temp Entities**: Transient visual effects not tied to persistent entities
-- **Why Use Temp Entities**: Efficiency, reduced network traffic for short-lived effects
+- **What are Temp Entities**: Transient visual effects not tied to persistent entities. These are short-lived effects like bullet impacts, sparks, blood splatter, and explosions that appear momentarily and don't require ongoing simulation.
+- **Why Use Temp Entities**: Efficiency and reduced network traffic. For example, a bullet impact spark should use a temp entity because it lasts only a fraction of a second and doesn't need entity state updates. In contrast, a grenade should be a regular entity because it needs physics simulation, collision detection, and position updates sent to clients.
 - **Event Types**: Document all temporary entity event types from `sg_tempentity_events.h`:
   - TE_GUNSHOT, TE_BLOOD, TE_MOREBLOOD
   - TE_SPLASH, TE_BUBBLETRAIL
@@ -183,10 +183,10 @@ This agent should operate periodically (e.g., on each significant commit or rele
    - Fix outdated information
 
 3. **Quality Assurance**:
-   - Ensure all code examples compile
-   - Verify accuracy of technical descriptions
-   - Check for broken internal links
-   - Maintain consistent style and formatting
+   - Ensure all code examples compile (verify by referencing actual working code in the repository or testing snippets)
+   - Verify accuracy of technical descriptions by cross-referencing with source code
+   - Check for broken internal links between wiki pages
+   - Maintain consistent style and formatting across all documentation
 
 4. **Documentation Coverage**:
    - Identify undocumented systems or APIs
