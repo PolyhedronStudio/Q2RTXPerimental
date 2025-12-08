@@ -365,12 +365,260 @@ class svg_custom_entity_t : public svg_base_edict_t {
 };
 ```
 
+## Lua Scripting Integration
+
+**Signal I/O is tightly integrated with Lua for map-specific gameplay.** This is one of the primary use cases for Signal I/O.
+
+### Purpose of Lua + Signal I/O
+
+**Lua in Q2RTXPerimental exists explicitly for maps**, allowing mappers to create dynamic, interactive experiences by coupling Lua scripts with the Signal I/O system. This enables:
+
+- Map-specific puzzles and events
+- Custom game modes per map
+- Interactive objects with complex behavior
+- Score tracking and state management
+
+### Setting Up Lua Signal Handlers
+
+In your map editor, give entities a `luaName` key:
+
+```
+{
+"classname" "func_button"
+"targetname" "puzzle_button"
+"luaName" "PuzzleButton"
+}
+```
+
+In your map script (`baseq2rtxp/maps/scripts/yourmap.lua`):
+
+```lua
+function PuzzleButton_OnSignalIn(self, signaller, activator, signalName, signalArguments)
+    if signalName == "OnPressed" then
+        -- Handle button press
+        Game.Print(PrintLevel.NOTICE, "Puzzle button pressed!\n")
+        
+        -- Send signal to other entities
+        local door = Game.GetEntityForTargetName("puzzle_door")
+        Game.SignalOut(door, self, activator, "Unlock", {})
+    end
+    return true  -- Always return true
+end
+```
+
+### Lua Signal Arguments
+
+Access signal arguments in Lua callbacks:
+
+```lua
+function Target_OnSignalIn(self, signaller, activator, signalName, signalArguments)
+    if signalName == "OnDamaged" then
+        -- Arguments are accessed as table fields
+        local damage = signalArguments.damage
+        local attackerName = signalArguments.attacker
+        
+        Game.Print(PrintLevel.NOTICE, 
+            "Target took " .. damage .. " damage from " .. attackerName .. "!\n")
+        
+        -- Update map state
+        mapStates.targetRange.totalDamage = 
+            mapStates.targetRange.totalDamage + damage
+    end
+    return true
+end
+```
+
+### Complete Lua Example: Interactive Door System
+
+**Map Entities:**
+```
+{
+"classname" "func_button"
+"targetname" "door_button"
+"luaName" "SecurityButton"
+"target" "security_door"
+}
+
+{
+"classname" "func_door"
+"targetname" "security_door"
+"luaName" "SecurityDoor"
+"speed" "100"
+}
+```
+
+**Lua Script (yourmap.lua):**
+```lua
+----------------------------------------------------------------------
+-- Map State
+----------------------------------------------------------------------
+mapStates = {
+    securityDoor = {
+        locked = true,
+        accessCode = "1234",
+        failedAttempts = 0
+    }
+}
+
+----------------------------------------------------------------------
+-- Button Signal Handler
+----------------------------------------------------------------------
+function SecurityButton_OnSignalIn(self, signaller, activator, signalName, signalArguments)
+    if signalName == "OnPressed" then
+        local doorEntity = Game.GetEntityForLuaName("SecurityDoor")
+        
+        if mapStates.securityDoor.locked then
+            -- Door is locked
+            Game.CenterPrint(activator, "Security door is LOCKED")
+            
+            mapStates.securityDoor.failedAttempts = 
+                mapStates.securityDoor.failedAttempts + 1
+            
+            if mapStates.securityDoor.failedAttempts >= 3 then
+                -- Trigger alarm
+                Game.SignalOut(
+                    Game.GetEntityForTargetName("alarm_system"),
+                    self, activator, "Trigger", 
+                    { reason = "too_many_attempts" }
+                )
+            end
+        else
+            -- Door is unlocked, toggle it
+            local doorState = Game.GetPushMoverState(doorEntity)
+            
+            if doorState == PushMoveState.BOTTOM then
+                Game.UseTarget(doorEntity, self, activator, 
+                             EntityUseTargetType.ON, 1)
+                Game.Print(PrintLevel.NOTICE, "Security door opening...\n")
+            elseif doorState == PushMoveState.TOP then
+                Game.UseTarget(doorEntity, self, activator, 
+                             EntityUseTargetType.OFF, 0)
+                Game.Print(PrintLevel.NOTICE, "Security door closing...\n")
+            end
+        end
+    end
+    return true
+end
+
+----------------------------------------------------------------------
+-- Door Signal Handler
+----------------------------------------------------------------------
+function SecurityDoor_OnSignalIn(self, signaller, activator, signalName, signalArguments)
+    if signalName == "Unlock" then
+        mapStates.securityDoor.locked = false
+        mapStates.securityDoor.failedAttempts = 0
+        
+        -- Change door appearance
+        self.state.skinnum = 1  -- Unlocked skin
+        
+        Game.Print(PrintLevel.NOTICE, "Security door UNLOCKED!\n")
+        
+        -- Play unlock sound
+        Media.Sound(self, SoundChannel.VOICE, 
+                   mapMedia.sound.door_unlock, 
+                   1.0, SoundAttenuation.NORMAL, 0.0)
+    elseif signalName == "Lock" then
+        mapStates.securityDoor.locked = true
+        self.state.skinnum = 0  -- Locked skin
+        
+        Game.Print(PrintLevel.NOTICE, "Security door LOCKED!\n")
+    end
+    return true
+end
+
+----------------------------------------------------------------------
+-- Map Hooks
+----------------------------------------------------------------------
+mapMedia = {
+    sound = {}
+}
+
+function OnPrecacheMedia()
+    mapMedia.sound = {
+        door_unlock = Media.PrecacheSound("doors/security_unlock.wav")
+    }
+    return true
+end
+```
+
+### Sending Signals from Lua
+
+**Send signals to entities:**
+```lua
+function Button_OnSignalIn(self, signaller, activator, signalName, signalArguments)
+    if signalName == "OnPressed" then
+        -- Get target entity
+        local targetEntity = Game.GetEntityForTargetName("my_target")
+        
+        -- Send signal with arguments
+        Game.SignalOut(
+            targetEntity,           -- Target entity
+            self,                   -- Sender
+            activator,              -- Activator
+            "CustomSignal",         -- Signal name
+            {                       -- Arguments table
+                value = 42,
+                message = "Hello",
+                enabled = true
+            }
+        )
+    end
+    return true
+end
+```
+
+### C++ Entity Signals → Lua
+
+C++ entities can send signals that Lua receives:
+
+**C++ Code:**
+```cpp
+void svg_func_door_t::OnFullyOpened() {
+    // Send signal that Lua can receive
+    svg_signal_argument_array_t args;
+    SendSignalOut("OnOpened", this, args);
+}
+```
+
+**Lua Handler:**
+```lua
+-- Set luaName="MyDoor" in map editor
+function MyDoor_OnSignalIn(self, signaller, activator, signalName, signalArguments)
+    if signalName == "OnOpened" then
+        -- Door finished opening
+        Game.Print(PrintLevel.NOTICE, "Door is now open!\n")
+        
+        -- Trigger next event
+        local nextButton = Game.GetEntityForTargetName("button_next")
+        Game.SignalOut(nextButton, self, activator, "Enable", {})
+    end
+    return true
+end
+```
+
+### Real-World Example: Target Range with Scoring
+
+See the complete example in [**Lua Scripting**](Lua-Scripting.md#complete-example-target-range) showing:
+
+- Target entities sending "OnKilled" signals to Lua
+- Lua tracking score and remaining targets
+- Lua sending signals back to entities for visual feedback
+- Map state persistence across save/load
+
+### Advantages of Lua + Signal I/O
+
+1. **No engine recompilation** - Mappers can add complex behavior
+2. **Per-map customization** - Each map has its own script
+3. **State persistence** - Map state saved/loaded automatically
+4. **Bidirectional** - C++ ↔ Lua communication
+5. **Data passing** - Not just on/off, but rich data
+
 ## Related Documentation
 
+- [**Lua Scripting**](Lua-Scripting.md) - Complete Lua documentation and examples
 - [**UseTargets System**](UseTargets-System.md) - Simple entity targeting
 - [**Entity System Overview**](Entity-System-Overview.md) - Entity architecture
 - [**Entity Base Class Reference**](Entity-Base-Class-Reference.md) - OnSignalIn callback
-- [**Lua Scripting**](Lua-Scripting.md) - Lua integration with signals
 
 ## Summary
 
