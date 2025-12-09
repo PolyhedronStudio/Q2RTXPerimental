@@ -13,8 +13,12 @@
 
 // Enable to debug the entity SetCallback functions.
 // It'll trigger with specific information about what is wrong with it.
-#define DEBUG_CALLBACK_ASSIGNMENTS 1 // Uncomment to disable.
-
+#if USE_DEBUG
+    #define DEBUG_CALLBACK_ASSIGNMENTS 1 // Uncomment to disable.
+#else
+	// Prevent this from being defined in non-debug builds.
+    //#define DEBUG_CALLBACK_ASSIGNMENTS 0 // Uncomment to disable.
+#endif
 
 // Forward declare.
 struct svg_base_edict_t;

@@ -327,8 +327,8 @@ void SVG_Player_SaveClientData( void ) {
         game.clients[ i ].pers.health = ent->health;
         game.clients[ i ].pers.max_health = ent->max_health;
 
-        game.clients[ i ].pers.health = ent->armor;
-        game.clients[ i ].pers.max_health = ent->max_armor;
+        game.clients[ i ].pers.armor = ent->armor;
+        game.clients[ i ].pers.max_armor = ent->max_armor;
 
         game.clients[ i ].pers.savedFlags = static_cast<entity_flags_t>( ent->flags & ( FL_GODMODE | FL_NOTARGET /*| FL_POWER_ARMOR*/ ) );
 		// Store the respawn score.
