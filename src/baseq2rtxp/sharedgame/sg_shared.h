@@ -254,48 +254,61 @@ inline static const std::string SG_RandomResourcePath( const char *path, const c
 * 
 * 
 **/
-static constexpr int32_t STAT_HEALTH_ICON = ( STATS_GAME_OFFSET );
-static constexpr int32_t STAT_AMMO_ICON = ( STATS_GAME_OFFSET + 1 );
-static constexpr int32_t STAT_AMMO = ( STATS_GAME_OFFSET + 2 );
-static constexpr int32_t STAT_ARMOR_ICON = ( STATS_GAME_OFFSET + 3 );
-static constexpr int32_t STAT_ARMOR = ( STATS_GAME_OFFSET + 4 );
-static constexpr int32_t STAT_SELECTED_ICON = ( STATS_GAME_OFFSET + 5 );
-static constexpr int32_t STAT_PICKUP_ICON = ( STATS_GAME_OFFSET + 6 );
-static constexpr int32_t STAT_PICKUP_STRING = ( STATS_GAME_OFFSET + 7 );
-static constexpr int32_t STAT_TIMER_ICON = ( STATS_GAME_OFFSET + 8 );
-static constexpr int32_t STAT_TIMER = ( STATS_GAME_OFFSET + 9 );
-static constexpr int32_t STAT_SELECTED_ITEM = ( STATS_GAME_OFFSET + 11 );
-static constexpr int32_t STAT_FLASHES = ( STATS_GAME_OFFSET + 12 ); //! Cleared each frame, 1 == health, 2 == armor.
-//! Stores whether we are a spectator or not.
-static constexpr int32_t STAT_SPECTATOR = ( STATS_GAME_OFFSET + 14 );
-//! Indicates who we're spectate chasing.
-static constexpr int32_t STAT_CHASE = ( STATS_GAME_OFFSET + 13 );
+/**
+*	@brief	Wrapper, to statically assert if index is out of bounds.
+**/
+template<const int32_t index>
+static inline constexpr const int32_t GAME_STAT_INDEX() {
+	static_assert( index >= 0, "GAME_STAT_INDEX: Index cannot be negative." );
+	static_assert( index < MAX_STATS, "GAME_STAT_INDEX: Index out of bounds." );
+	return STATS_GAME_OFFSET + index;
+}
 
-//! 2nd timer.
-static constexpr int32_t STAT_TIMER2_ICON = ( STATS_GAME_OFFSET + 15 );
-static constexpr int32_t STAT_TIMER2 = ( STATS_GAME_OFFSET + 16 );
+//! HUD armor count.
+static constexpr int32_t STAT_ARMOR			= GAME_STAT_INDEX<0>();
+//! HUD ammo count for the weapon's ammo type.
+static constexpr int32_t STAT_AMMO			= GAME_STAT_INDEX<1>();
+//! HUD Icon index for the weapon's ammo type.
+static constexpr int32_t STAT_AMMO_ICON		= GAME_STAT_INDEX<2>();
 
-//! Yaw pointing to whichever caused death.
-static constexpr int32_t STAT_KILLER_YAW = ( STATS_GAME_OFFSET + 17 );
-
-// TODO: WID: Resort all Stats logically, however, this means readjusting the
-// layout strings. Not in a mood for this right now.
+//! Selected item index.
+static constexpr int32_t STAT_SELECTED_ITEM = GAME_STAT_INDEX<3>();
 
 //! ItemID for client needs.
-static constexpr int32_t STAT_WEAPON_ITEM = ( STATS_GAME_OFFSET + 18 );
+static constexpr int32_t STAT_WEAPON_ID					= GAME_STAT_INDEX<4>();
 //! Amount of ammo left in the weapon's clip.
-static constexpr int32_t STAT_WEAPON_CLIP_AMMO = ( STATS_GAME_OFFSET + 19 );
+static constexpr int32_t STAT_WEAPON_CLIP_AMMO			= GAME_STAT_INDEX<5>();
 //! The icon of the clip ammo to display.
-static constexpr int32_t STAT_WEAPON_CLIP_AMMO_ICON = ( STATS_GAME_OFFSET + 20 );
+static constexpr int32_t STAT_WEAPON_CLIP_AMMO_ICON		= GAME_STAT_INDEX<6>();
 //! Current recoil of the weapon, used to determine crosshair size with.
-static constexpr int32_t STAT_WEAPON_RECOIL = ( STATS_GAME_OFFSET + 21 );
-
-/**
-*	@brief	Flags of the client's active weapon's state.
-**/
-static constexpr int32_t STAT_WEAPON_FLAGS = ( STATS_GAME_OFFSET + 22 );
+static constexpr int32_t STAT_WEAPON_RECOIL				= GAME_STAT_INDEX<7>();
+//!Flags of the client's active weapon's state.
+static constexpr int32_t STAT_WEAPON_FLAGS				= GAME_STAT_INDEX<8>();
 //! Indicates that the client has engaged, and is engaging into 'precision aim' mode.
-static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING = BIT( 0 );
+static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING	= GAME_STAT_INDEX<9>();
+
+//! Time when we will run out of air. ( Used for drowning, and gasp audio. )
+static constexpr int32_t STAT_TIME_AIR_FINISHED	= GAME_STAT_INDEX<10>();
+//! Time when we will next take drowning damage. ( Or play audio. )
+static constexpr int32_t STAT_TIME_NEXT_DROWN	= GAME_STAT_INDEX<11>();
+
+//! HUD Pickup Icon.
+static constexpr int32_t STAT_PICKUP_ICON	= GAME_STAT_INDEX<12>();
+//! HUD Pickup String.
+static constexpr int32_t STAT_PICKUP_STRING	= GAME_STAT_INDEX<13>();
+
+//! Yaw pointing to whichever caused death.
+static constexpr int32_t STAT_KILLER_YAW	= GAME_STAT_INDEX<14>();
+
+//! Stores whether we are a spectator or not.
+static constexpr int32_t STAT_IS_SPECTATING	= GAME_STAT_INDEX<15>();
+//! Indicates who we're spectate chasing.
+static constexpr int32_t STAT_CHASE			= GAME_STAT_INDEX<16>();
+
+
+
+
+
 
 /**
 *	@brief	Flags of the client's active UseTarget it is aiming at.

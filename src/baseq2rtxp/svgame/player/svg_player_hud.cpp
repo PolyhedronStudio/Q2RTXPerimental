@@ -341,7 +341,7 @@ void SVG_HUD_DeathmatchScoreboard(svg_base_edict_t *ent)
 /**
 *   @brief  Specific 'Weaponry' substitute function for SVG_HUD_SetStats.
 **/
-void SVG_SetWeaponStats( svg_base_edict_t *ent ) {
+static void SetWeaponStats( svg_base_edict_t *ent ) {
     //
     // Type of ammo to display the total carrying amount of.
     //
@@ -361,10 +361,10 @@ void SVG_SetWeaponStats( svg_base_edict_t *ent ) {
     //
     if ( !ent->client->pers.weapon /* || !ent->client->pers.inventory[ent->client->ammo_index] */ ) {
         //ent->client->ps.stats[ STAT_WEAPON_CLIP_AMMO_ICON ] = 0;
-        ent->client->ps.stats[ STAT_WEAPON_ITEM ] = 0;
+        ent->client->ps.stats[ STAT_WEAPON_ID ] = 0;
     } else {
         const int32_t weaponItemID = ent->client->pers.weapon->weapon_index;
-        ent->client->ps.stats[ STAT_WEAPON_ITEM ] = weaponItemID;
+        ent->client->ps.stats[ STAT_WEAPON_ID ] = weaponItemID;
     }
     //
     // Clip Ammo:
@@ -412,17 +412,11 @@ void SVG_SetWeaponStats( svg_base_edict_t *ent ) {
 **/
 void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
-    // Armor
+    // Health & Armor
     //
-    ent->client->ps.stats[ STAT_ARMOR_ICON ] = 0;
-    ent->client->ps.stats[ STAT_ARMOR ] = ent->armor;
+    ent->client->ps.stats[ STAT_HEALTH ]    = ent->health;
+    ent->client->ps.stats[ STAT_ARMOR ]     = ent->armor;
 
-    //
-    // Health
-    //
-    ent->client->ps.stats[ STAT_HEALTH_ICON ] = 0;// level.pic_health;
-    ent->client->ps.stats[STAT_HEALTH] = ent->health;
-    
     //
     // Killer Yaw
     //
@@ -431,8 +425,8 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     //  (Clip-)Ammo and Weapon(-Stats).
     //
-    SVG_SetWeaponStats( ent );
-    
+    SetWeaponStats( ent );
+
 
     //index = ArmorIndex(ent);
     //if (index) {
@@ -448,65 +442,32 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     // Pickup Message
     //
-    if (level.time > ent->client->pickup_msg_time ) {
-        ent->client->ps.stats[STAT_PICKUP_ICON] = 0;
-        ent->client->ps.stats[STAT_PICKUP_STRING] = 0;
+    if ( level.time > ent->client->pickup_msg_time ) {
+        ent->client->ps.stats[ STAT_PICKUP_ICON ] = 0;
+        ent->client->ps.stats[ STAT_PICKUP_STRING ] = 0;
     }
-
-    //
-    // Timer 1 (quad, enviro, breather)
-    //
-    //if (ent->client->quad_time > level.time) {
-    //    ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_quad");
-    //    ent->client->ps.stats[STAT_TIMER] = (ent->client->quad_time - level.time).seconds( ) / BASE_FRAMERATE;
-    //} else if (ent->client->invincible_time > level.time) {
-    //    ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_invulnerability");
-    //    ent->client->ps.stats[STAT_TIMER] = (ent->client->invincible_time - level.time).seconds( ) / BASE_FRAMERATE;
-    //} else if (ent->client->enviro_time > level.time) {
-    //    ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_envirosuit");
-    //    ent->client->ps.stats[STAT_TIMER] = (ent->client->enviro_time - level.time).seconds( ) / BASE_FRAMERATE;
-    //} else if (ent->client->breather_time > level.time) {
-    //    ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_rebreather");
-    //    ent->client->ps.stats[STAT_TIMER] = (ent->client->breather_time - level.time).seconds() / BASE_FRAMERATE;
-    //	//ent->client->ps.stats[ STAT_TIMER ] = ( ent->client->breather_time - level.time ) / 10;
-    //} else {
-        ent->client->ps.stats[STAT_TIMER_ICON] = 0;
-        ent->client->ps.stats[STAT_TIMER] = 0;
-    //}
-
-    //
-    // Timer 2 (pent)
-    //
-    ent->client->ps.stats[STAT_TIMER2_ICON] = 0;
-    ent->client->ps.stats[STAT_TIMER2] = 0;
-
 
     //
     // Selected Item
     //
-    if ( ent->client->pers.selected_item == -1 ) {
-        ent->client->ps.stats[ STAT_SELECTED_ICON ] = 0;
-    } else {
-        ent->client->ps.stats[ STAT_SELECTED_ICON ] = gi.imageindex( itemlist[ ent->client->pers.selected_item ].icon );
-    }
-    ent->client->ps.stats[STAT_SELECTED_ITEM] = ent->client->pers.selected_item;
+    ent->client->ps.stats[ STAT_SELECTED_ITEM ] = ent->client->pers.selected_item;
 
     //
     // layouts
     //
-    ent->client->ps.stats[STAT_LAYOUTS] = 0;
+    ent->client->ps.stats[ STAT_LAYOUTS ] = 0;
 
-    if (deathmatch->value) {
-        if (ent->client->pers.health <= 0 || level.intermissionFrameNumber
-            || ent->client->showscores)
-            ent->client->ps.stats[STAT_LAYOUTS] |= 1;
-        if (ent->client->showinventory && ent->client->pers.health > 0)
-            ent->client->ps.stats[STAT_LAYOUTS] |= 2;
+    if ( deathmatch->value ) {
+        if ( ent->client->pers.health <= 0 || level.intermissionFrameNumber
+            || ent->client->showscores )
+            ent->client->ps.stats[ STAT_LAYOUTS ] |= 1;
+        if ( ent->client->showinventory && ent->client->pers.health > 0 )
+            ent->client->ps.stats[ STAT_LAYOUTS ] |= 2;
     } else {
-        if (ent->client->showscores || ent->client->showhelp)
-            ent->client->ps.stats[STAT_LAYOUTS] |= 1;
-        if (ent->client->showinventory && ent->client->pers.health > 0)
-            ent->client->ps.stats[STAT_LAYOUTS] |= 2;
+        if ( ent->client->showscores || ent->client->showhelp )
+            ent->client->ps.stats[ STAT_LAYOUTS ] |= 1;
+        if ( ent->client->showinventory && ent->client->pers.health > 0 )
+            ent->client->ps.stats[ STAT_LAYOUTS ] |= 2;
     }
 
     //
@@ -524,10 +485,10 @@ void SVG_HUD_SetStats(svg_base_edict_t *ent) {
     //
     // Frags
     //
-    ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
+    ent->client->ps.stats[ STAT_FRAGS ] = ent->client->resp.score;
 
     // If this function was called, disable spectator mode stats.
-    ent->client->ps.stats[STAT_SPECTATOR] = 0;
+    ent->client->ps.stats[ STAT_IS_SPECTATING ] = 0;
 }
 
 /**
@@ -542,7 +503,7 @@ void SVG_HUD_SetSpectatorStats( svg_base_edict_t *ent ) {
     }
         
     // If this function was called, enable spectator mode stats.
-    cl->ps.stats[ STAT_SPECTATOR ] = 1;
+    cl->ps.stats[ STAT_IS_SPECTATING ] = 1;
 
     // layouts are independant in spectator
     cl->ps.stats[ STAT_LAYOUTS ] = 0;
@@ -562,7 +523,8 @@ void SVG_HUD_SetSpectatorStats( svg_base_edict_t *ent ) {
 }
 
 /**
-*   @brief
+*   @brief  Will check all clients to see if they are chasing the given entity,
+* 
 **/
 void SVG_HUD_CheckChaseStats(svg_base_edict_t *ent)
 {
@@ -577,7 +539,7 @@ void SVG_HUD_CheckChaseStats(svg_base_edict_t *ent)
             continue;
         }
 		// Copy over the player state stats from the chased entity to the chasing client.
-        memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
+        std::memcpy(cl->ps.stats, ent->client->ps.stats, sizeof(cl->ps.stats));
 		// Set the chase target client index as STAT_CHASE.
         SVG_HUD_SetSpectatorStats( cl_ent );
     }

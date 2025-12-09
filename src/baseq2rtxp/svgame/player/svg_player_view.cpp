@@ -105,6 +105,7 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 
 	svg_client_t *client = player->client;
 
+	#if 0
 	// flash the backgrounds behind the status numbers
 	int16_t want_flashes = 0;
 
@@ -121,6 +122,7 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 	} else if ( client->flash_time < level.time ){
 		client->ps.stats[ STAT_FLASHES ] = 0;
 	}
+	#endif
 
 	// Total points of damage shot at the player this frame.
 	float count = (float)( client->frameDamage.blood + client->frameDamage.armor );
