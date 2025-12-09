@@ -104,11 +104,11 @@ static void LookAtKiller( svg_base_edict_t *self, svg_base_edict_t *inflictor, s
     } else if ( inflictor && inflictor != world && inflictor != self ) {
         VectorSubtract( inflictor->s.origin, self->s.origin, dir );
     } else {
-        self->client->killer_yaw = /*self->client->ps.stats[ STAT_KILLER_YAW ] */ self->s.angles[ YAW ];
+        self->client->killer_yaw = self->client->ps.stats[ STAT_KILLER_YAW ] = self->s.angles[ YAW ];
         return;
     }
 
-    self->client->killer_yaw = /*self->client->ps.stats[ STAT_KILLER_YAW ] */ QM_Vector3ToYaw( dir );
+    self->client->killer_yaw = self->client->ps.stats[ STAT_KILLER_YAW ] = QM_Vector3ToYaw( dir );
 
     //if ( dir[ 0 ] ) {
     //    self->client->killer_yaw = RAD2DEG( atan2( dir[ 1 ], dir[ 0 ] ) );

@@ -6,6 +6,10 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ---
 * [ ] PMove Map: Fix the odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
 * [X] --
+* [ ] Move variables such as air_finished_time into the player_state_t stats array for better network efficiency,
+      as well as allowing for client-side prediction of these values where possible. This may involve having to deal with
+      adding functions such as P_WorldEffects into the shared game module as well.
+* [X] --
 * [ ] Look into all temp_entity_events and remove/comment all unnecessary events.
 	* [ ] Port all necessary ones to be actual entity events instead of temp_entity events.
 	* [ ] Sound Events. (gi.sound, gi.positional_sound)
