@@ -26,7 +26,7 @@ void CLG_ClearExplosions( void ) {
 /**
 *   @brief  Locates a free explosion slot, or the oldest one to be reused instead.
 **/
-clg_explosion_t *CLG_AllocExplosion( void ) {
+clg_explosion_t *CLG_AllocateExplosion( void ) {
     // Find a free explosion slot.
     clg_explosion_t *explosionEntry = clg_explosions;
     for ( int32_t i = 0; i < MAX_EXPLOSIONS; i++, explosionEntry++ ) {
@@ -311,7 +311,7 @@ void CLG_AddExplosions( void ) {
 clg_explosion_t *CLG_PlainExplosion( const bool withSmoke ) {
 
     qhandle_t spriteHandle = ( withSmoke ? precache.models.sprite_explo01 : precache.models.sprite_explo00 );
-    clg_explosion_t *ex = CLG_AllocExplosion();
+    clg_explosion_t *ex = CLG_AllocateExplosion();
     VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
     ex->type = clg_explosion_t::ex_polygon_curvature; // WID: C++20: Was without clg_explosion_t::
     ex->lightCurvature = &ex_plain_explosion_curve;
@@ -356,7 +356,7 @@ CL_SmokeAndFlash
 void CLG_SmokeAndFlash( const vec3_t origin ) {
     clg_explosion_t *ex;
 
-    ex = CLG_AllocExplosion();
+    ex = CLG_AllocateExplosion();
     VectorCopy( origin, ex->ent.origin );
     ex->type = clg_explosion_t::ex_misc; // WID: C++20: Was without clg_explosion_t::
     ex->frames = 4;
@@ -364,7 +364,7 @@ void CLG_SmokeAndFlash( const vec3_t origin ) {
     ex->start = clgi.client->servertime - clgi.frame_time_ms;
     ex->ent.model = precache.models.smoke;
 
-    ex = CLG_AllocExplosion();
+    ex = CLG_AllocateExplosion();
     VectorCopy( origin, ex->ent.origin );
     ex->type = clg_explosion_t::ex_flash;
     ex->ent.flags = RF_FULLBRIGHT;

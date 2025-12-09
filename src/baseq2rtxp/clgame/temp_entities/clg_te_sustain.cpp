@@ -16,7 +16,7 @@ void CLG_ClearSustains( void ) {
     memset( clg_sustains, 0, sizeof( clg_sustains ) );
 }
 
-clg_sustain_t *CLG_AllocSustain( void ) {
+clg_sustain_t *CLG_AllocateSustain( void ) {
     clg_sustain_t *s;
     int             i;
 
@@ -50,7 +50,7 @@ void CLG_ParseSteam( void ) {
         return;
     }
 
-    s = CLG_AllocSustain();
+    s = CLG_AllocateSustain();
     if ( !s )
         return;
 
@@ -68,7 +68,7 @@ void CLG_ParseSteam( void ) {
 void CLG_ParseWidow( void ) {
     clg_sustain_t *s;
 
-    s = CLG_AllocSustain();
+    s = CLG_AllocateSustain();
     if ( !s )
         return;
 
@@ -82,7 +82,7 @@ void CLG_ParseWidow( void ) {
 void CLG_ParseNuke( void ) {
     clg_sustain_t *s;
 
-    s = CLG_AllocSustain();
+    s = CLG_AllocateSustain();
     if ( !s )
         return;
 

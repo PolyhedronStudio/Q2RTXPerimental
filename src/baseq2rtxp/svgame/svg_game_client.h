@@ -310,13 +310,13 @@ struct svg_client_t {
     svg_base_edict_t    *oldgroundentity; // [Paril-KEX]
     cm_liquid_level_t   old_waterlevel;
 
-    QMTime  flash_time; // [Paril-KEX] for high tickrate
+    //QMTime  flash_time; // [Paril-KEX] for high tickrate
 
     /**
     *   Misc:
     **/
     //! Time for another drown sound event.
-    QMTime		next_drown_time;
+    //QMTime		next_drown_time;
 
     /**
     *   UseTarget:

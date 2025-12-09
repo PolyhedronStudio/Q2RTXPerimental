@@ -88,7 +88,7 @@ void SVG_ChaseCam_Update( svg_base_edict_t *ent ) {
     if ( targ->lifeStatus > entity_lifestatus_t::LIFESTATUS_ALIVE ) {
         ent->client->ps.viewangles[ ROLL ] = 40;
         ent->client->ps.viewangles[ PITCH ] = -15;
-        ent->client->ps.viewangles[ YAW ] = targ->client->killer_yaw; // targ->client->ps.stats[ STAT_KILLER_YAW ];
+        ent->client->ps.viewangles[ YAW ] = targ->client->ps.stats[ STAT_KILLER_YAW ];
     } else {
         VectorCopy( targ->client->viewMove.viewAngles, ent->client->ps.viewangles );
         VectorCopy( targ->client->viewMove.viewAngles, ent->client->viewMove.viewAngles );

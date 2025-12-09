@@ -350,7 +350,7 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
     // Otherwise, apply the player move state view angles:
     } else {
 		// Copy over the viewangles from pmove state.
-        client->ps.viewangles = pm.state->viewangles;
+        client->ps.viewangles       = pm.state->viewangles;
 		// Update the viewMove structure as well.
         client->viewMove.viewAngles = client->ps.viewangles;
 		// Also derive the forward/right/up vectors from it.

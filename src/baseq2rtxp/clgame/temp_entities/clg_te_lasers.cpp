@@ -15,7 +15,7 @@ void CLG_ClearLasers( void ) {
     memset( clg_lasers, 0, sizeof( clg_lasers ) );
 }
 
-laser_t *CLG_AllocLaser( void ) {
+laser_t *CLG_AllocateLaser( void ) {
     laser_t *l;
     int i;
 
@@ -64,7 +64,7 @@ void CLG_AddLasers( void ) {
 void CLG_ParseLaser( const int32_t colors ) {
     laser_t *l;
 
-    l = CLG_AllocLaser();
+    l = CLG_AllocateLaser();
     if ( !l )
         return;
 

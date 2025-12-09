@@ -147,7 +147,7 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_WELDING_SPARKS:
         CLG_FX_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
 
-        ex = CLG_AllocExplosion();
+        ex = CLG_AllocateExplosion();
         VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
         ex->type = clg_explosion_t::ex_flash;
         // note to self
@@ -327,7 +327,7 @@ void CLG_TemporaryEntities_Parse( void ) {
         //case TE_BLASTER2:           // green blaster hitting wall
         //case TE_FLECHETTE:          // flechette
         //case TE_FLARE:              // flare
-        //    ex = CLG_AllocExplosion();
+        //    ex = CLG_AllocateExplosion();
         //    VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
         //    QM_Vector3ToAngles( Vector3( 0, 1.f, 0.f ), ex->ent.angles ); //dirtoangles( ex->ent.angles );
         //    ex->type = clg_explosion_t::ex_blaster;
@@ -386,7 +386,7 @@ void CLG_TemporaryEntities_Parse( void ) {
 
 
         //case TE_BFG_EXPLOSION:
-        //    ex = CLG_AllocExplosion();
+        //    ex = CLG_AllocateExplosion();
         //    VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
         //    ex->type = clg_explosion_t::ex_polygon_curvature;
         //    ex->ent.flags = RF_FULLBRIGHT;

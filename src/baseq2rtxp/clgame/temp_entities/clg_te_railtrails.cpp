@@ -40,7 +40,7 @@ static void clg_railspiral_color_changed( cvar_t *self ) {
 void CLG_RailCore( void ) {
     laser_t *l;
 
-    l = CLG_AllocLaser();
+    l = CLG_AllocateLaser();
     if ( !l )
         return;
 

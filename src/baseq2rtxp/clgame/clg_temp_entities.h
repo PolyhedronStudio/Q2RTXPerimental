@@ -78,7 +78,7 @@ void CLG_ClearExplosions( void );
 /**
 *   @brief
 **/
-clg_explosion_t *CLG_AllocExplosion( void );
+clg_explosion_t *CLG_AllocateExplosion( void );
 /**
 *   @brief
 **/
@@ -110,7 +110,7 @@ void CLG_ClearLasers( void );
 /**
 *   @brief
 **/
-laser_t *CLG_AllocLaser( void );
+laser_t *CLG_AllocateLaser( void );
 /**
 *   @brief
 **/
@@ -159,7 +159,7 @@ void CLG_ClearSustains( void );
 /**
 *   @brief
 **/
-clg_sustain_t *CLG_AllocSustain( void );
+clg_sustain_t *CLG_AllocateSustain( void );
 /**
 *   @brief
 **/

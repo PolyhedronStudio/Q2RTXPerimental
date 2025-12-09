@@ -261,9 +261,13 @@ template<const int32_t index>
 static inline constexpr const int32_t GAME_STAT_INDEX() {
 	static_assert( index >= 0, "GAME_STAT_INDEX: Index cannot be negative." );
 	static_assert( index < MAX_STATS, "GAME_STAT_INDEX: Index out of bounds." );
+	
 	return STATS_GAME_OFFSET + index;
 }
 
+/**
+*	Health/Armor Status:
+**/
 //! HUD armor count.
 static constexpr int32_t STAT_ARMOR			= GAME_STAT_INDEX<0>();
 //! HUD ammo count for the weapon's ammo type.
@@ -271,53 +275,66 @@ static constexpr int32_t STAT_AMMO			= GAME_STAT_INDEX<1>();
 //! HUD Icon index for the weapon's ammo type.
 static constexpr int32_t STAT_AMMO_ICON		= GAME_STAT_INDEX<2>();
 
-//! Selected item index.
-static constexpr int32_t STAT_SELECTED_ITEM = GAME_STAT_INDEX<3>();
-
-//! ItemID for client needs.
-static constexpr int32_t STAT_WEAPON_ID					= GAME_STAT_INDEX<4>();
+/**
+*	Weapon State:
+**/
 //! Amount of ammo left in the weapon's clip.
-static constexpr int32_t STAT_WEAPON_CLIP_AMMO			= GAME_STAT_INDEX<5>();
+static constexpr int32_t STAT_WEAPON_CLIP_AMMO			= GAME_STAT_INDEX<3>();
 //! The icon of the clip ammo to display.
-static constexpr int32_t STAT_WEAPON_CLIP_AMMO_ICON		= GAME_STAT_INDEX<6>();
+static constexpr int32_t STAT_WEAPON_CLIP_AMMO_ICON		= GAME_STAT_INDEX<4>();
 //! Current recoil of the weapon, used to determine crosshair size with.
-static constexpr int32_t STAT_WEAPON_RECOIL				= GAME_STAT_INDEX<7>();
+static constexpr int32_t STAT_WEAPON_RECOIL				= GAME_STAT_INDEX<5>();
 //!Flags of the client's active weapon's state.
-static constexpr int32_t STAT_WEAPON_FLAGS				= GAME_STAT_INDEX<8>();
+static constexpr int32_t STAT_WEAPON_FLAGS				= GAME_STAT_INDEX<6>();
 //! Indicates that the client has engaged, and is engaging into 'precision aim' mode.
-static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING	= GAME_STAT_INDEX<9>();
+static constexpr int32_t STAT_WEAPON_FLAGS_IS_AIMING	= GAME_STAT_INDEX<7>();
 
+/**
+*	Selected Holdable Item/Weaponries:
+**/
+//! ItemID for client needs.
+static constexpr int32_t STAT_WEAPON_ID		= GAME_STAT_INDEX<8>();
+//! Selected item index.
+static constexpr int32_t STAT_SELECTED_ITEM	= GAME_STAT_INDEX<9>();
+
+/**
+*	Timers that client game needs to know about:
+**/
 //! Time when we will run out of air. ( Used for drowning, and gasp audio. )
 static constexpr int32_t STAT_TIME_AIR_FINISHED	= GAME_STAT_INDEX<10>();
 //! Time when we will next take drowning damage. ( Or play audio. )
 static constexpr int32_t STAT_TIME_NEXT_DROWN	= GAME_STAT_INDEX<11>();
 
+/**
+*	HUD Item Pickup:
+**/
 //! HUD Pickup Icon.
 static constexpr int32_t STAT_PICKUP_ICON	= GAME_STAT_INDEX<12>();
 //! HUD Pickup String.
 static constexpr int32_t STAT_PICKUP_STRING	= GAME_STAT_INDEX<13>();
 
+/**
+*	Death Cam Yaw:
+**/
 //! Yaw pointing to whichever caused death.
 static constexpr int32_t STAT_KILLER_YAW	= GAME_STAT_INDEX<14>();
 
+/**
+*	Spectator, and who we're 'chase' spectating(if any):
+**/
 //! Stores whether we are a spectator or not.
 static constexpr int32_t STAT_IS_SPECTATING	= GAME_STAT_INDEX<15>();
 //! Indicates who we're spectate chasing.
 static constexpr int32_t STAT_CHASE			= GAME_STAT_INDEX<16>();
 
-
-
-
-
-
 /**
-*	@brief	Flags of the client's active UseTarget it is aiming at.
+*	Flags of the client's active UseTarget it is aiming at.
 **/
 //! The index into the sharedgame start usetarget hint array.
 //! When zero, means no hint is active.
 //! When positive, it is an index into the sharedgame usetarget hint array.
 //! When negative, it is expected to display the latest information that came
 //! from the svg_usetargethint_str command.
-static constexpr int32_t STAT_USETARGET_HINT_ID = ( STATS_GAME_OFFSET + 23 );
+static constexpr int32_t STAT_USETARGET_HINT_ID		= GAME_STAT_INDEX<17>();
 //! Optional server applied flags for determining how to act for the hovering usetarget.
-static constexpr int32_t STAT_USETARGET_HINT_FLAGS = ( STATS_GAME_OFFSET + 24 );
+static constexpr int32_t STAT_USETARGET_HINT_FLAGS	= GAME_STAT_INDEX<18>();

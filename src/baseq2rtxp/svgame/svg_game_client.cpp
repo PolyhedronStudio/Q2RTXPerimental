@@ -126,6 +126,6 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_client_t )
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, oldgroundentity, SD_FIELD_TYPE_EDICT ),
 
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, old_waterlevel, SD_FIELD_TYPE_INT32 ),
-	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, next_drown_time, SD_FIELD_TYPE_INT64 ),
+	//SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, next_drown_time, SD_FIELD_TYPE_INT64 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, pickup_msg_time, SD_FIELD_TYPE_INT64 ),
 SAVE_DESCRIPTOR_FIELDS_END();

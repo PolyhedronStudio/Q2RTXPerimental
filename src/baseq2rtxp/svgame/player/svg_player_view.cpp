@@ -319,7 +319,7 @@ void P_CalculateViewOffset( svg_base_edict_t *ent ) {
 		// Apply death view angles.
 		ent->client->ps.viewangles[ ROLL ] = 40;
 		ent->client->ps.viewangles[ PITCH ] = -15;
-		ent->client->ps.viewangles[ YAW ] = ent->client->killer_yaw;
+		ent->client->ps.viewangles[ YAW ] = ent->client->ps.stats[ STAT_KILLER_YAW ];
 	/**
 	*	Add view angle kicks for: Damage, Falling, Velocity and EarthQuakes.
 	**/
@@ -679,27 +679,31 @@ void P_CheckWorldEffects( void ) {
 		// if out of air, start drowning
 		if ( current_player->air_finished_time < level.time ) {
 			// drown!
-			if ( current_player->client->next_drown_time < level.time
+			if ( current_player->client->ps.stats[ STAT_TIME_NEXT_DROWN ] < level.time.Milliseconds()
 				&& current_player->health > 0 ) {
-				current_player->client->next_drown_time = level.time + 2700_ms;
+				current_player->client->ps.stats[ STAT_TIME_NEXT_DROWN ] = ( level.time + 2700_ms ).Milliseconds();
 
-				// take more damage the longer underwater
+				// Take more damage the longer underwater by using the 'dmg' field.
 				current_player->dmg += 15;
-				if ( current_player->dmg > 30 )
+				// Cap maximum drowning damage.
+				if ( current_player->dmg > 30 ) {
 					current_player->dmg = 30;
+				}
 
-				// Play a gurp sound instead of a normal pain sound
+				// Play a gurp sound instead of a normal pain sound for all clients but the player itself.
+				// ( Client predicts its own 'gurp' pain sounds. )
 				if ( current_player->health <= current_player->dmg ) {
 					//gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
 					SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ) );
 				} else {
-					const qhandle_t gurp_sfx_index = gi.soundindex( SG_RandomResourcePath( "player/gurp", "wav", 0, 2 ).c_str() );
+					const qhandle_t gurpSfxIndex = gi.soundindex( SG_RandomResourcePath( "player/gurp", "wav", 0, 2 ).c_str() );
 					//gi.sound( current_player, CHAN_VOICE, gurp_sfx_index, 1, ATTN_NORM, 0 );
-					SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gurp_sfx_index );
+					SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gurpSfxIndex );
 				}
 
+				// Set next pain time.
 				current_player->pain_debounce_time = level.time;
-
+				// Apply drowning damage.
 				SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
 			}
 		}
