@@ -140,7 +140,61 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
 #endif
 
 
-
+/**
+*   @brief  Adds a packet entity according to its entity type.
+*   @param  packetEntity    The client game entity to add the packet entity data to.
+*   @param  nextState       The new entity state received for this packet entity.
+*   @param  base_entity_flags   Base entity flags to apply.
+*   @param  autorotate      The autorotate value for rotating items.
+*   @return true if the entity is of a type that requires no further processing.
+**/
+static const bool AddPacketEntity( centity_t *packetEntity, entity_state_t *nextState, const int32_t base_entity_flags, const double autorotate ) {
+    switch ( nextState->entityType ) {
+        // Beams:
+    case ET_BEAM:
+        CLG_PacketEntity_AddBeam( packetEntity, &packetEntity->refreshEntity, nextState );
+        break;
+        // Gibs:
+    case ET_GIB:
+        CLG_PacketEntity_AddGib( packetEntity, &packetEntity->refreshEntity, nextState );
+        break;
+        // Items:
+    case ET_ITEM:
+        CLG_PacketEntity_AddItem( packetEntity, &packetEntity->refreshEntity, nextState );
+        break;
+        // Monsters:
+    case ET_MONSTER:
+        // First determine movement properties.
+        //CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, false );
+        // Add Monster Entity.
+        CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, nextState );
+        return true;
+        break;
+        // Players:
+    case ET_PLAYER:
+        // First determine movement properties.
+        CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, CLG_IsLocalClientEntity( nextState ) );
+        // Add Player Entity.
+        CLG_PacketEntity_AddPlayer( packetEntity, &packetEntity->refreshEntity, nextState );
+        return true;
+        break;
+        // Pushers:
+    case ET_PUSHER:
+        CLG_PacketEntity_AddPusher( packetEntity, &packetEntity->refreshEntity, nextState );
+        break;
+        // Spotlights:
+    case ET_SPOTLIGHT:
+        CLG_PacketEntity_AddSpotlight( packetEntity, &packetEntity->refreshEntity, nextState );
+        break;
+        // ET_GENERIC:
+    case ET_GENERIC:
+    case ET_TEMP_ENTITY_EVENT:
+    default:
+        CLG_PacketEntity_AddGeneric( packetEntity, &packetEntity->refreshEntity, nextState );
+        break;
+    }
+    return false;
+}
 
 /**
 *   @brief  Parses all received frame packet entities' new states, iterating over them
@@ -188,48 +242,8 @@ void CLG_AddPacketEntities( void ) {
         /**
         *   Act according to the entity Type:
         **/
-        switch ( nextState->entityType ) {
-        // Beams:
-        case ET_BEAM:
-            CLG_PacketEntity_AddBeam( packetEntity, &packetEntity->refreshEntity, nextState );
-            break;
-        // Gibs:
-        case ET_GIB:
-            CLG_PacketEntity_AddGib( packetEntity, &packetEntity->refreshEntity, nextState );
-            break;
-        // Items:
-        case ET_ITEM:
-            CLG_PacketEntity_AddItem( packetEntity, &packetEntity->refreshEntity, nextState );
-            break;
-        // Monsters:
-        case ET_MONSTER:
-            // First determine movement properties.
-            //CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, false );
-            // Add Monster Entity.
-            CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, nextState );
+        if ( AddPacketEntity( packetEntity, nextState, base_entity_flags, autorotate ) ) {
             continue;
-            break;
-        // Players:
-        case ET_PLAYER:
-            // First determine movement properties.
-            CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, CLG_IsLocalClientEntity( nextState ) );
-            // Add Player Entity.
-            CLG_PacketEntity_AddPlayer( packetEntity, &packetEntity->refreshEntity, nextState );
-            continue;
-            break;
-        // Pushers:
-        case ET_PUSHER:
-            CLG_PacketEntity_AddPusher( packetEntity, &packetEntity->refreshEntity, nextState );
-            break;
-        // Spotlights:
-        case ET_SPOTLIGHT:
-            CLG_PacketEntity_AddSpotlight( packetEntity, &packetEntity->refreshEntity, nextState );
-           break;
-        // ET_GENERIC:
-        case ET_GENERIC:
-        default:
-            CLG_PacketEntity_AddGeneric( packetEntity, &packetEntity->refreshEntity, nextState );
-            break;
         }
     }
 }

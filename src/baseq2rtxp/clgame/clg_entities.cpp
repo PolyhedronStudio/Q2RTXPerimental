@@ -124,15 +124,17 @@ const Vector3 CLG_GetEntitySoundOrigin( const int32_t entityNumber ) {
         return {};
     }
 
-    // Just regular lerp for most of all entities.
-    Vector3 soundOrigin = CLG_LerpEntitySoundOrigin( ent, clgi.client->lerpfrac );
+    // Lerp fraction.
+	const double lerpFrac = clgi.client->lerpfrac;
+    // Regular lerp for entity origins:
+    Vector3 soundOrigin = CLG_LerpEntitySoundOrigin( ent, lerpFrac );
 
     // Use the closest point on the line for beam entities:
     if ( ent->current.entityType == ET_BEAM || ent->current.renderfx & RF_BEAM ) {
-        soundOrigin = CLG_LerpBeamSoundOrigin( ent, soundOrigin, clgi.client->lerpfrac );
+        soundOrigin = CLG_LerpBeamSoundOrigin( ent, soundOrigin, lerpFrac );
     // Calculate origin for BSP models to be closest point from listener to the bmodel's aabb:
     } else if ( ent->current.solid == BOUNDS_BRUSHMODEL ) {
-        soundOrigin = CLG_LerpBrushModelSoundOrigin( ent, soundOrigin, clgi.client->lerpfrac );
+        soundOrigin = CLG_LerpBrushModelSoundOrigin( ent, soundOrigin, lerpFrac );
     }
 
     // Return the final lerped origin.
