@@ -14,14 +14,14 @@
 
 
 /**
-*	@brief	Will setup the refresh entity for the ET_MONSTER centity with the newState.
+*	@brief	Will setup the refresh entity for the ET_MONSTER centity with the nextState.
 **/
-void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     //
     // Lerp Origin:
     //   
     // Step origin discretely, because the frames do the animation properly:
-    if ( newState->renderfx & RF_OLD_FRAME_LERP ) {
+    if ( nextState->renderfx & RF_OLD_FRAME_LERP ) {
         VectorCopy( packetEntity->current.origin, refreshEntity->origin );
         VectorCopy( packetEntity->current.old_origin, refreshEntity->oldorigin );  // FIXME
     } else {
@@ -38,9 +38,9 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
 
     // If no rotation flag is set, add specified trail flags. We don't need it spamming
     // a blood trail of entities when it basically stopped motion.
-    if ( newState->entityFlags & ~EF_ROTATE ) {
-        if ( newState->entityFlags & EF_GIB ) {
-            CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->entityFlags | EF_GIB );
+    if ( nextState->entityFlags & ~EF_ROTATE ) {
+        if ( nextState->entityFlags & EF_GIB ) {
+            CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
         }
     }
 
@@ -82,19 +82,19 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     // Add Refresh Entity Model:
     // 
     // Model Index #1:
-    if ( newState->modelindex ) {
+    if ( nextState->modelindex ) {
         // Skin.
-        refreshEntity->skinnum = newState->skinnum;
+        refreshEntity->skinnum = nextState->skinnum;
         refreshEntity->skin = 0;
         // Model.
-        refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
+        refreshEntity->model = clgi.client->model_draw[ nextState->modelindex ];
         // Render entityFlags.
-        refreshEntity->flags = newState->renderfx;
+        refreshEntity->flags = nextState->renderfx;
 
         // Allow skin override for remaster.
-        if ( newState->renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
-            if ( newState->skinnum >= 0 && newState->skinnum < 512 ) {
-                refreshEntity->skin = clgi.client->image_precache[ newState->skinnum ];
+        if ( nextState->renderfx & RF_CUSTOMSKIN && (unsigned)nextState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
+            if ( nextState->skinnum >= 0 && nextState->skinnum < 512 ) {
+                refreshEntity->skin = clgi.client->image_precache[ nextState->skinnum ];
             }
             refreshEntity->skinnum = 0;
         }
@@ -118,28 +118,28 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #2:
-    if ( newState->modelindex2 ) {
+    if ( nextState->modelindex2 ) {
         // Add Model.
-        refreshEntity->model = clgi.client->model_draw[ newState->modelindex2 ];
+        refreshEntity->model = clgi.client->model_draw[ nextState->modelindex2 ];
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #3:
-    if ( newState->modelindex3 ) {
+    if ( nextState->modelindex3 ) {
         // Reset.
         refreshEntity->skinnum = 0;
         refreshEntity->skin = 0;
         refreshEntity->flags = 0;
         // Add Model.
-        refreshEntity->model = clgi.client->model_draw[ newState->modelindex3 ];
+        refreshEntity->model = clgi.client->model_draw[ nextState->modelindex3 ];
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #4:
-    if ( newState->modelindex4 ) {
+    if ( nextState->modelindex4 ) {
         // Reset.
         refreshEntity->skinnum = 0;
         refreshEntity->skin = 0;
         refreshEntity->flags = 0;
-        refreshEntity->model = clgi.client->model_draw[ newState->modelindex4 ];
+        refreshEntity->model = clgi.client->model_draw[ nextState->modelindex4 ];
         // Add Model.
         clgi.V_AddEntity( refreshEntity );
     }

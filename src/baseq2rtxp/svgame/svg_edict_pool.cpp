@@ -300,9 +300,11 @@ svg_base_edict_t **SVG_EdictPool_Allocate( svg_edict_pool_t *edictPool, const in
 		// If edict number == 0, it is the worldspawn entity.
 		if ( i == 0 ) {
 			typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "worldspawn" );
+			edictPool->num_edicts++;
 		// And if edict number is within the range of maxclients, it is a player entity.
 		} else if ( i >= 1 && i < game.maxclients + 1 ) {
 			typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "player" );
+			edictPool->num_edicts++;
 		// Otherwise, it is a generic entity.
 		} else {
 			// 

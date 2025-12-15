@@ -18,12 +18,23 @@ extern cl_screen_shared_t cl_scr;
 *
 **/
 /**
-*
-*
-*	Client Static:
-*
-*
+*	@brief	
 **/
+static void PF_EmitDemoFrame( void ) {
+	CL_EmitDemoFrame();
+}
+/**
+*	@brief
+**/
+static void PF_InitialDemoFrame( void ) {
+	CL_FirstDemoFrame();
+}
+/**
+*	@brief
+**/
+static const qboolean PF_IsDemoRecording( ) {
+	return cls.demo.recording && !cls.demo.paused && !cls.demo.seeking;
+}
 /**
 *	@return	True if playing a demo, false otherwise.
 **/
@@ -40,6 +51,13 @@ const int64_t PF_GetDemoFileSize() {
 	return cls.demo.file_size;
 }
 
+/**
+*
+*
+*	Client Static:
+*
+*
+**/
 /**
 *	@return	The real system time since application boot time.
 **/
@@ -824,7 +842,12 @@ void CL_GM_LoadProgs( void ) {
 	imports.screen = &cl_scr;
 
 	// Client Static:
+	imports.EmitDemoFrame = PF_EmitDemoFrame;
+	imports.InitialDemoFrame = PF_InitialDemoFrame;
+
+	imports.IsDemoRecording = PF_IsDemoRecording;
 	imports.IsDemoPlayback = PF_IsDemoPlayback;
+	
 	imports.GetDemoFramesRead = PF_GetDemoFramesRead;
 	imports.GetDemoFileProgress = PF_GetDemoFileProgress;
 	imports.GetDemoFileSize = PF_GetDemoFileSize;
@@ -914,6 +937,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.FS_LoadFile = PF_FS_LoadFile;
 	imports.FS_FreeFile = PF_FS_FreeFile;
 
+	imports.ActivateInput = IN_Activate;
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;
 	imports.KeyClear = CL_KeyClear;

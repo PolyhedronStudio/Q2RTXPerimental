@@ -35,30 +35,37 @@ QENUM_BIT_FLAGS( crosslevel_target_flags_t );
 *           the server.ssv file for savegames
 **/
 struct svg_game_locals_t {
-    //! Used for registering the fields which need save and restoring of the session's level locals.
+    /**
+    *   Used for registering the fields which need save and restoring of the session's level locals.
+    **/
     static svg_save_descriptor_field_t saveDescriptorFields[];
 
-    //! [maxclients] of client pointers.
+    //! [maxclients] sized array of client pointers.
     svg_client_t *clients = nullptr;
-
-    //! Can't store spawnpoint in level, because it would get overwritten by the savegame restore.
-    //! Needed for coop respawns.
+    //! Can't store spawnpoint in level, because it would get overwritten by the savegame restore which is needed for coop respawns.
     char        spawnpoint[ 512 ] = {};
 
     //! Store latched cvars here that we want to get at often.
     int32_t             maxclients = 0;
     int32_t             maxentities = 0;
-	//! The gamemode type.
-    sg_gamemode_type_t  gameModeType = ( sg_gamemode_type_t )0;
+
+    //! The gamemode type.
+    sg_gamemode_type_t  modeType = ( sg_gamemode_type_t )0;
     //! The gamemode type matching object.
     svg_gamemode_t *mode = nullptr;
 
     //! Cross level triggers.
     crosslevel_target_flags_t serverflags = SFL_CROSS_TRIGGER_NONE;
+
     //! Number of items.
     int32_t     num_items = 0;
     //! Autosaved.
     bool        autosaved = false;
+
+	//! The current view serverframe player edict.
+    svg_player_edict_t *currentViewPlayer = nullptr;
+	//! And the current view serverframe client.
+    svg_client_t *currentViewClient = nullptr;
 
     /**
     *   Information for PUSH/STOP -movers.

@@ -68,14 +68,3 @@ typedef enum temp_entity_event_e {
 
     TE_NUM_ENTITY_EVENTS
 } temp_entity_event_t;
-
-/**
-*   Temp Entity Event - Splash Types:
-**/
-static constexpr int32_t SPLASH_UNKNOWN     = 0;
-static constexpr int32_t SPLASH_SPARKS      = 1;
-static constexpr int32_t SPLASH_BLUE_WATER  = 2;
-static constexpr int32_t SPLASH_BROWN_WATER = 3;
-static constexpr int32_t SPLASH_SLIME       = 4;
-static constexpr int32_t SPLASH_LAVA        = 5;
-static constexpr int32_t SPLASH_BLOOD       = 6;

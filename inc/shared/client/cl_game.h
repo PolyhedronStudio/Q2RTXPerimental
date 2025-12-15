@@ -82,6 +82,8 @@ typedef struct centity_s {
 	//! The last moment in time of when this entity was available in a snapshot.
 	int64_t snapShotTime;
 
+	//! Next entity state, to be used when updating to a new frame. Arrived from the last acknowledged packet.
+	//entity_state_t	next;
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
 	//! Previous entity state. Will always be valid, but might be just a copy of the current state.
@@ -132,6 +134,9 @@ typedef struct {
 	* 
 	**/
 	// Demo:
+	void ( *EmitDemoFrame )( void );
+	void ( *InitialDemoFrame )( void );
+	const qboolean( *IsDemoRecording )( void );
 	const qboolean ( *IsDemoPlayback )( void );
 	const uint64_t( *GetDemoFramesRead )( void );
 	const float( *GetDemoFileProgress )( void );
@@ -360,9 +365,11 @@ typedef struct {
 
 	/**
 	*
-	*	KeyButtons/KeyEvents:
+	*	Input System/Key Buttons/Key Events:
 	*
 	**/
+	//! Activates the input for the window.
+	void ( *ActivateInput )( void );
 	//! Register a button as being 'held down'.
 	void (* KeyDown )( keybutton_t *keyButton );
 	//! Register a button as being 'released'.
@@ -867,10 +874,6 @@ typedef struct {
 	**/
 	void ( *ClearState ) ( void );
 	/**
-	*	@brief	Called when the client state has moved into being active and the game begins.
-	**/
-	void ( *ClientBegin ) ( void );
-	/**
 	*	@brief	Called when the client state has moved into being properly connected to server.
 	**/
 	void ( *ClientConnected ) ( void );
@@ -905,6 +908,7 @@ typedef struct {
 	*   @brief  Called from CL_Begin only, after precache and spawning. Used for example to access precached data with.
 	**/
 	void ( *PostSpawnEntities )( void );
+
 	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.
@@ -914,26 +918,26 @@ typedef struct {
 	*	@brief	Returns a qhandle_t to the loaded EAX reverb effect profile resource.
 	**/
 	qhandle_t ( *GetEAXBySoundOrigin )( const int32_t entityNumber, vec3_t origin );
-	/**
-	*	@brief	Parsess entity events.
-	**/
-	void ( *ParseEntityEvent )( const int32_t entityNumber );
+
+
 
 	/**
-	*	@brief	Called when a new frame has been received that contains an entity
-	*			which was not present in the previous frame.
+	*
+	*	Frames(Snapshots)
+	*
 	**/
-	void ( *EntityState_FrameEnter )( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
 	/**
-	*	@brief	Called when a new frame has been received that contains an entity
-	*			already present in the previous frame.
+	*   @brief  Prepares the client state for 'activation', also setting the predicted values
+	*           to those of the initially received first valid frame.
 	**/
-	void ( *EntityState_FrameUpdate )( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
+	void ( *Frame_SetInitialServerFrame )( void );
 	/**
-	*   Determine whether the player state has to lerp between the current and old frame,
-	*   or snap 'to'.
+	*   @brief  Called after finished parsing the frame data. All entity states and the
+	*           player state will be transitioned and/or reset as needed, to make sure
+	*           the client has a proper view of the current server frame.
 	**/
-	void ( *PlayerState_Transition )( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );
+	void ( *Frame_TransitionToNext )( void );
+
 
 
 	/**
@@ -958,7 +962,7 @@ typedef struct {
 	*           between our predicted state and the server returned state. In case
 	*           the margin is too high, snap back to server provided player state.
 	**/
-	void ( *CheckPredictionError )( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand );
+	void ( *CheckPredictionError )( );
 	//! Sets the predicted view angles.
 	void ( *PredictAngles )( void );
 	/**

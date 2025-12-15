@@ -229,9 +229,9 @@ void svg_pushmove_edict_t::CalculateAngularMove( svg_pushmove_endcallback endMov
     // 
     // If the current level entity that is being processed, happens to be in front of the
     // entity array queue AND is a teamslave, begin moving its team master instead.
-    if ( level.current_entity == ( ( flags & FL_TEAMSLAVE ) ? teammaster : this ) ) {
+    if ( level.processingEntity == ( ( flags & FL_TEAMSLAVE ) ? teammaster : this ) ) {
         this->onThink_AngleMoveBegin( this );
-        // Team Slaves start moving next frame:
+    // Team Slaves start moving next frame:
     } else {
         nextthink = level.time + FRAME_TIME_S;
         SetThinkCallback( &this->onThink_AngleMoveBegin );
@@ -255,7 +255,7 @@ void svg_pushmove_edict_t::CalculateAngularMove( svg_pushmove_endcallback endMov
 void svg_pushmove_edict_t::SVG_PushMove_MoveRegular( const Vector3 &destination, svg_pushmove_endcallback endMoveCallback ) {
     // If the current level entity that is being processed, happens to be in front of the
     // entity array queue AND is a teamslave, begin moving its team master instead.
-    if ( level.current_entity == ( ( flags & FL_TEAMSLAVE ) ? teammaster : this ) ) {
+    if ( level.processingEntity == ( ( flags & FL_TEAMSLAVE ) ? teammaster : this ) ) {
         this->onThink_MoveBegin( this );
         //} else if ( ent->targetEntities.movewith ) {
         //    SVG_PushMove_MoveBegin( ent );

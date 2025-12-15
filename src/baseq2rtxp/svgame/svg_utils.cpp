@@ -240,6 +240,16 @@ svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const s
 	*   Take the raw approach here.
     **/
 	// Create the temporary entity event entity.
+    //EdictTypeInfo typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+    //spawnEdict = 
+    
+    //EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+    //svg_base_edict_t *tempEventEntity = typeInfo->allocateEdictInstanceCallback( nullptr );
+    //g_edict_pool.EmplaceNextFreeEdict( tempEventEntity );
+
+	// Allocate the next free edict for the temp event entity.
+    
+    //svg_base_edict_t *tempEventEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
     svg_base_edict_t *tempEventEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "svg_temp_event_entity_t" );
     
     // Set the actual entity event to part of entityState_t type.

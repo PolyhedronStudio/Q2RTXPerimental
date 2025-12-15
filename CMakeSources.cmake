@@ -228,6 +228,7 @@ SET(SRC_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_main.cpp
 	baseq2rtxp/clgame/clg_packet_entities.cpp
 	baseq2rtxp/clgame/clg_parse.cpp
+	baseq2rtxp/clgame/clg_playerstate.cpp
 	baseq2rtxp/clgame/clg_precache.cpp
 	baseq2rtxp/clgame/clg_predict.cpp
 	baseq2rtxp/clgame/clg_temp_entities.cpp
@@ -279,6 +280,7 @@ SET(HEADERS_BASEQ2RTXP_CLGAME
 	baseq2rtxp/clgame/clg_local_entities.h
 	baseq2rtxp/clgame/clg_packet_entities.h
 	baseq2rtxp/clgame/clg_parse.h
+	baseq2rtxp/clgame/clg_playerstate.h
 	baseq2rtxp/clgame/clg_precache.h
 	baseq2rtxp/clgame/clg_predict.h
 	baseq2rtxp/clgame/clg_screen.h

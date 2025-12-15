@@ -54,7 +54,7 @@ static void PlayerStateEventsToEntityStateEvent( player_state_t *playerState, en
 *			This is done after each set of usercmd_t on the server,
 *			and after local prediction on the client.
 **/
-void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool snapOrigin ) {
+void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool playerStatEventsToEntityState, const bool snapOrigin ) {
 	/**
 	*	Entity Type, Model Index, etc:
 	**/
@@ -78,7 +78,7 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	*	Origin:
 	**/
 	entityState->origin = ( snapOrigin ? QM_Vector3Snap( playerState->pmove.origin ) : playerState->pmove.origin );
-
+	
 	/**
 	*	Angles:
 	**/
@@ -93,7 +93,9 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	/**
 	*	Check for Events:
 	**/
-	PlayerStateEventsToEntityStateEvent( playerState, entityState );
+	if ( playerStatEventsToEntityState ) {
+		PlayerStateEventsToEntityStateEvent( playerState, entityState );
+	}
 }
 
 /**
@@ -123,5 +125,5 @@ void SG_PlayerStateToMinimalEntityState( const int32_t clientNumber, player_stat
 	/**
 	*	Check for Events:
 	**/
-	PlayerStateEventsToEntityStateEvent( playerState, entityState );
+	//PlayerStateEventsToEntityStateEvent( playerState, entityState );
 }

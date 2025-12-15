@@ -8,6 +8,7 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_entities.h"
 #include "clgame/clg_events.h"
+#include "clgame/clg_playerstate.h"
 #include "clgame/clg_predict.h"
 
 
@@ -71,7 +72,7 @@ void CLG_AdjustViewHeight( const int32_t viewHeight ) {
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
-static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
+void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
     //if ( !clgi.client->clientEntity ) {
     //    return;
     //}
@@ -91,7 +92,10 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
     #if 1
     /**
     *   Check for any external entity events that have been applied to the current frame's
-	*   client entity. (This can thus also be the chase camera entity, if in chase mode.)
+	*   client entity.
+    * 
+    *   That entity is coming straight from the entity snapshot the server sent us for this frame.
+	*   It is either the entity of our own local client, or that of the viewbound entity.
     **/
     if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
 		// Get the client entity for the current frame.
@@ -107,7 +111,8 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
     }
     #endif
 
-    // Get the actual predicted local client entity.
+	// Get the game's predicted client entity, which is used to (not limited to) 
+    // play PMove predicted events.
     centity_t *clientEntity = &clg_entities[ ps->clientNumber + 1 ];
 
     // Go through the predictable events buffer
@@ -148,25 +153,26 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
             **/
             // Proceed to firing the predicted/received event.
             #if 0
-                const bool processedPlayerStateViewBoundEffect = CLG_Events_CheckForLocalPlayerState( ops, ps, playerStateEvent, clgi.client->predictedFrame.ps.pmove.origin, clgi.client->frame.clientNum );
-            if ( !processedPlayerStateViewBoundEffect ) {
-                    CLG_Events_CheckForEntity( clientEntity );
-            }
+                const bool processedPlayerStateViewBoundEffect = CLG_Events_CheckForPlayerState( ops, ps, playerStateEvent, clgi.client->predictedFrame.ps.pmove.origin, clgi.client->frame.clientNum );
+                if ( !processedPlayerStateViewBoundEffect ) {
+                        CLG_Events_CheckForEntity( clientEntity );
+                }
             #else
+                int32_t firedEvent = playerStateEvent;
 				// First try to process via local player state events.
-                const bool firedLocalPlayerStateEvent = CLG_Events_CheckForLocalPlayerState( ops, ps, playerStateEvent, playerStateEventParm0, clgi.client->predictedFrame.ps.pmove.origin/*, clgi.client->frame.ps.clientNumber */);
+                const bool firedLocalPlayerStateEvent = CLG_Events_CheckForPlayerState( ops, ps, playerStateEvent, playerStateEventParm0, clgi.client->predictedFrame.ps.pmove.origin/*, clgi.client->frame.ps.clientNumber */);
 
 				// It was never dealt with by local client events, so assume that the event is
                 // for and attached to the entity.
                 if ( !firedLocalPlayerStateEvent ) {
-                    CLG_Events_CheckForEntity( clientEntity );
+                    firedEvent = CLG_Events_CheckForEntity( clientEntity );
                 }
             #endif
 
             // Add to the list of predictable events.
-            game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] = playerStateEvent;
+            game.predictedState.events[ i & ( client_predicted_state_t::MAX_PREDICTED_EVENTS - 1 ) ] = firedEvent;
             // Increment Event Sequence.
-            game.eventSequence++;
+            game.predictedState.eventSequence++;
         }
     }
 }
@@ -176,29 +182,38 @@ static void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps 
 **/
 static void CLG_CheckChangedPredictableEvents( const player_state_t *ops, const player_state_t *ps, const QMTime &simulationTime ) {
 	// Get local client entity pointer:
-    centity_t* cent = CLG_GetLocalClientEntity();
+    centity_t* cent = &clg_entities[ ps->clientNumber + 1 ];
 	// Sanity check.
     if ( !cent ) {
         return;
 	}
+
+    // Get the predicted player entity.
+	//centity_t *predictedPlayerEntity = CLG_GetPredictedPlayerEntity();
+	// cent = game.predictedPlayerEntity;
+
+	// Go through the predictable events buffer
     for ( int64_t i = ps->eventSequence - MAX_PS_EVENTS; i < ps->eventSequence; i++ ) {
 		// If we have no more events to check:
-        if ( i >= game.eventSequence ) {
+        if ( i >= game.predictedState.eventSequence ) {
             continue;
         }
         // If this event is not further back in than the maximum predictable events we remember..
-        if ( i > game.eventSequence - game_locals_t::MAX_PREDICTED_EVENTS ) {
+        if ( i > game.predictedState.eventSequence - client_predicted_state_t::MAX_PREDICTED_EVENTS ) {
             // If the new playerstate event is different from a previously predicted one.
-            if ( ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] != game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] ) {
+            if ( ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] != game.predictedState.events[ i & ( client_predicted_state_t::MAX_PREDICTED_EVENTS - 1 ) ] ) {
 				// We have a changed predicted event, so we need to re-fire it.
                 const int32_t event = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
 				// Assign to the client entity.
                 cent->current.event = event;
                 cent->current.eventParm0 = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
 				cent->current.eventParm1 = 0;// ps->eventParms1[ i & ( MAX_PS_EVENTS - 1 ) ];
+
+				// Fire the changed predicted event.
                 CLG_Events_CheckForEntity( cent );
 
-                game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ] = event;
+				// Update the predicted event.
+                game.predictedState.events[ i & ( client_predicted_state_t::MAX_PREDICTED_EVENTS - 1 ) ] = event;
 
                 if ( cl_showmiss->integer ) {
                     clgi.ShowMiss( "WARNING: changed predicted event\n" );
@@ -206,9 +221,9 @@ static void CLG_CheckChangedPredictableEvents( const player_state_t *ops, const 
 
                 if ( clg_debug_pmove_changed_events->integer ) {
                     clgi.Print( PRINT_DEVELOPER, "-----\n" );
-                    clgi.Print( PRINT_DEVELOPER, "WARNING: changed predicted event\n" );
-                    clgi.Print( PRINT_DEVELOPER, "Simulation Time: %lld Server Frame: %lld Client Frame: %lld\n", simulationTime.Milliseconds(), clgi.client->frame.number, clgi.client->predictedFrame.number );
-                    clgi.Print( PRINT_DEVELOPER, "  Old: %d, New: %d\n", game.predictableEvents[ i & ( game_locals_t::MAX_PREDICTED_EVENTS - 1 ) ], ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] );
+                    clgi.Print( PRINT_DEVELOPER, "  WARNING: changed predicted event (Time: %lld, Server Frame: %lld, Client Frame: %lld)\n", simulationTime.Milliseconds(), clgi.client->frame.number, clgi.client->predictedFrame.number );
+                    clgi.Print( PRINT_DEVELOPER, "  Old: %d, New: %d\n", game.predictedState.events[ i & ( client_predicted_state_t::MAX_PREDICTED_EVENTS - 1 ) ], ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] );
+                    clgi.Print( PRINT_DEVELOPER, "-----\n" );
                 }
             }
         }
@@ -315,7 +330,14 @@ const qboolean CLG_UsePrediction( void ) {
 *           between our predicted state and the server returned state. In case
 *           the margin is too high, snap back to server provided player state.
 **/
-void CLG_CheckPredictionError( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand ) {
+void CLG_CheckPredictionError( ) {
+    // Determine the last usercmd_t we sent that the server has processed.
+    const int64_t frameIndex = clgi.Netchan_GetIncomingAcknowledged()  & CMD_MASK;
+    // Get the move command history index for this frame index.
+    const uint64_t commandIndex = clgi.client->outPacketHistory[ frameIndex ].commandNumber;
+    // Finally get the pointer to the actual move command residing inside the list.
+    client_movecmd_t *moveCommand = &clgi.client->moveCommands[ commandIndex & CMD_MASK ];
+
     // Maximum delta allowed before snapping back. (80 units at 40hz)
     static constexpr double MAX_DELTA_ORIGIN = ( 3200. * ( 1.0 / BASE_FRAMERATE ) );
 
@@ -445,6 +467,9 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         return;
     }
 
+	// For transitioning purposes, store the old predicted frame.
+    server_frame_t oldPredictedFrame = clgi.client->predictedFrame;
+
     // Last predicted state.
     client_predicted_state_t *predictedState = &game.predictedState;
    
@@ -512,7 +537,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
                 // Check for predictable events that changed from previous predictions.
                 CLG_CheckChangedPredictableEvents( &predictedState->lastPs, &predictedState->currentPs, pm.simulationTime );
                 // Convert certain playerstate properties into entity state properties.
-                SG_PlayerStateToEntityState( clgi.client->clientNumber, &predictedState->currentPs, &clientEntity->current, false );
+                SG_PlayerStateToEntityState( clgi.client->clientNumber, &predictedState->currentPs, &clientEntity->current, false, false );
                 // Predict the next bobCycle for the frame.
                 CLG_PredictNextBobCycle( &pm );
             #endif
@@ -557,7 +582,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
         // Check for predictable events that changed from previous predictions.
         CLG_CheckChangedPredictableEvents( &predictedState->lastPs, &predictedState->currentPs, pm.simulationTime );
         // Convert certain playerstate properties into entity state properties.
-        SG_PlayerStateToEntityState( clgi.client->clientNumber, &predictedState->currentPs, &clientEntity->current, false );
+        SG_PlayerStateToEntityState( clgi.client->clientNumber, &predictedState->currentPs, &clientEntity->current, true, false );
         // Predict the next bobCycle for the frame.
         CLG_PredictNextBobCycle( &pm );
         #endif
@@ -583,14 +608,39 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
     game.predictedState.mins = pm.mins;
     game.predictedState.maxs = pm.maxs;
 
+	// Debug: Check for dropped events.
+    if ( cl_showmiss->integer ) {
+		// Check for dropped events.
+        if ( predictedState->currentPs.eventSequence > predictedState->lastPs.eventSequence + MAX_PS_EVENTS ) {
+			clgi.Print( PRINT_DEVELOPER, "WARNING: dropped event\n" );
+        }
+    }
+
+    // Save the predicted frame for later use.
+    //clgi.client->predictedFrame = clgi.client->frame;
+    //clgi.client->predictedFrame.ps.pmove = predictedState->currentPs.pmove; // Save the predicted player state.
+    clgi.client->predictedFrame.ps = predictedState->currentPs;
+
+    // Fires events and other transition triggered things. And determine whether the player state has to
+    // lerp transition between the current and old frame, or 'snap' to by duplication.    
+    //CLG_PlayerState_Transition( &game.predictedEntity &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta );
+
+    // TODO: Use game.predictedEntity for this.
+    CLG_PlayerState_Transition( &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ], &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta);
+
+	// Debug: Check for double events.
+    if ( cl_showmiss->integer ) {
+		// Check for being out of sync.
+        if ( game.predictedState.eventSequence > predictedState->currentPs.eventSequence ) {
+			// Sync event sequence.
+            game.predictedState.eventSequence = predictedState->currentPs.eventSequence;
+            // Debug print.
+            clgi.Print( PRINT_DEVELOPER, "WARNING: double event\n" );
+        }
+    }
+
     // Smooth Out Stair Stepping. We test results to the previously predicted ground data.
     CLG_PredictStepOffset( &pm, predictedState, pm.step_height );
     // Adjust the view height to the new state's viewheight. If it changed, record moment in time.
     CLG_AdjustViewHeight( predictedState->currentPs.pmove.viewheight );
-
-
-    // Save the predicted frame for later use.
-	//clgi.client->predictedFrame = clgi.client->frame;
-	//clgi.client->predictedFrame.ps.pmove = predictedState->currentPs.pmove; // Save the predicted player state.
-    clgi.client->predictedFrame.ps = predictedState->currentPs;
 }

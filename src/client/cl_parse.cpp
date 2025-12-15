@@ -415,7 +415,7 @@ static void CL_ParseFrame()
     // Start to perform the delta frame lerping if we're not demo seeking,
     // this will also move our cls.state into ca_active if it is our first valid received frame.
     if ( !cls.demo.seeking ) {
-        CL_ProcessNextFrame();
+        CL_TransitionServerFrames();
     }
 }
 

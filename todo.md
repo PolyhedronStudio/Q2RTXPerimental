@@ -10,6 +10,15 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
       as well as allowing for client-side prediction of these values where possible. This may involve having to deal with
       adding functions such as P_WorldEffects into the shared game module as well.
 * [X] --
+* [ ] Streamline the gi. functions to CamelCase and wrap them up in SVG_ functions for ease of use. (gi.dprintf just be gi.Print( type, msg, args )
+* [ ] Look into the client's oldpmove storage.
+* [ ] Look into the client's viewMove vVectors, and possible unnecessary duplicates.
+* [ ] Look into the actual origin Q3 has that is used for collision and those of rendering.
+* [ ] Streamline that we got SVG_Client_BeginFrame/EndFrame, and for the gamemode to wrap whatever s left in those calls too.
+* [X] --
+* [ ] Rewrite the addPacketEntities scenario to be more clear and streamlined like Q3.
+	-- This involves CLG_TransitionPlayerState and cLG_TransitionEntity style approach.
+* [X] --
 * [ ] Look into all temp_entity_events and remove/comment all unnecessary events.
 	* [ ] Port all necessary ones to be actual entity events instead of temp_entity events.
 	* [ ] Sound Events. (gi.sound, gi.positional_sound)

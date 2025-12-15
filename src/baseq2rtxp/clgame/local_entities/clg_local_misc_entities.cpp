@@ -125,8 +125,8 @@ void CLG_misc_model_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	**/
 	// Clean slate refresh entity.
 	selfClass->rent = {};
-	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
-	selfClass->rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
+	// Setup the refresh entity ID to start off at REFRESHENTITIY_OFFSET_LOCALENTITIES.
+	selfClass->rent.id = REFRESHENTITIY_OFFSET_LOCALENTITIES + self->id;
 
 	// Copy spatial information over into the refresh entity.
 	VectorCopy( self->locals.origin, selfClass->rent.origin );
@@ -366,8 +366,8 @@ void CLG_misc_playerholo_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	// Clean slate refresh entity.
 	entity_t rent = {};
 
-	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
-	rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
+	// Setup the refresh entity ID to start off at REFRESHENTITIY_OFFSET_LOCALENTITIES.
+	rent.id = REFRESHENTITIY_OFFSET_LOCALENTITIES + self->id;
 
 	// Copy spatial information over into the refresh entity.
 	VectorCopy( self->locals.origin, rent.origin );

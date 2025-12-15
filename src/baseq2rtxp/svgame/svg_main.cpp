@@ -482,14 +482,17 @@ void SVG_ShutdownGame( void ) {
 /**
 *   @brief 
 **/
-void EndClientServerFrames(void) {
-    // calc the player views now that all pushing
-    // and damage has been added
-    for ( int32_t i = 0 ; i < maxclients->value ; i++) {
-        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+static void EndClientServerFrames(void) {
+    // Calc the player views now that all pushing and damage has been added
+    for ( int32_t i = 1 ; i <= maxclients->value ; i++) {
+		// Get the entity for this client.
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+        // Sanity check.
         if ( !ent || !ent->inUse || !ent->client ) {
             continue;
         }
+
+		// Call upon end of server frame for client, which in turn notifies the gamemode.
         SVG_Client_EndServerFrame(ent);
     }
 
@@ -653,7 +656,7 @@ void SVG_RunFrame(void) {
         /**
         *   Set the current entity being processed for the current frame.
         **/
-        level.current_entity = ent;
+        level.processingEntity = ent;
 
         /**
 		*   Clear events that are too old.
@@ -706,7 +709,6 @@ void SVG_RunFrame(void) {
             SVG_RunEntity( ent );
         }
     }
-
     // Readjust "movewith" Push/Stop entities.
     SVG_PushMove_UpdateMoveWithEntities();
 
@@ -722,7 +724,6 @@ void SVG_RunFrame(void) {
 
     // build the playerstate_t structures for all players
     EndClientServerFrames();
-
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_EndServerFrame();
 }

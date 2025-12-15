@@ -543,7 +543,7 @@ void CLG_AddViewWeapon( void ) {
     }
 
     // Model entity index ID is reserved for the view weapon.
-    gun.id = RENTITIY_RESERVED_GUN;
+    gun.id = REFRESHENTITIY_RESERVED_GUN;
 
     // Calculate the lerped gun position.
     //Vector3 gunOrigin = clgi.client->refdef.vieworg + QM_Vector3Lerp( game.predictedState.lastPs.gunoffset, game.predictedState.currentPs.gunoffset, clgi.client->xerpFraction );

@@ -420,10 +420,6 @@ static void SCR_TimeRefresh_f(void)
 
 //============================================================================
 
-void SCR_DeltaFrame(void) {
-    clge->ScreenDeltaFrame();
-}
-
 void SCR_ModeChanged(void)
 {
     IN_Activate();

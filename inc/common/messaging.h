@@ -23,56 +23,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // SizeBuffer.
 #include "common/sizebuf.h"
 
-
-
-/**
-*
-*   "Packing" POD types.
-*
-**/
-// WID: upgr-solid: From Q2RE, similar it seems to how Q3 does it. (Did not check that).
-/**
-*	@brief	union struct, for packing the bounds as uint32_t.
-**/
-typedef union bounds_packed_u {
-	//! Memory packed representation of the bounds.
-	struct p {
-		uint8_t x;
-		uint8_t y;
-		uint8_t zd; //! "z=down" always negative
-		uint8_t zu; //! "z-up", encoded as + 32
-	} p;
-
-	//! Actual uint32_t value used for bounds.
-	uint32_t u;
-} bounds_packed_t;
-
 //! Extern access to the 'NULL Baseline' states of entity, player, and user commands.
 extern const entity_state_t	nullEntityState;
 extern const player_state_t	nullPlayerState;
 extern const usercmd_t		nullUserCmd;
 
-/**
-*	@brief	Will encode/pack the mins/maxs bounds into the solid_packet_t uint32_t.
-**/
-static inline const bounds_packed_t MSG_PackBoundsUint32( const vec3_t mins, const vec3_t maxs ) {
-	bounds_packed_t packedBounds;
-
-	packedBounds.p.x = maxs[ 0 ];
-	packedBounds.p.y = maxs[ 1 ];
-	packedBounds.p.zd = -mins[ 2 ];
-	packedBounds.p.zu = maxs[ 2 ] + 32;
-
-	return packedBounds;
-}
-/**
-*	@brief	Will decode/unpack the solid_packet_t uint32_t, into the pointers mins/maxs.
-**/
-static inline void MSG_UnpackBoundsUint32( const bounds_packed_t packedBounds, vec3_t mins, vec3_t maxs ) {
-	mins[ 0 ] = -packedBounds.p.x;  maxs[ 0 ] = packedBounds.p.x;
-	mins[ 1 ] = -packedBounds.p.y;  maxs[ 1 ] = packedBounds.p.y;
-	mins[ 2 ] = -packedBounds.p.zd; maxs[ 2 ] = packedBounds.p.zu - 32;
-}
 
 
 /**

@@ -37,9 +37,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/entities/svg_player_edict.h"
 
 
-static  svg_base_edict_t *current_player;
-static  svg_client_t *current_client;
-
 static  vec3_t  forward, right, up;
 
 //float   xyspeed;
@@ -55,12 +52,12 @@ inline bool SkipViewModifiers( ) {
 	//	return true;
 	//}
 	//// don't do bobbing, etc on grapple
-	//if ( current_client->ctf_grapple &&
-	//	 current_client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY ) {
+	//if ( game.currentViewClient->ctf_grapple &&
+	//	 game.currentViewClient->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY ) {
 	//	return true;
 	//}
 	// spectator mode
-	if ( current_client->resp.spectator ) { //|| ( SVG_TeamplayEnabled( ) && current_client->resp.ctf_team == CTF_NOTEAM ) ) {
+	if ( game.currentViewClient->resp.spectator ) { //|| ( SVG_TeamplayEnabled( ) && game.currentViewClient->resp.ctf_team == CTF_NOTEAM ) ) {
 		return true;
 	}
 	return false;
@@ -575,26 +572,26 @@ void P_CalculateBlend( svg_base_edict_t *ent ) {
 void P_CheckWorldEffects( void ) {
 	cm_liquid_level_t liquidlevel, old_waterlevel;
 
-	if ( !current_player || !current_client ) {
+	if ( !game.currentViewPlayer || !game.currentViewClient ) {
 		return;
 	}
 
 	/**
 	*	if the player is noclipping, don't drown, and ignore world effects:
 	**/
-	if ( current_player->movetype == MOVETYPE_NOCLIP ) {
+	if ( game.currentViewPlayer->movetype == MOVETYPE_NOCLIP ) {
 		// To prevent drowning.
-		current_player->air_finished_time = level.time + 12_sec;
+		game.currentViewPlayer->air_finished_time = level.time + 12_sec;
 		// Exit.
 		return;
 	}
 
 	// Current water level.
-	liquidlevel = current_player->liquidInfo.level;
+	liquidlevel = game.currentViewPlayer->liquidInfo.level;
 	// Copy a backup of the previous water level.
-	old_waterlevel = current_client->old_waterlevel;
+	old_waterlevel = game.currentViewClient->old_waterlevel;
 	// Store current water level for next check.
-	current_client->old_waterlevel = liquidlevel;
+	game.currentViewClient->old_waterlevel = liquidlevel;
 
 	//
 	// if just entered a water volume, play a sound
@@ -603,71 +600,71 @@ void P_CheckWorldEffects( void ) {
 	if ( !old_waterlevel && liquidlevel ) {
 		// Feet in.
 		if ( liquidlevel == cm_liquid_level_t::LIQUID_FEET ) {
-			SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-			if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
-				//gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
-				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
+			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
+			if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
+				//gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
+				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
 
 				// clear damage_debounce, so the pain sound will play immediately
-				current_player->damage_debounce_time = level.time - 1_sec;
+				game.currentViewPlayer->damage_debounce_time = level.time - 1_sec;
 			} 
-			else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
-				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
-			} else if ( current_player->liquidInfo.type & CONTENTS_WATER ) {
-				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+			else if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_SLIME ) {
+				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+			} else if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_WATER ) {
+				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
 			}
 		} else if ( liquidlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
-			SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-			if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
-				gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
+			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
+			if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
+				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
 
 				// clear damage_debounce, so the pain sound will play immediately
-				current_player->damage_debounce_time = level.time - 1_sec;
+				game.currentViewPlayer->damage_debounce_time = level.time - 1_sec;
 			} 
-			else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
+			else if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_SLIME ) {
 				const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
-				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
-			} else if ( current_player->liquidInfo.type & CONTENTS_WATER ) {
+				gi.sound( game.currentViewPlayer, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+			} else if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_WATER ) {
 				const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
-				gi.sound( current_player, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+				gi.sound( game.currentViewPlayer, CHAN_AUTO, gi.soundindex( splash_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
 			}
 		}
-		current_player->flags |= FL_INWATER;
+		game.currentViewPlayer->flags |= FL_INWATER;
 	}
 
 	// If just completely exited a water volume while only feet in, play a sound.
 	if ( !liquidlevel && old_waterlevel == cm_liquid_level_t::LIQUID_FEET ) {
-		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+		SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
 		#if 0
-			gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+			gi.sound( game.currentViewPlayer, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
 		#endif
-		current_player->flags &= ~FL_INWATER;
+		game.currentViewPlayer->flags &= ~FL_INWATER;
 	}
 	// If just completely exited a water volume waist or head in, play a sound.
 	if ( !liquidlevel && old_waterlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
-		SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
+		SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
 		#if 0
-			gi.sound( current_player, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
+			gi.sound( game.currentViewPlayer, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
 		#endif
-		current_player->flags &= ~FL_INWATER;
+		game.currentViewPlayer->flags &= ~FL_INWATER;
 	}
 
 	// Check for head just going under water.
 	if ( old_waterlevel < cm_liquid_level_t::LIQUID_UNDER && liquidlevel == cm_liquid_level_t::LIQUID_UNDER ) {
 		#if 0
-			gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
+			gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/water_head_under01.wav" ), 1, ATTN_NORM, 0 );
 		#endif
 	}
 	//
 	// Check for head just coming out of water.
 	if ( old_waterlevel == cm_liquid_level_t::LIQUID_UNDER && liquidlevel != cm_liquid_level_t::LIQUID_UNDER ) {
-		if ( current_player->air_finished_time < level.time ) {
+		if ( game.currentViewPlayer->air_finished_time < level.time ) {
 			// gasp for air
-			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
-			SVG_Player_PlayerNoise( current_player, current_player->s.origin, PNOISE_SELF );
-		} else  if ( current_player->air_finished_time < level.time + 11_sec ) {
+			gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
+			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
+		} else  if ( game.currentViewPlayer->air_finished_time < level.time + 11_sec ) {
 			// just break surface
-			gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
+			gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
 		}
 	}
 	#endif
@@ -677,61 +674,61 @@ void P_CheckWorldEffects( void ) {
 	//
 	if ( liquidlevel == cm_liquid_level_t::LIQUID_UNDER ) {
 		// if out of air, start drowning
-		if ( current_player->air_finished_time < level.time ) {
+		if ( game.currentViewPlayer->air_finished_time < level.time ) {
 			// drown!
-			if ( current_player->client->ps.stats[ STAT_TIME_NEXT_DROWN ] < level.time.Milliseconds()
-				&& current_player->health > 0 ) {
-				current_player->client->ps.stats[ STAT_TIME_NEXT_DROWN ] = ( level.time + 2700_ms ).Milliseconds();
+			if ( game.currentViewPlayer->client->ps.stats[ STAT_TIME_NEXT_DROWN ] < level.time.Milliseconds()
+				&& game.currentViewPlayer->health > 0 ) {
+				game.currentViewPlayer->client->ps.stats[ STAT_TIME_NEXT_DROWN ] = ( level.time + 2700_ms ).Milliseconds();
 
 				// Take more damage the longer underwater by using the 'dmg' field.
-				current_player->dmg += 15;
+				game.currentViewPlayer->dmg += 15;
 				// Cap maximum drowning damage.
-				if ( current_player->dmg > 30 ) {
-					current_player->dmg = 30;
+				if ( game.currentViewPlayer->dmg > 30 ) {
+					game.currentViewPlayer->dmg = 30;
 				}
 
 				// Play a gurp sound instead of a normal pain sound for all clients but the player itself.
 				// ( Client predicts its own 'gurp' pain sounds. )
-				if ( current_player->health <= current_player->dmg ) {
-					//gi.sound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
-					SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ) );
+				if ( game.currentViewPlayer->health <= game.currentViewPlayer->dmg ) {
+					//gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ), 1, ATTN_NORM, 0 );
+					SVG_TempEventEntity_GeneralSound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/drown01.wav" ) );
 				} else {
 					const qhandle_t gurpSfxIndex = gi.soundindex( SG_RandomResourcePath( "player/gurp", "wav", 0, 2 ).c_str() );
-					//gi.sound( current_player, CHAN_VOICE, gurp_sfx_index, 1, ATTN_NORM, 0 );
-					SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gurpSfxIndex );
+					//gi.sound( game.currentViewPlayer, CHAN_VOICE, gurp_sfx_index, 1, ATTN_NORM, 0 );
+					SVG_TempEventEntity_GeneralSound( game.currentViewPlayer, CHAN_VOICE, gurpSfxIndex );
 				}
 
 				// Set next pain time.
-				current_player->pain_debounce_time = level.time;
+				game.currentViewPlayer->pain_debounce_time = level.time;
 				// Apply drowning damage.
-				SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, current_player->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
+				SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->s.origin, vec3_origin, game.currentViewPlayer->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
 			}
 		}
 	} else {
-		current_player->air_finished_time = level.time + 12_sec;
-		current_player->dmg = 2;
+		game.currentViewPlayer->air_finished_time = level.time + 12_sec;
+		game.currentViewPlayer->dmg = 2;
 	}
 
 	//
 	// Check for sizzle damage
 	//
-	if ( liquidlevel && ( current_player->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
+	if ( liquidlevel && ( game.currentViewPlayer->liquidInfo.type & ( CONTENTS_LAVA | CONTENTS_SLIME ) ) ) {
 		// Lava or slime damage
-		if ( current_player->liquidInfo.type & CONTENTS_LAVA ) {
+		if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
 			// Play burn sound if time to next pain sound has elapsed.
-			if ( current_player->health > 0	&& current_player->pain_debounce_time <= level.time ) {
+			if ( game.currentViewPlayer->health > 0	&& game.currentViewPlayer->pain_debounce_time <= level.time ) {
 				// Acquire path to a random burn sound.
 				const std::string burn_sfx_path = SG_RandomResourcePath( "player/burn", "wav", 0, 2 );
-				//gi.sound( current_player, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
-				SVG_TempEventEntity_GeneralSound( current_player, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ) );
+				//gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+				SVG_TempEventEntity_GeneralSound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ) );
 				// Set next pain time.
-				current_player->pain_debounce_time = level.time + 1_sec;
+				game.currentViewPlayer->pain_debounce_time = level.time + 1_sec;
 			}
 			// Lava damage
-			SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
-		} else if ( current_player->liquidInfo.type & CONTENTS_SLIME ) {
+			SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->s.origin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
+		} else if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_SLIME ) {
 			// Slime damage
-			SVG_DamageEntity( current_player, world, world, vec3_origin, current_player->s.origin, vec3_origin, 1 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
+			SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->s.origin, vec3_origin, 1 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
 		}
 	}
 }
@@ -769,18 +766,18 @@ void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	//	return;
 	//}
 	//if ( ent->groundentity && xyspeed > 225 ) {
-	//	if ( (int)( current_client->bobtime + bobmove ) != bobcycle )
+	//	if ( (int)( game.currentViewClient->bobtime + bobmove ) != bobcycle )
 	//		ent->s.event = EV_FOOTSTEP;
 	//}
-	const Vector3 ladderDistVec = QM_Vector3Subtract( current_client->last_ladder_pos, ent->s.origin );
+	const Vector3 ladderDistVec = QM_Vector3Subtract( game.currentViewClient->last_ladder_pos, ent->s.origin );
 	const double ladderDistance = QM_Vector3LengthSqr( ladderDistVec );
-	if ( current_client->ps.pmove.pm_flags & PMF_ON_LADDER ) {
-		if ( current_client->last_ladder_sound < level.time &&
+	if ( game.currentViewClient->ps.pmove.pm_flags & PMF_ON_LADDER ) {
+		if ( game.currentViewClient->last_ladder_sound < level.time &&
 			ladderDistance > 48.f ) {
 			//ent->s.event = EV_FOOTSTEP_LADDER;
 			SVG_Util_AddEvent( ent, EV_FOOTSTEP_LADDER, 0 );
-			VectorCopy( ent->s.origin, current_client->last_ladder_pos );
-			current_client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
+			VectorCopy( ent->s.origin, game.currentViewClient->last_ladder_pos );
+			game.currentViewClient->last_ladder_sound = level.time + LADDER_SOUND_TIME;
 
 			gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRId64 ")\n", __func__, level.frameNumber );
 		}
@@ -862,86 +859,3 @@ void SVG_SetClientFrame( svg_base_edict_t *ent ) {
 		BASE_FRAMERATE /*lowerBodyState->frameTime*/
 	);
 }
-
-
-/**
-*   @brief  This will be called once for all clients on each server frame, before running any other entities in the world.
-**/
-void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
-	// <Q2RTXP>: WID: TODO: WARN?
-	if ( !ent->client ) {
-		gi.dprintf( "%s: !ent->client && !ent->client->pers.spawned\n", __func__ );
-		return;
-	}
-	// Ensure we are dealing with a player entity here.
-	if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
-		gi.dprintf( "%s: Not a player entity.\n", __func__ );
-		return;
-	}
-
-	/**
-	*   Remove RF_STAIR_STEP if we're in a new frame, not stepping.
-	**/
-	if ( gi.GetServerFrameNumber() != ent->client->last_stair_step_frame ) {
-		ent->s.renderfx &= ~RF_STAIR_STEP;
-	}
-	/**
-	*	Give game mode control.
-	**/
-	game.mode->BeginServerFrame( static_cast<svg_player_edict_t *>( ent ) );
-
-	/**
-	*   UNLATCH ALL LATCHED BUTTONS:
-	**/
-	ent->client->latched_buttons = BUTTON_NONE;
-}
-
-/**
-*	@brief	Called for each player at the end of the server frame, and right after spawning.
-**/
-void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
-	// <Q2RTXP>: WID: TODO: WARN?
-	if ( !ent->client ) {
-		return;
-	}
-	// no player exists yet (load game)
-	if ( !ent->client->pers.spawned ) {
-		gi.dprintf( "%s: !ent->client->pers.spawned\n", __func__ );
-		return;
-	}
-
-	// Ensure we are dealing with a player entity here.
-	if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
-		gi.dprintf( "%s: Not a player entity.\n", __func__ );
-		return;
-	}
-
-	current_player = ent;
-	current_client = ent->client;
-
-	//
-	// If the origin or velocity have changed since ClientThink(),
-	// update the pmove values.  This will happen when the client
-	// is pushed by a bmodel or kicked by an explosion.
-	//
-	// If it wasn't updated here, the view position would lag a frame
-	// behind the body position when pushed -- "sinking into plats"
-	//
-	current_client->ps.pmove.origin = current_player->s.origin;
-	current_client->ps.pmove.velocity = current_player->velocity;
-
-	/**
-	*	Let game modes handle it from here.
-	**/
-	// For type sakeness.
-	svg_player_edict_t *player_edict = static_cast<svg_player_edict_t *>( current_player );
-	game.mode->EndServerFrame( player_edict );
-	/**
-	*	Finalize player state.
-	**/
-	// Convert certain playerstate properties into entity state properties.
-	SG_PlayerStateToEntityState( player_edict->client->clientNum, &player_edict->client->ps, &player_edict->s, false );
-	// Send any remaining pending predictable events to all clients but "ourselves".
-	SVG_Client_SendPendingPredictableEvents( player_edict, player_edict->client );
-}
-

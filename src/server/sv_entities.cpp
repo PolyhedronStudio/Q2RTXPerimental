@@ -636,7 +636,7 @@ void SV_BuildClientFrame( client_t *client ) {
             *   Ignore ents without visible models if they have no effects, sound or events.
             **/
             if ( !ent->s.modelindex && !ent->s.entityFlags && !ent->s.sound ) {
-                if ( !ent->s.event ) {
+                if ( !EV_GetEntityEventValue( ent->s.event ) ) {
                     continue;
                 }
             }

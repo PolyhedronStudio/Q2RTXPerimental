@@ -57,9 +57,6 @@ static void clg_railspiral_color_changed( cvar_t *self ) {
     }
 }
 
-//! Water Splash Color.
-static const byte splash_color[] = { 0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8 };
-
 /**
 *   @brief  Will select and play a random grenade explosion.
 **/
@@ -116,7 +113,7 @@ void CLG_TemporaryEntities_Parse( void ) {
                 clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
         }
         break;
-
+    #if 0 // Moved to Entity Event
     //! A bullet hitting water.
     case TE_SPLASH:
         if ( level.parsedMessage.events.tempEntity.color < 0 || level.parsedMessage.events.tempEntity.color > 6 )
@@ -135,7 +132,7 @@ void CLG_TemporaryEntities_Parse( void ) {
         //        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.spark7, 1, ATTN_STATIC, 0 );
         //}
         break;
-
+    #endif
     case TE_LASER_SPARKS:
         CLG_FX_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
         break;

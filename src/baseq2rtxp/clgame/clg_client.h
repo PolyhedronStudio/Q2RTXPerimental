@@ -10,7 +10,7 @@
 /**
 *	@brief	Called when the client state has moved into being active and the game begins.
 **/
-void PF_ClientBegin( void );
+void CLG_ClientBegin( void );
 /**
 *	@brief	Called when the client state has moved into being properly connected to server.
 **/

@@ -10,10 +10,12 @@
 #include "clgame/clg_eax.h"
 #include "clgame/clg_effects.h"
 #include "clgame/clg_entities.h"
+#include "clgame/clg_frame.h"
 #include "clgame/clg_input.h"
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_packet_entities.h"
 #include "clgame/clg_parse.h"
+#include "clgame/clg_playerstate.h"
 #include "clgame/clg_precache.h"
 #include "clgame/clg_predict.h"
 #include "clgame/clg_temp_entities.h"
@@ -293,44 +295,45 @@ void PF_ClearState( void ) {
 
 /**
 *
+* 
 *
-*	Entity Receive and Update:
+*	Entity(-State)/Player(-State) Functionality:
 *
 *
+* 
 **/
 /**
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.
 **/
 void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
-	CLG_GetEntitySoundOrigin( entityNumber, org );
+	const Vector3 soundOrigin = CLG_GetEntitySoundOrigin( entityNumber );
+	VectorCopy( soundOrigin, org );
+}
+
+
+
+/**
+*
+*
+*	Frames:
+*
+*
+**/
+/**
+*   @brief  Prepares the client state for 'activation', also setting the predicted values
+*           to those of the initially received first valid frame.
+**/
+void PF_Frame_SetInitialServerFrame() {
+	CLG_Frame_SetInitialServerFrame();
 }
 /**
-*	@brief	Parsess entity events.
+*   @brief  Called after finished parsing the frame data. All entity states and the
+*           player state will be transitioned and/or reset as needed, to make sure
+*           the client has a proper view of the current server frame.
 **/
-void PF_ParseEntityEvent( const int32_t entityNumber ) {
-	CLG_ParseEntityEvent( entityNumber );
-}
-/**
-*	@brief	Called when a new frame has been received that contains an entity
-*			which was not present in the previous frame.
-**/
-static void PF_EntityState_FrameEnter( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
-	CLG_EntityState_FrameEnter( ent, state, ( origin ? *origin : QM_Vector3Zero() ) );
-}
-/**
-*	@brief	Called when a new frame has been received that contains an entity
-*			already present in the previous frame.
-**/
-static void PF_EntityState_FrameUpdate( centity_t *ent, const entity_state_t *state, const Vector3 *origin ) {
-	CLG_EntityState_FrameUpdate( ent, state, ( origin ? *origin : QM_Vector3Zero() ) );
-}
-/**
-*   Determine whether the player state has to lerp between the current and old frame,
-*   or snap 'to'.
-**/
-static void PF_PlayerState_Transition( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
-	CLG_PlayerState_Transition( oldframe, frame, framediv );
+void PF_Frame_TransitionToNext() {
+	CLG_Frame_TransitionToNext();
 }
 
 
@@ -388,8 +391,8 @@ const char *PF_GetViewModelFilename( const uint32_t index ) {
 /**
 *   @brief  'ProgFunc' Wrapper for CLG_CheckPredictionError.
 **/
-void PF_CheckPredictionError( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand ) {
-	CLG_CheckPredictionError( frameIndex, commandIndex, moveCommand );
+void PF_CheckPredictionError( ) {
+	CLG_CheckPredictionError( );
 }
 /**
 *   @brief  'ProgFunc' Wrapper for CLG_PredictAngles.
@@ -666,7 +669,6 @@ extern "C" { // WID: C++20: extern "C".
 		globals.PreShutdown = PF_PreShutdownGame;
 
 		globals.ClearState = PF_ClearState;
-		globals.ClientBegin = PF_ClientBegin;
 		globals.ClientConnected = PF_ClientConnected;
 		globals.ClientDisconnected = PF_ClientDisconnected;
 		globals.ClientLocalFrame = PF_ClientLocalFrame;
@@ -676,10 +678,9 @@ extern "C" { // WID: C++20: extern "C".
 		globals.PostSpawnEntities = PF_PostSpawnEntities;
 
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
-		globals.ParseEntityEvent = PF_ParseEntityEvent;
-		globals.EntityState_FrameEnter = PF_EntityState_FrameEnter;
-		globals.EntityState_FrameUpdate = PF_EntityState_FrameUpdate;
-		globals.PlayerState_Transition = PF_PlayerState_Transition;
+
+		globals.Frame_SetInitialServerFrame = PF_Frame_SetInitialServerFrame;
+		globals.Frame_TransitionToNext = PF_Frame_TransitionToNext;
 
 		globals.GetGameModeName = PF_GetGameModeName;
 
@@ -699,7 +700,6 @@ extern "C" { // WID: C++20: extern "C".
 		globals.ScreenInit = PF_SCR_Init;
 		globals.ScreenRegisterMedia = PF_SCR_RegisterMedia;
 		globals.ScreenModeChanged = PF_SCR_ModeChanged;
-		globals.ScreenDeltaFrame = PF_SCR_DeltaFrame;
 		globals.ScreenShutdown = PF_SCR_Shutdown;
 		globals.DrawActiveViewState = PF_DrawActiveViewState;
 		globals.DrawLoadState = PF_DrawLoadState;

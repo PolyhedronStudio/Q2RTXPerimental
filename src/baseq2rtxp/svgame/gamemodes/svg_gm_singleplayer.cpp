@@ -191,7 +191,7 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     Vector3 spawn_origin = QM_Vector3Zero();
     Vector3 spawn_angles = QM_Vector3Zero();
     // Seek spawn 'spot' to position us on to.
-    if ( !game.mode->SelectSpawnPoint( static_cast<svg_player_edict_t *>( ent ), spawn_origin, spawn_angles ) ) {
+    if ( !game.mode->SelectSpawnPoint( ent, spawn_origin, spawn_angles ) ) {
         // <Q2RTXP>: WID: TODO: Warn or error out, or just ignore it like it used to?
     }
 
@@ -280,6 +280,7 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 
     // Reset PlayerState values.
     client->ps = {
+        .clientNumber = (int16_t)clientNum,
         .eventSequence = eventSequence,
     };
 

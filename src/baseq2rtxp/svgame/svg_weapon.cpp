@@ -289,7 +289,8 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
 
         // See if we hit water.
         if ( tr.contents & CM_CONTENTMASK_LIQUID ) {
-            int32_t color = SPLASH_UNKNOWN;
+            // Splash type.
+            sg_entity_events_t splashType = EV_FX_SPLASH_UNKNOWN;
 
             // We are in water.
             water = true;
@@ -301,25 +302,37 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
                 // Determine the color of the splash.
                 if ( tr.contents & CONTENTS_WATER ) {
                     if ( strcmp( tr.surface->name, "*brwater" ) == 0 ) {
-                        color = SPLASH_BROWN_WATER;
+                        splashType = EV_FX_SPLASH_WATER_BROWN;
                     } else {
-                        color = SPLASH_BLUE_WATER;
+                        splashType = EV_FX_SPLASH_WATER_BLUE;
                     }
                 } else if ( tr.contents & CONTENTS_SLIME ) {
-                    color = SPLASH_SLIME;
+                    splashType = EV_FX_SPLASH_SLIME;
                 } else if ( tr.contents & CONTENTS_LAVA ) {
-                    color = SPLASH_LAVA;
+                    splashType = EV_FX_SPLASH_LAVA;
                 }
 
-                if ( color != SPLASH_UNKNOWN ) {
-                    gi.WriteUint8( svc_temp_entity );
-                    gi.WriteUint8( TE_SPLASH );
-                    gi.WriteUint8( 8 );
-                    gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    const Vector3 planeNormal = tr.plane.normal;
-                    gi.WriteDir8( &planeNormal );
-                    gi.WriteUint8( color );
-                    gi.multicast( &tr.endpos, MULTICAST_PVS, false );
+                if ( splashType != EV_FX_SPLASH_UNKNOWN ) {
+					// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+					const int32_t eventParm0 = static_cast<int32_t>( 8 ) & 255;
+                    // Plane normal stored in second parm, encoded to a byte.
+                    const int32_t eventParm1 = DirToByte( tr.plane.normal );
+
+                    // Create a temporary entity event for all other clients.
+                    svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEventEntity(
+                        tr.endpos,
+                        splashType, eventParm0, eventParm1,
+                        true
+                    );
+
+                    //gi.WriteUint8( svc_temp_entity );
+                    //gi.WriteUint8( TE_SPLASH );
+                    //gi.WriteUint8( 8 );
+                    //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+                    //const Vector3 planeNormal = tr.plane.normal;
+                    //gi.WriteDir8( &planeNormal );
+                    //gi.WriteUint8( color );
+                    //gi.multicast( &tr.endpos, MULTICAST_PVS, false );
                 }
 
                 // Change bullet's course when it has entered enters water

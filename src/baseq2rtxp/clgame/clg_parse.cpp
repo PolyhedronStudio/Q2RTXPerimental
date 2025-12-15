@@ -460,22 +460,6 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
 
 
 /**
-*	@brief	Parsess entity events.
-**/
-void CLG_ParseEntityEvent( const int32_t entityNumber ) {
-    if ( entityNumber < 0 || entityNumber >= MAX_ENTITIES ) {
-        clgi.Print( PRINT_WARNING, "PF_ParseEntityEvent: invalid range(%d) variable 'entityNumber'\n", entityNumber );
-        return;
-    }
-
-    // Get the entity.
-    centity_t *cent = &clg_entities[ entityNumber ];//centity_t *cent = &cl_entities[number];
-    // Check for events.
-    CLG_Events_CheckForEntity( cent );
-}
-
-
-/**
 *	@brief	Parses a clientinfo configstring:
 *           Breaks up playerskin into name (optional), model and skin components.
 *           If model or skin are found to be invalid, replaces them with sane defaults.

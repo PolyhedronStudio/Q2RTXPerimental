@@ -537,7 +537,7 @@ void CL_SeekDemoMessage(void);
 *           Will switch the clientstatic state to 'ca_active' if it is the first
 *           parsed valid frame and the client is done precaching all data.
 **/
-void CL_ProcessNextFrame( void );
+void CL_TransitionServerFrames( void );
 /**
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.

@@ -1097,7 +1097,7 @@ static void CL_Seek_f(void)
     cl.serverdelta += cl.frame.number - prev;
 
     // Fire up destination frame
-    CL_ProcessNextFrame();
+    CL_TransitionServerFrames();
 
     if ( cls.demo.recording && !cls.demo.paused ) {
         resume_record();

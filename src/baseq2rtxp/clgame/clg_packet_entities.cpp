@@ -4,7 +4,7 @@
 *	ClientGame: Packet Entities.
 * 
 *	Each Packet Entity comes with a specific Entity Type set for it
-*	in the newState. Most are added by CLG_PacketEntity_AddGeneric.
+*	in the nextState. Most are added by CLG_PacketEntity_AddGeneric.
 *
 *	However for various distinct ET_* types there exist specific
 *	submethods to handle those. This should bring some structure to
@@ -25,7 +25,7 @@
 /**
 *	@brief	Determine the rotation of movement relative to the facing dir.
 **/
-static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, entity_state_t *newState, const bool isLocalClientEntity ) {
+static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, entity_state_t *nextState, const bool isLocalClientEntity ) {
     // if it's moving to where is looking, it's moving forward
     // The desired yaw for the lower body.
     static constexpr float DIR_EPSILON = 0.3f;
@@ -33,7 +33,7 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
     static constexpr float RUN_EPSILON = 100.f;
 
     // Determine...
-    //const bool isLocalClientEntity = CLG_IsClientEntity( newState );
+    //const bool isLocalClientEntity = CLG_IsClientEntity( nextState );
 
     // If we're not the local client entity, we don't want to update these values unless we're in a new serverframe.
     if ( !isLocalClientEntity ) {
@@ -53,7 +53,7 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
     /**
     *   First determine if we need to recalculate the forward/right/up vectors.
     **/
-    Vector3 currentAngles = newState->angles;
+    Vector3 currentAngles = nextState->angles;
     Vector3 previousAngles = packetEntity->current.angles;
 
     // If we're the local client player, just use the PREDICTED player_state_t vAngles instead.
@@ -76,7 +76,7 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
     **/    
     // Default to zero.
     Vector3 offset = QM_Vector3Zero();
-    Vector3 currentOrigin = newState->origin;
+    Vector3 currentOrigin = nextState->origin;
     Vector3 previousOrigin = packetEntity->current.origin;
     // If we're the local client player, use the PREDICTED player_state_t origins instead.
     if ( isLocalClientEntity ) {
@@ -95,7 +95,7 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
 
         // Get the move direction vectors.
         packetEntity->moveInfo.current.xyDirection = QM_Vector2FromVector3( offset );
-        packetEntity->moveInfo.current.xyzDirection = offset;//Vector3( newState->origin ) - Vector3( packetEntity->prev.origin );
+        packetEntity->moveInfo.current.xyzDirection = offset;//Vector3( nextState->origin ) - Vector3( packetEntity->prev.origin );
         // Normalized move direction vectors.
         packetEntity->moveInfo.current.xyDirectionNormalized = QM_Vector2Normalize( packetEntity->moveInfo.current.xyDirection );
         packetEntity->moveInfo.current.xyzDirectionNormalized = QM_Vector3Normalize( packetEntity->moveInfo.current.xyzDirection );
@@ -139,6 +139,9 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
 }
 #endif
 
+
+
+
 /**
 *   @brief  Parses all received frame packet entities' new states, iterating over them
 *           and (re-)applying any changes to the current and/or new refresh entity that
@@ -149,25 +152,28 @@ void CLG_AddPacketEntities( void ) {
     int32_t base_entity_flags = 0;
 
     // Bonus items rotate at a fixed rate.
-    const float autorotate = QM_AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
+    const double autorotate = QM_AngleMod( (double)clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
 
-        // Iterate over this frame's entity states.
+    // Iterate over this frame's entity states.
     for ( int32_t frameEntityNumber = 0; frameEntityNumber < clgi.client->frame.numEntities; frameEntityNumber++ ) {
-        // Get the entity state index for the entity's newly received state.
-        const int32_t entityStateIndex = ( clgi.client->frame.firstEntity + frameEntityNumber ) & PARSE_ENTITIES_MASK;
-        // Get the pointer to the newly received entity's state.
-        entity_state_t *newState = &clgi.client->entityStates[ entityStateIndex ];
-
-        // Get a pointer to the client game entity that matches the state's number.
-        centity_t *packetEntity = &clg_entities[ newState->number ];
+		// Get the new received, to be 'next', entity state.
+        entity_state_t *nextState = &clgi.client->entityStates[ ( clgi.client->frame.firstEntity + frameEntityNumber ) & PARSE_ENTITIES_MASK ];
+		// Get the packet entity corresponding to the new state.
+        centity_t *packetEntity = &clg_entities[ nextState->number ];
 
         // Backup a possible pointer to an already allocated cache so we can reapply it.
         skm_transform_t *bonePoses = packetEntity->refreshEntity.bonePoses;
+
+		// Clear out the packet entity refresh entity, except for the bone poses cache pointer.
+        // ID, and frame.
+        //
         // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.
         packetEntity->refreshEntity = {
+			// Store the frame of the previous refresh entity iteration so it'll default to that.
             .frame = packetEntity->refreshEntity.frame,
             //.oldframe = packetEntity->refreshEntity.oldframe,
-            .id = RENTITIY_RESERVED_COUNT + packetEntity->id,
+            .id = REFRESHENTITIY_RESERVED_COUNT + packetEntity->id,
+            // Restore bone poses cache pointer.
             .bonePoses = bonePoses,
         };
 
@@ -176,53 +182,53 @@ void CLG_AddPacketEntities( void ) {
         /**
         *   Determine certain properties in relation to movement.
         **/
-        //CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState );
+        //CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState );
         #endif
 
         /**
         *   Act according to the entity Type:
         **/
-        switch ( newState->entityType ) {
+        switch ( nextState->entityType ) {
         // Beams:
         case ET_BEAM:
-            CLG_PacketEntity_AddBeam( packetEntity, &packetEntity->refreshEntity, newState );
+            CLG_PacketEntity_AddBeam( packetEntity, &packetEntity->refreshEntity, nextState );
             break;
         // Gibs:
         case ET_GIB:
-            CLG_PacketEntity_AddGib( packetEntity, &packetEntity->refreshEntity, newState );
+            CLG_PacketEntity_AddGib( packetEntity, &packetEntity->refreshEntity, nextState );
             break;
         // Items:
         case ET_ITEM:
-            CLG_PacketEntity_AddItem( packetEntity, &packetEntity->refreshEntity, newState );
+            CLG_PacketEntity_AddItem( packetEntity, &packetEntity->refreshEntity, nextState );
             break;
         // Monsters:
         case ET_MONSTER:
             // First determine movement properties.
-            //CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState, false );
+            //CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, false );
             // Add Monster Entity.
-            CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, newState );
+            CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, nextState );
             continue;
             break;
         // Players:
         case ET_PLAYER:
             // First determine movement properties.
-            CLG_PacketEntity_DetermineMoveDirection( packetEntity, newState, CLG_IsLocalClientEntity( newState ) );
+            CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, CLG_IsLocalClientEntity( nextState ) );
             // Add Player Entity.
-            CLG_PacketEntity_AddPlayer( packetEntity, &packetEntity->refreshEntity, newState );
+            CLG_PacketEntity_AddPlayer( packetEntity, &packetEntity->refreshEntity, nextState );
             continue;
             break;
         // Pushers:
         case ET_PUSHER:
-            CLG_PacketEntity_AddPusher( packetEntity, &packetEntity->refreshEntity, newState );
+            CLG_PacketEntity_AddPusher( packetEntity, &packetEntity->refreshEntity, nextState );
             break;
         // Spotlights:
         case ET_SPOTLIGHT:
-            CLG_PacketEntity_AddSpotlight( packetEntity, &packetEntity->refreshEntity, newState );
+            CLG_PacketEntity_AddSpotlight( packetEntity, &packetEntity->refreshEntity, nextState );
            break;
         // ET_GENERIC:
         case ET_GENERIC:
         default:
-            CLG_PacketEntity_AddGeneric( packetEntity, &packetEntity->refreshEntity, newState );
+            CLG_PacketEntity_AddGeneric( packetEntity, &packetEntity->refreshEntity, nextState );
             break;
         }
     }

@@ -11,9 +11,9 @@
 #include "clgame/clg_temp_entities.h"
 
 /**
-*	@brief	Will setup the refresh entity for the ET_SPOTLIGHT centity with the newState.
+*	@brief	Will setup the refresh entity for the ET_SPOTLIGHT centity with the nextState.
 **/
-void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // Lerp Origin:
     Vector3 lerpedOrigin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
     VectorCopy( lerpedOrigin, refreshEntity->origin );
@@ -23,16 +23,16 @@ void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEn
     LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
 
     // Just in case?
-    refreshEntity->flags = newState->renderfx;
+    refreshEntity->flags = nextState->renderfx;
 
     // Calculate RGB vector.
     vec3_t rgb = { 1.f, 1.f, 1.f };
-    rgb[ 0 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 0 ];
-    rgb[ 1 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 1 ];
-    rgb[ 2 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 2 ];
+    rgb[ 0 ] = ( 1.0f / 255.f ) * nextState->spotlight.rgb[ 0 ];
+    rgb[ 1 ] = ( 1.0f / 255.f ) * nextState->spotlight.rgb[ 1 ];
+    rgb[ 2 ] = ( 1.0f / 255.f ) * nextState->spotlight.rgb[ 2 ];
 
     // Extract light intensity from "frame".
-    float lightIntensity = newState->spotlight.intensity;
+    float lightIntensity = nextState->spotlight.intensity;
 
     // Calculate the spotlight's view direction based on set euler angles.
     Vector3 viewForwardDir = {};
@@ -42,19 +42,19 @@ void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEn
     // Add the spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
     // Use the image based texture profile in case one is set.
 #if 0
-    if ( newState->image_profile ) {
+    if ( nextState->image_profile ) {
         qhandle_t spotlightPicHandle = R_RegisterImage( "flashlight_profile_01", IT_PIC, static_cast<imageflags_t>( IF_PERMANENT | IF_BILERP ) );
         V_AddSpotLightTexEmission( ent->origin, view_dir, lightIntensity,
             // TODO: Multiply the RGB?
             rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
-            newState->spotlight.angle_width, spotlightPicHandle );
+            nextState->spotlight.angle_width, spotlightPicHandle );
     } else
 #endif
     {
         clgi.V_AddSpotLight( refreshEntity->origin, &viewForwardDir.x, lightIntensity,
             // TODO: Multiply the RGB?
             rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
-            newState->spotlight.angle_width, newState->spotlight.angle_falloff );
+            nextState->spotlight.angle_width, nextState->spotlight.angle_falloff );
     }
 
     // Add entity to refresh list

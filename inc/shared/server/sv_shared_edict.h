@@ -45,7 +45,9 @@ struct sv_shared_edict_t {
 
     //! Only send to this client when ent.svFlags == SVF_SENDCLIENT_SEND_TO_ID
 	//! Or send to all clients BUT this client when ent.svFlags == SVF_SENDCLIENT_EXCLUDE_ID.
-    //! Or if ent.svFlags == SVF_SENDCLIENT_BITMASK_IDS, use it as a bitmask for clients to send to (maxclients must be <= 32, up to the mod to enforce this)
+    //! Or if ent.svFlags == SVF_SENDCLIENT_BITMASK_IDS, use it as a bitmask for clients to 
+    //! send to.
+    //! NOTE:(maxclients must be <= 64, up to the mod to enforce this).
     //! 
 	//! <Q2RTXP>: TODO: In the future, perhaps a 64 player limit 
     int64_t sendClientID = SENDCLIENT_TO_ALL;
@@ -84,8 +86,8 @@ struct sv_shared_edict_t {
 	virtual void Reset( const bool retainDictionary = false ) {
         //! Entity state.
         s = {
-            .otherEntityNumber = -1,
-            .ownerNumber = -1,
+            .otherEntityNumber = ENTITYNUM_NONE,
+            .ownerNumber = ENTITYNUM_NONE,
         };
         //! NULL, make sure it is not a player.
         client = nullptr;

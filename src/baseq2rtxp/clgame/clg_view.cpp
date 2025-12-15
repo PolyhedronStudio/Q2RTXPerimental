@@ -443,7 +443,7 @@ const float CLG_CalculateFieldOfView( const float fov_x, const float width, cons
 //        if ( model != NULL && model->meshes != NULL ) {
 //            entity_t entity = { 0 };
 //            entity.model = cl_testmodel_handle;
-//            entity.id = RENTITIY_RESERVED_TESTMODEL;
+//            entity.id = REFRESHENTITIY_RESERVED_TESTMODEL;
 //
 //            VectorCopy( cl_testmodel_position, entity.origin );
 //            VectorCopy( cl_testmodel_position, entity.oldorigin );

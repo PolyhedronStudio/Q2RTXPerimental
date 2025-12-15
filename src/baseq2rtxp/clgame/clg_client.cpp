@@ -20,9 +20,9 @@
 /**
 *	@brief	Called when the client state has moved into being active and the game begins.
 **/
-void PF_ClientBegin( void ) {
+void CLG_ClientBegin( void ) {
 	// Debug notify.
-	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientBegin\n" );
+	clgi.Print( PRINT_NOTICE, "[CLGame]: CLG_ClientBegin\n" );
 
 	if ( clgi.IsDemoPlayback() ) {
 		// init some demo things
@@ -31,15 +31,11 @@ void PF_ClientBegin( void ) {
 		// Set the initial client predicted state values.
 		game.predictedState.currentPs = clgi.client->frame.ps;
 		game.predictedState.lastPs = game.predictedState.currentPs;
-		//VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.view.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
-		//VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.view.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
-		// 
 		// Use predicted view angles if we're alive:
 		if ( clgi.client->frame.ps.pmove.pm_type < PM_DEAD ) { // OLD Q2PRO: enhanced servers don't send viewangles
 			CLG_PredictAngles();
-		// Otherwise, use whatever server provided.
+		// Otherwise, use whatever server provided:
 		} else {
-			// just use what server provided
 			game.predictedState.currentPs.viewangles = clgi.client->frame.ps.viewangles;
 			game.predictedState.lastPs.viewangles = clgi.client->frame.ps.viewangles;
 		}
@@ -47,8 +43,6 @@ void PF_ClientBegin( void ) {
 
 	// Reset local (view-)transitions.
 	game.predictedState.transition = {};
-	//cl.predictedState.time.height_changed = 0;
-	//cl.predictedState.time.step_changed = 0;
 
 	// Reset ground information.
 	game.predictedState.ground = {};

@@ -7,9 +7,6 @@
 ********************************************************************/
 #pragma once
 
-#include "shared/shared.h"
-#include "shared/player_state.h"
-
 
 
 /**
@@ -25,34 +22,68 @@
 *	Macros for debugging purposes:
 **/
 //! Debug print entity event name.
-#define	DEBUG_PRINT_EVENT_NAME( eventNameStr ) \
-	if( clg_debug_entity_events->integer ) \
-	{ \
-		clgi.Print( PRINT_DEVELOPER, "DEBUG EVENT: %s\n", eventNameStr ); \
-	} \
+#if USE_DEBUG
+    // Debug print entity event name for '(Temporary-) Event Entities'..
+    #define	DEBUG_PRINT_EVENT_NAME( eventNameStr ) \
+	    if( clg_debug_entity_events->integer ) \
+	    { \
+		    clgi.Print( PRINT_DEVELOPER, "DEBUG EVENT: %s\n", eventNameStr ); \
+	    } \
 
-//! Debug print sound resource info for entity events.
-#define DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( funcname, entity, soundIdx ) \
-    if ( clg_debug_entity_events->integer ) { \
-        const qhandle_t dbgSoundHandle = GetSoundIndexResourceHandle( soundIdx ); \
-        const std::string dbgSoundName = GetSoundResourceHandleName( dbgSoundHandle ); \
-        if ( !cent ) { \
-            clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on NULL entity!\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str() ); \
-        } else { \
-            if ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 && cent->current.otherEntityNumber > 0 ) { \
-                clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') from entity(%d) on OTHER entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.number, entity->current.otherEntityNumber ); \
+    //! Debug print entity info for 'Event Entities'..
+    #define	DEBUG_PRINT_EVENT_ENTITY_INFO( cent ) \
+        if ( clg_debug_entity_events->integer ) { \
+            const int32_t eventValue = cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT; \
+            if ( eventValue >= EV_ENGINE_MAX ) { \
+                const char *otherEntityInfo = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) ? " (other entity event)" : ""; \
+                clgi.Print( PRINT_DEVELOPER, "%s: %s source_entity(#%d), target_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, otherEntityInfo, cent->current.number, cent->current.otherEntityNumber, eventValue, sg_event_string_names[ eventValue ] ); \
+            } \
+		} \
+
+	//! Debug print for 'entity event value' acquired from riding with another entity.
+    #define DEBUG_PRINT_RIDER_EVENT_VALUE( cent ) \
+        { \
+            const int32_t eventValue = EV_GetEntityEventValue( cent->current.event ); \
+            if ( eventValue >= EV_ENGINE_MAX && clg_debug_entity_events->integer ) { \
+                clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(#%d), eventName(%s)\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] ); \
+            } \
+            if ( eventValue == EV_NONE ) { \
+                clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), EV_NONE\n", __func__, cent->current.number ); \
+            } \
+        }
+
+    //! Debug print sound resource info for entity events.
+    #define DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( funcname, entity, soundIdx ) \
+        if ( clg_debug_entity_events->integer ) { \
+            const qhandle_t dbgSoundHandle = GetSoundIndexResourceHandle( soundIdx ); \
+            const std::string dbgSoundName = GetSoundResourceHandleName( dbgSoundHandle ); \
+            if ( !cent ) { \
+                clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on NULL entity!\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str() ); \
             } else { \
-                clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.number ); \
+                if ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 && cent->current.otherEntityNumber > 0 ) { \
+                    clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') from entity(%d) on OTHER entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.number, entity->current.otherEntityNumber ); \
+                } else { \
+                    clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') on entity %d\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), entity->current.number ); \
+                } \
             } \
         } \
-    } \
 
-#define DBG_ENTITY_EVENT_SOUND_NAME_ORIGIN( funcname, origin, soundIdx ) \
-    if ( clg_debug_entity_events->integer ) { \
-        const qhandle_t dbgSoundHandle = GetSoundIndexResourceHandle( soundIdx ); \
-        const std::string dbgSoundName = GetSoundResourceHandleName( dbgSoundHandle ); \
-        clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') at origin (%f, %f, %f)\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), origin.x, origin.y, origin.z ); \
-    } \
+    //! Debug print sound resource info for entity events at origin.
+    #define DBG_ENTITY_EVENT_SOUND_NAME_ORIGIN( funcname, origin, soundIdx ) \
+        if ( clg_debug_entity_events->integer ) { \
+            const qhandle_t dbgSoundHandle = GetSoundIndexResourceHandle( soundIdx ); \
+            const std::string dbgSoundName = GetSoundResourceHandleName( dbgSoundHandle ); \
+            clgi.Print( PRINT_DEVELOPER, "EntityEvent[%s]: Sound Resource Index %d (handle: %d, name: '%s') at origin (%f, %f, %f)\n", funcname, soundIdx, dbgSoundHandle, dbgSoundName.c_str(), origin.x, origin.y, origin.z ); \
+        } \
+
+#else
+    #define	DEBUG_PRINT_EVENT_NAME( ... )
+    #define	DEBUG_PRINT_EVENT_ENTITY_INFO( ... )
+    #define DEBUG_PRINT_RIDER_EVENT_VALUE( ... )
+    #define DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( ... )
+    #define DBG_ENTITY_EVENT_SOUND_NAME_ORIGIN( ... )
+#endif
+
 
 
 /**
@@ -67,8 +98,9 @@
 *           It will pass along the client info for player type entities based on the skinnum decoding.
 *
 *   @param  cent        The client entity to check for events on.
+*   @return EV_NONE in case there was no event fired, > EV_NONE otherwise.
 **/
-void CLG_Events_CheckForEntity( centity_t *cent );
+const int32_t CLG_Events_CheckForEntity( centity_t *cent );
 
 /**
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
@@ -80,4 +112,4 @@ void CLG_Events_CheckForEntity( centity_t *cent );
 *   @param  lerpOrigin          The origin to process the event at.
 *   @return True if an event was processed, false otherwise.
 **/
-const bool CLG_Events_CheckForLocalPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin );
+const bool CLG_Events_CheckForPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin );

@@ -66,9 +66,10 @@ static const bool DecodeClientInfoFromEntityState( const entity_state_t *entityS
 * 
 *           It will pass along the client info for player type entities based on the skinnum decoding.
 * 
-*   @param  cent        The client entity to check for events on.
+*   @param  cent        The centity to check for events on.
+*   @return EV_NONE in case there was no event fired, > EV_NONE otherwise.
 **/
-void CLG_Events_CheckForEntity( centity_t *cent ) {
+const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
     // The event value we'll process.
     int32_t eventValue = EV_NONE;
 
@@ -78,7 +79,7 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
     if ( cent->current.entityType > ET_TEMP_ENTITY_EVENT ) {
         // Already fired for this entity.
         if ( cent->previousEvent ) {
-            return;
+            return eventValue;
         }
 
         // Backup original entity number. (For debugging purposes.)
@@ -96,19 +97,14 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
         eventValue = cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT;
 
         // Debugging purposes:
-        if ( clg_debug_entity_events->integer ) {
-            if ( eventValue >= EV_ENGINE_MAX ) {
-                const char *otherEntityInfo = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) ? " (other entity event)" : "";
-                clgi.Print( PRINT_DEVELOPER, "%s: %s source_entity(#%d), target_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, otherEntityInfo, eventEntityNumber, otherEntityNumber, eventValue, sg_event_string_names[ eventValue ] );
-            }
-		}
+        DEBUG_PRINT_EVENT_ENTITY_INFO( cent );
     /**
     *   Check for events riding with another entity:
     **/
     } else {
         // Already fired the event.
         if ( cent->current.event == cent->previousEvent ) {
-            return;
+            return eventValue;
         }
         // Save as previous event.
         cent->previousEvent = cent->current.event;
@@ -117,34 +113,14 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
         *   Event Value Decoding:
         **/
         // Acquire the actual event value by offing it with EV_EVENT_BITS.
-        eventValue = SG_GetEntityEventValue( cent->current.event );
-        if ( eventValue >= EV_ENGINE_MAX && clg_debug_entity_events->integer ) {
-            clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(#%d), eventName(%s)\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
-        }
+        eventValue = EV_GetEntityEventValue( cent->current.event );
+        // For debugging purposes.
+        DEBUG_PRINT_RIDER_EVENT_VALUE( cent );
         // If no event, don't process anything. ( It hasn't changed again. )
         if ( eventValue == EV_NONE ) {
-            return;
+            return eventValue;
         }
     }
-
-    #if 0
-    /**
-    *   Event Value Decoding:
-    **/
-    // Exit if this is a zero event.
-    if ( eventValue == EV_NONE ) {
-        // Debug print the event name.
-        if ( clg_debug_entity_events->integer ) {
-            clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(%d), eventName(%s)\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
-        }
-        return;
-    } else {
-        // Debug print the event name.
-        if ( clg_debug_entity_events->integer ) {
-            clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(%d), eventName(%s)\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] );
-        }
-    }
-    #endif
 
     /**
     *   Client Info Decoding by skinnum from entity state:
@@ -164,10 +140,19 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
     *   Determine LerpOrigin and Process the Entity Events:
     **/
     // Calculate the position for lerp_origin at exactly the frame time.
-    CLG_GetEntitySoundOrigin( cent->current.number, &cent->lerp_origin.x );
+    cent->lerp_origin = CLG_GetEntitySoundOrigin( cent->current.number );
+
+	clgi.Print( PRINT_DEVELOPER, "%s:--------------------------------------------------------------\n", __func__ );
+	clgi.Print( PRINT_DEVELOPER, "Simulation time for entity event processing: frame(%lld), snapshotTime(%llu), currenTime(%llu)\n", 
+        clgi.client->frame.number,
+        cent->snapShotTime,
+        clgi.client->time );
 
     // Process the event.
     CLG_Events_FireEntityEvent( eventValue, cent->lerp_origin, cent, cent->current.number, clientNumber, clientInfo );
+
+    // Return the eventValue.
+    return eventValue;
 }
 
 
@@ -193,7 +178,7 @@ void CLG_Events_CheckForEntity( centity_t *cent ) {
 *   @param  lerpOrigin          The origin to process the event at.
 *   @return True if an event was processed, false otherwise.
 **/
-const bool CLG_Events_CheckForLocalPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin ) {
+const bool CLG_Events_CheckForPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin ) {
 	// Is the view bound entity, the actual one which belongs to the player state data
     // that is sent along the server frame?
     //centity_t *viewBoundEntity = CLG_GetViewBoundEntity();

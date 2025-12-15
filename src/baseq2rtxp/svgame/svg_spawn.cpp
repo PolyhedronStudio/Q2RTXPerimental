@@ -402,10 +402,12 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
     game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
     if ( !game.mode ) {
         // Invalid gamemode, default to singleplayer.
-        game.gameModeType = requestedGameModeType = GAMEMODE_TYPE_SINGLEPLAYER;
+        game.modeType = requestedGameModeType = GAMEMODE_TYPE_SINGLEPLAYER;
         game.mode = SVG_AllocateGameModeInstance( requestedGameModeType );
         // Developer warn just in case.
-		gi.dprintf( "[WARNING] Invalid gamemode requested, defaulting to singleplayer.\n" );
+        gi.dprintf( "[WARNING] Invalid gamemode requested, defaulting to singleplayer.\n" );
+    } else {
+		game.modeType = requestedGameModeType;
     }
     // Give it a chance to prepare any CVars that it needs to set up.
     game.mode->PrepareCVars();
