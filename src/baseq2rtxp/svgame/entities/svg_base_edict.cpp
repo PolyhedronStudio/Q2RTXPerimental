@@ -533,26 +533,14 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     Base::Reset( retainDictionary );
     
     // Now, reset derived-class state.
-    IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
-    #if 0
-	// Make a copy of the base-class portion of this object.
-    Base baseCopy = *static_cast<Base *>( this );
-
-    // Create a value-initialized temporary and assign it to this object.
-    // This resets all derived members using their normal copy-assignment semantics.
-    // ( No vtable corruption because we're not destroying the object nor changing its type! ).
-    static svg_base_edict_t temp{};
-	// Assign to this object.
-    *this = temp;
-
-    // Now, restore base-class state produced by Base::Reset(...)
-    *static_cast<Base *>( this ) = baseCopy;
-    #endif
-
+ //   IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
     #if 1
     /**
-    *   Reset all member variables to defaults. ( Avoid using memset because it corrupts vtable. )
+    *   Reset all member variables to defaults.
     **/
+    if ( !retainDictionary ) {
+        entityDictionary = nullptr; // We don't retain the dictionary in this implementation.
+    }
     spawn_count = 0;
     freetime = 0_ms;
     timestamp = 0_ms;
