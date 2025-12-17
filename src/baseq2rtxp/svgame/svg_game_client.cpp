@@ -44,6 +44,8 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_client_t )
 
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, pers.health, SD_FIELD_TYPE_INT32 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, pers.max_health, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, pers.armor, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, pers.max_armor, SD_FIELD_TYPE_INT32 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, pers.savedFlags, SD_FIELD_TYPE_INT32 ),
 
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, pers.selected_item, SD_FIELD_TYPE_INT32 ),
@@ -126,6 +128,12 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_client_t )
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, oldgroundentity, SD_FIELD_TYPE_EDICT ),
 
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, old_waterlevel, SD_FIELD_TYPE_INT32 ),
+	
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, useTarget.currentEntity, SD_FIELD_TYPE_EDICT ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, useTarget.previousEntity, SD_FIELD_TYPE_EDICT ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, useTarget.tracedFrameNumber, SD_FIELD_TYPE_INT64 ),
+
 	//SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, next_drown_time, SD_FIELD_TYPE_INT64 ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, pickup_msg_time, SD_FIELD_TYPE_INT64 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_client_t, respawn_time, SD_FIELD_TYPE_INT64 ),
 SAVE_DESCRIPTOR_FIELDS_END();
