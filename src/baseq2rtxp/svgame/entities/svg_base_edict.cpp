@@ -93,7 +93,8 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Entity Event Properties:
     **/
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, eventTime, SD_FIELD_TYPE_INT64 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, eventTime, SD_FIELD_TYPE_INT64 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, eventDuration, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, freeAfterEvent, SD_FIELD_TYPE_BOOL ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, unlinkAfterEvent, SD_FIELD_TYPE_BOOL ),
 
@@ -533,7 +534,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     Base::Reset( retainDictionary );
     
     // Now, reset derived-class state.
- //   IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
+	// IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
     #if 1
     /**
     *   Reset all member variables to defaults.
@@ -557,6 +558,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *   Entity Event Properties:
     **/
     eventTime = 0_ms;
+	eventDuration = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
     freeAfterEvent = false;
     unlinkAfterEvent = false;
     #else

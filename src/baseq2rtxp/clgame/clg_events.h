@@ -33,7 +33,7 @@
     //! Debug print entity info for 'Event Entities'..
     #define	DEBUG_PRINT_EVENT_ENTITY_INFO( cent ) \
         if ( clg_debug_entity_events->integer ) { \
-            const int32_t eventValue = cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT; \
+            const int32_t eventValue = cent->current.event = cent->current.entityType - ET_TEMP_EVENT_ENTITY; \
             if ( eventValue >= EV_ENGINE_MAX ) { \
                 const char *otherEntityInfo = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) ? " (other entity event)" : ""; \
                 clgi.Print( PRINT_DEVELOPER, "%s: %s source_entity(#%d), target_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, otherEntityInfo, cent->current.number, cent->current.otherEntityNumber, eventValue, sg_event_string_names[ eventValue ] ); \

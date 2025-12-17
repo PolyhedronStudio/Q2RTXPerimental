@@ -768,6 +768,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     //! Events will be cleared EVENT_VALID_MSEC after set.
     QMTime  eventTime = 0_ms;
+	//! Event lifetime duration in milliseconds. ( Defaults to EVENT_VALID_MSEC ).
+	QMTime	eventDuration = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
     //! If true, entity will be freed once the event is done.
     bool	freeAfterEvent = false;
     //! If true, entity will be unlinked(thus, removed as in, no collision, no transmission) once the event is done.

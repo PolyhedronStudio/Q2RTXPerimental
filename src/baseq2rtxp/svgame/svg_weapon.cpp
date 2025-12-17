@@ -311,27 +311,24 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
             }
 
             if ( splashType != EV_FX_SPLASH_UNKNOWN ) {
+				// Generate a random amount of 'splash particles'.
+				const int32_t particleCount = static_cast<int32_t>( irandom( 8, 16 ) );
                 // Store the count of the amount of 'particle pixels' to spawn in the first parm.
-                const int32_t eventParm0 = static_cast<int32_t>( 8 ) & 255;
+                const int32_t eventParm0 = static_cast<int32_t>( particleCount ) & 255;
                 // Plane normal stored in second parm, encoded to a byte.
                 const int32_t eventParm1 = DirToByte( tr.plane.normal );
 
                 // Create a temporary entity event for all other clients.
                 svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEventEntity(
+					// Splash origin.
                     tr.endpos,
+					// Splash type, particle count, Byte Encoded plane normal.
                     splashType, eventParm0, eventParm1,
-                    false
+					// Snap origin for bandwidth reduction.
+                    true,
+					// Event duration: These splashes have no reason to be around longer than a frame.
+					FRAME_TIME_MS
                 );
-
-                int x = 10;
-                //gi.WriteUint8( svc_temp_entity );
-                //gi.WriteUint8( TE_SPLASH );
-                //gi.WriteUint8( 8 );
-                //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                //const Vector3 planeNormal = tr.plane.normal;
-                //gi.WriteDir8( &planeNormal );
-                //gi.WriteUint8( color );
-                //gi.multicast( &tr.endpos, MULTICAST_PVS, false );
             }
 
             // If trace start != trace end pos.

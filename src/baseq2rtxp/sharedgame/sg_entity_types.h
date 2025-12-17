@@ -74,11 +74,11 @@ typedef enum sg_entity_type_e {
 	/**
 	*	Event Entities :
 	*	Any of the EV_* events can be added freestanding
-	*	by setting s.entityType to ET_TEMP_ENTITY_EVENT + eventNum
+	*	by setting s.entityType to ET_TEMP_EVENT_ENTITY + eventNum
 	*	this avoids having to set eFlags and eventNum
 	**/
-	//! A Temporary Entity Event. To get the value of the event, subtract ET_TEMP_ENTITY_EVENT from the entityType value.
-	ET_TEMP_ENTITY_EVENT,
+	//! A Temporary Entity Event. To get the value of the event, subtract ET_TEMP_EVENT_ENTITY from the entityType value.
+	ET_TEMP_EVENT_ENTITY,
 
 
 	//!

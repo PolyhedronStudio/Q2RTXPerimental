@@ -139,7 +139,7 @@ s.entityType      // int: Entity type for rendering
                   // ET_TARGET_SPEAKER - Speaker
                   // ET_PUSH_TRIGGER - Push trigger
                   // ET_TELEPORT_TRIGGER - Teleport trigger
-                  // ET_TEMP_ENTITY_EVENT - Temp entity
+                  // ET_TEMP_EVENT_ENTITY - Temp entity
 ```
 
 **Audio and Events:**

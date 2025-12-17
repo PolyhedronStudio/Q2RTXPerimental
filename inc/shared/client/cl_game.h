@@ -931,6 +931,10 @@ typedef struct {
 	**/
 	void ( *PostSpawnEntities )( void );
 	/**
+	*	@return	The offset at which eType becomes an actual temporary event entity.
+	**/
+	const int32_t ( *GetTempEventEntityTypeOffset )( void );
+	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.
 	**/

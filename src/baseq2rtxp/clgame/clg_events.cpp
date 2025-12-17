@@ -76,7 +76,7 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
     /**
     *   Check for Entity Event - only entity types:
     **/
-    if ( cent->current.entityType > ET_TEMP_ENTITY_EVENT ) {
+    if ( cent->current.entityType > ET_TEMP_EVENT_ENTITY ) {
         // Already fired for this entity.
         if ( cent->previousEvent ) {
             return eventValue;
@@ -94,7 +94,7 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
         cent->previousEvent = 1;
 
         // The event is simply the entity type minus the ET_EVENTS offset.
-        eventValue = cent->current.event = cent->current.entityType - ET_TEMP_ENTITY_EVENT;
+        eventValue = cent->current.event = cent->current.entityType - ET_TEMP_EVENT_ENTITY;
 
         // Debugging purposes:
         DEBUG_PRINT_EVENT_ENTITY_INFO( cent );

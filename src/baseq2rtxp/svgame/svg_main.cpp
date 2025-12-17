@@ -206,7 +206,7 @@ const char *_Exports_SG_GetGameModeName( const int32_t gameModeType ) {
 *	@brief	Returns the offset at which eType becomes an actual temporary event entity.
 **/
 const int32_t _Exports_SVG_GetTempEventEntityTypeOffset( void ) {
-	return ET_TEMP_ENTITY_EVENT;
+	return ET_TEMP_EVENT_ENTITY;
 }
 
 void SVG_PreInitGame( void );
@@ -547,9 +547,9 @@ static void DeferRemoveClientInfo( svg_base_edict_t *ent ) {
 **/
 static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
 	// We want the QMTime version of this.
-    static constexpr QMTime _EVENT_VALID_MSEC = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
+    //static constexpr QMTime _EVENT_VALID_MSEC = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
     // clear events that are too old
-    if ( level.time - ent->eventTime > _EVENT_VALID_MSEC ) {
+    if ( level.time - ent->eventTime > ent->eventDuration /*_EVENT_VALID_MSEC*/ ) {
         if ( ent->s.event ) {
             ent->s.event = 0;	// &= EV_EVENT_BITS;
             if ( ent->client ) {
@@ -559,19 +559,19 @@ static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
                 //ent->client->ps.events[1] = 0;
             }
         }
-        // If true, we free it.
-        if ( ent->freeAfterEvent ) {
-            // tempEntities or dropped items completely go away after their event
-            SVG_FreeEdict( ent );
-            //continue;
-            return true; // Skip the entity for further processing. 
-        // Otherwise, if true, we unlink it.
-        } else if ( ent->unlinkAfterEvent ) {
-            // Unlink it now.
-            gi.unlinkentity( ent );
-            // Items that will respawn will hide themselves after their pickup event.
-            ent->unlinkAfterEvent = false;
-        }
+		// If true, we free it.
+		if ( ent->freeAfterEvent ) {
+			// tempEntities or dropped items completely go away after their event
+			SVG_FreeEdict( ent );
+			//continue;
+			return true; // Skip the entity for further processing. 
+			// Otherwise, if true, we unlink it.
+		} else if ( ent->unlinkAfterEvent ) {
+			// Unlink it now.
+			gi.unlinkentity( ent );
+			// Items that will respawn will hide themselves after their pickup event.
+			ent->unlinkAfterEvent = false;
+		}
     }
 
     // Don't skip the entity for further processing.

@@ -189,7 +189,7 @@ static const bool AddPacketEntity( centity_t *packetEntity, entity_state_t *next
         break;
         // ET_GENERIC:
     case ET_GENERIC:
-    case ET_TEMP_ENTITY_EVENT:
+    case ET_TEMP_EVENT_ENTITY:
     default:
         CLG_PacketEntity_AddGeneric( packetEntity, &packetEntity->refreshEntity, nextState );
         break;

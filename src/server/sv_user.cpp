@@ -102,8 +102,11 @@ static void SV_CreateBaselines(void) {
 static void write_baseline( entity_state_t *base ) {
 	// Force full entity state transmission for baselines.
 	msgEsFlags_t flags = sv_client->esFlags | MSG_ES_FORCE;
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = ge->GetTempEventEntityTypeOffset();
+
 	// Write the delta from NULL to the baseline.
-	MSG_WriteDeltaEntity( NULL, base, flags );
+	MSG_WriteDeltaEntity( NULL, base, flags, tempEntityOffset );
 }
 
 /**

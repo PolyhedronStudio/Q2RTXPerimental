@@ -246,7 +246,7 @@ typedef enum sg_entity_type_e {
     ET_TARGET_SPEAKER,
     ET_PUSH_TRIGGER,
     ET_TELEPORT_TRIGGER,
-    ET_TEMP_ENTITY_EVENT,
+    ET_TEMP_EVENT_ENTITY,
     ET_MAX_SHAREDGAME_TYPES
 } sg_entity_type_t;
 ```

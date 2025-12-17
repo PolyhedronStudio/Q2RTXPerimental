@@ -93,6 +93,9 @@ static void emit_packet_entities( server_frame_t *from, server_frame_t *to ) {
     if ( from ) {
         from_num_entities = from->numEntities;
     }
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = clge->GetTempEventEntityTypeOffset();
+
     //if ( !from ) {
     //    from_num_entities = 0;
     //} else {
@@ -128,7 +131,7 @@ static void emit_packet_entities( server_frame_t *from, server_frame_t *to ) {
             // this updates their old_origin always and prevents warping in case
             // of packet loss.
             MSG_WriteDeltaEntity( oldent, newent,
-                ( newent->number <= cl.maxclients ? MSG_ES_NEWENTITY : MSG_ES_NONE ) ); // WID: C++20: Was without static_cast
+                ( newent->number <= cl.maxclients ? MSG_ES_NEWENTITY : MSG_ES_NONE ), tempEntityOffset ); // WID: C++20: Was without static_cast
 
             oldindex++;
             newindex++;
@@ -137,14 +140,14 @@ static void emit_packet_entities( server_frame_t *from, server_frame_t *to ) {
 
         if (newnum < oldnum) {
             // this is a new entity, send it from the baseline
-            MSG_WriteDeltaEntity( oldent, newent, MSG_ES_FORCE | MSG_ES_NEWENTITY ); // WID: C++20: Was without static_cast
+            MSG_WriteDeltaEntity( oldent, newent, MSG_ES_FORCE | MSG_ES_NEWENTITY, tempEntityOffset ); // WID: C++20: Was without static_cast
             newindex++;
             continue;
         }
 
         if (newnum > oldnum) {
             // the old entity isn't present in the new message
-            MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE );
+            MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE, tempEntityOffset );
             oldindex++;
             continue;
         }
@@ -493,6 +496,9 @@ static void CL_Record_f(void)
         MSG_WriteUint8(0);
     }
 
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = clge->GetTempEventEntityTypeOffset();
+
     // baselines
     for (i = 1; i < MAX_EDICTS; i++) {
         ent = &cl.baselines[i];
@@ -505,7 +511,7 @@ static void CL_Record_f(void)
         }
 
         MSG_WriteUint8(svc_spawnbaseline);
-        MSG_WriteDeltaEntity( NULL, ent, MSG_ES_FORCE );
+        MSG_WriteDeltaEntity( NULL, ent, MSG_ES_FORCE, tempEntityOffset );
     }
 
     MSG_WriteUint8(svc_stufftext);

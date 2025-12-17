@@ -242,7 +242,7 @@ void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint6
 /**
 *   @brief Writes the delta values of the entity state.
 **/
-void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to, msgEsFlags_t flags );
+void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to, msgEsFlags_t flags, const int32_t tempEntityOffset );
 /**
 *   @brief Writes the delta player state.
 **/
@@ -366,7 +366,7 @@ const int32_t MSG_ReadEntityNumber( bool *remove, uint64_t *byteMask );
 /**
 *   @brief Reads the delta entity state, can go from either a baseline or a previous packet Entity State.
 **/
-void MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int number, uint64_t bits, msgEsFlags_t flags );
+void MSG_ParseDeltaEntity( const entity_state_t *from, entity_state_t *to, int32_t number, uint64_t bits, msgEsFlags_t flags, int32_t tempEntityOffset );
 #if USE_CLIENT
 	/**
 	*   @brief  Parses the delta packets of player states.

@@ -52,8 +52,10 @@ static inline void CL_ParseDeltaEntity(server_frame_t  *frame,
         Com_LPrintf(PRINT_DEVELOPER, "\n");
     }
 #endif
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = clge->GetTempEventEntityTypeOffset();
 
-    MSG_ParseDeltaEntity(old, state, newnum, bits, cl.esFlags);
+    MSG_ParseDeltaEntity(old, state, newnum, bits, cl.esFlags, tempEntityOffset );
 
     // shuffle previous origin to old
     if ( !( bits & U_OLDORIGIN ) && ( !( state->renderfx & RF_BEAM ) && state->entityType != ET_BEAM ) ) {
@@ -69,6 +71,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     entity_state_t *oldstate = nullptr;
     int oldindex, oldnum;
     int i;
+
 
     frame->firstEntity = cl.numEntityStates;
     frame->numEntities = 0;
@@ -472,7 +475,10 @@ static void CL_ParseBaseline(int index, uint64_t bits)
         Com_LPrintf(PRINT_DEVELOPER, "\n");
     }
 #endif
-    MSG_ParseDeltaEntity(NULL, &cl.baselines[index], index, bits, cl.esFlags);
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = clge->GetTempEventEntityTypeOffset();
+
+    MSG_ParseDeltaEntity(NULL, &cl.baselines[index], index, bits, cl.esFlags, tempEntityOffset );
 }
 
 // instead of wasting space for svc_configstring and svc_spawnbaseline

@@ -62,6 +62,9 @@ static void SV_EmitPacketEntities( client_t *client,
     // Fetch where in the circular buffer we start from.
     const int32_t from_num_entities = ( !from ? 0 : from->num_entities );
 
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = ge->GetTempEventEntityTypeOffset();
+
     // one-time developer log guard for missing/out-of-range baseline usage
     static bool baseline_oob_logged = false;
 
@@ -123,7 +126,7 @@ static void SV_EmitPacketEntities( client_t *client,
                 newent->angles = oldent->angles; //VectorCopy(oldent->angles, newent->angles);
             }
             // Write the delta entity.
-            MSG_WriteDeltaEntity( oldent, newent, flags );
+            MSG_WriteDeltaEntity( oldent, newent, flags, tempEntityOffset );
             // Advance both indices.
             oldindex++;
             newindex++;
@@ -187,7 +190,7 @@ static void SV_EmitPacketEntities( client_t *client,
                 newent->angles = oldent->angles; //VectorCopy(oldent->angles, newent->angles);
             }
             // Write the delta entity.
-            MSG_WriteDeltaEntity( oldent, newent, flags );
+            MSG_WriteDeltaEntity( oldent, newent, flags, tempEntityOffset );
             // Advance the new index.
             newindex++;
             // Skip the remainder to the next iteration.
@@ -197,7 +200,7 @@ static void SV_EmitPacketEntities( client_t *client,
         // The old entity isn't present in the new frame.
         if ( newnum > oldnum ) {
             // The old entity isn't present in the new message.
-            MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE );
+            MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE, tempEntityOffset );
             // Advance the old index.
             oldindex++;
             // Skip the remainder to the next iteration.

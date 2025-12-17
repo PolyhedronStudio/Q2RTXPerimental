@@ -24,6 +24,7 @@
 
 
 #include "sharedgame/sg_gamemode.h"
+#include "sharedgame/sg_entity_types.h"
 
 
 //! Stores data that remains accross level switches.
@@ -310,7 +311,12 @@ void PF_GetEntitySoundOrigin( const int32_t entityNumber, vec3_t org ) {
 	const Vector3 soundOrigin = CLG_GetEntitySoundOrigin( entityNumber );
 	VectorCopy( soundOrigin, org );
 }
-
+/**
+*	@return	The offset at which eType becomes an actual temporary event entity.
+**/
+const int32_t PF_GetTempEventEntityTypeOffset() {
+	return ET_TEMP_EVENT_ENTITY;
+}
 
 
 /**
@@ -676,6 +682,7 @@ extern "C" { // WID: C++20: extern "C".
 
 		globals.SpawnEntities = PF_SpawnEntities;
 		globals.PostSpawnEntities = PF_PostSpawnEntities;
+		globals.GetTempEventEntityTypeOffset = PF_GetTempEventEntityTypeOffset;
 
 		globals.GetEntitySoundOrigin = PF_GetEntitySoundOrigin;
 
