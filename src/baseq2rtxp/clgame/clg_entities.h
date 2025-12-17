@@ -80,11 +80,15 @@ const bool CLG_IsLocalClientEntity( const int32_t entityNumber );
 /**
 *	@return		A pointer into clg_entities that matches to the client we're currently chasing. nullptr if not chasing anyone.
 **/
-centity_t *CLG_GetChaseBoundEntity( void );
+//centity_t *CLG_GetChaseBoundEntity( void );
 /**
 *	@return		The local client entity pointer, which is a match with the entity for the client number which we received at initial time of connection.
 **/
 centity_t *CLG_GetLocalClientEntity( void );
+/**
+*	@return		The predicted client entity pointer, which resides outside of clg_entities.
+**/
+centity_t *CLG_GetPredictedClientEntity( void );
 
 /**
 *	@return		A pointer to the entity which our view has to be bound to. If STAT_CHASE is set, it'll point to the chased entity.

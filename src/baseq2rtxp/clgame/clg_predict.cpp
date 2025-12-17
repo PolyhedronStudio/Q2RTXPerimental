@@ -161,7 +161,7 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
             #else
                 int32_t firedEvent = playerStateEvent;
 				// First try to process via local player state events.
-                const bool firedLocalPlayerStateEvent = CLG_Events_CheckForPlayerState( ops, ps, playerStateEvent, playerStateEventParm0, clgi.client->predictedFrame.ps.pmove.origin/*, clgi.client->frame.ps.clientNumber */);
+                const bool firedLocalPlayerStateEvent = CLG_Events_CheckForPlayerState( ops, ps, playerStateEvent, playerStateEventParm0, game.predictedState.origin/*, clgi.client->frame.ps.clientNumber */);
 
 				// It was never dealt with by local client events, so assume that the event is
                 // for and attached to the entity.
@@ -222,7 +222,7 @@ static void CLG_CheckChangedPredictableEvents( const player_state_t *ops, const 
 
                 if ( clg_debug_pmove_changed_events->integer ) {
                     clgi.Print( PRINT_DEVELOPER, "-----\n" );
-                    clgi.Print( PRINT_DEVELOPER, "  WARNING: changed predicted event (Time: %lld, Server Frame: %lld, Client Frame: %lld)\n", simulationTime.Milliseconds(), clgi.client->frame.number, clgi.client->predictedFrame.number );
+                    clgi.Print( PRINT_DEVELOPER, "  WARNING: changed predicted event (Time: %lld, Server Frame: %lld, Client Frame: %lld)\n", simulationTime.Milliseconds(), clgi.client->frame.number, game.predictedState.frame.number );
                     clgi.Print( PRINT_DEVELOPER, "  Old: %d, New: %d\n", game.predictedState.events[ i & ( client_predicted_state_t::MAX_PREDICTED_EVENTS - 1 ) ], ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] );
                     clgi.Print( PRINT_DEVELOPER, "-----\n" );
                 }
@@ -455,38 +455,40 @@ void CLG_PredictAngles( void ) {
 **/
 void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber ) {
     // Get the current local client's player entity.
-    clgi.client->clientEntity       = CLG_GetLocalClientEntity();
+    game.clientEntity       = CLG_GetLocalClientEntity();
     // Get the current frames' chasing view player entity. (Can be nullptr )
-    clgi.client->chaseEntity        = CLG_GetChaseBoundEntity();
+	//game.chaseEntity        = CLG_GetChaseBoundEntity();
 	// Get the view bound entity. (Can be one we're chasing, or local entity.)
-	clgi.client->viewBoundEntity    = CLG_GetViewBoundEntity();
+	game.viewBoundEntity    = CLG_GetViewBoundEntity();
 
 	// The client entity.
-    centity_t *clientEntity = &game.predictedEntity;// clgi.client->clientEntity;
-
+    centity_t *clientEntity = CLG_GetPredictedClientEntity();// clgi.client->clientEntity;
 	if ( !clientEntity ) {
         return;
     }
-    // Set serverframe so it'll be 'valid for current frame'. 
-    // (Despite practically living outside of its constraint.)
-    clientEntity->serverframe = clgi.client->frame.number;
 
-    // For transitioning purposes, store the old predicted frame.
-    server_frame_t oldPredictedFrame = clgi.client->predictedFrame;
+	// Set serverframe so it'll be 'valid for current frame'. 
+	// (Despite practically living outside of its constraint.)
+	clientEntity->serverframe = clgi.client->frame.number;
+
+	// Player move configuration parameters.
+	pmoveParams_t pmp;
+	// Prepare the player move configuration parameters.
+	SG_ConfigurePlayerMoveParameters( &pmp );
+
     // Last predicted state.
     client_predicted_state_t *predictedState = &game.predictedState;
-      
-    // Shuffle the still "CURRENT" ground info into our "LAST" groundinfo.
-    predictedState->lastGround = predictedState->ground;
+
+	// For transitioning purposes, store the old predicted frame.
+	predictedState->lastFrame = predictedState->frame;
+
     // Shuffle the still "CURRENT" playerState into our "LAST" playerState.
     predictedState->lastPs = predictedState->currentPs;
     // Start off with the latest valid frame player state.
     predictedState->currentPs = clgi.client->frame.ps;
 
-    // Player move configuration parameters.
-    pmoveParams_t pmp;
-    // Prepare the player move configuration parameters.
-    SG_ConfigurePlayerMoveParameters( &pmp );
+	// Shuffle the still "CURRENT" ground info into our "LAST" groundinfo.
+	predictedState->lastGround = predictedState->ground;
 
     // Prepare our player move, pointer to the player state, and setup the 
     // client side trace function pointers.
@@ -622,7 +624,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
     // Save the predicted frame for later use.
     //clgi.client->predictedFrame = clgi.client->frame;
     //clgi.client->predictedFrame.ps.pmove = predictedState->currentPs.pmove; // Save the predicted player state.
-    clgi.client->predictedFrame.ps = predictedState->currentPs;
+    predictedState->frame.ps = predictedState->currentPs;
 
     // Fires events and other transition triggered things. And determine whether the player state has to
     // lerp transition between the current and old frame, or 'snap' to by duplication.    
@@ -630,7 +632,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
 
     // TODO: Use game.predictedEntity for this.
     //CLG_PlayerState_Transition( &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ], &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta);
-    CLG_PlayerState_Transition( clientEntity, &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta );
+    CLG_PlayerState_Transition( clientEntity, &predictedState->frame, &predictedState->lastFrame, clgi.client->serverdelta );
 
 	// Debug: Check for double events.
     if ( cl_showmiss->integer ) {

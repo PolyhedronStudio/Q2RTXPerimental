@@ -364,7 +364,7 @@ typedef struct client_state_s {
     //! Last(old)/Currently(frame) frames received from the server:
     server_frame_t	frame;
     server_frame_t	oldframe;
-	server_frame_t  predictedFrame; // Only used for player state right now.
+	//server_frame_t  predictedFrame; // Only used for player state right now.
     //! The server game time of the last received valid frame.
     int64_t			servertime;
 	//! The delta ms of the previous and last received valid frame.
@@ -473,24 +473,6 @@ typedef struct client_state_s {
     *               -1 = no client slot yet assigned.
     **/
     int32_t		clientNumber;
-    /**
-    *   @brief      The entity matching for the client number received during initial server connecting..
-    *               This is a pointer into `clg_entities`, that always points to our 'local game client' entity.
-    **/
-    centity_t   *clientEntity;
-    /**
-	*   @brief      The entity matching for the client number that we're currently chasing( frame.ps.stats[ STAT_CHASE ] ).
-    *               This is a pointer into `clg_entities`, and may point to a different 
-    *               (client-)entity than our own local clientEntity.
-    **/
-    centity_t   *chaseEntity;
-    /**
-	*   @brief  The entity that is currently bound to our view. (Either our own clientEntity, or the chaseEntity.)
-    **/
-    centity_t   *viewBoundEntity;
-
-    // Received pmove configuration.
-    //pmoveParams_t pmp;
 
     //! Configstrings.
     configstring_t baseconfigstrings[ MAX_CONFIGSTRINGS ];

@@ -212,7 +212,7 @@ void CLG_AddPacketEntities( void ) {
     /**
     *   Setup the predicted client entity.
     **/
-	SG_PlayerStateToEntityState( clgi.client->clientNumber, &clgi.client->predictedFrame.ps, &game.predictedEntity.current, true, false );
+	SG_PlayerStateToEntityState( clgi.client->clientNumber, &game.predictedState.frame.ps, &game.predictedEntity.current, true, false );
     // Backup a possible pointer to an already allocated cache so we can reapply it.
     skm_transform_t *bonePoses = game.predictedEntity.refreshEntity.bonePoses;
     // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.

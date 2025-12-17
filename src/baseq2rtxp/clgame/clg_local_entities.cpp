@@ -80,7 +80,7 @@ static clg_local_entity_t *CLG_LocalEntity_Allocate() {
 
 	if ( i >= MAX_CLIENT_ENTITIES ) { //if ( lent == game.maxentities ) {
 		// TODO: Do we want to error out on this? Why not return nullptr instead?
-		clgi.Error( "%s: no free local entity slots to allocate.", __func__ );
+		clgi.Error( ERR_DROP, "%s: no free local entity slots to allocate.", __func__ );
 		return nullptr;
 	}
 
@@ -179,7 +179,7 @@ bool CLG_LocalEntity_RunThink( clg_local_entity_t *lent ) {
 
 	lent->nextthink = 0_ms;
 	if ( !lent->think ) {
-		clgi.Error( "%s: Local Entity(%d) nullptr think\n", __func__, lent->id );
+		clgi.Error( ERR_DROP, "%s: Local Entity(%d) nullptr think\n", __func__, lent->id );
 		return true;
 	}
 	

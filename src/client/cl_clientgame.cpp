@@ -447,7 +447,7 @@ static void PF_Print( print_type_t printType, const char *fmt, ... ) {
 /**
 *	@brief	Abort the client/(server too in case we're local.) with a game error
 **/
-static q_noreturn void PF_Error( const char *fmt, ... ) {
+static q_noreturn void PF_Error( error_type_t errorType, const char *fmt, ... ) {
 	char        msg[ MAXERRORMSG ];
 	va_list     argptr;
 
@@ -455,7 +455,7 @@ static q_noreturn void PF_Error( const char *fmt, ... ) {
 	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
 	va_end( argptr );
 
-	Com_Error( ERR_DROP, "ClientGame Error: %s", msg );
+	Com_Error( errorType, "ClientGame Error: %s", msg );
 }
 
 

@@ -621,6 +621,10 @@ struct client_predicted_state_t {
 	//! Last processed client move command.
 	client_movecmd_t cmd = {};
 
+	// Current and last predicted frames.
+	server_frame_t frame = { .ps = {.clientNumber = -1 } };
+	server_frame_t lastFrame = { .ps = {.clientNumber = -1 } };
+
 	//! Reset each time we receive a new server frame. Keeps track of the local client's player_state_t
 	//! until yet receiving another new server frame.
 	player_state_t currentPs = { .clientNumber = -1 };
@@ -686,11 +690,28 @@ struct game_locals_t {
 	//! Stores zone allocated entities[maxentities];
 	centity_t *entities = nullptr;
 
-	//! This always has its value reset to the latest received frame's data. For all the time in-between the
-	//! received frames, it maintains track of the predicted client states.
-	//! (Currently though, player_state_t only.)
+	//! This always has its value reset to the latest received frame's data.
+	//! For all the time, in-between the received frames, it tracks the predicted client state.
 	client_predicted_state_t predictedState = {};
+	//! This is the predicted client entity, it only exists locally and is not part of the
+	//! frame's contained entities. We use it for prediction(player move events etc).
 	centity_t predictedEntity = {};
+
+	/**
+	*   @brief      The entity matching for the client number received during initial server connecting..
+	*               This is a pointer into `clg_entities`, that always points to our 'local game client' entity.
+	**/
+	centity_t *clientEntity = nullptr;
+	/**
+	*   @brief      The entity matching for the client number that we're currently chasing( frame.ps.stats[ STAT_CHASE ] ).
+	*               This is a pointer into `clg_entities`, and may point to a different
+	*               (client-)entity than our own local clientEntity.
+	**/
+	//centity_t *chaseEntity = nullptr;
+	/**
+	*   @brief  The entity that is currently bound to our view. (Either our own clientEntity, or the chaseEntity.)
+	**/
+	centity_t *viewBoundEntity = nullptr;
 
 	/**
 	*	Stores the entities present within the current frame, based on their solid type.
@@ -754,7 +775,6 @@ struct game_locals_t {
 		Vector3 targetGunAngleDelta = QM_Vector3Zero();
 		//! Swing Velocity. (Tracks angular momentum.)
 		Vector3 swingVelocity = QM_Vector3Zero();
-
 	} viewWeapon;
 
 	//! Parsed inventory message data.
@@ -781,7 +801,7 @@ struct clg_level_locals_t {
 	//! Frame number, starts incrementing when the level session has begun..
 	uint64_t	frameNumber;
 	//! Time passed, also starts incrementing when the level session has begun.
-	QMTime	time;
+	QMTime		time;
 
 	//! For storing parsed message data that is handled later on during 
 	//! the frame by corresponding said event/effect functions.

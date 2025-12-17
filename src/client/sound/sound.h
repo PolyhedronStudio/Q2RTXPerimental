@@ -217,7 +217,7 @@ static inline const bool S_IsFullVolume( channel_t *ch ) { //
 }
 
 static inline const bool S_IsUnderWater( void ) {
-    return ( cls.state == ca_active && ( ( /*cl.frame.ps.rdflags |*/ cl.predictedFrame.ps.rdflags ) & RDF_UNDERWATER ) != 0 && s_underwater->integer ) ? 1 : 0;
+    return ( cls.state == ca_active && ( ( cl.frame.ps.rdflags /*| cl.predictedFrame.ps.rdflags */) & RDF_UNDERWATER ) != 0 && s_underwater->integer ) ? 1 : 0;
 }
 
 #define S_Malloc(x)     Z_TagMalloc(x, TAG_SOUND)

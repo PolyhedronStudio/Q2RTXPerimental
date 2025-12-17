@@ -30,6 +30,8 @@ static inline void ResetPlayerEntity( centity_t *cent ) {
     
 }
 
+
+
 /**
 *
 *
@@ -170,7 +172,17 @@ static inline void EntityState_FrameUpdate( centity_t *ent, const entity_state_t
     ent->prev = ent->current;
 }
 
-
+/**
+*
+*
+*
+*	Solid Entity List:
+*		- Deals with building up a list of solid entities, which are used for collision detection.
+*		- This list is built up on receiving a new frame from the server.
+*
+*
+*
+**/
 /**
 *   @brief  Builds up a list of 'solid' entities which are residing inside the received frame.
 **/
@@ -179,41 +191,49 @@ static inline void BuildSolidEntityList( void ) {
     game.frameEntities.numSolids = 0;
 
     // Iterate over the current frame entity states and add solid entities to the solid list.
-    for ( int32_t i = 0; i < clgi.client->frame.numEntities; i++ ) {
-        // Fetch next state from states array..
-        entity_state_t *nextState = &clgi.client->entityStates[ ( clgi.client->frame.firstEntity + i ) & PARSE_ENTITIES_MASK ];
-        // Get entity with the matching number  this state.
-        centity_t *ent = &clg_entities[ nextState->number ];
+	for ( int32_t i = 0; i < clgi.client->frame.numEntities; i++ ) {
+		// Fetch next state from states array..
+		entity_state_t *nextState = &clgi.client->entityStates[ ( clgi.client->frame.firstEntity + i ) & PARSE_ENTITIES_MASK ];
+		// Get entity with the matching number  this state.
+		centity_t *ent = &clg_entities[ nextState->number ];
 
-        // Update its next state.
-        //ent->next = *nextState;
+		// Update its next state.
+		//ent->next = *nextState;
 
-        // If entity is solid, and not the frame's client entity, add it to the solid entity list.
-        // (We don't want to add the client's own entity, to prevent issues with self-collision).
-        //
-        if ( nextState->solid
-            && nextState->number != ( clgi.client->frame.ps.clientNumber + 1 ) // Our frame client entity.
-            && game.frameEntities.numSolids < MAX_PACKET_ENTITIES ) {
+		// This'll technically never happen, but should it still happen, error out.
+		if ( game.frameEntities.numSolids >= MAX_PACKET_ENTITIES ) {
+			Com_Error( ERR_DROP, "BuildSolidEntityList: Exceeded MAX_PACKET_ENTITIES limit when building solid entity list.\n" );
+			return;
+		}
 
-            // Add it to the solids entity list.
-            game.frameEntities.solids[ game.frameEntities.numSolids++ ] = ent;
-            
-            // If not a brush model, acquire the bounds from the state. (It will use the clip brush node its bounds otherwise.)
-            if ( nextState->solid && nextState->solid != BOUNDS_BRUSHMODEL ) {
-                // If not a brush bsp entity, decode its mins and maxs.
-                MSG_UnpackBoundsUint32(
-                    bounds_packed_t{
-                        .u = nextState->bounds
-                    },
-                    ent->mins, ent->maxs
-                );
-                // Clear out the mins and maxs.
-            } else {
-                ent->mins = QM_Vector3Zero();
-                ent->maxs = QM_Vector3Zero();
-            }
-        }
-    }
+		// If entity is solid, and not the frame's client entity, add it to the solid entity list.
+		// (We don't want to add the client's own entity, to prevent issues with self-collision).
+		if ( nextState->solid != SOLID_NOT && nextState->solid != SOLID_TRIGGER ) {
+			// Do NOT add the frame client entity.
+			if ( nextState->number != ( clgi.client->frame.ps.clientNumber + 1 )
+				// Only add if we have room.
+				&& game.frameEntities.numSolids < MAX_PACKET_ENTITIES 
+			) {
+				// If not a brush model, acquire the bounds from the state. (It will use the clip brush node its bounds otherwise.)
+				if ( nextState->solid != BOUNDS_BRUSHMODEL ) {
+					// If not a brush bsp entity, decode its mins and maxs.
+					MSG_UnpackBoundsUint32(
+						bounds_packed_t{
+							.u = nextState->bounds
+						},
+						ent->mins, ent->maxs
+					);
+					// Clear out the mins and maxs. (Will use the clip brush node its bounds otherwise.)
+				} else {
+					ent->mins = QM_Vector3Zero();
+					ent->maxs = QM_Vector3Zero();
+				}
+
+				// Add it to the solids entity list.
+				game.frameEntities.solids[ game.frameEntities.numSolids++ ] = ent;
+			}
+		}
+	}
 }
 
 /**
@@ -269,7 +289,7 @@ static inline bool CheckNewFrameEntity( const centity_t *ent ) {
 **/
 void CLG_Frame_SetInitialServerFrame( void ) {
     // Set predicted frame to the current frame.
-    clgi.client->predictedFrame = clgi.client->frame;
+    game.predictedState.frame = clgi.client->frame;
 
 	// Player States.
 	player_state_t *playerState = &clgi.client->frame.ps;
@@ -349,13 +369,13 @@ void CLG_Frame_TransitionToNext( void ) {
     // Initialize position of the player's own entity from playerstate.
     // this is needed in situations when player entity is invisible, but
     // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
-    clgi.client->predictedFrame = clgi.client->frame;
+    game.predictedState.frame = clgi.client->frame;
 
     // Player States.
     player_state_t *playerState = &clgi.client->frame.ps;
     player_state_t *oldPlayerState = &clgi.client->oldframe.ps;
     // Predicted Player States.
-    player_state_t *predictedPlayerState = &clgi.client->predictedFrame.ps;
+    player_state_t *predictedPlayerState = &game.predictedState.frame.ps;
 
     // Get the client entity for this frame's player state..
     centity_t *frameClientEntity = &clg_entities[ playerState->clientNumber + 1 ];
@@ -438,7 +458,6 @@ void CLG_Frame_TransitionToNext( void ) {
     if ( clgi.client->oldframe.ps.pmove.pm_type != clgi.client->frame.ps.pmove.pm_type ) {
         clgi.ActivateInput();
     }
-
 
     // Rebuild the solid entity list for this frame.
     BuildSolidEntityList();

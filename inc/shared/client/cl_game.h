@@ -510,7 +510,7 @@ typedef struct {
 	*
 	**/
 	void ( *q_printf( 2, 3 ) Print )( print_type_t printlevel, const char *fmt, ... );
-	void ( *q_noreturn q_printf( 1, 2 ) Error )( const char *fmt, ... );
+	void ( *q_noreturn q_printf( 1, 2 ) Error )( error_type_t errorType, const char *fmt, ... );
 
 
 	/**

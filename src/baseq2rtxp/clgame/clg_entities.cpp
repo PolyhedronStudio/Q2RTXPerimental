@@ -226,7 +226,8 @@ centity_t *CLG_GetChaseBoundEntity( void ) {
     }
 }
 /**
-*	@return		The local client entity pointer, which is a match with the entity for the client number which we received at initial time of connection.
+*	@return		The local client entity pointer, which is a match with the entity in clg_entities 
+*				for the client number which we received at initial time of connection.
 **/
 centity_t *CLG_GetLocalClientEntity( void ) {
     // Sanity check.
@@ -236,7 +237,20 @@ centity_t *CLG_GetLocalClientEntity( void ) {
         return nullptr;
     }
     // Return the local client entity.
-    return &game.predictedEntity;//&clg_entities[ clgi.client->clientNumber + 1 ];
+    return &clg_entities[ clgi.client->clientNumber + 1 ];
+}
+/**
+*	@return		The predicted client entity pointer, which resides outside of clg_entities.
+**/
+centity_t *CLG_GetPredictedClientEntity( void ) {
+	// Sanity check.
+	if ( clgi.client->clientNumber == -1 ) {
+		clgi.Print( PRINT_DEVELOPER, "CLG_GetPredictedClientEntity: No client number set yet(Value is CLIENTNUM_NONE(%d)).\n", CLIENTNUM_NONE );
+		// Return a nullptr.
+		return nullptr;
+	}
+	// Return the local client entity.
+	return &game.predictedEntity;//&clg_entities[ clgi.client->clientNumber + 1 ];
 }
 
 /**

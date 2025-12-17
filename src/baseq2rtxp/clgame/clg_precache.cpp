@@ -315,7 +315,7 @@ const qhandle_t CLG_RegisterLocalModel( const char *name ) {
 
     // Throw it into the localModelPaths array.
     if ( precache.num_local_draw_models >= MAX_MODELS ) {
-        clgi.Error( "%s: num_local_draw_models >= MAX_MODELS!\n", __func__ );
+        clgi.Error( ERR_DROP, "%s: num_local_draw_models >= MAX_MODELS!\n", __func__ );
         return 0;
     }
 
@@ -344,7 +344,7 @@ const qhandle_t CLG_RegisterLocalSound( const char *name ) {
 
     // Throw it into the localSoundPaths array.
     if ( precache.num_local_sounds >= MAX_SOUNDS ) {
-        clgi.Error( "%s: num_local_sounds >= MAX_SOUNDS!\n", __func__ );
+        clgi.Error( ERR_DROP, "%s: num_local_sounds >= MAX_SOUNDS!\n", __func__ );
         return 0;
     }
 

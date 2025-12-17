@@ -675,7 +675,7 @@ static void CLG_SetupThirdPersionView( void ) {
         clgi.client->playerEntityOrigin,
         &mins, &maxs, 
         vorg,
-        clgi.client->clientEntity/*&clg_entities[ 1 ]*/, 
+        game.clientEntity/*&clg_entities[ 1 ]*/, 
         CM_CONTENTMASK_SOLID//(cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP )
     );
     if ( trace.fraction != 1.0f ) {

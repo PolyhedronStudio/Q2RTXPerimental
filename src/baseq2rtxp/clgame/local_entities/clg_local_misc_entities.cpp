@@ -302,7 +302,7 @@ void CLG_misc_playerholo_Think( clg_local_entity_t *self ) {
 	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( self );
 
 	// Update animation based on the client entity's last and current frame.
-	centity_t *cent = clgi.client->clientEntity;
+	centity_t *cent = game.clientEntity;
 	if ( cent && cent->last_frame != cent->current_frame ) {
 		// Update regular frame locals to the newly found client entity last and current frame.
 		self->locals.frame = cent->current_frame;
