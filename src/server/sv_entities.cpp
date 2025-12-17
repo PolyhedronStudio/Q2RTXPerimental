@@ -634,16 +634,26 @@ void SV_BuildClientFrame( client_t *client ) {
         **/
         // Default to visible.
         bool entityVisibleForFrame = true;
+
+		// Subtract the temp event entity type offset to determine if this is a temp event entity.
+		// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
+		const bool isTempEventEntity = ( ent->s.entityType - ge->GetTempEventEntityTypeOffset() > 0 );
+
         // Cull non-visible entities unless this entity is requested not to.
         if ( !( ent->svFlags & SVF_NO_CULL ) ) {
             /**
-            *   Ignore ents without visible models if they have no effects, sound or events.
+			*	Unless this is an actual Temp Event Entity:
+            *		- Ignore ents without visible models if they have no effects, sound or events.
             **/
-            if ( !ent->s.modelindex && !ent->s.entityFlags && !ent->s.sound ) {
-                if ( !EV_GetEntityEventValue( ent->s.event ) ) {
-                    continue;
-                }
-            }
+			// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY 
+			// always comes last in the entityType enum.
+			if ( !isTempEventEntity ) {
+				if ( !ent->s.modelindex && !ent->s.entityFlags && !ent->s.sound ) {
+					if ( !EV_GetEntityEventValue( ent->s.event ) ) {
+						continue;
+					}
+				}
+			}
 
             /**
             *   If we are not the entity's own client:
@@ -668,7 +678,8 @@ void SV_BuildClientFrame( client_t *client ) {
         /**
         *   Skip if the entity is not visible, and sv_novis is set, or the entity has no model.
         **/
-        if ( !entityVisibleForFrame && ( !sv_novis->integer || ( ent->s.entityType < 14 && !ent->s.modelindex ) ) ) {
+		// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
+        if ( !entityVisibleForFrame && ( !sv_novis->integer || ( !isTempEventEntity && !ent->s.modelindex ) ) ) {
             continue;
         }
 

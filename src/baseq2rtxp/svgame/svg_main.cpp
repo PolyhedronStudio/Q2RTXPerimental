@@ -202,6 +202,13 @@ const char *_Exports_SG_GetGameModeName( const int32_t gameModeType ) {
     return SG_GetGameModeName( static_cast<const sg_gamemode_type_t>( gameModeType ) );
 }
 
+/**
+*	@brief	Returns the offset at which eType becomes an actual temporary event entity.
+**/
+const int32_t _Exports_SVG_GetTempEventEntityTypeOffset( void ) {
+	return ET_TEMP_ENTITY_EVENT;
+}
+
 void SVG_PreInitGame( void );
 void SVG_InitGame( void );
 void SVG_ShutdownGame( void );
@@ -223,6 +230,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Init = SVG_InitGame;
 		globals.Shutdown = SVG_ShutdownGame;
 		globals.SpawnEntities = SVG_SpawnEntities;
+		globals.GetTempEventEntityTypeOffset = _Exports_SVG_GetTempEventEntityTypeOffset;
 
 		globals.GetRequestedGameModeType = _Exports_SG_GetRequestedGameModeType;
         globals.IsValidGameModeType = _Exports_SG_IsValidGameModeType;

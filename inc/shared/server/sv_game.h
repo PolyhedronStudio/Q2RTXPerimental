@@ -449,7 +449,8 @@ typedef struct {
 
     //! Each new level entered will cause a call to SpawnEntities
     void ( *SpawnEntities )( const char *mapname, const char *spawnpoint, const cm_entity_t **entities, const int32_t numEntities );
-
+	//! Returns the offset at which eType becomes an actual temporary event entity.
+	const int32_t ( *GetTempEventEntityTypeOffset )( void );
 
 	/**
 	*	GameModes:
