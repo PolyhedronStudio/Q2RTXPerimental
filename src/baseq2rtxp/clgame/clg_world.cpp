@@ -32,9 +32,9 @@ static void ClipTraceMoveToEntities( cm_trace_t *tr, const Vector3 &start, const
 	trace.material2 = clgi.CM_GetDefaultMaterial();
 
 	// Iterate all solid entities in the current frame.
-    for ( int32_t i = 0; i < clgi.client->numSolidEntities; i++ ) {
+    for ( int32_t i = 0; i < game.frameEntities.numSolids; i++ ) {
         // Acquire the entity state.
-        centity_t *ent = clgi.client->solidEntities[ i ];
+        centity_t *ent = game.frameEntities.solids[ i ];
 
         // Can't trace without proper data.
         if ( ent == nullptr ) {
@@ -199,9 +199,9 @@ const cm_contents_t CLG_PointContents( const Vector3 &point ) {
         return contents;
     }
     // If we hit CONTENTS_NONE then resume to test against frame's solid entities.
-    for ( int32_t i = 0; i < clgi.client->numSolidEntities; i++ ) {
+    for ( int32_t i = 0; i < game.frameEntities.numSolids; i++ ) {
         // Clip against all brush entity models.
-        centity_t *ent = clgi.client->solidEntities[ i ];
+        centity_t *ent = game.frameEntities.solids[ i ];
 
         // BSP Brush Model Entity:
         mnode_t *headNode = clgi.GetEntityHullNode( ent );

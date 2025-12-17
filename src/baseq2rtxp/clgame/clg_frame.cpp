@@ -176,7 +176,7 @@ static inline void EntityState_FrameUpdate( centity_t *ent, const entity_state_t
 **/
 static inline void BuildSolidEntityList( void ) {
     // Reset the count.
-    clgi.client->numSolidEntities = 0;
+    game.frameEntities.numSolids = 0;
 
     // Iterate over the current frame entity states and add solid entities to the solid list.
     for ( int32_t i = 0; i < clgi.client->frame.numEntities; i++ ) {
@@ -193,10 +193,10 @@ static inline void BuildSolidEntityList( void ) {
         //
         if ( nextState->solid
             && nextState->number != ( clgi.client->frame.ps.clientNumber + 1 ) // Our frame client entity.
-            && clgi.client->numSolidEntities < MAX_PACKET_ENTITIES ) {
+            && game.frameEntities.numSolids < MAX_PACKET_ENTITIES ) {
 
             // Add it to the solids entity list.
-            clgi.client->solidEntities[ clgi.client->numSolidEntities++ ] = ent;
+            game.frameEntities.solids[ game.frameEntities.numSolids++ ] = ent;
             
             // If not a brush model, acquire the bounds from the state. (It will use the clip brush node its bounds otherwise.)
             if ( nextState->solid && nextState->solid != BOUNDS_BRUSHMODEL ) {

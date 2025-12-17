@@ -332,8 +332,8 @@ typedef struct client_state_s {
     *
     **/
     //! Rebuilt each valid frame:
-    centity_t       *solidEntities[ MAX_PACKET_ENTITIES ];
-    int32_t         numSolidEntities;
+    //centity_t       *solidEntities[ MAX_PACKET_ENTITIES ];
+    //int32_t         numSolidEntities;
     //! Rebuilt each valid frame.
     
     //! Stores all entity baseline states to use for delta-ing. Sent and received at time of connect.

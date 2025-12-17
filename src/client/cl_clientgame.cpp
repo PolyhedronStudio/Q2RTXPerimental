@@ -6,8 +6,6 @@
 #include "common/skeletalmodels/cm_skm.h"
 #include "common/skeletalmodels/cm_skm_posecache.h"
 
-#include "client/cl_world.h"
-
 extern cl_screen_shared_t cl_scr;
 
 /**

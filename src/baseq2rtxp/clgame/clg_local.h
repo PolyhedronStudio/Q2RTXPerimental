@@ -693,6 +693,19 @@ struct game_locals_t {
 	centity_t predictedEntity = {};
 
 	/**
+	*	Stores the entities present within the current frame, based on their solid type.
+	**/
+	struct {
+		//! Solid entities parsed and residing within the current frame.
+		centity_t *solids[ MAX_PACKET_ENTITIES ] = {};
+		int32_t		numSolids = 0;
+
+		//! Trigger entities parsed and residing within the current frame.
+		//centity_t *triggers[ MAX_PACKET_ENTITIES ] = {};
+		//int32_t		numTriggers = 0;
+	} frameEntities = {};
+
+	/**
 	*	Stores client state of the view weapon and its model.
 	**/
 	struct {
