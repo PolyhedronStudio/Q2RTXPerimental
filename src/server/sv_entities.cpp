@@ -567,7 +567,11 @@ void SV_BuildClientFrame( client_t *client ) {
     *   Setup playerstate, ensure the frame has the correct clientNum:
     **/
     // Assign the clientNum from the entity's client structure.
-    ps->clientNumber = clent->client->clientNum;
+    // <Q2RTXP>: WID: This is commented out, because it'll be set to that of other clients in case of
+	// spectating. We need to keep the actual client number of the client here.
+    //ps->clientNumber = clent->client->clientNum;
+
+
     // If the clientNum is invalid, fix it.
     if ( !VALIDATE_CLIENTNUM( ps->clientNumber ) ) {
         // Warn.
@@ -664,7 +668,7 @@ void SV_BuildClientFrame( client_t *client ) {
         /**
         *   Skip if the entity is not visible, and sv_novis is set, or the entity has no model.
         **/
-        if ( !entityVisibleForFrame && ( !sv_novis->integer || !ent->s.modelindex ) ) {
+        if ( !entityVisibleForFrame && ( !sv_novis->integer || ( ent->s.entityType < 14 && !ent->s.modelindex ) ) ) {
             continue;
         }
 

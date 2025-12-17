@@ -297,44 +297,45 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
             // Copy the start point into the water start point.
             VectorCopy( tr.endpos, water_start );
 
+            // Determine the color of the splash.
+            if ( tr.contents & CONTENTS_WATER ) {
+                if ( strcmp( tr.surface->name, "*brwater" ) == 0 ) {
+                    splashType = EV_FX_SPLASH_WATER_BROWN;
+                } else {
+                    splashType = EV_FX_SPLASH_WATER_BLUE;
+                }
+            } else if ( tr.contents & CONTENTS_SLIME ) {
+                splashType = EV_FX_SPLASH_SLIME;
+            } else if ( tr.contents & CONTENTS_LAVA ) {
+                splashType = EV_FX_SPLASH_LAVA;
+            }
+
+            if ( splashType != EV_FX_SPLASH_UNKNOWN ) {
+                // Store the count of the amount of 'particle pixels' to spawn in the first parm.
+                const int32_t eventParm0 = static_cast<int32_t>( 8 ) & 255;
+                // Plane normal stored in second parm, encoded to a byte.
+                const int32_t eventParm1 = DirToByte( tr.plane.normal );
+
+                // Create a temporary entity event for all other clients.
+                svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEventEntity(
+                    tr.endpos,
+                    splashType, eventParm0, eventParm1,
+                    false
+                );
+
+                int x = 10;
+                //gi.WriteUint8( svc_temp_entity );
+                //gi.WriteUint8( TE_SPLASH );
+                //gi.WriteUint8( 8 );
+                //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+                //const Vector3 planeNormal = tr.plane.normal;
+                //gi.WriteDir8( &planeNormal );
+                //gi.WriteUint8( color );
+                //gi.multicast( &tr.endpos, MULTICAST_PVS, false );
+            }
+
             // If trace start != trace end pos.
             if ( !VectorCompare( start, tr.endpos ) ) {
-                // Determine the color of the splash.
-                if ( tr.contents & CONTENTS_WATER ) {
-                    if ( strcmp( tr.surface->name, "*brwater" ) == 0 ) {
-                        splashType = EV_FX_SPLASH_WATER_BROWN;
-                    } else {
-                        splashType = EV_FX_SPLASH_WATER_BLUE;
-                    }
-                } else if ( tr.contents & CONTENTS_SLIME ) {
-                    splashType = EV_FX_SPLASH_SLIME;
-                } else if ( tr.contents & CONTENTS_LAVA ) {
-                    splashType = EV_FX_SPLASH_LAVA;
-                }
-
-                if ( splashType != EV_FX_SPLASH_UNKNOWN ) {
-					// Store the count of the amount of 'particle pixels' to spawn in the first parm.
-					const int32_t eventParm0 = static_cast<int32_t>( 8 ) & 255;
-                    // Plane normal stored in second parm, encoded to a byte.
-                    const int32_t eventParm1 = DirToByte( tr.plane.normal );
-
-                    // Create a temporary entity event for all other clients.
-                    svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEventEntity(
-                        tr.endpos,
-                        splashType, eventParm0, eventParm1,
-                        true
-                    );
-
-                    //gi.WriteUint8( svc_temp_entity );
-                    //gi.WriteUint8( TE_SPLASH );
-                    //gi.WriteUint8( 8 );
-                    //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    //const Vector3 planeNormal = tr.plane.normal;
-                    //gi.WriteDir8( &planeNormal );
-                    //gi.WriteUint8( color );
-                    //gi.multicast( &tr.endpos, MULTICAST_PVS, false );
-                }
-
                 // Change bullet's course when it has entered enters water
                 VectorSubtract( end, start, dir );
                 QM_Vector3ToAngles( dir, &dir.x );

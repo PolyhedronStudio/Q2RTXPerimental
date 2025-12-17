@@ -9,6 +9,7 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_client.h"
 #include "clgame/clg_eax.h"
+#include "clgame/clg_entities.h"
 #include "clgame/clg_hud.h"
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_predict.h"
@@ -47,6 +48,16 @@ void CLG_ClientBegin( void ) {
 	// Reset ground information.
 	game.predictedState.ground = {};
 	game.predictedState.liquid = {};
+
+	// Setup predicted player entity's refresh entity.
+	game.predictedEntity.refreshEntity = {
+		// Store the frame of the previous refresh entity iteration so it'll default to that.
+		.frame = game.predictedEntity.refreshEntity.frame,
+		//.oldframe = packetEntity->refreshEntity.oldframe,
+		.id = REFRESHENTITIY_RESERVED_PREDICTED_PLAYER,
+		// Restore bone poses cache pointer.
+		.bonePoses = game.predictedEntity.refreshEntity.bonePoses,
+	};
 
 	// Set the default environment reverb effect.
 	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );

@@ -221,10 +221,9 @@ void CLG_LocalEntity_Link( clg_local_entity_t *lent ) {
 	int         i, j;
 	int         area;
 	mnode_t *topnode;
-	cm_t *cm = &clgi.client->collisionModel;
 
 	// Get all leafs, including solids.
-	num_leafs = clgi.CM_BoxLeafs( cm, absMin, absMax,
+	num_leafs = clgi.CM_BoxLeafs( absMin, absMax,
 		leafs, MAX_TOTAL_ENT_LEAFS, &topnode );
 
 	// Set areas
@@ -250,7 +249,7 @@ void CLG_LocalEntity_Link( clg_local_entity_t *lent ) {
 	if ( num_leafs >= MAX_TOTAL_ENT_LEAFS ) {
 		// Assume we missed some leafs, and mark by headnode.
 		lent->num_clusters = -1;
-		lent->headnode = clgi.CM_NumberForNode( cm, topnode );
+		lent->headnode = clgi.CM_NumberForNode( topnode );
 	} else {
 		lent->num_clusters = 0;
 		for ( i = 0; i < num_leafs; i++ ) {
@@ -266,7 +265,7 @@ void CLG_LocalEntity_Link( clg_local_entity_t *lent ) {
 				if ( lent->num_clusters == MAX_ENT_CLUSTERS ) {
 					// Assume we missed some leafs, and mark by headnode.
 					lent->num_clusters = -1;
-					lent->headnode = clgi.CM_NumberForNode( cm, topnode );
+					lent->headnode = clgi.CM_NumberForNode( topnode );
 					break;
 				}
 
@@ -570,9 +569,9 @@ const bool CLG_LocalEntity_InLocalPVS( clg_local_entity_t *lent ) {
 	bool isVisible = true;
 
 	// Area Checks:
-	if ( clgi.client->localPVS.lastValidCluster >= 0 && !clgi.CM_AreasConnected( &clgi.client->collisionModel, clgi.client->localPVS.leaf->area, lent->areanum ) ) {
+	if ( clgi.client->localPVS.lastValidCluster >= 0 && !clgi.CM_AreasConnected( clgi.client->localPVS.leaf->area, lent->areanum ) ) {
 		// Doors can legally straddle two areas, so we may need to check another one
-		if ( !clgi.CM_AreasConnected( &clgi.client->collisionModel, clgi.client->localPVS.leaf->area, lent->areanum2 ) ) {
+		if ( !clgi.CM_AreasConnected( clgi.client->localPVS.leaf->area, lent->areanum2 ) ) {
 			// Blocked by a door:
 			return false;
 		}
@@ -589,7 +588,7 @@ const bool CLG_LocalEntity_InLocalPVS( clg_local_entity_t *lent ) {
 				int i = 0;
 				// Too many leafs for individual check, go by headnode:
 				if ( lent->num_clusters == -1 ) {
-					if ( !clgi.CM_HeadnodeVisible( clgi.CM_NodeForNumber( &clgi.client->collisionModel, lent->headnode ), clgi.client->localPVS.pvs ) ) {
+					if ( !clgi.CM_HeadnodeVisible( clgi.CM_NodeForNumber( lent->headnode ), clgi.client->localPVS.pvs ) ) {
 						isVisible = false;
 					}
 				} else {

@@ -236,7 +236,7 @@ centity_t *CLG_GetLocalClientEntity( void ) {
         return nullptr;
     }
     // Return the local client entity.
-    return &clg_entities[ clgi.client->clientNumber + 1 ];
+    return &game.predictedEntity;//&clg_entities[ clgi.client->clientNumber + 1 ];
 }
 
 /**

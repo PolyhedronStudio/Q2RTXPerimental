@@ -15,6 +15,7 @@
 #include "clgame/clg_temp_entities.h"
 #include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
+#include "clgame/clg_world.h"
 
 #include "clgame/clg_view_weapon.h"
 
@@ -670,10 +671,10 @@ static void CLG_SetupThirdPersionView( void ) {
     // When clipping we 
     //trace = clgi.Clip( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, nullptr, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ) );
     Vector3 vorg = clgi.client->refdef.vieworg;
-    trace = clgi.Trace( 
-        &clgi.client->playerEntityOrigin,
+    trace = CLG_Trace( 
+        clgi.client->playerEntityOrigin,
         &mins, &maxs, 
-        &vorg,
+        vorg,
         clgi.client->clientEntity/*&clg_entities[ 1 ]*/, 
         CM_CONTENTMASK_SOLID//(cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP )
     );

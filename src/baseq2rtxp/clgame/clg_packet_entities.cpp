@@ -18,6 +18,7 @@
 #include "clgame/clg_temp_entities.h"
 
 #include "sharedgame/sg_entity_types.h"
+#include "sharedgame/sg_entities.h"
 
 
 // WID: TODO: Move to client where it determines old/new states?
@@ -207,6 +208,24 @@ void CLG_AddPacketEntities( void ) {
 
     // Bonus items rotate at a fixed rate.
     const double autorotate = QM_AngleMod( (double)clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
+
+    /**
+    *   Setup the predicted client entity.
+    **/
+	SG_PlayerStateToEntityState( clgi.client->clientNumber, &clgi.client->predictedFrame.ps, &game.predictedEntity.current, true, false );
+    // Backup a possible pointer to an already allocated cache so we can reapply it.
+    skm_transform_t *bonePoses = game.predictedEntity.refreshEntity.bonePoses;
+    // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.
+    game.predictedEntity.refreshEntity = {
+        // Store the frame of the previous refresh entity iteration so it'll default to that.
+        .frame = game.predictedEntity.refreshEntity.frame,
+        //.oldframe = packetEntity->refreshEntity.oldframe,
+        .id = REFRESHENTITIY_RESERVED_PREDICTED_PLAYER,
+        // Restore bone poses cache pointer.
+        .bonePoses = bonePoses,
+    };
+    // Add the predicted client entity.
+    AddPacketEntity( &game.predictedEntity, &game.predictedEntity.current, base_entity_flags, autorotate );
 
     // Iterate over this frame's entity states.
     for ( int32_t frameEntityNumber = 0; frameEntityNumber < clgi.client->frame.numEntities; frameEntityNumber++ ) {

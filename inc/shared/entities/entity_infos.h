@@ -26,7 +26,7 @@ typedef struct ground_info_s {
     cm_contents_t      contents;
 
     //! A pointer to the material data of the ground brush' surface we are standing on. (nullptr if none).
-    struct cm_material_s *material;
+    const struct cm_material_s *material;
 } ground_info_t;
 
 /**

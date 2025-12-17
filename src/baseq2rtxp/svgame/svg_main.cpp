@@ -634,7 +634,7 @@ void SVG_RunFrame(void) {
     // Treat each object in turn
     // even the world gets a chance to think
     //
-    svg_base_edict_t *ent = ent = g_edict_pool.EdictForNumber( 0 );
+    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 0 );
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
 		// skip nullptr edicts.
         if ( !ent ) {

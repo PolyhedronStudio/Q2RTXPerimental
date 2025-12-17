@@ -216,7 +216,7 @@ using svg_edict_callback_postthink_fptr = void ( * )( svg_base_edict_t *self );
 //! Called when movement has been blocked.
 using svg_edict_callback_blocked_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other );         // move to moveinfo?
 //! Called when the entity touches another entity.
-using svg_edict_callback_touch_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+using svg_edict_callback_touch_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, const cm_surface_t *surf );
 
 //! Called to 'trigger' the entity.
 using svg_edict_callback_use_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
@@ -384,7 +384,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   @brief  Calls the 'touch' callback that is configured for this entity.
     **/
-    virtual void DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+    virtual void DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, const cm_surface_t *surf );
     /**
     *   @brief  Calls the 'use' callback that is configured for this entity.
     **/

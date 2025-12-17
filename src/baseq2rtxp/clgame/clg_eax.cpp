@@ -10,6 +10,8 @@
 #include "clgame/clg_eax_effects.h"
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_precache.h"
+#include "clgame/clg_world.h"
+
 #include "local_entities/clg_local_entity_classes.h"
 #include "local_entities/clg_local_env_sound.h"
 
@@ -94,7 +96,7 @@ void CLG_EAX_DetermineEffect() {
 		// Perform a clipping trace on the world, from the env_sound its origin onto the player's (predicted-)origin.
 		const Vector3 traceStart = { env_sound->locals.origin.x, env_sound->locals.origin.y, env_sound->locals.origin.z };
 		const Vector3 traceEnd = { playerOrigin.x, playerOrigin.y, playerOrigin.z };
-		const cm_trace_t trace = clgi.Clip( &traceStart, nullptr, nullptr, &traceEnd, nullptr, CM_CONTENTMASK_SOLID );
+		const cm_trace_t trace = CLG_Clip( traceStart, nullptr, nullptr, traceEnd, nullptr, CM_CONTENTMASK_SOLID );
 
 		// If we hit something, skip this env_sound entity.
 		if ( trace.fraction < 1.0f ) {

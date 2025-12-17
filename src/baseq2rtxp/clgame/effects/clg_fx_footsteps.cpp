@@ -8,6 +8,7 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_precache.h"
 #include "clgame/clg_entities.h"
+#include "clgame/clg_world.h"
 #include "clgame/effects/clg_fx_footsteps.h"
 
 #define _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS 1
@@ -115,7 +116,7 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
 	centity_t *entityNumberEntity = &clg_entities[ entityNumber ];
 
     // Material we're currently standing on: Defaults to null, varies by entity type.
-    cm_material_t *ground_material = nullptr;
+    const cm_material_t *ground_material = nullptr;
 
     // The default type is "floor".
     const char *material_kind = "floor";
@@ -212,7 +213,7 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
             Vector3 traceStart = cent->current.origin;
             Vector3 traceEnd = traceStart + Vector3{ 0., 0., -0.25 };
             // Perform the trace.
-            cm_trace_t groundTrace = clgi.Trace( &traceStart, &cent->mins, &cent->maxs, &traceEnd, cent, CM_CONTENTMASK_SOLID );
+            cm_trace_t groundTrace = CLG_Trace( traceStart, &cent->mins, &cent->maxs, traceEnd, cent, CM_CONTENTMASK_SOLID );
 
 			// If we got a material from the ground trace, use it.
             //if ( groundTrace.material ) {

@@ -192,7 +192,7 @@ static inline void BuildSolidEntityList( void ) {
         // (We don't want to add the client's own entity, to prevent issues with self-collision).
         //
         if ( nextState->solid
-            && nextState->number != ( clgi.client->frame.ps.clientNumber + 1 )// Our frame client entity.
+            && nextState->number != ( clgi.client->frame.ps.clientNumber + 1 ) // Our frame client entity.
             && clgi.client->numSolidEntities < MAX_PACKET_ENTITIES ) {
 
             // Add it to the solids entity list.
@@ -276,13 +276,14 @@ void CLG_Frame_SetInitialServerFrame( void ) {
     // Get the client entity for this frame's player state..
     centity_t *frameClientEntity = &clg_entities[ playerState->clientNumber + 1 ];
 
+    // Rebuild the solid entity list for this frame.
+    BuildSolidEntityList();
+
     // Update the player entity state from the playerstate.
     // This will allow effects and such to be properly placed.
     SG_PlayerStateToEntityState( playerState->clientNumber, playerState, &frameClientEntity->current );
 
-	// Rebuild the solid entity list for this frame.
-    BuildSolidEntityList();
-
+    // 
     for ( int32_t i = 0; i < clgi.client->frame.numEntities; i++ ) {
         // Fetch next state from states array..
         entity_state_t *nextState = &clgi.client->entityStates[ ( clgi.client->frame.firstEntity + i ) & PARSE_ENTITIES_MASK ];
@@ -301,17 +302,15 @@ void CLG_Frame_SetInitialServerFrame( void ) {
 
         // Fire any needed entity events.
         CLG_Events_CheckForEntity( cent );
-
-        //// Work around Q2PRO server bandwidth optimization.
-        //if ( CheckPlayerStateEntity( nextState ) ) {
-        //    //Com_PlayerToEntityState( /*&clgi.client->frame.ps*/ &clgi.client->predictedFrame.ps, &ent->current );
-        //    SG_PlayerStateToMinimalEntityState(
-        //        clgi.client->frame.ps.clientNumber,
-        //        &clgi.client->frame.ps, &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ].current
-        //    );
-        //}
-
     }
+    //// Work around Q2PRO server bandwidth optimization.
+    //if ( CheckPlayerStateEntity( nextState ) ) {
+    //    //Com_PlayerToEntityState( /*&clgi.client->frame.ps*/ &clgi.client->predictedFrame.ps, &ent->current );
+    //    SG_PlayerStateToEntityState(
+    //        clgi.client->frame.ps.clientNumber,
+    //        &clgi.client->frame.ps, &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ].current
+    //    );
+    //}
 
     // Call upon client begin if this is not a demo playback.
     if ( !clgi.IsDemoPlayback() ) {
@@ -412,6 +411,9 @@ void CLG_Frame_TransitionToNext( void ) {
         cent->serverframe = clgi.client->frame.number;
         cent->snapShotTime = clgi.client->servertime;
 
+        // Fire any needed entity events.
+        CLG_Events_CheckForEntity( cent );
+
         // Update the player entity state from the playerstate.
         // This will allow effects and such to be properly placed.
         if ( CheckPlayerStateEntity( nextState ) ) {
@@ -422,9 +424,6 @@ void CLG_Frame_TransitionToNext( void ) {
                 false
             );
         }
-
-        // Fire any needed entity events.
-        CLG_Events_CheckForEntity( cent );
     }
 
     // If we're recording a demo, make sure to store this frame into the demo data.

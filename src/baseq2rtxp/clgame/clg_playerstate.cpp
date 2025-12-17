@@ -102,39 +102,53 @@ void CLG_PlayerState_Transition( centity_t *clent, server_frame_t *oldframe, ser
 	// Calculate last frame number.
     const int32_t lastFrameNumber = frame->number - framediv;
 
+    // Used for testing whether we teleported too far away.
+    const Vector3 originDifference = QM_Vector3Fabs( ops->pmove.origin - ps->pmove.origin );
+	const double fabsOriginDifference = std::max( std::max( originDifference.x, originDifference.y ), originDifference.z );
+    
+	// Did we duplicate state, or not? (If so, prevent firing events again).
+	bool duplicatedState = false;
+    
     // No lerping if previous frame was dropped or invalid.
     if ( !oldframe->valid ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_OLDFRAME_INVALID );
+        duplicatedState = true;
         //return;
     // Duplicate state in case the stored old frame number does not match to the expected last frame number.
     }
     else if ( oldframe->number != lastFrameNumber ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_OLDFRAME_NOT_LASTFRAME_NUMBER );
+        duplicatedState = true;
         //return;
     // No lerping if POV number changed.
     } else if ( oldframe->ps.clientNumber != frame->ps.clientNumber ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_CLIENTNUM_MISMATCH );
+        duplicatedState = true;
         //return;
     // No lerping in case of the enabled developer option.
     }
     else if ( cl_nolerp->integer == 1 ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_NOLERP );
+        duplicatedState = true;
         //return;
     // No lerping if player entity was teleported (origin check).
-    } else if ( std::fabs( QM_Vector3LengthDP( ops->pmove.origin - ps->pmove.origin ) ) > 256.0 ) {
+    } else if ( fabsOriginDifference > 256.0 ) {
     //} else if ( fabsf( ops->pmove.origin.x - ps->pmove.origin.x ) > 256 ||
     //    fabsf( ops->pmove.origin.y - ps->pmove.origin.y ) > 256 ||
     //    fabsf( ops->pmove.origin.z - ps->pmove.origin.z ) > 256 ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_ORIGIN_OFFSET_LARGER_THAN_256 );
+        duplicatedState = true;
         //return;
     // No lerping if player entity was teleported (event check).
     } else if ( clent->serverframe > lastFrameNumber && clent->serverframe <= frame->number &&
         ( entityEvent == EV_PLAYER_TELEPORT || entityEvent == EV_OTHER_TELEPORT ) ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_EVENT_TELEPORT );
+        duplicatedState = true;
         //return;
     // No lerping if teleport bit was flipped.
     } else if ( ( ops->pmove.pm_flags ^ ps->pmove.pm_flags ) & PMF_TIME_TELEPORT ) {
         duplicate_player_state( ps, ops, PS_DUP_DEBUG_TIME_TELEPORT );
+        duplicatedState = true;
         //return;
     // No lerping if teleport bit was flipped.
     }
@@ -144,5 +158,7 @@ void CLG_PlayerState_Transition( centity_t *clent, server_frame_t *oldframe, ser
     //}
 
 	// Make sure to check for playerstate events changes.
-	CLG_CheckPlayerstateEvents( ps, ops );
+    if ( !duplicatedState ) {
+        CLG_CheckPlayerstateEvents( ps, ops );
+    }
 }

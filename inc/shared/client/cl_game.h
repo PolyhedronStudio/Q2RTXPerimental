@@ -157,16 +157,6 @@ typedef struct {
 	const int64_t( *Netchan_GetIncomingAcknowledged )( void );
 	const int64_t( *Netchan_GetDropped )( void );
 
-	/**
-	*
-	*	Clip Tracing:
-	*
-	**/
-	const cm_trace_t( *q_gameabi Trace )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *passEntity, const cm_contents_t contentmask );
-	const cm_trace_t( *q_gameabi Clip )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *clipEntity, const cm_contents_t contentmask );
-	const cm_contents_t( *q_gameabi PointContents )( const Vector3 *point );
-
-
 
 	/**
 	*
@@ -275,21 +265,21 @@ typedef struct {
 	*           A pointer to the 'special case for solid leaf' if number == -1
 	*           A pointer to the BSP Node that matched with 'number'.
 	**/
-	mnode_t *( *CM_NodeForNumber )( cm_t *cm, const int32_t number );
+	mnode_t *( *CM_NodeForNumber )( const int32_t number );
 	/**
 	*   @return The number that matched the node's pointer. -1 if node was a nullptr.
 	**/
-	const int32_t( *CM_NumberForNode )( cm_t *cm, mnode_t *node );
+	const int32_t( *CM_NumberForNode )( mnode_t *node );
 	/**
 	*   @return A pointer to nullleaf if there is no BSP model cached up.
 	*           A pointer to the BSP Leaf that matched with 'number'.
 	**/
-	mleaf_t *( *CM_LeafForNumber )( cm_t *cm, const int32_t number );
+	mleaf_t *( *CM_LeafForNumber )( const int32_t number );
 
 	/**
 	*   @return The number that matched the leaf's pointer. 0 if leaf was a nullptr.
 	**/
-	const int32_t( *CM_NumberForLeaf )( cm_t *cm, mleaf_t *leaf );
+	const int32_t( *CM_NumberForLeaf )( mleaf_t *leaf );
 	/**
 	*   @Return True if any leaf under headnode has a cluster that
 	*           is potentially visible
@@ -299,32 +289,60 @@ typedef struct {
 	/**
 	*   @brief  Set the portal nums matching portal to open/closed state.
 	**/
-	void ( *CM_SetAreaPortalState )( cm_t *cm, const int32_t portalnum, const bool open );
+	void ( *CM_SetAreaPortalState )( const int32_t portalnum, const bool open );
 	/**
 	*   @return False(0) if the portal nums matching portal is closed, true(1) otherwise.
 	**/
-	const int32_t ( *CM_GetAreaPortalState )( cm_t *cm, const int32_t portalnum );
+	const int32_t ( *CM_GetAreaPortalState )( const int32_t portalnum );
 	/**
 	*   @return True if the two areas are connected, false if not(or possibly blocked by a door for example.)
 	**/
-	const bool  ( *CM_AreasConnected )( cm_t *cm, const int32_t area1, const int32_t area2 );
+	const bool  ( *CM_AreasConnected )( const int32_t area1, const int32_t area2 );
 
 	/**
 	*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
 	*           given box occupies in the data structure.
 	**/
-	const int32_t ( *CM_BoxLeafs )( cm_t *cm, const vec3_t mins, const vec3_t maxs,	mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+	const int32_t ( *CM_BoxLeafs )( const vec3_t mins, const vec3_t maxs,	mleaf_t **list, const int32_t listsize, mnode_t **topnode );
 	/**
 	*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
 	*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
 	*           contains the box.
 	**/
-	const int32_t ( *CM_BoxLeafs_headnode )( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
+	const int32_t ( *CM_BoxLeafs_headnode )( const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
 	/**
 	*   @return The contents mask of all leafs within the absolute bounds.
 	**/
-	const cm_contents_t( *CM_BoxContents )( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
+	const cm_contents_t( *CM_BoxContents )( const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
 
+	/**
+	*   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t( *CM_BoxTrace )( const Vector3 *start, const Vector3 *end, const Vector3 *mins, const Vector3 *maxs, mnode_t *headNode, const cm_contents_t brushMask );
+	/**
+	*   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t ( *CM_TransformedBoxTrace )( const Vector3 *start, const Vector3 *end,
+		const Vector3 *mins, const Vector3 *maxs,
+		mnode_t *headnode, const cm_contents_t brushMask,
+		const Vector3 *origin, const Vector3 *angles );
+	/**
+	*   @return The type of 'contents' at the given point.
+	**/
+	const cm_contents_t ( *CM_PointContents )( const Vector3 *point, mnode_t *headNode );
+	/**
+	*   @return The type of 'contents' at the given point.
+	**/
+	const cm_contents_t( *CM_TransformedPointContents )( const Vector3 *point, mnode_t *headnode, const Vector3 *origin, const Vector3 *angles );
+
+	/**
+	*   @return	Pointer to the collision model system's 'null' surface info.
+	**/
+	const cm_surface_t *( *CM_GetNullSurface )( void );
+	/**
+	*   @return	Pointer to the collision model system's 'default' material info.
+	**/
+	const cm_material_t *( *CM_GetDefaultMaterial )( void );
 
 	/**
 	*
@@ -341,6 +359,10 @@ typedef struct {
 	*   @return Pointer to the collision model system's 'null' entity key/pair.
 	**/
 	const cm_entity_t *( *CM_GetNullEntity )( void );
+	/**
+	*	@return	The hull node for the specified entity.
+	**/
+	mnode_t *( *GetEntityHullNode )( const centity_t *ent/*, const bool includeSolidTriggers = false */ );
 
 
 	/**
@@ -908,7 +930,6 @@ typedef struct {
 	*   @brief  Called from CL_Begin only, after precache and spawning. Used for example to access precached data with.
 	**/
 	void ( *PostSpawnEntities )( void );
-
 	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.

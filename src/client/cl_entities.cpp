@@ -19,7 +19,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_ents.c -- entity parsing and management
 
 #include "cl_client.h"
-
+#include "common/collisionmodel.h"
 
 
 /**
@@ -65,14 +65,17 @@ static void CL_SetInitialServerFrame(void)
 
     // Delta  
     cl.serverdelta = Q_align(cl.frame.number, 1);
-    // Set time, needed for demos
-    cl.time = cl.extrapolatedTime = 0; 
+
     // Initialize oldframe in a way that the lerp to come, won't distort anything.
     cl.oldframe.valid = false;
     cl.oldframe.ps = cl.frame.ps;
 
     // Determine the current delta frame's server time.
     cl.servertime = cl.frame.number * CL_FRAMETIME;
+	// Set time, needed for demos
+	cl.time = cl.servertime;
+	// Set extrapolated time to current server time.
+	cl.extrapolatedTime = cl.servertime;
 
 	// Set frameflags.
     cl.frameflags = FF_NONE;
@@ -129,6 +132,69 @@ void CL_TransitionServerFrames( void ) {
     clge->Frame_TransitionToNext();
 }
 
+/**
+*
+*
+*
+*	Hull:
+*
+*
+*
+**/
+/**
+*	@return	A headnode that can be used for testing and/or clipping an
+*			object 'hull' of mins/maxs size for the entity's said 'solid'.
+**/
+mnode_t *CL_GetEntityHullNode( const centity_t *ent/*, const bool includeSolidTriggers = false */ ) {
+	// Validate entity pointer.
+	if ( !ent && !cl.collisionModel.cache ) {
+	//	Com_Error( ERR_DROP, "%s: NULL entity pointer", __func__ );
+		return nullptr;
+	}
+	// Make sure we have a collision model loaded.
+	if ( !cl.collisionModel.cache ) {
+		//Com_Error( ERR_DROP, "%s: No collision model loaded", __func__ );
+		return nullptr;
+	}
+
+	// Return the worldspawn hull in case of it being nullptr.
+	if ( !ent ) {
+		// World entity with no solid.
+		return cl.collisionModel.cache->nodes;
+	}
+
+	if ( ent->current.solid == (cm_solid_t)BOUNDS_BRUSHMODEL /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
+		// Subtract 1 to get the modelindex into a 0-based array.
+		// ( Index 0 is reserved for no model )
+		const int32_t i = ent->current.modelindex - 1;
+
+		// explicit hulls in the BSP model
+		if ( i <= 0 || i >= cl.collisionModel.cache->nummodels ) {
+			Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
+			return nullptr;
+		}
+
+		return cl.collisionModel.cache->models[ i ].headnode;
+	}
+
+	// Create a temp hull from entity bounds and contents clipMask for the specific type of 'solid'.
+	if ( ent->current.solid == SOLID_BOUNDS_OCTAGON ) {
+		return CM_HeadnodeForOctagon( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
+	} else {
+		return CM_HeadnodeForBox( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
+	}
+}
+
+
+/**
+*
+*
+*
+*	Sound Related:
+*
+*
+* 
+**/
 /**
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.

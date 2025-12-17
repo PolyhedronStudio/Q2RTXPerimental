@@ -476,7 +476,7 @@ void svg_base_edict_t::DispatchBlockedCallback( svg_base_edict_t *other ) {
 /**
 *   @brief  Calls the 'touch' callback that is configured for this entity.
 **/
-void svg_base_edict_t::DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void svg_base_edict_t::DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, const cm_surface_t *surf ) {
     if ( touchCallbackFuncPtr ) {
         touchCallbackFuncPtr( this, other, plane, surf );
     }

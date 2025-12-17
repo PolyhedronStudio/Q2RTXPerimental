@@ -539,6 +539,11 @@ void CL_SeekDemoMessage(void);
 **/
 void CL_TransitionServerFrames( void );
 /**
+*	@return	A headnode that can be used for testing and/or clipping an
+*			object 'hull' of mins/maxs size for the entity's said 'solid'.
+**/
+mnode_t *CL_GetEntityHullNode( const centity_t *ent/*, const bool includeSolidTriggers = false */ );
+/**
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.
 **/

@@ -24,6 +24,10 @@
 *
 *
 **/
+/**
+*	@brief	Transfer player state event(s) to entity state event.
+*			Prioritizes external events over PMove generated events.
+**/
 static void PlayerStateEventsToEntityStateEvent( player_state_t *playerState, entity_state_t *entityState ) {
 	// Check for an external event first.
 	if ( playerState->externalEvent ) {
@@ -48,11 +52,11 @@ static void PlayerStateEventsToEntityStateEvent( player_state_t *playerState, en
 		playerState->entityEventSequence++;
 	}
 }
+
 /**
 *	@brief	Convert a player state to entity state.
 * 
-*			This is done after each set of usercmd_t on the server,
-*			and after local prediction on the client.
+*			This is done after each set of usercmd_t on the server,	and after each local prediction performed by the client.
 **/
 void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool playerStatEventsToEntityState, const bool snapOrigin ) {
 	/**
@@ -62,12 +66,28 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	entityState->modelindex = MODELINDEX_PLAYER;
 
 	/**
+	*	Entity Number: Expected to match, otherwise rectified.
+	**/
+	// In case not, set it here.
+	const int32_t psClientNumber = playerState->clientNumber;
+	// The expected entity number.
+	const int32_t clientEntityNumber = psClientNumber + 1;
+	// Inspect it for discrepancy and if so, warn and then correct it.:
+	if ( entityState->number != clientEntityNumber ) {
+		// Debug print.
+		SG_DPrintf( "%s: Correcting entityState number from %d to %d for client %d\n",
+			__func__, entityState->number, clientEntityNumber, psClientNumber );
+		// Set it.
+		entityState->number = clientEntityNumber;
+	}
+
+	/**
 	*	Skin and Weapon Model Index:
 	**/
 	//! Encode into some client information into entity state its skin number.
 	entityState->skinnum = encoded_skinnum_t{
 		//! Set the client number.
-		.clientNumber = (int16_t)playerState->clientNumber,
+		.clientNumber = (int16_t)psClientNumber,
 		//! Set the view weapon index.
 		.viewWeaponIndex = (uint8_t)playerState->gun.modelIndex,
 		//! Set the view height.
@@ -106,6 +126,35 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 *			(e.g.: When creating pending temporary entities for PMove.)
 **/
 void SG_PlayerStateToMinimalEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool snapOrigin ) {
+	/**
+	*	Entity Number: Expected to match, otherwise rectified.
+	**/
+	// In case not, set it here.
+	const int32_t psClientNumber = playerState->clientNumber;
+	//// The expected entity number.
+	//const int32_t clientEntityNumber = psClientNumber+ 1;
+	//// Inspect it for discrepancy and if so, warn and then correct it.:
+	//if ( entityState->number != clientEntityNumber ) {
+	//	// Debug print.
+	//	SG_DPrintf( "%s: Correcting entityState number from %d to %d for client %d\n",
+	//		__func__, entityState->number, clientEntityNumber, psClientNumber);
+	//	// Set it.
+	//	entityState->number = clientEntityNumber;
+	//}
+
+	/**
+	*	Skin Client Number Encoding:
+	**/
+	//! Encode into some client information into entity state its skin number.
+	entityState->skinnum = encoded_skinnum_t{
+		//! Set the client number.
+		.clientNumber = (int16_t)psClientNumber,
+		//! Set the view weapon index.
+		//.viewWeaponIndex = (uint8_t)playerState->gun.modelIndex,
+		//! Set the view height.
+		//.viewHeight = (int8_t)playerState->pmove.viewheight,
+	}.skinnum;
+
 	/**
 	*	Origin:
 	**/

@@ -10,6 +10,7 @@
 #include "clgame/clg_events.h"
 #include "clgame/clg_playerstate.h"
 #include "clgame/clg_predict.h"
+#include "clgame/clg_world.h"
 
 
 #include "sharedgame/sg_entities.h"
@@ -30,20 +31,20 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const cm_trace_t q_gameabi CLG_PM_Trace( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const void *passEntity, const cm_contents_t contentMask ) {
-    return clgi.Trace( start, mins, maxs, end, (const centity_t *)passEntity, contentMask );
+static const cm_trace_t CLG_PM_Trace( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
+    return CLG_Trace( start, mins, maxs, end, (const centity_t *)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const cm_trace_t q_gameabi CLG_PM_Clip( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentMask ) {
-    return clgi.Clip( start, mins, maxs, end, nullptr, contentMask );
+static const cm_trace_t CLG_PM_Clip( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+    return CLG_Clip( start, mins, maxs, end, nullptr, contentMask );
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const cm_contents_t q_gameabi CLG_PM_PointContents( const Vector3 *point ) {
-    return clgi.PointContents( point );
+static const cm_contents_t  CLG_PM_PointContents( const Vector3 &point ) {
+    return CLG_PointContents( point );
 }
 
 
@@ -113,7 +114,7 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
 
 	// Get the game's predicted client entity, which is used to (not limited to) 
     // play PMove predicted events.
-    centity_t *clientEntity = &clg_entities[ ps->clientNumber + 1 ];
+    centity_t *predictedEntity = &game.predictedEntity;//&clg_entities[ ps->clientNumber + 1 ];
 
     // Go through the predictable events buffer
     for ( int64_t i = ps->eventSequence - MAX_PS_EVENTS; i < ps->eventSequence; i++ ) {
@@ -129,9 +130,9 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
             // Get the parameter.
 			const int32_t playerStateEventParm0 = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
             // Assign to the client entity.
-            clientEntity->current.event = playerStateEvent;
-            clientEntity->current.eventParm0 = playerStateEventParm0;
-            clientEntity->current.eventParm1 = 0;// ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
+            predictedEntity->current.event = playerStateEvent;
+            predictedEntity->current.eventParm0 = playerStateEventParm0;
+            predictedEntity->current.eventParm1 = 0;// ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
             
             /**
             *
@@ -165,7 +166,7 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
 				// It was never dealt with by local client events, so assume that the event is
                 // for and attached to the entity.
                 if ( !firedLocalPlayerStateEvent ) {
-                    firedEvent = CLG_Events_CheckForEntity( clientEntity );
+                    firedEvent = CLG_Events_CheckForEntity( predictedEntity );
                 }
             #endif
 
@@ -182,7 +183,7 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
 **/
 static void CLG_CheckChangedPredictableEvents( const player_state_t *ops, const player_state_t *ps, const QMTime &simulationTime ) {
 	// Get local client entity pointer:
-    centity_t* cent = &clg_entities[ ps->clientNumber + 1 ];
+    centity_t *cent = &game.predictedEntity;//clg_entities[ ps->clientNumber + 1 ];
 	// Sanity check.
     if ( !cent ) {
         return;
@@ -461,18 +462,20 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
 	clgi.client->viewBoundEntity    = CLG_GetViewBoundEntity();
 
 	// The client entity.
-    centity_t *clientEntity = clgi.client->clientEntity;
+    centity_t *clientEntity = &game.predictedEntity;// clgi.client->clientEntity;
 
 	if ( !clientEntity ) {
         return;
     }
+    // Set serverframe so it'll be 'valid for current frame'. 
+    // (Despite practically living outside of its constraint.)
+    clientEntity->serverframe = clgi.client->frame.number;
 
-	// For transitioning purposes, store the old predicted frame.
+    // For transitioning purposes, store the old predicted frame.
     server_frame_t oldPredictedFrame = clgi.client->predictedFrame;
-
     // Last predicted state.
     client_predicted_state_t *predictedState = &game.predictedState;
-   
+      
     // Shuffle the still "CURRENT" ground info into our "LAST" groundinfo.
     predictedState->lastGround = predictedState->ground;
     // Shuffle the still "CURRENT" playerState into our "LAST" playerState.
@@ -626,7 +629,8 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
     //CLG_PlayerState_Transition( &game.predictedEntity &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta );
 
     // TODO: Use game.predictedEntity for this.
-    CLG_PlayerState_Transition( &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ], &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta);
+    //CLG_PlayerState_Transition( &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ], &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta);
+    CLG_PlayerState_Transition( clientEntity, &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta );
 
 	// Debug: Check for double events.
     if ( cl_showmiss->integer ) {

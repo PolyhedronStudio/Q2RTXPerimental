@@ -81,7 +81,7 @@ static void PM_CrashLand( void );
 *	@brief	Clips trace against world only.
 **/
 const cm_trace_t PM_Clip( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
-	return pm->clip( &start, &mins, &maxs, &end, contentMask );
+	return pm->clip( start, &mins, &maxs, end, contentMask );
 }
 /**
 *	@brief	Determines the mask to use and returns a trace doing so. If spectating, it'll return clip instead.
@@ -105,14 +105,14 @@ const cm_trace_t PM_Trace( const Vector3 &start, const Vector3 &mins, const Vect
 		//	mask &= ~CONTENTS_PLAYER;
 	}
 
-	return pm->trace( &start, &mins, &maxs, &end, pm->playerEdict, contentMask );
+	return pm->trace( start, &mins, &maxs, end, pm->playerEdict, contentMask );
 }
 
 /**
 *	@brief	Returns the contents at a given point.
 **/
 const cm_contents_t PM_PointContents( const Vector3 &point ) {
-	return pm->pointcontents( &point );
+	return pm->pointcontents( point );
 }
 
 
@@ -292,7 +292,7 @@ static void PM_Friction() {
 			) || ( pm->state->pmove.pm_flags & PMF_ON_LADDER )
 		) {
 			// Get the material to fetch friction from.
-			cm_material_t *ground_material = ( pml.groundTrace.material != nullptr ? pml.groundTrace.material : nullptr );
+			const cm_material_t *ground_material = ( pml.groundTrace.material != nullptr ? pml.groundTrace.material : nullptr );
 			// Use material friction if available, otherwise fallback to default friction.
 			double friction = ( ground_material ? ground_material->physical.friction : pmp->pm_friction );
 			// Determine control value.
@@ -489,13 +489,13 @@ static inline const bool PM_AboveLiquid() {
 	// Testing point.
 	const Vector3 below = pm->state->pmove.origin + Vector3{ 0, 0, -8 };
 	// We got solid below, not water:
-	bool solid_below = pm->trace( &pm->state->pmove.origin, &pm->mins, &pm->maxs, &below, pm->playerEdict, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
+	bool solid_below = pm->trace( pm->state->pmove.origin, &pm->mins, &pm->maxs, below, pm->playerEdict, CM_CONTENTMASK_SOLID ).fraction < 1.0f;
 	if ( solid_below ) {
 		return false;
 	}
 
 	// We're above water:
-	bool water_below = pm->trace( &pm->state->pmove.origin, &pm->mins, &pm->maxs, &below, pm->playerEdict, CM_CONTENTMASK_LIQUID ).fraction < 1.0f;
+	bool water_below = pm->trace( pm->state->pmove.origin, &pm->mins, &pm->maxs, below, pm->playerEdict, CM_CONTENTMASK_LIQUID ).fraction < 1.0f;
 	if ( water_below ) {
 		return true;
 	}

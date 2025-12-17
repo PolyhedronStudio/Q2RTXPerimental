@@ -4,12 +4,17 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Notes:
 * This is a todo in order to keep track of things to do, ideas to implement, bugs to fix, and so on.
 ---
+
 * [ ] PMove Map: Fix the odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
 * [X] --
 * [ ] Move variables such as air_finished_time into the player_state_t stats array for better network efficiency,
       as well as allowing for client-side prediction of these values where possible. This may involve having to deal with
       adding functions such as P_WorldEffects into the shared game module as well.
 * [X] --
+* [ ] Clean up Header Includes in all client game source files.
+* [ ] Clean up Header Includes in all server game source files.
+* [ ] 
+* [ ] 
 * [ ] Streamline the gi. functions to CamelCase and wrap them up in SVG_ functions for ease of use. (gi.dprintf just be gi.Print( type, msg, args )
 * [ ] Look into the client's oldpmove storage.
 * [ ] Look into the client's viewMove vVectors, and possible unnecessary duplicates.
@@ -29,8 +34,9 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 	* [ ] Misc Events.
 	* [ ] Login, Logout, Teleport. (Also for gamemodes.)
 * [X] --
+* [ ] Fix loading a savegame does not error out about "not being spawned", while we actually ARE spawned. ( it is just that the boolean is false, somehow. )
 * [ ] Fix the lack of the teleport effect at map spawn.
-* [ ] Fix the teleporter dest not working properly. ( Bugs out movement ).
+* [X] Fix the teleporter dest not working properly. ( Bugs out movement ).
 * [ ] For entity event type entities, snap their origins so we can network them properly.
 * [ ] Fix the ``EV_WATER_ENTER_WAIST`` and ``EV_WATER_LEAVE_WAIST`` events from not firing properly:
 	 - See ``PM_WaterEvents``
