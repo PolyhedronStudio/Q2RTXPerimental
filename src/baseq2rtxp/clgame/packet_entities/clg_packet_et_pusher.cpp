@@ -95,7 +95,7 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     // skip:
     VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
 
-
+	#if 0
 	// Debugging Output:
     if ( !cl_paused->integer && !sv_paused->integer ) {
 
@@ -140,4 +140,5 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
         //    packetEntity->lerp_origin[ 2 ]
         //);
     }
+	#endif
 }

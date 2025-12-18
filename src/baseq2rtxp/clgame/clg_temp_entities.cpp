@@ -83,8 +83,8 @@ static void CLG_StartRandomExplosionSfx( const bool isInWater, const Vector3 &po
 void CLG_TemporaryEntities_Parse( void ) {
     clg_explosion_t *ex;
     int r;
-
     switch ( level.parsedMessage.events.tempEntity.type ) {
+	#if 0
     case TE_BLOOD: // bullet hitting flesh
         //if ( !( clg_disable_particles->integer & NOPART_BLOOD ) ) {
             // CLG_FX_ParticleEffect(level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 60);
@@ -114,6 +114,7 @@ void CLG_TemporaryEntities_Parse( void ) {
                 clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
         }
         break;
+	#endif
     #if 0 // Moved to Entity Event
     //! A bullet hitting water.
     case TE_SPLASH:
@@ -205,11 +206,11 @@ void CLG_TemporaryEntities_Parse( void ) {
         CLG_FX_BubbleTrail2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2, 8 );
         clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
         break;
-
+#if 0
     case TE_MOREBLOOD:
         CLG_FX_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 250 );
         break;
-
+#endif
     case TE_ELECTRIC_SPARKS:
         CLG_FX_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x75, 40 );
         //FIXME : replace or remove this sound

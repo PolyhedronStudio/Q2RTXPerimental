@@ -49,12 +49,95 @@ void SVG_EntityEvent_PositionedSound( svg_base_edict_t *ent, const int32_t chann
 
 /**
 *
-* 
-* 
+*
+*
+*
+*	Temp Entity Events -- Blood Particles:
+*
+*
+*
+*
+**/
+/**
+*	@brief	Creates a temp entity event to let the client spawn blood particles at the given origin.
+*	@param	origin	        The origin to spawn the particles at.
+*	@param	normal	        The normal vector of the impacted plane.
+*	@param	minCount	    The minimum amount of particles to spawn.
+*	@param	maxCount	    The maximum amount of particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_Blood( const Vector3 &origin, const Vector3 &normal, const int32_t minCount = 75, const int32_t maxCount = 100 );
+/**
+*	@brief	Creates a temp entity event to let the client spawn "MORE" blood particles at the given origin.
+*	@param	origin	        The origin to spawn the particles at.
+*	@param	normal	        The normal vector of the impacted plane.
+*	@param	minCount	    The minimum amount of particles to spawn.
+*	@param	maxCount	    The maximum amount of particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_MoreBlood( const Vector3 &origin, const Vector3 &normal, const int32_t minCount = 17, const int32_t maxCount = 25 );
+
+
+
+
+/**
+*
+*
+*
+*
+*	Temp Entity Events -- Impact Particles:
+*
+*
+*
+*
+**/
+/**
+*	@brief	Creates a temp entity event to let the client spawn impact particles at the given origin.
+*	@param	origin	        The origin to spawn the particles at.
+*	@param	normal	        The normal vector of the impacted plane.
+*	@param	splashType	    The type of particles to spawn. (sg_splash_types_t)
+*	@param	minCount	    The minimum amount of particles to spawn.
+*	@param	maxCount	    The maximum amount of particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_GunShot( const Vector3 &origin, const Vector3 &normal, const int32_t impactType = EV_FX_IMPACT_GUNSHOT, const int32_t minCount = 28, const int32_t maxCount = 40 );
+
+
+
+/**
+*
+*
+*
+*
+*	Temp Entity Events -- Splash Particles:
+*
+*
+*
+*
+**/
+/**
+*	@brief	Creates a temp entity event to let the client spawn splash particles at the given origin.
+*	@param	origin	        The origin to spawn the splash particles at.
+*	@param	normal	        The normal vector of the splash plane.
+*	@param	splashType	    The type of splash particles to spawn. (sg_splash_types_t)
+*	@param	minCount	    The minimum amount of splash particles to spawn.
+*	@param	maxCount	    The maximum amount of splash particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_SplashParticles( const Vector3 &origin, const Vector3 &normal, const int32_t splashType = EV_FX_SPLASH_WATER_BLUE, const int32_t minCount = 8, const int32_t maxCount = 16 );
+
+
+
+/**
+*
+*
+*
+*
 *	Temp Entity Events -- Sound Playback:
 *
-* 
-* 
+*
+*
+*
 **/
 /**
 *	@brief	Creates a temp entity event to let the client play a general sound on the entity

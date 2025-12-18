@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -764,12 +765,12 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
 
     svg_client_t *client = targ->client;
 
-    // Default TE that got us was sparks.
-    int32_t te_sparks = TE_SPARKS;
-    // Special sparks for a bullet.
-    if ( damageFlags & DAMAGE_BULLET ) {
-        te_sparks = TE_BULLET_SPARKS;
-    }
+	// Default TE that got us was sparks.
+	sg_entity_events_t te_sparks = EV_FX_IMPACT_SPARKS;
+	// Special sparks for a bullet.
+	if ( damageFlags & DAMAGE_BULLET ) {
+		te_sparks = EV_FX_IMPACT_BULLET_SPARKS;
+	}
 
     // Bonus damage for suprising a monster.
     if ( !( damageFlags & DAMAGE_RADIUS ) && ( targ->svFlags & SVF_MONSTER )
@@ -828,7 +829,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
     if ( ( targ->flags & FL_GODMODE ) && !( damageFlags & DAMAGE_NO_PROTECTION ) ) {
         take = 0;
         save = finalDamage;
-        SVG_SpawnDamage( te_sparks, point, normal, save );
+		SVG_TempEventEntity_GunShot( point, normal, te_sparks );
     }
 
     // check for invincibility
@@ -853,10 +854,12 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
     if ( take ) {
         if ( ( targ->svFlags & SVF_MONSTER ) || ( client ) ) {
             // SVG_SpawnDamage(TE_BLOOD, point, normal, take);
-            SVG_SpawnDamage( TE_BLOOD, point, dir, take );
-        } else
-            SVG_SpawnDamage( te_sparks, point, normal, take );
-
+            //SVG_SpawnDamage( EV_FX_BLOOD, point, dir, take );
+			SVG_TempEventEntity_Blood( point, normal, take );
+		} else {
+			//SVG_SpawnDamage( te_sparks, point, normal, take );
+			SVG_TempEventEntity_GunShot( point, normal, te_sparks );
+		}
         targ->health = targ->health - take;
 
         if ( targ->health <= 0 ) {

@@ -708,6 +708,11 @@ typedef struct qfloat3 {
 //----------------------------------------------------------------------------------
 #include "shared/math/qm_vector3.h"
 
+#ifdef __cplusplus
+const int32_t DirToByte( const Vector3 &dir );
+void ByteToDir( const int32_t index, Vector3 &dir );
+#endif
+
 //----------------------------------------------------------------------------------
 // Module Functions Definition - Vector4 (Class-)Function Implementations.
 //----------------------------------------------------------------------------------

@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_combat.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_save.h"
 #include "svgame/svg_utils.h"
@@ -153,11 +154,12 @@ void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
 
     // send an effect on the removed body
     if ( body->s.modelindex ) {
-        gi.WriteUint8( svc_temp_entity );
-        gi.WriteUint8( TE_BLOOD );
-        gi.WritePosition( &body->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        gi.WriteDir8( (const Vector3*)&qm_vector3_null );
-        gi.multicast( &body->s.origin, MULTICAST_PVS, false );
+        //gi.WriteUint8( svc_temp_entity );
+        //gi.WriteUint8( TE_BLOOD );
+        //gi.WritePosition( &body->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        //gi.WriteDir8( (const Vector3*)&qm_vector3_null );
+        //gi.multicast( &body->s.origin, MULTICAST_PVS, false );
+		SVG_TempEventEntity_Blood( body->s.origin, qm_vector3_null );
     }
 
     gi.unlinkentity( body );

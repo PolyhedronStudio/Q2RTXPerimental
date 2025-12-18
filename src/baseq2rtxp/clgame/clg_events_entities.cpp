@@ -88,6 +88,13 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 /*************************
 *   Particle FX Event Handlers:
 *************************/
+static void CLG_EntityEvent_Blood( const Vector3 & origin, const uint8_t direction, const int32_t count );
+static void CLG_EntityEvent_MoreBlood( const Vector3 & origin, const uint8_t direction, const int32_t count );
+
+static void CLG_EntityEvent_GunShot( const Vector3 & origin, const uint8_t direction, const int32_t count );
+static void CLG_EntityEvent_Sparks( const Vector3 & origin, const uint8_t direction );
+static void CLG_EntityEvent_BulletSparks( const Vector3 & origin, const uint8_t direction, const int32_t count );
+
 static void CLG_EntityEvent_Splash( const Vector3 & origin, const uint8_t direction, const int32_t splashType, const int32_t count );
 
 
@@ -216,6 +223,43 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
     /**
     *   Particle FX Events:
     **/
+	//---------------------------------------------------------------
+	
+	case EV_FX_BLOOD:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the blood effect.
+		CLG_EntityEvent_Blood( effectOrigin, cent->current.eventParm1, cent->current.eventParm0 );
+		break;
+	case EV_FX_MORE_BLOOD:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the blood effect.
+		CLG_EntityEvent_MoreBlood( effectOrigin, cent->current.eventParm1, cent->current.eventParm0 );
+		break;
+
+	//---------------------------------------------------------------
+
+	case EV_FX_IMPACT_GUNSHOT:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the gun shot effect.
+		CLG_EntityEvent_GunShot( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+		break;
+	case EV_FX_IMPACT_SPARKS:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the sparks effect.
+		CLG_EntityEvent_Sparks( cent->current.origin, cent->current.eventParm0 );
+		break;
+	case EV_FX_IMPACT_BULLET_SPARKS:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the bullet sparks effect.
+		CLG_EntityEvent_BulletSparks( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+		break;
+
+	//---------------------------------------------------------------
     case EV_FX_SPLASH_UNKNOWN:
         // Print event name for debugging.
         DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
@@ -262,6 +306,9 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 		// Fire the blood splash effect.
         CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BLOOD, cent->current.eventParm0 );
         break;
+
+	//---------------------------------------------------------------
+
     default:
             //clgi.Print( PRINT_DEVELOPER, "%s: Unknown EntityEvent Type(Unclamped: %d, Clamped: %d)\n", __func__, eventValue, clampedEventValue );
         break;
@@ -499,8 +546,99 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 * 
 * 
 **/
+/**************************************
+*   [ EV_FX_BLOOD ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_Blood( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the blood particle effect function.
+	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 10 );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+}
+/**************************************
+*   [ EV_FX_BLOOD ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_MoreBlood( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the blood particle effect function.
+	CLG_FX_ParticleEffect( origin, decodedDirection, 0xe8, count * 10 );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+}
+
+/**************************************
+*   [ EV_FX_IMPACT_GUNSHOT ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_GunShot( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0, count );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+
+	// Impact sound
+	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
+
+	if ( r == 1 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
+	} else if ( r == 2 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
+	} else if ( r == 3 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
+	}
+}
+/**************************************
+*   [ EV_FX_IMPACT_SPARKS ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_Sparks( const Vector3 &origin, const uint8_t direction ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, 6 );
+}
+/**************************************
+*   [ EV_FX_IMPACT_BULLET_SPARKS ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_BulletSparks( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, count );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+
+	// Impact sound
+	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
+	
+	if ( r == 1 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
+	} else if ( r == 2 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
+	} else if ( r == 3 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
+	}
+}
+
 /*************************
-*   Particle FX Event Handlers:
+*   Water Splash FX Event Handler:
 *************************/
 static void CLG_EntityEvent_Splash( const Vector3 &origin, const uint8_t direction, const int32_t splashType, const int32_t count ) {
     // Splash color values for each splashType.
@@ -528,7 +666,7 @@ static void CLG_EntityEvent_Splash( const Vector3 &origin, const uint8_t directi
     }
 
 	// Decode the direction byte to a direction vector.
-	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	vec3_t decodedDirection = { 0.f, 0.f, 1.f };
 	ByteToDir( direction, decodedDirection );
 
 	// Call the splash effect function.

@@ -63,13 +63,13 @@ static void CLG_ParseTEntPacket( void ) {
     level.parsedMessage.events.tempEntity.type = clgi.MSG_ReadUint8();
 
     switch ( level.parsedMessage.events.tempEntity.type ) {
-    case TE_BLOOD:
-    case TE_GUNSHOT:
-    case TE_SPARKS:
-    case TE_BULLET_SPARKS:
+    //case TE_BLOOD:
+    //case TE_GUNSHOT:
+    //case TE_SPARKS:
+    //case TE_BULLET_SPARKS:
     case TE_HEATBEAM_SPARKS:
     case TE_HEATBEAM_STEAM:
-    case TE_MOREBLOOD:
+    //case TE_MOREBLOOD:
     case TE_ELECTRIC_SPARKS:
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
             clgi.MSG_ReadDir8( level.parsedMessage.events.tempEntity.dir );

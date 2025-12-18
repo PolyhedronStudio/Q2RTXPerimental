@@ -34,20 +34,26 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *
 *   These events are set on the entity's 's.event' field, and thus are tagged along
 *   with the entity during its normal state updates to clients. Use these to trigger
-*   effects that are directly related to the entity itself.
+*   effects that are directly related to the entity itself. (Riding the entity.)
 * 
 *   It is important to note that these events are only sent to clients that
-*   are in the Potentially Hearable Set (PHS) of the entity. So if the entity
-*   is too far away from the client, or is blocked by walls/brushes (which confine 
-*   the other area the entity is in), the client will not receive the event, and 
-*   thus not play the sound or show the effect.
+*   are in the Potentially Hearable Set (PHS)/Possible Visibility Set of the entity. 
+*	So if the entity is too far away from the client, or is blocked by 
+*	walls/brushes (which confine the other area the entity is in), the client will 
+*	not receive the event, and thus not play the sound or show the effect.
 *
 *
 **/
 /**
 *
+* 
+* 
+* 
 *	Regular Entity Events -- Sound Playback:
 *
+* 
+* 
+* 
 **/
 /**
 *   @brief  Applies an EV_GENERAL_SOUND event to the entity's own event field and parameters.
@@ -87,7 +93,7 @@ void SVG_EntityEvent_PositionedSound( svg_base_edict_t *ent, const int32_t chann
 *   they point to a specific entity for it to play a sound, or show a visual effect.
 *
 *   They can be modified after creation to set specific properties, such as
-*   setting a specific client to send to, or regarding its lifetime duration.
+*   setting a specific client to send(or exclude sending) to, or its lifetime duration.
 * 
 *   By default it will send to all clients. However, this can be changed by modifying
 *   the 'sendClientID' property of the returned entity pointer, and setting the appropriate
@@ -99,7 +105,7 @@ void SVG_EntityEvent_PositionedSound( svg_base_edict_t *ent, const int32_t chann
 /**
 *   @brief	Creates a temp entity event with the specified event set.
 **/
-static inline svg_base_edict_t *CreateTempEntityForEvent( const Vector3 &origin, const bool snapOrigin, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1 ) {
+static inline svg_base_edict_t *CreateTempEntityForEvent( const Vector3 &origin, const bool snapOrigin, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1, const QMTime eventDuration = QMTime::FromMilliseconds( EVENT_VALID_MSEC ) ) {
     // Create a temporary entity event for all other clients.
     svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEventEntity(
         // Use the acquired origin.
@@ -111,6 +117,8 @@ static inline svg_base_edict_t *CreateTempEntityForEvent( const Vector3 &origin,
     );
     // Ensure no client specific sending. (Can be set after creation if needed.)
     tempEventEntity->sendClientID = SENDCLIENT_TO_ALL;
+	// Set the duration of the event.
+	tempEventEntity->eventDuration = eventDuration;
     // Return it.
     return tempEventEntity;
 }
@@ -138,8 +146,203 @@ static inline const Vector3 CalculateEntityEventSoundOrigin( svg_base_edict_t *e
 
 /**
 *
+*
+*
+*
+*	Temp Entity Events -- Blood Particles:
+*
+*
+*
+*
+**/
+/**
+*	@brief	Creates a temp entity event to let the client spawn blood particles at the given origin.
+*	@param	origin	        The origin to spawn the particles at.
+*	@param	normal	        The normal vector of the impacted plane.
+*	@param	minCount	    The minimum amount of particles to spawn.
+*	@param	maxCount	    The maximum amount of particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_Blood( const Vector3 &origin, const Vector3 &normal, const int32_t minCount, const int32_t maxCount ) {
+	// Generate a random amount of 'blood particles'.
+	const int32_t particleCount = static_cast<int32_t>( irandom( minCount, maxCount ) );
+	// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+	const int32_t eventParm0 = static_cast<int32_t>( particleCount ) & 255;
+	// Plane normal stored in second parm, encoded to a byte.
+	const int32_t eventParm1 = DirToByte( normal );
+	// Create a temporary entity event for all clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent(
+		// Use the given origin.
+		origin,
+		// Snap the origin.
+		true,
+		// Blood particle event.
+		EV_FX_BLOOD,
+		// Store the count and normal in the parms.	
+		eventParm0, eventParm1,
+		// Set a shorter duration for b;ppd particles.
+		FRAME_TIME_MS
+	);
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+/**
+*	@brief	Creates a temp entity event to let the client spawn "MORE" blood particles at the given origin.
+*	@param	origin	        The origin to spawn the particles at.
+*	@param	normal	        The normal vector of the impacted plane.
+*	@param	minCount	    The minimum amount of particles to spawn.
+*	@param	maxCount	    The maximum amount of particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_MoreBlood( const Vector3 &origin, const Vector3 &normal, const int32_t minCount, const int32_t maxCount ) {
+	// Generate a random amount of 'blood particles'.
+	const int32_t particleCount = static_cast<int32_t>( irandom( minCount, maxCount ) );
+	// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+	const int32_t eventParm0 = static_cast<int32_t>( particleCount ) & 255;
+	// Plane normal stored in second parm, encoded to a byte.
+	const int32_t eventParm1 = DirToByte( normal );
+	// Create a temporary entity event for all clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent(
+		// Use the given origin.
+		origin,
+		// Snap the origin.
+		true,
+		// Blood particle event.
+		EV_FX_MORE_BLOOD,
+		// Store the count and normal in the parms.	
+		eventParm0, eventParm1,
+		// Set a shorter duration for b;ppd particles.
+		FRAME_TIME_MS
+	);
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+
+
+
+
+/**
+*
+*
+*
+*
+*	Temp Entity Events -- Impact Particles:
+*
+*
+*
+*
+**/
+/**
+*	@brief	Creates a temp entity event to let the client spawn gunshot impact particles at the given origin.
+*	@param	origin	        The origin to spawn the particles at.
+*	@param	normal	        The normal vector of the impacted plane.
+*	@param	splashType	    The type of particles to spawn. (sg_splash_types_t)
+*	@param	minCount	    The minimum amount of particles to spawn.
+*	@param	maxCount	    The maximum amount of particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_GunShot( const Vector3 &origin, const Vector3 &normal, const int32_t impactType, const int32_t minCount, const int32_t maxCount ) {
+	// Actual splash type to use.
+	int32_t actualImpactType = impactType;
+	// Sanity check the splash type.
+	if ( impactType < EV_FX_IMPACT_GUNSHOT || impactType > EV_FX_IMPACT_BULLET_SPARKS ) {
+		// Debug print.
+		gi.dprintf( "%s: Invalid impactType (#%d), clamping it(min=%d,max=%d)\n", __func__, impactType, EV_FX_IMPACT_GUNSHOT, EV_FX_IMPACT_BULLET_SPARKS );
+		// Clamp to valid range.
+		actualImpactType = std::clamp<int32_t>( impactType, EV_FX_IMPACT_GUNSHOT, EV_FX_IMPACT_BULLET_SPARKS );
+	}
+
+	// Generate a random amount of 'splash particles'.
+	const int32_t particleCount = static_cast<int32_t>( irandom( minCount, maxCount ) );
+	// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+	const int32_t eventParm0 = static_cast<int32_t>( particleCount ) & 255;
+	// Plane normal stored in second parm, encoded to a byte.
+	const int32_t eventParm1 = DirToByte( normal );
+	// Create a temporary entity event for all clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent(
+		// Use the given origin.
+		origin,
+		// Snap the origin.
+		true,
+		// Splash particle event.
+		(sg_entity_events_t)actualImpactType,
+		// Store the count and normal in the parms.	
+		eventParm0, eventParm1,
+		// Set a shorter duration for splash particles.
+		FRAME_TIME_MS
+	);
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+
+
+
+/**
+*
+*
+*
+*
+*	Temp Entity Events -- Splash Particles:
+*
+*
+*
+*
+**/
+/**
+*	@brief	Creates a temp entity event to let the client spawn splash particles at the given origin.
+*	@param	origin	        The origin to spawn the splash particles at.
+*	@param	normal	        The normal vector of the splash plane.
+*	@param	splashType	    The type of splash particles to spawn. (sg_splash_types_t)
+*	@param	minCount	    The minimum amount of splash particles to spawn.
+*	@param	maxCount	    The maximum amount of splash particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_SplashParticles( const Vector3 &origin, const Vector3 &normal, const int32_t splashType, const int32_t minCount, const int32_t maxCount ) {
+	// Actual splash type to use.
+	int32_t actualSplashType = splashType;
+	// Sanity check the splash type.
+	if ( splashType < EV_FX_SPLASH_UNKNOWN || splashType > EV_FX_SPLASH_BLOOD ) {
+		// Debug print.
+		gi.dprintf( "%s: Invalid splash type (#%d), clamping it(min=%d,max=%d)\n", __func__, splashType, EV_FX_SPLASH_UNKNOWN, EV_FX_SPLASH_BLOOD );
+		// Clamp to valid range.
+		actualSplashType = std::clamp<int32_t>( splashType, EV_FX_SPLASH_UNKNOWN, EV_FX_SPLASH_BLOOD );
+	}
+	
+	// Generate a random amount of 'splash particles'.
+	const int32_t particleCount = static_cast<int32_t>( irandom( minCount, maxCount ) );
+	// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+	const int32_t eventParm0 = static_cast<int32_t>( particleCount ) & 255;
+	// Plane normal stored in second parm, encoded to a byte.
+	const int32_t eventParm1 = DirToByte( normal );
+	// Create a temporary entity event for all clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( 
+		// Use the given origin.
+		origin, 
+		// Snap the origin.
+		true,
+		// Splash particle event.
+		(sg_entity_events_t)actualSplashType,
+		// Store the count and normal in the parms.	
+		eventParm0, eventParm1,
+		// Set a shorter duration for splash particles.
+		FRAME_TIME_MS
+	);
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+
+
+
+/**
+* 
+* 
+* 
+*
 *	Temp Entity Events -- Sound Playback:
 *
+* 
+* 
+* 
 **/
 /**
 *	@brief	Creates a temp entity event to let the client play a general sound on the entity 
@@ -214,7 +417,7 @@ svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, con
 /**
 *	@brief	Creates a temp entity event to let the client play a general sound 
 *           at the given origin with the passed in parameters.
-*   @note   Always players at full volume.
+*   @note   Always plays at full volume.
 *           Normal attenuation, and 0 sound offset.
 *   @param	origin	            The origin to play the sound at.
 *	@param	channel	            The sound channel to play the sound on.

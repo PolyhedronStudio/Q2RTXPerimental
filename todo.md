@@ -4,26 +4,36 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Notes:
 * This is a todo in order to keep track of things to do, ideas to implement, bugs to fix, and so on.
 ---
-
-* [ ] PMove Map: Fix the odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
-* [X] --
-* [ ] Move variables such as air_finished_time into the player_state_t stats array for better network efficiency,
-      as well as allowing for client-side prediction of these values where possible. This may involve having to deal with
-      adding functions such as P_WorldEffects into the shared game module as well.
-* [X] --
-* [ ] Clean up Header Includes in all client game source files.
-* [ ] Clean up Header Includes in all server game source files.
+* [ ] FIX: When joining a server, the first time the map loads, the player entity state numbers are off.
+* [ ] FIX: PMove Map: The odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
+* [ ] FIX: func_button map: The first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
+* [ ] FIX: The target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
+* [ ] --
+* [ ] FIX: Loading a savegame does not error out about "not being spawned", while we actually ARE spawned. ( it is just that the boolean is false, somehow. )
+* [ ] FIX: The lack of the teleport effect at map spawn.
+* [ ] FIX: the entitynumber being off in the first frame.
+* [ ] FIX: The prediction error when spawning in a new map.
+* [ ] FIX: func_door(one that moves up) when started open, does not seem to respond to touch trigger brush areas properly..
+* [X] FIX: The teleporter dest not working properly. ( Bugs out movement ).
+* [X] FIX: For entity event type entities, snap their origins so we can network them properly.
+* [ ] FIX: The ``EV_WATER_ENTER_WAIST`` and ``EV_WATER_LEAVE_WAIST`` events from not firing properly:
+	 - See ``PM_WaterEvents``
+* [ ] --
+* [ ] Use predicted player entity.
 * [ ] 
 * [ ] 
-* [ ] Streamline the gi. functions to CamelCase and wrap them up in SVG_ functions for ease of use. (gi.dprintf just be gi.Print( type, msg, args )
-* [ ] Look into the client's oldpmove storage.
-* [ ] Look into the client's viewMove vVectors, and possible unnecessary duplicates.
 * [ ] Look into the actual origin Q3 has that is used for collision and those of rendering.
-* [ ] Streamline that we got SVG_Client_BeginFrame/EndFrame, and for the gamemode to wrap whatever s left in those calls too.
-* [X] --
+* [ ] --
+* [ ] Look into SDL3 for possible future migration.
+* [ ] Look into SDL_TTF usage for text rendering for HUD and other UI elements.
+* [ ] Look into a simple UI layout system which we can use for HUD and other UI elements.
+    * [ ] - RmlUI is a possible candidate. But, it might be overkill and it 
+        is a pain to implement proper rendering support.
+* [ ] Look into implementing a proper HUD using the above.
+* [ ] --
 * [ ] Rewrite the addPacketEntities scenario to be more clear and streamlined like Q3.
 	-- This involves CLG_TransitionPlayerState and cLG_TransitionEntity style approach.
-* [X] --
+* [ ] --
 * [ ] Look into all temp_entity_events and remove/comment all unnecessary events.
 	* [ ] Port all necessary ones to be actual entity events instead of temp_entity events.
 	* [ ] Sound Events. (gi.sound, gi.positional_sound)
@@ -33,32 +43,32 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 	* [ ] Muzzle Flash Events.
 	* [ ] Misc Events.
 	* [ ] Login, Logout, Teleport. (Also for gamemodes.)
-* [X] --
-* [ ] Fix loading a savegame does not error out about "not being spawned", while we actually ARE spawned. ( it is just that the boolean is false, somehow. )
-* [ ] Fix the lack of the teleport effect at map spawn.
-* [X] Fix the teleporter dest not working properly. ( Bugs out movement ).
-* [ ] For entity event type entities, snap their origins so we can network them properly.
-* [ ] Fix the ``EV_WATER_ENTER_WAIST`` and ``EV_WATER_LEAVE_WAIST`` events from not firing properly:
-	 - See ``PM_WaterEvents``
-* [X] --
-* [ ] func_button map, the first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
 * [ ] --
-* [ ] When testing the target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
-* [X] --
+* [ ] Allow custom models on func_ entities such as doors and buttons.
+* [ ] --
+* [ ] Move variables such as air_finished_time into the player_state_t stats array for better network efficiency,
+      as well as allowing for client-side prediction of these values where possible. This may involve having to deal with
+      adding functions such as P_WorldEffects into the shared game module as well.
+* [ ] --
+* [ ] Clean up Header Includes in all client game source files.
+* [ ] Clean up Header Includes in all server game source files.
+* [ ] 
+* [ ] 
+* [ ] Streamline the gi. functions to CamelCase and wrap them up in SVG_ functions for ease of use. (gi.dprintf just be gi.Print( type, msg, args )
+* [ ] Look into the client's oldpmove storage.
+* [ ] Look into the client's viewMove vVectors, and possible unnecessary duplicates.
+* [ ] Streamline that we got SVG_Client_BeginFrame/EndFrame, and for the gamemode to wrap whatever s left in those calls too.
+* [ ] --
 * [X] Load and register all media, store handles neatly in a global media struct.
       This prevents unnecessary repeated lookups for media handles. (Sounds, Models, Textures, Materials, etc etc)
 	* [X] Dealt with for client game sounds.
 	* [ ] Dealt with for server game sounds.
-* [X] --
-* [ ] Implement client game cvars for debugging things more appropriately.
+* [ ] --
+* [X] Implement client game cvars for debugging things more appropriately.
 	* [X] Added one for debugging events.
 	* [ ] Bounding Box Display.
 		* [ ] Look into Q2RTX 1.8 rendering for debug lines n stuff.
-* [X] --
-* [ ] Fix func_door(one that moves up) when started open, does not seem to respond to touch trigger brush areas properly..
-* [X] --
-* [ ] Allow custom models on func_ entities such as doors and buttons.
-* [X] --
+* [ ] --
 ---
 ### Random Ideas for The Day:
 - None, not now, lol.

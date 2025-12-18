@@ -37,7 +37,7 @@ static inline void CL_ParseDeltaEntity(server_frame_t  *frame,
 {
     entity_state_t    *state;
 
-    // suck up to MAX_EDICTS for servers that don't cap at MAX_PACKET_ENTITIES
+    // Suck up to MAX_EDICTS for servers that don't cap at MAX_PACKET_ENTITIES
     if (frame->numEntities >= MAX_EDICTS) {
         Com_Error(ERR_DROP, "%s: MAX_EDICTS exceeded", __func__);
     }
@@ -321,7 +321,7 @@ static void CL_ParseFrame()
         }
         // Clean zerod out portal bits buffer.
         static byte portalBits[ MAX_MAP_PORTAL_BYTES ];
-        memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+        std::memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
         // Pointer to the read buffer's portal bit part.
         byte *receivedPortalBits = MSG_ReadData( lengthPortalBits );
         // Copy over the received portal bits into the zeroed out portal bits buffer.

@@ -121,7 +121,7 @@ typedef enum sg_entity_events_e {
     *   (Can be spawned too instead of being latched on to an entity, as they will be created as an entity of their own.)
     *******************************************/
     /**
-    * Sound Events:
+    *	Sound Events:
     **/
     //! General sound event for entities, play a sound on the (client's-) entity playing on the specified channel.
     EV_GENERAL_SOUND,
@@ -134,8 +134,24 @@ typedef enum sg_entity_events_e {
     //! Global sound event, will play at a client's head so the sound is not attenuated. (No diminishing.)
     EV_GLOBAL_SOUND,
 
+	/**
+	*	"Blood/Damage/Hurt/Pain" Particle Events:
+	**/
+	//! A "proper" blood impact
+	EV_FX_BLOOD,
+	//! A "proper" MORE blood impact.
+	EV_FX_MORE_BLOOD,
+
+	/**
+	*   "Impact" Particle Events:
+	**/
+	//! Gunshot impact effects/sparks.
+	EV_FX_IMPACT_GUNSHOT,
+	EV_FX_IMPACT_SPARKS,
+	EV_FX_IMPACT_BULLET_SPARKS,
+
     /**
-    *   Particle Events:
+    *   "Splash" Particle Events:
     **/
     //! Unknown splash type effect.
     EV_FX_SPLASH_UNKNOWN,
@@ -151,6 +167,7 @@ typedef enum sg_entity_events_e {
     EV_FX_SPLASH_LAVA,
     //! A red blood splash effect.
     EV_FX_SPLASH_BLOOD,
+
 
     /**
     *   Maximum number of entity events, must be last.
@@ -281,23 +298,40 @@ static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     //! Global sound event, will play at a client's head so the sound is not attenuated. (No diminishing.)
     "EV_GLOBAL_SOUND",
 
-    /**
-    *   Particle Events:
-    **/
+	/**
+	*	"Blood/Damage/Hurt/Pain" Particle Events:
+	**/
+	//! A "proper" blood impact
+	"EV_FX_BLOOD",
+	//! A "proper" MORE blood impact.
+	"EV_FX_MORE_BLOOD",
+
+	/**
+	*   "Impact" Particle Events:
+	**/
+	//! Gunshot impact effects/sparks.
+	"EV_FX_IMPACT_GUNSHOT",
+	"EV_FX_IMPACT_SPARKS",
+	"EV_FX_IMPACT_BULLET_SPARKS",
+
+	/**
+	*   "Splash" Particle Events:
+	**/
     //! Unknown splash type effect.
-    "EV_FX_SPLASH_UNKNOWN",
+	"EV_FX_SPLASH_UNKNOWN",
     //! Spark splash effect.
-    "EV_FX_SPLASH_SPARKS",
+	"EV_FX_SPLASH_SPARKS",
     //! A blue water splash effect.
-    "EV_FX_SPLASH_WATER_BLUE",
+	"EV_FX_SPLASH_WATER_BLUE",
     //! A blue water splash effect.
-    "EV_FX_SPLASH_WATER_BROWN",
+	"EV_FX_SPLASH_WATER_BROWN",
     //! A green slime splash effect.
-    "EV_FX_SPLASH_SLIME",
+	"EV_FX_SPLASH_SLIME",
     //! A red lava splash effect.
-    "EV_FX_SPLASH_LAVA",
+	"EV_FX_SPLASH_LAVA",
     //! A red blood splash effect.
-    "EV_FX_SPLASH_BLOOD",
+	"EV_FX_SPLASH_BLOOD",
+
 
     /**
     *   Maximum number of entity events, must be last.

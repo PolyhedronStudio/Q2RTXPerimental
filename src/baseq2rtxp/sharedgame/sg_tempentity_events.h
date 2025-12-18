@@ -18,11 +18,11 @@
 **/
 // temp entity events
 typedef enum temp_entity_event_e {
-    TE_GUNSHOT,
+    //TE_GUNSHOT,
     // TE_OTHER_TYPE_GUNSHOT
 
-    TE_BLOOD,
-    TE_MOREBLOOD,
+    //TE_BLOOD,
+    //TE_MOREBLOOD,
 
     //TE_EXPLOSION1,
     //TE_EXPLOSION2,
@@ -39,9 +39,9 @@ typedef enum temp_entity_event_e {
     TE_STEAM,
     TE_HEATBEAM_STEAM,
 
-    TE_SPARKS,
+    //TE_SPARKS,
     TE_HEATBEAM_SPARKS,
-    TE_BULLET_SPARKS,
+    //TE_BULLET_SPARKS,
     TE_ELECTRIC_SPARKS,
     TE_LASER_SPARKS,
     TE_TUNNEL_SPARKS,

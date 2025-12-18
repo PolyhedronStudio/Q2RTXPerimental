@@ -45,8 +45,6 @@ typedef struct server_frame_s {
 
     //! A snapshot of the player's state during this frame.
     player_state_t  ps;
-    //! The client number that this frame belongs to.
-    //int32_t         clientNum;
 
     //! The number of entities in the frame.
     int32_t         numEntities;
