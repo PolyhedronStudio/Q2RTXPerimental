@@ -141,53 +141,62 @@ void CLG_FX_ParticleEffectWaterSplash( const Vector3 &org, const Vector3 &dir, i
 }
 
 void CLG_FX_BloodParticleEffect( const Vector3 &org, const Vector3 &dir, int color, int count ) {
-    int         i, j;
-    clg_particle_t *p;
-    float       d;
+    //// add decal:
+    //decal_t dec = {
+    //  .pos = {org[ 0 ],org[ 1 ],org[ 2 ]},
+    //  .dir = {dir[ 0 ],dir[ 1 ],dir[ 2 ]},
+    //  .spread = 0.25f,
+    //  .length = 350
+    //};
+    //clgi.R_AddDecal( &dec );
+	static constexpr float dirt_horizontal_spread = 2.0f;
+	static constexpr float dirt_vertical_spread = 1.0f;
+	static constexpr float dirt_base_velocity = 40.0f;
+	static constexpr float dirt_rand_velocity = 70.0f;
 
-    // add decal:
-    decal_t dec = {
-      .pos = {org[ 0 ],org[ 1 ],org[ 2 ]},
-      .dir = {dir[ 0 ],dir[ 1 ],dir[ 2 ]},
-      .spread = 0.25f,
-      .length = 350
-    };
-    clgi.R_AddDecal( &dec );
+	Vector3 oy = { 0.f, 1.f, 0.f };	//VectorSet( oy, 0.0f, 1.0f, 0.0f );
+	if ( fabsf( QM_Vector3DotProductDP( oy, dir ) ) > 0.95 ) {
+		oy = { 1.f, 0.f, 0.f }; //VectorSet( oy, 1.0f, 0.0f, 0.0f );
+	}
+	Vector3 ox = QM_Vector3CrossProduct( oy, dir ); //CrossProduct(oy, dir, ox);
+	
+	// Apply particle count factor.
+	count *= cl_particle_num_factor->value;
 
-    float a[ 3 ] = { dir[ 1 ], -dir[ 2 ], dir[ 0 ] };
-    float b[ 3 ] = { -dir[ 2 ], dir[ 0 ], dir[ 1 ] };
+	// Create particles.
+	for ( int32_t i = 0; i < count; i++ ) {
+		// Allocate particle.
+		clg_particle_t *p = CLG_AllocateParticle();
+		if ( !p ) {
+			return;
+		}
 
-    count *= cl_particle_num_factor->value;
+		// Set particle properties.
+		p->time = clgi.client->time;
 
-    for ( i = 0; i < count; i++ ) {
-        p = CLG_AllocateParticle();
-        if ( !p )
-            return;
+		p->color = color + ( Q_rand() & 7 );
+		p->brightness = 0.5f;
 
-        p->time = clgi.client->time;
+		// Calculate particle origin.
+		Vector3 origin = org; // VectorCopy( org, origin );
+		origin = QM_Vector3MultiplyAdd( origin, dirt_horizontal_spread * crand(), ox ); //VectorMA( origin, dirt_horizontal_spread * crand(), ox, origin );
+		origin = QM_Vector3MultiplyAdd( origin, dirt_horizontal_spread * crand(), oy ); //VectorMA( origin, dirt_horizontal_spread * crand(), oy, origin );		
+		origin = QM_Vector3MultiplyAdd( origin, dirt_vertical_spread * frand() + 1.0f, dir ); //VectorMA( origin, dirt_vertical_spread * frand() + 1.0f, dir, origin );
+		VectorCopy( origin, p->org );
 
-        p->color = color + ( Q_rand() & 7 );
-        p->brightness = 0.5f;
+		// Calculate particle velocity.
+		Vector3 velocity = origin - org; // VectorSubtract( origin, org, velocity );
+		velocity = QM_Vector3Normalize( velocity ); ////VectorNormalize( velocity );
+		velocity = QM_Vector3ScaleDP( velocity, dirt_base_velocity + frand() * dirt_rand_velocity ); // //VectorScale( velocity, dirt_base_velocity + frand() * dirt_rand_velocity, p->vel );
+		VectorCopy( velocity, p->vel );
 
-        //d = ( Q_rand() & 31 ) * 40;
-        d = ( Q_rand() & 31 ) * 40; // WID: Was 10
-        for ( j = 0; j < 3; j++ ) {
-            p->org[ j ] = org[ j ] + ( (int)( Q_rand() & 7 ) - 4 ) + d * ( dir[ j ]
-                + a[ j ] * 0.5f * ( ( Q_rand() & 31 ) / 32.0f - .5f )
-                + b[ j ] * 0.5f * ( ( Q_rand() & 31 ) / 32.0f - .5f ) );
-
-            p->vel[ j ] = 10.0f * dir[ j ] + crand() * 20;
-        }
-        // fake gravity
-        //p->org[ 2 ] -= d * d * .001f;
-        p->org[ 2 ] -= d * d * BASE_FRAMETIME_1000; // WID: Was .001f;
-
-        p->accel[ 0 ] = p->accel[ 1 ] = 0;
-        p->accel[ 2 ] = -PARTICLE_GRAVITY;
-        p->alpha = 0.85f;
-
-        p->alphavel = -1.0f / ( 0.5f + frand() * 0.3f );
-    }
+		// Set remaining particle properties.
+		p->accel[ 0 ] = p->accel[ 1 ] = 0;
+		p->accel[ 2 ] = -PARTICLE_GRAVITY;
+		p->alpha = 1.0f;
+		// Set particle alpha velocity.
+		p->alphavel = -1.0f / ( 0.5f + frand() * 0.3f );
+	}
 }
 
 

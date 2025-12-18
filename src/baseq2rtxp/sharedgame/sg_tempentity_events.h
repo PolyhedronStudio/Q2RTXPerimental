@@ -60,7 +60,7 @@ typedef enum temp_entity_event_e {
     TE_TELEPORT_EFFECT,
 
     //TE_GRAPPLE_CABLE,
-    TE_FLASHLIGHT,
+    //TE_FLASHLIGHT,
     //! 
     //TE_FORCEWALL,
 	//! Renders a debug trail.

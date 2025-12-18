@@ -201,9 +201,13 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
             } else {
 				//if ( ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 ) {
 					if ( damage <= 5 ) {
-						SVG_TempEventEntity_Blood( tr.endpos, tr.plane.normal, 5, 8 );
+						Vector3 endPos = tr.endpos;
+						endPos += Vector3( tr.plane.normal ) * 0.5f;
+						SVG_TempEventEntity_Blood( endPos, tr.plane.normal, 14, 22 );
 					} else {
-						SVG_TempEventEntity_MoreBlood( tr.endpos, tr.plane.normal, 8, 12 );
+						Vector3 endPos = tr.endpos;
+						endPos += Vector3( tr.plane.normal ) * 0.5f;
+						SVG_TempEventEntity_MoreBlood( endPos, tr.plane.normal, 8, 16 );
 					}
      //               gi.WriteUint8( svc_temp_entity );
      //               gi.WriteUint8( TE_BLOOD );

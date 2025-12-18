@@ -555,7 +555,7 @@ static void CLG_EntityEvent_Blood( const Vector3 &origin, const uint8_t directio
 	ByteToDir( direction, decodedDirection );
 
 	// Call the blood particle effect function.
-	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 10 );
+	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 5 );
 
 	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
 	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
@@ -569,7 +569,7 @@ static void CLG_EntityEvent_MoreBlood( const Vector3 &origin, const uint8_t dire
 	ByteToDir( direction, decodedDirection );
 
 	// Call the blood particle effect function.
-	CLG_FX_ParticleEffect( origin, decodedDirection, 0xe8, count * 10 );
+	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 10 );
 
 	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
 	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );

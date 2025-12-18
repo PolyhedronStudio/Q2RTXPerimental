@@ -184,9 +184,9 @@ void CLG_TemporaryEntities_Parse( void ) {
         break;
     }
 
-    case TE_FLASHLIGHT:
-        CLG_FX_Flashlight( level.parsedMessage.events.tempEntity.entity1, level.parsedMessage.events.tempEntity.pos1 );
-        break;
+    //case TE_FLASHLIGHT:
+    //    CLG_FX_Flashlight( level.parsedMessage.events.tempEntity.entity1, level.parsedMessage.events.tempEntity.pos1 );
+    //    break;
 
     case TE_HEATBEAM_SPARKS:
         CLG_FX_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x8, 50, 60 );

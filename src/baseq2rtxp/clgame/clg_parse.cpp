@@ -97,10 +97,10 @@ static void CLG_ParseTEntPacket( void ) {
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         break;
 
-    case TE_FLASHLIGHT:
-            clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-            level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
-        break;
+    //case TE_FLASHLIGHT:
+    //        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //        level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
+    //    break;
 
 
     case TE_STEAM:
