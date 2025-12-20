@@ -387,11 +387,13 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
         VectorAdd( water_start, tr.endpos, pos );
         VectorScale( pos, 0.5f, pos );
 
-        gi.WriteUint8( svc_temp_entity );
-        gi.WriteUint8( TE_BUBBLETRAIL );
-        gi.WritePosition( &water_start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        gi.multicast( &pos, MULTICAST_PVS, false );
+		svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_TrailParticles( water_start, tr.endpos, EV_FX_TRAIL_BUBBLES01 );
+
+        //gi.WriteUint8( svc_temp_entity );
+        //gi.WriteUint8( TE_BUBBLETRAIL );
+        //gi.WritePosition( &water_start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        //gi.multicast( &pos, MULTICAST_PVS, false );
     }
 }
 

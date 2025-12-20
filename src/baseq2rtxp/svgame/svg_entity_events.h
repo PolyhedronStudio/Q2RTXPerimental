@@ -52,6 +52,69 @@ void SVG_EntityEvent_PositionedSound( svg_base_edict_t *ent, const int32_t chann
 *
 *
 *
+*	Temp Entity Events -- Sound Playback:
+*
+*
+*
+*
+**/
+/**
+*	@brief	Creates a temp entity event to let the client play a general sound on the entity
+*           with the passed in parameters.
+*   @note   Always players at full volume.
+*           Normal attenuation, and 0 sound offset.
+*	@param	channel	The sound channel to play the sound on.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex );
+/**
+*	@brief	Creates a temp entity event to let the client play a general sound on the entity
+*           with the passed in parameters.
+*   @note   Will pack the attenuation parameter together with the channel parameter into the eventParameter.
+*	@param	channel	The sound channel to play the sound on.
+*	@param	attenuation	The sound attenuation to use.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex, const float attenuation );
+
+
+/**
+*	@brief	Creates a temp entity event to let the client play a general sound
+*           at the given origin with the passed in parameters.
+*   @note   Always players at full volume.
+*           Normal attenuation, and 0 sound offset.
+*   @param	origin	The origin to play the sound at.
+*	@param	channel	The sound channel to play the sound on.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_PositionedSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundResourceIndex );
+/**
+*	@brief	Wraps SVG_TempEventEntity_PositionedSound for an entity's origin.
+*	@param	ent					The entity to use the origin from.
+*	@param	channel				The sound channel to play the sound on.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_PositionedSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex );
+
+/**
+*	@brief	Creates a temp entity event that plays a global sound for all clients
+* 		    at their 'head' so it never diminishes.
+*   @note   Always player at full volume.
+*           Normal attenuation, and 0 sound offset.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundResourceIndex );
+
+/**
+*
+*
+*
+*
 *	Temp Entity Events -- Blood Particles:
 *
 *
@@ -133,60 +196,19 @@ svg_base_edict_t *SVG_TempEventEntity_SplashParticles( const Vector3 &origin, co
 *
 *
 *
-*	Temp Entity Events -- Sound Playback:
+*	Temp Entity Events -- Trail Particles:
 *
 *
 *
 *
 **/
 /**
-*	@brief	Creates a temp entity event to let the client play a general sound on the entity
-*           with the passed in parameters.
-*   @note   Always players at full volume.
-*           Normal attenuation, and 0 sound offset.
-*	@param	channel	The sound channel to play the sound on.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex );
-/**
-*	@brief	Creates a temp entity event to let the client play a general sound on the entity
-*           with the passed in parameters.
-*   @note   Will pack the attenuation parameter together with the channel parameter into the eventParameter.
-*	@param	channel	The sound channel to play the sound on.
-*	@param	attenuation	The sound attenuation to use.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex, const float attenuation );
-
-
-/**
-*	@brief	Creates a temp entity event to let the client play a general sound
-*           at the given origin with the passed in parameters.
-*   @note   Always players at full volume.
-*           Normal attenuation, and 0 sound offset.
-*   @param	origin	The origin to play the sound at.
-*	@param	channel	The sound channel to play the sound on.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_PositionedSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundResourceIndex );
-/**
-*	@brief	Wraps SVG_TempEventEntity_PositionedSound for an entity's origin.
-*	@param	ent					The entity to use the origin from.
-*	@param	channel				The sound channel to play the sound on.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_PositionedSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex );
-
-/**
-*	@brief	Creates a temp entity event that plays a global sound for all clients
-* 		    at their 'head' so it never diminishes.
-*   @note   Always player at full volume.
-*           Normal attenuation, and 0 sound offset.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundResourceIndex );
+*	@brief	Creates a temp entity event to let the client spawn trail particles from and to the given origin.
+*	@param	origin	        The origin to spawn the trail particles at.
+*	@param	normal	        The normal vector of the trail plane.
+*	@param	trailType	    The type of trail particles to spawn. (sg_event_types_t)
+*	@param	minCount	    The minimum amount of trail particles to spawn.
+*	@param	maxCount	    The maximum amount of trail particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_TrailParticles( const Vector3 &start, const Vector3 &end, const int32_t trailType, const int32_t minCount = 0, const int32_t maxCount = 0 );

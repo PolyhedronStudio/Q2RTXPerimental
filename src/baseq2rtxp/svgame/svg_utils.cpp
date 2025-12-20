@@ -272,6 +272,12 @@ svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const s
     // Now snap the origin into the entityState_t.
 	// <Q2RTXP>: WID: Use proper snapping function.
     tempEventEntity->s.origin = ( snapOrigin ? QM_Vector3Snap( origin ) : origin );
+
+	// Can be used as a temp event entity its second origin to point at.
+	// We make sure to initialize it to the origin, to prevent the messaging code from
+	// wiring it throughout old_origin using snapped float truncation.
+	//tempEventEntity->s.old_origin = tempEventEntity->s.origin;
+
     // Link it in for PVS etc.
     gi.linkentity( tempEventEntity );
 

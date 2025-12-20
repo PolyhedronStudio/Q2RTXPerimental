@@ -168,6 +168,15 @@ typedef enum sg_entity_events_e {
     //! A red blood splash effect.
     EV_FX_SPLASH_BLOOD,
 
+	/**
+	*	"Trail" Particle Events:
+	**/
+	//! Bubble trail effect 01.
+	EV_FX_TRAIL_BUBBLES01,
+	//! Bubble trail effect 02. CLG_FX_BubbleTrail2 (lets you control the # of bubbles by setting the distance between the spawns).
+	EV_FX_TRAIL_BUBBLES02,
+	//! For debugging purposes.
+	EV_FX_TRAIL_DEBUG_LINE,
 
     /**
     *   Maximum number of entity events, must be last.
@@ -332,6 +341,15 @@ static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     //! A red blood splash effect.
 	"EV_FX_SPLASH_BLOOD",
 
+	/**
+	*	"Trail" Particle Events:
+	**/
+	//! Bubble trail effect 01.
+	"EV_FX_TRAIL_BUBBLES01",
+	//! Bubble trail effect 02. (Also plays a sound.)
+	"EV_FX_TRAIL_BUBBLES02",
+	//! For debugging purposes.
+	"EV_FX_TRAIL_DEBUG_LINE",
 
     /**
     *   Maximum number of entity events, must be last.

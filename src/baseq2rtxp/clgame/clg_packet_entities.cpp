@@ -188,8 +188,9 @@ static const bool AddPacketEntity( centity_t *packetEntity, entity_state_t *next
         CLG_PacketEntity_AddSpotlight( packetEntity, &packetEntity->refreshEntity, nextState );
         break;
         // ET_GENERIC:
-    case ET_GENERIC:
-    case ET_TEMP_EVENT_ENTITY:
+	case ET_TEMP_EVENT_ENTITY:
+		break; // We don't want to render these.
+	case ET_GENERIC:
     default:
         CLG_PacketEntity_AddGeneric( packetEntity, &packetEntity->refreshEntity, nextState );
         break;
@@ -212,7 +213,7 @@ void CLG_AddPacketEntities( void ) {
     /**
     *   Setup the predicted client entity.
     **/
-	SG_PlayerStateToEntityState( clgi.client->clientNumber, &game.predictedState.frame.ps, &game.predictedEntity.current, true, false );
+	SG_PlayerStateToEntityState( clgi.client->clientNumber, &game.predictedState.currentPs, &game.predictedEntity.current, true, false );
     // Backup a possible pointer to an already allocated cache so we can reapply it.
     skm_transform_t *bonePoses = game.predictedEntity.refreshEntity.bonePoses;
     // Setup the refresh entity ID to match that of the client game entity with the RESERVED_ENTITY_COUNT in mind.

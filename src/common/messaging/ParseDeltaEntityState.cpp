@@ -86,6 +86,7 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	if ( bits & U_ENTITY_TYPE ) {
 		to->entityType = MSG_ReadUintBase128();
 	}
+
 	// Are we dealing with a temporary entity?
 	const bool isTempEventEntity = ( to->entityType - tempEntityOffset > 0 );
 
@@ -129,9 +130,15 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_OLDORIGIN ) {
-		to->old_origin[ 0 ] = MSG_ReadFloat( );
-		to->old_origin[ 1 ] = MSG_ReadFloat( );
-		to->old_origin[ 2 ] = MSG_ReadFloat( );
+		if ( isTempEventEntity ) {
+			to->old_origin[ 0 ] = MSG_ReadTruncatedFloat();
+			to->old_origin[ 1 ] = MSG_ReadTruncatedFloat();
+			to->old_origin[ 2 ] = MSG_ReadTruncatedFloat();
+		} else {
+			to->old_origin[ 0 ] = MSG_ReadFloat();
+			to->old_origin[ 1 ] = MSG_ReadFloat();
+			to->old_origin[ 2 ] = MSG_ReadFloat();
+		}
 	}
 
 	if ( bits & U_MODEL ) {

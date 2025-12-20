@@ -75,7 +75,7 @@ static void CLG_ParseTEntPacket( void ) {
             clgi.MSG_ReadDir8( level.parsedMessage.events.tempEntity.dir );
         break;
 
-    case TE_SPLASH:
+//    case TE_SPLASH:
     case TE_LASER_SPARKS:
     case TE_WELDING_SPARKS:
     case TE_TUNNEL_SPARKS:
@@ -84,14 +84,14 @@ static void CLG_ParseTEntPacket( void ) {
             clgi.MSG_ReadDir8( level.parsedMessage.events.tempEntity.dir );
             level.parsedMessage.events.tempEntity.color = clgi.MSG_ReadUint8();
         break;
-
+	#if 0
     case TE_BUBBLETRAIL:
     case TE_DEBUGTRAIL:
     case TE_BUBBLETRAIL2:
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         break;
-
+	#endif
     case TE_PLAIN_EXPLOSION:
     case TE_TELEPORT_EFFECT:
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );

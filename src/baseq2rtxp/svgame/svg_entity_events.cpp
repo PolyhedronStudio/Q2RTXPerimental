@@ -144,6 +144,155 @@ static inline const Vector3 CalculateEntityEventSoundOrigin( svg_base_edict_t *e
 
 
 
+
+
+
+/**
+*
+*
+*
+*
+*	Temp Entity Events -- Sound Playback:
+*
+*
+*
+*
+**/
+/**
+*	@brief	Creates a temp entity event to let the client play a general sound on the entity
+*           with the passed in parameters.
+*   @note   Always players at full volume.
+*           Normal attenuation, and 0 sound offset.
+*	@param	channel	            The sound channel to play the sound on.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex ) {
+	// Default to just the origin of the entity.
+	const Vector3 origin = CalculateEntityEventSoundOrigin( ent );
+	// Create a temporary entity event for all other clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
+		EV_GENERAL_SOUND,
+		channel, soundResourceIndex
+	);
+
+	// Set the otherEntity to the source entity.
+	tempEventEntity->s.otherEntityNumber = ent->s.number;
+	// Set the effect flag to indicate an other entity is the target for this event.
+	tempEventEntity->s.entityFlags = EF_ENTITY_EVENT_TARGET_OTHER;
+
+	// Make sure to send it to all clients if requested.
+	// This is because a request to ignore PHS culling is made.
+	if ( channel & CHAN_NO_PHS_ADD ) {
+		// Set the no cull flag.
+		tempEventEntity->svFlags |= SVF_NO_CULL;
+	}
+
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+/**
+*	@brief	Creates a temp entity event to let the client play a general sound on the entity
+*           with the passed in parameters.
+*   @note   Will pack the attenuation parameter together with the channel parameter into the eventParameter.
+*	@param	channel	The sound channel to play the sound on.
+*	@param	attenuation	The sound attenuation to use.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex, const float attenuation ) {
+	// Default to just the origin of the entity.
+	const Vector3 origin = CalculateEntityEventSoundOrigin( ent );
+	// Pack the attenuation into the higher bits of the channel parameter.
+	const int32_t packedChannel = channel | ( (uint8_t)( std::clamp<uint8_t>( attenuation * 64, 0, 255 ) ) << 8 );
+	// Create a temporary entity event for all other clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
+		EV_GENERAL_SOUND_EX,
+		packedChannel, soundResourceIndex
+	);
+
+	// Set the otherEntity to the source entity.
+	tempEventEntity->s.otherEntityNumber = ent->s.number;
+	// Set the effect flag to indicate an other entity is the target for this event.
+	tempEventEntity->s.entityFlags = EF_ENTITY_EVENT_TARGET_OTHER;
+
+	// Make sure to send it to all clients if requested.
+	// This is because a request to ignore PHS culling is made.
+	if ( channel & CHAN_NO_PHS_ADD ) {
+		// Set the no cull flag.
+		tempEventEntity->svFlags |= SVF_NO_CULL;
+	}
+
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+
+
+/**
+*	@brief	Creates a temp entity event to let the client play a general sound
+*           at the given origin with the passed in parameters.
+*   @note   Always plays at full volume.
+*           Normal attenuation, and 0 sound offset.
+*   @param	origin	            The origin to play the sound at.
+*	@param	channel	            The sound channel to play the sound on.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_PositionedSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundResourceIndex ) {
+	// Create a temporary entity event for all other clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
+		EV_POSITIONED_SOUND,
+		channel, soundResourceIndex
+	);
+
+	// Make sure to send it to all clients if requested.
+	// This is because a request to ignore PHS culling is made.
+	if ( channel & CHAN_NO_PHS_ADD ) {
+		// Set the no cull flag.
+		tempEventEntity->svFlags |= SVF_NO_CULL;
+	}
+
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+/**
+*	@brief	Wraps SVG_TempEventEntity_PositionedSound for an entity's origin.
+*	@param	ent					The entity to use the origin from.
+*	@param	channel				The sound channel to play the sound on.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_PositionedSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex ) {
+	// Default to just the origin of the entity.
+	const Vector3 origin = CalculateEntityEventSoundOrigin( ent );
+	// Create a temporary entity event to play a positioned sound for all clients.
+	return SVG_TempEventEntity_PositionedSound( origin, channel, soundResourceIndex );
+}
+
+/**
+*	@brief	Creates a temp entity event that plays a global sound for all clients
+* 		    at their 'head' so it never diminishes.
+*   @note   Always player at full volume.
+*           Normal attenuation, and 0 sound offset.
+*	@param	soundResourceIndex	The sound resource index to play.
+*   @return A pointer to the created temp event entity. (For further modification if needed.)
+**/
+svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const qhandle_t soundResourceIndex ) {
+	// Create the global sound entity event.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
+		EV_GLOBAL_SOUND,
+		soundResourceIndex, 0
+	);
+
+	// Send it to all clients.
+	tempEventEntity->svFlags |= SVF_NO_CULL;
+
+	// Return the temp entity event pointer.
+	return tempEventEntity;
+}
+
+
+
 /**
 *
 *
@@ -334,158 +483,76 @@ svg_base_edict_t *SVG_TempEventEntity_SplashParticles( const Vector3 &origin, co
 
 
 /**
-* 
-* 
-* 
 *
-*	Temp Entity Events -- Sound Playback:
 *
-* 
-* 
-* 
+*
+*
+*	Temp Entity Events -- Trail Particles:
+*
+*
+*
+*
 **/
 /**
-*	@brief	Creates a temp entity event to let the client play a general sound on the entity 
-*           with the passed in parameters.
-*   @note   Always players at full volume.
-*           Normal attenuation, and 0 sound offset.
-*	@param	channel	            The sound channel to play the sound on.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_GeneralSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex ) {
-    // Default to just the origin of the entity.
-    const Vector3 origin = CalculateEntityEventSoundOrigin( ent );
-    // Create a temporary entity event for all other clients.
-    svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
-        EV_GENERAL_SOUND, 
-        channel, soundResourceIndex
-    );
+*	@brief	Creates a temp entity event to let the client spawn trail particles from and to the given origin.
+*	@param	origin	        The origin to spawn the trail particles at.
+*	@param	normal	        The normal vector of the trail plane.
+*	@param	trailType	    The type of trail particles to spawn. (sg_event_types_t)
+*	@param	minCount	    The minimum amount of trail particles to spawn.
+*	@param	maxCount	    The maximum amount of trail particles to spawn.
+*	@return A pointer to the created temp event entity. (For further modification if needed.)
+***/
+svg_base_edict_t *SVG_TempEventEntity_TrailParticles( const Vector3 &start, const Vector3 &end, const int32_t trailType, const int32_t minCount, const int32_t maxCount ) {
+	// Actual trail type to use.
+	int32_t actualTrailType = trailType;
+	// Sanity check the trail type.
+	if ( trailType < EV_FX_TRAIL_BUBBLES01 || trailType > EV_FX_TRAIL_DEBUG_LINE ) {
+		// Debug print.
+		gi.dprintf( "%s: Invalid trail type (#%d), clamping it(min=%d,max=%d)\n", __func__, trailType, EV_FX_TRAIL_BUBBLES01, EV_FX_TRAIL_DEBUG_LINE );
+		// Clamp to valid range.
+		actualTrailType = std::clamp<int32_t>( trailType, EV_FX_TRAIL_BUBBLES01, EV_FX_TRAIL_DEBUG_LINE );
+	}
 
-    // Set the otherEntity to the source entity.
-	tempEventEntity->s.otherEntityNumber = ent->s.number;
-    // Set the effect flag to indicate an other entity is the target for this event.
-    tempEventEntity->s.entityFlags = EF_ENTITY_EVENT_TARGET_OTHER;
+	#if 0
+		// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+		const int32_t eventParm0 = 0;// static_cast<int32_t>( particleCount ) & 255;
+		// Plane normal stored in second parm, encoded to a byte.
+		const int32_t eventParm1 = 0;// DirToByte( normal );
+	#elif 0
+		// Distance between start and end.
+		const Vector3 distanceOffset = end - start;
+		// Normalize direction.
+		const Vector3 directionNormal = QM_Vector3NormalizeDP( distanceOffset );
 
-    // Make sure to send it to all clients if requested.
-    // This is because a request to ignore PHS culling is made.
-    if ( channel & CHAN_NO_PHS_ADD ) {
-		// Set the no cull flag.
-		tempEventEntity->svFlags |= SVF_NO_CULL;
-    }
+		// Store the distance in the first parm.
+		const int32_t eventParm0 = QM_Vector3LengthSqrDP( distanceOffset );
+		// Generate a random amount of 'bubble distance particles'.
+		int32_t eventParm1 = 0;
+		if ( trailType == EV_FX_TRAIL_BUBBLES02 && maxCount > minCount ) {
+			eventParm1 = static_cast<int32_t>( irandom( minCount, maxCount ) );
+		}
+	#else
+		int32_t eventParm0 = ( trailType == EV_FX_TRAIL_BUBBLES02 ? static_cast<int32_t>( irandom( minCount, maxCount ) ) : 8 );
+		const int32_t eventParm1 = 0;
+	#endif
 
-    // Return the temp entity event pointer.
-	return tempEventEntity;
-}
-/**
-*	@brief	Creates a temp entity event to let the client play a general sound on the entity
-*           with the passed in parameters.
-*   @note   Will pack the attenuation parameter together with the channel parameter into the eventParameter.
-*	@param	channel	The sound channel to play the sound on.
-*	@param	attenuation	The sound attenuation to use.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_GeneralSoundEx( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex, const float attenuation ) {
-    // Default to just the origin of the entity.
-    const Vector3 origin = CalculateEntityEventSoundOrigin( ent );
-	// Pack the attenuation into the higher bits of the channel parameter.
-	const int32_t packedChannel = channel | ( (uint8_t)( std::clamp<uint8_t>(attenuation * 64, 0, 255) ) << 8 );
-    // Create a temporary entity event for all other clients.
-    svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
-        EV_GENERAL_SOUND_EX,
-        packedChannel, soundResourceIndex
-    );
-
-    // Set the otherEntity to the source entity.
-    tempEventEntity->s.otherEntityNumber = ent->s.number;
-    // Set the effect flag to indicate an other entity is the target for this event.
-    tempEventEntity->s.entityFlags = EF_ENTITY_EVENT_TARGET_OTHER;
-
-    // Make sure to send it to all clients if requested.
-    // This is because a request to ignore PHS culling is made.
-    if ( channel & CHAN_NO_PHS_ADD ) {
-        // Set the no cull flag.
-        tempEventEntity->svFlags |= SVF_NO_CULL;
-    }
-
-    // Return the temp entity event pointer.
-    return tempEventEntity;
-}
-
-
-/**
-*	@brief	Creates a temp entity event to let the client play a general sound 
-*           at the given origin with the passed in parameters.
-*   @note   Always plays at full volume.
-*           Normal attenuation, and 0 sound offset.
-*   @param	origin	            The origin to play the sound at.
-*	@param	channel	            The sound channel to play the sound on.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_PositionedSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundResourceIndex ) {
-    // Create a temporary entity event for all other clients.
-    svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
-        EV_POSITIONED_SOUND,
-        channel, soundResourceIndex
-    );
-
-    // Make sure to send it to all clients if requested.
-    // This is because a request to ignore PHS culling is made.
-    if ( channel & CHAN_NO_PHS_ADD ) {
-        // Set the no cull flag.
-        tempEventEntity->svFlags |= SVF_NO_CULL;
-    }
+	// Create a temporary entity event for all clients.
+	svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent(
+		// Use the given origin.
+		start,
+		// Snap the origin.
+		true,
+		// Splash particle event.
+		(sg_entity_events_t)actualTrailType,
+		// Store the count and normal in the parms.	
+		eventParm0, eventParm1,
+		// Set a shorter duration for trail particles.
+		FRAME_TIME_MS
+	);
+	// Set the direction in the angles field. (Will be transfered as half floats.)
+	//tempEventEntity->s.angles = directionNormal;
+	tempEventEntity->s.old_origin = end;
 
 	// Return the temp entity event pointer.
 	return tempEventEntity;
 }
-/**
-*	@brief	Wraps SVG_TempEventEntity_PositionedSound for an entity's origin.
-*	@param	ent					The entity to use the origin from.
-*	@param	channel				The sound channel to play the sound on.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_PositionedSound( svg_base_edict_t *ent, const int32_t channel, const qhandle_t soundResourceIndex ) {
-    // Default to just the origin of the entity.
-    Vector3 origin = ent->s.origin;
-    // Special case for players.
-    if ( ent->client ) {
-        origin = ent->client->ps.pmove.origin;
-        // Special case for brush models.
-    } else if ( ent->solid == SOLID_BSP ) {
-        // First get the bbox size.
-        const Vector3 bboxSize = QM_BBox3Size( { ent->mins, ent->maxs } );
-        // So we can get the center origin of the brush model.
-        origin = bboxSize + ent->s.origin;
-    }
-	// Create a temporary entity event to play a positioned sound for all clients.
-    return SVG_TempEventEntity_PositionedSound( origin, channel, soundResourceIndex );
-}
-
-/**
-*	@brief	Creates a temp entity event that plays a global sound for all clients
-* 		    at their 'head' so it never diminishes.
-*   @note   Always player at full volume.
-*           Normal attenuation, and 0 sound offset.
-*	@param	soundResourceIndex	The sound resource index to play.
-*   @return A pointer to the created temp event entity. (For further modification if needed.)
-**/
-svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const qhandle_t soundResourceIndex ) {
-    // Create the global sound entity event.
-    svg_base_edict_t *tempEventEntity = CreateTempEntityForEvent( origin, true,
-        EV_GLOBAL_SOUND,
-        soundResourceIndex, 0
-    );
-
-    // Send it to all clients.
-    tempEventEntity->svFlags |= SVF_NO_CULL;
-
-    // Return the temp entity event pointer.
-	return tempEventEntity;
-}
-
-
-

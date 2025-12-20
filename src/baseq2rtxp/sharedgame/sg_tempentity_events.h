@@ -31,10 +31,10 @@ typedef enum temp_entity_event_e {
 
     //TE_PISTOL_LASER,
 
-    TE_BUBBLETRAIL,
-    TE_BUBBLETRAIL2,
+    //TE_BUBBLETRAIL,
+    //TE_BUBBLETRAIL2,
     //! A bullet hitting water.
-    TE_SPLASH,
+    //TE_SPLASH,
 
     TE_STEAM,
     TE_HEATBEAM_STEAM,
@@ -64,7 +64,7 @@ typedef enum temp_entity_event_e {
     //! 
     //TE_FORCEWALL,
 	//! Renders a debug trail.
-    TE_DEBUGTRAIL,
+    //TE_DEBUGTRAIL,
 
     TE_NUM_ENTITY_EVENTS
 } temp_entity_event_t;

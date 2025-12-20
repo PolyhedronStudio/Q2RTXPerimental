@@ -138,11 +138,11 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_LASER_SPARKS:
         CLG_FX_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
         break;
-
+#if 0
     case TE_BUBBLETRAIL:
         CLG_FX_BubbleTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
         break;
-
+#endif
     case TE_WELDING_SPARKS:
         CLG_FX_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
 
@@ -165,11 +165,11 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_TUNNEL_SPARKS:
         CLG_FX_ParticleEffect3( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
         break;
-
+#if 0
     case TE_DEBUGTRAIL:
         CLG_FX_DebugTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
         break;
-
+#endif
     case TE_PLAIN_EXPLOSION:
     {
         // Test for what solid type we're in.
@@ -201,12 +201,11 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_STEAM:
         CLG_ParseSteam();
         break;
-
+#if 0
     case TE_BUBBLETRAIL2:
         CLG_FX_BubbleTrail2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2, 8 );
         clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
         break;
-#if 0
     case TE_MOREBLOOD:
         CLG_FX_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 250 );
         break;

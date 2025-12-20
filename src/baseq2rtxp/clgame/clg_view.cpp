@@ -773,9 +773,7 @@ void CLG_DrawActiveViewState( void ) {
         // Now calculate the client's local PVS.
         clgi.V_CalculateLocalPVS( clgi.client->refdef.vieworg );
 
-        // Build a refresh entity list and calc clgi.client->sim*
-        // this also calls CL_CalcViewValues which loads
-        // vForward, etc.
+        // Build a refresh entity list
         CLG_PrepareViewEntities();
 
         #if USE_DEBUG

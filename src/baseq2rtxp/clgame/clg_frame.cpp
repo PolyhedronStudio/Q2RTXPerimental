@@ -92,11 +92,11 @@ static inline void EntityState_FrameEnter( centity_t *ent, const entity_state_t 
     const int32_t entityEvent = EV_GetEntityEventValue( nextState->event );
 
     // No lerping if teleported, or a BEAM effect entity.
-    if ( ( nextState->event != ent->current.event && ( entityEvent == EV_PLAYER_TELEPORT ||
-        entityEvent == EV_OTHER_TELEPORT ) ) ||
-        ( nextState->entityType == ET_BEAM || nextState->renderfx & RF_BEAM )
-        ) {
-
+    if ( ( nextState->event != ent->current.event && ( entityEvent == EV_PLAYER_TELEPORT || entityEvent == EV_OTHER_TELEPORT ) ) 
+		|| ( nextState->entityType == ET_BEAM || nextState->renderfx & RF_BEAM )
+		// It is a temporary event entity, so no lerping needed.
+		//|| ( nextState->entityType - ET_TEMP_EVENT_ENTITY > 0 )
+    ) {
         ent->lerp_origin = newIntendOrigin;
         // We also thus do not want to mess about with assigning the state's
         // old_origin for lerping. Hence, we just return here.

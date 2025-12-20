@@ -606,6 +606,31 @@ static void CheckEntityGroundChange( svg_base_edict_t *ent ) {
         }
     }
 }
+
+/**
+*	@brief	Check if we need to set old_origin manually or not.
+**/
+static void CheckSetOldOrigin( svg_base_edict_t *ent ) {
+	if (
+		// Don't set old_origin for Beam Entities, they do it by hand.
+		( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) )
+		// Don't set old_origin for Temporary Event Entities, they do it by hand.
+		&& !( ent->s.entityType - ET_TEMP_EVENT_ENTITY > 0 ) ) {
+		// Otherwise, set the old origin.
+		ent->s.old_origin = ent->s.origin;
+	}
+}
+/**
+*	@brief	Updates the lastOrigin for Push/Stop entities.
+**/
+static void CheckUpdatePusherLastOrigin( svg_base_edict_t *ent ) {
+	if ( ent->s.entityType == ET_PUSHER ) {
+		// Make sure to store the last ... origins and angles.
+		ent->lastOrigin = ent->s.origin;
+		ent->lastAngles = ent->s.angles;
+	}
+}
+
 /**
 *   @brief  Advances the world by FRAME_TIME_MS seconds
 **/
@@ -684,13 +709,12 @@ void SVG_RunFrame(void) {
         if ( !ent->area.prev && ent->neverFreeOnlyUnlink ) {
             continue;
         }
+
         /**
-        *   RF Beam Entities update their old_origin by hand.
+        *   - RF Beam Entities update their old_origin by hand.
+		*	- Temporary Event Entities Entities update their old_origin by hand.
         **/
-        if ( ent->s.entityType != ET_BEAM 
-            && !( ent->s.renderfx & RF_BEAM ) ) {
-            ent->s.old_origin = ent->s.origin;
-        }
+		CheckSetOldOrigin( ent );
 
         /**
         *   If the ground entity moved, make sure we are still on it.
@@ -708,11 +732,7 @@ void SVG_RunFrame(void) {
         **/
         } else {
 			// For Pushers, store their last origins and angles before running them.
-            if ( ent->s.entityType == ET_PUSHER ) {
-                // Make sure to store the last ... origins and angles.
-                ent->lastOrigin = ent->s.origin;
-                ent->lastAngles = ent->s.angles;
-            }
+			CheckUpdatePusherLastOrigin( ent );
             // Run the entity now. (Make it 'think'.)
             SVG_RunEntity( ent );
         }

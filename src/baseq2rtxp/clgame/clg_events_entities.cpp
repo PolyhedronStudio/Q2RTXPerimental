@@ -97,6 +97,9 @@ static void CLG_EntityEvent_BulletSparks( const Vector3 & origin, const uint8_t 
 
 static void CLG_EntityEvent_Splash( const Vector3 & origin, const uint8_t direction, const int32_t splashType, const int32_t count );
 
+static void CLG_EntityEvent_Trail( const Vector3 & start, const Vector3 & end, const int32_t trailType, const int32_t count = 8 );
+
+
 
 /**
 *
@@ -306,6 +309,17 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 		// Fire the blood splash effect.
         CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BLOOD, cent->current.eventParm0 );
         break;
+
+	//---------------------------------------------------------------
+
+	case EV_FX_TRAIL_BUBBLES01:
+	case EV_FX_TRAIL_BUBBLES02:
+	case EV_FX_TRAIL_DEBUG_LINE:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the bubble trail effect 01.
+		CLG_EntityEvent_Trail( cent->lerp_origin, cent->current.old_origin, clampedEventValue, cent->current.eventParm0 );
+		break;
 
 	//---------------------------------------------------------------
 
@@ -522,8 +536,14 @@ static void CLG_EntityEvent_GlobalSound( const qhandle_t soundIndex ) {
 * 
 **/
 static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNumber, const Vector3 &origin ) {
-    // Debug check for valid entity/entities.
-    DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
+	// Sanity check.
+	if ( !cent ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: NULL cent entity passed in!\n", __func__ );
+		return;
+	}
+
+	// Debug check for valid entity/entities.
+	DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
 
     // Play the respawn sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.items.respawn01, 1, ATTN_IDLE, 0 );
@@ -671,4 +691,27 @@ static void CLG_EntityEvent_Splash( const Vector3 &origin, const uint8_t directi
 
 	// Call the splash effect function.
     CLG_FX_ParticleEffectWaterSplash( &origin.x, decodedDirection, splashType, count );
+}
+
+/**************************************
+*   [ EV_FX_TRAIL_BUBBLES01 ]
+*   [ EV_FX_TRAIL_BUBBLES02 ]
+*   [ EV_FX_TRAIL_DEBUG_LINE ]
+*   Event Handler:
+***************************************/
+static void CLG_EntityEvent_Trail( const Vector3 &start, const Vector3 &end, const int32_t trailType, const int32_t count ) {
+	// Call the trail effect function.
+	if ( trailType == EV_FX_TRAIL_BUBBLES01 ) {
+		CLG_FX_BubbleTrail( start, end );
+	} else if ( trailType == EV_FX_TRAIL_BUBBLES02 ) {
+		// 
+		CLG_FX_BubbleTrail2( start, end, count );
+		// Play ricochet sound at start point.
+		//clgi.S_StartSound( &start.x, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
+	} else if ( trailType == EV_FX_TRAIL_DEBUG_LINE ) {
+		CLG_FX_DebugTrail( start, end );
+	} else {
+		// Invalid trail type.
+		clgi.Print( PRINT_DEVELOPER, "%s: Unknown trail type: %d\n", __func__, trailType );
+	}
 }
