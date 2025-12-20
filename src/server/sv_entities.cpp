@@ -437,7 +437,11 @@ static inline const bool SV_CheckEntitySoundDistance( sv_edict_t *ent, const Vec
 *   @brief  Determines if an entity is hearable/visible to the client based on PVS/PHS.
 **/
 static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &viewOrigin, cm_t *cm, const int32_t clientCluster, const int32_t clientArea, byte *clientPVS, byte *clientPHS, const int32_t cullNonVisibleEntities ) {
-    /**
+	// Subtract the temp event entity type offset to determine if this is a temp event entity.
+	// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
+	const bool isTempEventEntity = ( ent->s.entityType - ge->GetTempEventEntityTypeOffset() > 0 );
+
+	/**
     *   Check area visibility:
     **/
     if ( clientCluster >= 0 && !CM_AreasConnected( cm, clientArea, ent->areaNumber0 ) ) {
@@ -446,15 +450,20 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
             // Blocked by a door.
             return false;
         }
-        /**
-        *   If visible by area:
-        **/
+    /**
+    *   If visible by area:
+    **/
     } else {
+		if ( isTempEventEntity && ( !VectorCompare( ent->s.origin, ent->s.old_origin ) ) ) {
+			if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
+				return false;
+			}
+		}
         // beams just check one point for PHS
-        if ( ent->s.renderfx & RF_BEAM ) {
-            if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
-                return false;
-            }
+		else if ( ent->s.renderfx & RF_BEAM ) {
+			if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
+				return false;
+			}
         } else {
             if ( cullNonVisibleEntities ) {
                 // Too many leafs for individual check, go by headNode:

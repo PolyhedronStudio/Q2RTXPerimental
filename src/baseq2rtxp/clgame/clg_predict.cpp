@@ -105,7 +105,7 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
 		// Assign the external event to the client entity.
         clientEntity->current.event = ps->externalEvent;
         clientEntity->current.eventParm0 = ps->externalEventParm0;
-        clientEntity->current.eventParm0 = ps->externalEventParm1;
+        clientEntity->current.eventParm1 = ps->externalEventParm1;
 
         // Check and fire the external entity event.
         CLG_Events_CheckForEntity( clientEntity );
@@ -631,7 +631,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
     //CLG_PlayerState_Transition( &game.predictedEntity &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta );
 
     // TODO: Use game.predictedEntity for this.
-    //CLG_PlayerState_Transition( &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ], &clgi.client->predictedFrame, &oldPredictedFrame, clgi.client->serverdelta);
+    //CLG_PlayerState_Transition( &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ], &predictedState->frame, &predictedState->lastFrame, clgi.client->serverdelta);
     CLG_PlayerState_Transition( clientEntity, &predictedState->frame, &predictedState->lastFrame, clgi.client->serverdelta );
 
 	// Debug: Check for double events.

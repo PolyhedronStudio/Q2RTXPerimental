@@ -54,7 +54,7 @@ typedef Vector3* cpp_vec3_t;
 #define SVF_PROJECTILE      BIT( 7 )    //! Treat as CONTENTS_PROJECTILE for collision.
 //#define SVF_INSTANCED     BIT( 8 )    //! Entity has different visibility per player.
 #define SVF_DOOR            BIT( 9 )    //! Entity is a door of some kind.
-#define SVF_NO_CULL          BIT( 10 )   //! Always send, even if we normally wouldn't.
+#define SVF_NO_CULL			BIT( 10 )	//! Always send, even if we normally wouldn't.
 #define SVF_HULL            BIT( 11 )   //! Always use hull when appropriate (triggers, etc; for gi.clip).
 
 /**
