@@ -11,11 +11,12 @@
 #include "clgame/clg_events.h"
 #include "clgame/clg_precache.h"
 
+#include "clgame/effects/clg_fx_classic.h"
+
+
 // Needed:
 #include "sharedgame/sg_entity_events.h"
 #include "sharedgame/sg_entity_flags.h"
-#include "sharedgame/sg_entity_types.h"
-#include "sharedgame/sg_muzzleflashes.h"
 
 
 /**
@@ -29,15 +30,38 @@
 #define DBG_ENTITY_EVENT_PRESENT( cent, funcname ) \
     if ( developer->integer ) { \
         if ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) { \
-            CLG_CheckEntityPresent( cent->current.otherEntityNumber, "ERROR EVENT(EF_ENTITY_EVENT_TARGET_OTHER): "#funcname ); \
+            CLG_CheckServerEntityPresent( cent->current.otherEntityNumber, "ERROR EVENT(EF_ENTITY_EVENT_TARGET_OTHER): "#funcname ); \
         } else { \
-            CLG_CheckEntityPresent( cent->current.number, "ERROR EVENT: "#funcname ); \
+            CLG_CheckServerEntityPresent( cent->current.number, "ERROR EVENT: "#funcname ); \
         } \
     } \
 
 #else
-#define DBG_ENTITY_EVENT_PRESENT( cent, funcname )
+    #define DBG_ENTITY_EVENT_PRESENT( ... )
 #endif
+
+
+
+
+
+
+/**
+* 
+* 
+* 
+*   Constant Expressions used by events:
+*
+*
+*
+**/
+/**
+*   Default Sound Properties for when not specified by the event:
+**/
+static constexpr float defaultSoundVolume = 1.f;
+static constexpr float defaultSoundAttenuation = 1.f;
+static constexpr float defaultSoundTimeOffset = 0.f;
+
+
 
 /**
 * 
@@ -48,14 +72,32 @@
 * 
 * 
 **/
-//! Sound Event Handlers:
+/*************************
+*   Sound Event Handlers:
+*************************/
 static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel, const qhandle_t soundIndex );
 static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t channel, const qhandle_t soundIndex );
 static void CLG_EntityEvent_PositionedSound( const Vector3 &origin, const int32_t channel, const qhandle_t soundIndex );
 static void CLG_EntityEvent_GlobalSound( const qhandle_t soundIndex );
 
-//! Item Event Handles:
+/*************************
+*   Item Event Handlers:
+*************************/
 static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNumber, const Vector3 &origin );
+
+/*************************
+*   Particle FX Event Handlers:
+*************************/
+static void CLG_EntityEvent_Blood( const Vector3 & origin, const uint8_t direction, const int32_t count );
+static void CLG_EntityEvent_MoreBlood( const Vector3 & origin, const uint8_t direction, const int32_t count );
+
+static void CLG_EntityEvent_GunShot( const Vector3 & origin, const uint8_t direction, const int32_t count );
+static void CLG_EntityEvent_Sparks( const Vector3 & origin, const uint8_t direction );
+static void CLG_EntityEvent_BulletSparks( const Vector3 & origin, const uint8_t direction, const int32_t count );
+
+static void CLG_EntityEvent_Splash( const Vector3 & origin, const uint8_t direction, const int32_t splashType, const int32_t count );
+
+static void CLG_EntityEvent_Trail( const Vector3 & start, const Vector3 & end, const int32_t trailType, const int32_t count = 8 );
 
 
 
@@ -88,6 +130,8 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
         CLG_FX_TeleporterParticles( &effectOrigin.x );
     }
 
+    const int32_t clampedEventValue = eventValue;
+
     // Handle the event.
     switch ( eventValue ) {
     /**
@@ -97,17 +141,23 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 		// Prevent it from being triggered if it is our own local player entity.
 		// We handle that event elsewhere in CLG_Events_FirePlayerStateEvent.
 		if ( entityNumber != clgi.client->clientNumber + 1 ) {//clgi.client->frame.ps.clientNumber + 1 ) {
-            DEBUG_PRINT_EVENT_NAME( "EV_PLAYER_FOOTSTEP" );
+            // Print event name for debugging.
+            DEBUG_PRINT_EVENT_NAME( sg_event_string_names[clampedEventValue]);
+			// Fire the footstep effect.
             CLG_FX_PlayerFootStep( entityNumber, lerpOrigin );
         }
         break;
     case EV_OTHER_FOOTSTEP:
-		DEBUG_PRINT_EVENT_NAME( "EV_OTHER_FOOTSTEP" );
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the footstep effect.
         CLG_FX_OtherFootStep( entityNumber, lerpOrigin );
         break;
     // General ladder footstep event:
     case EV_FOOTSTEP_LADDER:
-		DEBUG_PRINT_EVENT_NAME( "EV_FOOTSTEP_LADDER" );
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the footstep effect.
         CLG_FX_LadderFootStep( entityNumber, lerpOrigin );
         break;
 
@@ -116,21 +166,29 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
     **/
     // General entity sound event:
     case EV_GENERAL_SOUND:
-		DEBUG_PRINT_EVENT_NAME( "EV_GENERAL_SOUND" );
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the general sound event.
         CLG_EntityEvent_GeneralSound( cent, cent->current.eventParm0, cent->current.eventParm1 );
         break;
     case EV_GENERAL_SOUND_EX:
-		DEBUG_PRINT_EVENT_NAME( "EV_GENERAL_SOUND_EX" );
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the general sound event with attenuation.
         CLG_EntityEvent_GeneralSoundEx( cent, cent->current.eventParm0, cent->current.eventParm1 );
         break;
     // General positioned sound event:
     case EV_POSITIONED_SOUND:
-		DEBUG_PRINT_EVENT_NAME( "EV_POSITIONED_SOUND" );
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the positioned sound event.
         CLG_EntityEvent_PositionedSound( lerpOrigin, cent->current.eventParm0, cent->current.eventParm1 );
         break;
     // General global sound event:
     case EV_GLOBAL_SOUND:
-		DEBUG_PRINT_EVENT_NAME( "EV_GLOBAL_SOUND" );
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the global sound event.
         CLG_EntityEvent_GlobalSound( cent->current.eventParm0 );
         break;
 
@@ -159,11 +217,114 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
     *   Item Events:
     **/
     case EV_ITEM_RESPAWN:
-		DEBUG_PRINT_EVENT_NAME( "EV_ITEM_RESPAWN" );
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+        // Fire the item respawn event.
 		CLG_EntityEvent_ItemRespawn( cent, entityNumber, effectOrigin );
         break;
 
+    /**
+    *   Particle FX Events:
+    **/
+	//---------------------------------------------------------------
+	
+	case EV_FX_BLOOD:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the blood effect.
+		CLG_EntityEvent_Blood( effectOrigin, cent->current.eventParm1, cent->current.eventParm0 );
+		break;
+	case EV_FX_MORE_BLOOD:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the blood effect.
+		CLG_EntityEvent_MoreBlood( effectOrigin, cent->current.eventParm1, cent->current.eventParm0 );
+		break;
+
+	//---------------------------------------------------------------
+
+	case EV_FX_IMPACT_GUNSHOT:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the gun shot effect.
+		CLG_EntityEvent_GunShot( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+		break;
+	case EV_FX_IMPACT_SPARKS:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the sparks effect.
+		CLG_EntityEvent_Sparks( cent->current.origin, cent->current.eventParm0 );
+		break;
+	case EV_FX_IMPACT_BULLET_SPARKS:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the bullet sparks effect.
+		CLG_EntityEvent_BulletSparks( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+		break;
+
+	//---------------------------------------------------------------
+    case EV_FX_SPLASH_UNKNOWN:
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Generic splash effect.
+        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_UNKNOWN, cent->current.eventParm0 );
+		break;
+    case EV_FX_SPLASH_SPARKS:
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Spark splash effect.
+		CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_SPARKS, cent->current.eventParm0 );
+		break;
+        //! A blue water splash effect.
+    case EV_FX_SPLASH_WATER_BLUE:
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the blue water splash effect.
+        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BLUE_WATER, cent->current.eventParm0 );
+        break;
+            //! A blue water splash effect.
+    case EV_FX_SPLASH_WATER_BROWN:
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the brown water splash effect.
+        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BROWN_WATER, cent->current.eventParm0 );
+        break;
+            //! A green slime splash effect.
+    case EV_FX_SPLASH_SLIME:
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the slime splash effect.
+        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_SLIME, cent->current.eventParm0 );
+        break;
+            //! A red lava splash effect.
+    case EV_FX_SPLASH_LAVA:
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the lava splash effect.
+        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_LAVA, cent->current.eventParm0 );
+        break;
+    case EV_FX_SPLASH_BLOOD:
+        // Print event name for debugging.
+        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the blood splash effect.
+        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BLOOD, cent->current.eventParm0 );
+        break;
+
+	//---------------------------------------------------------------
+
+	case EV_FX_TRAIL_BUBBLES01:
+	case EV_FX_TRAIL_BUBBLES02:
+	case EV_FX_TRAIL_DEBUG_LINE:
+		// Print event name for debugging.
+		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+		// Fire the bubble trail effect 01.
+		CLG_EntityEvent_Trail( cent->lerp_origin, cent->current.old_origin, clampedEventValue, cent->current.eventParm0 );
+		break;
+
+	//---------------------------------------------------------------
+
     default:
+            //clgi.Print( PRINT_DEVELOPER, "%s: Unknown EntityEvent Type(Unclamped: %d, Clamped: %d)\n", __func__, eventValue, clampedEventValue );
         break;
     }
 }
@@ -174,25 +335,7 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 *
 *
 *
-*   Constant Expressions used by events:
 *
-*
-*
-**/
-/**
-*   Default Sound Properties for when not specified by the event:
-**/
-static constexpr float defaultSoundVolume = 1.f;
-static constexpr float defaultSoundAttenuation = 1.f;
-static constexpr float defaultSoundTimeOffset = 0.f;
-
-
-
-/**
-*
-*
-*
-* 
 *   Commonly Used/Utility Functions:
 *
 * 
@@ -249,39 +392,16 @@ static inline const std::string GetSoundResourceHandleName( const qhandle_t reso
 
 /**
 *
-* 
 *
 *
-*   [ Item Events ] Implementations:
-* 
-* 
-* 
-* 
-**/
-static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNumber, const Vector3 &origin ) {
-    // Debug check for valid entity/entities.
-    DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
-
-    // Play the respawn sound.
-    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.items.respawn01, 1, ATTN_IDLE, 0 );
-    // Spawn the respawn particles.
-    CLG_FX_ItemRespawnParticles( origin );
-}
-
-
-
-/**
 *
-*
-* 
-* 
 *
 *   [ Sound Events ] Implementations:
-* 
-* 
-* 
-* 
-* 
+*
+*
+*
+*
+*
 **/
 /**
 *	@brief	Handle the (temp-) entity event to let the client play a general sound on the entity
@@ -294,7 +414,7 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel, const qhandle_t soundIndex ) {
     // Sanity check.
     if ( !cent ) {
-		clgi.Print( PRINT_DEVELOPER, "%s: NULL cent entity passed in!\n", __func__ );
+        clgi.Print( PRINT_DEVELOPER, "%s: NULL cent entity passed in!\n", __func__ );
         return;
     }
 
@@ -303,7 +423,7 @@ static void CLG_EntityEvent_GeneralSound( centity_t *cent, const int32_t channel
     // Debug the resource name.
     DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( __func__, cent, soundIndex );
 
-	// Get the sound handle.
+    // Get the sound handle.
     qhandle_t soundResourceHandle = GetSoundIndexResourceHandle( soundIndex );
     if ( !soundResourceHandle ) {
         return;
@@ -335,24 +455,24 @@ static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t chann
     DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
     // Debug the resource name.
     DBG_ENTITY_EVENT_SOUND_NAME_ENTITY( __func__, cent, soundIndex );
-    
+
     // Get the sound handle.
     qhandle_t soundResourceHandle = GetSoundIndexResourceHandle( soundIndex );
     if ( !soundResourceHandle ) {
         return;
     }
 
-	// Decode the channel and the attenuation from the channel parameter.
+    // Decode the channel and the attenuation from the channel parameter.
     int32_t decodedChannel = (uint8_t)( channel & 0xFF );
-	// Stored as 0-3 in the event. <Q2RTXP>: TODO: (0-10 if we implement all attenuation levels)
-	const float decodedAttenuation = static_cast<float>( ( channel & 0xFFFF ) >> 8 ) / 64.f;
+    // Stored as 0-3 in the event. <Q2RTXP>: TODO: (0-10 if we implement all attenuation levels)
+    const float decodedAttenuation = static_cast<float>( ( channel & 0xFFFF ) >> 8 ) / 64.f;
 
-	// Clear the no phs and reliable flags from the channel.
-	// They are intend for svc_sound server commands only.
-	constexpr int32_t removeChannelMask = ( CHAN_NO_PHS_ADD | CHAN_RELIABLE );
+    // Clear the no phs and reliable flags from the channel.
+    // They are intend for svc_sound server commands only.
+    constexpr int32_t removeChannelMask = ( CHAN_NO_PHS_ADD | CHAN_RELIABLE );
     decodedChannel &= ~removeChannelMask;
 
-	// Play the sound on the entity.
+    // Play the sound on the entity.
     if ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 && cent->current.otherEntityNumber > 0 ) {
         // Get the other entity.
         clgi.S_StartSound( nullptr, cent->current.otherEntityNumber, decodedChannel, soundResourceHandle, defaultSoundVolume, decodedAttenuation, defaultSoundTimeOffset );
@@ -362,7 +482,7 @@ static void CLG_EntityEvent_GeneralSoundEx( centity_t *cent, const int32_t chann
 }
 
 /**
-*	@brief	Handle the (temp-) entity event at the specified origin to let the 
+*	@brief	Handle the (temp-) entity event at the specified origin to let the
 *           client play a positioned general sound.
 *   @note   Always players at full volume.
 *           Normal attenuation, and 0 sound offset.
@@ -400,4 +520,198 @@ static void CLG_EntityEvent_GlobalSound( const qhandle_t soundIndex ) {
     }
     // Play the sound at the given origin.
     clgi.S_StartSound( &clgi.client->frame.ps.pmove.origin.x, ENTITYNUM_WORLD, CHAN_AUTO, soundIndex, defaultSoundVolume, defaultSoundAttenuation, defaultSoundTimeOffset );
+}
+
+
+
+/**
+*
+* 
+*
+*
+*   [ Item Events ] Implementations:
+* 
+* 
+* 
+* 
+**/
+static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNumber, const Vector3 &origin ) {
+	// Sanity check.
+	if ( !cent ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: NULL cent entity passed in!\n", __func__ );
+		return;
+	}
+
+	// Debug check for valid entity/entities.
+	DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
+
+    // Play the respawn sound.
+    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.items.respawn01, 1, ATTN_IDLE, 0 );
+    // Spawn the respawn particles.
+    CLG_FX_ItemRespawnParticles( origin );
+}
+
+
+
+/**
+*
+*
+*
+* 
+* 
+*  [ Particle FX Events ] Implementations:
+* 
+* 
+* 
+* 
+* 
+**/
+/**************************************
+*   [ EV_FX_BLOOD ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_Blood( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the blood particle effect function.
+	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 5 );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+}
+/**************************************
+*   [ EV_FX_BLOOD ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_MoreBlood( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the blood particle effect function.
+	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 10 );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+}
+
+/**************************************
+*   [ EV_FX_IMPACT_GUNSHOT ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_GunShot( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0, count );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+
+	// Impact sound
+	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
+
+	if ( r == 1 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
+	} else if ( r == 2 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
+	} else if ( r == 3 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
+	}
+}
+/**************************************
+*   [ EV_FX_IMPACT_SPARKS ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_Sparks( const Vector3 &origin, const uint8_t direction ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, 6 );
+}
+/**************************************
+*   [ EV_FX_IMPACT_BULLET_SPARKS ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_BulletSparks( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, count );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
+
+	// Impact sound
+	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
+	
+	if ( r == 1 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
+	} else if ( r == 2 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
+	} else if ( r == 3 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
+	}
+}
+
+/*************************
+*   Water Splash FX Event Handler:
+*************************/
+static void CLG_EntityEvent_Splash( const Vector3 &origin, const uint8_t direction, const int32_t splashType, const int32_t count ) {
+    // Splash color values for each splashType.
+    static constexpr byte colors[] = {
+		0x00,   // Unknown splashes.
+        0xe0,   // Sparks.
+        0xb0,   // Blue Water.
+        0x50,   // Brown Water.
+		0xd0,   // Green Slime.
+		0xe0,   // Red Lava.
+		0xe8    // Red Blood.
+    };
+
+    // Range values for splash types.
+    static constexpr int32_t minRange = SPLASH_FX_COLOR_UNKNOWN;
+    static constexpr int32_t maxRange = SPLASH_FX_COLOR_BLOOD;
+
+    // Default to unknown splash color.
+    int32_t splashColor = colors[ std::clamp( splashType, minRange, maxRange ) ];
+
+    //! Unknown splash type effect.
+    if ( splashType < SPLASH_FX_COLOR_UNKNOWN && splashType > SPLASH_FX_COLOR_BLOOD ) {
+        // Invalid splash type.
+        clgi.Print( PRINT_DEVELOPER, "%s: Unknown splash type: %d (range: >=%d .. <=%d )\n", __func__, splashType, minRange, maxRange );
+    }
+
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 1.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the splash effect function.
+    CLG_FX_ParticleEffectWaterSplash( &origin.x, decodedDirection, splashType, count );
+}
+
+/**************************************
+*   [ EV_FX_TRAIL_BUBBLES01 ]
+*   [ EV_FX_TRAIL_BUBBLES02 ]
+*   [ EV_FX_TRAIL_DEBUG_LINE ]
+*   Event Handler:
+***************************************/
+static void CLG_EntityEvent_Trail( const Vector3 &start, const Vector3 &end, const int32_t trailType, const int32_t count ) {
+	// Call the trail effect function.
+	if ( trailType == EV_FX_TRAIL_BUBBLES01 ) {
+		CLG_FX_BubbleTrail( start, end );
+	} else if ( trailType == EV_FX_TRAIL_BUBBLES02 ) {
+		// 
+		CLG_FX_BubbleTrail2( start, end, count );
+		// Play ricochet sound at start point.
+		//clgi.S_StartSound( &start.x, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
+	} else if ( trailType == EV_FX_TRAIL_DEBUG_LINE ) {
+		CLG_FX_DebugTrail( start, end );
+	} else {
+		// Invalid trail type.
+		clgi.Print( PRINT_DEVELOPER, "%s: Unknown trail type: %d\n", __func__, trailType );
+	}
 }

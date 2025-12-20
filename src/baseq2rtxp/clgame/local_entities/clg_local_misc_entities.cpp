@@ -125,8 +125,8 @@ void CLG_misc_model_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	**/
 	// Clean slate refresh entity.
 	selfClass->rent = {};
-	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
-	selfClass->rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
+	// Setup the refresh entity ID to start off at REFRESHENTITIY_OFFSET_LOCALENTITIES.
+	selfClass->rent.id = REFRESHENTITIY_OFFSET_LOCALENTITIES + self->id;
 
 	// Copy spatial information over into the refresh entity.
 	VectorCopy( self->locals.origin, selfClass->rent.origin );
@@ -302,7 +302,7 @@ void CLG_misc_playerholo_Think( clg_local_entity_t *self ) {
 	auto *selfClass = CLG_LocalEntity_GetClass<clg_misc_playerholo_locals_t>( self );
 
 	// Update animation based on the client entity's last and current frame.
-	centity_t *cent = clgi.client->clientEntity;
+	centity_t *cent = game.clientEntity;
 	if ( cent && cent->last_frame != cent->current_frame ) {
 		// Update regular frame locals to the newly found client entity last and current frame.
 		self->locals.frame = cent->current_frame;
@@ -366,8 +366,8 @@ void CLG_misc_playerholo_PrepareRefreshEntity( clg_local_entity_t *self ) {
 	// Clean slate refresh entity.
 	entity_t rent = {};
 
-	// Setup the refresh entity ID to start off at RENTITIY_OFFSET_LOCALENTITIES.
-	rent.id = RENTITIY_OFFSET_LOCALENTITIES + self->id;
+	// Setup the refresh entity ID to start off at REFRESHENTITIY_OFFSET_LOCALENTITIES.
+	rent.id = REFRESHENTITIY_OFFSET_LOCALENTITIES + self->id;
 
 	// Copy spatial information over into the refresh entity.
 	VectorCopy( self->locals.origin, rent.origin );

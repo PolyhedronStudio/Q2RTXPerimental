@@ -14,9 +14,9 @@
 // Enable to debug the entity SetCallback functions.
 // It'll trigger with specific information about what is wrong with it.
 #if USE_DEBUG
-    #define DEBUG_CALLBACK_ASSIGNMENTS 1 // Uncomment to disable.
+#define DEBUG_CALLBACK_ASSIGNMENTS 1 // Uncomment to disable.
 #else
-	// Prevent this from being defined in non-debug builds.
+    // Prevent this from being defined in non-debug builds.
     //#define DEBUG_CALLBACK_ASSIGNMENTS 0 // Uncomment to disable.
 #endif
 
@@ -37,18 +37,18 @@ struct svg_base_edict_t;
 //! Macro for validating a callback function pointer at time of assignment.
 #if ( defined( DEBUG_CALLBACK_ASSIGNMENTS ) && ( DEBUG_CALLBACK_ASSIGNMENTS == 1 ) )
     // Declared here for debug reasoning.
-    const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_save_funcptr_type_t type, const std::string &functionName );
-    #define DebugValidateCallbackFuncPtr(edict, p, type, functionName) SVG_Save_DebugValidateCallbackFuncPtr(edict, reinterpret_cast<void*>( p ), type, functionName)
+const svg_save_descriptor_funcptr_error_t SVG_Save_DebugValidateCallbackFuncPtr( svg_base_edict_t *edict, void *p, svg_save_funcptr_type_t type, const std::string &functionName );
+#define DebugValidateCallbackFuncPtr(edict, p, type, functionName) SVG_Save_DebugValidateCallbackFuncPtr(edict, reinterpret_cast<void*>( p ), type, functionName)
 //! Stub implementation:
 //! This will always return true, so we can use it in release builds.
 //! It will not do any validation.
 #else
-    #define DebugValidateCallbackFuncPtr(edict, p, type, functionName) (true);
+#define DebugValidateCallbackFuncPtr(edict, p, type, functionName) (true);
 #endif
 
 
 /**
-*   Implements a Base Copy reset of the svg_base_edict_t object, optionally retaining 
+*   Implements a Base Copy reset of the svg_base_edict_t object, optionally retaining
 *   the original load time pointer to the entityDictionary. This allows for literally
 *   restoring the entity to a freshly spawned world state.
 *
@@ -56,22 +56,46 @@ struct svg_base_edict_t;
 *   reset all entities to their original spawn state without having to reload
 *   the entire map.
 **/
+#if 0
 #define IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( BaseType, SelfType, retainDictionary ) \
     do { \
         /* Keep a copy of the base-class state so we can restore it */ \
         BaseType baseCopy = *static_cast<BaseType *>( this ); \
-        /* Create a value-initialized temporary and assign it to this object. */ \
-        static SelfType temp{}; \
+        SelfType selfCopy = *static_cast<SelfType *>( this ); \
+        /* Create value-initialized temporaries and assign them to this object. */ \
+        SelfType tempSelf = SelfType(); \
+        BaseType tempBase = BaseType(); \
         /* Retain the dictionary if necessary */ \
         if ( retainDictionary ) { \
-            temp.entityDictionary = this->entityDictionary; \
+            tempBase.entityDictionary = this->entityDictionary; \
+            tempSelf.entityDictionary = this->entityDictionary; \
 		} \
         /* Assign to this object. This resets all derived members using their normal copy-assignment semantics. */ \
-        *this = temp; \
+        *this = tempSelf; \
         /* Now, restore base-class state produced by Base::Reset(...) */ \
         *static_cast<BaseType *>( this ) = baseCopy; \
+        /* Finally, restore any derived-class state that needs to be restored. */ \
+        *static_cast<SelfType *>( this ) = selfCopy; \
     } while ( 0 )
+#else
+#define IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( BaseType, SelfType, retainDictionary ) \
+    do { \
+        /* Keep a copy of the base-class state so we can restore it */  \
+        BaseType baseCopy = *static_cast<BaseType *>( this );  \
+        SelfType selfCopy = *static_cast<SelfType *>( this );  \
+        /* Create value-initialized temporaries and assign them to this object. */  \
+        SelfType tempSelf = SelfType( ( retainDictionary ? this->entityDictionary : nullptr ) ); \
+        BaseType tempBase = BaseType( ( retainDictionary ? this->entityDictionary : nullptr ) ); \
+        /* Assign to this object. This resets all derived members using their normal copy-assignment semantics. */  \
+        *this = tempSelf;  \
+        *static_cast<BaseType *>( this ) = tempBase; \
+        /* Now, restore base-class state produced by Base::Reset(...) */ \
+        *static_cast<BaseType *>( this ) = baseCopy; \
+        /* Finally, restore any derived - class state that needs to be restored. */ \
+        *static_cast<SelfType *>( this ) = selfCopy; \
+    } while ( 0 ); \
 
+#endif
 
 
 /**
@@ -132,6 +156,7 @@ QENUM_BIT_FLAGS( entity_flags_t );
 
 
 
+
 /**
 *   @brief  edict->movetype values
 **/
@@ -142,9 +167,9 @@ enum svg_movetype_t {
     //! because we are "not clipping".
     MOVETYPE_NOCLIP,
 
-	//! No clip to world, push on box contact.
+    //! No clip to world, push on box contact.
     MOVETYPE_PUSH,
-	//! No clip to world, stops on box contact.
+    //! No clip to world, stops on box contact.
     MOVETYPE_STOP,
 
     //! For player(client) entities. Player movement.
@@ -154,15 +179,16 @@ enum svg_movetype_t {
     MOVETYPE_STEP,
     //! Gravity, animation root motion influences velocities.
     MOVETYPE_ROOTMOTION,
-	//! No gravity, but still applies velocity and acceleration.
+    //! No gravity, but still applies velocity and acceleration.
     MOVETYPE_FLY,
-	//! For thrown entities. Influenced by gravity and velocity.
+    //! For thrown entities. Influenced by gravity and velocity.
     MOVETYPE_TOSS,
-	//! For projectiles. Influenced by gravity and velocity.
+    //! For projectiles. Influenced by gravity and velocity.
     MOVETYPE_FLYMISSILE,
-	//! For bouncing entities. Influenced by gravity and velocity.
+    //! For bouncing entities. Influenced by gravity and velocity.
     MOVETYPE_BOUNCE
 };
+
 
 
 
@@ -190,7 +216,7 @@ using svg_edict_callback_postthink_fptr = void ( * )( svg_base_edict_t *self );
 //! Called when movement has been blocked.
 using svg_edict_callback_blocked_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other );         // move to moveinfo?
 //! Called when the entity touches another entity.
-using svg_edict_callback_touch_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+using svg_edict_callback_touch_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, const cm_plane_t *plane, const cm_surface_t *surf );
 
 //! Called to 'trigger' the entity.
 using svg_edict_callback_use_fptr = void ( * )( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue );
@@ -204,9 +230,10 @@ using svg_edict_callback_die_fptr = void ( * )( svg_base_edict_t *self, svg_base
 
 
 
+
 /**
-* 
-* 
+*
+*
 *   Server Game Entity Structure:
 *
 *
@@ -215,34 +242,34 @@ using svg_edict_callback_die_fptr = void ( * )( svg_base_edict_t *self, svg_base
 *   @brief  The server game entity structure. Still is a POD type.
 *           Given template arguments are for the pointers that reside
 *           within the 'shared' memory block.
-* 
+*
 *           One could call this a different means of 'composition' here.
 **/
 struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_t> {
-    //! Constructor. 
+    //! Default constructor (value-initializing). Required for reset-by-copy approach.
     svg_base_edict_t() = default;
     //! Destructor.
     virtual ~svg_base_edict_t() = default;
 
     //! Constructor for use with constructing for an cm_entity_t *entityDictionary.
-    svg_base_edict_t( const cm_entity_t *ed ) : sv_shared_edict_t< svg_base_edict_t, svg_client_t >( ed ) {};
+    svg_base_edict_t( const cm_entity_t *ed ) : sv_shared_edict_t< svg_base_edict_t, svg_client_t >( ed ) { };
 
     // The root class of inheritance based game entity typeinfo inheritance.
-    DefineTopRootClass( 
+    DefineTopRootClass(
         // classname:       classType:        superClassType:
-        "svg_base_edict_t", svg_base_edict_t, sv_shared_edict_t, 
+        "svg_base_edict_t", svg_base_edict_t, sv_shared_edict_t,
         // typeInfoFlags:
         EdictTypeInfo::TypeInfoFlag_GameSpawn
     );
 
 
     /**
-    * 
-    * 
-	*	Operator overloading so we can allocate the object using the Zone(Tag) memory.
-    * 
-    * 
-	**/
+    *
+    *
+    *	Operator overloading so we can allocate the object using the Zone(Tag) memory.
+    *
+    *
+    **/
     #if 0
     //! New Operator Overload.
     void *operator new( size_t size, void *ptr ) {
@@ -281,7 +308,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     }
     #endif
     //! New Operator Overload.
-	void *operator new( size_t size ) {
+    void *operator new( size_t size ) {
         // Prevent possible malloc from succeeding if size is 0.
         if ( size == 0 ) {
             size = 0;
@@ -299,12 +326,12 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         // Debug about the failure to allocate
         gi.dprintf( "%s: Failed allocationg %d bytes\n", __func__, size );
         #endif
-		// Throw an exception.
-		//throw std::bad_alloc( "Failed to allocate memory" );
-		return nullptr;
+        // Throw an exception.
+        //throw std::bad_alloc( "Failed to allocate memory" );
+        return nullptr;
     }
-	//! Delete Operator Overload.
-	void operator delete( void *ptr ) {
+    //! Delete Operator Overload.
+    void operator delete( void *ptr ) {
         if ( ptr != nullptr ) {//TagAllocator::Free( ptr );
             #if DEBUG_EDICT_ALLOCATORS
             // Debug about deallocation.
@@ -319,7 +346,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         // Debug about the failure to allocate
         gi.dprintf( "%s: (nullptr) %p\n", __func__, ptr );
         #endif
-	}
+    }
 
 
 
@@ -333,23 +360,23 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   @brief  Calls the 'spawn' callback that is configured for this entity.
     **/
-    virtual void DispatchSpawnCallback( );
+    virtual void DispatchSpawnCallback();
     /**
     *   @brief  Calls the 'postspawn' callback that is configured for this entity.
     **/
-    virtual void DispatchPostSpawnCallback( );
+    virtual void DispatchPostSpawnCallback();
     /**
     *   @brief  Calls the 'prethink' callback that is configured for this entity.
     **/
-    virtual void DispatchPreThinkCallback( );
+    virtual void DispatchPreThinkCallback();
     /**
     *   @brief  Calls the 'think' callback that is configured for this entity.
     **/
-    virtual void DispatchThinkCallback( );
+    virtual void DispatchThinkCallback();
     /**
     *   @brief  Calls the 'postthink' callback that is configured for this entity.
     **/
-    virtual void DispatchPostThinkCallback( );
+    virtual void DispatchPostThinkCallback();
     /**
     *   @brief  Calls the 'blocked' callback that is configured for this entity.
     **/
@@ -357,7 +384,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   @brief  Calls the 'touch' callback that is configured for this entity.
     **/
-    virtual void DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf );
+    virtual void DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, const cm_surface_t *surf );
     /**
     *   @brief  Calls the 'use' callback that is configured for this entity.
     **/
@@ -377,6 +404,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 
 
 
+
     /**
     *
     *
@@ -385,21 +413,22 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *
     **/
     /**
-	*   Reconstructs the object, zero-ing out its members, and optionally 
-	*   retaining the entityDictionary. 
-    * 
-	*   Sometimes we want to keep the entityDictionary intact so we can 
+    *   Reconstructs the object, zero-ing out its members, and optionally
+    *   retaining the entityDictionary.
+    *
+    *   Sometimes we want to keep the entityDictionary intact so we can
     *   spawn from it. (This is used for saving/loading.)
     **/
+
     virtual void Reset( const bool retainDictionary = false ) override;
 
     /**
-	*   @brief  Used for savegaming the entity. Each derived entity type
-	*           that needs to be saved should implement this function.
-    * 
+    *   @brief  Used for savegaming the entity. Each derived entity type
+    *           that needs to be saved should implement this function.
+    *
     *   @note   Make sure to call the base parent class' Save() function.
     **/
-	virtual void Save( struct game_write_context_t *ctx );
+    virtual void Save( struct game_write_context_t *ctx );
     /**
     *   @brief  Used for loadgaming the entity. Each derived entity type
     *           that needs to be loaded should implement this function.
@@ -417,13 +446,14 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 
 
 
+
     /**
     *
     *
     *   @brief  Use these to simplify setting a callback function pointer to anything such as,
     *           static void some_entity_class::die_callback(svg_not_base_entity *self) {
     *           }
-	*           The methods will perform a reinterpret cast to the correct type. And in debug
+    *           The methods will perform a reinterpret cast to the correct type. And in debug
     *           mode check if the function pointer exists in the table of ptrs.
     *
     *
@@ -433,19 +463,19 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     template<typename FuncPtrType>
     inline FuncPtrType SetSpawnCallback( FuncPtrType funcPtr ) {
-		// Debug validate the function pointer.
+        // Debug validate the function pointer.
         DebugValidateCallbackFuncPtr( this, funcPtr, FPTR_SAVE_TYPE_SPAWN, __func__ );
-		// Set and return the function pointer.
+        // Set and return the function pointer.
         spawnCallbackFuncPtr = reinterpret_cast<svg_edict_callback_spawn_fptr>( funcPtr );
         return funcPtr;
     }
-	/**
-	*   @return Returns true if the spawn callback function pointer is set.
-	**/
-	inline const bool HasSpawnCallback() const {
-		return ( spawnCallbackFuncPtr != nullptr );
-	}
-    
+    /**
+    *   @return Returns true if the spawn callback function pointer is set.
+    **/
+    inline const bool HasSpawnCallback() const {
+        return ( spawnCallbackFuncPtr != nullptr );
+    }
+
     /**
     *   @brief  For properly setting the 'postspawn' callback method function pointer.
     **/
@@ -463,7 +493,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     inline const bool HasPostSpawnCallback() const {
         return ( postSpawnCallbackFuncPtr != nullptr );
     }
-    
+
     /**
     *   @brief  For properly setting the 'prethink' callback method function pointer.
     **/
@@ -481,7 +511,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     inline const bool HasPreThinkCallback() const {
         return ( preThinkCallbackFuncPtr != nullptr );
     }
-    
+
     /**
     *   @brief  For properly setting the 'think' callback method function pointer.
     **/
@@ -499,7 +529,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     inline const bool HasThinkCallback() const {
         return ( thinkCallbackFuncPtr != nullptr );
     }
-    
+
     /**
     *   @brief  For properly setting the 'postthink' callback method function pointer.
     **/
@@ -630,10 +660,10 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 
     /**
     *
-    * 
+    *
     *   TypeInfo Related:
     *
-    * 
+    *
     **/
     //! For each derived edict type, this field can be added to and
     //! instanced in the edict type's own .cpp file.
@@ -641,20 +671,21 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! The game will take care of recursively writing the neccessary
     //! fields in order of the edict_t inheritance hierachy.
     static svg_save_descriptor_field_t saveDescriptorFields[];
-    
+
     /**
-	*   @brief Retrieves a pointer to the save descriptor fields.
-	*   @return A pointer to a structure of type `svg_save_descriptor_field_t` representing the save descriptor fields.
-	**/
+    *   @brief Retrieves a pointer to the save descriptor fields.
+    *   @return A pointer to a structure of type `svg_save_descriptor_field_t` representing the save descriptor fields.
+    **/
     virtual svg_save_descriptor_field_t *GetSaveDescriptorFields();
     /**
-	*   @return The number of save descriptor fields.
+    *   @return The number of save descriptor fields.
     **/
     virtual int32_t GetSaveDescriptorFieldsCount();
     /**
-	*   @return A pointer to the save descriptor field with the given name.
+    *   @return A pointer to the save descriptor field with the given name.
     **/
     virtual svg_save_descriptor_field_t *GetSaveDescriptorField( const char *name );
+
 
 
 
@@ -664,7 +695,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *
     **/
     /**
-	*   @brief  A default spawn implementation function.
+    *   @brief  A default spawn implementation function.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn );
     /**
@@ -737,9 +768,11 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     //! Events will be cleared EVENT_VALID_MSEC after set.
     QMTime  eventTime = 0_ms;
-	//! If true, entity will be freed once the event is done.
-	bool	freeAfterEvent = false;
-	//! If true, entity will be unlinked(thus, removed as in, no collision, no transmission) once the event is done.
+	//! Event lifetime duration in milliseconds. ( Defaults to EVENT_VALID_MSEC ).
+	QMTime	eventDuration = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
+    //! If true, entity will be freed once the event is done.
+    bool	freeAfterEvent = false;
+    //! If true, entity will be unlinked(thus, removed as in, no collision, no transmission) once the event is done.
     bool    unlinkAfterEvent = false;
 
 
@@ -748,13 +781,13 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     **/
     //! [SpawnKey]: Current Health.
     int32_t     health = 0;
-	//! [SpawnKey]: Current Armor.
-	int32_t     armor = 0;
+    //! [SpawnKey]: Current Armor.
+    int32_t     armor = 0;
     //! [SpawnKey]: Maximum Health. (Usually used to reset health with in respawn scenarios.)
     int32_t     max_health = 0;
-	//! [SpawnKey]: Maximum Armor. (Usually used to reset armor with in respawn scenarios.)
-	int32_t     max_armor = 0;
-	//! Gib Health, used to determine if the entity is dead or not.
+    //! [SpawnKey]: Maximum Armor. (Usually used to reset armor with in respawn scenarios.)
+    int32_t     max_armor = 0;
+    //! Gib Health, used to determine if the entity is dead or not.
     int32_t     gib_health = 0;
     //! Officially dead, or still respawnable etc.
     entity_lifestatus_t     lifeStatus = entity_lifestatus_t::LIFESTATUS_ALIVE;
@@ -855,7 +888,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
             char name[ 256 ];
             //! For delayed signaling.
             std::vector<svg_signal_argument_t> arguments;
-			// <Q2RTXP>: TODO: Implement saving and restoring of these arguments.
+            // <Q2RTXP>: TODO: Implement saving and restoring of these arguments.
             //sg_qtag_memory_t<svg_signal_argument_t, TAG_SVGAME_LEVEL> arguments = sg_qtag_memory_t<svg_signal_argument_t, TAG_SVGAME_LEVEL>::sg_qtag_memory_t( nullptr, 0 );
         } signalOut;
     } delayed = {};
@@ -882,12 +915,12 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
         Vector3 totalVelocity;
 
         //! POinter to the parent we're moving with.
-        svg_base_edict_t *parentMoveEntity;
+        svg_base_edict_t *parentMoveEntity = nullptr;
 
         //! A pointer to the first 'moveWith child' entity.
         //! The child entity will be pointing to the next in line, and so on.
-        svg_base_edict_t *moveNextEntity;
-    } moveWith = {};
+        svg_base_edict_t *moveNextEntity = nullptr;
+    } moveWith = { };
 
     //! Specified physics movetype.
     int32_t     movetype = 0;
@@ -902,7 +935,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! Categorized ground information.
     ground_info_t groundInfo = { .entityNumber = ENTITYNUM_NONE };
     //! The directional gravity vector.
-	Vector3     gravityVector = QM_Vector3Gravity();
+    Vector3     gravityVector = QM_Vector3Gravity();
     //! [SpawnKey]: Weight(mass) of entity.
     int32_t     mass = 0;
     //! [SpawnKey]: Per entity gravity multiplier (1.0 is normal) use for lowgrav artifact, flares.
@@ -919,18 +952,18 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     svg_pushmove_info_t pushMoveInfo = {};
 
     //! [SpawnKey]: PushMover Lip Distance.
-    float   lip     = 0.f;
+    float   lip = 0.f;
     //! [SpawnKey]: PushMover Lip Distance.
-    float   distance    = 0.f;
+    float   distance = 0.f;
     //! [SpawnKey]: PushMover Lip Distance.
-    float   height  = 0.f;
+    float   height = 0.f;
 
     //! [SpawnKey]: Moving speed.
-    float   speed   = 0.f;
+    float   speed = 0.f;
     //! [SpawnKey]: Acceleration speed.
-    float   accel   = 0.f;
+    float   accel = 0.f;
     //! [SpawnKey]: Deceleration speed.
-    float   decel   = 0.f;
+    float   decel = 0.f;
 
     //! [SpawnKey]: Move axis orientation, defaults to Z axis.
     Vector3 movedir = QM_Vector3Zero();
@@ -958,7 +991,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 
     svg_edict_callback_spawn_fptr spawnCallbackFuncPtr = nullptr;
     //! Gives a chance to setup references to other entities etc.
-	svg_edict_callback_postspawn_fptr postSpawnCallbackFuncPtr = nullptr;
+    svg_edict_callback_postspawn_fptr postSpawnCallbackFuncPtr = nullptr;
     //! Called before actually thinking.
     svg_edict_callback_prethink_fptr preThinkCallbackFuncPtr = nullptr;
     //! Called for thinking.
@@ -1032,7 +1065,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     /**
     *   (Player-)Noise/Trail:
     **/
-	//! [SpawnKey]: The path to the noise audio to use.
+    //! [SpawnKey]: The path to the noise audio to use.
     svg_level_qstring_t noisePath = nullptr;
     //! Pointer to noise entity.
     svg_base_edict_t *mynoise = nullptr;       // can go in client only
@@ -1075,7 +1108,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     QMTime   pain_debounce_time = 0_ms;
     QMTime   show_hostile_time = 0_ms;
     //! Registers the time of the frame we died in.
-	QMTime   death_time = 0_ms;
+    QMTime   death_time = 0_ms;
     //! Used for player trail.
     QMTime   trail_time = 0_ms;
 
@@ -1084,7 +1117,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   Various Data:
     **/
     //! Set when the entity gets hurt(SVG_DamageEntity) and might be its cause of death.
-    sg_means_of_death_t meansOfDeath = static_cast<sg_means_of_death_t>(0);
+    sg_means_of_death_t meansOfDeath = static_cast<sg_means_of_death_t>( 0 );
     //! [SpawnKey]: Used for target_changelevel. Set as key/value.
     svg_level_qstring_t map = nullptr;
     //! [SpawnKey]: Damage entity will do.

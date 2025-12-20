@@ -249,6 +249,9 @@ typedef struct centity_s {
 	int64_t	serverframe;
 	//! The last moment in time of when this entity was available in a snapshot.
 	int64_t snapShotTime;
+
+	//! Next entity state, to be used when updating to a new frame. Arrived from the last acknowledged packet.
+	//entity_state_t	next;
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
 	//! Previous entity state. Will always be valid, but might be just a copy of the current state.
@@ -614,25 +617,30 @@ extern precached_media_s precache;
 /**
 *   @brief  Stores client-side predicted player_state_t information.
 **/
-typedef struct client_predicted_state_s {
+struct client_predicted_state_t {
 	//! Last processed client move command.
-	client_movecmd_t cmd;
+	client_movecmd_t cmd = {};
+
+	// Current and last predicted frames.
+	server_frame_t frame = { .ps = {.clientNumber = -1 } };
+	server_frame_t lastFrame = { .ps = {.clientNumber = -1 } };
 
 	//! Reset each time we receive a new server frame. Keeps track of the local client's player_state_t
 	//! until yet receiving another new server frame.
-	player_state_t currentPs;
+	player_state_t currentPs = { .clientNumber = -1 };
 	//! This is always the previous client's frame player_state_t.
-	player_state_t lastPs;
+	player_state_t lastPs = { .clientNumber = -1 };
 
 	//! Player(-Entity) Bounding Box.
-	Vector3 mins, maxs;
+	Vector3 mins = {};
+	Vector3 maxs = {};
 
 	//! Stores the last frame ground information. If there is no actual active, valid, ground, then ground.entityNumber will be ENTITYNUM_NONE.
-	ground_info_t lastGround;
+	ground_info_t lastGround = { .entityNumber = ENTITYNUM_NONE };
 	//! Stores the predicted current ground information. If there is no actual active, valid, ground, then ground.entityNumber will be ENTITYNUM_NONE.
-	ground_info_t ground;
+	ground_info_t ground = { .entityNumber = ENTITYNUM_NONE };
 	//! Stores the 'liquid' information. This can be lava, slime, or water.
-	liquid_info_t liquid;
+	liquid_info_t liquid = { .type = CONTENTS_NONE, .level = LIQUID_NONE };
 
 	//! Stores data for player origin/view transitions.
 	struct {
@@ -650,15 +658,25 @@ typedef struct client_predicted_state_s {
 			//! Stores cl.time of when the height was last changed.
 			uint64_t timeHeightChanged;
 		} view;
-	} transition;
+	} transition = {};
 
 	//! Margin of origin error to correct for this frame.
-	Vector3 error;
+	Vector3 error = {};
 	//! The origin of the player entity for this frame, used for prediction.
-	Vector3 origin;
+	Vector3 origin = {};
 	//! The Predicted velocity.
-	Vector3 velocity;
-} client_predicted_state_t;
+	Vector3 velocity = {};
+
+	/**
+	*	Stores the last (predicted-) event sequence number and an array of the last MAX_PREDICTED_EVENTS.
+	**/
+	//! Maximum number of predicted events to store.
+	static constexpr int32_t MAX_PREDICTED_EVENTS = 16;
+	//! Actual predicted events.
+	int32_t events[ MAX_PREDICTED_EVENTS ] = {};
+	//! Last event sequence.
+	int64_t eventSequence = 0;
+};
 
 
 /**
@@ -668,21 +686,45 @@ typedef struct client_predicted_state_s {
 **/
 struct game_locals_t {
 	//! Stores zone allocated clients[maxclients];
-	cclient_t *clients;
+	cclient_t *clients = nullptr;
 	//! Stores zone allocated entities[maxentities];
-	centity_t *entities;
+	centity_t *entities = nullptr;
 
-	//! This always has its value reset to the latest received frame's data. For all the time in-between the
-	//! received frames, it maintains track of the predicted client states.
-	//! (Currently though, player_state_t only.)
-	client_predicted_state_t predictedState;
+	//! This always has its value reset to the latest received frame's data.
+	//! For all the time, in-between the received frames, it tracks the predicted client state.
+	client_predicted_state_t predictedState = {};
+	//! This is the predicted client entity, it only exists locally and is not part of the
+	//! frame's contained entities. We use it for prediction(player move events etc).
+	centity_t predictedEntity = {};
 
 	/**
-	*	Stores the last event sequence number and an array of the last MAX_PREDICTED_EVENTS.
+	*   @brief      The entity matching for the client number received during initial server connecting..
+	*               This is a pointer into `clg_entities`, that always points to our 'local game client' entity.
 	**/
-	static constexpr int32_t MAX_PREDICTED_EVENTS = 16;
-	int64_t		eventSequence;
-	int32_t		predictableEvents[ game_locals_t::MAX_PREDICTED_EVENTS ];
+	centity_t *clientEntity = nullptr;
+	/**
+	*   @brief      The entity matching for the client number that we're currently chasing( frame.ps.stats[ STAT_CHASE ] ).
+	*               This is a pointer into `clg_entities`, and may point to a different
+	*               (client-)entity than our own local clientEntity.
+	**/
+	//centity_t *chaseEntity = nullptr;
+	/**
+	*   @brief  The entity that is currently bound to our view. (Either our own clientEntity, or the chaseEntity.)
+	**/
+	centity_t *viewBoundEntity = nullptr;
+
+	/**
+	*	Stores the entities present within the current frame, based on their solid type.
+	**/
+	struct {
+		//! Solid entities parsed and residing within the current frame.
+		centity_t *solids[ MAX_PACKET_ENTITIES ] = {};
+		int32_t		numSolids = 0;
+
+		//! Trigger entities parsed and residing within the current frame.
+		//centity_t *triggers[ MAX_PACKET_ENTITIES ] = {};
+		//int32_t		numTriggers = 0;
+	} frameEntities = {};
 
 	/**
 	*	Stores client state of the view weapon and its model.
@@ -733,7 +775,6 @@ struct game_locals_t {
 		Vector3 targetGunAngleDelta = QM_Vector3Zero();
 		//! Swing Velocity. (Tracks angular momentum.)
 		Vector3 swingVelocity = QM_Vector3Zero();
-
 	} viewWeapon;
 
 	//! Parsed inventory message data.
@@ -760,7 +801,7 @@ struct clg_level_locals_t {
 	//! Frame number, starts incrementing when the level session has begun..
 	uint64_t	frameNumber;
 	//! Time passed, also starts incrementing when the level session has begun.
-	QMTime	time;
+	QMTime		time;
 
 	//! For storing parsed message data that is handled later on during 
 	//! the frame by corresponding said event/effect functions.

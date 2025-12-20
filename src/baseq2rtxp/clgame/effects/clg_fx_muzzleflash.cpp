@@ -41,7 +41,7 @@ void CLG_MuzzleFlash( void ) {
 
 #if USE_DEBUG
     if ( developer->integer ) {
-        CLG_CheckEntityPresent( level.parsedMessage.events.muzzleFlash.entity, "muzzleflash" );
+        CLG_CheckServerEntityPresent( level.parsedMessage.events.muzzleFlash.entity, "muzzleflash" );
     }
 #endif // #if USE_DEBUG
 

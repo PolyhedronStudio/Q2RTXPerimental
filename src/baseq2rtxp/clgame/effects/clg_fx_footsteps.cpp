@@ -8,6 +8,7 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_precache.h"
 #include "clgame/clg_entities.h"
+#include "clgame/clg_world.h"
 #include "clgame/effects/clg_fx_footsteps.h"
 
 #define _DEBUG_PRINT_LOCAL_CLIENT_FOOTSTEPS 1
@@ -110,12 +111,12 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
     client_predicted_state_t *predictedState = &game.predictedState;
 
     // Get local client entity pointer:
-    centity_t *localClientEntity = CLG_GetLocalClientEntity(); //&clg_entities[ clgi.client->clientNumber + 1 ]
+    centity_t *predictedClientEntity = CLG_GetPredictedClientEntity(); //&clg_entities[ clgi.client->clientNumber + 1 ]
 	// Get the centity_t for this entity number.
 	centity_t *entityNumberEntity = &clg_entities[ entityNumber ];
 
     // Material we're currently standing on: Defaults to null, varies by entity type.
-    cm_material_t *ground_material = nullptr;
+    const cm_material_t *ground_material = nullptr;
 
     // The default type is "floor".
     const char *material_kind = "floor";
@@ -138,7 +139,7 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
         // Origin if local client entity.
         if ( isLocalClient ) {
             // Play the footstep sound for metal ladders.
-            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, ATTN_NORM, "ladder(metal)", material_footsteps, material_num_footsteps );
+            FootStepSound( entityNumber, &lerpOrigin, predictedClientEntity, ATTN_NORM, "ladder(metal)", material_footsteps, material_num_footsteps );
         } else {
             // Play the footstep sound for metal ladders.
             FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, ATTN_STATIC, "ladder(metal)", material_footsteps, material_num_footsteps );
@@ -168,7 +169,7 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
 		// If we have no ground material, and we're moving upwards fast enough, perform a ground trace to find the material.
         if ( !ground_material && predictedState->currentPs.pmove.velocity.z > 100 ) {
            // Perform a ground trace to determine the material we're currently standing on.
-            centity_t *traceSkipEntity = CLG_GetLocalClientEntity(); //&clg_entities[ clgi.client->clientNumber + 1 ];
+            centity_t *traceSkipEntity = predictedClientEntity; //
 
 			// Trace from current origin to just below current origin to find ground material.
             Vector3 traceStart = predictedState->currentPs.pmove.origin;
@@ -194,7 +195,7 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
         if ( predictedState->liquid.type & CONTENTS_WATER &&
             predictedState->liquid.level == cm_liquid_level_t::LIQUID_FEET ) {
             // Play the footstep sound for water.
-            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, ATTN_NORM, "water", precache.sfx.footsteps.water, precache.sfx.footsteps.NUM_WATER_STEPS );
+            FootStepSound( entityNumber, &lerpOrigin, predictedClientEntity, ATTN_NORM, "water", precache.sfx.footsteps.water, precache.sfx.footsteps.NUM_WATER_STEPS );
             //return;
         }
     /**
@@ -212,7 +213,7 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
             Vector3 traceStart = cent->current.origin;
             Vector3 traceEnd = traceStart + Vector3{ 0., 0., -0.25 };
             // Perform the trace.
-            cm_trace_t groundTrace = clgi.Trace( &traceStart, &cent->mins, &cent->maxs, &traceEnd, cent, CM_CONTENTMASK_SOLID );
+            cm_trace_t groundTrace = CLG_Trace( traceStart, &cent->mins, &cent->maxs, traceEnd, cent, CM_CONTENTMASK_SOLID );
 
 			// If we got a material from the ground trace, use it.
             //if ( groundTrace.material ) {
@@ -283,7 +284,7 @@ void CLG_FX_FootStepSound( const int32_t entityNumber, const Vector3 &lerpOrigin
         **/
         // Play the footstep sound for local client entity.
         if ( isLocalClient ) {
-            FootStepSound( entityNumber, &lerpOrigin, localClientEntity, ATTN_NORM, material_kind, material_footsteps, material_num_footsteps );
+            FootStepSound( entityNumber, &lerpOrigin, predictedClientEntity, ATTN_NORM, material_kind, material_footsteps, material_num_footsteps );
         // Play the footstep sound for other (packet-)entities.
         } else {
             FootStepSound( entityNumber, &lerpOrigin, entityNumberEntity, ATTN_STATIC, material_kind, material_footsteps, material_num_footsteps );

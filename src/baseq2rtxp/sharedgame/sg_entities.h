@@ -21,7 +21,7 @@
 /**
 *	@brief	Convert a player state to entity state.
 **/
-void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool snapOrigin = false );
+void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *playerState, entity_state_t *entityState, const bool playerStatEventsToEntityState = true,const bool snapOrigin = false );
 /**
 *	@brief	Convert a player state to entity state.
 *

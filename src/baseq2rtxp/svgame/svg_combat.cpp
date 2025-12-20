@@ -146,15 +146,34 @@ static void Killed(svg_base_edict_t *targ, svg_base_edict_t *inflictor, svg_base
 SVG_SpawnDamage
 ================
 */
-void SVG_SpawnDamage(const int32_t type, const Vector3 &origin, const Vector3 &normal, const int32_t damage) {
-    const int32_t cappedDamage = damage > 255 ? 255 : damage;
+void SVG_SpawnDamage( const sg_entity_events_t type, const Vector3 &origin, const Vector3 &normal, const int32_t damage ) {
+	// Cap damage to 255 for network transmission.
+	const int32_t cappedDamage = damage > 255 ? 255 : damage;
 
-    gi.WriteUint8( svc_temp_entity );
-    gi.WriteUint8( type );
-//  gi.WriteByte ( cappedDamage );
-    gi.WritePosition( &origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.WriteDir8( &normal );
-    gi.multicast( &origin, MULTICAST_PVS, false );
+	// Generate a random amount of 'impact particles'.
+	const int32_t particleCount = irandom( 24, 25 + ( (float)damage / 4.f ) );
+	// Store the count of the amount of 'particle pixels' to spawn in the first parm.
+	const int32_t eventParm0 = ( particleCount ) & 255;
+	// Plane normal stored in second parm, encoded to a byte.
+	const int32_t eventParm1 = DirToByte( normal );
+
+	// Create a temporary entity event for all other clients.
+	svg_base_edict_t *tempEventEntity = SVG_Util_CreateTempEventEntity(
+		// Splash origin.
+		origin,
+		// Splash type, particle count, Byte Encoded plane normal.
+		type, eventParm0, eventParm1,
+		// Snap origin for bandwidth reduction.
+		true,
+		// Event duration: These impact particles have no reason to be around longer than a frame.
+		FRAME_TIME_MS
+	);
+//    gi.WriteUint8( svc_temp_entity );
+//    gi.WriteUint8( type );
+////  gi.WriteByte ( cappedDamage );
+//    gi.WritePosition( &origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+//    gi.WriteDir8( &normal );
+//    gi.multicast( &origin, MULTICAST_PVS, false );
 }
 
 

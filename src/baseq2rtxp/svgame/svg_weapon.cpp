@@ -16,6 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_utils.h"
 
 #include "sharedgame/sg_means_of_death.h"
@@ -198,18 +199,27 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
                 isTDamaged = true;
             // Otherwise, display something that shows we are hitting something senselessly.
             } else {
-                if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
-                    gi.WriteUint8( svc_temp_entity );
-                    gi.WriteUint8( TE_BLOOD );
-                    gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-					const Vector3 planeNormal = tr.plane.normal;
-                    gi.WriteDir8( &planeNormal );
-                    gi.multicast( &tr.endpos, MULTICAST_PVS, false );
+				//if ( ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 ) {
+					if ( damage <= 5 ) {
+						Vector3 endPos = tr.endpos;
+						endPos += Vector3( tr.plane.normal ) * 0.5f;
+						SVG_TempEventEntity_Blood( endPos, tr.plane.normal, 14, 22 );
+					} else {
+						Vector3 endPos = tr.endpos;
+						endPos += Vector3( tr.plane.normal ) * 0.5f;
+						SVG_TempEventEntity_MoreBlood( endPos, tr.plane.normal, 8, 16 );
+					}
+     //               gi.WriteUint8( svc_temp_entity );
+     //               gi.WriteUint8( TE_BLOOD );
+     //               gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+					//const Vector3 planeNormal = tr.plane.normal;
+     //               gi.WriteDir8( &planeNormal );
+     //               gi.multicast( &tr.endpos, MULTICAST_PVS, false );
 
                     if ( self->client ) {
                         SVG_Player_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
                     }
-                }
+                //}
             }
 
         }
@@ -289,39 +299,33 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
 
         // See if we hit water.
         if ( tr.contents & CM_CONTENTMASK_LIQUID ) {
-            int32_t color = SPLASH_UNKNOWN;
+            // Splash type.
+            sg_entity_events_t splashType = EV_FX_SPLASH_UNKNOWN;
 
             // We are in water.
             water = true;
             // Copy the start point into the water start point.
             VectorCopy( tr.endpos, water_start );
 
+            // Determine the color of the splash.
+            if ( tr.contents & CONTENTS_WATER ) {
+                if ( strcmp( tr.surface->name, "*brwater" ) == 0 ) {
+                    splashType = EV_FX_SPLASH_WATER_BROWN;
+                } else {
+                    splashType = EV_FX_SPLASH_WATER_BLUE;
+                }
+            } else if ( tr.contents & CONTENTS_SLIME ) {
+                splashType = EV_FX_SPLASH_SLIME;
+            } else if ( tr.contents & CONTENTS_LAVA ) {
+                splashType = EV_FX_SPLASH_LAVA;
+            }
+
+            if ( splashType != EV_FX_SPLASH_UNKNOWN ) {
+				SVG_TempEventEntity_SplashParticles( tr.endpos, tr.plane.normal, splashType, 8, 16 );
+            }
+
             // If trace start != trace end pos.
             if ( !VectorCompare( start, tr.endpos ) ) {
-                // Determine the color of the splash.
-                if ( tr.contents & CONTENTS_WATER ) {
-                    if ( strcmp( tr.surface->name, "*brwater" ) == 0 ) {
-                        color = SPLASH_BROWN_WATER;
-                    } else {
-                        color = SPLASH_BLUE_WATER;
-                    }
-                } else if ( tr.contents & CONTENTS_SLIME ) {
-                    color = SPLASH_SLIME;
-                } else if ( tr.contents & CONTENTS_LAVA ) {
-                    color = SPLASH_LAVA;
-                }
-
-                if ( color != SPLASH_UNKNOWN ) {
-                    gi.WriteUint8( svc_temp_entity );
-                    gi.WriteUint8( TE_SPLASH );
-                    gi.WriteUint8( 8 );
-                    gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    const Vector3 planeNormal = tr.plane.normal;
-                    gi.WriteDir8( &planeNormal );
-                    gi.WriteUint8( color );
-                    gi.multicast( &tr.endpos, MULTICAST_PVS, false );
-                }
-
                 // Change bullet's course when it has entered enters water
                 VectorSubtract( end, start, dir );
                 QM_Vector3ToAngles( dir, &dir.x );
@@ -350,17 +354,20 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
             if ( tr.ent->takedamage ) {
                 SVG_DamageEntity( tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_BULLET, meansOfDeath );
             } else {
-                if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
-                    gi.WriteUint8( svc_temp_entity );
-                    gi.WriteUint8( te_impact );
-                    gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-                    const Vector3 planeNormal = tr.plane.normal;
-                    gi.WriteDir8( &planeNormal );
-                    gi.multicast( &tr.endpos, MULTICAST_PVS, false );
+                //if ( strncmp( tr.surface->name, "sky", 3 ) != 0 ) {
+				//if ( ( tr.surface->flags & CM_SURFACE_FLAG_SKY ) != 0 ) {
+					SVG_TempEventEntity_GunShot( tr.endpos, tr.plane.normal, te_impact, 28, 40 );
+					//gi.WriteUint8( svc_temp_entity );
+                    //gi.WriteUint8( te_impact );
+                    //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+                    //const Vector3 planeNormal = tr.plane.normal;
+                    //gi.WriteDir8( &planeNormal );
+                    //gi.multicast( &tr.endpos, MULTICAST_PVS, false );
 
-                    if ( self->client )
-                        SVG_Player_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
-                }
+					if ( self->client ) {
+						SVG_Player_PlayerNoise( self, tr.endpos, PNOISE_IMPACT );
+					}
+                //}
             }
         }
     }
@@ -380,11 +387,13 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
         VectorAdd( water_start, tr.endpos, pos );
         VectorScale( pos, 0.5f, pos );
 
-        gi.WriteUint8( svc_temp_entity );
-        gi.WriteUint8( TE_BUBBLETRAIL );
-        gi.WritePosition( &water_start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-        gi.multicast( &pos, MULTICAST_PVS, false );
+		svg_base_edict_t *tempEventEntity = SVG_TempEventEntity_TrailParticles( water_start, tr.endpos, EV_FX_TRAIL_BUBBLES01 );
+
+        //gi.WriteUint8( svc_temp_entity );
+        //gi.WriteUint8( TE_BUBBLETRAIL );
+        //gi.WritePosition( &water_start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        //gi.WritePosition( &tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        //gi.multicast( &pos, MULTICAST_PVS, false );
     }
 }
 
@@ -393,7 +402,7 @@ static void fire_lead(svg_base_edict_t *self, const Vector3 &start, const Vector
 *           pistols, rifles, etc....
 **/
 void fire_bullet(svg_base_edict_t *self, const vec3_t start, const vec3_t aimdir, const float damage, const float kick, const float hspread, const float vspread, const sg_means_of_death_t meansOfDeath ) {
-    fire_lead(self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
+    fire_lead(self, start, aimdir, damage, kick, EV_FX_IMPACT_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
 /**
@@ -403,7 +412,7 @@ void fire_shotgun(svg_base_edict_t *self, const vec3_t start, const vec3_t aimdi
     int     i;
 
     for (i = 0; i < count; i++)
-        fire_lead( self, start, aimdir, damage, kick, TE_GUNSHOT, hspread, vspread, meansOfDeath );
+        fire_lead( self, start, aimdir, damage, kick, EV_FX_IMPACT_GUNSHOT, hspread, vspread, meansOfDeath );
 }
 
 //static const bool SVG_ShouldPlayersCollideProjectile( svg_base_edict_t *self ) {

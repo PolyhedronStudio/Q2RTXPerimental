@@ -93,7 +93,8 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Entity Event Properties:
     **/
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, eventTime, SD_FIELD_TYPE_INT64 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, eventTime, SD_FIELD_TYPE_INT64 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, eventDuration, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, freeAfterEvent, SD_FIELD_TYPE_BOOL ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, unlinkAfterEvent, SD_FIELD_TYPE_BOOL ),
 
@@ -476,7 +477,7 @@ void svg_base_edict_t::DispatchBlockedCallback( svg_base_edict_t *other ) {
 /**
 *   @brief  Calls the 'touch' callback that is configured for this entity.
 **/
-void svg_base_edict_t::DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, cm_surface_t *surf ) {
+void svg_base_edict_t::DispatchTouchCallback( svg_base_edict_t *other, const cm_plane_t *plane, const cm_surface_t *surf ) {
     if ( touchCallbackFuncPtr ) {
         touchCallbackFuncPtr( this, other, plane, surf );
     }
@@ -533,26 +534,14 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     Base::Reset( retainDictionary );
     
     // Now, reset derived-class state.
-    IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
-    #if 0
-	// Make a copy of the base-class portion of this object.
-    Base baseCopy = *static_cast<Base *>( this );
-
-    // Create a value-initialized temporary and assign it to this object.
-    // This resets all derived members using their normal copy-assignment semantics.
-    // ( No vtable corruption because we're not destroying the object nor changing its type! ).
-    static svg_base_edict_t temp{};
-	// Assign to this object.
-    *this = temp;
-
-    // Now, restore base-class state produced by Base::Reset(...)
-    *static_cast<Base *>( this ) = baseCopy;
-    #endif
-
+	// IMPLEMENT_EDICT_RESET_BY_COPY_ASSIGNMENT( Super, SelfType, retainDictionary );
     #if 1
     /**
-    *   Reset all member variables to defaults. ( Avoid using memset because it corrupts vtable. )
+    *   Reset all member variables to defaults.
     **/
+    if ( !retainDictionary ) {
+        entityDictionary = nullptr; // We don't retain the dictionary in this implementation.
+    }
     spawn_count = 0;
     freetime = 0_ms;
     timestamp = 0_ms;
@@ -569,6 +558,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *   Entity Event Properties:
     **/
     eventTime = 0_ms;
+	eventDuration = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
     freeAfterEvent = false;
     unlinkAfterEvent = false;
     #else

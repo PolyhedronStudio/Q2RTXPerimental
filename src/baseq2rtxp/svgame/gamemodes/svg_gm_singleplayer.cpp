@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -191,7 +192,7 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     Vector3 spawn_origin = QM_Vector3Zero();
     Vector3 spawn_angles = QM_Vector3Zero();
     // Seek spawn 'spot' to position us on to.
-    if ( !game.mode->SelectSpawnPoint( static_cast<svg_player_edict_t *>( ent ), spawn_origin, spawn_angles ) ) {
+    if ( !game.mode->SelectSpawnPoint( ent, spawn_origin, spawn_angles ) ) {
         // <Q2RTXP>: WID: TODO: Warn or error out, or just ignore it like it used to?
     }
 
@@ -201,8 +202,8 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     svg_client_t *client = ent->client;
 
     // Assign the found spawnspot origin and angles.
-    VectorCopy( spawn_origin, ent->s.origin );
-    VectorCopy( spawn_origin, client->ps.pmove.origin );
+	ent->s.origin = spawn_origin;
+	client->ps.pmove.origin = spawn_origin;
 
     // Get persistent user info and store it into a buffer.
     char    userinfo[ MAX_INFO_STRING ];
@@ -280,6 +281,7 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 
     // Reset PlayerState values.
     client->ps = {
+        .clientNumber = (int16_t)clientNum,
         .eventSequence = eventSequence,
     };
 
@@ -675,12 +677,12 @@ void svg_gamemode_singleplayer_t::DamageEntity( svg_base_edict_t *targ, svg_base
 
     svg_client_t *client = targ->client;
 
-    // Default TE that got us was sparks.
-    int32_t te_sparks = TE_SPARKS;
-    // Special sparks for a bullet.
-    if ( damageFlags & DAMAGE_BULLET ) {
-        te_sparks = TE_BULLET_SPARKS;
-    }
+	// Default TE that got us was sparks.
+	sg_entity_events_t te_sparks = EV_FX_IMPACT_SPARKS;
+	// Special sparks for a bullet.
+	if ( damageFlags & DAMAGE_BULLET ) {
+		te_sparks = EV_FX_IMPACT_BULLET_SPARKS;
+	}
 
     // Bonus damage for suprising a monster.
     if ( !( damageFlags & DAMAGE_RADIUS ) && ( targ->svFlags & SVF_MONSTER )
@@ -739,7 +741,8 @@ void svg_gamemode_singleplayer_t::DamageEntity( svg_base_edict_t *targ, svg_base
     if ( ( targ->flags & FL_GODMODE ) && !( damageFlags & DAMAGE_NO_PROTECTION ) ) {
         take = 0;
         save = finalDamage;
-        SVG_SpawnDamage( te_sparks, point, normal, save );
+		//SVG_SpawnDamage( te_sparks, point, normal, save );
+		SVG_TempEventEntity_GunShot( point, normal, te_sparks );
     }
 
     // check for invincibility
@@ -764,9 +767,12 @@ void svg_gamemode_singleplayer_t::DamageEntity( svg_base_edict_t *targ, svg_base
     if ( take ) {
         if ( ( targ->svFlags & SVF_MONSTER ) || ( client ) ) {
             // SVG_SpawnDamage(TE_BLOOD, point, normal, take);
-            SVG_SpawnDamage( TE_BLOOD, point, dir, take );
-        } else
-            SVG_SpawnDamage( te_sparks, point, normal, take );
+            //SVG_SpawnDamage( TE_BLOOD, point, dir, take );
+			SVG_TempEventEntity_Blood( point, normal, take );
+        } else {
+            //SVG_SpawnDamage( te_sparks, point, normal, take );
+			SVG_TempEventEntity_GunShot( point, normal, te_sparks );
+		}
 
         targ->health = targ->health - take;
 

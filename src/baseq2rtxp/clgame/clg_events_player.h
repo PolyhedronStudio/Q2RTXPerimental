@@ -7,9 +7,6 @@
 ********************************************************************/
 #pragma once
 
-#include "shared/shared.h"
-#include "shared/player_state.h"
-
 
 
 /**

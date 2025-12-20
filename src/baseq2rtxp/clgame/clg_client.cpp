@@ -9,6 +9,7 @@
 #include "clgame/clg_local.h"
 #include "clgame/clg_client.h"
 #include "clgame/clg_eax.h"
+#include "clgame/clg_entities.h"
 #include "clgame/clg_hud.h"
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_predict.h"
@@ -20,9 +21,9 @@
 /**
 *	@brief	Called when the client state has moved into being active and the game begins.
 **/
-void PF_ClientBegin( void ) {
+void CLG_ClientBegin( void ) {
 	// Debug notify.
-	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientBegin\n" );
+	clgi.Print( PRINT_NOTICE, "[CLGame]: CLG_ClientBegin\n" );
 
 	if ( clgi.IsDemoPlayback() ) {
 		// init some demo things
@@ -31,15 +32,11 @@ void PF_ClientBegin( void ) {
 		// Set the initial client predicted state values.
 		game.predictedState.currentPs = clgi.client->frame.ps;
 		game.predictedState.lastPs = game.predictedState.currentPs;
-		//VectorCopy(cl.frame.ps.pmove.origin, cl.predictedState.view.origin);//VectorScale(cl.frame.ps.pmove.origin, 0.125f, cl.predicted_origin); // WID: float-movement
-		//VectorCopy(cl.frame.ps.pmove.velocity, cl.predictedState.view.velocity);//VectorScale(cl.frame.ps.pmove.velocity, 0.125f, cl.predicted_velocity); // WID: float-movement
-		// 
 		// Use predicted view angles if we're alive:
 		if ( clgi.client->frame.ps.pmove.pm_type < PM_DEAD ) { // OLD Q2PRO: enhanced servers don't send viewangles
 			CLG_PredictAngles();
-		// Otherwise, use whatever server provided.
+		// Otherwise, use whatever server provided:
 		} else {
-			// just use what server provided
 			game.predictedState.currentPs.viewangles = clgi.client->frame.ps.viewangles;
 			game.predictedState.lastPs.viewangles = clgi.client->frame.ps.viewangles;
 		}
@@ -47,12 +44,20 @@ void PF_ClientBegin( void ) {
 
 	// Reset local (view-)transitions.
 	game.predictedState.transition = {};
-	//cl.predictedState.time.height_changed = 0;
-	//cl.predictedState.time.step_changed = 0;
 
 	// Reset ground information.
 	game.predictedState.ground = {};
 	game.predictedState.liquid = {};
+
+	// Setup predicted player entity's refresh entity.
+	game.predictedEntity.refreshEntity = {
+		// Store the frame of the previous refresh entity iteration so it'll default to that.
+		.frame = game.predictedEntity.refreshEntity.frame,
+		//.oldframe = packetEntity->refreshEntity.oldframe,
+		.id = REFRESHENTITIY_RESERVED_PREDICTED_PLAYER,
+		// Restore bone poses cache pointer.
+		.bonePoses = game.predictedEntity.refreshEntity.bonePoses,
+	};
 
 	// Set the default environment reverb effect.
 	CLG_EAX_HardSetEnvironment( SOUND_EAX_EFFECT_DEFAULT );

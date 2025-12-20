@@ -38,10 +38,6 @@ const qboolean PF_ParseServerMessage( const int32_t serverMessage );
 **/
 const qboolean PF_SeekDemoMessage( const int32_t serverMessage );
 /**
-*	@brief	Parsess entity events.
-**/
-void PF_ParseEntityEvent( const int32_t entityNumber );
-/**
 *	@brief	Parses a clientinfo configstring.
 **/
 void PF_ParsePlayerSkin( char *name, char *model, char *skin, const char *s );

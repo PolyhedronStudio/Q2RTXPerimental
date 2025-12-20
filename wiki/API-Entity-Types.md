@@ -49,7 +49,7 @@ typedef enum sg_entity_type_e {
     ET_TELEPORT_TRIGGER,             // Teleporter trigger
     
     // Temporary Entity Events
-    ET_TEMP_ENTITY_EVENT,            // Base for temp entity events
+    ET_TEMP_EVENT_ENTITY,            // Base for temp entity events
     
     ET_MAX_SHAREDGAME_TYPES          // Maximum types
 } sg_entity_type_t;
@@ -254,14 +254,14 @@ void svg_func_door_t::CreateTrigger() {
 }
 ```
 
-### ET_TEMP_ENTITY_EVENT
+### ET_TEMP_EVENT_ENTITY
 
 **Usage:** One-time visual effects
 
 **Characteristics:**
 - Not a persistent entity
 - Used for temp entity events (impacts, explosions, etc.)
-- Calculated as: `ET_TEMP_ENTITY_EVENT + eventNum`
+- Calculated as: `ET_TEMP_EVENT_ENTITY + eventNum`
 
 ```cpp
 // This is handled automatically by temp entity system

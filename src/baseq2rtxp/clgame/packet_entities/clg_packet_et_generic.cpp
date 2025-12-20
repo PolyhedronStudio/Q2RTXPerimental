@@ -24,15 +24,15 @@ static const int32_t adjust_shell_fx( const int32_t renderfx ) {
 *
 *
 **/
-//void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+//void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
 ////    // Calculate RGB vector.
 ////    vec3_t rgb = { 1.f, 1.f, 1.f };
-////    rgb[ 0 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 0 ];
-////    rgb[ 1 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 1 ];
-////    rgb[ 2 ] = ( 1.0f / 255.f ) * newState->spotlight.rgb[ 2 ];
+////    rgb[ 0 ] = ( 1.0f / 255.f ) * nextState->spotlight.rgb[ 0 ];
+////    rgb[ 1 ] = ( 1.0f / 255.f ) * nextState->spotlight.rgb[ 1 ];
+////    rgb[ 2 ] = ( 1.0f / 255.f ) * nextState->spotlight.rgb[ 2 ];
 ////
 ////    // Extract light intensity from "frame".
-////    float lightIntensity = newState->spotlight.intensity;
+////    float lightIntensity = nextState->spotlight.intensity;
 ////
 ////    // Calculate the spotlight's view direction based on set euler angles.
 ////    vec3_t view_dir, right_dir, up_dir;
@@ -41,19 +41,19 @@ static const int32_t adjust_shell_fx( const int32_t renderfx ) {
 ////    // Add the spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
 ////    // Use the image based texture profile in case one is set.
 ////    #if 0
-////    if ( newState->image_profile ) {
+////    if ( nextState->image_profile ) {
 ////        qhandle_t spotlightPicHandle = R_RegisterImage( "flashlight_profile_01", IT_PIC, static_cast<imageflags_t>( IF_PERMANENT | IF_BILERP ) );
 ////        V_AddSpotLightTexEmission( refreshEntity->origin, view_dir, lightIntensity,
 ////            // TODO: Multiply the RGB?
 ////            rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
-////            newState->spotlight.angle_width, spotlightPicHandle );
+////            nextState->spotlight.angle_width, spotlightPicHandle );
 ////} else
 ////#endif
 ////    {
 ////        clgi.V_AddSpotLight( refreshEntity->origin, view_dir, lightIntensity,
 ////            // TODO: Multiply the RGB?
 ////            rgb[ 0 ] * 2, rgb[ 1 ] * 2, rgb[ 2 ] * 2,
-////            newState->spotlight.angle_width, newState->spotlight.angle_falloff );
+////            nextState->spotlight.angle_width, nextState->spotlight.angle_falloff );
 ////    }
 ////
 ////// Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
@@ -65,7 +65,7 @@ static const int32_t adjust_shell_fx( const int32_t renderfx ) {
 /**
 *   @brief  Animates the entity's frame for both brush as well as alias models.
 **/
-static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t entityFlags ) {
+static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const uint32_t entityFlags ) {
     // Brush models can auto animate their frames.
     int64_t autoanim = 2 * clgi.client->time / 1000;
 
@@ -78,7 +78,7 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
     } else if ( entityFlags & EF_ANIM_ALLFAST ) {
         refreshEntity->frame = clgi.client->time / BASE_FRAMETIME; // WID: 40hz: Adjusted. clgi.client->time / 100;
     } else {
-        refreshEntity->frame = newState->frame;
+        refreshEntity->frame = nextState->frame;
     }
 
     // Setup the old frame.
@@ -91,7 +91,7 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
             // TODO: must only do this on alias models
             // Don't do this for 'world' model?
     //if ( refreshEntity->model != 0 && packetEntity->last_frame != packetEntity->current_frame ) {
-    refreshEntity->model = ( clgi.client->model_draw[ newState->modelindex ] );
+    refreshEntity->model = ( clgi.client->model_draw[ nextState->modelindex ] );
 
     // Only do this for non-brush models, aka alias models.
     if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
@@ -120,13 +120,13 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
 /**
 *   @brief  Handles the 'lerping' of the packet and its corresponding refresh entity origins.
 **/
-static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // Step origin discretely, because the frames do the animation properly:
-    if ( newState->renderfx & RF_OLD_FRAME_LERP ) {
+    if ( nextState->renderfx & RF_OLD_FRAME_LERP ) {
         VectorCopy( packetEntity->current.origin, refreshEntity->origin );
         VectorCopy( packetEntity->current.old_origin, refreshEntity->oldorigin );  // FIXME
         // Interpolate start and end points for beams.
-    } else if ( newState->renderfx & RF_BEAM ) {
+    } else if ( nextState->renderfx & RF_BEAM ) {
         Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
         VectorCopy( cent_origin, refreshEntity->origin );
         Vector3 cent_old_origin = QM_Vector3Lerp( packetEntity->prev.old_origin, packetEntity->current.old_origin, clgi.client->lerpfrac );
@@ -134,7 +134,7 @@ static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refr
         // Default to lerp:
     } else {
         // If client entity, use predicted origin instead of Lerped:
-        if ( newState->number == clgi.client->clientNumber + 1 ) {
+        if ( nextState->number == clgi.client->clientNumber + 1 ) {
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->oldorigin );
             // Lerp Origin:
@@ -179,7 +179,7 @@ static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refr
 /**
 *   @brief  Handles the 'lerping' of the packet and its corresponding refresh entity angles.
 **/
-static void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t entityFlags, const float autorotate ) {
+static void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const int32_t entityFlags, const float autorotate ) {
     // For General Rotate: (Some bonus items auto-rotate.)
     if ( entityFlags & EF_ROTATE ) {  // some bonus items auto-rotate
         refreshEntity->angles[ 0 ] = 0;
@@ -187,7 +187,7 @@ static void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refr
         refreshEntity->angles[ 2 ] = 0;
 
     // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
-    } else if ( newState->number == clgi.client->clientNumber ) {//clgi.client->frame.ps.clientNumber + 1 ) {
+    } else if ( nextState->number == clgi.client->clientNumber ) {//clgi.client->frame.ps.clientNumber + 1 ) {
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
     // Reguler entity angle interpolation:
     } else {
@@ -197,20 +197,20 @@ static void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refr
 /**
 *   @brief  Sets the packet entity's render skin and modelindex 1 correctly.
 **/
-static void CLG_PacketEntity_SetModelAndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, int32_t &renderfx ) {
+static void CLG_PacketEntity_SetModelAndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, int32_t &renderfx ) {
     // Special treatment for ET_BEAM/RF_BEAM:
-    if ( newState->entityType == ET_BEAM || renderfx & RF_BEAM ) {
+    if ( nextState->entityType == ET_BEAM || renderfx & RF_BEAM ) {
         // the four beam colors are encoded in 32 bits of skinnum (hack)
         refreshEntity->alpha = 0.30f;
-        refreshEntity->skinnum = ( newState->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
+        refreshEntity->skinnum = ( nextState->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
         refreshEntity->model = 0;
         // Assume that this is thus not a beam, but an alias model entity instead:
     } else {
         // A client player model index.
-        if ( newState->modelindex == MODELINDEX_PLAYER ) {
+        if ( nextState->modelindex == MODELINDEX_PLAYER ) {
             // Parse and use custom player skin.
             refreshEntity->skinnum = 0;
-            clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+            clientinfo_t *ci = &clgi.client->clientinfo[ nextState->skinnum & 0xff ];
             refreshEntity->skin = ci->skin;
             refreshEntity->model = ci->model;
 
@@ -230,18 +230,18 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *packetEntity, entity_t 
             }
         // A regular alias entity model instead:
         } else {
-            refreshEntity->skinnum = newState->skinnum;
+            refreshEntity->skinnum = nextState->skinnum;
             refreshEntity->skin = 0;
-            refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
+            refreshEntity->model = clgi.client->model_draw[ nextState->modelindex ];
             //if ( refreshEntity->model == precache.models.laser || refreshEntity->model == precache.models.dmspot ) {
             //    renderfx |= RF_NOSHADOW;
             //}
         }
 
         // Allow skin override for remaster.
-        if ( renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
-            if ( newState->skinnum >= 0 && newState->skinnum < 512 ) {
-                refreshEntity->skin = clgi.client->image_precache[ newState->skinnum ];
+        if ( renderfx & RF_CUSTOMSKIN && (unsigned)nextState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
+            if ( nextState->skinnum >= 0 && nextState->skinnum < 512 ) {
+                refreshEntity->skin = clgi.client->image_precache[ nextState->skinnum ];
             }
             refreshEntity->skinnum = 0;
         }
@@ -250,14 +250,14 @@ static void CLG_PacketEntity_SetModelAndSkin( centity_t *packetEntity, entity_t 
 /**
 *   @brief  Sets the packet entity's render skin and modelindex 2 correctly.
 **/
-static void CLG_PacketEntity_SetModel2AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t entityFlags, int32_t &renderfx ) {
-    if ( newState->modelindex2 ) {
+static void CLG_PacketEntity_SetModel2AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const int32_t entityFlags, int32_t &renderfx ) {
+    if ( nextState->modelindex2 ) {
         // Client Entity Weapon Model:
-        if ( newState->modelindex2 == MODELINDEX_PLAYER ) {
+        if ( nextState->modelindex2 == MODELINDEX_PLAYER ) {
             // Fetch client info ID. (encoded in skinnum)
-            clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+            clientinfo_t *ci = &clgi.client->clientinfo[ nextState->skinnum & 0xff ];
             // Fetch weapon ID. (encoded in skinnum).
-            int32_t weaponModelIndex = ( newState->skinnum >> 8 ); // 0 is default weapon model
+            int32_t weaponModelIndex = ( nextState->skinnum >> 8 ); // 0 is default weapon model
             if ( weaponModelIndex < 0 || weaponModelIndex > precache.numViewModels - 1 ) {
                 weaponModelIndex = 0;
             }
@@ -276,7 +276,7 @@ static void CLG_PacketEntity_SetModel2AndSkin( centity_t *packetEntity, entity_t
             }
             // Regular 2nd model index.
         } else {
-            refreshEntity->model = clgi.client->model_draw[ newState->modelindex2 ];
+            refreshEntity->model = clgi.client->model_draw[ nextState->modelindex2 ];
         }
         // Add shell effect.
         if ( entityFlags & EF_COLOR_SHELL ) {
@@ -288,18 +288,18 @@ static void CLG_PacketEntity_SetModel2AndSkin( centity_t *packetEntity, entity_t
 /**
 *   @brief  Sets the packet entity's render skin and modelindex 3 correctly.
 **/
-static void CLG_PacketEntity_SetModel3AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t entityFlags, const int32_t base_entity_flags, int32_t &renderfx ) {
-    if ( newState->modelindex3 ) {
-        refreshEntity->model = clgi.client->model_draw[ newState->modelindex3 ];
+static void CLG_PacketEntity_SetModel3AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const int32_t entityFlags, const int32_t base_entity_flags, int32_t &renderfx ) {
+    if ( nextState->modelindex3 ) {
+        refreshEntity->model = clgi.client->model_draw[ nextState->modelindex3 ];
         clgi.V_AddEntity( refreshEntity );
     }
 }
 /**
 *   @brief  Sets the packet entity's render skin and modelindex 4 correctly.
 **/
-static void CLG_PacketEntity_SetModel4AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const int32_t entityFlags, const int32_t base_entity_flags, int32_t &renderfx ) {
-    if ( newState->modelindex4 ) {
-        refreshEntity->model = clgi.client->model_draw[ newState->modelindex4 ];
+static void CLG_PacketEntity_SetModel4AndSkin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const int32_t entityFlags, const int32_t base_entity_flags, int32_t &renderfx ) {
+    if ( nextState->modelindex4 ) {
+        refreshEntity->model = clgi.client->model_draw[ nextState->modelindex4 ];
         clgi.V_AddEntity( refreshEntity );
     }
 }
@@ -324,7 +324,7 @@ static void CLG_PacketEntity_ApplyShellEffects( uint32_t &entityFlags, int32_t &
 /**
 *   @brief  Adds trail entityFlags to the entity.
 **/
-static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const uint32_t entityFlags ) {
+static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const uint32_t entityFlags ) {
     // If no rotation flag is set, add specified trail flags.
     // WID: Why not? Let's just do this.
     //if ( entityFlags & ~EF_ROTATE ) {
@@ -335,9 +335,9 @@ static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t 
 }
 
 /**
-*	@brief	Will setup the refresh entity for the ET_GENERIC centity with the newState.
+*	@brief	Will setup the refresh entity for the ET_GENERIC centity with the nextState.
 **/
-void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // Base entity flags.
     int32_t base_entity_flags = 0;
 
@@ -345,19 +345,19 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     const float autorotate = QM_AngleMod( clgi.client->time * BASE_FRAMETIME_1000 );//AngleMod(clgi.client->time * 0.1f); // WID: 40hz: Adjusted.
 
     // Acquire the state's entityFlags, and render entityFlags.
-    uint32_t entityFlags = newState->entityFlags;
-    int32_t renderfx = newState->renderfx;
+    uint32_t entityFlags = nextState->entityFlags;
+    int32_t renderfx = nextState->renderfx;
 
     // Set refresh entity frame:
-    CLG_PacketEntity_AnimateFrame( packetEntity, refreshEntity, newState, entityFlags );
+    CLG_PacketEntity_AnimateFrame( packetEntity, refreshEntity, nextState, entityFlags );
     // Apply 'Shell' render entityFlags based on various entityFlags that are set:
     CLG_PacketEntity_ApplyShellEffects( entityFlags, renderfx );
     // Lerp entity origins:
-    CLG_PacketEntity_LerpOrigin( packetEntity, refreshEntity, newState );
+    CLG_PacketEntity_LerpOrigin( packetEntity, refreshEntity, nextState );
     // Set model and skin.
-    CLG_PacketEntity_SetModelAndSkin( packetEntity, refreshEntity, newState, renderfx );
+    CLG_PacketEntity_SetModelAndSkin( packetEntity, refreshEntity, nextState, renderfx );
     // Calculate Angles, lerp if needed:
-    CLG_PacketEntity_LerpAngles( packetEntity, refreshEntity, newState, entityFlags, autorotate );
+    CLG_PacketEntity_LerpAngles( packetEntity, refreshEntity, nextState, entityFlags, autorotate );
 
     // Render entityFlags (fullbright, translucent, etc)
     // In case of a shell entity, they are applied to it instead:
@@ -372,7 +372,7 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     base_entity_flags = 0; // WID: C++20: Make sure to however, reset it to 0.
 
     // In case of the state belonging to the frame's viewed client number:
-    if ( newState->number == clgi.client->frame.ps.clientNumber + 1 ) {
+    if ( nextState->number == clgi.client->frame.ps.clientNumber + 1 ) {
         // When not in third person mode:
         if ( !clgi.client->thirdPersonView ) {
             // If we're running RTX, we want the player entity to render for shadow/reflection reasons:
@@ -399,12 +399,12 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     }
 
     // Spotlight:
-    //if ( newState->entityFlags & EF_SPOTLIGHT ) {
-    //    CLG_PacketEntity_AddSpotlight( packetEntity, &refreshEntity, newState );
+    //if ( nextState->entityFlags & EF_SPOTLIGHT ) {
+    //    CLG_PacketEntity_AddSpotlight( packetEntity, &refreshEntity, nextState );
     //}
 
     // If set to invisible, skip:
-    if ( !newState->modelindex ) {
+    if ( !nextState->modelindex ) {
         goto skip;
     }
 
@@ -436,16 +436,16 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
     refreshEntity->skinnum = 0;
     refreshEntity->flags = base_entity_flags;
     refreshEntity->alpha = 0;
-    CLG_PacketEntity_SetModel2AndSkin( packetEntity, refreshEntity, newState, entityFlags, renderfx );
+    CLG_PacketEntity_SetModel2AndSkin( packetEntity, refreshEntity, nextState, entityFlags, renderfx );
     // Reset these:
     refreshEntity->flags = base_entity_flags;
     refreshEntity->alpha = 0;
     // #(3nd) Model Index:
-    CLG_PacketEntity_SetModel3AndSkin( packetEntity, refreshEntity, newState, entityFlags, base_entity_flags, renderfx );
+    CLG_PacketEntity_SetModel3AndSkin( packetEntity, refreshEntity, nextState, entityFlags, base_entity_flags, renderfx );
     // #(4nd) Model Index:
-    CLG_PacketEntity_SetModel4AndSkin( packetEntity, refreshEntity, newState, entityFlags, base_entity_flags, renderfx );
+    CLG_PacketEntity_SetModel4AndSkin( packetEntity, refreshEntity, nextState, entityFlags, base_entity_flags, renderfx );
     // Add automatic particle trails
-    CLG_PacketEntity_AddTrailEffects( packetEntity, refreshEntity, newState, entityFlags );
+    CLG_PacketEntity_AddTrailEffects( packetEntity, refreshEntity, nextState, entityFlags );
 
     // When the entity is skipped, copy over the origin 
 skip:

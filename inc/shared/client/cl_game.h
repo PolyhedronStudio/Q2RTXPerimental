@@ -82,6 +82,8 @@ typedef struct centity_s {
 	//! The last moment in time of when this entity was available in a snapshot.
 	int64_t snapShotTime;
 
+	//! Next entity state, to be used when updating to a new frame. Arrived from the last acknowledged packet.
+	//entity_state_t	next;
 	//! Current(and thus last acknowledged and received) entity state.
 	entity_state_t	current;
 	//! Previous entity state. Will always be valid, but might be just a copy of the current state.
@@ -132,6 +134,9 @@ typedef struct {
 	* 
 	**/
 	// Demo:
+	void ( *EmitDemoFrame )( void );
+	void ( *InitialDemoFrame )( void );
+	const qboolean( *IsDemoRecording )( void );
 	const qboolean ( *IsDemoPlayback )( void );
 	const uint64_t( *GetDemoFramesRead )( void );
 	const float( *GetDemoFileProgress )( void );
@@ -151,16 +156,6 @@ typedef struct {
 	const int64_t( *Netchan_GetOutgoingSequence )( void );
 	const int64_t( *Netchan_GetIncomingAcknowledged )( void );
 	const int64_t( *Netchan_GetDropped )( void );
-
-	/**
-	*
-	*	Clip Tracing:
-	*
-	**/
-	const cm_trace_t( *q_gameabi Trace )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *passEntity, const cm_contents_t contentmask );
-	const cm_trace_t( *q_gameabi Clip )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *clipEntity, const cm_contents_t contentmask );
-	const cm_contents_t( *q_gameabi PointContents )( const Vector3 *point );
-
 
 
 	/**
@@ -270,21 +265,21 @@ typedef struct {
 	*           A pointer to the 'special case for solid leaf' if number == -1
 	*           A pointer to the BSP Node that matched with 'number'.
 	**/
-	mnode_t *( *CM_NodeForNumber )( cm_t *cm, const int32_t number );
+	mnode_t *( *CM_NodeForNumber )( const int32_t number );
 	/**
 	*   @return The number that matched the node's pointer. -1 if node was a nullptr.
 	**/
-	const int32_t( *CM_NumberForNode )( cm_t *cm, mnode_t *node );
+	const int32_t( *CM_NumberForNode )( mnode_t *node );
 	/**
 	*   @return A pointer to nullleaf if there is no BSP model cached up.
 	*           A pointer to the BSP Leaf that matched with 'number'.
 	**/
-	mleaf_t *( *CM_LeafForNumber )( cm_t *cm, const int32_t number );
+	mleaf_t *( *CM_LeafForNumber )( const int32_t number );
 
 	/**
 	*   @return The number that matched the leaf's pointer. 0 if leaf was a nullptr.
 	**/
-	const int32_t( *CM_NumberForLeaf )( cm_t *cm, mleaf_t *leaf );
+	const int32_t( *CM_NumberForLeaf )( mleaf_t *leaf );
 	/**
 	*   @Return True if any leaf under headnode has a cluster that
 	*           is potentially visible
@@ -294,32 +289,60 @@ typedef struct {
 	/**
 	*   @brief  Set the portal nums matching portal to open/closed state.
 	**/
-	void ( *CM_SetAreaPortalState )( cm_t *cm, const int32_t portalnum, const bool open );
+	void ( *CM_SetAreaPortalState )( const int32_t portalnum, const bool open );
 	/**
 	*   @return False(0) if the portal nums matching portal is closed, true(1) otherwise.
 	**/
-	const int32_t ( *CM_GetAreaPortalState )( cm_t *cm, const int32_t portalnum );
+	const int32_t ( *CM_GetAreaPortalState )( const int32_t portalnum );
 	/**
 	*   @return True if the two areas are connected, false if not(or possibly blocked by a door for example.)
 	**/
-	const bool  ( *CM_AreasConnected )( cm_t *cm, const int32_t area1, const int32_t area2 );
+	const bool  ( *CM_AreasConnected )( const int32_t area1, const int32_t area2 );
 
 	/**
 	*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
 	*           given box occupies in the data structure.
 	**/
-	const int32_t ( *CM_BoxLeafs )( cm_t *cm, const vec3_t mins, const vec3_t maxs,	mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+	const int32_t ( *CM_BoxLeafs )( const vec3_t mins, const vec3_t maxs,	mleaf_t **list, const int32_t listsize, mnode_t **topnode );
 	/**
 	*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
 	*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
 	*           contains the box.
 	**/
-	const int32_t ( *CM_BoxLeafs_headnode )( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
+	const int32_t ( *CM_BoxLeafs_headnode )( const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
 	/**
 	*   @return The contents mask of all leafs within the absolute bounds.
 	**/
-	const cm_contents_t( *CM_BoxContents )( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
+	const cm_contents_t( *CM_BoxContents )( const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
 
+	/**
+	*   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t( *CM_BoxTrace )( const Vector3 *start, const Vector3 *end, const Vector3 *mins, const Vector3 *maxs, mnode_t *headNode, const cm_contents_t brushMask );
+	/**
+	*   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
+	**/
+	const cm_trace_t ( *CM_TransformedBoxTrace )( const Vector3 *start, const Vector3 *end,
+		const Vector3 *mins, const Vector3 *maxs,
+		mnode_t *headnode, const cm_contents_t brushMask,
+		const Vector3 *origin, const Vector3 *angles );
+	/**
+	*   @return The type of 'contents' at the given point.
+	**/
+	const cm_contents_t ( *CM_PointContents )( const Vector3 *point, mnode_t *headNode );
+	/**
+	*   @return The type of 'contents' at the given point.
+	**/
+	const cm_contents_t( *CM_TransformedPointContents )( const Vector3 *point, mnode_t *headnode, const Vector3 *origin, const Vector3 *angles );
+
+	/**
+	*   @return	Pointer to the collision model system's 'null' surface info.
+	**/
+	const cm_surface_t *( *CM_GetNullSurface )( void );
+	/**
+	*   @return	Pointer to the collision model system's 'default' material info.
+	**/
+	const cm_material_t *( *CM_GetDefaultMaterial )( void );
 
 	/**
 	*
@@ -336,6 +359,10 @@ typedef struct {
 	*   @return Pointer to the collision model system's 'null' entity key/pair.
 	**/
 	const cm_entity_t *( *CM_GetNullEntity )( void );
+	/**
+	*	@return	The hull node for the specified entity.
+	**/
+	mnode_t *( *GetEntityHullNode )( const centity_t *ent/*, const bool includeSolidTriggers = false */ );
 
 
 	/**
@@ -360,9 +387,11 @@ typedef struct {
 
 	/**
 	*
-	*	KeyButtons/KeyEvents:
+	*	Input System/Key Buttons/Key Events:
 	*
 	**/
+	//! Activates the input for the window.
+	void ( *ActivateInput )( void );
 	//! Register a button as being 'held down'.
 	void (* KeyDown )( keybutton_t *keyButton );
 	//! Register a button as being 'released'.
@@ -481,7 +510,7 @@ typedef struct {
 	*
 	**/
 	void ( *q_printf( 2, 3 ) Print )( print_type_t printlevel, const char *fmt, ... );
-	void ( *q_noreturn q_printf( 1, 2 ) Error )( const char *fmt, ... );
+	void ( *q_noreturn q_printf( 1, 2 ) Error )( error_type_t errorType, const char *fmt, ... );
 
 
 	/**
@@ -867,10 +896,6 @@ typedef struct {
 	**/
 	void ( *ClearState ) ( void );
 	/**
-	*	@brief	Called when the client state has moved into being active and the game begins.
-	**/
-	void ( *ClientBegin ) ( void );
-	/**
 	*	@brief	Called when the client state has moved into being properly connected to server.
 	**/
 	void ( *ClientConnected ) ( void );
@@ -906,6 +931,10 @@ typedef struct {
 	**/
 	void ( *PostSpawnEntities )( void );
 	/**
+	*	@return	The offset at which eType becomes an actual temporary event entity.
+	**/
+	const int32_t ( *GetTempEventEntityTypeOffset )( void );
+	/**
 	*   @brief  The sound code makes callbacks to the client for entitiy position
 	*           information, so entities can be dynamically re-spatialized.
 	**/
@@ -914,26 +943,26 @@ typedef struct {
 	*	@brief	Returns a qhandle_t to the loaded EAX reverb effect profile resource.
 	**/
 	qhandle_t ( *GetEAXBySoundOrigin )( const int32_t entityNumber, vec3_t origin );
-	/**
-	*	@brief	Parsess entity events.
-	**/
-	void ( *ParseEntityEvent )( const int32_t entityNumber );
+
+
 
 	/**
-	*	@brief	Called when a new frame has been received that contains an entity
-	*			which was not present in the previous frame.
+	*
+	*	Frames(Snapshots)
+	*
 	**/
-	void ( *EntityState_FrameEnter )( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
 	/**
-	*	@brief	Called when a new frame has been received that contains an entity
-	*			already present in the previous frame.
+	*   @brief  Prepares the client state for 'activation', also setting the predicted values
+	*           to those of the initially received first valid frame.
 	**/
-	void ( *EntityState_FrameUpdate )( centity_t *ent, const entity_state_t *state, const Vector3 *origin );
+	void ( *Frame_SetInitialServerFrame )( void );
 	/**
-	*   Determine whether the player state has to lerp between the current and old frame,
-	*   or snap 'to'.
+	*   @brief  Called after finished parsing the frame data. All entity states and the
+	*           player state will be transitioned and/or reset as needed, to make sure
+	*           the client has a proper view of the current server frame.
 	**/
-	void ( *PlayerState_Transition )( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv );
+	void ( *Frame_TransitionToNext )( void );
+
 
 
 	/**
@@ -958,7 +987,7 @@ typedef struct {
 	*           between our predicted state and the server returned state. In case
 	*           the margin is too high, snap back to server provided player state.
 	**/
-	void ( *CheckPredictionError )( const int64_t frameIndex, const int64_t commandIndex, struct client_movecmd_s *moveCommand );
+	void ( *CheckPredictionError )( );
 	//! Sets the predicted view angles.
 	void ( *PredictAngles )( void );
 	/**

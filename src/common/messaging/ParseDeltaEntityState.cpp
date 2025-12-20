@@ -54,9 +54,10 @@ const int32_t MSG_ReadEntityNumber( bool *remove, uint64_t *byteMask ) {
 **/
 void MSG_ParseDeltaEntity( const entity_state_t *from,
 						  entity_state_t *to,
-						  int            number,
-						  uint64_t       bits,
-						  msgEsFlags_t   flags ) {
+						  int32_t		number,
+						  uint64_t		bits,
+						  msgEsFlags_t	flags,
+						  int32_t		tempEntityOffset ) {
 	if ( !to ) {
 		Com_Error( ERR_DROP, "%s: NULL", __func__ );
 	}
@@ -82,17 +83,40 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 		return;
 	}
 
+	if ( bits & U_ENTITY_TYPE ) {
+		to->entityType = MSG_ReadUintBase128();
+	}
+
+	// Are we dealing with a temporary entity?
+	const bool isTempEventEntity = ( to->entityType - tempEntityOffset > 0 );
+
+	if ( bits & U_OTHER_ENTITY_NUMBER ) {
+		to->otherEntityNumber = MSG_ReadIntBase128();
+	}
+
 	//if ( bits & U_CLIENT ) {
 	//	to->client = MSG_ReadInt16();
 	//}
-	if ( bits & U_ORIGIN1 ) {
-		to->origin[ 0 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement 
-	}
-	if ( bits & U_ORIGIN2 ) {
-		to->origin[ 1 ] = MSG_ReadFloat( );// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
-	}
-	if ( bits & U_ORIGIN3 ) {
-		to->origin[ 2 ] = MSG_ReadFloat( ); // SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
+	if ( isTempEventEntity ) {
+		if ( bits & U_ORIGIN1 ) {
+			to->origin[ 0 ] = MSG_ReadTruncatedFloat();// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement 
+		}
+		if ( bits & U_ORIGIN2 ) {
+			to->origin[ 1 ] = MSG_ReadTruncatedFloat();// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
+		}
+		if ( bits & U_ORIGIN3 ) {
+			to->origin[ 2 ] = MSG_ReadTruncatedFloat(); // SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
+		}
+	} else {
+		if ( bits & U_ORIGIN1 ) {
+			to->origin[ 0 ] = MSG_ReadFloat();// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement 
+		}
+		if ( bits & U_ORIGIN2 ) {
+			to->origin[ 1 ] = MSG_ReadFloat();// SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
+		}
+		if ( bits & U_ORIGIN3 ) {
+			to->origin[ 2 ] = MSG_ReadFloat(); // SHORT2COORD( MSG_ReadInt16( ) ); // WID: float-movement
+		}
 	}
 
 	if ( bits & U_ANGLE1 ) {
@@ -106,9 +130,15 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 
 	if ( bits & U_OLDORIGIN ) {
-		to->old_origin[ 0 ] = MSG_ReadFloat( );
-		to->old_origin[ 1 ] = MSG_ReadFloat( );
-		to->old_origin[ 2 ] = MSG_ReadFloat( );
+		if ( isTempEventEntity ) {
+			to->old_origin[ 0 ] = MSG_ReadTruncatedFloat();
+			to->old_origin[ 1 ] = MSG_ReadTruncatedFloat();
+			to->old_origin[ 2 ] = MSG_ReadTruncatedFloat();
+		} else {
+			to->old_origin[ 0 ] = MSG_ReadFloat();
+			to->old_origin[ 1 ] = MSG_ReadFloat();
+			to->old_origin[ 2 ] = MSG_ReadFloat();
+		}
 	}
 
 	if ( bits & U_MODEL ) {
@@ -122,13 +152,6 @@ void MSG_ParseDeltaEntity( const entity_state_t *from,
 	}
 	if ( bits & U_MODEL4 ) {
 		to->modelindex4 = QM_Clamp<int32_t>( MSG_ReadUintBase128(), 0, MAX_MODELS ); //to->modelindex4 = MSG_ReadUintBase128( );
-	}
-
-	if ( bits & U_ENTITY_TYPE ) {
-		to->entityType = MSG_ReadUintBase128();
-	}
-	if ( bits & U_OTHER_ENTITY_NUMBER ) {
-		to->otherEntityNumber = MSG_ReadIntBase128();
 	}
 
 	if ( bits & U_FRAME ) {

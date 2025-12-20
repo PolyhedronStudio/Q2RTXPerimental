@@ -180,6 +180,7 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
     #include "shared/math/qm_math_c.h"
 #endif // #ifdef __cplusplus
 
+
 //! Color Index Table:
 #include "shared/color_index_table.h"
 
@@ -196,6 +197,8 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #include "shared/util/util_halffloat.h"
 //! List Utility:
 #include "shared/util/util_list.h"
+//! Packed Bounds Utility:
+#include "shared/util/util_packed_bounds.h"
 //! String Utilities:
 #include "shared/util/util_strings.h"
 
@@ -270,6 +273,7 @@ typedef enum sector_area_s {
 #include "shared/entities/entity_types.h"
 //! Entity State:
 #include "shared/entities/entity_state.h"
+
 //! Gamemode Flags: (TODO: Move into sharedgame and do per gamemode.?)
 #include "shared/gamemode_flags.h"
 
@@ -331,7 +335,7 @@ typedef enum {
 *	Player State:
 **/
 //#ifdef __cplusplus
-    #include "shared/player_state.h"
+#include "shared/player_state.h"
 //#endif // #ifdef __cplusplus
 
 /**

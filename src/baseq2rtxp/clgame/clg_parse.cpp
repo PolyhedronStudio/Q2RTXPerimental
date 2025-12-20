@@ -63,19 +63,19 @@ static void CLG_ParseTEntPacket( void ) {
     level.parsedMessage.events.tempEntity.type = clgi.MSG_ReadUint8();
 
     switch ( level.parsedMessage.events.tempEntity.type ) {
-    case TE_BLOOD:
-    case TE_GUNSHOT:
-    case TE_SPARKS:
-    case TE_BULLET_SPARKS:
+    //case TE_BLOOD:
+    //case TE_GUNSHOT:
+    //case TE_SPARKS:
+    //case TE_BULLET_SPARKS:
     case TE_HEATBEAM_SPARKS:
     case TE_HEATBEAM_STEAM:
-    case TE_MOREBLOOD:
+    //case TE_MOREBLOOD:
     case TE_ELECTRIC_SPARKS:
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
             clgi.MSG_ReadDir8( level.parsedMessage.events.tempEntity.dir );
         break;
 
-    case TE_SPLASH:
+//    case TE_SPLASH:
     case TE_LASER_SPARKS:
     case TE_WELDING_SPARKS:
     case TE_TUNNEL_SPARKS:
@@ -84,23 +84,23 @@ static void CLG_ParseTEntPacket( void ) {
             clgi.MSG_ReadDir8( level.parsedMessage.events.tempEntity.dir );
             level.parsedMessage.events.tempEntity.color = clgi.MSG_ReadUint8();
         break;
-
+	#if 0
     case TE_BUBBLETRAIL:
     case TE_DEBUGTRAIL:
     case TE_BUBBLETRAIL2:
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         break;
-
+	#endif
     case TE_PLAIN_EXPLOSION:
     case TE_TELEPORT_EFFECT:
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         break;
 
-    case TE_FLASHLIGHT:
-            clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-            level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
-        break;
+    //case TE_FLASHLIGHT:
+    //        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //        level.parsedMessage.events.tempEntity.entity1 = clgi.MSG_ReadInt16();
+    //    break;
 
 
     case TE_STEAM:
@@ -456,22 +456,6 @@ const qboolean PF_SeekDemoMessage( const int32_t serverMessage ) {
     }
 
     return false;
-}
-
-
-/**
-*	@brief	Parsess entity events.
-**/
-void CLG_ParseEntityEvent( const int32_t entityNumber ) {
-    if ( entityNumber < 0 || entityNumber >= MAX_ENTITIES ) {
-        clgi.Print( PRINT_WARNING, "PF_ParseEntityEvent: invalid range(%d) variable 'entityNumber'\n", entityNumber );
-        return;
-    }
-
-    // Get the entity.
-    centity_t *cent = &clg_entities[ entityNumber ];//centity_t *cent = &cl_entities[number];
-    // Check for events.
-    CLG_Events_CheckForEntity( cent );
 }
 
 

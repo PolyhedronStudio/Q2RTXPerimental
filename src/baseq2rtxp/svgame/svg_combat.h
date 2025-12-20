@@ -145,9 +145,9 @@ const bool SVG_OnSameTeam( svg_base_edict_t *ent1, svg_base_edict_t *ent2 );
 **/
 const bool SVG_CheckTeamDamage( svg_base_edict_t *targ, svg_base_edict_t *attacker );
 /**
-*   @brief  
+*   @brief	Will
 **/
-void SVG_SpawnDamage( const int32_t type, const Vector3 &origin, const Vector3 &normal, const int32_t damage );
+void SVG_SpawnDamage( const sg_entity_events_t type, const Vector3 &origin, const Vector3 &normal, const int32_t damage );
 /**
 *   @brief  This function is used to apply damage to an entity.
 *           It handles the damage calculation, knockback, and any special

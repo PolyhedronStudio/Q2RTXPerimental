@@ -39,24 +39,24 @@
 /**
 *   @brief  Player Move specific 'Trace' wrapper implementation.
 **/
-static const cm_trace_t q_gameabi SV_PM_Trace( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const void *passEntity, const cm_contents_t contentMask ) {
+static const cm_trace_t q_gameabi SV_PM_Trace( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const void *passEntity, const cm_contents_t contentMask ) {
     //if (pm_passent->health > 0)
     //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_PLAYERSOLID);
     //else
     //    return SVG_Trace(start, mins, maxs, end, pm_passent, CM_CONTENTMASK_DEADSOLID);
-    return gi.trace( start, mins, maxs, end, (svg_base_edict_t *)passEntity, contentMask );
+    return gi.trace( &start, mins, maxs, &end, (svg_base_edict_t *)passEntity, contentMask );
 }
 /**
 *   @brief  Player Move specific 'Clip' wrapper implementation. Clips to world only.
 **/
-static const cm_trace_t q_gameabi SV_PM_Clip( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentMask ) {
-    return gi.clip( g_edict_pool.EdictForNumber( 0 ) /* worldspawn */, start, mins, maxs, end, contentMask);
+static const cm_trace_t q_gameabi SV_PM_Clip( const Vector3 &start, const Vector3 *mins, const Vector3 *maxs, const Vector3 &end, const cm_contents_t contentMask ) {
+    return gi.clip( g_edict_pool.EdictForNumber( 0 ) /* worldspawn */, &start, mins, maxs, &end, contentMask);
 }
 /**
 *   @brief  Player Move specific 'PointContents' wrapper implementation.
 **/
-static const cm_contents_t q_gameabi SV_PM_PointContents( const Vector3 *point ) {
-    return gi.pointcontents( point );
+static const cm_contents_t q_gameabi SV_PM_PointContents( const Vector3 &point ) {
+    return gi.pointcontents( &point );
 }
 
 
@@ -278,14 +278,14 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
         const double stepsize = fabs( ent->s.origin[ 2 ] - pm->state->pmove.origin[ 2 ] );
         if ( stepsize > PM_STEP_MIN_SIZE && stepsize <= PM_STEP_MAX_SIZE ) {
             ent->s.renderfx |= RF_STAIR_STEP;
-            ent->client->last_stair_step_frame = gi.GetServerFrameNumber() + 1;
+            ent->client->last_stair_step_frame = level.frameNumber;
         }
     }
 }
 /**
 *   @brief  Copy in the remaining player move data into the entity and client structs, responding to possible changes.
 **/
-static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
+static void PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
     // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
     if ( ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
         client->last_ladder_pos = ent->s.origin;
@@ -301,7 +301,7 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
     }
 
     // [Paril-KEX] save old position for PMove_ProcessTouchTraces
-    const Vector3 oldOrigin = ent->s.origin;
+    //const Vector3 oldOrigin = ent->s.origin;
 
     // Copy back into the entity, both the resulting origin and velocity.
     // <Q2RTXP>: WID: We do this before processing touches instead to prevent collision issues.
@@ -323,7 +323,11 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
         // Update link count.
         if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
             svg_base_edict_t *groundEnt = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
-            ent->groundInfo.entityLinkCount = groundEnt->linkCount;
+            if ( groundEnt ) {
+                ent->groundInfo.entityLinkCount = groundEnt->linkCount;
+            } else {
+                ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+            }
         }
     #else
         // Store all player move liquid info into the entity 'monster move' (fake name here) properties.
@@ -360,9 +364,6 @@ static const Vector3 PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *cli
             &client->viewMove.viewUp 
         );
     }
-
-    // Return the oldOrigin for later use.
-    return oldOrigin;
 }
 
 /**
@@ -378,7 +379,7 @@ static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *cli
 
     // <Q2RTXP>: WID: We do this here to prevent collision issues.
     // Copy back into the entity, both the resulting origin.
-    ent->s.origin = pm.state->pmove.origin;
+    //ent->s.origin = pm.state->pmove.origin;
 
 	// Relink the entity now that its position has been updated.
     gi.linkentity( ent );
@@ -495,7 +496,7 @@ static void Client_PlayerThink( svg_player_edict_t *ent, svg_client_t *client, u
 **/
 void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
     // Set the entity that is being processed.
-    level.current_entity = ent;
+    level.processingEntity = ent;
 
     // Warn in case if it is not a client.
     if ( !ent ) {
@@ -543,7 +544,6 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
     const bool isInIntermission = ClientCheckForIntermission( player_ent, client );
     // Exit.
     if ( isInIntermission ) {
-
         return;
     }
 

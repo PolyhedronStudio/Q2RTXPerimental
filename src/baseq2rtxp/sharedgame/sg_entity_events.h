@@ -13,77 +13,6 @@
 *
 *
 *
-*   Entity Event Bit Flags:
-*
-*
-*
-**/
-//! The two bits at the top of the entityState->event field
-//! will be incremented with each change in the event. So
-//! that an identical event started twice in a row, can be 
-//! distinguished from the first fired event. 
-//!
-//! To get the actual event value,off it with the value with ~EV_EVENT_BITS
-static constexpr int32_t EV_EVENT_BIT1 = BIT( 8 ); // 0x00000100;// BIT( 0 ); // OLD: 0x00000100
-static constexpr int32_t EV_EVENT_BIT2 = BIT( 9 ); // 0x00000200;// BIT( 1 ); // OLD: 0x00000200
-static constexpr int32_t EV_EVENT_BITS = ( EV_EVENT_BIT1 | EV_EVENT_BIT2 );
-
-/**
-*   @return The actual event ID value by offing the given event value with EV_EVENT_BITS.
-**/
-static inline int32_t SG_GetEntityEventValue( const int32_t eventValue ) {
-    return ( eventValue & ~EV_EVENT_BITS );
-}
-
-/**
-*
-*	Reasoning from AI to use 300ms for EVENT_VALID_MSEC at 40hz tickrate:
-*
-*	For a 40hz tickrate, I would recommend keeping the 300ms value because :
-*
-*	1. The event validity window needs to account for :
-*		-Network latency( typically 30 - 100ms )
-*		- Packet loss recovery( 1 - 2 frames )
-*		- Event execution and visualization time
-*		- Client / server state synchronization
-*
-*		2. Even though your tickrate is higher( 40hz vs original 20hz ) :
-*		- Events still need similar real - world time to play out( animations, sounds, effects )
-*		- Network conditions haven't fundamentally changed
-*		- Many events( like teleports, death animations, weapon switches ) take multiple frames
-
-*		3. If you reduced it proportionally to 150ms( 6 frames at 40hz ) :
-*		- Events might get cut off before completing
-*		- Network jitter could cause more event drops
-*		- Visual / audio synchronization could break
-*		- Complex event chains might fail
-*
-*	Therefore, I recommend keeping `EVENT_VALID_MSEC` at 300ms even at 40hz.The higher tickrate
-*	will give you better movement and hit detection, but event validity timing is more about
-*	real - world considerations( network, animations, human perception ) than pure engine tickrate.
-*
-*	If you really want to optimize it, you could potentially reduce it to 250ms( 10 frames ),
-*	but I wouldn't go lower than that without extensive testing of all event types under various network conditions.
-**/
-/**
-*   <Q2RTXP>: We can change this value as we want, because we still have an acknowledgement system
-*             in-place for the frame we send the event in, so the client will always get the event 
-*             even if there is some packet loss.
-* 
-*             However, to keep things feeling responsive, we can reduce this value to 150ms at 40hz tickrate, 
-*             which should still be sufficient for our network conditions while improving responsiveness.
-*             
-*             (It remains at 6 frames duration at 40hz tickrate using 150ms.)
-**/
-//! Time in milliseconds that an entity event will be considered valid.
-static constexpr int32_t EVENT_VALID_MSEC = 150; // Original: 300ms at 20hz tickrate.
-
-
-
-/**
-*
-*
-*
 *   Entity Events:
 *
 *
@@ -114,21 +43,21 @@ typedef enum sg_entity_events_e {
     /**
 	*   Water (Footstep-)Splash Events:
     **/
-	//! For when the feet touch water.
-	EV_WATER_ENTER_FEET, // Also plays a possible footstep sound.
-	//! For when deep diving in water.
-	EV_WATER_ENTER_WAIST,
-	//! For when the head goes underwater.
+	    //! For when the feet touch water.
+    EV_WATER_ENTER_FEET, // Also plays a possible footstep sound.
+    //! For when deep diving in water.
+    EV_WATER_ENTER_WAIST,
+    //! For when the head goes underwater.
     EV_WATER_ENTER_HEAD,
-	//! For when the feet leave water.
+    //! For when the feet leave water.
     EV_WATER_LEAVE_FEET,
-	//! For when waist leaves water.
+    //! For when waist leaves water.
     EV_WATER_LEAVE_WAIST,
-	//! For when head leaves water.
+    //! For when head leaves water.
     EV_WATER_LEAVE_HEAD,
 
     /**
-    *   Player/(Humanoid-)Monster Events:   
+    *   Player/(Humanoid-)Monster Events:
     **/
     //! For when jumping up.
     EV_JUMP_UP,
@@ -161,7 +90,7 @@ typedef enum sg_entity_events_e {
     EV_WEAPON_DRAW,
     //! Holster Weapon.
     EV_WEAPON_HOLSTER,
-    
+
     //!
     //! The maximum predictable player events.
     //! 
@@ -177,7 +106,7 @@ typedef enum sg_entity_events_e {
     //! Player teleporting.
     EV_PLAYER_TELEPORT, // <Q2RTXP>: TODO: PS_EV_MAX? Or... just use these for PS_EV_...
 
-	//! Other entity teleporting.
+    //! Other entity teleporting.
     EV_OTHER_TELEPORT,
 
     /**
@@ -186,23 +115,72 @@ typedef enum sg_entity_events_e {
     EV_ITEM_RESPAWN,
 
 
+    /******************************************
+    *   Temporary (EXTERNAL)-Entity Events:
+    *
+    *   (Can be spawned too instead of being latched on to an entity, as they will be created as an entity of their own.)
+    *******************************************/
     /**
-	*   Temporary EXTERNAL -Entity Events:
-    * 
-    *   (Thus not meant to be latched on to an entity, as they will be created as an entity of their own.)
+    *	Sound Events:
     **/
-	//! General sound event for entities, play a sound on the (client's-) entity playing on the specified channel.
+    //! General sound event for entities, play a sound on the (client's-) entity playing on the specified channel.
     EV_GENERAL_SOUND,
-	//! Same as EV_GENERAL_SOUND but with attenuation parameter.
+    //! Same as EV_GENERAL_SOUND but with attenuation parameter.
     EV_GENERAL_SOUND_EX,
     //! Positioned sound event for entities, play a sound at the designated position, or
-	//! at the entity's origin if used with an entity. The sound will remain persistent at
+    //! at the entity's origin if used with an entity. The sound will remain persistent at
     //! said position.
-	EV_POSITIONED_SOUND,
-	//! Global sound event, will play at a client's head so the sound is not attenuated. (No diminishing.)
-	EV_GLOBAL_SOUND,
+    EV_POSITIONED_SOUND,
+    //! Global sound event, will play at a client's head so the sound is not attenuated. (No diminishing.)
+    EV_GLOBAL_SOUND,
 
-	//! Maximum number of entity events, must be last.
+	/**
+	*	"Blood/Damage/Hurt/Pain" Particle Events:
+	**/
+	//! A "proper" blood impact
+	EV_FX_BLOOD,
+	//! A "proper" MORE blood impact.
+	EV_FX_MORE_BLOOD,
+
+	/**
+	*   "Impact" Particle Events:
+	**/
+	//! Gunshot impact effects/sparks.
+	EV_FX_IMPACT_GUNSHOT,
+	EV_FX_IMPACT_SPARKS,
+	EV_FX_IMPACT_BULLET_SPARKS,
+
+    /**
+    *   "Splash" Particle Events:
+    **/
+    //! Unknown splash type effect.
+    EV_FX_SPLASH_UNKNOWN,
+    //! Spark splash effect.
+    EV_FX_SPLASH_SPARKS,
+    //! A blue water splash effect.
+    EV_FX_SPLASH_WATER_BLUE,
+    //! A blue water splash effect.
+    EV_FX_SPLASH_WATER_BROWN,
+    //! A green slime splash effect.
+    EV_FX_SPLASH_SLIME,
+    //! A red lava splash effect.
+    EV_FX_SPLASH_LAVA,
+    //! A red blood splash effect.
+    EV_FX_SPLASH_BLOOD,
+
+	/**
+	*	"Trail" Particle Events:
+	**/
+	//! Bubble trail effect 01.
+	EV_FX_TRAIL_BUBBLES01,
+	//! Bubble trail effect 02. CLG_FX_BubbleTrail2 (lets you control the # of bubbles by setting the distance between the spawns).
+	EV_FX_TRAIL_BUBBLES02,
+	//! For debugging purposes.
+	EV_FX_TRAIL_DEBUG_LINE,
+
+    /**
+    *   Maximum number of entity events, must be last.
+    **/
     EV_GAME_MAX
 } sg_entity_events_t;
 
@@ -220,52 +198,163 @@ typedef enum sg_entity_events_e {
 static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
     "EV_ENGINE_NONE",
 
+    /**
+    *   Footstep Events:
+    **/
     #if 1
+    //! For players.
     "EV_PLAYER_FOOTSTEP",
-	"EV_OTHER_FOOTSTEP",
+	//! For other entities.
+    "EV_OTHER_FOOTSTEP",
     #else
-    "EV_FOOTSTEP",
+    //! For players and monsters.
+    EV_FOOTSTEP = EV_ENGINE_MAX,
     #endif
+	//! For ladder climbing entities.
     "EV_FOOTSTEP_LADDER",
 
-	"EV_WATER_ENTER_FEET",
-	"EV_WATER_ENTER_WAIST",
-	"EV_WATER_ENTER_HEAD",
+    /**
+	*   Water (Footstep-)Splash Events:
+    **/
+	    //! For when the feet touch water.
+    "EV_WATER_ENTER_FEET", // Also plays a possible footstep sound.
+    //! For when deep diving in water.
+    "EV_WATER_ENTER_WAIST",
+    //! For when the head goes underwater.
+    "EV_WATER_ENTER_HEAD",
+    //! For when the feet leave water.
+    "EV_WATER_LEAVE_FEET",
+    //! For when waist leaves water.
+    "EV_WATER_LEAVE_WAIST",
+    //! For when head leaves water.
+    "EV_WATER_LEAVE_HEAD",
 
-	"EV_WATER_LEAVE_FEET",
-	"EV_WATER_LEAVE_WAIST",
-	"EV_WATER_LEAVE_HEAD",
-
+    /**
+    *   Player/(Humanoid-)Monster Events:
+    **/
+    //! For when jumping up.
     "EV_JUMP_UP",
+    //! Or Fall, FallShort, FallFar??
     "EV_JUMP_LAND",
 
+    //! "Short" Fell to the ground.
     "EV_FALL_SHORT",
+    //! "Short" fall to the ground.
     "EV_FALL_MEDIUM",
+    // "Hard Far" fall to the ground.
     "EV_FALL_FAR",
 
 
+    //
+    // External Events:
+    //
+    //! Reload Weapon.
     "EV_WEAPON_RELOAD",
+    //! Weapon Primary Fire.
     "EV_WEAPON_PRIMARY_FIRE",
+    //! Weapon Secondary Fire.
     "EV_WEAPON_SECONDARY_FIRE",
+
+    //! Weapon Holster/Draw:
     "EV_WEAPON_HOLSTER_AND_DRAW",
 
+    // TODO: We really do wanna split weapon draw and holstering, but, alas, lack animation skills.
+    //! Draw Weapon.
     "EV_WEAPON_DRAW",
+    //! Holster Weapon.
     "EV_WEAPON_HOLSTER",
 
+    //!
+    //! The maximum predictable player events.
+    //! 
     "PS_EV_MAX",
 
+    /**
+    *   Teleport Effects:
+    **/
+    //! Player Login.
     "EV_PLAYER_LOGIN",
+    //! Player Logout.
     "EV_PLAYER_LOGOUT",
+    //! Player teleporting.
+    "EV_PLAYER_TELEPORT", // <Q2RTXP>: TODO: PS_EV_MAX? Or... just use these for PS_EV_...
 
-    "EV_PLAYER_TELEPORT",
+    //! Other entity teleporting.
     "EV_OTHER_TELEPORT",
 
+    /**
+    *   Item Events:
+    **/
     "EV_ITEM_RESPAWN",
 
-	"EV_GENERAL_SOUND",
-	"EV_GENERAL_SOUND_EX",
+
+    /******************************************
+    *   Temporary (EXTERNAL)-Entity Events:
+    *
+    *   (Can be spawned too instead of being latched on to an entity, as they will be created as an entity of their own.)
+    *******************************************/
+    /**
+    * Sound Events:
+    **/
+    //! General sound event for entities, play a sound on the (client's-) entity playing on the specified channel.
+    "EV_GENERAL_SOUND",
+    //! Same as EV_GENERAL_SOUND but with attenuation parameter.
+    "EV_GENERAL_SOUND_EX",
+    //! Positioned sound event for entities, play a sound at the designated position, or
+    //! at the entity's origin if used with an entity. The sound will remain persistent at
+    //! said position.
     "EV_POSITIONED_SOUND",
-	"EV_GLOBAL_SOUND",
+    //! Global sound event, will play at a client's head so the sound is not attenuated. (No diminishing.)
+    "EV_GLOBAL_SOUND",
+
+	/**
+	*	"Blood/Damage/Hurt/Pain" Particle Events:
+	**/
+	//! A "proper" blood impact
+	"EV_FX_BLOOD",
+	//! A "proper" MORE blood impact.
+	"EV_FX_MORE_BLOOD",
+
+	/**
+	*   "Impact" Particle Events:
+	**/
+	//! Gunshot impact effects/sparks.
+	"EV_FX_IMPACT_GUNSHOT",
+	"EV_FX_IMPACT_SPARKS",
+	"EV_FX_IMPACT_BULLET_SPARKS",
+
+	/**
+	*   "Splash" Particle Events:
+	**/
+    //! Unknown splash type effect.
+	"EV_FX_SPLASH_UNKNOWN",
+    //! Spark splash effect.
+	"EV_FX_SPLASH_SPARKS",
+    //! A blue water splash effect.
+	"EV_FX_SPLASH_WATER_BLUE",
+    //! A blue water splash effect.
+	"EV_FX_SPLASH_WATER_BROWN",
+    //! A green slime splash effect.
+	"EV_FX_SPLASH_SLIME",
+    //! A red lava splash effect.
+	"EV_FX_SPLASH_LAVA",
+    //! A red blood splash effect.
+	"EV_FX_SPLASH_BLOOD",
+
+	/**
+	*	"Trail" Particle Events:
+	**/
+	//! Bubble trail effect 01.
+	"EV_FX_TRAIL_BUBBLES01",
+	//! Bubble trail effect 02. (Also plays a sound.)
+	"EV_FX_TRAIL_BUBBLES02",
+	//! For debugging purposes.
+	"EV_FX_TRAIL_DEBUG_LINE",
+
+    /**
+    *   Maximum number of entity events, must be last.
+    **/
+    //"EV_GAME_MAX"
 };
 
 /**

@@ -11,10 +11,10 @@
 #include "clgame/clg_temp_entities.h"
 
 /**
-*	@brief	Will setup the refresh entity for the ET_BEAM centity with the newState.
+*	@brief	Will setup the refresh entity for the ET_BEAM centity with the nextState.
 **/
-void CLG_PacketEntity_AddBeam( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    refreshEntity->frame = newState->frame;
+void CLG_PacketEntity_AddBeam( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
+    refreshEntity->frame = nextState->frame;
     // Setup the old frame.
     refreshEntity->oldframe = packetEntity->prev.frame;
     // Backlerp.
@@ -24,9 +24,9 @@ void CLG_PacketEntity_AddBeam( centity_t *packetEntity, entity_t *refreshEntity,
     refreshEntity->model = 0;
     // The four beam colors are encoded in 32 bits of skinnum.
     refreshEntity->alpha = 0.30f;
-    refreshEntity->skinnum = ( newState->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
+    refreshEntity->skinnum = ( nextState->skinnum >> ( ( irandom( 4 ) ) * 8 ) ) & 0xff;
 
-    refreshEntity->flags = RF_BEAM | newState->renderfx;
+    refreshEntity->flags = RF_BEAM | nextState->renderfx;
     //if ( refreshEntity->model == precache.models.laser ) {
     //    refreshEntity->flags |= RF_NOSHADOW;
     //}

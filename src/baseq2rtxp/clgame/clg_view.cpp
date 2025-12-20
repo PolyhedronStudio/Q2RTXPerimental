@@ -15,6 +15,7 @@
 #include "clgame/clg_temp_entities.h"
 #include "clgame/clg_screen.h"
 #include "clgame/clg_view.h"
+#include "clgame/clg_world.h"
 
 #include "clgame/clg_view_weapon.h"
 
@@ -443,7 +444,7 @@ const float CLG_CalculateFieldOfView( const float fov_x, const float width, cons
 //        if ( model != NULL && model->meshes != NULL ) {
 //            entity_t entity = { 0 };
 //            entity.model = cl_testmodel_handle;
-//            entity.id = RENTITIY_RESERVED_TESTMODEL;
+//            entity.id = REFRESHENTITIY_RESERVED_TESTMODEL;
 //
 //            VectorCopy( cl_testmodel_position, entity.origin );
 //            VectorCopy( cl_testmodel_position, entity.oldorigin );
@@ -670,11 +671,11 @@ static void CLG_SetupThirdPersionView( void ) {
     // When clipping we 
     //trace = clgi.Clip( clgi.client->playerEntityOrigin, mins, maxs, clgi.client->refdef.vieworg, nullptr, (cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP ) );
     Vector3 vorg = clgi.client->refdef.vieworg;
-    trace = clgi.Trace( 
-        &clgi.client->playerEntityOrigin,
+    trace = CLG_Trace( 
+        clgi.client->playerEntityOrigin,
         &mins, &maxs, 
-        &vorg,
-        clgi.client->clientEntity/*&clg_entities[ 1 ]*/, 
+        vorg,
+        game.clientEntity/*&clg_entities[ 1 ]*/, 
         CM_CONTENTMASK_SOLID//(cm_contents_t)( CM_CONTENTMASK_PLAYERSOLID & ~CONTENTS_PLAYERCLIP )
     );
     if ( trace.fraction != 1.0f ) {
@@ -772,9 +773,7 @@ void CLG_DrawActiveViewState( void ) {
         // Now calculate the client's local PVS.
         clgi.V_CalculateLocalPVS( clgi.client->refdef.vieworg );
 
-        // Build a refresh entity list and calc clgi.client->sim*
-        // this also calls CL_CalcViewValues which loads
-        // vForward, etc.
+        // Build a refresh entity list
         CLG_PrepareViewEntities();
 
         #if USE_DEBUG

@@ -37,7 +37,7 @@ static inline void CL_ParseDeltaEntity(server_frame_t  *frame,
 {
     entity_state_t    *state;
 
-    // suck up to MAX_EDICTS for servers that don't cap at MAX_PACKET_ENTITIES
+    // Suck up to MAX_EDICTS for servers that don't cap at MAX_PACKET_ENTITIES
     if (frame->numEntities >= MAX_EDICTS) {
         Com_Error(ERR_DROP, "%s: MAX_EDICTS exceeded", __func__);
     }
@@ -52,8 +52,10 @@ static inline void CL_ParseDeltaEntity(server_frame_t  *frame,
         Com_LPrintf(PRINT_DEVELOPER, "\n");
     }
 #endif
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = clge->GetTempEventEntityTypeOffset();
 
-    MSG_ParseDeltaEntity(old, state, newnum, bits, cl.esFlags);
+    MSG_ParseDeltaEntity(old, state, newnum, bits, cl.esFlags, tempEntityOffset );
 
     // shuffle previous origin to old
     if ( !( bits & U_OLDORIGIN ) && ( !( state->renderfx & RF_BEAM ) && state->entityType != ET_BEAM ) ) {
@@ -69,6 +71,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     entity_state_t *oldstate = nullptr;
     int oldindex, oldnum;
     int i;
+
 
     frame->firstEntity = cl.numEntityStates;
     frame->numEntities = 0;
@@ -318,7 +321,7 @@ static void CL_ParseFrame()
         }
         // Clean zerod out portal bits buffer.
         static byte portalBits[ MAX_MAP_PORTAL_BYTES ];
-        memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+        std::memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
         // Pointer to the read buffer's portal bit part.
         byte *receivedPortalBits = MSG_ReadData( lengthPortalBits );
         // Copy over the received portal bits into the zeroed out portal bits buffer.
@@ -415,7 +418,7 @@ static void CL_ParseFrame()
     // Start to perform the delta frame lerping if we're not demo seeking,
     // this will also move our cls.state into ca_active if it is our first valid received frame.
     if ( !cls.demo.seeking ) {
-        CL_ProcessNextFrame();
+        CL_TransitionServerFrames();
     }
 }
 
@@ -472,7 +475,10 @@ static void CL_ParseBaseline(int index, uint64_t bits)
         Com_LPrintf(PRINT_DEVELOPER, "\n");
     }
 #endif
-    MSG_ParseDeltaEntity(NULL, &cl.baselines[index], index, bits, cl.esFlags);
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = clge->GetTempEventEntityTypeOffset();
+
+    MSG_ParseDeltaEntity(NULL, &cl.baselines[index], index, bits, cl.esFlags, tempEntityOffset );
 }
 
 // instead of wasting space for svc_configstring and svc_spawnbaseline

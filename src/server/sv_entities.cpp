@@ -62,6 +62,9 @@ static void SV_EmitPacketEntities( client_t *client,
     // Fetch where in the circular buffer we start from.
     const int32_t from_num_entities = ( !from ? 0 : from->num_entities );
 
+	// Temporary entity type offset for delta encoding.
+	const int32_t tempEntityOffset = ge->GetTempEventEntityTypeOffset();
+
     // one-time developer log guard for missing/out-of-range baseline usage
     static bool baseline_oob_logged = false;
 
@@ -123,7 +126,7 @@ static void SV_EmitPacketEntities( client_t *client,
                 newent->angles = oldent->angles; //VectorCopy(oldent->angles, newent->angles);
             }
             // Write the delta entity.
-            MSG_WriteDeltaEntity( oldent, newent, flags );
+            MSG_WriteDeltaEntity( oldent, newent, flags, tempEntityOffset );
             // Advance both indices.
             oldindex++;
             newindex++;
@@ -187,7 +190,7 @@ static void SV_EmitPacketEntities( client_t *client,
                 newent->angles = oldent->angles; //VectorCopy(oldent->angles, newent->angles);
             }
             // Write the delta entity.
-            MSG_WriteDeltaEntity( oldent, newent, flags );
+            MSG_WriteDeltaEntity( oldent, newent, flags, tempEntityOffset );
             // Advance the new index.
             newindex++;
             // Skip the remainder to the next iteration.
@@ -197,7 +200,7 @@ static void SV_EmitPacketEntities( client_t *client,
         // The old entity isn't present in the new frame.
         if ( newnum > oldnum ) {
             // The old entity isn't present in the new message.
-            MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE );
+            MSG_WriteDeltaEntity( oldent, NULL, MSG_ES_FORCE, tempEntityOffset );
             // Advance the old index.
             oldindex++;
             // Skip the remainder to the next iteration.
@@ -434,7 +437,11 @@ static inline const bool SV_CheckEntitySoundDistance( sv_edict_t *ent, const Vec
 *   @brief  Determines if an entity is hearable/visible to the client based on PVS/PHS.
 **/
 static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &viewOrigin, cm_t *cm, const int32_t clientCluster, const int32_t clientArea, byte *clientPVS, byte *clientPHS, const int32_t cullNonVisibleEntities ) {
-    /**
+	// Subtract the temp event entity type offset to determine if this is a temp event entity.
+	// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
+	const bool isTempEventEntity = ( ent->s.entityType - ge->GetTempEventEntityTypeOffset() > 0 );
+
+	/**
     *   Check area visibility:
     **/
     if ( clientCluster >= 0 && !CM_AreasConnected( cm, clientArea, ent->areaNumber0 ) ) {
@@ -443,15 +450,20 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
             // Blocked by a door.
             return false;
         }
-        /**
-        *   If visible by area:
-        **/
+    /**
+    *   If visible by area:
+    **/
     } else {
+		if ( isTempEventEntity && ( !VectorCompare( ent->s.origin, ent->s.old_origin ) ) ) {
+			if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
+				return false;
+			}
+		}
         // beams just check one point for PHS
-        if ( ent->s.renderfx & RF_BEAM ) {
-            if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
-                return false;
-            }
+		else if ( ent->s.renderfx & RF_BEAM ) {
+			if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
+				return false;
+			}
         } else {
             if ( cullNonVisibleEntities ) {
                 // Too many leafs for individual check, go by headNode:
@@ -567,7 +579,11 @@ void SV_BuildClientFrame( client_t *client ) {
     *   Setup playerstate, ensure the frame has the correct clientNum:
     **/
     // Assign the clientNum from the entity's client structure.
-    ps->clientNumber = clent->client->clientNum;
+    // <Q2RTXP>: WID: This is commented out, because it'll be set to that of other clients in case of
+	// spectating. We need to keep the actual client number of the client here.
+    //ps->clientNumber = clent->client->clientNum;
+
+
     // If the clientNum is invalid, fix it.
     if ( !VALIDATE_CLIENTNUM( ps->clientNumber ) ) {
         // Warn.
@@ -630,16 +646,26 @@ void SV_BuildClientFrame( client_t *client ) {
         **/
         // Default to visible.
         bool entityVisibleForFrame = true;
+
+		// Subtract the temp event entity type offset to determine if this is a temp event entity.
+		// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
+		const bool isTempEventEntity = ( ent->s.entityType - ge->GetTempEventEntityTypeOffset() > 0 );
+
         // Cull non-visible entities unless this entity is requested not to.
         if ( !( ent->svFlags & SVF_NO_CULL ) ) {
             /**
-            *   Ignore ents without visible models if they have no effects, sound or events.
+			*	Unless this is an actual Temp Event Entity:
+            *		- Ignore ents without visible models if they have no effects, sound or events.
             **/
-            if ( !ent->s.modelindex && !ent->s.entityFlags && !ent->s.sound ) {
-                if ( !ent->s.event ) {
-                    continue;
-                }
-            }
+			// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY 
+			// always comes last in the entityType enum.
+			if ( !isTempEventEntity ) {
+				if ( !ent->s.modelindex && !ent->s.entityFlags && !ent->s.sound ) {
+					if ( !EV_GetEntityEventValue( ent->s.event ) ) {
+						continue;
+					}
+				}
+			}
 
             /**
             *   If we are not the entity's own client:
@@ -664,7 +690,8 @@ void SV_BuildClientFrame( client_t *client ) {
         /**
         *   Skip if the entity is not visible, and sv_novis is set, or the entity has no model.
         **/
-        if ( !entityVisibleForFrame && ( !sv_novis->integer || !ent->s.modelindex ) ) {
+		// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
+        if ( !entityVisibleForFrame && ( !sv_novis->integer || ( !isTempEventEntity && !ent->s.modelindex ) ) ) {
             continue;
         }
 

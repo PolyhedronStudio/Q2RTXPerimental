@@ -1001,7 +1001,7 @@ SCR_TimeRefresh_f
 *	@brief	Called whenever a delta frame has been succesfully dealt with.
 *			It allows a moment for updating HUD/Screen related data.
 **/
-void PF_SCR_DeltaFrame( void ) {
+void CLG_SCR_DeltaFrame( void ) {
     // Update crosshair color.
     CLG_HUD_SetCrosshairColor();
 }

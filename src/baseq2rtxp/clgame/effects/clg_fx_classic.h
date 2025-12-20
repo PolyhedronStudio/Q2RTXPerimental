@@ -8,6 +8,27 @@
 #pragma once
 
 
+/**
+*
+*
+*
+*   Miscellaneous Entity Event Definitions:
+*
+*
+*
+**/
+/**
+*   Temp Entity Event - Splash Types:
+**/
+static constexpr int32_t SPLASH_FX_COLOR_UNKNOWN = 0;
+static constexpr int32_t SPLASH_FX_COLOR_SPARKS = 1;
+static constexpr int32_t SPLASH_FX_COLOR_BLUE_WATER = 2;
+static constexpr int32_t SPLASH_FX_COLOR_BROWN_WATER = 3;
+static constexpr int32_t SPLASH_FX_COLOR_SLIME = 4;
+static constexpr int32_t SPLASH_FX_COLOR_LAVA = 5;
+static constexpr int32_t SPLASH_FX_COLOR_BLOOD = 6;
+
+/********************************************************************/
 
 // Wall Impact Puffs.
 void CLG_FX_ParticleEffect( const Vector3 &org, const Vector3 &dir, int color, int count );

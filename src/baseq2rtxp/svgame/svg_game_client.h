@@ -129,9 +129,9 @@ struct svg_client_t {
     /**
     *	User Input:
     **/
-    int32_t         buttons;
-    int32_t         oldbuttons;
-    int32_t         latched_buttons;
+    int32_t buttons;
+    int32_t oldbuttons;
+    int32_t latched_buttons;
     struct userinput_s {
         //! Current frame usercmd buttons.
         int32_t     buttons;

@@ -9,6 +9,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_precache.h"
 #include "clgame/clg_temp_entities.h"
+#include "clgame/clg_world.h"
 
 #include "sharedgame/sg_tempentity_events.h"
 
@@ -57,9 +58,6 @@ static void clg_railspiral_color_changed( cvar_t *self ) {
     }
 }
 
-//! Water Splash Color.
-static const byte splash_color[] = { 0x00, 0xe0, 0xb0, 0x50, 0xd0, 0xe0, 0xe8 };
-
 /**
 *   @brief  Will select and play a random grenade explosion.
 **/
@@ -85,8 +83,8 @@ static void CLG_StartRandomExplosionSfx( const bool isInWater, const Vector3 &po
 void CLG_TemporaryEntities_Parse( void ) {
     clg_explosion_t *ex;
     int r;
-
     switch ( level.parsedMessage.events.tempEntity.type ) {
+	#if 0
     case TE_BLOOD: // bullet hitting flesh
         //if ( !( clg_disable_particles->integer & NOPART_BLOOD ) ) {
             // CLG_FX_ParticleEffect(level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 60);
@@ -116,7 +114,8 @@ void CLG_TemporaryEntities_Parse( void ) {
                 clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
         }
         break;
-
+	#endif
+    #if 0 // Moved to Entity Event
     //! A bullet hitting water.
     case TE_SPLASH:
         if ( level.parsedMessage.events.tempEntity.color < 0 || level.parsedMessage.events.tempEntity.color > 6 )
@@ -135,15 +134,15 @@ void CLG_TemporaryEntities_Parse( void ) {
         //        clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.spark7, 1, ATTN_STATIC, 0 );
         //}
         break;
-
+    #endif
     case TE_LASER_SPARKS:
         CLG_FX_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
         break;
-
+#if 0
     case TE_BUBBLETRAIL:
         CLG_FX_BubbleTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
         break;
-
+#endif
     case TE_WELDING_SPARKS:
         CLG_FX_ParticleEffect2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
 
@@ -166,16 +165,16 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_TUNNEL_SPARKS:
         CLG_FX_ParticleEffect3( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
         break;
-
+#if 0
     case TE_DEBUGTRAIL:
         CLG_FX_DebugTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
         break;
-
+#endif
     case TE_PLAIN_EXPLOSION:
     {
         // Test for what solid type we're in.
         Vector3 pointPos = level.parsedMessage.events.tempEntity.pos1;
-        const cm_contents_t pointContents = clgi.PointContents( &pointPos );
+        const cm_contents_t pointContents = CLG_PointContents( pointPos );
         // First determine whether we're actually under water.
         const bool isUnderWater = ( pointContents & CM_CONTENTMASK_LIQUID ) != 0;
         //! Do an explosion, if underwater, without smoke.
@@ -185,9 +184,9 @@ void CLG_TemporaryEntities_Parse( void ) {
         break;
     }
 
-    case TE_FLASHLIGHT:
-        CLG_FX_Flashlight( level.parsedMessage.events.tempEntity.entity1, level.parsedMessage.events.tempEntity.pos1 );
-        break;
+    //case TE_FLASHLIGHT:
+    //    CLG_FX_Flashlight( level.parsedMessage.events.tempEntity.entity1, level.parsedMessage.events.tempEntity.pos1 );
+    //    break;
 
     case TE_HEATBEAM_SPARKS:
         CLG_FX_ParticleSteamEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x8, 50, 60 );
@@ -202,16 +201,15 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_STEAM:
         CLG_ParseSteam();
         break;
-
+#if 0
     case TE_BUBBLETRAIL2:
         CLG_FX_BubbleTrail2( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2, 8 );
         clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
         break;
-
     case TE_MOREBLOOD:
         CLG_FX_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0xe8, 250 );
         break;
-
+#endif
     case TE_ELECTRIC_SPARKS:
         CLG_FX_ParticleEffect( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, 0x75, 40 );
         //FIXME : replace or remove this sound

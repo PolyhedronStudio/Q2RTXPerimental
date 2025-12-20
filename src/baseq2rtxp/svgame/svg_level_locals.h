@@ -48,7 +48,7 @@ struct svg_level_locals_t {
     svg_base_edict_t     *sound2_entity = nullptr;
     int64_t		sound2_entity_framenum = 0;
 
-    svg_base_edict_t *current_entity = nullptr;   // entity running from SVG_RunFrame
+    svg_base_edict_t *processingEntity = nullptr;   // entity running from SVG_RunFrame
     int32_t     body_que = 0;               // dead bodies
 };
 

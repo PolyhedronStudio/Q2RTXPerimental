@@ -19,316 +19,14 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // cl_ents.c -- entity parsing and management
 
 #include "cl_client.h"
-#include "client/sound/sound.h"
-#include "refresh/models.h"
+#include "common/collisionmodel.h"
 
-extern qhandle_t cl_mod_powerscreen;
-extern qhandle_t cl_mod_laser;
-extern qhandle_t cl_mod_dmspot;
-extern qhandle_t cl_sfx_footsteps[4];
-
-/*
-=========================================================================
-
-FRAME PARSING
-
-=========================================================================
-*/
-
-/**
-*	@brief	Will decode/unpack the solid_packet_t uint32_t, into the pointers mins/maxs.
-**/
-static inline void _MSG_UnpackBoundsUint32( const bounds_packed_t packedBounds, Vector3 &mins, Vector3 &maxs ) {
-    MSG_UnpackBoundsUint32( packedBounds, &mins.x, &maxs.x );
-}
-
-/**
-*   @return     True if origin / angles update has been optimized out to the player state.
-**/
-static inline bool entity_is_optimized(const entity_state_t *state)
-{
-    //return cls.serverProtocol == PROTOCOL_VERSION_Q2PRO
-    //    && state->number == cl.frame.clientNum + 1
-    //    && cl.frame.ps.pmove.pm_type < PM_DEAD;
-	// WID: net-protocol2: We don't want this anyway, should get rid of it?
-    //if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO)
-    if ( state->number != cl.frame.ps.clientNumber + 1 ) {
-        return false;
-    }
-
-    if ( cl.frame.ps.pmove.pm_type >= PM_DEAD ) {
-        return false;
-    }
-
-    // WID: TODO: It does WORK with this, but do we want to do this?
-    // using the entity origin for the player, wouldn't that mean
-    // it is a slower update rate than the actual player is?
-    //if ( cls.serverProtocol == PROTOCOL_VERSION_Q2RTXPERIMENTAL ) {
-    //    return true;
-    //}
-
-    return true;
-}
-
-/**
-*   @return True if the SAME entity was NOT IN the PREVIOUS frame.
-**/
-static inline bool entity_is_new(const centity_t *ent) {
-    // Last received frame was invalid, so this entity is new to the current frame.
-    if ( !cl.oldframe.valid ) {
-        return true;
-    }
-    // Wasn't in last received frame, so this entity is new to the current frame.
-    if ( ent->serverframe != cl.oldframe.number ) {
-        return true;
-    }
-    // Developer option, always new.
-    if ( cl_nolerp->integer == 2 ) {
-        return true;
-    }
-    //! Developer option, lerp from last received frame.
-    if ( cl_nolerp->integer == 3 ) {
-        return false;
-    }
-    //! Previous server frame was dropped, so we're new
-    //! if ( cl.oldframe.number != cl.frame.number - 1 ) { <-- OLD ORIGINAL.
-    if ( cl.oldframe.number != cl.frame.number - cl.serverdelta ) {
-        return true;
-    }
-
-    return false;
-}
-
-static void parse_entity_update(const entity_state_t *state)
-{
-	// Get entity for this state.
-    centity_t *ent = ENTITY_FOR_NUMBER( state->number );
-
-    // If entity is solid, and not the frame's client entity, add it to the solid entity list.
-	// (We don't want to add the client's own entity, to prevent issues with self-collision).
-    //
-    if ( state->solid 
-        && state->number != cl.frame.ps.clientNumber + 1 // Our frame client entity.
-        && cl.numSolidEntities < MAX_PACKET_ENTITIES ) {
-        // Add it to the solids entity list.
-        cl.solidEntities[ cl.numSolidEntities++ ] = ent;
-    }
-
-    // If not a brush model, acquire the bounds from the state. (It will use the clip brush node its bounds otherwise.)
-    if ( state->solid && state->solid != BOUNDS_BRUSHMODEL ) {
-        // If not a brush bsp entity, decode its mins and maxs.
-        _MSG_UnpackBoundsUint32( 
-            bounds_packed_t{ 
-                .u = state->bounds 
-            }, 
-            ent->mins, ent->maxs
-        );
-    // Clear out the mins and maxs.
-    } else {
-        ent->mins = QM_Vector3Zero();
-        ent->maxs = QM_Vector3Zero();
-    }
-
-    // Default to the entity state origin.
-    Vector3 newIntendOrigin = state->origin;
-    // However, if an 'optimized' player entity, use its origin instead.
-    if ( entity_is_optimized( state ) ) {
-        newIntendOrigin = ( cl.frame.number <= 0 ? cl.frame.ps.pmove.origin : cl.predictedFrame.ps.pmove.origin );
-    }
-
-    // See if the entity is new for the current serverframe or not and base our next move on that.
-    if ( entity_is_new( ent ) ) {
-        // Wasn't in last update, so initialize some things.
-        clge->EntityState_FrameEnter( ent, state, &newIntendOrigin );
-    } else {
-        // Was around, sp update some things.
-        clge->EntityState_FrameUpdate( ent, state, &newIntendOrigin );
-    }
-
-    // Assign last received server frame.
-    ent->serverframe = cl.frame.number;
-    // Assign new state.
-    ent->current = *state;
-
-    // Work around Q2PRO server bandwidth optimization.
-    if ( entity_is_optimized( state ) ) {
-        Com_PlayerToEntityState( /*&cl.frame.ps*/ &cl.predictedFrame.ps, &ent->current );
-    }
-}
-
-/**
-*   @brief  An entity has just been parsed that has an event value.
-**/
-static void parse_entity_event(const int32_t entityNumber ) {
-    clge->ParseEntityEvent( entityNumber );
-}
-
-/**
-*   @brief  Prepares the client state for 'activation', also setting the predicted values
-*           to those of the initially received first valid frame.
-**/
-static void CL_SetInitialFrame(void)
-{
-    cls.state = ca_active;
-
-    // Delta  
-    cl.serverdelta = Q_align(cl.frame.number, 1);
-    // Set time, needed for demos
-    cl.time = cl.servertime = cl.extrapolatedTime = 0; 
-
-    // Initialize oldframe so lerping doesn't hurt anything.
-    cl.oldframe.valid = false;
-    cl.oldframe.ps = cl.frame.ps;
-	// Set predicted frame to the current frame.
-    cl.predictedFrame = cl.frame;
-
-	// Set frameflags.
-    cl.frameflags = FF_NONE;
-
-	// Set initial sequence.
-    cl.initialSeq = cls.netchan.outgoing_sequence;
-
-	// If demo playback, initialize demo things.
-    if ( cls.demo.playback ) {
-        // init some demo things
-        CL_FirstDemoFrame();
-    } else {
-        // Fire the ClientBegin callback of the client game module.
-        clge->ClientBegin();
-    }
-
-    //! Get rid of loading plaque.
-    SCR_EndLoadingPlaque();     
-    SCR_LagClear();
-    //! Get rid of connection screen.
-    Con_Close(false);           
-
-    // Check for pause.
-    CL_CheckForPause();
-
-    // Update frame times.
-    CL_UpdateFrameTimes();
-
-    // Fire a local trigger in case it is not a demo playback.
-    if (!cls.demo.playback) {
-        EXEC_TRIGGER(cl_beginmapcmd);
-        Cmd_ExecTrigger("#cl_enterlevel");
-    }
-}
-
-/**
-*   Determine whether the player state has to lerp between the current and old frame,
-*   or snap 'to'.
-**/
-static void TransitionPlayerState( server_frame_t *oldframe, server_frame_t *frame, const int32_t framediv ) {
-    // No client game loaded yet.
-    if ( !clge ) {
-        return;
-    }
-    // Lerp or Snap the frame playerstates.
-    clge->PlayerState_Transition( oldframe, frame, framediv );
-}
-
-/**
-*   @brief  Called after finished parsing the frame data. All entity states and the
-*           player state will be transitioned and/or reset as needed, to make sure
-*           the client has a proper view of the current server frame. It does the following:
-*               - Will switch the clientstatic state to 'ca_active' if it is the first
-*                 parsed valid frame and the client is done precaching all data.
-*               - Sets the client servertime.
-*               - Rebuilds the solid entity list for this frame.
-*               - Updates all entity states for this frame.
-*               - Fires any entity events for this frame.
-*               - Updates the predicted frame.
-*               - Initializes the player's own entity position from the playerstate.
-*               - Lerps or snaps the playerstate between the old and current frame.
-*               - Checks for prediction errors.
-**/
-void CL_ProcessNextFrame( void ) {
-
-    // Getting a valid frame message ends the connection process
-    if ( cl.frame.valid && cls.state == ca_precached ) {
-        CL_SetInitialFrame();
-    }
-
-    // Determine the current delta frame's server time.
-    int64_t framenum = cl.frame.number - cl.serverdelta;
-    cl.servertime = framenum * CL_FRAMETIME;
-
-    // Rebuild the list of solid entities for this frame
-    cl.numSolidEntities = 0;
-
-    // Initialize position of the player's own entity from playerstate.
-    // this is needed in situations when player entity is invisible, but
-    // server sends an effect referencing it's origin (such as MZ_LOGIN, etc).
-    centity_t *clent = ENTITY_FOR_NUMBER( cl.frame.ps.clientNumber + 1 );
-    if ( /*framenum*/cl.frame.number <= 0 ) {
-        Com_PlayerToEntityState( &cl.frame.ps, &clent->current );
-    } else {
-        Com_PlayerToEntityState( &cl.predictedFrame.ps, &clent->current );
-    }
-
-    // Iterate over the current frame entity states and update them accordingly.
-    for ( int32_t i = 0; i < cl.frame.numEntities; i++ ) {
-        int32_t j = ( cl.frame.firstEntity + i ) & PARSE_ENTITIES_MASK;
-        entity_state_t *state = &cl.entityStates[ j ];
-
-        // Set the current and previous entity state.
-        parse_entity_update( state );
-    }
-
-    // Re-Iterate over the current frame entity states in order to safely launch their events.
-    // (Events might need data of other entities, which if we called them in the previous iteration, might not have been updated yet.)
-    for ( int32_t i = 0; i < cl.frame.numEntities; i++ ) {
-        int32_t j = ( cl.frame.firstEntity + i ) & PARSE_ENTITIES_MASK;
-        entity_state_t *state = &cl.entityStates[ j ];
-        
-        // Fire any needed entity events.
-        parse_entity_event( state->number );
-
-        // Remember time of snapshot this entity was last updated in
-        centity_t *cent = ENTITY_FOR_NUMBER( state->number );
-        cent->snapShotTime = cl.servertime;
-    }
-
-    // If we're recording a demo, make sure to store this frame into the demo data.
-    if ( cls.demo.recording && !cls.demo.paused && !cls.demo.seeking ) {
-        CL_EmitDemoFrame();
-    }
-
-    // This delta has nothing to do with local viewangles, CLEAR it to avoid interfering with demo freelook hack.
-    if ( cls.demo.playback ) {
-        VectorClear( cl.frame.ps.pmove.delta_angles );
-    }
-
-    // Grab mouse in case of player move type changes between frames.
-    if ( cl.oldframe.ps.pmove.pm_type != cl.frame.ps.pmove.pm_type ) {
-        IN_Activate();
-    }
-
-    // Determine whether the player state has to lerp between the current and old frame,
-    // or snap 'to'.
-    TransitionPlayerState( &cl.oldframe, &cl.frame, cl.serverdelta );
-
-    if ( cls.demo.playback ) {
-        // TODO: Proper stair smoothing.
-        // Record time of changing and adjusting viewheight if it differs from previous time.
-        //CL_AdjustViewHeight( cl.frame.ps.pmove.viewheight );
-    }
-
-    // See if we had any prediction errors.
-    CL_CheckPredictionError();
-
-    // Notiy screen about the delta frame, so it may adjust some data if needed.
-    SCR_DeltaFrame();
-}
 
 /**
 *   @brief  For debugging problems when out-of-date entity origin is referenced.
 **/
 #if USE_DEBUG
-void CL_CheckEntityPresent( const int32_t entityNumber, const char *what)
-{
+void CL_CheckEntityPresent( const int32_t entityNumber, const char *what ) {
     if ( entityNumber == cl.frame.ps.clientNumber + 1 ) {
         return; // player entity = current
     }
@@ -347,6 +45,156 @@ void CL_CheckEntityPresent( const int32_t entityNumber, const char *what)
 }
 #endif
 
+
+
+/*(
+*
+*
+*
+*   Frame Parsing:
+* 
+*
+**/
+/**
+*   @brief  Prepares the client state for 'activation', also setting the predicted values
+*           to those of the initially received first valid frame.
+**/
+static void CL_SetInitialServerFrame(void)
+{
+    cls.state = ca_active;
+
+    // Delta  
+    cl.serverdelta = Q_align(cl.frame.number, 1);
+
+    // Initialize oldframe in a way that the lerp to come, won't distort anything.
+    cl.oldframe.valid = false;
+    cl.oldframe.ps = cl.frame.ps;
+
+    // Determine the current delta frame's server time.
+    cl.servertime = cl.frame.number * CL_FRAMETIME;
+	// Set time, needed for demos
+	cl.time = cl.servertime;
+	// Set extrapolated time to current server time.
+	cl.extrapolatedTime = cl.servertime;
+
+	// Set frameflags.
+    cl.frameflags = FF_NONE;
+	// Set initial sequence.
+    cl.initialSeq = cls.netchan.outgoing_sequence;
+
+	// Set the client prediction to the initial frame.
+    clge->Frame_SetInitialServerFrame();
+
+    //! Get rid of loading plaque.
+    SCR_EndLoadingPlaque();     
+    SCR_LagClear();
+    //! Get rid of connection screen.
+    Con_Close(false);           
+
+    // Check for pause.
+    CL_CheckForPause();
+    // Update frame times.
+    CL_UpdateFrameTimes();
+
+    // Fire a local trigger in case it is not a demo playback.
+    if (!cls.demo.playback) {
+        EXEC_TRIGGER(cl_beginmapcmd);
+        Cmd_ExecTrigger("#cl_enterlevel");
+    }
+}
+
+/**
+*   @brief  Called after finished parsing the frame data. All entity states and the
+*           player state will be transitioned and/or reset as needed, to make sure
+*           the client has a proper view of the current server frame. It does the following:
+*               - Will switch the clientstatic state to 'ca_active' if it is the first
+*                 parsed valid frame and the client is done precaching all data.
+*               - Sets the client servertime.
+*               - Rebuilds the solid entity list for this frame.
+*               - Updates all entity states for this frame.
+*               - Fires any entity events for this frame.
+*               - Updates the predicted frame.
+*               - Initializes the player's own entity position from the playerstate.
+*               - Lerps or snaps the playerstate between the old and current frame.
+*               - Checks for prediction errors.
+**/
+void CL_TransitionServerFrames( void ) {
+    // Getting a valid frame message ends the connection process
+    if ( cl.frame.valid && cls.state == ca_precached ) {
+        CL_SetInitialServerFrame();
+    }
+
+    // Determine the current delta frame's server time.
+    int64_t framenum = cl.frame.number - cl.serverdelta;
+    cl.servertime = framenum * CL_FRAMETIME;
+
+	// Let the client game handle the frame transition.
+    clge->Frame_TransitionToNext();
+}
+
+/**
+*
+*
+*
+*	Hull:
+*
+*
+*
+**/
+/**
+*	@return	A headnode that can be used for testing and/or clipping an
+*			object 'hull' of mins/maxs size for the entity's said 'solid'.
+**/
+mnode_t *CL_GetEntityHullNode( const centity_t *ent/*, const bool includeSolidTriggers = false */ ) {
+	// Validate entity pointer.
+	if ( !ent && !cl.collisionModel.cache ) {
+	//	Com_Error( ERR_DROP, "%s: NULL entity pointer", __func__ );
+		return nullptr;
+	}
+	// Make sure we have a collision model loaded.
+	if ( !cl.collisionModel.cache ) {
+		//Com_Error( ERR_DROP, "%s: No collision model loaded", __func__ );
+		return nullptr;
+	}
+
+	// Return the worldspawn hull in case of it being nullptr.
+	if ( !ent ) {
+		// World entity with no solid.
+		return cl.collisionModel.cache->nodes;
+	}
+
+	if ( ent->current.solid == (cm_solid_t)BOUNDS_BRUSHMODEL /*|| ( includeSolidTriggers && ent->current.solid == SOLID_TRIGGER )*/ ) {
+		// Subtract 1 to get the modelindex into a 0-based array.
+		// ( Index 0 is reserved for no model )
+		const int32_t i = ent->current.modelindex - 1;
+
+		// explicit hulls in the BSP model
+		if ( i <= 0 || i >= cl.collisionModel.cache->nummodels ) {
+			Com_Error( ERR_DROP, "%s: inline model %d out of range", __func__, i );
+			return nullptr;
+		}
+
+		return cl.collisionModel.cache->models[ i ].headnode;
+	}
+
+	// Create a temp hull from entity bounds and contents clipMask for the specific type of 'solid'.
+	if ( ent->current.solid == SOLID_BOUNDS_OCTAGON ) {
+		return CM_HeadnodeForOctagon( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
+	} else {
+		return CM_HeadnodeForBox( &cl.collisionModel, &ent->mins.x, &ent->maxs.x, ent->current.hullContents );
+	}
+}
+
+
+/**
+*
+*
+*
+*	Sound Related:
+*
+*
+* 
+**/
 /**
 *   @brief  The sound code makes callbacks to the client for entitiy position
 *           information, so entities can be dynamically re-spatialized.

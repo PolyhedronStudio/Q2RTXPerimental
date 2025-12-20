@@ -36,7 +36,7 @@ void MSG_WriteEntityNumber( const int32_t number, const bool remove, const uint6
 /**
 *   @brief Writes the delta values of the entity state.
 **/
-void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to, msgEsFlags_t flags ) {
+void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to, msgEsFlags_t flags, const int32_t tempEntityOffset ) {
 	if ( !to ) {
 		if ( !from ) {
 			Com_Error( ERR_DROP, "%s: NULL", __func__ );
@@ -59,6 +59,9 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 	if ( !from ) {
 		from = &nullEntityState;
 	}
+
+	// Are we dealing with a temporary entity?
+	const bool isTempEventEntity = ( to->entityType - tempEntityOffset > 0 );
 
 	// send an update
 	uint64_t bits = 0;
@@ -160,6 +163,10 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 
 	if ( to->renderfx & RF_OLD_FRAME_LERP ) {
 		bits |= U_OLDORIGIN;
+	} else if ( isTempEventEntity && !VectorCompare( to->old_origin, from->old_origin ) ) {
+		if ( !VectorCompare( to->old_origin, to->origin ) ) {
+			bits |= U_OLDORIGIN;
+		}
 	} else if ( to->entityType == ET_BEAM || to->renderfx & RF_BEAM ) {
 		if ( flags & MSG_ES_BEAMORIGIN ) {
 			if ( !VectorCompare( to->old_origin, from->old_origin ) ) {
@@ -196,15 +203,36 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 
 	MSG_WriteEntityNumber( to->number, false, bits );
 
+	// Write out the entity type.
+	if ( bits & U_ENTITY_TYPE ) {
+		MSG_WriteUintBase128( to->entityType );
+	}
+	// Write out the other entity number.
+	if ( bits & U_OTHER_ENTITY_NUMBER ) {
+		MSG_WriteIntBase128( to->otherEntityNumber );
+	}
+
 	// Write out the origin.
-	if ( bits & U_ORIGIN1 ) {
-		MSG_WriteFloat( to->origin[ 0 ] );
-	}
-	if ( bits & U_ORIGIN2 ) {
-		MSG_WriteFloat( to->origin[ 1 ] );
-	}
-	if ( bits & U_ORIGIN3 ) {
-		MSG_WriteFloat( to->origin[ 2 ] );
+	if ( isTempEventEntity ) {
+		if ( bits & U_ORIGIN1 ) {
+			MSG_WriteTruncatedFloat( to->origin[ 0 ] );
+		}
+		if ( bits & U_ORIGIN2 ) {
+			MSG_WriteTruncatedFloat( to->origin[ 1 ] );
+		}
+		if ( bits & U_ORIGIN3 ) {
+			MSG_WriteTruncatedFloat( to->origin[ 2 ] );
+		}
+	} else {
+		if ( bits & U_ORIGIN1 ) {
+			MSG_WriteFloat( to->origin[ 0 ] );
+		}
+		if ( bits & U_ORIGIN2 ) {
+			MSG_WriteFloat( to->origin[ 1 ] );
+		}
+		if ( bits & U_ORIGIN3 ) {
+			MSG_WriteFloat( to->origin[ 2 ] );
+		}
 	}
 	// Write out the angles.
 	if ( bits & U_ANGLE1 ) {
@@ -218,9 +246,15 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 	}
 	// Write out the old_origin.
 	if ( bits & U_OLDORIGIN ) {
-		MSG_WriteFloat( to->old_origin[ 0 ] );//MSG_WriteInt16( to->old_origin[ 0 ] ); // WID: float-movement
-		MSG_WriteFloat( to->old_origin[ 1 ] );//MSG_WriteInt16( to->old_origin[ 1 ] ); // WID: float-movement
-		MSG_WriteFloat( to->old_origin[ 2 ] );//MSG_WriteInt16( to->old_origin[ 2 ] ); // WID: float-movement
+		if ( isTempEventEntity ) {
+			MSG_WriteTruncatedFloat( to->old_origin[ 0 ] );
+			MSG_WriteTruncatedFloat( to->old_origin[ 1 ] );
+			MSG_WriteTruncatedFloat( to->old_origin[ 2 ] );
+		} else {
+			MSG_WriteFloat( to->old_origin[ 0 ] );//MSG_WriteInt16( to->old_origin[ 0 ] ); // WID: float-movement
+			MSG_WriteFloat( to->old_origin[ 1 ] );//MSG_WriteInt16( to->old_origin[ 1 ] ); // WID: float-movement
+			MSG_WriteFloat( to->old_origin[ 2 ] );//MSG_WriteInt16( to->old_origin[ 2 ] ); // WID: float-movement
+		}
 	}
 
 	// Write out the model indices.
@@ -235,15 +269,6 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 	}
 	if ( bits & U_MODEL4 ) {
 		MSG_WriteUintBase128( to->modelindex4 );
-	}
-
-	// Write out the entity type.
-	if ( bits & U_ENTITY_TYPE ) {
-		MSG_WriteUintBase128( to->entityType );
-	}
-	// Write out the other entity number.
-	if ( bits & U_OTHER_ENTITY_NUMBER ) {
-		MSG_WriteIntBase128( to->otherEntityNumber );
 	}
 
 	// Write out the frame.

@@ -233,31 +233,51 @@ void SVG_Util_AddPredictableEvent( svg_base_edict_t *ent, const sg_entity_events
 *   @brief  Adds a temp entity event at the given origin.
 *	@param	snapOrigin	If true, will snap the origin to 13 bits float precision.
 **/
-svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin /*= false*/ ) {
+svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const sg_entity_events_t event, const int32_t eventParm0, const int32_t eventParm1, const bool snapOrigin /*= false*/, const QMTime eventDuration /* = QMTime::FromMilliseconds( EVENT_VALID_MSEC )*/ ) {
     /**
     *   We don't need regular spawning etc dispatching and what not.
     * 
 	*   Take the raw approach here.
     **/
 	// Create the temporary entity event entity.
+    //EdictTypeInfo typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+    //spawnEdict = 
+    
+    //EdictTypeInfo *typeInfo = EdictTypeInfo::GetInfoByWorldSpawnClassName( "svg_base_edict_t" );
+    //svg_base_edict_t *tempEventEntity = typeInfo->allocateEdictInstanceCallback( nullptr );
+    //g_edict_pool.EmplaceNextFreeEdict( tempEventEntity );
+
+	// Allocate the next free edict for the temp event entity.
+    
+    //svg_base_edict_t *tempEventEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>();
     svg_base_edict_t *tempEventEntity = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "svg_temp_event_entity_t" );
     
     // Set the actual entity event to part of entityState_t type.
-    tempEventEntity->s.entityType = ET_TEMP_ENTITY_EVENT + event;
+    tempEventEntity->s.entityType = ET_TEMP_EVENT_ENTITY + event;
+	// However, do change the actual 'classname' to something meaningful for temp entities.
+	//tempEventEntity->classname = svg_level_qstring_t::from_char_str( "svg_temp_event_entity_t" );
+
 	// Stuff the eventParms in the entityState_t's eventParms.
 	tempEventEntity->s.eventParm0 = eventParm0;
     tempEventEntity->s.eventParm1 = eventParm1;
-	// However, do change the actual 'classname' to something meaningful for temp entities.
-	tempEventEntity->classname = svg_level_qstring_t::from_char_str( "svg_event_entity_t" );
-    // Setup the actual time of the event.
-	tempEventEntity->eventTime = level.time;
+
 	// Ensure it will be freed properly later after the event has finished processing.
 	tempEventEntity->freeAfterEvent = true;
+    // Setup the actual time of the event.
+	tempEventEntity->eventTime = level.time;
+	// Setup the duration of the event.
+	tempEventEntity->eventDuration = eventDuration;
 
     // Last but not least, set the origin, link it and return it.
     // Now snap the origin into the entityState_t.
 	// <Q2RTXP>: WID: Use proper snapping function.
     tempEventEntity->s.origin = ( snapOrigin ? QM_Vector3Snap( origin ) : origin );
+
+	// Can be used as a temp event entity its second origin to point at.
+	// We make sure to initialize it to the origin, to prevent the messaging code from
+	// wiring it throughout old_origin using snapped float truncation.
+	//tempEventEntity->s.old_origin = tempEventEntity->s.origin;
+
     // Link it in for PVS etc.
     gi.linkentity( tempEventEntity );
 

@@ -25,7 +25,7 @@
 /**
 *   @brief  Will only be called once whenever the add player entity method encounters an empty bone pose.
 **/
-void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // We'll assume that, in this case, all caches are allocated.
     if ( packetEntity->bonePoseCache[ 0 ] != nullptr ) {
         return;
@@ -57,7 +57,7 @@ void CLG_ETPlayer_AllocatePoseCache( centity_t *packetEntity, entity_t *refreshE
 /**
 *   @brief  Determine the entity's 'Base' animations.
 **/
-void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // Get model resource.
     const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
     
@@ -68,7 +68,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
     sg_skm_animation_state_t *lastBodyState = animationMixer->lastBodyStates;
 
     // Third-person/mirrors model of our own client entity:
-    if ( CLG_IsLocalClientEntity( newState ) ) {
+    if ( CLG_IsLocalClientEntity( nextState ) ) {
         // Determine 'Base' animation name.
         double frameTime = 1.f;
         const std::string baseAnimStr = SG_Player_GetClientBaseAnimation( &game.predictedState.lastPs, &game.predictedState.currentPs, &frameTime );
@@ -93,13 +93,13 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
             }
         }
     } else {
-        // Decode the entity's animationIDs from its newState.
+        // Decode the entity's animationIDs from its nextState.
         uint8_t lowerAnimationID = 0;
         uint8_t torsoAnimationID = 0;
         uint8_t headAnimationID = 0;
         uint8_t animationFrameRate = BASE_FRAMERATE; // NOTE: Also set by SG_DecodeAnimationState :-)
         // Decode it.
-        SG_DecodeAnimationState( newState->frame, &lowerAnimationID, &torsoAnimationID, &headAnimationID, &animationFrameRate );
+        SG_DecodeAnimationState( nextState->frame, &lowerAnimationID, &torsoAnimationID, &headAnimationID, &animationFrameRate );
         //clgi.Print( PRINT_NOTICE, "%s: lowerAnimationID(%i), torsoAnimationID(%i), headAnimationID(%i), framerate(%i)\n", __func__, lowerAnimationID, torsoAnimationID, headAnimationID, animationFrameRate );
         
         // Start timer is always just servertime that we had.
@@ -135,7 +135,7 @@ void CLG_ETPlayer_DetermineBaseAnimations( centity_t *packetEntity, entity_t *re
 /**
 *   @brief  Determine which animations to play based on the player state event channels.
 **/
-void CLG_ETPlayer_DetermineEventAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_ETPlayer_DetermineEventAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
 
 }
 
@@ -269,7 +269,7 @@ const bool CLG_ETPlayer_CalculateDesiredYaw( centity_t *packetEntity, const QMTi
 /**
 *   @brief  Performs bone controller work.
 **/
-void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_state_t *newState, const model_t *model, const skm_transform_t *initialStatePose, skm_transform_t *lerpedBonePose, const QMTime &currentTime ) {
+void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_state_t *nextState, const model_t *model, const skm_transform_t *initialStatePose, skm_transform_t *lerpedBonePose, const QMTime &currentTime ) {
     /**
     *   Determine which direction we're heading into. And use it to possibly adjust an
     *   animation with, as well as to 'Control' various bones after our "final" pose
@@ -279,7 +279,7 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
     bool updateYawControllers = false;
 
     // Get the desired 'Yaw' angle to rotate into based on the (predicted-) player states.
-    if ( CLG_IsLocalClientEntity( newState ) ) {
+    if ( CLG_IsLocalClientEntity( nextState ) ) {
         // States to determine it by.
         player_state_t *playerState = &game.predictedState.currentPs;
         player_state_t *oldPlayerState = &game.predictedState.lastPs;
@@ -381,7 +381,7 @@ void CLG_ETPlayer_ApplyBoneControllers( centity_t *packetEntity, const entity_st
 /**
 *   @brief  Process the entity's active animations.
 **/
-void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState, const bool isLocalClientEntity ) {
+void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const bool isLocalClientEntity ) {
     // Get model resource.
     const model_t *model = clgi.R_GetModelDataForHandle( refreshEntity->model );
 
@@ -505,8 +505,8 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
         /**
         *   Bone Controlling:
         **/
-        //CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, lastFinalStatePose, lastLerpedPose, extrapolatedTime );
-        //CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, finalStatePose, currentLerpedPose, extrapolatedTime );
+        //CLG_ETPlayer_ApplyBoneControllers( packetEntity, nextState, model, lastFinalStatePose, lastLerpedPose, extrapolatedTime );
+        //CLG_ETPlayer_ApplyBoneControllers( packetEntity, nextState, model, finalStatePose, currentLerpedPose, extrapolatedTime );
 
         //SKM_RecursiveBlendFromBone( lastFinalStatePose, finalStatePose, finalStatePose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
         SKM_RecursiveBlendFromBone( finalStatePose, lastFinalStatePose, finalStatePose, hipsBone, switchAnimationScaleFactor, switchAnimationScaleFactor );
@@ -540,9 +540,9 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
     *   Bone Controlling:
     **/
     //if ( lastStateIsPlaying ) {
-    //    CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, lastFinalStatePose, finalStatePose, extrapolatedTime );
+    //    CLG_ETPlayer_ApplyBoneControllers( packetEntity, nextState, model, lastFinalStatePose, finalStatePose, extrapolatedTime );
     //} else {
-        CLG_ETPlayer_ApplyBoneControllers( packetEntity, newState, model, finalStatePose, finalStatePose, extrapolatedTime );
+        CLG_ETPlayer_ApplyBoneControllers( packetEntity, nextState, model, finalStatePose, finalStatePose, extrapolatedTime );
     //}
 
 
@@ -577,9 +577,9 @@ void CLG_ETPlayer_ProcessAnimations( centity_t *packetEntity, entity_t *refreshE
 /**
 *   @brief  Type specific routine for LERPing ET_PLAYER origins.
 **/
-void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // If client entity, use predicted origin instead of Lerped:
-    if ( CLG_IsLocalClientEntity( newState ) ) {
+    if ( CLG_IsLocalClientEntity( nextState ) ) {
         #if 0
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
             VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );  // FIXME
@@ -634,8 +634,8 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
 /**
 *   @brief  Type specific routine for LERPing ET_PLAYER angles.
 **/
-void CLG_ETPlayer_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
-    if ( CLG_IsLocalClientEntity( newState ) ) {
+void CLG_ETPlayer_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
+    if ( CLG_IsLocalClientEntity( nextState ) ) {
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
     } else {
         LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
@@ -644,13 +644,13 @@ void CLG_ETPlayer_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, 
 /**
 *   @brief Apply flag specified entityFlags.
 **/
-void CLG_ETPlayer_AddEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_ETPlayer_AddEffects( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // This is specific to when the player entity turns into GIB without being an ET_GIB.
     // If no rotation flag is set, add specified trail flags. We don't need it spamming
     // a blood trail of entities when it basically stopped motion.
-    if ( newState->entityFlags & ~EF_ROTATE ) {
-        if ( newState->entityFlags & EF_GIB ) {
-            CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, newState->entityFlags | EF_GIB );
+    if ( nextState->entityFlags & ~EF_ROTATE ) {
+        if ( nextState->entityFlags & EF_GIB ) {
+            CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
         }
     }
 }
@@ -658,7 +658,7 @@ void CLG_ETPlayer_AddEffects( centity_t *packetEntity, entity_t *refreshEntity, 
 /**
 *   @brief Apply flag specified entityFlags.
 **/
-void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     // Handle the possibility of a stair step occuring.
     static constexpr int64_t STEP_TIME = 150; // Smooths it out over 150ms, this used to be 100ms.
     uint64_t realTime = clgi.GetRealTime();
@@ -689,36 +689,36 @@ void CLG_ETPlayer_LerpStairStep( centity_t *packetEntity, entity_t *refreshEntit
 }
 
 /**
-*	@brief	Will setup the refresh entity for the ET_PLAYER centity with the newState.
+*	@brief	Will setup the refresh entity for the ET_PLAYER centity with the nextState.
 **/
-void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *newState ) {
+void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
     //
     // Lerp Origin:
     //
-    CLG_ETPlayer_LerpOrigin( packetEntity, refreshEntity, newState );
+    CLG_ETPlayer_LerpOrigin( packetEntity, refreshEntity, nextState );
     //
     // Lerp Angles.
     //
-    CLG_ETPlayer_LerpAngles( packetEntity, refreshEntity, newState );
+    CLG_ETPlayer_LerpAngles( packetEntity, refreshEntity, nextState );
     //
     // Apply Effects.
     //
-    CLG_ETPlayer_AddEffects( packetEntity, refreshEntity, newState );
+    CLG_ETPlayer_AddEffects( packetEntity, refreshEntity, nextState );
     //
     // Special RF_STAIR_STEP lerp for Z axis.
     // 
-    CLG_ETPlayer_LerpStairStep( packetEntity, refreshEntity, newState );
+    CLG_ETPlayer_LerpStairStep( packetEntity, refreshEntity, nextState );
 
     //
     // Add Refresh Entity Model:
     // 
     // Model Index #1:
-    if ( newState->modelindex ) {
+    if ( nextState->modelindex ) {
         // Get client information.
-        clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+        clientinfo_t *ci = &clgi.client->clientinfo[ nextState->skinnum & 0xff ];
 
         // A client player model index.
-        if ( newState->modelindex == MODELINDEX_PLAYER ) {
+        if ( nextState->modelindex == MODELINDEX_PLAYER ) {
             // Parse and use custom player skin.
             refreshEntity->skinnum = 0;
             
@@ -733,7 +733,7 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             }
 
             // In case of the DISGUISE renderflag set, use the disguise skin.
-            if ( newState->renderfx & RF_USE_DISGUISE ) {
+            if ( nextState->renderfx & RF_USE_DISGUISE ) {
                 char buffer[ MAX_QPATH ];
 
                 Q_concat( buffer, sizeof( buffer ), "players/", ci->model_name, "/disguise.pcx" );
@@ -741,31 +741,31 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             }
         // A regular alias entity model instead:
         } else {
-            refreshEntity->skinnum = newState->skinnum;
+            refreshEntity->skinnum = nextState->skinnum;
             refreshEntity->skin = 0;
-            refreshEntity->model = clgi.client->model_draw[ newState->modelindex ];
+            refreshEntity->model = clgi.client->model_draw[ nextState->modelindex ];
         }
 
         // Allow skin override for remaster.
-        if ( newState->renderfx & RF_CUSTOMSKIN && (unsigned)newState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
-            if ( newState->skinnum >= 0 && newState->skinnum < 512 ) {
-                refreshEntity->skin = clgi.client->image_precache[ newState->skinnum ];
+        if ( nextState->renderfx & RF_CUSTOMSKIN && (unsigned)nextState->skinnum < CS_IMAGES + MAX_IMAGES /* CS_MAX_IMAGES */ ) {
+            if ( nextState->skinnum >= 0 && nextState->skinnum < 512 ) {
+                refreshEntity->skin = clgi.client->image_precache[ nextState->skinnum ];
             }
             refreshEntity->skinnum = 0;
         }
 
         // Render entityFlags.
-        refreshEntity->flags = newState->renderfx;
+        refreshEntity->flags = nextState->renderfx;
 
         //
         // Will only be called once for each ET_PLAYER.
         //
         if ( packetEntity->bonePoseCache[0] == nullptr ) {
-            CLG_ETPlayer_AllocatePoseCache( packetEntity, refreshEntity, newState );
+            CLG_ETPlayer_AllocatePoseCache( packetEntity, refreshEntity, nextState );
         }
 
         // In case of the state belonging to the frame's viewed client number:
-        if ( CLG_IsLocalClientEntity( newState ) ) {
+        if ( CLG_IsLocalClientEntity( nextState ) ) {
             // When not in third person mode:
             if ( !clgi.client->thirdPersonView ) {
                 // If we're running RTX, we want the player entity to render for shadow/reflection reasons:
@@ -778,9 +778,9 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
                 //}
             }
             // Determine the base animation to play.
-            CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, newState );
+            CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, nextState );
             // Determine the event animation(s) to play.
-            CLG_ETPlayer_DetermineEventAnimations( packetEntity, refreshEntity, newState );
+            CLG_ETPlayer_DetermineEventAnimations( packetEntity, refreshEntity, nextState );
             // Don't tilt the model - looks weird.
             refreshEntity->angles[ 0 ] = 0.f;
 
@@ -797,29 +797,29 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
 
             }
             // Process the animations.
-            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState, true );
+            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, nextState, true );
         } else {
             // Determine the base animation to play.
-            CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, newState );
+            CLG_ETPlayer_DetermineBaseAnimations( packetEntity, refreshEntity, nextState );
             // Determine the event animation(s) to play.
-            CLG_ETPlayer_DetermineEventAnimations( packetEntity, refreshEntity, newState );
+            CLG_ETPlayer_DetermineEventAnimations( packetEntity, refreshEntity, nextState );
             // Don't tilt the model - looks weird.
             refreshEntity->angles[ 0 ] = 0.f;
             // Process the animations.
-            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, newState, false );
+            CLG_ETPlayer_ProcessAnimations( packetEntity, refreshEntity, nextState, false );
         }
 
         // Add model.
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #2:
-    if ( newState->modelindex2 ) {
+    if ( nextState->modelindex2 ) {
         // Client Entity Weapon Model:
-        if ( newState->modelindex2 == MODELINDEX_PLAYER ) {
+        if ( nextState->modelindex2 == MODELINDEX_PLAYER ) {
             // Fetch client info ID. (encoded in skinnum)
-            clientinfo_t *ci = &clgi.client->clientinfo[ newState->skinnum & 0xff ];
+            clientinfo_t *ci = &clgi.client->clientinfo[ nextState->skinnum & 0xff ];
             // Fetch weapon ID. (encoded in skinnum).
-            int32_t weaponModelIndex = ( newState->skinnum >> 8 ); // 0 is default weapon model
+            int32_t weaponModelIndex = ( nextState->skinnum >> 8 ); // 0 is default weapon model
             if ( weaponModelIndex < 0 || weaponModelIndex > precache.numViewModels - 1 ) {
                 weaponModelIndex = 0;
             }
@@ -838,32 +838,32 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
             }
         // Regular 2nd model index.
         } else {
-            refreshEntity->model = clgi.client->model_draw[ newState->modelindex2 ];
+            refreshEntity->model = clgi.client->model_draw[ nextState->modelindex2 ];
         }
         // Add shell effect.
-        //if ( newState->entityFlags & EF_COLOR_SHELL ) {
+        //if ( nextState->entityFlags & EF_COLOR_SHELL ) {
         //    refreshEntity->flags = renderfx;
         //}
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #3:
-    if ( newState->modelindex3 ) {
+    if ( nextState->modelindex3 ) {
         // Reset.
         refreshEntity->skinnum = 0;
         refreshEntity->skin = 0;
         refreshEntity->flags = 0;
         // Add model.
-        refreshEntity->model = clgi.client->model_draw[ newState->modelindex3 ];
+        refreshEntity->model = clgi.client->model_draw[ nextState->modelindex3 ];
         clgi.V_AddEntity( refreshEntity );
     }
     // Model Index #4:
-    if ( newState->modelindex4 ) {
+    if ( nextState->modelindex4 ) {
         // Reset.
         refreshEntity->skinnum = 0;
         refreshEntity->skin = 0;
         refreshEntity->flags = 0;
         // Add model.
-        refreshEntity->model = clgi.client->model_draw[ newState->modelindex4 ];
+        refreshEntity->model = clgi.client->model_draw[ nextState->modelindex4 ];
         clgi.V_AddEntity( refreshEntity );
     }
 

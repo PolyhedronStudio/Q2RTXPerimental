@@ -81,7 +81,7 @@ struct svg_edict_pool_t : sv_edict_pool_i {
         }
 
         // If we reached the maximum number of entities.
-        if ( i == game.maxentities ) {
+        if ( i == max_edicts ) {
             // If we have a freed entity, use it.
             if ( freedEntity ) {
                 // Initialize it.

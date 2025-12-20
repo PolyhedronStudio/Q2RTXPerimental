@@ -202,6 +202,13 @@ const char *_Exports_SG_GetGameModeName( const int32_t gameModeType ) {
     return SG_GetGameModeName( static_cast<const sg_gamemode_type_t>( gameModeType ) );
 }
 
+/**
+*	@brief	Returns the offset at which eType becomes an actual temporary event entity.
+**/
+const int32_t _Exports_SVG_GetTempEventEntityTypeOffset( void ) {
+	return ET_TEMP_EVENT_ENTITY;
+}
+
 void SVG_PreInitGame( void );
 void SVG_InitGame( void );
 void SVG_ShutdownGame( void );
@@ -223,6 +230,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Init = SVG_InitGame;
 		globals.Shutdown = SVG_ShutdownGame;
 		globals.SpawnEntities = SVG_SpawnEntities;
+		globals.GetTempEventEntityTypeOffset = _Exports_SVG_GetTempEventEntityTypeOffset;
 
 		globals.GetRequestedGameModeType = _Exports_SG_GetRequestedGameModeType;
         globals.IsValidGameModeType = _Exports_SG_IsValidGameModeType;
@@ -482,14 +490,17 @@ void SVG_ShutdownGame( void ) {
 /**
 *   @brief 
 **/
-void EndClientServerFrames(void) {
-    // calc the player views now that all pushing
-    // and damage has been added
-    for ( int32_t i = 0 ; i < maxclients->value ; i++) {
-        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i + 1 );
+static void EndClientServerFrames(void) {
+    // Calc the player views now that all pushing and damage has been added
+    for ( int32_t i = 1 ; i <= maxclients->value ; i++) {
+		// Get the entity for this client.
+        svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+        // Sanity check.
         if ( !ent || !ent->inUse || !ent->client ) {
             continue;
         }
+
+		// Call upon end of server frame for client, which in turn notifies the gamemode.
         SVG_Client_EndServerFrame(ent);
     }
 
@@ -536,9 +547,9 @@ static void DeferRemoveClientInfo( svg_base_edict_t *ent ) {
 **/
 static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
 	// We want the QMTime version of this.
-    static constexpr QMTime _EVENT_VALID_MSEC = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
+    //static constexpr QMTime _EVENT_VALID_MSEC = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
     // clear events that are too old
-    if ( level.time - ent->eventTime > _EVENT_VALID_MSEC ) {
+    if ( level.time - ent->eventTime > ent->eventDuration /*_EVENT_VALID_MSEC*/ ) {
         if ( ent->s.event ) {
             ent->s.event = 0;	// &= EV_EVENT_BITS;
             if ( ent->client ) {
@@ -548,19 +559,19 @@ static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
                 //ent->client->ps.events[1] = 0;
             }
         }
-        // If true, we free it.
-        if ( ent->freeAfterEvent ) {
-            // tempEntities or dropped items completely go away after their event
-            SVG_FreeEdict( ent );
-            //continue;
-            return true; // Skip the entity for further processing. 
-        // Otherwise, if true, we unlink it.
-        } else if ( ent->unlinkAfterEvent ) {
-            // Unlink it now.
-            gi.unlinkentity( ent );
-            // Items that will respawn will hide themselves after their pickup event.
-            ent->unlinkAfterEvent = false;
-        }
+		// If true, we free it.
+		if ( ent->freeAfterEvent ) {
+			// tempEntities or dropped items completely go away after their event
+			SVG_FreeEdict( ent );
+			//continue;
+			return true; // Skip the entity for further processing. 
+			// Otherwise, if true, we unlink it.
+		} else if ( ent->unlinkAfterEvent ) {
+			// Unlink it now.
+			gi.unlinkentity( ent );
+			// Items that will respawn will hide themselves after their pickup event.
+			ent->unlinkAfterEvent = false;
+		}
     }
 
     // Don't skip the entity for further processing.
@@ -595,6 +606,31 @@ static void CheckEntityGroundChange( svg_base_edict_t *ent ) {
         }
     }
 }
+
+/**
+*	@brief	Check if we need to set old_origin manually or not.
+**/
+static void CheckSetOldOrigin( svg_base_edict_t *ent ) {
+	if (
+		// Don't set old_origin for Beam Entities, they do it by hand.
+		( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) )
+		// Don't set old_origin for Temporary Event Entities, they do it by hand.
+		&& !( ent->s.entityType - ET_TEMP_EVENT_ENTITY > 0 ) ) {
+		// Otherwise, set the old origin.
+		ent->s.old_origin = ent->s.origin;
+	}
+}
+/**
+*	@brief	Updates the lastOrigin for Push/Stop entities.
+**/
+static void CheckUpdatePusherLastOrigin( svg_base_edict_t *ent ) {
+	if ( ent->s.entityType == ET_PUSHER ) {
+		// Make sure to store the last ... origins and angles.
+		ent->lastOrigin = ent->s.origin;
+		ent->lastAngles = ent->s.angles;
+	}
+}
+
 /**
 *   @brief  Advances the world by FRAME_TIME_MS seconds
 **/
@@ -631,7 +667,7 @@ void SVG_RunFrame(void) {
     // Treat each object in turn
     // even the world gets a chance to think
     //
-    svg_base_edict_t *ent = ent = g_edict_pool.EdictForNumber( 0 );
+    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 0 );
     for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
 		// skip nullptr edicts.
         if ( !ent ) {
@@ -653,7 +689,7 @@ void SVG_RunFrame(void) {
         /**
         *   Set the current entity being processed for the current frame.
         **/
-        level.current_entity = ent;
+        level.processingEntity = ent;
 
         /**
 		*   Clear events that are too old.
@@ -673,13 +709,12 @@ void SVG_RunFrame(void) {
         if ( !ent->area.prev && ent->neverFreeOnlyUnlink ) {
             continue;
         }
+
         /**
-        *   RF Beam Entities update their old_origin by hand.
+        *   - RF Beam Entities update their old_origin by hand.
+		*	- Temporary Event Entities Entities update their old_origin by hand.
         **/
-        if ( ent->s.entityType != ET_BEAM 
-            && !( ent->s.renderfx & RF_BEAM ) ) {
-            ent->s.old_origin = ent->s.origin;
-        }
+		CheckSetOldOrigin( ent );
 
         /**
         *   If the ground entity moved, make sure we are still on it.
@@ -697,16 +732,11 @@ void SVG_RunFrame(void) {
         **/
         } else {
 			// For Pushers, store their last origins and angles before running them.
-            if ( ent->s.entityType == ET_PUSHER ) {
-                // Make sure to store the last ... origins and angles.
-                ent->lastOrigin = ent->s.origin;
-                ent->lastAngles = ent->s.angles;
-            }
+			CheckUpdatePusherLastOrigin( ent );
             // Run the entity now. (Make it 'think'.)
             SVG_RunEntity( ent );
         }
     }
-
     // Readjust "movewith" Push/Stop entities.
     SVG_PushMove_UpdateMoveWithEntities();
 
@@ -722,7 +752,6 @@ void SVG_RunFrame(void) {
 
     // build the playerstate_t structures for all players
     EndClientServerFrames();
-
     // WID: LUA: CallBack.
     SVG_Lua_CallBack_EndServerFrame();
 }

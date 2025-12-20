@@ -6,8 +6,6 @@
 #include "common/skeletalmodels/cm_skm.h"
 #include "common/skeletalmodels/cm_skm_posecache.h"
 
-#include "client/cl_world.h"
-
 extern cl_screen_shared_t cl_scr;
 
 /**
@@ -18,12 +16,23 @@ extern cl_screen_shared_t cl_scr;
 *
 **/
 /**
-*
-*
-*	Client Static:
-*
-*
+*	@brief	
 **/
+static void PF_EmitDemoFrame( void ) {
+	CL_EmitDemoFrame();
+}
+/**
+*	@brief
+**/
+static void PF_InitialDemoFrame( void ) {
+	CL_FirstDemoFrame();
+}
+/**
+*	@brief
+**/
+static const qboolean PF_IsDemoRecording( ) {
+	return cls.demo.recording && !cls.demo.paused && !cls.demo.seeking;
+}
 /**
 *	@return	True if playing a demo, false otherwise.
 **/
@@ -40,6 +49,13 @@ const int64_t PF_GetDemoFileSize() {
 	return cls.demo.file_size;
 }
 
+/**
+*
+*
+*	Client Static:
+*
+*
+**/
 /**
 *	@return	The real system time since application boot time.
 **/
@@ -84,28 +100,59 @@ static const int64_t PF_Netchan_GetDropped( void ) {
 *
 **/
 /**
+*   @return A pointer to nullleaf if there is no BSP model cached up, or the number is out of bounds.
+*           A pointer to the 'special case for solid leaf' if number == -1
+*           A pointer to the BSP Node that matched with 'number'.
+**/
+static mnode_t *PF_CM_NodeForNumber( const int32_t number ) {
+	return CM_NodeForNumber( &cl.collisionModel, number );
+}
+/**
 *   @return The number that matched the node's pointer. -1 if node was a nullptr.
 **/
-static const int32_t PF_CM_NumberForNode( cm_t *cm, mnode_t *node ) {
+static const int32_t PF_CM_NumberForNode( mnode_t *node ) {
+	cm_t *cm = &cl.collisionModel;
 	return CM_NumberForNode( cm, node );
+}
+
+/**
+*   @return A pointer to nullleaf if there is no BSP model cached up.
+*           A pointer to the BSP Leaf that matched with 'number'.
+**/
+static mleaf_t *PF_CM_LeafForNumber( const int32_t number ) {
+	cm_t *cm = &cl.collisionModel;
+	return CM_LeafForNumber( cm, number );
 }
 /**
 *   @return The number that matched the leaf's pointer. 0 if leaf was a nullptr.
 **/
-static const int32_t PF_CM_NumberForLeaf( cm_t *cm, mleaf_t *leaf ) {
+static const int32_t PF_CM_NumberForLeaf( mleaf_t *leaf ) {
+	cm_t *cm = &cl.collisionModel;
 	return CM_NumberForLeaf( cm, leaf );
 }
 /**
 *   @Return True if any leaf under headnode has a cluster that is potentially visible
 **/
-const qboolean PF_CM_HeadnodeVisible( mnode_t *headnode, byte *visbits ) {
+static const qboolean PF_CM_HeadnodeVisible( mnode_t *headnode, byte *visbits ) {
 	return CM_HeadnodeVisible( headnode, visbits );
 }
+
+void PF_CM_SetAreaPortalState( const int32_t portalnum, const bool open ) {
+	CM_SetAreaPortalState( &cl.collisionModel, portalnum, open );
+}
+const int32_t PF_CM_GetAreaPortalState( const int32_t portalnum ) {
+	return CM_GetAreaPortalState( &cl.collisionModel, portalnum );
+}
+const bool PF_CM_AreasConnected( const int32_t area1, const int32_t area2 ) {
+	return CM_AreasConnected( &cl.collisionModel, area1, area2 );
+}
+
 /**
 *   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
 *           given box occupies in the data structure.
 **/
-const int32_t PF_CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
+static const int32_t PF_CM_BoxLeafs( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
+	cm_t *cm = &cl.collisionModel;
 	return CM_BoxLeafs( cm, mins, maxs, list, listsize, topnode );
 }
 /**
@@ -113,13 +160,19 @@ const int32_t PF_CM_BoxLeafs( cm_t *cm, const vec3_t mins, const vec3_t maxs, ml
 *           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
 *           contains the box.
 **/
-const int32_t PF_CM_BoxLeafs_headnode( cm_t *cm, const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode ) {
+static const int32_t PF_CM_BoxLeafs_headnode( const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode ) {
+	cm_t *cm = &cl.collisionModel;
 	return CM_BoxLeafs_headnode( cm, mins, maxs, list, listsize, headnode, topnode );
 }
 /**
 *   @return The contents mask of all leafs within the absolute bounds.
 **/
-const cm_contents_t PF_CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t maxs, mnode_t *headnode ) {
+static const cm_contents_t PF_CM_BoxContents( const vec3_t mins, const vec3_t maxs, mnode_t *headnode ) {
+	cm_t *cm = &cl.collisionModel;
+	if ( !cm->cache ) {
+		//Com_Error( ERR_DROP, "%s: No collision model cached up!\n", __func__ );
+		return CONTENTS_NONE;
+	}
 	return CM_BoxContents( cm, mins, maxs, headnode );
 }
 
@@ -127,21 +180,101 @@ const cm_contents_t PF_CM_BoxContents( cm_t *cm, const vec3_t mins, const vec3_t
 /**
 *   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
 **/
-const cm_trace_t q_gameabi PF_CL_Trace( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *passEntity, const cm_contents_t contentmask ) {
-	return CL_Trace( *start, mins, maxs, *end, passEntity, contentmask );
+static const cm_trace_t PF_CM_BoxTrace( const Vector3 *start, const Vector3 *end, const Vector3 *mins, const Vector3 *maxs, mnode_t *headNode, const cm_contents_t brushMask ) {
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	// Ensure we have a collision model cached up. Return an empty trace if not.
+	if ( !cl.collisionModel.cache ) {
+		//Com_Error( ERR_DROP, "%s: No collision model cached up!\n", __func__ );
+		return trace;
+	}
+
+	// Get vector copies.
+	const Vector3 _start = *start;
+	const Vector3 _end = *end;
+	// Perform the box trace.
+	CM_BoxTrace( &cl.collisionModel, &trace, _start, _end, mins, maxs, headNode, brushMask );
+
+	// Return the box trace.
+	return trace;
 }
 /**
-*   @brief  Will perform a clipping trace to the specified entity.
-*           If clipEntity == nullptr, it'll perform a clipping trace against the World.
+*   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.
 **/
-const cm_trace_t q_gameabi PF_CL_Clip( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const centity_t *clipEntity, const cm_contents_t contentmask ) {
-	return CL_Clip( *start, mins, maxs, *end, clipEntity, contentmask );
+static const cm_trace_t PF_CM_TransformedBoxTrace( 
+	const Vector3 *start, const Vector3 *end,
+	const Vector3 *mins, const Vector3 *maxs,
+	mnode_t *headnode, const cm_contents_t brushMask,
+	const Vector3 *origin, const Vector3 *angles ) {
+
+	cm_trace_t trace = {};
+	trace.surface = &nulltexinfo.c;
+	trace.material = &cm_default_material;
+	trace.surface2 = &nulltexinfo.c;
+	trace.material2 = &cm_default_material;
+
+	// Ensure we have a collision model cached up. Return an empty trace if not.
+	if ( !cl.collisionModel.cache ) {
+		//Com_Error( ERR_DROP, "%s: No collision model cached up!\n", __func__ );
+		return trace;
+	}
+
+	// Get vector copies.
+	const Vector3 _start = *start;
+	const Vector3 _end = *end;
+	const Vector3 _origin = *origin;
+	const Vector3 _angles = *angles;
+
+	// Perform the Transformed Box Trace.
+	CM_TransformedBoxTrace( &cl.collisionModel, &trace, _start, _end, mins, maxs, headnode, brushMask, &_origin.x, &_angles.x );
+
+	// Return the box trace.
+	return trace;
+}
+
+/**
+*   @return The type of 'contents' at the given point.
+**/
+static const cm_contents_t PF_CM_PointContents( const Vector3 *point, mnode_t *headNode ) {
+	if ( !cl.collisionModel.cache ) {
+		//Com_Error( ERR_DROP, "%s: No collision model cached up!\n", __func__ );
+		return CONTENTS_NONE;
+	}
+	return CM_PointContents( &cl.collisionModel, &point->x, headNode );
 }
 /**
 *   @return The type of 'contents' at the given point.
 **/
-const cm_contents_t q_gameabi PF_CL_PointContents( const Vector3 *point ) {
-	return CL_PointContents( *point );
+static const cm_contents_t PF_CM_TransformedPointContents( const Vector3 *point, mnode_t *headnode, const Vector3 *origin, const Vector3 *angles ) {
+	if ( !cl.collisionModel.cache ) {
+		//Com_Error( ERR_DROP, "%s: No collision model cached up!\n", __func__ );
+		return CONTENTS_NONE;
+	}
+	// Get vector pointers
+	return CM_TransformedPointContents( &cl.collisionModel, &point->x, headnode, &origin->x, &angles->x );
+}
+
+/**
+*	@return	A pointer to the default material.
+**/
+static const cm_material_t *PF_CM_GetDefaultMaterial() {
+	return &cm_default_material;
+}
+/**
+*	@return A pointer to the null texture info surface.
+**/
+static const cm_surface_t *PF_CM_GetNullSurface() {
+	return &nulltexinfo.c;
+}
+/**
+*	@return	The hull node for the specified entity.
+**/
+static mnode_t *PF_CL_GetEntityHullNode( const centity_t *ent/*, const bool includeSolidTriggers = false */ ) {
+	return CL_GetEntityHullNode( ent/*, includeSolidTriggers */ );
 }
 
 
@@ -314,7 +447,7 @@ static void PF_Print( print_type_t printType, const char *fmt, ... ) {
 /**
 *	@brief	Abort the client/(server too in case we're local.) with a game error
 **/
-static q_noreturn void PF_Error( const char *fmt, ... ) {
+static q_noreturn void PF_Error( error_type_t errorType, const char *fmt, ... ) {
 	char        msg[ MAXERRORMSG ];
 	va_list     argptr;
 
@@ -322,7 +455,7 @@ static q_noreturn void PF_Error( const char *fmt, ... ) {
 	Q_vsnprintf( msg, sizeof( msg ), fmt, argptr );
 	va_end( argptr );
 
-	Com_Error( ERR_DROP, "ClientGame Error: %s", msg );
+	Com_Error( errorType, "ClientGame Error: %s", msg );
 }
 
 
@@ -824,7 +957,12 @@ void CL_GM_LoadProgs( void ) {
 	imports.screen = &cl_scr;
 
 	// Client Static:
+	imports.EmitDemoFrame = PF_EmitDemoFrame;
+	imports.InitialDemoFrame = PF_InitialDemoFrame;
+
+	imports.IsDemoRecording = PF_IsDemoRecording;
 	imports.IsDemoPlayback = PF_IsDemoPlayback;
+	
 	imports.GetDemoFramesRead = PF_GetDemoFramesRead;
 	imports.GetDemoFileProgress = PF_GetDemoFileProgress;
 	imports.GetDemoFileSize = PF_GetDemoFileSize;
@@ -843,11 +981,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.Netchan_GetIncomingAcknowledged = PF_Netchan_GetIncomingAcknowledged;
 	imports.Netchan_GetDropped = PF_Netchan_GetDropped;
 	// End of Client Static.
-
-	imports.Trace = PF_CL_Trace;
-	imports.Clip = PF_CL_Clip;
-	imports.PointContents = PF_CL_PointContents;
-
+	
 	imports.GetConfigString = PF_GetConfigString;
 
 	imports.Cmd_From = Cmd_From;
@@ -893,15 +1027,20 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.Con_ClearNotify_f = Con_ClearNotify_f;
 
-	imports.CM_NodeForNumber = CM_NodeForNumber;
+	imports.CM_NodeForNumber = PF_CM_NodeForNumber;
 	imports.CM_NumberForNode = PF_CM_NumberForNode;
-	imports.CM_LeafForNumber = CM_LeafForNumber;
+	imports.CM_LeafForNumber = PF_CM_LeafForNumber;
 	imports.CM_NumberForLeaf = PF_CM_NumberForLeaf;
 	imports.CM_HeadnodeVisible = PF_CM_HeadnodeVisible;
 
-	imports.CM_SetAreaPortalState = CM_SetAreaPortalState;
-	imports.CM_GetAreaPortalState = CM_GetAreaPortalState;
-	imports.CM_AreasConnected = CM_AreasConnected;
+	imports.CM_SetAreaPortalState = PF_CM_SetAreaPortalState;
+	imports.CM_GetAreaPortalState = PF_CM_GetAreaPortalState;
+	imports.CM_AreasConnected = PF_CM_AreasConnected;
+
+	imports.CM_BoxTrace = PF_CM_BoxTrace;
+	imports.CM_TransformedBoxTrace = PF_CM_TransformedBoxTrace;
+	imports.CM_PointContents = PF_CM_PointContents;
+	imports.CM_TransformedPointContents = PF_CM_TransformedPointContents;
 
 	imports.CM_BoxLeafs = PF_CM_BoxLeafs;
 	imports.CM_BoxLeafs_headnode = PF_CM_BoxLeafs_headnode;
@@ -909,11 +1048,15 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.CM_EntityKeyValue = CM_EntityKeyValue;
 	imports.CM_GetNullEntity = CM_GetNullEntity;
+	imports.CM_GetDefaultMaterial = PF_CM_GetDefaultMaterial;
+	imports.CM_GetNullSurface = PF_CM_GetNullSurface;
+	imports.GetEntityHullNode = PF_CL_GetEntityHullNode;
 
 	imports.FS_FileExistsEx = PF_FS_FileExistsEx;
 	imports.FS_LoadFile = PF_FS_LoadFile;
 	imports.FS_FreeFile = PF_FS_FreeFile;
 
+	imports.ActivateInput = IN_Activate;
 	imports.KeyDown = CL_KeyDown;
 	imports.KeyUp = CL_KeyUp;
 	imports.KeyClear = CL_KeyClear;
