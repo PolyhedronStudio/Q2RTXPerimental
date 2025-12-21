@@ -159,6 +159,6 @@ void CLG_PlayerState_Transition( centity_t *clent, server_frame_t *oldframe, ser
 
 	// Make sure to check for playerstate events changes.
     if ( !duplicatedState ) {
-        CLG_CheckPlayerstateEvents( ps, ops );
+        CLG_CheckPlayerstateEvents( ops, ps );
     }
 }

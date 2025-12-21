@@ -582,7 +582,7 @@ void SVG_Client_Think( svg_base_edict_t *ent, usercmd_t *ucmd ) {
         // We do this now so that the entity is in the correct position for touch traces
         // and events that may be triggered during the PMove.
         // Convert certain playerstate properties into entity state properties.
-        SG_PlayerStateToEntityState( client->clientNum, &client->ps, &player_ent->s, false );
+        SG_PlayerStateToEntityState( client->clientNum, &client->ps, &player_ent->s, true, false );
         
 		// Send any remaining pending predictable events to all clients but "ourselves".
         SVG_Client_SendPendingPredictableEvents( player_ent, client );

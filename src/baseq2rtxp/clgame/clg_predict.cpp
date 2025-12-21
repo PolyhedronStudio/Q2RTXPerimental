@@ -632,7 +632,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
 
     // TODO: Use game.predictedEntity for this.
     //CLG_PlayerState_Transition( &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ], &predictedState->frame, &predictedState->lastFrame, clgi.client->serverdelta);
-    CLG_PlayerState_Transition( clientEntity, &predictedState->frame, &predictedState->lastFrame, clgi.client->serverdelta );
+    CLG_PlayerState_Transition( clientEntity, &predictedState->lastFrame, &predictedState->frame, clgi.client->serverdelta );
 
 	// Debug: Check for double events.
     if ( cl_showmiss->integer ) {
