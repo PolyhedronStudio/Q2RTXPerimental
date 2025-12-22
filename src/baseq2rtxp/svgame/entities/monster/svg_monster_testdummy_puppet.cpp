@@ -14,6 +14,9 @@
 // TODO: Move elsewhere.. ?
 #include "refresh/shared_types.h"
 
+// Entities
+#include "sharedgame/sg_entities.h"
+
 // SharedGame UseTargetHints.
 #include "sharedgame/sg_usetarget_hints.h"
 
@@ -565,7 +568,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdu
 
     if ( self->lifeStatus == LIFESTATUS_DYING ) {
         // Gib Death:
-        if ( self->health < -40 ) {
+        if ( self->health < GIB_DEATH_HEALTH ) {
             // Play gib sound.
             gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
             //! Throw 4 small meat gibs around.

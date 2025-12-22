@@ -71,11 +71,12 @@ static void CL_SetInitialServerFrame(void)
     cl.oldframe.ps = cl.frame.ps;
 
     // Determine the current delta frame's server time.
-    cl.servertime = cl.frame.number * CL_FRAMETIME;
+	int64_t framenum = cl.frame.number - cl.serverdelta;
+	cl.servertime = framenum * CL_FRAMETIME;
 	// Set time, needed for demos
 	cl.time = cl.servertime;
 	// Set extrapolated time to current server time.
-	cl.extrapolatedTime = cl.servertime;
+	cl.extrapolatedTime = cl.servertime + CL_FRAMETIME;
 
 	// Set frameflags.
     cl.frameflags = FF_NONE;
@@ -124,12 +125,15 @@ void CL_TransitionServerFrames( void ) {
         CL_SetInitialServerFrame();
     }
 
-    // Determine the current delta frame's server time.
-    int64_t framenum = cl.frame.number - cl.serverdelta;
-    cl.servertime = framenum * CL_FRAMETIME;
+	// Only perform frame transition if we're active.
+	if ( cls.state == ca_active ) {
+		// Determine the current delta frame's server time.
+		int64_t framenum = cl.frame.number - cl.serverdelta;
+		cl.servertime = framenum * CL_FRAMETIME;
 
-	// Let the client game handle the frame transition.
-    clge->Frame_TransitionToNext();
+		// Let the client game handle the frame transition.
+		clge->Frame_TransitionToNext();
+	}
 }
 
 /**

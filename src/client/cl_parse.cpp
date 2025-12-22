@@ -198,8 +198,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     }
 }
 
-static void CL_ParseFrame()
-{
+static void CL_ParseFrame() {
     // Current frame being parsed.
     server_frame_t  frame = { };
     // Previous old frame.
@@ -338,11 +337,11 @@ static void CL_ParseFrame()
 	*   Parse playerinfo.
     **/
 	// Expect svc_playerinfo or bail out.
-    if (MSG_ReadUint8() != svc_playerinfo) {
-        Com_Error(ERR_DROP, "%s: not playerinfo", __func__);
-    }
+	if ( MSG_ReadUint8() != svc_playerinfo ) {
+		Com_Error( ERR_DROP, "%s: not playerinfo", __func__ );
+	}
 
-    SHOWNET(2, "%3zu:playerinfo\n", msg_read.readcount - 1);
+	SHOWNET( 2, "%3zu:playerinfo\n", msg_read.readcount - 1 );
     // <Q2RTXP>: Removed client number reading from playerinfo.
     // Moved to be read in the playerstate delta instead..
     #if 0
@@ -357,31 +356,31 @@ static void CL_ParseFrame()
     /**
     *   Parse playerstate.
     **/
-    const uint64_t playerStateBits = MSG_ReadUintBase128();
-    MSG_ParseDeltaPlayerstate( fromPs, &frame.ps, playerStateBits );
-    // Validate clientNumber after reading it from the playerstate delta.
-    if ( !VALIDATE_CLIENTNUM( frame.ps.clientNumber ) ) {
-        Com_Error( ERR_DROP, "%s: bad clientNum(%d)", __func__, frame.ps.clientNumber );
-    }
-    #if USE_DEBUG
-        if ( cl_shownet->integer > 2 && playerStateBits ) {
-            MSG_ShowDeltaPlayerstateBits( playerStateBits );
-            Com_LPrintf(PRINT_DEVELOPER, "\n");
-        }
-    #endif
+	const uint64_t playerStateBits = MSG_ReadUintBase128();
+	MSG_ParseDeltaPlayerstate( fromPs, &frame.ps, playerStateBits );
+	// Validate clientNumber after reading it from the playerstate delta.
+	if ( !VALIDATE_CLIENTNUM( frame.ps.clientNumber ) ) {
+		Com_Error( ERR_DROP, "%s: bad clientNum(%d)", __func__, frame.ps.clientNumber );
+	}
+	#if USE_DEBUG
+	if ( cl_shownet->integer > 2 && playerStateBits ) {
+		MSG_ShowDeltaPlayerstateBits( playerStateBits );
+		Com_LPrintf( PRINT_DEVELOPER, "\n" );
+	}
+	#endif
 
-    /**
-    *   Parse packetentities.
-    **/
-        if (MSG_ReadUint8() != svc_packetentities) {
-            Com_Error(ERR_DROP, "%s: not packetentities", __func__);
-        }
-    SHOWNET(2, "%3zu:packetentities\n", msg_read.readcount - 1);
+	/**
+	*   Parse packetentities.
+	**/
+	if ( MSG_ReadUint8() != svc_packetentities ) {
+		Com_Error( ERR_DROP, "%s: not packetentities", __func__ );
+	}
+	SHOWNET( 2, "%3zu:packetentities\n", msg_read.readcount - 1 );
 	// Parse the entities that have been sent.
-    CL_ParsePacketEntities(oldframe, &frame);
+	CL_ParsePacketEntities( oldframe, &frame );
 
-    // Save the frame off in the backup array for later delta comparisons
-    cl.frames[currentframe & UPDATE_MASK] = frame;
+	// Save the frame off in the backup array for later delta comparisons
+	cl.frames[ currentframe & UPDATE_MASK ] = frame;
 
 #if USE_DEBUG
     if (cl_shownet->integer > 2) {
@@ -392,16 +391,16 @@ static void CL_ParseFrame()
     }
 #endif
 
-    // Ignore the data if the parsed frame isn't valid.
-    if (!frame.valid) {
-        cl.frame.valid = false;
-        return; // Do not change anything.
-    }
+	// Ignore the data if the parsed frame isn't valid.
+	if ( !frame.valid ) {
+		cl.frame.valid = false;
+		return; // Do not change anything.
+	}
 
-    // Fail out early to prevent spurious errors later in case of a bad FOV.
-    if (!frame.ps.fov) {
-        Com_Error(ERR_DROP, "%s: bad fov", __func__);
-    }
+	// Fail out early to prevent spurious errors later in case of a bad FOV.
+	if ( !frame.ps.fov ) {
+		Com_Error( ERR_DROP, "%s: bad fov", __func__ );
+	}
 
     // Do NOT actually start swapping our active client frames if we're not precached yet.
     if ( cls.state < ca_precached ) {
@@ -437,6 +436,7 @@ static void CL_ParseConfigstring(int index)
 
     if (index < 0 || index >= MAX_CONFIGSTRINGS) {
         Com_Error(ERR_DROP, "%s: bad index: %d", __func__, index);
+		return;
     }
 
     s = cl.configstrings[index];

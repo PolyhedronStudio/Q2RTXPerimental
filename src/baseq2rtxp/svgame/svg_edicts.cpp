@@ -12,6 +12,7 @@
 #include "svgame/svg_save.h"
 #include "svgame/svg_utils.h"
 
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_tempentity_events.h"
 #include "sharedgame/sg_usetarget_hints.h"
 
@@ -130,7 +131,7 @@ DECLARE_GLOBAL_CALLBACK_DIE( body_die );
 DEFINE_GLOBAL_CALLBACK_DIE( body_die )( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) -> void {
     int n;
 
-    if ( self->health < -40 ) {
+    if ( self->health < GIB_DEATH_HEALTH ) {
         gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
         for ( n = 0; n < 4; n++ ) {
             SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );

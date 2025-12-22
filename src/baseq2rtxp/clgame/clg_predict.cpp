@@ -74,108 +74,75 @@ void CLG_AdjustViewHeight( const int32_t viewHeight ) {
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 **/
 void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
-    //if ( !clgi.client->clientEntity ) {
-    //    return;
-    //}
-    
-    //centity_t *clientEntity = clgi.client->clientEntity;
-    // Get client entity.
-    //centity_t *clientEntity = &clg_entities[ clgi.client->frame.clientNum + 1 ];
+	//if ( !clgi.client->clientEntity ) {
+	//    return;
+	//}
 
-    //// Make sure it is valid for this frame.
-    //if ( clientEntity->serverframe != clgi.client->frame.number ) {
-    //    return;
-    //}
+	//centity_t *clientEntity = clgi.client->clientEntity;
+	/**
+	*	@brief	Get client entities.
+	**/
+	// The client entity for the current frame.
+	centity_t *clgClientEntity = &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ];
+	// The predicted client entity.
+	centity_t *predictedClientEntity = &game.predictedEntity;
 
-    // WID: We don't have support for external events yet. In fact, they would in Q3 style rely on
-    // 'temp entities', which are alike a normal entity. Point being is this requires too much refactoring
-    // right now.
-    #if 1
-    /**
-    *   Check for any external entity events that have been applied to the current frame's
-	*   client entity.
-    * 
-    *   That entity is coming straight from the entity snapshot the server sent us for this frame.
-	*   It is either the entity of our own local client, or that of the viewbound entity.
-    **/
-    if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
-		// Get the client entity for the current frame.
-        centity_t *clientEntity = &clg_entities[ ps->clientNumber + 1 ]; // CLG_GetLocalClientEntity();
+	// Make sure it is valid for this frame.
+	if ( clgClientEntity->serverframe != clgi.client->frame.number ) {
+		return;
+	}
 
-		// Assign the external event to the client entity.
-        clientEntity->current.event = ps->externalEvent;
-        clientEntity->current.eventParm0 = ps->externalEventParm0;
-        clientEntity->current.eventParm1 = ps->externalEventParm1;
+	#if 1
+	if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
+		clgClientEntity->current.event = ps->externalEvent;
+		clgClientEntity->current.eventParm0 = ps->externalEventParm0;
+		clgClientEntity->current.eventParm1 = ps->externalEventParm1;
 
-        // Check and fire the external entity event.
-        CLG_Events_CheckForEntity( clientEntity );
-    }
-    #endif
+		CLG_Events_CheckForEntity( clgClientEntity );
+	}
+	#endif
 
-	// Get the game's predicted client entity, which is used to (not limited to) 
-    // play PMove predicted events.
-    centity_t *predictedEntity = &game.predictedEntity;//&clg_entities[ ps->clientNumber + 1 ];
+	// Get the predicted client entity.
+	centity_t *predictedEntity = &game.predictedEntity;
 
-    // Go through the predictable events buffer
-    for ( int64_t i = ps->eventSequence - MAX_PS_EVENTS; i < ps->eventSequence; i++ ) {
-        // If we have a new predictable event:
-        if ( i >= ops->eventSequence
-            // OR the server told us to play another event instead of a predicted event we already issued
-            
-            // OR something the server told us changed our prediction causing a different event
-            || ( i > ops->eventSequence - MAX_PS_EVENTS && ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] != ops->events[ i & ( MAX_PS_EVENTS - 1 ) ] ) 
-        ) {
-			// Get the event number.
-            const int32_t playerStateEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
-            // Get the parameter.
+	// Go through the predictable events buffer.
+	for ( int64_t i = ps->eventSequence - MAX_PS_EVENTS; i < ps->eventSequence; i++ ) {
+		// If this is a new event index:
+		const bool isNewEventIndex = ( i >= ops->eventSequence );
+		// If this is an old event index which has changed:
+		const bool isChangedOldEvent =
+			( i > ops->eventSequence - MAX_PS_EVENTS
+				&& ps->events[ i & ( MAX_PS_EVENTS - 1 ) ] != ops->events[ i & ( MAX_PS_EVENTS - 1 ) ] );
+
+		// If this is either a new event index, or a changed old event:
+		if ( isNewEventIndex || isChangedOldEvent ) {
+			// Get the player state event and parm0.
+			const int32_t playerStateEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];
 			const int32_t playerStateEventParm0 = ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
-            // Assign to the client entity.
-            predictedEntity->current.event = playerStateEvent;
-            predictedEntity->current.eventParm0 = playerStateEventParm0;
-            predictedEntity->current.eventParm1 = 0;// ps->eventParms[ i & ( MAX_PS_EVENTS - 1 ) ];
-            
-            /**
-            *
-            *   Either join the two together...
-            *   Or keep them separated?
-            * 
-            *   Q3 only thinks "all clients are basically an entity"....
-            * 
-            *   But, we got monsters as well as players. How to deal with this?
-            * 
-            *   Let players deal with the same event if the entity number matches to
-			*   that of the view bound entity. Otherwise, let the entity events deal with it?
-            * 
-            * 
-            *    ---> see below
-			*   The problem here seems that for playing the sound we need to know the entity's origin.
-			*   So, we need to know which entity to use for that.
-            *
-            **/
-            // Proceed to firing the predicted/received event.
-            #if 0
-                const bool processedPlayerStateViewBoundEffect = CLG_Events_CheckForPlayerState( ops, ps, playerStateEvent, clgi.client->predictedFrame.ps.pmove.origin, clgi.client->frame.clientNum );
-                if ( !processedPlayerStateViewBoundEffect ) {
-                        CLG_Events_CheckForEntity( clientEntity );
-                }
-            #else
-                int32_t firedEvent = playerStateEvent;
-				// First try to process via local player state events.
-                const bool firedLocalPlayerStateEvent = CLG_Events_CheckForPlayerState( ops, ps, playerStateEvent, playerStateEventParm0, game.predictedState.origin/*, clgi.client->frame.ps.clientNumber */);
 
-				// It was never dealt with by local client events, so assume that the event is
-                // for and attached to the entity.
-                if ( !firedLocalPlayerStateEvent ) {
-                    firedEvent = CLG_Events_CheckForEntity( predictedEntity );
-                }
-            #endif
+			// Assign to the predicted client entity.
+			predictedClientEntity->current.event = playerStateEvent;
+			predictedClientEntity->current.eventParm0 = playerStateEventParm0;
+			predictedClientEntity->current.eventParm1 = 0;
 
-            // Add to the list of predictable events.
-            game.predictedState.events[ i & ( client_predicted_state_t::MAX_PREDICTED_EVENTS - 1 ) ] = firedEvent;
-            // Increment Event Sequence.
-            game.predictedState.eventSequence++;
-        }
-    }
+			int32_t firedEvent = playerStateEvent;
+			// Check for local player state events first.
+			const bool firedLocalPlayerStateEvent =
+				CLG_Events_CheckForPlayerState( predictedClientEntity, ops, ps, playerStateEvent, playerStateEventParm0, game.predictedState.origin );
+			// If we didn't fire a local player state event, check for normal entity events.
+			if ( !firedLocalPlayerStateEvent ) {
+				firedEvent = CLG_Events_CheckForEntity( predictedClientEntity );
+			}
+
+			// Add to the list of predictable events.
+			game.predictedState.events[ i & ( client_predicted_state_t::MAX_PREDICTED_EVENTS - 1 ) ] = playerStateEvent;
+
+			// Only advance our predicted event sequence when we've actually consumed a new event index.
+			if ( isNewEventIndex ) {
+				game.predictedState.eventSequence++;
+			}
+		}
+	}
 }
 
 /**
@@ -487,6 +454,9 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
     // Start off with the latest valid frame player state.
     predictedState->currentPs = clgi.client->frame.ps;
 
+	// NOTE: Ensure the event sequence is rectified before processing any events.
+	predictedState->eventSequence = clgi.client->frame.ps.eventSequence;
+
 	// Shuffle the still "CURRENT" ground info into our "LAST" groundinfo.
 	predictedState->lastGround = predictedState->ground;
 
@@ -542,7 +512,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
                 // Check for predictable events that changed from previous predictions.
                 CLG_CheckChangedPredictableEvents( &predictedState->lastPs, &predictedState->currentPs, pm.simulationTime );
                 // Convert certain playerstate properties into entity state properties.
-                SG_PlayerStateToEntityState( clgi.client->clientNumber, &predictedState->currentPs, &clientEntity->current, false, false );
+                SG_PlayerStateToEntityState( clgi.client->clientNumber, &predictedState->currentPs, &clientEntity->current, true, false );
                 // Predict the next bobCycle for the frame.
                 CLG_PredictNextBobCycle( &pm );
             #endif

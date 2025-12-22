@@ -11,6 +11,7 @@
 #include "svgame/player/svg_player_obituary.h"
 #include "svgame/svg_save.h"
 
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/pmove/sg_pmove.h"
 #include "svgame/entities/svg_item_edict.h"
 #include "svgame/entities/svg_player_edict.h"
@@ -218,7 +219,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie) ( svg_player_edict_t *sel
     }
 
     // Gib Death:
-    if ( self->health < -40 ) {
+    if ( self->health < GIB_DEATH_HEALTH ) {
         // Play gib sound.
         gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
         //! Throw 4 small meat gibs around.

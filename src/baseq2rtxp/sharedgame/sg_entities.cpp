@@ -62,8 +62,17 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	/**
 	*	Entity Type, Model Index, etc:
 	**/
-	entityState->entityType = ET_PLAYER;
-	entityState->modelindex = MODELINDEX_PLAYER;
+	// Hide the player entity if in spectator/intermission modes.
+	if ( playerState->pmove.pm_type == PM_SPECTATOR || playerState->pmove.pm_type == PM_INTERMISSION || playerState->pmove.pm_type == PM_SPINTERMISSION ) {
+		entityState->entityType = ET_INVISIBLE;
+		entityState->modelindex = 0;
+	} else if ( playerState->stats[ STAT_HEALTH ] <= GIB_DEATH_HEALTH ) {
+		entityState->entityType = ET_INVISIBLE;
+		entityState->modelindex = 0;
+	} else {
+		entityState->entityType = ET_PLAYER;
+		entityState->modelindex = MODELINDEX_PLAYER;
+	}
 
 	/**
 	*	Entity Number: Expected to match, otherwise rectified.

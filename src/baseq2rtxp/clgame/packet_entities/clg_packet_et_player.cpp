@@ -10,7 +10,7 @@
 #include "clgame/clg_entities.h"
 #include "clgame/clg_precache.h"
 
-
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_misc.h"
 
@@ -588,7 +588,7 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
             Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
             Vector3 correctedOldOrigin = packetEntity->current.origin;
             // For being Dead:
-            if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
+            if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= GIB_DEATH_HEALTH ) {
                 correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
                 correctedOldOrigin.z += PM_BBOX_GIBBED_MINS.z;
                 // For being Ducked:
@@ -605,7 +605,7 @@ void CLG_ETPlayer_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, 
             // We actually need to offset the Z axis origin by half the bbox height.
             Vector3 correctedOrigin = clgi.client->playerEntityOrigin;
             // For being Dead( Gibbed ):
-            if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= -40 ) {
+            if ( game.predictedState.currentPs.stats[ STAT_HEALTH ] <= GIB_DEATH_HEALTH ) {
                 correctedOrigin.z += PM_BBOX_GIBBED_MINS.z;
             // For being Ducked:
             } else if ( game.predictedState.currentPs.pmove.pm_flags & PMF_DUCKED ) {

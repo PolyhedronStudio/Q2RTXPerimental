@@ -302,6 +302,7 @@ void CLG_Frame_SetInitialServerFrame( void ) {
     // Update the player entity state from the playerstate.
     // This will allow effects and such to be properly placed.
     SG_PlayerStateToEntityState( playerState->clientNumber, playerState, &frameClientEntity->current );
+	SG_PlayerStateToEntityState( clgi.client->clientNumber, playerState, &game.predictedEntity.current );
 
     // 
     for ( int32_t i = 0; i < clgi.client->frame.numEntities; i++ ) {
@@ -379,6 +380,7 @@ void CLG_Frame_TransitionToNext( void ) {
 
     // Get the client entity for this frame's player state..
     centity_t *frameClientEntity = &clg_entities[ playerState->clientNumber + 1 ];
+
     // Update the player entity state from the playerstate.
     // This will allow effects and such to be properly placed.
     SG_PlayerStateToEntityState( playerState->clientNumber, playerState, &frameClientEntity->current );
@@ -464,7 +466,8 @@ void CLG_Frame_TransitionToNext( void ) {
 
     // if we are not doing client side movement prediction for any
     // reason, then the client events and view changes will be issued now between the last and previous received frames.
-    if ( isDemoPlayback /*|| ( ps.pmove.pm_flags & PMF_FOLLOW ) */ || !cl_predict->integer /*|| cg_synchronousClients.integer*/ ) {
+    if ( isDemoPlayback || ( clgi.client->clientNumber != clgi.client->frame.ps.clientNumber ) /*|| ( ps.pmove.pm_flags & PMF_FOLLOW ) */ 
+		|| !cl_predict->integer /*|| cg_synchronousClients.integer*/ ) {
         //CG_TransitionPlayerState( ps, ops );
         CLG_PlayerState_Transition( &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ], &clgi.client->oldframe, &clgi.client->frame, clgi.client->serverdelta );
         // Otherwise, we are predicting thus expect to check for a prediction error instad.

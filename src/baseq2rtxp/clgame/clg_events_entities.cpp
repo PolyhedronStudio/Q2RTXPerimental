@@ -134,6 +134,7 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 
     // Handle the event.
     switch ( eventValue ) {
+	//---------------------------------------------------------------
     /**
     *   FootStep Events:
     **/
@@ -160,7 +161,7 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 		// Fire the footstep effect.
         CLG_FX_LadderFootStep( entityNumber, lerpOrigin );
         break;
-
+	//---------------------------------------------------------------
     /**
     *   Sound Events:
     **/
@@ -191,7 +192,7 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 		// Fire the global sound event.
         CLG_EntityEvent_GlobalSound( cent->current.eventParm0 );
         break;
-
+	//---------------------------------------------------------------
     ///**
     //*   Fall and Landing Events:
     //**/
@@ -222,12 +223,10 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
         // Fire the item respawn event.
 		CLG_EntityEvent_ItemRespawn( cent, entityNumber, effectOrigin );
         break;
-
+	//---------------------------------------------------------------
     /**
     *   Particle FX Events:
     **/
-	//---------------------------------------------------------------
-	
 	case EV_FX_BLOOD:
 		// Print event name for debugging.
 		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );

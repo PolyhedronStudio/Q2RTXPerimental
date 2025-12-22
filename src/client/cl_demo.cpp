@@ -890,7 +890,7 @@ void CL_EmitDemoSnapshot(void)
     snap->framenum = cls.demo.frames_read;
     snap->filepos = pos;
     snap->msglen = msg_write.cursize;
-    memcpy(snap->data, msg_write.data, msg_write.cursize);
+    std::memcpy(snap->data, msg_write.data, msg_write.cursize);
     List_Append(&cls.demo.snapshots, &snap->entry);
 
     Com_DPrintf("[%d] snaplen %zu\n", cls.demo.frames_read, msg_write.cursize);
@@ -932,7 +932,7 @@ void CL_FirstDemoFrame(void)
     Com_DPrintf("[%d] first frame\n", cl.frame.number);
 
     // save base configstrings
-    memcpy(cl.baseconfigstrings, cl.configstrings, sizeof(cl.baseconfigstrings));
+    std::memcpy(cl.baseconfigstrings, cl.configstrings, sizeof(cl.baseconfigstrings));
 
     // obtain file length and offset of the second frame
     len = FS_Length(cls.demo.playback);
@@ -1009,7 +1009,7 @@ static void CL_Seek_f(void)
     cls.demo.seeking = true;
 
     // clear dirty configstrings
-    memset( cl.dcs, 0, sizeof( cl.dcs ) );
+    std::memset( cl.dcs, 0, sizeof( cl.dcs ) );
 
     // stop sounds
     S_StopAllSounds();
@@ -1089,7 +1089,8 @@ static void CL_Seek_f(void)
     }
 
     // don't lerp to old
-    memset( &cl.oldframe, 0, sizeof( cl.oldframe ) );
+    //memset( &cl.oldframe, 0, sizeof( cl.oldframe ) );
+	cl.oldframe = {};
 
     // TODO: Move these two over to client game dll.
     // clear old effects

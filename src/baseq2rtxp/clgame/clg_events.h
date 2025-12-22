@@ -112,4 +112,4 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent );
 *   @param  lerpOrigin          The origin to process the event at.
 *   @return True if an event was processed, false otherwise.
 **/
-const bool CLG_Events_CheckForPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin );
+const bool CLG_Events_CheckForPlayerState( centity_t *clientEntity, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin );

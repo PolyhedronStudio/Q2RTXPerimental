@@ -19,7 +19,8 @@ typedef enum sg_entity_type_e {
 	ET_PLAYER = ET_GAME_TYPES,
 	//! Client Player Corps Entity.
 	ET_PLAYER_CORPSE,
-	
+	//! For when the client has to be hidden (spectator, intermission, etc).
+	ET_INVISIBLE,
 
 	//
 	// Monster Entity Types:

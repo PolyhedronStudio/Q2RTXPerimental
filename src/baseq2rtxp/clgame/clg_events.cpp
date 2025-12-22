@@ -79,7 +79,7 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
     if ( cent->current.entityType > ET_TEMP_EVENT_ENTITY ) {
         // Already fired for this entity.
         if ( cent->previousEvent ) {
-            return eventValue;
+            return EV_NONE;
         }
 
         // Backup original entity number. (For debugging purposes.)
@@ -104,7 +104,7 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
     } else {
         // Already fired the event.
         if ( cent->current.event == cent->previousEvent ) {
-            return eventValue;
+            return EV_NONE;
         }
         // Save as previous event.
         cent->previousEvent = cent->current.event;
@@ -118,7 +118,7 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
         DEBUG_PRINT_RIDER_EVENT_VALUE( cent );
         // If no event, don't process anything. ( It hasn't changed again. )
         if ( eventValue == EV_NONE ) {
-            return eventValue;
+            return EV_NONE;
         }
     }
 
@@ -142,8 +142,31 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
     // Calculate the position for lerp_origin at exactly the frame time.
     cent->lerp_origin = CLG_GetEntitySoundOrigin( cent->current.number );
 
+	static centity_t *predCent = &game.predictedEntity;
+	static centity_t *evCent = nullptr;
+	evCent = cent;
+	static centity_t *lastEvCent = nullptr;
+	if ( evCent != lastEvCent ) {
+		clgi.Print( PRINT_DEVELOPER, "%s:--------------------------------------------------------------\n", __func__ );
+		clgi.Print( PRINT_DEVELOPER, "%s: Processing entity event for cent(%lld) entityType(%d) eventValue(%d) clientNumber(%d)\n", __func__,
+			cent,
+			cent->current.entityType,
+			eventValue,
+			clientNumber );
+		clgi.Print( PRINT_DEVELOPER, "%s:   predictedEntity: cent(%lld) entityType(%d) serverframe(%lld) snapShotTime(%llu)\n", __func__,
+			predCent,
+			predCent->current.entityType,
+			predCent->serverframe,
+			predCent->snapShotTime );
+		lastEvCent = evCent;
+	}
+	// Debugging information.
+
 	clgi.Print( PRINT_DEVELOPER, "%s:--------------------------------------------------------------\n", __func__ );
-	clgi.Print( PRINT_DEVELOPER, "Simulation time for entity event processing: frame(%lld), snapshotTime(%llu), currenTime(%llu)\n", 
+	clgi.Print( PRINT_DEVELOPER, "Simulation time for entity event processing: centPtr(%lld) previousEvent(%d), eventValue(%d), frame(%lld), snapshotTime(%llu), currenTime(%llu)\n", 
+		cent,
+		cent->previousEvent,
+		eventValue,
         clgi.client->frame.number,
         cent->snapShotTime,
         clgi.client->time );
@@ -178,7 +201,7 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
 *   @param  lerpOrigin          The origin to process the event at.
 *   @return True if an event was processed, false otherwise.
 **/
-const bool CLG_Events_CheckForPlayerState( const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin ) {
+const bool CLG_Events_CheckForPlayerState( centity_t *clientEntity, const player_state_t *ops, const player_state_t *ps, const int32_t playerStateEvent, const int32_t playerStateEventParm0, const Vector3 &lerpOrigin ) {
 	// Is the view bound entity, the actual one which belongs to the player state data
     // that is sent along the server frame?
     //centity_t *viewBoundEntity = CLG_GetViewBoundEntity();
@@ -191,7 +214,7 @@ const bool CLG_Events_CheckForPlayerState( const player_state_t *ops, const play
     }
 	
 	// Process the player state event.
-    centity_t *viewBoundEntity = CLG_GetViewBoundEntity();
+	centity_t *viewBoundEntity = clientEntity;//CLG_GetViewBoundEntity();
 
     // Entity has to be in the current frame to process though.
     if ( !viewBoundEntity || viewBoundEntity->serverframe != clgi.client->frame.number ) {

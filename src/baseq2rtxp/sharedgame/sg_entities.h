@@ -13,6 +13,17 @@
 *
 *
 *
+*	Shared Entity ConstExprs Etc:
+* 
+* 
+* 
+**/
+static constexpr int32_t GIB_DEATH_HEALTH = -40; // Health threshold for gib death.
+
+/**
+*
+*
+*
 *   Entity State:
 *
 *

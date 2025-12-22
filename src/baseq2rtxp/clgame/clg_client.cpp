@@ -14,6 +14,7 @@
 #include "clgame/clg_local_entities.h"
 #include "clgame/clg_predict.h"
 
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/pmove/sg_pmove.h"
 
 
@@ -48,6 +49,9 @@ void CLG_ClientBegin( void ) {
 	// Reset ground information.
 	game.predictedState.ground = {};
 	game.predictedState.liquid = {};
+
+	// Setup predicted player entity's current entity state.
+	SG_PlayerStateToEntityState( clgi.client->clientNumber, &game.predictedState.currentPs, &game.predictedEntity.current, true, false );
 
 	// Setup predicted player entity's refresh entity.
 	game.predictedEntity.refreshEntity = {
