@@ -27,7 +27,7 @@ precached_media_s precache;
 /**
 *   @brief  Precaches('to load') all local 'sound path' registered files.
 **/
-void CLG_PrecacheLocalSounds() {
+static void CLG_PrecacheLocalSounds() {
     // Iterate over the local sound path 'config' strings.
     for ( int32_t i = 1; i < precache.num_local_sounds; i++ ) {
         // Ensure that its name is valid.
@@ -52,8 +52,13 @@ void PF_PrecacheClientSounds( void ) {
     CLG_EAX_Precache();
 
     /**
-    *   (Temp-) Entity Events:
+    *   Sounds we know we need to precache already before the server tells us,
+	*	this includes also sounds used for (Temp-) Entity Events as well as
+	*	sounds for the HUD etc.
     **/
+	// HUD SFX.
+	precache.sfx.hud.chat01 = clgi.S_RegisterSound( "hud/chat01.wav" );
+
 	// Items SFX:
 	precache.sfx.items.respawn01 = clgi.S_RegisterSound( "items/respawn01.wav" );
 	//precache.sfx.items.pickup = clgi.S_RegisterSound( "items/pkup.wav" );
@@ -91,8 +96,12 @@ void PF_PrecacheClientSounds( void ) {
 	precache.sfx.weapons.pistol.fire[ 2 ] = clgi.S_RegisterSound( "weapons/pistol/fire3.wav" );
 
     // World SFX:
-    precache.sfx.world.mz_login = clgi.S_RegisterSound( "world/mz_login.wav" );
-    precache.sfx.world.mz_logout = clgi.S_RegisterSound( "world/mz_logout.wav" );
+	precache.sfx.world.gib01		= clgi.S_RegisterSound( "world/gib01.wav" );
+	precache.sfx.world.gib_drop01	= clgi.S_RegisterSound( "world/gib_drop01.wav" );
+	precache.sfx.world.mz_login		= clgi.S_RegisterSound( "world/mz_login.wav" );
+    precache.sfx.world.mz_logout	= clgi.S_RegisterSound( "world/mz_logout.wav" );
+	precache.sfx.world.mz_respawn	= clgi.S_RegisterSound( "world/mz_respawn.wav" );
+	precache.sfx.world.teleport01	= clgi.S_RegisterSound( "world/teleport01.wav" );
 
     /**
     *   Material Footsteps:

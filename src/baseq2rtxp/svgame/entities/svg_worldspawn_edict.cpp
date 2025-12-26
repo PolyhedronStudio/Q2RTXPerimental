@@ -236,21 +236,22 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_worldspawn_edict_t, onSpawn )( svg_worldspawn_
     SVG_PrecacheItem( SVG_Item_FindByPickupName( "Fists" ) );
     SVG_PrecacheItem( SVG_Item_FindByPickupName( "Pistol" ) );
 
-    // HUD Chat.
-    gi.soundindex( "hud/chat01.wav" );
+	// <Q2RTXP>: Client already knows it has to precache these sounds.
+    //// HUD Chat.
+    //gi.soundindex( "hud/chat01.wav" );
 
-    // Body Gib.
-    gi.soundindex( "world/gib01.wav" );
-    gi.soundindex( "world/gib_drop01.wav" );
+    //// Body Gib.
+    //gi.soundindex( "world/gib01.wav" );
+    //gi.soundindex( "world/gib_drop01.wav" );
 
-    // Item Respawn.
-    gi.soundindex( "items/respawn01.wav" );
+    //// Item Respawn.
+    //gi.soundindex( "items/respawn01.wav" );
 
-    // Login/Logout/Teleport.
-    gi.soundindex( "world/mz_login.wav" );
-    gi.soundindex( "world/mz_logout.wav" );
-    gi.soundindex( "world/mz_respawn.wav" );
-    gi.soundindex( "world/teleport01.wav" );
+    //// Login/Logout/Teleport.
+    //gi.soundindex( "world/mz_login.wav" );
+    //gi.soundindex( "world/mz_logout.wav" );
+    //gi.soundindex( "world/mz_respawn.wav" );
+    //gi.soundindex( "world/teleport01.wav" );
 
     // sexed sounds
     //gi.soundindex("*death1.wav");

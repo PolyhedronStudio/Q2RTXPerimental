@@ -101,6 +101,10 @@ struct precached_media_s {
 			qhandle_t water;
 		} explosions;
 
+		struct hud_sfx_s {
+			qhandle_t chat01;
+		} hud;
+
 		//! Items Sounds:
 		struct item_sfx_s {
 			qhandle_t respawn01;
@@ -150,12 +154,18 @@ struct precached_media_s {
 
 		//! World effects:
 		struct world_sfx_s {
+			// Gib sounds:
+			qhandle_t gib01;
+			qhandle_t gib_drop01;
+
 			// Login/Logout sounds:
 			qhandle_t mz_login;
 			qhandle_t mz_logout;
-
 			// Respawn sound: (Currently just uses login sound.)
-			//qhandle_t mz_respawn; <Q2RTXP>: TODO: Unused for now, needs a sound file.
+			qhandle_t mz_respawn; // <Q2RTXP>: Needs a sound file..
+
+			// Teleport sound(s):
+			qhandle_t teleport01;
 		} world;
 
 		//! Footstep sounds for different materials:

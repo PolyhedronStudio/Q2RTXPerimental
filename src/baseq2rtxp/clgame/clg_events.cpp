@@ -140,36 +140,36 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
     *   Determine LerpOrigin and Process the Entity Events:
     **/
     // Calculate the position for lerp_origin at exactly the frame time.
-    cent->lerp_origin = CLG_GetEntitySoundOrigin( cent->current.number );
+    cent->lerp_origin = CLG_GetEntityLerpOrigin( cent->prev.origin, cent->current.origin, clgi.client->lerpfrac );
 
-	static centity_t *predCent = &game.predictedEntity;
-	static centity_t *evCent = nullptr;
-	evCent = cent;
-	static centity_t *lastEvCent = nullptr;
-	if ( evCent != lastEvCent ) {
-		clgi.Print( PRINT_DEVELOPER, "%s:--------------------------------------------------------------\n", __func__ );
-		clgi.Print( PRINT_DEVELOPER, "%s: Processing entity event for cent(%lld) entityType(%d) eventValue(%d) clientNumber(%d)\n", __func__,
-			cent,
-			cent->current.entityType,
-			eventValue,
-			clientNumber );
-		clgi.Print( PRINT_DEVELOPER, "%s:   predictedEntity: cent(%lld) entityType(%d) serverframe(%lld) snapShotTime(%llu)\n", __func__,
-			predCent,
-			predCent->current.entityType,
-			predCent->serverframe,
-			predCent->snapShotTime );
-		lastEvCent = evCent;
-	}
-	// Debugging information.
+	//static centity_t *predCent = &game.predictedEntity;
+	//static centity_t *evCent = nullptr;
+	//evCent = cent;
+	//static centity_t *lastEvCent = nullptr;
+	//if ( evCent != lastEvCent ) {
+	//	clgi.Print( PRINT_DEVELOPER, "%s:--------------------------------------------------------------\n", __func__ );
+	//	clgi.Print( PRINT_DEVELOPER, "%s: Processing entity event for cent(%lld) entityType(%d) eventValue(%d) clientNumber(%d)\n", __func__,
+	//		cent,
+	//		cent->current.entityType,
+	//		eventValue,
+	//		clientNumber );
+	//	clgi.Print( PRINT_DEVELOPER, "%s:   predictedEntity: cent(%lld) entityType(%d) serverframe(%lld) snapShotTime(%llu)\n", __func__,
+	//		predCent,
+	//		predCent->current.entityType,
+	//		predCent->serverframe,
+	//		predCent->snapShotTime );
+	//	lastEvCent = evCent;
+	//}
+	//// Debugging information.
 
-	clgi.Print( PRINT_DEVELOPER, "%s:--------------------------------------------------------------\n", __func__ );
-	clgi.Print( PRINT_DEVELOPER, "Simulation time for entity event processing: centPtr(%lld) previousEvent(%d), eventValue(%d), frame(%lld), snapshotTime(%llu), currenTime(%llu)\n", 
-		cent,
-		cent->previousEvent,
-		eventValue,
-        clgi.client->frame.number,
-        cent->snapShotTime,
-        clgi.client->time );
+	//clgi.Print( PRINT_DEVELOPER, "%s:--------------------------------------------------------------\n", __func__ );
+	//clgi.Print( PRINT_DEVELOPER, "Simulation time for entity event processing: centPtr(%lld) previousEvent(%d), eventValue(%d), frame(%lld), snapshotTime(%llu), currenTime(%llu)\n", 
+	//	cent,
+	//	cent->previousEvent,
+	//	eventValue,
+ //       clgi.client->frame.number,
+ //       cent->snapShotTime,
+ //       clgi.client->time );
 
     // Process the event.
     CLG_Events_FireEntityEvent( eventValue, cent->lerp_origin, cent, cent->current.number, clientNumber, clientInfo );

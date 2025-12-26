@@ -18,7 +18,18 @@
 * 
 * 
 **/
+/**
+*	Primary Fire Animation Types for EV_WEAPON_PRIMARY_FIRE event.
+**/
+static constexpr int32_t EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_STAND = 0;
+static constexpr int32_t EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_CROUCH = 1;
+static constexpr int32_t EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_WALK = 2;
+static constexpr int32_t EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_RUN = 3;
+
+//!  Health threshold for gib death.
 static constexpr int32_t GIB_DEATH_HEALTH = -40; // Health threshold for gib death.
+
+
 
 /**
 *

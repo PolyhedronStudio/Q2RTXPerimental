@@ -43,6 +43,13 @@ void CLG_ClientBegin( void ) {
 		}
 	}
 
+	// Reset predicted state eventSequence.
+	game.predictedState.eventSequence = clgi.client->frame.ps.eventSequence;
+	// Clear predicted state events.
+	for ( int32_t i = 0; i < client_predicted_state_t::MAX_PREDICTED_EVENTS; i++ ) {
+		game.predictedState.events[ i ] = EV_NONE;
+	}
+
 	// Reset local (view-)transitions.
 	game.predictedState.transition = {};
 
@@ -73,6 +80,15 @@ void CLG_ClientBegin( void ) {
 void PF_ClientConnected( void ) {
 	// Debug notify.
 	clgi.Print( PRINT_NOTICE, "[CLGame]: PF_ClientConnected\n" );
+
+	// We now know the client number, so setup the predicted entity its entity number and encode the
+	// client number into the skinnum.
+	game.predictedEntity.current.number = clgi.client->clientNumber + 1;
+	game.predictedEntity.current.skinnum = encoded_skinnum_t{
+		.clientNumber = (int16_t)clgi.client->clientNumber
+	}.skinnum;
+	// Copy current state to previous state.
+	game.predictedEntity.prev = game.predictedEntity.current;
 }
 /**
 *	@brief	Called when the client state has moved into a disconnected state, before ending

@@ -50,6 +50,159 @@ void CLG_CheckServerEntityPresent( const int32_t entityNumber, const char *what 
 *
 *
 *
+*	Entity Chase and View Bindings:
+*
+*
+*
+**/
+/**
+*	@return		A pointer into clg_entities that matches to the client we're currently chasing. nullptr if not chasing anyone.
+**/
+centity_t *CLG_GetChaseBoundEntity( void ) {
+	if ( clgi.client->frame.ps.stats[ STAT_CHASE ] > 0 && clgi.client->frame.ps.stats[ STAT_CHASE ] <= MAX_CLIENTS ) {
+		return &clg_entities[ clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS - 1 ];
+	} else {
+		return nullptr;
+	}
+}
+/**
+*	@return		The local client entity pointer, which is a match with the entity in clg_entities
+*				for the client number which we received at initial time of connection.
+**/
+centity_t *CLG_GetLocalClientEntity( void ) {
+	// Sanity check.
+	if ( clgi.client->clientNumber == -1 ) {
+		clgi.Print( PRINT_DEVELOPER, "CLG_GetLocalClientEntity: No client number set yet(Value is CLIENTNUM_NONE(%d)).\n", CLIENTNUM_NONE );
+		// Return a nullptr.
+		return nullptr;
+	}
+	// Return the local client entity.
+	return &clg_entities[ clgi.client->clientNumber + 1 ];
+}
+/**
+*	@return		The predicted client entity pointer, which resides outside of clg_entities.
+**/
+centity_t *CLG_GetPredictedClientEntity( void ) {
+	// Sanity check.
+	if ( clgi.client->clientNumber == -1 ) {
+		clgi.Print( PRINT_DEVELOPER, "CLG_GetPredictedClientEntity: No client number set yet(Value is CLIENTNUM_NONE(%d)).\n", CLIENTNUM_NONE );
+		// Return a nullptr.
+		return nullptr;
+	}
+	// Return the local client entity.
+	return &game.predictedEntity;//&clg_entities[ clgi.client->clientNumber + 1 ];
+}
+
+/**
+*	@return		A pointer to the entity which our view has to be bound to. If STAT_CHASE is set, it'll point to the chased entity.
+* 				Otherwise, it'll point to the local client entity.
+*
+*				Exception: If no client number is set yet, it'll return a nullptr and print a developer warning.
+**/
+centity_t *CLG_GetViewBoundEntity( void ) {
+	// Sanity check.
+	if ( clgi.client->clientNumber == -1 ) {
+		clgi.Print( PRINT_DEVELOPER, "CLG_GetViewBoundEntity: No client number set yet(Value is -1).\n" );
+		// Return a nullptr.
+		return nullptr;
+	}
+	// Get chase entity.
+	centity_t *viewBoundEntity = CLG_GetChaseBoundEntity();
+	// If not chasing anyone, assign it the local client entity.
+	if ( viewBoundEntity == nullptr ) {
+		//if ( !cl_predict->integer ) {
+			viewBoundEntity = CLG_GetLocalClientEntity();
+		//} else {
+		//	viewBoundEntity = CLG_GetPredictedClientEntity();
+		//}
+	}
+	// Return the view bound entity.
+	return viewBoundEntity;
+}
+
+/**
+*	@brief	Returns true if the entity state's number matches to the view entity number.
+**/
+const bool CLG_IsCurrentViewEntity( const centity_t *cent ) {
+	if ( !cent ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: (nullptr) entity pointer.\n", __func__ );
+		return false;
+	}
+
+	// Get view entity.
+	const centity_t *viewEntity = CLG_GetViewBoundEntity();
+	// Get chase entity.
+	const centity_t *chaseEntity = CLG_GetChaseBoundEntity();
+
+	// Check if we match with the chase entity first.
+	if ( chaseEntity && cent == chaseEntity ) {
+		return true;
+		// Check if we match with the view entity.
+	} else if ( viewEntity && cent == viewEntity ) {
+		return true;
+		// No match.
+	} else {
+		return false;
+	}
+}
+
+
+
+/**
+*
+*
+*
+*   Entity Frame(s), Origin, and Angles (Linear/Extrapolation):
+*
+*
+*
+**/
+/**
+*   @brief  Animates the entity's frame from previousFrameTime to currentTime using the given animationHz.
+*	@param previousFrameTime The previous frame time.
+*	@param currentTime The current time.
+*	@param animationHz The animation hertz to use. Default is BASE_FRAMERATE (40).
+*	@return The backLerp fraction for the animation.
+**/
+const double CLG_GetEntityFrameBackLerp( const QMTime previousFrameTime, const QMTime currentTime, const double animationHz ) {
+	// Calculate animation ms fraction per frame.
+	const double animationMs = 1. / ( animationHz ) * 1000.;
+
+	// Calculate back lerpfraction. (10hz.)
+	//refreshEntity->backlerp = 1.0f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / (float)animationMs );
+	// Calculate back lerpfraction using RealTime. (40hz.)
+	//refreshEntity->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)packetEntity->frame_realtime - clgi.client->sv_frametime ) ) / (float)animationMs );
+
+	// Calculate back lerpfraction using clgi.client->time. (40hz.)
+	return QM_Clamp( 1. - ( (double)( currentTime.Milliseconds() - ( previousFrameTime.Milliseconds() ) ) / animationMs ), 0.0, 1.);
+}
+/**
+*   @brief  Handles the 'lerping' of the entity origins.
+*	@param	previousFrameOrigin The previous frame origin.
+* 	@param	currentFrameOrigin The current frame origin.
+* 	@param	lerpFraction The lerp fraction to use for interpolation.
+*	@return A Vector3 containing the lerped origin.
+**/
+const Vector3 CLG_GetEntityLerpOrigin( const Vector3 &previousFrameOrigin, const Vector3 &currentFrameOrigin, const double lerpFraction ) {
+	return QM_Vector3Lerp( previousFrameOrigin, currentFrameOrigin, lerpFraction );
+}
+/**
+*   @brief  Handles the 'lerping' of the packet and its corresponding refresh entity angles.
+*	@param	previousFrameAngles The previous frame angles.
+*	@param	currentFrameAngles The current frame angles.
+*	@param	lerpFraction The lerp fraction to use for interpolation.
+*	@return A Vector3 containing the lerped angles.
+**/
+const Vector3 CLG_GetEntityLerpAngles( const Vector3 &previousFrameAngles, const Vector3 &currentFrameAngles, const double lerpFraction ) {
+	return QM_Vector3LerpAngles( previousFrameAngles, currentFrameAngles, lerpFraction );
+}
+
+
+
+/**
+*
+*
+*
 *   Entity Sound Spatialization (Linear/Extrapolation):
 * 
 * 
@@ -58,7 +211,7 @@ void CLG_CheckServerEntityPresent( const int32_t entityNumber, const char *what 
 /**
 *   @brief  Performs general linear interpolation for the entity origin inquired by sound spatialization.
 **/
-const Vector3 CLG_LerpEntitySoundOrigin( const centity_t *ent, const double lerpFrac ) {
+static const Vector3 CLG_LerpEntitySoundOrigin( const centity_t *ent, const double lerpFrac ) {
 	return QM_Vector3Lerp( ent->prev.origin, ent->current.origin, lerpFrac );
 }
 /**
@@ -206,101 +359,6 @@ const bool CLG_IsLocalClientEntity( const int32_t entityNumber ) {
 
 
 
-/**
-*
-*
-*
-*	Entity Chase and View Bindings:
-*
-*
-*
-**/
-/**
-*	@return		A pointer into clg_entities that matches to the client we're currently chasing. nullptr if not chasing anyone.
-**/
-centity_t *CLG_GetChaseBoundEntity( void ) {
-    if ( clgi.client->frame.ps.stats[ STAT_CHASE ] > 0 && clgi.client->frame.ps.stats[ STAT_CHASE ] <= MAX_CLIENTS ) {
-        return &clg_entities[ clgi.client->frame.ps.stats[ STAT_CHASE ] - CS_PLAYERSKINS - 1 ];
-    } else {
-        return nullptr;
-    }
-}
-/**
-*	@return		The local client entity pointer, which is a match with the entity in clg_entities 
-*				for the client number which we received at initial time of connection.
-**/
-centity_t *CLG_GetLocalClientEntity( void ) {
-    // Sanity check.
-    if ( clgi.client->clientNumber == -1 ) {
-        clgi.Print( PRINT_DEVELOPER, "CLG_GetLocalClientEntity: No client number set yet(Value is CLIENTNUM_NONE(%d)).\n", CLIENTNUM_NONE );
-        // Return a nullptr.
-        return nullptr;
-    }
-    // Return the local client entity.
-    return &clg_entities[ clgi.client->clientNumber + 1 ];
-}
-/**
-*	@return		The predicted client entity pointer, which resides outside of clg_entities.
-**/
-centity_t *CLG_GetPredictedClientEntity( void ) {
-	// Sanity check.
-	if ( clgi.client->clientNumber == -1 ) {
-		clgi.Print( PRINT_DEVELOPER, "CLG_GetPredictedClientEntity: No client number set yet(Value is CLIENTNUM_NONE(%d)).\n", CLIENTNUM_NONE );
-		// Return a nullptr.
-		return nullptr;
-	}
-	// Return the local client entity.
-	return &game.predictedEntity;//&clg_entities[ clgi.client->clientNumber + 1 ];
-}
-
-/**
-*	@return		A pointer to the entity which our view has to be bound to. If STAT_CHASE is set, it'll point to the chased entity.
-* 				Otherwise, it'll point to the local client entity.
-*
-*				Exception: If no client number is set yet, it'll return a nullptr and print a developer warning.
-**/
-centity_t *CLG_GetViewBoundEntity( void ) {
-    // Sanity check.
-    if ( clgi.client->clientNumber == -1 ) {
-        clgi.Print( PRINT_DEVELOPER, "CLG_GetViewBoundEntity: No client number set yet(Value is -1).\n" );
-        // Return a nullptr.
-        return nullptr;
-    }
-    // Get chase entity.
-    centity_t *viewBoundEntity = CLG_GetChaseBoundEntity();
-    // If not chasing anyone, assign it the local client entity.
-    if ( viewBoundEntity == nullptr ) {
-        viewBoundEntity = CLG_GetLocalClientEntity();
-    }
-    // Return the view bound entity.
-    return viewBoundEntity;
-}
-
-/**
-*	@brief	Returns true if the entity state's number matches to the view entity number.
-**/
-const bool CLG_IsCurrentViewEntity( const centity_t *cent ) {
-    if ( !cent ) {
-        clgi.Print( PRINT_DEVELOPER, "%s: (nullptr) entity pointer.\n", __func__ );
-        return false;
-    }
-
-    // Get view entity.
-    const centity_t *viewEntity = CLG_GetViewBoundEntity();
-    // Get chase entity.
-    const centity_t *chaseEntity = CLG_GetChaseBoundEntity();
-
-    // Check if we match with the chase entity first.
-    if ( chaseEntity && cent == chaseEntity ) {
-        return true;
-        // Check if we match with the view entity.
-    } else if ( viewEntity && cent == viewEntity ) {
-        return true;
-        // No match.
-    } else {
-        return false;
-    }
-}
 
 
 

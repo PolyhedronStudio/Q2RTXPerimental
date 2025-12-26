@@ -12,10 +12,11 @@
 #include "sharedgame/sg_misc.h"
 #include "sharedgame/pmove/sg_pmove.h"
 
-//! Uncomment to enable debug print output of predictable events.
+//! Uncomment to enable debug print output of added predictable events.
 //#define _DEBUG_PRINT_PREDICTABLE_EVENTS
 
-
+//! Uncment to enable debug print output of added predictable events out-of-bounds checks.
+//! #define _DEBUG_PRINT_PREDICTABLE_EVENTS_OUT_OF_BOUNDS_CHECKS
 
 /**
 *
@@ -54,16 +55,14 @@ void SG_PlayerState_AddPredictableEvent( const int32_t newEvent, const int32_t e
 	const int64_t sequenceIndex = playerState->eventSequence & ( MAX_PS_EVENTS - 1 );
 
 	// Ensure it is within bounds.
-	if ( newEvent < 0 || newEvent >= EV_GAME_MAX ) {
-        if ( newEvent < q_countof( sg_event_string_names ) ) {
-            SG_DPrintf( SG_GAME_MODULE_STR " PMoveState INVALID(Out of Bounds) Event(sequenceIndex: %i): newEvent(#%i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[ newEvent ], eventParm0 );
-        }
+    if ( !( newEvent >= 0 && newEvent < q_countof( sg_event_string_names ) ) ) {
+		#ifndef _DEBUG_PRINT_PREDICTABLE_EVENTS
+			//return;
+		#endif
 	}
 
 	//#ifndef CLGAME_INCLUDE
 	// Add predicted player move state event.
-    //playerState->events[ sequenceIndex ] = ( ( playerState->events[ sequenceIndex ] & GUN_ANIMATION_TOGGLE_BIT ) ^ GUN_ANIMATION_TOGGLE_BIT )
-    //    | newEvent;
     playerState->events[ sequenceIndex ] = newEvent;
 	playerState->eventParms[ sequenceIndex ] = eventParm0;
     //playerState->eventParms[ sequenceIndex ] = eventParm1;
@@ -73,7 +72,7 @@ void SG_PlayerState_AddPredictableEvent( const int32_t newEvent, const int32_t e
 	#ifdef _DEBUG_PRINT_PREDICTABLE_EVENTS
 	{
         // Ensure string is within bounds.
-        if ( newEvent < q_countof( sg_event_string_names ) ) {
+        if ( ( newEvent >= 0 && newEvent < q_countof( sg_event_string_names ) ) {
             SG_DPrintf( SG_GAME_MODULE_STR " PMoveState Event(sequenceIndex: % i) : newEvent(# % i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, sg_event_string_names[newEvent], eventParm);
         } else {
             SG_DPrintf( SG_GAME_MODULE_STR " PMoveState Event(sequenceIndex: % i) : newEvent(# % i, \"%s\"), eventParm(%i)\n", sequenceIndex, newEvent, "Out of Bounds for sg_event_string_names", eventParm);

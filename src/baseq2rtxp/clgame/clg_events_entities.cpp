@@ -98,6 +98,17 @@ static void CLG_EntityEvent_BulletSparks( const Vector3 & origin, const uint8_t 
 static void CLG_EntityEvent_Splash( const Vector3 & origin, const uint8_t direction, const int32_t splashType, const int32_t count );
 
 static void CLG_EntityEvent_Trail( const Vector3 & start, const Vector3 & end, const int32_t trailType, const int32_t count = 8 );
+/*************************
+*[ Teleport And Alike Events ] Implementations:
+*************************/
+static void CLG_EntityEvent_PlayerTeleport( centity_t * cent, const int32_t entityNumber, const Vector3 & origin );
+
+/**
+*	Player Weapon Event Handlers:
+**/
+static void CLG_EntityEvent_ClientWeaponPrimaryFire( centity_t * playerEntity, const int32_t entityNumber, const int32_t eventValue, const int32_t eventParm0, const Vector3 & lerpOrigin );
+static void CLG_EntityEvent_ClientWeaponReload( centity_t * playerEntity, const int32_t entityNumber, const int32_t eventValue, const Vector3 & lerpOrigin );
+static void CLG_EntityEvent_ClientWeaponHolsterAndDraw( centity_t * playerEntity, const int32_t entityNumber, const int32_t eventValue, const Vector3 & lerpOrigin );
 
 
 
@@ -130,198 +141,281 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
         CLG_FX_TeleporterParticles( &effectOrigin.x );
     }
 
-    const int32_t clampedEventValue = eventValue;
+	// Clamp event value to valid range for safety.
+	const int32_t clampedEventValue = std::clamp( eventValue, 0, (int32_t)EV_GAME_MAX );
 
-    // Handle the event.
+	// Handle the event.
     switch ( eventValue ) {
-	//---------------------------------------------------------------
-    /**
-    *   FootStep Events:
-    **/
-    case EV_PLAYER_FOOTSTEP:
-		// Prevent it from being triggered if it is our own local player entity.
-		// We handle that event elsewhere in CLG_Events_FirePlayerStateEvent.
-		if ( entityNumber != clgi.client->clientNumber + 1 ) {//clgi.client->frame.ps.clientNumber + 1 ) {
-            // Print event name for debugging.
-            DEBUG_PRINT_EVENT_NAME( sg_event_string_names[clampedEventValue]);
+	/////////////////////////////////////////////////////////////////
+	/**
+	*   FootStep Events:
+	**/
+	/////////////////////////////////////////////////////////////////
+		case EV_PLAYER_FOOTSTEP: {
+			// Prevent it from being triggered if it is our own local player entity.
+			// We handle that event elsewhere in CLG_Events_FirePlayerStateEvent.
+			if ( entityNumber != clgi.client->clientNumber + 1 ) {//clgi.client->frame.ps.clientNumber + 1 ) {
+				// Print event name for debugging.
+				DEBUG_PRINT_EVENT_NAME( sg_event_string_names[clampedEventValue]);
+				// Fire the footstep effect.
+				CLG_FX_PlayerFootStep( entityNumber, lerpOrigin );
+			}
+			break;
+		}
+		case EV_OTHER_FOOTSTEP: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
 			// Fire the footstep effect.
-            CLG_FX_PlayerFootStep( entityNumber, lerpOrigin );
-        }
-        break;
-    case EV_OTHER_FOOTSTEP:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the footstep effect.
-        CLG_FX_OtherFootStep( entityNumber, lerpOrigin );
-        break;
-    // General ladder footstep event:
-    case EV_FOOTSTEP_LADDER:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the footstep effect.
-        CLG_FX_LadderFootStep( entityNumber, lerpOrigin );
-        break;
-	//---------------------------------------------------------------
-    /**
-    *   Sound Events:
-    **/
-    // General entity sound event:
-    case EV_GENERAL_SOUND:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the general sound event.
-        CLG_EntityEvent_GeneralSound( cent, cent->current.eventParm0, cent->current.eventParm1 );
-        break;
-    case EV_GENERAL_SOUND_EX:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the general sound event with attenuation.
-        CLG_EntityEvent_GeneralSoundEx( cent, cent->current.eventParm0, cent->current.eventParm1 );
-        break;
-    // General positioned sound event:
-    case EV_POSITIONED_SOUND:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the positioned sound event.
-        CLG_EntityEvent_PositionedSound( lerpOrigin, cent->current.eventParm0, cent->current.eventParm1 );
-        break;
-    // General global sound event:
-    case EV_GLOBAL_SOUND:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the global sound event.
-        CLG_EntityEvent_GlobalSound( cent->current.eventParm0 );
-        break;
-	//---------------------------------------------------------------
-    ///**
-    //*   Fall and Landing Events:
-    //**/
-    //case EV_FALL_MEDIUM:
-    //    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
-    //    break;
-    //case EV_FALL_SHORT:
-    //    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
-    //    break;
-    //case EV_FALL_FAR:
-    //    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
-    //    break;
+			CLG_FX_OtherFootStep( entityNumber, lerpOrigin );
+			break;
+		}
+		// General ladder footstep event:
+		case EV_FOOTSTEP_LADDER: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the footstep effect.
+			CLG_FX_LadderFootStep( entityNumber, lerpOrigin );
+			break;
+		}
 
-    ///**
-    //*   Teleport Events:
-    //**/
-    //case EV_PLAYER_TELEPORT:
-    //    clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, clgi.S_RegisterSound( "misc/teleport01.wav" ), 1, ATTN_IDLE, 0 );
-    //    CLG_TeleportParticles( &effectOrigin.x );
-    //    break;
+	/////////////////////////////////////////////////////////////////
+	/**
+	*   Sound Events:
+	**/
+	/////////////////////////////////////////////////////////////////
+		// General entity sound event:
+		case EV_GENERAL_SOUND: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the general sound event.
+			CLG_EntityEvent_GeneralSound( cent, cent->current.eventParm0, cent->current.eventParm1 );
+			break;
+		}
+		case EV_GENERAL_SOUND_EX: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the general sound event with attenuation.
+			CLG_EntityEvent_GeneralSoundEx( cent, cent->current.eventParm0, cent->current.eventParm1 );
+			break;
+		}
+		// General positioned sound event:
+		case EV_POSITIONED_SOUND: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the positioned sound event.
+			CLG_EntityEvent_PositionedSound( lerpOrigin, cent->current.eventParm0, cent->current.eventParm1 );
+			break;
+		}
+		// General global sound event:
+		case EV_GLOBAL_SOUND: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the global sound event.
+			CLG_EntityEvent_GlobalSound( cent->current.eventParm0 );
+			break;
+		}
 
-    /**
-    *   Item Events:
-    **/
-    case EV_ITEM_RESPAWN:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-        // Fire the item respawn event.
-		CLG_EntityEvent_ItemRespawn( cent, entityNumber, effectOrigin );
-        break;
-	//---------------------------------------------------------------
-    /**
-    *   Particle FX Events:
-    **/
-	case EV_FX_BLOOD:
-		// Print event name for debugging.
-		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the blood effect.
-		CLG_EntityEvent_Blood( effectOrigin, cent->current.eventParm1, cent->current.eventParm0 );
-		break;
-	case EV_FX_MORE_BLOOD:
-		// Print event name for debugging.
-		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the blood effect.
-		CLG_EntityEvent_MoreBlood( effectOrigin, cent->current.eventParm1, cent->current.eventParm0 );
-		break;
+	/////////////////////////////////////////////////////////////////
+	///**
+	//*   Fall and Landing Events:
+	//**/
+	/////////////////////////////////////////////////////////////////
+		//case EV_FALL_MEDIUM:
+		//    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/land01.wav" ), 1, ATTN_NORM, 0 );
+		//    break;
+		//case EV_FALL_SHORT:
+		//    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall02.wav" ), 1, ATTN_NORM, 0 );
+		//    break;
+		//case EV_FALL_FAR:
+		//    clgi.S_StartSound( NULL, entityNumber, CHAN_AUTO, clgi.S_RegisterSound( "player/fall01.wav" ), 1, ATTN_NORM, 0 );
+		//    break;
 
-	//---------------------------------------------------------------
+	/////////////////////////////////////////////////////////////////
+	///**
+	//*   Teleport Events:
+	//**/
+	/////////////////////////////////////////////////////////////////
+		case EV_PLAYER_TELEPORT: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the player teleport event.
+			CLG_EntityEvent_PlayerTeleport( cent, entityNumber, effectOrigin );
+			break;
+		}
 
-	case EV_FX_IMPACT_GUNSHOT:
-		// Print event name for debugging.
-		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the gun shot effect.
-		CLG_EntityEvent_GunShot( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
-		break;
-	case EV_FX_IMPACT_SPARKS:
-		// Print event name for debugging.
-		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the sparks effect.
-		CLG_EntityEvent_Sparks( cent->current.origin, cent->current.eventParm0 );
-		break;
-	case EV_FX_IMPACT_BULLET_SPARKS:
-		// Print event name for debugging.
-		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the bullet sparks effect.
-		CLG_EntityEvent_BulletSparks( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
-		break;
+	/////////////////////////////////////////////////////////////////
+	/**
+	*   Item Events:
+	**/
+	/////////////////////////////////////////////////////////////////
+		case EV_ITEM_RESPAWN: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the item respawn event.
+			CLG_EntityEvent_ItemRespawn( cent, entityNumber, effectOrigin );
+			break;
+		}
 
-	//---------------------------------------------------------------
-    case EV_FX_SPLASH_UNKNOWN:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Generic splash effect.
-        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_UNKNOWN, cent->current.eventParm0 );
-		break;
-    case EV_FX_SPLASH_SPARKS:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Spark splash effect.
-		CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_SPARKS, cent->current.eventParm0 );
-		break;
-        //! A blue water splash effect.
-    case EV_FX_SPLASH_WATER_BLUE:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the blue water splash effect.
-        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BLUE_WATER, cent->current.eventParm0 );
-        break;
-            //! A blue water splash effect.
-    case EV_FX_SPLASH_WATER_BROWN:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the brown water splash effect.
-        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BROWN_WATER, cent->current.eventParm0 );
-        break;
-            //! A green slime splash effect.
-    case EV_FX_SPLASH_SLIME:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the slime splash effect.
-        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_SLIME, cent->current.eventParm0 );
-        break;
-            //! A red lava splash effect.
-    case EV_FX_SPLASH_LAVA:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the lava splash effect.
-        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_LAVA, cent->current.eventParm0 );
-        break;
-    case EV_FX_SPLASH_BLOOD:
-        // Print event name for debugging.
-        DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the blood splash effect.
-        CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BLOOD, cent->current.eventParm0 );
-        break;
+	/////////////////////////////////////////////////////////////////
+	/**
+	*   Particle FX Events:
+	**/
+	/////////////////////////////////////////////////////////////////
+		case EV_FX_BLOOD: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the blood effect.
+			CLG_EntityEvent_Blood( effectOrigin, cent->current.eventParm1, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_MORE_BLOOD: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the blood effect.
+			CLG_EntityEvent_MoreBlood( effectOrigin, cent->current.eventParm1, cent->current.eventParm0 );
+			break;
+		}
 
-	//---------------------------------------------------------------
+		//---------------------------------------------------------------
 
-	case EV_FX_TRAIL_BUBBLES01:
-	case EV_FX_TRAIL_BUBBLES02:
-	case EV_FX_TRAIL_DEBUG_LINE:
-		// Print event name for debugging.
-		DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
-		// Fire the bubble trail effect 01.
-		CLG_EntityEvent_Trail( cent->lerp_origin, cent->current.old_origin, clampedEventValue, cent->current.eventParm0 );
-		break;
+		case EV_FX_IMPACT_GUNSHOT: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the gun shot effect.
+			CLG_EntityEvent_GunShot( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_IMPACT_SPARKS: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the sparks effect.
+			CLG_EntityEvent_Sparks( cent->current.origin, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_IMPACT_BULLET_SPARKS: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the bullet sparks effect.
+			CLG_EntityEvent_BulletSparks( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+			break;
+		}
 
-	//---------------------------------------------------------------
+		//---------------------------------------------------------------
 
+		case EV_FX_SPLASH_UNKNOWN: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Generic splash effect.
+			CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_UNKNOWN, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_SPLASH_SPARKS: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Spark splash effect.
+			CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_SPARKS, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_SPLASH_WATER_BLUE: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the blue water splash effect.
+			CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BLUE_WATER, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_SPLASH_WATER_BROWN: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the brown water splash effect.
+			CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BROWN_WATER, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_SPLASH_SLIME: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the slime splash effect.
+			CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_SLIME, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_SPLASH_LAVA: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the lava splash effect.
+			CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_LAVA, cent->current.eventParm0 );
+			break;
+		}
+		case EV_FX_SPLASH_BLOOD: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the blood splash effect.
+			CLG_EntityEvent_Splash( cent->current.origin, cent->current.eventParm1, SPLASH_FX_COLOR_BLOOD, cent->current.eventParm0 );
+			break;
+		}
+
+		//---------------------------------------------------------------
+
+		case EV_FX_TRAIL_BUBBLES01:
+		case EV_FX_TRAIL_BUBBLES02:
+		case EV_FX_TRAIL_DEBUG_LINE: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// Fire the bubble trail effect 01.
+			CLG_EntityEvent_Trail( cent->lerp_origin, cent->current.old_origin, clampedEventValue, cent->current.eventParm0 );
+			break;
+		}
+
+		//---------------------------------------------------------------
+
+	/////////////////////////////////////////////////////////////////
+	/**
+	*   Player Weapon Events:
+	**/
+	/////////////////////////////////////////////////////////////////
+		case EV_WEAPON_PRIMARY_FIRE:
+		case EV_WEAPON_SECONDARY_FIRE: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// For player entities:
+			if ( entityNumber <= game.maxclients ) {
+				// Get event parm0.
+				const int32_t eventParm0 = cent->current.eventParm0;
+				// Fire the 'fire gun' evebt.
+				CLG_EntityEvent_ClientWeaponPrimaryFire( cent, entityNumber, eventValue, eventParm0, lerpOrigin );
+			// For NPC entities:
+			} else {
+				// <Q2RTXP>: TODO: Handle NPC weapon firing events.
+				clgi.Print( PRINT_DEVELOPER, "%s: Need to handle NPC weapon firing events! EntityNumber: (#%d)\n", __func__, entityNumber );
+			}
+			break;
+		}
+		case EV_WEAPON_RELOAD: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// For player entities:
+			if ( entityNumber <= game.maxclients ) {
+				// Fire the reload event..
+				CLG_EntityEvent_ClientWeaponReload( cent, entityNumber, eventValue, lerpOrigin );
+			// For NPC entities:
+			} else {
+				// <Q2RTXP>: TODO: Handle NPC weapon reloading events.
+				clgi.Print( PRINT_DEVELOPER, "%s: Need to handle NPC weapon reloading events! EntityNumber: (#%d)\n", __func__, entityNumber );
+			}
+			break;
+		}
+		case EV_WEAPON_HOLSTER_AND_DRAW: {
+			// Print event name for debugging.
+			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
+			// For player entities:
+			if ( entityNumber <= game.maxclients ) {
+				// Fire the holster and draw event..
+				CLG_EntityEvent_ClientWeaponHolsterAndDraw( cent, entityNumber, eventValue, lerpOrigin );
+			// For NPC entities:
+			} else {
+				// <Q2RTXP>: TODO: Handle NPC weapon holster and draw events.
+				clgi.Print( PRINT_DEVELOPER, "%s: Need to handle NPC weapon holster and draw events! EntityNumber: (#%d)\n", __func__, entityNumber );
+			}
+			break;
+		}
     default:
             //clgi.Print( PRINT_DEVELOPER, "%s: Unknown EntityEvent Type(Unclamped: %d, Clamped: %d)\n", __func__, eventValue, clampedEventValue );
         break;
@@ -525,6 +619,34 @@ static void CLG_EntityEvent_GlobalSound( const qhandle_t soundIndex ) {
 
 /**
 *
+*
+*
+*
+*   [ Teleport And Alike Events ] Implementations:
+*
+*
+*
+*
+**/
+static void CLG_EntityEvent_PlayerTeleport( centity_t *cent, const int32_t entityNumber, const Vector3 &origin ) {
+	// Sanity check.
+	if ( !cent ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: NULL cent entity passed in!\n", __func__ );
+		return;
+	}
+
+	// Debug check for valid entity/entities.
+	DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
+
+	// Play the teleport sound.
+	clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.teleport01, 1, ATTN_IDLE, 0 );
+	// Spawn the respawn particles.
+	CLG_FX_TeleportParticles( origin );
+}
+
+
+/**
+*
 * 
 *
 *
@@ -713,4 +835,109 @@ static void CLG_EntityEvent_Trail( const Vector3 &start, const Vector3 &end, con
 		// Invalid trail type.
 		clgi.Print( PRINT_DEVELOPER, "%s: Unknown trail type: %d\n", __func__, trailType );
 	}
+}
+
+
+
+/**
+*
+*
+*
+*   Player State - Weapon Events:
+*
+*
+*
+**/
+/**
+*   @brief	Processes the weapon primary fire event for the given player entity.
+**/
+static void CLG_EntityEvent_ClientWeaponPrimaryFire( centity_t *playerEntity, const int32_t entityNumber, const int32_t eventValue, const int32_t eventParm0, const Vector3 &lerpOrigin ) {
+	/**
+	*   Get necessary data and play the animation for primary fire.
+	**/
+	// Get model resource.
+	const model_t *model = clgi.R_GetModelDataForHandle( clgi.client->baseclientinfo.model /*cent->current.modelindex*/ );
+	// Get the animation state mixer.
+	sg_skm_animation_mixer_t *animationMixer = &playerEntity->animationMixer;//&clgi.client->clientEntity->animationMixer;
+	// Get the state for body events.
+	sg_skm_animation_state_t *eventBodyState = animationMixer->eventBodyState;
+	// Determine the animation to play.
+
+	// ( Resides in playerState! )
+	// List of actual animation names for pistol firing:
+	static constexpr const char *animationNames[] = {
+		"fire_stand_pistol",
+		"fire_crouch_pistol",
+		"fire_walk_pistol",
+		"fire_run_pistol"
+	};
+	// The maximum number of animations.
+	static constexpr const int32_t animationMax = std::size( animationNames );
+	// <Q2RTXP: TODO: Implement PrimaryFireEvent_DetermineAnimation function.
+	// This requires knowledge of the animation state, which is not currently passed in.
+
+	// Pick the index of animation, make sure to clamp to prevent OOB.
+	const int32_t animationIndex = std::clamp( eventParm0, 0, animationMax - 1 );
+	// Settle with the animation name.
+	const std::string animationName = animationNames[ animationIndex ];
+	// Set event state animation.
+	SG_SKM_SetStateAnimation(
+		model,
+		&eventBodyState[ SKM_BODY_UPPER ],
+		animationName.c_str(),
+		QMTime::FromMilliseconds( clgi.client->servertime ),
+		BASE_FRAMETIME,
+		false   /* forceLoop */,
+		true    /* forceSet */
+	);
+}
+/**
+*   @brief	Processes the weapon primary fire event for the given player entity.
+**/
+static void CLG_EntityEvent_ClientWeaponReload( centity_t *playerEntity, const int32_t entityNumber, const int32_t eventValue, const Vector3 &lerpOrigin ) {
+	/**
+	*   Get necessary data and play the animation for primary fire.
+	**/
+	// Get model resource.
+	const model_t *model = clgi.R_GetModelDataForHandle( clgi.client->baseclientinfo.model /*cent->current.modelindex*/ );
+	// Get the animation state mixer.
+	sg_skm_animation_mixer_t *animationMixer = &playerEntity->animationMixer;//&clgi.client->clientEntity->animationMixer;
+	// Get the state for body events.
+	sg_skm_animation_state_t *eventBodyState = animationMixer->eventBodyState;
+
+	// Set event state animation.
+	SG_SKM_SetStateAnimation(
+		model,
+		&eventBodyState[ SKM_BODY_UPPER ],
+		"reload_stand_pistol",
+		QMTime::FromMilliseconds( clgi.client->servertime ),
+		BASE_FRAMETIME,
+		false   /* forceLoop */,
+		true    /* forceSet */
+	);
+}
+/**
+*   @brief	Processes the weapon holster and draw event for the given player entity.
+**/
+static void CLG_EntityEvent_ClientWeaponHolsterAndDraw( centity_t *playerEntity, const int32_t entityNumber, const int32_t eventValue, const Vector3 &lerpOrigin ) {
+	/**
+	*   Get necessary data and play the animation for primary fire.
+	**/
+	// Get model resource.
+	const model_t *model = clgi.R_GetModelDataForHandle( clgi.client->baseclientinfo.model /*cent->current.modelindex*/ );
+	// Get the animation state mixer.
+	sg_skm_animation_mixer_t *animationMixer = &playerEntity->animationMixer;//&clgi.client->clientEntity->animationMixer;
+	// Get the state for body events.
+	sg_skm_animation_state_t *eventBodyState = animationMixer->eventBodyState;
+
+	// Set event state animation.
+	SG_SKM_SetStateAnimation(
+		model,
+		&eventBodyState[ SKM_BODY_UPPER ],
+		"holster_draw_pistol",
+		QMTime::FromMilliseconds( clgi.client->servertime ),
+		BASE_FRAMETIME,
+		false   /* forceLoop */,
+		true    /* forceSet */
+	);
 }

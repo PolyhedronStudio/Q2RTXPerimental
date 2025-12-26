@@ -125,12 +125,14 @@ void CLG_CheckPlayerstateEvents( player_state_t *ops, player_state_t *ps ) {
 			predictedClientEntity->current.eventParm0 = playerStateEventParm0;
 			predictedClientEntity->current.eventParm1 = 0;
 
+			// Default fired event to player state event.
 			int32_t firedEvent = playerStateEvent;
 			// Check for local player state events first.
 			const bool firedLocalPlayerStateEvent =
 				CLG_Events_CheckForPlayerState( predictedClientEntity, ops, ps, playerStateEvent, playerStateEventParm0, game.predictedState.origin );
 			// If we didn't fire a local player state event, check for normal entity events.
 			if ( !firedLocalPlayerStateEvent ) {
+				// Fire the event for the predicted client entity.
 				firedEvent = CLG_Events_CheckForEntity( predictedClientEntity );
 			}
 
@@ -512,7 +514,7 @@ void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t curre
                 // Check for predictable events that changed from previous predictions.
                 CLG_CheckChangedPredictableEvents( &predictedState->lastPs, &predictedState->currentPs, pm.simulationTime );
                 // Convert certain playerstate properties into entity state properties.
-                SG_PlayerStateToEntityState( clgi.client->clientNumber, &predictedState->currentPs, &clientEntity->current, true, false );
+                SG_PlayerStateToEntityState( clgi.client->clientNumber, &predictedState->currentPs, &clientEntity->current, false, false );
                 // Predict the next bobCycle for the frame.
                 CLG_PredictNextBobCycle( &pm );
             #endif

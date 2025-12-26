@@ -88,15 +88,16 @@ typedef uint16_t pmflags_t;
 typedef struct pmove_state_s {
     //! The player move type.
     pmtype_t    pm_type;
-    //! The state's flags describing the move's situation.
-    pmflags_t   pm_flags;		//! Ducked, jump_held, etc
-    //! Timer value for a specific few of state flags.
-    double	pm_time;		//! Each unit = 8 ms
+	//! The state's flags describing the move's situation and conditions. ( Ducked, jump_held, etc ).
+	pmflags_t   pm_flags;
+	//! Timer value for a specific few of state flags. ( Each quake world unit = 8 ms of time. )
+    double	pm_time;		//! Wired as half-float
 
     //! Gravity to apply.
     int16_t     gravity;
     //! Wish Speed of movement.
     int16_t     speed;
+
     //! State origin.
     Vector3		origin;
     //! Add to command angles to get view direction, it is changed by spawns, rotating objects, and teleporters
@@ -159,10 +160,11 @@ QENUM_BIT_FLAGS( refdef_flags_t );
 /**
 *   @brief  pmove_state_t is the information needed in addition to player_state_t
 *           to rendered a view. These are sent from client to server in an amount relative
-*           // to the client's (optionally set) frame rate limit.
+*           to the client's (optionally set) frame rate limit.
 *            
 *           player_state_t is sent at a rate of 40hz:
 *           (So, one time for each frame, meaning 40 times a second.)
+* 
 *           Communicate BIT precise.
 **/
 typedef struct player_state_s {
@@ -176,7 +178,7 @@ typedef struct player_state_s {
     *   Movement State:
     **/
     //! Contains the current player movement values.
-    pmove_state_t   pmove;
+    pmove_state_t pmove;
 
     /**
     *   View State:
@@ -222,12 +224,11 @@ typedef struct player_state_s {
     *   (Predicted-)Events:
     **/
     //! PMove generated state events.
-    //int32_t     eventSequence;
     int32_t events[ MAX_PS_EVENTS ];
     int32_t eventParms[ MAX_PS_EVENTS ];
 
-    // WID: TODO: Just use its entity events instead?
-    int32_t externalEvent;	//! Events set on player from another source.
+	//! Events set on player from another source.
+    int32_t externalEvent;
     int32_t externalEventParm0;
     int32_t externalEventParm1;
     int64_t externalEventTime;

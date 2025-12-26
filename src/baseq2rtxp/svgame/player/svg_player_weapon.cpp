@@ -22,6 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_weapons.h"
 #include "svgame/entities/svg_item_edict.h"
 
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_misc.h"
 #include "sharedgame/pmove/sg_pmove.h"
 
@@ -181,7 +182,9 @@ void SVG_Player_Weapon_Change(svg_base_edict_t *ent) {
             SVG_Player_Weapon_SwitchMode( ent, WEAPON_MODE_HOLSTERING, (const weapon_mode_animation_t *)ent->client->pers.weapon->info, true );
             // Fire an actual event for the client at hand.
             //SG_PlayerState_AddPredictableEvent( PS_EV_WEAPON_HOLSTER, 0, &ent->client->ps );
-            SG_PlayerState_AddPredictableEvent( EV_WEAPON_HOLSTER_AND_DRAW, 0, &ent->client->ps );
+            //SG_PlayerState_AddPredictableEvent( EV_WEAPON_HOLSTER_AND_DRAW, 0, &ent->client->ps );
+			SVG_Util_AddEvent( ent, EV_WEAPON_HOLSTER_AND_DRAW, 0 );
+
             return;
         }
         // We know this function will continue to be called if newweapon is not nulled out.
@@ -201,35 +204,54 @@ void SVG_Player_Weapon_Change(svg_base_edict_t *ent) {
     }
     //return;
 allowchange:
+	// Store current weapon as last weapon.
     ent->client->pers.lastweapon = ent->client->pers.weapon;
+	// Make the new weapon the current one.
     ent->client->pers.weapon = ent->client->newweapon;
+	// Clear out the newweapon pointer. (We have made the switch now.)
     ent->client->newweapon = nullptr;
 
-    // Set visible weapon model.
-    if (ent->s.modelindex == MODELINDEX_PLAYER ) {
+    /**
+	*	Set visible weapon model.
+	**/
+    if ( ent->s.modelindex == MODELINDEX_PLAYER ) {
+		// Encode client number and weapon index into skinnum.
         if ( ent->client->pers.weapon ) {
             i = ( ( ent->client->pers.weapon->weapon_index & 0xff ) << 8 );
         } else {
             i = 0;
         }
-        ent->s.skinnum = ( g_edict_pool.NumberForEdict( ent ) - 1) | i;//(ent - g_edicts - 1) | i;
+		// First decode existing skinnum.
+		encoded_skinnum_t skinnum = static_cast<encoded_skinnum_t>( ent->s.skinnum );
+		// Now set the values.
+		skinnum.clientNumber = (int16_t)ent->client->clientNum;
+		skinnum.viewWeaponIndex = (uint8_t)i;
+		//skinnum.viewHeight = skinnum.viewHeight;
+		// Re-encode skinnum.
+		ent->s.skinnum = skinnum.skinnum;
     }
 
-    // Find the appropriate matching ammo index.
+    /**
+	*	Find the appropriate matching ammo index.
+	**/
     if ( ent->client->pers.weapon && ent->client->pers.weapon->ammo ) {
         ent->client->ammo_index = ITEM_INDEX( SVG_Item_FindByPickupName( ent->client->pers.weapon->ammo ) );
     } else {
         ent->client->ammo_index = 0;
     }
 
-    if (!ent->client->pers.weapon) {
+	/**
+	*	Unset player gun model and animationIDs if no weapon is present.
+	**/
+    if ( !ent->client->pers.weapon ) {
         // dead
         ent->client->ps.gun.modelIndex = 0;
         ent->client->ps.gun.animationID = 0;
         return;
     }
-
-    // Now switch the actual model up for the player state.
+    /**
+	* Otherwise, now switch the actual model up for the player state.
+	**/
     ent->client->ps.gun.modelIndex = gi.modelindex( ent->client->pers.weapon->view_model );
 
     // Engage into "Drawing" weapon mode.
@@ -667,6 +689,44 @@ const bool SVG_Player_Weapon_ProcessModeAnimation( svg_base_edict_t *ent, const 
     return false;
 }
 
+/**
+*   @brief  Determines the 'fire' animation to play for the given primary fire event.
+**/
+static const int32_t PrimaryFireEvent_DetermineAnimationType( const player_state_t *ps ) {
+	// Are we ducked?
+	const bool isDucked = ( ps->pmove.pm_flags & PMF_DUCKED ? true : false );
+
+	// Default animation
+	int32_t evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_STAND;
+
+	if ( !ps->animation.isIdle ) {
+		if ( ps->animation.isCrouched ) {
+			//animationName = "fire_crouch_pistol";
+			evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_CROUCH;
+		} else if ( ps->animation.isWalking ) {
+			//animationName = "fire_walk_pistol";
+			evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_RUN;
+		} else {
+			// Only if not strafing though.
+			bool isStrafing = true;
+			if ( ( !( ps->animation.moveDirection & PM_MOVEDIRECTION_FORWARD ) && !( ps->animation.moveDirection & PM_MOVEDIRECTION_BACKWARD ) )
+				&& ( ( ps->animation.moveDirection & PM_MOVEDIRECTION_LEFT ) || ( ps->animation.moveDirection & PM_MOVEDIRECTION_RIGHT ) ) ) {
+				evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_STAND;
+			} else {
+				evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_RUN;
+			}
+		}
+	} else {
+		if ( ps->animation.isCrouched ) {
+			//animationName = "fire_crouch_pistol";
+			evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_CROUCH;
+		} else {
+			evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_STAND;
+		}
+	}
+	return evArg0AnimationType;
+}
+
 // Determine whether to add player state (predictable-) weapon events.
 void P_Weapon_DeterminePredictableEvents( svg_base_edict_t *ent ) {
     if ( !ent->client ) {
@@ -679,18 +739,39 @@ void P_Weapon_DeterminePredictableEvents( svg_base_edict_t *ent ) {
         const int32_t modeID = ent->client->weaponState.mode;
         // Add corresponding predictable player state event.
         switch ( modeID ) {
-            case WEAPON_MODE_AIM_FIRE:
-                SG_PlayerState_AddPredictableEvent( EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
+            case WEAPON_MODE_AIM_FIRE: {
+				// Determine fire animation type.
+				const int32_t fireAnimationType = PrimaryFireEvent_DetermineAnimationType( &ent->client->ps );
+				// Add event to player entity.
+				SVG_Util_AddEvent( ent, EV_WEAPON_PRIMARY_FIRE, fireAnimationType );
+				// <Q2RTXP>: TODO: Implement as a predictable event.
+				//SG_PlayerState_AddPredictableEvent( EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
                 break;
-            case WEAPON_MODE_PRIMARY_FIRING:
-                SG_PlayerState_AddPredictableEvent( EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
-                break;
-            case WEAPON_MODE_SECONDARY_FIRING:
-                SG_PlayerState_AddPredictableEvent( EV_WEAPON_SECONDARY_FIRE, 0, &ent->client->ps );
-                break;
-            case WEAPON_MODE_RELOADING:
-                SG_PlayerState_AddPredictableEvent( EV_WEAPON_RELOAD, 0, &ent->client->ps );
-                break;
+			}
+            case WEAPON_MODE_PRIMARY_FIRING: {
+				// Determine fire animation type.
+				const int32_t fireAnimationType = PrimaryFireEvent_DetermineAnimationType( &ent->client->ps );
+				// Add event to player entity.
+				SVG_Util_AddEvent( ent, EV_WEAPON_PRIMARY_FIRE, fireAnimationType );
+				// <Q2RTXP>: TODO: Implement as a predictable event.
+				//SG_PlayerState_AddPredictableEvent( EV_WEAPON_PRIMARY_FIRE, 0, &ent->client->ps );
+				break;
+			}
+            case WEAPON_MODE_SECONDARY_FIRING: {
+				// Determine fire animation type.
+				const int32_t fireAnimationType = PrimaryFireEvent_DetermineAnimationType( &ent->client->ps );
+				// Add event to player entity.
+				SVG_Util_AddEvent( ent, EV_WEAPON_SECONDARY_FIRE, fireAnimationType );
+				// <Q2RTXP>: TODO: Implement as a predictable event.
+				//SG_PlayerState_AddPredictableEvent( EV_WEAPON_SECONDARY_FIRE, 0, &ent->client->ps );
+				break;
+			}
+            case WEAPON_MODE_RELOADING: {
+				SVG_Util_AddEvent( ent, EV_WEAPON_RELOAD, 0 );
+				// <Q2RTXP>: TODO: Implement as a predictable event.
+				//SG_PlayerState_AddPredictableEvent( EV_WEAPON_RELOAD, 0, &ent->client->ps );
+				break;
+			}
             default:
                 break;
         }

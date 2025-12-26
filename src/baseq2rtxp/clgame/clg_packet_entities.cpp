@@ -213,6 +213,7 @@ void CLG_AddPacketEntities( void ) {
     /**
     *   Setup the predicted client entity.
     **/
+	// Convert the predicted player_state_t into an entity_state_t for the predicted client entity.
 	SG_PlayerStateToEntityState( clgi.client->clientNumber, &game.predictedState.currentPs, &game.predictedEntity.current, true, false );
     // Backup a possible pointer to an already allocated cache so we can reapply it.
     skm_transform_t *bonePoses = game.predictedEntity.refreshEntity.bonePoses;

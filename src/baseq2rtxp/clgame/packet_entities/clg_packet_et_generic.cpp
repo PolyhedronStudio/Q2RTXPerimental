@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "clgame/clg_local.h"
 #include "clgame/clg_effects.h"
+#include "clgame/clg_entities.h"
 #include "clgame/clg_precache.h"
 
 #include "sharedgame/sg_entity_flags.h"
@@ -81,37 +82,40 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
         refreshEntity->frame = nextState->frame;
     }
 
-    // Setup the old frame.
+	// Setup the old frame from the previous packet entity state.
     refreshEntity->oldframe = packetEntity->prev.frame;
     // Backlerp.
     refreshEntity->backlerp = 1.0f - clgi.client->lerpfrac;
 
     // WID: 40hz - Does proper frame lerping for 10hz models.
-            // TODO: Add a specific render flag for this perhaps? 
-            // TODO: must only do this on alias models
-            // Don't do this for 'world' model?
+    // TODO: Add a specific render flag for this perhaps? 
+    // TODO: must only do this on alias models
+    // Don't do this for 'world' model?
     //if ( refreshEntity->model != 0 && packetEntity->last_frame != packetEntity->current_frame ) {
     refreshEntity->model = ( clgi.client->model_draw[ nextState->modelindex ] );
 
     // Only do this for non-brush models, aka alias models.
     if ( !( refreshEntity->model & 0x80000000 ) && packetEntity->last_frame != packetEntity->current_frame ) {
-        // Calculate back lerpfraction. (10hz.)
-        //refreshEntity->backlerp = 1.0f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / 100.f );
+		// Calculate animation framerate.
+		constexpr int32_t animationHz = BASE_FRAMERATE;
+		// Get the current time.
+		QMTime currentTime = QMTime::FromMilliseconds( clgi.client->time );
+		QMTime previousTime = QMTime::FromMilliseconds( packetEntity->frame_servertime - clgi.client->sv_frametime );
+
+		// Calculate back lerpfraction. (10hz.)
+        //refreshEntity->backlerp = 1.0f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / (float)animationMs );
         //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
         //refreshEntity->frame = packetEntity->current_frame;
         //refreshEntity->oldframe = packetEntity->last_frame;
 
         // Calculate back lerpfraction using RealTime. (40hz.)
-        //refreshEntity->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)packetEntity->frame_realtime - clgi.client->sv_frametime ) ) / 25.f );
+        //refreshEntity->backlerp = 1.0f - ( ( clgi.GetRealTime()  - ( (float)packetEntity->frame_realtime - clgi.client->sv_frametime ) ) / (float)animationMs );
         //refreshEntity->backlerp = QM_Clampf( refreshEntity->backlerp, 0.0f, 1.f );
         //refreshEntity->frame = packetEntity->current_frame;
         //refreshEntity->oldframe = packetEntity->last_frame;
 
         // Calculate back lerpfraction using clgi.client->time. (40hz.)
-        constexpr int32_t animationHz = BASE_FRAMERATE;
-        constexpr float animationMs = 1.f / ( animationHz ) * 1000.f;
-        refreshEntity->backlerp = 1.f - ( ( clgi.client->time - ( (float)packetEntity->frame_servertime - clgi.client->sv_frametime ) ) / animationMs );
-        refreshEntity->backlerp = QM_Clamp( refreshEntity->backlerp, 0.0f, 1.f );
+		refreshEntity->backlerp = CLG_GetEntityFrameBackLerp( previousTime, currentTime, animationHz );
         refreshEntity->frame = packetEntity->current_frame;
         refreshEntity->oldframe = packetEntity->last_frame;
     }
@@ -121,25 +125,31 @@ static void CLG_PacketEntity_AnimateFrame( centity_t *packetEntity, entity_t *re
 *   @brief  Handles the 'lerping' of the packet and its corresponding refresh entity origins.
 **/
 static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
-    // Step origin discretely, because the frames do the animation properly:
+    /**
+	*	Step origin discretely, because the frames do the animation properly :
+	**/
     if ( nextState->renderfx & RF_OLD_FRAME_LERP ) {
         VectorCopy( packetEntity->current.origin, refreshEntity->origin );
         VectorCopy( packetEntity->current.old_origin, refreshEntity->oldorigin );  // FIXME
-        // Interpolate start and end points for beams.
+	/**
+	*	Interpolate start and end points for beams.
+	**/
     } else if ( nextState->renderfx & RF_BEAM ) {
-        Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
+        Vector3 cent_origin = CLG_GetEntityLerpOrigin( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
         VectorCopy( cent_origin, refreshEntity->origin );
-        Vector3 cent_old_origin = QM_Vector3Lerp( packetEntity->prev.old_origin, packetEntity->current.old_origin, clgi.client->lerpfrac );
+        Vector3 cent_old_origin = CLG_GetEntityLerpOrigin( packetEntity->prev.old_origin, packetEntity->current.old_origin, clgi.client->lerpfrac );
         VectorCopy( cent_old_origin, refreshEntity->oldorigin );
-        // Default to lerp:
+	/**
+	*	Default to lerp:
+	**/
     } else {
         // If client entity, use predicted origin instead of Lerped:
         if ( nextState->number == clgi.client->clientNumber + 1 ) {
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->origin );
             VectorCopy( clgi.client->playerEntityOrigin, refreshEntity->oldorigin );
-            // Lerp Origin:
+		// Regular Entity Path:
         } else {
-            Vector3 cent_origin = QM_Vector3Lerp( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
+            Vector3 cent_origin = CLG_GetEntityLerpOrigin( packetEntity->prev.origin, packetEntity->current.origin, clgi.client->lerpfrac );
             VectorCopy( cent_origin, refreshEntity->origin );
             VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
         }
@@ -180,18 +190,24 @@ static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refr
 *   @brief  Handles the 'lerping' of the packet and its corresponding refresh entity angles.
 **/
 static void CLG_PacketEntity_LerpAngles( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState, const int32_t entityFlags, const float autorotate ) {
-    // For General Rotate: (Some bonus items auto-rotate.)
+    /**
+	*	For General Rotate : ( Some bonus items auto - rotate. )
+	**/
     if ( entityFlags & EF_ROTATE ) {  // some bonus items auto-rotate
         refreshEntity->angles[ 0 ] = 0;
         refreshEntity->angles[ 1 ] = autorotate;
         refreshEntity->angles[ 2 ] = 0;
-
-    // We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
-    } else if ( nextState->number == clgi.client->clientNumber ) {//clgi.client->frame.ps.clientNumber + 1 ) {
+    /**
+	*	We are dealing with the frame's client entity, thus we use the predicted entity angles instead:
+	**/
+    } else if ( nextState->number == clgi.client->clientNumber + 1 ) {//clgi.client->frame.ps.clientNumber + 1 ) {
         VectorCopy( clgi.client->playerEntityAngles, refreshEntity->angles );      // use predicted angles
-    // Reguler entity angle interpolation:
+    /**
+	*	Reguler entity angle interpolation:
+	**/
     } else {
-        LerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac, refreshEntity->angles );
+		const Vector3 lerpAngles = CLG_GetEntityLerpAngles( packetEntity->prev.angles, packetEntity->current.angles, clgi.client->lerpfrac );
+		VectorCopy( lerpAngles, refreshEntity->angles );
     }
 }
 /**
