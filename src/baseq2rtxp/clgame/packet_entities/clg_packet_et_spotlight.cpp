@@ -61,7 +61,7 @@ void CLG_PacketEntity_AddSpotlight( centity_t *packetEntity, entity_t *refreshEn
     clgi.V_AddEntity( refreshEntity );
 
     // skip:
-    VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
+    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 
     // Add spotlight. (x = 90, y = 0, z = 0) should give us one pointing right down to the floor. (width 90, falloff 0)
     //V_AddSpotLight( ent->origin, view_dir, 225.0, 1.f, 0.1f, 0.1f, 45, 0 );

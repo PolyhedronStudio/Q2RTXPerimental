@@ -345,7 +345,7 @@ static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t 
     // WID: Why not? Let's just do this.
     //if ( entityFlags & ~EF_ROTATE ) {
     if ( entityFlags & EF_GIB ) {
-        CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, entityFlags );
+        CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, entityFlags );
     }
     //}
 }
@@ -465,5 +465,5 @@ void CLG_PacketEntity_AddGeneric( centity_t *packetEntity, entity_t *refreshEnti
 
     // When the entity is skipped, copy over the origin 
 skip:
-    VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
+    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 }

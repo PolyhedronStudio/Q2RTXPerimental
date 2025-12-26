@@ -337,11 +337,11 @@ typedef struct centity_s {
 	*	Misc:
 	**/
 	//! Used for CL_FlyEffect and CL_TrapParticles to determine when to stop the effect.
-	int32_t	fly_stoptime;
+	int32_t	fly_stopTime;
 	//! For diminishing grenade trails.
-	int32_t	trailcount;         // for diminishing grenade trails
+	int32_t	trailCount;
 	//! for trails (variable hz)
-	Vector3	lerp_origin;
+	Vector3	lerpOrigin;
 } centity_t;
 
 /**

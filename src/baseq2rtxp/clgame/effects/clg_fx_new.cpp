@@ -728,9 +728,9 @@ void CLG_FX_TrapParticles( centity_t *ent, const Vector3 &origin ) {
     clg_particle_t *p;
     int         dec;
 
-    if ( clgi.client->time - ent->fly_stoptime < 10 )
+    if ( clgi.client->time - ent->fly_stopTime < 10 )
         return;
-    ent->fly_stoptime = clgi.client->time;
+    ent->fly_stopTime = clgi.client->time;
 
     VectorCopy( origin, start );
     VectorCopy( origin, end );

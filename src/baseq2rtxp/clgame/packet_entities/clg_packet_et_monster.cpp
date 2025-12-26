@@ -40,7 +40,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     // a blood trail of entities when it basically stopped motion.
     if ( nextState->entityFlags & ~EF_ROTATE ) {
         if ( nextState->entityFlags & EF_GIB ) {
-            CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
+            CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
         }
     }
 
@@ -145,5 +145,5 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     }
 
     // skip:
-    VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
+    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 }

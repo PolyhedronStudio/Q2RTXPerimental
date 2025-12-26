@@ -35,8 +35,11 @@
         if ( clg_debug_entity_events->integer ) { \
             const int32_t eventValue = cent->current.event = cent->current.entityType - ET_TEMP_EVENT_ENTITY; \
             if ( eventValue >= EV_ENGINE_MAX ) { \
-                const char *otherEntityInfo = ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) ? " (other entity event)" : ""; \
-                clgi.Print( PRINT_DEVELOPER, "%s: %s source_entity(#%d), target_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, otherEntityInfo, cent->current.number, cent->current.otherEntityNumber, eventValue, sg_event_string_names[ eventValue ] ); \
+				if ( ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) && otherEntityNumber > 0 ) { \
+					clgi.Print( PRINT_DEVELOPER, "%s: rider_entity(#%d), target_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, cent->current.number, cent->current.otherEntityNumber, eventValue, sg_event_string_names[ eventValue ] ); \
+				} else { \
+					clgi.Print( PRINT_DEVELOPER, "%s: rider_entity(#%d), eventValue(#%d), eventName('%s')\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] ); \
+				} \
             } \
 		} \
 

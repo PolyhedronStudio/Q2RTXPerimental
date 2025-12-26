@@ -82,6 +82,9 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
             return EV_NONE;
         }
 
+		// Set previous event to true.
+		cent->previousEvent = 1;
+
         // Backup original entity number. (For debugging purposes.)
         const int32_t eventEntityNumber = cent->current.number;
         const int32_t otherEntityNumber = cent->current.otherEntityNumber;
@@ -89,15 +92,10 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
         if ( ( ( cent->current.entityFlags & EF_ENTITY_EVENT_TARGET_OTHER ) != 0 ) && otherEntityNumber > 0 ) {
             cent->current.number = otherEntityNumber;
         }
-
-        // Set previous event to true.
-        cent->previousEvent = 1;
-
-        // The event is simply the entity type minus the ET_EVENTS offset.
-        eventValue = cent->current.event = cent->current.entityType - ET_TEMP_EVENT_ENTITY;
-
-        // Debugging purposes:
-        DEBUG_PRINT_EVENT_ENTITY_INFO( cent );
+		// The event is simply the entity type minus the ET_EVENTS offset.
+		eventValue = cent->current.event = cent->current.entityType - ET_TEMP_EVENT_ENTITY;
+		// Debugging purposes:
+		DEBUG_PRINT_EVENT_ENTITY_INFO( cent );
     /**
     *   Check for events riding with another entity:
     **/
@@ -139,8 +137,8 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
     /**
     *   Determine LerpOrigin and Process the Entity Events:
     **/
-    // Calculate the position for lerp_origin at exactly the frame time.
-    cent->lerp_origin = CLG_GetEntityLerpOrigin( cent->prev.origin, cent->current.origin, clgi.client->lerpfrac );
+    // Calculate the position for lerpOrigin at exactly the frame time.
+    cent->lerpOrigin = CLG_GetEntityLerpOrigin( cent->prev.origin, cent->current.origin, clgi.client->lerpfrac );
 
 	//static centity_t *predCent = &game.predictedEntity;
 	//static centity_t *evCent = nullptr;
@@ -172,7 +170,7 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
  //       clgi.client->time );
 
     // Process the event.
-    CLG_Events_FireEntityEvent( eventValue, cent->lerp_origin, cent, cent->current.number, clientNumber, clientInfo );
+    CLG_Events_FireEntityEvent( eventValue, cent->lerpOrigin, cent, cent->current.number, clientNumber, clientInfo );
 
     // Return the eventValue.
     return eventValue;

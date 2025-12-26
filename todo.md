@@ -20,6 +20,10 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 	 - See ``PM_WaterEvents``
 * [ ] --
 * [ ] Use predicted player entity.
+    - [ ] Requires that frame/animation stuff moves to pmove and playerstate.
+    - [ ] Possibly requires that we move weapon handling to pmove as well.
+    - [ ] And/or in svg_player_weapon.cpp we need to use the predicted player entity for weapon handling.
+          But that also requires for the client game to predict weapon state changes.
 * [ ] 
 * [ ] 
 * [ ] Look into the actual origin Q3 has that is used for collision and those of rendering.

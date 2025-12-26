@@ -54,12 +54,12 @@ void CLG_PacketEntity_AddGib( centity_t *packetEntity, entity_t *refreshEntity, 
     // WID: Why not? Let's just do this.
     if ( nextState->entityFlags & ~EF_ROTATE ) {
         //if ( nextState->entityFlags & EF_GIB ) {
-        CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
+        CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
     }
     
     // Add refresh entity to scene.
     clgi.V_AddEntity( refreshEntity );
      
     // skip:
-    VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
+    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 }

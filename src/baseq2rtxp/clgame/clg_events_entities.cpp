@@ -10,6 +10,7 @@
 #include "clgame/clg_effects.h"
 #include "clgame/clg_events.h"
 #include "clgame/clg_precache.h"
+#include "clgame/clg_temp_entities.h"
 
 #include "clgame/effects/clg_fx_classic.h"
 
@@ -91,21 +92,21 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 static void CLG_EntityEvent_Blood( const Vector3 & origin, const uint8_t direction, const int32_t count );
 static void CLG_EntityEvent_MoreBlood( const Vector3 & origin, const uint8_t direction, const int32_t count );
 
-static void CLG_EntityEvent_GunShot( const Vector3 & origin, const uint8_t direction, const int32_t count );
-static void CLG_EntityEvent_Sparks( const Vector3 & origin, const uint8_t direction );
-static void CLG_EntityEvent_BulletSparks( const Vector3 & origin, const uint8_t direction, const int32_t count );
+static void CLG_EntityEvent_ImpactGunShot( const Vector3 & origin, const uint8_t direction, const int32_t count );
+static void CLG_EntityEvent_ImpactSparks( const Vector3 & origin, const uint8_t direction );
+static void CLG_EntityEvent_ImpactBulletSparks( const Vector3 & origin, const uint8_t direction, const int32_t count );
 
 static void CLG_EntityEvent_Splash( const Vector3 & origin, const uint8_t direction, const int32_t splashType, const int32_t count );
 
 static void CLG_EntityEvent_Trail( const Vector3 & start, const Vector3 & end, const int32_t trailType, const int32_t count = 8 );
 /*************************
-*[ Teleport And Alike Events ] Implementations:
+*	Teleport And Alike Events Implementations:
 *************************/
 static void CLG_EntityEvent_PlayerTeleport( centity_t * cent, const int32_t entityNumber, const Vector3 & origin );
 
-/**
+/*************************
 *	Player Weapon Event Handlers:
-**/
+*************************/
 static void CLG_EntityEvent_ClientWeaponPrimaryFire( centity_t * playerEntity, const int32_t entityNumber, const int32_t eventValue, const int32_t eventParm0, const Vector3 & lerpOrigin );
 static void CLG_EntityEvent_ClientWeaponReload( centity_t * playerEntity, const int32_t entityNumber, const int32_t eventValue, const Vector3 & lerpOrigin );
 static void CLG_EntityEvent_ClientWeaponHolsterAndDraw( centity_t * playerEntity, const int32_t entityNumber, const int32_t eventValue, const Vector3 & lerpOrigin );
@@ -282,21 +283,21 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 			// Print event name for debugging.
 			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
 			// Fire the gun shot effect.
-			CLG_EntityEvent_GunShot( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+			CLG_EntityEvent_ImpactGunShot( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
 			break;
 		}
 		case EV_FX_IMPACT_SPARKS: {
 			// Print event name for debugging.
 			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
 			// Fire the sparks effect.
-			CLG_EntityEvent_Sparks( cent->current.origin, cent->current.eventParm0 );
+			CLG_EntityEvent_ImpactSparks( cent->current.origin, cent->current.eventParm0 );
 			break;
 		}
 		case EV_FX_IMPACT_BULLET_SPARKS: {
 			// Print event name for debugging.
 			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
 			// Fire the bullet sparks effect.
-			CLG_EntityEvent_BulletSparks( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
+			CLG_EntityEvent_ImpactBulletSparks( cent->current.origin, cent->current.eventParm1, cent->current.eventParm0 );
 			break;
 		}
 
@@ -360,7 +361,7 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 			// Print event name for debugging.
 			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
 			// Fire the bubble trail effect 01.
-			CLG_EntityEvent_Trail( cent->lerp_origin, cent->current.old_origin, clampedEventValue, cent->current.eventParm0 );
+			CLG_EntityEvent_Trail( cent->lerpOrigin, cent->current.old_origin, clampedEventValue, cent->current.eventParm0 );
 			break;
 		}
 
@@ -680,7 +681,7 @@ static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNu
 *
 * 
 * 
-*  [ Particle FX Events ] Implementations:
+*  [ Generic Particle FX Events ] Implementations:
 * 
 * 
 * 
@@ -697,9 +698,6 @@ static void CLG_EntityEvent_Blood( const Vector3 &origin, const uint8_t directio
 
 	// Call the blood particle effect function.
 	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 5 );
-
-	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
-	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
 }
 /**************************************
 *   [ EV_FX_BLOOD ] Event Handler:
@@ -711,107 +709,42 @@ static void CLG_EntityEvent_MoreBlood( const Vector3 &origin, const uint8_t dire
 
 	// Call the blood particle effect function.
 	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 10 );
-
-	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
-	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
-}
-
-/**************************************
-*   [ EV_FX_IMPACT_GUNSHOT ] Event Handler:
-***************************************/
-static void CLG_EntityEvent_GunShot( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
-	// Decode the direction byte to a direction vector.
-	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
-	ByteToDir( direction, decodedDirection );
-
-	// Call the generic particle effect function.
-	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0, count );
-
-	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
-	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
-
-	// Impact sound
-	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
-
-	if ( r == 1 ) {
-		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
-	} else if ( r == 2 ) {
-		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
-	} else if ( r == 3 ) {
-		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
-	}
-}
-/**************************************
-*   [ EV_FX_IMPACT_SPARKS ] Event Handler:
-***************************************/
-static void CLG_EntityEvent_Sparks( const Vector3 &origin, const uint8_t direction ) {
-	// Decode the direction byte to a direction vector.
-	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
-	ByteToDir( direction, decodedDirection );
-
-	// Call the generic particle effect function.
-	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, 6 );
-}
-/**************************************
-*   [ EV_FX_IMPACT_BULLET_SPARKS ] Event Handler:
-***************************************/
-static void CLG_EntityEvent_BulletSparks( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
-	// Decode the direction byte to a direction vector.
-	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
-	ByteToDir( direction, decodedDirection );
-
-	// Call the generic particle effect function.
-	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, count );
-
-	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
-	//CLG_FX_SmokeAndFlash( level.parsedMessage.events.tempEntity.pos1 );
-
-	// Impact sound
-	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
-	
-	if ( r == 1 ) {
-		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
-	} else if ( r == 2 ) {
-		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
-	} else if ( r == 3 ) {
-		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
-	}
 }
 
 /*************************
-*   Water Splash FX Event Handler:
+*   [EV_FX_SPLASH_***] FX Event Handler:
 *************************/
 static void CLG_EntityEvent_Splash( const Vector3 &origin, const uint8_t direction, const int32_t splashType, const int32_t count ) {
-    // Splash color values for each splashType.
-    static constexpr byte colors[] = {
+	// Splash color values for each splashType.
+	static constexpr byte colors[ ] = {
 		0x00,   // Unknown splashes.
-        0xe0,   // Sparks.
-        0xb0,   // Blue Water.
-        0x50,   // Brown Water.
+		0xe0,   // Sparks.
+		0xb0,   // Blue Water.
+		0x50,   // Brown Water.
 		0xd0,   // Green Slime.
 		0xe0,   // Red Lava.
 		0xe8    // Red Blood.
-    };
+	};
 
-    // Range values for splash types.
-    static constexpr int32_t minRange = SPLASH_FX_COLOR_UNKNOWN;
-    static constexpr int32_t maxRange = SPLASH_FX_COLOR_BLOOD;
+	// Range values for splash types.
+	static constexpr int32_t minRange = SPLASH_FX_COLOR_UNKNOWN;
+	static constexpr int32_t maxRange = SPLASH_FX_COLOR_BLOOD;
 
-    // Default to unknown splash color.
-    int32_t splashColor = colors[ std::clamp( splashType, minRange, maxRange ) ];
+	// Default to unknown splash color.
+	int32_t splashColor = colors[ std::clamp( splashType, minRange, maxRange ) ];
 
-    //! Unknown splash type effect.
-    if ( splashType < SPLASH_FX_COLOR_UNKNOWN && splashType > SPLASH_FX_COLOR_BLOOD ) {
-        // Invalid splash type.
-        clgi.Print( PRINT_DEVELOPER, "%s: Unknown splash type: %d (range: >=%d .. <=%d )\n", __func__, splashType, minRange, maxRange );
-    }
+	//! Unknown splash type effect.
+	if ( splashType < SPLASH_FX_COLOR_UNKNOWN && splashType > SPLASH_FX_COLOR_BLOOD ) {
+		// Invalid splash type.
+		clgi.Print( PRINT_DEVELOPER, "%s: Unknown splash type: %d (range: >=%d .. <=%d )\n", __func__, splashType, minRange, maxRange );
+	}
 
 	// Decode the direction byte to a direction vector.
 	vec3_t decodedDirection = { 0.f, 0.f, 1.f };
 	ByteToDir( direction, decodedDirection );
 
 	// Call the splash effect function.
-    CLG_FX_ParticleEffectWaterSplash( &origin.x, decodedDirection, splashType, count );
+	CLG_FX_ParticleEffectWaterSplash( &origin.x, decodedDirection, splashType, count );
 }
 
 /**************************************
@@ -843,6 +776,83 @@ static void CLG_EntityEvent_Trail( const Vector3 &start, const Vector3 &end, con
 *
 *
 *
+*
+*
+*  [ Impact Particle FX Events ] Implementations:
+*
+*
+*
+*
+*
+**/
+/**************************************
+*   [ EV_FX_IMPACT_GUNSHOT ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_ImpactGunShot( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0, count );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	CLG_SmokeAndFlash( origin );
+
+	// Impact sound
+	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
+
+	if ( r == 1 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
+	} else if ( r == 2 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
+	} else if ( r == 3 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
+	}
+}
+/**************************************
+*   [ EV_FX_IMPACT_SPARKS ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_ImpactSparks( const Vector3 &origin, const uint8_t direction ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, 6 );
+}
+/**************************************
+*   [ EV_FX_IMPACT_BULLET_SPARKS ] Event Handler:
+***************************************/
+static void CLG_EntityEvent_ImpactBulletSparks( const Vector3 &origin, const uint8_t direction, const int32_t count ) {
+	// Decode the direction byte to a direction vector.
+	vec3_t decodedDirection = { 0.f, 0.f, 0.f };
+	ByteToDir( direction, decodedDirection );
+
+	// Call the generic particle effect function.
+	CLG_FX_ParticleEffect( &origin.x, decodedDirection, 0xe0, count );
+
+	// <Q2RTXP>: TODO: Bullet hit "smoke and flash" model anim.
+	CLG_SmokeAndFlash( origin );
+
+	// Impact sound
+	const int32_t r = irandom( 15 + 1 );//Q_rand() & 15;
+	
+	if ( r == 1 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric1, 1, ATTN_NORM, 0 );
+	} else if ( r == 2 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric2, 1, ATTN_NORM, 0 );
+	} else if ( r == 3 ) {
+		clgi.S_StartSound( &origin.x, 0, 0, precache.sfx.ricochets.ric3, 1, ATTN_NORM, 0 );
+	}
+}
+
+
+
+/**
+*
+*
+*
 *   Player State - Weapon Events:
 *
 *
@@ -852,6 +862,16 @@ static void CLG_EntityEvent_Trail( const Vector3 &start, const Vector3 &end, con
 *   @brief	Processes the weapon primary fire event for the given player entity.
 **/
 static void CLG_EntityEvent_ClientWeaponPrimaryFire( centity_t *playerEntity, const int32_t entityNumber, const int32_t eventValue, const int32_t eventParm0, const Vector3 &lerpOrigin ) {
+	// List of actual animation names for pistol firing:
+	static constexpr const char *animationNames[ ] = {
+		"fire_stand_pistol",
+		"fire_crouch_pistol",
+		"fire_walk_pistol",
+		"fire_run_pistol"
+	};
+	// The maximum number of animations.
+	static constexpr const int32_t animationMax = std::size( animationNames );
+
 	/**
 	*   Get necessary data and play the animation for primary fire.
 	**/
@@ -863,16 +883,6 @@ static void CLG_EntityEvent_ClientWeaponPrimaryFire( centity_t *playerEntity, co
 	sg_skm_animation_state_t *eventBodyState = animationMixer->eventBodyState;
 	// Determine the animation to play.
 
-	// ( Resides in playerState! )
-	// List of actual animation names for pistol firing:
-	static constexpr const char *animationNames[] = {
-		"fire_stand_pistol",
-		"fire_crouch_pistol",
-		"fire_walk_pistol",
-		"fire_run_pistol"
-	};
-	// The maximum number of animations.
-	static constexpr const int32_t animationMax = std::size( animationNames );
 	// <Q2RTXP: TODO: Implement PrimaryFireEvent_DetermineAnimation function.
 	// This requires knowledge of the animation state, which is not currently passed in.
 
@@ -880,6 +890,7 @@ static void CLG_EntityEvent_ClientWeaponPrimaryFire( centity_t *playerEntity, co
 	const int32_t animationIndex = std::clamp( eventParm0, 0, animationMax - 1 );
 	// Settle with the animation name.
 	const std::string animationName = animationNames[ animationIndex ];
+
 	// Set event state animation.
 	SG_SKM_SetStateAnimation(
 		model,

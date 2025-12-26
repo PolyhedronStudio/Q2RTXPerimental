@@ -44,5 +44,5 @@ void CLG_PacketEntity_AddBeam( centity_t *packetEntity, entity_t *refreshEntity,
     clgi.V_AddEntity( refreshEntity );
 
     // skip:
-    VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
+    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 }

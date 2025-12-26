@@ -589,10 +589,10 @@ void CLG_FX_DiminishingTrail( const Vector3 &start, const Vector3 &end, centity_
     dec = 0.5f;
     VectorScale( vec, dec, vec );
 
-    if ( old->trailcount > 900 ) {
+    if ( old->trailCount > 900 ) {
         orgscale = 4;
         velscale = 15;
-    } else if ( old->trailcount > 800 ) {
+    } else if ( old->trailCount > 800 ) {
         orgscale = 2;
         velscale = 10;
     } else {
@@ -604,7 +604,7 @@ void CLG_FX_DiminishingTrail( const Vector3 &start, const Vector3 &end, centity_
         len -= dec;
 
         // drop less particles as it flies
-        if ( ( Q_rand() & 1023 ) < old->trailcount ) {
+        if ( ( Q_rand() & 1023 ) < old->trailCount ) {
             p = CLG_AllocateParticle();
             if ( !p )
                 return;
@@ -640,9 +640,9 @@ void CLG_FX_DiminishingTrail( const Vector3 &start, const Vector3 &end, centity_
             }
         }
 
-        old->trailcount -= 5;
-        if ( old->trailcount < 100 )
-            old->trailcount = 100;
+        old->trailCount -= 5;
+        if ( old->trailCount < 100 )
+            old->trailCount = 100;
         VectorAdd( move, vec, move );
     }
 }
@@ -890,18 +890,18 @@ void CLG_FX_FlyEffect( centity_t *ent, const Vector3 &origin ) {
     int     count;
     int     starttime;
 
-    if ( ent->fly_stoptime < clgi.client->time ) {
+    if ( ent->fly_stopTime < clgi.client->time ) {
         starttime = clgi.client->time;
-        ent->fly_stoptime = clgi.client->time + 60000;
+        ent->fly_stopTime = clgi.client->time + 60000;
     } else {
-        starttime = ent->fly_stoptime - 60000;
+        starttime = ent->fly_stopTime - 60000;
     }
 
     n = clgi.client->time - starttime;
     if ( n < 20000 )
         count = n * NUMVERTEXNORMALS / 20000;
     else {
-        n = ent->fly_stoptime - clgi.client->time;
+        n = ent->fly_stopTime - clgi.client->time;
         if ( n < 20000 )
             count = n * NUMVERTEXNORMALS / 20000;
         else

@@ -22,7 +22,7 @@ static void CLG_PacketEntity_AddTrailEffects( centity_t *packetEntity, entity_t 
     // WID: Why not? Let's just do this.
     //if ( entityFlags & ~EF_ROTATE ) {
     if ( entityFlags & EF_GIB ) {
-        CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, entityFlags );
+        CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, entityFlags );
     }
     //}
 }
@@ -93,7 +93,7 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
     }
     #endif
     // skip:
-    VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
+    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 
 	#if 0
 	// Debugging Output:
@@ -135,9 +135,9 @@ void CLG_PacketEntity_AddPusher( centity_t *packetEntity, entity_t *refreshEntit
             );
         //clgi.Print( PRINT_DEVELOPER, "Pusher Lerp Origin: { %.5f %.5f %.5f }\n",
         //    __func__,
-        //    packetEntity->lerp_origin[ 0 ],
-        //    packetEntity->lerp_origin[ 1 ],
-        //    packetEntity->lerp_origin[ 2 ]
+        //    packetEntity->lerpOrigin[ 0 ],
+        //    packetEntity->lerpOrigin[ 1 ],
+        //    packetEntity->lerpOrigin[ 2 ]
         //);
     }
 	#endif

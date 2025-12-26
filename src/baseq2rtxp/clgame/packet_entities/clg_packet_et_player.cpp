@@ -650,7 +650,7 @@ void CLG_ETPlayer_AddEffects( centity_t *packetEntity, entity_t *refreshEntity, 
     // a blood trail of entities when it basically stopped motion.
     if ( nextState->entityFlags & ~EF_ROTATE ) {
         if ( nextState->entityFlags & EF_GIB ) {
-            CLG_FX_DiminishingTrail( packetEntity->lerp_origin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
+            CLG_FX_DiminishingTrail( packetEntity->lerpOrigin, refreshEntity->origin, packetEntity, nextState->entityFlags | EF_GIB );
         }
     }
 }
@@ -868,5 +868,5 @@ void CLG_PacketEntity_AddPlayer( centity_t *packetEntity, entity_t *refreshEntit
     }
 
     // skip:
-    VectorCopy( refreshEntity->origin, packetEntity->lerp_origin );
+    VectorCopy( refreshEntity->origin, packetEntity->lerpOrigin );
 }

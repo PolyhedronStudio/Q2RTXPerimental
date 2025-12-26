@@ -86,7 +86,7 @@ clg_explosion_t *CLG_PlainExplosion( const bool withSmoke );
 /**
 *   @brief
 **/
-void CLG_SmokeAndFlash( const vec3_t origin );
+void CLG_SmokeAndFlash( const Vector3 &origin );
 /**
 *   @brief
 **/

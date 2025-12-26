@@ -9,27 +9,27 @@
 
 
 
-/**
+/****************************************************************************
 *
 *
-*	(Regular-) Entity Events:
+*	(Regular-/"Rider"-) Entity Events:
 *
 *
 *   These events are set on the entity's 's.event' field, and thus are tagged along
 *   with the entity during its normal state updates to clients. Use these to trigger
-*   effects that are directly related to the entity itself.
+*   effects that are directly related to the entity itself. (Riding the entity.)
 *
 *   It is important to note that these events are only sent to clients that
-*   are in the Potentially Hearable Set (PHS) of the entity. So if the entity
-*   is too far away from the client, or is blocked by walls/brushes, the
-*   client will not receive the event, and thus not play the sound or show
-*   the effect.
+*   are in the Potentially Hearable Set (PHS)/Possible Visibility Set of the entity.
+*	So if the entity is too far away from the client, or is blocked by
+*	walls/brushes (which confine the other area the entity is in), the client will
+*	not receive the event, and thus not play the sound or show the effect.
 *
 *
-**/
+****************************************************************************/
 /**
 *
-*	Regular Entity Events -- Sound Playback:
+*	[ Sound Playback ] Regular/Riding Entity Events:
 *
 **/
 /**
@@ -52,7 +52,38 @@ void SVG_EntityEvent_PositionedSound( svg_base_edict_t *ent, const int32_t chann
 *
 *
 *
-*	Temp Entity Events -- Sound Playback:
+*	[ Weapon Firing and Related ] - Regular/Riding Entity Events:
+*
+*
+*
+*
+**/
+/**
+*   @brief  Applies an EV_WEAPON_PRIMARY_FIRE event to the entity's own event field and parameters.
+**/
+void SVG_EntityEvent_ClientWeaponPrimaryFire( svg_base_edict_t *ent );
+/**
+*   @brief  Applies an EV_WEAPON_SECONDARY_FIRE event to the entity's own event field and parameters.
+**/
+void SVG_EntityEvent_ClientWeaponSecondaryFire( svg_base_edict_t *ent );
+/**
+*	@brief	Applies an EV_WEAPON_HOLSTER_AND_DRAW event to the entity's own event field and parameters.
+**/
+void SVG_EntityEvent_ClientWeaponHolsterAndDraw( svg_base_edict_t *ent );
+/**
+*	@brief	Applies an EV_WEAPON_RELOAD event to the entity's own event field and parameters.
+**/
+void SVG_EntityEvent_ClientWeaponReload( svg_base_edict_t *ent );
+
+
+
+
+/**
+*
+*
+*
+*
+*	[ Sound Playback ] - Temp Entity Events:
 *
 *
 *
@@ -115,7 +146,7 @@ svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const 
 *
 *
 *
-*	Temp Entity Events -- Blood Particles:
+*	[ Blood Particles ] - Temp Entity Events:
 *
 *
 *
@@ -148,7 +179,7 @@ svg_base_edict_t *SVG_TempEventEntity_MoreBlood( const Vector3 &origin, const Ve
 *
 *
 *
-*	Temp Entity Events -- Impact Particles:
+*	[ Impact Particles ] - Temp Entity Events:
 *
 *
 *
@@ -172,7 +203,7 @@ svg_base_edict_t *SVG_TempEventEntity_GunShot( const Vector3 &origin, const Vect
 *
 *
 *
-*	Temp Entity Events -- Splash Particles:
+*	[ Splash Particles ] - Temp Entity Events:
 *
 *
 *
@@ -196,7 +227,7 @@ svg_base_edict_t *SVG_TempEventEntity_SplashParticles( const Vector3 &origin, co
 *
 *
 *
-*	Temp Entity Events -- Trail Particles:
+*	[ Trail Particles ] - Temp Entity Events:
 *
 *
 *

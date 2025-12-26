@@ -21,15 +21,69 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_utils.h"
 #include "svgame/svg_entity_events.h"
 #include "sharedgame/sg_entity_flags.h"
+#include "sharedgame/sg_entities.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_misc.h"
 
 
-
+/****************************************************************************
+*
+* 
+* 
+*	Helper Functions:
+* 
+* 
+* 
+****************************************************************************/
 /**
 *
+*	[ Weapon Firing and Related ] Regular/Riding Entity Events:
 *
-*	(Regular-) Entity Events:
+**/
+/**
+*   @brief  Determines the 'fire' animation to play for the given primary fire event.
+**/
+static const int32_t ClientPrimaryFireEvent_DetermineAnimationType( const player_state_t *ps ) {
+	// Are we ducked?
+	const bool isDucked = ( ps->pmove.pm_flags & PMF_DUCKED ? true : false );
+
+	// Default animation
+	int32_t evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_STAND;
+
+	if ( !ps->animation.isIdle ) {
+		if ( ps->animation.isCrouched ) {
+			//animationName = "fire_crouch_pistol";
+			evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_CROUCH;
+		} else if ( ps->animation.isWalking ) {
+			//animationName = "fire_walk_pistol";
+			evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_RUN;
+		} else {
+			// Only if not strafing though.
+			bool isStrafing = true;
+			if ( ( !( ps->animation.moveDirection & PM_MOVEDIRECTION_FORWARD ) && !( ps->animation.moveDirection & PM_MOVEDIRECTION_BACKWARD ) )
+				&& ( ( ps->animation.moveDirection & PM_MOVEDIRECTION_LEFT ) || ( ps->animation.moveDirection & PM_MOVEDIRECTION_RIGHT ) ) ) {
+				evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_STAND;
+			} else {
+				evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_RUN;
+			}
+		}
+	} else {
+		if ( ps->animation.isCrouched ) {
+			//animationName = "fire_crouch_pistol";
+			evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_CROUCH;
+		} else {
+			evArg0AnimationType = EVARG0_PRIMARY_FIRE_ANIMATIONTYPE_STAND;
+		}
+	}
+	return evArg0AnimationType;
+}
+
+
+
+/****************************************************************************
+*
+*
+*	(Regular-/"Rider"-) Entity Events:
 *
 *
 *   These events are set on the entity's 's.event' field, and thus are tagged along
@@ -43,16 +97,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 *	not receive the event, and thus not play the sound or show the effect.
 *
 *
-**/
+****************************************************************************/
 /**
 *
-* 
-* 
-* 
-*	Regular Entity Events -- Sound Playback:
-*
-* 
-* 
+*	[ Sound Playback ] Regular/Riding Entity Events:
 * 
 **/
 /**
@@ -81,9 +129,61 @@ void SVG_EntityEvent_PositionedSound( svg_base_edict_t *ent, const int32_t chann
     SVG_Util_AddEvent( ent, EV_POSITIONED_SOUND, packedChannel, soundResourceIndex );
 }
 
-
+/**
+*
+*	[ Weapon Firing and Related ] Regular/Riding Entity Events:
+*
+**/
+/**
+*   @brief  Applies an EV_WEAPON_PRIMARY_FIRE event to the entity's own event field and parameters.
+**/
+void SVG_EntityEvent_ClientWeaponPrimaryFire( svg_base_edict_t *ent ) {
+	// Make sure it is a client entity.
+	if ( ent->client ) {
+		// Determine fire animation type.
+		const int32_t stanceFireAnimationID = ClientPrimaryFireEvent_DetermineAnimationType( &ent->client->ps );
+		// Add the weapon primary fire event to the entity.
+		SVG_Util_AddEvent( ent, EV_WEAPON_PRIMARY_FIRE, stanceFireAnimationID, 0 );
+	}
+}
+/**
+*   @brief  Applies an EV_WEAPON_SECONDARY_FIRE event to the entity's own event field and parameters.
+**/
+void SVG_EntityEvent_ClientWeaponSecondaryFire( svg_base_edict_t *ent ) {
+	// Make sure it is a client entity.
+	if ( ent->client ) {
+		// Determine fire animation type.
+		const int32_t stanceFireAnimationID = ClientPrimaryFireEvent_DetermineAnimationType( &ent->client->ps );
+		// Add the weapon primary fire event to the entity.
+		SVG_Util_AddEvent( ent, EV_WEAPON_SECONDARY_FIRE, stanceFireAnimationID, 0 );
+	}
+}
 
 /**
+*	@brief	Applies an EV_WEAPON_HOLSTER_AND_DRAW event to the entity's own event field and parameters.
+**/
+void SVG_EntityEvent_ClientWeaponHolsterAndDraw( svg_base_edict_t *ent ) {
+	// Make sure it is a client entity.
+	if ( ent->client ) {
+		// Add the weapon holster and draw event to the entity.
+		SVG_Util_AddEvent( ent, EV_WEAPON_HOLSTER_AND_DRAW, 0, 0 );
+	}
+}
+
+/**
+*	@brief	Applies an EV_WEAPON_RELOAD event to the entity's own event field and parameters.
+**/
+void SVG_EntityEvent_ClientWeaponReload( svg_base_edict_t *ent ) {
+	// Make sure it is a client entity.
+	if ( ent->client ) {
+		// Add the weapon holster and draw event to the entity.
+		SVG_Util_AddEvent( ent, EV_WEAPON_RELOAD, 0, 0 );
+	}
+}
+
+
+
+/****************************************************************************
 *
 *
 *	Temp Entity Events:
@@ -101,7 +201,7 @@ void SVG_EntityEvent_PositionedSound( svg_base_edict_t *ent, const int32_t chann
 *   the SVF_SENDCLIENT_TO_ALL flag.
 * 
 *
-**/
+****************************************************************************/
 /**
 *   @brief	Creates a temp entity event with the specified event set.
 **/
@@ -152,7 +252,7 @@ static inline const Vector3 CalculateEntityEventSoundOrigin( svg_base_edict_t *e
 *
 *
 *
-*	Temp Entity Events -- Sound Playback:
+*	[ Sound Playback ] - Temp Entity Events:
 *
 *
 *
@@ -298,7 +398,7 @@ svg_base_edict_t *SVG_TempEventEntity_GlobalSound( const Vector3 &origin, const 
 *
 *
 *
-*	Temp Entity Events -- Blood Particles:
+*	[ Blood Particles ] - Temp Entity Events:
 *
 *
 *
@@ -375,7 +475,7 @@ svg_base_edict_t *SVG_TempEventEntity_MoreBlood( const Vector3 &origin, const Ve
 *
 *
 *
-*	Temp Entity Events -- Impact Particles:
+*	[ Impact Particles ] - Temp Entity Events:
 *
 *
 *
@@ -431,7 +531,7 @@ svg_base_edict_t *SVG_TempEventEntity_GunShot( const Vector3 &origin, const Vect
 *
 *
 *
-*	Temp Entity Events -- Splash Particles:
+*	[ Splash Particles ] - Temp Entity Events:
 *
 *
 *
@@ -487,7 +587,7 @@ svg_base_edict_t *SVG_TempEventEntity_SplashParticles( const Vector3 &origin, co
 *
 *
 *
-*	Temp Entity Events -- Trail Particles:
+*	[ Trail Particles ] - Temp Entity Events:
 *
 *
 *

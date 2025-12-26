@@ -27,7 +27,10 @@
 *   @brief
 **/
 static inline void ResetPlayerEntity( centity_t *cent ) {
-    
+	// Ensure to assign.
+	if ( clgi.client->clientNumber > -1 ) {
+		cent->current.number = clgi.client->clientNumber + 1;
+	}
 }
 
 
@@ -51,10 +54,11 @@ static inline void EntityState_ResetState( centity_t *cent, const entity_state_t
         cent->previousEvent = 0;
     }
     // For diminishing rocket / grenade trails.
-    cent->trailcount = 1024;
+    cent->trailCount = 1024;
 
 	// Set the lerp origin to the current origin by default.
-    cent->lerp_origin = cent->current.origin;
+    cent->lerpOrigin = cent->current.origin;
+
     //cent->lerp_angles = cent->current.angles;
     if ( cent->current.entityType == ET_PLAYER ) {
         ResetPlayerEntity( cent );
@@ -71,42 +75,41 @@ static inline void EntityState_FrameEnter( centity_t *ent, const entity_state_t 
     static int64_t entity_ctr = 0;
     ent->id = ++entity_ctr;
 
-    // Reset the needed entity state properties.
-    EntityState_ResetState( ent, nextState );
+		// Reset if needed any specific entity state properties.
+	EntityState_ResetState( ent, nextState );
+	// Duplicate the current state into the previous state so "lerping doesn't hurt anything."
+	ent->prev = *nextState;
 
-    // Duplicate the current state so lerping doesn't hurt anything.
-    ent->prev = *nextState;
-
-    // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
-    // Handle proper lerping for animated entities by Hz.    
     #if 1
-    // WID: 40hz
-    // Update the animation frames and time.
     ent->current_frame = ent->last_frame = nextState->frame;
     ent->frame_servertime = clgi.client->servertime;
     ent->frame_realtime = clgi.GetRealTime();
-    // WID: 40hz
     #endif
 
-    // Off the entity event value.
-    const int32_t entityEvent = EV_GetEntityEventValue( nextState->event );
+	// Off the next and current entity event values.
+    const int32_t nextEntityEvent = EV_GetEntityEventValue( nextState->event );
+    const int32_t currentEntityEvent = EV_GetEntityEventValue( ent->current.event );
 
-    // No lerping if teleported, or a BEAM effect entity.
-    if ( ( nextState->event != ent->current.event && ( entityEvent == EV_PLAYER_TELEPORT || entityEvent == EV_OTHER_TELEPORT ) ) 
-		|| ( nextState->entityType == ET_BEAM || nextState->renderfx & RF_BEAM )
-		// It is a temporary event entity, so no lerping needed.
-		//|| ( nextState->entityType - ET_TEMP_EVENT_ENTITY > 0 )
-    ) {
-        ent->lerp_origin = newIntendOrigin;
-        // We also thus do not want to mess about with assigning the state's
-        // old_origin for lerping. Hence, we just return here.
+	// Check if it is a temporary event entity.
+    const bool isTempEventEntity = ( nextState->entityType >= ET_TEMP_EVENT_ENTITY );
+	// Check if it is a teleport event.
+    const bool isTeleportEvent =
+        ( nextEntityEvent != currentEntityEvent
+            && ( nextEntityEvent == EV_PLAYER_TELEPORT || nextEntityEvent == EV_OTHER_TELEPORT ) );
+
+	if (// If it isa teleport event, do not lerp. 
+		isTeleportEvent
+		// If it is a beam entity, do not lerp.
+        || ( nextState->entityType == ET_BEAM || nextState->renderfx & RF_BEAM )
+		// If it is a temporary event entity, no lerping.
+        || isTempEventEntity ) 
+	{
+        ent->lerpOrigin = newIntendOrigin;
         return;
     }
 
-    // old_origin is valid for new entities,
-    // so use it as starting point for interpolating between
     ent->prev.origin = nextState->old_origin;
-    ent->lerp_origin = nextState->old_origin;
+    ent->lerpOrigin = nextState->old_origin;
 }
 /**
 *	@brief	Called when a new frame has been received that contains an entity
@@ -135,29 +138,48 @@ static inline void EntityState_FrameUpdate( centity_t *ent, const entity_state_t
         ent->step_realtime = clgi.GetRealTime();
     }
     #endif
-    // Off the entity event value.
-    const int32_t entityEvent = EV_GetEntityEventValue( state->event );
-    const int32_t entityEventOld = EV_GetEntityEventValue( ent->prev.event );
 
 	// Get absolute difference in origin.
-    const Vector3 originDifference = QM_Vector3Fabs( newIntendOrigin - ent->current.origin );
-	const double differenceMax = std::max( { originDifference.x, originDifference.y, originDifference.z } );
+	const Vector3 originDifference = QM_Vector3Fabs( newIntendOrigin - ent->current.origin );
+	const double originDifferenceMax = std::max( { originDifference.x, originDifference.y, originDifference.z } );
 
-    // Some data changes will force no lerping
-    if ( state->entityType != ent->current.entityType
-        || ( ent->current.modelindex != state->modelindex || ent->current.modelindex2 != state->modelindex2 || ent->current.modelindex2 != state->modelindex3 || ent->current.modelindex4 != state->modelindex4 )
-        || ( ent->current.event != state->event && ( entityEvent == EV_PLAYER_TELEPORT || entityEvent == EV_OTHER_TELEPORT ) )
-        || differenceMax > 64 // If it exceed 64, one of its axis is responsible for that.
-        || cl_nolerp->integer == 1 )
+	// Off the next and current entity event values.
+	const int32_t nextEntityEvent = EV_GetEntityEventValue( state->event );
+	const int32_t currentEntityEvent = EV_GetEntityEventValue( ent->current.event );
+
+	// Is it a new entity type?
+	const bool isNewEntityType = ( state->entityType != ent->current.entityType );
+	// Has a new model set.
+	const bool hasNewModelSet = ( ent->current.modelindex != state->modelindex || ent->current.modelindex2 != state->modelindex2 || ent->current.modelindex3 != state->modelindex3 || ent->current.modelindex4 != state->modelindex4 );
+
+	// Check if it is a temporary event entity.
+	const bool isTempEventEntity = ( state->entityType >= ET_TEMP_EVENT_ENTITY );
+	// Check if it is a teleport event.
+	const bool isTeleportEvent = ( nextEntityEvent != currentEntityEvent && ( nextEntityEvent == EV_PLAYER_TELEPORT || nextEntityEvent == EV_OTHER_TELEPORT ) );
+
+    /**
+	*	Some data changes will force no lerping
+	**/
+    if (// A new entity type is set. 
+		isNewEntityType
+		// A new model was set.
+        || hasNewModelSet
+		// Teleporting events do not lerp.
+		|| isTeleportEvent
+		// A new temporary event entity, so no lerping.
+		|| isTempEventEntity
+		// If it exceed 64, one of its axis is responsible for that.
+        || ( originDifferenceMax > 64. )
+		// Lerping is disabled.
+        || ( cl_nolerp->integer == 1 ) )
     {
-        // Duplicate the state to previous state, and reset if needed any specific entity state properties.
+        // Reset if needed any specific entity state properties.
         EntityState_ResetState( ent, state );
-
-        // Duplicate the current state so lerping doesn't hurt anything.
+        // Duplicate the current state into the previous state so "lerping doesn't hurt anything."
         ent->prev = *state;
 
         // No lerping if Teleported or Morphed, so use the passed in current origin.
-        ent->lerp_origin = newIntendOrigin;
+        ent->lerpOrigin = newIntendOrigin;
 
         // <Q2RTXP>: WID: TODO: Do we still want/need this per se?
         // Handle proper lerping for animated entities by Hz.    
@@ -240,9 +262,10 @@ static inline void BuildSolidEntityList( void ) {
 *   @return True if origin / angles update has been optimized out to the player state.
 **/
 static inline bool CheckPlayerStateEntity( const entity_state_t *state ) {
- //   if ( state->number == clgi.client->clientNumber + 1 ) {
- //       return true;
-	//}
+    if ( state->number == clgi.client->clientNumber + 1 ) {
+        return true;
+	}
+
     if ( state->number != clgi.client->frame.ps.clientNumber + 1 ) {
         return false;
     }

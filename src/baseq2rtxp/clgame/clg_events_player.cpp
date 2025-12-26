@@ -271,7 +271,7 @@ static void CLG_PlayerEvent_Login( const centity_t *playerEntity, const int32_t 
     // Play login sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_login, 1, ATTN_NORM, 0 );
 	// Spawn login effect.
-	CLG_FX_LogoutEffect( &playerEntity->lerp_origin.x, 3/*MZ_LOGIN*/ );
+	CLG_FX_LogoutEffect( &playerEntity->lerpOrigin.x, 3/*MZ_LOGIN*/ );
 }
 /**
 *   @brief
@@ -284,7 +284,7 @@ static void CLG_PlayerEvent_Logout( const centity_t *playerEntity, const int32_t
     // Play logout sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_logout, 1, ATTN_NORM, 0 );
     // Spawn logout effect.
-    CLG_FX_LogoutEffect( &playerEntity->lerp_origin.x, 4/*MZ_LOGOUT*/ );
+    CLG_FX_LogoutEffect( &playerEntity->lerpOrigin.x, 4/*MZ_LOGOUT*/ );
 }
 /**
 *   @brief
@@ -297,7 +297,7 @@ static void CLG_PlayerEvent_Teleport( const centity_t *playerEntity, const int32
     // Play login sound.
     clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.mz_logout, 1, ATTN_NORM, 0 );
     // Spawn login effect.
-    CLG_FX_LogoutEffect( &playerEntity->lerp_origin.x, 4/*MZ_LOGOUT*/ );
+    CLG_FX_LogoutEffect( &playerEntity->lerpOrigin.x, 4/*MZ_LOGOUT*/ );
 }
 
 

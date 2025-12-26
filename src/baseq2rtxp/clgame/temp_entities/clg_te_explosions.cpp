@@ -352,8 +352,9 @@ CL_SmokeAndFlash
 =================
 */
 // <Q2RTXP>: WID: We'll do something similar but need models.
+
+void CLG_SmokeAndFlash( const Vector3 &origin ) {
 #if 0
-void CLG_SmokeAndFlash( const vec3_t origin ) {
     clg_explosion_t *ex;
 
     ex = CLG_AllocateExplosion();
@@ -371,5 +372,5 @@ void CLG_SmokeAndFlash( const vec3_t origin ) {
     ex->frames = 2;
     ex->start = clgi.client->servertime - clgi.frame_time_ms;
     ex->ent.model = precache.models.flash;
-}
 #endif
+}
