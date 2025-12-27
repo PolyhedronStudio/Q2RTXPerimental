@@ -273,6 +273,11 @@ typedef struct centity_s {
 	* 
 	* 
 	**/
+	//! Lerped Origin( Also used for trails (variable hz). )
+	Vector3	lerpOrigin;
+	//! Lerped Angles.
+	Vector3 lerpAngles;
+
 	/**
 	*	TODO: Catagorize :
 	**/
@@ -282,6 +287,7 @@ typedef struct centity_s {
 	int64_t	frame_servertime;
 	// Real Time of receiving the current frame.
 	int64_t frame_realtime;
+
 	// Server Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
 	int64_t	step_servertime;
 	// Real Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
@@ -296,16 +302,14 @@ typedef struct centity_s {
 	//! Refresh Entity.
 	entity_t refreshEntity;
 
+	//! Animations being played and mixed for this entity.
+	sg_skm_animation_mixer_t animationMixer;
+	//! Bone Controllers.
+	skm_bone_controller_t boneControllers[ 4 ];
 	//! Bone Pose Cache for ET_PLAYER and ET_MONSTER types.
 	skm_transform_t *bonePoseCache[ SKM_BODY_MAX ];		//! For the current animation(s).
 	skm_transform_t *lastBonePoseCache[ SKM_BODY_MAX ]; //! For the last animation(s).
 	skm_transform_t *eventBonePoseCache[ SKM_BODY_MAX ];//! For the event animation(s).
-
-	//! Animations being played and mixed for this entity.
-	sg_skm_animation_mixer_t animationMixer;
-
-	//! Bone Controllers.
-	skm_bone_controller_t boneControllers[ 4 ];
 
 
 	/**
@@ -324,7 +328,6 @@ typedef struct centity_s {
 		//! The previous frame's calculated move information.
 		clg_entity_moveinfo_t previous;
 	} moveInfo;
-
 	//! (View-) Angle Vectors, updated along with movement information.
 	struct {
 		Vector3 up;
@@ -340,8 +343,6 @@ typedef struct centity_s {
 	int32_t	fly_stopTime;
 	//! For diminishing grenade trails.
 	int32_t	trailCount;
-	//! for trails (variable hz)
-	Vector3	lerpOrigin;
 } centity_t;
 
 /**
@@ -701,7 +702,7 @@ struct game_locals_t {
 	*   @brief      The entity matching for the client number received during initial server connecting..
 	*               This is a pointer into `clg_entities`, that always points to our 'local game client' entity.
 	**/
-	centity_t *clientEntity = nullptr;
+	centity_t *localClientEntity = nullptr;
 	/**
 	*   @brief      The entity matching for the client number that we're currently chasing( frame.ps.stats[ STAT_CHASE ] ).
 	*               This is a pointer into `clg_entities`, and may point to a different

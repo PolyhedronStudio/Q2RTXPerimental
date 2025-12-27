@@ -889,6 +889,12 @@ typedef struct {
 	* 
 	**/
 	/**
+	*	@brief	Called after the client has parsed the server data message,
+	*			and is informed about the game mode, client number and
+	*			if the connection is a cinematic one.
+	**/
+	void ( *ClientServerDataParsed )( const int32_t clientNumber, const bool isCinematic, const char *gameDir, const char *levelName, const int32_t gameMode );
+	/**
 	*	@brief	Called when the client wants to 'clear state', this happens during Disconnecting and when 
 	*			the first server data message, an svc_serverdata(ParsingServerData) event is received.
 	*			

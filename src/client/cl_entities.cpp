@@ -87,7 +87,8 @@ static void CL_SetInitialServerFrame(void)
     clge->Frame_SetInitialServerFrame();
 
     //! Get rid of loading plaque.
-    SCR_EndLoadingPlaque();     
+    SCR_EndLoadingPlaque();
+	// Clear lagometer.
     SCR_LagClear();
     //! Get rid of connection screen.
     Con_Close(false);           

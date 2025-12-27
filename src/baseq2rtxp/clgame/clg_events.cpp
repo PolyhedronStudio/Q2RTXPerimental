@@ -138,7 +138,8 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent ) {
     *   Determine LerpOrigin and Process the Entity Events:
     **/
     // Calculate the position for lerpOrigin at exactly the frame time.
-    cent->lerpOrigin = CLG_GetEntityLerpOrigin( cent->prev.origin, cent->current.origin, clgi.client->lerpfrac );
+	cent->lerpOrigin = CLG_GetEntityLerpOrigin( cent->prev.origin, cent->current.origin, clgi.client->lerpfrac );
+	cent->lerpAngles = CLG_GetEntityLerpAngles( cent->prev.angles, cent->current.angles, clgi.client->lerpfrac );
 
 	//static centity_t *predCent = &game.predictedEntity;
 	//static centity_t *evCent = nullptr;

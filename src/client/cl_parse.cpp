@@ -516,8 +516,8 @@ static void CL_ParseGamestate( const int32_t cmd ) {
 
 static void CL_ParseServerData(void)
 {
-    char    levelname[MAX_QPATH];
-    bool    cinematic;
+	char    levelname[ MAX_QPATH ] = {};
+    bool    cinematic = false;
 
     Cbuf_Execute(&cl_cmdbuf);          // make sure any stuffed commands are done
 
@@ -533,13 +533,12 @@ static void CL_ParseServerData(void)
 	// TEMP
 	std::string strGamemode = clge->GetGameModeName( gamemode );
 	// EOF TEMP
-
     Com_DPrintf("Serverdata packet received "
                 "(protocol=%d, gamemode=%s, servercount=%d, attractloop=%d)\n",
                 protocol, strGamemode.c_str( ), cl.servercount, attractloop );
 
     // check protocol
-    if (cls.serverProtocol != protocol) {
+    if ( cls.serverProtocol != protocol ) {
 		if ( !cls.demo.playback ) {
 			Com_Error( ERR_DROP, "Requested protocol version %d, but server returned %d.",
 					  cls.serverProtocol, protocol );
@@ -555,7 +554,7 @@ static void CL_ParseServerData(void)
     cl.esFlags |= MSG_ES_BEAMORIGIN;
 
     // game directory
-    if (MSG_ReadString(cl.gamedir, sizeof(cl.gamedir)) >= sizeof(cl.gamedir)) {
+    if ( MSG_ReadString( cl.gamedir, sizeof( cl.gamedir ) ) >= sizeof( cl.gamedir ) ) {
         Com_Error(ERR_DROP, "Oversize gamedir string");
     }
 
@@ -563,20 +562,20 @@ static void CL_ParseServerData(void)
     // do not change gamedir if connected to local sever either,
     // as it was already done by SV_InitGame, and changing it
     // here will not work since server is now running
-    if (!cls.demo.playback && !sv_running->integer) {
-        // pretend it has been set by user, so that 'changed' hook
-        // gets called and filesystem is restarted
-        Cvar_UserSet("game", cl.gamedir);
+	if ( !cls.demo.playback && !sv_running->integer ) {
+		// pretend it has been set by user, so that 'changed' hook
+		// gets called and filesystem is restarted
+		Cvar_UserSet( "game", cl.gamedir );
 
-        // protect it from modifications while we are connected
-        fs_game->flags |= CVAR_ROM;
-    }
+		// protect it from modifications while we are connected
+		fs_game->flags |= CVAR_ROM;
+	}
 
     // Parse player entity number
     cl.clientNumber = MSG_ReadInt16();
 
     // get the full level name
-    MSG_ReadString(levelname, sizeof(levelname));
+	MSG_ReadString( levelname, sizeof( levelname ) );
 
     // setup default pmove parameters
     //clge->ConfigurePlayerMoveParameters( &cl.pmp );
@@ -591,31 +590,33 @@ static void CL_ParseServerData(void)
     cl.serverstate = ss_game;
 
     #ifdef ENABLE_CINEMATIC_SERVERDATA
-    cinematic = ( cl.clientNumber == -1 ? true : false );
-    if (cinematic) {
-        SCR_PlayCinematic(levelname);
-    } else {
-    #else
-    {
+	cinematic = ( cl.clientNumber == -1 ? true : false );
+	if ( cinematic ) {
+		SCR_PlayCinematic( levelname );
+	} else 
     #endif
-        // seperate the printfs so the server message can have a color
-        Con_Printf(
-            "\n\n"
-            "\35\36\36\36\36\36\36\36\36\36\36\36"
-            "\36\36\36\36\36\36\36\36\36\36\36\36"
-            "\36\36\36\36\36\36\36\36\36\36\36\37"
-            "\n\n");
+	{
+		// Seperate the printfs so the server message can have a color
+		Con_Printf(
+			"\n\n"
+			"\35\36\36\36\36\36\36\36\36\36\36\36"
+			"\36\36\36\36\36\36\36\36\36\36\36\36"
+			"\36\36\36\36\36\36\36\36\36\36\36\37"
+			"\n\n" );
 
-        Com_SetColor(COLOR_ALT);
-        Com_Printf("%s\n", levelname);
-        Com_SetColor(COLOR_NONE);
+		Com_SetColor( COLOR_ALT );
+		Com_Printf( "%s\n", levelname );
+		Com_SetColor( COLOR_NONE );
 
-        // make sure clientNum is in range
-        if ( !VALIDATE_CLIENTNUM( cl.clientNumber ) ) {
-            Com_WPrintf( "Serverdata has invalid playernum %d\n", cl.clientNumber );
-            cl.clientNumber = -1;
-        }
+		// make sure clientNum is in range
+		if ( !VALIDATE_CLIENTNUM( cl.clientNumber ) ) {
+			Com_WPrintf( "Serverdata has invalid playernum %d\n", cl.clientNumber );
+			cl.clientNumber = -1;
+		}
     }
+
+	// Notify the client game module about the newly parsed serverdata.
+	clge->ClientServerDataParsed( cl.clientNumber, cinematic, cl.gamedir, levelname, gamemode );
 }
 
 /**
@@ -1076,18 +1077,18 @@ void CL_ParseServerMessage(void)
         }
 
         // if recording demos, copy off protocol invariant stuff
-        if (cls.demo.recording && !cls.demo.paused) {
-            size_t len = msg_read.readcount - readcount;
+		if ( cls.demo.recording && !cls.demo.paused ) {
+			size_t len = msg_read.readcount - readcount;
 
-            // it is very easy to overflow standard 1390 bytes
-            // demo frame with modern servers... attempt to preserve
-            // reliable messages at least, assuming they come first
-            if (cls.demo.buffer.cursize + len < cls.demo.buffer.maxsize) {
-                SZ_WriteData(&cls.demo.buffer, msg_read.data + readcount, len);
-            } else {
-                cls.demo.others_dropped++;
-            }
-        }
+			// it is very easy to overflow standard 1390 bytes
+			// demo frame with modern servers... attempt to preserve
+			// reliable messages at least, assuming they come first
+			if ( cls.demo.buffer.cursize + len < cls.demo.buffer.maxsize ) {
+				SZ_WriteData( &cls.demo.buffer, msg_read.data + readcount, len );
+			} else {
+				cls.demo.others_dropped++;
+			}
+		}
     }
 }
 

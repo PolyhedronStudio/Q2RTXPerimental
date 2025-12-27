@@ -261,6 +261,13 @@ const bool CLG_IsGameplayPaused( const bool clientOnly ) {
 }
 
 /**
+*	@brief	Assigns client/server data after having parsed it.
+**/
+void PF_ClientServerDataParsed( const int32_t clientNumber, const bool isCinematic, const char *gameDir, const char *levelName, const int32_t gameMode ) {
+	// TODO:
+}
+
+/**
 *	@brief
 **/
 void PF_ClearState( void ) {
@@ -287,9 +294,8 @@ void PF_ClearState( void ) {
 	CLG_ClearEffects();
 
 	// Clear out level locals.
-	//memset( &level, 0, sizeof( level ) );
+	//std::memset( &level, 0, sizeof( level ) );
 	std::fill_n( reinterpret_cast<std::byte *>( &level ), sizeof( level ), std::byte{ 0 } ); // level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
-	
 }
 
 
@@ -674,6 +680,7 @@ extern "C" { // WID: C++20: extern "C".
 		globals.Shutdown = PF_ShutdownGame;
 		globals.PreShutdown = PF_PreShutdownGame;
 
+		globals.ClientServerDataParsed = PF_ClientServerDataParsed;
 		globals.ClearState = PF_ClearState;
 		globals.ClientConnected = PF_ClientConnected;
 		globals.ClientDisconnected = PF_ClientDisconnected;

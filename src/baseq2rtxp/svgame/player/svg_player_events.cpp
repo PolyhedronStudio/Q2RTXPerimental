@@ -330,25 +330,14 @@ void SVG_PlayerState_CheckForEvents( svg_player_edict_t *ent, player_state_t *op
         return; // Need a client entity.
     }
 
-    // WID: We don't have support for external events yet. In fact, they would in Q3 style rely on
-    // 'temp entities', which are alike a normal entity. Point being is this requires too much refactoring
-    // right now.
-    #if 0
-    if ( ps->externalEvent && ps->externalEvent != ops->externalEvent ) {
-        centity_t *clientEntity = clgi.client->clientEntity;//cent = &cg_entities[ ps->clientNum + 1 ];
-        clientEntity->currentState.event = ps->externalEvent;
-        clientEntity->currentState.eventParm = ps->externalEventParm;
-        CG_EntityEvent( clientEntity, clientEntity->lerpOrigin );
-    }
-    #endif
-
-    // 
+	// Backtrack old event sequence if it is too far back.
     int64_t _oldEventSequence = oldEventSequence;
-    if ( _oldEventSequence < client->ps.eventSequence - MAX_PS_EVENTS ) {
-        _oldEventSequence = client->ps.eventSequence - MAX_PS_EVENTS;
+	// Clamp to MAX_PS_EVENTS.
+    if ( _oldEventSequence < ps->eventSequence - MAX_PS_EVENTS ) {
+        _oldEventSequence = ps->eventSequence - MAX_PS_EVENTS;
     }
-    //centity_t *clientEntity= &clg_entities[ clgi.client->frame.clientNum + 1 ];//clgi.client->clientEntity; // cg_entities[ ps->clientNum + 1 ];
-    // go through the predictable events buffer
+
+	// Go through the predictable events buffer and fire any events which are new.
     for ( int64_t i = _oldEventSequence; i < ps->eventSequence; i++ ) {
         // Get the event number.
         const int32_t playerStateEvent = ps->events[ i & ( MAX_PS_EVENTS - 1 ) ];

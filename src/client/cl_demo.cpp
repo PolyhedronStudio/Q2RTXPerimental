@@ -1089,14 +1089,10 @@ static void CL_Seek_f(void)
     }
 
     // don't lerp to old
-    //memset( &cl.oldframe, 0, sizeof( cl.oldframe ) );
-	cl.oldframe = {};
-
-    // TODO: Move these two over to client game dll.
-    // clear old effects
-    //CL_ClearEffects();
-    //CL_ClearTEnts();
-    
+    //std::memset( &cl.oldframe, 0, sizeof( cl.oldframe ) );
+	//cl.oldframe = {};
+	std::fill_n( reinterpret_cast< std::byte * >( &cl.oldframe ), sizeof( cl.oldframe ), std::byte{ 0 } ); // level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
+	 
     // Clear old local entities and effects.
     clge->ClearState();
 

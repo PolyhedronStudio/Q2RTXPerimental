@@ -43,10 +43,17 @@ static constexpr int32_t REFRESHENTITIY_OFFSET_LOCALENTITIES = ( MAX_MODELS + RE
 *
 *
 **/
+#if 0
 /**
 *	@return		A pointer into clg_entities that matches to the client we're currently chasing. nullptr if not chasing anyone.
 **/
 centity_t *CLG_GetChaseBoundEntity( void );
+#endif
+/**
+*	@return		A pointer into clg_entities that matches to the received client frame its player_state_t we're currently chasing.
+* 				nullptr if not chasing anyone but the local client entity itself.
+**/
+centity_t *CLG_GetFrameClientEntity( void );
 /**
 *	@return		The local client entity pointer, which is a match with the entity in clg_entities
 *				for the client number which we received at initial time of connection.
@@ -56,6 +63,7 @@ centity_t *CLG_GetLocalClientEntity( void );
 *	@return		The predicted client entity pointer, which resides outside of clg_entities.
 **/
 centity_t *CLG_GetPredictedClientEntity( void );
+#if 0
 /**
 *	@return		A pointer to the entity which our view has to be bound to. If STAT_CHASE is set, it'll point to the chased entity.
 * 				Otherwise, it'll point to the local client entity.
@@ -63,7 +71,14 @@ centity_t *CLG_GetPredictedClientEntity( void );
 *				Exception: If no client number is set yet, it'll return a nullptr and print a developer warning.
 **/
 centity_t *CLG_GetViewBoundEntity( void );
-
+#endif
+/**
+*	@return		A pointer to the entity which our view is bound to. This can be the local client entity, the
+*				actual chased entity(the frame's playerstate clientnumber != local client number) or the predicted entity.
+*
+*				Exception: If no client number is set yet, it'll return a nullptr and print a developer warning.
+**/
+centity_t *CLG_GetViewBoundEntity( const bool onlyPredictedClient = false );
 /**
 *	@brief	Returns true if the entity state's number matches to the view entity number.
 **/

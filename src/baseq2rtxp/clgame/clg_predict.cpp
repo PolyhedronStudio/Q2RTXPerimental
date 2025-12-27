@@ -424,11 +424,11 @@ void CLG_PredictAngles( void ) {
 **/
 void CLG_PredictMovement( int64_t acknowledgedCommandNumber, const int64_t currentCommandNumber ) {
     // Get the current local client's player entity.
-    game.clientEntity       = CLG_GetLocalClientEntity();
+    game.localClientEntity	= CLG_GetLocalClientEntity();
     // Get the current frames' chasing view player entity. (Can be nullptr )
 	//game.chaseEntity        = CLG_GetChaseBoundEntity();
 	// Get the view bound entity. (Can be one we're chasing, or local entity.)
-	game.viewBoundEntity    = CLG_GetViewBoundEntity();
+	game.viewBoundEntity    = CLG_GetViewBoundEntity( false );
 
 	// The client entity.
     centity_t *clientEntity = CLG_GetPredictedClientEntity();// clgi.client->clientEntity;

@@ -55,6 +55,7 @@ void CLG_CheckServerEntityPresent( const int32_t entityNumber, const char *what 
 *
 *
 **/
+#if 0
 /**
 *	@return		A pointer into clg_entities that matches to the client we're currently chasing. nullptr if not chasing anyone.
 **/
@@ -64,6 +65,20 @@ centity_t *CLG_GetChaseBoundEntity( void ) {
 	} else {
 		return nullptr;
 	}
+}
+#endif
+/**
+*	@return		A pointer into clg_entities that matches to the received client frame its player_state_t we're currently chasing. 
+* 				nullptr if not chasing anyone but the local client entity itself.
+**/
+centity_t *CLG_GetFrameClientEntity( void ) {
+	// Sanity check.
+	if ( clgi.client->frame.ps.clientNumber == clgi.client->clientNumber ) {
+		// We're chasing ourselves.
+		return nullptr;
+	}
+	// Return chased entity.
+	return &clg_entities[ clgi.client->frame.ps.clientNumber + 1 ];
 }
 /**
 *	@return		The local client entity pointer, which is a match with the entity in clg_entities
@@ -93,13 +108,14 @@ centity_t *CLG_GetPredictedClientEntity( void ) {
 	return &game.predictedEntity;//&clg_entities[ clgi.client->clientNumber + 1 ];
 }
 
+#if 0
 /**
 *	@return		A pointer to the entity which our view has to be bound to. If STAT_CHASE is set, it'll point to the chased entity.
 * 				Otherwise, it'll point to the local client entity.
 *
 *				Exception: If no client number is set yet, it'll return a nullptr and print a developer warning.
 **/
-centity_t *CLG_GetViewBoundEntity( void ) {
+centity_t *CLG_GetViewBoundEntity( const bool onlyPredictedClient = false ) {
 	// Sanity check.
 	if ( clgi.client->clientNumber == -1 ) {
 		clgi.Print( PRINT_DEVELOPER, "CLG_GetViewBoundEntity: No client number set yet(Value is -1).\n" );
@@ -107,14 +123,41 @@ centity_t *CLG_GetViewBoundEntity( void ) {
 		return nullptr;
 	}
 	// Get chase entity.
-	centity_t *viewBoundEntity = CLG_GetChaseBoundEntity();
+	centity_t *viewBoundEntity = CLG_GetFrame();
 	// If not chasing anyone, assign it the local client entity.
 	if ( viewBoundEntity == nullptr ) {
-		//if ( !cl_predict->integer ) {
+		if ( !cl_predict->integer || !onlyPredictedClient ) {
 			viewBoundEntity = CLG_GetLocalClientEntity();
-		//} else {
-		//	viewBoundEntity = CLG_GetPredictedClientEntity();
-		//}
+		} else {
+			viewBoundEntity = CLG_GetPredictedClientEntity();
+		}
+	}
+	// Return the view bound entity.
+	return viewBoundEntity;
+}
+#endif
+/**
+*	@return		A pointer to the entity which our view is bound to. This can be the local client entity, the
+*				actual chased entity(the frame's playerstate clientnumber != local client number) or the predicted entity.
+*
+*				Exception: If no client number is set yet, it'll return a nullptr and print a developer warning.
+**/
+centity_t *CLG_GetViewBoundEntity( const bool onlyPredictedClient ) {
+	// Sanity check.
+	if ( clgi.client->clientNumber == -1 ) {
+		clgi.Print( PRINT_DEVELOPER, "%s: No client number set yet(Value is -1).\n", __func__ );
+		// Return a nullptr.
+		return nullptr;
+	}
+	// Get client frame's matching client entity.
+	centity_t *viewBoundEntity = CLG_GetFrameClientEntity();
+	// If not chasing anyone, assign it the local client entity.
+	if ( viewBoundEntity == nullptr ) {
+		if ( !cl_predict->integer || !onlyPredictedClient ) {
+			viewBoundEntity = CLG_GetLocalClientEntity();
+		} else {
+			viewBoundEntity = CLG_GetPredictedClientEntity();
+		}
 	}
 	// Return the view bound entity.
 	return viewBoundEntity;
@@ -128,22 +171,22 @@ const bool CLG_IsCurrentViewEntity( const centity_t *cent ) {
 		clgi.Print( PRINT_DEVELOPER, "%s: (nullptr) entity pointer.\n", __func__ );
 		return false;
 	}
-
-	// Get view entity.
-	const centity_t *viewEntity = CLG_GetViewBoundEntity();
-	// Get chase entity.
-	const centity_t *chaseEntity = CLG_GetChaseBoundEntity();
-
-	// Check if we match with the chase entity first.
-	if ( chaseEntity && cent == chaseEntity ) {
+	// Get client frame's matching client entity.
+	if ( cent == CLG_GetFrameClientEntity() ) {
 		return true;
-		// Check if we match with the view entity.
-	} else if ( viewEntity && cent == viewEntity ) {
-		return true;
-		// No match.
 	} else {
-		return false;
+		// Not chasing anyone, check against local client entity.
+		if ( cent == CLG_GetLocalClientEntity() ) {
+			return true;
+		}
+		// Check against predicted client entity.
+		if ( cent == CLG_GetPredictedClientEntity() ) {
+			return true;
+		}
 	}
+
+	// Not a match.
+	return false;
 }
 
 

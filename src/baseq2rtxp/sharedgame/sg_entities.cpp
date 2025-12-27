@@ -63,7 +63,7 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	*	Entity Number: Expected to match, otherwise rectified.
 	**/
 	// In case not, set it here.
-	const int32_t psClientNumber = playerState->clientNumber;
+	const int32_t psClientNumber = /*playerState->*/clientNumber;
 	// The expected entity number.
 	const int32_t clientEntityNumber = psClientNumber + 1;
 	// Inspect it for discrepancy and if so, warn and then correct it.:
@@ -108,7 +108,8 @@ void SG_PlayerStateToEntityState( const int32_t clientNumber, player_state_t *pl
 	*	Origin:
 	**/
 	entityState->origin = ( snapOrigin ? QM_Vector3Snap( playerState->pmove.origin ) : playerState->pmove.origin );
-	
+	entityState->old_origin = entityState->origin;
+
 	/**
 	*	Angles:
 	**/
@@ -176,6 +177,7 @@ void SG_PlayerStateToMinimalEntityState( const int32_t clientNumber, player_stat
 	*	Origin:
 	**/
 	entityState->origin = ( snapOrigin ? QM_Vector3Snap( playerState->pmove.origin ) : playerState->pmove.origin );
+	entityState->old_origin = entityState->origin;
 
 	/**
 	*	Angles:

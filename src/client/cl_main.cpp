@@ -559,21 +559,22 @@ void CL_ClearState(void)
 
     // Let the client game wipe state also.
     clge->ClearState();
-    // WID: disable LOC: LOC_FreeLocations();
 
     // Don't forget to clear the pose cache.
     SKM_PoseCache_ClearCache( cls.clientPoseCache );
-
     // Unload the collision models.
     CM_FreeMap( &cl.collisionModel ); //BSP_Free(cl.bsp);
     
     // Wipe local PVS.
-    //memset( &cl.localPVS, 0, sizeof( cl.localPVS ) / sizeof(char) );
+    std::memset( &cl.localPVS, 0, sizeof( cl.localPVS ) / sizeof(char) );
     cl.localPVS = { 0 };
 
     // Wipe the entire cl structure.
-    memset(&cl, 0, sizeof(cl));
+    std::memset(&cl, 0, sizeof(cl));
+	//std::fill_n( reinterpret_cast< std::byte * >( &cl ), sizeof( cl ), std::byte{ 0 } ); // level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
 
+	// If we are in a state higher than ca_connected, drop back to ca_connected.
+	// This 
     if (cls.state > ca_connected) {
         cls.state = ca_connected;
         CL_CheckForPause();

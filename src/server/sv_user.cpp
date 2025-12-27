@@ -412,7 +412,7 @@ void SV_Begin_f(void)
 {
     Com_DPrintf("Begin() from %s\n", sv_client->name);
 
-    // handle the case of a level changing while a client was connecting
+    // Handle the case of a level changing while a client was connecting.
     if (sv_client->state < cs_primed) {
         Com_DPrintf("Begin not valid -- not yet primed\n");
         SV_New_f();
