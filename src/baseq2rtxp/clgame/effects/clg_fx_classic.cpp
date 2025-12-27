@@ -1007,11 +1007,11 @@ void CLG_FX_BFGExplosionParticles( const Vector3 &org ) {
 
 /*
 ===============
-CLG_FX_TeleportParticles
+CLG_FX_PlayerTeleportParticles
 
 ===============
 */
-void CLG_FX_TeleportParticles( const Vector3 &org ) {
+void CLG_FX_PlayerTeleportParticles( const Vector3 &org ) {
     int         i, j, k;
     clg_particle_t *p;
     float       vel;

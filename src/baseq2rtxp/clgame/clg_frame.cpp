@@ -107,10 +107,6 @@ static inline void ResetPlayerEntity( centity_t *cent ) {
 *   @return True if origin / angles update has been optimized out to the player state.
 **/
 static inline bool CheckLocalPlayerStateEntity( const entity_state_t *state ) {
-	if ( state->number == clgi.client->clientNumber + 1 ) {
-		return true;
-	}
-
 	if ( state->number != clgi.client->frame.ps.clientNumber + 1 ) {
 		return false;
 	}
@@ -118,8 +114,12 @@ static inline bool CheckLocalPlayerStateEntity( const entity_state_t *state ) {
 	if ( clgi.client->frame.ps.pmove.pm_type >= PM_DEAD ) {
 		return false;
 	}
+	
+	if ( state->number == clgi.client->clientNumber + 1 ) {
+		return true;
+	}
 
-	return true;
+	return false;
 }
 
 /**
@@ -539,7 +539,7 @@ void CLG_Frame_TransitionToNext( void ) {
 		const bool isNewFrameEntity = CheckEntityNewForFrame( cent );
 
 		// Default either the predicted player state origin, or the next state origin.
-        Vector3 nextOrigin = ( isLocalPlayerEntity ? predictedPlayerState->pmove.origin : nextState->origin );
+        const Vector3 nextOrigin = ( isLocalPlayerEntity ? predictedPlayerState->pmove.origin : nextState->origin );
 
         /**
 		*	See if the entity is new for the current serverframe or not and base our next move on that.

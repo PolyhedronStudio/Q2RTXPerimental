@@ -217,7 +217,7 @@ void CLG_TemporaryEntities_Parse( void ) {
         break;
 
     case TE_TELEPORT_EFFECT:
-        CLG_FX_TeleportParticles( level.parsedMessage.events.tempEntity.pos1 );
+        CLG_FX_PlayerTeleportParticles( level.parsedMessage.events.tempEntity.pos1 );
         break;
 
 

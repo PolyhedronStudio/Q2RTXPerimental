@@ -4,19 +4,23 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Notes:
 * This is a todo in order to keep track of things to do, ideas to implement, bugs to fix, and so on.
 ---
-* [ ] FIX: When joining a server, the first time the map loads, the player entity state numbers are off.
+* [X] FIX: The weird ztag allocation error when switching maps a few times to then quit the engine.
+    - ``recursive error after: Z_Validate: assertion `(z)->magic == Z_MAGIC && (z)->tag != TAG_FREE failed``
+    - Was resolved by removing std::fill_n from places where ``var = {};`` or ``std::memset`` is a better option.
+    - Should NOT reoccur anymore.
+* [X] FIX: When joining a server, the first time the map loads, the player entity state numbers are off.
 * [ ] FIX: PMove Map: The odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
 * [ ] FIX: func_button map: The first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
 * [ ] FIX: The target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
 * [ ] --
-* [ ] FIX: Loading a savegame does not error out about "not being spawned", while we actually ARE spawned. ( it is just that the boolean is false, somehow. )
-* [ ] FIX: The lack of the teleport effect at map spawn.
-* [ ] FIX: the entitynumber being off in the first frame.
-* [ ] FIX: The prediction error when spawning in a new map.
+* [X] FIX: Loading a savegame does not error out about "not being spawned", while we actually ARE spawned. ( it is just that the boolean is false, somehow. )
+* [X] FIX: The lack of the teleport effect at map spawn.
+* [X] FIX: the entitynumber being off in the first frame.
+* [X] FIX: The prediction error when spawning in a new map.
 * [ ] FIX: func_door(one that moves up) when started open, does not seem to respond to touch trigger brush areas properly..
 * [X] FIX: The teleporter dest not working properly. ( Bugs out movement ).
 * [X] FIX: For entity event type entities, snap their origins so we can network them properly.
-* [ ] FIX: The ``EV_WATER_ENTER_WAIST`` and ``EV_WATER_LEAVE_WAIST`` events from not firing properly:
+* [X] FIX: The ``EV_WATER_ENTER_WAIST`` and ``EV_WATER_LEAVE_WAIST`` events from not firing properly:
 	 - See ``PM_WaterEvents``
 * [ ] --
 * [ ] Use predicted player entity.

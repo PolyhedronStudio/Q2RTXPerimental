@@ -52,4 +52,4 @@ void CLG_FX_FlyEffect( centity_t *ent, const Vector3 &origin );
 void CLG_FX_BfgParticles( entity_t *ent );
 //FIXME combined with CL_ExplosionParticles
 void CLG_FX_BFGExplosionParticles( const Vector3 &org );
-void CLG_FX_TeleportParticles( const Vector3 &org );
+void CLG_FX_PlayerTeleportParticles( const Vector3 &org );

@@ -644,7 +644,7 @@ static void CLG_EntityEvent_PlayerTeleport( centity_t *cent, const int32_t entit
 	// Play the teleport sound.
 	clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.world.teleport01, 1, ATTN_IDLE, 0 );
 	// Spawn the respawn particles.
-	CLG_FX_TeleportParticles( origin );
+	CLG_FX_PlayerTeleportParticles( origin );
 }
 
 
