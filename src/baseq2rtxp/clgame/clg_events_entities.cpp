@@ -137,7 +137,9 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
     // <Q2RTXP>: TODO: Fix so it doesn't do the teleporter at incorrect spawn origin.
     const Vector3 effectOrigin = lerpOrigin; // cent->current.origin 
 
-    // EF_TELEPORTER acts like an event, but is not cleared each frame
+	/**
+    *	EF_TELEPORTER acts like an event, but is not cleared each frame
+	**/
     if ( ( cent->current.entityFlags & EF_TELEPORTER ) ) {
         CLG_FX_TeleporterParticles( &effectOrigin.x );
     }

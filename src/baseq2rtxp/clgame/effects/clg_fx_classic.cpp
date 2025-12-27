@@ -255,7 +255,12 @@ void CLG_FX_TeleporterParticles( const Vector3 &org ) {
 
         p->time = clgi.client->time;
 
-        p->color = 0xdb;
+		// <Q2RTXP>: Changed color to use RGBA and be "California Orange".
+        //p->color = 0xdb;
+		p->color = -1;
+		p->rgba = color_t{
+			.u32 = MakeColor( 210, 125, 40, 255 ) // "California Orange"
+		};
         p->brightness = 1.0f;
 
         for ( j = 0; j < 2; j++ ) {
@@ -1021,7 +1026,12 @@ void CLG_FX_TeleportParticles( const Vector3 &org ) {
 
                 p->time = clgi.client->time;
 
-                p->color = 7 + ( Q_rand() & 7 );
+				// <Q2RTXP>: Changed color to use RGBA and be "California Orange".
+                //p->color = 7 + ( Q_rand() & 7 );
+				p->color = -1;
+				p->rgba = color_t{
+					.u32 = MakeColor( 210, 125, 40, 255 ) // "California Orange"
+				};
                 p->brightness = 1.0f;
 
                 p->alpha = 1.0f;

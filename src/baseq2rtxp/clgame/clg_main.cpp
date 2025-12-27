@@ -294,8 +294,9 @@ void PF_ClearState( void ) {
 	CLG_ClearEffects();
 
 	// Clear out level locals.
+	level = {};
 	//std::memset( &level, 0, sizeof( level ) );
-	std::fill_n( reinterpret_cast<std::byte *>( &level ), sizeof( level ), std::byte{ 0 } ); // level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
+	//std::fill_n( reinterpret_cast<std::byte *>( &level ), sizeof( level ), std::byte{ 0 } ); // level = {}; // Warning: Cc6262 function uses '65832' bytes of stack.
 }
 
 
