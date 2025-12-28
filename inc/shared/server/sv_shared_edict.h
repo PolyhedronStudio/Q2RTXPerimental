@@ -39,42 +39,71 @@ struct sv_shared_edict_t {
         .otherEntityNumber = ENTITYNUM_NONE,
         .ownerNumber = ENTITYNUM_NONE,
     };
-    //! NULL if not a player the server expects the first part
-    //! of gclient_s to be a player_state_t but the rest of it is opaque
-    BaseClientType *client = nullptr;
-
-    //! Only send to this client when ent.svFlags == SVF_SENDCLIENT_SEND_TO_ID
-	//! Or send to all clients BUT this client when ent.svFlags == SVF_SENDCLIENT_EXCLUDE_ID.
-    //! Or if ent.svFlags == SVF_SENDCLIENT_BITMASK_IDS, use it as a bitmask for clients to 
-    //! send to.
-    //! NOTE:(maxclients must be <= 64, up to the mod to enforce this).
-    //! 
-	//! <Q2RTXP>: TODO: In the future, perhaps a 64 player limit 
-    int64_t sendClientID = SENDCLIENT_TO_ALL;
+	//! NULL if not a player the server expects the first part
+	//! of gclient_s to be a player_state_t but the rest of it is opaque
+	BaseClientType *client = nullptr;
+	//! Owner of this entity.
+	BaseEdictType *owner = nullptr;
 
 	//! Is the entity in use?
-    bool inUse = false;
-	//! Number of links to this entity.
-    int32_t linkCount = 0;
+	bool inUse = false;
+	//! Is the entity 'linked' for collision?
+	bool isLinked = false;
+	//! Number of link calls so far for this entity.
+	int32_t	linkCount = 0;
+	//! SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
+	int32_t	svFlags = 0;
+
+	/**
+	*	@brief	To which clients to send this entity snapshot updates to.
+	*	
+    *	@details	Only send to this client when ent.svFlags == SVF_SENDCLIENT_SEND_TO_ID
+	*				Or send to all clients BUT this client when ent.svFlags == SVF_SENDCLIENT_EXCLUDE_ID.
+    *				Or if ent.svFlags == SVF_SENDCLIENT_BITMASK_IDS, use it as a bitmask for clients to 
+    *				send to.
+    *	@note		(maxclients must be <= 64, so it is up to the mod to enforce this).
+    **/
+    int64_t sendClientID = SENDCLIENT_TO_ALL;
 
     // FIXME: move these fields to a server private sv_entity_t
-    list_t area = {};    //! Linked to a division node or leaf
-
-    int32_t numberOfClusters = 0;       // If -1, use headNode instead.
+	//! Linked to a division node or leaf.
+    list_t area = {};
+	// If -1, use headNode instead.
+    int32_t numberOfClusters = 0;
     int32_t clusterNumbers[ MAX_ENT_CLUSTERS ] = {};
-    int32_t headNode = 0;           // Unused if num_clusters != -1
-
-    int32_t areaNumber0 = 0, areaNumber1 = 0;
+	// Unused if num_clusters != -1
+    int32_t headNode = 0;
+	int32_t areaNumber0 = 0, areaNumber1 = 0;
 
     //================================
 
-    int32_t         svFlags = 0;    // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
-    Vector3         mins = { 0.f, 0.f, 0.f }, maxs = { 0.f, 0.f, 0.f };
-    Vector3         absMin = { 0.f, 0.f, 0.f }, absMax = { 0.f, 0.f, 0.f }, size = { 0.f, 0.f, 0.f };
-    cm_solid_t      solid = SOLID_NOT;
-    cm_contents_t   clipMask = cm_contents_t::CONTENTS_NONE;
+	/**
+	*	Collision / Linking reads from ent->currentOrigin and NEVER from ent->s.origin.
+	*	This means that after linking, ent->s.origin is set and that ent->s.origin is ONLY used for network / snapshot purposes.
+	*
+	*	The currentOrigin/currentAngles are the authoritative physics origin/angles.
+	*	Whenever game code “moves an entity for real”, it must update currentOrigin( and usually relink )
+	**/
+	//! Current entity world origin.
+	Vector3	currentOrigin = { 0.f, 0.f, 0.f };
+	//! Current entity angles.
+	Vector3	currentAngles = { 0.f, 0.f, 0.f };
+
+	//! Model-Space Entity Bounds.
+	Vector3	mins = { 0.f, 0.f, 0.f };
+	Vector3	maxs = { 0.f, 0.f, 0.f };
+	Vector3	size = { 0.f, 0.f, 0.f };
+	//! World-Space Entity Bounds.
+	Vector3	absMin = { 0.f, 0.f, 0.f };
+	Vector3	absMax = { 0.f, 0.f, 0.f };
+
+	//! "Solidity", what kind of collision the entity has.
+	cm_solid_t      solid = SOLID_NOT;
+	//! Contents mask for clipping against this entity.    
+	cm_contents_t   clipMask = cm_contents_t::CONTENTS_NONE;
+	//! Contents of the temporary hull used for clipping in case of SOLID_BOUNDS_BOX.
     cm_contents_t   hullContents = cm_contents_t::CONTENTS_NONE;
-    BaseEdictType   *owner = nullptr;
+
 
     //! If set, the entity was part of the initial bsp entity set.
     //! Stores the key/value pair for each entity field.
@@ -89,14 +118,22 @@ struct sv_shared_edict_t {
             .otherEntityNumber = ENTITYNUM_NONE,
             .ownerNumber = ENTITYNUM_NONE,
         };
-        //! NULL, make sure it is not a player.
-        client = nullptr;
+		//! NULL, make sure it is not a player.
+		client = nullptr;
+				// Reset owner.
+		owner = nullptr;
+
+		// Not in use by default.
+		inUse = false;
+		// Not linked for collision by default.
+		isLinked = false;
+		// Not linked into the world by default.
+		linkCount = 0;
+		// SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
+		svFlags = 0;
+
         // Send to all clients by default.
         sendClientID = SENDCLIENT_TO_ALL;
-		// Not in use by default.
-        inUse = false;
-		// Not linked into the world by default.
-        linkCount = 0;
 
         // FIXME: move these fields to a server private sv_entity_t
         //! Linked to a division node or leaf
@@ -113,8 +150,10 @@ struct sv_shared_edict_t {
 
         //================================
 
-        svFlags = 0;    // SVF_NOCLIENT, SVF_DEADENTITY, SVF_MONSTER, etc
 
+		//! Reset entity world origin.
+		currentOrigin = { 0.f, 0.f, 0.f };
+		currentAngles = { 0.f, 0.f, 0.f };
 		// Reset bounding box.
 		mins = { 0.f, 0.f, 0.f };
 		maxs = { 0.f, 0.f, 0.f };
@@ -126,8 +165,7 @@ struct sv_shared_edict_t {
         solid = SOLID_NOT;
         clipMask = cm_contents_t::CONTENTS_NONE;
         hullContents = cm_contents_t::CONTENTS_NONE;
-		// Reset owner.
-        owner = nullptr;
+
 		// Reset the cm_entity_t dictionary.
         if ( !retainDictionary ) {
             entityDictionary = nullptr;

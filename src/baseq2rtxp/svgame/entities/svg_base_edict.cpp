@@ -60,20 +60,31 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Server Edict Data:
     **/
+	// <Q2RTXP>: Do we really need to save/restore the client and owner pointers?
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, client, SD_FIELD_TYPE_CLIENT ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, owner, SD_FIELD_TYPE_EDICT ),
 
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, sendClientID, SD_FIELD_TYPE_INT64 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, inUse, SD_FIELD_TYPE_BOOL ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, isLinked, SD_FIELD_TYPE_BOOL ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, linkCount, SD_FIELD_TYPE_INT32 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, svFlags, SD_FIELD_TYPE_INT32 ),
 
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, svFlags, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, mins, SD_FIELD_TYPE_VECTOR3, 1 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, sendClientID, SD_FIELD_TYPE_INT64 ),
+
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, currentOrigin, SD_FIELD_TYPE_VECTOR3, 1 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, currentAngles, SD_FIELD_TYPE_VECTOR3, 1 ),
+
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, mins, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, maxs, SD_FIELD_TYPE_VECTOR3, 1 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, size, SD_FIELD_TYPE_VECTOR3, 1 ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, absMin, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, absMax, SD_FIELD_TYPE_VECTOR3, 1 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, size, SD_FIELD_TYPE_VECTOR3, 1 ),
+
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, solid, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, clipMask, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, hullContents, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, owner, SD_FIELD_TYPE_EDICT ),
+
 
     /**
     *   Start of Game Edict data:

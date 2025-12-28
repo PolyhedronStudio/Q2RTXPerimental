@@ -94,31 +94,28 @@ static worldSector_t *SV_CreateSectorNode(int depth, const vec3_t mins, const ve
 /**
 *   @brief  Called after the world model has been loaded, before linking any entities.
 **/
-void SV_ClearWorld(void)
-{
-    mmodel_t *cm;
-    sv_edict_t *ent;
-    int i;
+void SV_ClearWorld( void ) {
+	// Clear area node data.
+	std::memset( sv_sectorNodes, 0, sizeof( sv_sectorNodes ) );
+	sv_numSectorNodes = 0;
 
-    // Clear area node data.
-    memset(sv_sectorNodes, 0, sizeof(sv_sectorNodes));
-    sv_numSectorNodes = 0;
+	// Recreate a new area node list based on the current precached world model's mins/maxs.
+	if ( sv.cm.cache ) {
+		mmodel_t *cm = &sv.cm.cache->models[ 0 ];
+		SV_CreateSectorNode( 0, cm->mins, cm->maxs );
+	}
 
-    // Recreate a new area node list based on the current precached world model's mins/maxs.
-    if (sv.cm.cache) {
-        cm = &sv.cm.cache->models[0];
-        SV_CreateSectorNode(0, cm->mins, cm->maxs);
-    }
-
-    // Make sure all entities are unlinked.
-    for (i = 0; i < ge->edictPool->max_edicts; i++) {
-        // Get edict pointer.s
-        ent = EDICT_FOR_NUMBER(i);
-        if ( ent != nullptr ) {
-            // Unlink.
-            ent->area.prev = ent->area.next = NULL;
-        }
-    }
+	// Make sure all entities are unlinked.
+	for ( int32_t i = 0; i < ge->edictPool->max_edicts; i++ ) {
+		// Get edict pointer.s
+		sv_edict_t *ent = EDICT_FOR_NUMBER( i );
+		if ( ent != nullptr ) {
+			// Unlink.
+			ent->isLinked = false;
+			//ent->area.prev = ent->area.next = NULL;
+			ent->area = {};
+		}
+	}
 }
 
 
@@ -141,10 +138,12 @@ static inline const bounds_packed_t _MSG_PackBoundsUint32( const Vector3 &mins, 
 
 /**
 *   @brief  Needs to be called any time an entity changes origin, mins, maxs,
-*           or solid.  Automatically unlinks if needed.
-*           sets ent->v.absMin and ent->v.absMax
-*           sets ent->leafnums[] for pvs determination even if the entity.
-*           is not solid.
+*           or solid, model.
+*			Automatically unlinks if needed.
+*           
+*			sets ent->v.absMin and ent->v.absMax
+*           sets ent->leafnums[] for pvs determination even if the entity is not solid.
+*			(So we know where it is at.)
 **/
 void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
 {
@@ -156,30 +155,40 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
     mnode_t     *topnode;
 
     // set the size
-    VectorSubtract(ent->maxs, ent->mins, ent->size);
+    //VectorSubtract(ent->maxs, ent->mins, ent->size);
+	// <Q2RTXP>: PATCH: currentOrigin/currentAngles.
+	ent->size = ent->maxs - ent->mins;
 
     // set the abs box
-    if ( ent->solid == SOLID_BSP && !VectorEmpty( ent->s.angles ) ) {
-        // expand for rotation
-        float   max, v;
-
-        max = 0;
-        for ( i = 0; i < 3; i++ ) {
-            v = fabsf( ent->mins[ i ] );
-            if ( v > max )
-                max = v;
-            v = fabsf( ent->maxs[ i ] );
-            if ( v > max )
-                max = v;
-        }
-        for ( i = 0; i < 3; i++ ) {
-            ent->absMin[ i ] = ent->s.origin[ i ] - max;
-            ent->absMax[ i ] = ent->s.origin[ i ] + max;
-        }
+	if ( ent->solid == SOLID_BSP && !VectorEmpty( ent->currentAngles ) ) {
+		// Expand for rotation
+		double max = 0;
+		for ( int32_t i = 0; i < 3; i++ ) {
+			// Mins:
+			double v = fabsf( ent->mins[ i ] );
+			if ( v > max ) {
+				max = v;
+			}
+			// Maxs:
+			v = fabsf( ent->maxs[ i ] );
+			if ( v > max ) {
+				max = v;
+			}
+		}
+		// <Q2RTXP>: PATCH: currentOrigin/currentAngles.
+		//for ( i = 0; i < 3; i++ ) {
+		//	ent->absMin[ i ] = ent->s.origin[ i ] - max;
+		//	ent->absMax[ i ] = ent->s.origin[ i ] + max;
+		//}
+		ent->absMin = ent->currentOrigin - Vector3{ max, max, max };
+		ent->absMax = ent->currentOrigin + Vector3{ max, max, max };
     } else {
+		// <Q2RTXP>: PATCH: currentOrigin/currentAngles.
         // normal
-        VectorAdd( ent->s.origin, ent->mins, ent->absMin );
-        VectorAdd( ent->s.origin, ent->maxs, ent->absMax );
+        //VectorAdd( ent->s.origin, ent->mins, ent->absMin );
+        //VectorAdd( ent->s.origin, ent->maxs, ent->absMax );
+		ent->absMin = ent->currentOrigin + ent->mins;
+		ent->absMax = ent->currentOrigin + ent->maxs;
     }
 
     // Because movement is clipped an epsilon away from an actual edge,
@@ -196,11 +205,11 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
     ent->areaNumber0 = 0;
     ent->areaNumber1 = 0;
 
-    //get all leafs, including solids
-    num_leafs = CM_BoxLeafs(cm, ent->absMin, ent->absMax,
-                            leafs, MAX_TOTAL_ENT_LEAFS, &topnode);
+	// Get all leafs, including solids, that the ent's bbox touches,
+	// and retrieve the topnode as well.
+    num_leafs = CM_BoxLeafs(cm, ent->absMin, ent->absMax, leafs, MAX_TOTAL_ENT_LEAFS, &topnode);
 
-    // set areas
+    // Set the areas.
     for ( i = 0; i < num_leafs; i++ ) {
         clusters[ i ] = leafs[ i ]->cluster;
         area = leafs[ i ]->area;
@@ -250,14 +259,22 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
 **/
 void PF_UnlinkEdict(edict_ptr_t *ent)
 {
-    if (!ent->area.prev)
-        return;        // not linked in anywhere
+	// Not linked in anywhere
+	if ( !ent->area.prev ) {
+		return;
+	}
+
+	// Mark linked status as false.
+	ent->isLinked = false;
+	// Remove from area.
     List_Remove(&ent->area);
+	// Clear area links.
     ent->area.prev = ent->area.next = NULL;
 }
 
 /**
 *   @brief  Needs to be called any time an entity changes origin, mins, maxs,
+*			clipMask, model, hullContents, owner, 
 *           or solid.  Automatically unlinks if needed.
 *           sets ent->v.absMin and ent->v.absMax
 *           sets ent->leafnums[] for pvs determination even if the entity.
@@ -282,25 +299,25 @@ void PF_LinkEdict(edict_ptr_t *ent)
         return;        // don't add the world
     }
 
-    // Entity has to be in-use.
-    if (!ent->inUse) {
-        Com_DPrintf("%s: entity %d is not in use\n", __func__, NUMBER_OF_EDICT(ent));
-        return;
-    }
+	// Entity has to be in-use.
+	if ( !ent->inUse ) {
+		Com_DPrintf( "%s: entity %d is not in use\n", __func__, NUMBER_OF_EDICT( ent ) );
+		return;
+	}
 
-    // Can't link of no world has been precached yet.
-    if (!sv.cm.cache) {
-        return;
-    }
+	// Can't link of no world has been precached yet.
+	if ( !sv.cm.cache ) {
+		return;
+	}
 
-    // Get entity number.
-    entnum = NUMBER_OF_EDICT(ent);
-    // Specific server entity data pointer.
-    sent = &sv.entities[entnum];
+	// Get entity number.
+	entnum = NUMBER_OF_EDICT( ent );
+	// Specific server entity data pointer.
+	sent = &sv.entities[ entnum ];
 
     // encode the size into the entity_state for client prediction
-    switch (ent->solid) {
-    case SOLID_BOUNDS_BOX:
+	switch ( ent->solid ) {
+	case SOLID_BOUNDS_BOX:
         if ( ( ent->svFlags & SVF_DEADENTITY ) || VectorCompare( ent->mins, ent->maxs ) ) {
             ent->s.solid = SOLID_NOT;   // 0
             sent->solid32 = SOLID_NOT;  // 0
@@ -328,6 +345,10 @@ void PF_LinkEdict(edict_ptr_t *ent)
         break;
     }
 
+	// Current Origin/Angles to Entity State Origin/Angles:
+	ent->s.origin = ent->currentOrigin;
+	ent->s.angles = ent->currentAngles;
+
     // Clipmask:
     if ( ent->clipMask ) {
         ent->s.clipMask = ent->clipMask;
@@ -351,12 +372,15 @@ void PF_LinkEdict(edict_ptr_t *ent)
     // If its the entity's first time, make sure old_origin is valid, unless a BEAM which handles it by itself.
     if ( !ent->linkCount ) {
         if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
-            VectorCopy( ent->s.origin, ent->s.old_origin );
+            VectorCopy( ent->currentOrigin, ent->s.old_origin );
         }
     }
 
     // Increment link count.
     ent->linkCount++;
+
+	// Mark linked status as true.
+	ent->isLinked = true;
 
     // Solid NOT won't have any contents either.
     if ( ent->solid == SOLID_NOT ) {
@@ -378,10 +402,11 @@ void PF_LinkEdict(edict_ptr_t *ent)
     }
 
     // link it in
-    if (ent->solid == SOLID_TRIGGER)
-        List_Append(&node->trigger_edicts, &ent->area);
-    else
-        List_Append(&node->solid_edicts, &ent->area);
+	if ( ent->solid == SOLID_TRIGGER ) {
+		List_Append( &node->trigger_edicts, &ent->area );
+	} else {
+		List_Append( &node->solid_edicts, &ent->area );
+	}
 }
 
 
@@ -390,43 +415,50 @@ void PF_LinkEdict(edict_ptr_t *ent)
 **/
 static void SV_AreaEdicts_r(worldSector_t *node)
 {
-    list_t      *start;
-    sv_edict_t     *check;
+    list_t		*start = nullptr;
+    sv_edict_t	*check = nullptr;
 
     // touch linked edicts
-    if (sector_type == AREA_SOLID)
-        start = &node->solid_edicts;
-    else
-        start = &node->trigger_edicts;
+	if ( sector_type == AREA_SOLID ) {
+		start = &node->solid_edicts;
+	} else {
+		start = &node->trigger_edicts;
+	}
 
     LIST_FOR_EACH(sv_edict_t, check, start, area) {
-        if (check->solid == SOLID_NOT)
-            continue;        // deactivated
-        if (check->absMin[0] > sector_maxs[0]
-            || check->absMin[1] > sector_maxs[1]
-            || check->absMin[2] > sector_maxs[2]
-            || check->absMax[0] < sector_mins[0]
-            || check->absMax[1] < sector_mins[1]
-            || check->absMax[2] < sector_mins[2])
-            continue;        // not touching
+		if ( check->solid == SOLID_NOT ) {
+			continue;        // deactivated
+		}
+		if ( check->absMin[ 0 ] > sector_maxs[ 0 ]
+			|| check->absMin[ 1 ] > sector_maxs[ 1 ]
+			|| check->absMin[ 2 ] > sector_maxs[ 2 ]
+			|| check->absMax[ 0 ] < sector_mins[ 0 ]
+			|| check->absMax[ 1 ] < sector_mins[ 1 ]
+			|| check->absMax[ 2 ] < sector_mins[ 2 ] ) {
+			continue;        // not touching
+		}
 
-        if (sector_count == sector_maxcount) {
-            Com_WPrintf("SV_AreaEdicts: MAXCOUNT\n");
-            return;
-        }
+		if ( sector_count == sector_maxcount ) {
+			Com_WPrintf( "SV_AreaEdicts: MAXCOUNT\n" );
+			return;
+		}
 
-        sector_list[sector_count] = check;
-        sector_count++;
+		sector_list[ sector_count ] = check;
+		sector_count++;
     }
 
-    if (node->axis == -1)
-        return;        // terminal node
+	// Terminal node!
+	if ( node->axis == -1 ) {
+		return;
+	}
 
     // recurse down both sides
-    if (sector_maxs[node->axis] > node->dist)
-        SV_AreaEdicts_r(node->children[0]);
-    if (sector_mins[node->axis] < node->dist)
-        SV_AreaEdicts_r(node->children[1]);
+	if ( sector_maxs[ node->axis ] > node->dist ) {
+		SV_AreaEdicts_r( node->children[ 0 ] );
+	}
+	if ( sector_mins[ node->axis ] < node->dist ) {
+		SV_AreaEdicts_r( node->children[ 1 ] );
+	}
 }
 
 /**
@@ -503,24 +535,26 @@ static mnode_t *SV_WorldNodes( void ) {
 const cm_contents_t SV_PointContents( const Vector3 *p ) {
     sv_edict_t *hit = nullptr;
 
-    static sv_edict_t *touchedEdicts[ MAX_EDICTS ] = {};//
+    // Use static thread_local to avoid large stack allocation and ensure thread safety.
+    static /*thread_local*/ sv_edict_t *touchedEdicts[MAX_EDICTS] = {};
     std::fill( std::begin( touchedEdicts ), std::end( touchedEdicts ), nullptr );
 
 	if ( !sv.cm.cache ) {
 		Com_Error( ERR_DROP, "%s: no map loaded", __func__ );
 	}
 
-    if ( !p ) {
-        return CONTENTS_NONE;
-    }
+	if ( !p ) {
+		return CONTENTS_NONE;
+	}
 
 	// get base contents from world
-    cm_contents_t contents = ( CM_PointContents( &sv.cm, &p->x, SV_WorldNodes() ) );
+	cm_contents_t contents = ( CM_PointContents( &sv.cm, &p->x, SV_WorldNodes() ) );
 
 	// or in contents from all the other entities
 	const int32_t num = SV_AreaEdicts( p, p, touchedEdicts, MAX_EDICTS, AREA_SOLID );
 
 	for ( int32_t i = 0; i < num; i++ ) {
+		// Get edict pointer.
         sv_edict_t *hit = touchedEdicts[ i ];
 
         // Skip if nullptr;
@@ -528,14 +562,14 @@ const cm_contents_t SV_PointContents( const Vector3 *p ) {
             continue;
 		}
 
-        // Skip client entiteis if their SVF_PLAYER flag is set.
+        // Skip client entities if their SVF_PLAYER flag is set.
         if ( hit->s.number <= sv_maxclients->integer && ( hit->svFlags & SVF_PLAYER ) ) {
             continue;
         }
 
 		// Might intersect, so do an exact clip.
 		contents = ( contents | CM_TransformedPointContents( &sv.cm, &p->x, SV_HullForEntity(  hit ),
-												&hit->s.origin.x, &hit->s.angles.x ) );
+												&hit->currentOrigin.x, &hit->currentAngles.x ) );
 	}
 
 	return contents;
@@ -549,15 +583,18 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
                                   const Vector3 &moveMins, const Vector3 &moveMaxs,
                                   sv_edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *dst )
 {
-    int         i, num;
-    sv_edict_t     *touchlist[MAX_EDICTS], *touch;
+    sv_edict_t *touch = nullptr;
+
+		// Use static thread_local to avoid large stack allocation and ensure thread safety.
+	static /*thread_local*/ sv_edict_t *touchlist[ MAX_EDICTS ] = {};
+	std::fill( std::begin( touchlist ), std::end( touchlist ), nullptr );
 
     // Query potentially touching entities using the overall move bounds
-    num = SV_AreaEdicts(&moveMins, &moveMaxs, touchlist, MAX_EDICTS, AREA_SOLID);
+	const int32_t num = SV_AreaEdicts( &moveMins, &moveMaxs, touchlist, MAX_EDICTS, AREA_SOLID );
 
     // be careful, it is possible to have an entity in this
     // list removed before we get to it (killtriggered)
-    for (i = 0; i < num; i++) {
+    for ( int32_t i = 0; i < num; i++ ) {
         // Use a fresh trace per-entity to avoid stale results influencing others
         cm_trace_t etrace = {
             .entityNumber = ENTITYNUM_NONE,
@@ -595,9 +632,9 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
         if ( touch == passedict ) {
             continue;
         }
-        //if ( dst->allsolid ) {
-        //    return;
-        //}
+        //		if ( dst->allsolid ) {
+        //		    return;
+        //		}
         if ( passedict ) {
             if ( touch->owner == passedict )
                 continue;    // Don't clip against own missiles.
@@ -605,9 +642,9 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
                 continue;    // Don't clip against owner.
         }
 
-  //      if ( !(contentmask & touch->hullContents ) ) {
-  //          continue;
-		//}
+		//      if ( !(contentmask & touch->hullContents ) ) {
+		//          continue;
+		//		}
 
         if ( !( contentmask & CONTENTS_DEADMONSTER )
             && ( touch->svFlags & SVF_DEADENTITY ) ) {
@@ -626,7 +663,7 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
         // might intersect, so do an exact clip
         CM_TransformedBoxTrace( &sv.cm, &etrace, start, end, mins, maxs,
                                SV_HullForEntity(touch), contentmask,
-                               &touch->s.origin.x, &touch->s.angles.x);
+                               &touch->currentOrigin.x, &touch->currentAngles.x);
 
         //CM_ClipEntity( &sv.cm, dst, &trace, touch->s.number );
 
@@ -776,7 +813,7 @@ const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clipEntity, const Vector3 &star
             // Perform clip.
             if ( headNode != nullptr ) {
                 CM_TransformedBoxTrace( &sv.cm, &trace, start, end, mins, maxs, headNode, contentmask,
-                    &clipEntity->s.origin.x, &clipEntity->s.angles.x );
+                    &clipEntity->currentOrigin.x, &clipEntity->currentAngles.x );
 
                 if ( trace.fraction < 1. ) {
                     trace.entityNumber = clipEntity->s.number;
