@@ -78,11 +78,18 @@ struct sv_shared_edict_t {
     //================================
 
 	/**
-	*	Collision / Linking reads from ent->currentOrigin and NEVER from ent->s.origin.
-	*	This means that after linking, ent->s.origin is set and that ent->s.origin is ONLY used for network / snapshot purposes.
-	*
-	*	The currentOrigin/currentAngles are the authoritative physics origin/angles.
-	*	Whenever game code “moves an entity for real”, it must update currentOrigin( and usually relink )
+	*	``Collision AND Linking`` reads from ``ent->currentOrigin`` and ``NEVER`` from ``ent->s.origin``.
+	*	The ``ent->currentOrigin``/``ent->currentAngles`` are the ``authoritative physics`` origin and angles.
+	*	Whenever game code “moves an entity for real”, it must update ``ent->currentOrigin``( and usually ``relink`` itself ).
+	* 
+	*	This means that before linking, one has to set the ``ent->s.origin`` because ``ent->s.origin`` 
+	*	is ONLY used for ``network(wiring)`` and thus ``snapshot`` purposes.
+	*	In that same fashion, ``ent->currentAngles`` is used for ``Collision AND Linking``. And the ``ent->s.angles`` 
+	*	is ONLY used for ``network(wiring)`` and thus ``snapshot`` purposes. 
+	* 
+	*	So In Other Words:
+	*	"The game only has to write into ``ent->s.origin``/``ent->s.angles`` when it wants to communicate its 
+	*	``origin/angles`` to ``clients``".
 	**/
 	//! Current entity world origin.
 	Vector3	currentOrigin = { 0.f, 0.f, 0.f };

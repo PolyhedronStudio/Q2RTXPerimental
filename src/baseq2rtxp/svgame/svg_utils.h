@@ -18,6 +18,24 @@
 *
 *
 **/
+
+/**
+*	@brief	Use to properly set an entity's origin. It will always assign to the authoritative
+*			``ent->currentOrigin``, which is used for physics and linking.
+*
+*			Optionally, it can also	assign to the ``ent->s.origin``, which is what will be the
+*			delivered origin for all the clients to see. (This defaults to true.)
+**/
+void SVG_Util_SetEntityOrigin( svg_base_edict_t *ent, const Vector3 &origin, const bool assignToEntityState = true );
+/**
+*	@brief	Use to properly set an entity's angles. It will always assign to the authoritative
+*			``ent->currentAngles``, which is used for physics and linking.
+*
+*			Optionally, it can also	assign to the ``ent->s.angles``, which is what will be the
+*			delivered origin for all the clients to see. (This defaults to true.)
+**/
+void SVG_Util_SetEntityAngles( svg_base_edict_t *ent, const Vector3 &angles, const bool assignToEntityState = true );
+
 /**
 *	@brief	Basic Trigger initialization mechanism.
 **/
@@ -45,7 +63,7 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent );
 *
 *
 *
-*	(Temp-) Event Entity Utility Functions:
+*	(Predictable/Temp -)Event Entity Utility Functions:
 *
 *
 *
@@ -82,7 +100,7 @@ svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const s
 /**
 *	@brief	Wrapper for gi.trace that accepts Vector3 args.
 **/
-static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
+static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
 	const Vector3 *_mins = ( ( &mins != &qm_vector3_null || mins != qm_vector3_null || mins != vec3_origin ) ? &mins : nullptr );
 	const Vector3 *_maxs = ( ( &maxs != &qm_vector3_null || maxs != qm_vector3_null || maxs != vec3_origin ) ? &maxs : nullptr );
 	const Vector3 *_start = ( ( &start != &qm_vector3_null || start != qm_vector3_null || start != vec3_origin ) ? &start : nullptr );

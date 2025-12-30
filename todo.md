@@ -8,29 +8,36 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
     - ``recursive error after: Z_Validate: assertion `(z)->magic == Z_MAGIC && (z)->tag != TAG_FREE failed``
     - Was resolved by removing std::fill_n from places where ``var = {};`` or ``std::memset`` is a better option.
     - Should NOT reoccur anymore.
-* [X] FIX: When joining a server, the first time the map loads, the player entity state numbers are off.
 * [ ] FIX: PMove Map: The odd where when stepping off the smaller slopes at the small end, the view twitches up and down.
 * [ ] FIX: func_button map: The first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
 * [ ] FIX: The target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
 * [ ] --
-* [X] FIX: Loading a savegame does not error out about "not being spawned", while we actually ARE spawned. ( it is just that the boolean is false, somehow. )
-* [X] FIX: The lack of the teleport effect at map spawn.
-* [X] FIX: the entitynumber being off in the first frame.
-* [X] FIX: The prediction error when spawning in a new map.
 * [ ] FIX: func_door(one that moves up) when started open, does not seem to respond to touch trigger brush areas properly..
-* [X] FIX: The teleporter dest not working properly. ( Bugs out movement ).
-* [X] FIX: For entity event type entities, snap their origins so we can network them properly.
-* [X] FIX: The ``EV_WATER_ENTER_WAIST`` and ``EV_WATER_LEAVE_WAIST`` events from not firing properly:
-	 - See ``PM_WaterEvents``
+* [ ] --
+* [ ] FIX: Pushers(rotating to be specific), we get stuck, need separation of origins.
+    - [X] Look into the actual origin Q3 has that is used for collision and those of rendering.
+        - Looked into it:
+            The currentOrigin is used for collision in Q3, and the s.origin is the origin which is
+            actually sent to the client for rendering purposes.
+        - Introduced the currentOrigin and currentAngles to svg_edict_t.
+        - Added 2 new functions:
+            - ``SVG_SetCurrentOrigin( svg_base_edict_t *ent, const Vector3 &origin, const bool assignToEntityState = true );``
+            - ``SVG_SetCurrentAngles( svg_base_edict_t *ent, const Vector3 &angles, const bool assignToEntityState = true );``
+        - These functions set the currentOrigin/currentAngles respectively, and if the last parameter is true,
+          it also assigns the values to the entityState's origin/angles.
+        - [ ] Adjusted all places where an entity's origin/angles are set to use these functions instead.
+              This allows for later on, to decouple the currentOrigin/currentAngles from the entityState's origin/angles,
+              which in turn fixes the pusher issue(s).
+            - [ ] Look into all entities that move, and ensure they use these functions.
+            - [ ] Ensure that currentOrigin is set at spawn, as well as for the player move
+            mechanics.
+            - [ ] Ensure that whenever SVG_Trace is used, it uses currentOrigin/currentAngles.
 * [ ] --
 * [ ] Use predicted player entity.
     - [ ] Requires that frame/animation stuff moves to pmove and playerstate.
     - [ ] Possibly requires that we move weapon handling to pmove as well.
     - [ ] And/or in svg_player_weapon.cpp we need to use the predicted player entity for weapon handling.
           But that also requires for the client game to predict weapon state changes.
-* [ ] 
-* [ ] 
-* [ ] Look into the actual origin Q3 has that is used for collision and those of rendering.
 * [ ] --
 * [ ] Look into SDL3 for possible future migration.
 * [ ] Look into SDL_TTF usage for text rendering for HUD and other UI elements.

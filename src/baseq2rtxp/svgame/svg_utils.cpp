@@ -74,6 +74,38 @@ void SVG_Util_ProjectSource( const vec3_t point, const vec3_t distance, const ve
 *
 **/
 /**
+*	@brief	Use to properly set an entity's origin. It will always assign to the authoritative
+*			``ent->currentOrigin``, which is used for physics and linking. 
+*			
+*			Optionally, it can also	assign to the ``ent->s.origin``, which is what will be the 
+*			delivered origin for all the clients to see. (This defaults to true.)
+**/
+void SVG_Util_SetEntityOrigin( svg_base_edict_t *ent, const Vector3 &origin, const bool assignToEntityState ) {
+	// Assign to the authoritative currentOrigin.
+	ent->currentOrigin = origin;
+	// Optionally assign to the entityState origin.
+	if ( assignToEntityState ) {
+		ent->s.origin = origin;
+	}
+}
+/**
+*	@brief	Use to properly set an entity's angles. It will always assign to the authoritative
+*			``ent->currentAngles``, which is used for physics and linking.
+*
+*			Optionally, it can also	assign to the ``ent->s.angles``, which is what will be the
+*			delivered origin for all the clients to see. (This defaults to true.)
+**/
+void SVG_Util_SetEntityAngles( svg_base_edict_t *ent, const Vector3 &angles, const bool assignToEntityState ) {
+	// Assign to the authoritative currentAngles.
+	ent->currentAngles = angles;
+	// Optionally assign to the entityState angles.
+	if ( assignToEntityState ) {
+		ent->s.angles = angles;
+	}
+}
+
+
+/**
 *	@brief	Basic Trigger initialization mechanism.
 **/
 void SVG_Util_InitTrigger( svg_base_edict_t *self ) {

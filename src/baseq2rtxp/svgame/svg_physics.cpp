@@ -39,7 +39,7 @@ solid_edge items only clip against bsp models.
 
 // [Paril-KEX] fetch the clipMask for this entity; certain modifiers
 // affect the clipping behavior of objects.
-const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent ) {
+const cm_contents_t SVG_GetClipMask( const svg_base_edict_t *ent ) {
     // Get current clip mask.
     cm_contents_t mask = ent->clipMask;
 
@@ -75,27 +75,34 @@ const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent ) {
     return mask;
 }
 
-/*
-============
-SV_TestEntityPosition
+/**
+*	@brief	Will test the entity's current position to see if it is
+*			obstructed by anything. If so, the entity that is obstructing
+*			it is returned. If not, nullptr is returned.
+*	@param	ent The entity to test.
+*	@return	A pointer to the entity that is obstructing the given entity, or nullptr if none.
+**/
+svg_base_edict_t *SV_TestEntityPosition( const svg_base_edict_t *ent ) {
+	// Get the clip mask for this entity.
+	const cm_contents_t clipMask = SVG_GetClipMask( ent );
+	// Perform a trace to test for obstructions.
+	const svg_trace_t trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, clipMask );
 
-============
-*/
-svg_base_edict_t *SV_TestEntityPosition(svg_base_edict_t *ent)
-{
-    svg_trace_t trace;
-    //cm_contents_t mask;
-
-    //if (ent->clipMask)
-    //    mask = ent->clipMask;
-    //else
-    //    mask = CM_CONTENTMASK_SOLID;
-    trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, SVG_GetClipMask( ent ) );
-
+	// Return the 'world' entity in case of being stuck inside of anything..
+	// <Q2RTXP>: Note: This is a change from the original Quake 2 behavior,
+	// which just returned 'world', yet we return the actual touched entity
+	// based on the trace's entitynumber instead.
     if ( trace.startsolid ) {
-        return g_edict_pool.EdictForNumber( 0 );
+		// If for whichever reason the entitynumber is ENTITYNUM_NONE we return world,
+		// just like Quake 2 does.
+		if ( trace.entityNumber == ENTITYNUM_NONE ) {
+			return g_edict_pool.EdictForNumber( ENTITYNUM_WORLD );
+		} else {
+			return g_edict_pool.EdictForNumber( trace.entityNumber );
+		}
     }
 
+	// Otherwise, return nullptr, we aren't being obstructed..
     return nullptr;
 }
 

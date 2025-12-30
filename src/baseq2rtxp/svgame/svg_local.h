@@ -352,7 +352,7 @@ void SVG_Impact( svg_base_edict_t *e1, svg_trace_t *trace );
 /**
 *   @brief  Get the clip mask for the entity.
 **/
-const cm_contents_t SVG_GetClipMask( svg_base_edict_t *ent );
+const cm_contents_t SVG_GetClipMask( const svg_base_edict_t *ent );
 /**
 *   @brief  Adds gravity to the entity.
 **/

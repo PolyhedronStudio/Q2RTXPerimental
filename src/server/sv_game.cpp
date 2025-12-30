@@ -511,11 +511,11 @@ static const bool PF_inPHS(const Vector3 *p1, const Vector3 *p2)
 
 const cm_trace_t q_gameabi PF_SV_Trace( const Vector3 *start, const Vector3 *mins,
     const Vector3 *maxs, const Vector3 *end,
-    edict_ptr_t *passEdict, const cm_contents_t contentmask ) {
+	const edict_ptr_t *passEdict, const cm_contents_t contentmask ) {
     return SV_Trace( *start, mins, maxs, *end, passEdict, contentmask );
 }
 
-const cm_trace_t q_gameabi PF_SV_Clip( edict_ptr_t *clip, const Vector3 *start, const Vector3 *mins,
+const cm_trace_t q_gameabi PF_SV_Clip( const edict_ptr_t *clip, const Vector3 *start, const Vector3 *mins,
     const Vector3 *maxs, const Vector3 *end,
     const cm_contents_t contentmask ) {
     return SV_Clip( clip, *start, mins, maxs, *end, contentmask );

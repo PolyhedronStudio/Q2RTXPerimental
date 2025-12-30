@@ -252,9 +252,9 @@ typedef struct {
     *
     **/
     //! Perform a trace through the world and its entities with a bbox from start to end point.
-    const cm_trace_t( *trace )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, edict_ptr_t *passent, const cm_contents_t contentmask );
+    const cm_trace_t( *trace )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask );
     //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
-    const cm_trace_t( *clip )( edict_ptr_t *entity, const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentmask );
+    const cm_trace_t( *clip )( const edict_ptr_t *entity, const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const cm_contents_t contentmask );
     //! Returns a cm_contents_t of the BSP 'solid' residing at point. SOLID_NONE if in open empty space.
     const cm_contents_t( *pointcontents )( const Vector3 *point );
     /**

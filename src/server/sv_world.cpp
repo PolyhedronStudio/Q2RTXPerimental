@@ -346,8 +346,8 @@ void PF_LinkEdict(edict_ptr_t *ent)
     }
 
 	// Current Origin/Angles to Entity State Origin/Angles:
-	ent->s.origin = ent->currentOrigin;
-	ent->s.angles = ent->currentAngles;
+	//ent->s.origin = ent->currentOrigin;
+	//ent->s.angles = ent->currentAngles;
 
     // Clipmask:
     if ( ent->clipMask ) {
@@ -372,7 +372,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
     // If its the entity's first time, make sure old_origin is valid, unless a BEAM which handles it by itself.
     if ( !ent->linkCount ) {
         if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
-            VectorCopy( ent->currentOrigin, ent->s.old_origin );
+            VectorCopy( ent->s.origin, ent->s.old_origin );
         }
     }
 
@@ -491,7 +491,7 @@ const int32_t SV_AreaEdicts(const Vector3 *mins, const Vector3 *maxs,
 *	@return	A headNode that can be used for testing and/or clipping an
 *			object 'hull' of mins/maxs size for the entity's said 'solid'.
 **/
-static mnode_t *SV_HullForEntity(sv_edict_t *ent, const bool includeSolidTriggers = false ) {
+static mnode_t *SV_HullForEntity( const sv_edict_t *ent, const bool includeSolidTriggers = false ) {
     if ( ent->solid == SOLID_BSP || ( includeSolidTriggers && ent->solid == SOLID_TRIGGER ) ){
 		// Subtract 1 to get the modelindex into a 0-based array.
 		// ( Index 0 is reserved for no model )
@@ -581,7 +581,7 @@ const cm_contents_t SV_PointContents( const Vector3 *p ) {
 static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
                                   const Vector3 *maxs, const Vector3 &end,
                                   const Vector3 &moveMins, const Vector3 &moveMaxs,
-                                  sv_edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *dst )
+                                  const sv_edict_t *passedict, const cm_contents_t contentmask, cm_trace_t *dst )
 {
     sv_edict_t *touch = nullptr;
 
@@ -700,7 +700,7 @@ static void SV_ClipMoveToEntities(const Vector3 &start, const Vector3 *mins,
 **/
 const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
                            const Vector3 *maxs, const Vector3 &end,
-                           edict_ptr_t *passEdict, const cm_contents_t contentmask)
+                           const edict_ptr_t *passEdict, const cm_contents_t contentmask)
 {
 	// Initialize to no collision for the initial trace.
     cm_trace_t trace = {
@@ -777,7 +777,7 @@ const cm_trace_t q_gameabi SV_Trace( const Vector3 &start, const Vector3 *mins,
 *	@brief	Like SV_Trace(), but clip to specified entity only.
 *			Can be used to clip to SOLID_TRIGGER by its BSP tree.
 **/
-const cm_trace_t q_gameabi SV_Clip( edict_ptr_t *clipEntity, const Vector3 &start, const Vector3 *mins,
+const cm_trace_t q_gameabi SV_Clip( const edict_ptr_t *clipEntity, const Vector3 &start, const Vector3 *mins,
                             const Vector3 *maxs, const Vector3 &end,
                             const cm_contents_t contentmask ) {
     // Initialize to no collision for the initial trace.
