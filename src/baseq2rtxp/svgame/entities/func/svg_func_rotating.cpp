@@ -279,7 +279,12 @@ void svg_func_rotating_t::ToggleAcceleration( const int32_t useValue ) {
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_rotating_t, onBlocked )( svg_func_rotating_t *self, svg_base_edict_t *other ) -> void {
-    // Only do damage if we had any set.
+	// Exit if touching isn't hurting.
+	if ( !( self->spawnflags & svg_func_rotating_t::SPAWNFLAG_PAIN_ON_TOUCH ) ) {
+		//return;
+	}
+
+	// Only do damage if we had any set.
     if ( !self->dmg ) {
         return;
     }
@@ -289,8 +294,16 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_rotating_t, onBlocked )( svg_func_rotat
     }
     // Take 100ms before going at it again.
     self->touch_debounce_time = level.time + 10_hz;
+
+	// Calculate direction of touch impact. (Averaged pointing from self to other).
+	const Vector3 hitDir = other->currentOrigin - self->currentOrigin;
+	// Calculate normalized direction.
+	const Vector3 hitNormal = QM_Vector3Normalize( QM_Vector3Negate( hitDir ) );
+	// Get random point on bbox3.
+	Vector3 hitPoint = QM_BBox3RandomPoint( { self->absMin, self->absMax } );
+
     // Perform damaging.
-    SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+    SVG_DamageEntity( other, self, self, hitDir, hitPoint, hitNormal, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 
 /**
@@ -304,7 +317,27 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_rotating_t, onTouch )( svg_func_rotating_
 
     // Perform damage if we got angular velocity.
     if ( !VectorEmpty( self->avelocity ) ) {
-        SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+        //SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+		// Only do damage if we had any set.
+		if ( !self->dmg ) {
+			return;
+		}
+		// Debounce time to prevent trigger damaging the entity too rapidly each frame.
+		if ( level.time < self->touch_debounce_time ) {
+			return;
+		}
+		// Take 100ms before going at it again.
+		self->touch_debounce_time = level.time + 10_hz;
+
+		// Calculate direction of touch impact. (Averaged pointing from self to other).
+		const Vector3 hitDir = other->currentOrigin - self->currentOrigin;
+		// Calculate normalized direction.
+		const Vector3 hitNormal = QM_Vector3Normalize( QM_Vector3Negate( hitDir ) );
+		// Get random point on bbox3.
+		Vector3 hitPoint = QM_BBox3RandomPoint( { self->absMin, self->absMax } );
+
+		// Perform damaging.
+		SVG_DamageEntity( other, self, self, hitDir, hitPoint, hitNormal, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
     }
 }
 

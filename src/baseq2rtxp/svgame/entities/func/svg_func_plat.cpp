@@ -8,6 +8,7 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_trigger.h"
+#include "svgame/svg_utils.h"
 
 #include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
@@ -91,7 +92,8 @@ void svg_func_plat_trigger_t::Restore( struct game_read_context_t *ctx ) {
 *   @brief  Spawn.
 **/
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_trigger_t, onSpawn )( svg_func_plat_trigger_t *self ) -> void {
-    //Super::onSpawn( self );
+	Super::onSpawn( self );
+
     self->SetTouchCallback( &svg_func_plat_trigger_t::onTouch );
 	self->SetPostSpawnCallback( &svg_func_plat_trigger_t::onPostSpawn );
     self->movetype = MOVETYPE_NONE;
@@ -131,7 +133,7 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_plat_trigger_t, onPostSpawn )( svg_fu
 	}
     // Set the trigger's origin.
     triggerOrigin += Vector3{ 0.f, 0.f, platformEntity->lip };
-    VectorCopy( triggerOrigin, self->s.origin );
+    SVG_Util_SetEntityOrigin( self, triggerOrigin, true ); //VectorCopy( triggerOrigin, self->s.origin );
 
     // Calculate the final bounds for this trigger entity.
     BBox3 finalBounds = QM_BBox3FromCenterSize( QM_BBox3Size( triggerBox ), QM_Vector3Zero() );
@@ -423,7 +425,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     // Always spawn Super class.
     Super::onSpawn( self );
 
-    VectorClear( self->s.angles );
+    //VectorClear( self->s.angles );
+	SVG_Util_SetEntityAngles( self, {}, true );
     self->solid = SOLID_BSP;
     // Blocking STOPS the platform from moving further:
     //if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_BLOCK_STOPS ) {
@@ -464,8 +467,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     }
 
     // Pos1 = top position, determine pos2 which = bottom position.
-    VectorCopy( self->s.origin, self->pos1 );
-    VectorCopy( self->s.origin, self->pos2 );
+	self->pos1 = self->currentOrigin;//VectorCopy( self->s.origin, self->pos1 );
+	self->pos2 = self->currentOrigin;//VectorCopy( self->s.origin, self->pos2 );
     // Height was already set.
     if ( self->height ) {
         self->pos2[ 2 ] -= self->height;
@@ -478,7 +481,8 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
     // WID: TODO: Add spawnflags for this stuff.
     if ( self->spawnflags & svg_func_plat_t::SPAWNFLAG_START_BOTTOM ) {
-        VectorCopy( self->pos2, self->s.origin );
+        //VectorCopy( self->pos2, self->s.origin );
+		SVG_Util_SetEntityOrigin( self, self->pos2, true );
         gi.linkentity( self );
         self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
     }
@@ -518,10 +522,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn )( svg_func_plat_t *self 
     self->pushMoveInfo.accel = self->accel;
     self->pushMoveInfo.decel = self->decel;
     self->pushMoveInfo.wait = self->wait;
-    VectorCopy( self->pos1, self->pushMoveInfo.startOrigin );
-    VectorCopy( self->s.angles, self->pushMoveInfo.startAngles );
-    VectorCopy( self->pos2, self->pushMoveInfo.endOrigin );
-    VectorCopy( self->s.angles, self->pushMoveInfo.endAngles );
+	self->pushMoveInfo.startOrigin = self->pos1;//VectorCopy( self->pos1, self->pushMoveInfo.startOrigin );
+	self->pushMoveInfo.startAngles = self->s.angles;//VectorCopy( self->s.angles, self->pushMoveInfo.startAngles );
+	self->pushMoveInfo.endOrigin = self->pos2; //VectorCopy( self->pos2, self->pushMoveInfo.endOrigin );
+	self->pushMoveInfo.endAngles = self->s.angles; // VectorCopy( self->s.angles, self->pushMoveInfo.endAngles );
 }
 
 /**

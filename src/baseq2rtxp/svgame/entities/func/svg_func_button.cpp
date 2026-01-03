@@ -1110,6 +1110,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_button_t, onSpawn )( svg_func_button_t *s
         self->pushMoveInfo.endAngles = self->s.angles;
     }
 
+	// Setup the origins and angles for movement.
+	SVG_Util_SetEntityOrigin( self, self->pos1, true );
+	SVG_Util_SetEntityAngles( self, self->s.angles, false );
+
     // Link it in.
     gi.linkentity( self );
 }

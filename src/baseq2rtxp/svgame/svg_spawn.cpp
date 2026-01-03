@@ -438,10 +438,12 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	// point to TAG_SVGAME_LEVEL memory.
     g_edicts = SVG_EdictPool_Release( &g_edict_pool );
 
-    // Zero out all level struct data.
-    level = {};
+	// Zero out all level struct data, but keep the cm_entities pointer intact.
+	level = {
+		.cm_entities = entities
+	};
     // Restore cm_entity_t pointer.
-    level.cm_entities = entities;
+    //level.cm_entities = entities;
 
     // (Re-)Initialize the edict pool, and store a pointer to its edicts array in g_edicts.
     g_edicts = SVG_EdictPool_Allocate( &g_edict_pool, game.maxentities );
