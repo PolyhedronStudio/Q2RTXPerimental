@@ -239,13 +239,13 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     svg_client_t *client = ent->client;
 
     // Assign the found spawnspot origin and angles.
-    VectorCopy( spawn_origin, ent->s.origin );
+    SVG_Util_SetEntityOrigin( ent, spawn_origin, true ); // VectorCopy( spawn_origin, ent->s.origin );
     VectorCopy( spawn_origin, client->ps.pmove.origin );
 
 
     // Get persistent user info and store it into a buffer.
     char    userinfo[ MAX_INFO_STRING ];
-    memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
+	std::memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
     // Acquire other respawn data.
     const client_respawn_t savedRespawnData = client->resp;
 
@@ -367,34 +367,34 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     ent->s.frame = 0;
     ent->s.old_frame = 0;
 
-    // Try to properly clip to the floor / spawn
-    Vector3 temp = spawn_origin;
-    Vector3 temp2 = spawn_origin;
-    temp[ 2 ] -= 64;
-    temp2[ 2 ] += 16;
-    svg_trace_t tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
-    if ( !tr.allsolid && !tr.startsolid && Q_stricmp( level.mapname, "tech5" ) ) {
-        VectorCopy( tr.endpos, ent->s.origin );
-        ent->groundInfo.entityNumber = tr.entityNumber;
-    } else {
-        VectorCopy( spawn_origin, ent->s.origin );
-        ent->s.origin[ 2 ] += 10; // make sure off ground
-    }
+	// Try to properly clip to the floor / spawn
+	Vector3 temp = spawn_origin;
+	Vector3 temp2 = spawn_origin;
+	temp[ 2 ] -= 64;
+	temp2[ 2 ] += 16;
+	svg_trace_t tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
+	if ( !tr.allsolid && !tr.startsolid && Q_stricmp( level.mapname, "tech5" ) ) {
+		//VectorCopy( tr.endpos, ent->s.origin );
+		SVG_Util_SetEntityOrigin( ent, tr.endpos, true );
+		ent->groundInfo.entityNumber = tr.entityNumber;
+	} else {
+		SVG_Util_SetEntityOrigin( ent, spawn_origin + Vector3{ 0.f, 0.f, 10.f }, true ); //VectorCopy( spawn_origin, ent->s.origin );
+		//ent->s.origin[ 2 ] += 10; // make sure off ground
+	}
 
-    // <Q2RTXP>: WID: Restore the origin.
-    VectorCopy( ent->s.origin, ent->s.old_origin );
-    client->ps.pmove.origin = ent->s.origin;
+	// <Q2RTXP>: WID: Restore the origin.
+	ent->s.old_origin = ent->currentOrigin;
+	client->ps.pmove.origin = ent->currentOrigin;
 
-    // <Q2RTXP>: WID: 
-    // Link it to calculate absmins/absmaxs, this is to prevent actual
-    // other entities from Spawn Touching.
-    gi.linkentity( ent );
+	// <Q2RTXP>: WID: Link it to calculate absmins/absmaxs, this is to prevent actual
+	// other entities from Spawn Touching.
+	gi.linkentity( ent );
 
     // Ensure proper pitch and roll angles for calculating the delta angles.
     spawn_angles[ PITCH ] = 0;
     spawn_angles[ ROLL ] = 0;
     // Configure all spawn view angles.
-    VectorCopy( spawn_angles, ent->s.angles );
+	SVG_Util_SetEntityAngles( ent, spawn_angles, true );//ent->s.angles = spawn_angles;
     client->ps.viewangles = spawn_angles;
     client->viewMove.viewAngles = spawn_angles;
     // Set the delta angle
@@ -479,18 +479,8 @@ void svg_gamemode_cooperative_t::ClientBegin( svg_player_edict_t *ent ) {
     } else {
         // 
         if ( game.maxclients >= 1 ) {
-            #if 0 // svc_muzzleflash now is events :-)
-            gi.WriteUint8( svc_muzzleflash );
-            gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
-            gi.WriteUint8( MZ_LOGIN );
-            gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
-            #else
             SVG_Util_AddEvent( ent, EV_PLAYER_TELEPORT, 0 );
-            #endif
-            // Only print this though, if NOT in a singleplayer game.
-            //if ( game.gamemode != GAMEMODE_TYPE_SINGLEPLAYER ) {
             gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
-            //}
         }
     }
 
@@ -538,13 +528,16 @@ void svg_gamemode_cooperative_t::EntityKilled( svg_base_edict_t *targ, svg_base_
 *	@brief	Called somewhere at the beginning of the game frame. This allows
 *			to determine if conditions are met to engage exitting intermission
 *			mode and/or exit the level.
+*	@return	False if conditions are not yet met to end the game, true otherwise.
 **/
-void svg_gamemode_cooperative_t::PreCheckGameRuleConditions() {
+const bool svg_gamemode_cooperative_t::PreCheckGameRuleConditions() {
 	// Exit intermission.
 	if ( level.exitintermission ) {
 		ExitLevel();
-		return;
+		return true;
 	}
+	// Never exit the level automatically in coop mode.
+	return false;
 }
 /**
 *	@brief	Called somewhere at the end of the game frame. This allows
@@ -1077,9 +1070,12 @@ void svg_gamemode_cooperative_t::SetupLoadGameBody( svg_player_edict_t *ent ) {
 *   @brief  There is no body waiting for us yet, so (re-)initialize the entity we have with a full new 'body'.
 **/
 void svg_gamemode_cooperative_t::SetupNewGameBody( svg_player_edict_t *ent ) {
-    // A spawn point will completely reinitialize the entity
-    // except for the persistant data that was initialized at
-    // connect time
+    /**
+	*	A spawn point will completely reinitialize the entity
+    *	except for the persistant data that was initialized at
+    *	connect time
+	**/
+	// Re-initialize the edict.
     g_edict_pool._InitEdict( ent, ent->s.number );
     // Make sure classname is player.
     ent->classname = svg_level_qstring_t::from_char_str( "player" );;
@@ -1087,6 +1083,7 @@ void svg_gamemode_cooperative_t::SetupNewGameBody( svg_player_edict_t *ent ) {
     ent->s.entityType = ET_PLAYER;
     // Ensure proper player flag is set.
     ent->svFlags |= SVF_PLAYER;
+
     // Initialize respawn data.
     SVG_Player_InitRespawnData( ent->client );
     // Actually finds a spawnpoint and places the 'body' into the game.

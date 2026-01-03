@@ -113,6 +113,8 @@ void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
     if ( !VectorEmpty( self->s.angles ) ) {
 		// Set the movedir vector based on the angles.
         SVG_Util_SetMoveDir( self->s.angles, self->movedir );
+		// Assign the angles using the utility method to ensure consistency.
+		SVG_Util_SetEntityAngles( self, self->s.angles, true );
     }
     //
     self->solid = SOLID_TRIGGER;
@@ -303,8 +305,9 @@ svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const s
     // Last but not least, set the origin, link it and return it.
     // Now snap the origin into the entityState_t.
 	// <Q2RTXP>: WID: Use proper snapping function.
-    tempEventEntity->s.origin = ( snapOrigin ? QM_Vector3Snap( origin ) : origin );
-
+    //tempEventEntity->s.origin = ( snapOrigin ? QM_Vector3Snap( origin ) : origin );
+	SVG_Util_SetEntityOrigin( tempEventEntity, ( snapOrigin ? QM_Vector3Snap( origin ) : origin ), true );
+	
 	// Can be used as a temp event entity its second origin to point at.
 	// We make sure to initialize it to the origin, to prevent the messaging code from
 	// wiring it throughout old_origin using snapped float truncation.
@@ -337,7 +340,7 @@ void SVG_Util_TouchTriggers(svg_base_edict_t *ent) {
     static svg_base_edict_t *touchedEdicts[ MAX_EDICTS ] = {};
 	std::fill( std::begin( touchedEdicts ), std::end( touchedEdicts ), nullptr );
 
-    // dead things don't activate triggers!
+	// Dead Clients and (NPC) Monsters don't activate triggers.
     if ( ( ent->client || ( ent->svFlags & SVF_MONSTER ) ) && ( ent->health <= 0 ) ) {
         return;
     }
@@ -603,7 +606,7 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
 
         svg_trace_t clip = {};
         if ( ( ent->solid == SOLID_BSP || ( ent->svFlags & SVF_HULL ) ) && bspClipping ) {
-            clip = SVG_Clip( ent, hit->s.origin, hit->mins, hit->maxs, hit->s.origin, SVG_GetClipMask( hit ) );
+            clip = SVG_Clip( ent, hit->currentOrigin, hit->mins, hit->maxs, hit->currentOrigin, SVG_GetClipMask( hit ) );
 
             if ( clip.fraction == 1.0f ) {
                 continue;
@@ -614,23 +617,23 @@ const bool SVG_Util_KillBox( svg_base_edict_t *ent, const bool bspClipping, sg_m
         if ( clip.fraction ) {
             if ( clip.ent ) {
                 vec3_t dir;
-                VectorSubtract( hit->s.origin, clip.ent->s.origin, dir );
+                VectorSubtract( hit->currentOrigin, clip.ent->currentOrigin, dir );
                 VectorNormalize( dir );
 
                 if ( clip.plane.dist ) {
-                    SVG_DamageEntity( hit, ent, ent, dir, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                    SVG_DamageEntity( hit, ent, ent, dir, ent->currentOrigin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
                 } else {
-                    SVG_DamageEntity( hit, ent, ent, dir, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                    SVG_DamageEntity( hit, ent, ent, dir, ent->currentOrigin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
                 }
             } else {
                 if ( clip.plane.dist ) {
-                    SVG_DamageEntity( hit, ent, ent, vec3_origin, ent->s.origin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                    SVG_DamageEntity( hit, ent, ent, vec3_origin, ent->currentOrigin, clip.plane.normal, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
                 } else {
-                    SVG_DamageEntity( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+                    SVG_DamageEntity( hit, ent, ent, vec3_origin, ent->currentOrigin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
                 }
             }
         } else {
-            SVG_DamageEntity( hit, ent, ent, vec3_origin, ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
+            SVG_DamageEntity( hit, ent, ent, vec3_origin, ent->currentOrigin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MEANS_OF_DEATH_TELEFRAGGED );
         }
 
         // if we didn't kill it, fail
@@ -727,8 +730,9 @@ void SVG_MoveWith_SetChildEntityMovement( svg_base_edict_t *self ) {
 /**
 *   @brief 
 **/
-bool SV_Push( svg_base_edict_t *pusher, vec3_t move, vec3_t amove );
-svg_trace_t SV_PushEntity( svg_base_edict_t *ent, vec3_t push );
+#include "svgame/svg_physics.h"
+//bool SV_Push( svg_base_edict_t *pusher, vec3_t move, vec3_t amove );
+//svg_trace_t SVG_PushEntity( svg_base_edict_t *ent, vec3_t push );
 
 void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector3 &deltaParentAngles, const Vector3 &parentVUp, const Vector3 &parentVRight, const Vector3 &parentVForward, svg_base_edict_t *parentMover, svg_base_edict_t *childMover ) {
     // Calculate origin to adjust by.
@@ -802,15 +806,15 @@ void SVG_MoveWith_AdjustToParent( const Vector3 &deltaParentOrigin, const Vector
             vec3_t move = {};
             vec3_t amove = {};
             VectorScale( parentMover->velocity, gi.frame_time_s, move );
-            SV_Push( childMover, &offset.x, amove );
+			SVG_PushMover( childMover, &offset.x, amove );
             //VectorAdd( childMover->velocity, move, childMover->velocity );
 
             // Add origin.
             //VectorAdd( childMoverOrigin, offset, childMover->s.origin );
 
             // object is moving
-            //SV_PushEntity( childMover, offset );
-            //svg_trace_t SV_PushEntity( svg_base_edict_t * ent, vec3_t push )
+            //SVG_PushEntity( childMover, offset );
+            //svg_trace_t SVG_PushEntity( svg_base_edict_t * ent, vec3_t push )
             //    if ( !VectorEmpty( part->velocity ) || !VectorEmpty( part->avelocity ) ) {
             //        // object is moving
             //        VectorScale( part->velocity, gi.frame_time_s, move );

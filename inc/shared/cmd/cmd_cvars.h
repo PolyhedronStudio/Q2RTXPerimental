@@ -9,20 +9,20 @@
 #pragma once
 
 
-#define CVAR_ARCHIVE    1   // set to cause it to be saved to vars.rc
-#define CVAR_USERINFO   2   // added to userinfo  when changed
-#define CVAR_SERVERINFO 4   // added to serverinfo when changed
-#define CVAR_NOSET      8   // don't allow change from console at all,
-                            // but can be set from the command line
-#define CVAR_LATCH      16  // save changes until server restart
+#define CVAR_ARCHIVE    (1 << 0)	// Set to cause it to be saved to vars.rc.
+#define CVAR_USERINFO   (1 << 1)	// Added to userinfo  when changed.
+#define CVAR_SERVERINFO (1 << 2)	// Added to serverinfo when changed.
+#define CVAR_NOSET      (1 << 3)	// Don't allow change from console at all,
+									// but can be set from the command line.
+#define CVAR_LATCH      (1 << 4)	// Save changes until server restart.
 #ifndef CVAR_CHEAT
-#define CVAR_CHEAT      (1 << 5)  // can't be changed when connected
+#define CVAR_CHEAT      (1 << 5)	// Can't be changed when connected.
 #endif
 #ifndef CVAR_PRIVATE
-#define CVAR_PRIVATE	(1 << 6)  // never macro expanded or saved to config
+#define CVAR_PRIVATE	(1 << 6)	// Never macro expanded or saved to config.
 #endif
 #ifndef CVAR_ROM
-#define CVAR_ROM		(1 << 7)  // can't be changed even from cmdline
+#define CVAR_ROM		(1 << 7)	// Can't be changed even from cmdline.
 #endif
 
 struct cvar_s;

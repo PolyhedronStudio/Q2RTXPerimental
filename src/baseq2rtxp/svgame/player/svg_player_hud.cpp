@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_game_items.h"
+#include "svgame/svg_utils.h"
 #include "svgame/svg_weapons.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -36,10 +37,14 @@ void SVG_HUD_MoveClientToIntermission(svg_base_edict_t *ent)
 {
     ent->client->showhelp = false;
 
-    VectorCopy( level.intermission_origin, ent->s.origin );
-    VectorCopy( level.intermission_origin, ent->client->ps.pmove.origin );
-    VectorCopy( level.intermission_angle, ent->client->ps.viewangles );
-    ent->client->ps.viewangles = QM_Vector3AngleMod( level.intermission_angle );
+	// Move the entity to the intermission origin.
+	SVG_Util_SetEntityOrigin( ent, level.intermission_origin ); //VectorCopy( level.intermission_origin, ent->s.origin ); //VectorCopy( level.intermission_origin, ent->client->ps.pmove.origin );
+	// Ensure the player state is also updated.
+	ent->client->ps.pmove.origin = level.intermission_origin;
+	// Calculate viewangles.
+	ent->client->ps.viewangles = QM_Vector3AngleMod( level.intermission_angle );
+
+	// Set the client to intermission pmove type.
     if ( !game.mode->IsMultiplayer() ) {
         ent->client->ps.pmove.pm_type = PM_SPINTERMISSION;
     } else {

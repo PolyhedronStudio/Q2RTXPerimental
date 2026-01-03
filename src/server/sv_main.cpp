@@ -986,19 +986,14 @@ static void SVC_DirectConnect(void)
     qboolean        allow;
     char            *reason;
 
-    memset(&params, 0, sizeof(params));
+	std::memset( &params, 0, sizeof( params ) );
 
     // parse and validate parameters
-    if (!parse_basic_params(&params))
-        return;
-    if (!permit_connection(&params))
-        return;
-    if (!parse_packet_length(&params))
-        return;
-    if (!parse_enhanced_params(&params))
-        return;
-    if (!parse_userinfo(&params, userinfo))
-        return;
+	if ( !parse_basic_params( &params ) ) { return; }
+	if ( !permit_connection( &params ) ) { return; }
+	if ( !parse_packet_length( &params ) ) { return; }
+	if ( !parse_enhanced_params( &params ) ) { return; }
+	if ( !parse_userinfo( &params, userinfo ) ) { return; }
 
     // find a free client slot
     newcl = find_client_slot(&params);
@@ -2137,7 +2132,7 @@ void SV_Init(void) {
     sv_changemapcmd = Cvar_Get("sv_changemapcmd", "", 0);
 
     sv_allow_map = Cvar_Get("sv_allow_map", "0", 0);
-    sv_cinematics = Cvar_Get("sv_cinematics", "1", 0);
+    sv_cinematics = Cvar_Get("sv_cinematics", "0", CVAR_ROM /*We do not support them*/);
 
 #if !USE_CLIENT
     sv_recycle = Cvar_Get("sv_recycle", "0", 0);

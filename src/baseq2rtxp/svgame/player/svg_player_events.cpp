@@ -48,7 +48,7 @@ static void PlayerStateEvent_WaterEnter( svg_player_edict_t *ent, const int32_t 
     
 	// Determine splash type.
     if ( event == EV_WATER_ENTER_FEET ) {
-        SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        SVG_Player_PlayerNoise( ent, ent->currentOrigin, PNOISE_SELF );
         if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
             //gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
             gi.sound( ent, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
@@ -64,7 +64,7 @@ static void PlayerStateEvent_WaterEnter( svg_player_edict_t *ent, const int32_t 
         #endif
         ent->flags |= FL_INWATER;
     } else if ( event >= EV_WATER_ENTER_WAIST ) {
-        SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        SVG_Player_PlayerNoise( ent, ent->currentOrigin, PNOISE_SELF );
         if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
             gi.sound( ent, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
             // clear damage_debounce, so the pain sound will play immediately
@@ -105,7 +105,7 @@ static void PlayerStateEvent_WaterLeave( svg_player_edict_t *ent, const int32_t 
         tEeSound->svFlags |= SVF_SENDCLIENT_EXCLUDE_ID;
         tEeSound->sendClientID = ent->client->clientNum;
         // Alarm the environment to the player's noise.
-        SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        SVG_Player_PlayerNoise( ent, ent->currentOrigin, PNOISE_SELF );
         //gi.sound( ent, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
         ent->flags &= ~FL_INWATER;
     }
@@ -116,7 +116,7 @@ static void PlayerStateEvent_WaterLeave( svg_player_edict_t *ent, const int32_t 
         tempEntityEvent->svFlags |= SVF_SENDCLIENT_EXCLUDE_ID;
         tempEntityEvent->sendClientID = ent->client->clientNum;
         // Alarm the environment to the player's noise.
-        SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+        SVG_Player_PlayerNoise( ent, ent->currentOrigin, PNOISE_SELF );
         //gi.sound( ent, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
         ent->flags &= ~FL_INWATER;
     }
@@ -128,7 +128,7 @@ static void PlayerStateEvent_WaterLeave( svg_player_edict_t *ent, const int32_t 
             //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
             
             // Alarm the environment to the player's noise.
-            SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
+            SVG_Player_PlayerNoise( ent, ent->currentOrigin, PNOISE_SELF );
         } else  if ( ent->air_finished_time < level.time + 11_sec ) {
             // Generate the sound as a temporary event entity: Just break the surface.
             svg_base_edict_t *tempEntityEvent = SVG_TempEventEntity_GeneralSoundEx( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), ATTN_NORM );
@@ -202,7 +202,7 @@ static void PlayerStateEvent_Fall( svg_player_edict_t *ent, const int32_t event,
         }
         Vector3 dir = { 0., 0., 1. };
         
-        SVG_DamageEntity( ent, world, world, &dir.x, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
+        SVG_DamageEntity( ent, world, world, &dir.x, ent->currentOrigin, vec3_origin, damage, 0, DAMAGE_NONE, MEANS_OF_DEATH_FALLING );
     }
 
     // Falling damage noises alert monsters

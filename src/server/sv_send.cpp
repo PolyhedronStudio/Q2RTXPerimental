@@ -62,18 +62,14 @@ Returns true if the client is over its current
 bandwidth estimation and should not be sent another packet
 =======================
 */
-static bool SV_RateDrop(client_t *client)
-{
-    size_t  total;
-    int     i;
-
+static bool SV_RateDrop(client_t *client) {
     // never drop over the loopback
     if (!client->rate) {
         return false;
     }
 	
-	total = 0;
-	for ( i = 0; i < RATE_MESSAGES; i++ ) {
+	uint64_t  total = 0;
+	for ( int32_t i = 0; i < RATE_MESSAGES; i++ ) {
 		total += client->message_size[ i ];
 	}
 
@@ -315,7 +311,7 @@ void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
 }
 
 #if USE_ZLIB
-	static bool can_auto_compress( client_t *client ) {
+	static bool zl_can_auto_compress( client_t *client ) {
 		if ( !client->has_zlib )
 			return false;
 
@@ -326,7 +322,7 @@ void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
 		return true;
 	}
 
-	static int compress_message( client_t *client ) {
+	static int zl_compress_message( client_t *client ) {
 		int     ret, len;
 		byte *hdr;
 
@@ -365,13 +361,13 @@ void SV_Multicast(const vec3_t origin, multicast_t to, bool reliable) {
 
 		return len + ZPACKET_HEADER;
 	}
-	static byte *get_compressed_data( void ) {
+	static byte *zl_get_compressed_data( void ) {
 		return svs.z_buffer;
 	}
 #else
-	#define can_auto_compress(c)    false
-	#define compress_message(c)     0
-	#define get_compressed_data()   NULL
+	#define zl_can_auto_compress(c)    false
+	#define zl_compress_message(c)     0
+	#define zl_get_compressed_data()   NULL
 #endif
 /*
 =======================
@@ -392,14 +388,14 @@ void SV_ClientAddMessage(client_t *client, int flags)
 	}
 
 	// Determine whether to try and compress the message.
-	if ( ( flags & MSG_COMPRESS_AUTO ) && can_auto_compress( client ) ) {
+	if ( ( flags & MSG_COMPRESS_AUTO ) && zl_can_auto_compress( client ) ) {
 		flags |= MSG_COMPRESS;
 	}
 
 	// Only add compressed data in case the result of compression means the message to write is smaller than
 	// its uncompressed variety:
-	if ( ( flags & MSG_COMPRESS ) && ( len = compress_message( client ) ) && len < msg_write.cursize ) {
-		add_message( client, get_compressed_data(), len, flags & MSG_RELIABLE );
+	if ( ( flags & MSG_COMPRESS ) && ( len = zl_compress_message( client ) ) && len < msg_write.cursize ) {
+		add_message( client, zl_get_compressed_data(), len, flags & MSG_RELIABLE );
 		SV_DPrintf( 0, "Compressed %sreliable message to %s: %d into %d\n",
 				   ( flags & MSG_RELIABLE ) ? "" : "un", client->name, msg_write.cursize, len );
 	// Just add the data, uncompressed:
@@ -521,7 +517,7 @@ static void add_message( client_t *client, byte *data,
 }
 
 // check if this entity is present in current client frame
-static bool check_entity( client_t *client, int entnum ) {
+static bool check_entity_is_in_clientframe( client_t *client, int entnum ) {
 	sv_client_frame_t *frame;
 	int i, j;
 
@@ -547,7 +543,7 @@ static void emit_snd( client_t *client, message_packet_t *msg ) {
 	flags = msg->flags;
 
 	// check if position needs to be explicitly sent
-	if ( !( flags & SND_POS ) && !check_entity( client, entnum ) ) {
+	if ( !( flags & SND_POS ) && !check_entity_is_in_clientframe( client, entnum ) ) {
 		SV_DPrintf( 1, "Forcing position on entity %d for %s\n",
 				   entnum, client->name );
 		flags |= SND_POS;   // entity is not present in frame

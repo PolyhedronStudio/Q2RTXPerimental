@@ -366,20 +366,21 @@ PF_setmodel
 Also sets mins and maxs for inline bmodels
 =================
 */
-static void PF_setmodel(edict_ptr_t *ent, const char *name)
-{
-    mmodel_t    *mod;
+static void PF_setmodel( edict_ptr_t *ent, const char *name ) {
+	mmodel_t    *mod;
 
-    if (!ent || !name)
-        Com_Error(ERR_DROP, "PF_setmodel: NULL");
+	if ( !ent || !name ) {
+		Com_Error( ERR_DROP, "PF_setmodel: NULL" );
+		return;
+	}
 
     ent->s.modelindex = PF_ModelIndex(name);
 
 // if it is an inline model, get the size information for it
     if (name[0] == '*') {
         mod = BSP_InlineModel( sv.cm.cache, name);
-        VectorCopy(mod->mins, ent->mins);
-        VectorCopy(mod->maxs, ent->maxs);
+		ent->mins = mod->mins;
+		ent->maxs = mod->maxs;
         PF_LinkEdict(ent);
     }
 }

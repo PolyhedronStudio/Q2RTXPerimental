@@ -206,7 +206,7 @@ const gitem_t *SVG_Item_FindByPickupName(const char *pickup_name) {
 **/
 void SVG_Item_SetRespawn(svg_item_edict_t *ent, float delay)
 {
-    ent->flags = static_cast<entity_flags_t>( ent->flags | FL_RESPAWN );
+    ent->flags |= FL_RESPAWN;
     ent->svFlags |= SVF_NOCLIENT;
     ent->solid = SOLID_NOT;
     ent->nextthink = level.time + QMTime::FromSeconds( delay );
@@ -241,15 +241,20 @@ svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item ) {
     if ( ent->client ) {
         svg_trace_t trace;
 
+		// Calculate forward and right vectors.
         QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
+		// Set offset.
         VectorSet( offset, 24, 0, -16 );
-        dropped->s.origin = SVG_Util_ProjectSource( ent->s.origin, offset, forward, right );
-        trace = SVG_Trace( ent->s.origin, dropped->mins, dropped->maxs,
-            dropped->s.origin, ent, CONTENTS_SOLID );
-        VectorCopy( trace.endpos, dropped->s.origin );
+		// Calculate drop origin.
+        Vector3 dropOrigin = SVG_Util_ProjectSource( ent->currentOrigin, offset, forward, right );
+		// Trace from current origin to drop origin.
+        trace = SVG_Trace( ent->currentOrigin, dropped->mins, dropped->maxs, dropOrigin, ent, CONTENTS_SOLID );
+		// Apply drop origin.
+		SVG_Util_SetEntityOrigin( dropped, trace.endpos, true ); // VectorCopy( trace.endpos, dropped->s.origin );
     } else {
-        QM_AngleVectors( ent->s.angles, &forward, &right, NULL );
-        VectorCopy( ent->s.origin, dropped->s.origin );
+		// Calculate forward and right vectors.
+        QM_AngleVectors( ent->currentAngles, &forward, &right, NULL );
+		SVG_Util_SetEntityOrigin( dropped, ent->currentOrigin, true );//VectorCopy( ent->s.origin, dropped->s.origin );
     }
 
     VectorScale( forward, 100, dropped->velocity );

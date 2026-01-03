@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
 #include "svgame/svg_game_items.h"
 
 #include "sharedgame/sg_means_of_death.h"
@@ -61,7 +62,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     *   Server Edict Data:
     **/
 	// <Q2RTXP>: Do we really need to save/restore the client and owner pointers?
-	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, client, SD_FIELD_TYPE_CLIENT ),
+	//SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, client, SD_FIELD_TYPE_CLIENT ),
 	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, owner, SD_FIELD_TYPE_EDICT ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, inUse, SD_FIELD_TYPE_BOOL ),
@@ -1000,12 +1001,14 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
     }
     // Match: origin
     else if ( keyStr == "origin" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
-        s.origin = keyValuePair->vec3;
+		// <Q2RTXP>: currentOrigin sync.
+        currentOrigin = s.origin = keyValuePair->vec3;
         return true;
     }
     // Match: angles
     else if ( keyStr == "angles" && keyValuePair->parsed_type & cm_entity_parsed_type_t::ENTITY_PARSED_TYPE_VECTOR3 ) {
-        s.angles = keyValuePair->vec3;
+		// <Q2RTXP>: currentAngles sync.
+		currentAngles = s.angles = keyValuePair->vec3;
         return true;
     }
     // Match: attenuation
@@ -1013,6 +1016,8 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
         s.angles[ 0 ] = 0.f;
         s.angles[ 1 ] = keyValuePair->value;
         s.angles[ 2 ] = 0.f;
+		// <Q2RTXP>: currentAngles sync.
+		currentAngles = s.angles;
         return true;
     }
     // Match: lip
@@ -1079,8 +1084,14 @@ const bool svg_base_edict_t::KeyValue( const cm_entity_t *keyValuePair, std::str
 DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn )( svg_base_edict_t *self ) -> void {
     // Required for entities which might not directly link to world.
     // This'll position their bbox accordingly.
-    VectorCopy( self->s.origin, self->absMin );
-    VectorCopy( self->s.origin, self->absMax );
+
+	// Setup the origins and angles for linking, apply to currentOrigin and entityState.
+	SVG_Util_SetEntityOrigin( self, self->currentOrigin, true );
+	//SVG_Util_SetEntityAngles( self, self->currentAngles, true );
+	
+	// Make sure that absMin/absMax are set accordingly.
+	self->absMin = self->s.origin; // VectorCopy( self->s.origin, self->absMin );
+	self->absMax = self->s.origin; // VectorCopy( self->s.origin, self->absMax );
 }
 /**
 *   @brief  PostSpawn Stub.

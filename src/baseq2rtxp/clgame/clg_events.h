@@ -109,7 +109,7 @@ const int32_t CLG_Events_CheckForEntity( centity_t *cent );
 *   @brief  Checks for player state generated events(usually by PMove) and processed them for execution.
 *   @note   This only processes player state events, not entity events. Entity events are handled separately.
 *           Called once per frame for the local player to check for any new events to process.
-*   @param  ops                 The old player state.
+*	@param  ops                 The old player state.
 *   @param  ps                  The current player state.
 *   @param  playerStateEvent    The player state event to process.
 *   @param  lerpOrigin          The origin to process the event at.

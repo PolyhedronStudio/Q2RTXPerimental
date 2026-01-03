@@ -41,11 +41,14 @@ static byte     is_silenced;
 void SVG_Player_PlayerNoise( svg_base_edict_t *who, const Vector3 &where, int type ) {
     svg_base_edict_t *noise;
 
-    if ( deathmatch->value )
-        return;
+	// <Q2RTXP>: TODO: Just move into a game rule check function.
+	if ( deathmatch->value ) {
+		return;
+	}
 
-    if ( who->flags & FL_NOTARGET )
-        return;
+	if ( who->flags & FL_NOTARGET ) {
+		return;
+	}
 
 
     if ( !who->mynoise ) {
@@ -80,7 +83,7 @@ void SVG_Player_PlayerNoise( svg_base_edict_t *who, const Vector3 &where, int ty
         level.sound2_entity_framenum = level.frameNumber;
     }
 
-    VectorCopy( where, noise->s.origin );
+    SVG_Util_SetEntityOrigin( noise, where, true );//VectorCopy( where, noise->s.origin );
     VectorSubtract( where, noise->maxs, noise->absMin );
     VectorAdd( where, noise->maxs, noise->absMax );
     noise->last_sound_time = level.time;

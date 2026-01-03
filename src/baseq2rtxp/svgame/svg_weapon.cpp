@@ -19,6 +19,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_entity_events.h"
 #include "svgame/svg_utils.h"
 
+#include "svgame/entities/svg_player_edict.h"
+
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_tempentity_events.h"
 
@@ -58,13 +60,28 @@ static void check_dodge(svg_base_edict_t *self, vec3_t start, vec3_t dir, int sp
 *   @return Clipped muzzleflash destination origin.
 **/
 const Vector3 SVG_MuzzleFlash_ProjectAndTraceToPoint( svg_base_edict_t *ent, const Vector3 &muzzleFlashOffset, const Vector3 &forward, const Vector3 &right ) {
-    // Project from source to muzzleflash destination.
+	// Warn in case if it is not a client.
+	if ( !ent ) {
+		gi.bprintf( PRINT_WARNING, "%s: ent == nullptr\n", __func__ );
+		return {};
+	}
+
+	// Ensure we are dealing with a player entity here.
+	if ( !ent->GetTypeInfo()->IsSubClassType<svg_player_edict_t>() ) {
+		gi.dprintf( "%s: Not a player entity.\n", __func__ );
+		return {};
+	}
+
+	// Cast to player entity.
+	svg_player_edict_t *player_ent = static_cast< svg_player_edict_t* >( ent );
+
+	// Project from source to muzzleflash destination.
     Vector3 muzzleFlashOrigin = {};
-    muzzleFlashOrigin = SVG_Player_ProjectDistance( ent, ent->s.origin, QM_Vector3Zero(), forward, right);
+    muzzleFlashOrigin = SVG_Player_ProjectDistance( player_ent, ent->currentOrigin, QM_Vector3Zero(), forward, right);
 
     // To stop it accidentally spawning the MZ_PISTOL muzzleflash inside of entities and/or (wall-)brushes,
     // peform a trace from our origin on to the projected start.
-    svg_trace_t tr = SVG_Trace( ent->s.origin, qm_vector3_null, qm_vector3_null, &muzzleFlashOrigin.x, ent, CM_CONTENTMASK_SHOT );
+    svg_trace_t tr = SVG_Trace( ent->currentOrigin, qm_vector3_null, qm_vector3_null, &muzzleFlashOrigin.x, ent, CM_CONTENTMASK_SHOT );
     // We hit something, clip to trace endpos so the muzzleflash will play in our non-solid area:
     if ( tr.fraction < 1.0 ) {
         muzzleFlashOrigin = tr.endpos;

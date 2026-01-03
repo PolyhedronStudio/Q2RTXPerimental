@@ -67,12 +67,14 @@ struct sv_shared_edict_t {
 
     // FIXME: move these fields to a server private sv_entity_t
 	//! Linked to a division node or leaf.
-    list_t area = {};
+    list_t area = { .next = nullptr, .prev = nullptr };
+	// Last cluster this entity was in. (for PVS determination with rentity model light emitting)
+	int32_t lastCluster = -1;
 	// If -1, use headNode instead.
-    int32_t numberOfClusters = 0;
+    int32_t numberOfClusters = -1;
     int32_t clusterNumbers[ MAX_ENT_CLUSTERS ] = {};
 	// Unused if num_clusters != -1
-    int32_t headNode = 0;
+    int32_t headNode = -1;
 	int32_t areaNumber0 = 0, areaNumber1 = 0;
 
     //================================
@@ -144,16 +146,17 @@ struct sv_shared_edict_t {
 
         // FIXME: move these fields to a server private sv_entity_t
         //! Linked to a division node or leaf
-        area = {};
+        area = { .next = nullptr, .prev = nullptr };
 
         // If -1, use headNode instead.
-        numberOfClusters = 0;
+        numberOfClusters = -1;
+		lastCluster = -1;
         for ( int32_t i = 0; i < MAX_ENT_CLUSTERS; i++ ) {
 			clusterNumbers[ i ] = 0;
         }
         // Unused if num_clusters != -1.
         headNode = 0;           
-        areaNumber0 = 0, areaNumber1 = 0;
+        areaNumber0 = -1, areaNumber1 = -1;
 
         //================================
 

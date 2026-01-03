@@ -1,24 +1,45 @@
-/*
-Copyright (C) 1997-2001 Id Software, Inc.
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License along
-with this program; if not, write to the Free Software Foundation, Inc.,
-51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
-*/
-// g_phys.c
-
+/*********************************************************************
+*
+*
+*	SVGame: (Entity/MoveType-Specific Mechanic -) Physics:
+*
+*
+********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_physics.h"
 #include "svgame/svg_utils.h"
+
+
+
+/**
+*	@brief	The pushed structure is used to keep track of entities being moved by a pushmove type entity.
+**/
+struct pushed_t {
+	//! The entity being pushed.
+	svg_base_edict_t *ent;
+	//! The original origin before the push.
+	Vector3 origin;
+	//! The original angles before the push.
+	Vector3 angles;
+	//#if USE_SMOOTH_DELTA_ANGLES
+	double yawDelta;
+	//#endif
+};
+
+/**
+*	@brief	State during a pushmovefor pushed entities.
+**/
+struct pushed_state_t {
+	//! Array of pushed entities.
+	static pushed_t pushed[ MAX_EDICTS ];
+	//! ``State and pointer into the pushed array`` for the ``current pushed entity``.
+	pushed_t *pushedPtr = nullptr;
+	//! The ``obstacle`` entity ``blocking`` movement.
+	svg_base_edict_t *obstacle = nullptr;
+} pushedState = {};
+//! Static instance of pushed entities.
+pushed_t pushed_state_t::pushed[ MAX_EDICTS ] = {};
+
 
 /*
 
@@ -36,57 +57,150 @@ flying/floating monsters are SOLID_SLIDEBOX and MOVETYPE_FLY
 solid_edge items only clip against bsp models.
 
 */
+//! Epsilon value for stopping clipped velocity.
+static constexpr double CLIPVELOCITY_STOP_EPSILON = 0.1;
 
-// [Paril-KEX] fetch the clipMask for this entity; certain modifiers
-// affect the clipping behavior of objects.
-const cm_contents_t SVG_GetClipMask( const svg_base_edict_t *ent ) {
-    // Get current clip mask.
-    cm_contents_t mask = ent->clipMask;
+//! Return bit set in case of having clipped to a floor plane.
+static constexpr int32_t CLIPVELOCITY_CLIPPED_FLOOR = BIT( 0 );
+//! Return bit set in case of having clipped to a step plane. (Straight up wall.)
+static constexpr int32_t CLIPVELOCITY_CLIPPED_STEP = BIT( 1 );
+//! Return bit set in case of having resulting in a dead stop. ( Corner or such. )
+static constexpr int32_t CLIPVELOCITY_CLIPPED_DEAD_STOP = BIT( 2 );
+//! Return bit set in case of being trapped inside a solid.
+static constexpr int32_t CLIPVELOCITY_CLIPPED_STUCK_SOLID = BIT( 3 );
+//! Return bit set in case of num of clipped planes overflowing. ( Should never happen. )
+static constexpr int32_t CLIPVELOCITY_CLIPPED_OVERFLOW = BIT( 4 );
+//! Return bit set in case of stopping because if the crease not matching 2 planes.
+static constexpr int32_t CLIPVELOCITY_CLIPPED_CREASE_STOP = BIT( 5 );
 
-    // If none, setup a default mask based on the svFlags.
-    if ( !mask ) {
-        // Player clipMask:
-        if ( ent->svFlags & SVF_PLAYER ) {
-            mask = CM_CONTENTMASK_PLAYERSOLID;
-        // Monster clipmasks:
-        } else if ( ent->svFlags & SVF_MONSTER ) {
-            mask = ( CM_CONTENTMASK_MONSTERSOLID );
-        // Projectile clipMask:
-        } else if ( ent->svFlags & SVF_PROJECTILE ) {
-            mask = ( CM_CONTENTMASK_PROJECTILE );
-        // Resort to default mask.
-        } else {
-            mask = static_cast<cm_contents_t>( CM_CONTENTMASK_SHOT & ~CONTENTS_DEADMONSTER );
-        }
-    }
 
-    // Non-Solid objects (items, etc) shouldn't try to clip
-    // against players/monsters.
-    if ( ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
-        mask = static_cast<cm_contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
-    }
-
-    // Monsters/Players that are also dead shouldn't clip
-    // against players/monsters.
-    if ( ( ent->svFlags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svFlags & SVF_DEADENTITY ) ) {
-        mask = static_cast<cm_contents_t>( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
-    }
-
-    return mask;
+/**
+*
+*
+*
+*	Generic Physics Functions:
+*
+*
+*
+**/
+/**
+*	@brief	Applies a frame's worth of the gravity into the direction of the gravity vector for this entity.
+* 	@param	ent The entity to apply gravity to.
+**/
+void SVG_AddGravity( svg_base_edict_t *ent ) {
+	ent->velocity += ent->gravityVector * ( ent->gravity * level.gravity * gi.frame_time_s );
 }
 
 /**
-*	@brief	Will test the entity's current position to see if it is
-*			obstructed by anything. If so, the entity that is obstructing
-*			it is returned. If not, nullptr is returned.
-*	@param	ent The entity to test.
-*	@return	A pointer to the entity that is obstructing the given entity, or nullptr if none.
+*	@brief	Ensure that an entity's velocity does not exceed sv_maxvelocity.
+*	@param	ent	The entity to check.
 **/
-svg_base_edict_t *SV_TestEntityPosition( const svg_base_edict_t *ent ) {
+void SVG_ClampEntityMaxVelocity( svg_base_edict_t *ent ) {
+	// Clamp current velocity to sv_maxvelocity mins and maxs.
+	ent->velocity = QM_Vector3Clamp( 
+		// Current:
+		ent->velocity,
+		// Min:
+		{ -sv_maxvelocity->value, -sv_maxvelocity->value, -sv_maxvelocity->value },
+		// Max:
+		{ sv_maxvelocity->value, sv_maxvelocity->value, sv_maxvelocity->value }
+	);
+}
+/**
+*	@brief Redirects the input velocity vector 'in' along the plane defined by the 'normal' vector,
+*	@param in The input velocity vector to be clipped.
+*	@param normal The normal vector defining the clipping plane.
+*	@param out The output velocity vector after clipping.
+*	@param overbounce The overbounce factor to apply during clipping.
+*	@return The blocked flags indicating the type of clipping that occurred.
+**/
+const int32_t SVG_Physics_ClipVelocity( Vector3 &in, vec3_t normal, Vector3 &out, const double overbounce ) {
+	// Determine if clip got 'blocked'.
+	int32_t blocked = 0;
+	// Floor:
+	if ( normal[ 2 ] > 0 ) {
+		blocked |= CLIPVELOCITY_CLIPPED_FLOOR;
+	}
+	// Step/Wall:
+	if ( !normal[ 2 ] ) {
+		blocked |= CLIPVELOCITY_CLIPPED_STEP;
+	}
+
+	// Backoff factor.
+	const double backOff = QM_Vector3DotProduct( in, normal ) * overbounce;
+	// Calculate and apply change.
+	for ( int32_t i = 0; i < 3; i++ ) {
+		// Calculate change for axis.
+		const float change = normal[ i ] * backOff;
+		// Apply velocity change.
+		out[ i ] = in[ i ] - change;
+		// Halt if we're past epsilon.
+		if ( out[ i ] > -CLIPVELOCITY_STOP_EPSILON && out[ i ] < CLIPVELOCITY_STOP_EPSILON ) {
+			out[ i ] = 0;
+		}
+	}
+	return blocked;
+}
+
+
+
+/**
+*
+*
+*
+*	Entity (Clip -)Test/Tracing:
+*
+*
+*
+**/
+/**
+*	@brief	Fetch the clipMask for this entity; certain modifiers affect the clipping behavior of objects.
+* 	@param	ent The entity to get the clip mask for.
+* 	@return The contents mask to use for clipping traces against this entity.
+**/
+const cm_contents_t SVG_GetClipMask( const svg_base_edict_t *ent ) {
+	// Get current clip mask.
+	const cm_contents_t mask = ent->clipMask;
+
+	// If none, setup a default mask based on the svFlags.
+	if ( !mask ) {
+		// Player clipMask:
+		if ( ent->svFlags & SVF_PLAYER ) {
+			return CM_CONTENTMASK_PLAYERSOLID;
+		// Monster clipmasks:
+		} else if ( ent->svFlags & SVF_MONSTER ) {
+			return ( CM_CONTENTMASK_MONSTERSOLID );
+		// Projectile clipMask:
+		} else if ( ent->svFlags & SVF_PROJECTILE ) {
+			return ( CM_CONTENTMASK_PROJECTILE );
+		// Resort to default mask.
+		} else {
+			return ( CM_CONTENTMASK_SHOT & ~CONTENTS_DEADMONSTER );
+		}
+	}
+
+	// Non-Solid objects (items, etc) shouldn't try to clip against players/monsters.
+	if ( ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER ) {
+		return ( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
+	}
+	// Monsters/Players that are also dead shouldn't clip against players/monsters.
+	if ( ( ent->svFlags & ( SVF_MONSTER | SVF_PLAYER ) ) && ( ent->svFlags & SVF_DEADENTITY ) ) {
+		return ( mask & ~( CONTENTS_MONSTER | CONTENTS_PLAYER ) );
+	}
+
+	return mask;
+}
+/**
+*	@brief	Will test the entity's current position to see if it is	obstructed by anything. 
+*	@note	In case of the trace yielding ENTITYNUM_NONE, the 'world' entity is returned instead.
+*	@param	ent The entity to test.
+*	@return	nullptr if not obstructed, otherwise the entity that is obstructing it.
+**/
+svg_base_edict_t *SVG_TestEntityPosition( const svg_base_edict_t *ent ) {
 	// Get the clip mask for this entity.
 	const cm_contents_t clipMask = SVG_GetClipMask( ent );
 	// Perform a trace to test for obstructions.
-	const svg_trace_t trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, clipMask );
+	const svg_trace_t trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, ent->currentOrigin, ent, clipMask );
 
 	// Return the 'world' entity in case of being stuck inside of anything..
 	// <Q2RTXP>: Note: This is a change from the original Quake 2 behavior,
@@ -105,56 +219,54 @@ svg_base_edict_t *SV_TestEntityPosition( const svg_base_edict_t *ent ) {
 	// Otherwise, return nullptr, we aren't being obstructed..
     return nullptr;
 }
+/**
+*	@brief	Two entities have collided; run their touch functions.
+*	@param	e1 The first entity.
+*	@param	trace The trace result containing information about the collision.
+*	@note	The entity in the trace is the second entity.
+**/
+void SVG_Impact( svg_base_edict_t *e1, svg_trace_t *trace ) {
+	// Get second entity.
+	svg_base_edict_t *e2 = trace->ent;
 
-/*
-================
-SV_CheckVelocity
-================
-*/
-void SV_CheckVelocity(svg_base_edict_t *ent)
-{
-//    int     i;
-
-//
-// bound velocity
-//
-    ent->velocity = QM_Vector3Clamp( ent->velocity,
-        {
-            -sv_maxvelocity->value,
-            -sv_maxvelocity->value,
-            -sv_maxvelocity->value,
-        },
-        {
-            sv_maxvelocity->value,
-            sv_maxvelocity->value,
-            sv_maxvelocity->value,
-        }
-    );
-    //for (i = 0; i < 3; i++)
-    //    std::clamp(ent->velocity[i], -sv_maxvelocity->value, sv_maxvelocity->value);
+	// Dispatch touch functions.
+	if ( e1 != nullptr && e1->HasTouchCallback() && e1->solid != SOLID_NOT ) {
+		e1->DispatchTouchCallback( e2, &trace->plane, trace->surface );
+	}
+	// Dispatch touch for second entity.
+	if ( e2 != nullptr && e2->HasTouchCallback() && e2->solid != SOLID_NOT ) {
+		e2->DispatchTouchCallback( e1, NULL, NULL );
+	}
 }
 
-/*
-=============
-SV_RunThink
 
-Runs thinking code for this frame if necessary
-=============
-*/
-bool SV_RunThink(svg_base_edict_t *ent)
-{
-    QMTime     thinktime;
 
-    thinktime = ent->nextthink;
+/**
+*
+*
+*
+*	Entity Thinking:
+*
+*
+*
+**/
+/**
+*	@brief	Runs an entity's thinking code for this frame if necessary.
+**/
+static const bool SVG_RunEntityThink( svg_base_edict_t *ent ) {
+	// Get next think time.
+	const QMTime thinktime = ent->nextthink;
+	// Check if we need to think this frame.
     if ( thinktime <= 0_ms ) {
         return false;
     }
+	// Not time yet.
     if ( thinktime > level.time ) {
         return true;
     }
-
+	// Clear next think.
     ent->nextthink = 0_ms;
-
+	// Sanity check.
     if ( !ent->HasThinkCallback() ) {
         // WID: Useful to output exact information about what entity we are dealing with here, that'll help us fix the problem :-).
         gi.error( "[ entityNumber(%d), inUse(%s), classname(%s), targetname(%s), luaName(%s), (nullptr) ent->think ]\n",
@@ -162,256 +274,182 @@ bool SV_RunThink(svg_base_edict_t *ent)
         // Failed.
         return false;
     }
-
+	// Call the think function.
     ent->DispatchThinkCallback();
-
+	// We're succesfully done.
     return true;
 }
 
-/*
-==================
-SVG_Impact
-
-Two entities have touched, so run their touch functions
-==================
-*/
-void SVG_Impact(svg_base_edict_t *e1, svg_trace_t *trace)
-{
-    svg_base_edict_t     *e2;
-//  cm_plane_t    backplane;
-
-    e2 = trace->ent;
-
-    if ( e1->HasTouchCallback() && e1->solid != SOLID_NOT ) {
-        e1->DispatchTouchCallback( e2, &trace->plane, trace->surface );
-    }
-
-    if ( e2->HasTouchCallback() && e2->solid != SOLID_NOT ) {
-        e2->DispatchTouchCallback( e1, NULL, NULL );
-    }
-}
-
-/*
-==================
-ClipVelocity
-
-Slide off of the impacting object
-returns the blocked flags (1 = floor, 2 = step / wall)
-==================
-*/
-static constexpr double CLIPVELOCITY_STOP_EPSILON = 0.1;
-//! Return bit set in case of having clipped to a floor plane.
-static constexpr int32_t CLIPVELOCITY_CLIPPED_FLOOR = BIT( 0 );
-//! Return bit set in case of having clipped to a step plane. (Straight up wall.)
-static constexpr int32_t CLIPVELOCITY_CLIPPED_STEP  = BIT( 1 );
-//! Return bit set in case of having resulting in a dead stop. ( Corner or such. )
-static constexpr int32_t CLIPVELOCITY_CLIPPED_DEAD_STOP = BIT( 2 );
-//! Return bit set in case of being trapped inside a solid.
-static constexpr int32_t CLIPVELOCITY_CLIPPED_STUCK_SOLID = BIT( 3 );
-//! Return bit set in case of num of clipped planes overflowing. ( Should never happen. )
-static constexpr int32_t CLIPVELOCITY_CLIPPED_OVERFLOW = BIT( 4 );
-//! Return bit set in case of stopping because if the crease not matching 2 planes.
-static constexpr int32_t CLIPVELOCITY_CLIPPED_CREASE_STOP = BIT( 5 );
 
 
-const int32_t SVG_Physics_ClipVelocity( Vector3 &in, vec3_t normal, Vector3 &out, const double overbounce ) {
-    // Determine if clip got 'blocked'.
-    int32_t blocked = 0;
-    // Floor:
-    if ( normal[ 2 ] > 0 ) {
-        blocked |= CLIPVELOCITY_CLIPPED_FLOOR;
-    }
-    // Step/Wall:
-    if ( !normal[ 2 ] ) {
-        blocked |= CLIPVELOCITY_CLIPPED_STEP;
-    }
+/**
+*
+*
+*
+*	Entity Physics "SlideBox" Move Mechanics:
+*
+*
+*
+**/
+// Maximum number of clipping planes to consider.
+static constexpr int32_t MAX_CLIP_PLANES = 5;
 
-    // Backoff factor.
-    const double backOff = QM_Vector3DotProduct(in, normal) * overbounce;
+/**
+*	@brief	The basic solid body movement clip that slides along multiple planes
+*	@return	Returns the clipflags if the velocity was modified (hit something solid)
+*			1 = floor
+*			2 = wall / step
+*			4 = dead stop
+**/
+static const int32_t SVG_SlideBox( svg_base_edict_t *ent, const double time, const cm_contents_t mask ) {
+    svg_base_edict_t *hit = nullptr;
+	Vector3 new_velocity = {};
+    int32_t i = 0, j = 0;
 
-    // Calculate and apply change.
-    for ( int32_t i = 0; i < 3; i++ ) {
-        // Calculate change for axis.
-        const float change = normal[ i ] * backOff;
-        // Apply velocity change.
-        out[ i ] = in[ i ] - change;
-        // Halt if we're past epsilon.
-        if ( out[ i ] > -CLIPVELOCITY_STOP_EPSILON && out[ i ] < CLIPVELOCITY_STOP_EPSILON ) {
-            out[ i ] = 0;
-        }
-    }
+	svg_trace_t trace = svg_trace_t();
+    Vector3		end = {};
+	double      d = 0.;
 
-    return blocked;
-}
+	Vector3 planes[ MAX_CLIP_PLANES ] = {};
+	int32_t numplanes = 0;
+	int32_t bumpcount = 0;
+	int32_t numbumps = 4;
+	int32_t blocked = 0;
 
-/*
-============
-SV_FlyMove
+	Vector3 dir = {};
+	Vector3 original_velocity = ent->velocity; // VectorCopy( ent->velocity, original_velocity );
+	Vector3 primal_velocity = ent->velocity; // VectorCopy( ent->velocity, primal_velocity );
 
-The basic solid body movement clip that slides along multiple planes
-Returns the clipflags if the velocity was modified (hit something solid)
-1 = floor
-2 = wall / step
-4 = dead stop
-============
-*/
-#define MAX_CLIP_PLANES 5
-int SV_FlyMove(svg_base_edict_t *ent, float time, const cm_contents_t mask)
-{
-    svg_base_edict_t     *hit;
-    int         bumpcount, numbumps;
-    vec3_t      dir;
-    float       d;
-    int         numplanes;
-    Vector3     planes[MAX_CLIP_PLANES];
-    Vector3      primal_velocity, original_velocity, new_velocity;
-    int         i, j;
-    svg_trace_t     trace;
-    vec3_t      end;
-    float       time_left;
-    int         blocked;
+	double time_left = time;
 
-    numbumps = 4;
+	ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+	for ( bumpcount = 0; bumpcount < numbumps; bumpcount++ ) {
+		for ( i = 0; i < 3; i++ ) {
+			end[ i ] = ent->currentOrigin[ i ] + time_left * ent->velocity[ i ];
+		}
 
-    blocked = 0;
-    VectorCopy(ent->velocity, original_velocity);
-    VectorCopy(ent->velocity, primal_velocity);
-    numplanes = 0;
+		trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, end, ent, mask );
 
-    time_left = time;
+		if ( trace.allsolid ) {
+			// entity is trapped in another solid
+			VectorClear( ent->velocity );
+			return CLIPVELOCITY_CLIPPED_STUCK_SOLID;
+		}
 
-    ent->groundInfo.entityNumber = ENTITYNUM_NONE;
-    for (bumpcount = 0; bumpcount < numbumps; bumpcount++) {
-        for (i = 0; i < 3; i++)
-            end[i] = ent->s.origin[i] + time_left * ent->velocity[i];
+		if ( trace.fraction > 0 ) {
+			// actually covered some distance
+			//VectorCopy(trace.endpos, ent->s.origin);
+			SVG_Util_SetEntityOrigin( ent, trace.endpos, true );
+			original_velocity = ent->velocity;// VectorCopy(ent->velocity, original_velocity);
+			numplanes = 0;
+		}
 
-        trace = SVG_Trace(ent->s.origin, ent->mins, ent->maxs, end, ent, mask);
+		if ( trace.fraction == 1 ) {
+			break;     // moved the entire distance
+		}
 
-        if (trace.allsolid) {
-            // entity is trapped in another solid
-            VectorClear(ent->velocity);
-            return CLIPVELOCITY_CLIPPED_STUCK_SOLID;
-        }
+		hit = trace.ent;
 
-        if (trace.fraction > 0) {
-            // actually covered some distance
-            VectorCopy(trace.endpos, ent->s.origin);
-            VectorCopy(ent->velocity, original_velocity);
-            numplanes = 0;
-        }
-
-        if (trace.fraction == 1)
-            break;     // moved the entire distance
-
-        hit = trace.ent;
-
-        if (trace.plane.normal[2] > 0.7f) {
-            blocked |= CLIPVELOCITY_CLIPPED_FLOOR;       // floor
-            if (hit->solid == SOLID_BSP) {
-                ent->groundInfo.entityNumber = trace.entityNumber;
-                ent->groundInfo.entityLinkCount = hit->linkCount;
-            }
-        }
-        if (!trace.plane.normal[2]) {
-            blocked |= CLIPVELOCITY_CLIPPED_STEP;       // step
-        }
+		if ( trace.plane.normal[ 2 ] > 0.7f ) {
+			blocked |= CLIPVELOCITY_CLIPPED_FLOOR;       // floor
+			if ( hit->solid == SOLID_BSP ) {
+				ent->groundInfo.entityNumber = trace.entityNumber;
+				ent->groundInfo.entityLinkCount = hit->linkCount;
+			}
+		}
+		if ( !trace.plane.normal[ 2 ] ) {
+			blocked |= CLIPVELOCITY_CLIPPED_STEP;       // step
+		}
 
 //
 // run the impact function
 //
-        SVG_Impact(ent, &trace);
-        if (!ent->inUse)
-            break;      // removed by the impact function
+		SVG_Impact( ent, &trace );
+		if ( !ent->inUse ) {
+			break;      // removed by the impact function
+		}
 
-        time_left -= time_left * trace.fraction;
+		time_left -= time_left * trace.fraction;
 
-        // cliped to another plane
-        if (numplanes >= MAX_CLIP_PLANES) {
-            // this shouldn't really happen
-            VectorClear(ent->velocity);
-            return CLIPVELOCITY_CLIPPED_OVERFLOW;
-        }
+		// cliped to another plane
+		if ( numplanes >= MAX_CLIP_PLANES ) {
+			// this shouldn't really happen
+			VectorClear( ent->velocity );
+			return CLIPVELOCITY_CLIPPED_OVERFLOW;
+		}
 
-        VectorCopy(trace.plane.normal, planes[numplanes]);
-        numplanes++;
+		VectorCopy( trace.plane.normal, planes[ numplanes ] );
+		numplanes++;
 
 //
 // modify original_velocity so it parallels all of the clip planes
 //
-        for (i = 0; i < numplanes; i++) {
-            blocked |= SVG_Physics_ClipVelocity( original_velocity, &planes[i].x, new_velocity, 1 );
+		for ( i = 0; i < numplanes; i++ ) {
+			blocked |= SVG_Physics_ClipVelocity( original_velocity, &planes[ i ].x, new_velocity, 1 );
 
-            for (j = 0; j < numplanes; j++)
-                if ((j != i) && !VectorCompare(planes[i], planes[j])) {
-                    if (DotProduct(new_velocity, planes[j]) < 0)
-                        break;  // not ok
-                }
-            if (j == numplanes)
-                break;
-        }
+			for ( j = 0; j < numplanes; j++ )
+				if ( ( j != i ) && !VectorCompare( planes[ i ], planes[ j ] ) ) {
+					if ( DotProduct( new_velocity, planes[ j ] ) < 0 )
+						break;  // not ok
+				}
+			if ( j == numplanes )
+				break;
+		}
 
-        if (i != numplanes) {
-            // go along this plane
-            VectorCopy(new_velocity, ent->velocity);
-        } else {
-            // go along the crease
-            if (numplanes != 2) {
+		if ( i != numplanes ) {
+			// go along this plane
+			VectorCopy( new_velocity, ent->velocity );
+		} else {
+			// go along the crease
+			if ( numplanes != 2 ) {
 //              gi.dprintf ("clip velocity, numplanes == %i\n",numplanes);
-                VectorClear(ent->velocity);
-                return CLIPVELOCITY_CLIPPED_CREASE_STOP;
-            }
-            CrossProduct(planes[0], planes[1], dir);
-            d = DotProduct(dir, ent->velocity);
-            VectorScale(dir, d, ent->velocity);
-        }
+				VectorClear( ent->velocity );
+				return CLIPVELOCITY_CLIPPED_CREASE_STOP;
+			}
+			CrossProduct( planes[ 0 ], planes[ 1 ], dir );
+			d = DotProduct( dir, ent->velocity );
+			VectorScale( dir, d, ent->velocity );
+		}
 
 //
 // if original velocity is against the original velocity, stop dead
 // to avoid tiny occilations in sloping corners
 //
-        if (DotProduct(ent->velocity, primal_velocity) <= 0) {
-            VectorClear(ent->velocity);
-            return blocked | CLIPVELOCITY_CLIPPED_DEAD_STOP;
-        }
-    }
+		if ( DotProduct( ent->velocity, primal_velocity ) <= 0 ) {
+			VectorClear( ent->velocity );
+			return blocked | CLIPVELOCITY_CLIPPED_DEAD_STOP;
+		}
+	}
 
-    return blocked;
+	return blocked;
 }
 
-/*
-============
-SVG_AddGravity
 
-============
-*/
-void SVG_AddGravity(svg_base_edict_t *ent)
-{
-    ent->velocity += ent->gravityVector * ( ent->gravity * level.gravity * gi.frame_time_s );
-}
 
-/*
-===============================================================================
-
-PUSHMOVE
-
-===============================================================================
-*/
-
-/*
-============
-SV_PushEntity
-
-Does not change the entities velocity at all
-============
-*/
-svg_trace_t SV_PushEntity(svg_base_edict_t *ent, vec3_t push)
-{
+/**
+*
+*
+*
+*	PushMove:
+*
+*
+*
+**/
+/**
+*	@brief	Will attempt to push an entity by the specified vector, handling collisions and impacts.
+*	@param	ent The entity to push.
+* 	@param	push The vector to push the entity by.
+* 	@return The trace result of the push operation.
+* 	@note	If the entity is blocked during the push, its position will be set to the end position of the trace.
+* 			If the entity is removed during the impact handling, it will not be re-linked.
+**/
+svg_trace_t SVG_PushEntity( svg_base_edict_t *ent, const Vector3& pushOffset ) {
+	// The resulting trace.
     svg_trace_t trace;
-    vec3_t  start;
-    vec3_t  end;
 
-    VectorCopy(ent->s.origin, start);
-    VectorAdd(start, push, end);
+	// Setup start and end positions.
+	Vector3 start = ent->currentOrigin; // VectorCopy(ent->s.origin, start);
+	Vector3 end = start + pushOffset; // VectorAdd(start, push, end);
 
 retry:
     //if (ent->clipMask)
@@ -419,176 +457,182 @@ retry:
     //else
     //    mask = CM_CONTENTMASK_SOLID;
 
-    trace = SVG_Trace(start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
+	// Perform the trace.
+	trace = SVG_Trace( start, ent->mins, ent->maxs, end, ent, SVG_GetClipMask( ent ) );
 
-    VectorCopy(trace.endpos, ent->s.origin);
-    gi.linkentity(ent);
+	SVG_Util_SetEntityOrigin( ent, trace.endpos, true ); // VectorCopy(trace.endpos, ent->s.origin);
+	gi.linkentity( ent );
 
-    if (trace.fraction != 1.0f) {
-        SVG_Impact(ent, &trace);
+	if ( trace.fraction != 1.0f ) {
+		// We hit something, so call the impact function.
+		SVG_Impact( ent, &trace );
 
-        // if the pushed entity went away and the pusher is still there
-        if (!trace.ent->inUse && ent->inUse) {
-            // move the pusher back and try again
-            VectorCopy(start, ent->s.origin);
-            gi.linkentity(ent);
-            goto retry;
-        }
-    }
+		// If the pushed entity went away and the pusher is still there:
+		if ( !trace.ent->inUse && ent->inUse ) {
+			// Move the pusher back and try again.
+			SVG_Util_SetEntityOrigin( ent, start, true ); // VectorCopy( start, ent->s.origin );
+			gi.linkentity( ent );
+			goto retry;
+		}
+	}
 
     // PGM
     // FIXME - is this needed?
     ent->gravity = 1.0;
     // PGM
 
-    if (ent->inUse)
-        SVG_Util_TouchTriggers(ent);
-
+	// Touch triggers.
+	if ( ent->inUse ) {
+		SVG_Util_TouchTriggers( ent );
+	}
+	// Return the trace.
     return trace;
 }
 
-typedef struct {
-    svg_base_edict_t *ent;
-    vec3_t  origin;
-    vec3_t  angles;
-    //#if USE_SMOOTH_DELTA_ANGLES
-	float deltayaw;
-    //#endif
-} pushed_t;
-pushed_t    pushed[MAX_EDICTS], *pushed_p;
 
-svg_base_edict_t *obstacle;
+//const float SnapToEights( const float x ) {
+//    // WID: Float-movement.
+//    //x *= 8.0f;
+//    //if (x > 0.0f)
+//    //    x += 0.5f;
+//    //else
+//    //    x -= 0.5f;
+//    //return 0.125f * (int)x;
+//    return x;
+//}
 
-const float SnapToEights( const float x ) {
-    // WID: Float-movement.
-    //x *= 8.0f;
-    //if (x > 0.0f)
-    //    x += 0.5f;
-    //else
-    //    x -= 0.5f;
-    //return 0.125f * (int)x;
-    return x;
-}
+/**
+*	@brief	Objects need to be moved back on a failed push, otherwise riders would continue to slide.
+*	@param	pusher The entity that is pushing.
+* 	@param	move The movement vector.
+* 	@param	amove The angular movement vector.
+* 	@return	true if the push was successful, false if blocked.
+**/
+const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const Vector3 &amove ) {
+	svg_base_edict_t *blockPtr = nullptr;
+	Vector3 org2 = {};
+	Vector3 move2 = {};
+	Vector3 vForward = {}, vRight = {}, vUp = {};
 
-/*
-============
-SV_Push
-
-Objects need to be moved back on a failed push,
-otherwise riders would continue to slide.
-============
-*/
-bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
-{
-    int         i, e;
-    svg_base_edict_t     *check, *block;
-    vec3_t      mins, maxs;
-    pushed_t    *p;
-    vec3_t      org, org2, move2, forward, right, up;
-
+	// Sanity check.
     if ( !pusher ) {
         return false;
     }
 
     // clamp the move to 1/8 units, so the position will
     // be accurate for client side prediction
-    for (i = 0; i < 3; i++)
-        move[i] = SnapToEights(move[i]);
+    //for ( int32_t i = 0; i < 3; i++ )
+    //    move[i] = SnapToEights(move[i]);
 
     // find the bounding box
-    for (i = 0; i < 3; i++) {
-        mins[i] = pusher->absMin[i] + move[i];
-        maxs[i] = pusher->absMax[i] + move[i];
-    }
+	Vector3 mins = pusher->absMin + move;
+	Vector3 maxs = pusher->absMax + move;
+    //for (int32_t i = 0; i < 3; i++) {
+    //    mins[i] = pusher->absMin[i] + move[i];
+    //    maxs[i] = pusher->absMax[i] + move[i];
+    //}
 
-// we need this for pushing things later
-    VectorNegate(amove, org);
-    AngleVectors(org, forward, right, up);
+	/**
+	*	We need this for pushing things later.
+	**/
+	Vector3 org = QM_Vector3Negate( amove );// VectorNegate( amove, org );
+	QM_AngleVectors( org, &vForward, &vRight, &vUp );
 
 // save the pusher's original position
-    pushed_p->ent = pusher;
-    VectorCopy(pusher->s.origin, pushed_p->origin);
-    VectorCopy(pusher->s.angles, pushed_p->angles);
+    pushedState.pushedPtr->ent = pusher;
+	SVG_Util_SetEntityOrigin( pushedState.pushedPtr->ent, pusher->currentOrigin, true ); // VectorCopy(pusher->s.origin, pushed_p->origin);
+	SVG_Util_SetEntityAngles( pushedState.pushedPtr->ent, pusher->currentAngles, true ); // VectorCopy(pusher->s.angles, pushed_p->angles);
     //#if USE_SMOOTH_DELTA_ANGLES
-    if (pusher->client)
-        pushed_p->deltayaw = pusher->client->ps.pmove.delta_angles[YAW];
+	if ( pusher->client ) {
+		pushedState.pushedPtr->yawDelta = pusher->client->ps.pmove.delta_angles[ YAW ];
+	}
     //#endif
-    pushed_p++;
+	pushedState.pushedPtr++;
 
 // move the pusher to it's final position
-    VectorAdd(pusher->s.origin, move, pusher->s.origin);
-    VectorAdd(pusher->s.angles, amove, pusher->s.angles);
+	SVG_Util_SetEntityOrigin( pusher, pusher->currentOrigin + move, true ); //
+	SVG_Util_SetEntityAngles( pusher, pusher->currentAngles + amove, true ); //
+	//pusher->currentOrigin += move; // VectorAdd(pusher->s.origin, move, pusher->s.origin);
+	//pusher->currentAngles += amove; // VectorAdd(pusher->s.angles, amove, pusher->s.angles);
     gi.linkentity(pusher);
 
 // see if any solid entities are inside the final position
-    check = g_edict_pool.EdictForNumber( 1 );
-    for (e = 1; e < globals.edictPool->num_edicts; e++, check = g_edict_pool.EdictForNumber( e ) ) {
-        if (!check->inUse)
-            continue;
-        if (check->movetype == MOVETYPE_PUSH
-            || check->movetype == MOVETYPE_STOP
-            || check->movetype == MOVETYPE_NONE
-            || check->movetype == MOVETYPE_NOCLIP)
-            continue;
+    svg_base_edict_t *checkPtr = g_edict_pool.EdictForNumber( 1 );
+    for ( int32_t e = 1; e < globals.edictPool->num_edicts; e++, checkPtr = g_edict_pool.EdictForNumber( e ) ) {
+		// Ensure it is in use.
+		if ( !checkPtr->inUse ) {
+			continue;
+		}
+		if ( checkPtr->movetype == MOVETYPE_PUSH
+			|| checkPtr->movetype == MOVETYPE_STOP
+			|| checkPtr->movetype == MOVETYPE_NONE
+			|| checkPtr->movetype == MOVETYPE_NOCLIP ) {
+			continue;
+		}
 
-        if (!check->area.prev)
-            continue;       // not linked in anywhere
+		if ( !checkPtr->area.prev /*!checkPtr->isLinked*/ ) {
+			continue;       // not linked in anywhere
+		}
 
-        // if the entity is standing on the pusher, it will definitely be moved
-        if ( check->groundInfo.entityNumber != pusher->s.number ) {
+        // If the entity is standing on the pusher, it will definitely be moved.
+        if ( checkPtr->groundInfo.entityNumber != pusher->s.number ) {
             // see if the ent needs to be tested
-            if (check->absMin[0] >= maxs[0]
-                || check->absMin[1] >= maxs[1]
-                || check->absMin[2] >= maxs[2]
-                || check->absMax[0] <= mins[0]
-                || check->absMax[1] <= mins[1]
-                || check->absMax[2] <= mins[2])
-                continue;
+			if ( checkPtr->absMin[ 0 ] >= maxs[ 0 ]
+				|| checkPtr->absMin[ 1 ] >= maxs[ 1 ]
+				|| checkPtr->absMin[ 2 ] >= maxs[ 2 ]
+				|| checkPtr->absMax[ 0 ] <= mins[ 0 ]
+				|| checkPtr->absMax[ 1 ] <= mins[ 1 ]
+				|| checkPtr->absMax[ 2 ] <= mins[ 2 ] ) {
+				continue;
+			}
 
             // see if the ent's bbox is inside the pusher's final position
-            if (!SV_TestEntityPosition(check))
-                continue;
+			if ( !SVG_TestEntityPosition( checkPtr ) ) {
+				continue;
+			}
         }
 
-        if ( ( pusher->movetype == MOVETYPE_PUSH ) || ( check->groundInfo.entityNumber == pusher->s.number ) ) {
+        if ( ( pusher->movetype == MOVETYPE_PUSH ) || ( checkPtr->groundInfo.entityNumber == pusher->s.number ) ) {
             // move this entity
-            pushed_p->ent = check;
-            VectorCopy(check->s.origin, pushed_p->origin);
-            VectorCopy(check->s.angles, pushed_p->angles);
+            pushedState.pushedPtr->ent = checkPtr;
+			pushedState.pushedPtr->origin = checkPtr->currentOrigin; // VectorCopy( check->s.origin, pushed_p->origin );
+			pushedState.pushedPtr->angles = checkPtr->currentAngles; // VectorCopy( check->s.angles, pushed_p->angles );
             //#if USE_SMOOTH_DELTA_ANGLES
-            if (check->client)
-                pushed_p->deltayaw = check->client->ps.pmove.delta_angles[YAW];
+			if ( checkPtr->client ) {
+				pushedState.pushedPtr->yawDelta = checkPtr->client->ps.pmove.delta_angles[ YAW ];
+			}
             //#endif
-            pushed_p++;
+			pushedState.pushedPtr++;
 
-            // try moving the contacted entity
-            VectorAdd(check->s.origin, move, check->s.origin);
+            // Try moving the contacted entity.
+			SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin + move, true ); ////checkPtr->currentOrigin += move; // VectorAdd( check->s.origin, move, check->s.origin );
             //#if USE_SMOOTH_DELTA_ANGLES
-            if (check->client) {
+            if ( checkPtr->client ) {
                 // FIXME: doesn't rotate monsters?
                 // FIXME: skuller: needs client side interpolation
                 //check->client->ps.pmove.delta_angles[YAW] += /*ANGLE2SHORT*/(amove[YAW]);
-                check->client->ps.pmove.delta_angles[ YAW ] = QM_AngleMod( check->client->ps.pmove.delta_angles[ YAW ] + amove[ YAW ] );
+                checkPtr->client->ps.pmove.delta_angles[ YAW ] = QM_AngleMod( checkPtr->client->ps.pmove.delta_angles[ YAW ] + amove[ YAW ] );
             }
             //#endif
 
-            // figure movement due to the pusher's amove
-            VectorSubtract(check->s.origin, pusher->s.origin, org);
-            org2[0] = DotProduct(org, forward);
-            org2[1] = -DotProduct(org, right);
-            org2[2] = DotProduct(org, up);
-            VectorSubtract(org2, org, move2);
-            VectorAdd(check->s.origin, move2, check->s.origin);
+            // Figure movement due to the pusher's amove.
+			org = checkPtr->currentOrigin - pusher->currentOrigin; // VectorSubtract( checkPtr->s.origin, pusher->s.origin, org );
+			org2[ 0 ] = DotProduct( org, vForward );
+			org2[ 1 ] = -DotProduct( org, vRight );
+			org2[ 2 ] = DotProduct( org, vUp );
+			move2 = org2 - org; // VectorSubtract( org2, org, move2 );
+			SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin + move2, true ); //checkPtr->currentOrigin += move2;// VectorAdd( checkPtr->s.origin, move2, checkPtr->s.origin );
 
             // may have pushed them off an edge
-            if ( check->groundInfo.entityNumber != pusher->s.number ) {
-                check->groundInfo.entityNumber = ENTITYNUM_NONE;
+            if ( checkPtr->groundInfo.entityNumber != pusher->s.number ) {
+                checkPtr->groundInfo.entityNumber = ENTITYNUM_NONE;
             }
 
-            block = SV_TestEntityPosition(check);
-            if (!block) {
+            blockPtr = SVG_TestEntityPosition(checkPtr);
+            if (!blockPtr) {
+				//SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin, true );
                 // pushed ok
-                gi.linkentity(check);
+                gi.linkentity(checkPtr);
                 // impact?
                 continue;
             }
@@ -596,159 +640,196 @@ bool SV_Push(svg_base_edict_t *pusher, vec3_t move, vec3_t amove)
             // if it is ok to leave in the old position, do it
             // this is only relevent for riding entities, not pushed
             // FIXME: this doesn't acount for rotation
-            VectorSubtract(check->s.origin, move, check->s.origin);
-            block = SV_TestEntityPosition(check);
-            if (!block) {
-                pushed_p--;
+			SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin - move, true ); //			checkPtr->currentOrigin -= move; //VectorSubtract(checkPtr->s.origin, move, checkPtr->s.origin);
+            blockPtr = SVG_TestEntityPosition( checkPtr );
+            if ( !blockPtr ) {
+				pushedState.pushedPtr--;
                 continue;
             }
         }
 
         // save off the obstacle so we can call the block function
-        obstacle = check;
+		pushedState.obstacle = checkPtr;
 
         // move back any entities we already moved
         // go backwards, so if the same entity was pushed
         // twice, it goes back to the original position
-        for (i = (pushed_p - pushed) - 1; i >= 0; i--) {
-            p = &pushed[i];
-            VectorCopy(p->origin, p->ent->s.origin);
-            VectorCopy(p->angles, p->ent->s.angles);
-            //#if USE_SMOOTH_DELTA_ANGLES
-            if (p->ent->client) {
-                p->ent->client->ps.pmove.delta_angles[YAW] = p->deltayaw;
-            }
-            //#endif
-            gi.linkentity(p->ent);
-        }
+        for ( int32_t i = ( pushedState.pushedPtr - pushedState.pushed ) - 1; i >= 0; i-- ) {
+			pushed_t *p = &pushedState.pushed[ i ];
+			SVG_Util_SetEntityOrigin( p->ent, p->origin, true ); // VectorCopy(p->origin, p->ent->s.origin);
+			SVG_Util_SetEntityAngles( p->ent, p->angles, true ); // VectorCopy(p->angles, p->ent->s.angles);
+
+			//#if USE_SMOOTH_DELTA_ANGLES
+			if ( p->ent->client ) {
+				p->ent->client->ps.pmove.delta_angles[ YAW ] = p->yawDelta;
+			}
+			//#endif
+			gi.linkentity( p->ent );
+		}
         return false;
     }
 
 //FIXME: is there a better way to handle this?
     // see if anything we moved has touched a trigger
-    for (i = (pushed_p - pushed) - 1; i >= 0; i--)
-        SVG_Util_TouchTriggers(pushed[i].ent);
+	for ( int32_t i = ( pushedState.pushedPtr - pushedState.pushed ) - 1; i >= 0; i-- ) {
+		SVG_Util_TouchTriggers( pushedState.pushed[ i ].ent );
+	}
 
     return true;
 }
 
-/*
-================
-SV_Physics_Pusher
 
-Bmodel objects don't interact with each other, but
-push all box objects
-================
-*/
-void SV_Physics_Pusher(svg_base_edict_t *ent)
-{
-    vec3_t      move, amove;
+
+/**
+*
+*
+*
+*	Entity Pusher Core Mechanics:
+*
+*	Brush-model objects don't interact with each other, but push all box objects.
+*
+*
+**/
+static void SV_Physics_Pusher( svg_base_edict_t *ent ) {
     svg_base_edict_t     *part, *mv;
 
-    // if not a team captain, so movement will be handled elsewhere
-    if (ent->flags & FL_TEAMSLAVE)
-        return;
+    // If not a team captain, so movement will be handled elsewhere.
+	if ( ent->flags & FL_TEAMSLAVE ) {
+		return;
+	}
 
-    // make sure all team slaves can move before commiting
-    // any moves or calling any think functions
-    // if the move is blocked, all moved objects will be backed out
-#if 0
+    /**
+	*	Make sure all team slaves can move before commiting
+    *	any moves or calling any think functions
+    *	if the move is blocked, all moved objects will be backed out
+	**/
+	// Reinitialize the pushedState properly.
+	pushedState = {};
+	// Ensure to clear the static pushed array.
+	std::memset( pushedState.pushed, 0, sizeof( pushedState.pushed ) );
+
+	// Setup the initial pushPtr.
+	pushedState.pushedPtr = pushedState.pushed;
+	//pushedState.obstacle = nullptr;
+#if 1
 retry:
 #endif
-    pushed_p = pushed;
-    for (part = ent; part; part = part->teamchain) {
-        if (!VectorEmpty(part->velocity) || !VectorEmpty(part->avelocity)) {
-            // object is moving
-            VectorScale(part->velocity, gi.frame_time_s, move);
-            VectorScale(part->avelocity, gi.frame_time_s, amove);
+	// Try moving all parts:
+	pushedState.pushedPtr = pushedState.pushed;
+	for ( part = ent; part; part = part->teamchain ) {
+		// See if it needs to move:
+		if ( !VectorEmpty( part->velocity ) || !VectorEmpty( part->avelocity ) ) {
+			// object is moving
+			const Vector3 move = part->velocity * gi.frame_time_s; //VectorScale(part->velocity, gi.frame_time_s, move);
+			const Vector3 amove = part->avelocity * gi.frame_time_s; //VectorScale(part->avelocity, gi.frame_time_s, amove);
 
-            if (!SV_Push(part, move, amove))
-                break;  // move was blocked
-        }
-    }
-    if (pushed_p > &pushed[MAX_EDICTS])
-        gi.error("pushed_p > &pushed[MAX_EDICTS], memory corrupted");
+			// Try to move it.
+			if ( !SVG_PushMover( part, move, amove ) ) {
+				// Oh noes, seems that the move was blocked, faack.
+				break;
+			}
+		}
+	}
+	// Sanity check for pushed_p overflow.
+	if ( pushedState.pushedPtr > &pushedState.pushed[ MAX_EDICTS ] ) {
+		gi.error( "pushed_p > &pushed[MAX_EDICTS], memory corrupted" );
+	}
 
-    if (part) {
-        // the move failed, bump all nextthink times and back out moves
-        for (mv = ent ; mv ; mv = mv->teamchain) {
-			if ( mv->nextthink > 0_ms )
+	// Did we get blocked?
+	if ( part ) {
+		// The move failed, bump all nextthink times and back out moves.
+		for ( mv = ent; mv; mv = mv->teamchain ) {
+			if ( mv->nextthink > 0_ms ) {
 				mv->nextthink += FRAME_TIME_S;
-        }
+			}
+		}
 
-        // if the pusher has a "blocked" function, call it
-        // otherwise, just stay in place until the obstacle is gone
-        if ( part->HasBlockedCallback() ) {
-            part->DispatchBlockedCallback( obstacle );
-        }
-#if 0
-        // if the pushed entity went away and the pusher is still there
-        if (!obstacle->inUse && part->inUse)
-            goto retry;
-#endif
-    } else {
-        // the move succeeded, so call all think functions
-        for (part = ent; part; part = part->teamchain) {
-            SV_RunThink(part);
-        }
-    }
+		// if the pusher has a "blocked" function, call it
+		// otherwise, just stay in place until the obstacle is gone
+		if ( part->HasBlockedCallback() ) {
+			part->DispatchBlockedCallback( pushedState.obstacle );
+		}
+		#if 1
+			// if the pushed entity went away and the pusher is still there
+			if ( pushedState.obstacle && !pushedState.obstacle->inUse && part->inUse ) {
+				goto retry;
+			}
+		#endif
+	} else {
+		// the move succeeded, so call all think functions
+		for ( part = ent; part; part = part->teamchain ) {
+			SVG_RunEntityThink( part );
+		}
+	}
 }
 
-//==================================================================
 
-/*
-=============
-SV_Physics_None
 
-Non moving objects can only think
-=============
-*/
-void SV_Physics_None(svg_base_edict_t *ent)
-{
+/**
+*
+*
+*
+*	Entity's without Physics still 'Think':
+*
+*
+**/
+/**
+*	@brief	Non moving objects can only think.
+**/
+void SVG_Physics_None( svg_base_edict_t *ent ) {
 // regular thinking
-    SV_RunThink(ent);
+    SVG_RunEntityThink( ent );
 }
 
-/*
-=============
-SV_Physics_Noclip
 
-A moving object that doesn't obey physics
-=============
-*/
-void SV_Physics_Noclip(svg_base_edict_t *ent)
-{
+
+/**
+*
+*
+*
+*	Entity Physics NoClip Mechanics:
+*
+*	A moving object that doesn't obey physics.
+*
+*
+**/
+void SVG_Physics_Noclip( svg_base_edict_t *ent ) {
 // regular thinking
-    if (!SV_RunThink(ent))
-        return;
-    if (!ent->inUse)
-        return;
+	if ( !SVG_RunEntityThink( ent ) ) {
+		return;
+	}
+	if ( !ent->inUse ) {
+		return;
+	}
 
-    VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
-    VectorMA(ent->s.origin, FRAMETIME, ent->velocity, ent->s.origin);
+	// Calculate new origin.
+	const Vector3 newOrigin = QM_Vector3MultiplyAdd( ent->currentOrigin, gi.frame_time_s, ent->velocity ); // VectorMA(ent->s.origin, FRAMETIME,  ent->velocity, ent->s.origin);
+	// Apply new origin.
+	SVG_Util_SetEntityOrigin( ent, newOrigin, true );
+	// Calculate new angles.
+	const Vector3 newAngles = QM_Vector3MultiplyAdd( ent->currentAngles, gi.frame_time_s, ent->avelocity ); // VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
+	// Apply new angles.
+	SVG_Util_SetEntityAngles( ent, newAngles, true );
 
-    gi.linkentity(ent);
+	// Link entity.
+	gi.linkentity( ent );
 }
 
-/*
-==============================================================================
 
-TOSS / BOUNCE
 
-==============================================================================
-*/
-
-/*
-=============
-SV_Physics_Toss
-
-Toss, bounce, and fly movement.  When onground, do nothing.
-=============
-*/
-void SV_Physics_Toss(svg_base_edict_t *ent)
-{
+/**
+*
+*
+*
+*	Entity Physics 'Toss', 'Bounce', and 'Fly/Swim/Float' Mechanics:
+*
+*	When onground, do nothing. (Exception for 'Fly/Swim/Float' movetypes.)
+*
+*
+**/
+void SVG_Physics_Toss( svg_base_edict_t *ent ) {
     svg_trace_t     trace;
-    vec3_t      move;
+    Vector3     move;
     float       backoff;
     svg_base_edict_t     *slave;
     int         wasinwater;
@@ -756,7 +837,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
     Vector3     old_origin;
 
 // regular thinking
-    SV_RunThink(ent);
+    SVG_RunEntityThink(ent);
     if ( !ent->inUse ) {
         return;
     }
@@ -783,47 +864,51 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 // if onground, return without moving
     if ( ent->groundInfo.entityNumber != ENTITYNUM_NONE && ent->gravity > 0.0f ) {  // PGM - gravity hack
         if ( ent->svFlags & SVF_MONSTER ) {
-            M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
+            M_CatagorizePosition( ent, ent->currentOrigin, ent->liquidInfo.level, ent->liquidInfo.type );
             M_WorldEffects( ent );
         }
 
         return;
     }
 
-    VectorCopy(ent->s.origin, old_origin);
+    VectorCopy(ent->currentOrigin, old_origin);
 
-    SV_CheckVelocity(ent);
+	SVG_ClampEntityMaxVelocity(ent);
 
-// add gravity
-    if (ent->movetype != MOVETYPE_FLY && ent->movetype != MOVETYPE_FLYMISSILE)
-        SVG_AddGravity(ent);
+// add gravity.
+	if ( ent->movetype != MOVETYPE_FLY && ent->movetype != MOVETYPE_FLYMISSILE ) {
+		SVG_AddGravity( ent );
+	}
 
-// move angles
-    VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
-
-// move origin
-    VectorScale(ent->velocity, FRAMETIME, move);
-    trace = SV_PushEntity(ent, move);
-    if (!ent->inUse)
-        return;
+// Move angles
+    // Calculate new angles.
+	const Vector3 newAngles = QM_Vector3MultiplyAdd( ent->currentAngles, FRAMETIME, ent->avelocity ); // VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
+	// Apply new angles.
+	SVG_Util_SetEntityAngles( ent, newAngles, true );
+// Move origin.
+	move = QM_Vector3Scale( ent->velocity, FRAMETIME ); // VectorScale( ent->velocity, FRAMETIME, move );
+    trace = SVG_PushEntity(ent, move);
+	if ( !ent->inUse ) {
+		return;
+	}
 
     if (trace.fraction < 1) {
-        if (ent->movetype == MOVETYPE_BOUNCE)
-            backoff = 1.5f;
-        else
-            backoff = 1;
+		if ( ent->movetype == MOVETYPE_BOUNCE ) {
+			backoff = 1.5f;
+		} else {
+			backoff = 1;
+		}
+		SVG_Physics_ClipVelocity( ent->velocity, trace.plane.normal, ent->velocity, backoff );
 
-        SVG_Physics_ClipVelocity(ent->velocity, trace.plane.normal, ent->velocity, backoff);
-
-        // stop if on ground
-        if (trace.plane.normal[2] > 0.7f) {
-            if (ent->velocity[2] < 60 || ent->movetype != MOVETYPE_BOUNCE) {
-                ent->groundInfo.entityNumber = trace.entityNumber;
-                ent->groundInfo.entityLinkCount = trace.ent->linkCount;
-                VectorClear(ent->velocity);
-                VectorClear(ent->avelocity);
-            }
-        }
+        // Stop if on ground.
+		if ( trace.plane.normal[ 2 ] > 0.7f ) {
+			if ( ent->velocity[ 2 ] < 60 || ent->movetype != MOVETYPE_BOUNCE ) {
+				ent->groundInfo.entityNumber = trace.entityNumber;
+				ent->groundInfo.entityLinkCount = trace.ent->linkCount;
+				VectorClear( ent->velocity );
+				VectorClear( ent->avelocity );
+			}
+		}
 
 //      if (ent->touch)
 //          ent->touch (ent, trace.ent, &trace.plane, trace.surface);
@@ -834,11 +919,13 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
     ent->liquidInfo.type = gi.pointcontents( &ent->s.origin );
     isinwater = ent->liquidInfo.type & CM_CONTENTMASK_LIQUID;
 
-    if (isinwater)
-        ent->liquidInfo.level = cm_liquid_level_t::LIQUID_FEET;
-    else
-        ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
+	if ( isinwater ) {
+		ent->liquidInfo.level = cm_liquid_level_t::LIQUID_FEET;
+	} else {
+		ent->liquidInfo.level = cm_liquid_level_t::LIQUID_NONE;
+	}
 
+	// Play water splash sounds.
     const qhandle_t water_sfx_index = gi.soundindex( SG_RandomResourcePath( "world/water_land_splash", ".wav", 0, 8 ).c_str() );
     if ( !wasinwater && isinwater ) {
         gi.positioned_sound( &old_origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
@@ -848,18 +935,22 @@ void SV_Physics_Toss(svg_base_edict_t *ent)
 
 // move teamslaves
     for (slave = ent->teamchain; slave; slave = slave->teamchain) {
-        VectorCopy(ent->s.origin, slave->s.origin);
+		SVG_Util_SetEntityOrigin( slave, ent->currentOrigin, true );
+        //VectorCopy(ent->s.origin, slave->s.origin);
         gi.linkentity(slave);
     }
 }
 
-/*
-===============================================================================
-
-STEPPING MOVEMENT
-
-===============================================================================
-*/
+/**
+*
+*
+*
+*	Entity Physics 'Step' Mechanics:
+*
+*	When onground, do nothing. (Exception for 'Fly/Swim/Float' movetypes.)
+*
+*
+**/
 
 /*
 =============
@@ -875,37 +966,44 @@ FIXME: is this true?
 */
 
 //FIXME: hacked in for E3 demo
-#define sv_stopspeed        100.f
-#define sv_friction         6.f
-#define sv_waterfriction    1.f
+static constexpr double sv_stopspeed		= 100.;
+static constexpr double sv_friction			= 6.;
+static constexpr double sv_waterfriction	= 1.;
 
-void SV_AddRotationalFriction(svg_base_edict_t *ent)
-{
-    int     n;
-    float   adjustment;
+/**
+*	@brief	Applies rotational friction to an entity's avelocity.
+**/
+void SVG_AddRotationalFriction( svg_base_edict_t *ent ) {
+	// Calculate new angles.
+	const Vector3 newAngles = QM_Vector3MultiplyAdd( ent->currentAngles, FRAMETIME, ent->avelocity ); // VectorMA( ent->currentAngles, FRAMETIME, ent->avelocity, ent->s.angles );
+	// Apply new angles.
+	SVG_Util_SetEntityAngles( ent, newAngles, true );
 
-    VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
-    adjustment = FRAMETIME * sv_stopspeed * sv_friction;
-    for (n = 0; n < 3; n++) {
-        if (ent->avelocity[n] > 0) {
-            ent->avelocity[n] -= adjustment;
-            if (ent->avelocity[n] < 0)
-                ent->avelocity[n] = 0;
-        } else {
-            ent->avelocity[n] += adjustment;
-            if (ent->avelocity[n] > 0)
-                ent->avelocity[n] = 0;
-        }
-    }
+	const double adjustment = FRAMETIME * sv_stopspeed * sv_friction;
+	for ( int32_t n = 0; n < 3; n++ ) {
+		if ( ent->avelocity[ n ] > 0 ) {
+			ent->avelocity[ n ] -= adjustment;
+			if ( ent->avelocity[ n ] < 0 ) {
+				ent->avelocity[ n ] = 0;
+			}
+		} else {
+			ent->avelocity[ n ] += adjustment;
+			if ( ent->avelocity[ n ] > 0 ) {
+				ent->avelocity[ n ] = 0;
+			}
+		}
+	}
 }
 
-void SV_Physics_Step(svg_base_edict_t *ent)
-{
-    bool	   wasonground;
-    bool	   hitsound = false;
-    float *vel;
-    float	   speed, newspeed, control;
-    float	   friction;
+/**
+*	@brief	Handles physics for entities that move by stepping.
+**/
+void SV_Physics_Step( svg_base_edict_t *ent ) {
+    bool	wasonground = false;
+    bool	hitsound = false;
+    float *vel = nullptr;
+    double speed = 0., newspeed = 0., control = 0.;
+    double friction = 0.;
     svg_base_edict_t *groundentity;
     cm_contents_t mask = SVG_GetClipMask( ent );
 
@@ -916,7 +1014,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 
     groundentity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
 
-    SV_CheckVelocity( ent );
+	SVG_ClampEntityMaxVelocity( ent );
 
     if ( groundentity ) {
         wasonground = true;
@@ -925,7 +1023,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
     }
 
     if ( ent->avelocity[ 0 ] || ent->avelocity[ 1 ] || ent->avelocity[ 2 ] ) {
-        SV_AddRotationalFriction( ent );
+        SVG_AddRotationalFriction( ent );
     }
 
     // FIXME: figure out how or why this is happening
@@ -999,9 +1097,10 @@ void SV_Physics_Step(svg_base_edict_t *ent)
             }
         }
 
-        Vector3 old_origin = ent->s.origin;
+        //Vector3 old_origin = ent->s.origin;
+		Vector3 old_origin = ent->currentOrigin;
 
-        SV_FlyMove( ent, gi.frame_time_s, mask );
+        SVG_SlideBox( ent, gi.frame_time_s, mask );
 
         SVG_Util_TouchProjectiles( ent, old_origin );
 
@@ -1039,18 +1138,12 @@ void SV_Physics_Step(svg_base_edict_t *ent)
     }
 
     if ( ent->svFlags & SVF_MONSTER ) {
-        M_CatagorizePosition( ent, Vector3( ent->s.origin ), ent->liquidInfo.level, ent->liquidInfo.type );
+        M_CatagorizePosition( ent, ent->currentOrigin, ent->liquidInfo.level, ent->liquidInfo.type );
         M_WorldEffects( ent );
-
-        // [Paril-KEX] last minute hack to fix Stalker upside down gravity
-        //if ( wasonground != !!ent->groundentity ) {
-        //    if ( ent->monsterinfo.physics_change )
-        //        ent->monsterinfo.physics_change( ent );
-        //}
     }
 
     // regular thinking
-    SV_RunThink( ent );
+    SVG_RunEntityThink( ent );
 
 //    bool        wasonground = false;
 //    bool        hitsound = false;
@@ -1067,7 +1160,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 //
 //    groundentity = ent->groundentity;
 //
-//    SV_CheckVelocity(ent);
+//    SV_ClampVelocityLimit(ent);
 //
 //    if (groundentity)
 //        wasonground = true;
@@ -1075,7 +1168,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 //        wasonground = false;
 //
 //    if (!VectorEmpty(ent->avelocity))
-//        SV_AddRotationalFriction(ent);
+//        SVG_AddRotationalFriction(ent);
 //
 //    // add gravity except:
 //    //   flying monsters
@@ -1140,7 +1233,7 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 //            mask = CM_CONTENTMASK_SOLID;
 //
 //        const Vector3 oldOrigin = ent->s.origin;
-//        SV_FlyMove(ent, FRAMETIME, mask);
+//        SVG_SlideBox(ent, FRAMETIME, mask);
 //        SVG_Util_TouchProjectiles( ent, oldOrigin );
 //
 //        gi.linkentity(ent);
@@ -1155,13 +1248,24 @@ void SV_Physics_Step(svg_base_edict_t *ent)
 //    }
 //
 //// regular thinking
-//    SV_RunThink(ent);
+//    SVG_RunEntityThink(ent);
 }
 
+
+
+/**
+*
+*
+*
+*	Entity Physics 'RootMotion' Mechanics:
+*
+*
+*
+**/
 /**
 *   @brief  For RootMotion entities.
 **/
-void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
+void SVG_Physics_RootMotion( svg_base_edict_t *ent ) {
     cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
@@ -1169,10 +1273,10 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
         M_CheckGround( ent, mask );
     }
 
-    SV_CheckVelocity( ent );
+	SVG_ClampEntityMaxVelocity( ent );
     // regular thinking
-    //SV_RunThink( ent );
-
+    SVG_RunEntityThink( ent );
+	return;
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
@@ -1188,7 +1292,7 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
 
     groundentity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
 
-    SV_CheckVelocity( ent );
+	SVG_ClampEntityMaxVelocity( ent );
 
     if ( groundentity ) {
         wasonground = true;
@@ -1197,7 +1301,7 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
     }
 
     if ( ent->avelocity[ 0 ] || ent->avelocity[ 1 ] || ent->avelocity[ 2 ] ) {
-        SV_AddRotationalFriction( ent );
+        SVG_AddRotationalFriction( ent );
     }
 
     // FIXME: figure out how or why this is happening
@@ -1212,10 +1316,12 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
         if ( !( ent->flags & FL_FLY ) ) {
             if ( !( ( ent->flags & FL_SWIM ) && ( ent->liquidInfo.level > LIQUID_WAIST ) ) ) {
                 //if ( ent->velocity[ 2 ] < level.gravity * -0.1f )
-                if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f )
-                    hitsound = true;
-                if ( ent->liquidInfo.level != LIQUID_UNDER )
-                    SVG_AddGravity( ent );
+				if ( ent->velocity[ 2 ] < sv_gravity->value * -0.1f ) {
+					hitsound = true;
+				}
+				if ( ent->liquidInfo.level != LIQUID_UNDER ) {
+					SVG_AddGravity( ent );
+				}
             }
         }
     }
@@ -1270,9 +1376,9 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
             }
         }
 
-        Vector3 old_origin = ent->s.origin;
+		Vector3 old_origin = ent->currentOrigin;//Vector3 old_origin = ent->s.origin;
 
-        SV_FlyMove( ent, gi.frame_time_s, mask );
+        SVG_SlideBox( ent, gi.frame_time_s, mask );
 
         SVG_Util_TouchProjectiles( ent, old_origin );
 
@@ -1311,28 +1417,36 @@ void SV_Physics_RootMotion( svg_base_edict_t *ent ) {
     }
 
     if ( ent->svFlags & SVF_MONSTER ) {
-        M_CatagorizePosition( ent, Vector3( ent->s.origin ), ent->liquidInfo.level, ent->liquidInfo.type );
+        M_CatagorizePosition( ent, Vector3( ent->currentOrigin ), ent->liquidInfo.level, ent->liquidInfo.type );
         M_WorldEffects( ent );
     }
 
     // regular thinking
-    SV_RunThink( ent );
+    SVG_RunEntityThink( ent );
 }
 
-//============================================================================
-/*
-================
-SVG_RunEntity
 
-================
-*/
-void SVG_RunEntity(svg_base_edict_t *ent)
-{
+
+/**
+*
+*
+*
+*	Entity Physics Core Mechanics:
+*
+*
+*
+**/
+/**
+*	@brief	Runs physics for a single entity based on its movetype.
+**/
+void SVG_RunEntity(svg_base_edict_t *ent) {
     Vector3	previousOrigin;
     bool	isMoveStepper = false;
 
+	// For the MOVETYPE_STEP entities, we need to check if they actually moved.
+	// So we save off their previous origin here, in case they get stuck in a wall.
     if ( ent->movetype == MOVETYPE_STEP ) {
-        previousOrigin = ent->s.origin;
+        previousOrigin = ent->currentOrigin;
         isMoveStepper = true;
     }
 
@@ -1347,22 +1461,22 @@ void SVG_RunEntity(svg_base_edict_t *ent)
         break;
     case MOVETYPE_NONE:
     case MOVETYPE_WALK:
-        SV_Physics_None( ent );
+        SVG_Physics_None( ent );
         break;
     case MOVETYPE_NOCLIP:
-        SV_Physics_Noclip( ent );
+        SVG_Physics_Noclip( ent );
         break;
     case MOVETYPE_STEP:
         SV_Physics_Step( ent );
         break;
     case MOVETYPE_ROOTMOTION:
-        SV_Physics_RootMotion( ent );
+        SVG_Physics_RootMotion( ent );
         break;
     case MOVETYPE_TOSS:
     case MOVETYPE_BOUNCE:
     case MOVETYPE_FLY:
     case MOVETYPE_FLYMISSILE:
-        SV_Physics_Toss( ent );
+        SVG_Physics_Toss( ent );
         break;
     default:
         gi.error( "SV_Physics: bad movetype %i", ent->movetype );
@@ -1370,10 +1484,11 @@ void SVG_RunEntity(svg_base_edict_t *ent)
 
     if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {
         // if we moved, check and fix origin if needed
-        if ( !VectorCompare( ent->s.origin, previousOrigin ) ) {
-            svg_trace_t trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
-            if ( trace.allsolid || trace.startsolid )
-                VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;
+        if ( !VectorCompare( ent->currentOrigin, previousOrigin ) ) {
+            svg_trace_t trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );
+			if ( trace.allsolid || trace.startsolid ) {
+				SVG_Util_SetEntityOrigin( ent, previousOrigin, true ); // VectorCopy( previousOrigin, ent->s.origin ); // = previous_origin;		
+			}
         }
     }
 

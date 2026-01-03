@@ -202,12 +202,12 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     svg_client_t *client = ent->client;
 
     // Assign the found spawnspot origin and angles.
-	ent->s.origin = spawn_origin;
+	SVG_Util_SetEntityOrigin( ent, spawn_origin, true ); // VectorCopy( spawn_origin, ent->s.origin );
 	client->ps.pmove.origin = spawn_origin;
 
     // Get persistent user info and store it into a buffer.
     char    userinfo[ MAX_INFO_STRING ];
-    memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
+    std::memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
     // Use the buffer to restore the client user info which had been stored as persistent.
     SVG_Client_UserinfoChanged( ent, userinfo );
     // Acquire other respawn data.
@@ -290,7 +290,7 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 
     // Initialize basic player state and player move data.
     ent->client->ps.pmove.viewheight = ent->viewheight;
-    ent->client->ps.pmove.origin = ent->s.origin;
+    ent->client->ps.pmove.origin = ent->currentOrigin;
     // Proper gunindex.
     if ( client->pers.weapon ) {
         client->ps.gun.modelIndex = gi.modelindex( client->pers.weapon->view_model );
@@ -318,19 +318,19 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     temp2[ 2 ] += 16;
     svg_trace_t tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
     if ( !tr.allsolid && !tr.startsolid && Q_stricmp( level.mapname, "tech5" ) ) {
-        VectorCopy( tr.endpos, ent->s.origin );
+        //VectorCopy( tr.endpos, ent->s.origin );
+		SVG_Util_SetEntityOrigin( ent, tr.endpos, true );
         ent->groundInfo.entityNumber = tr.entityNumber;
     } else {
-        VectorCopy( spawn_origin, ent->s.origin );
-        ent->s.origin[ 2 ] += 10; // make sure off ground
+		SVG_Util_SetEntityOrigin( ent, spawn_origin + Vector3{ 0.f, 0.f, 10.f }, true); //VectorCopy( spawn_origin, ent->s.origin );
+        //ent->s.origin[ 2 ] += 10; // make sure off ground
     }
 
     // <Q2RTXP>: WID: Restore the origin.
-    VectorCopy( ent->s.origin, ent->s.old_origin );
-    client->ps.pmove.origin = ent->s.origin;
+    ent->s.old_origin = ent->currentOrigin;
+    client->ps.pmove.origin = ent->currentOrigin;
 
-    // <Q2RTXP>: WID: 
-    // Link it to calculate absmins/absmaxs, this is to prevent actual
+    // <Q2RTXP>: WID: Link it to calculate absmins/absmaxs, this is to prevent actual
     // other entities from Spawn Touching.
     gi.linkentity( ent );
 
@@ -338,7 +338,7 @@ void svg_gamemode_singleplayer_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     spawn_angles[ PITCH ] = 0;
     spawn_angles[ ROLL ] = 0;
     // Configure all spawn view angles.
-    ent->s.angles = spawn_angles; // VectorCopy( spawn_angles, );
+	SVG_Util_SetEntityAngles( ent, spawn_angles, true ); //ent->s.angles = spawn_angles; // VectorCopy( spawn_angles, );
     client->ps.viewangles = spawn_angles;
     client->viewMove.viewAngles = spawn_angles;
     // Set the delta angle
@@ -423,19 +423,8 @@ void svg_gamemode_singleplayer_t::ClientBegin( svg_player_edict_t *ent ) {
     } else {
         // 
         if ( game.maxclients >= 1 ) {
-            #if 0 // svc_muzzleflash now is events :-)
-            gi.WriteUint8( svc_muzzleflash );
-            gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
-            gi.WriteUint8( MZ_LOGIN );
-            gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
-            #else
             SVG_Util_AddEvent( ent, EV_PLAYER_TELEPORT, 0 );
-            #endif
-
-            // Only print this though, if NOT in a singleplayer game.
-            //if ( game.gamemode != GAMEMODE_TYPE_SINGLEPLAYER ) {
             gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
-            //}
         }
     }
 
@@ -451,8 +440,9 @@ void svg_gamemode_singleplayer_t::ClientBegin( svg_player_edict_t *ent ) {
 *	@brief	Called somewhere at the beginning of the game frame. This allows
 *			to determine if conditions are met to engage exitting intermission
 *			mode and/or exit the level.
+*	@return	False if conditions are not yet met to end the game, true otherwise.
 **/
-void svg_gamemode_singleplayer_t::PreCheckGameRuleConditions() {
+const bool svg_gamemode_singleplayer_t::PreCheckGameRuleConditions() {
 	// Perform the base gamemode checks first.
 	//svg_gamemode_t::PreCheckGameRuleConditions();
 	// Now the game mode specific checks.
@@ -460,8 +450,11 @@ void svg_gamemode_singleplayer_t::PreCheckGameRuleConditions() {
 	// Exit intermission.
 	if ( level.exitintermission ) {
 		ExitLevel();
-		return;
+		// Exiting.
+		return true;
 	}
+	// Not yet exiting.
+	return false;
 }
 /**
 *	@brief	Called somewhere at the end of the game frame. This allows

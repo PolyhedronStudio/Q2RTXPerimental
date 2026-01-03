@@ -238,7 +238,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
         #endif
 
         // For summing up distance traversed.
-        Vector3 preSumOrigin = self->s.origin;
+        Vector3 preSumOrigin = self->currentOrigin;
         // Generate frame velocity vector.
         Vector3 previousVelocity = self->velocity;
         //---------------------------
@@ -308,13 +308,13 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             }
 
             // Goal Origin:
-            Vector3 goalOrigin = self->activator->s.origin;
+            Vector3 goalOrigin = self->activator->currentOrigin;
             if ( self->goalentity ) {
-                goalOrigin = self->goalentity->s.origin;
+                goalOrigin = self->goalentity->currentOrigin;
             }
             // Calculate ideal yaw to turn into.
             self->ideal_yaw = QM_Vector3ToYaw(
-                QM_Vector3Normalize( goalOrigin - Vector3( self->s.origin ) )
+                QM_Vector3Normalize( goalOrigin - Vector3( self->currentOrigin ) )
             );
             // Setup decent yaw turning speed.
             self->yaw_speed = 7.5f; // Was 10.f
@@ -331,8 +331,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
             }
 
             Vector3 wishDirVelocity = {
-                cos( self->s.angles[ YAW ] * QM_DEG2RAD ),
-                sin( self->s.angles[ YAW ] * QM_DEG2RAD ),
+                cos( self->currentAngles[ YAW ] * QM_DEG2RAD ),
+                sin( self->currentAngles[ YAW ] * QM_DEG2RAD ),
                 0.0 // Don't override Z velocity
             };
 
@@ -384,10 +384,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 
                     .gravity = (int16_t)( self->gravity * sv_gravity->value ),
 
-                    .origin = self->s.origin,
+                    .origin = self->currentOrigin,
                     .velocity = self->velocity,
 
-                    .previousOrigin = self->s.origin,
+                    .previousOrigin = self->currentOrigin,
                     .previousVelocity = previousVelocity,
                 },
                 
@@ -411,8 +411,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 self->groundInfo = monsterMove.ground;
                 self->liquidInfo = monsterMove.liquid;
                 // Copy over the resulting origin and velocity back into the entity.
-                VectorCopy( monsterMove.state.origin, self->s.origin );
-                VectorCopy( monsterMove.state.velocity, self->velocity );
+				SVG_Util_SetEntityOrigin( self, monsterMove.state.origin, true );	// VectorCopy( monsterMove.state.origin, self->s.origin );
+				self->velocity = monsterMove.state.velocity;						// VectorCopy( monsterMove.state.velocity, self->velocity );
                 // Last but not least, make sure to link it back in.
                 gi.linkentity( self );
             }
@@ -435,10 +435,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 
                     .gravity = (int16_t)( self->gravity * sv_gravity->value ),
 
-                    .origin = self->s.origin,
+                    .origin = self->currentOrigin,
                     .velocity = self->velocity,
 
-                    .previousOrigin = self->s.origin,
+                    .previousOrigin = self->currentOrigin,
                     .previousVelocity = previousVelocity,
                 },
 
@@ -462,8 +462,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 self->groundInfo = monsterMove.ground;
                 self->liquidInfo = monsterMove.liquid;
                 // Copy over the resulting origin and velocity back into the entity.
-                VectorCopy( monsterMove.state.origin, self->s.origin );
-                VectorCopy( monsterMove.state.velocity, self->velocity );
+				SVG_Util_SetEntityOrigin( self, monsterMove.state.origin, true );	// VectorCopy( monsterMove.state.origin, self->s.origin );
+				self->velocity = monsterMove.state.velocity;						// VectorCopy( monsterMove.state.velocity, self->velocity );
                 // Last but not least, make sure to link it back in.
                 gi.linkentity( self );
             }
@@ -473,7 +473,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
                 self->s.frame = 0;
             }
         }
-        Vector3 postSumOrigin = self->s.origin;
+        Vector3 postSumOrigin = self->currentOrigin;
         Vector3 diffOrigin = postSumOrigin - preSumOrigin;
         const double diffLength = QM_Vector3LengthSqr( diffOrigin );
         self->summedDistanceTraversed += diffLength;
@@ -621,8 +621,8 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdu
     // Stop playing any sounds.
     self->s.sound = 0;
     // Setup the death bounding box.
-    VectorCopy( DUMMY_BBOX_DEAD_MINS, self->mins );
-    VectorCopy( DUMMY_BBOX_DEAD_MAXS, self->maxs );
+	self->mins = DUMMY_BBOX_DEAD_MINS; // VectorCopy( DUMMY_BBOX_DEAD_MINS, self->mins );
+	self->maxs = DUMMY_BBOX_DEAD_MAXS; // VectorCopy( DUMMY_BBOX_DEAD_MAXS, self->maxs );
     // Make sure to relink.
     gi.linkentity( self );
 }

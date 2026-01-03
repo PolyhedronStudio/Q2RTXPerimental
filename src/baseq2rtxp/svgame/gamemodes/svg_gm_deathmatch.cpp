@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_entity_events.h"
+#include "svgame/svg_lua.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -71,13 +72,17 @@ void svg_gamemode_deathmatch_t::PrepareCVars() {
 *	@brief	Called somewhere at the beginning of the game frame. This allows
 *			to determine if conditions are met to engage exitting intermission
 *			mode and/or exit the level.
+*	@return	False if conditions are not yet met to end the game, true otherwise.
 **/
-void svg_gamemode_deathmatch_t::PreCheckGameRuleConditions() {
+const bool svg_gamemode_deathmatch_t::PreCheckGameRuleConditions() {
 	// Exit intermission.
 	if ( level.exitintermission ) {
 		ExitLevel();
-		return;
+		// Return false.
+		return true;
 	}
+	// Not exiting level.
+	return false;
 }
 
 /**
@@ -458,12 +463,12 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
 	svg_client_t *client = ent->client;
 
 	// Assign the found spawnspot origin and angles.
-	VectorCopy( spawn_origin, ent->s.origin );
+	SVG_Util_SetEntityOrigin( ent, spawn_origin, true ); // VectorCopy( spawn_origin, ent->s.origin );
 	VectorCopy( spawn_origin, client->ps.pmove.origin );
 
 	// Get persistent user info and store it into a buffer.
 	char    userinfo[ MAX_INFO_STRING ];
-	memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
+	std::memcpy( userinfo, client->pers.userinfo, sizeof( userinfo ) );
 	// Acquire other respawn data.
 	const client_respawn_t savedRespawnData = client->resp;
 
@@ -566,32 +571,34 @@ void svg_gamemode_deathmatch_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     ent->s.frame = 0;
     ent->s.old_frame = 0;
 
-    // Try to properly clip to the floor / spawn
+	// Try to properly clip to the floor / spawn
 	Vector3 temp = spawn_origin;
 	Vector3 temp2 = spawn_origin;
-    temp[ 2 ] -= 64;
-    temp2[ 2 ] += 16;
-    svg_trace_t tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
-    if ( !tr.allsolid && !tr.startsolid /*&& Q_stricmp( level.mapname, "tech5" )*/ ) {
-        VectorCopy( tr.endpos, ent->s.origin );
-        ent->groundInfo.entityNumber = tr.entityNumber;
-    } else {
-        VectorCopy( spawn_origin, ent->s.origin );
-        ent->s.origin[ 2 ] += 10; // make sure off ground
-    }
+	temp[ 2 ] -= 64;
+	temp2[ 2 ] += 16;
+	svg_trace_t tr = SVG_Trace( &temp2.x, ent->mins, ent->maxs, &temp.x, ent, ( CM_CONTENTMASK_PLAYERSOLID ) );
+	if ( !tr.allsolid && !tr.startsolid && Q_stricmp( level.mapname, "tech5" ) ) {
+		//VectorCopy( tr.endpos, ent->s.origin );
+		SVG_Util_SetEntityOrigin( ent, tr.endpos, true );
+		ent->groundInfo.entityNumber = tr.entityNumber;
+	} else {
+		SVG_Util_SetEntityOrigin( ent, spawn_origin + Vector3{ 0.f, 0.f, 10.f }, true ); //VectorCopy( spawn_origin, ent->s.origin );
+		//ent->s.origin[ 2 ] += 10; // make sure off ground
+	}
+
 	// <Q2RTXP>: WID: Restore the origin.
-    VectorCopy( ent->s.origin, ent->s.old_origin );
-    client->ps.pmove.origin = ent->s.origin;
-	// <Q2RTXP>: WID: 
-    // Link it to calculate absmins/absmaxs, this is to prevent actual
-    // other entities from Spawn Touching.
-    gi.linkentity( ent );
+	ent->s.old_origin = ent->currentOrigin;
+	client->ps.pmove.origin = ent->currentOrigin;
+
+	// <Q2RTXP>: WID: Link it to calculate absmins/absmaxs, this is to prevent actual
+	// other entities from Spawn Touching.
+	gi.linkentity( ent );
 
     // Ensure proper pitch and roll angles for calculating the delta angles.
     spawn_angles[ PITCH ] = 0;
     spawn_angles[ ROLL ] = 0;
     // Configure all spawn view angles.
-    VectorCopy( spawn_angles, ent->s.angles );
+	SVG_Util_SetEntityAngles( ent, spawn_angles, true );//ent->s.angles = spawn_angles;
     client->ps.viewangles = spawn_angles;
     client->viewMove.viewAngles = spawn_angles;
     // Set the delta angle
@@ -644,12 +651,6 @@ void svg_gamemode_deathmatch_t::ClientBegin( svg_player_edict_t *ent ) {
 	// Assign matching client for this entity.
 	ent->client = &game.clients[ g_edict_pool.NumberForEdict( ent ) - 1 ]; //game.clients + ( ent - g_edicts - 1 );
 
-	// [Paril-KEX] we're always connected by this point...
-	ent->client->pers.connected = true;
-
-	// Always clear out any previous left over useTargetHint stuff.
-	SVG_Player_ClearUseTargetHint( ent, ent->client, nullptr );
-
 	// Init Edict.
 	g_edict_pool._InitEdict( ent, ent->s.number );//SVG_InitEdict( ent );
 
@@ -664,32 +665,29 @@ void svg_gamemode_deathmatch_t::ClientBegin( svg_player_edict_t *ent ) {
 	// Actually finds a spawnpoint and places the 'body' into the game.
 	SVG_Player_SpawnInBody( ent );
 
+	// Always clear out any previous left over useTargetHint stuff.
+	SVG_Player_ClearUseTargetHint( ent, ent->client, nullptr );
+
+	// We're spawned now of course.
+	ent->client->resp.entertime = level.time;
+	ent->client->pers.connected = true;
+	ent->client->pers.spawned = true;
+
 	// If in intermission, move our client over into intermission state. (We connected at the end of a match).
 	if ( level.intermissionFrameNumber ) {
 		SVG_HUD_MoveClientToIntermission( ent );
 	// Otherwise, send 'Login' effect even if NOT in a multiplayer game 
 	} else {
-		#if 0 // svc_muzzleflash now is events :-)
-		gi.WriteUint8( svc_muzzleflash );
-		gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
-		gi.WriteUint8( MZ_LOGIN );
-		gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
-		#else
 		SVG_Util_AddEvent( ent, EV_PLAYER_LOGIN, 0 );
-		#endif
-
-		gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
 	}
 
 	// Notify player joined.
 	gi.bprintf( PRINT_HIGH, "%s entered the game\n", ent->client->pers.netname );
 
-	// We're spawned now of course.
-	ent->client->pers.connected = true;
-	ent->client->pers.spawned = true;
-
 	// Call upon EndServerFrame to make sure all view stuff is valid.
 	SVG_Client_EndServerFrame( ent );
+	// WID: LUA:
+	SVG_Lua_CallBack_ClientEnterLevel( ent );
 }
 
 /**

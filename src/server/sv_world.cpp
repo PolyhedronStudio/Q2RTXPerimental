@@ -380,7 +380,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
     ent->linkCount++;
 
 	// Mark linked status as true.
-	ent->isLinked = true;
+	ent->isLinked = ( ent->area.prev != nullptr ? true : false );
 
     // Solid NOT won't have any contents either.
     if ( ent->solid == SOLID_NOT ) {

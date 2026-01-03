@@ -24,8 +24,6 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
-#include "svgame/player/svg_player_move.h"
-#include "svgame/player/svg_player_hud.h"
 #include "svgame/player/svg_player_view.h"
 
 #include "svgame/svg_lua.h"
@@ -33,10 +31,9 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/entities/svg_entities_pushermove.h"
 
 #include "sharedgame/sg_gamemode.h"
-#include "sharedgame/pmove/sg_pmove.h"
 
-#include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
+#include "svgame/svg_gamemode.h"
 
 /**
 *	General used Game Objects.
@@ -100,17 +97,7 @@ cvar_t *sv_gravity = nullptr;
 cvar_t *sv_rollspeed = nullptr;
 cvar_t *sv_rollangle = nullptr;
 
-// Moved to CLGame.
-//cvar_t *gun_x;
-//cvar_t *gun_y;
-//cvar_t *gun_z;
-
-// Moved to CLGame.
-//cvar_t *run_pitch;
-//cvar_t *run_roll;
-//cvar_t *bob_up;
-//cvar_t *bob_pitch;
-//cvar_t *bob_roll;
+cvar_t *svg_debug_entity_events = nullptr;
 
 cvar_t *flood_msgs = nullptr;
 cvar_t *flood_persecond = nullptr;
@@ -416,6 +403,13 @@ void SVG_InitGame( void ) {
     // export our own features
     gi.cvar_forceset( "g_features", va( "%d", SVG_FEATURES ) );
 
+	// Debugging cvars.
+	#ifdef USE_DEBUG
+	svg_debug_entity_events = gi.cvar( "svg_debug_entity_events", "1", 0 );
+	#else
+	svg_debug_entity_events = gi.cvar( "svg_debug_entity_events", "0", 0 );
+	#endif
+
     // In case we've modified air acceleration, update the config string.
     //gi.configstring( CS_AIRACCEL, std::to_string( sv_airaccelerate->integer ).c_str() );
     // Update air acceleration config string.
@@ -590,11 +584,11 @@ static void CheckEntityGroundChange( svg_base_edict_t *ent ) {
             if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svFlags & SVF_MONSTER ) ) {
                 ent->groundInfo.entityNumber = ENTITYNUM_NONE;
                 M_CheckGround( ent, mask );
-                // All other entities use this route instead:
+			// All other entities use this route instead:
             } else {
                 // If the ground entity is still 1 unit below us, we're good.
-                Vector3 endPoint = Vector3( ent->s.origin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-                svg_trace_t tr = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, &endPoint.x, ent, mask );
+                Vector3 endPoint = Vector3( ent->currentOrigin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+                svg_trace_t tr = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, endPoint, ent, mask );
 
                 if ( tr.startsolid || tr.allsolid || tr.entityNumber != ent->groundInfo.entityNumber ) {
                     ent->groundInfo.entityNumber = ENTITYNUM_NONE;
@@ -615,7 +609,8 @@ static void CheckSetOldOrigin( svg_base_edict_t *ent ) {
 		// Don't set old_origin for Beam Entities, they do it by hand.
 		( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) )
 		// Don't set old_origin for Temporary Event Entities, they do it by hand.
-		&& !( ent->s.entityType - ET_TEMP_EVENT_ENTITY > 0 ) ) {
+		&& !( ent->s.entityType - ET_TEMP_EVENT_ENTITY > 0 ) 
+	) {
 		// Otherwise, set the old origin.
 		ent->s.old_origin = ent->s.origin;
 	}
@@ -626,8 +621,8 @@ static void CheckSetOldOrigin( svg_base_edict_t *ent ) {
 static void CheckUpdatePusherLastOrigin( svg_base_edict_t *ent ) {
 	if ( ent->s.entityType == ET_PUSHER ) {
 		// Make sure to store the last ... origins and angles.
-		ent->lastOrigin = ent->s.origin;
-		ent->lastAngles = ent->s.angles;
+		ent->lastOrigin = ent->currentOrigin; // ent->lastOrigin = ent->s.origin;
+		ent->lastAngles = ent->currentAngles; // ent->lastAngles = ent->s.angles;
 	}
 }
 
@@ -635,20 +630,13 @@ static void CheckUpdatePusherLastOrigin( svg_base_edict_t *ent ) {
 *   @brief  Advances the world by FRAME_TIME_MS seconds
 **/
 void SVG_RunFrame(void) {
-    // Check for cvars that demand a configstring update if they've changed.
-    //G_CheckCVarConfigStrings();
-
     // Increase the frame number we're in for this level..
     level.frameNumber++;
     // Increase the amount of time that has passed for this level.
     level.time += FRAME_TIME_MS;
-
     // Reseed the mersennery twister.
     mt_rand.seed( level.frameNumber );
 
-    // Choose a client for monsters to target this frame.
-    // WID: TODO: Monster Reimplement.
-    //AI_SetSightClient();
 
     #if 0
     // Exit intermissions.
@@ -657,7 +645,14 @@ void SVG_RunFrame(void) {
         return;
     }
     #else
-    game.mode->PreCheckGameRuleConditions();
+	/**
+	*	Precheck whether we are about to change level or have another reason to
+	*	skip the rest of the frame processing.
+	**/
+	if ( game.mode->PreCheckGameRuleConditions() ) {
+		// We had a level change or something, so we exit this function.
+		return;
+	}
     #endif
 
     // WID: LUA: CallBack.
@@ -737,6 +732,7 @@ void SVG_RunFrame(void) {
             SVG_RunEntity( ent );
         }
     }
+
     // Readjust "movewith" Push/Stop entities.
     SVG_PushMove_UpdateMoveWithEntities();
 

@@ -22,7 +22,7 @@
 /**
 *   @brief
 **/
-void SVG_Player_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput = false );
+void SVG_Player_TraceForUseTarget( svg_player_edict_t *ent, svg_client_t *client, const bool processUserInput = false );
 /**
 *   @brief  Unsets the current client stats usetarget info.
 **/

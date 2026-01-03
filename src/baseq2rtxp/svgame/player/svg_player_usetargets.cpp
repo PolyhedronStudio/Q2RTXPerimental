@@ -110,7 +110,7 @@ void SVG_Player_ClearUseTargetHint( svg_base_edict_t *ent, svg_client_t *client,
 *           Depending on the entity's useTarget flags and state, it will trigger the entity's
 *           usetarget callback appropriately.
 **/
-void SVG_Player_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, const bool processUserInput /*= false */ ) {
+void SVG_Player_TraceForUseTarget( svg_player_edict_t *ent, svg_client_t *client, const bool processUserInput /*= false */ ) {
     // Get the (+targetuse) key state.
     const bool isTargetUseKeyHolding = ( client->userInput.heldButtons & BUTTON_USE_TARGET );
     const bool isTargetUseKeyPressed = ( client->userInput.pressedButtons & BUTTON_USE_TARGET );
@@ -123,7 +123,7 @@ void SVG_Player_TraceForUseTarget( svg_base_edict_t *ent, svg_client_t *client, 
     // Determine the point that is the center of the crosshair, to use as the
     // start of the trace for finding the entity that is in-focus.
     Vector3 viewHeightOffset = { 0., 0., (double)ent->viewheight };
-    Vector3 traceStart = SVG_Player_ProjectSource( ent, ent->s.origin, viewHeightOffset, vForward, vRight );
+    Vector3 traceStart = SVG_Player_ProjectSource( ent, ent->currentOrigin, viewHeightOffset, vForward, vRight );
 
     // Translate 48 units into the forward direction from the starting trace, to get our trace end position.
     constexpr float USE_TARGET_TRACE_DISTANCE = 48.f;

@@ -566,11 +566,6 @@ void SVG_Client_RespawnSpectator( svg_base_edict_t *ent ) {
 
     // Add a teleportation effect
     if ( !ent->client->pers.spectator ) {
-        // send effect
-        //gi.WriteUint8( svc_muzzleflash );
-        //gi.WriteInt16( g_edict_pool.NumberForEdict( ent ) );//ent - g_edicts );
-        //gi.WriteUint8( MZ_LOGIN );
-        //gi.multicast( &ent->s.origin, MULTICAST_PVS, false );
         SVG_Util_AddEvent( ent, EV_PLAYER_LOGIN, 0 );
 
         // hold in place briefly
@@ -653,8 +648,12 @@ void SVG_Client_EndServerFrame( svg_base_edict_t *ent ) {
     *   
     *   If it wasn't updated here, the view position would lag a frame
     *   behind the body position when pushed -- "sinking into plats"
+	* 
+	*	We make sure to do the same for the angles because a pusher
+	*	such as a rotating door can also change the player's orientation.
     **/
-    game.currentViewClient->ps.pmove.origin = game.currentViewPlayer->s.origin;
+    game.currentViewClient->ps.pmove.origin = game.currentViewPlayer->currentOrigin;
+	//game.currentViewClient->ps.viewangles = QM_Vector3AngleMod( game.currentViewPlayer->currentAngles );
     game.currentViewClient->ps.pmove.velocity = game.currentViewPlayer->velocity;
 
     /**

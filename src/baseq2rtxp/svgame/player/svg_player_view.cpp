@@ -168,7 +168,7 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 		//gi.sound( player, CHAN_VOICE, gi.soundindex( va( "*pain%i_%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
 		gi.sound( player, CHAN_VOICE, gi.soundindex( va( "player/pain%i_0%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
 		// Paril: pain noises alert monsters
-		SVG_Player_PlayerNoise( player, player->s.origin, PNOISE_SELF );
+		SVG_Player_PlayerNoise( player, player->currentOrigin, PNOISE_SELF );
 	}
 
 	// the total alpha of the blend is always proportional to count
@@ -217,7 +217,7 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 			kick = 50;
 		}
 
-		VectorSubtract( client->frameDamage.from, player->s.origin, blendColor );
+		VectorSubtract( client->frameDamage.from, player->currentOrigin, blendColor );
 		blendColor = QM_Vector3Normalize( blendColor );
 
 		side = QM_Vector3DotProduct( blendColor, right );
@@ -251,7 +251,7 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 	//			encoded |= 0x80;
 
 			gi.WriteUint8( encoded );
-			Vector3 damageDir = player->s.origin;
+			Vector3 damageDir = player->currentOrigin;
 			damageDir -= indicator.from;
 			const Vector3 normalizedDir = QM_Vector3Normalize( damageDir );
 			gi.WriteDir8( &normalizedDir );
@@ -513,7 +513,7 @@ void P_CalculateBlend( svg_base_edict_t *ent ) {
 
 	//// Add for contents specific.
 	//Vector3 vieworg = {};
-	//VectorAdd( ent->s.origin, ent->client->ps.viewoffset, vieworg );
+	//VectorAdd( ent->currentOrigin, ent->client->ps.viewoffset, vieworg );
 	//vieworg[ 2 ] += ent->client->ps.pmove.viewheight;
 
 	//int32_t contents = gi.pointcontents( &vieworg );
@@ -600,7 +600,7 @@ void P_CheckWorldEffects( void ) {
 	if ( !old_waterlevel && liquidlevel ) {
 		// Feet in.
 		if ( liquidlevel == cm_liquid_level_t::LIQUID_FEET ) {
-			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
+			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
 			if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
 				//gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
 				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
@@ -614,7 +614,7 @@ void P_CheckWorldEffects( void ) {
 				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
 			}
 		} else if ( liquidlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
-			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
+			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
 			if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
 				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
 
@@ -634,7 +634,7 @@ void P_CheckWorldEffects( void ) {
 
 	// If just completely exited a water volume while only feet in, play a sound.
 	if ( !liquidlevel && old_waterlevel == cm_liquid_level_t::LIQUID_FEET ) {
-		SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
+		SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
 		#if 0
 			gi.sound( game.currentViewPlayer, CHAN_AUTO, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
 		#endif
@@ -642,7 +642,7 @@ void P_CheckWorldEffects( void ) {
 	}
 	// If just completely exited a water volume waist or head in, play a sound.
 	if ( !liquidlevel && old_waterlevel >= cm_liquid_level_t::LIQUID_WAIST ) {
-		SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
+		SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
 		#if 0
 			gi.sound( game.currentViewPlayer, CHAN_AUTO, gi.soundindex( "player/water_body_out01.wav" ), 1, ATTN_NORM, 0 );
 		#endif
@@ -661,7 +661,7 @@ void P_CheckWorldEffects( void ) {
 		if ( game.currentViewPlayer->air_finished_time < level.time ) {
 			// gasp for air
 			gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
-			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->s.origin, PNOISE_SELF );
+			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
 		} else  if ( game.currentViewPlayer->air_finished_time < level.time + 11_sec ) {
 			// just break surface
 			gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
@@ -701,7 +701,7 @@ void P_CheckWorldEffects( void ) {
 				// Set next pain time.
 				game.currentViewPlayer->pain_debounce_time = level.time;
 				// Apply drowning damage.
-				SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->s.origin, vec3_origin, game.currentViewPlayer->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
+				SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->currentOrigin, vec3_origin, game.currentViewPlayer->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
 			}
 		}
 	} else {
@@ -725,10 +725,10 @@ void P_CheckWorldEffects( void ) {
 				game.currentViewPlayer->pain_debounce_time = level.time + 1_sec;
 			}
 			// Lava damage
-			SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->s.origin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
+			SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->currentOrigin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
 		} else if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_SLIME ) {
 			// Slime damage
-			SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->s.origin, vec3_origin, 1 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
+			SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->currentOrigin, vec3_origin, 1 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
 		}
 	}
 }
@@ -769,17 +769,19 @@ void SVG_SetClientEvent( svg_base_edict_t *ent ) {
 	//	if ( (int)( game.currentViewClient->bobtime + bobmove ) != bobcycle )
 	//		ent->s.event = EV_FOOTSTEP;
 	//}
-	const Vector3 ladderDistVec = QM_Vector3Subtract( game.currentViewClient->last_ladder_pos, ent->s.origin );
+	const Vector3 ladderDistVec = QM_Vector3Subtract( game.currentViewClient->last_ladder_pos, ent->currentOrigin );
 	const double ladderDistance = QM_Vector3LengthSqr( ladderDistVec );
 	if ( game.currentViewClient->ps.pmove.pm_flags & PMF_ON_LADDER ) {
-		if ( game.currentViewClient->last_ladder_sound < level.time &&
-			ladderDistance > 48.f ) {
+		if ( game.currentViewClient->last_ladder_sound < level.time && ladderDistance > 48. ) {
 			//ent->s.event = EV_FOOTSTEP_LADDER;
 			SVG_Util_AddEvent( ent, EV_FOOTSTEP_LADDER, 0 );
-			VectorCopy( ent->s.origin, game.currentViewClient->last_ladder_pos );
+			VectorCopy( ent->currentOrigin, game.currentViewClient->last_ladder_pos );
+			// Set next ladder sound time.
 			game.currentViewClient->last_ladder_sound = level.time + LADDER_SOUND_TIME;
-
-			gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRId64 ")\n", __func__, level.frameNumber );
+			// Debug print.
+			if ( svg_debug_entity_events->integer ) {
+				gi.dprintf( "%s: EV_FOOTSTEP_LADDER - Frame(#%" PRId64 ")\n", __func__, level.frameNumber );
+			}
 		}
 	}
 }

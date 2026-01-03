@@ -90,8 +90,9 @@ struct svg_gamemode_t : public sg_gamemode_base_t {
 	*	@brief	Called somewhere at the beginning of the game frame. This allows
 	*			to determine if conditions are met to engage exitting intermission
 	*			mode and/or exit the level.
+	*	@return	False if conditions are not yet met to end the game, true otherwise.
 	**/
-	virtual void PreCheckGameRuleConditions() = 0;
+	virtual const bool PreCheckGameRuleConditions() = 0;
 	/**
 	*	@brief	Called somewhere at the end of the game frame. This allows
 	*			to determine if conditions are met to engage into intermission

@@ -6,11 +6,11 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_lua.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
-#include "svgame/svg_lua.h"
 #include "svgame/lua/svg_lua_gamelib.hpp"
 
 #include "svgame/entities/svg_pushmove_edict.h"
@@ -64,7 +64,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveBegin )( svg_pus
     //    ent->nextthink = level.time + FRAME_TIME_S;
     //    ent->think = SVG_PushMove_MoveBegin;
     //} else {
-    const float frames = floor( ( ent->pushMoveInfo.remaining_distance / ent->pushMoveInfo.speed ) / gi.frame_time_s );
+    const double frames = floor( ( ent->pushMoveInfo.remaining_distance / ent->pushMoveInfo.speed ) / gi.frame_time_s );
     ent->pushMoveInfo.remaining_distance -= frames * ent->pushMoveInfo.speed * gi.frame_time_s;
     ent->nextthink = level.time + ( FRAME_TIME_S * frames );
     ent->SetThinkCallback( &ent->onThink_MoveFinal );
@@ -100,7 +100,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_MoveFinal )( svg_pus
     }
 
     // [Paril-KEX] use exact remaining distance
-    ent->velocity = ( ent->pushMoveInfo.dest - ent->s.origin ) * ( 1.f / gi.frame_time_s );
+    ent->velocity = ( ent->pushMoveInfo.dest - ent->currentOrigin ) * ( 1.f / gi.frame_time_s );
     //if ( ent->targetEntities.movewith ) {
     //    VectorAdd( ent->targetEntities.movewith->velocity, ent->velocity, ent->velocity );
     //}
@@ -136,23 +136,23 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_AngleMoveDone )( svg
 *   @brief
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_AngleMoveFinal )( svg_pushmove_edict_t *ent ) -> void {
-    Vector3  move = {};
+    Vector3  amove = {};
 
     // set destdelta to the vector needed to move
     if ( /*ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP || */ ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
-        move = ent->pushMoveInfo.endAngles - ent->s.angles;
+        amove = ent->pushMoveInfo.endAngles - ent->currentAngles;
     } else {
-        move = ent->pushMoveInfo.startAngles - ent->s.angles;
+        amove = ent->pushMoveInfo.startAngles - ent->currentAngles;
     }
 
     // Proceed to end of movement process if we got no 'move' left to make.
-    if ( VectorEmpty( move ) ) {
+    if ( VectorEmpty( amove ) ) {
         ent->onThink_AngleMoveDone( ent );
         return;
     }
 
     // Set angular velocity to the final move vector, for its last move.
-    ent->avelocity = QM_Vector3Scale( move, ( 1.0 / FRAMETIME ) ); /** ent->pushMoveInfo.sign*/
+    ent->avelocity = QM_Vector3Scale( amove, ( 1.0 / FRAMETIME ) ); /** ent->pushMoveInfo.sign*/
 
     // Set next frame think callback to be that of the end of movement processing.
     ent->SetThinkCallback( &ent->onThink_AngleMoveDone );
@@ -176,9 +176,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, onThink_AngleMoveBegin )( sv
 
     // set destdelta to the vector needed to move
     if (/* ent->pushMoveInfo.state == PUSHMOVE_STATE_TOP || */ ent->pushMoveInfo.state == PUSHMOVE_STATE_MOVING_UP ) {
-        destinationDelta = ent->pushMoveInfo.endAngles - ent->s.angles;
+        destinationDelta = ent->pushMoveInfo.endAngles - ent->currentAngles;
     } else {
-        destinationDelta = ent->pushMoveInfo.startAngles - ent->s.angles;
+        destinationDelta = ent->pushMoveInfo.startAngles - ent->currentAngles;
     }
 
 
@@ -275,7 +275,7 @@ void svg_pushmove_edict_t::CalculateDirectionalMove( const Vector3 &destination,
     // Assign new destination.
     pushMoveInfo.dest = destination;
     // Subtract destination and origin to acquire move direction.
-    VectorSubtract( destination, s.origin, pushMoveInfo.dir );
+    VectorSubtract( destination, currentOrigin, pushMoveInfo.dir );
     // Use the normalized direction vector's length to determine the remaining move idstance.
     pushMoveInfo.remaining_distance = VectorNormalize( &pushMoveInfo.dir.x );
     // Setup end move callback function.
@@ -299,7 +299,7 @@ void svg_pushmove_edict_t::CalculateDirectionalMove( const Vector3 &destination,
             pushMoveInfo.curve.frame = 0;
             pushMoveInfo.curve.numberSubFrames = ( 0.1 / gi.frame_time_s ) - 1;
 
-            float total_dist = pushMoveInfo.remaining_distance;
+            double total_dist = pushMoveInfo.remaining_distance;
 
             std::vector<float> distances;
 
@@ -325,7 +325,7 @@ void svg_pushmove_edict_t::CalculateDirectionalMove( const Vector3 &destination,
             }
 
             pushMoveInfo.curve.subFrame = 0;
-            pushMoveInfo.curve.referenceOrigin = s.origin;
+            pushMoveInfo.curve.referenceOrigin = currentOrigin;
             pushMoveInfo.curve.countPositions = distances.size();
 
             // Q2RE: We dun have this kinda stuff 'yet'.
@@ -567,7 +567,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_pushmove_edict_t, SVG_PushMove_Think_Accelerat
 
     self->pushMoveInfo.curve.numberFramesDone++;
     Vector3 target_pos = self->pushMoveInfo.curve.referenceOrigin + ( self->pushMoveInfo.dir * target_dist );
-    self->velocity = ( target_pos - self->s.origin ) * ( 1. / gi.frame_time_s );
+    self->velocity = ( target_pos - self->currentOrigin ) * ( 1. / gi.frame_time_s );
     self->nextthink = level.time + FRAME_TIME_S;
 }
 

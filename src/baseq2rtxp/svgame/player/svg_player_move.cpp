@@ -227,7 +227,7 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
     pm->state = &client->ps;
 
     // Copy the current entity origin and velocity into our 'pmove movestate'.
-    pm->state->pmove.origin = ent->s.origin;
+    pm->state->pmove.origin = ent->currentOrigin;
     pm->state->pmove.velocity = ent->velocity;
 
     // Setup the gravity. PGM	trigger_gravity support
@@ -275,12 +275,16 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
 
     // Ensure the entity has proper RF_STAIR_STEP applied to it when moving up/down those:
     if ( pm->ground.entityNumber != ENTITYNUM_NONE && ent->groundInfo.entityNumber != ENTITYNUM_NONE ) {
+		// Use the previously stored origin to determine if we stepped up/down a stair.
         const double stepsize = fabs( ent->s.origin[ 2 ] - pm->state->pmove.origin[ 2 ] );
         if ( stepsize > PM_STEP_MIN_SIZE && stepsize <= PM_STEP_MAX_SIZE ) {
             ent->s.renderfx |= RF_STAIR_STEP;
             ent->client->last_stair_step_frame = level.frameNumber;
         }
     }
+
+	// Update the entity origin to the new position.
+	SVG_Util_SetEntityOrigin( ent, pm->state->pmove.origin, true );
 }
 /**
 *   @brief  Copy in the remaining player move data into the entity and client structs, responding to possible changes.
@@ -288,7 +292,7 @@ static void PMove_RunFrame( svg_player_edict_t *ent, svg_client_t *client, userc
 static void PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *client, pmove_t &pm ) {
     // [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
     if ( ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) != ( client->ps.pmove.pm_flags & PMF_ON_LADDER ) ) {
-        client->last_ladder_pos = ent->s.origin;
+        client->last_ladder_pos = ent->currentOrigin;
 
         if ( pm.state->pmove.pm_flags & PMF_ON_LADDER ) {
             if ( !deathmatch->integer &&
@@ -372,7 +376,7 @@ static void PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *client, pmov
 static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
 
     // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
-    if ( ent->movetype != MOVETYPE_NOCLIP ) {
+    if ( ent->movetype != MOVETYPE_NOCLIP && !client->resp.spectator ) {
         SVG_Util_TouchTriggers( ent );
         SVG_Util_TouchProjectiles( ent, oldOrigin );
     }
@@ -380,6 +384,8 @@ static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *cli
     // <Q2RTXP>: WID: We do this here to prevent collision issues.
     // Copy back into the entity, both the resulting origin.
     //ent->s.origin = pm.state->pmove.origin;
+	// Update the entity origin to the new position.
+	SVG_Util_SetEntityOrigin( ent, client->ps.pmove.origin, true );
 
 	// Relink the entity now that its position has been updated.
     gi.linkentity( ent );

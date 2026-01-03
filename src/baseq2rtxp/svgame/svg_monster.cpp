@@ -71,11 +71,11 @@ void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
 	}
 
 	// If the hull point one-quarter unit down is solid the entity is on ground.
-	point[ 0 ] = ent->s.origin[ 0 ];
-	point[ 1 ] = ent->s.origin[ 1 ];
-	point[ 2 ] = ent->s.origin[ 2 ] - 0.25f;
+	point[ 0 ] = ent->currentOrigin[ 0 ];
+	point[ 1 ] = ent->currentOrigin[ 1 ];
+	point[ 2 ] = ent->currentOrigin[ 2 ] - 0.25f;
 
-	trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, point, ent, mask );
+	trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, point, ent, mask );
 
 	// check steepness
 	if ( trace.plane.normal[ 2 ] < 0.7f && !trace.startsolid ) {
@@ -88,7 +88,8 @@ void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
 //  if (!trace.startsolid && !trace.allsolid)
 //      VectorCopy (trace.endpos, ent->s.origin);
 	if ( !trace.startsolid && !trace.allsolid ) {
-		VectorCopy( trace.endpos, ent->s.origin );
+		//VectorCopy( trace.endpos, ent->s.origin );
+		SVG_Util_SetEntityOrigin( ent, trace.endpos );
 		ent->groundInfo.entityNumber = trace.ent->s.number;
 		ent->groundInfo.entityLinkCount = trace.ent->linkCount;
 		ent->velocity[ 2 ] = 0;
