@@ -25,13 +25,46 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_areaportal_t, onUse )( svg_func_areaportal_
  //   gi.SetAreaPortalState( self->style, self->count );
 	//gi.linkentity( self );
     
-    self->count ^= 1;
+	if ( useType == ENTITY_USETARGET_TYPE_SET ) {
+		self->count = useValue;
+
+		if ( svg_debug_areaportals->integer ) {
+			gi.dprintf( "%s: ENTITY_USETARGET_TYPE_SET targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
+				__func__, ( self->targetname ? ( const char * )self->targetname : "<null>" ), self->style, ( int )self->count );
+		}
+	} else if ( useType == ENTITY_USETARGET_TYPE_ON ) {
+		self->count = 1;
+		if ( svg_debug_areaportals->integer ) {
+			gi.dprintf( "%s: ENTITY_USETARGET_TYPE_ON targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
+				__func__, ( self->targetname ? ( const char * )self->targetname : "<null>" ), self->style, ( int )self->count );
+		}
+	} else if ( useType == ENTITY_USETARGET_TYPE_OFF ) {
+		self->count = 0;
+		if ( svg_debug_areaportals->integer ) {
+			gi.dprintf( "%s: ENTITY_USETARGET_TYPE_OFF targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
+				__func__, ( self->targetname ? ( const char * )self->targetname : "<null>" ), self->style, ( int )self->count );
+		}
+	} else if ( useType == ENTITY_USETARGET_TYPE_TOGGLE ) {
+		self->count ^= 1;
+		if ( svg_debug_areaportals->integer ) {
+			gi.dprintf( "%s: ENTITY_USETARGET_TYPE_TOGGLE targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
+				__func__, ( self->targetname ? ( const char * )self->targetname : "<null>" ), self->style, ( int )self->count );
+		}
+	}
+		//} else {
+	//	self->count ^= 1;
+	//	gi.dprintf( "%s: Default UseTarget Path targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
+	//		__func__, ( self->targetname ? ( const char * )self->targetname : "<null>" ), self->style, ( int )self->count );
+	//}
+
+	// Set the area portal state in the collision model.
     gi.SetAreaPortalState( self->style, self->count );
+	// Re-link entity so server/client snapshots reflect the change.
+	gi.linkentity( self );
 
     //gi.dprintf( "portalstate(#%i) = \"%s\"\n", self->style, ( self->count ? "isOpen" : "isClosed" ) );
                 // Developer debug to help track intermittent map-specific failures.
-    gi.dprintf( "%s: SetAreaPortal targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
-        __func__, ( self->targetname ? (const char *)self->targetname : "<null>" ), self->style, (int)self->count );
+
 }
 
 /*QUAKED func_areaportal (0 0 0) ?
@@ -44,15 +77,21 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_areaportal_t, onSpawn )( svg_func_areapor
 
     // Entity type.
     self->s.entityType = ET_AREA_PORTAL;
-    // Use Callback for triggering.
+	// Use Callback for triggering.
+	// (Doors and/or other trigger entities will use this to open/close the portal.)
     self->SetUseCallback( &SelfType::onUse );
-    // Ensure entity count mirrors portal state.
-	self->count = 0; // Always start closed.
+	
+	// Temporarily set to opened so linking works correctly.
+	self->count = 1;
 	// Link entity so the server knows about it.
-    //gi.linkentity( self );
+	gi.linkentity( self );
 
-    // Always start closed;
-    //gi.SetAreaPortalState( ent->style, 0 );
-    // Used for area state.
-    //ent->count = gi.GetAreaPortalState( ent->style );     
+	// Now Ensure entity count mirrors actual portal state.
+	self->count = gi.GetAreaPortalState( self->style ); // Always start opened unless specified otherwise.
+
+	if ( svg_debug_areaportals->integer ) {
+		// Notify about spawn.
+		gi.dprintf( "%s: Spawned func_areaportal targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
+			__func__, ( self->targetname ? ( const char * )self->targetname : "<null>" ), self->style, ( int )self->count );
+	}
 }

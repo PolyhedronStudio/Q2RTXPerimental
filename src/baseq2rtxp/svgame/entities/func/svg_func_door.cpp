@@ -15,6 +15,7 @@
 
 #include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_entities.h"
+#include "svgame/entities/func/svg_func_areaportal.h"
 #include "svgame/entities/func/svg_func_door.h"
 #include "svgame/entities/func/svg_func_door_rotating.h"
 
@@ -89,20 +90,33 @@ void svg_func_door_t::SetAreaPortal( const bool isOpen ) {
         return;
     }
 
-    while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname ), (const char *)targetNames.target ) ) ) {
-        if ( func_area->s.entityType == ET_AREA_PORTAL ) {
-            // Update collision model portal state (flooding will be recalculated there)
-            gi.SetAreaPortalState( func_area->style, isOpen );
-            // Keep the areaportal entity itself in sync so server code / spawn logic
-            // that inspects the entity (and any networked fields) isn't left stale.
-            func_area->count = ( isOpen ? 1 : 0 );
-            // Re-link the entity so the server/client snapshots reflect the change.
-            gi.linkentity( func_area );
+	// Find all func_areaportal entities with matching targetname.
+	while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname ), ( const char * )targetNames.target ) ) ) {
+		const bool isAreaPortal =
+			( func_area->s.entityType == ET_AREA_PORTAL ) ||
+			( func_area->classname && strcmp( ( const char * )func_area->classname, "func_areaportal" ) == 0 );
 
-            // Developer debug to help track intermittent map-specific failures.
-            gi.dprintf( "%s: SetAreaPortal targetname=\"%s\" style=%d isOpen=%d\n",
-                __func__, ( func_area->targetname ? (const char *)func_area->targetname : "<null>" ), func_area->style, (int)func_area->count );
-        }
+		// Not an areaportal, skip it.
+		if ( !isAreaPortal ) {
+			continue;
+		}
+
+		// Use target the areaportal.
+		svg_func_areaportal_t *areaPortal = static_cast< svg_func_areaportal_t * >( func_area );
+		areaPortal->DispatchUseCallback( this, this, ENTITY_USETARGET_TYPE_SET, ( isOpen ? 1 : 0 ) );
+
+        //// Update collision model portal state (flooding will be recalculated there)
+        //gi.SetAreaPortalState( func_area->style, isOpen );
+        //// Keep the areaportal entity itself in sync so server code / spawn logic
+        //// that inspects the entity (and any networked fields) isn't left stale.
+        //func_area->count = ( isOpen ? 1 : 0 );
+        //// Re-link the entity so the server/client snapshots reflect the change.
+        //gi.linkentity( func_area );
+
+        // Developer debug to help track intermittent map-specific failures.
+		gi.dprintf( "%s: SetAreaPortal targetname=\"%s\" style=%d isOpen=%d\n",
+			__func__, ( func_area->targetname ? ( const char * )func_area->targetname : "<null>" ),
+			func_area->style, ( int )func_area->count );
     }
 }
 
@@ -669,11 +683,11 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_door_t, onUse )( svg_func_door_t *self, svg
         Vector3 vForward = {};
         QM_AngleVectors( vActivatorAngles, &vForward, nullptr, nullptr );
         // Calculate direction.
-        Vector3 vActivatorOrigin = activator->s.origin;
-        Vector3 vDir = vActivatorOrigin - self->s.origin;
+        Vector3 vActivatorOrigin = activator->currentOrigin;
+        Vector3 vDir = vActivatorOrigin - self->currentOrigin;
 
         // Calculate estimated next frame 
-        Vector3 vNextFrame = ( vActivatorOrigin + ( vForward * 10 ) ) - self->s.origin;
+        Vector3 vNextFrame = ( vActivatorOrigin + ( vForward * 10 ) ) - self->currentOrigin;
         // Determine direction sign.
         if ( ( vDir.x * vNextFrame.y - vDir.y * vNextFrame.x ) > 0 ) {
             directionSign *= -1.0f;
@@ -737,8 +751,8 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_door_t, onBlocked )( svg_func_door_t *s
         }
         return;
     }
-
-    SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
+	// Use currentOrigin for clients/monsters, as they are moving around.
+    SVG_DamageEntity( other, self, self, vec3_origin, other->currentOrigin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 
     if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_CRUSHER ) {
         return;
@@ -870,11 +884,14 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_door_t, onTouch )( svg_func_door_t *self,
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_door_t, onPostSpawn )( svg_func_door_t *self ) -> void {
-    if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_START_OPEN ) {
-        //SVG_UseTargets( self, self );
-        self->SetAreaPortal( true );
+    if ( self->pushMoveInfo.state == DOOR_STATE_OPENED ) {
+        SVG_UseTargets( self, self, ENTITY_USETARGET_TYPE_SET, 1 );
+        //self->SetAreaPortal( true );
         //self->pushMoveInfo.state = DOOR_STATE_OPENED;
-    }
+	} else {
+		//self->SetAreaPortal( false );
+		SVG_UseTargets( self, self, ENTITY_USETARGET_TYPE_SET, 0 );
+	}
 }
 
 /**
@@ -941,6 +958,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self 
 
     // if it starts open, switch the positions
     if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+		// Setup the origins and angles for movement.
         VectorCopy( self->pos2, self->s.origin );
         self->pos2 = self->pos1;
         self->pos1 = self->s.origin;
@@ -1019,6 +1037,10 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_t, onSpawn )( svg_func_door_t *self 
         self->pushMoveInfo.endOrigin = self->pos2;
         self->pushMoveInfo.endAngles = self->s.angles;
     }
+
+	// Setup the origins and angles for movement.
+	SVG_Util_SetEntityOrigin( self, self->pushMoveInfo.startOrigin, true );
+	SVG_Util_SetEntityAngles( self, self->pushMoveInfo.startAngles, true );
 
     // Since we're closing or closed, set usetarget hint ID to 'open door'.
     door_usetarget_update_hint( self );

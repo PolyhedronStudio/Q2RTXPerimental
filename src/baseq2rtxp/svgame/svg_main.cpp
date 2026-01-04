@@ -97,6 +97,7 @@ cvar_t *sv_gravity = nullptr;
 cvar_t *sv_rollspeed = nullptr;
 cvar_t *sv_rollangle = nullptr;
 
+cvar_t *svg_debug_areaportals = nullptr;
 cvar_t *svg_debug_entity_events = nullptr;
 
 cvar_t *flood_msgs = nullptr;
@@ -406,8 +407,10 @@ void SVG_InitGame( void ) {
 	// Debugging cvars.
 	#ifdef USE_DEBUG
 	svg_debug_entity_events = gi.cvar( "svg_debug_entity_events", "1", 0 );
+	svg_debug_areaportals = gi.cvar( "svg_debug_areaportals", "1", 0 );
 	#else
 	svg_debug_entity_events = gi.cvar( "svg_debug_entity_events", "0", 0 );
+	svg_debug_areaportals = gi.cvar( "svg_debug_areaportals", "0", 0 );
 	#endif
 
     // In case we've modified air acceleration, update the config string.

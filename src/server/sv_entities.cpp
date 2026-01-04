@@ -437,33 +437,56 @@ static inline const bool SV_CheckEntitySoundDistance( sv_edict_t *ent, const Vec
 *   @brief  Determines if an entity is hearable/visible to the client based on PVS/PHS.
 **/
 static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &viewOrigin, cm_t *cm, const int32_t clientCluster, const int32_t clientArea, byte *clientPVS, byte *clientPHS, const int32_t cullNonVisibleEntities ) {
-	// Subtract the temp event entity type offset to determine if this is a temp event entity.
-	// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
-	const bool isTempEventEntity = ( ent->s.entityType - ge->GetTempEventEntityTypeOffset() > 0 );
+	/**
+	*	Subtract the temp event entity type offset to determine if this is a temp event entity.
+	*	A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
+	**/
+	const bool isTempEventEntity = ( ent->s.entityType - ge->GetTempEventEntityTypeOffset() >= 0 );
+
+	/**
+	*   Client ID based skipping:
+	**/
+	// Cull non-visible entities unless this entity is requested not to.
+	if ( ( ent->svFlags & SVF_NO_CULL ) != 0 ) {
+		return true;
+	}
 
 	/**
     *   Check area visibility:
     **/
-    if ( clientCluster >= 0 && !CM_AreasConnected( cm, clientArea, ent->areaNumber0 ) ) {
-        // Doors can legally straddle two areas, so we may need to check another one.
-        if ( !CM_AreasConnected( cm, clientArea, ent->areaNumber1 ) ) {
-            // Blocked by a door.
-            return false;
-        }
+	bool entityVisible = true;
+
+	// Doors can legally straddle two areas, so we may need to check another one.
+	if ( clientCluster >= 0 ) {
+		const bool connected0 = CM_AreasConnected( cm, clientArea, ent->areaNumber0 );
+		const bool connected1 = ( ent->areaNumber1 != 0 ) ? CM_AreasConnected( cm, clientArea, ent->areaNumber1 ) : false;
+
+		if ( !connected0 && !connected1 ) {
+			entityVisible = false;
+		}
+	}
     /**
     *   If visible by area:
     **/
-    } else {
+	if ( entityVisible == true ) {
+		/**
+		*	Only do a PHS check for temp event entities that are pointing from one place to another.
+		**/
 		if ( isTempEventEntity && ( !VectorCompare( ent->s.origin, ent->s.old_origin ) ) ) {
 			if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
-				return false;
+				entityVisible = false;
 			}
 		}
-        // beams just check one point for PHS
-		else if ( ent->s.renderfx & RF_BEAM ) {
+        /**
+		*	Beams just check one point for PHS
+		**/
+		else if ( ( ent->s.entityType == ET_BEAM ) || ( ent->s.renderfx & RF_BEAM ) ) {
 			if ( !Q_IsBitSet( clientPHS, ent->clusterNumbers[ 0 ] ) ) {
-				return false;
+				entityVisible = false;
 			}
+		/**
+		*	Default Entity Path:
+		**/
         } else {
             if ( cullNonVisibleEntities ) {
                 // Too many leafs for individual check, go by headNode:
@@ -471,21 +494,22 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
                     // Does the client's PVS touch the ent's headnode?
                     if ( !CM_HeadnodeVisible( CM_NodeForNumber( cm, ent->headNode ), clientPVS ) ) {
                         // Not visible
-                        return false;
-                    }
+						entityVisible = false;
+					}
                 } else {
                     // Check individual leafs.
                     int32_t i = 0;
                     for ( i = 0; i < ent->numberOfClusters; i++ ) {
                         // Visible in one leaf?
                         if ( Q_IsBitSet( clientPVS, ent->clusterNumbers[ i ] ) ) {
-                            break;
+							//return true; // Visible
+							break;
                         }
                     }
                     // Not visible in any leaf.
                     if ( i == ent->numberOfClusters ) {
                         // Not visible.
-                        return false;
+						entityVisible = false;
                     }
                 }
             }
@@ -494,7 +518,7 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
             *   Don't send sounds if they will be attenuated away.
             **/
             if ( !SV_CheckEntitySoundDistance( ent, viewOrigin ) ) {
-                return false;
+				entityVisible = false;
             }
         }
         ///**
@@ -505,7 +529,7 @@ static inline const bool SV_CheckEntityInFrame( sv_edict_t *ent, const Vector3 &
         //}
     }
 
-    return true;
+    return entityVisible;
 }
 
 /**
@@ -517,11 +541,11 @@ void SV_BuildClientFrame( client_t *client ) {
     static byte        clientPHS[ VIS_MAX_BYTES ];
     static byte        clientPVS[ VIS_MAX_BYTES ];
     // Clear the PHS/PVS buffers.
-    memset( clientPHS, 0, sizeof( clientPHS ) );
-    memset( clientPVS, 0, sizeof( clientPVS ) );
+    std::memset( clientPHS, 0, sizeof( clientPHS ) );
+    std::memset( clientPVS, 0, sizeof( clientPVS ) );
 
     // Cvar to cull non-visible entities.
-    int32_t cullNonVisibleEntities = sv_cull_nonvisible_entities->integer;
+    const int32_t cullNonVisibleEntities = sv_cull_nonvisible_entities->integer;
 
     /**
     *   Get the client's edict.
@@ -537,33 +561,68 @@ void SV_BuildClientFrame( client_t *client ) {
     **/
     // Get the frame for this client.
     sv_client_frame_t *frame = &client->frames[ client->framenum & UPDATE_MASK ];
-    // Set the frame number that we're at for this specific client.
+	// Acquire ptr to playerstate.
+	player_state_t *ps = &clent->client->ps;
+	/**
+	*   Set up the new frame
+	**/
+	// Set the frame number that we're at for this specific client.
     frame->number = client->framenum;
     // Save it for ping calc later.
     frame->sentTime = com_eventTime;
     // Not yet 'acked', (will be set later).
     frame->latency = -1;
-
     // Make sure to increment the count of sent frames
     client->frames_sent++;
+
+	/**
+	*   Setup playerstate, ensure the frame has the correct clientNum:
+	**/
+	// Assign the clientNum from the entity's client structure.
+	// <Q2RTXP>: WID: This is commented out, because it'll be set to that of other clients in case of
+	// spectating. We need to keep the actual client number of the client here.
+	//ps->clientNumber = clent->client->clientNum;
+	//-----------------------------------------------
+	// If the clientNum is invalid, fix it.
+	if ( !VALIDATE_CLIENTNUM( ps->clientNumber ) ) {
+		// Warn.
+		Com_WPrintf( "%s: bad clientNum " PRId32 " for client " PRId32 "\n",
+			__func__, ps->clientNumber, client->number );
+
+		// Fix the clientNum by resetting it to our own default received at connection time.
+		ps->clientNumber = client->number;
+	}
+	// Set the frame's playerstate to the current player_state_t
+	frame->ps = *ps;
 
     /**
     *   Find the client's PVS to determine potentially visible entities
     **/
-    player_state_t *ps = &clent->client->ps;
     // Add the viewoffset to the pmove origin to get the full view position.
-    Vector3 viewOrigin = ps->pmove.origin + ps->viewoffset; //VectorAdd( ps->viewoffset, ps->pmove.origin, org );
-    // Also make sure to add the actual viewheight to the origin.
-    viewOrigin.z += ps->pmove.viewheight;
-
-    /**
-    *   Determine the leaf and area/cluster the client is currently in.
-    **/
+	Vector3 viewOrigin = ( ps->pmove.origin + ps->viewoffset ) + Vector3{ 0.f, 0.f, ( float )ps->pmove.viewheight }; //VectorAdd( ps->viewoffset, ps->pmove.origin, org );
+	// Determine the leaf and area/cluster the client is currently in.
     mleaf_t *leaf = CM_PointLeaf( client->cm, &viewOrigin.x );
     const int32_t clientArea = leaf->area;
     const int32_t clientCluster = leaf->cluster;
+	/**
+	*   Determine the PVS and PHS for the client.
+	**/
+	// If the client is in a valid cluster, calc full PVS.
+	if ( clientCluster >= 0 ) {
+		// {VS:
+		CM_FatPVS( client->cm, clientPVS, &viewOrigin.x, DVIS_PVS2 );
+		// PHS:
+		CM_FatPVS( client->cm, clientPHS, &viewOrigin.x, DVIS_PHS );
+		// Store last valid cluster for this client.
+		client->last_valid_cluster = clientCluster;
+	} else {
+		// PVS:
+		BSP_ClusterVis( client->cm->cache, clientPVS, client->last_valid_cluster, DVIS_PVS2 );
+		// PHS:
+		BSP_ClusterVis( client->cm->cache, clientPHS, client->last_valid_cluster, DVIS_PHS );
+	}
 
-    /**
+	/**
     *   Calculate the visible areas for the client and write them to the frame.
     **/
     // Calculate the visible areas.
@@ -574,41 +633,6 @@ void SV_BuildClientFrame( client_t *client ) {
         frame->areabits[ 0 ] = 255;
         frame->areabytes = 1;
     }
-
-    /**
-    *   Setup playerstate, ensure the frame has the correct clientNum:
-    **/
-    // Assign the clientNum from the entity's client structure.
-    // <Q2RTXP>: WID: This is commented out, because it'll be set to that of other clients in case of
-	// spectating. We need to keep the actual client number of the client here.
-    //ps->clientNumber = clent->client->clientNum;
-
-
-    // If the clientNum is invalid, fix it.
-    if ( !VALIDATE_CLIENTNUM( ps->clientNumber ) ) {
-        // Warn.
-        Com_WPrintf( "%s: bad clientNum " PRId32 " for client " PRId32 "\n",
-            __func__, ps->clientNumber, client->number );
-
-        // Fix the clientNum by resetting it to our own default received at connection time.
-        ps->clientNumber = client->number;
-    }
-    // Set the frame's playerstate to the current player_state_t
-    frame->ps = *ps;
-
-    /**
-    *   Determine the PVS and PHS for the client.
-    **/
-    // If the client is in a valid cluster, calc full PVS.
-    if ( clientCluster >= 0 ) {
-        CM_FatPVS( client->cm, clientPVS, &viewOrigin.x, DVIS_PVS2 );
-        client->last_valid_cluster = clientCluster;
-        // PVS:
-    } else {
-        BSP_ClusterVis( client->cm->cache, clientPVS, client->last_valid_cluster, DVIS_PVS2 );
-    }
-    // PHS:
-    BSP_ClusterVis( client->cm->cache, clientPHS, clientCluster, DVIS_PHS );
 
     /**
     *   Now build the list of visible entities for this client frame.
@@ -635,7 +659,7 @@ void SV_BuildClientFrame( client_t *client ) {
         }
 
         /**
-        *   Determine whether the entity should be sent to this client.
+        *   Client ID based Skipping:
         **/
         if ( SV_SendClientIDSkipCheck( ent, frame->ps.clientNumber ) ) {
             continue;
@@ -647,16 +671,21 @@ void SV_BuildClientFrame( client_t *client ) {
         // Default to visible.
         bool entityVisibleForFrame = true;
 
-		// Subtract the temp event entity type offset to determine if this is a temp event entity.
-		// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
-		const bool isTempEventEntity = ( ent->s.entityType - ge->GetTempEventEntityTypeOffset() > 0 );
+		/**
+		*	Subtract the temp event entity type offset to determine if this is a temp event entity.
+		*	A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY always comes last in the entityType enum.
+		**/
+		const bool isTempEventEntity = ( ent->s.entityType - ge->GetTempEventEntityTypeOffset() >= 0 );
 
-        // Cull non-visible entities unless this entity is requested not to.
-        if ( !( ent->svFlags & SVF_NO_CULL ) ) {
-            /**
+		/**
+		*   If we are not the entity's own client:
+		*   Check PVS/PHS for visibility, and ignore if not touching a PV leaf.
+		**/
+		if ( ent != clent ) {
+			/**
 			*	Unless this is an actual Temp Event Entity:
-            *		- Ignore ents without visible models if they have no effects, sound or events.
-            **/
+			*		- Ignore ents without visible models if they have no effects, sound or events.
+			**/
 			// A value of < 0 indicates this is not a temp event entity, as ET_TEMP_EVENT_ENTITY 
 			// always comes last in the entityType enum.
 			if ( !isTempEventEntity ) {
@@ -667,25 +696,19 @@ void SV_BuildClientFrame( client_t *client ) {
 				}
 			}
 
-            /**
-            *   If we are not the entity's own client:
-            *   Check PVS/PHS for visibility, and ignore if not touching a PV leaf.
-            **/
-            if ( ent != clent ) {
-                // Check PVS/PHS visibility.
-                entityVisibleForFrame = SV_CheckEntityInFrame(
-                    ent,
-                    viewOrigin,
+			// Check PVS/PHS visibility.
+			entityVisibleForFrame = SV_CheckEntityInFrame(
+				ent,
+				viewOrigin,
 
-                    client->cm,
+				client->cm,
 
-                    clientCluster, clientArea,
-                    clientPVS, clientPHS,
+				clientCluster, clientArea,
+				clientPVS, clientPHS,
 
-                    cullNonVisibleEntities
-                );
-            }
-        }
+				cullNonVisibleEntities
+			);
+		}
 
         /**
         *   Skip if the entity is not visible, and sv_novis is set, or the entity has no model.
@@ -702,6 +725,13 @@ void SV_BuildClientFrame( client_t *client ) {
             Com_WPrintf( "%s: fixing ent->s.number: (#%d) to (#%d)!\n", __func__, ent->s.number, entityNumber );
             ent->s.number = entityNumber;
         }
+
+		/**
+		*	Entity is visible, store the last valid cluster.
+		**/
+		if ( entityVisibleForFrame ) {
+			ent->lastCluster = ent->clusterNumbers[ 0 ];
+		}
 
         /**
         *   Copy the state of the entity. (So we can modify if needed.)

@@ -2132,7 +2132,7 @@ void SV_Init(void) {
     sv_changemapcmd = Cvar_Get("sv_changemapcmd", "", 0);
 
     sv_allow_map = Cvar_Get("sv_allow_map", "0", 0);
-    sv_cinematics = Cvar_Get("sv_cinematics", "0", CVAR_ROM /*We do not support them*/);
+    sv_cinematics = Cvar_Get("sv_cinematics", "0", 0);
 
 #if !USE_CLIENT
     sv_recycle = Cvar_Get("sv_recycle", "0", 0);

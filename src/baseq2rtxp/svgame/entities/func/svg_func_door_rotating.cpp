@@ -6,17 +6,19 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
-#include "svgame/svg_trigger.h"
-
 #include "svgame/svg_lua.h"
+#include "svgame/svg_trigger.h"
+#include "svgame/svg_utils.h"
+
 #include "svgame/lua/svg_lua_callfunction.hpp"
 
-#include "svgame/entities/svg_entities_pushermove.h"
+#include "sharedgame/sg_entity_flags.h"
+
 #include "svgame/entities/func/svg_func_entities.h"
+#include "svgame/entities/svg_entities_pushermove.h"
 #include "svgame/entities/func/svg_func_door.h"
 #include "svgame/entities/func/svg_func_door_rotating.h"
 
-#include "sharedgame/sg_entity_flags.h"
 
 
 /*QUAKED func_door_rotating (0 .5 .8) ? START_OPEN REVERSE CRUSHER NOMONSTER ANIMATED TOGGLE X_AXIS Y_AXIS
@@ -69,7 +71,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
     #endif
 
     // Clear the angles.
-    VectorClear( self->s.angles );
+	SVG_Util_SetEntityAngles( self, { }, true ); // VectorClear(self->s.angles);
 
     // Set the axis of rotation.
     self->movedir = QM_Vector3Zero();
@@ -256,6 +258,11 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
         self->pushMoveInfo.endAngles = self->angles2;
     }
     #endif
+
+	// Setup the origins and angles for movement.
+	SVG_Util_SetEntityOrigin( self, self->pushMoveInfo.startOrigin, true );
+	SVG_Util_SetEntityAngles( self, self->pushMoveInfo.startAngles, true );
+
     // Animated doors:
     if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_ANIMATED ) ) {
         self->s.entityFlags |= EF_ANIM_ALL;

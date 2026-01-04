@@ -458,6 +458,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_lua.h
 	baseq2rtxp/svgame/svg_misc.h
 	baseq2rtxp/svgame/svg_pushmove_info.h
+    baseq2rtxp/svgame/svg_physics.h
 	baseq2rtxp/svgame/svg_save.h
 	baseq2rtxp/svgame/svg_signalio.cpp
 	baseq2rtxp/svgame/svg_trigger.h

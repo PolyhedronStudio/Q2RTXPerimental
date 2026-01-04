@@ -109,12 +109,23 @@ void SV_ClearWorld( void ) {
 	for ( int32_t i = 0; i < ge->edictPool->max_edicts; i++ ) {
 		// Get edict pointer.s
 		sv_edict_t *ent = EDICT_FOR_NUMBER( i );
+		// Reset entity and world area linking data.
 		if ( ent != nullptr ) {
 			// Unlink.
 			ent->isLinked = false;
 			//ent->area.prev = ent->area.next = NULL;
-			ent->area = {};
+			ent->area = { .next = nullptr, .prev = nullptr };
+			// Reset entity cluster data.
+			ent->numberOfClusters = 0;
+			ent->headNode = -1;
+
+			// Reset entity (state-) data for non clients.
+			if ( ent->client == nullptr ) {
+				ent->Reset();
+			}
 		}
+
+		// Reset entity world area linking data.
 	}
 }
 
@@ -209,7 +220,16 @@ void SV_LinkEdict(cm_t *cm, sv_edict_t *ent)
 	// and retrieve the topnode as well.
     num_leafs = CM_BoxLeafs(cm, ent->absMin, ent->absMax, leafs, MAX_TOTAL_ENT_LEAFS, &topnode);
 
-    // Set the areas.
+	// <Q2RTXP>: TODO: Review this.
+	#if 0
+	// If none of the leafs were inside the map, the
+	// entity is outside the world and can be considered unlinked
+	if ( !num_leafs ) {
+		return;
+	}
+	#endif
+
+	// Set the areas.
     for ( i = 0; i < num_leafs; i++ ) {
         clusters[ i ] = leafs[ i ]->cluster;
         area = leafs[ i ]->area;
@@ -269,7 +289,7 @@ void PF_UnlinkEdict(edict_ptr_t *ent)
 	// Remove from area.
     List_Remove(&ent->area);
 	// Clear area links.
-    ent->area.prev = ent->area.next = NULL;
+    ent->area.prev = ent->area.next = nullptr;
 }
 
 /**
@@ -380,7 +400,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
     ent->linkCount++;
 
 	// Mark linked status as true.
-	ent->isLinked = ( ent->area.prev != nullptr ? true : false );
+	ent->isLinked = true;// ( ent->area.prev != nullptr ? true : false );
 
     // Solid NOT won't have any contents either.
     if ( ent->solid == SOLID_NOT ) {

@@ -17,7 +17,13 @@
 *	@brief	Will setup the refresh entity for the ET_MONSTER centity with the nextState.
 **/
 void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
-    //
+			//clgi.Print( PRINT_DEVELOPER, "CLG_PacketEntity_AddMonster: Entity(#%d), serverframe(%ull)\n", packetEntity->current.number, packetEntity->serverframe );
+
+	
+	//
+	// Lerp Origin:
+	
+	//
     // Lerp Origin:
     //   
     // Step origin discretely, because the frames do the animation properly:

@@ -61,7 +61,7 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 	}
 
 	// Are we dealing with a temporary entity?
-	const bool isTempEventEntity = ( to->entityType - tempEntityOffset > 0 );
+	const bool isTempEventEntity = ( to->entityType - tempEntityOffset >= 0 );
 
 	// send an update
 	uint64_t bits = 0;
@@ -161,13 +161,16 @@ void MSG_WriteDeltaEntity( const entity_state_t *from, const entity_state_t *to,
 		bits |= U_EVENT_PARM_1;
 	}
 
+	//
 	if ( to->renderfx & RF_OLD_FRAME_LERP ) {
 		bits |= U_OLDORIGIN;
+	// WID: netstuff: old_origin fix for temp event entities
 	} else if ( isTempEventEntity && !VectorCompare( to->old_origin, from->old_origin ) ) {
 		if ( !VectorCompare( to->old_origin, to->origin ) ) {
 			bits |= U_OLDORIGIN;
 		}
-	} else if ( to->entityType == ET_BEAM || to->renderfx & RF_BEAM ) {
+	// WID: netstuff: BEAM old_origin fix
+	} else if ( to->entityType == ET_BEAM || ( to->renderfx & RF_BEAM ) != 0 ) {
 		if ( flags & MSG_ES_BEAMORIGIN ) {
 			if ( !VectorCompare( to->old_origin, from->old_origin ) ) {
 				bits |= U_OLDORIGIN;

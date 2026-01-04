@@ -150,25 +150,25 @@ static void CLG_PacketEntity_DetermineMoveDirection( centity_t *packetEntity, en
 *   @return true if the entity is of a type that requires no further processing.
 **/
 static const bool AddPacketEntity( centity_t *packetEntity, entity_state_t *nextState, const int32_t base_entity_flags, const double autorotate ) {
-    switch ( nextState->entityType ) {
-        // Beams:
-    case ET_BEAM:
-        CLG_PacketEntity_AddBeam( packetEntity, &packetEntity->refreshEntity, nextState );
-        break;
-        // Gibs:
-    case ET_GIB:
-        CLG_PacketEntity_AddGib( packetEntity, &packetEntity->refreshEntity, nextState );
-        break;
-        // Items:
-    case ET_ITEM:
-        CLG_PacketEntity_AddItem( packetEntity, &packetEntity->refreshEntity, nextState );
-        break;
-        // Monsters:
-    case ET_MONSTER:
-        // First determine movement properties.
-        //CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, false );
-        // Add Monster Entity.
-        CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, nextState );
+	switch ( nextState->entityType ) {
+		// Beams:
+	case ET_BEAM:
+		CLG_PacketEntity_AddBeam( packetEntity, &packetEntity->refreshEntity, nextState );
+		break;
+		// Gibs:
+	case ET_GIB:
+		CLG_PacketEntity_AddGib( packetEntity, &packetEntity->refreshEntity, nextState );
+		break;
+		// Items:
+	case ET_ITEM:
+		CLG_PacketEntity_AddItem( packetEntity, &packetEntity->refreshEntity, nextState );
+		break;
+		// Monsters:
+	case ET_MONSTER:
+		// First determine movement properties.
+		//CLG_PacketEntity_DetermineMoveDirection( packetEntity, nextState, false );
+
+		CLG_PacketEntity_AddMonster( packetEntity, &packetEntity->refreshEntity, nextState );
         return true;
         break;
         // Players:

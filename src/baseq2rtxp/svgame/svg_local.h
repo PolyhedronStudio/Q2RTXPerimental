@@ -406,6 +406,7 @@ extern cvar_t *sv_gravity;
 extern cvar_t *sv_rollspeed;
 extern cvar_t *sv_rollangle;
 
+extern cvar_t *svg_debug_areaportals;
 extern cvar_t *svg_debug_entity_events;
 
 extern cvar_t *flood_msgs;
