@@ -395,7 +395,7 @@ static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *cli
         const svg_trace_t &tr = svg_trace_t( pm.touchTraces.traces[ i ] );
         svg_base_edict_t *other = tr.ent;
 
-        if ( other != nullptr && other->HasTouchCallback() ) {
+        if ( other != nullptr && other->inUse && other->HasTouchCallback() ) {
             // TODO: Q2RE has these for last 2 args: const svg_trace_t &tr, bool other_touching_self
             // What the??
             other->DispatchTouchCallback( ent, &tr.plane, tr.surface );

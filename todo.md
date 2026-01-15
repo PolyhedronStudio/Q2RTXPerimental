@@ -1,9 +1,68 @@
 # Quake II RTXPerimental Notes:
 These are mainly my personal notes/ideas/interests, and do not per se reflect the actual changes to be made.
 
+```c++
+	// Set the areas.
+    for ( i = 0; i < num_leafs; i++ ) {
+        clusters[ i ] = leafs[ i ]->cluster;
+        area = leafs[ i ]->area;
+        if ( area ) {
+            // doors may legally straggle two areas,
+            // but nothing should evern need more than that
+            if ( ent->areaNumber0 && ent->areaNumber0 != area ) {
+                if ( ent->areaNumber1 && ent->areaNumber1 != area && sv.state == ss_loading ) {
+                    Com_DPrintf( "Object touching 3 areas at %s\n", vtos( ent->absMin ) );
+                }
+                ent->areaNumber1 = area;
+            } else {
+                ent->areaNumber0 = area;
+            }
+        }
+    }
+
+    if ( num_leafs >= MAX_TOTAL_ENT_LEAFS ) {
+        // Assume we missed some leafs, and mark by headNode.
+        ent->numberOfClusters = -1;
+        ent->headNode = CM_NumberForNode( cm, topnode );
+    } else {
+        ent->numberOfClusters = 0;
+        for ( i = 0; i < num_leafs; i++ ) {
+            if ( clusters[ i ] == -1 )
+                continue;        // not a visible leaf
+            for ( j = 0; j < i; j++ )
+                if ( clusters[ j ] == clusters[ i ] )
+                    break;
+            if ( j == i ) {
+                if ( ent->numberOfClusters == MAX_ENT_CLUSTERS ) {
+                    // Assume we missed some leafs, and mark by headNode.
+                    ent->numberOfClusters = -1;
+                    ent->headNode = CM_NumberForNode( cm, topnode );
+                    break;
+                }
+
+                ent->clusterNumbers[ ent->numberOfClusters++ ] = clusters[ i ];
+            }
+        }
+    }
+```
 ## Notes:
 * This is a todo in order to keep track of things to do, ideas to implement, bugs to fix, and so on.
 ---
+* [ ] IMPLEMENT: Wren instead of Lua for game logic scripting.
+    - [ ] Look into Wren embedding.
+    - [ ] Look into Wren C API.
+    - [ ] Look into Wren memory management.
+    - [ ] Look into Wren module system.
+    - [ ] Look into Wren performance.
+    - [ ] Look into Wren debugging support.
+    - [ ] Look into Wren community support.
+    - [ ] Look into Wren documentation quality.
+    - [ ] Implement Wren for game logic scripting.
+* [ ] IMPLEMENT: Skeletal Animation Blending approaches such as  Partial Blending, Additive Blending, and Layered Blending.
+        - [ ] Partial Blending: Blend specific parts of a skeleton while keeping others static.
+        - [ ] Additive Blending: Add the differences between two animations to create a new animation.
+        - [ ] Layered Blending: Combine multiple animations on different layers with varying weights.
+        - [ ] Implement these blending techniques in the existing skeletal animation system.
 * [X] FIX: The weird ztag allocation error when switching maps a few times to then quit the engine.
     - ``recursive error after: Z_Validate: assertion `(z)->magic == Z_MAGIC && (z)->tag != TAG_FREE failed``
     - Was resolved by removing std::fill_n from places where ``var = {};`` or ``std::memset`` is a better option.
@@ -29,9 +88,26 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
               This allows for later on, to decouple the currentOrigin/currentAngles from the entityState's origin/angles,
               which in turn fixes the pusher issue(s).
             - [ ] Look into all entities that move, and ensure they use these functions.
-            - [ ] Ensure that currentOrigin is set at spawn, as well as for the player move
-            mechanics.
-            - [ ] Ensure that whenever SVG_Trace is used, it uses currentOrigin/currentAngles.
+                - [X] Ensure that currentOrigin is set at spawn, as well as for the player move
+                mechanics.
+                - [ ] Ensure that whenever SVG_Trace is used, it uses currentOrigin/currentAngles.
+                - [ ] Patch the following entities to use currentOrigin/currentAngles for collision tracing:
+                    - [ ] func_door
+                    - [ ] func_door_rotating
+                    - [X] func_plat
+                    - [ ] func_rotating
+                    - [ ] func_train
+                    - [ ] func_wall
+                 - [ ] Patch the player move mechanics to use currentOrigin/currentAngles for collision tracing.
+                 - [X] Patch the following functions:
+                    - [/] SV_PushEntity (Still needs client position testing.)
+                    - [/] SV_Push Move (Still needs client position testing.)
+                    - [X] SVG_FlyMove
+                    - [/] SVG_Physics_Toss (Still needs testing.)
+                    - [/] SV_Physics_Step (Still needs testing.)
+                    - [X] SVG_Physics_Noclip
+                    - [X] SV_TestEntityPosition
+
 * [ ] --
 * [ ] Use predicted player entity.
     - [ ] Requires that frame/animation stuff moves to pmove and playerstate.
@@ -57,7 +133,7 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 	* [ ] Laser Events.
 	* [ ] Muzzle Flash Events.
 	* [ ] Misc Events.
-	* [ ] Login, Logout, Teleport. (Also for gamemodes.)
+	* [X] Login, Logout, Teleport. (Also for gamemodes.)
 * [ ] --
 * [ ] Allow custom models on func_ entities such as doors and buttons.
 * [ ] --

@@ -89,10 +89,13 @@ void M_CheckGround( svg_base_edict_t *ent, const cm_contents_t mask ) {
 //      VectorCopy (trace.endpos, ent->s.origin);
 	if ( !trace.startsolid && !trace.allsolid ) {
 		//VectorCopy( trace.endpos, ent->s.origin );
-		SVG_Util_SetEntityOrigin( ent, trace.endpos );
+		SVG_Util_SetEntityOrigin( ent, trace.endpos, true );
 		ent->groundInfo.entityNumber = trace.ent->s.number;
 		ent->groundInfo.entityLinkCount = trace.ent->linkCount;
-		ent->velocity[ 2 ] = 0;
+		ent->groundInfo.material = trace.material;
+		ent->groundInfo.contents = trace.contents;
+		ent->groundInfo.surface = *trace.surface;
+		//ent->velocity[ 2 ] = 0;
 	}
 }
 

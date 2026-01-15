@@ -64,6 +64,9 @@ const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
         return ret;
     }
 
+	// Set map file checksum.
+	cm->checksum = cm->cache->checksum;
+
     // Iterate all BSP texinfos and load in their matching corresponding material file equivelants.
     CM_LoadMaterials( cm );
 

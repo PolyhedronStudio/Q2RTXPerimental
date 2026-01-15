@@ -98,7 +98,7 @@ void svg_decoration_t::Spawn() {
 
 **Physics step:**
 ```cpp
-void SV_Physics_Noclip(svg_base_edict_t *ent) {
+void SVG_Physics_Noclip(svg_base_edict_t *ent) {
     // Simply add velocity to position
     VectorMA(ent->s.origin, FRAMETIME, ent->velocity, ent->s.origin);
     VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
@@ -239,7 +239,7 @@ void SV_Physics_Step(svg_base_edict_t *ent) {
     }
     
     // Move
-    SV_FlyMove(ent, FRAMETIME, ent->clipMask);
+    SVG_FlyMove(ent, FRAMETIME, ent->clipMask);
     gi.linkentity(ent);
     
     // Touch triggers
@@ -308,7 +308,7 @@ void svg_monster_flyer_t::Spawn() {
 
 **Physics step:**
 ```cpp
-void SV_Physics_Toss(svg_base_edict_t *ent) {
+void SVG_Physics_Toss(svg_base_edict_t *ent) {
     // Check if on ground and at rest
     if (ent->groundInfo.entityNumber != ENTITYNUM_NONE) {
         // Check velocity
@@ -332,7 +332,7 @@ void SV_Physics_Toss(svg_base_edict_t *ent) {
     
     // Move
     VectorMA(ent->s.angles, FRAMETIME, ent->avelocity, ent->s.angles);
-    int move = SV_FlyMove(ent, FRAMETIME, ent->clipMask);
+    int move = SVG_FlyMove(ent, FRAMETIME, ent->clipMask);
     gi.linkentity(ent);
     
     // Touch triggers
@@ -691,7 +691,7 @@ int SVG_Physics_ClipVelocity(Vector3 &in, vec3_t normal,
 The core movement algorithm that handles sliding along multiple planes:
 
 ```cpp
-int SV_FlyMove(svg_base_edict_t *ent, float time, cm_contents_t mask) {
+int SVG_FlyMove(svg_base_edict_t *ent, float time, cm_contents_t mask) {
     vec3_t planes[MAX_CLIP_PLANES];  // Max 5 planes
     int numplanes = 0;
     int blocked = 0;

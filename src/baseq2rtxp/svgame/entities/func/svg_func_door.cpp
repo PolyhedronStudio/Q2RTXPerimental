@@ -616,6 +616,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door
 
     // Adjust areaportal: starting to open -> mark portal open
     if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
+		// Update areaportals for PVS awareness.
         self->SetAreaPortal( true );
     }
 }
