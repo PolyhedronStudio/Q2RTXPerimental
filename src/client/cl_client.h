@@ -645,7 +645,7 @@ void Con_Shutdown(void);
 void Con_DrawConsole(void);
 void Con_RunConsole(void);
 void Con_Print(const char *txt);
-void Con_ClearNotify_f(void);
+void Con_ClearNotificationTexts_f(void);
 void Con_ToggleConsole_f(void);
 void Con_ClearTyping(void);
 void Con_Close(bool force);

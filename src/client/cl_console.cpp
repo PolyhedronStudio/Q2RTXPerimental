@@ -142,7 +142,7 @@ void Con_Close(bool force)
     }
 
     Con_ClearTyping();
-    Con_ClearNotify_f();
+    Con_ClearNotificationTexts_f();
 
     Key_SetDest(static_cast<keydest_t>( cls.key_dest & ~KEY_CONSOLE ) ); // WID: C++20: Was without a cast.
 
@@ -180,7 +180,7 @@ static void toggle_console(consoleMode_t mode, chatMode_t chat)
     SCR_EndLoadingPlaque();    // get rid of loading plaque
 
     Con_ClearTyping();
-    Con_ClearNotify_f();
+    Con_ClearNotificationTexts_f();
 
     if (cls.key_dest & KEY_CONSOLE) {
         Key_SetDest(static_cast<keydest_t>( cls.key_dest & ~KEY_CONSOLE )); // WID: C++20: Was without a cast...
@@ -285,10 +285,10 @@ static void Con_Dump_f(void)
 
 /*
 ================
-Con_ClearNotify_f
+Con_ClearNotificationTexts_f
 ================
 */
-void Con_ClearNotify_f(void)
+void Con_ClearNotificationTexts_f(void)
 {
     int     i;
 
@@ -451,7 +451,7 @@ static const cmdreg_t c_console[] = {
     { "messagemode2", Con_MessageMode2_f },
     { "remotemode", Con_RemoteMode_f, CL_RemoteMode_c },
     { "clear", Con_Clear_f },
-    { "clearnotify", Con_ClearNotify_f },
+    { "clearnotify", Con_ClearNotificationTexts_f },
     { "condump", Con_Dump_f, Con_Dump_c },
 
     { NULL }

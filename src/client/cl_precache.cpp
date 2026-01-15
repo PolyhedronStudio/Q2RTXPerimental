@@ -63,153 +63,199 @@ void CL_RegisterSounds(void)
 *   @brief  Registers main BSP file and inline models
 **/
 void CL_RegisterBspModels(void) {
+	// Fetch the map name from the configstrings.
     char *name = cl.configstrings[ CS_MODELS + 1 ];
-    int i, ret;
-
+	// Ensure a map name is actually set.
     if ( !name[ 0 ] ) {
         Com_Error( ERR_DROP, "%s: no map set", __func__ );
+		return;
     }
     
-    ret = CM_LoadMap( &cl.collisionModel, name );   //ret = BSP_Load( name, &cl.collisionModel->cache );
-
+	// Load the map data for the client's collision model.
+    const int32_t ret = CM_LoadMap( &cl.collisionModel, name );   //ret = BSP_Load( name, &cl.collisionModel->cache );
+	// Check for errors.
     if ( cl.collisionModel.cache == nullptr ) {
         Com_Error( ERR_DROP, "Couldn't load %s: %s", name, BSP_ErrorString( ret ) );
+		return;
     }
-
+	// Verify the map checksum.
     if ( cl.collisionModel.cache->checksum != atoi( cl.configstrings[ CS_MAPCHECKSUM ] ) ) {
-        if (cls.demo.playback) {
-            Com_WPrintf("Local map version differs from demo: %i != %s\n",
-                        cl.collisionModel.cache->checksum, cl.configstrings[CS_MAPCHECKSUM]);
-        } else {
-            Com_Error(ERR_DROP, "Local map version differs from server: %i != %s",
-                      cl.collisionModel.cache->checksum, cl.configstrings[CS_MAPCHECKSUM]);
-        }
+		// Different map version.
+		if ( cls.demo.playback ) {
+			Com_WPrintf( "Local map version differs from demo: %i != %s\n",
+				cl.collisionModel.cache->checksum, cl.configstrings[ CS_MAPCHECKSUM ] );
+		} else {
+			Com_Error( ERR_DROP, "Local map version differs from server: %i != %s",
+				cl.collisionModel.cache->checksum, cl.configstrings[ CS_MAPCHECKSUM ] );
+		}
+		return;
     }
 
-    for (i = 1; i < MAX_MODELS; i++) {
+	/**
+	*	Valid map, now iterate all inline models and register them.
+	**/
+    for ( int32_t i = 1; i < MAX_MODELS; i++ ) {
+		// Fetch the model name from the configstrings.
         name = cl.configstrings[CS_MODELS + i];
+		// Break as soon as we found an emtpty string, except for the player model slot.
         if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
             break;
         }
-        if (name[0] == '*')
-            cl.model_clip[i] = BSP_InlineModel( cl.collisionModel.cache, name );
-        else
-            cl.model_clip[i] = NULL;
+		// If it starts with a '*', it's an inline model (Contained within the BSP).
+		if ( name[ 0 ] == '*' ) {
+			cl.model_clip[ i ] = BSP_InlineModel( cl.collisionModel.cache, name );
+		} else {
+			cl.model_clip[ i ] = nullptr;
+		}
     }
 }
 
-/*
-=================
-CL_PrecacheViewModels
-
-Builds a list of visual weapon models
-=================
-*/
+/**
+*	Builds a list of visual weapon models
+**/
 void CL_PrecacheViewModels(void)
 {
     // The client game is in control of these.
     clge->PrecacheViewModels();
 }
 
-/*
-=================
-CL_SetSky
+/**
+*	Setup the sky properly.
+**/
 
-=================
-*/
 void CL_SetSky(void)
 {
     float       rotate = 0;
     int         autorotate = 1;
     vec3_t      axis;
 
-    sscanf(cl.configstrings[CS_SKYROTATE], "%f %d", &rotate, &autorotate);
-    if (sscanf(cl.configstrings[CS_SKYAXIS], "%f %f %f",
-               &axis[0], &axis[1], &axis[2]) != 3) {
-        Com_DPrintf("Couldn't parse CS_SKYAXIS\n");
-        VectorClear(axis);
-    }
-
-    R_SetSky(cl.configstrings[CS_SKY], rotate, autorotate, axis);
+	// Parse sky rotation from configstrings.
+	ssize_t size = sscanf( cl.configstrings[ CS_SKYROTATE ], "%f %d", &rotate, &autorotate );
+	// Check sky axis.from configstrings.
+	if ( sscanf( cl.configstrings[ CS_SKYAXIS ], "%f %f %f", &axis[ 0 ], &axis[ 1 ], &axis[ 2 ] ) != 3 ) {
+		// Debug info.
+		Com_DPrintf( "Couldn't parse CS_SKYAXIS\n" );
+		// Default axis.
+		VectorClear( axis );
+	}
+	// Set the sky in the renderer.
+	R_SetSky( cl.configstrings[ CS_SKY ], rotate, autorotate, axis );
 }
 
 /**
 *   @brief  Called before entering a new level, or after changing dlls
 **/
-void CL_PrepRefresh(void)
-{
-    int         i;
-    char        *name;
+void CL_PrepRefresh(void) {
 
-    if (!cls.ref_initialized)
-        return;
-    if (!cl.mapname[0])
-        return;     // no map loaded
-
-    // register models, pics, and skins
-    R_BeginRegistration(cl.mapname);
-
-    CL_LoadState(LOAD_MODELS);
-
-    clge->PrecacheClientModels();
-
-	if (cl_testmodel->string && cl_testmodel->string[0])
-	{
-		cl_testmodel_handle = R_RegisterModel(cl_testmodel->string);
-		if (cl_testmodel_handle)
-			Com_Printf("Loaded the test model: %s\n", cl_testmodel->string);
-		else
-			Com_WPrintf("Failed to load the test model from %s\n", cl_testmodel->string);
+	// Ensure the renderer is initialized.
+	if ( !cls.ref_initialized ) {
+		return;
 	}
-	else
+	// No map loaded?
+	if ( !cl.mapname[ 0 ] ) {
+		return;     // no map loaded
+	}
+
+	/**
+	*	(Re-)Register models, pics, and skins.
+	**/
+	// Begin a new registration.sequence with the given map name.
+	R_BeginRegistration( cl.mapname );
+	// Switch loading state to models.
+	CL_LoadState( LOAD_MODELS );
+	// First register the main BSP model and inline models.
+	clge->PrecacheClientModels();
+	// Update the screen to make sure the changes are visible.
+	SCR_UpdateScreen();
+
+	// If the user specified a test model, load it now.
+	if ( cl_testmodel->string && cl_testmodel->string[ 0 ] ) {
+		cl_testmodel_handle = R_RegisterModel( cl_testmodel->string );
+		if ( cl_testmodel_handle ) {
+			Com_Printf( "Loaded the test model: %s\n", cl_testmodel->string );
+		} else {
+			Com_WPrintf( "Failed to load the test model from %s\n", cl_testmodel->string );
+		}
+	} else {
 		cl_testmodel_handle = -1;
+	}
 
-    for (i = 2; i < MAX_MODELS; i++) {
-        name = cl.configstrings[CS_MODELS + i];
-        // Ignore MODELINDEX_PLAYER slot.
-        if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
-            break;
-        }
-        // Ignore view models here.
-        if ( name[ 0 ] == '#' ) {
-            continue;
-        }
-        cl.model_draw[i] = R_RegisterModel(name);
-    }
+	// Now iterate all other models and register them.
+	for ( int32_t i = 2; i < MAX_MODELS; i++ ) {
+		// Fetch the model name from the configstrings.
+		const char *name = cl.configstrings[ CS_MODELS + i ];
+		// Break as soon as we found an emtpty string, except for the player model slot.
+		if ( !name[ 0 ] && i != MODELINDEX_PLAYER ) {
+			break;
+		}
+		// Ignore view models here.
+		if ( name[ 0 ] == '#' ) {
+			continue;
+		}
+		// And register the inline model.
+		cl.model_draw[ i ] = R_RegisterModel( name );
+			// Update the screen to make sure the changes are visible.
+		SCR_UpdateScreen();
+	}
 
+	/**
+	*	Load all game images.
+	**/
+	// Engage image loading state.
+	CL_LoadState( LOAD_IMAGES );
+	// Iterate all images in the configstrings and register them.
+	for ( int32_t i = 1; i < MAX_IMAGES; i++ ) {
+		// Fetch the image name from the configstrings.
+		const char *name = cl.configstrings[ CS_IMAGES + i ];
+		// If we found an empty string, break.
+		if ( !name[ 0 ] ) {
+			break;
+		}
+		// Otherwise register the image.
+		cl.image_precache[ i ] = R_RegisterImage( name, IT_PIC, IF_SRGB );//R_RegisterPic2(name);
+			// Update the screen to make sure the changes are visible.
+		SCR_UpdateScreen();
+	}
 
-    CL_LoadState(LOAD_IMAGES);
-    for (i = 1; i < MAX_IMAGES; i++) {
-        name = cl.configstrings[CS_IMAGES + i];
-        if (!name[0]) {
-            break;
-        }
-        cl.image_precache[i] = R_RegisterPic2(name);
-    }
+	/**
+	*	Engage into client and weapon view model precaching.
+	**/
+	CL_LoadState( LOAD_CLIENTS );
+	for ( int32_t i = 0; i < MAX_CLIENTS; i++ ) {
+		// Get the playerskin name from the configstrings.
+		const char *name = cl.configstrings[ CS_PLAYERSKINS + i ];
+		// Skip empty names.
+		if ( !name[ 0 ] ) {
+			CL_LoadClientinfo( &cl.baseclientinfo, "unnamed\\playerdummy" );
+			continue;
+		}
+		// Load the matching specific clientinfo.
+		CL_LoadClientinfo( &cl.clientinfo[ i ], name );
+			// Update the screen to make sure the changes are visible.
+		SCR_UpdateScreen();
+	}
+	// Also load the base dummy clientinfo.
+	CL_LoadClientinfo( &cl.baseclientinfo, "unnamed\\playerdummy" );
 
-    CL_LoadState(LOAD_CLIENTS);
-    for (i = 0; i < MAX_CLIENTS; i++) {
-        name = cl.configstrings[CS_PLAYERSKINS + i];
-        if (!name[0]) {
-            continue;
-        }
-        CL_LoadClientinfo(&cl.clientinfo[i], name);
-    }
+	/**
+	*	Set sky textures and speed.
+	**/
+	CL_SetSky();
 
-    CL_LoadClientinfo(&cl.baseclientinfo, "unnamed\\playerdummy");
+	/**
+	*	The renderer can now free any unneeded stuff.
+	*	(Which was loaded in a previous map load.)
+	**/
+	R_EndRegistration();
 
-    // set sky textures and speed
-    CL_SetSky();
+	// Clear any lines of console text that were around.
+	Con_ClearNotificationTexts_f();
+	// Update the screen to make sure the changes are visible.
+	SCR_UpdateScreen();
 
-    // the renderer can now free unneeded stuff
-    R_EndRegistration();
-
-    // clear any lines of console text
-    Con_ClearNotify_f();
-
-    SCR_UpdateScreen();
-
-    // start the cd track
+    /**
+	*	Start the cd track (if any.)
+	**/
     OGG_Play();
 }
 
@@ -256,37 +302,42 @@ void CL_UpdateConfigstring( const int32_t index ) {
     }
 
     // Any updates below are for 'in-game' state where data was precached,
-    // but has changed by the 'server game' module.
-    if (cls.state < ca_precached) {
-        return;
-    }
+    // but the CONFIGSTRING has changed by the 'server game' module.
+	if ( cls.state < ca_precached ) {
+		return;
+	}
 
     // Reload the refresh model data, and in case of an inline brush model
     // also load its clipping model.
-    if (index >= CS_MODELS + 2 && index < CS_MODELS + MAX_MODELS) {
-        int i = index - CS_MODELS;
-
-        cl.model_draw[i] = R_RegisterModel(s);
-        if (*s == '*')
-            cl.model_clip[i] = BSP_InlineModel( cl.collisionModel.cache, s);
-        else
-            cl.model_clip[i] = NULL;
+    if (index >= CS_MODELS + 2 && index < CS_MODELS + MAX_MODELS ) {
+		// Calculate the model array index.
+        const int32_t i = index - CS_MODELS;
+		// Register the model for drawing.
+		cl.model_draw[ i ] = R_RegisterModel( s );
+		// Load the inline model for clipping too.
+		if ( *s == '*' ) {
+			cl.model_clip[ i ] = BSP_InlineModel( cl.collisionModel.cache, s );
+		} else {
+			// Unset it in the clipping model array, because it has now been replaced by
+			// a non-inline BSP model. It is now a regular entity model.
+			cl.model_clip[ i ] = nullptr;
+		}
         return;
     }
 
-    // Reload the sound.
+    // Reload the sound ConfigString.
     if (index >= CS_SOUNDS && index < CS_SOUNDS + MAX_SOUNDS) {
         cl.sound_precache[index - CS_SOUNDS] = S_RegisterSound(s);
         return;
     }
 
-    // Reload the image.
+    // Reload the image ConfigString.
     if (index >= CS_IMAGES && index < CS_IMAGES + MAX_IMAGES) {
         cl.image_precache[index - CS_IMAGES] = R_RegisterPic2(s);
         return;
     }
 
-    // Reload the client info.
+    // Reload the client info ConfigString.
     if (index >= CS_PLAYERSKINS && index < CS_PLAYERSKINS + MAX_CLIENTS) {
         CL_LoadClientinfo(&cl.clientinfo[index - CS_PLAYERSKINS], s);
         return;

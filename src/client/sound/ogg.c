@@ -239,6 +239,7 @@ static void get_track_path(char* buf, size_t size, int track)
 	}
 }
 
+#if 0
 /*
  * play the ogg file that corresponds to the CD track with the given number
  */
@@ -807,3 +808,4 @@ OGG_Shutdown(void)
 	// Remove console commands
 	Cmd_RemoveCommand("ogg");
 }
+#endif

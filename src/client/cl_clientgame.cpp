@@ -1025,7 +1025,7 @@ void CL_GM_LoadProgs( void ) {
 	imports.CVar_Variable_g = Cvar_Variable_g;
 	imports.CVar_Default_g = Cvar_Default_g;
 
-	imports.Con_ClearNotify_f = Con_ClearNotify_f;
+	imports.Con_ClearNotificationTexts_f = Con_ClearNotificationTexts_f;
 
 	imports.CM_NodeForNumber = PF_CM_NodeForNumber;
 	imports.CM_NumberForNode = PF_CM_NumberForNode;

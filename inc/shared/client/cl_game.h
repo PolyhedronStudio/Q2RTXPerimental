@@ -251,7 +251,7 @@ typedef struct {
 	*	Console:
 	* 
 	**/
-	void ( *Con_ClearNotify_f )( void );
+	void ( *Con_ClearNotificationTexts_f )( void );
 
 
 	

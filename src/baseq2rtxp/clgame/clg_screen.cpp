@@ -328,7 +328,7 @@ void SCR_CenterPrint( const char *str ) {
 
     // echo it to the console
     Com_Printf( "%s\n", scr_centerstring );
-    clgi.Con_ClearNotify_f();
+    clgi.Con_ClearNotificationTexts_f();
 }
 
 static void SCR_DrawCenterString( void ) {

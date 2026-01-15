@@ -57,15 +57,26 @@ const qboolean S_SetEAXEnvironmentProperties( const sfx_eax_properties_t *proper
 void S_EndRegistration(void);
 void S_SetupSpatialListener( const vec3_t viewOrigin, const vec3_t vForward, const vec3_t vRight, const vec3_t vUp );
 
-
-void OGG_Play(void);
-void OGG_Stop(void);
-void OGG_Update(void);
-void OGG_LoadTrackList(void);
-void OGG_Init(void);
-void OGG_Shutdown(void);
-void OGG_RecoverState(void);
-void OGG_SaveState(void);
+// <Q2RTXP>: WID: We don't use the OGG functions currently, but keep them declared for possible future use.
+#if 0
+	void OGG_Play(void);
+	void OGG_Stop(void);
+	void OGG_Update(void);
+	void OGG_LoadTrackList(void);
+	void OGG_Init(void);
+	void OGG_Shutdown(void);
+	void OGG_RecoverState(void);
+	void OGG_SaveState(void);
+#else
+	#define OGG_Play(...)
+	#define OGG_Stop(...)
+	#define OGG_Update(...)
+	#define OGG_LoadTrackList(...)
+	#define OGG_Init(...)
+	#define OGG_Shutdown(...)
+	#define OGG_RecoverState(...)
+	#define OGG_SaveState(...)
+#endif
 
 void S_RawSamples(int samples, int rate, int width, int channels, const byte *data);
 

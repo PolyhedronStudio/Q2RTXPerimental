@@ -552,7 +552,7 @@ void SCR_EndLoadingPlaque(void)
         return;
     }
     cls.disable_screen = 0;
-    Con_ClearNotify_f();
+    Con_ClearNotificationTexts_f();
 }
 
 // Clear any parts of the tiled background that were drawn on last frame

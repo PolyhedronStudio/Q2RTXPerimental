@@ -62,10 +62,12 @@ static bool GetWavinfo(sizebuf_t *sz)
 
     tag = SZ_ReadInt32(sz);
 
+	#if 0
     if (tag == MakeLittleLong('O','g','g','S') || !COM_CompareExtension(s_info.name, ".ogg")) {
         sz->readcount = 0;
         return OGG_Load(sz);
     }
+	#endif
 
 // find "RIFF" chunk
     if (tag != TAG_RIFF) {
