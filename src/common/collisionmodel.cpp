@@ -64,14 +64,14 @@ const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
         return ret;
     }
 
+	// Set map file checksum.
+	cm->checksum = cm->cache->checksum;
+
     // Iterate all BSP texinfos and load in their matching corresponding material file equivelants.
     CM_LoadMaterials( cm );
 
     // Generate the collision model hulls for entity clipping.
     CM_InitCollisionModelHulls( cm );
-
-    // Set map file checksum.
-    cm->checksum = cm->cache->checksum;
 
     // Set entity string to use.
     cm->entitystring = cm->cache->entitystring;
@@ -86,7 +86,8 @@ const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
     for ( int32_t i = 0; i < cm->cache->numportals; i++ ) {
         cm->portalopen[ i ] = true;
     }
-
+	// Flood the area connections so all are visible. Entities will modify the state
+	// later on based on their open/closed state.
     CM_FloodAreaConnections( cm );
 
     // Successfully loaded the map.

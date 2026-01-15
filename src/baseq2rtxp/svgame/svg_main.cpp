@@ -506,7 +506,7 @@ static void EndClientServerFrames(void) {
 /**
 *   @brief  
 **/
-void CheckNeedPass(void) {
+static void CheckForPasswordRequirement(void) {
     int need;
 
     // if password or spectator_password has changed, update needpass
@@ -542,27 +542,34 @@ static void DeferRemoveClientInfo( svg_base_edict_t *ent ) {
 *   @brief  Checks the entity for whether its event should be cleared.
 *   @return True if the entity is meant to be skipped for iterating further on afterwards.
 **/
-static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
+static const bool CheckEntityEventClearing( svg_base_edict_t *ent ) {
 	// We want the QMTime version of this.
     //static constexpr QMTime _EVENT_VALID_MSEC = QMTime::FromMilliseconds( EVENT_VALID_MSEC );
     // clear events that are too old
     if ( level.time - ent->eventTime > ent->eventDuration /*_EVENT_VALID_MSEC*/ ) {
+		/**
+		*	If there's an event, clear it, special handling for clients:
+		**/
         if ( ent->s.event ) {
+			// By default, clear the event.
             ent->s.event = 0;	// &= EV_EVENT_BITS;
+			// Special handling for clients:
             if ( ent->client ) {
+				// Make sure to clear external player_state induced events also.
                 ent->client->ps.externalEvent = 0;
-                // predicted events should never be set to zero
-                //ent->client->ps.events[0] = 0;
-                //ent->client->ps.events[1] = 0;
             }
         }
-		// If true, we free it.
+		/**
+		*	If true, we free it:
+		**/
 		if ( ent->freeAfterEvent ) {
-			// tempEntities or dropped items completely go away after their event
+			// Temp Entities, or dropped items, always completely go away after their event has fired.
 			SVG_FreeEdict( ent );
-			//continue;
-			return true; // Skip the entity for further processing. 
-			// Otherwise, if true, we unlink it.
+			// We removed the entity so we MUST skip the entity for further processing.
+			return true;		//continue;
+		/**
+		*	Otherwise, if true, we unlink it:
+		**/
 		} else if ( ent->unlinkAfterEvent ) {
 			// Unlink it now.
 			gi.unlinkentity( ent );
@@ -571,37 +578,56 @@ static const bool CheckClearEntityEvents( svg_base_edict_t *ent ) {
 		}
     }
 
-    // Don't skip the entity for further processing.
+    /**
+	* DO NOT skip the entity for further processing. :-)
+	**/
     return false;
 }
 /**
 *   @brief  Check for whether the entity's ground has been moved below his ass.
 **/
 static void CheckEntityGroundChange( svg_base_edict_t *ent ) {
-    if ( ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) ) {
+    //if ( ( ent->groundInfo.entityNumber != ENTITYNUM_NONE ) ) {
         svg_base_edict_t *entityGroundEntity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
         if ( entityGroundEntity != nullptr && ( entityGroundEntity->linkCount != ent->groundInfo.entityLinkCount ) ) {
             cm_contents_t mask = SVG_GetClipMask( ent );
 
             // Monsters that don't SWIM or FLY, got their own unique ground check.
-            if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svFlags & SVF_MONSTER ) ) {
-                ent->groundInfo.entityNumber = ENTITYNUM_NONE;
-                M_CheckGround( ent, mask );
-			// All other entities use this route instead:
-            } else {
-                // If the ground entity is still 1 unit below us, we're good.
-                Vector3 endPoint = Vector3( ent->currentOrigin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
-                svg_trace_t tr = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, endPoint, ent, mask );
+			if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svFlags & SVF_MONSTER ) ) {
+				// Always default back to none.
+				ent->groundInfo.entityNumber = ENTITYNUM_NONE;
+				M_CheckGround( ent, mask );
+			#if 1
+			} // if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svFlags & SVF_MONSTER ) ) {
+			#else
+				// All other entities use this route instead:
+				} else {
+					// If the ground entity is still 1 unit below us, we're good.
+					Vector3 endPoint = Vector3( ent->currentOrigin ) + Vector3{ 0.f, 0.f, -1.f } /*ent->gravitiyVector*/;
+					svg_trace_t tr = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, endPoint, ent, mask );
 
-                if ( tr.startsolid || tr.allsolid || tr.entityNumber != ent->groundInfo.entityNumber ) {
-                    ent->groundInfo.entityNumber = ENTITYNUM_NONE;
-                } else {
-                    svg_base_edict_t *traceGroundEntity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
-                    ent->groundInfo.entityLinkCount = traceGroundEntity->linkCount;
-                }
-            }
+					if ( tr.startsolid || tr.allsolid /*|| tr.entityNumber != ent->groundInfo.entityNumber*/ ) {
+						ent->groundInfo = {
+							.entityNumber = ENTITYNUM_NONE
+						};
+					} else {
+						if ( tr.entityNumber != ENTITYNUM_NONE ) {
+							svg_base_edict_t *traceGroundEntity = g_edict_pool.EdictForNumber( ent->groundInfo.entityNumber );
+							ent->groundInfo.entityLinkCount = traceGroundEntity->linkCount;
+							ent->groundInfo.entityNumber = traceGroundEntity->s.number;
+						} else {
+							ent->groundInfo = {
+								.entityNumber = ENTITYNUM_NONE
+							};
+						}
+						ent->groundInfo.material = tr.material;
+						ent->groundInfo.contents = tr.contents;
+						ent->groundInfo.surface = *tr.surface;
+					}
+				} // if ( !( ent->flags & ( FL_SWIM | FL_FLY ) ) && ( ent->svFlags & SVF_MONSTER ) ) {
+			#endif
         }
-    }
+    //}
 }
 
 /**
@@ -615,7 +641,7 @@ static void CheckSetOldOrigin( svg_base_edict_t *ent ) {
 		&& !( ent->s.entityType - ET_TEMP_EVENT_ENTITY > 0 ) 
 	) {
 		// Otherwise, set the old origin.
-		ent->s.old_origin = ent->s.origin;
+		ent->s.old_origin = ent->currentOrigin; // ent->s.old_origin = ent->s.origin;
 	}
 }
 /**
@@ -658,63 +684,73 @@ void SVG_RunFrame(void) {
 	}
     #endif
 
-    // WID: LUA: CallBack.
+    /**
+	*	WID: LUA: CallBack.
+	**/
     SVG_Lua_CallBack_BeginServerFrame();
 
-    //
-    // Treat each object in turn
-    // even the world gets a chance to think
-    //
-    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 0 );
-    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++, ent = g_edict_pool.EdictForNumber( i ) ) {
-		// skip nullptr edicts.
-        if ( !ent ) {
-            continue;
-        }
-        // Determine whether it is a client entity based on the loop indexer.
-        const bool isClientEntity = i > 0 && i <= game.maxclients;
+    /**
+    *	Treat each object in turn even the world gets a chance to think
+    **/
+	//! Active entity pointer for this frame.
+	// Iterate all entities.
+    for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
+		// Get the entity for this index.
+		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+
 		/**
-        *   Defer removing client info for clients that are no longer in use.
-        **/
-        if ( !ent->inUse ) {
-            if ( isClientEntity ) {
-                DeferRemoveClientInfo( ent );
-            }
-            // Skip since entity is not in use.
-            continue;
+		*	Determine whether it is a client entity based on the loop indexer.
+		**/
+		const bool isClientEntity = i > 0 && i <= game.maxclients;
+
+		/**
+		*	Skip nullptr edicts.
+		**/
+		if ( !SVG_Entity_IsActive( ent ) ) {
+			/**
+			*   Defer removing client info for clients that are no longer in use.
+			**/
+			if ( isClientEntity ) {
+				DeferRemoveClientInfo( ent );
+			}
+			/**
+			*	Skip since entity is not in use anymore.
+			**/
+			continue;
         }
 
         /**
-        *   Set the current entity being processed for the current frame.
+        *   It is an allocated and inUse entity, thus we set it as THE authoritative 
+		*	entity that is being processed for the current server game frame.
         **/
         level.processingEntity = ent;
 
         /**
 		*   Clear events that are too old.
-        * 
         *   (Temp entities never think.)
         **/
-        if ( CheckClearEntityEvents( ent ) == true ) {
+        if ( CheckEntityEventClearing( ent ) == true ) {
             // Entity has been freed or whatever, but we shall not pass.
 			// Skip the entity for further processing.
             continue;
         }
 
         /**
-		*   Not linked in, so skip it.
+		*   Not linked in anywhere. Skip it! (Except for neverFreeOnlyUnlink entities.)
         **/
-        // Not linked in anywhere.
+        // 
         if ( !ent->area.prev && ent->neverFreeOnlyUnlink ) {
             continue;
         }
 
         /**
-        *   - RF Beam Entities update their old_origin by hand.
-		*	- Temporary Event Entities Entities update their old_origin by hand.
+		*	Set the entity state old_origin for this frame.
+		*	Note that some entities do this by hand, so we skip them here.
+        *		- RF Beam Entities update their old_origin by hand.
+		*		- Temporary Event Entities Entities update their old_origin by hand. (If necessary.)
         **/
 		CheckSetOldOrigin( ent );
-
-        /**
+		/**
         *   If the ground entity moved, make sure we are still on it.
         **/
         CheckEntityGroundChange( ent );
@@ -723,34 +759,56 @@ void SVG_RunFrame(void) {
 		*   Client entities are handled seperately.
         **/
         if ( isClientEntity ) {
-            SVG_Client_BeginServerFrame( ent );
+			// Begin a client server entity frame.
+			SVG_Client_BeginServerFrame( ent );
+
+			// Run the client frame.
+            //SVG_Client_RunServerFrame( ent );
+
+			// We're done with the client  for this frame, all client frames end 
+			// after all entities are ran and all processing is done in EndClientServerFrames().
             continue;
         /**
 		*   Other entities are handled here.
         **/
         } else {
-			// For Pushers, store their last origins and angles before running them.
+			/**
+			*	For Pushers, store their last origins and angles before running them.
+			**/
 			CheckUpdatePusherLastOrigin( ent );
-            // Run the entity now. (Make it 'think'.)
+
+            /**
+			*	Run the entity now. ( Make it process the physics, and, 'think'. )
+			**/
             SVG_RunEntity( ent );
         }
     }
-
-    // Readjust "movewith" Push/Stop entities.
+    /**
+	*	Readjust "movewith" Push / Stop entities.
+	**/
     SVG_PushMove_UpdateMoveWithEntities();
 
-    // WID: LUA: CallBack.
+	/**
+	*	WID: LUA: CallBack.
+	**/
     SVG_Lua_CallBack_RunFrame();
 
-    // Give the gamemode a chance to run its own logic to determine whether to
-	// engage into some game mode specific behavior.
+	/**
+	*	Give the gamemode a chance to check game rule conditions after all entities have run.
+	**/
     game.mode->PostCheckGameRuleConditions();
+	/**
+	*	See if a sudden password is required and `needpass` is updated, we don' t do this in 
+	*	the gamemode since it is generically speaking a server specific thing.
+	**/
+	CheckForPasswordRequirement();
 
-    // see if needpass needs updated
-    CheckNeedPass();
-
-    // build the playerstate_t structures for all players
+    /**
+	*	End the server frame for all clients, update and build the playerstate_t structures for all players.
+	**/
     EndClientServerFrames();
-    // WID: LUA: CallBack.
+    /**
+	*	WID: LUA: CallBack.
+	**/
     SVG_Lua_CallBack_EndServerFrame();
 }

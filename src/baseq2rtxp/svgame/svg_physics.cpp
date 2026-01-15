@@ -628,9 +628,10 @@ const bool SVG_PushMover( svg_base_edict_t *pusher, const Vector3 &move, const V
                 checkPtr->groundInfo.entityNumber = ENTITYNUM_NONE;
             }
 
-            blockPtr = SVG_TestEntityPosition(checkPtr);
-            if (!blockPtr) {
-				//SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin, true );
+            blockPtr = SVG_TestEntityPosition( checkPtr );
+            if ( !blockPtr ) {
+				// Not blocked thus apply origin.
+				SVG_Util_SetEntityOrigin( checkPtr, checkPtr->currentOrigin, true );
                 // pushed ok
                 gi.linkentity(checkPtr);
                 // impact?
@@ -916,7 +917,7 @@ void SVG_Physics_Toss( svg_base_edict_t *ent ) {
 
 // check for water transition
     wasinwater = (ent->liquidInfo.type & CM_CONTENTMASK_LIQUID);
-    ent->liquidInfo.type = gi.pointcontents( &ent->s.origin );
+    ent->liquidInfo.type = gi.pointcontents( &ent->currentOrigin );
     isinwater = ent->liquidInfo.type & CM_CONTENTMASK_LIQUID;
 
 	if ( isinwater ) {
@@ -930,7 +931,7 @@ void SVG_Physics_Toss( svg_base_edict_t *ent ) {
     if ( !wasinwater && isinwater ) {
         gi.positioned_sound( &old_origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
     } else if ( wasinwater && !isinwater ) {
-        gi.positioned_sound( &ent->s.origin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
+        gi.positioned_sound( &ent->currentOrigin, g_edict_pool.EdictForNumber( 0 ), CHAN_AUTO, water_sfx_index, 1, 1, 0);
     }
 
 // move teamslaves
@@ -1269,14 +1270,15 @@ void SVG_Physics_RootMotion( svg_base_edict_t *ent ) {
     cm_contents_t mask = SVG_GetClipMask( ent );
 
     // airborne monsters should always check for ground
-    if ( ent->groundInfo.entityNumber == ENTITYNUM_NONE ) {
-        M_CheckGround( ent, mask );
-    }
+ //   if ( ent->groundInfo.entityNumber == ENTITYNUM_NONE ) {
+ //       M_CheckGround( ent, mask );
+ //   }
 
-	SVG_ClampEntityMaxVelocity( ent );
-    // regular thinking
-    SVG_RunEntityThink( ent );
-	return;
+	//SVG_ClampEntityMaxVelocity( ent );
+ //   // regular thinking
+ //   SVG_RunEntityThink( ent );
+	//return;
+
     bool	   wasonground;
     bool	   hitsound = false;
     float *vel;
@@ -1445,7 +1447,7 @@ void SVG_RunEntity(svg_base_edict_t *ent) {
 
 	// For the MOVETYPE_STEP entities, we need to check if they actually moved.
 	// So we save off their previous origin here, in case they get stuck in a wall.
-    if ( ent->movetype == MOVETYPE_STEP ) {
+    if ( ent->movetype == MOVETYPE_STEP || ent->movetype == MOVETYPE_ROOTMOTION ) {
         previousOrigin = ent->currentOrigin;
         isMoveStepper = true;
     }
@@ -1482,7 +1484,7 @@ void SVG_RunEntity(svg_base_edict_t *ent) {
         gi.error( "SV_Physics: bad movetype %i", ent->movetype );
     }
 
-    if ( isMoveStepper && ent->movetype == MOVETYPE_STEP ) {
+    if ( isMoveStepper ) {
         // if we moved, check and fix origin if needed
         if ( !VectorCompare( ent->currentOrigin, previousOrigin ) ) {
             svg_trace_t trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, &previousOrigin.x, ent, SVG_GetClipMask( ent ) );

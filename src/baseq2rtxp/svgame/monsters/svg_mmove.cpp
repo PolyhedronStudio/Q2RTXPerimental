@@ -204,7 +204,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 
 	// Apply gravity after having stored original startVelocity.
 	if ( !( monsterMove->state.mm_flags & MMF_ON_GROUND ) ) {
-		monsterMove->state.velocity.z += monsterMove->state.gravity * monsterMove->frameTime;
+		monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
 	}
 
 	return blockedMask;
@@ -233,7 +233,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 **/
 void SVG_MMove_FaceIdealYaw( svg_base_edict_t *ent, const float idealYaw, const float yawSpeed ) {
 	// Get angle modded angles.
-	const float currentYawAngle = QM_AngleMod( ent->s.angles[ YAW ] );
+	const float currentYawAngle = QM_AngleMod( ent->currentAngles[ YAW ] );
 
 	// If we're already facing ideal yaw, escape.
 	if ( currentYawAngle == idealYaw ) {
@@ -254,5 +254,5 @@ void SVG_MMove_FaceIdealYaw( svg_base_edict_t *ent, const float idealYaw, const 
 	if (move > 0) { if ( yawAngleMove > yawSpeed ) { yawAngleMove = yawSpeed; } } else { if ( yawAngleMove < -yawSpeed ) { yawAngleMove = -yawSpeed; }
 	#endif
 	// AngleMod the final resulting angles.
-	ent->s.angles[ YAW ] = QM_AngleMod( currentYawAngle + yawAngleMove );
+	ent->currentAngles[ YAW ] = QM_AngleMod( currentYawAngle + yawAngleMove );
 }

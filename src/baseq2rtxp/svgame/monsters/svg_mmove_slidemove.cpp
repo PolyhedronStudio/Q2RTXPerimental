@@ -14,7 +14,7 @@
 //extern pmove_t *pm;
 
 //! Uncomment for enabling second best hit plane tracing results.
-#define SECOND_PLANE_TRACE
+//#define SECOND_PLANE_TRACE
 
 
 

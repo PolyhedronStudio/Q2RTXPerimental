@@ -90,7 +90,7 @@ svg_base_edict_t *SVG_Entities_FindWithinRadius( svg_base_edict_t *from, const V
             continue;
         }
         for ( j = 0; j < 3; j++ ) {
-            eorg[ j ] = org[ j ] - ( from->s.origin[ j ] + ( from->mins[ j ] + from->maxs[ j ] ) * 0.5f );
+            eorg[ j ] = org[ j ] - ( from->currentOrigin[ j ] + ( from->mins[ j ] + from->maxs[ j ] ) * 0.5f );
         }
         if ( VectorLength( eorg ) > rad ) {
             continue;
@@ -136,7 +136,9 @@ DEFINE_GLOBAL_CALLBACK_DIE( body_die )( svg_base_edict_t *self, svg_base_edict_t
         for ( n = 0; n < 4; n++ ) {
             SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
         }
-        self->s.origin[ 2 ] -= 48;
+        self->currentOrigin[ 2 ] -= 48;
+		// Make sure to set state of the entity before calling ThrowClientHead.
+		SVG_Util_SetEntityOrigin( self, self->currentOrigin, true );
         SVG_Misc_ThrowClientHead( self, damage );
         self->takedamage = DAMAGE_NO;
     }
@@ -157,10 +159,10 @@ void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
     if ( body->s.modelindex ) {
         //gi.WriteUint8( svc_temp_entity );
         //gi.WriteUint8( TE_BLOOD );
-        //gi.WritePosition( &body->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+        //gi.WritePosition( &body->currentOrigin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         //gi.WriteDir8( (const Vector3*)&qm_vector3_null );
-        //gi.multicast( &body->s.origin, MULTICAST_PVS, false );
-		SVG_TempEventEntity_Blood( body->s.origin, qm_vector3_null );
+        //gi.multicast( &body->currentOrigin, MULTICAST_PVS, false );
+		SVG_TempEventEntity_Blood( body->currentOrigin, qm_vector3_null );
     }
 
     gi.unlinkentity( body );
@@ -185,6 +187,7 @@ void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
 	body->liquidInfo = ent->liquidInfo;
 
     body->s.entityType = ET_PLAYER_CORPSE;
+	body->s.origin = ent->currentOrigin;
 
     body->SetDieCallback( body_die );
     body->takedamage = DAMAGE_YES;
@@ -217,9 +220,9 @@ const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other
     vec3_t  spot2;
     svg_trace_t trace;
 
-    VectorCopy( self->s.origin, spot1 );
+    VectorCopy( self->currentOrigin, spot1 );
     spot1[ 2 ] += self->viewheight;
-    VectorCopy( other->s.origin, spot2 );
+    VectorCopy( other->currentOrigin, spot2 );
     spot2[ 2 ] += other->viewheight;
     trace = SVG_Trace( spot1, vec3_origin, vec3_origin, spot2, self, CM_CONTENTMASK_OPAQUE );
 
@@ -238,10 +241,10 @@ const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *oth
         forward = self->client->viewMove.viewForward;
     // Calculate forward vector:
     } else {
-        QM_AngleVectors( self->s.angles, &forward, nullptr, nullptr );
+        QM_AngleVectors( self->currentAngles, &forward, nullptr, nullptr );
     }
     // Get direction.
-    Vector3 direction = Vector3( other->s.origin ) - Vector3( self->s.origin );
+    Vector3 direction = Vector3( other->currentOrigin ) - Vector3( self->currentOrigin );
     // Normalize direction.
     Vector3 normalizedDirection = QM_Vector3Normalize( direction );
     // Get dot product from normalized direction / forward.
@@ -263,10 +266,10 @@ const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOr
         forward = self->client->viewMove.viewForward;
         // Calculate forward vector:
     } else {
-        QM_AngleVectors( self->s.angles, &forward, nullptr, nullptr );
+        QM_AngleVectors( self->currentAngles, &forward, nullptr, nullptr );
     }
     // Get direction.
-    Vector3 direction = testOrigin - self->s.origin;
+    Vector3 direction = testOrigin - self->currentOrigin;
     // Normalize direction.
     Vector3 normalizedDirection = QM_Vector3Normalize( direction );
     // Get dot product from normalized direction / forward.

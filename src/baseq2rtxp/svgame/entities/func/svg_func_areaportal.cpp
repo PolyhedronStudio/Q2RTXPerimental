@@ -67,6 +67,24 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_areaportal_t, onUse )( svg_func_areaportal_
 
 }
 
+DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_areaportal_t, onPostSpawn )( svg_func_areaportal_t *self ) -> void {
+	// Super Post Spawn
+	//Super::onPostSpawn( self );
+
+	// Now Ensure entity count mirrors actual portal state.
+	//self->count = gi.GetAreaPortalState( self->style ); // Always start opened unless specified otherwise.
+	gi.SetAreaPortalState( self->style, self->count );
+	// Link entity so the server knows about it.
+	// Ensure entity count mirrors actual portal state.
+	gi.linkentity( self );
+
+	// Debug output.
+	if ( svg_debug_areaportals->integer ) {
+		// Notify about spawn.
+		gi.dprintf( "%s: Post Spawned func_areaportal targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
+			__func__, ( self->targetname ? ( const char * )self->targetname : "<null>" ), self->style, ( int )self->count );
+	}
+}
 /*QUAKED func_areaportal (0 0 0) ?
 This is a non-visible object that divides the world into seperated when this portal is not activated.
 Usually enclosed in the middle of a door.
@@ -79,16 +97,24 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_areaportal_t, onSpawn )( svg_func_areapor
     self->s.entityType = ET_AREA_PORTAL;
 	// Use Callback for triggering.
 	// (Doors and/or other trigger entities will use this to open/close the portal.)
-    self->SetUseCallback( &SelfType::onUse );
-	
+    self->SetUseCallback( &svg_func_areaportal_t::onUse );
+	// Post Spawn Callback for finalizing setup.
+	self->SetPostSpawnCallback( &svg_func_areaportal_t::onPostSpawn );
 	// Temporarily set to opened so linking works correctly.
+	int32_t originalCount = self->count;
 	self->count = 1;
 	// Link entity so the server knows about it.
 	gi.linkentity( self );
 
-	// Now Ensure entity count mirrors actual portal state.
-	self->count = gi.GetAreaPortalState( self->style ); // Always start opened unless specified otherwise.
+	// Restore original count.
+	self->count = originalCount;
 
+	//// Now Ensure entity count mirrors actual portal state.
+	//self->count = gi.GetAreaPortalState( self->style ); // Always start opened unless specified otherwise.
+	//// Link entity so the server knows about it.
+	//gi.linkentity( self );
+
+	// Debug output.
 	if ( svg_debug_areaportals->integer ) {
 		// Notify about spawn.
 		gi.dprintf( "%s: Spawned func_areaportal targetname(\"%s\"), portalID(#%d), isOpen=(%d)\n",
