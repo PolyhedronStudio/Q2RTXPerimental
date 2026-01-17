@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
@@ -94,7 +95,8 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_train_t, onTrainWait )( svg_fu
 
         if ( !( self->flags & FL_TEAMSLAVE ) ) {
             if ( self->pushMoveInfo.sounds.end ) {
-                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+                //gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
+				SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, ATTN_STATIC );
             }
         }
         self->s.sound = 0;
@@ -180,7 +182,8 @@ again:
 
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
         if ( self->pushMoveInfo.sounds.start ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+            //gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
+			SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, ATTN_STATIC );
         }
         self->s.sound = self->pushMoveInfo.sounds.middle;
     }

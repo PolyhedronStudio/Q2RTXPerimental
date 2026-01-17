@@ -16,6 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_utils.h"
 
 #include "sharedgame/sg_entity_flags.h"
@@ -169,7 +170,8 @@ void M_WorldEffects( svg_base_edict_t *ent ) {
 
 	if ( ent->liquidInfo.level == 0 ) {
 		if ( ent->flags & FL_INWATER ) {
-			gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+			//gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_out01.wav" ), 1, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( ent, CHAN_BODY, gi.soundindex( "player/water_feet_out01.wav" ), ATTN_NORM );
 			ent->flags = static_cast<entity_flags_t>( ent->flags & ~FL_INWATER );
 		}
 		return;
@@ -196,11 +198,14 @@ void M_WorldEffects( svg_base_edict_t *ent ) {
 				//else
 				//	gi.sound( ent, CHAN_BODY, gi.soundindex( "player/lava2.wav" ), 1, ATTN_NORM, 0 );
 				const std::string burn_sfx_path = SG_RandomResourcePath( "player/burn", "wav", 0, 2 );
-				gi.sound( ent, CHAN_BODY, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+				//gi.sound( ent, CHAN_BODY, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
+				SVG_EntityEvent_GeneralSoundEx( ent, CHAN_BODY, gi.soundindex( burn_sfx_path.c_str() ), ATTN_NORM );
 			} else if ( ent->liquidInfo.type & CONTENTS_SLIME ) {
-				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+				//gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+				SVG_EntityEvent_GeneralSoundEx( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), ATTN_NORM);
 			} else if ( ent->liquidInfo.type & CONTENTS_WATER ) {
-				gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+				//gi.sound( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
+				SVG_EntityEvent_GeneralSoundEx( ent, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), ATTN_NORM );
 			}
 		}
 

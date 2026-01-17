@@ -132,7 +132,8 @@ DEFINE_GLOBAL_CALLBACK_DIE( body_die )( svg_base_edict_t *self, svg_base_edict_t
     int n;
 
     if ( self->health < GIB_DEATH_HEALTH ) {
-        gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
+        //gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
+		SVG_EntityEvent_GeneralSoundEx( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), ATTN_NORM );
         for ( n = 0; n < 4; n++ ) {
             SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
         }

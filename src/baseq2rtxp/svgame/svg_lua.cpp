@@ -252,6 +252,9 @@ static void LUA_UnloadMapScript() {
 	/**
 	*	Very important with how libSol operates to, clean up here properly.
 	**/
+	// Free up any remaining Lua data.
+	gi.FreeTags( TAG_SVGAME_LUA );
+
 	// No more.
 	luaMapInstance.scriptInterpreted = false;
 	// Nullptr all callBack references.
@@ -264,9 +267,6 @@ static void LUA_UnloadMapScript() {
 		gi.FS_FreeFile( luaMapInstance.scriptBuffer );
 		luaMapInstance.scriptBuffer = nullptr;
 	}
-
-	// Free up any remaining Lua data.
-	gi.FreeTags( TAG_SVGAME_LUA );
 }
 /**
 *	@brief	Finds all references to neccessary core map hook callbacks.

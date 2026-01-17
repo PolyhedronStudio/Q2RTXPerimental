@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
@@ -128,6 +129,85 @@ void svg_func_door_t::Restore( struct game_read_context_t *ctx ) {
     }
 }
 
+/**
+*	@brief  Open or Close the door's area portal.
+**/
+void svg_func_door_t::SetAreaPortal( const bool isOpen, const bool forceState ) {
+	svg_base_edict_t *func_area = nullptr;
+
+	if ( !targetNames.target ) {
+		return;
+	}
+
+	// Find all func_areaportal entities with matching targetname.
+	while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname ), ( const char * )targetNames.target ) ) ) {
+		const bool isAreaPortal =
+			( func_area->s.entityType == ET_AREA_PORTAL ) ||
+			( func_area->classname && strcmp( ( const char * )func_area->classname, "func_areaportal" ) == 0 );
+
+		if ( !isAreaPortal ) {
+			continue;
+		}
+
+		svg_func_areaportal_t *areaPortal = static_cast< svg_func_areaportal_t * >( func_area );
+
+		// If forcing, we want to heal state even if callers accidentally double-call.
+		// Otherwise, stick to refcount semantics (always ON/OFF).
+		if ( forceState ) {
+			areaPortal->DispatchUseCallback( this, this, ENTITY_USETARGET_TYPE_SET, ( isOpen ? 1 : 0 ) );
+		} else {
+			areaPortal->DispatchUseCallback( this, this,
+				( isOpen ? ENTITY_USETARGET_TYPE_ON : ENTITY_USETARGET_TYPE_OFF ),
+				( isOpen ? 1 : 0 )
+			);
+		}
+
+		gi.dprintf( "%s: targetname=\"%s\" style=%d count=%d (requested %s, force=%d)\n",
+			__func__,
+			( func_area->targetname ? ( const char * )func_area->targetname : "<null>" ),
+			func_area->style, ( int )func_area->count,
+			( isOpen ? "OPEN/ON" : "CLOSE/OFF" ), ( int )forceState );
+	}
+}
+
+
+/**
+*
+*
+*
+*   Sound Handling:
+*
+*
+*
+**/
+/**
+*   @brief	Start the sound playback for the door.
+**/
+void svg_func_door_t::StartSoundPlayback() {
+	if ( !( flags & FL_TEAMSLAVE ) ) {
+		if ( pushMoveInfo.sounds.start ) {
+			//SVG_TempEventEntity_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, ATTN_STATIC );
+			SVG_EntityEvent_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, ATTN_STATIC );
+		}
+		// Set looping sound.
+		s.sound = pushMoveInfo.sounds.middle;
+	}
+}
+/**
+*   @brief	End the sound playback for the door.
+**/
+void svg_func_door_t::EndSoundPlayback() {
+	if ( !( flags & FL_TEAMSLAVE ) ) {
+		if ( pushMoveInfo.sounds.end ) {
+			//SVG_TempEventEntity_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, ATTN_STATIC );
+			SVG_EntityEvent_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, ATTN_STATIC );
+		}
+
+		// Clear looping sound.
+		s.sound = 0;
+	}
+}
+
 
 
 /**
@@ -151,78 +231,6 @@ void door_usetarget_update_hint( svg_func_door_t *self ) {
     } else if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_MOVING_TO_CLOSED_STATE ) {
         SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_DOOR_OPEN );
     }
-}
-
-/**
-*	@brief  Open or Close the door's area portal.
-**/
-void svg_func_door_t::SetAreaPortal( const bool isOpen, const bool forceState ) {
-    svg_base_edict_t *func_area = nullptr;
-
-    if ( !targetNames.target ) {
-        return;
-    }
-
-    // Find all func_areaportal entities with matching targetname.
-    while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname ), ( const char * )targetNames.target ) ) ) {
-        const bool isAreaPortal =
-            ( func_area->s.entityType == ET_AREA_PORTAL ) ||
-            ( func_area->classname && strcmp( ( const char * )func_area->classname, "func_areaportal" ) == 0 );
-
-        if ( !isAreaPortal ) {
-            continue;
-        }
-
-        svg_func_areaportal_t *areaPortal = static_cast< svg_func_areaportal_t * >( func_area );
-
-        // If forcing, we want to heal state even if callers accidentally double-call.
-        // Otherwise, stick to refcount semantics (always ON/OFF).
-        if ( forceState ) {
-            areaPortal->DispatchUseCallback( this, this, ENTITY_USETARGET_TYPE_SET, ( isOpen ? 1 : 0 ) );
-        } else {
-            areaPortal->DispatchUseCallback( this, this,
-                ( isOpen ? ENTITY_USETARGET_TYPE_ON : ENTITY_USETARGET_TYPE_OFF ),
-                ( isOpen ? 1 : 0 )
-            );
-        }
-
-        gi.dprintf( "%s: targetname=\"%s\" style=%d count=%d (requested %s, force=%d)\n",
-            __func__,
-            ( func_area->targetname ? ( const char * )func_area->targetname : "<null>" ),
-            func_area->style, ( int )func_area->count,
-            ( isOpen ? "OPEN/ON" : "CLOSE/OFF" ), ( int )forceState );
-    }
-}
-/**
-*	@brief  Open or Close the door's area portal.
-**/
-void svg_func_door_t::ToggleAreaPortal( ) {
-	svg_base_edict_t *func_area = nullptr;
-
-	if ( !targetNames.target ) {
-		return;
-	}
-
-	// Find all func_areaportal entities with matching targetname.
-	while ( ( func_area = SVG_Entities_Find( func_area, q_offsetof( svg_base_edict_t, targetname ), ( const char * )targetNames.target ) ) ) {
-		const bool isAreaPortal =
-			( func_area->s.entityType == ET_AREA_PORTAL ) ||
-			( func_area->classname && strcmp( ( const char * )func_area->classname, "func_areaportal" ) == 0 );
-
-		// Not an areaportal, skip it.
-		if ( !isAreaPortal ) {
-			continue;
-		}
-
-		// Use target the areaportal.
-		svg_func_areaportal_t *areaPortal = static_cast< svg_func_areaportal_t * >( func_area );
-		areaPortal->DispatchUseCallback( this, this, ENTITY_USETARGET_TYPE_TOGGLE, ( areaPortal->count ? 0 : areaPortal->count ) );
-
-		// Developer debug to help track intermittent map-specific failures.
-		gi.dprintf( "%s: SetAreaPortal targetname=\"%s\" style=%d isOpen=%d\n",
-			__func__, ( func_area->targetname ? ( const char * )func_area->targetname : "<null>" ),
-			func_area->style, ( int )func_area->count );
-	}
 }
 
 /**
@@ -316,7 +324,7 @@ void door_team_toggle( svg_func_door_t *self, svg_base_edict_t *other, svg_base_
         // Only play locked sound if toggled while door is idle.
         if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
             if ( self->pushMoveInfo.lockState.lockedSound ) {
-                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound , 1, ATTN_STATIC, 0 );
+				SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, ATTN_STATIC );
             }
         }
         // Return, we're locked..
@@ -332,7 +340,8 @@ void door_team_toggle( svg_func_door_t *self, svg_base_edict_t *other, svg_base_
         if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_OPENED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED ) {
             if ( self->pushMoveInfo.lockState.isLocked ) {
                 if ( self->pushMoveInfo.lockState.lockedSound ) {
-                    gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+                    //gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+					SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, ATTN_STATIC );
                 }
             }
         }
@@ -405,7 +414,8 @@ void door_lock( svg_func_door_t *self ) {
     if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_OPENED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED ) {
         // Of course it has to be locked if we want to play a sound.
         if ( !self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockingSound ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
+            //gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, 1, ATTN_STATIC, 0 );
+			SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockingSound, ATTN_STATIC );
         }
         // Last but not least, unlock its state.
         self->pushMoveInfo.lockState.isLocked = true;
@@ -419,7 +429,8 @@ void door_unlock( svg_func_door_t *self ) {
     if ( self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_OPENED || self->pushMoveInfo.state == svg_func_door_t::DOOR_STATE_CLOSED ) {
         // Of course it has to be locked if we want to play a sound.
         if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.unlockingSound ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
+            //gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, 1, ATTN_STATIC, 0 );
+			SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.unlockingSound, ATTN_STATIC );
         }
         // Last but not least, unlock its state.
         self->pushMoveInfo.lockState.isLocked = false;
@@ -520,33 +531,13 @@ DEFINE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_door_t, onSignalIn )( svg_func_door
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove )( svg_func_door_t *self ) -> void {
-    if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.end ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
-        }
-        self->s.sound = 0;
-	}
+	// Stop sound.
+	self->EndSoundPlayback();
 
     // Apply state.
     self->pushMoveInfo.state = DOOR_STATE_OPENED;
     // Dispatch a lua signal.
     SVG_SignalOut( self, self->other, self->activator, "OnOpened" );
-
-    // Adjust areaportal.
-	// Adjust areaportal.
-	//if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-		// Update areaportals for PVS awareness.
-		//self->SetAreaPortal( false );
-	//}
-
-
-	// Adjust areaportal: starting to open -> mark portal open
-
-
-    //// Adjust areaportal: door is now opened -> portal should be open
-    //if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-    //    static_cast<svg_func_door_t *>( self )->SetAreaPortal( true );
-    //}
 
     // If it is a toggle door, don't set any next think to 'go down' again.
     if ( self->spawnflags & svg_func_door_t::SPAWNFLAG_TOGGLE ) {
@@ -567,12 +558,8 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onOpenEndMove )( svg_f
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onCloseEndMove )( svg_func_door_t *self ) -> void {
-    if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.end ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
-        }
-        self->s.sound = 0;
-    }
+	// Stop sound.
+	self->EndSoundPlayback();
 
     // Used for condition checking, if we got a damage activating door we don't want to have it support pressing.
     const bool damageActivates = SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_DAMAGE_ACTIVATES );
@@ -613,13 +600,8 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_door_t, onCloseEndMove )( svg_
 *	@brief
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_CloseMove )( svg_func_door_t *self/*, svg_base_edict_t *activator */ ) -> void {
-
-    if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.start ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
-        }
-        self->s.sound = self->pushMoveInfo.sounds.middle;
-	}
+	// Start sound playback.
+	self->StartSoundPlayback();
 
     // The rotating door type is higher up the hierachy, so test for that first.
     if ( self->GetTypeInfo()->IsSubClassType<svg_func_door_t>( true ) ) {
@@ -652,12 +634,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_door_t, onThink_OpenMove )( svg_func_door
     }
 
     if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.start ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
-        }
-        self->s.sound = self->pushMoveInfo.sounds.middle;
-
-        // Canonical areaportal: acquire/open as soon as we start opening (team master only).
+		// Start sound playback.
+		self->StartSoundPlayback();
+        
+		// Canonical areaportal: acquire/open as soon as we start opening (team master only).
         if ( !self->areaPortalRefHeld ) {
             self->SetAreaPortal( true );
             self->areaPortalRefHeld = true;
@@ -695,7 +675,8 @@ DEFINE_MEMBER_CALLBACK_USE( svg_func_door_t, onUse )( svg_func_door_t *self, svg
         // If we're locked while in either opened, or closed state, refuse to use target ourselves and play a locked sound.
         if ( self->pushMoveInfo.state == DOOR_STATE_OPENED || self->pushMoveInfo.state == DOOR_STATE_CLOSED ) {
 			if ( self->pushMoveInfo.lockState.isLocked && self->pushMoveInfo.lockState.lockedSound ) {
-                gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+                //gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, 1, ATTN_STATIC, 0 );
+				SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.lockState.lockedSound, ATTN_STATIC );
             }
             if ( self->pushMoveInfo.lockState.isLocked ) {
                 return;
@@ -930,16 +911,20 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_door_t, onTouch )( svg_func_door_t *self,
     }
 
     // WID: TODO: Send a 'OnTouch' Out Signal.
-    #if 0
+    #if 1
 
     if ( level.time < self->touch_debounce_time ) {
         return;
     }
 
     self->touch_debounce_time = level.time + 5_sec;
+	
+	if ( self->message ) {
+		gi.centerprintf( other, "%s", ( const char * )self->message );
+	}
 
-    gi.centerprintf( other, "%s", (const char*)self->messag );
-    gi.sound( other, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+    //gi.sound( other, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+	SVG_EntityEvent_GeneralSoundEx( other, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), ATTN_NORM);
     #endif
 }
 

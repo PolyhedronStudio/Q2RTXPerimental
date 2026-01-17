@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_misc.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
@@ -80,6 +81,8 @@ void svg_func_plat_trigger_t::Restore( struct game_read_context_t *ctx ) {
     // Save all the members of this entity type.
     ctx->read_fields( svg_func_plat_trigger_t::saveDescriptorFields, this );
 }
+
+
 
 /**
 *
@@ -251,7 +254,54 @@ Set "sounds" to one of the following:
 
 =========================================================
 */
+/**
+*
+*
+*
+*   Sound Handling:
+*
+*
+*
+**/
+/**
+*   @brief	Start the sound playback for the platform.
+**/
+void svg_func_plat_t::StartSoundPlayback() {
+	if ( !( flags & FL_TEAMSLAVE ) ) {
+		if ( pushMoveInfo.sounds.start ) {
+			//SVG_TempEventEntity_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, ATTN_STATIC );
+			SVG_EntityEvent_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, ATTN_STATIC );
+		}
+		// Set looping sound.
+		s.sound = pushMoveInfo.sounds.middle;
+	}
+}
+/**
+*   @brief	End the sound playback for the platform.
+**/
+void svg_func_plat_t::EndSoundPlayback() {
+	if ( !( flags & FL_TEAMSLAVE ) ) {
+		if ( pushMoveInfo.sounds.end ) {
+			//SVG_TempEventEntity_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, ATTN_STATIC );
+			SVG_EntityEvent_GeneralSoundEx( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.end, ATTN_STATIC );
+		}
 
+		// Clear looping sound.
+		s.sound = 0;
+	}
+}
+
+
+
+/**
+*
+*
+*
+*	Callback Implementations:
+*
+*
+*
+**/
 /**
 *   @brief  Thinking.
 **/
@@ -270,13 +320,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink_Idle )( svg_func_plat_t *
 *   @brief  PushMoveInfo EndMove Callback for when the platform hits the top.
 **/
 DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitTop )( svg_func_plat_t *self ) -> void {
-    // If not a team slave, play the end sound and reset the sound state.
-    if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.end ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
-        }
-        self->s.sound = 0;
-    }
+	// Stop sound playback.
+	self->EndSoundPlayback();
+
     // Set the state to top.
     self->pushMoveInfo.state = PUSHMOVE_STATE_TOP;
 
@@ -310,13 +356,9 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitTop )( svg_fu
 *   @brief  PushMoveInfo EndMove Callback for when the platform hits the bottom.
 **/
 DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitBottom )( svg_func_plat_t *self ) -> void {
-	// If not a team slave, play the end sound and reset the sound state.
-    if ( !( self->flags & FL_TEAMSLAVE ) ) {
-        if ( self->pushMoveInfo.sounds.end ) {
-            gi.sound( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, 1, ATTN_STATIC, 0 );
-        }
-        self->s.sound = 0;
-    }
+	// Stop sound playback.
+	self->EndSoundPlayback();
+
 	// Set the state to bottom.
     self->pushMoveInfo.state = PUSHMOVE_STATE_BOTTOM;
 
@@ -560,13 +602,9 @@ void svg_func_plat_t::SpawnInsideTrigger( const bool isTop ) {
 *   @brief  Engage the platform to go up.
 **/
 void svg_func_plat_t::BeginUpMove() {
-    // Play the start sound if not a team slave, as well as apply the middle movement sound to entity state.
-    if ( !( flags & FL_TEAMSLAVE ) ) {
-        if ( pushMoveInfo.sounds.start ) {
-            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
-        }
-        s.sound = pushMoveInfo.sounds.middle;
-    }
+	// Start the sound playback if not a team slave, as well as apply the middle movement sound to entity state.
+	StartSoundPlayback();
+
     // Set the state to moving down.
     pushMoveInfo.state = PUSHMOVE_STATE_MOVING_UP;
     // Engage the PushMover action.
@@ -578,13 +616,8 @@ void svg_func_plat_t::BeginUpMove() {
 *   @brief  Engage the platform to go down.
 **/
 void svg_func_plat_t::BeginDownMove() {
-    // Play the start sound if not a team slave, as well as apply the middle movement sound to entity state.
-    if ( !( flags & FL_TEAMSLAVE ) ) {
-        if ( pushMoveInfo.sounds.start ) {
-            gi.sound( this, CHAN_NO_PHS_ADD + CHAN_VOICE, pushMoveInfo.sounds.start, 1, ATTN_STATIC, 0 );
-        }
-        s.sound = pushMoveInfo.sounds.middle;
-    }
+	// Start the sound playback if not a team slave, as well as apply the middle movement sound to entity state.
+	StartSoundPlayback();
     // Set the state to moving down.
     pushMoveInfo.state = PUSHMOVE_STATE_MOVING_DOWN;
     // Engage the PushMover action.

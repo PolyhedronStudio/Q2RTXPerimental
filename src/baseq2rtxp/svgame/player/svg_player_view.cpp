@@ -166,7 +166,13 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 			l = 100;
 		}
 		//gi.sound( player, CHAN_VOICE, gi.soundindex( va( "*pain%i_%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
-		gi.sound( player, CHAN_VOICE, gi.soundindex( va( "player/pain%i_0%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
+		//gi.sound( player, CHAN_VOICE, gi.soundindex( va( "player/pain%i_0%i.wav", l, r ) ), 1, ATTN_NORM, 0 );
+		SVG_EntityEvent_GeneralSoundEx(
+			player,
+			CHAN_VOICE,
+			gi.soundindex( va( "player/pain%i_0%i.wav", l, r ) ),
+			ATTN_NORM
+		);
 		// Paril: pain noises alert monsters
 		SVG_Player_PlayerNoise( player, player->currentOrigin, PNOISE_SELF );
 	}
@@ -603,7 +609,13 @@ void P_CheckWorldEffects( void ) {
 			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
 			if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
 				//gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
-				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
+				//gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
+				SVG_EntityEvent_GeneralSoundEx( 
+					game.currentViewPlayer,
+					CHAN_BODY,
+					gi.soundindex( "player/burn01.wav" ),
+					ATTN_NORM
+				);
 
 				// clear damage_debounce, so the pain sound will play immediately
 				game.currentViewPlayer->damage_debounce_time = level.time - 1_sec;

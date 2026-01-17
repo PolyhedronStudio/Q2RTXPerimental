@@ -7,6 +7,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
 #include "svgame/svg_utils.h"
 #include "svgame/svg_save.h"
@@ -281,10 +282,13 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_item_edict_t, onTouch )( svg_item_edict_t *ent
                 gi.sound( other, CHAN_ITEM, gi.soundindex( "items/m_health.wav" ), 1, ATTN_NORM, 0 );
         } else if ( ent->item->pickup_sound ) {
         
-            gi.sound( other, CHAN_ITEM, gi.soundindex( ent->item->pickup_sound ), 1, ATTN_NORM, 0 );
+            //gi.sound( other, CHAN_ITEM, gi.soundindex( ent->item->pickup_sound ), 1, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( other, CHAN_ITEM, gi.soundindex( ent->item->pickup_sound ), ATTN_NORM );
         }
         #else
-        gi.sound( other, CHAN_ITEM, gi.soundindex( ent->item->pickup_sound ), 1, ATTN_NORM, 0 );
+        //gi.sound( other, CHAN_ITEM, gi.soundindex( ent->item->pickup_sound ), 1, ATTN_NORM, 0 );
+		SVG_EntityEvent_GeneralSoundEx( other, CHAN_ITEM, gi.soundindex( ent->item->pickup_sound ), ATTN_NORM );
+
         #endif // #if 0
     }
 

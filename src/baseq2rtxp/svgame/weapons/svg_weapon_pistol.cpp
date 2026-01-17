@@ -217,7 +217,11 @@ static void weapon_pistol_no_ammo( svg_base_edict_t *ent ) {
     ent->client->weaponState.recoil = {};
 
     if ( level.time >= ent->client->weaponState.timers.lastEmptyWeaponClick ) {
-        gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/pistol/noammo.wav" ), 1, ATTN_NORM, 0 );
+		// <Q2RTXP>: Use entity event system for no ammo sound.
+		// Spawn a temporary entity event for the no ammo sound.
+		// The other can then be predicted by the client.
+		gi.sound( ent, CHAN_VOICE, gi.soundindex( "weapons/pistol/noammo.wav" ), 1, ATTN_NORM, 0 );
+
         ent->client->weaponState.timers.lastEmptyWeaponClick = level.time + 75_ms;
     }
 }

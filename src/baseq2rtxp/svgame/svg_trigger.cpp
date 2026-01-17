@@ -16,6 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
@@ -81,10 +82,12 @@ void SVG_Trigger_PrintMessage( svg_base_edict_t *self, svg_base_edict_t *activat
         }
         // Play custom set audio.
         if ( self->noise_index ) {
-            gi.sound( activator, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
+            //gi.sound( activator, CHAN_AUTO, self->noise_index, 1, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( activator, CHAN_AUTO, self->noise_index, ATTN_NORM );
             // Play default "chat" hud sound.
         } else {
-            gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+            //gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), ATTN_NORM );
         }
     }
 }

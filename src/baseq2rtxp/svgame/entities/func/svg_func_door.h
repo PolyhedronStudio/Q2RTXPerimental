@@ -154,9 +154,14 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     *
     **/
 	/**
-	*	@brief  Open or Close the door's area portal.
+	*   @brief  Start sound playback for the door.
 	**/
-	void ToggleAreaPortal();
+	void StartSoundPlayback();
+	/**
+	*   @brief  End the sound playback for the door.
+	**/
+	void EndSoundPlayback();
+
     /**
     *	@brief  Open or Close the door's area portal.
     **/

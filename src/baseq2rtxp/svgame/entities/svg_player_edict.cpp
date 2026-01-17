@@ -7,6 +7,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
 #include "svgame/player/svg_player_obituary.h"
 #include "svgame/svg_save.h"
@@ -221,7 +222,9 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie) ( svg_player_edict_t *sel
     // Gib Death:
     if ( self->health < GIB_DEATH_HEALTH ) {
         // Play gib sound.
-        gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
+        //gi.sound( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), 1, ATTN_NORM, 0 );
+		SVG_EntityEvent_GeneralSoundEx( self, CHAN_BODY, gi.soundindex( "world/gib01.wav" ), ATTN_NORM );
+
         //! Throw 4 small meat gibs around.
         for ( n = 0; n < 4; n++ ) {
             SVG_Misc_ThrowGib( self, "models/objects/gibs/sm_meat/tris.md2", damage, GIB_TYPE_ORGANIC );
@@ -259,7 +262,8 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_player_edict_t, onDie) ( svg_player_edict_t *sel
             //        break;
             //    }
             //gi.sound(self, CHAN_VOICE, gi.soundindex(va("*death%i.wav", (Q_rand() % 4) + 1)), 1, ATTN_NORM, 0);
-            gi.sound( self, CHAN_VOICE, gi.soundindex( va( "player/death0%i.wav", ( irandom( 0, 4 ) ) + 1 ) ), 1, ATTN_NORM, 0 );
+            //gi.sound( self, CHAN_VOICE, gi.soundindex( va( "player/death0%i.wav", ( irandom( 0, 4 ) ) + 1 ) ), 1, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( self, CHAN_VOICE, gi.soundindex( va( "player/death0%i.wav", ( irandom( 0, 4 ) ) + 1 ) ), ATTN_NORM );
         }
     }
 

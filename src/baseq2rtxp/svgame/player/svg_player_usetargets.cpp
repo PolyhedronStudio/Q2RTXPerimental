@@ -8,6 +8,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_utils.h"
 #include "sharedgame/sg_usetarget_hints.h"
 #include "svgame/player/svg_player_usetargets.h"
@@ -203,7 +204,8 @@ void SVG_Player_TraceForUseTarget( svg_player_edict_t *ent, svg_client_t *client
             if ( currentTargetEntity->useTarget.flags != ENTITY_USETARGET_FLAG_NONE ) {
                 if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_DISABLED ) ) {
                     // Invalid, disabled, sound.
-                    gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
+                    //gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
+					SVG_EntityEvent_GeneralSoundEx( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), ATTN_NORM );
 
                     // Stop with the continous entity usage:
                     if ( SVG_Entity_HasUseTargetFlags( currentTargetEntity, ENTITY_USETARGET_FLAG_CONTINUOUS ) ) {
@@ -217,7 +219,8 @@ void SVG_Player_TraceForUseTarget( svg_player_edict_t *ent, svg_client_t *client
                     return;
                 } else {
                     // Use sound.
-                    gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_use.wav" ), 0.25, ATTN_NORM, 0 );
+                    //gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_use.wav" ), 0.25, ATTN_NORM, 0 );
+					SVG_EntityEvent_GeneralSoundEx( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_use.wav" ), ATTN_NORM );
                 }
             }
         }
@@ -293,7 +296,8 @@ void SVG_Player_TraceForUseTarget( svg_player_edict_t *ent, svg_client_t *client
     } else {
         // Play audio sound for when pressing onto an invalid (+usetarget) entity.
         if ( isTargetUseKeyPressed ) {
-            gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
+            //gi.sound( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), 0.8, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( ent, CHAN_ITEM, gi.soundindex( "player/usetarget_invalid.wav" ), ATTN_NORM );
         }
     }
 

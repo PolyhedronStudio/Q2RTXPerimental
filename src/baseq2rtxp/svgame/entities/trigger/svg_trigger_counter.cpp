@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_usetargets.h"
 #include "svgame/svg_utils.h"
 
@@ -33,14 +34,17 @@ DEFINE_MEMBER_CALLBACK_USE( svg_trigger_counter_t, onUse )( svg_trigger_counter_
 	if ( self->count ) {
 		if ( !( self->spawnflags & svg_trigger_counter_t::SPAWNFLAG_NO_MESSAGE ) ) {
 			gi.centerprintf( activator, "%i more to go...", self->count );
-			gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+			//gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+			SVG_EntityEvent_GeneralSoundEx( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), ATTN_NORM );
 		}
 		return;
 	}
 
 	if ( !( self->spawnflags & svg_trigger_counter_t::SPAWNFLAG_NO_MESSAGE ) ) {
 		gi.centerprintf( activator, "Sequence completed!" );
-		gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+		//gi.sound( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), 1, ATTN_NORM, 0 );
+		SVG_EntityEvent_GeneralSoundEx( activator, CHAN_AUTO, gi.soundindex( "hud/chat01.wav" ), ATTN_NORM );
+		//SVG_EntityEvent_GeneralSoundEx( self, CHAN_NO_PHS_ADD + CHAN_VOICE, self->pushMoveInfo.sounds.end, ATTN_STATIC );
 	}
 	self->activator = activator;
 	self->ProcessTriggerLogic();

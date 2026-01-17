@@ -259,6 +259,22 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitBottom );
     DECLARE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitTop );
 
+
+	/**
+	*
+	*   Sound Handling:
+	*
+	**/
+	/**
+	*   @brief	Start the sound playback for the platform.
+	**/
+	void StartSoundPlayback();
+	/**
+	*   @brief	End the sound playback for the platform.
+	**/
+	void EndSoundPlayback();
+
+
     /**
     *
     *   Member Functions:

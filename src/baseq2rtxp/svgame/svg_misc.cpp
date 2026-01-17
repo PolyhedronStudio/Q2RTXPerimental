@@ -16,6 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
 
 #include "sharedgame/sg_entity_flags.h"
@@ -71,7 +72,8 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( gib_touch )( svg_base_edict_t *self, svg_base_edic
     self->SetTouchCallback( nullptr );
 
     if (plane) {
-        gi.sound(self, CHAN_VOICE, gi.soundindex("world/gib_drop01.wav"), 1, ATTN_NORM, 0);
+        //gi.sound(self, CHAN_VOICE, gi.soundindex("world/gib_drop01.wav"), 1, ATTN_NORM, 0);
+		SVG_EntityEvent_GeneralSoundEx( self, CHAN_VOICE, gi.soundindex( "world/gib_drop01.wav" ), ATTN_NORM );
 
         QM_Vector3ToAngles(plane->normal, normal_angles);
         AngleVectors(normal_angles, NULL, right, NULL);
