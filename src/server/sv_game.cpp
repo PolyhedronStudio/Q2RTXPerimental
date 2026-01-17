@@ -762,7 +762,7 @@ void SV_SendSetPortalBitMessage( const int32_t portalnum, const bool open ) {
 /**
 *   @brief
 **/
-static void PF_SetAreaPortalState( const int32_t portalnum, const bool open) {
+static void PF_SetAreaPortalState( const int32_t portalnum, const int32_t open) {
     if (!sv.cm.cache) {
         Com_Error(ERR_DROP, "%s: no map loaded", __func__);
     }

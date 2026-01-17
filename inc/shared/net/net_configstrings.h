@@ -34,6 +34,6 @@
 
 // Some mods actually exploit CS_STATUSBAR to take space up to CS_AIRACCEL
 static inline int32_t CS_SIZE( int32_t cs ) {
-	return ( ( cs ) >= CS_STATUSBAR && ( cs ) < CS_AIRACCEL ? \
+	return ( ( cs ) >= CS_STATUSBAR && ( cs ) < CS_AIRACCEL ?
 		MAX_CS_STRING_LENGTH * ( CS_AIRACCEL - ( cs ) ) : MAX_CS_STRING_LENGTH );
 }

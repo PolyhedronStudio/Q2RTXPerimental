@@ -71,7 +71,18 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 * [ ] FIX: func_button map: The first button shows "Press [E] to deactivate", but, it deactivates itself after an amount of time.
 * [ ] FIX: The target change level map, the first time a UseTargetHint has to show up after changing maps, it shows none, it works for activating however meaning it does find and focus on its entity.
 * [ ] --
-* [ ] FIX: func_door(one that moves up) when started open, does not seem to respond to touch trigger brush areas properly..
+* [ ] FINISH: 
+    - [ ] Look into all temp_entity_events and remove/comment all unnecessary events.
+	    - [ ] Port all necessary ones to be actual entity events instead of temp_entity events.
+	    - [ ] Sound Events. (gi.sound, gi.positional_sound)
+	    - [ ] Explosion Events.
+	    - [ ] Particle Events.
+	    - [ ] Laser Events.
+	    - [ ] Muzzle Flash Events.
+	    - [ ] Misc Events.
+	    - [X] Login, Logout, Teleport. (Also for gamemodes.)
+* [ ] --
+* [ ] FIX: EAX sometimes remains as if we're underwater after exiting water. Re-entering and exiting usually helps though.
 * [ ] --
 * [ ] FIX: Pushers(rotating to be specific), we get stuck, need separation of origins.
     - [X] Look into the actual origin Q3 has that is used for collision and those of rendering.
@@ -125,15 +136,6 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 * [ ] Rewrite the addPacketEntities scenario to be more clear and streamlined like Q3.
 	-- This involves CLG_TransitionPlayerState and cLG_TransitionEntity style approach.
 * [ ] --
-* [ ] Look into all temp_entity_events and remove/comment all unnecessary events.
-	* [ ] Port all necessary ones to be actual entity events instead of temp_entity events.
-	* [ ] Sound Events. (gi.sound, gi.positional_sound)
-	* [ ] Explosion Events.
-	* [ ] Particle Events.
-	* [ ] Laser Events.
-	* [ ] Muzzle Flash Events.
-	* [ ] Misc Events.
-	* [X] Login, Logout, Teleport. (Also for gamemodes.)
 * [ ] --
 * [ ] Allow custom models on func_ entities such as doors and buttons.
 * [ ] --

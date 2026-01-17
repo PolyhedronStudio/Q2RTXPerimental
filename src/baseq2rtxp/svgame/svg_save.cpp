@@ -40,6 +40,36 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #endif
 
 
+/**
+*	@brief	Checks all door like entities at the spawn time for whether they have an open or closed portal.
+**/
+void SVG_SetupDoorPortalSpawnStates( void );
+/**
+*	@brief	Restores area portal states from entities after a game load.
+*			This is necessary because area portal states are not saved directly.
+**/
+static void SVG_RestoreAreaPortalStatesFromEntities() {
+	for ( int32_t i = 1; i < globals.edictPool->num_edicts; i++ ) {
+		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+		if ( !SVG_Entity_IsActive( ent ) ) {
+			continue;
+		}
+
+		const bool isAreaPortal =
+			( ent->s.entityType == ET_AREA_PORTAL ) ||
+			( ent->classname && strcmp( ( const char * )ent->classname, "func_areaportal" ) == 0 );
+
+		if ( !isAreaPortal ) {
+			continue;
+		}
+
+		// `count` is authoritative, `SetAreaPortalState` is derived boolean.
+		const int32_t isOpen = ( ent->count > 0 ? 1 : 0 );
+
+		gi.SetAreaPortalState( ent->style, isOpen );
+		gi.linkentity( ent );
+	}
+}
 
 /**
 *   @description    WriteGame
@@ -484,14 +514,25 @@ void SVG_ReadLevel(const char *filename)
         game.clients[ i ].pers.spawned = false;
     }
 
-    // Find entity 'teams', NOTE: these are not actual player game teams.
-    SVG_FindTeams();
+	/**
+	*	Initialize player trails.
+	**/
+	PlayerTrail_Init();
 
-    // Find all entities that are following a parent's movement.
-    SVG_MoveWith_FindParentTargetEntities();
+	/**
+	*	Build and link entity teams.
+	**/
+	// Find entity 'teams', NOTE: these are not actual player game teams.
+	SVG_FindTeams();
+	// Find all entities that are following a parent's movement.
+	SVG_MoveWith_FindParentTargetEntities();
+	// Find entity 'teams', NOTE: these are not actual player game teams. SVG_FindTeams(); // Find all entities that are following a parent's movement. SVG_MoveWith_FindParentTargetEntities();
+	// Restore areaportal open/closed state into the collision model from restored entity refcounts.
+	// This is required because `cm->portalopen[]` is not persisted by the level save.
+	SVG_RestoreAreaPortalStatesFromEntities();
 
-    // Initialize player trail.
-    PlayerTrail_Init();
+	// Do NOT call spawn-time door portal init here; it would override the saved state.
+	// SVG_SetupDoorPortalSpawnStates();
 
     // do any load time things at this point
     for (i = 0 ; i < g_edict_pool.num_edicts ; i++) {

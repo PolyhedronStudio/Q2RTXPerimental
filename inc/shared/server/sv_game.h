@@ -268,7 +268,7 @@ typedef struct {
     **/
     const bool( *inPHS )( const Vector3 *p1, const Vector3 *p2 );
     //! Set the state of the matching area portal number.
-    void ( *SetAreaPortalState )( const int32_t portalnum, const bool open );
+    void ( *SetAreaPortalState )( const int32_t portalnum, const int32_t open );
     //! Get state of the matching area portal number.
     const int32_t( *GetAreaPortalState )( const int32_t portalnum );
     //! Returns true if the areas are connected.

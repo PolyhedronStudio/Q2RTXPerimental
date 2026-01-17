@@ -79,16 +79,24 @@ const int32_t CM_LoadMap( cm_t *cm, const char *name ) {
     CM_ParseEntityString( cm );
 
     // Floodnums and Portals:
-    cm->floodnums = static_cast<int *>( Z_TagMallocz( sizeof( cm->floodnums[ 0 ] ) * cm->cache->numareas, TAG_CMODEL ) );
-    cm->portalopen = static_cast<bool *>( Z_TagMallocz( sizeof( cm->portalopen[ 0 ] ) * cm->cache->numportals, TAG_CMODEL ) );
+    cm->floodnums = static_cast< int32_t* >( Z_TagMallocz( sizeof( cm->floodnums[ 0 ] ) * cm->cache->numareas, TAG_CMODEL ) );
+    cm->portalopen = static_cast< int32_t* >( Z_TagMallocz( sizeof( cm->portalopen[ 0 ] ) * cm->cache->numportals, TAG_CMODEL ) );
 
     // Default Quake II behavior: portals start open (unless closed by game logic).
-    for ( int32_t i = 0; i < cm->cache->numportals; i++ ) {
-        cm->portalopen[ i ] = true;
-    }
+    //for ( int32_t i = 0; i < cm->cache->numportals; i++ ) {
+    //    cm->portalopen[ i ] = true;
+    //}
 	// Flood the area connections so all are visible. Entities will modify the state
 	// later on based on their open/closed state.
-    CM_FloodAreaConnections( cm );
+    //CM_FloodAreaConnections( cm );
+
+	// Modified Quake III behavior: portals start closed (unless opened by game logic).
+	for ( int32_t i = 0; i < cm->cache->numportals; i++ ) {
+		cm->portalopen[ i ] = false;
+	}
+	// Flood the area connections so all are closed. Entities will modify the state
+	// later on based on their open/closed state.
+	CM_FloodAreaConnections( cm );
 
     // Successfully loaded the map.
     return Q_ERR_SUCCESS;

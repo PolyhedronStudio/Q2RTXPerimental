@@ -659,6 +659,16 @@ static void CheckUpdatePusherLastOrigin( svg_base_edict_t *ent ) {
 *   @brief  Advances the world by FRAME_TIME_MS seconds
 **/
 void SVG_RunFrame(void) {
+	/**
+	*	First have the level run a single frame before adjusting the actual portal states.
+	*	This should happen only once per level load, in the first few frames the server runs
+	*	to 'settle things down a bit'.
+	**/
+	//if ( level.frameNumber == 1 ) {
+	//	// After all entities are spawned, check door portal states.
+	//	SVG_SetupDoorPortalSpawnStates();
+	//}
+
     // Increase the frame number we're in for this level..
     level.frameNumber++;
     // Increase the amount of time that has passed for this level.

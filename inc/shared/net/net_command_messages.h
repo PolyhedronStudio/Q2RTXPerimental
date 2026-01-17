@@ -28,7 +28,8 @@ typedef enum {
     svc_deltapacketentities,    // [...]
     svc_frame,
 
-    svc_portalbits,             // Will send all portal state bits as they are to the client when the frame is 'FF_NODELTA', which'll (also) be true for the very first svc_frame.
+    svc_portalbits,             // Will send all portal state bits as they are to the client when the ``oldframe == nullptr``,
+								// which'll (also) be true for the very first svc_frame.
     svc_set_portalbit,          // Will send any portal state bit changes to clients when the svc_frame is a delta frame.
 
     svc_zpacket,

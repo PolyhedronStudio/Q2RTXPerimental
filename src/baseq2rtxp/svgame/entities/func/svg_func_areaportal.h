@@ -103,6 +103,10 @@ struct svg_func_areaportal_t : public svg_base_edict_t {
     *   @brief  Spawn.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_func_areaportal_t, onSpawn );
+	/**
+	*   @brief  Post Spawn.
+	**/
+	DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_func_areaportal_t, onPostSpawn );
     /**
     *   @brief
     **/

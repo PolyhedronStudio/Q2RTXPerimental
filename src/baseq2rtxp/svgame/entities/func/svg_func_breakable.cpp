@@ -59,9 +59,10 @@ void _become_( svg_base_edict_t *self ) {
 **/
 void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor, svg_base_edict_t *attacker, int32_t damage, Vector3 *point ) {
     // bmodel origins are (0 0 0), we need to adjust that here
-    const Vector3 size = Vector3( self->size ) * 0.5f; // VectorScale( self->size, 0.5f, size );
-    const Vector3 origin = Vector3( self->absMin ) + size; // VectorAdd( self->absMin, size, origin );
-    VectorCopy( origin, self->s.origin );
+    const Vector3 size = self->size * 0.5f; // VectorScale( self->size, 0.5f, size );
+    const Vector3 origin = self->absMin + size; // VectorAdd( self->absMin, size, origin );
+    //VectorCopy( origin, self->s.origin );
+	SVG_Util_SetEntityOrigin( self, origin, true );
 
     // Take damage no more.
     self->takedamage = DAMAGE_NO;
@@ -73,7 +74,7 @@ void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor
 
     // Do we want this?
     #if 0
-    self->velocity = QM_Vector3Normalize( Vector3( self->s.origin ) - Vector3( inflictor->s.origin ) ); //VectorSubtract( self->s.origin, inflictor->s.origin, self->velocity ); //self->velocity = QM_Vector3Normalize( self->velocity );
+    self->velocity = QM_Vector3Normalize( Vector3( self->currentOrigin ) - Vector3( inflictor->currentOrigin ) ); //VectorSubtract( self->s.origin, inflictor->s.origin, self->velocity ); //self->velocity = QM_Vector3Normalize( self->velocity );
     self->velocity *= 150;
     #endif
 
@@ -155,7 +156,7 @@ void func_breakable_explode( svg_base_edict_t *self, svg_base_edict_t *inflictor
 *   @brief  Triggers the breaking/exploding of the target when triggered by other entities.
 **/
 void func_breakable_use( svg_base_edict_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) {
-    func_breakable_explode( self, other, activator, self->health, self->s.origin );
+    func_breakable_explode( self, other, activator, self->health, self->currentOrigin );
 }
 /**
 *   @brief  Pain handling.

@@ -50,7 +50,7 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     );
 
 
-    #if 0
+    #if 1
     /**
     *
     *   Save Descriptor Fields:
@@ -87,8 +87,8 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     *           If not handled, or unable to be handled by the derived entity type, it will return
     *           set errorStr and return false. True otherwise.
     **/
-    virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
-    #endif // #if 0
+    //virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
+    #endif // #if 1
 
 
     /**
@@ -153,10 +153,14 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     *   Member Functions:
     *
     **/
+	/**
+	*	@brief  Open or Close the door's area portal.
+	**/
+	void ToggleAreaPortal();
     /**
     *	@brief  Open or Close the door's area portal.
     **/
-    void SetAreaPortal( const bool isOpen );
+    void SetAreaPortal( const bool isOpen, const bool forceState = false );
     /**
     *   @brief  Setup default PushMoveInfo sounds.
     **/
@@ -168,6 +172,9 @@ struct svg_func_door_t : public svg_pushmove_edict_t {
     *   Member Variables:
     *
     **/
+	//! Tracks whether this door team currently holds an areaportal ref (ON). Team master only.
+	bool areaPortalRefHeld = false;
+
     /**
     *   Spawnflags:
     **/

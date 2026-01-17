@@ -83,7 +83,7 @@ void CM_FloodAreaConnections( cm_t *cm );
 /**
 *   @brief  Set the portal nums matching portal to open/closed state.
 **/
-void CM_SetAreaPortalState( cm_t *cm, const int32_t portalnum, const bool open );
+void CM_SetAreaPortalState( cm_t *cm, const int32_t portalnum, const int32_t open );
 /**
 *   @return False(0) if the portal nums matching portal is closed, true(1) otherwise.
 **/

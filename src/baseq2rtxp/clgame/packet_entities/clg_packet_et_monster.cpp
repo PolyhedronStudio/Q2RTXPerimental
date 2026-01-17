@@ -17,8 +17,12 @@
 *	@brief	Will setup the refresh entity for the ET_MONSTER centity with the nextState.
 **/
 void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEntity, entity_state_t *nextState ) {
-			//clgi.Print( PRINT_DEVELOPER, "CLG_PacketEntity_AddMonster: Entity(#%d), serverframe(%ull)\n", packetEntity->current.number, packetEntity->serverframe );
-
+	//if ( packetEntity->serverframe == clgi.client->frame.number ) {
+	//	if ( packetEntity->snapShotTime != clgi.client->time ) {
+	//	// Not yet printed for this frame.
+	//		clgi.Print( PRINT_DEVELOPER, "CLG_PacketEntity_AddMonster: Entity(#%d), serverframe(%llu)\n", packetEntity->current.number, packetEntity->serverframe );
+	//	}
+	//}
 	
 	//
 	// Lerp Origin:
@@ -58,8 +62,8 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
     //uint64_t realTime = clgi.GetRealTime();
     //if ( packetEntity->step_realtime >= realTime - STEP_TIME ) {
     if ( packetEntity->step_servertime >= clgi.client->extrapolatedTime - STEP_TIME ) {
-        //uint64_t stair_step_delta = clgi.GetRealTime() - packetEntity->step_realtime;
-        uint64_t stair_step_delta = clgi.client->extrapolatedTime - packetEntity->step_servertime;
+        uint64_t stair_step_delta = clgi.GetRealTime() - packetEntity->step_realtime;
+        //uint64_t stair_step_delta = clgi.client->extrapolatedTime - packetEntity->step_servertime;
         //uint64_t stair_step_delta = clgi.client->time - ( packetEntity->step_servertime - clgi.client->sv_frametime );
 
         // Smooth out stair step over 200ms.
@@ -79,7 +83,7 @@ void CLG_PacketEntity_AddMonster( centity_t *packetEntity, entity_t *refreshEnti
             // Calculate lerped Z origin.
             //packetEntity->current.origin[ 2 ] = QM_Lerp( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
             refreshEntity->origin[ 2 ] = QM_Lerp<double>( packetEntity->prev.origin[ 2 ], packetEntity->current.origin[ 2 ], stair_step_time * STEP_BASE_1_FRAMETIME );
-            //VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );
+            VectorCopy( packetEntity->current.origin, refreshEntity->oldorigin );
             VectorCopy( refreshEntity->origin, refreshEntity->oldorigin );
         }
     }

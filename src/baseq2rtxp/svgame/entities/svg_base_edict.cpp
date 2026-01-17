@@ -1087,7 +1087,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_base_edict_t, onSpawn )( svg_base_edict_t *sel
 
 	// Setup the origins and angles for linking, apply to currentOrigin and entityState.
 	SVG_Util_SetEntityOrigin( self, self->currentOrigin, true );
-	//SVG_Util_SetEntityAngles( self, self->currentAngles, true );
+	SVG_Util_SetEntityAngles( self, self->currentAngles, true );
 	
 	// Make sure that absMin/absMax are set accordingly.
 	self->absMin = self->currentOrigin; // VectorCopy( self->s.origin, self->absMin );

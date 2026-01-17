@@ -137,7 +137,7 @@ static const qboolean PF_CM_HeadnodeVisible( mnode_t *headnode, byte *visbits ) 
 	return CM_HeadnodeVisible( headnode, visbits );
 }
 
-void PF_CM_SetAreaPortalState( const int32_t portalnum, const bool open ) {
+void PF_CM_SetAreaPortalState( const int32_t portalnum, const int32_t open ) {
 	CM_SetAreaPortalState( &cl.collisionModel, portalnum, open );
 }
 const int32_t PF_CM_GetAreaPortalState( const int32_t portalnum ) {

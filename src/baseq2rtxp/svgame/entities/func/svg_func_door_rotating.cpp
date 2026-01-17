@@ -144,7 +144,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
 
     // if it starts open, switch the positions
     if ( SVG_HasSpawnFlags( self, svg_func_door_rotating_t::SPAWNFLAG_START_OPEN ) ) {
-        VectorCopy( self->angles2, self->s.angles );
+        self->currentAngles = self->s.angles = self->angles2; //VectorCopy( self->angles2, self->s.angles );
         //self->angles2 = self->angles1;
         //self->angles1 = -Vector3(self->s.angles);
         //self->movedir = QM_Vector3Negate( self->movedir );
@@ -287,4 +287,14 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_func_door_rotating_t, onSpawn )( svg_func_door
 
     // Link it in.
     gi.linkentity( self );
+
+	//#if 1
+	//if ( SVG_HasSpawnFlags( self, svg_func_door_t::SPAWNFLAG_START_OPEN ) ) {
+	//	// If the door spawns open, force the areaportal open as well.
+	//	// Do not toggle: portal defaults and spawn order are not reliable.
+	//	self->SetAreaPortal( true );
+	//} else {
+	//	self->SetAreaPortal( false );
+	//}
+	//#endif
 }

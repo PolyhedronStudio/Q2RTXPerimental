@@ -352,13 +352,14 @@ void SV_New_f(void)
 
     MSG_WriteString(sv_client->gamedir);
 
-    if (sv.state == ss_pic || sv.state == ss_cinematic)
-        MSG_WriteInt16(-1);
-    else
-        MSG_WriteInt16(sv_client->slot);
+	if ( sv.state == ss_pic || sv.state == ss_cinematic ) {
+		MSG_WriteInt16( -1 );
+	} else {
+		MSG_WriteInt16( sv_client->slot );
+	}
     // The following results in 0, but, if CS_NAME were to change...
     const uint32_t cs_offset = CS_NAME * MAX_CS_STRING_LENGTH;
-    MSG_WriteString(sv_client->configstrings[ cs_offset ]);
+    MSG_WriteString( sv_client->configstrings[ CS_SIZE( CS_NAME ) ] );
 
     SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
     SV_ClientCommand(sv_client, "\n");
@@ -377,17 +378,20 @@ void SV_New_f(void)
 
     stuff_cvar_bans();
 
-    if (SV_CheckInfoBans(sv_client->userinfo, false))
-        return;
+	if ( SV_CheckInfoBans( sv_client->userinfo, false ) ) {
+		return;
+	}
 
     Com_DPrintf("Going from cs_connected to cs_primed for %s\n",
                 sv_client->name);
     sv_client->state = cs_primed;
 
-    memset(&sv_client->lastcmd, 0, sizeof(sv_client->lastcmd));
+    //std::memset(&sv_client->lastcmd, 0, sizeof(sv_client->lastcmd));
+	sv_client->lastcmd = {};
 
-    if (sv.state == ss_pic || sv.state == ss_cinematic)
-        return;
+	if ( sv.state == ss_pic || sv.state == ss_cinematic ) {
+		return;
+	}
 
     // send gamestate
     //if (sv_client->netchan.type == NETCHAN_NEW) {

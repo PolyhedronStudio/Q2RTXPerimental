@@ -23,6 +23,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_utils.h"
 
 #include "svgame/entities/func/svg_func_door.h"
+#include "svgame/entities/func/svg_func_door_rotating.h"
 
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_hud.h"
@@ -295,12 +296,11 @@ void SVG_FindTeams( void ) {
 /**
 *	@brief	Checks all door like entities at the spawn time for whether they have an open or closed portal.
 **/
-void CheckSpawnPortalStateForDoors( void ) {
+void SVG_SetupDoorPortalSpawnStates( void ) {
 	// After teams are established, initialize areaportals once per door team (team master only).
 	for ( int32_t i = 1; i < globals.edictPool->num_edicts; i++ ) {
 		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
 
-		// Not a door like entity.
 		if ( !SVG_Entity_IsActive( ent ) ) {
 			continue;
 		}
@@ -308,14 +308,16 @@ void CheckSpawnPortalStateForDoors( void ) {
 			continue;
 		}
 
-		// Only doors drive areaportals here.
 		if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_t>() ) {
-			// Get door entity.
-			svg_func_door_t *funcDoorEntity = static_cast< svg_func_door_t * >( ent );
-			// See if it starts open.
-			const bool startsOpen = SVG_HasSpawnFlags( funcDoorEntity, svg_func_door_t::SPAWNFLAG_START_OPEN );
-			// Establish areaportal state.
-			funcDoorEntity->SetAreaPortal( startsOpen );
+			auto *door = static_cast<svg_func_door_t *>( ent );
+			const bool startOpen = SVG_HasSpawnFlags( door, svg_func_door_t::SPAWNFLAG_START_OPEN );
+			door->SetAreaPortal( startOpen, true );
+			door->areaPortalRefHeld = startOpen; // so OFF is allowed later
+		} else if ( ent->GetTypeInfo()->IsSubClassType<svg_func_door_rotating_t>() ) {
+			auto *door = static_cast<svg_func_door_rotating_t *>( ent );
+			const bool startOpen = SVG_HasSpawnFlags( door, svg_func_door_rotating_t::SPAWNFLAG_START_OPEN );
+			door->SetAreaPortal( startOpen, true ); // force authoritative initial state
+			door->areaPortalRefHeld = startOpen; // so OFF is allowed later
 		}
 	}
 }
@@ -688,5 +690,5 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	// Find all entities that are following a parent's movement.
 	SVG_MoveWith_FindParentTargetEntities();
 	// After all entities are spawned, check door portal states.
-	CheckSpawnPortalStateForDoors();
+	SVG_SetupDoorPortalSpawnStates();
 }

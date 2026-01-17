@@ -551,7 +551,9 @@ void SCR_EndLoadingPlaque(void)
     if (!cls.state) {
         return;
     }
+	// Reset the disabled screen timer.
     cls.disable_screen = 0;
+	// Clear the console notification texts.
     Con_ClearNotificationTexts_f();
 }
 

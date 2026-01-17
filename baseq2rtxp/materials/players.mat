@@ -1,8 +1,8 @@
 players/playerdummy/playerdummy:
-	texture_base models/v_wep/fps_arms/fps_arms.tga
-	texture_normals models/v_wep/fps_arms/fps_arms_n.tga
+	texture_base textures/models/testdummy/skin_orange.tga
+	texture_normals textures/models/testdummy/skin_n.tga
 	base_factor 2.5
-	bump_scale 0.75
-	specular_factor 0.125
-	metalness_factor 0
-	roughness_override 0.75
+	bump_scale 1.0
+	specular_factor 0.3
+	metalness_factor 0.1
+	roughness_override -1.0

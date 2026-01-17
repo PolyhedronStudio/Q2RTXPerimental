@@ -260,7 +260,7 @@ static void WriteCurrentPortalBits() {
     // Static buffer for portal bits.
     static byte portalBits[ MAX_MAP_PORTAL_BYTES ] = { };
     // Clean zeroed memory portal bits buffer for writing.
-    memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
+    std::memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
 
     // Write the current portal bit states to the portalBits buffer.
     const int32_t numPortalBits = CM_WritePortalBits( &sv.cm, portalBits );
@@ -309,7 +309,7 @@ void SV_WriteFrameToClient( client_t *client ) {
 
     // Send over entire frame's portal bits if this is the very first frame
     // or the client required a full on retransmit.
-    if ( oldFrame == nullptr ) {
+    if ( oldFrame == nullptr || lastFrameNumber <= 0 ) {
         WriteCurrentPortalBits();
     }
 

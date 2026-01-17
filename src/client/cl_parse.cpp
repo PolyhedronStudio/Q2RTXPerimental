@@ -198,6 +198,34 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
     }
 }
 
+
+/**
+*   @brief  Parses a full portalbits snapshot (baseline).
+**/
+static void CL_ParsePortalBits() {
+	const uint8_t lengthPortalBits = MSG_ReadUint8();
+
+	if ( lengthPortalBits > MAX_MAP_PORTAL_BYTES ) {
+		Com_Error( ERR_DROP, "%s: lengthPortalBits too high(%d), must be <= %d",
+			__func__, lengthPortalBits, MAX_MAP_PORTAL_BYTES );
+	}
+
+	static byte portalBits[ MAX_MAP_PORTAL_BYTES ];
+	std::memset( portalBits, 0, sizeof( portalBits ) );
+
+	const byte *receivedPortalBits = MSG_ReadData( lengthPortalBits );
+	for ( int32_t i = 0; i < lengthPortalBits; i++ ) {
+		portalBits[ i ] = receivedPortalBits[ i ];
+	}
+
+	CM_SetPortalStates( &cl.collisionModel, portalBits, lengthPortalBits );
+
+	Com_LPrintf( PRINT_DEVELOPER, "%s: svc_portalbits: bytes=%u\n", __func__, lengthPortalBits );
+}
+
+/**
+*	@brief	Parses a server frame message received by the client at this moment in time.
+**/
 static void CL_ParseFrame() {
     // Current frame being parsed.
     server_frame_t  frame = { };
@@ -303,38 +331,33 @@ static void CL_ParseFrame() {
     } else {
         frame.areabytes = 0;
     }
-
-    // Expect svc_portalbits or bail out.
-    if ( ( cl.frameflags & FF_NODELTA ) ) {
+ 
+	// svc_portalbits is written inline in svc_frame when lastFrameNumber == -1 (FF_NODELTA client-side).
+	if ( ( cl.frameflags & FF_NODELTA ) ) {
         if ( MSG_ReadUint8() != svc_portalbits ) {
             Com_Error( ERR_DROP, "%s: not svc_portalbits", __func__ );
         }
 
-        // Acquire length of portal bits.
-        uint8_t lengthPortalBits = MSG_ReadUint8();
-        // Ensure it is sane, otherwise bail out.
+        const int32_t lengthPortalBits = MSG_ReadUint8();
         if ( lengthPortalBits > MAX_MAP_PORTAL_BYTES ) {
-            Com_Error( ERR_DROP, "%s: svc_frame -> svc_portalbits: Portalbits number too high(%d), must be below(%d)\n",
+            Com_Error( ERR_DROP, "%s: svc_frame -> svc_portalbits: Portalbits number too high(%d), must be <= %d",
                 __func__, lengthPortalBits, MAX_MAP_PORTAL_BYTES );
             return;
         }
-        // Clean zerod out portal bits buffer.
+
         static byte portalBits[ MAX_MAP_PORTAL_BYTES ];
-        std::memset( portalBits, 0, MAX_MAP_PORTAL_BYTES );
-        // Pointer to the read buffer's portal bit part.
-        byte *receivedPortalBits = MSG_ReadData( lengthPortalBits );
-        // Copy over the received portal bits into the zeroed out portal bits buffer.
-        //memcpy( portalBits, receivedPortalBits, lengthPortalBits );
+        std::memset( portalBits, 0, sizeof( portalBits ) );
+
+        const byte *receivedPortalBits = MSG_ReadData( lengthPortalBits );
         for ( int32_t i = 0; i < lengthPortalBits; i++ ) {
             portalBits[ i ] = receivedPortalBits[ i ];
         }
-        // Set the entire of the portal states with the newly received portal state bit data.
-        CM_SetPortalStates( &cl.collisionModel, portalBits, lengthPortalBits );
-        CM_FloodAreaConnections( &cl.collisionModel );
-    }
 
-    /**
-	*   Parse playerinfo.
+        CM_SetPortalStates( &cl.collisionModel, portalBits, lengthPortalBits );
+    }
+ 
+	/**
+ 	*   Parse playerinfo.
     **/
 	// Expect svc_playerinfo or bail out.
 	if ( MSG_ReadUint8() != svc_playerinfo ) {
@@ -905,13 +928,14 @@ static void CL_ParseSetAreaPortalBit() {
     // Set the area portal bit.
     CM_SetAreaPortalState( &cl.collisionModel, portalNumber, stateIsOpen );
 
-    // Flood update area connections.
-    CM_FloodAreaConnections( &cl.collisionModel );
+    // Flood update area connections. (Already happens in CM_SetAreaPortalState)
+    //CM_FloodAreaConnections( &cl.collisionModel );
 
     // Developer print.
     Com_LPrintf( PRINT_DEVELOPER, "%s: svc_set_portalbit: portalNumber(#%d), isOpen(%s)\n",
         __func__, portalNumber, stateIsOpen ? "true" : "false" );
 }
+
 
 /*
 =====================
@@ -935,148 +959,148 @@ void CL_ParseServerMessage(void)
 //
 // parse the message
 //
-    while (1) {
-        if (msg_read.readcount > msg_read.cursize) {
-            Com_Error(ERR_DROP, "%s: read past end of server message", __func__);
-        }
+	while ( 1 ) {
+		if ( msg_read.readcount > msg_read.cursize ) {
+			Com_Error( ERR_DROP, "%s: read past end of server message", __func__ );
+		}
 
-        readcount = msg_read.readcount;
+		readcount = msg_read.readcount;
 
-        if ((cmd = MSG_ReadUint8()) == -1) {
-            SHOWNET(1, "%3zu:END OF MESSAGE\n", msg_read.readcount - 1);
-            break;
-        }
+		if ( ( cmd = MSG_ReadUint8() ) == -1 ) {
+			SHOWNET( 1, "%3zu:END OF MESSAGE\n", msg_read.readcount - 1 );
+			break;
+		}
+		
+		#if USE_DEBUG
+		if ( cl_shownet->integer > 1 ) {
+			MSG_ShowSVC( cmd );
+		}
+		#endif
 
-#if USE_DEBUG
-        if (cl_shownet->integer > 1) {
-            MSG_ShowSVC(cmd);
-        }
-#endif
-
-        // other commands
-        switch (cmd) {
-        default:
-            // Didn't recognize the command, pass control over the client game to give it a shot
-            // at handling the command.
-            clge->StartServerMessage( false );
-            if ( !clge->ParseServerMessage( cmd ) ) {
-                Com_Error( ERR_DROP, "%s: illegible server message: %d", __func__, cmd );
-            }
-            clge->EndServerMessage( false );
+				// other commands
+		switch ( cmd ) {
+		default:
+			// Didn't recognize the command, pass control over the client game to give it a shot
+			// at handling the command.
+			clge->StartServerMessage( false );
+			if ( !clge->ParseServerMessage( cmd ) ) {
+				Com_Error( ERR_DROP, "%s: illegible server message: %d", __func__, cmd );
+			}
+			clge->EndServerMessage( false );
 //badbyte:
 //            Com_Error(ERR_DROP, "%s: illegible server message: %d", __func__, cmd);
-            break;
+			break;
 
-        case svc_nop:
-            break;
+		case svc_nop:
+			break;
 
-        case svc_disconnect:
-            Com_Error(ERR_DISCONNECT, "Server disconnected");
-            break;
+		case svc_disconnect:
+			Com_Error( ERR_DISCONNECT, "Server disconnected" );
+			break;
 
-        case svc_reconnect:
-            CL_ParseReconnect();
-            return;
+		case svc_reconnect:
+			CL_ParseReconnect();
+			return;
 
-        // Moved to Client Game.
-        //case svc_print:
-        //    CL_ParsePrint();
-        //    break;
-        // Moved to Client Game.
-        //case svc_centerprint:
-        //    CL_ParseCenterPrint();
-        //    break;
+		// Moved to Client Game.
+		//case svc_print:
+		//    CL_ParsePrint();
+		//    break;
+		// Moved to Client Game.
+		//case svc_centerprint:
+		//    CL_ParseCenterPrint();
+		//    break;
 
-        case svc_stufftext:
-            CL_ParseStuffText();
-            break;
+		case svc_stufftext:
+			CL_ParseStuffText();
+			break;
 
-        case svc_serverdata:
-            CL_ParseServerData();
-            continue;
+		case svc_serverdata:
+			CL_ParseServerData();
+			continue;
 
-        case svc_configstring:
-            index = MSG_ReadInt16();
+		case svc_configstring:
+			index = MSG_ReadInt16();
             CL_ParseConfigstring(index);
-            break;
+			break;
 
-        case svc_sound:
-            CL_ParseStartSoundPacket();
-            S_ParseStartSound();
-            break;
+		case svc_sound:
+			CL_ParseStartSoundPacket();
+			S_ParseStartSound();
+			break;
 
         case svc_spawnbaseline: {
 			uint64_t byteMask = 0;
 			bool removeEntity = false;
 			index = MSG_ReadEntityNumber( &removeEntity, &byteMask );
 			CL_ParseBaseline( index, byteMask );
-            break;
+			break;
 		}
 
-        // WID: Moved to client game.
-        //case svc_temp_entity:
-        //    CL_ParseTEntPacket();
-        //    CL_ParseTEnt();
-        //    break;
-        // WID: Moved to client game.
-        //case svc_muzzleflash:
-        //    CL_ParseMuzzleFlashPacket(MZ_SILENCED);
-        //    CL_MuzzleFlash();
-        //    break;
-        // WID: Moved to client game.
-        //case svc_muzzleflash2:
-        //    CL_ParseMuzzleFlashPacket(0);
-        //    CL_MuzzleFlash2();
-        //    break;
+		// WID: Moved to client game.
+		//case svc_temp_entity:
+		//    CL_ParseTEntPacket();
+		//    CL_ParseTEnt();
+		//    break;
+		// WID: Moved to client game.
+		//case svc_muzzleflash:
+		//    CL_ParseMuzzleFlashPacket(MZ_SILENCED);
+		//    CL_MuzzleFlash();
+		//    break;
+		// WID: Moved to client game.
+		//case svc_muzzleflash2:
+		//    CL_ParseMuzzleFlashPacket(0);
+		//    CL_MuzzleFlash2();
+		//    break;
 
-        case svc_download:
-            CL_ParseDownload(cmd);
-            continue;
+		case svc_download:
+			CL_ParseDownload( cmd );
+			continue;
 
-        case svc_frame:
-            CL_ParseFrame();
-            continue;
-        case svc_set_portalbit:
-            CL_ParseSetAreaPortalBit();
-            continue;
+		case svc_frame:
+			CL_ParseFrame();
+			continue;
+		case svc_set_portalbit:
+			CL_ParseSetAreaPortalBit();
+			continue;
 
 
-        case svc_scoreboard:
-            CL_ParseScoreboard();
-            continue;
-        //case svc_inventory:
-        //    CL_ParseInventory();
-        //    break;
+		case svc_scoreboard:
+			CL_ParseScoreboard();
+			continue;
+		//case svc_inventory:
+		//    CL_ParseInventory();
+		//    break;
 
-        //case svc_layout:
-        //    CL_ParseLayout();
-        //    break;
+		//case svc_layout:
+		//    CL_ParseLayout();
+		//    break;
 
-        case svc_zpacket:
-            //if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
-            //    goto badbyte;
-            //}
-            CL_ParseZPacket();
-            continue;
+		case svc_zpacket:
+			//if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
+			//    goto badbyte;
+			//}
+			CL_ParseZPacket();
+			continue;
 
-        case svc_zdownload:
-            //if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
-            //    goto badbyte;
-            //}
-            CL_ParseDownload(cmd);
-            continue;
+		case svc_zdownload:
+			//if (cls.serverProtocol < PROTOCOL_VERSION_R1Q2) {
+			//    goto badbyte;
+			//}
+			CL_ParseDownload( cmd );
+			continue;
 
-        case svc_gamestate:
+		case svc_gamestate:
 		case svc_baselinestream:
 		case svc_configstringstream:
 			//if (cls.serverProtocol != PROTOCOL_VERSION_Q2PRO) {
-            //    goto badbyte;
-            //}
-            CL_ParseGamestate( cmd );
+			//    goto badbyte;
+			//}
+			CL_ParseGamestate( cmd );
 			continue;
-        }
+		}
 
-        // if recording demos, copy off protocol invariant stuff
+		// if recording demos, copy off protocol invariant stuff
 		if ( cls.demo.recording && !cls.demo.paused ) {
 			size_t len = msg_read.readcount - readcount;
 
@@ -1089,7 +1113,7 @@ void CL_ParseServerMessage(void)
 				cls.demo.others_dropped++;
 			}
 		}
-    }
+	}
 }
 
 /*
