@@ -16,7 +16,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
-
+#include "svgame/svg_utils.h"
+#include "svgame/player/svg_player_trail.h"
 
 /*
 ==============================================================================
@@ -33,7 +34,7 @@ the player has been recently.  It is used by monsters for pursuit.
 .aiment     backward link
 */
 
-//#define ENABLE_PLAYER_TRAIL_ENTITIES
+#define ENABLE_PLAYER_TRAIL_ENTITIES
 
 #ifdef ENABLE_PLAYER_TRAIL_ENTITIES
 #define TRAIL_LENGTH    128
@@ -53,8 +54,7 @@ void PlayerTrail_Init(void)
         return;
 
     for (n = 0; n < TRAIL_LENGTH; n++) {
-        trail[n] = SVG_AllocateEdict();
-        trail[n]->classname = svg_level_qstring_t::from_char_str( "player_trail" );
+		trail[ n ] = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_trail" );
     }
 
     trail_head = 0;
@@ -62,25 +62,27 @@ void PlayerTrail_Init(void)
 }
 
 
-void PlayerTrail_Add(vec3_t spot)
+void PlayerTrail_Add( const Vector3 &spot)
 {
     vec3_t  temp;
 
     if (!trail_active)
         return;
 
-    VectorCopy(spot, trail[trail_head]->s.origin);
+    //VectorCopy(spot, trail[trail_head]->currentOrigin);
+	SVG_Util_SetEntityOrigin( trail[ trail_head ], spot, true );
 
     trail[trail_head]->timestamp = level.time;
 
-    VectorSubtract(spot, trail[PREV(trail_head)]->s.origin, temp);
-    trail[trail_head]->s.angles[1] = QM_Vector3ToYaw(temp);
+    VectorSubtract(spot, trail[PREV(trail_head)]->currentOrigin, temp);
+    trail[trail_head]->currentAngles[1] = QM_Vector3ToYaw(temp);
+	SVG_Util_SetEntityAngles( trail[ trail_head ], trail[ trail_head ]->currentAngles, true );
 
     trail_head = NEXT(trail_head);
 }
 
 
-void PlayerTrail_New(vec3_t spot)
+void PlayerTrail_New( const Vector3 &spot)
 {
     if (!trail_active)
         return;
@@ -152,10 +154,10 @@ bool        trail_active = false;
 void PlayerTrail_Init( void ) {
 	// Nothing to do.
 }
-void PlayerTrail_Add( vec3_t spot ) {
+void PlayerTrail_Add( const Vector3 &spot ) {
 	// Nothing to do.
 }
-void PlayerTrail_New( vec3_t spot ) {
+void PlayerTrail_New( const Vector3 &spot ) {
 	// Nothing to do.
 }
 svg_base_edict_t *PlayerTrail_PickFirst( svg_base_edict_t *self ) {

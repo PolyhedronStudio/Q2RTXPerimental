@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/player/svg_player_trail.h"
 
 #include "sharedgame/sg_entity_flags.h"
 #include "sharedgame/sg_entities.h"
@@ -609,7 +610,21 @@ void SVG_Client_BeginServerFrame( svg_base_edict_t *ent ) {
     *	Give game mode control.
     **/
     game.mode->BeginServerFrame( static_cast<svg_player_edict_t *>( ent ) );
-
+ 
+    /**
+    *   Add player trail so monsters can follow (Q2/Q2RTX behavior).
+    *   Notes:
+    *   - only for non-deathmatch
+    *   - only for alive, non-spectator players
+    *   - only add when player can't see the last trail spot
+    *   - add old position (previous origin), not current
+    **/
+    if ( !deathmatch->integer && !ent->client->resp.spectator && ent->lifeStatus == LIFESTATUS_ALIVE ) {
+        svg_base_edict_t *lastSpot = PlayerTrail_LastSpot();
+        if ( lastSpot && !SVG_Entity_IsVisible( ent, lastSpot ) ) {
+            PlayerTrail_Add( ent->s.old_origin );
+        }
+    }
     /**
     *   UNLATCH ALL LATCHED BUTTONS:
     **/

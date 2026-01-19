@@ -255,4 +255,6 @@ void SVG_MMove_FaceIdealYaw( svg_base_edict_t *ent, const float idealYaw, const 
 	#endif
 	// AngleMod the final resulting angles.
 	ent->currentAngles[ YAW ] = QM_AngleMod( currentYawAngle + yawAngleMove );
+
+	//SVG_Util_SetEntityAngles( ent, ent->currentAngles, true );
 }

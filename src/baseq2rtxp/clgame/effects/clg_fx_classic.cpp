@@ -46,14 +46,14 @@ void CLG_FX_ParticleEffect( const Vector3 &org, const Vector3 &dir, int color, i
         p->brightness = 0.5f;
 
         vec3_t origin;
-        Vector3Copy( org, origin );
+        VectorCopy( org, origin );
         VectorMA( origin, dirt_horizontal_spread * crand(), ox, origin );
         VectorMA( origin, dirt_horizontal_spread * crand(), oy, origin );
         VectorMA( origin, dirt_vertical_spread * frand() + 1.0f, dir, origin );
         VectorCopy( origin, p->org );
 
         vec3_t velocity;
-        Vector3Subtract( origin, org, velocity );
+        VectorSubtract( origin, org, velocity );
         VectorNormalize( velocity );
         VectorScale( velocity, dirt_base_velocity + frand() * dirt_rand_velocity, p->vel );
 
@@ -82,7 +82,7 @@ void CLG_FX_ParticleEffect( const Vector3 &org, const Vector3 &dir, int color, i
         VectorCopy( origin, p->org );
 
         vec3_t velocity;
-        Vector3Subtract( origin, org, velocity );
+        VectorSubtract( origin, org, velocity );
         VectorNormalize( velocity );
         VectorScale( velocity, spark_base_velocity + powf( frand(), 2.0f ) * spark_rand_velocity, p->vel );
 

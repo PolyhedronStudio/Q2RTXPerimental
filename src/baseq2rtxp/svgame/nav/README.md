@@ -113,19 +113,20 @@ All allocations use `gi.TagMalloc` / `gi.TagFree` with `TAG_SVGAME_LEVEL` tag:
 - ✅ Multi-layer detection algorithm
 - ✅ Slope walkability checking
 - ✅ Content flag detection
+- ✅ Ladder content detection
+- ✅ World mesh generation with BSP leaf traversal
+- ✅ A* traversal pathfinding and movement direction queries
 - ✅ CMake integration
 
 ### Placeholder/TODO
-- ⚠️ World mesh generation (basic structure in place, needs full implementation)
 - ⚠️ Inline model mesh generation (basic structure in place, needs full implementation)
-- ⚠️ Tile creation and XY cell sampling
 - ⚠️ Clearance calculation
-- ⚠️ Ladder detection
+- ⚠️ Inline model tile creation and XY cell sampling
 
 ## Notes
 
 - The implementation does NOT change monster/player movement - it only generates data
-- The voxelmesh is suitable for later A* pathfinding implementation
+- The voxelmesh now supports traversal pathfinding via A* helpers
 - Generation parameters are designed to match Quake 2 player physics constraints
 - The sparse tile structure minimizes memory usage in large maps
 
@@ -137,6 +138,14 @@ To test the implementation:
 3. Load a map
 4. Execute `sv nav_gen_voxelmesh` in the console
 5. Review the statistics output showing leafs, tiles, cells, and layers generated
+
+## Traversal Pathfinding API
+
+The navigation system now exposes traversal helpers for A* pathfinding:
+
+- `SVG_Nav_GenerateTraversalPathForOrigin` builds a waypoint list between a start and goal.
+- `SVG_Nav_QueryMovementDirection` returns a normalized direction toward the next waypoint.
+- `SVG_Nav_FreeTraversalPath` releases path memory.
 
 Example output:
 ```

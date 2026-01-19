@@ -17,11 +17,11 @@ void PlayerTrail_Init( void );
 /**
 *   @brief
 **/
-void PlayerTrail_Add( vec3_t spot );
+void PlayerTrail_Add( const Vector3 &spot );
 /**
 *   @brief
 **/
-void PlayerTrail_New( vec3_t spot );
+void PlayerTrail_New( const Vector3 &spot );
 /**
 *   @brief
 **/

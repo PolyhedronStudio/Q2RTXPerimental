@@ -13,8 +13,9 @@
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_events.h"
 #include "svgame/player/svg_player_hud.h"
-#include "svgame/player/svg_player_view.h"
+#include "svgame/player/svg_player_trail.h"
 #include "svgame/player/svg_player_usetargets.h"
+#include "svgame/player/svg_player_view.h"
 
 
 #include "sharedgame/pmove/sg_pmove.h"
@@ -150,9 +151,9 @@ void svg_gamemode_deathmatch_t::BeginServerFrame( svg_player_edict_t *ent ) {
 	*   Add player trail so monsters can follow
 	**/
 	//// WID: TODO: Monster Reimplement.
-	//if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
-	//	PlayerTrail_Add( ent->s.old_origin );
-	//}
+	if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
+		PlayerTrail_Add( ent->s.old_origin );
+	}
 
 	/**
 	*   UNLATCH ALL LATCHED BUTTONS:

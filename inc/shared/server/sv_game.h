@@ -194,6 +194,11 @@ typedef struct {
 	double      frame_time_s;
     //! The time for each frame in 'miliseconds'.
 	uint32_t    frame_time_ms;
+
+	/**
+	*	@return	For legitimate real system time tracking purposes.
+	**/
+	const uint64_t( *GetRealSystemTime )( void );
     /**
     *   @return The realtime of the server since boot time.
     **/
@@ -228,6 +233,11 @@ typedef struct {
     void ( *configstring )( int num, const char *string );
 
     void ( *q_noreturn q_printf( 1, 2 ) error )( const char *fmt, ... );
+
+	//! Return the leaf the point is in.
+	mleaf_t *( *BSP_PointLeaf )( mnode_t *node, const vec3_t p );
+	// Get the bsp_t pointer of the currently loaded map.
+	cm_t *( *GetCollisionModel )( void );
 
     //! Get access to the actual pointer of a loaded configstring model.
     const model_t *( *GetModelDataForName )( const char *name );

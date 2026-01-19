@@ -2,7 +2,7 @@
 
 ## Overview
 
-This implementation adds the `nav_gen_voxelmesh` server console command to Q2RTXPerimental for generating navigation voxelmesh data at runtime. The voxelmesh is a sparse, multi-layered structure suitable for A* pathfinding.
+This implementation adds the `nav_gen_voxelmesh` server console command to Q2RTXPerimental for generating navigation voxelmesh data at runtime. The voxelmesh is a sparse, multi-layered structure with A* traversal pathfinding helpers.
 
 ## Files Added
 
@@ -13,9 +13,10 @@ This implementation adds the `nav_gen_voxelmesh` server console command to Q2RTX
 
 2. **src/baseq2rtxp/svgame/nav/svg_nav.cpp** (15,439 bytes)
    - Core implementation
-   - World mesh generation framework
+   - World mesh generation
    - Inline model mesh generation framework
    - Multi-layer detection algorithm
+   - Traversal pathfinding helpers
    - Memory management
    - Statistics tracking
 
@@ -80,7 +81,8 @@ Generates the navigation voxelmesh and outputs statistics including:
 2. **Inline Model Mesh**: Uses per-model traces (`gi.clip`) in local space
 3. **Multi-Layer Detection**: Repeated downward traces find all walkable floors per XY column
 4. **Slope Checking**: Validates normal.z >= cos(max_slope_deg)
-5. **Content Detection**: Identifies water, lava, slime based on trace contents
+5. **Content Detection**: Identifies water, lava, slime, ladder based on trace contents
+6. **Traversal Pathfinding**: A* search builds waypoint lists for movement queries
 
 ### Memory Management
 - Uses `gi.TagMalloc` / `gi.TagFree` with `TAG_SVGAME_LEVEL`
@@ -105,41 +107,31 @@ Generates the navigation voxelmesh and outputs statistics including:
 - Slope walkability checking
 - Content flag detection
 - Input validation
+- World mesh generation with BSP leaf traversal
+- A* traversal path generation
+- Movement direction queries for traversal paths
 - CMake integration
 - Documentation
 
 ### Placeholder/TODO ⚠️
-- World mesh generation (framework in place)
-  - Leaf bounds iteration
-  - Tile creation
-  - XY grid sampling
-  - Downward trace calls
 - Inline model mesh generation (framework in place)
   - Model enumeration
   - Per-model collision testing
 - Clearance calculation
-- Ladder detection
+- Inline model tile creation and XY sampling
 
 ## Next Steps
 
 To complete the implementation:
 
-1. **World Mesh Generation**
-   - Iterate through BSP leafs (bsp->leafs[0..numleafs])
-   - Extract leaf bounds (mins/maxs)
-   - Create tiles covering leaf bounds with tile_size spacing
-   - For each tile, sample XY positions at cell_size_xy spacing
-   - Call FindWalkableLayers() for each XY position
-   - Store results in nav_tile_t structures
-
-2. **Inline Model Mesh Generation**
+1. **Inline Model Mesh Generation**
    - Iterate through inline models (bsp->models[1..nummodels])
    - For each model, extract bounds from mmodel_t
    - Create tiles in model local space
    - Use gi.clip() with model entity for collision tests
    - Store results keyed by model index
 
-3. **Testing**
+2. **Testing**
    - Build with CMake 4.1+
    - Load various maps (small, medium, large)
    - Execute `sv nav_gen_voxelmesh`
@@ -158,7 +150,7 @@ To complete the implementation:
 ## Compatibility
 
 - Does NOT modify monster/player movement
-- Only generates data for future pathfinding
+- Provides optional traversal path queries for AI experimentation
 - No impact on gameplay physics
 - Safe to regenerate at any time
 
