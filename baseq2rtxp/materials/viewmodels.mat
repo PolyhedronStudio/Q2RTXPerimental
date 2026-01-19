@@ -4,9 +4,9 @@ models/v_wep/pistol/fps_arms:
 	texture_normals textures/models/testdummy/skin_n.tga
 	base_factor 2.5
 	bump_scale 1.0
-	specular_factor 0.3
-	metalness_factor 0.1
-	roughness_override -1.0
+	specular_factor 1.0
+	metalness_factor 0
+	roughness_override 0.4
 
 models/v_wep/pistol/pistol_black,
 models/v_wep/pistol/pistol_black_lighter,

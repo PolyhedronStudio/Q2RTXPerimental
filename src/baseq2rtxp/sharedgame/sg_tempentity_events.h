@@ -49,7 +49,7 @@ typedef enum temp_entity_event_e {
 
     TE_FLAME,
 
-    TE_PLAIN_EXPLOSION,
+    //TE_PLAIN_EXPLOSION,
     //TE_EXPLOSION1_BIG,
     //TE_EXPLOSION1_NP,
     //TE_ROCKET_EXPLOSION_WATER,
@@ -57,7 +57,7 @@ typedef enum temp_entity_event_e {
     //
     //TE_NUKEBLAST,
 
-    TE_TELEPORT_EFFECT,
+    //TE_TELEPORT_EFFECT,
 
     //TE_GRAPPLE_CABLE,
     //TE_FLASHLIGHT,

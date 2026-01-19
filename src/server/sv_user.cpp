@@ -359,7 +359,7 @@ void SV_New_f(void)
 	}
     // The following results in 0, but, if CS_NAME were to change...
     const uint32_t cs_offset = CS_NAME * MAX_CS_STRING_LENGTH;
-    MSG_WriteString( sv_client->configstrings[ CS_SIZE( CS_NAME ) ] );
+    MSG_WriteString( sv_client->configstrings[ cs_offset ] );
 
     SV_ClientAddMessage(sv_client, MSG_RELIABLE | MSG_CLEAR);
     SV_ClientCommand(sv_client, "\n");

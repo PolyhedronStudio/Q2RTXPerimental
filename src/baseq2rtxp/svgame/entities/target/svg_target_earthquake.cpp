@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_misc.h"
 #include "svgame/entities/target/svg_target_earthquake.h"
 
@@ -121,6 +122,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_target_earthquake_t, onThink )( svg_target_ear
     // Positioned Sound.
     if ( self->last_move_time < level.time ) {
         gi.positioned_sound( &self->s.origin, self, CHAN_AUTO, self->noise_index, 1.0f, ATTN_NONE, 0 );
+		SVG_EntityEvent_GeneralSoundEx( self, CHAN_AUTO, self->noise_index, ATTN_NONE );
+
         self->last_move_time = level.time + 6.5_sec;
     }
 

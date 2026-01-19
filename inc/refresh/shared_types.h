@@ -520,7 +520,7 @@ typedef struct entity_s {
     // previous data for lerping
     //
     //! Also used as RF_BEAM's "to".
-    vec3_t oldorigin;
+	vec3_t oldorigin;
     int oldframe;
 
     //

@@ -80,9 +80,22 @@ void CLG_ClearExplosions( void );
 **/
 clg_explosion_t *CLG_AllocateExplosion( void );
 /**
-*   @brief
+*   @brief  Creates a plain explosion effect, with optional smoke explosion sprite.
+*	@note	The cent is required for traceing if underwater bubble trail is needed. (For ignore entity ptr).
 **/
-clg_explosion_t *CLG_PlainExplosion( const bool withSmoke );
+clg_explosion_t *CLG_PlainExplosion( const Vector3 &origin, const bool withSmoke = true );
+/**
+*	@brief	Plain utility function to create a plain explosion at an origin point.
+*	@note	Creates bubble trail if underwater. (Won't create smoke sprite).
+*	@param	[in]	origin		The origin point of the explosion.
+**/
+clg_explosion_t *CLG_PlainExplosionOrigin( const Vector3 &origin, const double radius = 32. /* Estimated default entity explosion radius */ );
+/**
+*	@brief	Plain utility function to create a plain explosion at the centity's position.
+*	@note	Creates bubble trail if underwater. (Won't create smoke sprite).
+*	@param	[in]	cent		The centity to create the explosion at.
+**/
+clg_explosion_t *CLG_PlainExplosionEntity( centity_t *cent, const double radius = 32. /* Estimated default entity explosion radius */ );
 /**
 *   @brief
 **/

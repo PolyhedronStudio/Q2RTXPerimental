@@ -16,6 +16,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 #include "svgame/svg_local.h"
+#include "svgame/svg_entity_events.h"
 #include "svgame/svg_trigger.h"
 #include "svgame/svg_utils.h"
 
@@ -66,10 +67,11 @@ void Use_Target_Speaker( svg_base_edict_t *ent, svg_base_edict_t *other, svg_bas
 
     if (ent->spawnflags & 3) {
         // looping sound toggles
-        if (ent->s.sound)
-            ent->s.sound = 0;   // turn it off
-        else
-            ent->s.sound = ent->noise_index;    // start it
+		if ( ent->s.sound ) {
+			ent->s.sound = 0;   // turn it off
+		} else {
+			ent->s.sound = ent->noise_index;    // start it
+		}
     } else {
         // normal sound
         if (ent->spawnflags & 4)
@@ -78,7 +80,8 @@ void Use_Target_Speaker( svg_base_edict_t *ent, svg_base_edict_t *other, svg_bas
             chan = CHAN_VOICE;
         // use a positioned_sound, because this entity won't normally be
         // sent to any clients because it is invisible
-        gi.positioned_sound(ent->s.origin, ent, chan, ent->noise_index, ent->volume, ent->attenuation, 0);
+        //gi.positioned_sound(ent->s.origin, ent, chan, ent->noise_index, ent->volume, ent->attenuation, 0);
+		SVG_EntityEvent_PositionedSound( ent, chan, ent->noise_index, ent->volume, ent->attenuation, 0 );
     }
 }
 

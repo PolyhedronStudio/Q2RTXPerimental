@@ -315,9 +315,10 @@ void SVG_Misc_BecomeExplosion( svg_base_edict_t *self, int type, const bool free
     //      gi.WriteUint8( TE_PLAIN_EXPLOSION );
     //}
     // Regular explosion.
-    gi.WriteUint8( TE_PLAIN_EXPLOSION );
-    gi.WritePosition( &self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
-    gi.multicast( &self->s.origin, MULTICAST_PVS, false );
+    //gi.WriteUint8( TE_PLAIN_EXPLOSION );
+    //gi.WritePosition( &self->s.origin, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+    //gi.multicast( &self->s.origin, MULTICAST_PVS, false );
+	//SVG_TempEventEntity_Blood
 
     // Free the entity if requested.
 	if ( freeEntity ) {

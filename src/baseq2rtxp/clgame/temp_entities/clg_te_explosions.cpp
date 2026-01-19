@@ -6,9 +6,76 @@
 *
 ********************************************************************/
 #include "clgame/clg_local.h"
+
+#include "clgame/clg_effects.h"
+
 #include "clgame/clg_precache.h"
 #include "clgame/clg_temp_entities.h"
+#include "clgame/clg_world.h"
 
+
+
+/**
+*
+*
+*
+*
+*	Utilities:
+*
+*
+*
+*
+**/
+/**
+*   @brief  Will select and play a random grenade explosion.
+*	@param	isInWater	Whether the explosion is in water or not.
+*	@param	point		The point to play the explosion at. If nullptr, will rely on entityNumber.
+*	@param	entityNumber	The entity number to play the sound from(Default is ENTITYNUM_NONE). 
+*							If ENTITYNUM_NONE, will use index 0 of the World instead.
+*	@note	The entityNumber is clamped to valid range if specified.
+**/
+static void CLG_StartRandomExplosionSfx( const bool isInWater, const Vector3 *point, const int entityNumber = ENTITYNUM_NONE ) {
+	// Sanitize entity number:
+	const int32_t sanitizedEntityNumber = std::clamp( entityNumber, 0, MAX_EDICTS - 1 );
+	// Determine the real entity number to use:
+	const int32_t _entityNumber = entityNumber != ENTITYNUM_NONE ? sanitizedEntityNumber : 0;
+
+	// Play sound:
+	if ( isInWater ) {
+		// Bit ugly due to S_StartSound being C-ish, we check for nullptr Vector3 pointer:
+		if ( point ) {
+			clgi.S_StartSound( &point->x, _entityNumber, 0, precache.sfx.explosions.water, 1, ATTN_NORM, 0);
+			clgi.Print( PRINT_WARNING, "Origin Explosion at (%f %f %f) in [contents_water]\n", point->x, point->y, point->z );
+		} else {
+			clgi.S_StartSound( nullptr, _entityNumber, 0, precache.sfx.explosions.water, 1, ATTN_NORM, 0 );
+			clgi.Print( PRINT_WARNING, "Entity(#%d) is in [contents_liquid]\n", entityNumber );
+		}
+	} else {
+		// In case we are in SOLID_NONE spaces:
+		const int32_t index = irandom( 2 + 1 );
+		// Determine the actual sound to play:
+		const qhandle_t sfxToPlay = ( index == 0 ) ? precache.sfx.explosions.grenade01 : precache.sfx.explosions.grenade02;
+
+		//clgi.S_StartSound( point, entityNumber, 0, precache.sfx.explosions.grenade01, 1, ATTN_NORM, 0 );
+		//clgi.S_StartSound( point, entityNumber, 0, precache.sfx.explosions.grenade02, 1, ATTN_NORM, 0);
+		if ( point ) {
+			clgi.S_StartSound( &point->x, _entityNumber, 0, sfxToPlay, 1, ATTN_NORM, 0 );
+			clgi.Print( PRINT_WARNING, "Origin Explosion at (%f %f %f) in [contents_none]\n", point->x, point->y, point->z );
+		} else {
+			clgi.S_StartSound( nullptr, _entityNumber, 0, sfxToPlay, 1, ATTN_NORM, 0 );
+			clgi.Print( PRINT_WARNING, "Entity(#%d) is in [contents_none]\n", entityNumber );
+		}
+	}
+}
+
+
+/**
+* 
+* 
+*	Explosion Instances Management:
+* 
+* 
+***/
 //! An array storing slots for explosions to be stored in. 
 //! The type of explosion is determined by the 'type' field. Which is clg_explosion_t::ex_free if the slot is free.
 clg_explosion_t  clg_explosions[ MAX_EXPLOSIONS ] = {};
@@ -60,6 +127,8 @@ clg_explosion_t *CLG_AllocateExplosion( void ) {
     // Return the oldest entry.
     return oldestEntry;
 }
+
+
 
 /**
 *
@@ -307,12 +376,13 @@ void CLG_AddExplosions( void ) {
 **/
 /**
 *   @brief  Creates a plain explosion effect, with optional smoke explosion sprite.
+*	@note	The cent is required for traceing if underwater bubble trail is needed. (For ignore entity ptr).
 **/
-clg_explosion_t *CLG_PlainExplosion( const bool withSmoke ) {
+clg_explosion_t *CLG_PlainExplosion( const Vector3 &origin, const bool withSmoke ) {
 
     qhandle_t spriteHandle = ( withSmoke ? precache.models.sprite_explo01 : precache.models.sprite_explo00 );
     clg_explosion_t *ex = CLG_AllocateExplosion();
-    VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
+	VectorCopy( origin, ex->ent.origin );//VectorCopy( level.parsedMessage.events.tempEntity.pos1, ex->ent.origin );
     ex->type = clg_explosion_t::ex_polygon_curvature; // WID: C++20: Was without clg_explosion_t::
     ex->lightCurvature = &ex_plain_explosion_curve;
     ex->ent.flags = RF_FULLBRIGHT;
@@ -333,17 +403,98 @@ clg_explosion_t *CLG_PlainExplosion( const bool withSmoke ) {
     ex->baseframe = ex->frames * ( Q_rand() & 1 );
     ex->frametime = QMTime::FromMilliseconds( clg_explosion_frametime->integer );
 
-    //ex->easeState = QMEaseState::new_ease_state(
-    //    QMTime::FromMilliseconds( clgi.GetRealTime() ),
-    //    QMTime::FromMilliseconds( ex->frames * ex->frametime )
-    //);
-    //} else {
-    //    ex->ent.model = big ? precache.models.explo4_big : precache.models.explo4;
-    //    ex->baseframe = 15 * ( Q_rand() & 1 );
-    //    ex->frames = 15;
-    //}
-
     return ex;
+}
+
+/**
+*	@brief	Plain utility function to create a plain explosion at an origin point.
+*	@note	Creates bubble trail if underwater. (Won't create smoke sprite).
+*	@param	[in]	origin		The origin point of the explosion.
+**/
+clg_explosion_t *CLG_PlainExplosionOrigin( const Vector3 &origin, const double radius ) {
+	/**
+	*	Detect if in a liquid(assumed to be water):
+	**/
+	// Test for what solid type we're in.
+	Vector3 pointPos = origin;
+	// Perform point contents check.
+	const cm_contents_t pointContents = CLG_PointContents( pointPos );
+	// First determine whether we're actually under water.
+	const bool isUnderWater = ( pointContents & CM_CONTENTMASK_LIQUID ) != 0;
+
+	//! Do an explosion, if underwater, without smoke.
+	clg_explosion_t *explosion = CLG_PlainExplosion( origin, !isUnderWater /* withSmoke == false if under water*/);
+	// Handles playing the appropriate sound for the solid type found at the origin of pos1 vector.
+	CLG_StartRandomExplosionSfx( isUnderWater, &pointPos, ENTITYNUM_NONE );
+
+	/**
+	*	Generate bubble trail if underwater:
+	**/
+	// Estimate bubble trail start and end points. Derived from the blast radius.
+	// Start a bit below the explosion origin.
+	const Vector3 bubbleStart = origin - Vector3( 0., 0., radius );
+	// End some distance below that.
+	const Vector3 bubbleEnd = origin - Vector3( 0., 0., radius / 8. );
+
+	// Perform the trace.
+	cm_trace_t tr = CLG_Trace( bubbleStart, nullptr, nullptr, bubbleEnd, nullptr, CONTENTS_SOLID );
+	// First determine  the dist for the bubble trail.
+	const double dist = ( radius * tr.fraction ) / 2.;
+	// Create the bubble trail.
+	CLG_FX_BubbleTrail2( bubbleStart, bubbleEnd, ( radius + irandom( radius ) ) );
+
+	// Return the explosion created.
+	return explosion;
+}
+
+/**
+*	@brief	Plain utility function to create a plain explosion at the centity's position.
+*	@note	Creates bubble trail if underwater. (Won't create smoke sprite).
+*	@param	[in]	cent		The centity to create the explosion at.
+**/
+clg_explosion_t *CLG_PlainExplosionEntity( centity_t *cent, const double radius ) {
+	// Sanity check.
+	if ( !cent ) {
+		// Warning print.
+		clgi.Print( PRINT_DEVELOPER, "%s: (nullptr) cent entity passed in!\n", __FUNCTION__ );
+		return nullptr;
+	}
+	// Get origin from centity.
+	const Vector3 origin = cent->current.origin;
+	
+	/**
+	*	Detect if in a liquid(assumed to be water):
+	**/
+	// Test for what solid type we're in.
+	Vector3 pointPos = cent->lerpOrigin;
+	// Perform point contents check.
+	const cm_contents_t pointContents = CLG_PointContents( pointPos );
+	// First determine whether we're actually under water.
+	const bool isUnderWater = ( pointContents & CM_CONTENTMASK_LIQUID ) != 0;
+
+	//! Do an explosion, if underwater, without smoke.
+	clg_explosion_t *explosion = CLG_PlainExplosion( pointPos, !isUnderWater /* withSmoke == false if under water*/ );
+	// Handles playing the appropriate sound for the solid type found at the origin of pos1 vector.
+	CLG_StartRandomExplosionSfx( isUnderWater, nullptr, cent->current.number );
+
+	/**
+	*	Generate bubble trail if underwater:
+	**/
+	// Estimate bubble trail start and end points. Derived from the blast radius.
+	// Start a bit below the explosion origin.
+	const Vector3 bubbleStart = origin - Vector3( 0., 0., radius );
+	// End some distance below that.
+	const Vector3 bubbleEnd = origin - Vector3( 0., 0., radius / 8. );
+
+	// Perform the trace.
+	cm_trace_t tr = CLG_Trace( bubbleStart, nullptr, nullptr, bubbleEnd, nullptr, CONTENTS_SOLID );
+	// First determine  the dist for the bubble trail.
+	const double dist = ( radius * tr.fraction ) / 2.;
+	// Create the bubble trail.
+	CLG_FX_BubbleTrail2( bubbleStart, bubbleEnd, ( radius + irandom( radius ) ) );
+
+	// Return the explosion created.
+	return explosion;
 }
 
 /*

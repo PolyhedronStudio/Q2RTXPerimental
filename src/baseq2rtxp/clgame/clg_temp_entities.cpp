@@ -58,24 +58,6 @@ static void clg_railspiral_color_changed( cvar_t *self ) {
     }
 }
 
-/**
-*   @brief  Will select and play a random grenade explosion.
-**/
-static void CLG_StartRandomExplosionSfx( const bool isInWater, const Vector3 &point ) {
-    if ( isInWater ) {
-        clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosions.water, 1, ATTN_NORM, 0 );
-        clgi.Print( PRINT_WARNING, "%f %f %f contents_water\n", point.x, point.y, point.z );
-    } else {
-        clgi.Print( PRINT_WARNING, "%f %f %f contents_none\n", point.x, point.y, point.z );
-        // In case we are in SOLID_NONE spaces:
-        const int32_t index = irandom( 2 + 1 );
-        if ( index == 0 ) {
-            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosions.grenade01, 1, ATTN_NORM, 0 );
-        } else {
-            clgi.S_StartSound( &point.x, 0, 0, precache.sfx.explosions.grenade02, 1, ATTN_NORM, 0 );
-        }
-    }
-}
 
 /**
 *   @brief   Parses the Temp Entity packet data and creates the appropriate effects.
@@ -170,19 +152,19 @@ void CLG_TemporaryEntities_Parse( void ) {
         CLG_FX_DebugTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
         break;
 #endif
-    case TE_PLAIN_EXPLOSION:
-    {
-        // Test for what solid type we're in.
-        Vector3 pointPos = level.parsedMessage.events.tempEntity.pos1;
-        const cm_contents_t pointContents = CLG_PointContents( pointPos );
-        // First determine whether we're actually under water.
-        const bool isUnderWater = ( pointContents & CM_CONTENTMASK_LIQUID ) != 0;
-        //! Do an explosion, if underwater, without smoke.
-        CLG_PlainExplosion( !isUnderWater /* withSmoke == false if under water*/);
-        // Handles playing the appropriate sound for the solid type found at the origin of pos1 vector.
-        CLG_StartRandomExplosionSfx( isUnderWater, level.parsedMessage.events.tempEntity.pos1 );
-        break;
-    }
+    //case TE_PLAIN_EXPLOSION:
+    //{
+    //    // Test for what solid type we're in.
+    //    Vector3 pointPos = level.parsedMessage.events.tempEntity.pos1;
+    //    const cm_contents_t pointContents = CLG_PointContents( pointPos );
+    //    // First determine whether we're actually under water.
+    //    const bool isUnderWater = ( pointContents & CM_CONTENTMASK_LIQUID ) != 0;
+    //    //! Do an explosion, if underwater, without smoke.
+    //    CLG_PlainExplosion( !isUnderWater /* withSmoke == false if under water*/);
+    //    // Handles playing the appropriate sound for the solid type found at the origin of pos1 vector.
+    //    CLG_StartRandomExplosionSfx( isUnderWater, level.parsedMessage.events.tempEntity.pos1 );
+    //    break;
+    //}
 
     //case TE_FLASHLIGHT:
     //    CLG_FX_Flashlight( level.parsedMessage.events.tempEntity.entity1, level.parsedMessage.events.tempEntity.pos1 );
@@ -216,9 +198,9 @@ void CLG_TemporaryEntities_Parse( void ) {
         clgi.S_StartSound( level.parsedMessage.events.tempEntity.pos1, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
         break;
 
-    case TE_TELEPORT_EFFECT:
-        CLG_FX_PlayerTeleportParticles( level.parsedMessage.events.tempEntity.pos1 );
-        break;
+    //case TE_TELEPORT_EFFECT:
+    //    CLG_FX_PlayerTeleportParticles( level.parsedMessage.events.tempEntity.pos1 );
+    //    break;
 
 
         //case TE_GRENADE_EXPLOSION:

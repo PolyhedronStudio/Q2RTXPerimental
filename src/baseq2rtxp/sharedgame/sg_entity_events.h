@@ -143,6 +143,11 @@ typedef enum sg_entity_events_e {
 	EV_FX_MORE_BLOOD,
 
 	/**
+	*	"Explosion" Particle Events:
+	**/
+	EV_PLAIN_EXPLOSION,
+
+	/**
 	*   "Impact" Particle Events:
 	**/
 	//! Gunshot impact effects/sparks.
@@ -314,6 +319,11 @@ static constexpr const char *sg_event_string_names[ /*EV_GAME_MAX*/ ] = {
 	"EV_FX_BLOOD",
 	//! A "proper" MORE blood impact.
 	"EV_FX_MORE_BLOOD",
+
+	/**
+	*	"Explosion" Particle Events:
+	**/
+	"EV_PLAIN_EXPLOSION",
 
 	/**
 	*   "Impact" Particle Events:

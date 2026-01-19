@@ -11,6 +11,7 @@
 #include "clgame/clg_events.h"
 #include "clgame/clg_precache.h"
 #include "clgame/clg_temp_entities.h"
+#include "clgame/clg_world.h"
 
 #include "clgame/effects/clg_fx_classic.h"
 
@@ -82,15 +83,21 @@ static void CLG_EntityEvent_PositionedSound( const Vector3 &origin, const int32_
 static void CLG_EntityEvent_GlobalSound( const qhandle_t soundIndex );
 
 /*************************
-*   Item Event Handlers:
+*   Explosion Event Handlers:
 *************************/
-static void CLG_EntityEvent_ItemRespawn( centity_t *cent, const int32_t entityNumber, const Vector3 &origin );
+/**
+*	@note	If entityNumber is -1, it means no entity is associated with this explosion 
+*			fpr use to acquire the origin with. So origin is used directly instead.
+**/
+static void CLG_EntityEvent_PlainExplosion( const Vector3 &origin, const int32_t entityNumber = -1 );
 
 /*************************
 *   Particle FX Event Handlers:
 *************************/
 static void CLG_EntityEvent_Blood( const Vector3 & origin, const uint8_t direction, const int32_t count );
 static void CLG_EntityEvent_MoreBlood( const Vector3 & origin, const uint8_t direction, const int32_t count );
+
+static void CLG_EntityEvent_ItemRespawn( centity_t * cent, const int32_t entityNumber, const Vector3 & origin );
 
 static void CLG_EntityEvent_ImpactGunShot( const Vector3 & origin, const uint8_t direction, const int32_t count );
 static void CLG_EntityEvent_ImpactSparks( const Vector3 & origin, const uint8_t direction );
@@ -238,6 +245,7 @@ void CLG_Events_FireEntityEvent( const int32_t eventValue, const Vector3 &lerpOr
 	//*   Teleport Events:
 	//**/
 	/////////////////////////////////////////////////////////////////
+		case EV_OTHER_TELEPORT:
 		case EV_PLAYER_TELEPORT: {
 			// Print event name for debugging.
 			DEBUG_PRINT_EVENT_NAME( sg_event_string_names[ clampedEventValue ] );
@@ -713,6 +721,59 @@ static void CLG_EntityEvent_MoreBlood( const Vector3 &origin, const uint8_t dire
 	CLG_FX_BloodParticleEffect( origin, decodedDirection, 0xe8, count * 10 );
 }
 
+/**************************************
+*   [ EV_FX_PLAIN_EXPLOSION ] Event Handler:
+***************************************/
+/**
+*	@note	If entityNumber is -1, it means no entity is associated with this explosion
+*			fpr use to acquire the origin with. So origin is used directly instead.
+**/
+static void CLG_EntityEvent_PlainExplosionEntity( const int32_t entityNumber ) {
+	// Sanitize the entity number.
+	const int32_t sanitizedEntityNumber = std::clamp( entityNumber, 0, MAX_EDICTS - 1 );
+
+	// Test for what solid type we're in.
+	Vector3 _origin = ( entityNumber == ENTITYNUM_NONE ? QM_Vector3Zero() : clg_entities[ sanitizedEntityNumber ].lerpOrigin );
+
+	// Check the contents at the explosion origin.
+	const cm_contents_t pointContents = CLG_PointContents( _origin );
+	// If we're underwater we do not desire smoke, but bubbles instead.
+	const bool isUnderWater = ( pointContents & CM_CONTENTMASK_LIQUID ) != 0;
+
+	//! Do an explosion, if underwater, without smoke.
+	CLG_PlainExplosionEntity( &clg_entities[ sanitizedEntityNumber ], !isUnderWater /* withSmoke == false if under water*/ );
+	// Handles playing the appropriate sound for the solid type found at the origin of pos1 vector.
+	//CLG_StartRandomExplosionSfx( isUnderWater, _origin );
+}
+static void CLG_EntityEvent_PlainExplosionOrigin( const Vector3 &origin ) {
+	// Sanity check.
+	//if ( !cent ) {
+	//	clgi.Print( PRINT_DEVELOPER, "%s: NULL cent entity passed in!\n", __func__ );
+	//	return;
+	//}
+
+	// Debug check for valid entity/entities.
+	//DBG_ENTITY_EVENT_PRESENT( cent, __func__ );
+
+	// Play the respawn sound.
+	//clgi.S_StartSound( NULL, entityNumber, CHAN_WEAPON, precache.sfx.items.respawn01, 1, ATTN_IDLE, 0 );
+	// Spawn the respawn particles.
+	//CLG_FX_ItemRespawnParticles( origin );
+
+	// Test for what solid type we're in.
+	Vector3 _origin = origin;
+	
+	// Check the contents at the explosion origin.
+	const cm_contents_t pointContents = CLG_PointContents( _origin );
+	// If we're underwater we do not desire smoke, but bubbles instead.
+	const bool isUnderWater = ( pointContents & CM_CONTENTMASK_LIQUID ) != 0;
+
+	//! Do an explosion, if underwater, without smoke.
+	CLG_PlainExplosionOrigin( _origin, !isUnderWater /* withSmoke == false if under water*/ );
+	// Handles playing the appropriate sound for the solid type found at the origin of pos1 vector.
+	//CLG_StartRandomExplosionSfx( isUnderWater, _origin );
+}
+
 /*************************
 *   [EV_FX_SPLASH_***] FX Event Handler:
 *************************/
@@ -763,7 +824,7 @@ static void CLG_EntityEvent_Trail( const Vector3 &start, const Vector3 &end, con
 		// 
 		CLG_FX_BubbleTrail2( start, end, count );
 		// Play ricochet sound at start point.
-		//clgi.S_StartSound( &start.x, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
+		clgi.S_StartSound( &start.x, 0, 0, precache.sfx.ricochets.lashit, 1, ATTN_NORM, 0 );
 	} else if ( trailType == EV_FX_TRAIL_DEBUG_LINE ) {
 		CLG_FX_DebugTrail( start, end );
 	} else {
