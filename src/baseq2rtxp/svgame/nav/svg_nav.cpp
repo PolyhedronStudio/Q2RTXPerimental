@@ -843,7 +843,7 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
     }
     
     bsp_t *bsp = world_model->bsp;
-    mleaf_t *leaf = BSP_PointLeaf( bsp->nodes, &position.x );
+    mleaf_t *leaf = BSP_PointLeaf( bsp->nodes, &position[ 0 ] );
     if ( !leaf ) {
         return false;
     }
