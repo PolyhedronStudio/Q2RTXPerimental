@@ -1239,7 +1239,7 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path ) {
 *   @brief  Query movement direction along a traversal path.
 **/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin,
-                                           float waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
+                                            float waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
     if ( !path || !inout_index || !out_direction ) {
         return false;
     }
@@ -1254,15 +1254,16 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
     }
     
     const float waypoint_radius_sqr = waypoint_radius * waypoint_radius;
-    
-    while ( index < path->num_points ) {
-        const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
-        const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
-        if ( dist_sqr > waypoint_radius_sqr ) {
-            break;
-        }
-        index++;
-    }
+ 
+     while ( index < path->num_points ) {
+         const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
+         // Use 2D distance so Z quantization / stairs don't prevent waypoint completion.
+         const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] );
+         if ( dist_sqr > waypoint_radius_sqr ) {
+             break;
+         }
+         index++;
+     }
     
     if ( index >= path->num_points ) {
         *inout_index = path->num_points;
@@ -1270,6 +1271,7 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
     }
     
     Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
+    direction[ 2 ] = 0.0f;
     const float length = (float)QM_Vector3Length( direction );
     if ( length <= std::numeric_limits<float>::epsilon() ) {
         return false;

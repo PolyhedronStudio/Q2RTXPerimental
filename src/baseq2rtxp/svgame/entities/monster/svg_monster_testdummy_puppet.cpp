@@ -25,8 +25,16 @@
 #include "svgame/monsters/svg_mmove.h"
 #include "svgame/monsters/svg_mmove_slidemove.h"
 
+// Player trail (Q2/Q2RTX pursuit trail)
+#include "svgame/player/svg_player_trail.h"
+
 // TestDummy Monster
 #include "svgame/entities/monster/svg_monster_testdummy.h"
+
+// Per-entity "current trail spot" cache for stable trail following.
+// This avoids calling PickFirst every frame (which can cause oscillation).
+#include <unordered_map>
+static std::unordered_map<int32_t, svg_base_edict_t*> s_dummyTrailSpot;
 
 
 
@@ -270,88 +278,136 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 			if ( !g_nav_mesh ) {
 				SVG_Nav_GenerateVoxelMesh();
 			}
-
-			const Vector3 goalOrigin = self->goalentity->currentOrigin;
-			const Vector3 toGoal = QM_Vector3Subtract( goalOrigin, self->currentOrigin );
-			const float dist2DSqr = ( toGoal.x * toGoal.x ) + ( toGoal.y * toGoal.y );
-
-			constexpr float stopDist = 48.0f;
-			if ( dist2DSqr <= ( stopDist * stopDist ) ) {
-				frameVelocity = 0.0;
+ 
+			// Prefer direct pursuit when we can see the player; otherwise follow the player trail.
+			const bool canSeeGoalEntity = SVG_Entity_IsVisible( self->goalentity, self );
+			if ( canSeeGoalEntity ) {
+				// "last time we saw the player"
+				self->trail_time = level.time;
 			}
+ 
+			Vector3 goalOrigin = self->goalentity->currentOrigin;
+ 
+			// If we're not seeing the player, chase the trail and advance it *persistently*.
+			if ( !canSeeGoalEntity ) {
+				const int32_t selfNum = self->s.number;
+				svg_base_edict_t *&trailSpot = s_dummyTrailSpot[ selfNum ];
 
-			constexpr float navRebuildDist = 96.0f;
+				// Ensure we have an initial trail spot.
+				if ( !trailSpot ) {
+					trailSpot = PlayerTrail_PickFirst( self );
+				}
+
+				if ( trailSpot ) {
+					goalOrigin = trailSpot->currentOrigin;
+
+					// Advance along trail when close enough to the current trail spot (2D).
+					const Vector3 toTrail = QM_Vector3Subtract( goalOrigin, self->currentOrigin );
+					const float toTrail2DSqr = ( toTrail.x * toTrail.x ) + ( toTrail.y * toTrail.y );
+
+					constexpr float trailAdvanceDist = 24.0f;
+					if ( toTrail2DSqr <= ( trailAdvanceDist * trailAdvanceDist ) ) {
+						svg_base_edict_t *next = PlayerTrail_PickNext( self );
+						if ( next ) {
+							trailSpot = next;
+							goalOrigin = trailSpot->currentOrigin;
+						}
+					}
+				}
+			} else {
+				// If we can see the player again, clear trail target so we re-acquire next time LOS breaks.
+				s_dummyTrailSpot.erase( self->s.number );
+			}
+   
+  			const Vector3 toGoal = QM_Vector3Subtract( goalOrigin, self->currentOrigin );
+  			const float dist2DSqr = ( toGoal.x * toGoal.x ) + ( toGoal.y * toGoal.y );
+			const float dist2D = std::sqrt( dist2DSqr );
+ 
+			// Separation-aware stop: get as close as 8 units, then halt.
+			// Using player origin directly often stops "too far" due to bbox collision/overshoot.
+			constexpr float desiredSeparation = 8.0f;
+			const float approachDist = std::max( 0.0f, dist2D - desiredSeparation );
+
+			// Ramp speed down when approaching the final 64 units to avoid jitter.
+			constexpr float slowDownRange = 64.0f;
+			const float speedScale = ( slowDownRange > 0.0f )
+				? QM_Clamp( approachDist / slowDownRange, 0.0f, 1.0f )
+				: 1.0f;
+
+			frameVelocity *= speedScale;
+			if ( approachDist <= 0.0f ) {
+				frameVelocity = 0.0f;
+			}
+ 
+			// Separation-aware stop: get as close as 8 units, then halt.
+			// Using player origin directly often stops "too far" due to bbox collision/overshoot.
+			constexpr float navRebuildDist = 16.0f;
 			const QMTime navRebuildInterval = 500_ms;
 			const Vector3 navGoalDelta = QM_Vector3Subtract( goalOrigin, self->navPathGoal );
 			const float navGoalDistSqr = ( navGoalDelta.x * navGoalDelta.x ) + ( navGoalDelta.y * navGoalDelta.y );
-
+ 
 			if ( level.time >= self->navPathNextRebuildTime && ( self->navPath.num_points == 0 || navGoalDistSqr > ( navRebuildDist * navRebuildDist ) ) ) {
-				SVG_Nav_FreeTraversalPath( &self->navPath );
-				if ( SVG_Nav_GenerateTraversalPathForOrigin( self->currentOrigin, goalOrigin, &self->navPath ) ) {
-					self->navPathIndex = 0;
-					self->navPathGoal = goalOrigin;
-				}
-				self->navPathNextRebuildTime = level.time + navRebuildInterval;
-			}
+   				SVG_Nav_FreeTraversalPath( &self->navPath );
+   				if ( SVG_Nav_GenerateTraversalPathForOrigin( self->currentOrigin, goalOrigin, &self->navPath ) ) {
+   					self->navPathIndex = 0;
+  					// Cache the exact goalOrigin we generated for so goal-change detection is consistent.
+  					self->navPathGoal = goalOrigin;
+   				}
+   				self->navPathNextRebuildTime = level.time + navRebuildInterval;
+   			}
+ 
+ 			Vector3 move_dir = {};
+   			bool has_nav_direction = SVG_Nav_QueryMovementDirection( &self->navPath, self->currentOrigin, 12.0f, &self->navPathIndex, &move_dir );
+   			if ( !has_nav_direction ) {
+   				move_dir = QM_Vector3Normalize( Vector3{ toGoal.x, toGoal.y, 0.0f } );
+   			}
+  			move_dir.z = 0.0f;
+  			move_dir = QM_Vector3Normalize( move_dir );
 
-			Vector3 move_dir = {};
-			bool has_nav_direction = SVG_Nav_QueryMovementDirection( &self->navPath, self->currentOrigin, 24.0f, &self->navPathIndex, &move_dir );
-			if ( !has_nav_direction ) {
-				move_dir = QM_Vector3Normalize( Vector3{ toGoal.x, toGoal.y, 0.0f } );
-			}
+			const Vector3 face_dir = ( frameVelocity > 0.0 )
+				? move_dir
+				: QM_Vector3Normalize( Vector3{ toGoal.x, toGoal.y, 0.0f } );
 
-			self->ideal_yaw = QM_Vector3ToYaw( QM_Vector3Normalize( Vector3{ move_dir.x, move_dir.y, 0.0f } ) );
+			self->ideal_yaw = QM_Vector3ToYaw( face_dir );
 			self->yaw_speed = 7.5f;
-
-			if ( !SVG_Entity_IsInFrontOf( self, goalOrigin, 1.75f ) ) {
-				SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
-			}
-
-			if ( SVG_Entity_IsVisible( self->goalentity, self ) ) {
-				self->trail_time = level.time;
-			}
-
-			// IMPORTANT: use `currentAngles` (the thing FaceIdealYaw updates), not `currentAngles`.
-			Vector3 forward = {};
-			QM_AngleVectors( self->currentAngles, &forward, nullptr, nullptr );
-			forward.z = 0.0f;
-			forward = QM_Vector3Normalize( forward );
-
-			self->velocity.x = ( float )( forward.x * frameVelocity );
-			self->velocity.y = ( float )( forward.y * frameVelocity );
-
-			mm_move_t monsterMove = {
-				.monster = self,
-				.frameTime = gi.frame_time_s,
-				.mins = self->mins,
-				.maxs = self->maxs,
-				.state = {
-					.mm_type = MM_NORMAL,
-					.mm_flags = ( self->groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : 0 ),
-					.mm_time = 0,
-					.gravity = ( int16_t )( self->gravity * sv_gravity->value ),
-					.origin = self->currentOrigin,
-					.velocity = self->velocity,
-					.previousOrigin = self->currentOrigin,
-					.previousVelocity = previousVelocity,
-				},
-				.ground = self->groundInfo,
-				.liquid = self->liquidInfo,
-			};
-
-			const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove );
-
-			if ( std::fabs( monsterMove.step.height ) > 0.f + FLT_EPSILON ) {
-				self->s.renderfx |= RF_STAIR_STEP;
-			}
-
-			if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
-				self->groundInfo = monsterMove.ground;
-				self->liquidInfo = monsterMove.liquid;
-				SVG_Util_SetEntityOrigin( self, monsterMove.state.origin, true );
-				self->velocity = monsterMove.state.velocity;
-				gi.linkentity( self );
-			}
+			SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
+   
+             // Drive movement from nav direction (not from facing) to ensure steering actually follows nav.
+             self->velocity.x = ( float )( move_dir.x * frameVelocity );
+             self->velocity.y = ( float )( move_dir.y * frameVelocity );
+ 
+ 			mm_move_t monsterMove = {
+ 				.monster = self,
+ 				.frameTime = gi.frame_time_s,
+ 				.mins = self->mins,
+ 				.maxs = self->maxs,
+ 				.state = {
+ 					.mm_type = MM_NORMAL,
+ 					.mm_flags = ( self->groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : 0 ),
+ 					.mm_time = 0,
+ 					.gravity = ( int16_t )( self->gravity * sv_gravity->value ),
+ 					.origin = self->currentOrigin,
+ 					.velocity = self->velocity,
+ 					.previousOrigin = self->currentOrigin,
+ 					.previousVelocity = previousVelocity,
+ 				},
+ 				.ground = self->groundInfo,
+ 				.liquid = self->liquidInfo,
+ 			};
+ 
+ 			const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove );
+ 
+ 			if ( std::fabs( monsterMove.step.height ) > 0.f + FLT_EPSILON ) {
+ 				self->s.renderfx |= RF_STAIR_STEP;
+ 			}
+ 
+ 			if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
+ 				self->groundInfo = monsterMove.ground;
+ 				self->liquidInfo = monsterMove.liquid;
+ 				SVG_Util_SetEntityOrigin( self, monsterMove.state.origin, true );
+ 				self->velocity = monsterMove.state.velocity;
+ 				gi.linkentity( self );
+ 			}
 		} else if ( self->lifeStatus == LIFESTATUS_ALIVE ) {
 			mm_move_t monsterMove = {
 				.monster = self,
@@ -382,6 +438,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 				self->groundInfo = monsterMove.ground;
 				self->liquidInfo = monsterMove.liquid;
 				SVG_Util_SetEntityOrigin( self, monsterMove.state.origin, true );
+
 				self->velocity = monsterMove.state.velocity;
 				gi.linkentity( self );
 			}
@@ -559,7 +616,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_t, onDie )( svg_monster_testdu
     // Make sure to relink.
     gi.linkentity( self );
 }
-/**
+ /**
 *   @brief  Death routine.
 **/
 DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_t, onPain )( svg_monster_testdummy_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void {
