@@ -7,6 +7,7 @@
 ********************************************************************/
 #include "svgame/svg_local.h"
 #include "svgame/svg_signalio.h"
+#include "svgame/nav/svg_nav.h"
 
 /**
 *   @brief  
@@ -14,6 +15,14 @@
 void ServerCommand_Test_f(void)
 {
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
+}
+
+/**
+*   @brief  Generate navigation voxelmesh for the current level.
+**/
+void ServerCommand_NavGenVoxelMesh_f(void)
+{
+    SVG_Nav_GenerateVoxelMesh();
 }
 
 
@@ -277,6 +286,8 @@ void SVG_ServerCommand(void) {
     cmd = gi.argv(1);
     if ( Q_stricmp( cmd, "test" ) == 0 )
         ServerCommand_Test_f();
+    else if ( Q_stricmp( cmd, "nav_gen_voxelmesh" ) == 0 )
+        ServerCommand_NavGenVoxelMesh_f();
     else if ( Q_stricmp( cmd, "addip" ) == 0 )
         ServerCommand_AddIP_f();
     else if ( Q_stricmp( cmd, "removeip" ) == 0 )
