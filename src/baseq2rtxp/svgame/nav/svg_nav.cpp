@@ -273,7 +273,7 @@ static uint8_t DetectContentFlags( const cm_trace_t &trace ) {
 *   @param  z_min           Minimum Z height to search.
 *   @param  z_max           Maximum Z height to search.
 *   @param  max_step        Maximum step height for downward traces.
-*   @param  max_slope_deg   Maximum walkable slope in degrees.
+ *   @param  max_slope_deg   Maximum walkable slope in degrees.
  *   @param  z_quant         Z-axis quantization step.
  *   @param  out_layers      Output array of detected layers.
  *   @param  out_num_layers  Output number of layers found.
@@ -807,7 +807,7 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
             
             for ( int32_t l = 0; l < cell->num_layers; l++ ) {
                 const Vector3 node_pos = Nav_NodeWorldPosition( mesh, tile, c, &cell->layers[ l ] );
-                const Vector3 delta = node_pos - position;
+                const Vector3 delta = QM_Vector3Subtract( node_pos, position );
                 const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
                 
                 if ( dist_sqr < best_dist_sqr ) {
@@ -843,7 +843,7 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
     }
     
     bsp_t *bsp = world_model->bsp;
-    mleaf_t *leaf = BSP_PointLeaf( bsp->nodes, position );
+    mleaf_t *leaf = BSP_PointLeaf( bsp->nodes, &position.x );
     if ( !leaf ) {
         return false;
     }
@@ -869,7 +869,7 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
     for ( int32_t i = 0; i < mesh->num_leafs; i++ ) {
         nav_node_ref_t candidate = {};
         if ( Nav_FindNodeInLeaf( mesh, &mesh->leaf_data[ i ], i, position, desired_z, &candidate, true ) ) {
-            const Vector3 delta = candidate.position - position;
+            const Vector3 delta = QM_Vector3Subtract( candidate.position, position );
             const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
             if ( dist_sqr < best_dist_sqr ) {
                 best_dist_sqr = dist_sqr;
@@ -1050,7 +1050,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
     };
     
     auto heuristic = []( const Vector3 &a, const Vector3 &b ) -> float {
-        const Vector3 delta = b - a;
+        const Vector3 delta = QM_Vector3Subtract( b, a );
         return sqrtf( ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] ) );
     };
     
@@ -1109,7 +1109,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
         }
         
         for ( const Vector3 &offset_dir : neighbor_offsets ) {
-            const Vector3 neighbor_origin = current.node.position + ( offset_dir * mesh->cell_size_xy );
+            const Vector3 neighbor_origin = QM_Vector3Add( current.node.position, QM_Vector3Scale( offset_dir, mesh->cell_size_xy ) );
             nav_node_ref_t neighbor_node = {};
             
             if ( !Nav_FindNodeForPosition( mesh, neighbor_origin, current.node.position[ 2 ], &neighbor_node, false ) ) {
@@ -1239,7 +1239,7 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
     const float waypoint_radius_sqr = waypoint_radius * waypoint_radius;
     
     while ( index < path->num_points ) {
-        const Vector3 delta = path->points[ index ] - current_origin;
+        const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
         const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
         if ( dist_sqr > waypoint_radius_sqr ) {
             break;
@@ -1252,7 +1252,7 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
         return false;
     }
     
-    Vector3 direction = path->points[ index ] - current_origin;
+    Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
     const float length = (float)QM_Vector3Length( direction );
     if ( length <= std::numeric_limits<float>::epsilon() ) {
         return false;

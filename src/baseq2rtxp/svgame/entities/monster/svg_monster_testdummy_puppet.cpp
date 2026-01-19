@@ -272,7 +272,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 			}
 
 			const Vector3 goalOrigin = self->goalentity->currentOrigin;
-			const Vector3 toGoal = goalOrigin - Vector3( self->currentOrigin );
+			const Vector3 toGoal = QM_Vector3Subtract( goalOrigin, self->currentOrigin );
 			const float dist2DSqr = ( toGoal.x * toGoal.x ) + ( toGoal.y * toGoal.y );
 
 			constexpr float stopDist = 48.0f;
@@ -282,7 +282,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 
 			constexpr float navRebuildDist = 96.0f;
 			const QMTime navRebuildInterval = 500_ms;
-			const Vector3 navGoalDelta = goalOrigin - navPathGoal;
+			const Vector3 navGoalDelta = QM_Vector3Subtract( goalOrigin, navPathGoal );
 			const float navGoalDistSqr = ( navGoalDelta.x * navGoalDelta.x ) + ( navGoalDelta.y * navGoalDelta.y );
 
 			if ( level.time >= navPathNextRebuildTime && ( navPath.num_points == 0 || navGoalDistSqr > ( navRebuildDist * navRebuildDist ) ) ) {
