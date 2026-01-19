@@ -9,6 +9,10 @@
 #include "svg_nav.h"
 #include <math.h>
 
+// Constants
+static constexpr float DEG_TO_RAD = M_PI / 180.0f;
+static constexpr double MICROSECONDS_PER_SECOND = 1000000.0;
+
 /**
 *   Global navigation mesh instance.
 **/
@@ -128,7 +132,7 @@ void SVG_Nav_FreeMesh( void ) {
 **/
 static bool IsWalkableSlope( const Vector3 &normal, float max_slope_deg ) {
     // Convert max_slope_deg to minimum normal Z component
-    float min_normal_z = cosf( max_slope_deg * ( M_PI / 180.0f ) );
+    float min_normal_z = cosf( max_slope_deg * DEG_TO_RAD );
     return normal[2] >= min_normal_z;
 }
 
@@ -157,12 +161,15 @@ static uint8_t DetectContentFlags( const cm_trace_t &trace ) {
 /**
 *   @brief  Perform downward traces to find walkable layers at an XY position.
 *           Returns array of layers and count.
+*   @note   This function is not thread-safe due to the static temp_layers array.
+*           It should only be called from a single thread (main game thread).
 **/
 static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, const Vector3 &maxs,
                                 float z_min, float z_max, float max_step, float max_slope_deg,
                                 nav_layer_t **out_layers, int32_t *out_num_layers,
                                 bool world_only ) {
     const int32_t MAX_LAYERS = 16; // Reasonable limit per XY column
+    // Note: Static array for efficiency, but limits thread-safety
     static nav_layer_t temp_layers[MAX_LAYERS];
     int32_t num_layers = 0;
     
@@ -189,6 +196,7 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
         if ( trace.fraction < 1.0f && trace.plane.normal[2] > 0.0f ) {
             if ( IsWalkableSlope( trace.plane.normal, max_slope_deg ) ) {
                 // Found a walkable surface
+                // Note: Assumes nav_z_quant->value is non-zero (validated in cvar registration)
                 temp_layers[num_layers].z_quantized = (int16_t)( trace.endpos[2] / nav_z_quant->value );
                 temp_layers[num_layers].flags = DetectContentFlags( trace );
                 temp_layers[num_layers].clearance = 0; // TODO: Calculate clearance
@@ -316,6 +324,22 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
     g_nav_mesh->agent_mins = Vector3( nav_agent_mins_x->value, nav_agent_mins_y->value, nav_agent_mins_z->value );
     g_nav_mesh->agent_maxs = Vector3( nav_agent_maxs_x->value, nav_agent_maxs_y->value, nav_agent_maxs_z->value );
     
+    // Validate bounding box
+    if ( g_nav_mesh->agent_mins[0] >= g_nav_mesh->agent_maxs[0] ||
+         g_nav_mesh->agent_mins[1] >= g_nav_mesh->agent_maxs[1] ||
+         g_nav_mesh->agent_mins[2] >= g_nav_mesh->agent_maxs[2] ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "Error: Invalid agent bounding box (mins must be < maxs on all axes)\n" );
+        SVG_Nav_FreeMesh();
+        return;
+    }
+    
+    // Validate z_quant is non-zero
+    if ( g_nav_mesh->z_quant <= 0.0f ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "Error: nav_z_quant must be > 0\n" );
+        SVG_Nav_FreeMesh();
+        return;
+    }
+    
     gi.cprintf( nullptr, PRINT_HIGH, "Parameters:\n" );
     gi.cprintf( nullptr, PRINT_HIGH, "  cell_size_xy: %.1f\n", g_nav_mesh->cell_size_xy );
     gi.cprintf( nullptr, PRINT_HIGH, "  z_quant: %.1f\n", g_nav_mesh->z_quant );
@@ -371,7 +395,7 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
     }
     
     uint64_t end_time = gi.GetRealTime();
-    double build_time_sec = ( end_time - start_time ) / 1000000.0; // Convert microseconds to seconds
+    double build_time_sec = ( end_time - start_time ) / MICROSECONDS_PER_SECOND;
     
     // Print statistics
     gi.cprintf( nullptr, PRINT_HIGH, "\n=== Generation Statistics ===\n" );
