@@ -6,8 +6,12 @@
 *
 ********************************************************************/
 #include "../svg_local.h"
+#include "common/bsp.h"
 #include "svg_nav.h"
 #include <math.h>
+#include <limits>
+#include <unordered_map>
+#include <vector>
 
 
 
@@ -240,19 +244,21 @@ static uint8_t DetectContentFlags( const cm_trace_t &trace ) {
     uint8_t flags = NAV_FLAG_WALKABLE;
     
     // Check for water based on trace contents.
-    if ( trace.contents & CM_CONTENTS_WATER ) {
+    if ( trace.contents & CONTENTS_WATER ) {
         flags |= NAV_FLAG_WATER;
     }
     // Check for lava based on trace contents.
-    if ( trace.contents & CM_CONTENTS_LAVA ) {
+    if ( trace.contents & CONTENTS_LAVA ) {
         flags |= NAV_FLAG_LAVA;
     }
     // Check for slime based on trace contents.
-    if ( trace.contents & CM_CONTENTS_SLIME ) {
+    if ( trace.contents & CONTENTS_SLIME ) {
         flags |= NAV_FLAG_SLIME;
     }
-    
-    // TODO: Ladder detection would require additional checks.
+    // Check for ladder based on trace contents.
+    if ( trace.contents & CONTENTS_LADDER ) {
+        flags |= NAV_FLAG_LADDER;
+    }
     
     return flags;
 }
@@ -268,16 +274,17 @@ static uint8_t DetectContentFlags( const cm_trace_t &trace ) {
 *   @param  z_max           Maximum Z height to search.
 *   @param  max_step        Maximum step height for downward traces.
 *   @param  max_slope_deg   Maximum walkable slope in degrees.
-*   @param  out_layers      Output array of detected layers.
-*   @param  out_num_layers  Output number of layers found.
-*   @param  world_only      If true, use world-only collision traces.
+ *   @param  z_quant         Z-axis quantization step.
+ *   @param  out_layers      Output array of detected layers.
+ *   @param  out_num_layers  Output number of layers found.
+ *   @param  clip_entity     Optional entity to clip against (inline model), null for world.
 *   @note   This function is not thread-safe due to the static temp_layers array.
 *           It should only be called from a single thread (main game thread).
 **/
 static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, const Vector3 &maxs,
-                                float z_min, float z_max, float max_step, float max_slope_deg,
+                                float z_min, float z_max, float max_step, float max_slope_deg, float z_quant,
                                 nav_layer_t **out_layers, int32_t *out_num_layers,
-                                bool world_only ) {
+                                const edict_ptr_t *clip_entity ) {
     // Maximum number of layers that can be found at a single XY position.
     const int32_t MAX_LAYERS = 16;
     // Note: Static array for efficiency, but limits thread-safety.
@@ -303,11 +310,11 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
         
         // Perform the trace (world-only or full collision).
         cm_trace_t trace;
-        if ( world_only ) {
-            // World-only collision for static world geometry.
-            trace = gi.trace( &start, &mins, &maxs, &end, nullptr, CM_CONTENTMASK_SOLID );
+        if ( clip_entity ) {
+            // Inline model collision using the entity-specific clip.
+            trace = gi.clip( clip_entity, &start, &mins, &maxs, &end, CM_CONTENTMASK_SOLID );
         } else {
-            // Full collision including inline models (for brush entities).
+            // World-only collision for static world geometry.
             trace = gi.trace( &start, &mins, &maxs, &end, nullptr, CM_CONTENTMASK_SOLID );
         }
         
@@ -319,8 +326,8 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
             // Check if the slope is walkable.
             if ( IsWalkableSlope( trace.plane.normal, max_slope_deg ) ) {
                 // Found a walkable surface - record it.
-                // Note: Assumes nav_z_quant->value is non-zero (validated during generation).
-                temp_layers[num_layers].z_quantized = (int16_t)( trace.endpos[2] / nav_z_quant->value );
+                // Note: Assumes z_quant is non-zero (validated during generation).
+                temp_layers[num_layers].z_quantized = (int16_t)( trace.endpos[2] / z_quant );
                 temp_layers[num_layers].flags = DetectContentFlags( trace );
                 temp_layers[num_layers].clearance = 0; // TODO: Calculate clearance.
                 num_layers++;
@@ -350,6 +357,125 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
         *out_layers = nullptr;
         *out_num_layers = 0;
     }
+}
+
+/**
+*
+*
+*
+*   Navigation Tile Helpers:
+*
+*
+*
+**/
+//! Small epsilon to ensure max bounds map to the correct tile.
+static constexpr float NAV_TILE_EPSILON = 0.001f;
+
+/**
+*   @brief  Calculate the world-space size of a tile.
+**/
+static inline float Nav_TileWorldSize( const nav_mesh_t *mesh ) {
+    return mesh->cell_size_xy * (float)mesh->tile_size;
+}
+
+/**
+*   @brief  Convert world coordinate to tile grid coordinate.
+**/
+static inline int32_t Nav_WorldToTileCoord( float value, float tile_world_size ) {
+    return (int32_t)floorf( value / tile_world_size );
+}
+
+/**
+*   @brief  Convert world coordinate to cell index within a tile.
+**/
+static inline int32_t Nav_WorldToCellCoord( float value, float tile_origin, float cell_size_xy ) {
+    return (int32_t)floorf( ( value - tile_origin ) / cell_size_xy );
+}
+
+/**
+*   @brief  Set a presence bit for a cell index within a tile.
+**/
+static inline void Nav_SetPresenceBit( nav_tile_t *tile, int32_t cell_index ) {
+    const int32_t word_index = cell_index >> 5;
+    const int32_t bit_index = cell_index & 31;
+    tile->presence_bits[ word_index ] |= ( 1u << bit_index );
+}
+
+/**
+*   @brief  Free tile cell allocations (layers + arrays).
+**/
+static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile ) {
+    if ( !tile->cells ) {
+        return;
+    }
+    
+    for ( int32_t c = 0; c < cells_per_tile; c++ ) {
+        if ( tile->cells[ c ].layers ) {
+            gi.TagFree( tile->cells[ c ].layers );
+        }
+    }
+    
+    gi.TagFree( tile->cells );
+    tile->cells = nullptr;
+}
+
+/**
+*   @brief  Build a navigation tile with sampled walkable layers.
+*   @return True if any walkable data was generated.
+**/
+static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &leaf_mins, const Vector3 &leaf_maxs,
+                           float z_min, float z_max ) {
+    const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
+    const int32_t presence_words = ( cells_per_tile + 31 ) / 32;
+    const float tile_world_size = Nav_TileWorldSize( mesh );
+    
+    // Allocate tile storage.
+    tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_LEVEL );
+    tile->cells = (nav_xy_cell_t *)gi.TagMallocz( sizeof( nav_xy_cell_t ) * cells_per_tile, TAG_SVGAME_LEVEL );
+    
+    bool has_layers = false;
+    
+    const float tile_origin_x = tile->tile_x * tile_world_size;
+    const float tile_origin_y = tile->tile_y * tile_world_size;
+    
+    for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
+        for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
+            const float world_x = tile_origin_x + ( (float)cell_x + 0.5f ) * mesh->cell_size_xy;
+            const float world_y = tile_origin_y + ( (float)cell_y + 0.5f ) * mesh->cell_size_xy;
+            
+            // Skip cells outside the leaf bounds.
+            if ( world_x < leaf_mins[ 0 ] || world_x > leaf_maxs[ 0 ] ||
+                 world_y < leaf_mins[ 1 ] || world_y > leaf_maxs[ 1 ] ) {
+                continue;
+            }
+            
+            Vector3 xy_pos = { world_x, world_y, 0.0f };
+            nav_layer_t *layers = nullptr;
+            int32_t num_layers = 0;
+            
+            FindWalkableLayers( xy_pos, mesh->agent_mins, mesh->agent_maxs,
+                                z_min, z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
+                                &layers, &num_layers, nullptr );
+            
+            if ( num_layers > 0 ) {
+                const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
+                tile->cells[ cell_index ].num_layers = num_layers;
+                tile->cells[ cell_index ].layers = layers;
+                Nav_SetPresenceBit( tile, cell_index );
+                has_layers = true;
+            }
+        }
+    }
+    
+    if ( !has_layers ) {
+        Nav_FreeTileCells( tile, cells_per_tile );
+        if ( tile->presence_bits ) {
+            gi.TagFree( tile->presence_bits );
+            tile->presence_bits = nullptr;
+        }
+    }
+    
+    return has_layers;
 }
 
 
@@ -390,21 +516,60 @@ static void GenerateWorldMesh( nav_mesh_t *mesh ) {
     mesh->num_leafs = num_leafs;
     mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof(nav_leaf_data_t) * num_leafs, TAG_SVGAME_LEVEL );
     
+    const float tile_world_size = Nav_TileWorldSize( mesh );
+    
     /**
-    *   Generate tiles for each leaf:
-    *   TODO: This is a simplified placeholder implementation. A full implementation would:
-    *   1. Iterate through all leafs
-    *   2. For each leaf, create tiles based on leaf bounds
-    *   3. For each tile, sample XY grid positions
-    *   4. For each XY position, find walkable layers using downward traces
+    *   Generate tiles for each leaf using BSP bounds:
     **/
     for ( int32_t i = 0; i < num_leafs; i++ ) {
-        mesh->leaf_data[i].leaf_index = i;
-        mesh->leaf_data[i].num_tiles = 0;
-        mesh->leaf_data[i].tiles = nullptr;
+        nav_leaf_data_t *leaf_data = &mesh->leaf_data[ i ];
+        mleaf_t *leaf = &bsp->leafs[ i ];
+        
+        leaf_data->leaf_index = i;
+        leaf_data->num_tiles = 0;
+        leaf_data->tiles = nullptr;
+        
+        // Skip solid leafs (non-navigable).
+        if ( leaf->contents & CONTENTS_SOLID ) {
+            continue;
+        }
+        
+        const Vector3 leaf_mins = leaf->mins;
+        const Vector3 leaf_maxs = leaf->maxs;
+        const float z_min = leaf_mins[ 2 ] + mesh->agent_mins[ 2 ];
+        const float z_max = leaf_maxs[ 2 ] + mesh->agent_maxs[ 2 ];
+        
+        const int32_t tile_min_x = Nav_WorldToTileCoord( leaf_mins[ 0 ], tile_world_size );
+        const int32_t tile_max_x = Nav_WorldToTileCoord( leaf_maxs[ 0 ] - NAV_TILE_EPSILON, tile_world_size );
+        const int32_t tile_min_y = Nav_WorldToTileCoord( leaf_mins[ 1 ], tile_world_size );
+        const int32_t tile_max_y = Nav_WorldToTileCoord( leaf_maxs[ 1 ] - NAV_TILE_EPSILON, tile_world_size );
+        
+        std::vector<nav_tile_t> leaf_tiles;
+        if ( tile_max_x >= tile_min_x && tile_max_y >= tile_min_y ) {
+            const int32_t tile_count = ( tile_max_x - tile_min_x + 1 ) * ( tile_max_y - tile_min_y + 1 );
+            leaf_tiles.reserve( tile_count );
+        }
+        
+        for ( int32_t tile_y = tile_min_y; tile_y <= tile_max_y; tile_y++ ) {
+            for ( int32_t tile_x = tile_min_x; tile_x <= tile_max_x; tile_x++ ) {
+                nav_tile_t tile = {};
+                tile.tile_x = tile_x;
+                tile.tile_y = tile_y;
+                
+                if ( Nav_BuildTile( mesh, &tile, leaf_mins, leaf_maxs, z_min, z_max ) ) {
+                    leaf_tiles.push_back( tile );
+                }
+            }
+        }
+        
+        if ( !leaf_tiles.empty() ) {
+            leaf_data->num_tiles = (int32_t)leaf_tiles.size();
+            leaf_data->tiles = (nav_tile_t *)gi.TagMallocz( sizeof( nav_tile_t ) * leaf_data->num_tiles, TAG_SVGAME_LEVEL );
+            memcpy( leaf_data->tiles, leaf_tiles.data(), sizeof( nav_tile_t ) * leaf_data->num_tiles );
+        }
     }
     
-    gi.cprintf( nullptr, PRINT_HIGH, "World mesh generation placeholder complete\n" );
+    gi.cprintf( nullptr, PRINT_HIGH, "World mesh generation complete\n" );
 }
 
 /**
@@ -457,6 +622,268 @@ static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
     }
     
     gi.cprintf( nullptr, PRINT_HIGH, "Inline model mesh generation placeholder complete\n" );
+}
+
+/**
+*
+*
+*
+*   Navigation Pathfinding Helpers:
+*
+*
+*
+**/
+/**
+*   @brief  Node key identifying a unique navigation layer.
+**/
+typedef struct nav_node_key_s {
+    int32_t leaf_index;
+    int32_t tile_index;
+    int32_t cell_index;
+    int32_t layer_index;
+    
+    bool operator==( const nav_node_key_s &other ) const {
+        return leaf_index == other.leaf_index &&
+            tile_index == other.tile_index &&
+            cell_index == other.cell_index &&
+            layer_index == other.layer_index;
+    }
+} nav_node_key_t;
+
+/**
+*   @brief  Hash functor for nav_node_key_t.
+**/
+struct nav_node_key_hash_t {
+    size_t operator()( const nav_node_key_t &key ) const {
+        size_t seed = std::hash<int32_t>{}( key.leaf_index );
+        seed ^= std::hash<int32_t>{}( key.tile_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+        seed ^= std::hash<int32_t>{}( key.cell_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+        seed ^= std::hash<int32_t>{}( key.layer_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+        return seed;
+    }
+};
+
+/**
+*   @brief  Navigation node reference with world position.
+**/
+typedef struct nav_node_ref_s {
+    nav_node_key_t key;
+    Vector3 position;
+} nav_node_ref_t;
+
+/**
+*   @brief  Search node for A* pathfinding.
+**/
+typedef struct nav_search_node_s {
+    nav_node_ref_t node;
+    float g_cost;
+    float f_cost;
+    int32_t parent_index;
+    bool closed;
+} nav_search_node_t;
+
+/**
+*   @brief  Select the best layer index for a cell based on desired height.
+**/
+static bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, float desired_z,
+                                  int32_t *out_layer_index ) {
+    if ( !cell || cell->num_layers <= 0 ) {
+        return false;
+    }
+    
+    const float max_step = mesh->max_step + mesh->z_quant;
+    int32_t best_index = -1;
+    float best_delta = std::numeric_limits<float>::max();
+    float best_fallback = std::numeric_limits<float>::max();
+    int32_t fallback_index = -1;
+    
+    for ( int32_t i = 0; i < cell->num_layers; i++ ) {
+        const float layer_z = cell->layers[ i ].z_quantized * mesh->z_quant;
+        const float delta = fabsf( layer_z - desired_z );
+        if ( delta < best_fallback ) {
+            best_fallback = delta;
+            fallback_index = i;
+        }
+        if ( delta <= max_step && delta < best_delta ) {
+            best_delta = delta;
+            best_index = i;
+        }
+    }
+    
+    if ( best_index < 0 ) {
+        best_index = fallback_index;
+    }
+    
+    if ( best_index < 0 ) {
+        return false;
+    }
+    
+    *out_layer_index = best_index;
+    return true;
+}
+
+/**
+*   @brief  Compute the world-space position for a node.
+**/
+static Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer ) {
+    const float tile_world_size = Nav_TileWorldSize( mesh );
+    const float tile_origin_x = tile->tile_x * tile_world_size;
+    const float tile_origin_y = tile->tile_y * tile_world_size;
+    const int32_t cell_x = cell_index % mesh->tile_size;
+    const int32_t cell_y = cell_index / mesh->tile_size;
+    
+    Vector3 position = {
+        tile_origin_x + ( (float)cell_x + 0.5f ) * mesh->cell_size_xy,
+        tile_origin_y + ( (float)cell_y + 0.5f ) * mesh->cell_size_xy,
+        layer->z_quantized * mesh->z_quant
+    };
+    return position;
+}
+
+/**
+*   @brief  Find a navigation node in a leaf at the given position.
+**/
+static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *leaf_data, int32_t leaf_index,
+                                const Vector3 &position, float desired_z, nav_node_ref_t *out_node,
+                                bool allow_fallback ) {
+    if ( !leaf_data || leaf_data->num_tiles <= 0 ) {
+        return false;
+    }
+    
+    const float tile_world_size = Nav_TileWorldSize( mesh );
+    const int32_t tile_x = Nav_WorldToTileCoord( position[ 0 ], tile_world_size );
+    const int32_t tile_y = Nav_WorldToTileCoord( position[ 1 ], tile_world_size );
+    
+    for ( int32_t t = 0; t < leaf_data->num_tiles; t++ ) {
+        nav_tile_t *tile = &leaf_data->tiles[ t ];
+        if ( tile->tile_x != tile_x || tile->tile_y != tile_y ) {
+            continue;
+        }
+        
+        const float tile_origin_x = tile->tile_x * tile_world_size;
+        const float tile_origin_y = tile->tile_y * tile_world_size;
+        const int32_t cell_x = Nav_WorldToCellCoord( position[ 0 ], tile_origin_x, mesh->cell_size_xy );
+        const int32_t cell_y = Nav_WorldToCellCoord( position[ 1 ], tile_origin_y, mesh->cell_size_xy );
+        
+        if ( cell_x < 0 || cell_x >= mesh->tile_size || cell_y < 0 || cell_y >= mesh->tile_size ) {
+            break;
+        }
+        
+        const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
+        const nav_xy_cell_t *cell = &tile->cells[ cell_index ];
+        int32_t layer_index = -1;
+        
+        if ( Nav_SelectLayerIndex( mesh, cell, desired_z, &layer_index ) ) {
+            out_node->key = {
+                .leaf_index = leaf_index,
+                .tile_index = t,
+                .cell_index = cell_index,
+                .layer_index = layer_index
+            };
+            out_node->position = Nav_NodeWorldPosition( mesh, tile, cell_index, &cell->layers[ layer_index ] );
+            return true;
+        }
+        
+        break;
+    }
+    
+    if ( !allow_fallback ) {
+        return false;
+    }
+    
+    float best_dist_sqr = std::numeric_limits<float>::max();
+    nav_node_ref_t best_node = {};
+    bool found = false;
+    
+    for ( int32_t t = 0; t < leaf_data->num_tiles; t++ ) {
+        nav_tile_t *tile = &leaf_data->tiles[ t ];
+        const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
+        
+        for ( int32_t c = 0; c < cells_per_tile; c++ ) {
+            const nav_xy_cell_t *cell = &tile->cells[ c ];
+            if ( cell->num_layers <= 0 ) {
+                continue;
+            }
+            
+            for ( int32_t l = 0; l < cell->num_layers; l++ ) {
+                const Vector3 node_pos = Nav_NodeWorldPosition( mesh, tile, c, &cell->layers[ l ] );
+                const Vector3 delta = node_pos - position;
+                const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
+                
+                if ( dist_sqr < best_dist_sqr ) {
+                    best_dist_sqr = dist_sqr;
+                    best_node.key = {
+                        .leaf_index = leaf_index,
+                        .tile_index = t,
+                        .cell_index = c,
+                        .layer_index = l
+                    };
+                    best_node.position = node_pos;
+                    found = true;
+                }
+            }
+        }
+    }
+    
+    if ( found ) {
+        *out_node = best_node;
+    }
+    
+    return found;
+}
+
+/**
+*   @brief  Find a navigation node for a position using BSP leaf lookup.
+**/
+static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &position, float desired_z,
+                                     nav_node_ref_t *out_node, bool allow_fallback ) {
+    const model_t *world_model = gi.GetModelDataForHandle( 1 );
+    if ( !world_model || !world_model->bsp || !world_model->bsp->nodes ) {
+        return false;
+    }
+    
+    bsp_t *bsp = world_model->bsp;
+    mleaf_t *leaf = BSP_PointLeaf( bsp->nodes, position );
+    if ( !leaf ) {
+        return false;
+    }
+    
+    const ptrdiff_t leaf_index = leaf - bsp->leafs;
+    if ( leaf_index < 0 || leaf_index >= mesh->num_leafs ) {
+        return false;
+    }
+    
+    if ( Nav_FindNodeInLeaf( mesh, &mesh->leaf_data[ leaf_index ], (int32_t)leaf_index, position, desired_z, out_node, allow_fallback ) ) {
+        return true;
+    }
+    
+    if ( !allow_fallback ) {
+        return false;
+    }
+    
+    // Fallback: search all leafs for the nearest node.
+    float best_dist_sqr = std::numeric_limits<float>::max();
+    nav_node_ref_t best_node = {};
+    bool found = false;
+    
+    for ( int32_t i = 0; i < mesh->num_leafs; i++ ) {
+        nav_node_ref_t candidate = {};
+        if ( Nav_FindNodeInLeaf( mesh, &mesh->leaf_data[ i ], i, position, desired_z, &candidate, true ) ) {
+            const Vector3 delta = candidate.position - position;
+            const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
+            if ( dist_sqr < best_dist_sqr ) {
+                best_dist_sqr = dist_sqr;
+                best_node = candidate;
+                found = true;
+            }
+        }
+    }
+    
+    if ( found ) {
+        *out_node = best_node;
+    }
+    
+    return found;
 }
 
 /**
@@ -594,4 +1021,245 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
     gi.cprintf( nullptr, PRINT_HIGH, "  Total layers: %d\n", g_nav_mesh->total_layers );
     gi.cprintf( nullptr, PRINT_HIGH, "  Build time: %.3f seconds\n", build_time_sec );
     gi.cprintf( nullptr, PRINT_HIGH, "===================================\n" );
+}
+
+/**
+*
+*
+*
+*   Navigation Pathfinding:
+*
+*
+*
+**/
+/**
+*   @brief  Perform A* search between two navigation nodes.
+**/
+static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node,
+                             std::vector<Vector3> &out_points ) {
+    constexpr int32_t MAX_SEARCH_NODES = 4096;
+    static constexpr Vector3 neighbor_offsets[] = {
+        { 1.0f, 0.0f, 0.0f },
+        { -1.0f, 0.0f, 0.0f },
+        { 0.0f, 1.0f, 0.0f },
+        { 0.0f, -1.0f, 0.0f },
+        { 1.0f, 1.0f, 0.0f },
+        { 1.0f, -1.0f, 0.0f },
+        { -1.0f, 1.0f, 0.0f },
+        { -1.0f, -1.0f, 0.0f }
+    };
+    
+    auto heuristic = []( const Vector3 &a, const Vector3 &b ) -> float {
+        const Vector3 delta = b - a;
+        return sqrtf( ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] ) );
+    };
+    
+    std::vector<nav_search_node_t> nodes;
+    nodes.reserve( 256 );
+    
+    std::vector<int32_t> open_list;
+    open_list.reserve( 256 );
+    
+    std::unordered_map<nav_node_key_t, int32_t, nav_node_key_hash_t> node_lookup;
+    node_lookup.reserve( 256 );
+    
+    nav_search_node_t start_search = {
+        .node = start_node,
+        .g_cost = 0.0f,
+        .f_cost = heuristic( start_node.position, goal_node.position ),
+        .parent_index = -1,
+        .closed = false
+    };
+    
+    nodes.push_back( start_search );
+    open_list.push_back( 0 );
+    node_lookup.emplace( start_node.key, 0 );
+    
+    while ( !open_list.empty() && (int32_t)nodes.size() < MAX_SEARCH_NODES ) {
+        int32_t best_open_index = 0;
+        float best_f_cost = nodes[ open_list[ 0 ] ].f_cost;
+        
+        for ( int32_t i = 1; i < (int32_t)open_list.size(); i++ ) {
+            const float f_cost = nodes[ open_list[ i ] ].f_cost;
+            if ( f_cost < best_f_cost ) {
+                best_f_cost = f_cost;
+                best_open_index = i;
+            }
+        }
+        
+        const int32_t current_index = open_list[ best_open_index ];
+        open_list[ best_open_index ] = open_list.back();
+        open_list.pop_back();
+        
+        nav_search_node_t &current = nodes[ current_index ];
+        current.closed = true;
+        
+        if ( current.node.key == goal_node.key ) {
+            std::vector<Vector3> reversed_points;
+            reversed_points.reserve( 64 );
+            
+            int32_t trace_index = current_index;
+            while ( trace_index >= 0 ) {
+                reversed_points.push_back( nodes[ trace_index ].node.position );
+                trace_index = nodes[ trace_index ].parent_index;
+            }
+            
+            out_points.assign( reversed_points.rbegin(), reversed_points.rend() );
+            return true;
+        }
+        
+        for ( const Vector3 &offset_dir : neighbor_offsets ) {
+            const Vector3 neighbor_origin = current.node.position + ( offset_dir * mesh->cell_size_xy );
+            nav_node_ref_t neighbor_node = {};
+            
+            if ( !Nav_FindNodeForPosition( mesh, neighbor_origin, current.node.position[ 2 ], &neighbor_node, false ) ) {
+                continue;
+            }
+            
+            const float z_delta = fabsf( neighbor_node.position[ 2 ] - current.node.position[ 2 ] );
+            if ( z_delta > ( mesh->max_step + mesh->z_quant ) ) {
+                continue;
+            }
+            
+            const float step_cost = heuristic( current.node.position, neighbor_node.position );
+            const float tentative_g = current.g_cost + step_cost;
+            
+            auto lookup_it = node_lookup.find( neighbor_node.key );
+            if ( lookup_it == node_lookup.end() ) {
+                nav_search_node_t neighbor_search = {
+                    .node = neighbor_node,
+                    .g_cost = tentative_g,
+                    .f_cost = tentative_g + heuristic( neighbor_node.position, goal_node.position ),
+                    .parent_index = current_index,
+                    .closed = false
+                };
+                
+                nodes.push_back( neighbor_search );
+                const int32_t neighbor_index = (int32_t)nodes.size() - 1;
+                open_list.push_back( neighbor_index );
+                node_lookup.emplace( neighbor_node.key, neighbor_index );
+                continue;
+            }
+            
+            const int32_t neighbor_index = lookup_it->second;
+            nav_search_node_t &neighbor_search = nodes[ neighbor_index ];
+            if ( neighbor_search.closed ) {
+                continue;
+            }
+            
+            if ( tentative_g < neighbor_search.g_cost ) {
+                neighbor_search.g_cost = tentative_g;
+                neighbor_search.f_cost = tentative_g + heuristic( neighbor_node.position, goal_node.position );
+                neighbor_search.parent_index = current_index;
+            }
+        }
+    }
+    
+    return false;
+}
+
+/**
+*   @brief  Generate a traversal path between two world-space origins.
+**/
+const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path ) {
+    if ( !out_path ) {
+        return false;
+    }
+    
+    SVG_Nav_FreeTraversalPath( out_path );
+    
+    if ( !g_nav_mesh ) {
+        return false;
+    }
+    
+    nav_node_ref_t start_node = {};
+    nav_node_ref_t goal_node = {};
+    
+    if ( !Nav_FindNodeForPosition( g_nav_mesh, start_origin, start_origin[ 2 ], &start_node, true ) ) {
+        return false;
+    }
+    
+    if ( !Nav_FindNodeForPosition( g_nav_mesh, goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
+        return false;
+    }
+    
+    std::vector<Vector3> points;
+    if ( start_node.key == goal_node.key ) {
+        points.push_back( start_node.position );
+        points.push_back( goal_node.position );
+    } else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, points ) ) {
+        return false;
+    }
+    
+    if ( points.empty() ) {
+        return false;
+    }
+    
+    out_path->num_points = (int32_t)points.size();
+    out_path->points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+    memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
+    
+    return true;
+}
+
+/**
+*   @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
+**/
+void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path ) {
+    if ( !path ) {
+        return;
+    }
+    
+    if ( path->points ) {
+        gi.TagFree( path->points );
+    }
+    
+    path->points = nullptr;
+    path->num_points = 0;
+}
+
+/**
+*   @brief  Query movement direction along a traversal path.
+**/
+const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin,
+                                           float waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
+    if ( !path || !inout_index || !out_direction ) {
+        return false;
+    }
+    
+    if ( path->num_points <= 0 || !path->points ) {
+        return false;
+    }
+    
+    int32_t index = *inout_index;
+    if ( index < 0 ) {
+        index = 0;
+    }
+    
+    const float waypoint_radius_sqr = waypoint_radius * waypoint_radius;
+    
+    while ( index < path->num_points ) {
+        const Vector3 delta = path->points[ index ] - current_origin;
+        const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
+        if ( dist_sqr > waypoint_radius_sqr ) {
+            break;
+        }
+        index++;
+    }
+    
+    if ( index >= path->num_points ) {
+        *inout_index = path->num_points;
+        return false;
+    }
+    
+    Vector3 direction = path->points[ index ] - current_origin;
+    const float length = (float)QM_Vector3Length( direction );
+    if ( length <= std::numeric_limits<float>::epsilon() ) {
+        return false;
+    }
+    
+    *out_direction = QM_Vector3Normalize( direction );
+    *inout_index = index;
+    
+    return true;
 }

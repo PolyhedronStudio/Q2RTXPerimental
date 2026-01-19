@@ -153,6 +153,17 @@ typedef struct nav_mesh_s {
 } nav_mesh_t;
 
 /**
+*   @brief  Path result for navigation traversal queries.
+*           Stores world-space waypoints for A* pathfinding results.
+**/
+typedef struct nav_traversal_path_s {
+    //! Number of path points in the traversal path.
+    int32_t num_points;
+    //! Array of world-space points.
+    Vector3 *points;
+} nav_traversal_path_t;
+
+/**
 *
 *
 *
@@ -220,3 +231,31 @@ void SVG_Nav_GenerateVoxelMesh( void );
 *           Releases all memory allocated for navigation data.
 **/
 void SVG_Nav_FreeMesh( void );
+
+/**
+*   @brief  Generate a traversal path between two world-space origins.
+*           Uses the navigation voxelmesh and A* search to produce waypoints.
+*   @param  start_origin    World-space starting origin.
+*   @param  goal_origin     World-space destination origin.
+*   @param  out_path        Output path result (caller must free).
+*   @return True if a path was found, false otherwise.
+**/
+const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path );
+
+/**
+*   @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
+*   @param  path    Path structure to free.
+**/
+void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
+
+/**
+*   @brief  Query movement direction along a traversal path.
+*           Advances the waypoint index as the caller reaches waypoints.
+*   @param  path            Path to follow.
+*   @param  current_origin  Current world-space origin.
+*   @param  waypoint_radius Radius for waypoint completion.
+*   @param  inout_index     Current waypoint index (updated on success).
+*   @param  out_direction   Output normalized movement direction.
+*   @return True if a valid direction was produced, false if path is complete/invalid.
+**/
+const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, float waypoint_radius, int32_t *inout_index, Vector3 *out_direction );

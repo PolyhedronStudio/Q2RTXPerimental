@@ -71,6 +71,11 @@ void svg_monster_testdummy_t::Reset( const bool retainDictionary ) {
 
     // 
     testVar = 1337;
+    
+    SVG_Nav_FreeTraversalPath( &navPath );
+    navPathIndex = 0;
+    navPathGoal = {};
+    navPathNextRebuildTime = 0_ms;
 }
 
 
@@ -99,6 +104,11 @@ void svg_monster_testdummy_t::Restore( struct game_read_context_t *ctx ) {
     const char *modelname = model;
     const model_t *model_forname = gi.GetModelDataForName( modelname );
     rootMotionSet = &model_forname->skmConfig->rootMotion;
+    
+    SVG_Nav_FreeTraversalPath( &navPath );
+    navPathIndex = 0;
+    navPathGoal = {};
+    navPathNextRebuildTime = 0_ms;
 }
 
 
@@ -257,17 +267,40 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 				SVG_Util_AddEvent( self, EV_OTHER_FOOTSTEP, 0 );
 			}
 
-			const Vector3 goalOrigin = self->goalentity->currentOrigin;
+			if ( !g_nav_mesh ) {
+				SVG_Nav_GenerateVoxelMesh();
+			}
 
-			// Optional: stop moving if already close enough.
+			const Vector3 goalOrigin = self->goalentity->currentOrigin;
 			const Vector3 toGoal = goalOrigin - Vector3( self->currentOrigin );
 			const float dist2DSqr = ( toGoal.x * toGoal.x ) + ( toGoal.y * toGoal.y );
+
 			constexpr float stopDist = 48.0f;
 			if ( dist2DSqr <= ( stopDist * stopDist ) ) {
 				frameVelocity = 0.0;
 			}
 
-			self->ideal_yaw = QM_Vector3ToYaw( QM_Vector3Normalize( Vector3{ toGoal.x, toGoal.y, 0.0f } ) );
+			constexpr float navRebuildDist = 96.0f;
+			const QMTime navRebuildInterval = 500_ms;
+			const Vector3 navGoalDelta = goalOrigin - navPathGoal;
+			const float navGoalDistSqr = ( navGoalDelta.x * navGoalDelta.x ) + ( navGoalDelta.y * navGoalDelta.y );
+
+			if ( level.time >= navPathNextRebuildTime && ( navPath.num_points == 0 || navGoalDistSqr > ( navRebuildDist * navRebuildDist ) ) ) {
+				SVG_Nav_FreeTraversalPath( &navPath );
+				if ( SVG_Nav_GenerateTraversalPathForOrigin( self->currentOrigin, goalOrigin, &navPath ) ) {
+					navPathIndex = 0;
+					navPathGoal = goalOrigin;
+				}
+				navPathNextRebuildTime = level.time + navRebuildInterval;
+			}
+
+			Vector3 move_dir = {};
+			bool has_nav_direction = SVG_Nav_QueryMovementDirection( &navPath, self->currentOrigin, 24.0f, &navPathIndex, &move_dir );
+			if ( !has_nav_direction ) {
+				move_dir = QM_Vector3Normalize( Vector3{ toGoal.x, toGoal.y, 0.0f } );
+			}
+
+			self->ideal_yaw = QM_Vector3ToYaw( QM_Vector3Normalize( Vector3{ move_dir.x, move_dir.y, 0.0f } ) );
 			self->yaw_speed = 7.5f;
 
 			if ( !SVG_Entity_IsInFrontOf( self, goalOrigin, 1.75f ) ) {
@@ -424,6 +457,11 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_t, onUse )( svg_monster_testdu
                 skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 3 ]; // [1] == RUN_FORWARD_PISTOL
                 // Transition to its animation.
                 self->s.frame = rootMotion->firstFrameIndex;
+                
+                SVG_Nav_FreeTraversalPath( &self->navPath );
+                self->navPathIndex = 0;
+                self->navPathGoal = {};
+                self->navPathNextRebuildTime = 0_ms;
 
 				// Set to disengagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
                 SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_DISENGAGE );
@@ -438,6 +476,11 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_t, onUse )( svg_monster_testdu
     self->goalentity = nullptr;
     self->activator = nullptr;
 	self->other = nullptr;
+    
+    SVG_Nav_FreeTraversalPath( &self->navPath );
+    self->navPathIndex = 0;
+    self->navPathGoal = {};
+    self->navPathNextRebuildTime = 0_ms;
 
     // Fire set target.
     SVG_UseTargets( self, activator );

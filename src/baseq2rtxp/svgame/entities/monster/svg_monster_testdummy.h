@@ -11,6 +11,7 @@
 
 // Needed.
 #include "svgame/entities/svg_base_edict.h"
+#include "svgame/nav/svg_nav.h"
 
 
 /**
@@ -142,6 +143,14 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     //---------------------------
     //static sg_skm_rootmotion_set_t rootMotionSet;
     skm_rootmotion_set_t *rootMotionSet = nullptr;
+    
+    /**
+    *   Navigation path following state:
+    **/
+    nav_traversal_path_t navPath = {};
+    int32_t navPathIndex = 0;
+    Vector3 navPathGoal = {};
+    QMTime navPathNextRebuildTime = 0_ms;
 
     
     /**
