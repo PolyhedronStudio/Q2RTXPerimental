@@ -282,20 +282,20 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 
 			constexpr float navRebuildDist = 96.0f;
 			const QMTime navRebuildInterval = 500_ms;
-			const Vector3 navGoalDelta = QM_Vector3Subtract( goalOrigin, navPathGoal );
+			const Vector3 navGoalDelta = QM_Vector3Subtract( goalOrigin, self->navPathGoal );
 			const float navGoalDistSqr = ( navGoalDelta.x * navGoalDelta.x ) + ( navGoalDelta.y * navGoalDelta.y );
 
-			if ( level.time >= navPathNextRebuildTime && ( navPath.num_points == 0 || navGoalDistSqr > ( navRebuildDist * navRebuildDist ) ) ) {
-				SVG_Nav_FreeTraversalPath( &navPath );
-				if ( SVG_Nav_GenerateTraversalPathForOrigin( self->currentOrigin, goalOrigin, &navPath ) ) {
-					navPathIndex = 0;
-					navPathGoal = goalOrigin;
+			if ( level.time >= self->navPathNextRebuildTime && ( self->navPath.num_points == 0 || navGoalDistSqr > ( navRebuildDist * navRebuildDist ) ) ) {
+				SVG_Nav_FreeTraversalPath( &self->navPath );
+				if ( SVG_Nav_GenerateTraversalPathForOrigin( self->currentOrigin, goalOrigin, &self->navPath ) ) {
+					self->navPathIndex = 0;
+					self->navPathGoal = goalOrigin;
 				}
-				navPathNextRebuildTime = level.time + navRebuildInterval;
+				self->navPathNextRebuildTime = level.time + navRebuildInterval;
 			}
 
 			Vector3 move_dir = {};
-			bool has_nav_direction = SVG_Nav_QueryMovementDirection( &navPath, self->currentOrigin, 24.0f, &navPathIndex, &move_dir );
+			bool has_nav_direction = SVG_Nav_QueryMovementDirection( &self->navPath, self->currentOrigin, 24.0f, &self->navPathIndex, &move_dir );
 			if ( !has_nav_direction ) {
 				move_dir = QM_Vector3Normalize( Vector3{ toGoal.x, toGoal.y, 0.0f } );
 			}
