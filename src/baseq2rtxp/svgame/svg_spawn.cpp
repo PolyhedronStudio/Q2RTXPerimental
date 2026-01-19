@@ -38,6 +38,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_gamemode.h"
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
+#include "svgame/nav/svg_nav.h"
+
 
 
 /**
@@ -635,6 +637,10 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 			numPostSpawnedEntities++;
 		}
 	}
+
+	// Initialize navigation system after entities have post-spawned.
+	// This ensures all inline models (brush entities) have their proper modelindex set.
+	SVG_Nav_Init();
 
     // Initialize a fresh clients array.
     //game.clients = SVG_Clients_Reallocate( game.maxclients );

@@ -441,6 +441,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/weapons/svg_weapon_fists.cpp
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
+	
+	baseq2rtxp/svgame/nav/svg_nav.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
@@ -552,6 +554,8 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 
 	baseq2rtxp/svgame/monsters/svg_mmove.h
 	baseq2rtxp/svgame/monsters/svg_mmove_slidemove.h
+	
+	baseq2rtxp/svgame/nav/svg_nav.h
 )
 
 

@@ -35,6 +35,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/gamemodes/svg_gm_basemode.h"
 #include "svgame/svg_gamemode.h"
 
+#include "svgame/nav/svg_nav.h"
+
 /**
 *	General used Game Objects.
 **/
@@ -463,6 +465,9 @@ void SVG_InitGame( void ) {
 void SVG_ShutdownGame( void ) {
     // Notify of shutdown.
     gi.dprintf( "==== Initiating ServerGame Shutdown ====\n" );
+
+    // Shutdown navigation system.
+    SVG_Nav_Shutdown();
 
     // Shutdown the Lua VM.
     SVG_Lua_Shutdown();
