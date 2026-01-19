@@ -494,6 +494,13 @@ static const bool PF_inVIS(const Vector3 *p1, const Vector3 *p2, const int32_t v
 }
 
 /**
+*	@brief	Returns the leaf the point is in.
+**/
+static mleaf_t *PF_BSP_PointLeaf( mnode_t *node, const vec3_t p ) {
+	return BSP_PointLeaf( node, p );
+}
+
+/**
 *   @brief  Also checks portalareas so that doors block sight
 **/
 static const bool PF_inPVS(const Vector3 *p1, const Vector3 *p2)
@@ -872,6 +879,13 @@ static void PF_DebugGraph(float value, int color)
 }
 
 /**
+*	@return	For legitimate real computer time tracking purposes.
+**/
+static const uint64_t PF_GetRealSystemTime( void ) {
+	return Sys_Milliseconds();
+}
+
+/**
 *   @return The realtime of the server since boot time.
 **/
 const uint64_t PF_GetRealTime( void ) {
@@ -936,10 +950,17 @@ static const mmodel_t *PF_GetInlineModelDataForHandle( const qhandle_t handle ) 
 /**
 *
 *
-*   (Skeletal though-) Alias Models:
+*   Alias/Collision(BSP)/Skeletal -Models:
 *
 *
 **/
+/**
+*	Get the bsp_t pointer of the currently loaded map.
+**/
+cm_t *PF_GetCollisionModel( void ) {
+	return &sv.cm;
+}
+
 /**
 *   @brief  Pointer to model data matching the name, otherwise a (nullptr) on failure.
 **/
@@ -1087,6 +1108,7 @@ void SV_InitGameProgs(void) {
 	imports.frame_time_s = BASE_FRAMETIME_1000;
 	imports.frame_time_ms = BASE_FRAMETIME;
 
+	imports.GetRealSystemTime = PF_GetRealSystemTime;
     imports.GetRealTime = PF_GetRealTime;
     imports.GetServerFrameNumber = PF_GetServerFrameNumber;
 
@@ -1121,6 +1143,9 @@ void SV_InitGameProgs(void) {
     imports.inPVS = PF_inPVS;
     imports.inPHS = PF_inPHS;
     imports.setmodel = PF_setmodel;
+
+	imports.BSP_PointLeaf = PF_BSP_PointLeaf;
+	imports.GetCollisionModel = PF_GetCollisionModel;
 
     imports.GetModelDataForName = PF_GetModelDataForName;
     imports.GetModelDataForHandle = PF_GetModelDataForHandle;

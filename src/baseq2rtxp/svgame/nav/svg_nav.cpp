@@ -5,7 +5,7 @@
 *
 *
 ********************************************************************/
-#include "../svg_local.h"
+#include "svgame/svg_local.h"
 #include "common/bsp.h"
 #include "svg_nav.h"
 #include <math.h>
@@ -498,14 +498,22 @@ static void GenerateWorldMesh( nav_mesh_t *mesh ) {
     /**
     *   Get BSP data from the world model:
     **/
+	#if 0
     // Model handle 1 is always the world.
     const model_t *world_model = gi.GetModelDataForHandle( 1 );
     if ( !world_model || !world_model->bsp ) {
         gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
         return;
     }
+	#else
+	const cm_t *world_model = gi.GetCollisionModel();
+	if ( !world_model || !world_model->cache ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
+		return;
+	}
+	#endif
     
-    bsp_t *bsp = world_model->bsp;
+    bsp_t *bsp = world_model->cache;
     int32_t num_leafs = bsp->numleafs;
     
     gi.cprintf( nullptr, PRINT_HIGH, "Generating world mesh for %d leafs...\n", num_leafs );
@@ -581,12 +589,13 @@ static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
     /**
     *   Get number of inline models from world model:
     **/
-    const model_t *world_model = gi.GetModelDataForHandle( 1 );
-    if ( !world_model || !world_model->bsp ) {
-        return;
-    }
+	const cm_t *world_model = gi.GetCollisionModel();
+	if ( !world_model || !world_model->cache ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
+		return;
+	}
     
-    bsp_t *bsp = world_model->bsp;
+    bsp_t *bsp = world_model->cache;
     int32_t num_models = bsp->nummodels;
     
     // Check if we have any inline models (model 0 is world).
@@ -837,13 +846,21 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
 **/
 static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &position, float desired_z,
                                      nav_node_ref_t *out_node, bool allow_fallback ) {
-    const model_t *world_model = gi.GetModelDataForHandle( 1 );
+	#if 0
+	const model_t *world_model = gi.GetModelDataForHandle( 1 );
     if ( !world_model || !world_model->bsp || !world_model->bsp->nodes ) {
         return false;
     }
-    
-    bsp_t *bsp = world_model->bsp;
-    mleaf_t *leaf = BSP_PointLeaf( bsp->nodes, &position[ 0 ] );
+	bsp_t *bsp = world_model->bsp;
+	#else
+	const cm_t *world_model = gi.GetCollisionModel();
+	if ( !world_model || !world_model->cache ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
+		return false;
+	}
+	bsp_t *bsp = world_model->cache;
+	#endif
+    mleaf_t *leaf = gi.BSP_PointLeaf( bsp->nodes, &position[ 0 ] );
     if ( !leaf ) {
         return false;
     }
@@ -893,7 +910,7 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
 **/
 void SVG_Nav_GenerateVoxelMesh( void ) {
     // Record start time for statistics.
-    uint64_t start_time = gi.GetRealTime();
+    uint64_t start_time = gi.GetRealSystemTime();
     
     gi.cprintf( nullptr, PRINT_HIGH, "=== Navigation Voxelmesh Generation ===\n" );
     
@@ -1010,7 +1027,7 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
     /**
     *   Calculate and print generation statistics:
     **/
-    uint64_t end_time = gi.GetRealTime();
+    uint64_t end_time = gi.GetRealSystemTime();
     double build_time_sec = ( end_time - start_time ) / MICROSECONDS_PER_SECOND;
     
     gi.cprintf( nullptr, PRINT_HIGH, "\n=== Generation Statistics ===\n" );
