@@ -638,8 +638,8 @@ static void dump_protocols(void)
         Com_Printf( "%3i %-15.15s %5d %5d %6zu  %s  %s\n",
             cl->number, cl->name, cl->protocol, cl->version,
             cl->netchan.maxpacketlen,
-            cl->has_zlib ? "yes" : "no " );
-                   //,cl->netchan.type ? "new" : "old");
+            cl->has_zlib ? "yes" : "no ",
+            cl->netchan.type ? "new" : "old");
     }
 }
 
