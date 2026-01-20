@@ -1,6 +1,6 @@
 # Quake II RTXPerimental
 
-[![Build Status](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml/badge.svg)](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build.yml)
+[![Builds](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build-master.yml/badge.svg)](https://github.com/PolyhedronStudio/Q2RTXPerimental/actions/workflows/build-master.yml)
 
 **Quake II RTXPerimental** is my 'playing field', taking Q2RTX, while trying to modernize the code where possible. While doing so it becomes gradually necessary to move away from 'baseq2' and its data, on to providing our own basic game template instead.
 
