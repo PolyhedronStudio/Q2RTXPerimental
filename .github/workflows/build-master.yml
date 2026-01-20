@@ -34,7 +34,7 @@ jobs:
       run: cmake --build ${{github.workspace}}/build-x64 --config ${{env.BUILD_TYPE}}
 
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: q2rtxp-windows-${{env.GITHUB_SHA_SHORT}}
         path: |
@@ -70,7 +70,7 @@ jobs:
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}} -j2
 
     - name: Upload
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: q2rtxp-linux-x86_64-${{env.GITHUB_SHA_SHORT}}
         path: |
