@@ -466,7 +466,7 @@ QM_API Vector3 QM_Vector3Lerp( const Vector3 &v1, const Vector3 &v2, const float
 }
 
 // Calculate reflected vector to normal
-QM_API_CONSTEXPR Vector3 &QM_Vector3Reflect( const Vector3 &v, const Vector3 &normal ) {
+QM_API_CONSTEXPR Vector3 QM_Vector3Reflect( const Vector3 &v, const Vector3 &normal ) {
     Vector3 result = { 0.f, 0.f, 0.f };
 
     // I is the original vector
