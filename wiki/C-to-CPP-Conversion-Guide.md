@@ -1,6 +1,6 @@
 # C to C++ Conversion Guide
 
-This guide documents the patterns for converting C99-style designated initializers to C++ compatible code in the Q2RTXPerimental codebase. While C++20 supports designated initializers, this codebase uses C++17, which does not. Therefore, C99-style designated initializers must be converted to use separate initialization and assignment.
+This guide documents the patterns for converting C99-style designated initializers to C++ compatible code in the Q2RTXPerimental codebase. The project uses **C++20**, which supports designated initializers in declaration order. However, some legacy C99 patterns (out-of-order initializers, nested designated initializers in certain contexts) still need conversion.
 
 ## Table of Contents
 
@@ -19,13 +19,17 @@ This guide documents the patterns for converting C99-style designated initialize
 
 ## Overview
 
-C99 introduced designated initializers, which allow initializing specific members of a structure by name:
+C99 introduced designated initializers, which allow initializing specific members of a structure by name. C++20 also supports designated initializers, but with stricter rules:
+
+1. **Must be in declaration order** - Fields must be initialized in the order they appear in the struct
+2. **Cannot mix styles** - Cannot mix designated and non-designated initializers
+3. **No array designators** - Array initializers like `[5] = value` are not supported
 
 ```c
-// C99 style - NOT compatible with C++17
+// C99 style - May not work in C++20 if out of order
 VkImageMemoryBarrier barrier = {
+    .image = my_image,              // Out of order!
     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-    .image = my_image,
     .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT
 };
 ```
