@@ -196,12 +196,14 @@ vkpt_shadow_map_initialize()
 	VkCommandBuffer cmd_buf = vkpt_begin_command_buffer(&qvk.cmd_buffers_graphics);
 
 	IMAGE_BARRIER(cmd_buf,
-		.image = img_smap,
-		.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,.levelCount = 1,.layerCount = 2 },
-		.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-		.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-		.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		img_mem_barrier.image = img_smap;
+		img_mem_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		img_mem_barrier.subresourceRange.levelCount = 1;
+		img_mem_barrier.subresourceRange.layerCount = 2;
+		img_mem_barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		img_mem_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		img_mem_barrier.oldLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+		img_mem_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 	);
 
 	vkpt_submit_command_buffer_simple(cmd_buf, qvk.queue_graphics, true);
@@ -398,15 +400,18 @@ vkpt_shadow_map_render(VkCommandBuffer cmd_buf, float* view_projection_matrix,
 	uint32_t transparent_offset, uint32_t num_transparent_verts)
 {
 	IMAGE_BARRIER(cmd_buf,
-		.image = img_smap,
-		.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT, .levelCount = 1, .layerCount = 2 },
-		.srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
-		.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-		.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+		img_mem_barrier.image = img_smap;
+		img_mem_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		img_mem_barrier.subresourceRange.levelCount = 1;
+		img_mem_barrier.subresourceRange.layerCount = 2;
+		img_mem_barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		img_mem_barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		img_mem_barrier.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+		img_mem_barrier.newLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 	);
 
-	VkClearValue clear_depth = { .depthStencil = { .depth = 1.f } };
+	VkClearValue clear_depth = {};
+	clear_depth.depthStencil.depth = 1.f;
 	
 	VkRenderPassBeginInfo render_pass_info = {
 		.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -485,12 +490,14 @@ vkpt_shadow_map_render(VkCommandBuffer cmd_buf, float* view_projection_matrix,
 
 
 	IMAGE_BARRIER(cmd_buf,
-		.image = img_smap,
-		.subresourceRange = { .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,.levelCount = 1,.layerCount = 2 },
-		.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
-		.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-		.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-		.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		img_mem_barrier.image = img_smap;
+		img_mem_barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		img_mem_barrier.subresourceRange.levelCount = 1;
+		img_mem_barrier.subresourceRange.layerCount = 2;
+		img_mem_barrier.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+		img_mem_barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+		img_mem_barrier.oldLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+		img_mem_barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 		);
 
 	return VK_SUCCESS;

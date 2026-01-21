@@ -414,19 +414,17 @@ vkpt_pt_create_accel_bottom(
 	assert(buffer_vertex->address);
 	if (buffer_index) assert(buffer_index->address);
 
-	const VkAccelerationStructureGeometryTrianglesDataKHR triangles = {
-		.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR,
-		.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT,
-		.vertexData = {.deviceAddress = buffer_vertex->address + offset_vertex },
-		.vertexStride = sizeof(float) * 3,
-		.maxVertex = max(num_vertices, 1) - 1,
-		.indexData = {.deviceAddress = buffer_index ? (buffer_index->address + offset_index) : 0 },
-		.indexType = buffer_index ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_NONE_KHR,
-	};
+	VkAccelerationStructureGeometryTrianglesDataKHR triangles = {};
+	triangles.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_TRIANGLES_DATA_KHR;
+	triangles.vertexFormat = VK_FORMAT_R32G32B32_SFLOAT;
+	triangles.vertexData.deviceAddress = buffer_vertex->address + offset_vertex;
+	triangles.vertexStride = sizeof(float) * 3;
+	triangles.maxVertex = max(num_vertices, 1) - 1;
+	triangles.indexData.deviceAddress = buffer_index ? (buffer_index->address + offset_index) : 0;
+	triangles.indexType = buffer_index ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_NONE_KHR;
 
-	const VkAccelerationStructureGeometryDataKHR geometry_data = { 
-		.triangles = triangles
-	};
+	VkAccelerationStructureGeometryDataKHR geometry_data = {}; 
+	geometry_data.triangles = triangles;
 
 	const VkAccelerationStructureGeometryKHR geometry = {
 		.sType = VK_STRUCTURE_TYPE_ACCELERATION_STRUCTURE_GEOMETRY_KHR,
