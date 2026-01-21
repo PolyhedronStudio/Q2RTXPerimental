@@ -101,3 +101,4 @@ baseq2rtxp/maps/*.bsp
 !/baseq2rtxp/materials/
 !/baseq2rtxp/textures/
 /baseq2rtxp.zip
+/maps/srcmaps/autosave

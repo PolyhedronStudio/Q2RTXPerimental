@@ -78,7 +78,7 @@ static void CL_ParsePacketEntities(server_frame_t *oldframe,
 
     // delta from the entities present in oldframe
     oldindex = 0;
-    oldstate = NULL;
+    oldstate = nullptr;
     if (!oldframe) {
         oldnum = 99999;
     } else {
@@ -603,6 +603,7 @@ static void CL_ParseServerData(void)
     // setup default pmove parameters
     //clge->ConfigurePlayerMoveParameters( &cl.pmp );
 
+
 // WID: 40hz - For proper frame lerping for 10hz models.
 	cl.sv_frametime = BASE_FRAMETIME;
 	cl.sv_frametime_inv = 1.0f / cl.sv_frametime;
@@ -937,6 +938,7 @@ static void CL_ParseSetAreaPortalBit() {
 }
 
 
+
 /*
 =====================
 CL_ParseServerMessage

@@ -1864,7 +1864,7 @@ to open the file, printing an error message in case of failure.
 */
 qhandle_t FS_EasyOpenFile(char *buf, size_t size, unsigned mode,
                           const char *dir, const char *name, const char *ext)
-{
+{	
     if ((mode & FS_MODE_MASK) == FS_MODE_READ) {
         return easy_open_read(buf, size, mode, dir, name, ext);
     }

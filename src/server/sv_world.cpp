@@ -300,12 +300,7 @@ void PF_UnlinkEdict(edict_ptr_t *ent)
 *           sets ent->leafnums[] for pvs determination even if the entity.
 *           is not solid.
 **/
-void PF_LinkEdict(edict_ptr_t *ent)
-{
-    worldSector_t *node;
-    server_entity_t *sent;
-    int entnum;
-
+void PF_LinkEdict( edict_ptr_t *ent ) {
     if ( !ent ) {
         Com_Error( ERR_DROP, "%s: (nullptr) edict_t pointer\n", __func__ );
     }
@@ -331,9 +326,14 @@ void PF_LinkEdict(edict_ptr_t *ent)
 	}
 
 	// Get entity number.
-	entnum = NUMBER_OF_EDICT( ent );
+	const int32_t entnum = NUMBER_OF_EDICT( ent );
+	// The entity number needs to be sanitized.
+	if ( entnum < 0 || entnum >= ge->edictPool->max_edicts ) {
+		Com_Error( ERR_DROP, "%s: edict_t %d with invalid entity number\n", __func__, entnum );
+		return;
+	}
 	// Specific server entity data pointer.
-	sent = &sv.entities[ entnum ];
+	server_entity_t *sent = &sv.entities[ entnum ];
 
     // encode the size into the entity_state for client prediction
 	switch ( ent->solid ) {
@@ -392,7 +392,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
     // If its the entity's first time, make sure old_origin is valid, unless a BEAM which handles it by itself.
     if ( !ent->linkCount ) {
         if ( ent->s.entityType != ET_BEAM && !( ent->s.renderfx & RF_BEAM ) ) {
-            VectorCopy( ent->s.origin, ent->s.old_origin );
+            VectorCopy( ent->currentOrigin, ent->s.old_origin );
         }
     }
 
@@ -409,7 +409,7 @@ void PF_LinkEdict(edict_ptr_t *ent)
     }
 
     // Find the first node that the ent's box crosses.
-    node = sv_sectorNodes;
+	worldSector_t *node = sv_sectorNodes;
     while (1) {
         if (node->axis == -1)
             break;
