@@ -10,6 +10,15 @@
 
 
 /**
+*	@brief	Server-side debug draw helpers using temp entities.
+**/
+void SVG_DebugDrawLine_TE( const Vector3 &start, const Vector3 &end, const multicast_t multicastType = MULTICAST_PVS, const bool reliable = false );
+void SVG_DebugDrawBBox_TE( const Vector3 &mins, const Vector3 &maxs, const multicast_t multicastType = MULTICAST_PVS, const bool reliable = false );
+void SVG_DebugDrawCube_TE( const Vector3 &center, const float halfExtent, const multicast_t multicastType = MULTICAST_PVS, const bool reliable = false );
+
+
+
+/**
 *
 *
 *
@@ -18,7 +27,6 @@
 *
 *
 **/
-
 /**
 *	@brief	Use to properly set an entity's origin. It will always assign to the authoritative
 *			``ent->currentOrigin``, which is used for physics and linking.

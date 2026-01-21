@@ -26,9 +26,63 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "svgame/entities/svg_entities_pushermove.h"
 
+#include "sharedgame/sg_tempentity_events.h"
 #include "sharedgame/sg_means_of_death.h"
 #include "sharedgame/sg_misc.h"
 
+
+
+/**
+*	@brief	Emit a single `TE_DEBUGTRAIL` segment (start->end).
+**/
+void SVG_DebugDrawLine_TE( const Vector3 &start, const Vector3 &end, const multicast_t multicastType, const bool reliable ) {
+	gi.WriteUint8( svc_temp_entity );
+	gi.WriteUint8( TE_DEBUGTRAIL );
+	gi.WritePosition( &start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+	gi.WritePosition( &end, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+	gi.multicast( &start, multicastType, reliable );
+}
+
+/**
+*	@brief	Draw an axis-aligned bounding box by emitting 12 `TE_DEBUGTRAIL` line segments.
+**/
+void SVG_DebugDrawBBox_TE( const Vector3 &mins, const Vector3 &maxs, const multicast_t multicastType, const bool reliable ) {
+	const Vector3 v000 = { mins[ 0 ], mins[ 1 ], mins[ 2 ] };
+	const Vector3 v001 = { mins[ 0 ], mins[ 1 ], maxs[ 2 ] };
+	const Vector3 v010 = { mins[ 0 ], maxs[ 1 ], mins[ 2 ] };
+	const Vector3 v011 = { mins[ 0 ], maxs[ 1 ], maxs[ 2 ] };
+	const Vector3 v100 = { maxs[ 0 ], mins[ 1 ], mins[ 2 ] };
+	const Vector3 v101 = { maxs[ 0 ], mins[ 1 ], maxs[ 2 ] };
+	const Vector3 v110 = { maxs[ 0 ], maxs[ 1 ], mins[ 2 ] };
+	const Vector3 v111 = { maxs[ 0 ], maxs[ 1 ], maxs[ 2 ] };
+
+	// Bottom rectangle
+	SVG_DebugDrawLine_TE( v000, v100, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v100, v110, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v110, v010, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v010, v000, multicastType, reliable );
+
+	// Top rectangle
+	SVG_DebugDrawLine_TE( v001, v101, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v101, v111, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v111, v011, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v011, v001, multicastType, reliable );
+
+	// Vertical edges
+	SVG_DebugDrawLine_TE( v000, v001, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v100, v101, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v110, v111, multicastType, reliable );
+	SVG_DebugDrawLine_TE( v010, v011, multicastType, reliable );
+}
+
+/**
+*	@brief	Draw a cube centered at `center`.
+**/
+void SVG_DebugDrawCube_TE( const Vector3 &center, const float halfExtent, const multicast_t multicastType, const bool reliable ) {
+	const Vector3 mins = { center[ 0 ] - halfExtent, center[ 1 ] - halfExtent, center[ 2 ] - halfExtent };
+	const Vector3 maxs = { center[ 0 ] + halfExtent, center[ 1 ] + halfExtent, center[ 2 ] + halfExtent };
+	SVG_DebugDrawBBox_TE( mins, maxs, multicastType, reliable );
+}
 
 
 /**

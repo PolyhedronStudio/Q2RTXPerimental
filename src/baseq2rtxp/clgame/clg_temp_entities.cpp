@@ -147,7 +147,7 @@ void CLG_TemporaryEntities_Parse( void ) {
     case TE_TUNNEL_SPARKS:
         CLG_FX_ParticleEffect3( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.dir, level.parsedMessage.events.tempEntity.color, level.parsedMessage.events.tempEntity.count );
         break;
-#if 0
+#if 1
     case TE_DEBUGTRAIL:
         CLG_FX_DebugTrail( level.parsedMessage.events.tempEntity.pos1, level.parsedMessage.events.tempEntity.pos2 );
         break;

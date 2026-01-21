@@ -200,7 +200,7 @@ extern cvar_t *nav_agent_maxs_z;    //! Agent bounding box maximum Z.
 *
 *
 *
-*   Navigation System Functions:
+*   Navigation System Initialization/Shutdown:
 *
 *
 *
@@ -211,13 +211,23 @@ extern cvar_t *nav_agent_maxs_z;    //! Agent bounding box maximum Z.
 *           have their proper modelindex set.
 **/
 void SVG_Nav_Init( void );
-
 /**
 *   @brief  Shutdown navigation system and free memory.
 *           Called during game shutdown to clean up resources.
 **/
 void SVG_Nav_Shutdown( void );
 
+
+
+/**
+*
+*
+*
+*   Navigation System "Voxel Mesh(-es)":
+*
+*
+*
+**/
 /**
 *   @brief  Generate navigation voxelmesh for the current level.
 *           This is called by the nav_gen_voxelmesh server command.
@@ -225,13 +235,23 @@ void SVG_Nav_Shutdown( void );
 *           different parameters.
 **/
 void SVG_Nav_GenerateVoxelMesh( void );
-
 /**
 *   @brief  Free the current navigation mesh.
 *           Releases all memory allocated for navigation data.
 **/
 void SVG_Nav_FreeMesh( void );
 
+
+
+/**
+*
+*
+*
+*   Navigation System "Traversal Operations":
+*
+*
+*
+**/
 /**
 *   @brief  Generate a traversal path between two world-space origins.
 *           Uses the navigation voxelmesh and A* search to produce waypoints.
@@ -241,7 +261,6 @@ void SVG_Nav_FreeMesh( void );
 *   @return True if a path was found, false otherwise.
 **/
 const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path );
-
 /**
 *   @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
 *   @param  path    Path structure to free.

@@ -6,6 +6,10 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+#include "svgame/svg_utils.h"
+
+#include "svgame/nav/svg_nav.h"
+#include "svgame/entities/svg_player_edict.h"
 #include "common/bsp.h"
 #include "svg_nav.h"
 #include <math.h>
@@ -35,11 +39,189 @@ static constexpr double MICROSECONDS_PER_SECOND = 1000000.0;
 *
 *
 *
-*   Navigation Global Variables:
+*   Navigation Debug Drawing:
 *
 *
 *
 **/
+//! Master on/off. 0 = off, 1 = on.
+static cvar_t *nav_debug_draw = nullptr;
+//! Only draw a specific BSP leaf index. -1 = any.
+static cvar_t *nav_debug_draw_leaf = nullptr;
+//! Only draw a specific tile (grid coords). Requires "x y". "*" disables.
+static cvar_t *nav_debug_draw_tile = nullptr;
+//! Budget in TE_DEBUGTRAIL line segments per server frame.
+static cvar_t *nav_debug_draw_max_segments = nullptr;
+//! Max distance from current view player to draw debug (world units). 0 disables.
+static cvar_t *nav_debug_draw_max_dist = nullptr;
+//! Draw tile bboxes.
+static cvar_t *nav_debug_draw_tile_bounds = nullptr;
+//! Draw sample ticks.
+static cvar_t *nav_debug_draw_samples = nullptr;
+//! Draw final path segments from traversal path query.
+static cvar_t *nav_debug_draw_path = nullptr;
+
+typedef struct nav_debug_draw_state_s {
+	int32_t frame = -1;
+	int32_t segments_used = 0;
+} nav_debug_draw_state_t;
+
+static nav_debug_draw_state_t s_nav_debug_draw_state = {};
+
+static inline void NavDebug_NewFrame( void ) {
+	if ( s_nav_debug_draw_state.frame == ( int32_t )level.frameNumber ) {
+		return;
+	}
+
+	s_nav_debug_draw_state.frame = ( int32_t )level.frameNumber;
+	s_nav_debug_draw_state.segments_used = 0;
+}
+
+static inline bool NavDebug_CanEmitSegments( const int32_t count ) {
+	NavDebug_NewFrame();
+
+	const int32_t maxSegments = ( nav_debug_draw_max_segments ? nav_debug_draw_max_segments->integer : 0 );
+	if ( maxSegments <= 0 ) {
+		return false;
+	}
+
+	return ( s_nav_debug_draw_state.segments_used + count ) <= maxSegments;
+}
+
+static inline void NavDebug_ConsumeSegments( const int32_t count ) {
+	s_nav_debug_draw_state.segments_used += count;
+}
+
+static inline bool NavDebug_Enabled( void ) {
+	return nav_debug_draw && nav_debug_draw->integer != 0;
+}
+
+static inline Vector3 NavDebug_GetViewOrigin( void ) {
+	if ( game.currentViewPlayer ) {
+		return game.currentViewPlayer->currentOrigin;
+	}
+
+	// Fallback: try client #1 (singleplayer typical).
+	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 1 );
+	if ( SVG_Entity_IsClient( ent, false ) ) {
+		return ent->currentOrigin;
+	}
+
+	return {};
+}
+
+static inline bool NavDebug_PassesDistanceFilter( const Vector3 &pos ) {
+	const float maxDist = ( nav_debug_draw_max_dist ? nav_debug_draw_max_dist->value : 0.0f );
+	if ( maxDist <= 0.0f ) {
+		return true;
+	}
+
+	const Vector3 viewOrg = NavDebug_GetViewOrigin();
+	const Vector3 d = QM_Vector3Subtract( pos, viewOrg );
+	const float distSqr = ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) + ( d[ 2 ] * d[ 2 ] );
+	return distSqr <= ( maxDist * maxDist );
+}
+
+static bool NavDebug_ParseTileFilter( int32_t *outTileX, int32_t *outTileY ) {
+	if ( !outTileX || !outTileY || !nav_debug_draw_tile ) {
+		return false;
+	}
+
+	const char *s = nav_debug_draw_tile->string;
+	if ( !s || !s[ 0 ] || s[ 0 ] == '*' ) {
+		return false;
+	}
+
+	int x = 0, y = 0;
+	if ( sscanf( s, "%d %d", &x, &y ) != 2 ) {
+		return false;
+	}
+
+	*outTileX = x;
+	*outTileY = y;
+	return true;
+}
+
+static inline bool NavDebug_FilterLeaf( const int32_t leafIndex ) {
+	if ( !nav_debug_draw_leaf ) {
+		return true;
+	}
+
+	const int32_t wanted = nav_debug_draw_leaf->integer;
+	return ( wanted < 0 ) || ( wanted == leafIndex );
+}
+
+static inline bool NavDebug_FilterTile( const int32_t tileX, const int32_t tileY ) {
+	int32_t wantedX = 0, wantedY = 0;
+	if ( !NavDebug_ParseTileFilter( &wantedX, &wantedY ) ) {
+		return true;
+	}
+
+	return tileX == wantedX && tileY == wantedY;
+}
+
+static void NavDebug_DrawSampleTick( const Vector3 &pos, const float height ) {
+	if ( !NavDebug_Enabled() || !nav_debug_draw_samples || nav_debug_draw_samples->integer == 0 ) {
+		return;
+	}
+
+	if ( !NavDebug_CanEmitSegments( 1 ) ) {
+		return;
+	}
+
+	if ( !NavDebug_PassesDistanceFilter( pos ) ) {
+		return;
+	}
+
+	Vector3 end = pos;
+	end[ 2 ] += height;
+
+	SVG_DebugDrawLine_TE( pos, end, MULTICAST_PVS, false );
+	NavDebug_ConsumeSegments( 1 );
+}
+
+
+
+/**
+*
+*
+*
+*	Forward Declare:
+*
+*
+*
+**/
+/**
+*   @brief  Generate navigation mesh for world (world-only collision).
+*           Creates tiles for each BSP leaf containing walkable surface samples.
+*   @param  mesh    Navigation mesh structure to populate.
+**/
+static void GenerateWorldMesh( nav_mesh_t *mesh );
+/**
+*   @brief  Generate navigation mesh for inline BSP models (brush entities).
+*           Creates tiles for each inline model in local space for later transform application.
+*   @param  mesh    Navigation mesh structure to populate.
+**/
+static void GenerateInlineModelMesh( nav_mesh_t *mesh );
+
+
+
+/**
+*
+*
+*
+*   Navigation Global Variables and CVars:
+*
+*
+*
+**/
+/**
+*	Navigation Debug CVar Variables:
+**/
+//cvar_t *nav_debug_draw_voxelmesh = nullptr;
+//cvar_t *nav_debug_draw_walkable_sample_points = nullptr;
+//cvar_t *nav_debug_draw_pathfinding = nullptr;
+
 /**
 *   @brief  Global navigation mesh instance.
 *           Stores the complete navigation data for the current level.
@@ -78,34 +260,53 @@ cvar_t *nav_agent_maxs_z = nullptr;
 *           have their proper modelindex set.
 **/
 void SVG_Nav_Init( void ) {
-    /**
-    *   Register grid and quantization CVars with sensible defaults:
-    **/
-    nav_cell_size_xy = gi.cvar( "nav_cell_size_xy", "4", 0 );
-    nav_z_quant = gi.cvar( "nav_z_quant", "2", 0 );
-    nav_tile_size = gi.cvar( "nav_tile_size", "32", 0 );
-    
-    /**
-    *   Register physics constraint CVars matching player movement:
-    **/
-    // Matches PM_STEP_MAX_SIZE (18 units).
-    nav_max_step = gi.cvar( "nav_max_step", "18", 0 );
-    // acos(0.7) ~= 45.57 degrees, matches PM_STEP_MIN_NORMAL.
-    nav_max_slope_deg = gi.cvar( "nav_max_slope_deg", "45.57", 0 );
-    
-    /**
-    *   Register agent bounding box CVars:
-    *   Default player standing bbox: mins (-16, -16, -36), maxs (16, 16, 36).
-    **/
-    nav_agent_mins_x = gi.cvar( "nav_agent_mins_x", "-16", 0 );
-    nav_agent_mins_y = gi.cvar( "nav_agent_mins_y", "-16", 0 );
-    nav_agent_mins_z = gi.cvar( "nav_agent_mins_z", "-36", 0 );
-    nav_agent_maxs_x = gi.cvar( "nav_agent_maxs_x", "16", 0 );
-    nav_agent_maxs_y = gi.cvar( "nav_agent_maxs_y", "16", 0 );
-    nav_agent_maxs_z = gi.cvar( "nav_agent_maxs_z", "36", 0 );
-    
-    // Initialize global navigation mesh pointer.
-    g_nav_mesh = nullptr;
+	/**
+	*   Register grid and quantization CVars with sensible defaults:
+	**/
+	nav_cell_size_xy = gi.cvar( "nav_cell_size_xy", "4", 0 );
+	nav_z_quant = gi.cvar( "nav_z_quant", "2", 0 );
+	nav_tile_size = gi.cvar( "nav_tile_size", "32", 0 );
+
+	/**
+	*   Register physics constraint CVars matching player movement:
+	**/
+	nav_max_step = gi.cvar( "nav_max_step", "18", 0 );
+	nav_max_slope_deg = gi.cvar( "nav_max_slope_deg", "45.57", 0 );
+
+	/**
+	*   Register agent bounding box CVars:
+	**/
+	nav_agent_mins_x = gi.cvar( "nav_agent_mins_x", "-16", 0 );
+	nav_agent_mins_y = gi.cvar( "nav_agent_mins_y", "-16", 0 );
+	nav_agent_mins_z = gi.cvar( "nav_agent_mins_z", "-36", 0 );
+	nav_agent_maxs_x = gi.cvar( "nav_agent_maxs_x", "16", 0 );
+	nav_agent_maxs_y = gi.cvar( "nav_agent_maxs_y", "16", 0 );
+	nav_agent_maxs_z = gi.cvar( "nav_agent_maxs_z", "36", 0 );
+
+	/**
+	*   Debug draw CVars:
+	**/
+	#if _DEBUG_NAV_MESH
+	nav_debug_draw = gi.cvar( "nav_debug_draw", "1", 0 );
+	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "1", 0 );
+	nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", 0 );
+	nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "256", 0 );
+	nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "2048", 0 );
+	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "1", 0 );
+	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "1", 0 );
+	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "1", 0 );
+	#else
+	nav_debug_draw = gi.cvar( "nav_debug_draw", "0", 0 );
+	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
+	nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", 0 );
+	nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "256", 0 );
+	nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "2048", 0 );
+	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "1", 0 );
+	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "1", 0 );
+	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "0", 0 );
+	#endif
+	// Initialize global navigation mesh pointer.
+	g_nav_mesh = nullptr;
 }
 
 /**
@@ -116,15 +317,153 @@ void SVG_Nav_Shutdown( void ) {
     SVG_Nav_FreeMesh();
 }
 
+
+
 /**
 *
 *
 *
-*   Navigation Memory Management:
+*   Navigation System "Voxel Mesh(-es)":
 *
 *
 *
 **/
+/**
+*   @brief  Generate navigation voxelmesh for the current level.
+*           This is the main entry point called by the nav_gen_voxelmesh server command.
+*           Generates both world mesh and inline model meshes with statistics reporting.
+**/
+void SVG_Nav_GenerateVoxelMesh( void ) {
+	// Record start time for statistics.
+	uint64_t start_time = gi.GetRealSystemTime();
+
+	gi.cprintf( nullptr, PRINT_HIGH, "=== Navigation Voxelmesh Generation ===\n" );
+
+	/**
+	*   Free existing mesh if any:
+	**/
+	SVG_Nav_FreeMesh();
+
+	/**
+	*   Allocate new mesh structure:
+	**/
+	g_nav_mesh = ( nav_mesh_t * )gi.TagMallocz( sizeof( nav_mesh_t ), TAG_SVGAME_LEVEL );
+
+	/**
+	*   Store generation parameters from CVars:
+	**/
+	g_nav_mesh->cell_size_xy = nav_cell_size_xy->value;
+	g_nav_mesh->z_quant = nav_z_quant->value;
+	g_nav_mesh->tile_size = ( int32_t )nav_tile_size->value;
+	g_nav_mesh->max_step = nav_max_step->value;
+	g_nav_mesh->max_slope_deg = nav_max_slope_deg->value;
+	g_nav_mesh->agent_mins = Vector3( nav_agent_mins_x->value, nav_agent_mins_y->value, nav_agent_mins_z->value );
+	g_nav_mesh->agent_maxs = Vector3( nav_agent_maxs_x->value, nav_agent_maxs_y->value, nav_agent_maxs_z->value );
+
+	/**
+	*   Validate bounding box parameters:
+	**/
+	if ( g_nav_mesh->agent_mins[ 0 ] >= g_nav_mesh->agent_maxs[ 0 ] ||
+		g_nav_mesh->agent_mins[ 1 ] >= g_nav_mesh->agent_maxs[ 1 ] ||
+		g_nav_mesh->agent_mins[ 2 ] >= g_nav_mesh->agent_maxs[ 2 ] ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Error: Invalid agent bounding box (mins must be < maxs on all axes)\n" );
+		SVG_Nav_FreeMesh();
+		return;
+	}
+
+	/**
+	*   Validate Z quantization parameter:
+	**/
+	if ( g_nav_mesh->z_quant <= 0.0f ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Error: nav_z_quant must be > 0\n" );
+		SVG_Nav_FreeMesh();
+		return;
+	}
+
+	/**
+	*   Print generation parameters:
+	**/
+	gi.cprintf( nullptr, PRINT_HIGH, "Parameters:\n" );
+	gi.cprintf( nullptr, PRINT_HIGH, "  cell_size_xy: %.1f\n", g_nav_mesh->cell_size_xy );
+	gi.cprintf( nullptr, PRINT_HIGH, "  z_quant: %.1f\n", g_nav_mesh->z_quant );
+	gi.cprintf( nullptr, PRINT_HIGH, "  tile_size: %d\n", g_nav_mesh->tile_size );
+	gi.cprintf( nullptr, PRINT_HIGH, "  max_step: %.1f\n", g_nav_mesh->max_step );
+	gi.cprintf( nullptr, PRINT_HIGH, "  max_slope_deg: %.1f\n", g_nav_mesh->max_slope_deg );
+	gi.cprintf( nullptr, PRINT_HIGH, "  agent_mins: (%.1f, %.1f, %.1f)\n",
+		g_nav_mesh->agent_mins[ 0 ], g_nav_mesh->agent_mins[ 1 ], g_nav_mesh->agent_mins[ 2 ] );
+	gi.cprintf( nullptr, PRINT_HIGH, "  agent_maxs: (%.1f, %.1f, %.1f)\n",
+		g_nav_mesh->agent_maxs[ 0 ], g_nav_mesh->agent_maxs[ 1 ], g_nav_mesh->agent_maxs[ 2 ] );
+
+	/**
+	*   Generate world mesh (static geometry):
+	**/
+	GenerateWorldMesh( g_nav_mesh );
+
+	/**
+	*   Generate inline model mesh (brush entities):
+	**/
+	GenerateInlineModelMesh( g_nav_mesh );
+
+	/**
+	*   Calculate statistics from generated data:
+	**/
+	g_nav_mesh->total_tiles = 0;
+	g_nav_mesh->total_xy_cells = 0;
+	g_nav_mesh->total_layers = 0;
+
+	// Count world mesh stats.
+	for ( int32_t i = 0; i < g_nav_mesh->num_leafs; i++ ) {
+		nav_leaf_data_t *leaf = &g_nav_mesh->leaf_data[ i ];
+		g_nav_mesh->total_tiles += leaf->num_tiles;
+
+		// Count cells and layers in each tile.
+		for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
+			nav_tile_t *tile = &leaf->tiles[ t ];
+			int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
+
+			for ( int32_t c = 0; c < cells_per_tile; c++ ) {
+				if ( tile->cells[ c ].num_layers > 0 ) {
+					g_nav_mesh->total_xy_cells++;
+					g_nav_mesh->total_layers += tile->cells[ c ].num_layers;
+				}
+			}
+		}
+	}
+
+	// Count inline model stats.
+	for ( int32_t i = 0; i < g_nav_mesh->num_inline_models; i++ ) {
+		nav_inline_model_data_t *model = &g_nav_mesh->inline_model_data[ i ];
+		g_nav_mesh->total_tiles += model->num_tiles;
+
+		// Count cells and layers in each tile.
+		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
+			nav_tile_t *tile = &model->tiles[ t ];
+			int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
+
+			for ( int32_t c = 0; c < cells_per_tile; c++ ) {
+				if ( tile->cells[ c ].num_layers > 0 ) {
+					g_nav_mesh->total_xy_cells++;
+					g_nav_mesh->total_layers += tile->cells[ c ].num_layers;
+				}
+			}
+		}
+	}
+
+	/**
+	*   Calculate and print generation statistics:
+	**/
+	uint64_t end_time = gi.GetRealSystemTime();
+	double build_time_sec = ( end_time - start_time ) / MICROSECONDS_PER_SECOND;
+
+	gi.cprintf( nullptr, PRINT_HIGH, "\n=== Generation Statistics ===\n" );
+	gi.cprintf( nullptr, PRINT_HIGH, "  Leafs processed: %d\n", g_nav_mesh->num_leafs );
+	gi.cprintf( nullptr, PRINT_HIGH, "  Inline models: %d\n", g_nav_mesh->num_inline_models );
+	gi.cprintf( nullptr, PRINT_HIGH, "  Total tiles: %d\n", g_nav_mesh->total_tiles );
+	gi.cprintf( nullptr, PRINT_HIGH, "  Total XY cells: %d\n", g_nav_mesh->total_xy_cells );
+	gi.cprintf( nullptr, PRINT_HIGH, "  Total layers: %d\n", g_nav_mesh->total_layers );
+	gi.cprintf( nullptr, PRINT_HIGH, "  Build time: %.3f seconds\n", build_time_sec );
+	gi.cprintf( nullptr, PRINT_HIGH, "===================================\n" );
+}
 /**
 *   @brief  Free the current navigation mesh.
 *           Releases all memory allocated for navigation data using TAG_SVGAME_LEVEL.
@@ -375,23 +714,36 @@ static constexpr float NAV_TILE_EPSILON = 0.001f;
 *   @brief  Calculate the world-space size of a tile.
 **/
 static inline float Nav_TileWorldSize( const nav_mesh_t *mesh ) {
-    return mesh->cell_size_xy * (float)mesh->tile_size;
+	return mesh->cell_size_xy * (float)mesh->tile_size;
 }
 
 /**
-*   @brief  Convert world coordinate to tile grid coordinate.
+*	@brief	Draw a tile bbox (12 TE_DEBUGTRAIL segments) with budget + distance filter.
 **/
-static inline int32_t Nav_WorldToTileCoord( float value, float tile_world_size ) {
-    return (int32_t)floorf( value / tile_world_size );
-}
+static void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
+	if ( !mesh || !tile ) {
+		return;
+	}
+	if ( !NavDebug_Enabled() || !nav_debug_draw_tile_bounds || nav_debug_draw_tile_bounds->integer == 0 ) {
+		return;
+	}
 
-/**
-*   @brief  Convert world coordinate to cell index within a tile.
-**/
-static inline int32_t Nav_WorldToCellCoord( float value, float tile_origin, float cell_size_xy ) {
-    return (int32_t)floorf( ( value - tile_origin ) / cell_size_xy );
-}
+	if ( !NavDebug_CanEmitSegments( 12 ) ) {
+		return;
+	}
 
+	const float tileWorldSize = Nav_TileWorldSize( mesh );
+	const Vector3 mins = { tile->tile_x * tileWorldSize, tile->tile_y * tileWorldSize, -4096.0f };
+	const Vector3 maxs = { mins[ 0 ] + tileWorldSize, mins[ 1 ] + tileWorldSize, 4096.0f };
+
+	const Vector3 center = { ( mins[ 0 ] + maxs[ 0 ] ) * 0.5f, ( mins[ 1 ] + maxs[ 1 ] ) * 0.5f, 0.0f };
+	if ( !NavDebug_PassesDistanceFilter( center ) ) {
+		return;
+	}
+
+	SVG_DebugDrawBBox_TE( mins, maxs, MULTICAST_PVS, false );
+	NavDebug_ConsumeSegments( 12 );
+}
 /**
 *   @brief  Set a presence bit for a cell index within a tile.
 **/
@@ -463,6 +815,24 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
                 tile->cells[ cell_index ].layers = layers;
                 Nav_SetPresenceBit( tile, cell_index );
                 has_layers = true;
+
+				#if 0
+
+				// Debug: draw at most 1 tick per XY cell (top-most) to reduce spam.
+				if ( NavDebug_Enabled() && nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
+					const nav_layer_t *layer = &layers[ 0 ];
+					Vector3 p = { world_x, world_y, layer->z_quantized * mesh->z_quant };
+					NavDebug_DrawSampleTick( p, 12.0f );
+				}
+				#else
+                // Debug: vertical ticks for each layer in this XY cell.
+                if ( NavDebug_Enabled() && nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
+                    // Draw at most 1 layer tick per XY cell (top-most) to reduce spam.
+                    const nav_layer_t *layer = &layers[ 0 ];
+                    Vector3 p = { world_x, world_y, layer->z_quantized * mesh->z_quant };
+                    NavDebug_DrawSampleTick( p, 12.0f );
+                }
+				#endif
             }
         }
     }
@@ -489,6 +859,19 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
 *
 *
 **/
+/**
+*   @brief  Convert world coordinate to tile grid coordinate.
+**/
+static inline int32_t Nav_WorldToTileCoord( float value, float tile_world_size ) {
+	return ( int32_t )floorf( value / tile_world_size );
+}
+/**
+*   @brief  Convert world coordinate to cell index within a tile.
+**/
+static inline int32_t Nav_WorldToCellCoord( float value, float tile_origin, float cell_size_xy ) {
+	return ( int32_t )floorf( ( value - tile_origin ) / cell_size_xy );
+}
+
 /**
 *   @brief  Generate navigation mesh for world (world-only collision).
 *           Creates tiles for each BSP leaf containing walkable surface samples.
@@ -530,52 +913,61 @@ static void GenerateWorldMesh( nav_mesh_t *mesh ) {
     *   Generate tiles for each leaf using BSP bounds:
     **/
     for ( int32_t i = 0; i < num_leafs; i++ ) {
-        nav_leaf_data_t *leaf_data = &mesh->leaf_data[ i ];
-        mleaf_t *leaf = &bsp->leafs[ i ];
-        
-        leaf_data->leaf_index = i;
-        leaf_data->num_tiles = 0;
-        leaf_data->tiles = nullptr;
-        
-        // Skip solid leafs (non-navigable).
-        if ( leaf->contents & CONTENTS_SOLID ) {
-            continue;
-        }
-        
-        const Vector3 leaf_mins = leaf->mins;
-        const Vector3 leaf_maxs = leaf->maxs;
-        const float z_min = leaf_mins[ 2 ] + mesh->agent_mins[ 2 ];
-        const float z_max = leaf_maxs[ 2 ] + mesh->agent_maxs[ 2 ];
-        
-        const int32_t tile_min_x = Nav_WorldToTileCoord( leaf_mins[ 0 ], tile_world_size );
-        const int32_t tile_max_x = Nav_WorldToTileCoord( leaf_maxs[ 0 ] - NAV_TILE_EPSILON, tile_world_size );
-        const int32_t tile_min_y = Nav_WorldToTileCoord( leaf_mins[ 1 ], tile_world_size );
-        const int32_t tile_max_y = Nav_WorldToTileCoord( leaf_maxs[ 1 ] - NAV_TILE_EPSILON, tile_world_size );
-        
-        std::vector<nav_tile_t> leaf_tiles;
-        if ( tile_max_x >= tile_min_x && tile_max_y >= tile_min_y ) {
-            const int32_t tile_count = ( tile_max_x - tile_min_x + 1 ) * ( tile_max_y - tile_min_y + 1 );
-            leaf_tiles.reserve( tile_count );
-        }
-        
-        for ( int32_t tile_y = tile_min_y; tile_y <= tile_max_y; tile_y++ ) {
-            for ( int32_t tile_x = tile_min_x; tile_x <= tile_max_x; tile_x++ ) {
-                nav_tile_t tile = {};
-                tile.tile_x = tile_x;
-                tile.tile_y = tile_y;
-                
-                if ( Nav_BuildTile( mesh, &tile, leaf_mins, leaf_maxs, z_min, z_max ) ) {
-                    leaf_tiles.push_back( tile );
-                }
-            }
-        }
-        
-        if ( !leaf_tiles.empty() ) {
-            leaf_data->num_tiles = (int32_t)leaf_tiles.size();
-            leaf_data->tiles = (nav_tile_t *)gi.TagMallocz( sizeof( nav_tile_t ) * leaf_data->num_tiles, TAG_SVGAME_LEVEL );
-            memcpy( leaf_data->tiles, leaf_tiles.data(), sizeof( nav_tile_t ) * leaf_data->num_tiles );
-        }
-    }
+		nav_leaf_data_t *leaf_data = &mesh->leaf_data[ i ];
+		mleaf_t *leaf = &bsp->leafs[ i ];
+
+		leaf_data->leaf_index = i;
+		leaf_data->num_tiles = 0;
+		leaf_data->tiles = nullptr;
+
+		if ( leaf->contents & CONTENTS_SOLID ) {
+			continue;
+		}
+
+		if ( NavDebug_Enabled() && !NavDebug_FilterLeaf( i ) ) {
+			continue;
+		}
+
+		const Vector3 leaf_mins = leaf->mins;
+		const Vector3 leaf_maxs = leaf->maxs;
+		const float z_min = leaf_mins[ 2 ] + mesh->agent_mins[ 2 ];
+		const float z_max = leaf_maxs[ 2 ] + mesh->agent_maxs[ 2 ];
+
+		const int32_t tile_min_x = Nav_WorldToTileCoord( leaf_mins[ 0 ], tile_world_size );
+		const int32_t tile_max_x = Nav_WorldToTileCoord( leaf_maxs[ 0 ] - NAV_TILE_EPSILON, tile_world_size );
+		const int32_t tile_min_y = Nav_WorldToTileCoord( leaf_mins[ 1 ], tile_world_size );
+		const int32_t tile_max_y = Nav_WorldToTileCoord( leaf_maxs[ 1 ] - NAV_TILE_EPSILON, tile_world_size );
+		
+		std::vector<nav_tile_t> leaf_tiles;
+		if ( tile_max_x >= tile_min_x && tile_max_y >= tile_min_y ) {
+			const int32_t tile_count = ( tile_max_x - tile_min_x + 1 ) * ( tile_max_y - tile_min_y + 1 );
+			leaf_tiles.reserve( tile_count );
+		}
+		
+		for ( int32_t tile_y = tile_min_y; tile_y <= tile_max_y; tile_y++ ) {
+			for ( int32_t tile_x = tile_min_x; tile_x <= tile_max_x; tile_x++ ) {
+
+				if ( NavDebug_Enabled() && !NavDebug_FilterTile( tile_x, tile_y ) ) {
+					continue;
+				}
+
+				nav_tile_t tile = {};
+				tile.tile_x = tile_x;
+				tile.tile_y = tile_y;
+
+				if ( Nav_BuildTile( mesh, &tile, leaf_mins, leaf_maxs, z_min, z_max ) ) {
+					NavDebug_DrawTileBBox( mesh, &tile );
+					leaf_tiles.push_back( tile );
+				}
+			}
+		}
+		
+		if ( !leaf_tiles.empty() ) {
+			leaf_data->num_tiles = (int32_t)leaf_tiles.size();
+			leaf_data->tiles = (nav_tile_t *)gi.TagMallocz( sizeof( nav_tile_t ) * leaf_data->num_tiles, TAG_SVGAME_LEVEL );
+			memcpy( leaf_data->tiles, leaf_tiles.data(), sizeof( nav_tile_t ) * leaf_data->num_tiles );
+		}
+	}
     
     gi.cprintf( nullptr, PRINT_HIGH, "World mesh generation complete\n" );
 }
@@ -633,17 +1025,16 @@ static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
     gi.cprintf( nullptr, PRINT_HIGH, "Inline model mesh generation placeholder complete\n" );
 }
 
+
+
 /**
 *
 *
 *
-*   Navigation Pathfinding Helpers:
+*   Navigation Pathfinding Node Methods:
 *
 *
 *
-**/
-/**
-*   @brief  Node key identifying a unique navigation layer.
 **/
 typedef struct nav_node_key_s {
     int32_t leaf_index;
@@ -903,142 +1294,7 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
     return found;
 }
 
-/**
-*   @brief  Generate navigation voxelmesh for the current level.
-*           This is the main entry point called by the nav_gen_voxelmesh server command.
-*           Generates both world mesh and inline model meshes with statistics reporting.
-**/
-void SVG_Nav_GenerateVoxelMesh( void ) {
-    // Record start time for statistics.
-    uint64_t start_time = gi.GetRealSystemTime();
-    
-    gi.cprintf( nullptr, PRINT_HIGH, "=== Navigation Voxelmesh Generation ===\n" );
-    
-    /**
-    *   Free existing mesh if any:
-    **/
-    SVG_Nav_FreeMesh();
-    
-    /**
-    *   Allocate new mesh structure:
-    **/
-    g_nav_mesh = (nav_mesh_t *)gi.TagMallocz( sizeof(nav_mesh_t), TAG_SVGAME_LEVEL );
-    
-    /**
-    *   Store generation parameters from CVars:
-    **/
-    g_nav_mesh->cell_size_xy = nav_cell_size_xy->value;
-    g_nav_mesh->z_quant = nav_z_quant->value;
-    g_nav_mesh->tile_size = (int32_t)nav_tile_size->value;
-    g_nav_mesh->max_step = nav_max_step->value;
-    g_nav_mesh->max_slope_deg = nav_max_slope_deg->value;
-    g_nav_mesh->agent_mins = Vector3( nav_agent_mins_x->value, nav_agent_mins_y->value, nav_agent_mins_z->value );
-    g_nav_mesh->agent_maxs = Vector3( nav_agent_maxs_x->value, nav_agent_maxs_y->value, nav_agent_maxs_z->value );
-    
-    /**
-    *   Validate bounding box parameters:
-    **/
-    if ( g_nav_mesh->agent_mins[0] >= g_nav_mesh->agent_maxs[0] ||
-         g_nav_mesh->agent_mins[1] >= g_nav_mesh->agent_maxs[1] ||
-         g_nav_mesh->agent_mins[2] >= g_nav_mesh->agent_maxs[2] ) {
-        gi.cprintf( nullptr, PRINT_HIGH, "Error: Invalid agent bounding box (mins must be < maxs on all axes)\n" );
-        SVG_Nav_FreeMesh();
-        return;
-    }
-    
-    /**
-    *   Validate Z quantization parameter:
-    **/
-    if ( g_nav_mesh->z_quant <= 0.0f ) {
-        gi.cprintf( nullptr, PRINT_HIGH, "Error: nav_z_quant must be > 0\n" );
-        SVG_Nav_FreeMesh();
-        return;
-    }
-    
-    /**
-    *   Print generation parameters:
-    **/
-    gi.cprintf( nullptr, PRINT_HIGH, "Parameters:\n" );
-    gi.cprintf( nullptr, PRINT_HIGH, "  cell_size_xy: %.1f\n", g_nav_mesh->cell_size_xy );
-    gi.cprintf( nullptr, PRINT_HIGH, "  z_quant: %.1f\n", g_nav_mesh->z_quant );
-    gi.cprintf( nullptr, PRINT_HIGH, "  tile_size: %d\n", g_nav_mesh->tile_size );
-    gi.cprintf( nullptr, PRINT_HIGH, "  max_step: %.1f\n", g_nav_mesh->max_step );
-    gi.cprintf( nullptr, PRINT_HIGH, "  max_slope_deg: %.1f\n", g_nav_mesh->max_slope_deg );
-    gi.cprintf( nullptr, PRINT_HIGH, "  agent_mins: (%.1f, %.1f, %.1f)\n", 
-                g_nav_mesh->agent_mins[0], g_nav_mesh->agent_mins[1], g_nav_mesh->agent_mins[2] );
-    gi.cprintf( nullptr, PRINT_HIGH, "  agent_maxs: (%.1f, %.1f, %.1f)\n", 
-                g_nav_mesh->agent_maxs[0], g_nav_mesh->agent_maxs[1], g_nav_mesh->agent_maxs[2] );
-    
-    /**
-    *   Generate world mesh (static geometry):
-    **/
-    GenerateWorldMesh( g_nav_mesh );
-    
-    /**
-    *   Generate inline model mesh (brush entities):
-    **/
-    GenerateInlineModelMesh( g_nav_mesh );
-    
-    /**
-    *   Calculate statistics from generated data:
-    **/
-    g_nav_mesh->total_tiles = 0;
-    g_nav_mesh->total_xy_cells = 0;
-    g_nav_mesh->total_layers = 0;
-    
-    // Count world mesh stats.
-    for ( int32_t i = 0; i < g_nav_mesh->num_leafs; i++ ) {
-        nav_leaf_data_t *leaf = &g_nav_mesh->leaf_data[i];
-        g_nav_mesh->total_tiles += leaf->num_tiles;
-        
-        // Count cells and layers in each tile.
-        for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
-            nav_tile_t *tile = &leaf->tiles[t];
-            int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
-            
-            for ( int32_t c = 0; c < cells_per_tile; c++ ) {
-                if ( tile->cells[c].num_layers > 0 ) {
-                    g_nav_mesh->total_xy_cells++;
-                    g_nav_mesh->total_layers += tile->cells[c].num_layers;
-                }
-            }
-        }
-    }
-    
-    // Count inline model stats.
-    for ( int32_t i = 0; i < g_nav_mesh->num_inline_models; i++ ) {
-        nav_inline_model_data_t *model = &g_nav_mesh->inline_model_data[i];
-        g_nav_mesh->total_tiles += model->num_tiles;
-        
-        // Count cells and layers in each tile.
-        for ( int32_t t = 0; t < model->num_tiles; t++ ) {
-            nav_tile_t *tile = &model->tiles[t];
-            int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
-            
-            for ( int32_t c = 0; c < cells_per_tile; c++ ) {
-                if ( tile->cells[c].num_layers > 0 ) {
-                    g_nav_mesh->total_xy_cells++;
-                    g_nav_mesh->total_layers += tile->cells[c].num_layers;
-                }
-            }
-        }
-    }
-    
-    /**
-    *   Calculate and print generation statistics:
-    **/
-    uint64_t end_time = gi.GetRealSystemTime();
-    double build_time_sec = ( end_time - start_time ) / MICROSECONDS_PER_SECOND;
-    
-    gi.cprintf( nullptr, PRINT_HIGH, "\n=== Generation Statistics ===\n" );
-    gi.cprintf( nullptr, PRINT_HIGH, "  Leafs processed: %d\n", g_nav_mesh->num_leafs );
-    gi.cprintf( nullptr, PRINT_HIGH, "  Inline models: %d\n", g_nav_mesh->num_inline_models );
-    gi.cprintf( nullptr, PRINT_HIGH, "  Total tiles: %d\n", g_nav_mesh->total_tiles );
-    gi.cprintf( nullptr, PRINT_HIGH, "  Total XY cells: %d\n", g_nav_mesh->total_xy_cells );
-    gi.cprintf( nullptr, PRINT_HIGH, "  Total layers: %d\n", g_nav_mesh->total_layers );
-    gi.cprintf( nullptr, PRINT_HIGH, "  Build time: %.3f seconds\n", build_time_sec );
-    gi.cprintf( nullptr, PRINT_HIGH, "===================================\n" );
-}
+
 
 /**
 *
@@ -1175,8 +1431,24 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
     return false;
 }
 
+
+
+/**
+*
+*
+*
+*   Navigation System "Traversal Operations":
+*
+*
+*
+**/
 /**
 *   @brief  Generate a traversal path between two world-space origins.
+*           Uses the navigation voxelmesh and A* search to produce waypoints.
+*   @param  start_origin    World-space starting origin.
+*   @param  goal_origin     World-space destination origin.
+*   @param  out_path        Output path result (caller must free).
+*   @return True if a path was found, false otherwise.
 **/
 const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path ) {
     if ( !out_path ) {
@@ -1216,11 +1488,36 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
     out_path->points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
     memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
     
+	/**
+	*	Debug draw: path segments.
+	**/
+	if ( NavDebug_Enabled() && nav_debug_draw_path && nav_debug_draw_path->integer != 0 ) {
+		const int32_t segmentCount = std::max( 0, out_path->num_points - 1 );
+		for ( int32_t i = 0; i < segmentCount; i++ ) {
+			if ( !NavDebug_CanEmitSegments( 1 ) ) {
+				break;
+			}
+
+			const Vector3 &a = out_path->points[ i ];
+			const Vector3 &b = out_path->points[ i + 1 ];
+
+			// Distance filter on segment midpoint.
+			const Vector3 mid = { ( a[ 0 ] + b[ 0 ] ) * 0.5f, ( a[ 1 ] + b[ 1 ] ) * 0.5f, ( a[ 2 ] + b[ 2 ] ) * 0.5f };
+			if ( !NavDebug_PassesDistanceFilter( mid ) ) {
+				continue;
+			}
+
+			SVG_DebugDrawLine_TE( a, b, MULTICAST_PVS, false );
+			NavDebug_ConsumeSegments( 1 );
+		}
+	}
+
     return true;
 }
 
 /**
 *   @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
+*   @param  path    Path structure to free.
 **/
 void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path ) {
     if ( !path ) {
@@ -1237,6 +1534,13 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path ) {
 
 /**
 *   @brief  Query movement direction along a traversal path.
+*           Advances the waypoint index as the caller reaches waypoints.
+*   @param  path            Path to follow.
+*   @param  current_origin  Current world-space origin.
+*   @param  waypoint_radius Radius for waypoint completion.
+*   @param  inout_index     Current waypoint index (updated on success).
+*   @param  out_direction   Output normalized movement direction.
+*   @return True if a valid direction was produced, false if path is complete/invalid.
 **/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin,
                                             float waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {

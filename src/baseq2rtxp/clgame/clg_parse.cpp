@@ -142,6 +142,11 @@ static void CLG_ParseTEntPacket( void ) {
     //    level.parsedMessage.events.tempEntity.color = clgi.MSG_ReadUint8();
     //    break;
 
+    case TE_DEBUGTRAIL:
+		clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+		clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
+		break;
+
     default:
         Com_Error( ERR_DROP, "%s: bad type", __func__ );
     }
@@ -149,7 +154,7 @@ static void CLG_ParseTEntPacket( void ) {
 
 
 
-/***
+/***`
 *
 *
 *   Damage Indicator:
@@ -202,13 +207,13 @@ static void CLG_ParseDamage( void ) {
 
 
 
-/***
-*
-*
-*   MuzzleFlash:
-*
-*
-***/
+///***
+//*
+//*
+//*   MuzzleFlash:
+//*
+//*
+//**/
 /**
 *   @brief  Parse the svc_muzzleflash packet(s).
 **/
@@ -226,13 +231,13 @@ void CLG_ParseMuzzleFlashPacket( const int32_t mask ) {
 
 
 
-/***
-*
-*
-*   Printing:
-*
-*
-***/
+///***
+//*
+//*
+//*   Printing:
+//*
+//*
+//**/
 /**
 *   @brief  Parse the svc_print packet and print whichever it has to screen.
 **/
@@ -309,13 +314,13 @@ static void CLG_ParseCenterPrint( void ) {
 
 
 
-/***
-*
-*
-*   Parsing of Messages:
-*
-*
-***/
+///***
+//*
+//*
+//*   Parsing of Messages:
+//*
+//*
+//**/
 /**
 *	@brief	Called by the client when it receives a configstring update, this
 *			allows us to interscept it and respond to it. If not interscepted the

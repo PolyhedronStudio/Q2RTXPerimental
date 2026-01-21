@@ -374,6 +374,7 @@ static void PMove_PostFrame( svg_player_edict_t *ent, svg_client_t *client, pmov
 *   @brief  Will search for touching trigger and projectiles, dispatching their touch callback when touching.
 **/
 static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *client, pmove_t &pm, const Vector3 &oldOrigin ) {
+	SVG_Util_SetEntityOrigin( ent, client->ps.pmove.origin, false );
 
     // If we're not 'No-Clipping', or 'Spectating', touch triggers and projectfiles.
     if ( ent->movetype != MOVETYPE_NOCLIP && !client->resp.spectator ) {
@@ -385,7 +386,7 @@ static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *cli
     // Copy back into the entity, both the resulting origin.
     //ent->s.origin = pm.state->pmove.origin;
 	// Update the entity origin to the new position.
-	SVG_Util_SetEntityOrigin( ent, client->ps.pmove.origin, false );
+	SVG_Util_SetEntityOrigin( ent, client->ps.pmove.origin, true );
 
 	// Relink the entity now that its position has been updated.
     gi.linkentity( ent );

@@ -1,50 +1,6 @@
 # Quake II RTXPerimental Notes:
 These are mainly my personal notes/ideas/interests, and do not per se reflect the actual changes to be made.
 
-```c++
-	// Set the areas.
-    for ( i = 0; i < num_leafs; i++ ) {
-        clusters[ i ] = leafs[ i ]->cluster;
-        area = leafs[ i ]->area;
-        if ( area ) {
-            // doors may legally straggle two areas,
-            // but nothing should evern need more than that
-            if ( ent->areaNumber0 && ent->areaNumber0 != area ) {
-                if ( ent->areaNumber1 && ent->areaNumber1 != area && sv.state == ss_loading ) {
-                    Com_DPrintf( "Object touching 3 areas at %s\n", vtos( ent->absMin ) );
-                }
-                ent->areaNumber1 = area;
-            } else {
-                ent->areaNumber0 = area;
-            }
-        }
-    }
-
-    if ( num_leafs >= MAX_TOTAL_ENT_LEAFS ) {
-        // Assume we missed some leafs, and mark by headNode.
-        ent->numberOfClusters = -1;
-        ent->headNode = CM_NumberForNode( cm, topnode );
-    } else {
-        ent->numberOfClusters = 0;
-        for ( i = 0; i < num_leafs; i++ ) {
-            if ( clusters[ i ] == -1 )
-                continue;        // not a visible leaf
-            for ( j = 0; j < i; j++ )
-                if ( clusters[ j ] == clusters[ i ] )
-                    break;
-            if ( j == i ) {
-                if ( ent->numberOfClusters == MAX_ENT_CLUSTERS ) {
-                    // Assume we missed some leafs, and mark by headNode.
-                    ent->numberOfClusters = -1;
-                    ent->headNode = CM_NumberForNode( cm, topnode );
-                    break;
-                }
-
-                ent->clusterNumbers[ ent->numberOfClusters++ ] = clusters[ i ];
-            }
-        }
-    }
-```
 ## Notes:
 * This is a todo in order to keep track of things to do, ideas to implement, bugs to fix, and so on.
 ---
@@ -58,6 +14,10 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
     - [ ] Look into Wren community support.
     - [ ] Look into Wren documentation quality.
     - [ ] Implement Wren for game logic scripting.
+* [ ] Modify/Update properly:
+    - [ ] glMatrix.net math code seems minimal for all the vector/matrix/(dual-)quaternion operations we need.
+            We need to C++ify it properly, and streamline it for our use. (Extend our already existing QM_*** (QMath) functions.
+    - [ ] 
 * [ ] IMPLEMENT: Skeletal Animation Blending approaches such as  Partial Blending, Additive Blending, and Layered Blending.
         - [ ] Partial Blending: Blend specific parts of a skeleton while keeping others static.
         - [ ] Additive Blending: Add the differences between two animations to create a new animation.
@@ -74,7 +34,7 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 * [ ] FINISH: 
     - [ ] Look into all temp_entity_events and remove/comment all unnecessary events.
 	    - [ ] Port all necessary ones to be actual entity events instead of temp_entity events.
-	    - [ ] Sound Events. (gi.sound, gi.positional_sound)
+	    - [X] Sound Events. (gi.sound, gi.positional_sound)
 	    - [ ] Explosion Events.
 	    - [ ] Particle Events.
 	    - [ ] Laser Events.
