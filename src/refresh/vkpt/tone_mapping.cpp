@@ -157,8 +157,17 @@ vkpt_tone_mapping_create_pipelines()
 		1,
 	};
 
-	VkSpecializationInfo specInfo_SDR = {.mapEntryCount = 1, .pMapEntries = specEntries, .dataSize = sizeof(uint32_t), .pData = &spec_data[0]};
-	VkSpecializationInfo specInfo_HDR = {.mapEntryCount = 1, .pMapEntries = specEntries, .dataSize = sizeof(uint32_t), .pData = &spec_data[1]};
+	VkSpecializationInfo specInfo_SDR = {};
+	specInfo_SDR.mapEntryCount = 1;
+	specInfo_SDR.pMapEntries = specEntries;
+	specInfo_SDR.dataSize = sizeof(uint32_t);
+	specInfo_SDR.pData = &spec_data[0];
+
+	VkSpecializationInfo specInfo_HDR = {};
+	specInfo_HDR.mapEntryCount = 1;
+	specInfo_HDR.pMapEntries = specEntries;
+	specInfo_HDR.dataSize = sizeof(uint32_t);
+	specInfo_HDR.pData = &spec_data[1];
 
 	VkComputePipelineCreateInfo pipeline_info[TM_NUM_PIPELINES] = {
 		[TONE_MAPPING_HISTOGRAM] = {

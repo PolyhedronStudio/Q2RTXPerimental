@@ -473,7 +473,7 @@ get_vk_extension_list(
 		VkExtensionProperties **ext)
 {
 	_VK(vkEnumerateInstanceExtensionProperties(layer, num_extensions, NULL));
-	*ext = malloc(sizeof(**ext) * *num_extensions);
+	*ext = (VkExtensionProperties*)malloc(sizeof(**ext) * *num_extensions);
 	_VK(vkEnumerateInstanceExtensionProperties(layer, num_extensions, *ext));
 }
 
@@ -483,7 +483,7 @@ get_vk_layer_list(
 		VkLayerProperties **ext)
 {
 	_VK(vkEnumerateInstanceLayerProperties(num_layers, NULL));
-	*ext = malloc(sizeof(**ext) * *num_layers);
+	*ext = (VkLayerProperties*)malloc(sizeof(**ext) * *num_layers);
 	_VK(vkEnumerateInstanceLayerProperties(num_layers, *ext));
 }
 
@@ -706,10 +706,10 @@ create_swapchain(void)
 
 	vkGetSwapchainImagesKHR(qvk.device, qvk.swap_chain, &qvk.num_swap_chain_images, NULL);
 	assert(qvk.num_swap_chain_images);
-	qvk.swap_chain_images = malloc(qvk.num_swap_chain_images * sizeof(*qvk.swap_chain_images));
+	qvk.swap_chain_images = (VkImage*)malloc(qvk.num_swap_chain_images * sizeof(*qvk.swap_chain_images));
 	vkGetSwapchainImagesKHR(qvk.device, qvk.swap_chain, &qvk.num_swap_chain_images, qvk.swap_chain_images);
 
-	qvk.swap_chain_image_views = malloc(qvk.num_swap_chain_images * sizeof(*qvk.swap_chain_image_views));
+	qvk.swap_chain_image_views = (VkImageView*)malloc(qvk.num_swap_chain_images * sizeof(*qvk.swap_chain_image_views));
 	for(int i = 0; i < qvk.num_swap_chain_images; i++) {
 		VkImageViewCreateInfo img_create_info = {
 			.sType      = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -795,7 +795,8 @@ create_command_pool_and_fences(void)
 		{
 			semaphore_group_t* group = &qvk.semaphores[frame][gpu];
 
-			VkSemaphoreCreateInfo semaphore_info = { .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
+			VkSemaphoreCreateInfo semaphore_info = {};
+			semaphore_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 		
 			_VK(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, &group->image_available));
 			_VK(vkCreateSemaphore(qvk.device, &semaphore_info, NULL, &group->render_finished));
@@ -852,7 +853,7 @@ init_vulkan(void)
 		return false;
 	}
 
-	qvk.sdl2_extensions = malloc(sizeof(char*) * qvk.num_sdl2_extensions);
+	qvk.sdl2_extensions = (const char**)malloc(sizeof(char*) * qvk.num_sdl2_extensions);
 	if (!SDL_Vulkan_GetInstanceExtensions(qvk.window, &qvk.num_sdl2_extensions, qvk.sdl2_extensions)) {
 		Com_EPrintf("Couldn't get SDL2 Vulkan extensions\n");
 		return false;
@@ -1628,7 +1629,9 @@ static material_and_shell_t compute_aliasmesh_material_flags(const entity_t* ent
 	const maliasmesh_t* mesh, bool is_viewer_weapon, bool is_double_sided, float alpha)
 {
 	pbr_material_t const* material = get_mesh_material(entity, mesh);
-	material_and_shell_t mat_shell = {.material_id = 0, .shell = 0};
+	material_and_shell_t mat_shell = {};
+	mat_shell.material_id = 0;
+	mat_shell.shell = 0;
 
 	if (!material)
 	{

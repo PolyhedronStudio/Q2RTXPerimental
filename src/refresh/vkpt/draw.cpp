@@ -568,8 +568,17 @@ VkResult vkpt_draw_create_pipelines() {
 		1,
 	};
 
-	VkSpecializationInfo specInfo_SDR = {.mapEntryCount = 1, .pMapEntries = specEntries, .dataSize = sizeof(uint32_t), .pData = &spec_data[0]};
-	VkSpecializationInfo specInfo_HDR = {.mapEntryCount = 1, .pMapEntries = specEntries, .dataSize = sizeof(uint32_t), .pData = &spec_data[1]};
+	VkSpecializationInfo specInfo_SDR = {};
+	specInfo_SDR.mapEntryCount = 1;
+	specInfo_SDR.pMapEntries = specEntries;
+	specInfo_SDR.dataSize = sizeof(uint32_t);
+	specInfo_SDR.pData = &spec_data[0];
+
+	VkSpecializationInfo specInfo_HDR = {};
+	specInfo_HDR.mapEntryCount = 1;
+	specInfo_HDR.pMapEntries = specEntries;
+	specInfo_HDR.dataSize = sizeof(uint32_t);
+	specInfo_HDR.pData = &spec_data[1];
 
 	VkPipelineShaderStageCreateInfo shader_info_SDR[] = {
 		SHADER_STAGE(QVK_MOD_STRETCH_PIC_VERT, VK_SHADER_STAGE_VERTEX_BIT),
@@ -726,7 +735,7 @@ VkResult vkpt_draw_create_pipelines() {
 	_VK(vkCreateGraphicsPipelines(qvk.device, VK_NULL_HANDLE, 1, &pipeline_info, NULL, &pipeline_final_blit));
 	ATTACH_LABEL_VARIABLE(pipeline_final_blit, PIPELINE);
 
-	framebuffer_stretch_pic = malloc(qvk.num_swap_chain_images * sizeof(*framebuffer_stretch_pic));
+	framebuffer_stretch_pic = (VkFramebuffer*)malloc(qvk.num_swap_chain_images * sizeof(*framebuffer_stretch_pic));
 	for(int i = 0; i < qvk.num_swap_chain_images; i++) {
 		VkImageView attachments[] = {
 			qvk.swap_chain_image_views[i]

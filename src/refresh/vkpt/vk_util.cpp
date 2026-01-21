@@ -597,7 +597,7 @@ void save_to_pfm_file(char* prefix, uint64_t frame_counter, uint64_t width, uint
 		}
 
 		size_t pixelDataSize = width * height * 3 * sizeof(float);
-		float* pixelData = malloc(pixelDataSize);
+		float* pixelData = (float*)malloc(pixelDataSize);
 		memset(pixelData, 0, pixelDataSize);
 		
 		if (type == 0) // input
