@@ -65,25 +65,25 @@ struct svg_func_plat_trigger_t : public svg_base_edict_t {
     *
     **/
     /**
-    *   Reconstructs the object, optionally retaining the entityDictionary.
+    *	@brief	Reconstructs the object, optionally retaining the entityDictionary.
     **/
     virtual void Reset( const bool retainDictionary = false ) override;
 
     /**
-    *   @brief  Save the entity into a file using game_write_context.
-    *   @note   Make sure to call the base parent class' Restore() function.
+    *	@brief	Save the entity into a file using game_write_context.
+    *	@note	Make sure to call the base parent class' Restore() function.
     **/
     virtual void Save( struct game_write_context_t *ctx ) override;
     /**
-    *   @brief  Restore the entity from a loadgame read context.
-    *   @note   Make sure to call the base parent class' Restore() function.
+    *	@brief	Restore the entity from a loadgame read context.
+    *	@note	Make sure to call the base parent class' Restore() function.
     **/
     virtual void Restore( struct game_read_context_t *ctx ) override;
 
     /**
-    *   @brief  Called for each cm_entity_t key/value pair for this entity.
-    *           If not handled, or unable to be handled by the derived entity type, it will return
-    *           set errorStr and return false. True otherwise.
+    *	@brief	Called for each cm_entity_t key/value pair for this entity.
+    *			If not handled, or unable to be handled by the derived entity type, it will return
+    *			set errorStr and return false. True otherwise.
     **/
     //virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
     #endif // #if 0
@@ -95,15 +95,15 @@ struct svg_func_plat_trigger_t : public svg_base_edict_t {
     *
     **/
     /**
-    *   @brief  Spawn.
+    *	@brief	Spawn.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_func_plat_trigger_t, onSpawn );
     /**
-    *   @brief  Spawn.
+    *	@brief	Spawn.
     **/
     DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_func_plat_trigger_t, onPostSpawn );
     /**
-    *   @brief  Touched.
+    *	@brief	Touched.
     **/
     DECLARE_MEMBER_CALLBACK_TOUCH( svg_func_plat_trigger_t, onTouch );
 
@@ -179,25 +179,25 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     *
     **/
     /**
-    *   Reconstructs the object, optionally retaining the entityDictionary.
+    *	@brief	Reconstructs the object, optionally retaining the entityDictionary.
     **/
     virtual void Reset( const bool retainDictionary = false ) override;
 
     /**
-    *   @brief  Save the entity into a file using game_write_context.
-    *   @note   Make sure to call the base parent class' Restore() function.
+    *	@brief	Save the entity into a file using game_write_context.
+    *	@note	Make sure to call the base parent class' Restore() function.
     **/
     virtual void Save( struct game_write_context_t *ctx ) override;
     /**
-    *   @brief  Restore the entity from a loadgame read context.
-    *   @note   Make sure to call the base parent class' Restore() function.
+    *	@brief	Restore the entity from a loadgame read context.
+    *	@note	Make sure to call the base parent class' Restore() function.
     **/
     virtual void Restore( struct game_read_context_t *ctx ) override;
 
     /**
-    *   @brief  Called for each cm_entity_t key/value pair for this entity.
-    *           If not handled, or unable to be handled by the derived entity type, it will return
-    *           set errorStr and return false. True otherwise.
+    *	@brief	Called for each cm_entity_t key/value pair for this entity.
+    *			If not handled, or unable to be handled by the derived entity type, it will return
+    *			set errorStr and return false. True otherwise.
     **/
     virtual const bool KeyValue( const cm_entity_t *keyValuePair, std::string &errorStr ) override;
     #endif // #if 0
@@ -209,22 +209,23 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     *
     **/
     /**
-    *   @brief  Spawn.
+    *	@brief	Spawn.
     **/
     DECLARE_MEMBER_CALLBACK_SPAWN( svg_func_plat_t, onSpawn );
     /**
-    *   @brief  Post-Spawn.
+    *	@brief	Post-Spawn.
     **/
     //DECLARE_MEMBER_CALLBACK_POSTSPAWN( svg_func_plat_t, onPostSpawn );
     /**
-    *   @brief  Thinking.
+    *	@brief	Thinking.
     **/
     DECLARE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink );
-    DECLARE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink_Idle );
-
+	DECLARE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink_Idle );
+	DECLARE_MEMBER_CALLBACK_THINK( svg_func_plat_t, onThink_SpawnInsideTrigger );
+	
 
     /**
-    *   @brief  Blocked.
+    *	@brief	Blocked.
     **/
     DECLARE_MEMBER_CALLBACK_BLOCKED( svg_func_plat_t, onBlocked );
 
@@ -233,11 +234,11 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     //**/
     //DECLARE_MEMBER_CALLBACK_TOUCH( svg_func_plat_t, onTouch );
     /**
-    *   @brief
+    *	@brief
     **/
     DECLARE_MEMBER_CALLBACK_USE( svg_func_plat_t, onUse );
     /**
-    *   @brief
+    *	@brief
     **/
     //DECLARE_MEMBER_CALLBACK_USE( svg_func_plat_t, onUse_AreaPortal );
     ///**
@@ -249,7 +250,7 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     //**/
     //DECLARE_MEMBER_CALLBACK_DIE( svg_func_plat_t, onDie );
     /**
-    *   @brief  Signal Receiving:
+    *	@brief	Signal Receiving:
     **/
     //DECLARE_MEMBER_CALLBACK_ON_SIGNALIN( svg_func_plat_t, onSignalIn );
 
@@ -266,11 +267,11 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
 	*
 	**/
 	/**
-	*   @brief	Start the sound playback for the platform.
+	*	@brief	Start the sound playback for the platform.
 	**/
 	void StartSoundPlayback();
 	/**
-	*   @brief	End the sound playback for the platform.
+	*	@brief	End the sound playback for the platform.
 	**/
 	void EndSoundPlayback();
 
@@ -281,18 +282,18 @@ struct svg_func_plat_t : public svg_pushmove_edict_t {
     *
     **/
     /**
-	*	@brief  Spawns a trigger inside the plat, at 
-    *           PLAT_LOW_TRIGGER and/or PLAT_HIGH_TRIGGER
-    *           when their spawnflags are set.
+	*	@brief	Spawns a trigger inside the plat, at
+    *			PLAT_LOW_TRIGGER and/or PLAT_HIGH_TRIGGER
+    *			when their spawnflags are set.
     **/
     void SpawnInsideTrigger( const bool isTop );
 
     /**
-	*   @brief  Engage the platform to go up.
+	*	@brief	Engage the platform to go up.
     **/
     void BeginUpMove();
     /**
-    *   @brief  Engage the platform to go down.
+    *	@brief	Engage the platform to go down.
     **/
     void BeginDownMove();
 
