@@ -1,3 +1,14 @@
+/********************************************************************
+*
+*
+*	Client Sound System: WAV File Loading
+*
+*	Handles loading and parsing of WAV audio files for the sound system.
+*	Supports PCM format WAV files with various bit depths and sample rates.
+*	Parses RIFF chunks to extract audio format information and sample data.
+*
+*
+********************************************************************/
 /*
 Copyright (C) 1997-2001 Id Software, Inc.
 
@@ -15,49 +26,105 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-// snd_mem.c: sound caching
 
 #include "sound.h"
 #include "common/intreadwrite.h"
 
+
+
+/**
+*
+*
+*
+*	WAV Format Definitions:
+*
+*
+*
+**/
+//! PCM audio format identifier for WAV files.
 #define FORMAT_PCM  1
 
+//! RIFF chunk identifier tag.
+#define TAG_RIFF    MakeLittleLong( 'R', 'I', 'F', 'F' )
+//! WAVE format chunk identifier.
+#define TAG_WAVE    MakeLittleLong( 'W', 'A', 'V', 'E' )
+//! Format specification chunk identifier.
+#define TAG_fmt     MakeLittleLong( 'f', 'm', 't', ' ' )
+//! Cue point chunk identifier (for loop points).
+#define TAG_cue     MakeLittleLong( 'c', 'u', 'e', ' ' )
+//! List chunk identifier (for metadata).
+#define TAG_LIST    MakeLittleLong( 'L', 'I', 'S', 'T' )
+//! Mark chunk identifier (for sample marks).
+#define TAG_mark    MakeLittleLong( 'm', 'a', 'r', 'k' )
+//! Audio data chunk identifier.
+#define TAG_data    MakeLittleLong( 'd', 'a', 't', 'a' )
+
+//! Current WAV file information being parsed.
 wavinfo_t s_info;
 
-/*
-===============================================================================
 
-WAV loading
 
-===============================================================================
-*/
+/**
+*
+*
+*
+*	RIFF Chunk Parsing:
+*
+*
+*
+**/
+/**
+*	@brief	Searches for a specific RIFF chunk in a size buffer.
+*	@param	sz			Size buffer containing WAV file data.
+*	@param	search		Chunk identifier tag to search for.
+*	@return	Length of the found chunk, or 0 if not found.
+*	@note	This function scans through RIFF chunks sequentially, reading the
+*			chunk ID and length from each 8-byte chunk header. If the desired
+*			chunk is found, its length is returned. Otherwise, the read pointer
+*			advances past the current chunk (aligned to 2-byte boundary).
+**/
+static int FindChunk( sizebuf_t *sz, uint32_t search ) {
+	// Scan through chunks until we find the one we're looking for.
+	while ( sz->readcount + 8 < sz->cursize ) {
+		// Read chunk ID and length.
+		uint32_t chunk = SZ_ReadInt32( sz );
+		uint32_t len   = SZ_ReadInt32( sz );
 
-#define TAG_RIFF    MakeLittleLong('R','I','F','F')
-#define TAG_WAVE    MakeLittleLong('W','A','V','E')
-#define TAG_fmt     MakeLittleLong('f','m','t',' ')
-#define TAG_cue     MakeLittleLong('c','u','e',' ')
-#define TAG_LIST    MakeLittleLong('L','I','S','T')
-#define TAG_mark    MakeLittleLong('m','a','r','k')
-#define TAG_data    MakeLittleLong('d','a','t','a')
+		// Clamp length to available data.
+		len = min( len, sz->cursize - sz->readcount );
 
-static int FindChunk(sizebuf_t *sz, uint32_t search)
-{
-    while (sz->readcount + 8 < sz->cursize) {
-        uint32_t chunk = SZ_ReadInt32(sz);
-        uint32_t len   = SZ_ReadInt32(sz);
+		// Check if this is the chunk we're searching for.
+		if ( chunk == search ) {
+			return len;
+		}
 
-        len = min(len, sz->cursize - sz->readcount);
-        if (chunk == search)
-            return len;
+		// Skip to next chunk (aligned to 2-byte boundary).
+		sz->readcount += ALIGN( len, 2 );
+	}
 
-        sz->readcount += ALIGN(len, 2);
-    }
-
-    return 0;
+	return 0;
 }
 
-static bool GetWavinfo(sizebuf_t *sz)
-{
+
+
+/**
+*
+*
+*
+*	WAV File Parsing:
+*
+*
+*
+**/
+/**
+*	@brief	Parses WAV file header and extracts audio format information.
+*	@param	sz			Size buffer containing WAV file data.
+*	@return	True if WAV file is valid and supported, false otherwise.
+*	@note	This function validates the RIFF/WAVE header, parses the format chunk
+*			to extract sample rate/bit depth/channels, and locates the audio data.
+*			It only supports PCM format WAV files.
+**/
+static bool GetWavinfo( sizebuf_t *sz ) {
     int tag, samples, width, chunk_len, next_chunk;
 
     tag = SZ_ReadInt32(sz);
