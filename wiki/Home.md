@@ -67,6 +67,11 @@ Deep dives into specialized systems:
 - [**Skeletal Animation**](Skeletal-Animation.md) - SKM animation system
 - [**Root Motion**](Root-Motion-System.md) - Animation-driven movement
 
+### 🛠️ Development Guides
+
+Technical guides for engine development:
+- [**C to C++ Conversion Guide**](C-to-CPP-Conversion-Guide.md) - Converting C99 designated initializers to C++17
+
 ### 📖 API Reference
 
 Quick reference for constants, enums, and flags:
