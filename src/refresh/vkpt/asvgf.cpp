@@ -1,3 +1,33 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Adaptive Spatiotemporal Variance-Guided Filtering (ASVGF)
+*
+*	Implements NVIDIA's ASVGF denoising algorithm for real-time ray tracing.
+*	ASVGF uses adaptive filtering based on spatiotemporal variance to remove
+*	Monte Carlo noise while preserving detail and avoiding temporal artifacts.
+*
+*	Pipeline Stages:
+*	1. Gradient Estimation: Compute image and geometry gradients for adaptive kernels
+*	2. Temporal Filtering: Reproject previous frame and accumulate samples
+*	3. À-Trous Wavelet Filter: Multi-scale spatial filtering with variance-guided weights
+*	4. TAA/TAAU: Temporal antialiasing with optional upscaling
+*	5. Checkerboard Interleave: Combine even/odd pixel results (if using checkerboard rendering)
+*	6. Compositing: Final image assembly
+*
+*	Algorithm Details:
+*	- Gradient-based edge detection prevents overblur at discontinuities
+*	- Temporal accumulation reduces noise over multiple frames
+*	- À-trous wavelets provide multi-scale filtering with O(n) complexity
+*	- Variance estimation guides filter kernel adaptation
+*	- Supports checkerboard rendering for 2x performance boost
+*
+*	References:
+*	- "Spatiotemporal Variance-Guided Filtering" (Schied et al., HPG 2017)
+*	- "Gradient Estimation for Real-Time Adaptive Temporal Filtering" (Schied et al., PACMCGIT 2018)
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
@@ -19,80 +49,147 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "vkpt.h"
 
+
+
+/**
+*
+*
+*
+*	Pipeline Identifiers:
+*
+*
+*
+**/
+//! Pipeline stages for ASVGF denoising.
 enum {
-	GRADIENT_IMAGE,
-	GRADIENT_ATROUS,
-	GRADIENT_REPROJECT,
-	TEMPORAL,
-	ATROUS_LF,
-	ATROUS_ITER_0,
-	ATROUS_ITER_1,
-	ATROUS_ITER_2,
-	ATROUS_ITER_3,
-	TAAU,
-	CHECKERBOARD_INTERLEAVE,
-	COMPOSITING,
+	GRADIENT_IMAGE,              //! Compute luminance gradients in image space.
+	GRADIENT_ATROUS,             //! Compute gradients for à-trous filter guidance.
+	GRADIENT_REPROJECT,          //! Gradient computation for temporal reprojection.
+	TEMPORAL,                    //! Temporal accumulation and reprojection.
+	ATROUS_LF,                   //! À-trous filter for low-frequency content.
+	ATROUS_ITER_0,               //! À-trous iteration 0 (finest scale).
+	ATROUS_ITER_1,               //! À-trous iteration 1.
+	ATROUS_ITER_2,               //! À-trous iteration 2.
+	ATROUS_ITER_3,               //! À-trous iteration 3 (coarsest scale).
+	TAAU,                        //! Temporal antialiasing with upscaling.
+	CHECKERBOARD_INTERLEAVE,     //! Interleave checkerboard pixels.
+	COMPOSITING,                 //! Final image compositing.
 	ASVGF_NUM_PIPELINES
 };
 
+
+
+/**
+*
+*
+*
+*	Module State:
+*
+*
+*
+**/
+//! Compute pipelines for ASVGF stages.
 static VkPipeline       pipeline_asvgf[ASVGF_NUM_PIPELINES];
+//! Pipeline layout for à-trous filtering passes.
 static VkPipelineLayout pipeline_layout_atrous;
+//! Pipeline layout for general compute passes.
 static VkPipelineLayout pipeline_layout_general;
+//! Pipeline layout for TAA/TAAU passes.
 static VkPipelineLayout pipeline_layout_taa;
 
-VkResult
-vkpt_asvgf_initialize()
-{
+
+
+/**
+*
+*
+*
+*	Initialization & Destruction:
+*
+*
+*
+**/
+/**
+*	@brief	Initializes ASVGF pipeline layouts.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Creates pipeline layouts for different pass types. The atrous layout
+*			includes a push constant for iteration index.
+**/
+VkResult vkpt_asvgf_initialize() {
 	VkDescriptorSetLayout desc_set_layouts[] = {
 		qvk.desc_set_layout_ubo, qvk.desc_set_layout_textures,
 		qvk.desc_set_layout_vertex_buffer
 	};
 
+	// À-trous layout with push constant for iteration index.
 	VkPushConstantRange push_constant_range_atrous = {
 		.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
 		.offset     = 0,
-		.size       = sizeof(uint32_t)
+		.size       = sizeof( uint32_t )
 	};
 
-	CREATE_PIPELINE_LAYOUT(qvk.device, &pipeline_layout_atrous, 
-		.setLayoutCount         = LENGTH(desc_set_layouts),
+	CREATE_PIPELINE_LAYOUT( qvk.device, &pipeline_layout_atrous, 
+		.setLayoutCount         = LENGTH( desc_set_layouts ),
 		.pSetLayouts            = desc_set_layouts,
 		.pushConstantRangeCount = 1,
 		.pPushConstantRanges    = &push_constant_range_atrous
 	);
-	ATTACH_LABEL_VARIABLE(pipeline_layout_atrous, PIPELINE_LAYOUT);
+	ATTACH_LABEL_VARIABLE( pipeline_layout_atrous, PIPELINE_LAYOUT );
 
-	CREATE_PIPELINE_LAYOUT(qvk.device, &pipeline_layout_general, 
-		.setLayoutCount         = LENGTH(desc_set_layouts),
+	// General layout without push constants.
+	CREATE_PIPELINE_LAYOUT( qvk.device, &pipeline_layout_general, 
+		.setLayoutCount         = LENGTH( desc_set_layouts ),
 		.pSetLayouts            = desc_set_layouts,
 	);
-	ATTACH_LABEL_VARIABLE(pipeline_layout_general, PIPELINE_LAYOUT);
+	ATTACH_LABEL_VARIABLE( pipeline_layout_general, PIPELINE_LAYOUT );
 
-	CREATE_PIPELINE_LAYOUT(qvk.device, &pipeline_layout_taa, 
-		.setLayoutCount         = LENGTH(desc_set_layouts),
+	// TAA layout for temporal filtering.
+	CREATE_PIPELINE_LAYOUT( qvk.device, &pipeline_layout_taa, 
+		.setLayoutCount         = LENGTH( desc_set_layouts ),
 		.pSetLayouts            = desc_set_layouts,
 	);
-	ATTACH_LABEL_VARIABLE(pipeline_layout_taa, PIPELINE_LAYOUT);
-	return VK_SUCCESS;
-}
-
-VkResult
-vkpt_asvgf_destroy()
-{
-	vkDestroyPipelineLayout(qvk.device, pipeline_layout_atrous,     NULL);
-	vkDestroyPipelineLayout(qvk.device, pipeline_layout_general,   NULL);
-	vkDestroyPipelineLayout(qvk.device, pipeline_layout_taa,   NULL);
+	ATTACH_LABEL_VARIABLE( pipeline_layout_taa, PIPELINE_LAYOUT );
 
 	return VK_SUCCESS;
 }
 
-VkResult
-vkpt_asvgf_create_pipelines()
-{
+/**
+*	@brief	Destroys ASVGF pipeline layouts.
+*	@return	VK_SUCCESS on success.
+*	@note	Cleans up Vulkan resources. Called during renderer shutdown.
+**/
+VkResult vkpt_asvgf_destroy() {
+	vkDestroyPipelineLayout( qvk.device, pipeline_layout_atrous,  NULL );
+	vkDestroyPipelineLayout( qvk.device, pipeline_layout_general, NULL );
+	vkDestroyPipelineLayout( qvk.device, pipeline_layout_taa,     NULL );
+
+	return VK_SUCCESS;
+}
+
+
+
+/**
+*
+*
+*
+*	Pipeline Creation:
+*
+*
+*
+**/
+/**
+*	@brief	Creates ASVGF compute pipelines.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Compiles shaders and creates pipelines for all ASVGF stages. Uses
+*			specialization constants to create multiple variants of à-trous
+*			filter for different iteration levels.
+**/
+VkResult vkpt_asvgf_create_pipelines() {
+	// Specialization map for iteration index.
 	VkSpecializationMapEntry specEntries[] = {
-		{ .constantID = 0, .offset = 0, .size = sizeof(uint32_t) }
+		{ .constantID = 0, .offset = 0, .size = sizeof( uint32_t ) }
 	};
 
+	// Specialization data for each à-trous iteration.
 	uint32_t spec_data[] = { 
 		0, 
 		1, 
