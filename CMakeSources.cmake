@@ -597,12 +597,12 @@ SET(SRC_CLIENT
 	client/ui/script.cpp
 	client/ui/servers.cpp
 	client/ui/ui.cpp
-	client/sound/dma.c
-	client/sound/al.c
-	client/sound/main.c
-	client/sound/mem.c
-	client/sound/ogg.c
-	client/sound/qal/fixed.c
+	client/sound/dma.cpp
+	client/sound/al.cpp
+	client/sound/main.cpp
+	client/sound/mem.cpp
+	client/sound/ogg.cpp
+	client/sound/qal/fixed.cpp
 #	client/sound/qal/dynamic.cpp
 )
 
@@ -625,7 +625,7 @@ SET(HEADERS_CLIENT
 #
 #
 SET(SRC_SERVER
-	refresh/model_iqm.c
+	refresh/model_iqm.cpp
 
 	server/sv_commands.cpp
 	server/sv_entities.cpp
@@ -752,10 +752,10 @@ SET(HEADERS_COMMON
 #
 #
 SET(SRC_REFRESH
-	refresh/images.c
-	refresh/models.c
+	refresh/images.cpp
+	refresh/models.cpp
 	refresh/model_sp2_json.cpp
-	refresh/model_iqm.c
+	refresh/model_iqm.cpp
 	refresh/stb/stb.c
 )
 SET(SRC_GL
@@ -860,34 +860,34 @@ SET(HEADERS_WINDOWS
 #
 #
 SET(SRC_VKPT
-	refresh/vkpt/asvgf.c
-	refresh/vkpt/bloom.c
-	refresh/vkpt/bsp_mesh.c
-	refresh/vkpt/draw.c
-	refresh/vkpt/fog.c
-	refresh/vkpt/cameras.c
-	refresh/vkpt/freecam.c
-	refresh/vkpt/fsr.c
-	refresh/vkpt/main.c
-	refresh/vkpt/material.c
-	refresh/vkpt/matrix.c
-	refresh/vkpt/mgpu.c
-	refresh/vkpt/models.c
-	refresh/vkpt/path_tracer.c
-	refresh/vkpt/physical_sky.c
-	refresh/vkpt/precomputed_sky.c
-	refresh/vkpt/profiler.c
-	refresh/vkpt/shadow_map.c
-	refresh/vkpt/textures.c
-	refresh/vkpt/tone_mapping.c
-	refresh/vkpt/transparency.c
-	refresh/vkpt/uniform_buffer.c
-	refresh/vkpt/vertex_buffer.c
-	refresh/vkpt/vk_util.c
-	refresh/vkpt/buddy_allocator.c
-	refresh/vkpt/device_memory_allocator.c
-	refresh/vkpt/god_rays.c
-	refresh/vkpt/conversion.c
+	refresh/vkpt/asvgf.cpp
+	refresh/vkpt/bloom.cpp
+	refresh/vkpt/bsp_mesh.cpp
+	refresh/vkpt/draw.cpp
+	refresh/vkpt/fog.cpp
+	refresh/vkpt/cameras.cpp
+	refresh/vkpt/freecam.cpp
+	refresh/vkpt/fsr.cpp
+	refresh/vkpt/main.cpp
+	refresh/vkpt/material.cpp
+	refresh/vkpt/matrix.cpp
+	refresh/vkpt/mgpu.cpp
+	refresh/vkpt/models.cpp
+	refresh/vkpt/path_tracer.cpp
+	refresh/vkpt/physical_sky.cpp
+	refresh/vkpt/precomputed_sky.cpp
+	refresh/vkpt/profiler.cpp
+	refresh/vkpt/shadow_map.cpp
+	refresh/vkpt/textures.cpp
+	refresh/vkpt/tone_mapping.cpp
+	refresh/vkpt/transparency.cpp
+	refresh/vkpt/uniform_buffer.cpp
+	refresh/vkpt/vertex_buffer.cpp
+	refresh/vkpt/vk_util.cpp
+	refresh/vkpt/buddy_allocator.cpp
+	refresh/vkpt/device_memory_allocator.cpp
+	refresh/vkpt/god_rays.cpp
+	refresh/vkpt/conversion.cpp
 )
 SET(HEADERS_VKPT
 	refresh/vkpt/vkpt.h

@@ -57,12 +57,11 @@ uint32_t get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_p
 
 #define IMAGE_BARRIER(cmd_buf, ...) \
 	do { \
-		VkImageMemoryBarrier img_mem_barrier = { \
-			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER, \
-			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
-			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
-			__VA_ARGS__ \
-		}; \
+		VkImageMemoryBarrier img_mem_barrier = {}; \
+		img_mem_barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER; \
+		img_mem_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; \
+		img_mem_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; \
+		__VA_ARGS__ \
 		vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, \
 				VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 0, NULL, \
 				1, &img_mem_barrier); \
@@ -70,12 +69,11 @@ uint32_t get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_p
 
 #define BUFFER_BARRIER(cmd_buf, ...) \
 	do { \
-		VkBufferMemoryBarrier buf_mem_barrier = { \
-			.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER, \
-			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
-			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED, \
-			__VA_ARGS__ \
-		}; \
+		VkBufferMemoryBarrier buf_mem_barrier = {}; \
+		buf_mem_barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER; \
+		buf_mem_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; \
+		buf_mem_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED; \
+		__VA_ARGS__ \
 		vkCmdPipelineBarrier(cmd_buf, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, \
 				VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, 0, 0, NULL, 1, &buf_mem_barrier, \
 				0, NULL); \
@@ -84,10 +82,9 @@ uint32_t get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_p
 
 #define CREATE_PIPELINE_LAYOUT(dev, layout, ...) \
 	do { \
-		VkPipelineLayoutCreateInfo pipeline_layout_info = { \
-			.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, \
-			__VA_ARGS__ \
-		}; \
+		VkPipelineLayoutCreateInfo pipeline_layout_info = {}; \
+		pipeline_layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO; \
+		__VA_ARGS__ \
 		_VK(vkCreatePipelineLayout(dev, &pipeline_layout_info, NULL, layout)); \
 	} while(0) \
 
