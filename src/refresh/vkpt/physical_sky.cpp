@@ -126,7 +126,9 @@ static int width  = 1024,
 //! Flag indicating sky needs regeneration.
 static int skyNeedsUpdate = VK_TRUE;
 
-//! Console variables for sun parameters.
+/**
+*	Console variables for sun parameters.
+*/
 cvar_t *sun_color[3];
 cvar_t *sun_elevation;
 cvar_t *sun_azimuth;

@@ -191,7 +191,7 @@ create_render_pass( void )
 
 	// Reference to depth attachment for subpass.
 	VkAttachmentReference depth_attachment_ref = {
-		.attachment = 0, // Index in fragment shader.
+		.attachment = 0, // Index in render pass attachment array.
 		.layout     = VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL_KHR,
 	};
 

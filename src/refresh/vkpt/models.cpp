@@ -246,7 +246,7 @@ static void compute_missing_model_tangents( model_t* model )
 	for ( int mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++ ) {
 		maliasmesh_t* mesh = model->meshes + mesh_idx;
 
-		// Skip if tangents already exist.
+		// Skip mesh if tangent vectors already computed.
 		if ( mesh->tangents )
 			continue;
 
