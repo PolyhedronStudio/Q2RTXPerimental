@@ -1,3 +1,78 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: 2D UI Rendering and Stretch Pic System
+*
+*	Implements high-performance 2D rendering for user interface elements,
+*	menus, HUD, text, and images. Uses a queued batch rendering approach
+*	with instanced drawing, scissor rectangle support for clipping, and
+*	HDR/SDR pipeline variants for proper tone mapping on HDR displays.
+*
+*	Architecture:
+*	- Storage Buffer Object (SBO) for stretch pic instance data
+*	- Descriptor sets for texture sampling and uniform parameters
+*	- Dynamic pipeline creation with HDR/SDR specialization constants
+*	- Instanced rendering: 4-vertex triangle strip per pic instance
+*	- Render pass attached to swapchain framebuffers
+*	- Final blit pipeline for post-processing effects
+*
+*	Algorithm:
+*	1. Queue Phase: Client calls R_DrawStretchPic_RTX, R_DrawChar_RTX, etc.
+*	   - Each call enqueues a StretchPic_t into stretch_pic_queue[]
+*	   - Scissor groups track clip rectangles for batching
+*	   - Alpha, color, scale, and rotation transforms are applied
+*	2. Submit Phase: vkpt_draw_submit_stretch_pics() called per frame
+*	   - Copy queue to GPU storage buffer
+*	   - Begin render pass on swapchain image
+*	   - For each scissor group:
+*	     * Set viewport and scissor rectangle
+*	     * Bind descriptor sets (SBO, textures, UBO)
+*	     * Draw instanced: 4 verts × num_pics in group
+*	   - End render pass
+*	3. Shader Execution:
+*	   - Vertex shader reads per-instance data from SBO
+*	   - Generates quad with position/UV from instance transform
+*	   - Fragment shader samples texture and applies color/alpha
+*
+*	Features:
+*	- Instanced rendering for efficient batch submission
+*	- Scissor rectangle grouping for UI clipping (dialogs, scrollable regions)
+*	- HDR display support with configurable nits and saturation
+*	- Rotation and pivot point transforms for animated UI elements
+*	- Alpha blending with pre-multiplied alpha and sRGB correction
+*	- Character and string rendering with monospace font atlases
+*	- Texture tiling for backgrounds and repeating patterns
+*	- Raw image updates for dynamic content (video playback, cinematics)
+*	- Aspect-ratio-preserving scaling for icons and sprites
+*
+*	Scissor Group System:
+*	- Each R_SetClipRect_RTX() call creates a new scissor group
+*	- Groups batch consecutive pics with the same clip rectangle
+*	- Reduces state changes: viewport/scissor set once per group
+*	- Default group spans entire screen when clipping is disabled
+*
+*	Configuration:
+*	- MAX_STRETCH_PICS: Maximum queued pics per frame (16384)
+*	- STRETCH_PIC_SDR/HDR: Pipeline variants for display type
+*	- TEXNUM_WHITE: Special handle for solid color fills (~0)
+*	- MAX_FRAMES_IN_FLIGHT: Per-frame resource duplication (2)
+*
+*	Performance:
+*	- Single storage buffer upload per frame (batched memcpy)
+*	- Instanced rendering: 1 draw call per scissor group
+*	- Dynamic viewport/scissor state reduces pipeline switching
+*	- Orthographic projection precomputed in vertex shader
+*	- sRGB texture sampling handled by image view format
+*
+*	Memory Layout (StretchPic_t, 128 bytes):
+*	- Position/size: x, y, w, h (16 bytes)
+*	- UV coords: s, t, w_s, h_t (16 bytes)
+*	- Color/texture: RGBA8, tex_handle (8 bytes)
+*	- Transform: pivot_x, pivot_y, angle (12 bytes, +4 pad)
+*	- Matrix: 4×4 orthographic projection (64 bytes)
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
@@ -27,111 +102,178 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "vkpt.h"
 #include "shader/global_textures.h"
 
+
+
+/**
+*
+*
+*
+*	Configuration and Constants:
+*
+*
+*
+**/
+//! Pipeline index for SDR (Standard Dynamic Range) displays.
 enum {
 	STRETCH_PIC_SDR,
 	STRETCH_PIC_HDR,
 	STRETCH_PIC_NUM_PIPELINES
 };
 
+//! Special texture handle for solid color fills (white texture).
 #define TEXNUM_WHITE (~0)
+//! Maximum number of stretch pics that can be queued per frame.
 #define MAX_STRETCH_PICS (1<<14)
 
+
+
+/**
+*
+*
+*
+*	Module State:
+*
+*
+*
+**/
+//! Global draw state (scale, alpha, colors).
 static drawStatic_t draw = {
 	.scale = 1.0f,
 	.alpha_scale = 1.0f
 };
 
-//! Total number of stretch pics.
+//! Total number of stretch pics currently queued.
 static int num_stretch_pics = 0;
+
+//! Per-instance stretch pic data (uploaded to GPU storage buffer).
 typedef struct {
-	float x, y, w, h;		// 4 floats = 16 bytes.
-	float s, t, w_s, h_t;	// 4 floats = 16 bytes.
+	float x, y, w, h;		// Position and size in screen space (16 bytes).
+	float s, t, w_s, h_t;	// UV coordinates and dimensions (16 bytes).
 	// 32 bytes up till here.
-	uint32_t color, tex_handle;	// 2 uint32_t	= 8 bytes.
-	float	pivot_x, pivot_y;	// 2 float		= 8 bytes.
+	uint32_t color, tex_handle;	// RGBA8 color and texture handle (8 bytes).
+	float	pivot_x, pivot_y;	// Rotation pivot point (8 bytes).
 	// 48 bytes up till here.
 	// These are pads to keep memory properly aligned with GLSL.
-	float	angle, pad01;	// 2 float = 8 bytes.
+	float	angle, pad01;	// Rotation angle + padding (8 bytes).
 	// 56 bytes up till here.
-	float	pad02, pad03;	// 2 float = 8 bytes.
+	float	pad02, pad03;	// Additional padding (8 bytes).
 	// 64 bytes up till here.
 	//
 	// Now adding the matrix:
-	float	matTransform[16]; // 16 float = 64 bytes.
+	float	matTransform[16]; // 4×4 orthographic projection matrix (64 bytes).
 	// Total: 128 bytes.
 } StretchPic_t;
 
+//! Uniform buffer object for HDR and tone mapping parameters.
 //! Not using global UBO b/c it's only filled when a world is drawn, but here we need it all the time
 typedef struct {
-	float ui_hdr_nits;
-	float tm_hdr_saturation_scale;
+	float ui_hdr_nits;				//! Nits value for UI elements on HDR displays.
+	float tm_hdr_saturation_scale;	//! Saturation scaling for tone mapping.
 } StretchPic_UBO_t;
 
 /**
+*	Scissor group structure for batching stretch pics with the same clip rectangle.
+*	
 *	The following struct is a bit of an odd one, however, it will hold state of each
 *	time clipRect has changed. Storing the num_stretch_pic offset and num_stretch_pic_count
 *	in order for each subsequent draw call to apply their own scissor rectangle.
 * 
-*	The num_scissor_groups is rebuild each frame, and reset at the end of that frame.
+*	The num_scissor_groups is rebuilt each frame, and reset at the end of that frame.
 **/
 typedef struct {
-	clipRect_t clip_rect;
+	clipRect_t clip_rect;			//! Clip rectangle for this group.
 
 	//! Offset into the SBO pic buffer.
 	uint32_t num_stretch_pic_offset;
 	//! The count of stretch pics that were added during this scissor's clip rect.
 	uint32_t num_stretch_pic_count;
 } StretchPic_Scissor_Group;
-//! Actual stretch pic scissor groups.
+
+//! Array of scissor groups (one per unique clip rectangle per frame).
 static StretchPic_Scissor_Group stretch_pic_scissor_groups[ MAX_STRETCH_PICS ]; // WID: TODO: Find a sane number instead to not waste ram? Or just a dynamic buffer/queue of sorts.
 //! Number of scissor groups active in the current frame.
 static uint32_t num_stretch_pic_scissor_groups;
 
-//! This stores the actual clip_rect set by R_ client calls.
+//! Current clip rectangle set by R_SetClipRect_RTX() calls.
 static clipRect_t clip_rect;
+//! Whether clipping is enabled (true) or full-screen rendering (false).
 //! Each individual time that clip_enable is enabled, a new stretchpic scissor group is added
 //! for the current frame. 
 static bool clip_enable = false;
-//! Stretch pic memory queue.
+
+//! Stretch pic memory queue (filled by client calls, uploaded to GPU each frame).
 static StretchPic_t stretch_pic_queue[MAX_STRETCH_PICS];
 
+//! Pipeline layout for stretch pic rendering (SBO + textures + UBO).
 static VkPipelineLayout        pipeline_layout_stretch_pic;
+//! Pipeline layout for final blit operations.
 static VkPipelineLayout        pipeline_layout_final_blit;
+//! Render pass for drawing stretch pics to swapchain images.
 static VkRenderPass            render_pass_stretch_pic;
+//! Graphics pipelines for stretch pic rendering (SDR and HDR variants).
 static VkPipeline              pipeline_stretch_pic[STRETCH_PIC_NUM_PIPELINES];
+//! Graphics pipeline for final blit operations.
 static VkPipeline              pipeline_final_blit;
+//! Framebuffers for each swapchain image (dynamically allocated).
 static VkFramebuffer*          framebuffer_stretch_pic = NULL;
+//! Storage buffers for stretch pic instance data (per frame in flight).
 static BufferResource_t        buf_stretch_pic_queue[MAX_FRAMES_IN_FLIGHT];
+//! Uniform buffers for HDR parameters (per frame in flight).
 static BufferResource_t        buf_ubo[MAX_FRAMES_IN_FLIGHT];
+//! Descriptor set layout for storage buffer object.
 static VkDescriptorSetLayout   desc_set_layout_sbo;
+//! Descriptor set layout for uniform buffer object.
 static VkDescriptorSetLayout   desc_set_layout_ubo;
+//! Descriptor pool for SBO descriptor sets.
 static VkDescriptorPool        desc_pool_sbo;
+//! Descriptor pool for UBO descriptor sets.
 static VkDescriptorPool        desc_pool_ubo;
+//! Descriptor sets for SBO (per frame in flight).
 static VkDescriptorSet         desc_set_sbo[MAX_FRAMES_IN_FLIGHT];
+//! Descriptor sets for UBO (per frame in flight).
 static VkDescriptorSet         desc_set_ubo[MAX_FRAMES_IN_FLIGHT];
 
+//! Console variable for UI brightness on HDR displays (nits).
 extern cvar_t* cvar_ui_hdr_nits;
+//! Console variable for HDR saturation scaling during tone mapping.
 extern cvar_t* cvar_tm_hdr_saturation_scale;
-
 
 
 
 /**
 *
-* 
-*	Stretch Pic Enqueue-ing:
-* 
-* 
+*
+*
+*	Utility Functions:
+*
+*
+*
 **/
 /**
-*	@brief
+*	@brief	Get the current rendering extent (unscaled resolution).
+*	@return	VkExtent2D structure containing width and height.
+*	@note	Returns the unscaled swapchain extent for proper UI coordinate mapping.
 **/
 VkExtent2D vkpt_draw_get_extent(void) {
 	return qvk.extent_unscaled;
 }
 
+
+
 /**
-*	@brief	
+*
+*
+*
+*	Scissor Group Management:
+*
+*
+*
+**/
+/**
+*	@brief	Resets scissor groups to default state for a new frame.
+*	@return	VK_SUCCESS on success.
+*	@note	Called at the start of each frame to initialize the default full-screen scissor group.
+*			All scissor groups from the previous frame are discarded.
 **/
 static VkResult vkpt_draw_clear_scissor_groups( void ) {
 	// We always resort to the default scissor group.
@@ -149,8 +291,33 @@ static VkResult vkpt_draw_clear_scissor_groups( void ) {
 	return VK_SUCCESS;
 }
 
+
+
 /**
-*	@brief	Enqueue a 'stretch pic' draw command.
+*
+*
+*
+*	Stretch Pic Enqueueing:
+*
+*
+*
+**/
+/**
+*	@brief	Enqueue a 'stretch pic' draw command without rotation.
+*	@param	x			Screen-space X position (left edge).
+*	@param	y			Screen-space Y position (top edge).
+*	@param	w			Width in screen pixels.
+*	@param	h			Height in screen pixels.
+*	@param	s1			Left UV coordinate (0.0 to 1.0).
+*	@param	t1			Top UV coordinate (0.0 to 1.0).
+*	@param	s2			Right UV coordinate (0.0 to 1.0).
+*	@param	t2			Bottom UV coordinate (0.0 to 1.0).
+*	@param	color		RGBA8 color value (format: 0xAABBGGRR).
+*	@param	tex_handle	Texture handle from r_images array, or TEXNUM_WHITE for solid fills.
+*	@note	Silently returns if alpha_scale is 0 (fully transparent).
+*			Aborts with error if queue is full (MAX_STRETCH_PICS exceeded).
+*			Invalid textures are automatically replaced with TEXNUM_WHITE.
+*			Alpha channel is scaled by draw.alpha_scale for global transparency control.
 **/
 static inline void enqueue_stretch_pic(
 	float x, float y, float w, float h,
@@ -223,7 +390,24 @@ static inline void enqueue_stretch_pic(
 }
 
 /**
-*	@brief	WID: Supports rotating around a specified pivot point.
+*	@brief	Enqueue a 'stretch pic' draw command with rotation support.
+*	@param	x			Screen-space X position (left edge).
+*	@param	y			Screen-space Y position (top edge).
+*	@param	w			Width in screen pixels.
+*	@param	h			Height in screen pixels.
+*	@param	s1			Left UV coordinate (0.0 to 1.0).
+*	@param	t1			Top UV coordinate (0.0 to 1.0).
+*	@param	s2			Right UV coordinate (0.0 to 1.0).
+*	@param	t2			Bottom UV coordinate (0.0 to 1.0).
+*	@param	angle		Rotation angle in degrees (clockwise).
+*	@param	pivot_x		X coordinate of rotation pivot point (relative to x).
+*	@param	pivot_y		Y coordinate of rotation pivot point (relative to y).
+*	@param	color		RGBA8 color value (format: 0xAABBGGRR).
+*	@param	tex_handle	Texture handle from r_images array, or TEXNUM_WHITE for solid fills.
+*	@param	flags		Additional flags (currently unused).
+*	@note	Supports rotating around a specified pivot point for animated UI elements.
+*			Rotation is performed in the vertex shader by transforming vertices around pivot.
+*			All other behavior matches enqueue_stretch_pic().
 **/
 static inline void enqueue_stretch_rotate_pic(
 	float x, float y, float w, float h,
@@ -290,15 +474,23 @@ static inline void enqueue_stretch_rotate_pic(
 	}
 }
 
+
+
 /**
 *
 *
-*	(RenderPass-) Initialize/Destroy:
+*
+*	Render Pass Creation:
+*
 *
 *
 **/
 /**
-*	@brief	
+*	@brief	Creates the render pass for stretch pic rendering.
+*	@note	Sets up a single-subpass render pass that renders to swapchain images.
+*			Uses VK_ATTACHMENT_LOAD_OP_LOAD to preserve existing framebuffer content
+*			(allows rendering UI on top of previously rendered 3D scene).
+*			Final layout is VK_IMAGE_LAYOUT_PRESENT_SRC_KHR for direct presentation.
 **/
 static void create_render_pass(void) {
 	LOG_FUNC();
@@ -352,8 +544,24 @@ static void create_render_pass(void) {
 	ATTACH_LABEL_VARIABLE(render_pass_stretch_pic, RENDER_PASS);
 }
 
+
+
 /**
-*	@brief
+*
+*
+*
+*	Initialization and Cleanup:
+*
+*
+*
+**/
+/**
+*	@brief	Initialize the draw system and allocate Vulkan resources.
+*	@return	VK_SUCCESS on success, or Vulkan error code on failure.
+*	@note	Creates render pass, descriptor set layouts, descriptor pools,
+*			and per-frame storage/uniform buffers for stretch pic rendering.
+*			Must be called once during renderer initialization before any drawing.
+*			Pairs with vkpt_draw_destroy() for cleanup.
 **/
 VkResult vkpt_draw_initialize() {
 	num_stretch_pics = 0;
@@ -499,7 +707,12 @@ VkResult vkpt_draw_initialize() {
 }
 
 /**
-*	@brief
+*	@brief	Destroy the draw system and free all Vulkan resources.
+*	@return	VK_SUCCESS on success.
+*	@note	Destroys render pass, descriptor pools, descriptor set layouts,
+*			and per-frame storage/uniform buffers allocated during initialization.
+*			Must be called during renderer shutdown to avoid resource leaks.
+*			Pipelines and framebuffers are destroyed separately via vkpt_draw_destroy_pipelines().
 **/
 VkResult vkpt_draw_destroy() {
 	LOG_FUNC();
@@ -516,8 +729,24 @@ VkResult vkpt_draw_destroy() {
 	return VK_SUCCESS;
 }
 
+
+
 /**
-*	@brief
+*
+*
+*
+*	Pipeline Creation and Destruction:
+*
+*
+*
+**/
+/**
+*	@brief	Destroy graphics pipelines and framebuffers.
+*	@return	VK_SUCCESS on success.
+*	@note	Destroys stretch pic pipelines (SDR/HDR variants), final blit pipeline,
+*			pipeline layouts, and all swapchain framebuffers.
+*			Called during resolution changes and renderer shutdown.
+*			Pipelines can be recreated via vkpt_draw_create_pipelines().
 **/
 VkResult vkpt_draw_destroy_pipelines() {
 	LOG_FUNC();
@@ -537,7 +766,23 @@ VkResult vkpt_draw_destroy_pipelines() {
 }
 
 /**
-*	@brief
+*	@brief	Create graphics pipelines and framebuffers for stretch pic rendering.
+*	@return	VK_SUCCESS on success, or Vulkan error code on failure.
+*	@note	Creates:
+*			- Pipeline layouts (stretch pic and final blit)
+*			- Two stretch pic pipelines (SDR and HDR variants using specialization constants)
+*			- Final blit pipeline for post-processing
+*			- One framebuffer per swapchain image
+*			
+*			Pipeline features:
+*			- Triangle strip topology (4 vertices per instance)
+*			- No vertex input (vertices generated in shader)
+*			- Alpha blending enabled (SRC_ALPHA, ONE_MINUS_SRC_ALPHA)
+*			- Dynamic viewport and scissor state
+*			- No depth testing (pure 2D rendering)
+*			
+*			Called during initialization and after resolution changes.
+*			Pairs with vkpt_draw_destroy_pipelines() for cleanup.
 **/
 VkResult vkpt_draw_create_pipelines() {
 	LOG_FUNC();
@@ -758,15 +1003,23 @@ VkResult vkpt_draw_create_pipelines() {
 	return VK_SUCCESS;
 }
 
+
+
 /**
 *
 *
-*	 Stretch Pic Clearing/Drawing:
-* 
-* 
+*
+*	Stretch Pic Rendering:
+*
+*
+*
 **/
 /**
-*	@brief
+*	@brief	Clear the stretch pic queue for a new frame.
+*	@return	VK_SUCCESS on success.
+*	@note	Resets stretch pic count and scissor groups to default state.
+*			Called at the beginning of each frame before client rendering code.
+*			After this call, the queue is empty and ready for new pics.
 **/
 VkResult vkpt_draw_clear_stretch_pics() {
 	// We always resort to the default scissor group.
@@ -780,7 +1033,27 @@ VkResult vkpt_draw_clear_stretch_pics() {
 }
 
 /**
-*	@brief
+*	@brief	Submit all queued stretch pics for rendering to the swapchain.
+*	@param	cmd_buf		Vulkan command buffer to record rendering commands into.
+*	@return	VK_SUCCESS on success, or VK_ERROR if rendering fails.
+*	@note	Rendering algorithm:
+*			1. Upload stretch pic queue to GPU storage buffer
+*			2. Upload HDR parameters to uniform buffer
+*			3. Begin render pass on current swapchain framebuffer
+*			4. For each scissor group:
+*			   - Set dynamic viewport to full screen
+*			   - Set dynamic scissor rectangle to group's clip rect
+*			   - Bind descriptor sets (SBO, textures, UBO)
+*			   - Bind appropriate pipeline (SDR or HDR based on display type)
+*			   - Draw instanced: 4 vertices × num_pics_in_group
+*			5. End render pass
+*			6. Reset queue and scissor groups for next frame
+*			
+*			Uses instanced rendering for efficiency: vertex shader reads per-instance
+*			data from SBO and generates quad geometry procedurally. Each instance
+*			draws a single stretch pic with its own position, UV, color, and transform.
+*			
+*			Early-out if num_stretch_pics == 0 (nothing to draw).
 **/
 VkResult vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf) {
 	if (num_stretch_pics == 0)
@@ -886,8 +1159,28 @@ VkResult vkpt_draw_submit_stretch_pics(VkCommandBuffer cmd_buf) {
 	return VK_SUCCESS;
 }
 
+
+
 /**
-*	@brief
+*
+*
+*
+*	Final Blit Operations:
+*
+*
+*
+**/
+/**
+*	@brief	Perform a simple image blit from source image to swapchain (no filtering).
+*	@param	cmd_buf		Vulkan command buffer to record blit commands into.
+*	@param	image		Source image to blit from (typically rendered scene).
+*	@param	extent		Extent of the source image.
+*	@return	VK_SUCCESS on success.
+*	@note	Performs a nearest-neighbor blit from source image to swapchain image.
+*			Transitions source image from GENERAL to TRANSFER_SRC_OPTIMAL.
+*			Transitions swapchain image from PRESENT_SRC_KHR to TRANSFER_DST_OPTIMAL.
+*			After blit, transitions swapchain image to PRESENT_SRC_KHR for presentation.
+*			Used for simple resolution scaling without filtering or post-processing.
 **/
 VkResult vkpt_final_blit_simple(VkCommandBuffer cmd_buf, VkImage image, VkExtent2D extent) {
 	VkImageSubresourceRange subresource_range = {
@@ -957,7 +1250,14 @@ VkResult vkpt_final_blit_simple(VkCommandBuffer cmd_buf, VkImage image, VkExtent
 }
 
 /**
-*	@brief
+*	@brief	Perform a filtered blit using the final blit pipeline (for post-processing).
+*	@param	cmd_buf		Vulkan command buffer to record rendering commands into.
+*	@return	VK_SUCCESS on success.
+*	@note	Uses the final_blit graphics pipeline to render a full-screen quad.
+*			Allows shader-based filtering, scaling, and post-processing effects.
+*			Binds global UBO and texture descriptors for shader access.
+*			Renders a single triangle strip (4 vertices) covering the screen.
+*			Used when custom filtering or effects are needed beyond simple blitting.
 **/
 VkResult vkpt_final_blit_filtered(VkCommandBuffer cmd_buf) {
 	VkRenderPassBeginInfo render_pass_info = {
@@ -1008,10 +1308,21 @@ VkResult vkpt_final_blit_filtered(VkCommandBuffer cmd_buf) {
 
 /**
 *
-* 
-*	'Draw' Refresh 'R_***' Function Pointer Implementations:
 *
 *
+*	Refresh API - Client Rendering Functions:
+*
+*
+*
+**/
+/**
+*	@brief	Set the clip rectangle for subsequent draw calls.
+*	@param	clip	Pointer to clipRect_t structure defining the clipping region, or NULL to disable clipping.
+*	@note	Creates a new scissor group for batching draw calls with the same clip rectangle.
+*			When clip is NULL, clipping is disabled and the full screen is used.
+*			Each call to this function starts a new scissor group, allowing different
+*			UI regions (dialogs, panels, scroll areas) to have independent clipping.
+*			The scissor rectangle is applied during vkpt_draw_submit_stretch_pics().
 **/
 void R_SetClipRect_RTX(const clipRect_t *clip) 
 { 
@@ -1041,6 +1352,11 @@ void R_SetClipRect_RTX(const clipRect_t *clip)
 	scissor_group->num_stretch_pic_offset = num_stretch_pics;
 }
 
+/**
+*	@brief	Reset draw color to white (no tint).
+*	@note	Sets both primary and secondary color slots to U32_WHITE (0xFFFFFFFF).
+*			Subsequent draw calls will render with no color tint applied.
+**/
 void
 R_ClearColor_RTX(void)
 {
@@ -1048,6 +1364,13 @@ R_ClearColor_RTX(void)
 	draw.colors[1].u32 = U32_WHITE;
 }
 
+/**
+*	@brief	Set the global alpha transparency value for subsequent draws.
+*	@param	alpha	Alpha value in range [0.0, 1.0] (0 = transparent, 1 = opaque).
+*	@note	Applies inverse sRGB gamma correction (power 0.4545) to alpha value.
+*			This corrects for sRGB rendering and ensures linear alpha blending.
+*			Alpha is converted to 0-255 range and applied to both color slots.
+**/
 void
 R_SetAlpha_RTX(float alpha)
 {
@@ -1055,12 +1378,25 @@ R_SetAlpha_RTX(float alpha)
 	draw.colors[0].u8[3] = draw.colors[1].u8[3] = alpha * 255;
 }
 
+/**
+*	@brief	Set the global alpha scaling factor.
+*	@param	alpha	Alpha scale in range [0.0, 1.0] (multiplied with per-draw alpha).
+*	@note	Provides a secondary alpha control that scales all alpha values.
+*			When alpha_scale is 0, all draws are skipped (early-out optimization).
+*			Useful for fading entire UI elements or screens in/out.
+**/
 void
 R_SetAlphaScale_RTX(float alpha)
 {
 	draw.alpha_scale = alpha;
 }
 
+/**
+*	@brief	Set the draw color for subsequent rendering.
+*	@param	color	RGBA8 color value (format: 0xAABBGGRR).
+*	@note	Sets primary color and copies alpha to secondary color slot.
+*			Color is applied as a multiplicative tint to texture samples.
+**/
 void
 R_SetColor_RTX(uint32_t color)
 {
@@ -1068,18 +1404,43 @@ R_SetColor_RTX(uint32_t color)
 	draw.colors[1].u8[3] = draw.colors[0].u8[3];
 }
 
+/**
+*	@brief	Sample world lighting at a point in 3D space.
+*	@param	origin	3D world position to sample lighting at.
+*	@param	light	Output: RGB light color/intensity vector.
+*	@note	Stub implementation: Always returns white light (1, 1, 1).
+*			In a full implementation, would sample lightmap or light grid.
+*			Currently unused for 2D UI rendering.
+**/
 void
 R_LightPoint_RTX(const vec3_t origin, vec3_t light)
 {
 	VectorSet(light, 1, 1, 1);
 }
 
+/**
+*	@brief	Set the global UI scaling factor.
+*	@param	scale	Scale multiplier (1.0 = native resolution, 2.0 = double size).
+*	@note	Affects coordinate space for subsequent draw calls.
+*			Useful for high-DPI displays or user-configurable UI scaling.
+**/
 void
 R_SetScale_RTX(float scale)
 {
 	draw.scale = scale;
 }
 
+/**
+*	@brief	Draw a stretched image (texture quad) to the screen.
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	w		Width in screen pixels.
+*	@param	h		Height in screen pixels.
+*	@param	pic		Image handle from r_images array.
+*	@note	Renders texture with full UV coverage (0,0 to 1,1).
+*			Applies current draw color, alpha, and scale settings.
+*			Uses a small epsilon offset to prevent texture sampling artifacts at edges.
+**/
 void
 R_DrawStretchPic_RTX(int x, int y, int w, int h, qhandle_t pic ) {
 	float eps = +1e-5f; /* fixes some ugly artifacts */
@@ -1088,6 +1449,21 @@ R_DrawStretchPic_RTX(int x, int y, int w, int h, qhandle_t pic ) {
 		0.0f + eps, 0.0f + eps, 1.0f - eps, 1.0f - eps,
 		draw.colors[0].u32, pic);
 }
+
+/**
+*	@brief	Draw a stretched image with rotation support.
+*	@param	x			Screen-space X position (left edge).
+*	@param	y			Screen-space Y position (top edge).
+*	@param	w			Width in screen pixels.
+*	@param	h			Height in screen pixels.
+*	@param	angle		Rotation angle in degrees (clockwise).
+*	@param	pivot_x		X coordinate of rotation pivot (relative to x).
+*	@param	pivot_y		Y coordinate of rotation pivot (relative to y).
+*	@param	pic			Image handle from r_images array.
+*	@note	Renders texture with full UV coverage (0,0 to 1,1).
+*			Rotation is performed in vertex shader around specified pivot point.
+*			Useful for animated UI elements like spinning icons or compass needles.
+**/
 void
 R_DrawRotateStretchPic_RTX( int x, int y, int w, int h, float angle, int pivot_x, int pivot_y, qhandle_t pic ) {
 	float eps = +1e-5f; /* fixes some ugly artifacts */
@@ -1098,12 +1474,36 @@ R_DrawRotateStretchPic_RTX( int x, int y, int w, int h, float angle, int pivot_x
 		draw.colors[ 0 ].u32, pic, 0 );
 }
 
+/**
+*	@brief	Draw an image at native size (no stretching).
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	pic		Image handle from r_images array.
+*	@note	Automatically queries image dimensions and calls R_DrawStretchPic.
+*			Image is rendered at its original texture resolution.
+**/
 void
 R_DrawPic_RTX(int x, int y, qhandle_t pic)
 {
 	image_t *image = IMG_ForHandle(pic);
 	R_DrawStretchPic(x, y, image->width, image->height, pic);
 }
+
+/**
+*	@brief	Draw a portion of an image with custom source and destination rectangles.
+*	@param	destX		Destination X position on screen.
+*	@param	destY		Destination Y position on screen.
+*	@param	destW		Destination width on screen.
+*	@param	destH		Destination height on screen.
+*	@param	pic			Image handle from r_images array.
+*	@param	srcX		Source X position in texture (pixels).
+*	@param	srcY		Source Y position in texture (pixels).
+*	@param	srcW		Source width in texture (pixels).
+*	@param	srcH		Source height in texture (pixels).
+*	@note	Allows rendering a sub-region of a texture (sprite sheet, atlas).
+*			Coordinates are converted to normalized UV space (0.0 to 1.0).
+*			Useful for icon atlases, sprite sheets, and texture packing.
+**/
 void
 R_DrawPicEx_RTX( double destX, double destY, double destW, double destH, qhandle_t pic,
 	double srcX, double srcY, double srcW, double srcH ) {
@@ -1123,6 +1523,17 @@ R_DrawPicEx_RTX( double destX, double destY, double destW, double destH, qhandle
 		draw.colors[ 0 ].u32, pic );
 }
 
+/**
+*	@brief	Draw a raw image (dynamic/cinematics) to the screen.
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	w		Width in screen pixels.
+*	@param	h		Height in screen pixels.
+*	@note	Uses the currently registered raw image (qvk.raw_image).
+*			Raw images are dynamic textures updated via R_UpdateRawPic_RTX.
+*			Returns early if no raw image is registered.
+*			Typically used for video playback or animated cinematics.
+**/
 void
 R_DrawStretchRaw_RTX(int x, int y, int w, int h)
 {
@@ -1131,6 +1542,16 @@ R_DrawStretchRaw_RTX(int x, int y, int w, int h)
 	R_DrawStretchPic(x, y, w, h, qvk.raw_image - r_images);
 }
 
+/**
+*	@brief	Update the raw image texture with new pixel data.
+*	@param	pic_w		Width of the raw image in pixels.
+*	@param	pic_h		Height of the raw image in pixels.
+*	@param	pic			Pointer to RGBA8 pixel data.
+*	@note	Unregisters the previous raw image (if any) and registers a new one.
+*			Raw image is given a unique name using a sequential ID counter.
+*			Memory is allocated and data is copied before registration.
+*			Used for video playback where texture content changes each frame.
+**/
 void
 R_UpdateRawPic_RTX(int pic_w, int pic_h, const uint32_t *pic)
 {
@@ -1144,6 +1565,12 @@ R_UpdateRawPic_RTX(int pic_w, int pic_h, const uint32_t *pic)
 	qvk.raw_image = r_images + R_RegisterRawImage(va("**raw[%d]**", raw_id++), pic_w, pic_h, raw_data, IT_SPRITE, IF_SRGB);
 }
 
+/**
+*	@brief	Discard the current raw image texture.
+*	@note	Unregisters the raw image (if any) and sets qvk.raw_image to NULL.
+*			Called when video playback stops or cinematic ends.
+*			Frees GPU resources associated with the raw texture.
+**/
 void
 R_DiscardRawPic_RTX(void)
 {
@@ -1153,6 +1580,18 @@ R_DiscardRawPic_RTX(void)
 	}
 }
 
+/**
+*	@brief	Draw an image with aspect ratio preservation (letterboxing/pillarboxing).
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	w		Width in screen pixels.
+*	@param	h		Height in screen pixels.
+*	@param	pic		Image handle from r_images array.
+*	@note	Adjusts UV coordinates to maintain image aspect ratio within destination rect.
+*			If image aspect doesn't match dest aspect, adds black bars (letterbox/pillarbox).
+*			Scrap images (font atlases) bypass this and use normal stretch.
+*			Useful for displaying widescreen images on 4:3 displays and vice versa.
+**/
 void R_DrawKeepAspectPic_RTX(int x, int y, int w, int h, qhandle_t pic)
 {
     image_t *image = IMG_ForHandle(pic);
@@ -1172,8 +1611,21 @@ void R_DrawKeepAspectPic_RTX(int x, int y, int w, int h, qhandle_t pic)
     enqueue_stretch_pic(x, y, w, h, s, t, 1.0f - s, 1.0f - t, draw.colors[0].u32, pic);
 }
 
+//! Division constant for texture tiling (1/64).
 #define DIV64 (1.0f / 64.0f)
 
+/**
+*	@brief	Draw a tiled texture (repeating pattern) to fill a rectangle.
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	w		Width in screen pixels.
+*	@param	h		Height in screen pixels.
+*	@param	pic		Image handle from r_images array (typically 64×64 tile).
+*	@note	UV coordinates are scaled to repeat the texture across the destination.
+*			Assumes texture is 64×64 pixels (DIV64 = 1/64).
+*			Each 64 pixels on screen corresponds to 1.0 in UV space (one tile repeat).
+*			Used for tiled backgrounds, console backgrounds, and repeating patterns.
+**/
 void
 R_TileClear_RTX(int x, int y, int w, int h, qhandle_t pic)
 {
@@ -1182,6 +1634,18 @@ R_TileClear_RTX(int x, int y, int w, int h, qhandle_t pic)
 		U32_WHITE, pic);
 }
 
+/**
+*	@brief	Draw a solid color-filled rectangle (8-bit palette index).
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	w		Width in screen pixels.
+*	@param	h		Height in screen pixels.
+*	@param	c		8-bit palette color index.
+*	@note	Uses TEXNUM_WHITE (solid white texture) with palette color applied.
+*			Palette index is looked up in d_8to24table to get RGBA8 color.
+*			Early-out if width or height is zero.
+*			Used for simple colored rectangles in menus and HUD.
+**/
 void
 R_DrawFill8_RTX(int x, int y, int w, int h, int c)
 {
@@ -1191,6 +1655,17 @@ R_DrawFill8_RTX(int x, int y, int w, int h, int c)
 		d_8to24table[c & 0xff], TEXNUM_WHITE);
 }
 
+/**
+*	@brief	Draw a solid color-filled rectangle (32-bit RGBA).
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	w		Width in screen pixels.
+*	@param	h		Height in screen pixels.
+*	@param	color	32-bit RGBA8 color value (format: 0xAABBGGRR).
+*	@note	Uses TEXNUM_WHITE (solid white texture) with specified color applied.
+*			Early-out if width or height is zero.
+*			Allows arbitrary RGB colors with alpha transparency.
+**/
 void
 R_DrawFill32_RTX(int x, int y, int w, int h, uint32_t color)
 {
@@ -1200,6 +1675,16 @@ R_DrawFill32_RTX(int x, int y, int w, int h, uint32_t color)
 		color, TEXNUM_WHITE);
 }
 
+/**
+*	@brief	Draw a solid color-filled rectangle with floating-point coordinates (8-bit palette).
+*	@param	x		Screen-space X position (left edge, float).
+*	@param	y		Screen-space Y position (top edge, float).
+*	@param	w		Width in screen pixels (float).
+*	@param	h		Height in screen pixels (float).
+*	@param	c		8-bit palette color index.
+*	@note	Floating-point variant of R_DrawFill8_RTX for sub-pixel positioning.
+*			Useful for smooth animations and high-DPI rendering.
+**/
 void
 R_DrawFill8f_RTX( float x, float y, float w, float h, int32_t c ) {
 	if ( !w || !h )
@@ -1208,6 +1693,16 @@ R_DrawFill8f_RTX( float x, float y, float w, float h, int32_t c ) {
 		d_8to24table[ c & 0xff ], TEXNUM_WHITE );
 }
 
+/**
+*	@brief	Draw a solid color-filled rectangle with floating-point coordinates (32-bit RGBA).
+*	@param	x		Screen-space X position (left edge, float).
+*	@param	y		Screen-space Y position (top edge, float).
+*	@param	w		Width in screen pixels (float).
+*	@param	h		Height in screen pixels (float).
+*	@param	color	32-bit RGBA8 color value (format: 0xAABBGGRR).
+*	@note	Floating-point variant of R_DrawFill32_RTX for sub-pixel positioning.
+*			Useful for smooth animations and high-DPI rendering.
+**/
 void
 R_DrawFill32f_RTX( float x, float y, float w, float h, uint32_t color ) {
 	if ( !w || !h )
@@ -1216,6 +1711,38 @@ R_DrawFill32f_RTX( float x, float y, float w, float h, uint32_t color ) {
 		color, TEXNUM_WHITE );
 }
 
+
+
+/**
+*
+*
+*
+*	Text Rendering:
+*
+*
+*
+**/
+/**
+*	@brief	Draw a single character from a monospace font atlas.
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	flags	Rendering flags (UI_ALTCOLOR, UI_XORCOLOR).
+*	@param	c		Character code (ASCII, may have color bits in high byte).
+*	@param	font	Font texture handle from r_images array.
+*	@note	Font atlas layout: 16×16 grid of characters (256 total).
+*			Each character occupies 1/16 of texture space (0.0625 UVs).
+*			
+*			Character code handling:
+*			- Lower 7 bits: ASCII character (0-127)
+*			- Bit 7: Color selection (0 = colors[0], 1 = colors[1])
+*			- UI_ALTCOLOR flag: Force alternate color (sets bit 7)
+*			- UI_XORCOLOR flag: Toggle color bit (XOR with bit 7)
+*			
+*			Space characters (ASCII 32) are skipped (no rendering).
+*			
+*			Character dimensions: CHAR_WIDTH × CHAR_HEIGHT pixels.
+*			UV epsilon (1e-5) prevents sampling artifacts at glyph edges.
+**/
 static inline void
 draw_char(int x, int y, int flags, int c, qhandle_t font)
 {
@@ -1240,12 +1767,36 @@ draw_char(int x, int y, int flags, int c, qhandle_t font)
 		draw.colors[c >> 7].u32, font);
 }
 
+/**
+*	@brief	Render a single character to the screen (public API).
+*	@param	x		Screen-space X position (left edge).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	flags	Rendering flags (UI_ALTCOLOR, UI_XORCOLOR).
+*	@param	c		Character code (ASCII with optional color bits).
+*	@param	font	Font texture handle from r_images array.
+*	@note	Masks character code to 8 bits (0-255) before rendering.
+*			See draw_char() for detailed character rendering behavior.
+**/
 void
 R_DrawChar_RTX(int x, int y, int flags, int c, qhandle_t font)
 {
 	draw_char(x, y, flags, c & 255, font);
 }
 
+/**
+*	@brief	Render a string of text to the screen.
+*	@param	x		Screen-space X position (left edge of first character).
+*	@param	y		Screen-space Y position (top edge).
+*	@param	flags	Rendering flags (UI_ALTCOLOR, UI_XORCOLOR) applied to all characters.
+*	@param	maxlen	Maximum number of characters to render (0 = unlimited).
+*	@param	s		Null-terminated string to render.
+*	@param	font	Font texture handle from r_images array.
+*	@return	Screen-space X position after the last rendered character.
+*	@note	Characters are rendered left-to-right with fixed spacing (CHAR_WIDTH).
+*			Stops rendering when maxlen is reached or null terminator is found.
+*			Each character advances X position by CHAR_WIDTH pixels.
+*			Returned X value can be used for cursor positioning or string measurement.
+**/
 int
 R_DrawString_RTX(int x, int y, int flags, size_t maxlen, const char *s, qhandle_t font)
 {

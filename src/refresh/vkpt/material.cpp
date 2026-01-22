@@ -1,3 +1,79 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: PBR Material System
+*
+*	Implements a comprehensive physically-based rendering (PBR) material
+*	system that manages texture properties, surface characteristics, and
+*	emissive light sources for the Q2RTX path tracer. Handles loading,
+*	parsing, and runtime management of material definitions from .mat files.
+*
+*	Architecture:
+*	- Three-tier material hierarchy: Global → Map-specific → Runtime
+*	- Hash table for fast material lookup by name
+*	- Binary search in sorted material dictionaries
+*	- Material override system (map materials override global)
+*	- Registration sequence tracking for resource cleanup
+*
+*	Algorithm:
+*	1. Initialization: Load all materials/*.mat files into global dictionary
+*	2. Map Load: Load map-specific .mat file, sort and deduplicate
+*	3. Material Request: Search hash table → check map overrides → create runtime entry
+*	4. Image Loading: Load base/normal/emissive textures with fallback paths
+*	5. Emissive Synthesis: Optionally generate fake emissive maps from bright pixels
+*	6. Cleanup: Free unused materials based on registration sequence
+*
+*	Features:
+*	- PBR properties: roughness, metalness, bump scale, emissive factor
+*	- Material kinds: Regular, Chrome, Glass, Water, Lava, Sky, Slime, etc.
+*	- Custom texture assignment: base, normals, emissive, mask
+*	- Auto-detection of emissive surfaces based on brightness threshold
+*	- Synthetic emissive generation for dynamic lighting
+*	- Map-specific material overrides
+*	- Game-specific material loading (baseq2 vs mod directories)
+*	- Console interface for runtime material editing
+*	- Material save/export functionality
+*
+*	Configuration:
+*	- MAX_PBR_MATERIALS: Maximum number of material slots (8192)
+*	- RMATERIALS_HASH: Hash table size for fast lookup (256 buckets)
+*	- cvar_pt_surface_lights_threshold: Brightness threshold for emissive detection
+*	- cvar_pt_surface_lights_fake_emissive_algo: Algorithm for synthetic emissive
+*
+*	File Format (.mat files):
+*	- Section format: "texture_name:" or "name," for material groups
+*	- Key-value pairs: "attribute value"
+*	- Comments: "# comment text"
+*	- Wildcard substitution: "*" for material name, "**" for full path
+*	- Attributes: bump_scale, roughness_override, metalness_factor,
+*	  emissive_factor, specular_factor, base_factor, kind, is_light,
+*	  texture_base, texture_normals, texture_emissive, texture_mask,
+*	  light_styles, bsp_radiance, default_radiance, synth_emissive,
+*	  emissive_threshold
+*
+*	Material Override System:
+*	- Global materials: Loaded from materials/*.mat (baseq2 or mod directory)
+*	- Map materials: Loaded from maps/mapname.mat (overrides global definitions)
+*	- Runtime materials: Created on-demand, inherit from global/map definitions
+*	- Priority: Map-specific > Global > Auto-generated default
+*
+*	Emissive Detection:
+*	- Brightness threshold: Pixels above threshold considered emissive
+*	- Fake emissive algorithms:
+*	  0: Use diffuse texture directly
+*	  1: Generate filtered bright-pixel mask
+*	- Synthetic emissive: Automatically create emissive map from bright areas
+*	- Manual emissive: Explicit texture_emissive specification
+*
+*	Performance:
+*	- Hash table provides O(1) average-case lookup
+*	- Binary search in dictionaries: O(log n)
+*	- Materials sorted and deduplicated once at load time
+*	- Registration sequence avoids full table scans
+*	- Lazy texture loading (images loaded on first use)
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
 
@@ -30,37 +106,109 @@ extern cvar_t* cvar_pt_surface_lights_threshold;
 
 extern void CL_PrepRefresh(void);
 
+
+
+/**
+*
+*
+*
+*	Module State and Data Structures:
+*
+*
+*
+**/
+//! Runtime material table: active materials currently in use by the renderer.
+//! Each entry represents a fully-loaded material with resolved textures and properties.
+//! Materials are allocated on-demand when textures are first referenced.
 pbr_material_t r_materials[MAX_PBR_MATERIALS];
+
+//! Global material definitions: loaded from materials/*.mat files at initialization.
+//! These serve as templates that are copied to r_materials when needed.
+//! Sorted alphabetically by material name for binary search.
 static pbr_material_t r_global_materials[MAX_PBR_MATERIALS];
+
+//! Map-specific material definitions: loaded from maps/mapname.mat on map change.
+//! Override global definitions for the same material names.
+//! Also sorted alphabetically for binary search.
 static pbr_material_t r_map_materials[MAX_PBR_MATERIALS];
+
+//! Number of valid entries in r_global_materials array.
 static uint32_t num_global_materials = 0;
+
+//! Number of valid entries in r_map_materials array.
 static uint32_t num_map_materials = 0;
 
+//! Hash table size for fast material lookup (power of 2 for efficient modulo).
 #define RMATERIALS_HASH 256
+
+//! Hash table for O(1) average-case lookup of active materials in r_materials.
+//! Each bucket contains a linked list of materials with the same hash value.
 static list_t r_materialsHash[RMATERIALS_HASH];
 
+//! Reload flag: indicates map geometry needs to be reloaded.
 #define RELOAD_MAP		1
+
+//! Reload flag: indicates emissive textures need to be regenerated.
 #define RELOAD_EMISSIVE	2
 
+//! Reload flag: indicates emissive textures need to be regenerated.
+#define RELOAD_EMISSIVE	2
+
+//! Forward declarations for internal functions.
 static uint32_t load_material_file(const char* file_name, pbr_material_t* dest, uint32_t max_items);
 static void material_command(void);
 static void material_completer(genctx_t* ctx, int argnum);
 
+
+
+/**
+*
+*
+*
+*	Material Sorting and Deduplication:
+*
+*
+*
+**/
+/**
+*	@brief	Comparison function for sorting materials by name, source file, and line number.
+*	@param	a	Pointer to first material (const void* for qsort compatibility).
+*	@param	b	Pointer to second material (const void* for qsort compatibility).
+*	@return	Negative if a < b, zero if equal, positive if a > b.
+*	@note	Used by qsort() to order materials for deduplication.
+*			Sort order: material name (primary), source file (secondary), line number (tertiary).
+**/
 static int compare_materials(const void* a, const void* b)
 {
 	const pbr_material_t* ma = a;
 	const pbr_material_t* mb = b;
 
+	// Primary sort: material name (alphabetical).
 	int names = strcmp(ma->name, mb->name);
 	if (names != 0)
 		return names;
 
+	// Secondary sort: source file (alphabetical).
+	// This groups materials from the same file together.
 	int sources = strcmp(ma->source_matfile, mb->source_matfile);
 	if (sources != 0)
 		return sources;
 
+	// Tertiary sort: line number (ascending).
+	// Materials defined later in the file override earlier definitions.
 	return (int)ma->source_line - (int)mb->source_line;
 }
+
+/**
+*	@brief	Sorts and deduplicates a material array, keeping the last definition of each material.
+*	@param	first	Pointer to the first element of the material array.
+*	@param	pCount	Pointer to the count of materials (updated to new count after deduplication).
+*	@note	Materials with the same name are merged, with later entries overriding earlier ones.
+*			This implements the material override system where definitions at the end of a file
+*			or in later files take precedence.
+*	@note	The array is sorted by name (primary), source file (secondary), and line number (tertiary).
+*	@note	After deduplication, only one entry per material name remains in the array.
+**/
 
 static void sort_and_deduplicate_materials(pbr_material_t* first, uint32_t* pCount)
 {
@@ -69,18 +217,22 @@ static void sort_and_deduplicate_materials(pbr_material_t* first, uint32_t* pCou
 	if (count == 0)
 		return;
 
-	// sort the materials by name, then by source file, then by line number
+	// Sort the materials by name (primary), then by source file, then by line number.
+	// This groups all definitions of the same material together.
 	qsort(first, count, sizeof(pbr_material_t), compare_materials);
 
-	// deduplicate the materials with the same name; latter entries override former ones
+	// Deduplicate materials with the same name; latter entries override former ones.
+	// This implements the material override system where later definitions win.
 	uint32_t write_ptr = 0;
 	
 	for (uint32_t read_ptr = 0; read_ptr < count; read_ptr++) {
-		// if there is a next entry and its name is the same, skip the current entry
+		// If there is a next entry and its name is the same, skip the current entry.
+		// This keeps only the LAST definition of each material name.
 		if ((read_ptr + 1 < count) && strcmp(first[read_ptr].name, first[read_ptr + 1].name) == 0)
 			continue;
 
-		// copy the input entry to the output entry if they are not the same
+		// Copy the input entry to the output entry if they are not the same.
+		// This compacts the array by removing duplicates in-place.
 		if (read_ptr != write_ptr)
 			memcpy(first + write_ptr, first + read_ptr, sizeof(pbr_material_t));
 
@@ -88,22 +240,61 @@ static void sort_and_deduplicate_materials(pbr_material_t* first, uint32_t* pCou
 	}
 
 	if (write_ptr < count) {
-		// if we've removed some entries, clear the garbage at the end
+		// If we've removed some entries, clear the garbage at the end.
+		// This ensures unused slots are zeroed out.
 		memset(first + write_ptr, 0, sizeof(pbr_material_t) * (count - write_ptr));
 
-		// return the new count
+		// Return the new count (number of unique materials).
 		*pCount = write_ptr;
 	}
 }
 
-// Returns whether the current game is a custom game (not baseq2)
+
+
+/**
+*
+*
+*
+*	Utility Functions:
+*
+*
+*
+**/
+/**
+*	@brief	Checks if the current game is a custom mod (not baseq2).
+*	@return	True if running a custom game/mod, false if running baseq2.
+*	@note	Used to determine which directory to search for game-specific assets.
+**/
 static qboolean is_game_custom(void)
 {
 	return fs_game->string[0] && strcmp(fs_game->string, BASEGAME) != 0;
 }
 
+
+
+/**
+*
+*
+*
+*	Initialization and Cleanup:
+*
+*
+*
+**/
+/**
+*	@brief	Initializes the material system and loads all global material definitions.
+*	@note	Called once at engine startup.
+*			- Registers the "mat" console command for runtime material editing
+*			- Initializes material hash table for fast lookup
+*			- Scans materials/ directory for .mat files
+*			- Loads and parses all global material definitions
+*			- Sorts and deduplicates material entries
+*	@note	Global materials serve as templates for runtime materials.
+**/
+
 void MAT_Init()
 {
+	// Register console command for runtime material manipulation.
 	cmdreg_t commands[2];
 	commands[0].name = "mat";
 	commands[0].function = (xcommand_t)&material_command;
@@ -111,19 +302,22 @@ void MAT_Init()
 	commands[1].name = NULL;
 	Cmd_Register(commands);
 	
+	// Clear all material arrays to ensure clean state.
 	memset(r_materials, 0, sizeof(r_materials));
 	memset(r_global_materials, 0, sizeof(r_global_materials));
 	memset(r_map_materials, 0, sizeof(r_map_materials));
 	num_global_materials = 0;
 	num_map_materials = 0;
 
-	// initialize the hash table
+	// Initialize the hash table for fast material lookup.
+	// Each bucket contains a linked list for collision resolution.
 	for (int i = 0; i < RMATERIALS_HASH; i++)
 	{
 		List_Init(r_materialsHash + i);
 	}
 
-	// find all *.mat files in the root
+	// Find all *.mat files in the materials/ directory.
+	// These are global material definitions shared across all maps.
 	int num_files;
 	void** list = FS_ListFiles("materials", ".mat", 0, &num_files);
 	
@@ -132,6 +326,7 @@ void MAT_Init()
 		char buffer[MAX_QPATH];
 		Q_concat(buffer, sizeof(buffer), "materials/", file_name);
 		
+		// Load material definitions into the global array.
 		int mat_slots_available = MAX_PBR_MATERIALS - num_global_materials;
 		if (mat_slots_available > 0) {
 			uint32_t count = load_material_file(buffer, r_global_materials + num_global_materials,
@@ -148,13 +343,38 @@ void MAT_Init()
 	}
 	Z_Free(list);
 
+	// Sort and deduplicate global materials for efficient binary search.
+	// Later definitions override earlier ones (e.g., mod materials override baseq2).
 	sort_and_deduplicate_materials(r_global_materials, &num_global_materials);
 }
+
+/**
+*	@brief	Shuts down the material system and frees resources.
+*	@note	Called at engine shutdown. Unregisters console commands.
+**/
 
 void MAT_Shutdown()
 {
 	Cmd_RemoveCommand("mat");
 }
+
+
+
+/**
+*
+*
+*
+*	Material Initialization and Registration:
+*
+*
+*
+**/
+/**
+*	@brief	Sets the material index field in the material's flags.
+*	@param	mat	Pointer to the material to update.
+*	@note	The material index is used to quickly reference materials by index.
+*			Also initializes next_frame to point to itself for single-frame materials.
+**/
 
 static void MAT_SetIndex(pbr_material_t* mat)
 {
@@ -162,6 +382,24 @@ static void MAT_SetIndex(pbr_material_t* mat)
 	mat->flags = (mat->flags & ~MATERIAL_INDEX_MASK) | (mat_index & MATERIAL_INDEX_MASK);
 	mat->next_frame = mat_index;
 }
+
+/**
+*	@brief	Resets a material to default PBR values.
+*	@param	mat	Pointer to the material to reset.
+*	@note	Default values:
+*			- bump_scale: 1.0 (no scaling)
+*			- roughness_override: -1.0 (use texture value)
+*			- metalness_factor: 1.0 (full metalness if present in texture)
+*			- emissive_factor: 1.0 (full emissive brightness)
+*			- specular_factor: 1.0 (full specularity)
+*			- base_factor: 1.0 (full diffuse color)
+*			- light_styles: true (affected by dynamic lights)
+*			- bsp_radiance: true (receives indirect lighting)
+*			- default_radiance: 1.0 (fully emissive without CM_SURFACE_FLAG_LIGHT)
+*			- num_frames: 1 (static, non-animated)
+*			- kind: MATERIAL_KIND_REGULAR
+*			- emissive_threshold: from cvar_pt_surface_lights_threshold
+**/
 
 void MAT_Reset(pbr_material_t * mat)
 {
@@ -182,32 +420,46 @@ void MAT_Reset(pbr_material_t * mat)
 	mat->emissive_threshold = cvar_pt_surface_lights_threshold->integer;
 }
 
-//
-// material kinds (translations between names & bit flags)
-//
+
+
+/**
+*
+*
+*
+*	Material Kinds and Type System:
+*
+*
+*
+**/
+//! Material kind lookup table: maps string names to flag values.
+//! Used for parsing .mat files and console commands.
 
 static struct MaterialKind {
-	const char * name;
-	uint32_t flag;
+	const char * name;  //! Human-readable material kind name (uppercase).
+	uint32_t flag;      //! Corresponding material flag bits.
 } materialKinds[] = {
-	{"INVALID", MATERIAL_KIND_INVALID},
-	{"REGULAR", MATERIAL_KIND_REGULAR},
-	{"CHROME", MATERIAL_KIND_CHROME},
-	{"GLASS", MATERIAL_KIND_GLASS},
-	{"WATER", MATERIAL_KIND_WATER},
-	{"LAVA", MATERIAL_KIND_LAVA},
-	{"SKY", MATERIAL_KIND_SKY},
-	{"SLIME", MATERIAL_KIND_SLIME},
-	{"INVISIBLE", MATERIAL_KIND_INVISIBLE},
-	{"SCREEN", MATERIAL_KIND_SCREEN},
-	{"CAMERA", MATERIAL_KIND_CAMERA},
-	{"UNLIT", MATERIAL_KIND_UNLIT},
+	{"INVALID", MATERIAL_KIND_INVALID},      //! Invalid/uninitialized material.
+	{"REGULAR", MATERIAL_KIND_REGULAR},      //! Standard opaque PBR material.
+	{"CHROME", MATERIAL_KIND_CHROME},        //! Reflective chrome surface.
+	{"GLASS", MATERIAL_KIND_GLASS},          //! Transparent glass material.
+	{"WATER", MATERIAL_KIND_WATER},          //! Animated water surface.
+	{"LAVA", MATERIAL_KIND_LAVA},            //! Animated lava surface (emissive).
+	{"SKY", MATERIAL_KIND_SKY},              //! Sky material (uses skybox).
+	{"SLIME", MATERIAL_KIND_SLIME},          //! Slime/hazardous liquid.
+	{"INVISIBLE", MATERIAL_KIND_INVISIBLE},  //! Invisible surface (clip).
+	{"SCREEN", MATERIAL_KIND_SCREEN},        //! Monitor/display screen.
+	{"CAMERA", MATERIAL_KIND_CAMERA},        //! Camera view surface.
+	{"UNLIT", MATERIAL_KIND_UNLIT},          //! Unlit material (no lighting).
 };
 
+//! Number of material kinds defined in the lookup table.
 static int nMaterialKinds = sizeof(materialKinds) / sizeof(struct MaterialKind);
 
 /**
-*	@brief	Returns the material kind uint32_t value matching the kindname key.
+*	@brief	Converts a material kind name string to its corresponding flag value.
+*	@param	kindname	Material kind name (case-insensitive, e.g., "CHROME", "glass").
+*	@return	Material kind flag value, or MATERIAL_KIND_REGULAR if not found.
+*	@note	Used when parsing .mat files and processing console commands.
 **/
 uint32_t MAT_GetMaterialKindForName(const char * kindname) {
 	for ( int i = 0; i < nMaterialKinds; ++i ) {
@@ -215,10 +467,14 @@ uint32_t MAT_GetMaterialKindForName(const char * kindname) {
 			return materialKinds[ i ].flag;
 		}
 	}
-	return MATERIAL_KIND_REGULAR;
+	return MATERIAL_KIND_REGULAR;  // Default to regular if not found.
 }
+
 /**
-*	@brief	Returns the material key string value matching the flag uint32_t.
+*	@brief	Converts a material kind flag value to its string name.
+*	@param	flag	Material flags containing kind bits.
+*	@return	Material kind name string, or NULL if not found.
+*	@note	Used for displaying material information in console and debug output.
 **/
 const char * MAT_GetMaterialKindName(uint32_t flag) {
 	for ( int i = 0; i < nMaterialKinds; ++i ) {
@@ -228,6 +484,26 @@ const char * MAT_GetMaterialKindName(uint32_t flag) {
 	}
 	return NULL;
 }
+
+
+
+/**
+*
+*
+*
+*	Material Attribute System:
+*
+*
+*
+**/
+/**
+*	@brief	Truncates the file extension from a texture name.
+*	@param	src		Source texture name with extension (e.g., "textures/base.tga").
+*	@param	dest	Destination buffer for name without extension.
+*	@return	Length of the truncated name (excluding null terminator).
+*	@note	Assumes 4-character extensions (.tga, .jpg, .png, .wal).
+*			If no extension found, copies the full name.
+**/
 
 static size_t truncate_extension(char const* src, char dest[MAX_QPATH])
 {
@@ -242,6 +518,23 @@ static size_t truncate_extension(char const* src, char dest[MAX_QPATH])
 	return len;
 }
 
+
+
+/**
+*
+*
+*
+*	Material Allocation and Lookup:
+*
+*
+*
+**/
+/**
+*	@brief	Allocates a free material slot from the runtime materials array.
+*	@return	Pointer to an unused material slot, or triggers fatal error if none available.
+*	@note	Searches for a material with registration_sequence == 0 (unused).
+*			Fatal error if all MAX_PBR_MATERIALS slots are occupied.
+**/
 static pbr_material_t* allocate_material(void)
 {
 	for (uint32_t i = 0; i < MAX_PBR_MATERIALS; i++)
@@ -256,6 +549,17 @@ static pbr_material_t* allocate_material(void)
 	return NULL;
 }
 
+/**
+*	@brief	Searches for a material by name in the hash table (runtime materials).
+*	@param	name	Material name (without extension, lowercase).
+*	@param	hash	Pre-computed hash value for the material name.
+*	@param	first	Unused parameter (kept for API consistency).
+*	@param	count	Unused parameter (kept for API consistency).
+*	@return	Pointer to material if found, NULL otherwise.
+*	@note	Searches only the hash table (active runtime materials).
+*			Uses linked list traversal for collision resolution.
+*			Only returns materials with valid registration_sequence.
+**/
 static pbr_material_t* find_material(const char* name, uint32_t hash, pbr_material_t* first, uint32_t count)
 {
 	pbr_material_t* mat;
@@ -272,6 +576,16 @@ static pbr_material_t* find_material(const char* name, uint32_t hash, pbr_materi
 	return NULL;
 }
 
+/**
+*	@brief	Searches for a material by name using binary search in a sorted array.
+*	@param	name	Material name (without extension, lowercase).
+*	@param	first	Pointer to the first element of the sorted material array.
+*	@param	count	Number of materials in the array.
+*	@return	Pointer to material if found, NULL otherwise.
+*	@note	Used to search global and map-specific material dictionaries.
+*			Requires the array to be sorted alphabetically by material name.
+*			Time complexity: O(log n)
+**/
 static pbr_material_t* find_material_sorted(const char* name, pbr_material_t* first, uint32_t count)
 {
 	// binary search in a sorted table: global and per-map material dictionaries
@@ -295,32 +609,37 @@ static pbr_material_t* find_material_sorted(const char* name, pbr_material_t* fi
 	return NULL;
 }
 
+//! Material attribute indices: used for attribute lookup and parsing.
 enum AttributeIndex
 {
-	MAT_BUMP_SCALE,
-	MAT_ROUGHNESS_OVERRIDE,
-	MAT_METALNESS_FACTOR,
-	MAT_EMISSIVE_FACTOR,
-	MAT_KIND,
-	MAT_IS_LIGHT,
-	MAT_BASE_FACTOR,
-	MAT_TEXTURE_BASE,
-	MAT_TEXTURE_NORMALS,
-	MAT_TEXTURE_EMISSIVE,
-	MAT_LIGHT_STYLES,
-	MAT_BSP_RADIANCE,
-	MAT_DEFAULT_RADIANCE,
-	MAT_TEXTURE_MASK,
-	MAT_SYNTH_EMISSIVE,
-	MAT_EMISSIVE_THRESHOLD,
-	MAT_SPECULAR_FACTOR,
+	MAT_BUMP_SCALE,              //! Normal map bump intensity multiplier.
+	MAT_ROUGHNESS_OVERRIDE,      //! Override roughness value (ignores texture).
+	MAT_METALNESS_FACTOR,        //! Metalness multiplier.
+	MAT_EMISSIVE_FACTOR,         //! Emissive intensity multiplier.
+	MAT_KIND,                    //! Material type (water, glass, chrome, etc.).
+	MAT_IS_LIGHT,                //! Whether surface emits light.
+	MAT_BASE_FACTOR,             //! Diffuse color multiplier.
+	MAT_TEXTURE_BASE,            //! Base color/diffuse texture path.
+	MAT_TEXTURE_NORMALS,         //! Normal map texture path.
+	MAT_TEXTURE_EMISSIVE,        //! Emissive texture path.
+	MAT_LIGHT_STYLES,            //! Enable dynamic lighting (light styles).
+	MAT_BSP_RADIANCE,            //! Enable indirect lighting from lightmaps.
+	MAT_DEFAULT_RADIANCE,        //! Emissive fallback for surfaces without CM_SURFACE_FLAG_LIGHT.
+	MAT_TEXTURE_MASK,            //! Alpha/transparency mask texture path.
+	MAT_SYNTH_EMISSIVE,          //! Enable synthetic emissive generation.
+	MAT_EMISSIVE_THRESHOLD,      //! Brightness threshold for emissive detection (0-255).
+	MAT_SPECULAR_FACTOR,         //! Specular reflection intensity multiplier.
 };
+
+//! Material attribute data types for parsing and validation.
 enum AttributeType { ATTR_BOOL, ATTR_FLOAT, ATTR_STRING, ATTR_INT };
 
+//! Material attribute definition table: maps attribute names to indices and types.
+//! Used for parsing .mat files and console commands.
 static struct MaterialAttribute {
-	enum AttributeIndex index;
-	const char* name;
-	enum AttributeType type;
+	enum AttributeIndex index;  //! Attribute identifier.
+	const char* name;           //! Attribute name in .mat files.
+	enum AttributeType type;    //! Data type for parsing.
 } c_Attributes[] = {
 	{MAT_BUMP_SCALE, "bump_scale", ATTR_FLOAT},
 	{MAT_ROUGHNESS_OVERRIDE, "roughness_override", ATTR_FLOAT},
@@ -341,7 +660,21 @@ static struct MaterialAttribute {
 	{MAT_SPECULAR_FACTOR, "specular_factor", ATTR_FLOAT},
 };
 
+//! Number of defined material attributes.
 static int c_NumAttributes = sizeof(c_Attributes) / sizeof(struct MaterialAttribute);
+
+/**
+*	@brief	Sets a material texture path and optionally loads the image.
+*	@param	mat				Material to modify.
+*	@param	svalue			Texture path or "0" to clear.
+*	@param	mat_texture_path	Destination path buffer in material structure.
+*	@param	mat_image		Destination image pointer in material structure.
+*	@param	flags			Image loading flags (IF_SRGB, IF_NONE, etc.).
+*	@param	from_console	True if called from console (loads image immediately).
+*	@note	If from_console is false (loading from .mat file), only stores the path.
+*			If from_console is true, validates and loads the image immediately.
+*			Special value "0" clears the texture assignment.
+**/
 
 static void set_material_texture(pbr_material_t* mat, const char* svalue, char mat_texture_path[MAX_QPATH],
 	image_t** mat_image, imageflags_t flags, bool from_console)
@@ -364,6 +697,22 @@ static void set_material_texture(pbr_material_t* mat, const char* svalue, char m
 	}
 }
 
+/**
+*	@brief	Parses and applies a material attribute from a .mat file or console command.
+*	@param	mat			Material to modify.
+*	@param	attribute	Attribute name (e.g., "roughness_override", "texture_base").
+*	@param	value		Attribute value as string.
+*	@param	sourceFile	Source .mat file (NULL if from console).
+*	@param	lineno		Line number in source file (0 if from console).
+*	@param	reload_flags	Optional flags indicating what needs reloading (RELOAD_MAP, RELOAD_EMISSIVE).
+*	@return	Q_ERR_SUCCESS on success, Q_ERR_FAILURE on error.
+*	@note	Supports wildcard substitution in string values:
+*			- "*" expands to material base name (without path)
+*			- "**" expands to full material name (with path)
+*			Example: "textures/base" with "**_n" becomes "textures/base_n"
+*	@note	Some attributes trigger map reload (kind, is_light, mask changes).
+*			Some attributes trigger emissive regeneration (synth_emissive, emissive_threshold).
+**/
 static int set_material_attribute(pbr_material_t* mat, const char* attribute, const char* value,
 	const char* sourceFile, uint32_t lineno, unsigned int* reload_flags)
 {
@@ -499,6 +848,37 @@ static int set_material_attribute(pbr_material_t* mat, const char* attribute, co
 	return Q_ERR_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Material File Loading and Parsing:
+*
+*
+*
+**/
+/**
+*	@brief	Loads and parses a .mat material definition file.
+*	@param	file_name	Path to .mat file (e.g., "materials/base.mat" or "maps/dm1.mat").
+*	@param	dest		Destination array to store parsed materials.
+*	@param	max_items	Maximum number of materials that can be stored in dest.
+*	@return	Number of materials successfully loaded and parsed.
+*	@note	File format:
+*			- Material sections: "texture_name:" or "name1, name2, name3:" for groups
+*			- Comments: "# comment text" (space after # required)
+*			- Attributes: "attribute_name value" (whitespace-separated)
+*			- Comma syntax: Share attributes across multiple materials
+*			- Colon syntax: Final material name before attributes
+*	@note	Parser state machine:
+*			1. INITIAL: Waiting for first material section
+*			2. ACCUMULATING_NAMES: Reading comma-separated material names (shared attributes)
+*			3. READING_PARAMS: Reading attribute lines for current material(s)
+*	@note	Searches game-specific directory first, then falls back to baseq2.
+*			Materials loaded from game directory are tagged with IF_SRC_GAME.
+*			Materials loaded from baseq2 are tagged with IF_SRC_BASE.
+**/
 static uint32_t load_material_file(const char* file_name, pbr_material_t* dest, uint32_t max_items)
 {
 	assert(max_items >= 1);
@@ -643,6 +1023,16 @@ static uint32_t load_material_file(const char* file_name, pbr_material_t* dest, 
 	return count;
 }
 
+/**
+*	@brief	Exports active materials to a .mat file.
+*	@param	file_name	Output file path.
+*	@param	save_all	If true, saves all materials; if false, only auto-generated ones.
+*	@param	force		If true, overwrites existing file; if false, warns and aborts.
+*	@note	Used by "mat save" console command to export material definitions.
+*			Auto-generated materials are those without source_matfile (created on-demand).
+*			All materials include their full property set in .mat file format.
+*	@note	Non-default values are omitted to keep output clean and maintainable.
+**/
 static void save_materials(const char* file_name, bool save_all, bool force)
 {
 	if (!force && FS_FileExistsEx(file_name, FS_TYPE_REAL))
@@ -739,15 +1129,38 @@ static void save_materials(const char* file_name, bool save_all, bool force)
 	Com_Printf("saved %d materials\n", count);
 }
 
+
+
+/**
+*
+*
+*
+*	Map-Specific Material Management:
+*
+*
+*
+**/
+/**
+*	@brief	Loads map-specific material overrides and invalidates affected runtime materials.
+*	@param	map_name	Map filename (with or without extension).
+*	@note	Called when changing maps to apply map-specific material definitions.
+*			1. Clears previous map materials
+*			2. Loads new map's .mat file (maps/mapname.mat)
+*			3. Invalidates all wall materials so they reload with new overrides
+*	@note	Map materials override global materials for the same texture names.
+*			This allows per-map customization without modifying global definitions.
+*	@note	If any map materials exist (now or previously), ALL wall materials are
+*			invalidated to ensure consistent application of overrides.
+**/
 void MAT_ChangeMap(const char* map_name)
 {
-	// clear the old map-specific materials
+	// Clear the old map-specific materials.
 	uint32_t old_map_materials = num_map_materials;
 	if (num_map_materials > 0) {
 		memset(r_map_materials, 0, sizeof(pbr_material_t) * num_map_materials);
 	}
 
-	// load the new materials
+	// Load the new map's material overrides.
 	char map_name_no_ext[MAX_QPATH];
 	truncate_extension(map_name, map_name_no_ext);
 	char file_name[MAX_OSPATH];
@@ -757,8 +1170,9 @@ void MAT_ChangeMap(const char* map_name)
 		Com_Printf("Loaded %d materials from %s\n", num_map_materials, file_name);
 	}
 
-	// if there are any overrides now or there were some overrides before,
-	// unload all wall materials to re-initialize them with the overrides
+	// If there are any overrides now or there were some overrides before,
+	// unload all wall materials to re-initialize them with the overrides.
+	// This ensures that map-specific materials take effect consistently.
 	if (old_map_materials > 0 || num_map_materials > 0)
 	{
 		for (uint32_t i = 0; i < MAX_PBR_MATERIALS; i++)
@@ -767,15 +1181,37 @@ void MAT_ChangeMap(const char* map_name)
 
 			if (mat->registration_sequence && mat->image_type == IT_WALL)
 			{
-				// remove the material from the hash table
+				// Remove the material from the hash table.
 				List_Remove(&mat->entry);
 
-				// invalidate the material entry
+				// Invalidate the material entry (will be recreated on next use).
 				MAT_Reset(mat);
 			}
 		}
 	}
 }
+
+
+
+/**
+*
+*
+*
+*	Material Image Loading:
+*
+*
+*
+**/
+/**
+*	@brief	Loads a material's texture image with fallback logic for overrides.
+*	@param	image		Destination image pointer.
+*	@param	filename	Texture path to load.
+*	@param	mat			Material requesting the image (for flag inheritance).
+*	@param	type		Image type (IT_WALL, IT_SKIN, etc.).
+*	@param	flags		Image loading flags (IF_SRGB, IF_EXACT, etc.).
+*	@note	Special handling for "overrides/" textures: tries exact match first,
+*			then inexact match as fallback for cross-game compatibility.
+**/
 
 static void load_material_image(image_t** image, const char* filename, pbr_material_t* mat, imagetype_t type, imageflags_t flags)
 {
@@ -791,22 +1227,37 @@ static void load_material_image(image_t** image, const char* filename, pbr_mater
 	}
 }
 
+/**
+*	@brief	Checks if a game-specific texture is identical to the baseq2 version.
+*	@param	name	Texture file path.
+*	@return	True if game and base versions are byte-for-byte identical, false otherwise.
+*	@note	Some game mods (e.g., Rogue/Ground Zero) ship copies of baseq2 textures
+*			that are identical to the originals. This function detects such cases
+*			to allow baseq2 material definitions and overrides to apply.
+*	@note	Compares file sizes first (fast), then performs byte-by-byte comparison
+*			if sizes match. Returns false if files don't exist or differ.
+*	@note	Used during material lookup to decide whether to use baseq2 or game-specific
+*			material definitions when a texture exists in both directories.
+**/
 static qboolean game_image_identical_to_base(const char* name)
 {
 	/* Check if a game image is actually different from the base version,
 	   as some games (eg rogue) ship image assets that are identical to the
 	   baseq2 version.
 	   If that is the case, ignore the game image, and just use everything
-	   from baseq2, especially overides/other images. */
+	   from baseq2, especially overrides/other images. */
 	qboolean result = false;
 
+	// Open both baseq2 and game versions of the file.
 	qhandle_t base_file = -1, game_file = -1;
 	if((FS_OpenFile(name, &base_file, FS_MODE_READ | FS_PATH_BASE | FS_BUF_NONE) >= 0)
 		&& (FS_OpenFile(name, &game_file, FS_MODE_READ | FS_PATH_GAME | FS_BUF_NONE) >= 0))
 	{
+		// Quick check: compare file sizes first.
 		int64_t base_len = FS_Length(base_file), game_len = FS_Length(game_file);
 		if(base_len == game_len)
 		{
+			// Same size: perform byte-by-byte comparison.
 			char *base_data = FS_Malloc(base_len);
 			char *game_data = FS_Malloc(game_len);
 			if(FS_Read(base_data, base_len, base_file) >= 0
@@ -827,7 +1278,21 @@ static qboolean game_image_identical_to_base(const char* name)
 }
 
 /**
-*	@brief	Support routine for finding the base material texture.
+*	@brief	Loads the base/diffuse texture for a material with fallback logic.
+*	@param	mat		Material to load texture for.
+*	@param	name	Original texture name from BSP/model.
+*	@param	type	Image type (IT_WALL, IT_SKIN, etc.).
+*	@param	flags	Image loading flags.
+*	@note	Multi-step fallback logic:
+*			1. If filename_base specified in .mat file, try loading that (HD texture)
+*			2. If HD texture not found, fall back to original name (might be .wal)
+*			3. If all fails, use R_NOTEXTURE
+*	@note	Handles texture dimension detection:
+*			- For .wal/.pcx: Uses IMG_GetDimensions to get original size
+*			- For other formats (TGA/PNG/JPG): Uses actual image dimensions
+*			- Supports maps compiled without .wal files (ericw-tools)
+*	@note	original_width/original_height are critical for texture coordinate scaling
+*			in the BSP renderer to maintain correct appearance.
 **/
 void MAT_FindBaseTexture( pbr_material_t *mat, const char *name, imagetype_t type, imageflags_t flags ) {
 	char mat_name_no_ext[ MAX_QPATH ];
@@ -880,6 +1345,32 @@ void MAT_FindBaseTexture( pbr_material_t *mat, const char *name, imagetype_t typ
 	}
 }
 
+/**
+*	@brief	Finds or creates a material for the given texture name.
+*	@param	name	Texture name (e.g., "textures/base.tga" or "textures/base").
+*	@param	type	Image type (IT_WALL, IT_SKIN, IT_SPRITE, IT_PIC).
+*	@param	flags	Image loading flags (IF_SRGB, IF_EXACT, etc.).
+*	@return	Pointer to material (never NULL).
+*	@note	Material lookup algorithm:
+*			1. Check hash table for existing runtime material → return if found
+*			2. Allocate new runtime material slot
+*			3. Search for definition: check map materials → check global materials
+*			4. If definition found: copy properties, load textures
+*			5. If no definition: create auto-generated material with defaults
+*			6. Load associated textures: base, normals (_n.tga), emissive (_light.tga), mask (_m.tga)
+*			7. Synthesize emissive if synth_emissive flag enabled
+*			8. Add to hash table for fast future lookups
+*	@note	Material override priority:
+*			1. Map-specific materials (highest priority)
+*			2. Global materials
+*			3. Auto-generated defaults (lowest priority)
+*	@note	Game-specific asset handling:
+*			- Detects if game overrides baseq2 assets with different content
+*			- Ignores baseq2 material definitions for overridden game assets
+*			- Allows game-specific materials to take precedence
+*	@note	This function is called for every texture reference in the map and models.
+*			Performance is critical - uses hash table for O(1) average-case lookup.
+**/
 pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 {
 	char mat_name_no_ext[MAX_QPATH];
@@ -1046,6 +1537,26 @@ pbr_material_t* MAT_Find(const char* name, imagetype_t type, imageflags_t flags)
 	return mat;
 }
 
+
+
+/**
+*
+*
+*
+*	Material Registration and Cleanup:
+*
+*
+*
+**/
+/**
+*	@brief	Updates the registration sequence for a material and all its textures.
+*	@param	mat	Material to update (can be NULL).
+*	@note	The registration sequence is used to track which materials are actively
+*			used in the current frame/map. Materials with outdated registration
+*			sequences can be freed during cleanup.
+*	@note	Also updates registration for all associated images (base, normals,
+*			emissive, mask) to prevent premature texture freeing.
+**/
 void MAT_UpdateRegistration(pbr_material_t * mat)
 {
 	if (!mat)
@@ -1058,7 +1569,14 @@ void MAT_UpdateRegistration(pbr_material_t * mat)
 	if (mat->image_mask) mat->image_mask->registration_sequence = registration_sequence;
 }
 
-//
+/**
+*	@brief	Frees materials that are no longer in use.
+*	@return	Q_ERR_SUCCESS.
+*	@note	Called periodically to clean up materials from previous maps or unused textures.
+*			Frees materials whose registration_sequence doesn't match current sequence.
+*			Skips materials marked with IF_PERMANENT flag.
+*			Removes freed materials from hash table and resets their slots.
+**/
 int MAT_FreeUnused()
 {
 	for (uint32_t i = 0; i < MAX_PBR_MATERIALS; ++i)
@@ -1083,6 +1601,13 @@ int MAT_FreeUnused()
 	return Q_ERR_SUCCESS;
 }
 
+/**
+*	@brief	Retrieves a material by its index.
+*	@param	index	Material index (0 to MAX_PBR_MATERIALS-1).
+*	@return	Pointer to material if valid and registered, NULL otherwise.
+*	@note	Used to convert material indices (embedded in flags) back to pointers.
+*			Returns NULL if index is out of range or material is not registered.
+**/
 pbr_material_t* MAT_ForIndex(int index)
 {
 	if (index < 0 || index >= MAX_PBR_MATERIALS)
@@ -1095,6 +1620,16 @@ pbr_material_t* MAT_ForIndex(int index)
 	return mat;
 }
 
+/**
+*	@brief	Finds or creates a material for a model skin texture.
+*	@param	image_base	Base texture image for the skin.
+*	@return	Pointer to material for this skin (never NULL).
+*	@note	Called when rendering models to get the material for a skin texture.
+*			If the material already uses this skin image, returns it immediately.
+*			Otherwise, updates the material's base image and registration sequence.
+*	@note	Also updates registration sequence for all related textures (normals,
+*			emissive, mask) to keep them in sync with the skin.
+**/
 pbr_material_t* MAT_ForSkin(image_t* image_base)
 {
 	// find the material
@@ -1125,10 +1660,23 @@ pbr_material_t* MAT_ForSkin(image_t* image_base)
 	return mat;
 }
 
-//
-// prints material properties on the console
-//
 
+
+/**
+*
+*
+*
+*	Material Debug and Console Interface:
+*
+*
+*
+**/
+/**
+*	@brief	Prints all properties of a material to the console.
+*	@param	mat	Material to print.
+*	@note	Used by the "mat print" console command for debugging.
+*			Displays all material attributes in .mat file format.
+**/
 void MAT_Print(pbr_material_t const * mat)
 {
 	Com_Printf("%s:\n", mat->name);
@@ -1152,6 +1700,10 @@ void MAT_Print(pbr_material_t const * mat)
 	Com_Printf("    emissive_threshold %d\n", mat->emissive_threshold);
 }
 
+/**
+*	@brief	Prints help text for the "mat" console command.
+*	@note	Lists all available subcommands and their usage.
+**/
 static void material_command_help(void)
 {
 	Com_Printf("mat command - interface to the material system\n");
@@ -1167,6 +1719,18 @@ static void material_command_help(void)
 	Com_Printf("        use 'mat print' to list the available attributes\n");
 }
 
+/**
+*	@brief	Console command handler for "mat" command.
+*	@note	Provides runtime material editing and debugging capabilities:
+*			- "mat help": Print help text
+*			- "mat print": Display properties of material at crosshair
+*			- "mat which": Show source file and line number for material definition
+*			- "mat save <file> [all] [force]": Export materials to .mat file
+*			- "mat <attribute> <value>": Modify material attribute at crosshair
+*	@note	Some attribute changes trigger map reload (kind, is_light, masks).
+*			Some trigger emissive regeneration (synth_emissive, emissive_threshold).
+*	@note	Material at crosshair is identified via vkpt_refdef.fd->feedback.view_material_index.
+**/
 static void material_command(void)
 {
 	if (Cmd_Argc() < 2)
@@ -1280,6 +1844,16 @@ static void material_command(void)
 	}
 }
 
+/**
+*	@brief	Tab-completion handler for "mat" console command.
+*	@param	ctx		Completion context.
+*	@param	argnum	Current argument number being completed.
+*	@note	Provides intelligent completions:
+*			- Argument 1: Command names and attribute names
+*			- Argument 2: Context-specific options (save options, kind values, boolean values)
+*	@note	For "kind" attribute, suggests lowercase material kind names.
+*			For boolean attributes, suggests "0" and "1".
+**/
 static void material_completer(genctx_t* ctx, int argnum)
 {
 	if (argnum == 1) {
@@ -1348,29 +1922,88 @@ static void material_completer(genctx_t* ctx, int argnum)
 	}
 }
 
+
+
+/**
+*
+*
+*
+*	Material Kind Helpers:
+*
+*
+*
+**/
+/**
+*	@brief	Sets the material kind bits in a material flags value.
+*	@param	material	Current material flags.
+*	@param	kind		New material kind to set.
+*	@return	Updated material flags with new kind.
+*	@note	Preserves all non-kind flag bits.
+**/
 uint32_t MAT_SetKind(uint32_t material, uint32_t kind)
 {
 	return (material & ~MATERIAL_KIND_MASK) | kind;
 }
 
+/**
+*	@brief	Checks if a material is of a specific kind.
+*	@param	material	Material flags to test.
+*	@param	kind		Material kind to check for.
+*	@return	True if material matches the specified kind, false otherwise.
+**/
 bool MAT_IsKind(uint32_t material, uint32_t kind)
 {
 	return (material & MATERIAL_KIND_MASK) == kind;
 }
 
+
+
+/**
+*
+*
+*
+*	Emissive Texture Synthesis:
+*
+*
+*
+**/
+/**
+*	@brief	Generates a fake emissive texture from the diffuse texture.
+*	@param	diffuse				Base diffuse texture to analyze.
+*	@param	bright_threshold_int	Brightness threshold (0-255) for emissive detection.
+*	@return	Emissive texture image, or NULL if generation disabled.
+*	@note	Algorithm selection via cvar_pt_surface_lights_fake_emissive_algo:
+*			- 0: Use diffuse texture directly (full image is emissive)
+*			- 1: Generate filtered mask of bright pixels only
+*			- Other: Disable synthetic emissive
+*	@note	Used to automatically create emissive maps for bright surfaces without
+*			explicit emissive textures (e.g., light panels, glowing signs).
+**/
 static image_t* get_fake_emissive_image(image_t* diffuse, int bright_threshold_int)
 {
 	switch(cvar_pt_surface_lights_fake_emissive_algo->integer)
 	{
 	case 0:
+		// Use diffuse directly: entire surface glows with diffuse colors.
 		return diffuse;
 	case 1:
+		// Generate bright-pixel mask: only bright areas glow.
 		return vkpt_fake_emissive_texture(diffuse, bright_threshold_int);
 	default:
+		// Disabled: no synthetic emissive.
 		return NULL;
 	}
 }
 
+/**
+*	@brief	Creates a synthetic emissive texture for a material if needed.
+*	@param	mat	Material to synthesize emissive for.
+*	@note	Only creates emissive if mat->image_emissive is NULL.
+*			Sets mat->synth_emissive flag to indicate synthetic origin.
+*			Extracts emissive texture metadata for lighting calculations.
+*	@note	Used for materials with synth_emissive flag enabled but no explicit
+*			emissive texture. Common for bright surfaces like lights and monitors.
+**/
 void MAT_SynthesizeEmissive(pbr_material_t * mat)
 {
 	if (!mat->image_emissive) {
@@ -1383,6 +2016,13 @@ void MAT_SynthesizeEmissive(pbr_material_t * mat)
 	}
 }
 
+/**
+*	@brief	Checks if a material kind represents a transparent surface.
+*	@param	material	Material flags to test.
+*	@return	True if material is transparent (slime, water, glass, etc.).
+*	@note	Transparent materials require special rendering (alpha blending, refraction).
+*			Used to classify geometry for rendering pipeline selection.
+**/
 bool MAT_IsTransparent(uint32_t material)
 {
 	return MAT_IsKind(material, MATERIAL_KIND_SLIME)
@@ -1392,6 +2032,14 @@ bool MAT_IsTransparent(uint32_t material)
 		|| MAT_IsKind(material, MATERIAL_KIND_TRANSP_MODEL);
 }
 
+/**
+*	@brief	Checks if a material uses alpha masking (cutout transparency).
+*	@param	material	Material flags/index to test.
+*	@return	True if material has a mask texture assigned.
+*	@note	Masked materials use binary transparency (fully opaque or fully transparent).
+*			Different from alpha-blended transparency (smooth transitions).
+*	@note	Used for foliage, chain-link fences, and other cutout geometry.
+**/
 bool MAT_IsMasked(uint32_t material)
 {
 	const pbr_material_t* mat = MAT_ForIndex((int)(material & MATERIAL_INDEX_MASK));
