@@ -1,3 +1,36 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: AMD FidelityFX Super Resolution (FSR)
+*
+*	Implements AMD's FidelityFX Super Resolution 1.0 for high-quality
+*	upscaling from lower resolution input to higher resolution output.
+*	FSR combines an edge-adaptive spatial upsampling algorithm (EASU)
+*	with robust contrast adaptive sharpening (RCAS) to produce visually
+*	appealing results.
+*
+*	Pipeline:
+*	1. Input: TAA output (tone-mapped, sRGB, pre-antialiased, no HUD)
+*	2. EASU Pass: Edge Adaptive Spatial Upsampling to target resolution
+*	3. RCAS Pass: Robust Contrast Adaptive Sharpening for image clarity
+*
+*	Implementation Details:
+*	- Dual shader variants: FP16 (optimal performance) and FP32 (compatibility)
+*	- FP16 recommended for best performance on supported hardware
+*	- FP32 fallback for GTX 10 series and older GPUs without FP16 support
+*	- Shaders include AMD's official FSR headers (shader/fsr_* and fsr/)
+*
+*	Configuration (cvars):
+*	- flt_fsr_enable:     Enable/disable FSR (0 = off, 1 = on)
+*	- flt_fsr_sharpness:  Sharpness control [0.0, 2.0], default 0.2
+*	- flt_fsr_easu:       Toggle EASU pass (testing only)
+*	- flt_fsr_rcas:       Toggle RCAS pass (testing only)
+*
+*	Reference:
+*	https://gpuopen.com/fidelityfx-superresolution/
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
@@ -20,61 +53,12 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "vkpt.h"
 
-/*
-	FidelityFX Super Resolution 1.0 ("FSR") implementation overview
-	===============================================================
-
-	FSR is a combination of an upscaling and a sharpening algorithm to produce
-	high-resolution output - of high quality and visually appealing -
-	from lower resolution input.
-
-	The input to FSR is the rendered image, in perceptual color space
-	(after tone mapping, sRGB), pre-antialiased, without HUD elements.
-	In our case the output from TAA fits this nicely.
-
-	Step 1 is upscaling the input image to the output resolution
-	using the EASU ("Edge Adaptive Spatial Upsampling") algorithm.
-	This is implemented in the "fsr_easu" shader.
-	Shader inputs are various render dimensions, found in the global 'qvk'
-	structure.
-
-	Step 2 is sharpening the image using the RCAS
-	("Robust Contrast Adaptive Sharpening") algorithm.
-	This is implemented in the "fsr_rcas" shader.
-	Shader input is a "sharpness" value controlled by a cvar.
-
-	For more details see the official documentation:
-	https://gpuopen.com/fidelityfx-superresolution/
-
-	Q2RTX cvars
-	-----------
-	* flt_fsr_enable - 0 = disable FSR, 1 = enable FSR.
-	* flt_fsr_sharpness - float in the range [0,2]
-		Default is 0.2, a recommendation from the docs.
-	* flt_fsr_easu, flt_fsr_rcas - individual toggles for EASU and
-	  RCAS steps.
-	  The official docs ask nicely to only call it FSR when
-	  both EASU and RCAS are used, so these options are not
-	  exposed via the settings UI. These cvars are mainly provided
-	  for testing purposes.
-
-	Q2RTX FSR shaders
-	-----------------
-	* Shader sources are the shader/fsr_* files, which in turn include
-	  the headers in fsr/. Those headers actually contain the bulk of
-	  the implementation (and are used from both C and GLSL).
-	* Shaders are compiled to FP16 and FP32 variants. FP16 is recommended
-	  for best performance. However, there's actually hardware that can
-	  run Q2RTX but doesn't have FP16 shader support (GTX 10 series),
-	  so FP32 versions are provided for compatibility.
-
- */
-
 #if defined(__GNUC__)
-// FSR headers define a lot of functions that aren't used
+// FSR headers define many functions that aren't used in this TU.
 #pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 
+// Include AMD FSR implementation headers.
 #define A_CPU
 #include "fsr/ffx_a.h"
 #include "fsr/ffx_fsr1.h"

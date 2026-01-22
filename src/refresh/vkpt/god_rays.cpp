@@ -1,3 +1,35 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: God Rays (Volumetric Light Scattering)
+*
+*	Implements atmospheric light scattering effects (god rays/crepuscular rays)
+*	by simulating light traveling through a participating medium. Creates
+*	visible light shafts emanating from bright light sources (typically the sun).
+*
+*	Algorithm:
+*	- Screen-space ray marching from each pixel toward light source
+*	- Accumulates scattered light along the ray path
+*	- Uses shadow map to determine occlusion
+*	- Applies eccentricity-based phase function for directional scattering
+*
+*	Pipeline:
+*	1. Trace rays: March from pixel to sun, sampling shadow map
+*	2. Filter pass: Bilateral filter to reduce noise and improve quality
+*	3. Composite: Blend god rays with scene radiance
+*
+*	Configuration (cvars):
+*	- gr_enable:       Enable/disable god rays (0 = off, 1 = on)
+*	- gr_intensity:    Brightness multiplier (default 2.0)
+*	- gr_eccentricity: Phase function parameter [0.0, 1.0] (default 0.75)
+*	                   Controls how forward/backward scattering behaves
+*
+*	Performance:
+*	- Uses 16x16 thread groups for optimal GPU occupancy
+*	- Two pipeline variants for different quality/performance tradeoffs
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
 
@@ -20,63 +52,146 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "vkpt.h"
 #include "vk_util.h"
 
+
+
+/**
+*
+*
+*
+*	Module Configuration:
+*
+*
+*
+**/
+//! Thread group size for god rays compute shader.
 static const uint32_t THREAD_GROUP_SIZE = 16;
+//! Thread group size for bilateral filter pass.
 static const uint32_t FILTER_THREAD_GROUP_SIZE = 16;
 
-struct
-{
+
+
+/**
+*
+*
+*
+*	Module State:
+*
+*
+*
+**/
+//! God rays module state and resources.
+struct {
+	//! Compute pipelines for ray tracing and filtering.
 	VkPipeline pipelines[2];
+	//! Pipeline layout for god rays shaders.
 	VkPipelineLayout pipeline_layout;
+	//! Descriptor set layout for shader resources.
 	VkDescriptorSetLayout descriptor_set_layout;
 
+	//! Descriptor pool for allocating descriptor sets.
 	VkDescriptorPool descriptor_pool;
+	//! Descriptor set binding shader resources.
 	VkDescriptorSet descriptor_set;
 
+	//! Image view of shadow map for occlusion queries.
 	VkImageView shadow_image_view;
+	//! Sampler for shadow map reads.
 	VkSampler shadow_sampler;
 
+	//! Intensity multiplier cvar.
 	cvar_t* intensity;
+	//! Scattering eccentricity cvar.
 	cvar_t* eccentricity;
+	//! Enable/disable toggle cvar.
 	cvar_t* enable;
 } god_rays;
 
-static void create_image_views(void);
-static void create_pipeline_layout(void);
-static void create_pipelines(void);
-static void create_descriptor_set(void);
-static void update_descriptor_set(void);
+
+
+/**
+*
+*
+*
+*	Forward Declarations:
+*
+*
+*
+**/
+static void create_image_views( void );
+static void create_pipeline_layout( void );
+static void create_pipelines( void );
+static void create_descriptor_set( void );
+static void update_descriptor_set( void );
 
 extern cvar_t *physical_sky_space;
 
-VkResult vkpt_initialize_god_rays(void)
-{
-	memset(&god_rays, 0, sizeof(god_rays));
+
+
+/**
+*
+*
+*
+*	Initialization & Shutdown:
+*
+*
+*
+**/
+/**
+*	@brief	Initializes the god rays system.
+*	@return	VK_SUCCESS on success.
+*	@note	Creates cvars for user configuration and queries device properties.
+*			Pipeline and descriptor resources are created separately in
+*			vkpt_god_rays_create_pipelines().
+**/
+VkResult vkpt_initialize_god_rays( void ) {
+	memset( &god_rays, 0, sizeof( god_rays ) );
 
 	VkPhysicalDeviceProperties properties;
-	vkGetPhysicalDeviceProperties(qvk.physical_device, &properties);
+	vkGetPhysicalDeviceProperties( qvk.physical_device, &properties );
 
-	god_rays.intensity = Cvar_Get("gr_intensity", "2.0", 0);
-	god_rays.eccentricity = Cvar_Get("gr_eccentricity", "0.75", 0);
-	god_rays.enable = Cvar_Get("gr_enable", "1", 0);
-
-	return VK_SUCCESS;
-}
-
-VkResult vkpt_destroy_god_rays(void)
-{
-	vkDestroySampler(qvk.device, god_rays.shadow_sampler, NULL);
-	vkDestroyDescriptorPool(qvk.device, god_rays.descriptor_pool, NULL);
+	// Create configuration cvars.
+	god_rays.intensity = Cvar_Get( "gr_intensity", "2.0", 0 );
+	god_rays.eccentricity = Cvar_Get( "gr_eccentricity", "0.75", 0 );
+	god_rays.enable = Cvar_Get( "gr_enable", "1", 0 );
 
 	return VK_SUCCESS;
 }
 
-VkResult vkpt_god_rays_create_pipelines(void)
-{
+/**
+*	@brief	Destroys god rays resources.
+*	@return	VK_SUCCESS on success.
+*	@note	Cleans up Vulkan resources. Called during renderer shutdown.
+**/
+VkResult vkpt_destroy_god_rays( void ) {
+	vkDestroySampler( qvk.device, god_rays.shadow_sampler, NULL );
+	vkDestroyDescriptorPool( qvk.device, god_rays.descriptor_pool, NULL );
+
+	return VK_SUCCESS;
+}
+
+
+
+/**
+*
+*
+*
+*	Pipeline Management:
+*
+*
+*
+**/
+/**
+*	@brief	Creates god rays compute pipelines and descriptor sets.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Called during initialization and shader reloads. Creates pipeline layout,
+*			compiles shaders, allocates descriptor sets, and updates bindings.
+**/
+VkResult vkpt_god_rays_create_pipelines( void ) {
 	create_pipeline_layout();
 	create_pipelines();
 	create_descriptor_set();
 	
-	// this is a noop outside a shader reload
+	// Update descriptor set (noop outside shader reload).
 	update_descriptor_set();
 
 	return VK_SUCCESS;
