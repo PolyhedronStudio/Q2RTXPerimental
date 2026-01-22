@@ -1,3 +1,46 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Vulkan Utility Functions
+*
+*	Provides fundamental Vulkan resource management and helper functions
+*	for the path tracing renderer. Handles buffer allocation, memory
+*	management, format conversions, and utility operations.
+*
+*	Core Functionality:
+*	- Buffer Resource Management: Creation, destruction, mapping/unmapping
+*	- Memory Type Selection: Finds appropriate memory heaps for allocations
+*	- Device Address Queries: Retrieves buffer device addresses for shaders
+*	- Format Utilities: String conversion for Vulkan formats
+*	- Result Code Translation: Human-readable Vulkan error messages
+*	- File I/O: PFM file export for debugging and validation
+*
+*	Buffer Management:
+*	- Supports device-local and host-visible memory
+*	- Automatic memory type selection based on usage flags
+*	- Shader device address support for raytracing
+*	- Multi-GPU device group support
+*
+*	Memory Allocation Strategy:
+*	- Uses Vulkan memory property flags to find suitable heaps
+*	- Supports device-local GPU memory for performance
+*	- Supports host-visible memory for CPU updates
+*	- Handles device address allocation for acceleration structures
+*
+*	Features:
+*	- String parsing utilities (sgets)
+*	- Half-float to float conversion
+*	- Comprehensive format-to-string mapping
+*	- VkResult error code translation
+*	- PFM file export for HDR debugging
+*
+*	Performance:
+*	- Minimal overhead buffer operations
+*	- Efficient memory type queries
+*	- Direct memory mapping without staging
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
@@ -23,49 +66,113 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <assert.h>
 
-char * sgets(char * str, int num, char const ** input)
+
+
+/**
+*
+*
+*
+*	String Utilities:
+*
+*
+*
+**/
+/**
+*	@brief	Reads a line from a string buffer (string version of fgets).
+*	@param	str		Output buffer for the line.
+*	@param	num		Maximum number of characters to read (including null terminator).
+*	@param	input	Pointer to input string pointer (updated after reading).
+*	@return	Pointer to str on success, NULL on end-of-string.
+*	@note	Stops at newline or after num-1 characters. Updates *input to point past the line read.
+**/
+char * sgets( char * str, int num, char const ** input )
 {
     char const *next = *input;
     int  numread = 0;
-    while (numread + 1 < num && *next) {
-        int isnewline = (*next == '\n');
+    
+    // Read characters until newline or buffer limit.
+    while ( numread + 1 < num && *next ) {
+        int isnewline = ( *next == '\n' );
         *str++ = *next++;
         numread++;
-        if (isnewline)
+        if ( isnewline )
             break;
     }
-    if (numread == 0)
-        return NULL;  // "eof"
+    
+    if ( numread == 0 )
+        return NULL;  // End of string.
+        
     *str = '\0';
     *input = next;
     return str;
 }
 
+
+
+/**
+*
+*
+*
+*	Memory Management:
+*
+*
+*
+**/
+/**
+*	@brief	Finds a suitable memory type index based on requirements and properties.
+*	@param	mem_req_type_bits	Bitmask of acceptable memory types from requirements.
+*	@param	mem_prop			Desired memory property flags.
+*	@return	Memory type index suitable for allocation, or 0 if none found.
+*	@note	Searches physical device memory types for one matching all requested properties.
+*			Prints warning if no suitable type is found.
+**/
 uint32_t
-get_memory_type(uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop)
+get_memory_type( uint32_t mem_req_type_bits, VkMemoryPropertyFlags mem_prop )
 {
-	for(uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++) {
-		if(mem_req_type_bits & (1 << i)) {
-			if((qvk.mem_properties.memoryTypes[i].propertyFlags & mem_prop) == mem_prop)
+	for ( uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++ ) {
+		if ( mem_req_type_bits & ( 1 << i ) ) {
+			if ( ( qvk.mem_properties.memoryTypes[i].propertyFlags & mem_prop ) == mem_prop )
 				return i;
 		}
 	}
 
-	Com_WPrintf("get_memory_type: cannot find a memory type with propertyFlags = 0x%x\n", mem_prop);
+	Com_WPrintf( "get_memory_type: cannot find a memory type with propertyFlags = 0x%x\n", mem_prop );
 	return 0;
 }
 
+
+/**
+*
+*
+*
+*	Buffer Resource Management:
+*
+*
+*
+**/
+/**
+*	@brief	Creates a Vulkan buffer with associated device memory.
+*	@param	buf				Output buffer resource structure.
+*	@param	size			Size of buffer in bytes (must be > 0).
+*	@param	usage			Buffer usage flags (e.g., vertex, index, uniform, storage).
+*	@param	mem_properties	Memory property flags (e.g., device-local, host-visible).
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Allocates device memory, binds it to the buffer, and optionally retrieves
+*			the buffer device address for raytracing. Supports multi-GPU device groups.
+*			Caller must call buffer_destroy() to free resources.
+**/
 VkResult
 buffer_create(
 		BufferResource_t *buf,
 		VkDeviceSize size, 
 		VkBufferUsageFlags usage,
-		VkMemoryPropertyFlags mem_properties)
+		VkMemoryPropertyFlags mem_properties )
 {
-	assert(size > 0);
-	assert(buf);
+	assert( size > 0 );
+	assert( buf );
 	VkResult result = VK_SUCCESS;
 
+	// Create buffer object.
 	VkBufferCreateInfo buf_create_info = {
 		.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 		.size  = size,
@@ -78,64 +185,68 @@ buffer_create(
 	buf->size = size;
 	buf->is_mapped = 0;
 
-	result = vkCreateBuffer(qvk.device, &buf_create_info, NULL, &buf->buffer);
-	if(result != VK_SUCCESS) {
+	result = vkCreateBuffer( qvk.device, &buf_create_info, NULL, &buf->buffer );
+	if ( result != VK_SUCCESS ) {
 		goto fail_buffer;
 	}
-	assert(buf->buffer != VK_NULL_HANDLE);
+	assert( buf->buffer != VK_NULL_HANDLE );
 
+	// Query memory requirements for the buffer.
 	VkMemoryRequirements mem_reqs;
-	vkGetBufferMemoryRequirements(qvk.device, buf->buffer, &mem_reqs);
+	vkGetBufferMemoryRequirements( qvk.device, buf->buffer, &mem_reqs );
 
+	// Allocate device memory with appropriate flags.
 	VkMemoryAllocateInfo mem_alloc_info = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 		.allocationSize = mem_reqs.size,
-		.memoryTypeIndex = get_memory_type(mem_reqs.memoryTypeBits, mem_properties)
+		.memoryTypeIndex = get_memory_type( mem_reqs.memoryTypeBits, mem_properties )
 	};
 
+	// Configure allocation flags for device address and multi-GPU support.
 	VkMemoryAllocateFlagsInfo mem_alloc_flags = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
-		.flags = (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT) ? VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT : 0,
+		.flags = ( usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT ) ? VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT : 0,
 		.deviceMask = 0
 	};
 
 #ifdef VKPT_DEVICE_GROUPS
-	if (qvk.device_count > 1 && !(mem_properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)) {
+	// For multi-GPU setups, allocate memory visible to all devices.
+	if ( qvk.device_count > 1 && !( mem_properties & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT ) ) {
 		mem_alloc_flags.flags |= VK_MEMORY_ALLOCATE_DEVICE_MASK_BIT;
-		mem_alloc_flags.deviceMask = (1 << qvk.device_count) - 1;
+		mem_alloc_flags.deviceMask = ( 1 << qvk.device_count ) - 1;
 	}
 #endif
 
 	mem_alloc_info.pNext = &mem_alloc_flags;
 
-	result = vkAllocateMemory(qvk.device, &mem_alloc_info, NULL, &buf->memory);
-	if(result != VK_SUCCESS) {
+	result = vkAllocateMemory( qvk.device, &mem_alloc_info, NULL, &buf->memory );
+	if ( result != VK_SUCCESS ) {
 		goto fail_mem_alloc;
 	}
 
-	assert(buf->memory != VK_NULL_HANDLE);
+	assert( buf->memory != VK_NULL_HANDLE );
 
-	result = vkBindBufferMemory(qvk.device, buf->buffer, buf->memory, 0);
-	if(result != VK_SUCCESS) {
+	// Bind memory to buffer.
+	result = vkBindBufferMemory( qvk.device, buf->buffer, buf->memory, 0 );
+	if ( result != VK_SUCCESS ) {
 		goto fail_bind_buf_memory;
 	}
 
-	if (usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
-	{
-		buf->address = get_buffer_device_address(buf->buffer);
-		assert(buf->address);
+	// Retrieve device address if requested (for raytracing).
+	if ( usage & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT ) {
+		buf->address = get_buffer_device_address( buf->buffer );
+		assert( buf->address );
 	}
-	else
-	{
+	else {
 		buf->address = 0;
 	}
 
 	return VK_SUCCESS;
 
 fail_bind_buf_memory:
-	vkFreeMemory(qvk.device, buf->memory, NULL);
+	vkFreeMemory( qvk.device, buf->memory, NULL );
 fail_mem_alloc:
-	vkDestroyBuffer(qvk.device, buf->buffer, NULL);
+	vkDestroyBuffer( qvk.device, buf->buffer, NULL );
 fail_buffer:
 	buf->buffer = VK_NULL_HANDLE;
 	buf->memory = VK_NULL_HANDLE;
@@ -143,14 +254,20 @@ fail_buffer:
 	return result;
 }
 
+/**
+*	@brief	Destroys a buffer resource and frees its device memory.
+*	@param	buf		Buffer resource to destroy.
+*	@return	VK_SUCCESS on success.
+*	@note	Buffer must not be mapped when destroyed. Resets all fields to null/zero.
+**/
 VkResult
-buffer_destroy(BufferResource_t *buf)
+buffer_destroy( BufferResource_t *buf )
 {
-	assert(!buf->is_mapped);
-	if (buf->buffer != VK_NULL_HANDLE)
-		vkDestroyBuffer(qvk.device, buf->buffer, NULL);
-	if(buf->memory != VK_NULL_HANDLE)
-		vkFreeMemory(qvk.device, buf->memory, NULL);
+	assert( !buf->is_mapped );
+	if ( buf->buffer != VK_NULL_HANDLE )
+		vkDestroyBuffer( qvk.device, buf->buffer, NULL );
+	if ( buf->memory != VK_NULL_HANDLE )
+		vkFreeMemory( qvk.device, buf->memory, NULL );
 	buf->buffer = VK_NULL_HANDLE;
 	buf->memory = VK_NULL_HANDLE;
 	buf->size   = 0;
@@ -159,41 +276,76 @@ buffer_destroy(BufferResource_t *buf)
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Maps buffer memory to CPU address space for read/write access.
+*	@param	buf		Buffer resource to map.
+*	@return	Pointer to mapped memory region.
+*	@note	Buffer memory must be host-visible. Must call buffer_unmap() when done.
+*			Only one mapping per buffer is allowed at a time.
+**/
 void *
-buffer_map(BufferResource_t *buf)
+buffer_map( BufferResource_t *buf )
 {
-	assert(!buf->is_mapped);
+	assert( !buf->is_mapped );
 	buf->is_mapped = 1;
 	void *ret = NULL;
-	assert(buf->memory != VK_NULL_HANDLE);
-	assert(buf->size > 0);
-	_VK(vkMapMemory(qvk.device, buf->memory, 0 /*offset*/, buf->size, 0 /*flags*/, &ret));
+	assert( buf->memory != VK_NULL_HANDLE );
+	assert( buf->size > 0 );
+	_VK( vkMapMemory( qvk.device, buf->memory, 0 /*offset*/, buf->size, 0 /*flags*/, &ret ) );
 	return ret;
 }
 
+/**
+*	@brief	Unmaps previously mapped buffer memory.
+*	@param	buf		Buffer resource to unmap.
+*	@note	Buffer must be currently mapped before calling this function.
+**/
 void
-buffer_unmap(BufferResource_t *buf)
+buffer_unmap( BufferResource_t *buf )
 {
-	assert(buf->is_mapped);
+	assert( buf->is_mapped );
 	buf->is_mapped = 0;
-	vkUnmapMemory(qvk.device, buf->memory);
+	vkUnmapMemory( qvk.device, buf->memory );
 }
 
+/**
+*	@brief	Retrieves the device address of a buffer for shader access.
+*	@param	buffer	Vulkan buffer handle.
+*	@return	Device address usable in shaders (e.g., for raytracing).
+*	@note	Buffer must have been created with VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT.
+**/
 VkDeviceAddress
-get_buffer_device_address(VkBuffer buffer)
+get_buffer_device_address( VkBuffer buffer )
 {
 	VkBufferDeviceAddressInfo address_info = {
 	  .sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO,
 	  .buffer = buffer
 	};
 
-	return qvkGetBufferDeviceAddress(qvk.device, &address_info);
+	return qvkGetBufferDeviceAddress( qvk.device, &address_info );
 }
 
+
+
+/**
+*
+*
+*
+*	Format Utilities:
+*
+*
+*
+**/
+/**
+*	@brief	Converts a Vulkan format enum to its string name.
+*	@param	format	Vulkan format enum value.
+*	@return	String name of the format, or "UNDEFINED" for unknown formats.
+*	@note	Useful for debugging and logging. Covers all standard Vulkan formats.
+**/
 const char *
-qvk_format_to_string(VkFormat format)
+qvk_format_to_string( VkFormat format )
 {
-	switch(format) {
+	switch ( format ) {
 	case  0: return "UNDEFINED";
 	case  1: return "R4G4_UNORM_PACK8";
 	case  2: return "R4G4B4A4_UNORM_PACK16";
@@ -426,47 +578,99 @@ qvk_format_to_string(VkFormat format)
 	return "";
 }
 
-VkResult allocate_gpu_memory(VkMemoryRequirements mem_req, VkDeviceMemory* pMemory)
+
+
+/**
+*
+*
+*
+*	GPU Memory Allocation:
+*
+*
+*
+**/
+/**
+*	@brief	Allocates device-local GPU memory for images and buffers.
+*	@param	mem_req		Memory requirements (size and type bits).
+*	@param	pMemory		Output device memory handle.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Always allocates device-local memory. For multi-GPU setups,
+*			memory is visible to all devices in the device group.
+**/
+VkResult allocate_gpu_memory( VkMemoryRequirements mem_req, VkDeviceMemory* pMemory )
 {
 	VkMemoryAllocateInfo mem_alloc_info = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 		.allocationSize = mem_req.size,
-		.memoryTypeIndex = get_memory_type(mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT)
+		.memoryTypeIndex = get_memory_type( mem_req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT )
 	};
 
 #ifdef VKPT_DEVICE_GROUPS
 	VkMemoryAllocateFlagsInfo mem_alloc_flags = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
 		.flags = VK_MEMORY_ALLOCATE_DEVICE_MASK_BIT,
-		.deviceMask = (1 << qvk.device_count) - 1
+		.deviceMask = ( 1 << qvk.device_count ) - 1
 	};
 
-	if (qvk.device_count > 1) {
+	if ( qvk.device_count > 1 ) {
 		mem_alloc_info.pNext = &mem_alloc_flags;
 	}
 #endif
 
-	return vkAllocateMemory(qvk.device, &mem_alloc_info, NULL, pMemory);
+	return vkAllocateMemory( qvk.device, &mem_alloc_info, NULL, pMemory );
 
 }
 
-void set_current_gpu(VkCommandBuffer cmd_buf, int gpu_index)
+
+
+/**
+*
+*
+*
+*	Multi-GPU Support:
+*
+*
+*
+**/
+/**
+*	@brief	Sets the active GPU for subsequent commands in a device group.
+*	@param	cmd_buf		Command buffer to set device mask on.
+*	@param	gpu_index	GPU index (0-N), or ALL_GPUS for all devices.
+*	@note	Only active when VKPT_DEVICE_GROUPS is defined and device_count > 1.
+*			Commands after this will execute only on the specified GPU(s).
+**/
+void set_current_gpu( VkCommandBuffer cmd_buf, int gpu_index )
 {
 #ifdef VKPT_DEVICE_GROUPS
-	if (qvk.device_count > 1)
-	{
-		if(gpu_index == ALL_GPUS)
-			vkCmdSetDeviceMask(cmd_buf, (1 << qvk.device_count) - 1);
+	if ( qvk.device_count > 1 ) {
+		if ( gpu_index == ALL_GPUS )
+			vkCmdSetDeviceMask( cmd_buf, ( 1 << qvk.device_count ) - 1 );
 		else
-			vkCmdSetDeviceMask(cmd_buf, 1 << gpu_index);
+			vkCmdSetDeviceMask( cmd_buf, 1 << gpu_index );
 	}
 #endif
 }
 
-const char *qvk_result_to_string(VkResult result)
+
+
+/**
+*
+*
+*
+*	Error Code Translation:
+*
+*
+*
+**/
+/**
+*	@brief	Converts a Vulkan result code to its string name.
+*	@param	result	Vulkan result code.
+*	@return	String name of the result code.
+*	@note	Useful for error logging and debugging. Covers all standard result codes.
+**/
+const char *qvk_result_to_string( VkResult result )
 {
-	switch ((int)result)
-	{
+	switch ( ( int )result ) {
 	case VK_SUCCESS:
 		return "VK_SUCCESS";
 	case VK_NOT_READY:
@@ -528,117 +732,150 @@ const char *qvk_result_to_string(VkResult result)
 	}
 
 	static char buffer[16];
-	Q_snprintf(buffer, sizeof(buffer), "(%d)", (int)result);
+	Q_snprintf( buffer, sizeof( buffer ), "(%d)", ( int )result );
 	return buffer;
 }
 
-#ifdef VKPT_IMAGE_DUMPS
-float convert_half_to_float(uint16_t Value)
-{
-	uint32_t Mantissa = (uint32_t)(Value & 0x03FF);
 
-	uint32_t Exponent = (Value & 0x7C00);
-	if (Exponent == 0x7C00) // INF/NAN
-	{
-		Exponent = (uint32_t)0x8f;
+
+#ifdef VKPT_IMAGE_DUMPS
+/**
+*
+*
+*
+*	Data Conversion Utilities:
+*
+*
+*
+**/
+/**
+*	@brief	Converts a 16-bit IEEE half-precision float to 32-bit float.
+*	@param	Value	Half-precision float value (16-bit).
+*	@return	Equivalent 32-bit float value.
+*	@note	Handles normalized values, denormalized values, and INF/NaN.
+*			Used for image dump functionality when VKPT_IMAGE_DUMPS is defined.
+**/
+float convert_half_to_float( uint16_t Value )
+{
+	uint32_t Mantissa = ( uint32_t )( Value & 0x03FF );
+
+	// Extract and process exponent.
+	uint32_t Exponent = ( Value & 0x7C00 );
+	if ( Exponent == 0x7C00 ) {  // INF/NaN
+		Exponent = ( uint32_t )0x8f;
 	}
-	else if (Exponent != 0)  // The value is normalized
-	{
-		Exponent = (uint32_t)((Value >> 10) & 0x1F);
+	else if ( Exponent != 0 ) {  // Normalized value
+		Exponent = ( uint32_t )( ( Value >> 10 ) & 0x1F );
 	}
-	else if (Mantissa != 0)     // The value is denormalized
-	{
-		// Normalize the value in the resulting float
+	else if ( Mantissa != 0 ) {  // Denormalized value
+		// Normalize the value in the resulting float.
 		Exponent = 1;
 
-		do
-		{
+		do {
 			Exponent--;
 			Mantissa <<= 1;
-		} while ((Mantissa & 0x0400) == 0);
+		} while ( ( Mantissa & 0x0400 ) == 0 );
 
 		Mantissa &= 0x03FF;
 	}
-	else                        // The value is zero
-	{
-		Exponent = (uint32_t)-112;
+	else {  // Zero
+		Exponent = ( uint32_t )-112;
 	}
 
-	uint32_t Result = ((Value & 0x8000) << 16) | // Sign
-		((Exponent + 112) << 23) | // Exponent
-		(Mantissa << 13);          // Mantissa
+	// Construct 32-bit float from components.
+	uint32_t Result = ( ( Value & 0x8000 ) << 16 ) | // Sign
+		( ( Exponent + 112 ) << 23 ) | // Exponent
+		( Mantissa << 13 );          // Mantissa
 
-	float* res = (float*)(&Result);
+	float* res = ( float* )( &Result );
 	return res[0];
 }
 
-void save_to_pfm_file(char* prefix, uint64_t frame_counter, uint64_t width, uint64_t height, char* data, uint64_t rowPitch, int32_t type)
+
+
+/**
+*
+*
+*
+*	File I/O - PFM Export:
+*
+*
+*
+**/
+/**
+*	@brief	Saves image data to a Portable Float Map (PFM) file for debugging.
+*	@param	prefix			Filename prefix (e.g., "output").
+*	@param	frame_counter	Frame number (appended to filename).
+*	@param	width			Image width in pixels.
+*	@param	height			Image height in pixels.
+*	@param	data			Pointer to image data.
+*	@param	rowPitch		Row pitch in bytes.
+*	@param	type			Data type: 0 for R32G32B32A32_SFLOAT, 1 for R16G16B16A16_SFLOAT.
+*	@note	Creates files named "{prefix}_{frame}.pfm". Only RGB channels are exported.
+*			Frame 0 is skipped (no file created).
+**/
+void save_to_pfm_file( char* prefix, uint64_t frame_counter, uint64_t width, uint64_t height, char* data, uint64_t rowPitch, int32_t type )
 {
-	if (frame_counter == 0) return;
+	if ( frame_counter == 0 ) return;
 
+	// Generate filename with frame number.
 	char fileName[128];
-	sprintf(fileName, "%s_%04llu.pfm", prefix, frame_counter);
+	sprintf( fileName, "%s_%04llu.pfm", prefix, frame_counter );
 
-	FILE* file = fopen(fileName, "wb");
-	if (file)
-	{
+	FILE* file = fopen( fileName, "wb" );
+	if ( file ) {
+		// Write PFM header.
 		{
 			char* buf = "PF\n";
-			fwrite(buf, 1, strlen(buf), file);
+			fwrite( buf, 1, strlen( buf ), file );
 		}
 		{
 			char resolutionData[256];
-			sprintf(resolutionData, "%llu %llu\n", width, height);
-			fwrite(resolutionData, 1, strlen(resolutionData), file);
+			sprintf( resolutionData, "%llu %llu\n", width, height );
+			fwrite( resolutionData, 1, strlen( resolutionData ), file );
 		}
 		{
 			char* buf = "-1.0\n";
-			fwrite(buf, 1, strlen(buf), file);
+			fwrite( buf, 1, strlen( buf ), file );
 		}
 
-		size_t pixelDataSize = width * height * 3 * sizeof(float);
-		float* pixelData = (float*)malloc(pixelDataSize);
-		memset(pixelData, 0, pixelDataSize);
+		// Allocate temporary buffer for RGB float data.
+		size_t pixelDataSize = width * height * 3 * sizeof( float );
+		float* pixelData = ( float* )malloc( pixelDataSize );
+		memset( pixelData, 0, pixelDataSize );
 		
-		if (type == 0) // input
-		{
-			for (size_t y = 0; y < height; ++y)
-			{
-				float* rowData = pixelData + (height - y - 1) * width * 3;
-				for (size_t x = 0; x < width; ++x)
-				{
-					uint16_t* row = (uint16_t*)(data + y * rowPitch + x * 8);
-					rowData[x * 3 + 0] = convert_half_to_float(row[0]);
-					rowData[x * 3 + 1] = convert_half_to_float(row[1]);
-					rowData[x * 3 + 2] = convert_half_to_float(row[2]);
+		// Convert image data based on type.
+		if ( type == 0 ) {  // R16G16B16A16_SFLOAT input
+			for ( size_t y = 0; y < height; ++y ) {
+				float* rowData = pixelData + ( height - y - 1 ) * width * 3;
+				for ( size_t x = 0; x < width; ++x ) {
+					uint16_t* row = ( uint16_t* )( data + y * rowPitch + x * 8 );
+					rowData[x * 3 + 0] = convert_half_to_float( row[0] );
+					rowData[x * 3 + 1] = convert_half_to_float( row[1] );
+					rowData[x * 3 + 2] = convert_half_to_float( row[2] );
 				}
 			}
 		}
-		else if (type == 1) // motion
+		else if ( type == 1 ) {  // R32G32B32A32_SFLOAT motion or other
 		{
 			float scaleX = qvk.extent_render.width * 0.5f;
 			float scaleY = qvk.extent_render.height * 0.5f;
 
-			for (size_t y = 0; y < height; ++y)
-			{
+			for ( size_t y = 0; y < height; ++y ) {
 				float* rowData = pixelData + y * width * 3;
-				for (size_t x = 0; x < width; ++x)
-				{
-					uint16_t* row = (uint16_t*)(data + y * rowPitch + x * 8);
-					rowData[x * 3 + 0] = convert_half_to_float(row[0]) * scaleX;
-					rowData[x * 3 + 1] = convert_half_to_float(row[1]) * scaleY;
+				for ( size_t x = 0; x < width; ++x ) {
+					uint16_t* row = ( uint16_t* )( data + y * rowPitch + x * 8 );
+					rowData[x * 3 + 0] = convert_half_to_float( row[0] ) * scaleX;
+					rowData[x * 3 + 1] = convert_half_to_float( row[1] ) * scaleY;
 					rowData[x * 3 + 2] = 0.0f;
 				}
 			}
 		}
-		else if (type == 2) // reference
-		{
-			for (size_t y = 0; y < height; ++y)
-			{
+		else if ( type == 2 ) {  // R32G32B32A32_SFLOAT reference
+			for ( size_t y = 0; y < height; ++y ) {
 				float* rowData = pixelData + y * width * 3;
-				for (size_t x = 0; x < width; ++x)
-				{
-					float* row = (float*)(data + y * rowPitch + x * 16);
+				for ( size_t x = 0; x < width; ++x ) {
+					float* row = ( float* )( data + y * rowPitch + x * 16 );
 					rowData[x * 3 + 0] = row[0];
 					rowData[x * 3 + 1] = row[1];
 					rowData[x * 3 + 2] = row[2];
@@ -646,10 +883,11 @@ void save_to_pfm_file(char* prefix, uint64_t frame_counter, uint64_t width, uint
 			}
 		}
 
-		fwrite(pixelData, 1, pixelDataSize, file);
+		// Write pixel data and clean up.
+		fwrite( pixelData, 1, pixelDataSize, file );
 
-		free(pixelData);
-		fclose(file);
+		free( pixelData );
+		fclose( file );
 
 		Com_Printf("wrote image data to %s", fileName);
 	}
