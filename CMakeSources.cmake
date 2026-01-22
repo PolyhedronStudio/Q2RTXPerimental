@@ -443,6 +443,8 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 	
 	baseq2rtxp/svgame/nav/svg_nav.cpp
+	baseq2rtxp/svgame/nav/svg_nav_save.cpp
+	baseq2rtxp/svgame/nav/svg_nav_load.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
@@ -467,6 +469,8 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_utils.h
 	baseq2rtxp/svgame/svg_usetargets.h
 	baseq2rtxp/svgame/svg_weapons.h
+	baseq2rtxp/svgame/nav/svg_nav_save.h
+	baseq2rtxp/svgame/nav/svg_nav_load.h
 
 	baseq2rtxp/svgame/lua/svg_lua_callfunction.hpp
 	baseq2rtxp/svgame/lua/svg_lua_signals.hpp

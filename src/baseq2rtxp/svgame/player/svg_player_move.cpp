@@ -386,7 +386,7 @@ static void PMove_ProcessTouchTraces( svg_player_edict_t *ent, svg_client_t *cli
     // Copy back into the entity, both the resulting origin.
     //ent->s.origin = pm.state->pmove.origin;
 	// Update the entity origin to the new position.
-	SVG_Util_SetEntityOrigin( ent, client->ps.pmove.origin, true );
+	SVG_Util_SetEntityOrigin( ent, client->ps.pmove.origin, false );
 
 	// Relink the entity now that its position has been updated.
     gi.linkentity( ent );

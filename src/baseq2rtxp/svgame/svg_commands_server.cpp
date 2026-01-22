@@ -8,6 +8,8 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_signalio.h"
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_save.h"
+#include "svgame/nav/svg_nav_load.h"
 
 /**
 *   @brief  
@@ -23,6 +25,44 @@ void ServerCommand_Test_f(void)
 void ServerCommand_NavGenVoxelMesh_f(void)
 {
     SVG_Nav_GenerateVoxelMesh();
+}
+
+/**
+*	@brief	Save the current navigation voxelmesh to disk.
+*	@note	Usage: sv nav_save <filename>
+**/
+static void ServerCommand_NavSave_f( void ) {
+	if ( gi.argc() < 3 ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Usage: sv nav_save <filename>\n" );
+		return;
+	}
+
+	const char *filename = gi.argv( 2 );
+	if ( !SVG_Nav_SaveVoxelMesh( filename ) ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "nav_save: failed to write '%s'\n", filename );
+		return;
+	}
+
+	gi.cprintf( nullptr, PRINT_HIGH, "nav_save: wrote '%s'\n", filename );
+}
+
+/**
+*	@brief	Load a navigation voxelmesh from disk into memory.
+*	@note	Usage: sv nav_load <filename>
+**/
+static void ServerCommand_NavLoad_f( void ) {
+	if ( gi.argc() < 3 ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Usage: sv nav_load <filename>\n" );
+		return;
+	}
+
+	const char *filename = gi.argv( 2 );
+	if ( !SVG_Nav_LoadVoxelMesh( filename ) ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "nav_load: failed to read '%s'\n", filename );
+		return;
+	}
+
+	gi.cprintf( nullptr, PRINT_HIGH, "nav_load: loaded '%s'\n", filename );
 }
 
 
@@ -288,6 +328,10 @@ void SVG_ServerCommand(void) {
         ServerCommand_Test_f();
     else if ( Q_stricmp( cmd, "nav_gen_voxelmesh" ) == 0 )
         ServerCommand_NavGenVoxelMesh_f();
+    else if ( Q_stricmp( cmd, "nav_save" ) == 0 )
+        ServerCommand_NavSave_f();
+    else if ( Q_stricmp( cmd, "nav_load" ) == 0 )
+        ServerCommand_NavLoad_f();
     else if ( Q_stricmp( cmd, "addip" ) == 0 )
         ServerCommand_AddIP_f();
     else if ( Q_stricmp( cmd, "removeip" ) == 0 )

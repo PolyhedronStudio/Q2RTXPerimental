@@ -101,6 +101,30 @@ typedef struct nav_inline_model_data_s {
     nav_tile_t *tiles;
 } nav_inline_model_data_t;
 
+typedef struct nav_inline_model_runtime_s {
+	//! Inline model index (e.g., *1, *2, etc.).
+	int32_t model_index;
+	//! Owning edict number (entity index in edict pool).
+	int32_t owner_entnum;
+
+	//! Cached owning entity pointer (for fast refresh).
+	svg_base_edict_t *owner_ent;
+
+	//! Current world-space origin for the owning entity.
+	Vector3 origin;
+	//! Current world-space angles for the owning entity.
+	Vector3 angles;
+
+	//! Set when origin/angles changed since last refresh.
+	bool dirty;
+} nav_inline_model_runtime_t;
+
+/**
+*	@brief	Refreshes inline model runtime transforms (for movers).
+*	@note	Intended to be cheap enough to call once per frame.
+**/
+void SVG_Nav_RefreshInlineModelRuntime( void );
+
 /**
 *   @brief  Main navigation mesh structure.
 *           Contains both world mesh (static geometry) and inline model meshes
@@ -123,6 +147,13 @@ typedef struct nav_mesh_s {
     //! Array of per-inline-model navigation data.
     nav_inline_model_data_t *inline_model_data;
     
+	/**
+	*   Inline model runtime (per owning entity):
+	*   Not saved; rebuilt during voxelmesh generation.
+	**/
+	int32_t num_inline_model_runtime;
+	nav_inline_model_runtime_t *inline_model_runtime;
+
     /**
     *   Generation parameters:
     **/
@@ -278,3 +309,19 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
 *   @return True if a valid direction was produced, false if path is complete/invalid.
 **/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, float waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
+
+
+
+/**
+* 
+* 
+* 
+*	Navigation System Debug Visualization:
+* 
+* 
+* 
+**/
+/**
+*	@brief	Check if navigation debug drawing is enabled and draw so if it is.
+**/
+void SVG_Nav_DebugDraw( void );
