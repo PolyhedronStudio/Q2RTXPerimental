@@ -1,3 +1,68 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Physical Sky Rendering
+*
+*	Implements physically-based sky rendering using atmospheric scattering
+*	models. Generates realistic sky colors, sun position, and environment
+*	lighting based on time of day, latitude, and atmospheric parameters.
+*	Integrates with precomputed atmospheric scattering tables for efficient
+*	real-time rendering.
+*
+*	Architecture:
+*	- Environment Map Generation: Renders sky cubemap for image-based lighting
+*	- Sun Position Calculation: Computes sun direction from time/latitude
+*	- Atmospheric Scattering: Uses precomputed Rayleigh/Mie scattering tables
+*	- Time Presets: Supports various times of day (dawn, noon, dusk, night)
+*	- Gamepad Control: Optional real-time sun position adjustment
+*
+*	Sky Rendering Pipeline:
+*	1. Compute sun direction from preset or real-time clock
+*	2. Update atmospheric parameters (scattering, phase functions)
+*	3. Render sky cubemap using compute shader
+*	4. Sample precomputed scattering tables
+*	5. Resolve to environment map for IBL
+*
+*	Features:
+*	- Dynamic time-of-day system with smooth transitions
+*	- Multiple sun presets (current time, fast time, dawn, noon, dusk, night)
+*	- Real-time adjustable sun color, brightness, and angular size
+*	- Atmospheric parameters (scattering coefficients, phase functions)
+*	- Optional space rendering mode (planet visible from orbit)
+*	- Cloud rendering support
+*	- Gamepad/controller sun position control
+*
+*	Configuration (cvars):
+*	- physical_sky:              Enable/disable physical sky (0/1)
+*	- physical_sky_space:        Render from space perspective (0/1)
+*	- physical_sky_brightness:   Sky brightness multiplier
+*	- sun_preset:                Time preset (0=none, 1=current, 2=fast, 3-8=fixed times)
+*	- sun_latitude:              Geographic latitude for sun position
+*	- sun_azimuth/elevation:     Manual sun direction control
+*	- sun_color[RGB]:            Sun light color tint
+*	- sun_brightness:            Sun intensity multiplier
+*	- sun_bounce:                Indirect bounce light intensity
+*	- sky_scattering/transmittance: Atmospheric optical properties
+*
+*	Sun Presets:
+*	- SUN_PRESET_NONE: Manual control via cvars
+*	- SUN_PRESET_CURRENT_TIME: Real system clock
+*	- SUN_PRESET_FAST_TIME: Accelerated time cycle
+*	- SUN_PRESET_NIGHT: Midnight (00:00)
+*	- SUN_PRESET_DAWN: 6:00 AM
+*	- SUN_PRESET_MORNING: 9:00 AM
+*	- SUN_PRESET_NOON: 12:00 PM
+*	- SUN_PRESET_EVENING: 6:00 PM
+*	- SUN_PRESET_DUSK: 8:00 PM
+*
+*	Performance:
+*	- Cubemap resolution: 1024x1024 per face (configurable)
+*	- Compute shader-based rendering for efficiency
+*	- Cached environment maps (updated only when needed)
+*	- Precomputed scattering lookups minimize per-pixel cost
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
 
@@ -25,21 +90,43 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <SDL_joystick.h>
 #include <SDL_gamecontroller.h>
 
+
+
+/**
+*
+*
+*
+*	Module State:
+*
+*
+*
+**/
+//! Environment cubemap image for sky rendering.
 static VkImage          img_envmap = 0;
+//! Image view for environment cubemap.
 static VkImageView      imv_envmap = 0;
+//! Device memory for environment cubemap.
 static VkDeviceMemory   mem_envmap = 0;
 
+//! Compute pipeline for physical sky rendering.
 static VkPipeline       pipeline_physical_sky;
+//! Compute pipeline for space view rendering.
 static VkPipeline       pipeline_physical_sky_space;
+//! Pipeline layout for physical sky shaders.
 static VkPipelineLayout pipeline_layout_physical_sky;
+//! Compute pipeline for environment map resolve.
 static VkPipeline       pipeline_resolve;
+//! Pipeline layout for resolve shader.
 static VkPipelineLayout pipeline_layout_resolve;
 
+//! Environment cubemap resolution.
 static int width  = 1024, 
            height = 1024;
 
+//! Flag indicating sky needs regeneration.
 static int skyNeedsUpdate = VK_TRUE;
 
+//! Console variables for sun parameters.
 cvar_t *sun_color[3];
 cvar_t *sun_elevation;
 cvar_t *sun_azimuth;
@@ -62,36 +149,63 @@ cvar_t *sky_transmittance;
 cvar_t *sky_phase_g;
 cvar_t *sky_amb_phase_g;
 
+//! Texture indices for planet albedo and normal maps (space mode).
 static uint32_t physical_sky_planet_albedo_map = 0;
 static uint32_t physical_sky_planet_normal_map = 0;
 
+//! Latched local time for time-based sun positioning.
 static time_t latched_local_time;
 
+//! Currently active sun preset.
 static int current_preset = 0;
 
+//! SDL gamepad state.
 static bool sdl_initialized = false;
 static SDL_GameController* game_controller = 0;
 
+
+
+/**
+*
+*
+*
+*	Time Management:
+*
+*
+*
+**/
+/**
+*	@brief	Latches the current system time for sun position calculation.
+*	@note	Called when map loads or time preset changes. Stores time for
+*			consistent sun movement across frames.
+**/
 void vkpt_physical_sky_latch_local_time()
 {
-	time(&latched_local_time);
+	time( &latched_local_time );
 }
 
+//! Sun preset type enum.
 typedef enum
 {
-	SUN_PRESET_NONE       = 0,
-	SUN_PRESET_CURRENT_TIME = 1,
-	SUN_PRESET_FAST_TIME  = 2,
-	SUN_PRESET_NIGHT      = 3,
-	SUN_PRESET_DAWN       = 4,
-	SUN_PRESET_MORNING    = 5,
-	SUN_PRESET_NOON       = 6,
-	SUN_PRESET_EVENING    = 7,
-	SUN_PRESET_DUSK       = 8,
+	SUN_PRESET_NONE       = 0,  //! Manual control via cvars.
+	SUN_PRESET_CURRENT_TIME = 1,  //! Use system clock.
+	SUN_PRESET_FAST_TIME  = 2,  //! Accelerated time cycle.
+	SUN_PRESET_NIGHT      = 3,  //! Midnight.
+	SUN_PRESET_DAWN       = 4,  //! 6:00 AM.
+	SUN_PRESET_MORNING    = 5,  //! 9:00 AM.
+	SUN_PRESET_NOON       = 6,  //! 12:00 PM.
+	SUN_PRESET_EVENING    = 7,  //! 6:00 PM.
+	SUN_PRESET_DUSK       = 8,  //! 8:00 PM.
 	SUN_PRESET_COUNT
 } sun_preset_t;
 
-static int active_sun_preset(void)
+/**
+*	@brief	Returns the active sun preset, handling multiplayer restrictions.
+*	@return	Active sun preset index.
+*	@note	In multiplayer, SUN_PRESET_CURRENT_TIME is replaced with SUN_PRESET_FAST_TIME
+*			to ensure consistent time across all clients.
+**/
+static int active_sun_preset( void )
 {
 	bool multiplayer = CL_RefExport_GetMaxClients() > 1;
 
@@ -237,14 +351,31 @@ initializeEnvTexture(int width, int height)
             .pImageInfo = &desc_img_info,
         };
 
-        vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+        vkUpdateDescriptorSets( qvk.device, 1, &s, 0, NULL );
 
         s.dstSet = qvk.desc_set_textures_odd;
-        vkUpdateDescriptorSets(qvk.device, 1, &s, 0, NULL);
+        vkUpdateDescriptorSets( qvk.device, 1, &s, 0, NULL );
     }
     return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Public API - Initialization & Cleanup:
+*
+*
+*
+**/
+/**
+*	@brief	Initializes the physical sky rendering system.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Initializes precomputed sky data, shadowmap resources, environment texture,
+*			and sets up planet textures for space rendering mode.
+**/
 VkResult
 vkpt_physical_sky_initialize()
 {
@@ -613,11 +744,31 @@ void vkpt_next_sun_preset()
 			preset = SUN_PRESET_NIGHT;
 	}
 
-	Cvar_SetByVar(sun_preset, va("%d", preset), FROM_CONSOLE);
+	Cvar_SetByVar( sun_preset, va( "%d", preset ), FROM_CONSOLE );
 }
 
+
+
+/**
+*
+*
+*
+*	Public API - Sun Light Evaluation:
+*
+*
+*
+**/
+/**
+*	@brief	Computes sun light parameters from time, presets, or manual control.
+*	@param	light		Output sun light structure with direction, color, intensity.
+*	@param	sky_matrix	Sky orientation matrix (for camera-relative rendering).
+*	@param	time		Normalized time value for animation.
+*	@note	Determines sun direction using active preset (time of day), latitude,
+*			or manual azimuth/elevation. Applies atmospheric scattering to compute
+*			sun color and intensity. Handles gamepad input for real-time control.
+**/
 void
-vkpt_evaluate_sun_light(sun_light_t* light, const vec3_t sky_matrix[3], float time)
+vkpt_evaluate_sun_light( sun_light_t* light, const vec3_t sky_matrix[3], float time )
 {
 	static uint16_t skyIndex = -1;
 	if (physical_sky->integer != skyIndex)
