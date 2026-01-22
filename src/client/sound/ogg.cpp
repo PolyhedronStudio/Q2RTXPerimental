@@ -594,49 +594,69 @@ OGG_LoadTrackList(void)
 		}
 	}
 
-	// if tracks have been found above, we would've returned there
-	Com_Printf("No Ogg Vorbis music tracks have been found, so there will be no music.\n");
+	// If tracks have been found above, function would've returned early.
+	Com_Printf( "No Ogg Vorbis music tracks have been found, so there will be no music.\n" );
 }
 
-// ----
+/**
+*
+*
+*
+*	Sound Effect Loading (In-Memory Decompression):
+*
+*
+*
+**/
 
-bool OGG_Load(sizebuf_t *sz)
-{
+/**
+*	@brief	Load Ogg Vorbis file as sound effect (in-memory decompression).
+*	@param	sz	Size buffer containing Ogg file data.
+*	@return	True if successfully loaded and decoded, false on error.
+*	@note	Decodes entire file to memory (for sound effects, not streaming music).
+*	@note	Validates format, sample rate, and channel count.
+*	@note	Allocates temporary memory for decompressed PCM data.
+**/
+bool OGG_Load( sizebuf_t *sz ) {
 	int ret;
-	stb_vorbis *vf = stb_vorbis_open_memory(sz->data, sz->cursize, &ret, NULL);
-	if (!vf) {
-		Com_DPrintf("%s does not appear to be an Ogg bitstream (error %d)\n", s_info.name, ret);
+	stb_vorbis *vf = stb_vorbis_open_memory( sz->data, sz->cursize, &ret, nullptr );
+	if ( !vf ) {
+		Com_DPrintf( "%s does not appear to be an Ogg bitstream (error %d)\n", s_info.name, ret );
 		return false;
 	}
 
-	if (vf->channels < 1 || vf->channels > 2) {
-		Com_DPrintf("%s has bad number of channels\n", s_info.name);
+	// Validate channel count.
+	if ( vf->channels < 1 || vf->channels > 2 ) {
+		Com_DPrintf( "%s has bad number of channels\n", s_info.name );
 		goto fail;
 	}
 
-	if (vf->sample_rate < 8000 || vf->sample_rate > 48000) {
-		Com_DPrintf("%s has bad rate\n", s_info.name);
+	// Validate sample rate.
+	if ( vf->sample_rate < 8000 || vf->sample_rate > 48000 ) {
+		Com_DPrintf( "%s has bad rate\n", s_info.name );
 		goto fail;
 	}
 
-	unsigned int samples = stb_vorbis_stream_length_in_samples(vf);
-	if (samples < 1 || samples > MAX_LOADFILE >> vf->channels) {
-		Com_DPrintf("%s has bad number of samples\n", s_info.name);
+	// Validate sample count.
+	unsigned int samples = stb_vorbis_stream_length_in_samples( vf );
+	if ( samples < 1 || samples > MAX_LOADFILE >> vf->channels ) {
+		Com_DPrintf( "%s has bad number of samples\n", s_info.name );
 		goto fail;
 	}
 
 	unsigned int size = samples << vf->channels;
 	int offset = 0;
 
+	// Store format info for backend upload.
 	s_info.channels = vf->channels;
 	s_info.rate = vf->sample_rate;
 	s_info.width = 2;
 	s_info.loopstart = -1;
-	s_info.data = FS_AllocTempMem(size);
+	s_info.data = FS_AllocTempMem( size );
 
-	while (offset < size) {
-		ret = stb_vorbis_get_samples_short_interleaved(vf, vf->channels, (short*)(s_info.data + offset), (size - offset) / sizeof(short));
-		if (ret == 0)
+	// Decode entire file to memory.
+	while ( offset < size ) {
+		ret = stb_vorbis_get_samples_short_interleaved( vf, vf->channels, ( short * )( s_info.data + offset ), ( size - offset ) / sizeof( short ) );
+		if ( ret == 0 )
 			break;
 
 		offset += ret;
@@ -644,279 +664,309 @@ bool OGG_Load(sizebuf_t *sz)
 
 	s_info.samples = offset >> s_info.channels;
 
-	stb_vorbis_close(vf);
+	stb_vorbis_close( vf );
 	return true;
 
 fail:
-	stb_vorbis_close(vf);
+	stb_vorbis_close( vf );
 	return false;
 }
 
-/*
- * List Ogg Vorbis files and print current playback state.
- */
-static void
-OGG_Info_f(void)
-{
-	Com_Printf("Tracks:\n");
+/**
+*
+*
+*
+*	Console Commands:
+*
+*
+*
+**/
+
+/**
+*	@brief	Display list of available tracks and current playback state.
+*	@note	Lists all valid track numbers (2-128) with file paths.
+**/
+static void OGG_Info_f( void ) {
+	Com_Printf( "Tracks:\n" );
 	int numFiles = 0;
 
-	// Print unshuffled track list
-	for (int i = 2; i < MAX_NUM_OGGTRACKS; i++)
-	{
+	// Print unshuffled track list with file paths.
+	for ( int i = 2; i < MAX_NUM_OGGTRACKS; i++ ) {
 		char ogg_path[MAX_OSPATH];
-		get_track_path(ogg_path, sizeof(ogg_path), i);
+		get_track_path( ogg_path, sizeof( ogg_path ), i );
 
-		if(Sys_IsFile(ogg_path))
-		{
-			Com_Printf(" - %02d %s\n", i, ogg_path);
+		if ( Sys_IsFile( ogg_path ) ) {
+			Com_Printf( " - %02d %s\n", i, ogg_path );
 			++numFiles;
 		}
 	}
 
-	Com_Printf("Total: %d Ogg/Vorbis files.\n", numFiles);
+	Com_Printf( "Total: %d Ogg/Vorbis files.\n", numFiles );
 
-	switch (ogg_status)
-	{
+	// Display current playback state.
+	switch ( ogg_status ) {
 		case PLAY:
-			Com_Printf("State: Playing file %s at %i samples.\n",
-			           ogg.path, stb_vorbis_get_sample_offset(ogg.vf));
+			Com_Printf( "State: Playing file %s at %i samples.\n",
+			           ogg.path, stb_vorbis_get_sample_offset( ogg.vf ) );
 			break;
 
 		case PAUSE:
-			Com_Printf("State: Paused file %s at %i samples.\n",
-			           ogg.path, stb_vorbis_get_sample_offset(ogg.vf));
+			Com_Printf( "State: Paused file %s at %i samples.\n",
+			           ogg.path, stb_vorbis_get_sample_offset( ogg.vf ) );
 			break;
 
 		case STOP:
-			if (trackindex == -1)
-			{
-				Com_Printf("State: Stopped.\n");
-			}
-			else
-			{
-				Com_Printf("State: Stopped file %s.\n", ogg.path);
+			if ( trackindex == -1 ) {
+				Com_Printf( "State: Stopped.\n" );
+			} else {
+				Com_Printf( "State: Stopped file %s.\n", ogg.path );
 			}
 
 			break;
 	}
 }
 
-/*
- * Pause or resume playback.
- */
-static void
-OGG_TogglePlayback(void)
-{
-	if (ogg_status == PLAY)
-	{
+/**
+*	@brief	Toggle pause/play state for music playback.
+*	@note	Drops queued samples when pausing to prevent audio glitches.
+**/
+static void OGG_TogglePlayback( void ) {
+	if ( ogg_status == PLAY ) {
 		ogg_status = PAUSE;
 
 		s_api.drop_raw_samples();
-	}
-	else if (ogg_status == PAUSE)
-	{
+	} else if ( ogg_status == PAUSE ) {
 		ogg_status = PLAY;
 	}
 }
 
-/*
- * Prints a help message for the 'ogg' cmd.
- */
-static void
-OGG_HelpMsg(void)
-{
-	Com_Printf("Unknown sub command %s\n\n", Cmd_Argv(1));
-	Com_Printf("Commands:\n");
-	Com_Printf(" - info: Print information about playback state and tracks\n");
-	Com_Printf(" - play <track>: Play track number <track>\n");
-	Com_Printf(" - stop: Stop playback\n");
-	Com_Printf(" - toggle: Toggle pause\n");
+/**
+*	@brief	Display help message for 'ogg' console command.
+**/
+static void OGG_HelpMsg( void ) {
+	Com_Printf( "Unknown sub command %s\n\n", Cmd_Argv( 1 ) );
+	Com_Printf( "Commands:\n" );
+	Com_Printf( " - info: Print information about playback state and tracks\n" );
+	Com_Printf( " - play <track>: Play track number <track>\n" );
+	Com_Printf( " - stop: Stop playback\n" );
+	Com_Printf( " - toggle: Toggle pause\n" );
 }
 
-static void OGG_Play_f(void)
-{
-	if (Cmd_Argc() < 3)
-	{
-		Com_Printf("Usage: %s %s <track>\n", Cmd_Argv(0), Cmd_Argv(1));
+/**
+*	@brief	Play specified track command handler.
+*	@note	Accepts numeric track numbers or track names.
+**/
+static void OGG_Play_f( void ) {
+	if ( Cmd_Argc() < 3 ) {
+		Com_Printf( "Usage: %s %s <track>\n", Cmd_Argv( 0 ), Cmd_Argv( 1 ) );
 		return;
 	}
 
-	if (!s_started) {
-		Com_Printf("Sound system not started.\n");
+	if ( !s_started ) {
+		Com_Printf( "Sound system not started.\n" );
 		return;
 	}
 
-	if (cls.state == ca_cinematic) {
-		Com_Printf("Can't play music in cinematic mode.\n");
+	if ( cls.state == ca_cinematic ) {
+		Com_Printf( "Can't play music in cinematic mode.\n" );
 		return;
 	}
 
-	OGG_PlayTrack(Cmd_Argv(2));
+	OGG_PlayTrack( Cmd_Argv( 2 ) );
 }
 
-/*
- * The 'ogg' cmd. Gives some control and information about the playback state.
- */
-static void OGG_Cmd_c(genctx_t *ctx, int argnum)
-{
-	if (argnum == 1) {
-		Prompt_AddMatch(ctx, "info");
-		Prompt_AddMatch(ctx, "play");
-		Prompt_AddMatch(ctx, "stop");
+/**
+*	@brief	Autocomplete handler for 'ogg' console command.
+*	@param	ctx		Prompt context for autocomplete suggestions.
+*	@param	argnum	Current argument number being completed.
+*	@note	Provides subcommand completion and track number/name suggestions.
+**/
+static void OGG_Cmd_c( genctx_t *ctx, int argnum ) {
+	if ( argnum == 1 ) {
+		Prompt_AddMatch( ctx, "info" );
+		Prompt_AddMatch( ctx, "play" );
+		Prompt_AddMatch( ctx, "stop" );
 		return;
 	}
 
-	if (argnum == 2 && !strcmp(Cmd_Argv(1), "play")) {
-		// Autocomplete: track number
-		for (int i = 2; i < MAX_NUM_OGGTRACKS; i++)
-		{
+	if ( argnum == 2 && !strcmp( Cmd_Argv( 1 ), "play" ) ) {
+		// Autocomplete: track number.
+		for ( int i = 2; i < MAX_NUM_OGGTRACKS; i++ ) {
 			char ogg_path[MAX_OSPATH];
-			get_track_path(ogg_path, sizeof(ogg_path), i);
+			get_track_path( ogg_path, sizeof( ogg_path ), i );
 
-			if(Sys_IsFile(ogg_path))
-			{
-				Prompt_AddMatch(ctx, va("%d", i));
+			if ( Sys_IsFile( ogg_path ) ) {
+				Prompt_AddMatch( ctx, va( "%d", i ) );
 			}
 		}
 
-		// Autocomplete: add track filenames
+		// Autocomplete: track filenames from game music directory.
 		char game_music[MAX_OSPATH];
-		Q_snprintf(game_music, sizeof(game_music), "%s/%s/music", sys_basedir->string, *fs_game->string ? fs_game->string : BASEGAME);
+		Q_snprintf( game_music, sizeof( game_music ), "%s/%s/music", sys_basedir->string, *fs_game->string ? fs_game->string : BASEGAME );
 		listfiles_t track_list;
-		memset(&track_list, 0, sizeof(track_list));
+		memset( &track_list, 0, sizeof( track_list ) );
 		track_list.flags = FS_SEARCH_STRIPEXT;
 		track_list.filter = ".ogg";
-		Sys_ListFiles_r(&track_list, game_music, 0);
+		Sys_ListFiles_r( &track_list, game_music, 0 );
 
-		for (int i = 0; i < track_list.count; i++) {
-			Prompt_AddMatch(ctx, track_list.files[i]);
-			Z_Free(track_list.files[i]);
+		for ( int i = 0; i < track_list.count; i++ ) {
+			Prompt_AddMatch( ctx, track_list.files[i] );
+			Z_Free( track_list.files[i] );
 		}
 	}
 }
 
-static void
-OGG_Cmd_f(void)
-{
-	const char *cmd = Cmd_Argv(1);
+/**
+*	@brief	Main 'ogg' console command dispatcher.
+*	@note	Routes to appropriate subcommand handler (info, play, stop, toggle).
+**/
+static void OGG_Cmd_f( void ) {
+	const char *cmd = Cmd_Argv( 1 );
 
-	if (!strcmp(cmd, "info"))
+	if ( !strcmp( cmd, "info" ) )
 		OGG_Info_f();
-	else if (!strcmp(cmd, "play"))
+	else if ( !strcmp( cmd, "play" ) )
 		OGG_Play_f();
-	else if (!strcmp(cmd, "stop"))
+	else if ( !strcmp( cmd, "stop" ) )
 		OGG_Stop();
-	else if (!strcmp(cmd, "toggle"))
+	else if ( !strcmp( cmd, "toggle" ) )
 		OGG_TogglePlayback();
 	else
 		OGG_HelpMsg();
 }
 
-/*
- * Saves the current state of the subsystem.
- */
-void
-OGG_SaveState(void)
-{
-	if (ogg_status != PLAY)
-	{
+/**
+*
+*
+*
+*	State Persistence:
+*
+*
+*
+**/
+
+/**
+*	@brief	Save current playback state for level transitions.
+*	@note	Preserves track path and sample position to resume after loading.
+**/
+void OGG_SaveState( void ) {
+	if ( ogg_status != PLAY ) {
 		ogg_saved_state.saved = false;
 		return;
 	}
 
 	ogg_saved_state.saved = true;
-	Q_strlcpy(ogg_saved_state.path, ogg.path, sizeof(ogg_saved_state.path));
+	Q_strlcpy( ogg_saved_state.path, ogg.path, sizeof( ogg_saved_state.path ) );
 	ogg_saved_state.numsamples = ogg_numsamples;
 }
 
-/*
- * Recover the previously saved state.
- */
-void
-OGG_RecoverState(void)
-{
-	if (!ogg_saved_state.saved)
-	{
+/**
+*	@brief	Recover previously saved playback state after level load.
+*	@note	Temporarily disables shuffle to ensure correct track is restored.
+*	@note	Seeks to saved sample position to resume playback seamlessly.
+**/
+void OGG_RecoverState( void ) {
+	if ( !ogg_saved_state.saved ) {
 		return;
 	}
 
-	// Mkay, ultra evil hack to recover the state in case of
-	// shuffled playback. OGG_PlayTrack() does the shuffeling,
-	// so switch it of before and enable after state recovery.
+	// Temporarily disable shuffle to ensure exact track restoration.
 	int shuffle_state = ogg_shuffle->value;
-	Cvar_SetValue(ogg_shuffle, 0, FROM_CODE);
+	Cvar_SetValue( ogg_shuffle, 0, FROM_CODE );
 
-	Q_strlcpy(ogg.path, ogg_saved_state.path, sizeof(ogg.path));
+	Q_strlcpy( ogg.path, ogg_saved_state.path, sizeof( ogg.path ) );
 	ogg_play();
-	stb_vorbis_seek_frame(ogg.vf, ogg_saved_state.numsamples);
+	stb_vorbis_seek_frame( ogg.vf, ogg_saved_state.numsamples );
 	ogg_numsamples = ogg_saved_state.numsamples;
 
-	Cvar_SetValue(ogg_shuffle, shuffle_state, FROM_CODE);
+	Cvar_SetValue( ogg_shuffle, shuffle_state, FROM_CODE );
 }
 
-// --------
+/**
+*
+*
+*
+*	Cvar Change Callbacks:
+*
+*
+*
+**/
 
-static void ogg_enable_changed(cvar_t *self)
-{
-	if (cls.state < ca_precached || cls.state > ca_active)
+/**
+*	@brief	Handle ogg_enable cvar changes (pause/resume music).
+*	@param	self	Pointer to ogg_enable cvar.
+**/
+static void ogg_enable_changed( cvar_t *self ) {
+	if ( cls.state < ca_precached || cls.state > ca_active )
 		return;
-	if ((ogg_enable->integer && ogg_status == PAUSE) || (!ogg_enable->integer && ogg_status == PLAY))
-	{
+	if ( ( ogg_enable->integer && ogg_status == PAUSE ) || ( !ogg_enable->integer && ogg_status == PLAY ) ) {
 		OGG_TogglePlayback();
 	}
 }
 
-static void ogg_volume_changed(cvar_t *self)
-{
-    Cvar_ClampValue(self, 0, 1);
+/**
+*	@brief	Handle ogg_volume cvar changes (clamp to valid range).
+*	@param	self	Pointer to ogg_volume cvar.
+**/
+static void ogg_volume_changed( cvar_t *self ) {
+	Cvar_ClampValue( self, 0, 1 );
 }
 
+//! Console command registration table.
 static const cmdreg_t c_ogg[] = {
-    { "ogg", OGG_Cmd_f, OGG_Cmd_c },
-    { NULL }
+	{ "ogg", OGG_Cmd_f, OGG_Cmd_c },
+	{ nullptr }
 };
 
-/*
- * Initialize the Ogg Vorbis subsystem.
- */
-void
-OGG_Init(void)
-{
-	// Cvars
-	ogg_enable = Cvar_Get("ogg_enable", "1", CVAR_ARCHIVE);
+/**
+*
+*
+*
+*	Initialization and Shutdown:
+*
+*
+*
+**/
+
+/**
+*	@brief	Initialize Ogg Vorbis subsystem.
+*	@note	Registers console variables, commands, and loads track list.
+**/
+void OGG_Init( void ) {
+	// Register console variables.
+	ogg_enable = Cvar_Get( "ogg_enable", "1", CVAR_ARCHIVE );
 	ogg_enable->changed = ogg_enable_changed;
-	ogg_volume = Cvar_Get("ogg_volume", "1.0", CVAR_ARCHIVE);
+	ogg_volume = Cvar_Get( "ogg_volume", "1.0", CVAR_ARCHIVE );
 	ogg_volume->changed = ogg_volume_changed;
-	ogg_shuffle = Cvar_Get("ogg_shuffle", "0", CVAR_ARCHIVE);
-	ogg_ignoretrack0 = Cvar_Get("ogg_ignoretrack0", "0", CVAR_ARCHIVE);
+	ogg_shuffle = Cvar_Get( "ogg_shuffle", "0", CVAR_ARCHIVE );
+	ogg_ignoretrack0 = Cvar_Get( "ogg_ignoretrack0", "0", CVAR_ARCHIVE );
 
-	// Commands
-	Cmd_Register(c_ogg);
+	// Register console commands.
+	Cmd_Register( c_ogg );
 
-	// Global variables
+	// Initialize global variables.
 	trackindex = -1;
 	ogg_numsamples = 0;
 	ogg_status = STOP;
 
+	// Scan music directories and build track list.
 	OGG_LoadTrackList();
 }
 
-/*
- * Shutdown the Ogg Vorbis subsystem.
- */
-void
-OGG_Shutdown(void)
-{
-	// Music must be stopped.
+/**
+*	@brief	Shutdown Ogg Vorbis subsystem.
+*	@note	Stops playback, frees track list, removes console commands.
+**/
+void OGG_Shutdown( void ) {
+	// Stop music playback and close decoder.
 	ogg_stop();
 
-	// Free file lsit.
+	// Free track file list.
 	tracklist_free();
 
-	Z_Freep((void**)&ogg.music_dir);
+	Z_Freep( ( void ** )&ogg.music_dir );
 
-	// Remove console commands
-	Cmd_RemoveCommand("ogg");
+	// Remove console commands.
+	Cmd_RemoveCommand( "ogg" );
 }
 #endif
