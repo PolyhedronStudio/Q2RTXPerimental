@@ -15,89 +15,152 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-// snd_main.c -- common sound functions
+
+/********************************************************************
+*
+*
+*	Module Name: Sound System Core
+*
+*	This module implements the core sound system for Q2RTXPerimental,
+*	managing sound effect loading, caching, playback coordination, and
+*	backend API abstraction. It serves as the central hub between the
+*	game engine and platform-specific audio backends (OpenAL or DMA).
+*
+*	Architecture:
+*	- Sound Effect Cache: LRU cache for loaded sound samples
+*	- Channel Management: Allocation and lifecycle of audio channels
+*	- Playsound Queue: Deferred playback with timing control
+*	- Backend Abstraction: Unified API for OpenAL and DMA backends
+*	- Registration System: Level-based sound precaching
+*
+*	Key Components:
+*	- Sound Cache: Hash table of sound effects (sfx_t structures)
+*	- Channel Pool: Fixed array of playback channels
+*	- Playsound Queue: Linked list of pending playsounds
+*	- Backend API: Function pointer table (sndapi_t)
+*	- EAX Reverb: Environmental audio effects (OpenAL only)
+*
+*	Workflow:
+*	1. Game precaches sounds during level load (S_RegisterSound)
+*	2. Game requests sound playback (S_StartSound)
+*	3. Core creates playsound entry with timing info
+*	4. Backend issues playsound when due (per-frame update)
+*	5. Backend spatializes and mixes channels
+*	6. Backend transfers mixed audio to hardware
+*
+*	Performance Characteristics:
+*	- MAX_SFX (MAX_SOUNDS*2) sound effects cached simultaneously
+*	- MAX_CHANNELS (32) simultaneous playback channels
+*	- MAX_PLAYSOUNDS (128) pending playsounds queue depth
+*	- LRU eviction for sound cache when full
+*
+*
+********************************************************************/
 
 #include "sound.h"
-
-// =======================================================================
-// Internal sound data & structures
-// =======================================================================
-
-int         s_registration_sequence;
-
-channel_t   s_channels[MAX_CHANNELS];
-int         s_numchannels;
-
-sndstarted_t    s_started;
-bool            s_active;
-sndapi_t        s_api;
-
-//vec3_t      listener_origin;
-//vec3_t      listener_forward;
-//vec3_t      listener_right;
-//vec3_t      listener_up;
-//int         listener_entnum;
-
-bool        s_registering;
-
-int64_t     s_paintedtime;  // sample PAIRS
-
-// during registration it is possible to have more sounds
-// than could actually be referenced during gameplay,
-// because we don't want to free anything until we are
-// sure we won't need it.
-#define     MAX_SFX     (MAX_SOUNDS*2)
-static sfx_t        known_sfx[MAX_SFX];
-static int          num_sfx;
-
-#define     MAX_PLAYSOUNDS  128
-playsound_t s_playsounds[MAX_PLAYSOUNDS];
-list_t      s_freeplays;
-list_t      s_pendingplays;
-
-cvar_t      *s_volume;
-cvar_t      *s_ambient;
-#if USE_DEBUG
-cvar_t      *s_show;
-#endif
-cvar_t      *s_underwater;
-
-static cvar_t   *s_enable;
-static cvar_t   *s_auto_focus;
-
-
 
 /**
 *
 *
-*   EAX Reverb Functionality:
-* 
-*   ( OpenAL only ), we use stub functions for DMA.
+*
+*	Module State:
+*
 *
 *
 **/
-//! Maximum of reverb properties accepted.
-//#define MAX_REVERB_EFFECTS   32
 
-////! Reverb Effect resource data.
-//typedef struct reverb_effect_s {
-//    //! Reverb properties.
-//    sfx_eax_properties_t properties;
-//    //! String name.
-//    char name[ MAX_MATERIAL_NAME ];
-//} reverb_effect_t;
-//
-////! Reverb properties cache struct.
-//typedef struct reverb_effects_cache_s {
-//    //! Reverb effect cache.
-//    reverb_effect_t effects[ MAX_REVERB_EFFECTS ];
-//
-//    //! Number of reverb effects cached.
-//    int32_t num_effects;
-//} reverb_properties_cache_t;
-//
-////! Reverb Cache.
-//reverb_properties_cache_t snd_reverb_cache;
+//! Current sound registration sequence number (incremented per level load).
+int s_registration_sequence;
+
+//! Array of sound playback channels.
+channel_t s_channels[MAX_CHANNELS];
+
+//! Number of available playback channels (backend-dependent).
+int s_numchannels;
+
+//! Sound system initialization state.
+sndstarted_t s_started;
+
+//! True if sound system is active (window has focus or forced active).
+bool s_active;
+
+//! Active sound backend API (OpenAL or DMA).
+sndapi_t s_api;
+
+//! True during sound registration phase (allows MAX_SFX cache size).
+bool s_registering;
+
+//! Current paint time in sample pairs (for timing synchronization).
+int64_t s_paintedtime;
+
+/**
+*
+*
+*
+*	Sound Effect Cache:
+*
+*
+*
+**/
+
+#define MAX_SFX ( MAX_SOUNDS * 2 )	//! Maximum cached sound effects (double for registration).
+
+//! Array of cached sound effects (hash table).
+static sfx_t known_sfx[MAX_SFX];
+
+//! Number of currently cached sound effects.
+static int num_sfx;
+
+/**
+*
+*
+*
+*	Playsound Queue:
+*
+*
+*
+**/
+
+#define MAX_PLAYSOUNDS 128	//! Maximum pending playsounds.
+
+//! Pool of playsound structures.
+playsound_t s_playsounds[MAX_PLAYSOUNDS];
+
+//! Free playsound list (linked list of available entries).
+list_t s_freeplays;
+
+//! Pending playsound list (linked list of scheduled playsounds).
+list_t s_pendingplays;
+
+/**
+*
+*
+*
+*	Console Variables:
+*
+*
+*
+**/
+
+//! Master volume (0.0 to 1.0).
+cvar_t *s_volume;
+
+//! Ambient looping sounds enabled.
+cvar_t *s_ambient;
+
+#if USE_DEBUG
+//! Debug: show playing sounds.
+cvar_t *s_show;
+#endif
+
+//! Underwater audio filter state.
+cvar_t *s_underwater;
+
+//! Sound system enable/disable.
+static cvar_t *s_enable;
+
+//! Auto-focus: continue playing sound when window loses focus.
+static cvar_t *s_auto_focus;
 //
 ///**
 //*   @return -1 on failure, otherwise a valid ID to the sound(not internal, openal or dma) API reverb effect resource.
@@ -132,34 +195,32 @@ static cvar_t   *s_auto_focus;
 //    return reverb_effect_id;
 //}
 
-// =======================================================================
-// Console functions
-// =======================================================================
+/**
+*
+*
+*
+*	Console Commands:
+*
+*
+*
+**/
 
 /**
-*   @brief  Show a list of all loaded up EAX effects.
+*	@brief	Display sound system information and backend status.
 **/
-//static void S_SoundEAXList_f( void ) {
-//    Com_Printf( "--- EAX Effects Cached(#i): ---\n", snd_reverb_cache.num_effects );
-//    for ( int32_t i = 0; i < snd_reverb_cache.num_effects; i++ ) {
-//        const char *eax_name = snd_reverb_cache.effects[ i ].name;
-//        Com_Printf( "EAX(#i, name \"%s\")\n", i, eax_name );
-//    }
-//    Com_Printf( "-------------------------------\n" );
-//}
+static void S_SoundInfo_f( void ) {
+	if ( !s_started ) {
+		Com_Printf( "Sound system not started.\n" );
+		return;
+	}
 
-static void S_SoundInfo_f(void)
-{
-    if (!s_started) {
-        Com_Printf("Sound system not started.\n");
-        return;
-    }
-
-    s_api.sound_info();
+	s_api.sound_info();
 }
 
-static void S_SoundList_f(void)
-{
+/**
+*	@brief	Display list of all loaded sound effects with memory usage.
+**/
+static void S_SoundList_f( void ) {
     int     i, count;
     sfx_t   *sfx;
     sfxcache_t  *sc;
