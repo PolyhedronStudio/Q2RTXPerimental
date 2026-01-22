@@ -15,105 +15,208 @@ You should have received a copy of the GNU General Public License along
 with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
-// snd_dma.c -- main control for any streaming sound output device
+
+/********************************************************************
+*
+*
+*	Module Name: DMA Sound Backend
+*
+*	This module implements the legacy DMA (Direct Memory Access) sound backend
+*	for Q2RTXPerimental. It provides software-based audio mixing and streaming
+*	to system audio devices through platform-specific interfaces (Windows DirectSound,
+*	Linux ALSA/PulseAudio, etc.).
+*
+*	Architecture:
+*	- Software audio mixing using integer arithmetic
+*	- Circular buffer for raw streaming samples (music/cinematics)
+*	- Sample rate conversion (resampling) for compatibility
+*	- Fixed-point fractional indexing for efficient interpolation
+*	- Stereo panning and volume control
+*
+*	Key Components:
+*	- Paint Buffer: Temporary mixing buffer for audio rendering
+*	- Raw Sample Ring Buffer: Circular buffer for streaming audio
+*	- Resampling Engine: Converts between arbitrary sample rates
+*	- DMA Buffer: Platform-specific hardware buffer interface
+*
+*	Performance Characteristics:
+*	- Supports arbitrary sample rates (typically 11025, 22050, 44100 Hz)
+*	- 8-bit or 16-bit PCM audio
+*	- Mono or stereo output
+*	- Software mixing limited by CPU performance
+*
+*
+********************************************************************/
 
 #include "sound.h"
 #include "common/intreadwrite.h"
 
-#define PAINTBUFFER_SIZE    2048
+/**
+*
+*
+*
+*	Configuration Constants:
+*
+*
+*
+**/
 
-#define MAX_RAW_SAMPLES     8192
+#define PAINTBUFFER_SIZE    2048	//! Size of temporary mixing buffer in sample pairs.
+#define MAX_RAW_SAMPLES     8192	//! Maximum raw samples in circular buffer for streaming audio.
 
-dma_t       dma;
+/**
+*
+*
+*
+*	Module State:
+*
+*
+*
+**/
 
-cvar_t      *s_khz;
+//! DMA buffer configuration and state.
+dma_t dma;
 
-static cvar_t       *s_testsound;
-static cvar_t       *s_swapstereo;
-static cvar_t       *s_mixahead;
+//! Console variable for sample rate selection (in kHz).
+cvar_t *s_khz;
 
-static float    snd_vol;
+//! Test sound generation for debugging audio pipeline.
+static cvar_t *s_testsound;
 
-static int          s_rawend;
+//! Swap left/right stereo channels.
+static cvar_t *s_swapstereo;
+
+//! Mixing buffer lead time in milliseconds.
+static cvar_t *s_mixahead;
+
+//! Cached volume multiplier for mixing operations.
+static float snd_vol;
+
+//! Current write position in raw sample ring buffer.
+static int s_rawend;
+
+//! Circular buffer for raw streaming audio samples (music/cinematics).
 static samplepair_t s_rawsamples[MAX_RAW_SAMPLES];
 
-/*
-===============================================================================
+/**
+*
+*
+*
+*	Sound Loading and Resampling:
+*
+*
+*
+**/
 
-SOUND LOADING
-
-===============================================================================
-*/
-
+/**
+*	Resampling loop macro using fixed-point arithmetic for efficient interpolation.
+*	i = output sample index, j = input sample index (integer part), frac = fractional part.
+**/
 #define RESAMPLE \
-    for (i = frac = 0; j = frac >> 8, i < outcount; i++, frac += fracstep)
+	for ( i = frac = 0; j = frac >> 8, i < outcount; i++, frac += fracstep )
 
-static sfxcache_t *DMA_UploadSfx(sfx_t *sfx)
-{
-    float stepscale = (float)s_info.rate / dma.speed;   // this is usually 0.5, 1, or 2
-    int i, j, frac, fracstep = stepscale * 256;
+/**
+*	@brief	Upload and resample sound effect data to match DMA output rate.
+*	@param	sfx	Sound effect structure containing metadata and raw audio data.
+*	@return	Pointer to allocated sfxcache structure, or NULL on error.
+*	@note	Performs sample rate conversion using fixed-point fractional indexing.
+*	@note	Optimized fast path for 1:1 resampling (no rate conversion needed).
+*	@note	Supports mono/stereo, 8-bit/16-bit PCM formats.
+**/
+static sfxcache_t *DMA_UploadSfx( sfx_t *sfx ) {
+	float stepscale = ( float )s_info.rate / dma.speed;   // Resampling ratio (typically 0.5, 1.0, or 2.0).
+	int i, j, frac, fracstep = stepscale * 256;
 
-    int outcount = s_info.samples / stepscale;
-    if (!outcount) {
-        Com_DPrintf("%s resampled to zero length\n", s_info.name);
-        sfx->error = Q_ERR_TOO_FEW;
-        return NULL;
-    }
+	// Calculate output sample count after resampling.
+	int outcount = s_info.samples / stepscale;
+	if ( !outcount ) {
+		Com_DPrintf( "%s resampled to zero length\n", s_info.name );
+		sfx->error = Q_ERR_TOO_FEW;
+		return nullptr;
+	}
 
-    int size = outcount * s_info.width * s_info.channels;
-    sfxcache_t *sc = sfx->cache = S_Malloc(sizeof(sfxcache_t) + size - 1);
+	// Allocate sfxcache structure with embedded sample data.
+	int size = outcount * s_info.width * s_info.channels;
+	sfxcache_t *sc = sfx->cache = S_Malloc( sizeof( sfxcache_t ) + size - 1 );
 
-    sc->length = outcount;
-    sc->loopstart = s_info.loopstart == -1 ? -1 : s_info.loopstart / stepscale;
-    sc->width = s_info.width;
-    sc->channels = s_info.channels;
-    sc->size = size;
+	sc->length = outcount;
+	sc->loopstart = s_info.loopstart == -1 ? -1 : s_info.loopstart / stepscale;
+	sc->width = s_info.width;
+	sc->channels = s_info.channels;
+	sc->size = size;
 
-// resample / decimate to the current source rate
-    if (stepscale == 1) // fast special case
-        memcpy(sc->data, s_info.data, size);
-    else if (sc->width == 1 && sc->channels == 1)
-        RESAMPLE sc->data[i] = s_info.data[j];
-    else if (sc->width == 2 && sc->channels == 2)
-        RESAMPLE WL32(sc->data + i * 4, RL32(s_info.data + j * 4));
-    else
-        RESAMPLE ((uint16_t *)sc->data)[i] = ((uint16_t *)s_info.data)[j];
+	// Resample/decimate to the current output sample rate.
+	if ( stepscale == 1 ) {
+		// Fast path: No resampling needed, direct copy.
+		memcpy( sc->data, s_info.data, size );
+	} else if ( sc->width == 1 && sc->channels == 1 ) {
+		// 8-bit mono resampling.
+		RESAMPLE sc->data[i] = s_info.data[j];
+	} else if ( sc->width == 2 && sc->channels == 2 ) {
+		// 16-bit stereo resampling (optimized for 4-byte pairs).
+		RESAMPLE WL32( sc->data + i * 4, RL32( s_info.data + j * 4 ) );
+	} else {
+		// 16-bit mono resampling.
+		RESAMPLE ( ( uint16_t * )sc->data )[i] = ( ( uint16_t * )s_info.data )[j];
+	}
 
-    return sc;
+	return sc;
 }
 
 /**
-*   @brief  STUB
+*	@brief	Stub function for EAX effect properties (DMA backend does not support EAX).
+*	@param	eax_properties	Reverb properties structure (ignored).
+*	@return	Always returns false (EAX not supported).
 **/
 static const qboolean DMA_SetEAXEFfectProperties( const sfx_eax_properties_t *eax_properties ) {
-    return false;
+	return false;
 }
 
 #undef RESAMPLE
 
-static void DMA_PageInSfx(sfx_t *sfx)
-{
-    sfxcache_t *sc = sfx->cache;
-    if (sc)
-        Com_PageInMemory(sc->data, sc->size);
+/**
+*	@brief	Page sound effect data into physical memory to prevent paging delays.
+*	@param	sfx	Sound effect structure containing cached sample data.
+*	@note	Touches all pages of sound data to ensure they are resident in RAM.
+**/
+static void DMA_PageInSfx( sfx_t *sfx ) {
+	sfxcache_t *sc = sfx->cache;
+	if ( sc )
+		Com_PageInMemory( sc->data, sc->size );
 }
 
+/**
+*
+*
+*
+*	Raw Sample Streaming (Music/Cinematics):
+*
+*
+*
+**/
 
-/*
-===============================================================================
-
-RAW SAMPLES
-
-===============================================================================
-*/
-
+/**
+*	Resampling loop macro for raw samples using circular buffer indexing.
+*	i = output index, j = ring buffer index, k = input sample index, frac = fractional part.
+**/
 #define RESAMPLE \
-    for (i = frac = 0, j = s_rawend & (MAX_RAW_SAMPLES - 1); \
-         k = frac >> 8, i < outcount; \
-         i++, frac += fracstep, j = (j + 1) & (MAX_RAW_SAMPLES - 1))
+	for ( i = frac = 0, j = s_rawend & ( MAX_RAW_SAMPLES - 1 ); \
+		  k = frac >> 8, i < outcount; \
+		  i++, frac += fracstep, j = ( j + 1 ) & ( MAX_RAW_SAMPLES - 1 ) )
 
-static bool DMA_RawSamples(int samples, int rate, int width, int channels, const byte *data, float volume)
-{
+/**
+*	@brief	Add raw audio samples to streaming buffer (for music/cinematics playback).
+*	@param	samples		Number of input samples.
+*	@param	rate		Input sample rate in Hz.
+*	@param	width		Sample width in bytes (1=8-bit, 2=16-bit).
+*	@param	channels	Number of audio channels (1=mono, 2=stereo).
+*	@param	data		Pointer to raw PCM audio data.
+*	@param	volume		Playback volume multiplier (0.0 to 1.0).
+*	@return	True if samples were successfully queued, false on buffer overflow.
+*	@note	Performs sample rate conversion and writes to circular ring buffer.
+*	@note	Applies volume scaling during resampling for efficiency.
+**/
+static bool DMA_RawSamples( int samples, int rate, int width, int channels, const byte *data, float volume ) {
     float stepscale = (float)rate / dma.speed;
     int i, j, k, frac, fracstep = stepscale * 256;
     int outcount = samples / stepscale;
