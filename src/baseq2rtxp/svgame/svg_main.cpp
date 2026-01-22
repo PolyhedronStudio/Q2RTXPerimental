@@ -21,6 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_commands_server.h"
 #include "svgame/svg_edict_pool.h"
 #include "svgame/svg_clients.h"
+#include "svgame/nav/svg_nav.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -801,7 +802,13 @@ void SVG_RunFrame(void) {
     /**
 	*	Readjust "movewith" Push / Stop entities.
 	**/
+	// Update movewith entities.
     SVG_PushMove_UpdateMoveWithEntities();
+	//! Make sure to update the navigation system.
+	SVG_Nav_RefreshInlineModelRuntime();
+	// Navigation debug draw (runtime).
+	// Needs a built mesh (`nav_gen_voxelmesh`) and `nav_debug_draw 1`.
+	SVG_Nav_DebugDraw();
 
 	/**
 	*	WID: LUA: CallBack.

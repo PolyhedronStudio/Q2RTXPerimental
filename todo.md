@@ -17,7 +17,8 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 * [ ] Modify/Update properly:
     - [ ] glMatrix.net math code seems minimal for all the vector/matrix/(dual-)quaternion operations we need.
             We need to C++ify it properly, and streamline it for our use. (Extend our already existing QM_*** (QMath) functions.
-    - [ ] 
+    - [ ] navmes, Better rebuild runtime mapping by collecting entities like in generation. That code is static in cpp; can't call.
+    - [ ]
 * [ ] IMPLEMENT: Skeletal Animation Blending approaches such as  Partial Blending, Additive Blending, and Layered Blending.
         - [ ] Partial Blending: Blend specific parts of a skeleton while keeping others static.
         - [ ] Additive Blending: Add the differences between two animations to create a new animation.
