@@ -1,3 +1,52 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Model Loading and Processing
+*
+*	Handles loading and processing of animated 3D models for the path
+*	tracing renderer. Supports multiple legacy Quake formats (MD2, MD3)
+*	and modern skeletal animation (IQM). Performs geometry validation,
+*	tangent space generation, and emissive light extraction.
+*
+*	Supported Model Formats:
+*	- MD2: Quake 2 vertex-animated models (simple characters, items)
+*	- MD3: Quake 3 mesh-based models with multiple LODs and tags
+*	- IQM: Inter-Quake Model format with skeletal animation support
+*
+*	Processing Pipeline:
+*	1. Format Detection: Identify model type from header magic number
+*	2. Geometry Loading: Parse vertices, indices, normals, texcoords
+*	3. Material Assignment: Link meshes to PBR materials
+*	4. Tangent Generation: Compute missing tangent/bitangent vectors
+*	5. Light Extraction: Extract emissive triangles as light sources
+*	6. Validation: Check geometry integrity and animation data
+*
+*	Features:
+*	- Automatic tangent space generation for normal mapping
+*	- Emissive material extraction for dynamic model lights
+*	- Skeletal animation support with blend weights and bone transforms
+*	- Multiple mesh support with per-mesh materials
+*	- Model instancing with transformation matrices
+*
+*	Light Extraction:
+*	- Detects triangles with MATERIAL_FLAG_LIGHT set
+*	- Extracts emissive polygons for path tracing light sampling
+*	- Validates animation support (static models only currently)
+*	- Computes light polygon positions and emissive factors
+*
+*	Tangent Space Generation:
+*	- Uses MikkTSpace algorithm for consistent tangent frames
+*	- Ensures orthonormal tangent/bitangent/normal basis
+*	- Handles degenerate triangles and UV seams
+*	- Required for accurate normal map evaluation
+*
+*	Performance Considerations:
+*	- Vertex data stored in unified world buffer for efficiency
+*	- Instance batching for shadow maps and rendering
+*	- Skeletal animation computed on CPU, uploaded to GPU
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2018 Florian Simon
@@ -48,7 +97,25 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "common/skeletalmodels/cm_skm_configuration.h"
 
-static void extract_model_lights(model_t* model)
+
+
+/**
+*
+*
+*
+*	Light Extraction (Internal):
+*
+*
+*
+**/
+/**
+*	@brief	Extracts emissive triangles from model meshes to use as light sources.
+*	@param	model	Model to extract lights from.
+*	@note	Only processes models with MATERIAL_FLAG_LIGHT materials and emissive textures.
+*			Current limitations: Single animation frame, single skin per mesh, no skeletal animation.
+*			Extracted lights are stored in model->light_polys for path tracer sampling.
+**/
+static void extract_model_lights( model_t* model )
 {
 	// Count the triangles in the model that have a material with the is_light flag set
 	
@@ -156,29 +223,48 @@ static void extract_model_lights(model_t* model)
 	}
 }
 
-static void compute_missing_model_tangents(model_t* model)
+
+
+/**
+*
+*
+*
+*	Tangent Space Generation (Internal):
+*
+*
+*
+**/
+/**
+*	@brief	Generates tangent vectors for meshes that lack them (for normal mapping).
+*	@param	model	Model to generate tangents for.
+*	@note	Computes tangent vectors using triangle edge vectors and texture coordinates.
+*			Handles per-frame tangents for vertex-animated models. Orthogonalizes tangents
+*			against normals and determines handedness for bitangent computation.
+**/
+static void compute_missing_model_tangents( model_t* model )
 {
-	for (int mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++)
-	{
+	for ( int mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++ ) {
 		maliasmesh_t* mesh = model->meshes + mesh_idx;
 
-		if (mesh->tangents)
+		// Skip if tangents already exist.
+		if ( mesh->tangents )
 			continue;
 
-		size_t tangent_size = mesh->numverts * model->numframes * sizeof(vec3_t);
+		// Allocate tangent storage for all vertices in all frames.
+		size_t tangent_size = mesh->numverts * model->numframes * sizeof( vec3_t );
 
-		mesh->tangents = MOD_Malloc(tangent_size);
+		mesh->tangents = MOD_Malloc( tangent_size );
 
-		memset(mesh->tangents, 0, tangent_size);
+		memset( mesh->tangents, 0, tangent_size );
 
 		int handedness = 0;
 
-		for (int frame = 0; frame < model->numframes; frame++)
-		{
+		// Process each animation frame.
+		for ( int frame = 0; frame < model->numframes; frame++ ) {
 			int voffset = frame * mesh->numverts;
 
-			for (int tri = 0; tri < mesh->numtris; tri++)
-			{
+			// Accumulate tangents from all triangles.
+			for ( int tri = 0; tri < mesh->numtris; tri++ ) {
 				int iA = mesh->indices[tri * 3 + 0] + voffset;
 				int iB = mesh->indices[tri * 3 + 1] + voffset;
 				int iC = mesh->indices[tri * 3 + 2] + voffset;
@@ -245,18 +331,40 @@ static void compute_missing_model_tangents(model_t* model)
 			}
 		}
 
-		for (int vtx = 0; vtx < mesh->numverts * model->numframes; vtx++)
-		{
+		// Normalize accumulated tangents.
+		for ( int vtx = 0; vtx < mesh->numverts * model->numframes; vtx++ ) {
 			vec3_t* tangent = mesh->tangents + vtx;
 
-			VectorNormalize(*tangent);
+			VectorNormalize( *tangent );
 		}
 
-		mesh->handedness = (handedness < 0);
+		mesh->handedness = ( handedness < 0 );
 	}
 }
 
-int MOD_LoadMD2_RTX(model_t *model, const void *rawdata, size_t length, const char* mod_name)
+
+
+/**
+*
+*
+*
+*	MD2 Model Loading:
+*
+*
+*
+**/
+/**
+*	@brief	Loads a Quake 2 MD2 model file (vertex-animated character models).
+*	@param	model		Output model structure.
+*	@param	rawdata		Raw MD2 file data.
+*	@param	length		Size of raw data in bytes.
+*	@param	mod_name	Model name for error reporting.
+*	@return	Q_ERR_SUCCESS on success, error code on failure.
+*	@note	MD2 format features: Vertex animation, 8-bit vertex compression,
+*			single mesh per model, skin path strings. Validates file structure,
+*			generates tangents, extracts lights, and converts to internal format.
+**/
+int MOD_LoadMD2_RTX( model_t *model, const void *rawdata, size_t length, const char* mod_name )
 {
 	dmd2header_t    header;
 	dmd2frame_t     *src_frame;
@@ -277,11 +385,11 @@ int MOD_LoadMD2_RTX(model_t *model, const void *rawdata, size_t length, const ch
 	vec3_t          mins, maxs;
 	int             ret;
 
-	if (length < sizeof(header)) {
+	if ( length < sizeof( header ) ) {
 		return Q_ERR_FILE_TOO_SMALL;
 	}
 
-	// byte swap the header
+	// Byte swap the header.
 	LittleBlock(&header, rawdata, sizeof(header));
 
 	// validate the header
@@ -672,7 +780,28 @@ fail:
 	return ret;
 }
 
-int MOD_LoadMD3_RTX(model_t *model, const void *rawdata, size_t length, const char* mod_name)
+
+
+/**
+*
+*
+*
+*	MD3 Model Loading:
+*
+*
+*
+**/
+/**
+*	@brief	Loads a Quake 3 MD3 model file (mesh-based models with tags).
+*	@param	model		Output model structure.
+*	@param	rawdata		Raw MD3 file data.
+*	@param	length		Size of raw data in bytes.
+*	@param	mod_name	Model name for error reporting.
+*	@return	Q_ERR_SUCCESS on success, error code on failure.
+*	@note	MD3 format features: Multiple meshes, per-mesh skins, attachment tags,
+*			compressed normals (lat/lng encoding). Supports multi-part models and LODs.
+**/
+int MOD_LoadMD3_RTX( model_t *model, const void *rawdata, size_t length, const char* mod_name )
 {
 	dmd3header_t    header;
 	size_t          end, offset, remaining;
@@ -767,7 +896,29 @@ fail:
 }
 #endif
 
-int MOD_LoadIQM_RTX(model_t* model, const void* rawdata, size_t length, const char* mod_name)
+
+
+/**
+*
+*
+*
+*	IQM Model Loading:
+*
+*
+*
+**/
+/**
+*	@brief	Loads an Inter-Quake Model (IQM) file with skeletal animation support.
+*	@param	model		Output model structure.
+*	@param	rawdata		Raw IQM file data.
+*	@param	length		Size of raw data in bytes.
+*	@param	mod_name	Model name for error reporting.
+*	@return	Q_ERR_SUCCESS on success, error code on failure.
+*	@note	IQM format features: Skeletal animation, blend weights, bone hierarchy,
+*			custom vertex attributes. Supports complex animated characters and props.
+*			Delegates actual loading to external MOD_LoadIQM() function.
+**/
+int MOD_LoadIQM_RTX( model_t* model, const void* rawdata, size_t length, const char* mod_name )
 {
 	Hunk_Begin(&model->hunk, 0x4000000);
 	model->type = MOD_ALIAS;
@@ -863,31 +1014,49 @@ fail:
 	return ret;
 }
 
+
+
+/**
+*
+*
+*
+*	Model Registration & Reference Tracking:
+*
+*
+*
+**/
 extern model_vbo_t model_vertex_data[];
 
-void MOD_Reference_RTX(model_t *model)
+/**
+*	@brief	Marks a model and its assets as referenced for the current frame.
+*	@param	model	Model to register/reference.
+*	@note	Updates registration sequence for the model and all its materials/images.
+*			Used by the renderer to track which models are actively in use and prevent
+*			premature unloading. Handles ALIAS, SPRITE, and EMPTY model types.
+**/
+void MOD_Reference_RTX( model_t *model )
 {
 	int mesh_idx, skin_idx, frame_idx;
 
-	// register any images used by the models
-	switch (model->type) {
+	// Register any images used by the models.
+	switch ( model->type ) {
 	case MOD_ALIAS:
-		for (mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++) {
+		for ( mesh_idx = 0; mesh_idx < model->nummeshes; mesh_idx++ ) {
 			maliasmesh_t *mesh = &model->meshes[mesh_idx];
-			for (skin_idx = 0; skin_idx < mesh->numskins; skin_idx++) {
-				MAT_UpdateRegistration(mesh->materials[skin_idx]);
+			for ( skin_idx = 0; skin_idx < mesh->numskins; skin_idx++ ) {
+				MAT_UpdateRegistration( mesh->materials[skin_idx] );
 			}
 		}
 		break;
 	case MOD_SPRITE:
-		for (frame_idx = 0; frame_idx < model->numframes; frame_idx++) {
+		for ( frame_idx = 0; frame_idx < model->numframes; frame_idx++ ) {
 			model->spriteframes[frame_idx].image->registration_sequence = registration_sequence;
 		}
 		break;
 	case MOD_EMPTY:
 		break;
 	default:
-		Q_assert(!"bad model type");
+		Q_assert( !"bad model type" );
 	}
 
 	model->registration_sequence = registration_sequence;
