@@ -1,3 +1,101 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: BSP World Geometry Processing and Mesh Generation
+*
+*	Processes Quake 2 BSP world geometry and converts it into ray tracing
+*	primitives suitable for hardware-accelerated path tracing. Handles
+*	surface tessellation, lightmap processing, material assignment, and
+*	generates light sources from emissive surfaces. Creates separate
+*	geometry streams for opaque, transparent, masked, and sky surfaces.
+*
+*	Architecture:
+*	- Surface Conversion: Transforms Q2 BSP surfaces into triangle primitives
+*	  - Opaque Geometry: Solid world brushes and static models
+*	  - Transparent Geometry: Water, glass, slime surfaces
+*	  - Masked Geometry: Surfaces with alpha-tested textures (fences, grates)
+*	  - Sky Geometry: Sky surfaces for environment rendering
+*	  - Custom Sky: Optional artist-defined sky meshes (OBJ format)
+*	- Light Extraction: Detects and creates light sources from surfaces
+*	  - Surface Lights: Emissive textures marked with SURF_LIGHT flag
+*	  - Sky Lights: Sky surfaces used as area lights
+*	  - Lava Lights: Lava surfaces emitting light
+*	  - Animated Lights: Frame-animated emissive textures
+*	- Visibility Processing: PVS (Potentially Visible Set) optimization
+*	  - PVS2: Two-level visibility for faster light culling
+*	  - Sky Visibility: Per-cluster sky visibility for outdoor detection
+*	  - Cluster AABBs: Spatial bounds for light culling
+*
+*	Algorithm Flow:
+*	1. Load BSP: Parse BSP file, extract surfaces, materials, and visibility
+*	2. Tessellate Surfaces: Convert BSP surfaces to triangle primitives
+*	   - Fan tessellation: Surface polygon → N-2 triangles
+*	   - Collinear edge removal for sky surfaces
+*	   - Normal and tangent basis extraction from BSP
+*	3. Material Assignment: Classify surfaces and assign materials
+*	   - Surface flags: SURF_LIGHT, SURF_WARP, SURF_SKY, SURF_FLOWING
+*	   - Material kinds: opaque, transparent, masked, sky
+*	   - Emissive synthesis for light-emitting surfaces
+*	4. Light Generation: Extract light polys from emissive surfaces
+*	   - Entire texture: Single light poly for fully emissive surfaces
+*	   - Clipped lights: Per-triangle lights clipped to emissive regions
+*	   - Light styles: Animated lights with switchable styles
+*	5. Visibility Computation: Build PVS2 and cluster visibility
+*	   - PVS patches: Connect clusters visible through portals
+*	   - Sky visibility: Mark clusters that can see sky
+*	   - Cluster lights: Assign lights to clusters via PVS
+*	6. Model Loading: Process inline BSP models (doors, platforms)
+*	   - Separate geometry streams per model
+*	   - Transparency and masking detection
+*	   - Per-model light extraction
+*
+*	Features:
+*	- Automatic surface light detection from SURF_LIGHT flag
+*	- Emissive texture synthesis for glowing surfaces
+*	- Sky surface light generation (sun/ambient lighting)
+*	- Lava surface light extraction
+*	- Animated emissive textures with frame interpolation
+*	- Custom sky mesh loading (OBJ format)
+*	- Tangent space basis for normal mapping
+*	- Collinear edge removal for sky geometry
+*	- PVS patching for portal visibility
+*	- Cluster-based light culling
+*	- Per-model geometry separation
+*	- Material animation (flowing water, texture cycling)
+*
+*	Configuration (cvars):
+*	- pt_enable_nodraw:               Enable NODRAW surface culling (0/1/2)
+*	- pt_enable_surface_lights:       Enable surface light extraction (0/1)
+*	- pt_enable_surface_lights_warp:  Enable lights on WARP surfaces (0/1)
+*	- pt_bsp_radiance_scale:          Scale factor for BSP light radiance
+*	- pt_bsp_sky_lights:              Sky light mode (0=off, 1=sky, 2=nodraw)
+*
+*	Constants:
+*	- max_vertices:                   128 (maximum vertices per surface polygon)
+*	- MAX_LIGHT_LISTS:                Limit on number of clusters for lighting
+*	- MAX_LIGHTS_PER_CLUSTER:         Maximum lights affecting one cluster
+*
+*	Performance Optimizations:
+*	- Collinear edge removal reduces triangle count for sky surfaces
+*	- PVS2 two-level visibility reduces per-frame light iteration
+*	- Cluster AABBs enable spatial culling of lights
+*	- Static geometry pre-tessellation (done once at load time)
+*	- Surface flag filtering to skip invisible/culled surfaces
+*	- Inline model instancing reduces memory overhead
+*
+*	Data Structures:
+*	- bsp_mesh_t: Main world mesh container
+*	  - primitives: Array of VboPrimitive triangles
+*	  - light_polys: Array of extracted surface lights
+*	  - models: Array of inline BSP models
+*	  - geom_opaque/transparent/masked/sky: Geometry streams
+*	  - cluster_lights: Per-cluster light lists
+*	  - sky_clusters: List of clusters with sky visibility
+*	- VboPrimitive: Triangle primitive (pos, uv, normal, tangent, material)
+*	- light_poly_t: Polygonal light source (positions, color, cluster, style)
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
@@ -35,48 +133,91 @@ extern cvar_t *cvar_pt_enable_surface_lights_warp;
 extern cvar_t* cvar_pt_bsp_radiance_scale;
 extern cvar_t *cvar_pt_bsp_sky_lights;
 
-//! Maximum of surface vertices.
+//! Maximum of surface vertices per BSP polygon (fan tessellation limit).
 //static const int max_vertices = 128;
 #define max_vertices 128
 
+
+
+/**
+*
+*
+*
+*	Section: Helper Functions
+*
+*	Utility functions for geometry processing, normal encoding,
+*	and emissive factor computation.
+*
+*
+**/
+
+
+
+/**
+ * @brief Remove collinear edges from a polygon to reduce triangle count.
+ * 
+ * Iterates through polygon vertices and removes any vertex that lies on the
+ * line between its neighbors (collinear). This reduces the triangle count
+ * for large planar surfaces like sky boxes without changing the visual shape.
+ * Also removes zero-length edges.
+ * 
+ * @param positions     Array of vertex positions (3 floats per vertex).
+ * @param tex_coords    Array of texture coordinates (2 floats per vertex), may be NULL.
+ * @param bases         Array of tangent bases (1 per vertex), may be NULL.
+ * @param num_vertices  Pointer to vertex count, updated with new count after removal.
+ * 
+ * @note Primarily used for sky surfaces to optimize tessellation.
+ * @note Modifies arrays in-place by shifting remaining vertices.
+ */
 static void
 remove_collinear_edges(float* positions, float* tex_coords, mbasis_t* bases, int* num_vertices)
 {
 	int num_vertices_local = *num_vertices;
 
+	// Iterate through all vertices of the polygon
 	for (int i = 1; i < num_vertices_local;)
 	{
+		// Get three consecutive vertices: prev, current, next
 		float* p0 = positions + (i - 1) * 3;
 		float* p1 = positions + (i % num_vertices_local) * 3;
 		float* p2 = positions + ((i + 1) % num_vertices_local) * 3;
 
+		// Compute edge vectors and their lengths
 		vec3_t e1, e2;
-		VectorSubtract(p1, p0, e1);
-		VectorSubtract(p2, p1, e2);
+		VectorSubtract(p1, p0, e1);  // Edge from prev to current
+		VectorSubtract(p2, p1, e2);  // Edge from current to next
 		float l1 = VectorLength(e1);
 		float l2 = VectorLength(e2);
 
 		bool remove = false;
+		
+		// Case 1: Remove duplicate vertices (zero-length edge to current vertex)
 		if (l1 == 0)
 		{
 			remove = true;
 		}
+		// Case 2: Remove collinear vertices (edges are parallel within threshold)
 		else if (l2 > 0)
 		{
+			// Normalize edge vectors
 			VectorScale(e1, 1.f / l1, e1);
 			VectorScale(e2, 1.f / l2, e2);
 
+			// If dot product is ~1.0, edges are parallel (vertex is collinear)
 			float dot = DotProduct(e1, e2);
-			if (dot > 0.999f)
+			if (dot > 0.999f)  // ~2.5 degree tolerance
 				remove = true;
 		}
 
 		if (remove)
 		{
+			// Shift remaining vertices down to fill gap
 			if (num_vertices_local - i >= 1)
 			{
+				// Shift positions
 				memcpy(p1, p2, (num_vertices_local - i - 1) * 3 * sizeof(float));
 
+				// Shift texture coordinates if present
 				if (tex_coords)
 				{
 					float* t1 = tex_coords + (i % num_vertices_local) * 2;
@@ -84,6 +225,7 @@ remove_collinear_edges(float* positions, float* tex_coords, mbasis_t* bases, int
 					memcpy(t1, t2, (num_vertices_local - i - 1) * 2 * sizeof(float));
 				}
 
+				// Shift tangent bases if present
 				if (bases)
 				{
 					mbasis_t* b1 = bases + (i % num_vertices_local);
@@ -92,17 +234,35 @@ remove_collinear_edges(float* positions, float* tex_coords, mbasis_t* bases, int
 				}
 			}
 
-			num_vertices_local--;
+			num_vertices_local--;  // One less vertex now
 		}
 		else
 		{
-			i++;
+			i++;  // Move to next vertex
 		}
 	}
 
 	*num_vertices = num_vertices_local;
 }
 
+/**
+ * @brief Encode a 3D normal vector into a 32-bit packed format.
+ * 
+ * Direct port of the encode_normal function from utils.glsl. Uses octahedral
+ * mapping to compress a unit normal vector into two 16-bit unsigned integers.
+ * 
+ * Algorithm:
+ * 1. Project normal onto octahedron (L1 normalization)
+ * 2. Unfold negative Z hemisphere using reflection
+ * 3. Map [-1,1] range to [0,1] and quantize to 16-bit
+ * 
+ * @param normal  Unit normal vector (X, Y, Z).
+ * 
+ * @return        Packed normal as uint32 (16-bit X in low word, 16-bit Y in high word).
+ * 
+ * @note Matches GPU-side decode_normal() in shaders.
+ * @note Lossy compression with low error (~0.0015 max error for typical normals).
+ */
 // direct port of the encode_normal function from utils.glsl
 uint32_t
 encode_normal(const vec3_t normal)
@@ -130,6 +290,22 @@ encode_normal(const vec3_t normal)
 	return ux | (uy << 16);
 }
 
+/**
+ * @brief Compute the emissive radiance factor for a surface.
+ * 
+ * Determines how much light a surface emits based on:
+ * 1. SURF_LIGHT flag and texinfo radiance value
+ * 2. Material default radiance (for always-emissive textures)
+ * 3. Global radiance scale cvar
+ * 
+ * @param texinfo  Surface texture information with material and flags.
+ * 
+ * @return         Emissive factor (0 = no emission, >0 = light intensity).
+ * 
+ * @note Returns 1.0 if material is missing (safety fallback).
+ * @note Surface lights use texinfo->radiance scaled by pt_bsp_radiance_scale.
+ * @note Materials can have default_radiance for unconditional emission.
+ */
 // Compute emissive factor for a surface
 static float
 compute_emissive(mtexinfo_t *texinfo)
@@ -150,6 +326,51 @@ static FILE* obj_dump_file = NULL;
 static int obj_vertex_num = 0;
 #endif
 
+
+
+/**
+*
+*
+*
+*	Section: Surface Processing
+*
+*	Functions for converting BSP surfaces into ray tracing primitives.
+*	Handles tessellation, material assignment, and basis extraction.
+*
+*
+**/
+
+
+
+/**
+ * @brief Convert a BSP surface into triangle primitives for ray tracing.
+ * 
+ * Tessellates a BSP surface polygon into a triangle fan and creates VboPrimitive
+ * structures with positions, UVs, normals, tangents, and material IDs. Handles
+ * texture coordinate generation, tangent basis extraction, and material flags.
+ * 
+ * Algorithm:
+ * 1. Extract vertex positions and compute texture coordinates
+ * 2. Load tangent basis from BSP if available
+ * 3. Check tangent handedness and set material flag
+ * 4. Remove collinear edges for sky surfaces
+ * 5. Tessellate polygon into triangle fan (N-2 triangles)
+ * 6. Pack normals, tangents, emissive factor, and alpha
+ * 
+ * @param bsp               BSP data structure.
+ * @param surf              Surface to tessellate.
+ * @param material_id       Material ID with flags (kind, handedness).
+ * @param primitive_index   Starting index in primitive buffer.
+ * @param max_prim          Maximum number of primitives (for overflow check).
+ * @param primitives_out    Output buffer for primitives (NULL to just count).
+ * 
+ * @return                  Number of triangles generated (0 if degenerate).
+ * 
+ * @note Uses fan tessellation: vertex 0 is shared by all triangles.
+ * @note Sky surfaces have collinear edges removed for optimization.
+ * @note Tangent handedness is encoded in material_id MATERIAL_FLAG_HANDEDNESS.
+ * @note Transparent surfaces encode alpha from TRANSLUCENT_33/66 flags.
+ */
 static uint32_t
 create_poly(
 	const bsp_t* bsp,
@@ -326,6 +547,19 @@ create_poly(
 	return num_triangles;
 }
 
+/**
+ * @brief Check if a surface belongs to an inline BSP model.
+ * 
+ * Inline models are movable BSP sub-models (doors, platforms, etc.).
+ * This function checks if a surface pointer falls within any model's face range.
+ * 
+ * @param bsp   BSP data structure.
+ * @param surf  Surface to check.
+ * 
+ * @return      1 if surface belongs to a model, 0 if it's world geometry.
+ * 
+ * @note World geometry (model 0) is handled separately from inline models.
+ */
 static int
 belongs_to_model(bsp_t *bsp, mface_t *surf)
 {
@@ -348,6 +582,14 @@ enum sky_class_e
 	SKY_CLASS_NODRAW_SKYLIGHT
 };
 
+/**
+ * @brief Classify a surface as sky material, NODRAW sky light, or not sky.
+ * 
+ * @param flags       Material kind flags.
+ * @param surf_flags  Surface flags (CM_SURFACE_FLAG_SKY, etc.).
+ * 
+ * @return            Sky classification enum value.
+ */
 static inline enum sky_class_e classify_sky(int flags, int surf_flags)
 {
 	if (MAT_IsKind(flags, MATERIAL_KIND_SKY))
@@ -362,6 +604,19 @@ static inline enum sky_class_e classify_sky(int flags, int surf_flags)
 	return SKY_CLASS_NO;
 }
 
+/**
+ * @brief Filter for masked/alpha-tested surfaces.
+ * 
+ * Selects surfaces with alpha masks (chain-link fences, grates, foliage).
+ * 
+ * @param flags       Material kind.
+ * @param surf_flags  Surface flags.
+ * 
+ * @return            1 if surface should be included in masked geometry, 0 otherwise.
+ * 
+ * @note Checks for image_mask in material to determine alpha testing.
+ * @note Culls NODRAW surfaces if pt_enable_nodraw cvar is set.
+ */
 static int filter_static_masked(int flags, int surf_flags)
 {
 	if ((surf_flags & CM_SURFACE_NODRAW) && cvar_pt_enable_nodraw->integer)
@@ -375,6 +630,20 @@ static int filter_static_masked(int flags, int surf_flags)
 	return 0;
 }
 
+/**
+ * @brief Filter for opaque surfaces.
+ * 
+ * Selects solid, non-transparent, non-sky surfaces for opaque geometry stream.
+ * Excludes water, slime, glass, transparent materials, and sky.
+ * 
+ * @param flags       Material kind.
+ * @param surf_flags  Surface flags.
+ * 
+ * @return            1 if surface should be included in opaque geometry, 0 otherwise.
+ * 
+ * @note Culls NODRAW surfaces if pt_enable_nodraw cvar is set.
+ * @note Excludes sky surfaces (handled by filter_static_sky).
+ */
 static int filter_static_opaque(int flags, int surf_flags)
 {
 	if ((surf_flags & CM_SURFACE_NODRAW) && cvar_pt_enable_nodraw->integer)
@@ -390,6 +659,19 @@ static int filter_static_opaque(int flags, int surf_flags)
 	return 1;
 }
 
+/**
+ * @brief Filter for transparent surfaces.
+ * 
+ * Selects water, slime, glass, and other semi-transparent surfaces.
+ * 
+ * @param flags       Material kind.
+ * @param surf_flags  Surface flags.
+ * 
+ * @return            1 if surface should be included in transparent geometry, 0 otherwise.
+ * 
+ * @note Includes MATERIAL_KIND_WATER, SLIME, GLASS, and TRANSPARENT.
+ * @note Culls NODRAW surfaces if pt_enable_nodraw cvar is set.
+ */
 static int filter_static_transparent(int flags, int surf_flags)
 {
 	if ((surf_flags & CM_SURFACE_NODRAW) && cvar_pt_enable_nodraw->integer)
@@ -402,6 +684,19 @@ static int filter_static_transparent(int flags, int surf_flags)
 	return 0;
 }
 
+/**
+ * @brief Filter for sky surfaces.
+ * 
+ * Selects sky material surfaces for environment rendering.
+ * 
+ * @param flags       Material kind.
+ * @param surf_flags  Surface flags.
+ * 
+ * @return            1 if surface should be included in sky geometry, 0 otherwise.
+ * 
+ * @note Uses classify_sky() to handle both normal sky and NODRAW sky lights.
+ * @note NODRAW surfaces are only included if pt_enable_nodraw < 2.
+ */
 static int filter_static_sky(int flags, int surf_flags)
 {
 	enum sky_class_e sky_class = classify_sky(flags, surf_flags);
@@ -415,6 +710,18 @@ static int filter_static_sky(int flags, int surf_flags)
 	return 0;
 }
 
+/**
+ * @brief Filter that accepts all non-NODRAW, non-sky surfaces.
+ * 
+ * Used for collecting inline model geometry without material filtering.
+ * 
+ * @param flags       Material kind.
+ * @param surf_flags  Surface flags.
+ * 
+ * @return            1 if surface should be included, 0 otherwise.
+ * 
+ * @note Culls NODRAW and SKY surfaces.
+ */
 static int filter_all(int flags, int surf_flags)
 {
 	if ((surf_flags & CM_SURFACE_NODRAW) && cvar_pt_enable_nodraw->integer)
@@ -426,12 +733,42 @@ static int filter_all(int flags, int surf_flags)
 	return 1;
 }
 
+/**
+ * @brief Filter for NODRAW surfaces that should emit sky light.
+ * 
+ * Selects surfaces marked as NODRAW+SKY+LIGHT when pt_bsp_sky_lights > 1.
+ * This allows mappers to create invisible sky light sources.
+ * 
+ * @param flags       Material kind.
+ * @param surf_flags  Surface flags.
+ * 
+ * @return            1 if surface is a NODRAW sky light, 0 otherwise.
+ * 
+ * @note Only active when pt_bsp_sky_lights > 1.
+ * @note These surfaces emit light but are not rendered.
+ */
 static int filter_nodraw_sky_lights(int flags, int surf_flags)
 {
 	enum sky_class_e sky_class = classify_sky(flags, surf_flags);
 	return sky_class == SKY_CLASS_NODRAW_SKYLIGHT;
 }
 
+/**
+ * @brief Compute a point offset from the center of a triangle.
+ * 
+ * Calculates the triangle centroid and offsets it along the surface normal.
+ * Useful for placing light sample points or BSP leaf queries slightly above
+ * the surface to avoid numerical precision issues with coplanar tests.
+ * 
+ * @param positions    Array of 9 floats (3 vertices × 3 components).
+ * @param center       Output: centroid offset along normal (by offset amount).
+ * @param anti_center  Output: centroid offset in opposite direction (optional, may be NULL).
+ * @param offset       Distance to offset from centroid along normal.
+ * 
+ * @return             true if triangle is valid (non-zero area), false if degenerate.
+ * 
+ * @note Used to find BSP leaf for light placement without hitting boundary planes.
+ */
 // Computes a point at a small distance above the center of the triangle.
 // Returns false if the triangle is degenerate, true otherwise.
 bool
@@ -470,6 +807,19 @@ get_triangle_off_center(const float* positions, float* center, float* anti_cente
 	return (length > 0.f);
 }
 
+/**
+ * @brief Get the light style index for a surface.
+ * 
+ * Searches the surface's lightmap styles to find the first non-default style.
+ * Light styles are used for switchable or flickering lights (style 0 = normal,
+ * style 1-63 = various patterns).
+ * 
+ * @param surf  Surface to query.
+ * 
+ * @return      First non-zero, non-255 style index, or 0 if none found.
+ * 
+ * @note Style 0 is normal (always-on), style 255 is unused.
+ */
 static int
 get_surf_light_style(const mface_t* surf)
 {
@@ -484,6 +834,21 @@ get_surf_light_style(const mface_t* surf)
 	return 0;
 }
 
+/**
+ * @brief Compute the plane equation for a surface.
+ * 
+ * Finds a consistent plane equation (A, B, C, D) that best fits the surface
+ * by trying multiple edge pairs. Handles non-planar surfaces by choosing the
+ * edge pair with the longest edges.
+ * 
+ * @param surf   Surface to compute plane for.
+ * @param plane  Output: plane equation as vec4 (normal XYZ, distance D).
+ * 
+ * @return       true if a valid plane was found, false if surface is degenerate.
+ * 
+ * @note Needed because Q2 surfaces can be slightly non-planar due to vertex snapping.
+ * @note Chooses the edge pair with maximum combined length for best accuracy.
+ */
 static bool
 get_surf_plane_equation(mface_t* surf, float* plane)
 {
@@ -517,6 +882,23 @@ get_surf_plane_equation(mface_t* surf, float* plane)
 	return (maxlen > 0.f);
 }
 
+/**
+ * @brief Check if a cluster contains sky or upward-facing lava surfaces.
+ * 
+ * Determines if a cluster should be marked for sky/lava light generation.
+ * Sky clusters are loaded from external data, lava clusters are detected
+ * by upward-facing (plane[2] < 0) lava surfaces.
+ * 
+ * @param wm           World mesh data.
+ * @param surf         Surface to test.
+ * @param cluster      Cluster index to check.
+ * @param material_id  Material ID of surface.
+ * 
+ * @return             true if cluster contains relevant sky/lava geometry.
+ * 
+ * @note Only upward-facing lava surfaces count (normal points up).
+ * @note Sky clusters are loaded from "maps/<mapname>_sky.txt".
+ */
 static bool
 is_sky_or_lava_cluster(bsp_mesh_t* wm, mface_t* surf, int cluster, int material_id)
 {
@@ -546,6 +928,35 @@ is_sky_or_lava_cluster(bsp_mesh_t* wm, mface_t* surf, int cluster, int material_
 	return false;
 }
 
+
+
+/**
+*
+*
+*
+*	Section: Visibility (PVS) Processing
+*
+*	Functions for processing and enhancing the Potentially Visible Set (PVS)
+*	data from BSP visibility information. Includes PVS merging, symmetry
+*	correction, and two-level PVS (PVS2) construction for light culling.
+*
+*
+**/
+
+
+
+/**
+ * @brief Merge one PVS row into another using bitwise OR.
+ * 
+ * Combines visibility information from two PVS rows. Used to expand
+ * visibility sets when connecting clusters through portals.
+ * 
+ * @param bsp  BSP data structure.
+ * @param src  Source PVS row to merge from.
+ * @param dst  Destination PVS row to merge into (modified in-place).
+ * 
+ * @note Each PVS row is bsp->visrowsize bytes (one bit per cluster).
+ */
 static void merge_pvs_rows(bsp_t* bsp, byte* src, byte* dst)
 {
 	for (int i = 0; i < bsp->visrowsize; i++)
@@ -563,6 +974,20 @@ static void merge_pvs_rows(bsp_t* bsp, byte* src, byte* dst)
 
 #define FOREACH_BIT_END  } } } }
 
+/**
+ * @brief Connect two clusters bidirectionally in their PVS data.
+ * 
+ * Makes cluster_a visible from all clusters visible from cluster_b, and vice versa.
+ * Used to patch PVS data for portal connections that the compiler may have missed.
+ * 
+ * @param bsp       BSP data structure.
+ * @param cluster_a First cluster index.
+ * @param pvs_a     PVS row for cluster_a.
+ * @param cluster_b Second cluster index.
+ * @param pvs_b     PVS row for cluster_b.
+ * 
+ * @note Modifies PVS data for all clusters visible from either cluster.
+ */
 static void connect_pvs(bsp_t* bsp, int cluster_a, byte* pvs_a, int cluster_b, byte* pvs_b)
 {
 	FOREACH_BIT_BEGIN(pvs_a, bsp->visrowsize, vis_cluster_a)
@@ -583,6 +1008,17 @@ static void connect_pvs(bsp_t* bsp, int cluster_a, byte* pvs_a, int cluster_b, b
 	merge_pvs_rows(bsp, pvs_b, pvs_a);
 }
 
+/**
+ * @brief Make PVS data symmetric (if A sees B, then B sees A).
+ * 
+ * Ensures that visibility is bidirectional, which is required for proper
+ * light culling. Some BSP compilers may produce asymmetric PVS data.
+ * 
+ * @param bsp  BSP data structure with PVS to make symmetric.
+ * 
+ * @note Modifies PVS data in-place.
+ * @note Called during BSP mesh creation to fix compiler errors.
+ */
 static void make_pvs_symmetric(bsp_t* bsp)
 {
 	for (int cluster = 0; cluster < bsp->vis->numclusters; cluster++)
@@ -599,6 +1035,23 @@ static void make_pvs_symmetric(bsp_t* bsp)
 	}
 }
 
+/**
+ * @brief Build two-level PVS (PVS2) for faster light culling.
+ * 
+ * PVS2 for cluster A contains all clusters visible from clusters visible from A.
+ * This is a transitive closure of the PVS relation: if A sees B and B sees C,
+ * then PVS2(A) contains C. Used to cull lights more aggressively.
+ * 
+ * Algorithm:
+ * 1. For each cluster A, start with PVS(A)
+ * 2. For each cluster B in PVS(A), merge PVS(B) into PVS2(A)
+ * 3. Result: PVS2(A) = union of all PVS(B) for B in PVS(A)
+ * 
+ * @param bsp  BSP data structure.
+ * 
+ * @note Allocates bsp->pvs2_matrix (one row per cluster).
+ * @note PVS2 is typically 2-3x larger than PVS but enables better culling.
+ */
 static void build_pvs2(bsp_t* bsp)
 {
 	size_t matrix_size = bsp->visrowsize * bsp->vis->numclusters;
@@ -619,6 +1072,37 @@ static void build_pvs2(bsp_t* bsp)
 
 }
 
+
+
+/**
+*
+*
+*
+*	Section: BSP Mesh Building
+*
+*	Functions for collecting surfaces from BSP, tessellating them into
+*	triangle primitives, and building geometry streams for rendering.
+*	Handles world geometry and inline models.
+*
+*
+**/
+
+
+
+/**
+ * @brief Count the upper bound of triangles needed for BSP geometry.
+ * 
+ * Provides an upper estimate for the total number of triangles needed to
+ * represent all BSP surfaces. Actual count may be lower due to collinear
+ * edge removal, invisible materials, and degenerate surfaces.
+ * 
+ * @param bsp  BSP data structure.
+ * 
+ * @return     Upper bound on triangle count (conservative estimate).
+ * 
+ * @note Uses num_vertices per surface (not num_vertices - 2) for safety.
+ * @note Includes all faces, even those that may be culled later.
+ */
 // Provides an upper estimate (not counting the collinear edge removal, invisible materials etc.)
 // for the total number of triangles needed to represent the bsp and one instance of every model.
 static int count_triangles(const bsp_t* bsp)
@@ -638,6 +1122,34 @@ static int count_triangles(const bsp_t* bsp)
 	return num_tris;
 }
 
+/**
+ * @brief Collect and tessellate surfaces from BSP into triangle primitives.
+ * 
+ * Main function for converting BSP surfaces into ray tracing geometry. Iterates
+ * through all faces in the BSP (or a specific model), filters them based on
+ * material and flags, tessellates them using create_poly(), and stores the
+ * resulting primitives. Also handles PVS patching for portal visibility.
+ * 
+ * Algorithm:
+ * 1. Iterate through all surfaces in BSP or model
+ * 2. Skip surfaces that belong to inline models (if processing world)
+ * 3. Apply material kind corrections (water without warp → regular, etc.)
+ * 4. Apply surface filter to determine if surface should be included
+ * 5. Handle material animation (flowing water, texture cycling)
+ * 6. Tessellate surface into triangles using create_poly()
+ * 7. Store primitives in wm->primitives array
+ * 8. Optionally patch PVS for portals (light-emitting surfaces)
+ * 
+ * @param prim_ctr   Pointer to primitive counter (incremented for each triangle).
+ * @param wm         World mesh structure to store primitives in.
+ * @param bsp        BSP data structure.
+ * @param model_idx  Model index (-1 for world, ≥0 for inline models).
+ * @param filter     Function pointer to filter surfaces by material/flags.
+ * 
+ * @note Modifies wm->primitives array starting at offset *prim_ctr.
+ * @note Updates *prim_ctr with number of primitives generated.
+ * @note May patch BSP PVS data if light-emitting portals are detected.
+ */
 static void
 collect_surfaces(uint32_t *prim_ctr, bsp_mesh_t *wm, bsp_t *bsp, int model_idx, int (*filter)(int, int))
 {
@@ -776,6 +1288,23 @@ collect_surfaces(uint32_t *prim_ctr, bsp_mesh_t *wm, bsp_t *bsp, int model_idx, 
 		make_pvs_symmetric(bsp);
 }
 
+
+
+/**
+*
+*
+*
+*	Section: Light Polygon Processing
+*
+*	Functions for extracting light sources from emissive BSP surfaces,
+*	computing light colors from textures, and clipping lights to
+*	emissive regions using Sutherland-Hodgman polygon clipping.
+*
+*
+**/
+
+
+
 /*
   Sutherland-Hodgman polygon clipping algorithm, mostly copied from
   https://rosettacode.org/wiki/Sutherland-Hodgman_polygon_clipping#C
@@ -911,6 +1440,20 @@ clip_polygon(poly_t* input, poly_t* clipper, poly_t* output)
 		memcpy(output->v, p2->v, p2->len * sizeof(point2_t));
 }
 
+/**
+ * @brief Append a new light polygon to the dynamic light array.
+ * 
+ * Grows the light array if needed (doubling strategy) and returns a pointer
+ * to the newly allocated light_poly_t.
+ * 
+ * @param num_lights       Pointer to current number of lights (incremented).
+ * @param allocated        Pointer to allocated capacity (increased if needed).
+ * @param lights           Pointer to light array pointer (may be reallocated).
+ * 
+ * @return                 Pointer to new light_poly_t (should be initialized by caller).
+ * 
+ * @note Uses Z_Realloc for dynamic growth.
+ */
 static light_poly_t*
 append_light_poly(int* num_lights, int* allocated, light_poly_t** lights)
 {
@@ -923,12 +1466,40 @@ append_light_poly(int* num_lights, int* allocated, light_poly_t** lights)
 	return *lights + (*num_lights)++;
 }
 
+/**
+ * @brief Check if a material has the MATERIAL_FLAG_LIGHT flag set.
+ * 
+ * @param material  Material ID with flags.
+ * 
+ * @return          true if material emits light, false otherwise.
+ */
 static inline bool
 is_light_material(uint32_t material)
 {
 	return (material & MATERIAL_FLAG_LIGHT) != 0;
 }
 
+/**
+ * @brief Collect light polygon for a surface with fully emissive texture.
+ * 
+ * Creates triangular light sources for a surface where the entire texture
+ * is emissive (not just a sub-region). Simpler than collect_one_light_poly()
+ * because no texture coordinate clipping is needed.
+ * 
+ * @param bsp                BSP data structure.
+ * @param surf               Surface to extract lights from.
+ * @param texinfo            Surface texture info.
+ * @param model_idx          Model index (-1 for world, ≥0 for inline model).
+ * @param light_color        Light emission color (RGB).
+ * @param emissive_factor    Light intensity multiplier.
+ * @param light_style        Light style index (0 = normal, 1-63 = animated).
+ * @param num_lights         Pointer to light count (incremented).
+ * @param allocated_lights   Pointer to allocated light capacity.
+ * @param lights             Pointer to light array pointer.
+ * 
+ * @note Removes collinear edges from surface before tessellation.
+ * @note Creates one light poly per triangle in surface tessellation.
+ */
 static void
 collect_one_light_poly_entire_texture(bsp_t *bsp, mface_t *surf, mtexinfo_t *texinfo, int model_idx,
 									  const vec3_t light_color, float emissive_factor, int light_style,
@@ -1759,8 +2330,40 @@ collect_cluster_lights(bsp_mesh_t *wm, bsp_t *bsp)
 #undef MAX_LIGHTS_PER_CLUSTER
 }
 
+
+
+/**
+*
+*
+*
+*	Section: Public API Functions
+*
+*	Main entry points for BSP mesh creation, destruction, texture
+*	registration, and animation. These functions are called by the
+*	VKPT renderer during map load and frame updates.
+*
+*
+**/
+
+
+
 static tinyobj_attrib_t custom_sky_attrib;
 
+/**
+ * @brief Load custom sky mesh from OBJ file.
+ * 
+ * Loads an artist-authored sky mesh from "maps/sky/<mapname>.obj" using
+ * the TinyOBJ loader. Custom sky meshes allow more detailed or artistic
+ * sky geometry beyond the default BSP sky surfaces.
+ * 
+ * @param map_name  Name of map (without "maps/" prefix or ".bsp" extension).
+ * 
+ * @return          Number of sky faces loaded, or 0 if no custom sky found.
+ * 
+ * @note Stores result in static custom_sky_attrib for later use.
+ * @note Triangulates faces automatically (TINYOBJ_FLAG_TRIANGULATE).
+ * @note Frees shapes and materials immediately (only vertex data is kept).
+ */
 static uint32_t
 bsp_mesh_load_custom_sky(const char* map_name)
 {
@@ -1797,6 +2400,22 @@ bsp_mesh_load_custom_sky(const char* map_name)
 	return custom_sky_attrib.num_face_num_verts;
 }
 
+/**
+ * @brief Convert custom sky OBJ data into VboPrimitive triangles.
+ * 
+ * Processes the loaded custom sky mesh and generates triangle primitives
+ * with sky material flags. Also creates light polys for each sky triangle
+ * to enable sky lighting.
+ * 
+ * @param prim_ctr  Pointer to primitive counter (incremented).
+ * @param wm        World mesh to store primitives in.
+ * @param bsp       BSP data (for cluster determination).
+ * 
+ * @return          Number of sky primitives created.
+ * 
+ * @note Sets material_id to MATERIAL_KIND_SKY with MATERIAL_FLAG_LIGHT.
+ * @note Creates light polys with color (-1,-1,-1) as special sky marker.
+ */
 static uint32_t
 bsp_mesh_create_custom_sky_prims(uint32_t* prim_ctr, bsp_mesh_t* wm, const bsp_t* bsp)
 {
@@ -1854,6 +2473,38 @@ bsp_mesh_create_custom_sky_prims(uint32_t* prim_ctr, bsp_mesh_t* wm, const bsp_t
 	return custom_sky_attrib.num_face_num_verts;
 }
 
+/**
+ * @brief Create world mesh from BSP data (main entry point).
+ * 
+ * Processes a loaded BSP file and converts it into ray tracing geometry.
+ * This is the primary function called during map load to set up all world
+ * geometry, lights, and visibility data for the path tracer.
+ * 
+ * Algorithm:
+ * 1. Load sky/lava cluster definitions and cinematic cameras
+ * 2. Allocate model array and primitive buffer
+ * 3. Load custom sky mesh if available
+ * 4. Initialize geometry streams (opaque, transparent, masked, sky)
+ * 5. Collect world surfaces into geometry streams using filters
+ * 6. Collect inline model surfaces (doors, platforms, etc.)
+ * 7. Extract light polys from emissive surfaces
+ * 8. Compute world tangent basis for normal mapping
+ * 9. Build PVS2 for light culling
+ * 10. Compute sky visibility per cluster
+ * 11. Compute cluster AABBs for spatial culling
+ * 12. Assign lights to clusters via PVS
+ * 
+ * @param wm        Output world mesh structure (must be zero-initialized).
+ * @param bsp       Input BSP data structure.
+ * @param map_name  Name of map (for loading external data files).
+ * 
+ * @note Allocates wm->primitives, wm->light_polys, wm->models.
+ * @note Sets up wm->geom_opaque/transparent/masked/sky geometry streams.
+ * @note Builds PVS2 and cluster visibility data.
+ * @note Handles demo map name remapping (demo1→base1, etc.).
+ * 
+ * @warning Caller must call bsp_mesh_destroy() to free allocated memory.
+ */
 void
 bsp_mesh_create_from_bsp(bsp_mesh_t *wm, bsp_t *bsp, const char* map_name)
 {
@@ -2002,6 +2653,17 @@ bsp_mesh_create_from_bsp(bsp_mesh_t *wm, bsp_t *bsp, const char* map_name)
 	compute_sky_visibility(wm, bsp);
 }
 
+/**
+ * @brief Free all memory allocated by bsp_mesh_create_from_bsp().
+ * 
+ * Releases all allocated resources for a world mesh. Should be called
+ * during map unload or engine shutdown.
+ * 
+ * @param wm  World mesh to destroy (will be zero-filled after).
+ * 
+ * @note Does not free the wm structure itself, only its contents.
+ * @note Safe to call multiple times (zero-fills after first call).
+ */
 void
 bsp_mesh_destroy(bsp_mesh_t *wm)
 {
@@ -2017,6 +2679,29 @@ bsp_mesh_destroy(bsp_mesh_t *wm)
 	memset(wm, 0, sizeof(*wm));
 }
 
+/**
+ * @brief Register all textures and materials from BSP data.
+ * 
+ * Loads PBR materials for all texinfo entries in the BSP. This must be
+ * called before bsp_mesh_create_from_bsp() to ensure materials are
+ * available for surface processing.
+ * 
+ * Algorithm:
+ * 1. Change material context to current map
+ * 2. For each texinfo entry in BSP:
+ *    - Build texture path: "textures/<name>.wal"
+ *    - Load PBR material with appropriate flags (turbulent, etc.)
+ *    - Enable surface lights if SURF_LIGHT flag set
+ *    - Synthesize emissive materials for light surfaces
+ * 3. Animate materials with multiple frames
+ * 
+ * @param bsp  BSP data structure with texinfo array.
+ * 
+ * @note Sets texinfo->material pointers for each surface.
+ * @note Creates emissive material variants for light-emitting surfaces.
+ * @note Handles material animation (water, scrolling textures).
+ * @note Respects pt_enable_surface_lights and pt_enable_surface_lights_warp cvars.
+ */
 void
 bsp_mesh_register_textures(bsp_t *bsp)
 {
@@ -2188,8 +2873,22 @@ static void animate_inline_model_light_polys( bsp_model_t *model, int num_light_
 }
 
 /**
-*	@brief	Animate all the world's BSP mesh texture chains. (Also for the inline-BSP model entities).
-**/
+ * @brief Animate emissive materials for all light polygons in the world.
+ * 
+ * Updates light poly materials to their next animation frame for frame-animated
+ * emissive textures. Called once per frame to cycle through material animations
+ * (e.g., pulsing lights, scrolling emissive textures).
+ * 
+ * Handles two types of animation:
+ * 1. World lights: Normal time-based material frame cycling
+ * 2. Inline model lights: Frame-based cycling (respects RF_BRUSHTEXTURE_SET_FRAME_INDEX)
+ * 
+ * @param wm  World mesh containing light polygons to animate.
+ * 
+ * @note Updates light_poly->material and light_poly->color for each light.
+ * @note Inline models can set explicit frame indices via entity flags.
+ * @note No-op for materials with num_frames <= 1.
+ */
 void bsp_mesh_animate_light_polys(bsp_mesh_t *wm)
 {
 	animate_world_light_polys(wm->num_light_polys, wm->light_polys);

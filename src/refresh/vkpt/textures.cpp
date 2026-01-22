@@ -1,3 +1,78 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Texture System
+*
+*	Implements comprehensive texture loading, uploading, and management
+*	for the ray tracing renderer. Handles image data conversion, mipmap
+*	generation, descriptor set management, and GPU memory allocation for
+*	all texture resources used in ray tracing operations.
+*
+*	Purpose:
+*	- Load and upload texture data from disk or memory to GPU
+*	- Manage texture descriptors for shader access
+*	- Generate and normalize mipmaps for filtering
+*	- Handle special textures (blue noise, environment maps, invalid texture)
+*	- Provide efficient memory allocation for texture resources
+*	- Track and clean up unused texture resources
+*
+*	Architecture:
+*	- Image Loading: STB-based loading with format conversion (RGBA8, R16)
+*	- Upload Pipeline: Staging buffers -> GPU images -> descriptor updates
+*	- Mipmap Generation: Box filtering with optional sharpening
+*	- Normalization: Compute shader pass to normalize normal maps
+*	- Descriptor Management: Per-frame descriptor sets with dirty tracking
+*	- Memory Allocation: Custom device memory allocator for efficient paging
+*
+*	Algorithm Flow (Texture Registration):
+*	1. Load: Read image data from disk or convert from memory format
+*	2. Process: Apply emissive thresholds, convert formats, generate mipmaps
+*	3. Allocate: Create VkImage and allocate device memory
+*	4. Upload: Copy pixel data through staging buffer to GPU
+*	5. Normalize: Run compute shader to normalize normal map tangent space
+*	6. Bind: Update descriptor sets for shader access
+*
+*	Features:
+*	- Multi-format support: sRGB RGBA8, linear RGBA8, R16 unorm
+*	- Automatic mipmap generation with configurable filtering
+*	- Normal map tangent space normalization via compute shader
+*	- Blue noise texture loading for dithering/sampling
+*	- Environment cubemap upload for image-based lighting
+*	- Invalid texture placeholder for missing/failed loads
+*	- Deferred resource cleanup with frame latency handling
+*	- Texture filtering modes: nearest, bilinear, anisotropic
+*	- Dynamic descriptor set updates with dirty tracking
+*	- Fake emissive detection for legacy content
+*
+*	Configuration:
+*	- MAX_RIMAGES: Maximum number of registered images (defined in vkpt.h)
+*	- DESTROY_LATENCY: Frame delay before destroying unused resources (MAX_FRAMES_IN_FLIGHT * 4)
+*	- Texture Samplers: Linear, nearest, nearest+mipmap+aniso, linear+clamp
+*	- Cvars:
+*	  - cvar_pt_nearest: Force nearest-neighbor filtering
+*	  - cvar_pt_bilerp_chars: Bilinear filtering for UI characters
+*	  - cvar_pt_bilerp_pics: Bilinear filtering for UI pictures
+*
+*	Memory Management:
+*	- Device memory allocator handles large pool allocations
+*	- Per-image memory tracking with delayed destruction
+*	- Staging buffers for upload (temporary, destroyed after use)
+*	- Blue noise and envmap use dedicated allocations
+*
+*	Descriptor Sets:
+*	- Binding 0: Combined image sampler array (all registered textures)
+*	- Binding OFFSET_IMAGES+N: Storage images for render targets
+*	- Binding OFFSET_TEXTURES+N: Special textures (blue noise, envmap)
+*	- Per-frame sets with dirty flags to avoid redundant updates
+*
+*	Normal Map Normalization:
+*	- Compute shader normalizes tangent-space normal vectors
+*	- Runs immediately after texture upload
+*	- Uses storage image descriptors (separate from sampled images)
+*	- Handles per-frame descriptor lifetime tracking
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
@@ -30,109 +105,190 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "../stb/stb_image_resize.h"
 #include "../stb/stb_image_write.h"
 
+
+
+/**
+*
+*
+*
+*	Constants and Configuration:
+*
+*
+*
+**/
+//! Maximum number of render buffers for unused resource tracking.
 #define MAX_RBUFFERS 16
 
-typedef struct UnusedResources
-{
-	VkImage         images[MAX_RIMAGES];
-	VkImageView     image_views[MAX_RIMAGES];
-	VkImageView     image_views_mip0[MAX_RIMAGES];
-	DeviceMemory    image_memory[MAX_RIMAGES];
-	uint32_t        image_num;
-	VkBuffer        buffers[MAX_RBUFFERS];
-	VkDeviceMemory  buffer_memory[MAX_RBUFFERS];
-	uint32_t        buffer_num;
-} UnusedResources;
-
+//! Frame delay before destroying unused resources. Ensures GPU is done using them.
 #define DESTROY_LATENCY (MAX_FRAMES_IN_FLIGHT * 4)
 
-typedef struct TextureSystem
-{
-	UnusedResources unused_resources[DESTROY_LATENCY];
-} TextureSystem;
-
-static TextureSystem texture_system = { 0 };
-
-static VkImage          tex_images     [MAX_RIMAGES] = { 0 };
-static VkImageView      tex_image_views[MAX_RIMAGES] = { 0 };
-static VkImageView      tex_image_views_mip0[MAX_RIMAGES] = { 0 };
-static VkDeviceMemory   mem_blue_noise, mem_envmap;
-static VkImage          img_blue_noise;
-static VkImageView      imv_blue_noise;
-static VkImage          img_envmap;
-static VkImageView      imv_envmap;
-static VkDescriptorPool desc_pool_textures;
-
-static VkImage          tex_invalid_texture_image = VK_NULL_HANDLE;
-static VkImageView      tex_invalid_texture_image_view = VK_NULL_HANDLE;
-static DeviceMemory     tex_invalid_texture_image_memory = { 0 };
-
-static VkDeviceMemory mem_images[NUM_VKPT_IMAGES];
-
-static DeviceMemory            tex_image_memory[MAX_RIMAGES] = { 0 };
-static VkBindImageMemoryInfo   tex_bind_image_info[MAX_RIMAGES] = { 0 };
-static DeviceMemoryAllocator*  tex_device_memory_allocator = NULL;
-
-// Resources for the normal map normalization pass that runs on texture upload
-static VkDescriptorSetLayout   normalize_desc_set_layout = NULL;
-static VkPipelineLayout        normalize_pipeline_layout = NULL;
-static VkPipeline              normalize_pipeline = NULL;
-static VkDescriptorSet         normalize_descriptor_sets[MAX_FRAMES_IN_FLIGHT] = { NULL };
-
-// Array for tracking when the textures have been uploaded.
-// On frame N (which is modulo MAX_FRAMES_IN_FLIGHT), a texture is uploaded, and that writes N into this array.
-// At the same time, its storage image descriptor is created in normalize_descriptor_sets[N], and the texture
-// is normalized using the normalize_pipeline. When vkpt_textures_end_registration() runs on the next frame
-// with the same N, it sees the texture again, and deletes its descriptor from that descriptor set.
-static uint32_t                tex_upload_frames[MAX_RIMAGES] = { 0 };
-
-static int image_loading_dirty_flag = 0;
-static uint8_t descriptor_set_dirty_flags[MAX_FRAMES_IN_FLIGHT] = { 0 }; // initialized in vkpt_textures_initialize
-
+//! Conversion factor for bytes to megabytes (for logging).
 static const float megabyte = 1048576.0f;
 
-extern cvar_t* cvar_pt_nearest;
-extern cvar_t* cvar_pt_bilerp_chars;
-extern cvar_t* cvar_pt_bilerp_pics;
 
-// <Q2RTXP>: WID: Removed since we're not going to use a prefetch.txt for preloading menu neccesity textures. (Player setup screen, vwep skins.)
-#if 0
-void vkpt_textures_prefetch()
+
+/**
+*
+*
+*
+*	Data Structures:
+*
+*
+*
+**/
+/**
+*	@brief	Container for Vulkan resources that are no longer in use but need delayed destruction.
+*	@note	Resources are kept alive for DESTROY_LATENCY frames to ensure GPU has finished using them.
+**/
+typedef struct UnusedResources
 {
-    char * buffer = NULL;
-    char const * filename = "prefetch.txt";
-    FS_LoadFile(filename, (void**)&buffer);
-    if (buffer == NULL)
-    {
-        Com_EPrintf("Can't load '%s'\n", filename);
-        return;
-    }
+	VkImage         images[MAX_RIMAGES];             //! Texture images pending destruction.
+	VkImageView     image_views[MAX_RIMAGES];        //! Full mipchain image views pending destruction.
+	VkImageView     image_views_mip0[MAX_RIMAGES];   //! Mip level 0 only image views pending destruction.
+	DeviceMemory    image_memory[MAX_RIMAGES];       //! Device memory allocations pending free.
+	uint32_t        image_num;                       //! Number of images in this unused set.
+	VkBuffer        buffers[MAX_RBUFFERS];           //! Buffers pending destruction.
+	VkDeviceMemory  buffer_memory[MAX_RBUFFERS];     //! Buffer memory pending free.
+	uint32_t        buffer_num;                      //! Number of buffers in this unused set.
+} UnusedResources;
 
-    char const * ptr = buffer;
-	char linebuf[MAX_QPATH];
-	while (sgets(linebuf, sizeof(linebuf), &ptr))
-	{
-		char* line = strtok(linebuf, " \t\r\n");
-		if (!line)
-			continue;
+/**
+*	@brief	Global texture system state for managing all texture resources.
+*	@note	Maintains multiple sets of unused resources to handle frame-in-flight overlap.
+**/
+typedef struct TextureSystem
+{
+	UnusedResources unused_resources[DESTROY_LATENCY];  //! Ring buffer of unused resource sets.
+} TextureSystem;
 
-		MAT_Find(line, IT_SKIN, IF_PERMANENT);
-	}
-    // Com_Printf("Loaded '%s'\n", filename);
-    FS_FreeFile(buffer);
-}
-#endif
 
+
+/**
+*
+*
+*
+*	Module State and Configuration:
+*
+*
+*
+**/
+//! Global texture system instance.
+static TextureSystem texture_system = { 0 };
+
+//! Array of registered texture images (indexed by image_t registration index).
+static VkImage          tex_images     [MAX_RIMAGES] = { 0 };
+//! Array of full mipchain image views for registered textures.
+static VkImageView      tex_image_views[MAX_RIMAGES] = { 0 };
+//! Array of mip level 0 only image views (used for normalization compute shader).
+static VkImageView      tex_image_views_mip0[MAX_RIMAGES] = { 0 };
+
+//! Device memory for blue noise texture.
+static VkDeviceMemory   mem_blue_noise, mem_envmap;
+//! Blue noise texture image (used for dithering/sampling patterns).
+static VkImage          img_blue_noise;
+//! Blue noise texture image view.
+static VkImageView      imv_blue_noise;
+//! Environment cubemap image (used for sky/IBL).
+static VkImage          img_envmap;
+//! Environment cubemap image view.
+static VkImageView      imv_envmap;
+//! Descriptor pool for texture descriptor sets.
+static VkDescriptorPool desc_pool_textures;
+
+//! Placeholder texture for missing/invalid textures.
+static VkImage          tex_invalid_texture_image = VK_NULL_HANDLE;
+//! Image view for invalid texture placeholder.
+static VkImageView      tex_invalid_texture_image_view = VK_NULL_HANDLE;
+//! Memory allocation for invalid texture placeholder.
+static DeviceMemory     tex_invalid_texture_image_memory = { 0 };
+
+//! Device memory for render target images (not textures).
+static VkDeviceMemory mem_images[NUM_VKPT_IMAGES];
+
+//! Device memory allocations for each registered texture.
+static DeviceMemory            tex_image_memory[MAX_RIMAGES] = { 0 };
+//! Bind info structures for batch binding texture memory.
+static VkBindImageMemoryInfo   tex_bind_image_info[MAX_RIMAGES] = { 0 };
+//! Custom memory allocator for efficient texture memory management.
+static DeviceMemoryAllocator*  tex_device_memory_allocator = NULL;
+
+/**
+*	Normal Map Normalization Resources:
+*	Compute shader pipeline that normalizes tangent-space normals in normal maps
+*	immediately after upload to ensure correct lighting.
+**/
+//! Descriptor set layout for normal normalization compute shader.
+static VkDescriptorSetLayout   normalize_desc_set_layout = NULL;
+//! Pipeline layout for normal normalization.
+static VkPipelineLayout        normalize_pipeline_layout = NULL;
+//! Compute pipeline for normal normalization.
+static VkPipeline              normalize_pipeline = NULL;
+//! Per-frame descriptor sets for normalization (contains storage image bindings).
+static VkDescriptorSet         normalize_descriptor_sets[MAX_FRAMES_IN_FLIGHT] = { NULL };
+
+/**
+*	Texture Upload Frame Tracking:
+*	Tracks which frame (modulo MAX_FRAMES_IN_FLIGHT) each texture was uploaded on.
+*	Used to properly clean up normalization descriptor bindings on subsequent frames.
+**/
+static uint32_t                tex_upload_frames[MAX_RIMAGES] = { 0 };
+
+/**
+*	Descriptor Set Dirty Flags:
+*	When set, indicates descriptor sets need to be rewritten on the next frame.
+**/
+static int image_loading_dirty_flag = 0;
+static uint8_t descriptor_set_dirty_flags[MAX_FRAMES_IN_FLIGHT] = { 0 };
+
+/**
+*	Console Variables for Texture Filtering:
+**/
+extern cvar_t* cvar_pt_nearest;        //! Force nearest-neighbor filtering globally.
+extern cvar_t* cvar_pt_bilerp_chars;   //! Enable bilinear filtering for UI characters.
+extern cvar_t* cvar_pt_bilerp_pics;    //! Enable bilinear filtering for UI pictures.
+
+
+
+/**
+*
+*
+*
+*	Descriptor Set Management:
+*
+*
+*
+**/
+/**
+*	@brief	Marks all texture descriptor sets as dirty, forcing a full rebuild.
+*	@note	Call this when the descriptor pool is recreated or textures are massively changed.
+**/
 void vkpt_invalidate_texture_descriptors()
 {
 	for (int index = 0; index < MAX_FRAMES_IN_FLIGHT; index++)
 		descriptor_set_dirty_flags[index] = 1;
 }
 
+
+
+/**
+*
+*
+*
+*	Unused Resource Management:
+*
+*
+*
+**/
+/**
+*	@brief	Destroys all Vulkan resources in a specific unused resource set.
+*	@param	set_index	Index into the unused_resources ring buffer [0, DESTROY_LATENCY).
+*	@note	Frees image views, images, and device memory for all queued unused resources.
+**/
 static void textures_destroy_unused_set(uint32_t set_index)
 {
 	UnusedResources* unused_resources = texture_system.unused_resources + set_index;
 
+	// Destroy all queued image resources
 	for (uint32_t i = 0; i < unused_resources->image_num; i++)
 	{
 		if (unused_resources->image_views[i] != VK_NULL_HANDLE)
@@ -149,6 +305,7 @@ static void textures_destroy_unused_set(uint32_t set_index)
 	}
 	unused_resources->image_num = 0;
 
+	// Destroy all queued buffer resources
 	for (uint32_t i = 0; i < unused_resources->buffer_num; i++)
 	{
 		vkDestroyBuffer(qvk.device, unused_resources->buffers[i], NULL);
@@ -157,11 +314,31 @@ static void textures_destroy_unused_set(uint32_t set_index)
 	unused_resources->buffer_num = 0;
 }
 
+/**
+*	@brief	Destroys unused texture resources for the current frame slot.
+*	@note	Called once per frame to clean up resources from DESTROY_LATENCY frames ago.
+*			This ensures GPU has finished using the resources before destruction.
+**/
 void vkpt_textures_destroy_unused()
 {
 	textures_destroy_unused_set((qvk.frame_counter) % DESTROY_LATENCY);
 }
 
+
+
+/**
+*
+*
+*
+*	Environment Map Management:
+*
+*
+*
+**/
+/**
+*	@brief	Destroys the environment cubemap and frees associated resources.
+*	@note	Internal helper function called before uploading a new environment map.
+**/
 static void
 destroy_envmap(void)
 {
@@ -179,6 +356,15 @@ destroy_envmap(void)
 	}
 }
 
+/**
+*	@brief	Uploads a new environment cubemap for image-based lighting.
+*	@param	w		Width of each cubemap face in pixels.
+*	@param	h		Height of each cubemap face in pixels.
+*	@param	data	Pointer to pixel data (6 faces of w*h*4 bytes each, in +X,-X,+Y,-Y,+Z,-Z order).
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Waits for device idle before destroying old envmap to ensure GPU is not using it.
+*			Uploads all 6 cubemap faces via staging buffer and generates mipmaps.
+**/
 VkResult
 vkpt_textures_upload_envmap(int w, int h, byte *data)
 {
@@ -331,6 +517,24 @@ vkpt_textures_upload_envmap(int w, int h, byte *data)
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Blue Noise Texture Loading:
+*
+*
+*
+**/
+/**
+*	@brief	Loads blue noise textures from disk for use in stochastic sampling.
+*	@return	VK_SUCCESS on success, VK_ERROR_INITIALIZATION_FAILED if loading fails.
+*	@note	Loads NUM_BLUE_NOISE_TEX texture layers from PNG files in blue_noise/ directory.
+*			Each RGBA PNG is split into 4 separate R16 array layers for efficient sampling.
+*			Blue noise provides high-quality low-discrepancy sampling patterns for ray tracing.
+**/
 static VkResult
 load_blue_noise(void)
 {
@@ -339,12 +543,14 @@ load_blue_noise(void)
 	size_t img_size = res * res;
 	size_t total_size = img_size * sizeof(uint16_t);
 
+	// Create staging buffer for upload
 	BufferResource_t buf_img_upload;
 	buffer_create(&buf_img_upload, total_size * NUM_BLUE_NOISE_TEX, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 	uint16_t *bn_tex = (uint16_t *) buffer_map(&buf_img_upload);
 
+	// Load each PNG and split RGBA channels into separate array layers
 	for(int i = 0; i < num_images; i++) {
 		int w, h, n;
 		char buf[1024];
@@ -367,7 +573,7 @@ load_blue_noise(void)
 			return VK_ERROR_INITIALIZATION_FAILED;
 		}
 
-		/* loaded images are RGBA, want to upload as texture array though */
+		// Split RGBA channels: each channel becomes its own array layer
 		for(int k = 0; k < 4; k++) {
 			for(int j = 0; j < img_size; j++)
 				bn_tex[(i * 4 + k) * img_size + j] = data[j * 4 + k];
@@ -508,6 +714,24 @@ load_blue_noise(void)
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Mipmap Utilities:
+*
+*
+*
+**/
+/**
+*	@brief	Calculates the number of mipmap levels needed for a texture.
+*	@param	w	Width of the base texture in pixels.
+*	@param	h	Height of the base texture in pixels.
+*	@return	Number of mipmap levels (including base level).
+*	@note	Uses log2 of the maximum dimension plus one for the base level.
+**/
 static int
 get_num_miplevels(int w, int h)
 {
@@ -515,19 +739,37 @@ get_num_miplevels(int w, int h)
 }
 
 
-/*
-================
-IMG_Load
-================
-*/
 
+/**
+*
+*
+*
+*	Mipmap Filtering Implementation:
+*
+*	CPU-side filtering for generating mipmaps from base texture data.
+*	Uses box filtering with optional sharpening and supports multi-component images.
+*
+*
+**/
+/**
+*	@brief	Scratch buffer for filtered pixel data during mipmap generation.
+*	@note	Provides padded storage for filter kernel overlap at stripe boundaries.
+**/
 struct filterscratch_s
 {
-	int num_comps;
-	int pad_left, pad_right;
-	float *ptr;
+	int num_comps;      //! Number of color components per pixel (3 or 4).
+	int pad_left;       //! Left padding size in pixels for filter kernel.
+	int pad_right;      //! Right padding size in pixels for filter kernel.
+	float *ptr;         //! Pointer to scratch buffer memory.
 };
 
+/**
+*	@brief	Initializes a filter scratch buffer.
+*	@param	scratch			Pointer to scratch structure to initialize.
+*	@param	kernel_size		Size of the filter kernel in pixels.
+*	@param	stripe_size		Size of the image stripe to process in pixels.
+*	@param	num_comps		Number of color components per pixel.
+**/
 static void filterscratch_init(struct filterscratch_s* scratch, unsigned kernel_size, int stripe_size, int num_comps)
 {
 	scratch->num_comps = num_comps;
@@ -537,16 +779,30 @@ static void filterscratch_init(struct filterscratch_s* scratch, unsigned kernel_
 	scratch->ptr = Z_Malloc(num_scratch_pixels * num_comps * sizeof(float));
 }
 
+/**
+*	@brief	Frees a filter scratch buffer.
+*	@param	scratch		Pointer to scratch structure to free.
+**/
 static void filterscratch_free(struct filterscratch_s* scratch)
 {
 	Z_Free(scratch->ptr);
 }
 
+/**
+*	@brief	Fills scratch buffer from image data with edge clamping.
+*	@param	scratch			Scratch buffer to fill.
+*	@param	current_stripe	Pointer to current image stripe data.
+*	@param	stripe_size		Size of the stripe in pixels.
+*	@param	element_stride	Stride between pixels in the source data.
+*	@note	Handles edge cases by clamping pixels outside the stripe boundaries.
+**/
 static void filterscratch_fill_from_float_image(struct filterscratch_s *scratch, float *current_stripe, int stripe_size, int element_stride)
 {
 	const int num_comps = scratch->num_comps;
 	int src = -scratch->pad_left;
 	float *dest_ptr = scratch->ptr;
+	
+	// Clamp and copy pixels including padding regions
 	if ((stripe_size >= scratch->pad_left) && (stripe_size >= scratch->pad_right))
 	{
 		for (; src < 0; src++)
@@ -1067,8 +1323,15 @@ void IMG_ReloadAll(void)
     Com_Printf("Reloaded %d textures\n", reloaded);
 }
 
+
+/**
+*	@brief	Creates a 1x1 magenta placeholder texture for missing/invalid images.
+*	@note	This texture is used as a fallback when an image fails to load or is not found.
+*			The bright magenta color (1.0, 0.0, 1.0) makes missing textures obvious for debugging.
+**/
 void create_invalid_texture(void)
 {
+	// Create a 1x1 RGBA8 image
 	const VkImageCreateInfo image_create_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_2D,
@@ -1084,6 +1347,7 @@ void create_invalid_texture(void)
 	};
 	_VK(vkCreateImage(qvk.device, &image_create_info, NULL, &tex_invalid_texture_image));
 
+	// Allocate and bind device memory
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(qvk.device, tex_invalid_texture_image, &memory_requirements);
 
@@ -1102,6 +1366,7 @@ void create_invalid_texture(void)
 		.layerCount = 1
 	};
 
+	// Create image view
 	const VkImageViewCreateInfo image_view_create_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.image = tex_invalid_texture_image,
@@ -1112,6 +1377,7 @@ void create_invalid_texture(void)
 
 	_VK(vkCreateImageView(qvk.device, &image_view_create_info, NULL, &tex_invalid_texture_image_view));
 
+	// Clear the image to bright magenta (for easy visual identification)
 	VkCommandBuffer cmd_buf = vkpt_begin_command_buffer(&qvk.cmd_buffers_graphics);
 
 	IMAGE_BARRIER(cmd_buf,
@@ -1124,10 +1390,10 @@ void create_invalid_texture(void)
 	);
 
 	const VkClearColorValue color = {
-		.float32[0] = 1.0f,
-		.float32[1] = 0.0f,
-		.float32[2] = 1.0f,
-		.float32[3] = 1.0f
+		.float32[0] = 1.0f,  // Red
+		.float32[1] = 0.0f,  // Green
+		.float32[2] = 1.0f,  // Blue (results in magenta)
+		.float32[3] = 1.0f   // Alpha
 	};
 	const VkImageSubresourceRange range = subresource_range;
 	vkCmdClearColorImage(cmd_buf, tex_invalid_texture_image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, &color, 1, &range);
@@ -1146,6 +1412,9 @@ void create_invalid_texture(void)
 	vkQueueWaitIdle(qvk.queue_graphics);
 }
 
+/**
+*	@brief	Destroys the invalid texture placeholder and frees its memory.
+**/
 void destroy_invalid_texture(void)
 {
 	vkDestroyImage(qvk.device, tex_invalid_texture_image, NULL);
@@ -1153,6 +1422,13 @@ void destroy_invalid_texture(void)
 	free_device_memory(tex_device_memory_allocator, &tex_invalid_texture_image_memory);
 }
 
+/**
+*	@brief	Writes a storage image descriptor for normal map normalization.
+*	@param	frame		Frame index (modulo MAX_FRAMES_IN_FLIGHT).
+*	@param	index		Texture index in the descriptor array.
+*	@param	image_view	Image view to bind for storage access.
+*	@note	Used to update per-frame descriptor sets for the normalization compute shader.
+**/
 static void normalize_write_descriptor(uint32_t frame, uint32_t index, VkImageView image_view)
 {
 	VkDescriptorImageInfo image_info = {
@@ -1173,8 +1449,27 @@ static void normalize_write_descriptor(uint32_t frame, uint32_t index, VkImageVi
 	vkUpdateDescriptorSets(qvk.device, 1, &write_info, 0, NULL);
 }
 
+
+
+/**
+*
+*
+*
+*	Normal Map Normalization:
+*
+*	Compute shader pipeline for normalizing tangent-space normal vectors
+*	in normal maps after upload. Ensures normals are unit-length for correct lighting.
+*
+*
+**/
+/**
+*	@brief	Initializes the normal map normalization compute pipeline.
+*	@note	Creates descriptor set layout, pipeline layout, compute pipeline,
+*			and per-frame descriptor sets for normalizing uploaded normal maps.
+**/
 static void normalize_init(void)
 {
+	// Create descriptor set layout for storage image array
 	VkDescriptorSetLayoutBinding binding = {
 		.binding = 0,
 		.descriptorCount = MAX_RIMAGES,
@@ -1190,6 +1485,7 @@ static void normalize_init(void)
 
 	_VK(vkCreateDescriptorSetLayout(qvk.device, &dsl_info, NULL, &normalize_desc_set_layout));
 
+	// Create pipeline layout with push constant for texture index
 	VkPushConstantRange push_range = {
 		.size = sizeof(uint32_t),
 		.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT
@@ -1205,6 +1501,7 @@ static void normalize_init(void)
 
 	_VK(vkCreatePipelineLayout(qvk.device, &pl_info, NULL, &normalize_pipeline_layout));
 
+	// Create compute pipeline for normalization
 	VkComputePipelineCreateInfo pipeline_info = {
 		.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 		.layout = normalize_pipeline_layout,
@@ -1213,6 +1510,7 @@ static void normalize_init(void)
 
 	_VK(vkCreateComputePipelines(qvk.device, NULL, 1, &pipeline_info, NULL, &normalize_pipeline));
 
+	// Allocate per-frame descriptor sets
 	VkDescriptorSetAllocateInfo alloc_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.descriptorPool = desc_pool_textures,
@@ -1225,6 +1523,7 @@ static void normalize_init(void)
 		_VK(vkAllocateDescriptorSets(qvk.device, &alloc_info, &normalize_descriptor_sets[frame]));
 		ATTACH_LABEL_VARIABLE(normalize_descriptor_sets[frame], DESCRIPTOR_SET);
 
+		// Initialize all descriptors to invalid texture
 		for (int i = 0; i < MAX_RIMAGES; i++)
 		{
 			normalize_write_descriptor(frame, i, tex_invalid_texture_image_view);
@@ -1232,6 +1531,9 @@ static void normalize_init(void)
 	}
 }
 
+/**
+*	@brief	Destroys the normal map normalization compute pipeline and resources.
+**/
 static void normalize_destroy(void)
 {
 	vkDestroyPipeline(qvk.device, normalize_pipeline, NULL);
@@ -1246,16 +1548,37 @@ static void normalize_destroy(void)
 	memset(normalize_descriptor_sets, 0, sizeof(normalize_descriptor_sets));
 }
 
+
+
+/**
+*
+*
+*
+*	Texture System Initialization and Cleanup:
+*
+*
+*
+**/
+/**
+*	@brief	Initializes the texture system and creates all required Vulkan resources.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Creates samplers, descriptor set layout, descriptor pool, loads blue noise,
+*			and initializes the normal map normalization pipeline.
+*			Must be called before any texture loading operations.
+**/
 VkResult
 vkpt_textures_initialize()
 {
 	vkpt_invalidate_texture_descriptors();
 	memset(&texture_system, 0, sizeof(texture_system));
 
+	// Create device memory allocator for texture memory
 	tex_device_memory_allocator = create_device_memory_allocator(qvk.device);
 
+	// Create placeholder texture for missing/invalid images
 	create_invalid_texture();
 
+	// Create linear sampler with anisotropic filtering
 	VkSamplerCreateInfo sampler_info = {
 		.sType                   = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
 		.magFilter               = VK_FILTER_LINEAR,
@@ -1517,17 +1840,32 @@ vkpt_textures_destroy()
 	vkDestroySampler  (qvk.device, qvk.tex_sampler_nearest_mipmap_aniso, NULL);
 	vkDestroySampler  (qvk.device, qvk.tex_sampler_linear_clamp, NULL);
 
+	// Destroy environment map and invalid texture
 	destroy_envmap();
 	destroy_invalid_texture();
+	
+	// Destroy device memory allocator
 	destroy_device_memory_allocator(tex_device_memory_allocator);
 	tex_device_memory_allocator = NULL;
 
+	// Destroy normal map normalization pipeline
 	normalize_destroy();
 
 	LOG_FUNC();
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Texture Upload and Registration:
+*
+*
+*
+**/
 #ifdef VKPT_DEVICE_GROUPS
 static VkMemoryAllocateFlagsInfo mem_alloc_flags_broadcast = {
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO,
@@ -1535,6 +1873,11 @@ static VkMemoryAllocateFlagsInfo mem_alloc_flags_broadcast = {
 };
 #endif
 
+/**
+*	@brief	Determines the Vulkan format for a given image.
+*	@param	q_img	Pointer to the image_t structure.
+*	@return	VkFormat corresponding to the image's pixel format and sRGB setting.
+**/
 static VkFormat get_image_format(image_t *q_img)
 {
 	switch(q_img->pixel_format)
@@ -1548,13 +1891,22 @@ static VkFormat get_image_format(image_t *q_img)
 	return VK_FORMAT_R8G8B8A8_UNORM;
 }
 
+/**
+*	@brief	Finalizes texture registration after a batch of textures has been loaded.
+*	@return	VK_SUCCESS if no textures were loaded, or after successful GPU upload.
+*	@note	Called after level load or texture registration to upload all pending textures
+*			to the GPU, create image views, bind memory, generate mipmaps, normalize normal maps,
+*			and update descriptor sets. This is a heavy operation that may take several milliseconds.
+**/
 VkResult
 vkpt_textures_end_registration()
 {
+	// Early out if no textures were loaded this frame
 	if(!image_loading_dirty_flag)
 		return VK_SUCCESS;
 	image_loading_dirty_flag = 0;
 
+	// Template structures for image creation
 	VkImageCreateInfo img_info = {
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.extent = {
@@ -1917,23 +2269,51 @@ vkpt_textures_end_registration()
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Descriptor Set Updates:
+*
+*
+*
+**/
+/**
+*	@brief	Updates texture descriptor sets for the current frame if marked dirty.
+*	@note	Writes all MAX_RIMAGES texture descriptors to the current frame's descriptor set.
+*			Selects appropriate sampler based on texture type and cvar settings:
+*			- World/skin textures: Controlled by cvar_pt_nearest (nearest, nearest+mipmap+aniso, or linear+aniso)
+*			- Nearest flag (IF_NEAREST): Nearest sampler
+*			- Bilerp flag (IF_BILERP): Linear+clamp sampler
+*			- Sprites: Linear+clamp sampler
+*			- Fonts: Controlled by cvar_pt_bilerp_chars (nearest or linear+clamp)
+*			- UI pics: Controlled by cvar_pt_bilerp_pics (nearest or linear+clamp)
+*			Missing textures are replaced with the magenta invalid texture placeholder.
+**/
 void vkpt_textures_update_descriptor_set()
 {
+	// Early out if descriptor set is up to date
 	if (!descriptor_set_dirty_flags[qvk.current_frame_index])
 		return;
 
 	descriptor_set_dirty_flags[qvk.current_frame_index] = 0;
 	
+	// Update all texture descriptors
 	for(int i = 0; i < MAX_RIMAGES; i++) {
 		image_t *q_img = r_images + i;
 		
+		// Use invalid texture placeholder if this slot is empty
 		VkImageView image_view = tex_image_views[i];
 		if (image_view == VK_NULL_HANDLE)
 			image_view = tex_invalid_texture_image_view;
 		
+		// Select sampler based on texture type and cvars
 		VkSampler sampler = qvk.tex_sampler;
 
 		if (q_img->type == IT_WALL || q_img->type == IT_SKIN) {
+			// World geometry and model skins respect cvar_pt_nearest
 			if (cvar_pt_nearest->integer == 1)
 				sampler = qvk.tex_sampler_nearest_mipmap_aniso;
 			else if (cvar_pt_nearest->integer >= 2)
@@ -1970,6 +2350,28 @@ void vkpt_textures_update_descriptor_set()
 	}
 }
 
+
+
+/**
+*
+*
+*
+*	Readback Image Utilities:
+*
+*
+*
+**/
+/**
+*	@brief	Creates a CPU-readable image for copying GPU texture data back to host.
+*	@param	image			Output VkImage handle.
+*	@param	memory			Output VkDeviceMemory handle.
+*	@param	memory_size		Output size of allocated memory in bytes.
+*	@param	format			Pixel format of the readback image.
+*	@param	width			Width of the image in pixels.
+*	@param	height			Height of the image in pixels.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Creates a linear tiling image with host-visible memory for efficient readback.
+**/
 static VkResult
 create_readback_image(VkImage *image, VkDeviceMemory *memory, VkDeviceSize *memory_size, VkFormat format, uint32_t width, uint32_t height)
 {

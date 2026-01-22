@@ -1,3 +1,106 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Main Entry Point and Frame Orchestration
+*
+*	Implements the main renderer interface for the Q2RTXPerimental Vulkan
+*	path tracing (VKPT) renderer. This module serves as the central entry
+*	point, initialization hub, and frame orchestration controller for all
+*	rendering subsystems including ray tracing, denoising, tone mapping,
+*	upscaling, and presentation.
+*
+*	Architecture:
+*	- Renderer Initialization: Vulkan device setup, subsystem initialization
+*	- Frame Management: Begin/end frame, swapchain management, command buffer orchestration
+*	- Dynamic Resolution Scaling (DRS): Adaptive resolution based on frame timing
+*	- Temporal Accumulation: Multi-frame accumulation for reference-quality rendering
+*	- Subsystem Coordination: Orchestrates path tracer, denoiser, bloom, FSR, tone mapping
+*	- Entity Processing: Model instances, dynamic lights, BSP entities, effects
+*	- Camera Management: Projection matrices, view transforms, temporal jitter
+*
+*	Algorithm Flow (Per Frame):
+*	1. Begin Frame: Fence synchronization, swapchain image acquisition, DRS processing
+*	2. Scene Setup: Update uniform buffers (view matrices, lighting, material parameters)
+*	3. Entity Processing: Build instance lists for models, lights, particles, effects
+*	4. BSP Rendering: Update world geometry, animate surfaces, process triggers
+*	5. Ray Tracing: Execute path tracer (primary rays, reflections, indirect lighting)
+*	6. Denoising: ASVGF spatiotemporal filtering (if enabled)
+*	7. Post-Processing: Bloom, god rays, tone mapping, temporal anti-aliasing
+*	8. Upscaling: FSR/simple upscale to presentation resolution (if needed)
+*	9. UI Overlay: HUD, console, menu rendering via draw subsystem
+*	10. Present: Final blit to swapchain, queue presentation
+*
+*	Features:
+*	- HDR and SDR output modes with swapchain format selection
+*	- Dynamic resolution scaling with temporal frame time analysis
+*	- Temporal accumulation rendering for reference screenshots (up to 500 frames)
+*	- Cylindrical and perspective projection modes
+*	- Depth-of-field with multiple aperture shapes
+*	- Freecam mode for detached camera control
+*	- Temporal anti-aliasing with Halton sequence jitter patterns (128 samples)
+*	- Entity culling and instance batching for performance
+*	- Multi-GPU rendering support (SLI/CrossFire via device groups)
+*	- Live shader recompilation and texture reloading
+*	- Screenshot capture (LDR and HDR formats)
+*	- Integrated profiler with GPU timestamp queries
+*
+*	Configuration (Major CVARs):
+*	- vid_hdr:                      Enable HDR output (0/1) [CVAR_ARCHIVE]
+*	- vid_vsync:                    Enable VSync (0/1) [CVAR_ARCHIVE]
+*	- viewsize:                     Rendering resolution scale percentage (25-200%) [CVAR_ARCHIVE]
+*	- pt_caustics:                  Enable caustics rendering (0/1) [CVAR_ARCHIVE]
+*	- pt_accumulation_rendering:    Accumulation mode (0=off, 1=enabled, 2=hide GUI) [CVAR_ARCHIVE]
+*	- pt_projection:                Projection mode (0=perspective, 1=cylindrical) [CVAR_ARCHIVE]
+*	- pt_dof:                       Depth-of-field mode (0-3) [CVAR_ARCHIVE]
+*	- pt_freecam:                   Enable freecam mode (0/1) [CVAR_ARCHIVE]
+*	- drs_enable:                   Enable dynamic resolution scaling (0/1) [CVAR_ARCHIVE]
+*	- drs_target:                   Target FPS for DRS (30-240) [CVAR_ARCHIVE]
+*	- drs_minscale:                 Minimum DRS resolution scale (25-100%)
+*	- drs_maxscale:                 Maximum DRS resolution scale (50-200%)
+*	- drs_gain:                     DRS regulator gain parameter
+*	- drs_adjust_up/down:           DRS adjustment thresholds
+*	- tm_blend_enable:              Enable tone mapping blend effects (0/1) [CVAR_ARCHIVE]
+*	- profiler:                     Enable GPU profiler display (0/1)
+*	- ray_tracing_api:              RT API selection (auto/query/pipeline) [CVAR_REFRESH|CVAR_ARCHIVE]
+*	- sli:                          Enable multi-GPU rendering (0/1) [CVAR_REFRESH|CVAR_ARCHIVE]
+*
+*	Subsystem Initialization Order:
+*	1. Profiler, VBO, UBO, Textures
+*	2. Shadow maps (initialization + pipelines)
+*	3. Images (framebuffer attachments, swapchain-dependent)
+*	4. Draw subsystem (UI rendering)
+*	5. Path tracer (acceleration structures, RT pipelines)
+*	6. ASVGF denoiser (temporal filters, variance estimation)
+*	7. Bloom (Gaussian blur, threshold, composite)
+*	8. Tone mapping (HDR/SDR, exposure control)
+*	9. FSR (FidelityFX Super Resolution upscaling)
+*	10. Physical sky (atmospheric scattering, sun position)
+*	11. God rays (volumetric lighting)
+*
+*	Performance Optimizations:
+*	- DRS dynamically adjusts render resolution to maintain target frame rate
+*	- Temporal accumulation only active when explicitly requested (screenshots)
+*	- Entity culling via PVS (Potentially Visible Set) from BSP
+*	- Instance batching reduces draw call overhead for models
+*	- Lazy swapchain recreation (only when format/resolution changes)
+*	- Frame-in-flight synchronization (triple buffering) to minimize GPU idle
+*	- Profiler conditionally compiled with GPU timestamp queries
+*
+*	Multi-GPU Support:
+*	- Device groups created during Vulkan initialization
+*	- GPU slice width computed based on render resolution and device count
+*	- Peer memory access for cross-GPU resource sharing
+*	- Workload distribution via push constants (gpu_index)
+*	- Presentation from single device (mode: LOCAL)
+*
+*	Error Handling:
+*	- Device lost detection in begin frame (triggers fatal error)
+*	- Swapchain recreation on out-of-date/suboptimal conditions
+*	- Validation layer support (optional, controlled by vk_validation cvar)
+*	- Debug markers and labels for GPU captures (Nsight, RenderDoc)
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
@@ -56,103 +159,208 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <string.h>
 #include <assert.h>
 
+
+
+/**
+*
+*
+*
+*	Module State and Configuration:
+*
+*
+*
+**/
+
+//! GPU profiler enable/disable toggle.
+//! GPU profiler enable/disable toggle.
 cvar_t *cvar_profiler = NULL;
+//! Number of profiler samples to average.
 cvar_t *cvar_profiler_samples = NULL;
+//! Profiler display scale factor.
 cvar_t *cvar_profiler_scale = NULL;
+//! Enable HDR output mode.
 cvar_t *cvar_hdr = NULL;
+//! Enable vertical synchronization (VSync).
 cvar_t *cvar_vsync = NULL;
+//! Enable caustics rendering (water/glass light focusing).
 cvar_t *cvar_pt_caustics = NULL;
+//! Enable rendering of NODRAW surfaces (for debugging).
 cvar_t *cvar_pt_enable_nodraw = NULL;
+//! Synthesize emissive materials for surfaces with LIGHT flag (0=off, 1=custom, 2=all).
 cvar_t *cvar_pt_enable_surface_lights = NULL;
+//! LIGHT flag synthesis for warp surfaces (0=off, 1=hack, 2=full).
 cvar_t *cvar_pt_enable_surface_lights_warp = NULL;
+//! Algorithm for emissive texture synthesis (0=diffuse, 1=brightness threshold).
 cvar_t* cvar_pt_surface_lights_fake_emissive_algo = NULL;
+//! Brightness threshold for fake emissive texture generation.
 cvar_t* cvar_pt_surface_lights_threshold = NULL;
+//! Multiplier to convert BSP radiance to emissive factors.
 cvar_t* cvar_pt_bsp_radiance_scale = NULL;
+//! Controls which sky surfaces become poly-lights (0-2).
 cvar_t *cvar_pt_bsp_sky_lights = NULL;
+//! Temporal accumulation mode (0=off, 1=enabled, 2=hide GUI).
 cvar_t *cvar_pt_accumulation_rendering = NULL;
+//! Number of frames to accumulate in accumulation rendering.
 cvar_t *cvar_pt_accumulation_rendering_framenum = NULL;
+//! Projection type (0=perspective, 1=cylindrical).
 cvar_t *cvar_pt_projection = NULL;
+//! Depth-of-field mode (0=off, 1=reference only, 2=reference+nodenoiser, 3=always).
 cvar_t *cvar_pt_dof = NULL;
+//! Enable freecam mode for detached camera control.
 cvar_t* cvar_pt_freecam = NULL;
+//! Texture filtering mode (0=linear+aniso, 1=nearest+aniso, 2=nearest only).
 cvar_t *cvar_pt_nearest = NULL;
+//! Bilinear filtering for UI characters.
 cvar_t *cvar_pt_bilerp_chars = NULL;
+//! Bilinear filtering for UI pictures.
 cvar_t *cvar_pt_bilerp_pics = NULL;
+
+// Dynamic Resolution Scaling (DRS) CVARs
+//! Enable dynamic resolution scaling.
 cvar_t *cvar_drs_enable = NULL;
+//! Target FPS for DRS (30-240).
 cvar_t *cvar_drs_target = NULL;
+//! Minimum resolution scale percentage (25-100).
 cvar_t *cvar_drs_minscale = NULL;
+//! Maximum resolution scale percentage (50-200).
 cvar_t *cvar_drs_maxscale = NULL;
+//! DRS upward adjustment threshold (fraction of target time).
 cvar_t *cvar_drs_adjust_up = NULL;
+//! DRS downward adjustment threshold (fraction of target time).
 cvar_t *cvar_drs_adjust_down = NULL;
+//! DRS regulator gain parameter.
 cvar_t *cvar_drs_gain = NULL;
+//! Last DRS scale value (persisted across sessions).
 cvar_t *cvar_drs_last_scale = NULL;
+
+//! Enable tone mapping blend effects (damage tint, underwater, etc).
 cvar_t *cvar_tm_blend_enable = NULL;
+
+// External CVARs from other modules
 extern cvar_t *scr_viewsize;
 extern cvar_t *cvar_bloom_enable;
 extern cvar_t* cvar_flt_taa;
+
+// DRS runtime state
+//! Current DRS-computed resolution scale.
 static int drs_current_scale = 0;
+//! Effective resolution scale being used this frame.
 static int drs_effective_scale = 0;
+//! Whether the last frame rendered a world scene (for DRS validity).
 static bool drs_last_frame_world = false;
 
+// Driver version requirements
+//! Minimum required NVIDIA driver version string.
 cvar_t* cvar_min_driver_version_nvidia = NULL;
+//! Minimum required AMD driver version string.
 cvar_t* cvar_min_driver_version_amd = NULL;
+
+// Vulkan configuration
+//! Ray tracing API selection (auto/query/pipeline).
 cvar_t *cvar_ray_tracing_api = NULL;
+//! Enable Vulkan validation layers.
+//! Enable Vulkan validation layers.
 cvar_t *cvar_vk_validation = NULL;
 
 #if USE_DEBUG
+//! Test shell effect on all entities (debugging).
 cvar_t *cvar_pt_test_shell = NULL;
 #endif
 
 extern uiStatic_t uis;
 
 #ifdef VKPT_DEVICE_GROUPS
+//! Enable multi-GPU (SLI/CrossFire) rendering.
 cvar_t *cvar_sli = NULL;
 #endif
 
 #ifdef VKPT_IMAGE_DUMPS
+//! Trigger image dump for debugging (frame capture).
 cvar_t *cvar_dump_image = NULL;
 #endif
 
+// PVS (Potentially Visible Set) debugging
+//! Bitmask for cluster visibility debugging.
 byte cluster_debug_mask[VIS_MAX_BYTES];
+//! Currently selected cluster for PVS visualization.
 int cluster_debug_index;
 
+// UBO (Uniform Buffer Object) CVARs generated by macro
 #define UBO_CVAR_DO(name, default_value) cvar_t *cvar_##name;
 UBO_CVAR_LIST
 #undef UBO_CVAR_DO
 
+// World state
+//! Pointer to currently loaded BSP world model.
 static bsp_t *bsp_world_model;
-
+//! Whether temporal frame data is valid for accumulation/TAA.
 static bool temporal_frame_valid = false;
-
+//! Current animation frame for world textures (scrolling, warping).
 static int world_anim_frame = 0;
-
+//! Average color of environment map for global lighting approximation.
 static vec3_t avg_envmap_color = { 0.f };
-
+//! Water normal map texture for animated water surfaces.
 static image_t *water_normal_texture = NULL;
 
+// Temporal accumulation state
+//! Number of frames accumulated so far in accumulation rendering mode.
 int num_accumulated_frames = 0;
 
+// Frame state
+//! Whether a world frame has been rendered and is ready for presentation.
 static bool frame_ready = false;
 
+// Sky parameters
+//! Current sky rotation angle (degrees).
 static float sky_rotation = 0.f;
+//! Sky autorotation speed.
 static int sky_autorotate = 0;
+//! Sky rotation axis vector.
 static vec3_t sky_axis = { 0.f };
 
+// Temporal anti-aliasing (TAA) jitter patterns
 #define NUM_TAA_SAMPLES 128
+//! Precomputed Halton sequence samples for TAA camera jitter.
 static vec2_t taa_samples[NUM_TAA_SAMPLES];
 
+
+
+/**
+*
+*
+*
+*	Subsystem Initialization:
+*
+*
+*
+**/
+
+//! Initialization flags to control which subsystems are affected by init/destroy calls.
 typedef enum {
-	VKPT_INIT_DEFAULT            = (0),
-	VKPT_INIT_SWAPCHAIN_RECREATE = (1 << 1),
-	VKPT_INIT_RELOAD_SHADER      = (1 << 2),
+	VKPT_INIT_DEFAULT            = (0),          //!< Default initialization (first-time setup)
+	VKPT_INIT_SWAPCHAIN_RECREATE = (1 << 1),     //!< Swapchain recreation (resolution/format change)
+	VKPT_INIT_RELOAD_SHADER      = (1 << 2),     //!< Shader hot reload
 } VkptInitFlags_t;
 
+//! Subsystem initialization descriptor.
 typedef struct VkptInit_s {
-	const char *name;
-	VkResult (*initialize)(void);
-	VkResult (*destroy)(void);
-	VkptInitFlags_t flags;
-	int is_initialized;
+	const char *name;                  //!< Subsystem name for error messages
+	VkResult (*initialize)(void);      //!< Initialization function
+	VkResult (*destroy)(void);         //!< Cleanup function
+	VkptInitFlags_t flags;             //!< Which init events trigger this subsystem
+	int is_initialized;                //!< Current initialization state
 } VkptInit_t;
+
+/**
+ * Subsystem initialization table. 
+ * 
+ * Order matters: dependencies must be initialized before dependents.
+ * Entries marked with '|' suffix are pipeline-only (reload on shader changes).
+ * Destruction happens in reverse order.
+ * 
+ * @note Some subsystems respond to multiple init events (e.g., swapchain + shader reload).
+ *       The is_initialized flag prevents double-initialization.
+ */
 VkptInit_t vkpt_initialization[] = {
 	{ "profiler", vkpt_profiler_initialize,            vkpt_profiler_destroy,                VKPT_INIT_DEFAULT,            0 },
 	{ "vbo",      vkpt_vertex_buffer_create,           vkpt_vertex_buffer_destroy,           VKPT_INIT_DEFAULT,            0 },
@@ -183,54 +391,165 @@ VkptInit_t vkpt_initialization[] = {
 	{ "godraysI",   vkpt_god_rays_update_images,        vkpt_god_rays_noop,                 VKPT_INIT_SWAPCHAIN_RECREATE,  0 },
 };
 
-// Values returned by pick_surface_format_*
+
+
+/**
+*
+*
+*
+*	Surface Format Selection:
+*
+*
+*
+**/
+
+/**
+ * Surface format selection result.
+ * Contains both the swapchain surface format and the image view format,
+ * which may differ (e.g., UNORM surface with SRGB view).
+ */
 typedef struct picked_surface_format_s {
-	// Swapchain surface format
-	VkSurfaceFormatKHR surface_fmt;
-	// Swapchain image view format. This will always be an *_SRGB format, while the surface format may not.
-	VkFormat swapchain_view_fmt;
+	VkSurfaceFormatKHR surface_fmt;      //!< Swapchain surface format
+	VkFormat swapchain_view_fmt;         //!< Swapchain image view format (always *_SRGB)
 } picked_surface_format_t;
+
+
+
+/**
+*
+*
+*
+*	Function Prototypes:
+*
+*
+*
+**/
 
 void debug_output(const char* format, ...);
 static void recreate_swapchain(void);
 
+
+
+/**
+*
+*
+*
+*	CVAR Change Callbacks:
+*
+*
+*
+**/
+
+/**
+ * @brief Callback when viewsize cvar changes.
+ * 
+ * Clamps viewsize to valid range (25-200%) and prints the new resolution scale.
+ * 
+ * @param self The cvar that changed
+ */
 static void viewsize_changed(cvar_t *self)
 {
 	Cvar_ClampInteger(scr_viewsize, 25, 200);
 	Com_Printf("Resolution scale: %d%%\n", scr_viewsize->integer);
 }
 
+/**
+ * @brief Callback when pt_nearest cvar changes.
+ * 
+ * Invalidates texture descriptors to force recreation with new filtering mode.
+ * 
+ * @param self The cvar that changed
+ */
 static void pt_nearest_changed(cvar_t* self)
 {
 	vkpt_invalidate_texture_descriptors();
 }
 
+/**
+ * @brief Callback when drs_target cvar changes.
+ * 
+ * Clamps DRS target FPS to valid range (30-240).
+ * 
+ * @param self The cvar that changed
+ */
 static void drs_target_changed(cvar_t *self)
 {
 	Cvar_ClampInteger(self, 30, 240);
 }
 
+/**
+ * @brief Callback when drs_minscale cvar changes.
+ * 
+ * Clamps DRS minimum scale to valid range (25-100%).
+ * 
+ * @param self The cvar that changed
+ */
 static void drs_minscale_changed(cvar_t *self)
 {
 	Cvar_ClampInteger(self, 25, 100);
 }
 
+/**
+ * @brief Callback when drs_maxscale cvar changes.
+ * 
+ * Clamps DRS maximum scale to valid range (50-200%).
+ * 
+ * @param self The cvar that changed
+ */
 static void drs_maxscale_changed(cvar_t *self)
 {
 	Cvar_ClampInteger(self, 50, 200);
 }
 
+/**
+ * @brief Callback when accumulation rendering parameters change.
+ * 
+ * Resets accumulation frame counter to restart accumulation with new parameters.
+ * Used for depth-of-field, aperture, and freecam cvars.
+ * 
+ * @param self The cvar that changed
+ */
 static void accumulation_cvar_changed(cvar_t* self)
 {
 	// Reset accumulation rendering on DoF parameter change
 	num_accumulated_frames = 0;
 }
 
+
+
+/**
+*
+*
+*
+*	Resolution and Extent Management:
+*
+*
+*
+**/
+
+/**
+ * @brief Compare two Vulkan extents for equality.
+ * 
+ * @param a First extent
+ * @param b Second extent
+ * @return true if extents are equal, false otherwise
+ */
 static inline bool extents_equal(VkExtent2D a, VkExtent2D b)
 {
 	return a.width == b.width && a.height == b.height;
 }
 
+/**
+ * @brief Compute the render extent based on DRS and viewsize settings.
+ * 
+ * Determines the actual resolution at which ray tracing will be performed.
+ * Takes into account DRS (if enabled) or manual viewsize scaling.
+ * 
+ * @return VkExtent2D The render resolution (ray tracing resolution)
+ * 
+ * @note Width is rounded to even number for compatibility with image formats.
+ * @note DRS effective scale takes precedence over viewsize when active.
+ */
 static VkExtent2D get_render_extent(void)
 {
 	int scale;
@@ -257,6 +576,18 @@ static VkExtent2D get_render_extent(void)
 	return result;
 }
 
+/**
+ * @brief Compute the screen image extent for intermediate buffers.
+ * 
+ * Determines the size of screen-space images (TAA output, bloom, etc.).
+ * When DRS is enabled, allocates images large enough for the maximum scale.
+ * When FSR is enabled, ensures images are at least native resolution.
+ * 
+ * @return VkExtent2D The screen image resolution
+ * 
+ * @note Width is rounded to even number for compatibility.
+ * @note Must be >= render extent and >= unscaled extent.
+ */
 static VkExtent2D get_screen_image_extent(void)
 {
 	VkExtent2D result;
@@ -282,11 +613,55 @@ static VkExtent2D get_screen_image_extent(void)
 	return result;
 }
 
+
+
+/**
+*
+*
+*
+*	Accumulation and Temporal State Management:
+*
+*
+*
+**/
+
+/**
+ * @brief Reset temporal accumulation frame counter.
+ * 
+ * Call this when camera or scene changes to restart accumulation rendering.
+ * Also used by subsystems that invalidate accumulated frames.
+ */
 void vkpt_reset_accumulation()
 {
 	num_accumulated_frames = 0;
 }
 
+
+
+/**
+*
+*
+*
+*	Subsystem Initialization and Destruction:
+*
+*
+*
+**/
+
+/**
+ * @brief Initialize all subsystems matching the given flags.
+ * 
+ * Iterates through the vkpt_initialization table and calls initialize()
+ * for each subsystem whose flags match the provided init_flags.
+ * Skips subsystems that are already initialized.
+ * 
+ * @param init_flags Which initialization event is occurring (DEFAULT, SWAPCHAIN_RECREATE, RELOAD_SHADER)
+ * @return VK_SUCCESS on success, error code on failure
+ * 
+ * @note Some subsystems respond to multiple events (e.g., draw pipelines on swapchain + shader reload).
+ * @note Transparency system and prefetch are initialized separately for DEFAULT init.
+ * @note Fails with ERR_FATAL if any subsystem initialization fails.
+ */
 VkResult
 vkpt_initialize_all(VkptInitFlags_t init_flags)
 {
@@ -334,6 +709,20 @@ vkpt_initialize_all(VkptInitFlags_t init_flags)
 	return VK_SUCCESS;
 }
 
+/**
+ * @brief Destroy all subsystems matching the given flags.
+ * 
+ * Iterates through the vkpt_initialization table in REVERSE order and calls
+ * destroy() for each subsystem whose flags match the provided destroy_flags.
+ * Skips subsystems that are not initialized.
+ * 
+ * @param destroy_flags Which destruction event is occurring (DEFAULT, SWAPCHAIN_RECREATE, RELOAD_SHADER)
+ * @return VK_SUCCESS on success, error code on failure
+ * 
+ * @note Destruction happens in reverse order to respect dependencies.
+ * @note Transparency system and light buffers are destroyed separately for DEFAULT.
+ * @note Always waits for device idle before destruction.
+ */
 VkResult
 vkpt_destroy_all(VkptInitFlags_t destroy_flags)
 {
@@ -363,6 +752,29 @@ vkpt_destroy_all(VkptInitFlags_t destroy_flags)
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Shader Hot Reload:
+*
+*
+*
+**/
+
+/**
+ * @brief Hot reload all shaders and pipelines.
+ * 
+ * Recompiles all shaders from source, reloads shader modules, and recreates
+ * all pipelines. Useful for live shader development without restarting the game.
+ * 
+ * @note On Windows, runs "compile_shaders.bat"
+ * @note On Unix, runs "make -j compile_shaders"
+ * @note Compilation output is printed to console
+ * @note Can be triggered via "reload_shader" console command
+ */
 void
 vkpt_reload_shader(void)
 {
@@ -390,6 +802,14 @@ vkpt_reload_shader(void)
 	vkpt_initialize_all(VKPT_INIT_RELOAD_SHADER);
 }
 
+/**
+ * @brief Reload all textures from disk.
+ * 
+ * Triggers IMG_ReloadAll to refresh all loaded textures.
+ * Useful for live texture editing without restarting the game.
+ * 
+ * @note Can be triggered via "reload_textures" console command
+ */
 static void vkpt_reload_textures(void)
 {
 	IMG_ReloadAll();
@@ -3325,6 +3745,30 @@ static void temporal_cvar_changed(cvar_t *self)
 	temporal_frame_valid = false;
 }
 
+
+
+/**
+*
+*
+*
+*	Swapchain Recreation:
+*
+*
+*
+**/
+
+/**
+ * @brief Recreate the swapchain after format or resolution change.
+ * 
+ * Destroys the current swapchain and all swapchain-dependent resources,
+ * queries the new window size, creates a new swapchain, and reinitializes
+ * swapchain-dependent subsystems.
+ * 
+ * @note Waits for device idle before recreation
+ * @note Updates qvk.win_width and qvk.win_height from SDL window
+ * @note Sets wait_for_idle_frames to ensure frame synchronization
+ * @note Called automatically when swapchain becomes out-of-date or suboptimal
+ */
 static void
 recreate_swapchain(void)
 {
@@ -3338,6 +3782,28 @@ recreate_swapchain(void)
 	qvk.wait_for_idle_frames = MAX_FRAMES_IN_FLIGHT * 2;
 }
 
+
+
+/**
+*
+*
+*
+*	Utility Functions:
+*
+*
+*
+**/
+
+/**
+ * @brief Compare two doubles for qsort.
+ * 
+ * Comparison function for sorting double values in ascending order.
+ * Used by DRS frame time analysis.
+ * 
+ * @param pa Pointer to first double
+ * @param pb Pointer to second double
+ * @return int -1 if a < b, 1 if a > b, 0 if equal
+ */
 static int compare_doubles(const void* pa, const void* pb)
 {
 	double a = *(double*)pa;
@@ -3348,8 +3814,27 @@ static int compare_doubles(const void* pa, const void* pb)
 	return 0;
 }
 
-// DRS (Dynamic Resolution Scaling) functions
 
+
+/**
+*
+*
+*
+*	Dynamic Resolution Scaling (DRS):
+*
+*
+*
+**/
+
+/**
+ * @brief Initialize DRS (Dynamic Resolution Scaling) CVARs.
+ * 
+ * Registers all DRS-related console variables and sets up change callbacks.
+ * DRS automatically adjusts render resolution to maintain target frame rate.
+ * 
+ * @note Called during R_Init_RTX
+ * @note Sets up clamping callbacks for min/max/target values
+ */
 static void drs_init(void)
 {
 	cvar_drs_enable = Cvar_Get("drs_enable", "0", CVAR_ARCHIVE);
@@ -3371,6 +3856,26 @@ static void drs_init(void)
 	cvar_drs_last_scale = Cvar_Get("drs_last_scale", "0", CVAR_ARCHIVE);
 }
 
+/**
+ * @brief Process DRS (Dynamic Resolution Scaling) for current frame.
+ * 
+ * Analyzes recent frame times and adjusts render resolution to maintain
+ * target FPS. Uses a PI controller with configurable gain and thresholds.
+ * Collects SCALING_FRAMES (5) frame time samples, discards outliers,
+ * and computes representative time for adjustment decision.
+ * 
+ * Algorithm:
+ * 1. Collect frame times until we have SCALING_FRAMES valid samples
+ * 2. Sort samples and compute representative time (average of middle 3)
+ * 3. Compare to target time (1000ms / target_fps)
+ * 4. Apply gain-based adjustment with hysteresis (adjust_up/adjust_down)
+ * 5. Clamp result to [minscale, maxscale] range
+ * 
+ * @note Called every frame from R_BeginFrame_RTX
+ * @note Skips processing if DRS is disabled or accumulation rendering is active
+ * @note Skips if last frame didn't render world (invalid timing data)
+ * @note Updates drs_effective_scale which affects get_render_extent()
+ */
 static void drs_process(void)
 {
 #define SCALING_FRAMES 5
@@ -3455,6 +3960,37 @@ static void drs_process(void)
 	drs_effective_scale = drs_current_scale;
 }
 
+
+
+/**
+*
+*
+*
+*	Frame Management:
+*
+*
+*
+**/
+
+/**
+ * @brief Begin a rendering frame.
+ * 
+ * Called at the start of each frame to set up frame synchronization,
+ * acquire swapchain image, process DRS, and check for resolution changes.
+ * 
+ * Frame synchronization flow:
+ * 1. Wait for fence from frame N-MAX_FRAMES_IN_FLIGHT
+ * 2. Acquire next swapchain image
+ * 3. Process DRS to determine render resolution
+ * 4. Recreate swapchain if needed (format/resolution change)
+ * 
+ * @note Detects device lost condition and exits with fatal error
+ * @note Handles minimized window (zero-size swapchain) gracefully
+ * @note Updates qvk.current_frame_index for ring buffer indexing
+ * @note Updates resolution scale feedback for HUD display
+ * 
+ * @see R_EndFrame_RTX for frame completion
+ */
 void
 R_BeginFrame_RTX(void)
 {
@@ -3679,6 +4215,31 @@ R_EndFrame_RTX(void)
 	qvk.frame_counter++;
 }
 
+
+
+/**
+*
+*
+*
+*	Mode Changes:
+*
+*
+*
+**/
+
+/**
+ * @brief Handle video mode change (resolution, fullscreen).
+ * 
+ * Called when the video mode changes (resolution, windowed/fullscreen, etc.).
+ * Updates global render config and sets a grace period for frame synchronization.
+ * 
+ * @param width New window width in pixels
+ * @param height New window height in pixels
+ * @param flags Video mode flags
+ * 
+ * @note Does not recreate swapchain immediately; that happens in R_BeginFrame_RTX
+ * @note Sets wait_for_idle_frames to skip a few frames for stability
+ */
 void
 R_ModeChanged_RTX(int width, int height, int flags)
 {
@@ -3691,6 +4252,28 @@ R_ModeChanged_RTX(int width, int height, int flags)
 	qvk.wait_for_idle_frames = MAX_FRAMES_IN_FLIGHT * 2;
 }
 
+
+
+/**
+*
+*
+*
+*	PVS (Potentially Visible Set) Debugging:
+*
+*
+*
+**/
+
+/**
+ * @brief Show PVS (Potentially Visible Set) for the cluster the camera is looking at.
+ * 
+ * Console command handler that marks all clusters visible from the currently
+ * looked-at cluster. Used for debugging BSP visibility culling.
+ * 
+ * @note Requires vkpt_refdef.fd to be valid (world must be loaded)
+ * @note Sets cluster_debug_mask and cluster_debug_index for visualization
+ * @note Can be triggered via "show_pvs" console command
+ */
 static void
 vkpt_show_pvs(void)
 {
@@ -3708,6 +4291,30 @@ vkpt_show_pvs(void)
 	cluster_debug_index = vkpt_refdef.fd->feedback.lookatcluster;
 }
 
+
+
+/**
+*
+*
+*
+*	TAA (Temporal Anti-Aliasing) Jitter Generation:
+*
+*
+*
+**/
+
+/**
+ * @brief Compute Halton sequence value for quasi-random sampling.
+ * 
+ * Generates low-discrepancy sequences used for temporal jitter patterns.
+ * Halton sequences provide better coverage than random samples.
+ * 
+ * @param base Prime number base for the sequence (typically 2 or 3)
+ * @param index Sample index in the sequence (1-based)
+ * @return float Value in range [0, 1)
+ * 
+ * @note Used to generate TAA jitter offsets during initialization
+ */
 static float halton(int base, int index) {
 	float f = 1.f;
 	float r = 0.f;
@@ -3722,7 +4329,27 @@ static float halton(int base, int index) {
 	return r;
 };
 
-// Autocompletion support for ray_tracing_api cvar
+
+
+/**
+*
+*
+*
+*	CVAR Autocompletion:
+*
+*
+*
+**/
+
+/**
+ * @brief Autocompletion generator for ray_tracing_api cvar.
+ * 
+ * Provides tab-completion suggestions for the ray_tracing_api cvar.
+ * 
+ * @param ctx Autocomplete context
+ * 
+ * @note Valid values: "auto", "query", "pipeline"
+ */
 static void ray_tracing_api_g(genctx_t *ctx)
 {
 	Prompt_AddMatch(ctx, "auto");
@@ -3730,7 +4357,39 @@ static void ray_tracing_api_g(genctx_t *ctx)
 	Prompt_AddMatch(ctx, "pipeline");
 }
 
-/* called when the library is loaded */
+
+
+/**
+*
+*
+*
+*	Renderer Initialization and Shutdown:
+*
+*
+*
+**/
+
+/**
+ * @brief Initialize the VKPT renderer.
+ * 
+ * Main initialization entry point called when the renderer is loaded.
+ * Sets up Vulkan, creates device and swapchain, initializes all subsystems,
+ * registers console commands and CVARs, and prepares for rendering.
+ * 
+ * @param total Whether this is a total initialization (true) or reinitializations (false)
+ * @return ref_type_t REF_TYPE_VKPT on success, REF_TYPE_NONE on failure
+ * 
+ * @note Initialization order:
+ *       1. Video subsystem and SDL window
+ *       2. CVAR registration
+ *       3. Vulkan device and swapchain creation
+ *       4. Shader module loading
+ *       5. Subsystem initialization (profiler, VBO, textures, path tracer, etc.)
+ *       6. Console command registration
+ *       7. TAA sample generation
+ * 
+ * @note Fails with ERR_FATAL if Vulkan initialization fails
+ */
 ref_type_t
 R_Init_RTX(bool total)
 {
@@ -3921,7 +4580,18 @@ R_Init_RTX(bool total)
 	return REF_TYPE_VKPT;
 }
 
-/* called before the library is unloaded */
+/**
+ * @brief Shutdown the VKPT renderer.
+ * 
+ * Cleanup entry point called when the renderer is unloaded.
+ * Destroys all Vulkan resources, frees memory, and unregisters commands.
+ * 
+ * @param total Whether this is a total shutdown (true) or reinit (false)
+ * 
+ * @note Persists DRS scale value to cvar for next session
+ * @note Waits for device idle before cleanup
+ * @note Destruction happens in reverse order of initialization
+ */
 void
 R_Shutdown_RTX(bool total)
 {
@@ -3962,7 +4632,31 @@ R_Shutdown_RTX(bool total)
 	vid.shutdown();
 }
 
-// for screenshots
+
+
+/**
+*
+*
+*
+*	Screenshot Capture:
+*
+*
+*
+**/
+
+/**
+ * @brief Capture LDR screenshot from swapchain.
+ * 
+ * Reads pixels from the current swapchain image and converts to RGB24 format.
+ * Used for regular screenshots in SDR mode.
+ * 
+ * @param s Screenshot structure to fill (pixels, width, height, rowbytes)
+ * 
+ * @note Only works with BGRA8_SRGB or RGBA8_SRGB swapchain formats
+ * @note Flips image vertically (swapchain is top-down, screenshot is bottom-up)
+ * @note Allocates pixel buffer with FS_AllocTempMem (caller must free)
+ * @note Performs format conversion (BGRA->RGB or RGBA->RGB)
+ */
 void
 IMG_ReadPixels_RTX(screenshot_t *s)
 {
@@ -4088,6 +4782,19 @@ IMG_ReadPixels_RTX(screenshot_t *s)
 	s->rowbytes = pitch;
 }
 
+/**
+ * @brief Capture HDR screenshot from swapchain.
+ * 
+ * Reads pixels from the current swapchain image in HDR format.
+ * Used for HDR screenshots when HDR output is enabled.
+ * 
+ * @param s Screenshot structure to fill (pixels, width, height, rowbytes)
+ * 
+ * @note Only works with R16G16B16A16_SFLOAT swapchain format
+ * @note Flips image vertically during readback
+ * @note Allocates pixel buffer with FS_AllocTempMem (caller must free)
+ * @note Preserves HDR values (no tone mapping applied)
+ */
 void
 IMG_ReadPixelsHDR_RTX(screenshot_t *s)
 {
@@ -4268,9 +4975,55 @@ R_SetSky_RTX(const char *name, float rotate, int autorotate, const vec3_t axis)
 	Z_Free(data);
 }
 
+/**
+ * @brief Add decal to the world (stub).
+ * 
+ * Decals are not currently supported in the path traced renderer.
+ * 
+ * @param d Decal data (ignored)
+ */
 void R_AddDecal_RTX(decal_t *d)
 { }
 
+
+
+/**
+*
+*
+*
+*	Map Registration:
+*
+*
+*
+**/
+
+/**
+ * @brief Begin map registration (loading).
+ * 
+ * Called when a new map is being loaded. Loads the BSP file, creates
+ * mesh data structures, initializes lighting, and prepares for rendering.
+ * 
+ * @param name Map name (without "maps/" prefix or ".bsp" suffix)
+ * 
+ * Registration flow:
+ * 1. Increment registration sequence for resource tracking
+ * 2. Wait for GPU idle
+ * 3. Reset fog state
+ * 4. Load map-specific config files
+ * 5. Clean up previous BSP mesh
+ * 6. Load new BSP file
+ * 7. Verify BSP is VIS'd (required for Q2RTXP)
+ * 8. Register textures
+ * 9. Create mesh structures
+ * 10. Initialize light buffers
+ * 11. Upload geometry to GPU
+ * 12. Configure physical sky
+ * 13. Reset post-processing state
+ * 
+ * @note Fails with ERR_DROP if BSP file is missing or not VIS'd
+ * @note Sets sv_novis cvar based on camera presence
+ * @note Resets DRS state
+ */
 void
 R_BeginRegistration_RTX(const char *name)
 {
@@ -4333,6 +5086,15 @@ R_BeginRegistration_RTX(const char *name)
 	drs_last_frame_world = false;
 }
 
+/**
+ * @brief End map registration (loading).
+ * 
+ * Called after all map resources have been registered.
+ * Frees unused resources to reduce memory consumption.
+ * 
+ * @note Frees unused images, models, and materials
+ * @note Should be paired with R_BeginRegistration_RTX
+ */
 void
 R_EndRegistration_RTX(void)
 {
@@ -4345,6 +5107,32 @@ R_EndRegistration_RTX(void)
 	MAT_FreeUnused();
 }
 
+
+
+/**
+*
+*
+*
+*	Command Buffer Management:
+*
+*
+*
+**/
+
+/**
+ * @brief Begin a command buffer for recording.
+ * 
+ * Allocates or reuses a command buffer from the group's pool.
+ * Automatically grows the pool if all buffers are in use.
+ * 
+ * @param group Command buffer group (graphics or transfer)
+ * @return VkCommandBuffer Ready for recording
+ * 
+ * @note Uses ring buffer indexed by qvk.current_frame_index
+ * @note Grows pool capacity by 2x when exhausted
+ * @note Resets command buffer before returning
+ * @note Stores return address for debugging in USE_DEBUG builds
+ */
 VkCommandBuffer vkpt_begin_command_buffer(cmd_buf_group_t* group)
 {
 	if (group->used_this_frame == group->count_per_frame)
@@ -4417,6 +5205,16 @@ VkCommandBuffer vkpt_begin_command_buffer(cmd_buf_group_t* group)
 	return cmd_buf;
 }
 
+/**
+ * @brief Free all command buffers in a group.
+ * 
+ * Releases command buffers back to the pool and frees memory.
+ * 
+ * @param group Command buffer group to free
+ * 
+ * @note Should be called during shutdown
+ * @note Frees both the buffer array and debug address array
+ */
 void vkpt_free_command_buffers(cmd_buf_group_t* group)
 {
 	if (group->count_per_frame == 0)
@@ -4434,6 +5232,17 @@ void vkpt_free_command_buffers(cmd_buf_group_t* group)
 	group->used_this_frame = 0;
 }
 
+/**
+ * @brief Reset command buffer usage counter for new frame.
+ * 
+ * Marks all command buffers in the group as available for reuse.
+ * Called at the start of each frame.
+ * 
+ * @param group Command buffer group to reset
+ * 
+ * @note Does not actually reset Vulkan command buffers (that happens on begin)
+ * @note Just resets the used_this_frame counter
+ */
 void vkpt_reset_command_buffers(cmd_buf_group_t* group)
 {
 	group->used_this_frame = 0;
@@ -4448,12 +5257,44 @@ void vkpt_reset_command_buffers(cmd_buf_group_t* group)
 #endif
 }
 
+/**
+ * @brief Wait for queue to idle and reset command buffers.
+ * 
+ * Synchronous wait for all work on a queue to complete, then reset
+ * the command buffer group for reuse.
+ * 
+ * @param queue Vulkan queue to wait on
+ * @param group Command buffer group to reset
+ * 
+ * @note Blocking call - only use when necessary (e.g., screenshots, shutdown)
+ */
 void vkpt_wait_idle(VkQueue queue, cmd_buf_group_t* group)
 {
 	vkQueueWaitIdle(queue);
 	vkpt_reset_command_buffers(group);
 }
 
+/**
+ * @brief Submit command buffer to queue with full synchronization control.
+ * 
+ * Ends command buffer recording and submits to queue with specified
+ * semaphores and device masks for multi-GPU rendering.
+ * 
+ * @param cmd_buf Command buffer to submit
+ * @param queue Vulkan queue to submit to
+ * @param execute_device_mask Bitmask of GPUs to execute on
+ * @param wait_semaphore_count Number of wait semaphores
+ * @param wait_semaphores Semaphores to wait on before execution
+ * @param wait_stages Pipeline stages to wait at
+ * @param wait_device_indices Device indices for wait semaphores
+ * @param signal_semaphore_count Number of signal semaphores
+ * @param signal_semaphores Semaphores to signal after execution
+ * @param signal_device_indices Device indices for signal semaphores
+ * @param fence Fence to signal when complete (or VK_NULL_HANDLE)
+ * 
+ * @note Automatically clears debug return address in USE_DEBUG builds
+ * @note Supports multi-GPU via VkDeviceGroupSubmitInfo
+ */
 void vkpt_submit_command_buffer(
 	VkCommandBuffer cmd_buf,
 	VkQueue queue,
@@ -4516,6 +5357,18 @@ void vkpt_submit_command_buffer(
 #endif
 }
 
+/**
+ * @brief Submit command buffer with simple synchronization (convenience wrapper).
+ * 
+ * Simplified version of vkpt_submit_command_buffer for common cases.
+ * No semaphores, optional multi-GPU, no fence.
+ * 
+ * @param cmd_buf Command buffer to submit
+ * @param queue Vulkan queue to submit to
+ * @param all_gpus If true, execute on all GPUs; if false, execute on GPU 0 only
+ * 
+ * @note Most common submission pattern in the codebase
+ */
 void vkpt_submit_command_buffer_simple(
 	VkCommandBuffer cmd_buf,
 	VkQueue queue,
@@ -4524,6 +5377,18 @@ void vkpt_submit_command_buffer_simple(
 	vkpt_submit_command_buffer(cmd_buf, queue, all_gpus ? (1 << qvk.device_count) - 1 : 1, 0, NULL, NULL, NULL, 0, NULL, NULL, 0);
 }
 
+
+
+/**
+*
+*
+*
+*	Debug Output:
+*
+*
+*
+**/
+
 #if _WIN32
 	#define NOMINMAX
 	#include <windows.h>
@@ -4531,6 +5396,18 @@ void vkpt_submit_command_buffer_simple(
 	#include <stdio.h>
 #endif
 
+/**
+ * @brief Output debug string to platform debugger.
+ * 
+ * Prints formatted string to OutputDebugString (Windows) or stderr (Unix).
+ * Useful for debugging when console output isn't visible.
+ * 
+ * @param format Printf-style format string
+ * @param ... Format arguments
+ * 
+ * @note Windows: Output visible in Visual Studio debugger or DebugView
+ * @note Unix: Output goes to stderr
+ */
 void debug_output(const char* format, ...)
 {
 	char buffer[2048];
@@ -4547,11 +5424,51 @@ void debug_output(const char* format, ...)
 #endif
 }
 
+
+
+/**
+*
+*
+*
+*	HDR Query:
+*
+*
+*
+**/
+
+/**
+ * @brief Query whether HDR output is currently active.
+ * 
+ * @return bool True if swapchain is in HDR mode, false otherwise
+ * 
+ * @note Used by UI to determine rendering parameters
+ */
 static bool R_IsHDR_RTX(void)
 {
 	return qvk.surf_is_hdr;
 }
 
+
+
+/**
+*
+*
+*
+*	Function Table Registration:
+*
+*
+*
+**/
+
+/**
+ * @brief Register all VKPT renderer function pointers.
+ * 
+ * Populates the global function pointer table with VKPT implementations
+ * of all renderer interface functions. Called during renderer initialization.
+ * 
+ * @note Sets up all R_*, IMG_*, and MOD_* function pointers
+ * @note Must be called before any renderer functions are invoked
+ */
 void R_RegisterFunctionsRTX()
 {
 	R_Init = R_Init_RTX;

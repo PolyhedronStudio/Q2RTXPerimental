@@ -1,3 +1,77 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Vertex Buffer and Geometry Management
+*
+*	Manages vertex buffer resources and geometry for BSP world rendering
+*	and dynamic models in the hardware ray tracing pipeline. Handles
+*	vertex data uploads, Bottom-Level Acceleration Structure (BLAS)
+*	creation, and geometry batching for efficient ray tracing. Supports
+*	both static geometry (BSP world, static models) and dynamic animated
+*	geometry (skeletal models, material animations).
+*
+*	Architecture:
+*	- VBO Allocation: Separate buffers for world, models, and dynamic instances
+*	  - World Buffer: BSP geometry (opaque, transparent, masked, sky)
+*	  - Model VBOs: Individual buffers for each static model
+*	  - Instance Buffers: Dynamic animated primitives with material animation
+*	- BLAS Management: Bottom-Level Acceleration Structures per geometry type
+*	  - Static BLAS: Prefer fast trace, built once per level load
+*	  - Dynamic BLAS: Prefer fast build, rebuilt each frame
+*	  - Per-Material BLAS: Separate acceleration structures for opaque/transparent/masked
+*	- Geometry Batching: Multiple meshes packed into single BLAS
+*	  - BSP models: Embedded in world buffer with individual BLAS
+*	  - IQM models: Separate VBOs with skeletal animation support
+*
+*	Algorithm Flow (Initialization):
+*	1. Upload BSP Mesh: Transfer BSP geometry to world buffer
+*	2. Build Static BLAS: Create acceleration structures for world geometry
+*	3. Upload Models: Transfer model meshes to individual VBOs
+*	4. Build Model BLAS: Create acceleration structures for static models
+*	5. Create Dynamic Buffers: Allocate animated primitive buffers
+*
+*	Algorithm Flow (Per Frame):
+*	1. Instance Geometry: Copy and transform dynamic primitives
+*	2. Animate Materials: Update texture coordinates for animated surfaces
+*	3. Build Dynamic BLAS: Rebuild acceleration structures for animated geometry
+*	4. Update Descriptors: Bind buffers to shader descriptor sets
+*
+*	Features:
+*	- Dynamic primitive buffer resizing based on scene complexity
+*	- Material animation via compute shader (scrolling/warping textures)
+*	- Separate handling of opaque, transparent, and masked geometry
+*	- Instance mask and SBT offset configuration for ray tracing
+*	- Light buffer management for dynamic lighting
+*	- IQM skeletal animation matrix uploads
+*	- Model VBO invalidation and rebuild on material changes
+*
+*	Configuration:
+*	- PRIMBUF_SIZE_MIN: Minimum animated primitive buffer size (64K primitives)
+*	- PRIMBUF_SIZE_MAX: Maximum animated primitive buffer size (64M primitives)
+*	- PRIMBUF_SIZE_DEFAULT: Default startup size (1M primitives)
+*	- ACCEL_STRUCT_ALIGNMENT: Required alignment for BLAS buffers (256 bytes)
+*	- MAX_MODELS: Maximum number of models supported (2048)
+*	- pt_primbuf: Cvar controlling initial primitive buffer size
+*
+*	Performance Optimizations:
+*	- Static model VBO caching to avoid redundant uploads
+*	- Primitive buffer growth strategy to minimize reallocation stutter
+*	- Compute shader material animation instead of CPU updates
+*	- Scratch buffer reuse across BLAS builds
+*	- Batch descriptor updates for model VBOs
+*
+*	Memory Layout:
+*	World Buffer:
+*	  [0..N] BSP Primitives (VboPrimitive)
+*	  [N..M] BSP Vertex Positions (prim_positions_t)
+*	  [M..] BLAS Storage (opaque, transparent, masked, sky, models)
+*	Instance Buffer:
+*	  [0..K] Dynamic Primitives (VboPrimitive)
+*	Position Buffer:
+*	  [0..K] Dynamic Vertex Positions (prim_positions_t)
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2018 Christoph Schied
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
@@ -26,28 +100,69 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "conversion.h"
 
 
+
+
+/**
+*
+*
+*
+*	Module State and Configuration:
+*
+*
+*
+**/
+//! Descriptor pool for vertex buffer descriptor sets.
 static VkDescriptorPool desc_pool_vertex_buffer;
+//! Compute pipeline for geometry instancing (transforms and copies dynamic primitives).
 static VkPipeline       pipeline_instance_geometry;
+//! Compute pipeline for material animation (scrolling/warping texture coordinates).
 static VkPipeline       pipeline_animate_materials;
+//! Pipeline layout for instance geometry compute pipelines.
 static VkPipelineLayout pipeline_layout_instance_geometry;
 
+//! Per-model vertex buffer data (VBO handles, BLAS, metadata).
 model_vbo_t model_vertex_data[MAX_MODELS];
+//! Null buffer resource used as placeholder for uninitialized model VBOs.
 static BufferResource_t null_buffer;
 
-// Cvar that controls the initial animated primitive buffer size at startup.
-// The buffer can grow later if necessary, but that causes stutter.
+//! Cvar controlling the initial animated primitive buffer size at startup.
+//! The buffer can grow later if necessary, but that causes frame stutter.
 static cvar_t* cvar_pt_primbuf = NULL;
+//! Current size of the animated primitive buffer in number of primitives.
 static uint32_t current_primbuf_size = 0;
 
-// Clamps and default setting for the animated primitive buffer size
+//! Minimum size for animated primitive buffer (65,536 primitives = 8 MB VboPrimitive data).
 #define PRIMBUF_SIZE_MIN (1 << 16)
+//! Maximum size for animated primitive buffer (67,108,864 primitives = 8 GB VboPrimitive data).
 #define PRIMBUF_SIZE_MAX (1 << 26)
+//! Default startup size for animated primitive buffer (1,048,576 primitives = 128 MB VboPrimitive data).
 #define PRIMBUF_SIZE_DEFAULT (1 << 20)
 
-// Per Vulkan spec, acceleration structure offset must be a multiple of 256
-// https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkAccelerationStructureCreateInfoKHR.html
+//! Per Vulkan spec, acceleration structure buffer offset must be aligned to 256 bytes.
+//! @see https://www.khronos.org/registry/vulkan/specs/1.2-extensions/man/html/VkAccelerationStructureCreateInfoKHR.html
 #define ACCEL_STRUCT_ALIGNMENT 256
 
+
+
+
+
+/**
+*
+*
+*
+*	Model Geometry Management - Initialization and Allocation:
+*
+*
+*
+**/
+/**
+*	@brief	Initializes a model_geometry_t structure with storage for acceleration structure data.
+*	@param	info			Pointer to model_geometry_t to initialize.
+*	@param	max_geometries	Maximum number of geometry entries (meshes) to allocate.
+*	@note	Allocates memory for VkAccelerationStructureGeometryKHR, build ranges, and primitive counts.
+*	@note	Sets up geometries, build_ranges, prim_counts, and prim_offsets array pointers.
+*	@note	Does nothing if max_geometries is 0 or if geometry_storage is already allocated.
+**/
 void vkpt_init_model_geometry(model_geometry_t* info, uint32_t max_geometries)
 {
 	assert(info->geometry_storage == NULL); // avoid double allocation
@@ -69,6 +184,12 @@ void vkpt_init_model_geometry(model_geometry_t* info, uint32_t max_geometries)
 	info->max_geometries = max_geometries;
 }
 
+/**
+*	@brief	Destroys a model_geometry_t structure and frees its resources.
+*	@param	info	Pointer to model_geometry_t to destroy.
+*	@note	Frees geometry storage memory and destroys the acceleration structure if present.
+*	@note	Resets all pointers to NULL after cleanup.
+**/
 void vkpt_destroy_model_geometry(model_geometry_t* info)
 {
 	if (!info->geometry_storage)
@@ -87,6 +208,15 @@ void vkpt_destroy_model_geometry(model_geometry_t* info)
 	}
 }
 
+/**
+*	@brief	Appends a geometry entry (mesh) to a model_geometry_t structure.
+*	@param	info		Pointer to model_geometry_t to append to.
+*	@param	num_prims	Number of triangles in this geometry.
+*	@param	prim_offset	Offset (in triangles) into the vertex buffer where this geometry starts.
+*	@param	model_name	Name of the model for error reporting.
+*	@note	Does nothing if num_prims is 0 or if max_geometries limit is exceeded.
+*	@note	Configures triangle geometry with VK_FORMAT_R32G32B32_SFLOAT vertices and no indices.
+**/
 void vkpt_append_model_geometry(model_geometry_t* info, uint32_t num_prims, uint32_t prim_offset, const char* model_name)
 {
 	if (num_prims == 0)
@@ -126,6 +256,26 @@ void vkpt_append_model_geometry(model_geometry_t* info, uint32_t num_prims, uint
 	++info->num_geometries;
 }
 
+
+
+/**
+*
+*
+*
+*	BLAS Management - Allocation, Creation, and Building:
+*
+*
+*
+**/
+/**
+*	@brief	Calculates BLAS memory requirements and suballocates space within a VBO.
+*	@param	info		Pointer to model_geometry_t containing geometry descriptors.
+*	@param	vbo_size	Pointer to VBO size; updated to include BLAS storage (aligned).
+*	@param	model_name	Name of the model for error reporting.
+*	@note	Queries Vulkan for acceleration structure size and scratch buffer requirements.
+*	@note	Uses VK_BUILD_ACCELERATION_STRUCTURE_PREFER_FAST_TRACE_BIT_KHR for static geometry.
+*	@note	Resets num_geometries to 0 if scratch buffer is insufficient.
+**/
 static void suballocate_model_blas_memory(model_geometry_t* info, size_t* vbo_size, const char* model_name)
 {
 	VkAccelerationStructureBuildSizesInfoKHR build_sizes = {
@@ -165,6 +315,15 @@ static void suballocate_model_blas_memory(model_geometry_t* info, size_t* vbo_si
 	}
 }
 
+/**
+*	@brief	Creates a VkAccelerationStructureKHR for a model geometry.
+*	@param	info	Pointer to model_geometry_t with suballocated BLAS memory.
+*	@param	buffer	VkBuffer that will contain the acceleration structure data.
+*	@param	name	Debug name for the acceleration structure (can be NULL).
+*	@note	Does nothing if num_geometries is 0.
+*	@note	Sets info->accel and info->blas_device_address on success.
+*	@note	Attaches a debug label if name is provided.
+**/
 static void create_model_blas(model_geometry_t* info, VkBuffer buffer, const char* name)
 {
 	if (info->num_geometries == 0)
@@ -191,6 +350,16 @@ static void create_model_blas(model_geometry_t* info, VkBuffer buffer, const cha
 		ATTACH_LABEL_VARIABLE_NAME(info->accel, ACCELERATION_STRUCTURE_KHR, name);
 }
 
+/**
+*	@brief	Builds (or rebuilds) a BLAS by recording build commands into a command buffer.
+*	@param	cmd_buf				Command buffer to record into.
+*	@param	info				Pointer to model_geometry_t with acceleration structure.
+*	@param	first_vertex_offset	Byte offset to the start of vertex position data in the buffer.
+*	@param	buffer				Buffer resource containing vertex position data.
+*	@note	Does nothing if info->accel is NULL.
+*	@note	Sets vertex data device addresses for all geometries before building.
+*	@note	Inserts a memory barrier after build to ensure AS reads are safe.
+**/
 static void build_model_blas(VkCommandBuffer cmd_buf, model_geometry_t* info, size_t first_vertex_offset, const BufferResource_t* buffer)
 {
 	if (!info->accel)
@@ -239,6 +408,28 @@ static void build_model_blas(VkCommandBuffer cmd_buf, model_geometry_t* info, si
 		&barrier, 0, 0, 0, 0);
 }
 
+
+
+/**
+*
+*
+*
+*	BSP Mesh Upload and Management:
+*
+*
+*
+**/
+/**
+*	@brief	Uploads BSP world geometry to GPU and builds all associated BLAS.
+*	@param	bsp_mesh	Pointer to bsp_mesh_t containing BSP world geometry data.
+*	@return	VK_SUCCESS on success, or Vulkan error code on failure.
+*	@note	Destroys the previous world buffer before uploading new geometry.
+*	@note	Uploads primitives and vertex positions to world buffer via staging buffer.
+*	@note	Creates and builds BLAS for opaque, transparent, masked, sky, and custom_sky geometry.
+*	@note	Creates and builds individual BLAS for each embedded BSP model.
+*	@note	Configures instance masks and SBT offsets for ray tracing.
+*	@note	Waits for device idle before and after to ensure synchronization.
+**/
 VkResult
 vkpt_vertex_buffer_upload_bsp_mesh(bsp_mesh_t* bsp_mesh)
 {
@@ -408,6 +599,13 @@ vkpt_vertex_buffer_upload_bsp_mesh(bsp_mesh_t* bsp_mesh)
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Cleans up BSP mesh geometry and destroys all associated BLAS.
+*	@param	bsp_mesh	Pointer to bsp_mesh_t to clean up.
+*	@note	Destroys acceleration structures for all geometry types (opaque, transparent, etc.).
+*	@note	Destroys acceleration structures for all embedded BSP models.
+*	@note	Frees geometry storage memory.
+**/
 void vkpt_vertex_buffer_cleanup_bsp_mesh(bsp_mesh_t* bsp_mesh)
 {
 	vkpt_destroy_model_geometry(&bsp_mesh->geom_opaque);
@@ -424,6 +622,24 @@ void vkpt_vertex_buffer_cleanup_bsp_mesh(bsp_mesh_t* bsp_mesh)
 	}
 }
 
+
+
+/**
+*
+*
+*
+*	Light Buffer Management:
+*
+*
+*
+**/
+/**
+*	@brief	Uploads light buffer data from staging buffer to device-local buffer.
+*	@param	cmd_buf	Command buffer to record copy command into.
+*	@return	VK_SUCCESS on success.
+*	@note	Copies from per-frame staging buffer to shared device-local light buffer.
+*	@note	Clears light statistics buffer for current frame modulo 3.
+**/
 VkResult
 vkpt_light_buffer_upload_staging(VkCommandBuffer cmd_buf)
 {
@@ -445,6 +661,13 @@ vkpt_light_buffer_upload_staging(VkCommandBuffer cmd_buf)
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Uploads IQM skeletal animation matrices from staging buffer to device-local buffer.
+*	@param	cmd_buf	Command buffer to record copy command into.
+*	@return	VK_SUCCESS on success.
+*	@note	Copies from per-frame staging buffer to shared device-local IQM matrix buffer.
+*	@note	Used for skeletal animation of IQM models.
+**/
 VkResult
 vkpt_iqm_matrix_buffer_upload_staging(VkCommandBuffer cmd_buf)
 {
@@ -460,16 +683,31 @@ vkpt_iqm_matrix_buffer_upload_staging(VkCommandBuffer cmd_buf)
 	return VK_SUCCESS;
 }
 
+//! Per-cluster local light counts for light buffer management.
 static int local_light_counts[MAX_MAP_CLUSTERS];
+//! Per-cluster total light counts (local + BSP) for light buffer management.
 static int cluster_light_counts[MAX_MAP_CLUSTERS];
+//! Per-cluster light list tail indices for dynamic light injection.
 static int light_list_tails[MAX_MAP_CLUSTERS];
+//! Maximum number of model lights added this frame.
 static int max_model_lights;
 
+/**
+*	@brief	Resets per-frame light buffer statistics and counts.
+*	@note	Call this at the start of each frame before building light lists.
+**/
 void vkpt_light_buffer_reset_counts()
 {
 	max_model_lights = 0;
 }
 
+/**
+*	@brief	Copies BSP lights from bsp_mesh into the light buffer.
+*	@param	bsp_mesh	Pointer to BSP mesh containing cluster lights.
+*	@param	lbo			Pointer to light buffer to copy into.
+*	@note	Copies light lists and offsets from BSP data.
+*	@note	Initializes per-cluster statistics arrays.
+**/
 static void copy_bsp_lights(bsp_mesh_t* bsp_mesh, LightBuffer *lbo)
 {
 	// Copy the BSP light lists verbatim
@@ -485,6 +723,18 @@ static void copy_bsp_lights(bsp_mesh_t* bsp_mesh, LightBuffer *lbo)
 	buffer_unmap(qvk.buf_light_counts_history + history_index);
 }
 
+/**
+*	@brief	Injects dynamic model lights into per-cluster light lists using PVS.
+*	@param	bsp_mesh				Pointer to BSP mesh containing cluster data.
+*	@param	bsp					Pointer to BSP structure for PVS queries.
+*	@param	num_model_lights		Number of dynamic model lights to inject.
+*	@param	transformed_model_lights	Array of transformed model lights.
+*	@param	model_light_offset		Offset into global light array where model lights start.
+*	@param	lbo					Pointer to light buffer to write into.
+*	@note	Uses PVS to determine which clusters can see each model light.
+*	@note	Expands per-cluster light lists to include visible model lights.
+*	@note	Falls back to BSP lights only if insufficient buffer space.
+**/
 static void
 inject_model_lights(bsp_mesh_t* bsp_mesh, bsp_t* bsp, int num_model_lights, light_poly_t* transformed_model_lights, int model_light_offset, LightBuffer *lbo)
 {
@@ -600,6 +850,15 @@ inject_model_lights(bsp_mesh_t* bsp_mesh, bsp_t* bsp, int num_model_lights, ligh
 #endif
 }
 
+/**
+*	@brief	Copies a single light polygon into the light buffer with style and material scaling.
+*	@param	light			Pointer to source light_poly_t.
+*	@param	vblight			Pointer to destination in light buffer (float array).
+*	@param	sky_radiance	Sky radiance values for sky lights.
+*	@note	Applies light style scaling (animated lights, flickering, etc.).
+*	@note	Applies material emissive factor scaling.
+*	@note	Sky lights (negative color) use sky_radiance instead.
+**/
 static inline void
 copy_light(const light_poly_t* light, float* vblight, const float* sky_radiance)
 {
@@ -639,8 +898,22 @@ copy_light(const light_poly_t* light, float* vblight, const float* sky_radiance)
 	vblight[15] = 0.f;
 }
 
+//! Debug cluster mask for PVS visualization (external variable).
 extern char cluster_debug_mask[VIS_MAX_BYTES];
 
+/**
+*	@brief	Uploads light buffer data to staging buffer for GPU transfer.
+*	@param	render_world			Whether to render world lights (false for menu/no-world).
+*	@param	bsp_mesh				Pointer to BSP mesh with static lights.
+*	@param	bsp					Pointer to BSP structure for PVS queries.
+*	@param	num_model_lights		Number of dynamic model lights.
+*	@param	transformed_model_lights	Array of transformed model lights.
+*	@param	sky_radiance			Sky radiance values for sky lights.
+*	@return	VK_SUCCESS on success.
+*	@note	Combines BSP static lights with dynamic model lights.
+*	@note	Uses PVS to inject model lights into per-cluster lists.
+*	@note	Writes to per-frame staging buffer (indexed by current_frame_index).
+**/
 VkResult
 vkpt_light_buffer_upload_to_staging(bool render_world, bsp_mesh_t *bsp_mesh, bsp_t* bsp, int num_model_lights, light_poly_t* transformed_model_lights, const float* sky_radiance)
 {
@@ -765,6 +1038,24 @@ vkpt_light_buffer_upload_to_staging(bool render_world, bsp_mesh_t *bsp_mesh, bsp
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Model VBO Management:
+*
+*
+*
+**/
+/**
+*	@brief	Writes a model VBO descriptor to the descriptor set.
+*	@param	index	Model index (offset from VERTEX_BUFFER_FIRST_MODEL).
+*	@param	buffer	VkBuffer containing the model geometry.
+*	@param	size	Size of the buffer in bytes.
+*	@note	Updates the PRIMITIVE_BUFFER_BINDING_IDX descriptor array element.
+**/
 static void write_model_vbo_descriptor(int index, VkBuffer buffer, VkDeviceSize size)
 {
 	VkDescriptorBufferInfo descriptor_buffer_info = {
@@ -786,6 +1077,12 @@ static void write_model_vbo_descriptor(int index, VkBuffer buffer, VkDeviceSize 
 	vkUpdateDescriptorSets(qvk.device, 1, &write_descriptor_set, 0, NULL);
 }
 
+/**
+*	@brief	Destroys a model VBO and frees all associated resources.
+*	@param	vbo	Pointer to model_vbo_t to destroy.
+*	@note	Destroys all geometry (opaque, transparent, masked) and their BLAS.
+*	@note	Destroys the buffer and resets the structure to zero.
+**/
 static void destroy_model_vbo(model_vbo_t* vbo)
 {
 	vkpt_destroy_model_geometry(&vbo->geom_opaque);
@@ -797,6 +1094,17 @@ static void destroy_model_vbo(model_vbo_t* vbo)
 	memset(vbo, 0, sizeof(model_vbo_t));
 }
 
+/**
+*	@brief	Stages (copies) mesh primitive data into staging buffer for upload.
+*	@param	staging_data		Pointer to staging buffer memory.
+*	@param	p_write_ptr			Pointer to write offset (in primitives), updated on return.
+*	@param	p_vertex_write_ptr	Pointer to vertex write position (float*), updated on return (can be NULL).
+*	@param	model				Pointer to model structure.
+*	@param	m					Pointer to mesh within the model.
+*	@note	Copies all frames of the mesh (for animation).
+*	@note	Extracts vertex positions, normals, tangents, and texture coordinates.
+*	@note	Computes material indices from skin pointers.
+**/
 static void
 stage_mesh_primitives(uint8_t* staging_data, int* p_write_ptr, float** p_vertex_write_ptr, const model_t* model, const maliasmesh_t* m)
 {
@@ -898,6 +1206,13 @@ stage_mesh_primitives(uint8_t* staging_data, int* p_write_ptr, float** p_vertex_
 #endif
 }
 
+/**
+*	@brief	Invalidates static model VBOs that use a specific material.
+*	@param	material_index	Index of the material that changed.
+*	@note	Destroys VBOs for static models using this material so they will be rebuilt.
+*	@note	Does not affect animated models (they don't have prebuilt BLAS).
+*	@note	Waits for device idle before destroying VBOs.
+**/
 void vkpt_vertex_buffer_invalidate_static_model_vbos(int material_index)
 {
 	vkDeviceWaitIdle(qvk.device);
@@ -937,6 +1252,14 @@ void vkpt_vertex_buffer_invalidate_static_model_vbos(int material_index)
 	}
 }
 
+/**
+*	@brief	Uploads all loaded models to GPU and builds their BLAS.
+*	@return	VK_SUCCESS on success, or Vulkan error code on failure.
+*	@note	Only uploads models that have meshes and don't already have VBOs.
+*	@note	Categorizes geometry into opaque, transparent, and masked based on materials.
+*	@note	Static models get prebuilt BLAS; animated models are uploaded but BLAS is rebuilt per-frame.
+*	@note	Waits for device idle before and after upload to ensure synchronization.
+**/
 VkResult
 vkpt_vertex_buffer_upload_models()
 {
@@ -1170,6 +1493,23 @@ vkpt_vertex_buffer_upload_models()
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Animated Primitive Buffer Management:
+*
+*
+*
+**/
+/**
+*	@brief	Creates the animated primitive buffers (primitives and positions).
+*	@note	Reads size from cvar_pt_primbuf, clamped to [PRIMBUF_SIZE_MIN, PRIMBUF_SIZE_MAX].
+*	@note	Creates two device-local buffers: buf_primitive_instanced and buf_positions_instanced.
+*	@note	Updates descriptor sets to bind the new buffers.
+**/
 void create_primbuf(void)
 {
 	int primbuf_size = Cvar_ClampInteger(cvar_pt_primbuf, PRIMBUF_SIZE_MIN, PRIMBUF_SIZE_MAX);
@@ -1207,12 +1547,23 @@ void create_primbuf(void)
 	current_primbuf_size = primbuf_size;
 }
 
+/**
+*	@brief	Destroys the animated primitive buffers.
+*	@note	Destroys buf_primitive_instanced and buf_positions_instanced.
+**/
 void destroy_primbuf(void)
 {
 	buffer_destroy(&qvk.buf_primitive_instanced);
 	buffer_destroy(&qvk.buf_positions_instanced);
 }
 
+/**
+*	@brief	Ensures the animated primitive buffer is large enough for the given primitive count.
+*	@param	prim_count	Required number of primitives.
+*	@note	If current buffer is too small, destroys and recreates it at a larger size.
+*	@note	Waits for device idle before recreating buffer.
+*	@note	Prints a warning suggesting the user increase pt_primbuf cvar to avoid stutter.
+**/
 void vkpt_vertex_buffer_ensure_primbuf_size(uint32_t prim_count)
 {
 	if (prim_count <= current_primbuf_size)
@@ -1230,6 +1581,26 @@ void vkpt_vertex_buffer_ensure_primbuf_size(uint32_t prim_count)
 	create_primbuf();
 }
 
+
+
+/**
+*
+*
+*
+*	Vertex Buffer System Initialization and Cleanup:
+*
+*
+*
+**/
+/**
+*	@brief	Creates the vertex buffer system: descriptor sets, buffers, and resources.
+*	@return	VK_SUCCESS on success, or Vulkan error code on failure.
+*	@note	Initializes cvar_pt_primbuf for configuring animated primitive buffer size.
+*	@note	Creates descriptor set layout and pool for vertex buffer bindings.
+*	@note	Allocates and binds all buffer resources (light, IQM matrices, readback, etc.).
+*	@note	Creates null buffer placeholder for uninitialized model VBOs.
+*	@note	Initializes animated primitive buffers via create_primbuf().
+**/
 VkResult
 vkpt_vertex_buffer_create()
 {
@@ -1439,6 +1810,13 @@ vkpt_vertex_buffer_create()
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Reads back GPU data from the readback buffer into CPU memory.
+*	@param	dst	Pointer to ReadbackBuffer structure to receive data.
+*	@return	VK_SUCCESS on success, or VK_ERROR_MEMORY_MAP_FAILED if mapping fails.
+*	@note	Maps the readback staging buffer for the current frame and copies data.
+*	@note	Used for debugging and UI display of GPU-computed values.
+**/
 VkResult
 vkpt_readback(ReadbackBuffer* dst)
 {
@@ -1455,6 +1833,14 @@ vkpt_readback(ReadbackBuffer* dst)
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Destroys the vertex buffer system and frees all resources.
+*	@return	VK_SUCCESS on success.
+*	@note	Destroys descriptor pool and layout.
+*	@note	Destroys all model VBOs and animated primitive buffers.
+*	@note	Destroys all buffer resources (world, light, IQM matrices, readback, etc.).
+*	@note	Should be called during engine shutdown or before reinitializing the system.
+**/
 VkResult
 vkpt_vertex_buffer_destroy()
 {
@@ -1492,6 +1878,15 @@ vkpt_vertex_buffer_destroy()
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Creates light buffers for storing BSP light data and statistics.
+*	@param	bsp_mesh	Pointer to BSP mesh containing light polygon data.
+*	@return	VK_SUCCESS on success, or Vulkan error code on failure.
+*	@note	Destroys previous light buffers before creating new ones.
+*	@note	Creates light statistics buffers (3 buffers for triple-buffering).
+*	@note	Creates light counts history buffers for temporal light sampling.
+*	@note	Updates descriptor sets to bind the new buffers.
+**/
 VkResult vkpt_light_buffers_create(bsp_mesh_t *bsp_mesh)
 {
 	vkpt_light_buffers_destroy();
@@ -1560,6 +1955,12 @@ VkResult vkpt_light_buffers_create(bsp_mesh_t *bsp_mesh)
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Destroys light buffers and frees their resources.
+*	@return	VK_SUCCESS on success.
+*	@note	Destroys light statistics buffers and light counts history buffers.
+*	@note	Called during map change or engine shutdown.
+**/
 VkResult vkpt_light_buffers_destroy()
 {
 	for (int frame = 0; frame < NUM_LIGHT_STATS_BUFFERS; frame++)
@@ -1575,6 +1976,24 @@ VkResult vkpt_light_buffers_destroy()
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Compute Pipeline Management:
+*
+*
+*
+**/
+/**
+*	@brief	Creates compute pipelines for geometry instancing and material animation.
+*	@return	VK_SUCCESS on success, or Vulkan error code on failure.
+*	@note	Creates pipeline_instance_geometry for transforming dynamic primitives.
+*	@note	Creates pipeline_animate_materials for updating texture coordinates.
+*	@note	Creates shared pipeline layout for both pipelines.
+**/
 VkResult
 vkpt_vertex_buffer_create_pipelines()
 {
@@ -1617,6 +2036,12 @@ vkpt_vertex_buffer_create_pipelines()
 	return VK_SUCCESS;
 }
 
+/**
+*	@brief	Destroys compute pipelines and their layouts.
+*	@return	VK_SUCCESS on success.
+*	@note	Destroys pipeline_instance_geometry and pipeline_animate_materials.
+*	@note	Destroys pipeline_layout_instance_geometry.
+**/
 VkResult
 vkpt_vertex_buffer_destroy_pipelines()
 {
@@ -1635,6 +2060,27 @@ vkpt_vertex_buffer_destroy_pipelines()
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Geometry Instancing and Material Animation:
+*
+*
+*
+**/
+/**
+*	@brief	Dispatches compute shaders to instance geometry and animate materials.
+*	@param	cmd_buf					Command buffer to record commands into.
+*	@param	num_instances			Number of geometry instances to process.
+*	@param	update_world_animations	Whether to update material animations for world geometry.
+*	@return	VK_SUCCESS on success.
+*	@note	Runs instance_geometry compute shader to copy/transform dynamic primitives.
+*	@note	Optionally runs animate_materials compute shader for scrolling/warping textures.
+*	@note	Inserts buffer barrier to ensure shader writes complete before reads.
+**/
 VkResult
 vkpt_instance_geometry(VkCommandBuffer cmd_buf, uint32_t num_instances, bool update_world_animations)
 {
@@ -1687,6 +2133,24 @@ vkpt_instance_geometry(VkCommandBuffer cmd_buf, uint32_t num_instances, bool upd
 	return VK_SUCCESS;
 }
 
+
+
+/**
+*
+*
+*
+*	Model Query Functions:
+*
+*
+*
+**/
+/**
+*	@brief	Checks if a model is static (has prebuilt BLAS).
+*	@param	model	Pointer to model structure.
+*	@return	True if model is static, false otherwise.
+*	@note	Static models have prebuilt BLAS for opaque/transparent/masked geometry.
+*	@note	Animated models (MD2/IQM with skeletal animation) are not static.
+**/
 bool vkpt_model_is_static(const model_t* model)
 {
 	if (!model)
@@ -1698,6 +2162,12 @@ bool vkpt_model_is_static(const model_t* model)
 	return vbo->is_static;
 }
 
+/**
+*	@brief	Gets the VBO data for a model.
+*	@param	model	Pointer to model structure.
+*	@return	Pointer to model_vbo_t containing VBO and BLAS data, or NULL if model is invalid.
+*	@note	Returns the model_vertex_data entry corresponding to the model index.
+**/
 const model_vbo_t* vkpt_get_model_vbo(const model_t* model)
 {
 	if (!model)
