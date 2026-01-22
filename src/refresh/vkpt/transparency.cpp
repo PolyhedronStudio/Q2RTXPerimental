@@ -1,3 +1,45 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Transparency Effects (Particles, Beams, Sprites)
+*
+*	Manages rendering of transparent elements: particles (smoke, explosions),
+*	beams (lightning, laser beams), and sprites (flat billboard images). Uses
+*	ray tracing for realistic lighting and shadows on transparent geometry.
+*
+*	Architecture:
+*	- Particles: Point-based billboards with color and size
+*	- Beams: Cylindrical volumes with start/end points
+*	- Sprites: Textured billboards (e.g., powerup icons, flares)
+*
+*	Data Flow:
+*	1. CPU writes geometry to host-visible staging buffer
+*	2. GPU copies to device-local buffers via transfer queue
+*	3. Ray tracing uses AABBs (axis-aligned bounding boxes) for hit testing
+*	4. Shaders read color/position data from buffer views
+*
+*	Buffers:
+*	- Vertex buffer: Particle/sprite positions (XYZ)
+*	- Index buffer: Triangle indices for quads
+*	- AABB buffer: Bounding volumes for beam ray tracing
+*	- Color buffers: RGBA colors for particles/beams
+*	- Sprite info buffer: Size and texture coordinates
+*	- Beam intersect buffer: Cylinder intersection parameters
+*
+*	Configuration (cvars):
+*	- pt_particle_size:      Particle billboard size
+*	- pt_beam_width:         Beam cylinder width
+*	- pt_beam_lights:        Enable beam emissive lighting
+*	- pt_enable_particles:   Global particle enable/disable
+*	- pt_particle_emissive:  Particle light emission strength
+*
+*	Performance:
+*	- Triple-buffered host staging for smooth updates
+*	- Single device buffer allocation for all geometry types
+*	- Buffer views avoid descriptor set updates
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
 
@@ -23,19 +65,52 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "color.h"
 #include "conversion.h"
 
-#define TR_PARTICLE_MAX_NUM    MAX_PARTICLES
-#define TR_BEAM_MAX_NUM        MAX_ENTITIES
-#define TR_SPRITE_MAX_NUM      MAX_ENTITIES
-#define TR_VERTEX_MAX_NUM      ((TR_PARTICLE_MAX_NUM + TR_SPRITE_MAX_NUM) * 4)
-#define TR_INDEX_MAX_NUM       ((TR_PARTICLE_MAX_NUM + TR_SPRITE_MAX_NUM) * 6)
-#define TR_BEAM_AABB_SIZE      sizeof(VkAabbPositionsKHR)
-#define TR_POSITION_SIZE       (3 * sizeof(float))
-#define TR_COLOR_SIZE          (4 * sizeof(float))
-#define TR_BEAM_INTERSECT_SIZE (12 * sizeof(float))
-#define TR_SPRITE_INFO_SIZE    (2 * sizeof(float))
 
-struct
-{
+
+/**
+*
+*
+*
+*	Buffer Size Configuration:
+*
+*
+*
+**/
+//! Maximum number of particles.
+#define TR_PARTICLE_MAX_NUM    MAX_PARTICLES
+//! Maximum number of beams.
+#define TR_BEAM_MAX_NUM        MAX_ENTITIES
+//! Maximum number of sprites.
+#define TR_SPRITE_MAX_NUM      MAX_ENTITIES
+//! Maximum vertices (particles + sprites, 4 per quad).
+#define TR_VERTEX_MAX_NUM      ( ( TR_PARTICLE_MAX_NUM + TR_SPRITE_MAX_NUM ) * 4 )
+//! Maximum indices (particles + sprites, 6 per quad).
+#define TR_INDEX_MAX_NUM       ( ( TR_PARTICLE_MAX_NUM + TR_SPRITE_MAX_NUM ) * 6 )
+//! Size of beam AABB structure.
+#define TR_BEAM_AABB_SIZE      sizeof( VkAabbPositionsKHR )
+//! Size of position vec3.
+#define TR_POSITION_SIZE       ( 3 * sizeof( float ) )
+//! Size of color vec4.
+#define TR_COLOR_SIZE          ( 4 * sizeof( float ) )
+//! Size of beam intersection data.
+#define TR_BEAM_INTERSECT_SIZE ( 12 * sizeof( float ) )
+//! Size of sprite info vec2.
+#define TR_SPRITE_INFO_SIZE    ( 2 * sizeof( float ) )
+
+
+
+/**
+*
+*
+*
+*	Module State:
+*
+*
+*
+**/
+//! Transparency system state and buffer management.
+struct {
+	//! Host buffer offsets for different data types.
 	size_t vertex_position_host_offset;
 	size_t beam_aabb_host_offset;
 	size_t particle_color_host_offset;
@@ -45,17 +120,28 @@ struct
 
 	size_t beam_intersect_host_offset;
 
+	//! Device buffer offsets.
 	size_t sprite_vertex_device_offset;
 
+	//! Buffer size configuration.
 	size_t host_buffer_size;
 	size_t host_frame_size;
+
+	//! Current frame counts.
 	unsigned int particle_num;
 	unsigned int beam_num;
 	unsigned int sprite_num;
+
+	//! Triple-buffering state.
 	unsigned int host_frame_index;
 	unsigned int host_buffered_frame_num;
+
+	//! Mapped host buffer for CPU writes.
 	char* mapped_host_buffer;
+	//! Shadow copy of host buffer (for validation/debugging).
 	char* host_buffer_shadow;
+
+	//! Device-local buffers.
 	BufferResource_t vertex_buffer;
 	BufferResource_t index_buffer;
 	BufferResource_t beam_aabb_buffer;
@@ -63,27 +149,45 @@ struct
 	BufferResource_t beam_color_buffer;
 	BufferResource_t sprite_info_buffer;
 	BufferResource_t beam_intersect_buffer;
+
+	//! Buffer views for shader access.
 	VkBufferView particle_color_buffer_view;
 	VkBufferView beam_color_buffer_view;
 	VkBufferView sprite_info_buffer_view;
 	VkBufferView beam_intersect_buffer_view;
+
+	//! Host staging buffer.
 	VkBuffer host_buffer;
 	VkDeviceMemory host_buffer_memory;
+
+	//! Transfer barriers for buffer copies.
 	VkBufferMemoryBarrier transfer_barriers[6];
 } transparency;
 
-// initialization
-static void create_buffers(void);
-static bool allocate_and_bind_memory_to_buffers(void);
-static void create_buffer_views(void);
-static void fill_index_buffer(void);
 
-// update
-static void write_particle_geometry(const float* view_matrix, const particle_t* particles, int particle_num);
-static void write_beam_geometry(const entity_t* entities, int entity_num);
-static void write_sprite_geometry(const float* view_matrix, const entity_t* entities, int entity_num);
-static void upload_geometry(VkCommandBuffer command_buffer);
 
+/**
+*
+*
+*
+*	Forward Declarations:
+*
+*
+*
+**/
+//! Initialization functions.
+static void create_buffers( void );
+static bool allocate_and_bind_memory_to_buffers( void );
+static void create_buffer_views( void );
+static void fill_index_buffer( void );
+
+//! Per-frame update functions.
+static void write_particle_geometry( const float* view_matrix, const particle_t* particles, int particle_num );
+static void write_beam_geometry( const entity_t* entities, int entity_num );
+static void write_sprite_geometry( const float* view_matrix, const entity_t* entities, int entity_num );
+static void upload_geometry( VkCommandBuffer command_buffer );
+
+//! Configuration cvars.
 cvar_t* cvar_pt_particle_size = NULL;
 cvar_t* cvar_pt_beam_width = NULL;
 cvar_t* cvar_pt_beam_lights = NULL;
@@ -91,12 +195,30 @@ extern cvar_t* cvar_pt_enable_particles;
 extern cvar_t* cvar_pt_particle_emissive;
 extern cvar_t* cvar_pt_projection;
 
-void cast_u32_to_f32_color(int color_index, const color_t* pcolor, float* color_f32, float hdr_factor)
-{
+
+
+/**
+*
+*
+*
+*	Utility Functions:
+*
+*
+*
+**/
+/**
+*	@brief	Converts color from u32 or index to float RGBA with HDR scaling.
+*	@param	color_index	Palette index (if >= 0) or -1 to use pcolor directly.
+*	@param	pcolor		Color structure (u32 RGBA or palette index).
+*	@param	color_f32	Output float[4] array for RGBA.
+*	@param	hdr_factor	HDR brightness multiplier.
+*	@note	Handles both palette-indexed colors and direct RGBA32 colors.
+**/
+void cast_u32_to_f32_color( int color_index, const color_t* pcolor, float* color_f32, float hdr_factor ) {
 	color_t color;
-	if (color_index < 0)
+	if ( color_index < 0 ) {
 		color.u32 = pcolor->u32;
-	else
+	} else {
 		color.u32 = d_8to24table[color_index & 0xff];
 
 	for (int i = 0; i < 3; i++)

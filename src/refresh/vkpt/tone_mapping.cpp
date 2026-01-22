@@ -1,3 +1,43 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Tone Mapping
+*
+*	Implements adaptive tone mapping based on Eilertsen, Mantiuk, and Unger's
+*	"Real-time noise-aware tone mapping" algorithm. Converts HDR radiance values
+*	to displayable LDR/HDR output while preserving perceptual quality and detail.
+*
+*	Pipeline Stages:
+*	1. Histogram: Compute logarithmic luminance histogram of the scene
+*	2. Curve: Generate tone curve based on histogram and user parameters
+*	3. Apply: Map HDR colors to display (SDR or HDR10)
+*
+*	Features:
+*	- Automatic exposure adjustment based on scene statistics
+*	- Temporal smoothing to avoid flickering
+*	- Separate SDR and HDR10 output paths
+*	- Extensive user control via cvars (see global_ubo.h, prefix tm_)
+*	- Noise-aware adaptation for stable results
+*
+*	Configuration (cvars):
+*	- tm_enable:           Enable/disable tone mapping
+*	- tm_exposure_speed:   Adaptation speed (higher = faster response)
+*	- tm_reinhard:         Reinhard tone mapping strength
+*	- tm_white_point:      White point luminance
+*	- tm_knee_start:       Soft clipping knee start
+*	- And many more (see global_ubo.h for full list)
+*
+*	Architecture:
+*	- Three compute shaders: histogram, curve, apply (SDR/HDR variants)
+*	- Persistent histogram buffer across frames for temporal coherence
+*	- Push constants for per-frame parameters
+*
+*	References:
+*	- Eilertsen et al., "Real-time noise-aware tone mapping", SIGGRAPH 2015
+*	- See tone_mapping_histogram.comp for algorithm overview
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
 
@@ -16,87 +56,92 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-// ========================================================================= //
-//
-// This is the CPU-side code for the tone mapper, which is based on part of
-// Eilertsen, Mantiuk, and Unger's paper *Real-time noise-aware tone mapping*,
-// with some additional modifications that we found useful.
-//
-// This file shows how the tone mapping pipeline is created and updated, as
-// well as part of how the tone mapper can be controlled by the application
-// and by CVARs. (For a CVAR reference, see `global_ubo.h`, and in particular,
-// those CVARS starting with `tm_`, for `tonemapper_`.)
-//
-// The tone mapper consists of three compute shaders, a utilities file, and
-// a CPU-side code file. For an overview of the tone mapper, see
-// `tone_mapping_histogram.comp`.
-//
-// Here are the functions in this file:
-//   VkResult vkpt_tone_mapping_initialize() - creates our pipeline layouts
-//
-//   VkResult vkpt_tone_mapping_destroy() - destroys our pipeline layouts
-//
-//   void vkpt_tone_mapping_request_reset() - tells the tone mapper to calculate
-// the next tone curve without blending with previous frames' tone curves
-//
-//   VkResult vkpt_tone_mapping_create_pipelines() - creates our pipelines
-//
-//   VkResult vkpt_tone_mapping_reset(VkCommandBuffer cmd_buf) - adds commands
-// to the command buffer to clear the histogram image
-//
-//   VkResult vkpt_tone_mapping_destroy_pipelines() - destroys our pipelines
-//
-//   VkResult vkpt_tone_mapping_record_cmd_buffer(VkCommandBuffer cmd_buf,
-// float frame_time) - records the commands to apply tone mapping to the
-// VKPT_IMG_TAA_OUTPUT image in-place, given the time between this frame and
-// the previous frame.
-//   
-// ========================================================================= //
-
 #include "vkpt.h"
 
 extern cvar_t *cvar_profiler_scale;
 
-// Here are each of the pipelines we'll be using, followed by an additional
-// enum value to count the number of tone mapping pipelines.
+
+
+/**
+*
+*
+*
+*	Pipeline Identifiers:
+*
+*
+*
+**/
+//! Tone mapping pipeline stages.
 enum {
-	TONE_MAPPING_HISTOGRAM,
-	TONE_MAPPING_CURVE,
-	TONE_MAPPING_APPLY_SDR,
-	TONE_MAPPING_APPLY_HDR,
+	TONE_MAPPING_HISTOGRAM,   //! Compute luminance histogram.
+	TONE_MAPPING_CURVE,       //! Generate tone curve from histogram.
+	TONE_MAPPING_APPLY_SDR,   //! Apply tone mapping for SDR output.
+	TONE_MAPPING_APPLY_HDR,   //! Apply tone mapping for HDR10 output.
 	TM_NUM_PIPELINES
 };
 
-static VkPipeline       pipelines[TM_NUM_PIPELINES];
-static VkPipelineLayout pipeline_layout_tone_mapping_histogram;
-static VkPipelineLayout pipeline_layout_tone_mapping_curve;
-static VkPipelineLayout pipeline_layout_tone_mapping_apply;
-static int reset_required = 1; // If 1, recomputes tone curve based only on this frame
 
-// Creates our pipeline layouts.
-VkResult
-vkpt_tone_mapping_initialize()
-{
+
+/**
+*
+*
+*
+*	Module State:
+*
+*
+*
+**/
+//! Compute pipelines for tone mapping stages.
+static VkPipeline       pipelines[TM_NUM_PIPELINES];
+//! Pipeline layout for histogram computation.
+static VkPipelineLayout pipeline_layout_tone_mapping_histogram;
+//! Pipeline layout for curve generation.
+static VkPipelineLayout pipeline_layout_tone_mapping_curve;
+//! Pipeline layout for tone mapping application.
+static VkPipelineLayout pipeline_layout_tone_mapping_apply;
+//! If 1, recomputes tone curve based only on current frame (no temporal smoothing).
+static int reset_required = 1;
+
+
+
+/**
+*
+*
+*
+*	Initialization & Destruction:
+*
+*
+*
+**/
+/**
+*	@brief	Initializes tone mapping pipeline layouts.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Creates three pipeline layouts with different push constant configurations
+*			for histogram, curve, and apply stages.
+**/
+VkResult vkpt_tone_mapping_initialize() {
 	VkDescriptorSetLayout desc_set_layouts[] = {
 		qvk.desc_set_layout_ubo, 
 		qvk.desc_set_layout_textures,
 		qvk.desc_set_layout_vertex_buffer
 	};
 
+	// Push constants for curve generation (16 floats).
 	VkPushConstantRange push_constant_range_curve = {
 		.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
 		.offset = 0,
-		.size = 16*sizeof(float)
+		.size = 16 * sizeof( float )
 	};
 
+	// Push constants for tone mapping application (3 floats).
 	VkPushConstantRange push_constant_range_apply = {
 		.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
 		.offset = 0,
-		.size = 3*sizeof(float)
+		.size = 3 * sizeof( float )
 	};
 
-	CREATE_PIPELINE_LAYOUT(qvk.device, &pipeline_layout_tone_mapping_histogram,
-		.setLayoutCount = LENGTH(desc_set_layouts),
+	CREATE_PIPELINE_LAYOUT( qvk.device, &pipeline_layout_tone_mapping_histogram,
+		.setLayoutCount = LENGTH( desc_set_layouts ),
 		.pSetLayouts = desc_set_layouts,
 		.pushConstantRangeCount = 0,
 		.pPushConstantRanges = NULL
