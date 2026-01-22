@@ -1,3 +1,48 @@
+/********************************************************************
+*
+*
+*	Module Name: Ogg Vorbis Decoder and Music Streamer
+*
+*	This module implements Ogg Vorbis audio decoding for background music
+*	and sound effects in Q2RTXPerimental. It interfaces with stb_vorbis
+*	to decode compressed audio streams and feeds raw PCM data to the
+*	sound backend for playback.
+*
+*	Architecture:
+*	- Streaming decoder for continuous music playback
+*	- In-memory decoder for sound effect loading
+*	- Track mapping for GOG/retail CD audio compatibility
+*	- Music directory scanning with multiple naming conventions
+*	- Playlist management with shuffle support
+*
+*	Key Components:
+*	- Track List: Scanned Ogg files from music/ directories
+*	- Decoder State: stb_vorbis decoder instance with file handle
+*	- Track Mapper: Converts CD track numbers to file paths
+*	- Playback State: Play/pause/stop with position tracking
+*
+*	Music Directory Structure:
+*	- $mod/music/*.ogg (standard: 02.ogg, 03.ogg, etc.)
+*	- ../music/Track*.ogg (GOG: Track02.ogg to Track21.ogg)
+*	- baseq2/music/*.ogg (fallback directory)
+*
+*	CD Track Mapping:
+*	- baseq2: Identity mapping (track N -> Track0N.ogg)
+*	- rogue: Offset mapping (track N -> Track(N+10).ogg)
+*	- xatrix: Custom mapping table (mixed baseq2/rogue tracks)
+*
+*	Performance Characteristics:
+*	- Streaming decompression (minimal memory footprint)
+*	- 4096-sample decoding chunks
+*	- Automatic loop/restart on track completion
+*	- State preservation across level loads
+*
+*	Credits:
+*	Adapted from Yamagi Quake 2:
+*	https://github.com/yquake2/yquake2/blob/master/src/client/sound/ogg.c
+*
+*
+********************************************************************/
 /*
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,19 +61,7 @@
  * USA.
  *
  * =======================================================================
- *
- * This file implements an interface to libvorbis for decoding
- * OGG/Vorbis files. Strongly spoken this file isn't part of the sound
- * system but part of the main client. It justs converts Vorbis streams
- * into normal, raw Wave stream which are injected into the backends as 
- * if they were normal "raw" samples. At this moment only background
- * music playback and in theory .cin movie file playback is supported.
- *
- * =======================================================================
  */
-
-// This file has been adapted from Yamagi Quake 2: 
-// https://github.com/yquake2/yquake2/blob/master/src/client/sound/ogg.c
 
 #ifndef _WIN32
 #include <sys/time.h>
@@ -50,79 +83,125 @@ QEXTERN_C_ENCLOSE( cvar_t *fs_game; )
 #define STB_VORBIS_NO_PUSHDATA_API
 #include "stb_vorbis.c"
 
-typedef enum
-{
-	TRACK_STYLE_SIMPLE, 	// %02i.ogg
-	TRACK_STYLE_MIXEDCASE,	// Track%02i.ogg
-	TRACK_STYLE_LOWERCASE	// track%02i.ogg
+/**
+*
+*
+*
+*	Module State and Types:
+*
+*
+*
+**/
+
+//! Track naming style constants for different distributions.
+typedef enum {
+	TRACK_STYLE_SIMPLE, 	//! %02i.ogg (standard naming)
+	TRACK_STYLE_MIXEDCASE,	//! Track%02i.ogg (GOG mixed case)
+	TRACK_STYLE_LOWERCASE	//! track%02i.ogg (GOG lowercase)
 } track_name_style_t;
 
+//! Ogg Vorbis decoder and music directory state.
 typedef struct {
-	// Initialization flag.
-	bool initialized;
-	// Ogg Vorbis file.
-	stb_vorbis *vf;
-	char path[MAX_OSPATH];
-	// music directory (full native path)
-	char *music_dir;
-	// style of track file names
-	track_name_style_t track_name_style;
-	// track number mapping function
-	int (*map_track)(int);
+	bool initialized;						//! True if decoder is active.
+	stb_vorbis *vf;							//! stb_vorbis decoder instance.
+	char path[MAX_OSPATH];					//! Current track file path.
+	char *music_dir;						//! Music directory (full native path).
+	track_name_style_t track_name_style;	//! Track file naming convention.
+	int ( *map_track )( int );				//! Track number mapping function pointer.
 } ogg_state_t;
 
-static ogg_state_t  ogg;
+//! Global Ogg Vorbis state.
+static ogg_state_t ogg;
 
-typedef enum
-{
-	PLAY,
-	PAUSE,
-	STOP
+//! Playback status enumeration.
+typedef enum {
+	PLAY,		//! Actively playing.
+	PAUSE,		//! Paused (decoder active but not feeding samples).
+	STOP		//! Stopped (decoder inactive).
 } ogg_status_t;
 
-static cvar_t* ogg_enable;        /* Music enable flag to toggle from the menu. */
-static cvar_t *ogg_volume;        /* Music volume. */
-static cvar_t *ogg_shuffle;       /* Shuffle playback */
-static cvar_t *ogg_ignoretrack0;  /* Toggle track 0 playing */
-static int ogg_numsamples;        /* Number of sambles read from the current file */
-static ogg_status_t ogg_status;   /* Status indicator. */
+//! Music enable flag (toggled from menu).
+static cvar_t *ogg_enable;
+
+//! Music playback volume (0.0 to 1.0).
+static cvar_t *ogg_volume;
+
+//! Shuffle playback mode.
+static cvar_t *ogg_shuffle;
+
+//! Toggle track 0 playing (track 0 normally means "stop music").
+static cvar_t *ogg_ignoretrack0;
+
+//! Number of samples decoded from current file.
+static int ogg_numsamples;
+
+//! Current playback status.
+static ogg_status_t ogg_status;
+
+/**
+*
+*
+*
+*	Track List Management:
+*
+*
+*
+**/
 
 enum { MAX_NUM_OGGTRACKS = 128 };
-static void     **tracklist;
-static int      trackcount;
-static int      trackindex;
 
+//! Array of track file names (without extension).
+static void **tracklist;
 
+//! Number of tracks in tracklist.
+static int trackcount;
+
+//! Current track index for sequential/shuffle playback.
+static int trackindex;
+
+//! Saved state for level transitions.
 struct {
-	bool saved;
-	char path[MAX_OSPATH];
-	int numsamples;
+	bool saved;					//! True if state was saved.
+	char path[MAX_OSPATH];		//! Saved track file path.
+	int numsamples;				//! Saved sample position.
 } ogg_saved_state;
 
-// --------
+/**
+*
+*
+*
+*	CD Track Mapping Functions:
+*
+*
+*
+**/
 
-static int map_track_identity(int track)
-{
+/**
+*	@brief	Identity track mapping (standard Quake 2).
+*	@param	track	CD track number.
+*	@return	File track number (same as input).
+**/
+static int map_track_identity( int track ) {
 	return track;
 }
 
-/*
- * The GOG version of Quake2 has the music tracks in music/TrackXX.ogg
- * That music/ dir is next to baseq2/ (not in it) and contains Track02.ogg to Track21.ogg
- * There
- * - Track02 to Track11 correspond to Quake2 (baseq2) CD tracks 2-11
- * - Track12 to Track21 correspond to the Ground Zero (rogue) addon's CD tracks 2-11
- * - The "The Reckoning" (xatrix) addon also had 11 tracks, that were a mix of the ones
- *   from the main game (baseq2) and the rogue addon.
- *   See below how the CD track is mapped to GOG track numbers
- */
-static int map_track_rogue(int track)
-{
+/**
+*	@brief	Track mapping for Ground Zero (rogue) mission pack.
+*	@param	track	CD track number (2-11).
+*	@return	GOG track number (12-21).
+*	@note	Ground Zero tracks are offset by +10 in GOG distribution.
+**/
+static int map_track_rogue( int track ) {
 	return track + 10;
 }
 
-static int map_track_xatrix(int track)
-{
+/**
+*	@brief	Track mapping for The Reckoning (xatrix) mission pack.
+*	@param	track	CD track number (2-11).
+*	@return	Corresponding GOG track number from mapping table.
+*	@note	Xatrix reuses tracks from both baseq2 and rogue in specific order.
+**/
+static int map_track_xatrix( int track ) {
 	// apparently it's xatrix => map the track to the corresponding TrackXX.ogg from GOG
 	switch(track)
 	{
@@ -141,71 +220,94 @@ static int map_track_xatrix(int track)
 	}
 }
 
-static int map_track(int track)
-{
-	if(track <= 0)
+/**
+*	@brief	Map CD track number to file track number using current game's mapping function.
+*	@param	track	CD track number (typically 2-11).
+*	@return	File track number for current game/mod, or 0 for invalid tracks.
+*	@note	Track 0 and 1 are invalid (1 is data track on CD).
+**/
+static int map_track( int track ) {
+	if ( track <= 0 )
 		return 0;
 
-	if(track == 1)
-		return 0; // 1 is illegal (=> data track on CD), 0 means "no track"
+	// Track 1 is illegal (data track on CD), treat as "no track".
+	if ( track == 1 )
+		return 0;
 
-	return ogg.map_track(track);
+	return ogg.map_track( track );
 }
 
-static void tracklist_free(void)
-{
-	FS_FreeList(tracklist);
-	tracklist = NULL;
+/**
+*	@brief	Free track list and reset track counters.
+**/
+static void tracklist_free( void ) {
+	FS_FreeList( tracklist );
+	tracklist = nullptr;
 	trackcount = trackindex = 0;
 }
 
-// --------
+/**
+*
+*
+*
+*	Playback Control:
+*
+*
+*
+**/
 
-static void ogg_stop(void)
-{
-	stb_vorbis_close(ogg.vf);
+/**
+*	@brief	Stop current track and close decoder.
+*	@note	Frees decoder resources but retains music directory configuration.
+**/
+static void ogg_stop( void ) {
+	stb_vorbis_close( ogg.vf );
 
-	ogg.vf = NULL;
+	ogg.vf = nullptr;
 	ogg_status = STOP;
 
 	ogg.initialized = false;
 }
 
-static void ogg_play(void)
-{
-	/* Open ogg vorbis file. */
-	FILE* f = fopen(ogg.path, "rb");
+/**
+*	@brief	Open and begin playback of Ogg Vorbis file at ogg.path.
+*	@note	Opens file, initializes stb_vorbis decoder, validates audio format.
+*	@note	Sets ogg_status to PLAY if ogg_enable is set, otherwise PAUSE.
+**/
+static void ogg_play( void ) {
+	// Open Ogg Vorbis file for reading.
+	FILE *f = fopen( ogg.path, "rb" );
 
-	if (f == NULL)
-	{
-		Com_Printf("OGG_PlayTrack: could not open file %s: %s.\n", ogg.path, strerror(errno));
+	if ( f == nullptr ) {
+		Com_Printf( "OGG_PlayTrack: could not open file %s: %s.\n", ogg.path, strerror( errno ) );
 
 		return;
 	}
 
+	// Initialize stb_vorbis decoder from file handle.
 	int res = 0;
-	ogg.vf = stb_vorbis_open_file(f, true, &res, NULL);
+	ogg.vf = stb_vorbis_open_file( f, true, &res, nullptr );
 
-	if (res != 0)
-	{
-		Com_Printf("OGG_PlayTrack: '%s' is not a valid Ogg Vorbis file (error %i).\n", ogg.path, res);
-		fclose(f);
+	if ( res != 0 ) {
+		Com_Printf( "OGG_PlayTrack: '%s' is not a valid Ogg Vorbis file (error %i).\n", ogg.path, res );
+		fclose( f );
 		goto fail;
 	}
 
-	if (ogg.vf->channels < 1 || ogg.vf->channels > 2) {
-		Com_EPrintf("%s has bad number of channels\n", ogg.path);
+	// Validate channel count (mono or stereo only).
+	if ( ogg.vf->channels < 1 || ogg.vf->channels > 2 ) {
+		Com_EPrintf( "%s has bad number of channels\n", ogg.path );
 		goto fail;
 	}
 
-	/* Play file. */
+	// Reset sample counter and start playback.
 	ogg_numsamples = 0;
-	if (ogg_enable->integer)
+	if ( ogg_enable->integer )
 		ogg_status = PLAY;
 	else
 		ogg_status = PAUSE;
 
-	Com_DPrintf("Playing %s\n", ogg.path);
+	Com_DPrintf( "Playing %s\n", ogg.path );
 
 	ogg.initialized = true;
 	return;
@@ -214,16 +316,25 @@ fail:
 	ogg_stop();
 }
 
-static void shuffle(void)
-{
-	for (int i = trackcount - 1; i > 0; i--) {
-		int j = Q_rand_uniform(i + 1);
-		SWAP(void *, tracklist[i], tracklist[j]);
+/**
+*	@brief	Randomize track list order for shuffle playback.
+*	@note	Uses Fisher-Yates shuffle algorithm.
+**/
+static void shuffle( void ) {
+	for ( int i = trackcount - 1; i > 0; i-- ) {
+		int j = Q_rand_uniform( i + 1 );
+		SWAP( void *, tracklist[i], tracklist[j] );
 	}
 }
 
-static void get_track_path(char* buf, size_t size, int track)
-{
+/**
+*	@brief	Construct file path for given CD track number.
+*	@param	buf		Output buffer for file path.
+*	@param	size	Buffer size in bytes.
+*	@param	track	CD track number to map.
+*	@note	Uses current track_name_style to format filename correctly.
+**/
+static void get_track_path( char *buf, size_t size, int track ) {
 	switch(ogg.track_name_style)
 	{
 	case TRACK_STYLE_SIMPLE:

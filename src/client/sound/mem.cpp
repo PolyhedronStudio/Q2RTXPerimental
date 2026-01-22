@@ -248,71 +248,93 @@ static bool GetWavinfo( sizebuf_t *sz ) {
     return true;
 }
 
-/*
-==============
-S_LoadSound
-==============
-*/
-sfxcache_t *S_LoadSound(sfx_t *s)
-{
-    sizebuf_t   sz;
-    byte        *data;
-    sfxcache_t  *sc;
-    int         len;
-    char        *name;
+/**
+*
+*
+*
+*	Sound Effect Loading:
+*
+*
+*
+**/
 
-    if (s->name[0] == '*')
-        return NULL;
+/**
+*	@brief	Load sound effect from disk and upload to sound backend.
+*	@param	s	Sound effect structure to load.
+*	@return	Pointer to sfxcache structure if successful, NULL on error.
+*	@note	Handles placeholder sounds (names starting with '*') by returning NULL.
+*	@note	Checks cache first to avoid redundant loads.
+*	@note	Supports both WAV and Ogg Vorbis formats (format detected automatically).
+*	@note	Performs big-endian byte swapping for 16-bit PCM data if needed.
+**/
+sfxcache_t *S_LoadSound( sfx_t *s ) {
+	sizebuf_t sz;
+	byte *data;
+	sfxcache_t *sc;
+	int len;
+	char *name;
 
-// see if still in memory
-    sc = s->cache;
-    if (sc)
-        return sc;
+	// Placeholder sounds are not loaded from disk.
+	if ( s->name[0] == '*' )
+		return nullptr;
 
-// don't retry after error
-    if (s->error)
-        return NULL;
+	// Check if already loaded in cache.
+	sc = s->cache;
+	if ( sc )
+		return sc;
 
-// load it in
-    if (s->truename)
-        name = s->truename;
-    else
-        name = s->name;
+	// Don't retry after previous error.
+	if ( s->error )
+		return nullptr;
 
-    len = FS_LoadFile(name, (void **)&data);
-    if (!data) {
-        s->error = len;
-        return NULL;
-    }
+	// Determine which filename to load (truename fallback for sexed sounds).
+	if ( s->truename )
+		name = s->truename;
+	else
+		name = s->name;
 
-    memset(&s_info, 0, sizeof(s_info));
-    s_info.name = name;
+	// Load sound file from disk.
+	len = FS_LoadFile( name, ( void ** )&data );
+	if ( !data ) {
+		s->error = len;
+		return nullptr;
+	}
 
-    SZ_Init(&sz, data, len);
-    sz.cursize = len;
+	// Initialize parsing state.
+	memset( &s_info, 0, sizeof( s_info ) );
+	s_info.name = name;
 
-    if (!GetWavinfo(&sz)) {
-        s->error = Q_ERR_INVALID_FORMAT;
-        goto fail;
-    }
+	// Wrap file data in sizebuf for parsing.
+	SZ_Init( &sz, data, len );
+	sz.cursize = len;
+
+	// Parse WAV/Ogg file header and extract audio format info.
+	if ( !GetWavinfo( &sz ) ) {
+		s->error = Q_ERR_INVALID_FORMAT;
+		goto fail;
+	}
 
 #if USE_BIG_ENDIAN
-    if (s_info.format == FORMAT_PCM && s_info.width == 2) {
-        uint16_t *data = (uint16_t *)s_info.data;
-        int count = s_info.samples * s_info.channels;
+	// Convert 16-bit PCM samples from little-endian to native byte order.
+	if ( s_info.format == FORMAT_PCM && s_info.width == 2 ) {
+		uint16_t *samples = ( uint16_t * )s_info.data;
+		int count = s_info.samples * s_info.channels;
 
-        for (int i = 0; i < count; i++)
-            data[i] = LittleShort(data[i]);
-    }
+		for ( int i = 0; i < count; i++ )
+			samples[i] = LittleShort( samples[i] );
+	}
 #endif
 
-    sc = s_api.upload_sfx(s);
+	// Upload sound data to backend (OpenAL or DMA).
+	sc = s_api.upload_sfx( s );
 
-    if (s_info.format != FORMAT_PCM)
-        FS_FreeTempMem(s_info.data);
+	// Free temporary decompressed data (Ogg Vorbis only).
+	if ( s_info.format != FORMAT_PCM )
+		FS_FreeTempMem( s_info.data );
 
 fail:
-    FS_FreeFile(data);
-    return sc;
+	// Free raw file data buffer.
+	FS_FreeFile( data );
+	return sc;
 }
 

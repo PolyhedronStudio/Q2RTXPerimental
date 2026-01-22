@@ -1071,97 +1071,125 @@ static void AddLoopSounds( void ) {
     }
 }
 
-static int DMA_GetTime(void)
-{
-    static int      buffers;
-    static int      oldsamplepos;
-    int fullsamples = dma.samples >> (dma.channels - 1);
+/**
+*	@brief	Get current playback time in samples from DMA buffer position.
+*	@return	Absolute sample count since sound system started.
+*	@note	Tracks buffer wrap events to maintain monotonically increasing time.
+*	@note	Resets counters if paint time exceeds 32-bit limit to prevent overflow.
+**/
+static int DMA_GetTime( void ) {
+	static int buffers;
+	static int oldsamplepos;
+	int fullsamples = dma.samples >> ( dma.channels - 1 );
 
-// it is possible to miscount buffers if it has wrapped twice between
-// calls to S_Update.  Oh well.
-    if (dma.samplepos < oldsamplepos) {
-        buffers++;      // buffer wrapped
-        if (s_paintedtime > 0x40000000) {
-            // time to chop things off to avoid 32 bit limits
-            buffers = 0;
-            s_paintedtime = fullsamples;
-            S_StopAllSounds();
-        }
-    }
-    oldsamplepos = dma.samplepos;
+	// Detect buffer wrap by checking if sample position decreased.
+	if ( dma.samplepos < oldsamplepos ) {
+		buffers++;      // Buffer wrapped around.
+		// Prevent 32-bit overflow by resetting time counters.
+		if ( s_paintedtime > 0x40000000 ) {
+			buffers = 0;
+			s_paintedtime = fullsamples;
+			S_StopAllSounds();
+		}
+	}
+	oldsamplepos = dma.samplepos;
 
-    return buffers * fullsamples + (dma.samplepos >> (dma.channels - 1));
+	// Calculate absolute sample time from buffer count and current position.
+	return buffers * fullsamples + ( dma.samplepos >> ( dma.channels - 1 ) );
 }
 
-static void DMA_Update(void)
-{
-    int         i;
-    channel_t   *ch;
-    int         samples, soundtime, endtime;
+/**
+*	@brief	Main per-frame update for DMA sound backend.
+*	@note	Spatializes all active channels, adds looping sounds, mixes audio.
+*	@note	Calculates mix-ahead time based on s_mixahead cvar.
+*	@note	Called once per client frame during audio update phase.
+**/
+static void DMA_Update( void ) {
+	int i;
+	channel_t *ch;
+	int samples, soundtime, endtime;
 
-    // update spatialization for dynamic sounds
-    for (i = 0, ch = s_channels; i < s_numchannels; i++, ch++) {
-        if (!ch->sfx)
-            continue;
+	// Update spatialization for all dynamic (non-looping) sounds.
+	for ( i = 0, ch = s_channels; i < s_numchannels; i++, ch++ ) {
+		if ( !ch->sfx )
+			continue;
 
-        if (ch->autosound) {
-            // autosounds are regenerated fresh each frame
-            memset(ch, 0, sizeof(*ch));
-            continue;
-        }
+		if ( ch->autosound ) {
+			// Autosounds are regenerated fresh each frame, clear old ones.
+			memset( ch, 0, sizeof( *ch ) );
+			continue;
+		}
 
-        DMA_Spatialize(ch);     // respatialize channel
-        if (!ch->leftvol && !ch->rightvol) {
-            memset(ch, 0, sizeof(*ch));
-            continue;
-        }
-    }
+		// Respatialize channel (update 3D position and volume).
+		DMA_Spatialize( ch );
+		
+		// Remove channels that are completely silent after spatialization.
+		if ( !ch->leftvol && !ch->rightvol ) {
+			memset( ch, 0, sizeof( *ch ) );
+			continue;
+		}
+	}
 
-    // add loopsounds
-    AddLoopSounds();
+	// Add looping ambient sounds for visible entities.
+	AddLoopSounds();
 
 #if USE_DEBUG
-    if (s_show->integer) {
-        int total = 0;
-        for (i = 0, ch = s_channels; i < s_numchannels; i++, ch++) {
-            if (ch->sfx && (ch->leftvol || ch->rightvol)) {
-                Com_Printf("%.3f %.3f %s\n", ch->leftvol, ch->rightvol, ch->sfx->name);
-                total++;
-            }
-        }
-        if (s_show->integer > 1 || total) {
-            Com_Printf("----(%i)---- painted: %i\n", total, s_paintedtime);
-        }
-    }
+	// Debug: display active channels and their volumes.
+	if ( s_show->integer ) {
+		int total = 0;
+		for ( i = 0, ch = s_channels; i < s_numchannels; i++, ch++ ) {
+			if ( ch->sfx && ( ch->leftvol || ch->rightvol ) ) {
+				Com_Printf( "%.3f %.3f %s\n", ch->leftvol, ch->rightvol, ch->sfx->name );
+				total++;
+			}
+		}
+		if ( s_show->integer > 1 || total ) {
+			Com_Printf( "----(%i)---- painted: %i\n", total, s_paintedtime );
+		}
+	}
 #endif
 
-    snddma.begin_painting();
+	// Lock DMA buffer for painting.
+	snddma.begin_painting();
 
-    if (!dma.buffer)
-        return;
+	if ( !dma.buffer )
+		return;
 
-    // update DMA time
-    soundtime = DMA_GetTime();
+	// Get current hardware playback position.
+	soundtime = DMA_GetTime();
 
-    // check to make sure that we haven't overshot
-    if (s_paintedtime < soundtime) {
-        Com_DPrintf("%s: overflow\n", __func__);
-        s_paintedtime = soundtime;
-    }
+	// Detect buffer overrun (mixing fell behind playback).
+	if ( s_paintedtime < soundtime ) {
+		Com_DPrintf( "%s: overflow\n", __func__ );
+		s_paintedtime = soundtime;
+	}
 
-    // mix ahead of current position
-    endtime = soundtime + Cvar_ClampValue(s_mixahead, 0, 1) * dma.speed;
+	// Calculate mix-ahead target time (current time + mixahead latency).
+	endtime = soundtime + Cvar_ClampValue( s_mixahead, 0, 1 ) * dma.speed;
 
-    // mix to an even submission block size
-    endtime = ALIGN(endtime, dma.submission_chunk);
-    samples = dma.samples >> (dma.channels - 1);
-    endtime = min(endtime, soundtime + samples);
+	// Align to submission chunk boundary for optimal DMA transfer.
+	endtime = ALIGN( endtime, dma.submission_chunk );
+	samples = dma.samples >> ( dma.channels - 1 );
+	endtime = min( endtime, soundtime + samples );
 
-    PaintChannels(endtime);
+	// Mix all channels and transfer to DMA buffer.
+	PaintChannels( endtime );
 
-    snddma.submit();
+	// Unlock DMA buffer and submit to hardware.
+	snddma.submit();
 }
 
+/**
+*
+*
+*
+*	API Structure:
+*
+*
+*
+**/
+
+//! DMA sound backend API structure with function pointers.
 const sndapi_t snd_dma = {
     .init = DMA_Init,
     .shutdown = DMA_Shutdown,
