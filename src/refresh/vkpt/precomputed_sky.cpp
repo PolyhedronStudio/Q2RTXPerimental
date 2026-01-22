@@ -1,3 +1,63 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Precomputed Atmospheric Scattering
+*
+*	Implements Eric Bruneton's precomputed atmospheric scattering model
+*	for physically accurate sky rendering. Provides lookup tables for
+*	transmittance, in-scattering, and irradiance that are sampled during
+*	physical sky rendering to avoid expensive per-pixel calculations.
+*
+*	Algorithm Overview:
+*	Precomputes atmospheric scattering effects into 3D/2D lookup textures:
+*	- Transmittance: Light extinction through atmosphere (2D table)
+*	- Inscatter: Multiple scattering contribution (4D table, stored as 3D)
+*	- Irradiance: Ground-level solar irradiance (2D table)
+*	- Cloud Shadows: Optional volumetric cloud shadow map (2D texture)
+*
+*	Architecture:
+*	- Atmosphere Parameters: Rayleigh/Mie scattering coefficients, phase functions
+*	- Planet Profiles: Earth and Stroggos (alien planet) presets
+*	- Texture Upload: DDS file loading for precomputed tables
+*	- Terrain Rendering: Optional planetary surface from space
+*	- Descriptor Sets: Vulkan binding for shader access
+*
+*	Atmosphere Models:
+*	- Earth: Realistic atmospheric parameters with blue Rayleigh scattering
+*	- Stroggos: Alien atmosphere with different composition and colors
+*
+*	Scattering Theory:
+*	- Rayleigh Scattering: Wavelength-dependent (blue sky)
+*	- Mie Scattering: Aerosol/particle scattering (haze, fog)
+*	- Multiple Scattering: Indirect light bouncing in atmosphere
+*	- Phase Functions: Angular distribution of scattered light
+*
+*	Lookup Tables:
+*	- Sky Transmittance: Optical depth from point to space
+*	- Sky Inscatter: Accumulated scattering along view rays
+*	- Sky Irradiance: Total solar energy reaching surface
+*	- Sky Clouds: Volumetric cloud shadow map (optional)
+*
+*	Features:
+*	- Precomputed tables eliminate per-frame computation
+*	- Supports multiple planet atmospheric profiles
+*	- Optional terrain rendering (albedo, normal, depth maps)
+*	- Cloud shadow integration
+*	- Physically accurate solar irradiance
+*
+*	Performance:
+*	- One-time table upload at initialization
+*	- Runtime lookups via texture sampling (extremely fast)
+*	- Tables sized for quality/memory tradeoff
+*	- Supports different resolution/quality levels
+*
+*	References:
+*	- "Precomputed Atmospheric Scattering" (Bruneton & Neyret, 2008)
+*	- "A Qualitative and Quantitative Evaluation of 8 Clear Sky Models" 
+*	  (Bruneton, 2016)
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
 
@@ -25,16 +85,28 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <assert.h>
 #include "dds.h"
 
-// ----------------------------------------------------------------------------
 
+
+/**
+*
+*
+*
+*	Atmosphere Parameters:
+*
+*
+*
+**/
+//! Active atmosphere parameters pointer.
 const struct AtmosphereParameters* Constants = NULL;
 
+//! Planet radii definitions.
 #define EARTH_SURFACE_RADIUS (6360.0f)
 #define EARTH_ATMOSPHERE_RADIUS (6420.f)
 #define STROGGOS_SURFACE_RADIUS (6360.0f)
 #define STROGGOS_ATMOSPHERE_RADIUS (6520.f)
 #define DIST_TO_HORIZON(LOW,HIGH) ( HIGH*HIGH - LOW*LOW )
 
+//! Earth atmosphere parameters (realistic blue sky).
 static struct AtmosphereParameters Params_Earth = {
 	.solar_irradiance = { 1.47399998f, 1.85039997f, 1.91198003f },
 	.sun_angular_radius = 0.00467499997f,
@@ -43,10 +115,11 @@ static struct AtmosphereParameters Params_Earth = {
 	.mie_scattering = { 0.0014985f, 0.0014985f, 0.0014985f },
 	.top_radius = EARTH_ATMOSPHERE_RADIUS,
 	.mie_phase_function_g = 0.8f,
-	.SqDistanceToHorizontalBoundary = DIST_TO_HORIZON(EARTH_SURFACE_RADIUS, EARTH_ATMOSPHERE_RADIUS),
+	.SqDistanceToHorizontalBoundary = DIST_TO_HORIZON( EARTH_SURFACE_RADIUS, EARTH_ATMOSPHERE_RADIUS ),
 	.AtmosphereHeight = EARTH_ATMOSPHERE_RADIUS - EARTH_SURFACE_RADIUS,
 };
 
+//! Stroggos (alien planet) atmosphere parameters (reddish-orange tint).
 static struct AtmosphereParameters Params_Stroggos = {
 	.solar_irradiance = { 2.47399998, 1.85039997, 1.01198006 },
 	.sun_angular_radius = 0.00934999995f,
@@ -55,12 +128,22 @@ static struct AtmosphereParameters Params_Stroggos = {
 	.mie_scattering = { 0.00342514296, 0.00342514296, 0.00342514296 },
 	.top_radius = STROGGOS_ATMOSPHERE_RADIUS,
 	.mie_phase_function_g = 0.9f,
-	.SqDistanceToHorizontalBoundary = DIST_TO_HORIZON(STROGGOS_SURFACE_RADIUS, STROGGOS_ATMOSPHERE_RADIUS),
+	.SqDistanceToHorizontalBoundary = DIST_TO_HORIZON( STROGGOS_SURFACE_RADIUS, STROGGOS_ATMOSPHERE_RADIUS ),
 	.AtmosphereHeight = STROGGOS_ATMOSPHERE_RADIUS - STROGGOS_SURFACE_RADIUS,
 };
 
-// ----------------------------------------------------------------------------
 
+
+/**
+*
+*
+*
+*	GPU Resource Management:
+*
+*
+*
+**/
+//! GPU image information structure.
 struct ImageGPUInfo
 {
 	VkImage			Image;
@@ -68,39 +151,75 @@ struct ImageGPUInfo
 	VkImageView		View;
 };
 
-
-
-void ReleaseInfo(struct ImageGPUInfo* Info)
+/**
+*	@brief	Releases GPU resources for an image.
+*	@param	Info	Image info structure to release.
+**/
+void ReleaseInfo( struct ImageGPUInfo* Info )
 {
-	vkFreeMemory(qvk.device, Info->DeviceMemory, NULL);
-	vkDestroyImage(qvk.device, Info->Image, NULL);
-	vkDestroyImageView(qvk.device, Info->View, NULL);
-	memset(Info, 0, sizeof(*Info));
+	vkFreeMemory( qvk.device, Info->DeviceMemory, NULL );
+	vkDestroyImage( qvk.device, Info->Image, NULL );
+	vkDestroyImageView( qvk.device, Info->View, NULL );
+	memset( Info, 0, sizeof( *Info ) );
 }
 
+//! Precomputed scattering lookup tables.
 struct ImageGPUInfo	SkyTransmittance;
 struct ImageGPUInfo	SkyInscatter;
 struct ImageGPUInfo	SkyIrradiance;
 struct ImageGPUInfo	SkyClouds;
 
+//! Terrain rendering resources (for space view).
 struct ImageGPUInfo TerrainAlbedo;
 struct ImageGPUInfo TerrainNormals;
 struct ImageGPUInfo TerrainDepth;
 
+//! Descriptor set layout for precomputed sky resources.
 VkDescriptorSetLayout	uniform_precomputed_descriptor_layout;
+//! Descriptor set for precomputed sky uniform buffer.
 VkDescriptorSet         desc_set_precomputed_ubo;
 
+//! Binding indices for descriptor sets.
 #define PRECOMPUTED_SKY_BINDING_IDX					0
 #define PRECOMPUTED_SKY_UBO_DESC_SET_IDX			3
 
+//! Uniform buffer for atmosphere parameters.
 static BufferResource_t atmosphere_params_buffer;
+//! Descriptor pool for UBO descriptors.
 static VkDescriptorPool desc_pool_precomputed_ubo;
 
+//! Terrain shadowmap view-projection matrix.
 float terrain_shadowmap_viewproj[16] = { 0.f };
 
-// ----------------------------------------------------------------------------
 
-VkResult UploadImage(void* FirstPixel, size_t total_size, unsigned int Width, unsigned int Height, unsigned int Depth, unsigned int ArraySize, unsigned char Cube, VkFormat PixelFormat, uint32_t Binding, struct ImageGPUInfo* Info, const char* DebugName)
+
+/**
+*
+*
+*
+*	Image Upload & Resource Creation:
+*
+*
+*
+**/
+/**
+*	@brief	Uploads image data to GPU and creates Vulkan image resources.
+*	@param	FirstPixel		Pointer to first pixel data.
+*	@param	total_size		Total size of image data in bytes.
+*	@param	Width			Image width in pixels.
+*	@param	Height			Image height in pixels.
+*	@param	Depth			Image depth (for 3D textures, 0 for 2D).
+*	@param	ArraySize		Number of array layers.
+*	@param	Cube			True if cubemap, false otherwise.
+*	@param	PixelFormat		Vulkan pixel format.
+*	@param	Binding			Descriptor binding index.
+*	@param	Info			Output image info structure.
+*	@param	DebugName		Debug label for the image.
+*	@return	VK_SUCCESS on success, Vulkan error code on failure.
+*	@note	Creates staging buffer, uploads data, transitions image layout,
+*			and creates image view for shader access.
+**/
+VkResult UploadImage( void* FirstPixel, size_t total_size, unsigned int Width, unsigned int Height, unsigned int Depth, unsigned int ArraySize, unsigned char Cube, VkFormat PixelFormat, uint32_t Binding, struct ImageGPUInfo* Info, const char* DebugName )
 {
 	BufferResource_t buf_img_upload;
 	buffer_create(&buf_img_upload, total_size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
