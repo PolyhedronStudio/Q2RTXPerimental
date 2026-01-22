@@ -1,3 +1,26 @@
+/********************************************************************
+*
+*
+*	VKPT Renderer: Device Memory Allocator
+*
+*	Implements a memory allocation system for Vulkan device memory using
+*	a two-tier architecture: sub-allocators manage large memory blocks,
+*	and buddy allocators handle individual allocations within those blocks.
+*
+*	Architecture:
+*	- One sub-allocator per Vulkan memory type (up to VK_MAX_MEMORY_TYPES)
+*	- Each sub-allocator uses a buddy allocator for sub-allocation
+*	- Default capacity: 88 MB per sub-allocator (optimized for 4K textures)
+*	- Block size: 44 KB (power-of-2, optimal for texture mip chains)
+*
+*	Allocation Strategy:
+*	1. Find or create sub-allocator for requested memory type
+*	2. Attempt allocation from existing sub-allocator via buddy allocator
+*	3. If full, create new sub-allocator and retry
+*	4. Track total allocated and used memory for profiling
+*
+*
+********************************************************************/
 /*
 Copyright (C) 2019, NVIDIA CORPORATION. All rights reserved.
 
@@ -26,34 +49,99 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "vkpt.h"
 
-// Block size optimized for placement of texture mip chains with up to 4 KB alignment
-#define ALLOCATOR_BLOCK_SIZE (44 * 1024)
 
-// Power-of-2 blocks, which is necessary for correct operation of the buddy allocator.
-// The capacity is chosen to allow placement of up to 4096x4096 RGBA8 textures with mip chains.
-#define ALLOCATOR_CAPACITY (ALLOCATOR_BLOCK_SIZE * 2048)
 
-typedef struct SubAllocator
-{
+/**
+*
+*
+*
+*	Memory Allocator Configuration:
+*
+*
+*
+**/
+//! Block size optimized for placement of texture mip chains with up to 4 KB alignment.
+#define ALLOCATOR_BLOCK_SIZE ( 44 * 1024 )
+
+//! Power-of-2 capacity allowing placement of up to 4096x4096 RGBA8 textures with mip chains.
+#define ALLOCATOR_CAPACITY ( ALLOCATOR_BLOCK_SIZE * 2048 )
+
+
+
+/**
+*
+*
+*
+*	Internal Data Structures:
+*
+*
+*
+**/
+/**
+*	@brief	Sub-allocator managing a single Vulkan device memory allocation.
+*	@note	Each sub-allocator uses a buddy allocator to manage sub-allocations
+*			within its memory block. Multiple sub-allocators can exist per memory
+*			type, forming a linked list.
+**/
+typedef struct SubAllocator {
+	//! Vulkan device memory handle.
 	VkDeviceMemory memory;
+	//! Buddy allocator for managing sub-allocations within this memory.
 	BuddyAllocator* buddy_allocator;
+	//! Total bytes currently allocated from this sub-allocator.
 	size_t memory_used;
+	//! Next sub-allocator in the linked list (for same memory type).
 	struct SubAllocator* next;
 } SubAllocator;
 
-typedef struct DeviceMemoryAllocator
-{
+/**
+*	@brief	Top-level device memory allocator.
+*	@note	Manages sub-allocators for all Vulkan memory types. Tracks global
+*			memory usage statistics.
+**/
+typedef struct DeviceMemoryAllocator {
+	//! Sub-allocator linked lists, one per Vulkan memory type.
 	SubAllocator* sub_allocators[VK_MAX_MEMORY_TYPES];
-    VkDevice device;
-    size_t total_memory_allocated;
-    size_t total_memory_used;
+	//! Vulkan logical device handle.
+	VkDevice device;
+	//! Total bytes allocated from the driver.
+	size_t total_memory_allocated;
+	//! Total bytes actually used by allocations.
+	size_t total_memory_used;
 } DeviceMemoryAllocator;
 
-int create_sub_allocator(DeviceMemoryAllocator* allocator, uint32_t memory_type, uint32_t alignment);
 
-DeviceMemoryAllocator* create_device_memory_allocator(VkDevice device)
-{
-	char* memory = Z_Mallocz(sizeof(DeviceMemoryAllocator));
+
+/**
+*
+*
+*
+*	Forward Declarations:
+*
+*
+*
+**/
+int create_sub_allocator( DeviceMemoryAllocator* allocator, uint32_t memory_type, uint32_t alignment );
+
+
+
+/**
+*
+*
+*
+*	Allocator Creation & Destruction:
+*
+*
+*
+**/
+/**
+*	@brief	Creates a new device memory allocator.
+*	@param	device	Vulkan logical device.
+*	@return	Pointer to newly created allocator, or NULL on failure.
+*	@note	Allocates and zero-initializes the allocator structure.
+**/
+DeviceMemoryAllocator* create_device_memory_allocator( VkDevice device ) {
+	char* memory = (char*)Z_Mallocz( sizeof( DeviceMemoryAllocator ) );
 
 	DeviceMemoryAllocator* allocator = (DeviceMemoryAllocator*)memory;
 	allocator->device = device;
