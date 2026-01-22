@@ -250,595 +250,760 @@ static bool DMA_RawSamples( int samples, int rate, int width, int channels, cons
                 s_rawsamples[j].left  =
                 s_rawsamples[j].right = (data[k] - 128) * vol;
             }
-        }
-    }
+	}
 
-    s_rawend += outcount;
-    return true;
+	// Update ring buffer write position.
+	s_rawend += outcount;
+	return true;
 }
 
 #undef RESAMPLE
 
-static bool DMA_NeedRawSamples(void)
-{
-    return s_rawend - s_paintedtime < MAX_RAW_SAMPLES - 2048;
+/**
+*	@brief	Check if streaming buffer needs more raw samples.
+*	@return	True if buffer has room for at least 2048 more samples, false if nearly full.
+**/
+static bool DMA_NeedRawSamples( void ) {
+	return s_rawend - s_paintedtime < MAX_RAW_SAMPLES - 2048;
 }
 
-static void DMA_DropRawSamples(void)
-{
-    memset(s_rawsamples, 0, sizeof(s_rawsamples));
-    s_rawend = s_paintedtime;
+/**
+*	@brief	Clear streaming buffer and reset write position.
+*	@note	Called when stopping music/cinematic playback.
+**/
+static void DMA_DropRawSamples( void ) {
+	memset( s_rawsamples, 0, sizeof( s_rawsamples ) );
+	s_rawend = s_paintedtime;
 }
 
+/**
+*
+*
+*
+*	Paint Buffer Transfer (Software Mixing Output):
+*
+*
+*
+**/
 
-/*
-===============================================================================
+/**
+*	@brief	Transfer mixed audio from paint buffer to DMA buffer (optimized 16-bit stereo).
+*	@param	samp		Source sample pairs from paint buffer.
+*	@param	endtime		Target paint time to write up to.
+*	@note	Handles circular DMA buffer wrapping and sample clipping.
+*	@note	Optimized fast path for 16-bit stereo output.
+**/
+static void TransferStereo16( samplepair_t *samp, int endtime ) {
+	int ltime = s_paintedtime;
+	int size = dma.samples >> 1;
 
-PAINTBUFFER TRANSFER
+	while ( ltime < endtime ) {
+		// Handle recirculating buffer wrapping.
+		int lpos = ltime & ( size - 1 );
+		int count = min( size - lpos, endtime - ltime );
 
-===============================================================================
-*/
+		// Write a linear blast of samples to DMA buffer.
+		int16_t *out = ( int16_t * )dma.buffer + ( lpos << 1 );
+		for ( int i = 0; i < count; i++, samp++, out += 2 ) {
+			out[0] = clip16( samp->left );
+			out[1] = clip16( samp->right );
+		}
 
-static void TransferStereo16(samplepair_t *samp, int endtime)
-{
-    int ltime = s_paintedtime;
-    int size = dma.samples >> 1;
-
-    while (ltime < endtime) {
-        // handle recirculating buffer issues
-        int lpos = ltime & (size - 1);
-        int count = min(size - lpos, endtime - ltime);
-
-        // write a linear blast of samples
-        int16_t *out = (int16_t *)dma.buffer + (lpos << 1);
-        for (int i = 0; i < count; i++, samp++, out += 2) {
-            out[0] = clip16(samp->left);
-            out[1] = clip16(samp->right);
-        }
-
-        ltime += count;
-    }
+		ltime += count;
+	}
 }
 
-static void TransferStereo(samplepair_t *samp, int endtime)
-{
-    float *p = (float *)samp;
-    int count = (endtime - s_paintedtime) * dma.channels;
-    int out_mask = dma.samples - 1;
-    int out_idx = s_paintedtime * dma.channels & out_mask;
-    int step = 3 - dma.channels;
-    int val;
+/**
+*	@brief	Transfer mixed audio from paint buffer to DMA buffer (general case).
+*	@param	samp		Source sample pairs from paint buffer.
+*	@param	endtime		Target paint time to write up to.
+*	@note	Handles arbitrary sample formats (8/16-bit, mono/stereo).
+*	@note	Performs sample format conversion and circular buffer wrapping.
+**/
+static void TransferStereo( samplepair_t *samp, int endtime ) {
+	float *p = ( float * )samp;
+	int count = ( endtime - s_paintedtime ) * dma.channels;
+	int out_mask = dma.samples - 1;
+	int out_idx = s_paintedtime * dma.channels & out_mask;
+	int step = 3 - dma.channels;
+	int val;
 
-    if (dma.samplebits == 16) {
-        int16_t *out = (int16_t *)dma.buffer;
-        while (count--) {
-            val = *p;
-            p += step;
-            out[out_idx] = clip16(val);
-            out_idx = (out_idx + 1) & out_mask;
-        }
-    } else if (dma.samplebits == 8) {
-        uint8_t *out = (uint8_t *)dma.buffer;
-        while (count--) {
-            val = *p;
-            p += step;
-            out[out_idx] = (clip16(val) >> 8) + 128;
-            out_idx = (out_idx + 1) & out_mask;
-        }
-    }
+	if ( dma.samplebits == 16 ) {
+		// 16-bit output format.
+		int16_t *out = ( int16_t * )dma.buffer;
+		while ( count-- ) {
+			val = *p;
+			p += step;
+			out[out_idx] = clip16( val );
+			out_idx = ( out_idx + 1 ) & out_mask;
+		}
+	} else if ( dma.samplebits == 8 ) {
+		// 8-bit output format (convert from signed to unsigned).
+		uint8_t *out = ( uint8_t * )dma.buffer;
+		while ( count-- ) {
+			val = *p;
+			p += step;
+			out[out_idx] = ( clip16( val ) >> 8 ) + 128;
+			out_idx = ( out_idx + 1 ) & out_mask;
+		}
+	}
 }
 
-static void TransferPaintBuffer(samplepair_t *samp, int endtime)
-{
-    int i;
+/**
+*	@brief	Transfer paint buffer to DMA hardware buffer with optional test tone and stereo swap.
+*	@param	samp		Source sample pairs from paint buffer.
+*	@param	endtime		Target paint time to write up to.
+*	@note	Applies test tone generation if s_testsound is enabled.
+*	@note	Swaps left/right channels if s_swapstereo is enabled.
+*	@note	Selects optimized transfer function based on output format.
+**/
+static void TransferPaintBuffer( samplepair_t *samp, int endtime ) {
+	int i;
 
-    if (s_testsound->integer) {
-        // write a fixed sine wave
-        for (i = 0; i < endtime - s_paintedtime; i++) {
-            samp[i].left = samp[i].right = sin((s_paintedtime + i) * 0.1f) * 20000;
-        }
-    }
+	// Generate test tone if enabled (sine wave for audio pipeline debugging).
+	if ( s_testsound->integer ) {
+		for ( i = 0; i < endtime - s_paintedtime; i++ ) {
+			samp[i].left = samp[i].right = sin( ( s_paintedtime + i ) * 0.1f ) * 20000;
+		}
+	}
 
-    if (s_swapstereo->integer) {
-        for (i = 0; i < endtime - s_paintedtime; i++) {
-            SWAP(float, samp[i].left, samp[i].right);
-        }
-    }
+	// Swap stereo channels if enabled.
+	if ( s_swapstereo->integer ) {
+		for ( i = 0; i < endtime - s_paintedtime; i++ ) {
+			SWAP( float, samp[i].left, samp[i].right );
+		}
+	}
 
-    if (dma.samplebits == 16 && dma.channels == 2) {
-        // optimized case
-        TransferStereo16(samp, endtime);
-    } else {
-        // general case
-        TransferStereo(samp, endtime);
-    }
+	// Select optimized or general transfer function based on output format.
+	if ( dma.samplebits == 16 && dma.channels == 2 ) {
+		// Optimized path for 16-bit stereo.
+		TransferStereo16( samp, endtime );
+	} else {
+		// General case for other formats.
+		TransferStereo( samp, endtime );
+	}
 }
 
-/*
-===============================================================================
+/**
+*
+*
+*
+*	Underwater Audio Filter (High Shelf Biquad):
+*
+*
+*
+**/
 
-UNDERWATER FILTER
-
-===============================================================================
-*/
-
+//! History state for biquad filter (one per stereo channel).
 typedef struct {
-    float z1, z2;
+	float z1, z2;	//! Delay line samples for IIR filter.
 } hist_t;
 
+//! Filter history for left and right channels.
 static hist_t hist[2];
+
+//! Biquad filter coefficients (computed from gain parameter).
 static float a1, a2, b0, b1, b2;
 
-// Implements "high shelf" biquad filter. This is what OpenAL Soft uses for
-// AL_FILTER_LOWPASS.
-static void s_underwater_gain_hf_changed(float hfGain)
-{
-    float f0norm = 5000.0f / dma.speed;
-    if ( hfGain < 0 ) {
-        hfGain = 0;
-    } else if ( hfGain > 1 ) {
-        hfGain = 1;
+/**
+*	@brief	Initialize biquad filter coefficients for underwater high-frequency attenuation.
+*	@param	hfGain	High-frequency gain (0.0 to 1.0, where 1.0 is no attenuation).
+*	@note	Implements "high shelf" biquad filter matching OpenAL Soft AL_FILTER_LOWPASS.
+*	@note	Center frequency is 5000 Hz with 1.0 bandwidth (Q = sqrt(2)/2).
+**/
+static void s_underwater_gain_hf_changed( float hfGain ) {
+	float f0norm = 5000.0f / dma.speed;
+	
+	// Clamp gain to valid range.
+	if ( hfGain < 0 ) {
+		hfGain = 0;
+	} else if ( hfGain > 1 ) {
+		hfGain = 1;
 	}
-    float gain = hfGain;
+	float gain = hfGain;
 
-    // Limit to -60dB
-    gain = max(gain, 0.001f);
+	// Limit to -60dB to prevent numerical instability.
+	gain = max( gain, 0.001f );
 
-    float w0 = M_PI * 2.0f * f0norm;
-    float sin_w0 = sin(w0);
-    float cos_w0 = cos(w0);
-    float alpha = sin_w0 / 2.0f * M_SQRT2;
-    float sqrtgain_alpha_2 = 2.0f * sqrtf(gain) * alpha;
-    float a0;
+	// Calculate biquad coefficients using analog prototype method.
+	float w0 = M_PI * 2.0f * f0norm;
+	float sin_w0 = sin( w0 );
+	float cos_w0 = cos( w0 );
+	float alpha = sin_w0 / 2.0f * M_SQRT2;
+	float sqrtgain_alpha_2 = 2.0f * sqrtf( gain ) * alpha;
+	float a0;
 
-    b0 = gain * ((gain+1.0f) + (gain-1.0f) * cos_w0 + sqrtgain_alpha_2);
-    b1 = gain * ((gain-1.0f) + (gain+1.0f) * cos_w0) * -2.0f;
-    b2 = gain * ((gain+1.0f) + (gain-1.0f) * cos_w0 - sqrtgain_alpha_2);
+	// Numerator coefficients (zeros).
+	b0 = gain * ( ( gain + 1.0f ) + ( gain - 1.0f ) * cos_w0 + sqrtgain_alpha_2 );
+	b1 = gain * ( ( gain - 1.0f ) + ( gain + 1.0f ) * cos_w0 ) * -2.0f;
+	b2 = gain * ( ( gain + 1.0f ) + ( gain - 1.0f ) * cos_w0 - sqrtgain_alpha_2 );
 
-    a0 =  (gain+1.0f) - (gain-1.0f) * cos_w0 + sqrtgain_alpha_2;
-    a1 = ((gain-1.0f) - (gain+1.0f) * cos_w0) * 2.0f;
-    a2 =  (gain+1.0f) - (gain-1.0f) * cos_w0 - sqrtgain_alpha_2;
+	// Denominator coefficients (poles).
+	a0 = ( gain + 1.0f ) - ( gain - 1.0f ) * cos_w0 + sqrtgain_alpha_2;
+	a1 = ( ( gain - 1.0f ) - ( gain + 1.0f ) * cos_w0 ) * 2.0f;
+	a2 = ( gain + 1.0f ) - ( gain - 1.0f ) * cos_w0 - sqrtgain_alpha_2;
 
-    a1 /= a0; a2 /= a0; b0 /= a0; b1 /= a0; b2 /= a0;
+	// Normalize coefficients by a0.
+	a1 /= a0; a2 /= a0; b0 /= a0; b1 /= a0; b2 /= a0;
 }
 
-static void filter_ch(hist_t *hist, float *samp, int count)
-{
-    float z1 = hist->z1;
-    float z2 = hist->z2;
+/**
+*	@brief	Apply biquad filter to single audio channel using Direct Form I topology.
+*	@param	hist	Filter history structure containing delay line samples.
+*	@param	samp	Pointer to sample buffer (stride of 2 for stereo interleaving).
+*	@param	count	Number of samples to process.
+*	@note	Uses transposed Direct Form II structure for numerical stability.
+**/
+static void filter_ch( hist_t *hist, float *samp, int count ) {
+	float z1 = hist->z1;
+	float z2 = hist->z2;
 
-    for (int i = 0; i < count; i++, samp += 2) {
-        float input = *samp;
-        float output = input * b0 + z1;
-        z1 = input * b1 - output * a1 + z2;
-        z2 = input * b2 - output * a2;
-        *samp = output;
-    }
+	// Apply biquad filter equation: y[n] = b0*x[n] + b1*x[n-1] + b2*x[n-2] - a1*y[n-1] - a2*y[n-2].
+	for ( int i = 0; i < count; i++, samp += 2 ) {
+		float input = *samp;
+		float output = input * b0 + z1;
+		z1 = input * b1 - output * a1 + z2;
+		z2 = input * b2 - output * a2;
+		*samp = output;
+	}
 
-    hist->z1 = z1;
-    hist->z2 = z2;
+	// Save delay line state for next call.
+	hist->z1 = z1;
+	hist->z2 = z2;
 }
 
-static void underwater_filter(samplepair_t *samp, int count)
-{
-    filter_ch(&hist[0], &samp->left, count);
-    filter_ch(&hist[1], &samp->right, count);
+/**
+*	@brief	Apply underwater low-pass filter to both stereo channels.
+*	@param	samp	Sample buffer containing stereo pairs.
+*	@param	count	Number of sample pairs to filter.
+*	@note	Called during mixing when s_underwater cvar indicates player is submerged.
+**/
+static void underwater_filter( samplepair_t *samp, int count ) {
+	// Apply biquad filter to left channel.
+	filter_ch( &hist[0], &samp->left, count );
+	// Apply biquad filter to right channel.
+	filter_ch( &hist[1], &samp->right, count );
 }
 
-/*
-===============================================================================
+/**
+*
+*
+*
+*	Channel Mixing (Software Audio Rendering):
+*
+*
+*
+**/
 
-CHANNEL MIXING
+//! Function pointer type for channel paint functions (mix sound into buffer).
+typedef void ( *paintfunc_t )( channel_t *, sfxcache_t *, int, samplepair_t * );
 
-===============================================================================
-*/
+/**
+*	Macro to declare paint function with standard signature.
+*	ch = channel structure, sc = sound cache, count = samples to mix, samp = destination buffer.
+**/
+#define PAINTFUNC( name ) \
+	static void name( channel_t *ch, sfxcache_t *sc, int count, samplepair_t *samp )
 
-typedef void (*paintfunc_t)(channel_t *, sfxcache_t *, int, samplepair_t *);
+/**
+*	@brief	Mix mono 8-bit sound into stereo paint buffer.
+*	@param	ch		Channel structure containing volume and playback position.
+*	@param	sc		Sound cache structure containing audio data.
+*	@param	count	Number of samples to mix.
+*	@param	samp	Destination sample pair buffer.
+*	@note	Converts unsigned 8-bit to signed, applies volume, and accumulates to buffer.
+**/
+PAINTFUNC( PaintMono8 ) {
+	float leftvol = ch->leftvol * snd_vol * 256;
+	float rightvol = ch->rightvol * snd_vol * 256;
+	uint8_t *sfx = sc->data + ch->pos;
 
-#define PAINTFUNC(name) \
-    static void name(channel_t *ch, sfxcache_t *sc, int count, samplepair_t *samp)
-
-PAINTFUNC(PaintMono8)
-{
-    float leftvol = ch->leftvol * snd_vol * 256;
-    float rightvol = ch->rightvol * snd_vol * 256;
-    uint8_t *sfx = sc->data + ch->pos;
-
-    for (int i = 0; i < count; i++, samp++, sfx++) {
-        samp->left += (*sfx - 128) * leftvol;
-        samp->right += (*sfx - 128) * rightvol;
-    }
+	// Mix unsigned 8-bit samples (convert to signed, apply volume, accumulate).
+	for ( int i = 0; i < count; i++, samp++, sfx++ ) {
+		samp->left += ( *sfx - 128 ) * leftvol;
+		samp->right += ( *sfx - 128 ) * rightvol;
+	}
 }
 
-PAINTFUNC(PaintStereoDmix8)
-{
-    float leftvol = ch->leftvol * snd_vol * (256 * M_SQRT1_2);
-    float rightvol = ch->rightvol * snd_vol * (256 * M_SQRT1_2);
-    uint8_t *sfx = sc->data + ch->pos * 2;
+/**
+*	@brief	Mix stereo 8-bit sound into stereo paint buffer with downmix.
+*	@param	ch		Channel structure containing volume and playback position.
+*	@param	sc		Sound cache structure containing audio data.
+*	@param	count	Number of samples to mix.
+*	@param	samp	Destination sample pair buffer.
+*	@note	Sums left and right channels, applies sqrt(0.5) compensation for energy preservation.
+**/
+PAINTFUNC( PaintStereoDmix8 ) {
+	float leftvol = ch->leftvol * snd_vol * ( 256 * M_SQRT1_2 );
+	float rightvol = ch->rightvol * snd_vol * ( 256 * M_SQRT1_2 );
+	uint8_t *sfx = sc->data + ch->pos * 2;
 
-    for (int i = 0; i < count; i++, samp++, sfx += 2) {
-        int sum = (sfx[0] - 128) + (sfx[1] - 128);
-        samp->left += sum * leftvol;
-        samp->right += sum * rightvol;
-    }
+	// Downmix stereo to mono then spatialize.
+	for ( int i = 0; i < count; i++, samp++, sfx += 2 ) {
+		int sum = ( sfx[0] - 128 ) + ( sfx[1] - 128 );
+		samp->left += sum * leftvol;
+		samp->right += sum * rightvol;
+	}
 }
 
-PAINTFUNC(PaintStereoFull8)
-{
-    float vol = ch->leftvol * snd_vol * 256;
-    uint8_t *sfx = sc->data + ch->pos * 2;
+/**
+*	@brief	Mix stereo 8-bit sound into stereo paint buffer (full stereo).
+*	@param	ch		Channel structure containing volume and playback position.
+*	@param	sc		Sound cache structure containing audio data.
+*	@param	count	Number of samples to mix.
+*	@param	samp	Destination sample pair buffer.
+*	@note	Preserves stereo image, applies volume, accumulates to buffer.
+**/
+PAINTFUNC( PaintStereoFull8 ) {
+	float vol = ch->leftvol * snd_vol * 256;
+	uint8_t *sfx = sc->data + ch->pos * 2;
 
-    for (int i = 0; i < count; i++, samp++, sfx += 2) {
-        samp->left += (sfx[0] - 128) * vol;
-        samp->right += (sfx[1] - 128) * vol;
-    }
+	// Mix stereo samples preserving stereo image.
+	for ( int i = 0; i < count; i++, samp++, sfx += 2 ) {
+		samp->left += ( sfx[0] - 128 ) * vol;
+		samp->right += ( sfx[1] - 128 ) * vol;
+	}
 }
 
-PAINTFUNC(PaintMono16)
-{
-    float leftvol = ch->leftvol * snd_vol;
-    float rightvol = ch->rightvol * snd_vol;
-    int16_t *sfx = (int16_t *)sc->data + ch->pos;
+/**
+*	@brief	Mix mono 16-bit sound into stereo paint buffer.
+*	@param	ch		Channel structure containing volume and playback position.
+*	@param	sc		Sound cache structure containing audio data.
+*	@param	count	Number of samples to mix.
+*	@param	samp	Destination sample pair buffer.
+*	@note	Applies volume and accumulates signed 16-bit samples to buffer.
+**/
+PAINTFUNC( PaintMono16 ) {
+	float leftvol = ch->leftvol * snd_vol;
+	float rightvol = ch->rightvol * snd_vol;
+	int16_t *sfx = ( int16_t * )sc->data + ch->pos;
 
-    for (int i = 0; i < count; i++, samp++, sfx++) {
-        samp->left += *sfx * leftvol;
-        samp->right += *sfx * rightvol;
-    }
+	// Mix signed 16-bit mono samples.
+	for ( int i = 0; i < count; i++, samp++, sfx++ ) {
+		samp->left += *sfx * leftvol;
+		samp->right += *sfx * rightvol;
+	}
 }
 
-PAINTFUNC(PaintStereoDmix16)
-{
-    float leftvol = ch->leftvol * snd_vol * M_SQRT1_2;
-    float rightvol = ch->rightvol * snd_vol * M_SQRT1_2;
-    int16_t *sfx = (int16_t *)sc->data + ch->pos * 2;
+/**
+*	@brief	Mix stereo 16-bit sound into stereo paint buffer with downmix.
+*	@param	ch		Channel structure containing volume and playback position.
+*	@param	sc		Sound cache structure containing audio data.
+*	@param	count	Number of samples to mix.
+*	@param	samp	Destination sample pair buffer.
+*	@note	Sums left and right channels, applies sqrt(0.5) compensation.
+**/
+PAINTFUNC( PaintStereoDmix16 ) {
+	float leftvol = ch->leftvol * snd_vol * M_SQRT1_2;
+	float rightvol = ch->rightvol * snd_vol * M_SQRT1_2;
+	int16_t *sfx = ( int16_t * )sc->data + ch->pos * 2;
 
-    for (int i = 0; i < count; i++, samp++, sfx += 2) {
-        int sum = sfx[0] + sfx[1];
-        samp->left += sum * leftvol;
-        samp->right += sum * rightvol;
-    }
+	// Downmix stereo to mono then spatialize.
+	for ( int i = 0; i < count; i++, samp++, sfx += 2 ) {
+		int sum = sfx[0] + sfx[1];
+		samp->left += sum * leftvol;
+		samp->right += sum * rightvol;
+	}
 }
 
-PAINTFUNC(PaintStereoFull16)
-{
-    float vol = ch->leftvol * snd_vol;
-    int16_t *sfx = (int16_t *)sc->data + ch->pos * 2;
+/**
+*	@brief	Mix stereo 16-bit sound into stereo paint buffer (full stereo).
+*	@param	ch		Channel structure containing volume and playback position.
+*	@param	sc		Sound cache structure containing audio data.
+*	@param	count	Number of samples to mix.
+*	@param	samp	Destination sample pair buffer.
+*	@note	Preserves stereo image, applies volume, accumulates to buffer.
+**/
+PAINTFUNC( PaintStereoFull16 ) {
+	float vol = ch->leftvol * snd_vol;
+	int16_t *sfx = ( int16_t * )sc->data + ch->pos * 2;
 
-    for (int i = 0; i < count; i++, samp++, sfx += 2) {
-        samp->left += sfx[0] * vol;
-        samp->right += sfx[1] * vol;
-    }
+	// Mix stereo samples preserving stereo image.
+	for ( int i = 0; i < count; i++, samp++, sfx += 2 ) {
+		samp->left += sfx[0] * vol;
+		samp->right += sfx[1] * vol;
+	}
 }
 
+//! Lookup table for paint functions indexed by [width-1][channels-1].
 static const paintfunc_t paintfuncs[] = {
-    PaintMono8,
-    PaintStereoDmix8,
-    PaintStereoFull8,
-    PaintMono16,
-    PaintStereoDmix16,
-    PaintStereoFull16,
+	PaintMono8,
+	PaintStereoDmix8,
+	PaintStereoFull8,
+	PaintMono16,
+	PaintStereoDmix16,
+	PaintStereoFull16,
 };
 
-static void PaintChannels(int endtime)
-{
-    samplepair_t paintbuffer[PAINTBUFFER_SIZE];
-    channel_t *ch;
-    int i;
-    bool underwater = S_IsUnderWater();
+/**
+*	@brief	Mix all active sound channels into paint buffer and transfer to DMA.
+*	@param	endtime	Target paint time to render up to.
+*	@note	Processes sound channels in blocks of PAINTBUFFER_SIZE samples.
+*	@note	Applies underwater filter if player is submerged.
+*	@note	Mixes raw streaming samples (music/cinematics) into output.
+**/
+static void PaintChannels( int endtime ) {
+	samplepair_t paintbuffer[PAINTBUFFER_SIZE];
+	channel_t *ch;
+	int i;
+	bool underwater = S_IsUnderWater();
 
-    while (s_paintedtime < endtime) {
-        // if paintbuffer is smaller than DMA buffer
-        int64_t end = min(endtime, s_paintedtime + PAINTBUFFER_SIZE);
+	while ( s_paintedtime < endtime ) {
+		// Limit paint block size to buffer capacity.
+		int64_t end = min( endtime, s_paintedtime + PAINTBUFFER_SIZE );
 
-        // start any playsounds
-        while (1) {
-            playsound_t *ps = PS_FIRST(&s_pendingplays);
-            if (PS_TERM(ps, &s_pendingplays))
-                break;    // no more pending sounds
-            if (ps->begin > s_paintedtime) {
-                end = min(end, ps->begin);  // stop here
-                break;
-            }
-            S_IssuePlaysound(ps);
-        }
+		// Issue playsounds that are due to start in this block.
+		while ( 1 ) {
+			playsound_t *ps = PS_FIRST( &s_pendingplays );
+			if ( PS_TERM( ps, &s_pendingplays ) )
+				break;    // No more pending sounds.
+			if ( ps->begin > s_paintedtime ) {
+				end = min( end, ps->begin );  // Stop before next playsound.
+				break;
+			}
+			S_IssuePlaysound( ps );
+		}
 
-        // clear the paint buffer
-        memset(paintbuffer, 0, (end - s_paintedtime) * sizeof(samplepair_t));
+		// Clear the paint buffer for this block.
+		memset( paintbuffer, 0, ( end - s_paintedtime ) * sizeof( samplepair_t ) );
 
-        // copy from the streaming sound source
-        int stop = min(end, s_rawend);
-        for (i = s_paintedtime; i < stop; i++)
-            paintbuffer[i - s_paintedtime] = s_rawsamples[i & (MAX_RAW_SAMPLES - 1)];
+		// Copy from the raw streaming sound source (music/cinematics).
+		int stop = min( end, s_rawend );
+		for ( i = s_paintedtime; i < stop; i++ )
+			paintbuffer[i - s_paintedtime] = s_rawsamples[i & ( MAX_RAW_SAMPLES - 1 )];
 
-        // paint in the channels.
-        for (i = 0, ch = s_channels; i < s_numchannels; i++, ch++) {
-            int64_t ltime = s_paintedtime;
+		// Paint (mix) all active sound channels into buffer.
+		for ( i = 0, ch = s_channels; i < s_numchannels; i++, ch++ ) {
+			int64_t ltime = s_paintedtime;
 
-            while (ltime < end) {
-                if (!ch->sfx || (!ch->leftvol && !ch->rightvol))
-                    break;
+			while ( ltime < end ) {
+				// Skip silent or inactive channels.
+				if ( !ch->sfx || ( !ch->leftvol && !ch->rightvol ) )
+					break;
 
-                sfxcache_t *sc = S_LoadSound(ch->sfx);
-                if (!sc)
-                    break;
+				// Load sound effect cache.
+				sfxcache_t *sc = S_LoadSound( ch->sfx );
+				if ( !sc )
+					break;
 
-                Q_assert(sc->width == 1 || sc->width == 2);
-                Q_assert(sc->channels == 1 || sc->channels == 2);
+				Q_assert( sc->width == 1 || sc->width == 2 );
+				Q_assert( sc->channels == 1 || sc->channels == 2 );
 
-                // max painting is to the end of the buffer
-                int64_t count = min(end, ch->end) - ltime;
+				// Calculate samples to paint (limited by channel end and block end).
+				int64_t count = min( end, ch->end ) - ltime;
 
-                if (count > 0) {
-                    int func = (sc->width - 1) * 3 + (sc->channels - 1) * (S_IsFullVolume(ch) + 1);
-                    paintfuncs[func](ch, sc, count, &paintbuffer[ltime - s_paintedtime]);
-                    ch->pos += count;
-                    ltime += count;
-                }
+				if ( count > 0 ) {
+					// Select appropriate paint function based on format and spatialization.
+					int func = ( sc->width - 1 ) * 3 + ( sc->channels - 1 ) * ( S_IsFullVolume( ch ) + 1 );
+					paintfuncs[func]( ch, sc, count, &paintbuffer[ltime - s_paintedtime] );
+					ch->pos += count;
+					ltime += count;
+				}
 
-                // if at end of loop, restart
-                if (ltime >= ch->end) {
-                    if (ch->autosound) {
-                        // autolooping sounds always go back to start
-                        ch->pos = 0;
-                        ch->end = ltime + sc->length;
-                    } else if (sc->loopstart >= 0) {
-                        ch->pos = sc->loopstart;
-                        ch->end = ltime + sc->length - ch->pos;
-                    } else {
-                        // channel just stopped
-                        ch->sfx = NULL;
-                    }
-                }
-            }
-        }
+				// Handle channel looping or termination.
+				if ( ltime >= ch->end ) {
+					if ( ch->autosound ) {
+						// Autolooping sounds always restart from beginning.
+						ch->pos = 0;
+						ch->end = ltime + sc->length;
+					} else if ( sc->loopstart >= 0 ) {
+						// Loop sound from specified loop point.
+						ch->pos = sc->loopstart;
+						ch->end = ltime + sc->length - ch->pos;
+					} else {
+						// Channel finished, stop playback.
+						ch->sfx = nullptr;
+					}
+				}
+			}
+		}
 
-        if (s_rawend >= s_paintedtime)
-        {
-          /* add from the streaming sound source */
-          int stop = (end < s_rawend) ? end : s_rawend;
+		// Apply underwater filter if player is submerged.
+		if ( s_rawend >= s_paintedtime ) {
+			int stop = min( end, s_rawend );
 
-          if (underwater)
-            underwater_filter(paintbuffer, stop - s_paintedtime);
+			if ( underwater )
+				underwater_filter( paintbuffer, stop - s_paintedtime );
 
-          for (int i = s_paintedtime; i < stop; i++)
-          {
-            int s = i & (MAX_RAW_SAMPLES - 1);
-            paintbuffer[i - s_paintedtime].left += s_rawsamples[s].left;
-            paintbuffer[i - s_paintedtime].right += s_rawsamples[s].right;
-          }
-        }
+			// Mix raw streaming samples into paint buffer.
+			for ( int i = s_paintedtime; i < stop; i++ ) {
+				int s = i & ( MAX_RAW_SAMPLES - 1 );
+				paintbuffer[i - s_paintedtime].left += s_rawsamples[s].left;
+				paintbuffer[i - s_paintedtime].right += s_rawsamples[s].right;
+			}
+		}
 
-        // transfer out according to DMA format
-        TransferPaintBuffer(paintbuffer, end);
-        s_paintedtime = end;
-    }
+		// Transfer paint buffer to DMA hardware buffer.
+		TransferPaintBuffer( paintbuffer, end );
+		s_paintedtime = end;
+	}
 }
 
-static void s_volume_changed(cvar_t *self)
-{
-    snd_vol = S_GetLinearVolume(Cvar_ClampValue(self, 0, 1));
+/**
+*	@brief	Update cached volume multiplier when s_volume cvar changes.
+*	@param	self	Pointer to s_volume cvar.
+**/
+static void s_volume_changed( cvar_t *self ) {
+	snd_vol = S_GetLinearVolume( Cvar_ClampValue( self, 0, 1 ) );
 }
 
+/**
+*
+/**
+*
+*
+*
+*	Initialization and Shutdown:
+*
+*
+*
+**/
 
-/*
-===============================================================================
-
-INIT / SHUTDOWN
-
-===============================================================================
-*/
-
+// Platform-specific DMA driver declarations.
 #ifdef _WIN32
-extern const snddma_driver_t    snddma_wave;
+extern const snddma_driver_t snddma_wave;
 #endif
 
 #if USE_SDL
-extern const snddma_driver_t    snddma_sdl;
+extern const snddma_driver_t snddma_sdl;
 #endif
 
+//! Array of available DMA drivers (platform-specific).
 static const snddma_driver_t *const s_drivers[] = {
 #ifdef _WIN32
-    &snddma_wave,
+	&snddma_wave,
 #endif
 #if USE_SDL
-    &snddma_sdl,
+	&snddma_sdl,
 #endif
-    NULL
+	nullptr
 };
 
-static snddma_driver_t  snddma;
+//! Currently active DMA driver instance.
+static snddma_driver_t snddma;
 
-static void DMA_SoundInfo(void)
-{
-    Com_Printf("%5d channels\n", dma.channels);
-    Com_Printf("%5d samples\n", dma.samples);
-    Com_Printf("%5d samplepos\n", dma.samplepos);
-    Com_Printf("%5d samplebits\n", dma.samplebits);
-    Com_Printf("%5d submission_chunk\n", dma.submission_chunk);
-    Com_Printf("%5d speed\n", dma.speed);
-    Com_Printf("%p dma buffer\n", dma.buffer);
+/**
+*	@brief	Display DMA buffer configuration and status information.
+**/
+static void DMA_SoundInfo( void ) {
+	Com_Printf( "%5d channels\n", dma.channels );
+	Com_Printf( "%5d samples\n", dma.samples );
+	Com_Printf( "%5d samplepos\n", dma.samplepos );
+	Com_Printf( "%5d samplebits\n", dma.samplebits );
+	Com_Printf( "%5d submission_chunk\n", dma.submission_chunk );
+	Com_Printf( "%5d speed\n", dma.speed );
+	Com_Printf( "%p dma buffer\n", dma.buffer );
 }
 
-static bool DMA_Init(void)
-{
-    sndinitstat_t ret = SIS_FAILURE;
-    int i;
+/**
+*	@brief	Initialize DMA sound backend and select appropriate driver.
+*	@return	True if initialization succeeded, false on error.
+*	@note	Attempts to initialize user-specified driver first, then falls back to others.
+*	@note	Initializes cvars, underwater filter, and volume settings.
+**/
+static bool DMA_Init( void ) {
+	sndinitstat_t ret = SIS_FAILURE;
+	int i;
 
-    s_khz = Cvar_Get("s_khz", "44", CVAR_ARCHIVE | CVAR_SOUND);
-    s_mixahead = Cvar_Get("s_mixahead", "0.1", CVAR_ARCHIVE);
-    s_testsound = Cvar_Get("s_testsound", "0", 0);
-    s_swapstereo = Cvar_Get("s_swapstereo", "0", 0);
-    cvar_t *s_driver = Cvar_Get("s_driver", "", CVAR_SOUND);
+	// Register console variables.
+	s_khz = Cvar_Get( "s_khz", "44", CVAR_ARCHIVE | CVAR_SOUND );
+	s_mixahead = Cvar_Get( "s_mixahead", "0.1", CVAR_ARCHIVE );
+	s_testsound = Cvar_Get( "s_testsound", "0", 0 );
+	s_swapstereo = Cvar_Get( "s_swapstereo", "0", 0 );
+	cvar_t *s_driver = Cvar_Get( "s_driver", "", CVAR_SOUND );
 
-    for (i = 0; s_drivers[i]; i++) {
-        if (!strcmp(s_drivers[i]->name, s_driver->string)) {
-            snddma = *s_drivers[i];
-            ret = snddma.init();
-            break;
-        }
-    }
+	// Try user-specified driver first.
+	for ( i = 0; s_drivers[i]; i++ ) {
+		if ( !strcmp( s_drivers[i]->name, s_driver->string ) ) {
+			snddma = *s_drivers[i];
+			ret = snddma.init();
+			break;
+		}
+	}
 
-    if (ret != SIS_SUCCESS) {
-        int tried = i;
-        for (i = 0; s_drivers[i]; i++) {
-            if (i == tried)
-                continue;
-            snddma = *s_drivers[i];
-            if ((ret = snddma.init()) == SIS_SUCCESS)
-                break;
-        }
-        Cvar_Reset(s_driver);
-    }
+	// Fall back to trying all available drivers.
+	if ( ret != SIS_SUCCESS ) {
+		int tried = i;
+		for ( i = 0; s_drivers[i]; i++ ) {
+			if ( i == tried )
+				continue;
+			snddma = *s_drivers[i];
+			if ( ( ret = snddma.init() ) == SIS_SUCCESS )
+				break;
+		}
+		Cvar_Reset( s_driver );
+	}
 
-    if (ret != SIS_SUCCESS)
-        return false;
+	if ( ret != SIS_SUCCESS )
+		return false;
 
-    //s_underwater_gain_hf->changed = s_underwater_gain_hf_changed;
-    s_underwater_gain_hf_changed(0.25f);
+	// Initialize underwater filter coefficients.
+	s_underwater_gain_hf_changed( 0.25f );
 
-    s_volume->changed = s_volume_changed;
-    s_volume_changed(s_volume);
+	// Set up volume change callback.
+	s_volume->changed = s_volume_changed;
+	s_volume_changed( s_volume );
 
-    s_numchannels = MAX_CHANNELS;
+	// Allocate maximum channels for software mixing.
+	s_numchannels = MAX_CHANNELS;
 
-    Com_Printf("sound sampling rate: %i\n", dma.speed);
+	Com_Printf( "sound sampling rate: %i\n", dma.speed );
 
-    return true;
+	return true;
 }
 
-static void DMA_Shutdown(void)
-{
-    snddma.shutdown();
-    s_numchannels = 0;
+/**
+*	@brief	Shutdown DMA sound backend and release resources.
+**/
+static void DMA_Shutdown( void ) {
+	snddma.shutdown();
+	s_numchannels = 0;
 
-    s_volume->changed = NULL;
+	s_volume->changed = nullptr;
 }
 
-static void DMA_Activate(void)
-{
-    if (snddma.activate) {
-        S_StopAllSounds();
-        snddma.activate(s_active);
-    }
+/**
+*	@brief	Activate DMA backend (called when window gains focus).
+**/
+static void DMA_Activate( void ) {
+	if ( snddma.activate ) {
+		S_StopAllSounds();
+		snddma.activate( s_active );
+	}
 }
 
-/*
-===============================================================================
+/**
+*
+*
+*
+*	Frame Updates and Audio Mixing:
+*
+*
+*
+**/
 
-FRAME UPDATES
+/**
+*	@brief	Calculate begin offset for sound playback with drift compensation.
+*	@param	timeofs	Time offset in seconds from current server time.
+*	@return	Sample index when sound should begin playing.
+*	@note	Implements drift correction to keep client audio synchronized with server.
+*	@note	Prevents excessive drift (limited to ±0.3 seconds).
+**/
+static int DMA_DriftBeginofs( float timeofs ) {
+	static int s_beginofs;
+	int start;
 
-===============================================================================
-*/
+	// Calculate ideal start time with accumulated drift offset.
+	start = cl.servertime * 0.001f * dma.speed + s_beginofs;
 
-static int DMA_DriftBeginofs(float timeofs)
-{
-    static int  s_beginofs;
-    int         start;
+	// If lagging behind, reset to current paint time.
+	if ( start < s_paintedtime ) {
+		start = s_paintedtime;
+		s_beginofs = start - ( cl.servertime * 0.001f * dma.speed );
+	// If too far ahead, clamp drift.
+	} else if ( start > s_paintedtime + 0.3f * dma.speed ) {
+		start = s_paintedtime + 0.1f * dma.speed;
+		s_beginofs = start - ( cl.servertime * 0.001f * dma.speed );
+	// Otherwise, apply gradual drift correction.
+	} else {
+		s_beginofs -= 10;
+	}
 
-    // drift s_beginofs
-    start = cl.servertime * 0.001f * dma.speed + s_beginofs;
-    if (start < s_paintedtime) {
-        start = s_paintedtime;
-        s_beginofs = start - (cl.servertime * 0.001f * dma.speed);
-    } else if (start > s_paintedtime + 0.3f * dma.speed) {
-        start = s_paintedtime + 0.1f * dma.speed;
-        s_beginofs = start - (cl.servertime * 0.001f * dma.speed);
-    } else {
-        s_beginofs -= 10;
-    }
-
-    return timeofs ? start + timeofs * dma.speed : s_paintedtime;
+	return timeofs ? start + timeofs * dma.speed : s_paintedtime;
 }
 
-static void DMA_ClearBuffer(void)
-{
-    snddma.begin_painting();
-    if (dma.buffer)
-        memset(dma.buffer, dma.samplebits == 8 ? 0x80 : 0, dma.samples * dma.samplebits / 8);
-    snddma.submit();
+/**
+*	@brief	Clear DMA hardware buffer (silence all audio).
+**/
+static void DMA_ClearBuffer( void ) {
+	snddma.begin_painting();
+	if ( dma.buffer )
+		memset( dma.buffer, dma.samplebits == 8 ? 0x80 : 0, dma.samples * dma.samplebits / 8 );
+	snddma.submit();
 }
 
-/*
-=================
-SpatializeOrigin
+/**
+*	@brief	Calculate stereo panning and distance attenuation for 3D sound source.
+*	@param	origin		3D position of sound source in world coordinates.
+*	@param	master_vol	Master volume multiplier (0.0 to 1.0).
+*	@param	dist_mult	Distance attenuation multiplier.
+*	@param	left_vol	Output left channel volume.
+*	@param	right_vol	Output right channel volume.
+*	@note	Uses dot product with listener's right vector for stereo panning.
+*	@note	Applies linear distance attenuation starting at SOUND_FULLVOLUME distance.
+**/
+static void SpatializeOrigin( const vec3_t origin, float master_vol, float dist_mult, float *left_vol, float *right_vol ) {
+	vec_t dot;
+	vec_t dist;
+	vec_t lscale, rscale, scale;
+	vec3_t source_vec;
 
-Used for spatializing channels and autosounds
-=================
-*/
-static void SpatializeOrigin(const vec3_t origin, float master_vol, float dist_mult, float *left_vol, float *right_vol)
-{
-    vec_t       dot;
-    vec_t       dist;
-    vec_t       lscale, rscale, scale;
-    vec3_t      source_vec;
+	// Calculate stereo separation and distance attenuation.
+	VectorSubtract( origin, cl.listener_spatialize.origin, source_vec );
 
-// calculate stereo seperation and distance attenuation
-    VectorSubtract(origin, cl.listener_spatialize.origin, source_vec);
+	dist = VectorNormalize( source_vec );
+	dist -= SOUND_FULLVOLUME;
+	if ( dist < 0 )
+		dist = 0;           // Close enough to be at full volume.
+	dist *= dist_mult;      // Apply attenuation multiplier.
 
-    dist = VectorNormalize(source_vec);
-    dist -= SOUND_FULLVOLUME;
-    if (dist < 0)
-        dist = 0;           // close enough to be at full volume
-    dist *= dist_mult;      // different attenuation levels
+	// Calculate stereo panning (mono output has no panning).
+	if ( dma.channels == 1 ) {
+		rscale = 1.0f;
+		lscale = 1.0f;
+	} else {
+		// Use dot product with listener's right vector for panning.
+		dot = DotProduct( cl.listener_spatialize.v_right, source_vec );
+		rscale = 0.5f * ( 1.0f + dot );
+		lscale = 0.5f * ( 1.0f - dot );
+	}
 
-    if (dma.channels == 1) {
-        rscale = 1.0f;
-        lscale = 1.0f;
-    } else {
-        dot = DotProduct( cl.listener_spatialize.v_right, source_vec);
-        rscale = 0.5f * (1.0f + dot);
-        lscale = 0.5f * (1.0f - dot);
-    }
+	// Combine distance attenuation with stereo panning.
+	scale = ( 1.0f - dist ) * rscale;
+	*right_vol = master_vol * scale;
+	if ( *right_vol < 0 )
+		*right_vol = 0;
 
-    // add in distance effect
-    scale = (1.0f - dist) * rscale;
-    *right_vol = master_vol * scale;
-    if (*right_vol < 0)
-        *right_vol = 0;
-
-    scale = (1.0f - dist) * lscale;
-    *left_vol = master_vol * scale;
-    if (*left_vol < 0)
-        *left_vol = 0;
+	scale = ( 1.0f - dist ) * lscale;
+	*left_vol = master_vol * scale;
+	if ( *left_vol < 0 )
+		*left_vol = 0;
 }
 
-/*
-=================
-DMA_Spatialize
-=================
-*/
-static void DMA_Spatialize(channel_t *ch)
-{
-    vec3_t      origin;
+/**
+*	@brief	Apply 3D spatialization to sound channel.
+*	@param	ch	Channel structure containing source position and volume parameters.
+*	@note	View entity sounds are always full volume (no attenuation or panning).
+*	@note	Updates ch->leftvol and ch->rightvol based on spatial calculation.
+**/
+static void DMA_Spatialize( channel_t *ch ) {
+	vec3_t origin;
 
-    // anything coming from the view entity will always be full volume
-    // no attenuation = no spatialization
-    if (S_IsFullVolume(ch)) {
-        ch->leftvol = ch->master_vol;
-        ch->rightvol = ch->master_vol;
-        return;
-    }
+	// View entity sounds are always full volume (no attenuation/spatialization).
+	if ( S_IsFullVolume( ch ) ) {
+		ch->leftvol = ch->master_vol;
+		ch->rightvol = ch->master_vol;
+		return;
+	}
 
-    if (ch->fixed_origin) {
-        VectorCopy(ch->origin, origin);
-    } else {
-        CL_GetEntitySoundOrigin(ch->entnum, origin);
-    }
+	// Determine sound source position.
+	if ( ch->fixed_origin ) {
+		VectorCopy( ch->origin, origin );
+	} else {
+		CL_GetEntitySoundOrigin( ch->entnum, origin );
+	}
 
-    SpatializeOrigin(origin, ch->master_vol, ch->dist_mult, &ch->leftvol, &ch->rightvol);
+	// Calculate stereo panning and distance attenuation.
+	SpatializeOrigin( origin, ch->master_vol, ch->dist_mult, &ch->leftvol, &ch->rightvol );
 }
 
-/*
-==================
-AddLoopSounds
-
-Entities with a ->sound field will generated looped sounds
-that are automatically started, stopped, and merged together
-as the entities are sent to the client
-==================
-*/
-static void AddLoopSounds(void)
-{
+/**
+*	@brief	Update and add looping ambient sounds for visible entities.
+*	@note	Entities with ->sound field generate looped sounds.
+*	@note	Automatically started, stopped, and merged as entities are sent to client.
+*	@note	DMA backend merges identical looping sounds into single channel.
+**/
+static void AddLoopSounds( void ) {
     int         i, j;
     int         sounds[MAX_EDICTS];
     float       left, right, left_total, right_total;
