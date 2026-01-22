@@ -251,265 +251,308 @@ static void S_SoundList_f( void ) {
     Com_Printf("Total resident: %zu\n", total);
 }
 
+//! Console command registration table.
 static const cmdreg_t c_sound[] = {
-    { "stopsound", S_StopAllSounds },
-    { "soundlist", S_SoundList_f },
-    { "soundinfo", S_SoundInfo_f },
-    //{ "soundeaxlist", S_SoundEAXList_f },
-    { NULL }
+	{ "stopsound", S_StopAllSounds },
+	{ "soundlist", S_SoundList_f },
+	{ "soundinfo", S_SoundInfo_f },
+	{ nullptr }
 };
 
-// =======================================================================
-// Init sound engine
-// =======================================================================
+/**
+*
+*
+*
+*	Initialization and Shutdown:
+*
+*
+*
+**/
 
-static void s_auto_focus_changed(cvar_t *self)
-{
-    S_Activate();
+/**
+*	@brief	Handle s_auto_focus cvar changes (activate/deactivate sound system).
+*	@param	self	Pointer to s_auto_focus cvar.
+**/
+static void s_auto_focus_changed( cvar_t *self ) {
+	S_Activate();
 }
 
-/*
-================
-S_Init
-================
-*/
-void S_Init(void)
-{
-    s_enable = Cvar_Get("s_enable", "2", CVAR_SOUND);
-    if (s_enable->integer <= SS_NOT) {
-        Com_Printf("Sound initialization disabled.\n");
-        return;
-    }
+/**
+*	@brief	Initialize sound system and select backend (OpenAL or DMA).
+*	@note	Registers console variables and commands.
+*	@note	Attempts to initialize OpenAL first, falls back to DMA if unavailable.
+*	@note	Initializes playsound queue, sound cache, and registration sequence.
+**/
+void S_Init( void ) {
+	s_enable = Cvar_Get( "s_enable", "2", CVAR_SOUND );
+	if ( s_enable->integer <= SS_NOT ) {
+		Com_Printf( "Sound initialization disabled.\n" );
+		return;
+	}
 
-    Com_Printf("------- S_Init -------\n");
+	Com_Printf( "------- S_Init -------\n" );
 
-    s_volume = Cvar_Get("s_volume", "0.7", CVAR_ARCHIVE);
-    s_ambient = Cvar_Get("s_ambient", "1", 0);
+	// Register console variables.
+	s_volume = Cvar_Get( "s_volume", "0.7", CVAR_ARCHIVE );
+	s_ambient = Cvar_Get( "s_ambient", "1", 0 );
 #if USE_DEBUG
-    s_show = Cvar_Get("s_show", "0", 0);
+	s_show = Cvar_Get( "s_show", "0", 0 );
 #endif
-    s_auto_focus = Cvar_Get("s_auto_focus", "0", 0);
-    s_underwater = Cvar_Get("s_underwater", "1", 0);
+	s_auto_focus = Cvar_Get( "s_auto_focus", "0", 0 );
+	s_underwater = Cvar_Get( "s_underwater", "1", 0 );
 
-    // start one of available sound engines
-    s_started = SS_NOT;
+	// Attempt to start one of available sound engines.
+	s_started = SS_NOT;
 
 #if USE_OPENAL
-    if (s_started == SS_NOT && s_enable->integer >= SS_OAL && snd_openal.init()) {
-        s_started = SS_OAL;
-        s_api = snd_openal;
-    }
+	// Try OpenAL backend first (preferred for 3D audio and EAX).
+	if ( s_started == SS_NOT && s_enable->integer >= SS_OAL && snd_openal.init() ) {
+		s_started = SS_OAL;
+		s_api = snd_openal;
+	}
 #endif
 
 #if USE_SNDDMA
-    if (s_started == SS_NOT && s_enable->integer >= SS_DMA && snd_dma.init()) {
-        s_started = SS_DMA;
-        s_api = snd_dma;
-    }
+	// Fall back to DMA backend if OpenAL unavailable.
+	if ( s_started == SS_NOT && s_enable->integer >= SS_DMA && snd_dma.init() ) {
+		s_started = SS_DMA;
+		s_api = snd_dma;
+	}
 #endif
 
-    if (s_started == SS_NOT) {
-        Com_EPrintf("Sound failed to initialize.\n");
-        goto fail;
-    }
+	if ( s_started == SS_NOT ) {
+		Com_EPrintf( "Sound failed to initialize.\n" );
+		goto fail;
+	}
 
-    Cmd_Register(c_sound);
+	// Register console commands.
+	Cmd_Register( c_sound );
 
-    // init playsound list
-    // clear DMA buffer
-    S_StopAllSounds();
+	// Initialize playsound queue and clear DMA buffer.
+	S_StopAllSounds();
 
-    s_auto_focus->changed = s_auto_focus_changed;
-    s_auto_focus_changed(s_auto_focus);
+	// Set up auto-focus callback.
+	s_auto_focus->changed = s_auto_focus_changed;
+	s_auto_focus_changed( s_auto_focus );
 
-    num_sfx = 0;
+	// Initialize sound cache and timing.
+	num_sfx = 0;
+	s_paintedtime = 0;
+	s_registration_sequence = 1;
 
-    s_paintedtime = 0;
-
-    s_registration_sequence = 1;
-
-	// start the cd track if we had any going.
+	// Resume music if we were playing before (level transitions).
 	if ( cls.state >= ca_precached ) {
 		OGG_RecoverState();
 	}
 
 fail:
-    Cvar_SetInteger(s_enable, s_started, FROM_CODE);
-    Com_Printf("----------------------\n");
+	Cvar_SetInteger( s_enable, s_started, FROM_CODE );
+	Com_Printf( "----------------------\n" );
 }
 
 
-// =======================================================================
-// Shutdown sound engine
-// =======================================================================
-
-static void S_FreeSound(sfx_t *sfx)
-{
-    if (s_api.delete_sfx)
-        s_api.delete_sfx(sfx);
-    if (sfx->cache)
-        Z_Free(sfx->cache);
-    if (sfx->truename)
-        Z_Free(sfx->truename);
-    memset(sfx, 0, sizeof(*sfx));
+/**
+*	@brief	Free single sound effect and associated resources.
+*	@param	sfx	Sound effect structure to free.
+*	@note	Calls backend delete_sfx, frees cache and truename, zeros structure.
+**/
+static void S_FreeSound( sfx_t *sfx ) {
+	if ( s_api.delete_sfx )
+		s_api.delete_sfx( sfx );
+	if ( sfx->cache )
+		Z_Free( sfx->cache );
+	if ( sfx->truename )
+		Z_Free( sfx->truename );
+	memset( sfx, 0, sizeof( *sfx ) );
 }
 
-void S_FreeAllSounds(void)
-{
-    int     i;
-    sfx_t   *sfx;
+/**
+*	@brief	Free all loaded sound effects from cache.
+*	@note	Called during shutdown and sound system restart.
+**/
+void S_FreeAllSounds( void ) {
+	int i;
+	sfx_t *sfx;
 
-    // free all sounds
-    for (i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++) {
-        if (!sfx->name[0])
-            continue;
-        S_FreeSound(sfx);
-    }
+	// Free all loaded sounds from cache.
+	for ( i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++ ) {
+		if ( !sfx->name[0] )
+			continue;
+		S_FreeSound( sfx );
+	}
 
-    num_sfx = 0;
+	num_sfx = 0;
 }
 
-//void S_FreeAllEAX( void ) {
-//    memset( &snd_reverb_cache, 0, sizeof( reverb_properties_cache_t ) );
-//}
+/**
+*	@brief	Shutdown sound system and release all resources.
+*	@note	Stops all sounds, frees cache, saves music state, shuts down backend.
+**/
+void S_Shutdown( void ) {
+	if ( !s_started )
+		return;
 
-void S_Shutdown(void)
-{
-    if (!s_started)
-        return;
-
-    S_StopAllSounds();
-    S_FreeAllSounds();
+	// Stop all active sounds and playsounds.
+	S_StopAllSounds();
+	
+	// Free sound effect cache.
+	S_FreeAllSounds();
+	
+	// Save music state for next session.
 	OGG_SaveState();
-    OGG_Stop();
+	OGG_Stop();
 
-    s_api.shutdown();
-    memset(&s_api, 0, sizeof(s_api));
+	// Shutdown backend (OpenAL or DMA).
+	s_api.shutdown();
+	memset( &s_api, 0, sizeof( s_api ) );
 
-    s_started = SS_NOT;
-    s_active = false;
+	s_started = SS_NOT;
+	s_active = false;
 
-    s_auto_focus->changed = NULL;
+	// Remove cvar callback.
+	s_auto_focus->changed = nullptr;
 
-    Cmd_Deregister(c_sound);
+	// Unregister console commands.
+	Cmd_Deregister( c_sound );
 
-    Z_LeakTest(TAG_SOUND);
+	// Check for memory leaks in sound tag.
+	Z_LeakTest( TAG_SOUND );
 }
 
-void S_Activate(void)
-{
-    bool active;
-    active_t level;
+/**
+*	@brief	Activate or deactivate sound system based on window focus.
+*	@note	Called when window gains/loses focus or s_auto_focus changes.
+*	@note	Drops streaming samples when deactivating to prevent stale audio.
+**/
+void S_Activate( void ) {
+	bool active;
+	active_t level;
 
-    if (!s_started)
-        return;
+	if ( !s_started )
+		return;
 
-    level = Cvar_ClampInteger(s_auto_focus, ACT_MINIMIZED, ACT_ACTIVATED);
+	// Determine activation level from s_auto_focus cvar.
+	level = Cvar_ClampInteger( s_auto_focus, ACT_MINIMIZED, ACT_ACTIVATED );
 
-    active = cls.active >= level;
+	// Check if client activation level meets threshold.
+	active = cls.active >= level;
 
-    if (active == s_active)
-        return;
+	if ( active == s_active )
+		return;
 
-    Com_DDDPrintf("%s: %d\n", __func__, active);
-    s_active = active;
+	Com_DDDPrintf( "%s: %d\n", __func__, active );
+	s_active = active;
 
-    if (!active)
-        s_api.drop_raw_samples();
+	// Drop streaming samples when deactivating.
+	if ( !active )
+		s_api.drop_raw_samples();
 
-    s_api.activate();
+	s_api.activate();
 }
 
-// =======================================================================
-// Load a sound
-// =======================================================================
+/**
+*
+*
+*
+*	Sound Loading and Registration:
+*
+*
+*
+**/
 
-/*
-==================
-S_SfxForHandle
-==================
-*/
-sfx_t *S_SfxForHandle(qhandle_t hSfx)
-{
-    if (!hSfx) {
-        return NULL;
-    }
+/**
+*	@brief	Convert sound handle to sfx_t pointer.
+*	@param	hSfx	Sound handle (1-based index).
+*	@return	Pointer to sfx_t structure, or NULL if handle is 0.
+*	@note	Validates handle range and throws error if out of bounds.
+**/
+sfx_t *S_SfxForHandle( qhandle_t hSfx ) {
+	if ( !hSfx ) {
+		return nullptr;
+	}
 
-    if (hSfx < 1 || hSfx > num_sfx) {
-        Com_Error(ERR_DROP, "S_SfxForHandle: %d out of range", hSfx);
-    }
+	if ( hSfx < 1 || hSfx > num_sfx ) {
+		Com_Error( ERR_DROP, "S_SfxForHandle: %d out of range", hSfx );
+	}
 
-    return &known_sfx[hSfx - 1];
+	return &known_sfx[hSfx - 1];
 }
 
-static sfx_t *S_AllocSfx(void)
-{
-    sfx_t   *sfx;
-    int     i;
+/**
+*	@brief	Allocate new sfx_t slot from cache.
+*	@return	Pointer to free sfx_t slot, or NULL if cache is full.
+*	@note	Searches for free slot (name[0] == 0) or allocates new slot.
+**/
+static sfx_t *S_AllocSfx( void ) {
+	sfx_t *sfx;
+	int i;
 
-    // find a free sfx
-    for (i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++) {
-        if (!sfx->name[0])
-            break;
-    }
+	// Find first free sfx slot.
+	for ( i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++ ) {
+		if ( !sfx->name[0] )
+			break;
+	}
 
-    if (i == num_sfx) {
-        if (num_sfx == MAX_SFX)
-            return NULL;
-        num_sfx++;
-    }
+	// Allocate new slot if no free slots found.
+	if ( i == num_sfx ) {
+		if ( num_sfx == MAX_SFX )
+			return nullptr;
+		num_sfx++;
+	}
 
-    return sfx;
+	return sfx;
 }
 
-/*
-==================
-S_FindName
+/**
+*	@brief	Find or allocate sound effect by name.
+*	@param	name		Sound file path.
+*	@param	namelen		Length of name string.
+*	@return	Pointer to existing or newly allocated sfx_t, or NULL if cache full.
+*	@note	Updates registration sequence for LRU cache management.
+**/
+static sfx_t *S_FindName( const char *name, size_t namelen ) {
+	int i;
+	sfx_t *sfx;
 
-==================
-*/
-static sfx_t *S_FindName(const char *name, size_t namelen)
-{
-    int     i;
-    sfx_t   *sfx;
+	// Search for existing sound with same name.
+	for ( i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++ ) {
+		if ( !FS_pathcmp( sfx->name, name ) ) {
+			sfx->registration_sequence = s_registration_sequence;
+			return sfx;
+		}
+	}
 
-    // See if already loaded.
-    for (i = 0, sfx = known_sfx; i < num_sfx; i++, sfx++) {
-        if (!FS_pathcmp(sfx->name, name)) {
-            sfx->registration_sequence = s_registration_sequence;
-            return sfx;
-        }
-    }
-
-    // Allocate new one.
-    sfx = S_AllocSfx();
-    if (sfx) {
-        memcpy(sfx->name, name, namelen + 1);
-        sfx->registration_sequence = s_registration_sequence;
-    }
-    return sfx;
+	// Allocate new sfx slot.
+	sfx = S_AllocSfx();
+	if ( sfx ) {
+		memcpy( sfx->name, name, namelen + 1 );
+		sfx->registration_sequence = s_registration_sequence;
+	}
+	return sfx;
 }
 
-/*
-=====================
-S_BeginRegistration
-
-=====================
-*/
-void S_BeginRegistration(void)
-{
-    s_registration_sequence++;
-    s_registering = true;
+/**
+*	@brief	Begin sound registration phase for new level.
+*	@note	Increments registration sequence for LRU cache management.
+*	@note	Sounds not re-registered will be freed during S_EndRegistration.
+**/
+void S_BeginRegistration( void ) {
+	s_registration_sequence++;
+	s_registering = true;
 }
 
-/*
-==================
-S_RegisterSound
-
-==================
-*/
-qhandle_t S_RegisterSound(const char *name)
-{
+/**
+*	@brief	Register sound effect for precaching.
+*	@param	name	Sound file path (relative to game directory or absolute).
+*	@return	Sound handle (1-based index), or 0 on error.
+*	@note	Accepts three naming conventions:
+*			- Empty string: silently returns 0
+*			- '*' prefix: placeholder for client-specific sounds
+*			- '#' prefix: absolute path (strips '#' prefix)
+*			- Normal: prepends "sound/" directory
+*	@note	Loads sound immediately if not in registration phase.
+**/
+qhandle_t S_RegisterSound( const char *name ) {
     char    buffer[MAX_QPATH];
     sfx_t   *sfx;
     size_t  len;
