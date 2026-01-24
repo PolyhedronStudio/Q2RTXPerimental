@@ -22,6 +22,7 @@
 #endif
 
 #include <cstdint>
+#include <unordered_map>
 #include <vector>
 
 static constexpr uint32_t NAV_MESH_SAVE_MAGIC = 0x56414E53; // "VANS"
@@ -59,9 +60,16 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 		return false;
 	}
 
-	gzFile f = gzopen( filename, "rb" );
+	//if ( baseGame.empty() ) {
+	//	baseGame = BASEGAME;
+	//}
+	//// Build full file path.
+	//const std::string filePath = baseGame + "/maps/navmeshes/" + std::string( filename );
+	const std::string filePath = BASEGAME "/maps/nav/" + std::string( filename );
+
+	gzFile f = gzopen( filePath.c_str(), "rb");
 	if ( !f ) {
-		gi.dprintf( "%s: failed to open '%s'\n", __func__, filename );
+		gi.dprintf( "%s: failed to open '%s'\n", __func__, filePath.c_str() );
 		return false;
 	}
 
@@ -256,6 +264,57 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 	// Runtime mapping is not persisted (depends on live entities).
 	mesh->num_inline_model_runtime = 0;
 	mesh->inline_model_runtime = nullptr;
+
+	// Rebuild runtime mapping now that the mesh is loaded so inline-model traversal has live transforms.
+	// Refresh alone is not enough because the runtime array is not persisted and may be null.
+	if ( mesh->num_inline_models > 0 ) {
+		std::unordered_map<int32_t, svg_base_edict_t *> model_to_ent;
+		model_to_ent.reserve( (size_t)mesh->num_inline_models );
+		for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
+			svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+			if ( !ent || !SVG_Entity_IsActive( ent ) ) {
+				continue;
+			}
+
+			const char *modelStr = ent->model;
+			if ( !modelStr || modelStr[ 0 ] != '*' ) {
+				continue;
+			}
+
+			const int32_t modelIndex = atoi( modelStr + 1 );
+			if ( modelIndex <= 0 ) {
+				continue;
+			}
+
+			if ( model_to_ent.find( modelIndex ) == model_to_ent.end() ) {
+				model_to_ent.emplace( modelIndex, ent );
+			}
+		}
+
+		// Build runtime mapping for all referenced inline models.
+		// This allows traversal/pathfinding to use correct live transforms.
+		mesh->num_inline_model_runtime = (int32_t)model_to_ent.size();
+		if ( mesh->num_inline_model_runtime > 0 ) {
+			mesh->inline_model_runtime = (nav_inline_model_runtime_t *)gi.TagMallocz(
+				sizeof( nav_inline_model_runtime_t ) * (size_t)mesh->num_inline_model_runtime, TAG_SVGAME_LEVEL );
+			int32_t out_index = 0;
+			for ( const auto &it : model_to_ent ) {
+				const int32_t model_index = it.first;
+				svg_base_edict_t *ent = it.second;
+
+				nav_inline_model_runtime_t &rt = mesh->inline_model_runtime[ out_index ];
+				rt.model_index = model_index;
+				rt.owner_ent = ent;
+				rt.owner_entnum = ent ? ent->s.number : 0;
+				rt.origin = ent ? ent->currentOrigin : Vector3{};
+				rt.angles = ent ? ent->currentAngles : Vector3{};
+				rt.dirty = false;
+				out_index++;
+			}
+		}
+
+		SVG_Nav_RefreshInlineModelRuntime();
+	}
 
 	gzclose( f );
 	return true;

@@ -33,18 +33,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 
 /**
-*	@brief	Emit a single `TE_DEBUGTRAIL` segment (start->end).
+*	@brief	Emit a single `TE_DEBUG_TRAIL` segment (start->end).
 **/
 void SVG_DebugDrawLine_TE( const Vector3 &start, const Vector3 &end, const multicast_t multicastType, const bool reliable ) {
 	gi.WriteUint8( svc_temp_entity );
-	gi.WriteUint8( TE_DEBUGTRAIL );
+	gi.WriteUint8( TE_DEBUG_TRAIL );
 	gi.WritePosition( &start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 	gi.WritePosition( &end, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 	gi.multicast( &start, multicastType, reliable );
 }
 
 /**
-*	@brief	Draw an axis-aligned bounding box by emitting 12 `TE_DEBUGTRAIL` line segments.
+*	@brief	Draw an axis-aligned bounding box by emitting 12 `TE_DEBUG_TRAIL` line segments.
 **/
 void SVG_DebugDrawBBox_TE( const Vector3 &mins, const Vector3 &maxs, const multicast_t multicastType, const bool reliable ) {
 	const Vector3 v000 = { mins[ 0 ], mins[ 1 ], mins[ 2 ] };
@@ -83,6 +83,76 @@ void SVG_DebugDrawCube_TE( const Vector3 &center, const float halfExtent, const 
 	const Vector3 maxs = { center[ 0 ] + halfExtent, center[ 1 ] + halfExtent, center[ 2 ] + halfExtent };
 	SVG_DebugDrawBBox_TE( mins, maxs, multicastType, reliable );
 }
+
+
+
+/**
+*
+*
+*
+*	Various Misc:
+*
+*
+*
+**/
+/**
+*	@brief	Basic Trigger initialization mechanism.
+**/
+void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
+	// Set the movedir vector based on the angles.
+	if ( !VectorEmpty( self->s.angles ) ) {
+		// Set the movedir vector based on the angles.
+		SVG_Util_SetMoveDir( self->s.angles, self->movedir );
+		// Assign the angles using the utility method to ensure consistency.
+		SVG_Util_SetEntityAngles( self, self->s.angles, true );
+	}
+	//
+	self->solid = SOLID_TRIGGER;
+	self->movetype = MOVETYPE_NONE;
+	// Set the model.
+	if ( self->model.ptr ) {
+		gi.setmodel( self, self->model.ptr );
+	}
+	// Ensure it is never sent over the wire to any clients.
+	self->svFlags = SVF_NOCLIENT;
+}
+
+/**
+*   @brief  Determines the client that is most near to the entity,
+*           and returns its length for ( ent->origin - client->origin ).
+**/
+const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent ) {
+	// The best distance will always be flt_max.
+	double bestDistance = CM_MAX_WORLD_SIZE + 1.f;
+
+	// Ensure entity is active.
+	if ( !SVG_Entity_IsActive( ent ) ) {
+		// Debug print.
+		gi.dprintf( "%s: Entity isn't active.\n", __func__ );
+		return bestDistance;
+	}
+
+	for ( int32_t n = 1; n <= maxclients->value; n++ ) {
+		// Get client.
+		svg_base_edict_t *clientEntity = g_edict_pool.EdictForNumber( n );//&g_edicts[ n ];
+		// Ensure is active and alive player.
+		if ( !SVG_Entity_IsClient( clientEntity, true ) ) {
+			continue;
+		}
+
+		// Calculate distance.
+		const double distanceLength = QM_Vector3Length( Vector3( ent->s.origin ) - clientEntity->s.origin );
+
+		// Assign as best distance if nearer to ent.
+		if ( distanceLength < bestDistance ) {
+			bestDistance = distanceLength;
+		}
+	}
+
+	// Return result.
+	return bestDistance;
+}
+
 
 
 /**
@@ -158,29 +228,6 @@ void SVG_Util_SetEntityAngles( svg_base_edict_t *ent, const Vector3 &angles, con
 	}
 }
 
-
-/**
-*	@brief	Basic Trigger initialization mechanism.
-**/
-void SVG_Util_InitTrigger( svg_base_edict_t *self ) {
-	// Set the movedir vector based on the angles.
-    if ( !VectorEmpty( self->s.angles ) ) {
-		// Set the movedir vector based on the angles.
-        SVG_Util_SetMoveDir( self->s.angles, self->movedir );
-		// Assign the angles using the utility method to ensure consistency.
-		SVG_Util_SetEntityAngles( self, self->s.angles, true );
-    }
-    //
-    self->solid = SOLID_TRIGGER;
-    self->movetype = MOVETYPE_NONE;
-	// Set the model.
-    if ( self->model.ptr ) {
-        gi.setmodel( self, self->model.ptr );
-    }
-    // Ensure it is never sent over the wire to any clients.
-    self->svFlags = SVF_NOCLIENT;
-}
-
 /**
 *   @brief	Will set the movedir vector based on the angles.
 *
@@ -209,42 +256,6 @@ void SVG_Util_SetMoveDir( Vector3 &angles, Vector3 &movedir, const bool clearAng
     if ( clearAngles ) {
         VectorClear( angles );
     }
-}
-
-/**
-*   @brief  Determines the client that is most near to the entity,
-*           and returns its length for ( ent->origin - client->origin ).
-**/
-const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent ) {
-    // The best distance will always be flt_max.
-    double bestDistance = CM_MAX_WORLD_SIZE + 1.f;
-
-	// Ensure entity is active.
-    if ( !SVG_Entity_IsActive( ent ) ) {
-        // Debug print.
-        gi.dprintf( "%s: Entity isn't active.\n", __func__ );
-        return bestDistance;
-    }
-
-    for ( int32_t n = 1; n <= maxclients->value; n++ ) {
-        // Get client.
-        svg_base_edict_t *clientEntity = g_edict_pool.EdictForNumber( n );//&g_edicts[ n ];
-        // Ensure is active and alive player.
-        if ( !SVG_Entity_IsClient( clientEntity, true ) ) {
-            continue;
-        }
-
-        // Calculate distance.
-        const double distanceLength = QM_Vector3Length( Vector3( ent->s.origin ) - clientEntity->s.origin );
-
-        // Assign as best distance if nearer to ent.
-        if ( distanceLength < bestDistance ) {
-            bestDistance = distanceLength;
-        }
-    }
-
-    // Return result.
-    return bestDistance;
 }
 
 

@@ -61,7 +61,7 @@ typedef enum temp_entity_event_e {
     TE_TELEPORT_EFFECT,     // Teleporter effect
     
     TE_FLASHLIGHT,          // Flashlight beam
-    TE_DEBUGTRAIL,          // Debug visualization trail
+    TE_DEBUG_TRAIL,          // Debug visualization trail
     
     TE_NUM_ENTITY_EVENTS    // Total count
 } temp_entity_event_t;

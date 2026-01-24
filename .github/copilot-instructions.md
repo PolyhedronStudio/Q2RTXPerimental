@@ -4,6 +4,8 @@
 - Use 1TBS/K&R braces everywhere for new/modified code.
 - Always use `nullptr` (avoid `NULL`).
 - Prefer tabs for indentation; otherwise, use 4 spaces unless the file predominantly uses a different indent width. Match the immediate file’s indentation quirks.
+- When implementing new systems, prefer enforcing drop limits both in A* edge validation and in path-following safety checks.
+- When adjusting monster navigation/movement, always account for slopes and stairs (walkable surfaces, step-up/step-down) alongside cornering and center-origin hull issues.
 
 ## Code Style
 - Follow consistent formatting rules across the project.
@@ -12,3 +14,4 @@
 - Use explanatory // comments before small code blocks.
 - Use spaced parameter style in function declarations, e.g., `void Func( const Type &param, const int32_t x, const bool flag = false );`
 - For header (or rare TU) class declarations, use `svg_func_plat_trigger_t` as the canonical minimal example: sectioned Doxygen blocks for Construct/Destruct, DefineWorldSpawnClass, Save Descriptor Fields, Core (Reset/Save/Restore), Callback Member Functions, Member Functions, Member Variables; with small //! member comments and the established indentation/spacing.
+- Member functions can have Doxygen comments, and member variables can also be documented.

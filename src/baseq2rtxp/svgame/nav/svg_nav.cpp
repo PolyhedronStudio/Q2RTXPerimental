@@ -32,8 +32,32 @@
 static constexpr float DEG_TO_RAD = M_PI / 180.0f;
 //! Conversion factor from microseconds to seconds.
 static constexpr double MICROSECONDS_PER_SECOND = 1000000.0;
+//! Small epsilon to ensure max bounds map to the correct tile.
+static constexpr float NAV_TILE_EPSILON = 0.001f;
 
 
+
+/**
+*
+*	Forward Declarations (Debug):
+*
+**/
+/**
+*	@return	True if navigation debug drawing is enabled.
+**/
+static inline bool NavDebug_Enabled( void );
+/**
+*	@brief	Draw a single sample tick at the given position with the given height.
+**/
+static void NavDebug_DrawSampleTick( const Vector3 &pos, const float height );
+/**
+*	@brief  Clear cached debug paths.
+**/
+static void NavDebug_ClearCachedPaths( void );
+/**
+*	@brief	Purge cached paths that have expired.
+**/
+static void NavDebug_PurgeCachedPaths( void );
 
 /**
 *
@@ -76,15 +100,13 @@ void SVG_Nav_RefreshInlineModelRuntime( void );
 *	@return	True if the traversal is possible, false otherwise.
 **/
 static bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity );
+static bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity );
+
 
 
 /**
 *
-*
-*
-*   Navigation Debug Drawing:
-*
-*
+*   CVars fpr Navigation Debug Drawing:
 *
 **/
 //! Master on/off. 0 = off, 1 = on.
@@ -93,7 +115,7 @@ static cvar_t *nav_debug_draw = nullptr;
 static cvar_t *nav_debug_draw_leaf = nullptr;
 //! Only draw a specific tile (grid coords). Requires "x y". "*" disables.
 static cvar_t *nav_debug_draw_tile = nullptr;
-//! Budget in TE_DEBUGTRAIL line segments per server frame.
+//! Budget in TE_DEBUG_TRAIL line segments per server frame.
 static cvar_t *nav_debug_draw_max_segments = nullptr;
 //! Max distance from current view player to draw debug (world units). 0 disables.
 static cvar_t *nav_debug_draw_max_dist = nullptr;
@@ -104,357 +126,13 @@ static cvar_t *nav_debug_draw_samples = nullptr;
 //! Draw final path segments from traversal path query.
 static cvar_t *nav_debug_draw_path = nullptr;
 
-
-
-/**
-* 
-* 
-* 
-*	Navigation Debug Drawing - State and Helpers:
-* 
-* 
-* 
-**/
-typedef struct nav_debug_draw_state_s {
-	int32_t frame = -1;
-	int32_t segments_used = 0;
-} nav_debug_draw_state_t;
-
-static nav_debug_draw_state_t s_nav_debug_draw_state = {};
-
-/**
-*
-*
-*
-*	Navigation Debug Drawing - Runtime Draw:
-*
-*
-*
-**/
-static inline void NavDebug_NewFrame( void ) {
-	if ( s_nav_debug_draw_state.frame == ( int32_t )level.frameNumber ) {
-		return;
-	}
-
-	s_nav_debug_draw_state.frame = ( int32_t )level.frameNumber;
-	s_nav_debug_draw_state.segments_used = 0;
-}
-
-static inline bool NavDebug_CanEmitSegments( const int32_t count ) {
-	NavDebug_NewFrame();
-
-	const int32_t maxSegments = ( nav_debug_draw_max_segments ? nav_debug_draw_max_segments->integer : 0 );
-	if ( maxSegments <= 0 ) {
-		return false;
-	}
-
-	return ( s_nav_debug_draw_state.segments_used + count ) <= maxSegments;
-}
-
-static inline void NavDebug_ConsumeSegments( const int32_t count ) {
-	s_nav_debug_draw_state.segments_used += count;
-}
-
-static inline bool NavDebug_Enabled( void ) {
-	return nav_debug_draw && nav_debug_draw->integer != 0;
-}
-
-static inline Vector3 NavDebug_GetViewOrigin( void ) {
-	if ( game.currentViewPlayer ) {
-		return game.currentViewPlayer->currentOrigin;
-	}
-
-	// Fallback: try client #1 (singleplayer typical).
-	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 1 );
-	if ( SVG_Entity_IsClient( ent, false ) ) {
-		return ent->currentOrigin;
-	}
-
-	return {};
-}
-
-static inline bool NavDebug_PassesDistanceFilter( const Vector3 &pos ) {
-	const float maxDist = ( nav_debug_draw_max_dist ? nav_debug_draw_max_dist->value : 0.0f );
-	if ( maxDist <= 0.0f ) {
-		return true;
-	}
-
-	const Vector3 viewOrg = NavDebug_GetViewOrigin();
-	const Vector3 d = QM_Vector3Subtract( pos, viewOrg );
-	const float distSqr = ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) + ( d[ 2 ] * d[ 2 ] );
-	return distSqr <= ( maxDist * maxDist );
-}
-
-static bool NavDebug_ParseTileFilter( int32_t *outTileX, int32_t *outTileY ) {
-	if ( !outTileX || !outTileY || !nav_debug_draw_tile ) {
-		return false;
-	}
-
-	const char *s = nav_debug_draw_tile->string;
-	if ( !s || !s[ 0 ] || s[ 0 ] == '*' ) {
-		return false;
-	}
-
-	int x = 0, y = 0;
-	if ( sscanf( s, "%d %d", &x, &y ) != 2 ) {
-		return false;
-	}
-
-	*outTileX = x;
-	*outTileY = y;
-	return true;
-}
-
-static inline bool NavDebug_FilterLeaf( const int32_t leafIndex ) {
-	if ( !nav_debug_draw_leaf ) {
-		return true;
-	}
-
-	const int32_t wanted = nav_debug_draw_leaf->integer;
-	return ( wanted < 0 ) || ( wanted == leafIndex );
-}
-
-static inline bool NavDebug_FilterTile( const int32_t tileX, const int32_t tileY ) {
-	int32_t wantedX = 0, wantedY = 0;
-	if ( !NavDebug_ParseTileFilter( &wantedX, &wantedY ) ) {
-		return true;
-	}
-
-	return tileX == wantedX && tileY == wantedY;
-}
-
-
-/**
-*   @brief  Calculate the world-space size of a tile.
-**/
-static inline float Nav_TileWorldSize( const nav_mesh_t *mesh ) {
-	return mesh->cell_size_xy * ( float )mesh->tile_size;
-}
-
-static void NavDebug_DrawSampleTick( const Vector3 &pos, const float height ) {
-	if ( !NavDebug_Enabled() || !nav_debug_draw_samples || nav_debug_draw_samples->integer == 0 ) {
-		return;
-	}
-
-	if ( !NavDebug_CanEmitSegments( 1 ) ) {
-		return;
-	}
-
-	if ( !NavDebug_PassesDistanceFilter( pos ) ) {
-		return;
-	}
-
-	Vector3 end = pos;
-	end[ 2 ] += height;
-
-	SVG_DebugDrawLine_TE( pos, end, MULTICAST_PVS, false );
-	NavDebug_ConsumeSegments( 1 );
-}
-
-/**
-*	@brief Draw the bounding box of a tile.
-*	@param mesh
-*	@param tile
-**/
-static void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
-	if ( !NavDebug_Enabled() || !nav_debug_draw_tile_bounds || nav_debug_draw_tile_bounds->integer == 0 ) {
-		return;
-	}
-	if ( !NavDebug_CanEmitSegments( 12 ) ) {
-		return;
-	}
-	const float tileWorldSize = Nav_TileWorldSize( mesh );
-	const Vector3 mins = {
-		tile->tile_x * tileWorldSize,
-		tile->tile_y * tileWorldSize,
-		-4096.0f
-	};
-	const Vector3 maxs = {
-		mins[ 0 ] + tileWorldSize,
-		mins[ 1 ] + tileWorldSize,
-		4096.0f
-	};
-	// Check distance filter against tile center.
-	const Vector3 tileCenter = {
-		( mins[ 0 ] + maxs[ 0 ] ) * 0.5f,
-		( mins[ 1 ] + maxs[ 1 ] ) * 0.5f,
-		( mins[ 2 ] + maxs[ 2 ] ) * 0.5f
-	};
-	if ( !NavDebug_PassesDistanceFilter( tileCenter ) ) {
-		return;
-	}
-	SVG_DebugDrawBBox_TE( mins, maxs, MULTICAST_PVS, false );
-	NavDebug_ConsumeSegments( 12 );
-}
-/**
-*	@brief	Check if navigation debug drawing is enabled and draw so if it is.
-**/
-void SVG_Nav_DebugDraw( void ) {
-	if ( !g_nav_mesh ) {
-		return;
-	}
-	if ( !NavDebug_Enabled() ) {
-		return;
-	}
-
-	const nav_mesh_t *mesh = g_nav_mesh;
-	const float tileWorldSize = Nav_TileWorldSize( mesh );
-	const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
-
-	/**
-	*	World mesh (per leaf):
-	**/
-	for ( int32_t leafIndex = 0; leafIndex < mesh->num_leafs; leafIndex++ ) {
-		if ( !NavDebug_FilterLeaf( leafIndex ) ) {
-			continue;
-		}
-
-		const nav_leaf_data_t *leaf = &mesh->leaf_data[ leafIndex ];
-		if ( !leaf || leaf->num_tiles <= 0 || !leaf->tiles ) {
-			continue;
-		}
-
-		for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
-			const nav_tile_t *tile = &leaf->tiles[ t ];
-			if ( !tile ) {
-				continue;
-			}
-
-			if ( !NavDebug_FilterTile( tile->tile_x, tile->tile_y ) ) {
-				continue;
-			}
-
-			// Tile bounds.
-			NavDebug_DrawTileBBox( mesh, tile );
-
-			// Samples (top-most layer tick per XY cell).
-			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-				const float tileOriginX = tile->tile_x * tileWorldSize;
-				const float tileOriginY = tile->tile_y * tileWorldSize;
-
-				for ( int32_t cellIndex = 0; cellIndex < cellsPerTile; cellIndex++ ) {
-					const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
-					if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
-						continue;
-					}
-
-					const int32_t cellX = cellIndex % mesh->tile_size;
-					const int32_t cellY = cellIndex / mesh->tile_size;
-
-					const nav_layer_t *layer = &cell->layers[ 0 ];
-					Vector3 p = {
-						tileOriginX + ( ( float )cellX + 0.5f ) * mesh->cell_size_xy,
-						tileOriginY + ( ( float )cellY + 0.5f ) * mesh->cell_size_xy,
-						layer->z_quantized * mesh->z_quant
-					};
-
-					NavDebug_DrawSampleTick( p, 12.0f );
-
-					// If we ran out of budget, stop early.
-					if ( !NavDebug_CanEmitSegments( 1 ) ) {
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	/**
-	*	Inline model mesh (optional): draw tile bounds + samples transformed into world space.
-	**/
-	if ( mesh->num_inline_models <= 0 || !mesh->inline_model_data ||
-		mesh->num_inline_model_runtime <= 0 || !mesh->inline_model_runtime ) {
-		return;
-	}
-
-	// Map: model_index -> runtime entry (linear search; small counts, cheap enough for debug).
-	auto find_runtime = [mesh]( const int32_t modelIndex ) -> const nav_inline_model_runtime_t * {
-		for ( int32_t i = 0; i < mesh->num_inline_model_runtime; i++ ) {
-			if ( mesh->inline_model_runtime[ i ].model_index == modelIndex ) {
-				return &mesh->inline_model_runtime[ i ];
-			}
-		}
-		return nullptr;
-		};
-
-	for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
-		const nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
-		if ( !model || model->num_tiles <= 0 || !model->tiles ) {
-			continue;
-		}
-
-		const nav_inline_model_runtime_t *rt = find_runtime( model->model_index );
-		if ( !rt ) {
-			continue;
-		}
-
-		// Debug draw for inline models currently ignores rotation (angles) and uses translation only.
-		// This is still useful for doors/platforms that primarily translate.
-		const Vector3 origin = rt->origin;
-
-		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
-			const nav_tile_t *tile = &model->tiles[ t ];
-			if ( !tile ) {
-				continue;
-			}
-
-			// Inline tiles are stored in model-local space where tile_x/y start at 0.
-			// Provide filtering by treating these as local tile coords.
-			if ( !NavDebug_FilterTile( tile->tile_x, tile->tile_y ) ) {
-				continue;
-			}
-
-			// Tile bounds (translated).
-			if ( NavDebug_Enabled() && nav_debug_draw_tile_bounds && nav_debug_draw_tile_bounds->integer != 0 ) {
-				if ( NavDebug_CanEmitSegments( 12 ) ) {
-					const Vector3 minsLocal = { tile->tile_x * tileWorldSize, tile->tile_y * tileWorldSize, -4096.0f };
-					const Vector3 maxsLocal = { minsLocal[ 0 ] + tileWorldSize, minsLocal[ 1 ] + tileWorldSize, 4096.0f };
-
-					const Vector3 minsWorld = QM_Vector3Add( minsLocal, origin );
-					const Vector3 maxsWorld = QM_Vector3Add( maxsLocal, origin );
-
-					const Vector3 center = { ( minsWorld[ 0 ] + maxsWorld[ 0 ] ) * 0.5f, ( minsWorld[ 1 ] + maxsWorld[ 1 ] ) * 0.5f, 0.0f };
-					if ( NavDebug_PassesDistanceFilter( center ) ) {
-						SVG_DebugDrawBBox_TE( minsWorld, maxsWorld, MULTICAST_PVS, false );
-						NavDebug_ConsumeSegments( 12 );
-					}
-				} else {
-					return;
-				}
-			}
-
-			// Samples (translated).
-			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-				const float tileOriginXLocal = tile->tile_x * tileWorldSize;
-				const float tileOriginYLocal = tile->tile_y * tileWorldSize;
-
-				for ( int32_t cellIndex = 0; cellIndex < cellsPerTile; cellIndex++ ) {
-					const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
-					if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
-						continue;
-					}
-
-					const int32_t cellX = cellIndex % mesh->tile_size;
-					const int32_t cellY = cellIndex / mesh->tile_size;
-
-					const nav_layer_t *layer = &cell->layers[ 0 ];
-					Vector3 pLocal = {
-						tileOriginXLocal + ( ( float )cellX + 0.5f ) * mesh->cell_size_xy,
-						tileOriginYLocal + ( ( float )cellY + 0.5f ) * mesh->cell_size_xy,
-						layer->z_quantized * mesh->z_quant
-					};
-
-					Vector3 pWorld = QM_Vector3Add( pLocal, origin );
-					NavDebug_DrawSampleTick( pWorld, 12.0f );
-
-					if ( !NavDebug_CanEmitSegments( 1 ) ) {
-						return;
-					}
-				}
-			}
-		}
-	}
-}
+// Cached debug paths (last computed traversal paths for the current server frame).
+static constexpr QMTime NAV_DEBUG_PATH_RETENTION = QMTime::FromMilliseconds( 1500 );
+struct nav_debug_cached_path_t {
+	nav_traversal_path_t path;
+	QMTime expireTime;
+};
+static std::vector<nav_debug_cached_path_t> s_nav_debug_cached_paths;
 
 
 
@@ -509,6 +187,12 @@ cvar_t *nav_agent_maxs_z = nullptr;
 *
 **/
 /**
+*   @brief  Calculate the world-space size of a tile.
+**/
+static inline float Nav_TileWorldSize( const nav_mesh_t *mesh ) {
+	return mesh->cell_size_xy * ( float )mesh->tile_size;
+}
+/**
 *   @brief  Convert world coordinate to tile grid coordinate.
 **/
 static inline int32_t Nav_WorldToTileCoord( float value, float tile_world_size ) {
@@ -521,6 +205,14 @@ static inline int32_t Nav_WorldToCellCoord( float value, float tile_origin, floa
 	return ( int32_t )floorf( ( value - tile_origin ) / cell_size_xy );
 }
 
+/**
+*   @brief  Set a presence bit for a cell index within a tile.
+**/
+static inline void Nav_SetPresenceBit( nav_tile_t *tile, int32_t cell_index ) {
+	const int32_t word_index = cell_index >> 5;
+	const int32_t bit_index = cell_index & 31;
+	tile->presence_bits[ word_index ] |= ( 1u << bit_index );
+}
 
 
 /**
@@ -565,14 +257,14 @@ void SVG_Nav_Init( void ) {
 	*   Debug draw CVars:
 	**/
 	#if _DEBUG_NAV_MESH
-	nav_debug_draw = gi.cvar( "nav_debug_draw", "1", 0 );
-	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
-	nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", 0 );
-	nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "256", 0 );
-	nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "2048", 0 );
-	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "1", 0 );
-	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "1", 0 );
-	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "1", 0 );
+	nav_debug_draw = gi.cvar( "nav_debug_draw", "1", CVAR_CHEAT );
+	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", CVAR_CHEAT );
+	nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", CVAR_CHEAT );
+	nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "16384", CVAR_CHEAT );
+	nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "8192", CVAR_CHEAT );
+	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "0", CVAR_CHEAT );
+	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "0", CVAR_CHEAT );
+	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "1", CVAR_CHEAT );
 	#else
 	nav_debug_draw = gi.cvar( "nav_debug_draw", "0", 0 );
 	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
@@ -592,6 +284,7 @@ void SVG_Nav_Init( void ) {
 *           Called during game shutdown to clean up resources.
 **/
 void SVG_Nav_Shutdown( void ) {
+	NavDebug_ClearCachedPaths();
     SVG_Nav_FreeMesh();
 }
 
@@ -743,6 +436,24 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
 	gi.cprintf( nullptr, PRINT_HIGH, "===================================\n" );
 }
 /**
+*   @brief  Free tile cell allocations (layers + arrays).
+**/
+static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile ) {
+	if ( !tile->cells ) {
+		return;
+	}
+
+	for ( int32_t c = 0; c < cells_per_tile; c++ ) {
+		if ( tile->cells[ c ].layers ) {
+			gi.TagFree( tile->cells[ c ].layers );
+		}
+	}
+
+	gi.TagFree( tile->cells );
+	tile->cells = nullptr;
+}
+
+/**
 *   @brief  Free the current navigation mesh.
 *           Releases all memory allocated for navigation data using TAG_SVGAME_LEVEL.
 **/
@@ -751,6 +462,9 @@ void SVG_Nav_FreeMesh( void ) {
 	if ( !g_nav_mesh ) {
 		return;
 	}
+
+	// Cached debug paths become invalid once the mesh is destroyed.
+	NavDebug_ClearCachedPaths();
 
 	// Free world + inline model tile data...
 	/**
@@ -985,48 +699,7 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
         *out_num_layers = 0;
     }
 }
-
-/**
-*
-*
-*
-*   Navigation Tile Helpers:
-*
-*
-*
-**/
-//! Small epsilon to ensure max bounds map to the correct tile.
-static constexpr float NAV_TILE_EPSILON = 0.001f;
-
-
-
-/**
-*   @brief  Set a presence bit for a cell index within a tile.
-**/
-static inline void Nav_SetPresenceBit( nav_tile_t *tile, int32_t cell_index ) {
-    const int32_t word_index = cell_index >> 5;
-    const int32_t bit_index = cell_index & 31;
-    tile->presence_bits[ word_index ] |= ( 1u << bit_index );
-}
-
-/**
-*   @brief  Free tile cell allocations (layers + arrays).
-**/
-static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile ) {
-    if ( !tile->cells ) {
-        return;
-    }
-    
-    for ( int32_t c = 0; c < cells_per_tile; c++ ) {
-        if ( tile->cells[ c ].layers ) {
-            gi.TagFree( tile->cells[ c ].layers );
-        }
-    }
-    
-    gi.TagFree( tile->cells );
-    tile->cells = nullptr;
-}
-
+ 
 
 
 /**
@@ -1082,24 +755,6 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
                 tile->cells[ cell_index ].layers = layers;
                 Nav_SetPresenceBit( tile, cell_index );
                 has_layers = true;
-
-				#if 0
-
-				// Debug: draw at most 1 tick per XY cell (top-most) to reduce spam.
-				if ( NavDebug_Enabled() && nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-					const nav_layer_t *layer = &layers[ 0 ];
-					Vector3 p = { world_x, world_y, layer->z_quantized * mesh->z_quant };
-					NavDebug_DrawSampleTick( p, 12.0f );
-				}
-				#else
-                // Debug: vertical ticks for each layer in this XY cell.
-                if ( NavDebug_Enabled() && nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-                    // Draw at most 1 layer tick per XY cell (top-most) to reduce spam.
-                    const nav_layer_t *layer = &layers[ 0 ];
-                    Vector3 p = { world_x, world_y, layer->z_quantized * mesh->z_quant };
-                    NavDebug_DrawSampleTick( p, 12.0f );
-                }
-				#endif
             }
         }
     }
@@ -1242,25 +897,17 @@ static void GenerateWorldMesh( nav_mesh_t *mesh ) {
     /**
     *   Get BSP data from the world model:
     **/
-	#if 0
-    // Model handle 1 is always the world.
-    const model_t *world_model = gi.GetModelDataForHandle( 1 );
-    if ( !world_model || !world_model->bsp ) {
-        gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
-        return;
-    }
-	#else
 	const cm_t *world_model = gi.GetCollisionModel();
 	if ( !world_model || !world_model->cache ) {
 		gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
 		return;
 	}
-	#endif
-    
+	// Get the pointer to the cached BSP data.    
     bsp_t *bsp = world_model->cache;
+	// Get number of leafs in the BSP.
     int32_t num_leafs = bsp->numleafs;
     
-    gi.cprintf( nullptr, PRINT_HIGH, "Generating world mesh for %d leafs...\n", num_leafs );
+    gi.cprintf( nullptr, PRINT_HIGH, "Generating world navmesh for %d leafs...\n", num_leafs );
     
     /**
     *   Allocate leaf data array:
@@ -1319,7 +966,7 @@ static void GenerateWorldMesh( nav_mesh_t *mesh ) {
 				tile.tile_y = tile_y;
 
 				if ( Nav_BuildTile( mesh, &tile, leaf_mins, leaf_maxs, z_min, z_max ) ) {
-					NavDebug_DrawTileBBox( mesh, &tile );
+					//NavDebug_DrawTileBBox( mesh, &tile );
 					leaf_tiles.push_back( tile );
 				}
 			}
@@ -1362,7 +1009,7 @@ static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 		return;
 	}
 
-	gi.cprintf( nullptr, PRINT_HIGH, "Generating inline model mesh for %d inline models...\n", ( int32_t )model_to_ent.size() );
+	gi.cprintf( nullptr, PRINT_HIGH, "Generating inline model navmesh' for %d inline models...\n", ( int32_t )model_to_ent.size() );
 
 	// Allocate only for inline models that are actually referenced by entities.
 	mesh->num_inline_models = ( int32_t )model_to_ent.size();
@@ -1435,7 +1082,7 @@ static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 		out_index++;
 	}
 
-	gi.cprintf( nullptr, PRINT_HIGH, "Inline model mesh generation complete\n" );
+	gi.cprintf( nullptr, PRINT_HIGH, "Inline models' navmesh generation complete\n" );
 }
 
 /**
@@ -1615,6 +1262,60 @@ static bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *c
     return true;
 }
 
+const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin,
+	float waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
+	if ( !path || !inout_index || !out_direction ) {
+		return false;
+	}
+	if ( path->num_points <= 0 || !path->points ) {
+		return false;
+	}
+
+	int32_t index = *inout_index;
+	if ( index < 0 ) {
+		index = 0;
+	}
+
+	const float waypoint_radius_sqr = waypoint_radius * waypoint_radius;
+
+	// Advance using 2D distance so Z quantization / stairs don't prevent waypoint completion.
+	while ( index < path->num_points ) {
+		const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
+		const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] );
+		if ( dist_sqr > waypoint_radius_sqr ) {
+			break;
+		}
+		index++;
+	}
+
+	if ( index >= path->num_points ) {
+		*inout_index = path->num_points;
+		return false;
+	}
+
+	Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
+
+	// Clamp vertical component to avoid large up/down jumps.
+	if ( g_nav_mesh ) {
+		const float maxDz = g_nav_mesh->max_step + g_nav_mesh->z_quant;
+		if ( direction[ 2 ] > maxDz ) {
+			direction[ 2 ] = maxDz;
+		} else if ( direction[ 2 ] < -maxDz ) {
+			direction[ 2 ] = -maxDz;
+		}
+	}
+
+	const float length = ( float )QM_Vector3Length( direction );
+	if ( length <= std::numeric_limits<float>::epsilon() ) {
+		return false;
+	}
+
+	*out_direction = QM_Vector3Normalize( direction );
+	*inout_index = index;
+	return true;
+}
+
+
 /**
 *   @brief  Compute the world-space position for a node.
 **/
@@ -1698,10 +1399,17 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
                 continue;
             }
             
-            for ( int32_t l = 0; l < cell->num_layers; l++ ) {
+			for ( int32_t l = 0; l < cell->num_layers; l++ ) {
 				nav_node_ref_t candidate = {};
+				candidate.key = {
+					.leaf_index = leaf_index,
+					.tile_index = t,
+					.cell_index = c,
+					.layer_index = l
+				};
+				candidate.position = Nav_NodeWorldPosition( mesh, tile, c, &cell->layers[ l ] );
 
-                const Vector3 node_pos = Nav_NodeWorldPosition( mesh, tile, c, &cell->layers[ l ] );
+				const Vector3 node_pos = candidate.position;
                 const Vector3 delta = QM_Vector3Subtract( node_pos, position );
                 const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
                 
@@ -1719,6 +1427,104 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
     }
     
     return found;
+}
+
+/**
+*	@brief	Select the best layer index for a cell based on a blend of start Z and goal Z.
+*			This helps pathfinding prefer the correct floor when chasing a target above/below.
+*	@param	start_z	Seeker starting Z.
+*	@param	goal_z	Target goal Z.
+*	@note	The blend factor is based on XY distance between seeker and goal: close targets bias toward start_z,
+*			far targets bias toward goal_z.
+**/
+static bool Nav_SelectLayerIndex_BlendZ( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, float start_z, float goal_z,
+	const Vector3 &start_pos, const Vector3 &goal_pos, const float blend_start_dist, const float blend_full_dist, int32_t *out_layer_index ) {
+	if ( !mesh || !cell || cell->num_layers <= 0 || !out_layer_index ) {
+		return false;
+	}
+
+	const Vector3 d = QM_Vector3Subtract( goal_pos, start_pos );
+	const float dist2D = sqrtf( ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) );
+
+	const float BLEND_START_DIST = std::max( 0.0f, blend_start_dist );
+	const float BLEND_FULL_DIST = std::max( BLEND_START_DIST + 1.0f, blend_full_dist );
+	float t = 0.0f;
+	if ( dist2D > BLEND_START_DIST ) {
+		t = ( dist2D - BLEND_START_DIST ) / std::max( 1.0f, ( BLEND_FULL_DIST - BLEND_START_DIST ) );
+		t = QM_Clamp( t, 0.0f, 1.0f );
+	}
+
+	const float desired_z = ( ( 1.0f - t ) * start_z ) + ( t * goal_z );
+	return Nav_SelectLayerIndex( mesh, cell, desired_z, out_layer_index );
+}
+
+static bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector3 &position, float start_z, float goal_z,
+	const Vector3 &start_pos, const Vector3 &goal_pos, const float blend_start_dist, const float blend_full_dist,
+	nav_node_ref_t *out_node, bool allow_fallback ) {
+	if ( !mesh || !out_node ) {
+		return false;
+	}
+
+	const Vector3 d = QM_Vector3Subtract( goal_pos, start_pos );
+	const float dist2D = sqrtf( ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) );
+
+	const float BLEND_START_DIST = std::max( 0.0f, blend_start_dist );
+	const float BLEND_FULL_DIST = std::max( BLEND_START_DIST + 1.0f, blend_full_dist );
+	float t = 0.0f;
+	if ( dist2D > BLEND_START_DIST ) {
+		t = ( dist2D - BLEND_START_DIST ) / std::max( 1.0f, ( BLEND_FULL_DIST - BLEND_START_DIST ) );
+		t = QM_Clamp( t, 0.0f, 1.0f );
+	}
+
+	const float desired_z = ( ( 1.0f - t ) * start_z ) + ( t * goal_z );
+
+	const cm_t *world_model = gi.GetCollisionModel();
+	if ( !world_model || !world_model->cache ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
+		return false;
+	}
+	bsp_t *bsp = world_model->cache;
+
+	mleaf_t *leaf = gi.BSP_PointLeaf( bsp->nodes, &position[ 0 ] );
+	if ( !leaf ) {
+		return false;
+	}
+
+	const ptrdiff_t leaf_index = leaf - bsp->leafs;
+	if ( leaf_index < 0 || leaf_index >= mesh->num_leafs ) {
+		return false;
+	}
+
+	if ( Nav_FindNodeInLeaf( mesh, &mesh->leaf_data[ leaf_index ], ( int32_t )leaf_index, position, desired_z, out_node, allow_fallback ) ) {
+		return true;
+	}
+
+	if ( !allow_fallback ) {
+		return false;
+	}
+
+	float best_dist_sqr = std::numeric_limits<float>::max();
+	nav_node_ref_t best_node = {};
+	bool found = false;
+
+	for ( int32_t i = 0; i < mesh->num_leafs; i++ ) {
+		nav_node_ref_t candidate = {};
+		if ( Nav_FindNodeInLeaf( mesh, &mesh->leaf_data[ i ], i, position, desired_z, &candidate, true ) ) {
+			const Vector3 delta2 = QM_Vector3Subtract( candidate.position, position );
+			const float dist_sqr = ( delta2[ 0 ] * delta2[ 0 ] ) + ( delta2[ 1 ] * delta2[ 1 ] ) + ( delta2[ 2 ] * delta2[ 2 ] );
+			if ( dist_sqr < best_dist_sqr ) {
+				best_dist_sqr = dist_sqr;
+				best_node = candidate;
+				found = true;
+			}
+		}
+	}
+
+	if ( found ) {
+		*out_node = best_node;
+	}
+
+	return found;
 }
 
 /**
@@ -1798,7 +1604,7 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
 *   @brief  Perform A* search between two navigation nodes.
 **/
 static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node,
-							 std::vector<Vector3> &out_points ) {
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, std::vector<Vector3> &out_points ) {
 	constexpr int32_t MAX_SEARCH_NODES = 4096;
     static constexpr Vector3 neighbor_offsets[] = {
         { 1.0f, 0.0f, 0.0f },
@@ -1879,8 +1685,8 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			}
 
 			// Replace the old |dz| check with a PMove-like step traversal test.
-			// World traversal for now (inline model traversal can be added once nodes can identify a clip entity).
-			if ( !Nav_CanTraverseStep( mesh, current.node.position, neighbor_node.position, nullptr ) ) {
+			// Validate using the agent bbox so corner/doorway traversal matches the mover.
+			if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr ) ) {
 				continue;
 			}
 
@@ -1919,6 +1725,227 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
     }
     
     return false;
+}
+
+
+
+/**
+*
+*
+*
+*	Navigation Debug Drawing - State and Helpers:
+*
+*
+*
+**/
+typedef struct nav_debug_draw_state_s {
+	int64_t frame = -1;
+	int32_t segments_used = 0;
+} nav_debug_draw_state_t;
+//! Global debug draw state.
+static nav_debug_draw_state_t s_nav_debug_draw_state = {};
+
+static void NavDebug_PurgeCachedPaths( void ) {
+	const QMTime now = level.time;
+	auto it = s_nav_debug_cached_paths.begin();
+	while ( it != s_nav_debug_cached_paths.end() ) {
+		if ( it->expireTime <= now ) {
+			SVG_Nav_FreeTraversalPath( &it->path );
+			it = s_nav_debug_cached_paths.erase( it );
+		} else {
+			++it;
+		}
+	}
+}
+
+static void NavDebug_ClearCachedPaths( void ) {
+	for ( nav_debug_cached_path_t &entry : s_nav_debug_cached_paths ) {
+		SVG_Nav_FreeTraversalPath( &entry.path );
+	}
+	s_nav_debug_cached_paths.clear();
+}
+
+/**
+*
+*
+*
+*	Navigation Debug Drawing - Runtime Draw:
+*
+*
+*
+**/
+/**
+*	@brief	Prepare for a new frame of debug drawing.
+**/
+static inline void NavDebug_NewFrame( void ) {
+	if ( s_nav_debug_draw_state.frame == ( int32_t )level.frameNumber ) {
+		return;
+	}
+
+	s_nav_debug_draw_state.frame = ( int32_t )level.frameNumber;
+	s_nav_debug_draw_state.segments_used = 0;
+}
+/**
+*	@brief	Determine if we can emit the requested number of segments.
+**/
+static inline bool NavDebug_CanEmitSegments( const int32_t count ) {
+	NavDebug_NewFrame();
+
+	const int32_t maxSegments = ( nav_debug_draw_max_segments ? nav_debug_draw_max_segments->integer : 0 );
+	if ( maxSegments <= 0 ) {
+		return false;
+	}
+
+	return ( s_nav_debug_draw_state.segments_used + count ) <= maxSegments;
+}
+/**
+*	@brief	Consume the given number of emitted segments.
+**/
+static inline void NavDebug_ConsumeSegments( const int32_t count ) {
+	s_nav_debug_draw_state.segments_used += count;
+}
+/**
+*	@brief	Check if navigation debug drawing is enabled.
+**/
+static inline bool NavDebug_Enabled( void ) {
+	return nav_debug_draw && nav_debug_draw->integer != 0;
+}
+/**
+*	@brief	Get the current view origin for distance filtering.
+**/
+static inline Vector3 NavDebug_GetViewOrigin( void ) {
+	if ( game.currentViewPlayer ) {
+		return game.currentViewPlayer->currentOrigin + Vector3{ 0.f, 0.f, ( float )game.currentViewPlayer->viewheight };;
+	}
+
+	// Fallback: try client #1 (singleplayer typical).
+	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 1 );
+	if ( SVG_Entity_IsClient( ent, false ) ) {
+		return ent->currentOrigin + Vector3{ 0.f, 0.f, ( float )ent->viewheight };
+	}
+
+	return {};
+}
+/**
+*	@brief	Check if a position passes the distance filter.
+* 	@param	pos	Position to check.
+**/
+static inline bool NavDebug_PassesDistanceFilter( const Vector3 &pos ) {
+	const float maxDist = ( nav_debug_draw_max_dist ? nav_debug_draw_max_dist->value : 0.0f );
+	if ( maxDist <= 0.0f ) {
+		return true;
+	}
+
+	const Vector3 viewOrg = NavDebug_GetViewOrigin();
+	const Vector3 d = QM_Vector3Subtract( pos, viewOrg );
+	const float distSqr = ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) + ( d[ 2 ] * d[ 2 ] );
+	return distSqr <= ( maxDist * maxDist );
+}
+/**
+*	@return	Returns true if a tile filter is specified and outputs the wanted tile coordinates.
+**/
+static bool NavDebug_ParseTileFilter( int32_t *outTileX, int32_t *outTileY ) {
+	if ( !outTileX || !outTileY || !nav_debug_draw_tile ) {
+		return false;
+	}
+
+	const char *s = nav_debug_draw_tile->string;
+	if ( !s || !s[ 0 ] || s[ 0 ] == '*' ) {
+		return false;
+	}
+
+	int x = 0, y = 0;
+	if ( sscanf( s, "%d %d", &x, &y ) != 2 ) {
+		return false;
+	}
+
+	*outTileX = x;
+	*outTileY = y;
+	return true;
+}
+/**
+*	@brief	Filter by leaf index.
+* 	@return	Returns true if the given leaf index passes the filter.
+**/
+static inline bool NavDebug_FilterLeaf( const int32_t leafIndex ) {
+	if ( !nav_debug_draw_leaf ) {
+		return true;
+	}
+
+	const int32_t wanted = nav_debug_draw_leaf->integer;
+	return ( wanted < 0 ) || ( wanted == leafIndex );
+}
+/**
+*	@brief	Will filter by tile coordinates.
+*	@return	Returns true if the given tile coordinates pass the filter.
+**/
+static inline bool NavDebug_FilterTile( const int32_t tileX, const int32_t tileY ) {
+	int32_t wantedX = 0, wantedY = 0;
+	if ( !NavDebug_ParseTileFilter( &wantedX, &wantedY ) ) {
+		return true;
+	}
+
+	return tileX == wantedX && tileY == wantedY;
+}
+/**
+*	@brief	Draw a vertical tick at the given position.
+**/
+static void NavDebug_DrawSampleTick( const Vector3 &pos, const float height ) {
+	// Check if we should draw sample ticks.
+	if ( !NavDebug_Enabled() || !nav_debug_draw_samples || nav_debug_draw_samples->integer == 0 ) {
+		return;
+	}
+	// Check segment budget.
+	if ( !NavDebug_CanEmitSegments( 1 ) ) {
+		return;
+	}
+	// Check distance filter.
+	if ( !NavDebug_PassesDistanceFilter( pos ) ) {
+		return;
+	}
+
+	// Draw the tick.
+	Vector3 end = pos;
+	end[ 2 ] += height;
+	SVG_DebugDrawLine_TE( pos, end, MULTICAST_PVS, false );
+	// Consume segment budget.
+	NavDebug_ConsumeSegments( 1 );
+}
+
+/**
+*	@brief	Draw the bounding box of a tile.
+*	@param	mesh	The navigation mesh.
+*	@param	tile	The tile to draw.
+**/
+static void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
+	if ( !NavDebug_Enabled() || !nav_debug_draw_tile_bounds || nav_debug_draw_tile_bounds->integer == 0 ) {
+		return;
+	}
+	if ( !NavDebug_CanEmitSegments( 12 ) ) {
+		return;
+	}
+	const float tileWorldSize = Nav_TileWorldSize( mesh );
+	const Vector3 mins = {
+		tile->tile_x * tileWorldSize,
+		tile->tile_y * tileWorldSize,
+		-4096.0f
+	};
+	const Vector3 maxs = {
+		mins[ 0 ] + tileWorldSize,
+		mins[ 1 ] + tileWorldSize,
+		4096.0f
+	};
+	// Check distance filter against tile center.
+	const Vector3 tileCenter = {
+		( mins[ 0 ] + maxs[ 0 ] ) * 0.5f,
+		( mins[ 1 ] + maxs[ 1 ] ) * 0.5f,
+		( mins[ 2 ] + maxs[ 2 ] ) * 0.5f
+	};
+	if ( !NavDebug_PassesDistanceFilter( tileCenter ) ) {
+		return;
+	}
+	SVG_DebugDrawBBox_TE( mins, maxs, MULTICAST_PVS, false );
+	NavDebug_ConsumeSegments( 12 );
 }
 
 
@@ -1966,7 +1993,7 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
     if ( start_node.key == goal_node.key ) {
         points.push_back( start_node.position );
         points.push_back( goal_node.position );
-    } else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, points ) ) {
+	} else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, g_nav_mesh->agent_mins, g_nav_mesh->agent_maxs, points ) ) {
         return false;
     }
     
@@ -1977,6 +2004,16 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
     out_path->num_points = (int32_t)points.size();
     out_path->points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
     memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
+
+	// Cache for always-on debug draw.
+	NavDebug_PurgeCachedPaths();
+
+	nav_debug_cached_path_t cached = {};
+	cached.path.num_points = out_path->num_points;
+	cached.path.points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	memcpy( cached.path.points, out_path->points, sizeof( Vector3 ) * out_path->num_points );
+	cached.expireTime = level.time + NAV_DEBUG_PATH_RETENTION;
+	s_nav_debug_cached_paths.push_back( cached );
     
 	/**
 	*	Debug draw: path segments.
@@ -2003,6 +2040,182 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
 	}
 
     return true;
+}
+
+const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const bool enable_goal_z_layer_blend, const float blend_start_dist, const float blend_full_dist ) {
+	if ( !out_path ) {
+		return false;
+	}
+
+	SVG_Nav_FreeTraversalPath( out_path );
+
+	if ( !g_nav_mesh ) {
+		return false;
+	}
+
+	nav_node_ref_t start_node = {};
+	nav_node_ref_t goal_node = {};
+
+	if ( enable_goal_z_layer_blend ) {
+		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh, start_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
+			blend_start_dist, blend_full_dist, &start_node, true ) ) {
+			return false;
+		}
+
+		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh, goal_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
+			blend_start_dist, blend_full_dist, &goal_node, true ) ) {
+			return false;
+		}
+	} else {
+		if ( !Nav_FindNodeForPosition( g_nav_mesh, start_origin, start_origin[ 2 ], &start_node, true ) ) {
+			return false;
+		}
+		if ( !Nav_FindNodeForPosition( g_nav_mesh, goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
+			return false;
+		}
+	}
+
+	std::vector<Vector3> points;
+	if ( start_node.key == goal_node.key ) {
+		points.push_back( start_node.position );
+		points.push_back( goal_node.position );
+    } else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, g_nav_mesh->agent_mins, g_nav_mesh->agent_maxs, points ) ) {
+		return false;
+	}
+
+	if ( points.empty() ) {
+		return false;
+	}
+
+	out_path->num_points = (int32_t)points.size();
+	out_path->points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
+
+	// Cache for always-on debug draw.
+	NavDebug_PurgeCachedPaths();
+
+	nav_debug_cached_path_t cached = {};
+	cached.path.num_points = out_path->num_points;
+	cached.path.points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	memcpy( cached.path.points, out_path->points, sizeof( Vector3 ) * out_path->num_points );
+	cached.expireTime = level.time + NAV_DEBUG_PATH_RETENTION;
+	s_nav_debug_cached_paths.push_back( cached );
+
+	if ( NavDebug_Enabled() && nav_debug_draw_path && nav_debug_draw_path->integer != 0 ) {
+		const int32_t segmentCount = std::max( 0, out_path->num_points - 1 );
+		for ( int32_t i = 0; i < segmentCount; i++ ) {
+			if ( !NavDebug_CanEmitSegments( 1 ) ) {
+				break;
+			}
+
+			const Vector3 &a = out_path->points[ i ];
+			const Vector3 &b = out_path->points[ i + 1 ];
+
+			const Vector3 mid = { ( a[ 0 ] + b[ 0 ] ) * 0.5f, ( a[ 1 ] + b[ 1 ] ) * 0.5f, ( a[ 2 ] + b[ 2 ] ) * 0.5f };
+			if ( !NavDebug_PassesDistanceFilter( mid ) ) {
+				continue;
+			}
+
+			SVG_DebugDrawLine_TE( a, b, MULTICAST_PVS, false );
+			NavDebug_ConsumeSegments( 1 );
+		}
+	}
+
+	return true;
+}
+
+const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs ) {
+	if ( !out_path ) {
+		return false;
+	}
+
+	SVG_Nav_FreeTraversalPath( out_path );
+
+	if ( !g_nav_mesh ) {
+		return false;
+	}
+
+	nav_node_ref_t start_node = {};
+	nav_node_ref_t goal_node = {};
+
+	if ( !Nav_FindNodeForPosition( g_nav_mesh, start_origin, start_origin[ 2 ], &start_node, true ) ) {
+		return false;
+	}
+
+	if ( !Nav_FindNodeForPosition( g_nav_mesh, goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
+		return false;
+	}
+
+	std::vector<Vector3> points;
+	if ( start_node.key == goal_node.key ) {
+		points.push_back( start_node.position );
+		points.push_back( goal_node.position );
+	} else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, agent_mins, agent_maxs, points ) ) {
+		return false;
+	}
+
+	if ( points.empty() ) {
+		return false;
+	}
+
+	out_path->num_points = ( int32_t )points.size();
+	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
+	return true;
+}
+
+const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, const bool enable_goal_z_layer_blend, const float blend_start_dist, const float blend_full_dist ) {
+	if ( !out_path ) {
+		return false;
+	}
+
+	SVG_Nav_FreeTraversalPath( out_path );
+
+	if ( !g_nav_mesh ) {
+		return false;
+	}
+
+	nav_node_ref_t start_node = {};
+	nav_node_ref_t goal_node = {};
+
+	if ( enable_goal_z_layer_blend ) {
+		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh, start_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
+			blend_start_dist, blend_full_dist, &start_node, true ) ) {
+			return false;
+		}
+
+		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh, goal_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
+			blend_start_dist, blend_full_dist, &goal_node, true ) ) {
+			return false;
+		}
+	} else {
+		if ( !Nav_FindNodeForPosition( g_nav_mesh, start_origin, start_origin[ 2 ], &start_node, true ) ) {
+			return false;
+		}
+		if ( !Nav_FindNodeForPosition( g_nav_mesh, goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
+			return false;
+		}
+	}
+
+	std::vector<Vector3> points;
+	if ( start_node.key == goal_node.key ) {
+		points.push_back( start_node.position );
+		points.push_back( goal_node.position );
+	} else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, agent_mins, agent_maxs, points ) ) {
+		return false;
+	}
+
+	if ( points.empty() ) {
+		return false;
+	}
+
+	out_path->num_points = ( int32_t )points.size();
+	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
+	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
+	return true;
 }
 
 /**
@@ -2034,45 +2247,55 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path ) {
 **/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin,
                                             float waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
-    if ( !path || !inout_index || !out_direction ) {
-        return false;
-    }
-    
-    if ( path->num_points <= 0 || !path->points ) {
-        return false;
-    }
-    
-    int32_t index = *inout_index;
-    if ( index < 0 ) {
-        index = 0;
-    }
-    
-    const float waypoint_radius_sqr = waypoint_radius * waypoint_radius;
- 
-     while ( index < path->num_points ) {
-         const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
-         // Use 2D distance so Z quantization / stairs don't prevent waypoint completion.
-         const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] );
-         if ( dist_sqr > waypoint_radius_sqr ) {
-             break;
-         }
-         index++;
-     }
-    
-    if ( index >= path->num_points ) {
-        *inout_index = path->num_points;
-        return false;
-    }
-    
-    Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
-    direction[ 2 ] = 0.0f;
-    const float length = (float)QM_Vector3Length( direction );
-    if ( length <= std::numeric_limits<float>::epsilon() ) {
-        return false;
-    }
-    
-    *out_direction = QM_Vector3Normalize( direction );
-    *inout_index = index;
+	if ( !path || !inout_index || !out_direction ) {
+		return false;
+	}
+	if ( path->num_points <= 0 || !path->points ) {
+		return false;
+	}
+
+	int32_t index = *inout_index;
+	if ( index < 0 ) {
+		index = 0;
+	}
+
+	const float waypoint_radius_sqr = waypoint_radius * waypoint_radius;
+
+	// Advance waypoints using 3D distance so stairs count toward completion.
+	while ( index < path->num_points ) {
+		const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
+		const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
+		if ( dist_sqr > waypoint_radius_sqr ) {
+			break;
+		}
+		index++;
+	}
+
+	if ( index >= path->num_points ) {
+		*inout_index = path->num_points;
+		return false;
+	}
+
+	// Produce a 3D direction. Clamp vertical component to avoid large up/down jumps.
+	Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
+
+	// clamp Z to a reasonable step height if the nav mesh is available
+	if ( g_nav_mesh ) {
+		const float maxDz = g_nav_mesh->max_step + g_nav_mesh->z_quant;
+		if ( direction[ 2 ] > maxDz ) {
+			direction[ 2 ] = maxDz;
+		} else if ( direction[ 2 ] < -maxDz ) {
+			direction[ 2 ] = -maxDz;
+		}
+	}
+
+	const float length = ( float )QM_Vector3Length( direction );
+	if ( length <= std::numeric_limits<float>::epsilon() ) {
+		return false;
+	}
+
+	*out_direction = QM_Vector3Normalize( direction );
+	*inout_index = index;
     
     return true;
 }
@@ -2120,6 +2343,19 @@ static bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos
 
 	const Vector3 mins = mesh->agent_mins;
 	const Vector3 maxs = mesh->agent_maxs;
+
+	return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity );
+}
+
+static bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity ) {
+	if ( !mesh ) {
+		return false;
+	}
+
+	// Ignore Z from caller; we compute step behavior ourselves.
+	Vector3 start = startPos;
+	Vector3 goal = endPos;
+	goal[ 2 ] = start[ 2 ];
 
 	// Small cushion to avoid precision issues on floors.
 	const float eps = 0.25f;
@@ -2185,4 +2421,216 @@ static bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos
 	}
 
 	return true;
+}
+
+
+
+/**
+*
+*
+*
+*	Debug Drawing for NavMesh
+*
+*
+*
+**/
+/**
+*	@brief	Check if navigation debug drawing is enabled and draw so if it is.
+**/
+void SVG_Nav_DebugDraw( void ) {
+	if ( !g_nav_mesh ) {
+		return;
+	}
+	if ( !NavDebug_Enabled() ) {
+		return;
+	}
+
+	// Purge old cached paths.
+	NavDebug_PurgeCachedPaths();
+
+	// Draw cached paths from this server frame.
+	if ( nav_debug_draw_path && nav_debug_draw_path->integer != 0 ) {
+		for ( const nav_debug_cached_path_t &entry : s_nav_debug_cached_paths ) {
+			const nav_traversal_path_t &path = entry.path;
+			if ( path.num_points <= 1 || !path.points ) {
+				continue;
+			}
+
+			const int32_t segmentCount = std::max( 0, path.num_points - 1 );
+			for ( int32_t i = 0; i < segmentCount; i++ ) {
+				if ( !NavDebug_CanEmitSegments( 1 ) ) {
+					return;
+				}
+
+				const Vector3 &a = path.points[ i ];
+				const Vector3 &b = path.points[ i + 1 ];
+
+				const Vector3 mid = { ( a[ 0 ] + b[ 0 ] ) * 0.5f, ( a[ 1 ] + b[ 1 ] ) * 0.5f, ( a[ 2 ] + b[ 2 ] ) * 0.5f };
+				if ( !NavDebug_PassesDistanceFilter( mid ) ) {
+					continue;
+				}
+
+				SVG_DebugDrawLine_TE( a, b, MULTICAST_PVS, false );
+				NavDebug_ConsumeSegments( 1 );
+			}
+		}
+	}
+
+	const nav_mesh_t *mesh = g_nav_mesh;
+	const float tileWorldSize = Nav_TileWorldSize( mesh );
+	const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
+
+	/**
+	*	World mesh (per leaf):
+	**/
+	for ( int32_t leafIndex = 0; leafIndex < mesh->num_leafs; leafIndex++ ) {
+		if ( !NavDebug_FilterLeaf( leafIndex ) ) {
+			continue;
+		}
+
+		const nav_leaf_data_t *leaf = &mesh->leaf_data[ leafIndex ];
+		if ( !leaf || leaf->num_tiles <= 0 || !leaf->tiles ) {
+			continue;
+		}
+
+		for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
+			const nav_tile_t *tile = &leaf->tiles[ t ];
+			if ( !tile ) {
+				continue;
+			}
+
+			if ( !NavDebug_FilterTile( tile->tile_x, tile->tile_y ) ) {
+				continue;
+			}
+
+			// Tile bounds.
+			NavDebug_DrawTileBBox( mesh, tile );
+
+			// Samples (top-most layer tick per XY cell).
+			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
+				const float tileOriginX = tile->tile_x * tileWorldSize;
+				const float tileOriginY = tile->tile_y * tileWorldSize;
+
+				for ( int32_t cellIndex = 0; cellIndex < cellsPerTile; cellIndex++ ) {
+					const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
+					if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+						continue;
+					}
+
+					const int32_t cellX = cellIndex % mesh->tile_size;
+					const int32_t cellY = cellIndex / mesh->tile_size;
+
+					const nav_layer_t *layer = &cell->layers[ 0 ];
+					Vector3 p = {
+						tileOriginX + ( ( float )cellX + 0.5f ) * mesh->cell_size_xy,
+						tileOriginY + ( ( float )cellY + 0.5f ) * mesh->cell_size_xy,
+						layer->z_quantized * mesh->z_quant
+					};
+
+					NavDebug_DrawSampleTick( p, 12.0f );
+
+					// If we ran out of budget, stop early.
+					if ( !NavDebug_CanEmitSegments( 1 ) ) {
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	*	Inline model mesh (optional): draw tile bounds + samples transformed into world space.
+	**/
+	if ( mesh->num_inline_models <= 0 || !mesh->inline_model_data ||
+		mesh->num_inline_model_runtime <= 0 || !mesh->inline_model_runtime ) {
+		return;
+	}
+
+	// Map: model_index -> runtime entry (linear search; small counts, cheap enough for debug).
+	auto find_runtime = [mesh]( const int32_t modelIndex ) -> const nav_inline_model_runtime_t * {
+		for ( int32_t i = 0; i < mesh->num_inline_model_runtime; i++ ) {
+			if ( mesh->inline_model_runtime[ i ].model_index == modelIndex ) {
+				return &mesh->inline_model_runtime[ i ];
+			}
+		}
+		return nullptr;
+		};
+
+	for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
+		const nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
+		if ( !model || model->num_tiles <= 0 || !model->tiles ) {
+			continue;
+		}
+
+		const nav_inline_model_runtime_t *rt = find_runtime( model->model_index );
+		if ( !rt ) {
+			continue;
+		}
+
+		// Debug draw for inline models currently ignores rotation (angles) and uses translation only.
+		// This is still useful for doors/platforms that primarily translate.
+		const Vector3 origin = rt->origin;
+
+		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
+			const nav_tile_t *tile = &model->tiles[ t ];
+			if ( !tile ) {
+				continue;
+			}
+
+			// Inline tiles are stored in model-local space where tile_x/y start at 0.
+			// Provide filtering by treating these as local tile coords.
+			if ( !NavDebug_FilterTile( tile->tile_x, tile->tile_y ) ) {
+				continue;
+			}
+
+			// Tile bounds (translated).
+			if ( NavDebug_Enabled() && nav_debug_draw_tile_bounds && nav_debug_draw_tile_bounds->integer != 0 ) {
+				if ( NavDebug_CanEmitSegments( 12 ) ) {
+					const Vector3 minsLocal = { tile->tile_x * tileWorldSize, tile->tile_y * tileWorldSize, -4096.0f };
+					const Vector3 maxsLocal = { minsLocal[ 0 ] + tileWorldSize, minsLocal[ 1 ] + tileWorldSize, 4096.0f };
+
+					const Vector3 minsWorld = QM_Vector3Add( minsLocal, origin );
+					const Vector3 maxsWorld = QM_Vector3Add( maxsLocal, origin );
+
+					const Vector3 center = { ( minsWorld[ 0 ] + maxsWorld[ 0 ] ) * 0.5f, ( minsWorld[ 1 ] + maxsWorld[ 1 ] ) * 0.5f, 0.0f };
+					if ( NavDebug_PassesDistanceFilter( center ) ) {
+						SVG_DebugDrawBBox_TE( minsWorld, maxsWorld, MULTICAST_PVS, false );
+						NavDebug_ConsumeSegments( 12 );
+					}
+				} else {
+					return;
+				}
+			}
+
+			// Samples (translated).
+			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
+				const float tileOriginXLocal = tile->tile_x * tileWorldSize;
+				const float tileOriginYLocal = tile->tile_y * tileWorldSize;
+
+				for ( int32_t cellIndex = 0; cellIndex < cellsPerTile; cellIndex++ ) {
+					const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
+					if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+						continue;
+					}
+
+					const int32_t cellX = cellIndex % mesh->tile_size;
+					const int32_t cellY = cellIndex / mesh->tile_size;
+
+					const nav_layer_t *layer = &cell->layers[ 0 ];
+					Vector3 pLocal = {
+						tileOriginXLocal + ( ( float )cellX + 0.5f ) * mesh->cell_size_xy,
+						tileOriginYLocal + ( ( float )cellY + 0.5f ) * mesh->cell_size_xy,
+						layer->z_quantized * mesh->z_quant
+					};
+
+					Vector3 pWorld = QM_Vector3Add( pLocal, origin );
+					NavDebug_DrawSampleTick( pWorld, 12.0f );
+
+					if ( !NavDebug_CanEmitSegments( 1 ) ) {
+						return;
+					}
+				}
+			}
+		}
+	}
 }

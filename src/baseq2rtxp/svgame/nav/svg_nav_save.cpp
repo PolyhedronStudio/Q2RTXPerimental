@@ -47,9 +47,12 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 		return false;
 	}
 
-	gzFile f = gzopen( filename, "wb" );
+	// Build full file path.
+	const std::string filePath = BASEGAME "/maps/nav/" + std::string( filename );
+
+	gzFile f = gzopen( filePath.c_str(), "wb" );
 	if ( !f ) {
-		gi.dprintf( "%s: failed to open '%s'\n", __func__, filename );
+		gi.dprintf( "%s: failed to open '%s'\n", __func__, filePath.c_str() );
 		return false;
 	}
 

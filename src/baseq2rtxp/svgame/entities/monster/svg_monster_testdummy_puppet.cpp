@@ -245,8 +245,16 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 			// Root motion anim (still fine to keep for footsteps/frame stepping).
 			skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 3 ]; // RUN_FORWARD_PISTOL
 
-			self->s.frame++;
-			if ( self->s.frame == rootMotion->lastFrameIndex ) {
+			const bool isMoving2D = ( std::fabs( self->velocity.x ) > 1.0f ) || ( std::fabs( self->velocity.y ) > 1.0f );
+			if ( isMoving2D ) {
+				// Advance the walk animation based on time, not on think calls.
+				// Debug drawing can add enough load to make think timing irregular, which shows up as frame jitter.
+				const float animHz = 40.0f;
+				const double t = level.time.Seconds<double>();
+				const int32_t animFrame = (int32_t)floorf( (float)( t * animHz ) );
+				const int32_t localFrame = ( rootMotion->frameCount > 0 ) ? ( animFrame % rootMotion->frameCount ) : 0;
+				self->s.frame = rootMotion->firstFrameIndex + localFrame;
+			} else {
 				self->s.frame = rootMotion->firstFrameIndex;
 			}
 
@@ -286,7 +294,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 				self->trail_time = level.time;
 			}
  
-			Vector3 goalOrigin = self->goalentity->currentOrigin;
+			const Vector3 playerOrigin = self->goalentity->currentOrigin;
+			Vector3 goalOrigin = playerOrigin;
  
 			// If we're not seeing the player, chase the trail and advance it *persistently*.
 			if ( !canSeeGoalEntity ) {
@@ -294,19 +303,46 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 				svg_base_edict_t *&trailSpot = s_dummyTrailSpot[ selfNum ];
 
 				// Ensure we have an initial trail spot.
-				if ( !trailSpot ) {
+				if ( !trailSpot || !SVG_Entity_IsActive( trailSpot ) ) {
 					trailSpot = PlayerTrail_PickFirst( self );
 				}
 
 				if ( trailSpot ) {
+					// Pick a trail marker that best matches the player's current Z/floor.
+					// This avoids going astray in multi-floor areas where multiple trail points share XY.
+					svg_base_edict_t *best = trailSpot;
+					float bestScore = std::numeric_limits<float>::max();
+
+					svg_base_edict_t *candidate = trailSpot;
+					for ( int32_t i = 0; i < 8 && candidate; ++i ) {
+						const float dzToPlayer = std::fabs( candidate->currentOrigin.z - playerOrigin.z );
+						const float dzToMonster = std::fabs( candidate->currentOrigin.z - self->currentOrigin.z );
+
+						// Prefer markers close to the player's Z. If the player is above us, slightly prefer
+						// markers that are also above us to encourage climbing instead of wandering below.
+						float score = dzToPlayer + 0.25f * dzToMonster;
+						if ( playerOrigin.z > self->currentOrigin.z && candidate->currentOrigin.z < self->currentOrigin.z ) {
+							score += 128.0f;
+						}
+
+						if ( score < bestScore ) {
+							bestScore = score;
+							best = candidate;
+						}
+
+						candidate = PlayerTrail_PickNext( self );
+					}
+
+					trailSpot = best;
 					goalOrigin = trailSpot->currentOrigin;
 
-					// Advance along trail when close enough to the current trail spot (2D).
+					// Advance along trail when close enough in 3D.
+					// Using 2D only causes "premature" advancement on stairs (same XY, very different Z).
 					const Vector3 toTrail = QM_Vector3Subtract( goalOrigin, self->currentOrigin );
-					const float toTrail2DSqr = ( toTrail.x * toTrail.x ) + ( toTrail.y * toTrail.y );
+					const float toTrail3DSqr = ( toTrail.x * toTrail.x ) + ( toTrail.y * toTrail.y ) + ( toTrail.z * toTrail.z );
 
 					constexpr float trailAdvanceDist = 24.0f;
-					if ( toTrail2DSqr <= ( trailAdvanceDist * trailAdvanceDist ) ) {
+					if ( toTrail3DSqr <= ( trailAdvanceDist * trailAdvanceDist ) ) {
 						svg_base_edict_t *next = PlayerTrail_PickNext( self );
 						if ( next ) {
 							trailSpot = next;
@@ -322,6 +358,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
   			const Vector3 toGoal = QM_Vector3Subtract( goalOrigin, self->currentOrigin );
   			const float dist2DSqr = ( toGoal.x * toGoal.x ) + ( toGoal.y * toGoal.y );
 			const float dist2D = std::sqrt( dist2DSqr );
+			const float zDist = std::fabs( toGoal.z );
  
 			// Separation-aware stop: get as close as 8 units, then halt.
 			// Using player origin directly often stops "too far" due to bbox collision/overshoot.
@@ -335,29 +372,60 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 				: 1.0f;
 
 			frameVelocity *= speedScale;
-			if ( approachDist <= 0.0f ) {
+			// If we're basically aligned in XY but still far in Z (stairs/elevators),
+			// don't clamp speed to 0 or we'll stall below/above the target.
+			if ( approachDist <= 0.0f && zDist < 32.0f ) {
 				frameVelocity = 0.0f;
 			}
  
-			// Separation-aware stop: get as close as 8 units, then halt.
-			// Using player origin directly often stops "too far" due to bbox collision/overshoot.
-			constexpr float navRebuildDist = 16.0f;
-			const QMTime navRebuildInterval = 500_ms;
+			// Rebuild less aggressively to avoid oscillating between nearby solutions.
+			constexpr float navRebuildDist = 96.0f;
+			const QMTime navRebuildInterval = 400_ms;
 			const Vector3 navGoalDelta = QM_Vector3Subtract( goalOrigin, self->navPathGoal );
 			const float navGoalDistSqr = ( navGoalDelta.x * navGoalDelta.x ) + ( navGoalDelta.y * navGoalDelta.y );
  
 			if ( level.time >= self->navPathNextRebuildTime && ( self->navPath.num_points == 0 || navGoalDistSqr > ( navRebuildDist * navRebuildDist ) ) ) {
-   				SVG_Nav_FreeTraversalPath( &self->navPath );
-   				if ( SVG_Nav_GenerateTraversalPathForOrigin( self->currentOrigin, goalOrigin, &self->navPath ) ) {
-   					self->navPathIndex = 0;
-  					// Cache the exact goalOrigin we generated for so goal-change detection is consistent.
-  					self->navPathGoal = goalOrigin;
-   				}
-   				self->navPathNextRebuildTime = level.time + navRebuildInterval;
-   			}
+				SVG_Nav_FreeTraversalPath( &self->navPath );
+				self->navPathIndex = 0;
+
+				bool built = false;
+				Vector3 buildGoal = goalOrigin;
+
+				// If a trail marker is on the wrong side of a blocker (or on a bad floor),
+				// try advancing a couple of markers rather than walking toward a stale/invalid direction.
+				for ( int32_t attempt = 0; attempt < 3 && !built; ++attempt ) {
+					if ( SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( self->currentOrigin, buildGoal, &self->navPath,
+						self->mins, self->maxs, true, 256.0f, 512.0f ) ) {
+						built = true;
+						break;
+					}
+
+					if ( !canSeeGoalEntity ) {
+						svg_base_edict_t *&trailSpot = s_dummyTrailSpot[ self->s.number ];
+						svg_base_edict_t *next = PlayerTrail_PickNext( self );
+						if ( next ) {
+							trailSpot = next;
+							buildGoal = trailSpot->currentOrigin;
+							continue;
+						}
+					}
+					break;
+				}
+
+				if ( built ) {
+					self->navPathIndex = 0;
+					self->navPathGoal = buildGoal;
+					gi.dprintf( "TestDummy Puppet: Rebuilt nav path with %d points.\n", self->navPath.num_points );
+				} else {
+					gi.dprintf( "TestDummy Puppet: Failed to rebuild nav path.\n" );
+					self->navPathGoal = buildGoal;
+				}
+
+				self->navPathNextRebuildTime = level.time + navRebuildInterval;
+			}
  
- 			Vector3 move_dir = {};
-   			bool has_nav_direction = SVG_Nav_QueryMovementDirection( &self->navPath, self->currentOrigin, 12.0f, &self->navPathIndex, &move_dir );
+			Vector3 move_dir = {};
+			bool has_nav_direction = SVG_Nav_QueryMovementDirection_Advance2D_Output3D( &self->navPath, self->currentOrigin, 48.0f, &self->navPathIndex, &move_dir );
    			if ( !has_nav_direction ) {
    				move_dir = QM_Vector3Normalize( Vector3{ toGoal.x, toGoal.y, 0.0f } );
    			}
@@ -368,7 +436,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
 				? move_dir
 				: QM_Vector3Normalize( Vector3{ toGoal.x, toGoal.y, 0.0f } );
 
-			self->ideal_yaw = QM_Vector3ToYaw( face_dir );
+			self->ideal_yaw = QM_Vector3ToYaw( move_dir );
 			self->yaw_speed = 7.5f;
 			SVG_MMove_FaceIdealYaw( self, self->ideal_yaw, self->yaw_speed );
    
@@ -396,6 +464,26 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_t, onThink )( svg_monster_te
  			};
  
  			const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove );
+
+			// Prevent walking off large drops. If we're about to leave ground, trace down
+			// from the would-be new origin and cancel horizontal movement if the fall is too large.
+			if ( self->groundInfo.entityNumber != ENTITYNUM_NONE ) {
+				const bool willBeAirborne = ( monsterMove.ground.entityNumber == ENTITYNUM_NONE );
+				if ( willBeAirborne ) {
+					Vector3 start = monsterMove.state.origin;
+					Vector3 end = start;
+					end.z -= 128.0f;
+
+					cm_trace_t tr = gi.trace( &start, &self->mins, &self->maxs, &end, self, CM_CONTENTMASK_SOLID );
+					const float drop = start.z - tr.endpos[ 2 ];
+					if ( tr.fraction < 1.0f && drop > 100.0f ) {
+						monsterMove.state.origin = self->currentOrigin;
+						monsterMove.state.velocity.x = 0.0f;
+						monsterMove.state.velocity.y = 0.0f;
+						monsterMove.ground = self->groundInfo;
+					}
+				}
+			}
  
  			if ( std::fabs( monsterMove.step.height ) > 0.f + FLT_EPSILON ) {
  				self->s.renderfx |= RF_STAIR_STEP;

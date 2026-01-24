@@ -17,6 +17,16 @@
 **/
 // temp entity events
 typedef enum temp_entity_event_e {
+	/**
+	*	Specifically for debugging purposes:
+	**/
+	//! Will draw a line from start to end.
+	TE_DEBUG_TRAIL,
+	//! Will draw a box at the given location.
+	TE_DEBUG_BBOX,
+	//! Will draw a point at the given location.
+	TE_DEBUG_POINT,
+
 	//TE_GUNSHOT,
 	// TE_OTHER_TYPE_GUNSHOT
 
@@ -35,18 +45,18 @@ typedef enum temp_entity_event_e {
 	//! A bullet hitting water.
 	//TE_SPLASH,
 
-	TE_STEAM,
-	TE_HEATBEAM_STEAM,
+	//TE_STEAM,
+	//TE_HEATBEAM_STEAM,
 
 	//TE_SPARKS,
-	TE_HEATBEAM_SPARKS,
+	//TE_HEATBEAM_SPARKS,
 	//TE_BULLET_SPARKS,
-	TE_ELECTRIC_SPARKS,
+	//TE_ELECTRIC_SPARKS,
 	TE_LASER_SPARKS,
-	TE_TUNNEL_SPARKS,
-	TE_WELDING_SPARKS,
+	//TE_TUNNEL_SPARKS,
+	//TE_WELDING_SPARKS,
 
-	TE_FLAME,
+	//TE_FLAME,
 
 	//TE_PLAIN_EXPLOSION,
 	//TE_EXPLOSION1_BIG,
@@ -63,7 +73,6 @@ typedef enum temp_entity_event_e {
 	//! 
 	//TE_FORCEWALL,
 	//! Renders a debug trail.
-	TE_DEBUGTRAIL,
 
 	TE_NUM_ENTITY_EVENTS
 } temp_entity_event_t;

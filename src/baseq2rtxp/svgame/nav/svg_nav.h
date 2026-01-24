@@ -292,6 +292,24 @@ void SVG_Nav_FreeMesh( void );
 *   @return True if a path was found, false otherwise.
 **/
 const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path );
+const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs );
+/**
+ *   @brief  Generate a traversal path between two origins with optional goal Z-layer blending.
+ *           Enables per-call control over whether the start/goal node selection prefers
+ *           the goal's Z when far away, preventing stuck navigation when targets are upstairs.
+ *   @param  start_origin             World-space start origin.
+ *   @param  goal_origin              World-space goal origin.
+ *   @param  out_path                 Output path result (caller must free).
+ *   @param  enable_goal_z_layer_blend  If true, blend start Z toward goal Z based on horizontal distance.
+ *   @param  blend_start_dist         Distance at which blending begins.
+ *   @param  blend_full_dist          Distance at which blending fully favors goal Z.
+ *   @return True if a path was found, false otherwise.
+ **/
+const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const bool enable_goal_z_layer_blend, const float blend_start_dist, const float blend_full_dist );
+const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, const bool enable_goal_z_layer_blend, const float blend_start_dist, const float blend_full_dist );
 /**
 *   @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
 *   @param  path    Path structure to free.
@@ -309,6 +327,17 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
 *   @return True if a valid direction was produced, false if path is complete/invalid.
 **/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, float waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
+/**
+ *   @brief  Query movement direction while advancing waypoints in 2D and emitting 3D directions.
+ *           Useful for stair traversal so the vertical component can be used separately from waypoint completion.
+ *   @param  path            Path to follow.
+ *   @param  current_origin  Current world-space origin.
+ *   @param  waypoint_radius Radius for waypoint completion (2D).
+ *   @param  inout_index     Current waypoint index (updated as 2D waypoints are reached).
+ *   @param  out_direction   Output normalized 3D movement direction.
+ *   @return True if a valid direction was produced, false if the path is invalid or complete.
+ **/
+const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin, float waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
 
 
 

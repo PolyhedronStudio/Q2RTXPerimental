@@ -23,7 +23,7 @@ typedef enum temp_entity_event_e {
     TE_GUNSHOT,
     TE_BLOOD,
     // ... existing events ...
-    TE_DEBUGTRAIL,
+    TE_DEBUG_TRAIL,
     
     // Add your custom events here
     TE_CUSTOM_ENERGY_BURST,      // Your new effect!
@@ -43,7 +43,7 @@ typedef enum temp_entity_event_e {
 ```cpp
 typedef enum temp_entity_event_e {
     // ... existing events ...
-    TE_DEBUGTRAIL,
+    TE_DEBUG_TRAIL,
     
     // Custom: Energy weapon impact burst
     // Parameters: origin (vec3), direction (vec3), color (byte)
@@ -539,12 +539,12 @@ void CLG_Handle_EnergyBurst() {
 }
 ```
 
-### Use TE_DEBUGTRAIL for Visualization
+### Use TE_DEBUG_TRAIL for Visualization
 
 ```cpp
 // Visualize effect bounds
 gi.WriteByte(svc_temp_entity);
-gi.WriteByte(TE_DEBUGTRAIL);
+gi.WriteByte(TE_DEBUG_TRAIL);
 gi.WritePosition(origin);
 gi.WritePosition(target_pos);
 gi.multicast(origin, MULTICAST_ALL);

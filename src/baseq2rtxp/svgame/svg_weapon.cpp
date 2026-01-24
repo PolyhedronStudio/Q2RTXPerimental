@@ -243,7 +243,7 @@ const bool fire_hit_punch_impact( svg_base_edict_t *self, const Vector3 &start, 
     }
 
     //gi.WriteUint8( svc_temp_entity );
-    //gi.WriteUint8( TE_DEBUGTRAIL );
+    //gi.WriteUint8( TE_DEBUG_TRAIL );
     //gi.WritePosition( start, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     //gi.WritePosition( tr.endpos, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     //gi.multicast( start, MULTICAST_PVS, false );

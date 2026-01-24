@@ -27,7 +27,7 @@ typedef enum temp_entity_event_e {
     TE_PLAIN_EXPLOSION,
     TE_TELEPORT_EFFECT,
     TE_FLASHLIGHT,
-    TE_DEBUGTRAIL,
+    TE_DEBUG_TRAIL,
     TE_NUM_ENTITY_EVENTS
 } temp_entity_event_t;
 ```
@@ -666,7 +666,7 @@ void Create_Flashlight_Beam(const vec3_t &pos, const vec3_t &dir) {
 - Spotlights
 - Light beams
 
-### TE_DEBUGTRAIL
+### TE_DEBUG_TRAIL
 
 **Description:** Debug visualization trail
 
@@ -678,7 +678,7 @@ void Create_Flashlight_Beam(const vec3_t &pos, const vec3_t &dir) {
 ```cpp
 void Draw_Debug_Trail(const vec3_t &start, const vec3_t &end) {
     gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_DEBUGTRAIL);
+    gi.WriteByte(TE_DEBUG_TRAIL);
     gi.WritePosition(start);
     gi.WritePosition(end);
     gi.multicast(start, MULTICAST_ALL);

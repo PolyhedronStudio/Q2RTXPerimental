@@ -63,6 +63,7 @@ static void CLG_ParseTEntPacket( void ) {
     level.parsedMessage.events.tempEntity.type = clgi.MSG_ReadUint8();
 
     switch ( level.parsedMessage.events.tempEntity.type ) {
+	#if 0
     //case TE_BLOOD:
     //case TE_GUNSHOT:
     //case TE_SPARKS:
@@ -84,14 +85,12 @@ static void CLG_ParseTEntPacket( void ) {
             clgi.MSG_ReadDir8( level.parsedMessage.events.tempEntity.dir );
             level.parsedMessage.events.tempEntity.color = clgi.MSG_ReadUint8();
         break;
-	#if 0
     case TE_BUBBLETRAIL:
-    case TE_DEBUGTRAIL:
+    case TE_DEBUG_TRAIL:
     case TE_BUBBLETRAIL2:
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
             clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
         break;
-	#endif
     //case TE_PLAIN_EXPLOSION:
     ////case TE_TELEPORT_EFFECT:
     //        clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
@@ -141,12 +140,20 @@ static void CLG_ParseTEntPacket( void ) {
     //    clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
     //    level.parsedMessage.events.tempEntity.color = clgi.MSG_ReadUint8();
     //    break;
+	#endif
 
-    case TE_DEBUGTRAIL:
+    case TE_DEBUG_TRAIL:
 		clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 		clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos2, MSG_POSITION_ENCODING_TRUNCATED_FLOAT );
 		break;
-
+	//case TE_DEBUG_BBOX:
+	//	clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_NONE );
+	//	clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.offset, MSG_POSITION_ENCODING_NONE );
+	//	break;
+	//case TE_DEBUG_POINT:
+	//	clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.pos1, MSG_POSITION_ENCODING_NONE );
+	//	clgi.MSG_ReadPos( level.parsedMessage.events.tempEntity.offset, MSG_POSITION_ENCODING_NONE );
+	//	break;
     default:
         Com_Error( ERR_DROP, "%s: bad type", __func__ );
     }

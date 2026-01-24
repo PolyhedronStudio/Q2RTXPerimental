@@ -455,6 +455,9 @@ void SVG_InitGame( void ) {
         game.clients[ i ].pers.connected = false;
         game.clients[ i ].pers.spawned = false;
     }
+
+	// Initialize navigation system (registers cvars like `nav_debug_draw`).
+	SVG_Nav_Init();
 }
 
 /**

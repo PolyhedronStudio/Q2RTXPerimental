@@ -594,7 +594,7 @@ r_drawpvs 1
 ```cpp
 void Debug_Projectile_Path(const vec3_t &start, const vec3_t &end) {
     gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_DEBUGTRAIL);
+    gi.WriteByte(TE_DEBUG_TRAIL);
     gi.WritePosition(start);
     gi.WritePosition(end);
     gi.multicast(start, MULTICAST_ALL);  // Make sure everyone sees it
