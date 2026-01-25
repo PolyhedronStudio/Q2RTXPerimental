@@ -231,8 +231,8 @@ const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other
 /**
 *   @return True if the entity is in front (in sight) of self
 **/
-const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *other, const float dotRangeArea = 3.0f );
+const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *other, const float dotRangeArea = 0.3f );
 /**
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
-const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOrigin, const float dotRangeArea = 3.0f );
+const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOrigin, const float dotRangeArea = 0.3f );

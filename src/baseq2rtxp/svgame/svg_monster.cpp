@@ -224,21 +224,21 @@ DEFINE_GLOBAL_CALLBACK_THINK( M_droptofloor )( svg_base_edict_t *ent ) -> void {
 
 	cm_contents_t mask = SVG_GetClipMask( ent );
 
-	ent->s.origin[ 2 ] += 1;
-	VectorCopy( ent->s.origin, end );
-	end[ 2 ] -= 256;
+	ent->currentOrigin[ 2 ] += 1;
+	VectorCopy( ent->currentOrigin, end );
+	end[ 2 ] -= CM_MAX_WORLD_HALF_SIZE;
 
-	trace = SVG_Trace( ent->s.origin, ent->mins, ent->maxs, end, ent, mask );
+	trace = SVG_Trace( ent->currentOrigin, ent->mins, ent->maxs, end, ent, mask );
 
 	if ( trace.fraction == 1 || trace.allsolid || ( trace.startsolid ) ) {
 		return;
 	}
 
-	VectorCopy( trace.endpos, ent->s.origin );
+	VectorCopy( trace.endpos, ent->currentOrigin );
 
 	gi.linkentity( ent );
 	M_CheckGround( ent, mask );
-	M_CatagorizePosition( ent, ent->s.origin, ent->liquidInfo.level, ent->liquidInfo.type );
+	M_CatagorizePosition( ent, ent->currentOrigin, ent->liquidInfo.level, ent->liquidInfo.type );
 }
 
 void M_SetEffects( svg_base_edict_t *ent ) {

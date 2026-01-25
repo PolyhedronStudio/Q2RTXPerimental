@@ -15,11 +15,17 @@
 *	@brief	Policy for path processing and follow behavior.
 **/
 struct svg_nav_path_policy_t {
+	//! Radius around waypoints to consider 'reached'.
 	float waypoint_radius = 32.0f;
+	//! 2D distance change in goal position that triggers a path rebuild.
 	float rebuild_goal_dist_2d = 48.0f;
+	//! 3D distance change in goal position that triggers a path rebuild.
+	float rebuild_goal_dist_3d = 2304.0f; // 48 * 48 = 2304
+	//! Minimum time interval between path rebuild attempts.
 	QMTime rebuild_interval = 500_ms;
-
+	//! Base time for exponential backoff on path rebuild failures.
 	QMTime fail_backoff_base = 250_ms;
+	//! Maximum exponent for backoff time (2^n).
 	int32_t fail_backoff_max_pow = 6;
 };
 
@@ -28,139 +34,100 @@ struct svg_nav_path_policy_t {
 *	@note	Embed this in an entity to add path following behavior.
 **/
 struct svg_nav_path_process_t {
+	/**
+	*
+	*
+	*
+	*	Core:
+	*
+	*
+	*
+	**/
+	//! Current traversal path.
 	nav_traversal_path_t path = {};
+	//! Current index along the path.
 	int32_t path_index = 0;
+	//! Last path goal and start positions.
 	Vector3 path_goal = {};
+	//! Start position used for the current path.
 	Vector3 path_start = {};
+    //! Z offset from entity origin to nav-center used for the current stored path (path points are stored in entity origin space).
+    float path_center_offset_z = 0.0f;
+	//! Next time at which a path rebuild can be attempted.
 	QMTime next_rebuild_time = 0_ms;
+	//! Time until which rebuild attempts are backed off due to failures.
 	QMTime backoff_until = 0_ms;
+	//! Number of consecutive path rebuild failures.
 	int32_t consecutive_failures = 0;
 
-	void Reset( void ) {
-		SVG_Nav_FreeTraversalPath( &path );
-		path_index = 0;
-		path_goal = {};
-		path_start = {};
-		next_rebuild_time = 0_ms;
-		backoff_until = 0_ms;
-		consecutive_failures = 0;
-	}
-	bool RebuildPathToWithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy,
-		const Vector3 &agent_mins, const Vector3 &agent_maxs ) {
-		if ( !CanRebuild( policy ) ) {
-			return false;
-		}
-		if ( !ShouldRebuildForGoal2D( goal_origin, policy ) && !ShouldRebuildForStart2D( start_origin, policy ) ) {
-			return false;
-		}
+	/**
+	*	@brief	Policy for path processing and follow behavior.
+	**/
+	void Reset( void );
 
-		nav_traversal_path_t oldPath = path;
-		const int32_t oldIndex = path_index;
 
-		path = {};
-		path_index = 0;
 
-		const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( start_origin, goal_origin, &path, agent_mins, agent_maxs, true, 256.0f, 512.0f );
-		if ( ok ) {
-			SVG_Nav_FreeTraversalPath( &oldPath );
-			path_start = start_origin;
-			path_goal = goal_origin;
-			consecutive_failures = 0;
-			backoff_until = 0_ms;
-			next_rebuild_time = level.time + policy.rebuild_interval;
-			return true;
-		}
+	/**
+	*
+	*
+	*
+	*	Path (Re-)Building:
+	*
+	*
+	*
+	**/
+	/**
+	*	@brief	Rebuild the path to the given goal from the given start, using the given agent
+	*			bounding box for traversal.
+	**/
+	const bool RebuildPathToWithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy,
+		const Vector3 &agent_mins, const Vector3 &agent_maxs );
+	/**
+	*	@brief	Used to determine if a path rebuild can be attempted at this time.
+	**/
+	const bool CanRebuild( const svg_nav_path_policy_t &policy ) const;
+	/**
+	*	@brief	Determine if the path should be rebuilt based on the goal's 2D distance change.
+	*	@return	True if the path should be rebuilt.
+	**/
+	const bool ShouldRebuildForGoal2D( const Vector3 &goal_origin, const svg_nav_path_policy_t &policy ) const;
+	/**
+	*	@brief	Determine if the path should be rebuilt based on the start's 2D distance change.
+	* 	@return	True if the path should be rebuilt.
+	**/
+	const bool ShouldRebuildForStart2D( const Vector3 &start_origin, const svg_nav_path_policy_t &policy ) const;	/**
+	*	@brief	Rebuild the path to the given goal from the given start.
+	* 	@return	True if the path was successfully rebuilt.
+	**/
+	const bool RebuildPathTo( const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy );
 
-		SVG_Nav_FreeTraversalPath( &path );
-		path = oldPath;
-		path_index = oldIndex;
 
-		consecutive_failures++;
-		const int32_t powN = std::min( std::max( 0, consecutive_failures ), policy.fail_backoff_max_pow );
-		const QMTime extra = QMTime::FromMilliseconds( (int32_t)policy.fail_backoff_base.Milliseconds() * ( 1 << powN ) );
-		backoff_until = level.time + extra;
-		next_rebuild_time = std::max( next_rebuild_time, backoff_until );
-		return false;
-	}
-	bool CanRebuild( const svg_nav_path_policy_t &policy ) const {
-		(void)policy;
-		return level.time >= next_rebuild_time && level.time >= backoff_until;
-	}
-	bool ShouldRebuildForGoal2D( const Vector3 &goal_origin, const svg_nav_path_policy_t &policy ) const {
-		if ( path.num_points <= 0 || !path.points ) {
-			return true;
-		}
-		const Vector3 d = QM_Vector3Subtract( goal_origin, path_goal );
-		const float d2 = ( d.x * d.x ) + ( d.y * d.y );
-		return d2 > ( policy.rebuild_goal_dist_2d * policy.rebuild_goal_dist_2d );
-	}
-	bool ShouldRebuildForStart2D( const Vector3 &start_origin, const svg_nav_path_policy_t &policy ) const {
-		if ( path.num_points <= 0 || !path.points ) {
-			return true;
-		}
-		// Use the same distance threshold as goal, unless tuned separately.
-		const Vector3 d = QM_Vector3Subtract( start_origin, path_start );
-		const float d2 = ( d.x * d.x ) + ( d.y * d.y );
-		return d2 > ( policy.rebuild_goal_dist_2d * policy.rebuild_goal_dist_2d );
-	}
-	bool RebuildPathTo( const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy ) {
-		if ( !CanRebuild( policy ) ) {
-			return false;
-		}
-		if ( !ShouldRebuildForGoal2D( goal_origin, policy ) && !ShouldRebuildForStart2D( start_origin, policy ) ) {
-			return false;
-		}
+	/**
+	*
+	*
+	*
+	*	Path direction/movement querying:
+	*
+	*
+	*
+	**/
+	/**
+	*	@brief	Query the next movement direction in 2D from the current origin along the path.
+	**/
+	const bool QueryDirection2D( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, Vector3 *out_dir2d );
+	/**
+	*	@brief	Query the next movement direction in 3D from the current origin along the path.
+	*	@param	current_origin	Current position of the agent.
+	*	@param	policy			Path policy (for waypoint radius).
+	*	@param	out_dir3d		[out] Resulting normalized 3D direction.
+	*	@return	True if a direction was found.
+	**/
+	const bool QueryDirection3D( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, Vector3 *out_dir3d );
 
-		nav_traversal_path_t oldPath = path;
-		const int32_t oldIndex = path_index;
-
-		path = {};
-		path_index = 0;
-
-		const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx( start_origin, goal_origin, &path, true, 256.0f, 512.0f );
-		if ( ok ) {
-			SVG_Nav_FreeTraversalPath( &oldPath );
-			path_start = start_origin;
-			path_goal = goal_origin;
-			consecutive_failures = 0;
-			backoff_until = 0_ms;
-			next_rebuild_time = level.time + policy.rebuild_interval;
-			return true;
-		}
-
-		SVG_Nav_FreeTraversalPath( &path );
-		path = oldPath;
-		path_index = oldIndex;
-
-		consecutive_failures++;
-		const int32_t powN = std::min( std::max( 0, consecutive_failures ), policy.fail_backoff_max_pow );
-		const QMTime extra = QMTime::FromMilliseconds( (int32_t)policy.fail_backoff_base.Milliseconds() * ( 1 << powN ) );
-		backoff_until = level.time + extra;
-		next_rebuild_time = std::max( next_rebuild_time, backoff_until );
-		return false;
-	}
-	bool QueryDirection2D( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, Vector3 *out_dir2d ) {
-		if ( !out_dir2d ) {
-			return false;
-		}
-		if ( path.num_points <= 0 || !path.points ) {
-			return false;
-		}
-
-		Vector3 dir = {};
-		int32_t idx = path_index;
-		const bool ok = SVG_Nav_QueryMovementDirection( &path, current_origin, policy.waypoint_radius, &idx, &dir );
-		if ( !ok ) {
-			return false;
-		}
-		path_index = idx;
-
-		dir.z = 0.0f;
-		const float len2 = ( dir.x * dir.x ) + ( dir.y * dir.y );
-		if ( len2 <= ( 0.001f * 0.001f ) ) {
-			return false;
-		}
-		*out_dir2d = QM_Vector3Normalize( dir );
-		return true;
-	}
+	/**
+	*   @brief  Get the next path point converted into the entity's origin space (opposite of nav-center).
+	*   @param  out_point   [out] Next path point in entity origin coordinates (feet-origin).
+	*   @return True if a next point exists.
+	**/
+	const bool GetNextPathPointEntitySpace( Vector3 *out_point ) const;
 };

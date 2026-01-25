@@ -12,6 +12,7 @@
 // Needed.
 #include "svgame/entities/svg_base_edict.h"
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_path_process.h"
 
 
 /**
@@ -128,6 +129,50 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
 
 
 
+	/**
+	*
+	*	Think Actions:
+	*
+	**/
+	/**
+	*	@brief	Path following using A* (trail/noise).
+	*	@return	True if path following is possible, false if should deactivate.
+	**/
+	const bool ThinkPathFollow();
+
+	/**
+	*	@brief	Try to pathfind to the player using A* (even if not visible).
+	*	@return	True if a path is found and movement is set, false otherwise.
+	**/
+	const bool ThinkAStarToPlayer();
+
+	/**
+	*	@brief	Direct pursuit of the player (LOS).
+	**/
+	void ThinkDirectPursuit();
+	/**
+	*	@brief	Follow the player trail (breadcrumbs).
+	*	@return	True if a trail spot is found and movement is set, false otherwise.
+	**/
+	const bool ThinkFollowTrail();
+	/**
+	*	@brief	Idle behavior: stop movement and play idle animation.
+	**/
+	void ThinkIdle();
+
+	/**
+	*    @brief    Helper: compute an absolute frame index for a root motion animation.
+	*    @note    Uses the global `level.time` to choose the frame based on `animHz`.
+	*/
+	int32_t ComputeAnimFrameFromRootMotion( const skm_rootmotion_t *rootMotion, float animHz ) const;
+
+	/**
+	*    @brief    Helper: face a horizontal target smoothly by blending between a hint direction and the exact target direction.
+	*/
+	void FaceTargetHorizontal( const Vector3 &directionHint, const Vector3 &targetPoint, float blendFactor, float yawSpeed );
+
+
+
     /**
     *
     *   Member Variables:
@@ -147,10 +192,16 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     /**
     *   Navigation path following state:
     **/
-    nav_traversal_path_t navPath = {};
-    int32_t navPathIndex = 0;
-    Vector3 navPathGoal = {};
-    QMTime navPathNextRebuildTime = 0_ms;
+    svg_nav_path_process_t navPathProcess = {};
+    svg_nav_path_policy_t navPathPolicy = {};
+    //! Most recent sound_entity noise time this monster consumed.
+    QMTime last_sound_time_seen = 0_ms;
+    //! Most recent sound2_entity noise time this monster consumed.
+    QMTime last_sound2_time_seen = 0_ms;
+    //! Last heard sound origin (set by sound handling code if available).
+    Vector3 last_sound_origin = {};
+    //! Last heard sound2 origin.
+    Vector3 last_sound2_origin = {};
 
     
     /**

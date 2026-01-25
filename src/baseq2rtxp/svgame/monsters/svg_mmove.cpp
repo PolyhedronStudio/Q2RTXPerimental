@@ -202,10 +202,27 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	//	monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
 	//}
 
-	// Apply gravity after having stored original startVelocity.
-	if ( !( monsterMove->state.mm_flags & MMF_ON_GROUND ) ) {
-		monsterMove->state.velocity.z -= monsterMove->state.gravity * monsterMove->frameTime;
-	}
+    // Apply gravity after having stored original startVelocity.
+    if ( !( monsterMove->state.mm_flags & MMF_ON_GROUND ) ) {
+        const float oldZ = monsterMove->state.velocity.z;
+        const float delta = ( float )monsterMove->state.gravity * ( float )monsterMove->frameTime;
+        monsterMove->state.velocity.z -= delta;
+        // Limit logging to once per server frame to reduce spam.
+        static int32_t s_last_mmove_log_frame = -1;
+        if ( monsterMove->monster && level.frameNumber != s_last_mmove_log_frame ) {
+            s_last_mmove_log_frame = level.frameNumber;
+            const double timeSec = level.time.Seconds<double>();
+            gi.dprintf( "[DEBUG][%f frame=%d] SVG_MMove_StepSlideMove: ent=%d gravity=%d frameTime=%.6f delta=%.6f oldZ=%.6f newZ=%.6f\n",
+                timeSec,
+                level.frameNumber,
+                monsterMove->monster->s.number,
+                ( int )monsterMove->state.gravity,
+                monsterMove->frameTime,
+                delta,
+                oldZ,
+                monsterMove->state.velocity.z );
+        }
+    }
 
 	return blockedMask;
 }

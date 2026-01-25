@@ -261,8 +261,28 @@ void game_write_context_t::write_pointer( void *p, svg_save_funcptr_type_t type,
 *   @param  base The base address of the structure to write to.
 **/
 void game_write_context_t::write_field( const svg_save_descriptor_field_t *descriptorField, void *base ) {
-    void *p = (byte *)base + descriptorField->offset;
+    void *p;
     int i;
+
+    // Defensive: validate descriptorField before touching its members.
+    if ( descriptorField == nullptr ) {
+        gi.error( "%s: null descriptorField", __func__ );
+        return;
+    }
+
+    // Read type once and validate it is within expected enum range.
+    const int dtype = descriptorField->type;
+    if ( dtype < SD_FIELD_TYPE_INT8 || dtype >= SD_FIELD_TYPE_MAX_TYPES ) {
+        // Basic diagnostics: pointer and reported type.
+        gi.dprintf( "%s: invalid descriptorField=%p type=%d\n", __func__, descriptorField, dtype );
+        // Try to safely probe descriptor name and small memory dump on MSVC.
+        gi.dprintf( "%s: name=%s\n", __func__, descriptorField->name ? descriptorField->name : "(null)" );
+        gi.error( "%s: unknown descriptorField type(%d)", __func__, dtype );
+        return;
+    }
+
+    // Safe to compute pointer to field now.
+    p = (byte *)base + descriptorField->offset;
 
     switch ( descriptorField->type ) {
     case SD_FIELD_TYPE_INT8:
@@ -349,13 +369,22 @@ void game_write_context_t::write_field( const svg_save_descriptor_field_t *descr
         break;
 
     default:
-        //#if !defined(_USE_DEBUG)
-        //gi.error( "%s: unknown descriptorField type(%d)", __func__, descriptorField->type );
-        //#else
-        gi.error( "%s: unknown descriptorField type(%d), name(%s)", __func__, descriptorField->type, descriptorField->name );
-        //#endif
+            // Validate descriptorField pointer and type range to avoid passing corrupted pointers into variadic formatters.
+            if ( descriptorField == nullptr ) {
+                gi.error( "%s: null descriptorField", __func__ );
+                break;
+            }
+
+            // If type looks out-of-range, avoid including the potentially-corrupted "name" pointer in the formatted message.
+            if ( descriptorField->type < SD_FIELD_TYPE_INT8 || descriptorField->type >= SD_FIELD_TYPE_MAX_TYPES ) {
+                gi.error( "%s: unknown descriptorField type(%d)", __func__, descriptorField->type );
+                break;
+            }
+
+            // Safe to include name (guaranteed non-null fallback)
+            gi.error( "%s: unknown descriptorField type(%d), name(%s)", __func__, descriptorField->type, descriptorField->name ? descriptorField->name : "(null)" );
+        }
     }
-}
 /**
 *   @brief  Write a list of descriptor fields to the file.
 *   @param  descriptorFields A pointer to an array of svg_save_descriptor_field_t structures, each describing a field to be written. The array must be null-terminated (field->type must be 0 to indicate the end).

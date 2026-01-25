@@ -63,6 +63,7 @@ enum svg_save_field_descriptor_type_t : int32_t {
 
 	SD_FIELD_TYPE_IGNORE,
 
+	SD_FIELD_TYPE_MAX_TYPES
 	// WID: This was from Q2RTX 1.7.0
 	//SD_FIELD_TYPE_FRAMETIME,         // speciality for savegame compatibility: float on disk, converted to framenum
 };

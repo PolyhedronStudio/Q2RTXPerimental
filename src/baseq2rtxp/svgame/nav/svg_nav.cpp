@@ -9,13 +9,18 @@
 #include "svgame/svg_utils.h"
 
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_movement.h"
+#include "svgame/nav/svg_nav_path_process.h"
+
 #include "svgame/entities/svg_player_edict.h"
+
+// <Q2RTXP>: TODO: Move to shared? Ehh.. 
+// Common BSP access for navigation generation.
 #include "common/bsp.h"
-#include "svg_nav.h"
-#include <math.h>
-#include <limits>
+
 #include <unordered_map>
 #include <vector>
+#include <cmath>
 
 
 
@@ -106,9 +111,19 @@ static bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vect
 
 /**
 *
-*   CVars fpr Navigation Debug Drawing:
+*   CVars for Navigation Debug Drawing:
 *
 **/
+// Cached debug paths (last computed traversal paths for the current server frame).
+static constexpr QMTime NAV_DEBUG_PATH_RETENTION = QMTime::FromMilliseconds( 1500 );
+struct nav_debug_cached_path_t {
+	//! Cached traversal path.
+	nav_traversal_path_t path;
+	//! Level Time at which this cached path expires.
+	QMTime expireTime;
+};
+//! Cached debug paths.
+static std::vector<nav_debug_cached_path_t> s_nav_debug_cached_paths;
 //! Master on/off. 0 = off, 1 = on.
 static cvar_t *nav_debug_draw = nullptr;
 //! Only draw a specific BSP leaf index. -1 = any.
@@ -125,14 +140,6 @@ static cvar_t *nav_debug_draw_tile_bounds = nullptr;
 static cvar_t *nav_debug_draw_samples = nullptr;
 //! Draw final path segments from traversal path query.
 static cvar_t *nav_debug_draw_path = nullptr;
-
-// Cached debug paths (last computed traversal paths for the current server frame).
-static constexpr QMTime NAV_DEBUG_PATH_RETENTION = QMTime::FromMilliseconds( 1500 );
-struct nav_debug_cached_path_t {
-	nav_traversal_path_t path;
-	QMTime expireTime;
-};
-static std::vector<nav_debug_cached_path_t> s_nav_debug_cached_paths;
 
 
 
@@ -165,6 +172,7 @@ cvar_t *nav_cell_size_xy = nullptr;
 cvar_t *nav_z_quant = nullptr;
 cvar_t *nav_tile_size = nullptr;
 cvar_t *nav_max_step = nullptr;
+cvar_t *nav_max_drop = nullptr;
 cvar_t *nav_max_slope_deg = nullptr;
 cvar_t *nav_agent_mins_x = nullptr;
 cvar_t *nav_agent_mins_y = nullptr;
@@ -172,6 +180,8 @@ cvar_t *nav_agent_mins_z = nullptr;
 cvar_t *nav_agent_maxs_x = nullptr;
 cvar_t *nav_agent_maxs_y = nullptr;
 cvar_t *nav_agent_maxs_z = nullptr;
+// Optional vertical tolerance (world units). If <= 0, auto-derived from mesh parameters.
+cvar_t *nav_z_tolerance = nullptr;
 
 
 
@@ -190,19 +200,22 @@ cvar_t *nav_agent_maxs_z = nullptr;
 *   @brief  Calculate the world-space size of a tile.
 **/
 static inline float Nav_TileWorldSize( const nav_mesh_t *mesh ) {
-	return mesh->cell_size_xy * ( float )mesh->tile_size;
+    // Compute world-space size of a nav tile.
+    return mesh->cell_size_xy * ( float )mesh->tile_size;
 }
 /**
 *   @brief  Convert world coordinate to tile grid coordinate.
 **/
 static inline int32_t Nav_WorldToTileCoord( float value, float tile_world_size ) {
-	return ( int32_t )floorf( value / tile_world_size );
+    // Map a world coordinate into tile grid coordinate using floor.
+    return ( int32_t )floorf( value / tile_world_size );
 }
 /**
 *   @brief  Convert world coordinate to cell index within a tile.
 **/
 static inline int32_t Nav_WorldToCellCoord( float value, float tile_origin, float cell_size_xy ) {
-	return ( int32_t )floorf( ( value - tile_origin ) / cell_size_xy );
+    // Map a world coordinate into a cell index within its tile.
+    return ( int32_t )floorf( ( value - tile_origin ) / cell_size_xy );
 }
 
 /**
@@ -234,14 +247,22 @@ void SVG_Nav_Init( void ) {
 	*   Register grid and quantization CVars with sensible defaults:
 	**/
 	nav_cell_size_xy = gi.cvar( "nav_cell_size_xy", "4", 0 );
-	nav_z_quant = gi.cvar( "nav_z_quant", "2", 0 );
+    nav_z_quant = gi.cvar( "nav_z_quant", "2", 0 );
 	nav_tile_size = gi.cvar( "nav_tile_size", "32", 0 );
+
+    // Tunable Z tolerance for layer selection and fallback. 0 = auto.
+    nav_z_tolerance = gi.cvar( "nav_z_tolerance", "0", 0 );
 
 	/**
 	*   Register physics constraint CVars matching player movement:
 	**/
 	nav_max_step = gi.cvar( "nav_max_step", "18", 0 );
 	nav_max_slope_deg = gi.cvar( "nav_max_slope_deg", "45.57", 0 );
+
+	/**
+	*	Register physics constraints for specific actions.
+	**/
+	nav_max_drop = gi.cvar( "nav_max_drop", "128", 0 );
 
 	/**
 	*   Register agent bounding box CVars:
@@ -284,7 +305,10 @@ void SVG_Nav_Init( void ) {
 *           Called during game shutdown to clean up resources.
 **/
 void SVG_Nav_Shutdown( void ) {
-	NavDebug_ClearCachedPaths();
+    /**
+    *    Cleanup: clear debug paths and free any loaded/generate mesh.
+    **/
+    NavDebug_ClearCachedPaths();
     SVG_Nav_FreeMesh();
 }
 
@@ -570,7 +594,7 @@ void SVG_Nav_FreeMesh( void ) {
 **/
 static bool IsWalkableSlope( const Vector3 &normal, float max_slope_deg ) {
     // Convert max_slope_deg to minimum normal Z component.
-    float min_normal_z = cosf( max_slope_deg * DEG_TO_RAD );
+    float min_normal_z = cosf(  max_slope_deg * DEG_TO_RAD );
     // Surface is walkable if normal Z is above the threshold.
     return normal[2] >= min_normal_z;
 }
@@ -629,7 +653,7 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
     // Maximum number of layers that can be found at a single XY position.
     const int32_t MAX_LAYERS = 16;
     // Note: Static array for efficiency, but limits thread-safety.
-    static nav_layer_t temp_layers[MAX_LAYERS];
+	static nav_layer_t temp_layers[ MAX_LAYERS ] = {};
     int32_t num_layers = 0;
     
     // Start at maximum Z and work downward.
@@ -1230,8 +1254,17 @@ static bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *c
     if ( !cell || cell->num_layers <= 0 ) {
         return false;
     }
-    
-    const float max_step = mesh->max_step + mesh->z_quant;
+    // Determine Z tolerance used to consider layers "close enough" in Z.
+    float z_tolerance = 0.0f;
+    if ( nav_z_tolerance && nav_z_tolerance->value > 0.0f ) {
+        z_tolerance = nav_z_tolerance->value;
+    } else if ( mesh ) {
+        // Derived default: allow up to max step plus a half-quant tolerance to handle stairs.
+        z_tolerance = mesh->max_step + ( mesh->z_quant * 0.5f );
+    } else {
+        z_tolerance = 18.0f + 1.0f;
+    }
+    const float max_step = z_tolerance;
     int32_t best_index = -1;
     float best_delta = std::numeric_limits<float>::max();
     float best_fallback = std::numeric_limits<float>::max();
@@ -1244,6 +1277,8 @@ static bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *c
             best_fallback = delta;
             fallback_index = i;
         }
+        // Prefer layers within the Z tolerance. Exact traversal checks are not possible here
+        // because we don't have a start node, but the tolerance helps avoid tiny jitter on stairs.
         if ( delta <= max_step && delta < best_delta ) {
             best_delta = delta;
             best_index = i;
@@ -1366,16 +1401,48 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
         const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
         const nav_xy_cell_t *cell = &tile->cells[ cell_index ];
         int32_t layer_index = -1;
-        
+
+        // First attempt: select best layer by Z tolerance.
         if ( Nav_SelectLayerIndex( mesh, cell, desired_z, &layer_index ) ) {
-            out_node->key = {
-                .leaf_index = leaf_index,
-                .tile_index = t,
-                .cell_index = cell_index,
-                .layer_index = layer_index
-            };
-            out_node->position = Nav_NodeWorldPosition( mesh, tile, cell_index, &cell->layers[ layer_index ] );
-            return true;
+            // Verify the selected layer is actually traversable from the query position.
+            const Vector3 candidatePos = Nav_NodeWorldPosition( mesh, tile, cell_index, &cell->layers[ layer_index ] );
+            if ( Nav_CanTraverseStep_ExplicitBBox( mesh, position, candidatePos, mesh->agent_mins, mesh->agent_maxs, nullptr ) ) {
+                out_node->key = {
+                    .leaf_index = leaf_index,
+                    .tile_index = t,
+                    .cell_index = cell_index,
+                    .layer_index = layer_index
+                };
+                out_node->position = candidatePos;
+                return true;
+            }
+
+            // If the best-by-Z layer is not traversable, try other layers in this cell preferring traversable ones.
+            float best_trav_delta = std::numeric_limits<float>::max();
+            int32_t best_trav_index = -1;
+            for ( int32_t li = 0; li < cell->num_layers; li++ ) {
+                const Vector3 candPos = Nav_NodeWorldPosition( mesh, tile, cell_index, &cell->layers[ li ] );
+                if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, position, candPos, mesh->agent_mins, mesh->agent_maxs, nullptr ) ) {
+                    continue;
+                }
+                const float layer_z = cell->layers[ li ].z_quantized * mesh->z_quant;
+                const float delta = fabsf( layer_z - desired_z );
+                if ( delta < best_trav_delta ) {
+                    best_trav_delta = delta;
+                    best_trav_index = li;
+                }
+            }
+
+            if ( best_trav_index >= 0 ) {
+                out_node->key = {
+                    .leaf_index = leaf_index,
+                    .tile_index = t,
+                    .cell_index = cell_index,
+                    .layer_index = best_trav_index
+                };
+                out_node->position = Nav_NodeWorldPosition( mesh, tile, cell_index, &cell->layers[ best_trav_index ] );
+                return true;
+            }
         }
         
         break;
@@ -1399,7 +1466,13 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
                 continue;
             }
             
-			for ( int32_t l = 0; l < cell->num_layers; l++ ) {
+            for ( int32_t l = 0; l < cell->num_layers; l++ ) {
+                // Enforce the same minimal clearance requirement used during direct lookup.
+                const uint8_t layer_clearance = cell->layers[ l ].clearance;
+                const int32_t required_clearance_cells = 1;
+                if ( layer_clearance < (uint8_t)required_clearance_cells ) {
+                    continue;
+                }
 				nav_node_ref_t candidate = {};
 				candidate.key = {
 					.leaf_index = leaf_index,
@@ -1408,11 +1481,15 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
 					.layer_index = l
 				};
 				candidate.position = Nav_NodeWorldPosition( mesh, tile, c, &cell->layers[ l ] );
+                // Ensure the fallback candidate is actually reachable using the PMove-like step test.
+                if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, position, candidate.position, mesh->agent_mins, mesh->agent_maxs, nullptr ) ) {
+                    continue;
+                }
 
-				const Vector3 node_pos = candidate.position;
+                const Vector3 node_pos = candidate.position;
                 const Vector3 delta = QM_Vector3Subtract( node_pos, position );
                 const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
-                
+
                 if ( dist_sqr < best_dist_sqr ) {
                     best_dist_sqr = dist_sqr;
                     best_node = candidate;

@@ -444,6 +444,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	
 	baseq2rtxp/svgame/nav/svg_nav.cpp
     baseq2rtxp/svgame/nav/svg_nav_movement.cpp
+    baseq2rtxp/svgame/nav/svg_nav_path_process.cpp
 	baseq2rtxp/svgame/nav/svg_nav_save.cpp
 	baseq2rtxp/svgame/nav/svg_nav_load.cpp
 )

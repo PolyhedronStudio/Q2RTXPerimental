@@ -84,25 +84,25 @@ typedef struct nav_follow_state_s {
 /**
 *	@brief	Checks whether the follow state should rebuild its nav path to the given goal.
 **/
-bool SVG_NavMovement_ShouldRebuildPath( const nav_follow_state_t &state, const Vector3 &goal_origin, const nav_follow_policy_t &policy );
+const bool SVG_NavMovement_ShouldRebuildPath( const nav_follow_state_t &state, const Vector3 &goal_origin, const nav_follow_policy_t &policy );
 
 /**
 *	@brief	Rebuilds a traversal path if the policy allows it (throttled by next_rebuild_time).
 *	@return	True if a rebuild occurred and a path was produced.
 **/
-bool SVG_NavMovement_RebuildPathIfNeeded( nav_follow_state_t *state, const Vector3 &start_origin, const Vector3 &goal_origin, const nav_follow_policy_t &policy );
+const bool SVG_NavMovement_RebuildPathIfNeeded( nav_follow_state_t *state, const Vector3 &start_origin, const Vector3 &goal_origin, const nav_follow_policy_t &policy );
 
 /**
 *	@brief	Returns a 3D direction for following the current path.
 *	@note	Waypoints are advanced in 2D to avoid stairs/Z-quant issues.
 **/
-bool SVG_NavMovement_QueryFollowDirection( const nav_follow_state_t &state, const Vector3 &current_origin, const nav_follow_policy_t &policy, Vector3 *out_dir3d );
+const bool SVG_NavMovement_QueryFollowDirection( const nav_follow_state_t &state, const Vector3 &current_origin, const nav_follow_policy_t &policy, Vector3 *out_dir3d );
 
 /**
 *	@brief	Performs a conservative drop test ahead of the entity.
 *	@return	True if it is safe to proceed.
 **/
-bool SVG_NavMovement_IsDropSafe( const svg_base_edict_t *ent, const Vector3 &next_origin, const nav_follow_policy_t &policy );
+const bool SVG_NavMovement_IsDropSafe( const svg_base_edict_t *ent, const Vector3 &next_origin, const nav_follow_policy_t &policy );
 
 /**
 *	@brief	Attempts a small obstruction jump by applying an upward velocity request.

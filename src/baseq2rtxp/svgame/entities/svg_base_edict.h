@@ -939,7 +939,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: Weight(mass) of entity.
     int32_t     mass = 0;
     //! [SpawnKey]: Per entity gravity multiplier (1.0 is normal) use for lowgrav artifact, flares.
-    float       gravity = 0.f;
+    float       gravity = 1.f;
     //! [SpawnKey]: For movers.
     //const char *noise;
     //! [SpawnKey]: For triggers.
