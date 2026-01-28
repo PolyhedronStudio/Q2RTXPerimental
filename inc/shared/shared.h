@@ -199,6 +199,10 @@ typedef char configstring_t[ MAX_CS_STRING_LENGTH ];
 #include "shared/util/util_list.h"
 //! Packed Bounds Utility:
 #include "shared/util/util_packed_bounds.h"
+// NOTE: Generic RAII template exists but not yet integrated into shared headers.
+ #ifdef __cplusplus
+ 	#include "shared/util/util_raii_object.h"
+ #endif
 //! String Utilities:
 #include "shared/util/util_strings.h"
 
