@@ -247,6 +247,16 @@ typedef struct {
     const mmodel_t *( *GetInlineModelDataForName )( const char *name );
     const mmodel_t *( *GetInlineModelDataForHandle )( const qhandle_t handle );
 
+	/**
+	*	@brief	Retrieve the BSP headnode for an inline model.
+	*	@note	This enables fast queries like `CM_BoxContents` against a submodel BSP.
+	*			The returned pointer is owned by the collision model and is valid until
+	*			the map is unloaded.
+	*	@param	inlineModelIndex	Inline model index (the numeric part of "*N").
+	*	@return	Pointer to the inline model headnode, or nullptr on failure.
+	**/
+	mnode_t *( *CM_InlineModelHeadnode )( const int32_t inlineModelIndex );
+
     // the *index functions create configstrings(precache iqm models) and some internal server state.
     // these are sent over to the client 
     int ( *modelindex )( const char *name );
@@ -261,6 +271,28 @@ typedef struct {
     *	Collision Detection:
     *
     **/
+	/**
+	*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+	*           given box occupies in the data structure.
+	**/
+	const int32_t( *CM_BoxLeafs )( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+	/**
+	*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+	*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+	*           contains the box.
+	**/
+	const int32_t( *CM_BoxLeafs_headnode )( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode );
+	/**
+	*   @return	The contents mask of all leafs within the absolute bounds.
+	**/
+	const int32_t( *CM_BoxContents )( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+	/**
+	*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+	*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+	*           contains the box.
+	**/
+	const int32_t( *CM_BoxContents_headnode )( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode );
+
     //! Perform a trace through the world and its entities with a bbox from start to end point.
     const cm_trace_t( *trace )( const Vector3 *start, const Vector3 *mins, const Vector3 *maxs, const Vector3 *end, const edict_ptr_t *passent, const cm_contents_t contentmask );
     //! Perform a trace clip to a single entity. Effectively skipping looping over many if you were using trace instead.
@@ -337,6 +369,26 @@ typedef struct {
     *	@brief	Frees FS_FILESYSTEM Tag Malloc file buffer.
     **/
     void ( *FS_FreeFile )( void *buffer );
+    /**
+    *   @brief  Convenience: open or create a file for append and return engine qhandle_t.
+    **/
+    qhandle_t ( *FS_EasyOpenFile )( char *buf, size_t size, unsigned mode, const char *dir, const char *name, const char *ext );
+    /**
+    *   @brief  Convenience: write data to a file, creating directories as needed. Returns true on success.
+    **/
+    bool ( *FS_EasyWriteFile )( char *buf, size_t size, unsigned mode, const char *dir, const char *name, const char *ext, const void *data, size_t len );
+    /**
+    *   @brief  Print formatted text into an opened file handle.
+    **/
+    int ( *FS_FPrintf )( qhandle_t f, const char *format, ... );
+    /**
+    *   @brief  Flush file buffers for the given file handle.
+    **/
+    int ( *FS_Flush )( qhandle_t f );
+    /**
+    *   @brief  Ensure the given path exists (create directories if needed).
+    **/
+    int ( *FS_CreatePath )( char *path );
 
 
     /**
@@ -430,6 +482,7 @@ typedef struct {
     *   Other:
     * 
     **/
+	const uint64_t ( *Com_GetSystemMilliseconds )( void );
     //! Returns current error number.
     const int32_t( *Q_ErrorNumber )( void );
     //! Returns matching string for error number.

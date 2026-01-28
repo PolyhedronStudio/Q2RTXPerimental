@@ -134,11 +134,22 @@ const int32_t CM_BoxLeafs( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, m
 *   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
 *           given box occupies in the data structure.
 **/
-const int32_t CM_BoxLeafs_headnode( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
+const int32_t CM_BoxLeafs_headnode( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode );
+
+//
+//  collisionmodel/cm_boxcontents.cpp
+//
 /**
-*   @return The contents mask of all leafs within the absolute bounds.
+*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+*           contains the box.
 **/
-const cm_contents_t CM_BoxContents( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, mnode_t *headnode );
+const int32_t CM_BoxContents( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+/**
+*   @brief  Recurse the BSP tree from the specified node, accumulating the contents values of the
+*			leafs the given box occupies in the data structure.
+**/
+const int32_t CM_BoxContents_headnode( cm_t *cm, const Vector3 &mins, const Vector3 &maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode );
 
 
 //

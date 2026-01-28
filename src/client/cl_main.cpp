@@ -2700,7 +2700,7 @@ void CL_Activate( active_t active ) {
 }
 
 /**
- * @brief Updates the interpolation fraction for the current client frame.
+ *    @brief    Updates the interpolation fraction for the current client frame.
  * Because the client often runs at a higher framerate than the server, we
  * use linear interpolation between the last 2 server frames. We aim to reach
  * the current server time just as a new packet arrives.

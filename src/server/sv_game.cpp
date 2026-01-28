@@ -33,6 +33,34 @@ static void PF_configstring(int index, const char *val);
 //! Loaded model handles.
 qhandle_t sv_loaded_model_handles[ MAX_MODELS ];
 
+
+
+/**
+*
+*
+*
+*	Various
+*
+*
+*
+**/
+/**
+*	@brief	Returns the system milliseconds.
+* 			Used for timing within the game module.
+**/
+const uint64_t PF_GetSystemMilliseconds() {
+	return Sys_Milliseconds();
+}
+
+/**
+*
+*
+*
+*	ConfigString Registration and Loading:
+*
+*
+*
+**/
 /**
 *   @brief  Will return the index if it was already registered, otherwise determine whether to load server sided
 *           data for it and pass on the configstring registration change to be broadcasted.
@@ -45,7 +73,6 @@ static int PF_FindLoadIndex( const char *name, int start, int max, int skip, con
     if ( !name || !name[ 0 ] ) {
         return 0;
     }
-
     // Check if it has been 'indexed' before already.
 	for ( i = 1; i < max; i++ ) {
         // Skip:
@@ -107,6 +134,97 @@ static int PF_ImageIndex(const char *name)
     return PF_FindLoadIndex(name, CS_IMAGES, MAX_IMAGES, 0, __func__);
 }
 
+/**
+*	@brief	Apply configstring change, and if the game is actively running, broadcasts the configstring change.
+**/
+static void PF_configstring( int index, const char *val ) {
+	size_t len, maxlen;
+	client_t *client;
+	char *dst;
+
+	if ( index < 0 || index >= MAX_CONFIGSTRINGS ) {
+		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, index );
+	}
+
+	// Commented out so it can be used in the Game's PreInit function.
+	//if ( sv.state == ss_dead ) {
+	//	Com_WPrintf( "%s: not yet initialized\n", __func__ );
+	//	return;
+	//}
+
+	if ( !val ) {
+		val = "";
+	}
+
+	// error out entirely if it exceedes array bounds
+	len = strlen( val );
+	maxlen = ( MAX_CONFIGSTRINGS - index ) * MAX_CS_STRING_LENGTH;
+	if ( len >= maxlen ) {
+		Com_Error( ERR_DROP,
+			"%s: index %d overflowed: %zu > %zu",
+			__func__, index, len, maxlen - 1 );
+	}
+
+	// print a warning and truncate everything else
+	maxlen = CS_SIZE( index );
+	if ( len >= maxlen ) {
+		Com_WPrintf(
+			"%s: index %d overflowed: %zu > %zu\n",
+			__func__, index, len, maxlen - 1 );
+		len = maxlen - 1;
+	}
+
+	dst = sv.configstrings[ index ];
+	if ( !strncmp( dst, val, maxlen ) ) {
+		return;
+	}
+
+	// change the string in sv
+	memcpy( dst, val, len );
+	dst[ len ] = 0;
+
+	if ( sv.state == ss_loading ) {
+		return;
+	}
+
+	// send the update to everyone
+	MSG_WriteUint8( svc_configstring );
+	MSG_WriteInt16( index );
+	MSG_WriteData( val, len );
+	MSG_WriteUint8( 0 );
+
+	FOR_EACH_CLIENT( client ) {
+		if ( client->state < cs_primed ) {
+			continue;
+		}
+		SV_ClientAddMessage( client, MSG_RELIABLE );
+	}
+
+	SZ_Clear( &msg_write );
+}
+
+/**
+*	@brief	Returns the given configstring that sits at index.
+**/
+static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
+	if ( configStringIndex < 0 || configStringIndex > MAX_CONFIGSTRINGS ) {
+		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, configStringIndex );
+		return nullptr;
+	}
+	return &sv.configstrings[ configStringIndex ];
+}
+
+
+
+/**
+*
+*
+*
+*	Unicast / Multicast Messaging:
+* 
+* 
+* 
+**/
 /*
 ===============
 PF_Unicast
@@ -171,6 +289,17 @@ static void PF_Multicast( const Vector3 *origin, multicast_t to, bool reliable =
 	return SV_Multicast( ( origin ? &origin->x : nullptr ), to, reliable);
 }
 
+
+
+/**
+*
+*
+*
+*	Printing
+*
+*
+*
+**/
 /*
 =================
 PF_bprintf
@@ -359,6 +488,17 @@ static q_noreturn void PF_error(const char *fmt, ...)
     Com_Error(ERR_DROP, "ServerGame Error: %s", msg);
 }
 
+
+
+/**
+*
+*
+*
+*	CollisionModel:
+*
+*
+*
+**/
 /*
 =================
 PF_setmodel
@@ -386,86 +526,67 @@ static void PF_setmodel( edict_ptr_t *ent, const char *name ) {
 }
 
 /**
-*	@brief	Apply configstring change, and if the game is actively running, broadcasts the configstring change.
+*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+*           given box occupies in the data structure.
 **/
-static void PF_configstring(int index, const char *val)
-{
-	size_t len, maxlen;
-	client_t *client;
-	char *dst;
-
-    if ( index < 0 || index >= MAX_CONFIGSTRINGS ) {
-        Com_Error( ERR_DROP, "%s: bad index: %d", __func__, index );
-    }
-
-    // Commented out so it can be used in the Game's PreInit function.
-	//if ( sv.state == ss_dead ) {
-	//	Com_WPrintf( "%s: not yet initialized\n", __func__ );
-	//	return;
-	//}
-
-    if ( !val ) {
-        val = "";
-    }
-
-	// error out entirely if it exceedes array bounds
-	len = strlen( val );
-	maxlen = ( MAX_CONFIGSTRINGS - index ) * MAX_CS_STRING_LENGTH;
-	if ( len >= maxlen ) {
-		Com_Error( ERR_DROP,
-				  "%s: index %d overflowed: %zu > %zu",
-				  __func__, index, len, maxlen - 1 );
+static const int32_t PF_CM_BoxLeafs( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
+	cm_t *cm = &sv.cm;
+	return CM_BoxLeafs( cm, mins, maxs, list, listsize, topnode );
+}
+/**
+*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+*           contains the box.
+**/
+static const int32_t PF_CM_BoxLeafs_headnode( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode ) {
+	cm_t *cm = &sv.cm;
+	return CM_BoxLeafs_headnode( cm, mins, maxs, list, listsize, headnode, topnode );
+}
+/**
+*	@brief	Retrieve the BSP headnode for an inline model.
+*	@param	inlineIndex	Inline model index parsed from "*N".
+*	@return	Headnode pointer for the inline model, or (nullptr) if unavailable.
+*	@note	This is used by runtime systems (e.g., navigation) that need fast contents queries
+*			against a specific inline model without doing a full trace.
+**/
+static mnode_t *PF_CM_InlineModelHeadnode( const int32_t inlineIndex ) {
+	/**
+	*	Sanity: require a loaded collision model cache.
+	**/
+	if ( !sv.cm.cache ) {
+		return nullptr;
 	}
 
-	// print a warning and truncate everything else
-	maxlen = CS_SIZE( index );
-	if ( len >= maxlen ) {
-		Com_WPrintf(
-			"%s: index %d overflowed: %zu > %zu\n",
-			__func__, index, len, maxlen - 1 );
-		len = maxlen - 1;
+	/**
+	*	Validate inline model index against cached BSP model count.
+	**/
+	if ( inlineIndex < 0 || inlineIndex >= sv.cm.cache->nummodels ) {
+		return nullptr;
 	}
 
-	dst = sv.configstrings[ index ];
-	if ( !strncmp( dst, val, maxlen ) ) {
-		return;
-	}
-
-	// change the string in sv
-	memcpy( dst, val, len );
-	dst[ len ] = 0;
-
-	if ( sv.state == ss_loading ) {
-		return;
-	}
-
-	// send the update to everyone
-	MSG_WriteUint8( svc_configstring );
-	MSG_WriteInt16( index );
-	MSG_WriteData( val, len );
-	MSG_WriteUint8( 0 );
-
-	FOR_EACH_CLIENT( client ) {
-		if ( client->state < cs_primed ) {
-			continue;
-		}
-		SV_ClientAddMessage( client, MSG_RELIABLE );
-	}
-
-	SZ_Clear( &msg_write );
+	/**
+	*	Build and return the headnode for this inline model.
+	**/
+	return sv.cm.cache->models[ inlineIndex ].headnode;
 }
 
 /**
-*	@brief	Returns the given configstring that sits at index.
+*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+*           given box occupies in the data structure.
 **/
-static configstring_t *PF_GetConfigString( const int32_t configStringIndex ) {
-	if ( configStringIndex < 0 || configStringIndex > MAX_CONFIGSTRINGS ) {
-		Com_Error( ERR_DROP, "%s: bad index: %d", __func__, configStringIndex );
-		return nullptr;
-	}
-	return &sv.configstrings[ configStringIndex ];
+static const int32_t PF_CM_BoxContents( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
+	cm_t *cm = &sv.cm;
+	return CM_BoxContents( cm, mins, maxs, contents, list, listsize, topnode );
 }
-
+/**
+*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+*           contains the box.
+**/
+static const int32_t PF_CM_BoxContents_headnode( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode ) {
+	cm_t *cm = &sv.cm;
+	return CM_BoxContents_headnode( cm, mins, maxs, contents, list, listsize, headnode, topnode );
+}
 /**
 *   @return True if the points p1 to p2 are within two visible areas of the specified vis type.
 *   @note   Also checks portalareas so that doors block sight
@@ -833,6 +954,45 @@ static void PF_FS_FreeFile( void *buffer ) {
     FS_FreeFile( buffer );
 }
 
+/**
+ *  @brief  Wrapper to expose FS_EasyOpenFile to game module.
+ */
+static qhandle_t PF_FS_EasyOpenFile(char *buf, size_t size, unsigned mode, const char *dir, const char *name, const char *ext) {
+    return FS_EasyOpenFile(buf, size, mode, dir, name, ext);
+}
+
+/**
+ *  @brief  Wrapper to expose FS_EasyWriteFile to game module.
+ */
+static bool PF_FS_EasyWriteFile(char *buf, size_t size, unsigned mode, const char *dir, const char *name, const char *ext, const void *data, size_t len) {
+    return FS_EasyWriteFile(buf, size, mode, dir, name, ext, data, len);
+}
+
+/**
+ *  @brief  Wrapper to expose FS_FPrintf to game module.
+ */
+static int PF_FS_FPrintf(qhandle_t f, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    int ret = FS_FPrintf(f, format, args);
+    va_end(args);
+    return ret;
+}
+
+/**
+ *  @brief  Wrapper to expose FS_Flush to game module.
+ */
+static int PF_FS_Flush(qhandle_t f) {
+    return FS_Flush(f);
+}
+
+/**
+ *  @brief  Wrapper to expose FS_CreatePath to game module.
+ */
+static int PF_FS_CreatePath(char *path) {
+    return FS_CreatePath(path);
+}
+
 
 /**
 *
@@ -1129,6 +1289,13 @@ void SV_InitGameProgs(void) {
     imports.FS_FileExistsEx = PF_FS_FileExistsEx;
     imports.FS_LoadFile = PF_FS_LoadFile;
     imports.FS_FreeFile = PF_FS_FreeFile;
+    // Export convenient FS helpers to the game module so it can perform file I/O.
+    imports.FS_EasyOpenFile = PF_FS_EasyOpenFile;
+    imports.FS_EasyWriteFile = PF_FS_EasyWriteFile;
+    // Note: FS_FPrintf/FS_Flush are available in the engine side as FS_* symbols; bind wrappers below.
+    imports.FS_FPrintf = PF_FS_FPrintf;
+    imports.FS_Flush = PF_FS_Flush;
+    imports.FS_CreatePath = PF_FS_CreatePath;
 
     imports.BoxEdicts = SV_AreaEdicts;
     imports.trace = PF_SV_Trace;
@@ -1144,6 +1311,12 @@ void SV_InitGameProgs(void) {
     imports.inPHS = PF_inPHS;
     imports.setmodel = PF_setmodel;
 
+	imports.CM_BoxLeafs_headnode = PF_CM_BoxLeafs_headnode;
+	imports.CM_BoxLeafs = PF_CM_BoxLeafs;
+	imports.CM_BoxContents_headnode = PF_CM_BoxContents_headnode;
+	imports.CM_BoxContents = PF_CM_BoxContents;
+
+
 	imports.BSP_PointLeaf = PF_BSP_PointLeaf;
 	imports.GetCollisionModel = PF_GetCollisionModel;
 
@@ -1152,6 +1325,7 @@ void SV_InitGameProgs(void) {
 
     imports.GetInlineModelDataForHandle = PF_GetInlineModelDataForHandle;
     imports.GetInlineModelDataForName = PF_GetInlineModelDataForName;
+	imports.CM_InlineModelHeadnode = PF_CM_InlineModelHeadnode;
 
     imports.modelindex = PF_ModelIndex;
     imports.soundindex = PF_SoundIndex;
@@ -1203,6 +1377,7 @@ void SV_InitGameProgs(void) {
     *   Other:
     *
     **/
+	imports.Com_GetSystemMilliseconds = PF_GetSystemMilliseconds;
     imports.Q_ErrorNumber = Q_ErrorNumber;
     imports.Q_ErrorString = Q_ErrorString;
     imports.DebugGraph = PF_DebugGraph;

@@ -160,20 +160,28 @@ static const int32_t PF_CM_BoxLeafs( const vec3_t mins, const vec3_t maxs, mleaf
 *           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
 *           contains the box.
 **/
-static const int32_t PF_CM_BoxLeafs_headnode( const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode ) {
+static const int32_t PF_CM_BoxLeafs_headnode( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode ) {
 	cm_t *cm = &cl.collisionModel;
 	return CM_BoxLeafs_headnode( cm, mins, maxs, list, listsize, headnode, topnode );
 }
 /**
-*   @return The contents mask of all leafs within the absolute bounds.
+*   @brief  Recurse the BSP tree from the specified node, accumulating leafs the
+*           given box occupies in the data structure.
 **/
-static const cm_contents_t PF_CM_BoxContents( const vec3_t mins, const vec3_t maxs, mnode_t *headnode ) {
+static const int32_t PF_CM_BoxContents( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t **topnode ) {
 	cm_t *cm = &cl.collisionModel;
-	if ( !cm->cache ) {
-		//Com_Error( ERR_DROP, "%s: No collision model cached up!\n", __func__ );
-		return CONTENTS_NONE;
-	}
-	return CM_BoxContents( cm, mins, maxs, headnode );
+	return CM_BoxContents( cm, mins, maxs, contents, list, listsize, topnode );
+}
+
+/**
+*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+*           contains the box.
+**/
+static const int32_t PF_CM_BoxContents_headnode( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode ) {
+	cm_t *cm = &cl.collisionModel;
+	// CoPilot must respect that we fill in the contents parameter before returning.
+	return CM_BoxContents_headnode( cm, mins, maxs, contents, list, listsize, headnode, topnode );
 }
 
 
@@ -1039,12 +1047,16 @@ void CL_GM_LoadProgs( void ) {
 
 	imports.CM_BoxTrace = PF_CM_BoxTrace;
 	imports.CM_TransformedBoxTrace = PF_CM_TransformedBoxTrace;
+
 	imports.CM_PointContents = PF_CM_PointContents;
 	imports.CM_TransformedPointContents = PF_CM_TransformedPointContents;
 
+	imports.CM_BoxContents = PF_CM_BoxContents;
+	imports.CM_BoxContents_headnode = PF_CM_BoxContents_headnode;
+
 	imports.CM_BoxLeafs = PF_CM_BoxLeafs;
 	imports.CM_BoxLeafs_headnode = PF_CM_BoxLeafs_headnode;
-	imports.CM_BoxContents = PF_CM_BoxContents;
+
 
 	imports.CM_EntityKeyValue = CM_EntityKeyValue;
 	imports.CM_GetNullEntity = CM_GetNullEntity;

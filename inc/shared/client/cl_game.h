@@ -309,11 +309,18 @@ typedef struct {
 	*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
 	*           contains the box.
 	**/
-	const int32_t ( *CM_BoxLeafs_headnode )( const vec3_t mins, const vec3_t maxs, mleaf_t **list, int listsize, mnode_t *headnode, mnode_t **topnode );
+	const int32_t ( *CM_BoxLeafs_headnode )( const vec3_t mins, const vec3_t maxs, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode );
+
 	/**
 	*   @return The contents mask of all leafs within the absolute bounds.
 	**/
-	const cm_contents_t( *CM_BoxContents )( const vec3_t mins, const vec3_t maxs, mnode_t *headnode );
+	const int32_t( *CM_BoxContents )( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t **topnode );
+	/**
+	*   @brief  Populates the list of leafs which the specified bounding box touches. If top_node is not
+	*           set to NULL, it will contain a value copy of the the top node of the BSP tree that fully
+	*           contains the box.
+	**/
+	const int32_t( *CM_BoxContents_headnode )( const vec3_t mins, const vec3_t maxs, cm_contents_t *contents, mleaf_t **list, const int32_t listsize, mnode_t *headnode, mnode_t **topnode );
 
 	/**
 	*   @brief  Performs a 'Clipping' trace against the world, and all the active in-frame solidEntities.

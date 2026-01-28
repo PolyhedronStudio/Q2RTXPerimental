@@ -27,7 +27,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #if USE_CLIENT
 /**
-* @brief Reads out entity number of current message in the buffer.
+*    @brief    Reads out entity number of current message in the buffer.
 *
 * @param remove     Set to true in case a remove bit was send along the wire..
 * @param byteMask   Mask containing all the bits of message data to read out.
