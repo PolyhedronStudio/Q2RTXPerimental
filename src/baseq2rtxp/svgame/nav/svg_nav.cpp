@@ -9,18 +9,19 @@
 #include "svgame/svg_utils.h"
 
 #include "svgame/nav/svg_nav.h"
-#include "svgame/nav/svg_nav_movement.h"
+#include "svgame/nav/svg_nav_clusters.h"
+#include "svgame/nav/svg_nav_debug.h"
+#include "svgame/nav/svg_nav_generate.h"
 #include "svgame/nav/svg_nav_path_process.h"
+#include "svgame/nav/svg_nav_traversal.h"
 
 #include "svgame/entities/svg_player_edict.h"
 
 // <Q2RTXP>: TODO: Move to shared? Ehh.. 
 // Common BSP access for navigation generation.
 #include "common/bsp.h"
+#include "common/files.h"
 
-#include <unordered_map>
-#include <vector>
-#include <cmath>
 
 
 
@@ -33,61 +34,67 @@
 *
 *
 **/
-//! Conversion factor from degrees to radians.
-static constexpr float DEG_TO_RAD = M_PI / 180.0f;
-//! Conversion factor from microseconds to seconds.
-static constexpr double MICROSECONDS_PER_SECOND = 1000000.0;
-//! Small epsilon to ensure max bounds map to the correct tile.
-static constexpr float NAV_TILE_EPSILON = 0.001f;
 
 
+/**
+*	Forward declarations for tile sizing helpers.
+*	These are used by the cluster-graph helpers declared near the top of this TU.
+**/
+static inline double Nav_TileWorldSize( const nav_mesh_t *mesh );
+static inline int32_t Nav_WorldToTileCoord( double value, double tile_world_size );
 
+/**
+*	Navigation Cluster Graph Routing:
+*
+*	Tile-route pre-pass can be either:
+*		- Unweighted BFS (fewest tile hops)
+*		- Weighted Dijkstra (flag-aware coarse costs)
+*
+*	The weighted mode keeps the hierarchical benefit but lets you bias away from
+*	undesirable regions (water/lava/slime/stairs) before running fine A*.
+**/
+// Profiling/logging CVars
+cvar_t *nav_profile_level = nullptr;
+cvar_t *nav_log_file_enable = nullptr;
+cvar_t *nav_log_file_name = nullptr;
+
+/**
+ *	@brief	Lightweight logging wrapper for navigation subsystem.
+ *	@note	For now forwards to engine console printing; allows future redirection.
+ */
+/**
+ *	@brief	Lightweight logging wrapper for navigation subsystem.
+ *	@param	fmt printf-style format string.
+ *	@note	Forwards to centralized Com_Printf so messages go through the global
+ *		console/logging pipeline (and thus to the configured logfile). This keeps
+ *		navigation logging consistent with the rest of the engine.
+ */
+void SVG_Nav_Log( const char *fmt, ... ) {
+    char buf[1024];
+    va_list args;
+    va_start( args, fmt );
+    vsnprintf( buf, sizeof( buf ), fmt, args );
+    va_end( args );
+
+    // Dedicated nav file logging is disabled by default. If enabled in future
+    // and engine file-write helpers are exported to the game module, implement
+    // file writing here. For now, always forward to engine console printing.
+
+    // Always forward to centralized printing which also handles logfile routing.
+    Com_Printf( "%s", buf );
+}
+
+/**
+*	@brief	Extract tile XY from a world-space position.
+*	@param	mesh	Navigation mesh.
+*	@param	pos	World-space position.
+*	@return	Tile key for the position.
+**/
 /**
 *
 *	Forward Declarations (Debug):
 *
 **/
-/**
-*	@return	True if navigation debug drawing is enabled.
-**/
-static inline bool NavDebug_Enabled( void );
-/**
-*	@brief	Draw a single sample tick at the given position with the given height.
-**/
-static void NavDebug_DrawSampleTick( const Vector3 &pos, const float height );
-/**
-*	@brief  Clear cached debug paths.
-**/
-static void NavDebug_ClearCachedPaths( void );
-/**
-*	@brief	Purge cached paths that have expired.
-**/
-static void NavDebug_PurgeCachedPaths( void );
-
-/**
-*
-*	Forward Declarations:
-*
-**/
-/**
-*   @brief  Generate navigation mesh for world (world-only collision).
-*           Creates tiles for each BSP leaf containing walkable surface samples.
-*   @param  mesh    Navigation mesh structure to populate.
-**/
-static void GenerateWorldMesh( nav_mesh_t *mesh );
-
-/**
-*   @brief  Generate navigation mesh for inline BSP models (brush entities).
-*           Creates tiles for each inline model in local space for later transform application.
-*   @param  mesh    Navigation mesh structure to populate.
-**/
-static void GenerateInlineModelMesh( nav_mesh_t *mesh );
-/**
-*	@brief	Build runtime inline model data for navigation mesh.
-*	@note	This allocates and initializes the runtime array. Per-frame updates should call
-*			`SVG_Nav_RefreshInlineModelRuntime()` (no allocations).
-**/
-static void Nav_BuildInlineModelRuntime( nav_mesh_t *mesh, const std::unordered_map<int32_t, svg_base_edict_t *> &model_to_ent );
 /**
 *   @brief  Refresh the runtime data for inline models (transforms only).
 *           This updates the origin/angles of inline model runtime entries based on current entity state.
@@ -104,8 +111,16 @@ void SVG_Nav_RefreshInlineModelRuntime( void );
 *
 *	@return	True if the traversal is possible, false otherwise.
 **/
-static bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity );
-static bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity );
+const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity );
+const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos,
+    const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy );
+
+// Convenience overload: call explicit-bbox traversal test without a policy (defaults to mesh parameters).
+static inline bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos,
+    const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity ) {
+    return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity, nullptr );
+}
+// (Declaration present earlier) - definition follows below without a redundant default argument.
 
 
 
@@ -114,32 +129,25 @@ static bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vect
 *   CVars for Navigation Debug Drawing:
 *
 **/
-// Cached debug paths (last computed traversal paths for the current server frame).
-static constexpr QMTime NAV_DEBUG_PATH_RETENTION = QMTime::FromMilliseconds( 1500 );
-struct nav_debug_cached_path_t {
-	//! Cached traversal path.
-	nav_traversal_path_t path;
-	//! Level Time at which this cached path expires.
-	QMTime expireTime;
-};
-//! Cached debug paths.
-static std::vector<nav_debug_cached_path_t> s_nav_debug_cached_paths;
+
 //! Master on/off. 0 = off, 1 = on.
-static cvar_t *nav_debug_draw = nullptr;
+extern cvar_t *nav_debug_draw;
 //! Only draw a specific BSP leaf index. -1 = any.
-static cvar_t *nav_debug_draw_leaf = nullptr;
+extern cvar_t *nav_debug_draw_leaf;
 //! Only draw a specific tile (grid coords). Requires "x y". "*" disables.
-static cvar_t *nav_debug_draw_tile = nullptr;
+extern cvar_t *nav_debug_draw_tile;
 //! Budget in TE_DEBUG_TRAIL line segments per server frame.
-static cvar_t *nav_debug_draw_max_segments = nullptr;
+extern cvar_t *nav_debug_draw_max_segments;
 //! Max distance from current view player to draw debug (world units). 0 disables.
-static cvar_t *nav_debug_draw_max_dist = nullptr;
+extern cvar_t *nav_debug_draw_max_dist;
 //! Draw tile bboxes.
-static cvar_t *nav_debug_draw_tile_bounds = nullptr;
+extern cvar_t *nav_debug_draw_tile_bounds;
 //! Draw sample ticks.
-static cvar_t *nav_debug_draw_samples = nullptr;
+extern cvar_t *nav_debug_draw_samples;
 //! Draw final path segments from traversal path query.
-static cvar_t *nav_debug_draw_path = nullptr;
+extern cvar_t *nav_debug_draw_path;
+//! Temporary cvar to enable printing of failed nav lookup diagnostics (tile/cell indices).
+extern cvar_t *nav_debug_show_failed_lookups;
 
 
 
@@ -160,10 +168,118 @@ static cvar_t *nav_debug_draw_path = nullptr;
 //cvar_t *nav_debug_draw_pathfinding = nullptr;
 
 /**
-*   @brief  Global navigation mesh instance.
+*   @brief  Global navigation mesh instance (RAII owner).
 *           Stores the complete navigation data for the current level.
+*   @note   Automatically manages construction/destruction via RAII helper.
 **/
-nav_mesh_t *g_nav_mesh = nullptr;
+nav_mesh_raii_t g_nav_mesh;
+
+/**
+*    @brief    Build a packed occupancy key from tile/cell/layer indices.
+*/
+static inline uint64_t Nav_OccupancyKey( const int32_t tileId, const int32_t cellIndex, const int32_t layerIndex ) {
+	return ( ( (uint64_t )tileId & 0xFFFF ) << 32 ) | ( ( (uint64_t )cellIndex & 0xFFFF ) << 16 ) | ( (uint64_t )layerIndex & 0xFFFF );
+}
+
+/**
+*    @brief    Ensure occupancy map is stamped for the current frame.
+*/
+static inline void Nav_Occupancy_BeginFrame( nav_mesh_t *mesh ) {
+	if ( !mesh ) {
+		return;
+	}
+
+	const int32_t frame = (int32_t)level.frameNumber;
+	if ( mesh->occupancy_frame != frame ) {
+		mesh->occupancy.clear();
+		mesh->occupancy_frame = frame;
+	}
+}
+
+/**
+*    @brief    Clear all dynamic occupancy records.
+*/
+void SVG_Nav_Occupancy_Clear( nav_mesh_t *mesh ) {
+	/**
+	*\tSanity: require mesh.
+	*/
+	if ( !mesh ) {
+		return;
+	}
+
+	/**
+	*\tReset occupancy counts.
+	*/
+	mesh->occupancy.clear();
+	mesh->occupancy_frame = (int32_t)level.frameNumber;
+}
+
+/**
+*    @brief    Add occupancy for a tile/cell/layer.
+*/
+void SVG_Nav_Occupancy_Add( nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex, int32_t cost, bool blocked ) {
+	/**
+	*\tSanity: require mesh and non-negative indices.
+	*/
+	if ( !mesh || tileId < 0 || cellIndex < 0 || layerIndex < 0 ) {
+		return;
+	}
+
+	/**
+	*\tRefresh occupancy for the current frame to avoid stale data.
+	*/
+	Nav_Occupancy_BeginFrame( mesh );
+
+	/**
+	*\tAccumulate soft-cost and hard-block flags.
+	*/
+	const uint64_t key = Nav_OccupancyKey( tileId, cellIndex, layerIndex );
+	nav_occupancy_entry_t &entry = mesh->occupancy[ key ];
+	entry.soft_cost += std::max( 1, cost );
+	if ( blocked ) {
+		entry.blocked = true;
+	}
+}
+
+/**
+ *    @brief    Query occupancy soft cost for a tile/cell/layer.
+*/
+int32_t SVG_Nav_Occupancy_SoftCost( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex ) {
+	/**
+	*\tSanity: require mesh and valid indices.
+	*/
+	if ( !mesh || tileId < 0 || cellIndex < 0 || layerIndex < 0 ) {
+		return 0;
+	}
+
+	/**
+	*\tLookup occupancy soft cost.
+	*/
+	const uint64_t key = Nav_OccupancyKey( tileId, cellIndex, layerIndex );
+	auto it = mesh->occupancy.find( key );
+	if ( it == mesh->occupancy.end() ) {
+		return 0;
+	}
+
+	return it->second.soft_cost;
+}
+
+/**
+*    @brief    Query occupancy blocked flag for a tile/cell/layer.
+*/
+bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex ) {
+	if ( !mesh || tileId < 0 || cellIndex < 0 || layerIndex < 0 ) {
+		return false;
+	}
+
+	const uint64_t key = Nav_OccupancyKey( tileId, cellIndex, layerIndex );
+	auto it = mesh->occupancy.find( key );
+	if ( it == mesh->occupancy.end() ) {
+		return false;
+	}
+
+	return it->second.blocked;
+}
 
 /**
 *   @brief  Navigation CVars for generation parameters.
@@ -183,6 +299,20 @@ cvar_t *nav_agent_maxs_z = nullptr;
 // Optional vertical tolerance (world units). If <= 0, auto-derived from mesh parameters.
 cvar_t *nav_z_tolerance = nullptr;
 
+// Runtime cost-tuning CVars for A* heuristics (defined here)
+cvar_t *nav_cost_w_dist = nullptr;
+cvar_t *nav_cost_jump_base = nullptr;
+cvar_t *nav_cost_jump_height_weight = nullptr;
+cvar_t *nav_cost_los_weight = nullptr;
+cvar_t *nav_cost_dynamic_weight = nullptr;
+cvar_t *nav_cost_failure_weight = nullptr;
+cvar_t *nav_cost_failure_tau_ms = nullptr;
+cvar_t *nav_cost_turn_weight = nullptr;
+cvar_t *nav_cost_slope_weight = nullptr;
+cvar_t *nav_cost_drop_weight = nullptr;
+cvar_t *nav_cost_goal_z_blend_factor = nullptr;
+cvar_t *nav_cost_min_cost_per_unit = nullptr;
+
 
 
 /**
@@ -196,28 +326,6 @@ cvar_t *nav_z_tolerance = nullptr;
 *
 *
 **/
-/**
-*   @brief  Calculate the world-space size of a tile.
-**/
-static inline float Nav_TileWorldSize( const nav_mesh_t *mesh ) {
-    // Compute world-space size of a nav tile.
-    return mesh->cell_size_xy * ( float )mesh->tile_size;
-}
-/**
-*   @brief  Convert world coordinate to tile grid coordinate.
-**/
-static inline int32_t Nav_WorldToTileCoord( float value, float tile_world_size ) {
-    // Map a world coordinate into tile grid coordinate using floor.
-    return ( int32_t )floorf( value / tile_world_size );
-}
-/**
-*   @brief  Convert world coordinate to cell index within a tile.
-**/
-static inline int32_t Nav_WorldToCellCoord( float value, float tile_origin, float cell_size_xy ) {
-    // Map a world coordinate into a cell index within its tile.
-    return ( int32_t )floorf( ( value - tile_origin ) / cell_size_xy );
-}
-
 /**
 *   @brief  Set a presence bit for a cell index within a tile.
 **/
@@ -257,7 +365,7 @@ void SVG_Nav_Init( void ) {
 	*   Register physics constraint CVars matching player movement:
 	**/
 	nav_max_step = gi.cvar( "nav_max_step", "18", 0 );
-	nav_max_slope_deg = gi.cvar( "nav_max_slope_deg", "45.57", 0 );
+	nav_max_slope_deg = gi.cvar( "nav_max_slope_deg", "70", 0 );
 
 	/**
 	*	Register physics constraints for specific actions.
@@ -286,6 +394,8 @@ void SVG_Nav_Init( void ) {
 	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "0", CVAR_CHEAT );
 	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "0", CVAR_CHEAT );
 	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "1", CVAR_CHEAT );
+	// Temporary: enable diagnostic prints for failed nav lookups (tile/cell indices)
+	nav_debug_show_failed_lookups = gi.cvar( "nav_debug_show_failed_lookups", "1", CVAR_CHEAT );
 	#else
 	nav_debug_draw = gi.cvar( "nav_debug_draw", "0", 0 );
 	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
@@ -295,9 +405,57 @@ void SVG_Nav_Init( void ) {
 	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "1", 0 );
 	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "1", 0 );
 	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "0", 0 );
+	// Temporary: enable diagnostic prints for failed nav lookups (tile/cell indices)
+	nav_debug_show_failed_lookups = gi.cvar( "nav_debug_show_failed_lookups", "0", 0 );
 	#endif
-	// Initialize global navigation mesh pointer.
-	g_nav_mesh = nullptr;
+
+	/**
+	*	Cluster-route (tile graph) tuning CVars.
+	*	These affect only the coarse pre-pass; fine A* still validates traversal.
+	**/
+	nav_cluster_route_weighted = gi.cvar( "nav_cluster_route_weighted", "1", 0 );
+	// Per-flag penalties (added on top of base hop cost). Zero disables bias.
+	nav_cluster_cost_stair = gi.cvar( "nav_cluster_cost_stair", "0", 0 );
+	nav_cluster_cost_water = gi.cvar( "nav_cluster_cost_water", "2", 0 );
+	nav_cluster_cost_lava = gi.cvar( "nav_cluster_cost_lava", "250", 0 );
+	nav_cluster_cost_slime = gi.cvar( "nav_cluster_cost_slime", "8", 0 );
+	// Per-flag hard exclusions (0 = allowed, 1 = forbidden).
+	nav_cluster_forbid_stair = gi.cvar( "nav_cluster_forbid_stair", "0", 0 );
+	nav_cluster_forbid_water = gi.cvar( "nav_cluster_forbid_water", "0", 0 );
+	nav_cluster_forbid_lava = gi.cvar( "nav_cluster_forbid_lava", "0", 0 );
+	nav_cluster_forbid_slime = gi.cvar( "nav_cluster_forbid_slime", "0", 0 );
+
+	// Enable cluster pre-pass and debug draw toggle.
+	nav_cluster_enable = gi.cvar( "nav_cluster_enable", "1", 0 );
+	nav_cluster_debug_draw = gi.cvar( "nav_cluster_debug_draw", "0", 0 );
+
+    // Profiling / logging control CVars
+    nav_profile_level = gi.cvar( "nav_profile_level", "1", 0 ); // 0=off,1=phase,2=per-leaf,3=per-tile
+    nav_log_file_enable = gi.cvar( "nav_log_file_enable", "0", 0 );
+    nav_log_file_name = gi.cvar( "nav_log_file_name", "nav", 0 );
+
+	/**
+	*   Register runtime cost-tuning CVars for A* heuristics.
+	*/
+	nav_cost_w_dist = gi.cvar( "nav_cost_w_dist", "1.0", 0 );
+	nav_cost_jump_base = gi.cvar( "nav_cost_jump_base", "8.0", 0 );
+	nav_cost_jump_height_weight = gi.cvar( "nav_cost_jump_height_weight", "2.0", 0 );
+	nav_cost_los_weight = gi.cvar( "nav_cost_los_weight", "1.0", 0 );
+	nav_cost_dynamic_weight = gi.cvar( "nav_cost_dynamic_weight", "1.5", 0 );
+	nav_cost_failure_weight = gi.cvar( "nav_cost_failure_weight", "10.0", 0 );
+	nav_cost_failure_tau_ms = gi.cvar( "nav_cost_failure_tau_ms", "5000", 0 );
+	nav_cost_turn_weight = gi.cvar( "nav_cost_turn_weight", "0.8", 0 );
+	nav_cost_slope_weight = gi.cvar( "nav_cost_slope_weight", "0.5", 0 );
+	nav_cost_drop_weight = gi.cvar( "nav_cost_drop_weight", "4.0", 0 );
+	nav_cost_goal_z_blend_factor = gi.cvar( "nav_cost_goal_z_blend_factor", "0.5", 0 );
+	nav_cost_min_cost_per_unit = gi.cvar( "nav_cost_min_cost_per_unit", "1.0", 0 );
+
+	/**
+	*	Cluster routing CVars.
+	**/
+	nav_cluster_enable = gi.cvar( "nav_cluster_enable", "1", 0 );
+	nav_cluster_debug_draw = gi.cvar( "nav_cluster_debug_draw", "0", 0 );
+	nav_cluster_debug_draw_graph = gi.cvar( "nav_cluster_debug_draw_graph", "0", 0 );
 }
 
 /**
@@ -324,142 +482,6 @@ void SVG_Nav_Shutdown( void ) {
 *
 **/
 /**
-*   @brief  Generate navigation voxelmesh for the current level.
-*           This is the main entry point called by the nav_gen_voxelmesh server command.
-*           Generates both world mesh and inline model meshes with statistics reporting.
-**/
-void SVG_Nav_GenerateVoxelMesh( void ) {
-	// Record start time for statistics.
-	uint64_t start_time = gi.GetRealSystemTime();
-
-	gi.cprintf( nullptr, PRINT_HIGH, "=== Navigation Voxelmesh Generation ===\n" );
-
-	/**
-	*   Free existing mesh if any:
-	**/
-	SVG_Nav_FreeMesh();
-
-	/**
-	*   Allocate new mesh structure:
-	**/
-	g_nav_mesh = ( nav_mesh_t * )gi.TagMallocz( sizeof( nav_mesh_t ), TAG_SVGAME_LEVEL );
-
-	/**
-	*   Store generation parameters from CVars:
-	**/
-	g_nav_mesh->cell_size_xy = nav_cell_size_xy->value;
-	g_nav_mesh->z_quant = nav_z_quant->value;
-	g_nav_mesh->tile_size = ( int32_t )nav_tile_size->value;
-	g_nav_mesh->max_step = nav_max_step->value;
-	g_nav_mesh->max_slope_deg = nav_max_slope_deg->value;
-	g_nav_mesh->agent_mins = Vector3( nav_agent_mins_x->value, nav_agent_mins_y->value, nav_agent_mins_z->value );
-	g_nav_mesh->agent_maxs = Vector3( nav_agent_maxs_x->value, nav_agent_maxs_y->value, nav_agent_maxs_z->value );
-
-	/**
-	*   Validate bounding box parameters:
-	**/
-	if ( g_nav_mesh->agent_mins[ 0 ] >= g_nav_mesh->agent_maxs[ 0 ] ||
-		g_nav_mesh->agent_mins[ 1 ] >= g_nav_mesh->agent_maxs[ 1 ] ||
-		g_nav_mesh->agent_mins[ 2 ] >= g_nav_mesh->agent_maxs[ 2 ] ) {
-		gi.cprintf( nullptr, PRINT_HIGH, "Error: Invalid agent bounding box (mins must be < maxs on all axes)\n" );
-		SVG_Nav_FreeMesh();
-		return;
-	}
-
-	/**
-	*   Validate Z quantization parameter:
-	**/
-	if ( g_nav_mesh->z_quant <= 0.0f ) {
-		gi.cprintf( nullptr, PRINT_HIGH, "Error: nav_z_quant must be > 0\n" );
-		SVG_Nav_FreeMesh();
-		return;
-	}
-
-	/**
-	*   Print generation parameters:
-	**/
-	gi.cprintf( nullptr, PRINT_HIGH, "Parameters:\n" );
-	gi.cprintf( nullptr, PRINT_HIGH, "  cell_size_xy: %.1f\n", g_nav_mesh->cell_size_xy );
-	gi.cprintf( nullptr, PRINT_HIGH, "  z_quant: %.1f\n", g_nav_mesh->z_quant );
-	gi.cprintf( nullptr, PRINT_HIGH, "  tile_size: %d\n", g_nav_mesh->tile_size );
-	gi.cprintf( nullptr, PRINT_HIGH, "  max_step: %.1f\n", g_nav_mesh->max_step );
-	gi.cprintf( nullptr, PRINT_HIGH, "  max_slope_deg: %.1f\n", g_nav_mesh->max_slope_deg );
-	gi.cprintf( nullptr, PRINT_HIGH, "  agent_mins: (%.1f, %.1f, %.1f)\n",
-		g_nav_mesh->agent_mins[ 0 ], g_nav_mesh->agent_mins[ 1 ], g_nav_mesh->agent_mins[ 2 ] );
-	gi.cprintf( nullptr, PRINT_HIGH, "  agent_maxs: (%.1f, %.1f, %.1f)\n",
-		g_nav_mesh->agent_maxs[ 0 ], g_nav_mesh->agent_maxs[ 1 ], g_nav_mesh->agent_maxs[ 2 ] );
-
-	/**
-	*   Generate world mesh (static geometry):
-	**/
-	GenerateWorldMesh( g_nav_mesh );
-
-	/**
-	*   Generate inline model mesh (brush entities):
-	**/
-	GenerateInlineModelMesh( g_nav_mesh );
-
-	/**
-	*   Calculate statistics from generated data:
-	**/
-	g_nav_mesh->total_tiles = 0;
-	g_nav_mesh->total_xy_cells = 0;
-	g_nav_mesh->total_layers = 0;
-
-	// Count world mesh stats.
-	for ( int32_t i = 0; i < g_nav_mesh->num_leafs; i++ ) {
-		nav_leaf_data_t *leaf = &g_nav_mesh->leaf_data[ i ];
-		g_nav_mesh->total_tiles += leaf->num_tiles;
-
-		// Count cells and layers in each tile.
-		for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
-			nav_tile_t *tile = &leaf->tiles[ t ];
-			int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
-
-			for ( int32_t c = 0; c < cells_per_tile; c++ ) {
-				if ( tile->cells[ c ].num_layers > 0 ) {
-					g_nav_mesh->total_xy_cells++;
-					g_nav_mesh->total_layers += tile->cells[ c ].num_layers;
-				}
-			}
-		}
-	}
-
-	// Count inline model stats.
-	for ( int32_t i = 0; i < g_nav_mesh->num_inline_models; i++ ) {
-		nav_inline_model_data_t *model = &g_nav_mesh->inline_model_data[ i ];
-		g_nav_mesh->total_tiles += model->num_tiles;
-
-		// Count cells and layers in each tile.
-		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
-			nav_tile_t *tile = &model->tiles[ t ];
-			int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
-
-			for ( int32_t c = 0; c < cells_per_tile; c++ ) {
-				if ( tile->cells[ c ].num_layers > 0 ) {
-					g_nav_mesh->total_xy_cells++;
-					g_nav_mesh->total_layers += tile->cells[ c ].num_layers;
-				}
-			}
-		}
-	}
-
-	/**
-	*   Calculate and print generation statistics:
-	**/
-	uint64_t end_time = gi.GetRealSystemTime();
-	double build_time_sec = ( end_time - start_time ) / MICROSECONDS_PER_SECOND;
-
-	gi.cprintf( nullptr, PRINT_HIGH, "\n=== Generation Statistics ===\n" );
-	gi.cprintf( nullptr, PRINT_HIGH, "  Leafs processed: %d\n", g_nav_mesh->num_leafs );
-	gi.cprintf( nullptr, PRINT_HIGH, "  Inline models: %d\n", g_nav_mesh->num_inline_models );
-	gi.cprintf( nullptr, PRINT_HIGH, "  Total tiles: %d\n", g_nav_mesh->total_tiles );
-	gi.cprintf( nullptr, PRINT_HIGH, "  Total XY cells: %d\n", g_nav_mesh->total_xy_cells );
-	gi.cprintf( nullptr, PRINT_HIGH, "  Total layers: %d\n", g_nav_mesh->total_layers );
-	gi.cprintf( nullptr, PRINT_HIGH, "  Build time: %.3f seconds\n", build_time_sec );
-	gi.cprintf( nullptr, PRINT_HIGH, "===================================\n" );
-}
-/**
 *   @brief  Free tile cell allocations (layers + arrays).
 **/
 static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile ) {
@@ -481,75 +503,85 @@ static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile ) {
 *   @brief  Free the current navigation mesh.
 *           Releases all memory allocated for navigation data using TAG_SVGAME_LEVEL.
 **/
+/**
+*   @brief  Free the current navigation mesh.
+*           Releases all memory allocated for navigation data using TAG_SVGAME_LEVEL.
+**/
 void SVG_Nav_FreeMesh( void ) {
-	// Early out if no mesh exists.
+	/**
+	*	Early out if no mesh exists.
+	**/
 	if ( !g_nav_mesh ) {
 		return;
 	}
 
-	// Cached debug paths become invalid once the mesh is destroyed.
-	NavDebug_ClearCachedPaths();
-
-	// Free world + inline model tile data...
 	/**
-	*   Free world mesh leaf data:
+	*	Clear coarse routing graph: its pointers/indices become invalid once the mesh is freed.
+	**/
+	SVG_Nav_ClusterGraph_Clear();
+
+	/**
+	*	Clear dynamic occupancy map so unordered_map allocations are released before TagFree.
+	**/
+	SVG_Nav_Occupancy_Clear( g_nav_mesh.get() );
+
+	/**
+	*	Free canonical world tiles.
+	**/
+	{
+		const int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
+		for ( nav_tile_t &tile : g_nav_mesh->world_tiles ) {
+			if ( tile.presence_bits ) {
+				gi.TagFree( tile.presence_bits );
+				tile.presence_bits = nullptr;
+			}
+			Nav_FreeTileCells( &tile, cells_per_tile );
+		}
+		g_nav_mesh->world_tiles.clear();
+		g_nav_mesh->world_tile_id_of.clear();
+	}
+
+	/**
+	*	Free per-leaf tile id arrays.
 	**/
 	if ( g_nav_mesh->leaf_data ) {
-		// Iterate through all leafs.
 		for ( int32_t i = 0; i < g_nav_mesh->num_leafs; i++ ) {
-			nav_leaf_data_t *leaf = &g_nav_mesh->leaf_data[i];
-			
-			// Free tiles in this leaf.
-			if ( leaf->tiles ) {
-				for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
-					nav_tile_t *tile = &leaf->tiles[t];
-					
-					// Free presence bitset.
-					if ( tile->presence_bits ) {
-						gi.TagFree( tile->presence_bits );
-					}
-					
-					// Free XY cells and their layers.
-					if ( tile->cells ) {
-						int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
-						for ( int32_t c = 0; c < cells_per_tile; c++ ) {
-							if ( tile->cells[c].layers ) {
-								gi.TagFree( tile->cells[c].layers );
-							}
-						}
-						gi.TagFree( tile->cells );
-					}
-				}
-				gi.TagFree( leaf->tiles );
+			nav_leaf_data_t *leaf = &g_nav_mesh->leaf_data[ i ];
+			if ( leaf->tile_ids ) {
+				gi.TagFree( leaf->tile_ids );
+				leaf->tile_ids = nullptr;
 			}
+			leaf->num_tiles = 0;
 		}
 		gi.TagFree( g_nav_mesh->leaf_data );
+		g_nav_mesh->leaf_data = nullptr;
+		g_nav_mesh->num_leafs = 0;
 	}
-	
+
 	/**
 	*   Free inline model data:
 	**/
 	if ( g_nav_mesh->inline_model_data ) {
 		// Iterate through all inline models.
 		for ( int32_t i = 0; i < g_nav_mesh->num_inline_models; i++ ) {
-			nav_inline_model_data_t *model = &g_nav_mesh->inline_model_data[i];
-			
+			nav_inline_model_data_t *model = &g_nav_mesh->inline_model_data[ i ];
+
 			// Free tiles in this model.
 			if ( model->tiles ) {
 				for ( int32_t t = 0; t < model->num_tiles; t++ ) {
-					nav_tile_t *tile = &model->tiles[t];
-					
+					nav_tile_t *tile = &model->tiles[ t ];
+
 					// Free presence bitset.
 					if ( tile->presence_bits ) {
 						gi.TagFree( tile->presence_bits );
 					}
-					
+
 					// Free XY cells and their layers.
 					if ( tile->cells ) {
 						int32_t cells_per_tile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
 						for ( int32_t c = 0; c < cells_per_tile; c++ ) {
-							if ( tile->cells[c].layers ) {
-								gi.TagFree( tile->cells[c].layers );
+							if ( tile->cells[ c ].layers ) {
+								gi.TagFree( tile->cells[ c ].layers );
 							}
 						}
 						gi.TagFree( tile->cells );
@@ -570,9 +602,11 @@ void SVG_Nav_FreeMesh( void ) {
 		g_nav_mesh->num_inline_model_runtime = 0;
 	}
 
-	// Free the mesh structure itself.
-	gi.TagFree( g_nav_mesh );
-	g_nav_mesh = nullptr;
+	/**
+	*	Reset the RAII owner, which will run the mesh destructor and free memory.
+	*	This ensures STL members (vectors, maps) are properly destroyed.
+	**/
+	g_nav_mesh.reset();
 }
 
 
@@ -592,9 +626,9 @@ void SVG_Nav_FreeMesh( void ) {
 *   @param  max_slope_deg   Maximum walkable slope in degrees.
 *   @return True if the slope is walkable, false otherwise.
 **/
-static bool IsWalkableSlope( const Vector3 &normal, float max_slope_deg ) {
+const bool IsWalkableSlope( const Vector3 &normal, double max_slope_deg ) {
     // Convert max_slope_deg to minimum normal Z component.
-    float min_normal_z = cosf(  max_slope_deg * DEG_TO_RAD );
+    double min_normal_z = cosf(  max_slope_deg * DEG_TO_RAD );
     // Surface is walkable if normal Z is above the threshold.
     return normal[2] >= min_normal_z;
 }
@@ -638,16 +672,22 @@ static uint8_t DetectContentFlags( const cm_trace_t &trace ) {
 *   @param  z_min           Minimum Z height to search.
 *   @param  z_max           Maximum Z height to search.
 *   @param  max_step        Maximum step height for downward traces.
- *   @param  max_slope_deg   Maximum walkable slope in degrees.
- *   @param  z_quant         Z-axis quantization step.
- *   @param  out_layers      Output array of detected layers.
- *   @param  out_num_layers  Output number of layers found.
- *   @param  clip_entity     Optional entity to clip against (inline model), null for world.
+*   @param  max_slope_deg   Maximum walkable slope in degrees.
+*   @param  z_quant         Z-axis quantization step.
+*   @param  out_layers      Output array of detected layers.
+*   @param  out_num_layers  Output number of layers found.
+*   @param  clip_entity     Optional entity to clip against (inline model), null for world.
 *   @note   This function is not thread-safe due to the static temp_layers array.
 *           It should only be called from a single thread (main game thread).
 **/
+// Diagnostic counters for FindWalkableLayers
+static int32_t s_precheck_fail_count = 0;
+static int32_t s_trace_attempt_count = 0;
+static int32_t s_trace_hit_count = 0;
+static int32_t s_slope_reject_count = 0;
+
 static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, const Vector3 &maxs,
-                                float z_min, float z_max, float max_step, float max_slope_deg, float z_quant,
+                                double z_min, double z_max, double max_step, double max_slope_deg, double z_quant,
                                 nav_layer_t **out_layers, int32_t *out_num_layers,
                                 const edict_ptr_t *clip_entity ) {
     // Maximum number of layers that can be found at a single XY position.
@@ -655,11 +695,82 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
     // Note: Static array for efficiency, but limits thread-safety.
 	static nav_layer_t temp_layers[ MAX_LAYERS ] = {};
     int32_t num_layers = 0;
+
+	/**
+	*	Fast precheck: if the entire XY column is empty (no solid content) within the
+	*	requested Z slice, we can skip the expensive downward trace loop.
+	*	
+	*	Note: This intentionally checks a conservative AABB that covers the search range.
+	*	If any solid exists in the column we fall back to the trace-based sampler to
+	*	recover accurate endpos + plane normal.
+	**/
+	{
+		// Build an AABB spanning the vertical search range around this XY.
+		Vector3 colMins = xy_pos;
+		Vector3 colMaxs = xy_pos;
+		colMins[ 2 ] = z_min;
+		colMaxs[ 2 ] = z_max;
+
+		// DO NOT expand by agent hull - z_min/z_max already include agent bbox offset.
+		// Expanding XY slightly for conservative edge detection.
+		colMins[ 0 ] += mins[ 0 ];
+		colMins[ 1 ] += mins[ 1 ];
+		colMaxs[ 0 ] += maxs[ 0 ];
+		colMaxs[ 1 ] += maxs[ 1 ];
+
+		bool hasSolid = true;
+		if ( clip_entity ) {
+			/**
+			*	Inline model: prefer CM_BoxContents against the model BSP headnode when available.
+			*	This avoids even the single clip trace.
+			**/
+			const char *modelStr = clip_entity->model;
+			int32_t inlineIndex = -1;
+			if ( modelStr && modelStr[ 0 ] == '*' ) {
+				inlineIndex = atoi( modelStr + 1 );
+			}
+
+			mnode_t *headnode = nullptr;
+			if ( inlineIndex >= 0 && gi.CM_InlineModelHeadnode ) {
+				headnode = gi.CM_InlineModelHeadnode( inlineIndex );
+			}
+
+			if ( headnode ) {
+				cm_contents_t contents = CONTENTS_NONE;
+				gi.CM_BoxContents_headnode( &colMins[ 0 ], &colMaxs[ 0 ], &contents, nullptr, 0, headnode, nullptr );
+				hasSolid = ( contents & CM_CONTENTMASK_SOLID ) != 0;
+			} else {
+				// Fallback: one conservative clip trace through the column.
+				Vector3 start = xy_pos;
+				start[ 2 ] = z_max;
+				Vector3 end = xy_pos;
+				end[ 2 ] = z_min;
+				const cm_trace_t tr = gi.clip( clip_entity, &start, &mins, &maxs, &end, CM_CONTENTMASK_SOLID );
+				hasSolid = ( tr.fraction < 1.0f ) || tr.startsolid || tr.allsolid;
+			}
+		} else {
+			// World: a cheap contents query for this agent-shaped AABB.
+			cm_contents_t contents = CONTENTS_NONE;
+			gi.CM_BoxContents( &colMins[ 0 ], &colMaxs[ 0 ], &contents, nullptr, 0, nullptr );
+			hasSolid = ( contents & CM_CONTENTMASK_SOLID ) != 0;
+		}
+
+		if ( !hasSolid ) {
+			s_precheck_fail_count++;
+			if ( s_precheck_fail_count <= 10 ) {
+				gi.dprintf( "[ERROR][NavGen][FindWalkableLayers] Precheck failed: no solid in column at (%.1f,%.1f) z=[%.1f,%.1f]\n",
+					xy_pos[0], xy_pos[1], z_min, z_max );
+			}
+			*out_layers = nullptr;
+			*out_num_layers = 0;
+			return;
+		}
+	}
     
     // Start at maximum Z and work downward.
-    float current_z = z_max;
+    double current_z = z_max;
     // Search distance for each downward trace (2x max step).
-    float step_down = max_step * 2.0f;
+    double step_down = max_step * 2.0f;
     
     /**
     *   Perform repeated downward traces to find all walkable layers:
@@ -683,11 +794,14 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
             trace = gi.trace( &start, &mins, &maxs, &end, nullptr, CM_CONTENTMASK_SOLID );
         }
         
+        s_trace_attempt_count++;
+        
         /**
         *   Process trace results:
         **/
         // Check if we hit something and if the normal points upward.
         if ( trace.fraction < 1.0f && trace.plane.normal[2] > 0.0f ) {
+            s_trace_hit_count++;
             // Check if the slope is walkable.
             if ( IsWalkableSlope( trace.plane.normal, max_slope_deg ) ) {
                 // Found a walkable surface - record it.
@@ -701,6 +815,11 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
                 current_z = trace.endpos[2] - 1.0f;
             } else {
                 // Hit a non-walkable surface (too steep), continue searching below.
+                s_slope_reject_count++;
+                if ( s_slope_reject_count <= 10 ) {
+                    gi.dprintf( "[WARNING][NavGen][FindWalkableLayers] Slope rejected: normal.z=%.3f at (%.1f,%.1f,%.1f) max_slope=%.1f\n",
+                        trace.plane.normal[2], xy_pos[0], xy_pos[1], trace.endpos[2], max_slope_deg );
+                }
                 current_z = trace.endpos[2] - 1.0f;
             }
         } else {
@@ -740,10 +859,10 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
 *   @return True if any walkable data was generated.
 **/
 static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &leaf_mins, const Vector3 &leaf_maxs,
-                           float z_min, float z_max ) {
+                           double z_min, double z_max ) {
     const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
     const int32_t presence_words = ( cells_per_tile + 31 ) / 32;
-    const float tile_world_size = Nav_TileWorldSize( mesh );
+    const double tile_world_size = Nav_TileWorldSize( mesh );
     
     // Allocate tile storage.
     tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_LEVEL );
@@ -751,13 +870,13 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
     
     bool has_layers = false;
     
-    const float tile_origin_x = tile->tile_x * tile_world_size;
-    const float tile_origin_y = tile->tile_y * tile_world_size;
+    const double tile_origin_x = tile->tile_x * tile_world_size;
+    const double tile_origin_y = tile->tile_y * tile_world_size;
     
     for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
         for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
-            const float world_x = tile_origin_x + ( (float)cell_x + 0.5f ) * mesh->cell_size_xy;
-            const float world_y = tile_origin_y + ( (float)cell_y + 0.5f ) * mesh->cell_size_xy;
+            const double world_x = tile_origin_x + ( (double)cell_x + 0.5f ) * mesh->cell_size_xy;
+            const double world_y = tile_origin_y + ( (double)cell_y + 0.5f ) * mesh->cell_size_xy;
             
             // Skip cells outside the leaf bounds.
             if ( world_x < leaf_mins[ 0 ] || world_x > leaf_maxs[ 0 ] ||
@@ -765,7 +884,7 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
                 continue;
             }
             
-            Vector3 xy_pos = { world_x, world_y, 0.0f };
+            Vector3 xy_pos = { world_x, world_y, 0.0 };
             nav_layer_t *layers = nullptr;
             int32_t num_layers = 0;
             
@@ -798,10 +917,10 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
 *	@return	True if any walkable data was generated.
 **/
 static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &model_mins, const Vector3 &model_maxs,
-								 float z_min, float z_max, const edict_ptr_t *clip_entity ) {
+								 double z_min, double z_max, const edict_ptr_t *clip_entity ) {
 	const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
 	const int32_t presence_words = ( cells_per_tile + 31 ) / 32;
-	const float tile_world_size = Nav_TileWorldSize( mesh );
+	const double tile_world_size = Nav_TileWorldSize( mesh );
 
 	// Allocate tile storage.
 	tile->presence_bits = (uint32_t *)gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_LEVEL );
@@ -810,13 +929,13 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
 	bool has_layers = false;
 
 	// Tile origins are in "model local space". Allow negative coords by using local mins as base.
-	const float tile_origin_x = model_mins[ 0 ] + ( tile->tile_x * tile_world_size );
-	const float tile_origin_y = model_mins[ 1 ] + ( tile->tile_y * tile_world_size );
+	const double tile_origin_x = model_mins[ 0 ] + ( tile->tile_x * tile_world_size );
+	const double tile_origin_y = model_mins[ 1 ] + ( tile->tile_y * tile_world_size );
 
 	for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
 		for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
-			const float local_x = tile_origin_x + ( (float)cell_x + 0.5f ) * mesh->cell_size_xy;
-			const float local_y = tile_origin_y + ( (float)cell_y + 0.5f ) * mesh->cell_size_xy;
+			const double local_x = tile_origin_x + ( (double)cell_x + 0.5 ) * mesh->cell_size_xy;
+			const double local_y = tile_origin_y + ( (double)cell_y + 0.5 ) * mesh->cell_size_xy;
 
 			// Skip cells outside the model AABB.
 			if ( local_x < model_mins[ 0 ] || local_x > model_maxs[ 0 ] ||
@@ -824,7 +943,7 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
 				continue;
 			}
 
-			Vector3 xy_pos = { local_x, local_y, 0.0f };
+			Vector3 xy_pos = { local_x, local_y, 0.0 };
 			nav_layer_t *layers = nullptr;
 			int32_t num_layers = 0;
 
@@ -865,41 +984,6 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
 *
 *
 **/
-/**
-*	@brief	Collects all active entities that reference an inline BSP model ("*N").
-*			The returned mapping is keyed by inline model index (N).
-*	@note	If multiple entities reference the same "*N", the first one encountered is kept.
-**/
-static void Nav_CollectInlineModelEntities( std::unordered_map<int32_t, svg_base_edict_t *> &out_model_to_ent ) {
-	out_model_to_ent.clear();
-
-	for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
-		// Get the entity for this index.
-		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
-
-		/**
-		*	Skip nullptr/inactive edicts.
-		**/
-		if ( !SVG_Entity_IsActive( ent ) ) {
-			continue;
-		}
-
-		const char *modelStr = ent->model;
-		if ( !modelStr || modelStr[ 0 ] != '*' ) {
-			continue;
-		}
-
-		const int32_t modelIndex = atoi( modelStr + 1 );
-		if ( modelIndex <= 0 ) {
-			continue;
-		}
-
-		// Keep first owner encountered for this model index.
-		if ( out_model_to_ent.find( modelIndex ) == out_model_to_ent.end() ) {
-			out_model_to_ent.emplace( modelIndex, ent );
-		}
-	}
-}
 
 
 
@@ -931,7 +1015,7 @@ static void GenerateWorldMesh( nav_mesh_t *mesh ) {
 	// Get number of leafs in the BSP.
     int32_t num_leafs = bsp->numleafs;
     
-    gi.cprintf( nullptr, PRINT_HIGH, "Generating world navmesh for %d leafs...\n", num_leafs );
+	SVG_Nav_Log( "Generating world navmesh for %d leafs...\n", num_leafs );
     
     /**
     *   Allocate leaf data array:
@@ -939,71 +1023,53 @@ static void GenerateWorldMesh( nav_mesh_t *mesh ) {
     mesh->num_leafs = num_leafs;
     mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof(nav_leaf_data_t) * num_leafs, TAG_SVGAME_LEVEL );
     
-    const float tile_world_size = Nav_TileWorldSize( mesh );
+    const double tile_world_size = Nav_TileWorldSize( mesh );
+	
+	/**
+	*	Compute a global world Z sampling range from bsp model 0 bounds.
+	*	
+	*	We keep XY tiling based on per-leaf bounds (for clustering and locality), but
+	*	use a consistent vertical range derived from the world model to avoid cases
+	*	where leaf Z extents are invalid/unhelpful for navigation sampling.
+	**/
+	const Vector3 world_mins = bsp->models[ 0 ].mins;
+	const Vector3 world_maxs = bsp->models[ 0 ].maxs;
+	const double world_z_min = (double)world_mins[ 2 ] + (double)mesh->agent_mins[ 2 ];
+	const double world_z_max = (double)world_maxs[ 2 ] + (double)mesh->agent_maxs[ 2 ];
     
     /**
     *   Generate tiles for each leaf using BSP bounds:
     **/
-    for ( int32_t i = 0; i < num_leafs; i++ ) {
-		nav_leaf_data_t *leaf_data = &mesh->leaf_data[ i ];
-		mleaf_t *leaf = &bsp->leafs[ i ];
-
-		leaf_data->leaf_index = i;
-		leaf_data->num_tiles = 0;
-		leaf_data->tiles = nullptr;
-
-		if ( leaf->contents & CONTENTS_SOLID ) {
-			continue;
-		}
-
-		// NOTE: Debug filters must not skip generation; they apply at draw time.
-		// if ( NavDebug_Enabled() && !NavDebug_FilterLeaf( i ) ) {
-		// 	continue;
-		// }
-
-		const Vector3 leaf_mins = leaf->mins;
-		const Vector3 leaf_maxs = leaf->maxs;
-		const float z_min = leaf_mins[ 2 ] + mesh->agent_mins[ 2 ];
-		const float z_max = leaf_maxs[ 2 ] + mesh->agent_maxs[ 2 ];
-
-		const int32_t tile_min_x = Nav_WorldToTileCoord( leaf_mins[ 0 ], tile_world_size );
-		const int32_t tile_max_x = Nav_WorldToTileCoord( leaf_maxs[ 0 ] - NAV_TILE_EPSILON, tile_world_size );
-		const int32_t tile_min_y = Nav_WorldToTileCoord( leaf_mins[ 1 ], tile_world_size );
-		const int32_t tile_max_y = Nav_WorldToTileCoord( leaf_maxs[ 1 ] - NAV_TILE_EPSILON, tile_world_size );
-		
-		std::vector<nav_tile_t> leaf_tiles;
-		if ( tile_max_x >= tile_min_x && tile_max_y >= tile_min_y ) {
-			const int32_t tile_count = ( tile_max_x - tile_min_x + 1 ) * ( tile_max_y - tile_min_y + 1 );
-			leaf_tiles.reserve( tile_count );
-		}
-		
-		for ( int32_t tile_y = tile_min_y; tile_y <= tile_max_y; tile_y++ ) {
-			for ( int32_t tile_x = tile_min_x; tile_x <= tile_max_x; tile_x++ ) {
-
-				// NOTE: Debug filters must not skip generation; they apply at draw time.
-				// if ( NavDebug_Enabled() && !NavDebug_FilterTile( tile_x, tile_y ) ) {
-				// 	continue;
-				// }
-
-				nav_tile_t tile = {};
-				tile.tile_x = tile_x;
-				tile.tile_y = tile_y;
-
-				if ( Nav_BuildTile( mesh, &tile, leaf_mins, leaf_maxs, z_min, z_max ) ) {
-					//NavDebug_DrawTileBBox( mesh, &tile );
-					leaf_tiles.push_back( tile );
-				}
-			}
-		}
-		
-		if ( !leaf_tiles.empty() ) {
-			leaf_data->num_tiles = (int32_t)leaf_tiles.size();
-			leaf_data->tiles = (nav_tile_t *)gi.TagMallocz( sizeof( nav_tile_t ) * leaf_data->num_tiles, TAG_SVGAME_LEVEL );
-			memcpy( leaf_data->tiles, leaf_tiles.data(), sizeof( nav_tile_t ) * leaf_data->num_tiles );
-		}
-	}
+    int32_t leaf_skipped_solid = 0;
+    int32_t leaf_processed = 0;
+    int32_t total_tile_attempts = 0;
+    int32_t total_tile_success = 0;
     
-    gi.cprintf( nullptr, PRINT_HIGH, "World mesh generation complete\n" );
+	/**
+	*	Legacy note:
+	*	
+	*	World voxelmesh generation is implemented in `svg_nav_generate.cpp` and now uses
+	*	canonical world tile storage (`mesh->world_tiles`) with leaf tile-id references.
+	*	
+	*	This function remains only to print the older stats if it is still invoked in
+	*	any legacy code paths.
+	**/
+	leaf_skipped_solid = leaf_skipped_solid;
+	leaf_processed = leaf_processed;
+	total_tile_attempts = total_tile_attempts;
+	total_tile_success = total_tile_success;
+    
+    SVG_Nav_Log( "World mesh generation complete\n" );
+    SVG_Nav_Log( "[NavGen] Leaf statistics: %d total, %d solid (skipped), %d processed\n", num_leafs, leaf_skipped_solid, leaf_processed );
+    SVG_Nav_Log( "[NavGen] Tile statistics: %d attempted, %d succeeded (%.1f%% success rate)\n", total_tile_attempts, total_tile_success, total_tile_attempts > 0 ? (100.0f * total_tile_success / total_tile_attempts) : 0.0f );
+    if ( total_tile_success == 0 && total_tile_attempts > 0 ) {
+        SVG_Nav_Log( "[ERROR][NavGen] ALL TILES FAILED! Possible causes:\n" );
+        SVG_Nav_Log( "[ERROR][NavGen]   1. All surfaces too steep (check nav_max_slope_deg=%.1f)\n", mesh->max_slope_deg );
+        SVG_Nav_Log( "[ERROR][NavGen]   2. Map has no valid walkable floors\n" );
+        SVG_Nav_Log( "[ERROR][NavGen]   3. Agent bounding box too large for map geometry\n" );
+        SVG_Nav_Log( "[ERROR][NavGen]   4. Bug in Nav_BuildTile surface sampling\n" );
+        SVG_Nav_Log( "[ERROR][NavGen] See first 10 diagnostic messages above for details.\n" );
+    }
 }
 
 /**
@@ -1043,7 +1109,7 @@ static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 	// Build runtime mapping (transforms).
 	Nav_BuildInlineModelRuntime( mesh, model_to_ent );
 
-	const float tile_world_size = Nav_TileWorldSize( mesh );
+	const double tile_world_size = Nav_TileWorldSize( mesh );
 
 	int32_t out_index = 0;
 	for ( const auto &it : model_to_ent ) {
@@ -1070,8 +1136,8 @@ static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 		const Vector3 model_mins = mm->mins;
 		const Vector3 model_maxs = mm->maxs;
 
-		const float z_min = model_mins[ 2 ] + mesh->agent_mins[ 2 ];
-		const float z_max = model_maxs[ 2 ] + mesh->agent_maxs[ 2 ];
+		const double z_min = model_mins[ 2 ] + mesh->agent_mins[ 2 ];
+		const double z_max = model_maxs[ 2 ] + mesh->agent_maxs[ 2 ];
 
 		// Compute tile range in model-local space with mins as the origin.
 		const int32_t tile_min_x = 0;
@@ -1115,9 +1181,17 @@ static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 *			`SVG_Nav_RefreshInlineModelRuntime()` (no allocations).
 **/
 static void Nav_BuildInlineModelRuntime( nav_mesh_t *mesh, const std::unordered_map<int32_t, svg_base_edict_t *> &model_to_ent ) {
+	/**
+	*	Sanity checks / early outs.
+	**/
 	if ( !mesh ) {
 		return;
 	}
+
+	/**
+	*	Reset any existing runtime mapping and its lookup table.
+	**/
+	mesh->inline_model_runtime_index_of.clear();
 
 	// Free old runtime mapping (if any) to avoid leaks on regen.
 	if ( mesh->inline_model_runtime ) {
@@ -1134,6 +1208,11 @@ static void Nav_BuildInlineModelRuntime( nav_mesh_t *mesh, const std::unordered_
 	mesh->inline_model_runtime = (nav_inline_model_runtime_t *)gi.TagMallocz(
 		sizeof( nav_inline_model_runtime_t ) * mesh->num_inline_model_runtime, TAG_SVGAME_LEVEL );
 
+	/**
+	*	Reserve the lookup map up-front so inserts stay cheap.
+	**/
+	mesh->inline_model_runtime_index_of.reserve( (size_t)mesh->num_inline_model_runtime );
+
 	int32_t out_index = 0;
 	for ( const auto &it : model_to_ent ) {
 		const int32_t model_index = it.first;
@@ -1148,7 +1227,79 @@ static void Nav_BuildInlineModelRuntime( nav_mesh_t *mesh, const std::unordered_
 		rt.angles = ent ? ent->currentAngles : Vector3{};
 		rt.dirty = false;
 
+		/**
+		*	Populate owner_entnum -> runtime index map.
+		*	We only emit entries for valid entity numbers.
+		**/
+		if ( rt.owner_entnum > 0 ) {
+			mesh->inline_model_runtime_index_of.emplace( rt.owner_entnum, out_index );
+		}
+
 		out_index++;
+	}
+}
+
+/**
+*	@brief	Lookup an inline-model runtime entry by owning entity number.
+*	@param	mesh	Navigation mesh.
+*	@param	owner_entnum	Owning entity number (edict->s.number).
+*	@return	Pointer to runtime entry if found, otherwise nullptr.
+*	@note	Uses the cached `inline_model_runtime_index_of` map to avoid linear scans.
+**/
+const nav_inline_model_runtime_t *SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( const nav_mesh_t *mesh, const int32_t owner_entnum ) {
+	/**
+	*	Sanity checks: validate mesh and runtime availability.
+	**/
+	if ( !mesh || owner_entnum <= 0 ) {
+		return nullptr;
+	}
+	if ( !mesh->inline_model_runtime || mesh->num_inline_model_runtime <= 0 ) {
+		return nullptr;
+	}
+
+	/**
+	*	Resolve runtime index via the prebuilt lookup map.
+	**/
+	auto it = mesh->inline_model_runtime_index_of.find( owner_entnum );
+	if ( it == mesh->inline_model_runtime_index_of.end() ) {
+		return nullptr;
+	}
+
+	/**
+	*	Bounds-check the resolved index before returning.
+	**/
+	const int32_t idx = it->second;
+	if ( idx < 0 || idx >= mesh->num_inline_model_runtime ) {
+		return nullptr;
+	}
+
+	return &mesh->inline_model_runtime[ idx ];
+}
+
+/**
+*	@brief	Dump the inline-model runtime index map for debugging.
+*	@param	mesh	Navigation mesh.
+*	@note	Prints to console; intended for developer diagnostics.
+**/
+void SVG_Nav_Debug_PrintInlineModelRuntimeIndexMap( const nav_mesh_t *mesh ) {
+	/**
+	*	Sanity: validate mesh and ensure we have something to dump.
+	**/
+	if ( !mesh ) {
+		gi.dprintf( "%s: mesh == nullptr\n", __func__ );
+		return;
+	}
+
+	gi.dprintf( "[NavDebug] inline_model_runtime_index_of: %d entries (runtime_count=%d)\n",
+		( int32_t )mesh->inline_model_runtime_index_of.size(), mesh->num_inline_model_runtime );
+
+	/**
+	*	Iterate the map and emit each mapping as owner_entnum -> runtime index.
+	**/
+	for ( const auto &kv : mesh->inline_model_runtime_index_of ) {
+		const int32_t ownerEntNum = kv.first;
+		const int32_t runtimeIndex = kv.second;
+		gi.dprintf( "[NavDebug]   owner_entnum=%d -> runtime_index=%d\n", ownerEntNum, runtimeIndex );
 	}
 }
 
@@ -1175,7 +1326,7 @@ void SVG_Nav_RefreshInlineModelRuntime( void ) {
 		const Vector3 newOrigin = ent->currentOrigin;
 		const Vector3 newAngles = ent->currentAngles;
 
-		// Cheap exact compare (Vector3 here is POD-ish); avoid float epsilon logic unless you need it.
+		// Cheap exact compare (Vector3 here is POD-ish); avoid double epsilon logic unless you need it.
 		const bool originChanged = ( newOrigin[ 0 ] != rt.origin[ 0 ] ) || ( newOrigin[ 1 ] != rt.origin[ 1 ] ) || ( newOrigin[ 2 ] != rt.origin[ 2 ] );
 		const bool anglesChanged = ( newAngles[ 0 ] != rt.angles[ 0 ] ) || ( newAngles[ 1 ] != rt.angles[ 1 ] ) || ( newAngles[ 2 ] != rt.angles[ 2 ] );
 
@@ -1200,105 +1351,193 @@ void SVG_Nav_RefreshInlineModelRuntime( void ) {
 *
 *
 **/
-typedef struct nav_node_key_s {
-    int32_t leaf_index;
-    int32_t tile_index;
-    int32_t cell_index;
-    int32_t layer_index;
-    
-    bool operator==( const nav_node_key_s &other ) const {
-        return leaf_index == other.leaf_index &&
-            tile_index == other.tile_index &&
-            cell_index == other.cell_index &&
-            layer_index == other.layer_index;
-    }
-} nav_node_key_t;
-
 /**
-*   @brief  Hash functor for nav_node_key_t.
+*	@brief	Select a navigation layer index from an XY cell for a desired world-space Z.
+*	@param	mesh			Navigation mesh (provides `z_quant` and default step/tolerance inputs).
+*	@param	cell			Navigation XY cell to select a layer from.
+*	@param	desired_z	Desired world-space Z height to match (units).
+*	@param	out_layer_index	[out] Selected layer index inside `cell->layers`.
+*	@return	True if a suitable layer index was found.
+*	@note	This selection is intentionally conservative and deterministic:
+*			- First selects the closest layer within the Z tolerance gate.
+*			- When the desired Z is within a small preference threshold of any layer,
+*			  applies a top/bottom preference (defaults to top-most).
+*			- If nothing is within tolerance, falls back to closest-by-Z.
+*			Actual movement feasibility is validated later by step tests (e.g.,
+*			`Nav_CanTraverseStep_ExplicitBBox`) when building/expanding paths.
 **/
-struct nav_node_key_hash_t {
-    size_t operator()( const nav_node_key_t &key ) const {
-        size_t seed = std::hash<int32_t>{}( key.leaf_index );
-        seed ^= std::hash<int32_t>{}( key.tile_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
-        seed ^= std::hash<int32_t>{}( key.cell_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
-        seed ^= std::hash<int32_t>{}( key.layer_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
-        return seed;
-    }
-};
+const bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, double desired_z,
+	int32_t *out_layer_index ) {
+	/**
+	*    Sanity checks.
+	**/
+	if ( !mesh || !cell || cell->num_layers <= 0 || !out_layer_index ) {
+		return false;
+	}
 
-/**
-*   @brief  Navigation node reference with world position.
-**/
-typedef struct nav_node_ref_s {
-    nav_node_key_t key;
-    Vector3 position;
-} nav_node_ref_t;
+	/**
+	*	Z tolerance gate:
+	*		Only layers within this tolerance are considered candidates for the primary selection.
+	*		This reduces Z-jitter in multi-layer cells and keeps selection aligned with
+	*		step capabilities.
+	**/
+	double z_tolerance = 0.0;
+	if ( nav_z_tolerance && nav_z_tolerance->value > 0.0f ) {
+		// Use explicit tuning when provided (world units).
+		z_tolerance = nav_z_tolerance->value;
+	} else {
+		// Default: allow up to a step plus half a quant to handle common stair sampling.
+		z_tolerance = mesh->max_step + ( mesh->z_quant * 0.5f );
+	}
+	const double selectTolerance = z_tolerance;
 
-/**
-*   @brief  Search node for A* pathfinding.
-**/
-typedef struct nav_search_node_s {
-    nav_node_ref_t node;
-    float g_cost;
-    float f_cost;
-    int32_t parent_index;
-    bool closed;
-} nav_search_node_t;
+	/**
+	*	Layer selection preference policy:
+	*		The selection bias is currently derived from the default path policy.
+	*		This keeps selection behavior consistent across the nav module without adding
+	*		new cvars.
+	*
+	*	@note	The preference is only applied when the desired Z is within
+	*			`layer_select_prefer_z_threshold` of any layer, and the candidate layer is still
+	*			inside `selectTolerance`.
+	**/
+	svg_nav_path_policy_t defaultPolicy = {};
+	// Select whether "top" means highest Z or lowest Z.
+	const bool preferTop = defaultPolicy.layer_select_prefer_top;
+	// Threshold (world units) to activate the preference behavior.
+	const double preferThreshold = std::max( 0.0, defaultPolicy.layer_select_prefer_z_threshold );
 
-/**
-*   @brief  Select the best layer index for a cell based on desired height.
-**/
-static bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, float desired_z,
-                                  int32_t *out_layer_index ) {
-    if ( !cell || cell->num_layers <= 0 ) {
-        return false;
-    }
-    // Determine Z tolerance used to consider layers "close enough" in Z.
-    float z_tolerance = 0.0f;
-    if ( nav_z_tolerance && nav_z_tolerance->value > 0.0f ) {
-        z_tolerance = nav_z_tolerance->value;
-    } else if ( mesh ) {
-        // Derived default: allow up to max step plus a half-quant tolerance to handle stairs.
-        z_tolerance = mesh->max_step + ( mesh->z_quant * 0.5f );
-    } else {
-        z_tolerance = 18.0f + 1.0f;
-    }
-    const float max_step = z_tolerance;
-    int32_t best_index = -1;
-    float best_delta = std::numeric_limits<float>::max();
-    float best_fallback = std::numeric_limits<float>::max();
-    int32_t fallback_index = -1;
-    
-    for ( int32_t i = 0; i < cell->num_layers; i++ ) {
-        const float layer_z = cell->layers[ i ].z_quantized * mesh->z_quant;
-        const float delta = fabsf( layer_z - desired_z );
-        if ( delta < best_fallback ) {
-            best_fallback = delta;
-            fallback_index = i;
-        }
-        // Prefer layers within the Z tolerance. Exact traversal checks are not possible here
-        // because we don't have a start node, but the tolerance helps avoid tiny jitter on stairs.
-        if ( delta <= max_step && delta < best_delta ) {
-            best_delta = delta;
-            best_index = i;
-        }
-    }
-    
-    if ( best_index < 0 ) {
-        best_index = fallback_index;
-    }
-    
-    if ( best_index < 0 ) {
-        return false;
-    }
-    
-    *out_layer_index = best_index;
-    return true;
+	/**
+	*	Pass 1: closest-by-Z selection.
+	*		- Track a primary selection (closest within `selectTolerance`).
+	*		- Track a fallback selection (closest overall) for when tolerance rejects all.
+	**/
+	int32_t best_index = -1;
+	double best_delta = std::numeric_limits<double>::max();
+	int32_t fallback_index = -1;
+	double best_fallback_delta = std::numeric_limits<double>::max();
+
+	for ( int32_t i = 0; i < cell->num_layers; i++ ) {
+		// Convert from quantized Z to world-space Z for distance comparisons.
+		const double layer_z = ( double )cell->layers[ i ].z_quantized * mesh->z_quant;
+		// Absolute Z delta from the desired height.
+		const double delta = std::fabs( layer_z - desired_z );
+
+		// Always track the closest-by-Z fallback in case no layer passes the tolerance.
+		if ( delta < best_fallback_delta ) {
+			best_fallback_delta = delta;
+			fallback_index = i;
+		}
+
+		// Prefer layers within the selection tolerance.
+		if ( delta <= selectTolerance && delta < best_delta ) {
+			best_delta = delta;
+			best_index = i;
+		}
+	}
+
+	/**
+	*	Fallback:
+	*		If no layers are inside the tolerance gate, still return the closest-by-Z layer.
+	*		This allows the caller to attempt more expensive traversal checks (or fallback
+	*		pathfinding) rather than failing immediately.
+	**/
+	if ( best_index < 0 ) {
+		best_index = fallback_index;
+	}
+	if ( best_index < 0 ) {
+		return false;
+	}
+
+	/**
+	*	Pass 2: thresholded top/bottom preference.
+	*		If the desired Z is within a small window of any layer, use this to stabilize
+	*		selection in multi-layer cells by preferring a consistent extremum (top or bottom).
+	**/
+	if ( cell->num_layers > 1 && preferThreshold > 0.0 ) {
+		/**
+		*	Compute closest delta across all layers.
+		*		This decides whether we are "close enough" to activate the preference behavior.
+		**/
+		double closest_delta = std::numeric_limits<double>::max();
+		for ( int32_t i = 0; i < cell->num_layers; i++ ) {
+			// Convert quantized Z to world Z.
+			const double layer_z = ( double )cell->layers[ i ].z_quantized * mesh->z_quant;
+			// Compute absolute Z delta.
+			const double delta = std::fabs( layer_z - desired_z );
+			// Track the closest delta for preference activation.
+			closest_delta = std::min( closest_delta, delta );
+		}
+
+		if ( closest_delta <= preferThreshold ) {
+			/**
+			*	Preference selection:
+			*		Choose the extremum (top or bottom) among layers that are still within
+			*		`selectTolerance`. This prevents preferring a far-away level purely due to
+			*		being "top"/"bottom".
+			**/
+			int32_t preferred_index = -1;
+			double preferred_z = preferTop ? -std::numeric_limits<double>::infinity() : std::numeric_limits<double>::infinity();
+
+			for ( int32_t i = 0; i < cell->num_layers; i++ ) {
+				// Convert quantized Z to world-space Z.
+				const double layer_z = ( double )cell->layers[ i ].z_quantized * mesh->z_quant;
+				// Compute delta for tolerance gating.
+				const double delta = std::fabs( layer_z - desired_z );
+				if ( delta > selectTolerance ) {
+					// Skip layers that are too far to be considered viable.
+					continue;
+				}
+
+				// Seed the preference candidate.
+				if ( preferred_index < 0 ) {
+					preferred_index = i;
+					preferred_z = layer_z;
+					continue;
+				}
+
+				// Compare Z to decide top/bottom preference update.
+				if ( preferTop ) {
+					if ( layer_z > preferred_z ) {
+						preferred_z = layer_z;
+						preferred_index = i;
+					}
+				} else {
+					if ( layer_z < preferred_z ) {
+						preferred_z = layer_z;
+						preferred_index = i;
+					}
+				}
+			}
+
+			// Commit preference selection when any viable candidates were found.
+			if ( preferred_index >= 0 ) {
+				best_index = preferred_index;
+			}
+		}
+	}
+
+	/**
+	*	Commit output.
+	**/
+	*out_layer_index = best_index;
+	return true;
 }
 
+/**
+*	@brief  Advance along a navigation path based on current origin and waypoint radius.
+*	@param  path            Navigation traversal path.
+*	@param  current_origin  Current 3D position of the mover.
+*	@param  waypoint_radius  Radius around waypoints to consider them "reached".
+*	@param  inout_index     Input/output current waypoint index in the path.
+*	@param  out_direction    Output direction vector towards the current waypoint.
+*	@return True if there is a valid waypoint to move towards after advancement.
+**/
 const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin,
-	float waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
+	double waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
+	/**
+	*	Sanity checks: validate inputs and ensure we have a usable path.
+	**/
 	if ( !path || !inout_index || !out_direction ) {
 		return false;
 	}
@@ -1306,21 +1545,82 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 		return false;
 	}
 
+	/**
+	*	Clamp the waypoint radius to a minimum value.
+	*	This avoids degenerate behavior where micro radii prevent waypoint completion
+	*	when the mover cannot stand exactly on the path point due to collision.
+	**/
+	waypoint_radius = std::max( waypoint_radius, 8.0 );
+
 	int32_t index = *inout_index;
 	if ( index < 0 ) {
 		index = 0;
 	}
 
-	const float waypoint_radius_sqr = waypoint_radius * waypoint_radius;
+	const double waypoint_radius_sqr = waypoint_radius * waypoint_radius;
 
 	// Advance using 2D distance so Z quantization / stairs don't prevent waypoint completion.
 	while ( index < path->num_points ) {
 		const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
-		const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] );
+		const double dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] );
 		if ( dist_sqr > waypoint_radius_sqr ) {
 			break;
 		}
 		index++;
+	}
+
+	/**
+	*	Stuck heuristic: if we are not making 2D progress towards the current waypoint,
+	*	advance it after a few frames. This helps around corners where the exact waypoint
+	*	position may be effectively unreachable due to collision/step resolution.
+	*	
+	*	NOTE: This is intentionally conservative and only triggers when the waypoint is
+	*	still relatively close in 2D (within a few radii).
+	**/
+	if ( index < path->num_points ) {
+		// Thread-local so multiple entities calling into this share no state across threads.
+		// This code runs on the game thread, but `thread_local` also avoids cross-AI bleed.
+		thread_local int32_t s_last_index = -1;
+		thread_local Vector3 s_last_origin = {};
+		thread_local double s_last_dist2d_sqr = 0.0;
+		thread_local int32_t s_no_progress_frames = 0;
+		thread_local int32_t s_last_frame = -1;
+
+		// Reset tracking when switching paths/indices or on new server frame discontinuity.
+		if ( s_last_frame != (int32_t)level.frameNumber || s_last_index != index ) {
+			s_last_frame = (int32_t)level.frameNumber;
+			s_last_index = index;
+			s_last_origin = current_origin;
+			const Vector3 d0 = QM_Vector3Subtract( path->points[ index ], current_origin );
+			s_last_dist2d_sqr = ( d0[ 0 ] * d0[ 0 ] ) + ( d0[ 1 ] * d0[ 1 ] );
+			s_no_progress_frames = 0;
+		} else {
+			// Compute current 2D distance to the waypoint.
+			const Vector3 d1 = QM_Vector3Subtract( path->points[ index ], current_origin );
+			const double dist2d_sqr = ( d1[ 0 ] * d1[ 0 ] ) + ( d1[ 1 ] * d1[ 1 ] );
+
+			// Only consider this if we're already fairly close to the waypoint.
+			const double near_sqr = waypoint_radius_sqr * 9.0; // within ~3 radii
+			if ( dist2d_sqr <= near_sqr ) {
+				// If we did not reduce distance (allowing a small epsilon), count a no-progress frame.
+				const double improve_eps = 1.0;
+				if ( dist2d_sqr >= ( s_last_dist2d_sqr - improve_eps ) ) {
+					s_no_progress_frames++;
+				} else {
+					s_no_progress_frames = 0;
+				}
+				// If stuck for a short window, advance one waypoint to try to get around the corner.
+				if ( s_no_progress_frames >= 6 && ( index + 1 ) < path->num_points ) {
+					index++;
+					s_no_progress_frames = 0;
+				}
+			}
+
+			// Update tracking for next call.
+			s_last_dist2d_sqr = dist2d_sqr;
+			s_last_origin = current_origin;
+			s_last_frame = (int32_t)level.frameNumber;
+		}
 	}
 
 	if ( index >= path->num_points ) {
@@ -1332,7 +1632,7 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 
 	// Clamp vertical component to avoid large up/down jumps.
 	if ( g_nav_mesh ) {
-		const float maxDz = g_nav_mesh->max_step + g_nav_mesh->z_quant;
+		const double maxDz = g_nav_mesh->max_step + g_nav_mesh->z_quant;
 		if ( direction[ 2 ] > maxDz ) {
 			direction[ 2 ] = maxDz;
 		} else if ( direction[ 2 ] < -maxDz ) {
@@ -1340,12 +1640,12 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 		}
 	}
 
-	const float length = ( float )QM_Vector3Length( direction );
-	if ( length <= std::numeric_limits<float>::epsilon() ) {
+	const double length = ( double )QM_Vector3LengthDP( direction );
+	if ( length <= std::numeric_limits<double>::epsilon() ) {
 		return false;
 	}
 
-	*out_direction = QM_Vector3Normalize( direction );
+	*out_direction = QM_Vector3NormalizeDP( direction );
 	*inout_index = index;
 	return true;
 }
@@ -1353,48 +1653,81 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 
 /**
 *   @brief  Compute the world-space position for a node.
+*	@param  mesh        Navigation mesh.
+*	@param  tile        Tile containing the node.
+*	@param  cell_index  Index of the cell containing the node.
+*	@param  layer       Layer containing the node.
+*	@return World-space position of the node.
+*	@note   The position is at the center of the cell in X/Y and at the layer height in Z.
 **/
 static Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer ) {
-    const float tile_world_size = Nav_TileWorldSize( mesh );
-    const float tile_origin_x = tile->tile_x * tile_world_size;
-    const float tile_origin_y = tile->tile_y * tile_world_size;
+    const double tile_world_size = Nav_TileWorldSize( mesh );
+    const double tile_origin_x = tile->tile_x * tile_world_size;
+    const double tile_origin_y = tile->tile_y * tile_world_size;
     const int32_t cell_x = cell_index % mesh->tile_size;
     const int32_t cell_y = cell_index / mesh->tile_size;
     
     Vector3 position = {
-        tile_origin_x + ( (float)cell_x + 0.5f ) * mesh->cell_size_xy,
-        tile_origin_y + ( (float)cell_y + 0.5f ) * mesh->cell_size_xy,
-        layer->z_quantized * mesh->z_quant
+		( double )tile_origin_x + ( (double)cell_x + 0.5 ) * mesh->cell_size_xy,
+		( double )tile_origin_y + ( (double)cell_y + 0.5 ) * mesh->cell_size_xy,
+        (double)layer->z_quantized * mesh->z_quant
     };
     return position;
 }
 
 /**
 *   @brief  Find a navigation node in a leaf at the given position.
+*	@param  mesh        Navigation mesh.
+*	@param  leaf_data   Leaf data containing tile references.
+*	@param  leaf_index  Index of the leaf in the mesh.
+*	@param  position    World-space position to query.
+*	@param  desired_z   Desired Z height for layer selection.
+*	@param  out_node    Output node reference if found.
+*	@param  allow_fallback  If true, allows returning a node even if traversal checks fail.
+*	@return True if a node was found at the position.
 **/
 static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *leaf_data, int32_t leaf_index,
-                                const Vector3 &position, float desired_z, nav_node_ref_t *out_node,
+                                const Vector3 &position, double desired_z, nav_node_ref_t *out_node,
                                 bool allow_fallback ) {
-    if ( !leaf_data || leaf_data->num_tiles <= 0 ) {
+    // Validate leaf data pointer.
+    if ( !leaf_data ) {
+        return false;
+    }
+
+    const double tile_world_size = Nav_TileWorldSize( mesh );
+    const int32_t tile_x = Nav_WorldToTileCoord( position[ 0 ], tile_world_size );
+    const int32_t tile_y = Nav_WorldToTileCoord( position[ 1 ], tile_world_size );
+
+    // No tiles present in this leaf -> early out with optional diagnostic.
+    if ( leaf_data->num_tiles <= 0 ) {
+        if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+            gi.dprintf( "[NavDebug] Leaf %d has no tiles (pos=%.2f,%.2f) -> tile=%d,%d\n", leaf_index, position[0], position[1], tile_x, tile_y );
+        }
         return false;
     }
     
-    const float tile_world_size = Nav_TileWorldSize( mesh );
-    const int32_t tile_x = Nav_WorldToTileCoord( position[ 0 ], tile_world_size );
-    const int32_t tile_y = Nav_WorldToTileCoord( position[ 1 ], tile_world_size );
-    
     for ( int32_t t = 0; t < leaf_data->num_tiles; t++ ) {
-        nav_tile_t *tile = &leaf_data->tiles[ t ];
+		// Resolve this leaf's tile reference into the canonical world tile list.
+		const int32_t tileId = leaf_data->tile_ids ? leaf_data->tile_ids[ t ] : -1;
+		if ( tileId < 0 || tileId >= (int32_t)mesh->world_tiles.size() ) {
+			continue;
+		}
+		const nav_tile_t *tile = &mesh->world_tiles[ tileId ];
         if ( tile->tile_x != tile_x || tile->tile_y != tile_y ) {
             continue;
         }
         
-        const float tile_origin_x = tile->tile_x * tile_world_size;
-        const float tile_origin_y = tile->tile_y * tile_world_size;
+        const double tile_origin_x = tile->tile_x * tile_world_size;
+        const double tile_origin_y = tile->tile_y * tile_world_size;
         const int32_t cell_x = Nav_WorldToCellCoord( position[ 0 ], tile_origin_x, mesh->cell_size_xy );
         const int32_t cell_y = Nav_WorldToCellCoord( position[ 1 ], tile_origin_y, mesh->cell_size_xy );
-        
+
         if ( cell_x < 0 || cell_x >= mesh->tile_size || cell_y < 0 || cell_y >= mesh->tile_size ) {
+            // Out-of-range cell within this tile; optional diagnostic when lookups will fail.
+            if ( !allow_fallback && nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+                gi.dprintf( "[NavDebug] Leaf %d tile %d,%d cell out of range for pos=%.2f,%.2f -> cell=%d,%d tileSize=%d\n",
+                    leaf_index, tile->tile_x, tile->tile_y, position[0], position[1], cell_x, cell_y, mesh->tile_size );
+            }
             break;
         }
         
@@ -1404,12 +1737,26 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
 
         // First attempt: select best layer by Z tolerance.
         if ( Nav_SelectLayerIndex( mesh, cell, desired_z, &layer_index ) ) {
-            // Verify the selected layer is actually traversable from the query position.
+            /**
+            *	Preferred per-cell selection:
+            *		When allow_fallback is true we must NOT require immediate step-traversability
+            *		from the exact query origin.
+            *		
+            *		Reason:
+            *			- Callers use this function both for A* endpoints and for neighbor-node lookup.
+            *			- Endpoint positions can be near walls/corners/stair risers where a strict
+            *			  PMove-like test from the exact origin may fail even though the nav node is
+            *			  valid and reachable by taking a small nudge first.
+            *			- A* edge expansion already validates movement via Nav_CanTraverseStep_ExplicitBBox.
+            *		
+            *		If allow_fallback is false, keep the strict behavior to avoid returning nodes
+            *		in clearly unreachable locations.
+            **/
             const Vector3 candidatePos = Nav_NodeWorldPosition( mesh, tile, cell_index, &cell->layers[ layer_index ] );
-            if ( Nav_CanTraverseStep_ExplicitBBox( mesh, position, candidatePos, mesh->agent_mins, mesh->agent_maxs, nullptr ) ) {
+            if ( allow_fallback || Nav_CanTraverseStep_ExplicitBBox( mesh, position, candidatePos, mesh->agent_mins, mesh->agent_maxs, nullptr ) ) {
                 out_node->key = {
                     .leaf_index = leaf_index,
-                    .tile_index = t,
+                    .tile_index = tileId,
                     .cell_index = cell_index,
                     .layer_index = layer_index
                 };
@@ -1418,15 +1765,15 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
             }
 
             // If the best-by-Z layer is not traversable, try other layers in this cell preferring traversable ones.
-            float best_trav_delta = std::numeric_limits<float>::max();
+            double best_trav_delta = std::numeric_limits<double>::max();
             int32_t best_trav_index = -1;
             for ( int32_t li = 0; li < cell->num_layers; li++ ) {
                 const Vector3 candPos = Nav_NodeWorldPosition( mesh, tile, cell_index, &cell->layers[ li ] );
                 if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, position, candPos, mesh->agent_mins, mesh->agent_maxs, nullptr ) ) {
                     continue;
                 }
-                const float layer_z = cell->layers[ li ].z_quantized * mesh->z_quant;
-                const float delta = fabsf( layer_z - desired_z );
+                const double layer_z = cell->layers[ li ].z_quantized * mesh->z_quant;
+                const double delta = fabsf( layer_z - desired_z );
                 if ( delta < best_trav_delta ) {
                     best_trav_delta = delta;
                     best_trav_index = li;
@@ -1436,7 +1783,7 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
             if ( best_trav_index >= 0 ) {
                 out_node->key = {
                     .leaf_index = leaf_index,
-                    .tile_index = t,
+                    .tile_index = tileId,
                     .cell_index = cell_index,
                     .layer_index = best_trav_index
                 };
@@ -1448,16 +1795,26 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
         break;
     }
     
-    if ( !allow_fallback ) {
-        return false;
-    }
+        if ( !allow_fallback ) {
+            // If lookups are not allowed to fallback, print diagnostics about the failed lookup.
+            if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+                gi.dprintf( "[NavDebug] Nav_FindNodeInLeaf failed: leaf=%d pos=(%.2f,%.2f,%.2f) desired_z=%.2f tile=%d,%d cell=%d,%d\n",
+                    leaf_index, position[0], position[1], position[2], desired_z, tile_x, tile_y, Nav_WorldToCellCoord( position[0], tile_x * tile_world_size, mesh->cell_size_xy ), Nav_WorldToCellCoord( position[1], tile_y * tile_world_size, mesh->cell_size_xy ) );
+            }
+            return false;
+        }
     
-    float best_dist_sqr = std::numeric_limits<float>::max();
+    double best_dist_sqr = std::numeric_limits<double>::max();
     nav_node_ref_t best_node = {};
     bool found = false;
     
     for ( int32_t t = 0; t < leaf_data->num_tiles; t++ ) {
-        nav_tile_t *tile = &leaf_data->tiles[ t ];
+		// Resolve this leaf's tile reference into the canonical world tile list.
+		const int32_t tileId = leaf_data->tile_ids ? leaf_data->tile_ids[ t ] : -1;
+		if ( tileId < 0 || tileId >= (int32_t)mesh->world_tiles.size() ) {
+			continue;
+		}
+		const nav_tile_t *tile = &mesh->world_tiles[ tileId ];
         const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
         
         for ( int32_t c = 0; c < cells_per_tile; c++ ) {
@@ -1476,7 +1833,7 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
 				nav_node_ref_t candidate = {};
 				candidate.key = {
 					.leaf_index = leaf_index,
-					.tile_index = t,
+					.tile_index = tileId,
 					.cell_index = c,
 					.layer_index = l
 				};
@@ -1488,7 +1845,7 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
 
                 const Vector3 node_pos = candidate.position;
                 const Vector3 delta = QM_Vector3Subtract( node_pos, position );
-                const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
+                const double dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
 
                 if ( dist_sqr < best_dist_sqr ) {
                     best_dist_sqr = dist_sqr;
@@ -1514,46 +1871,59 @@ static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *l
 *	@note	The blend factor is based on XY distance between seeker and goal: close targets bias toward start_z,
 *			far targets bias toward goal_z.
 **/
-static bool Nav_SelectLayerIndex_BlendZ( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, float start_z, float goal_z,
-	const Vector3 &start_pos, const Vector3 &goal_pos, const float blend_start_dist, const float blend_full_dist, int32_t *out_layer_index ) {
+const bool Nav_SelectLayerIndex_BlendZ( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, double start_z, double goal_z,
+	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist, int32_t *out_layer_index ) {
 	if ( !mesh || !cell || cell->num_layers <= 0 || !out_layer_index ) {
 		return false;
 	}
 
 	const Vector3 d = QM_Vector3Subtract( goal_pos, start_pos );
-	const float dist2D = sqrtf( ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) );
+	const double dist2D = sqrtf( ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) );
 
-	const float BLEND_START_DIST = std::max( 0.0f, blend_start_dist );
-	const float BLEND_FULL_DIST = std::max( BLEND_START_DIST + 1.0f, blend_full_dist );
-	float t = 0.0f;
+	const double BLEND_START_DIST = std::max( 0.0, blend_start_dist );
+	const double BLEND_FULL_DIST = std::max( BLEND_START_DIST + 1.0, blend_full_dist );
+	double t = 0.0f;
 	if ( dist2D > BLEND_START_DIST ) {
-		t = ( dist2D - BLEND_START_DIST ) / std::max( 1.0f, ( BLEND_FULL_DIST - BLEND_START_DIST ) );
-		t = QM_Clamp( t, 0.0f, 1.0f );
+		t = ( dist2D - BLEND_START_DIST ) / std::max( 1.0, ( BLEND_FULL_DIST - BLEND_START_DIST ) );
+		t = QM_Clamp( t, 0.0, 1.0 );
 	}
 
-	const float desired_z = ( ( 1.0f - t ) * start_z ) + ( t * goal_z );
+	const double desired_z = ( ( 1.0 - t ) * start_z ) + ( t * goal_z );
 	return Nav_SelectLayerIndex( mesh, cell, desired_z, out_layer_index );
 }
 
-static bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector3 &position, float start_z, float goal_z,
-	const Vector3 &start_pos, const Vector3 &goal_pos, const float blend_start_dist, const float blend_full_dist,
+/**
+*	@brief  Find a navigation node for a position using BSP leaf lookup with blended Z.
+* 			This helps pathfinding prefer the correct floor when chasing a target above/below.
+* 			The blend factor is based on XY distance between seeker and goal: close targets bias toward start_z,
+* 			far targets bias toward goal_z.
+*	@param  start_z	Seeker starting Z.
+*	@param  goal_z	Target goal Z.
+*	@param  start_pos	Seeker starting position.
+*	@param  goal_pos	Target goal position.
+*	@param  blend_start_dist	Distance at which to start blending toward goal_z.
+*	@param  blend_full_dist	Distance at which to fully use goal_z.
+*	@note	Uses fallback search if direct leaf lookup fails and allow_fallback is true.
+**/
+const bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector3 &position, double start_z, double goal_z,
+	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist,
 	nav_node_ref_t *out_node, bool allow_fallback ) {
 	if ( !mesh || !out_node ) {
 		return false;
 	}
 
 	const Vector3 d = QM_Vector3Subtract( goal_pos, start_pos );
-	const float dist2D = sqrtf( ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) );
+	const double dist2D = std::sqrt( ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) );
 
-	const float BLEND_START_DIST = std::max( 0.0f, blend_start_dist );
-	const float BLEND_FULL_DIST = std::max( BLEND_START_DIST + 1.0f, blend_full_dist );
-	float t = 0.0f;
+	const double BLEND_START_DIST = std::max( 0.0, blend_start_dist );
+	const double BLEND_FULL_DIST = std::max( BLEND_START_DIST + 1.0, blend_full_dist );
+	double t = 0.0f;
 	if ( dist2D > BLEND_START_DIST ) {
-		t = ( dist2D - BLEND_START_DIST ) / std::max( 1.0f, ( BLEND_FULL_DIST - BLEND_START_DIST ) );
-		t = QM_Clamp( t, 0.0f, 1.0f );
+		t = ( dist2D - BLEND_START_DIST ) / std::max( 1.0, ( BLEND_FULL_DIST - BLEND_START_DIST ) );
+		t = QM_Clamp( t, 0.0, 1.0 );
 	}
 
-	const float desired_z = ( ( 1.0f - t ) * start_z ) + ( t * goal_z );
+	const double desired_z = ( ( 1.0 - t ) * start_z ) + ( t * goal_z );
 
 	const cm_t *world_model = gi.GetCollisionModel();
 	if ( !world_model || !world_model->cache ) {
@@ -1564,6 +1934,9 @@ static bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector
 
 	mleaf_t *leaf = gi.BSP_PointLeaf( bsp->nodes, &position[ 0 ] );
 	if ( !leaf ) {
+        if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+            gi.dprintf( "[NavDebug] BSP_PointLeaf returned null for pos=(%.2f,%.2f,%.2f)\n", position[0], position[1], position[2] );
+        }
 		return false;
 	}
 
@@ -1577,10 +1950,13 @@ static bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector
 	}
 
 	if ( !allow_fallback ) {
+        if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+            gi.dprintf( "[NavDebug] Nav_FindNodeForPosition_BlendZ: direct leaf lookup failed for leaf=%td pos=(%.2f,%.2f,%.2f)\n", leaf_index, position[0], position[1], position[2] );
+        }
 		return false;
 	}
 
-	float best_dist_sqr = std::numeric_limits<float>::max();
+	double best_dist_sqr = std::numeric_limits<double>::max();
 	nav_node_ref_t best_node = {};
 	bool found = false;
 
@@ -1588,7 +1964,7 @@ static bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector
 		nav_node_ref_t candidate = {};
 		if ( Nav_FindNodeInLeaf( mesh, &mesh->leaf_data[ i ], i, position, desired_z, &candidate, true ) ) {
 			const Vector3 delta2 = QM_Vector3Subtract( candidate.position, position );
-			const float dist_sqr = ( delta2[ 0 ] * delta2[ 0 ] ) + ( delta2[ 1 ] * delta2[ 1 ] ) + ( delta2[ 2 ] * delta2[ 2 ] );
+			const double dist_sqr = ( delta2[ 0 ] * delta2[ 0 ] ) + ( delta2[ 1 ] * delta2[ 1 ] ) + ( delta2[ 2 ] * delta2[ 2 ] );
 			if ( dist_sqr < best_dist_sqr ) {
 				best_dist_sqr = dist_sqr;
 				best_node = candidate;
@@ -1606,8 +1982,14 @@ static bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector
 
 /**
 *   @brief  Find a navigation node for a position using BSP leaf lookup.
+* 		 Uses fallback search if direct leaf lookup fails and allow_fallback is true.
+*	@param	position	World-space position to query.	
+* 	@param	desired_z	Desired Z height for layer selection.
+* 	@param	out_node	Output node reference.
+* 	@param	allow_fallback	Allow fallback search if direct leaf lookup fails.
+*	@return	True if a node was found, false otherwise.
 **/
-static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &position, float desired_z,
+const bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &position, double desired_z,
                                      nav_node_ref_t *out_node, bool allow_fallback ) {
 	#if 0
 	const model_t *world_model = gi.GetModelDataForHandle( 1 );
@@ -1625,6 +2007,9 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
 	#endif
     mleaf_t *leaf = gi.BSP_PointLeaf( bsp->nodes, &position[ 0 ] );
     if ( !leaf ) {
+        if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+            gi.dprintf( "[NavDebug] BSP_PointLeaf returned null for pos=(%.2f,%.2f,%.2f)\n", position[0], position[1], position[2] );
+        }
         return false;
     }
     
@@ -1638,11 +2023,14 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
     }
     
     if ( !allow_fallback ) {
+        if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+            gi.dprintf( "[NavDebug] Nav_FindNodeForPosition: direct leaf lookup failed for leaf=%td pos=(%.2f,%.2f,%.2f)\n", leaf_index, position[0], position[1], position[2] );
+        }
         return false;
     }
     
     // Fallback: search all leafs for the nearest node.
-    float best_dist_sqr = std::numeric_limits<float>::max();
+    double best_dist_sqr = std::numeric_limits<double>::max();
     nav_node_ref_t best_node = {};
     bool found = false;
     
@@ -1650,7 +2038,7 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
         nav_node_ref_t candidate = {};
         if ( Nav_FindNodeInLeaf( mesh, &mesh->leaf_data[ i ], i, position, desired_z, &candidate, true ) ) {
             const Vector3 delta = QM_Vector3Subtract( candidate.position, position );
-            const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
+            const double dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
             if ( dist_sqr < best_dist_sqr ) {
                 best_dist_sqr = dist_sqr;
                 best_node = candidate;
@@ -1668,1046 +2056,3 @@ static bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posi
 
 
 
-/**
-*
-*
-*
-*   Navigation Pathfinding:
-*
-*
-*
-**/
-/**
-*   @brief  Perform A* search between two navigation nodes.
-**/
-static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node,
-	const Vector3 &agent_mins, const Vector3 &agent_maxs, std::vector<Vector3> &out_points ) {
-	constexpr int32_t MAX_SEARCH_NODES = 4096;
-    static constexpr Vector3 neighbor_offsets[] = {
-        { 1.0f, 0.0f, 0.0f },
-        { -1.0f, 0.0f, 0.0f },
-        { 0.0f, 1.0f, 0.0f },
-        { 0.0f, -1.0f, 0.0f },
-        { 1.0f, 1.0f, 0.0f },
-        { 1.0f, -1.0f, 0.0f },
-        { -1.0f, 1.0f, 0.0f },
-        { -1.0f, -1.0f, 0.0f }
-    };
-    
-    auto heuristic = []( const Vector3 &a, const Vector3 &b ) -> float {
-        const Vector3 delta = QM_Vector3Subtract( b, a );
-        return sqrtf( ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] ) );
-    };
-    
-    std::vector<nav_search_node_t> nodes;
-    nodes.reserve( 256 );
-    
-    std::vector<int32_t> open_list;
-    open_list.reserve( 256 );
-    
-    std::unordered_map<nav_node_key_t, int32_t, nav_node_key_hash_t> node_lookup;
-    node_lookup.reserve( 256 );
-    
-    nav_search_node_t start_search = {
-        .node = start_node,
-        .g_cost = 0.0f,
-        .f_cost = heuristic( start_node.position, goal_node.position ),
-        .parent_index = -1,
-        .closed = false
-    };
-    
-    nodes.push_back( start_search );
-    open_list.push_back( 0 );
-    node_lookup.emplace( start_node.key, 0 );
-    
-    while ( !open_list.empty() && (int32_t)nodes.size() < MAX_SEARCH_NODES ) {
-        int32_t best_open_index = 0;
-        float best_f_cost = nodes[ open_list[ 0 ] ].f_cost;
-        
-        for ( int32_t i = 1; i < (int32_t)open_list.size(); i++ ) {
-            const float f_cost = nodes[ open_list[ i ] ].f_cost;
-            if ( f_cost < best_f_cost ) {
-                best_f_cost = f_cost;
-                best_open_index = i;
-            }
-        }
-        
-        const int32_t current_index = open_list[ best_open_index ];
-        open_list[ best_open_index ] = open_list.back();
-        open_list.pop_back();
-        
-        nav_search_node_t &current = nodes[ current_index ];
-        current.closed = true;
-        
-        if ( current.node.key == goal_node.key ) {
-            std::vector<Vector3> reversed_points;
-            reversed_points.reserve( 64 );
-            
-            int32_t trace_index = current_index;
-            while ( trace_index >= 0 ) {
-                reversed_points.push_back( nodes[ trace_index ].node.position );
-                trace_index = nodes[ trace_index ].parent_index;
-            }
-            
-            out_points.assign( reversed_points.rbegin(), reversed_points.rend() );
-            return true;
-        }
-        
-        for ( const Vector3 &offset_dir : neighbor_offsets ) {
-            const Vector3 neighbor_origin = QM_Vector3Add( current.node.position, QM_Vector3Scale( offset_dir, mesh->cell_size_xy ) );
-            nav_node_ref_t neighbor_node = {};
-
-			if ( !Nav_FindNodeForPosition( mesh, neighbor_origin, current.node.position[ 2 ], &neighbor_node, false ) ) {
-				continue;
-			}
-
-			// Replace the old |dz| check with a PMove-like step traversal test.
-			// Validate using the agent bbox so corner/doorway traversal matches the mover.
-			if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr ) ) {
-				continue;
-			}
-
-            const float step_cost = heuristic( current.node.position, neighbor_node.position );
-            const float tentative_g = current.g_cost + step_cost;
-
-            auto lookup_it = node_lookup.find( neighbor_node.key );
-            if ( lookup_it == node_lookup.end() ) {
-                nav_search_node_t neighbor_search = {
-                    .node = neighbor_node,
-                    .g_cost = tentative_g,
-                    .f_cost = tentative_g + heuristic( neighbor_node.position, goal_node.position ),
-                    .parent_index = current_index,
-                    .closed = false
-                };
-                
-                nodes.push_back( neighbor_search );
-                const int32_t neighbor_index = (int32_t)nodes.size() - 1;
-                open_list.push_back( neighbor_index );
-                node_lookup.emplace( neighbor_node.key, neighbor_index );
-                continue;
-            }
-            
-            const int32_t neighbor_index = lookup_it->second;
-            nav_search_node_t &neighbor_search = nodes[ neighbor_index ];
-            if ( neighbor_search.closed ) {
-                continue;
-            }
-            
-            if ( tentative_g < neighbor_search.g_cost ) {
-                neighbor_search.g_cost = tentative_g;
-                neighbor_search.f_cost = tentative_g + heuristic( neighbor_node.position, goal_node.position );
-                neighbor_search.parent_index = current_index;
-            }
-        }
-    }
-    
-    return false;
-}
-
-
-
-/**
-*
-*
-*
-*	Navigation Debug Drawing - State and Helpers:
-*
-*
-*
-**/
-typedef struct nav_debug_draw_state_s {
-	int64_t frame = -1;
-	int32_t segments_used = 0;
-} nav_debug_draw_state_t;
-//! Global debug draw state.
-static nav_debug_draw_state_t s_nav_debug_draw_state = {};
-
-static void NavDebug_PurgeCachedPaths( void ) {
-	const QMTime now = level.time;
-	auto it = s_nav_debug_cached_paths.begin();
-	while ( it != s_nav_debug_cached_paths.end() ) {
-		if ( it->expireTime <= now ) {
-			SVG_Nav_FreeTraversalPath( &it->path );
-			it = s_nav_debug_cached_paths.erase( it );
-		} else {
-			++it;
-		}
-	}
-}
-
-static void NavDebug_ClearCachedPaths( void ) {
-	for ( nav_debug_cached_path_t &entry : s_nav_debug_cached_paths ) {
-		SVG_Nav_FreeTraversalPath( &entry.path );
-	}
-	s_nav_debug_cached_paths.clear();
-}
-
-/**
-*
-*
-*
-*	Navigation Debug Drawing - Runtime Draw:
-*
-*
-*
-**/
-/**
-*	@brief	Prepare for a new frame of debug drawing.
-**/
-static inline void NavDebug_NewFrame( void ) {
-	if ( s_nav_debug_draw_state.frame == ( int32_t )level.frameNumber ) {
-		return;
-	}
-
-	s_nav_debug_draw_state.frame = ( int32_t )level.frameNumber;
-	s_nav_debug_draw_state.segments_used = 0;
-}
-/**
-*	@brief	Determine if we can emit the requested number of segments.
-**/
-static inline bool NavDebug_CanEmitSegments( const int32_t count ) {
-	NavDebug_NewFrame();
-
-	const int32_t maxSegments = ( nav_debug_draw_max_segments ? nav_debug_draw_max_segments->integer : 0 );
-	if ( maxSegments <= 0 ) {
-		return false;
-	}
-
-	return ( s_nav_debug_draw_state.segments_used + count ) <= maxSegments;
-}
-/**
-*	@brief	Consume the given number of emitted segments.
-**/
-static inline void NavDebug_ConsumeSegments( const int32_t count ) {
-	s_nav_debug_draw_state.segments_used += count;
-}
-/**
-*	@brief	Check if navigation debug drawing is enabled.
-**/
-static inline bool NavDebug_Enabled( void ) {
-	return nav_debug_draw && nav_debug_draw->integer != 0;
-}
-/**
-*	@brief	Get the current view origin for distance filtering.
-**/
-static inline Vector3 NavDebug_GetViewOrigin( void ) {
-	if ( game.currentViewPlayer ) {
-		return game.currentViewPlayer->currentOrigin + Vector3{ 0.f, 0.f, ( float )game.currentViewPlayer->viewheight };;
-	}
-
-	// Fallback: try client #1 (singleplayer typical).
-	svg_base_edict_t *ent = g_edict_pool.EdictForNumber( 1 );
-	if ( SVG_Entity_IsClient( ent, false ) ) {
-		return ent->currentOrigin + Vector3{ 0.f, 0.f, ( float )ent->viewheight };
-	}
-
-	return {};
-}
-/**
-*	@brief	Check if a position passes the distance filter.
-* 	@param	pos	Position to check.
-**/
-static inline bool NavDebug_PassesDistanceFilter( const Vector3 &pos ) {
-	const float maxDist = ( nav_debug_draw_max_dist ? nav_debug_draw_max_dist->value : 0.0f );
-	if ( maxDist <= 0.0f ) {
-		return true;
-	}
-
-	const Vector3 viewOrg = NavDebug_GetViewOrigin();
-	const Vector3 d = QM_Vector3Subtract( pos, viewOrg );
-	const float distSqr = ( d[ 0 ] * d[ 0 ] ) + ( d[ 1 ] * d[ 1 ] ) + ( d[ 2 ] * d[ 2 ] );
-	return distSqr <= ( maxDist * maxDist );
-}
-/**
-*	@return	Returns true if a tile filter is specified and outputs the wanted tile coordinates.
-**/
-static bool NavDebug_ParseTileFilter( int32_t *outTileX, int32_t *outTileY ) {
-	if ( !outTileX || !outTileY || !nav_debug_draw_tile ) {
-		return false;
-	}
-
-	const char *s = nav_debug_draw_tile->string;
-	if ( !s || !s[ 0 ] || s[ 0 ] == '*' ) {
-		return false;
-	}
-
-	int x = 0, y = 0;
-	if ( sscanf( s, "%d %d", &x, &y ) != 2 ) {
-		return false;
-	}
-
-	*outTileX = x;
-	*outTileY = y;
-	return true;
-}
-/**
-*	@brief	Filter by leaf index.
-* 	@return	Returns true if the given leaf index passes the filter.
-**/
-static inline bool NavDebug_FilterLeaf( const int32_t leafIndex ) {
-	if ( !nav_debug_draw_leaf ) {
-		return true;
-	}
-
-	const int32_t wanted = nav_debug_draw_leaf->integer;
-	return ( wanted < 0 ) || ( wanted == leafIndex );
-}
-/**
-*	@brief	Will filter by tile coordinates.
-*	@return	Returns true if the given tile coordinates pass the filter.
-**/
-static inline bool NavDebug_FilterTile( const int32_t tileX, const int32_t tileY ) {
-	int32_t wantedX = 0, wantedY = 0;
-	if ( !NavDebug_ParseTileFilter( &wantedX, &wantedY ) ) {
-		return true;
-	}
-
-	return tileX == wantedX && tileY == wantedY;
-}
-/**
-*	@brief	Draw a vertical tick at the given position.
-**/
-static void NavDebug_DrawSampleTick( const Vector3 &pos, const float height ) {
-	// Check if we should draw sample ticks.
-	if ( !NavDebug_Enabled() || !nav_debug_draw_samples || nav_debug_draw_samples->integer == 0 ) {
-		return;
-	}
-	// Check segment budget.
-	if ( !NavDebug_CanEmitSegments( 1 ) ) {
-		return;
-	}
-	// Check distance filter.
-	if ( !NavDebug_PassesDistanceFilter( pos ) ) {
-		return;
-	}
-
-	// Draw the tick.
-	Vector3 end = pos;
-	end[ 2 ] += height;
-	SVG_DebugDrawLine_TE( pos, end, MULTICAST_PVS, false );
-	// Consume segment budget.
-	NavDebug_ConsumeSegments( 1 );
-}
-
-/**
-*	@brief	Draw the bounding box of a tile.
-*	@param	mesh	The navigation mesh.
-*	@param	tile	The tile to draw.
-**/
-static void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
-	if ( !NavDebug_Enabled() || !nav_debug_draw_tile_bounds || nav_debug_draw_tile_bounds->integer == 0 ) {
-		return;
-	}
-	if ( !NavDebug_CanEmitSegments( 12 ) ) {
-		return;
-	}
-	const float tileWorldSize = Nav_TileWorldSize( mesh );
-	const Vector3 mins = {
-		tile->tile_x * tileWorldSize,
-		tile->tile_y * tileWorldSize,
-		-4096.0f
-	};
-	const Vector3 maxs = {
-		mins[ 0 ] + tileWorldSize,
-		mins[ 1 ] + tileWorldSize,
-		4096.0f
-	};
-	// Check distance filter against tile center.
-	const Vector3 tileCenter = {
-		( mins[ 0 ] + maxs[ 0 ] ) * 0.5f,
-		( mins[ 1 ] + maxs[ 1 ] ) * 0.5f,
-		( mins[ 2 ] + maxs[ 2 ] ) * 0.5f
-	};
-	if ( !NavDebug_PassesDistanceFilter( tileCenter ) ) {
-		return;
-	}
-	SVG_DebugDrawBBox_TE( mins, maxs, MULTICAST_PVS, false );
-	NavDebug_ConsumeSegments( 12 );
-}
-
-
-
-/**
-*
-*
-*
-*   Navigation System "Traversal Operations":
-*
-*
-*
-**/
-/**
-*   @brief  Generate a traversal path between two world-space origins.
-*           Uses the navigation voxelmesh and A* search to produce waypoints.
-*   @param  start_origin    World-space starting origin.
-*   @param  goal_origin     World-space destination origin.
-*   @param  out_path        Output path result (caller must free).
-*   @return True if a path was found, false otherwise.
-**/
-const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path ) {
-    if ( !out_path ) {
-        return false;
-    }
-    
-    SVG_Nav_FreeTraversalPath( out_path );
-    
-    if ( !g_nav_mesh ) {
-        return false;
-    }
-    
-    nav_node_ref_t start_node = {};
-    nav_node_ref_t goal_node = {};
-    
-    if ( !Nav_FindNodeForPosition( g_nav_mesh, start_origin, start_origin[ 2 ], &start_node, true ) ) {
-        return false;
-    }
-    
-    if ( !Nav_FindNodeForPosition( g_nav_mesh, goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
-        return false;
-    }
-    
-    std::vector<Vector3> points;
-    if ( start_node.key == goal_node.key ) {
-        points.push_back( start_node.position );
-        points.push_back( goal_node.position );
-	} else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, g_nav_mesh->agent_mins, g_nav_mesh->agent_maxs, points ) ) {
-        return false;
-    }
-    
-    if ( points.empty() ) {
-        return false;
-    }
-    
-    out_path->num_points = (int32_t)points.size();
-    out_path->points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
-    memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
-
-	// Cache for always-on debug draw.
-	NavDebug_PurgeCachedPaths();
-
-	nav_debug_cached_path_t cached = {};
-	cached.path.num_points = out_path->num_points;
-	cached.path.points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
-	memcpy( cached.path.points, out_path->points, sizeof( Vector3 ) * out_path->num_points );
-	cached.expireTime = level.time + NAV_DEBUG_PATH_RETENTION;
-	s_nav_debug_cached_paths.push_back( cached );
-    
-	/**
-	*	Debug draw: path segments.
-	**/
-	if ( NavDebug_Enabled() && nav_debug_draw_path && nav_debug_draw_path->integer != 0 ) {
-		const int32_t segmentCount = std::max( 0, out_path->num_points - 1 );
-		for ( int32_t i = 0; i < segmentCount; i++ ) {
-			if ( !NavDebug_CanEmitSegments( 1 ) ) {
-				break;
-			}
-
-			const Vector3 &a = out_path->points[ i ];
-			const Vector3 &b = out_path->points[ i + 1 ];
-
-			// Distance filter on segment midpoint.
-			const Vector3 mid = { ( a[ 0 ] + b[ 0 ] ) * 0.5f, ( a[ 1 ] + b[ 1 ] ) * 0.5f, ( a[ 2 ] + b[ 2 ] ) * 0.5f };
-			if ( !NavDebug_PassesDistanceFilter( mid ) ) {
-				continue;
-			}
-
-			SVG_DebugDrawLine_TE( a, b, MULTICAST_PVS, false );
-			NavDebug_ConsumeSegments( 1 );
-		}
-	}
-
-    return true;
-}
-
-const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-	const bool enable_goal_z_layer_blend, const float blend_start_dist, const float blend_full_dist ) {
-	if ( !out_path ) {
-		return false;
-	}
-
-	SVG_Nav_FreeTraversalPath( out_path );
-
-	if ( !g_nav_mesh ) {
-		return false;
-	}
-
-	nav_node_ref_t start_node = {};
-	nav_node_ref_t goal_node = {};
-
-	if ( enable_goal_z_layer_blend ) {
-		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh, start_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
-			blend_start_dist, blend_full_dist, &start_node, true ) ) {
-			return false;
-		}
-
-		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh, goal_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
-			blend_start_dist, blend_full_dist, &goal_node, true ) ) {
-			return false;
-		}
-	} else {
-		if ( !Nav_FindNodeForPosition( g_nav_mesh, start_origin, start_origin[ 2 ], &start_node, true ) ) {
-			return false;
-		}
-		if ( !Nav_FindNodeForPosition( g_nav_mesh, goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
-			return false;
-		}
-	}
-
-	std::vector<Vector3> points;
-	if ( start_node.key == goal_node.key ) {
-		points.push_back( start_node.position );
-		points.push_back( goal_node.position );
-    } else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, g_nav_mesh->agent_mins, g_nav_mesh->agent_maxs, points ) ) {
-		return false;
-	}
-
-	if ( points.empty() ) {
-		return false;
-	}
-
-	out_path->num_points = (int32_t)points.size();
-	out_path->points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
-	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
-
-	// Cache for always-on debug draw.
-	NavDebug_PurgeCachedPaths();
-
-	nav_debug_cached_path_t cached = {};
-	cached.path.num_points = out_path->num_points;
-	cached.path.points = (Vector3 *)gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
-	memcpy( cached.path.points, out_path->points, sizeof( Vector3 ) * out_path->num_points );
-	cached.expireTime = level.time + NAV_DEBUG_PATH_RETENTION;
-	s_nav_debug_cached_paths.push_back( cached );
-
-	if ( NavDebug_Enabled() && nav_debug_draw_path && nav_debug_draw_path->integer != 0 ) {
-		const int32_t segmentCount = std::max( 0, out_path->num_points - 1 );
-		for ( int32_t i = 0; i < segmentCount; i++ ) {
-			if ( !NavDebug_CanEmitSegments( 1 ) ) {
-				break;
-			}
-
-			const Vector3 &a = out_path->points[ i ];
-			const Vector3 &b = out_path->points[ i + 1 ];
-
-			const Vector3 mid = { ( a[ 0 ] + b[ 0 ] ) * 0.5f, ( a[ 1 ] + b[ 1 ] ) * 0.5f, ( a[ 2 ] + b[ 2 ] ) * 0.5f };
-			if ( !NavDebug_PassesDistanceFilter( mid ) ) {
-				continue;
-			}
-
-			SVG_DebugDrawLine_TE( a, b, MULTICAST_PVS, false );
-			NavDebug_ConsumeSegments( 1 );
-		}
-	}
-
-	return true;
-}
-
-const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-	const Vector3 &agent_mins, const Vector3 &agent_maxs ) {
-	if ( !out_path ) {
-		return false;
-	}
-
-	SVG_Nav_FreeTraversalPath( out_path );
-
-	if ( !g_nav_mesh ) {
-		return false;
-	}
-
-	nav_node_ref_t start_node = {};
-	nav_node_ref_t goal_node = {};
-
-	if ( !Nav_FindNodeForPosition( g_nav_mesh, start_origin, start_origin[ 2 ], &start_node, true ) ) {
-		return false;
-	}
-
-	if ( !Nav_FindNodeForPosition( g_nav_mesh, goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
-		return false;
-	}
-
-	std::vector<Vector3> points;
-	if ( start_node.key == goal_node.key ) {
-		points.push_back( start_node.position );
-		points.push_back( goal_node.position );
-	} else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, agent_mins, agent_maxs, points ) ) {
-		return false;
-	}
-
-	if ( points.empty() ) {
-		return false;
-	}
-
-	out_path->num_points = ( int32_t )points.size();
-	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
-	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
-	return true;
-}
-
-const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-	const Vector3 &agent_mins, const Vector3 &agent_maxs, const bool enable_goal_z_layer_blend, const float blend_start_dist, const float blend_full_dist ) {
-	if ( !out_path ) {
-		return false;
-	}
-
-	SVG_Nav_FreeTraversalPath( out_path );
-
-	if ( !g_nav_mesh ) {
-		return false;
-	}
-
-	nav_node_ref_t start_node = {};
-	nav_node_ref_t goal_node = {};
-
-	if ( enable_goal_z_layer_blend ) {
-		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh, start_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
-			blend_start_dist, blend_full_dist, &start_node, true ) ) {
-			return false;
-		}
-
-		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh, goal_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
-			blend_start_dist, blend_full_dist, &goal_node, true ) ) {
-			return false;
-		}
-	} else {
-		if ( !Nav_FindNodeForPosition( g_nav_mesh, start_origin, start_origin[ 2 ], &start_node, true ) ) {
-			return false;
-		}
-		if ( !Nav_FindNodeForPosition( g_nav_mesh, goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
-			return false;
-		}
-	}
-
-	std::vector<Vector3> points;
-	if ( start_node.key == goal_node.key ) {
-		points.push_back( start_node.position );
-		points.push_back( goal_node.position );
-	} else if ( !Nav_AStarSearch( g_nav_mesh, start_node, goal_node, agent_mins, agent_maxs, points ) ) {
-		return false;
-	}
-
-	if ( points.empty() ) {
-		return false;
-	}
-
-	out_path->num_points = ( int32_t )points.size();
-	out_path->points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * out_path->num_points, TAG_SVGAME_LEVEL );
-	memcpy( out_path->points, points.data(), sizeof( Vector3 ) * out_path->num_points );
-	return true;
-}
-
-/**
-*   @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
-*   @param  path    Path structure to free.
-**/
-void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path ) {
-    if ( !path ) {
-        return;
-    }
-    
-    if ( path->points ) {
-        gi.TagFree( path->points );
-    }
-    
-    path->points = nullptr;
-    path->num_points = 0;
-}
-
-/**
-*   @brief  Query movement direction along a traversal path.
-*           Advances the waypoint index as the caller reaches waypoints.
-*   @param  path            Path to follow.
-*   @param  current_origin  Current world-space origin.
-*   @param  waypoint_radius Radius for waypoint completion.
-*   @param  inout_index     Current waypoint index (updated on success).
-*   @param  out_direction   Output normalized movement direction.
-*   @return True if a valid direction was produced, false if path is complete/invalid.
-**/
-const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin,
-                                            float waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
-	if ( !path || !inout_index || !out_direction ) {
-		return false;
-	}
-	if ( path->num_points <= 0 || !path->points ) {
-		return false;
-	}
-
-	int32_t index = *inout_index;
-	if ( index < 0 ) {
-		index = 0;
-	}
-
-	const float waypoint_radius_sqr = waypoint_radius * waypoint_radius;
-
-	// Advance waypoints using 3D distance so stairs count toward completion.
-	while ( index < path->num_points ) {
-		const Vector3 delta = QM_Vector3Subtract( path->points[ index ], current_origin );
-		const float dist_sqr = ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] );
-		if ( dist_sqr > waypoint_radius_sqr ) {
-			break;
-		}
-		index++;
-	}
-
-	if ( index >= path->num_points ) {
-		*inout_index = path->num_points;
-		return false;
-	}
-
-	// Produce a 3D direction. Clamp vertical component to avoid large up/down jumps.
-	Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
-
-	// clamp Z to a reasonable step height if the nav mesh is available
-	if ( g_nav_mesh ) {
-		const float maxDz = g_nav_mesh->max_step + g_nav_mesh->z_quant;
-		if ( direction[ 2 ] > maxDz ) {
-			direction[ 2 ] = maxDz;
-		} else if ( direction[ 2 ] < -maxDz ) {
-			direction[ 2 ] = -maxDz;
-		}
-	}
-
-	const float length = ( float )QM_Vector3Length( direction );
-	if ( length <= std::numeric_limits<float>::epsilon() ) {
-		return false;
-	}
-
-	*out_direction = QM_Vector3Normalize( direction );
-	*inout_index = index;
-    
-    return true;
-}
-
-/**
-*
-*
-*
-*	Navigation Movement Tests:
-*
-*
-*
-**/
-/**
-*	@brief	Low-level trace wrapper that supports world or inline-model clip.
-**/
-static inline cm_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end,
-	const edict_ptr_t *clip_entity, const cm_contents_t mask ) {
-	if ( clip_entity ) {
-		return gi.clip( clip_entity, &start, &mins, &maxs, &end, mask );
-	}
-
-	return gi.trace( &start, &mins, &maxs, &end, nullptr, mask );
-}
-
-/**
-*	@brief	Performs a simple PMove-like step traversal test (3-trace).
-*
-*			This is intentionally conservative and is used only to validate edges in A*:
-*			1) Try direct horizontal move.
-*			2) If blocked, try stepping up <= max step, then horizontal move.
-*			3) Trace down to find ground.
-*
-*	@return	True if the traversal is possible, false otherwise.
-**/
-static bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity ) {
-	if ( !mesh ) {
-		return false;
-	}
-
-	// Ignore Z from caller; we compute step behavior ourselves.
-	Vector3 start = startPos;
-	Vector3 goal = endPos;
-	goal[ 2 ] = start[ 2 ];
-
-	const Vector3 mins = mesh->agent_mins;
-	const Vector3 maxs = mesh->agent_maxs;
-
-	return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity );
-}
-
-static bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity ) {
-	if ( !mesh ) {
-		return false;
-	}
-
-	// Ignore Z from caller; we compute step behavior ourselves.
-	Vector3 start = startPos;
-	Vector3 goal = endPos;
-	goal[ 2 ] = start[ 2 ];
-
-	// Small cushion to avoid precision issues on floors.
-	const float eps = 0.25f;
-
-	// Use nav max_step as the analogue to PM_STEP_MAX_SIZE.
-	const float stepSize = mesh->max_step;
-
-	// 1) Direct horizontal move.
-	{
-		cm_trace_t tr = Nav_Trace( start, mins, maxs, goal, clip_entity, CM_CONTENTMASK_SOLID );
-		if ( tr.fraction >= 1.0f && !tr.allsolid && !tr.startsolid ) {
-			return true;
-		}
-	}
-
-	// 2) Step up (vertical trace).
-	Vector3 up = start;
-	up[ 2 ] += stepSize;
-
-	cm_trace_t upTr = Nav_Trace( start, mins, maxs, up, clip_entity, CM_CONTENTMASK_SOLID );
-	if ( upTr.allsolid || upTr.startsolid ) {
-		return false; // can't step up
-	}
-
-	// Use actual reachable up height (may be less than stepSize).
-	const float actualStep = upTr.endpos[ 2 ] - start[ 2 ];
-	if ( actualStep <= eps ) {
-		return false;
-	}
-
-	// 3) Horizontal move from stepped-up position.
-	Vector3 steppedStart = upTr.endpos;
-	Vector3 steppedGoal = goal;
-	steppedGoal[ 2 ] = steppedStart[ 2 ];
-
-	cm_trace_t fwdTr = Nav_Trace( steppedStart, mins, maxs, steppedGoal, clip_entity, CM_CONTENTMASK_SOLID );
-	if ( fwdTr.allsolid || fwdTr.startsolid || fwdTr.fraction < 1.0f ) {
-		return false;
-	}
-
-	// 4) Step down to find supporting ground.
-	// Trace down by the step amount *plus* a small safety margin.
-	Vector3 down = fwdTr.endpos;
-	Vector3 downEnd = down;
-	downEnd[ 2 ] -= ( actualStep + eps );
-
-	cm_trace_t downTr = Nav_Trace( down, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
-	if ( downTr.allsolid || downTr.startsolid ) {
-		return false;
-	}
-
-	// Must land on something (not floating).
-	if ( downTr.fraction >= 1.0f ) {
-		return false;
-	}
-
-	// Walkable-ish contact: match your slope test convention (normal.z must be positive and within slope).
-	if ( downTr.plane.normal[ 2 ] <= 0.0f ) {
-		return false;
-	}
-	if ( !IsWalkableSlope( downTr.plane.normal, mesh->max_slope_deg ) ) {
-		return false;
-	}
-
-	return true;
-}
-
-
-
-/**
-*
-*
-*
-*	Debug Drawing for NavMesh
-*
-*
-*
-**/
-/**
-*	@brief	Check if navigation debug drawing is enabled and draw so if it is.
-**/
-void SVG_Nav_DebugDraw( void ) {
-	if ( !g_nav_mesh ) {
-		return;
-	}
-	if ( !NavDebug_Enabled() ) {
-		return;
-	}
-
-	// Purge old cached paths.
-	NavDebug_PurgeCachedPaths();
-
-	// Draw cached paths from this server frame.
-	if ( nav_debug_draw_path && nav_debug_draw_path->integer != 0 ) {
-		for ( const nav_debug_cached_path_t &entry : s_nav_debug_cached_paths ) {
-			const nav_traversal_path_t &path = entry.path;
-			if ( path.num_points <= 1 || !path.points ) {
-				continue;
-			}
-
-			const int32_t segmentCount = std::max( 0, path.num_points - 1 );
-			for ( int32_t i = 0; i < segmentCount; i++ ) {
-				if ( !NavDebug_CanEmitSegments( 1 ) ) {
-					return;
-				}
-
-				const Vector3 &a = path.points[ i ];
-				const Vector3 &b = path.points[ i + 1 ];
-
-				const Vector3 mid = { ( a[ 0 ] + b[ 0 ] ) * 0.5f, ( a[ 1 ] + b[ 1 ] ) * 0.5f, ( a[ 2 ] + b[ 2 ] ) * 0.5f };
-				if ( !NavDebug_PassesDistanceFilter( mid ) ) {
-					continue;
-				}
-
-				SVG_DebugDrawLine_TE( a, b, MULTICAST_PVS, false );
-				NavDebug_ConsumeSegments( 1 );
-			}
-		}
-	}
-
-	const nav_mesh_t *mesh = g_nav_mesh;
-	const float tileWorldSize = Nav_TileWorldSize( mesh );
-	const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
-
-	/**
-	*	World mesh (per leaf):
-	**/
-	for ( int32_t leafIndex = 0; leafIndex < mesh->num_leafs; leafIndex++ ) {
-		if ( !NavDebug_FilterLeaf( leafIndex ) ) {
-			continue;
-		}
-
-		const nav_leaf_data_t *leaf = &mesh->leaf_data[ leafIndex ];
-		if ( !leaf || leaf->num_tiles <= 0 || !leaf->tiles ) {
-			continue;
-		}
-
-		for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
-			const nav_tile_t *tile = &leaf->tiles[ t ];
-			if ( !tile ) {
-				continue;
-			}
-
-			if ( !NavDebug_FilterTile( tile->tile_x, tile->tile_y ) ) {
-				continue;
-			}
-
-			// Tile bounds.
-			NavDebug_DrawTileBBox( mesh, tile );
-
-			// Samples (top-most layer tick per XY cell).
-			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-				const float tileOriginX = tile->tile_x * tileWorldSize;
-				const float tileOriginY = tile->tile_y * tileWorldSize;
-
-				for ( int32_t cellIndex = 0; cellIndex < cellsPerTile; cellIndex++ ) {
-					const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
-					if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
-						continue;
-					}
-
-					const int32_t cellX = cellIndex % mesh->tile_size;
-					const int32_t cellY = cellIndex / mesh->tile_size;
-
-					const nav_layer_t *layer = &cell->layers[ 0 ];
-					Vector3 p = {
-						tileOriginX + ( ( float )cellX + 0.5f ) * mesh->cell_size_xy,
-						tileOriginY + ( ( float )cellY + 0.5f ) * mesh->cell_size_xy,
-						layer->z_quantized * mesh->z_quant
-					};
-
-					NavDebug_DrawSampleTick( p, 12.0f );
-
-					// If we ran out of budget, stop early.
-					if ( !NavDebug_CanEmitSegments( 1 ) ) {
-						return;
-					}
-				}
-			}
-		}
-	}
-
-	/**
-	*	Inline model mesh (optional): draw tile bounds + samples transformed into world space.
-	**/
-	if ( mesh->num_inline_models <= 0 || !mesh->inline_model_data ||
-		mesh->num_inline_model_runtime <= 0 || !mesh->inline_model_runtime ) {
-		return;
-	}
-
-	// Map: model_index -> runtime entry (linear search; small counts, cheap enough for debug).
-	auto find_runtime = [mesh]( const int32_t modelIndex ) -> const nav_inline_model_runtime_t * {
-		for ( int32_t i = 0; i < mesh->num_inline_model_runtime; i++ ) {
-			if ( mesh->inline_model_runtime[ i ].model_index == modelIndex ) {
-				return &mesh->inline_model_runtime[ i ];
-			}
-		}
-		return nullptr;
-		};
-
-	for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
-		const nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
-		if ( !model || model->num_tiles <= 0 || !model->tiles ) {
-			continue;
-		}
-
-		const nav_inline_model_runtime_t *rt = find_runtime( model->model_index );
-		if ( !rt ) {
-			continue;
-		}
-
-		// Debug draw for inline models currently ignores rotation (angles) and uses translation only.
-		// This is still useful for doors/platforms that primarily translate.
-		const Vector3 origin = rt->origin;
-
-		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
-			const nav_tile_t *tile = &model->tiles[ t ];
-			if ( !tile ) {
-				continue;
-			}
-
-			// Inline tiles are stored in model-local space where tile_x/y start at 0.
-			// Provide filtering by treating these as local tile coords.
-			if ( !NavDebug_FilterTile( tile->tile_x, tile->tile_y ) ) {
-				continue;
-			}
-
-			// Tile bounds (translated).
-			if ( NavDebug_Enabled() && nav_debug_draw_tile_bounds && nav_debug_draw_tile_bounds->integer != 0 ) {
-				if ( NavDebug_CanEmitSegments( 12 ) ) {
-					const Vector3 minsLocal = { tile->tile_x * tileWorldSize, tile->tile_y * tileWorldSize, -4096.0f };
-					const Vector3 maxsLocal = { minsLocal[ 0 ] + tileWorldSize, minsLocal[ 1 ] + tileWorldSize, 4096.0f };
-
-					const Vector3 minsWorld = QM_Vector3Add( minsLocal, origin );
-					const Vector3 maxsWorld = QM_Vector3Add( maxsLocal, origin );
-
-					const Vector3 center = { ( minsWorld[ 0 ] + maxsWorld[ 0 ] ) * 0.5f, ( minsWorld[ 1 ] + maxsWorld[ 1 ] ) * 0.5f, 0.0f };
-					if ( NavDebug_PassesDistanceFilter( center ) ) {
-						SVG_DebugDrawBBox_TE( minsWorld, maxsWorld, MULTICAST_PVS, false );
-						NavDebug_ConsumeSegments( 12 );
-					}
-				} else {
-					return;
-				}
-			}
-
-			// Samples (translated).
-			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
-				const float tileOriginXLocal = tile->tile_x * tileWorldSize;
-				const float tileOriginYLocal = tile->tile_y * tileWorldSize;
-
-				for ( int32_t cellIndex = 0; cellIndex < cellsPerTile; cellIndex++ ) {
-					const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
-					if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
-						continue;
-					}
-
-					const int32_t cellX = cellIndex % mesh->tile_size;
-					const int32_t cellY = cellIndex / mesh->tile_size;
-
-					const nav_layer_t *layer = &cell->layers[ 0 ];
-					Vector3 pLocal = {
-						tileOriginXLocal + ( ( float )cellX + 0.5f ) * mesh->cell_size_xy,
-						tileOriginYLocal + ( ( float )cellY + 0.5f ) * mesh->cell_size_xy,
-						layer->z_quantized * mesh->z_quant
-					};
-
-					Vector3 pWorld = QM_Vector3Add( pLocal, origin );
-					NavDebug_DrawSampleTick( pWorld, 12.0f );
-
-					if ( !NavDebug_CanEmitSegments( 1 ) ) {
-						return;
-					}
-				}
-			}
-		}
-	}
-}

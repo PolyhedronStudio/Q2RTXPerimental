@@ -4,6 +4,9 @@ These are mainly my personal notes/ideas/interests, and do not per se reflect th
 ## Notes:
 * This is a todo in order to keep track of things to do, ideas to implement, bugs to fix, and so on.
 ---
+## General TODO:
+* [ ] Streamline code for server, and server game so that the imports/exports are properly cased,
+        but also, that the server game uses svg_ as prefix for its functions, and the server uses sv_ as prefix for its functions.
 * [ ] IMPLEMENT: Wren instead of Lua for game logic scripting.
     - [ ] Look into Wren embedding.
     - [ ] Look into Wren C API.

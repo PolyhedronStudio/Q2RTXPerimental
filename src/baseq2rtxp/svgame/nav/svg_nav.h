@@ -8,6 +8,18 @@
 #pragma once
 
 
+#include "svgame/memory/svg_raiiobject.hpp"
+
+struct svg_base_edict_t;
+
+//! Conversion factor from degrees to radians.
+static constexpr double DEG_TO_RAD = M_PI / 180.0f;
+//! Conversion factor from microseconds to seconds.
+static constexpr double MICROSECONDS_PER_SECOND = 1000000.0;
+//! Small epsilon to ensure max bounds map to the correct tile.
+static constexpr double NAV_TILE_EPSILON = 0.001f;
+
+
 
 /**
 *
@@ -83,9 +95,35 @@ typedef struct nav_leaf_data_s {
     int32_t leaf_index;
     //! Number of tiles in this leaf.
     int32_t num_tiles;
-    //! Array of tiles in this leaf.
-    nav_tile_t *tiles;
+	//! Array of canonical world-tile ids (indices into `nav_mesh_t::world_tiles`).
+	//!
+	//! This is a non-owning view used for:
+	//!	- debug drawing by leaf
+	//!	- optional leaf-local iteration
+	//!	- compatibility while migrating older leaf-centric code
+	int32_t *tile_ids;
 } nav_leaf_data_t;
+
+/**
+*	@brief	World tile key used for canonical world tile storage.
+*	@note	World tiles are unique by `(tile_x,tile_y)`.
+*/
+struct nav_world_tile_key_t {
+	int32_t tile_x = 0;
+	int32_t tile_y = 0;
+
+	bool operator==( const nav_world_tile_key_t &o ) const {
+		return tile_x == o.tile_x && tile_y == o.tile_y;
+	}
+};
+
+struct nav_world_tile_key_hash_t {
+	size_t operator()( const nav_world_tile_key_t &k ) const {
+		size_t seed = std::hash<int32_t>{}( k.tile_x );
+		seed ^= std::hash<int32_t>{}( k.tile_y ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+		return seed;
+	}
+};
 
 /**
 *   @brief  Per inline model navigation data (for brush models).
@@ -120,10 +158,72 @@ typedef struct nav_inline_model_runtime_s {
 } nav_inline_model_runtime_t;
 
 /**
+*	Navigation Cluster Graph (Tile-Level):
+*
+*	This is a coarse adjacency graph over world tiles. It is built after voxelmesh
+*	generation and used as a fast hierarchical pre-pass for long routes:
+*		1) Find start/goal tiles.
+*		2) BFS across tile adjacency to get a tile route.
+*		3) Run fine A* restricted to tiles on that route.
+*
+*	This keeps the fine path quality (still A* on nodes) while dramatically reducing
+*	search space on large maps.
+**/
+struct nav_tile_cluster_key_t {
+	int32_t tile_x = 0;
+	int32_t tile_y = 0;
+
+	bool operator==( const nav_tile_cluster_key_t &o ) const {
+		return tile_x == o.tile_x && tile_y == o.tile_y;
+	}
+
+
+};
+
+struct nav_tile_cluster_key_hash_t {
+	size_t operator()( const nav_tile_cluster_key_t &k ) const {
+		size_t seed = std::hash<int32_t>{}( k.tile_x );
+		seed ^= std::hash<int32_t>{}( k.tile_y ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+		return seed;
+	}
+};
+
+enum nav_tile_cluster_node_flag_t : uint8_t {
+	NAV_TILE_CLUSTER_FLAG_NONE = 0,
+	NAV_TILE_CLUSTER_FLAG_STAIR = ( 1 << 0 ),
+	NAV_TILE_CLUSTER_FLAG_WATER = ( 1 << 1 ),
+	NAV_TILE_CLUSTER_FLAG_LAVA = ( 1 << 2 ),
+	NAV_TILE_CLUSTER_FLAG_SLIME = ( 1 << 3 ),
+};
+
+struct nav_tile_cluster_node_t {
+	nav_tile_cluster_key_t key;
+	int32_t neighbors[ 4 ] = { -1, -1, -1, -1 };
+	uint8_t flags = NAV_TILE_CLUSTER_FLAG_NONE;
+};
+
+struct nav_tile_cluster_graph_t {
+	// Map tile key -> compact node index.
+	std::unordered_map<nav_tile_cluster_key_t, int32_t, nav_tile_cluster_key_hash_t> idOf;
+	// Node list storing directional neighbors.
+	std::vector<nav_tile_cluster_node_t> nodes;
+};
+
+/**
 *	@brief	Refreshes inline model runtime transforms (for movers).
 *	@note	Intended to be cheap enough to call once per frame.
 **/
 void SVG_Nav_RefreshInlineModelRuntime( void );
+
+/**
+*    @brief    Runtime occupancy entry used for dynamic blocking/penalties.
+*/
+struct nav_occupancy_entry_t {
+	//! Accumulated soft cost (crowd avoidance, biasing).
+	int32_t soft_cost = 0;
+	//! Hard block flag to prevent traversal entirely.
+	bool blocked = false;
+};
 
 /**
 *   @brief  Main navigation mesh structure.
@@ -131,6 +231,29 @@ void SVG_Nav_RefreshInlineModelRuntime( void );
 *           (dynamic brush entities).
 **/
 typedef struct nav_mesh_s {
+	/**
+	*	World Boundaries:
+	**/
+	BBox3 world_bounds = { { -CM_MAX_WORLD_HALF_SIZE, -CM_MAX_WORLD_HALF_SIZE, -CM_MAX_WORLD_HALF_SIZE }, { CM_MAX_WORLD_HALF_SIZE, CM_MAX_WORLD_HALF_SIZE, CM_MAX_WORLD_HALF_SIZE } };
+	
+    /**
+    *   Canonical world tile storage (unique tiles by tile_x/y):
+    *
+    *   World tiles are owned here. Leafs reference these by id in `nav_leaf_data_t::tile_ids`.
+    *   Inline-model tiles remain per-model because they are stored in model-local space.
+    **/
+    std::vector<nav_tile_t> world_tiles;
+    std::unordered_map<nav_world_tile_key_t, int32_t, nav_world_tile_key_hash_t> world_tile_id_of;
+
+	/**
+	*\tDynamic occupancy map keyed by (tile, cell, layer).
+	*\tUsed to avoid per-query collision checks against other actors by consulting
+	*\tpre-filled occupancy instead. Stores both hard-block and soft-cost data.
+	**/
+	std::unordered_map<uint64_t, nav_occupancy_entry_t> occupancy;
+	//! Frame number for which occupancy is currently stamped.
+	int64_t occupancy_frame = -1;
+
     /**
     *   World mesh data (per-leaf):
     **/
@@ -154,19 +277,27 @@ typedef struct nav_mesh_s {
 	int32_t num_inline_model_runtime;
 	nav_inline_model_runtime_t *inline_model_runtime;
 
+	/**
+	*	Inline model runtime lookup:
+	*		Maps owning entity number -> runtime entry index.
+	*		Used to avoid linear scans when resolving runtime transforms for a clip entity.
+	*		Rebuilt during voxelmesh generation.
+	**/
+	std::unordered_map<int32_t, int32_t> inline_model_runtime_index_of;
+
     /**
     *   Generation parameters:
     **/
     //! XY grid cell size.
-    float cell_size_xy;
+    double cell_size_xy;
     //! Z-axis quantization step.
-    float z_quant;
+    double z_quant;
     //! Number of cells per tile dimension.
     int32_t tile_size;
     //! Maximum step height (matches PM_STEP_MAX_SIZE).
-    float max_step;
+    double max_step;
     //! Maximum walkable slope in degrees (matches PM_STEP_MIN_NORMAL).
-    float max_slope_deg;
+    double max_slope_deg;
     //! Agent bounding box minimum.
     Vector3 agent_mins;
     //! Agent bounding box maximum.
@@ -184,6 +315,56 @@ typedef struct nav_mesh_s {
 } nav_mesh_t;
 
 /**
+*	@brief	Lookup an inline-model runtime entry by owning entity number.
+*	@param	mesh	Navigation mesh.
+*	@param	owner_entnum	Owning entity number (edict->s.number).
+*	@return	Pointer to runtime entry if found, otherwise nullptr.
+*	@note	This is a fast path used to avoid linear searches over `inline_model_runtime`.
+**/
+const nav_inline_model_runtime_t *SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( const nav_mesh_t *mesh, const int32_t owner_entnum );
+
+/**
+*	@brief	Dump the inline-model runtime index map for debugging.
+*	@param	mesh	Navigation mesh.
+*	@note	Intended for developer diagnostics; prints to console.
+**/
+void SVG_Nav_Debug_PrintInlineModelRuntimeIndexMap( const nav_mesh_t *mesh );
+
+/**
+*	@brief	Type alias for nav_mesh_t RAII owner using TagMalloc/TagFree.
+*	@note	Ensures proper construction/destruction and prevents memory leaks.
+**/
+using nav_mesh_raii_t = SVG_RAIIObject<nav_mesh_t>;
+
+/**
+*	@brief	Clear all dynamic occupancy records on the given mesh.
+*/
+void SVG_Nav_Occupancy_Clear( nav_mesh_t *mesh );
+
+/**
+*	@brief	Add a dynamic occupancy entry for a tile/cell/layer.
+*	@param	mesh	Target mesh.
+*	@param	tileId	Canonical tile id into `world_tiles`.
+*	@param	cellIndex	Cell index inside the tile.
+*	@param	layerIndex	Layer index inside the cell.
+*	@param	cost	Soft cost to accumulate (default 1).
+*	@param	blocked	If true, mark this location as hard blocked.
+*/
+void SVG_Nav_Occupancy_Add( nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex, int32_t cost = 1, bool blocked = false );
+
+/**
+*	@brief	Query the dynamic occupancy soft cost for a tile/cell/layer.
+*	@return	Accumulated soft cost (0 if none or mesh missing).
+*/
+int32_t SVG_Nav_Occupancy_SoftCost( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex );
+
+/**
+*	@brief	Query if a tile/cell/layer is marked as hard blocked.
+*	@return	True if blocked.
+*/
+bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex );
+
+/**
 *   @brief  Path result for navigation traversal queries.
 *           Stores world-space waypoints for A* pathfinding results.
 **/
@@ -193,6 +374,9 @@ typedef struct nav_traversal_path_s {
     //! Array of world-space points.
     Vector3 *points;
 } nav_traversal_path_t;
+
+// Forward-declare policy to avoid circular includes.
+struct svg_nav_path_policy_t;
 
 /**
 *
@@ -204,10 +388,11 @@ typedef struct nav_traversal_path_s {
 *
 **/
 /**
-*   @brief  Global navigation mesh instance.
+*   @brief  Global navigation mesh instance (RAII owner).
 *           Stores the complete navigation data for the current level.
+*   @note   Use g_nav_mesh.get() to access the raw pointer when needed.
 **/
-extern nav_mesh_t *g_nav_mesh;
+extern nav_mesh_raii_t g_nav_mesh;
 
 /**
 *   @brief  Navigation CVars for generation parameters.
@@ -224,6 +409,67 @@ extern cvar_t *nav_agent_mins_z;    //! Agent bounding box minimum Z.
 extern cvar_t *nav_agent_maxs_x;    //! Agent bounding box maximum X.
 extern cvar_t *nav_agent_maxs_y;    //! Agent bounding box maximum Y.
 extern cvar_t *nav_agent_maxs_z;    //! Agent bounding box maximum Z.
+// Navigation A* cost tuning CVars (runtime tuning of heuristics)
+extern cvar_t *nav_cost_w_dist;
+extern cvar_t *nav_cost_jump_base;
+extern cvar_t *nav_cost_jump_height_weight;
+extern cvar_t *nav_cost_los_weight;
+extern cvar_t *nav_cost_dynamic_weight;
+extern cvar_t *nav_cost_failure_weight;
+extern cvar_t *nav_cost_failure_tau_ms;
+extern cvar_t *nav_cost_turn_weight;
+extern cvar_t *nav_cost_slope_weight;
+extern cvar_t *nav_cost_drop_weight;
+extern cvar_t *nav_cost_goal_z_blend_factor;
+extern cvar_t *nav_cost_min_cost_per_unit;
+
+/**
+ *  @brief  Profiling and logging control CVars.
+ *
+ *  @note   `nav_profile_level` controls the verbosity of timing/profiling emitted by
+ *          the nav generation routines:
+ *              0 = off, 1 = phase-level only, 2 = per-leaf timings, 3 = per-tile timings.
+ *
+ *  @note   `nav_log_file_enable` and `nav_log_file_name` allow optionally writing
+ *          navigation logs to a dedicated file in the `logs/` directory without
+ *          changing global console logging behavior.
+ */
+extern cvar_t *nav_profile_level;      //!< Profiling verbosity level (0..3).
+extern cvar_t *nav_log_file_enable;    //!< If non-zero, write nav logs to dedicated file.
+extern cvar_t *nav_log_file_name;      //!< Filename (no path/ext) for dedicated nav log (e.g., "nav").
+
+/**
+ *  @brief  Public wrapper to build the cluster graph from a mesh.
+ *  @note   Implemented in svg_nav.cpp. Generated mesh code may call this
+ *          to populate the tile-level cluster graph after generation.
+ */
+void SVG_Nav_ClusterGraph_BuildFromMesh_World( const nav_mesh_t *mesh );
+
+/**
+ *	@brief	Lightweight logging wrapper for navigation subsystem.
+ *	@note	Currently forwards to engine console output; allows future redirection to a
+ *		centralized logging facility without changing callsites.
+ */
+void SVG_Nav_Log( const char *fmt, ... );
+
+
+
+/**
+*
+*
+*
+*   Navigation Helper Functions:
+*
+*
+*
+**/
+/**
+*   @brief  Check if a surface normal is walkable based on slope.
+*   @param  normal          Surface normal vector.
+*   @param  max_slope_deg   Maximum walkable slope in degrees.
+*   @return True if the slope is walkable, false otherwise.
+**/
+const bool IsWalkableSlope( const Vector3 &normal, double max_slope_deg );
 
 
 
@@ -249,6 +495,21 @@ void SVG_Nav_Init( void );
 void SVG_Nav_Shutdown( void );
 
 
+/**
+*
+*
+*
+*   Inline BSP model Mesh Generation:
+*
+*
+*
+**/
+/**
+*	@brief	Collects all active entities that reference an inline BSP model ("*N").
+*			The returned mapping is keyed by inline model index (N).
+*	@note	If multiple entities reference the same "*N", the first one encountered is kept.
+**/
+void Nav_CollectInlineModelEntities( std::unordered_map<int32_t, svg_base_edict_t *> &out_model_to_ent );
 
 /**
 *
@@ -278,6 +539,160 @@ void SVG_Nav_FreeMesh( void );
 *
 *
 *
+*   Navigation Pathfinding Node Methods:
+*
+*
+*
+**/
+typedef struct nav_node_key_s {
+	int32_t leaf_index;
+	int32_t tile_index;
+	int32_t cell_index;
+	int32_t layer_index;
+
+	bool operator==( const nav_node_key_s &other ) const {
+		return leaf_index == other.leaf_index &&
+			tile_index == other.tile_index &&
+			cell_index == other.cell_index &&
+			layer_index == other.layer_index;
+	}
+} nav_node_key_t;
+
+/**
+*   @brief  Hash functor for nav_node_key_t.
+**/
+struct nav_node_key_hash_t {
+	size_t operator()( const nav_node_key_t &key ) const {
+		size_t seed = std::hash<int32_t>{}( key.leaf_index );
+		seed ^= std::hash<int32_t>{}( key.tile_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+		seed ^= std::hash<int32_t>{}( key.cell_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+		seed ^= std::hash<int32_t>{}( key.layer_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
+		return seed;
+	}
+};
+
+/**
+*   @brief  Navigation node reference with world position.
+**/
+typedef struct nav_node_ref_s {
+	nav_node_key_t key;
+	Vector3 position;
+} nav_node_ref_t;
+
+/**
+*   @brief  Search node for A* pathfinding.
+**/
+typedef struct nav_search_node_s {
+	nav_node_ref_t node;
+	double g_cost;
+	double f_cost;
+	int32_t parent_index;
+	bool closed;
+} nav_search_node_t;
+
+
+/**
+*
+*
+*
+*   Navigation Pathfinding Node Methods:
+*
+*
+*
+**/
+/**
+*   @brief  Select the best layer index for a cell based on desired height.
+*	@param  mesh                Navigation mesh (for Z quantization).
+*	@param  cell                Navigation XY cell to select layer from.
+*	@param  desired_z           Desired Z height to match.
+*	@param  out_layer_index     Output selected layer index.
+*	@return True if a suitable layer index was found.
+**/
+const bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, double desired_z,
+	int32_t *out_layer_index );
+/**
+*	@brief  Advance along a navigation path based on current origin and waypoint radius.
+*	@param  path            Navigation traversal path.
+*	@param  current_origin  Current 3D position of the mover.
+*	@param  waypoint_radius  Radius around waypoints to consider them "reached".
+*	@param  inout_index     Input/output current waypoint index in the path.
+*	@param  out_direction    Output direction vector towards the current waypoint.
+*	@return True if there is a valid waypoint to move towards after advancement.
+**/
+const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin,
+	double waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
+
+/**
+*   @brief  Compute the world-space position for a node.
+*	@param  mesh        Navigation mesh.
+*	@param  tile        Tile containing the node.
+*	@param  cell_index  Index of the cell containing the node.
+*	@param  layer       Layer containing the node.
+*	@return World-space position of the node.
+*	@note   The position is at the center of the cell in X/Y and at the layer height in Z.
+**/
+static Vector3 Nav_NodeWorldPosition( const nav_mesh_t *mesh, const nav_tile_t *tile, int32_t cell_index, const nav_layer_t *layer );
+
+/**
+*   @brief  Find a navigation node in a leaf at the given position.
+*	@param  mesh        Navigation mesh.
+*	@param  leaf_data   Leaf data containing tile references.
+*	@param  leaf_index  Index of the leaf in the mesh.
+*	@param  position    World-space position to query.
+*	@param  desired_z   Desired Z height for layer selection.
+*	@param  out_node    Output node reference if found.
+*	@param  allow_fallback  If true, allows returning a node even if traversal checks fail.
+*	@return True if a node was found at the position.
+**/
+static bool Nav_FindNodeInLeaf( const nav_mesh_t *mesh, const nav_leaf_data_t *leaf_data, int32_t leaf_index,
+	const Vector3 &position, double desired_z, nav_node_ref_t *out_node,
+	bool allow_fallback );
+
+/**
+*	@brief	Select the best layer index for a cell based on a blend of start Z and goal Z.
+*			This helps pathfinding prefer the correct floor when chasing a target above/below.
+*	@param	start_z	Seeker starting Z.
+*	@param	goal_z	Target goal Z.
+*	@note	The blend factor is based on XY distance between seeker and goal: close targets bias toward start_z,
+*			far targets bias toward goal_z.
+**/
+const bool Nav_SelectLayerIndex_BlendZ( const nav_mesh_t *mesh, const nav_xy_cell_t *cell, double start_z, double goal_z,
+	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist, int32_t *out_layer_index );
+
+/**
+*	@brief  Find a navigation node for a position using BSP leaf lookup with blended Z.
+* 			This helps pathfinding prefer the correct floor when chasing a target above/below.
+* 			The blend factor is based on XY distance between seeker and goal: close targets bias toward start_z,
+* 			far targets bias toward goal_z.
+*	@param  start_z	Seeker starting Z.
+*	@param  goal_z	Target goal Z.
+*	@param  start_pos	Seeker starting position.
+*	@param  goal_pos	Target goal position.
+*	@param  blend_start_dist	Distance at which to start blending toward goal_z.
+*	@param  blend_full_dist	Distance at which to fully use goal_z.
+*	@note	Uses fallback search if direct leaf lookup fails and allow_fallback is true.
+**/
+const bool Nav_FindNodeForPosition_BlendZ( const nav_mesh_t *mesh, const Vector3 &position, double start_z, double goal_z,
+	const Vector3 &start_pos, const Vector3 &goal_pos, const double blend_start_dist, const double blend_full_dist,
+	nav_node_ref_t *out_node, bool allow_fallback );
+/**
+*   @brief  Find a navigation node for a position using BSP leaf lookup.
+* 		 Uses fallback search if direct leaf lookup fails and allow_fallback is true.
+*	@param	position	World-space position to query.
+* 	@param	desired_z	Desired Z height for layer selection.
+* 	@param	out_node	Output node reference.
+* 	@param	allow_fallback	Allow fallback search if direct leaf lookup fails.
+*	@return	True if a node was found, false otherwise.
+**/
+const bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &position, double desired_z,
+	nav_node_ref_t *out_node, bool allow_fallback );
+
+
+
+/**
+*
+*
+*
 *   Navigation System "Traversal Operations":
 *
 *
@@ -293,7 +708,7 @@ void SVG_Nav_FreeMesh( void );
 **/
 const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path );
 const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-	const Vector3 &agent_mins, const Vector3 &agent_maxs );
+    const Vector3 &agent_mins, const Vector3 &agent_maxs, const struct svg_nav_path_policy_t *policy );
 /**
  *   @brief  Generate a traversal path between two origins with optional goal Z-layer blending.
  *           Enables per-call control over whether the start/goal node selection prefers
@@ -307,9 +722,10 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &
  *   @return True if a path was found, false otherwise.
  **/
 const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-	const bool enable_goal_z_layer_blend, const float blend_start_dist, const float blend_full_dist );
+    const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist );
 const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
-	const Vector3 &agent_mins, const Vector3 &agent_maxs, const bool enable_goal_z_layer_blend, const float blend_start_dist, const float blend_full_dist );
+    const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy, const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist,
+    const struct svg_nav_path_process_t *pathProcess = nullptr );
 /**
 *   @brief  Free a traversal path allocated by SVG_Nav_GenerateTraversalPathForOrigin.
 *   @param  path    Path structure to free.
@@ -326,7 +742,7 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
 *   @param  out_direction   Output normalized movement direction.
 *   @return True if a valid direction was produced, false if path is complete/invalid.
 **/
-const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, float waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
+const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
 /**
  *   @brief  Query movement direction while advancing waypoints in 2D and emitting 3D directions.
  *           Useful for stair traversal so the vertical component can be used separately from waypoint completion.
@@ -337,7 +753,7 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
  *   @param  out_direction   Output normalized 3D movement direction.
  *   @return True if a valid direction was produced, false if the path is invalid or complete.
  **/
-const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin, float waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
+const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
 
 
 
@@ -354,3 +770,43 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 *	@brief	Check if navigation debug drawing is enabled and draw so if it is.
 **/
 void SVG_Nav_DebugDraw( void );
+
+
+/**
+*
+*
+*
+*
+*	Utility Functions:
+*
+*
+*
+*
+**/
+/**
+*   @brief  Calculate the world-space size of a tile.
+**/
+static inline double Nav_TileWorldSize( const nav_mesh_t *mesh ) {
+	// Compute world-space size of a nav tile.
+	return mesh->cell_size_xy * ( double )mesh->tile_size;
+}
+/**
+*   @brief  Convert world coordinate to tile grid coordinate.
+**/
+static inline int32_t Nav_WorldToTileCoord( double value, double tile_world_size ) {
+	// Map a world coordinate into tile grid coordinate using floor.
+	// Add a tiny epsilon to avoid floating-point boundary cases where a value
+	// lies exactly on a tile edge and can round down to the previous tile
+	// due to precision. NAV_TILE_EPSILON is a small positive value.
+	return ( int32_t )floorf( ( value + NAV_TILE_EPSILON ) / tile_world_size );
+}
+/**
+*   @brief  Convert world coordinate to cell index within a tile.
+**/
+static inline int32_t Nav_WorldToCellCoord( double value, double tile_origin, double cell_size_xy ) {
+	// Map a world coordinate into a cell index within its tile.
+	// Add a tiny epsilon to handle coordinates lying very close to a cell boundary
+	// due to floating point imprecision. This prevents missing a valid cell when
+	// the world position is exactly on the boundary.
+	return ( int32_t )floorf( ( ( value - tile_origin ) + NAV_TILE_EPSILON ) / cell_size_xy );
+}

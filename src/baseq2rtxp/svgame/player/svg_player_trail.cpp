@@ -77,6 +77,8 @@ void PlayerTrail_Add( const Vector3 &spot)
     VectorSubtract(spot, trail[PREV(trail_head)]->currentOrigin, temp);
     trail[trail_head]->currentAngles[1] = QM_Vector3ToYaw(temp);
 	SVG_Util_SetEntityAngles( trail[ trail_head ], trail[ trail_head ]->currentAngles, true );
+	// Necessary for being able to trace to them while pathing.
+	gi.linkentity( trail[ trail_head ] );
 
     trail_head = NEXT(trail_head);
 }
@@ -98,7 +100,7 @@ svg_base_edict_t *PlayerTrail_PickFirst(svg_base_edict_t *self)
     int32_t     n = 0;
 
     if (!trail_active)
-        return NULL;
+        return nullptr;
 
     // WID: TODO: Monster Reimplement.
     for (marker = trail_head, n = TRAIL_LENGTH; n; n--) {
@@ -125,7 +127,7 @@ svg_base_edict_t *PlayerTrail_PickNext(svg_base_edict_t *self)
     int32_t     n = 0;
 
     if (!trail_active)
-        return NULL;
+        return nullptr;
 
     // WID: TODO: Monster Reimplement.
     for (marker = trail_head, n = TRAIL_LENGTH; n; n--) {

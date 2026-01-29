@@ -10,9 +10,14 @@
 // Includes: local and navigation headers.
 #include "svgame/svg_local.h"
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_clusters.h"
+#include "svgame/nav/svg_nav_debug.h"
 #include "svgame/nav/svg_nav_path_process.h"
+#include "svgame/nav/svg_nav_traversal.h"
 
-
+extern cvar_t *nav_max_step;
+extern cvar_t *nav_max_drop;
+extern cvar_t *nav_debug_draw;
 
 /**
 *
@@ -22,9 +27,6 @@
 *
 *
 *
-**/
-/**
-*	@brief	Policy for path processing and follow behavior.
 **/
 /**
 *	@brief	Reset path process state to an initial empty state.
@@ -45,7 +47,9 @@ void svg_nav_path_process_t::Reset( void ) {
 	backoff_until = 0_ms;
 	// Reset failure tracking.
 	consecutive_failures = 0;
-
+	last_failure_time = 0_ms;
+	last_failure_pos = {};
+	last_failure_yaw = 0.0f;
 }
 
 /**
@@ -92,48 +96,110 @@ const bool svg_nav_path_process_t::GetNextPathPointEntitySpace( Vector3 *out_poi
 /**
 *	@brief	Rebuild the path to the given goal from the given start, using the given agent
 *			bounding box for traversal.
+*	@param	start_origin	Agent start position in entity feet-origin space.
+*	@param	goal_origin	Agent goal position in entity feet-origin space.
+*	@param	policy		Path policy controlling rebuild cadence and traversal constraints.
+*	@param	agent_mins	Agent bbox mins in entity feet-origin space.
+*	@param	agent_maxs	Agent bbox maxs in entity feet-origin space.
+*	@param	force		If true, bypass rebuild throttles/backoff and movement heuristics.
+*	@return	True if a new path was successfully built and committed.
+*	@note	This function converts feet-origin inputs into the nav-center space expected by
+*			voxelmesh traversal/pathfinding.
+*	@note	Drop safety is enforced both during traversal edge validation and as a post-pass
+*			on the resulting waypoint list.
 **/
 const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy,
-	const Vector3 &agent_mins, const Vector3 &agent_maxs ) {
-/**
-*	Debug instrumentation: print inputs and key cvars.
-**/
-// Debug: print agent bbox, step height, and nav mesh params.
-	gi.dprintf( "[DEBUG][NavPath] RebuildPathToWithAgentBBox: start(%.1f %.1f %.1f) goal(%.1f %.1f %.1f) agent_mins(%.1f %.1f %.1f) agent_maxs(%.1f %.1f %.1f)\n",
-		start_origin.x, start_origin.y, start_origin.z,
-		goal_origin.x, goal_origin.y, goal_origin.z,
-		agent_mins.x, agent_mins.y, agent_mins.z,
-		agent_maxs.x, agent_maxs.y, agent_maxs.z );
+    const Vector3 &agent_mins, const Vector3 &agent_maxs, const bool force ) {
+	/**
+	*	Throttle debug spam:
+	*		Callers may invoke this every frame. Only emit verbose debug when we are
+	*		actually allowed to attempt a rebuild (or forced).
+	**/
+	const bool canAttemptRebuild = force || CanRebuild( policy );
+	const bool doVerboseDebug = canAttemptRebuild;
+	/**
+	*	Debug instrumentation:
+	*		Emit input parameters and key cvar-derived constraints.
+	**/
+	if ( doVerboseDebug ) {
+		gi.dprintf( "[DEBUG][NavPath] RebuildPathToWithAgentBBox: start(%.1f %.1f %.1f) goal(%.1f %.1f %.1f) agent_mins(%.1f %.1f %.1f) agent_maxs(%.1f %.1f %.1f)\n",
+			start_origin.x, start_origin.y, start_origin.z,
+			goal_origin.x, goal_origin.y, goal_origin.z,
+			agent_mins.x, agent_mins.y, agent_mins.z,
+			agent_maxs.x, agent_maxs.y, agent_maxs.z );
+	}
 
 	// NOTE: These are defined in `svg_nav.cpp` and used to warn about likely failure cases.
-	extern cvar_t *nav_max_step;
-	extern cvar_t *nav_max_drop;
-	gi.dprintf( "[DEBUG][NavPath] nav_max_step=%.1f\n", nav_max_step ? nav_max_step->value : -1.0f );
-	gi.dprintf( "[DEBUG][NavPath] nav_max_drop=%.1f\n", nav_max_drop ? nav_max_drop->value : 100.0f );
+
+	if ( doVerboseDebug ) {
+		gi.dprintf( "[DEBUG][NavPath] nav_max_step=%.1f\n", nav_max_step ? nav_max_step->value : -1.0f );
+		gi.dprintf( "[DEBUG][NavPath] nav_max_drop=%.1f\n", nav_max_drop ? nav_max_drop->value : 100.0f );
+	}
 
 	/**
-	*	Pre-check: warn if the vertical gap already exceeds step height.
+	*	Pre-check: warn if the vertical gap already exceeds the effective step height.
+	*		This is diagnostic only; A* can still find a route via ramps/stairs.
 	**/
 	// Compute absolute Z difference between endpoints.
 	const float zGap = fabsf( goal_origin.z - start_origin.z );
-	// Snapshot current step limit.
-	const float stepLimit = nav_max_step ? nav_max_step->value : -1.0f;
+    // Determine effective step limit to use for the pre-check. Prefer the
+    // per-policy max_step_height when it is positive, otherwise fall back
+    // to the global `nav_max_step` cvar. This makes policy the authoritative
+    // source for agent-specific capabilities while preserving a global
+    // default for older code/configs.
+    const float stepLimit = ( policy.max_step_height > 0.0 )
+        ? ( float )policy.max_step_height
+        : ( nav_max_step ? nav_max_step->value : -1.0f );
 	// Emit warning if we are outside typical step traversal constraints.
-	if ( stepLimit > 0.0f && zGap > stepLimit ) {
+	if ( doVerboseDebug && stepLimit > 0.0f && zGap > stepLimit ) {
 		gi.dprintf( "[WARNING][NavPath] Z gap (%.1f) between start and goal exceeds nav_max_step (%.1f)! Pathfinding will likely fail.\n", zGap, stepLimit );
 	}
 
 	/**
-	*	Throttle/backoff checks.
+	*	Throttle/backoff checks:
+	*		Normally we enforce both the per-policy rebuild interval and any failure
+	*		backoff to avoid repeated expensive attempts.
+	*
+	*		We allow bypass in two cases:
+	*			1) No existing path: allow an initial acquisition attempt.
+	*			2) Major goal movement: allow reaction to rapid target relocation.
 	**/
-	// Exit early if we are currently in backoff or rebuild throttle window.
-	if ( !CanRebuild( policy ) ) {
-		gi.dprintf( "[DEBUG][NavPath] CanRebuild() returned false, skipping path rebuild.\n" );
+	/**
+	*	Determine whether we should bypass throttle/backoff:
+	*		- If no existing path exists, always allow one acquisition attempt.
+	*		- If the goal moved far enough in Z (e.g. upstairs), allow an attempt even
+	*		  during backoff so we can react to floor transitions.
+	**/
+	const bool hasExistingPath = ( path.num_points > 0 && path.points );
+	const float goalMovedZ = fabsf( goal_origin.z - path_goal.z );
+	const float forceZThreshold = ( stepLimit > 0.0f ) ? ( stepLimit * 2.0f ) : 36.0f;
+	const bool forceForGoalZ = ( goalMovedZ >= forceZThreshold );
+	// Only bypass movement heuristics when the goal moved floors; do not bypass time-based backoff.
+	const bool throttleBypass = forceForGoalZ;
+
+	/**
+	*	Throttle/backoff enforcement:
+	*		Always enforce time-based throttles unless explicitly forced.
+	*		Even without an existing path we must not rebuild every frame, otherwise we
+	*		spam logs and stall the game when a route is impossible.
+	**/
+	if ( !force && !canAttemptRebuild ) {
 		return false;
 	}
-	// Exit early if neither goal nor start moved enough to justify rebuild.
-	if ( !ShouldRebuildForGoal2D( goal_origin, policy ) && !ShouldRebuildForStart2D( start_origin, policy ) ) {
-		gi.dprintf( "[DEBUG][NavPath] ShouldRebuildForGoal2D/Start2D returned false, skipping path rebuild.\n" );
+	/**
+	*	Movement heuristic:
+	*		If neither the goal nor the start moved enough (based on policy thresholds),
+	*		skip the rebuild to avoid wasting CPU.
+	**/
+	const bool movementWarrantsRebuild =
+		ShouldRebuildForGoal2D( goal_origin, policy )
+		|| ShouldRebuildForGoal3D( goal_origin, policy )
+		|| ShouldRebuildForStart2D( start_origin, policy )
+		|| ShouldRebuildForStart3D( start_origin, policy );
+	if ( !force && !hasExistingPath && !movementWarrantsRebuild ) {
+		return false;
+	}
+	if ( !force && hasExistingPath && !throttleBypass && !movementWarrantsRebuild ) {
 		return false;
 	}
 
@@ -149,7 +215,8 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	path_index = 0;
 
 	/**
-	*	Convert entity-space bbox/origins into the nav-center space expected by the generator.
+	*	Convert entity-space bbox/origins into the nav-center space expected by the traversal.
+	*		The nav system stores/queries points in a hull-center coordinate frame.
 	**/
 	// Compute center offset (feet-origin -> center-origin).
 	const float centerOffsetZ = ( agent_mins.z + agent_maxs.z ) * 0.5f;
@@ -162,23 +229,32 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 
 	/**
 	*	Run navigation query to rebuild path using explicit bbox.
+	*		We pass `this` so A* can apply per-entity failure penalties.
 	**/
-	const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox(
-		start_center,
-		goal_center,
-		&path,
-		agent_center_mins,
-		agent_center_maxs,
-		true,
-		256.0f,
-		512.0f );
+    const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox(
+        start_center,
+        goal_center,
+        &path,
+        agent_center_mins,
+        agent_center_maxs,
+        &policy,
+        policy.enable_goal_z_layer_blend,
+        policy.blend_start_dist,
+        policy.blend_full_dist,
+        this );
+	// Note: pass path-process (this) into the traversal generator to allow
+	// A* to use recent failure/backoff timing for per-entity failure penalties.
 	gi.dprintf( "[DEBUG][NavPath] SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox returned %d\n", ok ? 1 : 0 );
 
 	/**
-	*	Enforce drop limit post-process: reject paths that contain large downward steps.
+	*	Drop-limit post-process:
+	*		Reject paths that contain large downward transitions.
+	*		Even if an edge is technically traversable, large drops can be undesirable for AI.
 	**/
-	bool dropLimitOk = true;
-	const float maxDrop = nav_max_drop ? nav_max_drop->value : 100.0f;
+    bool dropLimitOk = true;
+    // Determine the effective max drop to enforce on paths. Prefer policy settings when enabled,
+    // otherwise fall back to the global nav_max_drop cvar.
+    const float maxDrop = ( policy.cap_drop_height ) ? ( float )policy.max_drop_height : ( nav_max_drop ? nav_max_drop->value : 100.0f );
 	if ( ok && path.num_points > 1 && path.points ) {
 		// Scan each segment for excessive vertical drop.
 		for ( int32_t i = 1; i < path.num_points; ++i ) {
@@ -217,9 +293,17 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	path_index = oldIndex;
 
 	/**
-	*	Failure backoff: increase delay before next rebuild attempt.
+	*	Failure backoff:
+	*		Increase delay before next rebuild attempt and record a failure signature
+	*		for A* penalties (avoid repeating the same failing approach).
 	**/
-	consecutive_failures++;
+    consecutive_failures++;
+    // Record failure time and signature for per-entity A* penalties.
+    last_failure_time = level.time;
+    last_failure_pos = goal_origin;
+    // Record a coarse facing yaw from start->goal for signature matching.
+    Vector3 toGoal = QM_Vector3Subtract( goal_origin, start_origin );
+    last_failure_yaw = QM_Vector3ToYaw( toGoal );
 	const int32_t powN = std::min( std::max( 0, consecutive_failures ), policy.fail_backoff_max_pow );
 	const QMTime extra = QMTime::FromMilliseconds( ( int32_t )policy.fail_backoff_base.Milliseconds() * ( 1 << powN ) );
 	backoff_until = level.time + extra;
@@ -260,6 +344,36 @@ const bool svg_nav_path_process_t::ShouldRebuildForGoal2D( const Vector3 &goal_o
 	// Trigger rebuild when squared distance exceeds threshold squared.
 	return d2 > ( policy.rebuild_goal_dist_2d * policy.rebuild_goal_dist_2d );
 }
+
+/**
+*	@brief	Determine if the path should be rebuilt based on the goal's 3D distance change.
+*	@return	True if the path should be rebuilt.
+**/
+const bool svg_nav_path_process_t::ShouldRebuildForGoal3D( const Vector3 &goal_origin, const svg_nav_path_policy_t &policy ) const {
+	/**
+	*	Rebuild if no path exists.
+	**/
+	if ( path.num_points <= 0 || !path.points ) {
+		return true;
+	}
+
+	/**
+	*	Guard: treat non-positive thresholds as disabled.
+	**/
+	if ( policy.rebuild_goal_dist_3d <= 0.0 ) {
+		return false;
+	}
+
+	/**
+	*	Check goal movement in 3D.
+	**/
+	// Compute XYZ delta between current goal and cached goal.
+	const Vector3 d = QM_Vector3Subtract( goal_origin, path_goal );
+	// Compare squared 3D distance against squared threshold.
+	const double d2 = (double)d.x * (double)d.x + (double)d.y * (double)d.y + (double)d.z * (double)d.z;
+	const double thresh2 = policy.rebuild_goal_dist_3d * policy.rebuild_goal_dist_3d;
+	return d2 > thresh2;
+}
 /**
 *	@brief	Determine if the path should be rebuilt based on the start's 2D distance change.
 * 	@return	True if the path should be rebuilt.
@@ -280,6 +394,36 @@ const bool svg_nav_path_process_t::ShouldRebuildForStart2D( const Vector3 &start
 	const float d2 = ( d.x * d.x ) + ( d.y * d.y );
 	return d2 > ( policy.rebuild_goal_dist_2d * policy.rebuild_goal_dist_2d );
 }
+
+/**
+*	@brief	Determine if the path should be rebuilt based on the start's 3D distance change.
+*	@return	True if the path should be rebuilt.
+**/
+const bool svg_nav_path_process_t::ShouldRebuildForStart3D( const Vector3 &start_origin, const svg_nav_path_policy_t &policy ) const {
+	/**
+	*	Rebuild if no path exists.
+	**/
+	if ( path.num_points <= 0 || !path.points ) {
+		return true;
+	}
+
+	/**
+	*	Guard: treat non-positive thresholds as disabled.
+	**/
+	if ( policy.rebuild_goal_dist_3d <= 0.0 ) {
+		return false;
+	}
+
+	/**
+	*	Check start movement in 3D.
+	**/
+	// Compute XYZ delta between current start and cached start.
+	const Vector3 d = QM_Vector3Subtract( start_origin, path_start );
+	// Compare squared 3D distance against squared threshold.
+	const double d2 = (double)d.x * (double)d.x + (double)d.y * (double)d.y + (double)d.z * (double)d.z;
+	const double thresh2 = policy.rebuild_goal_dist_3d * policy.rebuild_goal_dist_3d;
+	return d2 > thresh2;
+}
 /**
 *	@brief	Rebuild the path to the given goal from the given start.
 * 	@return	True if the path was successfully rebuilt.
@@ -293,7 +437,10 @@ const bool svg_nav_path_process_t::RebuildPathTo( const Vector3 &start_origin, c
 		return false;
 	}
 	// Do not attempt rebuild if neither goal nor start has moved enough.
-	if ( !ShouldRebuildForGoal2D( goal_origin, policy ) && !ShouldRebuildForStart2D( start_origin, policy ) ) {
+	if (	!ShouldRebuildForGoal2D( goal_origin, policy )
+		&& !ShouldRebuildForGoal3D( goal_origin, policy )
+		&& !ShouldRebuildForStart2D( start_origin, policy )
+		&& !ShouldRebuildForStart3D( start_origin, policy ) ) {
 		return false;
 	}
 
@@ -321,7 +468,7 @@ const bool svg_nav_path_process_t::RebuildPathTo( const Vector3 &start_origin, c
 	/**
 	*	Generate a new traversal path.
 	**/
-	const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx( start_query, goal_query, &path, true, 256.0f, 512.0f );
+    const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx( start_query, goal_query, &path, policy.enable_goal_z_layer_blend, policy.blend_start_dist, policy.blend_full_dist );
 	if ( ok ) {
 		// Replace old path with new path.
 		SVG_Nav_FreeTraversalPath( &oldPath );

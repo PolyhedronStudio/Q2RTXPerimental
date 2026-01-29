@@ -9,6 +9,10 @@
 
 
 
+// Forward declarations.
+struct svg_nav_path_policy_t;
+
+
 /**
 *
 *
@@ -193,6 +197,9 @@ typedef struct mm_move_s {
         //! Height of step.
         float height;
     } step;
+
+	//! A pointer to the navigation movement policy being used for this move, if any.
+	svg_nav_path_policy_t *navPolicy = nullptr;
 } mm_move_t;
 
 
@@ -229,7 +236,14 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 *			Returns a new origin, velocity, and contact entity
 *			Does not modify any world state?
 **/
-const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove );
+/**
+*   @brief   Performs step/slide movement for a monster, using nav path policy for drop/jump limits.
+*   @param   monsterMove   Movement state struct.
+*   @param   policy        Navigation/path policy (drop height, jump, etc).
+*   @return  Slide/step move result flags.
+*   @note    All drop/jump/step logic uses the policy struct for limits.
+**/
+const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_path_policy_t &policy );
 
 /**
 *	@brief	Will move the yaw to its ideal position based on the yaw speed(per frame) value.

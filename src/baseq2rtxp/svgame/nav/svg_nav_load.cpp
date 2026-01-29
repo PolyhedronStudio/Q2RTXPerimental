@@ -129,21 +129,26 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 	SVG_Nav_FreeMesh();
 
 	/**
-	*	Allocate and publish the mesh instance.
+	*	Allocate and publish the mesh instance using RAII helper.
+	*	Initialize occupancy_frame in the callback.
 	**/
-	nav_mesh_t *mesh = (nav_mesh_t *)gi.TagMallocz( sizeof( nav_mesh_t ), TAG_SVGAME_LEVEL );
-	g_nav_mesh = mesh;
+	if ( !g_nav_mesh.create( TAG_SVGAME_LEVEL, []( nav_mesh_t *mesh ) {
+		mesh->occupancy_frame = -1;
+	} ) ) {
+		gzclose( f );
+		return false;
+	}
 
 	/**
 	*	Read generation parameters required to interpret stored tile data.
 	**/
-	if ( !Nav_ReadValue( f, mesh->cell_size_xy ) ||
-		!Nav_ReadValue( f, mesh->z_quant ) ||
-		!Nav_ReadValue( f, mesh->tile_size ) ||
-		!Nav_ReadValue( f, mesh->max_step ) ||
-		!Nav_ReadValue( f, mesh->max_slope_deg ) ||
-		!Nav_ReadValue( f, mesh->agent_mins ) ||
-		!Nav_ReadValue( f, mesh->agent_maxs ) ) {
+	if ( !Nav_ReadValue( f, g_nav_mesh->cell_size_xy ) ||
+		!Nav_ReadValue( f, g_nav_mesh->z_quant ) ||
+		!Nav_ReadValue( f, g_nav_mesh->tile_size ) ||
+		!Nav_ReadValue( f, g_nav_mesh->max_step ) ||
+		!Nav_ReadValue( f, g_nav_mesh->max_slope_deg ) ||
+		!Nav_ReadValue( f, g_nav_mesh->agent_mins ) ||
+		!Nav_ReadValue( f, g_nav_mesh->agent_maxs ) ) {
 		gzclose( f );
 		SVG_Nav_FreeMesh();
 		return false;
@@ -152,7 +157,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 	/**
 	*	Read mesh counts (leafs + inline models).
 	**/
-	if ( !Nav_ReadValue( f, mesh->num_leafs ) || !Nav_ReadValue( f, mesh->num_inline_models ) ) {
+	if ( !Nav_ReadValue( f, g_nav_mesh->num_leafs ) || !Nav_ReadValue( f, g_nav_mesh->num_inline_models ) ) {
 		gzclose( f );
 		SVG_Nav_FreeMesh();
 		return false;
@@ -161,22 +166,30 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 	/**
 	*	Sanity: validate counts before allocating large arrays.
 	**/
-	if ( mesh->num_leafs < 0 || mesh->num_leafs > 1'000'000 ) {
+	if ( g_nav_mesh->num_leafs < 0 || g_nav_mesh->num_leafs > 1'000'000 ) {
 		gzclose( f );
 		SVG_Nav_FreeMesh();
 		return false;
 	}
 
 	// Allocate leaf array.
-	mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof( nav_leaf_data_t ) * (size_t)mesh->num_leafs, TAG_SVGAME_LEVEL );
+	g_nav_mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof( nav_leaf_data_t ) * (size_t)g_nav_mesh->num_leafs, TAG_SVGAME_LEVEL );
 
-	const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
+	/**
+	*	Initialize canonical world tile storage used during load.
+	**/
+	g_nav_mesh->world_tiles.clear();
+	g_nav_mesh->world_tile_id_of.clear();
+	g_nav_mesh->world_tiles.reserve( 1024 );
+	g_nav_mesh->world_tile_id_of.reserve( 2048 );
+
+	const int32_t cellsPerTile = g_nav_mesh->tile_size * g_nav_mesh->tile_size;
 
 	/**
 	*	Read world mesh tiles (per BSP leaf).
 	**/
-	for ( int32_t i = 0; i < mesh->num_leafs; i++ ) {
-		nav_leaf_data_t &leaf = mesh->leaf_data[ i ];
+	for ( int32_t i = 0; i < g_nav_mesh->num_leafs; i++ ) {
+		nav_leaf_data_t &leaf = g_nav_mesh->leaf_data[ i ];
 		// Read leaf header.
 		if ( !Nav_ReadValue( f, leaf.leaf_index ) || !Nav_ReadValue( f, leaf.num_tiles ) ) {
 			gzclose( f );
@@ -191,20 +204,43 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 			return false;
 		}
 
-		// Allocate tile array for this leaf.
-		leaf.tiles = (nav_tile_t *)gi.TagMallocz( sizeof( nav_tile_t ) * (size_t)leaf.num_tiles, TAG_SVGAME_LEVEL );
+		/**
+		*	Allocate leaf tile-id array.
+		*	
+		*	Tiles themselves are stored canonically in `mesh->world_tiles`.
+		**/
+		leaf.tile_ids = (int32_t *)gi.TagMallocz( sizeof( int32_t ) * (size_t)leaf.num_tiles, TAG_SVGAME_LEVEL );
 
 		for ( int32_t t = 0; t < leaf.num_tiles; t++ ) {
-			nav_tile_t &tile = leaf.tiles[ t ];
+			nav_world_tile_key_t key = {};
 			// Read tile coordinates.
-			if ( !Nav_ReadValue( f, tile.tile_x ) || !Nav_ReadValue( f, tile.tile_y ) ) {
+			if ( !Nav_ReadValue( f, key.tile_x ) || !Nav_ReadValue( f, key.tile_y ) ) {
 				gzclose( f );
 				SVG_Nav_FreeMesh();
 				return false;
 			}
 
-			// Allocate tile storage for subsequent per-cell population.
-			Nav_InitEmptyTileStorage( mesh, &tile );
+			/**
+			*	Resolve or create canonical world tile entry.
+			**/
+			auto it = g_nav_mesh->world_tile_id_of.find( key );
+			int32_t tileId = -1;
+			if ( it != g_nav_mesh->world_tile_id_of.end() ) {
+				tileId = it->second;
+			} else {
+				tileId = (int32_t)g_nav_mesh->world_tiles.size();
+				nav_tile_t newTile = {};
+				newTile.tile_x = key.tile_x;
+				newTile.tile_y = key.tile_y;
+				Nav_InitEmptyTileStorage( g_nav_mesh.get(), &newTile );
+				g_nav_mesh->world_tiles.push_back( newTile );
+				g_nav_mesh->world_tile_id_of.emplace( key, tileId );
+			}
+
+			leaf.tile_ids[ t ] = tileId;
+			nav_tile_t &tile = g_nav_mesh->world_tiles[ tileId ];
+
+			// Tile storage is allocated when inserted into `world_tiles`.
 
 			int32_t populated = 0;
 			// Read the number of populated cells for this tile.
@@ -257,12 +293,12 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 	/**
 	*	Read inline model meshes (model-local space).
 	**/
-	if ( mesh->num_inline_models > 0 ) {
+	if ( g_nav_mesh->num_inline_models > 0 ) {
 		// Allocate per-inline-model container array.
-		mesh->inline_model_data = (nav_inline_model_data_t *)gi.TagMallocz( sizeof( nav_inline_model_data_t ) * (size_t)mesh->num_inline_models, TAG_SVGAME_LEVEL );
+		g_nav_mesh->inline_model_data = (nav_inline_model_data_t *)gi.TagMallocz( sizeof( nav_inline_model_data_t ) * (size_t)g_nav_mesh->num_inline_models, TAG_SVGAME_LEVEL );
 
-		for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
-			nav_inline_model_data_t &model = mesh->inline_model_data[ i ];
+		for ( int32_t i = 0; i < g_nav_mesh->num_inline_models; i++ ) {
+			nav_inline_model_data_t &model = g_nav_mesh->inline_model_data[ i ];
 			// Read model header.
 			if ( !Nav_ReadValue( f, model.model_index ) || !Nav_ReadValue( f, model.num_tiles ) ) {
 				gzclose( f );
@@ -290,7 +326,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 				}
 
 				// Allocate tile storage for per-cell layer population.
-				Nav_InitEmptyTileStorage( mesh, &tile );
+				Nav_InitEmptyTileStorage( g_nav_mesh.get(), &tile );
 
 				int32_t populated = 0;
 				// Read the number of populated cells for this tile.
@@ -344,17 +380,17 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 	/**
 	*	Runtime inline-model mapping is not saved; rebuild it from live entities.
 	**/
-	mesh->num_inline_model_runtime = 0;
-	mesh->inline_model_runtime = nullptr;
+	g_nav_mesh->num_inline_model_runtime = 0;
+	g_nav_mesh->inline_model_runtime = nullptr;
 
 	// Rebuild runtime mapping now that the mesh is loaded so inline-model traversal has live transforms.
 	// Refresh alone is not enough because the runtime array is not persisted and may be null.
-	if ( mesh->num_inline_models > 0 ) {
+	if ( g_nav_mesh->num_inline_models > 0 ) {
 		/**
 		*	Build model_index -> entity mapping for all active entities referencing "*N".
 		**/
 		std::unordered_map<int32_t, svg_base_edict_t *> model_to_ent;
-		model_to_ent.reserve( (size_t)mesh->num_inline_models );
+		model_to_ent.reserve( (size_t)g_nav_mesh->num_inline_models );
 		for ( int32_t i = 0; i < globals.edictPool->num_edicts; i++ ) {
 			// Inspect each edict for inline model usage.
 			svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
@@ -380,18 +416,18 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 		// Build runtime mapping for all referenced inline models.
 		// This allows traversal/pathfinding to use correct live transforms.
 		// Allocate runtime array sized to the number of referenced models.
-		mesh->num_inline_model_runtime = (int32_t)model_to_ent.size();
-		if ( mesh->num_inline_model_runtime > 0 ) {
+		g_nav_mesh->num_inline_model_runtime = (int32_t)model_to_ent.size();
+		if ( g_nav_mesh->num_inline_model_runtime > 0 ) {
 			// Allocate runtime transform array.
-			mesh->inline_model_runtime = (nav_inline_model_runtime_t *)gi.TagMallocz(
-				sizeof( nav_inline_model_runtime_t ) * (size_t)mesh->num_inline_model_runtime, TAG_SVGAME_LEVEL );
+			g_nav_mesh->inline_model_runtime = (nav_inline_model_runtime_t *)gi.TagMallocz(
+				sizeof( nav_inline_model_runtime_t ) * (size_t)g_nav_mesh->num_inline_model_runtime, TAG_SVGAME_LEVEL );
 			int32_t out_index = 0;
 			for ( const auto &it : model_to_ent ) {
 				const int32_t model_index = it.first;
 				svg_base_edict_t *ent = it.second;
 
 				// Populate runtime entry.
-				nav_inline_model_runtime_t &rt = mesh->inline_model_runtime[ out_index ];
+				nav_inline_model_runtime_t &rt = g_nav_mesh->inline_model_runtime[ out_index ];
 				rt.model_index = model_index;
 				rt.owner_ent = ent;
 				rt.owner_entnum = ent ? ent->s.number : 0;

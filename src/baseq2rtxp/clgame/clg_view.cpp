@@ -732,7 +732,7 @@ setup_fps_view:
 }
 
 /**
- * @brief   Comparison function for qsort to sort entities by model and skin.
+ *    @brief      Comparison function for qsort to sort entities by model and skin.
  * @param _a
  * @param _b
  * @return

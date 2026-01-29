@@ -243,7 +243,7 @@ struct svg_pushmove_edict_t : public svg_base_edict_t {
     void PushMove_Accelerate( );
 
     /**
-    * @brief 
+    *    @brief    
     **/
     const bool Think_AccelMove_MoveInfo( );
     /**

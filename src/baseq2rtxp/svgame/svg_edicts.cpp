@@ -234,8 +234,13 @@ const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other
 
 /**
 *   @return True if the entity is in front (in sight) of self
+*   @brief  Tests if 'other' is in front of 'self' based on dot product calculation.
+* 	@param	self	The entity to test from.
+* 	@param	other	The entity to test against.
+*	@param	axis	The axis to use for 'forward' direction. (If null, will calculate from angles.)
+*	@param	dotRangeArea	The minimum dot product value to be considered 'in front of'. (0.0f to 1.0f)
 **/
-const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *other, const float dotRangeArea ) {
+const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *other, const Vector3 &axis, const double dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_Entity_IsClient( self ) ) {
@@ -245,11 +250,12 @@ const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *oth
         QM_AngleVectors( self->currentAngles, &forward, nullptr, nullptr );
     }
     // Get direction.
-    Vector3 direction = Vector3( other->currentOrigin ) - Vector3( self->currentOrigin );
+    Vector3 direction = Vector3( other->currentOrigin ) - Vector3( self->currentOrigin ) ;
+	
     // Normalize direction.
     Vector3 normalizedDirection = QM_Vector3Normalize( direction );
     // Get dot product from normalized direction / forward.
-    const float dot = QM_Vector3DotProduct( normalizedDirection, forward );
+    const float dot = QM_Vector3DotProduct( normalizedDirection * axis, forward );
     // In 'front' of.
     if ( dot > dotRangeArea ) {
         return true;
@@ -260,7 +266,7 @@ const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *oth
 /**
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
-const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOrigin, const float dotRangeArea ) {
+const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOrigin, const Vector3 &axis, const double dotRangeArea ) {
     // If a client, use its forward vector.
     Vector3 forward = {};
     if ( SVG_Entity_IsClient( self ) ) {
@@ -274,7 +280,7 @@ const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOr
     // Normalize direction.
     Vector3 normalizedDirection = QM_Vector3Normalize( direction );
     // Get dot product from normalized direction / forward.
-    const float dot = QM_Vector3DotProduct( normalizedDirection, forward );
+    const float dot = QM_Vector3DotProduct( normalizedDirection * axis, forward );
     // In 'front' of.
     if ( dot > dotRangeArea ) {
         return true;

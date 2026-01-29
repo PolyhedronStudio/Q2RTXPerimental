@@ -21,7 +21,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "common/net/net.h"
 
 /**
- * @brief Client bandwidth throttling thresholds, in bytes per second. Clients
+ *    @brief    Client bandwidth throttling thresholds, in bytes per second. Clients
  * may actually request that the server drops messages for them above a certain
  * bandwidth saturation point in order to maintain some level of connectivity.
  * However, they must accept at least 16KB/s. (Used to be 8.)

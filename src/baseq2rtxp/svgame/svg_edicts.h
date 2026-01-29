@@ -230,9 +230,19 @@ static inline const bool SVG_Entity_HasUseTargetState( const svg_base_edict_t *e
 const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other );
 /**
 *   @return True if the entity is in front (in sight) of self
+*   @brief  Tests if 'other' is in front of 'self' based on dot product calculation.
+* 	@param	self	The entity to test from.
+* 	@param	other	The entity to test against.
+*	@param	axis	The axis to use for 'forward' direction. (If null, will calculate from angles.)
+*	@param	dotRangeArea	The minimum dot product value to be considered 'in front of'. (0.0f to 1.0f)
 **/
-const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *other, const float dotRangeArea = 0.3f );
+const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, svg_base_edict_t *other, const Vector3 &unitAxis = { 1., 1., 1. }, const double dotRangeArea = 0.3 );
 /**
-*   @return True if the testOrigin point is in front of entity 'self'.
+*   @return True if the entity is in front (in sight) of self
+*   @brief  Tests if 'other' is in front of 'self' based on dot product calculation.
+* 	@param	self	The entity to test from.
+* 	@param	testOrigin	The origin to test against.
+*	@param	axis	The axis to use for 'forward' direction. (If null, will calculate from angles.)
+*	@param	dotRangeArea	The minimum dot product value to be considered 'in front of'. (0.0f to 1.0f)
 **/
-const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOrigin, const float dotRangeArea = 0.3f );
+const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOrigin, const Vector3 &unitAxis = { 1., 1., 1. }, const double dotRangeArea = 0.3 );

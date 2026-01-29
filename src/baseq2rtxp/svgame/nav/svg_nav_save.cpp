@@ -78,7 +78,7 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 	gzbuffer( f, 65536 );
 
 	// Snapshot the mesh pointer for readability.
-	const nav_mesh_t *mesh = g_nav_mesh;
+	const nav_mesh_t *mesh = g_nav_mesh.get();
 
 	/**
 	*	Write file header (magic + version).
@@ -118,7 +118,16 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 		Nav_WriteValue( f, leaf->num_tiles );
 
 		for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
-			const nav_tile_t *tile = &leaf->tiles[ t ];
+			const int32_t tileId = leaf->tile_ids ? leaf->tile_ids[ t ] : -1;
+			if ( tileId < 0 || tileId >= (int32_t)mesh->world_tiles.size() ) {
+				// Corrupt mesh; write a dummy empty tile to keep the stream aligned.
+				nav_tile_t dummy = {};
+				Nav_WriteValue( f, dummy.tile_x );
+				Nav_WriteValue( f, dummy.tile_y );
+				Nav_WriteValue( f, (int32_t)0 );
+				continue;
+			}
+			const nav_tile_t *tile = &mesh->world_tiles[ tileId ];
 			// Write tile coordinates.
 			Nav_WriteValue( f, tile->tile_x );
 			Nav_WriteValue( f, tile->tile_y );

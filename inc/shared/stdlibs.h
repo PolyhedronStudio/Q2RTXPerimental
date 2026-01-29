@@ -42,18 +42,21 @@
     //#include <bit>
     #include <chrono>
     #include <type_traits>
-    //#include <algorithm>
+    #include <algorithm>
     //#include <array>
+	#include <limits>
     #include <list>
     //#include <functional>
     #include <map>
+	#include <new>
     #include <numbers>
     #include <numeric>
-    //#include <unordered_map>
-    //#include <set>
-    //#include <unordered_set>
+    #include <unordered_map>
+    #include <set>
+    #include <unordered_set>
     #include <random>
-    //#include <string_view>
+    #include <string_view>
     #include <variant>
     #include <vector>
+
 #endif//__cplusplus

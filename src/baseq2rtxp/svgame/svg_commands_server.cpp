@@ -11,12 +11,279 @@
 #include "svgame/nav/svg_nav_save.h"
 #include "svgame/nav/svg_nav_load.h"
 
+// Monster types for AI debug introspection.
+#include "svgame/entities/monster/svg_monster_testdummy.h"
+
 /**
 *   @brief  
 **/
 void ServerCommand_Test_f(void)
 {
     gi.cprintf(NULL, PRINT_HIGH, "ServerCommand_Test_f()\n");
+}
+
+/**
+*   @brief  Debug: print the navmesh tile/cell under an entity's origin.
+*   @note   Usage: sv nav_cell [entnum]
+*           If entnum is omitted, uses edict #1 (typical singleplayer client).
+*/
+/**
+ *  @brief  Print navmesh cell information for an entity and optionally a small
+ *          neighborhood of tiles around it.
+ *  @note   Usage: sv nav_cell [entnum] [tile_radius]
+ *          - entnum: optional entity number (defaults to 1)
+ *          - tile_radius: optional tile neighborhood radius (defaults to 0)
+ **/
+static void ServerCommand_NavCell_f( void ) {
+    /**
+    *   Sanity: require an active nav mesh.
+    **/
+    if ( !g_nav_mesh ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_cell: no nav mesh loaded\n" );
+        return;
+    }
+
+    // Choose entity number: optional argument or default to 1.
+    int entnum = 1;
+    if ( gi.argc() >= 3 ) {
+        entnum = atoi( gi.argv( 2 ) );
+    }
+
+    // Optional tile neighborhood radius (in tiles).
+    int32_t radius = 0;
+    if ( gi.argc() >= 4 ) {
+        radius = std::max( 0, atoi( gi.argv( 3 ) ) );
+        radius = std::min( radius, 4 ); // clamp to reasonable neighborhood
+    }
+
+    svg_base_edict_t *ent = g_edict_pool.EdictForNumber( entnum );
+    if ( !ent || !SVG_Entity_IsActive( ent ) ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_cell: entity %d is not active\n", entnum );
+        return;
+    }
+
+    /**
+    *   Compute world-space position and tile/cell metrics.
+    **/
+    const Vector3 pos = ent->currentOrigin; // entity feet-origin
+    const float cell_size_xy = g_nav_mesh->cell_size_xy;
+    const float z_quant = g_nav_mesh->z_quant;
+    const int32_t tile_size = g_nav_mesh->tile_size;
+    const float tile_world_size = cell_size_xy * ( float )tile_size;
+
+    // Compute base tile and cell containing the entity position.
+    const int32_t baseTileX = ( int32_t )floorf( pos.x / tile_world_size );
+    const int32_t baseTileY = ( int32_t )floorf( pos.y / tile_world_size );
+    const float baseTileOriginX = baseTileX * tile_world_size;
+    const float baseTileOriginY = baseTileY * tile_world_size;
+    const int32_t baseCellX = ( int32_t )floorf( ( pos.x - baseTileOriginX ) / cell_size_xy );
+    const int32_t baseCellY = ( int32_t )floorf( ( pos.y - baseTileOriginY ) / cell_size_xy );
+    const int32_t baseCellIndex = baseCellY * tile_size + baseCellX;
+
+    gi.cprintf( nullptr, PRINT_HIGH, "nav_cell: ent=%d pos=(%.1f %.1f %.1f) baseTile=(%d,%d) baseCell=(%d,%d) cellIndex=%d z_quant=%.3f cell_size_xy=%.3f radius=%d\n",
+        entnum, pos.x, pos.y, pos.z, baseTileX, baseTileY, baseCellX, baseCellY, baseCellIndex, z_quant, cell_size_xy, radius );
+
+    // Validate base cell indices before scanning.
+    if ( baseCellX < 0 || baseCellX >= tile_size || baseCellY < 0 || baseCellY >= tile_size ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_cell: base cell coords out of tile bounds (tile_size=%d)\n", tile_size );
+        return;
+    }
+
+    /**
+    *   Inspect tiles in the neighborhood [baseTileX-radius .. baseTileX+radius].
+    **/
+    for ( int32_t ty = baseTileY - radius; ty <= baseTileY + radius; ty++ ) {
+        for ( int32_t tx = baseTileX - radius; tx <= baseTileX + radius; tx++ ) {
+            // Per-tile origin and cell coords for this tile.
+            const float tileOriginX = tx * tile_world_size;
+            const float tileOriginY = ty * tile_world_size;
+            const int32_t cellX = ( int32_t )floorf( ( pos.x - tileOriginX ) / cell_size_xy );
+            const int32_t cellY = ( int32_t )floorf( ( pos.y - tileOriginY ) / cell_size_xy );
+
+            // Skip tiles where the computed cell is outside the tile bounds.
+            if ( cellX < 0 || cellX >= tile_size || cellY < 0 || cellY >= tile_size ) {
+                gi.cprintf( nullptr, PRINT_HIGH, "tile(%d,%d): cell out of bounds (cellX=%d cellY=%d)\n", tx, ty, cellX, cellY );
+                continue;
+            }
+
+            const int32_t cellIndex = cellY * tile_size + cellX;
+            bool tileReported = false;
+
+            // Search world mesh leafs for this tile.
+            for ( int32_t i = 0; i < g_nav_mesh->num_leafs; i++ ) {
+                const nav_leaf_data_t *leaf = &g_nav_mesh->leaf_data[ i ];
+				if ( !leaf || leaf->num_tiles <= 0 || !leaf->tile_ids ) {
+                    continue;
+                }
+
+                for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
+					const int32_t tileId = leaf->tile_ids[ t ];
+					if ( tileId < 0 || tileId >= (int32_t)g_nav_mesh->world_tiles.size() ) {
+                        continue;
+                    }
+					const nav_tile_t *tile = &g_nav_mesh->world_tiles[ tileId ];
+                    if ( tile->tile_x != tx || tile->tile_y != ty ) {
+                        continue;
+                    }
+
+                    // Found matching world tile; report cell contents.
+                    const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
+                    if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+                        gi.cprintf( nullptr, PRINT_HIGH, "world tile(%d,%d) leaf=%d: cell %d empty\n", tx, ty, i, cellIndex );
+                    } else {
+                        gi.cprintf( nullptr, PRINT_HIGH, "world tile(%d,%d) leaf=%d: cell %d has %d layer(s)\n", tx, ty, i, cellIndex, cell->num_layers );
+                        for ( int32_t li = 0; li < cell->num_layers; li++ ) {
+                            const nav_layer_t &layer = cell->layers[ li ];
+                            const float layerZ = layer.z_quantized * z_quant;
+                            gi.cprintf( nullptr, PRINT_HIGH, "  layer %d: z=%.1f flags=0x%02x clearance=%u\n", li, layerZ, layer.flags, ( unsigned )layer.clearance );
+                        }
+                    }
+
+                    tileReported = true;
+                    break;
+                }
+                if ( tileReported ) {
+                    break;
+                }
+            }
+
+            // If not reported in world leafs, check inline-model tiles.
+            if ( !tileReported && g_nav_mesh->num_inline_models > 0 && g_nav_mesh->inline_model_data ) {
+                for ( int32_t i = 0; i < g_nav_mesh->num_inline_models; i++ ) {
+                    const nav_inline_model_data_t *model = &g_nav_mesh->inline_model_data[ i ];
+                    if ( !model || model->num_tiles <= 0 || !model->tiles ) {
+                        continue;
+                    }
+                    for ( int32_t t = 0; t < model->num_tiles; t++ ) {
+                        const nav_tile_t *tile = &model->tiles[ t ];
+                        if ( !tile ) {
+                            continue;
+                        }
+                        if ( tile->tile_x != tx || tile->tile_y != ty ) {
+                            continue;
+                        }
+
+                        const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
+                        if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+                            gi.cprintf( nullptr, PRINT_HIGH, "inline tile(%d,%d) model=%d: cell %d empty\n", tx, ty, model->model_index, cellIndex );
+                        } else {
+                            gi.cprintf( nullptr, PRINT_HIGH, "inline tile(%d,%d) model=%d: cell %d has %d layer(s)\n", tx, ty, model->model_index, cellIndex, cell->num_layers );
+                            for ( int32_t li = 0; li < cell->num_layers; li++ ) {
+                                const nav_layer_t &layer = cell->layers[ li ];
+                                const float layerZ = layer.z_quantized * z_quant;
+                                gi.cprintf( nullptr, PRINT_HIGH, "  layer %d: z=%.1f flags=0x%02x clearance=%u\n", li, layerZ, layer.flags, ( unsigned )layer.clearance );
+                            }
+                        }
+
+                        tileReported = true;
+                        break;
+                    }
+                    if ( tileReported ) {
+                        break;
+                    }
+                }
+            }
+
+            if ( !tileReported ) {
+                gi.cprintf( nullptr, PRINT_HIGH, "tile(%d,%d): no tile found\n", tx, ty );
+            }
+        }
+    }
+
+    /**
+    *   Print a compact ASCII neighborhood map summarizing walkability for the
+    *   inspected tile range. This is useful for a quick visual check of which
+    *   nearby tiles/cells contain walkable layers.
+    **/
+    if ( radius > 0 ) {
+        gi.cprintf( nullptr, PRINT_HIGH, "nav_cell: ASCII neighborhood map (center = C, X = walkable, . = empty, ? = no tile)\n" );
+        // Print rows from top (higher Y) to bottom to match world Y axis.
+        for ( int32_t ty = baseTileY + radius; ty >= baseTileY - radius; ty-- ) {
+            // Row prefix with tile Y coordinate for readability.
+            gi.cprintf( nullptr, PRINT_HIGH, "%4d: ", ty );
+            for ( int32_t tx = baseTileX - radius; tx <= baseTileX + radius; tx++ ) {
+                // Compute the cell within this tile that corresponds to the entity's world XY.
+                const float tileOriginX = tx * tile_world_size;
+                const float tileOriginY = ty * tile_world_size;
+                const int32_t cellX = ( int32_t )floorf( ( pos.x - tileOriginX ) / cell_size_xy );
+                const int32_t cellY = ( int32_t )floorf( ( pos.y - tileOriginY ) / cell_size_xy );
+                char symbol = '?';
+
+                // If the computed cell lies outside the tile, mark as out-of-bounds.
+                if ( cellX < 0 || cellX >= tile_size || cellY < 0 || cellY >= tile_size ) {
+                    symbol = '?';
+                } else {
+                    const int32_t cellIndex = cellY * tile_size + cellX;
+                    bool foundTile = false;
+                    bool hasLayers = false;
+
+                    // Search world tiles.
+                    for ( int32_t i = 0; i < g_nav_mesh->num_leafs && !foundTile; i++ ) {
+                        const nav_leaf_data_t *leaf = &g_nav_mesh->leaf_data[ i ];
+					if ( !leaf || leaf->num_tiles <= 0 || !leaf->tile_ids ) {
+                            continue;
+                        }
+                        for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
+						const int32_t tileId = leaf->tile_ids[ t ];
+						if ( tileId < 0 || tileId >= (int32_t)g_nav_mesh->world_tiles.size() ) {
+                                continue;
+                            }
+						const nav_tile_t *tile = &g_nav_mesh->world_tiles[ tileId ];
+                            if ( tile->tile_x != tx || tile->tile_y != ty ) {
+                                continue;
+                            }
+                            foundTile = true;
+                            const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
+                            if ( cell && cell->num_layers > 0 && cell->layers ) {
+                                hasLayers = true;
+                            }
+                            break;
+                        }
+                    }
+
+                    // If not found in world tiles, check inline-model tiles.
+                    if ( !foundTile && g_nav_mesh->num_inline_models > 0 && g_nav_mesh->inline_model_data ) {
+                        for ( int32_t i = 0; i < g_nav_mesh->num_inline_models && !foundTile; i++ ) {
+                            const nav_inline_model_data_t *model = &g_nav_mesh->inline_model_data[ i ];
+                            if ( !model || model->num_tiles <= 0 || !model->tiles ) {
+                                continue;
+                            }
+                            for ( int32_t t = 0; t < model->num_tiles; t++ ) {
+                                const nav_tile_t *tile = &model->tiles[ t ];
+                                if ( !tile ) {
+                                    continue;
+                                }
+                                if ( tile->tile_x != tx || tile->tile_y != ty ) {
+                                    continue;
+                                }
+                                foundTile = true;
+                                const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
+                                if ( cell && cell->num_layers > 0 && cell->layers ) {
+                                    hasLayers = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    // Decide symbol based on findings.
+                    if ( foundTile ) {
+                        symbol = hasLayers ? 'X' : '.';
+                    } else {
+                        symbol = '?';
+                    }
+                }
+
+                // Mark center tile with 'C' for easier spotting.
+                if ( tx == baseTileX && ty == baseTileY ) {
+                    gi.cprintf( nullptr, PRINT_HIGH, "%c ", 'C' );
+                } else {
+                    gi.cprintf( nullptr, PRINT_HIGH, "%c ", symbol );
+                }
+            }
+            gi.cprintf( nullptr, PRINT_HIGH, "\n" );
+        }
+    }
 }
 
 /**
@@ -332,6 +599,8 @@ void SVG_ServerCommand(void) {
         ServerCommand_NavSave_f();
     else if ( Q_stricmp( cmd, "nav_load" ) == 0 )
         ServerCommand_NavLoad_f();
+    else if ( Q_stricmp( cmd, "nav_cell" ) == 0 )
+        ServerCommand_NavCell_f();
     else if ( Q_stricmp( cmd, "addip" ) == 0 )
         ServerCommand_AddIP_f();
     else if ( Q_stricmp( cmd, "removeip" ) == 0 )

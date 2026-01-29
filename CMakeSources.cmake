@@ -443,10 +443,13 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 	
 	baseq2rtxp/svgame/nav/svg_nav.cpp
-    baseq2rtxp/svgame/nav/svg_nav_movement.cpp
+    baseq2rtxp/svgame/nav/svg_nav_clusters.cpp
+    baseq2rtxp/svgame/nav/svg_nav_debug.cpp
+    baseq2rtxp/svgame/nav/svg_nav_generate.cpp
     baseq2rtxp/svgame/nav/svg_nav_path_process.cpp
 	baseq2rtxp/svgame/nav/svg_nav_save.cpp
 	baseq2rtxp/svgame/nav/svg_nav_load.cpp
+    baseq2rtxp/svgame/nav/svg_nav_traversal.cpp
 )
 SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_chase.h
@@ -473,10 +476,13 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_weapons.h
 
     baseq2rtxp/svgame/nav/svg_nav.H
-    baseq2rtxp/svgame/nav/svg_nav_movement.h
+    baseq2rtxp/svgame/nav/svg_nav_clusters.h
+    baseq2rtxp/svgame/nav/svg_nav_debug.h
+    baseq2rtxp/svgame/nav/svg_nav_generate.h
 	baseq2rtxp/svgame/nav/svg_nav_path_process.h
 	baseq2rtxp/svgame/nav/svg_nav_save.h
 	baseq2rtxp/svgame/nav/svg_nav_load.h
+    baseq2rtxp/svgame/nav/svg_nav_traversal.h
 
 	baseq2rtxp/svgame/lua/svg_lua_callfunction.hpp
 	baseq2rtxp/svgame/lua/svg_lua_signals.hpp
@@ -676,6 +682,7 @@ SET(SRC_COMMON
 	common/bsp.cpp
 	common/cmd.cpp
 	common/collisionmodel/cm_areaportals.cpp
+    common/collisionmodel/cm_boxcontents.cpp
 	common/collisionmodel/cm_boxleafs.cpp
 	common/collisionmodel/cm_entities.cpp
 	common/collisionmodel/cm_hull_boundingbox.cpp

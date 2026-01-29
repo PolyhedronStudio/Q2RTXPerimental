@@ -8,6 +8,9 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
+#include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_path_process.h"
+
 #include "svg_mmove.h"
 #include "svg_mmove_slidemove.h"
 
@@ -65,11 +68,16 @@ const svg_trace_t SVG_MMove_Trace( const Vector3 &start, const Vector3 &mins, co
 /**
 *	@return True if the trace yielded a step, false otherwise.
 **/
-static bool MMove_CheckStep( const svg_trace_t *trace ) {
+static bool MMove_CheckStep( const mm_move_t *monsterMove, const svg_trace_t *trace ) {
 	// If not solid:
 	if ( !trace->allsolid ) {
+		// Get min step normal.
+		double minStepNormal = MM_MIN_STEP_NORMAL;
+		if ( monsterMove->navPolicy ) {
+			minStepNormal = monsterMove->navPolicy->min_step_normal;
+		}
 		// If trace clipped to an entity and the plane we hit its normal is sane for stepping:
-		if ( trace->ent && trace->plane.normal[ 2 ] >= MM_MIN_STEP_NORMAL ) {
+		if ( trace->ent && trace->plane.normal[ 2 ] >= minStepNormal ) {
 			// We just traversed a step of sorts.
 			return true;
 		}
@@ -89,8 +97,14 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 	// Determine the step height based on the new, and previous origin.
 	const float step_height = monsterMove->state.origin.z - monsterMove->state.previousOrigin.z;
 
-	// If its absolute(-/+) value >= PM_STEP_MIN_SIZE(4.0) then we got an official step.
-	if ( fabsf( step_height ) >= MM_MIN_STEP_SIZE ) {
+	// If its absolute(-/+) value >= PM_STEP_MIN_SIZE(14.0) then we got an official step.
+	
+	// Get the step height.
+	double minStepSize = MM_MIN_STEP_SIZE;
+	if ( monsterMove->navPolicy ) {
+		minStepSize = monsterMove->navPolicy->min_step_height;
+	}
+	if ( fabsf( step_height ) >= minStepSize ) {
 		// Store non absolute but exact step height.
 		monsterMove->step.height = step_height;
 	}
@@ -103,7 +117,14 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 *			Returns a new origin, velocity, and contact entity
 *			Does not modify any world state?
 **/
-const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
+/**
+*   @brief   Performs step/slide movement for a monster, using nav path policy for drop/jump limits.
+*   @param   monsterMove   Movement state struct.
+*   @param   policy        Navigation/path policy (drop height, jump, etc).
+*   @return  Slide/step move result flags.
+*   @note    All drop/jump/step logic uses the policy struct for limits.
+**/
+const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_path_policy_t &policy ) {
 	svg_trace_t trace = {};
 	Vector3 startOrigin = monsterMove->state.previousOrigin = monsterMove->state.origin;
 	Vector3 startVelocity = monsterMove->state.previousVelocity = monsterMove->state.velocity;
@@ -115,8 +136,14 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	Vector3 downOrigin = monsterMove->state.origin;
 	Vector3 downVelocity = monsterMove->state.velocity;
 
-	// Perform 'up-trace' to see whether we can step up at all.
-	Vector3 up = startOrigin + Vector3{ 0.f, 0.f, MM_MAX_STEP_SIZE };
+	// Get max step size.
+	double maxStepSize = MM_MAX_STEP_SIZE;
+	if ( monsterMove->navPolicy ) {
+		maxStepSize = monsterMove->navPolicy->max_step_height;
+	}
+
+	// Perform 'up-trace' to see whether we can step up at all
+	Vector3 up = startOrigin + Vector3{ 0., 0., maxStepSize };
 	trace = SVG_MMove_Trace( startOrigin, monsterMove->mins, monsterMove->maxs, up, monsterMove->monster );
 	if ( trace.allsolid ) {
 		return blockedMask; // can't step up
@@ -151,7 +178,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 		//monsterMove->state.origin = real_trace.endpos;
 
 		// WID: Use proper stair step checking.
-		if ( MMove_CheckStep( &trace ) ) {
+		if ( MMove_CheckStep( monsterMove, &trace ) ) {
 			// Only an upwards jump is a stair clip.
 			if ( monsterMove->state.velocity.z > 0.f ) {
 				monsterMove->step.clipped = true;
@@ -164,7 +191,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	up = monsterMove->state.origin;
 
 	// Decide which one went farther, use 'Vector2Length', ignore the Z axis.
-	const float down_dist = ( downOrigin.x - startOrigin.x ) * ( downOrigin.y - startOrigin.y ) + ( downOrigin.y - startOrigin.y ) * ( downOrigin.y - startOrigin.y );
+	const float down_dist = ( downOrigin.x - startOrigin.x ) * ( downOrigin.x - startOrigin.x ) + ( downOrigin.y - startOrigin.y ) * ( downOrigin.y - startOrigin.y );
 	const float up_dist = ( up.x - startOrigin.x ) * ( up.x - startOrigin.x ) + ( up.y - startOrigin.y ) * ( up.y - startOrigin.y );
 
 	if ( down_dist > up_dist || trace.plane.normal[ 2 ] < MM_MIN_STEP_NORMAL ) {
@@ -180,14 +207,16 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove ) {
 	}
 
 	// Paril: step down stairs/slopes
-	if ( ( monsterMove->state.mm_flags & MMF_ON_GROUND ) && !( monsterMove->state.mm_flags & MMF_ON_LADDER ) &&
-		( monsterMove->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
-		Vector3 down = monsterMove->state.origin - Vector3{ 0.f, 0.f, MM_MAX_STEP_SIZE };
-		trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
+    if ( ( monsterMove->state.mm_flags & MMF_ON_GROUND ) && !( monsterMove->state.mm_flags & MMF_ON_LADDER ) &&
+        ( monsterMove->liquid.level < cm_liquid_level_t::LIQUID_WAIST || ( /*!( pm->cmd.buttons & BUTTON_JUMP ) &&*/ monsterMove->state.velocity.z <= 0 ) ) ) {
+        // Use policy for step height.
+		Vector3 downOffset = { 0., 0., policy.max_obstruction_jump_height };
+        Vector3 down = QM_Vector3Subtract(monsterMove->state.origin, downOffset);
+        trace = SVG_MMove_Trace( monsterMove->state.origin, monsterMove->mins, monsterMove->maxs, down, monsterMove->monster );
 
 		// WID: Use proper stair step checking.
 		// Check for stairs:
-		if ( MMove_CheckStep( &trace ) ) {
+		if ( MMove_CheckStep( monsterMove, &trace ) ) {
 			// Step down stairs:
 			MMove_StepDown( monsterMove, &trace );
 		// We're expecting it to be a slope, step down the slope instead:

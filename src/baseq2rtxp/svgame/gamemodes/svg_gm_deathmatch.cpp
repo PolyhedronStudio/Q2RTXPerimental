@@ -148,11 +148,19 @@ void svg_gamemode_deathmatch_t::BeginServerFrame( svg_player_edict_t *ent ) {
 	}
 
 	/**
-	*   Add player trail so monsters can follow
+	*   Add player trail so monsters can follow (Q2/Q2RTX behavior).
+	*   Notes:
+	*   - only for non-deathmatch
+	*   - only for alive, non-spectator players
+	*   - only add when player can't see the last trail spot
+	*   - add old position (previous origin), not current
 	**/
-	//// WID: TODO: Monster Reimplement.
+	#ifdef USE_VISIBILE_INSTEAD_OF_INFRONT
 	if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
-		PlayerTrail_Add( ent->s.old_origin );
+		#else // USE_VISIBILE_INSTEAD_OF_INFRONT
+	if ( !SVG_Entity_IsInFrontOf( ent, PlayerTrail_LastSpot() ) ) {
+		#endif // USE_VISIBILE_INSTEAD_OF_INFRONT
+		PlayerTrail_Add( ent->currentOrigin );
 	}
 
 	/**

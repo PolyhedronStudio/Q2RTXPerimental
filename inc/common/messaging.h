@@ -354,7 +354,7 @@ void MSG_ReadDir8( vec3_t dir );
 **/
 void MSG_ParseDeltaUserCommand( const usercmd_t *from, usercmd_t *cmd );
 /**
-* @brief Reads out entity number of current message in the buffer.
+*    @brief    Reads out entity number of current message in the buffer.
 *
 * @param remove     Set to true in case a remove bit was send along the wire..
 * @param byteMask   Mask containing all the bits of message data to read out.
