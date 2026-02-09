@@ -61,7 +61,7 @@ struct svg_nav_path_policy_t {
 	double min_step_normal = 0.7;
 	//! Minimum step height that is considered as and can be stepped over.
 	double min_step_height = 1.;
-	//! Maximum step height that can be stepped over.
+	//! Maximum step height that can be stepped over (matches `nav_max_step`).
 	double max_step_height = 18.0;
 
 	/**
@@ -77,8 +77,20 @@ struct svg_nav_path_policy_t {
 	**/
 	//! If true, do not allow moving into a drop deeper than drop_max_height.
 	bool cap_drop_height = true;
-	//! Max allowed drop height (units).
+	//! Max allowed drop height (units, matches `nav_max_drop`).
 	double max_drop_height = 128.0;
+	//! Drop cap applied when rejecting large downward transitions (matches `nav_drop_cap`).
+	double drop_cap = 64.0;
+
+	/**
+	*	Agent navigation constraints derived from nav CVars.
+	**/
+	//! Agent bounding box minimum extents in feet-origin space (matches `nav_agent_mins_*`).
+	Vector3 agent_mins = { -16.0f, -16.0f, -36.0f };
+	//! Agent bounding box maximum extents in feet-origin space (matches `nav_agent_maxs_*`).
+	Vector3 agent_maxs = { 16.0f, 16.0f, 36.0f };
+	//! Maximum walkable slope in degrees (matches `nav_max_slope_deg`).
+	double max_slope_deg = 70.0;
 
 	/**
 	*	Layer selection tuning:

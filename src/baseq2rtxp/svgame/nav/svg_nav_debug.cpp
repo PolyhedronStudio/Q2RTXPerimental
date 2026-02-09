@@ -47,6 +47,21 @@ cvar_t *nav_debug_draw_samples = nullptr;
 cvar_t *nav_debug_draw_path = nullptr;
 //! Temporary cvar to enable printing of failed nav lookup diagnostics (tile/cell indices).
 cvar_t *nav_debug_show_failed_lookups = nullptr;
+//! Optional toggle to draw/log edges rejected for clearance or drop cap violations.
+cvar_t *nav_debug_draw_rejects = nullptr;
+
+/**
+*	@brief	Describes a rejected edge for optional debug visualization.
+**/
+struct nav_debug_reject_t {
+	Vector3 start;
+	Vector3 end;
+	nav_debug_reject_reason_t reason;
+};
+//! Stored rejection events collected during the current server frame.
+static std::vector<nav_debug_reject_t> s_nav_debug_rejects = {};
+//! Maximum number of rejection events to retain before dropping the oldest entry.
+static constexpr size_t NAV_DEBUG_MAX_REJECTS = 512;
 
 
 
@@ -83,6 +98,27 @@ void NavDebug_ClearCachedPaths( void ) {
 		SVG_Nav_FreeTraversalPath( &entry.path );
 	}
 	s_nav_debug_cached_paths.clear();
+	NavDebug_ClearRejects();
+}
+
+/**
+*	@brief	Record an edge rejection for later debug draw/logging.
+**/
+void NavDebug_RecordReject( const Vector3 &start, const Vector3 &end, nav_debug_reject_reason_t reason ) {
+	if ( !nav_debug_draw_rejects || nav_debug_draw_rejects->integer == 0 ) {
+		return;
+	}
+	if ( s_nav_debug_rejects.size() >= NAV_DEBUG_MAX_REJECTS ) {
+		s_nav_debug_rejects.erase( s_nav_debug_rejects.begin() );
+	}
+	s_nav_debug_rejects.push_back( nav_debug_reject_t{ start, end, reason } );
+}
+
+/**
+*	@brief	Clear all recorded rejection events.
+**/
+void NavDebug_ClearRejects( void ) {
+	s_nav_debug_rejects.clear();
 }
 
 
@@ -322,6 +358,23 @@ void SVG_Nav_DebugDraw( void ) {
 				NavDebug_ConsumeSegments( 1 );
 			}
 		}
+	}
+	/**
+	*	Draw/log any edges that were rejected this frame when instrumentation is enabled.
+	**/
+	if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 && !s_nav_debug_rejects.empty() ) {
+		for ( const nav_debug_reject_t &reject : s_nav_debug_rejects ) {
+			const char *reason = ( reject.reason == NAV_DEBUG_REJECT_REASON_CLEARANCE ) ? "clearance" : "drop cap";
+			gi.dprintf( "[DEBUG][NavPath][Reject] %s edge from (%.1f %.1f %.1f) to (%.1f %.1f %.1f)\n",
+				reason,
+				reject.start.x, reject.start.y, reject.start.z,
+				reject.end.x, reject.end.y, reject.end.z );
+			if ( NavDebug_CanEmitSegments( 1 ) ) {
+				SVG_DebugDrawLine_TE( reject.start, reject.end, MULTICAST_PVS, false );
+				NavDebug_ConsumeSegments( 1 );
+			}
+		}
+		s_nav_debug_rejects.clear();
 	}
 
 	const nav_mesh_t *mesh = g_nav_mesh.get();

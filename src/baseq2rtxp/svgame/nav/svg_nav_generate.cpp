@@ -233,22 +233,59 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
         s_trace_attempt_count++;
 
         // Record valid upward-facing hit surfaces.
-        if ( trace.fraction < 1.0f && trace.plane.normal[2] > 0.0f ) {
-            s_trace_hit_count++;
-            // Enforce slope threshold in terms of normal.z.
-            if ( ( trace.plane.normal[2] >= cosf( max_slope_deg * DEG_TO_RAD ) ) ) {
-                temp_layers[num_layers].z_quantized = (int16_t)( trace.endpos[2] / z_quant );
-                temp_layers[num_layers].flags = DetectContentFlags( trace );
-                temp_layers[num_layers].clearance = 0;
-                num_layers++;
-                current_z = trace.endpos[2] - 1.0f;
+            if ( trace.fraction < 1.0f && trace.plane.normal[2] > 0.0f ) {
+                s_trace_hit_count++;
+                // Enforce slope threshold in terms of normal.z.
+                if ( ( trace.plane.normal[2] >= cosf( max_slope_deg * DEG_TO_RAD ) ) ) {
+                    temp_layers[num_layers].z_quantized = (int16_t)( trace.endpos[2] / z_quant );
+                    temp_layers[num_layers].flags = DetectContentFlags( trace );
+
+                    /**
+                    *    Trace upward from the detected floor to measure the next obstruction
+                    *    and derive vertical clearance in quantized units.
+                    **/
+                    const double clearance_probe_start_z = trace.endpos[2] + 1.0;
+                    double ceiling_z = z_max;
+                    if ( clearance_probe_start_z < z_max ) {
+                        Vector3 ceiling_start = xy_pos;
+                        ceiling_start[2] = clearance_probe_start_z;
+                        Vector3 ceiling_end = xy_pos;
+                        ceiling_end[2] = z_max;
+
+                        cm_trace_t ceiling_trace;
+                        if ( clip_entity ) {
+                            ceiling_trace = gi.clip( clip_entity, &ceiling_start, &mins, &maxs, &ceiling_end, CM_CONTENTMASK_SOLID );
+                        } else {
+                            ceiling_trace = gi.trace( &ceiling_start, &mins, &maxs, &ceiling_end, nullptr, CM_CONTENTMASK_SOLID );
+                        }
+
+                        if ( ceiling_trace.fraction < 1.0f ) {
+                            ceiling_z = ceiling_trace.endpos[2];
+                        }
+                    }
+
+                    double clearance_world = ceiling_z - trace.endpos[2];
+                    if ( clearance_world < 0.0 ) {
+                        clearance_world = 0.0;
+                    }
+
+				int32_t clearance_quants = (int32_t)std::floor( clearance_world / z_quant );
+                    if ( clearance_quants > 255 ) {
+                        clearance_quants = 255;
+                    } else if ( clearance_quants < 0 ) {
+                        clearance_quants = 0;
+                    }
+                    temp_layers[num_layers].clearance = (uint8_t)clearance_quants;
+
+                    num_layers++;
+                    current_z = trace.endpos[2] - 1.0f;
+                } else {
+                    s_slope_reject_count++;
+                    current_z = trace.endpos[2] - 1.0f;
+                }
             } else {
-                s_slope_reject_count++;
-                current_z = trace.endpos[2] - 1.0f;
+                current_z -= step_down;
             }
-        } else {
-            current_z -= step_down;
-        }
     }
 
     /**

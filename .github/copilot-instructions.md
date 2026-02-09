@@ -13,6 +13,35 @@
 - Prefer Doxygen-style comments with tab-indented @tags (e.g., /**\n*\t@brief ...\n*\t@note ...\n**/) and section header blocks in .cpp files.
 - Use explanatory // comments before small code blocks.
 
+## Global/static variable documentation
+
+- When defining a global (file-scope) or namespace-scope variable, document it with a `//!` comment on the line immediately preceding the variable.
+- The `//!` comment must describe what the variable represents and/or what it is used for.
+- If a `//!`-above style would significantly disrupt the surrounding formatting (rare), it is acceptable to use a nearby short block comment, but the preference is always `//!`.
+
+Example:
+
+```cpp
+//! An actual descriptive name of what this variable is and/or might be used for.
+int32_t descriptiveVariableName;
+```
+
+## Control-flow / condition intent comments
+
+- For non-trivial `if` statements and `for`/`while` loops, add a short comment explaining **WHY** the condition exists and **WHAT** it is checking for.
+- Prefer placing this comment immediately above the statement (or immediately above the controlling condition if wrapped across lines).
+
+Example:
+
+```cpp
+//! Maximum amount of loop iterations.
+int32_t maxLength = 0;
+//! Iterate over the loop and explain here why/what it is up to.
+for ( int32_t i = 0; i < maxLength; i++ ) {
+	// ..
+}
+```
+
 ### Function-block comment style
 - For blocks of code designated to a specified action inside a function, prefer a short starred comment block that explains the purpose of that code section. If the block appears inside a class declaration, keep it as a brief topic keyword section instead.
 - Example usage inside a function:
@@ -139,8 +168,7 @@ To avoid missing comments in future edits, every PR that modifies C++ code must 
 
 Enforcement: any PR that modifies C++ files must include in its description a copy of the checklist annotated for each modified file (which function sections were added/changed and where comments were placed). CI may add automated checks to reject PRs that fail to include the required comment blocks.
 
-Template for new/modified functions (copy into PR description to show compliance):
-
+### Template for new/modified functions (copy into PR description to show compliance):
 ```cpp
 /**
 *    @brief	Short description of function purpose.
@@ -171,7 +199,6 @@ ReturnType FuncName( Params ) {
     return result;
 }
 ```
-
 When in doubt: add a comment. It's preferable to be slightly verbose rather than leave intent unclear.
 
 - Example brief topic inside a class declaration:
@@ -183,7 +210,8 @@ When in doubt: add a comment. It's preferable to be slightly verbose rather than
 *        - Uses nav heuristics to avoid large drops.
 **/
 ```
-// Explicit Doxygen and sanity-check comments
+
+### Explicit Doxygen and sanity-check comments
 - Add full Doxygen-style comment blocks for functions, using a tab after the leading `*` for tags and lines. Include any useful @brief, @param, @return, @note or @description entries. Be explicit even for simple functions — rather be slightly verbose than unclear.
 - Also comment small/sanity-check code blocks inside functions (e.g., null checks, early returns) so future readers immediately see intent.
 - Example function header with Doxygen tags and a commented sanity-check block:
@@ -215,11 +243,12 @@ bool ResetNumbersList( int *numList, int numCount ) {
         // Reset the entry to 0.
         numList[ i ] = 0;
     }
-    // Completed succesfully, return true.
+    // Completed successfully, return true.
     return true;
 }
 ```
-// Emphasize commenting intent for small helper sections
+
+### Emphasize commenting intent for small helper sections
 - It's better to be slightly too obvious than unclear. Small helpers and sections that perform a single logical action should have a short comment block describing intent, inputs, and any invariants. Example:
 
 ```cpp

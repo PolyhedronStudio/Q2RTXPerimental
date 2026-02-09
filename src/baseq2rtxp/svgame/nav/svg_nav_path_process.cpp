@@ -16,8 +16,28 @@
 #include "svgame/nav/svg_nav_traversal.h"
 
 extern cvar_t *nav_max_step;
-extern cvar_t *nav_max_drop;
+extern cvar_t *nav_drop_cap;
 extern cvar_t *nav_debug_draw;
+
+/**
+*	@brief    Build a traversal policy mirroring the provided agent profile.
+*	@param    profile    Agent hull/extents and traversal limits.
+*	@return   Policy whose bounds (bbox, steps, drops, slope) match the profile.
+**/
+static svg_nav_path_policy_t SVG_Nav_BuildPolicyFromAgentProfile( const nav_agent_profile_t &profile ) {
+    /**
+    *	Copy profile data into the policy so any later modifications can layer
+    *	on top without mutating the original profile.
+    **/
+    svg_nav_path_policy_t policy = {};
+    policy.agent_mins = profile.mins;
+    policy.agent_maxs = profile.maxs;
+    policy.max_step_height = profile.max_step_height;
+    policy.max_drop_height = profile.max_drop_height;
+    policy.drop_cap = profile.drop_cap;
+    policy.max_slope_deg = profile.max_slope_deg;
+    return policy;
+}
 
 /**
 *
@@ -133,8 +153,21 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 
 	if ( doVerboseDebug ) {
 		gi.dprintf( "[DEBUG][NavPath] nav_max_step=%.1f\n", nav_max_step ? nav_max_step->value : -1.0f );
-		gi.dprintf( "[DEBUG][NavPath] nav_max_drop=%.1f\n", nav_max_drop ? nav_max_drop->value : 100.0f );
+		gi.dprintf( "[DEBUG][NavPath] nav_drop_cap=%.1f\n", nav_drop_cap ? nav_drop_cap->value : 100.0f );
 	}
+
+	/**
+	*    Align the working policy with the runtime agent profile.
+	**/
+	const nav_agent_profile_t agentProfile = SVG_Nav_BuildAgentProfileFromCvars();
+	svg_nav_path_policy_t resolvedPolicy = policy;
+	const svg_nav_path_policy_t profilePolicy = SVG_Nav_BuildPolicyFromAgentProfile( agentProfile );
+	resolvedPolicy.agent_mins = profilePolicy.agent_mins;
+	resolvedPolicy.agent_maxs = profilePolicy.agent_maxs;
+	resolvedPolicy.max_step_height = profilePolicy.max_step_height;
+	resolvedPolicy.max_drop_height = profilePolicy.max_drop_height;
+	resolvedPolicy.drop_cap = profilePolicy.drop_cap;
+	resolvedPolicy.max_slope_deg = profilePolicy.max_slope_deg;
 
 	/**
 	*	Pre-check: warn if the vertical gap already exceeds the effective step height.
@@ -142,14 +175,12 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	**/
 	// Compute absolute Z difference between endpoints.
 	const float zGap = fabsf( goal_origin.z - start_origin.z );
-    // Determine effective step limit to use for the pre-check. Prefer the
-    // per-policy max_step_height when it is positive, otherwise fall back
-    // to the global `nav_max_step` cvar. This makes policy the authoritative
-    // source for agent-specific capabilities while preserving a global
-    // default for older code/configs.
-    const float stepLimit = ( policy.max_step_height > 0.0 )
-        ? ( float )policy.max_step_height
-        : ( nav_max_step ? nav_max_step->value : -1.0f );
+	// Determine effective step limit to use for the pre-check. Prefer the
+	// per-profile max_step_height when it is positive, otherwise fall back
+	// to the global `nav_max_step` cvar so agent tuning is not lost.
+	const float stepLimit = ( resolvedPolicy.max_step_height > 0.0 )
+		? ( float )resolvedPolicy.max_step_height
+		: ( nav_max_step ? nav_max_step->value : -1.0f );
 	// Emit warning if we are outside typical step traversal constraints.
 	if ( doVerboseDebug && stepLimit > 0.0f && zGap > stepLimit ) {
 		gi.dprintf( "[WARNING][NavPath] Z gap (%.1f) between start and goal exceeds nav_max_step (%.1f)! Pathfinding will likely fail.\n", zGap, stepLimit );
@@ -231,17 +262,17 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	*	Run navigation query to rebuild path using explicit bbox.
 	*		We pass `this` so A* can apply per-entity failure penalties.
 	**/
-    const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox(
-        start_center,
-        goal_center,
-        &path,
-        agent_center_mins,
-        agent_center_maxs,
-        &policy,
-        policy.enable_goal_z_layer_blend,
-        policy.blend_start_dist,
-        policy.blend_full_dist,
-        this );
+	const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox(
+	    start_center,
+	    goal_center,
+	    &path,
+	    agent_center_mins,
+	    agent_center_maxs,
+	    &resolvedPolicy,
+	    resolvedPolicy.enable_goal_z_layer_blend,
+	    resolvedPolicy.blend_start_dist,
+	    resolvedPolicy.blend_full_dist,
+	    this );
 	// Note: pass path-process (this) into the traversal generator to allow
 	// A* to use recent failure/backoff timing for per-entity failure penalties.
 	gi.dprintf( "[DEBUG][NavPath] SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox returned %d\n", ok ? 1 : 0 );
@@ -251,10 +282,18 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	*		Reject paths that contain large downward transitions.
 	*		Even if an edge is technically traversable, large drops can be undesirable for AI.
 	**/
-    bool dropLimitOk = true;
-    // Determine the effective max drop to enforce on paths. Prefer policy settings when enabled,
-    // otherwise fall back to the global nav_max_drop cvar.
-    const float maxDrop = ( policy.cap_drop_height ) ? ( float )policy.max_drop_height : ( nav_max_drop ? nav_max_drop->value : 100.0f );
+	bool dropLimitOk = true;
+	// Determine the effective max drop to enforce on paths. Prefer policy settings when enabled,
+	// otherwise fall back to the global nav_drop_cap cvar.
+	/**
+	*    Determine drop rejection limit:
+	*        Prefer an explicit policy drop cap when positive, otherwise use the
+	*        per-policy max drop when dropping is capped. Fall back to the global
+	*        drop cap when no policy value is configured.
+	**/
+	const float maxDrop = ( resolvedPolicy.drop_cap > 0.0f )
+	    ? ( float )resolvedPolicy.drop_cap
+	    : ( resolvedPolicy.cap_drop_height ? ( float )resolvedPolicy.max_drop_height : ( nav_drop_cap ? nav_drop_cap->value : 100.0f ) );
 	if ( ok && path.num_points > 1 && path.points ) {
 		// Scan each segment for excessive vertical drop.
 		for ( int32_t i = 1; i < path.num_points; ++i ) {
@@ -537,7 +576,7 @@ const bool svg_nav_path_process_t::QueryDirection2D( const Vector3 &current_orig
 	**/
 	Vector3 dir = {};
 	int32_t idx = path_index;
-	const bool ok = SVG_Nav_QueryMovementDirection( &path, query_origin, policy.waypoint_radius, &idx, &dir );
+	const bool ok = SVG_Nav_QueryMovementDirection( &path, query_origin, policy.waypoint_radius, &policy, &idx, &dir );
 
 	/**
 	*	Sanity: do not update state if the query failed.
@@ -600,7 +639,7 @@ const bool svg_nav_path_process_t::QueryDirection3D( const Vector3 &current_orig
 	**/
 	Vector3 dir = {};
 	int32_t idx = path_index;
-	const bool ok = SVG_Nav_QueryMovementDirection_Advance2D_Output3D( &path, query_origin, policy.waypoint_radius, &idx, &dir );
+	const bool ok = SVG_Nav_QueryMovementDirection_Advance2D_Output3D( &path, query_origin, policy.waypoint_radius, &policy, &idx, &dir );
 
 	/**
 	*	Sanity: do not update state if the query failed.

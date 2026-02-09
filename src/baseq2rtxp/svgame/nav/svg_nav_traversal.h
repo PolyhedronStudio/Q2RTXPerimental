@@ -76,12 +76,13 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
 *   @param  path            Path to follow.
 *   @param  current_origin  Current world-space origin.
 *   @param  waypoint_radius Radius for waypoint completion.
-*   @param  inout_index     Current waypoint index (updated on success).
-*   @param  out_direction   Output normalized movement direction.
+ *   @param  policy          Optional traversal policy for per-agent step/drop limits.
+ *   @param  inout_index     Current waypoint index (updated on success).
+ *   @param  out_direction   Output normalized movement direction.
 *   @return True if a valid direction was produced, false if path is complete/invalid.
 **/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin,
-	double waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
+	double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 *out_direction );
 
 
 

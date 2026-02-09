@@ -23,7 +23,7 @@
 #include "common/files.h"
 
 extern cvar_t *nav_max_step;
-extern cvar_t *nav_max_drop;
+extern cvar_t *nav_drop_cap;
 extern cvar_t *nav_debug_draw;
 extern cvar_t *nav_debug_draw_path;
 
@@ -230,6 +230,12 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 				noNodeCount++;
 				continue;
 			}
+
+			// Reject downward transitions that exceed the caller-provided drop cap before running expensive traces.
+			const double neighbor_drop = current.node.position[ 2 ] - neighbor_node.position[ 2 ];
+			if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->drop_cap ) {
+				continue;
+			}
 			// Validate edge traversal using the PMove-like step test. Pass the policy through
 			// so traversal checks can consult step/drop/jump thresholds when available.
 			if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy ) ) {
@@ -309,7 +315,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			} else {
 				// Drop cost: penalize large drops to prefer safer routes.
 				const double drop = -dz;
-				const double maxDrop = ( policy ? ( double )policy->max_drop_height : ( nav_max_drop ? nav_max_drop->value : 128.0f ) );
+				const double maxDrop = ( policy ? ( double )policy->max_drop_height : ( nav_drop_cap ? nav_drop_cap->value : 128.0f ) );
 				if ( drop > 0.0f ) {
 					extraCost += dropWeight * ( drop / std::max( maxDrop, 1.0 ) );
 				}
@@ -473,7 +479,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			neighborTryCount, noNodeCount, edgeRejectCount, tileFilterRejectCount );
 		gi.dprintf( "[DEBUG][NavPath][Diag] A* inputs: max_step=%.1f max_drop=%.1f cell_size_xy=%.1f z_quant=%.1f\n",
 			nav_max_step ? nav_max_step->value : -1.0f,
-			nav_max_drop ? nav_max_drop->value : -1.0f,
+			nav_drop_cap ? nav_drop_cap->value : -1.0f,
 			mesh ? ( float )mesh->cell_size_xy : -1.0f,
 			mesh ? ( float )mesh->z_quant : -1.0f );
 		Nav_Debug_PrintNodeRef( "start_node", start_node );
@@ -494,9 +500,9 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		gi.dprintf( "[WARNING][NavPath][A*]   2. All potential paths are blocked by obstacles\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   3. Edge validation (Nav_CanTraverseStep) rejected all connections\n" );
 		gi.dprintf( "[WARNING][NavPath][A*] Suggestions:\n" );
-		gi.dprintf( "[WARNING][NavPath][A*]   - Check nav_max_step (current: %.1f) and nav_max_drop (current: %.1f)\n",
+		gi.dprintf( "[WARNING][NavPath][A*]   - Check nav_max_step (current: %.1f) and nav_drop_cap (current: %.1f)\n",
 			nav_max_step ? nav_max_step->value : -1.0f,
-			nav_max_drop ? nav_max_drop->value : -1.0f );
+			nav_drop_cap ? nav_drop_cap->value : -1.0f );
 		gi.dprintf( "[WARNING][NavPath][A*]   - Verify navmesh has stairs/ramps connecting the Z-levels\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   - Use 'nav_debug_draw 1' to visualize the navmesh\n" );
 	}
@@ -864,12 +870,13 @@ void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path ) {
 *   @param  path            Path to follow.
 *   @param  current_origin  Current world-space origin.
 *   @param  waypoint_radius Radius for waypoint completion.
+*   @param  policy          Optional traversal policy for per-agent constraints.
 *   @param  inout_index     Current waypoint index (updated on success).
 *   @param  out_direction   Output normalized movement direction.
 *   @return True if a valid direction was produced, false if path is complete/invalid.
 **/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin,
-	double waypoint_radius, int32_t *inout_index, Vector3 *out_direction ) {
+	double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 *out_direction ) {
 /**
 *	Sanity checks: validate inputs and ensure we have a usable path.
 **/
@@ -952,7 +959,12 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
 
 	// clamp Z to a reasonable step height if the nav mesh is available
 	if ( g_nav_mesh ) {
-		const double maxDz = g_nav_mesh->max_step + g_nav_mesh->z_quant;
+		// Determine the effective step limit (policy overrides mesh defaults when present).
+		double stepLimit = g_nav_mesh->max_step;
+		if ( policy && policy->max_step_height > 0.0 ) {
+			stepLimit = policy->max_step_height;
+		}
+		const double maxDz = stepLimit + g_nav_mesh->z_quant;
 		if ( direction[ 2 ] > maxDz ) {
 			direction[ 2 ] = maxDz;
 		} else if ( direction[ 2 ] < -maxDz ) {
@@ -1059,6 +1071,20 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	const double stepSize = ( policy ? ( double )policy->max_step_height : mesh->max_step );
 	const double minStep = ( policy ? ( double )policy->min_step_height : eps );
 
+	/**
+	*    Drop cap enforcement: respect the caller's policy before attempting any traces
+	*    so we can early-out on overly deep downward transitions.
+	**/
+	const double dropCap = ( policy ? ( double )policy->drop_cap : ( nav_drop_cap ? nav_drop_cap->value : 128.0f ) );
+	const double requiredDown = std::max( 0.0, ( double )startPos[ 2 ] - ( double )endPos[ 2 ] );
+	/**
+	*    Reject edges that attempt to drop farther than the configured cap before tracing.
+	**/
+	if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
+		NavDebug_RecordReject( startPos, endPos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
+		return false;
+	}
+
 	// Compute the vertical travel we must be able to step up to reach endPos.
 	const double requiredUp = std::max( 0.0, desiredDz );
 
@@ -1104,6 +1130,10 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 		// Ensure we actually achieved (at least) the required step height.
 		const double actualUp = upTr.endpos[ 2 ] - start[ 2 ];
 		if ( actualUp + eps < requiredUp ) {
+			/**
+			*    Reject edges when we cannot gain the required vertical clearance.
+			**/
+			NavDebug_RecordReject( start, upTr.endpos, NAV_DEBUG_REJECT_REASON_CLEARANCE );
 			return false;
 		}
 
@@ -1199,6 +1229,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	if ( policy && policy->cap_drop_height ) {
 		const double drop = start[ 2 ] - downTr.endpos[ 2 ];
 		if ( drop > ( double )policy->max_drop_height ) {
+			NavDebug_RecordReject( start, downTr.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
 			return false;
 		}
 	}

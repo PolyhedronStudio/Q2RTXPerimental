@@ -23,7 +23,8 @@ Generates the navigation voxelmesh for the currently loaded level and prints sta
 | `nav_z_quant` | 2 | Z-axis quantization step |
 | `nav_tile_size` | 32 | Number of cells per tile dimension |
 | `nav_max_step` | 18 | Maximum step height (matches PM_STEP_MAX_SIZE) |
-| `nav_max_drop` | 18 | Maximum downard(Z) height that agents can drop safely |
+| `nav_max_drop` | 128 | Maximum safe downward drop height before traversal is rejected |
+| `nav_drop_cap` | 18 | Maximum downard(Z) height that agents can drop safely |
 | `nav_max_slope_deg` | 45.57 | Maximum walkable slope in degrees (matches PM_STEP_MIN_NORMAL = 0.7) |
 | `nav_agent_mins_x` | -16 | Agent bounding box minimum X |
 | `nav_agent_mins_y` | -16 | Agent bounding box minimum Y |
@@ -79,7 +80,7 @@ A single Z layer with:
 
 ### Multi-Layer Detection
 - Performs repeated downward traces at each XY column
-- Checks for walkable slopes (normal.z >= cos(max_slope_deg))
+- Checks for walkable slopes (normal.z >= cos(max_slope_deg)) and step heights
 - Detects content flags (water, lava, slime)
 - Stores all walkable layers, not just the topmost hit
 

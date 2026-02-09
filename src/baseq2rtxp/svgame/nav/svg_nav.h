@@ -60,6 +60,25 @@ typedef struct nav_layer_s {
 } nav_layer_t;
 
 /**
+*   @brief  Profile describing an agent's navigation hull and constraints.
+*   @note   Used to centralize step/drop/slope limits when tuning traversal heuristics.
+**/
+typedef struct nav_agent_profile_s {
+    //! Agent hull minimum offsets in nav-center space.
+    Vector3 mins;
+    //! Agent hull maximum offsets in nav-center space.
+    Vector3 maxs;
+    //! Maximum step height this agent can traverse (world units).
+    double max_step_height;
+    //! Maximum vertical drop permitted during traversal (world units).
+    double max_drop_height;
+    //! Drop cap applied during path post-processing (world units).
+    double drop_cap;
+    //! Maximum walkable slope steepness in degrees.
+    double max_slope_deg;
+} nav_agent_profile_t;
+
+/**
 *   @brief  XY cell entry containing multiple Z layers.
 *           Supports multi-floor environments where multiple walkable surfaces
 *           exist at the same XY coordinate.
@@ -214,6 +233,13 @@ struct nav_tile_cluster_graph_t {
 *	@note	Intended to be cheap enough to call once per frame.
 **/
 void SVG_Nav_RefreshInlineModelRuntime( void );
+
+/**
+*   @brief  Build a navigation agent profile using registered nav cvars.
+*   @note   Provides default hull/traversal limits when called early in startup.
+*   @return Populated nav_agent_profile_t describing hull extents and traversal constraints.
+**/
+nav_agent_profile_t SVG_Nav_BuildAgentProfileFromCvars( void );
 
 /**
 *    @brief    Runtime occupancy entry used for dynamic blocking/penalties.
@@ -402,6 +428,9 @@ extern cvar_t *nav_cell_size_xy;    //! XY grid cell size in world units.
 extern cvar_t *nav_z_quant;         //! Z-axis quantization step.
 extern cvar_t *nav_tile_size;       //! Number of cells per tile dimension.
 extern cvar_t *nav_max_step;        //! Maximum step height.
+extern cvar_t *nav_max_drop;        //! Maximum allowed downward traversal drop.
+extern cvar_t *nav_drop_cap;        //! Maximum drop height.
+extern cvar_t *nav_drop_cap;        //! Cap applied when rejecting excessive drops.
 extern cvar_t *nav_max_slope_deg;   //! Maximum walkable slope in degrees.
 extern cvar_t *nav_agent_mins_x;    //! Agent bounding box minimum X.
 extern cvar_t *nav_agent_mins_y;    //! Agent bounding box minimum Y.
@@ -733,27 +762,29 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
 
 /**
-*   @brief  Query movement direction along a traversal path.
-*           Advances the waypoint index as the caller reaches waypoints.
-*   @param  path            Path to follow.
-*   @param  current_origin  Current world-space origin.
-*   @param  waypoint_radius Radius for waypoint completion.
-*   @param  inout_index     Current waypoint index (updated on success).
-*   @param  out_direction   Output normalized movement direction.
-*   @return True if a valid direction was produced, false if path is complete/invalid.
-**/
-const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
+ *   @brief  Query movement direction along a traversal path.
+ *           Advances the waypoint index as the caller reaches waypoints.
+ *   @param  path            Path to follow.
+ *   @param  current_origin  Current world-space origin.
+ *   @param  waypoint_radius Radius for waypoint completion.
+ *   @param  policy          Optional traversal policy for per-agent step/drop limits.
+ *   @param  inout_index     Current waypoint index (updated on success).
+ *   @param  out_direction   Output normalized movement direction.
+ *   @return True if a valid direction was produced, false if path is complete/invalid.
+ **/
+const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 *out_direction );
 /**
  *   @brief  Query movement direction while advancing waypoints in 2D and emitting 3D directions.
  *           Useful for stair traversal so the vertical component can be used separately from waypoint completion.
  *   @param  path            Path to follow.
  *   @param  current_origin  Current world-space origin.
  *   @param  waypoint_radius Radius for waypoint completion (2D).
+ *   @param  policy          Optional traversal policy for per-agent step/drop limits.
  *   @param  inout_index     Current waypoint index (updated as 2D waypoints are reached).
  *   @param  out_direction   Output normalized 3D movement direction.
  *   @return True if a valid direction was produced, false if the path is invalid or complete.
  **/
-const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, int32_t *inout_index, Vector3 *out_direction );
+const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 *out_direction );
 
 
 
