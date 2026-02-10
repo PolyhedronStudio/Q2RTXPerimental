@@ -37,6 +37,7 @@ extern std::vector<nav_debug_cached_path_t> s_nav_debug_cached_paths;
 typedef enum nav_debug_reject_reason_s {
 	NAV_DEBUG_REJECT_REASON_DROP_CAP = 0, //! Edge dropped for exceeding the allowed drop cap.
 	NAV_DEBUG_REJECT_REASON_CLEARANCE = 1, //! Edge rejected because the mover lacked the clearance to climb.
+	NAV_DEBUG_REJECT_REASON_SLOPE = 2, //! Edge rejected for exceeding the allowed slope.
 } nav_debug_reject_reason_t;
 
 /**

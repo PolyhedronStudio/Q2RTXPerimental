@@ -809,9 +809,6 @@ void SVG_RunFrame(void) {
     SVG_PushMove_UpdateMoveWithEntities();
 	//! Make sure to update the navigation system.
 	SVG_Nav_RefreshInlineModelRuntime();
-	// Navigation debug draw (runtime).
-	// Needs a built mesh (`nav_gen_voxelmesh`) and `nav_debug_draw 1`.
-	SVG_Nav_DebugDraw();
 
 	/**
 	*	WID: LUA: CallBack.
@@ -836,4 +833,8 @@ void SVG_RunFrame(void) {
 	*	WID: LUA: CallBack.
 	**/
     SVG_Lua_CallBack_EndServerFrame();
+
+	// Navigation debug draw (runtime).
+	// Needs a built mesh (`nav_gen_voxelmesh`) and `nav_debug_draw 1`.
+	SVG_Nav_DebugDraw();
 }

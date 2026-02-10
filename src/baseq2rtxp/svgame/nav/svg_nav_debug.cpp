@@ -364,11 +364,12 @@ void SVG_Nav_DebugDraw( void ) {
 	**/
 	if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 && !s_nav_debug_rejects.empty() ) {
 		for ( const nav_debug_reject_t &reject : s_nav_debug_rejects ) {
-			const char *reason = ( reject.reason == NAV_DEBUG_REJECT_REASON_CLEARANCE ) ? "clearance" : "drop cap";
+			const char *reason = ( reject.reason == NAV_DEBUG_REJECT_REASON_CLEARANCE ) ? "clearance" : ( reject.reason == NAV_DEBUG_REJECT_REASON_SLOPE ? "slope" : "drop cap" );
 			gi.dprintf( "[DEBUG][NavPath][Reject] %s edge from (%.1f %.1f %.1f) to (%.1f %.1f %.1f)\n",
 				reason,
 				reject.start.x, reject.start.y, reject.start.z,
 				reject.end.x, reject.end.y, reject.end.z );
+
 			if ( NavDebug_CanEmitSegments( 1 ) ) {
 				SVG_DebugDrawLine_TE( reject.start, reject.end, MULTICAST_PVS, false );
 				NavDebug_ConsumeSegments( 1 );

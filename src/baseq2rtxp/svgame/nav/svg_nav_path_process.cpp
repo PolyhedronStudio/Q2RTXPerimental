@@ -187,6 +187,13 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	}
 
 	/**
+	* 	Track whether we already have a usable path.
+	* 		This lets us treat throttle/backoff skips as "no rebuild needed"
+	* 		instead of "pathing failure" so callers can keep following the old path.
+	**/
+	const bool hasExistingPath = ( path.num_points > 0 && path.points );
+
+	/**
 	*	Throttle/backoff checks:
 	*		Normally we enforce both the per-policy rebuild interval and any failure
 	*		backoff to avoid repeated expensive attempts.
@@ -201,7 +208,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	*		- If the goal moved far enough in Z (e.g. upstairs), allow an attempt even
 	*		  during backoff so we can react to floor transitions.
 	**/
-	const bool hasExistingPath = ( path.num_points > 0 && path.points );
+	//const bool hasExistingPath = ( path.num_points > 0 && path.points );
 	const float goalMovedZ = fabsf( goal_origin.z - path_goal.z );
 	const float forceZThreshold = ( stepLimit > 0.0f ) ? ( stepLimit * 2.0f ) : 36.0f;
 	const bool forceForGoalZ = ( goalMovedZ >= forceZThreshold );
@@ -215,7 +222,11 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	*		spam logs and stall the game when a route is impossible.
 	**/
 	if ( !force && !canAttemptRebuild ) {
-		return false;
+		/**
+		* 	Skip rebuilds while throttled/backing off.
+		* 		If we already have a path, keep using it instead of reporting failure.
+		**/
+		return hasExistingPath;
 	}
 	/**
 	*	Movement heuristic:
@@ -228,10 +239,18 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 		|| ShouldRebuildForStart2D( start_origin, policy )
 		|| ShouldRebuildForStart3D( start_origin, policy );
 	if ( !force && !hasExistingPath && !movementWarrantsRebuild ) {
+		/**
+		* 	No path exists and movement doesn't warrant rebuilding.
+		* 		Report "no path" to the caller so it can fallback appropriately.
+		**/
 		return false;
 	}
 	if ( !force && hasExistingPath && !throttleBypass && !movementWarrantsRebuild ) {
-		return false;
+		/**
+		* 	Existing path is still considered valid and the goal hasn't moved enough.
+		* 		Return true so callers keep following the current path.
+		**/
+		return true;
 	}
 
 	/**
@@ -348,7 +367,12 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	backoff_until = level.time + extra;
 	next_rebuild_time = std::max( next_rebuild_time, backoff_until );
 	gi.dprintf( "[DEBUG][NavPath] Pathfinding failed, consecutive_failures=%d, backoff_until=%lld\n", consecutive_failures, ( long long )backoff_until.Milliseconds() );
-	return false;
+	/**
+	* 	Failure outcome:
+	* 		If we restored a previous path, report success so callers can keep using it.
+	* 		If we have no usable path, report failure to trigger fallbacks.
+	**/
+	return ( path.num_points > 0 && path.points );
 }
 /**
 *	@brief	Used to determine if a path rebuild can be attempted at this time.

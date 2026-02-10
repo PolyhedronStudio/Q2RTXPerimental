@@ -21,9 +21,6 @@
 #include "common/bsp.h"
 #include "system/system.h"
 
-#include <unordered_map>
-#include <vector>
-#include <cmath>
 // Use QMTime for timing to integrate with engine time utilities.
 
 
@@ -112,8 +109,8 @@ static inline void Nav_SetPresenceBit_Load( nav_tile_t *tile, int32_t cell_index
 *	@param	trace	Collision trace result produced by CM trace/clip.
 *	@return	Bitmask of `nav_layer_flags_t` values.
 */
-static uint8_t DetectContentFlags( const cm_trace_t &trace ) {
-    uint8_t flags = NAV_FLAG_WALKABLE;
+static uint32_t DetectContentFlags( const cm_trace_t &trace ) {
+    uint32_t flags = NAV_FLAG_WALKABLE;
     if ( trace.contents & CONTENTS_WATER ) {
         flags |= NAV_FLAG_WATER;
     }
@@ -237,7 +234,15 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
                 s_trace_hit_count++;
                 // Enforce slope threshold in terms of normal.z.
                 if ( ( trace.plane.normal[2] >= cosf( max_slope_deg * DEG_TO_RAD ) ) ) {
-                    temp_layers[num_layers].z_quantized = (int16_t)( trace.endpos[2] / z_quant );
+				/**
+				*    Quantize the sampled Z using rounding so nearby layers don't collapse
+				*    downwards when the trace endpos is close to the next quant step.
+				**/
+				const double quantizedZ = std::lround( trace.endpos[ 2 ] / z_quant );
+				constexpr double quantMin = ( double )std::numeric_limits<int32_t>::min();
+				constexpr double quantMax = ( double )std::numeric_limits<int32_t>::max();
+				const double clampedZ = std::min( std::max( quantizedZ, quantMin ), quantMax );
+				temp_layers[num_layers].z_quantized = ( int32_t )clampedZ;
                     temp_layers[num_layers].flags = DetectContentFlags( trace );
 
                     /**
@@ -269,13 +274,18 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
                         clearance_world = 0.0;
                     }
 
-				int32_t clearance_quants = (int32_t)std::floor( clearance_world / z_quant );
-                    if ( clearance_quants > 255 ) {
-                        clearance_quants = 255;
-                    } else if ( clearance_quants < 0 ) {
-                        clearance_quants = 0;
-                    }
-                    temp_layers[num_layers].clearance = (uint8_t)clearance_quants;
+		int64_t clearance_quants = (int64_t)std::floor( clearance_world / z_quant );
+		if ( clearance_quants < 0 ) {
+			clearance_quants = 0;
+		}
+
+		/**
+		*    Clamp the computed clearance to the new 32-bit storage range.
+		**/
+		const uint32_t clearance_store = ( clearance_quants > ( int64_t )UINT32_MAX )
+			? UINT32_MAX
+			: ( uint32_t )clearance_quants;
+		temp_layers[num_layers].clearance = clearance_store;
 
                     num_layers++;
                     current_z = trace.endpos[2] - 1.0f;

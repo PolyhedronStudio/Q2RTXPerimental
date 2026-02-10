@@ -19,11 +19,11 @@ struct svg_nav_path_policy_t {
 	*	Timers and backoff exponent:
 	**/
 	//! Minimum time interval between path rebuild attempts.
-	QMTime rebuild_interval = 500_ms;
+	QMTime rebuild_interval = 250_ms;
 	//! Base time for exponential backoff on path rebuild failures.
-	QMTime fail_backoff_base = 250_ms;
+	QMTime fail_backoff_base = 100_ms;
 	//! Maximum exponent for backoff time (2^n).
-	int32_t fail_backoff_max_pow = 6;
+	int32_t fail_backoff_max_pow = 4;
 
 	/**
 	*	Ignore/Allow States:
@@ -35,7 +35,7 @@ struct svg_nav_path_policy_t {
 	*	Goal and Waypoint parameters:
 	**/
 	//! Radius around waypoints to consider 'reached'.
-	float waypoint_radius = 36.0;
+	float waypoint_radius = 8.0;
 
 	//! 2D distance change in goal position that triggers a path rebuild.
 	double rebuild_goal_dist_2d = 48.0;
@@ -111,7 +111,7 @@ struct svg_nav_path_policy_t {
 	//! @note	Default is tuned to be slightly above a typical stair riser so the selector
 	//!		remains stable on stairs while still allowing large Z deltas to select the
 	//!		correct floor.
-	double layer_select_prefer_z_threshold = 24.0;
+	double layer_select_prefer_z_threshold = 16.0;
 };
 
 /**

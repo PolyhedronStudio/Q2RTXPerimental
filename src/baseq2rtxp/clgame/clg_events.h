@@ -50,7 +50,7 @@
             if ( eventValue >= EV_ENGINE_MAX && clg_debug_entity_events->integer ) { \
                 clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), eventValue(#%d), eventName(%s)\n", __func__, cent->current.number, eventValue, sg_event_string_names[ eventValue ] ); \
             } \
-            if ( eventValue == EV_NONE ) { \
+            if ( eventValue == EV_NONE && clg_debug_entity_events->integer ) { \
                 clgi.Print( PRINT_DEVELOPER, "%s: entity(#%d), EV_NONE\n", __func__, cent->current.number ); \
             } \
         }

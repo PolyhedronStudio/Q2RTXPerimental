@@ -39,7 +39,7 @@
 #include "svgame/nav/svg_nav_clusters.h"
 
 // Local debug toggle for noisy per-frame prints in this test monster.
-static constexpr bool DUMMY_NAV_DEBUG = false;
+static constexpr bool DUMMY_NAV_DEBUG = true;
 
 /**
 *	@brief	Derive the nav-agent bbox (feet-origin) used for traversal/pathfinding.
@@ -438,41 +438,67 @@ void svg_monster_testdummy_t::ThinkDirectPursuit() {
 **/
 const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 {
-	if (!goalentity) {
+	/**
+	*	Sanity: cannot pathfind without a valid goal entity.
+	**/
+	if ( !goalentity ) {
 		//gi.dprintf("[DEBUG] ThinkAStarToPlayer: No goalentity, cannot path.\n");
 		return false;
 	}
 
 	/**
-	*	If the goal is on another floor (Z gap beyond our step height), do not ask the
-	*	nav system to path directly to that elevated point.
-	*		Instead we path in XY toward a reachable proxy goal on our current floor.
-	*		This prevents repeated rebuild failures (and hitches) when the player is on
-	*		a platform above a solid ceiling/floor separation.
-	**/
-	/**
 	*	Goal selection:
-	*		When the target is far above our current floor (platform/ledge), pathing to the
-	*		exact goal origin frequently fails (huge Z gap). In that case, prefer a trail
-	*		spot goal so the nav system can route to the stairs first.
+	*		Prefer breadcrumb goals when the target is out of LOS to avoid
+	*		pathing directly into unreachable tiles on another floor.
 	**/
 	Vector3 goalOrigin = goalentity->currentOrigin;
+	bool usingTrailGoal = false;
 	{
-		// Determine our effective step capability.
-		const float stepLimit = ( navPathPolicy.max_step_height > 0.0 ) ? ( float )navPathPolicy.max_step_height : 18.0f;
+		// Determine if we currently have LOS to the target.
+		const bool targetVisible = SVG_Entity_IsVisible( this, goalentity );
+		// If we do not see the target, prefer a trail spot to keep routes on valid layers.
+		if ( !targetVisible ) {
+			svg_base_edict_t *trailSpot = PlayerTrail_PickFirst( this );
+			if ( trailSpot ) {
+				goalOrigin = trailSpot->currentOrigin;
+				usingTrailGoal = true;
+			}
+		}
+	}
+
+	/**
+	*	If the goal is on another floor (Z gap beyond our step height), do not ask the
+	*	nav system to path directly to that elevated point unless we already have a
+	*	trail goal that can steer us toward stairs.
+	**/
+	{
+		// Determine our effective step capability using the configured navigation policy.
+		const float stepLimit = ( navPathPolicy.max_step_height > 0.0f )
+			? ( float )navPathPolicy.max_step_height
+			: 0.0f;
+		// Compare vertical gap against the step limit.
 		const float zGapAbs = std::fabs( goalOrigin.z - currentOrigin.z );
-		if ( zGapAbs > ( stepLimit + 1.0f ) ) {
+		// Clamp goal Z only when we are not already using a breadcrumb goal.
+		if ( !usingTrailGoal && zGapAbs > ( stepLimit + 1.0f ) ) {
 			// Clamp goal Z to our current Z so A* finds a 2D route to a staircase/connection first.
 			goalOrigin.z = currentOrigin.z;
 		}
 	}
+
+	/**
+	*	If the goal is well above our current floor and we have not already adopted a
+	*	trail target, fall back to breadcrumb navigation.
+	**/
 	{
-		const float zGapAbs = std::fabs( goalOrigin.z - currentOrigin.z );
-		// If the goal is well above our current floor, prefer breadcrumb navigation.
-		if ( zGapAbs > 96.0f ) {
-			svg_base_edict_t *trailSpot = PlayerTrail_PickFirst( this );
-			if ( trailSpot ) {
-				goalOrigin = trailSpot->currentOrigin;
+		// Only re-evaluate trail goals when we are still using the raw target.
+		if ( !usingTrailGoal ) {
+			const float zGapAbs = std::fabs( goalOrigin.z - currentOrigin.z );
+			// If the goal is well above our current floor, prefer breadcrumb navigation.
+			if ( zGapAbs > 96.0f ) {
+				svg_base_edict_t *trailSpot = PlayerTrail_PickFirst( this );
+				if ( trailSpot ) {
+					goalOrigin = trailSpot->currentOrigin;
+				}
 			}
 		}
 	}
@@ -484,21 +510,22 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 	Vector3 agent_maxs = {};
 	SVG_TestDummy_GetNavAgentBBox( this, &agent_mins, &agent_maxs );
 
-    // Configure path following policy for direct A* pursuit.
-    // These values control waypoint acceptance radius and rebuild heuristics.
-    navPathPolicy.waypoint_radius = 32.0f;
-    navPathPolicy.rebuild_goal_dist_2d = 32.0f;
-    // Use a reasonable 3D rebuild threshold (typo previously produced an absurd value).
-    navPathPolicy.rebuild_goal_dist_3d = 256.0f;
-    navPathPolicy.rebuild_interval = 250_ms;
-    navPathPolicy.fail_backoff_base = 100_ms;
-    navPathPolicy.fail_backoff_max_pow = 4;
+	// Configure path following policy for direct A* pursuit.
+	// These values control waypoint acceptance radius and rebuild heuristics.
+	navPathPolicy.waypoint_radius = 32.0f;
+	navPathPolicy.rebuild_goal_dist_2d = 32.0f;
+	// Use a reasonable 3D rebuild threshold (typo previously produced an absurd value).
+	navPathPolicy.rebuild_goal_dist_3d = 256.0f;
+	navPathPolicy.rebuild_interval = 200_ms;
+	navPathPolicy.fail_backoff_base = 60_ms;
+	navPathPolicy.fail_backoff_max_pow = 3;
 
     // Ensure step and drop safety parameters match intended agent capabilities.
     // Allow stepping up to 18 units and cap drops to 128 units when following paths.
     navPathPolicy.max_step_height = 18.0;
     navPathPolicy.max_drop_height = 128.0;
     navPathPolicy.cap_drop_height = true;
+	navPathPolicy.drop_cap = 64.0;
 
     // Goal Z-layer blending: bias layer selection toward goal Z quickly so the
     // pathfinder will prefer climbing stairs/up to the target when appropriate.
@@ -508,7 +535,7 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 
     // Small obstruction jump tuning: allow small jumps over low obstacles.
     navPathPolicy.allow_small_obstruction_jump = true;
-    navPathPolicy.max_obstruction_jump_height = 33.0;
+    navPathPolicy.max_obstruction_jump_height = 32.0;
 
 	/**
 	*	Cheap short-range fallback:
@@ -528,7 +555,7 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 			return true;
 		}
 	}
-
+	
     /**
     *    Pathfinding: build A* path using the agent bbox converted to navmesh space.
     *    svg_nav_path_process handles the coordinate conversions internally.
@@ -563,12 +590,22 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 		*		If we can see the goal (or it's in front), prefer direct pursuit rather than
 		*		idling when A* momentarily fails on vertical transitions.
 		**/
+		/**
+		* 	Fallback gating:
+		* 		Only switch to direct pursuit when the target is actually visible
+		* 		and roughly in front. This avoids oscillating to LOS pursuit when
+		* 		pathing is still valid but direction queries temporarily fail.
+		**/
 		// Do not fallback to direct-pursuit when goal is substantially above us; we need stairs.
 		const float zGapAbs = std::fabs( goalentity->currentOrigin.z - currentOrigin.z );
-		if ( zGapAbs <= 64.0f
-			&& goalentity
-			&& ( !navPathPolicy.ignore_visibility ? SVG_Entity_IsVisible( this, goalentity ) : true )
-			&& ( !navPathPolicy.ignore_infront ? SVG_Entity_IsInFrontOf( this, goalentity, { 1.0f, 1.0f, 0.0f }, 0.35 ) : true ) ) {
+		// Allow direct pursuit within the configured drop limit when we can see the goal.
+		const float maxDirectPursuitGap = ( navPathPolicy.max_drop_height > 0.0f )
+			? ( float )navPathPolicy.max_drop_height
+			: 64.0f;
+		// Require actual visibility and in-front checks for LOS fallback.
+		const bool canSeeGoal = goalentity && SVG_Entity_IsVisible( this, goalentity );
+		const bool inFrontOfGoal = goalentity && SVG_Entity_IsInFrontOf( this, goalentity, { 1.0f, 1.0f, 0.0f }, 0.35 );
+		if ( zGapAbs <= maxDirectPursuitGap && canSeeGoal && inFrontOfGoal ) {
 			if ( DUMMY_NAV_DEBUG ) {
 				gi.dprintf( "[DEBUG] ThinkAStarToPlayer: Pathfinding failed but target in front — falling back to direct pursuit.\n" );
 			}
@@ -680,24 +717,25 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
 	navPathPolicy.waypoint_radius = 32.0f;
 	navPathPolicy.rebuild_goal_dist_2d =  32.0f;
 	navPathPolicy.rebuild_goal_dist_3d = 1024.0f;
-	navPathPolicy.rebuild_interval = 100_ms;
-	navPathPolicy.fail_backoff_base = 100_ms;
-	navPathPolicy.fail_backoff_max_pow = 4;
+	navPathPolicy.rebuild_interval = 150_ms;
+	navPathPolicy.fail_backoff_base = 50_ms;
+	navPathPolicy.fail_backoff_max_pow = 3;
 
 	// Ensure step and drop safety parameters for trail-following match agent.
 	// This allows stepping up to 18 units and caps allowed drops to 128 units.
 	navPathPolicy.max_step_height = 18.0;
 	navPathPolicy.max_drop_height = 128.0;
 	navPathPolicy.cap_drop_height = true;
+	navPathPolicy.drop_cap = 64.0;
 
     // Bias layer selection toward goal Z for trail-following so the monster will
     // attempt to climb stairs to reach breadcrumb spots on higher floors.
     navPathPolicy.enable_goal_z_layer_blend = true;
     navPathPolicy.blend_start_dist = 0.0f;
-    navPathPolicy.blend_full_dist = 32.0f;
+    navPathPolicy.blend_full_dist = 32;
 
     navPathPolicy.allow_small_obstruction_jump = true;
-    navPathPolicy.max_obstruction_jump_height = 33.0;
+    navPathPolicy.max_obstruction_jump_height = 36.0;
 
     // Convert entity feet-origin bbox to navmesh-centered bbox/origins.
     // Call nav path process using entity origin; svg_nav_path_process will handle conversions.
@@ -745,7 +783,7 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
     // Compute vertical delta between nav point and our feet-origin.
     float zDelta = std::fabs( nextNavPoint_feet.z - currentOrigin.z );
     // Threshold under which we treat the waypoint as same step level
-    constexpr float zStepThreshold = 32.0f;
+    constexpr float zStepThreshold = 8.0f;
     // Base movement speed used for frame velocity calculations.
     double frameVelocity = 220.0;
     // If the target is roughly on the same horizontal plane, compute slowdown.
@@ -917,7 +955,7 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_monster_testdummy_t, onThink)(svg_monster_testd
         *    groundInfo contains the previous frame's ground data.
         **/
         // Always refresh ground and liquid state.
-        // Ground/liq state is still available in self->groundInfo.
+        // Ground/liq state is still available in self->groundInfo;
 
         /**
         *    Prepare movement state for the monster move subsystem.
@@ -971,8 +1009,14 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_monster_testdummy_t, onThink)(svg_monster_testd
 				//Vector3 end = start;
 				end.z -= self->navPathPolicy.max_drop_height;
 				svg_trace_t tr = gi.trace( &start, &self->mins, &self->maxs, &end, self, CM_CONTENTMASK_SOLID );
-				const float drop = start.z - tr.endpos[ 2 ];
-				if ( tr.fraction < 1.0f && drop > self->navPathPolicy.max_drop_height ) {
+			const float drop = start.z - tr.endpos[ 2 ];
+			/**
+			*	Determine the drop allowance derived from the path policy so we respect the drop cap.
+			**/
+			const float policyDropLimit = ( self->navPathPolicy.drop_cap > 0.0f )
+				? ( float )self->navPathPolicy.drop_cap
+				: ( self->navPathPolicy.cap_drop_height ? ( float )self->navPathPolicy.max_drop_height : 0.0f );
+			if ( tr.fraction < 1.0f && policyDropLimit > 0.0f && drop > policyDropLimit ) {
 					monsterMove.state.origin = monsterMove.state.origin - ( forwardDir * 24.f );//self->currentOrigin - forwardDir * 24.f;
 					monsterMove.state.velocity.x = 0.0f;
 					monsterMove.state.velocity.y = 0.0f;

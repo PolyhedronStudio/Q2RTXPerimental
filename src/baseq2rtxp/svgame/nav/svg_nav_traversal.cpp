@@ -22,6 +22,8 @@
 #include "common/bsp.h"
 #include "common/files.h"
 
+#include <cmath>
+
 extern cvar_t *nav_max_step;
 extern cvar_t *nav_drop_cap;
 extern cvar_t *nav_debug_draw;
@@ -45,6 +47,186 @@ static void Nav_Debug_PrintNodeRef( const char *label, const nav_node_ref_t &n )
 		label,
 		n.position.x, n.position.y, n.position.z,
 		n.key.leaf_index, n.key.tile_index, n.key.cell_index, n.key.layer_index );
+}
+
+/**
+*    @brief	Find the nearest Z-layer delta for the given node within its cell.
+*    @param	mesh		Navigation mesh containing the node.
+*    @param	node		Navigation node to inspect.
+*    @param	out_delta	[out] Closest absolute Z delta to another layer in the same cell.
+*    @param	out_layers	[out] Number of layers found in the cell (optional).
+*    @return	True if a valid delta was found, false otherwise.
+*    @note	This is a diagnostic helper used to report missing vertical connectivity.
+**/
+static const bool Nav_Debug_FindNearestLayerDelta( const nav_mesh_t *mesh, const nav_node_ref_t &node, double *out_delta, int32_t *out_layers ) {
+	/**
+	*    Sanity: require mesh and output pointer.
+	**/
+	if ( !mesh || !out_delta ) {
+		return false;
+	}
+
+	/**
+	*    Validate tile/cell indices before inspecting layers.
+	**/
+	if ( node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+		return false;
+	}
+	const nav_tile_t &tile = mesh->world_tiles[ node.key.tile_index ];
+	if ( node.key.cell_index < 0 || node.key.cell_index >= ( mesh->tile_size * mesh->tile_size ) ) {
+		return false;
+	}
+	const nav_xy_cell_t &cell = tile.cells[ node.key.cell_index ];
+	if ( out_layers ) {
+		*out_layers = cell.num_layers;
+	}
+	if ( cell.num_layers <= 1 || !cell.layers ) {
+		return false;
+	}
+
+	/**
+	*    Scan all layers to find the closest Z delta.
+	**/
+	const double current_z = node.position.z;
+	double best_delta = std::numeric_limits<double>::max();
+	for ( int32_t li = 0; li < cell.num_layers; li++ ) {
+		// Skip the current layer itself.
+		if ( li == node.key.layer_index ) {
+			continue;
+		}
+		const double layer_z = ( double )cell.layers[ li ].z_quantized * mesh->z_quant;
+		const double dz = fabsf( ( float )( layer_z - current_z ) );
+		if ( dz < best_delta ) {
+			best_delta = dz;
+		}
+	}
+
+	/**
+	*    Output the closest delta when a candidate was found.
+	**/
+	if ( best_delta == std::numeric_limits<double>::max() ) {
+		return false;
+	}
+	*out_delta = best_delta;
+	return true;
+}
+
+/**
+*  @brief	Forward declaration for the single-step traversal helper used by segmented ramps.
+*  @param	mesh			Navigation mesh.
+*  @param	startPos	Start world position.
+*  @param	endPos		End world position.
+*  @param	mins		Agent bounding box minimums.
+*  @param	maxs		Agent bounding box maximums.
+*  @param	clip_entity	Entity to use for clipping (nullptr for world).
+*  @param	policy		Optional path policy for tuning step behavior.
+*  @return	True if the traversal is possible, false otherwise.
+**/
+static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy );
+
+/**
+*  @brief	Performs a simple PMove-like step traversal test (3-trace) with explicit agent bbox.
+* 			This is intentionally conservative and is used only to validate edges in A*:
+* 			1) Try direct horizontal move.
+* 			2) If blocked, try stepping up <= max step, then horizontal move.
+* 			3) Trace down to find ground.
+*  @param	mesh			Navigation mesh.
+*  @param	startPos		Start world position.
+*  @param	endPos			End world position.
+*  @param	mins			Agent bounding box minimums.
+*  @param	maxs			Agent bounding box maximums.
+*  @param	clip_entity		Entity to use for clipping (nullptr for world).
+*  @param	policy			Optional path policy for tuning step behavior.
+*  @return	True if the traversal is possible, false otherwise.
+**/
+const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy ) {
+	/**
+	*    Sanity checks: require a valid mesh.
+	**/
+	if ( !mesh ) {
+		return false;
+	}
+
+	/**
+	*    Compute the required climb to determine if segmentation is needed.
+	**/
+	const double desiredDz = ( double )endPos[ 2 ] - ( double )startPos[ 2 ];
+	const double requiredUp = std::max( 0.0, desiredDz );
+	const double stepSize = ( policy ? ( double )policy->max_step_height : mesh->max_step );
+
+	/**
+	*    Drop cap enforcement (total edge):
+	*        Ensure long downward transitions do not bypass the cap when we segment
+	*        by horizontal distance for multi-cell ramps.
+	**/
+	const double dropCap = ( policy ? ( double )policy->drop_cap : ( nav_drop_cap ? nav_drop_cap->value : 128.0f ) );
+	const double requiredDown = std::max( 0.0, ( double )startPos[ 2 ] - ( double )endPos[ 2 ] );
+	// Reject edges that drop farther than the configured cap.
+	if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
+		return false;
+	}
+
+	/**
+	*    Compute horizontal distance to decide if we should segment long, shallow ramps.
+	*        Multi-cell ramps can fail a single step-test even with a small Z delta, so
+	*        we segment by XY distance to validate each cell-scale portion.
+	**/
+	const Vector3 fullDelta = QM_Vector3Subtract( endPos, startPos );
+	const double horizontalDist = sqrtf( ( fullDelta[ 0 ] * fullDelta[ 0 ] ) + ( fullDelta[ 1 ] * fullDelta[ 1 ] ) );
+	const double cellSize = ( mesh->cell_size_xy > 0.0 ) ? mesh->cell_size_xy : 0.0;
+	// Determine how many segments we need for vertical climb and for multi-cell ramps.
+	const int32_t stepCountVertical = ( requiredUp > stepSize && stepSize > 0.0 )
+		? ( int32_t )std::ceil( requiredUp / stepSize )
+		: 1;
+	const int32_t stepCountHorizontal = ( cellSize > 0.0 && horizontalDist > cellSize )
+		? ( int32_t )std::ceil( horizontalDist / cellSize )
+		: 1;
+	// Use the most conservative segmentation to satisfy both climb and ramp constraints.
+	const int32_t stepCount = std::max( stepCountVertical, stepCountHorizontal );
+
+	/**
+	*    Segmented ramp/stair handling:
+	*        Split long climbs into <= max_step_height sub-steps so
+	*        step validation mirrors PMove-style step constraints.
+	**/
+	if ( stepCount > 1 ) {
+		/**
+		*    Segment by the combined climb/XY requirement to validate multi-cell ramps
+		*    in smaller chunks and avoid early step-test failures.
+		**/
+		// Track the starting point of the current segment.
+		Vector3 segmentStart = startPos;
+		// Validate each sub-step in sequence.
+		for ( int32_t stepIndex = 1; stepIndex <= stepCount; stepIndex++ ) {
+			// Compute the fractional progress for this segment.
+			const double t = ( double )stepIndex / ( double )stepCount;
+			// Build the segment end position along the climb.
+			Vector3 segmentEnd = {
+				startPos[ 0 ] + ( float )( fullDelta[ 0 ] * t ),
+				startPos[ 1 ] + ( float )( fullDelta[ 1 ] * t ),
+				startPos[ 2 ] + ( float )( fullDelta[ 2 ] * t )
+			};
+
+			/**
+			*    Validate the current sub-step using the single-step routine.
+			*    Abort immediately if any sub-step fails.
+			**/
+			if ( !Nav_CanTraverseStep_ExplicitBBox_Single( mesh, segmentStart, segmentEnd, mins, maxs, clip_entity, policy ) ) {
+				return false;
+			}
+
+			// Advance to the next segment.
+			segmentStart = segmentEnd;
+		}
+
+		// All sub-steps succeeded.
+		return true;
+	}
+
+	/**
+	*    Fallback: use the single-step validation when no segmentation is needed.
+	**/
+	return Nav_CanTraverseStep_ExplicitBBox_Single( mesh, startPos, endPos, mins, maxs, clip_entity, policy );
 }
 
 /**
@@ -75,7 +257,17 @@ static void Nav_Debug_PrintNodeRef( const char *label, const nav_node_ref_t &n )
 static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node,
 	const Vector3 &agent_mins, const Vector3 &agent_maxs, std::vector<Vector3> &out_points, const svg_nav_path_policy_t *policy = nullptr,
 	const struct svg_nav_path_process_t *pathProcess = nullptr, const std::vector<nav_tile_cluster_key_t> *tileRouteFilter = nullptr ) {
+	/**
+	*    Hard cap to prevent runaway searches on degenerate meshes.
+	**/
 	constexpr int32_t MAX_SEARCH_NODES = 8192;
+	/**
+	*    Time budget (milliseconds) for a single A* call.
+	*        Guard against pathological meshes that drain the open list without
+	*        ever reaching the goal, but avoid aborting while we still have work
+	*        queued so stair transitions can resolve.
+	**/
+	constexpr uint64_t SEARCH_BUDGET_MS = 64;
 	/**
 	*	Neighbor expansion offsets in grid-cell units.
 	*
@@ -87,6 +279,12 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	*	Edge feasibility is still enforced by `Nav_CanTraverseStep_ExplicitBBox`, so
 	*	adding these candidates does not allow walking through walls.
 	**/
+	/**
+	*	Neighbor expansion offsets in grid-cell units.
+	*		Include vertical-only steps so we can traverse stacked layers
+	*		in the same XY cell (stairs, ramps, overlapping floors).
+	**/
+	//! Neighbor offsets (divided into XY steps then optional vertical layer moves) used when expanding nodes in A*.
 	static constexpr Vector3 neighbor_offsets[ ] = {
 		{ 1.0f, 0.0f, 0.0f },
 		{ -1.0f, 0.0f, 0.0f },
@@ -104,7 +302,47 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		{ 2.0f, 2.0f, 0.0f },
 		{ 2.0f, -2.0f, 0.0f },
 		{ -2.0f, 2.0f, 0.0f },
-		{ -2.0f, -2.0f, 0.0f }
+		{ -2.0f, -2.0f, 0.0f },
+
+		{ 0.0f, 0.0f, 1.0f },
+		{ 0.0f, 0.0f, -1.0f },
+
+		// Allow diagonal stair/ramps by combining vertical steps with adjacent XY moves.
+		{ 1.0f, 0.0f, 1.0f },
+		{ -1.0f, 0.0f, 1.0f },
+		{ 0.0f, 1.0f, 1.0f },
+		{ 0.0f, -1.0f, 1.0f },
+		{ 1.0f, 1.0f, 1.0f },
+		{ 1.0f, -1.0f, 1.0f },
+		{ -1.0f, 1.0f, 1.0f },
+		{ -1.0f, -1.0f, 1.0f },
+
+		{ 1.0f, 0.0f, -1.0f },
+		{ -1.0f, 0.0f, -1.0f },
+		{ 0.0f, 1.0f, -1.0f },
+		{ 0.0f, -1.0f, -1.0f },
+		{ 1.0f, 1.0f, -1.0f },
+		{ 1.0f, -1.0f, -1.0f },
+		{ -1.0f, 1.0f, -1.0f },
+		{ -1.0f, -1.0f, -1.0f },
+
+		// Extended offsets for ramps spanning multiple XY cells (two-cell XY hops with vertical transitions).
+		{ 2.0f, 0.0f, 1.0f },
+		{ -2.0f, 0.0f, 1.0f },
+		{ 0.0f, 2.0f, 1.0f },
+		{ 0.0f, -2.0f, 1.0f },
+		{ 2.0f, 2.0f, 1.0f },
+		{ 2.0f, -2.0f, 1.0f },
+		{ -2.0f, 2.0f, 1.0f },
+		{ -2.0f, -2.0f, 1.0f },
+		{ 2.0f, 0.0f, -1.0f },
+		{ -2.0f, 0.0f, -1.0f },
+		{ 0.0f, 2.0f, -1.0f },
+		{ 0.0f, -2.0f, -1.0f },
+		{ 2.0f, 2.0f, -1.0f },
+		{ 2.0f, -2.0f, -1.0f },
+		{ -2.0f, 2.0f, -1.0f },
+		{ -2.0f, -2.0f, -1.0f }
 	};
 
 	/**
@@ -114,6 +352,11 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		const Vector3 delta = QM_Vector3Subtract( b, a );
 		return sqrtf( ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] ) );
 		};
+
+	/**
+	*    Track start time so we can enforce the per-search budget.
+	**/
+	const uint64_t searchStartMs = gi.Com_GetSystemMilliseconds();
 
 	std::vector<nav_search_node_t> nodes;
 	nodes.reserve( 256 );
@@ -135,6 +378,11 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	nodes.push_back( start_search );
 	open_list.push_back( 0 );
 	node_lookup.emplace( start_node.key, 0 );
+	double best_f_cost_seen = start_search.f_cost;
+	int32_t stagnation_count = 0;
+	bool hit_stagnation_limit = false;
+	bool hit_time_budget = false;
+	bool saw_vertical_neighbor = false;
 
 	/**
 	*    Diagnostics counters:
@@ -148,6 +396,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	int32_t edgeRejectCount = 0;
 	int32_t neighborTryCount = 0;
 
+	// Continue expanding while we have candidates and stay under the hard node cap.
 	while ( !open_list.empty() && ( int32_t )nodes.size() < MAX_SEARCH_NODES ) {
 		int32_t best_open_index = 0;
 		double best_f_cost = nodes[ open_list[ 0 ] ].f_cost;
@@ -166,6 +415,23 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 
 		nav_search_node_t &current = nodes[ current_index ];
 		current.closed = true;
+
+        /**
+        *    Track whether we are making progress on the heuristic. If A* keeps
+        *    pulling nodes without improving the best f-cost for a long stretch,
+        *    the open list is just spinning and we should fail fast.
+        **/
+        if ( current.f_cost + 1e-3 < best_f_cost_seen ) {
+            best_f_cost_seen = current.f_cost;
+            stagnation_count = 0;
+        } else {
+            stagnation_count++;
+        }
+        // Guard: only early-fail once we have explored a significant portion of the budget.
+        if ( stagnation_count > 2048 && ( int32_t )nodes.size() >= ( MAX_SEARCH_NODES / 2 ) ) {
+            hit_stagnation_limit = true;
+            break;
+        }
 
 		if ( current.node.key == goal_node.key ) {
 			std::vector<Vector3> reversed_points;
@@ -226,7 +492,8 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			// We still validate physical feasibility with `Nav_CanTraverseStep_ExplicitBBox`, so
 			// enabling fallback here does not allow walking through walls; it only prevents
 			// premature A* expansion failure due to lookup bookkeeping.
-			if ( !Nav_FindNodeForPosition( mesh, neighbor_origin, current.node.position[ 2 ], &neighbor_node, true ) ) {
+			// Use the neighbor's candidate Z so stacked layers can be resolved in-place.
+			if ( !Nav_FindNodeForPosition( mesh, neighbor_origin, neighbor_origin[ 2 ], &neighbor_node, true ) ) {
 				noNodeCount++;
 				continue;
 			}
@@ -241,6 +508,12 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy ) ) {
 				edgeRejectCount++;
 				continue;
+			}
+			/**
+			*    Track whether we have any neighbor transitions across Z layers.
+			**/
+			if ( neighbor_node.position.z != current.node.position.z ) {
+				saw_vertical_neighbor = true;
 			}
 
 			// Base distance cost (Euclidean between nodes).
@@ -416,7 +689,10 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			}
 
 			// For debug: optionally print per-edge cost breakdown when nav_debug_draw is enabled.
-			if ( nav_debug_draw && nav_debug_draw->integer != 0 ) {
+			/**
+			*    Heavy per-edge debug logging is gated to the highest debug level.
+			**/
+			if ( nav_debug_draw && nav_debug_draw->integer >= 3 ) {
 				gi.dprintf( "[DEBUG][NavPath][A*] edge from (%.1f %.1f %.1f) to (%.1f %.1f %.1f): base=%.3f extras=%.3f total_step=%.3f\n",
 					current.node.position.x, current.node.position.y, current.node.position.z,
 					neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z,
@@ -475,8 +751,8 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	*            3) coarse tile-route filter blocks expansion.
 	**/
 	if ( Nav_PathDiagEnabled() ) {
-		gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d\n",
-			neighborTryCount, noNodeCount, edgeRejectCount, tileFilterRejectCount );
+		gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d, stagnation=%d\n",
+			neighborTryCount, noNodeCount, edgeRejectCount, tileFilterRejectCount, stagnation_count );
 		gi.dprintf( "[DEBUG][NavPath][Diag] A* inputs: max_step=%.1f max_drop=%.1f cell_size_xy=%.1f z_quant=%.1f\n",
 			nav_max_step ? nav_max_step->value : -1.0f,
 			nav_drop_cap ? nav_drop_cap->value : -1.0f,
@@ -484,6 +760,19 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			mesh ? ( float )mesh->z_quant : -1.0f );
 		Nav_Debug_PrintNodeRef( "start_node", start_node );
 		Nav_Debug_PrintNodeRef( "goal_node", goal_node );
+		/**
+		*    If we never found any vertical neighbors, report the nearest layer delta
+		*    so we can spot gaps in stair/step sampling.
+		**/
+		if ( !saw_vertical_neighbor ) {
+			double nearestDelta = 0.0;
+			int32_t layerCount = 0;
+			if ( Nav_Debug_FindNearestLayerDelta( mesh, start_node, &nearestDelta, &layerCount ) ) {
+				gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; nearest layer delta=%.1f (layers=%d)\n", nearestDelta, layerCount );
+			} else {
+				gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; no alternate layers found in start cell.\n" );
+			}
+		}
 		if ( tileRouteFilter ) {
 			gi.dprintf( "[DEBUG][NavPath][Diag] tile_route_filter: %d tiles\n", ( int32_t )tileRouteFilter->size() );
 		} else {
@@ -491,8 +780,26 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		}
 	}
 
+	const uint64_t totalElapsedMs = gi.Com_GetSystemMilliseconds() - searchStartMs;
+	const bool elapsedExceededBudget = ( totalElapsedMs > SEARCH_BUDGET_MS );
+	hit_time_budget = elapsedExceededBudget && open_list.empty();
+	if ( Nav_PathDiagEnabled() && elapsedExceededBudget ) {
+		gi.dprintf( "[DEBUG][NavPath][Diag] Time exceeded: elapsed=%.1fms budget=%llums nodes=%d open_list=%zu\n",
+			( double )totalElapsedMs, ( unsigned long long )SEARCH_BUDGET_MS,
+			( int32_t )nodes.size(), open_list.size() );
+		if ( hit_time_budget ) {
+			gi.dprintf( "[DEBUG][NavPath][Diag] Budget enforced after draining open list\n" );
+		} else {
+			gi.dprintf( "[DEBUG][NavPath][Diag] Budget exceeded but work remains in open list\n" );
+		}
+	}
+
 	// Diagnose reason for failure
-	if ( ( int32_t )nodes.size() >= MAX_SEARCH_NODES ) {
+	if ( hit_time_budget ) {
+		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search aborted after exceeding %llu ms time budget.\n", ( unsigned long long )SEARCH_BUDGET_MS );
+	} else if ( hit_stagnation_limit ) {
+		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search failed due to excessive stagnation after %d iterations.\n", stagnation_count );
+	} else if ( ( int32_t )nodes.size() >= MAX_SEARCH_NODES ) {
 		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search node limit reached (%d nodes). The navmesh may be too large or the goal is very far.\n", MAX_SEARCH_NODES );
 	} else if ( open_list.empty() ) {
 		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Open list exhausted. This typically means:\n" );
@@ -828,10 +1135,6 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_origin, goal_origin, tileRoute );
 		const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
 
-		if ( Nav_PathDiagEnabled() ) {
-			gi.dprintf( "[DEBUG][NavPath][Diag] Cluster route: has=%d tiles=%d\n", hasTileRoute ? 1 : 0, ( int32_t )tileRoute.size() );
-		}
-
 		if ( !Nav_AStarSearch( g_nav_mesh.get(), start_node, goal_node, agent_mins, agent_maxs, points, policy, pathProcess, routeFilter ) ) {
 			return false;
 		}
@@ -1049,10 +1352,46 @@ const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos,
 * 	@param	policy			Optional path policy for tuning step behavior.
 * 	@return	True if the traversal is possible, false otherwise.
 **/
-const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy ) {
+/**
+*  @brief	Internal single-step traversal validation used by the segmented ramp helper.
+*  @param	mesh			Navigation mesh.
+*  @param	startPos	Start world position.
+*  @param	endPos		End world position.
+*  @param	mins		Agent bounding box minimums.
+*  @param	maxs		Agent bounding box maximums.
+*  @param	clip_entity	Entity to use for clipping (nullptr for world).
+*  @param	policy		Optional path policy for tuning step behavior.
+*  @return	True if the traversal is possible, false otherwise.
+*  @note	This function assumes any segmented-ramp handling has already been applied.
+**/
+static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy ) {
 	if ( !mesh ) {
 		return false;
 	}
+
+	//! Tracks the last frame we reported a step-test failure.
+	static int32_t s_nav_step_test_failure_frame = -1;
+	//! Indicates whether we already printed a failure reason this frame.
+	static bool s_nav_step_test_failure_logged = false;
+	auto ReportStepTestFailureOnce = [ startPos, endPos ]( const char *reason ) {
+		const int32_t currentFrame = ( int32_t )level.frameNumber;
+		if ( s_nav_step_test_failure_frame != currentFrame ) {
+			s_nav_step_test_failure_frame = currentFrame;
+			s_nav_step_test_failure_logged = false;
+		}
+		if ( s_nav_step_test_failure_logged ) {
+			return;
+		}
+		s_nav_step_test_failure_logged = true;
+		if ( !nav_debug_draw_rejects || nav_debug_draw_rejects->integer == 0 ) {
+			return;
+		}
+		gi.dprintf( "[DEBUG][NavPath][StepTest] Edge from (%.1f %.1f %.1f) to (%.1f %.1f %.1f) failed: %s\n",
+			startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
+			endPos[ 0 ], endPos[ 1 ], endPos[ 2 ],
+			reason );
+	};
+
 
 	/**
 	*	Set up a PMove-like, conservative step test for A* edge validation.
@@ -1082,19 +1421,24 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	**/
 	if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
 		NavDebug_RecordReject( startPos, endPos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
+		ReportStepTestFailureOnce( "drop cap exceeded before tracing" );
 		return false;
 	}
 
-	// Compute the vertical travel we must be able to step up to reach endPos.
+	/**
+	*    We must know how much upward travel is required before continuing.
+	**/
 	const double requiredUp = std::max( 0.0, desiredDz );
 
 	// If the required climb is larger than our allowed step height, this edge is infeasible.
 	if ( requiredUp > stepSize ) {
+		ReportStepTestFailureOnce( "required climb exceeds configured step" );
 		return false;
 	}
 
 	// If policy wants to enforce a minimum step height, only apply it to actual "step up" edges.
 	if ( requiredUp > 0.0 && requiredUp < minStep ) {
+		ReportStepTestFailureOnce( "step height below minimum" );
 		return false;
 	}
 
@@ -1124,16 +1468,15 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 
 		cm_trace_t upTr = Nav_Trace( start, mins, maxs, up, clip_entity, CM_CONTENTMASK_SOLID );
 		if ( upTr.allsolid || upTr.startsolid ) {
+			ReportStepTestFailureOnce( "step-up trace blocked" );
 			return false;
 		}
 
-		// Ensure we actually achieved (at least) the required step height.
+				// Ensure we actually achieved (at least) the required step height.
 		const double actualUp = upTr.endpos[ 2 ] - start[ 2 ];
 		if ( actualUp + eps < requiredUp ) {
-			/**
-			*    Reject edges when we cannot gain the required vertical clearance.
-			**/
 			NavDebug_RecordReject( start, upTr.endpos, NAV_DEBUG_REJECT_REASON_CLEARANCE );
+			ReportStepTestFailureOnce( "insufficient clearance" );
 			return false;
 		}
 
@@ -1166,29 +1509,28 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 					downEnd[ 2 ] -= ( std::max( requiredUp, 0.0 ) + eps );
 					cm_trace_t downTr2 = Nav_Trace( down, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
 					if ( !downTr2.allsolid && !downTr2.startsolid && downTr2.fraction < 1.0f ) {
-						// Check normal Z threshold from policy if available.
-						if ( policy ) {
-							if ( downTr2.plane.normal[ 2 ] <= 0.0f || downTr2.plane.normal[ 2 ] < policy->min_step_normal ) {
-								return false;
-							}
-						} else {
-							if ( downTr2.plane.normal[ 2 ] <= 0.0f || !IsWalkableSlope( downTr2.plane.normal, mesh->max_slope_deg ) ) {
-								return false;
-							}
+						// Check normal Z threshold using policy's step-normal minimum when available.
+						const double minStepNormal = policy
+							? ( double )policy->min_step_normal
+							: cosf( ( float )mesh->max_slope_deg * ( float )DEG_TO_RAD );
+						if ( downTr2.plane.normal[ 2 ] <= 0.0f || downTr2.plane.normal[ 2 ] < minStepNormal ) {
+							NavDebug_RecordReject( jumpFwdTr.endpos, downTr2.endpos, NAV_DEBUG_REJECT_REASON_SLOPE );
+							return false;
 						}
 						// Optionally cap drop height.
 						if ( policy && policy->cap_drop_height ) {
 							const double drop = start[ 2 ] - downTr2.endpos[ 2 ];
 							if ( drop > ( double )policy->max_drop_height ) {
+								NavDebug_RecordReject( start, downTr2.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
 								return false;
 							}
 						}
 						return true;
 					}
 				}
+
 			}
 		}
-		return false;
 	}
 
 	/**
@@ -1198,38 +1540,51 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	*		by a small amount to ensure we're not floating.
 	**/
 	Vector3 down = fwdTr.endpos;
-	Vector3 downEnd = down;
-	downEnd[ 2 ] -= ( std::max( requiredUp, eps ) + eps );
+	Vector3 downStart = down;
+	// Step slightly above the surface to ensure the downward probe doesn't begin inside the floor hull.
+	downStart[ 2 ] += eps;
+	Vector3 downEnd = downStart;
+	/**
+	*    Compute the downward probe distance:
+	*        - Uphill edges need to drop at least the climb amount to re-acquire ground.
+	*        - Downhill edges must drop by the required descent to detect ramps/slopes.
+	*        - Always include a small epsilon to avoid precision misses.
+	**/
+	const double probeDrop = std::max( std::max( requiredUp, requiredDown ), eps ) + eps;
+	// Extend the down trace to the computed probe depth.
+	downEnd[ 2 ] -= probeDrop;
 
-	cm_trace_t downTr = Nav_Trace( down, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
+	cm_trace_t downTr = Nav_Trace( downStart, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
 	if ( downTr.allsolid || downTr.startsolid ) {
+		ReportStepTestFailureOnce( "down trace blocked" );
 		return false;
 	}
 
 	// Must land on something (not floating).
 	if ( downTr.fraction >= 1.0f ) {
+		ReportStepTestFailureOnce( "floating after step" );
 		return false;
 	}
 
-	// Walkable-ish contact: ensure the surface normal is acceptable. Use policy threshold if provided.
+	// Walkable-ish contact: ensure the surface normal respects the policy's step-normal threshold.
 	if ( downTr.plane.normal[ 2 ] <= 0.0f ) {
+		ReportStepTestFailureOnce( "non-positive ground normal" );
 		return false;
 	}
-	if ( policy ) {
-		if ( downTr.plane.normal[ 2 ] < policy->min_step_normal ) {
-			return false;
-		}
-	} else {
-		if ( !IsWalkableSlope( downTr.plane.normal, mesh->max_slope_deg ) ) {
-			return false;
-		}
+	const double minStepNormal = policy
+		? ( double )policy->min_step_normal
+		: cosf( ( float )mesh->max_slope_deg * ( float )DEG_TO_RAD );
+	if ( downTr.plane.normal[ 2 ] < minStepNormal ) {
+		ReportStepTestFailureOnce( "ground slope too steep" );
+		return false;
 	}
 
-	// Enforce drop-limit safety from policy if requested.
+	// Drop cap after step
 	if ( policy && policy->cap_drop_height ) {
 		const double drop = start[ 2 ] - downTr.endpos[ 2 ];
 		if ( drop > ( double )policy->max_drop_height ) {
 			NavDebug_RecordReject( start, downTr.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
+			ReportStepTestFailureOnce( "drop cap exceeded after step" );
 			return false;
 		}
 	}

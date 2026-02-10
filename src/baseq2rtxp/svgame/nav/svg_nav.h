@@ -54,9 +54,9 @@ typedef struct nav_layer_s {
     //! Quantized Z position.
     int16_t z_quantized;
     //! Content flags (nav_layer_flags_t).
-    uint8_t flags;
-    //! Optional clearance in grid cells.
-    uint8_t clearance;
+    uint32_t flags;
+	//! Optional clearance in grid cells (quantized, stored with wider range for tall ceilings).
+	uint32_t clearance;
 } nav_layer_t;
 
 /**

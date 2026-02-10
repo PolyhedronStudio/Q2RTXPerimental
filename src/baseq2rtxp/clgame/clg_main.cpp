@@ -553,7 +553,7 @@ void PF_InitGame( void ) {
 
 	// For debugging purposes.
 	cl_showmiss = clgi.CVar_Get( "cl_showmiss", "0", 0 ); // Fetched from engine.
-	clg_debug_entity_events = clgi.CVar_Get( "clg_debug_entity_events", "1", 0 );
+	clg_debug_entity_events = clgi.CVar_Get( "clg_debug_entity_events", "0", 0 );
 	clg_debug_pmove_changed_events = clgi.CVar_Get( "clg_debug_pmove_changed_events", "1", 0 );
 
 	// Client effects.
