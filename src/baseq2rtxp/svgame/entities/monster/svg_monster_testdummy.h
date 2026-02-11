@@ -202,6 +202,10 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     Vector3 last_sound_origin = {};
     //! Last heard sound2 origin.
     Vector3 last_sound2_origin = {};
+	//! Cached last valid 3D navigation direction (used as a short fallback when queries fail).
+	Vector3 last_nav_dir3d = {};
+	//! Time at which the cached navigation direction was last updated.
+	QMTime last_nav_dir_time = 0_ms;
 
     
     /**

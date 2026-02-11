@@ -10,6 +10,7 @@
 
 #include "svgame/svg_local.h"
 #include "svgame/nav/svg_nav.h"
+#include <vector>
 
 /**
 *	@brief	Policy for path processing and follow behavior.
@@ -150,11 +151,25 @@ struct svg_nav_path_process_t {
 	Vector3 last_failure_pos = {};
 	//! Last failing direction/yaw recorded when a rebuild failed.
 	float last_failure_yaw = 0.0f;
+	//! Indicates whether an asynchronous rebuild request is currently outstanding.
+	bool rebuild_in_progress = false;
+	//! Stores the handle of the pending async rebuild request for cancellation/logging.
+	int32_t pending_request_handle = 0;
 
 	/**
 	*	@brief	Policy for path processing and follow behavior.
 	**/
 	void Reset( void );
+	/**
+	*	@brief	Commit a finalized async traversal path and reset failure tracking.
+	*	@param	points	Finalized nav-center waypoints produced by the async rebuild.
+	*	@param	start_origin	Agent start position in entity feet-origin space.
+	*	@param	goal_origin	Agent goal position in entity feet-origin space.
+	*	@param	center_offset_z	Z offset that converts feet-origin to nav-center coordinates for this path.
+	*	@param	policy	Path policy used to enforce rebuild throttles after commit.
+	*	@return	True when the path was stored successfully.
+	**/
+	const bool CommitAsyncPathFromPoints( const std::vector<Vector3> &points, const Vector3 &start_origin, const Vector3 &goal_origin, float center_offset_z, const svg_nav_path_policy_t &policy );
 
 
 

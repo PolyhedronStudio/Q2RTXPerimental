@@ -22,6 +22,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_edict_pool.h"
 #include "svgame/svg_clients.h"
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_request.h"
 #include "svgame/svg_utils.h"
 
 #include "svgame/player/svg_player_client.h"
@@ -809,6 +810,12 @@ void SVG_RunFrame(void) {
     SVG_PushMove_UpdateMoveWithEntities();
 	//! Make sure to update the navigation system.
 	SVG_Nav_RefreshInlineModelRuntime();
+
+    /**
+    *    Advance the async navigation request queue once per server frame so queued
+    *    path rebuilds make measurable progress.
+    **/
+    SVG_Nav_ProcessRequestQueue();
 
 	/**
 	*	WID: LUA: CallBack.

@@ -13,6 +13,7 @@
 #include "svgame/nav/svg_nav_debug.h"
 #include "svgame/nav/svg_nav_generate.h"
 #include "svgame/nav/svg_nav_path_process.h"
+#include "svgame/nav/svg_nav_request.h"
 #include "svgame/nav/svg_nav_traversal.h"
 
 #include "svgame/entities/svg_player_edict.h"
@@ -475,6 +476,10 @@ void SVG_Nav_Init( void ) {
 	nav_cost_goal_z_blend_factor = gi.cvar( "nav_cost_goal_z_blend_factor", "0.5", 0 );
 	nav_cost_min_cost_per_unit = gi.cvar( "nav_cost_min_cost_per_unit", "1.0", 0 );
 
+	/**
+	*    Register async nav request queue cvars.
+	**/
+	SVG_Nav_RequestQueue_RegisterCvars();
 }
 
 /**

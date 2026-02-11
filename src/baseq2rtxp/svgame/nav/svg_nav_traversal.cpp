@@ -13,7 +13,9 @@
 #include "svgame/nav/svg_nav_debug.h"
 #include "svgame/nav/svg_nav_generate.h"
 #include "svgame/nav/svg_nav_path_process.h"
+#include "svgame/nav/svg_nav_request.h"
 #include "svgame/nav/svg_nav_traversal.h"
+#include "svgame/nav/svg_nav_traversal_async.h"
 
 #include "svgame/entities/svg_player_edict.h"
 
@@ -28,7 +30,6 @@ extern cvar_t *nav_max_step;
 extern cvar_t *nav_drop_cap;
 extern cvar_t *nav_debug_draw;
 extern cvar_t *nav_debug_draw_path;
-
 /**
 *    Targeted pathfinding diagnostics:
 *        These are intentionally gated behind `nav_debug_draw >= 2` to avoid
@@ -254,505 +255,65 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 *			It is therefore safe to consider additional neighbor offsets (e.g., 2-cell hops)
 *			because collision/step feasibility is still enforced.
 **/
+/**
+*	@brief	Perform a traversal search while reusing the async helper state machine.
+*	@note	The shared helper documents neighbor offsets, drop limits, and chunked expansion so both sync and async callers stay aligned.
+**/
 static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start_node, const nav_node_ref_t &goal_node,
 	const Vector3 &agent_mins, const Vector3 &agent_maxs, std::vector<Vector3> &out_points, const svg_nav_path_policy_t *policy = nullptr,
 	const struct svg_nav_path_process_t *pathProcess = nullptr, const std::vector<nav_tile_cluster_key_t> *tileRouteFilter = nullptr ) {
 	/**
-	*    Hard cap to prevent runaway searches on degenerate meshes.
+	*\tPrepare the incremental A* state so we share the traversal rules with the async helpers.
 	**/
-	constexpr int32_t MAX_SEARCH_NODES = 8192;
-	/**
-	*    Time budget (milliseconds) for a single A* call.
-	*        Guard against pathological meshes that drain the open list without
-	*        ever reaching the goal, but avoid aborting while we still have work
-	*        queued so stair transitions can resolve.
+	nav_a_star_state_t state = {};
+	if ( !Nav_AStar_Init( &state, mesh, start_node, goal_node, agent_mins, agent_maxs, policy, tileRouteFilter, pathProcess ) ) {
+		return false;
+	}
+
+ /**
+	*    Synchronous rebuild budget:
+	*        Disable per-step time limits so the helper can run to completion without per-step cap.
 	**/
-	constexpr uint64_t SEARCH_BUDGET_MS = 64;
-	/**
-	*	Neighbor expansion offsets in grid-cell units.
-	*
-	*	We include both 1-cell and 2-cell offsets:
-	*		- 1-cell offsets cover normal adjacency.
-	*		- 2-cell offsets help route around single-voxel-thick obstructions where
-	*		  the immediate neighbor cell may be non-walkable/absent.
-	*
-	*	Edge feasibility is still enforced by `Nav_CanTraverseStep_ExplicitBBox`, so
-	*	adding these candidates does not allow walking through walls.
-	**/
-	/**
-	*	Neighbor expansion offsets in grid-cell units.
-	*		Include vertical-only steps so we can traverse stacked layers
-	*		in the same XY cell (stairs, ramps, overlapping floors).
-	**/
-	//! Neighbor offsets (divided into XY steps then optional vertical layer moves) used when expanding nodes in A*.
-	static constexpr Vector3 neighbor_offsets[ ] = {
-		{ 1.0f, 0.0f, 0.0f },
-		{ -1.0f, 0.0f, 0.0f },
-		{ 0.0f, 1.0f, 0.0f },
-		{ 0.0f, -1.0f, 0.0f },
-		{ 1.0f, 1.0f, 0.0f },
-		{ 1.0f, -1.0f, 0.0f },
-		{ -1.0f, 1.0f, 0.0f },
-		{ -1.0f, -1.0f, 0.0f },
+	state.search_budget_ms = 0;
+	state.hit_time_budget = false;
 
-		{ 2.0f, 0.0f, 0.0f },
-		{ -2.0f, 0.0f, 0.0f },
-		{ 0.0f, 2.0f, 0.0f },
-		{ 0.0f, -2.0f, 0.0f },
-		{ 2.0f, 2.0f, 0.0f },
-		{ 2.0f, -2.0f, 0.0f },
-		{ -2.0f, 2.0f, 0.0f },
-		{ -2.0f, -2.0f, 0.0f },
-
-		{ 0.0f, 0.0f, 1.0f },
-		{ 0.0f, 0.0f, -1.0f },
-
-		// Allow diagonal stair/ramps by combining vertical steps with adjacent XY moves.
-		{ 1.0f, 0.0f, 1.0f },
-		{ -1.0f, 0.0f, 1.0f },
-		{ 0.0f, 1.0f, 1.0f },
-		{ 0.0f, -1.0f, 1.0f },
-		{ 1.0f, 1.0f, 1.0f },
-		{ 1.0f, -1.0f, 1.0f },
-		{ -1.0f, 1.0f, 1.0f },
-		{ -1.0f, -1.0f, 1.0f },
-
-		{ 1.0f, 0.0f, -1.0f },
-		{ -1.0f, 0.0f, -1.0f },
-		{ 0.0f, 1.0f, -1.0f },
-		{ 0.0f, -1.0f, -1.0f },
-		{ 1.0f, 1.0f, -1.0f },
-		{ 1.0f, -1.0f, -1.0f },
-		{ -1.0f, 1.0f, -1.0f },
-		{ -1.0f, -1.0f, -1.0f },
-
-		// Extended offsets for ramps spanning multiple XY cells (two-cell XY hops with vertical transitions).
-		{ 2.0f, 0.0f, 1.0f },
-		{ -2.0f, 0.0f, 1.0f },
-		{ 0.0f, 2.0f, 1.0f },
-		{ 0.0f, -2.0f, 1.0f },
-		{ 2.0f, 2.0f, 1.0f },
-		{ 2.0f, -2.0f, 1.0f },
-		{ -2.0f, 2.0f, 1.0f },
-		{ -2.0f, -2.0f, 1.0f },
-		{ 2.0f, 0.0f, -1.0f },
-		{ -2.0f, 0.0f, -1.0f },
-		{ 0.0f, 2.0f, -1.0f },
-		{ 0.0f, -2.0f, -1.0f },
-		{ 2.0f, 2.0f, -1.0f },
-		{ 2.0f, -2.0f, -1.0f },
-		{ -2.0f, 2.0f, -1.0f },
-		{ -2.0f, -2.0f, -1.0f }
-	};
+	const int32_t expansionBudget = std::max( 1, SVG_Nav_GetAsyncRequestExpansions() );
 
 	/**
-	*    Simple Euclidean heuristic. Kept local for ease of modification.
+	*    Step the helper repeatedly so it can honor its chunked expansion and time budgets.
 	**/
-	auto heuristic = []( const Vector3 &a, const Vector3 &b ) -> double {
-		const Vector3 delta = QM_Vector3Subtract( b, a );
-		return sqrtf( ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] ) );
-		};
+	while ( state.status == nav_a_star_status_t::Running ) {
+		Nav_AStar_Step( &state, expansionBudget );
+ }
 
 	/**
-	*    Track start time so we can enforce the per-search budget.
+	*    Finalize the path when the search completes successfully.
 	**/
-	const uint64_t searchStartMs = gi.Com_GetSystemMilliseconds();
-
-	std::vector<nav_search_node_t> nodes;
-	nodes.reserve( 256 );
-
-	std::vector<int32_t> open_list;
-	open_list.reserve( 256 );
-
-	std::unordered_map<nav_node_key_t, int32_t, nav_node_key_hash_t> node_lookup;
-	node_lookup.reserve( 256 );
-
-	nav_search_node_t start_search = {
-		.node = start_node,
-		.g_cost = 0.0f,
-		.f_cost = heuristic( start_node.position, goal_node.position ),
-		.parent_index = -1,
-		.closed = false
-	};
-
-	nodes.push_back( start_search );
-	open_list.push_back( 0 );
-	node_lookup.emplace( start_node.key, 0 );
-	double best_f_cost_seen = start_search.f_cost;
-	int32_t stagnation_count = 0;
-	bool hit_stagnation_limit = false;
-	bool hit_time_budget = false;
-	bool saw_vertical_neighbor = false;
-
-	/**
-	*    Diagnostics counters:
-	*        These help classify why expansion fails without dumping per-edge spam.
-	*        - noNodeCount: neighbor positions had no resolvable nav node.
-	*        - tileFilterRejectCount: hierarchical tile route filter rejected neighbor.
-	*        - edgeRejectCount: node existed but step/edge validation rejected traversal.
-	**/
-	int32_t noNodeCount = 0;
-	int32_t tileFilterRejectCount = 0;
-	int32_t edgeRejectCount = 0;
-	int32_t neighborTryCount = 0;
-
-	// Continue expanding while we have candidates and stay under the hard node cap.
-	while ( !open_list.empty() && ( int32_t )nodes.size() < MAX_SEARCH_NODES ) {
-		int32_t best_open_index = 0;
-		double best_f_cost = nodes[ open_list[ 0 ] ].f_cost;
-
-		for ( int32_t i = 1; i < ( int32_t )open_list.size(); i++ ) {
-			const double f_cost = nodes[ open_list[ i ] ].f_cost;
-			if ( f_cost < best_f_cost ) {
-				best_f_cost = f_cost;
-				best_open_index = i;
-			}
-		}
-
-		const int32_t current_index = open_list[ best_open_index ];
-		open_list[ best_open_index ] = open_list.back();
-		open_list.pop_back();
-
-		nav_search_node_t &current = nodes[ current_index ];
-		current.closed = true;
-
-        /**
-        *    Track whether we are making progress on the heuristic. If A* keeps
-        *    pulling nodes without improving the best f-cost for a long stretch,
-        *    the open list is just spinning and we should fail fast.
-        **/
-        if ( current.f_cost + 1e-3 < best_f_cost_seen ) {
-            best_f_cost_seen = current.f_cost;
-            stagnation_count = 0;
-        } else {
-            stagnation_count++;
-        }
-        // Guard: only early-fail once we have explored a significant portion of the budget.
-        if ( stagnation_count > 2048 && ( int32_t )nodes.size() >= ( MAX_SEARCH_NODES / 2 ) ) {
-            hit_stagnation_limit = true;
-            break;
-        }
-
-		if ( current.node.key == goal_node.key ) {
-			std::vector<Vector3> reversed_points;
-			reversed_points.reserve( 64 );
-
-			int32_t trace_index = current_index;
-			while ( trace_index >= 0 ) {
-				reversed_points.push_back( nodes[ trace_index ].node.position );
-				trace_index = nodes[ trace_index ].parent_index;
-			}
-
-			out_points.assign( reversed_points.rbegin(), reversed_points.rend() );
-			return true;
-		}
-
-		for ( const Vector3 &offset_dir : neighbor_offsets ) {
-			neighborTryCount++;
-			/**
-			*	Compute neighbor query position.
-			*		Neighbor offsets are expressed in grid-cell units.
-			*		- X/Y use `cell_size_xy`.
-			*		- Z uses `z_quant` (layer step).
-			*
-			*	Note:
-			*		Previously we scaled the full 3D offset by `cell_size_xy`, which made any
-			*		future vertical neighbor offsets incorrect and (more importantly) made it too
-			*		easy to accidentally query Z positions that don't correspond to quantized nav
-			*		layers. Using the correct axis scales increases the chance `Nav_FindNodeForPosition`
-			*		resolves adjacent nodes, especially on stairs/ramps.
-			**/
-			Vector3 scaledOffset = offset_dir;
-			scaledOffset[ 0 ] *= (float)mesh->cell_size_xy;
-			scaledOffset[ 1 ] *= (float)mesh->cell_size_xy;
-			scaledOffset[ 2 ] *= (float)mesh->z_quant;
-			const Vector3 neighbor_origin = QM_Vector3Add( current.node.position, scaledOffset );
-
-			/**
-			*	Optional hierarchical filter: only expand nodes whose XY position falls on
-			*	tiles included in the precomputed tile route.
-			**/
-			if ( tileRouteFilter && !tileRouteFilter->empty() ) {
-				const nav_tile_cluster_key_t nk = SVG_Nav_GetTileKeyForPosition( mesh, neighbor_origin );
-				bool allowed = false;
-				for ( const nav_tile_cluster_key_t &k : *tileRouteFilter ) {
-					if ( k == nk ) {
-						allowed = true;
-						break;
-					}
-				}
-				if ( !allowed ) {
-					tileFilterRejectCount++;
-					continue;
-				}
-			}
-
-			nav_node_ref_t neighbor_node = {};
-			// Neighbor lookups must be robust across BSP leaf seams and sparse leaf->tile mappings.
-			// We still validate physical feasibility with `Nav_CanTraverseStep_ExplicitBBox`, so
-			// enabling fallback here does not allow walking through walls; it only prevents
-			// premature A* expansion failure due to lookup bookkeeping.
-			// Use the neighbor's candidate Z so stacked layers can be resolved in-place.
-			if ( !Nav_FindNodeForPosition( mesh, neighbor_origin, neighbor_origin[ 2 ], &neighbor_node, true ) ) {
-				noNodeCount++;
-				continue;
-			}
-
-			// Reject downward transitions that exceed the caller-provided drop cap before running expensive traces.
-			const double neighbor_drop = current.node.position[ 2 ] - neighbor_node.position[ 2 ];
-			if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->drop_cap ) {
-				continue;
-			}
-			// Validate edge traversal using the PMove-like step test. Pass the policy through
-			// so traversal checks can consult step/drop/jump thresholds when available.
-			if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy ) ) {
-				edgeRejectCount++;
-				continue;
-			}
-			/**
-			*    Track whether we have any neighbor transitions across Z layers.
-			**/
-			if ( neighbor_node.position.z != current.node.position.z ) {
-				saw_vertical_neighbor = true;
-			}
-
-			// Base distance cost (Euclidean between nodes).
-			const double baseDist = heuristic( current.node.position, neighbor_node.position );
-
-			/**
-			*	Read runtime cost-tuning CVars.
-			*		These weights shape A* scoring but do not affect edge feasibility.
-			**/
-			const double w_dist = nav_cost_w_dist ? nav_cost_w_dist->value : 1.0f;
-			const double jumpBase = nav_cost_jump_base ? nav_cost_jump_base->value : 8.0f;
-			const double jumpHeightWeight = nav_cost_jump_height_weight ? nav_cost_jump_height_weight->value : 2.0f;
-			const double losWeight = nav_cost_los_weight ? nav_cost_los_weight->value : 1.0f;
-			const double dynamicWeight = nav_cost_dynamic_weight ? nav_cost_dynamic_weight->value : 1.5f;
-			const double failureWeight = nav_cost_failure_weight ? nav_cost_failure_weight->value : 10.0f;
-			const double failureTauMs = nav_cost_failure_tau_ms ? nav_cost_failure_tau_ms->value : 5000.0f;
-			const double turnWeight = nav_cost_turn_weight ? nav_cost_turn_weight->value : 0.8f;
-			const double slopeWeight = nav_cost_slope_weight ? nav_cost_slope_weight->value : 0.5f;
-			const double dropWeight = nav_cost_drop_weight ? nav_cost_drop_weight->value : 4.0f;
-			/**
-			*	Reserved: goal Z blend factor.
-			*		This tuning value currently influences layer selection during start/goal node lookup
-			*		(via BlendZ). We keep the cvar visible here to make it obvious that it is not part of
-			*		per-edge scoring yet.
-			**/
-			( void )nav_cost_goal_z_blend_factor;
-			const double minCostPerUnit = nav_cost_min_cost_per_unit ? nav_cost_min_cost_per_unit->value : 1.0f;
-
-			// Start composing extra penalties/bonuses beyond base distance.
-			double extraCost = 0.0f;
-
-			// Inspect neighbor layer flags for content-based penalties (water/lava/etc).
-			const nav_layer_t *neighborLayer = nullptr;
-			if ( neighbor_node.key.leaf_index >= 0 && neighbor_node.key.leaf_index < mesh->num_leafs ) {
-				if ( neighbor_node.key.tile_index >= 0 && neighbor_node.key.tile_index < ( int32_t )mesh->world_tiles.size() ) {
-					const nav_tile_t *tile = &mesh->world_tiles[ neighbor_node.key.tile_index ];
-					const nav_xy_cell_t *cell = &tile->cells[ neighbor_node.key.cell_index ];
-					if ( neighbor_node.key.layer_index >= 0 && neighbor_node.key.layer_index < cell->num_layers ) {
-						neighborLayer = &cell->layers[ neighbor_node.key.layer_index ];
-					}
-				}
-			}
-
-			// Content penalties
-			if ( neighborLayer ) {
-				if ( ( neighborLayer->flags & NAV_FLAG_WATER ) != 0 ) {
-					extraCost += 1.0f; // mild penalty for water
-				}
-				if ( ( neighborLayer->flags & NAV_FLAG_LAVA ) != 0 ) {
-					extraCost += 100.0f; // strong penalty for lava
-				}
-				if ( ( neighborLayer->flags & NAV_FLAG_SLIME ) != 0 ) {
-					extraCost += 4.0f;
-				}
-			}
-
-			// Vertical change -> slope/step/drop costs
-			const double dz = neighbor_node.position.z - current.node.position.z;
-			const double horizontal = sqrtf( ( neighbor_node.position.x - current.node.position.x ) * ( neighbor_node.position.x - current.node.position.x ) +
-				( neighbor_node.position.y - current.node.position.y ) * ( neighbor_node.position.y - current.node.position.y ) );
-			const double slope = ( horizontal > 0.0001f ) ? ( fabsf( dz ) / horizontal ) : 0.0f;
-			// Quadratic slope penalty
-			extraCost += slopeWeight * slope * slope * baseDist;
-
-			// Step up cost (positive dz)
-			if ( dz > 0.0f ) {
-				const double stepLimit = ( policy ? ( double )policy->max_step_height : mesh->max_step );
-				if ( dz > stepLimit ) {
-					// This is larger than a normal step; scale as climb cost.
-					extraCost += ( dz / std::max( stepLimit, 1.0 ) ) * 2.0;
-				}
-			} else {
-				// Drop cost: penalize large drops to prefer safer routes.
-				const double drop = -dz;
-				const double maxDrop = ( policy ? ( double )policy->max_drop_height : ( nav_drop_cap ? nav_drop_cap->value : 128.0f ) );
-				if ( drop > 0.0f ) {
-					extraCost += dropWeight * ( drop / std::max( maxDrop, 1.0 ) );
-				}
-			}
-
-			// Small-obstruction jump cost: if climb required beyond normal step but within obstruction jump limit.
-			if ( policy && policy->allow_small_obstruction_jump ) {
-				const double hj = std::max( 0.0, dz - ( double )policy->max_step_height );
-				if ( hj > 0.0f ) {
-					// Disallow if beyond allowed obstruction jump height (should be filtered by Nav_CanTraverseStep already).
-					if ( hj > ( double )policy->max_obstruction_jump_height ) {
-						continue; // infeasible neighbor
-					}
-					const double jumpCost = jumpBase + jumpHeightWeight * ( hj / ( double )policy->max_obstruction_jump_height );
-					extraCost += jumpCost;
-				}
-			}
-
-			// Line-of-sight bonus/penalty relative to goal: prefer nodes that keep LOS to goal.
-			bool hasLOS = false;
-			{
-				// Trace from neighbor position to goal node position to determine visibility.
-				cm_trace_t losTr = gi.trace( &neighbor_node.position, &mesh->agent_mins, &mesh->agent_maxs, &goal_node.position, nullptr, CM_CONTENTMASK_SOLID );
-				if ( losTr.fraction >= 1.0f && !losTr.startsolid && !losTr.allsolid ) {
-					hasLOS = true;
-				}
-			}
-			if ( hasLOS ) {
-				extraCost -= losWeight; // prefer LOS
-			}
-
-			// Dynamic occupancy: hard blocks skip expansion, soft cost biases against crowded cells.
-			if ( SVG_Nav_Occupancy_Blocked( mesh, neighbor_node.key.tile_index, neighbor_node.key.cell_index, neighbor_node.key.layer_index ) ) {
-				continue;
-			}
-			const int32_t occSoftCost = SVG_Nav_Occupancy_SoftCost( mesh, neighbor_node.key.tile_index, neighbor_node.key.cell_index, neighbor_node.key.layer_index );
-			if ( occSoftCost > 0 ) {
-				extraCost += dynamicWeight * ( double )occSoftCost;
-			}
-
-			// Failure/backoff penalty: if the caller provided a pathProcess we
-			// apply a time-decaying penalty for recent failures from that entity.
-			if ( pathProcess ) {
-				const QMTime now = level.time;
-				const QMTime lastFail = pathProcess->last_failure_time;
-				if ( lastFail > 0_ms ) {
-					const double tauMs = failureTauMs > 0.0f ? failureTauMs : 5000.0f;
-					const double dt = ( double )( ( now - lastFail ).Milliseconds() );
-					const double factor = exp( -dt / tauMs );
-					// For debug builds print the computed failure penalty contribution.
-					if ( nav_debug_draw && nav_debug_draw->integer != 0 ) {
-						gi.dprintf( "[DEBUG][NavPath][A*] Applying failure penalty factor=%.3f -> penalty=%.3f (dt=%.1f ms)\n", factor, failureWeight * factor, dt );
-					}
-					extraCost += failureWeight * ( double )factor;
-
-					// Additional: if neighbor is near the last failing goal position or matches failing yaw,
-					// apply a stronger penalty to avoid repeating the same failing approach.
-					const Vector3 toLastFail = QM_Vector3Subtract( neighbor_node.position, pathProcess->last_failure_pos );
-					const double distToFail = QM_Vector3LengthDP( toLastFail );
-					const double failPosRadius = 64.0f; // tunable radius for signature matching
-					if ( distToFail <= failPosRadius ) {
-						// Apply multiplicative penalty based on proximity.
-						const double posFactor = 1.0f - ( distToFail / failPosRadius );
-						const double sigPenalty = failureWeight * ( double )( 0.75f * posFactor );
-						extraCost += sigPenalty;
-						if ( nav_debug_draw && nav_debug_draw->integer != 0 ) {
-							gi.dprintf( "[DEBUG][NavPath][A*] Applying signature position penalty=%.3f (dist=%.1f)", sigPenalty, distToFail );
-						}
-					}
-					// Yaw matching: prefer to penalize directions that approach from similar yaw.
-					const double neighborYaw = QM_Vector3ToYaw( QM_Vector3Subtract( neighbor_node.position, current.node.position ) );
-					double yawDelta = fabsf( neighborYaw - pathProcess->last_failure_yaw );
-					yawDelta = fmodf( yawDelta + 180.0f, 360.0f ) - 180.0f; // normalize to [-180,180]
-					const double yawThresh = 45.0f; // degrees
-					if ( fabsf( yawDelta ) <= yawThresh ) {
-						const double yawFactor = 1.0f - ( fabsf( yawDelta ) / yawThresh );
-						const double yawPenalty = failureWeight * ( double )( 0.5f * yawFactor );
-						extraCost += yawPenalty;
-						if ( nav_debug_draw && nav_debug_draw->integer != 0 ) {
-							gi.dprintf( "[DEBUG][NavPath][A*] Applying signature yaw penalty=%.3f (yawDelta=%.1f)\n", yawPenalty, yawDelta );
-						}
-					}
-				}
-			} else if ( policy ) {
-				// Fallback: small static penalty based on policy tuning.
-				extraCost += failureWeight * ( double )policy->fail_backoff_max_pow * 0.01f;
-			}
-
-			// Turning cost: prefer straighter routes. If current has a parent, compute turning angle.
-			if ( current.parent_index >= 0 ) {
-				const nav_search_node_t &parentNode = nodes[ current.parent_index ];
-				Vector3 fromDir = QM_Vector3NormalizeDP( QM_Vector3Subtract( current.node.position, parentNode.node.position ) );
-				Vector3 toDir = QM_Vector3NormalizeDP( QM_Vector3Subtract( neighbor_node.position, current.node.position ) );
-				const double dot = QM_Vector3DotProductDP( fromDir, toDir );
-				const double clamped = QM_Clamp( dot, -1.0, 1.0 );
-				const double ang = acosf( clamped );
-				extraCost += turnWeight * ( ang / ( double )M_PI );
-			}
-
-			// For debug: optionally print per-edge cost breakdown when nav_debug_draw is enabled.
-			/**
-			*    Heavy per-edge debug logging is gated to the highest debug level.
-			**/
-			if ( nav_debug_draw && nav_debug_draw->integer >= 3 ) {
-				gi.dprintf( "[DEBUG][NavPath][A*] edge from (%.1f %.1f %.1f) to (%.1f %.1f %.1f): base=%.3f extras=%.3f total_step=%.3f\n",
-					current.node.position.x, current.node.position.y, current.node.position.z,
-					neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z,
-					baseDist, extraCost, baseDist * w_dist * minCostPerUnit + extraCost );
-			}
-
-			// Compose tentative g using weighted base distance and all extras.
-			const double tentative_g = current.g_cost + std::max( baseDist * w_dist * minCostPerUnit, 0.0 ) + extraCost;
-
-			auto lookup_it = node_lookup.find( neighbor_node.key );
-			if ( lookup_it == node_lookup.end() ) {
-				nav_search_node_t neighbor_search = {
-					.node = neighbor_node,
-					.g_cost = tentative_g,
-					.f_cost = tentative_g + heuristic( neighbor_node.position, goal_node.position ),
-					.parent_index = current_index,
-					.closed = false
-				};
-
-				nodes.push_back( neighbor_search );
-				const int32_t neighbor_index = ( int32_t )nodes.size() - 1;
-				open_list.push_back( neighbor_index );
-				node_lookup.emplace( neighbor_node.key, neighbor_index );
-				continue;
-			}
-
-			const int32_t neighbor_index = lookup_it->second;
-			nav_search_node_t &neighbor_search = nodes[ neighbor_index ];
-			if ( neighbor_search.closed ) {
-				continue;
-			}
-
-			if ( tentative_g < neighbor_search.g_cost ) {
-				neighbor_search.g_cost = tentative_g;
-				neighbor_search.f_cost = tentative_g + heuristic( neighbor_node.position, goal_node.position );
-				neighbor_search.parent_index = current_index;
-			}
-		}
+	if ( state.status == nav_a_star_status_t::Completed ) {
+		const bool ok = Nav_AStar_Finalize( &state, &out_points );
+		Nav_AStar_Reset( &state );
+		return ok;
 	}
 
 	/**
-	*	A* search exhausted without finding a path to the goal.
-	*	Provide detailed diagnostics to help understand why the path failed.
+	*    Cache diagnostic toggle so we can gate extra logging below.
 	**/
+	const bool navDiag = Nav_PathDiagEnabled();
+
 	gi.dprintf( "[WARNING][NavPath][A*] Pathfinding failed: No path found from (%.1f,%.1f,%.1f) to (%.1f,%.1f,%.1f)\n",
 		start_node.position.x, start_node.position.y, start_node.position.z,
 		goal_node.position.x, goal_node.position.y, goal_node.position.z );
 	gi.dprintf( "[WARNING][NavPath][A*] Search stats: explored=%d nodes, max_nodes=%d, open_list_empty=%s\n",
-		( int32_t )nodes.size(), MAX_SEARCH_NODES, open_list.empty() ? "true" : "false" );
+		( int32_t )state.nodes.size(),
+		state.max_nodes,
+		state.open_list.empty() ? "true" : "false" );
 
 	/**
-	*    One-shot debug summary:
-	*        Emit a compact breakdown so we can determine whether this is:
-	*            1) no nodes found near start/goal or during expansion,
-	*            2) connectivity exists but edge validation rejects all neighbors,
-	*            3) coarse tile-route filter blocks expansion.
+	*    Emit detailed diagnostics only when explicitly requested.
 	**/
-	if ( Nav_PathDiagEnabled() ) {
+	if ( navDiag ) {
 		gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d, stagnation=%d\n",
-			neighborTryCount, noNodeCount, edgeRejectCount, tileFilterRejectCount, stagnation_count );
+			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
 		gi.dprintf( "[DEBUG][NavPath][Diag] A* inputs: max_step=%.1f max_drop=%.1f cell_size_xy=%.1f z_quant=%.1f\n",
 			nav_max_step ? nav_max_step->value : -1.0f,
 			nav_drop_cap ? nav_drop_cap->value : -1.0f,
@@ -760,48 +321,35 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			mesh ? ( float )mesh->z_quant : -1.0f );
 		Nav_Debug_PrintNodeRef( "start_node", start_node );
 		Nav_Debug_PrintNodeRef( "goal_node", goal_node );
-		/**
-		*    If we never found any vertical neighbors, report the nearest layer delta
-		*    so we can spot gaps in stair/step sampling.
-		**/
-		if ( !saw_vertical_neighbor ) {
+
+		if ( !state.saw_vertical_neighbor ) {
 			double nearestDelta = 0.0;
 			int32_t layerCount = 0;
 			if ( Nav_Debug_FindNearestLayerDelta( mesh, start_node, &nearestDelta, &layerCount ) ) {
-				gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; nearest layer delta=%.1f (layers=%d)\n", nearestDelta, layerCount );
+				gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; nearest layer delta=%.1f (layers=%d)\n",
+					nearestDelta, layerCount );
 			} else {
 				gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; no alternate layers found in start cell.\n" );
 			}
 		}
-		if ( tileRouteFilter ) {
-			gi.dprintf( "[DEBUG][NavPath][Diag] tile_route_filter: %d tiles\n", ( int32_t )tileRouteFilter->size() );
+
+		const std::vector<nav_tile_cluster_key_t> *routeFilter = state.tileRouteFilter;
+		if ( routeFilter && !routeFilter->empty() ) {
+			gi.dprintf( "[DEBUG][NavPath][Diag] cluster route enforced: %d tiles\n",
+				( int32_t )routeFilter->size() );
 		} else {
-			gi.dprintf( "[DEBUG][NavPath][Diag] tile_route_filter: (none)\n" );
+			gi.dprintf( "[DEBUG][NavPath][Diag] cluster route: (none)\n" );
 		}
 	}
 
-	const uint64_t totalElapsedMs = gi.Com_GetSystemMilliseconds() - searchStartMs;
-	const bool elapsedExceededBudget = ( totalElapsedMs > SEARCH_BUDGET_MS );
-	hit_time_budget = elapsedExceededBudget && open_list.empty();
-	if ( Nav_PathDiagEnabled() && elapsedExceededBudget ) {
-		gi.dprintf( "[DEBUG][NavPath][Diag] Time exceeded: elapsed=%.1fms budget=%llums nodes=%d open_list=%zu\n",
-			( double )totalElapsedMs, ( unsigned long long )SEARCH_BUDGET_MS,
-			( int32_t )nodes.size(), open_list.size() );
-		if ( hit_time_budget ) {
-			gi.dprintf( "[DEBUG][NavPath][Diag] Budget enforced after draining open list\n" );
-		} else {
-			gi.dprintf( "[DEBUG][NavPath][Diag] Budget exceeded but work remains in open list\n" );
-		}
-	}
-
-	// Diagnose reason for failure
-	if ( hit_time_budget ) {
-		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search aborted after exceeding %llu ms time budget.\n", ( unsigned long long )SEARCH_BUDGET_MS );
-	} else if ( hit_stagnation_limit ) {
-		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search failed due to excessive stagnation after %d iterations.\n", stagnation_count );
-	} else if ( ( int32_t )nodes.size() >= MAX_SEARCH_NODES ) {
-		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search node limit reached (%d nodes). The navmesh may be too large or the goal is very far.\n", MAX_SEARCH_NODES );
-	} else if ( open_list.empty() ) {
+ /**
+	*    Print a concise failure reason based on the observed abort conditions.
+	**/
+	if ( state.hit_stagnation_limit ) {
+		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search failed due to excessive stagnation after %d iterations.\n", state.stagnation_count );
+	} else if ( ( int32_t )state.nodes.size() >= state.max_nodes ) {
+		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search node limit reached (%d nodes). The navmesh may be too large or the goal is very far.\n", state.max_nodes );
+	} else if ( state.open_list.empty() ) {
 		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Open list exhausted. This typically means:\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   1. No navmesh connectivity exists between start and goal Z-levels\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   2. All potential paths are blocked by obstacles\n" );
@@ -812,13 +360,17 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 			nav_drop_cap ? nav_drop_cap->value : -1.0f );
 		gi.dprintf( "[WARNING][NavPath][A*]   - Verify navmesh has stairs/ramps connecting the Z-levels\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   - Use 'nav_debug_draw 1' to visualize the navmesh\n" );
+	} else {
+		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Unknown (status=%d).\n", ( int32_t )state.status );
 	}
 
+	Nav_AStar_Reset( &state );
 	return false;
 }
 
 
 
+//////////////////////////////////////////////////////////////////////////
 /**
 *
 *
@@ -828,6 +380,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 *
 *
 **/
+
 /**
 *   @brief  Generate a traversal path between two world-space origins.
 *           Uses the navigation voxelmesh and A* search to produce waypoints.
@@ -1308,6 +861,9 @@ const inline cm_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, co
 }
 
 /**
+*	@brief	Low-level trace wrapper that supports world or inline-model clip.
+**/
+/**
 *	@brief	Performs a simple PMove-like step traversal test (3-trace).
 *
 *			This is intentionally conservative and is used only to validate edges in A*:
@@ -1512,7 +1068,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 						// Check normal Z threshold using policy's step-normal minimum when available.
 						const double minStepNormal = policy
 							? ( double )policy->min_step_normal
-							: cosf( ( float )mesh->max_slope_deg * ( float )DEG_TO_RAD );
+							: cos( ( double )mesh->max_slope_deg * ( double )DEG_TO_RAD );
 						if ( downTr2.plane.normal[ 2 ] <= 0.0f || downTr2.plane.normal[ 2 ] < minStepNormal ) {
 							NavDebug_RecordReject( jumpFwdTr.endpos, downTr2.endpos, NAV_DEBUG_REJECT_REASON_SLOPE );
 							return false;

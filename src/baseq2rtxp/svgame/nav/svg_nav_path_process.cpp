@@ -73,6 +73,48 @@ void svg_nav_path_process_t::Reset( void ) {
 }
 
 /**
+ *	@brief	Commit a finalized async traversal path and reset failure tracking.
+ *	@param	points	Finalized nav-center waypoints produced by the async rebuild.
+ *	@param	start_origin	Agent start position in entity feet-origin space.
+ *	@param	goal_origin	Agent goal position in entity feet-origin space.
+ *	@param	center_offset_z	Z offset that converts feet-origin to nav-center coordinates for this path.
+ *	@param	policy	Path policy informing throttle timing after commit.
+ *	@return	True when the path was stored successfully.
+ **/
+const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<Vector3> &points, const Vector3 &start_origin,
+	const Vector3 &goal_origin, float center_offset_z, const svg_nav_path_policy_t &policy ) {
+	/**
+	 *	Validate the incoming waypoint list.
+	 **/
+	if ( points.empty() ) {
+		return false;
+	}
+
+	/**
+	 *	Copy the waypoints into a traversal path owned by this process.
+	 **/
+	const int32_t pointCount = ( int32_t )points.size();
+	nav_traversal_path_t newPath = {};
+	newPath.num_points = pointCount;
+	newPath.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * newPath.num_points, TAG_SVGAME_LEVEL );
+	memcpy( newPath.points, points.data(), sizeof( Vector3 ) * newPath.num_points );
+
+	/**
+	 *	Update stored path metadata and reset failure state.
+	 **/
+	SVG_Nav_FreeTraversalPath( &path );
+	path = newPath;
+	path_index = 0;
+	path_start = start_origin;
+	path_goal = goal_origin;
+	path_center_offset_z = center_offset_z;
+	consecutive_failures = 0;
+	backoff_until = 0_ms;
+	next_rebuild_time = level.time + policy.rebuild_interval;
+	return true;
+}
+
+/**
 *	@brief	Retrieve the next stored nav-center path point converted into entity feet-origin space.
 *	@param	out_point	[out] Next point in entity feet-origin coordinates.
 *	@return	True if a point exists, false if the path is empty/invalid.
@@ -181,17 +223,44 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	const float stepLimit = ( resolvedPolicy.max_step_height > 0.0 )
 		? ( float )resolvedPolicy.max_step_height
 		: ( nav_max_step ? nav_max_step->value : -1.0f );
-	// Emit warning if we are outside typical step traversal constraints.
-	if ( doVerboseDebug && stepLimit > 0.0f && zGap > stepLimit ) {
+   // Emit warning if we are outside typical step traversal constraints.
+	const bool exceedsStepLimit = ( stepLimit > 0.0f && zGap > stepLimit );
+	if ( doVerboseDebug && exceedsStepLimit ) {
 		gi.dprintf( "[WARNING][NavPath] Z gap (%.1f) between start and goal exceeds nav_max_step (%.1f)! Pathfinding will likely fail.\n", zGap, stepLimit );
-	}
-
+	}	
 	/**
 	* 	Track whether we already have a usable path.
 	* 		This lets us treat throttle/backoff skips as "no rebuild needed"
 	* 		instead of "pathing failure" so callers can keep following the old path.
 	**/
 	const bool hasExistingPath = ( path.num_points > 0 && path.points );
+ /**
+	*    Guard: avoid expensive A* attempts when the required climb is outright impossible.
+	*    Continually retrying such rebuilds was the root cause of the hitch spam.
+	**/
+	if ( exceedsStepLimit ) {
+		/**
+		*    Throttle impossible vertical gaps:
+		*        When no path exists and the endpoint Z gap exceeds our step limit,
+		*        schedule a backoff delay so we do not re-attempt every frame.
+		**/
+		if ( !hasExistingPath ) {
+			// Record failure timing and signature for per-entity penalties.
+			last_failure_time = level.time;
+			last_failure_pos = goal_origin;
+			last_failure_yaw = QM_Vector3ToYaw( QM_Vector3Subtract( goal_origin, start_origin ) );
+			// Increment failure count to scale backoff when repeated.
+			consecutive_failures = std::min( consecutive_failures + 1, policy.fail_backoff_max_pow );
+			// Apply exponential backoff based on policy settings.
+			const int32_t powN = std::min( std::max( 0, consecutive_failures ), policy.fail_backoff_max_pow );
+			const QMTime extra = QMTime::FromMilliseconds( ( int32_t )policy.fail_backoff_base.Milliseconds() * ( 1 << powN ) );
+			backoff_until = level.time + extra;
+			next_rebuild_time = std::max( next_rebuild_time, backoff_until );
+		}
+		return hasExistingPath;
+	}
+
+
 
 	/**
 	*	Throttle/backoff checks:
