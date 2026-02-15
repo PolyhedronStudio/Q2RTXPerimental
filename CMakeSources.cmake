@@ -371,6 +371,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
 
 	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.cpp
+    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.cpp
 	
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
 
@@ -520,6 +521,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/light/svg_light_spotlight.h
 
 	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy.h
+    baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.h
 	
 	baseq2rtxp/svgame/entities/misc/svg_misc_explobox.h
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter.h

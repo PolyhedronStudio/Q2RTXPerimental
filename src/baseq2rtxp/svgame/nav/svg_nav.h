@@ -735,6 +735,17 @@ const bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posit
 *   @param  out_path        Output path result (caller must free).
 *   @return True if a path was found, false otherwise.
 **/
+/**
+ *    @brief    Generate a traversal path between two world-space origins.
+ *    @param    start_origin    World-space starting origin (feet-origin, i.e. z at feet)
+ *    @param    goal_origin     World-space destination origin (feet-origin)
+ *    @param    out_path        Output path result (caller must free).
+ *    @note     Public traversal APIs accept feet-origin coordinates. Internally
+ *              these functions convert to nav-center space (apply center Z
+ *              offset computed from the agent hull) before performing node
+ *              lookups and A* so callers do not need to supply a nav-centered
+ *              position.
+ **/
 const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path );
 const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
     const Vector3 &agent_mins, const Vector3 &agent_maxs, const struct svg_nav_path_policy_t *policy );

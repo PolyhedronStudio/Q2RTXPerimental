@@ -35,7 +35,7 @@ extern cvar_t *nav_debug_draw_path;
 *        These are intentionally gated behind `nav_debug_draw >= 2` to avoid
 *        spamming logs during normal gameplay.
 **/
-static inline bool Nav_PathDiagEnabled( void ) {
+inline bool Nav_PathDiagEnabled( void ) {
 	return nav_debug_draw && nav_debug_draw->integer >= 2;
 }
 
@@ -400,14 +400,23 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
 		return false;
 	}
 
-	nav_node_ref_t start_node = {};
+	// Mesh pointer used for lookup/conversions.
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+
+    nav_node_ref_t start_node = {};
 	nav_node_ref_t goal_node = {};
 
-	if ( !Nav_FindNodeForPosition( g_nav_mesh.get(), start_origin, start_origin[ 2 ], &start_node, true ) ) {
+    // Public API accepts feet-origin (z at feet). Convert to nav-center
+	// space by applying the mesh agent center offset so node lookups use the
+	// same reference as the async path preparer.
+    const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
+	const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin );
+
+	if ( !Nav_FindNodeForPosition( mesh, start_center, start_center[ 2 ], &start_node, true ) ) {
 		return false;
 	}
 
-	if ( !Nav_FindNodeForPosition( g_nav_mesh.get(), goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
+	if ( !Nav_FindNodeForPosition( mesh, goal_center, goal_center[ 2 ], &goal_node, true ) ) {
 		return false;
 	}
 
@@ -482,30 +491,39 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 
 	SVG_Nav_FreeTraversalPath( out_path );
 
-	if ( !g_nav_mesh ) {
+    if ( !g_nav_mesh ) {
 		return false;
 	}
+	const nav_mesh_t *mesh = g_nav_mesh.get();
 
 	nav_node_ref_t start_node = {};
 	nav_node_ref_t goal_node = {};
 	bool startResolved = false;
 	bool goalResolved = false;
 
-	if ( enable_goal_z_layer_blend ) {
-		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh.get(), start_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
+    if ( enable_goal_z_layer_blend ) {
+		// Convert caller feet-origin to nav-center using mesh agent hull.
+        const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
+		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin );
+
+		if ( !Nav_FindNodeForPosition_BlendZ( mesh, start_center, start_center[ 2 ], goal_center[ 2 ], start_center, goal_center,
 			blend_start_dist, blend_full_dist, &start_node, true ) ) {
 			return false;
 		}
 		// Use blend for goal selection as well to prefer the goal's Z layer when far away.
-		if ( !Nav_FindNodeForPosition_BlendZ( g_nav_mesh.get(), goal_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
+		if ( !Nav_FindNodeForPosition_BlendZ( mesh, goal_center, start_center[ 2 ], goal_center[ 2 ], start_center, goal_center,
 			blend_start_dist, blend_full_dist, &goal_node, true ) ) {
 			return false;
 		}
-	} else {
-		if ( !Nav_FindNodeForPosition( g_nav_mesh.get(), start_origin, start_origin[ 2 ], &start_node, true ) ) {
+    } else {
+		// Convert caller feet-origin to nav-center using provided agent bbox.
+        const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin );
+		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin );
+
+        if ( !Nav_FindNodeForPosition( mesh, start_center, start_center[ 2 ], &start_node, true ) ) {
 			return false;
 		}
-		if ( !Nav_FindNodeForPosition( g_nav_mesh.get(), goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
+        if ( !Nav_FindNodeForPosition( mesh, goal_center, goal_center[ 2 ], &goal_node, true ) ) {
 			return false;
 		}
 	}
@@ -523,7 +541,7 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_origin, goal_origin, tileRoute );
 		const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
 
-		if ( !Nav_AStarSearch( g_nav_mesh.get(), start_node, goal_node, g_nav_mesh->agent_mins, g_nav_mesh->agent_maxs, points, nullptr, nullptr, routeFilter ) ) {
+        if ( !Nav_AStarSearch( mesh, start_node, goal_node, mesh->agent_mins, mesh->agent_maxs, points, nullptr, nullptr, routeFilter ) ) {
 			return false;
 		}
 	}
@@ -638,14 +656,27 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 	bool startResolved = false;
 	bool goalResolved = false;
 
-	if ( enable_goal_z_layer_blend ) {
-		startResolved = Nav_FindNodeForPosition_BlendZ( g_nav_mesh.get(), start_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
+    if ( enable_goal_z_layer_blend ) {
+		// Convert caller feet-origin to nav-center using provided agent bbox.
+        const nav_mesh_t *mesh = g_nav_mesh.get();
+		if ( !mesh ) {
+			return false;
+		}
+		const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
+		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin, &agent_mins, &agent_maxs );
+		startResolved = Nav_FindNodeForPosition_BlendZ( mesh, start_center, start_center[ 2 ], goal_center[ 2 ], start_center, goal_center,
 			blend_start_dist, blend_full_dist, &start_node, true );
-		goalResolved = Nav_FindNodeForPosition_BlendZ( g_nav_mesh.get(), goal_origin, start_origin[ 2 ], goal_origin[ 2 ], start_origin, goal_origin,
+		goalResolved = Nav_FindNodeForPosition_BlendZ( mesh, goal_center, start_center[ 2 ], goal_center[ 2 ], start_center, goal_center,
 			blend_start_dist, blend_full_dist, &goal_node, true );
-	} else {
-		startResolved = Nav_FindNodeForPosition( g_nav_mesh.get(), start_origin, start_origin[ 2 ], &start_node, true );
-		goalResolved = Nav_FindNodeForPosition( g_nav_mesh.get(), goal_origin, goal_origin[ 2 ], &goal_node, true );
+    } else {
+		const nav_mesh_t *mesh = g_nav_mesh.get();
+		if ( !mesh ) {
+			return false;
+		}
+		const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
+		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin, &agent_mins, &agent_maxs );
+		startResolved = Nav_FindNodeForPosition( mesh, start_center, start_center[ 2 ], &start_node, true );
+		goalResolved = Nav_FindNodeForPosition( mesh, goal_center, goal_center[ 2 ], &goal_node, true );
 	}
 
 	/**
@@ -988,12 +1019,30 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 
 	// If the required climb is larger than our allowed step height, this edge is infeasible.
 	if ( requiredUp > stepSize ) {
+      /**
+		*    Diagnostics: report step-limit rejections with required climb and configured step size.
+		**/
+		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest] step limit exceeded requiredUp=%.2f stepSize=%.2f start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
+				( float )requiredUp, ( float )stepSize,
+				startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
+				endPos[ 0 ], endPos[ 1 ], endPos[ 2 ] );
+		}
 		ReportStepTestFailureOnce( "required climb exceeds configured step" );
 		return false;
 	}
 
 	// If policy wants to enforce a minimum step height, only apply it to actual "step up" edges.
 	if ( requiredUp > 0.0 && requiredUp < minStep ) {
+       /**
+		*    Diagnostics: report minimum-step rejections for tiny step heights.
+		**/
+		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest] step below minimum requiredUp=%.2f minStep=%.2f start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
+				( float )requiredUp, ( float )minStep,
+				startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
+				endPos[ 0 ], endPos[ 1 ], endPos[ 2 ] );
+		}
 		ReportStepTestFailureOnce( "step height below minimum" );
 		return false;
 	}
@@ -1003,11 +1052,31 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	Vector3 goal = endPos;
 	goal[ 2 ] = start[ 2 ];
 
+	/**
+	*    Lift the trace origins slightly to avoid starting inside solid floor geometry.
+	*        This mirrors PMove behavior where traces begin slightly above ground contact.
+	**/
+	Vector3 startLifted = start;
+	startLifted[ 2 ] += eps;
+	Vector3 goalLifted = goal;
+	goalLifted[ 2 ] = startLifted[ 2 ];
+
 	// 1) Direct horizontal move.
 	{
-		cm_trace_t tr = Nav_Trace( start, mins, maxs, goal, clip_entity, CM_CONTENTMASK_SOLID );
+        cm_trace_t tr = Nav_Trace( startLifted, mins, maxs, goalLifted, clip_entity, CM_CONTENTMASK_SOLID );
 		if ( tr.fraction >= 1.0f && !tr.allsolid && !tr.startsolid ) {
 			return true;
+		}
+       /**
+		*    Diagnostics: report direct-horizontal trace failures for edge rejection analysis.
+		**/
+		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest] direct move blocked frac=%.2f allsolid=%d startsolid=%d start(%.1f %.1f %.1f) goal(%.1f %.1f %.1f)\n",
+				( float )tr.fraction,
+				tr.allsolid ? 1 : 0,
+				tr.startsolid ? 1 : 0,
+				start[ 0 ], start[ 1 ], start[ 2 ],
+				goal[ 0 ], goal[ 1 ], goal[ 2 ] );
 		}
 	}
 
@@ -1016,14 +1085,24 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	*		Only attempt the step-up if this edge actually needs to climb.
 	*		For flat/down edges we keep the start Z and just do a down-trace later.
 	**/
-	Vector3 steppedStart = start;
+   Vector3 steppedStart = startLifted;
 	if ( requiredUp > 0.0 ) {
 		// Step up by the required amount (plus a tiny cushion).
-		Vector3 up = start;
+     Vector3 up = startLifted;
 		up[ 2 ] += ( requiredUp + eps );
 
-		cm_trace_t upTr = Nav_Trace( start, mins, maxs, up, clip_entity, CM_CONTENTMASK_SOLID );
+        cm_trace_t upTr = Nav_Trace( startLifted, mins, maxs, up, clip_entity, CM_CONTENTMASK_SOLID );
 		if ( upTr.allsolid || upTr.startsolid ) {
+           /**
+			*    Diagnostics: report blocked step-up traces.
+			**/
+			if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+				gi.dprintf( "[DEBUG][NavPath][StepTest] step-up blocked allsolid=%d startsolid=%d start(%.1f %.1f %.1f) up(%.1f %.1f %.1f)\n",
+					upTr.allsolid ? 1 : 0,
+					upTr.startsolid ? 1 : 0,
+					start[ 0 ], start[ 1 ], start[ 2 ],
+					up[ 0 ], up[ 1 ], up[ 2 ] );
+			}
 			ReportStepTestFailureOnce( "step-up trace blocked" );
 			return false;
 		}
@@ -1032,6 +1111,15 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 		const double actualUp = upTr.endpos[ 2 ] - start[ 2 ];
 		if ( actualUp + eps < requiredUp ) {
 			NavDebug_RecordReject( start, upTr.endpos, NAV_DEBUG_REJECT_REASON_CLEARANCE );
+          /**
+			*    Diagnostics: report insufficient clearance for step-up.
+			**/
+			if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+				gi.dprintf( "[DEBUG][NavPath][StepTest] insufficient clearance actualUp=%.2f requiredUp=%.2f start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
+					( float )actualUp, ( float )requiredUp,
+					start[ 0 ], start[ 1 ], start[ 2 ],
+					upTr.endpos[ 0 ], upTr.endpos[ 1 ], upTr.endpos[ 2 ] );
+			}
 			ReportStepTestFailureOnce( "insufficient clearance" );
 			return false;
 		}
@@ -1042,11 +1130,22 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	/**
 	*	Horizontal move from stepped-up position.
 	**/
-	Vector3 steppedGoal = goal;
+ Vector3 steppedGoal = goalLifted;
 	steppedGoal[ 2 ] = steppedStart[ 2 ];
 
 	cm_trace_t fwdTr = Nav_Trace( steppedStart, mins, maxs, steppedGoal, clip_entity, CM_CONTENTMASK_SOLID );
 	if ( fwdTr.allsolid || fwdTr.startsolid || fwdTr.fraction < 1.0f ) {
+        /**
+		*    Diagnostics: report forward trace failures before any jump fallback.
+		**/
+		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest] forward blocked frac=%.2f allsolid=%d startsolid=%d start(%.1f %.1f %.1f) goal(%.1f %.1f %.1f)\n",
+				( float )fwdTr.fraction,
+				fwdTr.allsolid ? 1 : 0,
+				fwdTr.startsolid ? 1 : 0,
+				steppedStart[ 0 ], steppedStart[ 1 ], steppedStart[ 2 ],
+				steppedGoal[ 0 ], steppedGoal[ 1 ], steppedGoal[ 2 ] );
+		}
 		// If allowed, attempt a small obstruction 'jump' to climb a low obstacle and try again.
 		if ( policy && policy->allow_small_obstruction_jump ) {
 			// Try a small jump up to the configured obstruction height and then forward.
@@ -1071,6 +1170,13 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 							: cos( ( double )mesh->max_slope_deg * ( double )DEG_TO_RAD );
 						if ( downTr2.plane.normal[ 2 ] <= 0.0f || downTr2.plane.normal[ 2 ] < minStepNormal ) {
 							NavDebug_RecordReject( jumpFwdTr.endpos, downTr2.endpos, NAV_DEBUG_REJECT_REASON_SLOPE );
+                       /**
+						*    Diagnostics: report obstruction jump slope rejections.
+						**/
+						if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+							gi.dprintf( "[DEBUG][NavPath][StepTest] jump slope too steep normalZ=%.2f minNormal=%.2f\n",
+								( float )downTr2.plane.normal[ 2 ], ( float )minStepNormal );
+						}
 							return false;
 						}
 						// Optionally cap drop height.
@@ -1078,6 +1184,13 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 							const double drop = start[ 2 ] - downTr2.endpos[ 2 ];
 							if ( drop > ( double )policy->max_drop_height ) {
 								NavDebug_RecordReject( start, downTr2.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
+                           /**
+							*    Diagnostics: report obstruction jump drop-cap rejections.
+							**/
+							if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+								gi.dprintf( "[DEBUG][NavPath][StepTest] jump drop cap exceeded drop=%.2f cap=%.2f\n",
+									( float )drop, ( float )policy->max_drop_height );
+							}
 								return false;
 							}
 						}
@@ -1112,18 +1225,44 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 
 	cm_trace_t downTr = Nav_Trace( downStart, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
 	if ( downTr.allsolid || downTr.startsolid ) {
+      /**
+		*    Diagnostics: report blocked down traces.
+		**/
+		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest] down trace blocked allsolid=%d startsolid=%d start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
+				downTr.allsolid ? 1 : 0,
+				downTr.startsolid ? 1 : 0,
+				downStart[ 0 ], downStart[ 1 ], downStart[ 2 ],
+				downEnd[ 0 ], downEnd[ 1 ], downEnd[ 2 ] );
+		}
 		ReportStepTestFailureOnce( "down trace blocked" );
 		return false;
 	}
 
 	// Must land on something (not floating).
 	if ( downTr.fraction >= 1.0f ) {
+     /**
+		*    Diagnostics: report floating results after step.
+		**/
+		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest] floating after step fraction=%.2f start(%.1f %.1f %.1f) end(%.1f %.1f %.1f)\n",
+				( float )downTr.fraction,
+				downStart[ 0 ], downStart[ 1 ], downStart[ 2 ],
+				downEnd[ 0 ], downEnd[ 1 ], downEnd[ 2 ] );
+		}
 		ReportStepTestFailureOnce( "floating after step" );
 		return false;
 	}
 
 	// Walkable-ish contact: ensure the surface normal respects the policy's step-normal threshold.
 	if ( downTr.plane.normal[ 2 ] <= 0.0f ) {
+      /**
+		*    Diagnostics: report invalid ground normals.
+		**/
+		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest] non-positive ground normal normalZ=%.2f\n",
+				( float )downTr.plane.normal[ 2 ] );
+		}
 		ReportStepTestFailureOnce( "non-positive ground normal" );
 		return false;
 	}
@@ -1131,6 +1270,13 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 		? ( double )policy->min_step_normal
 		: cosf( ( float )mesh->max_slope_deg * ( float )DEG_TO_RAD );
 	if ( downTr.plane.normal[ 2 ] < minStepNormal ) {
+      /**
+		*    Diagnostics: report slope rejections.
+		**/
+		if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest] slope too steep normalZ=%.2f minNormal=%.2f\n",
+				( float )downTr.plane.normal[ 2 ], ( float )minStepNormal );
+		}
 		ReportStepTestFailureOnce( "ground slope too steep" );
 		return false;
 	}
@@ -1140,6 +1286,13 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 		const double drop = start[ 2 ] - downTr.endpos[ 2 ];
 		if ( drop > ( double )policy->max_drop_height ) {
 			NavDebug_RecordReject( start, downTr.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
+            /**
+			*    Diagnostics: report drop-cap failures after step.
+			**/
+			if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
+				gi.dprintf( "[DEBUG][NavPath][StepTest] drop cap exceeded after step drop=%.2f cap=%.2f\n",
+					( float )drop, ( float )policy->max_drop_height );
+			}
 			ReportStepTestFailureOnce( "drop cap exceeded after step" );
 			return false;
 		}

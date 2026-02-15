@@ -44,13 +44,6 @@ qhandle_t sv_loaded_model_handles[ MAX_MODELS ];
 *
 *
 **/
-/**
-*	@brief	Returns the system milliseconds.
-* 			Used for timing within the game module.
-**/
-const uint64_t PF_GetSystemMilliseconds() {
-	return Sys_Milliseconds();
-}
 
 /**
 *
@@ -1097,7 +1090,7 @@ static const mmodel_t *PF_GetInlineModelDataForHandle( const qhandle_t handle ) 
     if ( !sv.cm.cache ) {
         return nullptr;
     }
-    if ( handle < sv.cm.cache->nummodels ) {
+    if ( handle >= 0 && handle < sv.cm.cache->nummodels ) {
         return &sv.cm.cache->models[ handle ];
     } else {
         // TODO: Warn?
@@ -1377,7 +1370,6 @@ void SV_InitGameProgs(void) {
     *   Other:
     *
     **/
-	imports.Com_GetSystemMilliseconds = PF_GetSystemMilliseconds;
     imports.Q_ErrorNumber = Q_ErrorNumber;
     imports.Q_ErrorString = Q_ErrorString;
     imports.DebugGraph = PF_DebugGraph;

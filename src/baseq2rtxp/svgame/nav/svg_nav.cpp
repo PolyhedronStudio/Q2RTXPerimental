@@ -86,6 +86,28 @@ void SVG_Nav_Log( const char *fmt, ... ) {
 }
 
 /**
+ *    @brief    Convert a caller-provided feet-origin into nav-center space.
+ *    @note     Helper implementation for `SVG_Nav_ConvertFeetToCenter` declared in header.
+ */
+const Vector3 SVG_Nav_ConvertFeetToCenter( const nav_mesh_t *mesh, const Vector3 &feet_origin, const Vector3 *agent_mins, const Vector3 *agent_maxs ) {
+	if ( !mesh ) {
+		return feet_origin;
+	}
+
+	// Choose agent bbox: prefer explicit override, otherwise use mesh defaults.
+	const Vector3 &mins = agent_mins ? *agent_mins : mesh->agent_mins;
+	const Vector3 &maxs = agent_maxs ? *agent_maxs : mesh->agent_maxs;
+
+	// Compute center offset Z as average of mins/maxs Z in nav-center space.
+	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+
+    // Apply only Z offset; XY remain unchanged.
+	Vector3 out = feet_origin;
+	out[ 2 ] += centerOffsetZ;
+	return out;
+}
+
+/**
 *	@brief	Extract tile XY from a world-space position.
 *	@param	mesh	Navigation mesh.
 *	@param	pos	World-space position.
@@ -387,8 +409,6 @@ void SVG_Nav_Init( void ) {
 	*	Register physics constraints for specific actions.
 	**/
 	nav_drop_cap = gi.cvar( "nav_drop_cap", "128", 0 );
-	// Drop cap used during path validation to reject excessive falls.
-	nav_drop_cap = gi.cvar( "nav_drop_cap", "64", 0 );
 
 	/**
 	*   Register agent bounding box CVars:

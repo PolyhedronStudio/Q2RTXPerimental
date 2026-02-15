@@ -811,12 +811,6 @@ void SVG_RunFrame(void) {
 	//! Make sure to update the navigation system.
 	SVG_Nav_RefreshInlineModelRuntime();
 
-    /**
-    *    Advance the async navigation request queue once per server frame so queued
-    *    path rebuilds make measurable progress.
-    **/
-    SVG_Nav_ProcessRequestQueue();
-
 	/**
 	*	WID: LUA: CallBack.
 	**/
@@ -835,11 +829,18 @@ void SVG_RunFrame(void) {
     /**
 	*	End the server frame for all clients, update and build the playerstate_t structures for all players.
 	**/
-    EndClientServerFrames();
+	EndClientServerFrames();
+
     /**
 	*	WID: LUA: CallBack.
 	**/
     SVG_Lua_CallBack_EndServerFrame();
+
+	/**
+	*    Advance the async navigation request queue once per server frame so queued
+	*    path rebuilds make measurable progress.
+	**/
+	SVG_Nav_ProcessRequestQueue();
 
 	// Navigation debug draw (runtime).
 	// Needs a built mesh (`nav_gen_voxelmesh`) and `nav_debug_draw 1`.

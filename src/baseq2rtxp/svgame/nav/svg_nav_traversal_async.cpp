@@ -30,6 +30,8 @@ extern cvar_t *nav_cost_slope_weight;
 extern cvar_t *nav_cost_drop_weight;
 extern cvar_t *nav_cost_min_cost_per_unit;
 
+inline bool Nav_PathDiagEnabled( void );
+
 //! Hard node limit to prevent runaway searches from consuming memory.
 static constexpr int32_t NAV_ASTAR_MAX_NODES = 8192;
 //! Per-call time budget used to cap frame impact of incremental expansion.
@@ -111,6 +113,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 	const svg_nav_path_policy_t *policy = state->policy;
 
 	for ( const Vector3 &offset_dir : s_nav_neighbor_offsets ) {
+        // Track this neighbor attempt for diagnostics and tuning.
 		state->neighbor_try_count++;
 		Vector3 scaledOffset = offset_dir;
 		scaledOffset[ 0 ] *= ( float )mesh->cell_size_xy;
@@ -131,19 +134,34 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 				}
 			}
 			if ( !allowed ) {
-				state->tile_filter_reject_count++;
+          // Neighbor rejected due to tile-route filter.
+			state->tile_filter_reject_count++;
+			if ( Nav_PathDiagEnabled() ) {
+				gi.dprintf( "[DEBUG][NavPath][Diag] Neighbor rejected by tile-route filter at pos=(%.1f %.1f %.1f)\n",
+					neighbor_origin.x, neighbor_origin.y, neighbor_origin.z );
+			}
 				continue;
 			}
 		}
 
 		nav_node_ref_t neighbor_node = {};
 		if ( !Nav_FindNodeForPosition( mesh, neighbor_origin, neighbor_origin[ 2 ], &neighbor_node, true ) ) {
+         // No node exists at this neighbor position.
 			state->no_node_count++;
+			if ( Nav_PathDiagEnabled() ) {
+				gi.dprintf( "[DEBUG][NavPath][Diag] No node at neighbor pos=(%.1f %.1f %.1f)\n",
+					neighbor_origin.x, neighbor_origin.y, neighbor_origin.z );
+			}
 			continue;
 		}
 
 		const double neighbor_drop = current.node.position[ 2 ] - neighbor_node.position[ 2 ];
-		if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->drop_cap ) {
+      if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->drop_cap ) {
+			// Neighbor rejected due to drop cap.
+			if ( Nav_PathDiagEnabled() ) {
+				gi.dprintf( "[DEBUG][NavPath][Diag] Neighbor rejected by drop cap: drop=%.1f cap=%.1f pos=(%.1f %.1f %.1f)\n",
+					neighbor_drop, policy->drop_cap, neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z );
+			}
 			continue;
 		}
 
@@ -151,8 +169,16 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		*    The PMove-derived step test covers slopes, hills, and stairs while respecting both
 		*    agent hulls and slope/drop constraints.
 		**/
-		if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy ) ) {
+      if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy ) ) {
+			// Edge validation failed for this neighbor.
 			state->edge_reject_count++;
+			if ( Nav_PathDiagEnabled() ) {
+				double dz = neighbor_node.position.z - current.node.position.z;
+				gi.dprintf( "[DEBUG][NavPath][Diag] Edge rejected between (%.1f %.1f %.1f) -> (%.1f %.1f %.1f) dz=%.1f\n",
+					current.node.position.x, current.node.position.y, current.node.position.z,
+					neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z,
+					dz );
+			}
 			continue;
 		}
 
@@ -393,7 +419,7 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 	*        - `NAV_ASTAR_MAX_NODES` prevents unbounded node growth on pathological meshes.
 	*        - `NAV_ASTAR_STEP_BUDGET_MS` throttles per-call time while allowing incremental continuation.
 	**/
-	state->step_start_ms = gi.Com_GetSystemMilliseconds();
+	state->step_start_ms = gi.GetRealSystemTime();
 
 	while ( expansions > 0 && state->status == nav_a_star_status_t::Running ) {
 		if ( state->open_list.empty() ) {
@@ -407,40 +433,23 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 			break;
 		}
 
-		const uint64_t now = gi.Com_GetSystemMilliseconds();
+		const uint64_t now = gi.GetRealSystemTime();
 		if ( state->search_budget_ms > 0 && ( now - state->step_start_ms ) >= state->search_budget_ms ) {
 			state->hit_time_budget = true;
 			break;
 		}
 
-		int32_t best_open_index = 0;
-		double best_f_cost = state->nodes[ state->open_list[ 0 ] ].f_cost;
-		for ( int32_t i = 1; i < ( int32_t )state->open_list.size(); i++ ) {
-			const double f_cost = state->nodes[ state->open_list[ i ] ].f_cost;
-			if ( f_cost < best_f_cost ) {
-				best_f_cost = f_cost;
-				best_open_index = i;
-			}
-		}
+		auto best_it = std::min_element( state->open_list.begin(), state->open_list.end(),
+			[ &state ]( int32_t a, int32_t b ) {
+				return state->nodes[ a ].f_cost < state->nodes[ b ].f_cost;
+			} );
 
-		const int32_t current_index = state->open_list[ best_open_index ];
-		state->open_list[ best_open_index ] = state->open_list.back();
+		const int32_t current_index = *best_it;
+		*best_it = state->open_list.back();
 		state->open_list.pop_back();
 
 		nav_search_node_t &current = state->nodes[ current_index ];
 		current.closed = true;
-
-		if ( current.f_cost + 1e-3 < state->best_f_cost_seen ) {
-			state->best_f_cost_seen = current.f_cost;
-			state->stagnation_count = 0;
-		} else {
-			state->stagnation_count++;
-		}
-		if ( state->stagnation_count > 2048 && ( int32_t )state->nodes.size() >= ( state->max_nodes / 2 ) ) {
-			state->hit_stagnation_limit = true;
-			state->status = nav_a_star_status_t::Failed;
-			break;
-		}
 
 		if ( current.node.key == state->goal_node.key ) {
 			state->goal_index = current_index;

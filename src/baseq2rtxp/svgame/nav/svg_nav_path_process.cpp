@@ -9,6 +9,8 @@
 
 // Includes: local and navigation headers.
 #include "svgame/svg_local.h"
+#include <cstring>
+
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_clusters.h"
 #include "svgame/nav/svg_nav_debug.h"
@@ -90,7 +92,14 @@ const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<
 		return false;
 	}
 
-	/**
+ /**
+	*    NOTE: Path smoothing temporarily disabled due to a runtime regression
+	*    observed in async commit flow. Revert to committing raw A* points to
+	*    ensure path availability remains correct. The funnel+offset approach
+	*    will be reintroduced after a safer incremental integration.
+	**/
+
+ /**
 	 *	Copy the waypoints into a traversal path owned by this process.
 	 **/
 	const int32_t pointCount = ( int32_t )points.size();

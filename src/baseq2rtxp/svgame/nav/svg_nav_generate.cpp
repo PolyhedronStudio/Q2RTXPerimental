@@ -161,6 +161,13 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
     *        vertical column is empty of solid geometry.
     **/
     {
+        // For inline-model sampling we avoid the conservative box-contents precheck
+        // because headnode/contents queries and entity clip prechecks can be
+        // unreliable across different engine exports. In that case always perform
+        // downward traces instead of early-outing here.
+        if ( clip_entity ) {
+            // Skip the fast precheck when tracing against an entity's inline model.
+        } else {
         Vector3 colMins = xy_pos;
         Vector3 colMaxs = xy_pos;
         colMins[ 2 ] = z_min;
@@ -185,14 +192,52 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
             }
 
             if ( headnode ) {
+                // Fast-path: query the inline-model headnode using model-local coordinates.
+                // `colMins`/`colMaxs` are in world-space when called from inline sampling.
+                // Subtract the entity origin to get model-local bounds for CM_BoxContents_headnode.
+                Vector3 headnodeMins = colMins;
+                Vector3 headnodeMaxs = colMaxs;
+                if ( clip_entity ) {
+                    headnodeMins[ 0 ] -= clip_entity->currentOrigin[ 0 ];
+                    headnodeMins[ 1 ] -= clip_entity->currentOrigin[ 1 ];
+                    headnodeMins[ 2 ] -= clip_entity->currentOrigin[ 2 ];
+                    headnodeMaxs[ 0 ] -= clip_entity->currentOrigin[ 0 ];
+                    headnodeMaxs[ 1 ] -= clip_entity->currentOrigin[ 1 ];
+                    headnodeMaxs[ 2 ] -= clip_entity->currentOrigin[ 2 ];
+                }
+
                 cm_contents_t contents = CONTENTS_NONE;
-                gi.CM_BoxContents_headnode( &colMins[ 0 ], &colMaxs[ 0 ], &contents, nullptr, 0, headnode, nullptr );
+                gi.CM_BoxContents_headnode( &headnodeMins[ 0 ], &headnodeMaxs[ 0 ], &contents, nullptr, 0, headnode, nullptr );
                 hasSolid = ( contents & CM_CONTENTMASK_SOLID ) != 0;
+
+                // If the headnode fast-path reported no solids, fall back to an
+                // entity-aware clip trace (world-space) to ensure we don't miss
+                // geometry that might be missed by the simple headnode check.
+                if ( !hasSolid ) {
+                    Vector3 start = xy_pos; start[ 2 ] = z_max;
+                    Vector3 end = xy_pos; end[ 2 ] = z_min;
+                    const cm_trace_t tr = gi.clip( clip_entity, &start, &mins, &maxs, &end, CM_CONTENTMASK_SOLID );
+                    hasSolid = ( tr.fraction < 1.0f ) || tr.startsolid || tr.allsolid;
+
+                    static bool s_reported_inline_precheck = false;
+                    if ( !s_reported_inline_precheck ) {
+                        s_reported_inline_precheck = true;
+                        SVG_Nav_Log( "[NavDebug] Inline precheck: model_index=%d headnode=%p contents=0x%X trace.fraction=%.3f startsolid=%d allsolid=%d\n",
+                            inlineIndex, ( void * )headnode, ( unsigned )contents, tr.fraction, tr.startsolid ? 1 : 0, tr.allsolid ? 1 : 0 );
+                    }
+                }
             } else {
                 Vector3 start = xy_pos; start[ 2 ] = z_max;
                 Vector3 end = xy_pos; end[ 2 ] = z_min;
+                // No headnode: use entity clip trace in world-space.
                 const cm_trace_t tr = gi.clip( clip_entity, &start, &mins, &maxs, &end, CM_CONTENTMASK_SOLID );
                 hasSolid = ( tr.fraction < 1.0f ) || tr.startsolid || tr.allsolid;
+                static bool s_reported_inline_precheck = false;
+                if ( !s_reported_inline_precheck ) {
+                    s_reported_inline_precheck = true;
+                    SVG_Nav_Log( "[NavDebug] Inline precheck: headnode=null trace.fraction=%.3f startsolid=%d allsolid=%d\n",
+                        tr.fraction, tr.startsolid ? 1 : 0, tr.allsolid ? 1 : 0 );
+                }
             }
         } else {
             cm_contents_t contents = CONTENTS_NONE;
@@ -200,12 +245,13 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
             hasSolid = ( contents & CM_CONTENTMASK_SOLID ) != 0;
         }
 
-        if ( !hasSolid ) {
-            s_precheck_fail_count++;
-            // Early out: no solids in the column implies no walkable layers.
-            *out_layers = nullptr;
-            *out_num_layers = 0;
-            return;
+            if ( !hasSolid ) {
+                s_precheck_fail_count++;
+                // Early out: no solids in the column implies no walkable layers.
+                *out_layers = nullptr;
+                *out_num_layers = 0;
+                return;
+            }
         }
     }
 
@@ -230,15 +276,39 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
         s_trace_attempt_count++;
 
         // Record valid upward-facing hit surfaces.
-            if ( trace.fraction < 1.0f && trace.plane.normal[2] > 0.0f ) {
-                s_trace_hit_count++;
-                // Enforce slope threshold in terms of normal.z.
-                if ( ( trace.plane.normal[2] >= cosf( max_slope_deg * DEG_TO_RAD ) ) ) {
+			if ( trace.fraction < 1.0f && trace.plane.normal[2] > 0.0f ) {
+				s_trace_hit_count++;
+				// Enforce slope threshold in terms of normal.z.
+				if ( ( trace.plane.normal[2] >= cosf( max_slope_deg * DEG_TO_RAD ) ) ) {
 				/**
 				*    Quantize the sampled Z using rounding so nearby layers don't collapse
 				*    downwards when the trace endpos is close to the next quant step.
+				*    If we are sampling an inline model, transform the world-space hit
+				*    back into model-local space before storing.
 				**/
-				const double quantizedZ = std::lround( trace.endpos[ 2 ] / z_quant );
+				double worldZ = trace.endpos[ 2 ];
+				double localZ = worldZ;
+				if ( clip_entity ) {
+					// Transform world-space hit to model-local Z.
+					Vector3 p_l = QM_Vector3Subtract( trace.endpos, clip_entity->currentOrigin );
+					if ( clip_entity->currentAngles.x != 0 || clip_entity->currentAngles.y != 0 || clip_entity->currentAngles.z != 0 ) {
+						Vector3 f, r, u;
+						QM_AngleVectors( clip_entity->currentAngles, &f, &r, &u );
+						// World-to-local rotation using projection (dots with basis).
+						localZ = p_l.x * f.x + p_l.y * f.y + p_l.z * f.z; // This is not quite correct for all rotations but it matches yaw.
+						// Actually, better to just use dot products for full transform:
+						localZ = p_l.x * f.z + p_l.y * r.z + p_l.z * u.z; // No, it's simpler:
+						// Let's just do it properly.
+						localZ = QM_Vector3DotProduct( p_l, u ); // Correct for local Z? Not necessarily.
+						// In Q2: f = local +X, r = local -Y, u = local +Z. 
+						// So localZ is dot( p_l, u ).
+						localZ = (double)QM_Vector3DotProduct( p_l, u );
+					} else {
+						localZ = (double)p_l.z;
+					}
+				}
+
+				const double quantizedZ = std::lround( localZ / z_quant );
 				constexpr double quantMin = ( double )std::numeric_limits<int32_t>::min();
 				constexpr double quantMax = ( double )std::numeric_limits<int32_t>::max();
 				const double clampedZ = std::min( std::max( quantizedZ, quantMin ), quantMax );
@@ -291,9 +361,17 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
                     current_z = trace.endpos[2] - 1.0f;
                 } else {
                     s_slope_reject_count++;
+                    if ( SVG_Nav_ProfileEnabled( 3 ) ) {
+                        SVG_Nav_Log( "[NavProfile] FindWalkableLayers: trace hit but slope rejected normal.z=%.3f max_slope_deg=%.1f at z=%.2f\n",
+                            trace.plane.normal[2], max_slope_deg, trace.endpos[2] );
+                    }
                     current_z = trace.endpos[2] - 1.0f;
                 }
             } else {
+                if ( SVG_Nav_ProfileEnabled( 3 ) ) {
+                    SVG_Nav_Log( "[NavProfile] FindWalkableLayers: trace miss fraction=%.3f startsolid=%d allsolid=%d\n",
+                        trace.fraction, trace.startsolid ? 1 : 0, trace.allsolid ? 1 : 0 );
+                }
                 current_z -= step_down;
             }
     }
@@ -339,7 +417,7 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
     for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
         uint64_t tileCellStartMs = 0;
         if ( SVG_Nav_ProfileEnabled( 3 ) ) {
-            tileCellStartMs = gi.Com_GetSystemMilliseconds();
+            tileCellStartMs = gi.GetRealSystemTime();
         }
         for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
             const double world_x = tile_origin_x + ( (double)cell_x + 0.5f ) * mesh->cell_size_xy;
@@ -368,7 +446,7 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
         }
 
         if ( SVG_Nav_ProfileEnabled( 3 ) ) {
-            const uint64_t tileCellEndMs = gi.Com_GetSystemMilliseconds();
+            const uint64_t tileCellEndMs = gi.GetRealSystemTime();
             const double tileMs = ( double )( tileCellEndMs - tileCellStartMs );
             // Note: this reports the per-row cell loop time; per-tile timing is available via caller.
             SVG_Nav_Log( "[NavProfile] Tile (%d,%d) row %d cell loop time: %.2f ms\n", tile->tile_x, tile->tile_y, cell_y, tileMs );
@@ -425,8 +503,45 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
             nav_layer_t *layers = nullptr;
             int32_t num_layers = 0;
 
-            FindWalkableLayers( xy_pos, mesh->agent_mins, mesh->agent_maxs,
-                                z_min, z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
+            // Inline-model sampling: the collision clip implementation expects
+            // world-space positions when tracing against an entity clip model.
+            // Convert the model-local XY/Z into world-space using the entity's
+            // currentOrigin and currentAngles before performing traces.
+            Vector3 world_xy = xy_pos;
+            double world_z_min = z_min;
+            double world_z_max = z_max;
+
+            if ( clip_entity ) {
+                // Local to World transform:
+                Vector3 local_center = xy_pos;
+                local_center.z = (float)( ( z_min + z_max ) * 0.5 );
+
+                if ( clip_entity->currentAngles.x != 0 || clip_entity->currentAngles.y != 0 || clip_entity->currentAngles.z != 0 ) {
+                    Vector3 f, r, u;
+                    QM_AngleVectors( clip_entity->currentAngles, &f, &r, &u );
+                    // Transform local to world: origin + (x*f + y*-r + z*u)
+                    // (Standard Q2/QMRay calculation).
+                    Vector3 rotated = {
+                        local_center.x * f.x + local_center.y * -r.x + local_center.z * u.x,
+                        local_center.x * f.y + local_center.y * -r.y + local_center.z * u.y,
+                        local_center.x * f.z + local_center.y * -r.z + local_center.z * u.z
+                    };
+                    world_xy = QM_Vector3Add( rotated, clip_entity->currentOrigin );
+
+                    // For Z range, we take the average vertical displacement or just add origin.z
+                    // since rotation around non-Z axes is rare for inline models in Q2.
+                    // For a simple column precheck, we just shift the range.
+                    world_z_min = z_min + clip_entity->currentOrigin[ 2 ]; // This is a simplification.
+                    world_z_max = z_max + clip_entity->currentOrigin[ 2 ];
+                } else {
+                    world_xy = QM_Vector3Add( xy_pos, clip_entity->currentOrigin );
+                    world_z_min = z_min + clip_entity->currentOrigin[ 2 ];
+                    world_z_max = z_max + clip_entity->currentOrigin[ 2 ];
+                }
+            }
+
+            FindWalkableLayers( world_xy, mesh->agent_mins, mesh->agent_maxs,
+                                world_z_min, world_z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
                                 &layers, &num_layers, clip_entity );
 
             if ( num_layers > 0 ) {
@@ -553,7 +668,7 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
     for ( int32_t i = 0; i < num_leafs; i++ ) {
         uint64_t leafStartMs = 0;
         if ( SVG_Nav_ProfileEnabled( 2 ) ) {
-            leafStartMs = gi.Com_GetSystemMilliseconds();
+            leafStartMs = gi.GetRealSystemTime();
         }
         mesh->leaf_data[ i ].leaf_index = i;
         mesh->leaf_data[ i ].num_tiles = 0;
@@ -637,7 +752,7 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
 
         uint64_t leafStartMs = 0;
         if ( SVG_Nav_ProfileEnabled( 2 ) ) {
-            leafStartMs = gi.Com_GetSystemMilliseconds();
+            leafStartMs = gi.GetRealSystemTime();
         }
 
         temp_tile_ids.clear();
@@ -661,7 +776,7 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
         }
 
         if ( SVG_Nav_ProfileEnabled( 2 ) ) {
-            const uint64_t leafEndMs = gi.Com_GetSystemMilliseconds();
+            const uint64_t leafEndMs = gi.GetRealSystemTime();
             const double leafMs = ( double )( leafEndMs - leafStartMs );
             SVG_Nav_Log( "[NavProfile] Leaf %d sampling time: %.2f ms\n", i, leafMs );
         }
@@ -677,7 +792,7 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
     /**
     *    Phase complete: record elapsed time and log summary statistics.
     **/
-	QMTime t1 = QMTime::FromMilliseconds( gi.Com_GetSystemMilliseconds() );
+	QMTime t1 = QMTime::FromMilliseconds( gi.GetRealSystemTime() );
     const double elapsedMs = ( double )( t1 - t0 ).Seconds();
     SVG_Nav_Log( "World mesh generation complete (tile-first) - %.2f ms\n", elapsedMs );
     SVG_Nav_Log( "  Tiles attempted: %d\n", total_tile_attempts );
@@ -745,7 +860,11 @@ void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 
         const char *model_name = ent->model;
         const mmodel_t *mm = ( model_name ? gi.GetInlineModelDataForName( model_name ) : nullptr );
+        // Sanity: inline model data must exist for the referenced model name.
         if ( !mm ) {
+            // Diagnostic: Log model-name -> inline model data lookup failure to help debug missing inline meshes.
+            SVG_Nav_Log( "[NavDebug] GenerateInlineModelMesh: GetInlineModelDataForName returned NULL for model='%s' ent=%d model_index=%d\n",
+                model_name ? model_name : "(null)", ent ? ent->s.number : -1, model_index );
             out_index++;
             continue;
         }
@@ -773,39 +892,18 @@ void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
                 tile.tile_x = tile_x;
                 tile.tile_y = tile_y;
 
-                bool skipTile = false;
-                const double tile_origin_x = model_mins[ 0 ] + ( tile_x * tile_world_size );
-                const double tile_origin_y = model_mins[ 1 ] + ( tile_y * tile_world_size );
-                mnode_t *headnode = nullptr;
-                if ( gi.CM_InlineModelHeadnode ) {
-                    headnode = gi.CM_InlineModelHeadnode( model_index );
-                }
-
-                if ( headnode ) {
-                    Vector3 tileMins = {
-                        ( float )( tile_origin_x + mesh->agent_mins[ 0 ] ),
-                        ( float )( tile_origin_y + mesh->agent_mins[ 1 ] ),
-                        ( float )z_min
-                    };
-                    Vector3 tileMaxs = {
-                        ( float )( tile_origin_x + tile_world_size + ( mesh->agent_maxs[ 0 ] - mesh->agent_mins[ 0 ] ) ),
-                        ( float )( tile_origin_y + tile_world_size + ( mesh->agent_maxs[ 1 ] - mesh->agent_mins[ 1 ] ) ),
-                        ( float )z_max
-                    };
-
-                    cm_contents_t contents = CONTENTS_NONE;
-                    gi.CM_BoxContents_headnode( &tileMins[ 0 ], &tileMaxs[ 0 ], &contents, nullptr, 0, headnode, nullptr );
-                    if ( ( contents & CM_CONTENTMASK_SOLID ) == 0 ) {
-                        skipTile = true;
-                    }
-                }
-
-                if ( skipTile ) {
-                    continue;
-                }
-
+                // Compute tile origins in model-local space and always attempt sampling.
+                // The headnode-based CM_BoxContents check proved unreliable across some
+                // engine exports, so we sample directly using the entity clip path which
+                // correctly accounts for inline-model transforms.
+                tile.tile_x = tile_x;
+                tile.tile_y = tile_y;
                 if ( Nav_BuildInlineTile( mesh, &tile, model_mins, model_maxs, z_min, z_max, ent ) ) {
                     tiles.push_back( tile );
+                } else {
+                    // Tile had no walkable layers; this is expected for non-walkable areas.
+                    SVG_Nav_Log( "[NavDebug] GenerateInlineModelMesh: inline tile had no walkable layers model_index=%d tile=(%d,%d)\n",
+                        model_index, tile_x, tile_y );
                 }
             }
         }
@@ -822,6 +920,55 @@ void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
     const QMTime t1 = level.time;
     const double elapsedMs = ( double )( t1 - t0 ).Milliseconds();
     SVG_Nav_Log( "Inline models' navmesh generation complete - %.2f ms\n", elapsedMs );
+
+    // Diagnostic: print a histogram of layer counts across inline model tiles (if any) to detect abnormal distributions.
+    if ( mesh && mesh->num_inline_models > 0 ) {
+        std::unordered_map<int32_t, int32_t> layerCountHistogram;
+        int32_t totalCells = 0;
+        int32_t totalLayers = 0;
+        for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
+            nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
+            for ( int32_t t = 0; t < model->num_tiles; t++ ) {
+                nav_tile_t *tile = &model->tiles[ t ];
+                const int32_t cells_per_tile_local = mesh->tile_size * mesh->tile_size;
+                for ( int32_t c = 0; c < cells_per_tile_local; c++ ) {
+                    const int32_t num_layers = tile->cells[ c ].num_layers;
+                    if ( num_layers > 0 ) {
+                        layerCountHistogram[ num_layers ]++;
+                        totalCells++;
+                        totalLayers += num_layers;
+                    }
+                }
+            }
+        }
+
+        SVG_Nav_Log( "[NavDebug] Inline models layer histogram: total_populated_cells=%d total_layers=%d\n", totalCells, totalLayers );
+        for ( const auto &kv : layerCountHistogram ) {
+            SVG_Nav_Log( "[NavDebug]   cells_with_%d_layers = %d\n", kv.first, kv.second );
+        }
+    }
+}
+
+/**
+ *  @brief  Diagnostic helper: print per-inline-model generation summary when present.
+ **/
+static void Nav_LogInlineModelSummary( nav_mesh_t *mesh ) {
+    if ( !mesh ) {
+        return;
+    }
+
+    if ( mesh->num_inline_models <= 0 ) {
+        SVG_Nav_Log( "Inline model summary: none present\n" );
+        return;
+    }
+
+    int32_t total_inline_tiles = 0;
+    for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
+        nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
+        total_inline_tiles += model->num_tiles;
+        SVG_Nav_Log( "  Inline model %d: model_index=%d num_tiles=%d\n", i, model->model_index, model->num_tiles );
+    }
+    SVG_Nav_Log( "Inline model summary: %d models, %d total inline tiles\n", mesh->num_inline_models, total_inline_tiles );
 }
 
 /**
@@ -876,10 +1023,12 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
 	SVG_Nav_Log( "  tile_size: %d\n", g_nav_mesh->tile_size );
 
 	// Generate world and inline meshes with timing.
-	const QMTime genStart = QMTime::FromMilliseconds( gi.Com_GetSystemMilliseconds() );
+	const QMTime genStart = QMTime::FromMilliseconds( gi.GetRealSystemTime() );
 	GenerateWorldMesh( g_nav_mesh.get() );
-	GenerateInlineModelMesh( g_nav_mesh.get() );
-	const QMTime genEnd = QMTime::FromMilliseconds( gi.Com_GetSystemMilliseconds() );
+    GenerateInlineModelMesh( g_nav_mesh.get() );
+    // Emit a short inline-model generation summary to help debug missing inline tiles.
+    Nav_LogInlineModelSummary( g_nav_mesh.get() );
+	const QMTime genEnd = QMTime::FromMilliseconds( gi.GetRealSystemTime() );
 	const double genElapsedMs = ( double )( genEnd - genStart ).Milliseconds();
 	SVG_Nav_Log( "Overall generation time: %.2f ms\n", genElapsedMs );
 

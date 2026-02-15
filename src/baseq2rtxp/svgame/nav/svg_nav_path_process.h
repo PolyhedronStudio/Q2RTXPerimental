@@ -36,7 +36,7 @@ struct svg_nav_path_policy_t {
 	*	Goal and Waypoint parameters:
 	**/
 	//! Radius around waypoints to consider 'reached'.
-	float waypoint_radius = 8.0;
+	float waypoint_radius = 32.0;
 
 	//! 2D distance change in goal position that triggers a path rebuild.
 	double rebuild_goal_dist_2d = 48.0;

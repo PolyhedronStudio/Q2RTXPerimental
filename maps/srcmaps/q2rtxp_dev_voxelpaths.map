@@ -930,7 +930,7 @@
 }
 // entity 1
 {
-"classname" "monster_testdummy_puppet"
+"classname" "monster_testdummy_debug"
 "origin" "320 0 80"
 "angle" "180"
 }

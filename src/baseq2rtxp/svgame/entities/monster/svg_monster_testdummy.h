@@ -194,6 +194,12 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     **/
     svg_nav_path_process_t navPathProcess = {};
     svg_nav_path_policy_t navPathPolicy = {};
+    //! Tracks the last goal position used to validate cached navigation paths.
+    Vector3 last_nav_goal_origin = {};
+    //! Tracks whether last_nav_goal_origin holds valid data.
+    bool last_nav_goal_valid = false;
+    //! Tracks whether the goal was visible when the last nav goal was recorded.
+    bool last_nav_goal_visible = false;
     //! Most recent sound_entity noise time this monster consumed.
     QMTime last_sound_time_seen = 0_ms;
     //! Most recent sound2_entity noise time this monster consumed.
@@ -207,6 +213,15 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
 	//! Time at which the cached navigation direction was last updated.
 	QMTime last_nav_dir_time = 0_ms;
 
+    //! LOS hysteresis: consecutive frames the activator was visible.
+    //! Used to avoid rapid flipping between direct pursuit and A* when the player
+    //! is peeking around corners for a few frames.
+    int32_t visible_los_frames = 0;
+    //! LOS hysteresis: consecutive frames the activator was hidden.
+    int32_t hidden_los_frames = 0;
+    //! Last pursued mode: true when we last used direct LOS pursuit, false for A*/trail following.
+    bool last_pursuit_was_direct = false;
+
     
     /**
     *
@@ -214,9 +229,9 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     *
     **/
     //! For when dummy is standing straight up.
-    static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, 0.f };
-    static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 72.f };
-    static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 30.f;
+    static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, -36.f };
+    static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 36.f };
+    static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 24.f;
     //! For when dummy is crouching.
     static constexpr Vector3 DUMMY_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
     static constexpr Vector3 DUMMY_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };

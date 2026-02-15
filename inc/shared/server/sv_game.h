@@ -482,7 +482,6 @@ typedef struct {
     *   Other:
     * 
     **/
-	const uint64_t ( *Com_GetSystemMilliseconds )( void );
     //! Returns current error number.
     const int32_t( *Q_ErrorNumber )( void );
     //! Returns matching string for error number.

@@ -551,6 +551,8 @@ void svg_gamemode_cooperative_t::PostCheckGameRuleConditions() {
 
 /**
 *   @brief  This will be called once for all clients on each server frame, before running any other entities in the world.
+*   @param  ent  Player entity to update for this server frame.
+*   @note   Seeds the player trail to ensure breadcrumb-following has a valid start.
 **/
 void svg_gamemode_cooperative_t::BeginServerFrame( svg_player_edict_t *ent ) {
     /**
@@ -609,21 +611,30 @@ void svg_gamemode_cooperative_t::BeginServerFrame( svg_player_edict_t *ent ) {
         return;
     }
 
-	/**
-	*   Add player trail so monsters can follow (Q2/Q2RTX behavior).
-	*   Notes:
-	*   - only for non-deathmatch
-	*   - only for alive, non-spectator players
-	*   - only add when player can't see the last trail spot
-	*   - add old position (previous origin), not current
-	**/
-	#ifdef USE_VISIBILE_INSTEAD_OF_INFRONT
-	if ( !SVG_Entity_IsVisible( ent, PlayerTrail_LastSpot() ) ) {
-		#else // USE_VISIBILE_INSTEAD_OF_INFRONT
-	if ( !SVG_Entity_IsInFrontOf( ent, PlayerTrail_LastSpot() ) ) {
-		#endif // USE_VISIBILE_INSTEAD_OF_INFRONT
-		PlayerTrail_Add( ent->currentOrigin );
-	}
+ /**
+    *   Add player trail so monsters can follow (Q2/Q2RTX behavior).
+    *   Notes:
+    *   - only for non-deathmatch
+    *   - only for alive, non-spectator players
+    *   - only add when player can't see the last trail spot
+    *   - add old position (previous origin), not current
+    **/
+    /**
+    *   Seed trail once so the first breadcrumb is valid.
+    **/
+    svg_base_edict_t *lastTrailSpot = PlayerTrail_LastSpot();
+    if ( lastTrailSpot && lastTrailSpot->timestamp <= 0_ms ) {
+        // Ensure the first breadcrumb is the player's current location.
+        PlayerTrail_Add( ent->currentOrigin );
+        lastTrailSpot = PlayerTrail_LastSpot();
+    }
+    #ifdef USE_VISIBILE_INSTEAD_OF_INFRONT
+    if ( lastTrailSpot && !SVG_Entity_IsVisible( ent, lastTrailSpot ) ) {
+        #else // USE_VISIBILE_INSTEAD_OF_INFRONT
+    if ( lastTrailSpot && !SVG_Entity_IsInFrontOf( ent, lastTrailSpot ) ) {
+        #endif // USE_VISIBILE_INSTEAD_OF_INFRONT
+        PlayerTrail_Add( ent->currentOrigin );
+    }
 
     /**
     *   UNLATCH ALL LATCHED BUTTONS:
