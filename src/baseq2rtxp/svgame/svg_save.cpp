@@ -23,6 +23,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/svg_clients.h"
 #include "svgame/svg_edict_pool.h"
 
+#include "svgame/nav/svg_nav.h"
+
 #include "svgame/entities/svg_player_edict.h"
 #include "svgame/entities/svg_worldspawn_edict.h"
 
@@ -275,6 +277,40 @@ void SVG_WriteLevel(const char *filename)
         gi.error( "Couldn't write %s", filename );
     }
 } 
+
+/**
+*	@brief	Restore area-portal open/closed state into the collision model.
+*	@note	The collision model's portal booleans are not persisted by the level save.
+*			Rebuild portal states from entities' refcounts so the world collision reflects saved state.
+**/
+static void RestoreAreaPortalStatesFromEntities() {
+	// Iterate all edicts (skip worldspawn at index 0).
+	for ( int32_t ai = 1; ai < globals.edictPool->num_edicts; ai++ ) {
+		// Acquire the edict by number.
+		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( ai );
+		// Skip inactive or null edicts.
+		if ( !SVG_Entity_IsActive( ent ) ) {
+			continue;
+		}
+
+		// Determine whether this entity represents an area portal.
+		const bool isAreaPortal =
+			( ent->s.entityType == ET_AREA_PORTAL ) ||
+			( ent->classname && strcmp( ( const char * )ent->classname, "func_areaportal" ) == 0 );
+
+		// If not an area portal, continue.
+		if ( !isAreaPortal ) {
+			continue;
+		}
+
+		// `count` is authoritative: non-zero means the portal should be open.
+		const int32_t isOpen = ( ent->count > 0 ? 1 : 0 );
+
+		// Update collision-model portal state and relink the entity so the server sees the updated state.
+		gi.SetAreaPortalState( ent->style, isOpen );
+		gi.linkentity( ent );
+	}
+}
 
 /**
 *   @brief  SpawnEntities will allready have been called on the
@@ -530,7 +566,7 @@ void SVG_ReadLevel(const char *filename)
 	// Find entity 'teams', NOTE: these are not actual player game teams. SVG_FindTeams(); // Find all entities that are following a parent's movement. SVG_MoveWith_FindParentTargetEntities();
 	// Restore areaportal open/closed state into the collision model from restored entity refcounts.
 	// This is required because `cm->portalopen[]` is not persisted by the level save.
-	SVG_RestoreAreaPortalStatesFromEntities();
+
 
 	// Do NOT call spawn-time door portal init here; it would override the saved state.
 	// SVG_SetupDoorPortalSpawnStates();
@@ -561,6 +597,16 @@ void SVG_ReadLevel(const char *filename)
         }
         #endif
     }
+
+	// We got all the entities loaded, now we can savely restore the map's area portal states from the entities, since the entities are what hold the refcounts for the area portals.
+	// The collision model's portal booleans are not persisted by the level save.
+	// Rebuild portal states from entities' refcounts so the world collision reflects saved state.
+	RestoreAreaPortalStatesFromEntities();
+
+	// Restore the navmesh for this map.
+	if ( !SVG_Nav_LoadMesh( level.mapname ) ) {
+		gi.dprintf( "No navmesh found for map %s.\n", level.mapname );
+	}
 
     // Connect all movewith entities.
     //SVG_MoveWith_FindParentTargetEntities();
