@@ -28,6 +28,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/player/svg_player_client.h"
 #include "svgame/player/svg_player_view.h"
 
+#include "svgame/player/svg_player_trail.h"
+
 #include "svgame/svg_lua.h"
 
 #include "svgame/entities/svg_entities_pushermove.h"
@@ -456,9 +458,15 @@ void SVG_InitGame( void ) {
         game.clients[ i ].pers.connected = false;
         game.clients[ i ].pers.spawned = false;
     }
-
 	// Initialize navigation system (registers cvars like `nav_debug_draw`).
 	SVG_Nav_Init();
+
+	// <Q2RTXP>: WID: Happens in SVG_SpawnEntities now since we need the map's entities to initialize the nav system.
+
+	// Initialize the player trail system so breadcrumb entities exist for monsters.
+	// This must happen after the edict pool and clients are allocated so the
+	// trail entities can be allocated from the edict pool.
+	PlayerTrail_Init();
 }
 
 /**

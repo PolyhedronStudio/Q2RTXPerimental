@@ -643,6 +643,8 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	// This ensures all inline models (brush entities) have their proper modelindex set.
 	SVG_Nav_Init();
 
+
+
     // Initialize a fresh clients array.
     //game.clients = SVG_Clients_Reallocate( game.maxclients );
     // Set client fields on player entities.
@@ -674,11 +676,6 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
         i++, ent++;
     }
     #endif
-
-	/**
-	*	Initialize player trails.
-	**/
-	PlayerTrail_Init();
 	
 	/**
 	*	Load in the world's Lua Script, if any.
@@ -699,12 +696,11 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	// After all entities are spawned, check door portal states.
 	SVG_SetupDoorPortalSpawnStates();
 
-		// Actual filename of the .nav file.
-	std::string navMeshName = std::string( level.mapname ) + ".nav";
-	// Actual path where it is expected to be residing at:
-	const std::string filePath = BASEGAME "/maps/nav/" + navMeshName;
-	// Load it up if it exists, otherwise it'll just be ignored and the nav system will be inactive.
-	if ( gi.FS_FileExistsEx( filePath.c_str(), 0 ) ) {
-		SVG_Nav_LoadVoxelMesh( navMeshName.c_str() );
-	}
+	/**
+	*	Initialize player trails.
+	**/
+	// Initialize the player trail system so breadcrumb entities exist for monsters.
+	// This must happen after the edict pool and clients are allocated so the
+	// trail entities can be allocated from the edict pool.
+	PlayerTrail_Init();
 }

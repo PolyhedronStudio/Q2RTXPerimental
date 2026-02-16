@@ -517,7 +517,8 @@ void SVG_ReadLevel(const char *filename)
 	/**
 	*	Initialize player trails.
 	**/
-	PlayerTrail_Init();
+	// <Q2RTXP>: WID: Player trails should've been restored from the savegame, so we don't want to reinitialize them here.
+	//PlayerTrail_Init();
 
 	/**
 	*	Build and link entity teams.

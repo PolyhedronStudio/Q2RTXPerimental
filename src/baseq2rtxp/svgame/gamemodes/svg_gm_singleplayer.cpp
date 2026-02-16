@@ -545,7 +545,7 @@ void svg_gamemode_singleplayer_t::BeginServerFrame( svg_player_edict_t *ent ) {
 		lastTrailSpot = PlayerTrail_LastSpot();
 	}
 
-#if 1
+#if 0
 	// If the last breadcrumb is present and sufficiently old, add a new one
 	// when the player can no longer see / is not in front of the last spot.
 #ifdef USE_VISIBILE_INSTEAD_OF_INFRONT

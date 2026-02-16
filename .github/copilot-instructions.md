@@ -10,7 +10,37 @@
 ## Code Style
 - Follow consistent formatting rules across the project.
 - Adhere to naming conventions as specified in the project documentation.
-- Prefer Doxygen-style comments with tab-indented @tags (e.g., /**\n*\t@brief ...\n*\t@note ...\n**/) and section header blocks in .cpp files.
+-- Prefer Doxygen-style comments. Two canonical styles are accepted and should be used depending on context.
+
+  1) Aligned tags (used when tags are long or multiple tags should visually align). The aligned form uses an extra tab after the longest tag column for spacing:
+
+  ```cpp
+  /**
+  *	@brief		Append a breadcrumb at `spot` into the circular trail buffer.
+  *	@details	Helper function for `PlayerTrail_New` and `PlayerTrail_Add`. Stores the given
+  *	@param	spot	World-space feet-origin position to store as a breadcrumb.
+  *	@note	Stores the current `level.time` in the breadcrumb's `timestamp`
+  *			and computes a yaw based on the vector from the previous
+  *			breadcrumb to this one.
+  **/
+  ```
+
+  2) Compact tags (preferred for short/simple functions):
+
+  ```cpp
+  /**
+  *	@brief	Append a breadcrumb at `spot` into the circular trail buffer.
+  *	@param	spot	World-space feet-origin position to store as a breadcrumb.
+  *	@note	Stores the current `level.time` in the breadcrumb's `timestamp`
+  *			and computes a yaw based on the vector from the previous
+  *			breadcrumb to this one.
+  **/
+  ```
+
+  In both forms:
+  - Use tabs for indentation inside the comment block and after the leading `*`.
+  - Align tags vertically when using the aligned style (add extra tabs if needed so the tag columns line up up to the longest tag).
+  - Prefer the compact style for short/simple functions and the aligned style for more complex functions or when multiple tags/columns improve readability.
 - Use explanatory // comments before small code blocks.
 
 ## Global/static variable documentation
@@ -34,9 +64,9 @@ int32_t descriptiveVariableName;
 Example:
 
 ```cpp
-//! Maximum amount of loop iterations.
+// Maximum amount of loop iterations.
 int32_t maxLength = 0;
-//! Iterate over the loop and explain here why/what it is up to.
+// Iterate over the loop and explain here why/what it is up to.
 for ( int32_t i = 0; i < maxLength; i++ ) {
 	// ..
 }
@@ -95,53 +125,66 @@ if ( zDelta < zStepThreshold ) {
 // Use this as the canonical example for QueryDirection-style functions.
 ```cpp
 /**
- *	@brief	Query the next 3D movement direction while advancing 2D waypoints.
- *	@param	current_origin	Current agent feet-origin.
- *	@param	policy		Path-follow policy (waypoint radius, etc.).
- *	@param	out_dir3d	[out] Normalized 3D direction if available.
- *	@return	True if a valid direction was produced.
- **/
+*	@brief  Query the next 3D movement direction while advancing 2D waypoints.
+*	@param  current_origin	Current agent feet-origin.
+*	@param  policy		Path-follow policy (waypoint radius, etc.).
+*	@param  out_dir3d	[out] Normalized 3D direction if available.
+*	@return True if a valid direction was produced.
+**/
 const bool svg_nav_path_process_t::QueryDirection3D( const Vector3 &current_origin, const svg_nav_path_policy_t &policy, Vector3 *out_dir3d ) {
     /**
     *    Validate output pointer and ensure we have a path to query.
     **/
+    // Check if the caller provided a valid output pointer for the direction.
     if ( !out_dir3d ) {
+        // Return false if caller did not provide a valid output pointer.
         return false;
     }
+    // If we have no path points, return false.
     if ( path.num_points <= 0 || !path.points ) {
+        // Return false.
         return false;
     }
 
     /**
     *    Transform caller origin to nav-center space using stored center offset.
     **/
+    // Calculate the query origin by adding the path center offset to the current origin.
     const Vector3 query_origin = QM_Vector3Add( current_origin, Vector3{ 0.0f, 0.0f, path_center_offset_z } );
 
     /**
     *    Query the movement direction and advance waypoints in 2D while
     *    returning a 3D direction for stairs/steps handling.
     **/
+    // Initialize output direction to zero in case the query fails.
     Vector3 dir = {};
+    // Start with the current path index as the query index.
     int32_t idx = path_index;
+    // Query the movement direction and advance waypoints in 2D while returning a 3D direction for stairs/steps handling.
     const bool ok = SVG_Nav_QueryMovementDirection_Advance2D_Output3D( &path, query_origin, policy.waypoint_radius, &idx, &dir );
 
     /**
     *    Sanity: if the nav query failed, bail out without altering state.
     **/
+    // If the query failed, return false.
     if ( !ok ) {
+        // Return false.
         return false;
     }
 
     /**
     *    Commit advanced index so future queries continue along the path.
     **/
+    // Assign the acquired path index.
     path_index = idx;
 
     /**
     *    Validate the returned direction magnitude before normalizing to avoid
     *    numerical instability on near-zero vectors.
     **/
+    // Calcuate the length.
     const float len2 = ( dir.x * dir.x ) + ( dir.y * dir.y ) + ( dir.z * dir.z );
+    // If it is microscopical small, return false.
     if ( len2 <= ( 0.001f * 0.001f ) ) {
         return false;
     }
@@ -149,7 +192,9 @@ const bool svg_nav_path_process_t::QueryDirection3D( const Vector3 &current_orig
     /**
     *    Output normalized 3D direction.
     **/
+    // Assign value to the output parameter after normalizing.
     *out_dir3d = QM_Vector3Normalize( dir );
+    // Return true.
     return true;
 }
 ```

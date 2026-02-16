@@ -11,6 +11,7 @@
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_clusters.h"
 #include "svgame/nav/svg_nav_debug.h"
+#include "svgame/nav/svg_nav_load.h"
 #include "svgame/nav/svg_nav_generate.h"
 #include "svgame/nav/svg_nav_path_process.h"
 #include "svgame/nav/svg_nav_request.h"
@@ -21,7 +22,7 @@
 // <Q2RTXP>: TODO: Move to shared? Ehh.. 
 // Common BSP access for navigation generation.
 #include "common/bsp.h"
-#include "common/files.h"
+//#include "common/files.h"
 
 
 
@@ -512,6 +513,21 @@ void SVG_Nav_Shutdown( void ) {
 	**/
 	NavDebug_ClearCachedPaths();
 	SVG_Nav_FreeMesh();
+}
+
+/**
+*	@brief	Loads up an existing navigation mesh for the current map, if the file is located.
+*	@return True if a mesh was successfully loaded, false otherwise (e.g., file not found).
+**/
+void SVG_Nav_LoadMesh( const char *levelName ) {
+		// Actual filename of the .nav file.
+	std::string navMeshName = std::string( level.mapname ) + ".nav";
+	// Actual path where it is expected to be residing at:
+	const std::string filePath = "/maps/nav/" + navMeshName;
+	// Load it up if it exists, otherwise it'll just be ignored and the nav system will be inactive.
+	if ( gi.FS_FileExistsEx( filePath.c_str(), 0 ) ) {
+		SVG_Nav_LoadVoxelMesh( navMeshName.c_str() );
+	}
 }
 
 

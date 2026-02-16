@@ -522,8 +522,11 @@ void SVG_Nav_Init( void );
 *           Called during game shutdown to clean up resources.
 **/
 void SVG_Nav_Shutdown( void );
-
-
+/**
+*	@brief	Loads up an existing navigation mesh for the current map, if the file is located.
+*	@return True if a mesh was successfully loaded, false otherwise (e.g., file not found).
+**/
+void SVG_Nav_LoadMesh( const char *levelName );
 /**
 *
 *

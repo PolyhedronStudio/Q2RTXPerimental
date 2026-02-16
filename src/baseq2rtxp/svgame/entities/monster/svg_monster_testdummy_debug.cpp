@@ -101,13 +101,16 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 	*    Exclusively use A* to target the activator.
 	**/
 	bool pursuing = false;
-    if ( self->activator ) {
+    if ( self->activator && self->goalentity != self->activator ) {
 		// If we just switched to a new activator goal, reset any pending path state
 		// so we do not reuse stale async requests/path buffers.
-		if ( self->goalentity != self->activator ) {
-			self->goalentity = self->activator;
-			SVG_TestDummy_ResetNavPath( self );
-		}
+		self->goalentity = self->activator;
+		SVG_TestDummy_ResetNavPath( self );
+        // While directly targeting the activator, ignore breadcrumb trail spots
+		// by marking the trail_time to now. This mirrors direct-pursuit behavior
+		// used in the puppet testdummy so PickFirst will prefer newer trail
+		// entries once LOS is lost.
+		self->trail_time = level.time;
 		pursuing = self->MoveAStarToOrigin( self->activator->currentOrigin );
 	}
 
@@ -190,6 +193,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 		if ( trailSpot ) {
 			// Clear direct goalentity since we are targeting a trail spot.
 			self->goalentity = nullptr;
+            // Record the trail timestamp we are now following so PickFirst/PickNext
+			// will skip older breadcrumbs. This ensures we consistently pursue
+			// the chosen breadcrumb chain.
+			self->trail_time = trailSpot->timestamp;
         // Request an async rebuild toward the trail spot. The nav request queue now
 		// supports refreshing/replacing existing entries; MoveAStarToOrigin will
 		// enqueue or refresh the pending request and return immediately. We still

@@ -1109,7 +1109,8 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     QMTime   show_hostile_time = 0_ms;
     //! Registers the time of the frame we died in.
     QMTime   death_time = 0_ms;
-    //! Used for player trail.
+	//! Time marker used by the player-trail system. Monsters set this to indicate
+	//! which trail timestamp they are currently following. Defaults to 0 (no trail).
     QMTime   trail_time = 0_ms;
 
 
