@@ -177,6 +177,46 @@ typedef struct nav_inline_model_runtime_s {
 } nav_inline_model_runtime_t;
 
 /**
+*   @brief  Rigid transform basis used for inline-model local/world conversions.
+*   @note   Uses Quake-style angle basis where local +Y maps to `-right`.
+**/
+typedef struct nav_rigid_xform_s {
+	//! World-space translation.
+	Vector3 origin;
+	//! Local +X axis in world space.
+	Vector3 forward;
+	//! Local +Y axis in world space (already negated from AngleVectors right).
+	Vector3 side;
+	//! Local +Z axis in world space.
+	Vector3 up;
+} nav_rigid_xform_t;
+
+/**
+*   @brief  Build a rigid transform from entity origin + Euler angles.
+**/
+nav_rigid_xform_t SVG_Nav_BuildRigidXform( const Vector3 &origin, const Vector3 &angles );
+
+/**
+*   @brief  Transform a local-space point into world-space.
+**/
+Vector3 SVG_Nav_WorldFromLocal( const nav_rigid_xform_t &xform, const Vector3 &local_point );
+
+/**
+*   @brief  Transform a world-space point into local-space.
+**/
+Vector3 SVG_Nav_LocalFromWorld( const nav_rigid_xform_t &xform, const Vector3 &world_point );
+
+/**
+*   @brief  Transform a local-space direction into world-space (no translation).
+**/
+Vector3 SVG_Nav_WorldDirectionFromLocal( const nav_rigid_xform_t &xform, const Vector3 &local_dir );
+
+/**
+*   @brief  Transform a world-space direction into local-space (no translation).
+**/
+Vector3 SVG_Nav_LocalDirectionFromWorld( const nav_rigid_xform_t &xform, const Vector3 &world_dir );
+
+/**
 *	Navigation Cluster Graph (Tile-Level):
 *
 *	This is a coarse adjacency graph over world tiles. It is built after voxelmesh
@@ -228,6 +268,9 @@ struct nav_tile_cluster_graph_t {
 	std::vector<nav_tile_cluster_node_t> nodes;
 };
 
+// Forward declaration; full definition appears below.
+struct nav_mesh_s;
+
 /**
 *	@brief	Refreshes inline model runtime transforms (for movers).
 *	@note	Intended to be cheap enough to call once per frame.
@@ -240,6 +283,21 @@ void SVG_Nav_RefreshInlineModelRuntime( void );
 *   @return Populated nav_agent_profile_t describing hull extents and traversal constraints.
 **/
 nav_agent_profile_t SVG_Nav_BuildAgentProfileFromCvars( void );
+
+/**
+*   @brief  Validate that an agent bbox has strictly increasing extents on all axes.
+**/
+bool SVG_Nav_IsAgentBoundsValid( const Vector3 &mins, const Vector3 &maxs );
+
+/**
+*   @brief  Resolve runtime agent profile for navigation queries.
+*   @param  mesh             Current nav mesh (optional).
+*   @param  requested_mins   Optional per-request mins override.
+*   @param  requested_maxs   Optional per-request maxs override.
+*   @note   Honors `nav_multi_agent_mode` when deciding whether to keep caller-supplied
+*           bounds or force mesh-authored bounds for strict compatibility.
+**/
+nav_agent_profile_t SVG_Nav_ResolveAgentProfile( const nav_mesh_s *mesh, const Vector3 *requested_mins = nullptr, const Vector3 *requested_maxs = nullptr );
 
 /**
 *    @brief    Runtime occupancy entry used for dynamic blocking/penalties.
@@ -338,6 +396,14 @@ typedef struct nav_mesh_s {
     int32_t total_xy_cells;
     //! Total number of Z layers across all cells.
     int32_t total_layers;
+    //! Last world-generation phase duration in milliseconds.
+    double profile_world_gen_ms = 0.0;
+    //! Last inline-model-generation phase duration in milliseconds.
+    double profile_inline_gen_ms = 0.0;
+    //! Last full generation duration in milliseconds.
+    double profile_total_gen_ms = 0.0;
+    //! Real-system timestamp (ms) when generation metrics were recorded.
+    uint64_t profile_generated_at_ms = 0;
 } nav_mesh_t;
 
 /**
@@ -389,6 +455,30 @@ int32_t SVG_Nav_Occupancy_SoftCost( const nav_mesh_t *mesh, int32_t tileId, int3
 *	@return	True if blocked.
 */
 bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex );
+
+/**
+*	@brief	Query occupancy soft-cost at a world/nav-center position.
+*	@param	mesh	Navigation mesh.
+*	@param	position	Position in nav-center space.
+*	@param	allow_fallback	Whether node lookup fallback is allowed.
+*	@return	Soft cost at the resolved node (0 if unresolved).
+**/
+int32_t SVG_Nav_Occupancy_SoftCostForPosition( const nav_mesh_t *mesh, const Vector3 &position, bool allow_fallback = true );
+
+/**
+*	@brief	Query occupancy blocked flag at a world/nav-center position.
+*	@param	mesh	Navigation mesh.
+*	@param	position	Position in nav-center space.
+*	@param	allow_fallback	Whether node lookup fallback is allowed.
+*	@return	True if the resolved node is currently blocked.
+**/
+bool SVG_Nav_Occupancy_BlockedForPosition( const nav_mesh_t *mesh, const Vector3 &position, bool allow_fallback = true );
+
+/**
+*	@brief	Populate dynamic occupancy from active actors for the current frame.
+*	@note	Called once per server frame before async request processing.
+**/
+void SVG_Nav_Occupancy_PopulateFromEntities( void );
 
 /**
 *   @brief  Path result for navigation traversal queries.
@@ -451,6 +541,15 @@ extern cvar_t *nav_cost_slope_weight;
 extern cvar_t *nav_cost_drop_weight;
 extern cvar_t *nav_cost_goal_z_blend_factor;
 extern cvar_t *nav_cost_min_cost_per_unit;
+extern cvar_t *nav_occupancy_enable;
+extern cvar_t *nav_occupancy_actor_soft_cost;
+extern cvar_t *nav_occupancy_actor_footprint_pad_cells;
+extern cvar_t *nav_multi_agent_mode;
+extern cvar_t *nav_cache_auto_load;
+extern cvar_t *nav_cache_auto_bake_missing;
+extern cvar_t *nav_cache_auto_save_after_bake;
+extern cvar_t *nav_cache_require_hash_match;
+extern cvar_t *nav_path_backend;
 
 /**
  *  @brief  Profiling and logging control CVars.
@@ -499,6 +598,50 @@ void SVG_Nav_Log( const char *fmt, ... );
 *   @return True if the slope is walkable, false otherwise.
 **/
 const bool IsWalkableSlope( const Vector3 &normal, double max_slope_deg );
+
+/**
+*   @brief  Build the default nav-cache filename for the active map.
+*   @param  outFilename Destination buffer for `<mapname>.vans`.
+*   @param  outSize     Size of destination buffer.
+*   @return True when a valid filename was produced.
+**/
+bool SVG_Nav_BuildDefaultCacheFilename( char *outFilename, size_t outSize );
+
+/**
+*   @brief  Return a short name for the active traversal backend.
+*   @return "voxel" or "detour-prototype".
+**/
+const char *SVG_Nav_GetPathBackendName( void );
+
+/**
+*   @brief  Runtime metrics for the optional detour-prototype backend.
+**/
+struct nav_backend_profile_t {
+	//! Number of detour-prototype queries attempted.
+	int32_t detour_queries = 0;
+	//! Number of detour-prototype queries that produced a path.
+	int32_t detour_success = 0;
+	//! Number of detour-prototype queries that failed.
+	int32_t detour_failed = 0;
+	//! Total detour-prototype query time in milliseconds.
+	uint64_t detour_total_ms = 0;
+	//! Max detour-prototype query time in milliseconds.
+	uint64_t detour_max_ms = 0;
+	//! Total waypoint count before detour post-processing/string-pull.
+	int64_t detour_points_before = 0;
+	//! Total waypoint count after detour post-processing/string-pull.
+	int64_t detour_points_after = 0;
+};
+
+/**
+*   @brief  Snapshot nav backend runtime metrics.
+**/
+void SVG_Nav_GetBackendProfile( nav_backend_profile_t *outProfile );
+
+/**
+*   @brief  Reset nav backend runtime metrics.
+**/
+void SVG_Nav_ResetBackendProfile( void );
 
 
 

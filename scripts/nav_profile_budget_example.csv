@@ -1,0 +1,3 @@
+# map,max_world_gen_ms,max_inline_gen_ms,max_total_gen_ms,max_queue_frame_ms,max_queue_wait_avg_ms,max_detour_avg_ms,max_detour_points_after,max_over_budget_frames,min_world_tiles
+# Use map name or * for global defaults.
+*,2000,1000,2500,5,25,25,256,0,1

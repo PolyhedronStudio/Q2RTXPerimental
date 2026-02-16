@@ -1,0 +1,8 @@
+# Example map list for nav bake/smoke automation.
+# One map name per line.
+#
+# Update this file to match maps available in your local data setup.
+# These names are placeholders based on existing dev map naming.
+
+q2rtxp_dev_sigio_targetrange
+q2rtxp_dev_npc_puppet

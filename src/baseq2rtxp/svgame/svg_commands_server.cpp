@@ -10,9 +10,17 @@
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_save.h"
 #include "svgame/nav/svg_nav_load.h"
+#include "svgame/nav/svg_nav_path_process.h"
+#include "svgame/nav/svg_nav_request.h"
+#include "svgame/nav/svg_nav_traversal.h"
 
 // Monster types for AI debug introspection.
 #include "svgame/entities/monster/svg_monster_testdummy.h"
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstdlib>
 
 /**
 *   @brief  
@@ -332,6 +340,424 @@ static void ServerCommand_NavLoad_f( void ) {
 	gi.cprintf( nullptr, PRINT_HIGH, "nav_load: loaded '%s'\n", filename );
 }
 
+/**
+*	@brief	Generate and immediately save a navigation voxelmesh cache file.
+*	@note	Usage: sv nav_bake [filename]
+**/
+static void ServerCommand_NavBake_f( void ) {
+	char defaultFilename[ MAX_QPATH ] = {};
+	const char *filename = nullptr;
+
+	if ( gi.argc() >= 3 ) {
+		filename = gi.argv( 2 );
+	} else if ( SVG_Nav_BuildDefaultCacheFilename( defaultFilename, sizeof( defaultFilename ) ) ) {
+		filename = defaultFilename;
+	} else {
+		gi.cprintf( nullptr, PRINT_HIGH, "Usage: sv nav_bake <filename>\n" );
+		return;
+	}
+
+	SVG_Nav_GenerateVoxelMesh();
+	if ( !g_nav_mesh ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "nav_bake: generation failed (mesh unavailable)\n" );
+		return;
+	}
+
+	if ( !SVG_Nav_SaveVoxelMesh( filename ) ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "nav_bake: failed to write '%s'\n", filename );
+		return;
+	}
+
+	gi.cprintf( nullptr, PRINT_HIGH, "nav_bake: generated + wrote '%s'\n", filename );
+}
+
+/**
+*	@brief	Print a compact runtime dashboard for nav mesh + async queue profiling.
+*	@note	Usage: sv nav_profile_dump
+**/
+static void ServerCommand_NavProfileDump_f( void ) {
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	nav_async_queue_profile_t queueProfile = {};
+	nav_backend_profile_t backendProfile = {};
+	SVG_Nav_GetAsyncQueueProfile( &queueProfile );
+	SVG_Nav_GetBackendProfile( &backendProfile );
+
+	const int32_t queueTimeBudgetMs = SVG_Nav_GetAsyncQueueFrameBudgetMs();
+	const double avgQueueWaitMs = ( queueProfile.queue_wait_samples > 0 )
+		? ( ( double )queueProfile.total_queue_wait_ms / ( double )queueProfile.queue_wait_samples )
+		: 0.0;
+
+	char cacheFilename[ MAX_QPATH ] = {};
+	const bool hasDefaultCacheName = SVG_Nav_BuildDefaultCacheFilename( cacheFilename, sizeof( cacheFilename ) );
+
+	gi.cprintf( nullptr, PRINT_HIGH, "=== nav_profile_dump ===\n" );
+	gi.cprintf( nullptr, PRINT_HIGH, "backend=%s mesh_loaded=%d map=%s\n",
+		SVG_Nav_GetPathBackendName(),
+		mesh ? 1 : 0,
+		level.mapname[ 0 ] ? level.mapname : "<none>" );
+	gi.cprintf( nullptr, PRINT_HIGH, "cache auto_load=%d auto_bake_missing=%d auto_save_after_bake=%d require_hash_match=%d default_cache=%s\n",
+		nav_cache_auto_load ? nav_cache_auto_load->integer : 0,
+		nav_cache_auto_bake_missing ? nav_cache_auto_bake_missing->integer : 0,
+		nav_cache_auto_save_after_bake ? nav_cache_auto_save_after_bake->integer : 0,
+		nav_cache_require_hash_match ? nav_cache_require_hash_match->integer : 0,
+		hasDefaultCacheName ? cacheFilename : "<unavailable>" );
+
+	if ( mesh ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "mesh world_tiles=%d inline_models=%d total_tiles=%d total_cells=%d total_layers=%d cell_size=%.2f z_quant=%.2f tile_size=%d\n",
+			( int )mesh->world_tiles.size(),
+			mesh->num_inline_models,
+			mesh->total_tiles,
+			mesh->total_xy_cells,
+			mesh->total_layers,
+			( float )mesh->cell_size_xy,
+			( float )mesh->z_quant,
+			mesh->tile_size );
+		gi.cprintf( nullptr, PRINT_HIGH, "generation world_ms=%.2f inline_ms=%.2f total_ms=%.2f generated_at_ms=%llu\n",
+			mesh->profile_world_gen_ms,
+			mesh->profile_inline_gen_ms,
+			mesh->profile_total_gen_ms,
+			( unsigned long long )mesh->profile_generated_at_ms );
+	}
+
+	gi.cprintf( nullptr, PRINT_HIGH, "async queue_depth=%d queue_peak=%d enqueued=%d refreshed=%d processed=%d completed=%d failed=%d cancelled=%d prepare_failures=%d expansions=%lld\n",
+		queueProfile.queue_depth,
+		queueProfile.queue_peak_depth,
+		queueProfile.total_enqueued,
+		queueProfile.total_refreshed,
+		queueProfile.total_processed,
+		queueProfile.total_completed,
+		queueProfile.total_failed,
+		queueProfile.total_cancelled,
+		queueProfile.total_prepare_failures,
+		( long long )queueProfile.total_expansions );
+	gi.cprintf( nullptr, PRINT_HIGH, "async wait_avg_ms=%.2f wait_max_ms=%llu wait_samples=%d frame_elapsed_ms=%llu frame_processed=%d frame_expansions=%d budget_req=%d budget_expand=%d budget_queue_ms=%d configured_queue_budget_ms=%d over_budget_frames=%d\n",
+		avgQueueWaitMs,
+		( unsigned long long )queueProfile.max_queue_wait_ms,
+		queueProfile.queue_wait_samples,
+		( unsigned long long )queueProfile.last_frame_elapsed_ms,
+		queueProfile.last_frame_processed,
+		queueProfile.last_frame_expansions,
+		queueProfile.last_frame_request_budget,
+		queueProfile.last_frame_expansion_budget,
+		queueProfile.last_frame_queue_budget_ms,
+		queueTimeBudgetMs,
+		queueProfile.frame_over_budget_count );
+
+	const double detourAvgMs = ( backendProfile.detour_queries > 0 )
+		? ( ( double )backendProfile.detour_total_ms / ( double )backendProfile.detour_queries )
+		: 0.0;
+	gi.cprintf( nullptr, PRINT_HIGH, "backend detour_queries=%d detour_success=%d detour_failed=%d detour_avg_ms=%.2f detour_max_ms=%llu detour_points_before=%lld detour_points_after=%lld\n",
+		backendProfile.detour_queries,
+		backendProfile.detour_success,
+		backendProfile.detour_failed,
+		detourAvgMs,
+		( unsigned long long )backendProfile.detour_max_ms,
+		( long long )backendProfile.detour_points_before,
+		( long long )backendProfile.detour_points_after );
+}
+
+/**
+*	@brief	Reset async queue profiling counters used by nav_profile_dump.
+*	@note	Usage: sv nav_profile_reset
+**/
+static void ServerCommand_NavProfileReset_f( void ) {
+	SVG_Nav_ResetAsyncQueueProfile();
+	SVG_Nav_ResetBackendProfile();
+	gi.cprintf( nullptr, PRINT_HIGH, "nav_profile_reset: counters cleared\n" );
+}
+
+/**
+*	@brief	Parse a floating-point server-command argument.
+**/
+static bool Nav_ParseDoubleArg( const int32_t argIndex, double *outValue ) {
+	if ( !outValue ) {
+		return false;
+	}
+
+	const char *text = gi.argv( argIndex );
+	if ( !text || !text[ 0 ] ) {
+		return false;
+	}
+
+	char *endPtr = nullptr;
+	const double value = strtod( text, &endPtr );
+	if ( endPtr == text || ( endPtr && endPtr[ 0 ] != '\0' ) ) {
+		return false;
+	}
+
+	*outValue = value;
+	return true;
+}
+
+/**
+*	@brief	Deterministic 32-bit LCG used by nav self-tests.
+**/
+static inline uint32_t NavSelfTest_NextU32( uint32_t *state ) {
+	*state = ( *state * 1664525u ) + 1013904223u;
+	return *state;
+}
+
+/**
+*	@brief	Generate a deterministic random double in [minValue, maxValue].
+**/
+static inline double NavSelfTest_RandRange( uint32_t *state, const double minValue, const double maxValue ) {
+	const double t = ( double )( NavSelfTest_NextU32( state ) & 0x00FFFFFFu ) / ( double )0x01000000u;
+	return minValue + ( ( maxValue - minValue ) * t );
+}
+
+/**
+*	@brief	Run fast deterministic nav-space and transform invariants.
+*	@note	Usage: sv nav_selftest [iterations]
+**/
+static void ServerCommand_NavSelfTest_f( void ) {
+	int32_t iterations = 256;
+	if ( gi.argc() >= 3 ) {
+		iterations = atoi( gi.argv( 2 ) );
+	}
+	iterations = std::max( 1, std::min( iterations, 10000 ) );
+
+	int32_t checks = 0;
+	int32_t failures = 0;
+	int32_t skipped = 0;
+	double maxError = 0.0;
+	uint32_t rngState = 0xC0DEFACEu;
+
+	auto recordError = [&]( const char *label, const double error, const double tolerance ) {
+		checks++;
+		maxError = std::max( maxError, error );
+		if ( error <= tolerance ) {
+			return;
+		}
+
+		failures++;
+		if ( failures <= 8 ) {
+			gi.cprintf( nullptr, PRINT_HIGH, "[nav-selftest][FAIL] %s error=%.6f tolerance=%.6f\n", label, error, tolerance );
+		}
+	};
+
+	for ( int32_t i = 0; i < iterations; i++ ) {
+		const Vector3 origin = {
+			( float )NavSelfTest_RandRange( &rngState, -2048.0, 2048.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -2048.0, 2048.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -512.0, 512.0 )
+		};
+		const Vector3 angles = {
+			( float )NavSelfTest_RandRange( &rngState, -180.0, 180.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -180.0, 180.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -180.0, 180.0 )
+		};
+		const Vector3 localPoint = {
+			( float )NavSelfTest_RandRange( &rngState, -256.0, 256.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -256.0, 256.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -256.0, 256.0 )
+		};
+
+		const nav_rigid_xform_t xform = SVG_Nav_BuildRigidXform( origin, angles );
+		const Vector3 worldPoint = SVG_Nav_WorldFromLocal( xform, localPoint );
+		const Vector3 localPointRoundTrip = SVG_Nav_LocalFromWorld( xform, worldPoint );
+		const double pointError = QM_Vector3LengthDP( QM_Vector3Subtract( localPointRoundTrip, localPoint ) );
+		recordError( "xform_point_roundtrip", pointError, 0.02 );
+
+		const double forwardLenError = std::fabs( QM_Vector3LengthDP( xform.forward ) - 1.0 );
+		const double sideLenError = std::fabs( QM_Vector3LengthDP( xform.side ) - 1.0 );
+		const double upLenError = std::fabs( QM_Vector3LengthDP( xform.up ) - 1.0 );
+		recordError( "xform_basis_forward_len", forwardLenError, 0.02 );
+		recordError( "xform_basis_side_len", sideLenError, 0.02 );
+		recordError( "xform_basis_up_len", upLenError, 0.02 );
+
+		const double fsDotError = std::fabs( QM_Vector3DotProduct( xform.forward, xform.side ) );
+		const double fuDotError = std::fabs( QM_Vector3DotProduct( xform.forward, xform.up ) );
+		const double suDotError = std::fabs( QM_Vector3DotProduct( xform.side, xform.up ) );
+		recordError( "xform_basis_dot_fs", fsDotError, 0.02 );
+		recordError( "xform_basis_dot_fu", fuDotError, 0.02 );
+		recordError( "xform_basis_dot_su", suDotError, 0.02 );
+
+		const Vector3 localMins = {
+			( float )NavSelfTest_RandRange( &rngState, -96.0, -16.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -96.0, -16.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -64.0, -8.0 )
+		};
+		const Vector3 localMaxs = {
+			( float )NavSelfTest_RandRange( &rngState, 16.0, 96.0 ),
+			( float )NavSelfTest_RandRange( &rngState, 16.0, 96.0 ),
+			( float )NavSelfTest_RandRange( &rngState, 8.0, 64.0 )
+		};
+		double maxCornerError = 0.0;
+		for ( int32_t cornerMask = 0; cornerMask < 8; cornerMask++ ) {
+			const Vector3 localCorner = {
+				( cornerMask & 1 ) ? localMaxs.x : localMins.x,
+				( cornerMask & 2 ) ? localMaxs.y : localMins.y,
+				( cornerMask & 4 ) ? localMaxs.z : localMins.z
+			};
+			const Vector3 worldCorner = SVG_Nav_WorldFromLocal( xform, localCorner );
+			const Vector3 roundTripCorner = SVG_Nav_LocalFromWorld( xform, worldCorner );
+			const double cornerError = QM_Vector3LengthDP( QM_Vector3Subtract( roundTripCorner, localCorner ) );
+			maxCornerError = std::max( maxCornerError, cornerError );
+		}
+		recordError( "xform_aabb_corner_roundtrip", maxCornerError, 0.03 );
+
+		Vector3 localDir = {
+			( float )NavSelfTest_RandRange( &rngState, -1.0, 1.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -1.0, 1.0 ),
+			( float )NavSelfTest_RandRange( &rngState, -1.0, 1.0 )
+		};
+		if ( QM_Vector3LengthDP( localDir ) < 0.0001 ) {
+			localDir = { 1.0f, 0.0f, 0.0f };
+		}
+		localDir = QM_Vector3NormalizeDP( localDir );
+
+		const Vector3 worldDir = SVG_Nav_WorldDirectionFromLocal( xform, localDir );
+		const Vector3 localDirRoundTrip = SVG_Nav_LocalDirectionFromWorld( xform, worldDir );
+		const double directionError = QM_Vector3LengthDP( QM_Vector3Subtract( localDirRoundTrip, localDir ) );
+		recordError( "xform_direction_roundtrip", directionError, 0.02 );
+	}
+
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( !mesh ) {
+		skipped += iterations * 2;
+	} else {
+		const nav_agent_profile_t resolved = SVG_Nav_ResolveAgentProfile( mesh, nullptr, nullptr );
+		if ( SVG_Nav_IsAgentBoundsValid( resolved.mins, resolved.maxs ) ) {
+			for ( int32_t i = 0; i < iterations; i++ ) {
+				const Vector3 feetPos = {
+					( float )NavSelfTest_RandRange( &rngState, -2048.0, 2048.0 ),
+					( float )NavSelfTest_RandRange( &rngState, -2048.0, 2048.0 ),
+					( float )NavSelfTest_RandRange( &rngState, -256.0, 512.0 )
+				};
+
+				const Vector3 centerPos = SVG_Nav_ConvertFeetToCenter( mesh, feetPos, &resolved.mins, &resolved.maxs );
+				const Vector3 feetRoundTrip = SVG_Nav_ConvertCenterToFeet( mesh, centerPos, &resolved.mins, &resolved.maxs );
+				const double feetError = QM_Vector3LengthDP( QM_Vector3Subtract( feetRoundTrip, feetPos ) );
+				recordError( "feet_center_roundtrip", feetError, 0.02 );
+			}
+		} else {
+			skipped += iterations;
+		}
+
+		const double tileWorldSize = mesh->cell_size_xy * mesh->tile_size;
+		if ( tileWorldSize > 0.0 && mesh->cell_size_xy > 0.0 && mesh->tile_size > 0 ) {
+			for ( int32_t i = 0; i < iterations; i++ ) {
+				const double worldX = NavSelfTest_RandRange( &rngState, -4096.0, 4096.0 );
+				const int32_t tileX = Nav_WorldToTileCoord( worldX, tileWorldSize );
+				const double tileOriginX = tileX * tileWorldSize;
+				const bool tileMembershipOk = ( worldX >= ( tileOriginX - NAV_TILE_EPSILON ) )
+					&& ( worldX <= ( tileOriginX + tileWorldSize + NAV_TILE_EPSILON ) );
+				recordError( "tile_membership", tileMembershipOk ? 0.0 : 1.0, 0.5 );
+
+				const double worldInTile = NavSelfTest_RandRange( &rngState, tileOriginX, tileOriginX + tileWorldSize - 0.001 );
+				const int32_t cellX = Nav_WorldToCellCoord( worldInTile, tileOriginX, mesh->cell_size_xy );
+				const bool cellIndexOk = cellX >= 0 && cellX < mesh->tile_size;
+				recordError( "cell_index_bounds", cellIndexOk ? 0.0 : 1.0, 0.5 );
+			}
+		} else {
+			skipped += iterations;
+		}
+	}
+
+	gi.cprintf( nullptr, PRINT_HIGH, "[nav-selftest] result=%s iterations=%d checks=%d failed=%d skipped=%d max_error=%.6f\n",
+		failures == 0 ? "PASS" : "FAIL",
+		iterations,
+		checks,
+		failures,
+		skipped,
+		maxError );
+}
+
+/**
+*	@brief	Run a deterministic path query and emit machine-parseable diagnostics.
+*	@note	Usage:
+*			- sv nav_query_path <start_x> <start_y> <start_z> <goal_x> <goal_y> <goal_z>
+*			- sv nav_query_path <query_id> <start_x> <start_y> <start_z> <goal_x> <goal_y> <goal_z>
+**/
+static void ServerCommand_NavQueryPath_f( void ) {
+	const bool hasQueryId = gi.argc() >= 9;
+	const int32_t coordBase = hasQueryId ? 3 : 2;
+	const char *queryId = hasQueryId ? gi.argv( 2 ) : "q";
+
+	if ( gi.argc() < ( coordBase + 6 ) ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "Usage: sv nav_query_path [query_id] <start_x> <start_y> <start_z> <goal_x> <goal_y> <goal_z>\n" );
+		return;
+	}
+
+	if ( !g_nav_mesh ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "[nav-query] id=%s found=0 points=0 segments_ok=0 invalid_segment=-1 error=no_mesh\n", queryId );
+		return;
+	}
+
+	double startX = 0.0;
+	double startY = 0.0;
+	double startZ = 0.0;
+	double goalX = 0.0;
+	double goalY = 0.0;
+	double goalZ = 0.0;
+	const bool parsed = Nav_ParseDoubleArg( coordBase + 0, &startX )
+		&& Nav_ParseDoubleArg( coordBase + 1, &startY )
+		&& Nav_ParseDoubleArg( coordBase + 2, &startZ )
+		&& Nav_ParseDoubleArg( coordBase + 3, &goalX )
+		&& Nav_ParseDoubleArg( coordBase + 4, &goalY )
+		&& Nav_ParseDoubleArg( coordBase + 5, &goalZ );
+	if ( !parsed ) {
+		gi.cprintf( nullptr, PRINT_HIGH, "[nav-query] id=%s found=0 points=0 segments_ok=0 invalid_segment=-1 error=parse\n", queryId );
+		return;
+	}
+
+	const Vector3 startOrigin = { (float)startX, (float)startY, (float)startZ };
+	const Vector3 goalOrigin = { (float)goalX, (float)goalY, (float)goalZ };
+
+	svg_nav_path_policy_t policy = {};
+	const nav_agent_profile_t resolved = SVG_Nav_ResolveAgentProfile( g_nav_mesh.get(), nullptr, nullptr );
+	policy.agent_mins = resolved.mins;
+	policy.agent_maxs = resolved.maxs;
+	policy.max_step_height = resolved.max_step_height;
+	policy.max_drop_height = resolved.max_drop_height;
+	policy.drop_cap = resolved.drop_cap;
+	policy.max_slope_deg = resolved.max_slope_deg;
+
+	nav_traversal_path_t path = {};
+	const bool found = SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox(
+		startOrigin,
+		goalOrigin,
+		&path,
+		policy.agent_mins,
+		policy.agent_maxs,
+		&policy,
+		policy.enable_goal_z_layer_blend,
+		policy.blend_start_dist,
+		policy.blend_full_dist,
+		nullptr );
+
+	bool segmentsOk = false;
+	int32_t invalidSegment = -1;
+	if ( found ) {
+		segmentsOk = true;
+		const int32_t segmentCount = std::max( 0, path.num_points - 1 );
+		for ( int32_t i = 0; i < segmentCount; i++ ) {
+			const bool traversable = Nav_CanTraverseStep_ExplicitBBox(
+				g_nav_mesh.get(),
+				path.points[ i ],
+				path.points[ i + 1 ],
+				policy.agent_mins,
+				policy.agent_maxs,
+				nullptr,
+				&policy );
+			if ( !traversable ) {
+				segmentsOk = false;
+				invalidSegment = i;
+				break;
+			}
+		}
+	}
+
+	gi.cprintf( nullptr, PRINT_HIGH, "[nav-query] id=%s found=%d points=%d segments_ok=%d invalid_segment=%d\n",
+		queryId,
+		found ? 1 : 0,
+		path.num_points,
+		segmentsOk ? 1 : 0,
+		invalidSegment );
+
+	SVG_Nav_FreeTraversalPath( &path );
+}
+
 
 /*
 ==============================================================================
@@ -599,6 +1025,16 @@ void SVG_ServerCommand(void) {
         ServerCommand_NavSave_f();
     else if ( Q_stricmp( cmd, "nav_load" ) == 0 )
         ServerCommand_NavLoad_f();
+    else if ( Q_stricmp( cmd, "nav_bake" ) == 0 )
+        ServerCommand_NavBake_f();
+    else if ( Q_stricmp( cmd, "nav_profile_dump" ) == 0 )
+        ServerCommand_NavProfileDump_f();
+    else if ( Q_stricmp( cmd, "nav_profile_reset" ) == 0 )
+        ServerCommand_NavProfileReset_f();
+    else if ( Q_stricmp( cmd, "nav_selftest" ) == 0 )
+        ServerCommand_NavSelfTest_f();
+    else if ( Q_stricmp( cmd, "nav_query_path" ) == 0 )
+        ServerCommand_NavQueryPath_f();
     else if ( Q_stricmp( cmd, "nav_cell" ) == 0 )
         ServerCommand_NavCell_f();
     else if ( Q_stricmp( cmd, "addip" ) == 0 )

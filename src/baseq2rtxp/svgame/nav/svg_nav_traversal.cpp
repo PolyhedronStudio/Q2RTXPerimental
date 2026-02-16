@@ -24,6 +24,7 @@
 #include "common/bsp.h"
 #include "common/files.h"
 
+#include <algorithm>
 #include <cmath>
 
 extern cvar_t *nav_max_step;
@@ -37,6 +38,245 @@ extern cvar_t *nav_debug_draw_path;
 **/
 inline bool Nav_PathDiagEnabled( void ) {
 	return nav_debug_draw && nav_debug_draw->integer >= 2;
+}
+
+//! Guards recursion while detour prototype re-enters voxel backend wrappers.
+static bool s_nav_backend_detour_fallback_active = false;
+//! Runtime profile for backend comparison (voxel vs detour-prototype).
+static nav_backend_profile_t s_nav_backend_profile = {};
+
+/**
+*   @brief	Forward declaration for edge-validation helper used by detour string-pull.
+**/
+const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos,
+	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy );
+
+/**
+*    @brief    Return the currently selected traversal backend label.
+**/
+const char *SVG_Nav_GetPathBackendName( void ) {
+	if ( nav_path_backend && nav_path_backend->integer == 1 ) {
+		return "detour-prototype";
+	}
+	return "voxel";
+}
+
+/**
+*    @brief    Check whether traversal API calls should dispatch to detour prototype pathing.
+**/
+static bool Nav_ShouldUseDetourBackend( void ) {
+	return nav_path_backend
+		&& nav_path_backend->integer == 1
+		&& !s_nav_backend_detour_fallback_active;
+}
+
+/**
+*    @brief    Lightweight scope guard to disable backend recursion while delegating.
+**/
+struct nav_detour_reentry_guard_t {
+	nav_detour_reentry_guard_t() {
+		s_nav_backend_detour_fallback_active = true;
+	}
+	~nav_detour_reentry_guard_t() {
+		s_nav_backend_detour_fallback_active = false;
+	}
+};
+
+/**
+*    @brief    Record backend runtime statistics for detour-prototype queries.
+**/
+static void Nav_BackendProfile_RecordDetourQuery( const bool success, const uint64_t elapsedMs, const int32_t inputPoints, const int32_t outputPoints ) {
+	s_nav_backend_profile.detour_queries++;
+	if ( success ) {
+		s_nav_backend_profile.detour_success++;
+	} else {
+		s_nav_backend_profile.detour_failed++;
+	}
+	s_nav_backend_profile.detour_total_ms += elapsedMs;
+	s_nav_backend_profile.detour_max_ms = std::max( s_nav_backend_profile.detour_max_ms, elapsedMs );
+	s_nav_backend_profile.detour_points_before += std::max( 0, inputPoints );
+	s_nav_backend_profile.detour_points_after += std::max( 0, outputPoints );
+}
+
+/**
+*    @brief    Snapshot backend runtime profile.
+**/
+void SVG_Nav_GetBackendProfile( nav_backend_profile_t *outProfile ) {
+	if ( !outProfile ) {
+		return;
+	}
+	*outProfile = s_nav_backend_profile;
+}
+
+/**
+*    @brief    Reset backend runtime profile counters.
+**/
+void SVG_Nav_ResetBackendProfile( void ) {
+	s_nav_backend_profile = {};
+}
+
+/**
+*    @brief    Apply a detour-style aggressive string-pull over voxel waypoints.
+**/
+static void Nav_DetourPrototype_StringPull( const nav_mesh_t *mesh, const Vector3 &agent_mins, const Vector3 &agent_maxs,
+	const svg_nav_path_policy_t *policy, const std::vector<Vector3> &inputPoints, std::vector<Vector3> *outPoints ) {
+	if ( !outPoints ) {
+		return;
+	}
+	outPoints->clear();
+
+	if ( inputPoints.empty() ) {
+		return;
+	}
+	if ( inputPoints.size() <= 2 || !mesh ) {
+		*outPoints = inputPoints;
+		return;
+	}
+
+	// Remove tiny duplicate hops first to avoid degenerate edges in string-pull.
+	std::vector<Vector3> dedup;
+	dedup.reserve( inputPoints.size() );
+	for ( const Vector3 &p : inputPoints ) {
+		if ( dedup.empty() ) {
+			dedup.push_back( p );
+			continue;
+		}
+		const Vector3 d = QM_Vector3Subtract( p, dedup.back() );
+		if ( QM_Vector3LengthDP( d ) > 0.1 ) {
+			dedup.push_back( p );
+		}
+	}
+
+	if ( dedup.size() <= 2 ) {
+		*outPoints = dedup;
+		return;
+	}
+
+	outPoints->reserve( dedup.size() );
+	int32_t anchor = 0;
+	outPoints->push_back( dedup[ 0 ] );
+	const int32_t count = ( int32_t )dedup.size();
+
+	while ( anchor < ( count - 1 ) ) {
+		int32_t best = anchor + 1;
+		for ( int32_t probe = count - 1; probe > anchor + 1; --probe ) {
+			if ( Nav_CanTraverseStep_ExplicitBBox( mesh, dedup[ anchor ], dedup[ probe ], agent_mins, agent_maxs, nullptr, policy ) ) {
+				best = probe;
+				break;
+			}
+		}
+
+		outPoints->push_back( dedup[ best ] );
+		anchor = best;
+	}
+}
+
+/**
+*    @brief    Post-process a generated path using detour-prototype straight-path extraction.
+**/
+static void Nav_DetourPrototype_PostProcessPath( const nav_mesh_t *mesh, const Vector3 &agent_mins, const Vector3 &agent_maxs,
+	const svg_nav_path_policy_t *policy, nav_traversal_path_t *io_path, int32_t *outInputPoints, int32_t *outOutputPoints ) {
+	if ( outInputPoints ) {
+		*outInputPoints = 0;
+	}
+	if ( outOutputPoints ) {
+		*outOutputPoints = 0;
+	}
+
+	if ( !io_path || !io_path->points || io_path->num_points <= 0 ) {
+		return;
+	}
+
+	std::vector<Vector3> originalPoints;
+	originalPoints.assign( io_path->points, io_path->points + io_path->num_points );
+	if ( outInputPoints ) {
+		*outInputPoints = ( int32_t )originalPoints.size();
+	}
+
+	std::vector<Vector3> simplifiedPoints;
+	Nav_DetourPrototype_StringPull( mesh, agent_mins, agent_maxs, policy, originalPoints, &simplifiedPoints );
+	if ( simplifiedPoints.empty() ) {
+		simplifiedPoints = originalPoints;
+	}
+	if ( outOutputPoints ) {
+		*outOutputPoints = ( int32_t )simplifiedPoints.size();
+	}
+
+	if ( simplifiedPoints.size() == originalPoints.size() ) {
+		return;
+	}
+
+	Vector3 *newPoints = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * simplifiedPoints.size(), TAG_SVGAME_LEVEL );
+	memcpy( newPoints, simplifiedPoints.data(), sizeof( Vector3 ) * simplifiedPoints.size() );
+
+	gi.TagFree( io_path->points );
+	io_path->points = newPoints;
+	io_path->num_points = ( int32_t )simplifiedPoints.size();
+}
+
+static bool Nav_DetourFallback_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path ) {
+	const uint64_t startMs = gi.GetRealSystemTime();
+	nav_detour_reentry_guard_t reentryGuard = {};
+	const bool ok = SVG_Nav_GenerateTraversalPathForOrigin( start_origin, goal_origin, out_path );
+	int32_t inputPoints = 0;
+	int32_t outputPoints = 0;
+	if ( ok ) {
+		const nav_mesh_t *mesh = g_nav_mesh.get();
+		const Vector3 mins = mesh ? mesh->agent_mins : Vector3{};
+		const Vector3 maxs = mesh ? mesh->agent_maxs : Vector3{};
+		Nav_DetourPrototype_PostProcessPath( mesh, mins, maxs, nullptr,
+			out_path, &inputPoints, &outputPoints );
+	}
+	Nav_BackendProfile_RecordDetourQuery( ok, gi.GetRealSystemTime() - startMs, inputPoints, outputPoints );
+	return ok;
+}
+
+static bool Nav_DetourFallback_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist ) {
+	const uint64_t startMs = gi.GetRealSystemTime();
+	nav_detour_reentry_guard_t reentryGuard = {};
+	const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx( start_origin, goal_origin, out_path, enable_goal_z_layer_blend, blend_start_dist, blend_full_dist );
+	int32_t inputPoints = 0;
+	int32_t outputPoints = 0;
+	if ( ok ) {
+		const nav_mesh_t *mesh = g_nav_mesh.get();
+		const Vector3 mins = mesh ? mesh->agent_mins : Vector3{};
+		const Vector3 maxs = mesh ? mesh->agent_maxs : Vector3{};
+		Nav_DetourPrototype_PostProcessPath( mesh, mins, maxs, nullptr,
+			out_path, &inputPoints, &outputPoints );
+	}
+	Nav_BackendProfile_RecordDetourQuery( ok, gi.GetRealSystemTime() - startMs, inputPoints, outputPoints );
+	return ok;
+}
+
+static bool Nav_DetourFallback_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy ) {
+	const uint64_t startMs = gi.GetRealSystemTime();
+	nav_detour_reentry_guard_t reentryGuard = {};
+	const bool ok = SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( start_origin, goal_origin, out_path, agent_mins, agent_maxs, policy );
+	int32_t inputPoints = 0;
+	int32_t outputPoints = 0;
+	if ( ok ) {
+		Nav_DetourPrototype_PostProcessPath( g_nav_mesh.get(), agent_mins, agent_maxs, policy, out_path, &inputPoints, &outputPoints );
+	}
+	Nav_BackendProfile_RecordDetourQuery( ok, gi.GetRealSystemTime() - startMs, inputPoints, outputPoints );
+	return ok;
+}
+
+static bool Nav_DetourFallback_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
+	const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy, const bool enable_goal_z_layer_blend, const double blend_start_dist,
+	const double blend_full_dist, const struct svg_nav_path_process_t *pathProcess ) {
+	const uint64_t startMs = gi.GetRealSystemTime();
+	nav_detour_reentry_guard_t reentryGuard = {};
+	const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( start_origin, goal_origin, out_path, agent_mins, agent_maxs, policy,
+		enable_goal_z_layer_blend, blend_start_dist, blend_full_dist, pathProcess );
+	int32_t inputPoints = 0;
+	int32_t outputPoints = 0;
+	if ( ok ) {
+		Nav_DetourPrototype_PostProcessPath( g_nav_mesh.get(), agent_mins, agent_maxs, policy, out_path, &inputPoints, &outputPoints );
+	}
+	Nav_BackendProfile_RecordDetourQuery( ok, gi.GetRealSystemTime() - startMs, inputPoints, outputPoints );
+	return ok;
 }
 
 static void Nav_Debug_PrintNodeRef( const char *label, const nav_node_ref_t &n ) {
@@ -303,17 +543,23 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	gi.dprintf( "[WARNING][NavPath][A*] Pathfinding failed: No path found from (%.1f,%.1f,%.1f) to (%.1f,%.1f,%.1f)\n",
 		start_node.position.x, start_node.position.y, start_node.position.z,
 		goal_node.position.x, goal_node.position.y, goal_node.position.z );
-	gi.dprintf( "[WARNING][NavPath][A*] Search stats: explored=%d nodes, max_nodes=%d, open_list_empty=%s\n",
+	gi.dprintf( "[WARNING][NavPath][A*] Search stats: explored=%d nodes, max_nodes=%d, open_set_empty=%s\n",
 		( int32_t )state.nodes.size(),
 		state.max_nodes,
-		state.open_list.empty() ? "true" : "false" );
+		state.open_heap.empty() ? "true" : "false" );
 
 	/**
 	*    Emit detailed diagnostics only when explicitly requested.
 	**/
 	if ( navDiag ) {
-		gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d, stagnation=%d\n",
-			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
+		gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d, edge_cache_hits=%d, edge_cache_store=%d, stagnation=%d\n",
+			state.neighbor_try_count,
+			state.no_node_count,
+			state.edge_reject_count,
+			state.tile_filter_reject_count,
+			state.edge_cache_hit_count,
+			state.edge_cache_store_count,
+			state.stagnation_count );
 		gi.dprintf( "[DEBUG][NavPath][Diag] A* inputs: max_step=%.1f max_drop=%.1f cell_size_xy=%.1f z_quant=%.1f\n",
 			nav_max_step ? nav_max_step->value : -1.0f,
 			nav_drop_cap ? nav_drop_cap->value : -1.0f,
@@ -349,8 +595,8 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search failed due to excessive stagnation after %d iterations.\n", state.stagnation_count );
 	} else if ( ( int32_t )state.nodes.size() >= state.max_nodes ) {
 		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Search node limit reached (%d nodes). The navmesh may be too large or the goal is very far.\n", state.max_nodes );
-	} else if ( state.open_list.empty() ) {
-		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Open list exhausted. This typically means:\n" );
+	} else if ( state.open_heap.empty() ) {
+		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Open set exhausted. This typically means:\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   1. No navmesh connectivity exists between start and goal Z-levels\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   2. All potential paths are blocked by obstacles\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   3. Edge validation (Nav_CanTraverseStep) rejected all connections\n" );
@@ -390,6 +636,10 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 *   @return True if a path was found, false otherwise.
 **/
 const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path ) {
+	if ( Nav_ShouldUseDetourBackend() ) {
+		return Nav_DetourFallback_GenerateTraversalPathForOrigin( start_origin, goal_origin, out_path );
+	}
+
 	if ( !out_path ) {
 		return false;
 	}
@@ -485,6 +735,10 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
 
 const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
 	const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist ) {
+	if ( Nav_ShouldUseDetourBackend() ) {
+		return Nav_DetourFallback_GenerateTraversalPathForOriginEx( start_origin, goal_origin, out_path, enable_goal_z_layer_blend, blend_start_dist, blend_full_dist );
+	}
+
 	if ( !out_path ) {
 		return false;
 	}
@@ -589,6 +843,10 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 
 const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
 	const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy ) {
+	if ( Nav_ShouldUseDetourBackend() ) {
+		return Nav_DetourFallback_GenerateTraversalPathForOrigin_WithAgentBBox( start_origin, goal_origin, out_path, agent_mins, agent_maxs, policy );
+	}
+
 	if ( !out_path ) {
 		return false;
 	}
@@ -641,6 +899,11 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &
 const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3 &start_origin, const Vector3 &goal_origin, nav_traversal_path_t *out_path,
 	const Vector3 &agent_mins, const Vector3 &agent_maxs, const svg_nav_path_policy_t *policy, const bool enable_goal_z_layer_blend, const double blend_start_dist, const double blend_full_dist,
 	const struct svg_nav_path_process_t *pathProcess ) {
+	if ( Nav_ShouldUseDetourBackend() ) {
+		return Nav_DetourFallback_GenerateTraversalPathForOriginEx_WithAgentBBox( start_origin, goal_origin, out_path, agent_mins, agent_maxs, policy,
+			enable_goal_z_layer_blend, blend_start_dist, blend_full_dist, pathProcess );
+	}
+
 	if ( !out_path ) {
 		return false;
 	}

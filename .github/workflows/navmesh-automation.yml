@@ -1,0 +1,129 @@
+name: Navmesh Automation (Manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      executable_path:
+        description: "Path to dedicated executable on runner"
+        required: true
+        type: string
+      map_list_file:
+        description: "Map list file path on runner"
+        required: false
+        default: "scripts/nav_maps_example.txt"
+        type: string
+      query_pairs_file:
+        description: "Optional CSV query pairs file for deterministic path checks"
+        required: false
+        default: ""
+        type: string
+      expected_stats_file:
+        description: "Optional CSV expected world_tiles baseline"
+        required: false
+        default: ""
+        type: string
+      profile_budget_file:
+        description: "Optional CSV perf budget file for nav_profile_dashboard"
+        required: false
+        default: ""
+        type: string
+      require_query_pairs:
+        description: "Fail maps that have no query pairs when smoke is enabled"
+        required: false
+        default: false
+        type: boolean
+      run_bake:
+        description: "Run offline bake step"
+        required: false
+        default: true
+        type: boolean
+      run_smoke:
+        description: "Run smoke regression step"
+        required: false
+        default: true
+        type: boolean
+      run_profile_dashboard:
+        description: "Generate nav profile dashboard from smoke logs"
+        required: false
+        default: true
+        type: boolean
+      fail_on_profile_budget:
+        description: "Fail workflow when profile budget file is violated"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  navmesh-automation:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Validate script inputs
+        shell: powershell
+        run: |
+          if (-not (Test-Path -LiteralPath "${{ github.event.inputs.executable_path }}")) {
+            throw "Executable not found: ${{ github.event.inputs.executable_path }}"
+          }
+          if ("${{ github.event.inputs.map_list_file }}" -and -not (Test-Path -LiteralPath "${{ github.event.inputs.map_list_file }}")) {
+            throw "Map list file not found: ${{ github.event.inputs.map_list_file }}"
+          }
+          if ("${{ github.event.inputs.query_pairs_file }}" -and -not (Test-Path -LiteralPath "${{ github.event.inputs.query_pairs_file }}")) {
+            throw "Query pairs file not found: ${{ github.event.inputs.query_pairs_file }}"
+          }
+          if ("${{ github.event.inputs.expected_stats_file }}" -and -not (Test-Path -LiteralPath "${{ github.event.inputs.expected_stats_file }}")) {
+            throw "Expected stats file not found: ${{ github.event.inputs.expected_stats_file }}"
+          }
+          if ("${{ github.event.inputs.profile_budget_file }}" -and -not (Test-Path -LiteralPath "${{ github.event.inputs.profile_budget_file }}")) {
+            throw "Profile budget file not found: ${{ github.event.inputs.profile_budget_file }}"
+          }
+
+      - name: Run navmesh bake + smoke pipeline
+        shell: powershell
+        run: |
+          $args = @(
+            "-ExecutionPolicy", "Bypass",
+            "-File", "scripts/nav_pipeline.ps1",
+            "-Executable", "${{ github.event.inputs.executable_path }}",
+            "-MapListFile", "${{ github.event.inputs.map_list_file }}"
+          )
+
+          if ("${{ github.event.inputs.query_pairs_file }}") {
+            $args += @("-QueryPairsFile", "${{ github.event.inputs.query_pairs_file }}")
+          }
+          if ("${{ github.event.inputs.expected_stats_file }}") {
+            $args += @("-ExpectedStatsFile", "${{ github.event.inputs.expected_stats_file }}")
+          }
+          if ("${{ github.event.inputs.require_query_pairs }}" -eq "true") {
+            $args += "-RequireQueryPairs"
+          }
+          if ("${{ github.event.inputs.run_profile_dashboard }}" -eq "true") {
+            $args += "-RunProfileDashboard"
+          }
+          if ("${{ github.event.inputs.profile_budget_file }}") {
+            $args += @("-ProfileBudgetFile", "${{ github.event.inputs.profile_budget_file }}")
+          }
+          if ("${{ github.event.inputs.fail_on_profile_budget }}" -eq "true") {
+            $args += "-FailOnProfileBudget"
+          }
+
+          if ("${{ github.event.inputs.run_bake }}" -eq "false") {
+            $args += "-SkipBake"
+          }
+          if ("${{ github.event.inputs.run_smoke }}" -eq "false") {
+            $args += "-SkipSmoke"
+          }
+
+          & powershell @args
+
+      - name: Upload nav automation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: navmesh-automation-logs
+          path: |
+            build-nav/nav-bake-logs/
+            build-nav/nav-regression-logs/

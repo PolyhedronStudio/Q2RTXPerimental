@@ -23,6 +23,9 @@
 #include "common/bsp.h"
 #include "common/files.h"
 
+#include <algorithm>
+#include <cctype>
+#include <cmath>
 
 
 
@@ -85,6 +88,60 @@ void SVG_Nav_Log( const char *fmt, ... ) {
 	gi.dprintf( "%s", buf );
 }
 
+nav_rigid_xform_t SVG_Nav_BuildRigidXform( const Vector3 &origin, const Vector3 &angles ) {
+	nav_rigid_xform_t xform = {};
+	xform.origin = origin;
+
+	Vector3 forward = {};
+	Vector3 right = {};
+	Vector3 up = {};
+	QM_AngleVectors( angles, &forward, &right, &up );
+
+	xform.forward = forward;
+	xform.side = {
+		-right[ 0 ],
+		-right[ 1 ],
+		-right[ 2 ]
+	};
+	xform.up = up;
+	return xform;
+}
+
+Vector3 SVG_Nav_WorldFromLocal( const nav_rigid_xform_t &xform, const Vector3 &local_point ) {
+	const Vector3 world_offset = {
+		( local_point[ 0 ] * xform.forward[ 0 ] ) + ( local_point[ 1 ] * xform.side[ 0 ] ) + ( local_point[ 2 ] * xform.up[ 0 ] ),
+		( local_point[ 0 ] * xform.forward[ 1 ] ) + ( local_point[ 1 ] * xform.side[ 1 ] ) + ( local_point[ 2 ] * xform.up[ 1 ] ),
+		( local_point[ 0 ] * xform.forward[ 2 ] ) + ( local_point[ 1 ] * xform.side[ 2 ] ) + ( local_point[ 2 ] * xform.up[ 2 ] )
+	};
+
+	return QM_Vector3Add( xform.origin, world_offset );
+}
+
+Vector3 SVG_Nav_LocalFromWorld( const nav_rigid_xform_t &xform, const Vector3 &world_point ) {
+	const Vector3 delta = QM_Vector3Subtract( world_point, xform.origin );
+	return {
+		QM_Vector3DotProduct( delta, xform.forward ),
+		QM_Vector3DotProduct( delta, xform.side ),
+		QM_Vector3DotProduct( delta, xform.up )
+	};
+}
+
+Vector3 SVG_Nav_WorldDirectionFromLocal( const nav_rigid_xform_t &xform, const Vector3 &local_dir ) {
+	return {
+		( local_dir[ 0 ] * xform.forward[ 0 ] ) + ( local_dir[ 1 ] * xform.side[ 0 ] ) + ( local_dir[ 2 ] * xform.up[ 0 ] ),
+		( local_dir[ 0 ] * xform.forward[ 1 ] ) + ( local_dir[ 1 ] * xform.side[ 1 ] ) + ( local_dir[ 2 ] * xform.up[ 1 ] ),
+		( local_dir[ 0 ] * xform.forward[ 2 ] ) + ( local_dir[ 1 ] * xform.side[ 2 ] ) + ( local_dir[ 2 ] * xform.up[ 2 ] )
+	};
+}
+
+Vector3 SVG_Nav_LocalDirectionFromWorld( const nav_rigid_xform_t &xform, const Vector3 &world_dir ) {
+	return {
+		QM_Vector3DotProduct( world_dir, xform.forward ),
+		QM_Vector3DotProduct( world_dir, xform.side ),
+		QM_Vector3DotProduct( world_dir, xform.up )
+	};
+}
+
 /**
  *    @brief    Convert a caller-provided feet-origin into nav-center space.
  *    @note     Helper implementation for `SVG_Nav_ConvertFeetToCenter` declared in header.
@@ -104,6 +161,20 @@ const Vector3 SVG_Nav_ConvertFeetToCenter( const nav_mesh_t *mesh, const Vector3
     // Apply only Z offset; XY remain unchanged.
 	Vector3 out = feet_origin;
 	out[ 2 ] += centerOffsetZ;
+	return out;
+}
+
+const Vector3 SVG_Nav_ConvertCenterToFeet( const nav_mesh_t *mesh, const Vector3 &center_origin, const Vector3 *agent_mins, const Vector3 *agent_maxs ) {
+	if ( !mesh ) {
+		return center_origin;
+	}
+
+	const Vector3 &mins = agent_mins ? *agent_mins : mesh->agent_mins;
+	const Vector3 &maxs = agent_maxs ? *agent_maxs : mesh->agent_maxs;
+	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
+
+	Vector3 out = center_origin;
+	out[ 2 ] -= centerOffsetZ;
 	return out;
 }
 
@@ -305,6 +376,126 @@ bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t *mesh, int32_t tileId, int32_t 
 }
 
 /**
+*    @brief    Query occupancy soft-cost for a nav-center world position.
+*/
+int32_t SVG_Nav_Occupancy_SoftCostForPosition( const nav_mesh_t *mesh, const Vector3 &position, bool allow_fallback ) {
+	if ( !mesh ) {
+		return 0;
+	}
+
+	nav_node_ref_t node = {};
+	if ( !Nav_FindNodeForPosition( mesh, position, position.z, &node, allow_fallback ) ) {
+		return 0;
+	}
+
+	return SVG_Nav_Occupancy_SoftCost( mesh, node.key.tile_index, node.key.cell_index, node.key.layer_index );
+}
+
+/**
+*    @brief    Query occupancy blocked-flag for a nav-center world position.
+*/
+bool SVG_Nav_Occupancy_BlockedForPosition( const nav_mesh_t *mesh, const Vector3 &position, bool allow_fallback ) {
+	if ( !mesh ) {
+		return false;
+	}
+
+	nav_node_ref_t node = {};
+	if ( !Nav_FindNodeForPosition( mesh, position, position.z, &node, allow_fallback ) ) {
+		return false;
+	}
+
+	return SVG_Nav_Occupancy_Blocked( mesh, node.key.tile_index, node.key.cell_index, node.key.layer_index );
+}
+
+/**
+*    @brief    Determine whether an entity should contribute to dynamic occupancy.
+*/
+static inline bool Nav_IsDynamicOccupancyActor( const svg_base_edict_t *ent ) {
+	if ( !ent || !ent->inUse ) {
+		return false;
+	}
+
+	// Use players + live monsters as dynamic crowd actors.
+	const bool isClientActor = ( ent->client != nullptr ) && ent->health > 0;
+	const bool isMonsterActor = ( ( ent->svFlags & SVF_MONSTER ) != 0 || ent->s.entityType == ET_MONSTER ) && ent->health > 0;
+	if ( !isClientActor && !isMonsterActor ) {
+		return false;
+	}
+
+	// Unlinked actors are not participating in the world this frame.
+	if ( !ent->area.prev ) {
+		return false;
+	}
+
+	return true;
+}
+
+/**
+*    @brief    Populate dynamic occupancy from active actors for the current frame.
+*/
+void SVG_Nav_Occupancy_PopulateFromEntities( void ) {
+	nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( !mesh ) {
+		return;
+	}
+
+	// Always reset per-frame occupancy, even when disabled, to avoid stale influence.
+	SVG_Nav_Occupancy_Clear( mesh );
+	if ( !nav_occupancy_enable || nav_occupancy_enable->integer == 0 ) {
+		return;
+	}
+	if ( !globals.edictPool ) {
+		return;
+	}
+
+	const int32_t baseSoftCost = std::max( 1, nav_occupancy_actor_soft_cost ? nav_occupancy_actor_soft_cost->integer : 2 );
+	const int32_t footprintPadCells = std::max( 0, nav_occupancy_actor_footprint_pad_cells ? nav_occupancy_actor_footprint_pad_cells->integer : 0 );
+	const double cellSize = std::max( 0.001, mesh->cell_size_xy );
+
+	for ( int32_t i = 1; i < globals.edictPool->num_edicts; ++i ) {
+		svg_base_edict_t *ent = g_edict_pool.EdictForNumber( i );
+		if ( !Nav_IsDynamicOccupancyActor( ent ) ) {
+			continue;
+		}
+
+		const Vector3 navCenterOrigin = SVG_Nav_ConvertFeetToCenter( mesh, ent->currentOrigin, &mesh->agent_mins, &mesh->agent_maxs );
+
+		nav_node_ref_t originNode = {};
+		if ( !Nav_FindNodeForPosition( mesh, navCenterOrigin, navCenterOrigin.z, &originNode, true ) ) {
+			continue;
+		}
+
+		SVG_Nav_Occupancy_Add( mesh, originNode.key.tile_index, originNode.key.cell_index, originNode.key.layer_index, baseSoftCost, false );
+
+		// Stamp nearby cells based on actor footprint so occupancy is not a single-point artifact.
+		const float halfX = std::max( std::fabs( ent->mins.x ), std::fabs( ent->maxs.x ) );
+		const float halfY = std::max( std::fabs( ent->mins.y ), std::fabs( ent->maxs.y ) );
+		const int32_t radiusX = std::max( 0, ( int32_t )std::ceil( ( double )halfX / cellSize ) + footprintPadCells );
+		const int32_t radiusY = std::max( 0, ( int32_t )std::ceil( ( double )halfY / cellSize ) + footprintPadCells );
+		const int32_t neighborSoftCost = std::max( 1, baseSoftCost - 1 );
+
+		for ( int32_t dy = -radiusY; dy <= radiusY; ++dy ) {
+			for ( int32_t dx = -radiusX; dx <= radiusX; ++dx ) {
+				if ( dx == 0 && dy == 0 ) {
+					continue;
+				}
+
+				Vector3 samplePos = originNode.position;
+				samplePos.x += ( float )( dx * mesh->cell_size_xy );
+				samplePos.y += ( float )( dy * mesh->cell_size_xy );
+
+				nav_node_ref_t sampleNode = {};
+				if ( !Nav_FindNodeForPosition( mesh, samplePos, originNode.position.z, &sampleNode, true ) ) {
+					continue;
+				}
+
+				SVG_Nav_Occupancy_Add( mesh, sampleNode.key.tile_index, sampleNode.key.cell_index, sampleNode.key.layer_index, neighborSoftCost, false );
+			}
+		}
+	}
+}
+
+/**
 *   @brief  Navigation CVars for generation parameters.
 **/
 //! XY grid cell size in world units.
@@ -349,6 +540,15 @@ cvar_t *nav_cost_slope_weight = nullptr;
 cvar_t *nav_cost_drop_weight = nullptr;
 cvar_t *nav_cost_goal_z_blend_factor = nullptr;
 cvar_t *nav_cost_min_cost_per_unit = nullptr;
+cvar_t *nav_occupancy_enable = nullptr;
+cvar_t *nav_occupancy_actor_soft_cost = nullptr;
+cvar_t *nav_occupancy_actor_footprint_pad_cells = nullptr;
+cvar_t *nav_multi_agent_mode = nullptr;
+cvar_t *nav_cache_auto_load = nullptr;
+cvar_t *nav_cache_auto_bake_missing = nullptr;
+cvar_t *nav_cache_auto_save_after_bake = nullptr;
+cvar_t *nav_cache_require_hash_match = nullptr;
+cvar_t *nav_path_backend = nullptr;
 
 
 
@@ -370,6 +570,37 @@ static inline void Nav_SetPresenceBit( nav_tile_t *tile, int32_t cell_index ) {
 	const int32_t word_index = cell_index >> 5;
 	const int32_t bit_index = cell_index & 31;
 	tile->presence_bits[ word_index ] |= ( 1u << bit_index );
+}
+
+/**
+*   @brief  Build `<mapname>.vans` for cache load/save operations.
+**/
+bool SVG_Nav_BuildDefaultCacheFilename( char *outFilename, size_t outSize ) {
+	if ( !outFilename || outSize == 0 ) {
+		return false;
+	}
+
+	outFilename[ 0 ] = '\0';
+	if ( !level.mapname[ 0 ] ) {
+		return false;
+	}
+
+	char mapName[ 64 ] = {};
+	Q_strlcpy( mapName, level.mapname, sizeof( mapName ) );
+	for ( char &ch : mapName ) {
+		if ( ch == '\0' ) {
+			break;
+		}
+
+		const unsigned char uch = (unsigned char)ch;
+		if ( std::isalnum( uch ) || ch == '_' || ch == '-' ) {
+			continue;
+		}
+		ch = '_';
+	}
+
+	const size_t written = Q_snprintf( outFilename, outSize, "%s.vans", mapName );
+	return written > 0 && written < outSize;
 }
 
 
@@ -495,6 +726,19 @@ void SVG_Nav_Init( void ) {
 	nav_cost_drop_weight = gi.cvar( "nav_cost_drop_weight", "4.0", 0 );
 	nav_cost_goal_z_blend_factor = gi.cvar( "nav_cost_goal_z_blend_factor", "0.5", 0 );
 	nav_cost_min_cost_per_unit = gi.cvar( "nav_cost_min_cost_per_unit", "1.0", 0 );
+
+	/**
+	*   Dynamic occupancy tuning CVars:
+	*/
+	nav_occupancy_enable = gi.cvar( "nav_occupancy_enable", "1", 0 );
+	nav_occupancy_actor_soft_cost = gi.cvar( "nav_occupancy_actor_soft_cost", "2", 0 );
+	nav_occupancy_actor_footprint_pad_cells = gi.cvar( "nav_occupancy_actor_footprint_pad_cells", "1", 0 );
+	nav_multi_agent_mode = gi.cvar( "nav_multi_agent_mode", "0", 0 );
+	nav_cache_auto_load = gi.cvar( "nav_cache_auto_load", "1", 0 );
+	nav_cache_auto_bake_missing = gi.cvar( "nav_cache_auto_bake_missing", "0", 0 );
+	nav_cache_auto_save_after_bake = gi.cvar( "nav_cache_auto_save_after_bake", "1", 0 );
+	nav_cache_require_hash_match = gi.cvar( "nav_cache_require_hash_match", "1", 0 );
+	nav_path_backend = gi.cvar( "nav_path_backend", "0", 0 );
 
 	/**
 	*    Register async nav request queue cvars.
@@ -699,6 +943,52 @@ nav_agent_profile_t SVG_Nav_BuildAgentProfileFromCvars( void ) {
 	profile.max_slope_deg = nav_max_slope_deg ? nav_max_slope_deg->value : default_slope;
 
 	return profile;
+}
+
+/**
+*   @brief  Validate that an agent bbox is strictly increasing on all axes.
+**/
+bool SVG_Nav_IsAgentBoundsValid( const Vector3 &mins, const Vector3 &maxs ) {
+	return maxs.x > mins.x
+		&& maxs.y > mins.y
+		&& maxs.z > mins.z;
+}
+
+/**
+*   @brief  Resolve runtime agent profile for path requests.
+**/
+nav_agent_profile_t SVG_Nav_ResolveAgentProfile( const nav_mesh_t *mesh, const Vector3 *requested_mins, const Vector3 *requested_maxs ) {
+	nav_agent_profile_t resolved = SVG_Nav_BuildAgentProfileFromCvars();
+
+	const bool hasRequested = requested_mins && requested_maxs;
+	const bool requestedValid = hasRequested && SVG_Nav_IsAgentBoundsValid( *requested_mins, *requested_maxs );
+	const bool meshValid = mesh && SVG_Nav_IsAgentBoundsValid( mesh->agent_mins, mesh->agent_maxs );
+	const bool multiAgentEnabled = nav_multi_agent_mode && nav_multi_agent_mode->integer != 0;
+
+	if ( multiAgentEnabled && requestedValid ) {
+		resolved.mins = *requested_mins;
+		resolved.maxs = *requested_maxs;
+		return resolved;
+	}
+
+	if ( meshValid ) {
+		resolved.mins = mesh->agent_mins;
+		resolved.maxs = mesh->agent_maxs;
+		if ( mesh->max_step > 0.0 ) {
+			resolved.max_step_height = mesh->max_step;
+		}
+		if ( mesh->max_slope_deg > 0.0 ) {
+			resolved.max_slope_deg = mesh->max_slope_deg;
+		}
+		return resolved;
+	}
+
+	if ( requestedValid ) {
+		resolved.mins = *requested_mins;
+		resolved.maxs = *requested_maxs;
+	}
+
+	return resolved;
 }
 /**
 *   @brief  Check if a surface normal is walkable based on slope.

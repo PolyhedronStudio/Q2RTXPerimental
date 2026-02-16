@@ -29,6 +29,7 @@ extern cvar_t *nav_cost_turn_weight;
 extern cvar_t *nav_cost_slope_weight;
 extern cvar_t *nav_cost_drop_weight;
 extern cvar_t *nav_cost_min_cost_per_unit;
+extern cvar_t *nav_multi_agent_mode;
 
 inline bool Nav_PathDiagEnabled( void );
 
@@ -101,6 +102,56 @@ static inline double Nav_AStar_Heuristic( const Vector3 &a, const Vector3 &b ) {
 	return sqrtf( ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] ) );
 }
 
+static inline bool Nav_NodeKeyLess( const nav_node_key_t &a, const nav_node_key_t &b ) {
+	if ( a.leaf_index != b.leaf_index ) {
+		return a.leaf_index < b.leaf_index;
+	}
+	if ( a.tile_index != b.tile_index ) {
+		return a.tile_index < b.tile_index;
+	}
+	if ( a.cell_index != b.cell_index ) {
+		return a.cell_index < b.cell_index;
+	}
+	return a.layer_index < b.layer_index;
+}
+
+static inline void Nav_MixEdgeHash32( uint64_t *hash, const uint32_t value ) {
+	*hash ^= (uint64_t)value;
+	*hash *= 1099511628211ull;
+}
+
+static uint64_t Nav_BuildUndirectedEdgeCacheKey( const nav_node_key_t &a, const nav_node_key_t &b ) {
+	const nav_node_key_t *first = &a;
+	const nav_node_key_t *second = &b;
+	if ( Nav_NodeKeyLess( b, a ) ) {
+		first = &b;
+		second = &a;
+	}
+
+	uint64_t hash = 1469598103934665603ull;
+	Nav_MixEdgeHash32( &hash, (uint32_t)first->leaf_index );
+	Nav_MixEdgeHash32( &hash, (uint32_t)first->tile_index );
+	Nav_MixEdgeHash32( &hash, (uint32_t)first->cell_index );
+	Nav_MixEdgeHash32( &hash, (uint32_t)first->layer_index );
+	Nav_MixEdgeHash32( &hash, (uint32_t)second->leaf_index );
+	Nav_MixEdgeHash32( &hash, (uint32_t)second->tile_index );
+	Nav_MixEdgeHash32( &hash, (uint32_t)second->cell_index );
+	Nav_MixEdgeHash32( &hash, (uint32_t)second->layer_index );
+	return hash;
+}
+
+static inline void Nav_AStar_PushOpen( nav_a_star_state_t *state, const int32_t node_index, const double f_cost ) {
+	if ( !state || node_index < 0 ) {
+		return;
+	}
+
+	nav_a_star_open_item_t item = {};
+	item.f_cost = f_cost;
+	item.node_index = node_index;
+	item.sequence = state->open_sequence++;
+	state->open_heap.push( item );
+}
+
 static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t current_index ) {
 	const nav_mesh_t *mesh = state->mesh;
 	if ( !mesh ) {
@@ -126,13 +177,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		**/
 		if ( tileRouteFilter && !tileRouteFilter->empty() ) {
 			const nav_tile_cluster_key_t nk = SVG_Nav_GetTileKeyForPosition( mesh, neighbor_origin );
-			bool allowed = false;
-			for ( const nav_tile_cluster_key_t &k : *tileRouteFilter ) {
-				if ( k == nk ) {
-					allowed = true;
-					break;
-				}
-			}
+			const bool allowed = state->tile_route_lookup.find( nk ) != state->tile_route_lookup.end();
 			if ( !allowed ) {
           // Neighbor rejected due to tile-route filter.
 			state->tile_filter_reject_count++;
@@ -155,6 +200,26 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			continue;
 		}
 
+		const nav_layer_t *neighborLayer = nullptr;
+		if ( neighbor_node.key.tile_index >= 0 && neighbor_node.key.tile_index < ( int32_t )mesh->world_tiles.size() ) {
+			const nav_tile_t *tile = &mesh->world_tiles[ neighbor_node.key.tile_index ];
+			const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
+			if ( neighbor_node.key.cell_index >= 0 && neighbor_node.key.cell_index < cellsPerTile ) {
+				const nav_xy_cell_t *cell = &tile->cells[ neighbor_node.key.cell_index ];
+				if ( neighbor_node.key.layer_index >= 0 && neighbor_node.key.layer_index < cell->num_layers ) {
+					neighborLayer = &cell->layers[ neighbor_node.key.layer_index ];
+				}
+			}
+		}
+
+		// Multi-agent clearance pruning: if we queried with a taller agent, require extra headroom.
+		if ( state->clearance_prune_enabled && neighborLayer ) {
+			if ( neighborLayer->clearance < state->required_extra_clearance_quants ) {
+				state->edge_reject_count++;
+				continue;
+			}
+		}
+
 		const double neighbor_drop = current.node.position[ 2 ] - neighbor_node.position[ 2 ];
       if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->drop_cap ) {
 			// Neighbor rejected due to drop cap.
@@ -168,8 +233,24 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		/**
 		*    The PMove-derived step test covers slopes, hills, and stairs while respecting both
 		*    agent hulls and slope/drop constraints.
+		*
+		*    Cache successful edge traversals per search so repeated corridor expansion avoids
+		*    re-running identical trace sequences.
 		**/
-      if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy ) ) {
+		const uint64_t edgeCacheKey = Nav_BuildUndirectedEdgeCacheKey( current.node.key, neighbor_node.key );
+		bool edgeTraversable = false;
+		if ( state->successful_edge_cache.find( edgeCacheKey ) != state->successful_edge_cache.end() ) {
+			edgeTraversable = true;
+			state->edge_cache_hit_count++;
+		} else {
+			edgeTraversable = Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy );
+			if ( edgeTraversable ) {
+				state->successful_edge_cache.insert( edgeCacheKey );
+				state->edge_cache_store_count++;
+			}
+		}
+
+      if ( !edgeTraversable ) {
 			// Edge validation failed for this neighbor.
 			state->edge_reject_count++;
 			if ( Nav_PathDiagEnabled() ) {
@@ -201,17 +282,6 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		const double minCostPerUnit = nav_cost_min_cost_per_unit ? nav_cost_min_cost_per_unit->value : 1.0f;
 
 		double extraCost = 0.0;
-
-		const nav_layer_t *neighborLayer = nullptr;
-		if ( neighbor_node.key.leaf_index >= 0 && neighbor_node.key.leaf_index < mesh->num_leafs ) {
-			if ( neighbor_node.key.tile_index >= 0 && neighbor_node.key.tile_index < ( int32_t )mesh->world_tiles.size() ) {
-				const nav_tile_t *tile = &mesh->world_tiles[ neighbor_node.key.tile_index ];
-				const nav_xy_cell_t *cell = &tile->cells[ neighbor_node.key.cell_index ];
-				if ( neighbor_node.key.layer_index >= 0 && neighbor_node.key.layer_index < cell->num_layers ) {
-					neighborLayer = &cell->layers[ neighbor_node.key.layer_index ];
-				}
-			}
-		}
 
 		if ( neighborLayer ) {
 			if ( ( neighborLayer->flags & NAV_FLAG_WATER ) != 0 ) {
@@ -332,7 +402,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 
 			state->nodes.push_back( neighbor_search );
 			const int32_t neighbor_index = ( int32_t )state->nodes.size() - 1;
-			state->open_list.push_back( neighbor_index );
+			Nav_AStar_PushOpen( state, neighbor_index, neighbor_search.f_cost );
 			state->node_lookup.emplace( neighbor_node.key, neighbor_index );
 			continue;
 		}
@@ -347,6 +417,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			neighbor_search.g_cost = tentative_g;
 			neighbor_search.f_cost = tentative_g + Nav_AStar_Heuristic( neighbor_node.position, state->goal_node.position );
 			neighbor_search.parent_index = current_index;
+			Nav_AStar_PushOpen( state, neighbor_index, neighbor_search.f_cost );
 		}
 	}
 }
@@ -370,11 +441,31 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	state->pathProcess = pathProcess;
 	state->max_nodes = NAV_ASTAR_MAX_NODES;
 	state->search_budget_ms = NAV_ASTAR_STEP_BUDGET_MS;
+	state->clearance_prune_enabled = false;
+	state->required_extra_clearance_quants = 0;
+	state->successful_edge_cache.clear();
+	state->successful_edge_cache.reserve( (size_t)state->max_nodes * 2u );
+
+	if ( nav_multi_agent_mode && nav_multi_agent_mode->integer != 0 && mesh->z_quant > 0.0 ) {
+		const double meshHeight = ( double )mesh->agent_maxs.z - ( double )mesh->agent_mins.z;
+		const double requestHeight = ( double )agent_maxs.z - ( double )agent_mins.z;
+		const double extraHeight = requestHeight - meshHeight;
+		if ( extraHeight > 0.0 ) {
+			state->required_extra_clearance_quants = ( uint32_t )std::ceil( extraHeight / mesh->z_quant );
+			state->clearance_prune_enabled = state->required_extra_clearance_quants > 0;
+		}
+	}
 
 	if ( tileRoute && !tileRoute->empty() ) {
 		state->tile_route_storage = *tileRoute;
+		state->tile_route_lookup.clear();
+		state->tile_route_lookup.reserve( state->tile_route_storage.size() * 2 );
+		for ( const nav_tile_cluster_key_t &k : state->tile_route_storage ) {
+			state->tile_route_lookup.insert( k );
+		}
 		state->tileRouteFilter = &state->tile_route_storage;
 	} else {
+		state->tile_route_lookup.clear();
 		state->tileRouteFilter = nullptr;
 	}
 
@@ -387,7 +478,7 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	};
 
 	state->nodes.push_back( start_search );
-	state->open_list.push_back( 0 );
+	Nav_AStar_PushOpen( state, 0, start_search.f_cost );
 	state->node_lookup.emplace( start_node.key, 0 );
 	state->best_f_cost_seen = start_search.f_cost;
 	state->stagnation_count = 0;
@@ -422,7 +513,23 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 	state->step_start_ms = gi.GetRealSystemTime();
 
 	while ( expansions > 0 && state->status == nav_a_star_status_t::Running ) {
-		if ( state->open_list.empty() ) {
+		while ( !state->open_heap.empty() ) {
+			const nav_a_star_open_item_t item = state->open_heap.top();
+			if ( item.node_index < 0 || item.node_index >= ( int32_t )state->nodes.size() ) {
+				state->open_heap.pop();
+				continue;
+			}
+
+			const nav_search_node_t &node = state->nodes[ item.node_index ];
+			if ( node.closed || item.f_cost != node.f_cost ) {
+				state->open_heap.pop();
+				continue;
+			}
+
+			break;
+		}
+
+		if ( state->open_heap.empty() ) {
 			state->status = nav_a_star_status_t::Failed;
 			break;
 		}
@@ -439,14 +546,8 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 			break;
 		}
 
-		auto best_it = std::min_element( state->open_list.begin(), state->open_list.end(),
-			[ &state ]( int32_t a, int32_t b ) {
-				return state->nodes[ a ].f_cost < state->nodes[ b ].f_cost;
-			} );
-
-		const int32_t current_index = *best_it;
-		*best_it = state->open_list.back();
-		state->open_list.pop_back();
+		const int32_t current_index = state->open_heap.top().node_index;
+		state->open_heap.pop();
 
 		nav_search_node_t &current = state->nodes[ current_index ];
 		current.closed = true;
@@ -510,12 +611,17 @@ void Nav_AStar_Reset( nav_a_star_state_t *state ) {
 	state->start_node = {};
 	state->goal_node = {};
 	state->nodes.clear();
-	state->open_list.clear();
+	state->open_heap = {};
+	state->open_sequence = 0;
 	state->node_lookup.clear();
 	state->tile_route_storage.clear();
+	state->tile_route_lookup.clear();
+	state->successful_edge_cache.clear();
 	state->tileRouteFilter = nullptr;
 	state->policy = nullptr;
 	state->pathProcess = nullptr;
+	state->clearance_prune_enabled = false;
+	state->required_extra_clearance_quants = 0;
 	state->goal_index = -1;
 	state->best_f_cost_seen = std::numeric_limits<double>::infinity();
 	state->stagnation_count = 0;
@@ -526,5 +632,7 @@ void Nav_AStar_Reset( nav_a_star_state_t *state ) {
 	state->no_node_count = 0;
 	state->tile_filter_reject_count = 0;
 	state->edge_reject_count = 0;
+	state->edge_cache_hit_count = 0;
+	state->edge_cache_store_count = 0;
 	state->step_start_ms = 0;
 }

@@ -78,9 +78,7 @@ static int      com_argc;
 cvar_t  *z_perturb;
 #endif
 
-#if USE_DEBUG
 QEXTERN_C_ENCLOSE( cvar_t *developer; );
-#endif
 cvar_t  *timescale;
 cvar_t  *fixedtime;
 QEXTERN_C_ENCLOSE( cvar_t *dedicated; );
@@ -890,6 +888,8 @@ void Qcommon_Init(int argc, char **argv)
 #endif
 #if USE_DEBUG
     developer = Cvar_Get("developer", "1", 0);
+#else
+    developer = Cvar_Get("developer", "0", 0);
 #endif
     timescale = Cvar_Get("timescale", "1", CVAR_CHEAT);
     fixedtime = Cvar_Get("fixedtime", "0", CVAR_CHEAT);

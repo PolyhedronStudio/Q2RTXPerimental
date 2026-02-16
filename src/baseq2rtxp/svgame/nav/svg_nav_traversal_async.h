@@ -9,7 +9,9 @@
 
 #include <cstdint>
 #include <limits>
+#include <queue>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "svgame/svg_local.h"
@@ -17,6 +19,27 @@
 
 struct svg_nav_path_process_t;
 struct svg_nav_path_policy_t;
+
+/**
+*    @brief    Heap item for lazy-decrease-key A* open set.
+**/
+struct nav_a_star_open_item_t {
+	//! Snapshot f-cost when this item was pushed.
+	double f_cost = 0.0;
+	//! Index into nav_a_star_state_t::nodes.
+	int32_t node_index = -1;
+	//! Monotonic sequence used as a deterministic tie-breaker.
+	uint32_t sequence = 0;
+};
+
+struct nav_a_star_open_item_greater_t {
+	bool operator()( const nav_a_star_open_item_t &a, const nav_a_star_open_item_t &b ) const {
+		if ( a.f_cost == b.f_cost ) {
+			return a.sequence > b.sequence;
+		}
+		return a.f_cost > b.f_cost;
+	}
+};
 
 
 /**
@@ -45,13 +68,18 @@ struct nav_a_star_state_t {
 	nav_node_ref_t start_node = {};
 	nav_node_ref_t goal_node = {};
 
-	//! Working node storage and open list for the current search.
+	//! Working node storage and open set for the current search.
 	std::vector<nav_search_node_t> nodes;
-	std::vector<int32_t> open_list;
+	std::priority_queue<nav_a_star_open_item_t, std::vector<nav_a_star_open_item_t>, nav_a_star_open_item_greater_t> open_heap;
+	uint32_t open_sequence = 0;
 	std::unordered_map<nav_node_key_t, int32_t, nav_node_key_hash_t> node_lookup;
 
 	//! Optional tile-route filter storage/copy to extend lifetime.
 	std::vector<nav_tile_cluster_key_t> tile_route_storage;
+	//! O(1) route membership set built from `tile_route_storage`.
+	std::unordered_set<nav_tile_cluster_key_t, nav_tile_cluster_key_hash_t> tile_route_lookup;
+	//! Successful edge-validation cache keyed by unordered node-pairs to reduce repeat traces.
+	std::unordered_set<uint64_t> successful_edge_cache;
 	//! Pointer to either `tile_route_storage` or nullptr when no filter applies.
 	const std::vector<nav_tile_cluster_key_t> *tileRouteFilter = nullptr;
 
@@ -67,6 +95,10 @@ struct nav_a_star_state_t {
 	int32_t max_nodes = 8192;
 	uint64_t search_budget_ms = 64;
 	uint64_t step_start_ms = 0;
+	//! Clearance pruning enabled when query agent is taller than baked mesh agent.
+	bool clearance_prune_enabled = false;
+	//! Required additional clearance in z-quants above baked mesh hull.
+	uint32_t required_extra_clearance_quants = 0;
 	double best_f_cost_seen = std::numeric_limits<double>::infinity();
 	int32_t stagnation_count = 0;
 	bool hit_stagnation_limit = false;
@@ -76,6 +108,8 @@ struct nav_a_star_state_t {
 	int32_t no_node_count = 0;
 	int32_t tile_filter_reject_count = 0;
 	int32_t edge_reject_count = 0;
+	int32_t edge_cache_hit_count = 0;
+	int32_t edge_cache_store_count = 0;
 };
 
 /**

@@ -55,7 +55,8 @@ static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile );
 static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, const Vector3 &maxs,
                                 double z_min, double z_max, double max_step, double max_slope_deg, double z_quant,
                                 nav_layer_t **out_layers, int32_t *out_num_layers,
-                                const edict_ptr_t *clip_entity );
+                                const edict_ptr_t *clip_entity, const nav_rigid_xform_t *clip_xform,
+                                bool sample_in_local_space );
 static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &leaf_mins, const Vector3 &leaf_maxs,
                            double z_min, double z_max );
 static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &model_mins, const Vector3 &model_maxs,
@@ -145,12 +146,15 @@ static int32_t s_slope_reject_count = 0;
 *	@param	out_layers	[out] Heap-allocated layer buffer (TAG_SVGAME_LEVEL) or nullptr.
 *	@param	out_num_layers	[out] Number of layers returned in `out_layers`.
 *	@param	clip_entity	Optional inline-model clip entity for model-local sampling (nullptr for world sampling).
+*	@param	clip_xform	Rigid transform for inline-model local/world conversion.
+*	@param	sample_in_local_space	If true and `clip_entity` is set, traces are generated from local XY/Z and transformed to world.
 *	@note	Not thread-safe due to internal static scratch storage.
 */
 static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, const Vector3 &maxs,
                                 double z_min, double z_max, double max_step, double max_slope_deg, double z_quant,
                                 nav_layer_t **out_layers, int32_t *out_num_layers,
-                                const edict_ptr_t *clip_entity ) {
+                                const edict_ptr_t *clip_entity, const nav_rigid_xform_t *clip_xform,
+                                bool sample_in_local_space ) {
     const int32_t MAX_LAYERS = 16;
     static nav_layer_t temp_layers[ MAX_LAYERS ] = {};
     int32_t num_layers = 0;
@@ -263,50 +267,48 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
     *        Repeatedly trace downward to discover multiple floors at the same XY.
     **/
     while ( current_z > z_min && num_layers < MAX_LAYERS ) {
-        Vector3 start = xy_pos; start[2] = current_z;
-        Vector3 end = xy_pos; end[2] = current_z - step_down;
+        Vector3 sample_start = xy_pos;
+        sample_start[ 2 ] = current_z;
+        Vector3 sample_end = xy_pos;
+        sample_end[ 2 ] = current_z - step_down;
+
+        const bool use_local_inline = ( clip_entity && clip_xform && sample_in_local_space );
+        Vector3 trace_start = sample_start;
+        Vector3 trace_end = sample_end;
+        if ( use_local_inline ) {
+            trace_start = SVG_Nav_WorldFromLocal( *clip_xform, sample_start );
+            trace_end = SVG_Nav_WorldFromLocal( *clip_xform, sample_end );
+        }
 
         cm_trace_t trace;
         if ( clip_entity ) {
-            trace = gi.clip( clip_entity, &start, &mins, &maxs, &end, CM_CONTENTMASK_SOLID );
+            trace = gi.clip( clip_entity, &trace_start, &mins, &maxs, &trace_end, CM_CONTENTMASK_SOLID );
         } else {
-            trace = gi.trace( &start, &mins, &maxs, &end, nullptr, CM_CONTENTMASK_SOLID );
+            trace = gi.trace( &trace_start, &mins, &maxs, &trace_end, nullptr, CM_CONTENTMASK_SOLID );
         }
 
         s_trace_attempt_count++;
 
+        double trace_end_sample_z = trace.endpos[ 2 ];
+        Vector3 slope_normal = trace.plane.normal;
+        if ( use_local_inline ) {
+            const Vector3 local_end = SVG_Nav_LocalFromWorld( *clip_xform, trace.endpos );
+            trace_end_sample_z = local_end[ 2 ];
+            slope_normal = SVG_Nav_LocalDirectionFromWorld( *clip_xform, trace.plane.normal );
+        }
+
         // Record valid upward-facing hit surfaces.
-			if ( trace.fraction < 1.0f && trace.plane.normal[2] > 0.0f ) {
+			if ( trace.fraction < 1.0f && slope_normal[ 2 ] > 0.0f ) {
 				s_trace_hit_count++;
 				// Enforce slope threshold in terms of normal.z.
-				if ( ( trace.plane.normal[2] >= cosf( max_slope_deg * DEG_TO_RAD ) ) ) {
+				if ( ( slope_normal[ 2 ] >= cosf( max_slope_deg * DEG_TO_RAD ) ) ) {
 				/**
 				*    Quantize the sampled Z using rounding so nearby layers don't collapse
 				*    downwards when the trace endpos is close to the next quant step.
 				*    If we are sampling an inline model, transform the world-space hit
 				*    back into model-local space before storing.
 				**/
-				double worldZ = trace.endpos[ 2 ];
-				double localZ = worldZ;
-				if ( clip_entity ) {
-					// Transform world-space hit to model-local Z.
-					Vector3 p_l = QM_Vector3Subtract( trace.endpos, clip_entity->currentOrigin );
-					if ( clip_entity->currentAngles.x != 0 || clip_entity->currentAngles.y != 0 || clip_entity->currentAngles.z != 0 ) {
-						Vector3 f, r, u;
-						QM_AngleVectors( clip_entity->currentAngles, &f, &r, &u );
-						// World-to-local rotation using projection (dots with basis).
-						localZ = p_l.x * f.x + p_l.y * f.y + p_l.z * f.z; // This is not quite correct for all rotations but it matches yaw.
-						// Actually, better to just use dot products for full transform:
-						localZ = p_l.x * f.z + p_l.y * r.z + p_l.z * u.z; // No, it's simpler:
-						// Let's just do it properly.
-						localZ = QM_Vector3DotProduct( p_l, u ); // Correct for local Z? Not necessarily.
-						// In Q2: f = local +X, r = local -Y, u = local +Z. 
-						// So localZ is dot( p_l, u ).
-						localZ = (double)QM_Vector3DotProduct( p_l, u );
-					} else {
-						localZ = (double)p_l.z;
-					}
-				}
+				const double localZ = trace_end_sample_z;
 
 				const double quantizedZ = std::lround( localZ / z_quant );
 				constexpr double quantMin = ( double )std::numeric_limits<int32_t>::min();
@@ -319,7 +321,7 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
                     *    Trace upward from the detected floor to measure the next obstruction
                     *    and derive vertical clearance in quantized units.
                     **/
-                    const double clearance_probe_start_z = trace.endpos[2] + 1.0;
+                    const double clearance_probe_start_z = trace_end_sample_z + 1.0;
                     double ceiling_z = z_max;
                     if ( clearance_probe_start_z < z_max ) {
                         Vector3 ceiling_start = xy_pos;
@@ -327,19 +329,31 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
                         Vector3 ceiling_end = xy_pos;
                         ceiling_end[2] = z_max;
 
+						Vector3 ceiling_trace_start = ceiling_start;
+						Vector3 ceiling_trace_end = ceiling_end;
+						if ( use_local_inline ) {
+							ceiling_trace_start = SVG_Nav_WorldFromLocal( *clip_xform, ceiling_start );
+							ceiling_trace_end = SVG_Nav_WorldFromLocal( *clip_xform, ceiling_end );
+						}
+
                         cm_trace_t ceiling_trace;
                         if ( clip_entity ) {
-                            ceiling_trace = gi.clip( clip_entity, &ceiling_start, &mins, &maxs, &ceiling_end, CM_CONTENTMASK_SOLID );
+                            ceiling_trace = gi.clip( clip_entity, &ceiling_trace_start, &mins, &maxs, &ceiling_trace_end, CM_CONTENTMASK_SOLID );
                         } else {
-                            ceiling_trace = gi.trace( &ceiling_start, &mins, &maxs, &ceiling_end, nullptr, CM_CONTENTMASK_SOLID );
+                            ceiling_trace = gi.trace( &ceiling_trace_start, &mins, &maxs, &ceiling_trace_end, nullptr, CM_CONTENTMASK_SOLID );
                         }
 
                         if ( ceiling_trace.fraction < 1.0f ) {
-                            ceiling_z = ceiling_trace.endpos[2];
+							if ( use_local_inline ) {
+								const Vector3 local_ceiling = SVG_Nav_LocalFromWorld( *clip_xform, ceiling_trace.endpos );
+								ceiling_z = local_ceiling[ 2 ];
+							} else {
+								ceiling_z = ceiling_trace.endpos[ 2 ];
+							}
                         }
                     }
 
-                    double clearance_world = ceiling_z - trace.endpos[2];
+                    double clearance_world = ceiling_z - trace_end_sample_z;
                     if ( clearance_world < 0.0 ) {
                         clearance_world = 0.0;
                     }
@@ -358,14 +372,14 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
 		temp_layers[num_layers].clearance = clearance_store;
 
                     num_layers++;
-                    current_z = trace.endpos[2] - 1.0f;
+                    current_z = trace_end_sample_z - 1.0f;
                 } else {
                     s_slope_reject_count++;
                     if ( SVG_Nav_ProfileEnabled( 3 ) ) {
                         SVG_Nav_Log( "[NavProfile] FindWalkableLayers: trace hit but slope rejected normal.z=%.3f max_slope_deg=%.1f at z=%.2f\n",
-                            trace.plane.normal[2], max_slope_deg, trace.endpos[2] );
+                            slope_normal[ 2 ], max_slope_deg, trace_end_sample_z );
                     }
-                    current_z = trace.endpos[2] - 1.0f;
+                    current_z = trace_end_sample_z - 1.0f;
                 }
             } else {
                 if ( SVG_Nav_ProfileEnabled( 3 ) ) {
@@ -434,7 +448,7 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
 
             FindWalkableLayers( xy_pos, mesh->agent_mins, mesh->agent_maxs,
                                 z_min, z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
-                                &layers, &num_layers, nullptr );
+                                &layers, &num_layers, nullptr, nullptr, false );
 
             if ( num_layers > 0 ) {
                 const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
@@ -488,6 +502,9 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
 
     const double tile_origin_x = model_mins[ 0 ] + ( tile->tile_x * tile_world_size );
     const double tile_origin_y = model_mins[ 1 ] + ( tile->tile_y * tile_world_size );
+	const nav_rigid_xform_t clip_xform = clip_entity
+		? SVG_Nav_BuildRigidXform( clip_entity->currentOrigin, clip_entity->currentAngles )
+		: nav_rigid_xform_t{};
 
     for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
         for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
@@ -503,46 +520,9 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
             nav_layer_t *layers = nullptr;
             int32_t num_layers = 0;
 
-            // Inline-model sampling: the collision clip implementation expects
-            // world-space positions when tracing against an entity clip model.
-            // Convert the model-local XY/Z into world-space using the entity's
-            // currentOrigin and currentAngles before performing traces.
-            Vector3 world_xy = xy_pos;
-            double world_z_min = z_min;
-            double world_z_max = z_max;
-
-            if ( clip_entity ) {
-                // Local to World transform:
-                Vector3 local_center = xy_pos;
-                local_center.z = (float)( ( z_min + z_max ) * 0.5 );
-
-                if ( clip_entity->currentAngles.x != 0 || clip_entity->currentAngles.y != 0 || clip_entity->currentAngles.z != 0 ) {
-                    Vector3 f, r, u;
-                    QM_AngleVectors( clip_entity->currentAngles, &f, &r, &u );
-                    // Transform local to world: origin + (x*f + y*-r + z*u)
-                    // (Standard Q2/QMRay calculation).
-                    Vector3 rotated = {
-                        local_center.x * f.x + local_center.y * -r.x + local_center.z * u.x,
-                        local_center.x * f.y + local_center.y * -r.y + local_center.z * u.y,
-                        local_center.x * f.z + local_center.y * -r.z + local_center.z * u.z
-                    };
-                    world_xy = QM_Vector3Add( rotated, clip_entity->currentOrigin );
-
-                    // For Z range, we take the average vertical displacement or just add origin.z
-                    // since rotation around non-Z axes is rare for inline models in Q2.
-                    // For a simple column precheck, we just shift the range.
-                    world_z_min = z_min + clip_entity->currentOrigin[ 2 ]; // This is a simplification.
-                    world_z_max = z_max + clip_entity->currentOrigin[ 2 ];
-                } else {
-                    world_xy = QM_Vector3Add( xy_pos, clip_entity->currentOrigin );
-                    world_z_min = z_min + clip_entity->currentOrigin[ 2 ];
-                    world_z_max = z_max + clip_entity->currentOrigin[ 2 ];
-                }
-            }
-
-            FindWalkableLayers( world_xy, mesh->agent_mins, mesh->agent_maxs,
-                                world_z_min, world_z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
-                                &layers, &num_layers, clip_entity );
+            FindWalkableLayers( xy_pos, mesh->agent_mins, mesh->agent_maxs,
+                                z_min, z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
+                                &layers, &num_layers, clip_entity, clip_entity ? &clip_xform : nullptr, true );
 
             if ( num_layers > 0 ) {
                 const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
@@ -647,6 +627,7 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
     if ( !mesh ) {
         return;
     }
+    mesh->profile_world_gen_ms = 0.0;
 
     const cm_t *world_model = gi.GetCollisionModel();
     if ( !world_model || !world_model->cache ) {
@@ -660,7 +641,7 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
     *    Log start of world mesh generation and stamp start time for profiling.
     **/
     SVG_Nav_Log( "Generating world navmesh (tile-first approach)...\n" );
-    const QMTime t0 = level.time;
+    const uint64_t worldStartMs = gi.GetRealSystemTime();
 
     mesh->num_leafs = num_leafs;
     mesh->leaf_data = (nav_leaf_data_t *)gi.TagMallocz( sizeof( nav_leaf_data_t ) * num_leafs, TAG_SVGAME_LEVEL );
@@ -792,8 +773,8 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
     /**
     *    Phase complete: record elapsed time and log summary statistics.
     **/
-	QMTime t1 = QMTime::FromMilliseconds( gi.GetRealSystemTime() );
-    const double elapsedMs = ( double )( t1 - t0 ).Seconds();
+    const double elapsedMs = ( double )( gi.GetRealSystemTime() - worldStartMs );
+    mesh->profile_world_gen_ms = elapsedMs;
     SVG_Nav_Log( "World mesh generation complete (tile-first) - %.2f ms\n", elapsedMs );
     SVG_Nav_Log( "  Tiles attempted: %d\n", total_tile_attempts );
     SVG_Nav_Log( "  Tiles skipped (empty): %d (%.1f%%)\n",
@@ -814,6 +795,11 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
 *	@param	mesh	Navigation mesh structure to populate.
 */
 void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
+    if ( !mesh ) {
+        return;
+    }
+    mesh->profile_inline_gen_ms = 0.0;
+
     const cm_t *world_model = gi.GetCollisionModel();
     if ( !world_model || !world_model->cache ) {
         SVG_Nav_Log( "Failed to get world BSP data\n" );
@@ -833,7 +819,7 @@ void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
 
     // Log start of inline model generation and measure phase time.
     SVG_Nav_Log( "Generating inline model navmesh for %d inline models...\n", ( int32_t )model_to_ent.size() );
-    const QMTime t0 = level.time;
+    const uint64_t inlineStartMs = gi.GetRealSystemTime();
 
     mesh->num_inline_models = ( int32_t )model_to_ent.size();
     mesh->inline_model_data = ( nav_inline_model_data_t * )gi.TagMallocz(
@@ -917,8 +903,8 @@ void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
         out_index++;
     }
 
-    const QMTime t1 = level.time;
-    const double elapsedMs = ( double )( t1 - t0 ).Milliseconds();
+    const double elapsedMs = ( double )( gi.GetRealSystemTime() - inlineStartMs );
+    mesh->profile_inline_gen_ms = elapsedMs;
     SVG_Nav_Log( "Inline models' navmesh generation complete - %.2f ms\n", elapsedMs );
 
     // Diagnostic: print a histogram of layer counts across inline model tiles (if any) to detect abnormal distributions.
@@ -1024,12 +1010,18 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
 
 	// Generate world and inline meshes with timing.
 	const QMTime genStart = QMTime::FromMilliseconds( gi.GetRealSystemTime() );
+	g_nav_mesh->profile_world_gen_ms = 0.0;
+	g_nav_mesh->profile_inline_gen_ms = 0.0;
+	g_nav_mesh->profile_total_gen_ms = 0.0;
+	g_nav_mesh->profile_generated_at_ms = 0;
 	GenerateWorldMesh( g_nav_mesh.get() );
     GenerateInlineModelMesh( g_nav_mesh.get() );
     // Emit a short inline-model generation summary to help debug missing inline tiles.
     Nav_LogInlineModelSummary( g_nav_mesh.get() );
 	const QMTime genEnd = QMTime::FromMilliseconds( gi.GetRealSystemTime() );
 	const double genElapsedMs = ( double )( genEnd - genStart ).Milliseconds();
+	g_nav_mesh->profile_total_gen_ms = genElapsedMs;
+	g_nav_mesh->profile_generated_at_ms = gi.GetRealSystemTime();
 	SVG_Nav_Log( "Overall generation time: %.2f ms\n", genElapsedMs );
 
 	// Calculate stats

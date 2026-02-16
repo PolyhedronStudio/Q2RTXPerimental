@@ -9,7 +9,9 @@
 
 // Includes: local and navigation headers.
 #include "svgame/svg_local.h"
+#include <algorithm>
 #include <cstring>
+#include <cmath>
 
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_clusters.h"
@@ -22,23 +24,100 @@ extern cvar_t *nav_drop_cap;
 extern cvar_t *nav_debug_draw;
 
 /**
-*	@brief    Build a traversal policy mirroring the provided agent profile.
-*	@param    profile    Agent hull/extents and traversal limits.
-*	@return   Policy whose bounds (bbox, steps, drops, slope) match the profile.
+*	@brief	Resolve the effective drop cap used for path validation/smoothing.
+*	@param	policy	Path policy containing drop constraints.
+*	@return	Drop limit in world units.
 **/
-static svg_nav_path_policy_t SVG_Nav_BuildPolicyFromAgentProfile( const nav_agent_profile_t &profile ) {
-    /**
-    *	Copy profile data into the policy so any later modifications can layer
-    *	on top without mutating the original profile.
-    **/
-    svg_nav_path_policy_t policy = {};
-    policy.agent_mins = profile.mins;
-    policy.agent_maxs = profile.maxs;
-    policy.max_step_height = profile.max_step_height;
-    policy.max_drop_height = profile.max_drop_height;
-    policy.drop_cap = profile.drop_cap;
-    policy.max_slope_deg = profile.max_slope_deg;
-    return policy;
+static float SVG_Nav_ResolveDropCapForPath( const svg_nav_path_policy_t &policy ) {
+	if ( policy.drop_cap > 0.0f ) {
+		return ( float )policy.drop_cap;
+	}
+	if ( policy.cap_drop_height ) {
+		return ( float )policy.max_drop_height;
+	}
+	return nav_drop_cap ? nav_drop_cap->value : 100.0f;
+}
+
+/**
+*	@brief	Check whether all drops within an original waypoint segment satisfy the cap.
+*	@param	points	Original waypoint list (nav-center space).
+*	@param	from	Segment start index.
+*	@param	to		Segment end index.
+*	@param	maxDrop	Maximum permitted downward drop.
+*	@return	True if every intermediate downward transition is within maxDrop.
+**/
+static bool SVG_Nav_PathSegmentRespectsDropCap( const std::vector<Vector3> &points, size_t from, size_t to, float maxDrop ) {
+	if ( to <= ( from + 1 ) || maxDrop <= 0.0f ) {
+		return true;
+	}
+	if ( from >= points.size() || to >= points.size() || from >= to ) {
+		return false;
+	}
+
+	for ( size_t i = from + 1; i <= to; ++i ) {
+		const float dz = points[ i - 1 ].z - points[ i ].z;
+		if ( dz > maxDrop ) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
+/**
+*	@brief	Apply stair-safe LOS shortcut smoothing to nav-center waypoints.
+*	@param	mesh				Navigation mesh used for step/drop validation.
+*	@param	input_points		Original A* points in nav-center space.
+*	@param	agent_mins_feet		Agent bbox mins in feet-origin space.
+*	@param	agent_maxs_feet		Agent bbox maxs in feet-origin space.
+*	@param	policy				Traversal policy used for LOS/drop checks.
+*	@param	out_points			[out] Smoothed output points.
+**/
+static void SVG_Nav_SmoothPathPoints_StairSafeLOS( const nav_mesh_t *mesh, const std::vector<Vector3> &input_points,
+	const Vector3 &agent_mins_feet, const Vector3 &agent_maxs_feet,
+	const svg_nav_path_policy_t &policy, std::vector<Vector3> *out_points ) {
+	if ( !out_points ) {
+		return;
+	}
+
+	*out_points = input_points;
+	if ( !mesh || input_points.size() <= 2 ) {
+		return;
+	}
+
+	// Convert the feet-origin hull into nav-center space for edge tests.
+	const float centerOffsetZ = ( agent_mins_feet.z + agent_maxs_feet.z ) * 0.5f;
+	const Vector3 agent_center_mins = QM_Vector3Subtract( agent_mins_feet, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
+	const Vector3 agent_center_maxs = QM_Vector3Subtract( agent_maxs_feet, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
+	const float maxDrop = SVG_Nav_ResolveDropCapForPath( policy );
+
+	std::vector<Vector3> stringPulled = {};
+	stringPulled.reserve( input_points.size() );
+	stringPulled.push_back( input_points.front() );
+
+	size_t anchor = 0;
+	const size_t totalPoints = input_points.size();
+	while ( anchor + 1 < totalPoints ) {
+		size_t chosen = anchor + 1;
+		for ( size_t candidate = totalPoints - 1; candidate > anchor + 1; --candidate ) {
+			// Keep shortcutting stair-safe by ensuring skipped source segments respect drop caps.
+			if ( !SVG_Nav_PathSegmentRespectsDropCap( input_points, anchor, candidate, maxDrop ) ) {
+				continue;
+			}
+			if ( Nav_CanTraverseStep_ExplicitBBox( mesh, input_points[ anchor ], input_points[ candidate ],
+				agent_center_mins, agent_center_maxs, nullptr, &policy ) ) {
+				chosen = candidate;
+				break;
+			}
+		}
+
+		stringPulled.push_back( input_points[ chosen ] );
+		anchor = chosen;
+	}
+
+	if ( stringPulled.size() >= 2 ) {
+		out_points->swap( stringPulled );
+	}
 }
 
 /**
@@ -72,6 +151,7 @@ void svg_nav_path_process_t::Reset( void ) {
 	last_failure_time = 0_ms;
 	last_failure_pos = {};
 	last_failure_yaw = 0.0f;
+	next_occupancy_replan_time = 0_ms;
 }
 
 /**
@@ -92,21 +172,21 @@ const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<
 		return false;
 	}
 
- /**
-	*    NOTE: Path smoothing temporarily disabled due to a runtime regression
-	*    observed in async commit flow. Revert to committing raw A* points to
-	*    ensure path availability remains correct. The funnel+offset approach
-	*    will be reintroduced after a safer incremental integration.
-	**/
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	std::vector<Vector3> commitPoints = points;
+	SVG_Nav_SmoothPathPoints_StairSafeLOS( mesh, points, policy.agent_mins, policy.agent_maxs, policy, &commitPoints );
+	if ( commitPoints.empty() ) {
+		return false;
+	}
 
  /**
 	 *	Copy the waypoints into a traversal path owned by this process.
 	 **/
-	const int32_t pointCount = ( int32_t )points.size();
+	const int32_t pointCount = ( int32_t )commitPoints.size();
 	nav_traversal_path_t newPath = {};
 	newPath.num_points = pointCount;
 	newPath.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * newPath.num_points, TAG_SVGAME_LEVEL );
-	memcpy( newPath.points, points.data(), sizeof( Vector3 ) * newPath.num_points );
+	memcpy( newPath.points, commitPoints.data(), sizeof( Vector3 ) * newPath.num_points );
 
 	/**
 	 *	Update stored path metadata and reset failure state.
@@ -120,6 +200,7 @@ const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<
 	consecutive_failures = 0;
 	backoff_until = 0_ms;
 	next_rebuild_time = level.time + policy.rebuild_interval;
+	next_occupancy_replan_time = 0_ms;
 	return true;
 }
 
@@ -210,15 +291,22 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	/**
 	*    Align the working policy with the runtime agent profile.
 	**/
-	const nav_agent_profile_t agentProfile = SVG_Nav_BuildAgentProfileFromCvars();
+	const nav_agent_profile_t resolvedAgentProfile = SVG_Nav_ResolveAgentProfile( g_nav_mesh.get(), &agent_mins, &agent_maxs );
 	svg_nav_path_policy_t resolvedPolicy = policy;
-	const svg_nav_path_policy_t profilePolicy = SVG_Nav_BuildPolicyFromAgentProfile( agentProfile );
-	resolvedPolicy.agent_mins = profilePolicy.agent_mins;
-	resolvedPolicy.agent_maxs = profilePolicy.agent_maxs;
-	resolvedPolicy.max_step_height = profilePolicy.max_step_height;
-	resolvedPolicy.max_drop_height = profilePolicy.max_drop_height;
-	resolvedPolicy.drop_cap = profilePolicy.drop_cap;
-	resolvedPolicy.max_slope_deg = profilePolicy.max_slope_deg;
+	resolvedPolicy.agent_mins = resolvedAgentProfile.mins;
+	resolvedPolicy.agent_maxs = resolvedAgentProfile.maxs;
+	if ( resolvedPolicy.max_step_height <= 0.0 ) {
+		resolvedPolicy.max_step_height = resolvedAgentProfile.max_step_height;
+	}
+	if ( resolvedPolicy.max_drop_height <= 0.0 ) {
+		resolvedPolicy.max_drop_height = resolvedAgentProfile.max_drop_height;
+	}
+	if ( resolvedPolicy.drop_cap <= 0.0 ) {
+		resolvedPolicy.drop_cap = resolvedAgentProfile.drop_cap;
+	}
+	if ( resolvedPolicy.max_slope_deg <= 0.0 ) {
+		resolvedPolicy.max_slope_deg = resolvedAgentProfile.max_slope_deg;
+	}
 
 	/**
 	*	Pre-check: warn if the vertical gap already exceeds the effective step height.
@@ -347,10 +435,10 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	*		The nav system stores/queries points in a hull-center coordinate frame.
 	**/
 	// Compute center offset (feet-origin -> center-origin).
-	const float centerOffsetZ = ( agent_mins.z + agent_maxs.z ) * 0.5f;
+	const float centerOffsetZ = ( resolvedPolicy.agent_mins.z + resolvedPolicy.agent_maxs.z ) * 0.5f;
 	// Convert mins/maxs into center-origin space.
-	const Vector3 agent_center_mins = QM_Vector3Subtract( agent_mins, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-	const Vector3 agent_center_maxs = QM_Vector3Subtract( agent_maxs, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
+	const Vector3 agent_center_mins = QM_Vector3Subtract( resolvedPolicy.agent_mins, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
+	const Vector3 agent_center_maxs = QM_Vector3Subtract( resolvedPolicy.agent_maxs, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
 	// Convert start/goal into center-origin space.
 	const Vector3 start_center = QM_Vector3Add( start_origin, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
 	const Vector3 goal_center = QM_Vector3Add( goal_origin, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
@@ -388,9 +476,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	*        per-policy max drop when dropping is capped. Fall back to the global
 	*        drop cap when no policy value is configured.
 	**/
-	const float maxDrop = ( resolvedPolicy.drop_cap > 0.0f )
-	    ? ( float )resolvedPolicy.drop_cap
-	    : ( resolvedPolicy.cap_drop_height ? ( float )resolvedPolicy.max_drop_height : ( nav_drop_cap ? nav_drop_cap->value : 100.0f ) );
+	const float maxDrop = SVG_Nav_ResolveDropCapForPath( resolvedPolicy );
 	if ( ok && path.num_points > 1 && path.points ) {
 		// Scan each segment for excessive vertical drop.
 		for ( int32_t i = 1; i < path.num_points; ++i ) {
@@ -408,6 +494,22 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	*	Commit success or revert on failure.
 	**/
 	if ( ok && dropLimitOk ) {
+		// Convert and smooth raw A* points so sync/async paths share the same stabilization.
+		std::vector<Vector3> rawPoints = {};
+		rawPoints.reserve( path.num_points );
+		for ( int32_t i = 0; i < path.num_points; ++i ) {
+			rawPoints.push_back( path.points[ i ] );
+		}
+
+		std::vector<Vector3> smoothedPoints = rawPoints;
+		SVG_Nav_SmoothPathPoints_StairSafeLOS( g_nav_mesh.get(), rawPoints, resolvedPolicy.agent_mins, resolvedPolicy.agent_maxs, resolvedPolicy, &smoothedPoints );
+		if ( !smoothedPoints.empty() ) {
+			SVG_Nav_FreeTraversalPath( &path );
+			path.num_points = ( int32_t )smoothedPoints.size();
+			path.points = ( Vector3 * )gi.TagMallocz( sizeof( Vector3 ) * path.num_points, TAG_SVGAME_LEVEL );
+			memcpy( path.points, smoothedPoints.data(), sizeof( Vector3 ) * path.num_points );
+		}
+
 		// Free old path now that we have a valid replacement.
 		SVG_Nav_FreeTraversalPath( &oldPath );
 		// Store feet-origin start/goal (callers interact in entity space).
@@ -418,6 +520,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 		// Reset failure tracking.
 		consecutive_failures = 0;
 		backoff_until = 0_ms;
+		next_occupancy_replan_time = 0_ms;
 		// Throttle subsequent rebuilds.
 		next_rebuild_time = level.time + policy.rebuild_interval;
 		return true;
@@ -462,6 +565,51 @@ const bool svg_nav_path_process_t::CanRebuild( const svg_nav_path_policy_t &poli
 	( void )policy;
 	// Rebuild is permitted only if we are past both throttle and backoff times.
 	return level.time >= next_rebuild_time && level.time >= backoff_until;
+}
+
+/**
+*	@brief	Check whether upcoming waypoints are congested and should trigger a rebuild.
+**/
+const bool svg_nav_path_process_t::ShouldRebuildForOccupancy( const svg_nav_path_policy_t &policy ) const {
+	if ( !policy.enable_occupancy_replan ) {
+		return false;
+	}
+	if ( level.time < next_occupancy_replan_time ) {
+		return false;
+	}
+	if ( path.num_points <= 0 || !path.points ) {
+		return false;
+	}
+
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( !mesh ) {
+		return false;
+	}
+
+	const int32_t lookaheadCount = std::max( 1, policy.occupancy_lookahead_points );
+	const int32_t softThreshold = std::max( 1, policy.occupancy_soft_cost_replan_threshold );
+	const int32_t startIndex = std::max( 0, std::min( path_index, path.num_points - 1 ) );
+
+	int32_t inspected = 0;
+	for ( int32_t idx = startIndex; idx < path.num_points && inspected < lookaheadCount; ++idx, ++inspected ) {
+		const Vector3 &navPoint = path.points[ idx ];
+		if ( policy.occupancy_replan_on_blocked && SVG_Nav_Occupancy_BlockedForPosition( mesh, navPoint, true ) ) {
+			return true;
+		}
+		const int32_t softCost = SVG_Nav_Occupancy_SoftCostForPosition( mesh, navPoint, true );
+		if ( softCost >= softThreshold ) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+/**
+*	@brief	Start occupancy-triggered rebuild cooldown to avoid requeue spam.
+**/
+void svg_nav_path_process_t::MarkOccupancyRebuildScheduled( const svg_nav_path_policy_t &policy ) {
+	next_occupancy_replan_time = level.time + policy.occupancy_replan_cooldown;
 }
 /**
 *	@brief	Determine if the path should be rebuilt based on the goal's 2D distance change.

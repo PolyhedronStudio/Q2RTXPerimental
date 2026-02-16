@@ -810,6 +810,8 @@ void SVG_RunFrame(void) {
     SVG_PushMove_UpdateMoveWithEntities();
 	//! Make sure to update the navigation system.
 	SVG_Nav_RefreshInlineModelRuntime();
+	// Refresh per-frame dynamic occupancy before advancing async path requests.
+	SVG_Nav_Occupancy_PopulateFromEntities();
 
 	/**
 	*	WID: LUA: CallBack.

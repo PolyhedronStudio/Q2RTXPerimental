@@ -41,11 +41,9 @@ cvar_t  *cl_rollhack;
 cvar_t  *cl_noglow;
 cvar_t  *cl_nolerp;
 
-#if USE_DEBUG
 cvar_t  *cl_shownet;
 cvar_t  *cl_showmiss;
 cvar_t  *cl_showclamp;
-#endif
 
 QEXTERN_C_ENCLOSE( cvar_t *cl_player_model; );
 

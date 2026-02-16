@@ -37,13 +37,23 @@ static cvar_t *s_nav_requests_per_frame = nullptr;
 //! Per-request expansion budget cvar.
 static cvar_t *s_nav_expansions_per_request = nullptr;
 
-static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAfter, int32_t processed, int32_t requestBudget, int32_t remainingExpansions );
+//! Per-frame queue time budget cvar (milliseconds). <= 0 disables time cap.
+static cvar_t *s_nav_queue_budget_ms = nullptr;
+
+//! Runtime profiling counters for async queue dashboards.
+static nav_async_queue_profile_t s_nav_async_profile = {};
+//! Round-robin cursor for fair queue service under load.
+static int32_t s_nav_queue_rr_cursor = 0;
+
+static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAfter, int32_t processed, int32_t requestBudget,
+	int32_t remainingExpansions, int32_t expansionsUsed, uint64_t frameElapsedMs, int32_t queueBudgetMs );
 static nav_request_entry_t *NavRequest_FindEntryByHandle( nav_request_handle_t handle );
 static nav_request_entry_t *NavRequest_FindEntryForProcess( svg_nav_path_process_t *process );
 static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry );
 static void NavRequest_ClearProcessMarkers( nav_request_entry_t &entry );
 static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry );
 static void NavRequest_HandleFailure( nav_request_entry_t &entry );
+static void NavRequest_UpdateQueuePeakDepth( void );
 
 /**
 *    @brief    Register cvars that control async request processing and diagnostics.
@@ -57,8 +67,19 @@ void SVG_Nav_RequestQueue_RegisterCvars( void ) {
 	s_nav_nav_async_enable = gi.cvar( "nav_nav_async_enable", "1", 0 );
 	s_nav_requests_per_frame = gi.cvar( "nav_requests_per_frame", "4", 0 );
 	s_nav_expansions_per_request = gi.cvar( "nav_expansions_per_request", "512", 0 );
+	s_nav_queue_budget_ms = gi.cvar( "nav_queue_budget_ms", "2", 0 );
 	nav_nav_async_queue_mode = gi.cvar( "nav_nav_async_queue_mode", "1", 0 );
 	s_nav_nav_async_log_stats = gi.cvar( "nav_nav_async_log_stats", "1", 0 );
+}
+
+/**
+*    @brief    Keep the peak queue depth counter in sync with current queue size.
+**/
+static void NavRequest_UpdateQueuePeakDepth( void ) {
+	const int32_t depth = ( int32_t )s_nav_request_queue.size();
+	if ( depth > s_nav_async_profile.queue_peak_depth ) {
+		s_nav_async_profile.queue_peak_depth = depth;
+	}
 }
 
 /**
@@ -164,6 +185,8 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 		existing->agent_maxs = agent_maxs;
 		existing->force = existing->force || force;
 		existing->status = nav_request_status_t::Queued;
+		existing->enqueue_time_ms = gi.GetRealSystemTime();
+		s_nav_async_profile.total_refreshed++;
         if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 			gi.dprintf( "[NavAsync][Queue] Refreshed existing entry handle=%d for ent_process=%p (queued)\n",
 				existing->handle, ( void * )existing->path_process );
@@ -189,11 +212,14 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	entry.force = force;
 	entry.status = nav_request_status_t::Queued;
 	entry.handle = handle;
+	entry.enqueue_time_ms = gi.GetRealSystemTime();
 
 	/**
 	*    Enqueue the new entry for future processing ticks.
 	**/
 	s_nav_request_queue.push_back( entry );
+	s_nav_async_profile.total_enqueued++;
+	NavRequest_UpdateQueuePeakDepth();
     // Lightweight diagnostic: log new enqueue when async logging is desired.
 	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 		gi.dprintf( "[NavAsync][Queue] Enqueued handle=%d for ent_process=%p start=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) force=%d\n",
@@ -230,6 +256,7 @@ void SVG_Nav_CancelRequest( nav_request_handle_t handle ) {
 	}
 
 	entry->status = nav_request_status_t::Cancelled;
+	s_nav_async_profile.total_cancelled++;
 }
 
 /**
@@ -285,24 +312,37 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 	**/
 	const int32_t requestBudget = SVG_Nav_GetAsyncRequestBudget();
 	const int32_t expansionsPerRequest = SVG_Nav_GetAsyncRequestExpansions();
+	const int32_t queueBudgetMs = SVG_Nav_GetAsyncQueueFrameBudgetMs();
 	const int64_t totalExpansions = ( int64_t )expansionsPerRequest * requestBudget;
 	int32_t remainingExpansions = ( int32_t )std::min( totalExpansions, ( int64_t )std::numeric_limits<int32_t>::max() );
 	int32_t processed = 0;
+	int32_t expansionsUsed = 0;
 	const int32_t queueBefore = ( int32_t )s_nav_request_queue.size();
 	const uint64_t queueStartMs = gi.GetRealSystemTime();
-	const uint64_t queueBudgetMs = 2;
+	const int32_t queueCount = ( int32_t )s_nav_request_queue.size();
+	int32_t scanned = 0;
+	if ( queueCount > 0 ) {
+		if ( s_nav_queue_rr_cursor < 0 || s_nav_queue_rr_cursor >= queueCount ) {
+			s_nav_queue_rr_cursor = 0;
+		}
+	}
 
 	/**
 	*    Iterate queue entries while honoring request, expansion, and time budgets.
+	*    Start from a round-robin cursor for fair service under load.
 	**/
-	for ( nav_request_entry_t &entry : s_nav_request_queue ) {
+	while ( scanned < queueCount ) {
 		if ( processed >= requestBudget || remainingExpansions <= 0 ) {
 			break;
 		}
 		const uint64_t queueElapsedMs = gi.GetRealSystemTime() - queueStartMs;
-		if ( queueBudgetMs > 0 && queueElapsedMs > queueBudgetMs ) {
+		if ( queueBudgetMs > 0 && queueElapsedMs >= ( uint64_t )queueBudgetMs ) {
 			break;
 		}
+
+		const int32_t entryIndex = ( s_nav_queue_rr_cursor + scanned ) % queueCount;
+		scanned++;
+		nav_request_entry_t &entry = s_nav_request_queue[ entryIndex ];
 
 		if ( entry.status == nav_request_status_t::Completed || entry.status == nav_request_status_t::Failed || entry.status == nav_request_status_t::Cancelled ) {
 			NavRequest_ClearProcessMarkers( entry );
@@ -312,6 +352,8 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 		if ( entry.status == nav_request_status_t::Queued ) {
           if ( !NavRequest_PrepareAStarForEntry( entry ) ) {
 				entry.status = nav_request_status_t::Failed;
+				s_nav_async_profile.total_prepare_failures++;
+				s_nav_async_profile.total_failed++;
 				NavRequest_HandleFailure( entry );
 				NavRequest_ClearProcessMarkers( entry );
 				Nav_AStar_Reset( &entry.a_star );
@@ -339,6 +381,8 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 				break;
 			}
 			remainingExpansions -= expansionsToUse;
+			expansionsUsed += expansionsToUse;
+			s_nav_async_profile.total_expansions += expansionsToUse;
 			starStatus = Nav_AStar_Step( &entry.a_star, expansionsToUse );
 		}
 
@@ -346,16 +390,21 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 		*    Track that we touched this request this frame.
 		**/
 		processed++;
+		s_nav_async_profile.total_processed++;
 
 		if ( starStatus == nav_a_star_status_t::Completed ) {
 			const bool commitOk = NavRequest_FinalizePathForEntry( entry );
 			entry.status = commitOk ? nav_request_status_t::Completed : nav_request_status_t::Failed;
 			if ( !commitOk ) {
+				s_nav_async_profile.total_failed++;
 				NavRequest_HandleFailure( entry );
+			} else {
+				s_nav_async_profile.total_completed++;
 			}
 			NavRequest_ClearProcessMarkers( entry );
 		} else if ( starStatus == nav_a_star_status_t::Failed ) {
 			entry.status = nav_request_status_t::Failed;
+			s_nav_async_profile.total_failed++;
 			NavRequest_HandleFailure( entry );
 			NavRequest_ClearProcessMarkers( entry );
 		}
@@ -363,6 +412,30 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 		if ( entry.status != nav_request_status_t::Running ) {
 			Nav_AStar_Reset( &entry.a_star );
 		}
+	}
+	if ( queueCount > 0 ) {
+		s_nav_queue_rr_cursor = ( s_nav_queue_rr_cursor + scanned ) % queueCount;
+	}
+
+	/**
+	*    Collect queue wait-time samples for entries that reached a terminal state.
+	**/
+	const uint64_t queueNowMs = gi.GetRealSystemTime();
+	for ( const nav_request_entry_t &entry : s_nav_request_queue ) {
+		if ( entry.status != nav_request_status_t::Completed
+			&& entry.status != nav_request_status_t::Failed
+			&& entry.status != nav_request_status_t::Cancelled ) {
+			continue;
+		}
+
+		if ( entry.enqueue_time_ms == 0 || queueNowMs < entry.enqueue_time_ms ) {
+			continue;
+		}
+
+		const uint64_t waitMs = queueNowMs - entry.enqueue_time_ms;
+		s_nav_async_profile.total_queue_wait_ms += waitMs;
+		s_nav_async_profile.max_queue_wait_ms = std::max( s_nav_async_profile.max_queue_wait_ms, waitMs );
+		s_nav_async_profile.queue_wait_samples++;
 	}
 
 	/**
@@ -375,8 +448,29 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 				|| entry.status == nav_request_status_t::Cancelled;
 		} ),
 		s_nav_request_queue.end() );
+	if ( s_nav_request_queue.empty() ) {
+		s_nav_queue_rr_cursor = 0;
+	} else if ( s_nav_queue_rr_cursor >= ( int32_t )s_nav_request_queue.size() ) {
+		s_nav_queue_rr_cursor %= ( int32_t )s_nav_request_queue.size();
+	}
 	const int32_t queueAfter = ( int32_t )s_nav_request_queue.size();
-	NavRequest_LogQueueDiagnostics( queueBefore, queueAfter, processed, requestBudget, remainingExpansions );
+	const uint64_t frameElapsedMs = gi.GetRealSystemTime() - queueStartMs;
+
+	s_nav_async_profile.queue_depth = queueAfter;
+	s_nav_async_profile.last_frame_queue_before = queueBefore;
+	s_nav_async_profile.last_frame_queue_after = queueAfter;
+	s_nav_async_profile.last_frame_processed = processed;
+	s_nav_async_profile.last_frame_expansions = expansionsUsed;
+	s_nav_async_profile.last_frame_elapsed_ms = frameElapsedMs;
+	s_nav_async_profile.last_frame_request_budget = requestBudget;
+	s_nav_async_profile.last_frame_expansion_budget = expansionsPerRequest;
+	s_nav_async_profile.last_frame_queue_budget_ms = queueBudgetMs;
+	if ( queueBudgetMs > 0 && frameElapsedMs >= ( uint64_t )queueBudgetMs ) {
+		s_nav_async_profile.frame_over_budget_count++;
+	}
+	NavRequest_UpdateQueuePeakDepth();
+
+	NavRequest_LogQueueDiagnostics( queueBefore, queueAfter, processed, requestBudget, remainingExpansions, expansionsUsed, frameElapsedMs, queueBudgetMs );
 }
 
 /**
@@ -402,41 +496,27 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	*    Align policy constraints with the agent hull profile before running A*.
 	**/
 	entry.resolved_policy = entry.policy;
-  const nav_agent_profile_t agentProfile = SVG_Nav_BuildAgentProfileFromCvars();
-	// Determine whether the mesh provides a valid agent hull to align with.
-	const bool meshAgentValid = ( mesh->agent_maxs.z > mesh->agent_mins.z )
-		&& ( mesh->agent_maxs.x > mesh->agent_mins.x )
-		&& ( mesh->agent_maxs.y > mesh->agent_mins.y );
-	// Validate the cvar-driven agent profile before using it as a fallback.
-	const bool profileValid = ( agentProfile.maxs.z > agentProfile.mins.z )
-		&& ( agentProfile.maxs.x > agentProfile.mins.x )
-		&& ( agentProfile.maxs.y > agentProfile.mins.y );
-
-	/**
-	*    Resolve the agent bounds that should drive center offsets and traversal.
-	*        Prefer mesh-authored hull sizes so navigation queries stay aligned.
-	**/
-	Vector3 resolvedAgentMins = entry.agent_mins;
-	Vector3 resolvedAgentMaxs = entry.agent_maxs;
-	// Prefer the mesh agent bounds when they are valid.
-	if ( meshAgentValid ) {
-		resolvedAgentMins = mesh->agent_mins;
-		resolvedAgentMaxs = mesh->agent_maxs;
-	} else if ( profileValid ) {
-		// Fall back to the cvar profile when the mesh is unavailable.
-		resolvedAgentMins = agentProfile.mins;
-		resolvedAgentMaxs = agentProfile.maxs;
-	}
+	const nav_agent_profile_t resolvedAgentProfile = SVG_Nav_ResolveAgentProfile( mesh, &entry.agent_mins, &entry.agent_maxs );
+	Vector3 resolvedAgentMins = resolvedAgentProfile.mins;
+	Vector3 resolvedAgentMaxs = resolvedAgentProfile.maxs;
 
 	/**
 	*    Update the resolved policy with the chosen agent profile and traversal limits.
 	**/
 	entry.resolved_policy.agent_mins = resolvedAgentMins;
 	entry.resolved_policy.agent_maxs = resolvedAgentMaxs;
-	entry.resolved_policy.max_step_height = meshAgentValid ? mesh->max_step : agentProfile.max_step_height;
-	entry.resolved_policy.max_drop_height = agentProfile.max_drop_height;
-	entry.resolved_policy.drop_cap = agentProfile.drop_cap;
-	entry.resolved_policy.max_slope_deg = meshAgentValid ? mesh->max_slope_deg : agentProfile.max_slope_deg;
+	if ( entry.resolved_policy.max_step_height <= 0.0 ) {
+		entry.resolved_policy.max_step_height = resolvedAgentProfile.max_step_height;
+	}
+	if ( entry.resolved_policy.max_drop_height <= 0.0 ) {
+		entry.resolved_policy.max_drop_height = resolvedAgentProfile.max_drop_height;
+	}
+	if ( entry.resolved_policy.drop_cap <= 0.0 ) {
+		entry.resolved_policy.drop_cap = resolvedAgentProfile.drop_cap;
+	}
+	if ( entry.resolved_policy.max_slope_deg <= 0.0 ) {
+		entry.resolved_policy.max_slope_deg = resolvedAgentProfile.max_slope_deg;
+	}
 
  /**
 	*    Compute center offsets using the resolved agent bounds for consistency.
@@ -606,55 +686,8 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 
-	const float centerOffsetZ = ( entry.agent_mins.z + entry.agent_maxs.z ) * 0.5f;
- std::vector<Vector3> smoothedPoints = points;
-	const nav_mesh_t *mesh = g_nav_mesh.get();
-	if ( mesh && smoothedPoints.size() > 2 ) {
-		/**
-		*    Apply a greedy corridor string-pull plus a small lateral offset to
-		*    reduce corner hugging without modifying the navmesh. This operates on
-		*    nav-center waypoints before they are copied into the path process.
-		**/
-		const Vector3 agent_center_mins = QM_Vector3Subtract( entry.agent_mins, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-		const Vector3 agent_center_maxs = QM_Vector3Subtract( entry.agent_maxs, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-
-		std::vector<Vector3> stringPulled;
-		stringPulled.reserve( smoothedPoints.size() );
-		stringPulled.push_back( smoothedPoints.front() );
-		size_t anchor = 0;
-		const size_t totalPoints = smoothedPoints.size();
-		while ( anchor + 1 < totalPoints ) {
-			size_t chosen = anchor + 1;
-			for ( size_t candidate = totalPoints - 1; candidate > anchor; --candidate ) {
-				if ( Nav_CanTraverseStep_ExplicitBBox( mesh, smoothedPoints[ anchor ], smoothedPoints[ candidate ], agent_center_mins, agent_center_maxs, nullptr, &entry.resolved_policy ) ) {
-					chosen = candidate;
-					break;
-				}
-			}
-			stringPulled.push_back( smoothedPoints[ chosen ] );
-			anchor = chosen;
-		}
-
-		const float agent_half_width = std::max( fabsf( entry.agent_mins.x ), fabsf( entry.agent_maxs.x ) );
-		const float max_lateral_offset = std::min( agent_half_width, 32.0f );
-		for ( size_t idx = 1; idx + 1 < stringPulled.size(); ++idx ) {
-			const Vector3 &prev = stringPulled[ idx - 1 ];
-			const Vector3 &next = stringPulled[ idx + 1 ];
-			Vector3 corridorCenter = QM_Vector3Add( prev, next ) * 0.5f;
-			Vector3 deviation = QM_Vector3Subtract( corridorCenter, stringPulled[ idx ] );
-			const float deviationLen = QM_Vector3Length( deviation );
-			if ( deviationLen > 0.001f ) {
-				const float offsetFrac = std::min( max_lateral_offset / deviationLen, 0.5f );
-				stringPulled[ idx ] = QM_Vector3Add( stringPulled[ idx ], deviation * offsetFrac );
-			}
-		}
-
-		if ( stringPulled.size() > 1 ) {
-			smoothedPoints.swap( stringPulled );
-		}
-	}
-
-	const bool committed = process->CommitAsyncPathFromPoints( smoothedPoints, entry.start, entry.goal, centerOffsetZ, entry.resolved_policy );
+	const float centerOffsetZ = ( entry.resolved_policy.agent_mins.z + entry.resolved_policy.agent_maxs.z ) * 0.5f;
+	const bool committed = process->CommitAsyncPathFromPoints( points, entry.start, entry.goal, centerOffsetZ, entry.resolved_policy );
 	if ( committed ) {
 		gi.dprintf( "[DEBUG][NavAsync] Finalize: commit succeeded (handle=%d points=%d)\n", entry.handle, ( int )points.size() );
 	} else {
@@ -688,20 +721,22 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
 *    @brief    Emit diagnostics summarizing the async navigation request queue state.
 *    @note     Enabled via the `nav_nav_async_log_stats` cvar when troubleshooting queue behavior.
 **/
-static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAfter, int32_t processed, int32_t requestBudget, int32_t remainingExpansions ) {
+static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAfter, int32_t processed, int32_t requestBudget,
+	int32_t remainingExpansions, int32_t expansionsUsed, uint64_t frameElapsedMs, int32_t queueBudgetMs ) {
 	if ( !s_nav_nav_async_log_stats || s_nav_nav_async_log_stats->integer == 0 ) {
 		return;
 	}
 
-	if ( queueBefore != 0 && queueAfter != 0 ) {
-		gi.dprintf( "[NavAsync][Stats] queue_before=%d queue_after=%d processed=%d request_budget=%d expansions_remaining=%d queue_mode=%d\n",
-			queueBefore,
-			queueAfter,
-			processed,
-			requestBudget,
-			remainingExpansions,
-			nav_nav_async_queue_mode ? nav_nav_async_queue_mode->integer : 0 );
-	}
+	gi.dprintf( "[NavAsync][Stats] queue_before=%d queue_after=%d processed=%d request_budget=%d expansions_used=%d expansions_remaining=%d elapsed_ms=%llu queue_budget_ms=%d queue_mode=%d\n",
+		queueBefore,
+		queueAfter,
+		processed,
+		requestBudget,
+		expansionsUsed,
+		remainingExpansions,
+		( unsigned long long )frameElapsedMs,
+		queueBudgetMs,
+		nav_nav_async_queue_mode ? nav_nav_async_queue_mode->integer : 0 );
 }
 
 /**
@@ -728,4 +763,34 @@ int32_t SVG_Nav_GetAsyncRequestExpansions( void ) {
 	SVG_Nav_RequestQueue_RegisterCvars();
 	const int32_t budget = s_nav_expansions_per_request ? s_nav_expansions_per_request->integer : 1;
 	return std::max( 1, budget );
+}
+
+/**
+*    @brief    Retrieve the configured per-frame queue time budget in milliseconds.
+**/
+int32_t SVG_Nav_GetAsyncQueueFrameBudgetMs( void ) {
+	SVG_Nav_RequestQueue_RegisterCvars();
+	return s_nav_queue_budget_ms ? s_nav_queue_budget_ms->integer : 0;
+}
+
+/**
+*    @brief    Copy async queue profile counters for external dashboard consumers.
+**/
+void SVG_Nav_GetAsyncQueueProfile( nav_async_queue_profile_t *outProfile ) {
+	if ( !outProfile ) {
+		return;
+	}
+
+	*outProfile = s_nav_async_profile;
+	outProfile->queue_depth = ( int32_t )s_nav_request_queue.size();
+}
+
+/**
+*    @brief    Reset async queue profiling counters.
+**/
+void SVG_Nav_ResetAsyncQueueProfile( void ) {
+	s_nav_async_profile = {};
+	s_nav_async_profile.queue_depth = ( int32_t )s_nav_request_queue.size();
+	NavRequest_UpdateQueuePeakDepth();
+	s_nav_queue_rr_cursor = 0;
 }

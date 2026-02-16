@@ -15,6 +15,8 @@
 #include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_debug.h"
 
+#include <algorithm>
+
 
 
 //! Global debug draw state.
@@ -452,17 +454,6 @@ void SVG_Nav_DebugDraw( void ) {
 		return;
 	}
 
-	/**
-	*	Map: owner_entnum -> runtime entry.
-	*	We use the cached lookup map instead of a per-frame linear scan.
-	**/
-	auto find_runtime = [mesh]( const svg_base_edict_t *owner ) -> const nav_inline_model_runtime_t * {
-		if ( !owner ) {
-			return nullptr;
-		}
-		return SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( mesh, owner->s.number );
-	};
-
 	for ( int32_t i = 0; i < mesh->num_inline_models; i++ ) {
 		const nav_inline_model_data_t *model = &mesh->inline_model_data[ i ];
 		if ( !model || model->num_tiles <= 0 || !model->tiles ) {
@@ -497,9 +488,7 @@ void SVG_Nav_DebugDraw( void ) {
 			continue;
 		}
 
-		// Debug draw for inline models currently ignores rotation (angles) and uses translation only.
-		// This is still useful for doors/platforms that primarily translate.
-		const Vector3 origin = rt->origin;
+		const nav_rigid_xform_t xform = SVG_Nav_BuildRigidXform( rt->origin, rt->angles );
 
 		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
 			const nav_tile_t *tile = &model->tiles[ t ];
@@ -513,14 +502,33 @@ void SVG_Nav_DebugDraw( void ) {
 				continue;
 			}
 
-			// Tile bounds (translated).
+			// Tile bounds (transformed to world and conservatively drawn as world AABB).
 			if ( NavDebug_Enabled() && nav_debug_draw_tile_bounds && nav_debug_draw_tile_bounds->integer != 0 ) {
 				if ( NavDebug_CanEmitSegments( 12 ) ) {
 					const Vector3 minsLocal = { tile->tile_x * tileWorldSize, tile->tile_y * tileWorldSize, -4096.0 /* <Q2RTXP>: TODO: world_bounds.mins.z */ };
 					const Vector3 maxsLocal = { minsLocal[ 0 ] + tileWorldSize, minsLocal[ 1 ] + tileWorldSize, 4096.0 /* <Q2RTXP>: TODO: world_bounds.maxs.z */ };
 
-					const Vector3 minsWorld = QM_Vector3Add( minsLocal, origin );
-					const Vector3 maxsWorld = QM_Vector3Add( maxsLocal, origin );
+					Vector3 minsWorld = { 1e30, 1e30, 1e30 };
+					Vector3 maxsWorld = { -1e30, -1e30, -1e30 };
+					for ( int32_t ix = 0; ix < 2; ix++ ) {
+						for ( int32_t iy = 0; iy < 2; iy++ ) {
+							for ( int32_t iz = 0; iz < 2; iz++ ) {
+								const Vector3 cornerLocal = {
+									ix ? maxsLocal[ 0 ] : minsLocal[ 0 ],
+									iy ? maxsLocal[ 1 ] : minsLocal[ 1 ],
+									iz ? maxsLocal[ 2 ] : minsLocal[ 2 ]
+								};
+								const Vector3 cornerWorld = SVG_Nav_WorldFromLocal( xform, cornerLocal );
+
+								minsWorld[ 0 ] = std::min( minsWorld[ 0 ], cornerWorld[ 0 ] );
+								minsWorld[ 1 ] = std::min( minsWorld[ 1 ], cornerWorld[ 1 ] );
+								minsWorld[ 2 ] = std::min( minsWorld[ 2 ], cornerWorld[ 2 ] );
+								maxsWorld[ 0 ] = std::max( maxsWorld[ 0 ], cornerWorld[ 0 ] );
+								maxsWorld[ 1 ] = std::max( maxsWorld[ 1 ], cornerWorld[ 1 ] );
+								maxsWorld[ 2 ] = std::max( maxsWorld[ 2 ], cornerWorld[ 2 ] );
+							}
+						}
+					}
 
 					const Vector3 center = { ( double )( minsWorld[ 0 ] + maxsWorld[ 0 ] ) * 0.5, ( double )( minsWorld[ 1 ] + maxsWorld[ 1 ] ) * 0.5, 0.0 };
 					if ( NavDebug_PassesDistanceFilter( center ) ) {
@@ -532,7 +540,7 @@ void SVG_Nav_DebugDraw( void ) {
 				}
 			}
 
-			// Samples (translated).
+			// Samples (transformed).
 			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
 				const double tileOriginXLocal = tile->tile_x * tileWorldSize;
 				const double tileOriginYLocal = tile->tile_y * tileWorldSize;
@@ -553,7 +561,7 @@ void SVG_Nav_DebugDraw( void ) {
 						( double )layer->z_quantized * ( double )mesh->z_quant
 					};
 
-					Vector3 pWorld = QM_Vector3Add( pLocal, origin );
+					Vector3 pWorld = SVG_Nav_WorldFromLocal( xform, pLocal );
 					NavDebug_DrawSampleTick( pWorld, 12.0 );
 
 					if ( !NavDebug_CanEmitSegments( 1 ) ) {

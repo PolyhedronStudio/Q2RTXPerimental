@@ -148,6 +148,8 @@ The navigation system now exposes traversal helpers for A* pathfinding:
 - `SVG_Nav_GenerateTraversalPathForOrigin` builds a waypoint list between a start and goal.
 - `SVG_Nav_QueryMovementDirection` returns a normalized direction toward the next waypoint.
 - `SVG_Nav_FreeTraversalPath` releases path memory.
+- `SVG_NavAgent_TryQueueRebuild` standardizes async path rebuild orchestration for AI entities.
+- `SVG_NavAgent_ResetPathProcess` provides shared cancel/reset behavior for AI nav components.
 
 Example output:
 ```

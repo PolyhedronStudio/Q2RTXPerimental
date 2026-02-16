@@ -141,9 +141,7 @@ QEXTERN_C_ENCLOSE( void        Com_AddConfigFile( const char *name, unsigned fla
 extern cvar_t   *z_perturb;
 #endif
 
-#if USE_DEBUG
 QEXTERN_C_ENCLOSE( extern cvar_t *developer; );
-#endif
 QEXTERN_C_ENCLOSE( extern cvar_t *dedicated; );
 #if USE_CLIENT
 extern cvar_t   *host_speeds;

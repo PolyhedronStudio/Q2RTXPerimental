@@ -31,6 +31,15 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
  **/
 const Vector3 SVG_Nav_ConvertFeetToCenter( const nav_mesh_t *mesh, const Vector3 &feet_origin, const Vector3 *agent_mins = nullptr, const Vector3 *agent_maxs = nullptr );
 /**
+ *    @brief    Convert a nav-center position back to caller-facing feet-origin space.
+ *    @param    mesh          Navigation mesh used to derive default agent hull when agent bbox is omitted.
+ *    @param    center_origin World-space nav-center origin.
+ *    @param    agent_mins    Optional agent bbox mins to override mesh defaults.
+ *    @param    agent_maxs    Optional agent bbox maxs to override mesh defaults.
+ *    @return   Feet-origin world position (inverse of SVG_Nav_ConvertFeetToCenter).
+ **/
+const Vector3 SVG_Nav_ConvertCenterToFeet( const nav_mesh_t *mesh, const Vector3 &center_origin, const Vector3 *agent_mins = nullptr, const Vector3 *agent_maxs = nullptr );
+/**
 *	@brief  Generate a traversal path between two origins with optional goal Z-layer blending.
 *	@param  start_origin             World-space start origin.
 *	@param  goal_origin              World-space goal origin.

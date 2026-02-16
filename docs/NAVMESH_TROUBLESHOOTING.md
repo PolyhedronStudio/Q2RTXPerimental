@@ -4,6 +4,17 @@
 
 This guide helps diagnose and fix pathfinding issues in the Q2RTXP navigation system.
 
+## Automation
+
+For headless bake/regression workflows used in productionization tasks, see:
+
+- `docs/NAVMESH_AUTOMATION.md`
+
+Quick deterministic diagnostics:
+
+- `sv nav_selftest 256`
+- `sv nav_query_path <start_x> <start_y> <start_z> <goal_x> <goal_y> <goal_z>`
+
 ## Common Issue: "No Path Found" with Large Z-Differences
 
 ### Symptoms

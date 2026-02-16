@@ -39,6 +39,8 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_load.h"
+#include "svgame/nav/svg_nav_save.h"
 
 
 
@@ -412,6 +414,50 @@ static const gitem_t *_GetItemByClassname( const char *classname ) {
 }
 
 /**
+*   @brief  Try to load a cached nav mesh for the current map and optionally bake/save on cache miss.
+**/
+static void SVG_Nav_TryAutoLoadOrBakeForMap( void ) {
+	char cacheFilename[ MAX_QPATH ] = {};
+	if ( !SVG_Nav_BuildDefaultCacheFilename( cacheFilename, sizeof( cacheFilename ) ) ) {
+		gi.dprintf( "[Nav] auto cache: skipped (map name unavailable)\n" );
+		return;
+	}
+
+	bool loaded = false;
+	if ( nav_cache_auto_load && nav_cache_auto_load->integer != 0 ) {
+		loaded = SVG_Nav_LoadVoxelMesh( cacheFilename );
+		if ( loaded ) {
+			gi.dprintf( "[Nav] auto cache: loaded '%s'\n", cacheFilename );
+		} else {
+			gi.dprintf( "[Nav] auto cache: miss '%s'\n", cacheFilename );
+		}
+	}
+
+	const bool autoBakeEnabled = nav_cache_auto_bake_missing && nav_cache_auto_bake_missing->integer != 0;
+	if ( loaded || !autoBakeEnabled ) {
+		return;
+	}
+
+	gi.dprintf( "[Nav] auto cache: baking '%s'\n", cacheFilename );
+	SVG_Nav_GenerateVoxelMesh();
+	if ( !g_nav_mesh ) {
+		gi.dprintf( "[Nav] auto cache: bake failed (mesh unavailable)\n" );
+		return;
+	}
+
+	const bool autoSaveEnabled = nav_cache_auto_save_after_bake && nav_cache_auto_save_after_bake->integer != 0;
+	if ( !autoSaveEnabled ) {
+		return;
+	}
+
+	if ( SVG_Nav_SaveVoxelMesh( cacheFilename ) ) {
+		gi.dprintf( "[Nav] auto cache: wrote '%s'\n", cacheFilename );
+	} else {
+		gi.dprintf( "[Nav] auto cache: failed to write '%s'\n", cacheFilename );
+	}
+}
+
+/**
 *   @brief  Loads in the map name and iterates over the collision model's parsed key/value
 *           pairs in order to spawn entities appropriately matching the pair dictionary fields
 *           of each entity.
@@ -641,6 +687,7 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	// Initialize navigation system after entities have post-spawned.
 	// This ensures all inline models (brush entities) have their proper modelindex set.
 	SVG_Nav_Init();
+	SVG_Nav_TryAutoLoadOrBakeForMap();
 
     // Initialize a fresh clients array.
     //game.clients = SVG_Clients_Reallocate( game.maxclients );

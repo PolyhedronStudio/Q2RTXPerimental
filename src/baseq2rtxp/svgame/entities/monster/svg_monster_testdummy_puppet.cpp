@@ -37,6 +37,8 @@
 
 // Navigation cluster routing (coarse tile routing pre-pass).
 #include "svgame/nav/svg_nav_clusters.h"
+// Reusable nav-agent orchestration helpers.
+#include "svgame/nav/svg_nav_agent.h"
 // Async navigation queue helpers.
 #include "svgame/nav/svg_nav_request.h"
 // Traversal helpers required for path invalidation.
@@ -195,23 +197,7 @@ void SVG_TestDummy_ResetNavPath( svg_monster_testdummy_t *self ) {
         return;
     }
 
-    /**
-    *    Cancel any pending async request so we do not reuse stale results.
-    **/
-    if ( self->navPathProcess.pending_request_handle > 0 ) {
-        SVG_Nav_CancelRequest( self->navPathProcess.pending_request_handle );
-    }
-
-    /**
-    *    Clear cached path buffers and reset traversal bookkeeping.
-    **/
-    SVG_Nav_FreeTraversalPath( &self->navPathProcess.path );
-    self->navPathProcess.path_index = 0;
-    self->navPathProcess.path_goal = {};
-    self->navPathProcess.path_start = {};
-    self->navPathProcess.path_center_offset_z = 0.0f;
-    self->navPathProcess.rebuild_in_progress = false;
-    self->navPathProcess.pending_request_handle = 0;
+    SVG_NavAgent_ResetPathProcess( &self->navPathProcess );
 }
 
 /**
@@ -230,102 +216,9 @@ void SVG_TestDummy_ResetNavPath( svg_monster_testdummy_t *self ) {
 bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vector3 &start_origin,
     const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
     const Vector3 &agent_maxs, const bool force = false ) {
-    /**
-    *    @brief	Attempt to enqueue an asynchronous navigation rebuild for this entity.
-    *    @note	Lightweight diagnostic logging is emitted when DUMMY_NAV_DEBUG is enabled
-    *
-    *    Guard: only enqueue when the async queue mode is explicitly enabled.
-    **/
-    if ( !self || !nav_nav_async_queue_mode || nav_nav_async_queue_mode->integer == 0 ) {
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: async queue mode disabled, cannot enqueue. ent=%d\n", self ? self->s.number : -1 );
-        }
-        return false;
-    }
-
-    if ( !SVG_Nav_IsAsyncNavEnabled() ) {
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: async nav globally disabled, ent=%d\n", self->s.number );
-        }
-        return false;
-    }
-
-    /**
-    *    Throttle guard:
-    *        If the path process is not allowed to rebuild yet, skip enqueuing and
-    *        let callers keep following the current path without forcing sync rebuilds.
-    **/
-    // Force bypass ensures explicit breadcrumb goals always queue new work.
-    if ( !force && !self->navPathProcess.CanRebuild( policy ) ) {
-        // Movement throttled/backoff prevents enqueuing now; callers should keep using current path.
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: CanRebuild() == false, throttled/backoff. ent=%d next_rebuild=%lld backoff_until=%lld\n",
-                self->s.number, ( long long )self->navPathProcess.next_rebuild_time.Milliseconds(), ( long long )self->navPathProcess.backoff_until.Milliseconds() );
-        }
-        return true;
-    }
-
-    /**
-    *    Movement heuristic:
-    *        Only queue rebuilds when the path process thinks goal/start movement
-    *        warrants it; this prevents re-queueing every frame for static goals.
-    **/
-    const bool movementWarrantsRebuild =
-        self->navPathProcess.ShouldRebuildForGoal2D( goal_origin, policy )
-        || self->navPathProcess.ShouldRebuildForGoal3D( goal_origin, policy )
-        || self->navPathProcess.ShouldRebuildForStart2D( start_origin, policy )
-        || self->navPathProcess.ShouldRebuildForStart3D( start_origin, policy );
-    // Force bypass ensures explicit breadcrumb goals bypass movement heuristics.
-    if ( !force && !movementWarrantsRebuild ) {
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: movement does not warrant rebuild, ent=%d\n", self->s.number );
-        }
-        return true;
-    }
-
-    /**
-    *    Guard: avoid redundant requests when one is already pending for this process.
-    **/
-    if ( SVG_Nav_IsRequestPending( &self->navPathProcess ) ) {
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: request already pending for ent=%d\n", self->s.number );
-        }
-        return true;
-    }
-
-    /**
-    *\tEnqueue the rebuild request and record the handle for diagnostics.
-    **/
-    const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &self->navPathProcess, start_origin, goal_origin, policy, agent_mins, agent_maxs, force );
-    if ( handle <= 0 ) {
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: enqueue failed (handle=%d) ent=%d\n", handle, self->s.number );
-        }
-        return false;
-    }
-
-    // Record that a rebuild is in progress for diagnostics and possible cancellation.
-    self->navPathProcess.rebuild_in_progress = true;
-    self->navPathProcess.pending_request_handle = handle;
-    if ( DUMMY_NAV_DEBUG ) {
-        gi.dprintf( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle, self->s.number, force ? 1 : 0 );
-        // Also print the converted nav-center origins so we can correlate node resolution.
-        const nav_mesh_t *mesh = g_nav_mesh.get();
-        if ( mesh ) {
-            const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
-            const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin, &agent_mins, &agent_maxs );
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
-                start_origin.x, start_origin.y, start_origin.z,
-                start_center.x, start_center.y, start_center.z,
-                goal_origin.x, goal_origin.y, goal_origin.z,
-                goal_center.x, goal_center.y, goal_center.z );
-        } else {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) (no mesh)\n",
-                start_origin.x, start_origin.y, start_origin.z,
-                goal_origin.x, goal_origin.y, goal_origin.z );
-        }
-    }
-    return true;
+    return self
+        && SVG_NavAgent_TryQueueRebuild( &self->navPathProcess, self->s.number,
+            start_origin, goal_origin, policy, agent_mins, agent_maxs, force, DUMMY_NAV_DEBUG );
 }
 
 // -----------------------------------------------------------------

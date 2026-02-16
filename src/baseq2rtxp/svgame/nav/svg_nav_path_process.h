@@ -113,6 +113,20 @@ struct svg_nav_path_policy_t {
 	//!		remains stable on stairs while still allowing large Z deltas to select the
 	//!		correct floor.
 	double layer_select_prefer_z_threshold = 16.0;
+
+	/**
+	*	Dynamic occupancy replanning controls:
+	**/
+	//! Enable occupancy-triggered rebuilds when the active corridor is congested.
+	bool enable_occupancy_replan = true;
+	//! Soft-cost threshold (inclusive) that triggers an occupancy replan.
+	int32_t occupancy_soft_cost_replan_threshold = 6;
+	//! Number of upcoming waypoints inspected for occupancy pressure.
+	int32_t occupancy_lookahead_points = 4;
+	//! Cooldown to prevent occupancy-triggered rebuild spam.
+	QMTime occupancy_replan_cooldown = 150_ms;
+	//! If true, trigger immediate replan when a looked-ahead node is hard blocked.
+	bool occupancy_replan_on_blocked = true;
 };
 
 /**
@@ -155,6 +169,8 @@ struct svg_nav_path_process_t {
 	bool rebuild_in_progress = false;
 	//! Stores the handle of the pending async rebuild request for cancellation/logging.
 	int32_t pending_request_handle = 0;
+	//! Next timestamp at which occupancy-triggered rebuilds are allowed.
+	QMTime next_occupancy_replan_time = 0_ms;
 
 	/**
 	*	@brief	Policy for path processing and follow behavior.
@@ -192,6 +208,14 @@ struct svg_nav_path_process_t {
 	*	@brief	Used to determine if a path rebuild can be attempted at this time.
 	**/
 	const bool CanRebuild( const svg_nav_path_policy_t &policy ) const;
+	/**
+	*	@brief	Check if occupancy pressure ahead warrants rebuilding.
+	**/
+	const bool ShouldRebuildForOccupancy( const svg_nav_path_policy_t &policy ) const;
+	/**
+	*	@brief	Apply occupancy cooldown after scheduling a rebuild.
+	**/
+	void MarkOccupancyRebuildScheduled( const svg_nav_path_policy_t &policy );
 	/**
 	*	@brief	Determine if the path should be rebuilt based on the goal's 2D distance change.
 	*	@return	True if the path should be rebuilt.

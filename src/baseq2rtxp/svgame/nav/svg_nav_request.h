@@ -46,6 +46,35 @@ struct nav_request_entry_t {
    nav_a_star_state_t a_star = {};
 	bool force = false;
 	nav_request_handle_t handle = 0;
+	uint64_t enqueue_time_ms = 0;
+};
+
+/**
+*    @brief    Runtime profiling snapshot for the async navigation queue.
+**/
+struct nav_async_queue_profile_t {
+	int32_t queue_depth = 0;
+	int32_t queue_peak_depth = 0;
+	int32_t total_enqueued = 0;
+	int32_t total_refreshed = 0;
+	int32_t total_processed = 0;
+	int32_t total_completed = 0;
+	int32_t total_failed = 0;
+	int32_t total_cancelled = 0;
+	int32_t total_prepare_failures = 0;
+	int64_t total_expansions = 0;
+	uint64_t total_queue_wait_ms = 0;
+	uint64_t max_queue_wait_ms = 0;
+	int32_t queue_wait_samples = 0;
+	int32_t last_frame_queue_before = 0;
+	int32_t last_frame_queue_after = 0;
+	int32_t last_frame_processed = 0;
+	int32_t last_frame_expansions = 0;
+	uint64_t last_frame_elapsed_ms = 0;
+	int32_t last_frame_request_budget = 0;
+	int32_t last_frame_expansion_budget = 0;
+	int32_t last_frame_queue_budget_ms = 0;
+	int32_t frame_over_budget_count = 0;
 };
 
 /**
@@ -111,3 +140,19 @@ int32_t SVG_Nav_GetAsyncRequestBudget( void );
 *    @return   At least one expansion unit (clamped to 1).
 **/
 int32_t SVG_Nav_GetAsyncRequestExpansions( void );
+
+/**
+*    @brief    Retrieve the configured per-frame queue time budget (milliseconds).
+*    @note     Values <= 0 disable the time budget cap for the queue tick.
+**/
+int32_t SVG_Nav_GetAsyncQueueFrameBudgetMs( void );
+
+/**
+*    @brief    Snapshot async queue profiling counters for dashboards/commands.
+**/
+void SVG_Nav_GetAsyncQueueProfile( nav_async_queue_profile_t *outProfile );
+
+/**
+*    @brief    Reset async queue profiling counters without clearing queued work.
+**/
+void SVG_Nav_ResetAsyncQueueProfile( void );

@@ -1,0 +1,174 @@
+name: Navmesh CI
+
+on:
+  push:
+    branches: [ master, development ]
+    paths:
+      - ".github/workflows/navmesh-ci.yml"
+      - ".github/workflows/navmesh-automation.yml"
+      - "src/baseq2rtxp/svgame/nav/**"
+      - "src/baseq2rtxp/svgame/svg_commands_server.cpp"
+      - "scripts/nav_*.ps1"
+      - "scripts/nav_*.csv"
+      - "scripts/nav_*.txt"
+      - "docs/NAVMESH_*.md"
+  pull_request:
+    branches: [ master, development ]
+    paths:
+      - ".github/workflows/navmesh-ci.yml"
+      - ".github/workflows/navmesh-automation.yml"
+      - "src/baseq2rtxp/svgame/nav/**"
+      - "src/baseq2rtxp/svgame/svg_commands_server.cpp"
+      - "scripts/nav_*.ps1"
+      - "scripts/nav_*.csv"
+      - "scripts/nav_*.txt"
+      - "docs/NAVMESH_*.md"
+  workflow_dispatch:
+
+concurrency:
+  group: navmesh-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_TYPE: RelWithDebInfo
+  NAV_CMAKE_FLAGS: >-
+    -DCONFIG_BUILD_CLIENT_TARGET=OFF
+    -DCONFIG_BUILD_SERVER_TARGET=OFF
+    -DCONFIG_BUILD_GAME_BASEQ2_TARGETS=OFF
+    -DCONFIG_BUILD_GAME_BASEQ2RTXP_TARGETS=ON
+    -DCONFIG_BUILD_FTEQW_IQM_TOOL=OFF
+    -DCONFIG_BUILD_DEV_MATHS_VERIFIER=OFF
+    -DCONFIG_VKPT_RENDERER=OFF
+    -DCONFIG_GL_RENDERER=OFF
+    -DCONFIG_USE_CURL=OFF
+    -DCONFIG_BUILD_GLSLANG=OFF
+
+jobs:
+  nav-build-matrix:
+    name: Nav Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: cmake -S . -B build-nav-ci -A x64 -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} ${{ env.NAV_CMAKE_FLAGS }}
+
+      - name: Configure (Linux)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: cmake -S . -B build-nav-ci -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${NAV_CMAKE_FLAGS}
+
+      - name: Build nav targets
+        run: cmake --build build-nav-ci --target baseq2rtxp_svgame --config ${{ env.BUILD_TYPE }} --parallel 2
+
+  nav-sanitizers:
+    name: Nav Sanitizers (Linux)
+    runs-on: ubuntu-latest
+    env:
+      CC: clang
+      CXX: clang++
+      CFLAGS: -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined
+      CXXFLAGS: -O1 -g -fno-omit-frame-pointer -fsanitize=address,undefined
+      LDFLAGS: -fsanitize=address,undefined
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install sanitizer toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang lld
+
+      - name: Configure
+        shell: bash
+        run: cmake -S . -B build-nav-sanitized -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ${NAV_CMAKE_FLAGS}
+
+      - name: Build nav targets with ASan/UBSan
+        run: cmake --build build-nav-sanitized --target baseq2rtxp_svgame --config ${{ env.BUILD_TYPE }} --parallel 2
+
+  nav-static-analysis:
+    name: Nav Static Analysis (clang-tidy)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    env:
+      CC: clang
+      CXX: clang++
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install clang-tidy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang clang-tidy
+
+      - name: Configure compile commands
+        shell: bash
+        run: cmake -S . -B build-nav-tidy -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ${NAV_CMAKE_FLAGS}
+
+      - name: Run clang-tidy on nav sources
+        shell: bash
+        run: |
+          set -o pipefail
+          files=(
+            src/baseq2rtxp/svgame/nav/svg_nav.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_generate.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_request.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_traversal.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_traversal_async.cpp
+            src/baseq2rtxp/svgame/svg_commands_server.cpp
+          )
+          clang-tidy "${files[@]}" \
+            -p build-nav-tidy \
+            -checks='-*,clang-analyzer-core.*,clang-analyzer-cplusplus.*' \
+            2>&1 | tee build-nav-tidy/clang-tidy-nav.txt
+
+      - name: Upload clang-tidy report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: navmesh-clang-tidy-report
+          path: build-nav-tidy/clang-tidy-nav.txt
+
+  nav-format-check:
+    name: Nav Formatting (clang-format)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+
+      - name: Run clang-format dry-run
+        shell: bash
+        run: |
+          files=(
+            src/baseq2rtxp/svgame/nav/svg_nav.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_agent.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_generate.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_request.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_traversal.cpp
+            src/baseq2rtxp/svgame/nav/svg_nav_traversal_async.cpp
+            src/baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.cpp
+            src/baseq2rtxp/svgame/svg_commands_server.cpp
+          )
+          clang-format --dry-run --Werror "${files[@]}"

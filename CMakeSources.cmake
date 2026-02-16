@@ -444,6 +444,7 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/weapons/svg_weapon_pistol.cpp
 	
     baseq2rtxp/svgame/nav/svg_nav.cpp
+    baseq2rtxp/svgame/nav/svg_nav_agent.cpp
     baseq2rtxp/svgame/nav/svg_nav_clusters.cpp
     baseq2rtxp/svgame/nav/svg_nav_debug.cpp
     baseq2rtxp/svgame/nav/svg_nav_generate.cpp
@@ -479,6 +480,7 @@ SET(HEADERS_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/svg_weapons.h
 
     baseq2rtxp/svgame/nav/svg_nav.H
+    baseq2rtxp/svgame/nav/svg_nav_agent.h
     baseq2rtxp/svgame/nav/svg_nav_clusters.h
     baseq2rtxp/svgame/nav/svg_nav_debug.h
     baseq2rtxp/svgame/nav/svg_nav_generate.h
