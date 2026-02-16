@@ -682,10 +682,19 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
 
     const double tile_world_size = Nav_TileWorldSize( mesh );
 
-    const Vector3 world_mins = bsp->models[ 0 ].mins;
-    const Vector3 world_maxs = bsp->models[ 0 ].maxs;
-    const double world_z_min = (double)world_mins[ 2 ] + (double)mesh->agent_mins[ 2 ];
-    const double world_z_max = (double)world_maxs[ 2 ] + (double)mesh->agent_maxs[ 2 ];
+	const Vector3 world_mins = bsp->models[ 0 ].mins;
+	const Vector3 world_maxs = bsp->models[ 0 ].maxs;
+
+	/**
+	*    Center-origin sampling:
+	*        Entity origins and agent bounds are center-based, so generation should
+	*        sample Z within the world bounds directly.
+	*
+	*        The hull traces inside `FindWalkableLayers` already use `mesh->agent_mins`
+	*        and `mesh->agent_maxs` to account for clearance and collision.
+	**/
+	const double world_z_min = ( double )world_mins[ 2 ];
+	const double world_z_max = ( double )world_maxs[ 2 ];
 
     const int32_t global_tile_min_x = Nav_WorldToTileCoord( world_mins[ 0 ], tile_world_size );
     const int32_t global_tile_max_x = Nav_WorldToTileCoord( world_maxs[ 0 ] - NAV_TILE_EPSILON, tile_world_size );
@@ -872,8 +881,14 @@ void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
         const Vector3 model_mins = mm->mins;
         const Vector3 model_maxs = mm->maxs;
 
-        const double z_min = model_mins[ 2 ] + mesh->agent_mins[ 2 ];
-        const double z_max = model_maxs[ 2 ] + mesh->agent_maxs[ 2 ];
+       /**
+        *    Center-origin sampling:
+        *        Inline model generation should sample within the model's bounds
+        *        directly. The hull traces inside `FindWalkableLayers` already apply
+        *        `mesh->agent_mins/maxs`, so we do not pre-bias the Z slice.
+        **/
+        const double z_min = ( double )model_mins[ 2 ];
+        const double z_max = ( double )model_maxs[ 2 ];
 
         const int32_t tile_min_x = 0;
         const int32_t tile_min_y = 0;

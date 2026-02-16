@@ -50,9 +50,6 @@ void PlayerTrail_Init(void)
 {
     int     n;
 
-    if (deathmatch->value /* FIXME || coop */)
-        return;
-
     for (n = 0; n < TRAIL_LENGTH; n++) {
 		trail[ n ] = g_edict_pool.AllocateNextFreeEdict<svg_base_edict_t>( "player_trail" );
     }
@@ -77,8 +74,6 @@ void PlayerTrail_Add( const Vector3 &spot)
     VectorSubtract(spot, trail[PREV(trail_head)]->currentOrigin, temp);
     trail[trail_head]->currentAngles[1] = QM_Vector3ToYaw(temp);
 	SVG_Util_SetEntityAngles( trail[ trail_head ], trail[ trail_head ]->currentAngles, true );
-	// Necessary for being able to trace to them while pathing.
-	gi.linkentity( trail[ trail_head ] );
 
     trail_head = NEXT(trail_head);
 }

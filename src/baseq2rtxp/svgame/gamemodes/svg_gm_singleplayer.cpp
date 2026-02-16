@@ -535,19 +535,27 @@ void svg_gamemode_singleplayer_t::BeginServerFrame( svg_player_edict_t *ent ) {
     /**
     *   Seed trail once so the first breadcrumb is valid.
     **/
-    svg_base_edict_t *lastTrailSpot = PlayerTrail_LastSpot();
-    if ( lastTrailSpot && lastTrailSpot->timestamp <= 0_ms ) {
-        // Ensure the first breadcrumb is the player's current location.
-        PlayerTrail_Add( ent->currentOrigin );
-        lastTrailSpot = PlayerTrail_LastSpot();
-    }
+	svg_base_edict_t *lastTrailSpot = PlayerTrail_LastSpot();
+	// Seed trail once so the first breadcrumb is valid. Only add when there is
+	// no previous spot or when the last spot is older than a small interval to
+	// avoid spamming trail points every frame.
+	if ( !lastTrailSpot || lastTrailSpot->timestamp + 100_ms <= level.time ) {
+		// Ensure the first breadcrumb is the player's current location.
+		PlayerTrail_Add( ent->currentOrigin );
+		lastTrailSpot = PlayerTrail_LastSpot();
+	}
+
+#if 1
+	// If the last breadcrumb is present and sufficiently old, add a new one
+	// when the player can no longer see / is not in front of the last spot.
 #ifdef USE_VISIBILE_INSTEAD_OF_INFRONT
-	if ( lastTrailSpot && !SVG_Entity_IsVisible( ent, lastTrailSpot ) ) {
+	if ( lastTrailSpot && lastTrailSpot->timestamp + 100_ms <= level.time && !SVG_Entity_IsVisible( ent, lastTrailSpot ) ) {
 #else // USE_VISIBILE_INSTEAD_OF_INFRONT
-	if ( lastTrailSpot && !SVG_Entity_IsInFrontOf( ent, lastTrailSpot ) ) {
+	if ( lastTrailSpot && lastTrailSpot->timestamp + 100_ms <= level.time && !SVG_Entity_IsInFrontOf( ent, lastTrailSpot ) ) {
 #endif // USE_VISIBILE_INSTEAD_OF_INFRONT
-        PlayerTrail_Add( ent->currentOrigin );
-    }
+		PlayerTrail_Add( ent->currentOrigin );
+	}
+#endif // #if 0
 
     /**
     *   UNLATCH ALL LATCHED BUTTONS:

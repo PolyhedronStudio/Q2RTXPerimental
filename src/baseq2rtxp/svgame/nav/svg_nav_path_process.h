@@ -137,8 +137,6 @@ struct svg_nav_path_process_t {
 	Vector3 path_goal = {};
 	//! Start position used for the current path.
 	Vector3 path_start = {};
-    //! Z offset from entity origin to nav-center used for the current stored path (path points are stored in entity origin space).
-    float path_center_offset_z = 0.0f;
 	//! Next time at which a path rebuild can be attempted.
 	QMTime next_rebuild_time = 0_ms;
 	//! Time until which rebuild attempts are backed off due to failures.
@@ -169,7 +167,7 @@ struct svg_nav_path_process_t {
 	*	@param	policy	Path policy used to enforce rebuild throttles after commit.
 	*	@return	True when the path was stored successfully.
 	**/
-	const bool CommitAsyncPathFromPoints( const std::vector<Vector3> &points, const Vector3 &start_origin, const Vector3 &goal_origin, float center_offset_z, const svg_nav_path_policy_t &policy );
+    const bool CommitAsyncPathFromPoints( const std::vector<Vector3> &points, const Vector3 &start_origin, const Vector3 &goal_origin, const svg_nav_path_policy_t &policy );
 
 
 

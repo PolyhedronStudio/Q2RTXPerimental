@@ -221,6 +221,11 @@ const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other
     vec3_t  spot2;
     svg_trace_t trace;
 
+	if ( !self || !other ) {
+		SVG_DEBUG_PRINT( "%s: Invalid input(s). self: %p, other: %p\n", __func__, self, other );
+		return false;
+	}
+
     VectorCopy( self->currentOrigin, spot1 );
     spot1[ 2 ] += self->viewheight;
     VectorCopy( other->currentOrigin, spot2 );
@@ -236,6 +241,11 @@ const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other
 *   @return True if the testOrigin point is in front of entity 'self'.
 **/
 const bool SVG_Entity_IsInFrontOf( svg_base_edict_t *self, const Vector3 &testOrigin, const Vector3 &axis, const double dotRangeArea ) {
+	if ( !self ) {
+		SVG_DEBUG_PRINT( "%s: Invalid input(s). self: %p\n", __func__, self );
+		return false;
+	}
+	
 	// If a client, use its forward vector.
 	Vector3 forward = {};
 	if ( SVG_Entity_IsClient( self ) ) {

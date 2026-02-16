@@ -156,15 +156,20 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 			gi.dprintf( "[NavAsync][Queue] Removed previously failed entry handle=%d for ent_process=%p before enqueue\n", h, ( void * )pathProcess );
 		}
 	}
-	if ( nav_request_entry_t *existing = NavRequest_FindEntryForProcess( pathProcess ) ) {
+    if ( nav_request_entry_t *existing = NavRequest_FindEntryForProcess( pathProcess ) ) {
+		// Refresh existing entry parameters instead of creating a duplicate.
 		existing->start = start_origin;
 		existing->goal = goal_origin;
 		existing->policy = policy;
 		existing->agent_mins = agent_mins;
 		existing->agent_maxs = agent_maxs;
 		existing->force = existing->force || force;
+		// If the existing entry was Running allow it to be marked queued so it
+		// will be re-prepared with the new params. This implements a simple
+		// replace semantics: callers get their updated goal applied without
+		// growing the queue or losing the handle.
 		existing->status = nav_request_status_t::Queued;
-        if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 			gi.dprintf( "[NavAsync][Queue] Refreshed existing entry handle=%d for ent_process=%p (queued)\n",
 				existing->handle, ( void * )existing->path_process );
 		}
@@ -395,6 +400,9 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 
+    // Mark the owning path process so callers can inspect and (if necessary)
+	// cancel the outstanding request. If another request arrives for the same
+	// process it will refresh the existing entry rather than enqueue a duplicate.
 	process->rebuild_in_progress = true;
 	process->pending_request_handle = entry.handle;
 
@@ -438,14 +446,15 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	entry.resolved_policy.drop_cap = agentProfile.drop_cap;
 	entry.resolved_policy.max_slope_deg = meshAgentValid ? mesh->max_slope_deg : agentProfile.max_slope_deg;
 
- /**
-	*    Compute center offsets using the resolved agent bounds for consistency.
+    /**
+	*    Use entity/world origin coordinates directly.
+	*        The navigation system now operates on center-based entity origins, so
+	*        no feet-origin to nav-center conversion is required.
 	**/
-	const float centerOffsetZ = ( resolvedAgentMins.z + resolvedAgentMaxs.z ) * 0.5f;
-	const Vector3 start_center = QM_Vector3Add( entry.start, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-	const Vector3 goal_center = QM_Vector3Add( entry.goal, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
- const Vector3 agent_center_mins = QM_Vector3Subtract( resolvedAgentMins, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-	const Vector3 agent_center_maxs = QM_Vector3Subtract( resolvedAgentMaxs, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
+	const Vector3 start_center = entry.start;
+	const Vector3 goal_center = entry.goal;
+	const Vector3 agent_center_mins = resolvedAgentMins;
+	const Vector3 agent_center_maxs = resolvedAgentMaxs;
 
 	/**
 	*    Resolve start/goal nodes using optional Z-layer blending.
@@ -557,6 +566,8 @@ static void NavRequest_ClearProcessMarkers( nav_request_entry_t &entry ) {
 		return;
 	}
 
+	// Clear the rebuild markers but avoid stomping a newer pending handle.
+	// Only clear the handle if it still refers to the entry being finalized.
 	process->rebuild_in_progress = false;
 	if ( process->pending_request_handle == entry.handle ) {
 		process->pending_request_handle = 0;
@@ -606,7 +617,6 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 
-	const float centerOffsetZ = ( entry.agent_mins.z + entry.agent_maxs.z ) * 0.5f;
  std::vector<Vector3> smoothedPoints = points;
 	const nav_mesh_t *mesh = g_nav_mesh.get();
 	if ( mesh && smoothedPoints.size() > 2 ) {
@@ -615,8 +625,8 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		*    reduce corner hugging without modifying the navmesh. This operates on
 		*    nav-center waypoints before they are copied into the path process.
 		**/
-		const Vector3 agent_center_mins = QM_Vector3Subtract( entry.agent_mins, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-		const Vector3 agent_center_maxs = QM_Vector3Subtract( entry.agent_maxs, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
+     const Vector3 agent_center_mins = entry.agent_mins;
+		const Vector3 agent_center_maxs = entry.agent_maxs;
 
 		std::vector<Vector3> stringPulled;
 		stringPulled.reserve( smoothedPoints.size() );
@@ -654,7 +664,7 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		}
 	}
 
-	const bool committed = process->CommitAsyncPathFromPoints( smoothedPoints, entry.start, entry.goal, centerOffsetZ, entry.resolved_policy );
+ const bool committed = process->CommitAsyncPathFromPoints( smoothedPoints, entry.start, entry.goal, entry.resolved_policy );
 	if ( committed ) {
 		gi.dprintf( "[DEBUG][NavAsync] Finalize: commit succeeded (handle=%d points=%d)\n", entry.handle, ( int )points.size() );
 	} else {

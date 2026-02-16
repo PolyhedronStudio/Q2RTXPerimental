@@ -84,7 +84,7 @@ void svg_nav_path_process_t::Reset( void ) {
  *	@return	True when the path was stored successfully.
  **/
 const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<Vector3> &points, const Vector3 &start_origin,
-	const Vector3 &goal_origin, float center_offset_z, const svg_nav_path_policy_t &policy ) {
+	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy ) {
 	/**
 	 *	Validate the incoming waypoint list.
 	 **/
@@ -116,7 +116,6 @@ const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<
 	path_index = 0;
 	path_start = start_origin;
 	path_goal = goal_origin;
-	path_center_offset_z = center_offset_z;
 	consecutive_failures = 0;
 	backoff_until = 0_ms;
 	next_rebuild_time = level.time + policy.rebuild_interval;
@@ -141,15 +140,12 @@ const bool svg_nav_path_process_t::GetNextPathPointEntitySpace( Vector3 *out_poi
 		return false;
 	}
 
-	/**
-	*	Convert stored path point from nav-center space to feet-origin space.
+ /**
+	*	Output the stored path point in entity/world origin space.
+	*		The navigation system now operates directly in entity-origin coordinates
+	*		(center-based bounding boxes), so no feet-origin center offset is applied.
 	**/
-	// Fetch the current waypoint in nav-center coordinates.
-	const Vector3 navPoint = path.points[ path_index ];
-	// Subtract center offset to get an entity feet-origin point.
-	const Vector3 entityPoint = QM_Vector3Subtract( navPoint, Vector3{ 0.0f, 0.0f, path_center_offset_z } );
-	// Output the converted point.
-	*out_point = entityPoint;
+	*out_point = path.points[ path_index ];
 	return true;
 }
 
@@ -342,18 +338,15 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	path = {};
 	path_index = 0;
 
-	/**
-	*	Convert entity-space bbox/origins into the nav-center space expected by the traversal.
-	*		The nav system stores/queries points in a hull-center coordinate frame.
+ /**
+	*	Use entity/world origin coordinates directly.
+	*		All navigation queries now run in the same coordinate space as entities
+	*		(center-based collision bounds), so no feet-origin center conversion is applied.
 	**/
-	// Compute center offset (feet-origin -> center-origin).
-	const float centerOffsetZ = ( agent_mins.z + agent_maxs.z ) * 0.5f;
-	// Convert mins/maxs into center-origin space.
-	const Vector3 agent_center_mins = QM_Vector3Subtract( agent_mins, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-	const Vector3 agent_center_maxs = QM_Vector3Subtract( agent_maxs, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-	// Convert start/goal into center-origin space.
-	const Vector3 start_center = QM_Vector3Add( start_origin, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-	const Vector3 goal_center = QM_Vector3Add( goal_origin, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
+	const Vector3 agent_center_mins = agent_mins;
+	const Vector3 agent_center_maxs = agent_maxs;
+	const Vector3 start_center = start_origin;
+	const Vector3 goal_center = goal_origin;
 
 	/**
 	*	Run navigation query to rebuild path using explicit bbox.
@@ -413,8 +406,6 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 		// Store feet-origin start/goal (callers interact in entity space).
 		path_start = start_origin;
 		path_goal = goal_origin;
-		// Persist center offset to convert between feet-origin and nav-center.
-		path_center_offset_z = centerOffsetZ;
 		// Reset failure tracking.
 		consecutive_failures = 0;
 		backoff_until = 0_ms;
@@ -592,19 +583,12 @@ const bool svg_nav_path_process_t::RebuildPathTo( const Vector3 &start_origin, c
 	path = {};
 	path_index = 0;
 
-	/**
-	*	Convert feet-origin start/goal to nav-center space using the active mesh agent bbox.
+ /**
+	*	Use entity/world origin coordinates directly.
+	*		The navigation system now operates in center-based coordinate space.
 	**/
-	float centerOffsetZ = 0.0f;
-	Vector3 start_query = start_origin;
-	Vector3 goal_query = goal_origin;
-	if ( g_nav_mesh ) {
-		// Compute center offset from mesh agent bounds.
-		centerOffsetZ = ( g_nav_mesh->agent_mins.z + g_nav_mesh->agent_maxs.z ) * 0.5f;
-		// Convert start and goal into center-origin coordinates expected by nav.
-		start_query = QM_Vector3Add( start_origin, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-		goal_query = QM_Vector3Add( goal_origin, Vector3{ 0.0f, 0.0f, centerOffsetZ } );
-	}
+	const Vector3 start_query = start_origin;
+	const Vector3 goal_query = goal_origin;
 
 	/**
 	*	Generate a new traversal path.
@@ -616,8 +600,6 @@ const bool svg_nav_path_process_t::RebuildPathTo( const Vector3 &start_origin, c
 		// Store feet-origin start/goal for rebuild heuristics.
 		path_start = start_origin;
 		path_goal = goal_origin;
-		// Store center offset for later conversion during query.
-		path_center_offset_z = centerOffsetZ;
 		// Reset backoff and failures.
 		consecutive_failures = 0;
 		backoff_until = 0_ms;
@@ -668,10 +650,10 @@ const bool svg_nav_path_process_t::QueryDirection2D( const Vector3 &current_orig
 		return false;
 	}
 
-	/**
-	*	Convert feet-origin to nav-center space for query.
+ /**
+	*	Query using the entity/world origin directly.
 	**/
-	const Vector3 query_origin = QM_Vector3Add( current_origin, Vector3{ 0.0f, 0.0f, path_center_offset_z } );
+	const Vector3 query_origin = current_origin;
 
 	/**
 	*	Query next direction and advance waypoints.
@@ -731,10 +713,10 @@ const bool svg_nav_path_process_t::QueryDirection3D( const Vector3 &current_orig
 		return false;
 	}
 
-	/**
-	*	Convert feet-origin to nav-center space for query.
+ /**
+	*	Query using entity/world origin directly.
 	**/
-	const Vector3 query_origin = QM_Vector3Add( current_origin, Vector3{ 0.0f, 0.0f, path_center_offset_z } );
+	const Vector3 query_origin = current_origin;
 
 	/**
 	*	Query direction while advancing waypoints in 2D, but output a 3D direction.

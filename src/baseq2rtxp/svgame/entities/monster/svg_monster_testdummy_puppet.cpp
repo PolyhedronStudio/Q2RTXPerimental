@@ -125,9 +125,9 @@ inline void SVG_TestDummy_GetNavAgentBBox( const svg_monster_testdummy_t *ent, V
 *    @param	self		Monster to move.
 *    @param	goal_origin	Target position in entity feet-origin space.
 *    @return	True when movement/animation was updated.
-*    @note	Uses full 3D direction so steps/slopes remain walkable during fallback pursuit.
+*    @note		Uses full 3D direction so steps/slopes remain walkable during fallback pursuit.
 **/
-bool SVG_TestDummy_ApplyAsyncFallbackPursuit( svg_monster_testdummy_t *self, const Vector3 &goal_origin ) {
+const bool SVG_TestDummy_ApplyAsyncFallbackPursuit( svg_monster_testdummy_t *self, const Vector3 &goal_origin ) {
     /**
     *    Sanity checks: ensure we have a valid entity to move.
     **/
@@ -209,7 +209,6 @@ void SVG_TestDummy_ResetNavPath( svg_monster_testdummy_t *self ) {
     self->navPathProcess.path_index = 0;
     self->navPathProcess.path_goal = {};
     self->navPathProcess.path_start = {};
-    self->navPathProcess.path_center_offset_z = 0.0f;
     self->navPathProcess.rebuild_in_progress = false;
     self->navPathProcess.pending_request_handle = 0;
 }
@@ -284,13 +283,17 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     }
 
     /**
-    *    Guard: avoid redundant requests when one is already pending for this process.
+    *    Allow the request queue to deduplicate / refresh existing requests.
+    *    Instead of bailing out early we call the enqueue helper which will
+    *    refresh an existing entry or create a new one. This ensures the
+    *    path_process pending handle is always up-to-date and avoids the
+    *    repeated "request already pending" spam seen in logs.
     **/
     if ( SVG_Nav_IsRequestPending( &self->navPathProcess ) ) {
         if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: request already pending for ent=%d\n", self->s.number );
+            gi.dprintf( "[DEBUG] TryQueueNavRebuild: existing pending request will be refreshed/replaced for ent=%d\n", self->s.number );
         }
-        return true;
+        // fallthrough: we still call the request enqueue which refreshes the existing entry
     }
 
     /**
@@ -305,6 +308,10 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     }
 
     // Record that a rebuild is in progress for diagnostics and possible cancellation.
+    // Note: the request queue will have already set the process markers during
+    // PrepareAStarForEntry when the entry transitions to Running. Setting them
+    // here ensures the entity has the handle immediately for early cancellation
+    // if the caller chooses to abort before the queue tick processes it.
     self->navPathProcess.rebuild_in_progress = true;
     self->navPathProcess.pending_request_handle = handle;
     if ( DUMMY_NAV_DEBUG ) {
@@ -951,21 +958,11 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
         hasNextNavPoint = navPathProcess.GetNextPathPointEntitySpace( &nextNavPoint_feet );
         if ( hasNextNavPoint ) {
             nextNavPoint_nav = navPathProcess.path.points[ navPathProcess.path_index ];
-            const Vector3 derivedNavPointNavSpace = QM_Vector3Add( nextNavPoint_feet, Vector3{ 0.0f, 0.0f, navPathProcess.path_center_offset_z } );
-            const float navPointMismatch = QM_Vector3Length( QM_Vector3Subtract( nextNavPoint_nav, derivedNavPointNavSpace ) );
-            constexpr float kNavPointMatchTolerance = 0.25f;
             if ( DUMMY_NAV_DEBUG ) {
                 gi.dprintf( "[DEBUG] ThinkAStarToPlayer: Next nav point nav(%.1f %.1f %.1f) feet(%.1f %.1f %.1f) mismatch=%.2f\n",
                     nextNavPoint_nav.x, nextNavPoint_nav.y, nextNavPoint_nav.z,
                     nextNavPoint_feet.x, nextNavPoint_feet.y, nextNavPoint_feet.z,
-                    navPointMismatch );
-            }
-            if ( navPointMismatch > kNavPointMatchTolerance ) {
-                hasNextNavPoint = false;
-                if ( DUMMY_NAV_DEBUG ) {
-                    gi.dprintf( "[DEBUG] ThinkAStarToPlayer: Nav mismatch (%.2f) exceeds tolerance %.2f, invalidating waypoint.\n",
-                        navPointMismatch, kNavPointMatchTolerance );
-                }
+                 0.0f );
             }
         }
  } else if ( DUMMY_NAV_DEBUG && pathOk ) {
@@ -988,18 +985,18 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
     *        If we failed to rebuild or query the path direction, fall back to LOS logic.
     **/
     const bool canFollowPath = pathOk && hasPathDir && hasNextNavPoint;
- if ( !canFollowPath ) {
-        /**
-        *    Async rebuild fallback:
-        *        While the async search is still running, keep advancing toward the
-        *        goal so the monster does not stall on LOS breaks.
-        **/
-        if ( requestPending ) {
-            // Apply a direct-move fallback so we keep pressure while waiting for A*.
-            if ( SVG_TestDummy_ApplyAsyncFallbackPursuit( this, goalOrigin ) ) {
-                return true;
-            }
-        }
+	if ( !canFollowPath ) {
+		/**
+		*    Async rebuild fallback:
+		*        While the async search is still running, keep advancing toward the
+		*        goal so the monster does not stall on LOS breaks.
+		**/
+		if ( requestPending ) {
+			// Apply a direct-move fallback so we keep pressure while waiting for A*.
+			if ( SVG_TestDummy_ApplyAsyncFallbackPursuit( this, goalOrigin ) ) {
+				return true;
+			}
+		}
 		/**
 		*    Fallback:
 		*        If we can see the goal (or it's in front), prefer direct pursuit rather than
@@ -1032,7 +1029,7 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 			gi.dprintf( "[DEBUG] ThinkAStarToPlayer: Pathfinding failed, will try trail/noise next.\n" );
 		}
 
-        return false;
+		return false;
 	}
 
     /**
@@ -1151,7 +1148,7 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
 
     // Bias layer selection toward goal Z for trail-following so the monster will
     // attempt to climb stairs to reach breadcrumb spots on higher floors.
- navPathPolicy.enable_goal_z_layer_blend = true;
+	navPathPolicy.enable_goal_z_layer_blend = true;
     navPathPolicy.blend_start_dist = 18.0f;
     navPathPolicy.blend_full_dist = 64.0f;
 
@@ -1329,7 +1326,6 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
             navPathProcess.path_index = 0;
             navPathProcess.path_goal = {};
             navPathProcess.path_start = {};
-            navPathProcess.path_center_offset_z = 0.0f;
             navPathProcess.rebuild_in_progress = false;
             navPathProcess.pending_request_handle = 0;
           const bool queuedForcedRebuild = SVG_TestDummy_TryQueueNavRebuild( this, currentOrigin, goalOrigin, navPathPolicy, agent_mins, agent_maxs, true );

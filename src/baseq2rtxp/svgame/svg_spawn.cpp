@@ -39,6 +39,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "svgame/gamemodes/svg_gm_basemode.h"
 
 #include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_load.h"
 
 
 
@@ -697,4 +698,13 @@ void SVG_SpawnEntities( const char *mapname, const char *spawnpoint, const cm_en
 	SVG_MoveWith_FindParentTargetEntities();
 	// After all entities are spawned, check door portal states.
 	SVG_SetupDoorPortalSpawnStates();
+
+		// Actual filename of the .nav file.
+	std::string navMeshName = std::string( level.mapname ) + ".nav";
+	// Actual path where it is expected to be residing at:
+	const std::string filePath = BASEGAME "/maps/nav/" + navMeshName;
+	// Load it up if it exists, otherwise it'll just be ignored and the nav system will be inactive.
+	if ( gi.FS_FileExistsEx( filePath.c_str(), 0 ) ) {
+		SVG_Nav_LoadVoxelMesh( navMeshName.c_str() );
+	}
 }

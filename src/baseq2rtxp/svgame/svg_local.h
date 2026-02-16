@@ -67,6 +67,18 @@ typedef int32_t spawnflag_t;
 
 
 /**
+*
+*	A simple Debug Print macro that uses the dprintf function pointer from the imported engine API.
+*
+**/
+#if USE_DEBUG
+	#define SVG_DEBUG_PRINT( ... ) gi.dprintf( __VA_ARGS__ )
+#else
+	#define SVG_DEBUG_PRINT( ... ) ( (void)0 )
+#endif
+
+
+/**
 * 
 * 
 *   ServerGame Time Constants:
@@ -84,7 +96,11 @@ constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<in
 #define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
 
 /**
+* 
+* 
 *   View Pitching Times: (Q2RE Style).
+* 
+* 
 **/
 //! Time between ladder sounds.
 static constexpr QMTime LADDER_SOUND_TIME = 375_ms;
@@ -95,29 +111,37 @@ static inline constexpr QMTime DAMAGE_TIME_SLACK() {
     return ( 100_ms - FRAME_TIME_MS );
 }
 //! Time for damage effect.
-static inline constexpr QMTime DAMAGE_TIME() {
-    return 500_ms + DAMAGE_TIME_SLACK();
-}
+static inline constexpr QMTime DAMAGE_TIME() { return 500_ms + DAMAGE_TIME_SLACK(); }
 //! Time for falling.
-static inline constexpr QMTime FALL_TIME() {
-    return 300_ms + DAMAGE_TIME_SLACK();
-}
+static inline constexpr QMTime FALL_TIME() { return 300_ms + DAMAGE_TIME_SLACK(); }
 
 /**
+* 
+* 
 *   Weapon Handedness values.
+* 
+* 
 **/
 static constexpr int32_t RIGHT_HANDED = 0;
 static constexpr int32_t LEFT_HANDED = 1;
 static constexpr int32_t CENTER_HANDED = 2;
 
 /**
+* 
+* 
 *   Gib Types:
+* 
+* 
 **/
 static constexpr int32_t GIB_TYPE_ORGANIC = 0;
 static constexpr int32_t GIB_TYPE_METALLIC = 1;
 
 /**
+* 
+* 
 *   Max number of individual damage indicators we'll track:
+* 
+* 
 **/
 static constexpr size_t MAX_DAMAGE_INDICATORS = 4;
 
