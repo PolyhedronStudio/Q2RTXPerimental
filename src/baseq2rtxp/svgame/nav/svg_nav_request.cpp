@@ -7,14 +7,26 @@
 ********************************************************************/
 
 #include "svgame/svg_local.h"
+#include "svgame/nav/svg_nav.h"
 #include "svgame/nav/svg_nav_clusters.h"
 #include "svgame/nav/svg_nav_request.h"
 #include "svgame/nav/svg_nav_traversal.h"
+#include "svgame/nav/svg_nav_traversal_async.h"
 
 #include <algorithm>
 #include <cstdint>
 #include <limits>
 #include <vector>
+
+/**
+ *    NOTE:
+ *    This file's PrepareAStar logic has been refactored so that heavy node
+ *    resolution and `Nav_AStar_Init` vector allocations run on the async
+ *    worker thread. The main thread now performs only lightweight validation
+ *    and enqueues a small payload for the worker. The worker produces an
+ *    initialized `nav_a_star_state_t` and returns it to the main thread via
+ *    the async done-callback where it is moved into the queue entry.
+ **/
 
 //! Container holding queued and in-flight navigation requests.
 static std::vector<nav_request_entry_t> s_nav_request_queue = {};
@@ -44,6 +56,35 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry );
 static void NavRequest_ClearProcessMarkers( nav_request_entry_t &entry );
 static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry );
 static void NavRequest_HandleFailure( nav_request_entry_t &entry );
+
+// Forward worker callbacks for async queue.
+static void NavRequest_Worker_DoInit( void *cb_arg );
+static void NavRequest_Worker_Done( void *cb_arg );
+
+/**
+ *    Small payload passed to the worker thread when preparing A*.
+ *    Contains only lightweight, stable inputs gathered on the main thread.
+ **/
+struct nav_request_prep_payload_t {
+	nav_request_handle_t handle;
+	uint32_t generation;
+
+	// Feet-origin positions (caller-provided).
+	Vector3 start_feet;
+	Vector3 goal_feet;
+
+	// Resolved policy and agent hull (copied on main thread to avoid mesh reads on worker).
+	svg_nav_path_policy_t resolved_policy;
+	Vector3 agent_mins;
+	Vector3 agent_maxs;
+
+	// Owning process pointer (readonly usage on worker for diagnostics / failure penalties).
+	svg_nav_path_process_t *path_process = nullptr;
+
+	// Worker results:
+	bool init_success = false;
+	nav_a_star_state_t *initialized_state = nullptr;
+};
 
 /**
 *    @brief    Register cvars that control async request processing and diagnostics.
@@ -434,7 +475,15 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 /**
 *    @brief    Prepare incremental A* state for a queued request entry.
 *    @param    entry    Request entry to initialize before stepping.
-*    @return   True when the search state successfully entered the Running phase.
+*    @return   True when the search state successfully entered the Running phase OR
+*              when worker has been enqueued to initialize the state. False indicates
+*              an immediate failure that should mark the request terminal.
+*
+*    NOTE: This function was refactored to enqueue heavy work to the async worker:
+*          - Main thread: compute resolved policy/agent hull and perform small sanity checks.
+*          - Worker thread: perform feet->center conversion, node resolution, tile-route lookup,
+*                           and call Nav_AStar_Init (allocations occur on worker).
+*          - Worker done-callback: move-initialize `entry.a_star` and transition entry->Running.
 **/
 static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	svg_nav_path_process_t *process = entry.path_process;
@@ -455,6 +504,8 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 
 	/**
 	*    Align policy constraints with the agent hull profile before running A*.
+	*    This is lightweight and deliberately kept on the main thread so the worker
+	*    can rely on a stable resolved policy snapshot.
 	**/
 	entry.resolved_policy = entry.policy;
 	const nav_agent_profile_t agentProfile = SVG_Nav_BuildAgentProfileFromCvars();
@@ -470,6 +521,7 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	/**
 	*    Resolve the agent bounds that should drive center offsets and traversal.
 	*        Prefer mesh-authored hull sizes so navigation queries stay aligned.
+	*    This selection is cheap and done on the main thread.
 	**/
 	Vector3 resolvedAgentMins = entry.agent_mins;
 	Vector3 resolvedAgentMaxs = entry.agent_maxs;
@@ -484,22 +536,8 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	}
 
 	/**
-	*    Diagnostic: emit the agent hulls used for this request so callers can
-	*    correlate start/center mismatches with the chosen hull. This prints both
-	*    the caller-provided feet-origin bbox and the resolved agent bbox used for
-	*    nav-center conversion and traversal.
-	*/
-	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-		gi.dprintf( "[NavAsync][Prep] handle=%d gen=%u caller_agent_mins=(%.1f %.1f %.1f) caller_agent_maxs=(%.1f %.1f %.1f) resolved_agent_mins=(%.1f %.1f %.1f) resolved_agent_maxs=(%.1f %.1f %.1f)\n",
-			entry.handle, entry.generation,
-			entry.agent_mins.x, entry.agent_mins.y, entry.agent_mins.z,
-			entry.agent_maxs.x, entry.agent_maxs.y, entry.agent_maxs.z,
-			resolvedAgentMins.x, resolvedAgentMins.y, resolvedAgentMins.z,
-			resolvedAgentMaxs.x, resolvedAgentMaxs.y, resolvedAgentMaxs.z );
-	}
-
-	/**
 	*    Update the resolved policy with the chosen agent profile and traversal limits.
+	*    Store a snapshot on the entry so worker and finalizer see the same policy.
 	**/
 	entry.resolved_policy.agent_mins = resolvedAgentMins;
 	entry.resolved_policy.agent_maxs = resolvedAgentMaxs;
@@ -508,131 +546,187 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	entry.resolved_policy.drop_cap = agentProfile.drop_cap;
 	entry.resolved_policy.max_slope_deg = meshAgentValid ? mesh->max_slope_deg : agentProfile.max_slope_deg;
 
-    /**
-	*    Convert caller-provided feet-origin inputs into the nav-center space used
-	*    by the voxelmesh traversal routines. Callers historically passed
-	*    feet-origin positions (entity "feet" origin). To avoid subtle bugs
-	*    where some call sites converted to center while others did not, always
-	*    perform the conversion here using the resolved agent hull so the A*
-	*    initialization sees a consistent coordinate space.
-	**/
-    const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, entry.start, &entry.resolved_policy.agent_mins, &entry.resolved_policy.agent_maxs );
-	const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, entry.goal, &entry.resolved_policy.agent_mins, &entry.resolved_policy.agent_maxs );
-
 	/**
-	*    Diagnostic: print the feet-origin -> nav-center conversion used for this A* run
-	*    so callers can correlate any observed start/goal jumps with the chosen
-	*    agent hull and conversion behavior.
+	*    Sanity: quick world-bounds check on main thread to avoid obvious worker work.
+	*    This is intentionally tiny to avoid main-thread node lookups while catching
+	*    requests that are clearly outside the nav extents.
 	**/
-	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-		gi.dprintf( "[NavAsync][Prep] start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
-			entry.start.x, entry.start.y, entry.start.z,
-			start_center.x, start_center.y, start_center.z,
-			entry.goal.x, entry.goal.y, entry.goal.z,
-			goal_center.x, goal_center.y, goal_center.z );
-	}
-	const Vector3 agent_center_mins = resolvedAgentMins;
-	const Vector3 agent_center_maxs = resolvedAgentMaxs;
-
-	/**
-	*    Resolve start/goal nodes using optional Z-layer blending.
-	**/
-	nav_node_ref_t start_node = {};
-	nav_node_ref_t goal_node = {};
-	bool startResolved = false;
-	bool goalResolved = false;
-	if ( entry.resolved_policy.enable_goal_z_layer_blend ) {
-		startResolved = Nav_FindNodeForPosition_BlendZ( mesh, start_center, start_center.z, goal_center.z, start_center,
-							goal_center, entry.resolved_policy.blend_start_dist, entry.resolved_policy.blend_full_dist, &start_node, true );
-		goalResolved = Nav_FindNodeForPosition_BlendZ( mesh, goal_center, start_center.z, goal_center.z, start_center,
-							goal_center, entry.resolved_policy.blend_start_dist, entry.resolved_policy.blend_full_dist, &goal_node, true );
-	} else {
-		startResolved = Nav_FindNodeForPosition( mesh, start_center, start_center.z, &start_node, true );
-		goalResolved = Nav_FindNodeForPosition( mesh, goal_center, goal_center.z, &goal_node, true );
-	}
-    if ( !startResolved || !goalResolved ) {
+	if ( entry.start.x < mesh->world_bounds.mins.x - 1.0 || entry.start.x > mesh->world_bounds.maxs.x + 1.0 ||
+		 entry.start.y < mesh->world_bounds.mins.y - 1.0 || entry.start.y > mesh->world_bounds.maxs.y + 1.0 ||
+		 entry.goal.x  < mesh->world_bounds.mins.x - 1.0 || entry.goal.x  > mesh->world_bounds.maxs.x + 1.0 ||
+		 entry.goal.y  < mesh->world_bounds.mins.y - 1.0 || entry.goal.y  > mesh->world_bounds.maxs.y + 1.0 ) {
+		// Out-of-bounds: immediate failure, no worker enqueue.
 		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-			gi.dprintf( "[NavAsync][Prep] node resolution failed for handle=%d start_ok=%d goal_ok=%d start_center=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
-				entry.handle, startResolved ? 1 : 0, goalResolved ? 1 : 0,
-				start_center.x, start_center.y, start_center.z,
-				goal_center.x, goal_center.y, goal_center.z );
-
-			// Additional diagnostics: check whether relevant world tiles exist and show mesh parameters.
-			if ( mesh ) {
-				double tileWorldSize = mesh->cell_size_xy * ( double )mesh->tile_size;
-				const int32_t startTileX = ( int32_t )std::floor( start_center.x / tileWorldSize );
-				const int32_t startTileY = ( int32_t )std::floor( start_center.y / tileWorldSize );
-				const int32_t goalTileX = ( int32_t )std::floor( goal_center.x / tileWorldSize );
-				const int32_t goalTileY = ( int32_t )std::floor( goal_center.y / tileWorldSize );
-				nav_world_tile_key_t startKey{ startTileX, startTileY };
-				nav_world_tile_key_t goalKey{ goalTileX, goalTileY };
-				auto itStart = mesh->world_tile_id_of.find( startKey );
-				auto itGoal = mesh->world_tile_id_of.find( goalKey );
-				gi.dprintf( "[NavAsync][Prep] mesh: tileWorldSize=%.2f cell_size=%.2f tile_size=%d num_world_tiles=%d\n",
-					( float )tileWorldSize, ( float )mesh->cell_size_xy, mesh->tile_size, ( int )mesh->world_tiles.size() );
-				gi.dprintf( "[NavAsync][Prep] start tile=(%d,%d) found=%d goal tile=(%d,%d) found=%d mesh_agent_mins=(%.1f %.1f %.1f) mesh_agent_maxs=(%.1f %.1f %.1f) z_quant=%.2f\n",
-					startTileX, startTileY, itStart != mesh->world_tile_id_of.end() ? 1 : 0,
-					goalTileX, goalTileY, itGoal != mesh->world_tile_id_of.end() ? 1 : 0,
-					mesh->agent_mins.x, mesh->agent_mins.y, mesh->agent_mins.z,
-					mesh->agent_maxs.x, mesh->agent_maxs.y, mesh->agent_maxs.z,
-					( float )mesh->z_quant );
-			}
+			gi.dprintf( "[NavAsync][Prep] immediate OOB failure handle=%d start=(%.1f,%.1f) goal=(%.1f,%.1f)\n",
+				entry.handle, entry.start.x, entry.start.y, entry.goal.x, entry.goal.y );
 		}
 		return false;
 	}
 
 	/**
-	*    Diagnostics: report resolved start/goal nodes when async stats logging is enabled.
+	*    Build a small payload for the worker thread. This contains only stable,
+	*    copyable inputs so the worker can operate without touching the main-thread
+	*    owned queue memory.
 	**/
-	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-		gi.dprintf( "[NavAsync][Prep] resolved nodes handle=%d start_node=(%.1f %.1f %.1f) goal_node=(%.1f %.1f %.1f) start_key=(leaf=%d tile=%d cell=%d layer=%d) goal_key=(leaf=%d tile=%d cell=%d layer=%d)\n",
-			entry.handle,
-			start_node.position.x, start_node.position.y, start_node.position.z,
-			goal_node.position.x, goal_node.position.y, goal_node.position.z,
-			start_node.key.leaf_index, start_node.key.tile_index, start_node.key.cell_index, start_node.key.layer_index,
-			goal_node.key.leaf_index, goal_node.key.tile_index, goal_node.key.cell_index, goal_node.key.layer_index );
-	}
+	nav_request_prep_payload_t *payload = ( nav_request_prep_payload_t * )gi.TagMallocz( sizeof( nav_request_prep_payload_t ), TAG_SVGAME_LEVEL );
+	payload->handle = entry.handle;
+	payload->generation = entry.generation;
+	payload->start_feet = entry.start;
+	payload->goal_feet = entry.goal;
+	payload->resolved_policy = entry.resolved_policy;
+	payload->agent_mins = resolvedAgentMins;
+	payload->agent_maxs = resolvedAgentMaxs;
+	payload->path_process = entry.path_process;
 
 	/**
-	*    Restrict expansions to the coarse cluster route when available.
+	*    Enqueue worker task. Use stack-local asyncwork_t which Com_QueueAsyncWork
+	*    will copy via Z_CopyStruct internally. The cb_arg points to our heap
+	*    payload which the worker and done-callback will manage.
 	**/
+	asyncwork_t work = {};
+	work.work_cb = NavRequest_Worker_DoInit;
+	work.done_cb = NavRequest_Worker_Done;
+	work.cb_arg = payload;
+	gi.Com_QueueAsyncWork( &work );
+
+	// Keep entry queued; worker will transition to Running on success via done-callback.
+	return true;
+}
+
+/**
+*    @brief    Worker thread function to perform heavy A* prep:
+*              - Convert feet->center
+*              - Resolve start/goal nodes
+*              - Optionally compute tile-route
+*              - Call Nav_AStar_Init (allocations happen here)
+*
+*    This runs on the async worker thread.
+**/
+static void NavRequest_Worker_DoInit( void *cb_arg ) {
+	if ( !cb_arg ) {
+		return;
+	}
+	nav_request_prep_payload_t *p = ( nav_request_prep_payload_t * )cb_arg;
+	p->init_success = false;
+	p->initialized_state = nullptr;
+
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( !mesh ) {
+		return;
+	}
+
+	// Convert feet-origin to nav-center using the resolved agent hull.
+	const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, p->start_feet, &p->resolved_policy.agent_mins, &p->resolved_policy.agent_maxs );
+	const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, p->goal_feet, &p->resolved_policy.agent_mins, &p->resolved_policy.agent_maxs );
+
+	// Resolve start/goal nodes on the worker.
+	nav_node_ref_t start_node = {};
+	nav_node_ref_t goal_node = {};
+	bool start_ok = false;
+	bool goal_ok = false;
+	if ( p->resolved_policy.enable_goal_z_layer_blend ) {
+		start_ok = Nav_FindNodeForPosition_BlendZ( mesh, start_center, start_center.z, goal_center.z, start_center,
+							goal_center, p->resolved_policy.blend_start_dist, p->resolved_policy.blend_full_dist, &start_node, true );
+		goal_ok = Nav_FindNodeForPosition_BlendZ( mesh, goal_center, start_center.z, goal_center.z, start_center,
+							goal_center, p->resolved_policy.blend_start_dist, p->resolved_policy.blend_full_dist, &goal_node, true );
+	} else {
+		start_ok = Nav_FindNodeForPosition( mesh, start_center, start_center.z, &start_node, true );
+		goal_ok = Nav_FindNodeForPosition( mesh, goal_center, goal_center.z, &goal_node, true );
+	}
+
+	if ( !start_ok || !goal_ok ) {
+		// Node resolution failed.
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			gi.dprintf( "[NavAsync][Worker] node resolution failed handle=%d start_ok=%d goal_ok=%d\n",
+				p->handle, start_ok ? 1 : 0, goal_ok ? 1 : 0 );
+		}
+		return;
+	}
+
+	// Optionally compute coarse tile route filter (can be expensive on some maps).
 	std::vector<nav_tile_cluster_key_t> tileRoute;
 	const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( mesh, start_center, goal_center, tileRoute );
 	const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
 
-    if ( !Nav_AStar_Init( &entry.a_star, mesh, start_node, goal_node, agent_center_mins, agent_center_maxs,
-		&entry.resolved_policy, routeFilter, entry.path_process ) ) {
-       if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-			gi.dprintf( "[NavAsync][Prep] Nav_AStar_Init failed for handle=%d start_node=(%.1f %.1f %.1f) goal_node=(%.1f %.1f %.1f) agent_center_mins=(%.1f %.1f %.1f) agent_center_maxs=(%.1f %.1f %.1f)\n",
-				entry.handle,
-				start_node.position.x, start_node.position.y, start_node.position.z,
-				goal_node.position.x, goal_node.position.y, goal_node.position.z,
-				agent_center_mins.x, agent_center_mins.y, agent_center_mins.z,
-				agent_center_maxs.x, agent_center_maxs.y, agent_center_maxs.z );
-			// Also print a short resolved policy summary to aid debugging of why A* init may fail.
-			gi.dprintf( "[NavAsync][Prep] Resolved policy: waypoint_radius=%.1f max_step=%.1f max_drop=%.1f drop_cap=%.1f z_blend=%d\n",
-				entry.resolved_policy.waypoint_radius,
-				entry.resolved_policy.max_step_height,
-				entry.resolved_policy.max_drop_height,
-				entry.resolved_policy.drop_cap,
-				entry.resolved_policy.enable_goal_z_layer_blend ? 1 : 0 );
+	// Allocate state on the worker and initialize it (this performs the heavy vector allocations).
+	nav_a_star_state_t *workerState = new nav_a_star_state_t();
+	if ( !Nav_AStar_Init( workerState, mesh, start_node, goal_node, p->agent_mins, p->agent_maxs,
+		&p->resolved_policy, routeFilter, p->path_process ) ) {
+		delete workerState;
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			gi.dprintf( "[NavAsync][Worker] Nav_AStar_Init failed handle=%d\n", p->handle );
 		}
-		return false;
+		return;
 	}
 
-	entry.status = nav_request_status_t::Running;
-    if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
-		// On successful prepare, emit a resolved policy summary so callers can
-		// correlate policy/agent parameters with A* behavior.
-		gi.dprintf( "[NavAsync][Prep] Prepared A* for handle=%d path_process=%p resolved_waypoint_radius=%.1f max_step=%.1f max_drop=%.1f drop_cap=%.1f z_blend=%d\n",
-			entry.handle, ( void * )entry.path_process,
-			entry.resolved_policy.waypoint_radius,
-			entry.resolved_policy.max_step_height,
-			entry.resolved_policy.max_drop_height,
-			entry.resolved_policy.drop_cap,
-			entry.resolved_policy.enable_goal_z_layer_blend ? 1 : 0 );
+	// Success: hand state back to main thread via payload.
+	p->initialized_state = workerState;
+	p->init_success = true;
+}
+
+/**
+*    @brief    Done-callback invoked on the main thread after worker finished.
+*    This moves the worker-initialized `nav_a_star_state_t` into the queue entry
+*    without performing heavy allocations on the main thread.
+**/
+static void NavRequest_Worker_Done( void *cb_arg ) {
+	if ( !cb_arg ) {
+		return;
 	}
-	return true;
+	nav_request_prep_payload_t *p = ( nav_request_prep_payload_t * )cb_arg;
+
+	// Find the queued entry by handle and ensure generation still matches.
+	nav_request_entry_t *entry = NavRequest_FindEntryByHandle( p->handle );
+	if ( !entry ) {
+		// No entry to apply to; free worker state if we allocated one.
+		if ( p->initialized_state ) {
+			delete p->initialized_state;
+		}
+		gi.TagFree( p );
+		return;
+	}
+
+	// Stale-result guard: ensure the generation hasn't changed since payload creation.
+	if ( entry->generation != p->generation ) {
+		if ( p->initialized_state ) {
+			delete p->initialized_state;
+		}
+		gi.TagFree( p );
+		return;
+	}
+
+	// If worker failed to initialize, mark entry failed and apply backoff.
+	if ( !p->init_success || !p->initialized_state ) {
+		entry->status = nav_request_status_t::Failed;
+		// Keep resolved_policy on entry (it was copied earlier) so HandleFailure has the data it needs.
+		NavRequest_HandleFailure( *entry );
+		gi.TagFree( p );
+		return;
+	}
+
+	// Move the worker-initialized state into the entry using move semantics
+	// so the bulk vector storage transfers without reallocation on this thread.
+	entry->a_star = std::move( *p->initialized_state );
+	// WorkerState memory no longer needed (moved-from). Delete the heap object.
+	delete p->initialized_state;
+	p->initialized_state = nullptr;
+
+	// Ensure entry has the same resolved policy snapshot used by worker.
+	entry->resolved_policy = p->resolved_policy;
+	// Also ensure entry uses the same agent hull snapshot.
+	entry->agent_mins = p->agent_mins;
+	entry->agent_maxs = p->agent_maxs;
+
+	// Transition to Running so the main thread can call Nav_AStar_Step.
+	entry->status = nav_request_status_t::Running;
+
+	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		gi.dprintf( "[NavAsync][Done] Prepared A* on main thread by moving worker state handle=%d (gen=%u) path_process=%p\n",
+			entry->handle, entry->generation, ( void * )entry->path_process );
+	}
+
+	// Free payload memory allocated during prepare.
+	gi.TagFree( p );
 }
 
 /**
@@ -677,7 +771,7 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 	*            - The path process now refers to a different pending handle (newer work).
 	*            - The path process's latest desired goal is meaningfully different.
 	*
-	*        @note	This is intentionally conservative: a discarded commit will be
+	*        @note    This is intentionally conservative: a discarded commit will be
 	*        re-requested naturally by the caller on the next rebuild tick.
 	**/
 	// If the process has been updated to track a newer request generation, do not commit.
@@ -722,7 +816,7 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 	}
 
 	/**
-	* 	Enforce post-processed drop limits on the finalized waypoint list.
+	*    Enforce post-processed drop limits on the finalized waypoint list.
 	**/
 	const float maxDrop = ( entry.resolved_policy.drop_cap > 0.0f )
 		? ( float )entry.resolved_policy.drop_cap
