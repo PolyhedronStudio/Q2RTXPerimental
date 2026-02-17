@@ -102,3 +102,4 @@ baseq2rtxp/maps/*.bsp
 !/baseq2rtxp/textures/
 /baseq2rtxp.zip
 /maps/srcmaps/autosave
+/r_tonTouch Trigger touched by entity 14.
