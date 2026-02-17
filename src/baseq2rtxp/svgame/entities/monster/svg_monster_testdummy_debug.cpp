@@ -99,9 +99,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 	**/
 	if ( !self->OnThinkGeneric( ) ) {
 		return;
-   }
+	}
 
 	if ( DUMMY_NAV_DEBUG != 0 ) {
+		gi.dprintf( "=============================== onThink_AStarToPlayer ===============================\n" );
 		const char *activatorName = "nullptr";
 		if ( self->activator ) {
 			activatorName = ( const char * )self->activator->classname;
@@ -232,6 +233,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 	}
 
 	if ( DUMMY_NAV_DEBUG != 0 ) {
+		gi.dprintf( "=============================== onThink_AStarPursuitTrail ===============================\n" );
+
 		const char *trailName = "nullptr";
 		if ( self->trail_target ) {
 			trailName = ( const char * )self->trail_target->classname;
@@ -413,6 +416,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 	}
 
 	if ( DUMMY_NAV_DEBUG != 0 && self->isActivated ) {
+		gi.dprintf( "=============================== onThink_Idle ===============================\n" );
+
 		gi.dprintf( "[NAV DEBUG] %s: time=%.2f, searching for target...\n",
 			__func__, level.time.Seconds<double>() );
 	}
@@ -432,7 +437,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 	/**
 	*	Clear goalentity and navigation state while idling.
 	**/
-   {
+	{
 		/**
 		*	Idle means we should not be pursuing any previous goal.
 		*		Clear cached breadcrumb/goal as well as any async/path state so that
@@ -464,7 +469,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 		return;
 	}
 
- /**
+	/**
 	*	Trail-follow acquisition:
 	*		Breadcrumb trail spots are position markers, not enemies. Requiring them to be
 	*		"in front" or "visible" makes the selection unstable (as we move/turn we can
@@ -498,6 +503,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
+//=============================================================================================
+
 /**
 *    @brief    Handle use toggles so the debug pursuit only runs when activated.
 **/
@@ -522,16 +529,18 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_
 		self->goalentity = nullptr;
 		// Cancel/clear any async nav request/path so it cannot keep steering motion.
 		SVG_TestDummy_ResetNavPath( self );
-		// Return to idle thinker.
-		self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Idle );
+		// Return to idle thinker. (So it can scan for a player/trail goal.)
 		self->nextthink = level.time + FRAME_TIME_MS;
+		self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Idle );
 	} else {
 		// On activation, reset nav state and reacquire targets from scratch.
 		self->trail_target = nullptr;
 		self->goalentity = nullptr;
+		// Cancel/clear any async nav request/path so it cannot keep steering motion.
 		SVG_TestDummy_ResetNavPath( self );
-		self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Idle );
+		// Return to idle thinker. (So it can scan for a player/trail goal.)
 		self->nextthink = level.time + FRAME_TIME_MS;
+		self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Idle );
 	}
 
 	if ( DUMMY_NAV_DEBUG != 0 ) {
@@ -544,19 +553,21 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_
 			__func__, ( int32_t )self->isActivated, activatorName );
 	}
 
-	self->trail_target = nullptr;
-	SVG_TestDummy_ResetNavPath( self );
+	//self->trail_target = nullptr;
+	//SVG_TestDummy_ResetNavPath( self );
 
-	if ( self->isActivated ) {
-		self->goalentity = activator;
-		self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_AStarToPlayer );
-	} else {
-		self->goalentity = nullptr;
-		self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Idle );
-	}
+	//if ( self->isActivated ) {
+	//	self->goalentity = activator;
+	//	self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_AStarToPlayer );
+	//} else {
+	//	self->goalentity = nullptr;
+	//	self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Idle );
+	//}
 
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
+
+//=============================================================================================
 
 /**
 *	@brief	Set when dead. Does nothing.
@@ -714,10 +725,13 @@ const int32_t svg_monster_testdummy_debug_t::PerformSlideMove() {
 
 
 /**
-*    @brief    Attempt A* navigation to a target origin. (Local to this TU to avoid parent dependency).
-*    @param    goalOrigin      World-space destination used for the rebuild request.
-*    @param    force           When true, bypass throttles/heuristics and rebuild immediately.
-*    @return   True if movement/animation was updated.
+*    @brief    Attempt A* navigation to a target origin and apply local movement/animation.
+*    @param    goalOrigin    World-space destination used for the rebuild request (feet-origin).
+*    @param    force         When true, bypass throttles/heuristics and rebuild immediately.
+*    @return   True if movement/animation was updated (caller can expect velocity/frames to have changed).
+*    @note     This implementation provides a responsive direct-steer fallback while async path generation
+*              is queued so the debug monster remains visually responsive even when a path has not yet
+*              been produced by the async nav system.
 **/
 const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goalOrigin, bool force ) {
 	/**
@@ -726,6 +740,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 	Vector3 agent_mins, agent_maxs;
 	SVG_TestDummy_GetNavAgentBBox( this, &agent_mins, &agent_maxs );
 
+	// Debug print summarizing the request state for diagnostics.
 	if ( DUMMY_NAV_DEBUG != 0 ) {
 		gi.dprintf( "[NAV DEBUG] %s: goal=(%.1f %.1f %.1f) force=%d pathOk=%d pending=%d\n",
 			__func__, goalOrigin.x, goalOrigin.y, goalOrigin.z, ( int32_t )force,
@@ -734,66 +749,101 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 	}
 
 	/**
-	*    Stop moving if we are effectively at the goal already to prevent jitter.
+	*    Sanity / arrival check: stop moving if we are effectively at the goal already to prevent jitter.
 	**/
 	Vector3 toGoalDist = QM_Vector3Subtract( goalOrigin, currentOrigin );
-	toGoalDist.z = 0.0f; // Horizontal only.
+	// Only consider horizontal distance for arrival.
+	toGoalDist.z = 0.0f;
 	if ( QM_Vector3Length( toGoalDist ) < 0.03125f ) {
+		// Zero horizontal velocity to prevent micro-jitter.
 		velocity.x = velocity.y = 0.0f;
 		return false;
 	}
 
 	/**
-	*    Attempt to queue a navigation rebuild for the target origin.
-	*    Force ensures the helpers bypass throttles/heuristics when the caller demands an immediate rebuild.
+	*	Attempt to queue a navigation rebuild for the target origin.
+	*	Force ensures the helpers bypass throttles/heuristics when the caller demands an immediate rebuild.
+	*	The helper will respect internal throttles unless `force` is true.
 	**/
-	SVG_TestDummy_TryQueueNavRebuild( this, currentOrigin, goalOrigin, navPathPolicy, agent_mins, agent_maxs, force );
+	if ( goalentity == activator && activator && !SVG_Entity_IsVisible( this, activator ) && !force ) {
+		// Skip queuing a new/refresh request toward an activator we cannot see.
+		// Additionally: aggressively cancel any outstanding async request that
+		// was targeted at the now-invisible activator so we can transition to
+		// trail-following without waiting for a stale queued result to complete.
+		if ( DUMMY_NAV_DEBUG != 0 ) {
+			gi.dprintf( "[NAV DEBUG] %s: skipping queue to invisible activator\n", __func__ );
+		}
+
+		// If there is a pending async request for our path process, cancel it
+		// and advance the generation so any in-flight results are ignored.
+		if ( SVG_Nav_IsRequestPending( &navPathProcess ) || navPathProcess.rebuild_in_progress || navPathProcess.pending_request_handle != 0 ) {
+			if ( navPathProcess.pending_request_handle != 0 ) {
+				if ( DUMMY_NAV_DEBUG != 0 ) {
+					gi.dprintf( "[NavAsync][Cancel] Cancelling pending request handle=%d for ent_process=%p\n",
+						navPathProcess.pending_request_handle, ( void * )&navPathProcess );
+				}
+				SVG_Nav_CancelRequest( ( nav_request_handle_t )navPathProcess.pending_request_handle );
+			}
+
+			// Mark that we have no pending request and that a rebuild is not in progress.
+			navPathProcess.pending_request_handle = 0;
+			navPathProcess.rebuild_in_progress = false;
+
+			// Bump generation to ensure any late async results are discarded.
+			++navPathProcess.request_generation;
+
+			// Apply a conservative backoff so we do not immediately requeue and thrash the async queue.
+			navPathProcess.backoff_until = level.time + navPathPolicy.fail_backoff_base;
+			// Also throttle the next rebuild attempt slightly using the standard rebuild interval.
+			navPathProcess.next_rebuild_time = level.time + navPathPolicy.rebuild_interval;
+		}
+	} else {
+		SVG_TestDummy_TryQueueNavRebuild( this, currentOrigin, goalOrigin, navPathPolicy, agent_mins, agent_maxs, force );
+	}
 
 	/**
-	*    Check if we have a valid path buffer and query the movement direction.
+	*    Path availability and request state checks.
 	**/
-    // Check if we have a valid path buffer. We may have a path process in progress but the path buffer may not be populated yet, so we need to check both conditions.
+	// We may have a path process in flight but no populated path buffer yet; check both.
 	const bool hasPathPoints = ( navPathProcess.path.num_points > 0 && navPathProcess.path.points );
 	const bool pathExpired = hasPathPoints && navPathProcess.path_index >= navPathProcess.path.num_points;
-	// Ignore paths that have already consumed all of their cached waypoints so stale states fall back cleanly.
+	// Valid usable path only when points exist and we haven't consumed them all.
 	const bool pathOk = hasPathPoints && !pathExpired;
-	// Track whether an async request is still in flight so we can avoid direct-steer
-	// fallback while an A* rebuild is pending.
+	// Track whether an async request is still in flight so we can adjust fallback/turning behavior.
 	const bool requestPending = SVG_Nav_IsRequestPending( &navPathProcess );
-
-	// Default to whichever direction we are currently moving in if we don't have a valid path
-	// or can't get a direction for some reason, so we at least keep momentum instead
-	// of snapping to a stop. If we have no valid path yet, fall back to directly
-	// steering toward the goal so the debug monster visibly moves while async
-	// path generation is happening.
-	Vector3 move_dir = ( velocity.x != 0.0f || velocity.y != 0.0f ) ? QM_Vector3Normalize( { velocity.x, velocity.y, 0.0f } ) : Vector3{ 0.0f, 0.0f, 0.0f };
 
 	// If we don't have a path available yet, compute a direct 2D direction to the
 	// goal and use that as a temporary movement direction. This avoids the test
 	// dummy appearing stuck while async navigation rebuilds.
 	/**
-	*    When an async rebuild is not pending, allow a short direct steer so the
-	*    debug dummy still reacts before the new path arrives.
+	*    Movement direction selection:
+	*        1) Default to current horizontal velocity (momentum) if available.
+	*        2) If no valid path is available, compute a direct 2D steer to the goal as a responsive fallback.
+	*        3) If a valid path exists, query its 3D direction and follow that.
 	**/
-    if ( !pathOk ) {
-		/**
-		*    Async fallback: aim directly toward the goal to keep movement responsive.
-		**/
+	Vector3 move_dir = ( velocity.x != 0.0f || velocity.y != 0.0f )
+		? QM_Vector3Normalize( { velocity.x, velocity.y, 0.0f } )
+		: Vector3{ 0.0f, 0.0f, 0.0f };
+
+	/**
+	*    Async fallback: aim directly toward the goal to keep movement responsive.
+	**/
+	if ( !pathOk ) {
 		Vector3 toGoal = goalOrigin;
-		// Project the target to the horizontal plane so steering ignores vertical offsets.
+		// Project goal to our horizontal plane so vertical offsets do not affect steering.
 		toGoal.z = currentOrigin.z;
 		// Compute the horizontal direction to the goal.
 		toGoal = QM_Vector3Subtract( toGoal, currentOrigin );
 		// Check for a non-trivial direction before normalizing.
 		const float len2 = ( toGoal.x * toGoal.x ) + ( toGoal.y * toGoal.y );
 		if ( len2 > ( 0.001f * 0.001f ) ) {
-			// Normalize the temporary movement direction.
+			// Normalize and face temporary movement direction.
 			move_dir = QM_Vector3Normalize( toGoal );
-			// Face the temporary movement direction so the entity visibly turns toward the goal.
 			ideal_yaw = QM_Vector3ToYaw( move_dir );
 			yaw_speed = 7.5f;
 			SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
-			// Play run animation when moving directly.
+
+			// Play run animation while directly steering.
 			if ( rootMotionSet && rootMotionSet->motions[ 4 ] ) {
 				skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 4 ]; // RUN
 				const double t = level.time.Seconds<double>();
@@ -805,7 +855,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 	}
 
 	// If we have a valid path, try to get the movement direction from it. If that fails for some reason, we will just keep our current move_dir which is based on our current velocity or the direct-steer fallback above.
-   if ( pathOk && navPathProcess.QueryDirection3D( currentOrigin, navPathPolicy, &move_dir ) ) {
+	if ( pathOk && navPathProcess.QueryDirection3D( currentOrigin, navPathPolicy, &move_dir ) ) {
 		/**
 		*    Preserve trail bookkeeping while following breadcrumbs and only
 		*    advance the trail marker to "now" when directly chasing the
@@ -819,9 +869,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 			trail_time = level.time;
 		}
 
-		/**
-		*    Face the movement direction on the horizontal plane.
-		**/
+		// Face the movement direction on the horizontal plane with snappier turning.
 		Vector3 faceDir = move_dir;
 		faceDir.z = 0.0f;
 		if ( ( faceDir.x * faceDir.x + faceDir.y * faceDir.y ) > 0.001f ) {
@@ -830,9 +878,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 			SVG_MMove_FaceIdealYaw( this, ideal_yaw, yaw_speed );
 		}
 
-		/**
-		*    Animation: root motion run. (Local implementation to avoid parent dependency).
-		**/
+		// Run animation while following a path.
 		if ( rootMotionSet && rootMotionSet->motions[ 4 ] ) {
 			skm_rootmotion_t *rootMotion = rootMotionSet->motions[ 4 ]; // RUN
 			const double t = level.time.Seconds<double>();
@@ -841,9 +887,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 			s.frame = rootMotion->firstFrameIndex + localFrame;
 		}
 
-        /**
-		*    Apply horizontal velocity.
-		**/
+		// Apply horizontal velocity derived from the path direction.
 		constexpr double frameVelocity = 220.0;
 		velocity.x = ( float )( move_dir.x * frameVelocity );
 		velocity.y = ( float )( move_dir.y * frameVelocity );
@@ -853,9 +897,12 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 	/**
 	*    Apply the fallback direction when the async queue is idle so we do not
 	*    mask a pending nav rebuild with direct steering.
+	*    Fallback movement application: if we have a non-trivial fallback direction
+	*    (either from momentum or direct-steer), apply it so the entity moves while
+	*    waiting for async nav results.
 	**/
 	const float fallbackLen2 = ( move_dir.x * move_dir.x ) + ( move_dir.y * move_dir.y );
-    if ( fallbackLen2 > ( 0.001f * 0.001f ) ) {
+	if ( fallbackLen2 > ( 0.001f * 0.001f ) ) {
 		constexpr double frameVelocity = 220.0;
 		velocity.x = ( float )( move_dir.x * frameVelocity );
 		velocity.y = ( float )( move_dir.y * frameVelocity );
@@ -864,7 +911,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 
 	/**
 	*    Face the current horizontal move direction even when awaiting async paths.
-	*/
+	**/
 	const float horizLen2 = ( move_dir.x * move_dir.x ) + ( move_dir.y * move_dir.y );
 	if ( horizLen2 > ( 0.001f * 0.001f ) ) {
 		Vector3 faceDir = move_dir;
