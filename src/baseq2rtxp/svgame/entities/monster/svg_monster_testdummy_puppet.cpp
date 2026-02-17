@@ -289,11 +289,18 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     *    path_process pending handle is always up-to-date and avoids the
     *    repeated "request already pending" spam seen in logs.
     **/
+    // If a request is already pending, allow the async queue helper to
+    // deduplicate / refresh the existing entry rather than bailing out early.
+    // This avoids the repeated "request already pending" spam and ensures
+    // up-to-date goals get applied to the outstanding queued entry.
     if ( SVG_Nav_IsRequestPending( &self->navPathProcess ) ) {
-        if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[DEBUG] TryQueueNavRebuild: existing pending request will be refreshed/replaced for ent=%d\n", self->s.number );
+        if ( force ) {
+            // When forced, cancel the outstanding request so a fresh entry is
+            // created immediately with the force flag set.
+            SVG_TestDummy_ResetNavPath( self );
         }
-        // fallthrough: we still call the request enqueue which refreshes the existing entry
+        // Otherwise do not return here; fall through to call the enqueue
+        // helper which will refresh the existing queue entry in-place.
     }
 
     /**

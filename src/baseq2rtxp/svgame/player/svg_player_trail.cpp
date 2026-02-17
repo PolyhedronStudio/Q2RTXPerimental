@@ -114,11 +114,11 @@ void PlayerTrail_Add( const Vector3 &spot )
 **/
 void PlayerTrail_New( const Vector3 &spot )
 {
+    // Ensure the trail system is initialized before adding the first spot.
     if ( !trail_active ) {
-        return;
+        PlayerTrail_Init();
     }
 
-    PlayerTrail_Init();
     PlayerTrail_Add( spot );
 }
 

@@ -75,6 +75,11 @@ struct svg_monster_testdummy_debug_t : public svg_monster_testdummy_t {
 	**/
 	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead );
 
+	/**
+	*	@brief	Handle use toggles so the debug pursuit only runs when explicitly activated.
+	**/
+	DECLARE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse );
+
 
 	//=============================================================================================
 	//=============================================================================================
@@ -99,9 +104,23 @@ struct svg_monster_testdummy_debug_t : public svg_monster_testdummy_t {
 
 	/**
 	*    @brief    Attempt A* navigation to a target origin. (Local to this TU to avoid parent dependency).
+	*    @param    goalOrigin      World-space destination used for the rebuild request.
+	*    @param    force           When true, cancel any pending rebuild and enqueue immediately.
 	*    @return   True if movement/animation was updated.
 	**/
-	const bool MoveAStarToOrigin( const Vector3 &goalOrigin );
+	const bool MoveAStarToOrigin( const Vector3 &goalOrigin, bool force = false );
+
+	/**
+	*    @brief    Last known valid navigation fallback point (entity feet-origin space).
+	*    @note     Used as a conservative fallback when async A* hasn't produced a path yet.
+	**/
+	Vector3 last_valid_nav_point = { 0.0f, 0.0f, 0.0f };
+	//! Whether last_valid_nav_point contains a meaningful value.
+	bool has_last_valid_nav_point = false;
+	//! Current breadcrumb we are attempting to chase when following the trail.
+	svg_base_edict_t *trail_target = nullptr;
+	//! Tracks whether the debug monster has been enabled by the player.
+	bool isActivated = false;
 
 	/**
 	*    @brief    Slerp direction helper. (Local to this TU to avoid parent dependency).

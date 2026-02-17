@@ -153,6 +153,8 @@ struct svg_nav_path_process_t {
 	bool rebuild_in_progress = false;
 	//! Stores the handle of the pending async rebuild request for cancellation/logging.
 	int32_t pending_request_handle = 0;
+	//! Monotonic request generation used to discard stale async results when requests are replaced.
+	uint32_t request_generation = 0;
 
 	/**
 	*	@brief	Policy for path processing and follow behavior.

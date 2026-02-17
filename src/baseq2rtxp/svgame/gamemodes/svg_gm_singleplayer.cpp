@@ -545,8 +545,7 @@ void svg_gamemode_singleplayer_t::BeginServerFrame( svg_player_edict_t *ent ) {
 		lastTrailSpot = PlayerTrail_LastSpot();
 	}
 
-#if 0
-	// If the last breadcrumb is present and sufficiently old, add a new one
+   // If the last breadcrumb is present and sufficiently old, add a new one
 	// when the player can no longer see / is not in front of the last spot.
 #ifdef USE_VISIBILE_INSTEAD_OF_INFRONT
 	if ( lastTrailSpot && lastTrailSpot->timestamp + 100_ms <= level.time && !SVG_Entity_IsVisible( ent, lastTrailSpot ) ) {
@@ -555,7 +554,6 @@ void svg_gamemode_singleplayer_t::BeginServerFrame( svg_player_edict_t *ent ) {
 #endif // USE_VISIBILE_INSTEAD_OF_INFRONT
 		PlayerTrail_Add( ent->currentOrigin );
 	}
-#endif // #if 0
 
     /**
     *   UNLATCH ALL LATCHED BUTTONS:

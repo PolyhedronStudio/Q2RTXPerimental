@@ -137,9 +137,21 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	}
 
 	/**
+	*    Generation tracking:
+	*        Bump the per-process request generation whenever a caller enqueues or
+	*        refreshes a request. Async workers stamp this into their queue entry so
+	*        finalize can reject late/stale results deterministically.
+	**/
+	pathProcess->request_generation++;
+	// Never allow generation 0 to be considered valid for an in-flight request.
+	if ( pathProcess->request_generation == 0 ) {
+		pathProcess->request_generation = 1;
+	}
+
+	/**
 	*    Deduplication: refresh existing entry parameters instead of building a new handle.
 	**/
- // Before reusing an existing entry, remove any stale "Failed" entries for
+	// Before reusing an existing entry, remove any stale "Failed" entries for
 	// the same process so callers can re-enqueue immediately. Removing them
 	// avoids leaving failed handles lying around and makes retries deterministic.
 	std::vector<nav_request_handle_t> removedHandles;
@@ -157,19 +169,20 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 		}
 	}
     if ( nav_request_entry_t *existing = NavRequest_FindEntryForProcess( pathProcess ) ) {
-		// Refresh existing entry parameters instead of creating a duplicate.
-		existing->start = start_origin;
-		existing->goal = goal_origin;
-		existing->policy = policy;
-		existing->agent_mins = agent_mins;
-		existing->agent_maxs = agent_maxs;
-		existing->force = existing->force || force;
-		// If the existing entry was Running allow it to be marked queued so it
-		// will be re-prepared with the new params. This implements a simple
-		// replace semantics: callers get their updated goal applied without
-		// growing the queue or losing the handle.
-		existing->status = nav_request_status_t::Queued;
-		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			// Refresh existing entry parameters instead of creating a duplicate.
+			existing->start = start_origin;
+			existing->goal = goal_origin;
+			existing->generation = pathProcess->request_generation;
+			existing->policy = policy;
+			existing->agent_mins = agent_mins;
+			existing->agent_maxs = agent_maxs;
+			existing->force = existing->force || force;
+			// If the existing entry was Running allow it to be marked queued so it
+			// will be re-prepared with the new params. This implements a simple
+			// replace semantics: callers get their updated goal applied without
+			// growing the queue or losing the handle.
+			existing->status = nav_request_status_t::Queued;
+			if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 			gi.dprintf( "[NavAsync][Queue] Refreshed existing entry handle=%d for ent_process=%p (queued)\n",
 				existing->handle, ( void * )existing->path_process );
 		}
@@ -188,6 +201,7 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	entry.path_process = pathProcess;
 	entry.start = start_origin;
 	entry.goal = goal_origin;
+	entry.generation = pathProcess->request_generation;
 	entry.policy = policy;
 	entry.agent_mins = agent_mins;
 	entry.agent_maxs = agent_maxs;
@@ -371,7 +385,7 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 	}
 
 	/**
- *    Remove any entries that reached a terminal state so handles can be reused.
+	*    Remove any entries that reached a terminal state so handles can be reused.
 	**/
 	s_nav_request_queue.erase( std::remove_if( s_nav_request_queue.begin(), s_nav_request_queue.end(),
 		[]( const nav_request_entry_t &entry ) {
@@ -410,7 +424,7 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	*    Align policy constraints with the agent hull profile before running A*.
 	**/
 	entry.resolved_policy = entry.policy;
-  const nav_agent_profile_t agentProfile = SVG_Nav_BuildAgentProfileFromCvars();
+	const nav_agent_profile_t agentProfile = SVG_Nav_BuildAgentProfileFromCvars();
 	// Determine whether the mesh provides a valid agent hull to align with.
 	const bool meshAgentValid = ( mesh->agent_maxs.z > mesh->agent_mins.z )
 		&& ( mesh->agent_maxs.x > mesh->agent_mins.x )
@@ -437,6 +451,21 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	}
 
 	/**
+	*    Diagnostic: emit the agent hulls used for this request so callers can
+	*    correlate start/center mismatches with the chosen hull. This prints both
+	*    the caller-provided feet-origin bbox and the resolved agent bbox used for
+	*    nav-center conversion and traversal.
+	*/
+	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		gi.dprintf( "[NavAsync][Prep] handle=%d gen=%u caller_agent_mins=(%.1f %.1f %.1f) caller_agent_maxs=(%.1f %.1f %.1f) resolved_agent_mins=(%.1f %.1f %.1f) resolved_agent_maxs=(%.1f %.1f %.1f)\n",
+			entry.handle, entry.generation,
+			entry.agent_mins.x, entry.agent_mins.y, entry.agent_mins.z,
+			entry.agent_maxs.x, entry.agent_maxs.y, entry.agent_maxs.z,
+			resolvedAgentMins.x, resolvedAgentMins.y, resolvedAgentMins.z,
+			resolvedAgentMaxs.x, resolvedAgentMaxs.y, resolvedAgentMaxs.z );
+	}
+
+	/**
 	*    Update the resolved policy with the chosen agent profile and traversal limits.
 	**/
 	entry.resolved_policy.agent_mins = resolvedAgentMins;
@@ -447,12 +476,28 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	entry.resolved_policy.max_slope_deg = meshAgentValid ? mesh->max_slope_deg : agentProfile.max_slope_deg;
 
     /**
-	*    Use entity/world origin coordinates directly.
-	*        The navigation system now operates on center-based entity origins, so
-	*        no feet-origin to nav-center conversion is required.
+	*    Convert caller-provided feet-origin inputs into the nav-center space used
+	*    by the voxelmesh traversal routines. Callers historically passed
+	*    feet-origin positions (entity "feet" origin). To avoid subtle bugs
+	*    where some call sites converted to center while others did not, always
+	*    perform the conversion here using the resolved agent hull so the A*
+	*    initialization sees a consistent coordinate space.
 	**/
-	const Vector3 start_center = entry.start;
-	const Vector3 goal_center = entry.goal;
+    const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, entry.start, &entry.resolved_policy.agent_mins, &entry.resolved_policy.agent_maxs );
+	const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, entry.goal, &entry.resolved_policy.agent_mins, &entry.resolved_policy.agent_maxs );
+
+	/**
+	*    Diagnostic: print the feet-origin -> nav-center conversion used for this A* run
+	*    so callers can correlate any observed start/goal jumps with the chosen
+	*    agent hull and conversion behavior.
+	**/
+	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		gi.dprintf( "[NavAsync][Prep] start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
+			entry.start.x, entry.start.y, entry.start.z,
+			start_center.x, start_center.y, start_center.z,
+			entry.goal.x, entry.goal.y, entry.goal.z,
+			goal_center.x, goal_center.y, goal_center.z );
+	}
 	const Vector3 agent_center_mins = resolvedAgentMins;
 	const Vector3 agent_center_maxs = resolvedAgentMaxs;
 
@@ -465,9 +510,9 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	bool goalResolved = false;
 	if ( entry.resolved_policy.enable_goal_z_layer_blend ) {
 		startResolved = Nav_FindNodeForPosition_BlendZ( mesh, start_center, start_center.z, goal_center.z, start_center,
-			goal_center, entry.resolved_policy.blend_start_dist, entry.resolved_policy.blend_full_dist, &start_node, true );
+							goal_center, entry.resolved_policy.blend_start_dist, entry.resolved_policy.blend_full_dist, &start_node, true );
 		goalResolved = Nav_FindNodeForPosition_BlendZ( mesh, goal_center, start_center.z, goal_center.z, start_center,
-			goal_center, entry.resolved_policy.blend_start_dist, entry.resolved_policy.blend_full_dist, &goal_node, true );
+							goal_center, entry.resolved_policy.blend_start_dist, entry.resolved_policy.blend_full_dist, &goal_node, true );
 	} else {
 		startResolved = Nav_FindNodeForPosition( mesh, start_center, start_center.z, &start_node, true );
 		goalResolved = Nav_FindNodeForPosition( mesh, goal_center, goal_center.z, &goal_node, true );
@@ -585,23 +630,72 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 
+	/**
+	*    Stale-result guard:
+	*        Async requests can be refreshed/replaced while an older request is still
+	*        running (see `SVG_Nav_RequestPathAsync` replace semantics).
+	*
+	*        If an older request finishes after a newer goal/start has already been
+	*        requested, committing the older result will cause visible path
+	*        oscillation ("ping-pong"), especially when entities switch between
+	*        breadcrumb pursuit and direct pursuit.
+	*
+	*        To prevent this, discard results when:
+	*            - The path process now refers to a different pending handle (newer work).
+	*            - The path process's latest desired goal is meaningfully different.
+	*
+	*        @note	This is intentionally conservative: a discarded commit will be
+	*        re-requested naturally by the caller on the next rebuild tick.
+	**/
+	// If the process has been updated to track a newer request generation, do not commit.
+	// This is the primary stale-result guard (deterministic, no distance heuristics).
+	if ( process->request_generation != entry.generation ) {
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavAsync] Finalize: discarded stale generation result (handle=%d gen=%u current_gen=%u)\n",
+				entry.handle, entry.generation, process->request_generation );
+		}
+		return false;
+	}
+
+	// Secondary guard: if the process has been updated to track a newer request handle, do not commit.
+	if ( process->pending_request_handle != 0 && process->pending_request_handle != entry.handle ) {
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			gi.dprintf( "[DEBUG][NavAsync] Finalize: discarded stale result (handle=%d newer_handle=%d)\n",
+				entry.handle, process->pending_request_handle );
+		}
+		return false;
+	}
+
 	std::vector<Vector3> points;
 	if ( !Nav_AStar_Finalize( &entry.a_star, &points ) ) {
 		return false;
 	}
+	// Diagnostic: compute and print the feet->center conversion used for this completed entry.
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( mesh && s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, entry.start, &entry.agent_mins, &entry.agent_maxs );
+		const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, entry.goal, &entry.agent_mins, &entry.agent_maxs );
+		gi.dprintf( "[NavAsync][Finalize] handle=%d start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
+			entry.handle,
+			entry.start.x, entry.start.y, entry.start.z,
+			start_center.x, start_center.y, start_center.z,
+			entry.goal.x, entry.goal.y, entry.goal.z,
+			goal_center.x, goal_center.y, goal_center.z );
+	}
+
 
 	if ( points.empty() ) {
 		return false;
 	}
 
- /**
+	/**
 	* 	Enforce post-processed drop limits on the finalized waypoint list.
 	**/
 	const float maxDrop = ( entry.resolved_policy.drop_cap > 0.0f )
 		? ( float )entry.resolved_policy.drop_cap
 		: ( entry.resolved_policy.cap_drop_height ? ( float )entry.resolved_policy.max_drop_height : ( nav_drop_cap ? nav_drop_cap->value : 100.0f ) );
 	bool dropLimitOk = true;
-   const int32_t pointCount = ( int32_t )points.size();
+	const int32_t pointCount = ( int32_t )points.size();
 	if ( pointCount > 1 ) {
         // Iterate segments to detect drops that exceed the configured limit.
 		for ( int32_t i = 1; i < pointCount; ++i ) {
@@ -617,15 +711,14 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		return false;
 	}
 
- std::vector<Vector3> smoothedPoints = points;
-	const nav_mesh_t *mesh = g_nav_mesh.get();
+    std::vector<Vector3> smoothedPoints = points;
 	if ( mesh && smoothedPoints.size() > 2 ) {
 		/**
 		*    Apply a greedy corridor string-pull plus a small lateral offset to
 		*    reduce corner hugging without modifying the navmesh. This operates on
 		*    nav-center waypoints before they are copied into the path process.
 		**/
-     const Vector3 agent_center_mins = entry.agent_mins;
+		const Vector3 agent_center_mins = entry.agent_mins;
 		const Vector3 agent_center_maxs = entry.agent_maxs;
 
 		std::vector<Vector3> stringPulled;
@@ -664,7 +757,7 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		}
 	}
 
- const bool committed = process->CommitAsyncPathFromPoints( smoothedPoints, entry.start, entry.goal, entry.resolved_policy );
+	const bool committed = process->CommitAsyncPathFromPoints( smoothedPoints, entry.start, entry.goal, entry.resolved_policy );
 	if ( committed ) {
 		gi.dprintf( "[DEBUG][NavAsync] Finalize: commit succeeded (handle=%d points=%d)\n", entry.handle, ( int )points.size() );
 	} else {

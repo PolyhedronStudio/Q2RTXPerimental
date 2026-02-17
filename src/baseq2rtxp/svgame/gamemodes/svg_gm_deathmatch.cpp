@@ -170,7 +170,6 @@ void svg_gamemode_deathmatch_t::BeginServerFrame( svg_player_edict_t *ent ) {
 		lastTrailSpot = PlayerTrail_LastSpot();
 	}
 
-#if 0
 	// If the last breadcrumb is present and sufficiently old, add a new one
 	// when the player can no longer see / is not in front of the last spot.
 #ifdef USE_VISIBILE_INSTEAD_OF_INFRONT
@@ -180,7 +179,6 @@ void svg_gamemode_deathmatch_t::BeginServerFrame( svg_player_edict_t *ent ) {
 #endif // USE_VISIBILE_INSTEAD_OF_INFRONT
 		PlayerTrail_Add( ent->currentOrigin );
 	}
-#endif // #if 0
 
 	/**
 	*   UNLATCH ALL LATCHED BUTTONS:

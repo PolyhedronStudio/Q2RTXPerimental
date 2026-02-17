@@ -35,17 +35,37 @@ enum class nav_request_status_t {
 *    @brief    Entry describing a queued navigation task.
 **/
 struct nav_request_entry_t {
+	//! A unique handle representing this request in the async queue, used for cancellation and diagnostics.
+	nav_request_handle_t handle = 0;
+	//! Monotonic generation counter from the owning path process used to discard stale async results when requests are replaced before completion.
+	uint32_t generation = 0;
+	//! When true, this request will bypass throttling heuristics and be processed immediately. 
+	//! Use with caution as this can lead to performance hitches if used excessively.
+	bool force = false;
+	//! Owner path process requesting this navigation work. 
+	//! Used for commit/cancellation and to prevent multiple concurrent requests from the same process.
 	svg_nav_path_process_t *path_process = nullptr;
-	Vector3 start = {};
-	Vector3 goal = {};
-  svg_nav_path_policy_t policy = {};
+
+	//! Policy for path processing and follow behavior, used to enforce throttles and tuning after async completion.
+	svg_nav_path_policy_t policy = {};
+	//! The resolved policy after applying any dynamic tuning or overrides at the time of request processing. 
+	//! This is what gets applied to the path process when the async result commits so we can ensure the 
+	//! async result is applied with the same policy that was used to generate it.
 	svg_nav_path_policy_t resolved_policy = {};
+
+	//! Start and goal positions for this request (feet-origin).
+	Vector3 start = {};
+	//! Goal position (feet-origin).
+	Vector3 goal = {};
+
+	//! Agent bbox for this request (feet-origin) used for validating async results and ensuring the nav query is generated with the correct agent size.
 	Vector3 agent_mins = {};
 	Vector3 agent_maxs = {};
+
+	//! Current status of this request used for diagnostics and to prevent cancellation of already completed/failed requests.
 	nav_request_status_t status = nav_request_status_t::Queued;
-   nav_a_star_state_t a_star = {};
-	bool force = false;
-	nav_request_handle_t handle = 0;
+	//! The A* state for this request, used to track progress when the request is being processed and for diagnostics.
+	nav_a_star_state_t a_star = {};
 };
 
 /**

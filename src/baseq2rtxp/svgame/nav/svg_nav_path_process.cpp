@@ -72,6 +72,8 @@ void svg_nav_path_process_t::Reset( void ) {
 	last_failure_time = 0_ms;
 	last_failure_pos = {};
 	last_failure_yaw = 0.0f;
+   // Reset async request generation so stale queue entries cannot commit after a hard reset.
+	request_generation = 0;
 }
 
 /**
