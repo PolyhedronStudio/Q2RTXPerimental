@@ -371,6 +371,13 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	state->max_nodes = NAV_ASTAR_MAX_NODES;
 	state->search_budget_ms = NAV_ASTAR_STEP_BUDGET_MS;
 
+	// Reserve containers to avoid repeated reallocations during incremental searches.
+	// Use a modest default reservation to reduce transient allocations for common short paths.
+	const size_t reserveNodes = std::min<size_t>( 512, ( size_t )state->max_nodes );
+	state->nodes.reserve( reserveNodes );
+	state->open_list.reserve( reserveNodes / 2 );
+	state->node_lookup.reserve( reserveNodes * 2 );
+
 	if ( tileRoute && !tileRoute->empty() ) {
 		state->tile_route_storage = *tileRoute;
 		state->tileRouteFilter = &state->tile_route_storage;
@@ -421,6 +428,7 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 	**/
 	state->step_start_ms = gi.GetRealSystemTime();
 
+    int32_t expansionCounter = 0;
 	while ( expansions > 0 && state->status == nav_a_star_status_t::Running ) {
 		if ( state->open_list.empty() ) {
 			state->status = nav_a_star_status_t::Failed;
@@ -433,10 +441,13 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 			break;
 		}
 
-		const uint64_t now = gi.GetRealSystemTime();
-		if ( state->search_budget_ms > 0 && ( now - state->step_start_ms ) >= state->search_budget_ms ) {
-			state->hit_time_budget = true;
-			break;
+        // Check time budget periodically (every 8 expansions) to avoid calling the clock too often.
+		if ( state->search_budget_ms > 0 && ( ( expansionCounter & 0x7 ) == 0 ) ) {
+			const uint64_t now = gi.GetRealSystemTime();
+			if ( ( now - state->step_start_ms ) >= state->search_budget_ms ) {
+				state->hit_time_budget = true;
+				break;
+			}
 		}
 
 		auto best_it = std::min_element( state->open_list.begin(), state->open_list.end(),
@@ -457,8 +468,9 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 			break;
 		}
 
-		Nav_AStar_ExpandNeighbors( state, current_index );
+        Nav_AStar_ExpandNeighbors( state, current_index );
 		expansions--;
+		expansionCounter++;
 	}
 
 	return state->status;

@@ -59,6 +59,10 @@ void SVG_Nav_RequestQueue_RegisterCvars( void ) {
 	s_nav_expansions_per_request = gi.cvar( "nav_expansions_per_request", "512", 0 );
 	nav_nav_async_queue_mode = gi.cvar( "nav_nav_async_queue_mode", "1", 0 );
 	s_nav_nav_async_log_stats = gi.cvar( "nav_nav_async_log_stats", "1", 0 );
+
+	// Reserve some reasonable default capacity to avoid repeated reallocations
+	// when many entities enqueue navigation requests during startup or stress tests.
+	s_nav_request_queue.reserve( 256 );
 }
 
 /**
@@ -168,8 +172,31 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 			gi.dprintf( "[NavAsync][Queue] Removed previously failed entry handle=%d for ent_process=%p before enqueue\n", h, ( void * )pathProcess );
 		}
 	}
-    if ( nav_request_entry_t *existing = NavRequest_FindEntryForProcess( pathProcess ) ) {
-			// Refresh existing entry parameters instead of creating a duplicate.
+    // Debounce: avoid refreshing/prepping repeatedly within a very short time window
+	// for the same process unless forced. This helps prevent per-frame prep work that
+	// can cause single-frame hitches when many entities refresh every frame.
+	const QMTime minPrepInterval = 50_ms; // 50 ms debounce (tunable)
+	if ( !force && pathProcess && pathProcess->last_prep_time > 0_ms ) {
+		// Get the current time and compute the delta since the last prep attempt for this process.
+		const QMTime now = level.time;
+		const QMTime delta = now - pathProcess->last_prep_time;
+		// Also compute the movement deltas since the last prep for both start and goal positions.
+		const double dx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, pathProcess->last_prep_start ) );
+		const double dg = QM_Vector3LengthDP( QM_Vector3Subtract( goal_origin, pathProcess->last_prep_goal ) );
+		const double moveThresh = 4.0; // Small movement threshold in units
+		// If the time delta is below the threshold and the positions haven't moved significantly, skip the refresh.
+		if ( delta < minPrepInterval && dx <= moveThresh && dg <= moveThresh ) {
+			// Skip enqueue/refresh when consecutive calls are too frequent and positions haven't moved.
+			if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+				gi.dprintf( "[NavAsync][Prep] Debounced request for ent_process=%p delta_ms=%lld dx=%.2f dg=%.2f\n",
+					( void * )pathProcess, ( long long )delta.Milliseconds(), dx, dg );
+			}
+			return 0;
+		}
+	}
+
+	if ( nav_request_entry_t *existing = NavRequest_FindEntryForProcess( pathProcess ) ) {
+           // Refresh existing entry parameters instead of creating a duplicate.
 			existing->start = start_origin;
 			existing->goal = goal_origin;
 			existing->generation = pathProcess->request_generation;
@@ -177,6 +204,12 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 			existing->agent_mins = agent_mins;
 			existing->agent_maxs = agent_maxs;
 			existing->force = existing->force || force;
+         // Record last prep time/positions on the owning process to enable debounce logic.
+			if ( existing->path_process ) {
+				existing->path_process->last_prep_time = level.time;
+				existing->path_process->last_prep_start = start_origin;
+				existing->path_process->last_prep_goal = goal_origin;
+			}
 			// If the existing entry was Running allow it to be marked queued so it
 			// will be re-prepared with the new params. This implements a simple
 			// replace semantics: callers get their updated goal applied without

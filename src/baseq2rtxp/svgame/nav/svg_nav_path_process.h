@@ -155,6 +155,12 @@ struct svg_nav_path_process_t {
 	int32_t pending_request_handle = 0;
 	//! Monotonic request generation used to discard stale async results when requests are replaced.
 	uint32_t request_generation = 0;
+	//! Time of the last async prep/enqueue attempt for this process (used to debounce repeated per-frame prep work).
+	QMTime last_prep_time = 0_ms;
+	//! Last prep/start position used when the last async prep was performed.
+	Vector3 last_prep_start = {};
+	//! Last prep/goal position used when the last async prep was performed.
+	Vector3 last_prep_goal = {};
 
 	/**
 	*	@brief	Policy for path processing and follow behavior.
