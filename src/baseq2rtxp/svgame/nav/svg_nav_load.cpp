@@ -273,7 +273,19 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 					return false;
 				}
 
-				nav_xy_cell_t &cell = tile.cells[ cellIndex ];
+                // Access the cell via the tile cells array. The storage was allocated
+				// by Nav_InitEmptyTileStorage above and is guaranteed valid here.
+				// Use the safe accessor view to obtain a pointer/count and validate
+				// the bounds before writing into the cell to avoid UB on corrupt data.
+				auto cellsView = SVG_Nav_Tile_GetCells( g_nav_mesh.get(), &tile );
+				nav_xy_cell_t *cellsPtr = cellsView.first;
+				const int32_t cellsCount = cellsView.second;
+				if ( !cellsPtr || cellIndex < 0 || cellIndex >= cellsCount ) {
+					gzclose( f );
+					SVG_Nav_FreeMesh();
+					return false;
+				}
+				nav_xy_cell_t &cell = cellsPtr[ cellIndex ];
 				// Store layer count and allocate layer buffer.
 				cell.num_layers = numLayers;
 				cell.layers = (nav_layer_t *)gi.TagMallocz( sizeof( nav_layer_t ) * (size_t)numLayers, TAG_SVGAME_LEVEL );
@@ -359,7 +371,15 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 						return false;
 					}
 
-					nav_xy_cell_t &cell = tile.cells[ cellIndex ];
+                    auto cellsView = SVG_Nav_Tile_GetCells( g_nav_mesh.get(), &tile );
+					nav_xy_cell_t *cellsPtr = cellsView.first;
+					const int32_t cellsCount = cellsView.second;
+					if ( !cellsPtr || cellIndex < 0 || cellIndex >= cellsCount ) {
+						gzclose( f );
+						SVG_Nav_FreeMesh();
+						return false;
+					}
+					nav_xy_cell_t &cell = cellsPtr[ cellIndex ];
 					// Store layer count and allocate layer buffer.
 					cell.num_layers = numLayers;
 					cell.layers = (nav_layer_t *)gi.TagMallocz( sizeof( nav_layer_t ) * (size_t)numLayers, TAG_SVGAME_LEVEL );

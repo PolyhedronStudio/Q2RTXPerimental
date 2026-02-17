@@ -385,18 +385,22 @@ void SVG_Nav_DebugDraw( void ) {
 	/**
 	*	World mesh (per leaf):
 	**/
-	for ( int32_t leafIndex = 0; leafIndex < mesh->num_leafs; leafIndex++ ) {
+    for ( int32_t leafIndex = 0; leafIndex < mesh->num_leafs; leafIndex++ ) {
 		if ( !NavDebug_FilterLeaf( leafIndex ) ) {
 			continue;
 		}
 
 		const nav_leaf_data_t *leaf = &mesh->leaf_data[ leafIndex ];
-		if ( !leaf || leaf->num_tiles <= 0 || !leaf->tile_ids ) {
+		// Use the safe accessor for leaf tile ids to avoid dereferencing dangling pointers.
+		auto leafTilesView = SVG_Nav_Leaf_GetTileIds( const_cast<nav_leaf_data_t *>( leaf ) );
+		const int32_t *leafTileIds = leafTilesView.first;
+		const int32_t leafNumTiles = leafTilesView.second;
+		if ( !leafTileIds || leafNumTiles <= 0 ) {
 			continue;
 		}
 
-		for ( int32_t t = 0; t < leaf->num_tiles; t++ ) {
-			const int32_t tileId = leaf->tile_ids[ t ];
+		for ( int32_t t = 0; t < leafNumTiles; t++ ) {
+			const int32_t tileId = leafTileIds[ t ];
 			if ( tileId < 0 || tileId >= ( int32_t )mesh->world_tiles.size() ) {
 				continue;
 			}
@@ -417,16 +421,28 @@ void SVG_Nav_DebugDraw( void ) {
 				const double tileOriginX = tile->tile_x * tileWorldSize;
 				const double tileOriginY = tile->tile_y * tileWorldSize;
 
-				for ( int32_t cellIndex = 0; cellIndex < cellsPerTile; cellIndex++ ) {
-					const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
-					if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+				// Use safe accessor for tile cells to avoid exposing dangling arrays.
+				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
+				const nav_xy_cell_t *cellsPtr = cellsView.first;
+				const int32_t actualCells = cellsView.second;
+				if ( !cellsPtr || actualCells <= 0 ) {
+					continue;
+				}
+
+				for ( int32_t cellIndex = 0; cellIndex < actualCells; cellIndex++ ) {
+					const nav_xy_cell_t *cell = &cellsPtr[ cellIndex ];
+					// Use safe accessor for layers to avoid dangling pointer use when data is missing.
+					auto layersView = SVG_Nav_Cell_GetLayers( const_cast<nav_xy_cell_t *>( cell ) );
+					const nav_layer_t *layersPtr = layersView.first;
+					const int32_t layerCount = layersView.second;
+					if ( !layersPtr || layerCount <= 0 ) {
 						continue;
 					}
 
 					const int32_t cellX = cellIndex % mesh->tile_size;
 					const int32_t cellY = cellIndex / mesh->tile_size;
 
-					const nav_layer_t *layer = &cell->layers[ 0 ];
+					const nav_layer_t *layer = &layersPtr[ 0 ];
 					Vector3 p = {
 						tileOriginX + ( ( double )cellX + 0.5 ) * ( double )mesh->cell_size_xy,
 						tileOriginY + ( ( double )cellY + 0.5 ) * ( double )mesh->cell_size_xy,
@@ -447,8 +463,15 @@ void SVG_Nav_DebugDraw( void ) {
 	/**
 	*	Inline model mesh (optional): draw tile bounds + samples transformed into world space.
 	**/
-	if ( mesh->num_inline_models <= 0 || !mesh->inline_model_data ||
-		mesh->num_inline_model_runtime <= 0 || !mesh->inline_model_runtime ) {
+    /**
+	*    Inline model mesh (optional): require both inline model data and
+	*    runtime transform entries. Use safe accessor to obtain runtime view
+	*    and avoid directly dereferencing the raw runtime array pointer.
+	**/
+	auto inlineRuntimeView = SVG_Nav_Mesh_GetInlineModelRuntime( mesh );
+	const nav_inline_model_runtime_t *inlineRuntimePtr = inlineRuntimeView.first;
+	const int32_t inlineRuntimeCount = inlineRuntimeView.second;
+	if ( mesh->num_inline_models <= 0 || !mesh->inline_model_data || inlineRuntimeCount <= 0 || !inlineRuntimePtr ) {
 		return;
 	}
 
@@ -469,30 +492,26 @@ void SVG_Nav_DebugDraw( void ) {
 			continue;
 		}
 
-		/**
-		*	Resolve the inline-model owner entity using the runtime array slot.
-		*	Note: Inline model data and runtime arrays are built from the same model set.
+     /**
+		*    Resolve the inline-model owner entity using the runtime array slot.
+		*    Prefer index-based accessors to avoid exposing raw pointers and add
+		*    robustness via a map fallback.
 		**/
 		const nav_inline_model_runtime_t *rt = nullptr;
 
-		/**
-		*	Fast path: inline model data and runtime arrays are generated from the same
-		*	model set and share the same iteration order.
-		**/
-		if ( i >= 0 && i < mesh->num_inline_model_runtime ) {
-			rt = &mesh->inline_model_runtime[ i ];
+		// Fast-path: try index-based lookup using helper to avoid exposing raw array pointers.
+		if ( i >= 0 ) {
+			rt = SVG_Nav_GetInlineModelRuntimeByIndex( mesh, i );
 		}
 
-		/**
-		*	Safety net: verify the runtime entry resolves via the owner_entnum lookup.
-		*	If it doesn't match, fall back to the lookup result.
-		**/
-		if ( rt && rt->owner_entnum > 0 ) {
-			const nav_inline_model_runtime_t *rtMap = SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( mesh, rt->owner_entnum );
-			if ( rtMap ) {
-				rt = rtMap;
+		// Safety net: if fast-path didn't resolve or seems inconsistent, fall back to map lookup.
+		if ( !rt || ( rt->owner_entnum > 0 && SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( mesh, rt->owner_entnum ) != rt ) ) {
+			const int32_t idx = SVG_Nav_GetInlineModelRuntimeIndexForOwnerEntNum( mesh, ( rt ? rt->owner_entnum : 0 ) );
+			if ( idx >= 0 ) {
+				rt = SVG_Nav_GetInlineModelRuntimeByIndex( mesh, idx );
 			}
 		}
+
 		if ( !rt ) {
 			continue;
 		}
@@ -501,7 +520,7 @@ void SVG_Nav_DebugDraw( void ) {
 		// This is still useful for doors/platforms that primarily translate.
 		const Vector3 origin = rt->origin;
 
-		for ( int32_t t = 0; t < model->num_tiles; t++ ) {
+        for ( int32_t t = 0; t < model->num_tiles; t++ ) {
 			const nav_tile_t *tile = &model->tiles[ t ];
 			if ( !tile ) {
 				continue;
@@ -532,21 +551,33 @@ void SVG_Nav_DebugDraw( void ) {
 				}
 			}
 
-			// Samples (translated).
+			// Samples (translated): obtain safe cell array view for this inline tile.
 			if ( nav_debug_draw_samples && nav_debug_draw_samples->integer != 0 ) {
 				const double tileOriginXLocal = tile->tile_x * tileWorldSize;
 				const double tileOriginYLocal = tile->tile_y * tileWorldSize;
 
-				for ( int32_t cellIndex = 0; cellIndex < cellsPerTile; cellIndex++ ) {
-					const nav_xy_cell_t *cell = &tile->cells[ cellIndex ];
-					if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+				// Use the tile accessor to get a safe pointer and count for cells.
+				auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
+				const nav_xy_cell_t *cellsPtr = cellsView.first;
+				const int32_t actualCells = cellsView.second;
+				if ( !cellsPtr || actualCells <= 0 ) {
+					continue;
+				}
+
+				for ( int32_t cellIndex = 0; cellIndex < actualCells; cellIndex++ ) {
+					const nav_xy_cell_t *cell = &cellsPtr[ cellIndex ];
+					// Validate layer array using accessor to avoid dangling pointers.
+					auto layersView = SVG_Nav_Cell_GetLayers( const_cast<nav_xy_cell_t *>( cell ) );
+					const nav_layer_t *layersPtr = layersView.first;
+					const int32_t layerCount = layersView.second;
+					if ( !layersPtr || layerCount <= 0 ) {
 						continue;
 					}
 
 					const int32_t cellX = cellIndex % mesh->tile_size;
 					const int32_t cellY = cellIndex / mesh->tile_size;
 
-					const nav_layer_t *layer = &cell->layers[ 0 ];
+					const nav_layer_t *layer = &layersPtr[ 0 ];
 					Vector3 pLocal = {
 						tileOriginXLocal + ( ( double )cellX + 0.5 ) * ( double )mesh->cell_size_xy,
 						tileOriginYLocal + ( ( double )cellY + 0.5 ) * ( double )mesh->cell_size_xy,

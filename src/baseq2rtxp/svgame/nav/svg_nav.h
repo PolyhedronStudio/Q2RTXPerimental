@@ -9,6 +9,7 @@
 
 
 #include "svgame/memory/svg_raiiobject.hpp"
+#include <utility>
 
 struct svg_base_edict_t;
 
@@ -133,8 +134,23 @@ struct nav_world_tile_key_t {
 
 	bool operator==( const nav_world_tile_key_t &o ) const {
 		return tile_x == o.tile_x && tile_y == o.tile_y;
-	}
+    }
 };
+
+/**
+*    @brief    Set a presence bit for a cell index within a tile (safe helper).
+*    @param    tile        Tile whose presence bitset to modify.
+*    @param    cell_index  Cell index inside the tile (0..cells_per_tile-1).
+*    @note     Defensive: returns when tile or presence_bits are null.
+**/
+static inline void SVG_Nav_Tile_SetPresenceBit( nav_tile_t *tile, const int32_t cell_index ) {
+	if ( !tile || !tile->presence_bits || cell_index < 0 ) {
+		return;
+	}
+	const int32_t word_index = cell_index >> 5;
+	const int32_t bit_index = cell_index & 31;
+	tile->presence_bits[ word_index ] |= ( 1u << bit_index );
+}
 
 struct nav_world_tile_key_hash_t {
 	size_t operator()( const nav_world_tile_key_t &k ) const {
@@ -175,6 +191,11 @@ typedef struct nav_inline_model_runtime_s {
 	//! Set when origin/angles changed since last refresh.
 	bool dirty;
 } nav_inline_model_runtime_t;
+
+// Forward declare nav_mesh_t so helper accessors can be declared earlier in the header.
+typedef struct nav_mesh_s nav_mesh_t;
+
+// helper accessors declared after nav_mesh_t definition
 
 /**
 *	Navigation Cluster Graph (Tile-Level):
@@ -233,6 +254,22 @@ struct nav_tile_cluster_graph_t {
 *	@note	Intended to be cheap enough to call once per frame.
 **/
 void SVG_Nav_RefreshInlineModelRuntime( void );
+
+/**
+ *    @brief    Lookup inline-model runtime index for an owning entity number.
+ *    @param    mesh            Navigation mesh.
+ *    @param    owner_entnum    Owning entity number (edict->s.number).
+ *    @return   Index into `mesh->inline_model_runtime` or -1 if not found/invalid.
+ **/
+int32_t SVG_Nav_GetInlineModelRuntimeIndexForOwnerEntNum( const nav_mesh_t *mesh, const int32_t owner_entnum );
+
+/**
+ *    @brief    Lookup inline-model runtime entry by compact index with bounds checks.
+ *    @param    mesh    Navigation mesh.
+ *    @param    idx     Index into runtime array.
+ *    @return   Pointer to runtime entry or nullptr on invalid index.
+ **/
+const nav_inline_model_runtime_t *SVG_Nav_GetInlineModelRuntimeByIndex( const nav_mesh_t *mesh, const int32_t idx );
 
 /**
 *   @brief  Build a navigation agent profile using registered nav cvars.
@@ -341,6 +378,181 @@ typedef struct nav_mesh_s {
 } nav_mesh_t;
 
 /**
+*	@brief	Type alias for nav_mesh_t RAII owner using TagMalloc/TagFree.
+*	@note	Ensures proper construction/destruction and prevents memory leaks.
+**/
+using nav_mesh_raii_t = SVG_RAIIObject<nav_mesh_t>;
+
+
+
+/**
+*
+*
+* 
+*  Helper Accessors:
+* 
+* 
+* 
+**/
+/**
+*	@brief	Get layers pointer and count for a nav XY cell (const overload).
+*	@param	cell	Pointer to the XY cell to query.
+*	@return	A std::pair of (const nav_layer_t* layers, int32_t num_layers). Returns
+*			nullptr and 0 when the cell or its layers are not present.
+*	@note	Helper intended to prevent callers from dereferencing dangling
+*			pointers by explicitly returning a nullptr/count when data is absent.
+**/
+static inline std::pair<const nav_layer_t *, int32_t> SVG_Nav_Cell_GetLayers( const nav_xy_cell_t *cell ) {
+	if ( !cell || !cell->layers ) {
+		return { nullptr, 0 };
+	}
+	return { cell->layers, cell->num_layers };
+}
+/**
+*	@brief	Get layers pointer and count for a nav XY cell (mutable overload).
+*	@param	cell	Pointer to the XY cell to query.
+*	@return	A std::pair of (nav_layer_t* layers, int32_t num_layers). Returns
+*			nullptr and 0 when the cell or its layers are not present.
+*	@note	Mutable overload for callers that need to modify layer data. Returns
+*			nullptr/count to avoid dangling pointer use when data is missing.
+**/
+static inline std::pair<nav_layer_t *, int32_t> SVG_Nav_Cell_GetLayers( nav_xy_cell_t *cell ) {
+	if ( !cell || !cell->layers ) {
+		return { nullptr, 0 };
+	}
+	return { cell->layers, cell->num_layers };
+}
+
+/**
+*	@brief	Get cell array and count for a tile (mutable tile pointer).
+*	@param	mesh	Pointer to the nav mesh (used for tile_size).
+*	@param	tile	Pointer to the tile to query.
+*	@return	A std::pair of (nav_xy_cell_t* cells, int32_t count). Returns
+*			nullptr and 0 when mesh/tile/cells are missing.
+*	@note	Count is computed as mesh->tile_size * mesh->tile_size. Returning
+*			nullptr/count avoids exposing dangling arrays to callers.
+**/
+static inline std::pair<nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t *mesh, nav_tile_t *tile ) {
+	if ( !mesh || !tile || !tile->cells ) {
+		return { nullptr, 0 };
+	}
+	int32_t count = mesh->tile_size * mesh->tile_size;
+	return { tile->cells, count };
+}
+/**
+*	@brief	Get cell array and count for a tile (const overload).
+*	@param	mesh	Pointer to the nav mesh (used for tile_size).
+*	@param	tile	Const pointer to the tile to query.
+*	@return	A std::pair of (const nav_xy_cell_t* cells, int32_t count). Returns
+*			nullptr and 0 when mesh/tile/cells are missing.
+*	@note	Const overload for read-only callers. Returning nullptr/count avoids
+*			exposing dangling arrays when data is absent.
+**/
+static inline std::pair<const nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
+	if ( !mesh || !tile || !tile->cells ) {
+		return { nullptr, 0 };
+	}
+	int32_t count = mesh->tile_size * mesh->tile_size;
+	return { tile->cells, count };
+}
+
+/**
+*	@brief	Get tile id array and count for a leaf (mutable overload).
+*	@param	leaf	Pointer to the leaf data to query.
+*	@return	A std::pair of (int32_t* tile_ids, int32_t num_tiles). Returns
+*			nullptr and 0 when leaf or tile_ids are missing.
+*	@note	Helps prevent callers from iterating over a dangling pointer when
+*			leaf data is absent.
+**/
+static inline std::pair<int32_t *, int32_t> SVG_Nav_Leaf_GetTileIds( nav_leaf_data_t *leaf ) {
+	if ( !leaf || !leaf->tile_ids ) {
+		return { nullptr, 0 };
+	}
+	return { leaf->tile_ids, leaf->num_tiles };
+}
+/**
+*	@brief	Get tile id array and count for a leaf (const overload).
+*	@param	leaf	Const pointer to the leaf data to query.
+*	@return	A std::pair of (const int32_t* tile_ids, int32_t num_tiles). Returns
+*			nullptr and 0 when leaf or tile_ids are missing.
+*	@note	Const overload for read-only callers; returning nullptr/count avoids
+*			exposing dangling pointers.
+**/
+static inline std::pair<const int32_t *, int32_t> SVG_Nav_Leaf_GetTileIds( const nav_leaf_data_t *leaf ) {
+	if ( !leaf || !leaf->tile_ids ) {
+		return { nullptr, 0 };
+	}
+	return { leaf->tile_ids, leaf->num_tiles };
+}
+
+/**
+*	@brief		Get inline-model tiles array and count (mutable overload).
+*	@param		model	Pointer to the inline model data to query.
+*	@return		A std::pair of (nav_tile_t* tiles, int32_t num_tiles).
+*				Returns nullptr and 0 when model or tiles are missing.
+*	@note		Returning nullptr/count prevents clients from using a dangling tiles
+*				pointer when inline-model data is not present.
+**/
+static inline std::pair<nav_tile_t *, int32_t> SVG_Nav_InlineModel_GetTiles( nav_inline_model_data_t *model ) {
+	if ( !model || !model->tiles ) {
+		return { nullptr, 0 };
+	}
+	return { model->tiles, model->num_tiles };
+}
+/**
+*	@brief		Get inline-model tiles array and count (const overload).
+*	@param		model	Const pointer to the inline model data to query.
+*	@return		A std::pair of (const nav_tile_t* tiles, int32_t num_tiles).
+*				Returns nullptr and 0 when model or tiles are missing.
+*	@note		Const overload for read-only callers; avoids exposing dangling data.
+**/
+static inline std::pair<const nav_tile_t *, int32_t> SVG_Nav_InlineModel_GetTiles( const nav_inline_model_data_t *model ) {
+	if ( !model || !model->tiles ) {
+		return { nullptr, 0 };
+	}
+	return { model->tiles, model->num_tiles };
+}
+
+/**
+*	@brief	Get inline-model runtime array and count from mesh (mutable overload).
+*	@param	mesh	Pointer to the navigation mesh.
+*	@return	A std::pair of (nav_inline_model_runtime_t* entries, int32_t count).
+*			Returns nullptr and 0 when mesh or runtime array is missing.
+*	@note	Runtime entries are non-owning pointers; this helper returns nullptr/count
+*			to avoid callers holding/using dangling pointers when the mesh is absent.
+**/
+static inline std::pair<nav_inline_model_runtime_t *, int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( nav_mesh_t *mesh ) {
+	if ( !mesh || !mesh->inline_model_runtime ) {
+		return { nullptr, 0 };
+	}
+	return { mesh->inline_model_runtime, mesh->num_inline_model_runtime };
+}
+/**
+*	@brief		Get inline-model runtime array and count from mesh (const overload).
+*	@param		mesh	Const pointer to the navigation mesh.
+*	@return		A std::pair of (const nav_inline_model_runtime_t* entries, int32_t count).
+*				Returns nullptr and 0 when mesh or runtime array is missing.
+*	@note		Const overload for read-only callers; avoids exposing dangling pointers.
+**/
+static inline std::pair<const nav_inline_model_runtime_t *, int32_t> SVG_Nav_Mesh_GetInlineModelRuntime( const nav_mesh_t *mesh ) {
+	if ( !mesh || !mesh->inline_model_runtime ) {
+		return { nullptr, 0 };
+	}
+	return { mesh->inline_model_runtime, mesh->num_inline_model_runtime };
+}
+
+
+
+/**
+*
+* 
+* 
+*   Navigation System API:
+* 
+* 
+* 
+**/
+/**
 *	@brief	Lookup an inline-model runtime entry by owning entity number.
 *	@param	mesh	Navigation mesh.
 *	@param	owner_entnum	Owning entity number (edict->s.number).
@@ -355,12 +567,6 @@ const nav_inline_model_runtime_t *SVG_Nav_GetInlineModelRuntimeForOwnerEntNum( c
 *	@note	Intended for developer diagnostics; prints to console.
 **/
 void SVG_Nav_Debug_PrintInlineModelRuntimeIndexMap( const nav_mesh_t *mesh );
-
-/**
-*	@brief	Type alias for nav_mesh_t RAII owner using TagMalloc/TagFree.
-*	@note	Ensures proper construction/destruction and prevents memory leaks.
-**/
-using nav_mesh_raii_t = SVG_RAIIObject<nav_mesh_t>;
 
 /**
 *	@brief	Clear all dynamic occupancy records on the given mesh.
@@ -453,32 +659,32 @@ extern cvar_t *nav_cost_goal_z_blend_factor;
 extern cvar_t *nav_cost_min_cost_per_unit;
 
 /**
- *  @brief  Profiling and logging control CVars.
- *
- *  @note   `nav_profile_level` controls the verbosity of timing/profiling emitted by
- *          the nav generation routines:
- *              0 = off, 1 = phase-level only, 2 = per-leaf timings, 3 = per-tile timings.
- *
- *  @note   `nav_log_file_enable` and `nav_log_file_name` allow optionally writing
- *          navigation logs to a dedicated file in the `logs/` directory without
- *          changing global console logging behavior.
- */
+*	@brief	Profiling and logging control CVars.
+*
+*	@note	`nav_profile_level` controls the verbosity of timing/profiling emitted by
+*			the nav generation routines:
+*			0 = off, 1 = phase-level only, 2 = per-leaf timings, 3 = per-tile timings.
+*
+*	@note   `nav_log_file_enable` and `nav_log_file_name` allow optionally writing
+*			navigation logs to a dedicated file in the `logs/` directory without
+*			changing global console logging behavior.
+**/
 extern cvar_t *nav_profile_level;      //!< Profiling verbosity level (0..3).
 extern cvar_t *nav_log_file_enable;    //!< If non-zero, write nav logs to dedicated file.
 extern cvar_t *nav_log_file_name;      //!< Filename (no path/ext) for dedicated nav log (e.g., "nav").
 
 /**
- *  @brief  Public wrapper to build the cluster graph from a mesh.
- *  @note   Implemented in svg_nav.cpp. Generated mesh code may call this
- *          to populate the tile-level cluster graph after generation.
- */
+*	@brief	Public wrapper to build the cluster graph from a mesh.
+*	@note	Implemented in svg_nav.cpp. Generated mesh code may call this
+*			to populate the tile-level cluster graph after generation.
+**/
 void SVG_Nav_ClusterGraph_BuildFromMesh_World( const nav_mesh_t *mesh );
 
 /**
- *	@brief	Lightweight logging wrapper for navigation subsystem.
- *	@note	Currently forwards to engine console output; allows future redirection to a
- *		centralized logging facility without changing callsites.
- */
+*	@brief	Lightweight logging wrapper for navigation subsystem.
+*	@note	Currently forwards to engine console output; allows future redirection to a
+*			centralized logging facility without changing callsites.
+**/
 void SVG_Nav_Log( const char *fmt, ... );
 
 
@@ -622,6 +828,7 @@ typedef struct nav_search_node_s {
 	int32_t parent_index;
 	bool closed;
 } nav_search_node_t;
+
 
 
 /**
@@ -777,28 +984,28 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 void SVG_Nav_FreeTraversalPath( nav_traversal_path_t *path );
 
 /**
- *   @brief  Query movement direction along a traversal path.
- *           Advances the waypoint index as the caller reaches waypoints.
- *   @param  path            Path to follow.
- *   @param  current_origin  Current world-space origin.
- *   @param  waypoint_radius Radius for waypoint completion.
- *   @param  policy          Optional traversal policy for per-agent step/drop limits.
- *   @param  inout_index     Current waypoint index (updated on success).
- *   @param  out_direction   Output normalized movement direction.
- *   @return True if a valid direction was produced, false if path is complete/invalid.
- **/
+*	@brief  Query movement direction along a traversal path.
+*           Advances the waypoint index as the caller reaches waypoints.
+*   @param  path            Path to follow.
+*   @param  current_origin  Current world-space origin.
+*   @param  waypoint_radius Radius for waypoint completion.
+*   @param  policy          Optional traversal policy for per-agent step/drop limits.
+*   @param  inout_index     Current waypoint index (updated on success).
+*   @param  out_direction   Output normalized movement direction.
+*   @return True if a valid direction was produced, false if path is complete/invalid.
+**/
 const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 *out_direction );
 /**
- *   @brief  Query movement direction while advancing waypoints in 2D and emitting 3D directions.
- *           Useful for stair traversal so the vertical component can be used separately from waypoint completion.
- *   @param  path            Path to follow.
- *   @param  current_origin  Current world-space origin.
- *   @param  waypoint_radius Radius for waypoint completion (2D).
- *   @param  policy          Optional traversal policy for per-agent step/drop limits.
- *   @param  inout_index     Current waypoint index (updated as 2D waypoints are reached).
- *   @param  out_direction   Output normalized 3D movement direction.
- *   @return True if a valid direction was produced, false if the path is invalid or complete.
- **/
+*   @brief  Query movement direction while advancing waypoints in 2D and emitting 3D directions.
+*           Useful for stair traversal so the vertical component can be used separately from waypoint completion.
+*   @param  path            Path to follow.
+*   @param  current_origin  Current world-space origin.
+*   @param  waypoint_radius Radius for waypoint completion (2D).
+*   @param  policy          Optional traversal policy for per-agent step/drop limits.
+*   @param  inout_index     Current waypoint index (updated as 2D waypoints are reached).
+*   @param  out_direction   Output normalized 3D movement direction.
+*   @return True if a valid direction was produced, false if the path is invalid or complete.
+**/
 const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversal_path_t *path, const Vector3 &current_origin, double waypoint_radius, const svg_nav_path_policy_t *policy, int32_t *inout_index, Vector3 *out_direction );
 
 

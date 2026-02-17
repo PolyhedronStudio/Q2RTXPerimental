@@ -135,26 +135,32 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 			/**
 			*	Count populated cells so we only serialize active cells.
 			**/
-			int32_t populated = 0;
-			for ( int32_t c = 0; c < cellsPerTile; c++ ) {
-				if ( tile->cells[ c ].num_layers > 0 && tile->cells[ c ].layers ) {
+            int32_t populated = 0;
+			// Use safe accessor to iterate only valid cells in the tile.
+			auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
+			const nav_xy_cell_t *cellsPtr = cellsView.first;
+			const int32_t cellsCount = cellsView.second;
+			for ( int32_t c = 0; c < cellsCount; c++ ) {
+				if ( cellsPtr[ c ].num_layers > 0 && cellsPtr[ c ].layers ) {
 					populated++;
 				}
 			}
 			// Write populated cell count.
 			Nav_WriteValue( f, populated );
 
-			for ( int32_t c = 0; c < cellsPerTile; c++ ) {
-				const nav_xy_cell_t &cell = tile->cells[ c ];
-				if ( cell.num_layers <= 0 || !cell.layers ) {
-					continue;
-				}
+            if ( cellsPtr ) {
+				for ( int32_t c = 0; c < cellsCount; c++ ) {
+					const nav_xy_cell_t &cell = cellsPtr[ c ];
+					if ( cell.num_layers <= 0 || !cell.layers ) {
+						continue;
+					}
 
-				// Write cell index + layer count.
-				Nav_WriteValue( f, c );
-				Nav_WriteValue( f, cell.num_layers );
-				// Write raw layer array.
-				Nav_Write( f, cell.layers, sizeof( nav_layer_t ) * (size_t)cell.num_layers );
+					// Write cell index + layer count.
+					Nav_WriteValue( f, c );
+					Nav_WriteValue( f, cell.num_layers );
+					// Write raw layer array.
+					Nav_Write( f, cell.layers, sizeof( nav_layer_t ) * (size_t)cell.num_layers );
+				}
 			}
 		}
 	}
@@ -177,26 +183,31 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 			/**
 			*	Count populated cells so we only serialize active cells.
 			**/
-			int32_t populated = 0;
-			for ( int32_t c = 0; c < cellsPerTile; c++ ) {
-				if ( tile->cells[ c ].num_layers > 0 && tile->cells[ c ].layers ) {
+            int32_t populated = 0;
+			auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
+			const nav_xy_cell_t *cellsPtr = cellsView.first;
+			const int32_t cellsCount = cellsView.second;
+			for ( int32_t c = 0; c < cellsCount; c++ ) {
+				if ( cellsPtr[ c ].num_layers > 0 && cellsPtr[ c ].layers ) {
 					populated++;
 				}
 			}
 			// Write populated cell count.
 			Nav_WriteValue( f, populated );
 
-			for ( int32_t c = 0; c < cellsPerTile; c++ ) {
-				const nav_xy_cell_t &cell = tile->cells[ c ];
-				if ( cell.num_layers <= 0 || !cell.layers ) {
-					continue;
-				}
+            if ( cellsPtr ) {
+				for ( int32_t c = 0; c < cellsCount; c++ ) {
+					const nav_xy_cell_t &cell = cellsPtr[ c ];
+					if ( cell.num_layers <= 0 || !cell.layers ) {
+						continue;
+					}
 
-				// Write cell index + layer count.
-				Nav_WriteValue( f, c );
-				Nav_WriteValue( f, cell.num_layers );
-				// Write raw layer array.
-				Nav_Write( f, cell.layers, sizeof( nav_layer_t ) * (size_t)cell.num_layers );
+					// Write cell index + layer count.
+					Nav_WriteValue( f, c );
+					Nav_WriteValue( f, cell.num_layers );
+					// Write raw layer array.
+					Nav_Write( f, cell.layers, sizeof( nav_layer_t ) * (size_t)cell.num_layers );
+				}
 			}
 		}
 	}

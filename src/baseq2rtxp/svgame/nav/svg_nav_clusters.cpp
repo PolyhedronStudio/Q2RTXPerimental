@@ -48,30 +48,59 @@ static void Nav_ClusterGraph_Clear( void ) {
 	s_nav_tile_cluster_graph.nodes.clear();
 }
 
+/**
+*    @brief    Detect coarse cluster flags for a tile by inspecting its cells/layers.
+*    @param    mesh    Navigation mesh pointer (used for tile_size and z_quant).
+*    @param    tile    Tile to inspect for relevant cluster flags.
+*    @return   Bitmask of nav tile cluster flags (stair/water/lava/slime).
+*    @note    Uses safe accessors to avoid dereferencing possibly-null sparse
+*            tile storage. Early-outs when mesh or cell storage is missing.
+**/
 static inline uint8_t Nav_ClusterGraph_DetectTileFlags( const nav_mesh_t *mesh, const nav_tile_t &tile ) {
 	uint8_t flags = NAV_TILE_CLUSTER_FLAG_NONE;
-	if ( !mesh || !tile.cells ) {
+	// Early out when mesh is missing.
+	if ( !mesh ) {
 		return flags;
 	}
 
-	const int32_t cellsPerTile = mesh->tile_size * mesh->tile_size;
 	constexpr uint8_t relevantMask = NAV_TILE_CLUSTER_FLAG_STAIR |
 		NAV_TILE_CLUSTER_FLAG_WATER |
 		NAV_TILE_CLUSTER_FLAG_LAVA |
 		NAV_TILE_CLUSTER_FLAG_SLIME;
 
-	for ( int32_t ci = 0; ci < cellsPerTile; ci++ ) {
-		const nav_xy_cell_t &cell = tile.cells[ ci ];
+	// Use safe accessor to obtain pointer/count for the tile's cells so we
+	// avoid direct dereference of internal C-style arrays which may be null.
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( &tile ) );
+	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const int32_t actualCells = cellsView.second;
+	if ( !cellsPtr || actualCells <= 0 ) {
+		return flags;
+	}
+
+	// Iterate cells using the accessor-provided count.
+	for ( int32_t ci = 0; ci < actualCells; ++ci ) {
+		const nav_xy_cell_t &cell = cellsPtr[ ci ];
+
+		// Quick sanity: skip empty cells.
 		if ( cell.num_layers <= 0 || !cell.layers ) {
 			continue;
 		}
 
+		// Multiple layers implies stairs/vertical adjacency inside the cell.
 		if ( cell.num_layers > 1 ) {
 			flags |= NAV_TILE_CLUSTER_FLAG_STAIR;
 		}
 
-		for ( int32_t li = 0; li < cell.num_layers; li++ ) {
-			const nav_layer_t &layer = cell.layers[ li ];
+		// Use safe accessor for layers to avoid raw pointer indexing elsewhere.
+		auto layersView = SVG_Nav_Cell_GetLayers( &cell );
+		const nav_layer_t *layersPtr = layersView.first;
+		const int32_t layerCount = layersView.second;
+		if ( !layersPtr || layerCount <= 0 ) {
+			continue;
+		}
+
+		for ( int32_t li = 0; li < layerCount; ++li ) {
+			const nav_layer_t &layer = layersPtr[ li ];
 			if ( ( layer.flags & NAV_FLAG_WATER ) != 0 ) {
 				flags |= NAV_TILE_CLUSTER_FLAG_WATER;
 			}
@@ -83,6 +112,7 @@ static inline uint8_t Nav_ClusterGraph_DetectTileFlags( const nav_mesh_t *mesh, 
 			}
 		}
 
+		// If we've found all relevant flags, no need to scan further.
 		if ( ( flags & relevantMask ) == relevantMask ) {
 			break;
 		}

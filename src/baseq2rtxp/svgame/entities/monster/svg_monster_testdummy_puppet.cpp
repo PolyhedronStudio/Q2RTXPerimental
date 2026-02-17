@@ -298,13 +298,29 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
             // When forced, cancel the outstanding request so a fresh entry is
             // created immediately with the force flag set.
             SVG_TestDummy_ResetNavPath( self );
+        } else {
+            // If a pending handle exists for this process and our movement
+            // heuristics do not warrant a rebuild, skip refreshing the
+            // in-flight request. This comparison is per-handle so callers
+            // that intentionally replaced the pending handle are not blocked.
+            if ( self->navPathProcess.pending_request_handle != 0 && !movementWarrantsRebuild ) {
+                if ( DUMMY_NAV_DEBUG ) {
+                    gi.dprintf( "[DEBUG] TryQueueNavRebuild: skipping refresh because pending_handle=%d and movement doesn't warrant it. ent=%d\n",
+                        self->navPathProcess.pending_request_handle, self->s.number );
+                }
+                return true;
+            }
         }
-        // Otherwise do not return here; fall through to call the enqueue
-        // helper which will refresh the existing queue entry in-place.
     }
 
     /**
-    *\tEnqueue the rebuild request and record the handle for diagnostics.
+	*	Enqueue the rebuild request and record the handle for diagnostics.
+	*	Note: If a request is already pending and actively being prepared / running
+	*	(this entity's `navPathProcess.rebuild_in_progress == true`), this helper
+	*	will avoid refreshing the existing running entry unless `force == true`
+	*	or the movement heuristics indicate a rebuild is warranted. This prevents
+	*	repeated re-initialization of in-flight searches which can starve the
+	*	incremental A* stepper and cause visible steering issues.
     **/
     const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &self->navPathProcess, start_origin, goal_origin, policy, agent_mins, agent_maxs, force );
     if ( handle <= 0 ) {

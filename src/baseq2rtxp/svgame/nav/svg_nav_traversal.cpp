@@ -59,6 +59,15 @@ static void Nav_Debug_PrintNodeRef( const char *label, const nav_node_ref_t &n )
 *    @return	True if a valid delta was found, false otherwise.
 *    @note	This is a diagnostic helper used to report missing vertical connectivity.
 **/
+/**
+*    @brief    Find the nearest Z-layer delta for the given node within its cell.
+*    @param    mesh        Navigation mesh containing the node.
+*    @param    node        Navigation node to inspect.
+*    @param    out_delta   [out] Closest absolute Z delta to another layer in the same cell.
+*    @param    out_layers  [out] Number of layers found in the cell (optional).
+*    @return   True if a valid delta was found, false otherwise.
+*    @note     This is a diagnostic helper used to report missing vertical connectivity.
+**/
 static const bool Nav_Debug_FindNearestLayerDelta( const nav_mesh_t *mesh, const nav_node_ref_t &node, double *out_delta, int32_t *out_layers ) {
 	/**
 	*    Sanity: require mesh and output pointer.
@@ -70,14 +79,21 @@ static const bool Nav_Debug_FindNearestLayerDelta( const nav_mesh_t *mesh, const
 	/**
 	*    Validate tile/cell indices before inspecting layers.
 	**/
-	if ( node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+    if ( node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
 		return false;
 	}
+
+	// Use safe tile cell accessor to avoid dereferencing a possibly-null
+	// `tile.cells` pointer in sparse tiles.
 	const nav_tile_t &tile = mesh->world_tiles[ node.key.tile_index ];
-	if ( node.key.cell_index < 0 || node.key.cell_index >= ( mesh->tile_size * mesh->tile_size ) ) {
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( &tile ) );
+	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const int32_t cellsCount = cellsView.second;
+	if ( !cellsPtr || node.key.cell_index < 0 || node.key.cell_index >= cellsCount ) {
 		return false;
 	}
-	const nav_xy_cell_t &cell = tile.cells[ node.key.cell_index ];
+
+	const nav_xy_cell_t &cell = cellsPtr[ node.key.cell_index ];
 	if ( out_layers ) {
 		*out_layers = cell.num_layers;
 	}

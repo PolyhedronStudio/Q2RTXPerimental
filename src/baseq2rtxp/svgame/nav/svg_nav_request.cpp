@@ -164,9 +164,9 @@ static nav_request_entry_t *NavRequest_FindEntryForProcess( svg_nav_path_process
 }
 
 /**
-*    @brief    Enqueue a navigation request.
-*    @note     Deduplicates requests by path process and reuses the existing handle when needed.
-**/
+ *    @brief    Enqueue a navigation request.
+ *    @note     Deduplicates requests by path process and reuses the existing handle when needed.
+ **/
 nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProcess, const Vector3 &start_origin,
 	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
 	const Vector3 &agent_maxs, bool force ) {
@@ -179,18 +179,6 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 
 	if ( !SVG_Nav_IsAsyncNavEnabled() ) {
 		return 0;
-	}
-
-	/**
-	*    Generation tracking:
-	*        Bump the per-process request generation whenever a caller enqueues or
-	*        refreshes a request. Async workers stamp this into their queue entry so
-	*        finalize can reject late/stale results deterministically.
-	**/
-	pathProcess->request_generation++;
-	// Never allow generation 0 to be considered valid for an in-flight request.
-	if ( pathProcess->request_generation == 0 ) {
-		pathProcess->request_generation = 1;
 	}
 
 	/**
@@ -237,26 +225,65 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	}
 
 	if ( nav_request_entry_t *existing = NavRequest_FindEntryForProcess( pathProcess ) ) {
-           // Refresh existing entry parameters instead of creating a duplicate.
-			existing->start = start_origin;
-			existing->goal = goal_origin;
-			existing->generation = pathProcess->request_generation;
-			existing->policy = policy;
-			existing->agent_mins = agent_mins;
-			existing->agent_maxs = agent_maxs;
-			existing->force = existing->force || force;
-         // Record last prep time/positions on the owning process to enable debounce logic.
-			if ( existing->path_process ) {
-				existing->path_process->last_prep_time = level.time;
-				existing->path_process->last_prep_start = start_origin;
-				existing->path_process->last_prep_goal = goal_origin;
+		/**
+		*	When a non-terminal entry already exists for this process, avoid doing
+		*	expensive/mutating refresh work when the caller hasn't moved meaningfully.
+		*
+		*	Implementation notes:
+		*	 - If the entry is Queued or Running and both start/goal moved less than
+		*	   'moveThresh' units we skip updating the entry entirely. This avoids
+		*	   repeated "Refreshed existing entry" log spam and copying of resolved
+		*	   policy/hull fields.
+		*	 - We now bump the owning process's `request_generation` only when we
+		*	   actually perform a refresh (or create a new entry). This keeps the
+		*	   generation monotonic semantics local to real changes and avoids
+		*	   needing to revert a bump when we early-skip refreshes.
+		**/
+		if ( existing->status == nav_request_status_t::Queued || existing->status == nav_request_status_t::Running ) {
+			const float moveThresh = 4.0f;
+			const float moveThreshSqr = moveThresh * moveThresh;
+			const float dx_sqr = QM_Vector3DistanceSqr( existing->start, start_origin );
+			const float dg_sqr = QM_Vector3DistanceSqr( existing->goal, goal_origin );
+			// If both start and goal moved less than threshold and caller did not force,
+			// skip the refresh. `force` bypasses this cheap movement-skip so callers can
+			// guarantee a refresh even for small movements.
+			if ( !force && dx_sqr <= moveThreshSqr && dg_sqr <= moveThreshSqr ) {
+				if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+					gi.dprintf( "[NavAsync][Queue] Skipped refresh (movement below threshold) for handle=%d ent_process=%p dx_sqr=%.2f dg_sqr=%.2f\n",
+						existing->handle, ( void * )existing->path_process, dx_sqr, dg_sqr );
+				}
+				// Return the existing handle without mutating the queued entry or bumping generation.
+				return existing->handle;
 			}
-			// If the existing entry was Running allow it to be marked queued so it
-			// will be re-prepared with the new params. This implements a simple
-			// replace semantics: callers get their updated goal applied without
-			// growing the queue or losing the handle.
-			existing->status = nav_request_status_t::Queued;
-			if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		}
+
+		// We will refresh the existing entry: bump the per-process generation now.
+		pathProcess->request_generation++;
+		// Never allow generation 0 to be considered valid for an in-flight request.
+		if ( pathProcess->request_generation == 0 ) {
+			pathProcess->request_generation = 1;
+		}
+
+		// Refresh existing entry parameters instead of creating a duplicate.
+		existing->start = start_origin;
+		existing->goal = goal_origin;
+		existing->generation = pathProcess->request_generation;
+		existing->policy = policy;
+		existing->agent_mins = agent_mins;
+		existing->agent_maxs = agent_maxs;
+		existing->force = existing->force || force;
+		// Record last prep time/positions on the owning process to enable debounce logic.
+		if ( existing->path_process ) {
+			existing->path_process->last_prep_time = level.time;
+			existing->path_process->last_prep_start = start_origin;
+			existing->path_process->last_prep_goal = goal_origin;
+		}
+		// If the existing entry was Running allow it to be marked queued so it
+		// will be re-prepared with the new params. This implements a simple
+		// replace semantics: callers get their updated goal applied without
+		// growing the queue or losing the handle.
+		existing->status = nav_request_status_t::Queued;
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 			gi.dprintf( "[NavAsync][Queue] Refreshed existing entry handle=%d for ent_process=%p (queued)\n",
 				existing->handle, ( void * )existing->path_process );
 		}
@@ -266,6 +293,13 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 	/**
 	*    Handle assignment: issue a new handle, ensuring zero is never returned.
 	**/
+	// Bump generation for the process because we're about to create a new queued request.
+	pathProcess->request_generation++;
+	// Never allow generation 0 to be considered valid for an in-flight request.
+	if ( pathProcess->request_generation == 0 ) {
+		pathProcess->request_generation = 1;
+	}
+
 	nav_request_handle_t handle = s_nav_request_next_handle++;
 	if ( s_nav_request_next_handle <= 0 ) {
 		s_nav_request_next_handle = 1;
@@ -704,12 +738,16 @@ static void NavRequest_Worker_Done( void *cb_arg ) {
 		return;
 	}
 
-	// Move the worker-initialized state into the entry using move semantics
+    // Move the worker-initialized state into the entry using move semantics
 	// so the bulk vector storage transfers without reallocation on this thread.
 	entry->a_star = std::move( *p->initialized_state );
 	// WorkerState memory no longer needed (moved-from). Delete the heap object.
 	delete p->initialized_state;
 	p->initialized_state = nullptr;
+
+	// Defensive normalization: rebind internal non-owning pointers to point
+	// into the moved-in storage. Prefer the struct accessor when available.
+	entry->a_star.RebindInternalPointers();
 
 	// Ensure entry has the same resolved policy snapshot used by worker.
 	entry->resolved_policy = p->resolved_policy;

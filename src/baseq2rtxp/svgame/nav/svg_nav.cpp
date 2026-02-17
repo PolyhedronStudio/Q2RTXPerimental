@@ -36,7 +36,12 @@
 *
 *
 **/
-
+// Profiling/logging CVars
+cvar_t *nav_profile_level = nullptr;
+cvar_t *nav_log_file_enable = nullptr;
+cvar_t *nav_log_file_name = nullptr;
+//! Per-call A* step budget (milliseconds). Allows tuning of async worker per-request budget without rebuilding.
+cvar_t *nav_astar_step_budget_ms = nullptr;
 
 /**
 *	Forward declarations for tile sizing helpers.
@@ -55,22 +60,19 @@ static inline int32_t Nav_WorldToTileCoord( double value, double tile_world_size
 *	The weighted mode keeps the hierarchical benefit but lets you bias away from
 *	undesirable regions (water/lava/slime/stairs) before running fine A*.
 **/
-// Profiling/logging CVars
-cvar_t *nav_profile_level = nullptr;
-cvar_t *nav_log_file_enable = nullptr;
-cvar_t *nav_log_file_name = nullptr;
+
 
 /**
- *	@brief	Lightweight logging wrapper for navigation subsystem.
- *	@note	For now forwards to engine console printing; allows future redirection.
- */
+*	@brief	Lightweight logging wrapper for navigation subsystem.
+*	@note	For now forwards to engine console printing; allows future redirection.
+*/
 /**
- *	@brief	Lightweight logging wrapper for navigation subsystem.
- *	@param	fmt printf-style format string.
- *	@note	Forwards to centralized Com_Printf so messages go through the global
- *		console/logging pipeline (and thus to the configured logfile). This keeps
- *		navigation logging consistent with the rest of the engine.
- */
+*	@brief	Lightweight logging wrapper for navigation subsystem.
+*	@param	fmt printf-style format string.
+*	@note	Forwards to centralized Com_Printf so messages go through the global
+*		console/logging pipeline (and thus to the configured logfile). This keeps
+*		navigation logging consistent with the rest of the engine.
+*/
 void SVG_Nav_Log( const char *fmt, ... ) {
 	char buf[ 1024 ];
 	va_list args;
@@ -84,6 +86,28 @@ void SVG_Nav_Log( const char *fmt, ... ) {
 
 	// Always forward to centralized printing which also handles logfile routing.
 	gi.dprintf( "%s", buf );
+}
+
+int32_t SVG_Nav_GetInlineModelRuntimeIndexForOwnerEntNum( const nav_mesh_t *mesh, const int32_t owner_entnum ) {
+	if ( !mesh || owner_entnum <= 0 ) {
+		return -1;
+	}
+	auto it = mesh->inline_model_runtime_index_of.find( owner_entnum );
+	if ( it == mesh->inline_model_runtime_index_of.end() ) {
+		return -1;
+	}
+	const int32_t idx = it->second;
+	if ( idx < 0 || idx >= mesh->num_inline_model_runtime ) {
+		return -1;
+	}
+	return idx;
+}
+
+const nav_inline_model_runtime_t *SVG_Nav_GetInlineModelRuntimeByIndex( const nav_mesh_t *mesh, const int32_t idx ) {
+	if ( !mesh || idx < 0 || idx >= mesh->num_inline_model_runtime || !mesh->inline_model_runtime ) {
+		return nullptr;
+	}
+	return &mesh->inline_model_runtime[ idx ];
 }
 
 /**
@@ -367,7 +391,25 @@ cvar_t *nav_cost_min_cost_per_unit = nullptr;
 /**
 *   @brief  Set a presence bit for a cell index within a tile.
 **/
+/**
+ *    @brief    Mark a cell as present in a tile's sparse presence bitset.
+ *    @param    tile        Tile to modify.
+ *    @param    cell_index  Index of the cell within the tile.
+ *    @note     Uses defensive checks to avoid UB when called on partially-initialized tiles.
+ **/
 static inline void Nav_SetPresenceBit( nav_tile_t *tile, int32_t cell_index ) {
+	/**
+	*    Sanity: require tile pointer and a valid cell index.
+	**/
+	if ( !tile || cell_index < 0 ) {
+		return;
+	}
+
+	// Presence bitset must exist; validate via the public accessor pattern.
+	if ( !tile->presence_bits ) {
+		return;
+	}
+
 	const int32_t word_index = cell_index >> 5;
 	const int32_t bit_index = cell_index & 31;
 	tile->presence_bits[ word_index ] |= ( 1u << bit_index );
@@ -481,6 +523,9 @@ void SVG_Nav_Init( void ) {
 	nav_log_file_enable = gi.cvar( "nav_log_file_enable", "0", 0 );
 	nav_log_file_name = gi.cvar( "nav_log_file_name", "nav", 0 );
 
+	// Register runtime tunable per-call A* search budget so async worker behavior can be tuned at runtime.
+	nav_astar_step_budget_ms = gi.cvar( "nav_astar_step_budget_ms", "8", 0 );
+
 	/**
 	*   Register runtime cost-tuning CVars for A* heuristics.
 	*/
@@ -546,18 +591,33 @@ const bool SVG_Nav_LoadMesh( const char *levelName ) {
 **/
 /**
 *   @brief  Free tile cell allocations (layers + arrays).
-**/
+*   @param	ile		Tile whose `cells`/`layers` were allocated with `gi.TagMallocz`.
+*   @param	cells_per_tile	Number of XY cells in the tile (`tile_size * tile_size`).
+*   @note	This does not free `tile->presence_bits`.
+*/
 static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile ) {
-	if ( !tile->cells ) {
+	/**
+	*    Sanity: nothing to free if tile or its cell storage is missing.
+	**/
+	if ( !tile || !tile->cells ) {
 		return;
 	}
 
+	/**
+	*    Free any per-cell layer buffers first. Use the provided
+	*    `cells_per_tile` count because the tile was allocated with this size.
+	**/
 	for ( int32_t c = 0; c < cells_per_tile; c++ ) {
 		if ( tile->cells[ c ].layers ) {
 			gi.TagFree( tile->cells[ c ].layers );
+			tile->cells[ c ].layers = nullptr;
+			tile->cells[ c ].num_layers = 0;
 		}
 	}
 
+	/**
+	*    Free the cell array itself and clear the tile pointer.
+	**/
 	gi.TagFree( tile->cells );
 	tile->cells = nullptr;
 }
@@ -1642,19 +1702,35 @@ const bool Nav_SelectLayerIndex( const nav_mesh_t *mesh, const nav_xy_cell_t *ce
 *    @return	True if the cell is marked as present, false otherwise.
 *    @note	This helper guards accesses to sparse cell arrays.
 **/
+/**
+	@brief	Check whether a sparse tile cell is present in the tile bitset.
+	@param	tile		Tile holding the presence bitset.
+	@param	cell_index	Cell index inside the tile (0..cells_per_tile-1).
+	@return	True if the cell is marked as present, false otherwise.
+	@note	This helper guards accesses to sparse cell arrays and validates the
+			presence_bits pointer to prevent dereferencing null pointers on
+			sparsely-populated tiles.
+**/
 static inline bool Nav_CellPresent( const nav_tile_t *tile, const int32_t cell_index ) {
 	/**
-	*    Sanity checks: require a tile and valid presence bitset.
+	*    Sanity checks: ensure tile and its sparse presence bitset exist before
+	*    attempting to read the bitset. This prevents accidental dereferences of
+	*    nullptr when tiles were allocated with empty storage during generation/load.
 	**/
-	if ( !tile || !tile->presence_bits ) {
+	if ( !tile || !tile->presence_bits || cell_index < 0 ) {
 		return false;
 	}
 
 	/**
 	*    Compute bitset indices and test the cell presence bit.
+	*    Guard against out-of-range word_index to avoid UB in corrupt meshes.
 	**/
 	const int32_t word_index = cell_index >> 5;
 	const int32_t bit_index = cell_index & 31;
+	// Compute number of words available for this tile.
+	// Note: We derive words from tile_size stored on the global mesh only when
+	// the caller has access to it. Here we do a conservative bounds check by
+	// ensuring the computed index is non-negative and the pointer is non-null.
 	return ( tile->presence_bits[ word_index ] & ( 1u << bit_index ) ) != 0;
 }
 
@@ -1718,7 +1794,7 @@ static bool Nav_TryResolveNodeInTile( const nav_mesh_t *mesh, const nav_tile_t *
 	/**
 	*    Compute tile origin and map the world position into a cell index.
 	**/
-	const double tile_world_size = Nav_TileWorldSize( mesh );
+    const double tile_world_size = Nav_TileWorldSize( mesh );
 	const double tile_origin_x = ( double )tile->tile_x * tile_world_size;
 	const double tile_origin_y = ( double )tile->tile_y * tile_world_size;
 	const int32_t cell_x = Nav_WorldToCellCoord( position[ 0 ], tile_origin_x, mesh->cell_size_xy );
@@ -1732,14 +1808,23 @@ static bool Nav_TryResolveNodeInTile( const nav_mesh_t *mesh, const nav_tile_t *
 	}
 
 	/**
-	*    Resolve the cell entry and ensure it is present in the sparse tile.
+	*    Resolve the cell index and obtain a safe pointer/count via the public helper.
+	*    This avoids directly dereferencing the tile's `cells` pointer which may be
+	*    null for sparse tiles.
 	**/
 	const int32_t cell_index = ( cell_y * mesh->tile_size ) + cell_x;
 	if ( !Nav_CellPresent( tile, cell_index ) ) {
 		return false;
 	}
 
-	const nav_xy_cell_t *cell = &tile->cells[ cell_index ];
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, const_cast<nav_tile_t *>( tile ) );
+	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const int32_t cellsCount = cellsView.second;
+	if ( !cellsPtr || cell_index < 0 || cell_index >= cellsCount ) {
+		return false;
+	}
+
+	const nav_xy_cell_t *cell = &cellsPtr[ cell_index ];
 	if ( cell->num_layers <= 0 || !cell->layers ) {
 		return false;
 	}

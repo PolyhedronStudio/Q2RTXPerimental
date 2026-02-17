@@ -11,6 +11,7 @@
 #include "svgame/nav/svg_nav_traversal.h"
 #include "svgame/nav/svg_nav_traversal_async.h"
 #include "svgame/nav/svg_nav_path_process.h"
+#include "svgame/nav/svg_nav_request.h" // used to size reserve heuristics
 
 #include <algorithm>
 #include <cmath>
@@ -30,11 +31,14 @@ extern cvar_t *nav_cost_slope_weight;
 extern cvar_t *nav_cost_drop_weight;
 extern cvar_t *nav_cost_min_cost_per_unit;
 
+//! Optional runtime cvar to tune per-call A* step budget (milliseconds).
+extern cvar_t *nav_astar_step_budget_ms;
+
 inline bool Nav_PathDiagEnabled( void );
 
 //! Hard node limit to prevent runaway searches from consuming memory.
 static constexpr int32_t NAV_ASTAR_MAX_NODES = 8192;
-//! Per-call time budget used to cap frame impact of incremental expansion.
+//! Default per-call time budget used to cap frame impact of incremental expansion (fallback when cvar not registered).
 static constexpr uint64_t NAV_ASTAR_STEP_BUDGET_MS = 8;
 
 //! Neighbor offsets (XY/Z in grid-cell units) considered by the search.
@@ -101,6 +105,14 @@ static inline double Nav_AStar_Heuristic( const Vector3 &a, const Vector3 &b ) {
 	return sqrtf( ( delta[ 0 ] * delta[ 0 ] ) + ( delta[ 1 ] * delta[ 1 ] ) + ( delta[ 2 ] * delta[ 2 ] ) );
 }
 
+/**
+*	@brief	Expand neighbor nodes for the given `current_index`.
+*	@param	state		A* state.
+*	@param	current_index	Index of the node to expand.
+*	@note	This function performs heavy work and is invoked from `Nav_AStar_Step`.
+*			To enforce strict per-call time budgets this function checks the
+*			A* per-call search budget periodically and returns early when exceeded.
+**/
 static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t current_index ) {
 	const nav_mesh_t *mesh = state->mesh;
 	if ( !mesh ) {
@@ -109,10 +121,29 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 	nav_search_node_t &current = state->nodes[ current_index ];
 	const Vector3 &agent_mins = state->agent_mins;
 	const Vector3 &agent_maxs = state->agent_maxs;
-	const std::vector<nav_tile_cluster_key_t> *tileRouteFilter = state->tileRouteFilter;
+    // Use the safe accessor to obtain a view of the optional tile-route filter.
+	const std::vector<nav_tile_cluster_key_t> &tileRouteView = state->GetTileRouteFilterView();
 	const svg_nav_path_policy_t *policy = state->policy;
 
+	// Local counter to make an internal periodic budget check every N neighbor iterations.
+	int32_t innerExpansionCounter = 0;
+	const int32_t innerCheckInterval = 8; // check budget every 8 neighbor evaluations
+
 	for ( const Vector3 &offset_dir : s_nav_neighbor_offsets ) {
+		/**
+		*	Check per-call time budget periodically to ensure a single A* step
+		*	does not run for too long even if many neighbors are evaluated.
+		**/
+		if ( state->search_budget_ms > 0 && ( ( innerExpansionCounter & ( innerCheckInterval - 1 ) ) == 0 ) ) {
+			const uint64_t now = gi.GetRealSystemTime();
+			if ( ( now - state->step_start_ms ) >= state->search_budget_ms ) {
+				// Mark the budget hit and return early so the async worker can yield.
+				state->hit_time_budget = true;
+				return;
+			}
+		}
+		innerExpansionCounter++;
+
         // Track this neighbor attempt for diagnostics and tuning.
 		state->neighbor_try_count++;
 		Vector3 scaledOffset = offset_dir;
@@ -124,10 +155,10 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		/**
 		*    Skip nodes outside the optional hierarchical tile route discovered by the path process.
 		**/
-		if ( tileRouteFilter && !tileRouteFilter->empty() ) {
+        if ( !tileRouteView.empty() ) {
 			const nav_tile_cluster_key_t nk = SVG_Nav_GetTileKeyForPosition( mesh, neighbor_origin );
 			bool allowed = false;
-			for ( const nav_tile_cluster_key_t &k : *tileRouteFilter ) {
+			for ( const nav_tile_cluster_key_t &k : tileRouteView ) {
 				if ( k == nk ) {
 					allowed = true;
 					break;
@@ -202,13 +233,29 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 
 		double extraCost = 0.0;
 
-		const nav_layer_t *neighborLayer = nullptr;
+        const nav_layer_t *neighborLayer = nullptr;
+		/**
+		*    Resolve neighbor layer flags safely.
+		*    Use the public tile/cell accessors to avoid dereferencing potentially
+		*    null or corrupted `world_tiles`/`tile->cells` arrays on sparse tiles.
+		**/
 		if ( neighbor_node.key.leaf_index >= 0 && neighbor_node.key.leaf_index < mesh->num_leafs ) {
 			if ( neighbor_node.key.tile_index >= 0 && neighbor_node.key.tile_index < ( int32_t )mesh->world_tiles.size() ) {
-				const nav_tile_t *tile = &mesh->world_tiles[ neighbor_node.key.tile_index ];
-				const nav_xy_cell_t *cell = &tile->cells[ neighbor_node.key.cell_index ];
-				if ( neighbor_node.key.layer_index >= 0 && neighbor_node.key.layer_index < cell->num_layers ) {
-					neighborLayer = &cell->layers[ neighbor_node.key.layer_index ];
+				// Obtain const reference to the canonical world tile.
+				const nav_tile_t &tile = mesh->world_tiles[ neighbor_node.key.tile_index ];
+
+				// Safe accessor: get cells pointer/count for this tile (const overload).
+				auto cellsView = SVG_Nav_Tile_GetCells( mesh, &tile );
+				const nav_xy_cell_t *cellsPtr = cellsView.first;
+				const int32_t cellsCount = cellsView.second;
+				if ( cellsPtr && neighbor_node.key.cell_index >= 0 && neighbor_node.key.cell_index < cellsCount ) {
+					// Use safe accessor for layers to avoid dangling pointer derefs.
+					auto layersView = SVG_Nav_Cell_GetLayers( &cellsPtr[ neighbor_node.key.cell_index ] );
+					const nav_layer_t *layersPtr = layersView.first;
+					const int32_t layerCount = layersView.second;
+					if ( layersPtr && neighbor_node.key.layer_index >= 0 && neighbor_node.key.layer_index < layerCount ) {
+						neighborLayer = &layersPtr[ neighbor_node.key.layer_index ];
+					}
 				}
 			}
 		}
@@ -351,6 +398,10 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 	}
 }
 
+/**
+*	@brief	Initialize an A* state.
+*	@note	Sets up internal containers and applies the configured per-call search budget.
+**/
 bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const nav_node_ref_t &start_node,
 	const nav_node_ref_t &goal_node, const Vector3 &agent_mins, const Vector3 &agent_maxs,
 	const svg_nav_path_policy_t *policy, const std::vector<nav_tile_cluster_key_t> *tileRoute,
@@ -369,11 +420,22 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	state->policy = policy;
 	state->pathProcess = pathProcess;
 	state->max_nodes = NAV_ASTAR_MAX_NODES;
-	state->search_budget_ms = NAV_ASTAR_STEP_BUDGET_MS;
+
+	// Apply configured search budget: prefer runtime cvar when available so budget can be tuned without rebuilds.
+	if ( nav_astar_step_budget_ms ) {
+		state->search_budget_ms = ( uint64_t )std::max( 0.0f, nav_astar_step_budget_ms->value );
+	} else {
+		state->search_budget_ms = NAV_ASTAR_STEP_BUDGET_MS;
+	}
 
 	// Reserve containers to avoid repeated reallocations during incremental searches.
-	// Use a modest default reservation to reduce transient allocations for common short paths.
-	const size_t reserveNodes = std::min<size_t>( 512, ( size_t )state->max_nodes );
+	// Use a heuristic driven by async expansion budget to pick a sensible reserve size.
+	// We prefer a modest default of 512 to reduce transient allocations for common short paths.
+	// If async expansions are configured larger, use that as a hint (clamped by max_nodes).
+	int32_t asyncExpansionsHint = SVG_Nav_GetAsyncRequestExpansions(); // >= 1
+	const size_t heuristic = ( size_t )std::max( asyncExpansionsHint, 512 );
+	const size_t reserveNodes = std::min<size_t>( heuristic, ( size_t )state->max_nodes );
+
 	state->nodes.reserve( reserveNodes );
 	state->open_list.reserve( reserveNodes / 2 );
 	state->node_lookup.reserve( reserveNodes * 2 );
@@ -384,6 +446,8 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	} else {
 		state->tileRouteFilter = nullptr;
 	}
+	// Debug assertion: ensure non-owning pointer either null or points into our storage.
+	Q_assert( state->tileRouteFilter == nullptr || state->tileRouteFilter == &state->tile_route_storage );
 
 	nav_search_node_t start_search = {
 		.node = start_node,
@@ -411,6 +475,13 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	return true;
 }
 
+/**
+*	@brief	Advance the A* search by up to `expansions` node pops.
+*	@param	state		A* state to step.
+*	@param	expansions	Maximum node expansions to perform this call.
+*	@return	Current search status after stepping.
+*	@note	This function enforces both an expansions budget and a strict per-call time budget.
+**/
 nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansions ) {
 	if ( !state || state->status != nav_a_star_status_t::Running || expansions <= 0 ) {
 		return state ? state->status : nav_a_star_status_t::Failed;
@@ -424,17 +495,19 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 	*    Expansion budget guard:
 	*        - `expansions` limits work per call to keep frame time predictable.
 	*        - `NAV_ASTAR_MAX_NODES` prevents unbounded node growth on pathological meshes.
-	*        - `NAV_ASTAR_STEP_BUDGET_MS` throttles per-call time while allowing incremental continuation.
+	*        - `search_budget_ms` throttles per-call time while allowing incremental continuation.
 	**/
 	state->step_start_ms = gi.GetRealSystemTime();
 
-    int32_t expansionCounter = 0;
+	int32_t expansionCounter = 0;
 	while ( expansions > 0 && state->status == nav_a_star_status_t::Running ) {
+		// If the open list is empty, we failed to find a path.
 		if ( state->open_list.empty() ) {
 			state->status = nav_a_star_status_t::Failed;
 			break;
 		}
 
+		// Protect against excessive node growth.
 		if ( ( int32_t )state->nodes.size() >= state->max_nodes ) {
 			state->hit_stagnation_limit = true;
 			state->status = nav_a_star_status_t::Failed;
@@ -468,7 +541,13 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 			break;
 		}
 
+        // Expand neighbors; this function will itself return early if the per-call time budget is hit.
         Nav_AStar_ExpandNeighbors( state, current_index );
+		// If ExpandNeighbors set hit_time_budget, break early.
+		if ( state->hit_time_budget ) {
+			break;
+		}
+
 		expansions--;
 		expansionCounter++;
 	}

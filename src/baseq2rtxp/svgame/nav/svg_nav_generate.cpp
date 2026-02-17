@@ -400,6 +400,16 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
 *	@param	z_max	Maximum Z for sampling.
 *	@return	True if any walkable layers were sampled for this tile.
 */
+/**
+ *    @brief    Build a navigation tile by sampling walkable layers within BSP leaf bounds.
+ *    @param    mesh        Navigation mesh used for sampling parameters.
+ *    @param    tile        Tile object to populate (allocates presence_bits and cells).
+ *    @param    leaf_mins   World-space mins of the owning BSP leaf for XY culling.
+ *    @param    leaf_maxs   World-space maxs of the owning BSP leaf for XY culling.
+ *    @param    z_min       Minimum Z for sampling.
+ *    @param    z_max       Maximum Z for sampling.
+ *    @return   True if any walkable layers were sampled for this tile.
+ **/
 static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &leaf_mins, const Vector3 &leaf_maxs,
                            double z_min, double z_max ) {
     const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
@@ -438,10 +448,23 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
 
             if ( num_layers > 0 ) {
                 const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
-                tile->cells[ cell_index ].num_layers = num_layers;
-                tile->cells[ cell_index ].layers = layers;
-                Nav_SetPresenceBit_Load( tile, cell_index );
-                has_layers = true;
+                /**
+                *    Write safely into the preallocated cells array using the
+                *    public accessor to avoid direct dereferences of `tile->cells`.
+                **/
+                auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
+                nav_xy_cell_t *cellsPtr = cellsView.first;
+                const int32_t cellsCount = cellsView.second;
+                if ( cellsPtr && cell_index >= 0 && cell_index < cellsCount ) {
+                    cellsPtr[ cell_index ].num_layers = num_layers;
+                    cellsPtr[ cell_index ].layers = layers;
+                    // Use public accessor to set presence bit defensively.
+                    SVG_Nav_Tile_SetPresenceBit( tile, cell_index );
+                    has_layers = true;
+                } else {
+                    // Allocation race or corruption: free layers to avoid leak.
+                    gi.TagFree( layers );
+                }
             }
         }
 
@@ -546,10 +569,18 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
 
             if ( num_layers > 0 ) {
                 const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
-                tile->cells[ cell_index ].num_layers = num_layers;
-                tile->cells[ cell_index ].layers = layers;
-                Nav_SetPresenceBit_Load( tile, cell_index );
-                has_layers = true;
+                auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
+                nav_xy_cell_t *cellsPtr = cellsView.first;
+                const int32_t cellsCount = cellsView.second;
+                    if ( cellsPtr && cell_index >= 0 && cell_index < cellsCount ) {
+                    cellsPtr[ cell_index ].num_layers = num_layers;
+                    cellsPtr[ cell_index ].layers = layers;
+                    // Use public accessor to set presence bit defensively.
+                    SVG_Nav_Tile_SetPresenceBit( tile, cell_index );
+                    has_layers = true;
+                } else {
+                    gi.TagFree( layers );
+                }
             }
         }
     }

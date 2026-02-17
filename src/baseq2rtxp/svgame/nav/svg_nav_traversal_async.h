@@ -11,6 +11,7 @@
 #include <limits>
 #include <unordered_map>
 #include <vector>
+#include <new>
 
 #include "svgame/svg_local.h"
 #include "svgame/nav/svg_nav.h"
@@ -55,6 +56,35 @@ struct nav_a_star_state_t {
 	//! Pointer to either `tile_route_storage` or nullptr when no filter applies.
 	const std::vector<nav_tile_cluster_key_t> *tileRouteFilter = nullptr;
 
+	/**
+	*    @brief    Accessor returning a pointer to the tile-route filter if present.
+	*    @note     Prefer using this accessor to avoid directly copying raw internal pointers.
+	**/
+	const std::vector<nav_tile_cluster_key_t> *GetTileRouteFilterPtr() const {
+		return tileRouteFilter;
+	}
+
+	/**
+	*    @brief    Return a safe reference to the tile-route filter. If none exists,
+	*              an empty static vector is returned so callers can iterate without
+	*              checking for nullptr.
+	**/
+	const std::vector<nav_tile_cluster_key_t> &GetTileRouteFilterView() const {
+		static const std::vector<nav_tile_cluster_key_t> s_empty = {};
+		return tileRouteFilter ? *tileRouteFilter : s_empty;
+	}
+
+	/**
+	*    @brief    Rebind any internal non-owning pointers that reference owned
+	*              storage inside this object. Call after moves or when the
+	*              internal storage has been changed.
+	**/
+	void RebindInternalPointers() {
+       tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
+		// Debug assertion: ensure non-owning pointer either null or points into our storage.
+		Q_assert( tileRouteFilter == nullptr || tileRouteFilter == &tile_route_storage );
+	}
+
 	//! Optional traversal policy tuning applied per expansion.
 	const svg_nav_path_policy_t *policy = nullptr;
 	//! Optional owner path process used for failure penalties.
@@ -76,6 +106,181 @@ struct nav_a_star_state_t {
 	int32_t no_node_count = 0;
 	int32_t tile_filter_reject_count = 0;
 	int32_t edge_reject_count = 0;
+
+	// Default constructor / destructor
+	nav_a_star_state_t() = default;
+	~nav_a_star_state_t() = default;
+
+	/**
+	*    @brief    Use the engine tag allocator for nav state allocations so
+	*              they are tracked with level memory and can be freed by
+	*              the engine's tag-freeing facilities.
+	**/
+	static void *operator new( std::size_t size ) {
+		void *p = gi.TagMallocz( (int)size, TAG_SVGAME_LEVEL );
+		if ( !p ) {
+			// On allocation failure, propagate as bad_alloc to match normal new semantics.
+			throw std::bad_alloc();
+		}
+		return p;
+	}
+
+	/**
+	*    @brief    Ensure deallocation uses the engine tag-free to return memory to the
+	*              level allocator.
+	**/
+	static void operator delete( void *ptr ) noexcept {
+		if ( ptr ) {
+			gi.TagFree( ptr );
+		}
+	}
+
+	// Copy constructor: deep-copy containers and rebind internal view pointer.
+	nav_a_star_state_t(const nav_a_star_state_t &o)
+		: status(o.status),
+		  mesh(o.mesh),
+		  agent_mins(o.agent_mins),
+		  agent_maxs(o.agent_maxs),
+		  start_node(o.start_node),
+		  goal_node(o.goal_node),
+		  nodes(o.nodes),
+		  open_list(o.open_list),
+		  node_lookup(o.node_lookup),
+		  tile_route_storage(o.tile_route_storage),
+		  policy(o.policy),
+		  pathProcess(o.pathProcess),
+		  goal_index(o.goal_index),
+		  max_nodes(o.max_nodes),
+		  search_budget_ms(o.search_budget_ms),
+		  step_start_ms(o.step_start_ms),
+		  best_f_cost_seen(o.best_f_cost_seen),
+		  stagnation_count(o.stagnation_count),
+		  hit_stagnation_limit(o.hit_stagnation_limit),
+		  hit_time_budget(o.hit_time_budget),
+		  saw_vertical_neighbor(o.saw_vertical_neighbor),
+		  neighbor_try_count(o.neighbor_try_count),
+		  no_node_count(o.no_node_count),
+		  tile_filter_reject_count(o.tile_filter_reject_count),
+		  edge_reject_count(o.edge_reject_count)
+   {
+		// Rebind pointer to our own storage (or nullptr)
+		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
+		// Debug assertion: ensure non-owning pointer either null or points into our storage.
+		Q_assert( tileRouteFilter == nullptr || tileRouteFilter == &tile_route_storage );
+	}
+
+	// Copy assignment: copy containers and rebind pointer.
+	nav_a_star_state_t &operator=(const nav_a_star_state_t &o) {
+		if ( this == &o ) {
+			return *this;
+		}
+		status = o.status;
+		mesh = o.mesh;
+		agent_mins = o.agent_mins;
+		agent_maxs = o.agent_maxs;
+		start_node = o.start_node;
+		goal_node = o.goal_node;
+		nodes = o.nodes;
+		open_list = o.open_list;
+		node_lookup = o.node_lookup;
+		tile_route_storage = o.tile_route_storage;
+		policy = o.policy;
+		pathProcess = o.pathProcess;
+		goal_index = o.goal_index;
+		max_nodes = o.max_nodes;
+		search_budget_ms = o.search_budget_ms;
+		step_start_ms = o.step_start_ms;
+		best_f_cost_seen = o.best_f_cost_seen;
+		stagnation_count = o.stagnation_count;
+		hit_stagnation_limit = o.hit_stagnation_limit;
+		hit_time_budget = o.hit_time_budget;
+		saw_vertical_neighbor = o.saw_vertical_neighbor;
+		neighbor_try_count = o.neighbor_try_count;
+		no_node_count = o.no_node_count;
+		tile_filter_reject_count = o.tile_filter_reject_count;
+		edge_reject_count = o.edge_reject_count;
+
+           tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
+		// Debug assertion: ensure non-owning pointer either null or points into our storage.
+		Q_assert( tileRouteFilter == nullptr || tileRouteFilter == &tile_route_storage );
+		return *this;
+	}
+
+	// Move constructor: move containers and rebind pointer into destination.
+	nav_a_star_state_t(nav_a_star_state_t &&o) noexcept
+		: status(o.status),
+		  mesh(o.mesh),
+		  agent_mins(std::move(o.agent_mins)),
+		  agent_maxs(std::move(o.agent_maxs)),
+		  start_node(std::move(o.start_node)),
+		  goal_node(std::move(o.goal_node)),
+		  nodes(std::move(o.nodes)),
+		  open_list(std::move(o.open_list)),
+		  node_lookup(std::move(o.node_lookup)),
+		  tile_route_storage(std::move(o.tile_route_storage)),
+		  policy(o.policy),
+		  pathProcess(o.pathProcess),
+		  goal_index(o.goal_index),
+		  max_nodes(o.max_nodes),
+		  search_budget_ms(o.search_budget_ms),
+		  step_start_ms(o.step_start_ms),
+		  best_f_cost_seen(o.best_f_cost_seen),
+		  stagnation_count(o.stagnation_count),
+		  hit_stagnation_limit(o.hit_stagnation_limit),
+		  hit_time_budget(o.hit_time_budget),
+		  saw_vertical_neighbor(o.saw_vertical_neighbor),
+		  neighbor_try_count(o.neighbor_try_count),
+		  no_node_count(o.no_node_count),
+		  tile_filter_reject_count(o.tile_filter_reject_count),
+		  edge_reject_count(o.edge_reject_count)
+   {
+		// Rebind pointer to our own storage (or nullptr)
+		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
+		// Debug assertion: ensure non-owning pointer either null or points into our storage.
+		Q_assert( tileRouteFilter == nullptr || tileRouteFilter == &tile_route_storage );
+		// Leave moved-from object in a safe state.
+		o.tileRouteFilter = nullptr;
+		o.mesh = nullptr;
+	}
+
+	// Move assignment: move containers then rebind pointer.
+	nav_a_star_state_t &operator=(nav_a_star_state_t &&o) noexcept {
+		if ( this == &o ) {
+			return *this;
+		}
+		status = o.status;
+		mesh = o.mesh;
+		agent_mins = std::move(o.agent_mins);
+		agent_maxs = std::move(o.agent_maxs);
+		start_node = std::move(o.start_node);
+		goal_node = std::move(o.goal_node);
+		nodes = std::move(o.nodes);
+		open_list = std::move(o.open_list);
+		node_lookup = std::move(o.node_lookup);
+		tile_route_storage = std::move(o.tile_route_storage);
+		policy = o.policy;
+		pathProcess = o.pathProcess;
+		goal_index = o.goal_index;
+		max_nodes = o.max_nodes;
+		search_budget_ms = o.search_budget_ms;
+		step_start_ms = o.step_start_ms;
+		best_f_cost_seen = o.best_f_cost_seen;
+		stagnation_count = o.stagnation_count;
+		hit_stagnation_limit = o.hit_stagnation_limit;
+		hit_time_budget = o.hit_time_budget;
+		saw_vertical_neighbor = o.saw_vertical_neighbor;
+		neighbor_try_count = o.neighbor_try_count;
+		no_node_count = o.no_node_count;
+		tile_filter_reject_count = o.tile_filter_reject_count;
+		edge_reject_count = o.edge_reject_count;
+
+		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
+
+		// Reset moved-from object to safe state.
+		o.tileRouteFilter = nullptr;
+		o.mesh = nullptr;
+		return *this;
+	}
 };
 
 /**
