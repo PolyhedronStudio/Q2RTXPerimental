@@ -24,7 +24,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "server/sv_world.h"
 
 #include "shared/cm/cm_entity.h"
-
+#include "common/async.h"
 
 svgame_export_t    *ge;
 
@@ -1264,6 +1264,8 @@ void SV_InitGameProgs(void) {
 	imports.GetRealSystemTime = PF_GetRealSystemTime;
     imports.GetRealTime = PF_GetRealTime;
     imports.GetServerFrameNumber = PF_GetServerFrameNumber;
+
+	imports.Com_QueueAsyncWork = Com_QueueAsyncWork;
 
     // load a new game dll
     imports.multicast = PF_Multicast;

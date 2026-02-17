@@ -79,6 +79,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 #endif //__cplusplus
 
+/**
+*	Include the asynchronous job system definitions, so server game can access it too.
+**/
+#include "shared/asynchronous_work.h"
 
 /**
 *   Angle Indices:

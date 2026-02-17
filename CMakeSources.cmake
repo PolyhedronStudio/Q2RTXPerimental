@@ -809,6 +809,7 @@ SET(HEADERS_GL
 #
 SET(HEADERS_SHARED
 	# <Q2RTXP>: WID: TODO: For some reason it won 't find them anyhow, also, list is outdated.'
+    #shared/asynchronous_work.h
 	#shared/client/cl_game.h
 	#shared/config.h
 	#shared/config_cpp.h

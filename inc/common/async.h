@@ -21,14 +21,18 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 // Extern C
 QEXTERN_C_OPEN
 
-    typedef struct asyncwork_s {
+	// <Q2RTXP>: Moved to shared headers so that the server game module can also use async work queuing for its own purposes.
+#if 0
+	typedef struct asyncwork_s {
         void ( *work_cb )( void * );
         void ( *done_cb )( void * );
         void *cb_arg;
         struct asyncwork_s *next;
     } asyncwork_t;
-
-#if USE_CLIENT
+#endif
+// <Q2RTXP>: The server now supports asynchronous work queuing for game module tasks. This allows expensive operations (like A* pathfinding) to be offloaded to worker threads without blocking the main server thread.
+//#if USE_CLIENT
+#if 1
 
 void Com_QueueAsyncWork(asyncwork_t *work);
 void Com_CompleteAsyncWork(void);

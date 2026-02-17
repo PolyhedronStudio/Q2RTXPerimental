@@ -195,6 +195,12 @@ typedef struct {
     //! The time for each frame in 'miliseconds'.
 	uint32_t    frame_time_ms;
 
+
+	/**
+	*
+	*	Timer Related:
+	*
+	**/
 	/**
 	*	@return	For legitimate real system time tracking purposes.
 	**/
@@ -208,6 +214,11 @@ typedef struct {
     **/
     const int64_t ( *GetServerFrameNumber )( void );
 
+
+	/**
+	*	Asynchronous PThreading:
+	**/
+	void ( *Com_QueueAsyncWork )( asyncwork_t *work );
 
     /**
     *

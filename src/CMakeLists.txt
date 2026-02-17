@@ -239,6 +239,7 @@ IF( CONFIG_BUILD_SERVER_TARGET )
 			client/cl_null.cpp
 			windows/res/q2rtxpded.rc
 			windows/threads/threads.c
+			windows/pthread.c
 		)
 	ELSE()
 		ADD_EXECUTABLE(server

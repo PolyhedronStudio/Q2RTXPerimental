@@ -60,7 +60,10 @@ static void *work_func(void *arg)
 
     return NULL;
 }
-#if USE_CLIENT
+
+// <Q2RTXP>: The server now supports asynchronous work queuing for game module tasks. This allows expensive operations (like A* pathfinding) to be offloaded to worker threads without blocking the main server thread.
+//#if USE_CLIENT
+#if 1
 
 void Com_QueueAsyncWork(asyncwork_t *work)
 {
