@@ -1,174 +1,326 @@
-# Navigation Voxelmesh Generator
+# Navigation Voxelmesh / Navmesh API (`svgame/nav`)
 
-## Overview
+This folder implements the runtime navigation voxelmesh used by SVGame entities for A* pathfinding and waypoint-following.
 
-The navigation voxelmesh generator creates a sparse, multi-layered navigation mesh suitable for A* pathfinding in Quake 2 BSP maps. The implementation is designed to be bbox-independent with configurable parameters.
+It is not a traditional polygon navmesh. Instead it is a sparse, tiled, multi-layer sample grid designed to work well with Quake 2 BSP collision and PMove-style stepping.
 
-## Files
+Primary public headers:
 
-- `src/baseq2rtxp/svgame/nav/svg_nav.h` - Header file with data structures and API
-- `src/baseq2rtxp/svgame/nav/svg_nav.cpp` - Implementation file
+- `svg_nav.h` (core mesh structures, agent profile, inline-model runtime)
+- `svg_nav_traversal.h` (A* traversal path generation and path querying)
+- `svg_nav_path_process.h` (per-entity path process: throttling, backoff, direction queries)
+- `svg_nav_request.h` (async request queue)
+- `svg_nav_clusters.h` (coarse tile cluster routing)
 
-## Console Command
+---
 
-**Usage**: `sv nav_gen_voxelmesh`
+## 1) What the “navmesh” is in this codebase
 
-Generates the navigation voxelmesh for the currently loaded level and prints statistics.
+### 1.1 Voxelmesh, not polygons
+The nav system stores walkable surface samples on a fixed XY grid (cell size configured via cvars). Each XY cell can have multiple Z layers to represent multi-floor spaces.
 
-## Configuration CVars
+At runtime, A* expands across this grid and validates candidate transitions using real collision traces and conservative step logic.
 
-| CVar | Default | Description |
-|------|---------|-------------|
-| `nav_cell_size_xy` | 4 | XY grid cell size in world units |
-| `nav_z_quant` | 2 | Z-axis quantization step |
-| `nav_tile_size` | 32 | Number of cells per tile dimension |
-| `nav_max_step` | 18 | Maximum step height (matches PM_STEP_MAX_SIZE) |
-| `nav_max_drop` | 128 | Maximum safe downward drop height before traversal is rejected |
-| `nav_drop_cap` | 18 | Maximum downard(Z) height that agents can drop safely |
-| `nav_max_slope_deg` | 45.57 | Maximum walkable slope in degrees (matches PM_STEP_MIN_NORMAL = 0.7) |
-| `nav_agent_mins_x` | -16 | Agent bounding box minimum X |
-| `nav_agent_mins_y` | -16 | Agent bounding box minimum Y |
-| `nav_agent_mins_z` | -36 | Agent bounding box minimum Z |
-| `nav_agent_maxs_x` | 16 | Agent bounding box maximum X |
-| `nav_agent_maxs_y` | 16 | Agent bounding box maximum Y |
-| `nav_agent_maxs_z` | 36 | Agent bounding box maximum Z |
+### 1.2 What it consists of
+Core structures (see `svg_nav.h`):
 
-## Data Structures
+- `nav_layer_t`
+  - One sampled walkable surface at an XY cell.
+  - Stores quantized Z (`z_quantized`), `flags` (water/lava/slime/ladder), and optional `clearance`.
 
-### nav_mesh_t
-Main navigation mesh structure containing:
-- World mesh data (per-leaf tiles)
-- Inline model mesh data (per-model tiles)
-- Generation parameters
-- Statistics (total tiles, cells, layers)
+- `nav_xy_cell_t`
+  - One XY cell entry.
+  - Stores `num_layers` and a `layers` array.
 
-### nav_leaf_data_t
-Per-BSP-leaf navigation data with an array of tiles.
+- `nav_tile_t`
+  - Tiles group many XY cells to keep lookup cache-friendly and allocations sparse.
+  - Uses `presence_bits` to indicate which XY cells exist.
 
-### nav_inline_model_data_t
-Per-inline-model (brush model) navigation data with tiles in local space.
+- `nav_leaf_data_t`
+  - World navigation data is organized per BSP leaf.
 
-### nav_tile_t
-A tile covering a region of XY cells with:
-- Tile coordinates (tile_x, tile_y)
-- Presence bitset for sparse storage
-- Array of XY cells
+- `nav_mesh_t`
+  - The complete runtime mesh.
+  - Holds world tiles, per-leaf lookup data, default agent bounds, and inline-model data.
 
-### nav_xy_cell_t
-XY cell entry containing multiple Z layers.
+### 1.3 Layer flags and environmental classification
+`nav_layer_flags_t` values:
 
-### nav_layer_t
-A single Z layer with:
-- Quantized Z position
-- Flags (walkable, water, lava, slime, ladder)
-- Clearance information
+- `NAV_FLAG_WALKABLE`
+- `NAV_FLAG_WATER`
+- `NAV_FLAG_LAVA`
+- `NAV_FLAG_SLIME`
+- `NAV_FLAG_LADDER`
 
-## Generation Approach
+These are used for:
 
-### World Mesh
-1. Uses **world-only collision** traces (`gi.trace` with `nullptr` passent)
-2. Iterates through BSP leafs
-3. For each leaf, creates tiles based on leaf bounds
-4. For each tile, samples XY grid positions
-5. For each XY position, performs downward traces to find multiple walkable layers
+- traversal heuristics (weighting/hazard avoidance)
+- filtering and constraints
+- debug drawing/diagnostics
 
-### Inline Model Mesh
-1. Identifies inline BSP models (*1, *2, etc.)
-2. Bakes each model in its **local space**
-3. Uses `gi.clip` traces against the specific model entity
-4. Stores meshes keyed by model index for later entity transform application
+---
 
-### Multi-Layer Detection
-- Performs repeated downward traces at each XY column
-- Checks for walkable slopes (normal.z >= cos(max_slope_deg)) and step heights
-- Detects content flags (water, lava, slime)
-- Stores all walkable layers, not just the topmost hit
+## 2) Coordinate spaces (critical for correct usage)
 
-## Memory Management
+The nav system commonly talks about two related spaces:
 
-All allocations use `gi.TagMalloc` / `gi.TagFree` with `TAG_SVGAME_LEVEL` tag:
-- Navigation mesh is freed on level unload
-- Can be regenerated multiple times with `sv nav_gen_voxelmesh`
+### 2.1 Feet-origin space (entity gameplay space)
+Most gameplay code uses a “feet-origin” with Z representing ground contact.
 
-## Integration Points
+All high-level traversal APIs accept feet-origin coordinates.
 
-### Initialization
-- `SVG_Nav_Init()` called from `SVG_InitGame()` in `svg_main.cpp`
-- Registers all cvars with default values
+### 2.2 Nav-center space (A* internal space)
+Node lookups and edge validation are performed in “nav-center space,” which is the feet-origin translated by the hull center offset.
 
-### Shutdown
-- `SVG_Nav_Shutdown()` called from `SVG_ShutdownGame()` in `svg_main.cpp`
-- Frees all allocated navigation mesh memory
+Helper:
 
-### Command Registration
-- `ServerCommand_NavGenVoxelMesh_f()` registered in `SVG_ServerCommand()` in `svg_commands_server.cpp`
-- Callable via console: `sv nav_gen_voxelmesh`
+- `SVG_Nav_ConvertFeetToCenter( mesh, feet_origin, agent_mins, agent_maxs )`
 
-## Current Implementation Status
+Why this matters:
 
-### Completed
-- ✅ Data structure definitions
-- ✅ CVar registration with sensible defaults matching player physics
-- ✅ Memory allocation/deallocation system
-- ✅ Command registration
-- ✅ Statistics tracking and output
-- ✅ Multi-layer detection algorithm
-- ✅ Slope walkability checking
-- ✅ Content flag detection
-- ✅ Ladder content detection
-- ✅ World mesh generation with BSP leaf traversal
-- ✅ A* traversal pathfinding and movement direction queries
-- ✅ CMake integration
+- start/goal node selection is highly sensitive to the Z layer chosen at a given XY
+- supplying the wrong bbox (or mixing feet vs. center conventions) can shift the origin into the wrong Z layer and make A* fail
 
-### Placeholder/TODO
-- ⚠️ Inline model mesh generation (basic structure in place, needs full implementation)
-- ⚠️ Clearance calculation
-- ⚠️ Inline model tile creation and XY cell sampling
+Rule of thumb:
 
-## Notes
+- prefer the navmesh agent bbox (or the cvar-derived profile) for all traversal requests
+- only use entity collision bounds as last-resort fallback
 
-- The implementation does NOT change monster/player movement - it only generates data
-- The voxelmesh now supports traversal pathfinding via A* helpers
-- Generation parameters are designed to match Quake 2 player physics constraints
-- The sparse tile structure minimizes memory usage in large maps
+---
 
-## Testing
+## 3) API use categories
 
-To test the implementation:
-1. Build the project with CMake
-2. Start a dedicated server or listen server
-3. Load a map
-4. Execute `sv nav_gen_voxelmesh` in the console
-5. Review the statistics output showing leafs, tiles, cells, and layers generated
+The API is easiest to use as a stack of layers:
 
-## Traversal Pathfinding API
+1. **Generation / load / save**: build or load a mesh for the map.
+2. **Traversal (A*)**: build a waypoint path between two origins.
+3. **Path process (per-entity)**: keep and follow a path over time; throttle rebuild.
+4. **Async request queue**: amortize path rebuild cost across frames.
+5. **Coarse cluster routing**: speed up long-distance routes.
+6. **Debug tools**: visualize mesh and paths.
 
-The navigation system now exposes traversal helpers for A* pathfinding:
+Each category below describes when/what/how to use.
 
-- `SVG_Nav_GenerateTraversalPathForOrigin` builds a waypoint list between a start and goal.
-- `SVG_Nav_QueryMovementDirection` returns a normalized direction toward the next waypoint.
-- `SVG_Nav_FreeTraversalPath` releases path memory.
+---
 
-Example output:
-```
-=== Navigation Voxelmesh Generation ===
-Parameters:
-  cell_size_xy: 4.0
-  z_quant: 2.0
-  tile_size: 32
-  max_step: 18.0
-  max_slope_deg: 45.6
-  agent_mins: (-16.0, -16.0, -36.0)
-  agent_maxs: (16.0, 16.0, 36.0)
-Generating world mesh for X leafs...
-Generating inline model mesh for Y models...
+## 4) Generation / initialization / persistence
 
-=== Generation Statistics ===
-  Leafs processed: X
-  Inline models: Y
-  Total tiles: Z
-  Total XY cells: A
-  Total layers: B
-  Build time: C.CCC seconds
-===================================
-```
+### 4.1 Mesh generation (`svg_nav_generate.*`)
+When to use:
+
+- during development to generate nav data for the current map
+- when your workflow supports runtime generation from BSP
+
+How to use:
+
+- console command: `sv nav_gen_voxelmesh`
+
+Important cvars (common ones):
+
+- grid/tile: `nav_cell_size_xy`, `nav_tile_size`, `nav_z_quant`
+- traversal constraints: `nav_max_step`, `nav_max_drop`, `nav_drop_cap`, `nav_max_slope_deg`
+- agent bbox: `nav_agent_mins_*`, `nav_agent_maxs_*`
+
+Pitfall:
+
+- any changes to agent bbox or traversal limit assumptions typically require regeneration (or ensuring saved data was built with the same constraints).
+
+### 4.2 Save/load (`svg_nav_save.*`, `svg_nav_load.*`)
+When to use:
+
+- persist generated nav data so it doesn’t need regeneration each run
+
+What it does:
+
+- serializes the sparse tiles/cells/layers and mesh metadata
+- restores the mesh and its derived lookup state on load
+
+---
+
+## 5) Inline models (movers)
+
+Maps contain movers (brush models like `func_door`, `func_plat`). The nav system supports inline model nav data by storing it separately and applying runtime transforms.
+
+Key update call:
+
+- `SVG_Nav_RefreshInlineModelRuntime()`
+
+When to call:
+
+- once per frame (or from the nav tick)
+
+---
+
+## 6) Traversal (A*) paths
+
+Traversal APIs are in `svg_nav_traversal.h`. They generate a `nav_traversal_path_t` (an owned set of waypoints and metadata).
+
+### 6.1 Synchronous path generation
+When to use:
+
+- dev tooling
+- low-agent-count gameplay scenarios
+- fallback when async is disabled
+
+Main entry points:
+
+- `SVG_Nav_GenerateTraversalPathForOrigin( start, goal, out_path )`
+- `SVG_Nav_GenerateTraversalPathForOriginEx( start, goal, out_path, enable_blend, blend_start_dist, blend_full_dist )`
+- `SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( start, goal, out_path, agent_mins, agent_maxs, policy )`
+- `SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( ... )`
+
+How to use:
+
+1. Pick the agent bbox to use for the query.
+2. Pick a `svg_nav_path_policy_t` (or pass `nullptr` in lower-level APIs where allowed).
+3. Call a `...WithAgentBBox` overload.
+4. If it succeeds, follow the returned path (query directions each tick).
+5. Free when done.
+
+Cleanup:
+
+- `SVG_Nav_FreeTraversalPath( &path )`
+
+### 6.2 Path querying / steering
+To follow an existing `nav_traversal_path_t`:
+
+- `SVG_Nav_QueryMovementDirection( path, current_origin, waypoint_radius, policy, &index, &out_direction )`
+
+Typical use:
+
+- store `path_index` as part of your entity
+- call the query function each frame
+- use the returned normalized direction for facing and velocity
+
+---
+
+## 7) Movement feasibility and edge validation helpers
+
+These functions are used by traversal internally (to validate grid transitions using traces), but are also useful for diagnostics and custom movement checks.
+
+From `svg_nav_traversal.h`:
+
+- `Nav_Trace( start, mins, maxs, end, clip_entity, mask )`
+- `Nav_CanTraverseStep( mesh, start_center, end_center, clip_entity )`
+- `Nav_CanTraverseStep_ExplicitBBox( mesh, start_center, end_center, mins, maxs, clip_entity, policy )`
+
+Important:
+
+- these step tests operate in nav-center space for the start/end positions.
+
+---
+
+## 8) Per-entity path processing (`svg_nav_path_process_t`)
+
+`svg_nav_path_process_t` is intended to be embedded in an entity to provide stable path state and sensible rebuild throttling.
+
+What it provides:
+
+- current `path` plus `path_index`
+- start/goal change tracking
+- backoff after repeated failures
+- synchronous rebuild helpers
+- direction query helpers (2D and 3D)
+- async request ownership (handle + generation)
+
+Key methods (see `svg_nav_path_process.h`):
+
+- `Reset()`
+- `RebuildPathTo( start_origin, goal_origin, policy )`
+- `RebuildPathToWithAgentBBox( start_origin, goal_origin, policy, agent_mins, agent_maxs, force )`
+- Rebuild gates: `CanRebuild`, `ShouldRebuildForGoal2D/3D`, `ShouldRebuildForStart2D/3D`
+- Steering: `QueryDirection2D`, `QueryDirection3D`
+- Utility: `GetNextPathPointEntitySpace`
+
+When to prefer `QueryDirection3D`:
+
+- stairs/slopes/step handling matters and you want a direction consistent with the vertical structure of waypoints.
+
+---
+
+## 9) Async request queue (`svg_nav_request.*`)
+
+The async queue exists to avoid doing blocking A* solves for many agents in the same frame.
+
+When to use:
+
+- monsters that pursue targets continuously
+- any scenario where many entities may retarget/rebuild at once
+
+Key API (see `svg_nav_request.h`):
+
+- `SVG_Nav_RequestPathAsync( pathProcess, start, goal, policy, agent_mins, agent_maxs, force )`
+- `SVG_Nav_CancelRequest( handle )`
+- `SVG_Nav_IsRequestPending( pathProcess )`
+- `SVG_Nav_ProcessRequestQueue()`
+
+Configuration helpers:
+
+- `SVG_Nav_IsAsyncNavEnabled()`
+- `SVG_Nav_GetAsyncRequestBudget()`
+- `SVG_Nav_GetAsyncRequestExpansions()`
+
+Usage rules:
+
+- always cancel pending requests when swapping goals/modes or freeing the entity
+- do not rely on `rebuild_in_progress` alone for determining if work is pending; use `SVG_Nav_IsRequestPending`
+
+---
+
+## 10) Coarse tile cluster routing (`svg_nav_clusters.*`)
+
+The cluster graph is a coarse adjacency graph over world tiles.
+
+Intended usage:
+
+1. resolve start/goal tiles
+2. BFS across tile adjacency to get a tile route
+3. run fine A* restricted to tiles on that route
+
+This reduces fine A* search space on large maps.
+
+---
+
+## 11) Debug / visualization (`svg_nav_debug.*`)
+
+Use these utilities to:
+
+- verify generated tiles/layers
+- visualize paths and waypoint indices
+- diagnose why traversal failed (blocked step, too steep, too large drop, no layer match)
+
+---
+
+## 12) Example: testdummy debug monster (`MoveAStarToOrigin` pattern)
+
+The test dummy debug monster demonstrates the intended runtime flow: embed a `svg_nav_path_process_t`, enqueue rebuilds (preferably async), and follow the path each tick.
+
+Relevant code:
+
+- `src/baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.cpp`
+- helper routines in `src/baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_puppet.cpp`
+
+Conceptual workflow (mirrors how `MoveAStarToOrigin(...)` is used):
+
+1. Determine the nav agent bbox
+   - use `SVG_TestDummy_GetNavAgentBBox( self, &agent_mins, &agent_maxs )`
+   - prefer mesh/cvar agent bounds so feet->center conversion matches mesh generation
+
+2. Decide if a rebuild is needed
+   - throttle with `navPathProcess.CanRebuild( policy )`
+   - detect goal changes with `navPathProcess.ShouldRebuildForGoal2D/3D( goal, policy )`
+
+3. Enqueue an async rebuild
+   - `handle = SVG_Nav_RequestPathAsync( &navPathProcess, start, goal, policy, agent_mins, agent_maxs, force )`
+   - store `handle` for cancellation if the goal changes
+
+4. While async runs, optionally apply fallback pursuit
+   - keeps motion responsive while waiting for the new waypoint list
+
+5. Follow the committed path
+   - `navPathProcess.QueryDirection3D( self->currentOrigin, policy, &dir3d )`
+   - translate direction into facing/velocity
+   - run physics (`PerformSlideMove`) and update entity angles
+
+6. On mode switch / deactivation
+   - cancel pending async requests and free cached paths (see helper like `SVG_TestDummy_ResetNavPath( self )`)
