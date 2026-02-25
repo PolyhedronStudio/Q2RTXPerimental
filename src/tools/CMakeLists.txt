@@ -11,11 +11,11 @@ set( CMAKE_CXX_EXTENSIONS OFF )
 ####
 ##	Embed GIT Repository Version Number as compiler parameter defines.
 ####
-add_definitions(-DVERSION_MAJOR=${Q2RTX_VERSION_MAJOR})
-add_definitions(-DVERSION_MINOR=${Q2RTX_VERSION_MINOR})
-add_definitions(-DVERSION_POINT=${Q2RTX_VERSION_POINT})
-add_definitions(-DVERSION_SHA=${Q2RTX_VERSION_SHA})
-add_definitions(-DVERSION_BRANCH=${Q2RTX_VERSION_BRANCH})
+add_definitions(-DVERSION_MAJOR=${Q2RTXP_VERSION_MAJOR})
+add_definitions(-DVERSION_MINOR=${Q2RTXP_VERSION_MINOR})
+add_definitions(-DVERSION_POINT=${Q2RTXP_VERSION_POINT})
+add_definitions(-DVERSION_SHA=${Q2RTXP_VERSION_SHA})
+add_definitions(-DVERSION_BRANCH=${Q2RTXP_VERSION_BRANCH})
 
 add_definitions(-DHAVE_CONFIG_H=1 -DCURL_STATICLIB -DAL_LIBTYPE_STATIC)
 
