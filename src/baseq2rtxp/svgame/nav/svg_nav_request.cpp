@@ -96,8 +96,8 @@ void SVG_Nav_RequestQueue_RegisterCvars( void ) {
 	}
 
 	s_nav_nav_async_enable = gi.cvar( "nav_nav_async_enable", "1", 0 );
-	s_nav_requests_per_frame = gi.cvar( "nav_requests_per_frame", "4", 0 );
-	s_nav_expansions_per_request = gi.cvar( "nav_expansions_per_request", "512", 0 );
+	s_nav_requests_per_frame = gi.cvar( "nav_requests_per_frame", "1280", 0 ); // <Q2RTXP>: WID: Increased from 40 times, for 32 monsters with 1 request each, to 40 times that for 1280 requests to allow more async processing per frame and reduce main-thread work when many entities are queuing requests.
+	s_nav_expansions_per_request = gi.cvar( "nav_expansions_per_request", "2048", 0 ); // <Q2RTXP>: WID: Increased from 512
 	nav_nav_async_queue_mode = gi.cvar( "nav_nav_async_queue_mode", "1", 0 );
 	s_nav_nav_async_log_stats = gi.cvar( "nav_nav_async_log_stats", "1", 0 );
 
@@ -169,7 +169,7 @@ static nav_request_entry_t *NavRequest_FindEntryForProcess( svg_nav_path_process
  **/
 nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProcess, const Vector3 &start_origin,
 	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
-	const Vector3 &agent_maxs, bool force ) {
+	const Vector3 &agent_maxs, bool force, double startIgnoreThreshold ) {
 	/**
 	*    Sanity: require a valid process pointer and an enabled queue.
 	**/
@@ -204,7 +204,10 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
     // Debounce: avoid refreshing/prepping repeatedly within a very short time window
 	// for the same process unless forced. This helps prevent per-frame prep work that
 	// can cause single-frame hitches when many entities refresh every frame.
-	const QMTime minPrepInterval = 50_ms; // 50 ms debounce (tunable)
+	// Increase debounce to reduce frequent per-frame prepare attempts from callers
+	// that may still invoke refreshes too often. This value is intentionally
+	// conservative to give the async worker time to initialize and start running.
+	const QMTime minPrepInterval = 100_ms; // 100 ms debounce (tunable)
 	if ( !force && pathProcess && pathProcess->last_prep_time > 0_ms ) {
 		// Get the current time and compute the delta since the last prep attempt for this process.
 		const QMTime now = level.time;
@@ -265,13 +268,46 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 		}
 
 		// Refresh existing entry parameters instead of creating a duplicate.
-		existing->start = start_origin;
+		// Update the existing entry's parameters in-place so a running search can
+		// finish without being repeatedly reinitialized. If the entry is Running
+		// and the caller requires an immediate replacement, mark it so the
+		// runner can transition it to Queued after finishing the current step.
+        existing->start = start_origin;
 		existing->goal = goal_origin;
 		existing->generation = pathProcess->request_generation;
 		existing->policy = policy;
 		existing->agent_mins = agent_mins;
 		existing->agent_maxs = agent_maxs;
 		existing->force = existing->force || force;
+		// If a startIgnoreThreshold was provided by the caller, use it to
+		// decide whether an in-flight Running entry should be refreshed.
+		if ( existing->status == nav_request_status_t::Running ) {
+			const double effectiveIgnore = startIgnoreThreshold > 0.0 ? startIgnoreThreshold : 0.0;
+			if ( effectiveIgnore > 0.0 ) {
+				const Vector3 refStart = ( existing->path_process && existing->path_process->last_prep_time > 0_ms ) ? existing->path_process->last_prep_start : existing->path_process->path_start;
+				const double startDx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, refStart ) );
+				if ( startDx <= effectiveIgnore && !force ) {
+					if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+						gi.dprintf( "[NavAsync][Queue] Suppressing running refresh for handle=%d startDx=%.2f <= ignore=%.2f\n",
+							existing->handle, startDx, effectiveIgnore );
+					}
+					// Don't flip back to Queued; update params only.
+					existing->needs_refresh = existing->needs_refresh || force;
+					if ( existing->path_process ) {
+						existing->path_process->last_prep_time = level.time;
+						existing->path_process->last_prep_start = start_origin;
+						existing->path_process->last_prep_goal = goal_origin;
+					}
+					return existing->handle;
+				}
+			}
+			// Otherwise defer re-prep by marking needs_refresh; worker will be re-prepared after current search.
+			existing->needs_refresh = existing->needs_refresh || force;
+			existing->status = nav_request_status_t::Queued;
+		} else {
+			// If not running, mark queued so worker will prepare it normally.
+			existing->status = nav_request_status_t::Queued;
+		}
 		// Record last prep time/positions on the owning process to enable debounce logic.
 		if ( existing->path_process ) {
 			existing->path_process->last_prep_time = level.time;
@@ -417,7 +453,7 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 	int32_t processed = 0;
 	const int32_t queueBefore = ( int32_t )s_nav_request_queue.size();
 	const uint64_t queueStartMs = gi.GetRealSystemTime();
-	const uint64_t queueBudgetMs = 2;
+	const uint64_t queueBudgetMs = 8;
 
 	/**
 	*    Iterate queue entries while honoring request, expansion, and time budgets.
@@ -474,17 +510,41 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 		**/
 		processed++;
 
-		if ( starStatus == nav_a_star_status_t::Completed ) {
-			const bool commitOk = NavRequest_FinalizePathForEntry( entry );
-			entry.status = commitOk ? nav_request_status_t::Completed : nav_request_status_t::Failed;
-			if ( !commitOk ) {
-				NavRequest_HandleFailure( entry );
+        if ( starStatus == nav_a_star_status_t::Completed ) {
+			// If a refresh was requested while this entry was running, defer
+			// committing the just-completed result and instead re-queue the
+			// entry so it will be re-prepared with the newer parameters.
+			if ( entry.needs_refresh ) {
+				if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+					gi.dprintf( "[NavAsync][Queue] Deferring commit for handle=%d due to pending refresh; re-queueing.\n", entry.handle );
+				}
+				// Clear the flag and reset the working A* state so it can be
+				// re-initialized by the worker using the updated parameters.
+				entry.needs_refresh = false;
+				entry.status = nav_request_status_t::Queued;
+			} else {
+				const bool commitOk = NavRequest_FinalizePathForEntry( entry );
+				entry.status = commitOk ? nav_request_status_t::Completed : nav_request_status_t::Failed;
+				if ( !commitOk ) {
+					NavRequest_HandleFailure( entry );
+				}
+				NavRequest_ClearProcessMarkers( entry );
 			}
-			NavRequest_ClearProcessMarkers( entry );
 		} else if ( starStatus == nav_a_star_status_t::Failed ) {
-			entry.status = nav_request_status_t::Failed;
-			NavRequest_HandleFailure( entry );
-			NavRequest_ClearProcessMarkers( entry );
+			// If a refresh was requested while running, prefer re-queueing
+			// over applying failure backoff so callers get a chance to retry
+			// with updated parameters. Otherwise apply failure handling.
+			if ( entry.needs_refresh ) {
+				if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+					gi.dprintf( "[NavAsync][Queue] Re-queueing handle=%d after failure due to pending refresh.\n", entry.handle );
+				}
+				entry.needs_refresh = false;
+				entry.status = nav_request_status_t::Queued;
+			} else {
+				entry.status = nav_request_status_t::Failed;
+				NavRequest_HandleFailure( entry );
+				NavRequest_ClearProcessMarkers( entry );
+			}
 		}
 
 		if ( entry.status != nav_request_status_t::Running ) {
@@ -578,7 +638,16 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	entry.resolved_policy.max_step_height = meshAgentValid ? mesh->max_step : agentProfile.max_step_height;
 	entry.resolved_policy.max_drop_height = agentProfile.max_drop_height;
 	entry.resolved_policy.drop_cap = agentProfile.drop_cap;
-	entry.resolved_policy.max_slope_deg = meshAgentValid ? mesh->max_slope_deg : agentProfile.max_slope_deg;
+	entry.resolved_policy.max_slope_normal_z = meshAgentValid ? mesh->max_slope_normal_z : agentProfile.max_slope_normal_z;
+
+	// Emit diagnostic about chosen agent hull for this request when async logging is enabled.
+	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		gi.dprintf( "[NavAsync][Prep] handle=%d resolved_agent_mins=(%.1f %.1f %.1f) resolved_agent_maxs=(%.1f %.1f %.1f) use_mesh_agent=%d\n",
+			entry.handle,
+			resolvedAgentMins.x, resolvedAgentMins.y, resolvedAgentMins.z,
+			resolvedAgentMaxs.x, resolvedAgentMaxs.y, resolvedAgentMaxs.z,
+			meshAgentValid ? 1 : 0 );
+	}
 
 	/**
 	*    Sanity: quick world-bounds check on main thread to avoid obvious worker work.
@@ -675,6 +744,16 @@ static void NavRequest_Worker_DoInit( void *cb_arg ) {
 				p->handle, start_ok ? 1 : 0, goal_ok ? 1 : 0 );
 		}
 		return;
+	}
+
+	// Successful node resolution: emit coordinates for diagnostics when enabled.
+	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		gi.dprintf( "[NavAsync][Worker] node resolution success handle=%d start=(%.1f %.1f %.1f) start_node=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_node=(%.1f %.1f %.1f)\n",
+			p->handle,
+			p->start_feet.x, p->start_feet.y, p->start_feet.z,
+			start_node.position.x, start_node.position.y, start_node.position.z,
+			p->goal_feet.x, p->goal_feet.y, p->goal_feet.z,
+			goal_node.position.x, goal_node.position.y, goal_node.position.z );
 	}
 
 	// Optionally compute coarse tile route filter (can be expensive on some maps).
@@ -832,7 +911,22 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 	}
 
 	std::vector<Vector3> points;
-	if ( !Nav_AStar_Finalize( &entry.a_star, &points ) ) {
+    if ( !Nav_AStar_Finalize( &entry.a_star, &points ) ) {
+		// Emit temporary diagnostic describing A* state when finalize fails.
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			gi.dprintf( "[NavAsync][Finalize] Nav_AStar_Finalize failed handle=%d status=%d nodes=%d max_nodes=%d neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d hit_budget=%d hit_stagnation=%d\n",
+				entry.handle,
+				( int )entry.a_star.status,
+				( int )entry.a_star.nodes.size(),
+				entry.a_star.max_nodes,
+				entry.a_star.neighbor_try_count,
+				entry.a_star.no_node_count,
+				entry.a_star.edge_reject_count,
+				entry.a_star.tile_filter_reject_count,
+				entry.a_star.stagnation_count,
+				entry.a_star.hit_time_budget ? 1 : 0,
+				entry.a_star.hit_stagnation_limit ? 1 : 0 );
+		}
 		return false;
 	}
 	// Diagnostic: compute and print the feet->center conversion used for this completed entry.
@@ -938,6 +1032,84 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
 	svg_nav_path_process_t *process = entry.path_process;
 	if ( !process ) {
 		return;
+	}
+
+	// Temporary diagnostic: print A* internal counters when an async request fails.
+	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		gi.dprintf( "[NavAsync][HandleFailure] handle=%d status=%d nodes=%d max_nodes=%d neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d hit_budget=%d hit_stagnation=%d\n",
+			entry.handle,
+			( int )entry.a_star.status,
+			( int )entry.a_star.nodes.size(),
+			entry.a_star.max_nodes,
+			entry.a_star.neighbor_try_count,
+			entry.a_star.no_node_count,
+			entry.a_star.edge_reject_count,
+			entry.a_star.tile_filter_reject_count,
+			entry.a_star.stagnation_count,
+			entry.a_star.hit_time_budget ? 1 : 0,
+			entry.a_star.hit_stagnation_limit ? 1 : 0 );
+
+		/**
+		*    Emit a concise structured dump of the resolved traversal policy and
+		*    agent hull used for this failed request. This helps quickly identify
+		*    mismatches between policy limits and the navmesh that cause edge
+		*    rejection during expansion.
+		**/
+		gi.dprintf( "[NavAsync][HandleFailure][Detail] handle=%d agent_mins=(%.1f %.1f %.1f) agent_maxs=(%.1f %.1f %.1f) policy: max_step=%.1f min_step=%.1f max_drop=%.1f drop_cap=%.1f cap_drop=%d allow_jump=%d max_slope=%.1f waypoint_radius=%.1f backoff_base_ms=%d backoff_max_pow=%d\n",
+			entry.handle,
+			entry.agent_mins.x, entry.agent_mins.y, entry.agent_mins.z,
+			entry.agent_maxs.x, entry.agent_maxs.y, entry.agent_maxs.z,
+			entry.resolved_policy.max_step_height,
+			entry.resolved_policy.min_step_height,
+			entry.resolved_policy.max_drop_height,
+            entry.resolved_policy.drop_cap,
+			entry.resolved_policy.cap_drop_height ? 1 : 0,
+			entry.resolved_policy.allow_small_obstruction_jump ? 1 : 0,
+			entry.resolved_policy.max_slope_normal_z,
+			entry.resolved_policy.waypoint_radius,
+			( int )entry.resolved_policy.fail_backoff_base.Milliseconds(),
+			entry.resolved_policy.fail_backoff_max_pow );
+
+		// Additional diagnostics: report original feet-origin positions, converted
+		// nav-center positions, and summarized node information so callers can
+		// correlate failures with agent/profile mismatches or local connectivity.
+		{
+			const nav_a_star_state_t &s = entry.a_star;
+			const nav_mesh_t *mesh = g_nav_mesh.get();
+			Vector3 start_center = mesh ? SVG_Nav_ConvertFeetToCenter( mesh, entry.start, &entry.agent_mins, &entry.agent_maxs ) : entry.start;
+			Vector3 goal_center = mesh ? SVG_Nav_ConvertFeetToCenter( mesh, entry.goal, &entry.agent_mins, &entry.agent_maxs ) : entry.goal;
+			gi.dprintf( "[NavAsync][HandleFailure][Pos] handle=%d start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
+				entry.handle,
+				entry.start.x, entry.start.y, entry.start.z,
+				start_center.x, start_center.y, start_center.z,
+				entry.goal.x, entry.goal.y, entry.goal.z,
+				goal_center.x, goal_center.y, goal_center.z );
+
+			// If the worker initialized node refs, print their positions for quick inspection.
+			gi.dprintf( "[NavAsync][HandleFailure][Nodes] start_node=(%.1f %.1f %.1f) goal_node=(%.1f %.1f %.1f) nodes_explored=%d\n",
+				s.start_node.position.x, s.start_node.position.y, s.start_node.position.z,
+				s.goal_node.position.x, s.goal_node.position.y, s.goal_node.position.z,
+				( int )s.nodes.size() );
+
+			// Provide a concise interpretation when all neighbor attempts were rejected
+			// which commonly indicates edge validation (step/slope/drop/clearance) issues.
+			if ( ( int )s.nodes.size() <= 1 ) {
+				if ( s.neighbor_try_count > 0 && s.edge_reject_count >= s.neighbor_try_count ) {
+					gi.dprintf( "[NavAsync][HandleFailure][Reason] All neighbor attempts were rejected by edge validation (edge_reject=%d neighbor_tries=%d). Check agent hull, max_step, max_drop, and max_slope settings.\n",
+						s.edge_reject_count, s.neighbor_try_count );
+				} else if ( s.neighbor_try_count > 0 && s.tile_filter_reject_count >= s.neighbor_try_count ) {
+					gi.dprintf( "[NavAsync][HandleFailure][Reason] All neighbor attempts were rejected by the tile-route filter (tile_filter_reject=%d neighbor_tries=%d).\n",
+						s.tile_filter_reject_count, s.neighbor_try_count );
+				} else if ( s.neighbor_try_count > 0 && s.no_node_count >= s.neighbor_try_count ) {
+					gi.dprintf( "[NavAsync][HandleFailure][Reason] No neighbor nodes were found around the start position (no_node=%d neighbor_tries=%d). This may indicate sparse or missing navmesh coverage.\n",
+						s.no_node_count, s.neighbor_try_count );
+				}
+			}
+
+			// Summarize rejection counters for quick grep/automation.
+			gi.dprintf( "[NavAsync][HandleFailure][Counts] neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d\n",
+				( int )s.neighbor_try_count, s.no_node_count, s.edge_reject_count, s.tile_filter_reject_count, s.stagnation_count );
+		}
 	}
 
 	process->consecutive_failures++;

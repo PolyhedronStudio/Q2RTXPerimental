@@ -11,6 +11,7 @@
 #include <limits>
 #include <unordered_map>
 #include <vector>
+#include <array>
 #include <new>
 
 #include "svgame/svg_local.h"
@@ -28,6 +29,20 @@ enum class nav_a_star_status_t {
 	Running,
 	Completed,
 	Failed,
+};
+
+/**
+ *    @brief    Reasons an edge/neighbor can be rejected during expansion.
+ **/
+enum class nav_edge_reject_reason_t : int32_t {
+	None = 0,
+	TileRouteFilter = 1,
+	NoNode = 2,
+	DropCap = 3,
+	StepTest = 4,
+	ObstructionJump = 5,
+	Occupancy = 6,
+	Other = 7,
 };
 
 /**
@@ -106,6 +121,10 @@ struct nav_a_star_state_t {
 	int32_t no_node_count = 0;
 	int32_t tile_filter_reject_count = 0;
 	int32_t edge_reject_count = 0;
+
+	//! Per-reason counters for edge rejection to help diagnose why neighbors are discarded.
+	//! Index into this array is defined by `nav_edge_reject_reason_t`.
+	std::array<int32_t, 8> edge_reject_reason_counts = {};
 
 	// Default constructor / destructor
 	nav_a_star_state_t() = default;

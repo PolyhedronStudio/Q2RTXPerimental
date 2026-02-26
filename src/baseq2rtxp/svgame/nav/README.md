@@ -118,7 +118,7 @@ How to use:
 Important cvars (common ones):
 
 - grid/tile: `nav_cell_size_xy`, `nav_tile_size`, `nav_z_quant`
-- traversal constraints: `nav_max_step`, `nav_max_drop`, `nav_drop_cap`, `nav_max_slope_deg`
+- traversal constraints: `nav_max_step`, `nav_max_drop`, `nav_drop_cap`, `nav_max_slope_normal_z`
 - agent bbox: `nav_agent_mins_*`, `nav_agent_maxs_*`
 
 Pitfall:

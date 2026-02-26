@@ -314,6 +314,29 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     }
 
     /**
+    *  Stronger protection: when a request is already running (rebuild_in_progress)
+    *  small changes to the start position should not trigger a refresh. The
+    *  nav queue already defers re-init via `needs_refresh` but callers that
+    *  drift the start each frame can still cause repeated worker prep. Here
+    *  we ignore small start deltas while a request is running so the in-flight
+    *  search can make progress.
+    **/
+    //if ( !force && self->navPathProcess.rebuild_in_progress ) {
+    //    // Use the last prep start as a stable reference if available.
+    //    const Vector3 referenceStart = ( self->navPathProcess.last_prep_time > 0_ms ) ? self->navPathProcess.last_prep_start : self->navPathProcess.path_start;
+    //    const double startDx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, referenceStart ) );
+    //    // Threshold chosen to ignore small per-frame motion but still react to real relocation.
+    //    constexpr double startIgnoreThreshold = 16.0; // units
+    //    if ( startDx <= startIgnoreThreshold ) {
+    //        if ( DUMMY_NAV_DEBUG ) {
+    //            gi.dprintf( "[DEBUG] TryQueueNavRebuild: suppressed refresh while running (startDx=%.2f <= %.2f) ent=%d\n",
+    //                startDx, startIgnoreThreshold, self->s.number );
+    //        }
+    //        return true;
+    //    }
+    //}
+
+    /**
 	*	Enqueue the rebuild request and record the handle for diagnostics.
 	*	Note: If a request is already pending and actively being prepared / running
 	*	(this entity's `navPathProcess.rebuild_in_progress == true`), this helper
@@ -322,7 +345,12 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
 	*	repeated re-initialization of in-flight searches which can starve the
 	*	incremental A* stepper and cause visible steering issues.
     **/
-    const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &self->navPathProcess, start_origin, goal_origin, policy, agent_mins, agent_maxs, force );
+    // Propagate a small per-request start-ignore threshold to the async queue so
+    // the queue can avoid re-preparing entries when the start drifts slightly
+    // while a search is running. We choose the same 16-unit threshold used
+    // locally above to keep behavior consistent.
+    constexpr double startIgnoreThresholdForQueue = 16.0;
+    const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &self->navPathProcess, start_origin, goal_origin, policy, agent_mins, agent_maxs, force, startIgnoreThresholdForQueue );
     if ( handle <= 0 ) {
         if ( DUMMY_NAV_DEBUG ) {
             gi.dprintf( "[DEBUG] TryQueueNavRebuild: enqueue failed (handle=%d) ent=%d\n", handle, self->s.number );

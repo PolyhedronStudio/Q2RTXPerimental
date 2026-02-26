@@ -161,12 +161,12 @@ void SVG_Nav_RefreshInlineModelRuntime( void );
 **/
 const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const edict_ptr_t *clip_entity );
 const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos,
-	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy );
+	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason );
 
 // Convenience overload: call explicit-bbox traversal test without a policy (defaults to mesh parameters).
-static inline bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos,
+static inline const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos,
 	const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity ) {
-	return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity, nullptr );
+	return Nav_CanTraverseStep_ExplicitBBox( mesh, startPos, endPos, mins, maxs, clip_entity, nullptr, nullptr );
 }
 // (Declaration present earlier) - definition follows below without a redundant default argument.
 
@@ -344,8 +344,8 @@ cvar_t *nav_max_step = nullptr;
 cvar_t *nav_max_drop = nullptr;
 	//! Cap applied when rejecting large drops during path validation.
 cvar_t *nav_drop_cap = nullptr;
-//! Maximum walkable slope in degrees.
-cvar_t *nav_max_slope_deg = nullptr;
+//! Minimum walkable surface normal Z threshold.
+cvar_t *nav_max_slope_normal_z = nullptr;
 //! Agent bounding box minimum X.
 cvar_t *nav_agent_mins_x = nullptr;
 //! Agent bounding box minimum Y.
@@ -446,12 +446,12 @@ void SVG_Nav_Init( void ) {
 	**/
 	nav_max_step = gi.cvar( "nav_max_step", "18", 0 );
 	nav_max_drop = gi.cvar( "nav_max_drop", "128", 0 );
-	nav_max_slope_deg = gi.cvar( "nav_max_slope_deg", "70", 0 );
+	nav_max_slope_normal_z = gi.cvar( "nav_max_slope_normal_z", "7", 0 );
 
 	/**
 	*	Register physics constraints for specific actions.
 	**/
-	nav_drop_cap = gi.cvar( "nav_drop_cap", "128", 0 );
+	nav_drop_cap = gi.cvar( "nav_drop_cap", "96.0", 0 );
 
 	/**
 	*   Register agent bounding box CVars:
@@ -766,28 +766,26 @@ nav_agent_profile_t SVG_Nav_BuildAgentProfileFromCvars( void ) {
 	 **/
 	const double default_step = 18.0;
 	const double default_drop = 128.0;
-	const double default_drop_cap = 64.0;
-	const double default_slope = 70.0;
+   const double default_drop_cap = 64.0;
+	const double default_slope_normal_z = 0.7;
 
 	profile.max_step_height = nav_max_step ? nav_max_step->value : default_step;
 	profile.max_drop_height = nav_max_drop ? nav_max_drop->value : default_drop;
-	profile.drop_cap = nav_drop_cap ? nav_drop_cap->value : profile.max_drop_height;
+    profile.drop_cap = nav_drop_cap ? nav_drop_cap->value : profile.max_drop_height;
 	if ( profile.drop_cap <= 0.0 ) {
 		profile.drop_cap = default_drop_cap;
 	}
-	profile.max_slope_deg = nav_max_slope_deg ? nav_max_slope_deg->value : default_slope;
+    profile.max_slope_normal_z = nav_max_slope_normal_z ? nav_max_slope_normal_z->value : default_slope_normal_z;
 
 	return profile;
 }
 /**
-*   @brief  Check if a surface normal is walkable based on slope.
-*   @param  normal          Surface normal vector.
-*   @param  max_slope_deg   Maximum walkable slope in degrees.
-*   @return True if the slope is walkable, false otherwise.
+ *   @brief  Check if a surface normal is walkable based on slope.
+ *   @param  normal		Surface normal vector.
+ *   @param  min_normal_z	Minimum walkable surface normal Z.
+ *   @return True if the slope is walkable, false otherwise.
 **/
-const bool IsWalkableSlope( const Vector3 &normal, double max_slope_deg ) {
-	// Convert max_slope_deg to minimum normal Z component.
-	double min_normal_z = cosf( max_slope_deg * DEG_TO_RAD );
+const bool IsWalkableSlope( const Vector3 &normal, const double min_normal_z ) {
 	// Surface is walkable if normal Z is above the threshold.
 	return normal[ 2 ] >= min_normal_z;
 }
@@ -1234,7 +1232,7 @@ static void GenerateWorldMesh( nav_mesh_t *mesh ) {
 	SVG_Nav_Log( "[NavGen] Tile statistics: %d attempted, %d succeeded (%.1f%% success rate)\n", total_tile_attempts, total_tile_success, total_tile_attempts > 0 ? ( 100.0f * total_tile_success / total_tile_attempts ) : 0.0f );
 	if ( total_tile_success == 0 && total_tile_attempts > 0 ) {
 		SVG_Nav_Log( "[ERROR][NavGen] ALL TILES FAILED! Possible causes:\n" );
-		SVG_Nav_Log( "[ERROR][NavGen]   1. All surfaces too steep (check nav_max_slope_deg=%.1f)\n", mesh->max_slope_deg );
+		SVG_Nav_Log( "[ERROR][NavGen]   1. All surfaces too steep (check nav_max_slope_normal_z=%.1f)\n", mesh->max_slope_deg );
 		SVG_Nav_Log( "[ERROR][NavGen]   2. Map has no valid walkable floors\n" );
 		SVG_Nav_Log( "[ERROR][NavGen]   3. Agent bounding box too large for map geometry\n" );
 		SVG_Nav_Log( "[ERROR][NavGen]   4. Bug in Nav_BuildTile surface sampling\n" );
@@ -1821,11 +1819,19 @@ static bool Nav_TryResolveNodeInTile( const nav_mesh_t *mesh, const nav_tile_t *
 	const nav_xy_cell_t *cellsPtr = cellsView.first;
 	const int32_t cellsCount = cellsView.second;
 	if ( !cellsPtr || cell_index < 0 || cell_index >= cellsCount ) {
+        if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+			gi.dprintf( "[NavDebug][Lookup] Nav_TryResolveNodeInTile: tile_id=%d cell_index=%d out-of-range (cellsCount=%d)\n",
+				tile_id, cell_index, cellsCount );
+		}
 		return false;
 	}
 
 	const nav_xy_cell_t *cell = &cellsPtr[ cell_index ];
 	if ( cell->num_layers <= 0 || !cell->layers ) {
+        if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+			gi.dprintf( "[NavDebug][Lookup] Nav_TryResolveNodeInTile: tile_id=%d cell_index=%d no layers\n",
+				tile_id, cell_index );
+		}
 		return false;
 	}
 
@@ -1834,6 +1840,10 @@ static bool Nav_TryResolveNodeInTile( const nav_mesh_t *mesh, const nav_tile_t *
 	**/
 	int32_t layer_index = -1;
 	if ( !Nav_SelectLayerIndex( mesh, cell, desired_z, &layer_index ) ) {
+        if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+			gi.dprintf( "[NavDebug][Lookup] Nav_TryResolveNodeInTile: tile_id=%d cell_index=%d no suitable layer for desired_z=%.1f\n",
+				tile_id, cell_index, desired_z );
+		}
 		return false;
 	}
 
@@ -2042,6 +2052,11 @@ const bool Nav_FindNodeForPosition( const nav_mesh_t *mesh, const Vector3 &posit
 		const nav_tile_t *tile = &mesh->world_tiles[ tile_id ];
 		if ( Nav_TryResolveNodeInTile( mesh, tile, tile_id, leaf_index, position, desired_z, out_node ) ) {
 			return true;
+		}
+        // Primary tile lookup failed: emit concise diagnostic when enabled.
+		if ( nav_debug_show_failed_lookups && nav_debug_show_failed_lookups->integer != 0 ) {
+			gi.dprintf( "[NavDebug][Lookup] Nav_FindNodeForPosition: primary tile (%d,%d) present but resolve failed for pos=(%.1f %.1f %.1f) desired_z=%.1f\n",
+				tile_x, tile_y, position.x, position.y, position.z, desired_z );
 		}
 	}
 

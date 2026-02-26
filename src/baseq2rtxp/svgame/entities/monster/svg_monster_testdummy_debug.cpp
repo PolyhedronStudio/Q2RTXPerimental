@@ -342,8 +342,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 				self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Idle );
 				goto physics;
 			}
-			// Start following the newly selected breadcrumb immediately.
-			assignTrailTarget( trailSpot, true );
+            // Start following the newly selected breadcrumb immediately.
+			// Avoid forcing a full async rebuild on every assignment to prevent
+			// flooding the async queue when breadcrumbs are acquired frequently.
+			// Let the normal debounce/refresh behavior handle minor changes.
+			assignTrailTarget( trailSpot, false );
 			justAssignedTrailSpot = true;
 		} else {
 			/**
@@ -358,7 +361,10 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 					self->SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Idle );
 					goto physics;
 				}
-				assignTrailTarget( trailSpot, true );
+                // Reacquire a fresher breadcrumb and request a rebuild but do not
+				// force it immediately. This prevents per-frame forced rebuilds
+				// when timestamps drift slightly.
+				assignTrailTarget( trailSpot, false );
 				justAssignedTrailSpot = true;
 			} else {
 				// Continue working toward the cached breadcrumb.
@@ -477,11 +483,14 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 	*		Instead, once the player is not directly visible, we may pursue the freshest
 	*		breadcrumb unconditionally.
 	**/
+	// 
 	svg_base_edict_t *trailTarget = PlayerTrail_PickFirst( self );
+	// 
 	if ( trailTarget ) {
 		// Cache the breadcrumb target so pursuit mode starts with a stable goal.
 		self->trail_target = trailTarget;
 		self->trail_time = trailTarget->timestamp;
+
 		self->goalentity = trailTarget;
 
 		// Reset nav path so we do not reuse a path built for a different goal.
@@ -642,7 +651,7 @@ const bool svg_monster_testdummy_debug_t::OnThinkGeneric() {
 	navPathPolicy.max_step_height = 18.0;
 	navPathPolicy.max_drop_height = 128.0;
 	navPathPolicy.cap_drop_height = true;
-	navPathPolicy.drop_cap = 64.0;
+	navPathPolicy.drop_cap = ( nav_drop_cap && nav_drop_cap->value > 0.0f ) ? nav_drop_cap->value : 64;
 	navPathPolicy.enable_goal_z_layer_blend = true;
 	navPathPolicy.blend_start_dist = 0.0f;
 	navPathPolicy.blend_full_dist = 18.0f;
@@ -688,7 +697,7 @@ const int32_t svg_monster_testdummy_debug_t::PerformSlideMove() {
 		.maxs = maxs,
 		.state = {
 			.mm_type = MM_NORMAL,
-			.mm_flags = ( groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : 0 ),
+			.mm_flags = ( groundInfo.entityNumber != ENTITYNUM_NONE ? MMF_ON_GROUND : MMF_NONE ),
 			.mm_time = 0,
 			.gravity = ( int16_t )( gravity * sv_gravity->value ),
 			.origin = currentOrigin,
@@ -702,7 +711,77 @@ const int32_t svg_monster_testdummy_debug_t::PerformSlideMove() {
 
 	// Perform the slide move and get the blocked mask describing the result of the movement attempt.
 	const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove, navPathPolicy );
-	
+	// After blockedMask is computed (in PerformSlideMove)
+	if ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_WALL_BLOCKED ) ) != 0 ) {
+		navPathProcess.next_rebuild_time = 0_ms;
+
+		if ( navPathPolicy.allow_small_obstruction_jump &&
+			( monsterMove.state.mm_flags & MMF_ON_GROUND ) ) {
+			const float g = ( float )( gravity * sv_gravity->value );
+			const float h = ( float )navPathPolicy.max_obstruction_jump_height;
+
+			if ( g > 0.0f && h > 0.0f ) {
+				// v = sqrt(2 * g * h)
+				const float jumpVel = std::sqrt( 2.0f * g * h );
+				// Apply only if we’re not already moving upward
+				if ( velocity.z < jumpVel ) {
+					velocity.z = jumpVel;
+
+					monsterMove.state.mm_flags &= ~MMF_ON_GROUND; // We are now airborne due to the jump, so clear the on-ground flag to prevent multiple jumps in a row without landing.
+				}
+			}
+		}
+	}
+	#if 0
+	// After blockedMask is computed (in PerformSlideMove)
+	if (
+		// In case of an actual wall block obstruction.
+		( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_WALL_BLOCKED ) ) != 0
+		//|| ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 ) 
+		) {
+		navPathProcess.next_rebuild_time = 0_ms;
+
+		if ( navPathPolicy.allow_small_obstruction_jump &&
+			( monsterMove.state.mm_flags & MMF_ON_GROUND ) ) {
+			const float g = ( float )( gravity * sv_gravity->value );
+			const float h = ( float )navPathPolicy.max_obstruction_jump_height;
+
+			if ( g > 0.0f && h > 0.0f ) {
+				// v = sqrt(2 * g * h)
+				const float jumpVel = std::sqrt( 2.0f * g * h );
+				// Apply only if we’re not already moving upward
+				if ( monsterMove.velocity.z < jumpVel ) {
+					monsterMove.velocity.z = jumpVel;
+				}
+			}
+		}
+	}
+
+	// After SVG_MMove_StepSlideMove(...) and before applying final origin
+	//if ( monsterMove.ground.entityNumber != ENTITYNUM_NONE ) {
+		const bool willBeAirborne = ( monsterMove.ground.entityNumber == ENTITYNUM_NONE );
+		if ( willBeAirborne ) {
+			Vector3 start = monsterMove.state.origin;
+			Vector3 forwardDir = QM_Vector3Normalize( monsterMove.state.velocity );
+			Vector3 end = start + forwardDir * 24.0f;
+			end.z -= navPathPolicy.max_drop_height;
+
+			svg_trace_t tr = gi.trace( &start, &monsterMove.mins, &monsterMove.maxs, &end, this, CM_CONTENTMASK_SOLID );
+			const float drop = start.z - tr.endpos[ 2 ];
+
+			const float policyDropLimit = ( navPathPolicy.drop_cap > 0.0f )
+				? ( float )navPathPolicy.drop_cap
+				: ( navPathPolicy.cap_drop_height ? ( float )navPathPolicy.max_drop_height : 0.0f );
+
+			if ( tr.fraction < 1.0f && policyDropLimit > 0.0f && drop > policyDropLimit ) {
+				monsterMove.state.origin = monsterMove.state.origin - ( forwardDir * 24.f );
+				monsterMove.state.velocity.x = 0.0f;
+				monsterMove.state.velocity.y = 0.0f;
+				monsterMove.ground = groundInfo;
+			}
+		}
+	//}
+	#endif
 	// If we are not blocked or trapped, we can update our position and grounding info. Otherwise, we will rely on the next think to attempt recovery and not update our position so we don't get stuck in invalid geometry.
 	if ( !( blockedMask & MM_SLIDEMOVEFLAG_TRAPPED ) ) {
 		// Update position and grounding info.
@@ -713,6 +792,27 @@ const int32_t svg_monster_testdummy_debug_t::PerformSlideMove() {
 		SVG_Util_SetEntityOrigin( this, monsterMove.state.origin, true );
 		// Update the entity's link in the world after changing its position.
 		gi.linkentity( this );
+	}
+
+	// After blockedMask is computed (in PerformSlideMove)
+	if ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 ) {
+		navPathProcess.next_rebuild_time = 0_ms;
+
+		if ( navPathPolicy.allow_small_obstruction_jump &&
+			( monsterMove.state.mm_flags & MMF_ON_GROUND ) ) {
+			const float g = ( float )( gravity * sv_gravity->value );
+			const float h = ( float )navPathPolicy.max_obstruction_jump_height;
+
+			if ( g > 0.0f && h > 0.0f ) {
+				// v = sqrt(2 * g * h)
+				const float jumpVel = std::sqrt( 2.0f * g * h );
+				// Apply only if we’re not already moving upward
+				if ( velocity.z < jumpVel ) {
+					velocity.z = jumpVel;
+					monsterMove.state.mm_flags &= ~MMF_ON_GROUND; // We are now airborne due to the jump, so clear the on-ground flag to prevent multiple jumps in a row without landing.
+				}
+			}
+		}
 	}
 
 	// Return the blocked mask so the caller can decide how to react to obstructions.
@@ -797,8 +897,34 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 			// Also throttle the next rebuild attempt slightly using the standard rebuild interval.
 			navPathProcess.next_rebuild_time = level.time + navPathPolicy.rebuild_interval;
 		}
-	} else {
+    } else {
 		SVG_TestDummy_TryQueueNavRebuild( this, currentOrigin, goalOrigin, navPathPolicy, agent_mins, agent_maxs, force );
+		//// Only honor an explicit force request when the goal moved beyond the
+		//// configured rebuild thresholds. This prevents callers from forcing each
+		//// frame for negligible movements.
+		//bool effectiveForce = force;
+		//if ( force ) {
+		//	// Compute 2D and 3D movement deltas relative to our last recorded
+		//	// nav goal (if available) so we only force when movement is meaningful.
+		//	const Vector3 &referenceGoal = last_nav_goal_valid ? last_nav_goal_origin : navPathProcess.path_goal;
+		//	const double dx = QM_Vector3LengthDP( QM_Vector3Subtract( goalOrigin, referenceGoal ) );
+		//	// If the goal moved less than the 2D threshold, do not force.
+		//	if ( dx <= navPathPolicy.rebuild_goal_dist_2d ) {
+		//		effectiveForce = false;
+		//		if ( DUMMY_NAV_DEBUG != 0 ) {
+		//			gi.dprintf( "[NAV DEBUG] %s: suppressed force rebuild (dx=%.2f <= thresh=%.2f)\n",
+		//				__func__, dx, navPathPolicy.rebuild_goal_dist_2d );
+		//		}
+		//	}
+		//}
+
+		//const bool queued = SVG_TestDummy_TryQueueNavRebuild( this, currentOrigin, goalOrigin, navPathPolicy, agent_mins, agent_maxs, effectiveForce );
+		//// If we successfully requested a rebuild and the caller intended a force,
+		//// record the last forced goal so subsequent small deltas do not re-force.
+		//if ( queued && force ) {
+		//	last_nav_goal_origin = goalOrigin;
+		//	last_nav_goal_valid = true;
+		//}
 	}
 
 	/**

@@ -26,7 +26,7 @@
 #include <vector>
 
 static constexpr uint32_t NAV_MESH_SAVE_MAGIC = 0x56414E53; // "VANS"
-static constexpr uint32_t NAV_MESH_SAVE_VERSION = 1;
+static constexpr uint32_t NAV_MESH_SAVE_VERSION = 2;
 
 /**
 *	@brief	Read raw bytes from a (possibly gzipped) file.
@@ -118,7 +118,8 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 		gzclose( f );
 		return false;
 	}
-	if ( magic != NAV_MESH_SAVE_MAGIC || version != NAV_MESH_SAVE_VERSION ) {
+   // Reject files that do not match the expected magic or supported versions.
+	if ( magic != NAV_MESH_SAVE_MAGIC || ( version != 1 && version != NAV_MESH_SAVE_VERSION ) ) {
 		gzclose( f );
 		return false;
 	}
@@ -142,12 +143,44 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 	/**
 	*	Read generation parameters required to interpret stored tile data.
 	**/
+   /**
+	*    Read generation parameters required to interpret stored tile data.
+	*    Version 1 stored max slope in degrees, version 2 stores normal-Z.
+	**/
 	if ( !Nav_ReadValue( f, g_nav_mesh->cell_size_xy ) ||
 		!Nav_ReadValue( f, g_nav_mesh->z_quant ) ||
 		!Nav_ReadValue( f, g_nav_mesh->tile_size ) ||
-		!Nav_ReadValue( f, g_nav_mesh->max_step ) ||
-		!Nav_ReadValue( f, g_nav_mesh->max_slope_deg ) ||
-		!Nav_ReadValue( f, g_nav_mesh->agent_mins ) ||
+		!Nav_ReadValue( f, g_nav_mesh->max_step ) ) {
+		gzclose( f );
+		SVG_Nav_FreeMesh();
+		return false;
+	}
+
+	/**
+	*    Decode the slope parameter based on the on-disk version.
+	**/
+	if ( version == 1 ) {
+		// Version 1 stored degrees; convert to a normal-Z threshold.
+		double max_slope_deg = 0.0;
+		if ( !Nav_ReadValue( f, max_slope_deg ) ) {
+			gzclose( f );
+			SVG_Nav_FreeMesh();
+			return false;
+		}
+		g_nav_mesh->max_slope_normal_z = cosf( max_slope_deg * DEG_TO_RAD );
+	} else {
+		// Version 2 stores the normal-Z threshold directly.
+		if ( !Nav_ReadValue( f, g_nav_mesh->max_slope_normal_z ) ) {
+			gzclose( f );
+			SVG_Nav_FreeMesh();
+			return false;
+		}
+	}
+
+	/**
+	*    Read agent bounds after slope decoding.
+	**/
+	if ( !Nav_ReadValue( f, g_nav_mesh->agent_mins ) ||
 		!Nav_ReadValue( f, g_nav_mesh->agent_maxs ) ) {
 		gzclose( f );
 		SVG_Nav_FreeMesh();

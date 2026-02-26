@@ -37,7 +37,7 @@ static svg_nav_path_policy_t SVG_Nav_BuildPolicyFromAgentProfile( const nav_agen
     policy.max_step_height = profile.max_step_height;
     policy.max_drop_height = profile.max_drop_height;
     policy.drop_cap = profile.drop_cap;
-    policy.max_slope_deg = profile.max_slope_deg;
+    policy.max_slope_normal_z = profile.max_slope_normal_z;
     return policy;
 }
 
@@ -216,7 +216,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	resolvedPolicy.max_step_height = profilePolicy.max_step_height;
 	resolvedPolicy.max_drop_height = profilePolicy.max_drop_height;
 	resolvedPolicy.drop_cap = profilePolicy.drop_cap;
-	resolvedPolicy.max_slope_deg = profilePolicy.max_slope_deg;
+	resolvedPolicy.max_slope_normal_z = profilePolicy.max_slope_normal_z;
 
 	/**
 	*	Pre-check: warn if the vertical gap already exceeds the effective step height.

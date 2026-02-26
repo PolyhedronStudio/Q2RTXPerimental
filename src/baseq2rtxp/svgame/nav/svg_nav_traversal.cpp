@@ -139,7 +139,7 @@ static const bool Nav_Debug_FindNearestLayerDelta( const nav_mesh_t *mesh, const
 *  @param	policy		Optional path policy for tuning step behavior.
 *  @return	True if the traversal is possible, false otherwise.
 **/
-static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy );
+static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason = nullptr );
 
 /**
 *  @brief	Performs a simple PMove-like step traversal test (3-trace) with explicit agent bbox.
@@ -156,7 +156,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 *  @param	policy			Optional path policy for tuning step behavior.
 *  @return	True if the traversal is possible, false otherwise.
 **/
-const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy ) {
+const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason ) {
 	/**
 	*    Sanity checks: require a valid mesh.
 	**/
@@ -228,7 +228,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 			*    Validate the current sub-step using the single-step routine.
 			*    Abort immediately if any sub-step fails.
 			**/
-			if ( !Nav_CanTraverseStep_ExplicitBBox_Single( mesh, segmentStart, segmentEnd, mins, maxs, clip_entity, policy ) ) {
+            if ( !Nav_CanTraverseStep_ExplicitBBox_Single( mesh, segmentStart, segmentEnd, mins, maxs, clip_entity, policy, nullptr ) ) {
 				return false;
 			}
 
@@ -243,7 +243,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	/**
 	*    Fallback: use the single-step validation when no segmentation is needed.
 	**/
-	return Nav_CanTraverseStep_ExplicitBBox_Single( mesh, startPos, endPos, mins, maxs, clip_entity, policy );
+    return Nav_CanTraverseStep_ExplicitBBox_Single( mesh, startPos, endPos, mins, maxs, clip_entity, policy, nullptr );
 }
 
 /**
@@ -327,35 +327,44 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	/**
 	*    Emit detailed diagnostics only when explicitly requested.
 	**/
-	if ( navDiag ) {
-		gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d, stagnation=%d\n",
-			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
-		gi.dprintf( "[DEBUG][NavPath][Diag] A* inputs: max_step=%.1f max_drop=%.1f cell_size_xy=%.1f z_quant=%.1f\n",
-			nav_max_step ? nav_max_step->value : -1.0f,
-			nav_drop_cap ? nav_drop_cap->value : -1.0f,
-			mesh ? ( float )mesh->cell_size_xy : -1.0f,
-			mesh ? ( float )mesh->z_quant : -1.0f );
-		Nav_Debug_PrintNodeRef( "start_node", start_node );
-		Nav_Debug_PrintNodeRef( "goal_node", goal_node );
+    if ( navDiag ) {
+		// Rate-limit verbose diagnostics to avoid overflowing the net/console buffer
+		// when many A* failures occur in quick succession. This keeps logs
+		// useful while preventing spam that would drop messages.
+		static uint64_t s_last_navpath_diag_ms = 0;
+		const uint64_t nowMs = gi.GetRealSystemTime();
+		const uint64_t diagCooldownMs = 200; // min interval between verbose prints
+		if ( nowMs - s_last_navpath_diag_ms >= diagCooldownMs ) {
+			s_last_navpath_diag_ms = nowMs;
+			gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d, stagnation=%d\n",
+				state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
+			gi.dprintf( "[DEBUG][NavPath][Diag] A* inputs: max_step=%.1f max_drop=%.1f cell_size_xy=%.1f z_quant=%.1f\n",
+				nav_max_step ? nav_max_step->value : -1.0f,
+				nav_drop_cap ? nav_drop_cap->value : -1.0f,
+				mesh ? ( float )mesh->cell_size_xy : -1.0f,
+				mesh ? ( float )mesh->z_quant : -1.0f );
+			Nav_Debug_PrintNodeRef( "start_node", start_node );
+			Nav_Debug_PrintNodeRef( "goal_node", goal_node );
 
-		if ( !state.saw_vertical_neighbor ) {
-			double nearestDelta = 0.0;
-			int32_t layerCount = 0;
-			if ( Nav_Debug_FindNearestLayerDelta( mesh, start_node, &nearestDelta, &layerCount ) ) {
-				gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; nearest layer delta=%.1f (layers=%d)\n",
-					nearestDelta, layerCount );
-			} else {
-				gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; no alternate layers found in start cell.\n" );
+			if ( !state.saw_vertical_neighbor ) {
+				double nearestDelta = 0.0;
+				int32_t layerCount = 0;
+				if ( Nav_Debug_FindNearestLayerDelta( mesh, start_node, &nearestDelta, &layerCount ) ) {
+					gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; nearest layer delta=%.1f (layers=%d)\n",
+						nearestDelta, layerCount );
+				} else {
+					gi.dprintf( "[DEBUG][NavPath][Diag] No vertical neighbors; no alternate layers found in start cell.\n" );
+				}
 			}
-		}
 
-		const std::vector<nav_tile_cluster_key_t> *routeFilter = state.tileRouteFilter;
-		if ( routeFilter && !routeFilter->empty() ) {
-			gi.dprintf( "[DEBUG][NavPath][Diag] cluster route enforced: %d tiles\n",
-				( int32_t )routeFilter->size() );
-		} else {
-			gi.dprintf( "[DEBUG][NavPath][Diag] cluster route: (none)\n" );
-		}
+			const std::vector<nav_tile_cluster_key_t> *routeFilter = state.tileRouteFilter;
+			if ( routeFilter && !routeFilter->empty() ) {
+				gi.dprintf( "[DEBUG][NavPath][Diag] cluster route enforced: %d tiles\n",
+					( int32_t )routeFilter->size() );
+			} else {
+				gi.dprintf( "[DEBUG][NavPath][Diag] cluster route: (none)\n" );
+			}
+		} // rate limit
 	}
 
  /**
@@ -378,6 +387,23 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		gi.dprintf( "[WARNING][NavPath][A*]   - Use 'nav_debug_draw 1' to visualize the navmesh\n" );
 	} else {
 		gi.dprintf( "[WARNING][NavPath][A*] Failure reason: Unknown (status=%d).\n", ( int32_t )state.status );
+	}
+
+  // Emit extra diagnostic payload when A* fails so callers can inspect node mapping
+	// and candidate rejection counts. This log is gated by the global async stats
+	// cvar to avoid overwhelming release logs.
+   if ( Nav_PathDiagEnabled() ) {
+		gi.dprintf( "[NavPath][Diag] neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d\n",
+			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
+		// Print per-reason edge rejection counts when available.
+		gi.dprintf( "[NavPath][Diag] edge_reject_reasons: tile_route=%d no_node=%d drop_cap=%d step_test=%d obstruction_jump=%d occupancy=%d other=%d\n",
+			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::TileRouteFilter],
+			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::NoNode],
+			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::DropCap],
+			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::StepTest],
+			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::ObstructionJump],
+			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::Occupancy],
+			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::Other] );
 	}
 
 	Nav_AStar_Reset( &state );
@@ -967,7 +993,7 @@ const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos,
 *  @return	True if the traversal is possible, false otherwise.
 *  @note	This function assumes any segmented-ramp handling has already been applied.
 **/
-static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy ) {
+static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason ) {
 	if ( !mesh ) {
 		return false;
 	}
@@ -1022,7 +1048,8 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	/**
 	*    Reject edges that attempt to drop farther than the configured cap before tracing.
 	**/
-	if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
+    if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
+		if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
 		NavDebug_RecordReject( startPos, endPos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
 		ReportStepTestFailureOnce( "drop cap exceeded before tracing" );
 		return false;
@@ -1034,7 +1061,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	const double requiredUp = std::max( 0.0, desiredDz );
 
 	// If the required climb is larger than our allowed step height, this edge is infeasible.
-	if ( requiredUp > stepSize ) {
+        if ( requiredUp > stepSize ) {
       /**
 		*    Diagnostics: report step-limit rejections with required climb and configured step size.
 		**/
@@ -1044,8 +1071,9 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 				startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
 				endPos[ 0 ], endPos[ 1 ], endPos[ 2 ] );
 		}
-		ReportStepTestFailureOnce( "required climb exceeds configured step" );
-		return false;
+          if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
+			ReportStepTestFailureOnce( "required climb exceeds configured step" );
+			return false;
 	}
 
 	// If policy wants to enforce a minimum step height, only apply it to actual "step up" edges.
@@ -1059,8 +1087,9 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 				startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
 				endPos[ 0 ], endPos[ 1 ], endPos[ 2 ] );
 		}
-		ReportStepTestFailureOnce( "step height below minimum" );
-		return false;
+           if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
+			ReportStepTestFailureOnce( "step height below minimum" );
+			return false;
 	}
 
 	// Flatten Z for horizontal movement tests.
@@ -1119,13 +1148,15 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 					start[ 0 ], start[ 1 ], start[ 2 ],
 					up[ 0 ], up[ 1 ], up[ 2 ] );
 			}
+           if ( out_reason ) *out_reason = nav_edge_reject_reason_t::ObstructionJump;
 			ReportStepTestFailureOnce( "step-up trace blocked" );
 			return false;
 		}
 
 				// Ensure we actually achieved (at least) the required step height.
 		const double actualUp = upTr.endpos[ 2 ] - start[ 2 ];
-		if ( actualUp + eps < requiredUp ) {
+        if ( actualUp + eps < requiredUp ) {
+			if ( out_reason ) *out_reason = nav_edge_reject_reason_t::ObstructionJump;
 			NavDebug_RecordReject( start, upTr.endpos, NAV_DEBUG_REJECT_REASON_CLEARANCE );
           /**
 			*    Diagnostics: report insufficient clearance for step-up.
@@ -1183,7 +1214,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 						// Check normal Z threshold using policy's step-normal minimum when available.
 						const double minStepNormal = policy
 							? ( double )policy->min_step_normal
-							: cos( ( double )mesh->max_slope_deg * ( double )DEG_TO_RAD );
+							: ( double )mesh->max_slope_normal_z;
 						if ( downTr2.plane.normal[ 2 ] <= 0.0f || downTr2.plane.normal[ 2 ] < minStepNormal ) {
 							NavDebug_RecordReject( jumpFwdTr.endpos, downTr2.endpos, NAV_DEBUG_REJECT_REASON_SLOPE );
                        /**
@@ -1214,8 +1245,9 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 					}
 				}
 
-			}
+           }
 		}
+		if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
 	}
 
 	/**
@@ -1251,6 +1283,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 				downStart[ 0 ], downStart[ 1 ], downStart[ 2 ],
 				downEnd[ 0 ], downEnd[ 1 ], downEnd[ 2 ] );
 		}
+      if ( out_reason ) *out_reason = nav_edge_reject_reason_t::ObstructionJump;
 		ReportStepTestFailureOnce( "down trace blocked" );
 		return false;
 	}
@@ -1266,6 +1299,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 				downStart[ 0 ], downStart[ 1 ], downStart[ 2 ],
 				downEnd[ 0 ], downEnd[ 1 ], downEnd[ 2 ] );
 		}
+     if ( out_reason ) *out_reason = nav_edge_reject_reason_t::ObstructionJump;
 		ReportStepTestFailureOnce( "floating after step" );
 		return false;
 	}
@@ -1279,12 +1313,13 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 			gi.dprintf( "[DEBUG][NavPath][StepTest] non-positive ground normal normalZ=%.2f\n",
 				( float )downTr.plane.normal[ 2 ] );
 		}
+      if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
 		ReportStepTestFailureOnce( "non-positive ground normal" );
 		return false;
 	}
 	const double minStepNormal = policy
 		? ( double )policy->min_step_normal
-		: cosf( ( float )mesh->max_slope_deg * ( float )DEG_TO_RAD );
+		: ( double )mesh->max_slope_normal_z;
 	if ( downTr.plane.normal[ 2 ] < minStepNormal ) {
       /**
 		*    Diagnostics: report slope rejections.
@@ -1293,6 +1328,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 			gi.dprintf( "[DEBUG][NavPath][StepTest] slope too steep normalZ=%.2f minNormal=%.2f\n",
 				( float )downTr.plane.normal[ 2 ], ( float )minStepNormal );
 		}
+      if ( out_reason ) *out_reason = nav_edge_reject_reason_t::StepTest;
 		ReportStepTestFailureOnce( "ground slope too steep" );
 		return false;
 	}
@@ -1309,6 +1345,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 				gi.dprintf( "[DEBUG][NavPath][StepTest] drop cap exceeded after step drop=%.2f cap=%.2f\n",
 					( float )drop, ( float )policy->max_drop_height );
 			}
+            if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
 			ReportStepTestFailureOnce( "drop cap exceeded after step" );
 			return false;
 		}

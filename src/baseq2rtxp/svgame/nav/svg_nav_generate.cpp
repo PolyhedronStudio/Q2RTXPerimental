@@ -29,7 +29,7 @@ extern cvar_t *nav_cell_size_xy;
 extern cvar_t *nav_z_quant;
 extern cvar_t *nav_tile_size;
 extern cvar_t *nav_max_step;
-extern cvar_t *nav_max_slope_deg;
+extern cvar_t *nav_max_slope_normal_z;
 extern cvar_t *nav_agent_mins_x;
 extern cvar_t *nav_agent_mins_y;
 extern cvar_t *nav_agent_mins_z;
@@ -53,7 +53,7 @@ static inline double Nav_TileWorldSize( const nav_mesh_t *mesh );
 static inline int32_t Nav_WorldToTileCoord( double value, double tile_world_size );
 static void Nav_FreeTileCells( nav_tile_t *tile, int32_t cells_per_tile );
 static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, const Vector3 &maxs,
-                                double z_min, double z_max, double max_step, double max_slope_deg, double z_quant,
+                                double z_min, double z_max, double max_step, double min_normal_z, double z_quant,
                                 nav_layer_t **out_layers, int32_t *out_num_layers,
                                 const edict_ptr_t *clip_entity );
 static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &leaf_mins, const Vector3 &leaf_maxs,
@@ -140,7 +140,7 @@ static int32_t s_slope_reject_count = 0;
 *	@param	z_min		Lower bound of the vertical search range (units).
 *	@param	z_max		Upper bound of the vertical search range (units).
 *	@param	max_step	Maximum step height used to choose trace stepping interval.
-*	@param	max_slope_deg	Maximum walkable slope (degrees).
+*	@param	min_normal_z	Minimum walkable surface normal Z.
 *	@param	z_quant		Quantization step used when storing layer Z samples.
 *	@param	out_layers	[out] Heap-allocated layer buffer (TAG_SVGAME_LEVEL) or nullptr.
 *	@param	out_num_layers	[out] Number of layers returned in `out_layers`.
@@ -148,7 +148,7 @@ static int32_t s_slope_reject_count = 0;
 *	@note	Not thread-safe due to internal static scratch storage.
 */
 static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, const Vector3 &maxs,
-                                double z_min, double z_max, double max_step, double max_slope_deg, double z_quant,
+                                double z_min, double z_max, double max_step, double min_normal_z, double z_quant,
                                 nav_layer_t **out_layers, int32_t *out_num_layers,
                                 const edict_ptr_t *clip_entity ) {
     const int32_t MAX_LAYERS = 16;
@@ -278,8 +278,8 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
         // Record valid upward-facing hit surfaces.
 			if ( trace.fraction < 1.0f && trace.plane.normal[2] > 0.0f ) {
 				s_trace_hit_count++;
-				// Enforce slope threshold in terms of normal.z.
-				if ( ( trace.plane.normal[2] >= cosf( max_slope_deg * DEG_TO_RAD ) ) ) {
+            // Enforce slope threshold in terms of normal.z.
+            if ( trace.plane.normal[ 2 ] >= min_normal_z ) {
 				/**
 				*    Quantize the sampled Z using rounding so nearby layers don't collapse
 				*    downwards when the trace endpos is close to the next quant step.
@@ -362,8 +362,8 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
                 } else {
                     s_slope_reject_count++;
                     if ( SVG_Nav_ProfileEnabled( 3 ) ) {
-                        SVG_Nav_Log( "[NavProfile] FindWalkableLayers: trace hit but slope rejected normal.z=%.3f max_slope_deg=%.1f at z=%.2f\n",
-                            trace.plane.normal[2], max_slope_deg, trace.endpos[2] );
+              SVG_Nav_Log( "[NavProfile] FindWalkableLayers: trace hit but slope rejected normal.z=%.3f min_normal_z=%.3f at z=%.2f\n",
+                    trace.plane.normal[ 2 ], min_normal_z, trace.endpos[ 2 ] );
                     }
                     current_z = trace.endpos[2] - 1.0f;
                 }
@@ -424,15 +424,18 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
     const double tile_origin_x = tile->tile_x * tile_world_size;
     const double tile_origin_y = tile->tile_y * tile_world_size;
 
+    // Iterate over each row of cells in the tile.
     for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
         uint64_t tileCellStartMs = 0;
         if ( SVG_Nav_ProfileEnabled( 3 ) ) {
             tileCellStartMs = gi.GetRealSystemTime();
         }
+        // Iterate over each column of cells in the tile.
         for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
             const double world_x = tile_origin_x + ( (double)cell_x + 0.5f ) * mesh->cell_size_xy;
             const double world_y = tile_origin_y + ( (double)cell_y + 0.5f ) * mesh->cell_size_xy;
 
+            // Skip cells that fall outside the owning leaf bounds.
             if ( world_x < leaf_mins[ 0 ] || world_x > leaf_maxs[ 0 ] ||
                  world_y < leaf_mins[ 1 ] || world_y > leaf_maxs[ 1 ] ) {
                 continue;
@@ -442,10 +445,12 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
             nav_layer_t *layers = nullptr;
             int32_t num_layers = 0;
 
+            // Sample walkable layers at this XY position.
             FindWalkableLayers( xy_pos, mesh->agent_mins, mesh->agent_maxs,
-                                z_min, z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
+                                z_min, z_max, mesh->max_step, mesh->max_slope_normal_z, mesh->z_quant,
                                 &layers, &num_layers, nullptr );
 
+            // Store sampled layers when any were found.
             if ( num_layers > 0 ) {
                 const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
                 /**
@@ -455,6 +460,7 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
                 auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
                 nav_xy_cell_t *cellsPtr = cellsView.first;
                 const int32_t cellsCount = cellsView.second;
+                // Ensure the target cell index is valid before writing.
                 if ( cellsPtr && cell_index >= 0 && cell_index < cellsCount ) {
                     cellsPtr[ cell_index ].num_layers = num_layers;
                     cellsPtr[ cell_index ].layers = layers;
@@ -468,6 +474,7 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
             }
         }
 
+        // Emit per-row profiling output when enabled.
         if ( SVG_Nav_ProfileEnabled( 3 ) ) {
             const uint64_t tileCellEndMs = gi.GetRealSystemTime();
             const double tileMs = ( double )( tileCellEndMs - tileCellStartMs );
@@ -476,6 +483,7 @@ static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &le
         }
     }
 
+    // Free allocations when this tile produced no walkable layers.
     if ( !has_layers ) {
         Nav_FreeTileCells( tile, cells_per_tile );
         if ( tile->presence_bits ) {
@@ -512,11 +520,14 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
     const double tile_origin_x = model_mins[ 0 ] + ( tile->tile_x * tile_world_size );
     const double tile_origin_y = model_mins[ 1 ] + ( tile->tile_y * tile_world_size );
 
+    // Iterate over each row of cells in the inline model tile.
     for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
+        // Iterate over each column of cells in the inline model tile.
         for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
             const double local_x = tile_origin_x + ( (double)cell_x + 0.5 ) * mesh->cell_size_xy;
             const double local_y = tile_origin_y + ( (double)cell_y + 0.5 ) * mesh->cell_size_xy;
 
+            // Skip cells that fall outside the model bounds.
             if ( local_x < model_mins[ 0 ] || local_x > model_maxs[ 0 ] ||
                  local_y < model_mins[ 1 ] || local_y > model_maxs[ 1 ] ) {
                 continue;
@@ -534,6 +545,7 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
             double world_z_min = z_min;
             double world_z_max = z_max;
 
+            // Convert to world-space when an inline clip entity is provided.
             if ( clip_entity ) {
                 // Local to World transform:
                 Vector3 local_center = xy_pos;
@@ -563,16 +575,20 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
                 }
             }
 
+            // Sample walkable layers at the world-space position.
             FindWalkableLayers( world_xy, mesh->agent_mins, mesh->agent_maxs,
-                                world_z_min, world_z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
+                                world_z_min, world_z_max, mesh->max_step, mesh->max_slope_normal_z, mesh->z_quant,
                                 &layers, &num_layers, clip_entity );
 
+            // Store sampled layers when any were found.
             if ( num_layers > 0 ) {
                 const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
+                // Resolve the tile cell array before writing.
                 auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
                 nav_xy_cell_t *cellsPtr = cellsView.first;
                 const int32_t cellsCount = cellsView.second;
-                    if ( cellsPtr && cell_index >= 0 && cell_index < cellsCount ) {
+                // Ensure the target cell index is valid before writing.
+                if ( cellsPtr && cell_index >= 0 && cell_index < cellsCount ) {
                     cellsPtr[ cell_index ].num_layers = num_layers;
                     cellsPtr[ cell_index ].layers = layers;
                     // Use public accessor to set presence bit defensively.
@@ -585,6 +601,7 @@ static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vecto
         }
     }
 
+    // Free allocations when this inline tile produced no walkable layers.
     if ( !has_layers ) {
         Nav_FreeTileCells( tile, cells_per_tile );
 
@@ -843,9 +860,10 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
         total_tile_success,
         total_tile_attempts > 0 ? ( 100.0f * total_tile_success / total_tile_attempts ) : 0.0f );
 
+ // Emit a warning when nothing was generated despite attempting tiles.
     if ( total_tile_success == 0 && total_tile_attempts > 0 ) {
         SVG_Nav_Log( "[ERROR][NavGen] NO TILES GENERATED! Possible causes:\n" );
-        SVG_Nav_Log( "[ERROR][NavGen]   1. All surfaces too steep (check nav_max_slope_deg=%.1f)\n", mesh->max_slope_deg );
+       SVG_Nav_Log( "[ERROR][NavGen]   1. All surfaces too steep (check nav_max_slope_normal_z=%.1f)\n", mesh->max_slope_normal_z );
     }
 }
 
@@ -1044,7 +1062,7 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
 	g_nav_mesh->z_quant = nav_z_quant->value;
 	g_nav_mesh->tile_size = ( int32_t )nav_tile_size->value;
 	g_nav_mesh->max_step = nav_max_step->value;
-	g_nav_mesh->max_slope_deg = nav_max_slope_deg->value;
+  g_nav_mesh->max_slope_normal_z = nav_max_slope_normal_z->value;
 	g_nav_mesh->agent_mins = Vector3( nav_agent_mins_x->value, nav_agent_mins_y->value, nav_agent_mins_z->value );
 	g_nav_mesh->agent_maxs = Vector3( nav_agent_maxs_x->value, nav_agent_maxs_y->value, nav_agent_maxs_z->value );
 

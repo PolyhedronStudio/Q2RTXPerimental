@@ -75,8 +75,8 @@ typedef struct nav_agent_profile_s {
     double max_drop_height;
     //! Drop cap applied during path post-processing (world units).
     double drop_cap;
-    //! Maximum walkable slope steepness in degrees.
-    double max_slope_deg;
+    //! Minimum walkable surface normal Z threshold.
+	double max_slope_normal_z;
 } nav_agent_profile_t;
 
 /**
@@ -359,8 +359,8 @@ typedef struct nav_mesh_s {
     int32_t tile_size;
     //! Maximum step height (matches PM_STEP_MAX_SIZE).
     double max_step;
-    //! Maximum walkable slope in degrees (matches PM_STEP_MIN_NORMAL).
-    double max_slope_deg;
+ //! Minimum walkable surface normal Z threshold (matches PM_STEP_MIN_NORMAL).
+	double max_slope_normal_z;
     //! Agent bounding box minimum.
     Vector3 agent_mins;
     //! Agent bounding box maximum.
@@ -637,7 +637,7 @@ extern cvar_t *nav_max_step;        //! Maximum step height.
 extern cvar_t *nav_max_drop;        //! Maximum allowed downward traversal drop.
 extern cvar_t *nav_drop_cap;        //! Maximum drop height.
 extern cvar_t *nav_drop_cap;        //! Cap applied when rejecting excessive drops.
-extern cvar_t *nav_max_slope_deg;   //! Maximum walkable slope in degrees.
+extern cvar_t *nav_max_slope_normal_z;   //! Maximum walkable slope in degrees.
 extern cvar_t *nav_agent_mins_x;    //! Agent bounding box minimum X.
 extern cvar_t *nav_agent_mins_y;    //! Agent bounding box minimum Y.
 extern cvar_t *nav_agent_mins_z;    //! Agent bounding box minimum Z.

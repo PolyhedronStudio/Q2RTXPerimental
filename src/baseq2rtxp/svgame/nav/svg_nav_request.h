@@ -66,6 +66,9 @@ struct nav_request_entry_t {
 	nav_request_status_t status = nav_request_status_t::Queued;
 	//! The A* state for this request, used to track progress when the request is being processed and for diagnostics.
 	nav_a_star_state_t a_star = {};
+  //! When true the running entry should be refreshed once the current search finishes.
+	//! This avoids repeatedly re-initializing an in-flight search every frame.
+	bool needs_refresh = false;
 };
 
 /**
@@ -89,7 +92,7 @@ struct nav_request_entry_t {
 **/
 nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProcess, const Vector3 &start_origin,
 	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
-	const Vector3 &agent_maxs, bool force = false );
+	const Vector3 &agent_maxs, bool force = false, double startIgnoreThreshold = 0.0 );
 
 /**
 *    @brief    Cancel a pending navigation request.

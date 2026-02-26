@@ -36,6 +36,26 @@ extern cvar_t *nav_astar_step_budget_ms;
 
 inline bool Nav_PathDiagEnabled( void );
 
+// Helper: stringify rejection reason for diagnostics/telemetry.
+static const char *Nav_EdgeRejectReasonToString( nav_edge_reject_reason_t r ) {
+	switch ( r ) {
+	case nav_edge_reject_reason_t::None: return "None";
+	case nav_edge_reject_reason_t::TileRouteFilter: return "TileRouteFilter";
+	case nav_edge_reject_reason_t::NoNode: return "NoNode";
+	case nav_edge_reject_reason_t::DropCap: return "DropCap";
+	case nav_edge_reject_reason_t::StepTest: return "StepTest";
+	case nav_edge_reject_reason_t::ObstructionJump: return "ObstructionJump";
+	case nav_edge_reject_reason_t::Occupancy: return "Occupancy";
+	case nav_edge_reject_reason_t::Other: return "Other";
+	default: return "Unknown";
+	}
+}
+
+// Local debug control cvars for neighbor expansion diagnostics.
+// These are lazily created on first use to avoid ordering/init dependencies.
+static cvar_t *s_nav_expand_diag_enable = nullptr;
+static cvar_t *s_nav_expand_diag_cooldown_ms = nullptr;
+
 //! Hard node limit to prevent runaway searches from consuming memory.
 static constexpr int32_t NAV_ASTAR_MAX_NODES = 8192;
 //! Default per-call time budget used to cap frame impact of incremental expansion (fallback when cvar not registered).
@@ -125,9 +145,16 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 	const std::vector<nav_tile_cluster_key_t> &tileRouteView = state->GetTileRouteFilterView();
 	const svg_nav_path_policy_t *policy = state->policy;
 
-	// Local counter to make an internal periodic budget check every N neighbor iterations.
+    // Local counter to make an internal periodic budget check every N neighbor iterations.
 	int32_t innerExpansionCounter = 0;
 	const int32_t innerCheckInterval = 8; // check budget every 8 neighbor evaluations
+
+	// Rate-limit verbose per-neighbor diagnostics so enabling high debug levels
+	// does not flood the network/message buffer. This is intentionally coarse
+	// and shared across neighbors to reduce log volume when many entities are
+	// expanding simultaneously.
+	static uint64_t s_last_navexpand_diag_ms = 0;
+	const uint64_t navExpandDiagCooldownMs = 200; // ms
 
 	for ( const Vector3 &offset_dir : s_nav_neighbor_offsets ) {
 		/**
@@ -164,34 +191,54 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 					break;
 				}
 			}
-			if ( !allowed ) {
-          // Neighbor rejected due to tile-route filter.
-			state->tile_filter_reject_count++;
-			if ( Nav_PathDiagEnabled() ) {
-				gi.dprintf( "[DEBUG][NavPath][Diag] Neighbor rejected by tile-route filter at pos=(%.1f %.1f %.1f)\n",
-					neighbor_origin.x, neighbor_origin.y, neighbor_origin.z );
-			}
+            if ( !allowed ) {
+				// Neighbor rejected due to tile-route filter.
+				state->tile_filter_reject_count++;
+				// Track reason-specific count and mark as already counted.
+				state->edge_reject_reason_counts[(int)nav_edge_reject_reason_t::TileRouteFilter]++;
+				if ( s_nav_expand_diag_enable && s_nav_expand_diag_enable->integer != 0 && Nav_PathDiagEnabled() ) {
+					const uint64_t nowMs = gi.GetRealSystemTime();
+					const int cooldown = s_nav_expand_diag_cooldown_ms ? s_nav_expand_diag_cooldown_ms->integer : 200;
+					if ( nowMs - s_last_navexpand_diag_ms >= ( uint64_t )cooldown ) {
+						s_last_navexpand_diag_ms = nowMs;
+						gi.dprintf( "[DEBUG][NavPath][Diag] Neighbor rejected by tile-route filter at pos=(%.1f %.1f %.1f)\n",
+							neighbor_origin.x, neighbor_origin.y, neighbor_origin.z );
+					}
+				}
 				continue;
 			}
 		}
 
-		nav_node_ref_t neighbor_node = {};
+        nav_node_ref_t neighbor_node = {};
 		if ( !Nav_FindNodeForPosition( mesh, neighbor_origin, neighbor_origin[ 2 ], &neighbor_node, true ) ) {
-         // No node exists at this neighbor position.
+			// No node exists at this neighbor position.
 			state->no_node_count++;
-			if ( Nav_PathDiagEnabled() ) {
-				gi.dprintf( "[DEBUG][NavPath][Diag] No node at neighbor pos=(%.1f %.1f %.1f)\n",
-					neighbor_origin.x, neighbor_origin.y, neighbor_origin.z );
+			// Track reason-specific count and mark as counted.
+			state->edge_reject_reason_counts[(int)nav_edge_reject_reason_t::NoNode]++;
+			if ( s_nav_expand_diag_enable && s_nav_expand_diag_enable->integer != 0 && Nav_PathDiagEnabled() ) {
+				const uint64_t nowMs = gi.GetRealSystemTime();
+				const int cooldown = s_nav_expand_diag_cooldown_ms ? s_nav_expand_diag_cooldown_ms->integer : 200;
+				if ( nowMs - s_last_navexpand_diag_ms >= ( uint64_t )cooldown ) {
+					s_last_navexpand_diag_ms = nowMs;
+					gi.dprintf( "[DEBUG][NavPath][Diag] No node at neighbor pos=(%.1f %.1f %.1f)\n",
+						neighbor_origin.x, neighbor_origin.y, neighbor_origin.z );
+				}
 			}
 			continue;
 		}
 
-		const double neighbor_drop = current.node.position[ 2 ] - neighbor_node.position[ 2 ];
-      if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->drop_cap ) {
+        const double neighbor_drop = current.node.position[ 2 ] - neighbor_node.position[ 2 ];
+		if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->drop_cap ) {
 			// Neighbor rejected due to drop cap.
-			if ( Nav_PathDiagEnabled() ) {
-				gi.dprintf( "[DEBUG][NavPath][Diag] Neighbor rejected by drop cap: drop=%.1f cap=%.1f pos=(%.1f %.1f %.1f)\n",
-					neighbor_drop, policy->drop_cap, neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z );
+			state->edge_reject_reason_counts[(int)nav_edge_reject_reason_t::DropCap]++;
+			if ( s_nav_expand_diag_enable && s_nav_expand_diag_enable->integer != 0 && Nav_PathDiagEnabled() ) {
+				const uint64_t nowMs = gi.GetRealSystemTime();
+				const int cooldown = s_nav_expand_diag_cooldown_ms ? s_nav_expand_diag_cooldown_ms->integer : 200;
+				if ( nowMs - s_last_navexpand_diag_ms >= ( uint64_t )cooldown ) {
+					s_last_navexpand_diag_ms = nowMs;
+					gi.dprintf( "[DEBUG][NavPath][Diag] Neighbor rejected by drop cap: drop=%.1f cap=%.1f pos=(%.1f %.1f %.1f)\n",
+						neighbor_drop, policy->drop_cap, neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z );
+				}
 			}
 			continue;
 		}
@@ -200,15 +247,25 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		*    The PMove-derived step test covers slopes, hills, and stairs while respecting both
 		*    agent hulls and slope/drop constraints.
 		**/
-      if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy ) ) {
+        // Ask the step validator for a detailed rejection reason when available.
+		nav_edge_reject_reason_t stepReason = nav_edge_reject_reason_t::None;
+		if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy, &stepReason ) ) {
 			// Edge validation failed for this neighbor.
 			state->edge_reject_count++;
-			if ( Nav_PathDiagEnabled() ) {
-				double dz = neighbor_node.position.z - current.node.position.z;
-				gi.dprintf( "[DEBUG][NavPath][Diag] Edge rejected between (%.1f %.1f %.1f) -> (%.1f %.1f %.1f) dz=%.1f\n",
-					current.node.position.x, current.node.position.y, current.node.position.z,
-					neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z,
-					dz );
+			// Increment the returned reason if present, otherwise attribute to StepTest.
+			const int reasonIndex = ( stepReason != nav_edge_reject_reason_t::None ) ? ( int )stepReason : ( int )nav_edge_reject_reason_t::StepTest;
+			state->edge_reject_reason_counts[ reasonIndex ]++;
+			if ( s_nav_expand_diag_enable && s_nav_expand_diag_enable->integer != 0 && Nav_PathDiagEnabled() ) {
+				const uint64_t nowMs = gi.GetRealSystemTime();
+				const int cooldown = s_nav_expand_diag_cooldown_ms ? s_nav_expand_diag_cooldown_ms->integer : 200;
+				if ( nowMs - s_last_navexpand_diag_ms >= ( uint64_t )cooldown ) {
+					s_last_navexpand_diag_ms = nowMs;
+					double dz = neighbor_node.position.z - current.node.position.z;
+                    gi.dprintf( "[DEBUG][NavPath][Diag] Edge rejected between (%.1f %.1f %.1f) -> (%.1f %.1f %.1f) dz=%.1f reason=%d (%s)\n",
+						current.node.position.x, current.node.position.y, current.node.position.z,
+						neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z,
+						dz, ( int )stepReason, Nav_EdgeRejectReasonToString( stepReason ) );
+				}
 			}
 			continue;
 		}
@@ -315,7 +372,9 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			extraCost -= losWeight;
 		}
 
-		if ( SVG_Nav_Occupancy_Blocked( mesh, neighbor_node.key.tile_index, neighbor_node.key.cell_index, neighbor_node.key.layer_index ) ) {
+        if ( SVG_Nav_Occupancy_Blocked( mesh, neighbor_node.key.tile_index, neighbor_node.key.cell_index, neighbor_node.key.layer_index ) ) {
+			// Occupancy-blocked neighbor should be counted as an occupancy rejection.
+			state->edge_reject_reason_counts[(int)nav_edge_reject_reason_t::Occupancy]++;
 			continue;
 		}
 		const int32_t occSoftCost = SVG_Nav_Occupancy_SoftCost( mesh, neighbor_node.key.tile_index, neighbor_node.key.cell_index, neighbor_node.key.layer_index );
@@ -420,6 +479,12 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	state->policy = policy;
 	state->pathProcess = pathProcess;
 	state->max_nodes = NAV_ASTAR_MAX_NODES;
+
+	// Lazy-register expansion diagnostic cvars.
+	if ( !s_nav_expand_diag_enable ) {
+		s_nav_expand_diag_enable = gi.cvar( "nav_expand_diag_enable", "1", 0 );
+		s_nav_expand_diag_cooldown_ms = gi.cvar( "nav_expand_diag_cooldown_ms", "200", 0 );
+	}
 
 	// Apply configured search budget: prefer runtime cvar when available so budget can be tuned without rebuilds.
 	if ( nav_astar_step_budget_ms ) {
@@ -617,5 +682,8 @@ void Nav_AStar_Reset( nav_a_star_state_t *state ) {
 	state->no_node_count = 0;
 	state->tile_filter_reject_count = 0;
 	state->edge_reject_count = 0;
+
+	// Clear per-reason rejection counts.
+	state->edge_reject_reason_counts.fill( 0 );
 	state->step_start_ms = 0;
 }

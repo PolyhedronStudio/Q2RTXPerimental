@@ -151,4 +151,6 @@ const bool Nav_CanTraverseStep( const nav_mesh_t *mesh, const Vector3 &startPos,
 * 	@return	True if the traversal is possible, false otherwise.
 * 	@note	Used by A* expansion to ensure candidate neighbor edges are physically feasible.
 **/
-const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy );
+// Forward-declare reject reason enum from traversal async header so callers can opt-in to receive reasons.
+#include "svgame/nav/svg_nav_traversal_async.h"
+const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vector3 &startPos, const Vector3 &endPos, const Vector3 &mins, const Vector3 &maxs, const edict_ptr_t *clip_entity, const svg_nav_path_policy_t *policy, nav_edge_reject_reason_t *out_reason = nullptr );

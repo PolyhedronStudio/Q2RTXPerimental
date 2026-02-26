@@ -24,7 +24,7 @@
 #include <cstdint>
 
 static constexpr uint32_t NAV_MESH_SAVE_MAGIC = 0x56414E53; // "VANS"
-static constexpr uint32_t NAV_MESH_SAVE_VERSION = 1;
+static constexpr uint32_t NAV_MESH_SAVE_VERSION = 2;
 
 /**
 *	@brief	Write raw bytes to a (possibly gzipped) file.
@@ -96,7 +96,7 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 	Nav_WriteValue( f, mesh->z_quant );
 	Nav_WriteValue( f, mesh->tile_size );
 	Nav_WriteValue( f, mesh->max_step );
-	Nav_WriteValue( f, mesh->max_slope_deg );
+   Nav_WriteValue( f, mesh->max_slope_normal_z );
 	Nav_WriteValue( f, mesh->agent_mins );
 	Nav_WriteValue( f, mesh->agent_maxs );
 
