@@ -27,7 +27,7 @@
 #include <cmath>
 
 extern cvar_t *nav_max_step;
-extern cvar_t *nav_drop_cap;
+extern cvar_t *nav_max_drop_height_cap;
 extern cvar_t *nav_debug_draw;
 extern cvar_t *nav_debug_draw_path;
 /**
@@ -176,7 +176,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	*        Ensure long downward transitions do not bypass the cap when we segment
 	*        by horizontal distance for multi-cell ramps.
 	**/
-	const double dropCap = ( policy ? ( double )policy->drop_cap : ( nav_drop_cap ? nav_drop_cap->value : 128.0f ) );
+	const double dropCap = ( policy ? ( double )policy->max_drop_height_cap : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 128.0f ) );
 	const double requiredDown = std::max( 0.0, ( double )startPos[ 2 ] - ( double )endPos[ 2 ] );
 	// Reject edges that drop farther than the configured cap.
 	if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
@@ -340,7 +340,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 				state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
 			gi.dprintf( "[DEBUG][NavPath][Diag] A* inputs: max_step=%.1f max_drop=%.1f cell_size_xy=%.1f z_quant=%.1f\n",
 				nav_max_step ? nav_max_step->value : -1.0f,
-				nav_drop_cap ? nav_drop_cap->value : -1.0f,
+				nav_max_drop_height_cap ? nav_max_drop_height_cap->value : -1.0f,
 				mesh ? ( float )mesh->cell_size_xy : -1.0f,
 				mesh ? ( float )mesh->z_quant : -1.0f );
 			Nav_Debug_PrintNodeRef( "start_node", start_node );
@@ -380,9 +380,9 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		gi.dprintf( "[WARNING][NavPath][A*]   2. All potential paths are blocked by obstacles\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   3. Edge validation (Nav_CanTraverseStep) rejected all connections\n" );
 		gi.dprintf( "[WARNING][NavPath][A*] Suggestions:\n" );
-		gi.dprintf( "[WARNING][NavPath][A*]   - Check nav_max_step (current: %.1f) and nav_drop_cap (current: %.1f)\n",
+		gi.dprintf( "[WARNING][NavPath][A*]   - Check nav_max_step (current: %.1f) and nav_max_drop_height_cap (current: %.1f)\n",
 			nav_max_step ? nav_max_step->value : -1.0f,
-			nav_drop_cap ? nav_drop_cap->value : -1.0f );
+			nav_max_drop_height_cap ? nav_max_drop_height_cap->value : -1.0f );
 		gi.dprintf( "[WARNING][NavPath][A*]   - Verify navmesh has stairs/ramps connecting the Z-levels\n" );
 		gi.dprintf( "[WARNING][NavPath][A*]   - Use 'nav_debug_draw 1' to visualize the navmesh\n" );
 	} else {
@@ -396,7 +396,7 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		gi.dprintf( "[NavPath][Diag] neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d\n",
 			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
 		// Print per-reason edge rejection counts when available.
-		gi.dprintf( "[NavPath][Diag] edge_reject_reasons: tile_route=%d no_node=%d drop_cap=%d step_test=%d obstruction_jump=%d occupancy=%d other=%d\n",
+		gi.dprintf( "[NavPath][Diag] edge_reject_reasons: tile_route=%d no_node=%d max_drop_height_cap=%d step_test=%d obstruction_jump=%d occupancy=%d other=%d\n",
 			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::TileRouteFilter],
 			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::NoNode],
 			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::DropCap],
@@ -1043,7 +1043,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	*    Drop cap enforcement: respect the caller's policy before attempting any traces
 	*    so we can early-out on overly deep downward transitions.
 	**/
-	const double dropCap = ( policy ? ( double )policy->drop_cap : ( nav_drop_cap ? nav_drop_cap->value : 128.0f ) );
+	const double dropCap = ( policy ? ( double )policy->max_drop_height_cap : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 128.0f ) );
 	const double requiredDown = std::max( 0.0, ( double )startPos[ 2 ] - ( double )endPos[ 2 ] );
 	/**
 	*    Reject edges that attempt to drop farther than the configured cap before tracing.
@@ -1227,7 +1227,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 							return false;
 						}
 						// Optionally cap drop height.
-						if ( policy && policy->cap_drop_height ) {
+						if ( policy && policy->enable_max_drop_height_cap ) {
 							const double drop = start[ 2 ] - downTr2.endpos[ 2 ];
 							if ( drop > ( double )policy->max_drop_height ) {
 								NavDebug_RecordReject( start, downTr2.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
@@ -1334,7 +1334,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	}
 
 	// Drop cap after step
-	if ( policy && policy->cap_drop_height ) {
+	if ( policy && policy->enable_max_drop_height_cap ) {
 		const double drop = start[ 2 ] - downTr.endpos[ 2 ];
 		if ( drop > ( double )policy->max_drop_height ) {
 			NavDebug_RecordReject( start, downTr.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );

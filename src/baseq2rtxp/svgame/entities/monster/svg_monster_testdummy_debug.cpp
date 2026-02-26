@@ -650,13 +650,13 @@ const bool svg_monster_testdummy_debug_t::OnThinkGeneric() {
 	navPathPolicy.waypoint_radius = 32.0f;
 	navPathPolicy.max_step_height = 18.0;
 	navPathPolicy.max_drop_height = 128.0;
-	navPathPolicy.cap_drop_height = true;
-	navPathPolicy.drop_cap = ( nav_drop_cap && nav_drop_cap->value > 0.0f ) ? nav_drop_cap->value : 64;
+	navPathPolicy.enable_max_drop_height_cap = true;
+	navPathPolicy.max_drop_height_cap = ( nav_max_drop_height_cap && nav_max_drop_height_cap->value > 0.0f ) ? nav_max_drop_height_cap->value : 64;
 	navPathPolicy.enable_goal_z_layer_blend = true;
 	navPathPolicy.blend_start_dist = 0.0f;
 	navPathPolicy.blend_full_dist = 18.0f;
 	navPathPolicy.allow_small_obstruction_jump = true;
-	navPathPolicy.max_obstruction_jump_height = 36.0;
+	navPathPolicy.max_obstruction_jump_height = 48.0;
 
 	/**
 	*    Recategorize position and check grounding.
@@ -769,9 +769,9 @@ const int32_t svg_monster_testdummy_debug_t::PerformSlideMove() {
 			svg_trace_t tr = gi.trace( &start, &monsterMove.mins, &monsterMove.maxs, &end, this, CM_CONTENTMASK_SOLID );
 			const float drop = start.z - tr.endpos[ 2 ];
 
-			const float policyDropLimit = ( navPathPolicy.drop_cap > 0.0f )
-				? ( float )navPathPolicy.drop_cap
-				: ( navPathPolicy.cap_drop_height ? ( float )navPathPolicy.max_drop_height : 0.0f );
+			const float policyDropLimit = ( navPathPolicy.max_drop_height_cap > 0.0f )
+				? ( float )navPathPolicy.max_drop_height_cap
+				: ( navPathPolicy.enable_max_drop_height_cap ? ( float )navPathPolicy.max_drop_height : 0.0f );
 
 			if ( tr.fraction < 1.0f && policyDropLimit > 0.0f && drop > policyDropLimit ) {
 				monsterMove.state.origin = monsterMove.state.origin - ( forwardDir * 24.f );

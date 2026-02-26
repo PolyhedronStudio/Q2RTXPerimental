@@ -342,8 +342,8 @@ cvar_t *nav_tile_size = nullptr;
 cvar_t *nav_max_step = nullptr;
 //! Maximum allowed downward traversal drop.
 cvar_t *nav_max_drop = nullptr;
-	//! Cap applied when rejecting large drops during path validation.
-cvar_t *nav_drop_cap = nullptr;
+//! Cap applied when rejecting large drops during path validation.
+cvar_t *nav_max_drop_height_cap = nullptr;
 //! Minimum walkable surface normal Z threshold.
 cvar_t *nav_max_slope_normal_z = nullptr;
 //! Agent bounding box minimum X.
@@ -451,7 +451,7 @@ void SVG_Nav_Init( void ) {
 	/**
 	*	Register physics constraints for specific actions.
 	**/
-	nav_drop_cap = gi.cvar( "nav_drop_cap", "96.0", 0 );
+	nav_max_drop_height_cap = gi.cvar( "nav_max_drop_height_cap", "96.0", 0 );
 
 	/**
 	*   Register agent bounding box CVars:
@@ -771,9 +771,9 @@ nav_agent_profile_t SVG_Nav_BuildAgentProfileFromCvars( void ) {
 
 	profile.max_step_height = nav_max_step ? nav_max_step->value : default_step;
 	profile.max_drop_height = nav_max_drop ? nav_max_drop->value : default_drop;
-    profile.drop_cap = nav_drop_cap ? nav_drop_cap->value : profile.max_drop_height;
-	if ( profile.drop_cap <= 0.0 ) {
-		profile.drop_cap = default_drop_cap;
+    profile.max_drop_height_cap = nav_max_drop_height_cap ? nav_max_drop_height_cap->value : profile.max_drop_height;
+	if ( profile.max_drop_height_cap <= 0.0 ) {
+		profile.max_drop_height_cap = default_drop_cap;
 	}
     profile.max_slope_normal_z = nav_max_slope_normal_z ? nav_max_slope_normal_z->value : default_slope_normal_z;
 

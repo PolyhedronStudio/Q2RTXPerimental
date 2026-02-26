@@ -637,7 +637,7 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	entry.resolved_policy.agent_maxs = resolvedAgentMaxs;
 	entry.resolved_policy.max_step_height = meshAgentValid ? mesh->max_step : agentProfile.max_step_height;
 	entry.resolved_policy.max_drop_height = agentProfile.max_drop_height;
-	entry.resolved_policy.drop_cap = agentProfile.drop_cap;
+	entry.resolved_policy.max_drop_height_cap = agentProfile.max_drop_height_cap;
 	entry.resolved_policy.max_slope_normal_z = meshAgentValid ? mesh->max_slope_normal_z : agentProfile.max_slope_normal_z;
 
 	// Emit diagnostic about chosen agent hull for this request when async logging is enabled.
@@ -950,9 +950,9 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 	/**
 	*    Enforce post-processed drop limits on the finalized waypoint list.
 	**/
-	const float maxDrop = ( entry.resolved_policy.drop_cap > 0.0f )
-		? ( float )entry.resolved_policy.drop_cap
-		: ( entry.resolved_policy.cap_drop_height ? ( float )entry.resolved_policy.max_drop_height : ( nav_drop_cap ? nav_drop_cap->value : 100.0f ) );
+	const float maxDrop = ( entry.resolved_policy.max_drop_height_cap > 0.0f )
+		? ( float )entry.resolved_policy.max_drop_height_cap
+		: ( entry.resolved_policy.enable_max_drop_height_cap ? ( float )entry.resolved_policy.max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 100.0f ) );
 	bool dropLimitOk = true;
 	const int32_t pointCount = ( int32_t )points.size();
 	if ( pointCount > 1 ) {
@@ -1055,15 +1055,15 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
 		*    mismatches between policy limits and the navmesh that cause edge
 		*    rejection during expansion.
 		**/
-		gi.dprintf( "[NavAsync][HandleFailure][Detail] handle=%d agent_mins=(%.1f %.1f %.1f) agent_maxs=(%.1f %.1f %.1f) policy: max_step=%.1f min_step=%.1f max_drop=%.1f drop_cap=%.1f cap_drop=%d allow_jump=%d max_slope=%.1f waypoint_radius=%.1f backoff_base_ms=%d backoff_max_pow=%d\n",
+		gi.dprintf( "[NavAsync][HandleFailure][Detail] handle=%d agent_mins=(%.1f %.1f %.1f) agent_maxs=(%.1f %.1f %.1f) policy: max_step=%.1f min_step=%.1f max_drop=%.1f max_drop_height_cap=%.1f cap_drop=%d allow_jump=%d max_slope=%.1f waypoint_radius=%.1f backoff_base_ms=%d backoff_max_pow=%d\n",
 			entry.handle,
 			entry.agent_mins.x, entry.agent_mins.y, entry.agent_mins.z,
 			entry.agent_maxs.x, entry.agent_maxs.y, entry.agent_maxs.z,
 			entry.resolved_policy.max_step_height,
 			entry.resolved_policy.min_step_height,
 			entry.resolved_policy.max_drop_height,
-            entry.resolved_policy.drop_cap,
-			entry.resolved_policy.cap_drop_height ? 1 : 0,
+            entry.resolved_policy.max_drop_height_cap,
+			entry.resolved_policy.enable_max_drop_height_cap ? 1 : 0,
 			entry.resolved_policy.allow_small_obstruction_jump ? 1 : 0,
 			entry.resolved_policy.max_slope_normal_z,
 			entry.resolved_policy.waypoint_radius,

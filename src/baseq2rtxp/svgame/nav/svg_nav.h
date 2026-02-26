@@ -74,7 +74,7 @@ typedef struct nav_agent_profile_s {
     //! Maximum vertical drop permitted during traversal (world units).
     double max_drop_height;
     //! Drop cap applied during path post-processing (world units).
-    double drop_cap;
+    double max_drop_height_cap;
     //! Minimum walkable surface normal Z threshold.
 	double max_slope_normal_z;
 } nav_agent_profile_t;
@@ -635,8 +635,8 @@ extern cvar_t *nav_z_quant;         //! Z-axis quantization step.
 extern cvar_t *nav_tile_size;       //! Number of cells per tile dimension.
 extern cvar_t *nav_max_step;        //! Maximum step height.
 extern cvar_t *nav_max_drop;        //! Maximum allowed downward traversal drop.
-extern cvar_t *nav_drop_cap;        //! Maximum drop height.
-extern cvar_t *nav_drop_cap;        //! Cap applied when rejecting excessive drops.
+extern cvar_t *nav_max_drop_height_cap;        //! Maximum drop height.
+extern cvar_t *nav_max_drop_height_cap;        //! Cap applied when rejecting excessive drops.
 extern cvar_t *nav_max_slope_normal_z;   //! Maximum walkable slope in degrees.
 extern cvar_t *nav_agent_mins_x;    //! Agent bounding box minimum X.
 extern cvar_t *nav_agent_mins_y;    //! Agent bounding box minimum Y.

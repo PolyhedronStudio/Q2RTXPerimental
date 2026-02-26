@@ -18,7 +18,7 @@
 #include <limits>
 
 extern cvar_t *nav_max_step;
-extern cvar_t *nav_drop_cap;
+extern cvar_t *nav_max_drop_height_cap;
 extern cvar_t *nav_cost_w_dist;
 extern cvar_t *nav_cost_jump_base;
 extern cvar_t *nav_cost_jump_height_weight;
@@ -228,7 +228,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		}
 
         const double neighbor_drop = current.node.position[ 2 ] - neighbor_node.position[ 2 ];
-		if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->drop_cap ) {
+		if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->max_drop_height_cap ) {
 			// Neighbor rejected due to drop cap.
 			state->edge_reject_reason_counts[(int)nav_edge_reject_reason_t::DropCap]++;
 			if ( s_nav_expand_diag_enable && s_nav_expand_diag_enable->integer != 0 && Nav_PathDiagEnabled() ) {
@@ -237,7 +237,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 				if ( nowMs - s_last_navexpand_diag_ms >= ( uint64_t )cooldown ) {
 					s_last_navexpand_diag_ms = nowMs;
 					gi.dprintf( "[DEBUG][NavPath][Diag] Neighbor rejected by drop cap: drop=%.1f cap=%.1f pos=(%.1f %.1f %.1f)\n",
-						neighbor_drop, policy->drop_cap, neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z );
+						neighbor_drop, policy->max_drop_height_cap, neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z );
 				}
 			}
 			continue;
@@ -344,7 +344,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			}
 		} else {
 			const double drop = -dz;
-			const double maxDrop = policy ? policy->max_drop_height : ( nav_drop_cap ? nav_drop_cap->value : 128.0f );
+			const double maxDrop = policy ? policy->max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 128.0f );
 			if ( drop > 0.0 ) {
 				extraCost += dropWeight * ( drop / std::max( maxDrop, 1.0 ) );
 			}

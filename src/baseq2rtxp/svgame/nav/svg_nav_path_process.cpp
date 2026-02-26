@@ -18,7 +18,7 @@
 #include "svgame/nav/svg_nav_traversal.h"
 
 extern cvar_t *nav_max_step;
-extern cvar_t *nav_drop_cap;
+extern cvar_t *nav_max_drop_height_cap;
 extern cvar_t *nav_debug_draw;
 
 /**
@@ -36,7 +36,7 @@ static svg_nav_path_policy_t SVG_Nav_BuildPolicyFromAgentProfile( const nav_agen
     policy.agent_maxs = profile.maxs;
     policy.max_step_height = profile.max_step_height;
     policy.max_drop_height = profile.max_drop_height;
-    policy.drop_cap = profile.drop_cap;
+    policy.max_drop_height_cap = profile.max_drop_height_cap;
     policy.max_slope_normal_z = profile.max_slope_normal_z;
     return policy;
 }
@@ -202,7 +202,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 
 	if ( doVerboseDebug ) {
 		gi.dprintf( "[DEBUG][NavPath] nav_max_step=%.1f\n", nav_max_step ? nav_max_step->value : -1.0f );
-		gi.dprintf( "[DEBUG][NavPath] nav_drop_cap=%.1f\n", nav_drop_cap ? nav_drop_cap->value : 100.0f );
+		gi.dprintf( "[DEBUG][NavPath] nav_max_drop_height_cap=%.1f\n", nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 100.0f );
 	}
 
 	/**
@@ -215,7 +215,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	resolvedPolicy.agent_maxs = profilePolicy.agent_maxs;
 	resolvedPolicy.max_step_height = profilePolicy.max_step_height;
 	resolvedPolicy.max_drop_height = profilePolicy.max_drop_height;
-	resolvedPolicy.drop_cap = profilePolicy.drop_cap;
+	resolvedPolicy.max_drop_height_cap = profilePolicy.max_drop_height_cap;
 	resolvedPolicy.max_slope_normal_z = profilePolicy.max_slope_normal_z;
 
 	/**
@@ -241,9 +241,9 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	* 		instead of "pathing failure" so callers can keep following the old path.
 	**/
 	const bool hasExistingPath = ( path.num_points > 0 && path.points );
- /**
+	/**
 	*    Guard: avoid expensive A* attempts when the required climb is outright impossible.
-	*    Continually retrying such rebuilds was the root cause of the hitch spam.
+	*    Continually retrying such rebuilds was the root cause of a hitch spam.
 	**/
 	if ( exceedsStepLimit ) {
 		/**
@@ -376,16 +376,16 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	**/
 	bool dropLimitOk = true;
 	// Determine the effective max drop to enforce on paths. Prefer policy settings when enabled,
-	// otherwise fall back to the global nav_drop_cap cvar.
+	// otherwise fall back to the global nav_max_drop_height_cap cvar.
 	/**
 	*    Determine drop rejection limit:
 	*        Prefer an explicit policy drop cap when positive, otherwise use the
 	*        per-policy max drop when dropping is capped. Fall back to the global
 	*        drop cap when no policy value is configured.
 	**/
-	const float maxDrop = ( resolvedPolicy.drop_cap > 0.0f )
-	    ? ( float )resolvedPolicy.drop_cap
-	    : ( resolvedPolicy.cap_drop_height ? ( float )resolvedPolicy.max_drop_height : ( nav_drop_cap ? nav_drop_cap->value : 100.0f ) );
+	const float maxDrop = ( resolvedPolicy.max_drop_height_cap > 0.0f )
+	    ? ( float )resolvedPolicy.max_drop_height_cap
+	    : ( resolvedPolicy.enable_max_drop_height_cap ? ( float )resolvedPolicy.max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 100.0f ) );
 	if ( ok && path.num_points > 1 && path.points ) {
 		// Scan each segment for excessive vertical drop.
 		for ( int32_t i = 1; i < path.num_points; ++i ) {

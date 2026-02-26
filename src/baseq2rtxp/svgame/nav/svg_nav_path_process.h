@@ -74,14 +74,19 @@ struct svg_nav_path_policy_t {
 	double max_obstruction_jump_height = 48.0;
 
 	/**
-	*	For fall-safety.
+	*	For fall-safety:
+	* 
+	*	max_drop_height should be smaller than (or equal to) the cap if the cap is an absolute extremity limiter. 
+	*	Two practical choices depending on your intent:
+	*	- If you want navigation to avoid any damaging falls: set cap < ~187.6 (e.g. 180) so the nav system will never accept a drop that can hurt.
+	*	- If you want to allow risky/damaging drops but still bound them: leave cap ≈ 192 (or slightly above) and keep max_drop_height as a conservative preferred threshold (e.g. 48..96).
 	**/
-	//! If true, do not allow moving into a drop deeper than drop_max_height.
-	bool cap_drop_height = true;
+	//! If true, do not allow moving into a drop deeper than max_drop_height.
+	bool enable_max_drop_height_cap = true;
 	//! Max allowed drop height (units, matches `nav_max_drop`).
-	double max_drop_height = 128.0;
-	//! Drop cap applied when rejecting large downward transitions (matches `nav_drop_cap`).
-	double drop_cap = 96.;
+	double max_drop_height = 64.0;
+	//! Drop cap applied when rejecting large downward transitions (matches `nav_max_drop_height_cap`).
+	double max_drop_height_cap = 192.;
 
 	/**
 	*	Agent navigation constraints derived from nav CVars.

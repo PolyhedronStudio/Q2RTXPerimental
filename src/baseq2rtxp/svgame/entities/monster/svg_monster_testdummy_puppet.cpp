@@ -881,8 +881,8 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
     // Allow stepping up to 18 units and cap drops to 128 units when following paths.
     navPathPolicy.max_step_height = 18.0;
     navPathPolicy.max_drop_height = 128.0;
-    navPathPolicy.cap_drop_height = true;
-    navPathPolicy.drop_cap = 64.0;
+    navPathPolicy.enable_max_drop_height_cap = true;
+    navPathPolicy.max_drop_height_cap = 64.0;
 
     // Goal Z-layer blending: bias layer selection toward goal Z quickly so the
     // pathfinder will prefer climbing stairs/up to the target when appropriate.
@@ -892,7 +892,7 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 
     // Small obstruction jump tuning: allow small jumps over low obstacles.
     navPathPolicy.allow_small_obstruction_jump = true;
-    navPathPolicy.max_obstruction_jump_height = 36.0;
+    navPathPolicy.max_obstruction_jump_height = 48.0;
 
     /**
     *    Path invalidation:
@@ -1194,8 +1194,8 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
 	// This allows stepping up to 18 units and caps allowed drops to 128 units.
 	navPathPolicy.max_step_height = 18.0;
 	navPathPolicy.max_drop_height = 128.0;
-	navPathPolicy.cap_drop_height = true;
-	navPathPolicy.drop_cap = 64.0;
+	navPathPolicy.enable_max_drop_height_cap = true;
+	navPathPolicy.max_drop_height_cap = 64.0;
 
     // Bias layer selection toward goal Z for trail-following so the monster will
     // attempt to climb stairs to reach breadcrumb spots on higher floors.
@@ -1218,7 +1218,7 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
     }
 
     navPathPolicy.allow_small_obstruction_jump = true;
-    navPathPolicy.max_obstruction_jump_height = 36.0;
+    navPathPolicy.max_obstruction_jump_height = 48.0;
 
     // Convert entity feet-origin bbox to navmesh-centered bbox/origins.
     // Call nav path process using entity origin; svg_nav_path_process will handle conversions.
@@ -1600,9 +1600,9 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_monster_testdummy_t, onThink)(svg_monster_testd
 			/**
 			*	Determine the drop allowance derived from the path policy so we respect the drop cap.
 			**/
-			const float policyDropLimit = ( self->navPathPolicy.drop_cap > 0.0f )
-				? ( float )self->navPathPolicy.drop_cap
-				: ( self->navPathPolicy.cap_drop_height ? ( float )self->navPathPolicy.max_drop_height : 0.0f );
+			const float policyDropLimit = ( self->navPathPolicy.max_drop_height_cap > 0.0f )
+				? ( float )self->navPathPolicy.max_drop_height_cap
+				: ( self->navPathPolicy.enable_max_drop_height_cap ? ( float )self->navPathPolicy.max_drop_height : 0.0f );
 			if ( tr.fraction < 1.0f && policyDropLimit > 0.0f && drop > policyDropLimit ) {
 					monsterMove.state.origin = monsterMove.state.origin - ( forwardDir * 24.f );//self->currentOrigin - forwardDir * 24.f;
 					monsterMove.state.velocity.x = 0.0f;
