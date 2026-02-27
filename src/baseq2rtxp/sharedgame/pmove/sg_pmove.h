@@ -165,22 +165,46 @@ typedef struct pmoveParams_s {
 * 
 * 
 **/
-//! For when player is standing straight up.
-static constexpr Vector3 PM_BBOX_STANDUP_MINS = { -16.f, -16.f, -36.f };
-static constexpr Vector3 PM_BBOX_STANDUP_MAXS = { 16.f, 16.f, 36.f };
-static constexpr double  PM_VIEWHEIGHT_STANDUP = 30.f;
-//! For when player is crouching.
-static constexpr Vector3 PM_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
-static constexpr Vector3 PM_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
-static constexpr double  PM_VIEWHEIGHT_DUCKED = 4.f;
-//! For when player is gibbed out.
-static constexpr Vector3 PM_BBOX_GIBBED_MINS = { -16.f, -16.f, 0.f };
-static constexpr Vector3 PM_BBOX_GIBBED_MAXS = { 16.f, 16.f, 24.f };
-static constexpr double  PM_VIEWHEIGHT_GIBBED = 8.f;
-//! For when player is spectating/noclipping.
-static constexpr Vector3 PM_BBOX_FLYING_MINS = { -8.f, -8.f, -8.f };
-static constexpr Vector3 PM_BBOX_FLYING_MAXS = { 8.f, 8.f, 8.f };
-static constexpr double  PM_VIEWHEIGHT_FLYING = 0.f;
+/**
+*	For when the agent is in its 'regular' stance, standing straight up.
+**/
+//! The minimal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 PM_BBOX_STANDUP_MINS	= PHYS_DEFAULT_BBOX_STANDUP_MINS; // = { -16.f, -16.f, -36.f };
+//! The maximal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 PM_BBOX_STANDUP_MAXS	= PHYS_DEFAULT_BBOX_STANDUP_MAXS; // = { 16.f, 16.f, 36.f };
+//! The view height offset relative from the origin for the agent's viewpoint when standing up.
+static constexpr double  PM_VIEWHEIGHT_STANDUP	= PHYS_DEFAULT_VIEWHEIGHT_STANDUP; // = 30.f;
+
+/**
+*	For when the agent is actively crouching.
+**/
+//! The minimal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 PM_BBOX_DUCKED_MINS	= PHYS_DEFAULT_BBOX_DUCKED_MINS; // = { -16.f, -16.f, -36.f };
+//! The maximal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 PM_BBOX_DUCKED_MAXS	= PHYS_DEFAULT_BBOX_DUCKED_MAXS; // = { 16.f, 16.f, 8.f };
+//! The view height offset relative to the origin for the agent's viewpoint when ducked up.
+static constexpr double  PM_VIEWHEIGHT_DUCKED	= PHYS_DEFAULT_VIEWHEIGHT_DUCKED; // = 4.f;
+
+/**
+*	For when the agent is spectating / noclipping.
+**/
+//! The minimal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 PM_BBOX_FLYING_MINS	= PHYS_DEFAULT_BBOX_FLYING_MINS; // = { -8.f, -8.f, -8.f };
+//! The maximal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 PM_BBOX_FLYING_MAXS	= PHYS_DEFAULT_BBOX_FLYING_MAXS; // = { 8.f, 8.f, 8.f };
+//! The view height offset relative to the origin for the agent's viewpoint when flying.
+static constexpr double  PM_VIEWHEIGHT_FLYING	= PHYS_DEFAULT_VIEWHEIGHT_FLYING; // = 0.f;
+
+/**
+*	For when the agent is "gibbed" out. ( Splattered to pieces, e.g., by a rocket explosion.
+**/
+//! The minimal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 PM_BBOX_GIBBED_MINS	= PHYS_DEFAULT_BBOX_GIBBED_MINS; // = { -16.f, -16.f, 0.f };
+//! The maximal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 PM_BBOX_GIBBED_MAXS	= PHYS_DEFAULT_BBOX_GIBBED_MAXS; // = { 16.f, 16.f, 24.f };
+//! The view height offset relative to the origin for the agent's viewpoint when 'gibbed out'.
+static constexpr double  PM_VIEWHEIGHT_GIBBED	= PHYS_DEFAULT_VIEWHEIGHT_GIBBED; // = 8.f;
+
 
 
 /**
@@ -191,11 +215,11 @@ static constexpr double  PM_VIEWHEIGHT_FLYING = 0.f;
 * 
 **/
 //! Minimal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr double PM_STEP_MIN_SIZE = 2.f;
+static constexpr double PM_STEP_MIN_SIZE	= PHYS_STEP_MIN_SIZE;
 //! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr double PM_STEP_MAX_SIZE = 18.f;
+static constexpr double PM_STEP_MAX_SIZE	= PHYS_STEP_MAX_SIZE;
 //! Offset for distance to account for between step and ground.
-static constexpr double PM_STEP_GROUND_DIST = 0.25f;
+static constexpr double PM_STEP_GROUND_DIST	= PHYS_STEP_GROUND_DIST;
 
 
 

@@ -100,7 +100,7 @@ static void MMove_StepDown( mm_move_t *monsterMove, const svg_trace_t *trace ) {
 	// If its absolute(-/+) value >= PM_STEP_MIN_SIZE(14.0) then we got an official step.
 	
 	// Get the step height.
-	double minStepSize = MM_MIN_STEP_SIZE;
+	double minStepSize = MM_MIN_STEP_HEIGHT;
 	if ( monsterMove->navPolicy ) {
 		minStepSize = monsterMove->navPolicy->min_step_height;
 	}
@@ -137,7 +137,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_pat
 	Vector3 downVelocity = monsterMove->state.velocity;
 
 	// Get max step size.
-	double maxStepSize = MM_MAX_STEP_SIZE;
+	double maxStepSize = MM_MAX_STEP_HEIGHT;
 	if ( monsterMove->navPolicy ) {
 		maxStepSize = monsterMove->navPolicy->max_step_height;
 	}

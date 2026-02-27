@@ -347,6 +347,13 @@ typedef enum {
 //#endif // #ifdef __cplusplus
 
 /**
+*	Default Shared Physics(Const/ConstExpressions etc):
+**/
+#ifdef __cplusplus
+	#include "shared/physics/phys_const_defaults.h"
+#endif
+
+/**
 *   Tag Memory Allocation Zones:
 **/
 #include "shared/zone_tags.h"

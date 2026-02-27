@@ -21,20 +21,34 @@ struct svg_nav_path_policy_t;
 *
 **/
 /**
-*	Default BoundingBoxes:
+*	Standing Stance BoundingBox:
 **/
-//! For when monster is standing straight up.
-static constexpr Vector3 MM_BBOX_STANDUP_MINS = { -16.f, -16.f, -36.f };
-static constexpr Vector3 MM_BBOX_STANDUP_MAXS = { 16.f, 16.f, 36.f };
-static constexpr float   MM_VIEWHEIGHT_STANDUP = 30.f;
-//! For when monster is crouching.
-static constexpr Vector3 MM_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
-static constexpr Vector3 MM_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
-static constexpr float   MM_VIEWHEIGHT_DUCKED = 4.f;
-//! For when monster is gibbed out.
-//static constexpr Vector3 PM_BBOX_GIBBED_MINS = { -16.f, -16.f, 0.f };
-//static constexpr Vector3 PM_BBOX_GIBBED_MAXS = { 16.f, 16.f, 24.f };
-//static constexpr float   PM_VIEWHEIGHT_GIBBED = 8.f;
+//! The minimal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 MM_BBOX_STANDUP_MINS	= PHYS_DEFAULT_BBOX_STANDUP_MINS;		// = { -16.f, -16.f, -36.f };
+//! The maximal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 MM_BBOX_STANDUP_MAXS	= PHYS_DEFAULT_BBOX_STANDUP_MAXS;		// = { 16.f, 16.f, 36.f };
+//! The view height offset relative from the origin for the agent's viewpoint when standing up.
+static constexpr double	 MM_VIEWHEIGHT_STANDUP	= PHYS_DEFAULT_VIEWHEIGHT_STANDUP;	// = 30.f;
+
+/**
+*	Crouching Stance BoundingBox:
+**/
+//! The minimal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 MM_BBOX_DUCKED_MINS	= PHYS_DEFAULT_BBOX_DUCKED_MINS;	// = { -16.f, -16.f, -36.f };
+//! The maximal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 MM_BBOX_DUCKED_MAXS	= PHYS_DEFAULT_BBOX_DUCKED_MAXS;	// = { 16.f, 16.f, 8.f };
+//! The view height offset relative to the origin for the agent's viewpoint when ducked up.
+static constexpr double	 MM_VIEWHEIGHT_DUCKED	= PHYS_DEFAULT_VIEWHEIGHT_DUCKED;	// = 4.f;
+
+/**
+*	For when monster is gibbed out:
+**/
+//! The minimal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 MM_BBOX_GIBBED_MINS	= PHYS_DEFAULT_BBOX_GIBBED_MINS; // = { -8.f, -8.f, -8.f };
+//! The maximal bounding box for the agent, relative to its origin at the center of its feet.
+static constexpr Vector3 MM_BBOX_GIBBED_MAXS	= PHYS_DEFAULT_BBOX_GIBBED_MAXS; // = { 8.f, 8.f, 8.f };
+//! The view height offset relative to the origin for the agent's viewpoint when flying.
+static constexpr double  MM_DEFAULT_VIEWHEIGHT_GIBBED = PHYS_DEFAULT_VIEWHEIGHT_GIBBED; // = 0.f;
 
 
 
@@ -42,10 +56,11 @@ static constexpr float   MM_VIEWHEIGHT_DUCKED = 4.f;
 *	StepHeight:
 **/
 //! Minimal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr float MM_MIN_STEP_SIZE = 1.f;
+static constexpr double MM_MIN_STEP_HEIGHT	= PHYS_STEP_MIN_SIZE;
 //! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
-static constexpr float MM_MAX_STEP_SIZE = 18.f;
-
+static constexpr double MM_MAX_STEP_HEIGHT	= PHYS_STEP_MAX_SIZE;
+//! Offset for distance to account for between step and ground.
+static constexpr double MM_STEP_GROUND_DIST	= PHYS_STEP_GROUND_DIST;
 
 
 /**

@@ -243,24 +243,24 @@ typedef struct clg_entity_moveinfo_s {
 **/
 typedef struct centity_s {
 	//! Entity id for the refresh(render) entity.
-	int32_t	id;
+	int32_t	id = -1;
 
 	//! The (last) serverframe this entity was in. If not current, this entity isn't in the received frame.
-	int64_t	serverframe;
+	int64_t	serverframe = -1;
 	//! The last moment in time of when this entity was available in a snapshot.
-	int64_t snapShotTime;
+	int64_t snapShotTime = -1;
 
 	//! Next entity state, to be used when updating to a new frame. Arrived from the last acknowledged packet.
 	//entity_state_t	next;
 	//! Current(and thus last acknowledged and received) entity state.
-	entity_state_t	current;
+	entity_state_t	current = {};
 	//! Previous entity state. Will always be valid, but might be just a copy of the current state.
-	entity_state_t	prev;
+	entity_state_t	prev = {};
 
 	//! Modelspace Mins/Maxs of Bounding Box.
-	Vector3	mins, maxs;
+	Vector3	mins = {}, maxs = {};
 	//! Worldspace absolute Mins/Maxs/Size of Bounding Box.
-	Vector3	absMin, absMax, size;
+	Vector3	absMin = {}, absMax = {}, size = {};
 
 
 
@@ -274,49 +274,49 @@ typedef struct centity_s {
 	* 
 	**/
 	//! Lerped Origin( Also used for trails (variable hz). )
-	Vector3	lerpOrigin;
+	Vector3	lerpOrigin = {};
 	//! Lerped Angles.
-	Vector3 lerpAngles;
+	Vector3 lerpAngles = {};
 
 	/**
 	*	TODO: Catagorize :
 	**/
 	// WID: 40hz
-	int32_t	current_frame, last_frame;
+	int64_t	current_frame = 0, last_frame = 0;
 	// Server Time of receiving the current frame.
-	int64_t	frame_servertime;
+	int64_t	frame_servertime = 0;
 	// Real Time of receiving the current frame.
-	int64_t frame_realtime;
+	int64_t frame_realtime = 0;
 
 	// Server Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
-	int64_t	step_servertime;
+	int64_t	step_servertime = 0;
 	// Real Time of receiving a (state.renderfx & SF_STAIR_STEP) entity.
-	int64_t	step_realtime;
+	int64_t	step_realtime = 0;
 	// Actual height of the step taken.
-	float	step_height;
+	double	step_height = 0.;
 	// WID: 40hz
 
 	/**
 	*	Rendering:
 	**/
 	//! Refresh Entity.
-	entity_t refreshEntity;
+	entity_t refreshEntity = { .id = -1 };
 
 	//! Animations being played and mixed for this entity.
-	sg_skm_animation_mixer_t animationMixer;
+	sg_skm_animation_mixer_t animationMixer = {};
 	//! Bone Controllers.
-	skm_bone_controller_t boneControllers[ 4 ];
+	skm_bone_controller_t boneControllers[ 4 ] = {};
 	//! Bone Pose Cache for ET_PLAYER and ET_MONSTER types.
-	skm_transform_t *bonePoseCache[ SKM_BODY_MAX ];		//! For the current animation(s).
-	skm_transform_t *lastBonePoseCache[ SKM_BODY_MAX ]; //! For the last animation(s).
-	skm_transform_t *eventBonePoseCache[ SKM_BODY_MAX ];//! For the event animation(s).
+	skm_transform_t *bonePoseCache[ SKM_BODY_MAX ] = {};		//! For the current animation(s).
+	skm_transform_t *lastBonePoseCache[ SKM_BODY_MAX ] = {}; //! For the last animation(s).
+	skm_transform_t *eventBonePoseCache[ SKM_BODY_MAX ] = {};//! For the event animation(s).
 
 
 	/**
 	*	Events:
 	**/
 	//! The most recent event that was added to this entity.
-	int64_t previousEvent;
+	int64_t previousEvent = 0;
 
 
 	/**
@@ -324,25 +324,25 @@ typedef struct centity_s {
 	**/
 	struct {
 		//! The most recently calculated move information.
-		clg_entity_moveinfo_t current;
+		clg_entity_moveinfo_t current = {};
 		//! The previous frame's calculated move information.
-		clg_entity_moveinfo_t previous;
-	} moveInfo;
+		clg_entity_moveinfo_t previous = {};
+	} moveInfo = {};
 	//! (View-) Angle Vectors, updated along with movement information.
 	struct {
-		Vector3 up;
-		Vector3 forward;
-		Vector3 right;
-	} vAngles;
+		Vector3 up = {};
+		Vector3 forward = {};
+		Vector3 right = {};
+	} vAngles = {};
 
 
 	/**
 	*	Misc:
 	**/
 	//! Used for CL_FlyEffect and CL_TrapParticles to determine when to stop the effect.
-	int32_t	fly_stopTime;
+	int64_t	fly_stopTime = 0;
 	//! For diminishing grenade trails.
-	int32_t	trailCount;
+	int64_t	trailCount = 0;
 } centity_t;
 
 /**

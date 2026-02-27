@@ -635,9 +635,8 @@ extern cvar_t *nav_z_quant;         //! Z-axis quantization step.
 extern cvar_t *nav_tile_size;       //! Number of cells per tile dimension.
 extern cvar_t *nav_max_step;        //! Maximum step height.
 extern cvar_t *nav_max_drop;        //! Maximum allowed downward traversal drop.
-extern cvar_t *nav_max_drop_height_cap;        //! Maximum drop height.
-extern cvar_t *nav_max_drop_height_cap;        //! Cap applied when rejecting excessive drops.
-extern cvar_t *nav_max_slope_normal_z;   //! Maximum walkable slope in degrees.
+extern cvar_t *nav_max_drop_height_cap;	//! Cap applied when rejecting excessive drops.
+extern cvar_t *nav_max_slope_normal_z;	//! Maximum walkable slope in degrees.
 extern cvar_t *nav_agent_mins_x;    //! Agent bounding box minimum X.
 extern cvar_t *nav_agent_mins_y;    //! Agent bounding box minimum Y.
 extern cvar_t *nav_agent_mins_z;    //! Agent bounding box minimum Z.

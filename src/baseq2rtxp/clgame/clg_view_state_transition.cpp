@@ -101,9 +101,9 @@ static const double SmoothStepOffset() {
     // The original code was short integer coordinate based and had the following 'formula':
     // 127 * 0.125 = 15.875.
     // 
-    // Ours differs: PM_MAX_STEP_CHANGE_HEIGHT(18) - STEP_SMALL_HEIGHT(0.25) resulting in 15.75 as STEP_SMALL_HEIGHT.
+    // Ours differs: PM_MAX_STEP_CHANGE_HEIGHT(18) - STEP_SMALL_SIZE(0.25) resulting in 15.75 as STEP_SMALL_SIZE.
     // What is considered to be a 'small' step.
-    static constexpr double STEP_SMALL_HEIGHT = ( PM_STEP_MAX_SIZE - ( PM_STEP_MIN_SIZE + PM_STEP_GROUND_DIST ) );
+    static constexpr double STEP_SMALL_SIZE = ( PM_STEP_MAX_SIZE - ( PM_STEP_MIN_SIZE + PM_STEP_GROUND_DIST ) );
     // Time in miliseconds to smooth the view for the step offset with.
     static constexpr int32_t STEP_CHANGE_TIME = 100;
     // Base 1 FrameTime.
@@ -114,7 +114,7 @@ static const double SmoothStepOffset() {
     // Absolute step size we had.
     const double fabsStepSize = fabsf( game.predictedState.transition.step.size );
     // Smooth out stair climbing.
-    if ( fabsStepSize >= PM_STEP_MIN_SIZE && fabsf( game.predictedState.transition.step.size ) < STEP_SMALL_HEIGHT ) {
+    if ( fabsStepSize >= PM_STEP_MIN_SIZE && fabsf( game.predictedState.transition.step.size ) < STEP_SMALL_SIZE ) {
         // Will multiply it by 2 for smaller steps to still lerp faster over time. 
         // (Thus exceeding the limit faster, visual and logically makes sense.)
         deltaTime <<= 1;

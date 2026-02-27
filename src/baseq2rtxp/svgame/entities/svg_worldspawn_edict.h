@@ -119,7 +119,7 @@ struct svg_worldspawn_edict_t : public svg_base_edict_t {
     *
     **/
     //! Default gravity value in case it is unset.
-    static constexpr double DEFAULT_GRAVITY = 800.0;
+    static constexpr double DEFAULT_GRAVITY = PHYS_DEFAULT_GRAVITY;
     // World vars
     svg_level_qstring_t sky = nullptr;
     float   skyrotate = 0.f;

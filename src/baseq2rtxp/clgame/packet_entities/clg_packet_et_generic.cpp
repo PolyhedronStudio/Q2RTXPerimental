@@ -167,8 +167,8 @@ static void CLG_PacketEntity_LerpOrigin( centity_t *packetEntity, entity_t *refr
     //        static constexpr float STEP_BASE_1_FRAMETIME = 1.0f / STEP_TIME; // 0.01f;
 
     //        // Smooth it out further for smaller steps.
-    //        //static constexpr float STEP_MAX_SMALL_STEP_SIZE = 18.f;
-    //        //if ( fabs( packetEntity->step_height ) <= STEP_MAX_SMALL_STEP_SIZE ) {
+    //        //static constexpr float PHYS_STEP_SMALL_SIZE = 18.f;
+    //        //if ( fabs( packetEntity->step_height ) <= PHYS_STEP_SMALL_SIZE ) {
     //        //    stair_step_delta <<= 1; // small steps
     //        //}
      
