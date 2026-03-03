@@ -109,4 +109,5 @@ baseq2rtxp/maps/*.bsp
 /maps/srcmaps/autosave
 /r_tonTouch Trigger touched by entity 14.
 /.vscode
+/baseq2rtxp/maps/nav/**
 /baseq2rtxp/maps/nav/q2rtxp_dev_voxelpaths.nav
