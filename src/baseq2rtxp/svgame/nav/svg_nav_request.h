@@ -7,9 +7,10 @@
 ********************************************************************/
 #pragma once
 
-#include "svgame/svg_local.h"
+#include <cstdint>
 #include "svgame/nav/svg_nav_path_process.h"
 #include "svgame/nav/svg_nav_traversal_async.h"
+#include "svgame/svg_local.h"
 
 //! Toggle controlling whether path rebuilds should be enqueued via the async request queue.
 extern cvar_t *nav_nav_async_queue_mode;
@@ -25,6 +26,7 @@ using nav_request_handle_t = int32_t;
 **/
 enum class nav_request_status_t {
 	Queued,
+    Preparing,
 	Running,
 	Completed,
 	Failed,

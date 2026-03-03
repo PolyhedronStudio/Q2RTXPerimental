@@ -215,31 +215,31 @@ QM_API double QM_Vector3DotProductDP( const Vector3 &v1, const Vector3 &v2 ) {
 }
 
 // Calculate distance between two vectors
-QM_API float QM_Vector3Distance( const Vector3 &v1, const Vector3 &v2 ) {
-    const float dx = v2.x - v1.x;
-    const float dy = v2.y - v1.y;
-    const float dz = v2.z - v1.z;
-    const float result = sqrtf( dx * dx + dy * dy + dz * dz );
+QM_API double QM_Vector3Distance( const Vector3 &v1, const Vector3 &v2 ) {
+    const double dx = v2.x - v1.x;
+    const double dy = v2.y - v1.y;
+    const double dz = v2.z - v1.z;
+    const double result = std::sqrt( dx * dx + dy * dy + dz * dz );
 
     return result;
 }
 
 // Calculate square distance between two vectors
-QM_API float QM_Vector3DistanceSqr( const Vector3 &v1, const Vector3 &v2 ) {
-    const float dx = v2.x - v1.x;
-    const float dy = v2.y - v1.y;
-    const float dz = v2.z - v1.z;
-    const float result = dx * dx + dy * dy + dz * dz;
+QM_API double QM_Vector3DistanceSqr( const Vector3 &v1, const Vector3 &v2 ) {
+    const double dx = v2.x - v1.x;
+    const double dy = v2.y - v1.y;
+    const double dz = v2.z - v1.z;
+    const double result = dx * dx + dy * dy + dz * dz;
 
     return result;
 }
 
 // Calculate angle between two vectors
-QM_API float QM_Vector3Angle( const Vector3 &v1, const Vector3 &v2 ) {
+QM_API double QM_Vector3Angle( const Vector3 &v1, const Vector3 &v2 ) {
     const Vector3 cross = { v1.y * v2.z - v1.z * v2.y, v1.z * v2.x - v1.x * v2.z, v1.x * v2.y - v1.y * v2.x };
-    const float len = sqrtf( cross.x * cross.x + cross.y * cross.y + cross.z * cross.z );
-    const float dot = ( v1.x * v2.x + v1.y * v2.y + v1.z * v2.z );
-    const float result = atan2f( len, dot );
+    const double len = std::sqrt( cross.x * cross.x + cross.y * cross.y + cross.z * cross.z );
+    const double dot = ( v1.x * v2.x + v1.y * v2.y + v1.z * v2.z );
+    const double result = std::atan2( len, dot );
 
     return result;
 }

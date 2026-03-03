@@ -284,7 +284,7 @@ CLG_FX_TrackerTrail
 void CLG_FX_TrackerTrail( const Vector3 &start, const Vector3 &end, int particleColor ) {
     vec3_t      move;
     vec3_t      vec;
-    vec3_t      forward, right, up, angle_dir;
+	Vector3      forward, right, up, angle_dir;
     float       len;
     int         j;
     clg_particle_t *p;
@@ -296,8 +296,8 @@ void CLG_FX_TrackerTrail( const Vector3 &start, const Vector3 &end, int particle
     len = VectorNormalize( vec );
 
     VectorCopy( vec, forward );
-    QM_Vector3ToAngles( forward, angle_dir );
-    AngleVectors( angle_dir, forward, right, up );
+	angle_dir = QM_Vector3ToAngles( forward );
+    QM_AngleVectors( angle_dir, &forward, &right, &up );
 
     dec = 3;
     VectorScale( vec, 3, vec );

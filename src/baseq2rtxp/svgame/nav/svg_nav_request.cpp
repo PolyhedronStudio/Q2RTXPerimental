@@ -49,6 +49,62 @@ static cvar_t *s_nav_requests_per_frame = nullptr;
 //! Per-request expansion budget cvar.
 static cvar_t *s_nav_expansions_per_request = nullptr;
 
+/**
+*    @brief    Determine whether a request status is terminal.
+*    @param    status    Status value to inspect.
+*    @return   True when the status represents a completed/cancelled/failed request.
+**/
+static inline bool NavRequest_IsTerminalStatus( const nav_request_status_t status ) {
+	/**
+	*    Treat only terminal outcomes as finished.
+	**/
+	return status == nav_request_status_t::Completed
+		|| status == nav_request_status_t::Cancelled
+		|| status == nav_request_status_t::Failed;
+}
+
+
+/**
+*    @brief    Convert an edge rejection enum value into a stable diagnostic name.
+*    @param    reason    Rejection reason value.
+*    @return   Constant string used in async queue diagnostics.
+**/
+static const char *NavRequest_EdgeRejectReasonToString( const nav_edge_reject_reason_t reason ) {
+	switch ( reason ) {
+	case nav_edge_reject_reason_t::None: return "None";
+	case nav_edge_reject_reason_t::TileRouteFilter: return "TileRouteFilter";
+	case nav_edge_reject_reason_t::NoNode: return "NoNode";
+	case nav_edge_reject_reason_t::DropCap: return "DropCap";
+	case nav_edge_reject_reason_t::StepTest: return "StepTest";
+	case nav_edge_reject_reason_t::ObstructionJump: return "ObstructionJump";
+	case nav_edge_reject_reason_t::Occupancy: return "Occupancy";
+	case nav_edge_reject_reason_t::Other: return "Other";
+	default: return "Unknown";
+	}
+}
+
+/**
+*    @brief    Emit per-reason A* edge rejection counters.
+*    @param    prefix    Prefix tag for each emitted line.
+*    @param    state     Search state containing rejection counters.
+**/
+static void NavRequest_LogEdgeRejectReasonCounters( const char *prefix, const nav_a_star_state_t &state ) {
+	/**
+	*    Print all configured reason buckets so failure diagnostics include both
+	*    dominant and zero-count reasons.
+	**/
+	for ( int32_t reasonIndex = ( int32_t )nav_edge_reject_reason_t::None;
+		reasonIndex <= ( int32_t )nav_edge_reject_reason_t::Other;
+		reasonIndex++ ) {
+		const nav_edge_reject_reason_t reason = ( nav_edge_reject_reason_t )reasonIndex;
+		gi.dprintf( "%s edge_reject_reason[%d]=%d (%s)\n",
+			prefix ? prefix : "[NavAsync][Diag]",
+			reasonIndex,
+			state.edge_reject_reason_counts[ reasonIndex ],
+			NavRequest_EdgeRejectReasonToString( reason ) );
+	}
+}
+
 static void NavRequest_LogQueueDiagnostics( int32_t queueBefore, int32_t queueAfter, int32_t processed, int32_t requestBudget, int32_t remainingExpansions );
 static nav_request_entry_t *NavRequest_FindEntryByHandle( nav_request_handle_t handle );
 static nav_request_entry_t *NavRequest_FindEntryForProcess( svg_nav_path_process_t *process );
@@ -56,6 +112,16 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry );
 static void NavRequest_ClearProcessMarkers( nav_request_entry_t &entry );
 static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry );
 static void NavRequest_HandleFailure( nav_request_entry_t &entry );
+
+/**
+*    @brief    Validate that an agent bbox is well-formed.
+*    @param    mins    Minimum extents.
+*    @param    maxs    Maximum extents.
+*    @return   True when mins are strictly lower than maxs on all axes.
+**/
+static inline const bool NavRequest_AgentBoundsAreValid( const Vector3 &mins, const Vector3 &maxs ) {
+	return ( maxs[ 0 ] > mins[ 0 ] ) && ( maxs[ 1 ] > mins[ 1 ] ) && ( maxs[ 2 ] > mins[ 2 ] );
+}
 
 // Forward worker callbacks for async queue.
 static void NavRequest_Worker_DoInit( void *cb_arg );
@@ -242,7 +308,7 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 		*	   generation monotonic semantics local to real changes and avoids
 		*	   needing to revert a bump when we early-skip refreshes.
 		**/
-		if ( existing->status == nav_request_status_t::Queued || existing->status == nav_request_status_t::Running ) {
+      if ( existing->status == nav_request_status_t::Queued || existing->status == nav_request_status_t::Preparing || existing->status == nav_request_status_t::Running ) {
 			const float moveThresh = 4.0f;
 			const float moveThreshSqr = moveThresh * moveThresh;
 			const float dx_sqr = QM_Vector3DistanceSqr( existing->start, start_origin );
@@ -284,7 +350,7 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 		if ( existing->status == nav_request_status_t::Running ) {
 			const double effectiveIgnore = startIgnoreThreshold > 0.0 ? startIgnoreThreshold : 0.0;
 			if ( effectiveIgnore > 0.0 ) {
-				const Vector3 refStart = ( existing->path_process && existing->path_process->last_prep_time > 0_ms ) ? existing->path_process->last_prep_start : existing->path_process->path_start;
+				const Vector3 refStart = ( existing->path_process && existing->path_process->last_prep_time > 0_ms ) ? existing->path_process->last_prep_start : existing->path_process->path_start_position;
 				const double startDx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, refStart ) );
 				if ( startDx <= effectiveIgnore && !force ) {
 					if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
@@ -388,11 +454,19 @@ void SVG_Nav_CancelRequest( nav_request_handle_t handle ) {
 		return;
 	}
 
-	if ( entry->status == nav_request_status_t::Cancelled || entry->status == nav_request_status_t::Completed ) {
+   if ( NavRequest_IsTerminalStatus( entry->status ) ) {
 		return;
 	}
 
+    /**
+	*    Cancellation wins immediately:
+	*        - Mark terminal status.
+	*        - Drop refresh intent.
+	*        - Clear owner process markers now so pending checks stop immediately.
+	**/
 	entry->status = nav_request_status_t::Cancelled;
+   entry->needs_refresh = false;
+	NavRequest_ClearProcessMarkers( *entry );
 }
 
 /**
@@ -440,6 +514,36 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 	*    Guard: wait for the navigation mesh before touching queued requests.
 	**/
 	if ( !g_nav_mesh.get() ) {
+     /**
+		*    No-mesh hardening:
+		*        Do not keep requests pending forever when a mesh is unavailable.
+		*        Mark active entries cancelled and clear owner process markers so
+		*        callers immediately stop reporting pending async state.
+		**/
+		if ( !s_nav_request_queue.empty() ) {
+			for ( nav_request_entry_t &entry : s_nav_request_queue ) {
+				if ( NavRequest_IsTerminalStatus( entry.status ) ) {
+					continue;
+				}
+
+				// Cancel non-terminal work because it cannot progress without a mesh.
+				entry.status = nav_request_status_t::Cancelled;
+				entry.needs_refresh = false;
+				NavRequest_ClearProcessMarkers( entry );
+			}
+
+			// Drop all terminal entries now that they were cancelled.
+			s_nav_request_queue.erase( std::remove_if( s_nav_request_queue.begin(), s_nav_request_queue.end(),
+				[]( const nav_request_entry_t &entry ) {
+					return NavRequest_IsTerminalStatus( entry.status );
+				} ),
+				s_nav_request_queue.end() );
+
+			if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+				gi.dprintf( "[NavAsync][Queue] Cancelled pending requests because navmesh is unavailable.\n" );
+			}
+		}
+
 		return;
 	}
 
@@ -467,7 +571,7 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 			break;
 		}
 
-		if ( entry.status == nav_request_status_t::Completed || entry.status == nav_request_status_t::Failed || entry.status == nav_request_status_t::Cancelled ) {
+     if ( NavRequest_IsTerminalStatus( entry.status ) ) {
 			NavRequest_ClearProcessMarkers( entry );
 			continue;
 		}
@@ -486,6 +590,14 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 			if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
 				gi.dprintf( "[NavAsync][Queue] Prepared A* for handle=%d path_process=%p\n", entry.handle, ( void * )entry.path_process );
 			}
+		}
+
+		/**
+		*    Worker prep is still in-flight for this entry.
+		*        Skip until the done-callback transitions it to Running.
+		**/
+		if ( entry.status == nav_request_status_t::Preparing ) {
+			continue;
 		}
 
 		if ( entry.status != nav_request_status_t::Running ) {
@@ -580,6 +692,13 @@ void SVG_Nav_ProcessRequestQueue( void ) {
 *          - Worker done-callback: move-initialize `entry.a_star` and transition entry->Running.
 **/
 static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
+   /**
+	*    Only queued entries should enter worker-prep dispatch.
+	**/
+	if ( entry.status != nav_request_status_t::Queued ) {
+		return false;
+	}
+
 	svg_nav_path_process_t *process = entry.path_process;
 	if ( !process ) {
 		return false;
@@ -639,6 +758,22 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	entry.resolved_policy.max_drop_height = agentProfile.max_drop_height;
 	entry.resolved_policy.max_drop_height_cap = agentProfile.max_drop_height_cap;
 	entry.resolved_policy.max_slope_normal_z = meshAgentValid ? mesh->max_slope_normal_z : agentProfile.max_slope_normal_z;
+	entry.resolved_policy.min_step_normal = entry.resolved_policy.max_slope_normal_z;
+
+	/**
+	*    Boundary guard:
+	*        External callers provide feet-origin with a valid bbox. Reject malformed
+	*        hulls before worker prep to avoid undefined conversion behavior.
+	**/
+	if ( !NavRequest_AgentBoundsAreValid( entry.resolved_policy.agent_mins, entry.resolved_policy.agent_maxs ) ) {
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			gi.dprintf( "[NavAsync][Prep] invalid agent bounds handle=%d mins=(%.1f %.1f %.1f) maxs=(%.1f %.1f %.1f)\n",
+				entry.handle,
+				entry.resolved_policy.agent_mins.x, entry.resolved_policy.agent_mins.y, entry.resolved_policy.agent_mins.z,
+				entry.resolved_policy.agent_maxs.x, entry.resolved_policy.agent_maxs.y, entry.resolved_policy.agent_maxs.z );
+		}
+		return false;
+	}
 
 	// Emit diagnostic about chosen agent hull for this request when async logging is enabled.
 	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
@@ -692,7 +827,13 @@ static bool NavRequest_PrepareAStarForEntry( nav_request_entry_t &entry ) {
 	work.cb_arg = payload;
 	gi.Com_QueueAsyncWork( &work );
 
-	// Keep entry queued; worker will transition to Running on success via done-callback.
+   /**
+	*    Mark the request as preparing so queue processing does not dispatch
+	*    duplicate worker init tasks while this generation is in-flight.
+	**/
+	entry.status = nav_request_status_t::Preparing;
+
+	// Worker done-callback will transition to Running on success.
 	return true;
 }
 
@@ -721,6 +862,15 @@ static void NavRequest_Worker_DoInit( void *cb_arg ) {
 	// Convert feet-origin to nav-center using the resolved agent hull.
 	const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, p->start_feet, &p->resolved_policy.agent_mins, &p->resolved_policy.agent_maxs );
 	const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, p->goal_feet, &p->resolved_policy.agent_mins, &p->resolved_policy.agent_maxs );
+	Q_assert( NavRequest_AgentBoundsAreValid( p->resolved_policy.agent_mins, p->resolved_policy.agent_maxs ) );
+	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		gi.dprintf( "[NavAsync][Boundary] feet->center handle=%d start_feet=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal_feet=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
+			p->handle,
+			p->start_feet.x, p->start_feet.y, p->start_feet.z,
+			start_center.x, start_center.y, start_center.z,
+			p->goal_feet.x, p->goal_feet.y, p->goal_feet.z,
+			goal_center.x, goal_center.y, goal_center.z );
+	}
 
 	// Resolve start/goal nodes on the worker.
 	nav_node_ref_t start_node = {};
@@ -756,10 +906,21 @@ static void NavRequest_Worker_DoInit( void *cb_arg ) {
 			goal_node.position.x, goal_node.position.y, goal_node.position.z );
 	}
 
-	// Optionally compute coarse tile route filter (can be expensive on some maps).
+ /**
+	*    Optionally compute coarse tile route filter (can be expensive on some maps).
+	*        This is policy-gated so debug entities can disable route restriction
+	*        and isolate fine traversal (`StepTest`) behavior.
+	**/
 	std::vector<nav_tile_cluster_key_t> tileRoute;
-	const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( mesh, start_center, goal_center, tileRoute );
+	const bool routeFilterEnabled = p->resolved_policy.enable_cluster_route_filter;
+	const bool hasTileRoute = routeFilterEnabled && SVG_Nav_ClusterGraph_FindRoute( mesh, start_center, goal_center, tileRoute );
 	const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
+	if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+		gi.dprintf( "[NavAsync][Worker] route_filter enabled=%d has_route=%d handle=%d\n",
+			routeFilterEnabled ? 1 : 0,
+			hasTileRoute ? 1 : 0,
+			p->handle );
+	}
 
 	// Allocate state on the worker and initialize it (this performs the heavy vector allocations).
 	nav_a_star_state_t *workerState = new nav_a_star_state_t();
@@ -799,8 +960,34 @@ static void NavRequest_Worker_Done( void *cb_arg ) {
 		return;
 	}
 
+	/**
+	*    Cancellation/terminal guard:
+	*        If this entry already reached a terminal status, drop worker output.
+	**/
+	if ( NavRequest_IsTerminalStatus( entry->status ) ) {
+		if ( p->initialized_state ) {
+			delete p->initialized_state;
+		}
+		NavRequest_ClearProcessMarkers( *entry );
+		gi.TagFree( p );
+		return;
+	}
+
 	// Stale-result guard: ensure the generation hasn't changed since payload creation.
 	if ( entry->generation != p->generation ) {
+		if ( p->initialized_state ) {
+			delete p->initialized_state;
+		}
+		gi.TagFree( p );
+		return;
+	}
+
+	/**
+	*    Queue-state guard:
+	*        Accept worker prep only while this request generation is still in
+	*        pre-run states. Any other state indicates a superseded transition.
+	**/
+	if ( entry->status != nav_request_status_t::Preparing && entry->status != nav_request_status_t::Queued ) {
 		if ( p->initialized_state ) {
 			delete p->initialized_state;
 		}
@@ -813,6 +1000,7 @@ static void NavRequest_Worker_Done( void *cb_arg ) {
 		entry->status = nav_request_status_t::Failed;
 		// Keep resolved_policy on entry (it was copied earlier) so HandleFailure has the data it needs.
 		NavRequest_HandleFailure( *entry );
+        NavRequest_ClearProcessMarkers( *entry );
 		gi.TagFree( p );
 		return;
 	}
@@ -926,6 +1114,8 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 				entry.a_star.stagnation_count,
 				entry.a_star.hit_time_budget ? 1 : 0,
 				entry.a_star.hit_stagnation_limit ? 1 : 0 );
+           // Include per-reason edge rejection counters to show why expansion failed.
+			NavRequest_LogEdgeRejectReasonCounters( "[NavAsync][Finalize]", entry.a_star );
 		}
 		return false;
 	}
@@ -1021,6 +1211,10 @@ static bool NavRequest_FinalizePathForEntry( nav_request_entry_t &entry ) {
 		gi.dprintf( "[DEBUG][NavAsync] Finalize: commit succeeded (handle=%d points=%d)\n", entry.handle, ( int )points.size() );
 	} else {
 		gi.dprintf( "[DEBUG][NavAsync] Finalize: commit failed (handle=%d)\n", entry.handle );
+       // Emit reason-level counters here as well so commit-time failures still include rejection breakdown.
+		if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {
+			NavRequest_LogEdgeRejectReasonCounters( "[NavAsync][Finalize][CommitFail]", entry.a_star );
+		}
 	}
 	return committed;
 }
@@ -1109,6 +1303,9 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
 			// Summarize rejection counters for quick grep/automation.
 			gi.dprintf( "[NavAsync][HandleFailure][Counts] neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d\n",
 				( int )s.neighbor_try_count, s.no_node_count, s.edge_reject_count, s.tile_filter_reject_count, s.stagnation_count );
+           // Emit reason-bucket counters for edge rejection to aid root-cause analysis.
+			NavRequest_LogEdgeRejectReasonCounters( "[NavAsync][HandleFailure]", s );
+
 		}
 	}
 

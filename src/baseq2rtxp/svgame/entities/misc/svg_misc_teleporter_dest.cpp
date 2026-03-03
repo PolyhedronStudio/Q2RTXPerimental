@@ -17,7 +17,7 @@
 
 #if 0
 /**
-*   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
+*   @brief  Save descriptor array definition for all the members of svg_misc_teleporter_dest_t.
 **/
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_misc_teleporter_dest_t )
 SAVE_DESCRIPTOR_DEFINE_FIELD( svg_misc_teleporter_dest_t, summedDistanceTraversed, SD_FIELD_TYPE_DOUBLE ),

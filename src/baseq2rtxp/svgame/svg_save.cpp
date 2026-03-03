@@ -604,8 +604,9 @@ void SVG_ReadLevel(const char *filename)
 	RestoreAreaPortalStatesFromEntities();
 
 	// Restore the navmesh for this map.
-	if ( !SVG_Nav_LoadMesh( level.mapname ) ) {
-		gi.dprintf( "No navmesh found for map %s.\n", level.mapname );
+	auto loadResult = SVG_Nav_LoadMesh( level.mapname );
+	if ( std::get<0>( loadResult ) == false ) {
+		gi.dprintf( "No navmesh found for map '%s' at path '%s'.\n", level.mapname, std::get<1>( loadResult ).c_str() );
 	}
 
     // Connect all movewith entities.

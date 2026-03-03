@@ -222,18 +222,18 @@ void ByteToDir( const int32_t index, Vector3 &dir ) {
 }
 
 void AngleVectors( const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up ) {
-	float        angle;
-	float        sr, sp, sy, cr, cp, cy;
+	double angle;
+	double sr, sp, sy, cr, cp, cy;
 
 	angle = DEG2RAD( angles[ YAW ] );
-	sy = sin( angle );
-	cy = cos( angle );
+	sy = std::sin( angle );
+	cy = std::cos( angle );
 	angle = DEG2RAD( angles[ PITCH ] );
-	sp = sin( angle );
-	cp = cos( angle );
+	sp = std::sin( angle );
+	cp = std::cos( angle );
 	angle = DEG2RAD( angles[ ROLL ] );
-	sr = sin( angle );
-	cr = cos( angle );
+	sr = std::sin( angle );
+	cr = std::cos( angle );
 
 	if ( forward ) {
 		forward[ 0 ] = cp * cy;
@@ -241,9 +241,9 @@ void AngleVectors( const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up 
 		forward[ 2 ] = -sp;
 	}
 	if ( right ) {
-		right[ 0 ] = ( -1 * sr * sp * cy + -1 * cr * -sy );
-		right[ 1 ] = ( -1 * sr * sp * sy + -1 * cr * cy );
-		right[ 2 ] = -1 * sr * cp;
+		right[ 0 ] = ( -1. * sr * sp * cy + -1. * cr * -sy );
+		right[ 1 ] = ( -1. * sr * sp * sy + -1. * cr * cy );
+		right[ 2 ] = -1. * sr * cp;
 	}
 	if ( up ) {
 		up[ 0 ] = ( cr * sp * cy + -sr * -sy );

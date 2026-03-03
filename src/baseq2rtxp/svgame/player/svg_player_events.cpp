@@ -53,7 +53,7 @@ static void PlayerStateEvent_WaterEnter( svg_player_edict_t *ent, const int32_t 
             //gi.sound( current_player, CHAN_BODY, gi.soundindex( "player/lava_in.wav" ), 1, ATTN_NORM, 0 );
             gi.sound( ent, CHAN_BODY, gi.soundindex( "player/burn01.wav" ), 1, ATTN_NORM, 0 );
             // clear damage_debounce, so the pain sound will play immediately
-            ent->damage_debounce_time = level.time - 1_sec;
+            ent->debounceDamageTime = level.time - 1_sec;
         }
         #if 0
             else if ( ent->liquidInfo.type & CONTENTS_SLIME ) {
@@ -68,7 +68,7 @@ static void PlayerStateEvent_WaterEnter( svg_player_edict_t *ent, const int32_t 
         if ( ent->liquidInfo.type & CONTENTS_LAVA ) {
             gi.sound( ent, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
             // clear damage_debounce, so the pain sound will play immediately
-            ent->damage_debounce_time = level.time - 1_sec;
+            ent->debounceDamageTime = level.time - 1_sec;
         }
         #if 0
             else if ( ent->liquidInfo.type & CONTENTS_SLIME ) {
@@ -122,14 +122,14 @@ static void PlayerStateEvent_WaterLeave( svg_player_edict_t *ent, const int32_t 
     }
     // <Q2RTXP>: TODO: Can be implemented client-side, so exclude the client ID from this entity event.
 	if ( event == EV_WATER_LEAVE_HEAD ) {
-        if ( ent->air_finished_time < level.time ) {
+        if ( ent->airFinishedBreathTime < level.time ) {
             // Generate the sound as a temporary event entity.: Gasp for air.
             svg_base_edict_t *tempEntityEvent = SVG_TempEventEntity_GeneralSoundEx( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), ATTN_NORM );
             //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
             
             // Alarm the environment to the player's noise.
             SVG_Player_PlayerNoise( ent, ent->currentOrigin, PNOISE_SELF );
-        } else  if ( ent->air_finished_time < level.time + 11_sec ) {
+        } else  if ( ent->airFinishedBreathTime < level.time + 11_sec ) {
             // Generate the sound as a temporary event entity: Just break the surface.
             svg_base_edict_t *tempEntityEvent = SVG_TempEventEntity_GeneralSoundEx( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), ATTN_NORM );
             //gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
@@ -194,7 +194,7 @@ static void PlayerStateEvent_Fall( svg_player_edict_t *ent, const int32_t event,
     // Apply fall event based on delta.
     if ( delta > 30. ) {
         // WID: We DO want the VOICE channel to SHOUT in PAIN
-        //ent->pain_debounce_time = level.time + FRAME_TIME_S; // No normal pain sound.
+        //ent->debouncePainTime = level.time + FRAME_TIME_S; // No normal pain sound.
 
         int32_t damage = (int32_t)( ( delta - 30. ) / 2. );
         if ( damage < 1 ) {

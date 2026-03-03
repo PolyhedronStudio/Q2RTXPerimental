@@ -133,7 +133,8 @@ struct svg_save_descriptor_field_t {
 *   @brief  Opens the save descriptor field definition for the specified classType.
 **/
 #define SAVE_DESCRIPTOR_FIELDS_END() \
-    } \
+	{ SD_FIELD_TYPE_BAD, nullptr, 0, 0, 0 } \
+    }; \
 
 
 /**

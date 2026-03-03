@@ -151,11 +151,11 @@ void P_DamageFeedback( svg_base_edict_t *player ) {
 	}
 
 	// play an apropriate pain sound
-	if ( ( level.time > player->pain_debounce_time ) && !( player->flags & FL_GODMODE ) ) {
+	if ( ( level.time > player->debouncePainTime ) && !( player->flags & FL_GODMODE ) ) {
 		// WID: We only got one sound for each pain level, sadly hehe.
 		r = 1; // r = irandom( 0, 2 ) + 1; // r = 1 + ( Q_rand( ) & 1 );
 
-		player->pain_debounce_time = level.time + 0.7_sec;
+		player->debouncePainTime = level.time + 0.7_sec;
 		if ( player->health < 25 ) {
 			l = 25;
 		} else if ( player->health < 50 ) {
@@ -547,10 +547,10 @@ void P_CalculateBlend( svg_base_edict_t *ent ) {
 	}
 
 	//// [Paril-KEX] drowning visual indicator
-	//if ( ent->air_finished_time < level.time + 9_sec ) {
+	//if ( ent->airFinishedBreathTime < level.time + 9_sec ) {
 	//	constexpr vec3_t drown_color = { 0.1f, 0.1f, 0.2f };
 	//	constexpr float max_drown_alpha = 0.75f;
-	//	float alpha = ( ent->air_finished_time < level.time ) ? 1 : ( 1.f - ( ( ent->air_finished_time - level.time ).Seconds() / 9.0f ) );
+	//	float alpha = ( ent->airFinishedBreathTime < level.time ) ? 1 : ( 1.f - ( ( ent->airFinishedBreathTime - level.time ).Seconds() / 9.0f ) );
 	//	//SV_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], min( alpha, max_drown_alpha ), ent->client->ps.damage_blend );
 	//	SG_AddBlend( drown_color[ 0 ], drown_color[ 1 ], drown_color[ 2 ], std::min( alpha, max_drown_alpha ), ent->client->damage_blend );
 	//}
@@ -587,7 +587,7 @@ void P_CheckWorldEffects( void ) {
 	**/
 	if ( game.currentViewPlayer->movetype == MOVETYPE_NOCLIP ) {
 		// To prevent drowning.
-		game.currentViewPlayer->air_finished_time = level.time + 12_sec;
+		game.currentViewPlayer->airFinishedBreathTime = level.time + 12_sec;
 		// Exit.
 		return;
 	}
@@ -618,7 +618,7 @@ void P_CheckWorldEffects( void ) {
 				);
 
 				// clear damage_debounce, so the pain sound will play immediately
-				game.currentViewPlayer->damage_debounce_time = level.time - 1_sec;
+				game.currentViewPlayer->debounceDamageTime = level.time - 1_sec;
 			} 
 			else if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_SLIME ) {
 				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/water_feet_in01.wav" ), 1, ATTN_NORM, 0 );
@@ -631,7 +631,7 @@ void P_CheckWorldEffects( void ) {
 				gi.sound( game.currentViewPlayer, CHAN_BODY, gi.soundindex( "player/burn02.wav" ), 1, ATTN_NORM, 0 );
 
 				// clear damage_debounce, so the pain sound will play immediately
-				game.currentViewPlayer->damage_debounce_time = level.time - 1_sec;
+				game.currentViewPlayer->debounceDamageTime = level.time - 1_sec;
 			} 
 			else if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_SLIME ) {
 				const std::string splash_sfx_path = SG_RandomResourcePath( "player/water_splash_in", "wav", 0, 2 );
@@ -670,11 +670,11 @@ void P_CheckWorldEffects( void ) {
 	//
 	// Check for head just coming out of water.
 	if ( old_waterlevel == cm_liquid_level_t::LIQUID_UNDER && liquidlevel != cm_liquid_level_t::LIQUID_UNDER ) {
-		if ( game.currentViewPlayer->air_finished_time < level.time ) {
+		if ( game.currentViewPlayer->airFinishedBreathTime < level.time ) {
 			// gasp for air
 			gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
 			SVG_Player_PlayerNoise( game.currentViewPlayer, game.currentViewPlayer->currentOrigin, PNOISE_SELF );
-		} else  if ( game.currentViewPlayer->air_finished_time < level.time + 11_sec ) {
+		} else  if ( game.currentViewPlayer->airFinishedBreathTime < level.time + 11_sec ) {
 			// just break surface
 			gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
 		}
@@ -686,7 +686,7 @@ void P_CheckWorldEffects( void ) {
 	//
 	if ( liquidlevel == cm_liquid_level_t::LIQUID_UNDER ) {
 		// if out of air, start drowning
-		if ( game.currentViewPlayer->air_finished_time < level.time ) {
+		if ( game.currentViewPlayer->airFinishedBreathTime < level.time ) {
 			// drown!
 			if ( game.currentViewPlayer->client->ps.stats[ STAT_TIME_NEXT_DROWN ] < level.time.Milliseconds()
 				&& game.currentViewPlayer->health > 0 ) {
@@ -711,13 +711,13 @@ void P_CheckWorldEffects( void ) {
 				}
 
 				// Set next pain time.
-				game.currentViewPlayer->pain_debounce_time = level.time;
+				game.currentViewPlayer->debouncePainTime = level.time;
 				// Apply drowning damage.
 				SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->currentOrigin, vec3_origin, game.currentViewPlayer->dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
 			}
 		}
 	} else {
-		game.currentViewPlayer->air_finished_time = level.time + 12_sec;
+		game.currentViewPlayer->airFinishedBreathTime = level.time + 12_sec;
 		game.currentViewPlayer->dmg = 2;
 	}
 
@@ -728,13 +728,13 @@ void P_CheckWorldEffects( void ) {
 		// Lava or slime damage
 		if ( game.currentViewPlayer->liquidInfo.type & CONTENTS_LAVA ) {
 			// Play burn sound if time to next pain sound has elapsed.
-			if ( game.currentViewPlayer->health > 0	&& game.currentViewPlayer->pain_debounce_time <= level.time ) {
+			if ( game.currentViewPlayer->health > 0	&& game.currentViewPlayer->debouncePainTime <= level.time ) {
 				// Acquire path to a random burn sound.
 				const std::string burn_sfx_path = SG_RandomResourcePath( "player/burn", "wav", 0, 2 );
 				//gi.sound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ), 1, ATTN_NORM, 0 );
 				SVG_TempEventEntity_GeneralSound( game.currentViewPlayer, CHAN_VOICE, gi.soundindex( burn_sfx_path.c_str() ) );
 				// Set next pain time.
-				game.currentViewPlayer->pain_debounce_time = level.time + 1_sec;
+				game.currentViewPlayer->debouncePainTime = level.time + 1_sec;
 			}
 			// Lava damage
 			SVG_DamageEntity( game.currentViewPlayer, world, world, vec3_origin, game.currentViewPlayer->currentOrigin, vec3_origin, 3 * liquidlevel, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );

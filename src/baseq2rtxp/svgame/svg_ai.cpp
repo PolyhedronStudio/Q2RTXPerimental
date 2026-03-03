@@ -344,7 +344,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //        level.sight_entity_framenum = level.frameNumber;
 //    }
 //
-//    self->show_hostile_time = level.time + 1_sec;   // wake up other monsters
+//    self->hostileShowTime = level.time + 1_sec;   // wake up other monsters
 //
 //    VectorCopy(self->enemy->s.origin, self->monsterinfo.last_sighting);
 //    self->monsterinfo.trail_time = level.time;
@@ -472,7 +472,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //        }
 //
 //        if (r == RANGE_DISTANCE_NEAR) {
-//            if (client->show_hostile_time < level.time && !infront(self, client)) {
+//            if (client->hostileShowTime < level.time && !infront(self, client)) {
 //                return false;
 //            }
 //        } else if (r == RANGE_DISTANCE_MID) {
@@ -733,7 +733,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //                if (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND)
 //                    self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 //            } else {
-//                self->show_hostile_time = level.time + 1_sec;
+//                self->hostileShowTime = level.time + 1_sec;
 //                return false;
 //            }
 //        }
@@ -783,7 +783,7 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 //        }
 //    }
 //
-//    self->show_hostile_time = level.time + 1_sec;   // wake up other monsters
+//    self->hostileShowTime = level.time + 1_sec;   // wake up other monsters
 //
 //// check knowledge of enemy
 //    enemy_vis = visible(self, self->enemy);

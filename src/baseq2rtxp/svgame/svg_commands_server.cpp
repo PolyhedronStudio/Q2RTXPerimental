@@ -12,7 +12,7 @@
 #include "svgame/nav/svg_nav_load.h"
 
 // Monster types for AI debug introspection.
-#include "svgame/entities/monster/svg_monster_testdummy.h"
+#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
 
 /**
 *   @brief  

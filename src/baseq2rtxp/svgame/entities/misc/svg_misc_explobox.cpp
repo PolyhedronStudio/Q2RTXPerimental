@@ -14,7 +14,7 @@
 
 #if 0
 /**
-*   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
+*   @brief  Save descriptor array definition for all the members of svg_misc_explobox_t.
 **/
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_misc_explobox_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_misc_explobox_t, summedDistanceTraversed, SD_FIELD_TYPE_DOUBLE ),
@@ -95,7 +95,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_misc_explobox_t, onTouch )( svg_misc_explobox_
     }
 
     // Calculate direction.
-    vec3_t v = { };
+    Vector3 v = { };
     VectorSubtract( self->s.origin, other->s.origin, v );
 
     // Move ratio(based on their masses).
@@ -105,7 +105,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_misc_explobox_t, onTouch )( svg_misc_explobox_
     const float yawAngle = QM_Vector3ToYaw( v );
     const float direction = yawAngle;
     // Distance to travel.
-    const double distance = 20 * ratio * FRAMETIME;
+    const double distance = 100 * ratio * FRAMETIME;
 
     // Debug output:
     #if 0

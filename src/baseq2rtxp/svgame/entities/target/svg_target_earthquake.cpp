@@ -13,14 +13,12 @@
 #include "sharedgame/sg_means_of_death.h"
 
 
-#if 0
+#if 1
 /**
 *   @brief  Save descriptor array definition for all the members of svg_monster_testdummy_t.
 **/
 SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_target_earthquake_t )
-SAVE_DESCRIPTOR_DEFINE_FIELD( svg_target_earthquake_t, summedDistanceTraversed, SD_FIELD_TYPE_DOUBLE ),
-SAVE_DESCRIPTOR_DEFINE_FIELD( svg_target_earthquake_t, testVar, SD_FIELD_TYPE_INT32 ),
-SAVE_DESCRIPTOR_DEFINE_FIELD( svg_target_earthquake_t, testVar2, SD_FIELD_TYPE_VECTOR3 ),
+	SAVE_DESCRIPTOR_DEFINE_FIELD( svg_target_earthquake_t, last_move_time, SD_FIELD_TYPE_INT64 ),
 SAVE_DESCRIPTOR_FIELDS_END();
 
 //! Implement the methods for saving this edict type's save descriptor fields.

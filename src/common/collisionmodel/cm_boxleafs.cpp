@@ -40,6 +40,7 @@ typedef struct box_leaf_test_s {
     //! [Out]: BoxLeafContents only: Holds the specified contents flags that are set in all the various accumulated leafs.
     cm_contents_t leafs_contents;
 } box_leaf_test_t;
+
 /**
 *	@brief	CM_BoxLeafs_r - Recursive helper for CM_BoxLeafs functions.
 *	@param	boxLeafTest	Accumulation structure for box leaf tests.

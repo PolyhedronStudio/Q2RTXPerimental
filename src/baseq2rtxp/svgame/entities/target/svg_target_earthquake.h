@@ -47,7 +47,7 @@ struct svg_target_earthquake_t : public svg_base_edict_t {
     );
 
 
-    #if 0
+    #if 1
     /**
     *
     *   Save Descriptor Fields:
@@ -135,5 +135,5 @@ struct svg_target_earthquake_t : public svg_base_edict_t {
     *   Member Variables:
     *
     **/
-
+	QMTime last_move_time = 0_ms;
 };

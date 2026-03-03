@@ -154,6 +154,101 @@ const double SVG_Util_ClosestClientForEntity( svg_base_edict_t *ent ) {
 }
 
 
+/**
+*
+*
+*
+*	(Clip/Trace & PHS/PVS) -Utility Functions:
+*
+*
+*
+**/
+/**
+*	@brief	Returns true if the entity A is within the Potiential Hearing Set of entity B.
+*	@param	self				The entity to check if it can hear the sound.
+*	@param	freshSoundEntity	The entity that is the source of the sound.
+*								(This is generally a temporary entity that only exists for one frame,
+*								created at the position of the sound source.)
+*	@param	addSelfViewHeight	Align the audibility check with the entity's view height instead of feet-origin. (Defaults to true)
+*	@param	debugPrints			When true, will print debug information about the audibility check results. (Defaults to false)
+*	@note	Entity needs to be linked in to have valid area numbers for the area connectivity checks, 
+*			but PHS checks can still be performed without being linked in. (So this can be used for sounds emitted by entities that aren't linked in yet, like during their spawn function.)
+*	@return	The ptr to the same passed in entity, `audibleEntity` If the entity can hear the sound.
+*			(nullptr) If:
+*						- The areas are not connected.
+*						- They are not within hearing range.
+*						- OR doors are closed between the two them.
+*
+**/
+svg_base_edict_t *SVG_Util_IsEntityAudibleByPHS( svg_base_edict_t *self, svg_base_edict_t *audibleEntity, const bool addSelfViewHeight, const bool debugPrints ) {
+	// Ensure self and sound entity are valid.
+	if ( !SVG_Entity_IsActive( self ) ) {
+		if ( debugPrints == true ) {
+			gi.dprintf( "[%s]: Self entity is not active.\n", __func__ );
+		}
+		return nullptr;
+	}
+
+	// The entity is always hearable to itself, so we can skip all the checks in that case.
+	if ( audibleEntity != nullptr ) {
+		/**
+		*    Validate audibility using the Potentially-Hearable-Set (PHS) and
+		*    fall back to consulting areaportal connectivity when appropriate.
+		*    Using `currentOrigin` aligns hearing with feet-origin/nav queries.
+		**/
+		// Use currentOrigin (feet-origin) for audibility checks.
+		bool isHearAble = gi.inPHS( &self->currentOrigin, &audibleEntity->currentOrigin );
+		// If PHS rejected it, check area connectivity as an additional rule.
+		// Some maps may have area-portal connectivity that allows sound to
+		// travel between areas even if PHS sampling differs; accept the
+		// sound when areas are explicitly connected.
+		if ( !isHearAble ) {
+			// Doors can legally straddle two areas, so we may need to check another one.
+			if ( self->lastCluster >= 0 ) { // Assuming player cluster <= -1
+				const bool isConnectedA = gi.AreasConnected( self->areaNumber0, audibleEntity->areaNumber0 );
+				const bool isConnectedB = ( audibleEntity->areaNumber1 != 0 ) ? gi.AreasConnected( self->areaNumber0, audibleEntity->areaNumber1 ) : false;
+
+				// If either cluster is connected, we can accept the sound.
+				// This means that if the sound is in a separate area behind a door, 
+				// but that door is open and connected to our area, we can still hear it.
+				if ( isConnectedA && isConnectedB ) {
+					isHearAble = true;
+				}
+			// Otherwise, if we don't have a valid lastCluster to check, we can still check connectivity between the sound and our current area as a fallback.
+			} else {
+				// Only consult area portals when both entities have valid area numbers.
+				if ( self->areaNumber0 >= 0 && audibleEntity->areaNumber0 >= 0 ) {
+					if ( gi.AreasConnected( self->areaNumber0, audibleEntity->areaNumber0 ) ) {
+						isHearAble = true;
+					}
+				}
+			}
+		}
+
+		// Debug printing for ignored/accepted sounds.
+		if ( !isHearAble ) {
+			if ( debugPrints == true ) {
+				gi.dprintf( "[%s]: Ignoring sound not hearable listener=%d sound_src_ent=%d pos=(%.1f %.1f %.1f) listener_area=%d sound_src_area=%d\n",
+					__func__, self->s.number, audibleEntity->s.number,
+					audibleEntity->currentOrigin.x, audibleEntity->currentOrigin.y, audibleEntity->currentOrigin.z,
+					self->areaNumber0, audibleEntity->areaNumber0 );
+			}
+			// Return nullptr for non-hearable sound.
+			return nullptr;
+		} else {
+			if ( debugPrints == true ) {
+				gi.dprintf( "[%s]: Accepted sound listener=%d sound_src_ent=%d pos=(%.1f %.1f %.1f)\n",
+					__func__, self->s.number, audibleEntity->s.number,
+					audibleEntity->currentOrigin.x, audibleEntity->currentOrigin.y, audibleEntity->currentOrigin.z );
+			}
+		}
+	}
+
+	// Return the sound entity if it's hearable, which is a (nullptr) if it's not.
+	return audibleEntity;
+}
+
+
 
 /**
 *

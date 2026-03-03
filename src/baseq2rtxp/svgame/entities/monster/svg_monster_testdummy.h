@@ -192,14 +192,15 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     /**
     *   Navigation path following state:
     **/
-    svg_nav_path_process_t navPathProcess = {};
-    svg_nav_path_policy_t navPathPolicy = {};
-    //! Tracks the last goal position used to validate cached navigation paths.
-    Vector3 last_nav_goal_origin = {};
-    //! Tracks whether last_nav_goal_origin holds valid data.
-    bool last_nav_goal_valid = false;
-    //! Tracks whether the goal was visible when the last nav goal was recorded.
-    bool last_nav_goal_visible = false;
+    //svg_nav_path_process_t navigationState.pathProcess = {};
+    //svg_nav_path_policy_t navigationState.pathPolicy = {};
+    ////! Tracks the last goal position used to validate cached navigation paths.
+    //Vector3 last_nav_goal_origin = {};
+    ////! Tracks whether last_nav_goal_origin holds valid data.
+    //bool last_nav_goal_valid = false;
+    ////! Tracks whether the goal was visible when the last nav goal was recorded.
+    //bool last_nav_goal_visible = false;
+
     //! Most recent sound_entity noise time this monster consumed.
     QMTime last_sound_time_seen = 0_ms;
     //! Most recent sound2_entity noise time this monster consumed.
@@ -222,6 +223,8 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     //! Last pursued mode: true when we last used direct LOS pursuit, false for A*/trail following.
     bool last_pursuit_was_direct = false;
 
+	// <Q2RTXP>: WID: Only here to satisfy the still temporary monster testdummy base
+	QMTime   trail_time = 0_ms;
     
     /**
     *
@@ -241,3 +244,8 @@ struct svg_monster_testdummy_t : public svg_base_edict_t {
     static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
     static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
 };
+
+// Note: virtual method implementations are provided in a dedicated
+// translation unit `svg_monster_testdummy_linker_stubs.cpp` to ensure the
+// vtable and symbol definitions are emitted in one object file.
+

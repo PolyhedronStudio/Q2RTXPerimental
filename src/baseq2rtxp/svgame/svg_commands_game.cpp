@@ -6,6 +6,7 @@
 *
 ********************************************************************/
 #include "svgame/svg_local.h"
+
 #include "svgame/svg_chase.h"
 #include "svgame/svg_combat.h"
 #include "svgame/svg_trigger.h"
@@ -39,6 +40,7 @@ void SVG_Command_Lua_DumpStack( void ) {
     // Dump stack.
     SVG_Lua_DumpStack( SVG_Lua_GetSolStateView() );
 }
+
 void SVG_Command_Lua_ReloadMapScript( ) {
     std::string mapScriptName = level.mapname;
     // Dump stack.
@@ -800,7 +802,6 @@ void SVG_Client_Command( svg_base_edict_t *ent ) {
         SVG_Command_Score_f( ent );
         return;
     }
-
     if ( level.intermissionFrameNumber ) {
         return;
     }

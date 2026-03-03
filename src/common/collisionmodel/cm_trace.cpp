@@ -9,7 +9,7 @@
 #include "common/collisionmodel.h"
 
 //! Uncomment for enabling second best hit plane tracing results.
-#define SECOND_PLANE_TRACEXX
+//#define SECOND_PLANE_TRACE
 
 //! Uncomment to debug box tracing.
 //#define BOX_TRACE_DEBUG
@@ -145,12 +145,12 @@ static void CM_ClipBoxToBrush( const Vector3 &p1, const Vector3 &p2, cm_trace_t 
                 enterfrac[ 0 ] = f;
                 clipplane[ 0 ] = plane;
                 leadside[ 0 ] = side;
-                #ifdef SECOND_PLANE_TRACE
+			#ifdef SECOND_PLANE_TRACE
             } else if ( f > enterfrac[ 1 ] ) {
                 enterfrac[ 1 ] = f;
                 clipplane[ 1 ] = plane;
                 leadside[ 1 ] = side;
-                #endif
+			#endif
             }
             // KEX
         } else { // Leave.
@@ -419,8 +419,11 @@ void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
         maxs = &qm_vector3_null;
     }
 
-    const Vector3 *bounds[ 2 ] = { mins, maxs };
-    int i, j;
+	const Vector3 bounds[ 2 ] = { 
+		( *mins ),
+		( *maxs )
+	};
+    int32_t i, j;
 
     cm->checkCount++;       // for multi-check avoidance
 
@@ -441,7 +444,7 @@ void CM_BoxTrace( cm_t *cm, cm_trace_t *trace,
     trace_end = end;
     for ( i = 0; i < 8; i++ ) {
         for ( j = 0; j < 3; j++ ) {
-            trace_offsets[ i ][ j ] = ( *bounds[ ( i >> j ) & 1 ] )[ j ];
+            trace_offsets[ i ][ j ] = ( bounds[ ( i >> j ) & 1 ] )[ j ];
         }
     }
 

@@ -299,7 +299,7 @@ bool ResetNumbersList( int *numList, int numCount ) {
 ```cpp
 /**
 *    @brief	ember helper: Face a horizontal target smoothly by blending between a hint direction and the exact target direction.
-*/
+**/
 void svg_monster_testdummy_t::FaceTargetHorizontal( const Vector3 &directionHint, const Vector3 &targetPoint, float blendFactor, float yawSpeed ) {
     // Initially initialize to current yaw. (It will slerp so what we eventually face targetPoint ).
     Vector3 target = targetPoint;

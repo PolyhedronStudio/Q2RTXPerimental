@@ -760,7 +760,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: Path to model.
     svg_level_qstring_t model = nullptr;
     //! [SpawnKey]: Key Spawn Angle.
-    float       angle = 0.f;          // set in qe3, -1 = up, -2 = down
+    double       angle = 0.;          // set in qe3, -1 = up, -2 = down
 
 
     /**
@@ -871,23 +871,29 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   special "delay" worldspawn key/value set.
     **/
     struct {
-        //! For the SVG_UseTargets and its Lua companion.
+		/**
+		*	@brief	For delayed UseTarget entities. The arguments are stored here so that they can be saved
+		**/
         struct {
             //! The source entity that when UseTarget, created the DelayedUse entity.
             svg_base_edict_t *creatorEntity = nullptr;
             //! The useType for delayed UseTarget.
-            entity_usetarget_type_t useType;
+            entity_usetarget_type_t useType = entity_usetarget_type_e::ENTITY_USETARGET_TYPE_OFF;
             //! The useValue for delayed UseTarget.
-            int32_t useValue;
+            int32_t useValue = 0;
         } useTarget;
 
+		/**
+		*	@brief	Similar to the above, but for delayed SignalOut entities. The arguments are stored here so that they can be saved
+		*			loaded with the entity, and also so that they can be passed to the Lua callback when the signal is emitted.
+		**/
         struct {
             //! The source entity that when SignalOut, created the DelayedSignalOut entity.
             svg_base_edict_t *creatorEntity = nullptr;
             //! A copy of the actual signal name.
-            char name[ 256 ];
+			char name[ 256 ] = {};
             //! For delayed signaling.
-            std::vector<svg_signal_argument_t> arguments;
+			std::vector<svg_signal_argument_t> arguments = {};
             // <Q2RTXP>: TODO: Implement saving and restoring of these arguments.
             //sg_qtag_memory_t<svg_signal_argument_t, TAG_SVGAME_LEVEL> arguments = sg_qtag_memory_t<svg_signal_argument_t, TAG_SVGAME_LEVEL>::sg_qtag_memory_t( nullptr, 0 );
         } signalOut;
@@ -939,7 +945,7 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: Weight(mass) of entity.
     int32_t     mass = 0;
     //! [SpawnKey]: Per entity gravity multiplier (1.0 is normal) use for lowgrav artifact, flares.
-    float       gravity = 1.f;
+	double       gravity = 1.;
     //! [SpawnKey]: For movers.
     //const char *noise;
     //! [SpawnKey]: For triggers.
@@ -952,18 +958,18 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     svg_pushmove_info_t pushMoveInfo = {};
 
     //! [SpawnKey]: PushMover Lip Distance.
-    float   lip = 0.f;
+	double   lip = 0.;
     //! [SpawnKey]: PushMover Lip Distance.
-    float   distance = 0.f;
+	double   distance = 0.;
     //! [SpawnKey]: PushMover Lip Distance.
-    float   height = 0.f;
+	double   height = 0.;
 
     //! [SpawnKey]: Moving speed.
-    float   speed = 0.f;
+	double   speed = 0.;
     //! [SpawnKey]: Acceleration speed.
-    float   accel = 0.f;
+	double   accel = 0.;
     //! [SpawnKey]: Deceleration speed.
-    float   decel = 0.f;
+	double   decel = 0.;
 
     //! [SpawnKey]: Move axis orientation, defaults to Z axis.
     Vector3 movedir = QM_Vector3Zero();
@@ -1058,9 +1064,9 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   Monster Data:
     **/
     //! How many degrees the yaw should rotate per frame in order to reach its 'ideal_yaw'.
-    float   yaw_speed = 0.f;
+	double   yaw_speed = 0.;
     //! Ideal yaw to face to.
-    float   ideal_yaw = 0.f;
+	double   ideal_yaw = 0.;
 
     /**
     *   (Player-)Noise/Trail:
@@ -1078,9 +1084,9 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     *   Sound Data:
     **/
     //! Volume, range 0.0 to 1.0
-    float   volume = 0.f;
+	double   volume = 0.;
     //! Attenuation.
-    float   attenuation = 0.f;
+	double   attenuation = 0.;
     //! Sound.
     QMTime  last_sound_time = 0_ms;
 
@@ -1090,28 +1096,33 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: Message to display, usually center printed. (When triggers are triggered etc.)
     svg_level_qstring_t message = nullptr;
     //! [SpawnKey]: Wait time, usually for movers as a time before engaging movement back to their original state.
-    float   wait = 0;
+	double   wait = 0;
     //! [SpawnKey]: The delay(in seconds) to wait when triggered before triggering, or signalling the specified target.
-    float   delay = 0.f;
+	double   delay = 0.;
     //!
-    float   random = 0.f;
+	double   random = 0.;
 
 
     /**
     *   Timers Data:
     **/
-    QMTime   air_finished_time = 0_ms;
-    QMTime   damage_debounce_time = 0_ms;
-    QMTime   fly_sound_debounce_time = 0_ms;    // move to clientinfo
-    QMTime   last_move_time = 0_ms;
-    QMTime   touch_debounce_time = 0_ms;        // are all these legit?  do we need more/less of them?
-    QMTime   pain_debounce_time = 0_ms;
-    QMTime   show_hostile_time = 0_ms;
+	//! Time marker used for breathing, if airFinishedBreathTime < level.time then the entity has been out of breath for too long.
+    QMTime   airFinishedBreathTime = 0_ms;
+	//! Time marker used for 'debouncing' damage, so that entities don't get hurt multiple times within a very short time span.
+    QMTime   debounceDamageTime = 0_ms;
+	//! Time marker used for monsters to determine how long they've been touching their enemy.
+    QMTime   debounceTouchTime = 0_ms;        // are all these legit?  do we need more/less of them?
+	//! Time marker used for monsters to determine how long they've been in pain. 
+	//! Used for things such as deciding when to stop flinching, etc.
+    QMTime   debouncePainTime = 0_ms;
+	//! Time marker used for monsters to determine how long they've been hostile towards their enemy. 
+	//! Used for things such as deciding when to stop chasing the player, etc.
+    QMTime   hostileShowTime = 0_ms;
     //! Registers the time of the frame we died in.
-    QMTime   death_time = 0_ms;
+    QMTime   timeOfDeath = 0_ms;
 	//! Time marker used by the player-trail system. Monsters set this to indicate
 	//! which trail timestamp they are currently following. Defaults to 0 (no trail).
-    QMTime   trail_time = 0_ms;
+    //QMTime   trail_time = 0_ms;
 
 
     /**
@@ -1124,10 +1135,10 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! [SpawnKey]: Damage entity will do.
     int32_t     dmg = 0;
     //! Size of the radius where entities within will be damaged.
-    int32_t     radius_dmg = 0;
-    float       dmg_radius = 0.f;
+    int32_t     radiusDamage = 0;
+	double		damageRadius = 0.;
     //! Light
-    float		light = 0.f;
+    double		light = 0.;
     //! [SpawnKey]: For certain pushers/movers to use sounds or not. -1 usually is not, sometimes a positive value indices the set.
     int32_t     sounds = 0;
     //! Count of ... whichever depends on entity.

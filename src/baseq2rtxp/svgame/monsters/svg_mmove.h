@@ -66,6 +66,9 @@ static constexpr double MM_STEP_GROUND_DIST	= PHYS_STEP_GROUND_DIST;
 /**
 *	Slide Move Results:
 **/
+//! Faux mask for indicating no movement at all in subsystems using the monster move results flags as a bitmask. 
+//! Not actually used as a flag since it is 0, but useful for readability.
+static constexpr int32_t MM_SLIDEMOVEFLAG_NONE	= 0;
 //! Succesfully performed the move.
 static constexpr int32_t MM_SLIDEMOVEFLAG_MOVED = BIT( 0 );
 //! It was blocked at some point, doesn't mean it didn't slide along the blocking object.

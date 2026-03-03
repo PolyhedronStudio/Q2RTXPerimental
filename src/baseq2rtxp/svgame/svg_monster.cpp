@@ -117,28 +117,28 @@ void M_WorldEffects( svg_base_edict_t *ent ) {
     if (ent->health > 0) {
         if (!(ent->flags & FL_SWIM)) {
             if (ent->liquidInfo.level < 3) {
-                ent->air_finished_time = level.time + 12_sec;
-            } else if (ent->air_finished_time < level.time) {
+                ent->airFinishedBreathTime = level.time + 12_sec;
+            } else if (ent->airFinishedBreathTime < level.time) {
                 // drown!
-                if (ent->pain_debounce_time < level.time ) {
-					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).Seconds( ) ) );
+                if (ent->debouncePainTime < level.time ) {
+					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->airFinishedBreathTime ).Seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
                     SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
-                    ent->pain_debounce_time = level.time + 1_sec;
+                    ent->debouncePainTime = level.time + 1_sec;
                 }
             }
         } else {
             if (ent->liquidInfo.level > 0) {
-                ent->air_finished_time = level.time + 9_sec;
-            } else if (ent->air_finished_time < level.time ) {
+                ent->airFinishedBreathTime = level.time + 9_sec;
+            } else if (ent->airFinishedBreathTime < level.time ) {
                 // suffocate!
-                if (ent->pain_debounce_time < level.time ) {
-					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->air_finished_time ).Seconds( ) ) );
+                if (ent->debouncePainTime < level.time ) {
+					dmg = 2 + (int)( 2 * floorf( ( level.time - ent->airFinishedBreathTime ).Seconds( ) ) );
                     if (dmg > 15)
                         dmg = 15;
                     SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR, MEANS_OF_DEATH_WATER );
-                    ent->pain_debounce_time = level.time + 1_sec;
+                    ent->debouncePainTime = level.time + 1_sec;
                 }
             }
         }
@@ -154,14 +154,14 @@ void M_WorldEffects( svg_base_edict_t *ent ) {
 	}
 
     if ((ent->liquidInfo.type & CONTENTS_LAVA) && !(ent->flags & FL_IMMUNE_LAVA)) {
-        if (ent->damage_debounce_time < level.time ) {
-            ent->damage_debounce_time = level.time + 0.2_sec;
+        if (ent->debounceDamageTime < level.time ) {
+            ent->debounceDamageTime = level.time + 0.2_sec;
             SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->liquidInfo.level, 0, DAMAGE_NONE, MEANS_OF_DEATH_LAVA );
         }
     }
     if ((ent->liquidInfo.type & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME)) {
-        if (ent->damage_debounce_time < level.time ) {
-            ent->damage_debounce_time = level.time + 1_sec;
+        if (ent->debounceDamageTime < level.time ) {
+            ent->debounceDamageTime = level.time + 1_sec;
             SVG_DamageEntity(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->liquidInfo.level, 0, DAMAGE_NONE, MEANS_OF_DEATH_SLIME );
         }
     }
@@ -187,7 +187,7 @@ void M_WorldEffects( svg_base_edict_t *ent ) {
 
 		ent->flags = static_cast<entity_flags_t>( ent->flags | FL_INWATER );
 
-        ent->damage_debounce_time = 0_ms;
+        ent->debounceDamageTime = 0_ms;
     }
 }
 

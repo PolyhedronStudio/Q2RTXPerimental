@@ -88,6 +88,16 @@ void SVG_Nav_Log( const char *fmt, ... ) {
 	gi.dprintf( "%s", buf );
 }
 
+/**
+*    @brief    Validate that an agent bbox is well-formed.
+*    @param    mins    Minimum extents.
+*    @param    maxs    Maximum extents.
+*    @return   True when mins are strictly lower than maxs on all axes.
+**/
+static inline const bool Nav_AgentBoundsAreValid( const Vector3 &mins, const Vector3 &maxs ) {
+	return ( maxs[ 0 ] > mins[ 0 ] ) && ( maxs[ 1 ] > mins[ 1 ] ) && ( maxs[ 2 ] > mins[ 2 ] );
+}
+
 int32_t SVG_Nav_GetInlineModelRuntimeIndexForOwnerEntNum( const nav_mesh_t *mesh, const int32_t owner_entnum ) {
 	if ( !mesh || owner_entnum <= 0 ) {
 		return -1;
@@ -122,6 +132,22 @@ const Vector3 SVG_Nav_ConvertFeetToCenter( const nav_mesh_t *mesh, const Vector3
 	// Choose agent bbox: prefer explicit override, otherwise use mesh defaults.
 	const Vector3 &mins = agent_mins ? *agent_mins : mesh->agent_mins;
 	const Vector3 &maxs = agent_maxs ? *agent_maxs : mesh->agent_maxs;
+
+	/**
+	*    Boundary guard:
+	*        External callers must provide feet-origin inputs and a valid bbox profile.
+	*        If bounds are invalid, keep the input unchanged and emit a diagnostic once.
+	**/
+	if ( !Nav_AgentBoundsAreValid( mins, maxs ) ) {
+		static bool s_logged_invalid_agent_bounds = false;
+		if ( !s_logged_invalid_agent_bounds ) {
+			s_logged_invalid_agent_bounds = true;
+			gi.dprintf( "[WARNING][Nav][Boundary] SVG_Nav_ConvertFeetToCenter received invalid agent bounds mins=(%.1f %.1f %.1f) maxs=(%.1f %.1f %.1f). Returning feet-origin unchanged.\n",
+				mins.x, mins.y, mins.z,
+				maxs.x, maxs.y, maxs.z );
+		}
+		return feet_origin;
+	}
 
 	// Compute center offset Z as average of mins/maxs Z in nav-center space.
 	const float centerOffsetZ = ( mins.z + maxs.z ) * 0.5f;
@@ -439,14 +465,14 @@ void SVG_Nav_Init( void ) {
 	nav_tile_size = gi.cvar( "nav_tile_size", "8", 0 );
 
 	// Tunable Z tolerance for layer selection and fallback. 0 = auto.
-	nav_z_tolerance = gi.cvar( "nav_z_tolerance", "1", 0 );
+	nav_z_tolerance = gi.cvar( "nav_z_tolerance", std::to_string( PHYS_STEP_MIN_SIZE ).c_str(), 0 );
 
 	/**
 	*   Register physics constraint CVars matching player movement:
 	**/
-	nav_max_step = gi.cvar( "nav_max_step", "18", 0 );
+	nav_max_step = gi.cvar( "nav_max_step", std::to_string(PHYS_STEP_MAX_SIZE).c_str(), 0);
 	nav_max_drop = gi.cvar( "nav_max_drop", "128", 0 );
-	nav_max_slope_normal_z = gi.cvar( "nav_max_slope_normal_z", "7", 0 );
+	nav_max_slope_normal_z = gi.cvar( "nav_max_slope_normal_z", std::to_string( PHYS_MAX_SLOPE_NORMAL ).c_str(), 0);
 
 	/**
 	*	Register physics constraints for specific actions.
@@ -470,8 +496,8 @@ void SVG_Nav_Init( void ) {
 	nav_debug_draw = gi.cvar( "nav_debug_draw", "1", 0 );
 	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
 	nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", 0 );
-	nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "4096", 0 );
-	nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "1024", 0 );
+	nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "128", 0 );
+	nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "8192", 0 );
 	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "0", 0 );
 	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "0", 0 );
 	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "1", 0 );
@@ -561,21 +587,41 @@ void SVG_Nav_Shutdown( void ) {
 }
 
 /**
+*	@brief	Will return the path for a level's matching navigation filename.
+*	@return	A string containing the file path + file extension.
+**/
+const std::string SVG_Nav_GetPathForLevelNav( const char *levelName ) {
+	// Default path for the engine to find nav files at.
+	constexpr const char *navPath = "/maps/nav/";
+
+	// Actual filename of the .nav file.
+	const std::string fileNameExt = std::string( levelName ) + ".nav";
+	// Determine the game path to use for loading .nav files.
+	// <Q2RTXP>: WID: Unneccesary right now.
+	const std::string baseGame = ""; // BASEGAME
+	//if ( baseGame.empty() ) {
+	//	baseGame = BASEGAME;
+	//}
+	// Build and return full file path.
+	return baseGame + navPath + fileNameExt;
+}
+
+/**
 *	@brief	Loads up an existing navigation mesh for the current map, if the file is located.
 *	@return True if a mesh was successfully loaded, false otherwise (e.g., file not found).
 **/
-const bool SVG_Nav_LoadMesh( const char *levelName ) {
-		// Actual filename of the .nav file.
-	std::string navMeshName = std::string( level.mapname ) + ".nav";
-	// Actual path where it is expected to be residing at:
-	const std::string filePath = "/maps/nav/" + navMeshName;
+const std::tuple<const bool, const std::string> SVG_Nav_LoadMesh( const char *levelName ) {
+	// Actual filename of the .nav file.
+	const std::string navMeshFilePath = SVG_Nav_GetPathForLevelNav( levelName );
 	// Load it up if it exists, otherwise it'll just be ignored and the nav system will be inactive.
-	if ( gi.FS_FileExistsEx( filePath.c_str(), 0 ) ) {
+	if ( gi.FS_FileExistsEx( navMeshFilePath.c_str(), 0 ) ) {
 		// Return whether loading succeeded or failed; if it fails, the nav system will be inactive but won't crash.
-		return SVG_Nav_LoadVoxelMesh( navMeshName.c_str() );
+		const bool loaded = SVG_Nav_LoadVoxelMesh( levelName );
+		// Return success status and the actual filename attempted (for logging/debugging).
+		return std::make_tuple( loaded, navMeshFilePath );
 	}
 	// Failure.
-	return false;
+	return std::make_tuple( false, navMeshFilePath );
 }
 
 
@@ -767,7 +813,7 @@ nav_agent_profile_t SVG_Nav_BuildAgentProfileFromCvars( void ) {
 	const double default_step = 18.0;
 	const double default_drop = 128.0;
    const double default_drop_cap = 64.0;
-	const double default_slope_normal_z = 0.7;
+	const double default_slope_normal_z = PHYS_MAX_SLOPE_NORMAL;
 
 	profile.max_step_height = nav_max_step ? nav_max_step->value : default_step;
 	profile.max_drop_height = nav_max_drop ? nav_max_drop->value : default_drop;
@@ -789,560 +835,6 @@ const bool IsWalkableSlope( const Vector3 &normal, const double min_normal_z ) {
 	// Surface is walkable if normal Z is above the threshold.
 	return normal[ 2 ] >= min_normal_z;
 }
-
-/**
-*   @brief  Detect content flags from trace results.
-*   @param  trace   Trace result containing content information.
-*   @return Content flags (nav_layer_flags_t) for the traced surface.
-**/
-/**
-*    Legacy voxelmesh generation helpers:
-*        These functions are kept for reference only. The authoritative
-*        generation implementation lives in `svg_nav_generate.cpp`.
-*        Define `SVG_NAV_LEGACY_GENERATION` to compile these helpers.
-**/
-#if defined( SVG_NAV_LEGACY_GENERATION )
-static uint8_t DetectContentFlags( const cm_trace_t &trace ) {
-	// Start with walkable flag.
-	uint8_t flags = NAV_FLAG_WALKABLE;
-
-	// Check for water based on trace contents.
-	if ( trace.contents & CONTENTS_WATER ) {
-		flags |= NAV_FLAG_WATER;
-	}
-	// Check for lava based on trace contents.
-	if ( trace.contents & CONTENTS_LAVA ) {
-		flags |= NAV_FLAG_LAVA;
-	}
-	// Check for slime based on trace contents.
-	if ( trace.contents & CONTENTS_SLIME ) {
-		flags |= NAV_FLAG_SLIME;
-	}
-	// Check for ladder based on trace contents.
-	if ( trace.contents & CONTENTS_LADDER ) {
-		flags |= NAV_FLAG_LADDER;
-	}
-
-	return flags;
-}
-
-/**
- *   @brief  Deprecated helper for voxelmesh generation; use svg_nav_generate.cpp instead.
- *   @note   Performs downward traces to find walkable layers at an XY position.
- *   @param  xy_pos          XY position to trace at.
- *   @param  mins            Agent bounding box minimum.
- *   @param  maxs            Agent bounding box maximum.
- *   @param  z_min           Minimum Z height to search.
- *   @param  z_max           Maximum Z height to search.
- *   @param  max_step        Maximum step height for downward traces.
- *   @param  max_slope_deg   Maximum walkable slope in degrees.
- *   @param  z_quant         Z-axis quantization step.
- *   @param  out_layers      Output array of detected layers.
- *   @param  out_num_layers  Output number of layers found.
- *   @param  clip_entity     Optional entity to clip against (inline model), null for world.
- *   @note   This function is not thread-safe due to the static temp_layers array.
- *           It should only be called from a single thread (main game thread).
- **/
-// Diagnostic counters for FindWalkableLayers
-static int32_t s_precheck_fail_count = 0;
-static int32_t s_trace_attempt_count = 0;
-static int32_t s_trace_hit_count = 0;
-static int32_t s_slope_reject_count = 0;
-
-[[deprecated( "Use svg_nav_generate.cpp sampling helpers instead of FindWalkableLayers." )]]
-static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, const Vector3 &maxs,
-	double z_min, double z_max, double max_step, double max_slope_deg, double z_quant,
-	nav_layer_t **out_layers, int32_t *out_num_layers,
-	const edict_ptr_t *clip_entity ) {
-// Maximum number of layers that can be found at a single XY position.
-	const int32_t MAX_LAYERS = 16;
-	// Note: Static array for efficiency, but limits thread-safety.
-	static nav_layer_t temp_layers[ MAX_LAYERS ] = {};
-	int32_t num_layers = 0;
-
-	/**
-	*	Fast precheck: if the entire XY column is empty (no solid content) within the
-	*	requested Z slice, we can skip the expensive downward trace loop.
-	*
-	*	Note: This intentionally checks a conservative AABB that covers the search range.
-	*	If any solid exists in the column we fall back to the trace-based sampler to
-	*	recover accurate endpos + plane normal.
-	**/
-	{
-		// Build an AABB spanning the vertical search range around this XY.
-		Vector3 colMins = xy_pos;
-		Vector3 colMaxs = xy_pos;
-		colMins[ 2 ] = z_min;
-		colMaxs[ 2 ] = z_max;
-
-		// DO NOT expand by agent hull - z_min/z_max already include agent bbox offset.
-		// Expanding XY slightly for conservative edge detection.
-		colMins[ 0 ] += mins[ 0 ];
-		colMins[ 1 ] += mins[ 1 ];
-		colMaxs[ 0 ] += maxs[ 0 ];
-		colMaxs[ 1 ] += maxs[ 1 ];
-
-		bool hasSolid = true;
-		if ( clip_entity ) {
-			/**
-			*	Inline model: prefer CM_BoxContents against the model BSP headnode when available.
-			*	This avoids even the single clip trace.
-			**/
-			const char *modelStr = clip_entity->model;
-			int32_t inlineIndex = -1;
-			if ( modelStr && modelStr[ 0 ] == '*' ) {
-				inlineIndex = atoi( modelStr + 1 );
-			}
-
-			mnode_t *headnode = nullptr;
-			if ( inlineIndex >= 0 && gi.CM_InlineModelHeadnode ) {
-				headnode = gi.CM_InlineModelHeadnode( inlineIndex );
-			}
-
-			if ( headnode ) {
-				cm_contents_t contents = CONTENTS_NONE;
-				gi.CM_BoxContents_headnode( &colMins[ 0 ], &colMaxs[ 0 ], &contents, nullptr, 0, headnode, nullptr );
-				hasSolid = ( contents & CM_CONTENTMASK_SOLID ) != 0;
-			} else {
-				// Fallback: one conservative clip trace through the column.
-				Vector3 start = xy_pos;
-				start[ 2 ] = z_max;
-				Vector3 end = xy_pos;
-				end[ 2 ] = z_min;
-				const cm_trace_t tr = gi.clip( clip_entity, &start, &mins, &maxs, &end, CM_CONTENTMASK_SOLID );
-				hasSolid = ( tr.fraction < 1.0f ) || tr.startsolid || tr.allsolid;
-			}
-		} else {
-			// World: a cheap contents query for this agent-shaped AABB.
-			cm_contents_t contents = CONTENTS_NONE;
-			gi.CM_BoxContents( &colMins[ 0 ], &colMaxs[ 0 ], &contents, nullptr, 0, nullptr );
-			hasSolid = ( contents & CM_CONTENTMASK_SOLID ) != 0;
-		}
-
-		if ( !hasSolid ) {
-			s_precheck_fail_count++;
-			if ( s_precheck_fail_count <= 10 ) {
-				gi.dprintf( "[ERROR][NavGen][FindWalkableLayers] Precheck failed: no solid in column at (%.1f,%.1f) z=[%.1f,%.1f]\n",
-					xy_pos[ 0 ], xy_pos[ 1 ], z_min, z_max );
-			}
-			*out_layers = nullptr;
-			*out_num_layers = 0;
-			return;
-		}
-	}
-
-	// Start at maximum Z and work downward.
-	double current_z = z_max;
-	// Search distance for each downward trace (2x max step).
-	double step_down = max_step * 2.0f;
-
-	/**
-	*   Perform repeated downward traces to find all walkable layers:
-	**/
-	while ( current_z > z_min && num_layers < MAX_LAYERS ) {
-		// Setup trace start position at current Z height.
-		Vector3 start = xy_pos;
-		start[ 2 ] = current_z;
-
-		// Setup trace end position stepping down.
-		Vector3 end = xy_pos;
-		end[ 2 ] = current_z - step_down;
-
-		// Perform the trace (world-only or full collision).
-		cm_trace_t trace;
-		if ( clip_entity ) {
-			// Inline model collision using the entity-specific clip.
-			trace = gi.clip( clip_entity, &start, &mins, &maxs, &end, CM_CONTENTMASK_SOLID );
-		} else {
-			// World-only collision for static world geometry.
-			trace = gi.trace( &start, &mins, &maxs, &end, nullptr, CM_CONTENTMASK_SOLID );
-		}
-
-		s_trace_attempt_count++;
-
-		/**
-		*   Process trace results:
-		**/
-		// Check if we hit something and if the normal points upward.
-		if ( trace.fraction < 1.0f && trace.plane.normal[ 2 ] > 0.0f ) {
-			s_trace_hit_count++;
-			// Check if the slope is walkable.
-			if ( IsWalkableSlope( trace.plane.normal, max_slope_deg ) ) {
-				// Found a walkable surface - record it.
-				// Note: Assumes z_quant is non-zero (validated during generation).
-				temp_layers[ num_layers ].z_quantized = ( int16_t )( trace.endpos[ 2 ] / z_quant );
-				temp_layers[ num_layers ].flags = DetectContentFlags( trace );
-				temp_layers[ num_layers ].clearance = 0; // TODO: Calculate clearance.
-				num_layers++;
-
-				// Continue searching below this surface.
-				current_z = trace.endpos[ 2 ] - 1.0f;
-			} else {
-				// Hit a non-walkable surface (too steep), continue searching below.
-				s_slope_reject_count++;
-				if ( s_slope_reject_count <= 10 ) {
-					gi.dprintf( "[WARNING][NavGen][FindWalkableLayers] Slope rejected: normal.z=%.3f at (%.1f,%.1f,%.1f) max_slope=%.1f\n",
-						trace.plane.normal[ 2 ], xy_pos[ 0 ], xy_pos[ 1 ], trace.endpos[ 2 ], max_slope_deg );
-				}
-				current_z = trace.endpos[ 2 ] - 1.0f;
-			}
-		} else {
-			// No hit in this trace, move down by the step distance.
-			current_z -= step_down;
-		}
-	}
-
-	/**
-	*   Allocate and return layer data:
-	**/
-	if ( num_layers > 0 ) {
-		// Allocate permanent storage for the layers.
-		*out_layers = ( nav_layer_t * )gi.TagMallocz( sizeof( nav_layer_t ) * num_layers, TAG_SVGAME_LEVEL );
-		memcpy( *out_layers, temp_layers, sizeof( nav_layer_t ) * num_layers );
-		*out_num_layers = num_layers;
-	} else {
-		// No walkable layers found at this XY position.
-		*out_layers = nullptr;
-		*out_num_layers = 0;
-	}
-}
-
-
-
-/**
-*
-*
-*
-*   Navigation Tile Generation:
-*
-*
-*
-**/
-/**
- *   @brief  Deprecated helper for legacy mesh generation; prefer svg_nav_generate.
- *   @note   Builds a navigation tile by sampling walkable layers within the BSP leaf bounds.
- *   @return True if any walkable data was generated.
- **/
-[[deprecated( "Use GenerateWorldMesh helpers in svg_nav_generate.cpp instead of Nav_BuildTile." )]]
-static bool Nav_BuildTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &leaf_mins, const Vector3 &leaf_maxs,
-	double z_min, double z_max ) {
-	const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
-	const int32_t presence_words = ( cells_per_tile + 31 ) / 32;
-	const double tile_world_size = Nav_TileWorldSize( mesh );
-
-	// Allocate tile storage.
-	tile->presence_bits = ( uint32_t * )gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_LEVEL );
-	tile->cells = ( nav_xy_cell_t * )gi.TagMallocz( sizeof( nav_xy_cell_t ) * cells_per_tile, TAG_SVGAME_LEVEL );
-
-	bool has_layers = false;
-
-	const double tile_origin_x = tile->tile_x * tile_world_size;
-	const double tile_origin_y = tile->tile_y * tile_world_size;
-
-	for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
-		for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
-			const double world_x = tile_origin_x + ( ( double )cell_x + 0.5f ) * mesh->cell_size_xy;
-			const double world_y = tile_origin_y + ( ( double )cell_y + 0.5f ) * mesh->cell_size_xy;
-
-			// Skip cells outside the leaf bounds.
-			if ( world_x < leaf_mins[ 0 ] || world_x > leaf_maxs[ 0 ] ||
-				world_y < leaf_mins[ 1 ] || world_y > leaf_maxs[ 1 ] ) {
-				continue;
-			}
-
-			Vector3 xy_pos = { world_x, world_y, 0.0 };
-			nav_layer_t *layers = nullptr;
-			int32_t num_layers = 0;
-
-			FindWalkableLayers( xy_pos, mesh->agent_mins, mesh->agent_maxs,
-				z_min, z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
-				&layers, &num_layers, nullptr );
-
-			if ( num_layers > 0 ) {
-				const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
-				tile->cells[ cell_index ].num_layers = num_layers;
-				tile->cells[ cell_index ].layers = layers;
-				Nav_SetPresenceBit( tile, cell_index );
-				has_layers = true;
-			}
-		}
-	}
-
-	if ( !has_layers ) {
-		Nav_FreeTileCells( tile, cells_per_tile );
-		if ( tile->presence_bits ) {
-			gi.TagFree( tile->presence_bits );
-		}
-	}
-
-	return has_layers;
-}
-
-/**
-*	@brief	Build a navigation tile for an inline model using entity clip collision.
-*	@return	True if any walkable data was generated.
-**/
-static bool Nav_BuildInlineTile( nav_mesh_t *mesh, nav_tile_t *tile, const Vector3 &model_mins, const Vector3 &model_maxs,
-	double z_min, double z_max, const edict_ptr_t *clip_entity ) {
-	const int32_t cells_per_tile = mesh->tile_size * mesh->tile_size;
-	const int32_t presence_words = ( cells_per_tile + 31 ) / 32;
-	const double tile_world_size = Nav_TileWorldSize( mesh );
-
-	// Allocate tile storage.
-	tile->presence_bits = ( uint32_t * )gi.TagMallocz( sizeof( uint32_t ) * presence_words, TAG_SVGAME_LEVEL );
-	tile->cells = ( nav_xy_cell_t * )gi.TagMallocz( sizeof( nav_xy_cell_t ) * cells_per_tile, TAG_SVGAME_LEVEL );
-
-	bool has_layers = false;
-
-	// Tile origins are in "model local space". Allow negative coords by using local mins as base.
-	const double tile_origin_x = model_mins[ 0 ] + ( tile->tile_x * tile_world_size );
-	const double tile_origin_y = model_mins[ 1 ] + ( tile->tile_y * tile_world_size );
-
-	for ( int32_t cell_y = 0; cell_y < mesh->tile_size; cell_y++ ) {
-		for ( int32_t cell_x = 0; cell_x < mesh->tile_size; cell_x++ ) {
-			const double local_x = tile_origin_x + ( ( double )cell_x + 0.5 ) * mesh->cell_size_xy;
-			const double local_y = tile_origin_y + ( ( double )cell_y + 0.5 ) * mesh->cell_size_xy;
-
-			// Skip cells outside the model AABB.
-			if ( local_x < model_mins[ 0 ] || local_x > model_maxs[ 0 ] ||
-				local_y < model_mins[ 1 ] || local_y > model_maxs[ 1 ] ) {
-				continue;
-			}
-
-			Vector3 xy_pos = { local_x, local_y, 0.0 };
-			nav_layer_t *layers = nullptr;
-			int32_t num_layers = 0;
-
-			FindWalkableLayers( xy_pos, mesh->agent_mins, mesh->agent_maxs,
-				z_min, z_max, mesh->max_step, mesh->max_slope_deg, mesh->z_quant,
-				&layers, &num_layers, clip_entity );
-
-			if ( num_layers > 0 ) {
-				const int32_t cell_index = cell_y * mesh->tile_size + cell_x;
-				tile->cells[ cell_index ].num_layers = num_layers;
-				tile->cells[ cell_index ].layers = layers;
-				Nav_SetPresenceBit( tile, cell_index );
-				has_layers = true;
-			}
-		}
-	}
-
-	if ( !has_layers ) {
-		Nav_FreeTileCells( tile, cells_per_tile );
-
-		if ( tile->presence_bits ) {
-			gi.TagFree( tile->presence_bits );
-			tile->presence_bits = nullptr;
-		}
-	}
-
-	return has_layers;
-}
-
-
-
-/**
-*
-*
-*
-*   Inline BSP model Mesh Generation:
-*
-*
-*
-**/
-
-
-
-/**
-*
-*
-*
-*   Navigation Mesh Generation:
-*
-*
-*
-**/
-/**
- *   @brief  Deprecated legacy world mesh generator; use svg_nav_generate.cpp instead.
- *           Creates tiles for each BSP leaf containing walkable surface samples.
- *   @param  mesh    Navigation mesh structure to populate.
- *   @note   Only compiled when SVG_NAV_LEGACY_GENERATION is enabled; new generation lives in svg_nav_generate.cpp.
- **/
-[[deprecated( "Replace GenerateWorldMesh with the canonical svg_nav_generate.cpp implementation." )]]
-static void GenerateWorldMesh( nav_mesh_t *mesh ) {
-	/**
-	*   Get BSP data from the world model:
-	**/
-	const cm_t *world_model = gi.GetCollisionModel();
-	if ( !world_model || !world_model->cache ) {
-		gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
-		return;
-	}
-	// Get the pointer to the cached BSP data.    
-	bsp_t *bsp = world_model->cache;
-	// Get number of leafs in the BSP.
-	int32_t num_leafs = bsp->numleafs;
-
-	SVG_Nav_Log( "Generating world navmesh for %d leafs...\n", num_leafs );
-
-	/**
-	*   Allocate leaf data array:
-	**/
-	mesh->num_leafs = num_leafs;
-	mesh->leaf_data = ( nav_leaf_data_t * )gi.TagMallocz( sizeof( nav_leaf_data_t ) * num_leafs, TAG_SVGAME_LEVEL );
-
-	const double tile_world_size = Nav_TileWorldSize( mesh );
-
-	/**
-	*	Compute a global world Z sampling range from bsp model 0 bounds.
-	*
-	*	We keep XY tiling based on per-leaf bounds (for clustering and locality), but
-	*	use a consistent vertical range derived from the world model to avoid cases
-	*	where leaf Z extents are invalid/unhelpful for navigation sampling.
-	**/
-	const Vector3 world_mins = bsp->models[ 0 ].mins;
-	const Vector3 world_maxs = bsp->models[ 0 ].maxs;
-	const double world_z_min = ( double )world_mins[ 2 ] + ( double )mesh->agent_mins[ 2 ];
-	const double world_z_max = ( double )world_maxs[ 2 ] + ( double )mesh->agent_maxs[ 2 ];
-
-	/**
-	*   Generate tiles for each leaf using BSP bounds:
-	**/
-	int32_t leaf_skipped_solid = 0;
-	int32_t leaf_processed = 0;
-	int32_t total_tile_attempts = 0;
-	int32_t total_tile_success = 0;
-
-	/**
-	*	Legacy note:
-	*
-	*	World voxelmesh generation is implemented in `svg_nav_generate.cpp` and now uses
-	*	canonical world tile storage (`mesh->world_tiles`) with leaf tile-id references.
-	*
-	*	This function remains only to print the older stats if it is still invoked in
-	*	any legacy code paths.
-	**/
-	leaf_skipped_solid = leaf_skipped_solid;
-	leaf_processed = leaf_processed;
-	total_tile_attempts = total_tile_attempts;
-	total_tile_success = total_tile_success;
-
-	SVG_Nav_Log( "World mesh generation complete\n" );
-	SVG_Nav_Log( "[NavGen] Leaf statistics: %d total, %d solid (skipped), %d processed\n", num_leafs, leaf_skipped_solid, leaf_processed );
-	SVG_Nav_Log( "[NavGen] Tile statistics: %d attempted, %d succeeded (%.1f%% success rate)\n", total_tile_attempts, total_tile_success, total_tile_attempts > 0 ? ( 100.0f * total_tile_success / total_tile_attempts ) : 0.0f );
-	if ( total_tile_success == 0 && total_tile_attempts > 0 ) {
-		SVG_Nav_Log( "[ERROR][NavGen] ALL TILES FAILED! Possible causes:\n" );
-		SVG_Nav_Log( "[ERROR][NavGen]   1. All surfaces too steep (check nav_max_slope_normal_z=%.1f)\n", mesh->max_slope_deg );
-		SVG_Nav_Log( "[ERROR][NavGen]   2. Map has no valid walkable floors\n" );
-		SVG_Nav_Log( "[ERROR][NavGen]   3. Agent bounding box too large for map geometry\n" );
-		SVG_Nav_Log( "[ERROR][NavGen]   4. Bug in Nav_BuildTile surface sampling\n" );
-		SVG_Nav_Log( "[ERROR][NavGen] See first 10 diagnostic messages above for details.\n" );
-	}
-}
-
-/**
-*   @brief  Generate navigation mesh for inline BSP models (brush entities).
-*           Creates tiles for each inline model in local space for later transform application.
-*   @param  mesh    Navigation mesh structure to populate.
-**/
-static void GenerateInlineModelMesh( nav_mesh_t *mesh ) {
-	/**
-	*   Get number of inline models from world model:
-	**/
-	const cm_t *world_model = gi.GetCollisionModel();
-	if ( !world_model || !world_model->cache ) {
-		gi.cprintf( nullptr, PRINT_HIGH, "Failed to get world BSP data\n" );
-		return;
-	}
-
-	std::unordered_map<int32_t, svg_base_edict_t *> model_to_ent;
-	Nav_CollectInlineModelEntities( model_to_ent );
-
-	// Nothing to do if no brush entities are present/active.
-	if ( model_to_ent.empty() ) {
-		mesh->num_inline_models = 0;
-		mesh->inline_model_data = nullptr;
-		mesh->num_inline_model_runtime = 0;
-		mesh->inline_model_runtime = nullptr;
-		return;
-	}
-
-	gi.cprintf( nullptr, PRINT_HIGH, "Generating inline model navmesh' for %d inline models...\n", ( int32_t )model_to_ent.size() );
-
-	// Allocate only for inline models that are actually referenced by entities.
-	mesh->num_inline_models = ( int32_t )model_to_ent.size();
-	mesh->inline_model_data = ( nav_inline_model_data_t * )gi.TagMallocz(
-		sizeof( nav_inline_model_data_t ) * mesh->num_inline_models, TAG_SVGAME_LEVEL );
-
-	// Build runtime mapping (transforms).
-	Nav_BuildInlineModelRuntime( mesh, model_to_ent );
-
-	const double tile_world_size = Nav_TileWorldSize( mesh );
-
-	int32_t out_index = 0;
-	for ( const auto &it : model_to_ent ) {
-		const int32_t model_index = it.first;
-		svg_base_edict_t *ent = it.second;
-
-		nav_inline_model_data_t *out_model = &mesh->inline_model_data[ out_index ];
-		out_model->model_index = model_index;
-		out_model->num_tiles = 0;
-		out_model->tiles = nullptr;
-
-		if ( !ent ) {
-			out_index++;
-			continue;
-		}
-
-		const char *model_name = ent->model;
-		const mmodel_t *mm = ( model_name ? gi.GetInlineModelDataForName( model_name ) : nullptr );
-		if ( !mm ) {
-			out_index++;
-			continue;
-		}
-
-		const Vector3 model_mins = mm->mins;
-		const Vector3 model_maxs = mm->maxs;
-
-		const double z_min = model_mins[ 2 ] + mesh->agent_mins[ 2 ];
-		const double z_max = model_maxs[ 2 ] + mesh->agent_maxs[ 2 ];
-
-		// Compute tile range in model-local space with mins as the origin.
-		const int32_t tile_min_x = 0;
-		const int32_t tile_min_y = 0;
-		const int32_t tile_max_x = Nav_WorldToTileCoord( ( model_maxs[ 0 ] - model_mins[ 0 ] ) - NAV_TILE_EPSILON, tile_world_size );
-		const int32_t tile_max_y = Nav_WorldToTileCoord( ( model_maxs[ 1 ] - model_mins[ 1 ] ) - NAV_TILE_EPSILON, tile_world_size );
-
-		std::vector<nav_tile_t> tiles;
-		if ( tile_max_x >= tile_min_x && tile_max_y >= tile_min_y ) {
-			const int32_t tile_count = ( tile_max_x - tile_min_x + 1 ) * ( tile_max_y - tile_min_y + 1 );
-			tiles.reserve( tile_count );
-		}
-
-		for ( int32_t tile_y = tile_min_y; tile_y <= tile_max_y; tile_y++ ) {
-			for ( int32_t tile_x = tile_min_x; tile_x <= tile_max_x; tile_x++ ) {
-				nav_tile_t tile = {};
-				tile.tile_x = tile_x;
-				tile.tile_y = tile_y;
-
-				if ( Nav_BuildInlineTile( mesh, &tile, model_mins, model_maxs, z_min, z_max, ent ) ) {
-					tiles.push_back( tile );
-				}
-			}
-		}
-
-		if ( !tiles.empty() ) {
-			out_model->num_tiles = ( int32_t )tiles.size();
-			out_model->tiles = ( nav_tile_t * )gi.TagMallocz( sizeof( nav_tile_t ) * out_model->num_tiles, TAG_SVGAME_LEVEL );
-			memcpy( out_model->tiles, tiles.data(), sizeof( nav_tile_t ) * out_model->num_tiles );
-		}
-
-		out_index++;
-	}
-
-	gi.cprintf( nullptr, PRINT_HIGH, "Inline models' navmesh generation complete\n" );
-}
-#endif // SVG_NAV_LEGACY_GENERATION
 
 /**
 *	@brief	Build runtime inline model data for navigation mesh.

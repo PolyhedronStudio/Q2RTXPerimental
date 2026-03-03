@@ -236,7 +236,8 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_pat
         const float oldZ = monsterMove->state.velocity.z;
         const float delta = ( float )monsterMove->state.gravity * ( float )monsterMove->frameTime;
         monsterMove->state.velocity.z -= delta;
-        // Limit logging to once per server frame to reduce spam.
+		#if 0
+		// Limit logging to once per server frame to reduce spam.
         static int32_t s_last_mmove_log_frame = -1;
         if ( monsterMove->monster && level.frameNumber != s_last_mmove_log_frame ) {
             s_last_mmove_log_frame = level.frameNumber;
@@ -251,6 +252,7 @@ const int32_t SVG_MMove_StepSlideMove( mm_move_t *monsterMove, const svg_nav_pat
                 oldZ,
                 monsterMove->state.velocity.z );
         }
+		#endif
     }
 
 	return blockedMask;

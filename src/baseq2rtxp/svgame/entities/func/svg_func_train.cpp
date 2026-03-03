@@ -48,7 +48,7 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_train_t, onBlocked )( svg_func_train_t 
         return;
     }
 
-    if ( level.time < self->touch_debounce_time ) {
+    if ( level.time < self->debounceTouchTime ) {
         return;
     }
 
@@ -56,7 +56,7 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_train_t, onBlocked )( svg_func_train_t 
         return;
     }
 
-    self->touch_debounce_time = level.time + 0.5_sec;
+    self->debounceTouchTime = level.time + 0.5_sec;
     SVG_DamageEntity( other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MEANS_OF_DEATH_CRUSHED );
 }
 

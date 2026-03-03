@@ -38,7 +38,18 @@ static svg_nav_path_policy_t SVG_Nav_BuildPolicyFromAgentProfile( const nav_agen
     policy.max_drop_height = profile.max_drop_height;
     policy.max_drop_height_cap = profile.max_drop_height_cap;
     policy.max_slope_normal_z = profile.max_slope_normal_z;
+  policy.min_step_normal = profile.max_slope_normal_z;
     return policy;
+}
+
+/**
+*    @brief    Compute feet->center Z offset from an agent bbox.
+*    @param    mins    Feet-origin bbox mins.
+*    @param    maxs    Feet-origin bbox maxs.
+*    @return   Center offset to add to feet-origin Z for nav-center conversion.
+**/
+static inline const float SVG_Nav_ComputeFeetToCenterOffsetZ( const Vector3 &mins, const Vector3 &maxs ) {
+	return ( mins.z + maxs.z ) * 0.5f;
 }
 
 /**
@@ -62,8 +73,8 @@ void svg_nav_path_process_t::Reset( void ) {
 	// Reset traversal indices.
 	path_index = 0;
 	// Reset cached goal/start.
-	path_goal = {};
-	path_start = {};
+	path_goal_position = {};
+	path_start_position = {};
 	// Reset throttle/backoff timers.
 	next_rebuild_time = 0_ms;
 	backoff_until = 0_ms;
@@ -72,6 +83,7 @@ void svg_nav_path_process_t::Reset( void ) {
 	last_failure_time = 0_ms;
 	last_failure_pos = {};
 	last_failure_yaw = 0.0f;
+   path_center_offset_z = 0.0f;
    // Reset async request generation so stale queue entries cannot commit after a hard reset.
 	request_generation = 0;
 }
@@ -116,8 +128,9 @@ const bool svg_nav_path_process_t::CommitAsyncPathFromPoints( const std::vector<
 	SVG_Nav_FreeTraversalPath( &path );
 	path = newPath;
 	path_index = 0;
-	path_start = start_origin;
-	path_goal = goal_origin;
+	path_start_position = start_origin;
+	path_goal_position = goal_origin;
+   path_center_offset_z = SVG_Nav_ComputeFeetToCenterOffsetZ( policy.agent_mins, policy.agent_maxs );
 	consecutive_failures = 0;
 	backoff_until = 0_ms;
 	next_rebuild_time = level.time + policy.rebuild_interval;
@@ -147,7 +160,8 @@ const bool svg_nav_path_process_t::GetNextPathPointEntitySpace( Vector3 *out_poi
 	*		The navigation system now operates directly in entity-origin coordinates
 	*		(center-based bounding boxes), so no feet-origin center offset is applied.
 	**/
-	*out_point = path.points[ path_index ];
+ *out_point = path.points[ path_index ];
+	( *out_point )[ 2 ] -= path_center_offset_z;
 	return true;
 }
 
@@ -285,7 +299,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	*		  during backoff so we can react to floor transitions.
 	**/
 	//const bool hasExistingPath = ( path.num_points > 0 && path.points );
-	const float goalMovedZ = fabsf( goal_origin.z - path_goal.z );
+	const float goalMovedZ = fabsf( goal_origin.z - path_goal_position.z );
 	const float forceZThreshold = ( stepLimit > 0.0f ) ? ( stepLimit * 2.0f ) : 36.0f;
 	const bool forceForGoalZ = ( goalMovedZ >= forceZThreshold );
 	// Only bypass movement heuristics when the goal moved floors; do not bypass time-based backoff.
@@ -335,28 +349,28 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	// Keep a copy of the existing path (and index) in case the new path fails.
 	nav_traversal_path_t oldPath = path;
 	const int32_t oldIndex = path_index;
+	const float oldCenterOffsetZ = path_center_offset_z;
 
 	// Clear current path state prior to attempting rebuild.
 	path = {};
 	path_index = 0;
 
  /**
-	*	Use entity/world origin coordinates directly.
-	*		All navigation queries now run in the same coordinate space as entities
-	*		(center-based collision bounds), so no feet-origin center conversion is applied.
+	*	Boundary convention:
+	*		External callers provide feet-origin coordinates while traversal APIs
+	*		convert to nav-center exactly once internally.
 	**/
-	const Vector3 agent_center_mins = agent_mins;
-	const Vector3 agent_center_maxs = agent_maxs;
-	const Vector3 start_center = start_origin;
-	const Vector3 goal_center = goal_origin;
+    const Vector3 agent_center_mins = resolvedPolicy.agent_mins;
+	const Vector3 agent_center_maxs = resolvedPolicy.agent_maxs;
+	Q_assert( agent_center_maxs.x > agent_center_mins.x && agent_center_maxs.y > agent_center_mins.y && agent_center_maxs.z > agent_center_mins.z );
 
 	/**
 	*	Run navigation query to rebuild path using explicit bbox.
 	*		We pass `this` so A* can apply per-entity failure penalties.
 	**/
 	const bool ok = SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox(
-	    start_center,
-	    goal_center,
+       start_origin,
+		goal_origin,
 	    &path,
 	    agent_center_mins,
 	    agent_center_maxs,
@@ -406,8 +420,9 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 		// Free old path now that we have a valid replacement.
 		SVG_Nav_FreeTraversalPath( &oldPath );
 		// Store feet-origin start/goal (callers interact in entity space).
-		path_start = start_origin;
-		path_goal = goal_origin;
+		path_start_position = start_origin;
+		path_goal_position = goal_origin;
+      path_center_offset_z = SVG_Nav_ComputeFeetToCenterOffsetZ( resolvedPolicy.agent_mins, resolvedPolicy.agent_maxs );
 		// Reset failure tracking.
 		consecutive_failures = 0;
 		backoff_until = 0_ms;
@@ -420,6 +435,7 @@ const bool svg_nav_path_process_t::RebuildPathToWithAgentBBox( const Vector3 &st
 	SVG_Nav_FreeTraversalPath( &path );
 	path = oldPath;
 	path_index = oldIndex;
+	path_center_offset_z = oldCenterOffsetZ;
 
 	/**
 	*	Failure backoff:
@@ -472,7 +488,7 @@ const bool svg_nav_path_process_t::ShouldRebuildForGoal2D( const Vector3 &goal_o
 	*	Check goal movement in 2D.
 	**/
 	// Compute XY delta between current goal and cached goal.
-	const Vector3 d = QM_Vector3Subtract( goal_origin, path_goal );
+	const Vector3 d = QM_Vector3Subtract( goal_origin, path_goal_position );
 	// Only consider XY for rebuild thresholds.
 	const float d2 = ( d.x * d.x ) + ( d.y * d.y );
 	// Trigger rebuild when squared distance exceeds threshold squared.
@@ -502,7 +518,7 @@ const bool svg_nav_path_process_t::ShouldRebuildForGoal3D( const Vector3 &goal_o
 	*	Check goal movement in 3D.
 	**/
 	// Compute XYZ delta between current goal and cached goal.
-	const Vector3 d = QM_Vector3Subtract( goal_origin, path_goal );
+	const Vector3 d = QM_Vector3Subtract( goal_origin, path_goal_position );
 	// Compare squared 3D distance against squared threshold.
 	const double d2 = (double)d.x * (double)d.x + (double)d.y * (double)d.y + (double)d.z * (double)d.z;
 	const double thresh2 = policy.rebuild_goal_dist_3d * policy.rebuild_goal_dist_3d;
@@ -524,7 +540,7 @@ const bool svg_nav_path_process_t::ShouldRebuildForStart2D( const Vector3 &start
 	*	Check start movement in 2D.
 	**/
 	// Use the same XY threshold as goal unless tuned separately.
-	const Vector3 d = QM_Vector3Subtract( start_origin, path_start );
+	const Vector3 d = QM_Vector3Subtract( start_origin, path_start_position );
 	const float d2 = ( d.x * d.x ) + ( d.y * d.y );
 	return d2 > ( policy.rebuild_goal_dist_2d * policy.rebuild_goal_dist_2d );
 }
@@ -552,7 +568,7 @@ const bool svg_nav_path_process_t::ShouldRebuildForStart3D( const Vector3 &start
 	*	Check start movement in 3D.
 	**/
 	// Compute XYZ delta between current start and cached start.
-	const Vector3 d = QM_Vector3Subtract( start_origin, path_start );
+	const Vector3 d = QM_Vector3Subtract( start_origin, path_start_position );
 	// Compare squared 3D distance against squared threshold.
 	const double d2 = (double)d.x * (double)d.x + (double)d.y * (double)d.y + (double)d.z * (double)d.z;
 	const double thresh2 = policy.rebuild_goal_dist_3d * policy.rebuild_goal_dist_3d;
@@ -580,14 +596,16 @@ const bool svg_nav_path_process_t::RebuildPathTo( const Vector3 &start_origin, c
 
 	nav_traversal_path_t oldPath = path;
 	const int32_t oldIndex = path_index;
+	const float oldCenterOffsetZ = path_center_offset_z;
 
 	// Reset current path container prior to rebuild.
 	path = {};
 	path_index = 0;
 
- /**
-	*	Use entity/world origin coordinates directly.
-	*		The navigation system now operates in center-based coordinate space.
+    /**
+	*	Boundary convention:
+	*		External callers provide feet-origin coordinates while traversal APIs
+	*		convert to nav-center exactly once internally.
 	**/
 	const Vector3 start_query = start_origin;
 	const Vector3 goal_query = goal_origin;
@@ -600,8 +618,10 @@ const bool svg_nav_path_process_t::RebuildPathTo( const Vector3 &start_origin, c
 		// Replace old path with new path.
 		SVG_Nav_FreeTraversalPath( &oldPath );
 		// Store feet-origin start/goal for rebuild heuristics.
-		path_start = start_origin;
-		path_goal = goal_origin;
+		path_start_position = start_origin;
+		path_goal_position = goal_origin;
+      const nav_agent_profile_t profile = SVG_Nav_BuildAgentProfileFromCvars();
+		path_center_offset_z = SVG_Nav_ComputeFeetToCenterOffsetZ( profile.mins, profile.maxs );
 		// Reset backoff and failures.
 		consecutive_failures = 0;
 		backoff_until = 0_ms;
@@ -615,6 +635,7 @@ const bool svg_nav_path_process_t::RebuildPathTo( const Vector3 &start_origin, c
 	// Restore old path on failure.
 	path = oldPath;
 	path_index = oldIndex;
+	path_center_offset_z = oldCenterOffsetZ;
 
 	//
 	consecutive_failures++;
@@ -652,10 +673,12 @@ const bool svg_nav_path_process_t::QueryDirection2D( const Vector3 &current_orig
 		return false;
 	}
 
- /**
-	*	Query using the entity/world origin directly.
+    /**
+	*	Boundary conversion:
+	*		Path points are stored in nav-center coordinates, so convert the
+	*		feet-origin query into center-origin before querying traversal.
 	**/
-	const Vector3 query_origin = current_origin;
+    const Vector3 query_origin = QM_Vector3Add( current_origin, Vector3{ 0.0f, 0.0f, path_center_offset_z } );
 
 	/**
 	*	Query next direction and advance waypoints.
@@ -715,10 +738,12 @@ const bool svg_nav_path_process_t::QueryDirection3D( const Vector3 &current_orig
 		return false;
 	}
 
- /**
-	*	Query using entity/world origin directly.
+    /**
+	*	Boundary conversion:
+	*		Path points are stored in nav-center coordinates, so convert the
+	*		feet-origin query into center-origin before querying traversal.
 	**/
-	const Vector3 query_origin = current_origin;
+    const Vector3 query_origin = QM_Vector3Add( current_origin, Vector3{ 0.0f, 0.0f, path_center_offset_z } );
 
 	/**
 	*	Query direction while advancing waypoints in 2D, but output a 3D direction.

@@ -117,6 +117,9 @@ struct svg_player_edict_t : public svg_base_edict_t {
     *   Member Variables:
     *
     **/
+	//! The trail time is used for the monster to determine if it should pursue the player's trail or not.
+	QMTime trail_time = 0_ms;
+
     //! Player's actually have armor, next to health.
     int32_t armor = 0;
 };

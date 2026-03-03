@@ -2248,7 +2248,18 @@ void SV_Shutdown(const char *finalmsg, error_type_t type)
 
     SV_FinalMessage(finalmsg, type);
     SV_MasterShutdown();
-    SV_ShutdownGameProgs();
+    
+	/**
+	*	Defer game DLL unload for `ERR_DROP` because immediate unload can occur on an unsafe unwind path.
+	**/
+	if ( type == ERR_DROP ) {
+		SV_RequestDeferredGameProgsShutdown();
+	} else if ( type != ERR_RECONNECT ) {
+		/**
+		*	All other shutdown paths keep immediate unload behavior.
+		**/
+		SV_ShutdownGameProgs();
+	}
 
     // Free all models.
     SV_Models_Shutdown();

@@ -51,6 +51,47 @@ static void Nav_Debug_PrintNodeRef( const char *label, const nav_node_ref_t &n )
 }
 
 /**
+*    @brief	Convert an edge rejection enum value into a stable diagnostic string.
+*    @param	reason	Edge rejection reason to stringify.
+*    @return	Constant string suitable for debug logging.
+**/
+static const char *Nav_EdgeRejectReasonToString( const nav_edge_reject_reason_t reason ) {
+	switch ( reason ) {
+	case nav_edge_reject_reason_t::None: return "None";
+	case nav_edge_reject_reason_t::TileRouteFilter: return "TileRouteFilter";
+	case nav_edge_reject_reason_t::NoNode: return "NoNode";
+	case nav_edge_reject_reason_t::DropCap: return "DropCap";
+	case nav_edge_reject_reason_t::StepTest: return "StepTest";
+	case nav_edge_reject_reason_t::ObstructionJump: return "ObstructionJump";
+	case nav_edge_reject_reason_t::Occupancy: return "Occupancy";
+	case nav_edge_reject_reason_t::Other: return "Other";
+	default: return "Unknown";
+	}
+}
+
+/**
+*    @brief	Emit per-reason edge rejection counters for an A* state.
+*    @param	prefix	Diagnostic prefix/tag identifying the call site.
+*    @param	state	A* state containing reason counters.
+**/
+static void Nav_Debug_LogEdgeRejectReasonCounters( const char *prefix, const nav_a_star_state_t &state ) {
+	/**
+	*    Iterate all known reject-reason slots so diagnostics remain complete
+	*    even when only a subset of reasons is currently non-zero.
+	**/
+	for ( int32_t reasonIndex = ( int32_t )nav_edge_reject_reason_t::None;
+		reasonIndex <= ( int32_t )nav_edge_reject_reason_t::Other;
+		reasonIndex++ ) {
+		const nav_edge_reject_reason_t reason = ( nav_edge_reject_reason_t )reasonIndex;
+		gi.dprintf( "%s edge_reject_reason[%d]=%d (%s)\n",
+			prefix ? prefix : "[NavPath][Diag]",
+			reasonIndex,
+			state.edge_reject_reason_counts[ reasonIndex ],
+			Nav_EdgeRejectReasonToString( reason ) );
+	}
+}
+
+/**
 *    @brief	Find the nearest Z-layer delta for the given node within its cell.
 *    @param	mesh		Navigation mesh containing the node.
 *    @param	node		Navigation node to inspect.
@@ -180,6 +221,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	const double requiredDown = std::max( 0.0, ( double )startPos[ 2 ] - ( double )endPos[ 2 ] );
 	// Reject edges that drop farther than the configured cap.
 	if ( requiredDown > 0.0 && dropCap >= 0.0 && requiredDown > dropCap ) {
+       if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
 		return false;
 	}
 
@@ -228,7 +270,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 			*    Validate the current sub-step using the single-step routine.
 			*    Abort immediately if any sub-step fails.
 			**/
-            if ( !Nav_CanTraverseStep_ExplicitBBox_Single( mesh, segmentStart, segmentEnd, mins, maxs, clip_entity, policy, nullptr ) ) {
+           if ( !Nav_CanTraverseStep_ExplicitBBox_Single( mesh, segmentStart, segmentEnd, mins, maxs, clip_entity, policy, out_reason ) ) {
 				return false;
 			}
 
@@ -243,7 +285,7 @@ const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mesh, const Vecto
 	/**
 	*    Fallback: use the single-step validation when no segmentation is needed.
 	**/
-    return Nav_CanTraverseStep_ExplicitBBox_Single( mesh, startPos, endPos, mins, maxs, clip_entity, policy, nullptr );
+ return Nav_CanTraverseStep_ExplicitBBox_Single( mesh, startPos, endPos, mins, maxs, clip_entity, policy, out_reason );
 }
 
 /**
@@ -395,15 +437,8 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
    if ( Nav_PathDiagEnabled() ) {
 		gi.dprintf( "[NavPath][Diag] neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d\n",
 			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
-		// Print per-reason edge rejection counts when available.
-		gi.dprintf( "[NavPath][Diag] edge_reject_reasons: tile_route=%d no_node=%d max_drop_height_cap=%d step_test=%d obstruction_jump=%d occupancy=%d other=%d\n",
-			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::TileRouteFilter],
-			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::NoNode],
-			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::DropCap],
-			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::StepTest],
-			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::ObstructionJump],
-			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::Occupancy],
-			state.edge_reject_reason_counts[(int)nav_edge_reject_reason_t::Other] );
+       // Emit per-reason counters to show exactly which rejection paths dominated.
+		Nav_Debug_LogEdgeRejectReasonCounters( "[NavPath][Diag]", state );
 	}
 
 	Nav_AStar_Reset( &state );
@@ -640,15 +675,34 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &
 	if ( !g_nav_mesh ) {
 		return false;
 	}
-
-	nav_node_ref_t start_node = {};
-	nav_node_ref_t goal_node = {};
-
-	if ( !Nav_FindNodeForPosition( g_nav_mesh.get(), start_origin, start_origin[ 2 ], &start_node, true ) ) {
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( !mesh ) {
 		return false;
 	}
 
-	if ( !Nav_FindNodeForPosition( g_nav_mesh.get(), goal_origin, goal_origin[ 2 ], &goal_node, true ) ) {
+	nav_node_ref_t start_node = {};
+	nav_node_ref_t goal_node = {};
+	const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
+	const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin, &agent_mins, &agent_maxs );
+
+	/**
+	*    Boundary diagnostics:
+	*        This overload accepts feet-origin inputs and must convert exactly once
+	*        before node resolution.
+	**/
+	if ( Nav_PathDiagEnabled() ) {
+		gi.dprintf( "[DEBUG][NavPath][Boundary] WithAgentBBox feet->center start=(%.1f %.1f %.1f)->(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f)->(%.1f %.1f %.1f)\n",
+			start_origin.x, start_origin.y, start_origin.z,
+			start_center.x, start_center.y, start_center.z,
+			goal_origin.x, goal_origin.y, goal_origin.z,
+			goal_center.x, goal_center.y, goal_center.z );
+	}
+
+   if ( !Nav_FindNodeForPosition( mesh, start_center, start_center[ 2 ], &start_node, true ) ) {
+		return false;
+	}
+
+  if ( !Nav_FindNodeForPosition( mesh, goal_center, goal_center[ 2 ], &goal_node, true ) ) {
 		return false;
 	}
 
@@ -662,10 +716,10 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &
 		*	to tiles on that route.
 		**/
 		std::vector<nav_tile_cluster_key_t> tileRoute;
-		const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( g_nav_mesh.get(), start_origin, goal_origin, tileRoute );
+     const bool hasTileRoute = SVG_Nav_ClusterGraph_FindRoute( mesh, start_origin, goal_origin, tileRoute );
 		const std::vector<nav_tile_cluster_key_t> *routeFilter = hasTileRoute ? &tileRoute : nullptr;
 
-		if ( !Nav_AStarSearch( g_nav_mesh.get(), start_node, goal_node, agent_mins, agent_maxs, points, policy, nullptr, routeFilter ) ) {
+      if ( !Nav_AStarSearch( mesh, start_node, goal_node, agent_mins, agent_maxs, points, policy, nullptr, routeFilter ) ) {
 			return false;
 		}
 	}
@@ -926,11 +980,62 @@ const bool SVG_Nav_QueryMovementDirection( const nav_traversal_path_t *path, con
 **/
 const inline cm_trace_t Nav_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end,
 	const edict_ptr_t *clip_entity, const cm_contents_t mask ) {
-	if ( clip_entity ) {
+ /**
+	*    Inline-model traversal:
+    *        Only treat non-world entities as explicit inline-model clips.
+	*        World clipping is handled by the dedicated world-only branch below.
+	**/
+    if ( clip_entity && clip_entity->s.number != ENTITYNUM_WORLD ) {
 		return gi.clip( clip_entity, &start, &mins, &maxs, &end, mask );
 	}
 
-	return gi.trace( &start, &mins, &maxs, &end, nullptr, mask );
+	/**
+	*    World-static traversal policy for nav edge validation:
+ *        Always issue a world-only clip when validating nav edges without an
+	*        explicit clip entity.
+	*
+	*        This avoids false-positive collisions from dynamic entities that can
+	*        appear in full scene traces and keeps A* edge feasibility tied to
+	*        stable world geometry.
+	*
+   *        @note	When the initial world-only clip starts in solid, perform a
+	*                small lifted retry to filter floor-boundary precision cases
+	*                that can otherwise appear as false startsolid/allsolid hits.
+	**/
+ const cm_trace_t worldTrace = gi.clip( nullptr, &start, &mins, &maxs, &end, mask );
+
+	/**
+	*    Fast path: keep the primary world trace when it is already valid.
+	**/
+	if ( !worldTrace.startsolid && !worldTrace.allsolid ) {
+		return worldTrace;
+	}
+
+	/**
+	*    Boundary hardening:
+	*        Retry once with a tiny vertical lift to avoid contact-on-plane
+	*        precision artifacts that can mark traces as startsolid/allsolid.
+	**/
+	Vector3 retryStart = start;
+	Vector3 retryEnd = end;
+	constexpr float kWorldRetryLift = 0.125f;
+	retryStart[ 2 ] += kWorldRetryLift;
+	retryEnd[ 2 ] += kWorldRetryLift;
+
+	cm_trace_t retryTrace = gi.clip( nullptr, &retryStart, &mins, &maxs, &retryEnd, mask );
+
+	/**
+	*    Prefer the retry only when it clearly resolves solid-start artifacts.
+	**/
+	if ( !retryTrace.startsolid && !retryTrace.allsolid &&
+		( retryTrace.fraction >= worldTrace.fraction || worldTrace.fraction <= 0.0f ) ) {
+		// Reproject the lifted endpos back to the original Z frame for callers.
+		retryTrace.endpos[ 2 ] -= kWorldRetryLift;
+		return retryTrace;
+	}
+
+	// Fall back to the original world trace when retry did not improve confidence.
+	return worldTrace;
 }
 
 /**
@@ -1019,6 +1124,21 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 			startPos[ 0 ], startPos[ 1 ], startPos[ 2 ],
 			endPos[ 0 ], endPos[ 1 ], endPos[ 2 ],
 			reason );
+	};
+
+ auto LogTraceFailureReason = [ &ReportStepTestFailureOnce ]( const char *stage, const char *reason, const cm_trace_t &trace, const bool terminalReject ) {
+		// Emit branch-level trace diagnostics when reject drawing or targeted path diagnostics are enabled.
+		if ( ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) || Nav_PathDiagEnabled() ) {
+			gi.dprintf( "[DEBUG][NavPath][StepTest][TraceFail] stage=%s reason=%s frac=%.2f allsolid=%d startsolid=%d\n",
+				stage ? stage : "unknown",
+				reason ? reason : "unspecified",
+				( float )trace.fraction,
+				trace.allsolid ? 1 : 0,
+				trace.startsolid ? 1 : 0 );
+		}
+     if ( terminalReject ) {
+			ReportStepTestFailureOnce( reason ? reason : "trace failure" );
+		}
 	};
 
 
@@ -1112,6 +1232,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 		if ( tr.fraction >= 1.0f && !tr.allsolid && !tr.startsolid ) {
 			return true;
 		}
+        LogTraceFailureReason( "direct", "direct_trace_blocked", tr, false );
        /**
 		*    Diagnostics: report direct-horizontal trace failures for edge rejection analysis.
 		**/
@@ -1182,6 +1303,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 
 	cm_trace_t fwdTr = Nav_Trace( steppedStart, mins, maxs, steppedGoal, clip_entity, CM_CONTENTMASK_SOLID );
 	if ( fwdTr.allsolid || fwdTr.startsolid || fwdTr.fraction < 1.0f ) {
+        LogTraceFailureReason( "forward", "forward_trace_blocked", fwdTr, false );
         /**
 		*    Diagnostics: report forward trace failures before any jump fallback.
 		**/
@@ -1206,9 +1328,23 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 				cm_trace_t jumpFwdTr = Nav_Trace( jumpStart, mins, maxs, jumpGoal, clip_entity, CM_CONTENTMASK_SOLID );
 				if ( !jumpFwdTr.allsolid && !jumpFwdTr.startsolid && jumpFwdTr.fraction >= 1.0f ) {
 					// Down-trace from landing position to ensure there's ground and slope is acceptable.
-					Vector3 down = jumpFwdTr.endpos;
+                    Vector3 down = jumpFwdTr.endpos;
 					Vector3 downEnd = down;
-					downEnd[ 2 ] -= ( std::max( requiredUp, 0.0 ) + eps );
+					/**
+					*    Jump-landing ground reacquire depth:
+					*        Probe far enough to reacquire floors on flat/down transitions too,
+					*        not only when the edge required an uphill climb.
+					**/
+                   // Resolve a robust downward reacquire depth from policy/cvar limits.
+					const double jumpDropCap = policy
+						? ( ( policy->max_drop_height_cap > 0.0 )
+							? ( double )policy->max_drop_height_cap
+							: ( policy->enable_max_drop_height_cap ? ( double )policy->max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : ( double )mesh->max_step ) ) )
+						: ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : ( double )mesh->max_step );
+					// Keep a non-trivial minimum so flat/down transitions do not false-fail as floating.
+					const double jumpMinProbeDepth = std::max( std::max( ( double )mesh->max_step, ( double )mesh->z_quant * 2.0 ), eps );
+					const double jumpProbeDepth = std::max( std::max( std::max( requiredUp, requiredDown ), jumpDropCap ), jumpMinProbeDepth ) + eps;
+					downEnd[ 2 ] -= jumpProbeDepth;
 					cm_trace_t downTr2 = Nav_Trace( down, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
 					if ( !downTr2.allsolid && !downTr2.startsolid && downTr2.fraction < 1.0f ) {
 						// Check normal Z threshold using policy's step-normal minimum when available.
@@ -1227,17 +1363,18 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 							return false;
 						}
 						// Optionally cap drop height.
-						if ( policy && policy->enable_max_drop_height_cap ) {
+                       if ( policy && policy->enable_max_drop_height_cap ) {
 							const double drop = start[ 2 ] - downTr2.endpos[ 2 ];
-							if ( drop > ( double )policy->max_drop_height ) {
+							if ( drop > ( double )policy->max_drop_height_cap ) {
 								NavDebug_RecordReject( start, downTr2.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
                            /**
 							*    Diagnostics: report obstruction jump drop-cap rejections.
 							**/
 							if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-								gi.dprintf( "[DEBUG][NavPath][StepTest] jump drop cap exceeded drop=%.2f cap=%.2f\n",
-									( float )drop, ( float )policy->max_drop_height );
+                               gi.dprintf( "[DEBUG][NavPath][StepTest] jump drop cap exceeded drop=%.2f cap=%.2f\n",
+									( float )drop, ( float )policy->max_drop_height_cap );
 							}
+                               if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
 								return false;
 							}
 						}
@@ -1263,16 +1400,34 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	Vector3 downEnd = downStart;
 	/**
 	*    Compute the downward probe distance:
-	*        - Uphill edges need to drop at least the climb amount to re-acquire ground.
-	*        - Downhill edges must drop by the required descent to detect ramps/slopes.
-	*        - Always include a small epsilon to avoid precision misses.
+    *        - Uphill edges need to drop at least the climb amount to re-acquire ground.
+	*        - Flat/down edges still need a generous floor reacquire probe because
+	*          the forward trace may end slightly above local ground due to collision
+	*          hull expansion and brush clipping epsilon.
+	*        - Always include a small epsilon cushion to avoid precision misses.
 	**/
-	const double probeDrop = std::max( std::max( requiredUp, requiredDown ), eps ) + eps;
+   // Ensure a robust minimum probe depth so flat/down transitions do not
+	// get misclassified as floating when the landing floor is slightly below
+	// the forward trace end position.
+ const double minProbeDepth = std::max( std::max( stepSize, ( double )mesh->z_quant * 2.0 ), eps );
+	/**
+	*    Reacquire depth policy:
+	*        Include the configured drop cap so down traces still reach valid floor
+	*        contacts on shallow descents where start/end Z deltas under-report the
+	*        actual probe depth needed after forward collision resolution.
+	**/
+  const double reacquireDropCap = policy
+		? ( ( policy->max_drop_height_cap > 0.0 )
+			? ( double )policy->max_drop_height_cap
+			: ( policy->enable_max_drop_height_cap ? ( double )policy->max_drop_height : ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : ( double )mesh->max_step ) ) )
+		: ( nav_max_drop_height_cap ? nav_max_drop_height_cap->value : ( double )mesh->max_step );
+	const double probeDrop = std::max( std::max( std::max( requiredUp, requiredDown ), minProbeDepth ), reacquireDropCap ) + eps;
 	// Extend the down trace to the computed probe depth.
 	downEnd[ 2 ] -= probeDrop;
 
 	cm_trace_t downTr = Nav_Trace( downStart, mins, maxs, downEnd, clip_entity, CM_CONTENTMASK_SOLID );
 	if ( downTr.allsolid || downTr.startsolid ) {
+       LogTraceFailureReason( "down", "down_trace_blocked", downTr, true );
       /**
 		*    Diagnostics: report blocked down traces.
 		**/
@@ -1290,6 +1445,7 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 
 	// Must land on something (not floating).
 	if ( downTr.fraction >= 1.0f ) {
+        LogTraceFailureReason( "down", "down_trace_no_ground", downTr, true );
      /**
 		*    Diagnostics: report floating results after step.
 		**/
@@ -1334,16 +1490,16 @@ static const bool Nav_CanTraverseStep_ExplicitBBox_Single( const nav_mesh_t *mes
 	}
 
 	// Drop cap after step
-	if ( policy && policy->enable_max_drop_height_cap ) {
+   if ( policy && policy->enable_max_drop_height_cap ) {
 		const double drop = start[ 2 ] - downTr.endpos[ 2 ];
-		if ( drop > ( double )policy->max_drop_height ) {
+       if ( drop > ( double )policy->max_drop_height_cap ) {
 			NavDebug_RecordReject( start, downTr.endpos, NAV_DEBUG_REJECT_REASON_DROP_CAP );
             /**
 			*    Diagnostics: report drop-cap failures after step.
 			**/
 			if ( nav_debug_draw_rejects && nav_debug_draw_rejects->integer != 0 ) {
-				gi.dprintf( "[DEBUG][NavPath][StepTest] drop cap exceeded after step drop=%.2f cap=%.2f\n",
-					( float )drop, ( float )policy->max_drop_height );
+             gi.dprintf( "[DEBUG][NavPath][StepTest] drop cap exceeded after step drop=%.2f cap=%.2f\n",
+					( float )drop, ( float )policy->max_drop_height_cap );
 			}
             if ( out_reason ) *out_reason = nav_edge_reject_reason_t::DropCap;
 			ReportStepTestFailureOnce( "drop cap exceeded after step" );

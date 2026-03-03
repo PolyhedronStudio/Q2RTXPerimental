@@ -913,11 +913,11 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_door_t, onTouch )( svg_func_door_t *self,
     // WID: TODO: Send a 'OnTouch' Out Signal.
     #if 1
 
-    if ( level.time < self->touch_debounce_time ) {
+    if ( level.time < self->debounceTouchTime ) {
         return;
     }
 
-    self->touch_debounce_time = level.time + 5_sec;
+    self->debounceTouchTime = level.time + 5_sec;
 	
 	if ( self->message ) {
 		gi.centerprintf( other, "%s", ( const char * )self->message );

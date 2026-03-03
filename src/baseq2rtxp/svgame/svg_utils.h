@@ -100,11 +100,30 @@ svg_base_edict_t *SVG_Util_CreateTempEventEntity( const Vector3 &origin, const s
 *
 *
 *
-*	Trace Utility Functions:
+*	(Clip/Trace & PHS/PVS) -Utility Functions:
 *
 *
 *
 **/
+/**
+*	@brief	Returns true if the entity A is within the Potiential Hearing Set of entity B.
+*	@param	self				The entity to check if it can hear the sound.
+*	@param	freshSoundEntity	The entity that is the source of the sound.
+*								(This is generally a temporary entity that only exists for one frame,
+*								created at the position of the sound source.)
+*	@param	addSelfViewHeight	Align the audibility check with the entity's view height instead of feet-origin. (Defaults to true)
+*	@param	debugPrints			When true, will print debug information about the audibility check results. (Defaults to false)
+*	@note	Entity needs to be linked in to have valid area numbers for the area connectivity checks,
+*			but PHS checks can still be performed without being linked in. (So this can be used for sounds emitted by entities that aren't linked in yet, like during their spawn function.)
+*	@return	The ptr to the same passed in entity, `audibleEntity` If the entity can hear the sound.
+*			(nullptr) If:
+*						- The areas are not connected.
+*						- They are not within hearing range.
+*						- OR doors are closed between the two them.
+*
+**/
+svg_base_edict_t *SVG_Util_IsEntityAudibleByPHS( svg_base_edict_t *self, svg_base_edict_t *freshSoundEntity, const bool addSelfViewHeight = true, const bool debugPrints = false );
+
 /**
 *	@brief	Wrapper for gi.trace that accepts Vector3 args.
 **/

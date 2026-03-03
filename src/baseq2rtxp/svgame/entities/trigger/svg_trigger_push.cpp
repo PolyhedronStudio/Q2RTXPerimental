@@ -50,8 +50,8 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_push_t, onTouch ) ( svg_trigger_push_t
 			other->client->oldgroundentity = g_edict_pool.EdictForNumber( other->groundInfo.entityNumber );
 
 			// Play wind sound.
-			if ( other->fly_sound_debounce_time < level.time ) {
-				other->fly_sound_debounce_time = level.time + 1.5_sec;
+			if ( other->debounceTouchTime < level.time ) {
+				other->debounceTouchTime = level.time + 1.5_sec;
 				//gi.sound( other, CHAN_AUTO, svg_trigger_push_t::windSound, 1, ATTN_NORM, 0 );
 				SVG_EntityEvent_GeneralSoundEx( other, CHAN_AUTO, svg_trigger_push_t::windSound, ATTN_NORM );
 

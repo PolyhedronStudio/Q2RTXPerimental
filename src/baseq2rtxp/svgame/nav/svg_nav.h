@@ -13,6 +13,9 @@
 
 struct svg_base_edict_t;
 
+//! Default path for the engine to find nav files at.
+static constexpr const char *navPath = "/maps/nav/";
+
 //! Conversion factor from degrees to radians.
 static constexpr double DEG_TO_RAD = M_PI / 180.0f;
 //! Conversion factor from microseconds to seconds.
@@ -731,7 +734,7 @@ void SVG_Nav_Shutdown( void );
 *	@brief	Loads up an existing navigation mesh for the current map, if the file is located.
 *	@return True if a mesh was successfully loaded, false otherwise (e.g., file not found).
 **/
-const bool SVG_Nav_LoadMesh( const char *levelName );
+const std::tuple<const bool, const std::string> SVG_Nav_LoadMesh( const char *levelName );
 
 /**
 *

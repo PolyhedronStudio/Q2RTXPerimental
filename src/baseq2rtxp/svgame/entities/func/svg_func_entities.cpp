@@ -31,11 +31,11 @@ DEFINE_GLOBAL_CALLBACK_TOUCH( DoorTrigger_Touch )( svg_base_edict_t *self, svg_b
         return;
     }
     //gi.dprintf( "(%s:%i) debugging! :-)\n ", __func__, __LINE__ );
-    if ( level.time < self->touch_debounce_time ) {
+    if ( level.time < self->debounceTouchTime ) {
         return;
     }
     // New debounce time.
-    self->touch_debounce_time = level.time + 1_sec;
+    self->debounceTouchTime = level.time + 1_sec;
 
     // Can't trigger anything if we ain't got an owner.
     if ( !self->owner ) {

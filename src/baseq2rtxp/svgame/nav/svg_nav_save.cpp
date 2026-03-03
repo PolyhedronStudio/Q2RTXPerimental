@@ -64,7 +64,7 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 	/**
 	*	Build full file path for the nav cache.
 	**/
-	const std::string filePath = BASEGAME "/maps/nav/" + std::string( filename );
+	const std::string filePath = BASEGAME "/maps/nav/" + std::string( filename ) + ".nav";
 
 	/**
 	*	Open output file (gzip if zlib enabled).
@@ -90,13 +90,28 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 	}
 
 	/**
+	*	Write the statistics from the navmesh generation for future load-time validation and informational purposes.
+	*	These are not strictly required for saving the mesh but will help detect mismatches between the navmesh 
+	*	and game configuration.
+	**/
+    // Write statistics as 64-bit values to remain stable across platforms
+	// and match the load-side expectations (uint64_t). Cast from the mesh
+	// int32_t counters to avoid truncation on write.
+	uint64_t total_tiles_u64 = ( uint64_t )mesh->total_tiles;
+	uint64_t total_xy_cells_u64 = ( uint64_t )mesh->total_xy_cells;
+	uint64_t total_layers_u64 = ( uint64_t )mesh->total_layers;
+	Nav_WriteValue( f, total_tiles_u64 );
+	Nav_WriteValue( f, total_xy_cells_u64 );
+	Nav_WriteValue( f, total_layers_u64 );
+
+	/**
 	*	Write generation parameters needed to interpret mesh data.
 	**/
 	Nav_WriteValue( f, mesh->cell_size_xy );
 	Nav_WriteValue( f, mesh->z_quant );
 	Nav_WriteValue( f, mesh->tile_size );
 	Nav_WriteValue( f, mesh->max_step );
-   Nav_WriteValue( f, mesh->max_slope_normal_z );
+	Nav_WriteValue( f, mesh->max_slope_normal_z );
 	Nav_WriteValue( f, mesh->agent_mins );
 	Nav_WriteValue( f, mesh->agent_maxs );
 

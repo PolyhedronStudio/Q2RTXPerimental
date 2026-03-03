@@ -27,10 +27,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 
 void ClipGibVelocity(svg_base_edict_t *ent)
 {
-    ent->velocity = QM_Vector3Clamp( 
-        ent->velocity, 
-        { -300, -300, 200 }, 
-        { 300, 300, 500 } // always some upwards
+    // Clamp velocity components to reasonable ranges (keep some upwards velocity)
+    ent->velocity = QM_Vector3Clamp(
+        ent->velocity,
+        Vector3{ -300.0f, -300.0f, 200.0f },
+        Vector3{ 300.0f, 300.0f, 500.0f } // always some upwards
     );
     //clamp(ent->velocity[0], -300, 300);
     //clamp(ent->velocity[1], -300, 300);

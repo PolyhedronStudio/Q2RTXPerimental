@@ -74,11 +74,11 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_trigger_counter_t, onTouch )( svg_trigger_coun
 		}
 	}
 
-	if ( level.time < self->touch_debounce_time ) {
+	if ( level.time < self->debounceTouchTime ) {
 		return;
 	}
 
-	self->touch_debounce_time = level.time + QMTime::FromSeconds( self->wait );
+	self->debounceTouchTime = level.time + QMTime::FromSeconds( self->wait );
 
 	if ( !VectorEmpty( self->movedir ) ) {
 		Vector3  forward;

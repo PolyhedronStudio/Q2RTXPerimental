@@ -265,7 +265,7 @@ DEFINE_MEMBER_CALLBACK_POSTSPAWN( svg_func_plat_trigger_t, onPostSpawn )( svg_fu
 	}
 
 	// Add lip offset so the trigger sits at the pusher deck.
-	triggerOrigin += Vector3{ 0.f, 0.f, platformEntity->lip };
+	triggerOrigin += Vector3{ 0., 0., platformEntity->lip };
 	SVG_Util_SetEntityOrigin( self, triggerOrigin, true );
 
 	// Build final bbox centered at origin (mins/maxs symmetric about 0).
@@ -306,7 +306,7 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_plat_trigger_t, onTouch )( svg_func_plat_
 	svg_func_plat_t *platformEntity = static_cast<svg_func_plat_t *>( platPtr );
 
 	// Prevent immediate re-triggering due to overlap/latching.
-	if ( platformEntity->touch_debounce_time > level.time ) {
+	if ( platformEntity->debounceTouchTime > level.time ) {
 		return;
 	}
 
@@ -371,7 +371,7 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitTop )( svg_fu
 
 	// Prevent immediate re-triggering if not toggle.
 	if ( !( self->spawnflags & svg_func_plat_t::SPAWNFLAG_TOGGLE ) ) {
-		self->touch_debounce_time = level.time + QMTime::FromSeconds( self->wait );
+		self->debounceTouchTime = level.time + QMTime::FromSeconds( self->wait );
 	}
 
 	// Engage idle thinking; replaces classic "go down after delay" think func.
@@ -408,7 +408,7 @@ DEFINE_MEMBER_CALLBACK_PUSHMOVE_ENDMOVE( svg_func_plat_t, onPlatHitBottom )( svg
 
 	// Prevent immediate re-triggering if not toggle.
 	if ( !( self->spawnflags & svg_func_plat_t::SPAWNFLAG_TOGGLE ) ) {
-		self->touch_debounce_time = level.time + QMTime::FromSeconds( self->wait );
+		self->debounceTouchTime = level.time + QMTime::FromSeconds( self->wait );
 	}
 
 	// Engage idle thinking.

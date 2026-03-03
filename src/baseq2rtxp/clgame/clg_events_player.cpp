@@ -145,12 +145,12 @@ static void CLG_PlayerEvent_WaterLeaveHead( const int32_t entityNumber ) {
     //clgi.S_StartSound( NULL, entityNumber, CHAN_VOICE, clgi.S_RegisterSound( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
 
     // <Q2RTXP>: TODO: Gasping sounds when surfacing from underwater.
-    // Requires tracking air_finished_time in client player entity.
-    //if ( ent->air_finished_time < level.time ) {
+    // Requires tracking airFinishedBreathTime in client player entity.
+    //if ( ent->airFinishedBreathTime < level.time ) {
     //    // gasp for air
     //    gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp01.wav" ), 1, ATTN_NORM, 0 );
     //    SVG_Player_PlayerNoise( ent, ent->s.origin, PNOISE_SELF );
-    //} else  if ( ent->air_finished_time < level.time + 11_sec ) {
+    //} else  if ( ent->airFinishedBreathTime < level.time + 11_sec ) {
     //    // just break surface
     //    gi.sound( ent, CHAN_VOICE, gi.soundindex( "player/gasp02.wav" ), 1, ATTN_NORM, 0 );
     //}

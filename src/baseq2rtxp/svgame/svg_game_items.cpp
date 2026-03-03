@@ -242,7 +242,7 @@ svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item ) {
         svg_trace_t trace;
 
 		// Calculate forward and right vectors.
-        QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, NULL );
+        QM_AngleVectors( ent->client->viewMove.viewAngles, &forward, &right, nullptr );
 		// Set offset.
         VectorSet( offset, 24, 0, -16 );
 		// Calculate drop origin.
@@ -253,7 +253,7 @@ svg_item_edict_t *Drop_Item( svg_base_edict_t *ent, const gitem_t *item ) {
 		SVG_Util_SetEntityOrigin( dropped, trace.endpos, true ); // VectorCopy( trace.endpos, dropped->s.origin );
     } else {
 		// Calculate forward and right vectors.
-        QM_AngleVectors( ent->currentAngles, &forward, &right, NULL );
+        QM_AngleVectors( ent->currentAngles, &forward, &right, nullptr );
 		SVG_Util_SetEntityOrigin( dropped, ent->currentOrigin, true );//VectorCopy( ent->s.origin, dropped->s.origin );
     }
 

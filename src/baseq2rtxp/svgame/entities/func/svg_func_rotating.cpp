@@ -289,11 +289,11 @@ DEFINE_MEMBER_CALLBACK_BLOCKED( svg_func_rotating_t, onBlocked )( svg_func_rotat
         return;
     }
     // Debounce time to prevent trigger damaging the entity too rapidly each frame.
-    if ( level.time < self->touch_debounce_time ) {
+    if ( level.time < self->debounceTouchTime ) {
         return;
     }
     // Take 100ms before going at it again.
-    self->touch_debounce_time = level.time + 10_hz;
+    self->debounceTouchTime = level.time + 10_hz;
 
 	// Calculate direction of touch impact. (Averaged pointing from self to other).
 	const Vector3 hitDir = other->currentOrigin - self->currentOrigin;
@@ -323,11 +323,11 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_func_rotating_t, onTouch )( svg_func_rotating_
 			return;
 		}
 		// Debounce time to prevent trigger damaging the entity too rapidly each frame.
-		if ( level.time < self->touch_debounce_time ) {
+		if ( level.time < self->debounceTouchTime ) {
 			return;
 		}
 		// Take 100ms before going at it again.
-		self->touch_debounce_time = level.time + 10_hz;
+		self->debounceTouchTime = level.time + 10_hz;
 
 		// Calculate direction of touch impact. (Averaged pointing from self to other).
 		const Vector3 hitDir = other->currentOrigin - self->currentOrigin;

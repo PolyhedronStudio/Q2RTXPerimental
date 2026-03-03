@@ -33,7 +33,7 @@
 #include "svgame/player/svg_player_trail.h"
 
 // TestDummy Monster
-#include "svgame/entities/monster/svg_monster_testdummy.h"
+#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
 
 // Navigation cluster routing (coarse tile routing pre-pass).
 #include "svgame/nav/svg_nav_clusters.h"
@@ -55,7 +55,7 @@ static constexpr bool DUMMY_NAV_DEBUG = true;
 *			bbox (especially 0..height authored bounds) shifts the start/goal centers into
 *			the wrong Z layer and causes A* to fail node resolution or traversal.
 */
-inline void SVG_TestDummy_GetNavAgentBBox( const svg_monster_testdummy_t *ent, Vector3 *out_mins, Vector3 *out_maxs ) {
+inline void SVG_Monster_GetNavigationAgentBounds( const svg_monster_testdummy_t *ent, Vector3 *out_mins, Vector3 *out_maxs ) {
 	/**
 	*	Sanity: require valid pointers.
 	**/
@@ -77,7 +77,7 @@ inline void SVG_TestDummy_GetNavAgentBBox( const svg_monster_testdummy_t *ent, V
         *out_mins = mesh->agent_mins;
         *out_maxs = mesh->agent_maxs;
         if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[NAV DEBUG] SVG_TestDummy_GetNavAgentBBox: using MESH agent bounds mins=(%.1f %.1f %.1f) maxs=(%.1f %.1f %.1f)\n",
+            gi.dprintf( "[NAV DEBUG] SVG_Monster_GetNavigationAgentBounds: using MESH agent bounds mins=(%.1f %.1f %.1f) maxs=(%.1f %.1f %.1f)\n",
                 mesh->agent_mins.x, mesh->agent_mins.y, mesh->agent_mins.z,
                 mesh->agent_maxs.x, mesh->agent_maxs.y, mesh->agent_maxs.z );
         }
@@ -100,7 +100,7 @@ inline void SVG_TestDummy_GetNavAgentBBox( const svg_monster_testdummy_t *ent, V
         *out_mins = agentProfile.mins;
         *out_maxs = agentProfile.maxs;
         if ( DUMMY_NAV_DEBUG ) {
-            gi.dprintf( "[NAV DEBUG] SVG_TestDummy_GetNavAgentBBox: using PROFILE agent bounds mins=(%.1f %.1f %.1f) maxs=(%.1f %.1f %.1f)\n",
+            gi.dprintf( "[NAV DEBUG] SVG_Monster_GetNavigationAgentBounds: using PROFILE agent bounds mins=(%.1f %.1f %.1f) maxs=(%.1f %.1f %.1f)\n",
                 agentProfile.mins.x, agentProfile.mins.y, agentProfile.mins.z,
                 agentProfile.maxs.x, agentProfile.maxs.y, agentProfile.maxs.z );
         }
@@ -113,7 +113,7 @@ inline void SVG_TestDummy_GetNavAgentBBox( const svg_monster_testdummy_t *ent, V
     *out_mins = ent->mins;
     *out_maxs = ent->maxs;
     if ( DUMMY_NAV_DEBUG ) {
-        gi.dprintf( "[NAV DEBUG] SVG_TestDummy_GetNavAgentBBox: using ENTITY collision bounds mins=(%.1f %.1f %.1f) maxs=(%.1f %.1f %.1f) ent=%d\n",
+        gi.dprintf( "[NAV DEBUG] SVG_Monster_GetNavigationAgentBounds: using ENTITY collision bounds mins=(%.1f %.1f %.1f) maxs=(%.1f %.1f %.1f) ent=%d\n",
             ent->mins.x, ent->mins.y, ent->mins.z,
             ent->maxs.x, ent->maxs.y, ent->maxs.z,
             ent ? ent->s.number : -1 );
@@ -187,7 +187,7 @@ const bool SVG_TestDummy_ApplyAsyncFallbackPursuit( svg_monster_testdummy_t *sel
 *    @param	self	Monster whose path state should be cleared.
 *    @note	Cancels any queued async request and clears cached path buffers.
 **/
-void SVG_TestDummy_ResetNavPath( svg_monster_testdummy_t *self ) {
+void SVG_Monster_ResetNavigationPath( svg_monster_testdummy_debug_t *self ) {
     /**
     *    Sanity check: require a valid entity before touching path state.
     **/
@@ -198,19 +198,19 @@ void SVG_TestDummy_ResetNavPath( svg_monster_testdummy_t *self ) {
     /**
     *    Cancel any pending async request so we do not reuse stale results.
     **/
-    if ( self->navPathProcess.pending_request_handle > 0 ) {
-        SVG_Nav_CancelRequest( self->navPathProcess.pending_request_handle );
+    if ( self->navigationState.pathProcess.pending_request_handle > 0 ) {
+        SVG_Nav_CancelRequest( self->navigationState.pathProcess.pending_request_handle );
     }
 
     /**
     *    Clear cached path buffers and reset traversal bookkeeping.
     **/
-    SVG_Nav_FreeTraversalPath( &self->navPathProcess.path );
-    self->navPathProcess.path_index = 0;
-    self->navPathProcess.path_goal = {};
-    self->navPathProcess.path_start = {};
-    self->navPathProcess.rebuild_in_progress = false;
-    self->navPathProcess.pending_request_handle = 0;
+    SVG_Nav_FreeTraversalPath( &self->navigationState.pathProcess.path );
+    self->navigationState.pathProcess.path_index = 0;
+    self->navigationState.pathProcess.path_goal_position = {};
+    self->navigationState.pathProcess.path_start_position = {};
+    self->navigationState.pathProcess.rebuild_in_progress = false;
+    self->navigationState.pathProcess.pending_request_handle = 0;
 }
 
 /**
@@ -226,7 +226,7 @@ void SVG_TestDummy_ResetNavPath( svg_monster_testdummy_t *self ) {
 *	@note	When this returns true the path process relies on the queued rebuild instead
 *		of immediate synchronous execution so we do not spam blocking calls.
 **/
-bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vector3 &start_origin,
+bool SVG_Monster_TryQueueNavigationRebuild( svg_monster_testdummy_debug_t *self, const Vector3 &start_origin,
     const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
     const Vector3 &agent_maxs, const bool force = false ) {
     /**
@@ -255,11 +255,11 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     *        let callers keep following the current path without forcing sync rebuilds.
     **/
     // Force bypass ensures explicit breadcrumb goals always queue new work.
-    if ( !force && !self->navPathProcess.CanRebuild( policy ) ) {
+    if ( !force && !self->navigationState.pathProcess.CanRebuild( policy ) ) {
         // Movement throttled/backoff prevents enqueuing now; callers should keep using current path.
         if ( DUMMY_NAV_DEBUG ) {
             gi.dprintf( "[DEBUG] TryQueueNavRebuild: CanRebuild() == false, throttled/backoff. ent=%d next_rebuild=%lld backoff_until=%lld\n",
-                self->s.number, ( long long )self->navPathProcess.next_rebuild_time.Milliseconds(), ( long long )self->navPathProcess.backoff_until.Milliseconds() );
+                self->s.number, ( long long )self->navigationState.pathProcess.next_rebuild_time.Milliseconds(), ( long long )self->navigationState.pathProcess.backoff_until.Milliseconds() );
         }
         return true;
     }
@@ -270,10 +270,10 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     *        warrants it; this prevents re-queueing every frame for static goals.
     **/
     const bool movementWarrantsRebuild =
-        self->navPathProcess.ShouldRebuildForGoal2D( goal_origin, policy )
-        || self->navPathProcess.ShouldRebuildForGoal3D( goal_origin, policy )
-        || self->navPathProcess.ShouldRebuildForStart2D( start_origin, policy )
-        || self->navPathProcess.ShouldRebuildForStart3D( start_origin, policy );
+        self->navigationState.pathProcess.ShouldRebuildForGoal2D( goal_origin, policy )
+        || self->navigationState.pathProcess.ShouldRebuildForGoal3D( goal_origin, policy )
+        || self->navigationState.pathProcess.ShouldRebuildForStart2D( start_origin, policy )
+        || self->navigationState.pathProcess.ShouldRebuildForStart3D( start_origin, policy );
     // Force bypass ensures explicit breadcrumb goals bypass movement heuristics.
     if ( !force && !movementWarrantsRebuild ) {
         if ( DUMMY_NAV_DEBUG ) {
@@ -293,20 +293,20 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     // deduplicate / refresh the existing entry rather than bailing out early.
     // This avoids the repeated "request already pending" spam and ensures
     // up-to-date goals get applied to the outstanding queued entry.
-    if ( SVG_Nav_IsRequestPending( &self->navPathProcess ) ) {
+    if ( SVG_Nav_IsRequestPending( &self->navigationState.pathProcess ) ) {
         if ( force ) {
             // When forced, cancel the outstanding request so a fresh entry is
             // created immediately with the force flag set.
-            SVG_TestDummy_ResetNavPath( self );
+            SVG_Monster_ResetNavigationPath( self );
         } else {
             // If a pending handle exists for this process and our movement
             // heuristics do not warrant a rebuild, skip refreshing the
             // in-flight request. This comparison is per-handle so callers
             // that intentionally replaced the pending handle are not blocked.
-            if ( self->navPathProcess.pending_request_handle != 0 && !movementWarrantsRebuild ) {
+            if ( self->navigationState.pathProcess.pending_request_handle != 0 && !movementWarrantsRebuild ) {
                 if ( DUMMY_NAV_DEBUG ) {
                     gi.dprintf( "[DEBUG] TryQueueNavRebuild: skipping refresh because pending_handle=%d and movement doesn't warrant it. ent=%d\n",
-                        self->navPathProcess.pending_request_handle, self->s.number );
+                        self->navigationState.pathProcess.pending_request_handle, self->s.number );
                 }
                 return true;
             }
@@ -321,9 +321,9 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     *  we ignore small start deltas while a request is running so the in-flight
     *  search can make progress.
     **/
-    //if ( !force && self->navPathProcess.rebuild_in_progress ) {
+    //if ( !force && self->navigationState.pathProcess.rebuild_in_progress ) {
     //    // Use the last prep start as a stable reference if available.
-    //    const Vector3 referenceStart = ( self->navPathProcess.last_prep_time > 0_ms ) ? self->navPathProcess.last_prep_start : self->navPathProcess.path_start;
+    //    const Vector3 referenceStart = ( self->navigationState.pathProcess.last_prep_time > 0_ms ) ? self->navigationState.pathProcess.last_prep_start : self->navigationState.pathProcess.path_start_position;
     //    const double startDx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, referenceStart ) );
     //    // Threshold chosen to ignore small per-frame motion but still react to real relocation.
     //    constexpr double startIgnoreThreshold = 16.0; // units
@@ -339,7 +339,7 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     /**
 	*	Enqueue the rebuild request and record the handle for diagnostics.
 	*	Note: If a request is already pending and actively being prepared / running
-	*	(this entity's `navPathProcess.rebuild_in_progress == true`), this helper
+	*	(this entity's `navigationState.pathProcess.rebuild_in_progress == true`), this helper
 	*	will avoid refreshing the existing running entry unless `force == true`
 	*	or the movement heuristics indicate a rebuild is warranted. This prevents
 	*	repeated re-initialization of in-flight searches which can starve the
@@ -350,7 +350,7 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     // while a search is running. We choose the same 16-unit threshold used
     // locally above to keep behavior consistent.
     constexpr double startIgnoreThresholdForQueue = 16.0;
-    const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &self->navPathProcess, start_origin, goal_origin, policy, agent_mins, agent_maxs, force, startIgnoreThresholdForQueue );
+    const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &self->navigationState.pathProcess, start_origin, goal_origin, policy, agent_mins, agent_maxs, force, startIgnoreThresholdForQueue );
     if ( handle <= 0 ) {
         if ( DUMMY_NAV_DEBUG ) {
             gi.dprintf( "[DEBUG] TryQueueNavRebuild: enqueue failed (handle=%d) ent=%d\n", handle, self->s.number );
@@ -363,8 +363,8 @@ bool SVG_TestDummy_TryQueueNavRebuild( svg_monster_testdummy_t *self, const Vect
     // PrepareAStarForEntry when the entry transitions to Running. Setting them
     // here ensures the entity has the handle immediately for early cancellation
     // if the caller chooses to abort before the queue tick processes it.
-    self->navPathProcess.rebuild_in_progress = true;
-    self->navPathProcess.pending_request_handle = handle;
+    self->navigationState.pathProcess.rebuild_in_progress = true;
+    self->navigationState.pathProcess.pending_request_handle = handle;
     if ( DUMMY_NAV_DEBUG ) {
         gi.dprintf( "[DEBUG] TryQueueNavRebuild: queued rebuild handle=%d ent=%d force=%d\n", handle, self->s.number, force ? 1 : 0 );
         // Also print the converted nav-center origins so we can correlate node resolution.
@@ -606,7 +606,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_t, onSpawn )( svg_monster_te
 
 	self->takedamage = DAMAGE_AIM;
 
-	self->air_finished_time = level.time + 12_sec;
+	self->airFinishedBreathTime = level.time + 12_sec;
 	self->max_health = self->health;
 
 	self->clipMask = CM_CONTENTMASK_MONSTERSOLID;
@@ -805,8 +805,8 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
     **/
     {
         // Determine our effective step capability using the configured navigation policy.
-        const float stepLimit = ( navPathPolicy.max_step_height > 0.0f )
-            ? ( float )navPathPolicy.max_step_height
+        const float stepLimit = ( navigationState.pathPolicy.max_step_height > 0.0f )
+            ? ( float )navigationState.pathPolicy.max_step_height
             : 0.0f;
         // Compare vertical gap against the step limit.
         const float zGapAbs = std::fabs( goalOrigin.z - currentOrigin.z );
@@ -826,8 +826,8 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
         *        vertical gap exceeds our safe traversal envelope. This avoids forcing
         *        A* onto the wrong Z layer for gentle slopes or walkable ramps.
         **/
-        const float maxOccludedZGap = ( navPathPolicy.max_drop_height > 0.0f )
-            ? ( float )navPathPolicy.max_drop_height
+        const float maxOccludedZGap = ( navigationState.pathPolicy.max_drop_height > 0.0f )
+            ? ( float )navigationState.pathPolicy.max_drop_height
             : ( stepLimit + 1.0f );
         // Clamp only when the target is far above/below our traversable range.
         if ( !targetVisible && zGapAbs > maxOccludedZGap ) {
@@ -861,38 +861,38 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 	**/
 	Vector3 agent_mins = {};
 	Vector3 agent_maxs = {};
-	SVG_TestDummy_GetNavAgentBBox( this, &agent_mins, &agent_maxs );
+	SVG_Monster_GetNavigationAgentBounds( this, &agent_mins, &agent_maxs );
 
     // Configure path following policy for direct A* pursuit.
     // These values control waypoint acceptance radius and rebuild heuristics.
     // Tight waypoint radius keeps selection on the correct layer while navigating stairs.
-    navPathPolicy.waypoint_radius = 32.0f;
+    navigationState.pathPolicy.waypoint_radius = 32.0f;
     // Modest goal-change thresholds avoid unnecessary rebuild spam.
-    navPathPolicy.rebuild_goal_dist_2d = 32.0;
+    navigationState.pathPolicy.rebuild_goal_dist_2d = 32.0;
     // Allow larger 3D goal movement before rebuild to stabilize upstairs pursuit.
-    navPathPolicy.rebuild_goal_dist_3d = 32.0f;
+    navigationState.pathPolicy.rebuild_goal_dist_3d = 32.0f;
     // Use the baseline rebuild interval to keep A* attempts steady.
-    navPathPolicy.rebuild_interval = 100_ms;
+    navigationState.pathPolicy.rebuild_interval = 100_ms;
     // Backoff retries so repeated failures do not stall the frame.
-    navPathPolicy.fail_backoff_base = 25_ms;
-    navPathPolicy.fail_backoff_max_pow = 3;
+    navigationState.pathPolicy.fail_backoff_base = 25_ms;
+    navigationState.pathPolicy.fail_backoff_max_pow = 3;
 
     // Ensure step and drop safety parameters match intended agent capabilities.
     // Allow stepping up to 18 units and cap drops to 128 units when following paths.
-    navPathPolicy.max_step_height = 18.0;
-    navPathPolicy.max_drop_height = 128.0;
-    navPathPolicy.enable_max_drop_height_cap = true;
-    navPathPolicy.max_drop_height_cap = 64.0;
+    navigationState.pathPolicy.max_step_height = 18.0;
+    navigationState.pathPolicy.max_drop_height = 128.0;
+    navigationState.pathPolicy.enable_max_drop_height_cap = true;
+    navigationState.pathPolicy.max_drop_height_cap = 64.0;
 
     // Goal Z-layer blending: bias layer selection toward goal Z quickly so the
     // pathfinder will prefer climbing stairs/up to the target when appropriate.
-    navPathPolicy.enable_goal_z_layer_blend = true;
-    navPathPolicy.blend_start_dist = 18.0f;
-    navPathPolicy.blend_full_dist = 64.0f;
+    navigationState.pathPolicy.enable_goal_z_layer_blend = true;
+    navigationState.pathPolicy.blend_start_dist = 18.0f;
+    navigationState.pathPolicy.blend_full_dist = 64.0f;
 
     // Small obstruction jump tuning: allow small jumps over low obstacles.
-    navPathPolicy.allow_small_obstruction_jump = true;
-    navPathPolicy.max_obstruction_jump_height = 48.0;
+    navigationState.pathPolicy.allow_small_obstruction_jump = true;
+    navigationState.pathPolicy.max_obstruction_jump_height = 48.0;
 
     /**
     *    Path invalidation:
@@ -903,17 +903,17 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
         /**
         *    Determine whether a cached path exists before evaluating invalidation.
         **/
-        const bool hasCachedPath = ( navPathProcess.path.num_points > 0 && navPathProcess.path.points );
+        const bool hasCachedPath = ( navigationState.pathProcess.path.num_points > 0 && navigationState.pathProcess.path.points );
         if ( hasCachedPath ) {
             // Compute goal delta against the cached path goal.
-            const Vector3 goalDelta = QM_Vector3Subtract( goalOrigin, navPathProcess.path_goal );
+            const Vector3 goalDelta = QM_Vector3Subtract( goalOrigin, navigationState.pathProcess.path_goal_position );
             // Compare 2D and 3D deltas against rebuild thresholds.
             const float goalDelta2D = ( goalDelta.x * goalDelta.x ) + ( goalDelta.y * goalDelta.y );
             const float goalDelta3D = goalDelta2D + ( goalDelta.z * goalDelta.z );
             // Use policy thresholds to decide what counts as a significant move.
-            const float goalThreshold2D = navPathPolicy.rebuild_goal_dist_2d;
-            const float goalThreshold3D = navPathPolicy.rebuild_goal_dist_3d > 0.0f
-                ? navPathPolicy.rebuild_goal_dist_3d
+            const float goalThreshold2D = self->navigationState.pathPolicy.rebuild_goal_dist_2d;
+            const float goalThreshold3D = navigationState.pathPolicy.rebuild_goal_dist_3d > 0.0f
+                ? navigationState.pathPolicy.rebuild_goal_dist_3d
                 : 0.0f;
             // Treat visibility flips as a reason to discard cached paths.
             const bool visibilityFlipped = last_nav_goal_valid && ( targetVisible != last_nav_goal_visible );
@@ -922,7 +922,7 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
             const bool goalMoved3D = ( goalThreshold3D > 0.0f ) && ( goalDelta3D > ( goalThreshold3D * goalThreshold3D ) );
             if ( goalMoved2D || goalMoved3D || visibilityFlipped ) {
                 // Clear cached path data so future queries rebuild against the new goal.
-                SVG_TestDummy_ResetNavPath( this );
+                SVG_Monster_ResetNavigationPath( this );
             }
         }
 
@@ -973,14 +973,14 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
         && nav_nav_async_queue_mode->integer != 0;
     // Track whether we successfully queued a rebuild request.
     const bool queuedRebuild = asyncQueueEnabled
-        ? SVG_TestDummy_TryQueueNavRebuild( this, currentOrigin, goalOrigin, navPathPolicy, agent_mins, agent_maxs )
+        ? SVG_Monster_TryQueueNavigationRebuild( this, currentOrigin, goalOrigin, navigationState.pathPolicy, agent_mins, agent_maxs )
         : false;
     ( void )queuedRebuild;
 
     /**
     *    Track whether an async request is still in flight for this path process.
     **/
-    const bool requestPending = asyncQueueEnabled && SVG_Nav_IsRequestPending( &navPathProcess );
+    const bool requestPending = asyncQueueEnabled && SVG_Nav_IsRequestPending( &navigationState.pathProcess );
 
     /**
     *    Path rebuild result:
@@ -988,14 +988,14 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
     *        report failure so the caller falls back instead of running sync A*.
     **/
     const bool pathOk = asyncQueueEnabled
-        ? ( navPathProcess.path.num_points > 0 && navPathProcess.path.points )
+        ? ( navigationState.pathProcess.path.num_points > 0 && navigationState.pathProcess.path.points )
         : false;
 
     Vector3 move_dir = {};
     // Guard: only query movement direction when a valid path buffer exists.
     bool hasPathDir = false;
     if ( pathOk ) {
-        hasPathDir = navPathProcess.QueryDirection3D( currentOrigin, navPathPolicy, &move_dir );
+        hasPathDir = navigationState.pathProcess.QueryDirection3D( currentOrigin, navigationState.pathPolicy, &move_dir );
     }
 
     Vector3 nextNavPoint_feet = {};
@@ -1003,12 +1003,12 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
     bool hasNextNavPoint = false;
     // Only attempt to inspect the next path point when a path exists and the
     // stored index is within the path bounds.
-    const bool nextPointIndexValid = ( navPathProcess.path.num_points > 0 && navPathProcess.path.points
-        && navPathProcess.path_index >= 0 && navPathProcess.path_index < navPathProcess.path.num_points );
+    const bool nextPointIndexValid = ( navigationState.pathProcess.path.num_points > 0 && navigationState.pathProcess.path.points
+        && navigationState.pathProcess.path_index >= 0 && navigationState.pathProcess.path_index < navigationState.pathProcess.path.num_points );
     if ( nextPointIndexValid ) {
-        hasNextNavPoint = navPathProcess.GetNextPathPointEntitySpace( &nextNavPoint_feet );
+        hasNextNavPoint = navigationState.pathProcess.GetNextPathPointEntitySpace( &nextNavPoint_feet );
         if ( hasNextNavPoint ) {
-            nextNavPoint_nav = navPathProcess.path.points[ navPathProcess.path_index ];
+            nextNavPoint_nav = navigationState.pathProcess.path.points[ navigationState.pathProcess.path_index ];
             if ( DUMMY_NAV_DEBUG ) {
                 gi.dprintf( "[DEBUG] ThinkAStarToPlayer: Next nav point nav(%.1f %.1f %.1f) feet(%.1f %.1f %.1f) mismatch=%.2f\n",
                     nextNavPoint_nav.x, nextNavPoint_nav.y, nextNavPoint_nav.z,
@@ -1021,7 +1021,7 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
         *    Debug: only warn about out-of-range indices when a path buffer exists.
         **/
         gi.dprintf( "[DEBUG] ThinkAStarToPlayer: QueryDirection3D advanced path_index out of range (%d/%d) after retrieval.\n",
-            navPathProcess.path_index, navPathProcess.path.num_points );
+            navigationState.pathProcess.path_index, navigationState.pathProcess.path.num_points );
     }
 
     if ( DUMMY_NAV_DEBUG ) {
@@ -1062,8 +1062,8 @@ const bool svg_monster_testdummy_t::ThinkAStarToPlayer()
 		// Do not fallback to direct-pursuit when goal is substantially above us; we need stairs.
 		const float zGapAbs = std::fabs( goalentity->currentOrigin.z - currentOrigin.z );
 		// Allow direct pursuit within the configured drop limit when we can see the goal.
-		const float maxDirectPursuitGap = ( navPathPolicy.max_drop_height > 0.0f )
-			? ( float )navPathPolicy.max_drop_height
+		const float maxDirectPursuitGap = ( navigationState.pathPolicy.max_drop_height > 0.0f )
+			? ( float )navigationState.pathPolicy.max_drop_height
 			: 64.0f;
 		// Require actual visibility and in-front checks for LOS fallback.
 		const bool canSeeGoal = goalentity && SVG_Entity_IsVisible( this, goalentity );
@@ -1170,46 +1170,46 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
 	**/
 	Vector3 agent_mins = {};
 	Vector3 agent_maxs = {};
-	SVG_TestDummy_GetNavAgentBBox( this, &agent_mins, &agent_maxs );
+	SVG_Monster_GetNavigationAgentBounds( this, &agent_mins, &agent_maxs );
 
     /**
     *    Trail-following: update nav policy for breadcrumb following and attempt to rebuild a path.
     **/
-	navPathPolicy.ignore_visibility = true;
-	navPathPolicy.ignore_infront = true;
+	navigationState.pathPolicy.ignore_visibility = true;
+	navigationState.pathPolicy.ignore_infront = true;
 	
   // Tight waypoint radius keeps trail-following aligned to stair layers.
-    navPathPolicy.waypoint_radius = 32.0f;
+    navigationState.pathPolicy.waypoint_radius = 32.0f;
    // Tight horizontal threshold keeps trail goals responsive when the player moves.
-    navPathPolicy.rebuild_goal_dist_2d = 32.0f;
+    navigationState.pathPolicy.rebuild_goal_dist_2d = 32.0f;
     // Moderate 3D threshold avoids noisy rebuilds due to small Z offsets.
-    navPathPolicy.rebuild_goal_dist_3d = 32.0f;
+    navigationState.pathPolicy.rebuild_goal_dist_3d = 32.0f;
     // Short rebuild interval keeps trail-following reactive to small goal shifts.
-    navPathPolicy.rebuild_interval = 100_ms;
+    navigationState.pathPolicy.rebuild_interval = 100_ms;
     // Short backoff keeps retries responsive when stairs are present.
-    navPathPolicy.fail_backoff_base = 25_ms;
-	navPathPolicy.fail_backoff_max_pow = 3;
+    navigationState.pathPolicy.fail_backoff_base = 25_ms;
+	navigationState.pathPolicy.fail_backoff_max_pow = 3;
 
 	// Ensure step and drop safety parameters for trail-following match agent.
 	// This allows stepping up to 18 units and caps allowed drops to 128 units.
-	navPathPolicy.max_step_height = 18.0;
-	navPathPolicy.max_drop_height = 128.0;
-	navPathPolicy.enable_max_drop_height_cap = true;
-	navPathPolicy.max_drop_height_cap = 64.0;
+	navigationState.pathPolicy.max_step_height = 18.0;
+	navigationState.pathPolicy.max_drop_height = 128.0;
+	navigationState.pathPolicy.enable_max_drop_height_cap = true;
+	navigationState.pathPolicy.max_drop_height_cap = 64.0;
 
     // Bias layer selection toward goal Z for trail-following so the monster will
     // attempt to climb stairs to reach breadcrumb spots on higher floors.
-	navPathPolicy.enable_goal_z_layer_blend = true;
-    navPathPolicy.blend_start_dist = 18.0f;
-    navPathPolicy.blend_full_dist = 64.0f;
+	navigationState.pathPolicy.enable_goal_z_layer_blend = true;
+    navigationState.pathPolicy.blend_start_dist = 18.0f;
+    navigationState.pathPolicy.blend_full_dist = 64.0f;
 
     /**
     *	Keep trail goal Z within our step capability so RebuildPathToWithAgentBBox
     *	only routes toward reachable layers instead of failing early on high-ups.
     **/
     {
-        const float stepLimit = ( navPathPolicy.max_step_height > 0.0f )
-            ? ( float )navPathPolicy.max_step_height
+        const float stepLimit = ( navigationState.pathPolicy.max_step_height > 0.0f )
+            ? ( float )navigationState.pathPolicy.max_step_height
             : 0.0f;
         const float zGapAbs = std::fabs( goalOrigin.z - currentOrigin.z );
         if ( zGapAbs > ( stepLimit + 1.0f ) ) {
@@ -1217,28 +1217,28 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
         }
     }
 
-    navPathPolicy.allow_small_obstruction_jump = true;
-    navPathPolicy.max_obstruction_jump_height = 48.0;
+    navigationState.pathPolicy.allow_small_obstruction_jump = true;
+    navigationState.pathPolicy.max_obstruction_jump_height = 48.0;
 
     // Convert entity feet-origin bbox to navmesh-centered bbox/origins.
     // Call nav path process using entity origin; svg_nav_path_process will handle conversions.
-    const bool queuedRebuild = SVG_TestDummy_TryQueueNavRebuild( this, currentOrigin, goalOrigin, navPathPolicy, agent_mins, agent_maxs );
+    const bool queuedRebuild = SVG_Monster_TryQueueNavigationRebuild( this, currentOrigin, goalOrigin, navigationState.pathPolicy, agent_mins, agent_maxs );
     ( void )queuedRebuild;
 
     /**
     *    Track whether an async request is still in flight for this trail rebuild.
     **/
-    const bool requestPending = SVG_Nav_IsAsyncNavEnabled() && SVG_Nav_IsRequestPending( &navPathProcess );
+    const bool requestPending = SVG_Nav_IsAsyncNavEnabled() && SVG_Nav_IsRequestPending( &navigationState.pathProcess );
 
     /**
     *    Path rebuild result:
     *        Rely exclusively on the queued async path so the TestDummy never stalls 
     *        on synchronous rebuilds during trail following.
     **/
-    const bool pathOk = ( navPathProcess.path.num_points > 0 && navPathProcess.path.points );
+    const bool pathOk = ( navigationState.pathProcess.path.num_points > 0 && navigationState.pathProcess.path.points );
 
     Vector3 move_dir = {};
-    bool hasPathDir = navPathProcess.QueryDirection3D(currentOrigin, navPathPolicy, &move_dir);
+    bool hasPathDir = navigationState.pathProcess.QueryDirection3D(currentOrigin, navigationState.pathPolicy, &move_dir);
 
 	if ( DUMMY_NAV_DEBUG ) {
 		gi.dprintf("[DEBUG] ThinkFollowTrail: Monster %d pathOk=%d hasPathDir=%d from (%.1f %.1f %.1f) to (%.1f %.1f %.1f)\n",
@@ -1283,7 +1283,7 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
     // Path points are nav-centered; convert next nav point to feet-origin for comparisons.
     // Convert next nav point from navmesh space to entity feet-origin space.
     Vector3 nextNavPoint_feet = {};
-    navPathProcess.GetNextPathPointEntitySpace( &nextNavPoint_feet );
+    navigationState.pathProcess.GetNextPathPointEntitySpace( &nextNavPoint_feet );
     // Compute vertical delta between nav point and our feet-origin.
     float zDelta = std::fabs( nextNavPoint_feet.z - currentOrigin.z );
     // Threshold under which we treat the waypoint as same step level
@@ -1372,14 +1372,14 @@ const bool svg_monster_testdummy_t::ThinkFollowTrail()
             *    Accepting a new breadcrumb invalidates the current path so the
             *    nav system does not reuse stale data while the forced rebuild runs.
             **/
-            SVG_Nav_FreeTraversalPath( &navPathProcess.path );
+            SVG_Nav_FreeTraversalPath( &navigationState.pathProcess.path );
             // Ensure index reset when clearing path to avoid out-of-range queries.
-            navPathProcess.path_index = 0;
-            navPathProcess.path_goal = {};
-            navPathProcess.path_start = {};
-            navPathProcess.rebuild_in_progress = false;
-            navPathProcess.pending_request_handle = 0;
-          const bool queuedForcedRebuild = SVG_TestDummy_TryQueueNavRebuild( this, currentOrigin, goalOrigin, navPathPolicy, agent_mins, agent_maxs, true );
+            navigationState.pathProcess.path_index = 0;
+            navigationState.pathProcess.path_goal_position = {};
+            navigationState.pathProcess.path_start_position = {};
+            navigationState.pathProcess.rebuild_in_progress = false;
+            navigationState.pathProcess.pending_request_handle = 0;
+          const bool queuedForcedRebuild = SVG_Monster_TryQueueNavigationRebuild( this, currentOrigin, goalOrigin, navigationState.pathPolicy, agent_mins, agent_maxs, true );
             ( void )queuedForcedRebuild;
             return false;
         }
@@ -1568,7 +1568,7 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_monster_testdummy_t, onThink)(svg_monster_testd
 			.liquid = self->liquidInfo,
 		};
 
-		const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove, self->navPathPolicy );
+		const int32_t blockedMask = SVG_MMove_StepSlideMove( &monsterMove, self->navigationState.pathPolicy );
 
 		/**
 		*	Obstruction recovery:
@@ -1577,11 +1577,11 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_monster_testdummy_t, onThink)(svg_monster_testd
 		**/
 		if ( ( blockedMask & ( MM_SLIDEMOVEFLAG_BLOCKED | MM_SLIDEMOVEFLAG_TRAPPED ) ) != 0 ) {
 			// Clear any backoff so we can attempt a rebuild immediately.
-			self->navPathProcess.consecutive_failures = 0;
-			self->navPathProcess.backoff_until = 0_ms;
-			self->navPathProcess.last_failure_time = 0_ms;
+			self->navigationState.pathProcess.consecutive_failures = 0;
+			self->navigationState.pathProcess.backoff_until = 0_ms;
+			self->navigationState.pathProcess.last_failure_time = 0_ms;
 			// Force rebuild by clearing next rebuild time.
-			self->navPathProcess.next_rebuild_time = 0_ms;
+			self->navigationState.pathProcess.next_rebuild_time = 0_ms;
 		}
 
 
@@ -1594,15 +1594,15 @@ DEFINE_MEMBER_CALLBACK_THINK(svg_monster_testdummy_t, onThink)(svg_monster_testd
 				Vector3 forwardDir = QM_Vector3Normalize( monsterMove.state.velocity );
 				Vector3 end = start + forwardDir * 24.0f;
 				//Vector3 end = start;
-				end.z -= self->navPathPolicy.max_drop_height;
+				end.z -= self->navigationState.pathPolicy.max_drop_height;
 				svg_trace_t tr = gi.trace( &start, &self->mins, &self->maxs, &end, self, CM_CONTENTMASK_SOLID );
 			const float drop = start.z - tr.endpos[ 2 ];
 			/**
 			*	Determine the drop allowance derived from the path policy so we respect the drop cap.
 			**/
-			const float policyDropLimit = ( self->navPathPolicy.max_drop_height_cap > 0.0f )
-				? ( float )self->navPathPolicy.max_drop_height_cap
-				: ( self->navPathPolicy.enable_max_drop_height_cap ? ( float )self->navPathPolicy.max_drop_height : 0.0f );
+			const float policyDropLimit = ( self->navigationState.pathPolicy.max_drop_height_cap > 0.0f )
+				? ( float )self->navigationState.pathPolicy.max_drop_height_cap
+				: ( self->navigationState.pathPolicy.enable_max_drop_height_cap ? ( float )self->navigationState.pathPolicy.max_drop_height : 0.0f );
 			if ( tr.fraction < 1.0f && policyDropLimit > 0.0f && drop > policyDropLimit ) {
 					monsterMove.state.origin = monsterMove.state.origin - ( forwardDir * 24.f );//self->currentOrigin - forwardDir * 24.f;
 					monsterMove.state.velocity.x = 0.0f;
@@ -1701,7 +1701,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_t, onUse )( svg_monster_testdu
     // Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
     SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
 
-    self->goalentity = nullptr;
+    //self->goalentity = nullptr;
     self->activator = nullptr;
 	self->other = nullptr;
 

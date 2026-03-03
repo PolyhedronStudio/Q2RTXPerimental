@@ -77,30 +77,35 @@ static inline void Nav_SetPresenceBit_Load( nav_tile_t *tile, const int32_t cell
 *	@brief	Load a navigation voxelmesh from file into `g_nav_mesh`.
 *	@return	True on success, false on failure.
 **/
-bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
+bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 	/**
 	*	Sanity: require filename.
 	**/
-	if ( !filename || !filename[ 0 ] ) {
+	if ( !fileName || !fileName[ 0 ] ) {
 		return false;
 	}
 
+	// Actual filename of the .nav file.
+	const std::string fileNameExt = std::string( fileName ) + ".nav";
+	// Determine the game path to use for loading .nav files.
+	// <Q2RTXP>: WID: Unneccesary right now.
+	const std::string baseGame = "";// BASEGAME;
 	//if ( baseGame.empty() ) {
 	//	baseGame = BASEGAME;
 	//}
-	//// Build full file path.
-	//const std::string filePath = baseGame + "/maps/navmeshes/" + std::string( filename );
+	// Build full file path.
+	const std::string filePath = baseGame + std::string( navPath ) + fileNameExt;
+
 	/**
 	*	Build full file path.
 	**/
-	const std::string filePath = BASEGAME "/maps/nav/" + std::string( filename );
 
 	/**
 	*	Open nav cache file (gzip if available).
 	**/
-	gzFile f = gzopen( filePath.c_str(), "rb" );
+	gzFile f = gzopen( filePath.c_str(), "rb");
 	if ( !f ) {
-		gi.dprintf( "%s: failed to open '%s'\n", __func__, filePath.c_str() );
+		gi.dprintf( "%s: failed to open '%s'\n", __func__, fileName );
 		return false;
 	}
 
@@ -141,40 +146,32 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 	}
 
 	/**
-	*	Read generation parameters required to interpret stored tile data.
+	*	Read the expected statistics from the navmesh generation for validation and informational purposes.
+	*	These are not strictly required for loading the mesh but can help detect mismatches between the navmesh and game configuration.
 	**/
-   /**
+	// Tiles(All): total count of tiles generated across the entire world mesh.
+	uint64_t statistic_total_tiles = 0;
+	// Cells X/Y.total count of XY cells with data across all tiles (sum of populated cells in each tile).
+	uint64_t statistic_total_xy_cells = 0;
+	// Layers.total count of Z layers across all XY cells (sum of num_layers in each cell). This reflects the overall vertical complexity of the navmesh.
+	uint64_t statistic_total_layers = 0;
+	// Read in the statistics from the file for later validation against the loaded mesh.
+    // Read saved statistics as 64-bit values to match the save-side format.
+	Nav_ReadValue( f, statistic_total_tiles );
+	Nav_ReadValue( f, statistic_total_xy_cells );
+	Nav_ReadValue( f, statistic_total_layers );
+
+	/**
 	*    Read generation parameters required to interpret stored tile data.
-	*    Version 1 stored max slope in degrees, version 2 stores normal-Z.
 	**/
 	if ( !Nav_ReadValue( f, g_nav_mesh->cell_size_xy ) ||
 		!Nav_ReadValue( f, g_nav_mesh->z_quant ) ||
 		!Nav_ReadValue( f, g_nav_mesh->tile_size ) ||
-		!Nav_ReadValue( f, g_nav_mesh->max_step ) ) {
+		!Nav_ReadValue( f, g_nav_mesh->max_step ) ||
+		!Nav_ReadValue( f, g_nav_mesh->max_slope_normal_z ) ) {
 		gzclose( f );
 		SVG_Nav_FreeMesh();
 		return false;
-	}
-
-	/**
-	*    Decode the slope parameter based on the on-disk version.
-	**/
-	if ( version == 1 ) {
-		// Version 1 stored degrees; convert to a normal-Z threshold.
-		double max_slope_deg = 0.0;
-		if ( !Nav_ReadValue( f, max_slope_deg ) ) {
-			gzclose( f );
-			SVG_Nav_FreeMesh();
-			return false;
-		}
-		g_nav_mesh->max_slope_normal_z = cosf( max_slope_deg * DEG_TO_RAD );
-	} else {
-		// Version 2 stores the normal-Z threshold directly.
-		if ( !Nav_ReadValue( f, g_nav_mesh->max_slope_normal_z ) ) {
-			gzclose( f );
-			SVG_Nav_FreeMesh();
-			return false;
-		}
 	}
 
 	/**
@@ -493,6 +490,22 @@ bool SVG_Nav_LoadVoxelMesh( const char *filename ) {
 
 		// Refresh transforms once so runtime entries match current entity state.
 		SVG_Nav_RefreshInlineModelRuntime();
+	}
+
+	/**
+	*	Do a quick statistics validation test to see if the loaded mesh matches expected generation statistic results. 
+	*	This can help detect mismatches between the navmesh and game configuration:
+	*	(e.g. loading a mesh generated with different parameters or from a different map version).
+	**/
+	if ( statistic_total_tiles != g_nav_mesh->total_tiles
+		|| statistic_total_xy_cells != g_nav_mesh->total_xy_cells
+		|| statistic_total_layers != g_nav_mesh->total_layers ) {
+		//gzclose( f );
+		//SVG_Nav_FreeMesh();
+		//return false;
+		gi.bprintf( PRINT_WARNING, "%s: warning: loaded navmesh statistics mismatch (expected %llu tiles, %llu cells, %llu layers; got %llu tiles, %llu cells, %llu layers)\n",
+			__func__, statistic_total_tiles, statistic_total_xy_cells, statistic_total_layers,
+			g_nav_mesh->total_tiles, g_nav_mesh->total_xy_cells, g_nav_mesh->total_layers );
 	}
 
 	gzclose( f );

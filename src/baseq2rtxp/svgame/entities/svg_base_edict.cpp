@@ -54,9 +54,9 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.eventParm1, SD_FIELD_TYPE_INT32 ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, s.spotlight.rgb, SD_FIELD_TYPE_VECTOR3, 1 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.spotlight.intensity, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.spotlight.angle_width, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.spotlight.angle_falloff, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.spotlight.intensity, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.spotlight.angle_width, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, s.spotlight.angle_falloff, SD_FIELD_TYPE_DOUBLE ),
 
     /**
     *   Server Edict Data:
@@ -100,7 +100,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, classname, SD_FIELD_TYPE_LEVEL_QSTRING ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, model, SD_FIELD_TYPE_LSTRING ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, angle, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, angle, SD_FIELD_TYPE_DOUBLE ),
 
     /**
     *   Entity Event Properties:
@@ -190,7 +190,7 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     // }
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, gravityVector, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, mass, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, gravity, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, gravity, SD_FIELD_TYPE_DOUBLE ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pausetime, SD_FIELD_TYPE_INT64 ),
 
 
@@ -215,11 +215,11 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.remaining_distance, SD_FIELD_TYPE_DOUBLE ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.decel_distance, SD_FIELD_TYPE_DOUBLE ),
     // Acceleration Data:
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.accel, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.speed, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.decel, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.distance, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.wait, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.accel, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.speed, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.decel, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.distance, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.wait, SD_FIELD_TYPE_DOUBLE ),
     // Curve:
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, pushMoveInfo.curve.referenceOrigin, SD_FIELD_TYPE_VECTOR3, 1 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pushMoveInfo.curve.positions, SD_FIELD_TYPE_LEVEL_QTAG_MEMORY ),
@@ -241,13 +241,13 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     // Movewith:
     SAVE_DESCRIPTOR_DEFINE_FIELD_ARRAY( svg_base_edict_t, pushMoveInfo.lastVelocity, SD_FIELD_TYPE_VECTOR3, 1 ),
     
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, lip, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, distance, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, height, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, lip, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, distance, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, height, SD_FIELD_TYPE_DOUBLE ),
     
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, speed, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, accel, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, decel, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, speed, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, accel, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, decel, SD_FIELD_TYPE_DOUBLE ),
 
     // WID: Are these actually needed? Would they not be recalculated the first frame around?
     // WID: TODO: PushmoveInfo
@@ -306,8 +306,8 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Monster Data:
     **/
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, yaw_speed, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, ideal_yaw, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, yaw_speed, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, ideal_yaw, SD_FIELD_TYPE_DOUBLE ),
 
     /**
     *   Player Noise/Trail:
@@ -321,31 +321,35 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     /**
     *   Sound Data:
     **/
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, volume, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, attenuation, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, volume, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, attenuation, SD_FIELD_TYPE_DOUBLE ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, last_sound_time, SD_FIELD_TYPE_INT64 ),
     /**
     *   Trigger(s) Data:
     **/
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, message, SD_FIELD_TYPE_LSTRING ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, wait, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, delay, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, wait, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, delay, SD_FIELD_TYPE_DOUBLE ),
     #undef random
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, random, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, random, SD_FIELD_TYPE_DOUBLE ),
     /**
     *   Timers Data:
     **/
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, air_finished_time, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, damage_debounce_time, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, fly_sound_debounce_time, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, last_move_time, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, touch_debounce_time, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, pain_debounce_time, SD_FIELD_TYPE_INT64 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, show_hostile_time, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, airFinishedBreathTime, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, debounceDamageTime, SD_FIELD_TYPE_INT64 ),
+	// <Q2RTXP>: Moved to svg_target_earthquake where it belongs.
+    // Not necessary any remaining functionality went into the trigger touch debounce time.
+	//SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, fly_sound_debounce_time, SD_FIELD_TYPE_INT64 ),
+    // <Q2RTXP>: Moved to svg_target_earthquake where it belongs.
+	//SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, last_move_time, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, debounceTouchTime, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, debouncePainTime, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, hostileShowTime, SD_FIELD_TYPE_INT64 ),
 
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, death_time, SD_FIELD_TYPE_INT64 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, timeOfDeath, SD_FIELD_TYPE_INT64 ),
 
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, trail_time, SD_FIELD_TYPE_INT64 ),
+	// <Q2RTXP>: Moved to the monster test entity, as it is only used there and not in the base edict.
+    //SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, trail_time, SD_FIELD_TYPE_INT64 ),
 
     /**
     *   Various Data:
@@ -354,9 +358,9 @@ SAVE_DESCRIPTOR_FIELDS_BEGIN( svg_base_edict_t )
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, map, SD_FIELD_TYPE_LEVEL_QSTRING ),
 
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, dmg, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, radius_dmg, SD_FIELD_TYPE_INT32 ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, dmg_radius, SD_FIELD_TYPE_FLOAT ),
-    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, light, SD_FIELD_TYPE_FLOAT ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, radiusDamage, SD_FIELD_TYPE_INT32 ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, damageRadius, SD_FIELD_TYPE_DOUBLE ),
+    SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, light, SD_FIELD_TYPE_DOUBLE ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, sounds, SD_FIELD_TYPE_INT32 ),
     SAVE_DESCRIPTOR_DEFINE_FIELD( svg_base_edict_t, count, SD_FIELD_TYPE_INT32 ),
 
@@ -561,7 +565,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
 
     classname = svg_level_qstring_t::from_char_str( "svg_base_edict_t" );
     model = nullptr;
-    angle = 0.0f;
+    angle = 0.;
 
     spawnflags = 0;
     flags = entity_flags_t::FL_NONE;
@@ -650,7 +654,7 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
 
     gravityVector = QM_Vector3Gravity();
     mass = 0;
-    gravity = 0.f;
+    gravity = 0.;
 
     pausetime = 0_ms;
 
@@ -660,13 +664,13 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     **/
     pushMoveInfo = {};
 
-    lip = 0.f;
-    distance = 0.f;
-    height = 0.f;
+    lip = 0.;
+    distance = 0.;
+    height = 0.;
 
-    speed = 0.f;
-    accel = 0.f;
-    decel = 0.f;
+    speed = 0.;
+    accel = 0.;
+    decel = 0.;
 
     movedir = QM_Vector3Zero();
     pos1 = QM_Vector3Zero();
@@ -728,8 +732,8 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     /**
     *   Monster Data:
     **/
-    yaw_speed = 0.f;
-    ideal_yaw = 0.f;
+    yaw_speed = 0.;
+    ideal_yaw = 0.;
 
     /**
     *   (Player-)Noise/Trail:
@@ -751,21 +755,20 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     *   Trigger(s) Data:
     **/
     message = nullptr;
-    wait = 0.f;
-    delay = 0.f;
-    random = 0.f;
+    wait = 0.;
+    delay = 0.;
+    random = 0.;
 
     /**
     *   Timers Data:
     **/
-    air_finished_time = 0_ms;
-    damage_debounce_time = 0_ms;
-    fly_sound_debounce_time = 0_ms;
+    airFinishedBreathTime = 0_ms;
+    debounceDamageTime = 0_ms;
     last_move_time = 0_ms;
-    touch_debounce_time = 0_ms;
-    pain_debounce_time = 0_ms;
-    show_hostile_time = 0_ms;
-    death_time = 0_ms;
+    debounceTouchTime = 0_ms;
+    debouncePainTime = 0_ms;
+    hostileShowTime = 0_ms;
+    timeOfDeath = 0_ms;
     trail_time = 0_ms;
 
     /**
@@ -775,8 +778,8 @@ void svg_base_edict_t::Reset( const bool retainDictionary ) {
     map = nullptr;
 
     dmg = 0;
-    radius_dmg = 0;
-    light = 0.f;
+    radiusDamage = 0;
+    light = 0.;
     sounds = 0;
     count = 0;
 

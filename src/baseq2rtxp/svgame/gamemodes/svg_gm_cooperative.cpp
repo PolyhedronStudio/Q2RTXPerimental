@@ -311,7 +311,7 @@ void svg_gamemode_cooperative_t::ClientSpawnInBody( svg_player_edict_t *ent ) {
     ent->gravity = 1.0f;
     ent->solid = SOLID_BOUNDS_BOX;
     ent->lifeStatus = LIFESTATUS_ALIVE;
-    ent->air_finished_time = level.time + 12_sec;
+    ent->airFinishedBreathTime = level.time + 12_sec;
     ent->clipMask = ( CM_CONTENTMASK_PLAYERSOLID );
     ent->model = svg_level_qstring_t::from_char_str( "players/playerdummy/tris.iqm" );
     ent->SetPainCallback( &svg_player_edict_t::onPain );//ent->SetPainCallback( player_pain );
@@ -802,7 +802,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
     int32_t finalKnockBack = ( /*targ->flags & FL_NO_KNOCKBACK ? 0 : */ knockBack );
     if ( ( targ->flags & FL_NO_KNOCKBACK ) ) {//||
         //( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
-        //    ( !targ->lifeStatus || targ->death_time != level.time ) ) ) {
+        //    ( !targ->lifeStatus || targ->timeOfDeath != level.time ) ) ) {
         finalKnockBack = 0;
     }
     #else
@@ -811,7 +811,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
     if ( targ->flags & FL_NO_KNOCKBACK ||
         ( /*( targ->flags & FL_ALIVE_KNOCKBACK_ONLY ) &&*/
             ( !( targ->lifeStatus == entity_lifestatus_t::LIFESTATUS_ALIVE ) )
-            /*|| ( targ->death_time != 0_ms && targ->death_time < level.time )*/
+            /*|| ( targ->timeOfDeath != 0_ms && targ->timeOfDeath < level.time )*/
             ) ) {
         finalKnockBack = 0;
     }
@@ -853,9 +853,9 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
 
     // check for invincibility
     //if ((client && client->invincible_time > level.time) && !(dflags & DAMAGE_NO_PROTECTION)) {
-    //    if (targ->pain_debounce_time < level.time) {
+    //    if (targ->debouncePainTime < level.time) {
     //        gi.sound(targ, CHAN_ITEM, gi.soundindex("items/protect4.wav"), 1, ATTN_NORM, 0);
-    //        targ->pain_debounce_time = level.time + 2_sec;
+    //        targ->debouncePainTime = level.time + 2_sec;
     //    }
     //    take = 0;
     //    save = damage;
@@ -885,7 +885,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
             if ( ( targ->svFlags & SVF_MONSTER ) || ( client ) ) {
                 //targ->flags |= FL_NO_KNOCKBACK;
                 //targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
-                //targ->death_time = level.time;
+                //targ->timeOfDeath = level.time;
             }
             #if 0
             targ->monsterinfo.damage_blood += take;
@@ -932,7 +932,7 @@ void svg_gamemode_cooperative_t::DamageEntity( svg_base_edict_t *targ, svg_base_
                 targ->DispatchPainCallback( attacker, finalKnockBack, take, damageFlags );
                 // nightmare mode monsters don't go into pain frames often
                 if ( skill->value == 3 )
-                    targ->pain_debounce_time = level.time + 5_sec;
+                    targ->debouncePainTime = level.time + 5_sec;
             } else {
                 #ifdef WARN_ON_TRIGGERDAMAGE_NO_PAIN_CALLBACK
                 gi.bprintf( PRINT_WARNING, "%s: ( targ->pain == nullptr )!\n", __func__ );

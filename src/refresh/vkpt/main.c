@@ -3846,7 +3846,7 @@ R_Init_RTX(bool total)
 	cvar_ray_tracing_api->generator = &ray_tracing_api_g;
 
 	// When nonzero, the Vulkan validation layer is requested
-	cvar_vk_validation = Cvar_Get("vk_validation", "0", CVAR_REFRESH | CVAR_ARCHIVE);
+	cvar_vk_validation = Cvar_Get("vk_validation", "1", CVAR_REFRESH | CVAR_ARCHIVE);
 
 #if USE_DEBUG
 	// Testing: force a colored shell on all entities

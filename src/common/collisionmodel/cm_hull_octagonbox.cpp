@@ -119,10 +119,11 @@ void CM_InitOctagonHull( cm_t *cm ) {
 *   @brief  Utility function to complement CM_HeadnodeForOctagon with.
 **/
 static inline const float CalculateOctagonPlaneDist( cm_plane_t &plane, const Vector3 &mins, const Vector3 &maxs, const bool negate = false ) {
+    const Vector3 planeNormal = { plane.normal[ 0 ], plane.normal[ 1 ], plane.normal[ 2 ] };
     if ( negate == true ) {
-        return QM_Vector3DotProduct( plane.normal, { ( plane.signbits & 1 ) ? -mins[ 0 ] : -maxs[ 0 ], ( plane.signbits & 2 ) ? -mins[ 1 ] : -maxs[ 1 ], ( plane.signbits & 4 ) ? -mins[ 2 ] : -maxs[ 2 ] } );
+        return QM_Vector3DotProduct( planeNormal, Vector3{ ( plane.signbits & 1 ) ? -mins[ 0 ] : -maxs[ 0 ], ( plane.signbits & 2 ) ? -mins[ 1 ] : -maxs[ 1 ], ( plane.signbits & 4 ) ? -mins[ 2 ] : -maxs[ 2 ] } );
     } else {
-        return QM_Vector3DotProduct( plane.normal, { ( plane.signbits & 1 ) ? mins[ 0 ] : maxs[ 0 ], ( plane.signbits & 2 ) ? mins[ 1 ] : maxs[ 1 ], ( plane.signbits & 4 ) ? mins[ 2 ] : maxs[ 2 ] } );
+        return QM_Vector3DotProduct( planeNormal, Vector3{ ( plane.signbits & 1 ) ? mins[ 0 ] : maxs[ 0 ], ( plane.signbits & 2 ) ? mins[ 1 ] : maxs[ 1 ], ( plane.signbits & 4 ) ? mins[ 2 ] : maxs[ 2 ] } );
     }
 }
 

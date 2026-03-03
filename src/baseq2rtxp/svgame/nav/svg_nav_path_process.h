@@ -51,19 +51,28 @@ struct svg_nav_path_policy_t {
 	//! If true, blend the desired layer Z between start and goal when selecting layers.
 	bool enable_goal_z_layer_blend = true;
 	//! Horizontal distance at which blending begins (units).
-	double blend_start_dist = 16.0;
+	double blend_start_dist = PHYS_STEP_MAX_SIZE;
 	//! Horizontal distance at which blending is fully biased to the goal Z (units).
 	double blend_full_dist = 128.0;
 
 	/**
+	*    Cluster-route pre-pass controls:
+	*        The async request worker can compute a coarse tile route and constrain
+	*        fine A* expansion to that route. This keeps long-range searches cheap,
+	*        but can be disabled for targeted diagnostics.
+	**/
+	//! If true, apply the hierarchical tile-route filter during async A* prep.
+	bool enable_cluster_route_filter = true;
+
+	/**
 	*	For obstalce step handling.
 	**/
-	//! Minimal nnormal angle (degrees) that will be stepped over.
-	double min_step_normal = 0.7;
+	//! Minimal nnormal angle that will be stepped over.
+	double min_step_normal = PHYS_MAX_SLOPE_NORMAL;
 	//! Minimum step height that is considered as and can be stepped over.
-	double min_step_height = 4.;
+	double min_step_height = PHYS_STEP_MIN_SIZE;
 	//! Maximum step height that can be stepped over (matches `nav_max_step`).
-	double max_step_height = 18.0;
+	double max_step_height = PHYS_STEP_MAX_SIZE;
 
 	/**
 	*	For obstacle Jump handling:
@@ -139,9 +148,9 @@ struct svg_nav_path_process_t {
 	//! Current index along the path.
 	int32_t path_index = 0;
 	//! Last path goal and start positions.
-	Vector3 path_goal = {};
+	Vector3 path_goal_position = {};
 	//! Start position used for the current path.
-	Vector3 path_start = {};
+	Vector3 path_start_position = {};
 	//! Next time at which a path rebuild can be attempted.
 	QMTime next_rebuild_time = 0_ms;
 	//! Time until which rebuild attempts are backed off due to failures.
@@ -166,6 +175,8 @@ struct svg_nav_path_process_t {
 	Vector3 last_prep_start = {};
 	//! Last prep/goal position used when the last async prep was performed.
 	Vector3 last_prep_goal = {};
+	//! Z offset used to convert external feet-origin queries into internal nav-center space.
+	float path_center_offset_z = 0.0f;
 
 	/**
 	*	@brief	Policy for path processing and follow behavior.

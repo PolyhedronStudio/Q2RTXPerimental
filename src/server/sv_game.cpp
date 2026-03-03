@@ -1157,9 +1157,42 @@ static void PF_SV_MSG_WriteDir8( const Vector3 *dir ) {
 **/
 //! Pointer to loaded .dll/.so file.
 static void *game_library;
+//! True when game-progs shutdown was requested from an unsafe path (e.g. `ERR_DROP`).
+static bool sv_deferred_gameprogs_shutdown = false;
 
 // WID: C++20: Typedef this for casting
 typedef svgame_export_t*(GameEntryFunctionPointer(svgame_import_t*));
+
+/**
+*	@brief	Mark game-progs shutdown as deferred to a safe boundary.
+**/
+void SV_RequestDeferredGameProgsShutdown( void ) {
+	// Mark deferred unload request.
+	sv_deferred_gameprogs_shutdown = true;
+}
+
+/**
+*	@brief	Check if deferred game-progs shutdown is pending.
+*	@return	True if shutdown is pending; otherwise false.
+**/
+const bool SV_IsGameProgsShutdownDeferred( void ) {
+	return sv_deferred_gameprogs_shutdown;
+}
+
+/**
+*	@brief	Process deferred game-progs shutdown at a safe boundary.
+**/
+void SV_ProcessDeferredGameProgsShutdown( void ) {
+	// Nothing to do if no deferred request exists.
+	if ( !sv_deferred_gameprogs_shutdown ) {
+		return;
+	}
+
+	// Clear flag first to avoid recursive re-queue.
+	sv_deferred_gameprogs_shutdown = false;
+	// Perform actual unload now.
+	SV_ShutdownGameProgs();
+}
 
 /**
 *   @brief  Called when either the entire server is being killed, or
@@ -1167,18 +1200,22 @@ typedef svgame_export_t*(GameEntryFunctionPointer(svgame_import_t*));
 **/
 void SV_ShutdownGameProgs(void)
 {
+    // Clear pending deferred state when shutdown is actually executed.
+    sv_deferred_gameprogs_shutdown = false;
+
     if (ge) {
         ge->Shutdown();
-        ge = NULL;
+        ge = nullptr;
     }
     if (game_library) {
         Sys_FreeLibrary(game_library);
-        game_library = NULL;
+        game_library = nullptr;
     }
     Cvar_Set("g_features", "0");
 
     //Z_LeakTest(TAG_FREE);
 }
+
 /**
 *   @brief
 **/
@@ -1234,8 +1271,10 @@ void SV_InitGameProgs(void) {
     svgame_import_t   imports;
 	GameEntryFunctionPointer *entry = NULL;
 
+	// Process deferred unload first if one was requested.
+	SV_ProcessDeferredGameProgsShutdown();
     // unload anything we have now
-    SV_ShutdownGameProgs();
+    //SV_ShutdownGameProgs();
 
     // for debugging or `proxy' mods
     if ( sys_forcesvgamelib->string[0] ) {

@@ -303,24 +303,24 @@ Relevant code:
 Conceptual workflow (mirrors how `MoveAStarToOrigin(...)` is used):
 
 1. Determine the nav agent bbox
-   - use `SVG_TestDummy_GetNavAgentBBox( self, &agent_mins, &agent_maxs )`
+   - use `SVG_Monster_GetNavigationAgentBounds( self, &agent_mins, &agent_maxs )`
    - prefer mesh/cvar agent bounds so feet->center conversion matches mesh generation
 
 2. Decide if a rebuild is needed
-   - throttle with `navPathProcess.CanRebuild( policy )`
-   - detect goal changes with `navPathProcess.ShouldRebuildForGoal2D/3D( goal, policy )`
+   - throttle with `navigationState.pathProcess.CanRebuild( policy )`
+   - detect goal changes with `navigationState.pathProcess.ShouldRebuildForGoal2D/3D( goal, policy )`
 
 3. Enqueue an async rebuild
-   - `handle = SVG_Nav_RequestPathAsync( &navPathProcess, start, goal, policy, agent_mins, agent_maxs, force )`
+   - `handle = SVG_Nav_RequestPathAsync( &navigationState.pathProcess, start, goal, policy, agent_mins, agent_maxs, force )`
    - store `handle` for cancellation if the goal changes
 
 4. While async runs, optionally apply fallback pursuit
    - keeps motion responsive while waiting for the new waypoint list
 
 5. Follow the committed path
-   - `navPathProcess.QueryDirection3D( self->currentOrigin, policy, &dir3d )`
+   - `navigationState.pathProcess.QueryDirection3D( self->currentOrigin, policy, &dir3d )`
    - translate direction into facing/velocity
    - run physics (`PerformSlideMove`) and update entity angles
 
 6. On mode switch / deactivation
-   - cancel pending async requests and free cached paths (see helper like `SVG_TestDummy_ResetNavPath( self )`)
+   - cancel pending async requests and free cached paths (see helper like `SVG_Monster_ResetNavigationPath( self )`)

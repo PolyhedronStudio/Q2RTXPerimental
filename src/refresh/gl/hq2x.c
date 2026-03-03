@@ -362,22 +362,22 @@ void HQ2x_Render(uint32_t *output, const uint32_t *input, int width, int height)
         uint32_t *out0 = output + (y * 2 + 0) * width * 2;
         uint32_t *out1 = output + (y * 2 + 1) * width * 2;
 
-        int prevline = (y == 0 ? 0 : width);
-        int nextline = (y == height - 1 ? 0 : width);
+        int prev_line = (y == 0 ? 0 : width);
+        int next_line = (y == height - 1 ? 0 : width);
 
         for (x = 0; x < width; x++) {
-            int prev = (x == 0 ? 0 : 1);
-            int next = (x == width - 1 ? 0 : 1);
+            int prev_x = (x == 0 ? 0 : 1);
+            int next_x = (x == width - 1 ? 0 : 1);
 
-            uint32_t A = *(in - prevline - prev);
-            uint32_t B = *(in - prevline);
-            uint32_t C = *(in - prevline + next);
-            uint32_t D = *(in - prev);
+            uint32_t A = *(in - prev_line - prev_x);
+            uint32_t B = *(in - prev_line);
+            uint32_t C = *(in - prev_line + next_x);
+            uint32_t D = *(in - prev_x);
             uint32_t E = *(in);
-            uint32_t F = *(in + next);
-            uint32_t G = *(in + nextline - prev);
-            uint32_t H = *(in + nextline);
-            uint32_t I = *(in + nextline + next);
+            uint32_t F = *(in + next_x);
+            uint32_t G = *(in + next_line - prev_x);
+            uint32_t H = *(in + next_line);
+            uint32_t Ip = *(in + next_line + next_x);
 
             int pattern;
             pattern  = diff(E, A) << 0;
@@ -387,11 +387,11 @@ void HQ2x_Render(uint32_t *output, const uint32_t *input, int width, int height)
             pattern |= diff(E, F) << 4;
             pattern |= diff(E, G) << 5;
             pattern |= diff(E, H) << 6;
-            pattern |= diff(E, I) << 7;
+            pattern |= diff(E, Ip) << 7;
 
             *(out0 + 0) = hq2x_blend(hqTable[pattern], E, A, B, D, F, H); pattern = rotTable[pattern];
             *(out0 + 1) = hq2x_blend(hqTable[pattern], E, C, F, B, H, D); pattern = rotTable[pattern];
-            *(out1 + 1) = hq2x_blend(hqTable[pattern], E, I, H, F, D, B); pattern = rotTable[pattern];
+            *(out1 + 1) = hq2x_blend(hqTable[pattern], E, Ip, H, F, D, B); pattern = rotTable[pattern];
             *(out1 + 0) = hq2x_blend(hqTable[pattern], E, G, D, H, B, F);
 
             in++;
@@ -412,22 +412,22 @@ void HQ4x_Render(uint32_t *output, const uint32_t *input, int width, int height)
         uint32_t *out2 = output + (y * 4 + 2) * width * 4;
         uint32_t *out3 = output + (y * 4 + 3) * width * 4;
 
-        int prevline = (y == 0 ? 0 : width);
-        int nextline = (y == height - 1 ? 0 : width);
+        int prev_line = (y == 0 ? 0 : width);
+        int next_line = (y == height - 1 ? 0 : width);
 
         for (x = 0; x < width; x++) {
-            int prev = (x == 0 ? 0 : 1);
-            int next = (x == width - 1 ? 0 : 1);
+            int prev_x = (x == 0 ? 0 : 1);
+            int next_x = (x == width - 1 ? 0 : 1);
 
-            uint32_t A = *(in - prevline - prev);
-            uint32_t B = *(in - prevline);
-            uint32_t C = *(in - prevline + next);
-            uint32_t D = *(in - prev);
+            uint32_t A = *(in - prev_line - prev_x);
+            uint32_t B = *(in - prev_line);
+            uint32_t C = *(in - prev_line + next_x);
+            uint32_t D = *(in - prev_x);
             uint32_t E = *(in);
-            uint32_t F = *(in + next);
-            uint32_t G = *(in + nextline - prev);
-            uint32_t H = *(in + nextline);
-            uint32_t I = *(in + nextline + next);
+            uint32_t F = *(in + next_x);
+            uint32_t G = *(in + next_line - prev_x);
+            uint32_t H = *(in + next_line);
+            uint32_t Ip = *(in + next_line + next_x);
 
             int pattern;
             pattern  = diff(E, A) << 0;
@@ -437,11 +437,11 @@ void HQ4x_Render(uint32_t *output, const uint32_t *input, int width, int height)
             pattern |= diff(E, F) << 4;
             pattern |= diff(E, G) << 5;
             pattern |= diff(E, H) << 6;
-            pattern |= diff(E, I) << 7;
+            pattern |= diff(E, Ip) << 7;
 
             hq4x_blend(hqTable[pattern], out0 + 0, out0 + 1, out1 + 0, out1 + 1, E, A, B, D, F, H); pattern = rotTable[pattern];
             hq4x_blend(hqTable[pattern], out0 + 3, out1 + 3, out0 + 2, out1 + 2, E, C, F, B, H, D); pattern = rotTable[pattern];
-            hq4x_blend(hqTable[pattern], out3 + 3, out3 + 2, out2 + 3, out2 + 2, E, I, H, F, D, B); pattern = rotTable[pattern];
+            hq4x_blend(hqTable[pattern], out3 + 3, out3 + 2, out2 + 3, out2 + 2, E, Ip, H, F, D, B); pattern = rotTable[pattern];
             hq4x_blend(hqTable[pattern], out3 + 0, out2 + 0, out3 + 1, out2 + 1, E, G, D, H, B, F);
 
             in++;
