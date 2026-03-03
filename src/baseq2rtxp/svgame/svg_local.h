@@ -50,6 +50,10 @@ typedef int32_t spawnflag_t;
 **/
 #include "svgame/svg_local_fwd.h"
 
+/**
+*	Tag-based RAII object:
+**/
+#include "svgame/memory/svg_raiiobject.hpp"
 
 /**
 *   Include the shared game headers for functions and types.
@@ -94,6 +98,8 @@ constexpr QMTime HOLD_FOREVER = QMTime::FromMilliseconds( std::numeric_limits<in
 
 //! For backwards compatibilities.
 #define FRAMETIME BASE_FRAMETIME_1000 // OLD: 0.1f	NEW: 40hz makes for 0.025f
+
+
 
 /**
 * 

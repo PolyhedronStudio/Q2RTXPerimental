@@ -39,12 +39,12 @@
 
     // C++ STL Headers:
     #include <version>
+
+	// Note: we include <algorithm> in the C++ case for utilities like std::min/std::max, but we still have some C code in the vkpt generation that uses the macros, so we keep the C-style includes as well.
     #include <algorithm> // std::min, std::max etc, buuut still got vkpt code in C so.
     //#include <array>
     //#include <bit>
     #include <chrono>
-    #include <type_traits>
-    #include <algorithm>
     //#include <array>
 	#include <limits>
     #include <list>
@@ -53,12 +53,14 @@
 	#include <new>
     #include <numbers>
     #include <numeric>
-    #include <unordered_map>
-    #include <set>
-    #include <unordered_set>
     #include <random>
-    #include <string_view>
+	#include <set>
+	#include <string_view>
+	#include <unordered_map>
+	#include <unordered_set>
+	#include <utility>
     #include <variant>
     #include <vector>
+	#include <type_traits>
 
 #endif//__cplusplus

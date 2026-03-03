@@ -7,21 +7,20 @@
 ********************************************************************/
 #pragma once
 
+//! Define to enable default cvar values for navigation debugging features. 
+//! This is separate from the main debug define to allow selective enabling of debug features 
+//! without incurring the overhead of all debug features (e.g., debug drawing).
+#if USE_DEBUG
+	#define _DEBUG_NAV_MESH 1
+#endif
 
-#include "svgame/memory/svg_raiiobject.hpp"
-#include <utility>
-
+//! Forward declarations to minimize includes in this header, which is included widely for nav-related code.
 struct svg_base_edict_t;
 
-//! Default path for the engine to find nav files at.
-static constexpr const char *navPath = "/maps/nav/";
-
-//! Conversion factor from degrees to radians.
-static constexpr double DEG_TO_RAD = M_PI / 180.0f;
-//! Conversion factor from microseconds to seconds.
-static constexpr double MICROSECONDS_PER_SECOND = 1000000.0;
-//! Small epsilon to ensure max bounds map to the correct tile.
-static constexpr double NAV_TILE_EPSILON = 0.001f;
+/**
+*	Include default constants for navigation parameters.
+**/
+#include "svgame/nav/svg_nav_const_defaults.h"
 
 
 
@@ -662,18 +661,8 @@ extern cvar_t *nav_cost_min_cost_per_unit;
 
 /**
 *	@brief	Profiling and logging control CVars.
-*
-*	@note	`nav_profile_level` controls the verbosity of timing/profiling emitted by
-*			the nav generation routines:
-*			0 = off, 1 = phase-level only, 2 = per-leaf timings, 3 = per-tile timings.
-*
-*	@note   `nav_log_file_enable` and `nav_log_file_name` allow optionally writing
-*			navigation logs to a dedicated file in the `logs/` directory without
-*			changing global console logging behavior.
 **/
 extern cvar_t *nav_profile_level;      //!< Profiling verbosity level (0..3).
-extern cvar_t *nav_log_file_enable;    //!< If non-zero, write nav logs to dedicated file.
-extern cvar_t *nav_log_file_name;      //!< Filename (no path/ext) for dedicated nav log (e.g., "nav").
 
 /**
 *	@brief	Public wrapper to build the cluster graph from a mesh.

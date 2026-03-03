@@ -124,16 +124,6 @@ static constexpr double DUMMY_IDLE_SCAN_STEP_DEG = 45.0;
 //! Interval for flipping idle scan yaw direction.
 static constexpr QMTime DUMMY_IDLE_SCAN_FLIP_INTERVAL = 500_ms;
 
-/**
-*   @brief	Compute horizontal distance squared between two points.
-**/
-static inline const double Dummy_Distance2DSqr( const Vector3 &a, const Vector3 &b ) {
-	const double dx = ( double )a.x - ( double )b.x;
-	const double dy = ( double )a.y - ( double )b.y;
-	return ( dx * dx ) + ( dy * dy );
-
-	return QM_Vector3DistanceSqr( a, b );
-}
 
 /**
 *   @brief	Return a readable name for a debug AI state.
@@ -164,13 +154,18 @@ static inline void Dummy_LogStateGateInputs( svg_monster_testdummy_debug_t *self
 		return;
 	}
 
+	// Early out if not active to reduce noise and avoid invalid state reads (e.g. activator).
+	if ( !self->isActivated ) {
+		return;
+	}
+
 	/**
 	*   Compute lightweight gate inputs used by state handlers.
 	**/
 	const bool hasActivator = ( self->activator != nullptr );
 	const bool activatorVisible = hasActivator ? SVG_Entity_IsVisible( self, self->activator ) : false;
 	const double activatorDist2D = hasActivator
-		? std::sqrt( Dummy_Distance2DSqr( self->activator->currentOrigin, self->currentOrigin ) )
+		? std::sqrt( QM_Vector2DistanceSqr( self->activator->currentOrigin, self->currentOrigin ) )
 		: -1.0;
 	const bool requestPending = SVG_Nav_IsRequestPending( &self->navigationState.pathProcess );
 
@@ -209,7 +204,7 @@ static inline void AdjustGoalZBlendPolicy( svg_monster_testdummy_debug_t *self, 
 	auto &policy = self->navigationState.pathPolicy;
 	auto &proc = self->navigationState.pathProcess;
 
-	const double horizDist = std::sqrt( Dummy_Distance2DSqr( goalOrigin, self->currentOrigin ) );
+	const double horizDist = std::sqrt( QM_Vector2DistanceSqr( goalOrigin, self->currentOrigin ) );
 	const double dz = ( double )goalOrigin.z - ( double )self->currentOrigin.z;
 	const double absDz = std::fabs( dz );
 
@@ -228,7 +223,7 @@ static inline void AdjustGoalZBlendPolicy( svg_monster_testdummy_debug_t *self, 
 	constexpr double kMinBlendFull = 64.0;
 
 	const bool activatorVisible = ( self->activator != nullptr && SVG_Entity_IsVisible( self, self->activator ) );
-	const double activatorDist2D = self->activator ? std::sqrt( Dummy_Distance2DSqr( self->activator->currentOrigin, self->currentOrigin ) ) : 1e9;
+	const double activatorDist2D = self->activator ? std::sqrt( QM_Vector2DistanceSqr( self->activator->currentOrigin, self->currentOrigin ) ) : 1e9;
 	const bool activatorNearby = ( activatorDist2D <= DUMMY_PLAYER_PURSUIT_MAX_DIST );
 
 	// If vertical difference is small, prefer no bias (stay on start layer).
@@ -582,11 +577,11 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_
 	//self->nextthink = level.time + 20_hz;
 	//self->think = barrel_explode;
 
-	if ( self->lifeStatus == LIFESTATUS_DEAD ) {
+	if ( ( self->lifeStatus & LIFESTATUS_DEAD ) == LIFESTATUS_DEAD ) {
 		return;
 	}
 
-	if ( self->lifeStatus == LIFESTATUS_DYING ) {
+	if ( ( self->lifeStatus & LIFESTATUS_DYING ) == LIFESTATUS_DYING ) {
 		// Gib Death:
 		if ( self->health < GIB_DEATH_HEALTH ) {
 			// Play gib sound.
@@ -601,7 +596,6 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_
 
 			// Gibs don't take damage, but fade away as time passes.
 			self->takedamage = DAMAGE_NO;
-
 			// Set lifeStatus.
 			self->lifeStatus = LIFESTATUS_DEAD;
 		}
@@ -612,7 +606,7 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_
 	//---------------------------
 	// <TEMPORARY FOR TESTING>
 	//---------------------------
-	if ( self->lifeStatus == LIFESTATUS_ALIVE ) {
+	if ( ( self->lifeStatus & LIFESTATUS_ALIVE ) == LIFESTATUS_ALIVE ) {
 		// Pick a random death animation.
 		int32_t deathanim = irandom( 3 );
 		if ( deathanim == 0 ) {
@@ -642,8 +636,9 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_
 	// Stop playing any sounds.
 	self->s.sound = 0;
 	// Setup the death bounding box.
-	self->mins = DUMMY_BBOX_DEAD_MINS; // VectorCopy( DUMMY_BBOX_DEAD_MINS, self->mins );
-	self->maxs = DUMMY_BBOX_DEAD_MAXS; // VectorCopy( DUMMY_BBOX_DEAD_MAXS, self->maxs );
+	self->mins = DUMMY_BBOX_DEAD_MINS;
+	self->maxs = DUMMY_BBOX_DEAD_MAXS;
+
 	// Make sure to relink.
 	gi.linkentity( self );
 }
@@ -763,7 +758,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 	}
     // Note: we use horizontal distance for the pursuit gate to allow for some verticality without completely breaking pursuit, 
 	// but this also means that in cases where the activator is directly above or below the test dummy, the pursuit gate will not function as intended and may allow pursuit at greater actual distances. This is a tradeoff to allow for more forgiving pursuit in typical cases while still providing a hard cutoff for very long-distance pursuits that are unlikely to succeed.
-	const double activatorDist2D = std::sqrt( Dummy_Distance2DSqr( self->activator->currentOrigin, self->currentOrigin ) );
+	const double activatorDist2D = std::sqrt( QM_Vector2DistanceSqr( self->activator->currentOrigin, self->currentOrigin ) );
 	// Breadcrumb fallback rule: direct player pursuit only while LOS is valid.
 	// On LOS loss, this state must hand off to breadcrumb/idle logic below.
 	// If the activator is not visible or is beyond the defined pursuit distance, we will not attempt direct pursuit 
@@ -953,7 +948,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 	*    If the player becomes visible again, return to direct A* pursuit.
 	**/
     // Compute 2D distance to activator for pursuit gating.
-	const double activatorDist2D = std::sqrt( Dummy_Distance2DSqr( self->activator ? self->activator->currentOrigin : self->currentOrigin, self->currentOrigin ) );
+	const double activatorDist2D = std::sqrt( QM_Vector2DistanceSqr( self->activator ? self->activator->currentOrigin : self->currentOrigin, self->currentOrigin ) );
     // In breadcrumb mode, return to direct pursuit only on confirmed LOS.
     if ( self->activator
      && SVG_Entity_IsVisible( self, self->activator ) )
@@ -1034,9 +1029,9 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 			}
 			// Compute 2D distance to current breadcrumb.
 			Vector3 toTrail = QM_Vector3Subtract( self->trailNavigationState.targetEntity->currentOrigin, self->currentOrigin );
-			float horizontalDist2 = ( toTrail.x * toTrail.x ) + ( toTrail.y * toTrail.y );
+			double horizontalDist2 = ( toTrail.x * toTrail.x ) + ( toTrail.y * toTrail.y );
 			// Use the same radius we use for nav waypoint advancement, with a sane fallback.
-			float arrivalRadius = ( self->navigationState.pathPolicy.waypoint_radius > 0.0f ) ? self->navigationState.pathPolicy.waypoint_radius : 32.0f;
+			double arrivalRadius = ( self->navigationState.pathPolicy.waypoint_radius > 0. ) ? self->navigationState.pathPolicy.waypoint_radius : NAV_DEFAULT_WAYPOINT_RADIUS;
 			return horizontalDist2 <= ( arrivalRadius * arrivalRadius );
 		};
 
@@ -1238,7 +1233,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 	*   Leave investigate mode once we reached the sound location.
 	**/
 	// Compute 2D distance to sound origin for arrival checking.
-	const double soundDist2DSqr = Dummy_Distance2DSqr( self->soundScanInvestigation.origin, self->currentOrigin );
+	const double soundDist2DSqr = QM_Vector2DistanceSqr( self->soundScanInvestigation.origin, self->currentOrigin );
 	// If we are close enough to the sound origin, consider that we have arrived and go idle.
 	if ( soundDist2DSqr <= ( DUMMY_SOUND_INVESTIGATE_REACHED_DIST * DUMMY_SOUND_INVESTIGATE_REACHED_DIST ) ) {
 		// Clear interest in the sound target since we have arrived.
@@ -1708,8 +1703,8 @@ const bool svg_monster_testdummy_debug_t::GenericThinkBegin() {
 	/**
 	*	Setup A* Navigation Policy: stairs, drops, and obstruction jumping.
 	**/
-	navigationState.pathPolicy.waypoint_radius = 32.0f;
-	navigationState.pathPolicy.max_step_height = 18.0;
+	navigationState.pathPolicy.waypoint_radius = NAV_DEFAULT_WAYPOINT_RADIUS;
+	navigationState.pathPolicy.max_step_height = NAV_DEFAULT_STEP_MAX_SIZE;
 	navigationState.pathPolicy.max_drop_height = 128.0;
 	navigationState.pathPolicy.enable_max_drop_height_cap = true;
 	navigationState.pathPolicy.max_drop_height_cap = ( nav_max_drop_height_cap && nav_max_drop_height_cap->value > 0.0f ) ? nav_max_drop_height_cap->value : 64;
@@ -2126,7 +2121,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 	// only suppress when the activator is both invisible and outside the proximity gate.
 	const bool activatorVisible = ( activator && SVG_Entity_IsVisible( this, activator ) );
 	const double activatorDist2D = activator
-		? std::sqrt( Dummy_Distance2DSqr( activator->currentOrigin, currentOrigin ) )
+		? std::sqrt( QM_Vector2DistanceSqr( activator->currentOrigin, currentOrigin ) )
 		: 0.0;
 	const bool activatorWithinProximity = activator && ( activatorDist2D <= DUMMY_PLAYER_PURSUIT_MAX_DIST );
 	if ( goalentity == activator && activator && !activatorVisible && !activatorWithinProximity && !force ) {
@@ -2162,7 +2157,6 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 			navigationState.pathProcess.next_rebuild_time = level.time + navigationState.pathPolicy.rebuild_interval;
 		}
     } else {
-		//SVG_Monster_TryQueueNavigationRebuild( this, currentOrigin, goalOrigin, navigationState.pathPolicy, agent_mins, agent_maxs, force );
 		// Only honor an explicit force request when the goal moved beyond the
 		// configured rebuild thresholds. This prevents callers from forcing each
 		// frame for negligible movements.
@@ -2189,7 +2183,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 		**/
 		svg_nav_path_policy_t queuePolicy = navigationState.pathPolicy;
 #if MONSTER_TESTDUMMY_DEBUG_BYPASS_ROUTE_FILTER
-		queuePolicy.enable_cluster_route_filter = false;
+		queuePolicy.enable_cluster_route_filter = true;
 #endif
 		const bool queued = TryNavigationQueueRebuild( currentOrigin, goalOrigin, queuePolicy, agent_mins, agent_maxs, effectiveForce );
 		// If we successfully requested a rebuild and the caller intended a force,

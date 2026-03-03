@@ -94,7 +94,7 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 	//	baseGame = BASEGAME;
 	//}
 	// Build full file path.
-	const std::string filePath = baseGame + std::string( navPath ) + fileNameExt;
+	const std::string filePath = baseGame + std::string( NAV_PATH_DIR ) + fileNameExt;
 
 	/**
 	*	Build full file path.

@@ -50,6 +50,8 @@ struct QTDefaultDeleter {
 	}
 };
 
+
+
 /**
 *
 *

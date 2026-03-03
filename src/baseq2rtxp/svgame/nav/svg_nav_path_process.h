@@ -8,9 +8,7 @@
 ********************************************************************/
 #pragma once
 
-#include "svgame/svg_local.h"
-#include "svgame/nav/svg_nav.h"
-#include <vector>
+//#include "svgame/nav/svg_nav.h"
 
 /**
 *	@brief	Policy for path processing and follow behavior.
@@ -29,19 +27,22 @@ struct svg_nav_path_policy_t {
 	/**
 	*	Ignore/Allow States:
 	**/
-	bool ignore_visibility = true;
-	bool ignore_infront = true;
+	//! If true, ignore visibility when deciding whether to rebuild the path. 
+	//! This can be useful for testing and debugging, but generally we want the monster to try to rebuild more aggressively when it can see the player.
+	bool ignore_visibility	= true;
+	//! If true, ignore distance in front of the monster when deciding whether to rebuild the path.
+	bool ignore_infront		= true;
 
 	/**
 	*	Goal and Waypoint parameters:
 	**/
 	//! Radius around waypoints to consider 'reached'.
-	float waypoint_radius = 32.0;
+	double waypoint_radius = NAV_DEFAULT_WAYPOINT_RADIUS;
 
 	//! 2D distance change in goal position that triggers a path rebuild.
-	double rebuild_goal_dist_2d = 96.0;
+	double rebuild_goal_dist_2d = NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE;
 	//! 3D distance change in goal position that triggers a path rebuild.
-	double rebuild_goal_dist_3d = 128.0; // 48 * 48 = 2304
+	double rebuild_goal_dist_3d = NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE; // 48 * 48 = 2304
 
 	/**
 	*    Goal Z-layer blending controls used to bias layer selection toward the goal's
@@ -51,9 +52,9 @@ struct svg_nav_path_policy_t {
 	//! If true, blend the desired layer Z between start and goal when selecting layers.
 	bool enable_goal_z_layer_blend = true;
 	//! Horizontal distance at which blending begins (units).
-	double blend_start_dist = PHYS_STEP_MAX_SIZE;
+	double blend_start_dist	= NAV_DEFAULT_BLEND_DIST_START;
 	//! Horizontal distance at which blending is fully biased to the goal Z (units).
-	double blend_full_dist = 128.0;
+	double blend_full_dist	= NAV_DEFAULT_BLEND_DIST_FULL;
 
 	/**
 	*    Cluster-route pre-pass controls:
@@ -78,9 +79,9 @@ struct svg_nav_path_policy_t {
 	*	For obstacle Jump handling:
 	**/
 	//! If true, try to perform a small obstacle jump when blocked.
-	bool allow_small_obstruction_jump = true;
+	bool allow_small_obstruction_jump	= true;
 	//! Max obstruction height allowed to jump over.
-	double max_obstruction_jump_height = 48.0;
+	double max_obstruction_jump_height	= NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE;
 
 	/**
 	*	For fall-safety:
@@ -93,9 +94,9 @@ struct svg_nav_path_policy_t {
 	//! If true, do not allow moving into a drop deeper than max_drop_height.
 	bool enable_max_drop_height_cap = true;
 	//! Max allowed drop height (units, matches `nav_max_drop`).
-	double max_drop_height = 64.0;
+	double max_drop_height		= NAV_DEFAULT_MAX_DROP_HEIGHT;
 	//! Drop cap applied when rejecting large downward transitions (matches `nav_max_drop_height_cap`).
-	double max_drop_height_cap = 192.;
+	double max_drop_height_cap	= NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
 
 	/**
 	*	Agent navigation constraints derived from nav CVars.

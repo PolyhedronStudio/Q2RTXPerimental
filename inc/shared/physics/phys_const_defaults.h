@@ -44,16 +44,16 @@ static double PHYS_MAX_SLOPE_NORMAL = 0.7;
 * 
 **/
 //! Minimal step height difference for the Z axis before marking our move as a 'stair step'.
-static const constexpr double PHYS_STEP_MIN_SIZE = 2.f;
+static constexpr const double PHYS_STEP_MIN_SIZE = 2.;
 //! Maximal step height difference for the Z axis before marking our move as a 'stair step'.
-static const constexpr double PHYS_STEP_MAX_SIZE = 18.f;
+static constexpr const double PHYS_STEP_MAX_SIZE = 18.;
 //! This defines the maximum step height that will be smoothed out more, by doubling the stair_step_delta, 
 //! which results in a faster lerp and thus smoother appearance for smaller steps. 
-//! The value of 15.f is chosen based on typical step heights in the game, 
+//! The value of 15. is chosen based on typical step heights in the game, 
 //! but can be adjusted as needed for better visual results.
-static const constexpr double PHYS_STEP_SMALL_SIZE = 15.;
+static constexpr const double PHYS_STEP_SMALL_SIZE = 15.;
 //! Offset for distance to account for between step and ground.
-static const constexpr double PHYS_STEP_GROUND_DIST = 0.25f;
+static constexpr const double PHYS_STEP_GROUND_DIST = 0.25;
 
 
 
@@ -74,38 +74,38 @@ static const constexpr double PHYS_STEP_GROUND_DIST = 0.25f;
 *	For when the agent is in its 'regular' stance, standing straight up.
 **/
 //! The minimal bounding box for the agent, relative to its origin at the center of its feet.
-static constexpr Vector3 PHYS_DEFAULT_BBOX_STANDUP_MINS = { -16.f, -16.f, -36.f };
+static constexpr const Vector3 PHYS_DEFAULT_BBOX_STANDUP_MINS = { -16., -16., -36. };
 //! The maximal bounding box for the agent, relative to its origin at the center of its feet.
-static constexpr Vector3 PHYS_DEFAULT_BBOX_STANDUP_MAXS = { 16.f, 16.f, 36.f };
+static constexpr const Vector3 PHYS_DEFAULT_BBOX_STANDUP_MAXS = { 16., 16., 36. };
 //! The view height offset relative from the origin for the agent's viewpoint when standing up.
-static const constexpr double  PHYS_DEFAULT_VIEWHEIGHT_STANDUP = 30.f;
+static constexpr const double  PHYS_DEFAULT_VIEWHEIGHT_STANDUP = 30.;
 
 /**
 *	For when the agent is actively crouching.
 **/
 //! The minimal bounding box for the agent, relative to its origin at the center of its feet.
-static constexpr Vector3 PHYS_DEFAULT_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
+static constexpr const Vector3 PHYS_DEFAULT_BBOX_DUCKED_MINS = { -16., -16., -36. };
 //! The maximal bounding box for the agent, relative to its origin at the center of its feet.
-static constexpr Vector3 PHYS_DEFAULT_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
+static constexpr const Vector3 PHYS_DEFAULT_BBOX_DUCKED_MAXS = { 16., 16., 8. };
 //! The view height offset relative to the origin for the agent's viewpoint when ducked up.
-static const constexpr double  PHYS_DEFAULT_VIEWHEIGHT_DUCKED = 4.f;
+static constexpr const double  PHYS_DEFAULT_VIEWHEIGHT_DUCKED = 4.;
 
 /**
 *	For when the agent is spectating / noclipping.
 **/
 //! The minimal bounding box for the agent, relative to its origin at the center of its feet.
-static constexpr Vector3 PHYS_DEFAULT_BBOX_FLYING_MINS = { -8.f, -8.f, -8.f };
+static constexpr const Vector3 PHYS_DEFAULT_BBOX_FLYING_MINS = { -8., -8., -8. };
 //! The maximal bounding box for the agent, relative to its origin at the center of its feet.
-static constexpr Vector3 PHYS_DEFAULT_BBOX_FLYING_MAXS = { 8.f, 8.f, 8.f };
+static constexpr const Vector3 PHYS_DEFAULT_BBOX_FLYING_MAXS = { 8., 8., 8. };
 //! The view height offset relative to the origin for the agent's viewpoint when flying.
-static const constexpr double  PHYS_DEFAULT_VIEWHEIGHT_FLYING = 0.f;
+static constexpr const double  PHYS_DEFAULT_VIEWHEIGHT_FLYING = 0.;
 
 /**
 *	For when the agent is "gibbed" out. ( Splattered to pieces, e.g., by a rocket explosion.
 **/
 //! The minimal bounding box for the agent, relative to its origin at the center of its feet.
-static constexpr Vector3 PHYS_DEFAULT_BBOX_GIBBED_MINS = { -16.f, -16.f, 0.f };
+static constexpr const Vector3 PHYS_DEFAULT_BBOX_GIBBED_MINS = { -16., -16., -12. };
 //! The maximal bounding box for the agent, relative to its origin at the center of its feet.
-static constexpr Vector3 PHYS_DEFAULT_BBOX_GIBBED_MAXS = { 16.f, 16.f, 24.f };
+static constexpr const Vector3 PHYS_DEFAULT_BBOX_GIBBED_MAXS = { 16., 16., 12. };
 //! The view height offset relative to the origin for the agent's viewpoint when 'gibbed out'.
-static const constexpr double  PHYS_DEFAULT_VIEWHEIGHT_GIBBED = 8.f;
+static const constexpr double  PHYS_DEFAULT_VIEWHEIGHT_GIBBED = 4.;

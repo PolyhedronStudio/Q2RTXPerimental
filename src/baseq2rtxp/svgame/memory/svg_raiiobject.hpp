@@ -7,8 +7,19 @@
 *
 *
 **/
-#include "svgame/svg_local.h"
+#pragma once
 
+
+
+/**
+*
+*
+*
+*	SVGame(-Level) Tag Memory `Allocator` and `Deleter`:
+*
+*
+*
+**/
 /**
 *	@brief	Allocator functor for TagMalloc.
 *	@note	Provides static Allocate method compatible with QRAIIObject.
@@ -24,7 +35,6 @@ struct QTagAllocator {
 		return gi.TagMalloc( size, tag );
 	}
 };
-
 /**
 *	@brief	Deleter functor for TagFree.
 *	@note	Provides static Deallocate method compatible with QRAIIObject.
@@ -39,6 +49,17 @@ struct QTagDeleter {
 	}
 };
 
+
+
+/**
+*
+*
+*
+*	RAII Helper for SVGame(-Level) Tagged Memory:
+*
+*
+*
+**/
 /**
 *	@brief	Type alias for RAII objects using TagMalloc/TagFree.
 *	@tparam	T	Type of object to manage.

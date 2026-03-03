@@ -413,15 +413,15 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	**/
 	//! For when dummy is standing straight up.
-	static constexpr Vector3 DUMMY_BBOX_STANDUP_MINS = { -16.f, -16.f, -36.f };
-	static constexpr Vector3 DUMMY_BBOX_STANDUP_MAXS = { 16.f, 16.f, 36.f };
-	static constexpr float   DUMMY_VIEWHEIGHT_STANDUP = 24.f;
+	static constexpr const Vector3 DUMMY_BBOX_STANDUP_MINS	= PHYS_DEFAULT_BBOX_STANDUP_MINS;
+	static constexpr const Vector3 DUMMY_BBOX_STANDUP_MAXS	= PHYS_DEFAULT_BBOX_STANDUP_MAXS;
+	static constexpr const double DUMMY_VIEWHEIGHT_STANDUP	= PHYS_DEFAULT_VIEWHEIGHT_STANDUP;
 	//! For when dummy is crouching.
-	static constexpr Vector3 DUMMY_BBOX_DUCKED_MINS = { -16.f, -16.f, -36.f };
-	static constexpr Vector3 DUMMY_BBOX_DUCKED_MAXS = { 16.f, 16.f, 8.f };
-	static constexpr float   DUMMY_VIEWHEIGHT_DUCKED = 4.f;
+	static constexpr const Vector3 DUMMY_BBOX_DUCKED_MINS	= PHYS_DEFAULT_BBOX_DUCKED_MINS;
+	static constexpr const Vector3 DUMMY_BBOX_DUCKED_MAXS	= PHYS_DEFAULT_BBOX_DUCKED_MAXS;
+	static constexpr const double DUMMY_VIEWHEIGHT_DUCKED	= PHYS_DEFAULT_VIEWHEIGHT_DUCKED;
 	//! For when dummy is dead.
-	static constexpr Vector3 DUMMY_BBOX_DEAD_MINS = { -16.f, -16.f, -36.f };
-	static constexpr Vector3 DUMMY_BBOX_DEAD_MAXS = { 16.f, 16.f, 8.f };
-	static constexpr float   DUMMY_VIEWHEIGHT_DEAD = 8.f;
+	static constexpr const Vector3 DUMMY_BBOX_DEAD_MINS		= { -16., -16., -36. };
+	static constexpr const Vector3 DUMMY_BBOX_DEAD_MAXS		= { 16., 16., 8. };
+	static constexpr double	DUMMY_VIEWHEIGHT_DEAD			= 8.;
 };

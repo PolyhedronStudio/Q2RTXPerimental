@@ -26,6 +26,103 @@
 
 
 
+/**
+*
+*
+*
+*   Navigation Global Variables and CVars:
+*
+*
+*
+**/
+/**
+*	Navigation Debug CVar Variables:
+**/
+//cvar_t *nav_debug_draw_voxelmesh = nullptr;
+//cvar_t *nav_debug_draw_walkable_sample_points = nullptr;
+//cvar_t *nav_debug_draw_pathfinding = nullptr;
+
+/**
+*   @brief  Global navigation mesh instance (RAII owner).
+*           Stores the complete navigation data for the current level.
+*   @note   Automatically manages construction/destruction via RAII helper.
+**/
+// Use g_nav_mesh.get() to access the raw pointer when needed.
+nav_mesh_raii_t g_nav_mesh;
+
+//! Profiling/logging CVars
+cvar_t *nav_profile_level = nullptr;
+//! Maximum allowed time per A* step in milliseconds (used to cap processing time and allow incremental stepping).
+cvar_t *nav_astar_step_budget_ms = nullptr;
+
+//! XY grid cell size in world units.
+cvar_t *nav_cell_size_xy = nullptr;
+//! Number of cells per tile dimension.
+cvar_t *nav_tile_size = nullptr;
+
+//! Z-axis quantization step.
+cvar_t *nav_z_quant = nullptr;
+// Optional vertical tolerance (world units). If <= 0, auto-derived from mesh parameters.
+cvar_t *nav_z_tolerance = nullptr;
+
+//! Maximum step height (matches player PM_STEP_MAX_SIZE).
+cvar_t *nav_max_step = nullptr;
+//! Maximum allowed downward traversal drop.
+cvar_t *nav_max_drop = nullptr;
+//! Cap applied when rejecting large drops during path validation.
+cvar_t *nav_max_drop_height_cap = nullptr;
+//! Minimum walkable surface normal Z threshold.
+cvar_t *nav_max_slope_normal_z = nullptr;
+
+//! Agent bounding box minimum X.
+cvar_t *nav_agent_mins_x = nullptr;
+//! Agent bounding box minimum Y.
+cvar_t *nav_agent_mins_y = nullptr;
+//! Agent bounding box minimum Z.
+cvar_t *nav_agent_mins_z = nullptr;
+//! Agent bounding box maximum X.
+cvar_t *nav_agent_maxs_x = nullptr;
+//! Agent bounding box maximum Y.
+cvar_t *nav_agent_maxs_y = nullptr;
+//! Agent bounding box maximum Z.
+cvar_t *nav_agent_maxs_z = nullptr;
+
+
+/**
+*
+*
+*
+*		Runtime cost - tuning CVars for A *heuristics(defined here)
+* 
+* 
+* 
+**/
+//! Distance cost weight.
+cvar_t *nav_cost_w_dist = nullptr;
+//! Base cost for jump actions (added to the cost of jump nodes, before applying height multiplier).
+cvar_t *nav_cost_jump_base = nullptr;
+//! Multiplier applied to jump nodes based on their height (e.g., taller jumps are more costly).
+cvar_t *nav_cost_jump_height_weight = nullptr;
+//! Line-of-sight cost weight (multiplier applied to nodes without LOS to the goal).
+cvar_t *nav_cost_los_weight = nullptr;
+//! Dynamic cost weight (multiplier applied to nodes with dynamic occupancy).
+cvar_t *nav_cost_dynamic_weight = nullptr;
+//! Failure cost weight (multiplier applied to nodes that have failed traversal recently).
+cvar_t *nav_cost_failure_weight = nullptr;
+//! Failure cost decay time constant in milliseconds (controls how long failed nodes remain costly).
+cvar_t *nav_cost_failure_tau_ms = nullptr;
+//! Turn cost weight (multiplier applied to nodes that require a significant direction change).
+cvar_t *nav_cost_turn_weight = nullptr;
+//! Slope cost weight (multiplier applied to nodes with steep slopes).
+cvar_t *nav_cost_slope_weight = nullptr;
+//! Drop cost weight (multiplier applied to nodes with large downward transitions).
+cvar_t *nav_cost_drop_weight = nullptr;
+//! Goal Z blend factor (0..1) for blending desired layer Z between start and goal based on distance.
+cvar_t *nav_cost_goal_z_blend_factor = nullptr;
+//! Minimum cost per unit distance (used to prevent zero-cost edges and ensure consistent heuristics).
+cvar_t *nav_cost_min_cost_per_unit = nullptr;
+
+
 
 /**
 *
@@ -36,12 +133,6 @@
 *
 *
 **/
-// Profiling/logging CVars
-cvar_t *nav_profile_level = nullptr;
-cvar_t *nav_log_file_enable = nullptr;
-cvar_t *nav_log_file_name = nullptr;
-//! Per-call A* step budget (milliseconds). Allows tuning of async worker per-request budget without rebuilding.
-cvar_t *nav_astar_step_budget_ms = nullptr;
 
 /**
 *	Forward declarations for tile sizing helpers.
@@ -203,7 +294,6 @@ static inline const bool Nav_CanTraverseStep_ExplicitBBox( const nav_mesh_t *mes
 *   CVars for Navigation Debug Drawing:
 *
 **/
-
 //! Master on/off. 0 = off, 1 = on.
 extern cvar_t *nav_debug_draw;
 //! Only draw a specific BSP leaf index. -1 = any.
@@ -229,25 +319,11 @@ extern cvar_t *nav_debug_show_failed_lookups;
 *
 *
 *
-*   Navigation Global Variables and CVars:
+*   Navigation Occupancy:
 *
 *
 *
 **/
-/**
-*	Navigation Debug CVar Variables:
-**/
-//cvar_t *nav_debug_draw_voxelmesh = nullptr;
-//cvar_t *nav_debug_draw_walkable_sample_points = nullptr;
-//cvar_t *nav_debug_draw_pathfinding = nullptr;
-
-/**
-*   @brief  Global navigation mesh instance (RAII owner).
-*           Stores the complete navigation data for the current level.
-*   @note   Automatically manages construction/destruction via RAII helper.
-**/
-nav_mesh_raii_t g_nav_mesh;
-
 /**
 *    @brief    Build a packed occupancy key from tile/cell/layer indices.
 */
@@ -355,52 +431,6 @@ bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t *mesh, int32_t tileId, int32_t 
 	return it->second.blocked;
 }
 
-/**
-*   @brief  Navigation CVars for generation parameters.
-**/
-//! XY grid cell size in world units.
-cvar_t *nav_cell_size_xy = nullptr;
-//! Z-axis quantization step.
-cvar_t *nav_z_quant = nullptr;
-//! Number of cells per tile dimension.
-cvar_t *nav_tile_size = nullptr;
-//! Maximum step height (matches player PM_STEP_MAX_SIZE).
-cvar_t *nav_max_step = nullptr;
-//! Maximum allowed downward traversal drop.
-cvar_t *nav_max_drop = nullptr;
-//! Cap applied when rejecting large drops during path validation.
-cvar_t *nav_max_drop_height_cap = nullptr;
-//! Minimum walkable surface normal Z threshold.
-cvar_t *nav_max_slope_normal_z = nullptr;
-//! Agent bounding box minimum X.
-cvar_t *nav_agent_mins_x = nullptr;
-//! Agent bounding box minimum Y.
-cvar_t *nav_agent_mins_y = nullptr;
-//! Agent bounding box minimum Z.
-cvar_t *nav_agent_mins_z = nullptr;
-//! Agent bounding box maximum X.
-cvar_t *nav_agent_maxs_x = nullptr;
-//! Agent bounding box maximum Y.
-cvar_t *nav_agent_maxs_y = nullptr;
-//! Agent bounding box maximum Z.
-cvar_t *nav_agent_maxs_z = nullptr;
-// Optional vertical tolerance (world units). If <= 0, auto-derived from mesh parameters.
-cvar_t *nav_z_tolerance = nullptr;
-
-// Runtime cost-tuning CVars for A* heuristics (defined here)
-cvar_t *nav_cost_w_dist = nullptr;
-cvar_t *nav_cost_jump_base = nullptr;
-cvar_t *nav_cost_jump_height_weight = nullptr;
-cvar_t *nav_cost_los_weight = nullptr;
-cvar_t *nav_cost_dynamic_weight = nullptr;
-cvar_t *nav_cost_failure_weight = nullptr;
-cvar_t *nav_cost_failure_tau_ms = nullptr;
-cvar_t *nav_cost_turn_weight = nullptr;
-cvar_t *nav_cost_slope_weight = nullptr;
-cvar_t *nav_cost_drop_weight = nullptr;
-cvar_t *nav_cost_goal_z_blend_factor = nullptr;
-cvar_t *nav_cost_min_cost_per_unit = nullptr;
-
 
 
 /**
@@ -457,6 +487,9 @@ static inline void Nav_SetPresenceBit( nav_tile_t *tile, int32_t cell_index ) {
 *           have their proper modelindex set.
 **/
 void SVG_Nav_Init( void ) {
+	// Profiling / logging control CVars
+	nav_profile_level = gi.cvar( "nav_profile_level", "1", 0 ); // 0=off,1=phase,2=per-leaf,3=per-tile
+
 	/**
 	*   Register grid and quantization CVars with sensible defaults:
 	**/
@@ -470,14 +503,14 @@ void SVG_Nav_Init( void ) {
 	/**
 	*   Register physics constraint CVars matching player movement:
 	**/
-	nav_max_step = gi.cvar( "nav_max_step", std::to_string(PHYS_STEP_MAX_SIZE).c_str(), 0);
-	nav_max_drop = gi.cvar( "nav_max_drop", "128", 0 );
+	nav_max_step = gi.cvar( "nav_max_step", std::to_string( NAV_DEFAULT_STEP_MAX_SIZE ).c_str(), 0 );
+	nav_max_drop = gi.cvar( "nav_max_drop", std::to_string( NAV_DEFAULT_MAX_DROP_HEIGHT ).c_str(), 0 );
 	nav_max_slope_normal_z = gi.cvar( "nav_max_slope_normal_z", std::to_string( PHYS_MAX_SLOPE_NORMAL ).c_str(), 0);
 
 	/**
 	*	Register physics constraints for specific actions.
 	**/
-	nav_max_drop_height_cap = gi.cvar( "nav_max_drop_height_cap", "96.0", 0 );
+	nav_max_drop_height_cap = gi.cvar( "nav_max_drop_height_cap", std::to_string( NAV_DEFAULT_MAX_DROP_HEIGHT_CAP ).c_str(), 0 );
 
 	/**
 	*   Register agent bounding box CVars:
@@ -493,27 +526,27 @@ void SVG_Nav_Init( void ) {
 	*   Debug draw CVars:
 	**/
 	#if _DEBUG_NAV_MESH
-	nav_debug_draw = gi.cvar( "nav_debug_draw", "1", 0 );
-	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
-	nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", 0 );
-	nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "128", 0 );
-	nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "8192", 0 );
-	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "0", 0 );
-	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "0", 0 );
-	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "1", 0 );
-	// Temporary: enable diagnostic prints for failed nav lookups (tile/cell indices)
-	nav_debug_show_failed_lookups = gi.cvar( "nav_debug_show_failed_lookups", "1", CVAR_CHEAT );
+		nav_debug_draw = gi.cvar( "nav_debug_draw", "1", 0 );
+		nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
+		nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", 0 );
+		nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "128", 0 );
+		nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "8192", 0 );
+		nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "0", 0 );
+		nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "0", 0 );
+		nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "1", 0 );
+		// Temporary: enable diagnostic prints for failed nav lookups (tile/cell indices)
+		nav_debug_show_failed_lookups = gi.cvar( "nav_debug_show_failed_lookups", "1", CVAR_CHEAT );
 	#else
-	nav_debug_draw = gi.cvar( "nav_debug_draw", "0", 0 );
-	nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
-	nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", 0 );
-	nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "4096", 0 );
-	nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "1024", 0 );
-	nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "1", 0 );
-	nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "1", 0 );
-	nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "0", 0 );
-	// Temporary: enable diagnostic prints for failed nav lookups (tile/cell indices)
-	nav_debug_show_failed_lookups = gi.cvar( "nav_debug_show_failed_lookups", "0", 0 );
+		nav_debug_draw = gi.cvar( "nav_debug_draw", "0", 0 );
+		nav_debug_draw_leaf = gi.cvar( "nav_debug_draw_leaf", "-1", 0 );
+		nav_debug_draw_tile = gi.cvar( "nav_debug_draw_tile", "*", 0 );
+		nav_debug_draw_max_segments = gi.cvar( "nav_debug_draw_max_segments", "4096", 0 );
+		nav_debug_draw_max_dist = gi.cvar( "nav_debug_draw_max_dist", "1024", 0 );
+		nav_debug_draw_tile_bounds = gi.cvar( "nav_debug_draw_tile_bounds", "0", 0 );
+		nav_debug_draw_samples = gi.cvar( "nav_debug_draw_samples", "0", 0 );
+		nav_debug_draw_path = gi.cvar( "nav_debug_draw_path", "0", 0 );
+		// Temporary: enable diagnostic prints for failed nav lookups (tile/cell indices)
+		nav_debug_show_failed_lookups = gi.cvar( "nav_debug_show_failed_lookups", "0", 0 );
 	#endif
 
 	/**
@@ -527,34 +560,30 @@ void SVG_Nav_Init( void ) {
 	**/
 	nav_cluster_route_weighted = gi.cvar( "nav_cluster_route_weighted", "1", 0 );
 	// Per-flag penalties (added on top of base hop cost). Zero disables bias.
-	nav_cluster_cost_stair = gi.cvar( "nav_cluster_cost_stair", "0", 0 );
-	nav_cluster_cost_water = gi.cvar( "nav_cluster_cost_water", "2", 0 );
-	nav_cluster_cost_lava = gi.cvar( "nav_cluster_cost_lava", "250", 0 );
-	nav_cluster_cost_slime = gi.cvar( "nav_cluster_cost_slime", "8", 0 );
+	nav_cluster_cost_stair	= gi.cvar( "nav_cluster_cost_stair", "0", 0 );
+	nav_cluster_cost_water	= gi.cvar( "nav_cluster_cost_water", "2", 0 );
+	nav_cluster_cost_lava	= gi.cvar( "nav_cluster_cost_lava", "250", 0 );
+	nav_cluster_cost_slime	= gi.cvar( "nav_cluster_cost_slime", "8", 0 );
 	// Per-flag hard exclusions (0 = allowed, 1 = forbidden).
-	nav_cluster_forbid_stair = gi.cvar( "nav_cluster_forbid_stair", "0", 0 );
-	nav_cluster_forbid_water = gi.cvar( "nav_cluster_forbid_water", "0", 0 );
-	nav_cluster_forbid_lava = gi.cvar( "nav_cluster_forbid_lava", "0", 0 );
-	nav_cluster_forbid_slime = gi.cvar( "nav_cluster_forbid_slime", "0", 0 );
+	nav_cluster_forbid_stair	= gi.cvar( "nav_cluster_forbid_stair", "0", 0 );
+	nav_cluster_forbid_water	= gi.cvar( "nav_cluster_forbid_water", "0", 0 );
+	nav_cluster_forbid_lava		= gi.cvar( "nav_cluster_forbid_lava", "0", 0 );
+	nav_cluster_forbid_slime	= gi.cvar( "nav_cluster_forbid_slime", "0", 0 );
 
 	/**
 	*    Cluster routing CVars.
 	**/
-	nav_cluster_enable = gi.cvar( "nav_cluster_enable", "1", 0 );
-	nav_cluster_debug_draw = gi.cvar( "nav_cluster_debug_draw", "0", 0 );
-	nav_cluster_debug_draw_graph = gi.cvar( "nav_cluster_debug_draw_graph", "0", 0 );
+	nav_cluster_enable				= gi.cvar( "nav_cluster_enable", "1", 0 );
+	nav_cluster_debug_draw			= gi.cvar( "nav_cluster_debug_draw", "0", 0 );
+	nav_cluster_debug_draw_graph	= gi.cvar( "nav_cluster_debug_draw_graph", "0", 0 );
 
-	// Profiling / logging control CVars
-	nav_profile_level = gi.cvar( "nav_profile_level", "1", 0 ); // 0=off,1=phase,2=per-leaf,3=per-tile
-	nav_log_file_enable = gi.cvar( "nav_log_file_enable", "0", 0 );
-	nav_log_file_name = gi.cvar( "nav_log_file_name", "nav", 0 );
-
-	// Register runtime tunable per-call A* search budget so async worker behavior can be tuned at runtime.
-	nav_astar_step_budget_ms = gi.cvar( "nav_astar_step_budget_ms", "8", 0 );
 
 	/**
 	*   Register runtime cost-tuning CVars for A* heuristics.
 	*/
+	// Register runtime tunable per-call A* search budget so async worker behavior can be tuned at runtime.
+	nav_astar_step_budget_ms = gi.cvar( "nav_astar_step_budget_ms", "8", 0 );
+
 	nav_cost_w_dist = gi.cvar( "nav_cost_w_dist", "1.0", 0 );
 	nav_cost_jump_base = gi.cvar( "nav_cost_jump_base", "8.0", 0 );
 	nav_cost_jump_height_weight = gi.cvar( "nav_cost_jump_height_weight", "2.0", 0 );
@@ -592,7 +621,7 @@ void SVG_Nav_Shutdown( void ) {
 **/
 const std::string SVG_Nav_GetPathForLevelNav( const char *levelName ) {
 	// Default path for the engine to find nav files at.
-	constexpr const char *navPath = "/maps/nav/";
+	constexpr const char *NAV_PATH_DIR = "/maps/nav/";
 
 	// Actual filename of the .nav file.
 	const std::string fileNameExt = std::string( levelName ) + ".nav";
@@ -603,7 +632,7 @@ const std::string SVG_Nav_GetPathForLevelNav( const char *levelName ) {
 	//	baseGame = BASEGAME;
 	//}
 	// Build and return full file path.
-	return baseGame + navPath + fileNameExt;
+	return baseGame + NAV_PATH_DIR + fileNameExt;
 }
 
 /**
