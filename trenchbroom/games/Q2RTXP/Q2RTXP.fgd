@@ -642,7 +642,7 @@
 	message(string) : "Message"
 	delay(integer) : "Trigger delay"
 ]
-@PointClass base(Appearflags, Targetname, Target) color(128 128 128) size(-8 -8 -8, 8 8 8) = target_crosslevel_target : "Cross-level trigger"
+@PointClass base(Appearflags, Targetname, Target) color(128 128 128) size(-8 -8 -8, 8 8 8) = target_crosslevel_target : "Cross-level target"
 [
 	spawnflags(Flags) =
 	[

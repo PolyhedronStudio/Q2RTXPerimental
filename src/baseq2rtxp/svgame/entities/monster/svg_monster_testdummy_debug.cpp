@@ -138,15 +138,15 @@ static inline const double Dummy_Distance2DSqr( const Vector3 &a, const Vector3 
 /**
 *   @brief	Return a readable name for a debug AI state.
 **/
-static inline const char *Dummy_DebugAIStateName( const svg_monster_testdummy_debug_t::debug_ai_state_t state ) {
+static inline const char *Dummy_DebugAIStateName( const svg_monster_testdummy_debug_t::AIThinkState state ) {
 	switch ( state ) {
-		case svg_monster_testdummy_debug_t::debug_ai_state_t::PursuePlayer:
+		case svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer:
 			return "PursuePlayer";
-		case svg_monster_testdummy_debug_t::debug_ai_state_t::PursueBreadcrumb:
+		case svg_monster_testdummy_debug_t::AIThinkState::PursueBreadcrumb:
 			return "PursueBreadcrumb";
-		case svg_monster_testdummy_debug_t::debug_ai_state_t::InvestigateSound:
+		case svg_monster_testdummy_debug_t::AIThinkState::InvestigateSound:
 			return "InvestigateSound";
-		case svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout:
+		case svg_monster_testdummy_debug_t::AIThinkState::IdleLookout:
 		default:
 			return "IdleLookout";
 	}
@@ -179,7 +179,7 @@ static inline void Dummy_LogStateGateInputs( svg_monster_testdummy_debug_t *self
 	**/
 	gi.dprintf( "[NAV DEBUG][ThinkGate] ent=%d state=%s active=%d has_act=%d vis=%d dist2d=%.1f has_trail=%d has_sound=%d pending=%d handle=%d rebuild=%d goal=%d path_pts=%d path_idx=%d\n",
 		self->s.number,
-		Dummy_DebugAIStateName( self->debug_state ),
+		Dummy_DebugAIStateName( self->thinkAIState ),
 		self->isActivated ? 1 : 0,
 		hasActivator ? 1 : 0,
 		activatorVisible ? 1 : 0,
@@ -320,7 +320,7 @@ const bool svg_monster_testdummy_debug_t::GuardForNullNavMesh( ) {
 /**
 *   @brief	Set explicit debug state.
 **/
-static inline void Dummy_SetState( svg_monster_testdummy_debug_t *self, const svg_monster_testdummy_debug_t::debug_ai_state_t newState ) {
+static inline void Dummy_SetState( svg_monster_testdummy_debug_t *self, const svg_monster_testdummy_debug_t::AIThinkState newState ) {
 	// Sanity: require valid entity.
 	if ( !self ) {
 		return;
@@ -329,7 +329,7 @@ static inline void Dummy_SetState( svg_monster_testdummy_debug_t *self, const sv
 	/**
 	*   Emit deterministic transition logs only when the state actually changes.
 	**/
-	const svg_monster_testdummy_debug_t::debug_ai_state_t oldState = self->debug_state;
+	const svg_monster_testdummy_debug_t::AIThinkState oldState = self->thinkAIState;
 	if ( oldState != newState && DUMMY_NAV_DEBUG != 0 ) {
 		gi.dprintf( "[NAV DEBUG][StateTransition] ent=%d %s -> %s\n",
 			self->s.number,
@@ -338,7 +338,7 @@ static inline void Dummy_SetState( svg_monster_testdummy_debug_t *self, const sv
 	}
 
 	// Assign the next deterministic debug state.
-	self->debug_state = newState;
+	self->thinkAIState = newState;
 }
 
 /**
@@ -362,17 +362,17 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink )( svg_mons
 	*   Dispatch to the active explicit state behavior. (Simple 'state machine'.)
 	*   Each state handler enforces its own activation/transition guards so this dispatcher stays stateless.
 	**/
-	switch ( self->debug_state ) {
-		case svg_monster_testdummy_debug_t::debug_ai_state_t::PursuePlayer:
+	switch ( self->thinkAIState ) {
+		case svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer:
 			svg_monster_testdummy_debug_t::onThink_AStarToPlayer( self );
 			break;
-		case svg_monster_testdummy_debug_t::debug_ai_state_t::PursueBreadcrumb:
+		case svg_monster_testdummy_debug_t::AIThinkState::PursueBreadcrumb:
 			svg_monster_testdummy_debug_t::onThink_AStarPursuitTrail( self );
 			break;
-		case svg_monster_testdummy_debug_t::debug_ai_state_t::InvestigateSound:
+		case svg_monster_testdummy_debug_t::AIThinkState::InvestigateSound:
 			svg_monster_testdummy_debug_t::onThink_InvestigateSound( self );
 			break;
-		case svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout:
+		case svg_monster_testdummy_debug_t::AIThinkState::IdleLookout:
 		default:
 			svg_monster_testdummy_debug_t::onThink_Idle( self );
 			break;
@@ -499,7 +499,7 @@ DEFINE_MEMBER_CALLBACK_SPAWN( svg_monster_testdummy_debug_t, onSpawn )( svg_mons
  // Start at heading index 0 (0 degrees).
 	self->idleScanInvestigationState.headingIndex = 0;
 	// Initialize explicit debug state machine.
-	Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+	Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 
 	/**
 	*	Setup the initial monsterMove state.
@@ -726,7 +726,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 	// If we are not activated, we should not be pursuing anything. Transition to idle until we are activated.
 	if ( !self->isActivated ) {
 		// Clear any pending path state so we do not try to pursue a stale target if we later get activated.
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		// Set nextthink to now so we immediately process the transition on the next frame.
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
@@ -744,7 +744,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 		// Reset nav state so we start fresh when/if we later get a new activator.
 	self->ResetNavigationPath( );
 		// Transition to idle since we have no target to pursue.
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		// Set nextthink to now so we immediately process the transition on the next frame.
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
@@ -876,7 +876,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 		self->ResetNavigationPath( );
 
 			// Switch to breadcrumb pursuit.
-			Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::PursueBreadcrumb );
+			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursueBreadcrumb );
 		} else {
 			// Nothing to pursue; go idle.
 			self->trailNavigationState.targetEntity = nullptr;
@@ -885,7 +885,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 			// Reset nav state so idle does not get blocked by stale async requests.
 		self->ResetNavigationPath( );
 			// Switch to idle.
-			Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		}
 	}
 
@@ -944,7 +944,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 	// we check this and go idle.
 	if ( !self->isActivated ) {
 		// SetSet next think to idle so we do not get stuck in this pursuit state without a valid goal.
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
 	}
@@ -959,7 +959,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
      && SVG_Entity_IsVisible( self, self->activator ) )
 	{
 		// Switch to direct pursuit.
-        Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::PursuePlayer );
+        Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
 		// Immediate attempt.
 		self->goalentity = self->activator;
 		// Reset pending async path requests when immediately switching to direct pursuit
@@ -1057,7 +1057,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 			// If there is no breadcrumb to pursue, go idle.
 			if ( !trailSpot ) {
 				// Set think to idle before going to physics to ensure we do not miss a think cycle for processing the new trail target if one appears immediately after.
-				Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+				Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 				// Skip the rest of the logic and go idle immediately.
 				goto physics;
 			}
@@ -1066,7 +1066,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 				// Set trail target to null before going to idle to ensure we do not miss a think cycle for processing the new trail target if one appears immediately after.
 				self->trailNavigationState.targetEntity = nullptr;
 				// Set think to idle before going to physics to ensure we do not miss a think cycle for processing the new trail target if one appears immediately after.
-				Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+				Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 				// Skip the rest of the logic and go idle immediately.
 				goto physics;
 			}
@@ -1092,7 +1092,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 					// Set trail target to null before going to idle to ensure we do not miss a think cycle for processing the new trail target if one appears immediately after.
 					self->trailNavigationState.targetEntity = nullptr;
 					// Set think to idle before going to physics to ensure we do not miss a think cycle for processing the new trail target if one appears immediately after.
-					Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+					Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 					// Skip the rest of the logic and go idle immediately.
 					goto physics;
 				}
@@ -1102,7 +1102,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 					// miss a think cycle for processing the new trail target if one appears immediately after.
 					self->trailNavigationState.targetEntity = nullptr;
 					// Set think to idle before going to physics to ensure we do not miss a think cycle for processing the new trail target if one appears immediately after.
-					Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+					Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 					// Skip the rest of the logic and go idle immediately.
 					goto physics;
 				}
@@ -1133,7 +1133,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 			// Advance to the next breadcrumb if we are close enough to the current one.
 			if ( !advanceTrailTarget() ) {
 				// No valid next breadcrumb, go idle.
-				Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+				Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 			}
 		}
 	}
@@ -1189,7 +1189,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 		// No need to reset nav state here since we will do so when we next attempt to pursue something, 
 		// but we should clear the goalentity so we do not accidentally pursue a stale sound target 
 		// if we got activated by a sound but then lost interest before processing the investigate logic.
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		// Skip the rest of the logic and go idle immediately.
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
@@ -1202,7 +1202,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 		// Sound investigation should only be preempted by confirmed LOS.
 		if ( SVG_Entity_IsVisible( self, self->activator ) ) {
 			// Player is a valid target to interrupt sound investigation, switch to direct pursuit.
-			Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::PursuePlayer );
+			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
 			// Immediate attempt to target the player.
 			self->nextthink = level.time + FRAME_TIME_MS;
 			return;
@@ -1217,7 +1217,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 		// Clear interest in the sound target since it is no longer relevant.
 		self->soundScanInvestigation.hasOrigin = false;
 		// Set next think to idle since we have nothing to investigate anymore.
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		// Skip the rest of the logic and go idle immediately.
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
@@ -1244,7 +1244,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 		// Clear interest in the sound target since we have arrived.
 		self->soundScanInvestigation.hasOrigin = false;
 		// Set next think to idle since we have nothing to investigate anymore.
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 	}
 
 	/**
@@ -1320,7 +1320,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 
 	if ( !self->isActivated ) {
 		SVG_Util_SetEntityAngles( self, self->currentAngles, true );
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
 	}
@@ -1332,7 +1332,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 		// Immediate action.
 		self->goalentity = self->activator;
 		// Set the nextThink to AStarToPlayer so we start chasing the player right away.
-		Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::PursuePlayer );
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
 		self->nextthink = level.time + FRAME_TIME_MS;
 		// Skip all other idle logic if we just found the player.
 		return;
@@ -1396,7 +1396,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 				// Reset nav state so we do not reuse stale async requests/paths if we were previously pursuing a different target.
 			self->ResetNavigationPath( );
 				// Set the nextThink to InvestigateSound so we start moving toward the sound right away.
-				Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::InvestigateSound );
+				Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::InvestigateSound );
 				self->nextthink = level.time + FRAME_TIME_MS;
 				return;
 			}
@@ -1432,7 +1432,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 		// Reset nav path so we do not reuse a path built for a different goal.
 	self->ResetNavigationPath( );
 		// Set the nextThink to PursuitTrail so we start following the player's trail right away.
-            Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::PursueBreadcrumb );
+            Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursueBreadcrumb );
 		self->nextthink = level.time + FRAME_TIME_MS;
 		return;
 	}
@@ -1494,7 +1494,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 	/**
 	*	Set the nextThink to Idle so we keep looking for the player or their trail instead of trying to pursue a non-visible target.
 	**/
-	Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+	Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
@@ -1591,7 +1591,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_
 	self->ResetNavigationPath( );
 		// Return to idle thinker. (So it can scan for a player/trail goal.)
 		self->nextthink = level.time + FRAME_TIME_MS;
-     Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+     Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 	} else {
 		// On activation, reset nav state and reacquire targets from scratch.
 		self->trailNavigationState.targetEntity = nullptr;
@@ -1600,7 +1600,7 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_
 	self->ResetNavigationPath( );
 		// Return to idle thinker. (So it can scan for a player/trail goal.)
 		self->nextthink = level.time + FRAME_TIME_MS;
-     Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+     Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 	}
 
 	if ( DUMMY_NAV_DEBUG != 0 ) {
@@ -1618,10 +1618,10 @@ DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_
 
 	if ( self->isActivated ) {
 		self->goalentity = activator;
-        Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::PursuePlayer );
+        Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
 	} else {
 		self->goalentity = nullptr;
-             Dummy_SetState( self, svg_monster_testdummy_debug_t::debug_ai_state_t::IdleLookout );
+             Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 	}
 
 	self->nextthink = level.time + FRAME_TIME_MS;

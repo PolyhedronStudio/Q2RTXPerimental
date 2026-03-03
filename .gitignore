@@ -6,6 +6,8 @@ q2rtxp.exe
 q2rtxpded.exe
 clgame*.so
 svgame*.so
+clgame*.dll
+svgame*.dll
 *.swp
 build*/
 shader_vkpt
@@ -40,6 +42,7 @@ music/
 *.kra~
 *.png~
 *.map~
+*.nav
 *.tmp
 *.wal
 *.wav
@@ -97,9 +100,13 @@ baseq2rtxp/maps/*.bsp
 !*.skc
 !/baseq2rtxp/_tb_icons/
 !/baseq2rtxp/_tb_icons/unused/
-!/trenchbroom/games/Q2RTXP/
+!/trenchbroom/
+!/trenchbroom/**
 !/baseq2rtxp/materials/
 !/baseq2rtxp/textures/
 /baseq2rtxp.zip
+/maps/nav/*
 /maps/srcmaps/autosave
 /r_tonTouch Trigger touched by entity 14.
+/.vscode
+/baseq2rtxp/maps/nav/q2rtxp_dev_voxelpaths.nav

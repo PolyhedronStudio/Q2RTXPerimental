@@ -9,9 +9,9 @@ then
     rev="`git rev-list --count HEAD`"
     ver="r$rev~`git rev-parse --short HEAD`"
 else
-    echo "WARNING: Couldn't detect Q2PRO version." >&2
-    ver="r666"
-    rev="666"
+    echo "WARNING: Couldn't detect Q2RTXPerimental version." >&2
+    ver="r1337"
+    rev="1337"
 fi
 
 case $1 in

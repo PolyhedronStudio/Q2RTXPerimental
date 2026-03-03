@@ -23,6 +23,11 @@
 //#include "svgame/entities/monster/svg_monster_testdummy.h"
 
 /**
+*   Explicit debug AI states.
+**/
+enum class AIThinkState;
+
+/**
  *    Debug TestDummy Entity: always A* to activator
  **/
 struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
@@ -42,6 +47,17 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		svg_monster_testdummy_debug_t::onSpawn
 	);
 
+
+
+	/**
+	*
+	*
+	*
+	*		Entity Callbacks.
+	*
+	*
+	*
+	**/
 	/**
 	*   @brief  Spawn.
 	**/
@@ -72,8 +88,19 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	**/
 	DECLARE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie );
 
-	//=============================================================================================
 
+
+	/**
+	*
+	*
+	*
+	*		Entity 'onThink' State Routines:
+	*			- Each of these is set as the nextThink for the onThink callback, 
+	*			and thus determines the behavior of the next think frame.
+	*
+	*
+	*
+	**/
 	/**
 	*	@brief	A* specific thinker: always attempt async A* to activator if present(and if it goes LOS, sets think to onThink_AStarPursuitTrail.), otherwise go idle.
 	*
@@ -111,21 +138,18 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	**/
 	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead );
 
-	/**
-	*   Explicit debug AI states.
-	**/
-	enum class debug_ai_state_t {
-		IdleLookout,
-		PursuePlayer,
-		PursueBreadcrumb,
-		InvestigateSound
-	};
-
-
 	//=============================================================================================
 	//=============================================================================================
 	
-
+	/**
+	*
+	*
+	*
+	*		Entity Think Support Routines:
+	*
+	*
+	*
+	**/
 	/**
 	*	@brief	Generic support routine taking care of the base logic that each onThink implementation relies on.
 	*			( Setup navPolicy, recategorize ground and liquid information,  check for being alive, 
@@ -133,30 +157,17 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*	@return	True if the caller should proceed with its specific think logic, or false if it should return early and skip the specific think logic.
 	**/
 	const bool GenericThinkBegin();
- /**
-	* @brief	Dynamically tune goal-Z layer blending policy for the current goal.
-	* @param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
-	* @note	Called each think after `GenericThinkBegin()` to keep `navigationState.pathPolicy`
-	* 		tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
-	**/
-	void AdjustGoalZBlendPolicy( const Vector3 &goalOrigin );
 	/**
 	*	@brief	Generic support routine taking care of the finishing logic that each onThink implementation relies on.
 	*			( Deal with the slidemove process, stepping stairs, jumping over obstructions, crouching under obstructions. ).
-	*	@param	processSlideMove	When true, will perform the slide move and all the associated logic for handling blocked/trapped results. 
-	*								When false, will skip the slide move and just return false so the caller can handle it in its specific way 
+	*	@param	processSlideMove	When true, will perform the slide move and all the associated logic for handling blocked/trapped results.
+	*								When false, will skip the slide move and just return false so the caller can handle it in its specific way
 	*								(e.g., the caller may want to try a different movement approach if we are blocked, or may want to ignore being blocked if we are just trying to adjust our position to better see the player).
-	*	@param	blockedMask			The blockedMask result from the slide move, which is important for the caller to determine if we should do any special handling 
+	*	@param	blockedMask			The blockedMask result from the slide move, which is important for the caller to determine if we should do any special handling
 	*								for being trapped (e.g., try to jump, pick a new path, etc).
 	*	@return	False if we didn't move, true if we did.
 	**/
 	const bool GenericThinkFinish( const bool processSlideMove, int32_t &blockedMask );
-
-	/**
-	*	@brief	Performs the actual SlideMove processing and updates the final origin if successful.
-	*	@return	The blockedMask result from the slide move, which is important for the caller to determine if we should do any special handling for being trapped (e.g., try to jump, pick a new path, etc).
-	**/
-	const int32_t ProcessSlideMove();
 
 
 	//=============================================================================================
@@ -203,11 +214,26 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	*
 	*
-	*	Navigation Policy & Process:
+	*	Navigation Internals API:
 	*
 	*
 	*
 	**/
+	
+	/**
+	* @brief	Dynamically tune goal-Z layer blending policy for the current goal.
+	* @param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
+	* @note	Called each think after `GenericThinkBegin()` to keep `navigationState.pathPolicy`
+	* 		tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
+	**/
+	void AdjustGoalZBlendPolicy( const Vector3 &goalOrigin );
+
+	/**
+	*	@brief	Performs the actual SlideMove processing and updates the final origin if successful.
+	*	@return	The blockedMask result from the slide move, which is important for the caller to determine if we should do any special handling for being trapped (e.g., try to jump, pick a new path, etc).
+	**/
+	const int32_t ProcessSlideMove();
+
 	/**
 	*	@brief	Enqueue a navigation rebuild request when the async queue is enabled.
 	*	@param	self	Monster owning the path process state.
@@ -244,11 +270,17 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	**/
 	//! Tracks whether the debug monster has been enabled(By use, with the intend for it to follow the player)  by the player.
 	bool isActivated = false;
-	//! Current explicit debug state used by central state dispatcher.
-	debug_ai_state_t debug_state = debug_ai_state_t::IdleLookout;
 	//! Last server time when the activator was confirmed visible.
 	QMTime lastPlayerVisibleTime = 0_ms;
-
+	/**
+	*   Explicit AI Thinking States.
+	**/
+	enum class AIThinkState {
+		IdleLookout,
+		PursuePlayer,
+		PursueBreadcrumb,
+		InvestigateSound
+	} thinkAIState = AIThinkState::IdleLookout;
 
 
 	/**
@@ -274,6 +306,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	* 
 	* 
 	**/
+
 
 	/**
 	*	

@@ -1,3 +1,9 @@
+
+  Q2RTXPerimental
+  Copyright (C) 2025, Mike Poortman
+
+==============
+
   Quake II RTX
   Copyright (C) 2019, NVIDIA CORPORATION
   All rights reserved.
