@@ -26,25 +26,19 @@
 // Player trail (Q2/Q2RTX pursuit trail)
 #include "svgame/player/svg_player_trail.h"
 
-// TestDummy Monster
-#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
-
+#include "svgame/nav/svg_nav.h"
 // Navigation cluster routing (coarse tile routing pre-pass).
 #include "svgame/nav/svg_nav_clusters.h"
 // Async navigation queue helpers.
 #include "svgame/nav/svg_nav_request.h"
 // Traversal helpers required for path invalidation.
 #include "svgame/nav/svg_nav_traversal.h"
-// We need access to the base TestDummy declarations (puppet TU defines helpers we call).
-//#include "svgame/entities/monster/svg_monster_testdummy.h"
+
+// TestDummy Monster
+#include "svgame/entities/monster/svg_monster_testdummy_debug.h"
 
 
-// TestDummy helper functions live in the puppet TU and are not visible here by default.
-// Declare the helpers we use so this TU can call them without pulling in the entire puppet CPP.
-// Use the base `svg_monster_testdummy_debug_t` signatures (puppet TU defines these).
-// Forward-declare the helper signatures implemented in the puppet TU.
-// Provide external definitions for helper functions and callbacks that are referenced
-// from multiple translation units but only defined inline in other files.
+
 
 void SVG_Monster_GetNavigationAgentBounds( const svg_monster_testdummy_debug_t *ent, Vector3 *out_mins, Vector3 *out_maxs ) {
 	if ( !ent || !out_mins || !out_maxs ) {
@@ -76,11 +70,6 @@ void SVG_Monster_GetNavigationAgentBounds( const svg_monster_testdummy_debug_t *
 	*out_maxs = ent->maxs;
 }
 
-bool SVG_Monster_TryQueueNavigationRebuild( svg_monster_testdummy_debug_t *self, const Vector3 &start_origin,
-	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
-	const Vector3 &agent_maxs, const bool force /*= false*/ );
-void SVG_Monster_ResetNavigationPath( svg_monster_testdummy_debug_t *self );
-#include "svgame/nav/svg_nav.h"
 
 // (Prototypes already declared above.)
 
@@ -125,6 +114,18 @@ static constexpr double DUMMY_IDLE_SCAN_STEP_DEG = 45.0;
 static constexpr QMTime DUMMY_IDLE_SCAN_FLIP_INTERVAL = 500_ms;
 
 
+
+/**
+*
+*
+*
+*
+*	Debugging Routines:
+*
+*
+*
+*
+**/
 /**
 *   @brief	Return a readable name for a debug AI state.
 **/
@@ -146,7 +147,7 @@ static inline const char *Dummy_DebugAIStateName( const svg_monster_testdummy_de
 *   @brief	Emit a compact per-think state + gate input line for fast diagnosis.
 *   @note	Only called when `DUMMY_NAV_DEBUG` is enabled.
 **/
-static inline void Dummy_LogStateGateInputs( svg_monster_testdummy_debug_t *self ) {
+static inline void Dummy_DebugLogStateGateInputs( svg_monster_testdummy_debug_t *self ) {
 	/**
 	*   Sanity check: require valid entity pointer before reading state.
 	**/
@@ -189,128 +190,18 @@ static inline void Dummy_LogStateGateInputs( svg_monster_testdummy_debug_t *self
 		self->navigationState.pathProcess.path_index );
 }
 
-/**
- * @brief	Dynamically tune goal-Z layer blending policy for the current goal.
- * @param	self	Debug testdummy instance.
- * @param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
- * @note	Called each think after `GenericThinkBegin()` to keep `navigationState.pathPolicy`
- *			tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
- **/
-static inline void AdjustGoalZBlendPolicy( svg_monster_testdummy_debug_t *self, const Vector3 &goalOrigin ) {
-	if ( !self ) {
-		return;
-	}
+//#define Com_Printf(...) Com_LPrintf(PRINT_ALL, __VA_ARGS__)
+//=============================================================================================
+//=============================================================================================
 
-	auto &policy = self->navigationState.pathPolicy;
-	auto &proc = self->navigationState.pathProcess;
 
-	const double horizDist = std::sqrt( QM_Vector2DistanceSqr( goalOrigin, self->currentOrigin ) );
-	const double dz = ( double )goalOrigin.z - ( double )self->currentOrigin.z;
-	const double absDz = std::fabs( dz );
 
-	// If we recently had failures, disable blending briefly to avoid repeating bad layer choices.
-	const bool recentFailure = ( proc.consecutive_failures > 0 ) && ( ( level.time - proc.last_failure_time ) <= 2_sec );
-	if ( recentFailure ) {
-		policy.enable_goal_z_layer_blend = false;
-		policy.blend_start_dist = 128.0;
-		policy.blend_full_dist = 256.0;
-		return;
-	}
-
-	// Thresholds and guards
-	constexpr double kStairVerticalThreshold = 32.0; // world units
-	constexpr double kMinBlendStart = 32.0;
-	constexpr double kMinBlendFull = 64.0;
-
-	const bool activatorVisible = ( self->activator != nullptr && SVG_Entity_IsVisible( self, self->activator ) );
-	const double activatorDist2D = self->activator ? std::sqrt( QM_Vector2DistanceSqr( self->activator->currentOrigin, self->currentOrigin ) ) : 1e9;
-	const bool activatorNearby = ( activatorDist2D <= DUMMY_PLAYER_PURSUIT_MAX_DIST );
-
-	// If vertical difference is small, prefer no bias (stay on start layer).
-	if ( absDz <= kStairVerticalThreshold ) {
-		policy.enable_goal_z_layer_blend = false;
-		policy.blend_start_dist = 64.0;
-		policy.blend_full_dist = 128.0;
-		return;
-	}
-
-	// If activator is visible/nearby, be conservative about switching layers.
-	if ( activatorVisible || activatorNearby ) {
-		policy.enable_goal_z_layer_blend = true;
-		policy.blend_start_dist = std::clamp( horizDist * 0.25, kMinBlendStart, 256.0 );
-		policy.blend_full_dist = std::clamp( horizDist * 0.5, kMinBlendFull, 384.0 );
-		return;
-	}
-
-	// Otherwise, prefer enabling blending for upward goals so the pathfinder can climb stairs when appropriate.
-	if ( dz > 0.0 ) {
-		policy.enable_goal_z_layer_blend = true;
-		policy.blend_start_dist = std::clamp( horizDist - 64.0, kMinBlendStart, 256.0 );
-		policy.blend_full_dist = std::clamp( std::max( horizDist * 0.25, 128.0 ), kMinBlendFull, 512.0 );
-	} else {
-		policy.enable_goal_z_layer_blend = false;
-		policy.blend_start_dist = 64.0;
-		policy.blend_full_dist = 128.0;
-	}
-}
 
 //=============================================================================================
 //=============================================================================================
 
-/**
- * @brief	Member wrapper that forwards to the TU-local AdjustGoalZBlendPolicy helper.
- * @param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
- **/
-void svg_monster_testdummy_debug_t::AdjustGoalZBlendPolicy( const Vector3 &goalOrigin ) {
-	::AdjustGoalZBlendPolicy( this, goalOrigin );
-}
 
-/**
-*   @brief	Clear stale async nav request state when no navmesh is loaded.
-*   @param	self	Debug testdummy owning the async path process.
-*   @return	True when navmesh is unavailable and caller should early-return.
-*   @note	Prevents repeated queue refresh/debounce loops on maps without navmesh.
-**/
-const bool svg_monster_testdummy_debug_t::GuardForNullNavMesh( ) {
-	/**
-	*   Fast path: navmesh exists, caller may continue normal request flow.
-	**/
-	if ( g_nav_mesh.get() ) {
-		return false;
-	}
 
-	/**
-	*   Determine whether there is any async state worth tearing down.
-	**/
-	const bool hadPendingState = ( navigationState.pathProcess.pending_request_handle > 0 )
-		|| navigationState.pathProcess.rebuild_in_progress
-		|| SVG_Nav_IsRequestPending( &navigationState.pathProcess );
-
-	/**
-	*   Cancel tracked handle first so queue state transitions to terminal.
-	**/
-	if ( navigationState.pathProcess.pending_request_handle > 0 ) {
-		SVG_Nav_CancelRequest( ( nav_request_handle_t )navigationState.pathProcess.pending_request_handle );
-	}
-
-	/**
-	*   Clear local markers so callers stop reporting pending async work.
-	**/
-	navigationState.pathProcess.pending_request_handle = 0;
-	navigationState.pathProcess.rebuild_in_progress = false;
-
-	/**
-	*   Emit a debug message only when we actually cleaned stale state.
-	**/
-	if ( hadPendingState && DUMMY_NAV_DEBUG != 0 ) {
-		gi.dprintf( "[NAV DEBUG] %s: navmesh unavailable, cleared pending async state and skipped queueing.\n", __func__ );
-	}
-
-	/**
-	*   No navmesh loaded; caller should skip path request/query work.
-	**/
-	return true;
-}
 
 /**
 *   @brief	Set explicit debug state.
@@ -350,7 +241,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink )( svg_mons
 	*   gating inputs while diagnosing stalls.
 	**/
 	if ( DUMMY_NAV_DEBUG != 0 ) {
-		Dummy_LogStateGateInputs( self );
+		Dummy_DebugLogStateGateInputs( self );
 	}
 
 	/**
@@ -642,14 +533,157 @@ DEFINE_MEMBER_CALLBACK_DIE( svg_monster_testdummy_debug_t, onDie )( svg_monster_
 	// Make sure to relink.
 	gi.linkentity( self );
 }
+
+/**
+*    @brief    Handle use toggles so the debug pursuit only runs when activated.
+**/
+DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_testdummy_debug_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
+	// Apply activator.
+	self->activator = activator;
+	self->other = other;
+
+/**
+ * @brief	Handle player "use" interactions and toggle activation state.
+ * @param	self	This debug testdummy instance.
+ * @param	other	The entity that sent the use event (usually the trigger or world).
+ * @param	activator	The entity that activated the use (usually the player/client).
+ * @param	useType	Type of use action (toggle, press, etc.).
+ * @param	useValue	Value associated with the use action (e.g. 1 for on).
+ * @note	This function centralizes follow/unfollow toggling and resets navigation
+ *		state when activation changes. Only a single assignment to `isActivated`
+ *		is performed later to keep activation semantics deterministic.
+ **/
+
+	// "Toggle" between follow/unfollow.
+	// Cheap hack.
+	if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE ) {
+		if ( useValue == 1 ) {
+			if ( activator && activator->client ) {
+				self->goalentity = activator;
+
+				// Get the root motion.
+				skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 4 ]; // [1] == RUN_FORWARD_PISTOL
+				// Transition to its animation.
+				self->s.frame = rootMotion->firstFrameIndex;
+
+				// Set to disengagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+				SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_DISENGAGE );
+			 // Fall through: apply activation below so the toggle branch does not
+				// early-return and leave `isActivated`/state inconsistent with the
+				// visual/activator changes we just applied.
+			}
+		}
+	}
+
+	// Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
+	SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
+
+	//self->goalentity = nullptr;
+	//self->activator = nullptr;
+	//self->other = nullptr;
+
+	// Fire set target.
+	SVG_UseTargets( self, activator );
+
+	// First, determine whether we are activating or deactivating based on the useType and useValue.
+	const bool activating = ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE
+		&& useValue == 1
+		&& activator
+		&& activator->client );
+
+	// Set the activation state based on the use action.
+	self->isActivated = activating;
+	// When we toggle activation, we want to reset all of our state so that we can start fresh when we reactivate, 
+	// and so that we do not keep pursuing stale targets when deactivated.
+	self->soundScanInvestigation.hasOrigin = false;
+	// Set the investigate sound origin to our current position so that if we do get a sound event while deactivated, we have a valid origin to investigate instead of random/uninitialized memory. This also means that if we get a sound event while deactivated, 
+	// we will just investigate it right where we are instead of trying to move toward it, which is a reasonable fallback behavior.
+	self->soundScanInvestigation.origin = self->currentOrigin;
+	// Reset idle scan state so that when we toggle activation, we start with a consistent idle sweep behavior.
+	self->idleScanInvestigationState.yawScanDirection = 1.0f;
+	// Start from a defined heading index and schedule the first flip.
+	self->idleScanInvestigationState.headingIndex = 0;
+	// Set the next flip time to now + interval so that when we toggle activation, we start with a consistent idle sweep behavior.
+	self->idleScanInvestigationState.nextFlipTime = level.time + DUMMY_IDLE_SCAN_FLIP_INTERVAL;
+	// Clear any cached breadcrumb/goal so we do not keep pursuing after deactivating.
+	if ( !self->isActivated ) {
+		// When deactivating, also clear the last processed sound time so that we can react to sound events immediately if we get any while deactivated, instead of ignoring them because they are older than the last processed time.
+		self->soundScanInvestigation.lastTime = 0_ms;
+		self->lastPlayerVisibleTime = 0_ms;
+	}
+
+	/**
+	*	Activation state change handling:
+	*		- When disabling, stop any pursuit immediately and clear nav/trail state.
+	*		- When enabling, start from idle so we acquire player/trail cleanly.
+	**/
+	if ( !self->isActivated ) {
+		// Clear any cached breadcrumb/goal so we do not keep pursuing after disabling.
+		self->trailNavigationState.targetEntity = nullptr;
+		self->goalentity = nullptr;
+		// Cancel/clear any async nav request/path so it cannot keep steering motion.
+		self->ResetNavigationPath();
+			// Return to idle thinker. (So it can scan for a player/trail goal.)
+		self->nextthink = level.time + FRAME_TIME_MS;
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+	} else {
+		// On activation, reset nav state and reacquire targets from scratch.
+		self->trailNavigationState.targetEntity = nullptr;
+		self->goalentity = nullptr;
+		// Cancel/clear any async nav request/path so it cannot keep steering motion.
+		self->ResetNavigationPath();
+			// Return to idle thinker. (So it can scan for a player/trail goal.)
+		self->nextthink = level.time + FRAME_TIME_MS;
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+	}
+
+	if ( DUMMY_NAV_DEBUG != 0 ) {
+		const char *activatorName = "nullptr";
+		if ( activator ) {
+			activatorName = ( const char * )activator->classname;
+		}
+
+		gi.dprintf( "[NAV DEBUG] %s: isActivated=%d, activator=%s\n",
+			__func__, ( int32_t )self->isActivated, activatorName );
+	}
+
+	//self->trailNavigationState.targetEntity = nullptr;
+	//ResetNavigationPath( );
+
+	if ( self->isActivated ) {
+		self->goalentity = activator;
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
+	} else {
+		self->goalentity = nullptr;
+		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
+	}
+
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
 /**
 *   @brief  Death routine.
 **/
 DEFINE_MEMBER_CALLBACK_PAIN( svg_monster_testdummy_debug_t, onPain )( svg_monster_testdummy_debug_t *self, svg_base_edict_t *other, const float kick, const int32_t damage, const entity_damageflags_t damageFlags ) -> void {
 
 }
+
+
+//=================================================================================================
 //=================================================================================================
 
+
+/**
+*
+*
+*
+*		Entity 'onThink' State Routines:
+*			- Each of these is set as the nextThink for the onThink callback,
+*			and thus determines the behavior of the next think frame.
+*
+*
+*
+**/
 /**
 *	@brief	A* specific thinker: always attempt async A* to activator if present(and if it goes LOS, sets think to onThink_AStarPursuitTrail.), otherwise go idle.
 *
@@ -662,10 +696,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 	/**
 	*	Maintain base state and check liveness.
 	**/
-	if ( !self->GenericThinkBegin( ) ) {
+	if ( !self->GenericThinkBegin() ) {
 		return;
 	}
 
+	#if 0
 	/* Tune goal-Z blending for this think tick. */
 	{
 		Vector3 likelyGoal = self->activator ? self->activator->currentOrigin : self->currentOrigin;
@@ -704,6 +739,12 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 		Vector3 likelyGoal = self->activator ? self->activator->currentOrigin : self->currentOrigin;
 		self->AdjustGoalZBlendPolicy( likelyGoal );
 	}
+	#else
+	{
+		Vector3 likelyGoal = self->activator ? self->activator->currentOrigin : self->currentOrigin;
+		self->DetermineGoalZBlendPolicyState( likelyGoal );
+	}
+	#endif
 
 	if ( DUMMY_NAV_DEBUG != 0 && self->isActivated ) {
 		gi.dprintf( "=============================== onThink_AStarToPlayer ===============================\n" );
@@ -737,7 +778,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 		// Clear the goalentity so we do not accidentally pursue a stale target if we later get a new activator.
 		self->goalentity = nullptr;
 		// Reset nav state so we start fresh when/if we later get a new activator.
-	self->ResetNavigationPath( );
+		self->ResetNavigationPath( );
 		// Transition to idle since we have no target to pursue.
 		Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		// Set nextthink to now so we immediately process the transition on the next frame.
@@ -788,7 +829,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 			// Clear any breadcrumb target so trail-follow state does not fight direct pursuit.
 			self->trailNavigationState.targetEntity = nullptr;
 			// Reset nav state so we start fresh with the new goal.
-		self->ResetNavigationPath( );
+			self->ResetNavigationPath( );
 
 			// While directly targeting the activator, ignore breadcrumb trail spots
 			// by marking the trail_time to now. This mirrors direct-pursuit behavior
@@ -843,7 +884,8 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 		*    This guarantees the transition does not wait on stale handles.
 		**/
 		// Note: we check the queue state above and only cancel if the queue reports no pending request, 
-		// so we do not cancel any truly active requests that are in-flight during the transition. This allows us to safely transition even if the async request for the activator is still being processed, without worrying about canceling an active request that is already steering us towards the last known player position.
+		// so we do not cancel any truly active requests that are in-flight during the transition.
+		// This allows us to safely transition even if the async request for the activator is still being processed, without worrying about canceling an active request that is already steering us towards the last known player position.
 		if ( self->navigationState.pathProcess.pending_request_handle != 0 ) {
 			// Cancel any pending request for the player target since we are switching to a new trail-following target.
 			// This also prevents any in-flight async work for the player target from coming back and interfering with 
@@ -868,7 +910,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 			self->goalentity = trailSpot;
 
 			// Reset nav state so trail pursuit starts with a clean async request.
-		self->ResetNavigationPath( );
+			self->ResetNavigationPath( );
 
 			// Switch to breadcrumb pursuit.
 			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursueBreadcrumb );
@@ -878,7 +920,7 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarToPlay
 			// Clear any goal so we do not attempt to pursue stale targets if we get LOS again before the next think.
 			self->goalentity = nullptr;
 			// Reset nav state so idle does not get blocked by stale async requests.
-		self->ResetNavigationPath( );
+			self->ResetNavigationPath( );
 			// Switch to idle.
 			Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
 		}
@@ -922,6 +964,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_AStarPursui
 	**/
 	if ( !self->GenericThinkBegin( ) ) {
 		return;
+	}
+
+	{
+		Vector3 likelyGoal = self->activator ? self->activator->currentOrigin : self->currentOrigin;
+		self->DetermineGoalZBlendPolicyState( likelyGoal );
 	}
 
 	if ( DUMMY_NAV_DEBUG != 0 && self->isActivated ) {
@@ -1190,6 +1237,11 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 		return;
 	}
 
+	{
+		Vector3 likelyGoal = self->activator ? self->activator->currentOrigin : self->currentOrigin;
+		self->DetermineGoalZBlendPolicyState( likelyGoal );
+	}
+
 	/**
 	*   Player reacquire gate while investigating sound.
 	**/
@@ -1262,7 +1314,6 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Investigate
 }
 
 //=================================================================================================
-
 
 /**
 *	@brief		Always looks for activator presence, or its trail, and otherwise does nothing.
@@ -1496,135 +1547,6 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Idle )( svg
 //=============================================================================================
 
 /**
-*    @brief    Handle use toggles so the debug pursuit only runs when activated.
-**/
-DEFINE_MEMBER_CALLBACK_USE( svg_monster_testdummy_debug_t, onUse )( svg_monster_testdummy_debug_t *self, svg_base_edict_t *other, svg_base_edict_t *activator, const entity_usetarget_type_t useType, const int32_t useValue ) -> void {
-	// Apply activator.
-	self->activator = activator;
-	self->other = other;
-
-/**
- * @brief	Handle player "use" interactions and toggle activation state.
- * @param	self	This debug testdummy instance.
- * @param	other	The entity that sent the use event (usually the trigger or world).
- * @param	activator	The entity that activated the use (usually the player/client).
- * @param	useType	Type of use action (toggle, press, etc.).
- * @param	useValue	Value associated with the use action (e.g. 1 for on).
- * @note	This function centralizes follow/unfollow toggling and resets navigation
- *		state when activation changes. Only a single assignment to `isActivated`
- *		is performed later to keep activation semantics deterministic.
- **/
-
-	// "Toggle" between follow/unfollow.
-	// Cheap hack.
-	if ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE ) {
-		if ( useValue == 1 ) {
-			if ( activator && activator->client ) {
-				self->goalentity = activator;
-
-				// Get the root motion.
-				skm_rootmotion_t *rootMotion = self->rootMotionSet->motions[ 4 ]; // [1] == RUN_FORWARD_PISTOL
-				// Transition to its animation.
-				self->s.frame = rootMotion->firstFrameIndex;
-
-				// Set to disengagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
-				SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_DISENGAGE );
-             // Fall through: apply activation below so the toggle branch does not
-				// early-return and leave `isActivated`/state inconsistent with the
-				// visual/activator changes we just applied.
-			}
-		}
-	}
-
-	// Reset to engagement mode usehint. (Yes this is a cheap hack., it is not client specific.)
-	SVG_Entity_SetUseTargetHintByID( self, USETARGET_HINT_ID_NPC_ENGAGE );
-
-	//self->goalentity = nullptr;
-	//self->activator = nullptr;
-	//self->other = nullptr;
-
-	// Fire set target.
-	SVG_UseTargets( self, activator );
-
-	// First, determine whether we are activating or deactivating based on the useType and useValue.
-	const bool activating = ( useType == entity_usetarget_type_t::ENTITY_USETARGET_TYPE_TOGGLE
-		&& useValue == 1
-		&& activator
-		&& activator->client );
-
-	// Set the activation state based on the use action.
-	self->isActivated = activating;
-	// When we toggle activation, we want to reset all of our state so that we can start fresh when we reactivate, 
-	// and so that we do not keep pursuing stale targets when deactivated.
-	self->soundScanInvestigation.hasOrigin = false;
-	// Set the investigate sound origin to our current position so that if we do get a sound event while deactivated, we have a valid origin to investigate instead of random/uninitialized memory. This also means that if we get a sound event while deactivated, 
-	// we will just investigate it right where we are instead of trying to move toward it, which is a reasonable fallback behavior.
-	self->soundScanInvestigation.origin = self->currentOrigin;
-    // Reset idle scan state so that when we toggle activation, we start with a consistent idle sweep behavior.
-	self->idleScanInvestigationState.yawScanDirection = 1.0f;
-	// Start from a defined heading index and schedule the first flip.
-	self->idleScanInvestigationState.headingIndex = 0;
-	// Set the next flip time to now + interval so that when we toggle activation, we start with a consistent idle sweep behavior.
-	self->idleScanInvestigationState.nextFlipTime = level.time + DUMMY_IDLE_SCAN_FLIP_INTERVAL;
-	// Clear any cached breadcrumb/goal so we do not keep pursuing after deactivating.
-	if ( !self->isActivated ) {
-		// When deactivating, also clear the last processed sound time so that we can react to sound events immediately if we get any while deactivated, instead of ignoring them because they are older than the last processed time.
-		self->soundScanInvestigation.lastTime = 0_ms;
-       self->lastPlayerVisibleTime = 0_ms;
-	}
-
-	/**
-	*	Activation state change handling:
-	*		- When disabling, stop any pursuit immediately and clear nav/trail state.
-	*		- When enabling, start from idle so we acquire player/trail cleanly.
-	**/
-	if ( !self->isActivated ) {
-		// Clear any cached breadcrumb/goal so we do not keep pursuing after disabling.
-		self->trailNavigationState.targetEntity = nullptr;
-		self->goalentity = nullptr;
-		// Cancel/clear any async nav request/path so it cannot keep steering motion.
-	self->ResetNavigationPath( );
-		// Return to idle thinker. (So it can scan for a player/trail goal.)
-		self->nextthink = level.time + FRAME_TIME_MS;
-     Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
-	} else {
-		// On activation, reset nav state and reacquire targets from scratch.
-		self->trailNavigationState.targetEntity = nullptr;
-		self->goalentity = nullptr;
-		// Cancel/clear any async nav request/path so it cannot keep steering motion.
-	self->ResetNavigationPath( );
-		// Return to idle thinker. (So it can scan for a player/trail goal.)
-		self->nextthink = level.time + FRAME_TIME_MS;
-     Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
-	}
-
-	if ( DUMMY_NAV_DEBUG != 0 ) {
-		const char *activatorName = "nullptr";
-		if ( activator ) {
-			activatorName = ( const char * )activator->classname;
-		}
-
-		gi.dprintf( "[NAV DEBUG] %s: isActivated=%d, activator=%s\n",
-			__func__, ( int32_t )self->isActivated, activatorName );
-	}
-
-	//self->trailNavigationState.targetEntity = nullptr;
-	//ResetNavigationPath( );
-
-	if ( self->isActivated ) {
-		self->goalentity = activator;
-        Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::PursuePlayer );
-	} else {
-		self->goalentity = nullptr;
-             Dummy_SetState( self, svg_monster_testdummy_debug_t::AIThinkState::IdleLookout );
-	}
-
-	self->nextthink = level.time + FRAME_TIME_MS;
-}
-
-//=============================================================================================
-
-/**
 *	@brief	Set when dead. Does nothing.
 **/
 DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead )( svg_monster_testdummy_debug_t *self ) -> void {
@@ -1689,6 +1611,15 @@ DEFINE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead )( svg
 
 
 /**
+*
+*
+*
+*		(Generic-) NPC Entity Think Support Routines:
+*
+*
+*
+**/
+/**
 	*	@brief	Generic support routine taking care of the base logic that each onThink implementation relies on.
 	*			( Setup navPolicy, recategorize ground and liquid information,  check for being alive,
 	*			  check for activator presence, etc).
@@ -1705,18 +1636,18 @@ const bool svg_monster_testdummy_debug_t::GenericThinkBegin() {
 	**/
 	navigationState.pathPolicy.waypoint_radius = NAV_DEFAULT_WAYPOINT_RADIUS;
 	navigationState.pathPolicy.max_step_height = NAV_DEFAULT_STEP_MAX_SIZE;
-	navigationState.pathPolicy.max_drop_height = 128.0;
+	navigationState.pathPolicy.max_drop_height = NAV_DEFAULT_MAX_DROP_HEIGHT;
 	navigationState.pathPolicy.enable_max_drop_height_cap = true;
-	navigationState.pathPolicy.max_drop_height_cap = ( nav_max_drop_height_cap && nav_max_drop_height_cap->value > 0.0f ) ? nav_max_drop_height_cap->value : 64;
+	navigationState.pathPolicy.max_drop_height_cap = ( nav_max_drop_height_cap && nav_max_drop_height_cap->value > 0.0f ) ? nav_max_drop_height_cap->value : NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
 	navigationState.pathPolicy.enable_goal_z_layer_blend = true;
 	navigationState.pathPolicy.blend_start_dist = PHYS_STEP_MAX_SIZE;
-	navigationState.pathPolicy.blend_full_dist = 128.0;
+	navigationState.pathPolicy.blend_full_dist = NAV_DEFAULT_BLEND_DIST_FULL;
 	// No blending seems to work!
 	//navigationState.pathPolicy.enable_goal_z_layer_blend = false;
 	//navigationState.pathPolicy.blend_start_dist = PHYS_STEP_MAX_SIZE;
 	//navigationState.pathPolicy.blend_full_dist = 128.0;
 	navigationState.pathPolicy.allow_small_obstruction_jump = true;
-	navigationState.pathPolicy.max_obstruction_jump_height = 48.0;
+	navigationState.pathPolicy.max_obstruction_jump_height = NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE;
 
 	/**
 	*    Recategorize position and check grounding.
@@ -1726,7 +1657,7 @@ const bool svg_monster_testdummy_debug_t::GenericThinkBegin() {
 	/**
 	*    Liveness check.
 	**/
-	if ( health <= 0 || lifeStatus != LIFESTATUS_ALIVE ) {
+	if ( health <= 0 || ( lifeStatus & LIFESTATUS_ALIVE ) != LIFESTATUS_ALIVE ) {
 		// Transition and remain in the dead thinker and do nothing if we are dead.
 		SetThinkCallback( &svg_monster_testdummy_debug_t::onThink_Dead );
 		nextthink = level.time + FRAME_TIME_MS;
@@ -1769,7 +1700,7 @@ const bool svg_monster_testdummy_debug_t::GenericThinkFinish( const bool process
 			**/
 			// Last initial origin that we were linked at.
 			// (which should be the same as the starting origin for the movement attempt since we haven't updated our position yet).
-			const Vector3 initialOrigin = s.origin;
+			const Vector3 initialOrigin = currentOrigin;
 			// The origin after the move was attempted.
 			const Vector3 moveResultOrigin = monsterMove.state.origin;
 			// We want to trace down from the front of the monster since that is what would step off the ledge first, 
@@ -1787,7 +1718,7 @@ const bool svg_monster_testdummy_debug_t::GenericThinkFinish( const bool process
 			// This is where we will trace down from to check for ledges, since it is possible to step off a ledge with just part of our bounding box and we want to catch that.
 			const Vector3 bboxAbsolutePos = moveResultOrigin + bboxCenterOffset;
 			// Get the width/height values to calculate the exact maximum forward direction before even a unit of the bounding box is off-ground.
-			const Vector3 bboxForwardOffset = Vector3( bboxCenterOffset.x, bboxCenterOffset.y, 0.0f );
+			const Vector2 bboxForwardOffset = Vector2( bboxCenterOffset );
 			// We only care about the horizontal direction for the forward offset, so we zero out the Z component to prevent it from affecting our trace start position.
 			// And calculate the forward offset length based on the monster's bounding box and the direction of movement, 
 			// so we trace from the point on the bounding box that would step off the ledge first.
@@ -1812,38 +1743,42 @@ const bool svg_monster_testdummy_debug_t::GenericThinkFinish( const bool process
 				: ( navigationState.pathPolicy.enable_max_drop_height_cap ? navigationState.pathPolicy.max_drop_height : 0.0f );
 
 			/**
-			*	/If the trace did not go all the way to the end point(fraction < 1.0) and the drop is greater than the policy limit,
+			*	If the trace did not go all the way to the end point(fraction < 1.0) and the drop is greater than the policy limit,
 			*	we are trying to step off a ledge that is too high.
 			**/
 			if ( tr.fraction < 1.0f && policyDropLimit > 0.0f && drop > policyDropLimit ) {
 				// Project our origin back to the position it would be in if we did not move horizontally, 
 				// which should prevent us from stepping off the ledge while still allowing us to fall normally 
 				// if we walk off the edge or if we are in the air.
-				monsterMove.state.origin = monsterMove.state.origin - ( forwardDir * bboxForwardLength );
+				monsterMove.state.origin += ( QM_Vector3Negate( forwardDir ) * bboxForwardLength );
+
 				/**
 				*	Slide the velocity along the new movement plane so we don't keep trying to move into the ledge and get stuck. 
 				*	We want to keep any vertical velocity since we still want to be able to fall if we walk off the edge, 
 				*	but we want to remove any horizontal velocity that is trying to move us into the ledge.
 				**/
-				// Calculate the faux plane based on the movement yaw direction and the world up vector, 
-				// which will give us a vertical plane that we can slide along to remove the horizontal movement into the 
-				// ledge while keeping vertical movement intact.
-				Vector3 fauxPlaneNormal = QM_Vector3CrossProduct( forwardDir, Vector3( 0.0f, 0.0f, 1.0f ) );
-
-				// Handle degenerate case where forward is nearly vertical.
-				if ( QM_Vector3LengthSqr( fauxPlaneNormal ) <= ( 1e-6f ) ) {
-					// fall back to a stable horizontal axis (e.g., world X)
-					fauxPlaneNormal = { 1.0f, 0.0f, 0.0f };
+                /**
+				*    Build a vertical-plane normal that will cancel the horizontal forward
+				*    component of velocity so we do not continue to drive forward off the
+				*    ledge while preserving vertical motion. The previous approach used
+				*    cross(forward, up) which produced a right/left vector and therefore
+				*    removed the wrong velocity component; here we explicitly use the
+				*    horizontal forward direction as the plane normal.
+				**/
+				// Project movement direction onto horizontal plane to obtain stable forward axis.
+				Vector3 horizontalForward = forwardDir;
+				horizontalForward.z = 0.0f;
+				// If horizontal component is degenerate, fall back to a stable axis.
+				if ( QM_Vector3LengthSqr( horizontalForward ) <= ( 1e-6f ) ) {
+					horizontalForward = Vector3{ 1.0f, 0.0f, 0.0f };
 				} else {
-					fauxPlaneNormal = QM_Vector3Normalize( fauxPlaneNormal );
+					horizontalForward = QM_Vector3Normalize( horizontalForward );
 				}
 
-				// Remove component of velocity into the plane normal, keep vertical component.
+				// Remove the forward component from velocity while keeping vertical component intact.
 				Vector3 vel = monsterMove.state.velocity;
-				// Project the velocity onto the faux plane normal to get the component of the velocity 
-				// that is trying to move us into the ledge, which we want to remove.	
-				Vector3 normalProjection = QM_Vector3Project( vel, fauxPlaneNormal ); // projection on normal
-				monsterMove.state.velocity = QM_Vector3Subtract( vel, normalProjection );
+				Vector3 forwardProjection = QM_Vector3Project( vel, horizontalForward );
+				monsterMove.state.velocity = QM_Vector3Subtract( vel, forwardProjection );
 				
 				// <Q2RTXP>: WID: This might be a better alternative.
 				//QM_Vector3Perpendicular
@@ -1934,11 +1869,107 @@ const bool svg_monster_testdummy_debug_t::GenericThinkFinish( const bool process
 	return true;
 }
 
+
 //=============================================================================================
 //=============================================================================================
 
 
+/**
+*
+*
+*
+*
+*	Explicit NPC State Management:
+*
+*
+*
+*
+**/
+//! Tracks whether the NPC has been enabled(By use, with the intend for it to follow the player) by the player.
+//bool isActivated = false;
+////! Last server time when the activator was confirmed visible.
+//QMTime lastPlayerVisibleTime = 0_ms;
+//
+///**
+//*   Explicit AI states.
+//**/
+//enum class AIThinkState {
+//	IdleLookout,
+//	PursuePlayer,
+//	PursueBreadcrumb,
+//	InvestigateSound
+//};
+////! Determines the thinking state callback to fire for the frame.
+//AIThinkState thinkAIState = AIThinkState::IdleLookout;
+/**
+*	@brief	NPC Goal Z Blend Policy Adjustment Helper:
+**/
+void svg_monster_testdummy_debug_t::DetermineGoalZBlendPolicyState( const Vector3 &goalOrigin ) {
+	/* Tune goal-Z blending for this think tick. */
+	{
+		Vector3 likelyGoal = activator ? activator->currentOrigin : currentOrigin;
+		AdjustGoalZBlendPolicy( likelyGoal );
+	}
 
+	///* Tune goal-Z blending for this think tick. */
+	//{
+	//	Vector3 likelyGoal = trailNavigationState.targetEntity ? trailNavigationState.targetEntity->currentOrigin : ( activator ? activator->currentOrigin : currentOrigin );
+	//	AdjustGoalZBlendPolicy( likelyGoal );
+	//}
+
+	/*
+	* Tune goal-Z blending based on current likely goal so nav policy is
+	* appropriate before any path rebuilds are queued this frame.
+	*/
+	{
+		Vector3 likelyGoal = trailNavigationState.targetEntity ? trailNavigationState.targetEntity->currentOrigin : ( activator ? activator->currentOrigin : currentOrigin );
+		AdjustGoalZBlendPolicy( likelyGoal );
+	}
+
+	/**
+	*\tTune goal-Z blending based on current likely goal so nav policy is
+	*\tappropriate before any path rebuilds are queued this frame.
+	**/
+	{
+		Vector3 likelyGoal = activator ? activator->currentOrigin : ( trailNavigationState.targetEntity ? trailNavigationState.targetEntity->currentOrigin : currentOrigin );
+		AdjustGoalZBlendPolicy( likelyGoal );
+	}
+
+	///**
+	//*	Tune goal-Z blending based on current likely goal so nav policy is
+	//*	appropriate before any path rebuilds are queued this frame.
+	//**/
+	//{
+	//	Vector3 likelyGoal = activator ? activator->currentOrigin : currentOrigin;
+	//	AdjustGoalZBlendPolicy( likelyGoal );
+	//}
+}
+
+
+/**
+*
+*
+*
+*	Animation Processing Work:
+*
+*
+*
+**/
+//skm_rootmotion_set_t *rootMotionSet = nullptr;
+
+
+//=============================================================================================
+//=============================================================================================
+
+/**
+*
+*
+*
+*	Basic AI Physics Movement(-State):
+*
+*
+*
+**/
 /**
 *	@brief	Performs the actual SlideMove processing and updates the final origin if successful.
 **/
@@ -1974,28 +2005,28 @@ const int32_t svg_monster_testdummy_debug_t::ProcessSlideMove() {
 
 	// After SVG_MMove_StepSlideMove(...) and before applying final origin
 	//if ( monsterMove.ground.entityNumber != ENTITYNUM_NONE ) {
-		const bool willBeAirborne = ( monsterMove.ground.entityNumber == ENTITYNUM_NONE );
-		if ( willBeAirborne ) {
-			Vector3 start = monsterMove.state.origin;
-			Vector3 forwardDir = QM_Vector3Normalize( monsterMove.state.velocity );
-			Vector3 end = start + forwardDir * 24.0f;
-			end.z -= navigationState.pathPolicy.max_drop_height;
+	const bool willBeAirborne = ( monsterMove.ground.entityNumber == ENTITYNUM_NONE );
+	if ( willBeAirborne ) {
+		Vector3 start = monsterMove.state.origin;
+		Vector3 forwardDir = QM_Vector3Normalize( monsterMove.state.velocity );
+		Vector3 end = start + forwardDir * 24.0f;
+		end.z -= navigationState.pathPolicy.max_drop_height;
 
-			svg_trace_t tr = gi.trace( &start, &monsterMove.mins, &monsterMove.maxs, &end, this, CM_CONTENTMASK_SOLID );
-			const float drop = start.z - tr.endpos[ 2 ];
+		svg_trace_t tr = gi.trace( &start, &monsterMove.mins, &monsterMove.maxs, &end, this, CM_CONTENTMASK_SOLID );
+		const float drop = start.z - tr.endpos[ 2 ];
 
-			const float policyDropLimit = ( navigationState.pathPolicy.max_drop_height_cap > 0.0f )
-				? ( float )navigationState.pathPolicy.max_drop_height_cap
-				: ( navigationState.pathPolicy.enable_max_drop_height_cap ? ( float )navigationState.pathPolicy.max_drop_height : 0.0f );
+		const float policyDropLimit = ( navigationState.pathPolicy.max_drop_height_cap > 0.0f )
+			? ( float )navigationState.pathPolicy.max_drop_height_cap
+			: ( navigationState.pathPolicy.enable_max_drop_height_cap ? ( float )navigationState.pathPolicy.max_drop_height : 0.0f );
 
-			if ( tr.fraction < 1.0f && policyDropLimit > 0.0f && drop > policyDropLimit ) {
-				monsterMove.state.origin = monsterMove.state.origin - ( forwardDir * 24.f );
-				monsterMove.state.velocity.x = 0.0f;
-				monsterMove.state.velocity.y = 0.0f;
-				monsterMove.ground = groundInfo;
-			}
+		if ( tr.fraction < 1.0f && policyDropLimit > 0.0f && drop > policyDropLimit ) {
+			monsterMove.state.origin = monsterMove.state.origin - ( forwardDir * 24.f );
+			monsterMove.state.velocity.x = 0.0f;
+			monsterMove.state.velocity.y = 0.0f;
+			monsterMove.ground = groundInfo;
 		}
-	//}
+	}
+//}
 	#endif
 	#ifdef M_TESTDUMMY_DEBUG_ENABLE_JUMP_ATTEMPT
 	// After blockedMask is computed (in ProcessSlideMove)
@@ -2026,10 +2057,96 @@ const int32_t svg_monster_testdummy_debug_t::ProcessSlideMove() {
 	return blockedMask;
 }
 
+/**
+*    @brief    Slerp direction helper. (Local to this TU to avoid parent dependency).
+**/
+const Vector3 svg_monster_testdummy_debug_t::SlerpDirectionVector3( const Vector3 &from, const Vector3 &to, float t ) {
+	float dot = QM_Vector3DotProduct( from, to );
+	float aFactor, bFactor;
+	if ( std::fabs( dot ) > 0.9995f ) {
+		aFactor = 1.0f - t;
+		bFactor = t;
+	} else {
+		float ang = std::acos( dot );
+		float sinOmega = std::sin( ang );
+		aFactor = std::sin( ( 1.0f - t ) * ang ) / sinOmega;
+		bFactor = std::sin( t * ang ) / sinOmega;
+	}
+	return from * aFactor + to * bFactor;
+}
+
+/**
+*	@brief	Recategorize the entity's ground/liquid and ground states.
+**/
+const void svg_monster_testdummy_debug_t::RecategorizeGroundAndLiquidState() {
+	// Get the mask for checking ground and recategorizing position.
+	const cm_contents_t mask = SVG_GetClipMask( this );
+	// Check for ground and recategorize position so we can settle on the floor and interact with the world properly instead of being stuck in the air or in a wall.
+	M_CheckGround( this, mask );
+	// Recategorize position so we can update our liquid level/type and so we can properly interact with the world instead of being stuck in the air or in a wall.
+	M_CatagorizePosition( this, currentOrigin, liquidInfo.level, liquidInfo.type );
+}
+
 
 //=============================================================================================
 //=============================================================================================
 
+
+/**
+*
+*
+*
+*	Internal Navigation Queueing and Path Following Logic API:
+*
+*
+*
+**/
+/**
+*   @brief	Clear stale async nav request state when no navmesh is loaded.
+*   @param	self	Debug testdummy owning the async path process.
+*   @return	True when navmesh is unavailable and caller should early-return.
+*   @note	Prevents repeated queue refresh/debounce loops on maps without navmesh.
+**/
+const bool svg_monster_testdummy_debug_t::GuardForNullNavMesh() {
+	/**
+	*   Fast path: navmesh exists, caller may continue normal request flow.
+	**/
+	if ( g_nav_mesh.get() ) {
+		return false;
+	}
+
+	/**
+	*   Determine whether there is any async state worth tearing down.
+	**/
+	const bool hadPendingState = ( navigationState.pathProcess.pending_request_handle > 0 )
+		|| navigationState.pathProcess.rebuild_in_progress
+		|| SVG_Nav_IsRequestPending( &navigationState.pathProcess );
+
+	/**
+	*   Cancel tracked handle first so queue state transitions to terminal.
+	**/
+	if ( navigationState.pathProcess.pending_request_handle > 0 ) {
+		SVG_Nav_CancelRequest( ( nav_request_handle_t )navigationState.pathProcess.pending_request_handle );
+	}
+
+	/**
+	*   Clear local markers so callers stop reporting pending async work.
+	**/
+	navigationState.pathProcess.pending_request_handle = 0;
+	navigationState.pathProcess.rebuild_in_progress = false;
+
+	/**
+	*   Emit a debug message only when we actually cleaned stale state.
+	**/
+	if ( hadPendingState && DUMMY_NAV_DEBUG != 0 ) {
+		gi.dprintf( "[NAV DEBUG] %s: navmesh unavailable, cleared pending async state and skipped queueing.\n", __func__ );
+	}
+
+	/**
+	*   No navmesh loaded; caller should skip path request/query work.
+	**/
+	return true;
+}
 
 /**
 *    @brief    Attempt A* navigation to a target origin and apply local movement/animation.
@@ -2068,7 +2185,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 		return false;
 	}
 
- /**
+	/**
 	*   Local helper for direct-steer fallback when no A* direction exists.
 	*       Keep debug monster behavior responsive on maps without navmesh.
 	**/
@@ -2095,20 +2212,20 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 			s.frame = rootMotion->firstFrameIndex + localFrame;
 		}
 
-     constexpr double frameVelocity = 220.0;
+		constexpr double frameVelocity = 220.0;
 		velocity.x = ( float )( moveDir.x * frameVelocity );
 		velocity.y = ( float )( moveDir.y * frameVelocity );
 		// Mirror the fallback velocity onto the monster move state so the slide move will carry it.
 		monsterMove.state.velocity.x = velocity.x;
 		monsterMove.state.velocity.y = velocity.y;
 		return true;
-	};
+		};
 
-	/**
-	*   Guard: when no navmesh is loaded, clear stale async state and rely on
-	*       direct fallback movement so the debug state machine keeps functioning.
-	**/
-	if ( GuardForNullNavMesh( ) ) {
+		/**
+		*   Guard: when no navmesh is loaded, clear stale async state and rely on
+		*       direct fallback movement so the debug state machine keeps functioning.
+		**/
+	if ( GuardForNullNavMesh() ) {
 		return applyDirectFallback( goalOrigin );
 	}
 
@@ -2123,13 +2240,13 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 	const double activatorDist2D = activator
 		? std::sqrt( QM_Vector2DistanceSqr( activator->currentOrigin, currentOrigin ) )
 		: 0.0;
-	const bool activatorWithinProximity = activator && ( activatorDist2D <= DUMMY_PLAYER_PURSUIT_MAX_DIST );
+	const bool activatorWithinProximity = activator && ( activatorDist2D <= 32./*DUMMY_PLAYER_PURSUIT_MAX_DIST */);
 	if ( goalentity == activator && activator && !activatorVisible && !activatorWithinProximity && !force ) {
 		// Skip queuing a new/refresh request only when direct pursuit is no longer valid.
 		// This keeps queue behavior consistent with state selection and avoids
 		// freezing in PursuePlayer while invisible-but-near.
 		if ( DUMMY_NAV_DEBUG != 0 ) {
-          gi.dprintf( "[NAV DEBUG] %s: skipping queue to invisible+far activator dist2D=%.1f max=%.1f\n",
+			gi.dprintf( "[NAV DEBUG] %s: skipping queue to invisible+far activator dist2D=%.1f max=%.1f\n",
 				__func__, activatorDist2D, DUMMY_PLAYER_PURSUIT_MAX_DIST );
 		}
 
@@ -2156,7 +2273,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 			// Also throttle the next rebuild attempt slightly using the standard rebuild interval.
 			navigationState.pathProcess.next_rebuild_time = level.time + navigationState.pathPolicy.rebuild_interval;
 		}
-    } else {
+	} else {
 		// Only honor an explicit force request when the goal moved beyond the
 		// configured rebuild thresholds. This prevents callers from forcing each
 		// frame for negligible movements.
@@ -2164,7 +2281,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 		if ( force ) {
 			// Compute 2D and 3D movement deltas relative to our last recorded
 			// nav goal (if available) so we only force when movement is meaningful.
-			const Vector3 &referenceGoal = goalNavigation.isLastOriginValid ? goalNavigation.lastOrigin : navigationState.pathProcess.path_goal_position;
+			const Vector3 &referenceGoal = goalNavigationState.isLastOriginValid ? goalNavigationState.lastOrigin : navigationState.pathProcess.path_goal_position;
 			const double dx = QM_Vector3LengthDP( QM_Vector3Subtract( goalOrigin, referenceGoal ) );
 			// If the goal moved less than the 2D threshold, do not force.
 			if ( dx <= navigationState.pathPolicy.rebuild_goal_dist_2d ) {
@@ -2181,16 +2298,16 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 		*        Keep default behavior unless the dedicated debug define asks us to
 		*        bypass the hierarchical route filter for StepTest isolation.
 		**/
-		svg_nav_path_policy_t queuePolicy = navigationState.pathPolicy;
-#if MONSTER_TESTDUMMY_DEBUG_BYPASS_ROUTE_FILTER
+		svg_nav_path_policy_t &queuePolicy = navigationState.pathPolicy;
+		#if MONSTER_TESTDUMMY_DEBUG_BYPASS_ROUTE_FILTER
 		queuePolicy.enable_cluster_route_filter = true;
-#endif
-		const bool queued = TryNavigationQueueRebuild( currentOrigin, goalOrigin, queuePolicy, agent_mins, agent_maxs, effectiveForce );
+		#endif
+		const bool queued = TryRebuildNavigationInQueue( currentOrigin, goalOrigin, queuePolicy, agent_mins, agent_maxs, effectiveForce );
 		// If we successfully requested a rebuild and the caller intended a force,
 		// record the last forced goal so subsequent small deltas do not re-force.
 		if ( queued && force ) {
-			goalNavigation.lastOrigin = goalOrigin;
-			goalNavigation.isLastOriginValid = true;
+			goalNavigationState.lastOrigin = goalOrigin;
+			goalNavigationState.isLastOriginValid = true;
 		}
 	}
 
@@ -2271,59 +2388,6 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 	return false;
 }
 
-
-
-//=============================================================================================
-//=============================================================================================
-
-
-
-/**
-*    @brief    Slerp direction helper. (Local to this TU to avoid parent dependency).
-**/
-const Vector3 svg_monster_testdummy_debug_t::SlerpDirectionVector3( const Vector3 &from, const Vector3 &to, float t ) {
-	float dot = QM_Vector3DotProduct( from, to );
-	float aFactor, bFactor;
-	if ( std::fabs( dot ) > 0.9995f ) {
-		aFactor = 1.0f - t;
-		bFactor = t;
-	} else {
-		float ang = std::acos( dot );
-		float sinOmega = std::sin( ang );
-		aFactor = std::sin( ( 1.0f - t ) * ang ) / sinOmega;
-		bFactor = std::sin( t * ang ) / sinOmega;
-	}
-	return from * aFactor + to * bFactor;
-}
-
-/**
-*	@brief	Recategorize the entity's ground/liquid and ground states.
-**/
-const void svg_monster_testdummy_debug_t::RecategorizeGroundAndLiquidState() {
-	// Get the mask for checking ground and recategorizing position.
-	const cm_contents_t mask = SVG_GetClipMask( this );
-	// Check for ground and recategorize position so we can settle on the floor and interact with the world properly instead of being stuck in the air or in a wall.
-	M_CheckGround( this, mask );
-	// Recategorize position so we can update our liquid level/type and so we can properly interact with the world instead of being stuck in the air or in a wall.
-	M_CatagorizePosition( this, currentOrigin, liquidInfo.level, liquidInfo.type );
-}
-
-
-
-
-//=============================================================================================
-//=============================================================================================
-
-
-/**
-*
-*
-*
-*	Navigation Queueing and Path Following Logic:
-*
-*
-*
-**/
 /**
 *	@brief	Enqueue a navigation rebuild request when the async queue is enabled.
 *	@param	self	Monster owning the path process state.
@@ -2335,9 +2399,9 @@ const void svg_monster_testdummy_debug_t::RecategorizeGroundAndLiquidState() {
 *	@param	force	When true, bypass throttles/heuristics and rebuild immediately.
 *	@return	True if the queue accepted the request or already had one pending.
 *	@note	When this returns true the path process relies on the queued rebuild instead
-*		of immediate synchronous execution so we do not spam blocking calls.
+*			of immediate synchronous execution so we do not spam blocking calls.
 **/
-const bool svg_monster_testdummy_debug_t::TryNavigationQueueRebuild( const Vector3 &start_origin,
+const bool svg_monster_testdummy_debug_t::TryRebuildNavigationInQueue( const Vector3 &start_origin,
 	const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
 	const Vector3 &agent_maxs, const bool force )
 {
@@ -2520,3 +2584,80 @@ void svg_monster_testdummy_debug_t::ResetNavigationPath() {
 	navigationState.pathProcess.rebuild_in_progress = false;
 	navigationState.pathProcess.pending_request_handle = 0;
 }
+
+/**
+*	@brief	Member wrapper that forwards to the TU-local AdjustGoalZBlendPolicy helper.
+*	@param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
+*	@note	Called each think after `GenericThinkBegin()` to keep `navigationState.pathPolicy`
+*			tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
+**/
+void svg_monster_testdummy_debug_t::AdjustGoalZBlendPolicy( const Vector3 &goalOrigin ) {
+	auto &pathPolicy = navigationState.pathPolicy;
+	auto &pathProcess = navigationState.pathProcess;
+
+	const double horizDist = std::sqrt( QM_Vector2DistanceSqr( goalOrigin, currentOrigin ) );
+	const double deltaZ = ( double )goalOrigin.z - ( double )currentOrigin.z;
+	const double absDz = std::fabs( deltaZ );
+
+	// If we recently had failures, disable blending briefly to avoid repeating bad layer choices.
+	const bool recentFailure = ( pathProcess.consecutive_failures > 0 ) && ( ( level.time - pathProcess.last_failure_time ) <= 2_sec );
+	if ( recentFailure ) {
+		pathPolicy.enable_goal_z_layer_blend = false;
+		pathPolicy.blend_start_dist = 128.0;
+		pathPolicy.blend_full_dist = 256.0;
+		return;
+	}
+
+	// Thresholds and guards
+	constexpr double kStairVerticalThreshold = 32.0; // world units
+	constexpr double kMinBlendStart = 32.0;
+	constexpr double kMinBlendFull = 64.0;
+
+	const bool activatorVisible = ( activator != nullptr && SVG_Entity_IsVisible( this, activator ) );
+	const double activatorDist2D = activator ? std::sqrt( QM_Vector2DistanceSqr( activator->currentOrigin, currentOrigin ) ) : DBL_MAX;
+	const bool activatorNearby = ( activatorDist2D <= 64/*DUMMY_PLAYER_PURSUIT_MAX_DIST*/ );
+
+	// If vertical difference is small, prefer no bias (stay on start layer).
+	if ( absDz <= kStairVerticalThreshold ) {
+		pathPolicy.enable_goal_z_layer_blend = false;
+		pathPolicy.blend_start_dist = 64.0;
+		pathPolicy.blend_full_dist = 128.0;
+		return;
+	}
+
+	// If activator is visible/nearby, be conservative about switching layers.
+	if ( activatorVisible || activatorNearby ) {
+		pathPolicy.enable_goal_z_layer_blend = true;
+		pathPolicy.blend_start_dist = std::clamp( horizDist * 0.25, kMinBlendStart, 256.0 );
+		pathPolicy.blend_full_dist = std::clamp( horizDist * 0.5, kMinBlendFull, 384.0 );
+		return;
+	}
+
+	// Otherwise, prefer enabling blending for upward goals so the pathfinder can climb stairs when appropriate.
+	if ( deltaZ > 0. ) {
+		pathPolicy.enable_goal_z_layer_blend = true;
+		pathPolicy.blend_start_dist = std::clamp( horizDist - 64.0, kMinBlendStart, 256.0 );
+		pathPolicy.blend_full_dist = std::clamp( std::max( horizDist * 0.25, 128.0 ), kMinBlendFull, 512.0 );
+	} else {
+		pathPolicy.enable_goal_z_layer_blend = false;
+		pathPolicy.blend_start_dist = 64.0;
+		pathPolicy.blend_full_dist = 128.0;
+	}
+}
+
+
+//=============================================================================================
+//=============================================================================================
+
+
+/**
+*
+*
+*
+*
+*	Explicit NPC State Management:
+*
+*
+*
+*
+**/

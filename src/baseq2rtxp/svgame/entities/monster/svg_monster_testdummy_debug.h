@@ -1,7 +1,7 @@
 /********************************************************************
 *
 *
-*    ServerGame: TestDummy Debug Monster Edict (A* only)
+*    ServerGame: TestDummy Debug NPC Edict (A* only)
 *    File: svg_monster_testdummy_debug.h
 *    Description:
 *        Lightweight debug variant of the TestDummy that always attempts
@@ -22,10 +22,7 @@
 #include "svgame/monsters/svg_mmove_slidemove.h"
 //#include "svgame/entities/monster/svg_monster_testdummy.h"
 
-/**
-*   Explicit debug AI states.
-**/
-enum class AIThinkState;
+
 
 /**
  *    Debug TestDummy Entity: always A* to activator
@@ -138,14 +135,16 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	**/
 	DECLARE_MEMBER_CALLBACK_THINK( svg_monster_testdummy_debug_t, onThink_Dead );
 
+
 	//=============================================================================================
 	//=============================================================================================
 	
+
 	/**
 	*
 	*
 	*
-	*		Entity Think Support Routines:
+	*		(Generic-) NPC Entity Think Support Routines:
 	*
 	*
 	*
@@ -175,25 +174,70 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 
 
 	/**
-	*   @brief	Clear stale async nav request state when no navmesh is loaded.
-	*   @param	self	Debug testdummy owning the async path process.
-	*   @return	True when navmesh is unavailable and caller should early-return.
-	*   @note	Prevents repeated queue refresh/debounce loops on maps without navmesh.
+	*
+	*
+	*
+	*
+	*	Explicit NPC State Management:
+	*
+	*
+	*
+	*
 	**/
-	const bool GuardForNullNavMesh();
+	//! Tracks whether the NPC has been enabled(By use, with the intend for it to follow the player) by the player.
+	bool isActivated = false;
+	//! Last server time when the activator was confirmed visible.
+	QMTime lastPlayerVisibleTime = 0_ms;
 
 	/**
-	*    @brief    Attempt A* navigation to a target origin. (Local to this TU to avoid parent dependency).
-	*    @param    goalOrigin      World-space destination used for the rebuild request.
-	*    @param    force           When true, cancel any pending rebuild and enqueue immediately.
-	*    @return   True if movement/animation was updated.
+	*   Explicit AI states.
 	**/
-	const bool MoveAStarToOrigin( const Vector3 &goalOrigin, bool force = false );
+	enum class AIThinkState {
+		IdleLookout,
+		PursuePlayer,
+		PursueBreadcrumb,
+		InvestigateSound
+	};
+	//! Determines the thinking state callback to fire for the frame.
+	AIThinkState thinkAIState = AIThinkState::IdleLookout;
+
+	/**
+	*	@brief	NPC Goal Z Blend Policy Adjustment Helper:
+	**/
+	void DetermineGoalZBlendPolicyState( const Vector3 &goalOrigin );
+
+	/**
+	*
+	*
+	*
+	*	Animation Processing Work:
+	*
+	*
+	*
+	**/
+	skm_rootmotion_set_t *rootMotionSet = nullptr;
 
 
 	//=============================================================================================
 	//=============================================================================================
 	
+	/**
+	*
+	*
+	*
+	*	Basic AI Physics Movement(-State):
+	*
+	*
+	*
+	**/
+	//! Current movement state for the monster, used for both the main think dispatcher and the specific A* pursuit thinkers.
+	mm_move_t monsterMove = {};
+
+	/**
+	*	@brief	Performs the actual SlideMove processing and updates the final origin if successful.
+	*	@return	The blockedMask result from the slide move, which is important for the caller to determine if we should do any special handling for being trapped (e.g., try to jump, pick a new path, etc).
+	**/
+	const int32_t ProcessSlideMove();
 
 	/**
 	*    @brief    Slerp direction helper. (Local to this TU to avoid parent dependency).
@@ -214,29 +258,30 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	*
 	*
-	*	Navigation Internals API:
+	*	Internal Navigation Queueing and Path Following Logic API:
 	*
 	*
 	*
 	**/
+	/**
+	*   @brief	Clear stale async nav request state when no navmesh is loaded.
+	*   @param	self	Debug testdummy owning the async path process.
+	*   @return	True when navmesh is unavailable and caller should early-return.
+	*   @note	Prevents repeated queue refresh/debounce loops on maps without navmesh.
+	**/
+	const bool GuardForNullNavMesh();
+
+	/**
+	*    @brief    Attempt A* navigation to a target origin. (Local to this TU to avoid parent dependency).
+	*    @param    goalOrigin      World-space destination used for the rebuild request.
+	*    @param    force           When true, cancel any pending rebuild and enqueue immediately.
+	*    @return   True if movement/animation was updated.
+	**/
+	const bool MoveAStarToOrigin( const Vector3 &goalOrigin, bool force = false );
 	
 	/**
-	* @brief	Dynamically tune goal-Z layer blending policy for the current goal.
-	* @param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
-	* @note	Called each think after `GenericThinkBegin()` to keep `navigationState.pathPolicy`
-	* 		tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
-	**/
-	void AdjustGoalZBlendPolicy( const Vector3 &goalOrigin );
-
-	/**
-	*	@brief	Performs the actual SlideMove processing and updates the final origin if successful.
-	*	@return	The blockedMask result from the slide move, which is important for the caller to determine if we should do any special handling for being trapped (e.g., try to jump, pick a new path, etc).
-	**/
-	const int32_t ProcessSlideMove();
-
-	/**
 	*	@brief	Enqueue a navigation rebuild request when the async queue is enabled.
-	*	@param	self	Monster owning the path process state.
+	*	@param	self	NPC owning the path process state.
 	*	@param	start_origin	Current feet-origin start position.
 	*	@param	goal_origin	Desired feet-origin goal position.
 	*	@param	policy	Path-follow policy tuning rebuild heuristics.
@@ -247,67 +292,38 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*	@note	When this returns true the path process relies on the queued rebuild instead
 	*			of immediate synchronous execution so we do not spam blocking calls.
 	**/
-	const bool TryNavigationQueueRebuild( const Vector3 &start_origin,
+	const bool TryRebuildNavigationInQueue( const Vector3 &start_origin,
 		const Vector3 &goal_origin, const svg_nav_path_policy_t &policy, const Vector3 &agent_mins,
 		const Vector3 &agent_maxs, const bool force = false );
 	/**
 	*    @brief	Reset cached navigation path state for the test dummy.
-	*    @param	self	Monster whose path state should be cleared.
+	*    @param	self	NPC whose path state should be cleared.
 	*    @note	Cancels any queued async request and clears cached path buffers.
 	**/
 	void ResetNavigationPath();
 
-
-
 	/**
-	*
-	*
-	*
-	*	Core Monster Variables:
-	* 
-	* 
-	* 
+	*	@brief	Member wrapper that forwards to the TU-local AdjustGoalZBlendPolicy helper.
+	*	@param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
+	*	@note	Called each think after `GenericThinkBegin()` to keep `navigationState.pathPolicy`
+	*			tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
 	**/
-	//! Tracks whether the debug monster has been enabled(By use, with the intend for it to follow the player)  by the player.
-	bool isActivated = false;
-	//! Last server time when the activator was confirmed visible.
-	QMTime lastPlayerVisibleTime = 0_ms;
-	/**
-	*   Explicit AI Thinking States.
-	**/
-	enum class AIThinkState {
-		IdleLookout,
-		PursuePlayer,
-		PursueBreadcrumb,
-		InvestigateSound
-	} thinkAIState = AIThinkState::IdleLookout;
+	void AdjustGoalZBlendPolicy( const Vector3 &goalOrigin );
 
 
-	/**
-	*
-	*
-	*
-	*	Animation State Variables:
-	*
-	*
-	*
-	**/
-	//static sg_skm_rootmotion_set_t rootMotionSet;
-	skm_rootmotion_set_t *rootMotionSet = nullptr;
-
+	//=============================================================================================
+	//=============================================================================================
 
 
 	/**
 	* 
 	* 
 	* 
-	*	Structures for organizing state information for specific behaviors like navigation and investigation.
+	*	(Behavioral-) States(Navigation, NPC, etc):
 	* 
 	* 
 	* 
 	**/
-
-
 	/**
 	*	
 	**/
@@ -325,7 +341,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		bool isLastOriginValid = false;
 		//! Tracks whether the goal was visible when the last nav goal was recorded.
 		bool isLastOriginVisible = false;
-	} goalNavigation = {};
+	} goalNavigationState = {};
 
 	/**
 	*	@brief	Last known valid navigation fallback point (entity feet-origin space).
@@ -339,7 +355,6 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		//! Whether lastValidNavigationPointOrigin contains a meaningful value.
 		bool hasPoint = false;
 	} lastNavigationFallbackPointState = {};
-
 
 	/**
 	*	@brief	State information for the idle lookout scanning behavior.
@@ -363,7 +378,6 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		float targetYaw = 0.0;
 	} idleScanInvestigationState = {};
 
-
 	/**
 	*	@brief	Navigation state for when we are pursuing the activator's breadcrumb trail instead of the activator itself.
 	**/
@@ -375,8 +389,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		//! which trail timestamp they are currently following. Defaults to 0 (no trail).
 		QMTime   trailTimeStamp = 0_ms;
 	} trailNavigationState = {};
-
-
+	
 	/**
 	*	@brief	Information about the most recently heard sound event that we are investigating. 
 	*			Used for the onThink_InvestigateSound state.
@@ -391,20 +404,6 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		QMTime lastTime = 0_ms;
 	} soundScanInvestigation = {};
 
-
-
-
-	/**
-	*
-	*
-	*
-	*	Basic AI Movement Variables/Support Routines:
-	*
-	*
-	*
-	**/
-	//! Current movement state for the monster, used for both the main think dispatcher and the specific A* pursuit thinkers.
-	mm_move_t monsterMove = {};
 
 
 	/**

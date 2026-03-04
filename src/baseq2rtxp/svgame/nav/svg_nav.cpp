@@ -1376,7 +1376,7 @@ static bool Nav_TryResolveNodeInTile( const nav_mesh_t *mesh, const nav_tile_t *
 	out_node->key.tile_index = tile_id;
 	out_node->key.cell_index = cell_index;
 	out_node->key.layer_index = layer_index;
-	out_node->position = Nav_NodeWorldPosition( mesh, tile, cell_index, layer );
+	out_node->worldPosition = Nav_NodeWorldPosition( mesh, tile, cell_index, layer );
 	return true;
 }
 

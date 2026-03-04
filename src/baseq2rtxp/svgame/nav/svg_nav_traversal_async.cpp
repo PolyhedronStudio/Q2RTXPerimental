@@ -177,7 +177,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		scaledOffset[ 0 ] *= ( float )mesh->cell_size_xy;
 		scaledOffset[ 1 ] *= ( float )mesh->cell_size_xy;
 		scaledOffset[ 2 ] *= ( float )mesh->z_quant;
-		const Vector3 neighbor_origin = QM_Vector3Add( current.node.position, scaledOffset );
+		const Vector3 neighbor_origin = QM_Vector3Add( current.node.worldPosition, scaledOffset );
 
 		/**
 		*    Skip nodes outside the optional hierarchical tile route discovered by the path process.
@@ -227,7 +227,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			continue;
 		}
 
-        const double neighbor_drop = current.node.position[ 2 ] - neighbor_node.position[ 2 ];
+        const double neighbor_drop = current.node.worldPosition[ 2 ] - neighbor_node.worldPosition[ 2 ];
 		if ( policy && neighbor_drop > 0.0 && neighbor_drop > policy->max_drop_height_cap ) {
 			// Neighbor rejected due to drop cap.
 			state->edge_reject_reason_counts[(int)nav_edge_reject_reason_t::DropCap]++;
@@ -237,7 +237,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 				if ( nowMs - s_last_navexpand_diag_ms >= ( uint64_t )cooldown ) {
 					s_last_navexpand_diag_ms = nowMs;
 					gi.dprintf( "[DEBUG][NavPath][Diag] Neighbor rejected by drop cap: drop=%.1f cap=%.1f pos=(%.1f %.1f %.1f)\n",
-						neighbor_drop, policy->max_drop_height_cap, neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z );
+						neighbor_drop, policy->max_drop_height_cap, neighbor_node.worldPosition.x, neighbor_node.worldPosition.y, neighbor_node.worldPosition.z );
 				}
 			}
 			continue;
@@ -249,7 +249,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 		**/
         // Ask the step validator for a detailed rejection reason when available.
 		nav_edge_reject_reason_t stepReason = nav_edge_reject_reason_t::None;
-		if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.position, neighbor_node.position, agent_mins, agent_maxs, nullptr, policy, &stepReason ) ) {
+		if ( !Nav_CanTraverseStep_ExplicitBBox( mesh, current.node.worldPosition, neighbor_node.worldPosition, agent_mins, agent_maxs, nullptr, policy, &stepReason ) ) {
 			// Edge validation failed for this neighbor.
 			state->edge_reject_count++;
 			// Increment the returned reason if present, otherwise attribute to StepTest.
@@ -260,21 +260,21 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 				const int cooldown = s_nav_expand_diag_cooldown_ms ? s_nav_expand_diag_cooldown_ms->integer : 200;
 				if ( nowMs - s_last_navexpand_diag_ms >= ( uint64_t )cooldown ) {
 					s_last_navexpand_diag_ms = nowMs;
-					double dz = neighbor_node.position.z - current.node.position.z;
+					double dz = neighbor_node.worldPosition.z - current.node.worldPosition.z;
                     gi.dprintf( "[DEBUG][NavPath][Diag] Edge rejected between (%.1f %.1f %.1f) -> (%.1f %.1f %.1f) dz=%.1f reason=%d (%s)\n",
-						current.node.position.x, current.node.position.y, current.node.position.z,
-						neighbor_node.position.x, neighbor_node.position.y, neighbor_node.position.z,
+						current.node.worldPosition.x, current.node.worldPosition.y, current.node.worldPosition.z,
+						neighbor_node.worldPosition.x, neighbor_node.worldPosition.y, neighbor_node.worldPosition.z,
 						dz, ( int )stepReason, Nav_EdgeRejectReasonToString( stepReason ) );
 				}
 			}
 			continue;
 		}
 
-		if ( neighbor_node.position.z != current.node.position.z ) {
+		if ( neighbor_node.worldPosition.z != current.node.worldPosition.z ) {
 			state->saw_vertical_neighbor = true;
 		}
 
-		const double baseDist = Nav_AStar_Heuristic( current.node.position, neighbor_node.position );
+		const double baseDist = Nav_AStar_Heuristic( current.node.worldPosition, neighbor_node.worldPosition );
 
 		const double w_dist = nav_cost_w_dist ? nav_cost_w_dist->value : 1.0f;
 		const double jumpBase = nav_cost_jump_base ? nav_cost_jump_base->value : 8.0f;
@@ -329,9 +329,9 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			}
 		}
 
-		const double dz = neighbor_node.position.z - current.node.position.z;
-		const double horizontal = sqrtf( ( neighbor_node.position.x - current.node.position.x ) * ( neighbor_node.position.x - current.node.position.x ) +
-			( neighbor_node.position.y - current.node.position.y ) * ( neighbor_node.position.y - current.node.position.y ) );
+		const double dz = neighbor_node.worldPosition.z - current.node.worldPosition.z;
+		const double horizontal = sqrtf( ( neighbor_node.worldPosition.x - current.node.worldPosition.x ) * ( neighbor_node.worldPosition.x - current.node.worldPosition.x ) +
+			( neighbor_node.worldPosition.y - current.node.worldPosition.y ) * ( neighbor_node.worldPosition.y - current.node.worldPosition.y ) );
 		const double slope = ( horizontal > 0.0001f )
 			? ( fabsf( dz ) / horizontal )
 			: 0.0f;
@@ -363,7 +363,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 
 		bool hasLOS = false;
 		{
-			cm_trace_t losTr = gi.trace( &neighbor_node.position, &mesh->agent_mins, &mesh->agent_maxs, &state->goal_node.position, nullptr, CM_CONTENTMASK_SOLID );
+			cm_trace_t losTr = gi.trace( &neighbor_node.worldPosition, &mesh->agent_mins, &mesh->agent_maxs, &state->goal_node.worldPosition, nullptr, CM_CONTENTMASK_SOLID );
 			if ( losTr.fraction >= 1.0f && !losTr.startsolid && !losTr.allsolid ) {
 				hasLOS = true;
 			}
@@ -391,7 +391,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 				const double factor = std::exp( -dt / tauMs );
 				extraCost += failureWeight * ( double )factor;
 
-				const Vector3 toLastFail = QM_Vector3Subtract( neighbor_node.position, state->pathProcess->last_failure_pos );
+				const Vector3 toLastFail = QM_Vector3Subtract( neighbor_node.worldPosition, state->pathProcess->last_failure_pos );
 				const double distToFail = QM_Vector3LengthDP( toLastFail );
 				const double failPosRadius = 64.0f;
 				if ( distToFail <= failPosRadius ) {
@@ -400,7 +400,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 					extraCost += sigPenalty;
 				}
 
-				const double neighborYaw = QM_Vector3ToYaw( QM_Vector3Subtract( neighbor_node.position, current.node.position ) );
+				const double neighborYaw = QM_Vector3ToYaw( QM_Vector3Subtract( neighbor_node.worldPosition, current.node.worldPosition ) );
 				double yawDelta = fabsf( neighborYaw - state->pathProcess->last_failure_yaw );
 				yawDelta = fmodf( yawDelta + 180.0f, 360.0f ) - 180.0f;
 				const double yawThresh = 45.0f;
@@ -416,8 +416,8 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 
 		if ( current.parent_index >= 0 ) {
 			const nav_search_node_t &parentNode = state->nodes[ current.parent_index ];
-			Vector3 fromDir = QM_Vector3NormalizeDP( QM_Vector3Subtract( current.node.position, parentNode.node.position ) );
-			Vector3 toDir = QM_Vector3NormalizeDP( QM_Vector3Subtract( neighbor_node.position, current.node.position ) );
+			Vector3 fromDir = QM_Vector3NormalizeDP( QM_Vector3Subtract( current.node.worldPosition, parentNode.node.worldPosition ) );
+			Vector3 toDir = QM_Vector3NormalizeDP( QM_Vector3Subtract( neighbor_node.worldPosition, current.node.worldPosition ) );
 			const double dot = QM_Vector3DotProductDP( fromDir, toDir );
 			const double clamped = QM_Clamp( dot, -1.0, 1.0 );
 			const double ang = acosf( clamped );
@@ -431,7 +431,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 			nav_search_node_t neighbor_search = {
 				.node = neighbor_node,
 				.g_cost = tentative_g,
-				.f_cost = tentative_g + Nav_AStar_Heuristic( neighbor_node.position, state->goal_node.position ),
+				.f_cost = tentative_g + Nav_AStar_Heuristic( neighbor_node.worldPosition, state->goal_node.worldPosition ),
 				.parent_index = current_index,
 				.closed = false
 			};
@@ -451,7 +451,7 @@ static void Nav_AStar_ExpandNeighbors( nav_a_star_state_t *state, int32_t curren
 
 		if ( tentative_g < neighbor_search.g_cost ) {
 			neighbor_search.g_cost = tentative_g;
-			neighbor_search.f_cost = tentative_g + Nav_AStar_Heuristic( neighbor_node.position, state->goal_node.position );
+			neighbor_search.f_cost = tentative_g + Nav_AStar_Heuristic( neighbor_node.worldPosition, state->goal_node.worldPosition );
 			neighbor_search.parent_index = current_index;
 		}
 	}
@@ -517,7 +517,7 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 	nav_search_node_t start_search = {
 		.node = start_node,
 		.g_cost = 0.0,
-		.f_cost = Nav_AStar_Heuristic( start_node.position, goal_node.position ),
+		.f_cost = Nav_AStar_Heuristic( start_node.worldPosition, goal_node.worldPosition ),
 		.parent_index = -1,
 		.closed = false
 	};
@@ -620,7 +620,11 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 	return state->status;
 }
 
-bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *out_points ) {
+/**
+*	@brief	Finalize the A* search and extract the resulting path if successful.
+*	@return	Returns true if a valid path was found and extracted, false otherwise.
+**/
+const bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *out_points ) {
 	if ( !state || !out_points ) {
 		return false;
 	}
@@ -633,8 +637,8 @@ bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *out_po
 	**/
 	out_points->clear();
 	if ( state->start_node.key == state->goal_node.key ) {
-		out_points->push_back( state->start_node.position );
-		out_points->push_back( state->goal_node.position );
+		out_points->push_back( state->start_node.worldPosition );
+		out_points->push_back( state->goal_node.worldPosition );
 		return true;
 	}
 
@@ -646,7 +650,7 @@ bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *out_po
 	reversed.reserve( 64 );
 	int32_t trace_index = state->goal_index;
 	while ( trace_index >= 0 ) {
-		reversed.push_back( state->nodes[ trace_index ].node.position );
+		reversed.push_back( state->nodes[ trace_index ].node.worldPosition );
 		trace_index = state->nodes[ trace_index ].parent_index;
 	}
 

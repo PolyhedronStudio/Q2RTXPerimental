@@ -465,7 +465,7 @@ void SVG_Nav_CancelRequest( nav_request_handle_t handle ) {
 	*        - Clear owner process markers now so pending checks stop immediately.
 	**/
 	entry->status = nav_request_status_t::Cancelled;
-   entry->needs_refresh = false;
+	entry->needs_refresh = false;
 	NavRequest_ClearProcessMarkers( *entry );
 }
 
@@ -901,9 +901,9 @@ static void NavRequest_Worker_DoInit( void *cb_arg ) {
 		gi.dprintf( "[NavAsync][Worker] node resolution success handle=%d start=(%.1f %.1f %.1f) start_node=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_node=(%.1f %.1f %.1f)\n",
 			p->handle,
 			p->start_feet.x, p->start_feet.y, p->start_feet.z,
-			start_node.position.x, start_node.position.y, start_node.position.z,
+			start_node.worldPosition.x, start_node.worldPosition.y, start_node.worldPosition.z,
 			p->goal_feet.x, p->goal_feet.y, p->goal_feet.z,
-			goal_node.position.x, goal_node.position.y, goal_node.position.z );
+			goal_node.worldPosition.x, goal_node.worldPosition.y, goal_node.worldPosition.z );
 	}
 
  /**
@@ -1281,8 +1281,8 @@ static void NavRequest_HandleFailure( nav_request_entry_t &entry ) {
 
 			// If the worker initialized node refs, print their positions for quick inspection.
 			gi.dprintf( "[NavAsync][HandleFailure][Nodes] start_node=(%.1f %.1f %.1f) goal_node=(%.1f %.1f %.1f) nodes_explored=%d\n",
-				s.start_node.position.x, s.start_node.position.y, s.start_node.position.z,
-				s.goal_node.position.x, s.goal_node.position.y, s.goal_node.position.z,
+				s.start_node.worldPosition.x, s.start_node.worldPosition.y, s.start_node.worldPosition.z,
+				s.goal_node.worldPosition.x, s.goal_node.worldPosition.y, s.goal_node.worldPosition.z,
 				( int )s.nodes.size() );
 
 			// Provide a concise interpretation when all neighbor attempts were rejected

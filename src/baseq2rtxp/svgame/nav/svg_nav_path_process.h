@@ -106,7 +106,7 @@ struct svg_nav_path_policy_t {
 	//! Agent bounding box maximum extents in feet-origin space (matches `nav_agent_maxs_*`).
 	Vector3 agent_maxs = { 16.0f, 16.0f, 36.0f };
     //! Minimum walkable surface normal Z threshold (matches `nav_max_slope_normal_z`).
-	double max_slope_normal_z = 0.7;
+	double max_slope_normal_z = PHYS_MAX_SLOPE_NORMAL;
 
 	/**
 	*	Layer selection tuning:

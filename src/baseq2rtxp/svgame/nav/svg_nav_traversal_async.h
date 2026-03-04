@@ -327,8 +327,8 @@ bool Nav_AStar_Init( nav_a_star_state_t *state, const nav_mesh_t *mesh, const na
 *    @param    state            Working incremental state.
 *    @param    expansions       Maximum node expansions to perform this call.
 *    @return   Current A* status (running/completed/failed).
- *    @note     Enforces the configured per-call expansion budget, node cap, and failure
- *              heuristics before returning so long-running searches progress incrementally.
+*    @note     Enforces the configured per-call expansion budget, node cap, and failure
+*              heuristics before returning so long-running searches progress incrementally.
 **/
 nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansions );
 
@@ -337,13 +337,13 @@ nav_a_star_status_t Nav_AStar_Step( nav_a_star_state_t *state, int32_t expansion
 *    @param    state        Finalized state (must be Completed).
 *    @param    out_points   [out] Vector to fill with ordered path points.
 *    @return   True on success.
- *    @note     Walks the parent chain from the solved node to emit ordered waypoints; fails if
- *              the state is not completed.
+*    @note     Walks the parent chain from the solved node to emit ordered waypoints; fails if
+*              the state is not completed.
 **/
-bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *out_points );
+const bool Nav_AStar_Finalize( nav_a_star_state_t *state, std::vector<Vector3> *out_points );
 
 /**
 *    @brief    Reset incremental state before reuse or destruction.
- *    @note     Clears the node/open containers, diagnostic counters, and returns status to Idle.
+*    @note     Clears the node/open containers, diagnostic counters, and returns status to Idle.
 **/
 void Nav_AStar_Reset( nav_a_star_state_t *state );

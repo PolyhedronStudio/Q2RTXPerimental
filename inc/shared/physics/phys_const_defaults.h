@@ -23,7 +23,7 @@
 static const constexpr double PHYS_DEFAULT_GRAVITY = 800.0;
 
 //! The default value used for designating a plane as being an actual obstruction, or a slope and traversable, or flat and traversable.
-static double PHYS_MAX_SLOPE_NORMAL = 0.7;
+static const constexpr double PHYS_MAX_SLOPE_NORMAL = 0.7;
 
 
 /**

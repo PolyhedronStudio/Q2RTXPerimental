@@ -46,7 +46,7 @@ static void Nav_Debug_PrintNodeRef( const char *label, const nav_node_ref_t &n )
 
 	gi.dprintf( "[DEBUG][NavPath][Diag] %s: pos(%.1f %.1f %.1f) key(leaf=%d tile=%d cell=%d layer=%d)\n",
 		label,
-		n.position.x, n.position.y, n.position.z,
+		n.worldPosition.x, n.worldPosition.y, n.worldPosition.z,
 		n.key.leaf_index, n.key.tile_index, n.key.cell_index, n.key.layer_index );
 }
 
@@ -145,7 +145,7 @@ static const bool Nav_Debug_FindNearestLayerDelta( const nav_mesh_t *mesh, const
 	/**
 	*    Scan all layers to find the closest Z delta.
 	**/
-	const double current_z = node.position.z;
+	const double current_z = node.worldPosition.z;
 	double best_delta = std::numeric_limits<double>::max();
 	for ( int32_t li = 0; li < cell.num_layers; li++ ) {
 		// Skip the current layer itself.
@@ -359,8 +359,8 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	const bool navDiag = Nav_PathDiagEnabled();
 
 	gi.dprintf( "[WARNING][NavPath][A*] Pathfinding failed: No path found from (%.1f,%.1f,%.1f) to (%.1f,%.1f,%.1f)\n",
-		start_node.position.x, start_node.position.y, start_node.position.z,
-		goal_node.position.x, goal_node.position.y, goal_node.position.z );
+		start_node.worldPosition.x, start_node.worldPosition.y, start_node.worldPosition.z,
+		goal_node.worldPosition.x, goal_node.worldPosition.y, goal_node.worldPosition.z );
 	gi.dprintf( "[WARNING][NavPath][A*] Search stats: explored=%d nodes, max_nodes=%d, open_list_empty=%s\n",
 		( int32_t )state.nodes.size(),
 		state.max_nodes,
@@ -499,8 +499,8 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin( const Vector3 &start_origin, 
 
 	std::vector<Vector3> points;
 	if ( start_node.key == goal_node.key ) {
-		points.push_back( start_node.position );
-		points.push_back( goal_node.position );
+		points.push_back( start_node.worldPosition );
+		points.push_back( goal_node.worldPosition );
 	} else {
 		/**
 		*	Hierarchical pre-pass: compute a coarse tile route and restrict A* expansions
@@ -607,8 +607,8 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx( const Vector3 &start_origin
 
 	std::vector<Vector3> points;
 	if ( start_node.key == goal_node.key ) {
-		points.push_back( start_node.position );
-		points.push_back( goal_node.position );
+		points.push_back( start_node.worldPosition );
+		points.push_back( goal_node.worldPosition );
 	} else {
 		/**
 		*	Hierarchical pre-pass: compute a coarse tile route and restrict A* expansions
@@ -708,8 +708,8 @@ const bool SVG_Nav_GenerateTraversalPathForOrigin_WithAgentBBox( const Vector3 &
 
 	std::vector<Vector3> points;
 	if ( start_node.key == goal_node.key ) {
-		points.push_back( start_node.position );
-		points.push_back( goal_node.position );
+		points.push_back( start_node.worldPosition );
+		points.push_back( goal_node.worldPosition );
 	} else {
 		/**
 		*	Hierarchical pre-pass: compute a coarse tile route and restrict A* expansions
@@ -801,8 +801,8 @@ const bool SVG_Nav_GenerateTraversalPathForOriginEx_WithAgentBBox( const Vector3
 
 	std::vector<Vector3> points;
 	if ( start_node.key == goal_node.key ) {
-		points.push_back( start_node.position );
-		points.push_back( goal_node.position );
+		points.push_back( start_node.worldPosition );
+		points.push_back( goal_node.worldPosition );
 	} else {
 		/**
 		*	Hierarchical pre-pass: compute a coarse tile route and restrict A* expansions

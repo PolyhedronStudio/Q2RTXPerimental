@@ -21,7 +21,7 @@
 static constexpr const char *NAV_PATH_DIR = "/maps/nav/";
 
 //! Small epsilon to ensure max bounds map to the correct tile.
-static constexpr double NAV_TILE_EPSILON = 0.001f;
+static constexpr const double NAV_TILE_EPSILON = 0.001f;
 
 
 
@@ -40,7 +40,7 @@ static constexpr const double NAV_DEFAULT_WAYPOINT_RADIUS = 16.0;
 //! 2D distance change in goal position that triggers a path rebuild.
 static constexpr const double NAV_DEFAULT_GOAL_REBUILD_2D_DISTANCE = 16.0;
 //! 3D distance change in goal position that triggers a path rebuild.
-static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE = 64.0;
+static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE = 32.0;
 
 
 
@@ -55,21 +55,26 @@ static constexpr const double NAV_DEFAULT_GOAL_REBUILD_3D_DISTANCE = 64.0;
 //! Stepping:
 //! 
 // !Default maximum step height that the navigation system considers traversable without a jump.
-static constexpr double NAV_DEFAULT_STEP_MAX_SIZE = PHYS_STEP_MAX_SIZE;
+static constexpr const double NAV_DEFAULT_STEP_MAX_SIZE		= PHYS_STEP_MAX_SIZE;
+//! The default value used for designating a plane as being an actual obstruction, or a slope and traversable, or flat and traversable.
+static constexpr const double NAV_DEFAULT_MAX_SLOPE_NORMAL	= PHYS_MAX_SLOPE_NORMAL;
+
 
 //!
 //! Jumping:
 //! 
 //! Max obstruction height allowed to jump over.
-static constexpr double NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE = 48.0;
+static constexpr const double NAV_DEFAULT_MAX_OBSTRUCTION_JUMP_SIZE = 48.0;
 
 //!
 //! Falling:
 //! 
 //! Max allowed drop height (units, matches `nav_max_drop`).
-static constexpr double NAV_DEFAULT_MAX_DROP_HEIGHT = 64.0;
+static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT = 64.0;
 //! Drop cap applied when rejecting large downward transitions (matches `nav_max_drop_height_cap`).
-static constexpr double NAV_DEFAULT_MAX_DROP_HEIGHT_CAP = 192.;
+static constexpr const double NAV_DEFAULT_MAX_DROP_HEIGHT_CAP = 192.;
+
+
 
 /**
 * 
@@ -79,6 +84,6 @@ static constexpr double NAV_DEFAULT_MAX_DROP_HEIGHT_CAP = 192.;
 * 
 **/
 //! Horizontal distance at which blending begins (units).
-static constexpr double NAV_DEFAULT_BLEND_DIST_START = NAV_DEFAULT_STEP_MAX_SIZE;
+static constexpr const double NAV_DEFAULT_BLEND_DIST_START = NAV_DEFAULT_STEP_MAX_SIZE;
 //! Horizontal distance at which blending is fully biased to the goal Z (units).
-static constexpr double NAV_DEFAULT_BLEND_DIST_FULL = 64.0;
+static constexpr const double NAV_DEFAULT_BLEND_DIST_FULL = 64.0;

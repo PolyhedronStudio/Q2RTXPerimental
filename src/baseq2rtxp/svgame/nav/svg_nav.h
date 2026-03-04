@@ -725,6 +725,8 @@ void SVG_Nav_Shutdown( void );
 **/
 const std::tuple<const bool, const std::string> SVG_Nav_LoadMesh( const char *levelName );
 
+
+
 /**
 *
 *
@@ -740,6 +742,8 @@ const std::tuple<const bool, const std::string> SVG_Nav_LoadMesh( const char *le
 *	@note	If multiple entities reference the same "*N", the first one encountered is kept.
 **/
 void Nav_CollectInlineModelEntities( std::unordered_map<int32_t, svg_base_edict_t *> &out_model_to_ent );
+
+
 
 /**
 *
@@ -774,12 +778,31 @@ void SVG_Nav_FreeMesh( void );
 *
 *
 **/
+/**
+*	@details	The nav_node_key_t uniquely identifies a navigation node within the mesh by its
+*				host tile and cell coordinates. 
+*
+*				It is used as a key for lookups in the occupancy map and other data structures 
+*				that need to reference specific nodes without holding direct pointers. 
+*
+*				The equality operator allows for easy comparison of keys, and the hash functor 
+*				enables efficient use in unordered maps.
+**/
 typedef struct nav_node_key_s {
-	int32_t leaf_index;
-	int32_t tile_index;
-	int32_t cell_index;
-	int32_t layer_index;
+	//! Index of the BSP leaf containing this node (for spatial locality).
+	int32_t leaf_index = -1;
+	//! Index of the tile containing this node (index into `nav_mesh_t::world_tiles`).
+	int32_t tile_index = -1;
+	//! Index of the cell within the tile (0..tile_size*tile_size-1).
+	int32_t cell_index = -1;
+	//! Index of the layer within the cell (0..num_layers-1).
+	int32_t layer_index = -1;
 
+	/**
+	*	@brief	Equality operator for nav_node_key_t. Two keys are equal if all their indices match.
+	*	@note	Enables direct comparison of keys for lookups and data structure operations.
+	*	@return True if the keys are equal, false otherwise.
+	**/
 	bool operator==( const nav_node_key_s &other ) const {
 		return leaf_index == other.leaf_index &&
 			tile_index == other.tile_index &&
@@ -789,9 +812,15 @@ typedef struct nav_node_key_s {
 } nav_node_key_t;
 
 /**
-*   @brief  Hash functor for nav_node_key_t.
+*   @brief		Hash functor for nav_node_key_t. 
+*	@details	Combines the hash of each index to produce a unique hash value for the key.
+*				This allows nav_node_key_t to be used as a key in unordered maps, such as the occupancy map.
 **/
 struct nav_node_key_hash_t {
+	/**
+	*	@brief	Hash function for nav_node_key_t. Combines the hashes of all indices.
+	*	@return	Returns a size_t hash value for the given nav_node_key_t.
+	**/
 	size_t operator()( const nav_node_key_t &key ) const {
 		size_t seed = std::hash<int32_t>{}( key.leaf_index );
 		seed ^= std::hash<int32_t>{}( key.tile_index ) + 0x9e3779b9 + ( seed << 6 ) + ( seed >> 2 );
@@ -802,22 +831,29 @@ struct nav_node_key_hash_t {
 };
 
 /**
-*   @brief  Navigation node reference with world position.
+*   @brief  Navigation node reference with absolute world position.
 **/
 typedef struct nav_node_ref_s {
-	nav_node_key_t key;
-	Vector3 position;
+	//! Unique key identifying the node's location in the mesh.
+	nav_node_key_t key = {};
+	//! Cached world-space position of the node for quick access during pathfinding.
+	Vector3 worldPosition = { 0., 0., 0. };
 } nav_node_ref_t;
 
 /**
 *   @brief  Search node for A* pathfinding.
 **/
 typedef struct nav_search_node_s {
-	nav_node_ref_t node;
-	double g_cost;
-	double f_cost;
-	int32_t parent_index;
-	bool closed;
+	//! A reference to the navigation node this search node represents.
+	nav_node_ref_t node = {};
+	//! Cost from the start node to this node.
+	double g_cost = 0.;
+	//! Estimated cost from this node to the goal (heuristic).
+	double f_cost = 0.;
+	//! Index of the parent node in the search path (used for path reconstruction).
+	int32_t parent_index = 0;
+	//! Flag indicating whether this node has been fully explored (closed) in the A* search.
+	bool closed = false;
 } nav_search_node_t;
 
 
