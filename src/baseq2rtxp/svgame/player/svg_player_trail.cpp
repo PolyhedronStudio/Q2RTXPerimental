@@ -153,7 +153,7 @@ svg_base_edict_t *PlayerTrail_PickFirst( svg_monster_testdummy_debug_t *self )
     *	explicitly marked as consumed by the entity.
     **/
     for ( marker = trail_head, n = TRAIL_LENGTH; n; n-- ) {
-        if ( trail[ marker ]->timestamp <= self->trailNavigationState.trailTimeStamp ) {
+        if ( trail[ marker ]->timestamp <= self->stateNavigationTrail.trailTimeStamp ) {
             marker = NEXT( marker );
         } else {
             break;
@@ -189,7 +189,7 @@ svg_base_edict_t *PlayerTrail_PickNext( svg_monster_testdummy_debug_t *self )
 
     // Find the first candidate as in PickFirst, then return it.
     for ( marker = trail_head, n = TRAIL_LENGTH; n; n-- ) {
-        if ( trail[ marker ]->timestamp <= self->trailNavigationState.trailTimeStamp ) {
+        if ( trail[ marker ]->timestamp <= self->stateNavigationTrail.trailTimeStamp ) {
             marker = NEXT( marker );
         } else {
             break;

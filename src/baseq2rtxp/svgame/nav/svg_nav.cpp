@@ -998,7 +998,7 @@ void SVG_Nav_Debug_PrintInlineModelRuntimeIndexMap( const nav_mesh_t *mesh ) {
 *           This updates the origin/angles of inline model runtime entries based on current entity state.
 **/
 void SVG_Nav_RefreshInlineModelRuntime( void ) {
-	if ( !g_nav_mesh || !g_nav_mesh->inline_model_runtime || g_nav_mesh->num_inline_model_runtime <= 0 ) {
+	if ( !g_nav_mesh || !g_nav_mesh.get() || !g_nav_mesh->inline_model_runtime || g_nav_mesh->num_inline_model_runtime <= 0 ) {
 		return;
 	}
 

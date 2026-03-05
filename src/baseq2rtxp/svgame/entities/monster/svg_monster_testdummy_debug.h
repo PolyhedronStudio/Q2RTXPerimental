@@ -336,6 +336,9 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		//! Current policy settings for the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
 		svg_nav_path_policy_t policy = {};
 
+		//! Rate limit for queue-status logging so we do not spam the console repeatedly.
+		QMTime nextQueueStatusLogTime = 0_ms;
+
 		/**
 		*	@brief	Last known valid navigation fallback point (entity feet-origin space).
 		*			Used as a conservative fallback when async A* hasn't produced a path yet,

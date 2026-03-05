@@ -371,7 +371,6 @@ SET(SRC_BASEQ2RTXP_SVGAME
 	baseq2rtxp/svgame/entities/misc/svg_misc_teleporter_dest.cpp
 
 	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_debug.cpp
-	baseq2rtxp/svgame/entities/monster/svg_monster_testdummy_linker_stubs.cpp
 	
 	baseq2rtxp/svgame/entities/path/svg_path_corner.cpp
 

@@ -128,11 +128,11 @@ svg_base_edict_t *SVG_Util_IsEntityAudibleByPHS( svg_base_edict_t *self, svg_bas
 *	@brief	Wrapper for gi.trace that accepts Vector3 args.
 **/
 static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const svg_base_edict_t *passEdict, const cm_contents_t contentMask ) {
-	const Vector3 *_mins = ( ( &mins != &qm_vector3_null || mins != qm_vector3_null || mins != vec3_origin ) ? &mins : nullptr );
-	const Vector3 *_maxs = ( ( &maxs != &qm_vector3_null || maxs != qm_vector3_null || maxs != vec3_origin ) ? &maxs : nullptr );
-	const Vector3 *_start = ( ( &start != &qm_vector3_null || start != qm_vector3_null || start != vec3_origin ) ? &start : nullptr );
-	const Vector3 *_end = ( ( &end != &qm_vector3_null || end != qm_vector3_null || end != vec3_origin ) ? &end : nullptr );
-	return gi.trace( _start, _mins, _maxs, _end, passEdict, contentMask );
+	const Vector3 *_mins = ( ( mins != qm_vector3_null || mins != vec3_origin ) ? &mins : nullptr );
+	const Vector3 *_maxs = ( ( maxs != qm_vector3_null || maxs != vec3_origin ) ? &maxs : nullptr );
+//	const Vector3 *_start = ( ( &start != &qm_vector3_null || start != qm_vector3_null || start != vec3_origin ) ? &start : nullptr );
+//	const Vector3 *_end = ( ( &end != &qm_vector3_null || end != qm_vector3_null || end != vec3_origin ) ? &end : nullptr );
+	return gi.trace( &start, _mins, _maxs, &end, passEdict, contentMask );
 }
 /**
 *	@brief	Wrapper for gi.clipthat accepts Vector3 args.
@@ -140,9 +140,9 @@ static inline const svg_trace_t SVG_Trace( const Vector3 &start, const Vector3 &
 static inline const svg_trace_t SVG_Clip( svg_base_edict_t *clipEdict, const Vector3 &start, const Vector3 &mins, const Vector3 &maxs, const Vector3 &end, const cm_contents_t contentMask ) {
 	const Vector3 *_mins = ( ( &mins != &qm_vector3_null || mins != qm_vector3_null || mins != vec3_origin ) ? &mins : nullptr );
 	const Vector3 *_maxs = ( ( &maxs != &qm_vector3_null || maxs != qm_vector3_null || maxs != vec3_origin ) ? &maxs : nullptr );
-	const Vector3 *_start = ( ( &start != &qm_vector3_null || start != qm_vector3_null || start != vec3_origin ) ? &start : nullptr );
-	const Vector3 *_end = ( ( &end != &qm_vector3_null || end != qm_vector3_null || end != vec3_origin ) ? &end : nullptr );
-	return gi.clip( clipEdict, _start, _mins, _maxs, _end, contentMask );
+//	const Vector3 *_start = ( ( &start != &qm_vector3_null || start != qm_vector3_null || start != vec3_origin ) ? &start : nullptr );
+//	const Vector3 *_end = ( ( &end != &qm_vector3_null || end != qm_vector3_null || end != vec3_origin ) ? &end : nullptr );
+	return gi.clip( clipEdict, &start, _mins, _maxs, &end, contentMask );
 }
 
 

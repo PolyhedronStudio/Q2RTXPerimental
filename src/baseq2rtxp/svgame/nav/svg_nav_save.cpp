@@ -104,9 +104,17 @@ bool SVG_Nav_SaveVoxelMesh( const char *filename ) {
 	Nav_WriteValue( f, total_xy_cells_u64 );
 	Nav_WriteValue( f, total_layers_u64 );
 
+
 	/**
 	*	Write generation parameters needed to interpret mesh data.
 	**/
+	Nav_WriteValue( f, g_nav_mesh->world_bounds.mins.x );
+	Nav_WriteValue( f, g_nav_mesh->world_bounds.mins.y );
+	Nav_WriteValue( f, g_nav_mesh->world_bounds.mins.z );
+	Nav_WriteValue( f, g_nav_mesh->world_bounds.maxs.x );
+	Nav_WriteValue( f, g_nav_mesh->world_bounds.maxs.y );
+	Nav_WriteValue( f, g_nav_mesh->world_bounds.maxs.z );
+
 	Nav_WriteValue( f, mesh->cell_size_xy );
 	Nav_WriteValue( f, mesh->z_quant );
 	Nav_WriteValue( f, mesh->tile_size );

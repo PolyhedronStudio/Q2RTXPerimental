@@ -286,12 +286,12 @@ void NavDebug_DrawTileBBox( const nav_mesh_t *mesh, const nav_tile_t *tile ) {
 	const Vector3 mins = {
 		( double )tile->tile_x * tileWorldSize,
 		( double )tile->tile_y * tileWorldSize,
-		( double )-4096.0 // <Q2RTXP> mesh->world_bounds.mins.z
+		( double )mesh->world_bounds.mins.z
 	};
 	const Vector3 maxs = {
 		( double )mins[ 0 ] + tileWorldSize,
 		( double )mins[ 1 ] + tileWorldSize,
-		( double )4096.0 // <Q2RTXP> mesh->world_bounds.maxs.z
+		( double )mesh->world_bounds.maxs.z
 	};
 	// Check distance filter against tile center.
 	const Vector3 tileCenter = {

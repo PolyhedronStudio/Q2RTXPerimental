@@ -730,8 +730,8 @@ void GenerateWorldMesh( nav_mesh_t *mesh ) {
 
     const double tile_world_size = Nav_TileWorldSize( mesh );
 
-	const Vector3 world_mins = bsp->models[ 0 ].mins;
-	const Vector3 world_maxs = bsp->models[ 0 ].maxs;
+	const Vector3 world_mins = mesh->world_bounds.mins = bsp->models[ 0 ].mins;
+	const Vector3 world_maxs = mesh->world_bounds.maxs = bsp->models[ 0 ].maxs;
 
 	/**
 	*    Center-origin sampling:
@@ -1062,7 +1062,7 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
 	g_nav_mesh->z_quant = nav_z_quant->value;
 	g_nav_mesh->tile_size = ( int32_t )nav_tile_size->value;
 	g_nav_mesh->max_step = nav_max_step->value;
-  g_nav_mesh->max_slope_normal_z = nav_max_slope_normal_z->value;
+	g_nav_mesh->max_slope_normal_z = nav_max_slope_normal_z->value;
 	g_nav_mesh->agent_mins = Vector3( nav_agent_mins_x->value, nav_agent_mins_y->value, nav_agent_mins_z->value );
 	g_nav_mesh->agent_maxs = Vector3( nav_agent_maxs_x->value, nav_agent_maxs_y->value, nav_agent_maxs_z->value );
 

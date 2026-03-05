@@ -164,7 +164,15 @@ bool SVG_Nav_LoadVoxelMesh( const char *fileName ) {
 	/**
 	*    Read generation parameters required to interpret stored tile data.
 	**/
-	if ( !Nav_ReadValue( f, g_nav_mesh->cell_size_xy ) ||
+	if (
+		!Nav_ReadValue( f, g_nav_mesh->world_bounds.mins.x ) ||
+		!Nav_ReadValue( f, g_nav_mesh->world_bounds.mins.y ) ||
+		!Nav_ReadValue( f, g_nav_mesh->world_bounds.mins.z ) ||
+		!Nav_ReadValue( f, g_nav_mesh->world_bounds.maxs.x ) ||
+		!Nav_ReadValue( f, g_nav_mesh->world_bounds.maxs.y ) ||
+		!Nav_ReadValue( f, g_nav_mesh->world_bounds.maxs.z ) ||
+
+		!Nav_ReadValue( f, g_nav_mesh->cell_size_xy ) ||
 		!Nav_ReadValue( f, g_nav_mesh->z_quant ) ||
 		!Nav_ReadValue( f, g_nav_mesh->tile_size ) ||
 		!Nav_ReadValue( f, g_nav_mesh->max_step ) ||

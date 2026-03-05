@@ -230,10 +230,17 @@ const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other
     spot1[ 2 ] += self->viewheight;
     VectorCopy( other->currentOrigin, spot2 );
     spot2[ 2 ] += other->viewheight;
-    trace = SVG_Trace( spot1, vec3_origin, vec3_origin, spot2, self, CM_CONTENTMASK_OPAQUE );
+    trace = SVG_Trace( spot1, vec3_origin, vec3_origin, spot2, self, CM_CONTENTMASK_MONSTERSOLID );
+	/**
+	*	Strict testing because, if that point is embedded/touching brush volume (common near walls/steps), trace may be startsolid but still fraction==1.
+	**/
+	if ( trace.fraction == 1.0f && !trace.startsolid && !trace.allsolid ) {
+		//SVG_DEBUG_PRINT( "%s: Trace clear. self: %d, other: %d, trace.fraction: %f, trace.contents=%d\n", __func__, self->s.number, other->s.number, trace.fraction, trace.contents );
+		return true;
+	}
 
-    if ( trace.fraction == 1.0f )
-        return true;
+	//SVG_DEBUG_PRINT( "%s: Trace blocked. self: %d, other: %d, trace.fraction: %f, trace.contents=%d\n", __func__, self->s.number, other->s.number, trace.fraction, trace.contents );
+
     return false;
 }
 

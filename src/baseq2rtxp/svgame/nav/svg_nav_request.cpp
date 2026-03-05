@@ -350,7 +350,7 @@ nav_request_handle_t SVG_Nav_RequestPathAsync( svg_nav_path_process_t *pathProce
 		if ( existing->status == nav_request_status_t::Running ) {
 			const double effectiveIgnore = startIgnoreThreshold > 0.0 ? startIgnoreThreshold : 0.0;
 			if ( effectiveIgnore > 0.0 ) {
-				const Vector3 refStart = ( existing->path_process && existing->path_process->last_prep_time > 0_ms ) ? existing->path_process->last_prep_start : existing->path_process->path_start_position;
+				const Vector3 refStart = ( existing->path_process != nullptr ? ( existing->path_process && existing->path_process->last_prep_time > 0_ms ? existing->path_process->last_prep_start : existing->path_process->path_start_position ) : start_origin );
 				const double startDx = QM_Vector3LengthDP( QM_Vector3Subtract( start_origin, refStart ) );
 				if ( startDx <= effectiveIgnore && !force ) {
 					if ( s_nav_nav_async_log_stats && s_nav_nav_async_log_stats->integer != 0 ) {

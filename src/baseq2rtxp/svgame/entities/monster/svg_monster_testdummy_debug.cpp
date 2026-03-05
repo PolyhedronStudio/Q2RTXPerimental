@@ -46,7 +46,7 @@ extern cvar_t *s_nav_nav_async_log_stats;
 #define DEBUG_PRINTS 1
 #endif
 
-/**
+     /**
 *    Debug compile-time toggle for route-filter isolation.
 *        When enabled, this debug monster disables the coarse cluster tile-route
 *        restriction so A* neighbor diagnostics reflect pure StepTest behavior.
@@ -1988,6 +1988,21 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 		? std::sqrt( QM_Vector2DistanceSqr( activator->currentOrigin, currentOrigin ) )
 		: 0.0;
 	const bool activatorWithinProximity = activator && ( activatorDist2D <= DUMMY_PLAYER_PURSUIT_MAX_DIST );
+
+	/**
+	*    Gather and cache queue-state helpers for the upcoming logging block.
+	**/
+	const bool queueModeEnabled = ( nav_nav_async_queue_mode && nav_nav_async_queue_mode->integer != 0 );
+	const bool asyncNavEnabled = SVG_Nav_IsAsyncNavEnabled();
+	const bool canRebuild = pathNavigationState.process.CanRebuild( pathNavigationState.policy );
+	const bool movementWarrantsRebuild =
+		pathNavigationState.process.ShouldRebuildForGoal2D( goalOrigin, pathNavigationState.policy )
+		|| pathNavigationState.process.ShouldRebuildForGoal3D( goalOrigin, pathNavigationState.policy )
+		|| pathNavigationState.process.ShouldRebuildForStart2D( currentOrigin, pathNavigationState.policy )
+		|| pathNavigationState.process.ShouldRebuildForStart3D( currentOrigin, pathNavigationState.policy );
+
+	bool queueAttempted = false;
+	bool queueResult = false;
 	if ( goalentity == activator && activator && !activatorVisible && !activatorWithinProximity && !force ) {
 		// Skip queuing a new/refresh request only when direct pursuit is no longer valid.
 		// This keeps queue behavior consistent with state selection and avoids
@@ -2047,17 +2062,35 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 		**/
 		svg_nav_path_policy_t &queuePolicy = pathNavigationState.policy;
 		#if MONSTER_TESTDUMMY_DEBUG_BYPASS_ROUTE_FILTER
-     // Route-filter isolation mode: explicitly disable coarse tile filtering so
+		// Route-filter isolation mode: explicitly disable coarse tile filtering so
 		// neighbor diagnostics reflect pure StepTest traversal behavior.
 		queuePolicy.enable_cluster_route_filter = false;
 		#endif
+		queueAttempted = true;
 		const bool queued = TryRebuildNavigationInQueue( currentOrigin, goalOrigin, queuePolicy, agent_mins, agent_maxs, effectiveForce );
+		queueResult = queued;
 		// If we successfully requested a rebuild and the caller intended a force,
 		// record the last forced goal so subsequent small deltas do not re-force.
 		if ( queued && force ) {
 			pathNavigationState.lastGoal.origin = goalOrigin;
 			pathNavigationState.lastGoal.isValid = true;
 		}
+	}
+
+	/**
+	*    Rate-limited per-entity queue status logging for navigation verification.
+	**/
+	const QMTime now = level.time;
+	if ( DUMMY_NAV_DEBUG != 0 && now >= pathNavigationState.nextQueueStatusLogTime ) {
+		pathNavigationState.nextQueueStatusLogTime = now + 500_ms;
+		gi.dprintf( "[NAV STATUS] ent=%d attempt=%d result=%d canRebuild=%d movementWarrants=%d async=%d queueMode=%d\n",
+			s.number,
+			queueAttempted ? 1 : 0,
+			queueResult ? 1 : 0,
+			canRebuild ? 1 : 0,
+			movementWarrantsRebuild ? 1 : 0,
+			asyncNavEnabled ? 1 : 0,
+			queueModeEnabled ? 1 : 0 );
 	}
 
 	/**
@@ -2118,7 +2151,7 @@ const bool svg_monster_testdummy_debug_t::MoveAStarToOrigin( const Vector3 &goal
 	*    If no path direction is currently available, use direct fallback so we
 	*    keep moving while async pathing catches up.
 	**/
-  /**
+	/**
 	*    Backoff-aware fallback suppression:
 	*        If no path is available and no async request is currently pending,
 	*        do not keep direct-steering during an active failure backoff window.
