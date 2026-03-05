@@ -31,6 +31,8 @@ DEFINE_MEMBER_CALLBACK_TOUCH( svg_path_corner_t, onTouch )( svg_path_corner_t *s
         return;
     }
 
+	// <Q2RTXP>: <WID>: TODO: Monster Reimplement. Monsters should be able to use path_corners as well, 
+	// but we need to reimplement the monster code first. For now, just prevent monsters from using path_corners.
     if ( other->enemy ) {
         return;
     }

@@ -1022,15 +1022,21 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
 
 
     /**
-    *   Entity Pointers:
+    *   AI/Monster Entity Pointers:
     **/
+	//! Set when an entity has been `attacked` by another entity, and is the current enemy that the entity is angry at. (For AI/Monster entities.)
     //! Will be nullptr or world if not currently angry at anyone.
+	//! (<Q2RTXP>: WID: This is also used by `movers` and `lasers` to point to the entity that they are currently targeting/moving towards, etc.)
+	//! (<Q2RTXP>: WID: Those entities need to implement their own variable for this as reusing this one is confusing.)
     svg_base_edict_t *enemy = nullptr;
     //! Previous Enemy.
     svg_base_edict_t *oldenemy = nullptr;
-    //! The next path spot to walk toward.If.enemy, ignore.movetarget. When an enemy is killed, the monster will try to return to it's path.
+    //! The next path spot to walk toward. If.enemy, ignore.movetarget. When an enemy is killed, the monster will try to return to it's path.
     svg_base_edict_t *goalentity = nullptr;
 
+	/**
+	*	Chain Entity Pointers:
+	**/
     //! Chain Entity.
     svg_base_edict_t *chain = nullptr;
     //! Team Chain.
@@ -1038,6 +1044,9 @@ struct svg_base_edict_t : public sv_shared_edict_t<svg_base_edict_t, svg_client_
     //! Team master.
     svg_base_edict_t *teammaster = nullptr;
 
+	/**
+	*	Triggering Entity Pointers:
+	**/
     //! Entity that activated the triggering.
     svg_base_edict_t *activator = nullptr;
     //! The entity that called upon the SignalOut/UseTarget

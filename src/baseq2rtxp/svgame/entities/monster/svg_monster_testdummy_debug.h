@@ -263,6 +263,9 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*
 	*
 	**/
+
+	void GetNavigationAgentBounds( Vector3 *out_mins, Vector3 *out_maxs );
+
 	/**
 	*   @brief	Clear stale async nav request state when no navmesh is loaded.
 	*   @param	self	Debug testdummy owning the async path process.
@@ -305,7 +308,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	/**
 	*	@brief	Member wrapper that forwards to the TU-local AdjustGoalZBlendPolicy helper.
 	*	@param	goalOrigin	World-space feet-origin goal position used to bias layer selection.
-	*	@note	Called each think after `GenericThinkBegin()` to keep `navigationState.pathPolicy`
+	*	@note	Called each think after `GenericThinkBegin()` to keep `pathNavigationState.policy`
 	*			tuned to current pursuit conditions (distance, vertical delta, failures, visibility).
 	**/
 	void AdjustGoalZBlendPolicy( const Vector3 &goalOrigin );
@@ -319,7 +322,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	* 
 	* 
 	* 
-	*	(Behavioral-) States(Navigation, NPC, etc):
+	*	Path Navigation State:
 	* 
 	* 
 	* 
@@ -327,35 +330,46 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	/**
 	*	
 	**/
-	struct navigationState_t {
+	struct PathNavigationState_t {
 		//! Current state of the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
-		svg_nav_path_process_t pathProcess = {};
+		svg_nav_path_process_t process = {};
 		//! Current policy settings for the async nav path process, which is used by the A* pursuit thinkers and the generic think finish routine.
-		svg_nav_path_policy_t pathPolicy = {};
-	} navigationState = {};
+		svg_nav_path_policy_t policy = {};
 
-	struct goalNavigationState_t {
+		/**
+		*	@brief	Last known valid navigation fallback point (entity feet-origin space).
+		*			Used as a conservative fallback when async A* hasn't produced a path yet,
+		*			so the monster can at least attempt to move toward the player instead of just standing still.
+		**/
+		struct lastNavigationFallbackPoint_t {
+			//! Last known valid navigation point in world space. 
+			//! Used as a conservative fallback when async A* hasn't produced a path yet.
+			Vector3 origin = { 0.0f, 0.0f, 0.0f };
+			//! Whether lastValidNavigationPointOrigin contains a meaningful value.
+			bool hasPoint = false;
+		} pathNavigationfallBackPoint = {};
+
+		struct goalNavigationState_t {
 		//! Tracks the last goal position used to validate cached navigation paths.
-		Vector3 lastOrigin = { 0.f, 0.f, 0.f };
-		//! Tracks whether last_nav_goal_origin holds valid data.
-		bool isLastOriginValid = false;
-		//! Tracks whether the goal was visible when the last nav goal was recorded.
-		bool isLastOriginVisible = false;
-	} goalNavigationState = {};
+			Vector3 origin = { 0.f, 0.f, 0.f };
+			//! Tracks whether last_nav_goal_origin holds valid data.
+			bool isValid = false;
+			//! Tracks whether the goal was visible when the last nav goal was recorded.
+			bool isVisible = false;
+		} lastGoal = {};
+	} pathNavigationState = {};
+
+
 
 	/**
-	*	@brief	Last known valid navigation fallback point (entity feet-origin space).
-	*			Used as a conservative fallback when async A* hasn't produced a path yet,
-	*			so the monster can at least attempt to move toward the player instead of just standing still.
+	*
+	*
+	*
+	*	Behavioral NPC States:
+	*
+	*
+	*
 	**/
-	struct lastNavigationFallbackPoint_t {
-		//! Last known valid navigation point in world space. 
-		//! Used as a conservative fallback when async A* hasn't produced a path yet.
-		Vector3 origin = { 0.0f, 0.0f, 0.0f };
-		//! Whether lastValidNavigationPointOrigin contains a meaningful value.
-		bool hasPoint = false;
-	} lastNavigationFallbackPointState = {};
-
 	/**
 	*	@brief	State information for the idle lookout scanning behavior.
 	*			Used for the onThink_Idle state, which is the default fallback state when we have no target to pursue.
@@ -367,7 +381,7 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 	*			But for the sake of this simple debug implementation, we'll just keep track of the most recent sound event and have
 	*			a simple idle scan that flips direction every few seconds and steps through discrete headings every few seconds.
 	**/
-	struct idleScanInvestigationState_t {
+	struct StateIdleScan_t {
 		//! Idle scan yaw direction (+1 / -1) used for lookout sweeping.
 		double yawScanDirection = 1.0;
 		//! Time when idle scan should flip direction.
@@ -376,33 +390,33 @@ struct svg_monster_testdummy_debug_t : public svg_base_edict_t {
 		int32_t headingIndex = 0;
 		//! Target yaw degrees for the current idle heading. We lerp ideal_yaw toward this to smooth turns.
 		float targetYaw = 0.0;
-	} idleScanInvestigationState = {};
+	} stateIdleScan = {};
 
 	/**
 	*	@brief	Navigation state for when we are pursuing the activator's breadcrumb trail instead of the activator itself.
 	**/
-	struct trailNavigationState_t {
+	struct StateNavigationTrail_t {
 		//! Current breadcrumb we are attempting to chase when following the trail.
 		svg_base_edict_t *targetEntity = nullptr;
 
 		//! Time marker used by the player-trail system. Monsters set this to indicate
 		//! which trail timestamp they are currently following. Defaults to 0 (no trail).
 		QMTime   trailTimeStamp = 0_ms;
-	} trailNavigationState = {};
+	} stateNavigationTrail = {};
 	
 	/**
 	*	@brief	Information about the most recently heard sound event that we are investigating. 
 	*			Used for the onThink_InvestigateSound state.
 	**/
-	struct soundScanInvestigationState_t {
+	struct StateSoundScan_t {
 		//! The cached investigation target origin of the sound event that we took note of.
 		//! Cached investigation target from the latest heard sound event.
 		Vector3 origin = { 0.0f, 0.0f, 0.0f };
-		//! Whether soundScanInvestigation.origin currently contains a valid target.
+		//! Whether stateSoundCan.origin currently contains a valid target.
 		bool hasOrigin = false;
 		//! Last processed sound timestamp so we do not re-investigate the same event.
 		QMTime lastTime = 0_ms;
-	} soundScanInvestigation = {};
+	} stateSoundCan = {};
 
 
 
