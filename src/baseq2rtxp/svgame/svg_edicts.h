@@ -227,7 +227,7 @@ static inline const bool SVG_Entity_HasUseTargetState( const svg_base_edict_t *e
 *           which if hits nothing, means the entity is visible.
 *   @return True if the entity 'other' is visible to 'self'.
 **/
-const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other );
+const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other, const cm_contents_t clipMask = CONTENTS_NONE );
 /**
 *   @return True if the entity is in front (in sight) of self
 *   @brief  Tests if 'other' is in front of 'self' based on dot product calculation.

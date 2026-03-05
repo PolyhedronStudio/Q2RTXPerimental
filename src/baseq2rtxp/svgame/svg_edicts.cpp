@@ -216,7 +216,7 @@ void SVG_Entities_BodyQueueAddForPlayer( svg_base_edict_t *ent ) {
 *           which if hits nothing, means the entity is visible.
 *   @return True if the entity 'other' is visible to 'self'.
 **/
-const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other ) {
+const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other, const cm_contents_t clipMask ) {
     vec3_t  spot1;
     vec3_t  spot2;
     svg_trace_t trace;
@@ -226,11 +226,14 @@ const bool SVG_Entity_IsVisible( svg_base_edict_t *self, svg_base_edict_t *other
 		return false;
 	}
 
+	// Acquire content mask from 'other' unless specified, in which case we'll use the default of CONTENTS_MONSTERSOLID.
+	cm_contents_t traceClipMask = ( clipMask == CONTENTS_NONE ? SVG_GetClipMask( other ) : clipMask );
+
     VectorCopy( self->currentOrigin, spot1 );
     spot1[ 2 ] += self->viewheight;
     VectorCopy( other->currentOrigin, spot2 );
     spot2[ 2 ] += other->viewheight;
-    trace = SVG_Trace( spot1, vec3_origin, vec3_origin, spot2, self, CM_CONTENTMASK_MONSTERSOLID );
+    trace = SVG_Trace( spot1, vec3_origin, vec3_origin, spot2, self, traceClipMask );
 	/**
 	*	Strict testing because, if that point is embedded/touching brush volume (common near walls/steps), trace may be startsolid but still fraction==1.
 	**/
