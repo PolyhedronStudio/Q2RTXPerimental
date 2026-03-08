@@ -50,6 +50,67 @@ typedef enum {
 } nav_layer_flags_t;
 
 /**
+*   @brief  Traversal-oriented feature bits stored separately from legacy/content flags.
+**/
+enum nav_traversal_feature_bits_t : uint32_t {
+	NAV_TRAVERSAL_FEATURE_NONE = 0,
+	NAV_TRAVERSAL_FEATURE_LADDER = ( 1u << 0 ),
+	NAV_TRAVERSAL_FEATURE_WATER = ( 1u << 1 ),
+	NAV_TRAVERSAL_FEATURE_LAVA = ( 1u << 2 ),
+	NAV_TRAVERSAL_FEATURE_SLIME = ( 1u << 3 ),
+	NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE = ( 1u << 4 ),
+	NAV_TRAVERSAL_FEATURE_JUMP_OBSTRUCTION_PRESENCE = ( 1u << 5 ),
+	NAV_TRAVERSAL_FEATURE_WALL_ADJACENCY = ( 1u << 6 ),
+	NAV_TRAVERSAL_FEATURE_LEDGE_ADJACENCY = ( 1u << 7 ),
+	NAV_TRAVERSAL_FEATURE_LADDER_STARTPOINT = ( 1u << 8 ),
+	NAV_TRAVERSAL_FEATURE_LADDER_ENDPOINT = ( 1u << 9 )
+};
+
+/**
+*   @brief  Edge metadata bits describing traversal behavior between neighboring cells.
+**/
+enum nav_edge_feature_bits_t : uint32_t {
+	NAV_EDGE_FEATURE_NONE = 0,
+	NAV_EDGE_FEATURE_PASSABLE = ( 1u << 0 ),
+	NAV_EDGE_FEATURE_STAIR_STEP_UP = ( 1u << 1 ),
+	NAV_EDGE_FEATURE_STAIR_STEP_DOWN = ( 1u << 2 ),
+	NAV_EDGE_FEATURE_LADDER_PASS = ( 1u << 3 ),
+	NAV_EDGE_FEATURE_ENTERS_WATER = ( 1u << 4 ),
+	NAV_EDGE_FEATURE_ENTERS_LAVA = ( 1u << 5 ),
+	NAV_EDGE_FEATURE_ENTERS_SLIME = ( 1u << 6 ),
+	NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF = ( 1u << 7 ),
+	NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF = ( 1u << 8 ),
+	NAV_EDGE_FEATURE_JUMP_OBSTRUCTION = ( 1u << 9 ),
+	NAV_EDGE_FEATURE_HARD_WALL_BLOCKED = ( 1u << 10 )
+};
+
+/**
+*   @brief  Coarse tile summary bits derived from fine node and edge metadata.
+**/
+enum nav_tile_summary_bits_t : uint32_t {
+	NAV_TILE_SUMMARY_NONE = 0,
+	NAV_TILE_SUMMARY_STAIR = ( 1u << 0 ),
+	NAV_TILE_SUMMARY_WATER = ( 1u << 1 ),
+	NAV_TILE_SUMMARY_LAVA = ( 1u << 2 ),
+	NAV_TILE_SUMMARY_SLIME = ( 1u << 3 ),
+	NAV_TILE_SUMMARY_LADDER = ( 1u << 4 ),
+	NAV_TILE_SUMMARY_WALK_OFF = ( 1u << 5 ),
+	NAV_TILE_SUMMARY_HARD_WALL = ( 1u << 6 )
+};
+
+/**
+*   @brief  Ladder endpoint flags stored on ladder-capable layers.
+**/
+enum nav_ladder_endpoint_bits_t : uint8_t {
+	NAV_LADDER_ENDPOINT_NONE = 0,
+	NAV_LADDER_ENDPOINT_STARTPOINT = ( 1u << 0 ),
+	NAV_LADDER_ENDPOINT_ENDPOINT = ( 1u << 1 )
+};
+
+//! Number of persisted per-layer horizontal edge slots.
+static constexpr int32_t NAV_LAYER_EDGE_DIR_COUNT = 8;
+
+/**
 *   @brief  A single Z layer at an XY position.
 *           Stores quantized Z and flags for multi-layer navigation support.
 **/
@@ -58,6 +119,18 @@ typedef struct nav_layer_s {
     int16_t z_quantized;
     //! Content flags (nav_layer_flags_t).
     uint32_t flags;
+   //! Traversal-oriented node features separate from legacy/content flags.
+	uint32_t traversal_feature_bits;
+	//! Persisted per-edge traversal metadata for the 8 neighboring XY directions.
+	uint32_t edge_feature_bits[ NAV_LAYER_EDGE_DIR_COUNT ];
+	//! Bitmask of edge slots containing explicit metadata.
+	uint8_t edge_valid_mask;
+	//! Explicit ladder endpoint flags for this layer.
+	uint8_t ladder_endpoint_flags;
+	//! Quantized ladder startpoint (bottom) for this ladder span.
+	int16_t ladder_start_z_quantized;
+	//! Quantized ladder endpoint (top) for this ladder span.
+	int16_t ladder_end_z_quantized;
 	//! Optional clearance in grid cells 
 	//! quantized, but stored with wider range for tall ceilings. e.g:
 	//! (Skyboxes, a church cathedral of some sorts, elevator shafts, "tunnels").
@@ -104,6 +177,10 @@ typedef struct nav_tile_s {
     int32_t tile_x;
     //! Tile Y coordinate in the grid.
     int32_t tile_y;
+ //! Coarse traversal summary bits derived from the tile's fine metadata.
+	uint32_t traversal_summary_bits;
+	//! Coarse edge-summary bits derived from the tile's fine edge metadata.
+	uint32_t edge_summary_bits;
     //! Bitset for which XY cells are present (sparse storage).
     uint32_t *presence_bits;
     //! Array of XY cells (sparse).
@@ -238,6 +315,8 @@ enum nav_tile_cluster_node_flag_t : uint8_t {
 	NAV_TILE_CLUSTER_FLAG_WATER = ( 1 << 1 ),
 	NAV_TILE_CLUSTER_FLAG_LAVA = ( 1 << 2 ),
 	NAV_TILE_CLUSTER_FLAG_SLIME = ( 1 << 3 ),
+	NAV_TILE_CLUSTER_FLAG_LADDER = ( 1 << 4 ),
+	NAV_TILE_CLUSTER_FLAG_WALKOFF = ( 1 << 5 )
 };
 
 struct nav_tile_cluster_node_t {
@@ -460,6 +539,8 @@ static inline std::pair<const nav_xy_cell_t *, int32_t> SVG_Nav_Tile_GetCells( c
 	return { tile->cells, count };
 }
 
+
+
 /**
 *	@brief	Get tile id array and count for a leaf (mutable overload).
 *	@param	leaf	Pointer to the leaf data to query.
@@ -599,6 +680,13 @@ int32_t SVG_Nav_Occupancy_SoftCost( const nav_mesh_t *mesh, int32_t tileId, int3
 *	@return	True if blocked.
 */
 bool SVG_Nav_Occupancy_Blocked( const nav_mesh_t *mesh, int32_t tileId, int32_t cellIndex, int32_t layerIndex );
+
+/**
+*   @brief  Build traversal-oriented node feature bits from persisted content flags.
+*   @param  layer_flags  Legacy/content flags stored on the layer.
+*   @return Traversal feature bits implied directly by the content flags.
+**/
+uint32_t SVG_Nav_BuildTraversalFeatureBitsFromLayerFlags( const uint32_t layer_flags );
 
 /**
 *   @brief  Path result for navigation traversal queries.
@@ -841,6 +929,56 @@ typedef struct nav_node_ref_s {
 	//! Cached world-space position of the node for quick access during pathfinding.
 	Vector3 worldPosition = { 0., 0., 0. };
 } nav_node_ref_t;
+
+/**
+*   @brief  Resolve a canonical tile pointer from a node reference.
+*   @param  mesh  Navigation mesh.
+*   @param  node  Node reference to resolve.
+*   @return Pointer to the canonical tile or nullptr on failure.
+**/
+const nav_tile_t *SVG_Nav_GetNodeTileView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+/**
+*   @brief  Resolve a canonical XY cell pointer from a node reference.
+*   @param  mesh  Navigation mesh.
+*   @param  node  Node reference to resolve.
+*   @return Pointer to the canonical XY cell or nullptr on failure.
+**/
+const nav_xy_cell_t *SVG_Nav_GetNodeCellView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+/**
+*   @brief  Resolve a canonical layer pointer from a node reference.
+*   @param  mesh  Navigation mesh.
+*   @param  node  Node reference to resolve.
+*   @return Pointer to the canonical layer or nullptr on failure.
+**/
+const nav_layer_t *SVG_Nav_GetNodeLayerView( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+/**
+*   @brief  Query traversal feature bits for a canonical node.
+*   @param  mesh  Navigation mesh.
+*   @param  node  Node reference to inspect.
+*   @return Traversal feature bits for the node, or `NAV_TRAVERSAL_FEATURE_NONE` on failure.
+**/
+uint32_t SVG_Nav_GetNodeTraversalFeatureBits( const nav_mesh_t *mesh, const nav_node_ref_t &node );
+
+/**
+*   @brief  Query explicit edge metadata for a canonical node and XY offset.
+*   @param  mesh      Navigation mesh.
+*   @param  node      Source node reference.
+*   @param  cell_dx   Neighbor cell X offset in `[-1, 1]`.
+*   @param  cell_dy   Neighbor cell Y offset in `[-1, 1]`.
+*   @return Explicit edge feature bits, or `NAV_EDGE_FEATURE_NONE` when no persisted edge slot applies.
+**/
+uint32_t SVG_Nav_GetEdgeFeatureBitsForOffset( const nav_mesh_t *mesh, const nav_node_ref_t &node, const int32_t cell_dx, const int32_t cell_dy );
+
+/**
+*   @brief  Query coarse tile summary bits for the tile owning a canonical node.
+*   @param  mesh  Navigation mesh.
+*   @param  node  Node reference whose tile should be inspected.
+*   @return Tile summary bits, or `NAV_TILE_SUMMARY_NONE` on failure.
+**/
+uint32_t SVG_Nav_GetTileSummaryBitsForNode( const nav_mesh_t *mesh, const nav_node_ref_t &node );
 
 /**
 *   @brief  Search node for A* pathfinding.

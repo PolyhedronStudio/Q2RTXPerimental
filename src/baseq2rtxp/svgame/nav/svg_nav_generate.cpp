@@ -29,6 +29,7 @@ extern cvar_t *nav_cell_size_xy;
 extern cvar_t *nav_z_quant;
 extern cvar_t *nav_tile_size;
 extern cvar_t *nav_max_step;
+extern cvar_t *nav_max_drop_height_cap;
 extern cvar_t *nav_max_slope_normal_z;
 extern cvar_t *nav_agent_mins_x;
 extern cvar_t *nav_agent_mins_y;
@@ -124,6 +125,433 @@ static uint32_t DetectContentFlags( const cm_trace_t &trace ) {
         flags |= NAV_FLAG_LADDER;
     }
     return flags;
+}
+
+/**
+*    @brief	Map an XY direction offset onto the persisted per-edge slot index.
+*    @param	cell_dx	Neighbor cell X offset.
+*    @param	cell_dy	Neighbor cell Y offset.
+*    @return Persisted edge-slot index, or -1 when the offset is outside the stored 8-direction neighborhood.
+**/
+static int32_t Nav_Generation_EdgeDirIndex( const int32_t cell_dx, const int32_t cell_dy ) {
+    if ( cell_dx == 1 && cell_dy == 0 ) return 0;
+    if ( cell_dx == -1 && cell_dy == 0 ) return 1;
+    if ( cell_dx == 0 && cell_dy == 1 ) return 2;
+    if ( cell_dx == 0 && cell_dy == -1 ) return 3;
+    if ( cell_dx == 1 && cell_dy == 1 ) return 4;
+    if ( cell_dx == 1 && cell_dy == -1 ) return 5;
+    if ( cell_dx == -1 && cell_dy == 1 ) return 6;
+    if ( cell_dx == -1 && cell_dy == -1 ) return 7;
+    return -1;
+}
+
+/**
+*    @brief	Find a canonical world tile by grid coordinates.
+*    @param	mesh	Navigation mesh.
+*    @param	tile_x	Tile X coordinate.
+*    @param	tile_y	Tile Y coordinate.
+*    @return Pointer to the canonical world tile or nullptr when absent.
+**/
+static nav_tile_t *Nav_Generation_FindWorldTile( nav_mesh_t *mesh, const int32_t tile_x, const int32_t tile_y ) {
+    /**
+    *    Sanity checks: require mesh storage before consulting the world tile lookup table.
+    **/
+    if ( !mesh ) {
+        return nullptr;
+    }
+
+    const nav_world_tile_key_t key = { .tile_x = tile_x, .tile_y = tile_y };
+    auto it = mesh->world_tile_id_of.find( key );
+    if ( it == mesh->world_tile_id_of.end() ) {
+        return nullptr;
+    }
+
+    const int32_t tile_index = it->second;
+    if ( tile_index < 0 || tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+        return nullptr;
+    }
+
+    return &mesh->world_tiles[ tile_index ];
+}
+
+/**
+*    @brief	Find a model-local inline tile by tile coordinates.
+*    @param	model	Inline-model tile set.
+*    @param	tile_x	Tile X coordinate.
+*    @param	tile_y	Tile Y coordinate.
+*    @return Pointer to the inline tile or nullptr when absent.
+**/
+static nav_tile_t *Nav_Generation_FindInlineTile( nav_inline_model_data_t *model, const int32_t tile_x, const int32_t tile_y ) {
+    /**
+    *    Sanity checks: require inline-model tile storage before scanning it.
+    **/
+    if ( !model || model->num_tiles <= 0 || !model->tiles ) {
+        return nullptr;
+    }
+
+    /**
+    *    Linearly scan the model-local tile list because inline tile counts are typically small.
+    **/
+    for ( int32_t tile_index = 0; tile_index < model->num_tiles; tile_index++ ) {
+        nav_tile_t &tile = model->tiles[ tile_index ];
+        if ( tile.tile_x == tile_x && tile.tile_y == tile_y ) {
+            return &tile;
+        }
+    }
+
+    return nullptr;
+}
+
+/**
+*    @brief	Classify a missing world-neighbor edge as either a hard wall or a forbidden walk-off.
+*    @param	mesh	Navigation mesh.
+*    @param	tile	Source tile.
+*    @param	cell_index	Source cell index.
+*    @param	layer	Source layer.
+*    @param	target_tile_x	Target tile X coordinate.
+*    @param	target_tile_y	Target tile Y coordinate.
+*    @param	wrapped_local_x	Target tile-local X coordinate.
+*    @param	wrapped_local_y	Target tile-local Y coordinate.
+*    @return Edge bits describing whether the missing neighbor is blocked by solid geometry or is simply a non-walkable outward edge.
+**/
+static uint32_t Nav_Generation_ClassifyMissingWorldNeighborEdge( const nav_mesh_t *mesh, const nav_tile_t *tile, const int32_t cell_index,
+    const nav_layer_t &layer, const int32_t target_tile_x, const int32_t target_tile_y, const int32_t wrapped_local_x, const int32_t wrapped_local_y ) {
+    /**
+    *    Sanity checks: require mesh and source tile storage before probing world geometry.
+    **/
+    if ( !mesh || !tile ) {
+        return NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF;
+    }
+
+    /**
+    *    Build a same-height probe from the source node center toward the missing target cell center.
+    **/
+    const Vector3 start = Nav_NodeWorldPosition( mesh, tile, cell_index, &layer );
+    const double tile_world_size = Nav_TileWorldSize( mesh );
+    const Vector3 end = {
+        ( float )( ( ( double )target_tile_x * tile_world_size ) + ( ( double )wrapped_local_x + 0.5 ) * mesh->cell_size_xy ),
+        ( float )( ( ( double )target_tile_y * tile_world_size ) + ( ( double )wrapped_local_y + 0.5 ) * mesh->cell_size_xy ),
+        start.z
+    };
+
+    /**
+    *    Probe the neighbor direction with the configured agent hull to distinguish solid wall blockage from open ledge/gap space.
+    **/
+    const cm_trace_t side_trace = gi.trace( &start, &mesh->agent_mins, &mesh->agent_maxs, &end, nullptr, CM_CONTENTMASK_SOLID );
+    if ( side_trace.startsolid || side_trace.allsolid || side_trace.fraction < 1.0f ) {
+        return NAV_EDGE_FEATURE_HARD_WALL_BLOCKED;
+    }
+
+    return NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF;
+}
+
+/**
+*    @brief	Conservative fallback for missing inline-model neighbors.
+*    @return Combined hard-wall / forbidden-walk-off bits when no better inline-space classification is available.
+**/
+static uint32_t Nav_Generation_ClassifyMissingInlineNeighborEdge( void ) {
+    return NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF | NAV_EDGE_FEATURE_HARD_WALL_BLOCKED;
+}
+
+/**
+*    @brief	Derive traversal metadata for one tile from its fine cell/layer storage.
+*    @param	mesh	Navigation mesh owning the tile storage.
+*    @param	tile	Tile to finalize.
+*    @param	lookup_tile	Callable that resolves a neighboring tile by `(tile_x, tile_y)`.
+*    @param	classify_missing_edge	Callable that classifies truly missing neighbor cells.
+*    @note	This performs the expensive adjacency classification once during generation so runtime traversal can consume compact persisted metadata.
+**/
+template<typename TileLookupFn, typename MissingEdgeClassifierFn>
+static void Nav_Generation_FinalizeTileTraversalMetadata( nav_mesh_t *mesh, nav_tile_t *tile, TileLookupFn lookup_tile, MissingEdgeClassifierFn classify_missing_edge ) {
+    /**
+    *    Sanity checks: require mesh and tile storage before deriving metadata.
+    **/
+    if ( !mesh || !tile ) {
+        return;
+    }
+
+    auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
+    nav_xy_cell_t *cellsPtr = cellsView.first;
+    const int32_t cellsCount = cellsView.second;
+    if ( !cellsPtr || cellsCount <= 0 ) {
+        return;
+    }
+
+    /**
+    *    Reset the coarse tile summaries before recomputing them from the fine data.
+    **/
+    tile->traversal_summary_bits = NAV_TILE_SUMMARY_NONE;
+    tile->edge_summary_bits = NAV_TILE_SUMMARY_NONE;
+
+    /**
+    *    Iterate every populated sparse cell and finalize each layer's traversal metadata.
+    **/
+    for ( int32_t cell_index = 0; cell_index < cellsCount; cell_index++ ) {
+        const int32_t word_index = cell_index >> 5;
+        const int32_t bit_index = cell_index & 31;
+        if ( !tile->presence_bits || ( tile->presence_bits[ word_index ] & ( 1u << bit_index ) ) == 0 ) {
+            continue;
+        }
+
+        nav_xy_cell_t &cell = cellsPtr[ cell_index ];
+        auto layersView = SVG_Nav_Cell_GetLayers( &cell );
+        nav_layer_t *layersPtr = layersView.first;
+        const int32_t layerCount = layersView.second;
+        if ( !layersPtr || layerCount <= 0 ) {
+            continue;
+        }
+
+        /**
+        *    Determine the lowest and highest ladder layers in this XY cell so ladder endpoints can be modeled explicitly.
+        **/
+        int32_t ladder_lowest_index = -1;
+        int32_t ladder_highest_index = -1;
+        for ( int32_t layer_index = 0; layer_index < layerCount; layer_index++ ) {
+            const nav_layer_t &layer = layersPtr[ layer_index ];
+            if ( ( layer.flags & NAV_FLAG_LADDER ) == 0 ) {
+                continue;
+            }
+            if ( ladder_lowest_index < 0 || layer.z_quantized < layersPtr[ ladder_lowest_index ].z_quantized ) {
+                ladder_lowest_index = layer_index;
+            }
+            if ( ladder_highest_index < 0 || layer.z_quantized > layersPtr[ ladder_highest_index ].z_quantized ) {
+                ladder_highest_index = layer_index;
+            }
+        }
+
+        /**
+        *    Finalize each layer's node features, ladder endpoints, and explicit edge metadata.
+        **/
+        for ( int32_t layer_index = 0; layer_index < layerCount; layer_index++ ) {
+            nav_layer_t &layer = layersPtr[ layer_index ];
+            layer.traversal_feature_bits = SVG_Nav_BuildTraversalFeatureBitsFromLayerFlags( layer.flags );
+            layer.edge_valid_mask = 0;
+            layer.ladder_endpoint_flags = NAV_LADDER_ENDPOINT_NONE;
+            layer.ladder_start_z_quantized = layer.z_quantized;
+            layer.ladder_end_z_quantized = layer.z_quantized;
+            for ( int32_t edge_index = 0; edge_index < NAV_LAYER_EDGE_DIR_COUNT; edge_index++ ) {
+                layer.edge_feature_bits[ edge_index ] = NAV_EDGE_FEATURE_NONE;
+            }
+
+            if ( ladder_lowest_index >= 0 && ladder_highest_index >= 0 && ( layer.flags & NAV_FLAG_LADDER ) != 0 ) {
+                layer.ladder_start_z_quantized = layersPtr[ ladder_lowest_index ].z_quantized;
+                layer.ladder_end_z_quantized = layersPtr[ ladder_highest_index ].z_quantized;
+                if ( layer_index == ladder_lowest_index ) {
+                    layer.ladder_endpoint_flags |= NAV_LADDER_ENDPOINT_STARTPOINT;
+                    layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LADDER_STARTPOINT;
+                }
+                if ( layer_index == ladder_highest_index ) {
+                    layer.ladder_endpoint_flags |= NAV_LADDER_ENDPOINT_ENDPOINT;
+                    layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LADDER_ENDPOINT;
+                }
+            }
+
+            /**
+            *    Derive persisted per-edge metadata for the 8 neighboring XY directions.
+            **/
+            const int32_t local_cell_x = cell_index % mesh->tile_size;
+            const int32_t local_cell_y = cell_index / mesh->tile_size;
+            for ( int32_t cell_dy = -1; cell_dy <= 1; cell_dy++ ) {
+                for ( int32_t cell_dx = -1; cell_dx <= 1; cell_dx++ ) {
+                    if ( cell_dx == 0 && cell_dy == 0 ) {
+                        continue;
+                    }
+
+                    const int32_t edge_dir_index = Nav_Generation_EdgeDirIndex( cell_dx, cell_dy );
+                    if ( edge_dir_index < 0 ) {
+                        continue;
+                    }
+
+                    const int32_t target_local_x = local_cell_x + cell_dx;
+                    const int32_t target_local_y = local_cell_y + cell_dy;
+                    const int32_t target_tile_x = tile->tile_x + ( target_local_x < 0 ? -1 : ( target_local_x >= mesh->tile_size ? 1 : 0 ) );
+                    const int32_t target_tile_y = tile->tile_y + ( target_local_y < 0 ? -1 : ( target_local_y >= mesh->tile_size ? 1 : 0 ) );
+                    const int32_t wrapped_local_x = ( target_local_x < 0 ) ? ( target_local_x + mesh->tile_size ) : ( target_local_x >= mesh->tile_size ? ( target_local_x - mesh->tile_size ) : target_local_x );
+                    const int32_t wrapped_local_y = ( target_local_y < 0 ) ? ( target_local_y + mesh->tile_size ) : ( target_local_y >= mesh->tile_size ? ( target_local_y - mesh->tile_size ) : target_local_y );
+                    const int32_t target_cell_index = ( wrapped_local_y * mesh->tile_size ) + wrapped_local_x;
+
+                    nav_tile_t *target_tile = lookup_tile( target_tile_x, target_tile_y );
+                    uint32_t edge_bits = NAV_EDGE_FEATURE_NONE;
+                    layer.edge_valid_mask |= ( 1u << edge_dir_index );
+
+                    if ( !target_tile || !target_tile->presence_bits ) {
+                      edge_bits |= classify_missing_edge( mesh, tile, cell_index, layer, target_tile_x, target_tile_y, wrapped_local_x, wrapped_local_y );
+                        if ( ( edge_bits & NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF ) != 0 ) {
+                            layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LEDGE_ADJACENCY;
+                        }
+                        if ( ( edge_bits & NAV_EDGE_FEATURE_HARD_WALL_BLOCKED ) != 0 ) {
+                            layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_WALL_ADJACENCY;
+                        }
+                        layer.edge_feature_bits[ edge_dir_index ] = edge_bits;
+                        continue;
+                    }
+
+                    const int32_t target_word_index = target_cell_index >> 5;
+                    const int32_t target_bit_index = target_cell_index & 31;
+                    if ( ( target_tile->presence_bits[ target_word_index ] & ( 1u << target_bit_index ) ) == 0 ) {
+                      edge_bits |= classify_missing_edge( mesh, tile, cell_index, layer, target_tile_x, target_tile_y, wrapped_local_x, wrapped_local_y );
+                        if ( ( edge_bits & NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF ) != 0 ) {
+                            layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LEDGE_ADJACENCY;
+                        }
+                        if ( ( edge_bits & NAV_EDGE_FEATURE_HARD_WALL_BLOCKED ) != 0 ) {
+                            layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_WALL_ADJACENCY;
+                        }
+                        layer.edge_feature_bits[ edge_dir_index ] = edge_bits;
+                        continue;
+                    }
+
+                    auto targetCellsView = SVG_Nav_Tile_GetCells( mesh, target_tile );
+                    nav_xy_cell_t *targetCellsPtr = targetCellsView.first;
+                    const int32_t targetCellsCount = targetCellsView.second;
+                    if ( !targetCellsPtr || target_cell_index < 0 || target_cell_index >= targetCellsCount ) {
+                        edge_bits |= NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF | NAV_EDGE_FEATURE_HARD_WALL_BLOCKED;
+                        layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LEDGE_ADJACENCY | NAV_TRAVERSAL_FEATURE_WALL_ADJACENCY;
+                        layer.edge_feature_bits[ edge_dir_index ] = edge_bits;
+                        continue;
+                    }
+
+                    nav_xy_cell_t &target_cell = targetCellsPtr[ target_cell_index ];
+                    auto targetLayersView = SVG_Nav_Cell_GetLayers( &target_cell );
+                    nav_layer_t *targetLayersPtr = targetLayersView.first;
+                    const int32_t targetLayerCount = targetLayersView.second;
+                    if ( !targetLayersPtr || targetLayerCount <= 0 ) {
+                        edge_bits |= NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF | NAV_EDGE_FEATURE_HARD_WALL_BLOCKED;
+                        layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LEDGE_ADJACENCY | NAV_TRAVERSAL_FEATURE_WALL_ADJACENCY;
+                        layer.edge_feature_bits[ edge_dir_index ] = edge_bits;
+                        continue;
+                    }
+
+                    int32_t target_layer_index = -1;
+                    const double desired_z = ( double )layer.z_quantized * mesh->z_quant;
+                    if ( !Nav_SelectLayerIndex( mesh, &target_cell, desired_z, &target_layer_index ) || target_layer_index < 0 || target_layer_index >= targetLayerCount ) {
+                        edge_bits |= NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF | NAV_EDGE_FEATURE_HARD_WALL_BLOCKED;
+                        layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LEDGE_ADJACENCY | NAV_TRAVERSAL_FEATURE_WALL_ADJACENCY;
+                        layer.edge_feature_bits[ edge_dir_index ] = edge_bits;
+                        continue;
+                    }
+
+                  nav_layer_t &target_layer = targetLayersPtr[ target_layer_index ];
+                    const double source_z = ( double )layer.z_quantized * mesh->z_quant;
+                    const double target_z = ( double )target_layer.z_quantized * mesh->z_quant;
+                    const double delta_z = target_z - source_z;
+                    const double drop_height = std::max( 0.0, source_z - target_z );
+                    const double drop_cap = nav_max_drop_height_cap ? nav_max_drop_height_cap->value : NAV_DEFAULT_MAX_DROP_HEIGHT_CAP;
+
+                    /**
+                    *    Classify the edge according to the vertical transition.
+                    *        Small down-steps stay ordinary stair edges, larger but survivable drops become optional walk-offs,
+                    *        and excessive drops remain forbidden walk-offs.
+                    **/
+                    if ( drop_height > mesh->max_step ) {
+                        layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_LEDGE_ADJACENCY;
+                        if ( drop_height <= drop_cap ) {
+                            edge_bits |= NAV_EDGE_FEATURE_PASSABLE | NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF;
+                        } else {
+                            edge_bits |= NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF;
+                        }
+                    } else {
+                        edge_bits |= NAV_EDGE_FEATURE_PASSABLE;
+                    }
+
+                    if ( delta_z >= NAV_DEFAULT_STEP_MIN_SIZE && delta_z <= mesh->max_step ) {
+                        edge_bits |= NAV_EDGE_FEATURE_STAIR_STEP_UP;
+                        layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE;
+                    }
+                    if ( delta_z <= -NAV_DEFAULT_STEP_MIN_SIZE && -delta_z <= mesh->max_step ) {
+                        edge_bits |= NAV_EDGE_FEATURE_STAIR_STEP_DOWN;
+                        layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE;
+                    }
+                    if ( delta_z > mesh->max_step ) {
+                        edge_bits |= NAV_EDGE_FEATURE_JUMP_OBSTRUCTION;
+                        layer.traversal_feature_bits |= NAV_TRAVERSAL_FEATURE_JUMP_OBSTRUCTION_PRESENCE;
+                    }
+                    if ( ( target_layer.flags & NAV_FLAG_LADDER ) != 0 || ( layer.flags & NAV_FLAG_LADDER ) != 0 ) {
+                        edge_bits |= NAV_EDGE_FEATURE_LADDER_PASS;
+                    }
+                    if ( ( target_layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_WATER ) != 0 ) {
+                        edge_bits |= NAV_EDGE_FEATURE_ENTERS_WATER;
+                    }
+                    if ( ( target_layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_LAVA ) != 0 ) {
+                        edge_bits |= NAV_EDGE_FEATURE_ENTERS_LAVA;
+                    }
+                    if ( ( target_layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_SLIME ) != 0 ) {
+                        edge_bits |= NAV_EDGE_FEATURE_ENTERS_SLIME;
+                    }
+
+                    layer.edge_feature_bits[ edge_dir_index ] = edge_bits;
+                }
+            }
+
+            /**
+            *    Roll the finalized node and edge metadata up into tile-level summaries.
+            **/
+            if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_STAIR_PRESENCE ) != 0 ) {
+                tile->traversal_summary_bits |= NAV_TILE_SUMMARY_STAIR;
+            }
+            if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_WATER ) != 0 ) {
+                tile->traversal_summary_bits |= NAV_TILE_SUMMARY_WATER;
+            }
+            if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_LAVA ) != 0 ) {
+                tile->traversal_summary_bits |= NAV_TILE_SUMMARY_LAVA;
+            }
+            if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_SLIME ) != 0 ) {
+                tile->traversal_summary_bits |= NAV_TILE_SUMMARY_SLIME;
+            }
+            if ( ( layer.traversal_feature_bits & NAV_TRAVERSAL_FEATURE_LADDER ) != 0 ) {
+                tile->traversal_summary_bits |= NAV_TILE_SUMMARY_LADDER;
+            }
+
+            for ( int32_t edge_index = 0; edge_index < NAV_LAYER_EDGE_DIR_COUNT; edge_index++ ) {
+                const uint32_t edge_bits = layer.edge_feature_bits[ edge_index ];
+                if ( ( edge_bits & ( NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF | NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF ) ) != 0 ) {
+                    tile->edge_summary_bits |= NAV_TILE_SUMMARY_WALK_OFF;
+                }
+                if ( ( edge_bits & NAV_EDGE_FEATURE_HARD_WALL_BLOCKED ) != 0 ) {
+                    tile->edge_summary_bits |= NAV_TILE_SUMMARY_HARD_WALL;
+                }
+            }
+        }
+    }
+}
+
+/**
+*    @brief	Finalize traversal metadata for all generated world and inline-model tiles.
+*    @param	mesh	Navigation mesh containing the generated tile sets.
+*    @note	This keeps traversal metadata generation centralized and ensures save/load can persist the same derived facts.
+**/
+static void Nav_FinalizeGeneratedTraversalMetadata( nav_mesh_t *mesh ) {
+    /**
+    *    Sanity checks: require mesh storage before deriving traversal metadata.
+    **/
+    if ( !mesh ) {
+        return;
+    }
+
+    /**
+    *    Finalize the canonical world tiles using the world tile lookup map for cross-tile adjacency.
+    **/
+    for ( nav_tile_t &tile : mesh->world_tiles ) {
+        Nav_Generation_FinalizeTileTraversalMetadata( mesh, &tile, [mesh]( const int32_t tile_x, const int32_t tile_y ) -> nav_tile_t * {
+            return Nav_Generation_FindWorldTile( mesh, tile_x, tile_y );
+        }, []( const nav_mesh_t *mesh, const nav_tile_t *tile, const int32_t cell_index, const nav_layer_t &layer,
+            const int32_t target_tile_x, const int32_t target_tile_y, const int32_t wrapped_local_x, const int32_t wrapped_local_y ) -> uint32_t {
+            return Nav_Generation_ClassifyMissingWorldNeighborEdge( mesh, tile, cell_index, layer, target_tile_x, target_tile_y, wrapped_local_x, wrapped_local_y );
+        } );
+    }
+
+    /**
+    *    Finalize each inline-model tile set using model-local tile lookups.
+    **/
+    for ( int32_t model_index = 0; model_index < mesh->num_inline_models; model_index++ ) {
+        nav_inline_model_data_t &model = mesh->inline_model_data[ model_index ];
+        for ( int32_t tile_index = 0; tile_index < model.num_tiles; tile_index++ ) {
+            Nav_Generation_FinalizeTileTraversalMetadata( mesh, &model.tiles[ tile_index ], [&model]( const int32_t tile_x, const int32_t tile_y ) -> nav_tile_t * {
+                return Nav_Generation_FindInlineTile( &model, tile_x, tile_y );
+            }, []( const nav_mesh_t *, const nav_tile_t *, const int32_t, const nav_layer_t &, const int32_t, const int32_t, const int32_t, const int32_t ) -> uint32_t {
+                return Nav_Generation_ClassifyMissingInlineNeighborEdge();
+            } );
+        }
+    }
 }
 
 // Diagnostic counters (kept local to generation TU).
@@ -313,7 +741,15 @@ static void FindWalkableLayers( const Vector3 &xy_pos, const Vector3 &mins, cons
 				constexpr double quantMax = ( double )std::numeric_limits<int32_t>::max();
 				const double clampedZ = std::min( std::max( quantizedZ, quantMin ), quantMax );
 				temp_layers[num_layers].z_quantized = ( int32_t )clampedZ;
-                    temp_layers[num_layers].flags = DetectContentFlags( trace );
+                temp_layers[num_layers].flags = DetectContentFlags( trace );
+                temp_layers[num_layers].traversal_feature_bits = SVG_Nav_BuildTraversalFeatureBitsFromLayerFlags( temp_layers[ num_layers ].flags );
+                temp_layers[num_layers].edge_valid_mask = 0;
+                temp_layers[num_layers].ladder_endpoint_flags = NAV_LADDER_ENDPOINT_NONE;
+                temp_layers[num_layers].ladder_start_z_quantized = temp_layers[ num_layers ].z_quantized;
+                temp_layers[num_layers].ladder_end_z_quantized = temp_layers[ num_layers ].z_quantized;
+                for ( int32_t edge_index = 0; edge_index < NAV_LAYER_EDGE_DIR_COUNT; edge_index++ ) {
+                    temp_layers[ num_layers ].edge_feature_bits[ edge_index ] = NAV_EDGE_FEATURE_NONE;
+                }
 
                     /**
                     *    Trace upward from the detected floor to measure the next obstruction
@@ -1090,6 +1526,7 @@ void SVG_Nav_GenerateVoxelMesh( void ) {
 	const QMTime genStart = QMTime::FromMilliseconds( gi.GetRealSystemTime() );
 	GenerateWorldMesh( g_nav_mesh.get() );
     GenerateInlineModelMesh( g_nav_mesh.get() );
+ Nav_FinalizeGeneratedTraversalMetadata( g_nav_mesh.get() );
     // Emit a short inline-model generation summary to help debug missing inline tiles.
     Nav_LogInlineModelSummary( g_nav_mesh.get() );
 	const QMTime genEnd = QMTime::FromMilliseconds( gi.GetRealSystemTime() );

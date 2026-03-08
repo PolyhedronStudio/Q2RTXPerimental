@@ -8,9 +8,103 @@
 #include "svgame/svg_local.h"
 #include "svgame/svg_utils.h"
 
+#include "svgame/nav/svg_nav.h"
+#include "svgame/nav/svg_nav_clusters.h"
+#include "svgame/nav/svg_nav_traversal.h"
+
 #include "svgame/player/svg_player_weapon.h"
 
 #include "svgame/entities/svg_npc_sound_helper.h"
+
+#include <algorithm>
+#include <cmath>
+
+/**
+*    @brief	Project a sound origin onto the nearest walkable nav Z while preserving XY.
+*    @param	origin		World-space sound origin to normalize.
+*    @param	out_origin	[out] Projected origin when a walkable layer is found.
+*    @return	True when the sound origin was projected onto a walkable nav layer.
+*    @note	This keeps sound-follow goals on reachable floors without inventing a new XY target.
+**/
+static bool SVG_NPCSound_TryProjectOriginToWalkableZ( const Vector3 &origin, Vector3 *out_origin ) {
+	/**
+	*    Sanity checks: require navmesh storage and an output buffer.
+	**/
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( !mesh || !out_origin ) {
+		return false;
+	}
+
+	/**
+	*    Resolve the agent hull used for nav-center conversion.
+	**/
+	Vector3 agent_mins = mesh->agent_mins;
+	Vector3 agent_maxs = mesh->agent_maxs;
+	const bool mesh_agent_valid = ( agent_maxs.x > agent_mins.x ) && ( agent_maxs.y > agent_mins.y ) && ( agent_maxs.z > agent_mins.z );
+	if ( !mesh_agent_valid ) {
+		const nav_agent_profile_t agent_profile = SVG_Nav_BuildAgentProfileFromCvars();
+		if ( !( agent_profile.maxs.x > agent_profile.mins.x ) || !( agent_profile.maxs.y > agent_profile.mins.y ) || !( agent_profile.maxs.z > agent_profile.mins.z ) ) {
+			return false;
+		}
+		agent_mins = agent_profile.mins;
+		agent_maxs = agent_profile.maxs;
+	}
+
+	/**
+	*    Convert the sound origin into nav-center space and inspect the current XY cell.
+	**/
+    const float center_offset_z = ( agent_mins.z + agent_maxs.z ) * 0.5f;
+	Vector3 center_origin = origin;
+	center_origin.z += center_offset_z;
+	const nav_tile_cluster_key_t tile_key = SVG_Nav_GetTileKeyForPosition( mesh, center_origin );
+	const nav_world_tile_key_t world_tile_key = { .tile_x = tile_key.tile_x, .tile_y = tile_key.tile_y };
+	const auto tile_it = mesh->world_tile_id_of.find( world_tile_key );
+	if ( tile_it == mesh->world_tile_id_of.end() ) {
+		return false;
+	}
+
+	const nav_tile_t *tile = &mesh->world_tiles[ tile_it->second ];
+	const auto cells_view = SVG_Nav_Tile_GetCells( mesh, tile );
+	const nav_xy_cell_t *cells = cells_view.first;
+	const int32_t cell_count = cells_view.second;
+	if ( !cells || cell_count <= 0 ) {
+		return false;
+	}
+
+	const double tile_world_size = ( double )mesh->tile_size * mesh->cell_size_xy;
+	const double tile_origin_x = ( double )tile->tile_x * tile_world_size;
+	const double tile_origin_y = ( double )tile->tile_y * tile_world_size;
+	const double local_x = center_origin.x - tile_origin_x;
+	const double local_y = center_origin.y - tile_origin_y;
+	if ( local_x < 0.0 || local_y < 0.0 ) {
+		return false;
+	}
+
+	const int32_t cell_x = std::clamp( ( int32_t )std::floor( local_x / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
+	const int32_t cell_y = std::clamp( ( int32_t )std::floor( local_y / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
+	const int32_t cell_index = ( cell_y * mesh->tile_size ) + cell_x;
+	if ( cell_index < 0 || cell_index >= cell_count ) {
+		return false;
+	}
+
+	const nav_xy_cell_t *cell = &cells[ cell_index ];
+	if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+		return false;
+	}
+
+	int32_t layer_index = -1;
+	if ( !Nav_SelectLayerIndex( mesh, cell, center_origin.z, &layer_index ) || layer_index < 0 || layer_index >= cell->num_layers ) {
+		return false;
+	}
+
+	/**
+	*    Convert the chosen walkable layer height back into the caller's feet-origin space.
+	**/
+	const double projected_center_z = ( double )cell->layers[ layer_index ].z_quantized * mesh->z_quant;
+	*out_origin = origin;
+	out_origin->z = ( float )( projected_center_z - center_offset_z );
+	return true;
+}
 
 
 /**
@@ -130,6 +224,19 @@ svg_base_edict_t *SVG_NPC_FindFreshestAudibleSound( svg_base_edict_t *listener, 
 	if ( !freshestSound ) {
 		return nullptr;
 	}
+
+	/**
+	*    Normalize the chosen sound origin onto a walkable nav layer before audibility checks.
+	**/
+	Vector3 snapped_sound_origin = freshestSound->currentOrigin;
+	if ( SVG_NPCSound_TryProjectOriginToWalkableZ( freshestSound->currentOrigin, &snapped_sound_origin )
+		&& std::fabs( snapped_sound_origin.z - freshestSound->currentOrigin.z ) > 0.001f ) {
+		SVG_Util_SetEntityOrigin( freshestSound, snapped_sound_origin, true );
+		VectorSubtract( snapped_sound_origin, freshestSound->maxs, freshestSound->absMin );
+		VectorAdd( snapped_sound_origin, freshestSound->maxs, freshestSound->absMax );
+		gi.linkentity( freshestSound );
+	}
+
 	// Reject the candidate when the caller requested a PHS audibility gate and the sound fails it.
 	if ( usePHS && !SVG_Util_IsEntityAudibleByPHS( listener, freshestSound, true, debugLevel ) ) {
 		return nullptr;
@@ -138,3 +245,5 @@ svg_base_edict_t *SVG_NPC_FindFreshestAudibleSound( svg_base_edict_t *listener, 
 	// Return the validated freshest sound source.
 	return freshestSound;
 }
+
+

@@ -122,6 +122,92 @@ static bool Dummy_ShouldResetSoundInvestigationGoal( const svg_monster_testdummy
 	return false;
 }
 
+/**
+*   @brief	Project a sound-follow goal onto the nearest walkable nav Z while preserving XY.
+*   @param	self		Monster requesting the projection.
+*   @param	goalOrigin	Feet-origin goal proposed by sound investigation.
+*   @param	outGoalOrigin	[out] Projected feet-origin goal when a walkable layer is found.
+*   @return	True when the goal was projected onto a walkable nav layer.
+*   @note	This keeps the testdummy's reusable movement API working with world-space sound goals.
+**/
+static bool Dummy_TryProjectGoalToWalkableZ( svg_monster_testdummy_sfxfollow_t *self, const Vector3 &goalOrigin, Vector3 *outGoalOrigin ) {
+	/**
+	*   Sanity checks: require an entity, navmesh, and output storage.
+	**/
+	if ( !self || !outGoalOrigin ) {
+		return false;
+	}
+
+	const nav_mesh_t *mesh = g_nav_mesh.get();
+	if ( !mesh ) {
+		return false;
+	}
+
+	/**
+	*   Resolve the navigation agent hull used by this monster for feet-to-center conversion.
+	**/
+	Vector3 agent_mins = {};
+	Vector3 agent_maxs = {};
+	self->GetNavigationAgentBounds( &agent_mins, &agent_maxs );
+	if ( !( agent_maxs.x > agent_mins.x ) || !( agent_maxs.y > agent_mins.y ) || !( agent_maxs.z > agent_mins.z ) ) {
+		return false;
+	}
+
+	/**
+	*   Convert the sound goal into nav-center space and inspect the current XY cell.
+	**/
+	const Vector3 center_origin = SVG_Nav_ConvertFeetToCenter( mesh, goalOrigin, &agent_mins, &agent_maxs );
+	const nav_tile_cluster_key_t tile_key = SVG_Nav_GetTileKeyForPosition( mesh, center_origin );
+	const nav_world_tile_key_t world_tile_key = { .tile_x = tile_key.tile_x, .tile_y = tile_key.tile_y };
+	const auto tile_it = mesh->world_tile_id_of.find( world_tile_key );
+	if ( tile_it == mesh->world_tile_id_of.end() ) {
+		return false;
+	}
+
+	const nav_tile_t *tile = &mesh->world_tiles[ tile_it->second ];
+	const auto cells_view = SVG_Nav_Tile_GetCells( mesh, tile );
+	const nav_xy_cell_t *cells = cells_view.first;
+	const int32_t cell_count = cells_view.second;
+	if ( !cells || cell_count <= 0 ) {
+		return false;
+	}
+
+	const double tile_world_size = ( double )mesh->tile_size * mesh->cell_size_xy;
+	const double tile_origin_x = ( double )tile->tile_x * tile_world_size;
+	const double tile_origin_y = ( double )tile->tile_y * tile_world_size;
+	const double local_x = center_origin.x - tile_origin_x;
+	const double local_y = center_origin.y - tile_origin_y;
+	if ( local_x < 0.0 || local_y < 0.0 ) {
+		return false;
+	}
+
+	const int32_t cell_x = std::clamp( ( int32_t )( local_x / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
+	const int32_t cell_y = std::clamp( ( int32_t )( local_y / mesh->cell_size_xy ), 0, mesh->tile_size - 1 );
+	const int32_t cell_index = ( cell_y * mesh->tile_size ) + cell_x;
+	if ( cell_index < 0 || cell_index >= cell_count ) {
+		return false;
+	}
+
+	const nav_xy_cell_t *cell = &cells[ cell_index ];
+	if ( !cell || cell->num_layers <= 0 || !cell->layers ) {
+		return false;
+	}
+
+	int32_t layer_index = -1;
+	if ( !Nav_SelectLayerIndex( mesh, cell, center_origin.z, &layer_index ) || layer_index < 0 || layer_index >= cell->num_layers ) {
+		return false;
+	}
+
+	/**
+	*   Convert the chosen walkable layer back into feet-origin space for the request queue.
+	**/
+	const float center_offset_z = ( agent_mins.z + agent_maxs.z ) * 0.5f;
+	const double projected_center_z = ( double )cell->layers[ layer_index ].z_quantized * mesh->z_quant;
+	*outGoalOrigin = goalOrigin;
+	outGoalOrigin->z = ( float )( projected_center_z - center_offset_z );
+	return true;
+}
+
 
 
 /**
@@ -1138,8 +1224,7 @@ const bool svg_monster_testdummy_sfxfollow_t::GenericThinkFinish( const bool pro
 *
 *
 *
-*
-*	Explicit NPC State Management:
+*		Explicit NPC State Management:
 *
 *
 *
@@ -1605,7 +1690,7 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	/**
 	*    Throttle guard:
 	*        If the path process is not allowed to rebuild yet, skip enqueuing and
-	*        let callers keep following the current path without forcing sync rebuilds.
+	*        let callers keep using current path without forcing sync rebuilds.
 	**/
 	// Force bypass ensures explicit sound-goal refreshes can still queue new work.
 	if ( !force && !pathNavigationState.process.CanRebuild( policy ) ) {
@@ -1642,8 +1727,15 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	*    path_process pending handle is always up-to-date and avoids the
 	*    repeated "request already pending" spam seen in logs.
 	**/
-	// Keep an in-flight async request alive unless the caller explicitly forces
-	// a rebuild. Start-position drift while moving should not restart the worker.
+ /**
+	*    Validate the requested sound goal against the navmesh before queuing async work.
+	**/
+	Vector3 adjusted_goal = goal_origin;
+    if ( !Dummy_TryProjectGoalToWalkableZ( this, goal_origin, &adjusted_goal ) ) {
+		// Fall back to our current feet Z when the goal is not projectable into a walkable layer.
+		adjusted_goal.z = currentOrigin.z;
+	}
+
    if ( SVG_Nav_IsRequestPending( &pathNavigationState.process ) ) {
 		/**
 		*    If a request is already pending we should not refresh it for small
@@ -1660,7 +1752,7 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 				: pathNavigationState.process.path_goal_position;
 			// Compute the delta between the requested goal and the currently
 			// tracked goal and compare against the policy's 2D rebuild radius.
-			const double goalDx = QM_Vector3LengthDP( QM_Vector3Subtract( goal_origin, referenceGoal ) );
+			const double goalDx = QM_Vector3LengthDP( QM_Vector3Subtract( adjusted_goal, referenceGoal ) );
 			if ( goalDx <= pathNavigationState.policy.rebuild_goal_dist_2d ) {
 				if ( DUMMY_NAV_DEBUG ) {
 					gi.dprintf( "[DEBUG] TryQueueNavRebuild: skipping refresh because pending_handle=%d and goalDx=%.2f <= thresh=%.2f ent=%d\n",
@@ -1716,7 +1808,7 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 	// while a search is running. We choose the same 16-unit threshold used
 	// locally above to keep behavior consistent.
 	constexpr double startIgnoreThresholdForQueue = 32.0;
-	const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &pathNavigationState.process, start_origin, goal_origin, policy, agent_mins, agent_maxs, force, startIgnoreThresholdForQueue );
+	const nav_request_handle_t handle = SVG_Nav_RequestPathAsync( &pathNavigationState.process, start_origin, adjusted_goal, policy, agent_mins, agent_maxs, force, startIgnoreThresholdForQueue );
 	if ( handle <= 0 ) {
 		if ( DUMMY_NAV_DEBUG ) {
 			gi.dprintf( "[DEBUG] TryQueueNavRebuild: enqueue failed (handle=%d) ent=%d\n", handle, s.number );
@@ -1737,16 +1829,16 @@ const bool svg_monster_testdummy_sfxfollow_t::TryRebuildNavigationInQueue( const
 		const nav_mesh_t *mesh = g_nav_mesh.get();
 		if ( mesh ) {
 			const Vector3 start_center = SVG_Nav_ConvertFeetToCenter( mesh, start_origin, &agent_mins, &agent_maxs );
-			const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, goal_origin, &agent_mins, &agent_maxs );
+			const Vector3 goal_center = SVG_Nav_ConvertFeetToCenter( mesh, adjusted_goal, &agent_mins, &agent_maxs );
 			gi.dprintf( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) start_center=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) goal_center=(%.1f %.1f %.1f)\n",
 				start_origin.x, start_origin.y, start_origin.z,
 				start_center.x, start_center.y, start_center.z,
-				goal_origin.x, goal_origin.y, goal_origin.z,
+				adjusted_goal.x, adjusted_goal.y, adjusted_goal.z,
 				goal_center.x, goal_center.y, goal_center.z );
 		} else {
 			gi.dprintf( "[DEBUG] TryQueueNavRebuild: start=(%.1f %.1f %.1f) goal=(%.1f %.1f %.1f) (no mesh)\n",
 				start_origin.x, start_origin.y, start_origin.z,
-				goal_origin.x, goal_origin.y, goal_origin.z );
+				adjusted_goal.x, adjusted_goal.y, adjusted_goal.z );
 		}
 	}
 	return true;
@@ -1912,7 +2004,3 @@ void svg_monster_testdummy_sfxfollow_t::AdjustGoalZBlendPolicy( const Vector3 &g
 	pathPolicy.blend_start_dist = blendStartDist;
 	pathPolicy.blend_full_dist = blendFullDist;
 }
-
-
-//=============================================================================================
-//=============================================================================================

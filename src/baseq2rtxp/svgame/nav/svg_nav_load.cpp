@@ -27,8 +27,10 @@
 #include <unordered_map>
 #include <vector>
 
+//! File magic used to identify serialized navmesh cache files.
 static constexpr uint32_t NAV_MESH_SAVE_MAGIC = 0x56414E53; // "VANS"
-static constexpr uint32_t NAV_MESH_SAVE_VERSION = 2;
+//! Serialized navmesh format version. Bump when persisted tile/layer payload layout changes.
+static constexpr uint32_t NAV_MESH_SAVE_VERSION = 4;
 
 /**
 *	@brief	Read raw bytes from a (possibly gzipped) file.
@@ -211,8 +213,8 @@ bool SVG_Nav_LoadVoxelMesh( const char *levelName ) {
 		gzclose( f );
 		return false;
 	}
-   // Reject files that do not match the expected magic or supported versions.
-	if ( magic != NAV_MESH_SAVE_MAGIC || ( version != 1 && version != NAV_MESH_SAVE_VERSION ) ) {
+  // Reject files that do not match the expected magic or current format version.
+	if ( magic != NAV_MESH_SAVE_MAGIC || version != NAV_MESH_SAVE_VERSION ) {
 		gzclose( f );
 		return false;
 	}
@@ -244,15 +246,12 @@ bool SVG_Nav_LoadVoxelMesh( const char *levelName ) {
 	// Layers.total count of Z layers across all XY cells (sum of num_layers in each cell). This reflects the overall vertical complexity of the navmesh.
 	uint64_t statistic_total_layers = 0;
    // Read in the statistics from the file for later validation against the loaded mesh.
-	// Version 1 files predate these counters, so only consume them from version 2+ streams.
-	if ( version >= 2 ) {
-		if ( !Nav_ReadValue( f, statistic_total_tiles ) ||
-			!Nav_ReadValue( f, statistic_total_xy_cells ) ||
-			!Nav_ReadValue( f, statistic_total_layers ) ) {
-			gzclose( f );
-			SVG_Nav_FreeMesh();
-			return false;
-		}
+    if ( !Nav_ReadValue( f, statistic_total_tiles ) ||
+		!Nav_ReadValue( f, statistic_total_xy_cells ) ||
+		!Nav_ReadValue( f, statistic_total_layers ) ) {
+		gzclose( f );
+		SVG_Nav_FreeMesh();
+		return false;
 	}
 
 	/**
@@ -371,6 +370,11 @@ bool SVG_Nav_LoadVoxelMesh( const char *levelName ) {
 
 			leaf.tile_ids[ t ] = tileId;
 			nav_tile_t &tile = g_nav_mesh->world_tiles[ tileId ];
+			if ( !Nav_ReadValue( f, tile.traversal_summary_bits ) || !Nav_ReadValue( f, tile.edge_summary_bits ) ) {
+				gzclose( f );
+				SVG_Nav_FreeMesh();
+				return false;
+			}
 
 			// Tile storage is allocated when inserted into `world_tiles`.
 
@@ -464,6 +468,11 @@ bool SVG_Nav_LoadVoxelMesh( const char *levelName ) {
 				nav_tile_t &tile = model.tiles[ t ];
 				// Read tile coordinates.
 				if ( !Nav_ReadValue( f, tile.tile_x ) || !Nav_ReadValue( f, tile.tile_y ) ) {
+					gzclose( f );
+					SVG_Nav_FreeMesh();
+					return false;
+				}
+				if ( !Nav_ReadValue( f, tile.traversal_summary_bits ) || !Nav_ReadValue( f, tile.edge_summary_bits ) ) {
 					gzclose( f );
 					SVG_Nav_FreeMesh();
 					return false;
@@ -608,10 +617,9 @@ bool SVG_Nav_LoadVoxelMesh( const char *levelName ) {
 	*	This can help detect mismatches between the navmesh and game configuration:
 	*	(e.g. loading a mesh generated with different parameters or from a different map version).
 	**/
-   if ( version >= 2 &&
-		( statistic_total_tiles != ( uint64_t )g_nav_mesh->total_tiles
+  if ( statistic_total_tiles != ( uint64_t )g_nav_mesh->total_tiles
 		|| statistic_total_xy_cells != ( uint64_t )g_nav_mesh->total_xy_cells
-		|| statistic_total_layers != ( uint64_t )g_nav_mesh->total_layers ) ) {
+		|| statistic_total_layers != ( uint64_t )g_nav_mesh->total_layers ) {
 		//gzclose( f );
 		//SVG_Nav_FreeMesh();
 		//return false;

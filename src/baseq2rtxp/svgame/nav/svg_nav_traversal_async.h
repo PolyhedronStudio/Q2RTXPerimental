@@ -165,6 +165,8 @@ struct nav_a_star_state_t {
 	int32_t same_node_alias_count = 0;
 	//! Number of neighbor queries that resolved to an already-closed node entry.
 	int32_t closed_duplicate_count = 0;
+	//! Number of long-hop probes skipped because the full one-cell chain already exists.
+	int32_t pass_through_prune_count = 0;
 
 	//! Per-reason counters for edge rejection to help diagnose why neighbors are discarded.
 	//! Index into this array is defined by `nav_edge_reject_reason_t`.
@@ -233,7 +235,9 @@ struct nav_a_star_state_t {
 		tile_filter_reject_count( o.tile_filter_reject_count ),
 		edge_reject_count( o.edge_reject_count ),
 		same_node_alias_count( o.same_node_alias_count ),
-		closed_duplicate_count( o.closed_duplicate_count ) {
+        closed_duplicate_count( o.closed_duplicate_count ),
+		pass_through_prune_count( o.pass_through_prune_count ),
+		edge_reject_reason_counts( o.edge_reject_reason_counts ) {
 	  // Rebind pointer to our own storage (or nullptr)
 		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
 		// Debug assertion: ensure non-owning pointer either null or points into our storage.
@@ -279,6 +283,8 @@ struct nav_a_star_state_t {
 		edge_reject_count = o.edge_reject_count;
 		same_node_alias_count = o.same_node_alias_count;
 		closed_duplicate_count = o.closed_duplicate_count;
+		pass_through_prune_count = o.pass_through_prune_count;
+		edge_reject_reason_counts = o.edge_reject_reason_counts;
 
 		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
 	 // Debug assertion: ensure non-owning pointer either null or points into our storage.
@@ -321,7 +327,9 @@ struct nav_a_star_state_t {
 		tile_filter_reject_count( o.tile_filter_reject_count ),
 		edge_reject_count( o.edge_reject_count ),
 		same_node_alias_count( o.same_node_alias_count ),
-		closed_duplicate_count( o.closed_duplicate_count ) {
+        closed_duplicate_count( o.closed_duplicate_count ),
+		pass_through_prune_count( o.pass_through_prune_count ),
+		edge_reject_reason_counts( o.edge_reject_reason_counts ) {
 	  // Rebind pointer to our own storage (or nullptr)
 		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
 		// Debug assertion: ensure non-owning pointer either null or points into our storage.
@@ -370,6 +378,8 @@ struct nav_a_star_state_t {
 		edge_reject_count = o.edge_reject_count;
 		same_node_alias_count = o.same_node_alias_count;
 		closed_duplicate_count = o.closed_duplicate_count;
+		pass_through_prune_count = o.pass_through_prune_count;
+		edge_reject_reason_counts = o.edge_reject_reason_counts;
 
 		tileRouteFilter = tile_route_storage.empty() ? nullptr : &tile_route_storage;
 

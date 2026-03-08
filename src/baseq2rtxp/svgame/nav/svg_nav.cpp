@@ -213,6 +213,198 @@ const nav_inline_model_runtime_t *SVG_Nav_GetInlineModelRuntimeByIndex( const na
 }
 
 /**
+*    @brief	Convert a legacy/content flag mask into traversal-oriented feature bits.
+*    @param	layer_flags	Legacy/content flags stored on the layer.
+*    @return Traversal feature bits implied directly by the content flags.
+**/
+uint32_t SVG_Nav_BuildTraversalFeatureBitsFromLayerFlags( const uint32_t layer_flags ) {
+	/**
+	*    Start from an empty traversal feature mask.
+	**/
+	uint32_t traversal_bits = NAV_TRAVERSAL_FEATURE_NONE;
+
+	/**
+	*    Mirror the directly-encoded environmental semantics into traversal features.
+	**/
+	if ( ( layer_flags & NAV_FLAG_LADDER ) != 0 ) {
+		traversal_bits |= NAV_TRAVERSAL_FEATURE_LADDER;
+	}
+	if ( ( layer_flags & NAV_FLAG_WATER ) != 0 ) {
+		traversal_bits |= NAV_TRAVERSAL_FEATURE_WATER;
+	}
+	if ( ( layer_flags & NAV_FLAG_LAVA ) != 0 ) {
+		traversal_bits |= NAV_TRAVERSAL_FEATURE_LAVA;
+	}
+	if ( ( layer_flags & NAV_FLAG_SLIME ) != 0 ) {
+		traversal_bits |= NAV_TRAVERSAL_FEATURE_SLIME;
+	}
+
+	return traversal_bits;
+}
+
+/**
+*    @brief	Resolve the canonical world tile view for a node reference.
+*    @param	mesh	Navigation mesh owning the canonical tile storage.
+*    @param	node	Node reference whose tile should be resolved.
+*    @return	Pointer to the canonical tile, or nullptr when the node/tile is invalid.
+*    @note	This keeps hot-path callers from repeating tile-index bounds checks inline.
+**/
+const nav_tile_t *SVG_Nav_GetNodeTileView( const nav_mesh_t *mesh, const nav_node_ref_t &node ) {
+	/**
+	*	Sanity checks: require mesh storage and a valid canonical tile index.
+	**/
+	if ( !mesh || node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+		return nullptr;
+	}
+
+	return &mesh->world_tiles[ node.key.tile_index ];
+}
+
+/**
+*	@brief	Resolve the canonical XY cell view for a node reference.
+*	@param	mesh	Navigation mesh owning the canonical tile storage.
+*	@param	node	Node reference whose cell should be resolved.
+*	@return	Pointer to the canonical XY cell, or nullptr when the node/cell is invalid.
+*	@note	This composes `SVG_Nav_GetNodeTileView()` with the tile cell accessor so hot-path users can avoid duplicating both checks.
+**/
+const nav_xy_cell_t *SVG_Nav_GetNodeCellView( const nav_mesh_t *mesh, const nav_node_ref_t &node ) {
+	/**
+	*    Resolve the owning canonical tile before touching cell storage.
+	**/
+	const nav_tile_t *tile = SVG_Nav_GetNodeTileView( mesh, node );
+	if ( !tile ) {
+		return nullptr;
+	}
+
+	/**
+	*    Resolve the sparse cell array and validate the node's cell index.
+	**/
+	auto cellsView = SVG_Nav_Tile_GetCells( mesh, tile );
+	const nav_xy_cell_t *cellsPtr = cellsView.first;
+	const int32_t cellsCount = cellsView.second;
+	if ( !cellsPtr || node.key.cell_index < 0 || node.key.cell_index >= cellsCount ) {
+		return nullptr;
+	}
+
+	return &cellsPtr[ node.key.cell_index ];
+}
+
+/**
+*    @brief	Map an XY neighbor offset onto the persisted per-edge direction index.
+*    @param	cell_dx	Neighbor cell X offset.
+*    @param	cell_dy	Neighbor cell Y offset.
+*    @return Persisted edge-slot index, or -1 when the offset is not one of the 8 stored directions.
+**/
+static int32_t Nav_EdgeDirIndexForOffset( const int32_t cell_dx, const int32_t cell_dy ) {
+	/**
+	*    Persist only the immediate 8-direction XY neighborhood.
+	**/
+	if ( cell_dx == 1 && cell_dy == 0 ) return 0;
+	if ( cell_dx == -1 && cell_dy == 0 ) return 1;
+	if ( cell_dx == 0 && cell_dy == 1 ) return 2;
+	if ( cell_dx == 0 && cell_dy == -1 ) return 3;
+	if ( cell_dx == 1 && cell_dy == 1 ) return 4;
+	if ( cell_dx == 1 && cell_dy == -1 ) return 5;
+	if ( cell_dx == -1 && cell_dy == 1 ) return 6;
+	if ( cell_dx == -1 && cell_dy == -1 ) return 7;
+	return -1;
+}
+
+/**
+*    @brief	Resolve a canonical layer pointer from a node reference.
+*    @param	mesh	Navigation mesh.
+*    @param	node	Node reference to resolve.
+*    @return Pointer to the canonical layer or nullptr on failure.
+**/
+const nav_layer_t *SVG_Nav_GetNodeLayerView( const nav_mesh_t *mesh, const nav_node_ref_t &node ) {
+	/**
+    *    Resolve the owning canonical cell before touching layer storage.
+	**/
+	const nav_xy_cell_t *cell = SVG_Nav_GetNodeCellView( mesh, node );
+	if ( !cell ) {
+		return nullptr;
+	}
+
+	/**
+    *    Resolve the target layer through the cell's safe layer view.
+	**/
+	auto layersView = SVG_Nav_Cell_GetLayers( cell );
+	const nav_layer_t *layersPtr = layersView.first;
+	const int32_t layerCount = layersView.second;
+	if ( !layersPtr || node.key.layer_index < 0 || node.key.layer_index >= layerCount ) {
+		return nullptr;
+	}
+
+	return &layersPtr[ node.key.layer_index ];
+}
+
+/**
+*    @brief	Query traversal feature bits for a canonical node.
+*    @param	mesh	Navigation mesh.
+*    @param	node	Node reference to inspect.
+*    @return Traversal feature bits for the node, or `NAV_TRAVERSAL_FEATURE_NONE` on failure.
+**/
+uint32_t SVG_Nav_GetNodeTraversalFeatureBits( const nav_mesh_t *mesh, const nav_node_ref_t &node ) {
+	/**
+	*    Resolve the canonical layer before reading its traversal metadata.
+	**/
+	const nav_layer_t *layer = SVG_Nav_GetNodeLayerView( mesh, node );
+	return layer ? layer->traversal_feature_bits : NAV_TRAVERSAL_FEATURE_NONE;
+}
+
+/**
+*    @brief	Query explicit edge metadata for a canonical node and XY offset.
+*    @param	mesh	Navigation mesh.
+*    @param	node	Source node reference.
+*    @param	cell_dx	Neighbor cell X offset in `[-1, 1]`.
+*    @param	cell_dy	Neighbor cell Y offset in `[-1, 1]`.
+*    @return Explicit edge feature bits, or `NAV_EDGE_FEATURE_NONE` when no persisted edge slot applies.
+**/
+uint32_t SVG_Nav_GetEdgeFeatureBitsForOffset( const nav_mesh_t *mesh, const nav_node_ref_t &node, const int32_t cell_dx, const int32_t cell_dy ) {
+	/**
+	*    Resolve the persisted edge slot index for this XY neighbor offset.
+	**/
+	const int32_t edge_dir_index = Nav_EdgeDirIndexForOffset( cell_dx, cell_dy );
+	if ( edge_dir_index < 0 ) {
+		return NAV_EDGE_FEATURE_NONE;
+	}
+
+	/**
+	*    Resolve the canonical layer before reading the persisted edge metadata.
+	**/
+	const nav_layer_t *layer = SVG_Nav_GetNodeLayerView( mesh, node );
+	if ( !layer ) {
+		return NAV_EDGE_FEATURE_NONE;
+	}
+
+	/**
+	*    Return only explicitly persisted edge data.
+	**/
+	if ( ( layer->edge_valid_mask & ( 1u << edge_dir_index ) ) == 0 ) {
+		return NAV_EDGE_FEATURE_NONE;
+	}
+
+	return layer->edge_feature_bits[ edge_dir_index ];
+}
+
+/**
+*    @brief	Query coarse tile summary bits for the tile owning a canonical node.
+*    @param	mesh	Navigation mesh.
+*    @param	node	Node reference whose tile should be inspected.
+*    @return Tile summary bits, or `NAV_TILE_SUMMARY_NONE` on failure.
+**/
+uint32_t SVG_Nav_GetTileSummaryBitsForNode( const nav_mesh_t *mesh, const nav_node_ref_t &node ) {
+	/**
+	*    Validate the canonical tile index before reading tile-level metadata.
+	**/
+	if ( !mesh || node.key.tile_index < 0 || node.key.tile_index >= ( int32_t )mesh->world_tiles.size() ) {
+		return NAV_TILE_SUMMARY_NONE;
+	}
+
+	return mesh->world_tiles[ node.key.tile_index ].traversal_summary_bits | mesh->world_tiles[ node.key.tile_index ].edge_summary_bits;
+}
+
+/**
  *    @brief    Convert a caller-provided feet-origin into nav-center space.
  *    @note     Helper implementation for `SVG_Nav_ConvertFeetToCenter` declared in header.
  */
@@ -1762,20 +1954,37 @@ const bool SVG_Nav_QueryMovementDirection_Advance2D_Output3D( const nav_traversa
 
     Vector3 direction = QM_Vector3Subtract( path->points[ index ], current_origin );
 
-    // Clamp vertical component to avoid large up/down jumps.
-    if ( g_nav_mesh ) {
-		// Determine the effective step limit (policy overrides mesh defaults when present).
+   /**
+	*    Clamp the vertical component using separate rise and drop limits.
+	*        Upward steering should still respect the effective step limit, while downward steering
+	*        should align with the active drop policy so follow-side motion does not ignore a stricter cap.
+	**/
+	if ( g_nav_mesh ) {
+		// Determine the effective upward step limit (policy overrides mesh defaults when present).
 		double stepLimit = g_nav_mesh->max_step;
 		if ( policy && policy->max_step_height > 0.0 ) {
 			stepLimit = policy->max_step_height;
 		}
-        const double maxDz = stepLimit + g_nav_mesh->z_quant;
-        if ( direction[ 2 ] > maxDz ) {
-            direction[ 2 ] = maxDz;
-        } else if ( direction[ 2 ] < -maxDz ) {
-            direction[ 2 ] = -maxDz;
-        }
-    }
+
+		// Determine the effective downward drop cap using the same preference order as path rebuild safety.
+		double dropLimit = nav_max_drop_height_cap ? nav_max_drop_height_cap->value : 100.0f;
+		if ( policy ) {
+			if ( policy->max_drop_height_cap > 0.0 ) {
+				dropLimit = policy->max_drop_height_cap;
+			} else if ( policy->enable_max_drop_height_cap && policy->max_drop_height > 0.0 ) {
+				dropLimit = policy->max_drop_height;
+			}
+		}
+
+		// Keep a small quantization slack so waypoint directions remain stable on stairs and ramps.
+		const double maxRiseDz = stepLimit + g_nav_mesh->z_quant;
+		const double maxDropDz = std::max( dropLimit, g_nav_mesh->z_quant );
+		if ( direction[ 2 ] > maxRiseDz ) {
+			direction[ 2 ] = maxRiseDz;
+		} else if ( direction[ 2 ] < -maxDropDz ) {
+			direction[ 2 ] = -maxDropDz;
+		}
+	}
 
     const double length = ( double )QM_Vector3LengthDP( direction );
     if ( length <= std::numeric_limits<double>::epsilon() ) {

@@ -23,8 +23,10 @@
 
 #include <cstdint>
 
+//! File magic used to identify serialized navmesh cache files.
 static constexpr uint32_t NAV_MESH_SAVE_MAGIC = 0x56414E53; // "VANS"
-static constexpr uint32_t NAV_MESH_SAVE_VERSION = 2;
+//! Serialized navmesh format version. Bump when persisted tile/layer payload layout changes.
+static constexpr uint32_t NAV_MESH_SAVE_VERSION = 4;
 
 /**
 *	@brief	Write raw bytes to a (possibly gzipped) file.
@@ -148,6 +150,8 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 				nav_tile_t dummy = {};
 				Nav_WriteValue( f, dummy.tile_x );
 				Nav_WriteValue( f, dummy.tile_y );
+                Nav_WriteValue( f, dummy.traversal_summary_bits );
+				Nav_WriteValue( f, dummy.edge_summary_bits );
 				Nav_WriteValue( f, (int32_t)0 );
 				continue;
 			}
@@ -155,6 +159,8 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 			// Write tile coordinates.
 			Nav_WriteValue( f, tile->tile_x );
 			Nav_WriteValue( f, tile->tile_y );
+			Nav_WriteValue( f, tile->traversal_summary_bits );
+			Nav_WriteValue( f, tile->edge_summary_bits );
 
 			/**
 			*	Count populated cells so we only serialize active cells.
@@ -203,6 +209,8 @@ bool SVG_Nav_SaveVoxelMesh( const char *levelName ) {
 			// Write tile coordinates.
 			Nav_WriteValue( f, tile->tile_x );
 			Nav_WriteValue( f, tile->tile_y );
+			Nav_WriteValue( f, tile->traversal_summary_bits );
+			Nav_WriteValue( f, tile->edge_summary_bits );
 
 			/**
 			*	Count populated cells so we only serialize active cells.

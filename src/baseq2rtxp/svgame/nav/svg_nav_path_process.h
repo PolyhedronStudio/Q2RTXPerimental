@@ -66,6 +66,34 @@ struct svg_nav_path_policy_t {
 	bool enable_cluster_route_filter = true;
 
 	/**
+	*	Traversal policy controls derived from persisted edge and feature metadata.
+	**/
+	//! If true, forbid edges that explicitly enter water.
+	bool forbid_water = true;
+	//! If true, forbid edges that explicitly enter lava.
+	bool forbid_lava = true;
+	//! If true, forbid edges that explicitly enter slime.
+	bool forbid_slime = true;
+	//! If true, allow explicitly optional walk-off edges.
+	bool allow_optional_walk_off = false;
+	//! If true, allow explicitly forbidden walk-off edges.
+	bool allow_forbidden_walk_off = false;
+   //! If true, allow async A* to skip long-hop probes that can already be predicted as passed-through one-cell chains.
+	bool enable_pass_through_pruning = true;
+	//! If true, prefer ladders when they reach the same or a relatively close goal height more directly.
+	bool prefer_ladders = true;
+	//! Cost bonus applied to ladder-favoring transitions when ladder preference is active.
+	double ladder_preference_bias = 12.0;
+	//! Maximum goal-height slack within which ladder endpoints are considered meaningfully close to the target height.
+	double ladder_preferred_height_slack = 96.0;
+	//! If true, consult sparse dynamic occupancy during async neighbor expansion.
+	bool use_dynamic_occupancy = true;
+	//! If true, occupancy-marked cells remain hard blockers; otherwise they are converted into additional soft cost.
+	bool hard_block_dynamic_occupancy = false;
+	//! Additional scale applied to sparse occupancy soft costs when occupancy participation is enabled.
+	double dynamic_occupancy_soft_cost_scale = 1.0;
+
+	/**
 	*	For obstalce step handling.
 	**/
 	//! Minimal nnormal angle that will be stepped over.
@@ -122,11 +150,11 @@ struct svg_nav_path_policy_t {
 	//! Z distance in world units under which we apply the top/bottom preference bias.
 	//!
 	//! @note	Larger values make selection "stick" to the preferred layer more often in
-	//!		multi-layer cells (stairs / overlapping floors). Smaller values allow selection
-	//!		to follow the numeric closest-by-Z more aggressively.
+	//!			multi-layer cells (stairs / overlapping floors). Smaller values allow selection
+	//!			to follow the numeric closest-by-Z more aggressively.
 	//! @note	Default is tuned to be slightly above a typical stair riser so the selector
-	//!		remains stable on stairs while still allowing large Z deltas to select the
-	//!		correct floor.
+	//!			remains stable on stairs while still allowing large Z deltas to select the
+	//!			correct floor.
 	double layer_select_prefer_z_threshold = 16.0;
 };
 

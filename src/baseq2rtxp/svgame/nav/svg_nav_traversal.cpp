@@ -557,6 +557,51 @@ const bool Nav_CanTraverseStep_ExplicitBBox_NodeRefs( const nav_mesh_t *mesh, co
 
 	const int32_t delta_cell_x = end_cell_x - start_cell_x;
 	const int32_t delta_cell_y = end_cell_y - start_cell_y;
+ const int32_t edge_step_dx = ( delta_cell_x > 0 ) ? 1 : ( ( delta_cell_x < 0 ) ? -1 : 0 );
+	const int32_t edge_step_dy = ( delta_cell_y > 0 ) ? 1 : ( ( delta_cell_y < 0 ) ? -1 : 0 );
+	const uint32_t source_edge_bits = SVG_Nav_GetEdgeFeatureBitsForOffset( mesh, start_node, edge_step_dx, edge_step_dy );
+
+	/**
+	*    Apply persisted edge semantics before the more expensive segmented validator runs.
+	**/
+	if ( source_edge_bits != NAV_EDGE_FEATURE_NONE ) {
+		if ( policy && policy->forbid_water && ( source_edge_bits & NAV_EDGE_FEATURE_ENTERS_WATER ) != 0 ) {
+			if ( out_reason ) {
+				*out_reason = nav_edge_reject_reason_t::Other;
+			}
+			return false;
+		}
+		if ( policy && policy->forbid_lava && ( source_edge_bits & NAV_EDGE_FEATURE_ENTERS_LAVA ) != 0 ) {
+			if ( out_reason ) {
+				*out_reason = nav_edge_reject_reason_t::Other;
+			}
+			return false;
+		}
+		if ( policy && policy->forbid_slime && ( source_edge_bits & NAV_EDGE_FEATURE_ENTERS_SLIME ) != 0 ) {
+			if ( out_reason ) {
+				*out_reason = nav_edge_reject_reason_t::Other;
+			}
+			return false;
+		}
+		if ( policy && !policy->allow_optional_walk_off && ( source_edge_bits & NAV_EDGE_FEATURE_OPTIONAL_WALK_OFF ) != 0 ) {
+			if ( out_reason ) {
+				*out_reason = nav_edge_reject_reason_t::Other;
+			}
+			return false;
+		}
+		if ( policy && !policy->allow_forbidden_walk_off && ( source_edge_bits & NAV_EDGE_FEATURE_FORBIDDEN_WALK_OFF ) != 0 ) {
+			if ( out_reason ) {
+				*out_reason = nav_edge_reject_reason_t::Other;
+			}
+			return false;
+		}
+		if ( ( source_edge_bits & NAV_EDGE_FEATURE_HARD_WALL_BLOCKED ) != 0 && ( source_edge_bits & NAV_EDGE_FEATURE_PASSABLE ) == 0 ) {
+			if ( out_reason ) {
+				*out_reason = nav_edge_reject_reason_t::Other;
+			}
+			return false;
+		}
+	}
 	// Determine how many segments we need for vertical climb and for multi-cell ramps.
 	const int32_t stepCountVertical = ( requiredUp > stepSize && stepSize > 0.0 )
 		? ( int32_t )std::ceil( requiredUp / stepSize )
@@ -1040,8 +1085,8 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 		const uint64_t diagCooldownMs = 200; // min interval between verbose prints
 		if ( nowMs - s_last_navpath_diag_ms >= diagCooldownMs ) {
 			s_last_navpath_diag_ms = nowMs;
-			gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d, stagnation=%d\n",
-				state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
+         gi.dprintf( "[DEBUG][NavPath][Diag] A* summary: neighbor_tries=%d, no_node=%d, edge_reject=%d, tile_filter_reject=%d, pass_through_prune=%d, stagnation=%d\n",
+				state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.pass_through_prune_count, state.stagnation_count );
 			gi.dprintf( "[DEBUG][NavPath][Diag] A* inputs: max_step=%.1f max_drop=%.1f cell_size_xy=%.1f z_quant=%.1f\n",
 				nav_max_step ? nav_max_step->value : -1.0f,
 				nav_max_drop_height_cap ? nav_max_drop_height_cap->value : -1.0f,
@@ -1097,8 +1142,8 @@ static bool Nav_AStarSearch( const nav_mesh_t *mesh, const nav_node_ref_t &start
 	// and candidate rejection counts. This log is gated by the global async stats
 	// cvar to avoid overwhelming release logs.
 	if ( Nav_PathDiagEnabled() ) {
-		gi.dprintf( "[NavPath][Diag] neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d stagnation=%d\n",
-			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.stagnation_count );
+        gi.dprintf( "[NavPath][Diag] neighbor_tries=%d no_node=%d edge_reject=%d tile_filter_reject=%d pass_through_prune=%d stagnation=%d\n",
+			state.neighbor_try_count, state.no_node_count, state.edge_reject_count, state.tile_filter_reject_count, state.pass_through_prune_count, state.stagnation_count );
 	   // Emit per-reason counters to show exactly which rejection paths dominated.
 		Nav_Debug_LogEdgeRejectReasonCounters( "[NavPath][Diag]", state );
 	}
